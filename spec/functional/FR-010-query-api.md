@@ -1,0 +1,42 @@
+---
+id: FR-010
+title: "Query API Surface (section, sections, tables, lists, diagrams, search)"
+artifact_type: FR
+relationships:
+  - target: "ix://agent-ix/quire-rs/spec/usecase/US-002"
+    type: "implements"
+    cardinality: "1:1"
+  - target: "ix://agent-ix/quire-rs/spec/stakeholder/StR-003"
+    type: "implements"
+    cardinality: "1:1"
+---
+
+## Behavior
+
+The crate SHALL expose the following query functions in module `quire_rs::query`:
+
+```rust
+pub fn section<'d>(doc: &'d QuireDocument, heading: &str) -> Option<&'d QuireSection>;
+pub fn sections<'d>(doc: &'d QuireDocument, level: Option<u8>) -> Vec<&'d QuireSection>;
+pub fn parse_table(content: &str) -> Option<TableResult>;
+pub fn parse_tables(content: &str) -> Vec<TableResult>;
+pub fn table_from_section<'d>(doc: &'d QuireDocument, heading: &str) -> Option<TableResult>;
+pub fn parse_bullet_list(content: &str, pattern: Option<ListPattern>) -> Vec<ListItem>;
+pub fn extract_diagrams<'d>(doc: &'d QuireDocument, language: Option<&str>) -> Vec<DiagramBlock>;
+pub fn search<'d>(doc: &'d QuireDocument, query: &str) -> Vec<SearchResult<'d>>;
+```
+
+Semantics match `agent-ix/quire/src/core/query.ts` exactly:
+
+- `section()` returns the first section by exact heading match (case-sensitive).
+- `sections()` flattens the tree; optional `level` filters to that heading level.
+- `parse_table()` accepts pipe-delimited markdown table syntax; returns `None` if no table found at the top of `content`.
+- `parse_bullet_list()` recognizes `- `, `* `, `+ ` bullets; the optional `pattern` parameter (`BoldDescription`, `BoldColon`, `Plain`) refines how the bullet text is split into `title` and `description`.
+- `extract_diagrams()` returns every fenced code block; optional `language` filters by language tag (case-sensitive).
+- `search()` returns substring matches across heading and content, with section ID and byte offsets.
+
+## Acceptance
+
+- **FR-010-AC-1**: Each function signature compiles and is `pub` from `quire_rs::query`.
+- **FR-010-AC-2**: For every test fixture in `~/dev/quire/tests/` that exercises these functions, the Rust counterpart returns equivalent results.
+- **FR-010-AC-3**: `section()` is `O(n)` where `n` is the total section count; `extract_diagrams()` is `O(lines)`; no quadratic behavior in any function.

@@ -1,0 +1,32 @@
+---
+id: NFR-002
+title: "Parse Latency: 5 MB Document Under 500 ms"
+artifact_type: NFR
+relationships:
+  - target: "ix://agent-ix/quire-rs/spec/usecase/US-002"
+    type: "implements"
+    cardinality: "1:1"
+  - target: "ix://agent-ix/quire-rs/spec/functional/FR-005"
+    type: "requires"
+    cardinality: "1:1"
+---
+
+## Statement
+
+`quire_rs::parse_document(markdown)` SHALL parse a 5 MB markdown document in under **500 ms median** on a baseline Apple Silicon M-class CPU running a release build.
+
+For smaller documents the target is sublinear in input size up to the headings count — empirically O(n) in lines + O(n) in heading positions, no quadratic component.
+
+## Rationale
+
+Bulk extraction across the `ix-spec-objects` corpus may parse thousands of documents in a single batch. A 5 MB ceiling captures the largest realistic spec/document size; 500 ms is the upper bound at which interactive paths (editor first-paint, live preview) remain responsive.
+
+## Acceptance Criteria
+
+- **NFR-002-AC-1**: A criterion benchmark `bench_parse_5mb` loads a synthetic 5 MB document (real markdown content with ~5000 headings) and measures `parse_document`; median below 500 ms.
+- **NFR-002-AC-2**: A regression test compares against a stored baseline; >10% slowdown fails CI.
+- **NFR-002-AC-3**: A correctness test on the same 5 MB document asserts the document round-trips: reconstructing the body from sections + preamble reproduces the input byte-for-byte (verifies FR-008 at scale).
+
+## Verification
+
+- Criterion benches in `benches/parse.rs` execute on every PR with a stored baseline.

@@ -1,0 +1,32 @@
+---
+id: FR-009
+title: "Stable Slug-Line ID Format for QuireSection"
+artifact_type: FR
+relationships:
+  - target: "ix://agent-ix/quire-rs/spec/usecase/US-002"
+    type: "implements"
+    cardinality: "1:1"
+  - target: "ix://agent-ix/quire-rs/spec/stakeholder/StR-003"
+    type: "implements"
+    cardinality: "1:1"
+---
+
+## Behavior
+
+`QuireSection.id` SHALL be `<slug>-L<line>` where:
+
+1. `slug` is derived from the heading text by:
+   a. Lowercasing.
+   b. Replacing every run of one-or-more non-alphanumeric characters with a single `-`.
+   c. Stripping leading and trailing `-`.
+2. `line` is the 0-based line index of the heading line within the body (NOT within the full markdown input; the frontmatter, if present, is stripped first).
+
+Specifically: heading `"2.1 In Scope"` at body line index 6 produces id `"2-1-in-scope-L6"`. This matches the TS `slug + "-L" + startLine` rule and the Python sibling.
+
+## Acceptance
+
+- **FR-009-AC-1**: Heading `"Hello, World!"` at line 0 → id `"hello-world-L0"`.
+- **FR-009-AC-2**: Heading `"2.1 In Scope"` at line 6 → id `"2-1-in-scope-L6"`.
+- **FR-009-AC-3**: Heading `"   leading spaces   "` at line 3 → id `"leading-spaces-L3"`.
+- **FR-009-AC-4**: With a frontmatter block of N lines, a heading on the first body line has line index 0 — frontmatter is NOT counted.
+- **FR-009-AC-5**: A test transliterated from `~/dev/quire-py/tests/` covering each variant passes.
