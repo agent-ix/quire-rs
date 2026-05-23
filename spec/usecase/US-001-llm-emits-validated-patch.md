@@ -1,6 +1,6 @@
 ---
 id: US-001
-title: "LLM Emits a Validated Patch That Renders an FR Artifact"
+title: "LLM Emits a Validated Patch That Renders an Archetype"
 artifact_type: US
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/stakeholder/StR-001"
@@ -13,14 +13,17 @@ relationships:
 
 ## Story
 
-As an **LLM agent producing spec artifacts**, I want the FR block schema exposed to me as a JSON Schema (via `schemars`), so that my tool definition rejects structurally invalid patches before I emit them, and a server-side `quire-rs::render` accepts my patch and produces a canonical FR markdown file byte-identical to what the Python Jinja2 renderer would have produced.
+As an **LLM agent producing canonical artifacts**, I want the archetype's JSON Schema surfaced to my tool definition (from the schema file that Filament authored and ix-cli synced to disk), so that my tool input is constrained at the call layer. A server-side `quire-rs::render(archetype, my_data)` accepts my emitted value and produces canonical markdown byte-identical to what the Python Jinja2 reference would have produced.
 
 ## Context
 
-Today LLMs proposing FR/NFR/StR/etc. artifacts emit free-form markdown that downstream code has to repair. With schema-derived tool definitions, the model is constrained at the tool-call layer: it can only emit a `data` shape that `serde` will deserialize and `garde` will validate. When the patch fails, the field-keyed error goes back to the model and it retries the same tool call with the offending field corrected.
+The JSON Schema for each archetype is **data, not derived from Rust types** — it lives on disk under `~/.ix/schemas/<module>/schemas/<name>-frontmatter.schema.json`. The engine surfaces it via `quire-rs::schema_for(registry, "fr")`. The agent's tool-call layer uses that schema as the tool's input contract.
+
+When the model emits a structurally invalid patch (or one violating field constraints introduced by the merge), `render` returns a typed `QuireError::SchemaViolation` with the offending field path. The model retries with the field corrected.
 
 ## Acceptance
 
-- **US-001-AC-1**: A test exercises `schemars::schema_for!(FrData)` and asserts the generated JSON Schema contains all required fields, type constraints, and `pattern` constraints (e.g. `^[A-Z]{2,4}-[0-9]+$` for the id field).
-- **US-001-AC-2**: A test feeds a structurally-valid `FrData` instance through `quire-rs::render` and asserts byte-equality with the Python Jinja2 reference output.
-- **US-001-AC-3**: A test feeds a structurally-invalid patch (e.g. `id: "lowercase"`) and asserts the returned error names the offending field path and the expected pattern.
+- **US-001-AC-1**: A test calls `schema_for(registry, "fr")` and asserts the returned `Value` has `required: ["id", "title", "artifact_type"]`, `id.pattern == "^[A-Z]{2,4}-[0-9]+$"`, `artifact_type.const == "FR"`.
+- **US-001-AC-2**: A test deserializes that schema as the input contract for a mock LLM tool, generates a valid value, calls `render(compiled_archetype, value)`, and asserts byte-equality with the Python Jinja2 reference output.
+- **US-001-AC-3**: A test feeds a structurally invalid value (e.g. `id: "lowercase"`) and asserts the returned error names the offending field path and the violated constraint.
+- **US-001-AC-4**: A test confirms the schema returned by `schema_for(...)` is byte-equal (modulo whitespace) to the original on-disk schema file — the engine surfaces it unmodified.

@@ -58,14 +58,14 @@ This document is the **top-level requirements artifact** for the repository.
 
 ### 2.1 In Scope
 
-This specification governs:
+This specification governs a **generic, archetype-agnostic engine** that processes data archetypes loaded from the local filesystem. The engine itself knows nothing about specific archetypes (`FR`, `NFR`, `ADR`, etc.) — those are data shipped by Filament (or any other authoring source) and synced to disk by ix-cli (or any other tool).
 
 **Render side:**
-- Schema-driven validation of typed block data (`serde` + `garde`)
-- JSON Schema derivation via `schemars` for LLM tool definitions
-- MiniJinja template rendering with `UndefinedBehavior::Strict`
-- Per-block-type schema + template dispatch
-- Byte-for-byte parity with the existing Python Jinja2 renderer for ten ISO + App archetypes
+- Load archetype modules from the local filesystem at well-known search paths (FR-013)
+- Compile each archetype's JSON Schema and MiniJinja template once at load time
+- Validate input `serde_json::Value` data against the compiled schema
+- Render via MiniJinja with `UndefinedBehavior::Strict`
+- Byte-for-byte parity with the existing Python Jinja2 reference renderer across whatever archetype corpus is loaded (currently 17 archetypes: 8 ISO + 2 App + 7 Process)
 - Markdown is the canonical output format
 
 **Parse side:**
@@ -75,23 +75,33 @@ This specification governs:
 - Fenced-code-block-aware heading parsing
 - Byte-exact content slicing (no re-serialization)
 - Stable `<slug>-L<line>` ID generation
-- Body-extraction DSL evaluator compatible with the `frontmatter_field` / `section_body` / `code_block` schema used by `spec-objects-architecture` and `ix-spec-objects`
+
+**Object-extraction side:**
+- Body-extraction DSL evaluator supporting all six Locator primitives in current `filament-parser-lib` use: `frontmatter_field`, `section_body`, `code_block`, `table_row`, `list_item`, `heading`
+- Single-yield (`match`) and multi-yield (`iterate_over` + `per_match`) DSL patterns
+- Declarative `emit_edges` evaluation
+- Relationship harvesting from frontmatter sugar fields + structured `relationships:` block with `(source, type, target)` deduplication
+- Secondary / fallback locators per field for author-variant tolerance
 
 **Cross-cutting:**
 - Safety scaffolding inherited from `agent-ix/rust-lib-cookiecutter` (clippy MSRV, deny.toml, `// SAFETY:` enforcement)
-- Public Rust API stable across both rendering and parsing surfaces
+- Public Rust API stable across render, parse, and extract surfaces
+- Engine is **offline by default** — works against the local filesystem with zero network dependencies
 
 ### 2.2 Out of Scope
 
 This specification does not govern:
-- Quire Layer 3 (React component bindings) — TypeScript-only
-- Quire Layer 4 (cross-document graph queries) — separate concern
-- HTML output via `comrak` — markdown is the canonical output; HTML post-processing is a future variant
-- CRDT or OT live-editing semantics
-- Schema-driven template generation (schemas validate; templates present; neither generates the other)
-- Hardening suites (kani / loom / shuttle / sim-spire) — opt-in via future cookiecutter variant
-- Real-time multi-user editing
-- Cookiecutter integration for `spec-artifacts-*` repos themselves (this crate is consumed by them, not the other way around)
+
+- **Sync from Filament to disk.** The local schema directory (e.g. `~/.ix/schemas/`) is populated by external tools — `ix-cli` is the canonical syncer (handles Filament auth + transfer). `quire-rs` only reads from disk; it never calls Filament directly.
+- **Authoring tooling.** Schema files, templates, and manifests are authored elsewhere (in Filament, by hand, by another tool). `quire-rs` does not write archetype data.
+- Quire Layer 3 (React component bindings) — TypeScript-only.
+- Quire Layer 4 (cross-document graph queries) — separate concern.
+- HTML output via `comrak` — markdown is the canonical output; HTML post-processing is a future variant.
+- CRDT or OT live-editing semantics.
+- Schema-driven template generation (schemas validate; templates present; neither generates the other).
+- Hardening suites (kani / loom / shuttle / sim-spire) — opt-in via future cookiecutter variant.
+- Real-time multi-user editing.
+- Generating Rust types from JSON Schemas. Downstream Rust consumers that want typed bindings author them by hand or use `schemars` themselves — `quire-rs` does not derive types.
 
 ---
 
@@ -99,18 +109,51 @@ This specification does not govern:
 
 ### 3.1 System Description
 
-`quire-rs` is a single Rust crate that exposes two complementary APIs in one dependency:
+`quire-rs` is a single Rust crate that exposes three complementary APIs in one dependency:
 
-1. A **renderer** that takes (block type, validated typed data) and emits canonical markdown using a pre-loaded MiniJinja environment with strict undefined behavior.
+1. A **renderer** that, given a loaded archetype (compiled schema + compiled template) and a `serde_json::Value`, validates the data and emits canonical markdown via a pre-loaded MiniJinja environment with strict undefined behavior.
 2. A **parser** that takes raw markdown and produces a `QuireDocument` heading tree with O(1)-lookup query helpers.
+3. An **extractor** that, given a parsed `QuireDocument` and a `body_extraction` DSL, returns typed extraction records + harvested relationship edges.
 
-The two halves share a domain (`agent-ix` spec artifacts and object definitions) but execute independently — the parser does not invoke the renderer, and the renderer does not invoke the parser. They meet at the canonical markdown surface: a renderer output is a valid parser input.
+The three halves share a domain (the agent-ix knowledge ecosystem) but execute independently — the parser does not invoke the renderer, the renderer does not invoke the parser. They meet at the canonical markdown surface: a renderer output is a valid parser input.
 
-The crate is the Rust home for both responsibilities so that downstream consumers (Filament editor stack, spec-artifacts pipelines, future CLI tools) get a single binary dependency rather than coordinating TypeScript and Python toolchains.
+**The engine knows nothing about specific archetypes.** `FR`, `NFR`, `ADR`, `Plan`, `domain`, `entity`, etc. are not Rust types compiled into `quire-rs` — they are data, authored as `(manifest.yaml, schemas/*.json, templates/*.j2)` triples, stored in Filament (or any other source-of-record), synced to the local filesystem by an external tool (`ix-cli` is the canonical syncer), and loaded into a `Registry` at engine startup. This decoupling means: (a) adding a new archetype requires no code change to `quire-rs`; (b) the engine has zero runtime dependency on Filament or any network service; (c) hand-authored or test-fixture archetype sets are first-class.
 
-### 3.2 Architecture
+The crate is the Rust home for these responsibilities so that downstream consumers (the Filament editor stack via FFI, spec pipelines, CLI tools, batch extractors) get one performant binary dependency rather than coordinating TypeScript and Python toolchains.
 
-The layered architecture for the **render side** is taken from the design described in `INPUT.md`:
+### 3.2 Architecture (data flow)
+
+```
+┌──────────────┐
+│   Filament   │   knowledge platform — authoritative archetype store
+└──────┬───────┘
+       │ (authenticated API)
+       ▼
+┌──────────────┐
+│   ix-cli     │   auth + sync — pulls archetype modules to disk
+└──────┬───────┘
+       │ (writes files)
+       ▼
+┌──────────────┐
+│ ~/.ix/schemas│   filesystem contract — manifest.yaml + schemas/ + templates/
+│  (or IX_SCHEMA_PATH dirs)         per module                                   │
+└──────┬───────┘
+       │ (reads at load time)
+       ▼
+┌──────────────┐
+│   quire-rs   │   generic engine — Registry of CompiledArchetype values
+└──────────────┘
+       │
+       └──> render(archetype, data) → markdown
+       └──> parse_document(md) → QuireDocument
+       └──> extract(doc, dsl) → ExtractionResult
+```
+
+Sync from Filament to disk is **explicitly outside `quire-rs`'s concern** (§2.2). The engine is a filesystem consumer.
+
+### 3.3 Layered Architecture (per side)
+
+The layered architecture for the **render side** is taken from the design described in `INPUT.md`, with the schema and template layers now sourced from filesystem-loaded data rather than compiled Rust types:
 
 ```
 ┌─────────────────────────────────────────────────┐
@@ -142,7 +185,7 @@ The **parse side** is a single-pass pipeline:
 
 Each layer has one job and a narrow interface to the next. The parser does not validate; the renderer does not parse.
 
-### 3.3 Intended Users
+### 3.4 Intended Users
 
 - **Filament document editor** — needs schema-validated edits and re-render on patch
 - **`spec-artifacts-*` Python repos** — eventually call `quire-rs` via Python bindings or subprocess for parity-rendered artifacts
@@ -258,44 +301,63 @@ Functional requirements SHALL NOT:
 
 ---
 
-## 8. Block / Archetype Model
+## 8. Archetype Model
 
-### 8.1 Block Semantics
+### 8.1 Archetypes Are Data
 
-A **block** is an addressable, schema-validated unit of typed data renderable to canonical markdown. Each block has:
+An **archetype** is the named pairing of a JSON Schema document and a MiniJinja template that together describe one renderable kind (e.g. `FR`, `NFR`, `ADR`, `Plan`). Archetypes are authoring artifacts — they live as files on disk, version-controlled, hand-editable or agent-editable, NOT compiled into the engine.
 
-- A stable string `id`
-- A `type` discriminator (e.g. `fr`, `nfr`, `callout`)
-- A `schema_version` for migration
-- A typed `data` payload whose shape is determined by `type`
+A `quire-rs` Registry knows an archetype by:
 
-The render side treats the block list as canonical; rendered markdown is a derived cache, never the source of truth.
+- **Name** (e.g. `"fr"`) — bare string identifier from the module manifest
+- **Module provenance** — which module the archetype was loaded from
+- **Compiled JSON Schema validator** — built once at load time from the on-disk schema document
+- **Pre-parsed MiniJinja template** — registered with the long-lived strict environment at load time
+- **Manifest metadata** — `required_sections`, version, etc.
 
-### 8.2 The Schema/Template Pair
+The Registry is populated by FR-013 (filesystem loader) and FR-014 (multi-module activation). No archetype names are hard-coded in Rust source.
 
-Each archetype is defined by two parallel artifacts:
+### 8.2 The Schema/Template Pair (on disk)
 
-- A **schema** — a Rust struct annotated with `serde` (deserialization), `garde` (field/cross-field validators), and `schemars` (JSON Schema derivation for LLM tools)
-- A **template** — a MiniJinja `.md.j2` file that consumes the validated typed value
+Each archetype is two files under a module root:
 
-They share a name and field references but neither generates the other. Their contract is the validated data handoff.
+```
+<module-root>/
+├── manifest.yaml                          # declares the archetype
+├── schemas/<name>-frontmatter.schema.json # JSON Schema draft 2020-12
+└── templates/<name>.md.j2                 # MiniJinja template
+```
 
-### 8.3 Archetypes (v1 parity targets)
+The manifest entry references both by relative path:
 
-The renderer SHALL produce byte-identical markdown (modulo explicitly documented whitespace normalizations) for the following archetypes, given the same typed input as the existing Python Jinja2 reference:
+```yaml
+- name: fr
+  template_ref: templates/fr.md.j2
+  frontmatter_schema_ref: schemas/fr-frontmatter.schema.json
+  required_sections: [Description, Specification, Acceptance Criteria, Dependencies]
+```
 
-| Source repo | Archetype | Schema | Template |
-|---|---|---|---|
-| spec-artifacts-iso | `FR` | `fr-frontmatter.schema.json` | `fr.md.j2` |
-| spec-artifacts-iso | `NFR` | `nfr-frontmatter.schema.json` | `nfr.md.j2` |
-| spec-artifacts-iso | `StR` | `str-frontmatter.schema.json` | `str.md.j2` |
-| spec-artifacts-iso | `US` | `us-frontmatter.schema.json` | `us.md.j2` |
-| spec-artifacts-iso | `IT` | `it-frontmatter.schema.json` | `it.md.j2` |
-| spec-artifacts-iso | `TC` | `tc-frontmatter.schema.json` | `tc.md.j2` |
-| spec-artifacts-iso | `AC` | `ac-frontmatter.schema.json` | `ac.md.j2` |
-| spec-artifacts-iso | `CON` | `con-frontmatter.schema.json` | `con.md.j2` |
-| spec-artifacts-app | `ApplicationSpec` | `applicationspec-frontmatter.schema.json` | `applicationspec.md.j2` |
-| spec-artifacts-app | `MasterRequirements` | `masterrequirements-frontmatter.schema.json` | `masterrequirements.md.j2` |
+The schema and template share a name and field references, but neither generates the other. Their contract is the validated `serde_json::Value` handoff at render time.
+
+### 8.3 v1 Baseline Corpus (informational)
+
+At spec authoring time the local filesystem-synced corpus contains **17 archetypes** across three modules:
+
+| Module | Count | Archetype names |
+|---|---|---|
+| `spec-artifacts-iso` | 8 | FR, NFR, StR, US, IT, TC, AC, CON |
+| `spec-artifacts-app` | 2 | ApplicationSpec, MasterRequirements |
+| `spec-artifacts-process` | 7 | ADR, Plan, Task, Review, Finding, TestMatrix, Standard |
+
+This list is **informational, not normative.** The Registry contents are whatever the filesystem holds at load time. Adding a new archetype is a sync operation (new files in `~/.ix/schemas/`), not a code change.
+
+The parity suite (FR-012) enumerates archetypes from `tests/render_parity/corpus.yaml` and runs against every fixture pair on disk — that file is the byte-parity source of truth, not this table.
+
+### 8.4 Object Archetypes vs. Artifact Archetypes
+
+The same `manifest.yaml` mechanism that declares **artifact archetypes** (renderable kinds like FR/NFR) also declares **object archetypes** (extractable kinds with `body_extraction` DSL — e.g. `domain`, `entity`, `permission`). Object archetypes do not render; they extract.
+
+The Registry tracks both kinds. Render operations target artifact archetypes; extract operations target object archetypes. The engine raises a typed error when the kinds are mismatched (e.g. asking to render an object archetype).
 
 ---
 

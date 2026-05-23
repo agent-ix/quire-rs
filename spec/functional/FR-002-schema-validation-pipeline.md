@@ -1,6 +1,6 @@
 ---
 id: FR-002
-title: "Schema Validation Pipeline: Merge-Then-Validate Semantics"
+title: "Schema Validation Pipeline: JSON Merge → Compiled Validator → Render"
 artifact_type: FR
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/usecase/US-001"
@@ -13,16 +13,30 @@ relationships:
 
 ## Behavior
 
-When `quire_rs::apply_patch(current: TypedBlock, patch: serde_json::Value) -> Result<TypedBlock, QuireError>` merges a partial patch onto a current block:
+`quire-rs` SHALL expose:
 
-1. The patch is merged into the current block's `data` using deep JSON merge semantics — patch wins per-key; nested objects merge recursively; arrays are replaced wholesale.
-2. The **merged result** is then re-validated against the schema — never the patch in isolation. Cross-field invariants depend on the full value; validating only the patch would miss violations introduced by the merge.
-3. Successful validation returns the typed `TypedBlock` with the new data. Failure returns `QuireError::SchemaViolation` referencing the merged shape.
+```rust
+pub fn apply_patch(
+    archetype: &CompiledArchetype,
+    current: &serde_json::Value,
+    patch: &serde_json::Value,
+) -> Result<serde_json::Value, QuireError>;
+```
 
-Patches MAY add new fields to optional objects. Patches MAY NOT add fields the schema disallows (`additionalProperties: false` for nested objects) — those raise validation errors.
+The function operates on JSON values directly (`serde_json::Value`); it does NOT require typed Rust structs per archetype. Behavior:
+
+1. **Merge** `patch` onto `current` using deep JSON merge semantics: patch wins per-key; nested objects merge recursively; arrays are replaced wholesale. Merge is a pure function over JSON values.
+2. **Validate** the *merged result* — never the patch in isolation — against the archetype's pre-compiled JSON Schema validator. Cross-field invariants and `required` constraints depend on the full merged shape.
+3. On success, return the merged-and-validated `Value`. On failure, return `QuireError::SchemaViolation` with the merged-shape field path and the violating constraint.
+
+Patches MAY add new fields to objects whose schema allows them. Patches MAY NOT introduce fields the schema disallows (`additionalProperties: false`); those raise `SchemaViolation`.
+
+The JSON Schema validator implementation uses a high-performance pre-compiled validator (e.g. the `jsonschema` crate's `JSONSchema::compile()` once, then `validate()` per call). Compilation happens at archetype load time (FR-013), not per `apply_patch` call.
 
 ## Acceptance
 
-- **FR-002-AC-1**: Given an `FrData` with `relationships: [{target, type, cardinality}]` and a patch updating only `relationships[0].cardinality`, the merged-validated result has all three fields preserved.
-- **FR-002-AC-2**: Given a current `FrData` with `title: "valid"` and a patch `{ title: "" }`, the merged-validated result returns `QuireError::SchemaViolation { field: "data.title", message: "title must be at least 1 character" }` — caught because the merge made the field invalid even though the patch alone has the field set.
-- **FR-002-AC-3**: A patch that introduces an unknown key on a relationship object (where `additionalProperties: false`) raises a validation error naming the unknown key.
+- **FR-002-AC-1**: Given a `Value` containing `{ "title": "old", "body": "content" }` and a patch `{ "title": "new" }`, the merged-validated result is `{ "title": "new", "body": "content" }` — array-and-object merge semantics preserve siblings.
+- **FR-002-AC-2**: Given a current with `title: "valid"` and a patch `{ "title": "" }` against a schema requiring `title` `minLength: 1`, the merged-validated call returns `SchemaViolation` with field path `title` — caught because the merge produced an invalid `title`, even though the patch alone has the field set.
+- **FR-002-AC-3**: A patch introducing an unknown key on an object where the schema sets `additionalProperties: false` raises `SchemaViolation` naming the unknown key.
+- **FR-002-AC-4**: A proptest fuzzes patches across all archetypes in the test corpus and confirms `apply_patch` returns a valid `Value` (per schema) or a typed error — never a panic.
+- **FR-002-AC-5**: Per-call cost of `apply_patch` (excluding schema-compile, which is amortized at load) is dominated by JSON merge and validation; criterion bench shows median below 100 µs for a typical (~4 KB) artifact.
