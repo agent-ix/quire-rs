@@ -1,0 +1,21 @@
+[package]
+name = "quire-rs"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+description = "High-performance Rust templating + parsing engine for the Filament/Quire ecosystem."
+authors = ["Peter Krenesky <kreneskyp@gmail.com>"]
+license = "MIT"
+repository = "https://github.com/agent-ix/quire-rs"
+
+[lib]
+name = "quire_rs"
+path = "src/lib.rs"
+
+[dependencies]
+
+[dev-dependencies]
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
