@@ -24,3 +24,9 @@ pub mod validate;
 // Public re-exports for the parser surface (FR-005 + FR-006/007/008/009).
 pub use ast::{QuireDocument, QuireSection};
 pub use parser::{extract_frontmatter, parse_document, FrontmatterResult, Heading};
+// Query API (FR-010).
+pub use query::{
+    extract_diagrams, parse_bullet_list, parse_table, parse_tables, search, section, sections,
+    table_from_section, DiagramBlock, ListItem, ListPattern, SearchMatch, SearchResult,
+    TableResult,
+};

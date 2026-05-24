@@ -21,6 +21,10 @@ serde_json = "^1"
 serde_yaml = "^0.9"
 indexmap = "^2"
 thiserror = "^2"
+# Regex driver for the Query API (FR-010). Patterns are author-side
+# (section numbers, bullet shapes, fence info strings) so this is on
+# the Query/extract path, not the hot render path.
+regex = "^1"
 # Placeholder validator crate; Task 026 ADR will revisit with bench data.
 # `default-features = false` to drop the `resolve-http`/`reqwest`/`cli` defaults
 # — quire-rs is filesystem-only (StR-001, FR-013, hard rule: no network deps).
