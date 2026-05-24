@@ -201,6 +201,19 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-340 | Public enums are #[non_exhaustive] | Compile | P0 | NFR-010-AC-2 | 🚧 |
 | TC-341 | CHANGELOG.md exists with release entries | Static | P1 | NFR-010-AC-3 | 🚧 |
 | TC-342 | cargo-semver-checks against previous tag reports no unexpected breaks | Static | P1 | NFR-010-AC-4 | 🚧 |
+| TC-350 | All 6 fuzz targets compile and run cleanly for 60s on baseline | Integration | P0 | NFR-011-AC-1, NFR-011-AC-2 | 🚧 |
+| TC-351 | .github/workflows/fuzz.yml runs all targets weekly | Static | P0 | NFR-011-AC-3 | 🚧 |
+| TC-352 | Discovered crash reproducer committed under fuzz/corpus + regression test | Integration | P1 | NFR-011-AC-4 | 🚧 |
+| TC-360 | miri CI job runs cargo +nightly miri test --lib on schedule + tag | Static | P0 | NFR-012-AC-1 | 🚧 |
+| TC-361 | miri job completes within 30 minutes | Integration | P0 | NFR-012-AC-3 | 🚧 |
+| TC-362 | miri-flagged UB recorded as P0 issue | Process | P0 | NFR-012-AC-4 | 🚧 |
+| TC-370 | cargo-mutants config declares parser/extract/edges target paths | Static | P0 | NFR-013-AC-1 | 🚧 |
+| TC-371 | CI workflow runs cargo-mutants weekly + workflow_dispatch | Static | P0 | NFR-013-AC-2 | 🚧 |
+| TC-372 | mutants report uploaded as CI artifact | Static | P1 | NFR-013-AC-3 | 🚧 |
+| TC-373 | mutants_baseline.txt tracks accepted survivors with rationale | Static | P1 | NFR-013-AC-4 | 🚧 |
+| TC-380 | cargo-audit runs on PR + push + daily schedule | Static | P0 | NFR-014-AC-1 | 🚧 |
+| TC-381 | Ignored advisory has one-line rationale in deny.toml | Static | P0 | NFR-014-AC-2 | 🚧 |
+| TC-382 | Test PR adding a vulnerable crate fails audit job | Integration | P0 | NFR-014-AC-3 | 🚧 |
 
 ---
 
@@ -468,6 +481,9 @@ All tests are DRAFT — pending implementation via `/spec-to-plan` → `/impleme
 | Category | Total | Passed | Failed | Blocked | Coverage |
 |----------|-------|--------|--------|---------|----------|
 | Unit | 60 | 0 | 0 | 60 | 0% |
+| Integration | 24 | 0 | 0 | 24 | 0% |
+| Static (hardening) | 11 | 0 | 0 | 11 | 0% |
+| Process | 1 | 0 | 0 | 1 | 0% |
 | Integration | 21 | 0 | 0 | 21 | 0% |
 | Parity | 7 | 0 | 0 | 7 | 0% |
 | Bench | 8 | 0 | 0 | 8 | 0% |
@@ -475,4 +491,4 @@ All tests are DRAFT — pending implementation via `/spec-to-plan` → `/impleme
 | Static / Snapshot | 18 | 0 | 0 | 18 | 0% |
 | Compile | 4 | 0 | 0 | 4 | 0% |
 | Soak | 1 | 0 | 0 | 1 | 0% |
-| **Total** | **126** | **0** | **0** | **126** | **0%** |
+| **Total** | **140** | **0** | **0** | **140** | **0%** |
