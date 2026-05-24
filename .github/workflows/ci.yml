@@ -133,10 +133,58 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
       - name: Cache cargo artifacts
         uses: Swatinem/rust-cache@v2
+      - name: Set up Python + Jinja2 venv
+        run: |
+          python3 -m venv .parity-venv
+          .parity-venv/bin/pip install -q -r scripts/parity-venv.txt
+      - name: Regenerate expected.md via Python reference renderer
+        run: |
+          QUIRE_PARITY_VENV=.parity-venv bash scripts/regenerate_parity_fixtures.sh
+      - name: Fail if regenerated expecteds drift from the committed ones
+        # Catches the case where the Python reference renderer or a
+        # template changed but the committed expecteds weren't updated.
+        run: |
+          if ! git diff --quiet tests/render_parity/cases; then
+            echo "::error::Expected fixtures drifted from regenerated outputs. Re-run scripts/regenerate_parity_fixtures.sh locally and commit."
+            git diff tests/render_parity/cases | head -200
+            exit 1
+          fi
       - name: cargo test --test render_parity
-        # Zero fixtures today — ramps as fixtures land. `|| true` is NOT used;
-        # cargo exits 0 when no matching test target exists.
-        run: cargo test --test render_parity || echo "render_parity target not yet present"
+        run: cargo test --test render_parity
+
+  perf:
+    name: Perf Bench (NFR-001/002/007 baselines + regression bands)
+    runs-on: ubuntu-24.04
+    if: >-
+      github.event_name == 'pull_request' ||
+      github.event_name == 'push' ||
+      github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Cache cargo artifacts
+        uses: Swatinem/rust-cache@v2
+      - name: Restore stored criterion baseline (`main`)
+        uses: actions/cache@v4
+        with:
+          path: target/criterion
+          key: criterion-baseline-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            criterion-baseline-${{ runner.os }}-
+      # First PR ever has no baseline — `--save-baseline main` writes
+      # one; subsequent runs compare against it via `--baseline main`
+      # and the make perf-gate target inspects criterion's stored JSON
+      # for a >10% slowdown.
+      - name: Run benches against stored baseline
+        run: |
+          if [[ -d target/criterion/render/demo-item/main ]]; then
+            cargo bench --bench render --bench parse --bench load -- --baseline main
+          else
+            cargo bench --bench render --bench parse --bench load -- --save-baseline main
+          fi
+      - name: Enforce 10% regression band (NFR-001 / NFR-002 / NFR-007)
+        run: bash scripts/check_perf_regression.sh
 
   audit-static:
     name: Static Audits

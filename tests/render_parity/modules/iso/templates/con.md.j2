@@ -1,0 +1,22 @@
+---
+id: {{ id }}
+title: "{{ title }}"
+artifact_type: {{ artifact_type }}
+{% if relationships %}relationships:
+{% for rel in relationships %}  - target: "{{ rel.target }}"
+    type: "{{ rel.type }}"
+{% endfor %}{% endif %}---
+# [{{ id }}] {{ title }}
+
+## Description
+
+{{ description | default("Describe the artifact's purpose and content.") }}
+
+## Body
+
+{{ body | default("Replace with the artifact body. See examples/ for canonical references.") }}
+
+## Dependencies
+
+- **Upstream**: {{ upstream | default("none") }}
+- **Downstream**: {{ downstream | default("none") }}

@@ -103,6 +103,31 @@ miri:
 mutants:
 	$(CARGO) mutants -p quire-rs --in-place --check
 
+# =============================================================================
+# Perf gates (Task 014, NFR-001/002/007)
+# =============================================================================
+
+.PHONY: perf-baseline
+perf-baseline:
+	$(CARGO) bench --bench render --bench parse --bench load -- --save-baseline main
+
+.PHONY: perf-check
+perf-check:
+	$(CARGO) bench --bench render --bench parse --bench load -- --baseline main
+	bash scripts/check_perf_regression.sh
+
+.PHONY: perf-gate
+perf-gate:
+	bash scripts/check_perf_regression.sh
+
+# =============================================================================
+# Parity regen (Task 013)
+# =============================================================================
+
+.PHONY: parity-regen
+parity-regen:
+	bash scripts/regenerate_parity_fixtures.sh
+
 .PHONY: fuzz
 fuzz:
 	@if ! rustup toolchain list | grep -q nightly; then \
