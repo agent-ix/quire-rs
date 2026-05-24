@@ -16,6 +16,49 @@ use crate::query::{
     sections as q_sections, table_from_section, ListPattern,
 };
 
+/// A DSL Locator value — either a single [`LocatorPrimitive`] or a
+/// fallback chain. YAML accepts both shapes:
+///
+/// ```yaml
+/// # single primitive
+/// from: frontmatter_field
+/// path: [id]
+/// # fallback chain
+/// - from: frontmatter_field
+///   path: [id]
+/// - from: heading
+///   level: 1
+/// ```
+///
+/// Untagged deserialization picks the variant by shape (object vs.
+/// list).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum Locator {
+    /// One primitive — the canonical case.
+    Primitive(LocatorPrimitive),
+    /// Ordered chain — first non-empty result wins (FR-016).
+    Fallback(Vec<LocatorPrimitive>),
+}
+
+impl Locator {
+    /// Returns the canonical primitive (first in a fallback chain) for
+    /// error messages.
+    pub fn canonical(&self) -> &LocatorPrimitive {
+        match self {
+            Self::Primitive(p) => p,
+            Self::Fallback(v) => v
+                .first()
+                .expect("fallback chain must have at least one primitive"),
+        }
+    }
+
+    /// Whether the canonical position declares `required: true`.
+    pub fn required(&self) -> bool {
+        self.canonical().required()
+    }
+}
+
 /// One Locator from a `body_extraction` DSL. Untagged on the YAML
 /// side: the discriminant is the `from:` field, captured here as the
 /// enum variant.
@@ -115,6 +158,28 @@ impl LocatorPrimitive {
             | Self::TableRow { required, .. }
             | Self::ListItem { required, .. }
             | Self::Heading { required, .. } => *required,
+        }
+    }
+}
+
+/// Evaluate a [`Locator`] (primitive or fallback chain) against
+/// `doc`. For a fallback chain, returns the first primitive that
+/// produces a non-empty result and records its position so the caller
+/// can emit a `FallbackLocatorUsed` diagnostic when `position > 0`.
+///
+/// Returns `(values, position_used)` where `position_used == 0` for a
+/// `Primitive` or a fallback that hit at the head.
+pub fn eval_locator(doc: &QuireDocument, locator: &Locator) -> (Vec<Value>, usize) {
+    match locator {
+        Locator::Primitive(p) => (eval(doc, p), 0),
+        Locator::Fallback(chain) => {
+            for (i, p) in chain.iter().enumerate() {
+                let v = eval(doc, p);
+                if !v.is_empty() {
+                    return (v, i);
+                }
+            }
+            (Vec::new(), 0)
         }
     }
 }

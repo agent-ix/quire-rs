@@ -13,7 +13,7 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
 use crate::error::QuireError;
-use crate::extract::locator::LocatorPrimitive;
+use crate::extract::locator::{Locator, LocatorPrimitive};
 
 /// One body-extraction DSL — the parsed form of `body_extraction:` in
 /// an object-type manifest.
@@ -35,11 +35,11 @@ pub struct ExtractionDsl {
 #[serde(deny_unknown_fields)]
 pub struct YieldPattern {
     #[serde(default, rename = "match")]
-    pub r#match: Option<IndexMap<String, LocatorPrimitive>>,
+    pub r#match: Option<IndexMap<String, Locator>>,
     #[serde(default)]
     pub iterate_over: Option<IterateOver>,
     #[serde(default)]
-    pub per_match: Option<IndexMap<String, LocatorPrimitive>>,
+    pub per_match: Option<IndexMap<String, Locator>>,
 }
 
 /// `iterate_over:` — describes how the multi-yield evaluator picks
@@ -72,7 +72,7 @@ pub struct EdgeEmission {
     pub r#type: String,
     pub target: EdgeTarget,
     #[serde(default)]
-    pub metadata: IndexMap<String, LocatorPrimitive>,
+    pub metadata: IndexMap<String, Locator>,
 }
 
 /// `emit_edges[*].target` — either a static string or a Locator
@@ -81,7 +81,7 @@ pub struct EdgeEmission {
 #[serde(untagged)]
 pub enum EdgeTarget {
     Static(String),
-    Located(LocatorPrimitive),
+    Located(Locator),
 }
 
 /// Structural validation: `match` XOR `iterate_over` + `per_match`

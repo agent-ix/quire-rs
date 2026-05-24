@@ -43,5 +43,9 @@ pub use validate::{apply_patch, validate, validate_all};
 pub use extract::dsl::{
     EdgeEmission, EdgeTarget, ExtractionDsl, IterateKind, IterateOver, YieldPattern,
 };
-pub use extract::locator::LocatorPrimitive;
+pub use extract::locator::{Locator, LocatorPrimitive};
 pub use extract::{extract, ExtractionResult, HarvestedEdge};
+// Edge harvesting + resolver (FR-015).
+pub use edges::{
+    harvest_edges, EdgeHarvest, IdentityResolver, MockResolver, RelationshipResolver, SUGAR_FIELDS,
+};
