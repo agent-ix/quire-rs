@@ -1,48 +1,54 @@
-# Implementation Plan: quire-rs
+# Implementation Plan: quire-rs (v0.2 — block-model refinement)
 
-Generated from `~/dev/quire-rs/spec/` via `/spec-to-plan`. Derived from 4 StR + 5 US + 16 FR + 7 NFR + 104 TCs (see `spec/tests.md` — 100% AC coverage).
+Generated from `~/dev/quire-rs/spec/` via `/spec-to-plan`, then refined post-discovery audit. The v0.2 plan restores the block-addressable artifact model that was central to `INPUT.md` but had drifted out of the v0.1 spec. See `spec/spec.md` § 2bis (Drift Audit) for the full record of what's added, modified, and stripped vs v0.1.
+
+## Core invariant
+
+**Markdown is canonical.** The on-disk `.md` is the source of truth. Blocks are *parsed from* markdown. Edits change one block's data → re-render that block via its template → splice new bytes back into the `.md` via writeback. Frontmatter and untouched blocks stay byte-identical.
 
 ## Requirements Summary
 
 ### Stakeholder Requirements
 
-- [ ] **StR-001** Single generic Rust engine for render + parse + extract; archetype-as-data; offline (no network deps); adding archetype is a data-only change.
+- [ ] **StR-001** Single generic Rust engine for parse + render + edit + writeback; archetype-as-data; offline (no network deps); adding a block type is a data-only change.
 - [ ] **StR-002** Byte-parity render output vs. Python Jinja2 reference (spec-artifacts-iso/app/process), CI-gated.
 - [ ] **StR-003** Parse parity with TS `agent-ix/quire` + Py `agent-ix/quire-py` acceptance fixtures.
 - [ ] **StR-004** Safety scaffolding inherited from `rust-lib-cookiecutter` (clippy MSRV, deny.toml, // SAFETY: enforcement, CI gates) — kept in sync via backport.
 
 ### User Stories
 
-- [ ] **US-001** LLM emits validated patch; on-disk JSON Schema (via `schema_for`) is the tool contract; engine produces canonical markdown.
+- [ ] **US-001** LLM emits a validated patch targeting a single block; on-disk JSON Schema (via `schema_for(block_type)`) is the tool contract; engine writes back updated markdown with only that block's bytes changed.
 - [ ] **US-002** Developer calls `parse_document(md)` and receives a `QuireDocument` structurally equivalent to quire-py.
-- [ ] **US-003** Extractor evaluates `body_extraction` DSL against a parsed doc; returns typed map + edges.
-- [ ] **US-004** Filament editor receives a patch, validates, re-renders in well under a frame budget.
+- [ ] **US-003** Extractor evaluates `body_extraction` DSL against a parsed doc.
+- [ ] **US-004** Filament editor receives a block-level patch, validates, re-renders the block, writes back markdown — all well under a frame budget.
 - [ ] **US-005** CI fails on render-parity regression against Python reference fixtures.
 
 ### Functional Requirements
 
 **Parser (foundation):**
-- [ ] **FR-005** `parse_document` API + `QuireDocument`/`QuireSection` shape
+- [ ] **FR-005** `parse_document` API + `QuireDocument`/`QuireSection`/`Block` shape
 - [ ] **FR-006** Frontmatter extraction with malformed-fallback (incl. BOM strip)
 - [ ] **FR-007** Fenced-code-block-aware heading walk
 - [ ] **FR-008** Byte-exact section content slicing
-- [ ] **FR-009** Slug-line ID generation (Unicode-aware; ASCII alnum only)
+- [ ] **FR-009** Slug-line ID generation (legacy section ID; block IDs from `{#blk-id}`)
 - [ ] **FR-010** Query API: `section`, `sections`, `tables`, `lists`, `diagrams`, `search`
+- [ ] **FR-019** Stable block IDs via Pandoc heading attribute `## Heading {#blk-id}` — survives parse → reparse round-trip
+- [ ] **FR-020** Block data model: `Block { id, type, schema_version, data }` parsed from canonical markdown
 
-**Loader (engine entry):**
-- [ ] **FR-013** Archetype loader: filesystem-first, `IX_SCHEMA_PATH`, symlink-loop guarded, `Send + Sync` registry
-- [ ] **FR-014** Module activation: multi-module coexistence, name collision diagnostics, `load_strict` variant
+**Loader:**
+- [ ] **FR-013** Block-type registry: filesystem-first loader of `blocks/<type>/{schema,template}`, IX_SCHEMA_PATH, symlink-loop guarded, `Send + Sync`
+- [ ] **FR-014** Module activation: multiple block-type modules coexist; collisions diagnosed
 
-**Render side (depends on loader):**
-- [ ] **FR-001** Generic render dispatch over (CompiledArchetype, data)
-- [ ] **FR-002** JSON merge → JSON Schema validate → render; cross-file `$ref` rejected at load
-- [ ] **FR-003** `schema_for(registry, name)` surfaces the on-disk schema verbatim
+**Render + Edit + Writeback:**
+- [ ] **FR-001** Render dispatch — whole-artifact (assemble from per-block templates) + per-block (re-render one block's bytes)
+- [ ] **FR-003** `schema_for(block_type)` surfaces the JSON Schema for one block's patch shape
 - [ ] **FR-004** Strict MiniJinja env; `{% include %}` disabled at v1
-- [ ] **FR-012** Corpus-driven parity suite harness
+- [ ] **FR-012** Corpus-driven render-parity suite (block-by-block writeback flow)
+- [ ] **FR-021** Block edit API: `apply_block_patch(doc, block_id, patch)` + `replace_block(doc, block_id, new_data)`
+- [ ] **FR-022** Writeback primitives: `update_section(doc, heading, new_content)` + `update_block(doc, block_id, new_bytes)` — port + extend TS `updateSection`
 
-**Extract side (depends on parser + loader):**
-- [ ] **FR-011** DSL evaluator: 6 Locator primitives + single/multi-yield + emit_edges
-- [ ] **FR-015** Relationship harvesting + edge dedup (frontmatter sugar + structured block)
+**Extract:**
+- [ ] **FR-011** DSL evaluator: 6 Locator primitives + single/multi-yield
 - [ ] **FR-016** Secondary/fallback locator chains
 
 ### Non-Functional Requirements
@@ -52,8 +58,21 @@ Generated from `~/dev/quire-rs/spec/` via `/spec-to-plan`. Derived from 4 StR + 
 - [ ] **NFR-003** Zero unsafe blocks in v1 (`audit-unsafe` baseline empty)
 - [ ] **NFR-004** License hygiene (`cargo deny check licenses`)
 - [ ] **NFR-005** Field-keyed actionable error format; no raw validator/serde leak
-- [ ] **NFR-006** Determinism: identical input → byte-identical output (proptest 100×, no observable HashMap)
-- [ ] **NFR-007** Archetype load cost amortized (compile once, render fast; zero recompile per call)
+- [ ] **NFR-006** Determinism: identical input → byte-identical output (proptest 10 000×, no observable HashMap)
+- [ ] **NFR-007** Archetype load cost amortized (compile once; per-call render does no disk I/O)
+- [ ] **NFR-009** Dependency version pinning per the validator-choice ADR
+- [ ] **NFR-010** API stability + CHANGELOG.md
+- [ ] **NFR-011** Fuzz: cargo-fuzz targets for parse, frontmatter, apply_block_patch, extract_dsl, load_manifest, load_schema, update_block
+- [ ] **NFR-012** miri UB check (weekly + tag-push)
+- [ ] **NFR-013** Mutation testing (cargo-mutants weekly)
+- [ ] **NFR-014** Advisory checking (cargo-audit daily + on PR)
+
+### Stripped from v0.1 (not in INPUT.md)
+
+- ~~FR-015~~ Relationship harvesting — agent-added without discovery basis
+- ~~FR-017~~ Diagnostic Collection API (public collector) — internal-only now, payload-of-QuireError
+- ~~FR-018~~ IxUriResolver — agent-added without discovery basis
+- ~~NFR-008~~ Tracing instrumentation — agent-added without discovery basis
 
 ---
 

@@ -46,9 +46,11 @@ This document defines the **scope, intent, and governing requirements framework*
 
 It establishes:
 - The problem space `quire-rs` addresses across rendering and parsing
-- The boundaries of responsibility between layers (Edit API, Schema, Storage, Render, Post-process, Parse, Query)
+- The boundaries of responsibility between layers (Edit API, Schema, Storage, Render, Parse, Query, Writeback)
 - The authoritative structure for requirements, verification, and change control
-- The relationship between user intent (typed edits, LLM-driven changes), system behavior (validation + render + parse), and test evidence (byte-parity with reference implementations)
+- The relationship between user intent (typed edits, LLM-driven changes), system behavior (validation + render + parse + writeback), and test evidence (byte-parity with reference implementations)
+
+**Core invariant**: **markdown is canonical**. The on-disk `.md` is the source of truth. Blocks are *parsed from* markdown. Edits update one block's data → re-render that block via its template → splice new bytes back into the `.md` via writeback. Frontmatter and untouched blocks stay byte-identical.
 
 This document is the **top-level requirements artifact** for the repository.
 
@@ -60,32 +62,47 @@ This document is the **top-level requirements artifact** for the repository.
 
 This specification governs a **generic, archetype-agnostic engine** that processes data archetypes loaded from the local filesystem. The engine itself knows nothing about specific archetypes (`FR`, `NFR`, `ADR`, etc.) — those are data shipped by Filament (or any other authoring source) and synced to disk by ix-cli (or any other tool).
 
-**Render side:**
-- Load archetype modules from the local filesystem at well-known search paths (FR-013)
-- Compile each archetype's JSON Schema and MiniJinja template once at load time
-- Validate input `serde_json::Value` data against the compiled schema
-- Render via MiniJinja with `UndefinedBehavior::Strict`
-- Byte-for-byte parity with the existing Python Jinja2 reference renderer across whatever archetype corpus is loaded (currently 17 archetypes: 8 ISO + 2 App + 7 Process)
-- Markdown is the canonical output format
-
 **Parse side:**
-- Port of `agent-ix/quire` Layer 1 (markdown → `QuireDocument` heading tree)
-- Port of `agent-ix/quire` Layer 2 (Query API: `section`, `tables`, `lists`, `diagrams`, `search`)
+- Port of the existing `agent-ix/quire` markdown parser into pure Rust
+- Markdown bytes → `QuireDocument` heading tree
+- Query API: `section`, `sections`, `parse_table`, `parse_tables`, `table_from_section`, `parse_bullet_list`, `extract_diagrams`, `search`
 - YAML frontmatter extraction with malformed-fallback semantics
 - Fenced-code-block-aware heading parsing
 - Byte-exact content slicing (no re-serialization)
-- Stable `<slug>-L<line>` ID generation
+- **Stable block IDs** via Pandoc heading attributes `## Heading {#blk-id}` — survive byte-exact through parse → edit → writeback round-trips
+
+**Block model:**
+- Each artifact is a typed list of **blocks** parsed *from* the canonical markdown
+- `Block { id: String, type: String, schema_version: u32, data: serde_json::Value }`
+- Per-block schema + per-block template (loaded from `blocks/<type>/{schema.json, template.md.j2}`)
+- Frontmatter is itself a block (id = `frontmatter`, type = `frontmatter`)
+
+**Edit side:**
+- `apply_block_patch(doc, block_id, patch)` — merge patch onto block's data, validate against block-type schema, re-render block via block-type template, writeback into the markdown, return updated full-file string
+- `replace_block(doc, block_id, new_data)` — full-replace variant
+- LLM tool surface: `schema_for(block_type)` returns the JSON Schema for one block's patch shape, ready to wrap in any model-specific tool envelope
+
+**Writeback side:**
+- `update_section(doc, heading, new_content) → String` — section-level byte splice (port of TS `updateSection`)
+- `update_block(doc, block_id, new_bytes) → String` — block-level byte splice (primitive used by `apply_block_patch`)
+- Frontmatter and untouched blocks stay byte-identical
+
+**Render side:**
+- Two modes:
+  - **Whole-artifact** render — assemble a new `.md` from scratch using per-block templates. Used for new-document creation.
+  - **Per-block** render — re-render one block's bytes. Used by `apply_block_patch` + writeback.
+- MiniJinja with `UndefinedBehavior::Strict`
+- Byte-for-byte parity with the existing Python Jinja2 reference renderer
 
 **Object-extraction side:**
-- Body-extraction DSL evaluator supporting all six Locator primitives in current `filament-parser-lib` use: `frontmatter_field`, `section_body`, `code_block`, `table_row`, `list_item`, `heading`
+- Body-extraction DSL evaluator supporting all six Locator primitives: `frontmatter_field`, `section_body`, `code_block`, `table_row`, `list_item`, `heading`
 - Single-yield (`match`) and multi-yield (`iterate_over` + `per_match`) DSL patterns
-- Declarative `emit_edges` evaluation
-- Relationship harvesting from frontmatter sugar fields + structured `relationships:` block with `(source, type, target)` deduplication
 - Secondary / fallback locators per field for author-variant tolerance
 
 **Cross-cutting:**
 - Safety scaffolding inherited from `agent-ix/rust-lib-cookiecutter` (clippy MSRV, deny.toml, `// SAFETY:` enforcement)
-- Public Rust API stable across render, parse, and extract surfaces
+- Hardening hygiene: fuzz (cargo-fuzz), miri UB check, mutation testing (cargo-mutants), advisory checking (cargo-audit) — all required, not opt-in
+- Public Rust API stable across parse, render, edit, writeback, and extract surfaces
 - Engine is **offline by default** — works against the local filesystem with zero network dependencies
 
 ### 2.2 Out of Scope
@@ -101,13 +118,89 @@ This specification does not govern:
 - **ID generation.** `quire-rs` validates that artifact IDs match the schema's `pattern` (e.g. `^[A-Z]{2,4}-[0-9]+$`). Authoring tools (Filament UI, scripts) generate the IDs.
 - **Internationalized slug normalization.** FR-009 implements ASCII-only slug normalization to match the TS/Py reference. Non-ASCII heading authoring works (the section parses correctly), but the slug collapses non-ASCII characters to `-`. Full Unicode slug support is deferred to a future version.
 - **Windows path semantics.** `v1` supports macOS and Linux only. Filesystem-loader behavior on Windows (drive letters, `\` separator, symlink permissions) is undefined.
-- Quire Layer 3 (React component bindings) — TypeScript-only.
-- Quire Layer 4 (cross-document graph queries) — separate concern.
+- **React UI bindings.** `agent-ix/quire` ships React components for browser-side rendering; those are TypeScript-only. `quire-rs` does not provide a UI layer.
+- **Cross-document graph queries.** `agent-ix/quire` ships a React provider that indexes multiple parsed documents and exposes hooks for cross-doc queries. Out of scope for the Rust crate — the parser primitives that would underpin it (block-stable IDs, edge data) exist, but no in-process graph or query layer ships with v1.
 - CRDT or OT live-editing semantics.
 - Schema-driven template generation (schemas validate; templates present; neither generates the other).
-- Hardening suites (kani / loom / shuttle / sim-spire) — opt-in via future cookiecutter variant.
+- Heavy hardening tooling (kani formal verification, loom / shuttle concurrency permutation, sim-spire) — opt-in via future cookiecutter variant. (Standard Rust safety hygiene — fuzz, miri, mutants, advisory — is required and in scope.)
 - Real-time multi-user editing.
 - Generating Rust types from JSON Schemas. Downstream Rust consumers that want typed bindings author them by hand or use `schemars` themselves — `quire-rs` does not derive types.
+
+---
+
+## 2bis. Drift Audit
+
+The v0.1 implementation drifted from `INPUT.md`. The v0.2 spec restores discovery alignment. Two reports are recorded here so future readers can trace every divergence to a deliberate decision.
+
+### A. Discovery (`INPUT.md`) ↔ Current Spec
+
+#### Dropped in v0.1, restored in v0.2
+
+| Discovery feature | INPUT.md lines | v0.1 status | v0.2 status |
+|---|---|---|---|
+| Block data model `Block { id, type, schema_version, data }` | 38–48 | No `Block` type | First-class type |
+| Per-block schema + template pairing | 52–69 | Schema/template per *archetype* | Schema/template per *block type* |
+| Block-level edit API `{block_id, patch}` | 128–138 | Artifact-level `apply_patch` | `apply_block_patch(doc, block_id, patch)` |
+| Two edit operations: patch + full-replace | 192–195 | Only deep-merge patch | Both `apply_block_patch` and `replace_block` |
+| Writeback into canonical markdown | implied | No writeback at all | `update_section` + `update_block` primitives |
+| Schema versioning + migration (`schema_version`) | 45, 151 | Not addressed | Convention defined; migrations supplied by consumer |
+| Stable block IDs surviving round-trip | implied | `<slug>-L<line>`, unstable | `## Heading {#blk-id}` Pandoc attribute |
+| LLM tool per block type (`edit_callout(block_id, patch)`) | 196–206 | Single `apply_patch` whole-frontmatter | `schema_for(block_type)` per block |
+
+#### Added in v0.1 without discovery basis — stripped in v0.2
+
+| v0.1 item | Disposition |
+|---|---|
+| FR-015 Relationship harvesting (`harvest_edges`) | Removed |
+| FR-017 Diagnostic Collection API (public collector + by_kind filter) | Removed (the internal `Diagnostic` enum stays as payload for `QuireError` paths only) |
+| FR-018 IxUriResolver + `RelationshipResolver` trait | Removed |
+| NFR-008 Tracing instrumentation | Removed |
+| Layer 1/2/3/4 terminology | Replaced with plain references ("parser", "Query API", "React UI", "cross-document graph") |
+| FR-014 expansion (`load_strict`, `archetype_in_module`, `module_version`) | Trimmed to minimal "multiple modules coexist; collisions diagnosed" |
+
+#### Stays unchanged
+
+- Parser FRs (FR-005..009): pure port of `agent-ix/quire` core
+- FR-010 Query API: pure port of `agent-ix/quire` query
+- FR-003 schema_for, FR-004 strict MiniJinja env
+- FR-011/016 body-extraction DSL (reworked around block-level scope)
+- FR-013 archetype loader (reworked: `blocks/<type>/...` layout)
+- NFR-001..007, NFR-009..010, NFR-011..014 (perf, safety, error shape, determinism, dep pinning, API stability, fuzz, miri, mutants, audit)
+- HTML / comrak references: already purged in `08f5b00` (never asked for in discovery)
+
+### B. quire-TS (`agent-ix/quire`) ↔ quire-rs
+
+#### TS exports quire-rs implements
+
+| TS export (file) | quire-rs equivalent |
+|---|---|
+| `parseDocument` (core/parser.ts) | `parse_document` (`src/parser/mod.rs`) |
+| `extractFrontmatter` (core/frontmatter.ts) | `extract_frontmatter` (`src/parser/frontmatter.rs`) |
+| `section`, `sections`, `parseTable`, `parseTables`, `tableFromSection`, `parseBulletList`, `extractDiagrams`, `search` (core/query.ts) | All present in `src/query.rs` |
+| `updateSection` (core/writeback.ts) | **PORTED in v0.2** — `update_section` in `src/writeback.rs` |
+
+#### TS exports skipped intentionally
+
+| TS export | Reason |
+|---|---|
+| `findDiagramByTag` | Consumers can filter `extract_diagrams[…].tag` themselves |
+| `parseDelegations` | Niche — no use case requested |
+| `src/react/*` (Layer 3 React components) | Out of scope per § 2.2 |
+| `src/graph/index.tsx` (Layer 4 cross-document graph) | Out of scope per § 2.2 |
+
+#### quire-rs subsystems with no TS analog
+
+| quire-rs subsystem | Origin |
+|---|---|
+| Render layer (MiniJinja env, loader, schema validation, render dispatch) | TS quire is parse-only; the render half lives in Python `spec-artifacts-iso`. quire-rs unifies both halves. |
+| Block edit API (`apply_block_patch` / `replace_block`) | New ground; TS has only `updateSection`. |
+| Body-extraction DSL evaluator | Lives in Python `filament-parser-lib`. |
+
+#### Behavioural differences kept
+
+- `parse_table` returns `Option::None` on miss; TS returns `{headers: [], rows: []}`. Intentional Rust-idiomatic divergence.
+- Heading matching: case-insensitive + section-number normalization. Matches TS exactly.
+- Section content slicing: byte-exact in `quire-rs` (FR-008); TS applies `.strip()`. Required for writeback fidelity.
 
 ---
 
@@ -169,10 +262,14 @@ The layered architecture for the **render side** is taken from the design descri
 │                      validators from on-disk    │
 │                      schema documents)          │
 ├─────────────────────────────────────────────────┤
-│  Storage            (blocks as canonical data)  │  ← persistence
+│  Storage            (canonical markdown on disk;│  ← persistence
+│                      blocks parsed from it)     │
 ├─────────────────────────────────────────────────┤
-│  Render layer       (MiniJinja per-archetype    │  ← presentation
+│  Render layer       (MiniJinja per-block-type   │  ← presentation
 │                      templates)                 │
+├─────────────────────────────────────────────────┤
+│  Writeback          (byte-splice block bytes    │  ← persistence-out
+│                      back into canonical .md)   │
 └─────────────────────────────────────────────────┘
 ```
 
