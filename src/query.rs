@@ -12,6 +12,7 @@
 use std::sync::OnceLock;
 
 use regex::Regex;
+use serde::{Deserialize, Serialize};
 
 use crate::ast::{QuireDocument, QuireSection};
 
@@ -84,7 +85,8 @@ pub struct ListItem {
 
 /// How [`parse_bullet_list`] should split each bullet into
 /// `title` / `description`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 pub enum ListPattern {
     /// `**Title** — description` (em/en/ascii dash). Default.
     #[default]

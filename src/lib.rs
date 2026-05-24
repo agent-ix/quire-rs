@@ -39,3 +39,9 @@ pub use registry::Registry;
 // Render + validate (FR-001 + FR-002).
 pub use render::{render, render_by_name};
 pub use validate::{apply_patch, validate, validate_all};
+// Extract / body-extraction DSL (FR-011).
+pub use extract::dsl::{
+    EdgeEmission, EdgeTarget, ExtractionDsl, IterateKind, IterateOver, YieldPattern,
+};
+pub use extract::locator::LocatorPrimitive;
+pub use extract::{extract, ExtractionResult, HarvestedEdge};
