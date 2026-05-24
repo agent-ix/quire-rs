@@ -1,6 +1,1 @@
-use quire_rs::hello;
-
-#[test]
-fn hello_is_non_empty() {
-    assert!(!hello().is_empty());
-}
+//! End-to-end integration tests. Populated as tasks land (see plan/plan.md).

@@ -1,0 +1,55 @@
+[package]
+name = "quire-rs-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "~0.4"
+
+[dependencies.quire-rs]
+path = ".."
+
+# Prevent this from being picked up by the workspace and accidentally built
+# on stable. cargo-fuzz invokes the targets with nightly explicitly.
+[workspace]
+members = []
+
+[[bin]]
+name = "fuzz_parse_document"
+path = "fuzz_targets/fuzz_parse_document.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_extract_frontmatter"
+path = "fuzz_targets/fuzz_extract_frontmatter.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_apply_patch"
+path = "fuzz_targets/fuzz_apply_patch.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_extract_dsl"
+path = "fuzz_targets/fuzz_extract_dsl.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_load_manifest"
+path = "fuzz_targets/fuzz_load_manifest.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_load_schema"
+path = "fuzz_targets/fuzz_load_schema.rs"
+test = false
+doc = false
