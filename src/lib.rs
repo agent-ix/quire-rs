@@ -36,8 +36,8 @@ pub use error::{format_violation, ArchetypeLoadFailure, QuireError, VIOLATION_PR
 pub use diagnostic::{Diagnostic, DiagnosticKind, Diagnostics};
 pub use loader::compile::CompiledArchetype;
 pub use registry::Registry;
-// Render + validate (FR-001 + FR-002).
-pub use render::{render, render_by_name};
+// Render + validate (FR-001 + FR-002 + FR-017).
+pub use render::{render, render_by_name, render_with_env, RenderOutput};
 pub use validate::{apply_patch, validate, validate_all};
 // Extract / body-extraction DSL (FR-011).
 pub use extract::dsl::{

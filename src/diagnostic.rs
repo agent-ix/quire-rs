@@ -187,6 +187,13 @@ impl Diagnostics {
         self.items.iter()
     }
 
+    /// Filter to a single [`DiagnosticKind`]. Useful when consumers
+    /// route, e.g., `DuplicateArchetype` warnings to one log channel
+    /// and `SearchPath*` to another (FR-017 collection ergonomics).
+    pub fn by_kind(&self, kind: DiagnosticKind) -> impl Iterator<Item = &Diagnostic> {
+        self.items.iter().filter(move |d| d.kind() == kind)
+    }
+
     pub fn into_vec(self) -> Vec<Diagnostic> {
         self.items
     }
@@ -210,38 +217,102 @@ impl Extend<Diagnostic> for Diagnostics {
 mod tests {
     use super::*;
 
+    /// Per-variant Display strings must include both the variant
+    /// name (for log grep-ability) and the load-bearing identifier
+    /// (path, name, etc.) — otherwise consumers can't act on them.
     #[test]
-    fn display_strings_are_non_empty_and_named() {
-        let cases = vec![
-            Diagnostic::DuplicateModuleName {
-                name: "iso".into(),
-                paths: vec![PathBuf::from("/a"), PathBuf::from("/b")],
-            },
-            Diagnostic::DuplicateArchetype {
-                name: "fr".into(),
-                modules: vec!["a".into(), "b".into()],
-            },
-            Diagnostic::ManifestMissingName {
-                path: PathBuf::from("/x/manifest.yaml"),
-                derived_name: "x".into(),
-            },
-            Diagnostic::SearchPathNotADirectory {
-                path: PathBuf::from("/etc/passwd"),
-            },
-            Diagnostic::SearchPathMissing {
-                path: PathBuf::from("/nope"),
-            },
-            Diagnostic::SearchPathUnreadable {
-                path: PathBuf::from("/locked"),
-                reason: "permission denied".into(),
-            },
-            Diagnostic::SymlinkLoop {
-                path: PathBuf::from("/loopy"),
-            },
+    fn display_strings_carry_variant_name_and_identifier() {
+        let cases: Vec<(Diagnostic, &[&str])> = vec![
+            (
+                Diagnostic::DuplicateModuleName {
+                    name: "iso".into(),
+                    paths: vec![PathBuf::from("/a"), PathBuf::from("/b")],
+                },
+                &["DuplicateModuleName", "iso"],
+            ),
+            (
+                Diagnostic::DuplicateArchetype {
+                    name: "fr".into(),
+                    modules: vec!["mod-a".into(), "mod-b".into()],
+                },
+                &["DuplicateArchetype", "fr", "mod-a", "mod-b"],
+            ),
+            (
+                Diagnostic::ManifestMissingName {
+                    path: PathBuf::from("/x/manifest.yaml"),
+                    derived_name: "x".into(),
+                },
+                &["ManifestMissingName", "/x/manifest.yaml", "x"],
+            ),
+            (
+                Diagnostic::SearchPathNotADirectory {
+                    path: PathBuf::from("/etc/passwd"),
+                },
+                &["SearchPathNotADirectory", "/etc/passwd"],
+            ),
+            (
+                Diagnostic::SearchPathMissing {
+                    path: PathBuf::from("/nope"),
+                },
+                &["SearchPathMissing", "/nope"],
+            ),
+            (
+                Diagnostic::SearchPathUnreadable {
+                    path: PathBuf::from("/locked"),
+                    reason: "permission denied".into(),
+                },
+                &["SearchPathUnreadable", "/locked", "permission denied"],
+            ),
+            (
+                Diagnostic::SymlinkLoop {
+                    path: PathBuf::from("/loopy"),
+                },
+                &["SymlinkLoop", "/loopy"],
+            ),
+            (
+                Diagnostic::IterateRootMissing {
+                    path: vec!["Algorithms".into(), "Sort".into()],
+                },
+                &["IterateRootMissing", "Algorithms", "Sort"],
+            ),
+            (
+                Diagnostic::FallbackLocatorUsed {
+                    key: "k".into(),
+                    position: 2,
+                    locator: "heading".into(),
+                },
+                &["FallbackLocatorUsed", "k", "2", "heading"],
+            ),
+            (
+                Diagnostic::UnresolvableEdgeTarget {
+                    source: "ix://o/r/A".into(),
+                    target: "B-1".into(),
+                },
+                &["UnresolvableEdgeTarget", "ix://o/r/A", "B-1"],
+            ),
+            (
+                Diagnostic::DuplicateEdgeDropped {
+                    source: "ix://o/r/A".into(),
+                    edge_type: "depends_on".into(),
+                    target: "ix://o/r/B".into(),
+                },
+                &[
+                    "DuplicateEdgeDropped",
+                    "ix://o/r/A",
+                    "depends_on",
+                    "ix://o/r/B",
+                ],
+            ),
         ];
-        for d in cases {
+        for (d, needles) in cases {
             let s = d.to_string();
-            assert!(!s.is_empty(), "empty: {:?}", d);
+            for needle in needles {
+                assert!(
+                    s.contains(needle),
+                    "{} missing '{needle}' in: {s}",
+                    "Display"
+                );
+            }
         }
     }
 
@@ -255,5 +326,37 @@ mod tests {
             path: PathBuf::from("/b"),
         }]);
         assert_eq!(c.len(), 2);
+    }
+
+    /// FR-017 collection ergonomics: filter by kind.
+    #[test]
+    fn collector_by_kind_filters() {
+        let mut c = Diagnostics::new();
+        c.push(Diagnostic::SymlinkLoop {
+            path: PathBuf::from("/a"),
+        });
+        c.push(Diagnostic::DuplicateModuleName {
+            name: "iso".into(),
+            paths: vec![PathBuf::from("/x")],
+        });
+        c.push(Diagnostic::DuplicateArchetype {
+            name: "fr".into(),
+            modules: vec!["m1".into(), "m2".into()],
+        });
+        c.push(Diagnostic::SymlinkLoop {
+            path: PathBuf::from("/b"),
+        });
+        assert_eq!(c.by_kind(DiagnosticKind::SymlinkLoop).count(), 2);
+        assert_eq!(c.by_kind(DiagnosticKind::DuplicateArchetype).count(), 1);
+        assert_eq!(c.by_kind(DiagnosticKind::DuplicateModuleName).count(), 1);
+        assert_eq!(c.by_kind(DiagnosticKind::ManifestMissingName).count(), 0);
+    }
+
+    /// FR-017: Diagnostic must be Send + Sync + Debug + Clone + Eq
+    /// so consumers can ship it across threads and store snapshots.
+    #[test]
+    fn diagnostic_satisfies_trait_bounds() {
+        fn assert_full<T: Send + Sync + std::fmt::Debug + Clone + Eq>() {}
+        assert_full::<Diagnostic>();
     }
 }

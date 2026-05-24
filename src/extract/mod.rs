@@ -134,24 +134,33 @@ fn eval_multi(
         }
     };
 
-    let units: Vec<Map<String, Value>> = match iter.kind {
-        IterateKind::Heading => iterate_heading_units(root, iter.depth.unwrap_or(1)),
-        IterateKind::ListItem => iterate_list_units(root),
-        IterateKind::TableRow => iterate_table_row_units(root),
+    // Each unit carries:
+    //   (a) a pre-populated `Map` of fields derived from the unit
+    //       itself (heading text, list raw/title/desc, row header
+    //       → cell mapping);
+    //   (b) an optional "local scope" `QuireDocument` view — for
+    //       `IterateKind::Heading` it's a synthetic doc whose
+    //       `sections` is just the unit subtree, so a `per_match`
+    //       locator that says `section_body, after_heading: X`
+    //       resolves to a child of the iteration unit, NOT to a
+    //       same-named section elsewhere in the document
+    //       (FR-011 "evaluated against each iteration unit's local
+    //       scope"). List/table units don't have a natural subtree
+    //       so the local scope falls back to the iteration root's
+    //       section subtree.
+    let units: Vec<UnitContext> = match iter.kind {
+        IterateKind::Heading => iterate_heading_units(doc, root, iter.depth.unwrap_or(1)),
+        IterateKind::ListItem => iterate_list_units(doc, root),
+        IterateKind::TableRow => iterate_table_row_units(doc, root),
     };
 
     let mut records: Vec<Map<String, Value>> = Vec::new();
     let mut edges: Vec<HarvestedEdge> = Vec::new();
     for unit in &units {
-        // For each iteration unit, the per_match locators see the
-        // full document but get the unit's already-extracted fields
-        // pre-populated. This matches the filament-parser-lib
-        // reference semantics where unit-derived defaults populate
-        // first and per_match overrides per key.
-        let mut record: Map<String, Value> = unit.clone();
+        let mut record: Map<String, Value> = unit.fields.clone();
         let mut record_ok = true;
         for (key, loc) in per {
-            let (values, fallback_pos) = eval_locator(doc, loc);
+            let (values, fallback_pos) = eval_locator(&unit.scope, loc);
             if values.is_empty() {
                 if loc.required() {
                     record_ok = false;
@@ -169,7 +178,10 @@ fn eval_multi(
             record.insert(key.clone(), values.into_iter().next().unwrap());
         }
         if record_ok && !record.is_empty() {
-            collect_edges(doc, &record, emit, &mut edges, &mut diagnostics);
+            // emit_edges evaluates against the unit's scope too, so
+            // `target: { from: section_body, after_heading: ... }`
+            // resolves to the unit's own section.
+            collect_edges(&unit.scope, &record, emit, &mut edges, &mut diagnostics);
             records.push(record);
         }
     }
@@ -181,17 +193,42 @@ fn eval_multi(
     }
 }
 
-fn iterate_heading_units(root: &QuireSection, depth: u8) -> Vec<Map<String, Value>> {
-    let mut out: Vec<Map<String, Value>> = Vec::new();
-    walk_children_at_depth(root, depth, 1, &mut out);
+/// One iteration unit + the local-scope `QuireDocument` view that
+/// `per_match` / `emit_edges` Locators evaluate against (FR-011
+/// "iteration unit's local scope").
+struct UnitContext {
+    fields: Map<String, Value>,
+    scope: QuireDocument,
+}
+
+/// Build a `QuireDocument` view scoped to `section` (and its
+/// children). Inherits `frontmatter` and `raw` from `parent_doc` so
+/// `from: frontmatter_field` still works inside a per_match block.
+fn scope_to_section(parent_doc: &QuireDocument, section: &QuireSection) -> QuireDocument {
+    QuireDocument {
+        preamble: None,
+        sections: vec![section.clone()],
+        raw: parent_doc.raw.clone(),
+        frontmatter: parent_doc.frontmatter.clone(),
+    }
+}
+
+fn iterate_heading_units(
+    parent_doc: &QuireDocument,
+    root: &QuireSection,
+    depth: u8,
+) -> Vec<UnitContext> {
+    let mut out: Vec<UnitContext> = Vec::new();
+    walk_children_at_depth(parent_doc, root, depth, 1, &mut out);
     out
 }
 
 fn walk_children_at_depth(
+    parent_doc: &QuireDocument,
     parent: &QuireSection,
     target_depth: u8,
     current_depth: u8,
-    out: &mut Vec<Map<String, Value>>,
+    out: &mut Vec<UnitContext>,
 ) {
     for child in &parent.children {
         if current_depth == target_depth {
@@ -201,14 +238,18 @@ fn walk_children_at_depth(
                 "content".to_string(),
                 Value::String(child.content.trim().to_string()),
             );
-            out.push(m);
+            out.push(UnitContext {
+                fields: m,
+                scope: scope_to_section(parent_doc, child),
+            });
         } else {
-            walk_children_at_depth(child, target_depth, current_depth + 1, out);
+            walk_children_at_depth(parent_doc, child, target_depth, current_depth + 1, out);
         }
     }
 }
 
-fn iterate_list_units(root: &QuireSection) -> Vec<Map<String, Value>> {
+fn iterate_list_units(parent_doc: &QuireDocument, root: &QuireSection) -> Vec<UnitContext> {
+    let scope = scope_to_section(parent_doc, root);
     crate::query::parse_bullet_list(&root.content, None)
         .into_iter()
         .map(|item| {
@@ -216,12 +257,16 @@ fn iterate_list_units(root: &QuireSection) -> Vec<Map<String, Value>> {
             m.insert("raw".to_string(), Value::String(item.raw));
             m.insert("title".to_string(), Value::String(item.title));
             m.insert("description".to_string(), Value::String(item.description));
-            m
+            UnitContext {
+                fields: m,
+                scope: scope.clone(),
+            }
         })
         .collect()
 }
 
-fn iterate_table_row_units(root: &QuireSection) -> Vec<Map<String, Value>> {
+fn iterate_table_row_units(parent_doc: &QuireDocument, root: &QuireSection) -> Vec<UnitContext> {
+    let scope = scope_to_section(parent_doc, root);
     match crate::query::parse_table(&root.content) {
         Some(t) => t
             .rows
@@ -232,7 +277,10 @@ fn iterate_table_row_units(root: &QuireSection) -> Vec<Map<String, Value>> {
                     let key = t.headers.get(i).cloned().unwrap_or_else(|| i.to_string());
                     m.insert(key, Value::String(cell));
                 }
-                m
+                UnitContext {
+                    fields: m,
+                    scope: scope.clone(),
+                }
             })
             .collect(),
         None => Vec::new(),
@@ -392,6 +440,51 @@ yield_pattern:
     }
 
     // ── Task 016: multi-yield + emit_edges ──────────────────────────
+
+    // FR-011 "iteration unit's local scope": per_match locators
+    // must resolve against the unit's section subtree, not the whole
+    // document. Build a doc where the same heading name appears
+    // outside the iteration root — the per_match value must come
+    // from INSIDE the unit, not the same-named sibling.
+    #[test]
+    fn per_match_locators_evaluate_against_unit_local_scope() {
+        let md = "\
+## Algorithms\nintro\n\
+### A\n\
+#### Detail\nfrom-A\n\
+### B\n\
+#### Detail\nfrom-B\n\
+## Detail\nfrom-outside\n";
+        let d = parse_document(md);
+        let dsl: ExtractionDsl = serde_yaml::from_str(
+            r#"
+yield_pattern:
+  iterate_over:
+    section_path: [Algorithms]
+    kind: heading
+    depth: 1
+  per_match:
+    detail:
+      from: section_body
+      after_heading: Detail
+"#,
+        )
+        .unwrap();
+        let r = extract(&d, &dsl).expect("ok");
+        assert_eq!(r.records.len(), 2);
+        // Per unit, `Detail` resolves to the unit's own child, NOT
+        // the top-level "## Detail" sibling.
+        assert_eq!(
+            r.records[0]["detail"],
+            serde_json::json!("from-A"),
+            "unit A must read its own Detail subsection, not the outside one"
+        );
+        assert_eq!(
+            r.records[1]["detail"],
+            serde_json::json!("from-B"),
+            "unit B must read its own Detail subsection, not the outside one"
+        );
+    }
 
     // FR-011-AC-2
     #[test]

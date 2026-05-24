@@ -127,7 +127,7 @@ fn every_case_matches_expected_byte_for_byte() {
         let input = case_input(case);
         let expected = case_expected(case);
         let actual = match render_by_name(&r, &case.archetype, &input) {
-            Ok(s) => s,
+            Ok(out) => out.markdown,
             Err(e) => {
                 failed.insert(
                     format!("{} :: {}", case.archetype, case.input.display()),

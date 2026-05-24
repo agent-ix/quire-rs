@@ -241,6 +241,47 @@ mod tests {
         assert_eq!(mods, vec!["mod-x"]);
     }
 
+    // FR-011-AC-6/7/8: a body_extraction DSL that's structurally
+    // invalid (both `match` and `iterate_over` set) surfaces as an
+    // ArchetypeLoadFailure at load time, NOT at extract() time.
+    #[test]
+    fn invalid_dsl_in_object_type_fails_at_load() {
+        let parent = tmpdir("bad-dsl");
+        let m = parent.join("ot-mod");
+        fs::create_dir_all(&m).unwrap();
+        fs::write(
+            m.join("manifest.yaml"),
+            r#"
+name: ot-mod
+object_types:
+- name: bad
+  body_extraction:
+    yield_pattern:
+      match:
+        a:
+          from: heading
+      iterate_over:
+        section_path: [X]
+        kind: heading
+      per_match:
+        b:
+          from: heading
+"#,
+        )
+        .unwrap();
+        let r = Registry::load_from(&[&parent]).expect("tolerant load ok");
+        // No `bad` archetype registered — compile failed.
+        assert!(r.archetype("bad").is_none());
+        // Failure was aggregated.
+        assert!(
+            r.failures()
+                .iter()
+                .any(|f| f.archetype == "bad" && f.reason.contains("mutually exclusive")),
+            "got: {:?}",
+            r.failures()
+        );
+    }
+
     #[test]
     fn registry_is_send_sync_and_cheap_to_clone() {
         fn assert_send_sync<T: Send + Sync>() {}

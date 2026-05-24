@@ -296,6 +296,19 @@ fn compile_object_type(
     });
     let validator = compile_schema(&schema)
         .map_err(|r| failure(module, &ot.name, module_root.to_path_buf(), r))?;
+    // FR-011-AC-6/7/8: validate the body_extraction DSL at load time
+    // when present. Authoring tools see structural errors immediately,
+    // not when `extract()` runs.
+    if let Some(dsl) = &ot.body_extraction {
+        crate::extract::dsl::validate_dsl(&ot.name, dsl).map_err(|e| {
+            failure(
+                module,
+                &ot.name,
+                module_root.join("manifest.yaml"),
+                e.to_string(),
+            )
+        })?;
+    }
     Ok(CompiledArchetype {
         name: ot.name.clone(),
         module: module.to_string(),

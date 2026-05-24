@@ -126,6 +126,14 @@ pub enum QuireError {
     /// time (`match` XOR `iterate_over`, unknown key, missing `from:`).
     #[error("DslValidationError [{archetype}]: {reason}")]
     DslValidationError { archetype: String, reason: String },
+
+    // ── Edge resolution (FR-018) ────────────────────────────────────────
+    /// A `RelationshipResolver` could not normalize a bare target into
+    /// a canonical URI. Returned from `RelationshipResolver::resolve`;
+    /// `harvest_edges` catches this variant, preserves the bare target,
+    /// and surfaces a `Diagnostic::UnresolvableEdgeTarget`.
+    #[error("UnresolvedTarget: '{target}' could not be resolved ({reason})")]
+    UnresolvedTarget { target: String, reason: String },
 }
 
 /// One per-archetype load failure, aggregated by
@@ -299,5 +307,75 @@ mod tests {
     fn quire_error_is_send_and_sync() {
         fn assert_send_sync<T: Send + Sync>() {}
         assert_send_sync::<QuireError>();
+    }
+
+    /// NFR-005 "Error Path Rule": every QuireError variant must
+    /// have a Display string that carries the variant name + the
+    /// load-bearing identifier. Tautology checks (`!is_empty()`)
+    /// don't satisfy this — pin the substrings consumers grep on.
+    #[test]
+    fn every_quire_error_variant_displays_variant_name_and_identifier() {
+        let cases: Vec<(QuireError, &[&str])> = vec![
+            (
+                QuireError::ArchetypeCollision {
+                    name: "fr".into(),
+                    first_module: "iso".into(),
+                    second_module: "app".into(),
+                },
+                &["ArchetypeCollision", "fr", "iso", "app"],
+            ),
+            (
+                QuireError::TemplateError {
+                    archetype: "fr".into(),
+                    template_path: PathBuf::from("/m/templates/fr.md.j2"),
+                    message: "expected `endif`".into(),
+                },
+                &["TemplateError", "fr", "/m/templates/fr.md.j2", "endif"],
+            ),
+            (
+                QuireError::ManifestError {
+                    path: PathBuf::from("/m/manifest.yaml"),
+                    message: "could not parse".into(),
+                },
+                &["ManifestError", "/m/manifest.yaml", "could not parse"],
+            ),
+            (
+                QuireError::InvalidSearchPath {
+                    path: PathBuf::from("/etc/passwd"),
+                    reason: "file not directory".into(),
+                },
+                &["InvalidSearchPath", "/etc/passwd", "file not directory"],
+            ),
+            (
+                QuireError::MissingField {
+                    key: "purpose".into(),
+                    locator: "section_body(Purpose)".into(),
+                },
+                &["MissingField", "purpose", "section_body(Purpose)"],
+            ),
+            (
+                QuireError::DslValidationError {
+                    archetype: "domain".into(),
+                    reason: "match and iterate_over are mutually exclusive".into(),
+                },
+                &["DslValidationError", "domain", "mutually exclusive"],
+            ),
+            (
+                QuireError::UnresolvedTarget {
+                    target: "ix:///empty/".into(),
+                    reason: "malformed ix:// URI".into(),
+                },
+                &["UnresolvedTarget", "ix:///empty/", "malformed ix:// URI"],
+            ),
+        ];
+        for (err, needles) in cases {
+            let s = err.to_string();
+            for needle in needles {
+                assert!(
+                    s.contains(needle),
+                    "{err:?} Display missing '{needle}': {s}"
+                );
+            }
+        }
     }
 }

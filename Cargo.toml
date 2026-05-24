@@ -35,6 +35,11 @@ tracing = { version = "^0.1", optional = true }
 [dev-dependencies]
 proptest = "^1"
 criterion = "^0.5"
+# Real subscriber so tests/tracing_shape.rs can capture spans + fields
+# emitted by the engine and verify NFR-008 shape claims. Only pulled
+# in for `cargo test`; the engine itself stays optional-tracing.
+tracing = "^0.1"
+tracing-subscriber = { version = "^0.3", features = ["fmt", "env-filter"] }
 
 [features]
 default = []

@@ -144,6 +144,7 @@ fn preview_value(v: &Value) -> String {
 mod tests {
     use super::*;
     use crate::loader::compile::{compile_schema, CompiledArchetype};
+    use proptest::prelude::*;
     use serde_json::json;
     use std::sync::Arc;
 
@@ -248,5 +249,55 @@ mod tests {
         assert_eq!(json_pointer_to_dotted("/title"), "title");
         // RFC 6901 escapes.
         assert_eq!(json_pointer_to_dotted("/a~1b"), "a/b");
+    }
+
+    fn flexible_archetype() -> CompiledArchetype {
+        // Schema accepts any object but pins one shape constraint
+        // (`id` must be a string when present) so the validator
+        // actually does work.
+        archetype(json!({
+            "type": "object",
+            "properties": {
+                "id": {"type": "string"}
+            }
+        }))
+    }
+
+    /// Generate small arbitrary JSON values. Bounded depth + length
+    /// to keep each proptest iteration cheap.
+    fn any_json() -> impl Strategy<Value = Value> {
+        let leaf = prop_oneof![
+            Just(Value::Null),
+            any::<bool>().prop_map(Value::Bool),
+            any::<i64>().prop_map(|n| json!(n)),
+            "[a-zA-Z0-9 _-]{0,16}".prop_map(Value::String),
+        ];
+        leaf.prop_recursive(4, 32, 8, |inner| {
+            prop_oneof![
+                proptest::collection::vec(inner.clone(), 0..8).prop_map(Value::Array),
+                proptest::collection::vec(("[a-z]{1,6}", inner), 0..8).prop_map(|kvs| {
+                    let mut m = serde_json::Map::new();
+                    for (k, v) in kvs {
+                        m.insert(k, v);
+                    }
+                    Value::Object(m)
+                }),
+            ]
+        })
+    }
+
+    proptest! {
+        // FR-002-AC-4: apply_patch never panics on arbitrary input.
+        // Outcome may be Ok(_) or Err(SchemaViolation); both are fine
+        // — the AC is "no panic".
+        #![proptest_config(ProptestConfig::with_cases(10_000))]
+        #[test]
+        fn apply_patch_never_panics(
+            current in any_json(),
+            patch   in any_json(),
+        ) {
+            let arch = flexible_archetype();
+            let _ = apply_patch(&arch, &current, &patch);
+        }
     }
 }

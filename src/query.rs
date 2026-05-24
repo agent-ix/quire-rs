@@ -621,19 +621,40 @@ mod tests {
         assert!(search(&d, "missing").is_empty());
     }
 
-    // ─── FR-010-AC-3: no quadratic walks (smoke check) ──────────────────
+    // ─── FR-010-AC-3: no quadratic walks ─────────────────────────────────
+    //
+    // Compare wall-clock at n vs 4n. Linear walks land at ~4×; a
+    // quadratic walk lands at ~16×. We allow up to 12× as headroom
+    // for jitter and constant-factor noise.
 
     #[test]
-    fn sections_walk_is_linear_in_count() {
-        let body: String = (0..1000)
-            .map(|i| format!("## H{}\n", i))
-            .collect::<Vec<_>>()
-            .join("");
-        let d = parse_document(&body);
-        let t0 = std::time::Instant::now();
-        let all = sections(&d, None);
-        let dt = t0.elapsed();
-        assert_eq!(all.len(), 1000);
-        assert!(dt < std::time::Duration::from_millis(50), "took {:?}", dt);
+    fn sections_walk_scales_subquadratically() {
+        fn measure(n: usize) -> std::time::Duration {
+            let body: String = (0..n)
+                .map(|i| format!("## H{}\n", i))
+                .collect::<Vec<_>>()
+                .join("");
+            let d = parse_document(&body);
+            // Best of three to dampen noise.
+            let mut best = std::time::Duration::MAX;
+            for _ in 0..3 {
+                let t0 = std::time::Instant::now();
+                let all = sections(&d, None);
+                let dt = t0.elapsed();
+                assert_eq!(all.len(), n);
+                best = best.min(dt);
+            }
+            best
+        }
+        let small = measure(500);
+        let big = measure(2000); // 4× n
+                                 // Floor `small` so a sub-microsecond reading doesn't divide
+                                 // the ratio into infinity.
+        let small = small.max(std::time::Duration::from_nanos(1_000));
+        let ratio = big.as_secs_f64() / small.as_secs_f64();
+        assert!(
+            ratio < 12.0,
+            "sections walk looks super-linear: n=500 took {small:?}, n=2000 took {big:?} (ratio {ratio:.2})"
+        );
     }
 }
