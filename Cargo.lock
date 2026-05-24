@@ -933,6 +933,7 @@ dependencies = [
  "jsonschema",
  "minijinja",
  "proptest",
+ "regex",
  "serde",
  "serde_json",
  "serde_yaml",
