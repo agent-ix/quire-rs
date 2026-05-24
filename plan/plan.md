@@ -22,6 +22,11 @@ Generated from `~/dev/quire-rs/spec/` via `/spec-to-plan`, then refined post-dis
 - [x] **US-003** Extractor evaluates `body_extraction` DSL against a parsed doc.
 - [x] **US-004** Filament editor receives a block-level patch, validates, re-renders the block, writes back markdown — all well under a frame budget.
 - [x] **US-005** CI fails on render-parity regression against Python reference fixtures.
+- [x] **US-006** LLM patches a single block via schema-validated merge (block-scoped context, minimal tokens).
+- [x] **US-007** LLM full-replaces a block when changes are pervasive (skips merge semantics).
+- [x] **US-008** Multiple agents edit different blocks of the same artifact concurrently via stable `{#blk-id}`.
+- [x] **US-009** LLM creates a new artifact from scratch (whole-archetype data → render).
+- [x] **US-010** LLM extracts structured data via DSL for retrieval / grounding (compact records, not raw markdown).
 
 ### Functional Requirements
 
