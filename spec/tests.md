@@ -457,8 +457,23 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-018-AC-4 | TC-313 |
 | FR-018-AC-5 | TC-314 |
 | FR-018-AC-6 | TC-315 |
+| NFR-011-AC-1 | TC-350 |
+| NFR-011-AC-2 | TC-350 |
+| NFR-011-AC-3 | TC-351 |
+| NFR-011-AC-4 | TC-352 |
+| NFR-012-AC-1 | TC-360 |
+| NFR-012-AC-2 | (workflow definition; covered by TC-360) |
+| NFR-012-AC-3 | TC-361 |
+| NFR-012-AC-4 | TC-362 |
+| NFR-013-AC-1 | TC-370 |
+| NFR-013-AC-2 | TC-371 |
+| NFR-013-AC-3 | TC-372 |
+| NFR-013-AC-4 | TC-373 |
+| NFR-014-AC-1 | TC-380 |
+| NFR-014-AC-2 | TC-381 |
+| NFR-014-AC-3 | TC-382 |
 
-**Coverage status: 169 / 169 ACs covered (100%).**
+**Coverage status: 184 / 184 ACs covered (100%).**
 
 ---
 
