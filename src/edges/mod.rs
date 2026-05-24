@@ -9,4 +9,4 @@ pub mod harvest;
 pub mod resolver;
 
 pub use harvest::{harvest_edges, EdgeHarvest, SUGAR_FIELDS};
-pub use resolver::{IdentityResolver, MockResolver, RelationshipResolver};
+pub use resolver::{IdentityResolver, IxUriResolver, MockResolver, RelationshipResolver};

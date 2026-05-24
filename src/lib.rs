@@ -47,5 +47,6 @@ pub use extract::locator::{Locator, LocatorPrimitive};
 pub use extract::{extract, ExtractionResult, HarvestedEdge};
 // Edge harvesting + resolver (FR-015).
 pub use edges::{
-    harvest_edges, EdgeHarvest, IdentityResolver, MockResolver, RelationshipResolver, SUGAR_FIELDS,
+    harvest_edges, EdgeHarvest, IdentityResolver, IxUriResolver, MockResolver,
+    RelationshipResolver, SUGAR_FIELDS,
 };

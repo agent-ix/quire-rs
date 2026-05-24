@@ -58,6 +58,8 @@ pub fn harvest_edges<R: RelationshipResolver>(
     extraction: Option<&ExtractionResult>,
     resolver: &R,
 ) -> EdgeHarvest {
+    #[cfg(feature = "tracing")]
+    let _span = tracing::debug_span!("quire_rs::harvest_edges", source = %source_ref).entered();
     let mut edges: Vec<HarvestedEdge> = Vec::new();
     let mut diagnostics: Vec<Diagnostic> = Vec::new();
 

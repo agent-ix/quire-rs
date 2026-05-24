@@ -31,6 +31,8 @@ use crate::ast::{QuireDocument, QuireSection};
 /// Pure: no IO, no panics, no global mutable state. Re-entrant from
 /// any thread (FR-005-AC-4 + NFR-006 determinism).
 pub fn parse_document(markdown: &str) -> QuireDocument {
+    #[cfg(feature = "tracing")]
+    let _span = tracing::debug_span!("quire_rs::parse", bytes = markdown.len()).entered();
     if markdown.is_empty() {
         return QuireDocument::empty();
     }

@@ -60,6 +60,8 @@ fn build_strict_env() -> Environment<'static> {
 /// Load every module reachable from `explicit` (or `IX_SCHEMA_PATH` /
 /// `~/.ix/schemas` when `explicit` is empty).
 pub fn load_modules(explicit: &[&Path]) -> LoadOutcome {
+    #[cfg(feature = "tracing")]
+    let _span = tracing::info_span!("quire_rs::load", paths = explicit.len()).entered();
     let env_value = std::env::var_os("IX_SCHEMA_PATH");
     let path_diagnostics = resolve_search_paths(explicit, env_value);
 
