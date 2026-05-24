@@ -26,6 +26,8 @@ pub fn render(
     archetype: &CompiledArchetype,
     data: &Value,
 ) -> Result<String, QuireError> {
+    #[cfg(feature = "tracing")]
+    let _span = tracing::debug_span!("quire_rs::render", archetype = %archetype.name).entered();
     validate(archetype, data)?;
 
     let template_name =

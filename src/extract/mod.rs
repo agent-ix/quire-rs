@@ -48,6 +48,8 @@ pub struct HarvestedEdge {
 
 /// Evaluate `dsl` against `doc`.
 pub fn extract(doc: &QuireDocument, dsl: &ExtractionDsl) -> Result<ExtractionResult, QuireError> {
+    #[cfg(feature = "tracing")]
+    let _span = tracing::debug_span!("quire_rs::extract").entered();
     let mut diagnostics: Vec<Diagnostic> = Vec::new();
 
     if let Some(match_map) = &dsl.yield_pattern.r#match {
