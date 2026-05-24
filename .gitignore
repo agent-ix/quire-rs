@@ -4,3 +4,6 @@ Cargo.lock.bak
 .DS_Store
 .idea/
 .vscode/
+
+# Local-only handoff notes (not pushed)
+handoff.md
