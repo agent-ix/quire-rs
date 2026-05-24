@@ -9,18 +9,14 @@ relationships:
   - target: "ix://agent-ix/quire-rs/spec/functional/FR-011"
     type: "implements"
     cardinality: "1:1"
-  - target: "ix://agent-ix/quire-rs/spec/functional/FR-015"
-    type: "implements"
-    cardinality: "1:1"
 ---
 
 ## Statement
 
-`quire-rs` SHALL run `cargo-mutants` on a CI schedule (weekly + workflow_dispatch) targeted at three high-value code paths:
+`quire-rs` SHALL run `cargo-mutants` on a CI schedule (weekly + workflow_dispatch) targeted at two high-value code paths:
 
 1. **Parser primitives** (`src/parser/`) — FR-005..010
 2. **DSL evaluator** (`src/extract/`) — FR-011, FR-016
-3. **Edge harvester** (`src/edges/`) — FR-015
 
 Mutation testing modifies source code (e.g. changes `>` to `<`, drops a `return`, replaces a literal) and asserts that the test suite catches the change. Surviving mutants indicate tests that exercise code but don't actually verify behavior.
 

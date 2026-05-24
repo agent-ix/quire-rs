@@ -56,7 +56,6 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | FR-012 Corpus parity suite | AC-1..5 | TC-030 (sweep), TC-031 (corpus.yaml), TC-041 (regression), TC-039 (data-only-extension) | ✅ Complete |
 | FR-013 Archetype loader | AC-1..6 | TC-080 (empty env), TC-081 (load iso), TC-082 (bad schema_ref), TC-083 (bench), TC-084 (no IO post-load), TC-085 (no net deps) | ✅ Complete |
 | FR-014 Module activation | AC-1..5 | TC-090 (multi-module), TC-091 (collision), TC-092 (strict), TC-093 (version), TC-094 (17-baseline union) | ✅ Complete |
-| FR-015 Edge harvesting + dedup | AC-1..5 | TC-100 (sugar), TC-101 (dedup diag), TC-102 (parent alias), TC-103 (unresolved), TC-104 (parity vs python) | ✅ Complete |
 | FR-016 Fallback locators | AC-1..4 | TC-110 (legacy path), TC-111 (canonical path), TC-112 (optional miss), TC-113 (domain parity) | ✅ Complete |
 
 ### Non-Functional Requirement Coverage
@@ -143,11 +142,6 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-092 | load_strict on duplicate-archetype input returns ArchetypeCollision | Integration | P0 | FR-014-AC-3 | 🚧 |
 | TC-093 | manifest.yaml version queryable via module_version() | Unit | P1 | FR-014-AC-4 | 🚧 |
 | TC-094 | Loading iso + app + process modules yields union of 17 archetypes | Integration | P0 | FR-014-AC-5 | 🚧 |
-| TC-100 | depends_on/parent/template_for sugar fields emit canonical edges | Unit | P0 | FR-015-AC-1 | 🚧 |
-| TC-101 | Duplicate edge from sugar + relationships block deduped with diagnostic | Unit | P0 | FR-015-AC-2 | 🚧 |
-| TC-102 | parent_process sugar alias maps to edge_type "parent" | Unit | P1 | FR-015-AC-3 | 🚧 |
-| TC-103 | Unresolvable bare ID emits UnresolvedRelationshipTarget; edge preserved | Unit | P1 | FR-015-AC-4 | 🚧 |
-| TC-104 | Edge harvesting parity vs filament-parser-lib relationships.py | Parity | P0 | FR-015-AC-5 | 🚧 |
 | TC-110 | Fallback chain resolves via second locator + emits FallbackLocatorUsed | Unit | P0 | FR-016-AC-1 | 🚧 |
 | TC-111 | Fallback chain resolves via first locator + no fallback diagnostic | Unit | P0 | FR-016-AC-2 | 🚧 |
 | TC-112 | Fallback chain all-miss with required:false omits key | Unit | P1 | FR-016-AC-3 | 🚧 |
@@ -161,8 +155,6 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-133 | Path-entry-is-a-file: warning emitted; other entries process | Integration | P1 | FR-013-AC-10 | 🚧 |
 | TC-134 | Two modules same name → DuplicateModuleName diag + first-wins | Integration | P0 | FR-014-AC-6 | 🚧 |
 | TC-135 | Manifest without name uses parent dir name + diagnostic | Unit | P1 | FR-014-AC-7 | 🚧 |
-| TC-140 | Edge dedup metadata: first wins; dropped reported in diagnostic | Unit | P0 | FR-015-AC-6 | 🚧 |
-| TC-141 | harvest_edges deterministic across 64 threads | Property | P0 | FR-015-AC-7 | 🚧 |
 | TC-150 | DSL with both match and iterate_over → ArchetypeLoadError at load | Unit | P0 | FR-011-AC-6 | 🚧 |
 | TC-151 | DSL with unknown key → ArchetypeLoadError at load | Unit | P0 | FR-011-AC-7 | 🚧 |
 | TC-152 | iterate_over.section_path missing → empty records + IterateRootMissing | Unit | P0 | FR-011-AC-8 | 🚧 |
@@ -180,21 +172,6 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-204 | CI workflow includes render_parity job (not just test job) | Static | P0 | US-005-AC-2, US-005-AC-3, StR-002-AC-3 | 🚧 |
 | TC-205 | A patch making merged value invalid (title="") returns SchemaViolation, not a render error | Unit | P0 | US-004-AC-2 | 🚧 |
 | TC-206 | Bench: bench_patch_render_fr median < 1ms for typical FR | Bench | P1 | US-004-AC-3 | 🚧 |
-| TC-300 | Diagnostic enum is Send + Sync + Debug + Clone + Eq | Compile | P0 | FR-017-AC-1 | 🚧 |
-| TC-301 | Registry.load_diagnostics() exposes DuplicateArchetype on collision | Integration | P0 | FR-017-AC-2 | 🚧 |
-| TC-302 | RenderOutput.diagnostics is empty on happy-path render | Unit | P0 | FR-017-AC-3 | 🚧 |
-| TC-303 | Corpus with intentional collisions + missing schema_ref + symlink loop produces expected deterministic Diagnostic sequence | Integration | P0 | FR-017-AC-4 | 🚧 |
-| TC-304 | Diagnostics::by_kind filters by discriminant | Unit | P1 | FR-017-AC-5 | 🚧 |
-| TC-310 | IxUriResolver::new + resolve bare ID → ix:// canonical | Unit | P0 | FR-018-AC-1 | 🚧 |
-| TC-311 | IxUriResolver caller hints override defaults | Unit | P0 | FR-018-AC-2 | 🚧 |
-| TC-312 | IxUriResolver pass-through for full ix:// URI | Unit | P0 | FR-018-AC-3 | 🚧 |
-| TC-313 | IxUriResolver UnresolvedTarget on garbage input | Unit | P0 | FR-018-AC-4 | 🚧 |
-| TC-314 | IxUriResolver: Send + Sync (compile-time assertion) | Compile | P0 | FR-018-AC-5 | 🚧 |
-| TC-315 | IxUriResolver thread-safe concurrent resolve | Property | P1 | FR-018-AC-6 | 🚧 |
-| TC-320 | With --features tracing, parse emits a quire_rs::parse span | Unit | P0 | NFR-008-AC-1 | 🚧 |
-| TC-321 | Without tracing feature, no spans emitted | Unit | P0 | NFR-008-AC-2 | 🚧 |
-| TC-322 | DuplicateArchetype Diagnostic surfaces as tracing::warn! event | Unit | P1 | NFR-008-AC-3 | 🚧 |
-| TC-323 | Bench: render overhead with tracing enabled < 5% | Bench | P1 | NFR-008-AC-4 | 🚧 |
 | TC-330 | Cargo.toml uses tilde/equals pins for load-bearing deps | Static | P0 | NFR-009-AC-1 | 🚧 |
 | TC-331 | spec/assets/adr/0001-validator-crate.md exists with chosen crate + bench numbers | Static | P0 | NFR-009-AC-2 | 🚧 |
 | TC-332 | Static: no load-bearing dep has unbounded version | Static | P0 | NFR-009-AC-3 | 🚧 |
@@ -264,7 +241,6 @@ Schema constraints come from the on-disk JSON Schema files. Boundary tests sit i
 | EC-013 | Empty IX_SCHEMA_PATH + missing default dir | FR-013 | TC-080 | Engine fails instead of empty-registry semantics |
 | EC-014 | Manifest with broken schema_ref | FR-013 | TC-082 | All-or-nothing failure instead of partial load |
 | EC-015 | Two modules defining same archetype name | FR-014 | TC-091, TC-092 | Silent shadow vs documented diagnostic |
-| EC-016 | Frontmatter sugar field + structured relationships block both name same edge | FR-015 | TC-101 | Duplicate edges in graph |
 | EC-017 | Document uses legacy heading variant | FR-016 | TC-110 | Silent data loss |
 | EC-018 | Hot-path render re-reads disk | NFR-007 | TC-084, TC-121 | Per-call cost balloons |
 
@@ -396,13 +372,6 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-014-AC-5 | TC-094 |
 | FR-014-AC-6 | TC-134 |
 | FR-014-AC-7 | TC-135 |
-| FR-015-AC-1 | TC-100 |
-| FR-015-AC-2 | TC-101 |
-| FR-015-AC-3 | TC-102 |
-| FR-015-AC-4 | TC-103 |
-| FR-015-AC-5 | TC-104 |
-| FR-015-AC-6 | TC-140 |
-| FR-015-AC-7 | TC-141 |
 | FR-016-AC-1 | TC-110 |
 | FR-016-AC-2 | TC-111 |
 | FR-016-AC-3 | TC-112 |
@@ -434,10 +403,6 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | NFR-007-AC-2 | TC-120 |
 | NFR-007-AC-3 | TC-121 |
 | NFR-007-AC-4 | TC-122 |
-| NFR-008-AC-1 | TC-320 |
-| NFR-008-AC-2 | TC-321 |
-| NFR-008-AC-3 | TC-322 |
-| NFR-008-AC-4 | TC-323 |
 | NFR-009-AC-1 | TC-330 |
 | NFR-009-AC-2 | TC-331 |
 | NFR-009-AC-3 | TC-332 |
@@ -446,17 +411,6 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | NFR-010-AC-2 | TC-340 |
 | NFR-010-AC-3 | TC-341 |
 | NFR-010-AC-4 | TC-342 |
-| FR-017-AC-1 | TC-300 |
-| FR-017-AC-2 | TC-301 |
-| FR-017-AC-3 | TC-302 |
-| FR-017-AC-4 | TC-303 |
-| FR-017-AC-5 | TC-304 |
-| FR-018-AC-1 | TC-310 |
-| FR-018-AC-2 | TC-311 |
-| FR-018-AC-3 | TC-312 |
-| FR-018-AC-4 | TC-313 |
-| FR-018-AC-5 | TC-314 |
-| FR-018-AC-6 | TC-315 |
 | NFR-011-AC-1 | TC-350 |
 | NFR-011-AC-2 | TC-350 |
 | NFR-011-AC-3 | TC-351 |
@@ -484,7 +438,6 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | GAP-001 | DSL evaluator parity test (TC-040) needs a curated fixture document per object_type across all 87+ types; some fixtures may not yet exist in the source repos. | Medium | Track per-type fixture availability in `tests/extract_parity/coverage.md`; missing fixtures are P1 follow-ups. |
 | GAP-002 | Python Jinja2 reference renderer is not byte-stable across Jinja2 minor versions in all whitespace cases. | Low | StR-002-AC-2 documents known whitespace exceptions; pin reference's Jinja2 version. |
 | GAP-003 | Cross-machine determinism (arm64 vs x86_64 byte parity) is implied but not explicitly benched. | Low | Add an arm64 + x86_64 CI matrix as a P2 enhancement. |
-| GAP-004 | The relationship resolver (FR-015) is caller-supplied; quire-rs does not ship a default. Test fixtures use an in-test stub resolver. | Low | Document the resolver contract clearly; provide reference stub in test utilities. |
 | GAP-005 | Sync from Filament to disk is out of scope (lives in `ix-cli`). Integration tests confirm quire-rs is correct against the on-disk state regardless of how it got there. | None | No mitigation needed — by design. |
 
 ---

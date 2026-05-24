@@ -1,10 +1,8 @@
 //! Load-time + extract-time non-fatal diagnostics.
 //!
-//! v0.2 scope: data shape only. The v0.1 `Diagnostics` collector +
-//! `by_kind` filter formalism (FR-017) was stripped during the
-//! spec-refinement audit because it had no INPUT.md basis. Consumers
-//! that need to inspect load warnings get a `&[Diagnostic]` slice
-//! directly off `Registry::diagnostics()` and `ExtractionResult.diagnostics`.
+//! Consumers inspect load warnings via the `&[Diagnostic]` slice
+//! exposed on [`crate::registry::Registry::diagnostics`] and
+//! [`crate::extract::ExtractionResult::diagnostics`].
 
 use std::path::PathBuf;
 
