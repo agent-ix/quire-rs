@@ -23,6 +23,7 @@ use std::sync::Arc;
 use minijinja::Environment;
 use serde_json::Value;
 
+use crate::diagnostic::Diagnostic;
 use crate::error::{ArchetypeLoadFailure, QuireError};
 use crate::loader::compile::{
     compile_schema, failure, read_schema, register_template, CompiledArchetype,
@@ -35,6 +36,7 @@ use crate::loader::paths::{home_dir, resolve_search_paths, PathDiagnostic};
 pub struct LoadedModule {
     pub name: String,
     pub root: PathBuf,
+    pub version: Option<String>,
     pub archetypes: Vec<Arc<CompiledArchetype>>,
 }
 
@@ -43,6 +45,7 @@ pub struct LoadedModule {
 pub struct LoadOutcome {
     pub modules: Vec<LoadedModule>,
     pub failures: Vec<ArchetypeLoadFailure>,
+    pub diagnostics: Vec<Diagnostic>,
     pub path_diagnostics: Vec<PathDiagnostic>,
     pub env: Environment<'static>,
 }
@@ -68,17 +71,47 @@ pub fn load_modules(explicit: &[&Path]) -> LoadOutcome {
     let mut env = build_strict_env();
     let mut modules: Vec<LoadedModule> = Vec::new();
     let mut failures: Vec<ArchetypeLoadFailure> = Vec::new();
+    let mut diagnostics: Vec<Diagnostic> = Vec::new();
     let mut visited: Vec<PathBuf> = Vec::new();
+
+    // Surface path-resolution problems as diagnostics too (they were
+    // previously only accessible via Registry::path_diagnostics; both
+    // channels now carry the information for consumer ergonomics).
+    for diag in &path_diagnostics {
+        match diag {
+            PathDiagnostic::Missing(p) => {
+                diagnostics.push(Diagnostic::SearchPathMissing { path: p.clone() })
+            }
+            PathDiagnostic::NotADirectory(p) => {
+                diagnostics.push(Diagnostic::SearchPathNotADirectory { path: p.clone() })
+            }
+            PathDiagnostic::Unreadable { path, reason } => {
+                diagnostics.push(Diagnostic::SearchPathUnreadable {
+                    path: path.clone(),
+                    reason: reason.clone(),
+                })
+            }
+            PathDiagnostic::Ok(_) => {}
+        }
+    }
 
     for diag in &path_diagnostics {
         if let PathDiagnostic::Ok(root) = diag {
-            walk_search_root(root, &mut env, &mut modules, &mut failures, &mut visited);
+            walk_search_root(
+                root,
+                &mut env,
+                &mut modules,
+                &mut failures,
+                &mut diagnostics,
+                &mut visited,
+            );
         }
     }
 
     LoadOutcome {
         modules,
         failures,
+        diagnostics,
         path_diagnostics,
         env,
     }
@@ -93,17 +126,15 @@ pub fn load_from_env() -> LoadOutcome {
 /// Convenience: load only from `~/.ix/schemas/`, ignoring
 /// `IX_SCHEMA_PATH`.
 pub fn load_from_default() -> LoadOutcome {
-    let env = Environment::new();
-    let mut env = env;
-    env.set_undefined_behavior(minijinja::UndefinedBehavior::Strict);
     let default_root = home_dir().map(|h| h.join(".ix").join("schemas"));
     match default_root {
         Some(root) => load_modules(&[&root]),
         None => LoadOutcome {
             modules: Vec::new(),
             failures: Vec::new(),
+            diagnostics: Vec::new(),
             path_diagnostics: Vec::new(),
-            env,
+            env: build_strict_env(),
         },
     }
 }
@@ -115,6 +146,7 @@ fn walk_search_root(
     env: &mut Environment<'static>,
     modules: &mut Vec<LoadedModule>,
     failures: &mut Vec<ArchetypeLoadFailure>,
+    diagnostics: &mut Vec<Diagnostic>,
     visited: &mut Vec<PathBuf>,
 ) {
     let canonical = match std::fs::canonicalize(root) {
@@ -122,6 +154,7 @@ fn walk_search_root(
         Err(_) => return,
     };
     if visited.iter().any(|p| p == &canonical) {
+        diagnostics.push(Diagnostic::SymlinkLoop { path: canonical });
         return; // FR-013-AC-7: symlink-loop guard
     }
     visited.push(canonical.clone());
@@ -140,6 +173,7 @@ fn walk_search_root(
             Err(_) => continue,
         };
         if visited.iter().any(|p| p == &canon) {
+            diagnostics.push(Diagnostic::SymlinkLoop { path: canon });
             continue; // already loaded via another search path
         }
         visited.push(canon.clone());
@@ -147,7 +181,7 @@ fn walk_search_root(
         if !canonical_has_manifest(&canon) {
             continue; // not a module root
         }
-        match load_one_module(&canon, env) {
+        match load_one_module(&canon, env, diagnostics) {
             Ok((module, mut per_module_failures)) => {
                 if !per_module_failures.is_empty() {
                     failures.append(&mut per_module_failures);
@@ -170,6 +204,7 @@ fn canonical_has_manifest(path: &Path) -> bool {
 fn load_one_module(
     module_root: &Path,
     env: &mut Environment<'static>,
+    diagnostics: &mut Vec<Diagnostic>,
 ) -> Result<(LoadedModule, Vec<ArchetypeLoadFailure>), ArchetypeLoadFailure> {
     let manifest: Manifest = load_manifest(module_root).map_err(|reason| ArchetypeLoadFailure {
         module: module_root
@@ -182,7 +217,19 @@ fn load_one_module(
         reason,
     })?;
 
-    let module_name = manifest.name.clone();
+    let module_name: String = manifest.name.clone().unwrap_or_else(|| {
+        let derived = module_root
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("<unknown>")
+            .to_string();
+        diagnostics.push(Diagnostic::ManifestMissingName {
+            path: module_root.join("manifest.yaml"),
+            derived_name: derived.clone(),
+        });
+        derived
+    });
+
     let mut archetypes: Vec<Arc<CompiledArchetype>> = Vec::new();
     let mut failures: Vec<ArchetypeLoadFailure> = Vec::new();
 
@@ -203,6 +250,7 @@ fn load_one_module(
         LoadedModule {
             name: module_name,
             root: module_root.to_path_buf(),
+            version: manifest.version.clone(),
             archetypes,
         },
         failures,
@@ -272,48 +320,117 @@ fn qualified_template_name(module: &str, archetype: &str) -> String {
 /// `BTreeMap<name, Arc<CompiledArchetype>>` keyed by archetype name,
 /// surfacing collisions as a fatal `ArchetypeCollision` error
 /// (FR-014).
-pub fn flatten_into_registry(outcome: LoadOutcome) -> Result<RegistryShape, QuireError> {
-    let mut archetypes: BTreeMap<String, Arc<CompiledArchetype>> = BTreeMap::new();
+pub fn flatten_into_registry(mut outcome: LoadOutcome) -> RegistryShape {
     let mut module_paths: BTreeMap<String, PathBuf> = BTreeMap::new();
+    let mut module_versions: BTreeMap<String, Option<String>> = BTreeMap::new();
+    let mut module_collisions: BTreeMap<String, Vec<PathBuf>> = BTreeMap::new();
     for module in &outcome.modules {
-        if let Some(prev) = module_paths.get(&module.name) {
-            return Err(QuireError::ModuleCollision {
-                name: module.name.clone(),
-                first_path: prev.clone(),
-                second_path: module.root.clone(),
-            });
+        match module_paths.get(&module.name) {
+            Some(_) => {
+                module_collisions
+                    .entry(module.name.clone())
+                    .or_default()
+                    .push(module.root.clone());
+            }
+            None => {
+                module_paths.insert(module.name.clone(), module.root.clone());
+                module_versions.insert(module.name.clone(), module.version.clone());
+            }
         }
-        module_paths.insert(module.name.clone(), module.root.clone());
     }
+    for (name, mut later_paths) in module_collisions {
+        let first = module_paths.get(&name).cloned().unwrap_or_default();
+        let mut all_paths = vec![first];
+        all_paths.append(&mut later_paths);
+        outcome.diagnostics.push(Diagnostic::DuplicateModuleName {
+            name,
+            paths: all_paths,
+        });
+    }
+
+    let mut active_archetypes: BTreeMap<String, Arc<CompiledArchetype>> = BTreeMap::new();
+    let mut by_module_and_name: BTreeMap<(String, String), Arc<CompiledArchetype>> =
+        BTreeMap::new();
+    let mut arch_collisions: BTreeMap<String, Vec<String>> = BTreeMap::new();
     for module in &outcome.modules {
         for arch in &module.archetypes {
-            if let Some(existing) = archetypes.get(&arch.name) {
-                return Err(QuireError::ArchetypeCollision {
-                    name: arch.name.clone(),
-                    first_module: existing.module.clone(),
-                    second_module: arch.module.clone(),
-                });
+            by_module_and_name.insert((module.name.clone(), arch.name.clone()), Arc::clone(arch));
+            match active_archetypes.get(&arch.name) {
+                Some(existing) => {
+                    let entry = arch_collisions.entry(arch.name.clone()).or_default();
+                    if !entry.contains(&existing.module) {
+                        entry.push(existing.module.clone());
+                    }
+                    entry.push(module.name.clone());
+                }
+                None => {
+                    active_archetypes.insert(arch.name.clone(), Arc::clone(arch));
+                }
             }
-            archetypes.insert(arch.name.clone(), Arc::clone(arch));
         }
     }
-    Ok(RegistryShape {
-        archetypes,
+    for (name, modules) in arch_collisions {
+        outcome
+            .diagnostics
+            .push(Diagnostic::DuplicateArchetype { name, modules });
+    }
+
+    RegistryShape {
+        archetypes: active_archetypes,
+        by_module_and_name,
         module_paths,
+        module_versions,
         env: outcome.env,
         failures: outcome.failures,
+        diagnostics: outcome.diagnostics,
         path_diagnostics: outcome.path_diagnostics,
-    })
+    }
+}
+
+/// Strict counterpart of [`flatten_into_registry`]: promotes the first
+/// collision diagnostic to a fatal `QuireError`.
+pub fn flatten_into_registry_strict(outcome: LoadOutcome) -> Result<RegistryShape, QuireError> {
+    let shape = flatten_into_registry(outcome);
+    for diag in shape.diagnostics.iter() {
+        match diag {
+            Diagnostic::DuplicateModuleName { name, paths } => {
+                let first = paths.first().cloned().unwrap_or_default();
+                let second = paths.get(1).cloned().unwrap_or_default();
+                return Err(QuireError::ModuleCollision {
+                    name: name.clone(),
+                    first_path: first,
+                    second_path: second,
+                });
+            }
+            Diagnostic::DuplicateArchetype { name, modules } => {
+                let first_module = modules.first().cloned().unwrap_or_default();
+                let second_module = modules.get(1).cloned().unwrap_or_default();
+                return Err(QuireError::ArchetypeCollision {
+                    name: name.clone(),
+                    first_module,
+                    second_module,
+                });
+            }
+            _ => {}
+        }
+    }
+    Ok(shape)
 }
 
 /// Pre-Registry shape returned by [`flatten_into_registry`]. The
 /// `Registry` constructor wraps this in `Arc<Inner>` for cheap cloning.
 #[derive(Debug)]
 pub struct RegistryShape {
+    /// First-wins active archetype set keyed by bare archetype name.
     pub archetypes: BTreeMap<String, Arc<CompiledArchetype>>,
+    /// Every (module, archetype) pair — includes shadowed copies for
+    /// inspection via `Registry::archetype_in_module`.
+    pub by_module_and_name: BTreeMap<(String, String), Arc<CompiledArchetype>>,
     pub module_paths: BTreeMap<String, PathBuf>,
+    pub module_versions: BTreeMap<String, Option<String>>,
     pub env: Environment<'static>,
     pub failures: Vec<ArchetypeLoadFailure>,
+    pub diagnostics: Vec<Diagnostic>,
     pub path_diagnostics: Vec<PathDiagnostic>,
 }
 
@@ -382,14 +499,30 @@ mod tests {
     }
 
     #[test]
-    fn module_collision_is_a_fatal_error_at_flatten() {
+    fn module_collision_emits_diagnostic_but_loads_first_wins() {
         let p1 = tmpdir("col-a");
         let p2 = tmpdir("col-b");
         write_minimal_module(&p1.join("dup"), "dup");
         fs::create_dir_all(p2.join("dup")).unwrap();
         write_minimal_module(&p2.join("dup"), "dup");
         let outcome = load_modules(&[&p1, &p2]);
-        let err = flatten_into_registry(outcome).expect_err("collision");
+        let shape = flatten_into_registry(outcome);
+        assert!(shape
+            .diagnostics
+            .iter()
+            .any(|d| matches!(d, Diagnostic::DuplicateModuleName { .. })));
+        // First-wins: the bare name "dup" still resolves.
+        assert!(shape.archetypes.contains_key("foo"));
+    }
+
+    #[test]
+    fn module_collision_is_fatal_in_strict_mode() {
+        let p1 = tmpdir("strict-a");
+        let p2 = tmpdir("strict-b");
+        write_minimal_module(&p1.join("dup"), "dup");
+        write_minimal_module(&p2.join("dup"), "dup");
+        let outcome = load_modules(&[&p1, &p2]);
+        let err = flatten_into_registry_strict(outcome).expect_err("collision");
         assert!(matches!(err, QuireError::ModuleCollision { .. }));
     }
 

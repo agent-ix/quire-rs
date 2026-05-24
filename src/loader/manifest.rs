@@ -19,10 +19,14 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
 /// Top-level `manifest.yaml` shape.
+///
+/// `name` is optional at the YAML layer — when absent, the loader
+/// derives one from the parent directory and emits a
+/// `Diagnostic::ManifestMissingName` (FR-014-AC-7).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Manifest {
-    /// Module name (uniqueness key in the Registry).
-    pub name: String,
+    #[serde(default)]
+    pub name: Option<String>,
     #[serde(default)]
     pub version: Option<String>,
     #[serde(default)]
@@ -106,13 +110,24 @@ artifact_types:
   frontmatter_schema_ref: schemas/nfr-frontmatter.schema.json
 "#;
         let m = parse_manifest(yaml).expect("parse");
-        assert_eq!(m.name, "spec-artifacts-iso");
+        assert_eq!(m.name.as_deref(), Some("spec-artifacts-iso"));
         assert_eq!(m.artifact_types.len(), 2);
         assert_eq!(m.artifact_types[0].name, "FR");
         assert_eq!(
             m.artifact_types[0].template_ref,
             PathBuf::from("templates/fr.md.j2")
         );
+    }
+
+    #[test]
+    fn name_is_optional_when_yaml_omits_it() {
+        let yaml = br#"
+version: 0.1.0
+artifact_types: []
+"#;
+        let m = parse_manifest(yaml).expect("parse");
+        assert!(m.name.is_none());
+        assert_eq!(m.version.as_deref(), Some("0.1.0"));
     }
 
     #[test]
@@ -149,12 +164,6 @@ artifact_types:
     }
 
     #[test]
-    fn missing_name_is_an_error() {
-        let yaml = br#"version: 1"#;
-        assert!(parse_manifest(yaml).is_err());
-    }
-
-    #[test]
     fn load_manifest_reads_disk() {
         let root = tmpdir("disk");
         fs::write(
@@ -163,6 +172,6 @@ artifact_types:
         )
         .unwrap();
         let m = load_manifest(&root).expect("load");
-        assert_eq!(m.name, "disk-mod");
+        assert_eq!(m.name.as_deref(), Some("disk-mod"));
     }
 }
