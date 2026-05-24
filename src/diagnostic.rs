@@ -15,7 +15,7 @@
 use std::path::PathBuf;
 
 /// One advisory note produced by a loader / render call.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum Diagnostic {
     /// Two manifests at different paths declared the same `name`. The

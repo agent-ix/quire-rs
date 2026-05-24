@@ -114,6 +114,18 @@ pub enum QuireError {
     /// time per FR-013 unless `load_strict` is requested.
     #[error("InvalidSearchPath {}: {reason}", path.display())]
     InvalidSearchPath { path: PathBuf, reason: String },
+
+    // ── Extract / DSL ───────────────────────────────────────────────────
+    /// A required `Locator` in a body-extraction DSL produced no value.
+    /// `key` is the DSL field that was supposed to receive the value;
+    /// `locator` is a short description of the locator that failed.
+    #[error("MissingField: required DSL key '{key}' (locator: {locator})")]
+    MissingField { key: String, locator: String },
+
+    /// A `body_extraction` DSL failed structural validation at load
+    /// time (`match` XOR `iterate_over`, unknown key, missing `from:`).
+    #[error("DslValidationError [{archetype}]: {reason}")]
+    DslValidationError { archetype: String, reason: String },
 }
 
 /// One per-archetype load failure, aggregated by
