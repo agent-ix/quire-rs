@@ -17,10 +17,19 @@ pub struct Heading {
     /// ATX level (1..=6, matching the count of `#` chars).
     pub level: usize,
     /// Heading text after the `#`+whitespace prefix, with leading and
-    /// trailing whitespace stripped (including CRLF `\r`).
+    /// trailing whitespace stripped (including CRLF `\r`). If the
+    /// heading line carries a trailing Pandoc attribute (`{#id}`),
+    /// the attribute is NOT part of this string — it lands in
+    /// [`block_id`](Self::block_id) instead.
     pub text: String,
     /// 0-based index of the heading line in the input slice.
     pub line: usize,
+    /// Stable block ID, parsed from a trailing Pandoc heading
+    /// attribute `## Heading {#blk-id}` (FR-019). `None` when the
+    /// heading has no attribute. IDs are arbitrary author-supplied
+    /// strings; the parser does not constrain their shape beyond
+    /// "no whitespace and no closing brace".
+    pub block_id: Option<String>,
 }
 
 /// Walk `lines` and collect every ATX heading outside fenced code blocks.
@@ -42,15 +51,48 @@ pub fn walk_headings(lines: &[&str]) -> Vec<Heading> {
         if fence.is_some() {
             continue;
         }
-        if let Some((level, text)) = parse_heading(line) {
+        if let Some((level, mut text)) = parse_heading(line) {
+            let block_id = strip_trailing_block_id(&mut text);
             out.push(Heading {
                 level,
                 text,
                 line: i,
+                block_id,
             });
         }
     }
     out
+}
+
+/// Strip a trailing Pandoc-style block attribute `{#id}` from
+/// `text` if present. Returns `Some(id)` and mutates `text` to
+/// remove the attribute + any whitespace immediately preceding it.
+/// Returns `None` and leaves `text` untouched otherwise.
+///
+/// Recognized shape: `... {#<id>}` at end-of-text. `<id>` is one or
+/// more non-whitespace, non-`}` characters. Permissive author syntax;
+/// the engine doesn't restrict ID character set.
+fn strip_trailing_block_id(text: &mut String) -> Option<String> {
+    let trimmed_end = text.trim_end_matches(|c: char| c.is_whitespace());
+    if !trimmed_end.ends_with('}') {
+        return None;
+    }
+    // Walk backward from the `}` to find the matching `{#`.
+    let close_byte = trimmed_end.len() - 1;
+    let prefix = &trimmed_end[..close_byte];
+    // Look for the latest `{#` that doesn't contain whitespace or `}`
+    // between it and the close brace.
+    let open_rel = prefix.rfind("{#")?;
+    let inside = &prefix[open_rel + 2..];
+    if inside.is_empty() || inside.chars().any(|c| c.is_whitespace() || c == '}') {
+        return None;
+    }
+    // Found valid `{#id}` at the tail. Strip it + preceding whitespace.
+    let id = inside.to_string();
+    let pre = &trimmed_end[..open_rel];
+    let pre_trimmed = pre.trim_end_matches(|c: char| c.is_whitespace());
+    *text = pre_trimmed.to_string();
+    Some(id)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -193,5 +235,59 @@ mod tests {
         let hs = walk_headings(&lines(input));
         assert_eq!(hs[0].line, 2);
         assert_eq!(hs[1].line, 4);
+    }
+
+    // FR-019: stable block IDs via Pandoc heading attribute.
+    #[test]
+    fn pandoc_block_id_attribute_is_stripped_from_text() {
+        let hs = walk_headings(&lines("## Behavior {#blk-7af2}"));
+        assert_eq!(hs.len(), 1);
+        assert_eq!(hs[0].text, "Behavior");
+        assert_eq!(hs[0].block_id.as_deref(), Some("blk-7af2"));
+    }
+
+    #[test]
+    fn heading_without_attribute_has_no_block_id() {
+        let hs = walk_headings(&lines("## Behavior"));
+        assert_eq!(hs[0].text, "Behavior");
+        assert!(hs[0].block_id.is_none());
+    }
+
+    #[test]
+    fn block_id_allows_alphanumeric_dash_underscore() {
+        let hs = walk_headings(&lines("### Section foo {#abc_123-XY}"));
+        assert_eq!(hs[0].text, "Section foo");
+        assert_eq!(hs[0].block_id.as_deref(), Some("abc_123-XY"));
+    }
+
+    #[test]
+    fn malformed_attribute_with_whitespace_is_not_an_id() {
+        // `{# blk}` (space after `{#`) → not a valid attribute.
+        let hs = walk_headings(&lines("## Title {# blk}"));
+        assert!(hs[0].block_id.is_none());
+        // Text retains the literal `{# blk}`.
+        assert_eq!(hs[0].text, "## Title {# blk}".trim_start_matches("## "));
+    }
+
+    #[test]
+    fn block_id_survives_trailing_whitespace_before_attribute() {
+        let hs = walk_headings(&lines("## A   {#blk-x}   "));
+        assert_eq!(hs[0].text, "A");
+        assert_eq!(hs[0].block_id.as_deref(), Some("blk-x"));
+    }
+
+    #[test]
+    fn block_id_round_trip_parse_reparse_is_stable() {
+        // Document is parsed, the section's block_id captured, and a
+        // re-render (just the line) reparses to the same block_id.
+        let original = "## Behavior {#blk-stable-7af2}";
+        let hs = walk_headings(&lines(original));
+        let id1 = hs[0].block_id.clone();
+        // Reconstructing the line the way writeback would (heading +
+        // text + " {#id}") then reparsing yields the same ID.
+        let reconstructed = format!("{} {} {{#{}}}", "##", hs[0].text, id1.as_deref().unwrap());
+        let hs2 = walk_headings(&lines(&reconstructed));
+        assert_eq!(hs2[0].block_id, id1);
+        assert_eq!(hs2[0].text, hs[0].text);
     }
 }

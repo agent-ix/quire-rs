@@ -16,6 +16,7 @@ pub mod query;
 pub mod registry;
 pub mod render;
 pub mod validate;
+pub mod writeback;
 
 // Parser surface (FR-005..009).
 pub use ast::{QuireDocument, QuireSection};
@@ -41,3 +42,5 @@ pub use validate::{apply_patch, validate, validate_all};
 pub use extract::dsl::{ExtractionDsl, IterateKind, IterateOver, YieldPattern};
 pub use extract::locator::{Locator, LocatorPrimitive};
 pub use extract::{extract, ExtractionResult};
+// Writeback (FR-022).
+pub use writeback::{update_block, update_section};
