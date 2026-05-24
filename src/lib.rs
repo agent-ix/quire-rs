@@ -32,3 +32,6 @@ pub use query::{
 };
 // Error shape (NFR-005).
 pub use error::{format_violation, ArchetypeLoadFailure, QuireError, VIOLATION_PREVIEW_MAX};
+// Loader + registry (FR-013).
+pub use loader::compile::CompiledArchetype;
+pub use registry::Registry;
