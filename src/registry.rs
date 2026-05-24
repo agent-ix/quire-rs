@@ -127,6 +127,18 @@ impl Registry {
         self.inner.archetypes.get(name).map(|a| a.as_ref())
     }
 
+    /// Return the JSON Schema document loaded for `name` (FR-003).
+    /// The returned `Value` is the same shape loaded from disk so LLM
+    /// tool-call definitions can read what the engine validates against.
+    pub fn schema_for(&self, name: &str) -> Result<&serde_json::Value, QuireError> {
+        match self.inner.archetypes.get(name) {
+            Some(a) => Ok(a.raw_schema.as_ref()),
+            None => Err(QuireError::UnknownArchetype {
+                name: name.to_string(),
+            }),
+        }
+    }
+
     /// Iterate over every loaded archetype name.
     pub fn archetype_names(&self) -> impl Iterator<Item = &str> {
         self.inner.archetypes.keys().map(|s| s.as_str())
@@ -299,6 +311,56 @@ mod tests {
             .diagnostics()
             .iter()
             .any(|d| matches!(d, Diagnostic::ManifestMissingName { .. })));
+    }
+
+    // FR-003-AC-1: schema_for returns the loaded schema document.
+    #[test]
+    fn schema_for_returns_loaded_schema() {
+        let parent = tmpdir("sf");
+        write_minimal_module(&parent.join("m"), "m");
+        let r = Registry::load_from(&[&parent]).expect("ok");
+        let s = r.schema_for("foo").expect("schema");
+        assert_eq!(s["type"], "object");
+        assert_eq!(s["required"][0], "id");
+    }
+
+    // FR-003-AC-2: schema_for of unknown name returns UnknownArchetype.
+    #[test]
+    fn schema_for_unknown_returns_unknown_archetype() {
+        let parent = tmpdir("sf-unknown");
+        write_minimal_module(&parent.join("m"), "m");
+        let r = Registry::load_from(&[&parent]).expect("ok");
+        let err = r.schema_for("nope").expect_err("unknown");
+        assert!(matches!(err, QuireError::UnknownArchetype { .. }));
+    }
+
+    // FR-004-AC-4: template containing {% include %} fails at load time.
+    #[test]
+    fn template_with_include_fails_at_load_time() {
+        let parent = tmpdir("inc");
+        let module_root = parent.join("inc-mod");
+        fs::create_dir_all(module_root.join("schemas")).unwrap();
+        fs::create_dir_all(module_root.join("templates")).unwrap();
+        fs::write(
+            module_root.join("manifest.yaml"),
+            "name: inc-mod\nartifact_types:\n- name: foo\n  template_ref: templates/foo.md.j2\n  frontmatter_schema_ref: schemas/foo.schema.json\n",
+        )
+        .unwrap();
+        fs::write(
+            module_root.join("schemas/foo.schema.json"),
+            r#"{"type":"object"}"#,
+        )
+        .unwrap();
+        fs::write(
+            module_root.join("templates/foo.md.j2"),
+            "{% include 'other.j2' %}\n",
+        )
+        .unwrap();
+        let r = Registry::load_from(&[&parent]).expect("ok");
+        // The archetype is NOT registered (include rejected at load).
+        assert!(r.archetype("foo").is_none());
+        // A per-archetype failure was aggregated instead.
+        assert!(r.failures().iter().any(|f| f.archetype == "foo"));
     }
 
     // FR-014-AC-2: archetype-name collision keeps the shadowed copy queryable.

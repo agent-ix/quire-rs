@@ -82,12 +82,16 @@ pub fn compile_schema(schema: &Value) -> Result<JSONSchema, String> {
 /// neutral error string on parse failure.
 ///
 /// `env` must already be configured with the FR-004 strict settings
-/// (caller's responsibility — see `render::env::build_env`).
+/// (caller's responsibility — see `render::env::build_strict_env`).
+///
+/// Performs the FR-004-AC-4 load-time `{% include %}` / `{% extends %}`
+/// rejection sniff before handing the source to MiniJinja.
 pub fn register_template(
     env: &mut Environment<'static>,
     template_name: String,
     template_source: String,
 ) -> Result<(), String> {
+    crate::render::env::reject_includes(&template_source)?;
     env.add_template_owned(template_name, template_source)
         .map_err(|e| format!("template parse error: {e}"))
 }

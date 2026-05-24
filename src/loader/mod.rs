@@ -50,16 +50,11 @@ pub struct LoadOutcome {
     pub env: Environment<'static>,
 }
 
-/// Build a strict MiniJinja environment per FR-004. Inlined here for
-/// Task 005 self-containment; Task 007 will move this into
-/// `render::env` and the loader will call into that.
+/// Build a strict MiniJinja environment per FR-004. Delegates to
+/// `render::env::build_strict_env` so the env construction has one
+/// owner.
 fn build_strict_env() -> Environment<'static> {
-    let mut env = Environment::new();
-    env.set_undefined_behavior(minijinja::UndefinedBehavior::Strict);
-    // FR-004: `{% include %}` is disabled by removing the loader.
-    // MiniJinja's default has no loader anyway; explicit add_template
-    // is the only way templates enter the env.
-    env
+    crate::render::env::build_strict_env()
 }
 
 /// Load every module reachable from `explicit` (or `IX_SCHEMA_PATH` /
