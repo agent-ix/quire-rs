@@ -59,3 +59,10 @@ Merge-patch (US-006) is the natural primitive when the LLM changes one or two fi
 - The LLM is generating block content from scratch and doesn't need to preserve prior state.
 
 **Failure cost:** identical to US-006 (validation-before-render means no half-written markdown).
+
+## Performance Criteria
+
+- **US-007-PC-1**: `replace_block` on a 10 KB document with a typical 5-block layout completes in p50 < 1 ms, p99 < 5 ms (within ±10% of US-006-PC-1 — the deep-merge step is negligible at this scale). Bench: **TC-451**.
+- **US-007-PC-2**: Per-call memory: identical envelope to US-006 — one allocation for the output `String`.
+- **US-007-PC-3**: Inherits NFR-001 + NFR-007 (render <1 ms, zero disk I/O after load).
+- **US-007-PC-4**: On larger blocks (≥ 50 KB of rendered content), `replace_block` is measurably *faster* than `apply_block_patch` because it skips the recursive `deep_merge`. The crossover where US-007 wins is documented in the TC-451 report.
