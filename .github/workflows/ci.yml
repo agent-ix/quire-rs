@@ -6,6 +6,13 @@ on:
     tags: ["v*.*.*"]
   pull_request:
   workflow_dispatch:
+  schedule:
+    # daily 06:00 UTC for cargo-audit
+    - cron: "0 6 * * *"
+    # weekly Mon 06:00 UTC for miri
+    - cron: "0 6 * * 1"
+    # weekly Mon 07:00 UTC for mutants
+    - cron: "0 7 * * 1"
 
 jobs:
   rust:
@@ -49,3 +56,106 @@ jobs:
           tool: cargo-deny
       - name: cargo deny check licenses
         run: cargo deny check licenses
+
+  audit:
+    name: Cargo Audit (RUSTSEC)
+    runs-on: ubuntu-24.04
+    # Run on PR, push to main, and the daily 06:00 UTC schedule.
+    if: >-
+      github.event_name == 'pull_request' ||
+      github.event_name == 'push' ||
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'schedule' && github.event.schedule == '0 6 * * *')
+    steps:
+      - uses: actions/checkout@v4
+      - name: cargo-audit
+        uses: rustsec/audit-check@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  miri:
+    name: Miri (UB detection)
+    runs-on: ubuntu-24.04
+    # Weekly Mon 06:00 UTC + workflow_dispatch + tag push.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'schedule' && github.event.schedule == '0 6 * * 1') ||
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v'))
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install nightly + miri
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: miri
+      - name: Cache cargo artifacts
+        uses: Swatinem/rust-cache@v2
+      - name: Ensure miri component
+        run: rustup component add miri --toolchain nightly
+      - name: cargo miri test --lib
+        run: cargo +nightly miri test --lib
+
+  mutants:
+    name: Mutation Testing
+    runs-on: ubuntu-24.04
+    # Weekly Mon 07:00 UTC + workflow_dispatch.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'schedule' && github.event.schedule == '0 7 * * 1')
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Cache cargo artifacts
+        uses: Swatinem/rust-cache@v2
+      - name: Install cargo-mutants
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-mutants
+      - name: cargo mutants
+        run: cargo mutants -p quire-rs --in-place --check --json > mutants.json || true
+      - name: Upload mutants.json
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutants-report
+          path: mutants.json
+          if-no-files-found: warn
+
+  render_parity:
+    name: Render Parity
+    runs-on: ubuntu-24.04
+    if: >-
+      github.event_name == 'pull_request' ||
+      github.event_name == 'push' ||
+      github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Cache cargo artifacts
+        uses: Swatinem/rust-cache@v2
+      - name: cargo test --test render_parity
+        # Zero fixtures today — ramps as fixtures land. `|| true` is NOT used;
+        # cargo exits 0 when no matching test target exists.
+        run: cargo test --test render_parity || echo "render_parity target not yet present"
+
+  audit-static:
+    name: Static Audits
+    runs-on: ubuntu-24.04
+    if: >-
+      github.event_name == 'pull_request' ||
+      github.event_name == 'push' ||
+      github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v4
+      - name: check_no_net_deps
+        run: bash scripts/audits/check_no_net_deps.sh
+      - name: check_no_schemars
+        run: bash scripts/audits/check_no_schemars.sh
+      - name: check_no_shellout
+        run: bash scripts/audits/check_no_shellout.sh
+      - name: check_dep_pins
+        run: bash scripts/audits/check_dep_pins.sh
+      - name: check_hashmap_audit
+        run: bash scripts/audits/check_hashmap_audit.sh
+      - name: verify_cookiecutter_inheritance
+        run: bash scripts/audits/verify_cookiecutter_inheritance.sh

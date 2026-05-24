@@ -1,0 +1,51 @@
+name: Fuzz
+
+# NFR-011: weekly fuzzing of each fuzz target (5 minutes per target) +
+# workflow_dispatch for on-demand runs.
+
+on:
+  schedule:
+    - cron: "0 8 * * 1"
+  workflow_dispatch:
+
+jobs:
+  fuzz:
+    name: cargo-fuzz (${{ matrix.target }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - fuzz_parse_document
+          - fuzz_extract_frontmatter
+          - fuzz_apply_patch
+          - fuzz_extract_dsl
+          - fuzz_load_manifest
+          - fuzz_load_schema
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install nightly toolchain
+        uses: dtolnay/rust-toolchain@nightly
+
+      - name: Cache cargo artifacts
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install cargo-fuzz
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-fuzz
+
+      - name: Run fuzz target (5 minutes)
+        # -max_total_time=300 caps wall-clock at 5 minutes per NFR-011.
+        run: cargo +nightly fuzz run ${{ matrix.target }} -- -max_total_time=300
+
+      - name: Upload corpus artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-corpus-${{ matrix.target }}
+          path: |
+            fuzz/corpus/${{ matrix.target }}
+            fuzz/artifacts/${{ matrix.target }}
+          if-no-files-found: ignore
