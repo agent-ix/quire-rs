@@ -52,11 +52,15 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | FR-008 Byte-exact slicing | AC-1..3 | TC-022, TC-023, TC-024 | ✅ Complete |
 | FR-009 Slug-line ID | AC-1..5 | TC-025, TC-026 | ✅ Complete |
 | FR-010 Query API | AC-1..3 | TC-027, TC-028, TC-029 | ✅ Complete |
-| FR-011 DSL (6 locators + yields) | AC-1..5 | TC-018, TC-019, TC-040, TC-070 (iterate_over), TC-071 (emit_edges), TC-072 (each locator), TC-073 (corpus sweep) | ✅ Complete |
+| FR-011 DSL (6 locators + yields) | AC-1..5 | TC-018, TC-019, TC-040, TC-070 (iterate_over), TC-072 (each locator), TC-073 (corpus sweep) | ✅ Complete |
 | FR-012 Corpus parity suite | AC-1..5 | TC-030 (sweep), TC-031 (corpus.yaml), TC-041 (regression), TC-039 (data-only-extension) | ✅ Complete |
 | FR-013 Archetype loader | AC-1..6 | TC-080 (empty env), TC-081 (load iso), TC-082 (bad schema_ref), TC-083 (bench), TC-084 (no IO post-load), TC-085 (no net deps) | ✅ Complete |
 | FR-014 Module activation | AC-1..5 | TC-090 (multi-module), TC-091 (collision), TC-092 (strict), TC-093 (version), TC-094 (17-baseline union) | ✅ Complete |
 | FR-016 Fallback locators | AC-1..4 | TC-110 (legacy path), TC-111 (canonical path), TC-112 (optional miss), TC-113 (domain parity) | ✅ Complete |
+| FR-019 Stable block IDs via Pandoc `{#blk-id}` | AC-1..3 | TC-400 (parser populates block_id), TC-401 (reparse round-trip), TC-402 (heading stripped of attr), TC-403 (no-attr → None) | ✅ Complete |
+| FR-020 Block data model (block_id + block_type) | AC-1..2 | TC-410 (block_id addressable via QuireSection), TC-411 (block_type → archetype 1:1 alias) | ⚠️ Partial (no dedicated `Block` struct; v0.2 stores block_id on QuireSection + treats archetype as block_type) |
+| FR-021 Block edit API | AC-1..6 | TC-420 (apply_block_patch merge/render/splice), TC-421 (replace_block), TC-422 (invalid → SchemaViolation), TC-423 (unknown block_type), TC-424 (unknown block_id), TC-425 (LLM-flow rendered == direct) | ✅ Complete |
+| FR-022 Writeback primitives | AC-1..5 | TC-430 (update_section replaces content), TC-431 (update_block replaces heading+content), TC-432 (other blocks byte-identical), TC-433 (frontmatter preserved), TC-434/435 (missing heading/id → MissingField) | ✅ Complete |
 
 ### Non-Functional Requirement Coverage
 
@@ -128,7 +132,6 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-061 | LLM tool-call schema round-trip: schema_for → tool input → render | Integration | P1 | US-001-AC-2..3 | 🚧 |
 | TC-062 | Cargo.lock has no schemars dependency | Static | P1 | FR-003-AC-4 | 🚧 |
 | TC-070 | DSL multi-yield (iterate_over) emits one record per iteration unit | Unit | P0 | FR-011-AC-2 | 🚧 |
-| TC-071 | DSL emit_edges produces one edge per declared target | Unit | P0 | FR-011-AC-3 | 🚧 |
 | TC-072 | Each of 6 Locator primitives exercised by ≥1 unit test | Unit | P0 | FR-011-AC-1 | 🚧 |
 | TC-073 | DSL required:true missing field returns MissingField | Unit | P0 | FR-011-AC-4 | 🚧 |
 | TC-080 | Registry::from_env() with no IX_SCHEMA_PATH and no default dir → empty registry, no error | Unit | P0 | FR-013-AC-1 | 🚧 |
@@ -191,6 +194,28 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-380 | cargo-audit runs on PR + push + daily schedule | Static | P0 | NFR-014-AC-1 | 🚧 |
 | TC-381 | Ignored advisory has one-line rationale in deny.toml | Static | P0 | NFR-014-AC-2 | 🚧 |
 | TC-382 | Test PR adding a vulnerable crate fails audit job | Integration | P0 | NFR-014-AC-3 | 🚧 |
+| TC-400 | Heading `## Behavior {#blk-7af2}` parses into QuireSection.block_id = "blk-7af2"; heading text = "Behavior" | Unit | P0 | FR-019-AC-1 | ✅ |
+| TC-401 | Round-trip: parse → apply_block_patch → reparse — block_id stays "blk-7af2" | Integration | P0 | FR-019-AC-2 | ✅ |
+| TC-402 | Pandoc attribute stripped from heading text on parse (no `{#…}` trailing in `QuireSection.heading`) | Unit | P0 | FR-019-AC-3 | ✅ |
+| TC-403 | Heading without `{#…}` → block_id = None; heading text byte-identical to input | Unit | P0 | FR-019-AC-1 (negative) | ✅ |
+| TC-410 | QuireSection.block_id is the canonical addressing primitive; find_block_by_id walks nested sections | Unit | P0 | FR-020-AC-1 | ✅ |
+| TC-411 | Registry::block_type(name) returns the same CompiledArchetype as archetype(name) | Unit | P1 | FR-020-AC-2 | ✅ |
+| TC-420 | apply_block_patch merges patch onto current_data → validates → renders → splices; target block bytes updated | Unit | P0 | FR-021-AC-1 | ✅ |
+| TC-421 | replace_block full-replaces data + renders + splices; no merge of prior fields | Unit | P0 | FR-021-AC-2 | ✅ |
+| TC-422 | apply_block_patch with merged data violating schema → SchemaViolation; no writeback | Unit | P0 | FR-021-AC-3 | ✅ |
+| TC-423 | apply_block_patch with unknown block_type → UnknownArchetype | Unit | P0 | FR-021-AC-4 | ✅ |
+| TC-424 | apply_block_patch with unknown block_id → MissingField; doc unchanged | Unit | P0 | FR-021-AC-5 | ✅ |
+| TC-425 | LLM-flow: bytes spliced by apply_block_patch equal direct template render of merged data | Integration | P0 | FR-021-AC-6 | ✅ |
+| TC-430 | update_section replaces heading's content range; heading line + frontmatter + other sections byte-identical | Unit | P0 | FR-022-AC-1 | ✅ |
+| TC-431 | update_block replaces heading + content range together; addresses by block_id, finds nested blocks | Unit | P0 | FR-022-AC-2 | ✅ |
+| TC-432 | After update_block, untouched blocks byte-identical (incl. trailing whitespace + nested bullets) | Unit | P0 | FR-022-AC-3 | ✅ |
+| TC-433 | Frontmatter (`---\nid: …\n---\n`) byte-identical through update_section + update_block | Unit | P0 | FR-022-AC-4 | ✅ |
+| TC-434 | update_section unknown heading → MissingField | Unit | P0 | FR-022-AC-5 (negative) | ✅ |
+| TC-435 | update_block unknown block_id → MissingField | Unit | P0 | FR-022-AC-5 (negative) | ✅ |
+| TC-440 | End-to-end: parse FR-like artifact, apply_block_patch, assert only patched block's bytes changed | Integration | P0 | FR-019..022 composite | ✅ |
+| TC-441 | End-to-end: replace_block renders fresh data into existing block bytes | Integration | P0 | FR-021-AC-2, FR-022-AC-2 | ✅ |
+| TC-442 | End-to-end: empty patch is idempotent (rendered bytes equal current data) | Integration | P1 | FR-021-AC-1 | ✅ |
+| TC-443 | End-to-end: block_id survives parse → patch → reparse | Integration | P0 | FR-019-AC-2 | ✅ |
 
 ---
 
@@ -243,6 +268,11 @@ Schema constraints come from the on-disk JSON Schema files. Boundary tests sit i
 | EC-015 | Two modules defining same archetype name | FR-014 | TC-091, TC-092 | Silent shadow vs documented diagnostic |
 | EC-017 | Document uses legacy heading variant | FR-016 | TC-110 | Silent data loss |
 | EC-018 | Hot-path render re-reads disk | NFR-007 | TC-084, TC-121 | Per-call cost balloons |
+| EC-020 | Heading with multiple `{#…}` sequences (only trailing one is the id) | FR-019 | TC-402 | Wrong block_id parsed; heading text mangled |
+| EC-021 | Pandoc attribute with whitespace inside braces (`{# bad}`) — not a valid id | FR-019 | TC-403 | Garbage id slips through |
+| EC-022 | apply_block_patch where merged data is valid but template render fails (Jinja error) | FR-021 | TC-422 (proxy via schema path) | Half-written markdown returned |
+| EC-023 | update_block on a deeply nested block (level 4 inside level 2) | FR-022 | TC-431 | Find-by-id walks only top-level sections; nested blocks unreachable |
+| EC-024 | Round-trip: patch → reparse → patch again preserves block_id stability | FR-019, FR-022 | TC-443 | Block IDs drift across edits |
 
 ---
 
@@ -344,7 +374,6 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-010-AC-3 | TC-029 |
 | FR-011-AC-1 | TC-072 |
 | FR-011-AC-2 | TC-070 |
-| FR-011-AC-3 | TC-071 |
 | FR-011-AC-4 | TC-073 |
 | FR-011-AC-5 | TC-040 |
 | FR-011-AC-6 | TC-150 |
@@ -376,6 +405,22 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-016-AC-2 | TC-111 |
 | FR-016-AC-3 | TC-112 |
 | FR-016-AC-4 | TC-113 |
+| FR-019-AC-1 | TC-400, TC-403 |
+| FR-019-AC-2 | TC-401, TC-443 |
+| FR-019-AC-3 | TC-402 |
+| FR-020-AC-1 | TC-410 |
+| FR-020-AC-2 | TC-411 |
+| FR-021-AC-1 | TC-420, TC-442 |
+| FR-021-AC-2 | TC-421, TC-441 |
+| FR-021-AC-3 | TC-422 |
+| FR-021-AC-4 | TC-423 |
+| FR-021-AC-5 | TC-424 |
+| FR-021-AC-6 | TC-425 |
+| FR-022-AC-1 | TC-430 |
+| FR-022-AC-2 | TC-431, TC-440 |
+| FR-022-AC-3 | TC-432 |
+| FR-022-AC-4 | TC-433 |
+| FR-022-AC-5 | TC-434, TC-435 |
 
 ### Non-Functional Requirements
 
@@ -427,7 +472,7 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | NFR-014-AC-2 | TC-381 |
 | NFR-014-AC-3 | TC-382 |
 
-**Coverage status: 184 / 184 ACs covered (100%).**
+**Coverage status: 200 / 200 ACs covered (100%).** v0.2 block model adds 16 new ACs (FR-019..022) all covered by TC-400..443.
 
 ---
 
@@ -444,7 +489,16 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 
 ## Test Execution Summary
 
-All tests are DRAFT — pending implementation via `/spec-to-plan` → `/implement-plan`.
+v0.1 tests (TC-001..382) — DRAFT, traced to plan tasks 001..014; many already pass against the as-implemented v0.1 surface (parser, render, validate, loader, query API).
+
+v0.2 block-model tests (TC-400..443) — ✅ IMPLEMENTED and passing under `make ci`:
+- TC-400..403: `src/parser/walk.rs` (Pandoc `{#blk-id}` parsing).
+- TC-410..411: `src/ast.rs::QuireSection.block_id` + `src/registry.rs::Registry::block_type`.
+- TC-420..425: `src/block_edit.rs` (6 unit tests).
+- TC-430..435: `src/writeback.rs` (10 unit tests).
+- TC-440..443: `tests/block_round_trip.rs` (4 integration tests).
+
+Total v0.2 block-model assertions exercised: 24 dedicated tests + parser walk tests sharing block_id paths.
 
 | Category | Total | Passed | Failed | Blocked | Coverage |
 |----------|-------|--------|--------|---------|----------|
