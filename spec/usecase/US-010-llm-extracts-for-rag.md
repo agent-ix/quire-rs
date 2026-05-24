@@ -71,3 +71,11 @@ The LLM never sees the DSL — the consumer (RAG pipeline, indexer, orchestrator
 - Cases where the projection shape isn't known up-front. The DSL must be authored; it doesn't infer fields.
 
 **Failure cost:** zero LLM cost on `IterateRootMissing` — the diagnostic is non-fatal. The consumer skips that doc or falls back to whole-body grounding.
+
+## Performance Criteria
+
+- **US-010-PC-1**: `parse_document` + `extract` on a 10 KB document with a multi-yield DSL emitting ~10 records completes in p50 < 2 ms (parse <1 ms per NFR-002 envelope at this size + extract <1 ms). Bench: **TC-453**.
+- **US-010-PC-2**: DSL evaluation cost is O(matches × locators), bounded by document heading/list/table cardinality. Per-locator cost is one tree walk; no schema-validation overhead per record (records are typed as raw `serde_json::Map`, not validated).
+- **US-010-PC-3**: For corpus-scale extraction (100 documents, ~10 records each = ~1,000 records), the parallel sweep completes in p50 < 200 ms on a single thread, < 50 ms on 8 threads (`Send + Sync` confirmed by NFR-006-AC-3). Bench: **TC-454**.
+- **US-010-PC-4**: Memory per extract call: bounded by output `records.len() × record_size`. No retained intermediates from the parse tree (extract returns owned `Vec<JsonMap>`; the `QuireDocument` can be dropped after extract).
+- **US-010-PC-5**: Determinism: identical (doc, dsl) → identical record sequence across runs and threads (NFR-006-AC-1, verified by TC-056 / TC-057 for the parse leg + dedicated proptest on the extract leg).

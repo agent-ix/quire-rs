@@ -63,3 +63,10 @@ In v0.2 the whole-artifact case is treated as "one giant block whose type is the
 - Refining one block of an existing doc — use US-006/007 instead.
 
 **Failure cost:** A `SchemaViolation` on creation is the LLM's full output thrown away. Cheaper than US-006 in per-block latency but more costly in tokens when the LLM iterates. Worth measuring per-corpus how often the LLM gets it right on the first try.
+
+## Performance Criteria
+
+- **US-009-PC-1**: `render_by_name` on a 1 KB data value into a 10 KB output completes in p50 < 1 ms (inherits NFR-001-AC-1). Bench: **TC-042** (existing per-archetype render bench).
+- **US-009-PC-2**: Schema validation cost on the data value is bounded by O(data fields) — well under 100 µs for typical artifacts. Covered by the validator-choice ADR (NFR-009 + TC-331).
+- **US-009-PC-3**: No parse + no writeback path on the create flow; latency strictly lower than US-006/007. The output `String` is the only allocation.
+- **US-009-PC-4**: Round-trip self-consistency: `parse_document(render_by_name(data))` yields data fields equal to the original (US-009-AC-3). Property-test verified by TC-024 + TC-056.

@@ -37,11 +37,11 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | US-003 Extractor evaluates DSL | AC-1..3 | TC-018, TC-019, TC-040 | ✅ Complete |
 | US-004 Editor patch + render | AC-1..3 | TC-007, TC-042 | ✅ Complete |
 | US-005 CI detects regression | AC-1..4 | TC-030, TC-031, TC-041 | ✅ Complete |
-| US-006 LLM patches one block | AC-1..4 | TC-420, TC-422, TC-424, TC-440 | ✅ Complete |
-| US-007 LLM replaces block wholesale | AC-1..4 | TC-421, TC-441, TC-422 | ✅ Complete |
-| US-008 Multi-agent collaboration via stable block_id | AC-1..4 | TC-431, TC-432, TC-440, TC-443 | ✅ Complete |
-| US-009 LLM creates new artifact | AC-1..3 | TC-003, TC-006, TC-024 | ✅ Complete (covered by existing whole-artifact render path) |
-| US-010 LLM extracts for RAG | AC-1..5 | TC-018, TC-019, TC-040, TC-070, TC-110, TC-152 | ✅ Complete |
+| US-006 LLM patches one block | AC-1..4 + PC-1..4 | TC-420, TC-422, TC-424, TC-440 (correctness) + TC-450 (perf) | ✅ Functional / 🚧 Perf bench pending |
+| US-007 LLM replaces block wholesale | AC-1..4 + PC-1..4 | TC-421, TC-441, TC-422 (correctness) + TC-451 (perf) | ✅ Functional / 🚧 Perf bench pending |
+| US-008 Multi-agent collaboration via stable block_id | AC-1..4 + PC-1..5 | TC-431, TC-432, TC-440, TC-443 (correctness) + TC-452 (perf) | ✅ Functional / 🚧 Perf bench pending |
+| US-009 LLM creates new artifact | AC-1..3 + PC-1..4 | TC-003, TC-006, TC-024 (correctness) + TC-042 (perf, existing) | ✅ Complete |
+| US-010 LLM extracts for RAG | AC-1..5 + PC-1..5 | TC-018, TC-019, TC-040, TC-070, TC-110, TC-152 (correctness) + TC-453, TC-454 (perf) | ✅ Functional / 🚧 Perf bench pending |
 
 ### Functional Requirement Coverage
 
@@ -221,6 +221,11 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-441 | End-to-end: replace_block renders fresh data into existing block bytes | Integration | P0 | FR-021-AC-2, FR-022-AC-2 | ✅ |
 | TC-442 | End-to-end: empty patch is idempotent (rendered bytes equal current data) | Integration | P1 | FR-021-AC-1 | ✅ |
 | TC-443 | End-to-end: block_id survives parse → patch → reparse | Integration | P0 | FR-019-AC-2 | ✅ |
+| TC-450 | Bench: `apply_block_patch` p50 < 1 ms on 10 KB / 5-block doc; p99 < 5 ms; memory-flat across iterations | Bench | P0 | US-006-PC-1..4 | 🚧 |
+| TC-451 | Bench: `replace_block` p50 < 1 ms on 10 KB / 5-block doc; ±10% of TC-450; report crossover where replace beats patch on large blocks | Bench | P0 | US-007-PC-1, US-007-PC-4 | 🚧 |
+| TC-452 | Bench: 10 sequential block patches on 20 KB doc; p50 < 10 ms; assert linear-in-N (no superlinear regression); document block_id-lookup cost on > 100-block doc | Bench | P0 | US-008-PC-1, US-008-PC-5 | 🚧 |
+| TC-453 | Bench: `parse_document` + `extract` (multi-yield, ~10 records) on 10 KB doc; p50 < 2 ms | Bench | P0 | US-010-PC-1 | 🚧 |
+| TC-454 | Bench: corpus-scale extract (100 docs, 10 records each) single-threaded p50 < 200 ms; 8-thread p50 < 50 ms | Bench | P1 | US-010-PC-3 | 🚧 |
 
 ---
 

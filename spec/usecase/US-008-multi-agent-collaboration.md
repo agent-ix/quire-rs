@@ -61,3 +61,13 @@ Without stable block IDs, addressing "the Acceptance section" of an artifact rel
 - Conflict reconciliation. quire-rs surfaces `MissingField` only if the `block_id` literally disappeared — which can only happen if an agent deleted the heading attribute, a policy violation the orchestrator should detect.
 
 **Limit:** quire-rs has no built-in optimistic-concurrency token (no `If-Match: <hash>`). Orchestrators wanting CAS-style updates layer that on top by hashing the block's bytes pre-patch and verifying post-parse.
+
+## Performance Criteria
+
+Multi-agent perf is per-call linear; the spec measures composition explicitly to guard against superlinear surprises.
+
+- **US-008-PC-1**: Sequential composition of N=10 distinct-block patches on a single 20 KB document completes in p50 < 10 ms (≈ N × per-call US-006-PC-1). Linear-in-N regression gate enforced. Bench: **TC-452**.
+- **US-008-PC-2**: Each call reparses from the previous call's output string. The reparse cost dominates as N grows; targets above account for this (each iteration: parse + apply + return).
+- **US-008-PC-3**: For orchestrators that can skip reparse between same-doc edits (advanced pattern: keep one parsed `QuireDocument` and patch its source string in-place between calls), the per-call cost reduces to apply_block_patch alone. Documented as a non-default optimization in `spec/assets/multi-agent-orchestration.md` (to be added).
+- **US-008-PC-4**: No global lock or shared state inside quire-rs. Independent documents can be edited concurrently by the host with zero contention (Registry is `Send + Sync`, FR-013-AC-9). Verified by TC-008 (64-thread concurrency).
+- **US-008-PC-5**: `block_id` lookup is O(sections) — `find_block_by_id` walks the section tree. On documents with > 100 blocks this becomes measurable; document this in the TC-452 report and consider a `BTreeMap<block_id, &QuireSection>` index if measured > 100 µs.

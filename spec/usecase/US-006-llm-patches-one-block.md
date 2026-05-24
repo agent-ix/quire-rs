@@ -60,3 +60,12 @@ The flow is symmetric to `US-001` but **scoped to one block**: the LLM's context
 - US-006 is composable: edit a sequence of blocks in N calls without re-rendering N-1 untouched blocks.
 
 **Failure cost:** A `SchemaViolation` ends the loop with a field path; the LLM retries with corrected fields. No half-written markdown returned (validation precedes render).
+
+## Performance Criteria
+
+Server-side measurements only — LLM round-trip latency is outside quire-rs's control.
+
+- **US-006-PC-1**: `apply_block_patch` on a 10 KB document with a typical 5-block layout completes in p50 < 1 ms, p99 < 5 ms after `Registry::load_from` is warm. Bench: **TC-450**.
+- **US-006-PC-2**: Per-call memory: one allocation for the output `String`, sized at `doc.len() + new_bytes.len()`. No retained intermediates after return. Verified via heap-profile sample in TC-450.
+- **US-006-PC-3**: Inherits NFR-001 (template render <1 ms) and NFR-007 (zero disk I/O after load). Schema validation amortized to load time; per-call validator cost is JSON-walk only.
+- **US-006-PC-4**: Repeated invocation against the same doc + different block_ids: linear in number of calls, no superlinear cost from re-parsing (the consumer parses once and reuses the `QuireDocument`).
