@@ -1,0 +1,65 @@
+---
+id: US-009
+title: "LLM Creates a New Artifact From Scratch"
+artifact_type: US
+relationships:
+  - target: "ix://agent-ix/quire-rs/spec/stakeholder/StR-001"
+    type: "implements"
+    cardinality: "1:1"
+  - target: "ix://agent-ix/quire-rs/spec/functional/FR-001"
+    type: "exercises"
+  - target: "ix://agent-ix/quire-rs/spec/functional/FR-003"
+    type: "exercises"
+---
+
+## Story
+
+As an **LLM agent producing a new artifact** (e.g. drafting a brand-new FR or NFR from a user prompt), I want to call `schema_for(archetype)` once to learn the full schema, emit a complete data value, and have `render(registry, archetype, data)` produce canonical markdown in one shot — no writeback, no existing doc.
+
+## Context
+
+Editing (US-006/007) and creation are different shapes:
+
+- Editing operates on a parsed `QuireDocument` and writes back into it.
+- Creation has no prior document; the LLM emits the artifact's whole data, and the engine renders it via the archetype-level template.
+
+In v0.2 the whole-artifact case is treated as "one giant block whose type is the archetype". `render_by_name(registry, archetype, data)` is the canonical entry point. The output is the LLM's new `.md` file; the consumer writes it to disk.
+
+## Acceptance
+
+- **US-009-AC-1**: `render_by_name(registry, "fr", data)` against a value satisfying the FR schema returns `RenderOutput { markdown, diagnostics: [] }` where `markdown` is byte-equal to the Python Jinja2 reference for the same data.
+- **US-009-AC-2**: An invalid `data` (missing required field) returns `SchemaViolation` naming the field path; no markdown is produced.
+- **US-009-AC-3**: The rendered markdown can be re-parsed by `parse_document` and the resulting `QuireDocument` round-trips to the same data fields the LLM emitted (modulo Jinja whitespace).
+
+## Efficiency Analysis
+
+**Round trips:** 1 (LLM → server `render_by_name` → markdown).
+
+**LLM context cost** (input tokens):
+- whole-archetype schema: 500–5,000 bytes (larger than per-block US-006).
+- system prompt + user prompt: variable; not quire-rs's concern.
+
+**LLM output cost** (output tokens):
+- whole-artifact data value: 500–5,000 bytes — proportional to the artifact's surface area, not template length.
+
+**Server-side cost** per call:
+- One schema validation (compiled at load time, FR-013).
+- One template render. For an "FR" archetype this is typically 5–20 KB of output for a ~1 KB data payload.
+- *No* writeback; no parse; no byte splice.
+- Total: dominated by Jinja render time, well under NFR-001 (1 ms median per archetype).
+
+**Comparison to US-006 (edit):**
+- Creation skips parse + writeback (zero doc-size cost).
+- Creation carries higher schema/data context (whole artifact vs one block).
+- One-shot, no iterative refinement primitive — if the LLM gets a field wrong, it re-emits the whole artifact. US-006 is the better choice once the artifact exists.
+
+**When to use US-009:**
+- New documents only.
+- Bootstrapping a corpus from a template + prompt.
+- Generating fixtures (e.g. test corpus for downstream parity sweeps).
+
+**When NOT to use US-009:**
+- Editing an existing doc — even small edits — because the LLM has to re-emit the whole thing instead of a small block patch.
+- Refining one block of an existing doc — use US-006/007 instead.
+
+**Failure cost:** A `SchemaViolation` on creation is the LLM's full output thrown away. Cheaper than US-006 in per-block latency but more costly in tokens when the LLM iterates. Worth measuring per-corpus how often the LLM gets it right on the first try.

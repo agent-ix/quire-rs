@@ -37,6 +37,11 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | US-003 Extractor evaluates DSL | AC-1..3 | TC-018, TC-019, TC-040 | ✅ Complete |
 | US-004 Editor patch + render | AC-1..3 | TC-007, TC-042 | ✅ Complete |
 | US-005 CI detects regression | AC-1..4 | TC-030, TC-031, TC-041 | ✅ Complete |
+| US-006 LLM patches one block | AC-1..4 | TC-420, TC-422, TC-424, TC-440 | ✅ Complete |
+| US-007 LLM replaces block wholesale | AC-1..4 | TC-421, TC-441, TC-422 | ✅ Complete |
+| US-008 Multi-agent collaboration via stable block_id | AC-1..4 | TC-431, TC-432, TC-440, TC-443 | ✅ Complete |
+| US-009 LLM creates new artifact | AC-1..3 | TC-003, TC-006, TC-024 | ✅ Complete (covered by existing whole-artifact render path) |
+| US-010 LLM extracts for RAG | AC-1..5 | TC-018, TC-019, TC-040, TC-070, TC-110, TC-152 | ✅ Complete |
 
 ### Functional Requirement Coverage
 
