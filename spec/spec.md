@@ -565,7 +565,50 @@ If the syncer violates this contract (non-atomic writes, malformed YAML, etc.), 
 
 ---
 
-## 19. Glossary
+## 19. Hardening Posture
+
+`quire-rs` inherits Rust safety scaffolding from `rust-lib-cookiecutter` (StR-004, itself backported from `agent-ix/ecaz`). This section records which ECAZ-grade hardening tools `quire-rs` adopts and which it skips, with rationale. Decisions are pinned to v1; tools marked "skip" may be revisited in v1.1+.
+
+### Adopted (specified by NFRs)
+
+| Tool | Purpose | Specified in |
+|---|---|---|
+| `cargo fmt --check` | Formatting drift | StR-004 (inherited) |
+| `cargo clippy -- -D warnings` | Lint discipline | StR-004 (inherited) |
+| `// SAFETY:` comment enforcement | Unsafe-comment baseline | NFR-003 |
+| Zero `unsafe` blocks | Memory-safety surface = empty | NFR-003 |
+| `cargo deny check licenses` | License hygiene | NFR-004 |
+| `proptest` (determinism + roundtrip) | Property testing | NFR-006 |
+| Dependency version pinning | Load-bearing crates pinned | NFR-009 |
+| Public API stability (semver) | Consumer contract | NFR-010 |
+| **`cargo-fuzz` on untrusted-input surfaces** | Coverage-guided fuzzing | NFR-011 |
+| **`cargo miri test --lib`** | UB detection (incl. in deps) | NFR-012 |
+| **`cargo-mutants` on high-value paths** | Test-quality validation | NFR-013 |
+| **`cargo-audit` daily + on PR** | RustSec advisory check | NFR-014 |
+
+### Skipped (with rationale)
+
+| Tool | Skipped because |
+|---|---|
+| **kani** (model checker) | Best for algorithm kernels with complex invariants and bounded state. `quire-rs` parser is a linear walk; slug normalization is straightforward. `proptest` already covers the relevant invariants at lower operational cost. |
+| **loom** (thread-schedule permutation) | Finds races in code that uses synchronization primitives (`Mutex`, atomics, etc.). `quire-rs` has none — `Registry` is immutable after construction; only `Arc` clones share state. Loom has nothing to permute. NFR-006 cross-thread proptest covers the relevant claim. |
+| **shuttle** (randomized scheduler) | Same as loom. |
+| **cargo-careful** (std-with-debug-asserts) | Belt-and-suspenders with miri; redundant signal. |
+| **cargo-vet** (supply-chain attestation) | High org-wide operational lift (audits, vetted versions, maintained `audits.toml`). Better adopted org-wide than crate-by-crate. Defer to ix-org policy. |
+| **Big-endian qemu tests** | `quire-rs` is text-in / text-out; no binary serialization with endian sensitivity. |
+| **SIMD differential tests** | `quire-rs` does not use SIMD. |
+| **`-Z sanitizer=address\|thread`** | Marginal value for safe Rust above what miri provides. |
+| **pgrx multi-version test lanes** | N/A — `quire-rs` is not a PostgreSQL extension. |
+
+### Implementation notes
+
+- Fuzz / miri / mutants run on weekly schedule + workflow_dispatch + tag push — NOT per-PR. Per-PR jobs are the cookiecutter floor (fmt/clippy/test/deny/audit-unsafe/audit-static) plus `cargo-audit`. Heavy hardening lanes are scheduled to keep PR latency low.
+- `make ci` runs the per-PR set locally. `make hardening` runs the scheduled set locally for pre-tag verification.
+- Discovered crashes / UB / advisory hits are P0 — fix or contain before next release.
+
+---
+
+## 20. Glossary
 
 Canonical definitions for terms used throughout the spec. When in doubt, this section governs.
 
