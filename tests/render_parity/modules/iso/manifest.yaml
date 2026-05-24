@@ -1,0 +1,184 @@
+manifest_version: 1.0.0
+name: spec-artifacts-iso
+version: 0.1.0
+description: "Filament Module: ISO-style spec artifact templates (FR, NFR, StR, US, IT, TC, AC, CON) \u2014 Jinja .md.j2 templates + frontmatter JSON Schemas + iso-spec-core grammar"
+archetypes:
+- kind: spec
+  name: Spec
+  description: Container holding ISO-style requirement artifacts
+  doc_backed: true
+  supports_membership: true
+  composition:
+    expected_artifacts:
+    - StR
+    - FR
+    - NFR
+    - US
+    - IT
+    - TC
+grammars:
+- name: iso-spec-core
+  version: 0.1.0
+  description: ISO-style requirements spec grammar
+  doc_kinds:
+  - spec
+artifact_types:
+- name: FR
+  grammar_ref: iso-spec-core
+  template_ref: templates/fr.md.j2
+  frontmatter_schema_ref: schemas/fr-frontmatter.schema.json
+  required_sections:
+  - name: Description
+    level: 2
+  - name: Specification
+    level: 2
+  - name: Acceptance Criteria
+    level: 2
+  - name: Dependencies
+    level: 2
+  defaults:
+    id_pattern: FR-{next:03d}
+  allowed_links:
+  - calls
+  - publishes
+  - consumes
+  - triggers
+  - reads
+  - writes
+  - requires
+  - implements
+  - depends_on
+  - contains
+  - transitions_to
+  - references
+  - constrains
+  - supersedes
+  examples: []
+  lint_rules_ref: []
+- name: NFR
+  grammar_ref: iso-spec-core
+  template_ref: templates/nfr.md.j2
+  frontmatter_schema_ref: schemas/nfr-frontmatter.schema.json
+  required_sections:
+  - name: Quality Attribute
+    level: 2
+  - name: Statement
+    level: 2
+  - name: Scope
+    level: 2
+  - name: Measurement and Evaluation
+    level: 2
+  - name: Verification
+    level: 2
+  - name: Dependencies
+    level: 2
+  defaults:
+    id_pattern: NFR-{next:03d}
+  allowed_links:
+  - constrains
+  - references
+  - depends_on
+  examples: []
+  lint_rules_ref: []
+- name: StR
+  grammar_ref: iso-spec-core
+  template_ref: templates/str.md.j2
+  frontmatter_schema_ref: schemas/str-frontmatter.schema.json
+  required_sections:
+  - name: Description
+    level: 2
+  - name: Dependencies
+    level: 2
+  defaults:
+    id_pattern: StR-{next:03d}
+  allowed_links:
+  - satisfied_by
+  - depends_on
+  - references
+  examples: []
+  lint_rules_ref: []
+- name: US
+  grammar_ref: iso-spec-core
+  template_ref: templates/us.md.j2
+  frontmatter_schema_ref: schemas/us-frontmatter.schema.json
+  required_sections:
+  - name: Description
+    level: 2
+  - name: Dependencies
+    level: 2
+  defaults:
+    id_pattern: US-{next:03d}
+  allowed_links:
+  - satisfied_by
+  - traces_to
+  - references
+  examples: []
+  lint_rules_ref: []
+- name: IT
+  grammar_ref: iso-spec-core
+  template_ref: templates/it.md.j2
+  frontmatter_schema_ref: schemas/it-frontmatter.schema.json
+  required_sections:
+  - name: Description
+    level: 2
+  - name: Dependencies
+    level: 2
+  defaults:
+    id_pattern: IT-{next:03d}
+  allowed_links:
+  - verifies
+  - depends_on
+  - references
+  examples: []
+  lint_rules_ref: []
+- name: TC
+  grammar_ref: iso-spec-core
+  template_ref: templates/tc.md.j2
+  frontmatter_schema_ref: schemas/tc-frontmatter.schema.json
+  required_sections:
+  - name: Description
+    level: 2
+  - name: Dependencies
+    level: 2
+  defaults:
+    id_pattern: TC-{next:03d}
+  allowed_links:
+  - verifies
+  - references
+  examples: []
+  lint_rules_ref: []
+- name: AC
+  grammar_ref: iso-spec-core
+  template_ref: templates/ac.md.j2
+  frontmatter_schema_ref: schemas/ac-frontmatter.schema.json
+  required_sections:
+  - name: Description
+    level: 2
+  - name: Dependencies
+    level: 2
+  defaults:
+    id_pattern: AC-{next:03d}
+  allowed_links:
+  - verifies
+  examples: []
+  lint_rules_ref: []
+- name: CON
+  grammar_ref: iso-spec-core
+  template_ref: templates/con.md.j2
+  frontmatter_schema_ref: schemas/con-frontmatter.schema.json
+  required_sections:
+  - name: Description
+    level: 2
+  - name: Dependencies
+    level: 2
+  defaults:
+    id_pattern: CON-{next:03d}
+  allowed_links:
+  - constrains
+  - references
+  examples: []
+  lint_rules_ref: []
+doc_kinds:
+- spec
+object_types: []
+lint_rules: []

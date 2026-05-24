@@ -1,0 +1,46 @@
+---
+id: {{ id }}
+title: "{{ title }}"
+artifact_type: {{ artifact_type }}
+{% if object %}object: {{ object }}
+{% endif %}{% if relationships %}relationships:
+{% for rel in relationships %}  - target: "{{ rel.target }}"
+    type: "{{ rel.type }}"{% if rel.cardinality %}
+    cardinality: "{{ rel.cardinality }}"{% endif %}
+{% endfor %}{% endif %}---
+# [{{ id }}] {{ title }}
+
+## Description
+
+{{ description | default("Describe what the system SHALL do, normatively.") }}
+
+## Specification
+
+### Inputs
+
+{{ inputs | default("- TODO") }}
+
+### Outputs
+
+{{ outputs | default("- TODO") }}
+
+### Behavior
+
+{{ behavior | default("Describe behavior in atomic SHALL statements.") }}
+
+## Constraints
+
+| ID | Constraint | Type | Validation |
+|----|------------|------|------------|
+| {{ id }}-CON-1 | TODO | Architecture | Code Review |
+
+## Acceptance Criteria
+
+| ID | Criteria | Verification |
+|----|----------|--------------|
+| {{ id }}-AC-1 | TODO | Integration Test |
+
+## Dependencies
+
+- **Upstream**: {{ upstream | default("none") }}
+- **Downstream**: {{ downstream | default("none") }}

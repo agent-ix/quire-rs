@@ -1,0 +1,41 @@
+---
+id: {{ id }}
+title: "{{ title }}"
+artifact_type: NFR
+{% if relationships %}relationships:
+{% for rel in relationships %}  - target: "{{ rel.target }}"
+    type: "{{ rel.type }}"
+{% endfor %}{% endif %}---
+# [{{ id }}] {{ title }}
+
+## Quality Attribute
+
+{{ quality_attribute | default("Performance | Reliability | Security | Maintainability (one of ISO 25010)") }}
+
+## Statement
+
+The system **SHALL** {{ statement | default("describe an atomic measurable constraint") }}.
+
+## Scope
+
+- Applies to: {{ scope.applies_to | default("TODO") }}
+- Operational context: {{ scope.context | default("TODO") }}
+
+## Rationale
+
+{{ rationale | default("Business / risk / regulatory justification.") }}
+
+## Measurement and Evaluation
+
+| Metric | Target | Threshold | Method |
+|--------|--------|-----------|--------|
+| {{ metric | default("TODO") }} | {{ target | default("TODO") }} | {{ threshold | default("TODO") }} | {{ method | default("Benchmark") }} |
+
+## Verification
+
+{{ verification | default("Describe objective, repeatable verification activities.") }}
+
+## Dependencies
+
+- **Upstream**: {{ upstream | default("none") }}
+- **Downstream**: {{ downstream | default("none") }}
