@@ -126,14 +126,6 @@ pub enum QuireError {
     /// time (`match` XOR `iterate_over`, unknown key, missing `from:`).
     #[error("DslValidationError [{archetype}]: {reason}")]
     DslValidationError { archetype: String, reason: String },
-
-    // ── Edge resolution (FR-018) ────────────────────────────────────────
-    /// A `RelationshipResolver` could not normalize a bare target into
-    /// a canonical URI. Returned from `RelationshipResolver::resolve`;
-    /// `harvest_edges` catches this variant, preserves the bare target,
-    /// and surfaces a `Diagnostic::UnresolvableEdgeTarget`.
-    #[error("UnresolvedTarget: '{target}' could not be resolved ({reason})")]
-    UnresolvedTarget { target: String, reason: String },
 }
 
 /// One per-archetype load failure, aggregated by
@@ -359,13 +351,6 @@ mod tests {
                     reason: "match and iterate_over are mutually exclusive".into(),
                 },
                 &["DslValidationError", "domain", "mutually exclusive"],
-            ),
-            (
-                QuireError::UnresolvedTarget {
-                    target: "ix:///empty/".into(),
-                    reason: "malformed ix:// URI".into(),
-                },
-                &["UnresolvedTarget", "ix:///empty/", "malformed ix:// URI"],
             ),
         ];
         for (err, needles) in cases {

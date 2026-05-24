@@ -20,9 +20,6 @@ use crate::extract::locator::Locator;
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ExtractionDsl {
     pub yield_pattern: YieldPattern,
-    /// Edge emissions (FR-011 `emit_edges`). Empty when absent.
-    #[serde(default)]
-    pub emit_edges: Vec<EdgeEmission>,
 }
 
 /// `yield_pattern:` — single (`match`) XOR multi (`iterate_over` +
@@ -63,25 +60,6 @@ pub enum IterateKind {
     Heading,
     ListItem,
     TableRow,
-}
-
-/// One `emit_edges[*]` entry.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct EdgeEmission {
-    pub r#type: String,
-    pub target: EdgeTarget,
-    #[serde(default)]
-    pub metadata: IndexMap<String, Locator>,
-}
-
-/// `emit_edges[*].target` — either a static string or a Locator
-/// resolved against the record's scope.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum EdgeTarget {
-    Static(String),
-    Located(Locator),
 }
 
 /// Structural validation: `match` XOR `iterate_over` + `per_match`
@@ -197,35 +175,5 @@ yield_pattern:
 "#,
         );
         assert!(r.is_err(), "deny_unknown_fields should reject unknown keys");
-    }
-
-    #[test]
-    fn emit_edges_round_trips_with_static_and_located_targets() {
-        let dsl = parse(
-            r#"
-yield_pattern:
-  match:
-    id:
-      from: frontmatter_field
-      path: [id]
-emit_edges:
-- type: depends_on
-  target: FR-001
-- type: implements
-  target:
-    from: frontmatter_field
-    path: [implements]
-"#,
-        );
-        validate_dsl("ot", &dsl).expect("ok");
-        assert_eq!(dsl.emit_edges.len(), 2);
-        match &dsl.emit_edges[0].target {
-            EdgeTarget::Static(s) => assert_eq!(s, "FR-001"),
-            _ => panic!("expected static"),
-        }
-        match &dsl.emit_edges[1].target {
-            EdgeTarget::Located(_) => {}
-            _ => panic!("expected located"),
-        }
     }
 }

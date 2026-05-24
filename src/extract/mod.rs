@@ -3,16 +3,11 @@
 //! `extract(doc, dsl) -> ExtractionResult` evaluates a parsed body-
 //! extraction DSL against a `QuireDocument`:
 //!
-//! - Single-yield (`match:`): 0 or 1 records. (Task 015)
+//! - Single-yield (`match:`): 0 or 1 records.
 //! - Multi-yield (`iterate_over:` + `per_match:`): 1 record per
-//!   iteration unit. (Task 016)
+//!   iteration unit.
 //! - Fallback Locator chains: first non-empty primitive wins,
-//!   `FallbackLocatorUsed` diagnostic on non-canonical hits. (Task 018)
-//! - `emit_edges:` declarative edges, one entry per record per
-//!   emission. (Task 016)
-//!
-//! The hand-off into `crate::edges::harvest_edges` then merges these
-//! emit_edges outputs with frontmatter sugar fields (Task 017).
+//!   `FallbackLocatorUsed` diagnostic on non-canonical hits.
 
 pub mod dsl;
 pub mod locator;
@@ -23,7 +18,7 @@ use serde_json::{Map, Value};
 use crate::ast::{QuireDocument, QuireSection};
 use crate::diagnostic::Diagnostic;
 use crate::error::QuireError;
-use crate::extract::dsl::{EdgeEmission, EdgeTarget, ExtractionDsl, IterateKind, IterateOver};
+use crate::extract::dsl::{ExtractionDsl, IterateKind, IterateOver};
 use crate::extract::locator::{eval_locator, Locator};
 
 /// Outcome of an `extract` call.
@@ -31,37 +26,19 @@ use crate::extract::locator::{eval_locator, Locator};
 pub struct ExtractionResult {
     /// Single-yield: 0 or 1 records. Multi-yield: 1 per iteration unit.
     pub records: Vec<Map<String, Value>>,
-    /// Edges emitted from `emit_edges` entries. `Task 017` merges
-    /// these with frontmatter sugar fields + structured relationships.
-    pub edges: Vec<HarvestedEdge>,
     /// Advisory notes (e.g. iterate-root missing, fallback used).
     pub diagnostics: Vec<Diagnostic>,
 }
 
-/// One edge produced by an `emit_edges` entry or harvest pass.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct HarvestedEdge {
-    pub r#type: String,
-    pub target: String,
-    pub metadata: IndexMap<String, Value>,
-}
-
 /// Evaluate `dsl` against `doc`.
 pub fn extract(doc: &QuireDocument, dsl: &ExtractionDsl) -> Result<ExtractionResult, QuireError> {
-    #[cfg(feature = "tracing")]
-    let _span = tracing::debug_span!("quire_rs::extract").entered();
     let mut diagnostics: Vec<Diagnostic> = Vec::new();
 
     if let Some(match_map) = &dsl.yield_pattern.r#match {
         let record = eval_match(doc, match_map, &mut diagnostics)?;
-        let mut edges: Vec<HarvestedEdge> = Vec::new();
-        if let Some(rec) = &record {
-            collect_edges(doc, rec, &dsl.emit_edges, &mut edges, &mut diagnostics);
-        }
         let records = record.map(|r| vec![r]).unwrap_or_default();
         return Ok(ExtractionResult {
             records,
-            edges,
             diagnostics,
         });
     }
@@ -70,7 +47,7 @@ pub fn extract(doc: &QuireDocument, dsl: &ExtractionDsl) -> Result<ExtractionRes
         dsl.yield_pattern.iterate_over.as_ref(),
         dsl.yield_pattern.per_match.as_ref(),
     ) {
-        return Ok(eval_multi(doc, iter, per, &dsl.emit_edges, diagnostics));
+        return Ok(eval_multi(doc, iter, per, diagnostics));
     }
 
     Err(QuireError::DslValidationError {
@@ -116,7 +93,6 @@ fn eval_multi(
     doc: &QuireDocument,
     iter: &IterateOver,
     per: &IndexMap<String, Locator>,
-    emit: &[EdgeEmission],
     mut diagnostics: Vec<Diagnostic>,
 ) -> ExtractionResult {
     let root = find_section_by_path(&doc.sections, &iter.section_path);
@@ -128,26 +104,17 @@ fn eval_multi(
             });
             return ExtractionResult {
                 records: Vec::new(),
-                edges: Vec::new(),
                 diagnostics,
             };
         }
     };
 
-    // Each unit carries:
-    //   (a) a pre-populated `Map` of fields derived from the unit
-    //       itself (heading text, list raw/title/desc, row header
-    //       → cell mapping);
-    //   (b) an optional "local scope" `QuireDocument` view — for
-    //       `IterateKind::Heading` it's a synthetic doc whose
-    //       `sections` is just the unit subtree, so a `per_match`
-    //       locator that says `section_body, after_heading: X`
-    //       resolves to a child of the iteration unit, NOT to a
-    //       same-named section elsewhere in the document
-    //       (FR-011 "evaluated against each iteration unit's local
-    //       scope"). List/table units don't have a natural subtree
-    //       so the local scope falls back to the iteration root's
-    //       section subtree.
+    // Each unit carries pre-populated fields plus a "local scope"
+    // QuireDocument view used by per_match Locators. For Heading
+    // iteration the scope is just the unit subtree so e.g.
+    // `section_body, after_heading: X` finds X *inside* the unit,
+    // not a same-named section elsewhere (FR-011 "evaluated against
+    // each iteration unit's local scope").
     let units: Vec<UnitContext> = match iter.kind {
         IterateKind::Heading => iterate_heading_units(doc, root, iter.depth.unwrap_or(1)),
         IterateKind::ListItem => iterate_list_units(doc, root),
@@ -155,7 +122,6 @@ fn eval_multi(
     };
 
     let mut records: Vec<Map<String, Value>> = Vec::new();
-    let mut edges: Vec<HarvestedEdge> = Vec::new();
     for unit in &units {
         let mut record: Map<String, Value> = unit.fields.clone();
         let mut record_ok = true;
@@ -178,24 +144,19 @@ fn eval_multi(
             record.insert(key.clone(), values.into_iter().next().unwrap());
         }
         if record_ok && !record.is_empty() {
-            // emit_edges evaluates against the unit's scope too, so
-            // `target: { from: section_body, after_heading: ... }`
-            // resolves to the unit's own section.
-            collect_edges(&unit.scope, &record, emit, &mut edges, &mut diagnostics);
             records.push(record);
         }
     }
 
     ExtractionResult {
         records,
-        edges,
         diagnostics,
     }
 }
 
 /// One iteration unit + the local-scope `QuireDocument` view that
-/// `per_match` / `emit_edges` Locators evaluate against (FR-011
-/// "iteration unit's local scope").
+/// `per_match` Locators evaluate against (FR-011 "iteration unit's
+/// local scope").
 struct UnitContext {
     fields: Map<String, Value>,
     scope: QuireDocument,
@@ -309,79 +270,6 @@ fn find_section_by_path<'a>(
     current
 }
 
-fn collect_edges(
-    doc: &QuireDocument,
-    _record: &Map<String, Value>,
-    emit: &[EdgeEmission],
-    out: &mut Vec<HarvestedEdge>,
-    diagnostics: &mut Vec<Diagnostic>,
-) {
-    for entry in emit {
-        let metadata = eval_metadata(doc, &entry.metadata, diagnostics);
-        match &entry.target {
-            EdgeTarget::Static(s) => out.push(HarvestedEdge {
-                r#type: entry.r#type.clone(),
-                target: s.clone(),
-                metadata,
-            }),
-            EdgeTarget::Located(loc) => {
-                let (values, _) = eval_locator(doc, loc);
-                for v in values {
-                    if let Some(target) = value_to_string(&v) {
-                        out.push(HarvestedEdge {
-                            r#type: entry.r#type.clone(),
-                            target,
-                            metadata: metadata.clone(),
-                        });
-                    } else if let Value::Array(arr) = v {
-                        for item in arr {
-                            if let Some(t) = value_to_string(&item) {
-                                out.push(HarvestedEdge {
-                                    r#type: entry.r#type.clone(),
-                                    target: t,
-                                    metadata: metadata.clone(),
-                                });
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-fn eval_metadata(
-    doc: &QuireDocument,
-    md: &IndexMap<String, Locator>,
-    diagnostics: &mut Vec<Diagnostic>,
-) -> IndexMap<String, Value> {
-    let mut out: IndexMap<String, Value> = IndexMap::new();
-    for (key, loc) in md {
-        let (values, fb) = eval_locator(doc, loc);
-        if let Some(v) = values.into_iter().next() {
-            if fb > 0 {
-                diagnostics.push(Diagnostic::FallbackLocatorUsed {
-                    key: key.clone(),
-                    position: fb,
-                    locator: loc.canonical().describe(),
-                });
-            }
-            out.insert(key.clone(), v);
-        }
-    }
-    out
-}
-
-fn value_to_string(v: &Value) -> Option<String> {
-    match v {
-        Value::String(s) => Some(s.clone()),
-        Value::Number(n) => Some(n.to_string()),
-        Value::Bool(b) => Some(b.to_string()),
-        Value::Null => None,
-        Value::Array(_) | Value::Object(_) => None,
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -439,7 +327,7 @@ yield_pattern:
         assert!(matches!(err, QuireError::MissingField { .. }));
     }
 
-    // ── Task 016: multi-yield + emit_edges ──────────────────────────
+    // ── Multi-yield ─────────────────────────────────────────────────
 
     // FR-011 "iteration unit's local scope": per_match locators
     // must resolve against the unit's section subtree, not the whole
@@ -504,31 +392,6 @@ yield_pattern:
         let r = extract(&d, &dsl).expect("ok");
         assert_eq!(r.records.len(), 3);
         assert_eq!(r.records[0]["heading"], serde_json::json!("A"));
-    }
-
-    // FR-011-AC-3
-    #[test]
-    fn emit_edges_one_per_frontmatter_list_item() {
-        let d = doc();
-        let dsl = dsl_from(
-            r#"
-yield_pattern:
-  match:
-    id:
-      from: frontmatter_field
-      path: [id]
-      required: true
-emit_edges:
-- type: depends_on
-  target:
-    from: frontmatter_field
-    path: [depends_on]
-"#,
-        );
-        let r = extract(&d, &dsl).expect("ok");
-        assert_eq!(r.edges.len(), 2);
-        assert_eq!(r.edges[0].target, "FR-002");
-        assert_eq!(r.edges[1].target, "FR-003");
     }
 
     // FR-011-AC-8

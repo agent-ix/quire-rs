@@ -69,13 +69,6 @@ pub fn render_with_env(
     archetype: &CompiledArchetype,
     data: &Value,
 ) -> Result<RenderOutput, QuireError> {
-    #[cfg(feature = "tracing")]
-    let _span = tracing::debug_span!(
-        "quire_rs::render",
-        archetype = %archetype.name,
-        data_bytes = data.to_string().len(),
-    )
-    .entered();
     validate(archetype, data)?;
 
     let template_name =

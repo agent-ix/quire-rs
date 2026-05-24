@@ -21,9 +21,6 @@ pub fn apply_patch(
     current: &Value,
     patch: &Value,
 ) -> Result<Value, QuireError> {
-    #[cfg(feature = "tracing")]
-    let _span =
-        tracing::debug_span!("quire_rs::apply_patch", archetype = %archetype.name).entered();
     let merged = deep_merge(current, patch);
     validate(archetype, &merged)?;
     Ok(merged)
