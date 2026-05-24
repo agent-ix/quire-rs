@@ -13,7 +13,7 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
 use crate::error::QuireError;
-use crate::extract::locator::{Locator, LocatorPrimitive};
+use crate::extract::locator::Locator;
 
 /// One body-extraction DSL — the parsed form of `body_extraction:` in
 /// an object-type manifest.

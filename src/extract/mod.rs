@@ -24,7 +24,7 @@ use crate::ast::{QuireDocument, QuireSection};
 use crate::diagnostic::Diagnostic;
 use crate::error::QuireError;
 use crate::extract::dsl::{EdgeEmission, EdgeTarget, ExtractionDsl, IterateKind, IterateOver};
-use crate::extract::locator::{eval, eval_locator, Locator, LocatorPrimitive};
+use crate::extract::locator::{eval_locator, Locator};
 
 /// Outcome of an `extract` call.
 #[derive(Debug, Clone, PartialEq)]
@@ -331,9 +331,6 @@ fn value_to_string(v: &Value) -> Option<String> {
         Value::Array(_) | Value::Object(_) => None,
     }
 }
-
-// Re-export the locator helpers consumers expect (Task 015 surface).
-pub use locator::LocatorPrimitive as Primitive;
 
 #[cfg(test)]
 mod tests {
