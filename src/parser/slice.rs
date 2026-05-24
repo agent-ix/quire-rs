@@ -227,6 +227,9 @@ mod tests {
 
     proptest! {
         // FR-008-AC-3: round-trip stitch is byte-exact for any body.
+        // 10 000 cases matches the parse-document no-panic budget;
+        // this property is load-bearing for writeback (Task 012+).
+        #![proptest_config(ProptestConfig::with_cases(10_000))]
         #[test]
         fn roundtrip_stitch_is_byte_exact(body in any_body()) {
             prop_assert_eq!(reconstruct(&body), body);

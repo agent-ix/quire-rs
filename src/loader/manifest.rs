@@ -53,11 +53,18 @@ pub struct ArtifactType {
 /// One `object_types[*]` entry — data-only archetype (no template).
 /// Object types still get a JSON Schema (`data_schema`) compiled at
 /// load time so consumers can validate inputs.
+///
+/// `body_extraction` is the optional DSL the loader validates at
+/// load time (FR-011-AC-6/7/8). Structural failures (both `match`
+/// and `iterate_over`, missing `from:`, unknown keys) surface as
+/// `ArchetypeLoadFailure` so authoring tools see them immediately.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ObjectType {
     pub name: String,
     #[serde(default)]
     pub data_schema: Option<Value>,
+    #[serde(default)]
+    pub body_extraction: Option<crate::extract::dsl::ExtractionDsl>,
     #[serde(flatten)]
     pub extras: Map<String, Value>,
 }

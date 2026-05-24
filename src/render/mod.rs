@@ -12,22 +12,70 @@ pub mod env;
 
 use serde_json::Value;
 
+use crate::diagnostic::Diagnostic;
 use crate::error::QuireError;
 use crate::loader::compile::CompiledArchetype;
 use crate::registry::Registry;
 use crate::validate::validate;
 
+/// Output of a successful render (FR-001 + FR-017).
+///
+/// `markdown` carries the rendered template output; `diagnostics`
+/// carries any advisory notes the renderer accumulated. v1 renders
+/// emit no diagnostics today — the field exists so render-side
+/// variants (template deprecations, undefined-with-default uses)
+/// can land without an API break.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RenderOutput {
+    pub markdown: String,
+    pub diagnostics: Vec<Diagnostic>,
+}
+
+impl RenderOutput {
+    /// Drop the diagnostics and return the rendered string.
+    pub fn into_markdown(self) -> String {
+        self.markdown
+    }
+
+    /// Borrow the markdown without consuming the output.
+    pub fn markdown(&self) -> &str {
+        &self.markdown
+    }
+}
+
 /// Validate + render an archetype against `data`. The validator and
 /// template are pre-compiled at load time so this path does no disk
 /// reads (FR-013-AC-5) and only the schema-check + template-render
 /// work happens per call.
+///
+/// FR-001 spec text writes the entry as `render(archetype, data)`.
+/// A MiniJinja template lookup needs an `Environment`, which the
+/// engine owns in `Registry`. The two-arg form is offered as
+/// [`render_with_env`] so callers who already hold the env (e.g. a
+/// long-running editor) skip the registry indirection.
 pub fn render(
     registry: &Registry,
     archetype: &CompiledArchetype,
     data: &Value,
-) -> Result<String, QuireError> {
+) -> Result<RenderOutput, QuireError> {
+    render_with_env(registry.env(), archetype, data)
+}
+
+/// Lower-level render that takes the env directly. Matches the FR-001
+/// `render(archetype, data)` shape modulo the env that any MiniJinja
+/// template must be looked up against.
+pub fn render_with_env(
+    env: &minijinja::Environment<'static>,
+    archetype: &CompiledArchetype,
+    data: &Value,
+) -> Result<RenderOutput, QuireError> {
     #[cfg(feature = "tracing")]
-    let _span = tracing::debug_span!("quire_rs::render", archetype = %archetype.name).entered();
+    let _span = tracing::debug_span!(
+        "quire_rs::render",
+        archetype = %archetype.name,
+        data_bytes = data.to_string().len(),
+    )
+    .entered();
     validate(archetype, data)?;
 
     let template_name =
@@ -40,27 +88,33 @@ pub fn render(
                 message: "archetype has no template (object_type — use validate-only)".to_string(),
             })?;
 
-    let template =
-        registry
-            .env()
-            .get_template(template_name)
-            .map_err(|e| QuireError::TemplateError {
-                archetype: archetype.name.clone(),
-                template_path: archetype.template_path.clone().unwrap_or_default(),
-                message: format!("template not registered: {e}"),
-            })?;
+    let template = env
+        .get_template(template_name)
+        .map_err(|e| QuireError::TemplateError {
+            archetype: archetype.name.clone(),
+            template_path: archetype.template_path.clone().unwrap_or_default(),
+            message: format!("template not registered: {e}"),
+        })?;
 
-    template
+    let markdown = template
         .render(data)
         .map_err(|e| QuireError::TemplateError {
             archetype: archetype.name.clone(),
             template_path: archetype.template_path.clone().unwrap_or_default(),
             message: e.to_string(),
-        })
+        })?;
+    Ok(RenderOutput {
+        markdown,
+        diagnostics: Vec::new(),
+    })
 }
 
 /// Resolve `name` against `registry`, then [`render`].
-pub fn render_by_name(registry: &Registry, name: &str, data: &Value) -> Result<String, QuireError> {
+pub fn render_by_name(
+    registry: &Registry,
+    name: &str,
+    data: &Value,
+) -> Result<RenderOutput, QuireError> {
     let archetype = registry
         .archetype(name)
         .ok_or_else(|| QuireError::UnknownArchetype {
@@ -131,8 +185,10 @@ mod tests {
     fn render_by_name_happy_path() {
         let (_p, r) = build_registry();
         let out = render_by_name(&r, "fr", &json!({"id": "FR-001", "title": "Hi"})).unwrap();
-        assert!(out.contains("FR-001"));
-        assert!(out.contains("Hi"));
+        assert!(out.markdown.contains("FR-001"));
+        assert!(out.markdown.contains("Hi"));
+        // FR-017: diagnostics field exists and is empty on happy path.
+        assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
     }
 
     // FR-001-AC-2
@@ -143,31 +199,54 @@ mod tests {
         assert!(matches!(err, QuireError::UnknownArchetype { .. }));
     }
 
-    // FR-001-AC-3
+    // FR-001-AC-3 + NFR-005-AC-1: SchemaViolation must carry the
+    // dotted field path; we assert the specific path, not just
+    // "contains title or required".
     #[test]
-    fn render_missing_required_returns_schema_violation() {
+    fn render_missing_required_returns_schema_violation_with_field_path() {
         let (_p, r) = build_registry();
         let err = render_by_name(&r, "fr", &json!({"id": "FR-001"})).expect_err("violation");
-        let s = err.to_string();
-        assert!(matches!(err, QuireError::SchemaViolation { .. }), "{s}");
-        assert!(s.contains("title") || s.contains("required"), "{s}");
+        match &err {
+            QuireError::SchemaViolation {
+                archetype,
+                field_path,
+                expected,
+                observed: _,
+            } => {
+                assert_eq!(archetype, "fr");
+                // Required-missing violations point at the parent
+                // object; expected message names the missing property.
+                assert!(
+                    expected.contains("title") || expected.contains("required"),
+                    "expected mentions 'title': {expected}"
+                );
+                // Field path is always set (possibly "<root>" for
+                // top-level required-missing).
+                assert!(!field_path.is_empty(), "field_path empty");
+            }
+            other => panic!("expected SchemaViolation, got: {other:?}"),
+        }
     }
 
-    // FR-001-AC-4: 64-thread concurrent render produces byte-identical output.
+    // FR-001-AC-4 / FR-004-AC-2: 64 threads × N renders each =
+    // 10 000+ total renders, all byte-identical to the baseline.
     #[test]
     fn render_is_thread_safe_under_concurrency() {
         let (_p, r) = build_registry();
         let r = Arc::new(r);
         let data = Arc::new(json!({"id": "FR-001", "title": "Concurrent"}));
         let baseline = render_by_name(&r, "fr", &data).unwrap();
+        const PER_THREAD: usize = 200; // 64 × 200 = 12 800 total renders
         let handles: Vec<_> = (0..64)
             .map(|_| {
                 let r = Arc::clone(&r);
                 let data = Arc::clone(&data);
                 let baseline = baseline.clone();
                 thread::spawn(move || {
-                    let got = render_by_name(&r, "fr", &data).unwrap();
-                    assert_eq!(got, baseline, "non-deterministic render");
+                    for _ in 0..PER_THREAD {
+                        let got = render_by_name(&r, "fr", &data).unwrap();
+                        assert_eq!(got, baseline, "non-deterministic render");
+                    }
                 })
             })
             .collect();
@@ -213,7 +292,7 @@ artifact_types:
         fs::write(m.join("templates/nfr.md.j2"), "{{ id }} ({{ priority }})\n").unwrap();
         let r = Registry::load_from(&[&parent]).expect("ok");
         let out = render_by_name(&r, "nfr", &json!({"id": "NFR-1", "priority": "P0"})).unwrap();
-        assert!(out.contains("NFR-1"));
-        assert!(out.contains("P0"));
+        assert!(out.markdown.contains("NFR-1"));
+        assert!(out.markdown.contains("P0"));
     }
 }

@@ -53,6 +53,7 @@ lint:
 .PHONY: test
 test:
 	$(CARGO) test
+	$(CARGO) test --features tracing --test tracing_shape
 
 .PHONY: build
 build:

@@ -171,7 +171,11 @@ fn resolve_or_warn<R: RelationshipResolver>(
     source: &str,
     diagnostics: &mut Vec<Diagnostic>,
 ) -> String {
-    match resolver.resolve(bare) {
+    // Sniff the caller's own ix:// URI for org/repo hints — when the
+    // doc's source_ref is itself ix://org/repo/<id>, we pass those
+    // to the resolver per FR-018-AC-2.
+    let (org_hint, repo_hint) = parse_ix_hints(source);
+    match resolver.resolve(org_hint.as_deref(), repo_hint.as_deref(), bare) {
         Ok(uri) => uri,
         Err(_) => {
             diagnostics.push(Diagnostic::UnresolvableEdgeTarget {
@@ -181,6 +185,20 @@ fn resolve_or_warn<R: RelationshipResolver>(
             bare.to_string()
         }
     }
+}
+
+/// Extract `(org, repo)` from a `source_ref` shaped like
+/// `ix://<org>/<repo>/<rest>`. Returns `(None, None)` when the hint
+/// is unavailable.
+fn parse_ix_hints(source: &str) -> (Option<String>, Option<String>) {
+    let rest = match source.strip_prefix("ix://") {
+        Some(r) => r,
+        None => return (None, None),
+    };
+    let mut parts = rest.splitn(3, '/');
+    let org = parts.next().filter(|s| !s.is_empty()).map(str::to_string);
+    let repo = parts.next().filter(|s| !s.is_empty()).map(str::to_string);
+    (org, repo)
 }
 
 #[cfg(test)]
@@ -241,7 +259,7 @@ mod tests {
     }
 
     #[test]
-    fn duplicate_edges_are_deduped_with_diagnostic() {
+    fn duplicate_edges_are_deduped_with_diagnostic_naming_source_type_target() {
         let d = parse_document(
             "---\n\
              id: FR-001\n\
@@ -250,10 +268,54 @@ mod tests {
         );
         let h = harvest_edges(&d, "ix://test/FR-001", None, &IdentityResolver);
         assert_eq!(h.edges.len(), 1);
-        assert!(h
+        let dup = h
             .diagnostics
             .iter()
-            .any(|d| matches!(d, Diagnostic::DuplicateEdgeDropped { .. })));
+            .find_map(|x| match x {
+                Diagnostic::DuplicateEdgeDropped {
+                    source,
+                    edge_type,
+                    target,
+                } => Some((source.as_str(), edge_type.as_str(), target.as_str())),
+                _ => None,
+            })
+            .expect("DuplicateEdgeDropped");
+        assert_eq!(dup, ("ix://test/FR-001", "depends_on", "FR-002"));
+    }
+
+    /// FR-015-AC-7: `harvest_edges` is deterministic across threads.
+    /// Run the same harvest from 64 threads and assert every result
+    /// matches the baseline byte-for-byte (Vec equality includes
+    /// edge ordering — catches HashSet-iteration-order leakage).
+    #[test]
+    fn harvest_edges_deterministic_under_64_threads() {
+        use std::sync::Arc;
+        use std::thread;
+        let doc = parse_document(
+            "---\n\
+             id: FR-001\n\
+             depends_on:\n- FR-002\n- FR-003\n- FR-004\n\
+             parent: SPEC-A\n\
+             relationships:\n\
+             - type: implements\n  target: StR-001\n\
+             - type: requires\n  target: NFR-001\n\
+             ---\nbody\n",
+        );
+        let arc_doc = Arc::new(doc);
+        let baseline = harvest_edges(&arc_doc, "ix://test/FR-001", None, &IdentityResolver);
+        let handles: Vec<_> = (0..64)
+            .map(|_| {
+                let d = Arc::clone(&arc_doc);
+                let baseline = baseline.clone();
+                thread::spawn(move || {
+                    let h = harvest_edges(&d, "ix://test/FR-001", None, &IdentityResolver);
+                    assert_eq!(h, baseline, "non-deterministic edge harvest");
+                })
+            })
+            .collect();
+        for h in handles {
+            h.join().unwrap();
+        }
     }
 
     #[test]
