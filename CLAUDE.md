@@ -18,7 +18,10 @@ make ci             # fmt-check + lint + test + deny + audit-unsafe
 
 ## Safety scaffolding
 
-Backported from `agent-ix/ecaz`:
+Backported from `agent-ix/rust-lib-cookiecutter` (originally from `agent-ix/ecaz`).
+When upstream tightens MSRV, clippy lints, license allowlist, or audit scripts,
+backport changes here via the `backport-code` skill (StR-004-AC-3). Drift is
+detected on each `make ci` run via `scripts/audits/verify_cookiecutter_inheritance.sh`.
 
 - `clippy.toml` pins MSRV to `1.75` and caps cognitive complexity / arg count
 - `deny.toml` allow-lists licenses and denies unknown registries/git sources
