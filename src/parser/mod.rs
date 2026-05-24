@@ -87,6 +87,7 @@ pub fn parse_document(markdown: &str) -> QuireDocument {
         };
         flat.push(QuireSection {
             id: slug_line_id(&h.text, h.line),
+            block_id: h.block_id.clone(),
             heading: h.text.clone(),
             level: h.level as u8,
             content,

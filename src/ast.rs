@@ -15,15 +15,23 @@ use serde_json::{Map, Value};
 /// One heading-bounded section of a parsed markdown document.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct QuireSection {
-    /// Stable `<slug>-L<line>` identifier (see `parser::slug_line_id`).
+    /// `<slug>-L<line>` identifier (parser-derived; not stable across
+    /// line shifts). Use [`block_id`](Self::block_id) for stable
+    /// addressing.
     pub id: String,
-    /// Heading text, leading/trailing whitespace stripped.
+    /// Stable block ID — parsed from a trailing Pandoc heading
+    /// attribute `## Heading {#blk-id}` (FR-019). `None` when the
+    /// heading has no attribute. Stable across edits as long as the
+    /// author preserves the attribute.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub block_id: Option<String>,
+    /// Heading text, leading/trailing whitespace stripped. Pandoc
+    /// `{#id}` attribute is parsed off and lives in `block_id`.
     pub heading: String,
     /// ATX heading level, `1..=6`.
     pub level: u8,
     /// Byte-exact content between this heading and the next heading
-    /// (any level), or end of body. NOT trimmed (diverges from TS/Py
-    /// reference — see FR-008).
+    /// (any level), or end of body. NOT trimmed.
     pub content: String,
     /// Direct child sections (strictly deeper level).
     pub children: Vec<QuireSection>,
@@ -86,6 +94,7 @@ mod tests {
     fn round_trip_serde_json() {
         let s = QuireSection {
             id: "x-L0".into(),
+            block_id: None,
             heading: "X".into(),
             level: 2,
             content: "body".into(),
