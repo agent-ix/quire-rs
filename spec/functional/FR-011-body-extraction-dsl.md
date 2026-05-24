@@ -45,6 +45,28 @@ A list of declarative edge emissions. Each entry: `{ type: String, target: Locat
 
 Each locator has an implicit or explicit `required: bool`. When `required: true` and the locator fails to find a value, the evaluator returns `QuireError::MissingField { key, locator }`. When `required: false`, the key is omitted (single-yield) or the iteration unit is skipped (multi-yield, only if the iteration locator itself fails).
 
+### DSL structural validation (load-time)
+
+When a manifest entry's `body_extraction` is loaded, the loader SHALL validate the DSL's structural integrity before storing it:
+
+- `yield_pattern.match` and `yield_pattern.iterate_over` are **mutually exclusive (XOR)**. A DSL setting both is `QuireError::ArchetypeLoadError { reason: "match and iterate_over are mutually exclusive" }`. A DSL setting neither is also a load error.
+- **Unknown keys** under `body_extraction`, `yield_pattern`, or any `Locator` produce `QuireError::ArchetypeLoadError { reason: "unknown DSL key <k>" }`. The loader is strict to surface typos at author time.
+- A `Locator` with no `from:` field, or a `from:` value not in {`frontmatter_field`, `section_body`, `code_block`, `table_row`, `list_item`, `heading`}: load error.
+
+### Evaluation edge cases
+
+- **Iterate root not found**: `iterate_over.section_path` referencing a section that does not exist in the document → returns zero records and emits `Diagnostic::IterateRootMissing { path }`.
+- **Iteration unit yields no per_match values**: emit zero records for that unit, no diagnostic (this is the normal "no match" case for `per_match` evaluation).
+- **Empty body**: a document with frontmatter but `sections: []` against a `section_body` locator returns `MissingField` if `required`, `None` otherwise.
+
+### Purity
+
+`extract` SHALL be pure (no I/O, deterministic). Given identical inputs it produces identical `ExtractionResult` across runs and threads.
+
+### Bounded output
+
+Per-call output is bounded by document size: `records.len() <= max(headings, list_items, table_rows)` for multi-yield; `records.len() <= 1` for single-yield. The engine does NOT impose an additional cap. Pathological documents (millions of iteration units) consume memory proportional to output size; consumers SHOULD bound input via NFR-002's 5 MB envelope.
+
 ### Public API
 
 ```rust
@@ -67,3 +89,6 @@ Single-yield DSLs return `records.len() <= 1`; multi-yield returns one record pe
 - **FR-011-AC-3**: A DSL with `emit_edges: [{ type: depends_on, target: { from: frontmatter_field, path: [depends_on] } }]` against a doc with a frontmatter `depends_on` list emits one edge per list item.
 - **FR-011-AC-4**: A DSL with `required: true` against a missing value returns `QuireError::MissingField` naming the DSL key.
 - **FR-011-AC-5**: A parity sweep evaluates every `body_extraction` DSL from the six object-source repos (`spec-objects-{architecture,business,enterprise,operational,security}` + `ix-spec-objects`, total 87+ object types) against fixture documents and asserts each `ExtractionResult.records` matches the filament-parser-lib Python reference for the same input.
+- **FR-011-AC-6**: A DSL with both `match` and `iterate_over` set under `yield_pattern` produces `QuireError::ArchetypeLoadError` at load time, NOT at evaluation time.
+- **FR-011-AC-7**: A DSL with an unknown key (e.g. `from: section_bodyy` typo) produces `QuireError::ArchetypeLoadError` at load time.
+- **FR-011-AC-8**: A DSL with `iterate_over.section_path: [Nonexistent]` against a document missing that section returns `ExtractionResult { records: [], edges: [], diagnostics: [IterateRootMissing] }`.

@@ -16,12 +16,16 @@ relationships:
 `QuireSection.id` SHALL be `<slug>-L<line>` where:
 
 1. `slug` is derived from the heading text by:
-   a. Lowercasing.
-   b. Replacing every run of one-or-more non-alphanumeric characters with a single `-`.
+   a. Lowercasing via Unicode-default lowercasing (`str::to_lowercase`).
+   b. Replacing every run of one-or-more characters that are NOT in the ASCII alphanumeric set `[a-z0-9]` (post-lowercase) with a single `-`. This intentionally collapses Unicode letters (e.g. `é`, `ü`) into `-`, matching the TS/Py reference implementations' regex `[^a-z0-9]+`.
    c. Stripping leading and trailing `-`.
 2. `line` is the 0-based line index of the heading line within the body (NOT within the full markdown input; the frontmatter, if present, is stripped first).
 
-Specifically: heading `"2.1 In Scope"` at body line index 6 produces id `"2-1-in-scope-L6"`. This matches the TS `slug + "-L" + startLine` rule and the Python sibling.
+Specifically: heading `"2.1 In Scope"` at body line index 6 produces id `"2-1-in-scope-L6"`. Heading `"Café Menu"` produces slug `"caf-menu"` (the `é` collapses to `-`). This matches the TS `slug + "-L" + startLine` rule and the Python sibling.
+
+### Empty slug
+
+A heading text that produces an empty slug after normalization (e.g. `"## !!!"`, `"## ❤️"`) yields id `"-L<line>"`. This is unusual but legal — preserving the line index keeps the ID unique even when the slug is degenerate. Authors are responsible for choosing headings that produce meaningful slugs.
 
 ## Acceptance
 
@@ -30,3 +34,5 @@ Specifically: heading `"2.1 In Scope"` at body line index 6 produces id `"2-1-in
 - **FR-009-AC-3**: Heading `"   leading spaces   "` at line 3 → id `"leading-spaces-L3"`.
 - **FR-009-AC-4**: With a frontmatter block of N lines, a heading on the first body line has line index 0 — frontmatter is NOT counted.
 - **FR-009-AC-5**: A test transliterated from `~/dev/quire-py/tests/` covering each variant passes.
+- **FR-009-AC-6**: Heading `"Café Menu"` at line 4 → id `"caf-menu-L4"` (non-ASCII collapses; mirrors TS/Py reference).
+- **FR-009-AC-7**: Heading `"!!!"` at line 7 → id `"-L7"` (degenerate empty slug, line index preserved).

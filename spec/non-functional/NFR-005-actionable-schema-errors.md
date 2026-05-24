@@ -23,7 +23,7 @@ Every `QuireError::SchemaViolation` returned by `quire-rs` SHALL carry, at minim
 3. **Observed** — the value (or value preview) that violated the constraint. Long strings are truncated at 80 characters with an ellipsis. Bytes are rendered as a hex preview.
 4. **Block type** — the registered archetype name (e.g. `"fr"`) so the error is self-locating in a batch-render context.
 
-Errors SHALL NOT leak raw `serde_json::Error`, `garde::Errors`, or stack traces in their public `Display` form. A single helper `format_violation(violation)` produces the user-facing string.
+Errors SHALL NOT leak raw `serde_json::Error`, `jsonschema::ValidationError` (or whichever validator crate is selected), or stack traces in their public `Display` form. A single helper `format_violation(violation)` produces the user-facing string.
 
 ## Rationale
 
@@ -32,7 +32,7 @@ LLM-driven editors (US-001) retry on validation failure. The minimum information
 ## Acceptance Criteria
 
 - **NFR-005-AC-1**: Triggering each kind of violation (missing required, wrong type, pattern mismatch, length, enum) produces an error whose `Display` form contains all four elements.
-- **NFR-005-AC-2**: A static check confirms `QuireError::Display` does not contain literal substrings from `serde_json::Error` or `garde::Errors` debug forms.
+- **NFR-005-AC-2**: A static check confirms `QuireError::Display` does not contain literal substrings from `serde_json::Error` or the validator crate's native debug forms.
 - **NFR-005-AC-3**: A snapshot test pins one canonical error per archetype for stability.
 
 ## Verification

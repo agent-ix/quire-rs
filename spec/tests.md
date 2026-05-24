@@ -155,6 +155,24 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-120 | Bench: 10 000 sequential renders after load → median <1ms, zero I/O | Bench | P0 | NFR-007-AC-2 | 🚧 |
 | TC-121 | Tracing audit: zero Template::parse and zero JSONSchema::compile during render | Static | P0 | NFR-007-AC-3 | 🚧 |
 | TC-122 | Long-running soak: registry memory footprint flat over 1 M renders | Soak | P1 | NFR-007-AC-4 | 🚧 |
+| TC-130 | Loader symlink-loop detected; warning emitted; cycle skipped | Integration | P0 | FR-013-AC-7 | 🚧 |
+| TC-131 | Duplicate IX_SCHEMA_PATH entries: modules loaded once | Integration | P0 | FR-013-AC-8 | 🚧 |
+| TC-132 | Registry: Send + Sync (compile-time assertion) | Compile | P0 | FR-013-AC-9 | 🚧 |
+| TC-133 | Path-entry-is-a-file: warning emitted; other entries process | Integration | P1 | FR-013-AC-10 | 🚧 |
+| TC-134 | Two modules same name → DuplicateModuleName diag + first-wins | Integration | P0 | FR-014-AC-6 | 🚧 |
+| TC-135 | Manifest without name uses parent dir name + diagnostic | Unit | P1 | FR-014-AC-7 | 🚧 |
+| TC-140 | Edge dedup metadata: first wins; dropped reported in diagnostic | Unit | P0 | FR-015-AC-6 | 🚧 |
+| TC-141 | harvest_edges deterministic across 64 threads | Property | P0 | FR-015-AC-7 | 🚧 |
+| TC-150 | DSL with both match and iterate_over → ArchetypeLoadError at load | Unit | P0 | FR-011-AC-6 | 🚧 |
+| TC-151 | DSL with unknown key → ArchetypeLoadError at load | Unit | P0 | FR-011-AC-7 | 🚧 |
+| TC-152 | iterate_over.section_path missing → empty records + IterateRootMissing | Unit | P0 | FR-011-AC-8 | 🚧 |
+| TC-160 | Template with {% include %} → ArchetypeLoadError | Unit | P0 | FR-004-AC-4 | 🚧 |
+| TC-170 | Schema with internal $ref + $defs (recursive) compiles + validates | Unit | P0 | FR-002-AC-6 | 🚧 |
+| TC-171 | Schema with cross-file $ref → ArchetypeLoadError at load | Unit | P0 | FR-002-AC-7 | 🚧 |
+| TC-180 | extract_frontmatter handles BOM-prefixed input (with FM) | Unit | P0 | FR-006-AC-5 | 🚧 |
+| TC-181 | extract_frontmatter handles BOM-prefixed input (no FM) | Unit | P0 | FR-006-AC-6 | 🚧 |
+| TC-190 | Slug for non-ASCII heading "Café Menu" → "caf-menu-L<n>" | Unit | P0 | FR-009-AC-6 | 🚧 |
+| TC-191 | Slug for degenerate "!!!" heading → "-L<n>" | Unit | P1 | FR-009-AC-7 | 🚧 |
 
 ---
 
@@ -229,12 +247,12 @@ All tests are DRAFT — pending implementation via `/spec-to-plan` → `/impleme
 
 | Category | Total | Passed | Failed | Blocked | Coverage |
 |----------|-------|--------|--------|---------|----------|
-| Unit | 35 | 0 | 0 | 35 | 0% |
-| Integration | 13 | 0 | 0 | 13 | 0% |
+| Unit | 49 | 0 | 0 | 49 | 0% |
+| Integration | 17 | 0 | 0 | 17 | 0% |
 | Parity | 7 | 0 | 0 | 7 | 0% |
 | Bench | 6 | 0 | 0 | 6 | 0% |
-| Property | 7 | 0 | 0 | 7 | 0% |
+| Property | 8 | 0 | 0 | 8 | 0% |
 | Static / Snapshot | 9 | 0 | 0 | 9 | 0% |
-| Compile | 1 | 0 | 0 | 1 | 0% |
+| Compile | 2 | 0 | 0 | 2 | 0% |
 | Soak | 1 | 0 | 0 | 1 | 0% |
-| **Total** | **79** | **0** | **0** | **79** | **0%** |
+| **Total** | **97** | **0** | **0** | **97** | **0%** |

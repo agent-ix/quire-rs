@@ -18,8 +18,19 @@ The render layer SHALL construct exactly one `minijinja::Environment` per proces
 
 The environment is `Send + Sync` and shared across threads.
 
+### Cross-archetype includes
+
+MiniJinja's `{% include %}` and `{% extends %}` directives are **disabled at v1**. Templates are loaded as isolated units; each archetype's template references its own data context only. A template attempting `{% include %}` SHALL fail at load time with `QuireError::ArchetypeLoadError { reason: "{% include %} is not supported at v1" }`.
+
+This is enforced by configuring MiniJinja's loader to return an error for any include resolution attempt. Cross-archetype composition is a follow-on concern and requires explicit design before being enabled.
+
+### Custom filters
+
+Custom MiniJinja filters added by `quire-rs` SHALL be pure (no I/O, no global state). At v1 the engine ships no archetype-specific filters; only MiniJinja's built-in safe filters are available. Adding custom filters is a follow-on FR.
+
 ## Acceptance
 
 - **FR-004-AC-1**: A test renders an FR with a template that references a field absent from `FrData` and asserts the returned error is `QuireError::TemplateError` naming the missing field.
 - **FR-004-AC-2**: A test constructs a `Renderer`, calls `render` from N=64 threads concurrently for 10000 iterations total, and asserts no panic, no race, byte-identical outputs.
 - **FR-004-AC-3**: A criterion bench measures the cost of `Renderer::new()` and reports it; FR-004 documents the expected one-time cost (in the µs range). Subsequent render calls do NOT pay this cost.
+- **FR-004-AC-4**: A test loads a template containing `{% include "other.j2" %}` and asserts `QuireError::ArchetypeLoadError` with the "include not supported" reason.

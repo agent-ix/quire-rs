@@ -22,6 +22,14 @@ When `Registry::load_from(...)` is given a path containing multiple module roots
 - The set of archetypes contributed by each module
 - Per-archetype provenance: which module defined this archetype, at what filesystem path, with what manifest version
 
+### Module identity
+
+A **module** is identified by the `name` field declared in its `manifest.yaml`, NOT by its filesystem path. Two manifests at different filesystem paths but declaring the same `name` collide.
+
+The loader resolves module-name collisions identically to archetype-name collisions (below): first-wins by search-path order, with a `Diagnostic::DuplicateModuleName { name, paths: [a, b] }` listing all contributing paths. `Registry::load_strict(...)` promotes module-name collisions to `QuireError::ModuleCollision`.
+
+If a manifest does NOT declare a `name`, the loader uses the immediate parent directory name as the module name and emits an informational diagnostic recommending an explicit `name` declaration.
+
 ### Namespace and collisions
 
 Archetype names are bare strings (`"fr"`, `"adr"`, etc.). When two modules contribute archetypes with the same name, the loader SHALL:
@@ -53,3 +61,5 @@ Version is informational at v1 — the engine does NOT perform version-range res
 - **FR-014-AC-3**: `Registry::load_strict(...)` with the same input returns `Err(QuireError::ArchetypeCollision { name: "fr", modules })`.
 - **FR-014-AC-4**: A module manifest with `version: "0.3.1"` is queryable via `module_version("module-name")` returning `Some("0.3.1")`.
 - **FR-014-AC-5**: A test loads `spec-artifacts-iso` + `spec-artifacts-app` + `spec-artifacts-process` simultaneously and asserts the registry contains exactly the union of their archetypes (17 at v1 baseline) with no collisions.
+- **FR-014-AC-6**: Two manifests at different paths both declaring `name: foo` produce a `Diagnostic::DuplicateModuleName` and the first-loaded module wins; `load_strict` returns `QuireError::ModuleCollision`.
+- **FR-014-AC-7**: A manifest without a `name` field uses its parent directory's basename as the module name and emits an informational diagnostic.

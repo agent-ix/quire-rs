@@ -73,6 +73,25 @@ Per-render and per-extract operations SHALL NOT re-read disk and SHALL NOT re-pa
 - A template that fails MiniJinja parse: `QuireError::ArchetypeLoadError` with template path and parse error.
 - A missing search path entry on disk: warning diagnostic (not a fatal error) — empty modules are valid.
 
+### Path-handling edge cases
+
+- A search path entry that is a **file, not a directory**: warning diagnostic; entry is skipped, other entries process normally.
+- A search path entry whose **read permission is denied**: warning diagnostic with `errno`; entry is skipped.
+- **Tilde (`~`) expansion**: the loader SHALL expand a leading `~/` or `~` to the user's home directory before resolving. No mid-path tilde expansion.
+- **Environment variables** in `IX_SCHEMA_PATH` entries are NOT expanded — entries are taken literally after splitting on `:`.
+- **Duplicate entries** in `IX_SCHEMA_PATH` (same canonical path appearing more than once): the loader SHALL deduplicate before walking; modules are loaded at most once per canonical path.
+- **Symlink loops**: the directory walker SHALL maintain a `visited` set of canonical paths and break cycles. Cycle detection emits a warning diagnostic; the cyclic branch is skipped.
+
+### Concurrency model
+
+- `Registry` is `Send + Sync`. Cloning a `Registry` is reference-counted (cheap, `Arc<Inner>`-style) — clones share underlying `CompiledArchetype` instances.
+- A `Registry` is immutable after construction. To change the active archetype set, construct a new `Registry` via `load_from` and drop the previous one. Outstanding references to the previous `Registry`'s `CompiledArchetype` keep it alive until the last reference drops.
+- `Registry::load_from(...)` SHALL NOT mutate any global state; multiple registries may coexist in the same process.
+
+### File-race assumptions
+
+The loader assumes the upstream sync tool (canonically `ix-cli`, see Appendix A in `spec.md`) writes files **atomically** — i.e. writes to a temp path and renames, never in-place. The loader does NOT acquire file locks. If a non-atomic writer modifies files during load, partial-read errors surface as `QuireError::ArchetypeLoadError` for the affected archetype; the rest of the registry loads normally.
+
 ## Acceptance
 
 - **FR-013-AC-1**: `Registry::from_env()` with `IX_SCHEMA_PATH` unset and no `~/.ix/schemas/` returns a registry with zero archetypes and no error.
@@ -81,3 +100,7 @@ Per-render and per-extract operations SHALL NOT re-read disk and SHALL NOT re-pa
 - **FR-013-AC-4**: A criterion bench measures `Registry::load_from(&[corpus_path])` for the full 17-archetype baseline corpus and reports a one-time cost (target: under 50 ms median on baseline hardware).
 - **FR-013-AC-5**: After `Registry::load_from(...)`, calling `render(archetype, data)` against a loaded archetype does NOT read from disk (verified via a `tracing` or `strace`-style audit in CI).
 - **FR-013-AC-6**: A test confirms `quire-rs` has no `reqwest`, `hyper`, `tonic`, or other network-client crate in its `Cargo.lock` (verified via dependency audit).
+- **FR-013-AC-7**: A test creates a symlink loop (`a → b → a`) inside a search path and asserts the loader completes with a warning diagnostic and skips the loop.
+- **FR-013-AC-8**: A test sets `IX_SCHEMA_PATH="~/foo:~/foo"` (duplicate canonical path) and asserts modules under `~/foo/` are loaded exactly once.
+- **FR-013-AC-9**: A test confirms `Registry: Send + Sync` (compile-time bound assertion via a generic helper function).
+- **FR-013-AC-10**: A test sets a search-path entry that points to a regular file (not a directory) and asserts the loader emits a warning and processes remaining entries normally.

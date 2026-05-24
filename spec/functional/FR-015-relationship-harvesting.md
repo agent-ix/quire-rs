@@ -43,6 +43,22 @@ Unresolvable bare IDs emit `Diagnostic::UnresolvedRelationshipTarget`. The edge 
 
 After collection from all sources (frontmatter sugar + `relationships:` block + `emit_edges` from FR-011 DSL evaluation), edges are deduplicated by the tuple `(source_ref, type, target_ref)`. Duplicates are removed and a `Diagnostic::DuplicateEdge { source, type, target, sources: [a, b, ...] }` is emitted listing the original origins.
 
+### Metadata merge on dedup
+
+When deduplicated edges have different `metadata` maps, the **first edge encountered wins**. The dropped edge's metadata is included in the diagnostic so downstream tools can detect lossy dedups. Source order is deterministic: frontmatter `relationships:` block first, then frontmatter sugar fields (in declared sugar-field order), then `emit_edges` from DSL evaluation in DSL declaration order.
+
+### Purity
+
+`harvest_edges` SHALL be pure (no I/O, deterministic). Given identical inputs (`doc`, `source_ref`, `extraction`, resolver behavior) it produces identical edge sets and diagnostics across runs and threads.
+
+### Resolver contract
+
+Implementations of `RelationshipResolver` SHALL:
+
+1. **Be pure**: no I/O (no network, no filesystem reads, no global state mutation). The engine assumes resolvers are cheap and deterministic; violating this defeats NFR-006 (determinism), NFR-007 (load cost), and the StR-001 "offline by default" property.
+2. **Be panic-free**: if a resolver panics, the engine propagates the panic to the caller. Panics are NOT caught at the boundary. Long-running consumers (Filament editor) SHALL provide panic-free resolvers.
+3. **Return values in canonical form**: returned strings SHALL be valid `ix://` URIs or the bare ID passed in. Returning a different bare ID, or a malformed URI, produces undefined behavior in downstream graph code — the engine does NOT re-validate resolver output.
+
 ### Public API
 
 ```rust
@@ -80,3 +96,5 @@ When `extraction` is `None`, only frontmatter sources are harvested. When `Some`
 - **FR-015-AC-3**: A `parent_process: "X"` sugar field emits an edge with `edge_type: "parent"` (aliased), not `"parent_process"`.
 - **FR-015-AC-4**: A bare ID that the resolver cannot map emits a `Diagnostic::UnresolvedRelationshipTarget` and still produces an edge with the bare ID as target.
 - **FR-015-AC-5**: A parity test against filament-parser-lib's `relationships.py` module asserts equivalent edge sets on a corpus of real artifacts.
+- **FR-015-AC-6**: A test with two edges deduped to one — different metadata — asserts the first edge's metadata is kept and the diagnostic lists the dropped one.
+- **FR-015-AC-7**: A test invokes `harvest_edges` from 64 threads concurrently with a pure resolver and asserts byte-identical `EdgeHarvest` values (determinism).

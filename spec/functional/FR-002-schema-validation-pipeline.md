@@ -33,6 +33,19 @@ Patches MAY add new fields to objects whose schema allows them. Patches MAY NOT 
 
 The JSON Schema validator implementation uses a high-performance pre-compiled validator (e.g. the `jsonschema` crate's `JSONSchema::compile()` once, then `validate()` per call). Compilation happens at archetype load time (FR-013), not per `apply_patch` call.
 
+### JSON Schema feature support (v1)
+
+- **Draft 2020-12** is the canonical dialect.
+- **`$defs`** within a single schema document: supported.
+- **`$ref`** within a single schema document: supported, including reference cycles (the validator detects and handles cycles per draft 2020-12 semantics).
+- **Cross-schema `$ref`** (referencing another archetype's schema file): **NOT supported** at v1. A schema containing such a `$ref` produces `QuireError::ArchetypeLoadError` at load time with the unresolvable ref.
+- **Unsupported keywords** (e.g. unrecognized `format` values, custom vocabularies): the validator's default behavior applies — typically the keyword is ignored. The engine does NOT extend or shim keyword support beyond what the chosen crate provides.
+- **Empty schema (`{}`)**: legal — accepts any value. The engine does not flag this as a defect; it's the author's intent.
+
+### Error list bounding
+
+A single `apply_patch` call may produce multiple violations (e.g. `oneOf` against bad input enumerates each variant). The engine returns all violations without truncation. Consumers SHOULD bound input shape rather than rely on engine-side caps.
+
 ## Acceptance
 
 - **FR-002-AC-1**: Given a `Value` containing `{ "title": "old", "body": "content" }` and a patch `{ "title": "new" }`, the merged-validated result is `{ "title": "new", "body": "content" }` — array-and-object merge semantics preserve siblings.
@@ -40,3 +53,5 @@ The JSON Schema validator implementation uses a high-performance pre-compiled va
 - **FR-002-AC-3**: A patch introducing an unknown key on an object where the schema sets `additionalProperties: false` raises `SchemaViolation` naming the unknown key.
 - **FR-002-AC-4**: A proptest fuzzes patches across all archetypes in the test corpus and confirms `apply_patch` returns a valid `Value` (per schema) or a typed error — never a panic.
 - **FR-002-AC-5**: Per-call cost of `apply_patch` (excluding schema-compile, which is amortized at load) is dominated by JSON merge and validation; criterion bench shows median below 100 µs for a typical (~4 KB) artifact.
+- **FR-002-AC-6**: A schema with internal `$defs` + recursive `$ref` (e.g. a tree structure) compiles cleanly and validates correctly against a recursive `Value` instance.
+- **FR-002-AC-7**: A schema containing a cross-file `$ref` (e.g. `"$ref": "../other/schema.json"`) produces `QuireError::ArchetypeLoadError` at load time naming the unresolvable ref.

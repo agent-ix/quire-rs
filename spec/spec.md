@@ -159,7 +159,9 @@ The layered architecture for the **render side** is taken from the design descri
 ┌─────────────────────────────────────────────────┐
 │  Edit API           (patches, full replaces)    │  ← transport
 ├─────────────────────────────────────────────────┤
-│  Schema layer       (typed structs + validators)│  ← correctness
+│  Schema layer       (compiled JSON Schema       │  ← correctness
+│                      validators from on-disk    │
+│                      schema documents)          │
 ├─────────────────────────────────────────────────┤
 │  Storage            (blocks as canonical data)  │  ← persistence
 ├─────────────────────────────────────────────────┤
@@ -191,7 +193,7 @@ Each layer has one job and a narrow interface to the next. The parser does not v
 - **`spec-artifacts-*` Python repos** — eventually call `quire-rs` via Python bindings or subprocess for parity-rendered artifacts
 - **`ix-spec-objects` extractors** — evaluate `body_extraction` DSL via the parser's Query API
 - **CLI tools** — invoke the renderer to produce spec artifacts from typed YAML/JSON sources
-- **LLM agents** — receive `schemars`-generated JSON Schemas as tool definitions, emit validated patches that the schema layer accepts and the renderer formats
+- **LLM agents** — receive the on-disk JSON Schemas (surfaced unchanged via `schema_for`) as tool-call input contracts, emit validated patches that the schema layer accepts and the renderer formats
 
 ---
 
@@ -496,7 +498,51 @@ Functional requirements MAY declare a lifecycle status:
 
 ---
 
-## 17. References
+## 17. Inter-Tool Contract with ix-cli (Appendix A)
+
+`quire-rs` reads archetype data from the local filesystem and does NOT communicate with Filament directly. The bridge between Filament and disk is owned by `ix-cli` (or any equivalent syncer). For `quire-rs` to operate correctly, the syncer SHALL honor the following filesystem contract:
+
+### Atomicity
+
+- File writes SHALL be atomic — write to a temp file in the same directory, then rename over the target. `quire-rs` does NOT acquire file locks; partial reads during in-place writes will produce parse errors for the affected archetype.
+- Directory restructures (renaming a module directory, replacing a manifest) SHALL be atomic at the directory level when possible (rename of a sibling staging directory). If not possible, the syncer SHALL accept transient `quire-rs` load errors during the window.
+
+### Validity
+
+- `manifest.yaml` SHALL be valid YAML, conformant with the structural shape declared in FR-013 (artifact_types and/or object_types arrays, each entry referencing `schema_ref` and `template_ref` by relative path).
+- Each `schema_ref` target SHALL exist on disk and be valid JSON Schema (draft 2020-12, no cross-file `$ref` — see FR-002).
+- Each `template_ref` target SHALL exist on disk and be valid MiniJinja (no `{% include %}` at v1 — see FR-004).
+- `quire-rs` does NOT validate the syncer's outputs proactively at startup; validation happens lazily at `Registry::load_from(...)` time and surfaces as `QuireError::ArchetypeLoadError` per archetype.
+
+### Naming
+
+- Module directories SHALL contain a `manifest.yaml` at the module root.
+- The manifest's `name` field, if declared, SHALL be globally unique across all modules a given `Registry` will load (per FR-014).
+- Archetype names within a module SHALL be unique within that module's manifest.
+
+### Versioning
+
+- Module-level `version` field in `manifest.yaml` is informational at v1 (per FR-014). The syncer MAY use semver to gate which version of an archetype set is synced; `quire-rs` does not enforce.
+
+### Tool ownership
+
+| Concern | Owner | Notes |
+|---|---|---|
+| Authenticate to Filament | `ix-cli` | API keys, OAuth, etc. |
+| Discover available modules in Filament | `ix-cli` | |
+| Download module contents to disk | `ix-cli` | Atomic writes per above |
+| Resolve `~/.ix/schemas/` location | `ix-cli` for writes; `quire-rs` for reads (FR-013) | Both honor `IX_SCHEMA_PATH` env var |
+| Module versioning policy | `ix-cli` | quire-rs is version-blind |
+| Conflict resolution between local edits and remote | `ix-cli` | quire-rs sees only the post-resolution state |
+| Load archetypes into runtime registry | `quire-rs` | Pure filesystem reads |
+| Validate / compile schemas + templates | `quire-rs` | At load time |
+| Render / parse / extract / harvest edges | `quire-rs` | At call time |
+
+If the syncer violates this contract (non-atomic writes, malformed YAML, etc.), the failure mode is bounded: per-archetype `ArchetypeLoadError`. The Registry construction itself does not abort; non-affected archetypes load normally. The consumer can inspect the diagnostic list to decide whether to proceed.
+
+---
+
+## 18. References
 
 - ISO/IEC/IEEE 29148 — Requirements Engineering
 - IEEE 828 — Configuration Management
@@ -506,3 +552,4 @@ Functional requirements MAY declare a lifecycle status:
 - `agent-ix/spec-artifacts-app` — reference Jinja2 renderer for 2 App archetypes
 - `agent-ix/ecaz` — source of Rust safety scaffolding (backported via `agent-ix/rust-lib-cookiecutter`)
 - `INPUT.md` — design input document combining block-rendering architecture with the Quire port mandate
+- `ix-cli` (agent-ix/ix-cli) — canonical syncer between Filament and the local filesystem; counterparty to the inter-tool contract in §17
