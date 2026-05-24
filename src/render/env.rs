@@ -1,0 +1,1 @@
+//! Minijinja environment configuration.

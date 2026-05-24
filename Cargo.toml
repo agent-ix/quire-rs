@@ -13,8 +13,44 @@ name = "quire_rs"
 path = "src/lib.rs"
 
 [dependencies]
+# Tilde-pinned per NFR-009 for load-bearing renderer/parser primitives;
+# caret-pinned for ecosystem-standard helpers.
+minijinja = "~2"
+serde = { version = "^1", features = ["derive"] }
+serde_json = "^1"
+serde_yaml = "^0.9"
+indexmap = "^2"
+thiserror = "^2"
+# Placeholder validator crate; Task 026 ADR will revisit with bench data.
+# `default-features = false` to drop the `resolve-http`/`reqwest`/`cli` defaults
+# — quire-rs is filesystem-only (StR-001, FR-013, hard rule: no network deps).
+jsonschema = { version = "~0.18", default-features = false, features = ["resolve-file"] }
+# Feature-gated tracing per NFR-008.
+tracing = { version = "^0.1", optional = true }
 
 [dev-dependencies]
+proptest = "^1"
+criterion = "^0.5"
+
+[features]
+default = []
+tracing = ["dep:tracing"]
+
+[[bench]]
+name = "render"
+harness = false
+
+[[bench]]
+name = "parse"
+harness = false
+
+[[bench]]
+name = "load"
+harness = false
+
+[[bench]]
+name = "validator_choice"
+harness = false
 
 [profile.release]
 lto = "thin"
