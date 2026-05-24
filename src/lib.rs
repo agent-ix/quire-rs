@@ -36,3 +36,6 @@ pub use error::{format_violation, ArchetypeLoadFailure, QuireError, VIOLATION_PR
 pub use diagnostic::{Diagnostic, DiagnosticKind, Diagnostics};
 pub use loader::compile::CompiledArchetype;
 pub use registry::Registry;
+// Render + validate (FR-001 + FR-002).
+pub use render::{render, render_by_name};
+pub use validate::{apply_patch, validate, validate_all};
