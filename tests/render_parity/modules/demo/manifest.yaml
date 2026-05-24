@@ -1,0 +1,10 @@
+name: demo
+version: 0.1.0
+description: |
+  Self-contained bootstrap module for the render-parity harness
+  (FR-012 / Gate G2). Hand-authored so the test suite has a known
+  fixture independent of any external corpus.
+artifact_types:
+  - name: demo-item
+    template_ref: templates/demo-item.md.j2
+    frontmatter_schema_ref: schemas/demo-item.schema.json
