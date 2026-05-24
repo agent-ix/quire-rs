@@ -38,6 +38,12 @@ pub fn validate(archetype: &CompiledArchetype, data: &Value) -> Result<(), Quire
     Ok(())
 }
 
+/// Validate `data` against a block-type's schema (INPUT.md block
+/// model). v0.2: block_type maps 1:1 to archetype.
+pub fn validate_block(block_type: &CompiledArchetype, data: &Value) -> Result<(), QuireError> {
+    validate(block_type, data)
+}
+
 /// Validate `data` and collect every violation as a `Vec<QuireError>`.
 /// Returns `Ok(())` when valid; `Err(Vec<QuireError>)` otherwise.
 pub fn validate_all(archetype: &CompiledArchetype, data: &Value) -> Result<(), Vec<QuireError>> {

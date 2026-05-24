@@ -116,6 +116,22 @@ pub fn render_by_name(
     render(registry, archetype, data)
 }
 
+/// Render one block by its block-type name (INPUT.md block model).
+/// In v0.2 block_type maps 1:1 to archetype; this is the canonical
+/// per-block entry point used by `apply_block_patch` / `replace_block`.
+pub fn render_block(
+    registry: &Registry,
+    block_type: &str,
+    data: &Value,
+) -> Result<RenderOutput, QuireError> {
+    let bt = registry
+        .block_type(block_type)
+        .ok_or_else(|| QuireError::UnknownArchetype {
+            name: block_type.to_string(),
+        })?;
+    render(registry, bt, data)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

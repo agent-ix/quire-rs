@@ -123,6 +123,14 @@ impl Registry {
     }
 
     /// Look up a compiled archetype by name.
+    /// Look up a block type by name. In v0.2 each archetype is a
+    /// block type (1:1) — this method is the canonical block-model
+    /// entry point per INPUT.md vocabulary. `archetype()` remains as
+    /// a synonym for code internal to the parity port.
+    pub fn block_type(&self, name: &str) -> Option<&CompiledArchetype> {
+        self.archetype(name)
+    }
+
     pub fn archetype(&self, name: &str) -> Option<&CompiledArchetype> {
         self.inner.archetypes.get(name).map(|a| a.as_ref())
     }

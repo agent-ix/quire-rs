@@ -6,6 +6,7 @@
 //! canonical.
 
 pub mod ast;
+pub mod block_edit;
 pub mod diagnostic;
 pub mod error;
 pub mod extract;
@@ -36,11 +37,13 @@ pub use diagnostic::Diagnostic;
 pub use loader::compile::CompiledArchetype;
 pub use registry::Registry;
 // Render + validate (FR-001 + FR-002).
-pub use render::{render, render_by_name, render_with_env, RenderOutput};
-pub use validate::{apply_patch, validate, validate_all};
+pub use render::{render, render_block, render_by_name, render_with_env, RenderOutput};
+pub use validate::{apply_patch, validate, validate_all, validate_block};
 // Extract / body-extraction DSL (FR-011 + FR-016).
 pub use extract::dsl::{ExtractionDsl, IterateKind, IterateOver, YieldPattern};
 pub use extract::locator::{Locator, LocatorPrimitive};
 pub use extract::{extract, ExtractionResult};
 // Writeback (FR-022).
 pub use writeback::{update_block, update_section};
+// Block edit API (FR-021).
+pub use block_edit::{apply_block_patch, replace_block};
