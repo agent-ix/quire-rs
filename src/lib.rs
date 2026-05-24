@@ -30,3 +30,5 @@ pub use query::{
     table_from_section, DiagramBlock, ListItem, ListPattern, SearchMatch, SearchResult,
     TableResult,
 };
+// Error shape (NFR-005).
+pub use error::{format_violation, ArchetypeLoadFailure, QuireError, VIOLATION_PREVIEW_MAX};
