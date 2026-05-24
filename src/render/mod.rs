@@ -18,10 +18,10 @@ use crate::loader::compile::CompiledArchetype;
 use crate::registry::Registry;
 use crate::validate::validate;
 
-/// Output of a successful render (FR-001 + FR-017).
+/// Output of a successful render (FR-001).
 ///
 /// `markdown` carries the rendered template output; `diagnostics`
-/// carries any advisory notes the renderer accumulated. v1 renders
+/// carries any advisory notes the renderer accumulated. v0.2 renders
 /// emit no diagnostics today — the field exists so render-side
 /// variants (template deprecations, undefined-with-default uses)
 /// can land without an API break.
@@ -196,7 +196,6 @@ mod tests {
         let out = render_by_name(&r, "fr", &json!({"id": "FR-001", "title": "Hi"})).unwrap();
         assert!(out.markdown.contains("FR-001"));
         assert!(out.markdown.contains("Hi"));
-        // FR-017: diagnostics field exists and is empty on happy path.
         assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
     }
 

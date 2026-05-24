@@ -28,7 +28,6 @@ relationships:
 | `serde_yaml` (or `serde_yml`) | manifest + frontmatter parse (FR-006, FR-013) | TBD — `serde_yaml` in maintenance mode | swap to `serde_yml` if upstream goes inactive |
 | `serde_json` | core data type | `^1` | stable |
 | `indexmap` | iteration-order-preserved maps (NFR-006) | `^2` | stable |
-| `tracing` | NFR-008 instrumentation | `^0.1` | stable |
 
 ### ADR for validator choice (NFR-001 load-bearing)
 
