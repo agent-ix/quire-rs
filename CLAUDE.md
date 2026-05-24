@@ -26,6 +26,18 @@ Backported from `agent-ix/ecaz`:
 - `rustfmt.toml` uses 100-char width and `StdExternalCrate` import grouping. CI fails on drift.
 - `rust-toolchain.toml` pins to stable + rustfmt + clippy.
 
+## Design taste
+
+Write idiomatic Rust. Lean on the type system to encode invariants rather
+than re-checking them at runtime: prefer enums + exhaustive `match` over
+booleans + flags, `Option`/`Result` over sentinel values, newtypes over
+raw strings/ints when the meaning matters, and `&str`/borrowed slices over
+allocating clones on hot paths. Where the TS/Py references rely on dynamic
+shapes (e.g. JSON `Value` blobs), the Rust port should look for a stronger
+typed representation when it doesn't break parity. "Stringly-typed" code
+and `unwrap()`s outside of tests are smells — surface errors via
+`thiserror`-derived enums per NFR rather than panicking.
+
 ## Layout
 
 ```
