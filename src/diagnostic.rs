@@ -38,6 +38,28 @@ pub enum Diagnostic {
     SearchPathUnreadable { path: PathBuf, reason: String },
     /// A symlink cycle was detected and broken during the walk.
     SymlinkLoop { path: PathBuf },
+    /// A multi-yield DSL's `iterate_over.section_path` did not resolve
+    /// to a section in the parsed document. Zero records produced.
+    IterateRootMissing { path: Vec<String> },
+    /// A fallback Locator chain resolved against a non-canonical
+    /// position (position > 0). Surfaced so authors can re-author
+    /// the source document to match the canonical locator.
+    FallbackLocatorUsed {
+        key: String,
+        position: usize,
+        locator: String,
+    },
+    /// An edge target string could not be resolved into an ix:// URI by
+    /// the configured `RelationshipResolver`. The bare target is
+    /// preserved in the emitted edge.
+    UnresolvableEdgeTarget { source: String, target: String },
+    /// A duplicate edge was dropped during harvesting; first
+    /// occurrence wins per FR-015.
+    DuplicateEdgeDropped {
+        source: String,
+        edge_type: String,
+        target: String,
+    },
 }
 
 /// Tag for the family of issue a [`Diagnostic`] reports — useful for
@@ -49,6 +71,10 @@ pub enum DiagnosticKind {
     ManifestMissingName,
     SearchPath,
     SymlinkLoop,
+    IterateRootMissing,
+    FallbackLocatorUsed,
+    UnresolvableEdgeTarget,
+    DuplicateEdgeDropped,
 }
 
 impl Diagnostic {
@@ -62,6 +88,10 @@ impl Diagnostic {
             | Self::SearchPathMissing { .. }
             | Self::SearchPathUnreadable { .. } => DiagnosticKind::SearchPath,
             Self::SymlinkLoop { .. } => DiagnosticKind::SymlinkLoop,
+            Self::IterateRootMissing { .. } => DiagnosticKind::IterateRootMissing,
+            Self::FallbackLocatorUsed { .. } => DiagnosticKind::FallbackLocatorUsed,
+            Self::UnresolvableEdgeTarget { .. } => DiagnosticKind::UnresolvableEdgeTarget,
+            Self::DuplicateEdgeDropped { .. } => DiagnosticKind::DuplicateEdgeDropped,
         }
     }
 }
@@ -103,6 +133,35 @@ impl std::fmt::Display for Diagnostic {
             }
             Self::SymlinkLoop { path } => {
                 write!(f, "SymlinkLoop broken at {}", path.display())
+            }
+            Self::IterateRootMissing { path } => {
+                write!(f, "IterateRootMissing: section_path {:?} not found", path)
+            }
+            Self::FallbackLocatorUsed {
+                key,
+                position,
+                locator,
+            } => {
+                write!(
+                    f,
+                    "FallbackLocatorUsed: key '{key}' resolved via fallback position {position} ({locator})"
+                )
+            }
+            Self::UnresolvableEdgeTarget { source, target } => {
+                write!(
+                    f,
+                    "UnresolvableEdgeTarget: source '{source}' target '{target}' kept as bare ID"
+                )
+            }
+            Self::DuplicateEdgeDropped {
+                source,
+                edge_type,
+                target,
+            } => {
+                write!(
+                    f,
+                    "DuplicateEdgeDropped: ({source}, {edge_type}, {target}) — first occurrence wins"
+                )
             }
         }
     }
