@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document describes the architecture for an artifact system that supports efficient runtime edits and structured rendering. Artifacts are composed of typed, addressable **blocks**. Edits target individual blocks, validation is schema-driven, and rendering is handled by MiniJinja templates with markdown post-processing.
+This document describes the architecture for an artifact system that supports efficient runtime edits and structured rendering. Artifacts are composed of typed, addressable **blocks**. Edits target individual blocks, validation is schema-driven, and rendering is handled by MiniJinja templates that produce markdown.
 
 The design separates four concerns that are often conflated: transport (how edits arrive), correctness (what valid data looks like), persistence (what we store), and presentation (how it renders).
 
@@ -17,8 +17,6 @@ The design separates four concerns that are often conflated: transport (how edit
 │  Storage            (blocks as canonical data)  │  ← persistence
 ├─────────────────────────────────────────────────┤
 │  Render layer       (MiniJinja per-block tpls)  │  ← presentation
-├─────────────────────────────────────────────────┤
-│  Post-process       (markdown → HTML via comrak)│  ← output format
 └─────────────────────────────────────────────────┘
 ```
 
@@ -29,8 +27,7 @@ Each layer has one job and a narrow interface to the next. Layers do not reach a
 | Edit API | Accept patches and IDs | Templates, validation internals |
 | Schema | Turn untrusted input into typed, valid data | Rendering, storage format |
 | Storage | Hold blocks as canonical artifact | How blocks render or validate |
-| Render | Produce markdown from valid data | Validation, HTML, storage |
-| Post-process | Markdown → final output format | Blocks, templates |
+| Render | Produce markdown from valid data | Validation, storage |
 
 ## Core Concepts
 
@@ -135,10 +132,9 @@ One lookup, zero magic. Missing template = clear error.
 7. On failure: return structured field errors
 8. On success: persist
 9. Render:        select template by type, pass typed data to MiniJinja
-10. Post-process: pipe markdown through comrak → HTML (if HTML is needed)
 ```
 
-Steps 1–8 are the schema's territory. Steps 9–10 are presentation. They meet only at the handoff of validated data.
+Steps 1–8 are the schema's territory. Step 9 is presentation. They meet only at the handoff of validated data.
 
 ## Schema Responsibilities
 
@@ -181,11 +177,10 @@ Two settings are non-negotiable:
 | How a block visually looks | Template |
 | Computed/derived display values | Template |
 | Conditional formatting | Template |
-| CSS classes, icons, colors per variant | Template |
-| Output format (markdown, HTML, plain) | Template variant + post-process |
+| Visual variant differences (markers, prefixes, layout) | Template |
 | Block ordering and document structure | Storage / top-level template |
 
-The line to remember: **presentation choices never live in the schema**. If `variant: "warning"` should produce a yellow box with a ⚠ icon, that mapping is in the template — the schema just constrains `variant` to a known enum. This keeps data portable across renderers.
+The line to remember: **presentation choices never live in the schema**. If `variant: "warning"` should produce a `> ⚠ Warning:` callout prefix, that mapping is in the template — the schema just constrains `variant` to a known enum. This keeps data decoupled from presentation choices.
 
 ## Edit Strategies
 
@@ -212,7 +207,7 @@ Most "the LLM produced garbage" failure modes disappear when the schema is the t
 
 ## Performance Notes
 
-With MiniJinja + pulldown-cmark/comrak, rendering an entire artifact is in the microsecond-to-low-millisecond range for typical sizes. Don't over-engineer caching here:
+With MiniJinja, rendering an entire artifact is in the microsecond-to-low-millisecond range for typical sizes. Don't over-engineer caching here:
 
 - The block list is the source of truth; rendered output is a cache
 - Re-render on change is fine for the vast majority of cases
@@ -224,7 +219,6 @@ With MiniJinja + pulldown-cmark/comrak, rendering an entire artifact is in the m
 1. Create `blocks/{type}/schema.rs` with the typed struct and validators
 2. Add the variant to the `BlockData` enum
 3. Create `blocks/{type}/{type}.md.j2`
-4. (Optional) Add additional render targets like `{type}.html.j2`
 
 No other layer changes. This is the payoff of the layering.
 
@@ -238,7 +232,6 @@ No other layer changes. This is the payoff of the layering.
 **What it buys:**
 
 - Safe, validated edits from any source (humans, LLMs, imports)
-- Multiple output formats from one canonical representation
 - New block types without touching existing code paths
 - Clear errors at the right layer
 
@@ -259,9 +252,6 @@ No other layer changes. This is the payoff of the layering.
 | `serde` | (De)serialization, type-level validation |
 | `garde` or `validator` | Field-level and cross-field validators |
 | `schemars` | JSON Schema generation for LLM tool definitions |
-| `pulldown-cmark` or `comrak` | Markdown → HTML post-processing |
-
-`comrak` if you want GitHub-flavored markdown (tables, task lists, footnotes); `pulldown-cmark` for pure-CommonMark and maximum speed.
 
 ---
 
@@ -394,7 +384,6 @@ The DSL itself stays in YAML; quire-rs supplies the engine that interprets it.
 - Cross-document graph queries (Quire Layer 4) — out of scope.
 - CRDT/OT live editing.
 - Schema-driven template generation. Schemas validate; templates present; they do not generate each other.
-- HTML output via comrak. Markdown is the canonical output format; HTML is a future post-process.
 - Hardening suite (kani/loom/shuttle) — opt-in later via cookiecutter variable.
 
 ---

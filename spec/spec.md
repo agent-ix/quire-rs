@@ -103,7 +103,6 @@ This specification does not govern:
 - **Windows path semantics.** `v1` supports macOS and Linux only. Filesystem-loader behavior on Windows (drive letters, `\` separator, symlink permissions) is undefined.
 - Quire Layer 3 (React component bindings) — TypeScript-only.
 - Quire Layer 4 (cross-document graph queries) — separate concern.
-- HTML output via `comrak` — markdown is the canonical output; HTML post-processing is a future variant.
 - CRDT or OT live-editing semantics.
 - Schema-driven template generation (schemas validate; templates present; neither generates the other).
 - Hardening suites (kani / loom / shuttle / sim-spire) — opt-in via future cookiecutter variant.
