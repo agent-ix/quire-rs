@@ -54,6 +54,18 @@ Version is informational at v1 — the engine does NOT perform version-range res
 
 "Module activation" in this context means "appears in the registry after load." There is no separate activate/deactivate API at v1. To change the active module set, call `Registry::load_from(...)` again with a different path set — the previous registry is dropped.
 
+### No hot-reload
+
+`quire-rs` does NOT watch the filesystem and does NOT auto-detect archetype changes. Consumers that want to pick up changes synced to disk by `ix-cli` SHALL call `Registry::load_from(...)` (or `Registry::from_env()`) again. The previous `Registry` remains live for any outstanding references (e.g. an in-flight render holding `&CompiledArchetype`) and is dropped when the last reference releases.
+
+Typical refresh patterns:
+
+- **On startup**: load once via `Registry::from_env()`; use for process lifetime.
+- **On next request**: long-running services (Filament editor) may reload the registry between user-triggered renders if a re-sync signal arrives out-of-band.
+- **On execution if missing**: a render attempt against an unknown archetype name returns `UnknownArchetype`; consumers MAY interpret that as a hint to reload.
+
+`quire-rs` does NOT subscribe to filesystem-change notifications, does NOT poll for changes, and does NOT block any operation waiting for sync. The engine treats the filesystem as a fixed-at-load snapshot.
+
 ## Acceptance
 
 - **FR-014-AC-1**: Loading two paths each containing a different `spec-artifacts-*` module produces a registry whose `module_names()` iterator yields both module names in deterministic order (sorted by load order).

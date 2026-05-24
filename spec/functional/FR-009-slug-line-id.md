@@ -27,6 +27,10 @@ Specifically: heading `"2.1 In Scope"` at body line index 6 produces id `"2-1-in
 
 A heading text that produces an empty slug after normalization (e.g. `"## !!!"`, `"## ❤️"`) yields id `"-L<line>"`. This is unusual but legal — preserving the line index keeps the ID unique even when the slug is degenerate. Authors are responsible for choosing headings that produce meaningful slugs.
 
+### Internationalization (deferred to v1.1)
+
+Slug normalization is ASCII-only at v1 (matching TS/Py reference). Non-ASCII headings parse correctly (the section, content, line index, and heading text are preserved), but the slug collapses non-ASCII characters to `-`. A heading "Café Menu" produces slug `caf-menu`, not `cafe-menu`. Full Unicode slug normalization (e.g. NFD + strip diacritics) is deferred — adding it later is non-breaking for the few documents that depend on the empty-slug behavior, but breaking for any consumer that has cached `caf-menu-L4` style IDs.
+
 ## Acceptance
 
 - **FR-009-AC-1**: Heading `"Hello, World!"` at line 0 → id `"hello-world-L0"`.

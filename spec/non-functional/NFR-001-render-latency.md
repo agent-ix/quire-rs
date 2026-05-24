@@ -13,11 +13,24 @@ relationships:
 
 ## Statement
 
-`quire_rs::render(block_type, data)` for an artifact of typical size SHALL complete in under **1 ms median** on a baseline Apple Silicon M-class CPU running a release build, with the long-lived `Environment` already constructed (see FR-004).
+`quire_rs::render(archetype, data)` for an artifact of typical size SHALL complete in under **1 ms median** on the canonical baseline runner (Apple Silicon M2 Pro, release build, long-lived `Environment` already constructed per FR-004).
 
 "Typical size" means: the artifact's typed `data` serialized as JSON is under 8 KB, the rendered markdown output is under 32 KB, and the template has no `{% for %}` loop iterating more than 100 elements.
 
 For artifacts outside the typical envelope (large embedded blocks, hundreds of relationships), latency targets are linear in input size — no quadratic blowup.
+
+### Cross-runner policy
+
+CI runs on Ubuntu x86_64 (per `.github/workflows/ci.yml`). Per-runner baselines are stored separately:
+
+| Runner | Baseline file | Target |
+|---|---|---|
+| Apple Silicon M2 Pro (canonical) | `target/criterion/render/*/base/estimates.json` | Median < 1 ms |
+| Ubuntu x86_64 (CI) | `target/criterion/render/*/ci-x86_64/estimates.json` | Median within +50% of canonical (i.e. < 1.5 ms) |
+
+The +50% allowance reflects expected single-core perf gap. Other M-class models (M1, M3, M4) may run faster but SHOULD NOT regress against M2 Pro baseline.
+
+A criterion regression test compares the latest measurement against the same-runner stored baseline; a >10% slowdown fails CI.
 
 ## Rationale
 

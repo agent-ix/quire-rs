@@ -17,7 +17,7 @@ Archetype compilation (JSON Schema → validator, template source → parsed `mi
 
 Targets:
 
-- **Load cost (cold)**: `Registry::load_from(...)` for the v1 baseline corpus (17 artifact archetypes + 87 object archetypes across all spec-objects-* modules) completes in **under 100 ms median** on baseline Apple Silicon M-class hardware.
+- **Load cost (cold)**: `Registry::load_from(...)` for the v1 baseline corpus (17 artifact archetypes + 87 object archetypes across all spec-objects-* modules) completes in **under 100 ms median** on the canonical baseline runner (Apple Silicon M2 Pro). Ubuntu x86_64 CI allowance: +50% (< 150 ms).
 - **Per-render cost (warm)**: After load, `render` median is under 1 ms (NFR-001).
 - **Per-extract cost (warm)**: After load, `extract` median against a 32 KB document is under 5 ms for typical multi-yield DSLs.
 - **No hidden re-compile**: `tracing` instrumentation confirms zero `Template::parse` or `JSONSchema::compile` calls during per-call operations.

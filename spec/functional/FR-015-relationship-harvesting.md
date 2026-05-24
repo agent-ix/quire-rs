@@ -3,7 +3,13 @@ id: FR-015
 title: "Relationship Harvesting + Edge Deduplication"
 artifact_type: FR
 relationships:
+  - target: "ix://agent-ix/quire-rs/spec/stakeholder/StR-001"
+    type: "implements"
+    cardinality: "1:1"
   - target: "ix://agent-ix/quire-rs/spec/functional/FR-011"
+    type: "requires"
+    cardinality: "1:1"
+  - target: "ix://agent-ix/quire-rs/spec/functional/FR-018"
     type: "requires"
     cardinality: "1:1"
   - target: "ix://agent-ix/filament-parser-lib"

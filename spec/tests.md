@@ -180,6 +180,27 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-204 | CI workflow includes render_parity job (not just test job) | Static | P0 | US-005-AC-2, US-005-AC-3, StR-002-AC-3 | 🚧 |
 | TC-205 | A patch making merged value invalid (title="") returns SchemaViolation, not a render error | Unit | P0 | US-004-AC-2 | 🚧 |
 | TC-206 | Bench: bench_patch_render_fr median < 1ms for typical FR | Bench | P1 | US-004-AC-3 | 🚧 |
+| TC-300 | Diagnostic enum is Send + Sync + Debug + Clone + Eq | Compile | P0 | FR-017-AC-1 | 🚧 |
+| TC-301 | Registry.load_diagnostics() exposes DuplicateArchetype on collision | Integration | P0 | FR-017-AC-2 | 🚧 |
+| TC-302 | RenderOutput.diagnostics is empty on happy-path render | Unit | P0 | FR-017-AC-3 | 🚧 |
+| TC-303 | Corpus with intentional collisions + missing schema_ref + symlink loop produces expected deterministic Diagnostic sequence | Integration | P0 | FR-017-AC-4 | 🚧 |
+| TC-304 | Diagnostics::by_kind filters by discriminant | Unit | P1 | FR-017-AC-5 | 🚧 |
+| TC-310 | IxUriResolver::new + resolve bare ID → ix:// canonical | Unit | P0 | FR-018-AC-1 | 🚧 |
+| TC-311 | IxUriResolver caller hints override defaults | Unit | P0 | FR-018-AC-2 | 🚧 |
+| TC-312 | IxUriResolver pass-through for full ix:// URI | Unit | P0 | FR-018-AC-3 | 🚧 |
+| TC-313 | IxUriResolver UnresolvedTarget on garbage input | Unit | P0 | FR-018-AC-4 | 🚧 |
+| TC-314 | IxUriResolver: Send + Sync (compile-time assertion) | Compile | P0 | FR-018-AC-5 | 🚧 |
+| TC-315 | IxUriResolver thread-safe concurrent resolve | Property | P1 | FR-018-AC-6 | 🚧 |
+| TC-320 | With --features tracing, parse emits a quire_rs::parse span | Unit | P0 | NFR-008-AC-1 | 🚧 |
+| TC-321 | Without tracing feature, no spans emitted | Unit | P0 | NFR-008-AC-2 | 🚧 |
+| TC-322 | DuplicateArchetype Diagnostic surfaces as tracing::warn! event | Unit | P1 | NFR-008-AC-3 | 🚧 |
+| TC-323 | Bench: render overhead with tracing enabled < 5% | Bench | P1 | NFR-008-AC-4 | 🚧 |
+| TC-330 | Cargo.toml uses tilde/equals pins for load-bearing deps | Static | P0 | NFR-009-AC-1 | 🚧 |
+| TC-331 | spec/assets/adr/0001-validator-crate.md exists with chosen crate + bench numbers | Static | P0 | NFR-009-AC-2 | 🚧 |
+| TC-332 | Static: no load-bearing dep has unbounded version | Static | P0 | NFR-009-AC-3 | 🚧 |
+| TC-340 | Public enums are #[non_exhaustive] | Compile | P0 | NFR-010-AC-2 | 🚧 |
+| TC-341 | CHANGELOG.md exists with release entries | Static | P1 | NFR-010-AC-3 | 🚧 |
+| TC-342 | cargo-semver-checks against previous tag reports no unexpected breaks | Static | P1 | NFR-010-AC-4 | 🚧 |
 
 ---
 
@@ -400,8 +421,31 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | NFR-007-AC-2 | TC-120 |
 | NFR-007-AC-3 | TC-121 |
 | NFR-007-AC-4 | TC-122 |
+| NFR-008-AC-1 | TC-320 |
+| NFR-008-AC-2 | TC-321 |
+| NFR-008-AC-3 | TC-322 |
+| NFR-008-AC-4 | TC-323 |
+| NFR-009-AC-1 | TC-330 |
+| NFR-009-AC-2 | TC-331 |
+| NFR-009-AC-3 | TC-332 |
+| NFR-009-AC-4 | (process AC; covered by PR-review policy, not a TC) |
+| NFR-010-AC-1 | (process AC; covered by CHANGELOG.md presence in TC-341) |
+| NFR-010-AC-2 | TC-340 |
+| NFR-010-AC-3 | TC-341 |
+| NFR-010-AC-4 | TC-342 |
+| FR-017-AC-1 | TC-300 |
+| FR-017-AC-2 | TC-301 |
+| FR-017-AC-3 | TC-302 |
+| FR-017-AC-4 | TC-303 |
+| FR-017-AC-5 | TC-304 |
+| FR-018-AC-1 | TC-310 |
+| FR-018-AC-2 | TC-311 |
+| FR-018-AC-3 | TC-312 |
+| FR-018-AC-4 | TC-313 |
+| FR-018-AC-5 | TC-314 |
+| FR-018-AC-6 | TC-315 |
 
-**Coverage status: 141 / 141 ACs covered (100%).**
+**Coverage status: 169 / 169 ACs covered (100%).**
 
 ---
 
@@ -423,12 +467,12 @@ All tests are DRAFT — pending implementation via `/spec-to-plan` → `/impleme
 
 | Category | Total | Passed | Failed | Blocked | Coverage |
 |----------|-------|--------|--------|---------|----------|
-| Unit | 50 | 0 | 0 | 50 | 0% |
-| Integration | 19 | 0 | 0 | 19 | 0% |
+| Unit | 60 | 0 | 0 | 60 | 0% |
+| Integration | 21 | 0 | 0 | 21 | 0% |
 | Parity | 7 | 0 | 0 | 7 | 0% |
-| Bench | 7 | 0 | 0 | 7 | 0% |
-| Property | 8 | 0 | 0 | 8 | 0% |
-| Static / Snapshot | 13 | 0 | 0 | 13 | 0% |
-| Compile | 2 | 0 | 0 | 2 | 0% |
+| Bench | 8 | 0 | 0 | 8 | 0% |
+| Property | 9 | 0 | 0 | 9 | 0% |
+| Static / Snapshot | 18 | 0 | 0 | 18 | 0% |
+| Compile | 4 | 0 | 0 | 4 | 0% |
 | Soak | 1 | 0 | 0 | 1 | 0% |
-| **Total** | **104** | **0** | **0** | **104** | **0%** |
+| **Total** | **126** | **0** | **0** | **126** | **0%** |

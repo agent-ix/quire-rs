@@ -13,9 +13,13 @@ relationships:
 
 ## Statement
 
-`quire_rs::parse_document(markdown)` SHALL parse a 5 MB markdown document in under **500 ms median** on a baseline Apple Silicon M-class CPU running a release build.
+`quire_rs::parse_document(markdown)` SHALL parse a 5 MB markdown document in under **500 ms median** on the canonical baseline runner (Apple Silicon M2 Pro, release build).
 
 For smaller documents the target is sublinear in input size up to the headings count — empirically O(n) in lines + O(n) in heading positions, no quadratic component.
+
+### Cross-runner policy
+
+Per-runner baselines stored separately (Apple Silicon M2 Pro canonical; Ubuntu x86_64 CI allowance +50%). Same regression-gate policy as NFR-001.
 
 ## Rationale
 

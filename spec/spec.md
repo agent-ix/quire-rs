@@ -41,7 +41,7 @@ standards_alignment:
 
 This document defines the **scope, intent, and governing requirements framework** for `quire-rs`, a Rust library crate that unifies two responsibilities in one engine:
 
-1. **Schema-validated block rendering** — generate canonical markdown artifacts from typed data using MiniJinja templates.
+1. **Schema-validated archetype rendering** — generate canonical markdown artifacts from typed data using MiniJinja templates.
 2. **Markdown parsing** — port the existing `agent-ix/quire` (TypeScript) parser into pure Rust at byte-parity with the TS/Python references.
 
 It establishes:
@@ -94,6 +94,13 @@ This specification does not govern:
 
 - **Sync from Filament to disk.** The local schema directory (e.g. `~/.ix/schemas/`) is populated by external tools — `ix-cli` is the canonical syncer (handles Filament auth + transfer). `quire-rs` only reads from disk; it never calls Filament directly.
 - **Authoring tooling.** Schema files, templates, and manifests are authored elsewhere (in Filament, by hand, by another tool). `quire-rs` does not write archetype data.
+- **Author-time schema validation.** `quire-rs` validates JSON Schema documents at archetype-load time (FR-013). Pre-publish validation (catching authoring errors before they reach disk) is Filament's concern.
+- **Hot reload on filesystem change.** `quire-rs` does NOT watch the filesystem and does NOT automatically reload archetypes when files change on disk. Consumers refresh archetypes by calling `Registry::load_from(...)` again. The previous Registry stays alive for any outstanding references and is dropped when they release. There is no in-place update or change-event subscription.
+- **Schema migration when archetypes evolve.** When an archetype's schema changes (e.g. Filament publishes a new version of `fr-frontmatter.schema.json`), `quire-rs` validates incoming data against the loaded version only. Migrating existing artifacts written against an older schema is Filament's responsibility (or downstream migration tooling).
+- **LLM model-specific tool-call adapters.** `quire-rs::schema_for` returns a JSON Schema. Wrapping it into a model-specific tool-call envelope (OpenAI function-calling shape, Anthropic tool-use shape, etc.) is the consumer's concern.
+- **ID generation.** `quire-rs` validates that artifact IDs match the schema's `pattern` (e.g. `^[A-Z]{2,4}-[0-9]+$`). Authoring tools (Filament UI, scripts) generate the IDs.
+- **Internationalized slug normalization.** FR-009 implements ASCII-only slug normalization to match the TS/Py reference. Non-ASCII heading authoring works (the section parses correctly), but the slug collapses non-ASCII characters to `-`. Full Unicode slug support is deferred to a future version.
+- **Windows path semantics.** `v1` supports macOS and Linux only. Filesystem-loader behavior on Windows (drive letters, `\` separator, symlink permissions) is undefined.
 - Quire Layer 3 (React component bindings) — TypeScript-only.
 - Quire Layer 4 (cross-document graph queries) — separate concern.
 - HTML output via `comrak` — markdown is the canonical output; HTML post-processing is a future variant.
@@ -165,7 +172,8 @@ The layered architecture for the **render side** is taken from the design descri
 ├─────────────────────────────────────────────────┤
 │  Storage            (blocks as canonical data)  │  ← persistence
 ├─────────────────────────────────────────────────┤
-│  Render layer       (MiniJinja per-block tpls)  │  ← presentation
+│  Render layer       (MiniJinja per-archetype    │  ← presentation
+│                      templates)                 │
 └─────────────────────────────────────────────────┘
 ```
 
@@ -427,7 +435,7 @@ The DSL itself remains in YAML in the source repos; `quire-rs` supplies the eval
 - **Schema violations** — typed field-keyed errors usable by both UIs and LLM editors for retry
 - **Template errors** — missing field references caught by `UndefinedBehavior::Strict`
 - **Parser tolerance** — malformed YAML and unclosed fences degrade gracefully; never panic
-- **Invalid block type** — explicit error when the type discriminator does not match a registered archetype
+- **Invalid archetype type** — explicit error when the type discriminator does not match a registered archetype
 
 ### 11.2 Failure Handling Guarantees
 
@@ -512,6 +520,7 @@ Functional requirements MAY declare a lifecycle status:
 - `manifest.yaml` SHALL be valid YAML, conformant with the structural shape declared in FR-013 (artifact_types and/or object_types arrays, each entry referencing `schema_ref` and `template_ref` by relative path).
 - Each `schema_ref` target SHALL exist on disk and be valid JSON Schema (draft 2020-12, no cross-file `$ref` — see FR-002).
 - Each `template_ref` target SHALL exist on disk and be valid MiniJinja (no `{% include %}` at v1 — see FR-004).
+- **Filament SHOULD pre-validate** JSON Schema documents and MiniJinja templates before publishing — catching authoring errors at the authoring layer is preferable to surfacing them as `quire-rs` load errors. This is a SHOULD, not a SHALL: `quire-rs` does NOT depend on Filament's pre-validation for correctness; it always validates at load time.
 - `quire-rs` does NOT validate the syncer's outputs proactively at startup; validation happens lazily at `Registry::load_from(...)` time and surfaces as `QuireError::ArchetypeLoadError` per archetype.
 
 ### Naming
@@ -553,3 +562,30 @@ If the syncer violates this contract (non-atomic writes, malformed YAML, etc.), 
 - `agent-ix/ecaz` — source of Rust safety scaffolding (backported via `agent-ix/rust-lib-cookiecutter`)
 - `INPUT.md` — design input document combining block-rendering architecture with the Quire port mandate
 - `ix-cli` (agent-ix/ix-cli) — canonical syncer between Filament and the local filesystem; counterparty to the inter-tool contract in §17
+
+---
+
+## 19. Glossary
+
+Canonical definitions for terms used throughout the spec. When in doubt, this section governs.
+
+| Term | Definition |
+|---|---|
+| **Archetype** | The named pairing of a JSON Schema document and a MiniJinja template that together describe one renderable or extractable kind (e.g. `fr`, `nfr`, `domain`, `entity`). Authoring artifacts that live as files on disk; loaded into a `Registry` at runtime. NOT a Rust type. |
+| **Artifact archetype** | An archetype whose pairing is `(JSON Schema + MiniJinja template)` — renderable. Example: `fr`, `adr`. Owned by `spec-artifacts-*` modules. |
+| **Object archetype** | An archetype whose definition includes a `body_extraction` DSL — extractable rather than renderable. Example: `domain`, `entity`. Owned by `spec-objects-*` modules. |
+| **CompiledArchetype** | The runtime representation of a single archetype after loading: a compiled JSON Schema validator + a pre-parsed MiniJinja template + manifest metadata. `Send + Sync`. Held inside a `Registry`. |
+| **Module** | A directory containing `manifest.yaml` + `schemas/` + `templates/` (and/or `object_types/` for object archetypes). Identified by its manifest's `name:` field (or parent dir if unset). Multiple modules coexist in one `Registry`. |
+| **Registry** | The runtime container holding all `CompiledArchetype` instances loaded from one or more search paths. `Send + Sync`. Immutable after construction; reload = construct a new `Registry`. |
+| **Locator** | A DSL primitive that describes how to find a value in a parsed document. One of: `frontmatter_field`, `section_body`, `code_block`, `table_row`, `list_item`, `heading`. May be wrapped in a `Fallback(Vec<Primitive>)` chain (FR-016). |
+| **Yield pattern** | A DSL construct under `body_extraction.yield_pattern` that determines whether extraction emits one record per document (`match`) or one record per iteration unit (`iterate_over` + `per_match`). |
+| **Diagnostic** | A non-error informational message emitted by the engine (e.g. `DuplicateArchetype`, `FallbackLocatorUsed`, `UnresolvedRelationshipTarget`). Surfaced in result types alongside the primary value; non-fatal. |
+| **QuireError** | The crate's typed error enum returned in `Result<_, QuireError>` for all fallible operations. Variants are non-exhaustive. Each variant carries enough context (field path, file path, archetype name) for actionable handling. |
+| **QuireDocument** / **QuireSection** | The parsed representation of a markdown document: frontmatter + preamble + nested section tree. Mirrors the TS reference `agent-ix/quire` shape verbatim. |
+| **Search path** | The ordered list of filesystem directories the loader walks to discover modules. Resolved from explicit constructor arg → `IX_SCHEMA_PATH` env var → `~/.ix/schemas/` default. |
+| **Sugar field** | A frontmatter field whose name implies an edge type without an explicit `relationships:` block entry. Recognized set: `depends_on`, `parent`, `parent_process`, `template_for`, `archetype_for`, `replaced_by`. Harvested into canonical edges by FR-015. |
+| **Edge** | A `(source_ref, type, target_ref)` triple describing a relationship between two artifacts. Harvested from frontmatter sugar fields, structured `relationships:` blocks, and DSL `emit_edges`. Deduplicated by tuple per FR-015. |
+| **Filament** | The knowledge platform that authors and stores archetypes as data. Out-of-process from `quire-rs`. Sync to disk is owned by `ix-cli`. |
+| **ix-cli** | The CLI tool that authenticates to Filament and syncs archetypes to the local filesystem. Counterparty to the inter-tool contract in §17. Not invoked by `quire-rs`. |
+| **Parity / byte-parity** | The property that `quire-rs::render(archetype, data)` produces byte-identical output to the Python Jinja2 reference renderer (spec-artifacts-*) given the same input. Verified by `tests/render_parity/`. |
+| **Baseline corpus** | The set of archetype modules present at `~/.ix/schemas/` (or under the v1 informational list in §8.3) used as the parity-test ground truth. Data, not code. |

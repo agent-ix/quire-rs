@@ -1,0 +1,9 @@
+# Python venv pin for regenerating render-parity expected.md fixtures.
+# Used by scripts/regenerate_parity_fixtures.sh (Task 011 deliverable).
+#
+# Bumping these versions requires re-running the parity suite and updating
+# tests/render_parity/PROVENANCE.md.
+
+Jinja2==3.1.4
+PyYAML==6.0.2
+jsonschema==4.23.0
