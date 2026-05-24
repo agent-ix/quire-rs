@@ -20,3 +20,8 @@ pub mod query;
 pub mod registry;
 pub mod render;
 pub mod validate;
+
+// Public re-exports for Task 001 parser primitives (FR-006/007/008/009).
+// `parse_document` (Task 002) will be the higher-level entry point that
+// composes these primitives.
+pub use parser::{extract_frontmatter, FrontmatterResult, Heading};
