@@ -1,16 +1,12 @@
 //! High-performance Rust templating + parsing engine for the Filament/Quire ecosystem.
 //!
-//! This crate is currently in the skeleton phase. Modules are wired but mostly empty;
-//! types and functions are filled in by subsequent tasks (see `plan/plan.md`).
-//
-// TODO(skeleton): remove `#![allow(dead_code)]` once Task 001+ populate the modules
-// with real public APIs. The allow is temporary scaffolding so the empty modules
-// don't trip clippy `-D warnings`.
-#![allow(dead_code)]
+//! v0.2 scope: parser + query + per-block schema validation + render +
+//! writeback. The block-addressable artifact model from `INPUT.md` is
+//! restored — see `spec/spec.md` § 2bis Drift Audit. Markdown is
+//! canonical.
 
 pub mod ast;
 pub mod diagnostic;
-pub mod edges;
 pub mod error;
 pub mod extract;
 pub mod loader;
@@ -21,7 +17,7 @@ pub mod registry;
 pub mod render;
 pub mod validate;
 
-// Public re-exports for the parser surface (FR-005 + FR-006/007/008/009).
+// Parser surface (FR-005..009).
 pub use ast::{QuireDocument, QuireSection};
 pub use parser::{extract_frontmatter, parse_document, FrontmatterResult, Heading};
 // Query API (FR-010).
@@ -32,21 +28,16 @@ pub use query::{
 };
 // Error shape (NFR-005).
 pub use error::{format_violation, ArchetypeLoadFailure, QuireError, VIOLATION_PREVIEW_MAX};
+// Load-time diagnostics (internal Diagnostic enum kept as data shape;
+// the FR-017 public collector formalism was stripped).
+pub use diagnostic::Diagnostic;
 // Loader + registry (FR-013 + FR-014).
-pub use diagnostic::{Diagnostic, DiagnosticKind, Diagnostics};
 pub use loader::compile::CompiledArchetype;
 pub use registry::Registry;
-// Render + validate (FR-001 + FR-002 + FR-017).
+// Render + validate (FR-001 + FR-002).
 pub use render::{render, render_by_name, render_with_env, RenderOutput};
 pub use validate::{apply_patch, validate, validate_all};
-// Extract / body-extraction DSL (FR-011).
-pub use extract::dsl::{
-    EdgeEmission, EdgeTarget, ExtractionDsl, IterateKind, IterateOver, YieldPattern,
-};
+// Extract / body-extraction DSL (FR-011 + FR-016).
+pub use extract::dsl::{ExtractionDsl, IterateKind, IterateOver, YieldPattern};
 pub use extract::locator::{Locator, LocatorPrimitive};
-pub use extract::{extract, ExtractionResult, HarvestedEdge};
-// Edge harvesting + resolver (FR-015).
-pub use edges::{
-    harvest_edges, EdgeHarvest, IdentityResolver, IxUriResolver, MockResolver,
-    RelationshipResolver, SUGAR_FIELDS,
-};
+pub use extract::{extract, ExtractionResult};
