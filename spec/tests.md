@@ -173,6 +173,13 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-181 | extract_frontmatter handles BOM-prefixed input (no FM) | Unit | P0 | FR-006-AC-6 | 🚧 |
 | TC-190 | Slug for non-ASCII heading "Café Menu" → "caf-menu-L<n>" | Unit | P0 | FR-009-AC-6 | 🚧 |
 | TC-191 | Slug for degenerate "!!!" heading → "-L<n>" | Unit | P1 | FR-009-AC-7 | 🚧 |
+| TC-200 | Smoke: `cargo add quire-rs` + `use quire_rs::parse_document` compiles & links in a hello-world consumer | Integration | P0 | StR-001-AC-1, US-002-AC-1 | 🚧 |
+| TC-201 | Static grep: no `std::process::Command` invocations targeting python/node/npm/pip in src/ | Static | P0 | StR-001-AC-2 | 🚧 |
+| TC-202 | Doc exists: spec/assets/render-parity-notes.md documents any known whitespace exceptions vs Python reference | Static | P1 | StR-002-AC-2 | 🚧 |
+| TC-203 | Static: clippy.toml / deny.toml / rustfmt.toml / scripts/check_unsafe_comments.sh byte-equal rust-lib-cookiecutter baseline (or documented MSRV bump) | Static | P0 | StR-004-AC-1, StR-004-AC-2 | 🚧 |
+| TC-204 | CI workflow includes render_parity job (not just test job) | Static | P0 | US-005-AC-2, US-005-AC-3, StR-002-AC-3 | 🚧 |
+| TC-205 | A patch making merged value invalid (title="") returns SchemaViolation, not a render error | Unit | P0 | US-004-AC-2 | 🚧 |
+| TC-206 | Bench: bench_patch_render_fr median < 1ms for typical FR | Bench | P1 | US-004-AC-3 | 🚧 |
 
 ---
 
@@ -229,6 +236,175 @@ Schema constraints come from the on-disk JSON Schema files. Boundary tests sit i
 
 ---
 
+## AC → TC Coverage Audit
+
+Comprehensive, post-audit explicit mapping. Every AC defined in the spec is listed below with its covering TC(s). This section is the authoritative coverage source; the summary tables above are convenience views.
+
+### Stakeholder Requirements
+
+| AC | Covering TC(s) |
+|---|---|
+| StR-001-AC-1 | TC-200 |
+| StR-001-AC-2 | TC-201 |
+| StR-001-AC-3 | TC-085 |
+| StR-001-AC-4 | TC-005 |
+| StR-001-AC-5 | TC-060 |
+| StR-002-AC-1 | TC-030 |
+| StR-002-AC-2 | TC-202 |
+| StR-002-AC-3 | TC-204 |
+| StR-003-AC-1 | TC-020 |
+| StR-003-AC-2 | TC-020 |
+| StR-003-AC-3 | TC-021 |
+| StR-004-AC-1 | TC-203 |
+| StR-004-AC-2 | TC-050, TC-051, TC-203 |
+| StR-004-AC-3 | TC-203 (process AC; verified by inheritance audit) |
+
+### User Stories
+
+| AC | Covering TC(s) |
+|---|---|
+| US-001-AC-1 | TC-009 |
+| US-001-AC-2 | TC-003 |
+| US-001-AC-3 | TC-006 |
+| US-001-AC-4 | TC-009 |
+| US-002-AC-1 | TC-200 |
+| US-002-AC-2 | TC-020, TC-021 |
+| US-002-AC-3 | TC-002 |
+| US-003-AC-1 | TC-018 |
+| US-003-AC-2 | TC-019 |
+| US-003-AC-3 | TC-073, TC-040 |
+| US-004-AC-1 | TC-007 |
+| US-004-AC-2 | TC-205 |
+| US-004-AC-3 | TC-206 |
+| US-005-AC-1 | TC-031 |
+| US-005-AC-2 | TC-204 |
+| US-005-AC-3 | TC-204 |
+| US-005-AC-4 | TC-041 |
+
+### Functional Requirements
+
+| AC | Covering TC(s) |
+|---|---|
+| FR-001-AC-1 | TC-003 |
+| FR-001-AC-2 | TC-004 |
+| FR-001-AC-3 | TC-006 |
+| FR-001-AC-4 | TC-008 |
+| FR-001-AC-5 | TC-005 |
+| FR-002-AC-1 | TC-007 |
+| FR-002-AC-2 | TC-007 |
+| FR-002-AC-3 | TC-007b |
+| FR-002-AC-4 | TC-002b |
+| FR-002-AC-5 | TC-042b |
+| FR-002-AC-6 | TC-170 |
+| FR-002-AC-7 | TC-171 |
+| FR-003-AC-1 | TC-009 |
+| FR-003-AC-2 | TC-009b |
+| FR-003-AC-3 | TC-061 |
+| FR-003-AC-4 | TC-062 |
+| FR-004-AC-1 | TC-010 |
+| FR-004-AC-2 | TC-008 |
+| FR-004-AC-3 | TC-011 |
+| FR-004-AC-4 | TC-160 |
+| FR-005-AC-1 | TC-001 |
+| FR-005-AC-2 | TC-001 |
+| FR-005-AC-3 | TC-001 |
+| FR-005-AC-4 | TC-002 |
+| FR-006-AC-1 | TC-012 |
+| FR-006-AC-2 | TC-012 |
+| FR-006-AC-3 | TC-013 |
+| FR-006-AC-4 | TC-014 |
+| FR-006-AC-5 | TC-180 |
+| FR-006-AC-6 | TC-181 |
+| FR-007-AC-1 | TC-015 |
+| FR-007-AC-2 | TC-016 |
+| FR-007-AC-3 | TC-017 |
+| FR-007-AC-4 | TC-020 |
+| FR-008-AC-1 | TC-022 |
+| FR-008-AC-2 | TC-023 |
+| FR-008-AC-3 | TC-024 |
+| FR-009-AC-1 | TC-025 |
+| FR-009-AC-2 | TC-025 |
+| FR-009-AC-3 | TC-025 |
+| FR-009-AC-4 | TC-026 |
+| FR-009-AC-5 | TC-026 |
+| FR-009-AC-6 | TC-190 |
+| FR-009-AC-7 | TC-191 |
+| FR-010-AC-1 | TC-027 |
+| FR-010-AC-2 | TC-028 |
+| FR-010-AC-3 | TC-029 |
+| FR-011-AC-1 | TC-072 |
+| FR-011-AC-2 | TC-070 |
+| FR-011-AC-3 | TC-071 |
+| FR-011-AC-4 | TC-073 |
+| FR-011-AC-5 | TC-040 |
+| FR-011-AC-6 | TC-150 |
+| FR-011-AC-7 | TC-151 |
+| FR-011-AC-8 | TC-152 |
+| FR-012-AC-1 | TC-031 |
+| FR-012-AC-2 | TC-030 |
+| FR-012-AC-3 | TC-041 |
+| FR-012-AC-4 | TC-041 (script existence subsumed by regression check) |
+| FR-012-AC-5 | TC-039 |
+| FR-013-AC-1 | TC-080 |
+| FR-013-AC-2 | TC-081 |
+| FR-013-AC-3 | TC-082 |
+| FR-013-AC-4 | TC-083 |
+| FR-013-AC-5 | TC-084 |
+| FR-013-AC-6 | TC-085 |
+| FR-013-AC-7 | TC-130 |
+| FR-013-AC-8 | TC-131 |
+| FR-013-AC-9 | TC-132 |
+| FR-013-AC-10 | TC-133 |
+| FR-014-AC-1 | TC-090 |
+| FR-014-AC-2 | TC-091 |
+| FR-014-AC-3 | TC-092 |
+| FR-014-AC-4 | TC-093 |
+| FR-014-AC-5 | TC-094 |
+| FR-014-AC-6 | TC-134 |
+| FR-014-AC-7 | TC-135 |
+| FR-015-AC-1 | TC-100 |
+| FR-015-AC-2 | TC-101 |
+| FR-015-AC-3 | TC-102 |
+| FR-015-AC-4 | TC-103 |
+| FR-015-AC-5 | TC-104 |
+| FR-015-AC-6 | TC-140 |
+| FR-015-AC-7 | TC-141 |
+| FR-016-AC-1 | TC-110 |
+| FR-016-AC-2 | TC-111 |
+| FR-016-AC-3 | TC-112 |
+| FR-016-AC-4 | TC-113 |
+
+### Non-Functional Requirements
+
+| AC | Covering TC(s) |
+|---|---|
+| NFR-001-AC-1 | TC-042 |
+| NFR-001-AC-2 | TC-042 (sweep across corpus) |
+| NFR-001-AC-3 | TC-042 (regression-gate assertion) |
+| NFR-002-AC-1 | TC-052 |
+| NFR-002-AC-2 | TC-052 (regression-gate assertion) |
+| NFR-002-AC-3 | TC-053 |
+| NFR-003-AC-1 | TC-050 |
+| NFR-003-AC-2 | TC-050 |
+| NFR-003-AC-3 | TC-050 |
+| NFR-004-AC-1 | TC-051 |
+| NFR-004-AC-2 | TC-051 |
+| NFR-004-AC-3 | TC-051 |
+| NFR-005-AC-1 | TC-054 |
+| NFR-005-AC-2 | TC-054 |
+| NFR-005-AC-3 | TC-055 |
+| NFR-006-AC-1 | TC-056 |
+| NFR-006-AC-2 | TC-057 |
+| NFR-006-AC-3 | TC-058 |
+| NFR-007-AC-1 | TC-083 |
+| NFR-007-AC-2 | TC-120 |
+| NFR-007-AC-3 | TC-121 |
+| NFR-007-AC-4 | TC-122 |
+
+**Coverage status: 141 / 141 ACs covered (100%).**
+
+---
+
 ## Coverage Gaps
 
 | Gap ID | Description | Risk Level | Mitigation |
@@ -247,12 +423,12 @@ All tests are DRAFT — pending implementation via `/spec-to-plan` → `/impleme
 
 | Category | Total | Passed | Failed | Blocked | Coverage |
 |----------|-------|--------|--------|---------|----------|
-| Unit | 49 | 0 | 0 | 49 | 0% |
-| Integration | 17 | 0 | 0 | 17 | 0% |
+| Unit | 50 | 0 | 0 | 50 | 0% |
+| Integration | 19 | 0 | 0 | 19 | 0% |
 | Parity | 7 | 0 | 0 | 7 | 0% |
-| Bench | 6 | 0 | 0 | 6 | 0% |
+| Bench | 7 | 0 | 0 | 7 | 0% |
 | Property | 8 | 0 | 0 | 8 | 0% |
-| Static / Snapshot | 9 | 0 | 0 | 9 | 0% |
+| Static / Snapshot | 13 | 0 | 0 | 13 | 0% |
 | Compile | 2 | 0 | 0 | 2 | 0% |
 | Soak | 1 | 0 | 0 | 1 | 0% |
-| **Total** | **97** | **0** | **0** | **97** | **0%** |
+| **Total** | **104** | **0** | **0** | **104** | **0%** |
