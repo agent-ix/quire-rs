@@ -1,6 +1,6 @@
 # Task 032: PyO3 Binding Surface + Gate G6
 
-Status: core complete — `src/python/mod.rs` (feature `python`, pyo3 ~0.28, abi3-py39) + `pyproject.toml`. Wheel builds on CPython 3.14 (`quire-0.1.0-cp39-abi3`); `tests/python/test_bindings.py` (5 tests) pass in a venv: parse parity, load_repo, Spec queries on real spec/, GIL release. Default `cargo test` (221) + audits + clippy --features python all green; first-party src/ stays unsafe-free (NFR-003-AC-4). **Gate G6: core PASS.** Deferred: `validate` binding (TC-462) + the ≥5× speedup bench vs pure-Python filament_parser (TC-456, needs that lib present).
+Status: core complete — `src/python/mod.rs` (feature `python`, pyo3 ~0.28, abi3-py39) + `pyproject.toml`. Wheel builds on CPython 3.14 (`quire-0.1.0-cp39-abi3`); `tests/python/test_bindings.py` (5 tests) pass in a venv: parse parity, load_repo, Spec queries on real spec/, GIL release. Default `cargo test` (221) + audits + clippy --features python all green; first-party src/ stays unsafe-free (NFR-003-AC-4). **Gate G6: core PASS.** `validate` binding added (Registry.load_from/from_env/archetype_names/validate → violation dicts with NFR-005 field paths; TC-462, 7 pytest total). Deferred: ≥5× speedup bench vs pure-Python filament_parser (TC-456, needs that lib present).
 
 ## Scope
 
