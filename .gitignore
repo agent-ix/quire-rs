@@ -7,3 +7,11 @@ Cargo.lock.bak
 
 # Local-only handoff notes (not pushed)
 handoff.md
+
+# Python bindings (maturin) + fuzz build artifacts
+.venv/
+fuzz/target/
+fuzz/Cargo.lock
+__pycache__/
+.pytest_cache/
+*.so
