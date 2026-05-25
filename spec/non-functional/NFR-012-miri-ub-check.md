@@ -22,6 +22,10 @@ relationships:
 - Test suite under miri is restricted to `--lib` (library tests only) — integration tests are too slow under miri.
 - A miri violation is a P0 bug; the offending dependency is either upgraded, replaced, or the affected code path is restructured.
 
+### Scope: the FFI boundary (v0.3)
+
+miri has **no support for the CPython C-API foreign calls** introduced by the PyO3 binding (FR-023). The miri job therefore runs the **default feature set (without `python`)** — it covers the pure-Rust engine (parser, loader, render, validate, corpus, resolution) but cannot execute or check the binding layer. UB and memory-safety in the FFI layer is covered instead by Python-level tests (the pytest harness, FR-023 TCs) and the scheduled sanitizer lanes (NFR-018, ASAN/TSAN on the built extension). This division is deliberate: miri for the safe-Rust core, sanitizers for the FFI boundary.
+
 ### Known cost
 
 miri runs roughly 10–100× slower than normal `cargo test`. Library test suite size SHALL stay small enough for the miri job to complete within 30 minutes (GitHub Actions default timeout). If the suite outgrows that budget, the `miri` job runs a curated subset under a `miri` test marker.
@@ -36,6 +40,7 @@ Even safe Rust can encounter UB through unsound dep crates. miri's runtime check
 - **NFR-012-AC-2**: The job uses caching (`Swatinem/rust-cache@v2`) to amortize the nightly toolchain install.
 - **NFR-012-AC-3**: Test suite under `cargo miri test --lib` completes in under 30 minutes on the GitHub-hosted Ubuntu runner.
 - **NFR-012-AC-4**: A miri-flagged UB violation is recorded as a P0 issue with the offending stack trace.
+- **NFR-012-AC-5**: The `miri` job runs without the `python` feature; a doc note (in the workflow or `spec/spec.md` §19) records that the FFI layer is out of miri's scope and is covered by NFR-018 sanitizer lanes + the FR-023 pytest harness.
 
 ## Verification
 

@@ -99,6 +99,13 @@ This specification governs a **generic, archetype-agnostic engine** that process
 - Single-yield (`match`) and multi-yield (`iterate_over` + `per_match`) DSL patterns
 - Secondary / fallback locators per field for author-variant tolerance
 
+**Repository + corpus side:**
+- `load_repo(path)` — parallel (rayon), ignore-file-aware directory walk that parses every `.md` into a `QuireDocument`, returning the collection + per-file diagnostics (FR-024). Per-file parse failures are non-fatal.
+- `Spec` corpus — a bounded, in-memory, immutable set of loaded documents indexed by stable artifact id (FR-025), with its **intra-spec** references resolved (FR-026) and read-only whole-spec queries (`by_id`, `by_type`, `referencing`, `outgoing`, `orphans`, `dangling`) over the resolved structure (FR-027). Lifecycle is *load → examine → discard*; the corpus is a data structure, not a stateful engine.
+
+**Python binding side:**
+- Feature-gated (`--features python`) PyO3 + maturin bindings exposing parse / extract / validate / render / `load_repo` / corpus to Python as the `quire` wheel (FR-023). With the feature off, the crate is unchanged and interpreter-free (StR-001 boundary). Bindings invert the call direction (Python calls *into* Rust); the engine never shells *out*. This is the path by which `filament-parser-lib` consumes the engine at native speed (StR-005), superseding its Python hot paths.
+
 **Cross-cutting:**
 - Safety scaffolding inherited from `agent-ix/rust-lib-cookiecutter` (clippy MSRV, deny.toml, `// SAFETY:` enforcement)
 - Hardening hygiene: fuzz (cargo-fuzz), miri UB check, mutation testing (cargo-mutants), advisory checking (cargo-audit) — all required, not opt-in
@@ -115,11 +122,11 @@ This specification does not govern:
 - **Hot reload on filesystem change.** `quire-rs` does NOT watch the filesystem and does NOT automatically reload archetypes when files change on disk. Consumers refresh archetypes by calling `Registry::load_from(...)` again. The previous Registry stays alive for any outstanding references and is dropped when they release. There is no in-place update or change-event subscription.
 - **Schema migration when archetypes evolve.** When an archetype's schema changes (e.g. Filament publishes a new version of `fr-frontmatter.schema.json`), `quire-rs` validates incoming data against the loaded version only. Migrating existing artifacts written against an older schema is Filament's responsibility (or downstream migration tooling).
 - **LLM model-specific tool-call adapters.** `quire-rs::schema_for` returns a JSON Schema. Wrapping it into a model-specific tool-call envelope (OpenAI function-calling shape, Anthropic tool-use shape, etc.) is the consumer's concern.
-- **ID generation.** `quire-rs` validates that artifact IDs match the schema's `pattern` (e.g. `^[A-Z]{2,4}-[0-9]+$`). Authoring tools (Filament UI, scripts) generate the IDs.
+- **ID generation (partially relaxed — CR-002).** `quire-rs` validates that *human* artifact IDs match the schema's `pattern` (e.g. `^[A-Z]{2,4}-[0-9]+$`); those are authored upstream (Filament UI, scripts). **However**, as of v0.3 `quire-rs` DOES generate a durable `uuid` (UUID7) when **creating a new artifact** (the whole-artifact render path), embedding it in the new document's frontmatter — going forward every quire-authored doc carries a `uuid`. `quire-rs` still does NOT backfill `uuid`s into pre-existing files on disk (no load-time mutation); `load_repo` reads the `uuid` and reports a non-fatal diagnostic when absent. Cross-repo catalog assignment beyond the per-doc `uuid` remains an upstream/service-layer concern.
 - **Internationalized slug normalization.** FR-009 implements ASCII-only slug normalization to match the TS/Py reference. Non-ASCII heading authoring works (the section parses correctly), but the slug collapses non-ASCII characters to `-`. Full Unicode slug support is deferred to a future version.
 - **Windows path semantics.** `v1` supports macOS and Linux only. Filesystem-loader behavior on Windows (drive letters, `\` separator, symlink permissions) is undefined.
 - **React UI bindings.** `agent-ix/quire` ships React components for browser-side rendering; those are TypeScript-only. `quire-rs` does not provide a UI layer.
-- **Cross-document graph queries.** `agent-ix/quire` ships a React provider that indexes multiple parsed documents and exposes hooks for cross-doc queries. Out of scope for the Rust crate — the parser primitives that would underpin it (block-stable IDs, edge data) exist, but no in-process graph or query layer ships with v1.
+- **Cross-document graph queries — *general/stateful*.** `agent-ix/quire` ships a React provider that indexes multiple parsed documents and exposes hooks for cross-doc queries. The *general, stateful* graph engine remains out of scope: no persistence of a resolved graph, no query/traversal DSL, no caching across calls, no incremental reparse on change, and no resolution of references that point into a **different** spec. These are service-layer concerns (see ADR-0002). **Carve-out:** the bounded, in-memory, ephemeral **per-spec corpus** (FR-025/026/027) *is* in scope — it loads one spec, resolves the references *within that loaded set*, and answers whole-spec read-only queries, then is discarded. The rule is: intra-spec resolution = `quire-rs`; inter-spec or stateful = service layer (StR-006).
 - CRDT or OT live-editing semantics.
 - Schema-driven template generation (schemas validate; templates present; neither generates the other).
 - Heavy hardening tooling (kani formal verification, loom / shuttle concurrency permutation, sim-spire) — opt-in via future cookiecutter variant. (Standard Rust safety hygiene — fuzz, miri, mutants, advisory — is required and in scope.)
@@ -294,7 +301,9 @@ Each layer has one job and a narrow interface to the next. The parser does not v
 ### 3.4 Intended Users
 
 - **Filament document editor** — needs schema-validated edits and re-render on patch
-- **`spec-artifacts-*` Python repos** — eventually call `quire-rs` via Python bindings or subprocess for parity-rendered artifacts
+- **`agent-ix/filament-parser-lib`** — the Python orchestration layer; consumes `quire-rs` in-process via the feature-gated PyO3 bindings (FR-023), superseding its own walk/parse/extract/validate hot paths (StR-005). Keeps tier-3 plugin discovery + dispatch in Python.
+- **`spec-artifacts-*` Python repos** — call `quire-rs` via the same PyO3 bindings for parity-rendered artifacts
+- **`spec-analysis-*` / `spec-matrix` tooling and LLM agents auditing a spec** — load a `spec/` tree into a `Spec` corpus (FR-025) and run whole-spec traceability/coverage/reference queries (FR-027) instead of re-walking + re-greps (US-012, US-013)
 - **`ix-spec-objects` extractors** — evaluate `body_extraction` DSL via the parser's Query API
 - **CLI tools** — invoke the renderer to produce spec artifacts from typed YAML/JSON sources
 - **LLM agents** — receive the on-disk JSON Schemas (surfaced unchanged via `schema_for`) as tool-call input contracts, emit validated patches that the schema layer accepts and the renderer formats
@@ -524,6 +533,42 @@ The DSL itself remains in YAML in the source repos; `quire-rs` supplies the eval
 
 ---
 
+## 10bis. Spec Corpus Model
+
+A **Spec** is not one document — it is a bounded set of related artifacts (a `spec/` tree: StR, US, FR, NFR, test cases, `spec.md`) whose references point at each other. `quire-rs` SHALL be able to load such a set as an in-memory **corpus**, resolve the references among its members, and answer whole-spec questions — without becoming a graph engine.
+
+### 10bis.1 Lifecycle
+
+```
+load_repo(path) ──► RepoLoad ──► Spec::from_repo ──► queries ──► drop
+   (FR-024)                         (FR-025+026)        (FR-027)
+```
+
+*Load → resolve → examine → discard.* The corpus holds no state across calls, persists nothing, watches nothing, and reaches nothing outside the loaded set.
+
+### 10bis.2 Data structure, not a stateful engine
+
+The boundary that keeps this in `quire-rs` scope (and out of the territory of the previously-removed graph engine) is **data structure vs. stateful engine**:
+
+| In scope (`quire-rs`) | Out of scope (service layer) |
+|---|---|
+| Load a directory into a corpus (FR-024/025) | Persist the resolved graph |
+| Resolve references **within** the loaded set (FR-026) | Resolve references into a **different** spec |
+| Read-only by-id / by-type / reverse-edge / orphan queries (FR-027) | A query / traversal DSL; transitive-closure precompute |
+| Immutable, `Send + Sync`, rebuild-to-refresh | Incremental reparse, change subscription, caching |
+
+The rule: **intra-spec resolution = `quire-rs`; inter-spec or stateful = service layer.** A reference whose target is absent from the loaded set is reported as *dangling*, never resolved outside the corpus.
+
+### 10bis.3 Edges
+
+Edge stubs are harvested from two already-parsed sources and unified into one resolved edge set (FR-026): frontmatter `relationships` entries (`{target, type, cardinality}`) and `ix://` body links. Each edge is classified `Resolved` (target present in the set) or `Dangling` (target absent). Resolution is O(edges) — one hash lookup per stub against the corpus id index — and deterministic.
+
+### 10bis.4 Consumers
+
+The corpus is the substrate the `spec-analysis-*` and `spec-matrix` skills need: traceability gaps (FRs with no `implements` edge to a StR), coverage gaps (user stories with no test), and reference navigation (everything that references a given artifact). These run today by re-walking and re-greps; against a corpus they query an already-resolved structure (US-012, US-013).
+
+---
+
 ## 11. Error and Failure Model
 
 ### 11.1 Error Classification
@@ -564,6 +609,8 @@ Functional requirements SHALL be verified using one or more of:
 - **Acceptance ports** — for the parser, the TS/Py test fixtures are transliterated into Rust and SHALL all pass
 - **Property tests** — `proptest` roundtrips, especially for the parser (parse → render → parse equivalence where applicable)
 - **Criterion benchmarks** — for NFR latency targets
+- **Python binding tests (`pytest`)** — the `python`-feature wheel is verified from Python via a `pytest` harness (built with `maturin develop`): parse/validate/render parity vs the Rust API, exception-mapping, GIL-release concurrency, and abi3 cross-version import (FR-023 / NFR-016). The Rust test suite cannot exercise the FFI boundary; pytest is the verification method for the binding layer.
+- **Concurrency + FFI hardening** — `loom` exhaustive interleaving on the parallel-walk path (NFR-017) and scheduled `TSAN`/`ASAN` lanes on the built extension (NFR-018) cover the concurrency and FFI surfaces that miri cannot reach.
 
 Verification evidence SHALL reference test cases in `test_cases/`.
 
@@ -677,29 +724,37 @@ If the syncer violates this contract (non-atomic writes, malformed YAML, etc.), 
 | `proptest` (determinism + roundtrip) | Property testing | NFR-006 |
 | Dependency version pinning | Load-bearing crates pinned | NFR-009 |
 | Public API stability (semver) | Consumer contract | NFR-010 |
-| **`cargo-fuzz` on untrusted-input surfaces** | Coverage-guided fuzzing | NFR-011 |
-| **`cargo miri test --lib`** | UB detection (incl. in deps) | NFR-012 |
+| **`cargo-fuzz` on untrusted-input surfaces** | Coverage-guided fuzzing (incl. v0.3 `load_repo` + resolution) | NFR-011 |
+| **`cargo miri test --lib`** | UB detection (incl. in deps); default-feature only — see FFI scope note | NFR-012 |
 | **`cargo-mutants` on high-value paths** | Test-quality validation | NFR-013 |
 | **`cargo-audit` daily + on PR** | RustSec advisory check | NFR-014 |
+| **`loom` on the parallel-walk path** *(v0.3)* | Exhaustive interleaving for the rayon fan-out (FR-024) | NFR-017 |
+| **`TSAN` on the Python extension** *(v0.3)* | Data races in the GIL-release window (FR-023) | NFR-018 |
+| **`ASAN` on the Python extension** *(v0.3)* | Memory errors in FFI object handoff (FR-023) | NFR-018 |
+
+### v0.3 re-review (corpus + bindings)
+
+The v0.3 surface — rayon data-parallelism (FR-024), a CPython C-ABI boundary (FR-023), and untrusted on-disk trees — invalidated two v1 skip rationales. **loom** (was skipped: "no synchronization primitives") and the **address/thread sanitizers** (were skipped: "marginal for safe Rust above miri") are now adopted, scoped to the new surfaces. The remaining skips below were re-examined against v0.3 and still hold, with refreshed rationale.
 
 ### Skipped (with rationale)
 
 | Tool | Skipped because |
 |---|---|
-| **kani** (model checker) | Best for algorithm kernels with complex invariants and bounded state. `quire-rs` parser is a linear walk; slug normalization is straightforward. `proptest` already covers the relevant invariants at lower operational cost. |
-| **loom** (thread-schedule permutation) | Finds races in code that uses synchronization primitives (`Mutex`, atomics, etc.). `quire-rs` has none — `Registry` is immutable after construction; only `Arc` clones share state. Loom has nothing to permute. NFR-006 cross-thread proptest covers the relevant claim. |
-| **shuttle** (randomized scheduler) | Same as loom. |
-| **cargo-careful** (std-with-debug-asserts) | Belt-and-suspenders with miri; redundant signal. |
-| **cargo-vet** (supply-chain attestation) | High org-wide operational lift (audits, vetted versions, maintained `audits.toml`). Better adopted org-wide than crate-by-crate. Defer to ix-org policy. |
-| **Big-endian qemu tests** | `quire-rs` is text-in / text-out; no binary serialization with endian sensitivity. |
-| **SIMD differential tests** | `quire-rs` does not use SIMD. |
-| **`-Z sanitizer=address\|thread`** | Marginal value for safe Rust above what miri provides. |
+| **kani** (model checker) | Best for algorithm kernels with complex invariants and bounded state. `quire-rs` parser is a linear walk; slug normalization is straightforward. v0.3 reference resolution (FR-026) is a hash-join with no complex invariant. `proptest` already covers the relevant invariants at lower operational cost. |
+| **shuttle** (randomized scheduler) | `loom` (NFR-017) adopted instead for the one concurrent path (the FR-024 data-parallel collect). At v0.3's concurrency size, loom's exhaustive small-scope checking is sufficient and stronger than shuttle's randomized scheduling. Reconsider shuttle only if a future version adds shared-mutable concurrency (a cache/pool). |
+| **cargo-careful** (std-with-debug-asserts) | Belt-and-suspenders with miri for the pure-Rust core; redundant signal. (The FFI boundary cargo-careful also cannot reach is covered by NFR-018 sanitizers, not careful.) |
+| **cargo-vet** (supply-chain attestation) | High org-wide operational lift (audits, vetted versions, maintained `audits.toml`). v0.3 expands the dependency surface (`ignore`, `rayon`, `sha2`, `uuid`; `pyo3`/`maturin` feature-gated), which raises the *priority* for org-level adoption — but it remains better adopted org-wide than crate-by-crate. `cargo-audit` (NFR-014) covers advisories meanwhile. Defer to ix-org policy. |
+| **Big-endian qemu tests** | `quire-rs` is text-in / text-out. v0.3 id derivation (SHA-256 → UUID5) is byte-deterministic regardless of host endianness; no endian-sensitive binary serialization. |
+| **SIMD differential tests** | `quire-rs` does not use SIMD. rayon data-parallelism is task-level, not SIMD. |
 | **pgrx multi-version test lanes** | N/A — `quire-rs` is not a PostgreSQL extension. |
+
+**Moved to Adopted in v0.3:** `loom` (now NFR-017), `-Z sanitizer=thread` + `-Z sanitizer=address` (now NFR-018). See the Adopted table above.
 
 ### Implementation notes
 
-- Fuzz / miri / mutants run on weekly schedule + workflow_dispatch + tag push — NOT per-PR. Per-PR jobs are the cookiecutter floor (fmt/clippy/test/deny/audit-unsafe/audit-static) plus `cargo-audit`. Heavy hardening lanes are scheduled to keep PR latency low.
-- `make ci` runs the per-PR set locally. `make hardening` runs the scheduled set locally for pre-tag verification.
+- Fuzz / miri / mutants / **loom (NFR-017)** / **TSAN + ASAN (NFR-018)** run on weekly schedule + workflow_dispatch + tag push — NOT per-PR. Per-PR jobs are the cookiecutter floor (fmt/clippy/test/deny/audit-unsafe/audit-static) plus `cargo-audit`. Heavy hardening lanes are scheduled to keep PR latency low.
+- `make ci` runs the per-PR set locally. `make hardening` runs the scheduled set locally for pre-tag verification (now incl. `make loom` + `make sanitize`).
+- miri runs default-feature only (no FFI); the `python`-feature binding layer is covered by the pytest harness (FR-023) + the sanitizer lanes (NFR-018).
 - Discovered crashes / UB / advisory hits are P0 — fix or contain before next release.
 
 ---
