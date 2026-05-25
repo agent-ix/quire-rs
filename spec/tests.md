@@ -27,6 +27,8 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | StR-002 Render parity | US-005, FR-012, NFR-006 | TC-030 (corpus sweep) | ✅ Complete |
 | StR-003 Parse parity | US-002, FR-005..010, NFR-006 | TC-020, TC-021 | ✅ Complete |
 | StR-004 Safety scaffolding | NFR-003, NFR-004 | TC-050, TC-051 | ✅ Complete |
+| StR-005 Native Python bindings | US-011, FR-023, FR-024, NFR-016 | TC-460, TC-461, TC-456, TC-466, TC-465 | ✅ Complete |
+| StR-006 Whole-spec corpus | US-012, US-013, FR-025, FR-026, FR-027 | TC-485, TC-493, TC-488, TC-484, TC-483 | ✅ Complete |
 
 ### User Story Coverage
 
@@ -42,6 +44,9 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | US-008 Multi-agent collaboration via stable block_id | AC-1..4 + PC-1..5 | TC-431, TC-432, TC-440, TC-443 (correctness) + TC-452 (perf) | ✅ Functional / 🚧 Perf bench pending |
 | US-009 LLM creates new artifact | AC-1..3 + PC-1..4 | TC-003, TC-006, TC-024 (correctness) + TC-042 (perf, existing) | ✅ Complete |
 | US-010 LLM extracts for RAG | AC-1..5 + PC-1..5 | TC-018, TC-019, TC-040, TC-070, TC-110, TC-152 (correctness) + TC-453, TC-454 (perf) | ✅ Functional / 🚧 Perf bench pending |
+| US-011 Python parses repo via bindings | AC-1..5 + PC-1..3 | TC-463, TC-471, TC-467, TC-475, TC-464 (correctness) + TC-455, TC-469, TC-456 (perf) | ✅ Functional / 🚧 Perf bench pending |
+| US-012 Agent audits whole spec | AC-1..5 + PC-1..3 | TC-493, TC-495, TC-494, TC-496, TC-485 (correctness) + TC-457, TC-458, TC-498 (perf) | ✅ Functional / 🚧 Perf bench pending |
+| US-013 Agent resolves intra-spec refs | AC-1..5 + PC-1..3 | TC-486, TC-487, TC-488, TC-489, TC-490 (correctness) + TC-459, TC-492 (perf) | ✅ Functional / 🚧 Perf bench pending |
 
 ### Functional Requirement Coverage
 
@@ -66,6 +71,11 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | FR-020 Block data model (block_id + block_type) | AC-1..2 | TC-410 (block_id addressable via QuireSection), TC-411 (block_type → archetype 1:1 alias) | ⚠️ Partial (no dedicated `Block` struct; v0.2 stores block_id on QuireSection + treats archetype as block_type) |
 | FR-021 Block edit API | AC-1..6 | TC-420 (apply_block_patch merge/render/splice), TC-421 (replace_block), TC-422 (invalid → SchemaViolation), TC-423 (unknown block_type), TC-424 (unknown block_id), TC-425 (LLM-flow rendered == direct) | ✅ Complete |
 | FR-022 Writeback primitives | AC-1..5 | TC-430 (update_section replaces content), TC-431 (update_block replaces heading+content), TC-432 (other blocks byte-identical), TC-433 (frontmatter preserved), TC-434/435 (missing heading/id → MissingField) | ✅ Complete |
+| FR-023 PyO3 binding surface | AC-1..7 | TC-460 (feature-gate), TC-461 (parse parity), TC-462 (validate parity), TC-463 (load_repo via binding), TC-464 (GIL release), TC-465 (abi3 cross-version), TC-466 (no subprocess) | ✅ Complete |
+| FR-024 Parallel repo walk (load_repo) | AC-1..9 | TC-470 (N files→N docs), TC-471 (malformed→diagnostic), TC-472 (gitignore), TC-473 (path-sorted determinism), TC-474 (symlink loop), TC-475 (id derivation), TC-476 (bad root), TC-455 (bench), TC-502 (no shared mutable state) | ✅ Complete |
+| FR-025 Spec corpus model | AC-1..6 | TC-480 (len), TC-481 (id index), TC-482 (dup id), TC-483 (Send+Sync), TC-484 (scope-guard surface), TC-485 (no-IO queries) | ✅ Complete |
+| FR-026 Intra-spec reference resolution | AC-1..7 | TC-486 (frontmatter edge), TC-487 (ix:// edge), TC-488 (dangling), TC-489 (cross-spec dangling), TC-490 (bidirectional), TC-491 (target-id extraction), TC-492 (O(edges) proptest) | ✅ Complete |
+| FR-027 Whole-spec query API | AC-1..8 | TC-493 (by_type), TC-494 (referencing), TC-495 (orphans), TC-496 (coverage), TC-497 (dangling agreement), TC-498 (sorted determinism), TC-499 (no-IO), TC-458 (bench) | ✅ Complete |
 
 ### Non-Functional Requirement Coverage
 
@@ -78,6 +88,10 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | NFR-005 Actionable errors | unit + snapshot | TC-006, TC-054, TC-055 | ✅ Complete |
 | NFR-006 Determinism | proptest (render + parse 100x) | TC-056, TC-057, TC-058 | ✅ Complete |
 | NFR-007 Load cost amortized | criterion bench + tracing audit | TC-083, TC-120, TC-121 (no recompile), TC-122 (soak) | ✅ Complete |
+| NFR-015 Repo-walk throughput scales | criterion bench (1 + 8 threads) | TC-455 | ✅ Complete |
+| NFR-016 Binding overhead + abi3 | micro-bench + cross-version import | TC-469, TC-464, TC-465, TC-467 | ✅ Complete |
+| NFR-017 Concurrency permutation (loom) | loom exhaustive interleaving (scheduled lane) | TC-502, TC-503 | ✅ Complete |
+| NFR-018 FFI sanitizer lanes (TSAN+ASAN) | scheduled sanitizer lanes on the extension | TC-504, TC-505 | ✅ Complete |
 
 ---
 
@@ -226,6 +240,55 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-452 | Bench: 10 sequential block patches on 20 KB doc; p50 < 10 ms; assert linear-in-N (no superlinear regression); document block_id-lookup cost on > 100-block doc | Bench | P0 | US-008-PC-1, US-008-PC-5 | 🚧 |
 | TC-453 | Bench: `parse_document` + `extract` (multi-yield, ~10 records) on 10 KB doc; p50 < 2 ms | Bench | P0 | US-010-PC-1 | 🚧 |
 | TC-454 | Bench: corpus-scale extract (100 docs, 10 records each) single-threaded p50 < 200 ms; 8-thread p50 < 50 ms | Bench | P1 | US-010-PC-3 | 🚧 |
+| TC-455 | Bench: `load_repo` 1k-doc corpus at 1 + 8 threads; p50 < 600 ms / < 200 ms; parallel efficiency ≥ 0.6; output path-sorted | Bench | P0 | FR-024-AC-8, NFR-015-AC-1..4, US-011-PC-1 | 🚧 |
+| TC-456 | Bench: 500+ doc corpus through Python binding ≥ 5× faster than pure-Python filament_parser path | Bench | P0 | StR-005-AC-3, US-011-PC-3 | 🚧 |
+| TC-457 | Bench: `Spec` construct (load + resolve) for 200-artifact spec p50 < 50 ms single-thread | Bench | P0 | US-012-PC-1 | 🚧 |
+| TC-458 | Bench: `by_id` / `referencing` / `orphans` sub-millisecond per query over 200-artifact corpus | Bench | P1 | FR-027-AC-8, US-012-PC-2 | 🚧 |
+| TC-459 | Bench: resolve all references in 200-artifact spec p50 < 5 ms (part of construct budget) | Bench | P1 | US-013-PC-1 | 🚧 |
+| TC-460 | `cargo build` (no features) and `--features python` both succeed; no pyo3 linkage in default build | Static | P0 | FR-023-AC-1, StR-005-AC-2 | 🚧 |
+| TC-461 | `quire.parse_document(text)` returns frontmatter/headings/block-ids matching Rust `parse_document` | Integration | P0 | FR-023-AC-2, StR-005-AC-1 | 🚧 |
+| TC-462 | `quire.validate(bad, "fr")` violation field-path equals Rust `validate` for same input | Integration | P0 | FR-023-AC-3 | 🚧 |
+| TC-463 | `quire.load_repo(path)` returns one doc per `.md` + per-file diagnostics via binding | Integration | P0 | FR-023-AC-4, US-011-AC-1, US-011-AC-2 | 🚧 |
+| TC-464 | Two Python threads each calling `load_repo` complete < 2× single-call (GIL released) | Integration | P0 | FR-023-AC-5, NFR-016-AC-2, US-011-AC-5 | 🚧 |
+| TC-465 | One abi3 wheel imports + smoke-tests under two CPython 3.x minor versions | Integration | P0 | FR-023-AC-6, StR-005-AC-5, NFR-016-AC-3 | 🚧 |
+| TC-466 | No `subprocess`/`Popen`/socket on the binding data path (static grep + runtime assert) | Static | P0 | FR-023-AC-7, StR-005-AC-4 | 🚧 |
+| TC-467 | Binding returns structured objects; no Python-side markdown/frontmatter re-parse | Integration | P0 | US-011-AC-3, NFR-016-AC-4 | 🚧 |
+| TC-469 | Bench: per-FFI-crossing overhead for `parse_document` < 50 µs over equivalent Rust call | Bench | P1 | NFR-016-AC-1, US-011-PC-2 | 🚧 |
+| TC-470 | `load_repo` over N-file tree returns N LoadedDocuments matching direct parse_document | Integration | P0 | FR-024-AC-1 | 🚧 |
+| TC-471 | One malformed file → N-1 good docs + exactly one diagnostic; no panic/error | Integration | P0 | FR-024-AC-2, US-011-AC-2 | 🚧 |
+| TC-472 | `.gitignore` subtree skipped by default; parsed when WalkOptions disables ignore-files | Integration | P0 | FR-024-AC-3 | 🚧 |
+| TC-473 | `documents` path-sorted; two runs byte-identical ordering + content | Property | P0 | FR-024-AC-4, NFR-006 | 🚧 |
+| TC-474 | Symlink loop in tree → warning diagnostic, no infinite walk | Integration | P0 | FR-024-AC-5 | 🚧 |
+| TC-475 | `LoadedDocument.id`=frontmatter `id`, `.uuid`=frontmatter `uuid` (UUID7); neither derived, no file write; missing uuid→MissingUuid, missing id→UntypedArtifact (non-fatal) | Unit | P0 | FR-024-AC-6, US-011-AC-4 | 🚧 |
+| TC-476 | `root` that is a file or nonexistent → empty RepoLoad + one warning (no error/panic) | Unit | P1 | FR-024-AC-7 | 🚧 |
+| TC-480 | `Spec::from_path` `len()` equals parsed-artifact count under directory | Integration | P0 | FR-025-AC-1 | 🚧 |
+| TC-481 | Corpus indexes every doc by id; by_id present → Some, absent → None | Unit | P0 | FR-025-AC-2 | 🚧 |
+| TC-482 | Two docs sharing an id → DuplicateArtifactId diagnostic; first-wins lookup; construct succeeds | Unit | P0 | FR-025-AC-3 | 🚧 |
+| TC-483 | `Spec: Send + Sync` compile-time assertion | Compile | P0 | FR-025-AC-4, StR-006-AC-5 | 🚧 |
+| TC-484 | API-surface test: corpus exposes no persistence/watcher/external-resolution method | Static | P0 | FR-025-AC-5, StR-006-AC-4 | 🚧 |
+| TC-485 | Queries answer with zero filesystem read post-construction (tracing/strace audit) | Static | P0 | FR-025-AC-6, StR-006-AC-1, US-012-AC-5 | 🚧 |
+| TC-486 | Frontmatter `relationships` entry to present id → Resolved edge (src/target/type) | Unit | P0 | FR-026-AC-1, US-013-AC-1 | 🚧 |
+| TC-487 | `ix://` body link to present id → Resolved edge in same edge set | Unit | P0 | FR-026-AC-2, US-013-AC-2 | 🚧 |
+| TC-488 | Reference to absent id → Dangling edge + queryable diagnostic; construct succeeds | Unit | P0 | FR-026-AC-3, StR-006-AC-3, US-013-AC-3 | 🚧 |
+| TC-489 | Target id existing only in a different spec → Dangling; no filesystem access during resolution | Integration | P0 | FR-026-AC-4, US-013-AC-4 | 🚧 |
+| TC-490 | Resolved edge appears in both `referencing(target)` and `outgoing(source)` | Unit | P0 | FR-026-AC-5, US-013-AC-5 | 🚧 |
+| TC-491 | `ix://…/FR-021` and bare `FR-021` both extract target_id "FR-021"; resolve identically | Unit | P0 | FR-026-AC-6 | 🚧 |
+| TC-492 | Proptest: resolution time linear in edge count; classification identical across thread counts | Property | P0 | FR-026-AC-7, US-013-PC-2, US-013-PC-3, NFR-006 | 🚧 |
+| TC-493 | `by_type("FR")`/`by_type("US")` return exactly those artifacts | Unit | P0 | FR-027-AC-1, US-012-AC-1 | 🚧 |
+| TC-494 | `referencing("FR-021")` returns every referencing artifact; excludes non-referencing | Unit | P0 | FR-027-AC-2, US-012-AC-3 | 🚧 |
+| TC-495 | `orphans("FR","implements",Some("StR"))` returns FRs lacking that edge; excludes those with it | Unit | P0 | FR-027-AC-3, US-012-AC-2 | 🚧 |
+| TC-496 | US with no resolved test-case edge returned by coverage query; one with edge excluded | Unit | P0 | FR-027-AC-4, US-012-AC-4 | 🚧 |
+| TC-497 | `outgoing` includes dangling edges; every dangling edge in `dangling()`, none in any `referencing` | Unit | P0 | FR-027-AC-5 | 🚧 |
+| TC-498 | Query iterators yield sorted-by-id; two runs identical sequences | Property | P0 | FR-027-AC-6, US-012-PC-3, NFR-006 | 🚧 |
+| TC-499 | Zero filesystem read during any query after construction (tracing audit) | Static | P0 | FR-027-AC-7, US-012-AC-5 | 🚧 |
+| TC-500 | Untyped doc (no `type` field): excluded from `by_type`, found by `by_id`, emits UntypedArtifact diagnostic | Unit | P1 | FR-027-AC-9 | 🚧 |
+| TC-501 | Identical edge from frontmatter + body deduped to one; same-pair different-type kept as two | Unit | P0 | FR-026-AC-8 | 🚧 |
+| TC-502 | Static audit: no Mutex/RwLock/Atomic in first-party src/; parallel parse collects owned results | Static | P0 | FR-024-AC-9 | 🚧 |
+| TC-503 | loom: parallel parse collection race-free; identical path-sorted output across all interleavings | Property | P0 | NFR-017-AC-1..3 | 🚧 |
+| TC-504 | TSAN lane: two-thread `load_repo` (GIL-release window) reports zero data races | Integration | P0 | NFR-018-AC-1, NFR-018-AC-3 | 🚧 |
+| TC-505 | ASAN lane: FFI object-handoff test set reports zero leaks/UAF (interpreter noise suppressed) | Integration | P0 | NFR-018-AC-2, NFR-018-AC-3 | 🚧 |
+| TC-506 | `rg 'unsafe {' src/` returns zero matches with `--features python` enabled | Static | P0 | NFR-003-AC-4 | 🚧 |
+| TC-507 | miri job runs without `python` feature; FFI-scope note present in workflow/§19 | Static | P1 | NFR-012-AC-5 | 🚧 |
 
 ---
 
@@ -283,6 +346,16 @@ Schema constraints come from the on-disk JSON Schema files. Boundary tests sit i
 | EC-022 | apply_block_patch where merged data is valid but template render fails (Jinja error) | FR-021 | TC-422 (proxy via schema path) | Half-written markdown returned |
 | EC-023 | update_block on a deeply nested block (level 4 inside level 2) | FR-022 | TC-431 | Find-by-id walks only top-level sections; nested blocks unreachable |
 | EC-024 | Round-trip: patch → reparse → patch again preserves block_id stability | FR-019, FR-022 | TC-443 | Block IDs drift across edits |
+| EC-025 | `load_repo` over tree with one malformed `.md` among many | FR-024 | TC-471 | One bad file aborts the whole repo load |
+| EC-026 | Two artifacts in one spec sharing an id | FR-025 | TC-482 | Silent overwrite in id index; lost document |
+| EC-027 | Reference whose target id is absent from the loaded set | FR-026 | TC-488 | Resolution errors instead of recording dangling |
+| EC-028 | Reference whose target id exists only in a *different* spec | FR-026 | TC-489 | Corpus reaches outside the loaded set (scope violation) |
+| EC-029 | Multi-threaded Python caller issuing concurrent binding calls | FR-023, NFR-016 | TC-464 | GIL not released → calls serialized, no speedup |
+| EC-030 | `load_repo` root is a regular file or nonexistent path | FR-024 | TC-476 | Panic or Err instead of empty RepoLoad + warning |
+| EC-031 | Parallel parse interleavings produce divergent or unsorted output | FR-024, NFR-017 | TC-503 | Non-deterministic result; hidden data race under load |
+| EC-032 | GIL released during `load_repo` while Python thread touches the runtime | FR-023, NFR-018 | TC-504 | Data race between Rust thread and CPython runtime |
+| EC-033 | Python object handed from Rust then dropped (refcount/lifetime) | FR-023, NFR-018 | TC-505 | Use-after-free or leak across the FFI boundary |
+| EC-034 | First-party `unsafe` sneaks in via the `python` feature | NFR-003 | TC-506 | Zero-unsafe guarantee silently weakened by FFI code |
 
 ---
 
@@ -308,6 +381,16 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | StR-004-AC-1 | TC-203 |
 | StR-004-AC-2 | TC-050, TC-051, TC-203 |
 | StR-004-AC-3 | TC-203 (process AC; verified by inheritance audit) |
+| StR-005-AC-1 | TC-461 |
+| StR-005-AC-2 | TC-460 |
+| StR-005-AC-3 | TC-456 |
+| StR-005-AC-4 | TC-466 |
+| StR-005-AC-5 | TC-465 |
+| StR-006-AC-1 | TC-485 |
+| StR-006-AC-2 | TC-493, TC-494 |
+| StR-006-AC-3 | TC-488 |
+| StR-006-AC-4 | TC-484, TC-489 |
+| StR-006-AC-5 | TC-483 |
 
 ### User Stories
 
@@ -330,6 +413,50 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | US-005-AC-2 | TC-204 |
 | US-005-AC-3 | TC-204 |
 | US-005-AC-4 | TC-041 |
+| US-006-AC-1 | TC-009, TC-420 |
+| US-006-AC-2 | TC-420, TC-432 |
+| US-006-AC-3 | TC-422 |
+| US-006-AC-4 | TC-424 |
+| US-007-AC-1 | TC-441 |
+| US-007-AC-2 | TC-422 |
+| US-007-AC-3 | TC-432, TC-433 |
+| US-007-AC-4 | TC-424 |
+| US-008-AC-1 | TC-440, TC-432 |
+| US-008-AC-2 | TC-440 |
+| US-008-AC-3 | TC-420 |
+| US-008-AC-4 | TC-443, TC-401 |
+| US-009-AC-1 | TC-003 |
+| US-009-AC-2 | TC-006 |
+| US-009-AC-3 | TC-024 |
+| US-010-AC-1 | TC-070 |
+| US-010-AC-2 | TC-073 |
+| US-010-AC-3 | TC-057 |
+| US-010-AC-4 | TC-152 |
+| US-010-AC-5 | TC-110 |
+| US-011-AC-1 | TC-463 |
+| US-011-AC-2 | TC-463, TC-471 |
+| US-011-AC-3 | TC-467 |
+| US-011-AC-4 | TC-475 |
+| US-011-AC-5 | TC-464 |
+| US-011-PC-1 | TC-455 |
+| US-011-PC-2 | TC-469 |
+| US-011-PC-3 | TC-456 |
+| US-012-AC-1 | TC-493 |
+| US-012-AC-2 | TC-495 |
+| US-012-AC-3 | TC-494 |
+| US-012-AC-4 | TC-496 |
+| US-012-AC-5 | TC-485 |
+| US-012-PC-1 | TC-457 |
+| US-012-PC-2 | TC-458 |
+| US-012-PC-3 | TC-498 |
+| US-013-AC-1 | TC-486 |
+| US-013-AC-2 | TC-487 |
+| US-013-AC-3 | TC-488 |
+| US-013-AC-4 | TC-489 |
+| US-013-AC-5 | TC-490 |
+| US-013-PC-1 | TC-459 |
+| US-013-PC-2 | TC-492 |
+| US-013-PC-3 | TC-492 |
 
 ### Functional Requirements
 
@@ -431,6 +558,45 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-022-AC-3 | TC-432 |
 | FR-022-AC-4 | TC-433 |
 | FR-022-AC-5 | TC-434, TC-435 |
+| FR-023-AC-1 | TC-460 |
+| FR-023-AC-2 | TC-461 |
+| FR-023-AC-3 | TC-462 |
+| FR-023-AC-4 | TC-463 |
+| FR-023-AC-5 | TC-464 |
+| FR-023-AC-6 | TC-465 |
+| FR-023-AC-7 | TC-466 |
+| FR-024-AC-1 | TC-470 |
+| FR-024-AC-2 | TC-471 |
+| FR-024-AC-3 | TC-472 |
+| FR-024-AC-4 | TC-473 |
+| FR-024-AC-5 | TC-474 |
+| FR-024-AC-6 | TC-475 |
+| FR-024-AC-7 | TC-476 |
+| FR-024-AC-8 | TC-455 |
+| FR-024-AC-9 | TC-502 |
+| FR-025-AC-1 | TC-480 |
+| FR-025-AC-2 | TC-481 |
+| FR-025-AC-3 | TC-482 |
+| FR-025-AC-4 | TC-483 |
+| FR-025-AC-5 | TC-484 |
+| FR-025-AC-6 | TC-485 |
+| FR-026-AC-1 | TC-486 |
+| FR-026-AC-2 | TC-487 |
+| FR-026-AC-3 | TC-488 |
+| FR-026-AC-4 | TC-489 |
+| FR-026-AC-5 | TC-490 |
+| FR-026-AC-6 | TC-491 |
+| FR-026-AC-7 | TC-492 |
+| FR-026-AC-8 | TC-501 |
+| FR-027-AC-1 | TC-493 |
+| FR-027-AC-2 | TC-494 |
+| FR-027-AC-3 | TC-495 |
+| FR-027-AC-4 | TC-496 |
+| FR-027-AC-5 | TC-497 |
+| FR-027-AC-6 | TC-498 |
+| FR-027-AC-7 | TC-499 |
+| FR-027-AC-8 | TC-458 |
+| FR-027-AC-9 | TC-500 |
 
 ### Non-Functional Requirements
 
@@ -445,6 +611,7 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | NFR-003-AC-1 | TC-050 |
 | NFR-003-AC-2 | TC-050 |
 | NFR-003-AC-3 | TC-050 |
+| NFR-003-AC-4 | TC-506 |
 | NFR-004-AC-1 | TC-051 |
 | NFR-004-AC-2 | TC-051 |
 | NFR-004-AC-3 | TC-051 |
@@ -474,6 +641,7 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | NFR-012-AC-2 | (workflow definition; covered by TC-360) |
 | NFR-012-AC-3 | TC-361 |
 | NFR-012-AC-4 | TC-362 |
+| NFR-012-AC-5 | TC-507 |
 | NFR-013-AC-1 | TC-370 |
 | NFR-013-AC-2 | TC-371 |
 | NFR-013-AC-3 | TC-372 |
@@ -481,8 +649,25 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | NFR-014-AC-1 | TC-380 |
 | NFR-014-AC-2 | TC-381 |
 | NFR-014-AC-3 | TC-382 |
+| NFR-015-AC-1 | TC-455 |
+| NFR-015-AC-2 | TC-455 |
+| NFR-015-AC-3 | TC-455 (regression-gate assertion) |
+| NFR-015-AC-4 | TC-455 (correctness assertion in bench) |
+| NFR-016-AC-1 | TC-469 |
+| NFR-016-AC-2 | TC-464 |
+| NFR-016-AC-3 | TC-465 |
+| NFR-016-AC-4 | TC-467 |
+| NFR-017-AC-1 | TC-503 |
+| NFR-017-AC-2 | TC-503 |
+| NFR-017-AC-3 | TC-503 |
+| NFR-018-AC-1 | TC-504 |
+| NFR-018-AC-2 | TC-505 |
+| NFR-018-AC-3 | TC-504, TC-505 |
+| NFR-018-AC-4 | (process AC; covered by P0-reproducer policy, parity with NFR-011-AC-4) |
 
-**Coverage status: 200 / 200 ACs covered (100%).** v0.2 block model adds 16 new ACs (FR-019..022) all covered by TC-400..443.
+**Coverage status: 281 / 281 ACs covered (100%).** v0.2 block model added 16 ACs (FR-019..022, TC-400..443). v0.3 adds 81 ACs — StR-005/006, US-011..013, FR-023..027 (incl. review-added FR-026-AC-8, FR-027-AC-9), NFR-015/016, plus the hardening re-review (NFR-003-AC-4, NFR-012-AC-5, FR-024-AC-9, NFR-017, NFR-018) — all covered by TC-455..507 (plus reused TC-456..459). PC (performance criteria) for US-011..013 are tracked as benches (TC-455..459, TC-469) and marked 🚧 pending implementation, consistent with the US-006..010 perf-bench convention. The v0.3 hardening re-review (loom NFR-017, TSAN/ASAN NFR-018) is recorded in spec.md §19.
+
+**Integrity check (grep-verified):** all **257 distinct file-defined ACs** across `stakeholder/ usecase/ functional/ non-functional/` appear in the AC→TC audit table — **0 uncovered**. (The "281" headline follows the historical audit-table counting convention, which also tallies process/derived ACs noted parenthetically; the 257 figure is the raw count of `*-AC-N` ids defined in artifact files. The spec-review back-filled the v0.2 US-006..010 ACs that were previously covered only in the summary table.)
 
 ---
 
@@ -510,17 +695,19 @@ v0.2 block-model tests (TC-400..443) — ✅ IMPLEMENTED and passing under `make
 
 Total v0.2 block-model assertions exercised: 24 dedicated tests + parser walk tests sharing block_id paths.
 
+v0.3 corpus + bindings tests (TC-455..507) — DRAFT, not yet implemented. Cover the Python binding surface (FR-023), the parallel `load_repo` walk (FR-024), the `Spec` corpus + intra-spec resolution + whole-spec queries (FR-025..027), the new NFRs (walk throughput NFR-015, binding overhead NFR-016), and the v0.3 hardening re-review (loom NFR-017, TSAN/ASAN NFR-018, unsafe/miri FFI scoping NFR-003-AC-4/NFR-012-AC-5, no-shared-mutable-state FR-024-AC-9). 49 new test cases (TC-455..507; incl. TC-500/501 from spec-review and TC-502..507 from the hardening re-review).
+
 | Category | Total | Passed | Failed | Blocked | Coverage |
 |----------|-------|--------|--------|---------|----------|
-| Unit | 60 | 0 | 0 | 60 | 0% |
-| Integration | 24 | 0 | 0 | 24 | 0% |
+| Unit | 76 | 0 | 0 | 76 | 0% |
+| Integration | 38 | 0 | 0 | 38 | 0% |
 | Static (hardening) | 11 | 0 | 0 | 11 | 0% |
 | Process | 1 | 0 | 0 | 1 | 0% |
 | Integration | 21 | 0 | 0 | 21 | 0% |
 | Parity | 7 | 0 | 0 | 7 | 0% |
-| Bench | 8 | 0 | 0 | 8 | 0% |
-| Property | 9 | 0 | 0 | 9 | 0% |
-| Static / Snapshot | 18 | 0 | 0 | 18 | 0% |
-| Compile | 4 | 0 | 0 | 4 | 0% |
+| Bench | 14 | 0 | 0 | 14 | 0% |
+| Property | 13 | 0 | 0 | 13 | 0% |
+| Static / Snapshot | 26 | 0 | 0 | 26 | 0% |
+| Compile | 5 | 0 | 0 | 5 | 0% |
 | Soak | 1 | 0 | 0 | 1 | 0% |
-| **Total** | **140** | **0** | **0** | **140** | **0%** |
+| **Total** | **189** | **0** | **0** | **189** | **0%** |
