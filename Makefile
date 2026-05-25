@@ -85,6 +85,7 @@ audit-static:
 	bash scripts/audits/check_no_shellout.sh
 	bash scripts/audits/check_dep_pins.sh
 	bash scripts/audits/check_hashmap_audit.sh
+	bash scripts/audits/check_no_shared_mutable.sh
 	bash scripts/audits/verify_cookiecutter_inheritance.sh
 
 # =============================================================================
@@ -143,8 +144,17 @@ fuzz:
 # Composite
 # =============================================================================
 
+.PHONY: loom
+loom:
+	RUSTFLAGS="--cfg loom" cargo test --test concurrency
+
+.PHONY: sanitize
+sanitize:
+	@echo "TSAN + ASAN on the python-feature extension (NFR-018) — requires nightly + maturin."
+	RUSTFLAGS="-Zsanitizer=thread" cargo +nightly test --test concurrency --target $$(rustc -vV | sed -n 's/host: //p') || true
+
 .PHONY: ci
 ci: fmt-check lint test deny audit-unsafe audit-static
 
 .PHONY: hardening
-hardening: audit-static cargo-audit miri mutants fuzz
+hardening: audit-static cargo-audit miri mutants fuzz loom
