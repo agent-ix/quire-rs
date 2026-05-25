@@ -337,3 +337,124 @@ Total: 23 task files on disk + 5 logical v0.2 tasks. All tracks complete; all ga
 - **Update `plan/tasks/README.md` on each task transition** (not started → in progress → complete).
 - **Spec changes during implementation:** if a task discovers an AC that's wrong, open a CR; do not silently change the spec.
 - **Test-first:** every task's first deliverable is the failing test set; second is the implementation that turns them green; third is the refactor + benches if applicable.
+
+---
+
+# v0.3 — Corpus + Python Bindings
+
+Generated via `/spec-to-plan` from the v0.3 spec expansion (StR-005/006, US-011..013, FR-023..027, NFR-015/016). Architectural basis: ADR-0002 (three-layer pipeline) — `quire-rs` (per-doc) ← `filament-parser-lib` (orchestration) ← service layer (cross-spec graph). v0.3 pushes the per-repo walk + the *bounded, intra-spec* corpus down into `quire-rs` and exposes the whole engine to Python.
+
+## v0.3 Requirements Summary
+
+### Stakeholder Requirements
+- [ ] **StR-005** Native (PyO3, feature-gated) Python bindings supersede filament-parser-lib's per-doc hot paths; core crate stays interpreter-free.
+- [ ] **StR-006** Examine a whole spec as a bounded, in-memory, ephemeral corpus (load → resolve intra-spec refs → query → discard); inter-spec/stateful stays in the service layer.
+
+### User Stories
+- [ ] **US-011** `filament_parser` parses a repo of markdown via `quire.load_repo` in one FFI hop (native speed, GIL released).
+- [ ] **US-012** Agent/`spec-analysis-*` audits a whole spec for traceability + coverage gaps over an already-resolved corpus.
+- [ ] **US-013** Agent resolves intra-spec references (frontmatter `relationships` + `ix://` links) → resolved vs dangling.
+
+### Functional Requirements
+- [ ] **FR-024** Parallel (rayon), ignore-aware `load_repo` walk + parse → `RepoLoad { documents, diagnostics }`; per-file failure non-fatal; content/frontmatter-derived stable id.
+- [ ] **FR-025** `Spec` corpus — immutable, `Send + Sync`, id-indexed, no persistence/watcher/external-resolution (scope-guarded).
+- [ ] **FR-026** Intra-spec reference resolution — unified edge set from frontmatter + `ix://`; resolved vs dangling; dedup; O(edges); bounded to loaded set.
+- [ ] **FR-027** Whole-spec query API — `by_id`, `by_type`, `referencing`, `outgoing`, `orphans`, `dangling`; read-only; sorted/deterministic; untyped-doc handling.
+- [ ] **FR-023** Feature-gated PyO3 + maturin binding surface (`quire` wheel); structured object exchange (no JSON/subprocess); GIL release; abi3.
+
+### Non-Functional Requirements
+- [ ] **NFR-015** `load_repo` throughput scales with cores (1k docs: <600ms 1-thread / <200ms 8-thread; parallel efficiency ≥ 0.6).
+- [ ] **NFR-016** Binding per-crossing overhead <50µs; GIL released on heavy calls; one abi3 wheel imports across CPython 3.x minors.
+- [ ] **NFR-017** Concurrency permutation (loom) on the FR-024 parallel-walk path — exhaustive interleaving, scheduled lane.
+- [ ] **NFR-018** FFI sanitizer lanes — scheduled TSAN (GIL-release window) + ASAN (object handoff) on the `python`-feature extension.
+
+### Hardening re-review (v0.3 — see spec.md §19)
+The rayon + FFI surface invalidated two v1 §19 skip rationales. Adopted: **loom** (NFR-017), **TSAN+ASAN** (NFR-018). Scoping fixes: **NFR-003-AC-4** (unsafe-free incl. `python` feature), **NFR-012-AC-5** (miri runs default-feature only; FFI out of scope), **FR-024-AC-9** (no shared mutable state — the invariant that keeps loom honest). Re-affirmed skips (refreshed rationale): kani, shuttle, cargo-careful, cargo-vet, big-endian, SIMD, pgrx.
+
+### Review-driven enablement (fold into owning tasks)
+- [ ] **NFR-009 extension** — pin new deps (`ignore`, `rayon`, `sha2`, `uuid` in E1; `pyo3`, `maturin` feature-gated in E5); deny.toml license review.
+- [ ] **NFR-011 extension** — add `load_repo` + reference-resolution fuzz targets (new untrusted-input surface: attacker-controlled trees, frontmatter, links).
+
+## v0.3 Dependency Graph
+
+### Core edges
+- `FR-005 (parse_document, done) -> FR-024`
+  Reason: `load_repo` parses each discovered `.md` via the existing `parse_document`. Foundation already exists; FR-024 adds the walk + parallel fan-out + id derivation.
+- `FR-024 -> FR-025`
+  Reason: the corpus is constructed from a `RepoLoad`; it indexes the documents the walk produced.
+- `FR-025 + FR-006 (frontmatter, done) -> FR-026`
+  Reason: resolution joins edge stubs (harvested from parsed frontmatter `relationships` + `ix://` body links) against the corpus id index.
+- `FR-026 -> FR-027`
+  Reason: `referencing`/`outgoing`/`orphans`/`dangling` read the resolved edge set; `by_id`/`by_type` read the index.
+- `FR-024, FR-025, FR-027 + (FR-001/002/005/011, done) -> FR-023`
+  Reason: the binding wraps the whole engine — existing parse/extract/validate/render plus the new walk + corpus + query.
+
+### Cross-cutting NFRs
+- **NFR-015** gates FR-024 (walk throughput bench TC-455).
+- **NFR-016** gates FR-023 (overhead micro-bench TC-469 + abi3 cross-version TC-465).
+- **NFR-006 (determinism)** applies to FR-024 (path-sorted output), FR-026 (classification), FR-027 (sorted iterators).
+- **NFR-005 (error shape)** applies across the FFI boundary (FR-023 exception hierarchy carries the same field paths).
+
+## v0.3 Remaining Work
+
+### Track E: Critical Path (serial)
+
+```
+E1 load_repo + walk throughput (FR-024, NFR-015) + pin ignore/rayon/sha2/uuid
+   ↓
+E2 Spec corpus (FR-025)
+   ↓
+E3 Intra-spec resolution (FR-026)
+   ↓
+E4 Whole-spec query API (FR-027)
+   ↓
+   Gate G5 (corpus correctness — dogfood on quire-rs's own spec/)
+   ↓
+E5 PyO3 bindings (FR-023, NFR-016) + pin pyo3/maturin (feature-gated)
+   ↓
+   Gate G6 (binding parity + ≥5× speedup vs Python)
+```
+
+Track E is pure Rust through E4 — no Python toolchain needed to start. E1 is the biggest standalone win (kills the GIL-bound sequential Python walk).
+
+#### Gate G5: Corpus correctness (after E4)
+- **Measures:** Load `quire-rs`'s *own* `spec/` tree (a real ~40-artifact corpus with StR/US/FR/NFR cross-refs) into a `Spec`; resolve; run `orphans`/`referencing`/`dangling`.
+- **Pass criteria:** TC-480..501 green **and** a dogfood integration test asserts expected real-spec facts (e.g. every FR-023..027 has a resolved `implements` edge to a StR; the FR-021 body mention is *not* a false orphan; known dangling = none within the loaded set).
+- **If fails:** stop before bindings. Root causes likely in id derivation (FR-024) or target-id extraction (FR-026). Diagnose against the real spec diff before wrapping in FFI.
+
+#### Gate G6: Binding parity + speedup (after E5)
+- **Measures:** `quire.*` outputs match in-crate Rust; one abi3 wheel imports on two CPython minors; corpus through binding ≥5× faster than pure-Python `filament_parser`.
+- **Pass criteria:** TC-460..467 + TC-456 (≥5×) + TC-465 (cross-version) pass.
+- **If fails:** if parity fails → object-conversion bug (diagnose per-field). If speedup misses → check GIL actually released (TC-464) and that no per-file FFI crossing snuck in (should be one crossing per `load_repo`).
+
+### Track F: v0.3 hardening (parallel)
+- **F1: Corpus fuzz targets (NFR-011 extension)** — `cargo-fuzz` targets for `load_repo` (malformed trees/files) and reference resolution (adversarial frontmatter/`ix://`). Depends on E1 + E3 landing; runs on the existing weekly hardening lane. Independent agent.
+- **F2: Concurrency + FFI sanitizer lanes (NFR-017, NFR-018)** — loom test for the FR-024 parallel-walk collect (after E1); scheduled TSAN + ASAN lanes on the `python`-feature extension (after E5/G6). Includes the FR-024-AC-9 no-shared-mutable-state audit + NFR-003-AC-4 / NFR-012-AC-5 scoping checks. Independent agent; runs on the scheduled hardening cadence (not per-PR).
+
+### Parallel Execution Summary
+
+```
+Time →
+E1 load_repo + NFR-015 ──────────╮          F1 corpus fuzz (after E3)
+   E2 Spec corpus ───────────────┤
+      E3 resolution ─────────────┼── F1 starts
+         E4 query API            │
+            Gate G5 (dogfood)    │
+               E5 PyO3 bindings + NFR-016
+                  Gate G6 (parity + 5×)
+```
+
+## v0.3 Task File Mapping
+
+| Task file | Track / step | Owns | Status |
+|---|---|---|---|
+| `tasks/028-repo-walk.md` | E1 | FR-024, NFR-015 (+ pin ignore/rayon/sha2/uuid) | not started |
+| `tasks/029-spec-corpus.md` | E2 | FR-025 | blocked on 028 |
+| `tasks/030-reference-resolution.md` | E3 | FR-026 | blocked on 029 |
+| `tasks/031-whole-spec-query.md` | E4 / Gate G5 | FR-027 | blocked on 030 |
+| `tasks/032-pyo3-bindings.md` | E5 / Gate G6 | FR-023, NFR-016 (+ pin pyo3/maturin) | blocked on 031 / G5 |
+| `tasks/033-corpus-fuzz-targets.md` | F1 | NFR-011 extension | blocked on 030 |
+| `tasks/034-concurrency-ffi-hardening.md` | F2 | NFR-017, NFR-018 (+ FR-024-AC-9, NFR-003-AC-4, NFR-012-AC-5) | loom part blocked on 028; sanitizer part blocked on 032 / G6 |
+
+#### Gate G5: Corpus correctness — see above (after task 031).
+#### Gate G6: Binding parity + speedup — see above (after task 032).

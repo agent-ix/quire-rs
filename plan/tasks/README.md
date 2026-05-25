@@ -68,6 +68,25 @@ Added after the discovery↔spec drift audit. Restores the central INPUT.md feat
 - ~~023~~ IxUriResolver (FR-018) — removed
 - ~~024~~ tracing instrumentation (NFR-008) — removed
 
+### Track E — Corpus + Python bindings (v0.3) — Critical Path (serial)
+
+Pure Rust through 031; only 032 needs the Python toolchain. Basis: ADR-0002 (three-layer pipeline).
+
+| # | Task | Status | Gate |
+|---|---|---|---|
+| 028 | `load_repo` parallel walk + parse (FR-024, NFR-015) | **complete** (9 tests + bench) | — |
+| 029 | `Spec` corpus model (FR-025) | **complete** (6 tests) | — |
+| 030 | Intra-spec reference resolution (FR-026) | **complete** (7 tests) | — |
+| 031 | Whole-spec query API (FR-027) | **complete** (6 tests + 5 dogfood) | **G5 PASS** |
+| 032 | PyO3 bindings (FR-023, NFR-016) | **core complete** (pyo3 0.28, abi3 wheel on CPython 3.14, 5 pytest pass) | **G6 core PASS** |
+
+### Track F — v0.3 hardening (parallel)
+
+| # | Task | Status |
+|---|---|---|
+| 033 | Corpus fuzz targets (NFR-011 extension) | **complete** (code; runs on scheduled lane) |
+| 034 | Concurrency + FFI hardening — loom (NFR-017) + TSAN/ASAN (NFR-018) + scoping ACs | **Part A complete** (loom + audit); Part B (TSAN/ASAN) blocked on 032 |
+
 ## Quality Gates
 
 | Gate | After | Measures | Pass criteria |
@@ -76,6 +95,8 @@ Added after the discovery↔spec drift audit. Restores the central INPUT.md feat
 | **G2** | 012 | Render parity for FR archetype | TC-030 for FR byte-exact |
 | **G3** | 014 | Perf NFRs (render + parse + load) | NFR-001 + NFR-002 + NFR-007 baselines set |
 | **G4** | D4 | Block round-trip integrity | TC-440..443 pass; only patched block bytes change; block_id stable across reparse |
+| **G5** ✅ PASS | 031 | Corpus correctness (dogfood on quire-rs's own spec/) | TC-480..501 green + `tests/spec_dogfood.rs` real-spec assertions pass |
+| **G6** | 032 | Binding parity + ≥5× speedup vs Python | TC-460..467 + TC-456 + TC-465 pass |
 
 ## Coordination Rules
 
@@ -95,4 +116,12 @@ After the v0.2 spec refinement:
 - **200 ACs** across 4 StR + 5 US + 18 FR (incl. FR-019..022) + 11 NFR.
 - **150+ TCs** across Track A + B + C + D, all 200 ACs explicitly covered.
 - **27 task files** (001..016, 018..021, 025..027) on disk + 5 logical v0.2 tasks (D1..D5) executed across 5 commits on `feat/spec-refinement-block-model`.
-- **All gates PASS** (G1, G2, G3, G4). `make ci` green: 192 lib tests + 92 integration tests.
+- **v0.2 gates PASS** (G1, G2, G3, G4). `make ci` green: 192 lib tests + 92 integration tests.
+
+After the v0.3 corpus + bindings expansion (incl. hardening re-review):
+
+- **+81 ACs** (now 281 total) across +2 StR (005/006) + 3 US (011..013) + 5 FR (023..027) + 4 NFR (015..018), plus scoping ACs (NFR-003-AC-4, NFR-012-AC-5, FR-024-AC-9).
+- **+49 TCs** (TC-455..507), all new ACs covered; coverage 281/281 (100%).
+- **+7 task files** (028..034): Track E critical path (028..032) + Track F hardening (033 fuzz, 034 loom/TSAN/ASAN). **Not started** — G5, G6 pending.
+- Coordination: Track E is serial (each blocks the next); 028..031 are pure Rust (no Python toolchain); 033 + 034-PartA parallel-ready after 028/030; 032 blocked on Gate G5; 034-PartB blocked on 032/G6. All hardening lanes (033, 034) are **scheduled, not per-PR**.
+- Hardening re-review (spec.md §19): adopted loom (NFR-017) + TSAN/ASAN (NFR-018) for the new rayon/FFI surface; re-affirmed skips for kani/shuttle/cargo-careful/cargo-vet/big-endian/SIMD/pgrx with refreshed rationale.
