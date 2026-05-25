@@ -11,6 +11,13 @@ repository = "https://github.com/agent-ix/quire-rs"
 [lib]
 name = "quire_rs"
 path = "src/lib.rs"
+# `cdylib` for the maturin-built Python extension (feature = "python");
+# `rlib` for the normal Rust library, benches, and tests.
+crate-type = ["cdylib", "rlib"]
+
+[lints.rust]
+# `loom` is set by the scheduled NFR-017 concurrency lane (`make loom`).
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(loom)'] }
 
 [dependencies]
 # Tilde-pinned per NFR-009 for load-bearing renderer/parser primitives;
@@ -29,13 +36,32 @@ regex = "^1"
 # `default-features = false` to drop the `resolve-http`/`reqwest`/`cli` defaults
 # — quire-rs is filesystem-only (StR-001, FR-013, hard rule: no network deps).
 jsonschema = { version = "~0.18", default-features = false, features = ["resolve-file"] }
+# v0.3 corpus: parallel walk + parse (FR-024). Caret-pinned ecosystem helpers.
+# `ignore` = ripgrep's gitignore-aware walker; `rayon` = data-parallel parse fan-out.
+ignore = "^0.4"
+rayon = "^1"
+# Document identity (CR-002): `uuid` parses the durable frontmatter `uuid`;
+# the `v7` feature is used when creating a new artifact (time-ordered id).
+uuid = { version = "^1", features = ["v7", "serde"] }
+# Python bindings (FR-023), feature-gated. Tilde-pinned (load-bearing FFI,
+# NFR-009). 0.28 supports CPython through 3.14; abi3 floor py39 gives one
+# forward-compatible wheel (NFR-016). `extension-module` drops libpython
+# linkage so the wheel loads in any host interpreter.
+pyo3 = { version = "~0.28", features = ["extension-module", "abi3-py39"], optional = true }
 
 [dev-dependencies]
 proptest = "^1"
 criterion = "^0.5"
 
+# Concurrency-permutation harness (NFR-017). Only compiled under
+# `--cfg loom`; the scheduled `make loom` lane sets that flag. Models the
+# FR-024 data-parallel collect abstractly (loom cannot model rayon).
+[target.'cfg(loom)'.dependencies]
+loom = "^0.7"
+
 [features]
 default = []
+python = ["dep:pyo3"]
 
 [[bench]]
 name = "render"
@@ -51,6 +77,10 @@ harness = false
 
 [[bench]]
 name = "validator_choice"
+harness = false
+
+[[bench]]
+name = "load_repo"
 harness = false
 
 [profile.release]

@@ -43,6 +43,41 @@ pub enum Diagnostic {
         position: usize,
         locator: String,
     },
+    /// A document loaded by `load_repo` has no frontmatter `uuid`
+    /// (CR-002). Non-fatal — the document still loads; its durable
+    /// catalog id is simply absent until quire authors one.
+    MissingUuid {
+        path: PathBuf,
+    },
+    /// A file discovered by `load_repo` could not be read (missing,
+    /// permission denied, or not valid UTF-8). Non-fatal: the file is
+    /// skipped and the rest of the repo loads (FR-024-AC-2).
+    DocumentUnreadable {
+        path: PathBuf,
+        reason: String,
+    },
+    /// Two or more loaded documents share the same artifact key
+    /// (FR-025-AC-3). First occurrence wins for lookup; the duplicate
+    /// is recorded here. Construction does not fail.
+    DuplicateArtifactId {
+        id: String,
+        paths: Vec<PathBuf>,
+    },
+    /// A reference (frontmatter `relationships` entry or `ix://` body
+    /// link) whose target id is absent from the loaded set (FR-026-AC-3).
+    /// Non-fatal — resolution never reaches outside the corpus.
+    DanglingReference {
+        source: String,
+        target: String,
+        edge_type: String,
+    },
+    /// A loaded document has no frontmatter `type`/`artifact_type`
+    /// (FR-027-AC-9). It is never returned by `by_type` and is reachable
+    /// only via `by_id`. Non-fatal.
+    UntypedArtifact {
+        id: String,
+        path: PathBuf,
+    },
 }
 
 impl std::fmt::Display for Diagnostic {
@@ -85,6 +120,32 @@ impl std::fmt::Display for Diagnostic {
             } => write!(
                 f,
                 "FallbackLocatorUsed: key '{key}' resolved via fallback position {position} ({locator})"
+            ),
+            Self::MissingUuid { path } => {
+                write!(f, "MissingUuid: {} has no frontmatter uuid", path.display())
+            }
+            Self::DocumentUnreadable { path, reason } => {
+                write!(f, "DocumentUnreadable {}: {}", path.display(), reason)
+            }
+            Self::DuplicateArtifactId { id, paths } => write!(
+                f,
+                "DuplicateArtifactId: '{}' at {} path(s); first-wins",
+                id,
+                paths.len()
+            ),
+            Self::DanglingReference {
+                source,
+                target,
+                edge_type,
+            } => write!(
+                f,
+                "DanglingReference: {source} --{edge_type}--> {target} (target not in loaded set)"
+            ),
+            Self::UntypedArtifact { id, path } => write!(
+                f,
+                "UntypedArtifact: '{}' ({}) has no type/artifact_type field",
+                id,
+                path.display()
             ),
         }
     }
@@ -156,6 +217,41 @@ mod tests {
                     locator: "heading".into(),
                 },
                 &["FallbackLocatorUsed", "k", "2", "heading"],
+            ),
+            (
+                Diagnostic::MissingUuid {
+                    path: PathBuf::from("/spec/functional/FR-099.md"),
+                },
+                &["MissingUuid", "/spec/functional/FR-099.md"],
+            ),
+            (
+                Diagnostic::DocumentUnreadable {
+                    path: PathBuf::from("/spec/bad.md"),
+                    reason: "stream did not contain valid UTF-8".into(),
+                },
+                &["DocumentUnreadable", "/spec/bad.md", "valid UTF-8"],
+            ),
+            (
+                Diagnostic::DuplicateArtifactId {
+                    id: "FR-023".into(),
+                    paths: vec![PathBuf::from("/a/FR-023.md"), PathBuf::from("/b/FR-023.md")],
+                },
+                &["DuplicateArtifactId", "FR-023"],
+            ),
+            (
+                Diagnostic::DanglingReference {
+                    source: "FR-023".into(),
+                    target: "StR-099".into(),
+                    edge_type: "implements".into(),
+                },
+                &["DanglingReference", "FR-023", "StR-099", "implements"],
+            ),
+            (
+                Diagnostic::UntypedArtifact {
+                    id: "X-1".into(),
+                    path: PathBuf::from("/spec/x.md"),
+                },
+                &["UntypedArtifact", "X-1", "/spec/x.md"],
             ),
         ];
         for (d, needles) in cases {
