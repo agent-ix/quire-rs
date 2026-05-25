@@ -150,8 +150,17 @@ loom:
 
 .PHONY: sanitize
 sanitize:
-	@echo "TSAN + ASAN on the python-feature extension (NFR-018) — requires nightly + maturin."
-	RUSTFLAGS="-Zsanitizer=thread" cargo +nightly test --test concurrency --target $$(rustc -vV | sed -n 's/host: //p') || true
+	@echo "TSAN + ASAN on the rayon walk (NFR-018). Needs nightly + build-std."
+	@# Pin RUSTC to nightly: a stable rustc on PATH (e.g. homebrew) would
+	@# reject the -Zsanitizer probe otherwise.
+	NRUSTC=$$(rustup which --toolchain nightly rustc); TGT=$$(rustc -vV | sed -n 's/host: //p'); \
+	RUSTC=$$NRUSTC RUSTFLAGS="-Zsanitizer=thread" rustup run nightly cargo test \
+		-Z build-std --target $$TGT --test corpus_concurrency
+	NRUSTC=$$(rustup which --toolchain nightly rustc); TGT=$$(rustc -vV | sed -n 's/host: //p'); \
+	RUSTC=$$NRUSTC RUSTFLAGS="-Zsanitizer=address" rustup run nightly cargo test \
+		-Z build-std --target $$TGT --test corpus_concurrency
+	@echo "NOTE: TSAN/ASAN of the GIL window + Python object handoff needs a"
+	@echo "sanitizer-instrumented CPython and runs on the scheduled CI lane."
 
 .PHONY: ci
 ci: fmt-check lint test deny audit-unsafe audit-static

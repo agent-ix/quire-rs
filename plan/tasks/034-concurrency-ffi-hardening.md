@@ -1,6 +1,6 @@
 # Task 034: Concurrency + FFI Hardening (loom / TSAN / ASAN)
 
-Status: Part A complete — `tests/concurrency.rs` loom test passes under `--cfg loom`; `scripts/audits/check_no_shared_mutable.sh` (TC-502) wired into `make audit-static`; `make loom` + `make sanitize` targets added; `[lints.rust]` registers `cfg(loom)`. Part B (TSAN/ASAN) blocked: needs the python-feature wheel (Task 032) + nightly sanitizers.
+Status: Part A complete — `tests/concurrency.rs` loom test passes under `--cfg loom`; `scripts/audits/check_no_shared_mutable.sh` (TC-502) wired into `make audit-static`; `make loom` + `make sanitize` targets added; `[lints.rust]` registers `cfg(loom)`. Part B: TSAN + ASAN now run locally (`make sanitize`, nightly + build-std) against `tests/corpus_concurrency.rs` (a real two-thread `load_repo`) — both clean, zero races/leaks on the rayon walk. The GIL-window + Python-object-handoff sanitization (which needs a sanitizer-instrumented CPython) remains the scheduled CI lane per NFR-018.
 
 ## Scope
 
