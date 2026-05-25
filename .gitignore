@@ -10,6 +10,8 @@ handoff.md
 
 # Python bindings (maturin) + fuzz build artifacts
 .venv/
+.wheeltest/
+dist/
 fuzz/target/
 fuzz/Cargo.lock
 __pycache__/
