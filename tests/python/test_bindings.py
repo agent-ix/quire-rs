@@ -8,10 +8,14 @@ boundary; this is the binding layer's verification method (spec.md §13).
 import concurrent.futures
 import pathlib
 
+import pytest
+
 import quire
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
 SPEC_DIR = REPO_ROOT / "spec"
+# load_from walks one level deep for module dirs, so point at the parent.
+MODULES_DIR = REPO_ROOT / "tests" / "render_parity" / "modules"
 
 
 def test_parse_document_returns_structured_object():
@@ -62,6 +66,30 @@ def test_spec_queries_on_real_spec():
     # by_id returns a structured record.
     rec = spec.by_id("FR-025")
     assert rec is not None and rec["type"] == "FR"
+
+
+def test_validate_accepts_valid_and_flags_violations():
+    """TC-462: schema validation across the FFI boundary, with the same
+    dotted field path the Rust validator produces (NFR-005)."""
+    reg = quire.Registry.load_from([str(MODULES_DIR)])
+    assert "demo-item" in reg.archetype_names()
+
+    # Valid data -> no violations.
+    assert reg.validate("demo-item", {"id": "DEMO-1", "title": "Hello"}) == []
+
+    # Pattern violation on `id` -> a violation carrying that field path.
+    violations = reg.validate("demo-item", {"id": "nope", "title": "x"})
+    assert len(violations) >= 1
+    assert any("id" in v.get("field_path", "") for v in violations)
+
+    # Missing required field is also reported.
+    assert len(reg.validate("demo-item", {"id": "DEMO-1"})) >= 1
+
+
+def test_validate_unknown_archetype_raises():
+    reg = quire.Registry.load_from([str(MODULES_DIR)])
+    with pytest.raises(ValueError):
+        reg.validate("no-such-archetype", {})
 
 
 def test_gil_released_under_concurrency():

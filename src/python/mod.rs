@@ -11,12 +11,14 @@
 
 use std::path::Path;
 
+use pyo3::exceptions::{PyTypeError, PyValueError};
 use pyo3::prelude::*;
-use pyo3::types::{PyDict, PyList};
+use pyo3::types::{PyBool, PyDict, PyList};
 use serde_json::Value;
 
 use crate::ast::{QuireDocument, QuireSection};
 use crate::corpus::resolve::Edge;
+use crate::error::QuireError;
 
 /// The `quire` Python module.
 #[pymodule]
@@ -24,6 +26,7 @@ fn quire(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(parse_document, m)?)?;
     m.add_function(wrap_pyfunction!(load_repo, m)?)?;
     m.add_class::<Spec>()?;
+    m.add_class::<Registry>()?;
     Ok(())
 }
 
@@ -146,6 +149,132 @@ impl Spec {
 
 fn edge_tuple(e: &&Edge) -> (String, String, String) {
     (e.source.clone(), e.target.clone(), e.edge_type.clone())
+}
+
+/// A loaded archetype registry (FR-013) — schema validation surface
+/// for Python (FR-023).
+#[pyclass(name = "Registry")]
+struct Registry {
+    inner: crate::Registry,
+}
+
+#[pymethods]
+impl Registry {
+    /// Load archetypes from one or more search paths.
+    #[staticmethod]
+    fn load_from(py: Python<'_>, paths: Vec<String>) -> PyResult<Self> {
+        let inner = py
+            .detach(|| {
+                let refs: Vec<&Path> = paths.iter().map(Path::new).collect();
+                crate::Registry::load_from(&refs)
+            })
+            .map_err(quire_error_to_pyerr)?;
+        Ok(Registry { inner })
+    }
+
+    /// Load from `IX_SCHEMA_PATH` / `~/.ix/schemas/`.
+    #[staticmethod]
+    fn from_env(py: Python<'_>) -> PyResult<Self> {
+        let inner = py
+            .detach(crate::Registry::from_env)
+            .map_err(quire_error_to_pyerr)?;
+        Ok(Registry { inner })
+    }
+
+    /// Names of all loaded archetypes, sorted.
+    fn archetype_names(&self) -> Vec<String> {
+        let mut names: Vec<String> = self.inner.archetype_names().map(str::to_string).collect();
+        names.sort();
+        names
+    }
+
+    /// Validate `data` against `archetype`'s schema. Returns the list of
+    /// violations (empty = valid); each is a dict with `archetype`,
+    /// `field_path`, `expected`, `observed` (NFR-005). Raises if the
+    /// archetype is unknown.
+    fn validate<'py>(
+        &self,
+        py: Python<'py>,
+        archetype: &str,
+        data: &Bound<'py, PyAny>,
+    ) -> PyResult<Bound<'py, PyList>> {
+        let arch = self
+            .inner
+            .archetype(archetype)
+            .ok_or_else(|| PyValueError::new_err(format!("unknown archetype: {archetype}")))?;
+        let value = py_to_json(data)?;
+
+        let violations = PyList::empty(py);
+        if let Err(errors) = crate::validate_all(arch, &value) {
+            for e in &errors {
+                violations.append(violation_to_py(py, e)?)?;
+            }
+        }
+        Ok(violations)
+    }
+}
+
+fn violation_to_py<'py>(py: Python<'py>, e: &QuireError) -> PyResult<Bound<'py, PyDict>> {
+    let d = PyDict::new(py);
+    match e {
+        QuireError::SchemaViolation {
+            archetype,
+            field_path,
+            expected,
+            observed,
+        } => {
+            d.set_item("archetype", archetype)?;
+            d.set_item("field_path", field_path)?;
+            d.set_item("expected", expected)?;
+            d.set_item("observed", observed)?;
+        }
+        other => {
+            d.set_item("error", other.to_string())?;
+        }
+    }
+    Ok(d)
+}
+
+fn quire_error_to_pyerr(e: QuireError) -> PyErr {
+    PyValueError::new_err(e.to_string())
+}
+
+/// Convert a native Python object to a `serde_json::Value` (no JSON
+/// string round-trip). Bool is checked before int (Python `bool`
+/// subclasses `int`).
+fn py_to_json(obj: &Bound<'_, PyAny>) -> PyResult<Value> {
+    if obj.is_none() {
+        return Ok(Value::Null);
+    }
+    if let Ok(b) = obj.cast::<PyBool>() {
+        return Ok(Value::Bool(b.is_true()));
+    }
+    if let Ok(i) = obj.extract::<i64>() {
+        return Ok(Value::Number(i.into()));
+    }
+    if let Ok(f) = obj.extract::<f64>() {
+        return Ok(serde_json::Number::from_f64(f).map_or(Value::Null, Value::Number));
+    }
+    if let Ok(s) = obj.extract::<String>() {
+        return Ok(Value::String(s));
+    }
+    if let Ok(list) = obj.cast::<PyList>() {
+        let mut arr = Vec::with_capacity(list.len());
+        for item in list.iter() {
+            arr.push(py_to_json(&item)?);
+        }
+        return Ok(Value::Array(arr));
+    }
+    if let Ok(dict) = obj.cast::<PyDict>() {
+        let mut map = serde_json::Map::new();
+        for (k, v) in dict.iter() {
+            map.insert(k.extract::<String>()?, py_to_json(&v)?);
+        }
+        return Ok(Value::Object(map));
+    }
+    Err(PyTypeError::new_err(
+        "unsupported type for JSON conversion (expected None/bool/int/float/str/list/dict)",
+    ))
 }
 
 fn document_to_py<'py>(py: Python<'py>, doc: &QuireDocument) -> PyResult<Bound<'py, PyDict>> {
