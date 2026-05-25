@@ -1,0 +1,12 @@
+# pyo3 `extension-module` (feature = "python") produces a cdylib with
+# undefined `_Py*` symbols that resolve against the host interpreter at
+# load time. maturin injects these link args when building the wheel;
+# these entries let plain `cargo build/clippy/test --features python`
+# link too (FR-023-AC-1). Harmless for the default (no-python) build —
+# the cdylib has no undefined symbols then, so the flag is a no-op.
+
+[target.aarch64-apple-darwin]
+rustflags = ["-C", "link-arg=-undefined", "-C", "link-arg=dynamic_lookup"]
+
+[target.x86_64-apple-darwin]
+rustflags = ["-C", "link-arg=-undefined", "-C", "link-arg=dynamic_lookup"]

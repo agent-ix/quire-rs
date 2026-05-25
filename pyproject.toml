@@ -1,0 +1,19 @@
+[build-system]
+requires = ["maturin>=1.7,<2"]
+build-backend = "maturin"
+
+[project]
+name = "quire"
+description = "Python bindings for quire-rs: parse, corpus load, and whole-spec queries (FR-023)."
+requires-python = ">=3.9"
+classifiers = [
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: Implementation :: CPython",
+]
+dynamic = ["version"]
+
+[tool.maturin]
+# The Rust cdylib is `quire_rs`; expose it to Python as `quire`.
+module-name = "quire"
+features = ["python"]
+# abi3 wheel — one build imports across CPython 3.9+ (NFR-016).
