@@ -53,3 +53,15 @@ name = "fuzz_load_schema"
 path = "fuzz_targets/fuzz_load_schema.rs"
 test = false
 doc = false
+
+[[bin]]
+name = "fuzz_load_repo"
+path = "fuzz_targets/fuzz_load_repo.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_resolution"
+path = "fuzz_targets/fuzz_resolution.rs"
+test = false
+doc = false
