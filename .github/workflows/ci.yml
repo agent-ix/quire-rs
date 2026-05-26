@@ -183,7 +183,15 @@ jobs:
           else
             cargo bench --bench render --bench parse --bench load -- --save-baseline main
           fi
-      - name: Enforce 10% regression band (NFR-001 / NFR-002 / NFR-007)
+      # The canonical perf gate is the Apple Silicon baseline (10% band,
+      # enforced locally / on the canonical runner). The shared Ubuntu CI
+      # runner is noisy for sub-microsecond benches, so it uses the +50%
+      # allowance the NFR cross-runner policy already grants the Ubuntu
+      # lane (see NFR-002 "Cross-runner policy"). Catches gross
+      # regressions without flaking on runner variance.
+      - name: Enforce regression band (Ubuntu CI +50% per NFR cross-runner policy)
+        env:
+          QUIRE_PERF_BAND: "0.50"
         run: bash scripts/check_perf_regression.sh
 
   audit-static:
