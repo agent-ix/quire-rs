@@ -1,0 +1,37 @@
+name: sanitize
+
+# NFR-018 — ThreadSanitizer + AddressSanitizer on the rayon walk
+# (tests/corpus_concurrency.rs). Manual-trigger for now.
+#
+# This covers the data-race / memory surface of the parallel walk. TSAN/
+# ASAN of the GIL window + Python object handoff needs a sanitizer-
+# instrumented CPython and is tracked separately.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sanitize:
+    name: TSAN + ASAN (rayon walk)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install nightly + rust-src
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: rust-src
+      - name: Cache cargo artifacts
+        uses: Swatinem/rust-cache@v2
+      - name: ThreadSanitizer
+        run: |
+          RUSTFLAGS="-Zsanitizer=thread" cargo +nightly test \
+            -Z build-std --target x86_64-unknown-linux-gnu \
+            --test corpus_concurrency
+      - name: AddressSanitizer
+        run: |
+          RUSTFLAGS="-Zsanitizer=address" cargo +nightly test \
+            -Z build-std --target x86_64-unknown-linux-gnu \
+            --test corpus_concurrency
