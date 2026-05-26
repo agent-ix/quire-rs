@@ -1,0 +1,40 @@
+name: python-bindings
+
+# Build the feature-gated PyO3 wheel and run the pytest binding suite
+# (FR-023 / Gate G6). Manual-trigger for now.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pytest:
+    name: build wheel + pytest
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo artifacts
+        uses: Swatinem/rust-cache@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install build + test deps
+        run: pip install maturin pytest pyyaml
+
+      - name: Build abi3 wheel
+        run: maturin build --release --features python --out dist
+
+      - name: Install the wheel
+        run: pip install --no-index --find-links dist quire
+
+      - name: Run binding tests
+        run: pytest tests/python/ -v

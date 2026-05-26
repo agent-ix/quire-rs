@@ -1,0 +1,23 @@
+name: loom
+
+# NFR-017 — exhaustive concurrency-interleaving check of the FR-024
+# data-parallel collect. Manual-trigger for now (combinatorial cost).
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  loom:
+    name: loom (concurrency permutation)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Cache cargo artifacts
+        uses: Swatinem/rust-cache@v2
+      - name: cargo test under loom
+        run: RUSTFLAGS="--cfg loom" cargo test --test concurrency

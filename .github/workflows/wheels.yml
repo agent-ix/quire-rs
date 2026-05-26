@@ -1,14 +1,21 @@
 name: wheels
 
-# Build the `quire` abi3 wheel (FR-023) across the full target gamut.
+# Build the `quire` abi3 wheel (FR-023) across the full target gamut and
+# (optionally) publish to the INTERNAL AgentIX PyPI on Google Cloud.
+#
 # Intel-Linux and AMD-Linux are the SAME x86_64 wheel — one build serves
-# both vendors (a portable x86-64 baseline runs on Zen and Intel cores).
-# abi3 means one wheel per platform covers all CPython 3.9+.
+# both vendors. abi3 means one wheel per platform covers all CPython 3.9+.
+#
+# Manual-trigger for now. Publishing is opt-in (the `publish` input) and
+# goes ONLY to the GCP Artifact Registry below — NEVER to public PyPI.
 
 on:
-  push:
-    tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      publish:
+        description: "Upload built wheels to the internal AgentIX GCP PyPI"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -24,15 +31,23 @@ jobs:
           - label: apple (arm64)
             runner: macos-14
             target: aarch64-apple-darwin
+            smoke: true
           - label: apple-intel (x86_64)
             runner: macos-13
             target: x86_64-apple-darwin
+            smoke: true
           - label: intel + amd / luna (linux x86_64)
             runner: ubuntu-latest
             target: x86_64-unknown-linux-gnu
+            smoke: true
           - label: arm / graviton (linux aarch64)
             runner: ubuntu-24.04-arm
             target: aarch64-unknown-linux-gnu
+            smoke: true
+          - label: windows (x86_64)
+            runner: windows-latest
+            target: x86_64-pc-windows-msvc
+            smoke: false # pwsh shell + msvc; covered by python.yml on linux
     steps:
       - uses: actions/checkout@v4
 
@@ -40,14 +55,15 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.target }}
-          # `--features python` + abi3 come from [tool.maturin] in
-          # pyproject.toml; manylinux container is auto-selected for linux.
+          # `--features python` + abi3 come from [tool.maturin]; manylinux
+          # container is auto-selected for the linux targets.
           args: --release --out dist
           manylinux: auto
           sccache: true
 
-      - name: Smoke-import the wheel (native runners only)
-        if: ${{ !startsWith(matrix.target, 'aarch64-unknown-linux') }}
+      - name: Smoke-import the wheel
+        if: ${{ matrix.smoke }}
+        shell: bash
         run: |
           python3 -m venv .wheeltest
           .wheeltest/bin/pip install --no-index --find-links dist quire
@@ -58,3 +74,36 @@ jobs:
           name: wheels-${{ matrix.target }}
           path: dist/*.whl
           if-no-files-found: error
+
+  publish:
+    name: publish → internal AgentIX PyPI (GCP)
+    needs: build
+    if: ${{ inputs.publish }}
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Collect all wheels
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          pattern: wheels-*
+          merge-multiple: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Encode GCP key to base64
+        id: key
+        run: echo "b64=$(echo -n '${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}' | base64 -w 0)" >> "$GITHUB_OUTPUT"
+
+      # INTERNAL registry ONLY. TWINE_REPOSITORY_URL is the GCP Artifact
+      # Registry — twine never contacts pypi.org.
+      - name: Upload to GCP Artifact Registry
+        env:
+          TWINE_USERNAME: _json_key_base64
+          TWINE_PASSWORD: ${{ steps.key.outputs.b64 }}
+          TWINE_REPOSITORY_URL: https://${{ vars.GCP_REGION }}-python.pkg.dev/${{ vars.GCP_PROJECT_NAME }}/${{ vars.GCP_PYPI }}/
+        run: |
+          pip install twine
+          twine upload --non-interactive --verbose dist/*.whl
