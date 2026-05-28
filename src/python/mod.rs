@@ -11,23 +11,286 @@
 
 use std::path::Path;
 
-use pyo3::exceptions::{PyTypeError, PyValueError};
+use pyo3::exceptions::{PyException, PyTypeError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::{PyBool, PyDict, PyList};
 use serde_json::Value;
 
 use crate::ast::{QuireDocument, QuireSection};
 use crate::corpus::resolve::Edge;
+use crate::corpus::walk::LoadedDocument;
 use crate::error::QuireError;
+
+pyo3::create_exception!(quire, QuireBaseError, PyException);
+pyo3::create_exception!(quire, QuireRenderError, QuireBaseError);
+pyo3::create_exception!(quire, QuireValidationError, QuireBaseError);
+pyo3::create_exception!(quire, QuireSchemaError, QuireBaseError);
+pyo3::create_exception!(quire, QuireParseError, QuireBaseError);
 
 /// The `quire` Python module.
 #[pymodule]
 fn quire(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    let py = m.py();
+    m.add("QuireBaseError", py.get_type::<QuireBaseError>())?;
+    m.add("QuireRenderError", py.get_type::<QuireRenderError>())?;
+    m.add(
+        "QuireValidationError",
+        py.get_type::<QuireValidationError>(),
+    )?;
+    m.add("QuireSchemaError", py.get_type::<QuireSchemaError>())?;
+    m.add("QuireParseError", py.get_type::<QuireParseError>())?;
     m.add_function(wrap_pyfunction!(parse_document, m)?)?;
     m.add_function(wrap_pyfunction!(load_repo, m)?)?;
+    m.add_function(wrap_pyfunction!(render, m)?)?;
+    m.add_function(wrap_pyfunction!(validate, m)?)?;
+    m.add_function(wrap_pyfunction!(validate_manifest, m)?)?;
+    m.add_function(wrap_pyfunction!(extract, m)?)?;
+    m.add_function(wrap_pyfunction!(extract_frontmatter, m)?)?;
+    m.add_function(wrap_pyfunction!(harvest_edges, m)?)?;
     m.add_class::<Spec>()?;
     m.add_class::<Registry>()?;
     Ok(())
+}
+
+/// Render `archetype_name` from `module_root` against `data`. Returns
+/// the rendered markdown string. Raises `QuireSchemaError` if the
+/// module / archetype fails to load, `QuireRenderError` on template
+/// failure.
+#[pyfunction]
+fn render(
+    py: Python<'_>,
+    archetype_name: &str,
+    module_root: &str,
+    data: &Bound<'_, PyAny>,
+) -> PyResult<String> {
+    let value = py_to_json(data)?;
+    let module = module_root.to_string();
+    let name = archetype_name.to_string();
+    py.detach(|| -> PyResult<String> {
+        let registry = crate::Registry::load_module(Path::new(&module))
+            .map_err(quire_error_to_schema_pyerr)?;
+        let out =
+            crate::render_by_name(&registry, &name, &value).map_err(quire_error_to_render_pyerr)?;
+        Ok(out.into_markdown())
+    })
+}
+
+/// Validate `data` against `archetype_name` from `module_root`.
+/// Raises `QuireValidationError` on schema violation (carrying field
+/// path), `QuireSchemaError` if the module / archetype fails to load.
+#[pyfunction]
+fn validate(
+    py: Python<'_>,
+    archetype_name: &str,
+    module_root: &str,
+    data: &Bound<'_, PyAny>,
+) -> PyResult<()> {
+    let value = py_to_json(data)?;
+    let module = module_root.to_string();
+    let name = archetype_name.to_string();
+    py.detach(|| -> PyResult<()> {
+        let registry = crate::Registry::load_module(Path::new(&module))
+            .map_err(quire_error_to_schema_pyerr)?;
+        let arch = registry
+            .archetype(&name)
+            .ok_or_else(|| QuireSchemaError::new_err(format!("unknown archetype: {name}")))?;
+        crate::validate(arch, &value).map_err(quire_error_to_validation_pyerr)
+    })
+}
+
+/// Validate an arbitrary `payload` (dict) against the JSON Schema at
+/// `schema_path`. Uses the same `jsonschema` validator the engine
+/// uses internally. Raises `QuireValidationError` on schema
+/// violation; `QuireSchemaError` if the schema file fails to load /
+/// compile.
+#[pyfunction]
+fn validate_manifest(
+    py: Python<'_>,
+    payload: &Bound<'_, PyAny>,
+    schema_path: &str,
+) -> PyResult<()> {
+    let value = py_to_json(payload)?;
+    let path = schema_path.to_string();
+    py.detach(|| -> PyResult<()> {
+        let schema = crate::loader::compile::read_schema(Path::new(&path))
+            .map_err(|m| QuireSchemaError::new_err(format!("schema read failed at {path}: {m}")))?;
+        let validator = crate::loader::compile::compile_schema(&schema)
+            .map_err(|m| QuireSchemaError::new_err(format!("schema compile failed: {m}")))?;
+        if let Err(mut errors) = validator.validate(&value) {
+            if let Some(first) = errors.next() {
+                let ptr = first.instance_path.to_string();
+                let path_str = if ptr.is_empty() {
+                    "<root>".to_string()
+                } else {
+                    ptr
+                };
+                return Err(QuireValidationError::new_err(format!(
+                    "schema violation at {path_str}: {first}"
+                )));
+            }
+        }
+        Ok(())
+    })
+}
+
+/// Parse `document_text`, evaluate `archetype_name`'s `body_extraction`
+/// DSL, and return `{extraction: [...], edges: [{target, edge_type}, ...]}`.
+/// Raises `QuireSchemaError` on module / archetype load failure,
+/// `QuireParseError` if the archetype has no `body_extraction` DSL.
+#[pyfunction]
+fn extract<'py>(
+    py: Python<'py>,
+    archetype_name: &str,
+    module_root: &str,
+    document_text: &str,
+) -> PyResult<Bound<'py, PyDict>> {
+    let module = module_root.to_string();
+    let name = archetype_name.to_string();
+    let text = document_text.to_string();
+
+    struct ExtractOut {
+        records: Vec<serde_json::Map<String, Value>>,
+        edges: Vec<(String, String)>,
+    }
+
+    let outcome: PyResult<ExtractOut> = py.detach(|| {
+        let registry = crate::Registry::load_module(Path::new(&module))
+            .map_err(quire_error_to_schema_pyerr)?;
+        let arch = registry
+            .archetype(&name)
+            .ok_or_else(|| QuireSchemaError::new_err(format!("unknown archetype: {name}")))?;
+        let dsl = arch.body_extraction().ok_or_else(|| {
+            QuireParseError::new_err(format!("archetype {name} has no body_extraction DSL"))
+        })?;
+        let doc = crate::parse_document(&text);
+        let result = crate::extract(&doc, dsl).map_err(quire_error_to_parse_pyerr)?;
+
+        // Harvest edges off a LoadedDocument view.
+        let loaded = LoadedDocument {
+            path: std::path::PathBuf::new(),
+            id: doc
+                .frontmatter
+                .as_ref()
+                .and_then(|fm| fm.get("id"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string(),
+            uuid: None,
+            doc,
+        };
+        let edges = crate::harvest_edges(&loaded);
+        Ok(ExtractOut {
+            records: result.records,
+            edges,
+        })
+    });
+    let outcome = outcome?;
+
+    let out = PyDict::new(py);
+    let records = PyList::empty(py);
+    for r in &outcome.records {
+        records.append(json_to_py(py, &Value::Object(r.clone()))?)?;
+    }
+    out.set_item("extraction", records)?;
+    let edge_list = PyList::empty(py);
+    for (target, edge_type) in &outcome.edges {
+        let d = PyDict::new(py);
+        d.set_item("target", target)?;
+        d.set_item("edge_type", edge_type)?;
+        edge_list.append(d)?;
+    }
+    out.set_item("edges", edge_list)?;
+    Ok(out)
+}
+
+/// Extract just the frontmatter dict from `text`, or `None` if there
+/// is no frontmatter / it's malformed (parity with FR-006).
+#[pyfunction]
+fn extract_frontmatter<'py>(py: Python<'py>, text: &str) -> PyResult<Option<Bound<'py, PyDict>>> {
+    let doc = crate::parse_document(text);
+    match doc.frontmatter.as_ref() {
+        None => Ok(None),
+        Some(fm) => {
+            let d = PyDict::new(py);
+            for (k, v) in fm {
+                d.set_item(k, json_to_py(py, v)?)?;
+            }
+            Ok(Some(d))
+        }
+    }
+}
+
+/// Harvest `ix://` + frontmatter `relationships` edges off `doc` —
+/// either a parsed document dict (from `parse_document`) or raw
+/// markdown text. Returns `[{target, edge_type}, ...]` sorted.
+#[pyfunction]
+fn harvest_edges<'py>(py: Python<'py>, doc: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyList>> {
+    // Accept either a string (parse it) or a dict (we re-extract raw
+    // by serializing through parse_document). For dict input we read
+    // `frontmatter`/`raw` if present; otherwise fall back to text.
+    let loaded = if let Ok(s) = doc.extract::<String>() {
+        let parsed = crate::parse_document(&s);
+        LoadedDocument {
+            path: std::path::PathBuf::new(),
+            id: String::new(),
+            uuid: None,
+            doc: parsed,
+        }
+    } else if let Ok(d) = doc.cast::<PyDict>() {
+        // Reconstruct a minimal QuireDocument view from the dict.
+        let raw = d
+            .get_item("raw")?
+            .and_then(|v| v.extract::<String>().ok())
+            .unwrap_or_default();
+        let value = py_to_json(d.as_any())?;
+        // Re-parse from raw if available (canonical); else build a
+        // doc with frontmatter-only edges from the dict.
+        if !raw.is_empty() {
+            let parsed = crate::parse_document(&raw);
+            LoadedDocument {
+                path: std::path::PathBuf::new(),
+                id: String::new(),
+                uuid: None,
+                doc: parsed,
+            }
+        } else {
+            // Build a QuireDocument with frontmatter only.
+            let mut fm: serde_json::Map<String, Value> = serde_json::Map::new();
+            if let Value::Object(map) = &value {
+                if let Some(Value::Object(fmap)) = map.get("frontmatter") {
+                    for (k, v) in fmap {
+                        fm.insert(k.clone(), v.clone());
+                    }
+                }
+            }
+            let qdoc = QuireDocument {
+                preamble: None,
+                sections: Vec::new(),
+                raw: String::new(),
+                frontmatter: if fm.is_empty() { None } else { Some(fm) },
+            };
+            LoadedDocument {
+                path: std::path::PathBuf::new(),
+                id: String::new(),
+                uuid: None,
+                doc: qdoc,
+            }
+        }
+    } else {
+        return Err(PyTypeError::new_err(
+            "harvest_edges expects a str (markdown) or dict (parsed doc)",
+        ));
+    };
+
+    let edges = crate::harvest_edges(&loaded);
+    let out = PyList::empty(py);
+    for (target, edge_type) in &edges {
+        let d = PyDict::new(py);
+        d.set_item("target", target)?;
+        d.set_item("edge_type", edge_type)?;
+        out.append(d)?;
+    }
+    Ok(out)
 }
 
 /// Parse one markdown document into a structured dict
@@ -236,7 +499,39 @@ fn violation_to_py<'py>(py: Python<'py>, e: &QuireError) -> PyResult<Bound<'py, 
 }
 
 fn quire_error_to_pyerr(e: QuireError) -> PyErr {
-    PyValueError::new_err(e.to_string())
+    // Route by variant; default to the base exception.
+    match &e {
+        QuireError::SchemaViolation { .. } | QuireError::MissingField { .. } => {
+            QuireValidationError::new_err(e.to_string())
+        }
+        QuireError::UnknownArchetype { .. }
+        | QuireError::ArchetypeCollision { .. }
+        | QuireError::ModuleCollision { .. }
+        | QuireError::ArchetypeLoadError { .. }
+        | QuireError::ManifestError { .. }
+        | QuireError::InvalidSearchPath { .. } => QuireSchemaError::new_err(e.to_string()),
+        QuireError::TemplateError { .. } => QuireRenderError::new_err(e.to_string()),
+        QuireError::DslValidationError { .. } => QuireParseError::new_err(e.to_string()),
+    }
+}
+
+fn quire_error_to_validation_pyerr(e: QuireError) -> PyErr {
+    QuireValidationError::new_err(e.to_string())
+}
+
+fn quire_error_to_render_pyerr(e: QuireError) -> PyErr {
+    match &e {
+        QuireError::TemplateError { .. } => QuireRenderError::new_err(e.to_string()),
+        _ => quire_error_to_pyerr(e),
+    }
+}
+
+fn quire_error_to_schema_pyerr(e: QuireError) -> PyErr {
+    QuireSchemaError::new_err(e.to_string())
+}
+
+fn quire_error_to_parse_pyerr(e: QuireError) -> PyErr {
+    QuireParseError::new_err(e.to_string())
 }
 
 /// Convert a native Python object to a `serde_json::Value` (no JSON

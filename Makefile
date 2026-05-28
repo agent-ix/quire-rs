@@ -165,5 +165,33 @@ sanitize:
 .PHONY: ci
 ci: fmt-check lint test deny audit-unsafe audit-static
 
+# =============================================================================
+# Python wheel / sdist + local-publish (pypi.ix)
+# =============================================================================
+
+LOCAL_PYPI_URL ?= http://pypi.ix/root/dev/
+
+.PHONY: wheel
+wheel:
+	maturin build --release --features python --out dist
+
+.PHONY: sdist
+sdist:
+	maturin sdist --out dist
+
+.PHONY: pytest
+pytest:
+	pytest tests/python/ -v
+
+# Publish the abi3 wheel + sdist to the local devpi index (pypi.ix).
+# Mirrors the filament-* `make local-publish` convention.
+.PHONY: local-publish
+local-publish: wheel sdist
+	@echo "📦 Publishing quire to local PyPI ($(LOCAL_PYPI_URL))..."
+	@devpi use $(LOCAL_PYPI_URL)
+	@devpi login root --password=''
+	@devpi upload --from-dir dist/
+	@echo "Published quire to $(LOCAL_PYPI_URL)"
+
 .PHONY: hardening
 hardening: audit-static cargo-audit miri mutants fuzz loom

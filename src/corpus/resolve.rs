@@ -119,6 +119,27 @@ pub(crate) fn resolve(
     }
 }
 
+/// Harvest *all* edge stubs (frontmatter + body `ix://` links) for a
+/// single document, dedup'd. Returns `(target_id, edge_type)` pairs
+/// where `target_id` is already reduced via [`extract_target_id`].
+/// This is the public single-doc shape used by the Python binding
+/// (`quire.harvest_edges`) — corpus-level resolution still goes
+/// through [`resolve`].
+pub fn harvest_edges(doc: &LoadedDocument) -> Vec<(String, String)> {
+    let ix_link = ix_link_regex();
+    let mut out: BTreeSet<(String, String)> = BTreeSet::new();
+    for (target_raw, edge_type) in harvest_frontmatter(doc) {
+        out.insert((extract_target_id(&target_raw).to_string(), edge_type));
+    }
+    for target_raw in harvest_body_links(doc, &ix_link) {
+        out.insert((
+            extract_target_id(&target_raw).to_string(),
+            "references".to_string(),
+        ));
+    }
+    out.into_iter().collect()
+}
+
 /// `(target, edge_type)` pairs from the document's frontmatter
 /// `relationships` array. Entries missing a `target` are skipped;
 /// entries missing a `type` default to `references`.

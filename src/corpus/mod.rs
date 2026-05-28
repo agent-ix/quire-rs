@@ -20,7 +20,7 @@ pub mod resolve;
 pub mod spec;
 pub mod walk;
 
-pub use resolve::{Edge, Resolution};
+pub use resolve::{harvest_edges, Edge, Resolution};
 pub use spec::Spec;
 
 /// Opaque, stable human artifact id (e.g. `"FR-023"`). Used as the

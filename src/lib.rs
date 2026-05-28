@@ -51,4 +51,4 @@ pub use writeback::{update_block, update_section};
 pub use block_edit::{apply_block_patch, replace_block};
 // Corpus: parallel repo walk (FR-024) + Spec corpus (FR-025); resolution/query in FR-026..027.
 pub use corpus::walk::{load_repo, load_repo_with, LoadedDocument, RepoLoad, WalkOptions};
-pub use corpus::Spec;
+pub use corpus::{harvest_edges, Spec};
