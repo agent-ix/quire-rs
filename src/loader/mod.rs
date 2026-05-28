@@ -189,6 +189,183 @@ pub fn load_single_module(module_root: &Path) -> LoadOutcome {
     }
 }
 
+/// Build a `LoadOutcome` from an in-memory module blob — no filesystem
+/// access (FR-013 wasm amendment).
+///
+/// `manifest_yaml` is the raw `manifest.yaml` bytes. `schemas` maps the
+/// manifest's relative `frontmatter_schema_ref` strings to schema JSON
+/// text; `templates` maps `template_ref` strings to template source.
+///
+/// Per-archetype failures aggregate like the filesystem loader. Module
+/// name is taken from the manifest; if absent it falls back to the
+/// sentinel `"<inline>"` and emits a `ManifestMissingName` diagnostic
+/// (mirroring FR-014-AC-7's path-derived behavior).
+pub fn load_inline_module(
+    manifest_yaml: &[u8],
+    schemas: &BTreeMap<String, String>,
+    templates: &BTreeMap<String, String>,
+) -> LoadOutcome {
+    use crate::loader::compile::{compile_schema, failure, register_template, CompiledArchetype};
+    use crate::loader::manifest::parse_manifest;
+
+    let mut env = build_strict_env();
+    let mut modules: Vec<LoadedModule> = Vec::new();
+    let mut failures: Vec<ArchetypeLoadFailure> = Vec::new();
+    let mut diagnostics: Vec<Diagnostic> = Vec::new();
+
+    let inline_root = PathBuf::from("<inline>");
+
+    let manifest = match parse_manifest(manifest_yaml) {
+        Ok(m) => m,
+        Err(reason) => {
+            failures.push(ArchetypeLoadFailure {
+                module: "<inline>".to_string(),
+                archetype: "<manifest>".to_string(),
+                path: inline_root.clone(),
+                reason,
+            });
+            return LoadOutcome {
+                modules,
+                failures,
+                diagnostics,
+                path_diagnostics: Vec::new(),
+                env,
+            };
+        }
+    };
+
+    let module_name = manifest.name.clone().unwrap_or_else(|| {
+        diagnostics.push(Diagnostic::ManifestMissingName {
+            path: inline_root.clone(),
+            derived_name: "<inline>".to_string(),
+        });
+        "<inline>".to_string()
+    });
+
+    let mut archetypes: Vec<Arc<CompiledArchetype>> = Vec::new();
+
+    for at in &manifest.artifact_types {
+        let schema_ref_str = at.frontmatter_schema_ref.to_string_lossy().to_string();
+        let template_ref_str = at.template_ref.to_string_lossy().to_string();
+        let schema_text = match schemas.get(&schema_ref_str) {
+            Some(s) => s,
+            None => {
+                failures.push(failure(
+                    &module_name,
+                    &at.name,
+                    PathBuf::from(&schema_ref_str),
+                    format!("inline schema '{schema_ref_str}' not provided"),
+                ));
+                continue;
+            }
+        };
+        let raw_schema: Value = match serde_json::from_str(schema_text) {
+            Ok(v) => v,
+            Err(e) => {
+                failures.push(failure(
+                    &module_name,
+                    &at.name,
+                    PathBuf::from(&schema_ref_str),
+                    format!("schema is not valid JSON: {e}"),
+                ));
+                continue;
+            }
+        };
+        let validator = match compile_schema(&raw_schema) {
+            Ok(v) => v,
+            Err(r) => {
+                failures.push(failure(
+                    &module_name,
+                    &at.name,
+                    PathBuf::from(&schema_ref_str),
+                    r,
+                ));
+                continue;
+            }
+        };
+        let template_src = match templates.get(&template_ref_str) {
+            Some(s) => s.clone(),
+            None => {
+                failures.push(failure(
+                    &module_name,
+                    &at.name,
+                    PathBuf::from(&template_ref_str),
+                    format!("inline template '{template_ref_str}' not provided"),
+                ));
+                continue;
+            }
+        };
+        let template_name = format!("{module_name}::{}", at.name);
+        if let Err(r) = register_template(&mut env, template_name.clone(), template_src) {
+            failures.push(failure(
+                &module_name,
+                &at.name,
+                PathBuf::from(&template_ref_str),
+                r,
+            ));
+            continue;
+        }
+        archetypes.push(Arc::new(CompiledArchetype {
+            name: at.name.clone(),
+            module: module_name.clone(),
+            raw_schema: Arc::new(raw_schema),
+            validator: Arc::new(validator),
+            template_path: Some(PathBuf::from(&template_ref_str)),
+            template_name: Some(template_name),
+            body_extraction: None,
+        }));
+    }
+
+    for ot in &manifest.object_types {
+        let schema: Value = ot
+            .data_schema
+            .clone()
+            .unwrap_or_else(|| Value::Object(serde_json::Map::new()));
+        let validator = match compile_schema(&schema) {
+            Ok(v) => v,
+            Err(r) => {
+                failures.push(failure(&module_name, &ot.name, inline_root.clone(), r));
+                continue;
+            }
+        };
+        if let Some(dsl) = &ot.body_extraction {
+            if let Err(e) = crate::extract::dsl::validate_dsl(&ot.name, dsl) {
+                failures.push(failure(
+                    &module_name,
+                    &ot.name,
+                    inline_root.clone(),
+                    e.to_string(),
+                ));
+                continue;
+            }
+        }
+        archetypes.push(Arc::new(CompiledArchetype {
+            name: ot.name.clone(),
+            module: module_name.clone(),
+            raw_schema: Arc::new(schema),
+            validator: Arc::new(validator),
+            template_path: None,
+            template_name: None,
+            body_extraction: ot.body_extraction.clone(),
+        }));
+    }
+
+    modules.push(LoadedModule {
+        name: module_name,
+        root: inline_root,
+        version: manifest.version.clone(),
+        archetypes,
+    });
+
+    LoadOutcome {
+        modules,
+        failures,
+        diagnostics,
+        path_diagnostics: Vec::new(),
+        env,
+    }
+}
+
 /// Convenience: same as [`load_modules`] but uses only the
 /// `IX_SCHEMA_PATH` env var (or the default `~/.ix/schemas/`).
 pub fn load_from_env() -> LoadOutcome {

@@ -1,6 +1,6 @@
 [package]
 name = "quire-rs"
-version = "0.3.0"
+version = "0.3.1"
 edition = "2021"
 rust-version = "1.75"
 description = "High-performance Rust templating + parsing engine for the Filament/Quire ecosystem."
@@ -35,7 +35,11 @@ regex = "^1"
 # Placeholder validator crate; Task 026 ADR will revisit with bench data.
 # `default-features = false` to drop the `resolve-http`/`reqwest`/`cli` defaults
 # — quire-rs is filesystem-only (StR-001, FR-013, hard rule: no network deps).
-jsonschema = { version = "~0.18", default-features = false, features = ["resolve-file"] }
+# The `resolve-file` activation is feature-gated (`resolve-file` feature, on
+# by default) so the `wasm` feature can opt out — `jsonschema 0.18`'s
+# resolve-file path calls `url::Url::to_file_path`, which is unavailable on
+# `wasm32-unknown-unknown`. See the `wasm` feature below + spec FR-013.
+jsonschema = { version = "~0.18", default-features = false }
 # v0.3 corpus: parallel walk + parse (FR-024). Caret-pinned ecosystem helpers.
 # `ignore` = ripgrep's gitignore-aware walker; `rayon` = data-parallel parse fan-out.
 ignore = "^0.4"
@@ -60,8 +64,21 @@ criterion = "^0.5"
 loom = "^0.7"
 
 [features]
-default = []
+# Native default: include filesystem `$ref` resolution in jsonschema.
+default = ["resolve-file"]
 python = ["dep:pyo3"]
+# Activate jsonschema's `resolve-file` cargo feature. Gated so the
+# `wasm` build can opt out (jsonschema 0.18's resolve-file path calls
+# `url::Url::to_file_path`, which doesn't exist on wasm32). See FR-013.
+resolve-file = ["jsonschema/resolve-file"]
+# Filesystem-free build target. Drops `resolve-file` so the crate
+# compiles for `wasm32-unknown-unknown`. Schemas + templates must be
+# passed in-memory via `Registry::from_inline_parts` (see FR-013
+# wasm amendment); `Registry::load_from` / `load_module` / `from_env`
+# / `from_default` remain available but operate against whatever
+# filesystem the wasm host exposes (typically none under
+# `--target web`).
+wasm = []
 
 [[bench]]
 name = "render"

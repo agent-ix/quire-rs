@@ -117,6 +117,49 @@ impl Registry {
         Ok(Self::finish_tolerant(outcome))
     }
 
+    /// Build a `Registry` from an in-memory module blob — no filesystem
+    /// access.
+    ///
+    /// This is the FR-013 "wasm amendment" entry point: a caller (browser
+    /// host, WASM binding, embedded server) that already holds the
+    /// module's manifest + schema files + template files in memory can
+    /// construct a registry directly, bypassing `loader::*`'s filesystem
+    /// walk.
+    ///
+    /// Arguments:
+    /// - `manifest_yaml`: the raw bytes of `manifest.yaml`.
+    /// - `schemas`: map of `<schema_ref>` (the manifest's relative path
+    ///   string) to schema JSON text. Every
+    ///   `artifact_type.frontmatter_schema_ref` must have a matching
+    ///   entry; object-type `data_schema` lives inline in the manifest
+    ///   and does not need an entry here.
+    /// - `templates`: map of `<template_ref>` to template source. Every
+    ///   `artifact_type.template_ref` must have a matching entry.
+    ///
+    /// Per-archetype failures surface in `failures()` exactly as with
+    /// the filesystem loader; module collisions emit diagnostics. Use
+    /// [`Self::from_inline_parts_strict`] to promote collisions to a
+    /// fatal `QuireError`.
+    pub fn from_inline_parts(
+        manifest_yaml: &[u8],
+        schemas: &std::collections::BTreeMap<String, String>,
+        templates: &std::collections::BTreeMap<String, String>,
+    ) -> Result<Self, QuireError> {
+        let outcome = crate::loader::load_inline_module(manifest_yaml, schemas, templates);
+        Ok(Self::finish_tolerant(outcome))
+    }
+
+    /// Strict counterpart of [`Self::from_inline_parts`]: the first
+    /// collision diagnostic is promoted to a fatal `QuireError`.
+    pub fn from_inline_parts_strict(
+        manifest_yaml: &[u8],
+        schemas: &std::collections::BTreeMap<String, String>,
+        templates: &std::collections::BTreeMap<String, String>,
+    ) -> Result<Self, QuireError> {
+        let outcome = crate::loader::load_inline_module(manifest_yaml, schemas, templates);
+        Self::finish_strict(outcome)
+    }
+
     fn finish_tolerant(outcome: crate::loader::LoadOutcome) -> Self {
         let shape = flatten_into_registry(outcome);
         Self::from_shape(shape)
@@ -429,6 +472,45 @@ object_types:
             .diagnostics()
             .iter()
             .any(|d| matches!(d, Diagnostic::ManifestMissingName { .. })));
+    }
+
+    // FR-013 wasm amendment: from_inline_parts builds a registry from
+    // in-memory manifest + schemas + templates with no filesystem access.
+    #[test]
+    fn from_inline_parts_loads_minimal_module() {
+        let manifest = b"name: mod-inline\nartifact_types:\n- name: foo\n  template_ref: templates/foo.md.j2\n  frontmatter_schema_ref: schemas/foo.schema.json\n";
+        let mut schemas = std::collections::BTreeMap::new();
+        schemas.insert(
+            "schemas/foo.schema.json".to_string(),
+            r#"{"type":"object","required":["id"],"properties":{"id":{"type":"string"}}}"#
+                .to_string(),
+        );
+        let mut templates = std::collections::BTreeMap::new();
+        templates.insert(
+            "templates/foo.md.j2".to_string(),
+            "id: {{ id }}\n".to_string(),
+        );
+        let r = Registry::from_inline_parts(manifest, &schemas, &templates).expect("ok");
+        assert!(r.archetype("foo").is_some());
+        assert_eq!(r.module_names().collect::<Vec<_>>(), vec!["mod-inline"]);
+        // Schema round-trips byte-faithfully.
+        let s = r.schema_for("foo").expect("schema");
+        assert_eq!(s["required"][0], "id");
+    }
+
+    #[test]
+    fn from_inline_parts_missing_schema_aggregates_failure() {
+        let manifest = b"name: mod-inline-missing\nartifact_types:\n- name: foo\n  template_ref: templates/foo.md.j2\n  frontmatter_schema_ref: schemas/missing.json\n";
+        let schemas = std::collections::BTreeMap::new();
+        let mut templates = std::collections::BTreeMap::new();
+        templates.insert(
+            "templates/foo.md.j2".to_string(),
+            "id: {{ id }}\n".to_string(),
+        );
+        let r = Registry::from_inline_parts(manifest, &schemas, &templates).expect("tolerant");
+        assert!(r.archetype("foo").is_none());
+        assert_eq!(r.failures().len(), 1);
+        assert!(r.failures()[0].reason.contains("not provided"));
     }
 
     // FR-003-AC-1: schema_for returns the loaded schema document.
