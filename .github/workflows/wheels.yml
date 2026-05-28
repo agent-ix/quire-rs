@@ -64,6 +64,7 @@ jobs:
         with:
           sparse-checkout: |
             src
+            benches
             .cargo
 
       - name: Build abi3 wheel
