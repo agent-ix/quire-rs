@@ -22,6 +22,7 @@ use minijinja::Environment;
 use serde_json::Value;
 
 use crate::error::ArchetypeLoadFailure;
+use crate::extract::dsl::ExtractionDsl;
 
 /// A schema + (optional) template that the loader has fully parsed and
 /// cached. Cloning is `Arc`-cheap so consumers can share without
@@ -41,6 +42,14 @@ pub struct CompiledArchetype {
     /// Registered template name in the shared MiniJinja env. `None`
     /// for object_types.
     pub template_name: Option<String>,
+    /// Parsed `body_extraction` DSL declared on the source `object_type`.
+    ///
+    /// Populated at load time from the same parse pass that validates
+    /// the DSL (FR-011-AC-6/7/8). Downstream consumers can drive
+    /// `extract()` against this without re-reading `manifest.yaml`.
+    /// `None` for `artifact_type` archetypes and for `object_type`
+    /// entries that omit `body_extraction:`.
+    pub body_extraction: Option<ExtractionDsl>,
 }
 
 impl CompiledArchetype {
@@ -48,6 +57,12 @@ impl CompiledArchetype {
     /// an `artifact_type`, not an `object_type`).
     pub fn is_renderable(&self) -> bool {
         self.template_name.is_some()
+    }
+
+    /// Parsed body-extraction DSL, if any. Mirrors
+    /// [`Self::body_extraction`] for code that prefers an accessor.
+    pub fn body_extraction(&self) -> Option<&ExtractionDsl> {
+        self.body_extraction.as_ref()
     }
 }
 

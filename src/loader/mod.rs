@@ -279,6 +279,7 @@ fn compile_artifact_type(
         validator: Arc::new(validator),
         template_path: Some(template_path),
         template_name: Some(template_name),
+        body_extraction: None,
     })
 }
 
@@ -314,6 +315,7 @@ fn compile_object_type(
         validator: Arc::new(validator),
         template_path: None,
         template_name: None,
+        body_extraction: ot.body_extraction.clone(),
     })
 }
 
@@ -538,6 +540,55 @@ mod tests {
     fn registry_is_send_and_sync() {
         fn assert_send_sync<T: Send + Sync>() {}
         assert_send_sync::<CompiledArchetype>();
+    }
+
+    // FR-013-AC-11: CompiledArchetype.body_extraction surfaces the
+    // parsed DSL from the source object_type so downstream extract()
+    // callers don't have to re-read manifest.yaml.
+    #[test]
+    fn compiled_archetype_exposes_body_extraction_dsl() {
+        let parent = tmpdir("bx");
+        let module_root = parent.join("bx-mod");
+        fs::create_dir_all(&module_root).unwrap();
+        fs::write(
+            module_root.join("manifest.yaml"),
+            r#"
+name: bx-mod
+object_types:
+- name: with_dsl
+  body_extraction:
+    yield_pattern:
+      match:
+        title:
+          from: heading
+- name: without_dsl
+"#,
+        )
+        .unwrap();
+        let outcome = load_modules(&[&parent]);
+        assert!(outcome.failures.is_empty(), "{:?}", outcome.failures);
+        let module = outcome
+            .modules
+            .iter()
+            .find(|m| m.name == "bx-mod")
+            .expect("loaded");
+        let with_dsl = module
+            .archetypes
+            .iter()
+            .find(|a| a.name == "with_dsl")
+            .expect("with_dsl loaded");
+        let without_dsl = module
+            .archetypes
+            .iter()
+            .find(|a| a.name == "without_dsl")
+            .expect("without_dsl loaded");
+        assert!(with_dsl.body_extraction.is_some());
+        assert!(with_dsl.body_extraction().is_some());
+        assert!(without_dsl.body_extraction.is_none());
+        assert!(without_dsl.body_extraction().is_none());
+        let dsl = with_dsl.body_extraction().unwrap();
+        assert!(dsl.yield_pattern.r#match.is_some());
+        assert!(dsl.yield_pattern.iterate_over.is_none());
     }
 
     // FR-013-AC-7: symlink loop is broken without panic.

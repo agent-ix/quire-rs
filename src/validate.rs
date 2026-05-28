@@ -160,6 +160,7 @@ mod tests {
             validator: Arc::new(validator),
             template_path: None,
             template_name: None,
+            body_extraction: None,
         }
     }
 
