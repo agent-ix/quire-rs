@@ -54,12 +54,21 @@ jobs:
             target: x86_64-pc-windows-msvc
             smoke: false # pwsh shell + msvc; covered by python.yml on linux
     steps:
-      # Sparse-checkout: the wheel build only needs the crate + .cargo +
-      # pyproject (root files come free in cone mode). Crucially, this
-      # excludes tests/render_parity/modules/iso/templates/con.md.j2,
-      # which Windows can't even create — `CON` is a reserved DOS device
-      # name (along with PRN/AUX/NUL/COM[1-9]/LPT[1-9]). Same checkout
-      # for every platform keeps the matrix uniform.
+      # Windows-only: git's protectNTFS=true (default) refuses to
+      # checkout *any* tree containing a reserved DOS name in its
+      # index (CON / PRN / AUX / NUL / COM[1-9] / LPT[1-9]) — even when
+      # sparse-checkout would exclude the offending path from the
+      # working tree. The iso archetype ships tests/.../con.md.j2;
+      # disable the check so sparse-checkout can skip it.
+      - name: Allow checkout of trees with reserved DOS names (windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: git config --system core.protectNTFS false
+
+      # Sparse-checkout: the wheel build only needs the crate + benches
+      # (referenced by [[bench]] entries) + .cargo (root files come
+      # free in cone mode). tests/ stays excluded — it carries the
+      # con.md.j2 fixture that would otherwise break Windows.
       - uses: actions/checkout@v4
         with:
           sparse-checkout: |
