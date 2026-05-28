@@ -1,11 +1,17 @@
 ---
 id: StR-005
-title: "Native Python Bindings Supersede the filament-parser-lib Hot Paths"
+title: "Native Python Bindings Replace the filament-parser-lib Hot Paths"
 artifact_type: StR
 relationships:
   - target: "ix://agent-ix/filament-parser-lib"
-    type: "supersedes"
+    type: "replaces"
     cardinality: "1:1"
+    scope:
+      - parse_document
+      - tier2_extract
+      - harvest_edges
+      - load_module
+      - schema_validation
   - target: "ix://agent-ix/quire-rs/spec/stakeholder/StR-001"
     type: "requires"
     cardinality: "1:1"

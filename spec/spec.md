@@ -25,8 +25,14 @@ relationships:
     type: "consumes"
     cardinality: "1:1"
   - target: "ix://agent-ix/filament-parser-lib"
-    type: "supersedes"
+    type: "replaces"
     cardinality: "1:1"
+    scope:
+      - parse_document
+      - tier2_extract
+      - harvest_edges
+      - load_module
+      - schema_validation
 
 standards_alignment:
   - iso-iec-ieee-29148
