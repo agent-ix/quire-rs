@@ -112,6 +112,83 @@ pub fn load_modules(explicit: &[&Path]) -> LoadOutcome {
     }
 }
 
+/// Load a single module directory.
+///
+/// `module_root` MUST contain `manifest.yaml` directly. Unlike
+/// [`load_modules`], this does NOT walk siblings under
+/// `module_root.parent()` and does NOT promote to a sibling-search-root
+/// — only the named directory is considered a module.
+///
+/// If `manifest.yaml` is absent, the returned `LoadOutcome` has zero
+/// modules and a single failure listing the missing manifest path.
+pub fn load_single_module(module_root: &Path) -> LoadOutcome {
+    let mut env = build_strict_env();
+    let mut modules: Vec<LoadedModule> = Vec::new();
+    let mut failures: Vec<ArchetypeLoadFailure> = Vec::new();
+    let mut diagnostics: Vec<Diagnostic> = Vec::new();
+
+    let canonical = match std::fs::canonicalize(module_root) {
+        Ok(p) => p,
+        Err(e) => {
+            failures.push(ArchetypeLoadFailure {
+                module: module_root
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or("<unknown>")
+                    .to_string(),
+                archetype: "<manifest>".to_string(),
+                path: module_root.to_path_buf(),
+                reason: format!("canonicalize: {e}"),
+            });
+            return LoadOutcome {
+                modules,
+                failures,
+                diagnostics,
+                path_diagnostics: Vec::new(),
+                env,
+            };
+        }
+    };
+
+    if !canonical_has_manifest(&canonical) {
+        failures.push(ArchetypeLoadFailure {
+            module: canonical
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("<unknown>")
+                .to_string(),
+            archetype: "<manifest>".to_string(),
+            path: canonical.join("manifest.yaml"),
+            reason: "manifest.yaml not found in module root".to_string(),
+        });
+        return LoadOutcome {
+            modules,
+            failures,
+            diagnostics,
+            path_diagnostics: Vec::new(),
+            env,
+        };
+    }
+
+    match load_one_module(&canonical, &mut env, &mut diagnostics) {
+        Ok((module, mut per_module_failures)) => {
+            if !per_module_failures.is_empty() {
+                failures.append(&mut per_module_failures);
+            }
+            modules.push(module);
+        }
+        Err(fail) => failures.push(fail),
+    }
+
+    LoadOutcome {
+        modules,
+        failures,
+        diagnostics,
+        path_diagnostics: Vec::new(),
+        env,
+    }
+}
+
 /// Convenience: same as [`load_modules`] but uses only the
 /// `IX_SCHEMA_PATH` env var (or the default `~/.ix/schemas/`).
 pub fn load_from_env() -> LoadOutcome {

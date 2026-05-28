@@ -47,6 +47,7 @@ pub struct Registry { /* ... */ }
 
 impl Registry {
     pub fn load_from(paths: &[&Path]) -> Result<Registry, QuireError>;
+    pub fn load_module(module_root: &Path) -> Result<Registry, QuireError>;
     pub fn from_env() -> Result<Registry, QuireError>;        // honors IX_SCHEMA_PATH then default
     pub fn from_default() -> Result<Registry, QuireError>;    // ~/.ix/schemas/ only
 
@@ -55,6 +56,20 @@ impl Registry {
     pub fn module_names(&self) -> impl Iterator<Item = &str>;
 }
 ```
+
+### Search root vs. single module
+
+`Registry::load_from(paths)` treats each entry in `paths` as a **search root** whose direct children are candidate module directories (one level deep). `Registry::load_module(module_root)` treats its single argument as a **module directory** — `manifest.yaml` MUST live directly under it, and no siblings are inspected.
+
+Callers that have already resolved a specific module path (e.g. a CLI receiving `--module <path>`) SHALL use `load_module` rather than promoting to the parent and calling `load_from`. Promoting to the parent silently exposes every sibling directory as a candidate module, which is both surprising and a path-safety concern when the argument is user-controlled.
+
+### Compiled archetype surface
+
+`CompiledArchetype` SHALL expose the parsed `body_extraction` DSL for object types as a public field/accessor (`body_extraction: Option<ExtractionDsl>` and `fn body_extraction(&self) -> Option<&ExtractionDsl>`). The DSL is populated from the same parse pass that validates it at load time (FR-011-AC-6/7/8), so downstream `extract()` callers do NOT need to re-read `manifest.yaml` to drive the extractor.
+
+### Path-safety diagnostic
+
+Path-safety violations raised by consumers (CLIs, services) that resolve user-controlled path strings before calling the loader SHALL be expressed as `Diagnostic::PathTraversal { argument, path, reason }` (with `PathTraversalReason::{DotDotSegment, SymlinkEscape, EscapesModuleRoot}`) rather than as per-consumer parallel `PathSafetyViolation` enums. The engine itself does not currently emit this variant — it is provided so the diagnostic vocabulary stays centralized in `quire-rs`.
 
 ### Load-time work (amortized)
 
@@ -104,3 +119,7 @@ The loader assumes the upstream sync tool (canonically `ix-cli`, see Appendix A 
 - **FR-013-AC-8**: A test sets `IX_SCHEMA_PATH="~/foo:~/foo"` (duplicate canonical path) and asserts modules under `~/foo/` are loaded exactly once.
 - **FR-013-AC-9**: A test confirms `Registry: Send + Sync` (compile-time bound assertion via a generic helper function).
 - **FR-013-AC-10**: A test sets a search-path entry that points to a regular file (not a directory) and asserts the loader emits a warning and processes remaining entries normally.
+- **FR-013-AC-11**: After `Registry::load_from(...)` (or `load_module`), `CompiledArchetype::body_extraction` (field) and `body_extraction()` (accessor) return `Some(ExtractionDsl)` for object types that declared `body_extraction:`, and `None` for archetypes that did not. The returned DSL is the same parsed value validated at load time.
+- **FR-013-AC-12**: `Registry::load_module(module_root)` loads exactly the named module (the directory containing `manifest.yaml`) and does NOT walk siblings under `module_root.parent()`. A test places a real module sibling alongside the target and asserts the sibling is not loaded.
+- **FR-013-AC-13**: `Registry::load_module(module_root)` against a directory with no `manifest.yaml` returns a registry with zero modules and a single `ArchetypeLoadFailure` describing the absent manifest; sibling directories are not promoted.
+- **FR-013-AC-14**: `Diagnostic::PathTraversal { argument, path, reason }` is a defined variant of the (internal) `Diagnostic` enum. A unit test constructs the variant and asserts both human (`Display`) and JSON (`to_json`) renderings carry the variant name, argument, path, and reason discriminator, covering all three `PathTraversalReason` values.

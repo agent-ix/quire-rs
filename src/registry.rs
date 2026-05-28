@@ -75,6 +75,36 @@ impl Registry {
         Self::finish_strict(outcome)
     }
 
+    /// Load a single module directory. Unlike
+    /// [`load_from`](Registry::load_from), which treats each argument as
+    /// a **search root** whose children are inspected for module
+    /// manifests, this entry point treats `module_root` as a single
+    /// module: it MUST contain `manifest.yaml` directly, and no sibling
+    /// directories under its parent are inspected.
+    ///
+    /// Use this when a caller has already resolved the path of a
+    /// specific module (e.g. a CLI receiving `--module <path>`).
+    /// Promoting to the parent and reusing `load_from` would silently
+    /// expose every sibling directory under that parent as an
+    /// additional candidate module, which is both surprising and a
+    /// path-safety concern when the argument is user-controlled.
+    ///
+    /// If `module_root/manifest.yaml` is missing, the returned registry
+    /// has zero modules and a single `ArchetypeLoadFailure` describing
+    /// the absent manifest.
+    pub fn load_module(module_root: &Path) -> Result<Self, QuireError> {
+        let outcome = crate::loader::load_single_module(module_root);
+        Ok(Self::finish_tolerant(outcome))
+    }
+
+    /// Strict counterpart of [`load_module`](Registry::load_module):
+    /// the first collision diagnostic is promoted to a fatal
+    /// `QuireError`.
+    pub fn load_module_strict(module_root: &Path) -> Result<Self, QuireError> {
+        let outcome = crate::loader::load_single_module(module_root);
+        Self::finish_strict(outcome)
+    }
+
     /// Load from `IX_SCHEMA_PATH` (then default `~/.ix/schemas/`).
     pub fn from_env() -> Result<Self, QuireError> {
         let outcome = load_modules(&[]);
@@ -324,6 +354,45 @@ object_types:
         write_minimal_module(&p2.join("dup"), "dup");
         let err = Registry::load_strict(&[&p1, &p2]).expect_err("strict collision");
         assert!(matches!(err, QuireError::ModuleCollision { .. }));
+    }
+
+    // FR-013-AC-12: load_module treats its argument as a single module
+    // (manifest.yaml directly under it), distinct from load_from which
+    // treats it as a search root whose children are candidate modules.
+    #[test]
+    fn load_module_loads_single_module_directly() {
+        let parent = tmpdir("lm-ok");
+        let module_root = parent.join("solo");
+        fs::create_dir_all(&module_root).unwrap();
+        write_minimal_module(&module_root, "solo");
+        // Drop a real sibling module under `parent`. load_from would
+        // happily pick it up; load_module MUST ignore it.
+        let sibling = parent.join("noise");
+        fs::create_dir_all(&sibling).unwrap();
+        write_minimal_module(&sibling, "noise");
+
+        let r = Registry::load_module(&module_root).expect("ok");
+        let mods: Vec<&str> = r.module_names().collect();
+        assert_eq!(mods, vec!["solo"]);
+        assert!(!mods.contains(&"noise"));
+        assert!(r.archetype("foo").is_some());
+    }
+
+    // FR-013-AC-13: load_module against a directory with no manifest
+    // surfaces a single ArchetypeLoadFailure rather than walking the
+    // parent dir as a search root.
+    #[test]
+    fn load_module_without_manifest_reports_failure() {
+        let parent = tmpdir("lm-nomanifest");
+        let module_root = parent.join("empty");
+        fs::create_dir_all(&module_root).unwrap();
+        // No manifest.yaml. Drop a real sibling — it MUST NOT load.
+        write_minimal_module(&parent.join("other"), "other");
+
+        let r = Registry::load_module(&module_root).expect("tolerant");
+        assert_eq!(r.module_names().count(), 0);
+        assert_eq!(r.failures().len(), 1);
+        assert!(r.failures()[0].reason.contains("manifest.yaml"));
     }
 
     // FR-014-AC-4: module_version surfaces the manifest version.
