@@ -34,7 +34,7 @@ pub use query::{
 // Error shape (NFR-005).
 pub use error::{format_violation, ArchetypeLoadFailure, QuireError, VIOLATION_PREVIEW_MAX};
 // Load-time diagnostics (internal Diagnostic enum, used in error paths).
-pub use diagnostic::Diagnostic;
+pub use diagnostic::{Diagnostic, PathTraversalReason};
 // Loader + registry (FR-013 + FR-014).
 pub use loader::compile::CompiledArchetype;
 pub use registry::Registry;

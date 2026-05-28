@@ -78,6 +78,57 @@ pub enum Diagnostic {
         id: String,
         path: PathBuf,
     },
+    /// A caller-supplied path argument failed a path-safety check.
+    ///
+    /// Surfaced by consumers (CLIs, services) that resolve user-controlled
+    /// path strings before handing them to the loader / extractor. The
+    /// engine itself does not currently emit this variant, but exposing
+    /// it here keeps per-consumer path-safety enums collapsed into a
+    /// single `Diagnostic` channel rather than each downstream tool
+    /// inventing a parallel `PathSafetyViolation` shape.
+    PathTraversal {
+        /// The caller-facing argument name (`--module`, `path`, etc.).
+        argument: String,
+        /// The offending path as supplied (pre-canonicalization).
+        path: PathBuf,
+        /// Why the path was rejected.
+        reason: PathTraversalReason,
+    },
+}
+
+/// Why a [`Diagnostic::PathTraversal`] was emitted.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PathTraversalReason {
+    /// The path contains one or more `..` segments after normalization.
+    DotDotSegment,
+    /// The path resolves through a symlink that points outside the
+    /// allowed root.
+    SymlinkEscape,
+    /// The canonicalized path is not contained within the module root
+    /// the caller declared.
+    EscapesModuleRoot,
+}
+
+impl PathTraversalReason {
+    /// Stable, machine-readable discriminator string used in JSON output.
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::DotDotSegment => "DotDotSegment",
+            Self::SymlinkEscape => "SymlinkEscape",
+            Self::EscapesModuleRoot => "EscapesModuleRoot",
+        }
+    }
+}
+
+impl std::fmt::Display for PathTraversalReason {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let human = match self {
+            Self::DotDotSegment => "contains .. segment",
+            Self::SymlinkEscape => "symlink escapes allowed root",
+            Self::EscapesModuleRoot => "escapes declared module root",
+        };
+        f.write_str(human)
+    }
 }
 
 impl std::fmt::Display for Diagnostic {
@@ -147,6 +198,111 @@ impl std::fmt::Display for Diagnostic {
                 id,
                 path.display()
             ),
+            Self::PathTraversal {
+                argument,
+                path,
+                reason,
+            } => write!(
+                f,
+                "PathTraversal: argument '{argument}' rejected for {} ({reason})",
+                path.display()
+            ),
+        }
+    }
+}
+
+impl Diagnostic {
+    /// Render this diagnostic as a JSON object suitable for structured
+    /// logging or wire transport. Each object carries a `kind`
+    /// discriminator plus the variant's payload.
+    pub fn to_json(&self) -> serde_json::Value {
+        use serde_json::json;
+        match self {
+            Self::DuplicateModuleName { name, paths } => json!({
+                "kind": "DuplicateModuleName",
+                "name": name,
+                "paths": paths.iter().map(|p| p.display().to_string()).collect::<Vec<_>>(),
+            }),
+            Self::DuplicateArchetype { name, modules } => json!({
+                "kind": "DuplicateArchetype",
+                "name": name,
+                "modules": modules,
+            }),
+            Self::ManifestMissingName { path, derived_name } => json!({
+                "kind": "ManifestMissingName",
+                "path": path.display().to_string(),
+                "derived_name": derived_name,
+            }),
+            Self::SearchPathNotADirectory { path } => json!({
+                "kind": "SearchPathNotADirectory",
+                "path": path.display().to_string(),
+            }),
+            Self::SearchPathMissing { path } => json!({
+                "kind": "SearchPathMissing",
+                "path": path.display().to_string(),
+            }),
+            Self::SearchPathUnreadable { path, reason } => json!({
+                "kind": "SearchPathUnreadable",
+                "path": path.display().to_string(),
+                "reason": reason,
+            }),
+            Self::SymlinkLoop { path } => json!({
+                "kind": "SymlinkLoop",
+                "path": path.display().to_string(),
+            }),
+            Self::IterateRootMissing { path } => json!({
+                "kind": "IterateRootMissing",
+                "path": path,
+            }),
+            Self::FallbackLocatorUsed {
+                key,
+                position,
+                locator,
+            } => json!({
+                "kind": "FallbackLocatorUsed",
+                "key": key,
+                "position": position,
+                "locator": locator,
+            }),
+            Self::MissingUuid { path } => json!({
+                "kind": "MissingUuid",
+                "path": path.display().to_string(),
+            }),
+            Self::DocumentUnreadable { path, reason } => json!({
+                "kind": "DocumentUnreadable",
+                "path": path.display().to_string(),
+                "reason": reason,
+            }),
+            Self::DuplicateArtifactId { id, paths } => json!({
+                "kind": "DuplicateArtifactId",
+                "id": id,
+                "paths": paths.iter().map(|p| p.display().to_string()).collect::<Vec<_>>(),
+            }),
+            Self::DanglingReference {
+                source,
+                target,
+                edge_type,
+            } => json!({
+                "kind": "DanglingReference",
+                "source": source,
+                "target": target,
+                "edge_type": edge_type,
+            }),
+            Self::UntypedArtifact { id, path } => json!({
+                "kind": "UntypedArtifact",
+                "id": id,
+                "path": path.display().to_string(),
+            }),
+            Self::PathTraversal {
+                argument,
+                path,
+                reason,
+            } => json!({
+                "kind": "PathTraversal",
+                "argument": argument,
+                "path": path.display().to_string(),
+                "reason": reason.as_str(),
+            }),
         }
     }
 }
@@ -266,5 +422,43 @@ mod tests {
     fn diagnostic_satisfies_trait_bounds() {
         fn assert_full<T: Send + Sync + std::fmt::Debug + Clone + Eq>() {}
         assert_full::<Diagnostic>();
+    }
+
+    /// Path-safety violations route through the shared Diagnostic
+    /// channel rather than a per-consumer parallel enum. Both the
+    /// human (Display) and JSON renderings MUST carry the variant
+    /// name, argument, path, and reason discriminator.
+    #[test]
+    fn path_traversal_variant_renders_human_and_json() {
+        let d = Diagnostic::PathTraversal {
+            argument: "--module".into(),
+            path: PathBuf::from("/tmp/evil/../etc"),
+            reason: PathTraversalReason::DotDotSegment,
+        };
+        let s = d.to_string();
+        assert!(s.contains("PathTraversal"), "{s}");
+        assert!(s.contains("--module"), "{s}");
+        assert!(s.contains("/tmp/evil/../etc"), "{s}");
+        assert!(s.contains("contains .. segment"), "{s}");
+
+        let v = d.to_json();
+        assert_eq!(v["kind"], "PathTraversal");
+        assert_eq!(v["argument"], "--module");
+        assert_eq!(v["path"], "/tmp/evil/../etc");
+        assert_eq!(v["reason"], "DotDotSegment");
+
+        // All reason discriminators round-trip stably.
+        let escape = Diagnostic::PathTraversal {
+            argument: "module".into(),
+            path: PathBuf::from("/a"),
+            reason: PathTraversalReason::SymlinkEscape,
+        };
+        assert_eq!(escape.to_json()["reason"], "SymlinkEscape");
+        let escapes_root = Diagnostic::PathTraversal {
+            argument: "module".into(),
+            path: PathBuf::from("/b"),
+            reason: PathTraversalReason::EscapesModuleRoot,
+        };
+        assert_eq!(escapes_root.to_json()["reason"], "EscapesModuleRoot");
     }
 }
