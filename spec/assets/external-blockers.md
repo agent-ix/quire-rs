@@ -18,7 +18,7 @@ Tracks dependencies on external systems or repos whose state affects when `quire
 
 ## filament-parser-lib API stability
 
-- **Status**: filament-parser-lib is the Python parser being eventually superseded by `quire-rs`. Recent commits ("reconcile body sections with shipped code") show ongoing schema evolution
+- **Status**: filament-parser-lib historically owned Python parser behavior that is being superseded by `quire-rs`. Recent commits ("reconcile body sections with shipped code") show ongoing schema evolution
 - **Affects**: parity tests TC-040 (extract DSL parity), TC-104 (edge harvest parity)
 - **Workaround**: pin to a specific filament-parser-lib commit when running parity tests
 - **Resolution**: track in render-parity-notes.md if behavior diverges

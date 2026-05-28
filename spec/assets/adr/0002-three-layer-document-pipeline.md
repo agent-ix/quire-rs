@@ -17,13 +17,12 @@ overlapping responsibilities:
 
 Three forces are reshaping this split:
 
-1. **Performance.** `filament-parser-lib` currently does per-file Python
+1. **Performance.** `filament-parser-lib` had per-file Python
    `Path` ops, regex-based AST walks (`tier2/engine.py`,
    `tier2/locators.py`), and per-node schema validation. These are the
-   measured hot paths. `quire-rs` already implements ~75% of tier2 in
-   `extract/`, all of validate in `validate.rs`, and a per-doc loader in
-   `loader/` — but ships no Python bindings, so the Python layer can't
-   call into it.
+   measured hot paths. `quire-rs` owns these semantics; Python callers
+   consume them through the PyO3 `quire` wheel rather than maintaining
+   parallel implementations.
 2. **Scope creep risk.** A graph engine was previously built into
    `filament-parser-lib` and torn out. Cross-document concerns
    (corpus assembly, edge resolution, traversal, persistence) keep
@@ -43,9 +42,9 @@ Adopt a **three-layer pipeline** with strict scope boundaries:
 
 | Layer | Language | Owns | Does NOT own |
 |---|---|---|---|
-| `quire-rs` | Rust | Per-doc parse, extract (tier2 DSL), schema validation, render, block-level edits. PyO3 bindings published as `quire` on PyPI. | Filesystem orchestration above a single repo root, plugin discovery, cross-doc state. |
-| `filament-parser-lib` | Python | Orchestration over `quire-rs`. Plugin discovery (tier3 entry points), dispatch, edge/link/relationship stub emission. Returns `[Document { edges: [EdgeStub] }]`. | Edge resolution across documents, indexes, traversal, persistence. |
-| Service layer | (TBD — Python or other) | Corpus assembly: joining edge stubs across documents, indexing by UUID/type, traversal/query, persistence, caching. | Single-doc parse semantics. |
+| `quire-rs` | Rust | Per-doc parse, extract (tier2 DSL), schema validation, render, block-level edits. PyO3 bindings published as `quire` on PyPI. It can compile ObjectTypes supplied in memory by a caller, and local authoring tools can load archetype modules from disk. | Fetching ObjectTypes from APIs, owning `.ix` sync, plugin discovery, cross-doc state. |
+| `filament-parser-lib` | Python | Orchestration over `quire-rs`. Plugin discovery (tier3 entry points) and dispatch around quire-produced parse/extract/validate results. It receives an ObjectType registry snapshot from its caller. | Parser, frontmatter splitter, tier2 extractor, schema validator, local module registry, API client, edge resolution across documents, indexes, traversal, persistence. |
+| Service/CLI layer | (TBD — Python or other) | Corpus assembly and registry sourcing. `filament-core-service` owns ObjectType storage and APIs; consumers such as analysis-worker and local-sync fetch snapshots and pass them to parser-lib. CLI owns `.ix` local sync/cache for local authoring workflows. | Single-doc parse semantics. |
 
 **Concretely, `quire-rs` grows:**
 
@@ -58,14 +57,17 @@ Adopt a **three-layer pipeline** with strict scope boundaries:
 
 **`filament-parser-lib` collapses to:**
 
-- A thin Python shim that calls `quire.load_repo(...)`.
+- A thin Python shim that calls `quire.load_repo(...)` / `quire.parse_document(...)` / `quire.ExtractionContext.from_object_types(...)` / `quire.validate_manifest(...)` as appropriate.
 - `tier3.py` plugin discovery + invocation against already-parsed
   `Document` objects handed up from Rust.
-- `dispatch.py` orchestration (microsecond cost, not a hot path).
+- `dispatch.py` orchestration (microsecond cost, not a hot path) over a caller-supplied registry snapshot.
 
-**The service layer is new** (or absorbs work that today lives in
-ad-hoc consumers). Its API surface, persistence choice, and query
-shape are out of scope for this ADR.
+**The service/CLI layer owns registry sourcing.** For Filament runtime
+flows, `filament-core-service` is the ObjectType source of truth and
+consumers fetch snapshots before calling parser-lib. For local authoring
+flows, CLI may sync archetype modules into `.ix` and pass/load local
+paths. The parser engine remains pure: it parses, validates, and
+extracts from data it was given.
 
 ## Options considered
 
@@ -100,11 +102,15 @@ shape are out of scope for this ADR.
 3. Finish wiring tier2 through `extract/` (the DSL evaluator gaps
    identified in the survey) so `tier2/engine.py` collapses to a
    single Rust call.
-4. Move tier1 + `schema_validation.py` into `validate.rs` for per-doc
-   validation. Pydantic stays at the registry boundary for plugin
-   schema validation (load-time, not per-doc).
-5. Port `edges.py` / `links.py` / `relationships.py` — small but
-   per-doc; avoids an FFI round-trip per document.
+4. Move tier1 frontmatter/body extraction and `schema_validation.py`
+   semantics into quire-rs bindings for per-doc validation. Pydantic
+   stays at the registry boundary for plugin schema validation
+   (load-time, not per-doc).
+5. Port `edges.py` / `links.py` / `relationships.py` semantics to
+   quire-rs — small but per-doc; avoids an FFI round-trip per document.
+6. Add `ExtractionContext.from_object_types(...)` so service consumers
+   can pass core ObjectType snapshots directly instead of using a
+   filesystem module registry.
 
 What stays in Python: `tier3.py` (entry-point plugin discovery,
 `importlib.metadata`), `dispatch.py` (orchestration), and the
@@ -117,7 +123,7 @@ Pydantic DSL schema validation at registry load.
   this manageable but cost a few % on hot calls; accepted as the
   right default.
 - `filament-parser-lib`'s public API contract shifts: callers that
-  previously got Python objects from a Python parser now get objects
+  previously got Python objects from the old Python pipeline now get objects
   whose underlying state was constructed in Rust. Equality, hashing,
   and serialization semantics must be re-verified.
 - The "where does this feature go?" question for any new cross-doc
@@ -126,7 +132,10 @@ Pydantic DSL schema validation at registry load.
   layers is now an ADR-backed default, not a per-PR judgment call.
 - A future revision is needed once the service layer's language and
   shape are picked — that decision will land as ADR 0003.
-- This ADR does not commit `quire-rs` to ever owning multi-doc state.
+- This ADR does not commit `quire-rs` to owning general/stateful
+  cross-document graph state or remote registry state. `.ix` local registry
+  sync belongs to CLI/local tooling; API-backed ObjectType sourcing belongs
+  to callers such as analysis-worker and local-sync.
   Any future proposal to add a `Corpus` type or cross-doc index to
   `quire-rs` must amend or supersede this ADR.
 

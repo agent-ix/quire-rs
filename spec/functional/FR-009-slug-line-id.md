@@ -37,6 +37,6 @@ Slug normalization is ASCII-only at v1 (matching TS/Py reference). Non-ASCII hea
 - **FR-009-AC-2**: Heading `"2.1 In Scope"` at line 6 → id `"2-1-in-scope-L6"`.
 - **FR-009-AC-3**: Heading `"   leading spaces   "` at line 3 → id `"leading-spaces-L3"`.
 - **FR-009-AC-4**: With a frontmatter block of N lines, a heading on the first body line has line index 0 — frontmatter is NOT counted.
-- **FR-009-AC-5**: A test transliterated from `~/dev/quire-py/tests/` covering each variant passes.
+- **FR-009-AC-5**: A Rust-owned parity test covering each slug variant passes.
 - **FR-009-AC-6**: Heading `"Café Menu"` at line 4 → id `"caf-menu-L4"` (non-ASCII collapses; mirrors TS/Py reference).
 - **FR-009-AC-7**: Heading `"!!!"` at line 7 → id `"-L7"` (degenerate empty slug, line index preserved).

@@ -129,13 +129,24 @@ def test_validate_manifest_happy_and_sad(tmp_path):
     """TC-512: schema-load happy, validation happy + sad, schema-missing → QuireSchemaError."""
     schema_path = tmp_path / "s.json"
     schema_path.write_text(
-        '{"type":"object","required":["name"],"properties":{"name":{"type":"string"}}}'
+        '{"type":"object","required":["name"],'
+        '"additionalProperties":false,'
+        '"properties":{"name":{"type":"string"}}}'
     )
     # Happy path.
-    assert quire.validate_manifest({"name": "ok"}, str(schema_path)) is None
-    # Sad path — wrong type for `name`.
-    with pytest.raises(quire.QuireValidationError):
-        quire.validate_manifest({"name": 5}, str(schema_path))
+    assert quire.validate_manifest({"name": "ok"}, str(schema_path)) == []
+    # Sad path — wrong type for `name`, returned as structured data.
+    violations = quire.validate_manifest({"name": 5, "extra": True}, str(schema_path))
+    assert {v["schema_keyword"] for v in violations} == {
+        "type",
+        "additionalProperties",
+    }
+    assert any(v["path"] == "name" for v in violations)
+    required_violations = quire.validate_manifest({}, str(schema_path))
+    assert any(
+        v["path"] == "name" and v["schema_keyword"] == "required"
+        for v in required_violations
+    )
     # Missing schema file.
     with pytest.raises(quire.QuireSchemaError):
         quire.validate_manifest({"name": "ok"}, str(tmp_path / "missing.json"))
@@ -178,12 +189,97 @@ def test_extract_envelope_returns_extraction_and_edges(tmp_path):
     assert ("FR-002", "references") in targets
 
 
+def test_extraction_context_from_object_types_extracts_without_module_root():
+    """Service/library path: caller provides ObjectTypes; quire does not resolve a local registry."""
+    ctx = quire.ExtractionContext.from_object_types(
+        [
+            {
+                "name": "event",
+                "schema": {"type": "object", "properties": {"schema_json": {"type": "string"}}},
+                "body_extraction": {
+                    "yield_pattern": {
+                        "match": {
+                            "id": {
+                                "from": "frontmatter_field",
+                                "path": ["id"],
+                                "required": False,
+                            },
+                            "schema_json": {
+                                "from": "code_block",
+                                "after_heading": "Schema",
+                                "language": "json",
+                                "required": False,
+                            },
+                        }
+                    }
+                },
+            }
+        ]
+    )
+    assert ctx.object_type_names() == ["event"]
+    body = (
+        "# Event\n\n"
+        "## Other\n\n"
+        "```json\n{\"wrong\": true}\n```\n\n"
+        "## Schema\n\n"
+        "```json\n{\"right\": true}\n```\n"
+    )
+    out = ctx.extract("event", {"id": "E-1"}, body)
+    assert out["extraction"] == [
+        {"id": "E-1", "schema_json": '{"right": true}'}
+    ]
+
+
+def test_extraction_context_accepts_optional_code_block_language():
+    ctx = quire.ExtractionContext.from_object_types(
+        [
+            {
+                "name": "sli",
+                "schema": {"type": "object"},
+                "body_extraction": {
+                    "yield_pattern": {
+                        "match": {
+                            "query": {
+                                "from": "code_block",
+                                "after_heading": "Query",
+                                "required": False,
+                            }
+                        }
+                    }
+                },
+            }
+        ]
+    )
+    out = ctx.extract("sli", {}, "# SLI\n\n## Query\n\n```\nrate(up[5m])\n```\n")
+    assert out["extraction"] == [{"query": "rate(up[5m])"}]
+
+
 def test_extract_frontmatter_returns_dict_or_none():
-    """TC-514: FR-006 parity — valid frontmatter → dict, malformed → None."""
-    fm = quire.extract_frontmatter("---\nid: X\nartifact_type: FR\n---\n# H\n")
-    assert fm == {"id": "X", "artifact_type": "FR"}
-    assert quire.extract_frontmatter("# no frontmatter\n") is None
-    assert quire.extract_frontmatter("---\nnot: [valid\n---\n# H\n") is None
+    """TC-514: FR-006 parity — Rust returns frontmatter and body."""
+    result = quire.extract_frontmatter("---\nid: X\nartifact_type: FR\n---\n# H\n")
+    assert result == {
+        "frontmatter": {"id": "X", "artifact_type": "FR"},
+        "body": "# H\n",
+    }
+    assert quire.extract_frontmatter("# no frontmatter\n") == {
+        "frontmatter": None,
+        "body": "# no frontmatter\n",
+    }
+    assert quire.extract_frontmatter("---\nnot: [valid\n---\n# H\n") == {
+        "frontmatter": None,
+        "body": "---\nnot: [valid\n---\n# H\n",
+    }
+
+
+def test_extract_frontmatter_body_matches_rust_bom_and_crlf_parity():
+    """Regression: Python binding exposes the body produced by Rust, no local split."""
+    bom = quire.extract_frontmatter("\ufeff---\nid: X\n---\n# H\n")
+    assert bom["frontmatter"] == {"id": "X"}
+    assert bom["body"] == "# H\n"
+
+    crlf = quire.extract_frontmatter("---\r\nid: X\r\n---\r\n# H\r\n")
+    assert crlf["frontmatter"] == {"id": "X"}
+    assert crlf["body"] == "# H\r\n"
 
 
 def test_harvest_edges_string_and_dict_equal():

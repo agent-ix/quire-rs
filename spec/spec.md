@@ -15,9 +15,6 @@ relationships:
   - target: "ix://agent-ix/quire"
     type: "implements"
     cardinality: "1:1"
-  - target: "ix://agent-ix/quire-py"
-    type: "implements"
-    cardinality: "1:1"
   - target: "ix://agent-ix/spec-artifacts-iso"
     type: "consumes"
     cardinality: "1:1"
@@ -48,13 +45,13 @@ standards_alignment:
 This document defines the **scope, intent, and governing requirements framework** for `quire-rs`, a Rust library crate that unifies two responsibilities in one engine:
 
 1. **Schema-validated archetype rendering** — generate canonical markdown artifacts from typed data using MiniJinja templates.
-2. **Markdown parsing** — port the existing `agent-ix/quire` (TypeScript) parser into pure Rust at byte-parity with the TS/Python references.
+2. **Markdown parsing** — port the existing `agent-ix/quire` (TypeScript) parser into pure Rust at byte-parity with the canonical TS fixtures.
 
 It establishes:
 - The problem space `quire-rs` addresses across rendering and parsing
 - The boundaries of responsibility between layers (Edit API, Schema, Storage, Render, Parse, Query, Writeback)
 - The authoritative structure for requirements, verification, and change control
-- The relationship between user intent (typed edits, LLM-driven changes), system behavior (validation + render + parse + writeback), and test evidence (byte-parity with reference implementations)
+- The relationship between user intent (typed edits, LLM-driven changes), system behavior (validation + render + parse + writeback), and test evidence (byte-parity with the reference implementation)
 
 **Core invariant**: **markdown is canonical**. The on-disk `.md` is the source of truth. Blocks are *parsed from* markdown. Edits update one block's data → re-render that block via its template → splice new bytes back into the `.md` via writeback. Frontmatter and untouched blocks stay byte-identical.
 
@@ -66,7 +63,7 @@ This document is the **top-level requirements artifact** for the repository.
 
 ### 2.1 In Scope
 
-This specification governs a **generic, archetype-agnostic engine** that processes data archetypes loaded from the local filesystem. The engine itself knows nothing about specific archetypes (`FR`, `NFR`, `ADR`, etc.) — those are data shipped by Filament (or any other authoring source) and synced to disk by ix-cli (or any other tool).
+This specification governs a **generic, archetype-agnostic engine** that processes data archetypes supplied by a caller. Local authoring/rendering tools may load those archetypes from the filesystem; service/parser runtimes may pass ObjectType rows directly in memory through the Python `ExtractionContext`. The engine itself knows nothing about specific archetypes (`FR`, `NFR`, `ADR`, etc.) — those are data shipped by Filament (or any other authoring source), synced to disk by ix-cli for local workflows, or fetched from `filament-core-service` by service consumers.
 
 **Parse side:**
 - Port of the existing `agent-ix/quire` markdown parser into pure Rust
@@ -111,6 +108,7 @@ This specification governs a **generic, archetype-agnostic engine** that process
 
 **Python binding side:**
 - Feature-gated (`--features python`) PyO3 + maturin bindings exposing parse / extract / validate / render / `load_repo` / corpus to Python as the `quire` wheel (FR-023). With the feature off, the crate is unchanged and interpreter-free (StR-001 boundary). Bindings invert the call direction (Python calls *into* Rust); the engine never shells *out*. This is the path by which `filament-parser-lib` consumes the engine at native speed (StR-005), superseding its Python hot paths.
+- `ExtractionContext.from_object_types(...)` compiles caller-supplied ObjectType rows for service runtimes. This path performs no filesystem or network registry discovery; callers own registry sourcing.
 
 **Cross-cutting:**
 - Safety scaffolding inherited from `agent-ix/rust-lib-cookiecutter` (clippy MSRV, deny.toml, `// SAFETY:` enforcement)
@@ -122,7 +120,8 @@ This specification governs a **generic, archetype-agnostic engine** that process
 
 This specification does not govern:
 
-- **Sync from Filament to disk.** The local schema directory (e.g. `~/.ix/schemas/`) is populated by external tools — `ix-cli` is the canonical syncer (handles Filament auth + transfer). `quire-rs` only reads from disk; it never calls Filament directly.
+- **Sync from Filament to disk.** The local schema directory (e.g. `~/.ix/schemas/`) is populated by external tools — `ix-cli` is the canonical syncer (handles Filament auth + transfer). `quire-rs` can consume a path when a caller asks it to load local archetypes, but it never owns `.ix` synchronization and never calls Filament directly.
+- **Runtime ObjectType registry sourcing.** `filament-core-service` owns the dynamic ObjectType registry. Consumers such as `filament-analysis-worker` and `cloudmanager-local-sync` fetch registry snapshots from core and pass them through parser-lib into `ExtractionContext`. `quire-rs` does not discover those ObjectTypes itself.
 - **Authoring tooling.** Schema files, templates, and manifests are authored elsewhere (in Filament, by hand, by another tool). `quire-rs` does not write archetype data.
 - **Author-time schema validation.** `quire-rs` validates JSON Schema documents at archetype-load time (FR-013). Pre-publish validation (catching authoring errors before they reach disk) is Filament's concern.
 - **Hot reload on filesystem change.** `quire-rs` does NOT watch the filesystem and does NOT automatically reload archetypes when files change on disk. Consumers refresh archetypes by calling `Registry::load_from(...)` again. The previous Registry stays alive for any outstanding references and is dropped when they release. There is no in-place update or change-event subscription.
@@ -207,7 +206,7 @@ The v0.1 implementation drifted from `INPUT.md`. The v0.2 spec restores discover
 |---|---|
 | Render layer (MiniJinja env, loader, schema validation, render dispatch) | TS quire is parse-only; the render half lives in Python `spec-artifacts-iso`. quire-rs unifies both halves. |
 | Block edit API (`apply_block_patch` / `replace_block`) | New ground; TS has only `updateSection`. |
-| Body-extraction DSL evaluator | Lives in Python `filament-parser-lib`. |
+| Body-extraction DSL evaluator | Formerly lived in Python `filament-parser-lib`; quire-rs is the canonical implementation. |
 
 #### Behavioural differences kept
 
@@ -307,7 +306,7 @@ Each layer has one job and a narrow interface to the next. The parser does not v
 ### 3.4 Intended Users
 
 - **Filament document editor** — needs schema-validated edits and re-render on patch
-- **`agent-ix/filament-parser-lib`** — the Python orchestration layer; consumes `quire-rs` in-process via the feature-gated PyO3 bindings (FR-023), superseding its own walk/parse/extract/validate hot paths (StR-005). Keeps tier-3 plugin discovery + dispatch in Python.
+- **`agent-ix/filament-parser-lib`** — the Python orchestration layer; consumes `quire-rs` in-process via the feature-gated PyO3 bindings (FR-023), superseding its own walk/parse/extract/validate hot paths (StR-005). Keeps tier-3 plugin discovery + dispatch in Python; parser/extractor/validator semantics remain in quire-rs.
 - **`spec-artifacts-*` Python repos** — call `quire-rs` via the same PyO3 bindings for parity-rendered artifacts
 - **`spec-analysis-*` / `spec-matrix` tooling and LLM agents auditing a spec** — load a `spec/` tree into a `Spec` corpus (FR-025) and run whole-spec traceability/coverage/reference queries (FR-027) instead of re-walking + re-greps (US-012, US-013)
 - **`ix-spec-objects` extractors** — evaluate `body_extraction` DSL via the parser's Query API
@@ -504,7 +503,7 @@ The Registry tracks both kinds. Render operations target artifact archetypes; ex
 
 ### 9.2 Parser Guarantees (parity points)
 
-The parser SHALL match `agent-ix/quire` and `agent-ix/quire-py` acceptance fixtures exactly:
+The parser SHALL match `agent-ix/quire` acceptance fixtures exactly:
 
 - Headings inside fenced code blocks (` ``` ` or `~~~`) are NOT parsed as headings
 - Content slicing is byte-exact — no whitespace normalization, no re-serialization
@@ -705,7 +704,6 @@ If the syncer violates this contract (non-atomic writes, malformed YAML, etc.), 
 - ISO/IEC/IEEE 29148 — Requirements Engineering
 - IEEE 828 — Configuration Management
 - `agent-ix/quire` — TypeScript reference parser (Layer 1+2)
-- `agent-ix/quire-py` — Python port of `agent-ix/quire`
 - `agent-ix/spec-artifacts-iso` — reference Jinja2 renderer for 8 ISO archetypes
 - `agent-ix/spec-artifacts-app` — reference Jinja2 renderer for 2 App archetypes
 - `agent-ix/ecaz` — source of Rust safety scaffolding (backported via `agent-ix/rust-lib-cookiecutter`)

@@ -123,7 +123,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-018 | extract evaluates api_endpoint DSL on real fixture | Integration | P0 | FR-011-AC-1, US-003-AC-1 | 🚧 |
 | TC-019 | extract code_block (language: json) byte-equals fenced content | Integration | P0 | FR-011 (code_block locator), US-003-AC-2 | 🚧 |
 | TC-020 | TS reference test suite transliterated; all pass | Parity | P0 | StR-003-AC-2 | 🚧 |
-| TC-021 | quire-py vs quire-rs structural equivalence on real corpus | Parity | P1 | StR-003-AC-3 | 🚧 |
+| TC-021 | quire-rs structural equivalence against canonical TS fixtures on real corpus | Parity | P1 | StR-003-AC-3 | 🚧 |
 | TC-022 | Section content preserves leading/trailing whitespace | Unit | P0 | FR-008-AC-1 | 🚧 |
 | TC-023 | CRLF and LF endings preserved in section content | Unit | P1 | FR-008-AC-2 | 🚧 |
 | TC-024 | Roundtrip: reconstructing body from sections equals input | Property | P0 | FR-008-AC-3, NFR-006 | 🚧 |
@@ -292,9 +292,9 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-507 | miri job runs without `python` feature; FFI-scope note present in workflow/§19 | Static | P1 | NFR-012-AC-5 | 🚧 |
 | TC-510 | `quire.render(archetype, module_root, data)` byte-equals `quire_rs::render_by_name` for same inputs | Integration | P0 | FR-028-AC-1 | 🚧 |
 | TC-511 | `quire.validate` returns None on valid data; raises `QuireValidationError` with dotted field path on invalid | Integration | P0 | FR-028-AC-2, NFR-005 | 🚧 |
-| TC-512 | `quire.validate_manifest`: happy path returns None; bad payload raises `QuireValidationError`; missing schema raises `QuireSchemaError` | Integration | P0 | FR-028-AC-3 | 🚧 |
+| TC-512 | `quire.validate_manifest`: happy path returns `[]`; bad payload returns structured `{path, message, schema_keyword}` records; missing schema raises `QuireSchemaError` | Integration | P0 | FR-028-AC-3 | 🚧 |
 | TC-513 | `quire.extract(arch, mod_root, text)` returns `{extraction, edges}` dict; `extraction` matches Rust `extract().records` | Integration | P0 | FR-028-AC-4 | 🚧 |
-| TC-514 | `quire.extract_frontmatter(text)` returns dict on valid frontmatter, `None` on malformed/empty (FR-006 parity) | Integration | P0 | FR-028-AC-5 | 🚧 |
+| TC-514 | `quire.extract_frontmatter(text)` returns Rust-produced `{frontmatter, body}`; BOM/CRLF/malformed cases match FR-006 with no Python-side split | Integration | P0 | FR-028-AC-5 | 🚧 |
 | TC-515 | `quire.harvest_edges(text)` and `quire.harvest_edges(parse_document(text))` return equal deduplicated lists | Integration | P0 | FR-028-AC-6, FR-026 | 🚧 |
 | TC-516 | `Quire{Base,Render,Validation,Schema,Parse}Error` are importable and subclass `QuireBaseError` / `Exception` | Integration | P0 | FR-028-AC-7 | 🚧 |
 | TC-517 | Two-thread concurrent call to each new module-level function completes wall-clock < 2× single-call | Integration | P1 | FR-028-AC-8, NFR-016-AC-2 | 🚧 |

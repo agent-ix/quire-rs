@@ -2,6 +2,26 @@
 
 Generated from `~/dev/quire-rs/spec/` via `/spec-to-plan`, then refined post-discovery audit. The v0.2 plan restores the block-addressable artifact model that was central to `INPUT.md` but had drifted out of the v0.1 spec. See `spec/spec.md` § 2bis (Drift Audit) for the full record of what's added, modified, and stripped vs v0.1.
 
+## 2026-05-28 Python ExtractionContext Amendment
+
+Generated after `/spec-create-spec`, `/spec-matrix`, and `/spec-review` of
+the Filament parser cutover. This amends the v0.3 PyO3 binding work.
+
+- [x] Add `ExtractionContext.from_object_types(...)` so Python callers pass
+  ObjectType snapshots directly.
+- [x] Keep quire-rs pure: no API fetch, no `.ix` sync ownership, no caller
+  registry fallback. CLI/local tools may prepare local filesystem archetypes;
+  service runtimes pass data in memory.
+- [x] Extend the Rust DSL to cover parser-lib Tier 2 parity gaps:
+  optional code-block language, `after_heading` aliases, regex locators,
+  default-required fields, table/list iterator parity, emitted edges.
+- [x] Return structured extraction edges in the Python binding shape required
+  by parser-lib.
+- [x] Update FR-028, US-003, and ADR-0002 so the spec no longer implies
+  service runtimes should use a filesystem registry.
+- [x] Verification: `cargo test --features python` and Python binding tests
+  pass; `quire 0.3.4` wheel/sdist published to `pypi.ix`.
+
 ## Core invariant
 
 **Markdown is canonical.** The on-disk `.md` is the source of truth. Blocks are *parsed from* markdown. Edits change one block's data → re-render that block via its template → splice new bytes back into the `.md` via writeback. Frontmatter and untouched blocks stay byte-identical.

@@ -7,6 +7,7 @@
 //! collapses sequences to their first element when the locator is
 //! bound under a `match:` key; the multi-yield evaluator iterates.
 
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -68,53 +69,81 @@ pub enum LocatorPrimitive {
     /// `from: frontmatter_field` — `doc.frontmatter[path[0]][path[1]]...`
     FrontmatterField {
         path: Vec<String>,
-        #[serde(default)]
+        #[serde(default = "default_true")]
         required: bool,
+        #[serde(default)]
+        regex: Option<String>,
     },
     /// `from: section_body` — text content of `after_heading` section.
     SectionBody {
         after_heading: String,
-        #[serde(default)]
+        #[serde(default = "default_true")]
         required: bool,
+        #[serde(default)]
+        regex: Option<String>,
     },
     /// `from: code_block` — source of the first fenced code block in
     /// `language`, optionally constrained to a section.
     CodeBlock {
-        language: String,
         #[serde(default)]
+        language: Option<String>,
+        #[serde(default)]
+        #[serde(alias = "after_heading")]
         under_section: Option<String>,
-        #[serde(default)]
+        #[serde(default = "default_true")]
         required: bool,
+        #[serde(default)]
+        regex: Option<String>,
     },
     /// `from: table_row` — rows from a table (optionally inside a
     /// section, optionally projecting a single column).
     TableRow {
         #[serde(default)]
+        #[serde(alias = "after_heading")]
         under_section: Option<String>,
         #[serde(default)]
-        column: Option<String>,
-        #[serde(default)]
+        column: Option<ColumnRef>,
+        #[serde(default = "default_true")]
         required: bool,
+        #[serde(default)]
+        regex: Option<String>,
     },
     /// `from: list_item` — items from a bullet list.
     ListItem {
         #[serde(default)]
+        #[serde(alias = "after_heading")]
         under_section: Option<String>,
         #[serde(default)]
         pattern: Option<ListPattern>,
-        #[serde(default)]
+        #[serde(default = "default_true")]
         required: bool,
+        #[serde(default)]
+        regex: Option<String>,
     },
     /// `from: heading` — heading text of sections at `level`, or under
     /// `path`.
     Heading {
         #[serde(default)]
+        #[serde(alias = "depth")]
         level: Option<u8>,
         #[serde(default)]
         path: Option<Vec<String>>,
-        #[serde(default)]
+        #[serde(default = "default_true")]
         required: bool,
+        #[serde(default)]
+        regex: Option<String>,
     },
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum ColumnRef {
+    Name(String),
+    Index(usize),
+}
+
+fn default_true() -> bool {
+    true
 }
 
 impl LocatorPrimitive {
@@ -132,8 +161,14 @@ impl LocatorPrimitive {
                 under_section,
                 ..
             } => match under_section {
-                Some(s) => format!("code_block({language} under {s})"),
-                None => format!("code_block({language})"),
+                Some(s) => match language {
+                    Some(language) => format!("code_block({language} under {s})"),
+                    None => format!("code_block(any under {s})"),
+                },
+                None => match language {
+                    Some(language) => format!("code_block({language})"),
+                    None => "code_block(any)".to_string(),
+                },
             },
             Self::TableRow { under_section, .. } => match under_section {
                 Some(s) => format!("table_row(under {s})"),
@@ -188,28 +223,72 @@ pub fn eval_locator(doc: &QuireDocument, locator: &Locator) -> (Vec<Value>, usiz
 /// list of values; the caller picks first-or-all depending on its
 /// yield pattern.
 pub fn eval(doc: &QuireDocument, loc: &LocatorPrimitive) -> Vec<Value> {
-    match loc {
-        LocatorPrimitive::FrontmatterField { path, .. } => eval_frontmatter_field(doc, path),
+    let (values, regex) = match loc {
+        LocatorPrimitive::FrontmatterField { path, regex, .. } => {
+            (eval_frontmatter_field(doc, path), regex.as_deref())
+        }
         LocatorPrimitive::SectionBody { after_heading, .. } => {
-            eval_section_body(doc, after_heading)
+            let regex = match loc {
+                LocatorPrimitive::SectionBody { regex, .. } => regex.as_deref(),
+                _ => None,
+            };
+            (eval_section_body(doc, after_heading), regex)
         }
         LocatorPrimitive::CodeBlock {
             language,
             under_section,
+            regex,
             ..
-        } => eval_code_block(doc, language, under_section.as_deref()),
+        } => (
+            eval_code_block(doc, language.as_deref(), under_section.as_deref()),
+            regex.as_deref(),
+        ),
         LocatorPrimitive::TableRow {
             under_section,
             column,
+            regex,
             ..
-        } => eval_table_row(doc, under_section.as_deref(), column.as_deref()),
+        } => (
+            eval_table_row(doc, under_section.as_deref(), column.as_ref()),
+            regex.as_deref(),
+        ),
         LocatorPrimitive::ListItem {
             under_section,
             pattern,
+            regex,
             ..
-        } => eval_list_item(doc, under_section.as_deref(), *pattern),
-        LocatorPrimitive::Heading { level, path, .. } => eval_heading(doc, *level, path.as_deref()),
-    }
+        } => (
+            eval_list_item(doc, under_section.as_deref(), *pattern),
+            regex.as_deref(),
+        ),
+        LocatorPrimitive::Heading {
+            level, path, regex, ..
+        } => (eval_heading(doc, *level, path.as_deref()), regex.as_deref()),
+    };
+    apply_regex(values, regex)
+}
+
+fn apply_regex(values: Vec<Value>, pattern: Option<&str>) -> Vec<Value> {
+    let Some(pattern) = pattern else {
+        return values;
+    };
+    let Ok(re) = Regex::new(pattern) else {
+        return Vec::new();
+    };
+    values
+        .into_iter()
+        .filter_map(|value| match value {
+            Value::String(s) => re.captures(&s).map(|caps| {
+                let matched = caps
+                    .get(1)
+                    .or_else(|| caps.get(0))
+                    .map(|m| m.as_str())
+                    .unwrap_or("");
+                Value::String(matched.to_string())
+            }),
+            other => Some(other),
+        })
+        .collect()
 }
 
 fn eval_frontmatter_field(doc: &QuireDocument, path: &[String]) -> Vec<Value> {
@@ -240,8 +319,12 @@ fn eval_section_body(doc: &QuireDocument, heading: &str) -> Vec<Value> {
     }
 }
 
-fn eval_code_block(doc: &QuireDocument, language: &str, under_section: Option<&str>) -> Vec<Value> {
-    let blocks = extract_diagrams(doc, Some(language));
+fn eval_code_block(
+    doc: &QuireDocument,
+    language: Option<&str>,
+    under_section: Option<&str>,
+) -> Vec<Value> {
+    let blocks = extract_diagrams(doc, language);
     let filtered: Vec<&_> = match under_section {
         Some(s) => blocks
             .iter()
@@ -258,7 +341,7 @@ fn eval_code_block(doc: &QuireDocument, language: &str, under_section: Option<&s
 fn eval_table_row(
     doc: &QuireDocument,
     under_section: Option<&str>,
-    column: Option<&str>,
+    column: Option<&ColumnRef>,
 ) -> Vec<Value> {
     let table = match under_section {
         Some(h) => table_from_section(doc, h),
@@ -278,9 +361,15 @@ fn eval_table_row(
         None => return Vec::new(),
     };
     if let Some(col) = column {
-        let idx = match table.headers.iter().position(|h| h == col) {
-            Some(i) => i,
-            None => return Vec::new(),
+        let idx = match col {
+            ColumnRef::Name(name) => match table.headers.iter().position(|h| h == name) {
+                Some(i) => i,
+                None => return Vec::new(),
+            },
+            ColumnRef::Index(n) => match n.checked_sub(1) {
+                Some(i) if i < table.headers.len() => i,
+                _ => return Vec::new(),
+            },
         };
         table
             .rows
@@ -291,18 +380,7 @@ fn eval_table_row(
         table
             .rows
             .into_iter()
-            .map(|r| {
-                let mut obj = serde_json::Map::new();
-                for (i, cell) in r.into_iter().enumerate() {
-                    let key = table
-                        .headers
-                        .get(i)
-                        .cloned()
-                        .unwrap_or_else(|| i.to_string());
-                    obj.insert(key, Value::String(cell));
-                }
-                Value::Object(obj)
-            })
+            .map(|r| Value::String(r.join("\t")))
             .collect()
     }
 }
@@ -326,13 +404,7 @@ fn eval_list_item(
     };
     parse_bullet_list(&content, pattern)
         .into_iter()
-        .map(|item| {
-            let mut obj = serde_json::Map::new();
-            obj.insert("raw".to_string(), Value::String(item.raw));
-            obj.insert("title".to_string(), Value::String(item.title));
-            obj.insert("description".to_string(), Value::String(item.description));
-            Value::Object(obj)
-        })
+        .map(|item| Value::String(item.raw))
         .collect()
 }
 
@@ -391,6 +463,7 @@ mod tests {
             &LocatorPrimitive::FrontmatterField {
                 path: vec!["id".into()],
                 required: false,
+                regex: None,
             },
         );
         assert_eq!(v, vec![json!("FR-001")]);
@@ -404,6 +477,7 @@ mod tests {
             &LocatorPrimitive::FrontmatterField {
                 path: vec!["tags".into()],
                 required: false,
+                regex: None,
             },
         );
         assert_eq!(v, vec![json!(["a", "b"])]);
@@ -417,6 +491,7 @@ mod tests {
             &LocatorPrimitive::FrontmatterField {
                 path: vec!["nope".into()],
                 required: false,
+                regex: None,
             },
         );
         assert!(v.is_empty());
@@ -430,6 +505,7 @@ mod tests {
             &LocatorPrimitive::SectionBody {
                 after_heading: "Purpose".into(),
                 required: false,
+                regex: None,
             },
         );
         assert_eq!(v, vec![json!("the purpose")]);
@@ -441,9 +517,10 @@ mod tests {
         let v = eval(
             &d,
             &LocatorPrimitive::CodeBlock {
-                language: "mermaid".into(),
+                language: Some("mermaid".into()),
                 under_section: None,
                 required: false,
+                regex: None,
             },
         );
         assert_eq!(v.len(), 1);
@@ -459,10 +536,11 @@ mod tests {
                 under_section: Some("API".into()),
                 column: None,
                 required: false,
+                regex: None,
             },
         );
         assert_eq!(v.len(), 2);
-        assert_eq!(v[0], json!({"Method": "GET", "Path": "/a"}));
+        assert_eq!(v[0], json!("GET\t/a"));
     }
 
     #[test]
@@ -472,8 +550,9 @@ mod tests {
             &d,
             &LocatorPrimitive::TableRow {
                 under_section: Some("API".into()),
-                column: Some("Path".into()),
+                column: Some(ColumnRef::Name("Path".into())),
                 required: false,
+                regex: None,
             },
         );
         assert_eq!(v, vec![json!("/a"), json!("/b")]);
@@ -488,10 +567,11 @@ mod tests {
                 under_section: Some("Notes".into()),
                 pattern: None,
                 required: false,
+                regex: None,
             },
         );
         assert_eq!(v.len(), 2);
-        assert_eq!(v[0]["title"], json!("Auth"));
+        assert_eq!(v[0], json!("**Auth** — token-based"));
     }
 
     #[test]
@@ -503,6 +583,7 @@ mod tests {
                 level: Some(2),
                 path: None,
                 required: false,
+                regex: None,
             },
         );
         assert!(v.iter().any(|h| h == &json!("Purpose")));
@@ -518,6 +599,7 @@ mod tests {
                 level: None,
                 path: Some(vec!["A".into(), "B".into()]),
                 required: false,
+                regex: None,
             },
         );
         assert_eq!(v, vec![json!("B")]);

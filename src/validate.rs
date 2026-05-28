@@ -13,6 +13,14 @@ use crate::error::QuireError;
 use crate::loader::compile::CompiledArchetype;
 use crate::merge::deep_merge;
 
+/// Structured JSON Schema violation returned by manifest validation.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SchemaValidationDetail {
+    pub path: String,
+    pub message: String,
+    pub schema_keyword: String,
+}
+
 /// Merge `patch` onto `current`, validate the merged value against
 /// the archetype's compiled JSON Schema, and return either the
 /// validated merged value or the first `SchemaViolation`.
@@ -69,6 +77,79 @@ fn to_schema_violation(archetype: &str, err: &ValidationError<'_>) -> QuireError
         field_path,
         expected,
         observed,
+    }
+}
+
+/// Convert a `jsonschema::ValidationError` into the structured shape
+/// exposed by the Python manifest validator.
+pub fn schema_validation_detail(err: &ValidationError<'_>) -> SchemaValidationDetail {
+    SchemaValidationDetail {
+        path: validation_path(err),
+        message: err.to_string(),
+        schema_keyword: schema_keyword(err).to_string(),
+    }
+}
+
+fn validation_path(err: &ValidationError<'_>) -> String {
+    let base = json_pointer_to_dotted(&err.instance_path.to_string());
+    match &err.kind {
+        ValidationErrorKind::Required { property } => {
+            let Some(prop) = property.as_str() else {
+                return base;
+            };
+            if base == "<root>" {
+                prop.to_string()
+            } else {
+                format!("{base}.{prop}")
+            }
+        }
+        _ => base,
+    }
+}
+
+fn schema_keyword(err: &ValidationError<'_>) -> &'static str {
+    match &err.kind {
+        ValidationErrorKind::AdditionalItems { .. } => "additionalItems",
+        ValidationErrorKind::AdditionalProperties { .. } => "additionalProperties",
+        ValidationErrorKind::AnyOf => "anyOf",
+        ValidationErrorKind::BacktrackLimitExceeded { .. } => "pattern",
+        ValidationErrorKind::Constant { .. } => "const",
+        ValidationErrorKind::Contains => "contains",
+        ValidationErrorKind::ContentEncoding { .. } => "contentEncoding",
+        ValidationErrorKind::ContentMediaType { .. } => "contentMediaType",
+        ValidationErrorKind::Custom { .. } => "custom",
+        ValidationErrorKind::Enum { .. } => "enum",
+        ValidationErrorKind::ExclusiveMaximum { .. } => "exclusiveMaximum",
+        ValidationErrorKind::ExclusiveMinimum { .. } => "exclusiveMinimum",
+        ValidationErrorKind::FalseSchema => "falseSchema",
+        ValidationErrorKind::FileNotFound { .. } => "$ref",
+        ValidationErrorKind::Format { .. } => "format",
+        ValidationErrorKind::FromUtf8 { .. } => "contentEncoding",
+        ValidationErrorKind::Utf8 { .. } => "$ref",
+        ValidationErrorKind::JSONParse { .. } => "$ref",
+        ValidationErrorKind::InvalidReference { .. } => "$ref",
+        ValidationErrorKind::InvalidURL { .. } => "$ref",
+        ValidationErrorKind::MaxItems { .. } => "maxItems",
+        ValidationErrorKind::Maximum { .. } => "maximum",
+        ValidationErrorKind::MaxLength { .. } => "maxLength",
+        ValidationErrorKind::MaxProperties { .. } => "maxProperties",
+        ValidationErrorKind::MinItems { .. } => "minItems",
+        ValidationErrorKind::Minimum { .. } => "minimum",
+        ValidationErrorKind::MinLength { .. } => "minLength",
+        ValidationErrorKind::MinProperties { .. } => "minProperties",
+        ValidationErrorKind::MultipleOf { .. } => "multipleOf",
+        ValidationErrorKind::Not { .. } => "not",
+        ValidationErrorKind::OneOfMultipleValid => "oneOf",
+        ValidationErrorKind::OneOfNotValid => "oneOf",
+        ValidationErrorKind::Pattern { .. } => "pattern",
+        ValidationErrorKind::PropertyNames { .. } => "propertyNames",
+        ValidationErrorKind::Required { .. } => "required",
+        ValidationErrorKind::Schema => "$schema",
+        ValidationErrorKind::Type { .. } => "type",
+        ValidationErrorKind::UnevaluatedProperties { .. } => "unevaluatedProperties",
+        ValidationErrorKind::UniqueItems => "uniqueItems",
+        ValidationErrorKind::UnknownReferenceScheme { .. } => "$ref",
+        ValidationErrorKind::Resolver { .. } => "$ref",
     }
 }
 
@@ -253,6 +334,30 @@ mod tests {
         assert_eq!(json_pointer_to_dotted("/title"), "title");
         // RFC 6901 escapes.
         assert_eq!(json_pointer_to_dotted("/a~1b"), "a/b");
+    }
+
+    #[test]
+    fn schema_validation_detail_preserves_keyword_and_missing_field_path() {
+        let schema = json!({
+            "type": "object",
+            "required": ["name"],
+            "additionalProperties": false,
+            "properties": {"name": {"type": "string"}}
+        });
+        let validator = compile_schema(&schema).expect("compile");
+        let data = json!({"extra": true});
+        let details: Vec<SchemaValidationDetail> = validator
+            .validate(&data)
+            .expect_err("violations")
+            .map(|err| schema_validation_detail(&err))
+            .collect();
+
+        assert!(details
+            .iter()
+            .any(|d| { d.path == "name" && d.schema_keyword == "required" }));
+        assert!(details
+            .iter()
+            .any(|d| { d.path == "<root>" && d.schema_keyword == "additionalProperties" }));
     }
 
     fn flexible_archetype() -> CompiledArchetype {

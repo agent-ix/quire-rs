@@ -9,12 +9,12 @@ artifact_type: StR
 Today the ecosystem fragments document-processing across three languages:
 
 - **Rendering** lives in `agent-ix/spec-artifacts-iso`, `spec-artifacts-app`, `spec-artifacts-process` (Python + Jinja2)
-- **Parsing** lives in `agent-ix/quire` (TypeScript) and `quire-py` (Python port)
-- **Body extraction** lives in `agent-ix/filament-parser-lib` (Python tier-1/2/3 pipeline)
+- **Parsing** lived in `agent-ix/quire` (TypeScript) with a historical `quire-py` Python port now superseded by this engine
+- **Body extraction** lived in `agent-ix/filament-parser-lib` (Python tier-1/2/3 pipeline)
 
 Consumers (Filament editor, batch extractors, future CLI tools) coordinate two interpreters or wire bindings across languages. Hot paths (re-render on patch, bulk extraction across hundreds of objects) pay interpreter and IPC overhead. Worse, behavior drifts subtly across implementations.
 
-`quire-rs` SHALL be a single Rust crate that exposes all three responsibilities — render, parse, extract — as one binary dependency. Critically, the engine SHALL be **generic over archetypes**: it has no `FR`-specific or `NFR`-specific Rust code. Archetypes are loaded as data (JSON Schema + MiniJinja template + manifest) from the local filesystem at startup. Filament is the authoring environment for those archetypes; ix-cli syncs them to disk; quire-rs reads from disk. No part of the engine talks to Filament directly.
+`quire-rs` SHALL be the single Rust engine that owns render, parse, extract, frontmatter splitting, edge harvesting, and schema validation. Python consumers may orchestrate the pipeline through the PyO3 wheel, but they SHALL NOT maintain parallel parser, extractor, or validator implementations for these hot paths. Critically, the engine SHALL be **generic over archetypes**: it has no `FR`-specific or `NFR`-specific Rust code. Archetypes are loaded as data (JSON Schema + MiniJinja template + manifest) from the local filesystem at startup. Filament is the authoring environment for those archetypes; ix-cli syncs them to disk; quire-rs reads from disk. No part of the engine talks to Filament directly.
 
 This decoupling has three pay-offs:
 

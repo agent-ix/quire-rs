@@ -20,6 +20,8 @@ use crate::extract::locator::Locator;
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ExtractionDsl {
     pub yield_pattern: YieldPattern,
+    #[serde(default)]
+    pub emit_edges: Option<Vec<EmitEdge>>,
 }
 
 /// `yield_pattern:` — single (`match`) XOR multi (`iterate_over` +
@@ -60,6 +62,21 @@ pub enum IterateKind {
     Heading,
     ListItem,
     TableRow,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct EmitEdge {
+    #[serde(rename = "type")]
+    pub edge_type: String,
+    pub target: EdgeTarget,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum EdgeTarget {
+    Static(String),
+    Locator(Locator),
 }
 
 /// Structural validation: `match` XOR `iterate_over` + `per_match`

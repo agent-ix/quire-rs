@@ -9,7 +9,9 @@
 //! First-party code here contains **no** `unsafe` — PyO3's macro-
 //! generated unsafe is upstream (NFR-003-AC-4).
 
+use std::collections::BTreeMap;
 use std::path::Path;
+use std::sync::Arc;
 
 use pyo3::exceptions::{PyException, PyTypeError, PyValueError};
 use pyo3::prelude::*;
@@ -20,6 +22,7 @@ use crate::ast::{QuireDocument, QuireSection};
 use crate::corpus::resolve::Edge;
 use crate::corpus::walk::LoadedDocument;
 use crate::error::QuireError;
+use crate::loader::compile::CompiledArchetype;
 
 pyo3::create_exception!(quire, QuireBaseError, PyException);
 pyo3::create_exception!(quire, QuireRenderError, QuireBaseError);
@@ -49,6 +52,7 @@ fn quire(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(harvest_edges, m)?)?;
     m.add_class::<Spec>()?;
     m.add_class::<Registry>()?;
+    m.add_class::<ExtractionContext>()?;
     Ok(())
 }
 
@@ -100,37 +104,44 @@ fn validate(
 
 /// Validate an arbitrary `payload` (dict) against the JSON Schema at
 /// `schema_path`. Uses the same `jsonschema` validator the engine
-/// uses internally. Raises `QuireValidationError` on schema
-/// violation; `QuireSchemaError` if the schema file fails to load /
-/// compile.
+/// uses internally. Returns a list of structured violations
+/// (`[]` means valid); `QuireSchemaError` is raised if the schema file
+/// fails to load / compile.
 #[pyfunction]
-fn validate_manifest(
-    py: Python<'_>,
+fn validate_manifest<'py>(
+    py: Python<'py>,
     payload: &Bound<'_, PyAny>,
     schema_path: &str,
-) -> PyResult<()> {
+) -> PyResult<Bound<'py, PyList>> {
     let value = py_to_json(payload)?;
     let path = schema_path.to_string();
-    py.detach(|| -> PyResult<()> {
-        let schema = crate::loader::compile::read_schema(Path::new(&path))
-            .map_err(|m| QuireSchemaError::new_err(format!("schema read failed at {path}: {m}")))?;
-        let validator = crate::loader::compile::compile_schema(&schema)
-            .map_err(|m| QuireSchemaError::new_err(format!("schema compile failed: {m}")))?;
-        if let Err(mut errors) = validator.validate(&value) {
-            if let Some(first) = errors.next() {
-                let ptr = first.instance_path.to_string();
-                let path_str = if ptr.is_empty() {
-                    "<root>".to_string()
-                } else {
-                    ptr
-                };
-                return Err(QuireValidationError::new_err(format!(
-                    "schema violation at {path_str}: {first}"
-                )));
+    let violations = py.detach(
+        || -> PyResult<Vec<crate::validate::SchemaValidationDetail>> {
+            let schema = crate::loader::compile::read_schema(Path::new(&path)).map_err(|m| {
+                QuireSchemaError::new_err(format!("schema read failed at {path}: {m}"))
+            })?;
+            let validator = crate::loader::compile::compile_schema(&schema)
+                .map_err(|m| QuireSchemaError::new_err(format!("schema compile failed: {m}")))?;
+            if let Err(mut errors) = validator.validate(&value) {
+                let details = errors
+                    .by_ref()
+                    .map(|e| crate::validate::schema_validation_detail(&e))
+                    .collect();
+                return Ok(details);
             }
-        }
-        Ok(())
-    })
+            Ok(Vec::new())
+        },
+    )?;
+
+    let out = PyList::empty(py);
+    for detail in violations {
+        let d = PyDict::new(py);
+        d.set_item("path", detail.path)?;
+        d.set_item("message", detail.message)?;
+        d.set_item("schema_keyword", detail.schema_keyword)?;
+        out.append(d)?;
+    }
+    Ok(out)
 }
 
 /// Parse `document_text`, evaluate `archetype_name`'s `body_extraction`
@@ -203,21 +214,24 @@ fn extract<'py>(
     Ok(out)
 }
 
-/// Extract just the frontmatter dict from `text`, or `None` if there
-/// is no frontmatter / it's malformed (parity with FR-006).
+/// Extract frontmatter and body from `text` using the Rust FR-006 parser.
+/// Returns `{frontmatter: dict | None, body: str}`.
 #[pyfunction]
-fn extract_frontmatter<'py>(py: Python<'py>, text: &str) -> PyResult<Option<Bound<'py, PyDict>>> {
-    let doc = crate::parse_document(text);
-    match doc.frontmatter.as_ref() {
-        None => Ok(None),
+fn extract_frontmatter<'py>(py: Python<'py>, text: &str) -> PyResult<Bound<'py, PyDict>> {
+    let result = crate::extract_frontmatter(text);
+    let out = PyDict::new(py);
+    match result.frontmatter.as_ref() {
+        None => out.set_item("frontmatter", py.None())?,
         Some(fm) => {
-            let d = PyDict::new(py);
+            let frontmatter = PyDict::new(py);
             for (k, v) in fm {
-                d.set_item(k, json_to_py(py, v)?)?;
+                frontmatter.set_item(k, json_to_py(py, v)?)?;
             }
-            Ok(Some(d))
+            out.set_item("frontmatter", frontmatter)?;
         }
     }
+    out.set_item("body", result.body)?;
+    Ok(out)
 }
 
 /// Harvest `ix://` + frontmatter `relationships` edges off `doc` —
@@ -496,6 +510,180 @@ fn violation_to_py<'py>(py: Python<'py>, e: &QuireError) -> PyResult<Bound<'py, 
         }
     }
     Ok(d)
+}
+
+/// Pure compiled extraction state built from caller-provided ObjectType
+/// definitions. This is intentionally not a source registry: it does
+/// not read `~/.ix`, module paths, environment variables, or HTTP.
+#[pyclass(name = "ExtractionContext")]
+struct ExtractionContext {
+    objects: BTreeMap<String, Arc<CompiledArchetype>>,
+}
+
+#[pymethods]
+impl ExtractionContext {
+    /// Compile ObjectType-shaped dicts into an in-memory extraction
+    /// context. Accepts either `[{...}]` or `{"items": [{...}]}`.
+    #[staticmethod]
+    fn from_object_types(py: Python<'_>, object_types: &Bound<'_, PyAny>) -> PyResult<Self> {
+        let value = py_to_json(object_types)?;
+        let objects = py.detach(|| compile_object_types(value))?;
+        Ok(Self { objects })
+    }
+
+    fn object_type_names(&self) -> Vec<String> {
+        self.objects.keys().cloned().collect()
+    }
+
+    fn validate<'py>(
+        &self,
+        py: Python<'py>,
+        object_type: &str,
+        data: &Bound<'py, PyAny>,
+    ) -> PyResult<Bound<'py, PyList>> {
+        let arch = self
+            .objects
+            .get(object_type)
+            .ok_or_else(|| PyValueError::new_err(format!("unknown object type: {object_type}")))?;
+        let value = py_to_json(data)?;
+
+        let violations = PyList::empty(py);
+        if let Err(errors) = crate::validate_all(arch, &value) {
+            for e in &errors {
+                violations.append(violation_to_py(py, e)?)?;
+            }
+        }
+        Ok(violations)
+    }
+
+    /// Extract records for `object_type` from caller-provided document
+    /// parts. `frontmatter` is the parsed YAML object supplied by the
+    /// host workflow; `body` is the markdown body text.
+    fn extract<'py>(
+        &self,
+        py: Python<'py>,
+        object_type: &str,
+        frontmatter: &Bound<'py, PyAny>,
+        body: &str,
+    ) -> PyResult<Bound<'py, PyDict>> {
+        let arch = self
+            .objects
+            .get(object_type)
+            .ok_or_else(|| PyValueError::new_err(format!("unknown object type: {object_type}")))?;
+        let dsl = arch.body_extraction().ok_or_else(|| {
+            QuireParseError::new_err(format!(
+                "object type {object_type} has no body_extraction DSL"
+            ))
+        })?;
+        let fm = py_to_json(frontmatter)?;
+        let body = body.to_string();
+        let arch = Arc::clone(arch);
+        let dsl = dsl.clone();
+
+        let outcome = py.detach(|| -> PyResult<crate::extract::ExtractionResult> {
+            let mut doc = crate::parse_document(&body);
+            doc.frontmatter = match fm {
+                Value::Object(map) if !map.is_empty() => Some(map),
+                _ => None,
+            };
+            let result = crate::extract(&doc, &dsl).map_err(quire_error_to_parse_pyerr)?;
+            for record in &result.records {
+                let value = Value::Object(record.clone());
+                crate::validate(&arch, &value).map_err(quire_error_to_validation_pyerr)?;
+            }
+            Ok(result)
+        })?;
+
+        let out = PyDict::new(py);
+        let records = PyList::empty(py);
+        for r in &outcome.records {
+            records.append(json_to_py(py, &Value::Object(r.clone()))?)?;
+        }
+        out.set_item("extraction", records)?;
+        let edges = PyList::empty(py);
+        for edge in &outcome.edges {
+            let item = PyDict::new(py);
+            item.set_item("record_index", edge.record_index)?;
+            item.set_item("type", &edge.edge_type)?;
+            item.set_item("target", &edge.target)?;
+            edges.append(item)?;
+        }
+        out.set_item("edges", edges)?;
+        let diagnostics = PyList::empty(py);
+        for d in &outcome.diagnostics {
+            diagnostics.append(d.to_string())?;
+        }
+        out.set_item("diagnostics", diagnostics)?;
+        Ok(out)
+    }
+}
+
+fn compile_object_types(value: Value) -> PyResult<BTreeMap<String, Arc<CompiledArchetype>>> {
+    let items = match value {
+        Value::Array(items) => items,
+        Value::Object(mut map) => match map.remove("items") {
+            Some(Value::Array(items)) => items,
+            _ => {
+                return Err(PyTypeError::new_err(
+                    "object_types must be a list or {'items': list}",
+                ))
+            }
+        },
+        _ => {
+            return Err(PyTypeError::new_err(
+                "object_types must be a list or {'items': list}",
+            ))
+        }
+    };
+    let mut out = BTreeMap::new();
+    for item in items {
+        let Value::Object(mut map) = item else {
+            return Err(PyTypeError::new_err("object type entries must be dicts"));
+        };
+        let name = map
+            .remove("name")
+            .and_then(|v| v.as_str().map(str::to_string))
+            .ok_or_else(|| PyValueError::new_err("object type entry missing string name"))?;
+        if out.contains_key(&name) {
+            return Err(PyValueError::new_err(format!(
+                "duplicate object type name: {name}"
+            )));
+        }
+        let schema = map
+            .remove("schema")
+            .or_else(|| map.remove("data_schema"))
+            .unwrap_or_else(|| serde_json::json!({"type": "object"}));
+        let validator = crate::loader::compile::compile_schema(&schema).map_err(|m| {
+            QuireSchemaError::new_err(format!("{name}: schema compile failed: {m}"))
+        })?;
+        let body_extraction = match map.remove("body_extraction") {
+            Some(Value::Null) | None => None,
+            Some(value) => {
+                let dsl: crate::extract::dsl::ExtractionDsl = serde_json::from_value(value)
+                    .map_err(|e| {
+                        QuireParseError::new_err(format!(
+                            "{name}: body_extraction parse failed: {e}"
+                        ))
+                    })?;
+                crate::extract::dsl::validate_dsl(&name, &dsl)
+                    .map_err(quire_error_to_parse_pyerr)?;
+                Some(dsl)
+            }
+        };
+        out.insert(
+            name.clone(),
+            Arc::new(CompiledArchetype {
+                name,
+                module: "provided".to_string(),
+                raw_schema: Arc::new(schema),
+                validator: Arc::new(validator),
+                template_path: None,
+                template_name: None,
+                body_extraction,
+            }),
+        );
+    }
+    Ok(out)
 }
 
 fn quire_error_to_pyerr(e: QuireError) -> PyErr {

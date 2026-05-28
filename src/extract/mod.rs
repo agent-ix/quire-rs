@@ -18,7 +18,7 @@ use serde_json::{Map, Value};
 use crate::ast::{QuireDocument, QuireSection};
 use crate::diagnostic::Diagnostic;
 use crate::error::QuireError;
-use crate::extract::dsl::{ExtractionDsl, IterateKind, IterateOver};
+use crate::extract::dsl::{EdgeTarget, EmitEdge, ExtractionDsl, IterateKind, IterateOver};
 use crate::extract::locator::{eval_locator, Locator};
 
 /// Outcome of an `extract` call.
@@ -26,8 +26,17 @@ use crate::extract::locator::{eval_locator, Locator};
 pub struct ExtractionResult {
     /// Single-yield: 0 or 1 records. Multi-yield: 1 per iteration unit.
     pub records: Vec<Map<String, Value>>,
+    /// Edges emitted by the extraction DSL, indexed to `records`.
+    pub edges: Vec<ExtractedEdge>,
     /// Advisory notes (e.g. iterate-root missing, fallback used).
     pub diagnostics: Vec<Diagnostic>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ExtractedEdge {
+    pub record_index: usize,
+    pub edge_type: String,
+    pub target: String,
 }
 
 /// Evaluate `dsl` against `doc`.
@@ -37,8 +46,10 @@ pub fn extract(doc: &QuireDocument, dsl: &ExtractionDsl) -> Result<ExtractionRes
     if let Some(match_map) = &dsl.yield_pattern.r#match {
         let record = eval_match(doc, match_map, &mut diagnostics)?;
         let records = record.map(|r| vec![r]).unwrap_or_default();
+        let edges = emit_edges_for_records(doc, &records, dsl.emit_edges.as_deref(), false);
         return Ok(ExtractionResult {
             records,
+            edges,
             diagnostics,
         });
     }
@@ -47,7 +58,13 @@ pub fn extract(doc: &QuireDocument, dsl: &ExtractionDsl) -> Result<ExtractionRes
         dsl.yield_pattern.iterate_over.as_ref(),
         dsl.yield_pattern.per_match.as_ref(),
     ) {
-        return Ok(eval_multi(doc, iter, per, diagnostics));
+        return Ok(eval_multi(
+            doc,
+            iter,
+            per,
+            dsl.emit_edges.as_deref(),
+            diagnostics,
+        ));
     }
 
     Err(QuireError::DslValidationError {
@@ -93,6 +110,7 @@ fn eval_multi(
     doc: &QuireDocument,
     iter: &IterateOver,
     per: &IndexMap<String, Locator>,
+    emit_edges: Option<&[EmitEdge]>,
     mut diagnostics: Vec<Diagnostic>,
 ) -> ExtractionResult {
     let root = find_section_by_path(&doc.sections, &iter.section_path);
@@ -104,6 +122,7 @@ fn eval_multi(
             });
             return ExtractionResult {
                 records: Vec::new(),
+                edges: Vec::new(),
                 diagnostics,
             };
         }
@@ -116,12 +135,13 @@ fn eval_multi(
     // not a same-named section elsewhere (FR-011 "evaluated against
     // each iteration unit's local scope").
     let units: Vec<UnitContext> = match iter.kind {
-        IterateKind::Heading => iterate_heading_units(doc, root, iter.depth.unwrap_or(1)),
+        IterateKind::Heading => iterate_heading_units(doc, root, iter.depth),
         IterateKind::ListItem => iterate_list_units(doc, root),
         IterateKind::TableRow => iterate_table_row_units(doc, root),
     };
 
     let mut records: Vec<Map<String, Value>> = Vec::new();
+    let mut edges: Vec<ExtractedEdge> = Vec::new();
     for unit in &units {
         let mut record: Map<String, Value> = unit.fields.clone();
         let mut record_ok = true;
@@ -144,14 +164,73 @@ fn eval_multi(
             record.insert(key.clone(), values.into_iter().next().unwrap());
         }
         if record_ok && !record.is_empty() {
+            let record_index = records.len();
+            edges.extend(emit_edges_for_scope(
+                &unit.scope,
+                record_index,
+                emit_edges,
+                true,
+            ));
             records.push(record);
         }
     }
 
     ExtractionResult {
         records,
+        edges,
         diagnostics,
     }
+}
+
+fn emit_edges_for_records(
+    doc: &QuireDocument,
+    records: &[Map<String, Value>],
+    emit_edges: Option<&[EmitEdge]>,
+    allow_static: bool,
+) -> Vec<ExtractedEdge> {
+    records
+        .iter()
+        .enumerate()
+        .flat_map(|(idx, _)| emit_edges_for_scope(doc, idx, emit_edges, allow_static))
+        .collect()
+}
+
+fn emit_edges_for_scope(
+    scope: &QuireDocument,
+    record_index: usize,
+    emit_edges: Option<&[EmitEdge]>,
+    allow_static: bool,
+) -> Vec<ExtractedEdge> {
+    let Some(specs) = emit_edges else {
+        return Vec::new();
+    };
+    let mut out = Vec::new();
+    for spec in specs {
+        let targets: Vec<String> = match &spec.target {
+            EdgeTarget::Static(target) => {
+                if allow_static {
+                    vec![target.clone()]
+                } else {
+                    vec![target.clone()]
+                }
+            }
+            EdgeTarget::Locator(locator) => eval_locator(scope, locator)
+                .0
+                .into_iter()
+                .filter_map(|v| v.as_str().map(ToString::to_string))
+                .collect(),
+        };
+        for target in targets {
+            if !target.is_empty() {
+                out.push(ExtractedEdge {
+                    record_index,
+                    edge_type: spec.edge_type.clone(),
+                    target,
+                });
+            }
+        }
+    }
+    out
 }
 
 /// One iteration unit + the local-scope `QuireDocument` view that
@@ -177,40 +256,62 @@ fn scope_to_section(parent_doc: &QuireDocument, section: &QuireSection) -> Quire
 fn iterate_heading_units(
     parent_doc: &QuireDocument,
     root: &QuireSection,
-    depth: u8,
+    depth: Option<u8>,
 ) -> Vec<UnitContext> {
     let mut out: Vec<UnitContext> = Vec::new();
-    walk_children_at_depth(parent_doc, root, depth, 1, &mut out);
+    match depth {
+        Some(depth) => {
+            let level = if depth > root.level {
+                depth
+            } else {
+                root.level.saturating_add(depth)
+            };
+            walk_children_at_level(parent_doc, root, level, &mut out);
+        }
+        None => {
+            for child in &root.children {
+                push_heading_unit(parent_doc, child, &mut out);
+            }
+        }
+    }
     out
 }
 
-fn walk_children_at_depth(
+fn walk_children_at_level(
     parent_doc: &QuireDocument,
     parent: &QuireSection,
-    target_depth: u8,
-    current_depth: u8,
+    target_level: u8,
     out: &mut Vec<UnitContext>,
 ) {
     for child in &parent.children {
-        if current_depth == target_depth {
-            let mut m = Map::new();
-            m.insert("heading".to_string(), Value::String(child.heading.clone()));
-            m.insert(
-                "content".to_string(),
-                Value::String(child.content.trim().to_string()),
-            );
-            out.push(UnitContext {
-                fields: m,
-                scope: scope_to_section(parent_doc, child),
-            });
-        } else {
-            walk_children_at_depth(parent_doc, child, target_depth, current_depth + 1, out);
+        if child.level == target_level {
+            push_heading_unit(parent_doc, child, out);
         }
+        walk_children_at_level(parent_doc, child, target_level, out);
     }
 }
 
+fn push_heading_unit(
+    parent_doc: &QuireDocument,
+    section: &QuireSection,
+    out: &mut Vec<UnitContext>,
+) {
+    let mut m = Map::new();
+    m.insert(
+        "heading".to_string(),
+        Value::String(section.heading.clone()),
+    );
+    m.insert(
+        "content".to_string(),
+        Value::String(section.content.trim().to_string()),
+    );
+    out.push(UnitContext {
+        fields: m,
+        scope: scope_to_section(parent_doc, section),
+    });
+}
+
 fn iterate_list_units(parent_doc: &QuireDocument, root: &QuireSection) -> Vec<UnitContext> {
-    let scope = scope_to_section(parent_doc, root);
     crate::query::parse_bullet_list(&root.content, None)
         .into_iter()
         .map(|item| {
@@ -218,30 +319,59 @@ fn iterate_list_units(parent_doc: &QuireDocument, root: &QuireSection) -> Vec<Un
             m.insert("raw".to_string(), Value::String(item.raw));
             m.insert("title".to_string(), Value::String(item.title));
             m.insert("description".to_string(), Value::String(item.description));
-            UnitContext {
-                fields: m,
-                scope: scope.clone(),
-            }
+            let heading = m
+                .get("raw")
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .to_string();
+            let scope = QuireDocument {
+                preamble: None,
+                sections: vec![QuireSection {
+                    id: format!("{}-item", root.id),
+                    block_id: None,
+                    heading,
+                    level: root.level.saturating_add(1),
+                    content: String::new(),
+                    children: Vec::new(),
+                    start_line: root.start_line,
+                    end_line: root.end_line,
+                }],
+                raw: parent_doc.raw.clone(),
+                frontmatter: parent_doc.frontmatter.clone(),
+            };
+            UnitContext { fields: m, scope }
         })
         .collect()
 }
 
 fn iterate_table_row_units(parent_doc: &QuireDocument, root: &QuireSection) -> Vec<UnitContext> {
-    let scope = scope_to_section(parent_doc, root);
     match crate::query::parse_table(&root.content) {
         Some(t) => t
             .rows
             .into_iter()
             .map(|row| {
+                let heading = row.join("\t");
                 let mut m = Map::new();
                 for (i, cell) in row.into_iter().enumerate() {
                     let key = t.headers.get(i).cloned().unwrap_or_else(|| i.to_string());
                     m.insert(key, Value::String(cell));
                 }
-                UnitContext {
-                    fields: m,
-                    scope: scope.clone(),
-                }
+                let scope = QuireDocument {
+                    preamble: None,
+                    sections: vec![QuireSection {
+                        id: format!("{}-row", root.id),
+                        block_id: None,
+                        heading,
+                        level: root.level.saturating_add(1),
+                        content: String::new(),
+                        children: Vec::new(),
+                        start_line: root.start_line,
+                        end_line: root.end_line,
+                    }],
+                    raw: parent_doc.raw.clone(),
+                    frontmatter: parent_doc.frontmatter.clone(),
+                };
+                UnitContext { fields: m, scope }
             })
             .collect(),
         None => Vec::new(),
