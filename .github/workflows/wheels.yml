@@ -32,9 +32,15 @@ jobs:
             runner: macos-14
             target: aarch64-apple-darwin
             smoke: true
-          # apple-intel (x86_64-apple-darwin) dropped — GitHub-hosted
-          # macos-13 Intel runners are scarce/being deprecated. Intel-Mac
-          # users can run the arm64 wheel under Rosetta 2.
+          # apple-intel: cross-built from the macos-14 arm64 runner
+          # (GitHub-hosted macos-13 Intel runners are scarce/being
+          # deprecated). cargo cross-compiles to x86_64-apple-darwin
+          # cleanly on Apple Silicon. Smoke skipped — the arm64 runner
+          # can't natively run the x86_64 wheel without Rosetta plumbing.
+          - label: apple-intel (x86_64, cross-built)
+            runner: macos-14
+            target: x86_64-apple-darwin
+            smoke: false
           - label: intel + amd / luna (linux x86_64)
             runner: ubuntu-latest
             target: x86_64-unknown-linux-gnu
