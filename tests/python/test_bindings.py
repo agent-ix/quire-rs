@@ -254,6 +254,35 @@ def test_extraction_context_accepts_optional_code_block_language():
     assert out["extraction"] == [{"query": "rate(up[5m])"}]
 
 
+def test_extraction_context_errors_on_required_per_match_miss():
+    ctx = quire.ExtractionContext.from_object_types(
+        [
+            {
+                "name": "api_endpoint",
+                "schema": {"type": "object"},
+                "body_extraction": {
+                    "yield_pattern": {
+                        "iterate_over": {
+                            "section_path": ["Endpoints"],
+                            "kind": "heading",
+                            "depth": 1,
+                        },
+                        "per_match": {
+                            "example": {
+                                "from": "code_block",
+                                "after_heading": "Example",
+                                "required": True,
+                            }
+                        },
+                    }
+                },
+            }
+        ]
+    )
+    with pytest.raises(quire.QuireValidationError, match="MissingField"):
+        ctx.extract("api_endpoint", {}, "## Endpoints\n### Get User\nNo code here\n")
+
+
 def test_extract_frontmatter_returns_dict_or_none():
     """TC-514: FR-006 parity — Rust returns frontmatter and body."""
     result = quire.extract_frontmatter("---\nid: X\nartifact_type: FR\n---\n# H\n")

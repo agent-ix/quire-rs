@@ -58,13 +58,7 @@ pub fn extract(doc: &QuireDocument, dsl: &ExtractionDsl) -> Result<ExtractionRes
         dsl.yield_pattern.iterate_over.as_ref(),
         dsl.yield_pattern.per_match.as_ref(),
     ) {
-        return Ok(eval_multi(
-            doc,
-            iter,
-            per,
-            dsl.emit_edges.as_deref(),
-            diagnostics,
-        ));
+        return eval_multi(doc, iter, per, dsl.emit_edges.as_deref(), diagnostics);
     }
 
     Err(QuireError::DslValidationError {
@@ -112,7 +106,7 @@ fn eval_multi(
     per: &IndexMap<String, Locator>,
     emit_edges: Option<&[EmitEdge]>,
     mut diagnostics: Vec<Diagnostic>,
-) -> ExtractionResult {
+) -> Result<ExtractionResult, QuireError> {
     let root = find_section_by_path(&doc.sections, &iter.section_path);
     let root = match root {
         Some(s) => s,
@@ -120,11 +114,11 @@ fn eval_multi(
             diagnostics.push(Diagnostic::IterateRootMissing {
                 path: iter.section_path.clone(),
             });
-            return ExtractionResult {
+            return Ok(ExtractionResult {
                 records: Vec::new(),
                 edges: Vec::new(),
                 diagnostics,
-            };
+            });
         }
     };
 
@@ -144,13 +138,14 @@ fn eval_multi(
     let mut edges: Vec<ExtractedEdge> = Vec::new();
     for unit in &units {
         let mut record: Map<String, Value> = unit.fields.clone();
-        let mut record_ok = true;
         for (key, loc) in per {
             let (values, fallback_pos) = eval_locator(&unit.scope, loc);
             if values.is_empty() {
                 if loc.required() {
-                    record_ok = false;
-                    break;
+                    return Err(QuireError::MissingField {
+                        key: key.clone(),
+                        locator: loc.canonical().describe(),
+                    });
                 }
                 continue;
             }
@@ -163,7 +158,7 @@ fn eval_multi(
             }
             record.insert(key.clone(), values.into_iter().next().unwrap());
         }
-        if record_ok && !record.is_empty() {
+        if !record.is_empty() {
             let record_index = records.len();
             edges.extend(emit_edges_for_scope(
                 &unit.scope,
@@ -175,11 +170,11 @@ fn eval_multi(
         }
     }
 
-    ExtractionResult {
+    Ok(ExtractionResult {
         records,
         edges,
         diagnostics,
-    }
+    })
 }
 
 fn emit_edges_for_records(
@@ -522,6 +517,30 @@ yield_pattern:
         let r = extract(&d, &dsl).expect("ok");
         assert_eq!(r.records.len(), 3);
         assert_eq!(r.records[0]["heading"], serde_json::json!("A"));
+    }
+
+    #[test]
+    fn multi_yield_required_miss_returns_missing_field() {
+        let d = parse_document("## Algorithms\nintro\n### A\nbody a\n### B\nbody b\n");
+        let dsl = dsl_from(
+            r#"
+yield_pattern:
+  iterate_over:
+    section_path: [Algorithms]
+    kind: heading
+    depth: 1
+  per_match:
+    example:
+      from: code_block
+      after_heading: Example
+      required: true
+"#,
+        );
+        let err = extract(&d, &dsl).expect_err("missing required per_match field");
+        assert!(matches!(
+            err,
+            QuireError::MissingField { key, .. } if key == "example"
+        ));
     }
 
     // FR-011-AC-8

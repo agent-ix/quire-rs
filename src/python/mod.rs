@@ -174,7 +174,7 @@ fn extract<'py>(
             QuireParseError::new_err(format!("archetype {name} has no body_extraction DSL"))
         })?;
         let doc = crate::parse_document(&text);
-        let result = crate::extract(&doc, dsl).map_err(quire_error_to_parse_pyerr)?;
+        let result = crate::extract(&doc, dsl).map_err(quire_error_to_pyerr)?;
 
         // Harvest edges off a LoadedDocument view.
         let loaded = LoadedDocument {
@@ -586,7 +586,7 @@ impl ExtractionContext {
                 Value::Object(map) if !map.is_empty() => Some(map),
                 _ => None,
             };
-            let result = crate::extract(&doc, &dsl).map_err(quire_error_to_parse_pyerr)?;
+            let result = crate::extract(&doc, &dsl).map_err(quire_error_to_pyerr)?;
             for record in &result.records {
                 let value = Value::Object(record.clone());
                 crate::validate(&arch, &value).map_err(quire_error_to_validation_pyerr)?;
