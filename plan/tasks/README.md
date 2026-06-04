@@ -87,6 +87,24 @@ Pure Rust through 031; only 032 needs the Python toolchain. Basis: ADR-0002 (thr
 | 033 | Corpus fuzz targets (NFR-011 extension) | **complete** (code; runs on scheduled lane) |
 | 034 | Concurrency + FFI hardening — loom (NFR-017) + TSAN/ASAN (NFR-018) + scoping ACs | **Part A complete** (loom + audit); Part B (TSAN/ASAN) blocked on 032 |
 
+### Track G — v0.4 Markdown-default validation — Critical Path (serial)
+
+Direct-markdown authoring + structural validation via `body_extraction` asserts.
+Basis: ADR 0003/0004/0005, FR-031..035, US-014. Supersedes FR-030's
+`required_sections` model; recasts FR-029.
+
+| # | Task | Status | Gate |
+|---|---|---|---|
+| 035 | Locator assert facet + `{field}` interpolation (FR-033, FR-034) | **not started** | — |
+| 037 | Unified archetype shape (FR-031) | **not started** | — |
+| 036 | validate_document + heading uniqueness (FR-032, FR-035) | **not started** (blocked on 035, 037) | **G7** |
+| 038 | validate_document PyO3 binding (FR-032) | **not started** (blocked on 036) | — |
+| 039 | Input-contract recast / skeleton (FR-029; FR-030 superseded) | **not started** (blocked on 037) | — |
+
+035 and 037 are parallel-ready (pure Rust); 036 needs both; 038 needs 036 + the
+Python toolchain; 039 needs 037. **No backward-compatibility layer** —
+`required_sections`/`variants` are rejected, not tolerated.
+
 ## Quality Gates
 
 | Gate | After | Measures | Pass criteria |
@@ -97,6 +115,7 @@ Pure Rust through 031; only 032 needs the Python toolchain. Basis: ADR-0002 (thr
 | **G4** | D4 | Block round-trip integrity | TC-440..443 pass; only patched block bytes change; block_id stable across reparse |
 | **G5** ✅ PASS | 031 | Corpus correctness (dogfood on quire-rs's own spec/) | TC-480..501 green + `tests/spec_dogfood.rs` real-spec assertions pass |
 | **G6** | 032 | Binding parity + ≥5× speedup vs Python | TC-460..467 + TC-456 + TC-465 pass |
+| **G7** | 036 | Markdown structural validation | TC-528..547 pass: a conformant FR validates; mutations (missing/empty/placeholder/assert/dup-heading) fail with line numbers |
 
 ## Coordination Rules
 
