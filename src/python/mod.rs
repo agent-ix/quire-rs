@@ -47,6 +47,8 @@ fn quire(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(render, m)?)?;
     m.add_function(wrap_pyfunction!(validate, m)?)?;
     m.add_function(wrap_pyfunction!(validate_document, m)?)?;
+    m.add_function(wrap_pyfunction!(input_contract, m)?)?;
+    m.add_function(wrap_pyfunction!(input_skeleton, m)?)?;
     m.add_function(wrap_pyfunction!(validate_manifest, m)?)?;
     m.add_function(wrap_pyfunction!(extract, m)?)?;
     m.add_function(wrap_pyfunction!(extract_frontmatter, m)?)?;
@@ -142,6 +144,45 @@ fn validate_document<'py>(
     }
     out.set_item("errors", errors)?;
     Ok(out)
+}
+
+/// Return the input contract for `archetype_name` from `module_root`
+/// (FR-029 recast) as a JSON-serializable dict: `{archetype,
+/// frontmatter_schema, sections, diagnostics}`. Derived from the loaded
+/// module (frontmatter schema + body_extraction asserts), never from
+/// rendered markdown. Unknown archetype → `QuireSchemaError`.
+#[pyfunction]
+fn input_contract<'py>(
+    py: Python<'py>,
+    archetype_name: &str,
+    module_root: &str,
+) -> PyResult<Bound<'py, PyAny>> {
+    let module = module_root.to_string();
+    let name = archetype_name.to_string();
+    let json = py.detach(|| -> PyResult<Value> {
+        let registry = crate::Registry::load_module(Path::new(&module))
+            .map_err(quire_error_to_schema_pyerr)?;
+        let contract =
+            crate::input_contract_for(&registry, &name).map_err(quire_error_to_schema_pyerr)?;
+        Ok(contract.to_json())
+    })?;
+    json_to_py(py, &json)
+}
+
+/// Return the markdown authoring skeleton for `archetype_name` from
+/// `module_root` (FR-029 recast) — the artifact handed to an authoring
+/// agent. Unknown archetype → `QuireSchemaError`.
+#[pyfunction]
+fn input_skeleton(py: Python<'_>, archetype_name: &str, module_root: &str) -> PyResult<String> {
+    let module = module_root.to_string();
+    let name = archetype_name.to_string();
+    py.detach(|| -> PyResult<String> {
+        let registry = crate::Registry::load_module(Path::new(&module))
+            .map_err(quire_error_to_schema_pyerr)?;
+        let contract =
+            crate::input_contract_for(&registry, &name).map_err(quire_error_to_schema_pyerr)?;
+        Ok(contract.skeleton())
+    })
 }
 
 /// Validate an arbitrary `payload` (dict) against the JSON Schema at

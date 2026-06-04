@@ -7,6 +7,7 @@
 
 pub mod ast;
 pub mod block_edit;
+pub mod contract;
 pub mod corpus;
 pub mod diagnostic;
 pub mod error;
@@ -46,6 +47,8 @@ pub use validate::{apply_patch, validate, validate_all, validate_block};
 pub use validate_document::{
     validate_context, validate_document, ValidationError, ValidationReason, ValidationResult,
 };
+// Archetype input contract + authoring skeleton (FR-029 recast).
+pub use contract::{input_contract_for, ContractSection, InputContract};
 // Extract / body-extraction DSL (FR-011 + FR-016).
 pub use extract::dsl::{ExtractionDsl, IterateKind, IterateOver, YieldPattern};
 pub use extract::locator::{Locator, LocatorAssert, LocatorKind, LocatorPrimitive};

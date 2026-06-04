@@ -153,6 +153,29 @@ def test_validate_document_unknown_archetype_raises():
         quire.validate_document("no-such-archetype", str(ISO_MODULE), CONFORMANT_FR)
 
 
+# ── Task 039: input contract + skeleton binding (FR-029 recast) ──────
+
+
+def test_input_contract_for_fr():
+    contract = quire.input_contract("FR", str(ISO_MODULE))
+    assert contract["archetype"] == "FR"
+    assert contract["frontmatter_schema"]["type"] == "object"
+    headings = [s["heading"] for s in contract["sections"] if s["heading"]]
+    for required in ["Description", "Specification", "Acceptance Criteria", "Dependencies"]:
+        assert required in headings
+
+
+def test_input_skeleton_for_fr():
+    skeleton = quire.input_skeleton("FR", str(ISO_MODULE))
+    assert "## Description" in skeleton
+    assert "TODO" not in skeleton
+
+
+def test_input_contract_unknown_raises():
+    with pytest.raises(quire.QuireSchemaError):
+        quire.input_contract("no-such-archetype", str(ISO_MODULE))
+
+
 # ── FR-028 expanded surface ──────────────────────────────────────────
 
 DEMO_MODULE = REPO_ROOT / "tests" / "render_parity" / "modules" / "demo"
