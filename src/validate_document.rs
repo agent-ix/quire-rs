@@ -98,7 +98,7 @@ impl ValidationResult {
 /// section, a failed assert, or a duplicate heading is invalid.
 pub fn validate_document(archetype: &CompiledArchetype, doc_text: &str) -> ValidationResult {
     let doc = crate::parse_document(doc_text);
-    let line_offset = body_line_offset(doc_text, &doc);
+    let line_offset = body_line_offset(doc_text);
     let mut errors: Vec<ValidationError> = Vec::new();
 
     validate_frontmatter(archetype, &doc, &mut errors);
@@ -110,18 +110,17 @@ pub fn validate_document(archetype: &CompiledArchetype, doc_text: &str) -> Valid
     ValidationResult::from_errors(errors)
 }
 
-/// Number of body lines preceding `doc.sections` line 0 in the raw
-/// document — the count of newlines consumed by any frontmatter block
-/// (plus a leading BOM). Used to convert a section's 0-based body
-/// `start_line` into a 1-based document line.
-fn body_line_offset(doc_text: &str, doc: &QuireDocument) -> usize {
+/// Number of body lines preceding the parsed body in the raw document —
+/// the count of newlines consumed by any frontmatter block (plus a
+/// leading BOM). Used to convert a section's 0-based body `start_line`
+/// into a 1-based document line.
+fn body_line_offset(doc_text: &str) -> usize {
     let stripped = doc_text.strip_prefix('\u{FEFF}').unwrap_or(doc_text);
     // `parse_document` stores the verbatim input in `raw`; the parsed
     // body is `raw` minus frontmatter. Recompute the body the same way
     // the parser did so the prefix length is exact.
     let body = crate::extract_frontmatter(doc_text).body;
     let prefix_len = stripped.len().saturating_sub(body.len());
-    let _ = doc; // doc reused only for type-symmetry / future use.
     stripped[..prefix_len.min(stripped.len())]
         .matches('\n')
         .count()
@@ -179,12 +178,35 @@ fn validate_body(
     errors: &mut Vec<ValidationError>,
 ) {
     // Single-yield `match` locators are the structural contract for the
-    // document body. `iterate_over`/`per_match` describe repeated child
-    // units and are validated per unit only via their asserts; the
-    // asserting posture here covers the `match` map.
+    // document body.
     if let Some(map) = &dsl.yield_pattern.r#match {
         for (key, locator) in map {
             validate_required_locator(archetype, doc, key, locator, line_offset, errors);
+        }
+    }
+
+    // Multi-yield (`iterate_over` + `per_match`): resolve each iteration
+    // unit with the **same** evaluation the extractor uses
+    // (`extract::iteration_units`), then run the required-locator +
+    // assert checks for every `per_match` locator against each unit's
+    // local scope (FR-032 step 3, FR-033). Line numbers stay in
+    // body-relative coordinates because the unit scopes preserve each
+    // section's `start_line` and inherit the parent `frontmatter`.
+    if let (Some(iter), Some(per)) = (
+        &dsl.yield_pattern.iterate_over,
+        &dsl.yield_pattern.per_match,
+    ) {
+        for unit in crate::extract::iteration_units(doc, iter) {
+            for (key, locator) in per {
+                validate_required_locator(
+                    archetype,
+                    &unit.scope,
+                    key,
+                    locator,
+                    line_offset,
+                    errors,
+                );
+            }
         }
     }
 }
@@ -586,6 +608,108 @@ yield_pattern:
         let a2 = archetype(None, None);
         let r2 = validate_document(&a2, doc);
         assert!(r2.is_valid, "{:?}", r2.errors);
+    }
+
+    // A multi-yield archetype: iterate the bullet-list items under
+    // `## Algorithms` (one record per item). Each unit requires its own
+    // `heading` (the list-item text, which the iterator places at the
+    // unit-scope root) and asserts it matches `^Algo-\d+:` — a per-unit
+    // required-locator + assert combination (FR-032 step 3, FR-033).
+    // List-item iteration keeps every unit scope-local (no `raw`-wide
+    // code_block leakage, no per-level heading collisions).
+    const MULTI_DSL: &str = r#"
+yield_pattern:
+  iterate_over:
+    section_path: [Algorithms]
+    kind: list_item
+  per_match:
+    name:
+      from: heading
+      required: true
+      assert:
+        id_pattern: '^Algo-\d+:'
+"#;
+
+    // TC-561 (FR-032 step 3 / FR-033): multi-yield archetype — a
+    // conformant document (every iteration unit carries its required
+    // sub-locator with a satisfied assert) validates.
+    #[test]
+    fn tc561_multi_yield_conformant_validates() {
+        let a = archetype(None, Some(MULTI_DSL));
+        let doc = "## Algorithms\n\
+                   - Algo-1: first algorithm\n\
+                   - Algo-2: second algorithm\n";
+        let r = validate_document(&a, doc);
+        assert!(r.is_valid, "{:?}", r.errors);
+    }
+
+    // A second multi-yield archetype exercising the **missing required
+    // sub-locator** path: iterate `### child` headings under
+    // `## Steps`, each unit requiring a `#### Detail` (level-4) heading
+    // inside it. A unit without that child sub-heading fails `missing`.
+    const MULTI_DSL_MISSING: &str = r#"
+yield_pattern:
+  iterate_over:
+    section_path: [Steps]
+    kind: heading
+    depth: 1
+  per_match:
+    detail:
+      from: heading
+      level: 4
+      required: true
+"#;
+
+    // TC-561: a unit missing its required per_match sub-locator (no
+    // `#### Detail` child) fails with reason `missing`, naming the key.
+    #[test]
+    fn tc561_multi_yield_unit_missing_required_fails() {
+        let a = archetype(None, Some(MULTI_DSL_MISSING));
+        // Unit `Two` has no `#### ...` child heading.
+        let doc = "## Steps\n\
+                   ### One\n#### Detail one\nx\n\
+                   ### Two\nno detail child\n";
+        let r = validate_document(&a, doc);
+        assert!(!r.is_valid);
+        let e = r
+            .errors
+            .iter()
+            .find(|e| e.reason == ValidationReason::Missing)
+            .expect("missing per_match locator");
+        assert!(e.message.contains("detail"), "{}", e.message);
+    }
+
+    // The same archetype: when every unit carries its required child, the
+    // document validates (distinct `#### Detail N` headings avoid the
+    // per-level uniqueness rule, FR-035).
+    #[test]
+    fn tc561_multi_yield_missing_dsl_conformant_validates() {
+        let a = archetype(None, Some(MULTI_DSL_MISSING));
+        let doc = "## Steps\n\
+                   ### One\n#### Detail one\nx\n\
+                   ### Two\n#### Detail two\ny\n";
+        let r = validate_document(&a, doc);
+        assert!(r.is_valid, "{:?}", r.errors);
+    }
+
+    // TC-562 (FR-033): a unit whose required sub-locator violates its
+    // assert (list-item text does not match the id_pattern) fails with
+    // reason `assert`; a conformant sibling does not.
+    #[test]
+    fn tc562_multi_yield_unit_assert_fails() {
+        let a = archetype(None, Some(MULTI_DSL));
+        let doc = "## Algorithms\n\
+                   - Algo-1: ok\n\
+                   - Bogus: not matching\n";
+        let r = validate_document(&a, doc);
+        assert!(!r.is_valid);
+        assert!(
+            r.errors
+                .iter()
+                .any(|e| e.reason == ValidationReason::Assert),
+            "{:?}",
+            r.errors
+        );
     }
 
     // TC-544 (FR-035-AC-1): two `## Description` → duplicate-heading,

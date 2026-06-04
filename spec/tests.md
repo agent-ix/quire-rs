@@ -349,6 +349,8 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-558 | `ExtractionContext.from_object_types([...]).extract(name,text)` returns same records + edges as Rust extractor; no module-root/`.ix` read | Integration | P0 | FR-028-AC-9, US-003-AC-4 | 🚧 |
 | TC-559 | `ExtractionContext` accepts both a bare list of ObjectType dicts and the core envelope `{items: [...]}` | Integration | P0 | FR-028-AC-10 | 🚧 |
 | TC-560 | Python `ExtractionContext.from_object_types([...])` extracts a real document from in-memory snapshot without reading module root / `.ix` / package manifest | Integration | P0 | US-003-AC-4 | 🚧 |
+| TC-561 | Multi-yield archetype (`iterate_over` + `per_match`): `validate_document` runs each `per_match` required-locator + `assert` against every iteration unit's local scope — a conformant document passes; a unit missing a required sub-locator → reason `missing`; a unit violating an assert → reason `assert` | Unit | P0 | FR-032-AC-2, FR-033-AC-4 | 🚧 |
+| TC-562 | Registry path: a module loaded via `Registry` whose archetype carries an `assert` facet (AC table `columns` + interpolated `id_pattern`) runs end-to-end through `validate_document` (manifest → load → validate); mis-prefixed id / wrong columns → reason `assert`, conformant passes | Integration | P0 | FR-033-AC-4 | 🚧 |
 
 ---
 
@@ -695,7 +697,7 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-031-AC-5 | TC-526 |
 | FR-031-AC-6 | TC-527 |
 | FR-032-AC-1 | TC-528 |
-| FR-032-AC-2 | TC-529 |
+| FR-032-AC-2 | TC-529, TC-561 |
 | FR-032-AC-3 | TC-530 |
 | FR-032-AC-4 | TC-531 |
 | FR-032-AC-5 | TC-532 |
@@ -703,7 +705,7 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-033-AC-1 | TC-534 |
 | FR-033-AC-2 | TC-535 |
 | FR-033-AC-3 | TC-536 |
-| FR-033-AC-4 | TC-537 |
+| FR-033-AC-4 | TC-537, TC-561, TC-562 |
 | FR-033-AC-5 | TC-538 |
 | FR-033-AC-6 | TC-539 |
 | FR-034-AC-1 | TC-540 |

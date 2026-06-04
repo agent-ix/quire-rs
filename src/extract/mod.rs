@@ -109,20 +109,16 @@ fn eval_multi(
     emit_edges: Option<&[EmitEdge]>,
     mut diagnostics: Vec<Diagnostic>,
 ) -> Result<ExtractionResult, QuireError> {
-    let root = find_section_by_path(&doc.sections, &iter.section_path);
-    let root = match root {
-        Some(s) => s,
-        None => {
-            diagnostics.push(Diagnostic::IterateRootMissing {
-                path: iter.section_path.clone(),
-            });
-            return Ok(ExtractionResult {
-                records: Vec::new(),
-                edges: Vec::new(),
-                diagnostics,
-            });
-        }
-    };
+    if find_section_by_path(&doc.sections, &iter.section_path).is_none() {
+        diagnostics.push(Diagnostic::IterateRootMissing {
+            path: iter.section_path.clone(),
+        });
+        return Ok(ExtractionResult {
+            records: Vec::new(),
+            edges: Vec::new(),
+            diagnostics,
+        });
+    }
 
     // Each unit carries pre-populated fields plus a "local scope"
     // QuireDocument view used by per_match Locators. For Heading
@@ -130,11 +126,7 @@ fn eval_multi(
     // `section_body, after_heading: X` finds X *inside* the unit,
     // not a same-named section elsewhere (FR-011 "evaluated against
     // each iteration unit's local scope").
-    let units: Vec<UnitContext> = match iter.kind {
-        IterateKind::Heading => iterate_heading_units(doc, root, iter.depth),
-        IterateKind::ListItem => iterate_list_units(doc, root),
-        IterateKind::TableRow => iterate_table_row_units(doc, root),
-    };
+    let units = iteration_units(doc, iter);
 
     let mut records: Vec<Map<String, Value>> = Vec::new();
     let mut edges: Vec<ExtractedEdge> = Vec::new();
@@ -220,9 +212,27 @@ fn emit_edges_for_scope(
 /// One iteration unit + the local-scope `QuireDocument` view that
 /// `per_match` Locators evaluate against (FR-011 "iteration unit's
 /// local scope").
-struct UnitContext {
-    fields: Map<String, Value>,
-    scope: QuireDocument,
+pub struct UnitContext {
+    pub fields: Map<String, Value>,
+    pub scope: QuireDocument,
+}
+
+/// Resolve the multi-yield iteration units (one local-scope view per
+/// unit) for an `iterate_over`. Shared by the extractor and by
+/// `validate_document` (FR-032 step 3), so both postures resolve the
+/// **same** units against the **same** local scopes. Returns an empty
+/// vec when the iteration root is absent (the extract path additionally
+/// emits an `IterateRootMissing` diagnostic; validation surfaces the
+/// absence via the required-locator check on the units it produces).
+pub fn iteration_units(doc: &QuireDocument, iter: &IterateOver) -> Vec<UnitContext> {
+    let Some(root) = find_section_by_path(&doc.sections, &iter.section_path) else {
+        return Vec::new();
+    };
+    match iter.kind {
+        IterateKind::Heading => iterate_heading_units(doc, root, iter.depth),
+        IterateKind::ListItem => iterate_list_units(doc, root),
+        IterateKind::TableRow => iterate_table_row_units(doc, root),
+    }
 }
 
 /// Build a `QuireDocument` view scoped to `section` (and its
