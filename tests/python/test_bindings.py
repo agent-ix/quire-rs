@@ -92,6 +92,67 @@ def test_validate_unknown_archetype_raises():
         reg.validate("no-such-archetype", {})
 
 
+# ── Task 038: validate_document binding (FR-032) ─────────────────────
+
+ISO_MODULE = REPO_ROOT / "tests" / "render_parity" / "modules" / "iso"
+
+CONFORMANT_FR = (
+    "---\n"
+    "id: FR-901\n"
+    'title: "A conformant requirement"\n'
+    "artifact_type: FR\n"
+    "---\n"
+    "# [FR-901] A conformant requirement\n"
+    "\n"
+    "## Description\n"
+    "The system SHALL preserve byte-exact content across a parse round-trip.\n"
+    "\n"
+    "## Specification\n"
+    "On parse, the engine retains every byte of the section body verbatim.\n"
+    "\n"
+    "## Acceptance Criteria\n"
+    "\n"
+    "| ID | Criteria | Verification |\n"
+    "|----|----------|--------------|\n"
+    "| FR-901-AC-1 | Round-trip is byte-identical | Integration Test |\n"
+    "\n"
+    "## Dependencies\n"
+    "\n"
+    "- **Upstream**: none\n"
+    "- **Downstream**: none\n"
+)
+
+
+def test_validate_document_conformant_is_valid():
+    """TC-528/TC-533 (binding happy path): a conformant FR markdown
+    document validates through the wheel."""
+    result = quire.validate_document("FR", str(ISO_MODULE), CONFORMANT_FR)
+    assert result["is_valid"] is True
+    assert result["errors"] == []
+
+
+def test_validate_document_flags_missing_section_with_reason_and_line():
+    """TC-529/TC-533 (binding sad path): a missing required section is
+    flagged with a reason and a line-numbered error shape."""
+    mutated = CONFORMANT_FR.replace(
+        "## Specification\n"
+        "On parse, the engine retains every byte of the section body verbatim.\n\n",
+        "",
+    )
+    result = quire.validate_document("FR", str(ISO_MODULE), mutated)
+    assert result["is_valid"] is False
+    reasons = {e["reason"] for e in result["errors"]}
+    assert "missing" in reasons
+    # Error shape: each carries message + line + reason keys.
+    for e in result["errors"]:
+        assert set(e.keys()) == {"message", "line", "reason"}
+
+
+def test_validate_document_unknown_archetype_raises():
+    with pytest.raises(quire.QuireSchemaError):
+        quire.validate_document("no-such-archetype", str(ISO_MODULE), CONFORMANT_FR)
+
+
 # ── FR-028 expanded surface ──────────────────────────────────────────
 
 DEMO_MODULE = REPO_ROOT / "tests" / "render_parity" / "modules" / "demo"

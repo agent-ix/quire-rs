@@ -46,6 +46,7 @@ fn quire(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(load_repo, m)?)?;
     m.add_function(wrap_pyfunction!(render, m)?)?;
     m.add_function(wrap_pyfunction!(validate, m)?)?;
+    m.add_function(wrap_pyfunction!(validate_document, m)?)?;
     m.add_function(wrap_pyfunction!(validate_manifest, m)?)?;
     m.add_function(wrap_pyfunction!(extract, m)?)?;
     m.add_function(wrap_pyfunction!(extract_frontmatter, m)?)?;
@@ -100,6 +101,47 @@ fn validate(
             .ok_or_else(|| QuireSchemaError::new_err(format!("unknown archetype: {name}")))?;
         crate::validate(arch, &value).map_err(quire_error_to_validation_pyerr)
     })
+}
+
+/// Validate an authored markdown `document_text` against
+/// `archetype_name` from `module_root` (FR-032 — the default,
+/// markdown-default path). Returns
+/// `{is_valid: bool, errors: [{message, line, reason}]}`. Raises
+/// `QuireSchemaError` if the module / archetype fails to load, and the
+/// `UnknownArchetype`-style `QuireSchemaError` for an unknown archetype
+/// (parity with `validate`).
+#[pyfunction]
+fn validate_document<'py>(
+    py: Python<'py>,
+    archetype_name: &str,
+    module_root: &str,
+    document_text: &str,
+) -> PyResult<Bound<'py, PyDict>> {
+    let module = module_root.to_string();
+    let name = archetype_name.to_string();
+    let text = document_text.to_string();
+
+    let result = py.detach(|| -> PyResult<crate::validate_document::ValidationResult> {
+        let registry = crate::Registry::load_module(Path::new(&module))
+            .map_err(quire_error_to_schema_pyerr)?;
+        let arch = registry
+            .archetype(&name)
+            .ok_or_else(|| QuireSchemaError::new_err(format!("unknown archetype: {name}")))?;
+        Ok(crate::validate_document(arch, &text))
+    })?;
+
+    let out = PyDict::new(py);
+    out.set_item("is_valid", result.is_valid)?;
+    let errors = PyList::empty(py);
+    for e in &result.errors {
+        let d = PyDict::new(py);
+        d.set_item("message", &e.message)?;
+        d.set_item("line", e.line)?;
+        d.set_item("reason", e.reason.as_str())?;
+        errors.append(d)?;
+    }
+    out.set_item("errors", errors)?;
+    Ok(out)
 }
 
 /// Validate an arbitrary `payload` (dict) against the JSON Schema at
