@@ -14,6 +14,14 @@ relationships:
     cardinality: "1:1"
 ---
 
+> **CR note (superseded by FR-032 / FR-033, ADR 0004):** The `required_sections`
+> manifest field and the list-based contract described below are **retired**.
+> Markdown structural validation is now performed by `validate_document` (FR-032)
+> over the unified archetype's `body_extraction` asserts (FR-033), which subsume
+> required-section completeness (presence at level, non-empty, no placeholder) and
+> add table-column / row-count / list-item / id assertions. This FR is retained for
+> history and traceability; new work targets FR-032/FR-033. See ADR 0004 and ADR 0005.
+
 ## Behavior
 
 `quire-rs` validation SHALL enforce manifest `required_sections` for rendered markdown artifacts in addition to frontmatter JSON Schema validation.

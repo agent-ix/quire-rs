@@ -11,6 +11,15 @@ relationships:
     cardinality: "1:1"
 ---
 
+> **CR note (recast by ADR 0004):** The input contract is no longer derived from a
+> render template's variables. With direct-markdown authoring (ADR 0004) there is no
+> required render template; the per-archetype contract is a **skeleton/example**
+> derived from `frontmatter_schema_ref` + the `body_extraction` asserts (FR-033) — the
+> structure an author fills and `validate_document` (FR-032) checks. Below, "template
+> variables" and "required-section → variable mapping" are superseded by "asserts →
+> required structure"; the contract still SHALL be derived from the loaded module
+> (manifest + schema), never inferred from rendered markdown. See ADR 0004.
+
 ## Behavior
 
 `quire-rs` SHALL expose an input contract for each loaded archetype that is suitable for LLM render agents and other non-Rust consumers. The contract SHALL combine:
