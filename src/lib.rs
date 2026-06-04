@@ -20,6 +20,7 @@ pub mod query;
 pub mod registry;
 pub mod render;
 pub mod validate;
+pub mod validate_document;
 pub mod writeback;
 
 // Parser surface (FR-005..009).
@@ -41,6 +42,10 @@ pub use registry::Registry;
 // Render + validate (FR-001 + FR-002).
 pub use render::{render, render_block, render_by_name, render_with_env, RenderOutput};
 pub use validate::{apply_patch, validate, validate_all, validate_block};
+// Markdown-default validation (FR-032 + FR-035).
+pub use validate_document::{
+    validate_context, validate_document, ValidationError, ValidationReason, ValidationResult,
+};
 // Extract / body-extraction DSL (FR-011 + FR-016).
 pub use extract::dsl::{ExtractionDsl, IterateKind, IterateOver, YieldPattern};
 pub use extract::locator::{Locator, LocatorAssert, LocatorKind, LocatorPrimitive};
