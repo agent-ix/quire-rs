@@ -11,6 +11,13 @@ relationships:
     cardinality: "1:1"
 ---
 
+> **CR note (no backward-compatibility — 2026-06-04):** This FR's original
+> `required_sections` handling ("loads, ignored, one non-fatal diagnostic") is
+> **superseded** by the project's no-deprecated-format-fallback directive (see
+> filament-core FR-035 CR-002). The deprecated keys `required_sections` and
+> `variants` are now **hard-rejected** (`ArchetypeLoadFailure`), not tolerated.
+> The Behavior and FR-031-AC-5 below are updated to the hard-rejection contract.
+
 ## Behavior
 
 Per ADR 0003, `quire-rs` SHALL compile every manifest archetype into a **single**
@@ -28,11 +35,12 @@ A compiled archetype MAY carry, all optional except `name`:
 Renderability and validatability SHALL be **derived from which parts are present**
 (mirror the existing `is_renderable()` accessor), not from a declared kind.
 
-The manifest field `required_sections` is **retired**: it SHALL NOT be read as a
-validation contract; its intent moves to `body_extraction` asserts (FR-033). A
-manifest that still declares `required_sections` SHALL load with a non-fatal
-`Diagnostic` noting the field is ignored and pointing to `body_extraction`. No
-dual-read fallback is provided.
+The manifest fields `required_sections` and `variants` are **retired**: their
+intent moves to `body_extraction` asserts (FR-033) and separate archetypes (ADR
+0005 #1) respectively. A manifest that still declares either field SHALL be
+**rejected** with an `ArchetypeLoadFailure` naming the archetype and the
+deprecated field; the archetype does NOT load. There is **no tolerate/ignore path
+and no dual-read** of the deprecated shape (no backward-compatibility layer).
 
 `Registry` lookup by archetype name (FR-013) is unchanged.
 
@@ -42,5 +50,5 @@ dual-read fallback is provided.
 - **FR-031-AC-2**: A manifest archetype declaring `body_extraction` but no `template_ref` compiles successfully with `is_renderable() == false`, and is still validatable and extractable.
 - **FR-031-AC-3**: `defaults.id_pattern`, `allowed_links`, `has_plugin`, and `grammar_ref` are retained on the compiled archetype and readable via accessors.
 - **FR-031-AC-4**: `frontmatter_schema_ref` and `data_schema` are both retained as distinct compiled validators (frontmatter vs extracted record); neither is collapsed into the other.
-- **FR-031-AC-5**: A manifest archetype that still declares `required_sections` loads, the field is ignored for validation, and exactly one non-fatal diagnostic names the archetype and points to `body_extraction`.
+- **FR-031-AC-5**: A manifest archetype that still declares `required_sections` (or `variants`) is **rejected** with an `ArchetypeLoadFailure` naming the archetype and the deprecated field; it does NOT load (no tolerate/ignore path).
 - **FR-031-AC-6**: `Registry::archetype(name)` resolves a unified archetype identically to the pre-unification path (same name keying, same first-wins semantics).
