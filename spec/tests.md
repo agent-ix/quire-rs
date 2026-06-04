@@ -47,6 +47,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | US-011 Python parses repo via bindings | AC-1..5 + PC-1..3 | TC-463, TC-471, TC-467, TC-475, TC-464 (correctness) + TC-455, TC-469, TC-456 (perf) | ✅ Functional / 🚧 Perf bench pending |
 | US-012 Agent audits whole spec | AC-1..5 + PC-1..3 | TC-493, TC-495, TC-494, TC-496, TC-485 (correctness) + TC-457, TC-458, TC-498 (perf) | ✅ Functional / 🚧 Perf bench pending |
 | US-013 Agent resolves intra-spec refs | AC-1..5 + PC-1..3 | TC-486, TC-487, TC-488, TC-489, TC-490 (correctness) + TC-459, TC-492 (perf) | ✅ Functional / 🚧 Perf bench pending |
+| US-014 Author validates markdown | AC-1..4 | TC-518, TC-519, TC-520, TC-521 | 🚧 Pending implementation |
 
 ### Functional Requirement Coverage
 
@@ -73,6 +74,13 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | FR-022 Writeback primitives | AC-1..5 | TC-430 (update_section replaces content), TC-431 (update_block replaces heading+content), TC-432 (other blocks byte-identical), TC-433 (frontmatter preserved), TC-434/435 (missing heading/id → MissingField) | ✅ Complete |
 | FR-023 PyO3 binding surface | AC-1..7 | TC-460 (feature-gate), TC-461 (parse parity), TC-462 (validate parity), TC-463 (load_repo via binding), TC-464 (GIL release), TC-465 (abi3 cross-version), TC-466 (no subprocess) | ✅ Complete |
 | FR-028 Expanded Python surface | AC-1..8 | TC-510 (render byte-parity), TC-511 (validate happy+sad), TC-512 (validate_manifest), TC-513 (extract envelope), TC-514 (extract_frontmatter), TC-515 (harvest_edges dict+str), TC-516 (exception hierarchy), TC-517 (GIL release multi-thread) | ✅ Complete |
+| FR-029 Archetype input contract (recast, ADR 0004) | AC-1..6 | TC-548 (FR/NFR contract), TC-549 (NFR sections), TC-550 (iso required_sections order), TC-551 (byte-stable JSON), TC-552 (unknown→err), TC-553 (unresolved-mapping diag) | 🚧 Pending implementation |
+| FR-030 Required-section validation (superseded by FR-032/FR-033, ADR 0004) | AC-1..6 | TC-529, TC-530, TC-536, TC-528, TC-533 (covered by FR-032/FR-033 TCs) | 🚧 Superseded — covered by FR-032/FR-033 |
+| FR-031 Unified archetype shape | AC-1..6 | TC-522 (renderable), TC-523 (no template), TC-524 (defaults retained), TC-525 (two validators), TC-526 (required_sections ignored+diag), TC-527 (resolve parity) | 🚧 Pending implementation |
+| FR-032 validate_document (markdown) | AC-1..6 | TC-528 (conformant), TC-529 (missing), TC-530 (placeholder), TC-531 (frontmatter), TC-532 (distinct entry points), TC-533 (no body_extraction) | 🚧 Pending implementation |
+| FR-033 Locator assert facet | AC-1..6 | TC-534 (level), TC-535 (columns), TC-536 (min_rows/min_items), TC-537 (id_pattern), TC-538 (load-time-invalid), TC-539 (extract ignores assert) | 🚧 Pending implementation |
+| FR-034 Assert field interpolation | AC-1..4 | TC-540 (id prefix), TC-541 (missing field diag), TC-542 (regex-escape), TC-543 (no-token static regex) | 🚧 Pending implementation |
+| FR-035 Per-level heading uniqueness | AC-1..4 | TC-544 (dup L2), TC-545 (cross-level ok), TC-546 (iterate_over children), TC-547 (line number) | 🚧 Pending implementation |
 | FR-024 Parallel repo walk (load_repo) | AC-1..9 | TC-470 (N files→N docs), TC-471 (malformed→diagnostic), TC-472 (gitignore), TC-473 (path-sorted determinism), TC-474 (symlink loop), TC-475 (id derivation), TC-476 (bad root), TC-455 (bench), TC-502 (no shared mutable state) | ✅ Complete |
 | FR-025 Spec corpus model | AC-1..6 | TC-480 (len), TC-481 (id index), TC-482 (dup id), TC-483 (Send+Sync), TC-484 (scope-guard surface), TC-485 (no-IO queries) | ✅ Complete |
 | FR-026 Intra-spec reference resolution | AC-1..7 | TC-486 (frontmatter edge), TC-487 (ix:// edge), TC-488 (dangling), TC-489 (cross-spec dangling), TC-490 (bidirectional), TC-491 (target-id extraction), TC-492 (O(edges) proptest) | ✅ Complete |
@@ -298,6 +306,49 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-515 | `quire.harvest_edges(text)` and `quire.harvest_edges(parse_document(text))` return equal deduplicated lists | Integration | P0 | FR-028-AC-6, FR-026 | 🚧 |
 | TC-516 | `Quire{Base,Render,Validation,Schema,Parse}Error` are importable and subclass `QuireBaseError` / `Exception` | Integration | P0 | FR-028-AC-7 | 🚧 |
 | TC-517 | Two-thread concurrent call to each new module-level function completes wall-clock < 2× single-call | Integration | P1 | FR-028-AC-8, NFR-016-AC-2 | 🚧 |
+| TC-518 | Conformant authored FR markdown passes `validate_document` with no errors (unified shape + markdown validate) | Integration | P0 | US-014-AC-1, FR-031, FR-032 | 🚧 |
+| TC-519 | Authored artifact with missing section / wrong AC-table columns / mis-prefixed AC id fails with line-numbered diagnostic | Integration | P0 | US-014-AC-2, FR-032, FR-033, FR-034 | 🚧 |
+| TC-520 | Authored artifact with two same-level identical-text headings fails with `duplicate-heading` diagnostic | Integration | P0 | US-014-AC-3, FR-035 | 🚧 |
+| TC-521 | Same archetype `body_extraction` both validates the document and extracts its record (one declaration, two postures) | Integration | P0 | US-014-AC-4, FR-031 | 🚧 |
+| TC-522 | Manifest with `template_ref`+`frontmatter_schema_ref`+`body_extraction` compiles to one CompiledArchetype, `is_renderable()==true`, resolvable body contract | Unit | P0 | FR-031-AC-1 | 🚧 |
+| TC-523 | Manifest with `body_extraction` but no `template_ref` compiles, `is_renderable()==false`, still validatable + extractable | Unit | P0 | FR-031-AC-2 | 🚧 |
+| TC-524 | `defaults.id_pattern`, `allowed_links`, `has_plugin`, `grammar_ref` retained on compiled archetype + readable via accessors | Unit | P0 | FR-031-AC-3 | 🚧 |
+| TC-525 | `frontmatter_schema_ref` and `data_schema` retained as two distinct compiled validators; neither collapsed | Unit | P0 | FR-031-AC-4 | 🚧 |
+| TC-526 | Manifest still declaring `required_sections` loads, field ignored, exactly one non-fatal diagnostic pointing to `body_extraction` | Unit | P0 | FR-031-AC-5 | 🚧 |
+| TC-527 | `Registry::archetype(name)` resolves unified archetype identically to pre-unification (same keying + first-wins) | Unit | P0 | FR-031-AC-6 | 🚧 |
+| TC-528 | Conformant FR document (locators resolved, asserts satisfied, frontmatter valid) → `is_valid==true`, no errors | Integration | P0 | FR-032-AC-1 | 🚧 |
+| TC-529 | Document missing a `required` section → line-numbered diagnostic naming archetype + section + reason `missing` | Unit | P0 | FR-032-AC-2 | 🚧 |
+| TC-530 | Required `## Specification` containing only `TODO`/`{{...}}` → reason `placeholder` even when frontmatter schema passes | Unit | P0 | FR-032-AC-3 | 🚧 |
+| TC-531 | Frontmatter violating `frontmatter_schema_ref` → reason `frontmatter`, independent of body structure | Unit | P0 | FR-032-AC-4 | 🚧 |
+| TC-532 | `validate_document` (markdown) vs legacy context/data path (FR-002) are distinct entry points; context path validates JSON, no markdown parse | Unit | P0 | FR-032-AC-5 | 🚧 |
+| TC-533 | Archetype with no `body_extraction` validates by frontmatter schema + heading-uniqueness only; no body-structure diagnostics | Unit | P0 | FR-032-AC-6 | 🚧 |
+| TC-534 | `section_body` locator `assert: {level: 2}` fails when resolved heading not level 2; passes when it is | Unit | P0 | FR-033-AC-1 | 🚧 |
+| TC-535 | `table_row` locator `assert: {columns: [...]}` fails on differing header text/order; passes on exact match | Unit | P0 | FR-033-AC-2 | 🚧 |
+| TC-536 | `assert: {min_rows: 1}` fails on header-only table; `assert: {min_items: 1}` fails on empty list | Unit | P0 | FR-033-AC-3 | 🚧 |
+| TC-537 | `assert: {id_column, id_pattern}` fails when any id cell mismatches; passes when all match | Unit | P0 | FR-033-AC-4 | 🚧 |
+| TC-538 | Load-time-invalid assert (unknown key, or `columns` on `section_body`) → `ArchetypeLoadFailure` naming archetype + locator | Unit | P0 | FR-033-AC-5 | 🚧 |
+| TC-539 | Extraction ignores the `assert` facet entirely (extracted value identical with and without `assert`) | Unit | P0 | FR-033-AC-6 | 🚧 |
+| TC-540 | `id_pattern: '^{id}-AC-\d+$'` with `id: FR-900` accepts `FR-900-AC-1/2`, rejects `FR-901-AC-1` | Unit | P0 | FR-034-AC-1 | 🚧 |
+| TC-541 | `{field}` referencing absent frontmatter key → diagnostic naming archetype + locator + missing field; assert does not pass | Unit | P0 | FR-034-AC-2 | 🚧 |
+| TC-542 | Frontmatter value with regex metacharacters (`id: A.B+`) is regex-escaped; `{id}` matches literal value | Unit | P0 | FR-034-AC-3 | 🚧 |
+| TC-543 | Assert pattern with no `{field}` token behaves as plain static regex (no interpolation pass observable) | Unit | P0 | FR-034-AC-4 | 🚧 |
+| TC-544 | Two `## Description` headings → reason `duplicate-heading` naming text + level 2 | Unit | P0 | FR-035-AC-1 | 🚧 |
+| TC-545 | `## Properties` (L2) + `### Properties` (L3) passes uniqueness (different levels) | Unit | P0 | FR-035-AC-2 | 🚧 |
+| TC-546 | `iterate_over` with distinct child headings (`### A`, `### B`) passes; duplicate `### A` fails | Unit | P0 | FR-035-AC-3 | 🚧 |
+| TC-547 | Duplicate-heading diagnostic includes line number of the offending (second) heading | Unit | P0 | FR-035-AC-4 | 🚧 |
+| TC-548 | `input_contract_for(registry, "FR")` returns FR frontmatter schema, required sections (Description, Specification, Acceptance Criteria, Dependencies), and populating template variables | Unit | P0 | FR-029-AC-1 | 🚧 |
+| TC-549 | `input_contract_for(registry, "NFR")` returns NFR required sections + variables feeding Scope, Measurement and Evaluation, Verification | Unit | P0 | FR-029-AC-2 | 🚧 |
+| TC-550 | For every `spec-artifacts-iso` archetype, contract contains each manifest `required_sections` entry exactly once, in manifest order | Integration | P0 | FR-029-AC-3 | 🚧 |
+| TC-551 | Contract JSON serialization byte-identical across repeated calls against the same loaded module | Property | P0 | FR-029-AC-4 | 🚧 |
+| TC-552 | `input_contract_for(registry, "nonexistent")` → `Err(QuireError::UnknownArchetype)` | Unit | P0 | FR-029-AC-5 | 🚧 |
+| TC-553 | Required section whose variables cannot be mapped still yields contract with that section + unresolved-mapping diagnostic (no silent omit) | Unit | P0 | FR-029-AC-6 | 🚧 |
+| TC-554 | `CompiledArchetype::body_extraction` (field) and `body_extraction()` (accessor) return `Some(ExtractionDsl)` for declaring archetypes, `None` otherwise; same parsed value validated at load | Unit | P0 | FR-013-AC-11 | 🚧 |
+| TC-555 | `Registry::load_module(module_root)` loads exactly the named module, does NOT walk `module_root.parent()` siblings (sibling module not loaded) | Integration | P0 | FR-013-AC-12 | 🚧 |
+| TC-556 | `load_module` against a dir with no `manifest.yaml` → zero modules + single `ArchetypeLoadFailure`; siblings not promoted | Integration | P0 | FR-013-AC-13 | 🚧 |
+| TC-557 | `Diagnostic::PathTraversal{argument,path,reason}` variant: Display + to_json carry name/argument/path/reason across all three `PathTraversalReason` values | Unit | P0 | FR-013-AC-14 | 🚧 |
+| TC-558 | `ExtractionContext.from_object_types([...]).extract(name,text)` returns same records + edges as Rust extractor; no module-root/`.ix` read | Integration | P0 | FR-028-AC-9, US-003-AC-4 | 🚧 |
+| TC-559 | `ExtractionContext` accepts both a bare list of ObjectType dicts and the core envelope `{items: [...]}` | Integration | P0 | FR-028-AC-10 | 🚧 |
+| TC-560 | Python `ExtractionContext.from_object_types([...])` extracts a real document from in-memory snapshot without reading module root / `.ix` / package manifest | Integration | P0 | US-003-AC-4 | 🚧 |
 
 ---
 
@@ -415,6 +466,7 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | US-003-AC-1 | TC-018 |
 | US-003-AC-2 | TC-019 |
 | US-003-AC-3 | TC-073, TC-040 |
+| US-003-AC-4 | TC-560, TC-558 |
 | US-004-AC-1 | TC-007 |
 | US-004-AC-2 | TC-205 |
 | US-004-AC-3 | TC-206 |
@@ -466,6 +518,10 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | US-013-PC-1 | TC-459 |
 | US-013-PC-2 | TC-492 |
 | US-013-PC-3 | TC-492 |
+| US-014-AC-1 | TC-518 |
+| US-014-AC-2 | TC-519 |
+| US-014-AC-3 | TC-520 |
+| US-014-AC-4 | TC-521 |
 
 ### Functional Requirements
 
@@ -540,6 +596,10 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-013-AC-8 | TC-131 |
 | FR-013-AC-9 | TC-132 |
 | FR-013-AC-10 | TC-133 |
+| FR-013-AC-11 | TC-554 |
+| FR-013-AC-12 | TC-555 |
+| FR-013-AC-13 | TC-556 |
+| FR-013-AC-14 | TC-557 |
 | FR-014-AC-1 | TC-090 |
 | FR-014-AC-2 | TC-091 |
 | FR-014-AC-3 | TC-092 |
@@ -614,6 +674,46 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-028-AC-6 | TC-515 |
 | FR-028-AC-7 | TC-516 |
 | FR-028-AC-8 | TC-517 |
+| FR-028-AC-9 | TC-558 |
+| FR-028-AC-10 | TC-559 |
+| FR-029-AC-1 | TC-548 |
+| FR-029-AC-2 | TC-549 |
+| FR-029-AC-3 | TC-550 |
+| FR-029-AC-4 | TC-551 |
+| FR-029-AC-5 | TC-552 |
+| FR-029-AC-6 | TC-553 |
+| FR-030-AC-1 | TC-529 (superseded by FR-032-AC-2) |
+| FR-030-AC-2 | TC-530 (superseded by FR-032-AC-3) |
+| FR-030-AC-3 | TC-536 (superseded by FR-033-AC-3) |
+| FR-030-AC-4 | TC-528 (superseded by FR-032-AC-1) |
+| FR-030-AC-5 | TC-533 (superseded by FR-032-AC-6) |
+| FR-030-AC-6 | TC-529 (superseded; diagnostic reasons covered by FR-032-AC-2/3) |
+| FR-031-AC-1 | TC-522 |
+| FR-031-AC-2 | TC-523 |
+| FR-031-AC-3 | TC-524 |
+| FR-031-AC-4 | TC-525 |
+| FR-031-AC-5 | TC-526 |
+| FR-031-AC-6 | TC-527 |
+| FR-032-AC-1 | TC-528 |
+| FR-032-AC-2 | TC-529 |
+| FR-032-AC-3 | TC-530 |
+| FR-032-AC-4 | TC-531 |
+| FR-032-AC-5 | TC-532 |
+| FR-032-AC-6 | TC-533 |
+| FR-033-AC-1 | TC-534 |
+| FR-033-AC-2 | TC-535 |
+| FR-033-AC-3 | TC-536 |
+| FR-033-AC-4 | TC-537 |
+| FR-033-AC-5 | TC-538 |
+| FR-033-AC-6 | TC-539 |
+| FR-034-AC-1 | TC-540 |
+| FR-034-AC-2 | TC-541 |
+| FR-034-AC-3 | TC-542 |
+| FR-034-AC-4 | TC-543 |
+| FR-035-AC-1 | TC-544 |
+| FR-035-AC-2 | TC-545 |
+| FR-035-AC-3 | TC-546 |
+| FR-035-AC-4 | TC-547 |
 
 ### Non-Functional Requirements
 
@@ -682,9 +782,11 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | NFR-018-AC-3 | TC-504, TC-505 |
 | NFR-018-AC-4 | (process AC; covered by P0-reproducer policy, parity with NFR-011-AC-4) |
 
-**Coverage status: 289 / 289 ACs covered (100%).** v0.2 block model added 16 ACs (FR-019..022, TC-400..443). v0.3 adds 81 ACs — StR-005/006, US-011..013, FR-023..027 (incl. review-added FR-026-AC-8, FR-027-AC-9), NFR-015/016, plus the hardening re-review (NFR-003-AC-4, NFR-012-AC-5, FR-024-AC-9, NFR-017, NFR-018) — all covered by TC-455..507 (plus reused TC-456..459). PC (performance criteria) for US-011..013 are tracked as benches (TC-455..459, TC-469) and marked 🚧 pending implementation, consistent with the US-006..010 perf-bench convention. The v0.3 hardening re-review (loom NFR-017, TSAN/ASAN NFR-018) is recorded in spec.md §19.
+**Coverage status: 314 / 314 ACs covered (100%).** v0.2 block model added 16 ACs (FR-019..022, TC-400..443). v0.3 adds 81 ACs — StR-005/006, US-011..013, FR-023..027 (incl. review-added FR-026-AC-8, FR-027-AC-9), NFR-015/016, plus the hardening re-review (NFR-003-AC-4, NFR-012-AC-5, FR-024-AC-9, NFR-017, NFR-018) — all covered by TC-455..507 (plus reused TC-456..459). PC (performance criteria) for US-011..013 are tracked as benches (TC-455..459, TC-469) and marked 🚧 pending implementation, consistent with the US-006..010 perf-bench convention. The v0.3 hardening re-review (loom NFR-017, TSAN/ASAN NFR-018) is recorded in spec.md §19.
 
-**Integrity check (grep-verified):** all **257 distinct file-defined ACs** across `stakeholder/ usecase/ functional/ non-functional/` appear in the AC→TC audit table — **0 uncovered**. (The "281" headline follows the historical audit-table counting convention, which also tallies process/derived ACs noted parenthetically; the 257 figure is the raw count of `*-AC-N` ids defined in artifact files. The spec-review back-filled the v0.2 US-006..010 ACs that were previously covered only in the summary table.)
+**v0.4 markdown-validation slice** adds 42 ACs — US-014 (author validates markdown), FR-029 (archetype input contract, recast by ADR 0004), FR-030 (required-section validation, superseded by FR-032/FR-033), FR-031 (unified archetype shape), FR-032 (`validate_document`), FR-033 (locator `assert` facet), FR-034 (assert field interpolation), FR-035 (per-level heading uniqueness) — covered by TC-518..553. FR-030's ACs are mapped to the FR-032/FR-033 TCs that subsume them (per its CR note). This slice also back-fills 7 ACs that a prior commit left out of the audit table — FR-013-AC-11..14, FR-028-AC-9/10, US-003-AC-4 — via TC-554..560. New v0.4 TCs are 🚧 pending implementation.
+
+**Integrity check (grep-verified):** all **314 distinct file-defined ACs** (definition-anchored: bold `**<ID>-AC-N**:` declarations) across `stakeholder/ usecase/ functional/ non-functional/` appear in the AC→TC audit table — **0 uncovered**. Note: `FR-900-AC-1/2` appearing inside FR-034-AC-1's example prose are NOT defined ACs and are excluded from the denominator (match `**…**:` definitions, not inline mentions). The spec-review back-filled the v0.2 US-006..010 ACs and the v0.4 slice back-filled FR-013-AC-11..14 / FR-028-AC-9/10 / US-003-AC-4 that were previously covered only outside the audit table.
 
 ---
 
