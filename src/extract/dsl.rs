@@ -13,7 +13,7 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
 use crate::error::QuireError;
-use crate::extract::locator::Locator;
+use crate::extract::locator::{Locator, LocatorAssert, LocatorKind, LocatorPrimitive};
 
 /// One body-extraction DSL — the parsed form of `body_extraction:` in
 /// an object-type manifest.
@@ -105,6 +105,89 @@ pub fn validate_dsl(archetype: &str, dsl: &ExtractionDsl) -> Result<(), QuireErr
             reason: "iterate_over requires per_match".to_string(),
         });
     }
+
+    // FR-033-AC-5: validate every locator's `assert` facet at load time.
+    for (key, loc) in dsl.yield_pattern.r#match.iter().flatten() {
+        validate_locator_asserts(archetype, key, loc)?;
+    }
+    for (key, loc) in dsl.yield_pattern.per_match.iter().flatten() {
+        validate_locator_asserts(archetype, key, loc)?;
+    }
+    Ok(())
+}
+
+/// Validate every primitive's `assert` facet inside a [`Locator`]
+/// (primitive or fallback chain) at load time (FR-033-AC-5).
+fn validate_locator_asserts(
+    archetype: &str,
+    key: &str,
+    locator: &Locator,
+) -> Result<(), QuireError> {
+    match locator {
+        Locator::Primitive(p) => validate_primitive_assert(archetype, key, p),
+        Locator::Fallback(chain) => {
+            for p in chain {
+                validate_primitive_assert(archetype, key, p)?;
+            }
+            Ok(())
+        }
+    }
+}
+
+fn validate_primitive_assert(
+    archetype: &str,
+    key: &str,
+    p: &LocatorPrimitive,
+) -> Result<(), QuireError> {
+    let Some(assert) = p.assert() else {
+        return Ok(());
+    };
+    validate_assert_for_kind(archetype, key, p.kind(), assert)
+}
+
+/// Reject `assert` keys that are nonsensical for the locator kind
+/// (FR-033-AC-5), e.g. `columns` on a `section_body` locator. Surfaces
+/// as a `DslValidationError` naming the archetype + locator key so the
+/// loader reports it as an `ArchetypeLoadFailure` at load time, not at
+/// validate time.
+pub fn validate_assert_for_kind(
+    archetype: &str,
+    key: &str,
+    kind: LocatorKind,
+    assert: &LocatorAssert,
+) -> Result<(), QuireError> {
+    let reject = |field: &str| -> Result<(), QuireError> {
+        Err(QuireError::DslValidationError {
+            archetype: archetype.to_string(),
+            reason: format!(
+                "assert key `{field}` is not valid on a `{}` locator (key '{key}')",
+                kind.as_str()
+            ),
+        })
+    };
+
+    // `level` is only meaningful for headings / section bodies.
+    if assert.level.is_some() && !matches!(kind, LocatorKind::SectionBody | LocatorKind::Heading) {
+        return reject("level");
+    }
+    // Table-only keys.
+    let table_only = matches!(kind, LocatorKind::TableRow);
+    if assert.columns.is_some() && !table_only {
+        return reject("columns");
+    }
+    if assert.min_rows.is_some() && !table_only {
+        return reject("min_rows");
+    }
+    if assert.id_column.is_some() && !table_only {
+        return reject("id_column");
+    }
+    // List-only key.
+    if assert.min_items.is_some() && !matches!(kind, LocatorKind::ListItem) {
+        return reject("min_items");
+    }
+    // `id_pattern` applies anywhere an id/value is located — no kind
+    // restriction (FR-034). It is, however, the only assert key valid on
+    // frontmatter_field / code_block.
     Ok(())
 }
 
@@ -192,5 +275,91 @@ yield_pattern:
 "#,
         );
         assert!(r.is_err(), "deny_unknown_fields should reject unknown keys");
+    }
+
+    // TC-538 (FR-033-AC-5): an unknown assert key fails YAML parse
+    // (deny_unknown_fields on LocatorAssert).
+    #[test]
+    fn unknown_assert_key_fails_yaml_parse() {
+        let r: Result<ExtractionDsl, _> = serde_yaml::from_str(
+            r#"
+yield_pattern:
+  match:
+    s:
+      from: section_body
+      after_heading: Purpose
+      assert:
+        bogus_key: 1
+"#,
+        );
+        assert!(
+            r.is_err(),
+            "deny_unknown_fields should reject unknown assert keys"
+        );
+    }
+
+    // TC-538 (FR-033-AC-5): `columns` on a `section_body` locator is a
+    // load-time DslValidationError naming the locator.
+    #[test]
+    fn columns_on_section_body_is_load_error() {
+        let dsl = parse(
+            r#"
+yield_pattern:
+  match:
+    s:
+      from: section_body
+      after_heading: Purpose
+      assert:
+        columns: [ID, Criteria]
+"#,
+        );
+        let err = validate_dsl("FR", &dsl).expect_err("nonsensical assert");
+        match err {
+            QuireError::DslValidationError { archetype, reason } => {
+                assert_eq!(archetype, "FR");
+                assert!(reason.contains("columns"), "{reason}");
+                assert!(reason.contains("section_body"), "{reason}");
+                assert!(reason.contains("'s'"), "{reason}");
+            }
+            other => panic!("expected DslValidationError, got {other:?}"),
+        }
+    }
+
+    // TC-538: `min_items` on a `table_row` locator is rejected.
+    #[test]
+    fn min_items_on_table_row_is_load_error() {
+        let dsl = parse(
+            r#"
+yield_pattern:
+  match:
+    t:
+      from: table_row
+      under_section: AC
+      assert:
+        min_items: 1
+"#,
+        );
+        let err = validate_dsl("FR", &dsl).expect_err("nonsensical assert");
+        assert!(matches!(err, QuireError::DslValidationError { .. }));
+    }
+
+    // A well-formed assert passes load-time validation.
+    #[test]
+    fn valid_table_assert_passes_load() {
+        let dsl = parse(
+            r#"
+yield_pattern:
+  match:
+    t:
+      from: table_row
+      under_section: AC
+      assert:
+        columns: [ID, Criteria]
+        min_rows: 1
+        id_column: ID
+        id_pattern: '^AC-\d+$'
+"#,
+        );
+        validate_dsl("FR", &dsl).expect("valid assert");
     }
 }

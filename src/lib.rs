@@ -43,8 +43,11 @@ pub use render::{render, render_block, render_by_name, render_with_env, RenderOu
 pub use validate::{apply_patch, validate, validate_all, validate_block};
 // Extract / body-extraction DSL (FR-011 + FR-016).
 pub use extract::dsl::{ExtractionDsl, IterateKind, IterateOver, YieldPattern};
-pub use extract::locator::{Locator, LocatorPrimitive};
+pub use extract::locator::{Locator, LocatorAssert, LocatorKind, LocatorPrimitive};
 pub use extract::{extract, ExtractionResult};
+// Assert facet (FR-033) + `{field}` interpolation (FR-034).
+pub use extract::assert_eval::{evaluate_assert, AssertFailure, AssertReason};
+pub use extract::interpolate::{interpolate, UnresolvedField};
 // Writeback (FR-022).
 pub use writeback::{update_block, update_section};
 // Block edit API (FR-021).

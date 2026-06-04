@@ -73,6 +73,8 @@ pub enum LocatorPrimitive {
         required: bool,
         #[serde(default)]
         regex: Option<String>,
+        #[serde(default)]
+        assert: Option<LocatorAssert>,
     },
     /// `from: section_body` — text content of `after_heading` section.
     SectionBody {
@@ -81,6 +83,8 @@ pub enum LocatorPrimitive {
         required: bool,
         #[serde(default)]
         regex: Option<String>,
+        #[serde(default)]
+        assert: Option<LocatorAssert>,
     },
     /// `from: code_block` — source of the first fenced code block in
     /// `language`, optionally constrained to a section.
@@ -94,6 +98,8 @@ pub enum LocatorPrimitive {
         required: bool,
         #[serde(default)]
         regex: Option<String>,
+        #[serde(default)]
+        assert: Option<LocatorAssert>,
     },
     /// `from: table_row` — rows from a table (optionally inside a
     /// section, optionally projecting a single column).
@@ -107,6 +113,8 @@ pub enum LocatorPrimitive {
         required: bool,
         #[serde(default)]
         regex: Option<String>,
+        #[serde(default)]
+        assert: Option<LocatorAssert>,
     },
     /// `from: list_item` — items from a bullet list.
     ListItem {
@@ -119,6 +127,8 @@ pub enum LocatorPrimitive {
         required: bool,
         #[serde(default)]
         regex: Option<String>,
+        #[serde(default)]
+        assert: Option<LocatorAssert>,
     },
     /// `from: heading` — heading text of sections at `level`, or under
     /// `path`.
@@ -132,7 +142,35 @@ pub enum LocatorPrimitive {
         required: bool,
         #[serde(default)]
         regex: Option<String>,
+        #[serde(default)]
+        assert: Option<LocatorAssert>,
     },
+}
+
+/// The locator kind discriminator (the `from:` value), used by
+/// load-time assert validation to decide which assert keys make sense.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LocatorKind {
+    FrontmatterField,
+    SectionBody,
+    CodeBlock,
+    TableRow,
+    ListItem,
+    Heading,
+}
+
+impl LocatorKind {
+    /// Stable snake_case name matching the `from:` value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::FrontmatterField => "frontmatter_field",
+            Self::SectionBody => "section_body",
+            Self::CodeBlock => "code_block",
+            Self::TableRow => "table_row",
+            Self::ListItem => "list_item",
+            Self::Heading => "heading",
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -140,6 +178,49 @@ pub enum LocatorPrimitive {
 pub enum ColumnRef {
     Name(String),
     Index(usize),
+}
+
+/// Optional `assert:` facet on a body-extraction locator (FR-033).
+///
+/// Evaluated by `validate_document` (FR-032) in an asserting posture and
+/// **ignored by extraction** (FR-011). All keys are optional;
+/// `deny_unknown_fields` rejects typos at load time. Which keys are
+/// sensible depends on the locator kind — see
+/// [`crate::extract::dsl::validate_assert_for_kind`].
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct LocatorAssert {
+    /// Required heading level of the located section.
+    #[serde(default)]
+    pub level: Option<u8>,
+    /// Ordered list of exact table column headers (case-sensitive).
+    #[serde(default)]
+    pub columns: Option<Vec<String>>,
+    /// Minimum number of data rows in the located table.
+    #[serde(default)]
+    pub min_rows: Option<usize>,
+    /// Minimum number of items in the located list.
+    #[serde(default)]
+    pub min_items: Option<usize>,
+    /// Table column whose cells are treated as ids.
+    #[serde(default)]
+    pub id_column: Option<String>,
+    /// Regex each id cell (or located id) MUST match; supports `{field}`
+    /// interpolation (FR-034).
+    #[serde(default)]
+    pub id_pattern: Option<String>,
+}
+
+impl LocatorAssert {
+    /// `true` if no assert key is set (an empty facet is a no-op).
+    pub fn is_empty(&self) -> bool {
+        self.level.is_none()
+            && self.columns.is_none()
+            && self.min_rows.is_none()
+            && self.min_items.is_none()
+            && self.id_column.is_none()
+            && self.id_pattern.is_none()
+    }
 }
 
 fn default_true() -> bool {
@@ -193,6 +274,30 @@ impl LocatorPrimitive {
             | Self::TableRow { required, .. }
             | Self::ListItem { required, .. }
             | Self::Heading { required, .. } => *required,
+        }
+    }
+
+    /// The locator's kind discriminator.
+    pub fn kind(&self) -> LocatorKind {
+        match self {
+            Self::FrontmatterField { .. } => LocatorKind::FrontmatterField,
+            Self::SectionBody { .. } => LocatorKind::SectionBody,
+            Self::CodeBlock { .. } => LocatorKind::CodeBlock,
+            Self::TableRow { .. } => LocatorKind::TableRow,
+            Self::ListItem { .. } => LocatorKind::ListItem,
+            Self::Heading { .. } => LocatorKind::Heading,
+        }
+    }
+
+    /// The optional `assert:` facet, if declared (FR-033).
+    pub fn assert(&self) -> Option<&LocatorAssert> {
+        match self {
+            Self::FrontmatterField { assert, .. }
+            | Self::SectionBody { assert, .. }
+            | Self::CodeBlock { assert, .. }
+            | Self::TableRow { assert, .. }
+            | Self::ListItem { assert, .. }
+            | Self::Heading { assert, .. } => assert.as_ref(),
         }
     }
 }
@@ -464,6 +569,7 @@ mod tests {
                 path: vec!["id".into()],
                 required: false,
                 regex: None,
+                assert: None,
             },
         );
         assert_eq!(v, vec![json!("FR-001")]);
@@ -478,6 +584,7 @@ mod tests {
                 path: vec!["tags".into()],
                 required: false,
                 regex: None,
+                assert: None,
             },
         );
         assert_eq!(v, vec![json!(["a", "b"])]);
@@ -492,6 +599,7 @@ mod tests {
                 path: vec!["nope".into()],
                 required: false,
                 regex: None,
+                assert: None,
             },
         );
         assert!(v.is_empty());
@@ -506,6 +614,7 @@ mod tests {
                 after_heading: "Purpose".into(),
                 required: false,
                 regex: None,
+                assert: None,
             },
         );
         assert_eq!(v, vec![json!("the purpose")]);
@@ -521,6 +630,7 @@ mod tests {
                 under_section: None,
                 required: false,
                 regex: None,
+                assert: None,
             },
         );
         assert_eq!(v.len(), 1);
@@ -537,6 +647,7 @@ mod tests {
                 column: None,
                 required: false,
                 regex: None,
+                assert: None,
             },
         );
         assert_eq!(v.len(), 2);
@@ -553,6 +664,7 @@ mod tests {
                 column: Some(ColumnRef::Name("Path".into())),
                 required: false,
                 regex: None,
+                assert: None,
             },
         );
         assert_eq!(v, vec![json!("/a"), json!("/b")]);
@@ -568,6 +680,7 @@ mod tests {
                 pattern: None,
                 required: false,
                 regex: None,
+                assert: None,
             },
         );
         assert_eq!(v.len(), 2);
@@ -584,6 +697,7 @@ mod tests {
                 path: None,
                 required: false,
                 regex: None,
+                assert: None,
             },
         );
         assert!(v.iter().any(|h| h == &json!("Purpose")));
@@ -600,6 +714,7 @@ mod tests {
                 path: Some(vec!["A".into(), "B".into()]),
                 required: false,
                 regex: None,
+                assert: None,
             },
         );
         assert_eq!(v, vec![json!("B")]);

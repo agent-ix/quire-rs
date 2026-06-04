@@ -9,7 +9,9 @@
 //! - Fallback Locator chains: first non-empty primitive wins,
 //!   `FallbackLocatorUsed` diagnostic on non-canonical hits.
 
+pub mod assert_eval;
 pub mod dsl;
+pub mod interpolate;
 pub mod locator;
 
 use indexmap::IndexMap;
@@ -606,5 +608,45 @@ level: 2
 "#,
         )
         .unwrap();
+    }
+
+    // TC-539 (FR-033-AC-6): extraction ignores the `assert` facet — the
+    // extracted value is byte-identical with and without `assert`.
+    #[test]
+    fn extraction_ignores_assert_facet() {
+        let d = parse_document(
+            "---\nid: FR-1\n---\n## AC\n| ID | Criteria |\n| - | - |\n| AC-1 | a |\n",
+        );
+        let without = dsl_from(
+            r#"
+yield_pattern:
+  match:
+    ids:
+      from: table_row
+      under_section: AC
+      column: ID
+"#,
+        );
+        let with = dsl_from(
+            r#"
+yield_pattern:
+  match:
+    ids:
+      from: table_row
+      under_section: AC
+      column: ID
+      assert:
+        columns: [ID, Criteria]
+        min_rows: 1
+        id_column: ID
+        id_pattern: '^AC-\d+$'
+"#,
+        );
+        let r_without = extract(&d, &without).expect("ok");
+        let r_with = extract(&d, &with).expect("ok");
+        assert_eq!(
+            r_without, r_with,
+            "extraction output must not change when an assert is present"
+        );
     }
 }
