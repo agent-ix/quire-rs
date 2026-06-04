@@ -1,6 +1,6 @@
 # Task 039: Archetype Input Contract Recast (skeleton/example)
 
-Status: not started
+Status: complete
 
 ## Scope
 

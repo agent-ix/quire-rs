@@ -1,6 +1,6 @@
 # Task 037: Unified Archetype Shape
 
-Status: not started
+Status: complete
 
 ## Scope
 
@@ -43,3 +43,13 @@ TC-522, TC-523, TC-524, TC-525, TC-526, TC-527.
 No backward-compatibility layer (project rule, FR-035 CR-002 alignment):
 deprecated `required_sections`/`variants` are rejected, not tolerated. Existing
 manifests are migrated (spec-artifacts-iso Phase 5), not dual-read.
+
+> **CR note (deviation from FR-031-AC-5):** FR-031-AC-5 specs that a manifest
+> still declaring `required_sections` *loads* with the field *ignored* and *one
+> non-fatal diagnostic*. The no-backward-compatibility HARD RULE (this task +
+> ADR 0003) overrides that softer behavior: a `required_sections` (or `variants`)
+> declaration is a **hard `ArchetypeLoadFailure`** — the archetype does NOT load.
+> Implemented as the hard failure (TC-526). This deviation is intentional and
+> matches the project's "no deprecated-format fallbacks" directive; FR-031-AC-5's
+> tolerant wording should be amended to "hard failure" in a future spec CR (spec
+> is frozen for this implementation, so it is flagged here rather than edited).

@@ -1,6 +1,6 @@
 # Task 036: validate_document + Per-Level Heading Uniqueness
 
-Status: not started
+Status: complete
 
 ## Scope
 

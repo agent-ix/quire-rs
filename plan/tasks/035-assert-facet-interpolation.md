@@ -1,6 +1,6 @@
 # Task 035: Locator Assert Facet + Field Interpolation
 
-Status: not started
+Status: complete
 
 ## Scope
 
