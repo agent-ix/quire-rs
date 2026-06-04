@@ -24,45 +24,109 @@ use serde_json::Value;
 use crate::error::ArchetypeLoadFailure;
 use crate::extract::dsl::ExtractionDsl;
 
-/// A schema + (optional) template that the loader has fully parsed and
-/// cached. Cloning is `Arc`-cheap so consumers can share without
-/// re-parsing.
+/// Carry-over fields that the unified archetype shape (FR-031, ADR
+/// 0003) retains but which have no DSL representation. Defaults are all
+/// empty/absent so an archetype that declares none reads as `None`/`[]`.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct ArchetypeCarryOver {
+    /// `defaults.id_pattern` — ID-allocation hint.
+    pub id_pattern: Option<String>,
+    /// `allowed_links` — relationship edge types this archetype permits.
+    pub allowed_links: Vec<String>,
+    /// `has_plugin` — whether a host-side plugin augments this archetype.
+    pub has_plugin: bool,
+    /// `grammar_ref` — grammar this archetype's body conforms to.
+    pub grammar_ref: Option<String>,
+}
+
+/// A unified compiled archetype (FR-031, ADR 0003): one shape that may
+/// carry an optional frontmatter schema, an optional `body_extraction`
+/// DSL, an optional `data_schema`, an optional template, and the
+/// carry-over fields. Renderability/validatability are *derived* from
+/// which parts are present, not from a declared `artifact_type` /
+/// `object_type` kind. Cloning is `Arc`-cheap.
 pub struct CompiledArchetype {
     /// Registered archetype name.
     pub name: String,
     /// Module the archetype belongs to.
     pub module: String,
-    /// Verbatim raw schema document — `schema_for` returns it byte-exact
-    /// per FR-003.
+    /// Primary schema document returned by `schema_for` (FR-003) —
+    /// byte-exact. This is the frontmatter schema when present, else the
+    /// data schema, else an empty (permissive) object. Distinct
+    /// frontmatter/data validators are available via the accessors.
     pub raw_schema: Arc<Value>,
-    /// Compiled JSON-Schema validator.
+    /// Primary compiled validator paired with [`Self::raw_schema`].
     pub validator: Arc<JSONSchema>,
-    /// On-disk template path. `None` for object_types (data-only).
+    /// Compiled frontmatter-schema validator (FR-031), `None` when the
+    /// archetype declares no `frontmatter_schema_ref`.
+    pub frontmatter_schema: Option<Arc<Value>>,
+    pub frontmatter_validator: Option<Arc<JSONSchema>>,
+    /// Compiled `data_schema` validator over the *extracted record*
+    /// (FR-031-AC-4) — distinct from the frontmatter validator.
+    pub data_schema: Option<Arc<Value>>,
+    pub data_validator: Option<Arc<JSONSchema>>,
+    /// On-disk template path. `None` when the archetype declares no
+    /// `template_ref`.
     pub template_path: Option<PathBuf>,
     /// Registered template name in the shared MiniJinja env. `None`
-    /// for object_types.
+    /// when the archetype declares no template.
     pub template_name: Option<String>,
-    /// Parsed `body_extraction` DSL declared on the source `object_type`.
-    ///
-    /// Populated at load time from the same parse pass that validates
-    /// the DSL (FR-011-AC-6/7/8). Downstream consumers can drive
-    /// `extract()` against this without re-reading `manifest.yaml`.
-    /// `None` for `artifact_type` archetypes and for `object_type`
-    /// entries that omit `body_extraction:`.
+    /// Parsed `body_extraction` DSL (FR-011), `None` when absent.
+    /// Drives both `extract()` and `validate_document()` (FR-032).
     pub body_extraction: Option<ExtractionDsl>,
+    /// Carry-over fields with no DSL representation (FR-031-AC-3).
+    pub carry_over: ArchetypeCarryOver,
 }
 
 impl CompiledArchetype {
-    /// `true` if this archetype has a renderable template (i.e. it's
-    /// an `artifact_type`, not an `object_type`).
+    /// `true` if this archetype has a renderable template.
     pub fn is_renderable(&self) -> bool {
         self.template_name.is_some()
     }
 
-    /// Parsed body-extraction DSL, if any. Mirrors
-    /// [`Self::body_extraction`] for code that prefers an accessor.
+    /// `true` if this archetype can be validated — it has a frontmatter
+    /// schema and/or a `body_extraction` contract. (An archetype with
+    /// neither still trivially "validates", so this reports whether any
+    /// substantive contract exists.)
+    pub fn is_validatable(&self) -> bool {
+        self.frontmatter_validator.is_some()
+            || self.data_validator.is_some()
+            || self.body_extraction.is_some()
+    }
+
+    /// Parsed body-extraction DSL, if any.
     pub fn body_extraction(&self) -> Option<&ExtractionDsl> {
         self.body_extraction.as_ref()
+    }
+
+    /// Compiled frontmatter-schema validator (FR-031-AC-4), if declared.
+    pub fn frontmatter_validator(&self) -> Option<&JSONSchema> {
+        self.frontmatter_validator.as_deref()
+    }
+
+    /// Compiled `data_schema` validator (FR-031-AC-4), if declared.
+    pub fn data_validator(&self) -> Option<&JSONSchema> {
+        self.data_validator.as_deref()
+    }
+
+    /// `defaults.id_pattern`, if declared (FR-031-AC-3).
+    pub fn id_pattern(&self) -> Option<&str> {
+        self.carry_over.id_pattern.as_deref()
+    }
+
+    /// `allowed_links`, possibly empty (FR-031-AC-3).
+    pub fn allowed_links(&self) -> &[String] {
+        &self.carry_over.allowed_links
+    }
+
+    /// `has_plugin` flag (FR-031-AC-3).
+    pub fn has_plugin(&self) -> bool {
+        self.carry_over.has_plugin
+    }
+
+    /// `grammar_ref`, if declared (FR-031-AC-3).
+    pub fn grammar_ref(&self) -> Option<&str> {
+        self.carry_over.grammar_ref.as_deref()
     }
 }
 

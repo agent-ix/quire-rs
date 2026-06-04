@@ -670,16 +670,23 @@ fn compile_object_types(value: Value) -> PyResult<BTreeMap<String, Arc<CompiledA
                 Some(dsl)
             }
         };
+        let raw = Arc::new(schema);
+        let v = Arc::new(validator);
         out.insert(
             name.clone(),
             Arc::new(CompiledArchetype {
                 name,
                 module: "provided".to_string(),
-                raw_schema: Arc::new(schema),
-                validator: Arc::new(validator),
+                raw_schema: Arc::clone(&raw),
+                validator: Arc::clone(&v),
+                frontmatter_schema: None,
+                frontmatter_validator: None,
+                data_schema: Some(Arc::clone(&raw)),
+                data_validator: Some(Arc::clone(&v)),
                 template_path: None,
                 template_name: None,
                 body_extraction,
+                carry_over: Default::default(),
             }),
         );
     }

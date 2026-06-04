@@ -46,7 +46,7 @@ pub fn extract(doc: &QuireDocument, dsl: &ExtractionDsl) -> Result<ExtractionRes
     if let Some(match_map) = &dsl.yield_pattern.r#match {
         let record = eval_match(doc, match_map, &mut diagnostics)?;
         let records = record.map(|r| vec![r]).unwrap_or_default();
-        let edges = emit_edges_for_records(doc, &records, dsl.emit_edges.as_deref(), false);
+        let edges = emit_edges_for_records(doc, &records, dsl.emit_edges.as_deref());
         return Ok(ExtractionResult {
             records,
             edges,
@@ -160,12 +160,7 @@ fn eval_multi(
         }
         if !record.is_empty() {
             let record_index = records.len();
-            edges.extend(emit_edges_for_scope(
-                &unit.scope,
-                record_index,
-                emit_edges,
-                true,
-            ));
+            edges.extend(emit_edges_for_scope(&unit.scope, record_index, emit_edges));
             records.push(record);
         }
     }
@@ -181,12 +176,11 @@ fn emit_edges_for_records(
     doc: &QuireDocument,
     records: &[Map<String, Value>],
     emit_edges: Option<&[EmitEdge]>,
-    allow_static: bool,
 ) -> Vec<ExtractedEdge> {
     records
         .iter()
         .enumerate()
-        .flat_map(|(idx, _)| emit_edges_for_scope(doc, idx, emit_edges, allow_static))
+        .flat_map(|(idx, _)| emit_edges_for_scope(doc, idx, emit_edges))
         .collect()
 }
 
@@ -194,7 +188,6 @@ fn emit_edges_for_scope(
     scope: &QuireDocument,
     record_index: usize,
     emit_edges: Option<&[EmitEdge]>,
-    allow_static: bool,
 ) -> Vec<ExtractedEdge> {
     let Some(specs) = emit_edges else {
         return Vec::new();
@@ -202,13 +195,7 @@ fn emit_edges_for_scope(
     let mut out = Vec::new();
     for spec in specs {
         let targets: Vec<String> = match &spec.target {
-            EdgeTarget::Static(target) => {
-                if allow_static {
-                    vec![target.clone()]
-                } else {
-                    vec![target.clone()]
-                }
-            }
+            EdgeTarget::Static(target) => vec![target.clone()],
             EdgeTarget::Locator(locator) => eval_locator(scope, locator)
                 .0
                 .into_iter()

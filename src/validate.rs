@@ -234,14 +234,21 @@ mod tests {
 
     fn archetype(schema: Value) -> CompiledArchetype {
         let validator = compile_schema(&schema).expect("compile");
+        let raw = Arc::new(schema);
+        let v = Arc::new(validator);
         CompiledArchetype {
             name: "fr".into(),
             module: "test".into(),
-            raw_schema: Arc::new(schema),
-            validator: Arc::new(validator),
+            raw_schema: Arc::clone(&raw),
+            validator: Arc::clone(&v),
+            frontmatter_schema: Some(raw),
+            frontmatter_validator: Some(v),
+            data_schema: None,
+            data_validator: None,
             template_path: None,
             template_name: None,
             body_extraction: None,
+            carry_over: Default::default(),
         }
     }
 

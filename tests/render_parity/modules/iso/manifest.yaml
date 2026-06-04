@@ -1,7 +1,7 @@
 manifest_version: 1.0.0
 name: spec-artifacts-iso
 version: 0.1.0
-description: "Filament Module: ISO-style spec artifact templates (FR, NFR, StR, US, IT, TC, AC, CON) \u2014 Jinja .md.j2 templates + frontmatter JSON Schemas + iso-spec-core grammar"
+description: 'Filament Module: ISO-style spec artifact templates (FR, NFR, StR, US, IT, TC, AC, CON) — Jinja .md.j2 templates + frontmatter JSON Schemas + iso-spec-core grammar'
 archetypes:
 - kind: spec
   name: Spec
@@ -27,15 +27,6 @@ artifact_types:
   grammar_ref: iso-spec-core
   template_ref: templates/fr.md.j2
   frontmatter_schema_ref: schemas/fr-frontmatter.schema.json
-  required_sections:
-  - name: Description
-    level: 2
-  - name: Specification
-    level: 2
-  - name: Acceptance Criteria
-    level: 2
-  - name: Dependencies
-    level: 2
   defaults:
     id_pattern: FR-{next:03d}
   allowed_links:
@@ -55,23 +46,29 @@ artifact_types:
   - supersedes
   examples: []
   lint_rules_ref: []
+  body_extraction:
+    yield_pattern:
+      match:
+        description:
+          from: section_body
+          after_heading: Description
+          required: true
+        specification:
+          from: section_body
+          after_heading: Specification
+          required: true
+        acceptance_criteria:
+          from: section_body
+          after_heading: Acceptance Criteria
+          required: true
+        dependencies:
+          from: section_body
+          after_heading: Dependencies
+          required: true
 - name: NFR
   grammar_ref: iso-spec-core
   template_ref: templates/nfr.md.j2
   frontmatter_schema_ref: schemas/nfr-frontmatter.schema.json
-  required_sections:
-  - name: Quality Attribute
-    level: 2
-  - name: Statement
-    level: 2
-  - name: Scope
-    level: 2
-  - name: Measurement and Evaluation
-    level: 2
-  - name: Verification
-    level: 2
-  - name: Dependencies
-    level: 2
   defaults:
     id_pattern: NFR-{next:03d}
   allowed_links:
@@ -80,15 +77,37 @@ artifact_types:
   - depends_on
   examples: []
   lint_rules_ref: []
+  body_extraction:
+    yield_pattern:
+      match:
+        quality_attribute:
+          from: section_body
+          after_heading: Quality Attribute
+          required: true
+        statement:
+          from: section_body
+          after_heading: Statement
+          required: true
+        scope:
+          from: section_body
+          after_heading: Scope
+          required: true
+        measurement_and_evaluation:
+          from: section_body
+          after_heading: Measurement and Evaluation
+          required: true
+        verification:
+          from: section_body
+          after_heading: Verification
+          required: true
+        dependencies:
+          from: section_body
+          after_heading: Dependencies
+          required: true
 - name: StR
   grammar_ref: iso-spec-core
   template_ref: templates/str.md.j2
   frontmatter_schema_ref: schemas/str-frontmatter.schema.json
-  required_sections:
-  - name: Description
-    level: 2
-  - name: Dependencies
-    level: 2
   defaults:
     id_pattern: StR-{next:03d}
   allowed_links:
@@ -97,15 +116,21 @@ artifact_types:
   - references
   examples: []
   lint_rules_ref: []
+  body_extraction:
+    yield_pattern:
+      match:
+        description:
+          from: section_body
+          after_heading: Description
+          required: true
+        dependencies:
+          from: section_body
+          after_heading: Dependencies
+          required: true
 - name: US
   grammar_ref: iso-spec-core
   template_ref: templates/us.md.j2
   frontmatter_schema_ref: schemas/us-frontmatter.schema.json
-  required_sections:
-  - name: Description
-    level: 2
-  - name: Dependencies
-    level: 2
   defaults:
     id_pattern: US-{next:03d}
   allowed_links:
@@ -114,15 +139,21 @@ artifact_types:
   - references
   examples: []
   lint_rules_ref: []
+  body_extraction:
+    yield_pattern:
+      match:
+        description:
+          from: section_body
+          after_heading: Description
+          required: true
+        dependencies:
+          from: section_body
+          after_heading: Dependencies
+          required: true
 - name: IT
   grammar_ref: iso-spec-core
   template_ref: templates/it.md.j2
   frontmatter_schema_ref: schemas/it-frontmatter.schema.json
-  required_sections:
-  - name: Description
-    level: 2
-  - name: Dependencies
-    level: 2
   defaults:
     id_pattern: IT-{next:03d}
   allowed_links:
@@ -131,15 +162,21 @@ artifact_types:
   - references
   examples: []
   lint_rules_ref: []
+  body_extraction:
+    yield_pattern:
+      match:
+        description:
+          from: section_body
+          after_heading: Description
+          required: true
+        dependencies:
+          from: section_body
+          after_heading: Dependencies
+          required: true
 - name: TC
   grammar_ref: iso-spec-core
   template_ref: templates/tc.md.j2
   frontmatter_schema_ref: schemas/tc-frontmatter.schema.json
-  required_sections:
-  - name: Description
-    level: 2
-  - name: Dependencies
-    level: 2
   defaults:
     id_pattern: TC-{next:03d}
   allowed_links:
@@ -147,30 +184,42 @@ artifact_types:
   - references
   examples: []
   lint_rules_ref: []
+  body_extraction:
+    yield_pattern:
+      match:
+        description:
+          from: section_body
+          after_heading: Description
+          required: true
+        dependencies:
+          from: section_body
+          after_heading: Dependencies
+          required: true
 - name: AC
   grammar_ref: iso-spec-core
   template_ref: templates/ac.md.j2
   frontmatter_schema_ref: schemas/ac-frontmatter.schema.json
-  required_sections:
-  - name: Description
-    level: 2
-  - name: Dependencies
-    level: 2
   defaults:
     id_pattern: AC-{next:03d}
   allowed_links:
   - verifies
   examples: []
   lint_rules_ref: []
+  body_extraction:
+    yield_pattern:
+      match:
+        description:
+          from: section_body
+          after_heading: Description
+          required: true
+        dependencies:
+          from: section_body
+          after_heading: Dependencies
+          required: true
 - name: CON
   grammar_ref: iso-spec-core
   template_ref: templates/con.md.j2
   frontmatter_schema_ref: schemas/con-frontmatter.schema.json
-  required_sections:
-  - name: Description
-    level: 2
-  - name: Dependencies
-    level: 2
   defaults:
     id_pattern: CON-{next:03d}
   allowed_links:
@@ -178,6 +227,17 @@ artifact_types:
   - references
   examples: []
   lint_rules_ref: []
+  body_extraction:
+    yield_pattern:
+      match:
+        description:
+          from: section_body
+          after_heading: Description
+          required: true
+        dependencies:
+          from: section_body
+          after_heading: Dependencies
+          required: true
 doc_kinds:
 - spec
 object_types: []

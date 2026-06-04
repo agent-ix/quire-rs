@@ -28,7 +28,7 @@ use crate::error::{ArchetypeLoadFailure, QuireError};
 use crate::loader::compile::{
     compile_schema, failure, read_schema, register_template, CompiledArchetype,
 };
-use crate::loader::manifest::{load_manifest, ArtifactType, Manifest, ObjectType};
+use crate::loader::manifest::{load_manifest, Archetype, Manifest};
 use crate::loader::paths::{home_dir, resolve_search_paths, PathDiagnostic};
 
 /// Module-level entry produced by [`load_modules`].
@@ -244,110 +244,131 @@ pub fn load_inline_module(
 
     let mut archetypes: Vec<Arc<CompiledArchetype>> = Vec::new();
 
-    for at in &manifest.artifact_types {
-        let schema_ref_str = at.frontmatter_schema_ref.to_string_lossy().to_string();
-        let template_ref_str = at.template_ref.to_string_lossy().to_string();
-        let schema_text = match schemas.get(&schema_ref_str) {
-            Some(s) => s,
-            None => {
-                failures.push(failure(
-                    &module_name,
-                    &at.name,
-                    PathBuf::from(&schema_ref_str),
-                    format!("inline schema '{schema_ref_str}' not provided"),
-                ));
-                continue;
-            }
-        };
-        let raw_schema: Value = match serde_json::from_str(schema_text) {
-            Ok(v) => v,
-            Err(e) => {
-                failures.push(failure(
-                    &module_name,
-                    &at.name,
-                    PathBuf::from(&schema_ref_str),
-                    format!("schema is not valid JSON: {e}"),
-                ));
-                continue;
-            }
-        };
-        let validator = match compile_schema(&raw_schema) {
-            Ok(v) => v,
-            Err(r) => {
-                failures.push(failure(
-                    &module_name,
-                    &at.name,
-                    PathBuf::from(&schema_ref_str),
-                    r,
-                ));
-                continue;
-            }
-        };
-        let template_src = match templates.get(&template_ref_str) {
-            Some(s) => s.clone(),
-            None => {
-                failures.push(failure(
-                    &module_name,
-                    &at.name,
-                    PathBuf::from(&template_ref_str),
-                    format!("inline template '{template_ref_str}' not provided"),
-                ));
-                continue;
-            }
-        };
-        let template_name = format!("{module_name}::{}", at.name);
-        if let Err(r) = register_template(&mut env, template_name.clone(), template_src) {
+    'next_archetype: for a in manifest.all_archetypes() {
+        // No-compat rule (ADR 0003): retired fields are a hard failure.
+        if let Some(field) = a.retired_field() {
             failures.push(failure(
                 &module_name,
-                &at.name,
-                PathBuf::from(&template_ref_str),
-                r,
+                &a.name,
+                inline_root.clone(),
+                format!(
+                    "retired field `{field}` is not supported; move its intent into `body_extraction` asserts (FR-033)"
+                ),
             ));
             continue;
         }
-        archetypes.push(Arc::new(CompiledArchetype {
-            name: at.name.clone(),
-            module: module_name.clone(),
-            raw_schema: Arc::new(raw_schema),
-            validator: Arc::new(validator),
-            template_path: Some(PathBuf::from(&template_ref_str)),
-            template_name: Some(template_name),
-            body_extraction: None,
-        }));
-    }
 
-    for ot in &manifest.object_types {
-        let schema: Value = ot
-            .data_schema
-            .clone()
-            .unwrap_or_else(|| Value::Object(serde_json::Map::new()));
-        let validator = match compile_schema(&schema) {
-            Ok(v) => v,
-            Err(r) => {
-                failures.push(failure(&module_name, &ot.name, inline_root.clone(), r));
-                continue;
+        // Frontmatter schema (optional, supplied via `schemas`).
+        let (frontmatter_schema, frontmatter_validator) = match &a.frontmatter_schema_ref {
+            None => (None, None),
+            Some(rel) => {
+                let schema_ref_str = rel.to_string_lossy().to_string();
+                let schema_text = match schemas.get(&schema_ref_str) {
+                    Some(s) => s,
+                    None => {
+                        failures.push(failure(
+                            &module_name,
+                            &a.name,
+                            PathBuf::from(&schema_ref_str),
+                            format!("inline schema '{schema_ref_str}' not provided"),
+                        ));
+                        continue;
+                    }
+                };
+                let raw_schema: Value = match serde_json::from_str(schema_text) {
+                    Ok(v) => v,
+                    Err(e) => {
+                        failures.push(failure(
+                            &module_name,
+                            &a.name,
+                            PathBuf::from(&schema_ref_str),
+                            format!("schema is not valid JSON: {e}"),
+                        ));
+                        continue;
+                    }
+                };
+                let validator = match compile_schema(&raw_schema) {
+                    Ok(v) => v,
+                    Err(r) => {
+                        failures.push(failure(
+                            &module_name,
+                            &a.name,
+                            PathBuf::from(&schema_ref_str),
+                            r,
+                        ));
+                        continue;
+                    }
+                };
+                (Some(Arc::new(raw_schema)), Some(Arc::new(validator)))
             }
         };
-        if let Some(dsl) = &ot.body_extraction {
-            if let Err(e) = crate::extract::dsl::validate_dsl(&ot.name, dsl) {
+
+        // Data schema (optional, inline in the manifest).
+        let (data_schema, data_validator) = match &a.data_schema {
+            None => (None, None),
+            Some(schema) => match compile_schema(schema) {
+                Ok(v) => (Some(Arc::new(schema.clone())), Some(Arc::new(v))),
+                Err(r) => {
+                    failures.push(failure(&module_name, &a.name, inline_root.clone(), r));
+                    continue;
+                }
+            },
+        };
+
+        // Template (optional, supplied via `templates`).
+        let (template_path, template_name) = match &a.template_ref {
+            None => (None, None),
+            Some(rel) => {
+                let template_ref_str = rel.to_string_lossy().to_string();
+                let template_src = match templates.get(&template_ref_str) {
+                    Some(s) => s.clone(),
+                    None => {
+                        failures.push(failure(
+                            &module_name,
+                            &a.name,
+                            PathBuf::from(&template_ref_str),
+                            format!("inline template '{template_ref_str}' not provided"),
+                        ));
+                        continue;
+                    }
+                };
+                let template_name = format!("{module_name}::{}", a.name);
+                if let Err(r) = register_template(&mut env, template_name.clone(), template_src) {
+                    failures.push(failure(
+                        &module_name,
+                        &a.name,
+                        PathBuf::from(&template_ref_str),
+                        r,
+                    ));
+                    continue;
+                }
+                (Some(PathBuf::from(&template_ref_str)), Some(template_name))
+            }
+        };
+
+        // body_extraction DSL validated at load time.
+        if let Some(dsl) = &a.body_extraction {
+            if let Err(e) = crate::extract::dsl::validate_dsl(&a.name, dsl) {
                 failures.push(failure(
                     &module_name,
-                    &ot.name,
+                    &a.name,
                     inline_root.clone(),
                     e.to_string(),
                 ));
-                continue;
+                continue 'next_archetype;
             }
         }
-        archetypes.push(Arc::new(CompiledArchetype {
-            name: ot.name.clone(),
-            module: module_name.clone(),
-            raw_schema: Arc::new(schema),
-            validator: Arc::new(validator),
-            template_path: None,
-            template_name: None,
-            body_extraction: ot.body_extraction.clone(),
-        }));
+
+        archetypes.push(Arc::new(finish_compiled(
+            &module_name,
+            a,
+            frontmatter_schema,
+            frontmatter_validator,
+            data_schema,
+            data_validator,
+            template_path,
+            template_name,
+        )));
     }
 
     modules.push(LoadedModule {
@@ -482,14 +503,8 @@ fn load_one_module(
     let mut archetypes: Vec<Arc<CompiledArchetype>> = Vec::new();
     let mut failures: Vec<ArchetypeLoadFailure> = Vec::new();
 
-    for at in &manifest.artifact_types {
-        match compile_artifact_type(&module_name, module_root, at, env) {
-            Ok(c) => archetypes.push(Arc::new(c)),
-            Err(f) => failures.push(f),
-        }
-    }
-    for ot in &manifest.object_types {
-        match compile_object_type(&module_name, module_root, ot) {
+    for at in manifest.all_archetypes() {
+        match compile_archetype(&module_name, module_root, at, env) {
             Ok(c) => archetypes.push(Arc::new(c)),
             Err(f) => failures.push(f),
         }
@@ -506,71 +521,134 @@ fn load_one_module(
     ))
 }
 
-fn compile_artifact_type(
+/// Compile one unified archetype (FR-031). Resolves the optional
+/// frontmatter schema + template + data_schema, validates the
+/// `body_extraction` DSL and `assert` facets, and rejects the retired
+/// `required_sections`/`variants` fields (no backward-compat layer).
+fn compile_archetype(
     module: &str,
     module_root: &Path,
-    at: &ArtifactType,
+    a: &Archetype,
     env: &mut Environment<'static>,
 ) -> Result<CompiledArchetype, ArchetypeLoadFailure> {
-    let schema_path = module_root.join(&at.frontmatter_schema_ref);
-    let template_path = module_root.join(&at.template_ref);
+    // No-compat rule (ADR 0003): retired fields are a hard failure.
+    if let Some(field) = a.retired_field() {
+        return Err(failure(
+            module,
+            &a.name,
+            module_root.join("manifest.yaml"),
+            format!(
+                "retired field `{field}` is not supported; move its intent into `body_extraction` asserts (FR-033)"
+            ),
+        ));
+    }
 
-    let raw_schema =
-        read_schema(&schema_path).map_err(|r| failure(module, &at.name, schema_path.clone(), r))?;
-    let validator = compile_schema(&raw_schema)
-        .map_err(|r| failure(module, &at.name, schema_path.clone(), r))?;
+    // Frontmatter schema (optional).
+    let (frontmatter_schema, frontmatter_validator) = match &a.frontmatter_schema_ref {
+        Some(rel) => {
+            let schema_path = module_root.join(rel);
+            let raw = read_schema(&schema_path)
+                .map_err(|r| failure(module, &a.name, schema_path.clone(), r))?;
+            let validator = compile_schema(&raw)
+                .map_err(|r| failure(module, &a.name, schema_path.clone(), r))?;
+            (Some(Arc::new(raw)), Some(Arc::new(validator)))
+        }
+        None => (None, None),
+    };
 
-    let template_src = std::fs::read_to_string(&template_path)
-        .map_err(|e| failure(module, &at.name, template_path.clone(), e.to_string()))?;
-    let template_name = qualified_template_name(module, &at.name);
-    register_template(env, template_name.clone(), template_src)
-        .map_err(|r| failure(module, &at.name, template_path.clone(), r))?;
+    // Data schema (optional).
+    let (data_schema, data_validator) = match &a.data_schema {
+        Some(schema) => {
+            let validator = compile_schema(schema)
+                .map_err(|r| failure(module, &a.name, module_root.join("manifest.yaml"), r))?;
+            (Some(Arc::new(schema.clone())), Some(Arc::new(validator)))
+        }
+        None => (None, None),
+    };
 
-    Ok(CompiledArchetype {
-        name: at.name.clone(),
-        module: module.to_string(),
-        raw_schema: Arc::new(raw_schema),
-        validator: Arc::new(validator),
-        template_path: Some(template_path),
-        template_name: Some(template_name),
-        body_extraction: None,
-    })
-}
+    // Template (optional/legacy).
+    let (template_path, template_name) = match &a.template_ref {
+        Some(rel) => {
+            let template_path = module_root.join(rel);
+            let template_src = std::fs::read_to_string(&template_path)
+                .map_err(|e| failure(module, &a.name, template_path.clone(), e.to_string()))?;
+            let template_name = qualified_template_name(module, &a.name);
+            register_template(env, template_name.clone(), template_src)
+                .map_err(|r| failure(module, &a.name, template_path.clone(), r))?;
+            (Some(template_path), Some(template_name))
+        }
+        None => (None, None),
+    };
 
-fn compile_object_type(
-    module: &str,
-    module_root: &Path,
-    ot: &ObjectType,
-) -> Result<CompiledArchetype, ArchetypeLoadFailure> {
-    let schema: Value = ot.data_schema.clone().unwrap_or_else(|| {
-        // Empty schema is permissive — matches Py reference behavior
-        // where an object_type with no data_schema accepts anything.
-        Value::Object(serde_json::Map::new())
-    });
-    let validator = compile_schema(&schema)
-        .map_err(|r| failure(module, &ot.name, module_root.to_path_buf(), r))?;
-    // FR-011-AC-6/7/8: validate the body_extraction DSL at load time
-    // when present. Authoring tools see structural errors immediately,
-    // not when `extract()` runs.
-    if let Some(dsl) = &ot.body_extraction {
-        crate::extract::dsl::validate_dsl(&ot.name, dsl).map_err(|e| {
+    // body_extraction DSL + assert facets validated at load time
+    // (FR-011-AC-6/7/8, FR-033-AC-5).
+    if let Some(dsl) = &a.body_extraction {
+        crate::extract::dsl::validate_dsl(&a.name, dsl).map_err(|e| {
             failure(
                 module,
-                &ot.name,
+                &a.name,
                 module_root.join("manifest.yaml"),
                 e.to_string(),
             )
         })?;
     }
-    Ok(CompiledArchetype {
-        name: ot.name.clone(),
+
+    Ok(finish_compiled(
+        module,
+        a,
+        frontmatter_schema,
+        frontmatter_validator,
+        data_schema,
+        data_validator,
+        template_path,
+        template_name,
+    ))
+}
+
+/// Assemble a `CompiledArchetype` from resolved parts, picking the
+/// primary `raw_schema`/`validator` (frontmatter when present, else
+/// data, else an empty permissive object) for the FR-003 `schema_for`
+/// surface and back-compat `validate()` path.
+#[allow(clippy::too_many_arguments)]
+fn finish_compiled(
+    module: &str,
+    a: &Archetype,
+    frontmatter_schema: Option<Arc<Value>>,
+    frontmatter_validator: Option<Arc<jsonschema::JSONSchema>>,
+    data_schema: Option<Arc<Value>>,
+    data_validator: Option<Arc<jsonschema::JSONSchema>>,
+    template_path: Option<PathBuf>,
+    template_name: Option<String>,
+) -> CompiledArchetype {
+    let (raw_schema, validator) = match (&frontmatter_schema, &frontmatter_validator) {
+        (Some(s), Some(v)) => (Arc::clone(s), Arc::clone(v)),
+        _ => match (&data_schema, &data_validator) {
+            (Some(s), Some(v)) => (Arc::clone(s), Arc::clone(v)),
+            _ => empty_schema_and_validator(),
+        },
+    };
+    CompiledArchetype {
+        name: a.name.clone(),
         module: module.to_string(),
-        raw_schema: Arc::new(schema),
-        validator: Arc::new(validator),
-        template_path: None,
-        template_name: None,
-        body_extraction: ot.body_extraction.clone(),
-    })
+        raw_schema,
+        validator,
+        frontmatter_schema,
+        frontmatter_validator,
+        data_schema,
+        data_validator,
+        template_path,
+        template_name,
+        body_extraction: a.body_extraction.clone(),
+        carry_over: a.carry_over(),
+    }
+}
+
+/// An empty (permissive) object schema + its compiled validator, used
+/// when an archetype declares neither a frontmatter nor a data schema.
+fn empty_schema_and_validator() -> (Arc<Value>, Arc<jsonschema::JSONSchema>) {
+    let schema = Value::Object(serde_json::Map::new());
+    let validator = compile_schema(&schema).expect("empty object schema always compiles");
+    (Arc::new(schema), Arc::new(validator))
 }
 
 /// Templates are registered under `<module>::<archetype>` so two
@@ -843,6 +921,249 @@ object_types:
         let dsl = with_dsl.body_extraction().unwrap();
         assert!(dsl.yield_pattern.r#match.is_some());
         assert!(dsl.yield_pattern.iterate_over.is_none());
+    }
+
+    // ── Task 037: unified archetype shape (FR-031) ──────────────────
+
+    // TC-522 (FR-031-AC-1): template_ref + frontmatter_schema_ref +
+    // body_extraction compiles to one CompiledArchetype, renderable,
+    // resolvable body contract.
+    #[test]
+    fn tc522_unified_renderable_archetype_with_body_extraction() {
+        let parent = tmpdir("u-522");
+        let root = parent.join("u-mod");
+        fs::create_dir_all(root.join("schemas")).unwrap();
+        fs::create_dir_all(root.join("templates")).unwrap();
+        fs::write(
+            root.join("manifest.yaml"),
+            r#"
+name: u-mod
+artifact_types:
+- name: FR
+  template_ref: templates/fr.md.j2
+  frontmatter_schema_ref: schemas/fr.schema.json
+  body_extraction:
+    yield_pattern:
+      match:
+        purpose:
+          from: section_body
+          after_heading: Purpose
+"#,
+        )
+        .unwrap();
+        fs::write(
+            root.join("schemas/fr.schema.json"),
+            r#"{"type":"object","required":["id"],"properties":{"id":{"type":"string"}}}"#,
+        )
+        .unwrap();
+        fs::write(root.join("templates/fr.md.j2"), "id: {{ id }}\n").unwrap();
+        let outcome = load_modules(&[&parent]);
+        assert!(outcome.failures.is_empty(), "{:?}", outcome.failures);
+        let arch = &outcome.modules[0].archetypes[0];
+        assert_eq!(arch.name, "FR");
+        assert!(arch.is_renderable());
+        assert!(arch.is_validatable());
+        assert!(arch.body_extraction().is_some());
+        assert!(arch.frontmatter_validator().is_some());
+    }
+
+    // TC-523 (FR-031-AC-2): body_extraction but no template_ref →
+    // compiles, not renderable, still validatable + extractable.
+    #[test]
+    fn tc523_unified_archetype_without_template_not_renderable() {
+        let parent = tmpdir("u-523");
+        let root = parent.join("u-mod");
+        fs::create_dir_all(&root).unwrap();
+        fs::write(
+            root.join("manifest.yaml"),
+            r#"
+name: u-mod
+object_types:
+- name: domain
+  data_schema:
+    type: object
+  body_extraction:
+    yield_pattern:
+      match:
+        title:
+          from: heading
+"#,
+        )
+        .unwrap();
+        let outcome = load_modules(&[&parent]);
+        assert!(outcome.failures.is_empty(), "{:?}", outcome.failures);
+        let arch = &outcome.modules[0].archetypes[0];
+        assert!(!arch.is_renderable());
+        assert!(arch.is_validatable());
+        assert!(arch.body_extraction().is_some());
+    }
+
+    // TC-524 (FR-031-AC-3): carry-over fields retained + readable.
+    #[test]
+    fn tc524_carry_over_fields_retained() {
+        let parent = tmpdir("u-524");
+        let root = parent.join("u-mod");
+        fs::create_dir_all(root.join("schemas")).unwrap();
+        fs::create_dir_all(root.join("templates")).unwrap();
+        fs::write(
+            root.join("manifest.yaml"),
+            r#"
+name: u-mod
+artifact_types:
+- name: FR
+  template_ref: templates/fr.md.j2
+  frontmatter_schema_ref: schemas/fr.schema.json
+  grammar_ref: iso-spec-core
+  has_plugin: true
+  allowed_links: [implements, refines]
+  defaults:
+    id_pattern: "FR-{next:03d}"
+"#,
+        )
+        .unwrap();
+        fs::write(root.join("schemas/fr.schema.json"), r#"{"type":"object"}"#).unwrap();
+        fs::write(root.join("templates/fr.md.j2"), "x\n").unwrap();
+        let outcome = load_modules(&[&parent]);
+        assert!(outcome.failures.is_empty(), "{:?}", outcome.failures);
+        let arch = &outcome.modules[0].archetypes[0];
+        assert_eq!(arch.id_pattern(), Some("FR-{next:03d}"));
+        assert_eq!(arch.grammar_ref(), Some("iso-spec-core"));
+        assert!(arch.has_plugin());
+        assert_eq!(
+            arch.allowed_links(),
+            &["implements".to_string(), "refines".to_string()]
+        );
+    }
+
+    // TC-525 (FR-031-AC-4): frontmatter_schema_ref + data_schema are
+    // two distinct compiled validators, neither collapsed.
+    #[test]
+    fn tc525_frontmatter_and_data_schemas_are_distinct() {
+        let parent = tmpdir("u-525");
+        let root = parent.join("u-mod");
+        fs::create_dir_all(root.join("schemas")).unwrap();
+        fs::create_dir_all(root.join("templates")).unwrap();
+        fs::write(
+            root.join("manifest.yaml"),
+            r#"
+name: u-mod
+artifact_types:
+- name: FR
+  template_ref: templates/fr.md.j2
+  frontmatter_schema_ref: schemas/fr.schema.json
+  data_schema:
+    type: object
+    required: [extracted_id]
+    properties:
+      extracted_id: { type: string }
+"#,
+        )
+        .unwrap();
+        fs::write(
+            root.join("schemas/fr.schema.json"),
+            r#"{"type":"object","required":["id"],"properties":{"id":{"type":"string"}}}"#,
+        )
+        .unwrap();
+        fs::write(root.join("templates/fr.md.j2"), "x\n").unwrap();
+        let outcome = load_modules(&[&parent]);
+        assert!(outcome.failures.is_empty(), "{:?}", outcome.failures);
+        let arch = &outcome.modules[0].archetypes[0];
+        // Frontmatter validator requires `id`.
+        let fv = arch.frontmatter_validator().expect("frontmatter validator");
+        assert!(fv.is_valid(&serde_json::json!({"id": "FR-1"})));
+        assert!(!fv.is_valid(&serde_json::json!({"other": 1})));
+        // Data validator requires `extracted_id` — distinct schema.
+        let dv = arch.data_validator().expect("data validator");
+        assert!(dv.is_valid(&serde_json::json!({"extracted_id": "x"})));
+        assert!(!dv.is_valid(&serde_json::json!({"id": "FR-1"})));
+    }
+
+    // TC-526 (FR-031-AC-5): required_sections is rejected as a hard
+    // ArchetypeLoadFailure (no-compat rule overrides FR-031-AC-5's
+    // softer "non-fatal diagnostic" — see CR note in task 037).
+    #[test]
+    fn tc526_required_sections_is_hard_load_failure() {
+        let parent = tmpdir("u-526");
+        let root = parent.join("u-mod");
+        fs::create_dir_all(root.join("schemas")).unwrap();
+        fs::create_dir_all(root.join("templates")).unwrap();
+        fs::write(
+            root.join("manifest.yaml"),
+            r#"
+name: u-mod
+artifact_types:
+- name: FR
+  template_ref: templates/fr.md.j2
+  frontmatter_schema_ref: schemas/fr.schema.json
+  required_sections:
+  - Description
+  - Specification
+"#,
+        )
+        .unwrap();
+        fs::write(root.join("schemas/fr.schema.json"), r#"{"type":"object"}"#).unwrap();
+        fs::write(root.join("templates/fr.md.j2"), "x\n").unwrap();
+        let outcome = load_modules(&[&parent]);
+        assert_eq!(outcome.modules[0].archetypes.len(), 0);
+        assert_eq!(outcome.failures.len(), 1);
+        let f = &outcome.failures[0];
+        assert_eq!(f.archetype, "FR");
+        assert!(
+            f.reason.contains("required_sections") && f.reason.contains("body_extraction"),
+            "got: {}",
+            f.reason
+        );
+    }
+
+    // TC-526b: `variants` is likewise a hard failure (no-compat rule).
+    #[test]
+    fn tc526_variants_is_hard_load_failure() {
+        let parent = tmpdir("u-526b");
+        let root = parent.join("u-mod");
+        fs::create_dir_all(&root).unwrap();
+        fs::write(
+            root.join("manifest.yaml"),
+            r#"
+name: u-mod
+object_types:
+- name: domain
+  variants:
+  - selector: kind
+    value: a
+"#,
+        )
+        .unwrap();
+        let outcome = load_modules(&[&parent]);
+        assert_eq!(outcome.modules[0].archetypes.len(), 0);
+        assert_eq!(outcome.failures.len(), 1);
+        assert!(outcome.failures[0].reason.contains("variants"));
+    }
+
+    // TC-527 (FR-031-AC-6): Registry::archetype resolves unified
+    // archetype identically (same keying + first-wins).
+    #[test]
+    fn tc527_registry_resolves_unified_archetype() {
+        let parent = tmpdir("u-527");
+        let root = parent.join("u-mod");
+        fs::create_dir_all(&root).unwrap();
+        fs::write(
+            root.join("manifest.yaml"),
+            r#"
+name: u-mod
+object_types:
+- name: domain
+  body_extraction:
+    yield_pattern:
+      match:
+        title:
+          from: heading
+"#,
+        )
+        .unwrap();
+        let r = crate::Registry::load_from(&[&parent]).expect("ok");
+        let arch = r.archetype("domain").expect("resolved");
+        assert_eq!(arch.name, "domain");
+        assert!(arch.body_extraction().is_some());
     }
 
     // FR-013-AC-7: symlink loop is broken without panic.

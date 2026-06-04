@@ -6,12 +6,22 @@
 //! captured via `serde(flatten)` into a free-form map so authors can
 //! evolve the manifest without breaking the loader.
 //!
-//! Both shapes documented in FR-013 are supported:
+//! After the FR-031 unification (ADR 0003) there is **one** archetype
+//! shape. A manifest entry MAY carry, all optional except `name`:
 //!
-//! - `artifact_types: [{name, template_ref, frontmatter_schema_ref}]`
-//!   (canonical `spec-artifacts-*` shape)
-//! - `object_types: [{name, ...}]` (ix-spec-objects shape — has no
-//!   templates; object types are data-only)
+//! - `template_ref` — optional/legacy render template (FR-001).
+//! - `frontmatter_schema_ref` — JSON Schema over the document frontmatter.
+//! - `data_schema` — JSON Schema over the *extracted record*.
+//! - `body_extraction` — the locator DSL (FR-011), driving both extract
+//!   and `validate_document` (FR-032).
+//! - carry-over fields: `defaults.id_pattern`, `allowed_links`,
+//!   `has_plugin`, `grammar_ref`.
+//!
+//! Both `artifact_types:` and `object_types:` manifest sections (plus a
+//! new `archetypes:` section) deserialize into the same [`Archetype`]
+//! entry — the kind distinction is gone from the compiled model. The
+//! retired fields `required_sections` and `variants` are **rejected**
+//! at load time (no backward-compatibility layer, ADR 0003 / FR-035).
 
 use std::path::{Path, PathBuf};
 
@@ -32,41 +42,99 @@ pub struct Manifest {
     #[serde(default)]
     pub description: Option<String>,
     #[serde(default)]
-    pub artifact_types: Vec<ArtifactType>,
+    pub artifact_types: Vec<Archetype>,
     #[serde(default)]
-    pub object_types: Vec<ObjectType>,
+    pub object_types: Vec<Archetype>,
+    #[serde(default)]
+    pub archetypes: Vec<Archetype>,
 }
 
-/// One `artifact_types[*]` entry — the canonical FR-013 archetype:
-/// template + schema referenced by relative path.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ArtifactType {
-    pub name: String,
-    pub template_ref: PathBuf,
-    pub frontmatter_schema_ref: PathBuf,
-    /// Free-form passthrough so authors can carry extra fields without
-    /// the loader needing to know about them.
-    #[serde(flatten)]
-    pub extras: Map<String, Value>,
+impl Manifest {
+    /// Iterate every declared archetype across all manifest sections in
+    /// declaration order (`artifact_types`, then `object_types`, then
+    /// `archetypes`). After FR-031 they compile through one path.
+    pub fn all_archetypes(&self) -> impl Iterator<Item = &Archetype> {
+        self.artifact_types
+            .iter()
+            .chain(self.object_types.iter())
+            .chain(self.archetypes.iter())
+    }
 }
 
-/// One `object_types[*]` entry — data-only archetype (no template).
-/// Object types still get a JSON Schema (`data_schema`) compiled at
-/// load time so consumers can validate inputs.
+/// One unified archetype entry (FR-031). Every field except `name` is
+/// optional; renderability/validatability is derived downstream from
+/// which parts are present.
 ///
-/// `body_extraction` is the optional DSL the loader validates at
-/// load time (FR-011-AC-6/7/8). Structural failures (both `match`
-/// and `iterate_over`, missing `from:`, unknown keys) surface as
-/// `ArchetypeLoadFailure` so authoring tools see them immediately.
+/// `body_extraction` is validated at load time (FR-011-AC-6/7/8) and
+/// the retired `required_sections`/`variants` fields are rejected
+/// (`reject_retired_fields`) — both surface as `ArchetypeLoadFailure`.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ObjectType {
+pub struct Archetype {
     pub name: String,
+    #[serde(default)]
+    pub template_ref: Option<PathBuf>,
+    #[serde(default)]
+    pub frontmatter_schema_ref: Option<PathBuf>,
     #[serde(default)]
     pub data_schema: Option<Value>,
     #[serde(default)]
     pub body_extraction: Option<crate::extract::dsl::ExtractionDsl>,
+    /// Free-form passthrough for carry-over fields (`grammar_ref`,
+    /// `allowed_links`, `has_plugin`, `defaults`) and the retired fields
+    /// the loader rejects.
     #[serde(flatten)]
     pub extras: Map<String, Value>,
+}
+
+impl Archetype {
+    /// Reject the retired `required_sections` / `variants` fields with a
+    /// caller-facing reason (no backward-compatibility layer — ADR 0003).
+    /// Returns the offending field name on rejection.
+    pub fn retired_field(&self) -> Option<&'static str> {
+        if self.extras.contains_key("required_sections") {
+            Some("required_sections")
+        } else if self.extras.contains_key("variants") {
+            Some("variants")
+        } else {
+            None
+        }
+    }
+
+    /// Extract the carry-over fields from `extras` (FR-031-AC-3).
+    pub fn carry_over(&self) -> crate::loader::compile::ArchetypeCarryOver {
+        let id_pattern = self
+            .extras
+            .get("defaults")
+            .and_then(|d| d.get("id_pattern"))
+            .and_then(|v| v.as_str())
+            .map(str::to_string);
+        let allowed_links = self
+            .extras
+            .get("allowed_links")
+            .and_then(|v| v.as_array())
+            .map(|a| {
+                a.iter()
+                    .filter_map(|v| v.as_str().map(str::to_string))
+                    .collect()
+            })
+            .unwrap_or_default();
+        let has_plugin = self
+            .extras
+            .get("has_plugin")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        let grammar_ref = self
+            .extras
+            .get("grammar_ref")
+            .and_then(|v| v.as_str())
+            .map(str::to_string);
+        crate::loader::compile::ArchetypeCarryOver {
+            id_pattern,
+            allowed_links,
+            has_plugin,
+            grammar_ref,
+        }
+    }
 }
 
 /// Parse a `manifest.yaml` document from `bytes`.
@@ -122,7 +190,7 @@ artifact_types:
         assert_eq!(m.artifact_types[0].name, "FR");
         assert_eq!(
             m.artifact_types[0].template_ref,
-            PathBuf::from("templates/fr.md.j2")
+            Some(PathBuf::from("templates/fr.md.j2"))
         );
     }
 
