@@ -121,14 +121,6 @@ perf-check:
 perf-gate:
 	bash scripts/check_perf_regression.sh
 
-# =============================================================================
-# Parity regen (Task 013)
-# =============================================================================
-
-.PHONY: parity-regen
-parity-regen:
-	bash scripts/regenerate_parity_fixtures.sh
-
 .PHONY: fuzz
 fuzz:
 	@if ! rustup toolchain list | grep -q nightly; then \

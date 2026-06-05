@@ -73,10 +73,10 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | FR-021 Block edit API | AC-1..6 | TC-420 (apply_block_patch merge/render/splice), TC-421 (replace_block), TC-422 (invalid → SchemaViolation), TC-423 (unknown block_type), TC-424 (unknown block_id), TC-425 (LLM-flow rendered == direct) | ✅ Complete |
 | FR-022 Writeback primitives | AC-1..5 | TC-430 (update_section replaces content), TC-431 (update_block replaces heading+content), TC-432 (other blocks byte-identical), TC-433 (frontmatter preserved), TC-434/435 (missing heading/id → MissingField) | ✅ Complete |
 | FR-023 PyO3 binding surface | AC-1..7 | TC-460 (feature-gate), TC-461 (parse parity), TC-462 (validate parity), TC-463 (load_repo via binding), TC-464 (GIL release), TC-465 (abi3 cross-version), TC-466 (no subprocess) | ✅ Complete |
-| FR-028 Expanded Python surface | AC-1..8 | TC-510 (render byte-parity), TC-511 (validate happy+sad), TC-512 (validate_manifest), TC-513 (extract envelope), TC-514 (extract_frontmatter), TC-515 (harvest_edges dict+str), TC-516 (exception hierarchy), TC-517 (GIL release multi-thread) | ✅ Complete |
+| FR-028 Expanded Python surface | AC-1..8 | TC-510 (⛔ RETIRED — render removed), TC-511 (validate happy+sad), TC-512 (validate_manifest), TC-513 (extract envelope), TC-514 (extract_frontmatter), TC-515 (harvest_edges dict+str), TC-516 (exception hierarchy), TC-517 (GIL release multi-thread) | ✅ Complete |
 | FR-029 Archetype input contract (recast, ADR 0004) | AC-1..6 | TC-548 (FR/NFR contract), TC-549 (NFR sections), TC-550 (iso required_sections order), TC-551 (byte-stable JSON), TC-552 (unknown→err), TC-553 (unresolved-mapping diag) | 🚧 Pending implementation |
 | FR-030 Required-section validation (superseded by FR-032/FR-033, ADR 0004) | AC-1..6 | TC-529, TC-530, TC-536, TC-528, TC-533 (covered by FR-032/FR-033 TCs) | 🚧 Superseded — covered by FR-032/FR-033 |
-| FR-031 Unified archetype shape | AC-1..6 | TC-522 (renderable), TC-523 (no template), TC-524 (defaults retained), TC-525 (two validators), TC-526 (required_sections ignored+diag), TC-527 (resolve parity) | 🚧 Pending implementation |
+| FR-031 Unified archetype shape | AC-1..6 | TC-522 (validatable+extractable, no renderability), TC-523 (no body_extraction → extraction None), TC-524 (defaults retained), TC-525 (two validators), TC-526 (required_sections ignored+diag), TC-527 (resolve parity) | 🚧 Pending implementation |
 | FR-032 validate_document (markdown) | AC-1..10 | TC-528..533, TC-561 + TC-573 (placeholder set), TC-574 (none/n-a substantive), TC-575 (empty table/list reason), TC-576 (assert on resolved) | ✅ |
 | FR-033 Locator assert facet | AC-1..9 | TC-534..539, TC-561/562 + TC-570 (legality matrix), TC-571 (id-column precedence), TC-572 (id_pattern non-table) | ✅ |
 | FR-034 Assert field interpolation | AC-1..4 | TC-540 (id prefix), TC-541 (missing field diag), TC-542 (regex-escape), TC-543 (no-token static regex) | 🚧 Pending implementation |
@@ -112,17 +112,17 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-001 | parse_document handles empty + preamble-only + nested headings | Unit | P0 | FR-005-AC-1..3, US-002 | 🚧 |
 | TC-002 | parse_document does not panic on 10k random inputs | Property | P0 | FR-005-AC-4 | 🚧 |
 | TC-002b | apply_patch proptest fuzz never panics | Property | P0 | FR-002-AC-4 | 🚧 |
-| TC-003 | render against compiled FR archetype byte-equals Python reference | Integration | P0 | FR-001-AC-1, US-001-AC-2 | 🚧 |
-| TC-004 | render_by_name("unknown") returns UnknownArchetype | Unit | P0 | FR-001-AC-2 | 🚧 |
+| TC-003 | render against compiled FR archetype byte-equals Python reference | Integration | P0 | FR-001-AC-1 (RETIRED), US-001-AC-2 (RETIRED) | ⛔ RETIRED — render removed |
+| TC-004 | render_by_name("unknown") returns UnknownArchetype | Unit | P0 | FR-001-AC-2 (RETIRED) | ⛔ RETIRED — render removed |
 | TC-005 | Adding new archetype to corpus requires no Rust change | Integration | P0 | FR-001-AC-5, StR-001-AC-4 | 🚧 |
-| TC-006 | render returns field-keyed SchemaViolation on missing required | Unit | P0 | FR-001-AC-3, NFR-005-AC-1 | 🚧 |
+| TC-006 | render returns field-keyed SchemaViolation on missing required | Unit | P0 | FR-001-AC-3 (RETIRED), NFR-005-AC-1 | ⛔ RETIRED — render removed |
 | TC-007 | apply_patch merges then validates merged result | Unit | P0 | FR-002-AC-1..2, US-004-AC-1..2 | 🚧 |
 | TC-007b | apply_patch rejects unknown key under additionalProperties:false | Unit | P0 | FR-002-AC-3 | 🚧 |
-| TC-008 | render is thread-safe under 64-thread concurrency | Integration | P1 | FR-001-AC-4, FR-004-AC-2 | 🚧 |
+| TC-008 | render is thread-safe under 64-thread concurrency | Integration | P1 | FR-001-AC-4 (RETIRED), FR-004-AC-2 (RETIRED) | ⛔ RETIRED — render removed |
 | TC-009 | schema_for returns the on-disk schema byte-identical | Snapshot | P0 | FR-003-AC-1, US-001-AC-4 | 🚧 |
 | TC-009b | schema_for unknown archetype returns UnknownArchetype | Unit | P1 | FR-003-AC-2 | 🚧 |
-| TC-010 | Strict mode reports missing template field as TemplateError | Unit | P0 | FR-004-AC-1 | 🚧 |
-| TC-011 | Renderer environment cost measured (one-time) | Bench | P2 | FR-004-AC-3 | 🚧 |
+| TC-010 | Strict mode reports missing template field as TemplateError | Unit | P0 | FR-004-AC-1 (RETIRED) | ⛔ RETIRED — render removed |
+| TC-011 | Renderer environment cost measured (one-time) | Bench | P2 | FR-004-AC-3 (RETIRED) | ⛔ RETIRED — render removed |
 | TC-012 | extract_frontmatter happy path | Unit | P0 | FR-006-AC-2 | 🚧 |
 | TC-013 | extract_frontmatter malformed YAML returns body fallback | Unit | P0 | FR-006-AC-3 | 🚧 |
 | TC-014 | extract_frontmatter unterminated fence returns body fallback | Unit | P1 | FR-006-AC-4 | 🚧 |
@@ -142,11 +142,11 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-028 | Query API parity sweep against TS fixtures | Parity | P0 | FR-010-AC-2 | 🚧 |
 | TC-029 | Query API complexity: no quadratic walks | Property | P1 | FR-010-AC-3 | 🚧 |
 | TC-030 | Corpus parity sweep: every archetype × every fixture byte-equals Python reference | Parity | P0 | FR-012-AC-1..2, StR-002, US-005-AC-1..3 | 🚧 |
-| TC-031 | tests/render_parity/corpus.yaml exists and lists v1 modules | Static | P0 | FR-012-AC-1 | 🚧 |
+| TC-031 | tests/render_parity/corpus.yaml exists and lists v1 modules | Static | P0 | FR-012-AC-1 (RETIRED) | ⛔ RETIRED — render removed |
 | TC-039 | Adding archetype to corpus.yaml + fixtures extends suite with no Rust change | Integration | P0 | FR-012-AC-5 | 🚧 |
 | TC-040 | extract sweep across all 87+ object archetypes from 6 source repos | Integration | P0 | FR-011-AC-5, US-003 | 🚧 |
-| TC-041 | Parity suite catches deliberate template mutation | Regression | P0 | FR-012-AC-3, US-005-AC-4 | 🚧 |
-| TC-042 | Bench: render per-archetype median <1 ms (sweep across corpus) | Bench | P0 | NFR-001-AC-1..2 | 🚧 |
+| TC-041 | Parity suite catches deliberate template mutation | Regression | P0 | FR-012-AC-3 (RETIRED), US-005-AC-4 (RETIRED) | ⛔ RETIRED — render removed |
+| TC-042 | Bench: render per-archetype median <1 ms (sweep across corpus) | Bench | P0 | NFR-001-AC-1..2 (RETIRED) | ⛔ RETIRED — render removed |
 | TC-042b | Bench: apply_patch median <100 µs (typical artifact) | Bench | P1 | FR-002-AC-5 | 🚧 |
 | TC-050 | check_unsafe_comments.sh exits 0; baseline empty | Static | P0 | NFR-003 | 🚧 |
 | TC-051 | cargo deny check licenses exits 0 | Static | P0 | NFR-004 | 🚧 |
@@ -192,7 +192,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-150 | DSL with both match and iterate_over → ArchetypeLoadError at load | Unit | P0 | FR-011-AC-6 | 🚧 |
 | TC-151 | DSL with unknown key → ArchetypeLoadError at load | Unit | P0 | FR-011-AC-7 | 🚧 |
 | TC-152 | iterate_over.section_path missing → empty records + IterateRootMissing | Unit | P0 | FR-011-AC-8 | 🚧 |
-| TC-160 | Template with {% include %} → ArchetypeLoadError | Unit | P0 | FR-004-AC-4 | 🚧 |
+| TC-160 | Template with {% include %} → ArchetypeLoadError | Unit | P0 | FR-004-AC-4 (RETIRED) | ⛔ RETIRED — render removed |
 | TC-170 | Schema with internal $ref + $defs (recursive) compiles + validates | Unit | P0 | FR-002-AC-6 | 🚧 |
 | TC-171 | Schema with cross-file $ref → ArchetypeLoadError at load | Unit | P0 | FR-002-AC-7 | 🚧 |
 | TC-180 | extract_frontmatter handles BOM-prefixed input (with FM) | Unit | P0 | FR-006-AC-5 | 🚧 |
@@ -301,7 +301,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-505 | ASAN lane: FFI object-handoff test set reports zero leaks/UAF (interpreter noise suppressed) | Integration | P0 | NFR-018-AC-2, NFR-018-AC-3 | 🚧 |
 | TC-506 | `rg 'unsafe {' src/` returns zero matches with `--features python` enabled | Static | P0 | NFR-003-AC-4 | 🚧 |
 | TC-507 | miri job runs without `python` feature; FFI-scope note present in workflow/§19 | Static | P1 | NFR-012-AC-5 | 🚧 |
-| TC-510 | `quire.render(archetype, module_root, data)` byte-equals `quire_rs::render_by_name` for same inputs | Integration | P0 | FR-028-AC-1 | 🚧 |
+| TC-510 | `quire.render(archetype, module_root, data)` byte-equals `quire_rs::render_by_name` for same inputs | Integration | P0 | FR-028-AC-1 (RETIRED) | ⛔ RETIRED — render removed |
 | TC-511 | `quire.validate` returns None on valid data; raises `QuireValidationError` with dotted field path on invalid | Integration | P0 | FR-028-AC-2, NFR-005 | 🚧 |
 | TC-512 | `quire.validate_manifest`: happy path returns `[]`; bad payload returns structured `{path, message, schema_keyword}` records; missing schema raises `QuireSchemaError` | Integration | P0 | FR-028-AC-3 | 🚧 |
 | TC-513 | `quire.extract(arch, mod_root, text)` returns `{extraction, edges}` dict; `extraction` matches Rust `extract().records` | Integration | P0 | FR-028-AC-4 | 🚧 |
@@ -313,8 +313,8 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-519 | Authored artifact with missing section / wrong AC-table columns / mis-prefixed AC id fails with line-numbered diagnostic | Integration | P0 | US-014-AC-2, FR-032, FR-033, FR-034 | 🚧 |
 | TC-520 | Authored artifact with two same-level identical-text headings fails with `duplicate-heading` diagnostic | Integration | P0 | US-014-AC-3, FR-035 | 🚧 |
 | TC-521 | Same archetype `body_extraction` both validates the document and extracts its record (one declaration, two postures) | Integration | P0 | US-014-AC-4, FR-031 | 🚧 |
-| TC-522 | Manifest with `template_ref`+`frontmatter_schema_ref`+`body_extraction` compiles to one CompiledArchetype, `is_renderable()==true`, resolvable body contract | Unit | P0 | FR-031-AC-1 | 🚧 |
-| TC-523 | Manifest with `body_extraction` but no `template_ref` compiles, `is_renderable()==false`, still validatable + extractable | Unit | P0 | FR-031-AC-2 | 🚧 |
+| TC-522 | Manifest with `frontmatter_schema_ref`+`body_extraction` compiles to one CompiledArchetype that is validatable (frontmatter schema) and extractable (resolvable body contract); no renderability concept exposed | Unit | P0 | FR-031-AC-1 | 🚧 |
+| TC-523 | Manifest with `frontmatter_schema_ref` but no `body_extraction` compiles and is validatable; `body_extraction()` returns `None` | Unit | P0 | FR-031-AC-2 | 🚧 |
 | TC-524 | `defaults.id_pattern`, `allowed_links`, `has_plugin`, `grammar_ref` retained on compiled archetype + readable via accessors | Unit | P0 | FR-031-AC-3 | 🚧 |
 | TC-525 | `frontmatter_schema_ref` and `data_schema` retained as two distinct compiled validators; neither collapsed | Unit | P0 | FR-031-AC-4 | 🚧 |
 | TC-526 | Manifest still declaring `required_sections` loads, field ignored, exactly one non-fatal diagnostic pointing to `body_extraction` | Unit | P0 | FR-031-AC-5 | 🚧 |

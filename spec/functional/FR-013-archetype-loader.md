@@ -112,8 +112,9 @@ Templates are NOT parsed or registered (render is removed). Per-validate and per
 The crate exposes an additive Cargo feature `wasm` (v0.3.1) that drops the `jsonschema/resolve-file` activation, allowing `quire-rs` to compile against `wasm32-unknown-unknown` (where `url::Url::to_file_path` is unavailable). Under `--no-default-features --features wasm`:
 
 - `Registry::load_from`, `load_module`, `from_env`, `from_default` remain available but degrade to whatever filesystem the host exposes (typically none under `--target web`).
-- Callers SHALL use `Registry::from_inline_parts(manifest_yaml, schemas, templates)` (and the strict variant `from_inline_parts_strict`) to build a registry from an in-memory module blob — no filesystem access. `schemas` and `templates` are `BTreeMap<String, String>` keyed by the manifest's relative-reference strings (`frontmatter_schema_ref`, `template_ref`).
-- Diagnostics and per-archetype failure aggregation behave identically to the filesystem loader; missing entries in the `schemas` / `templates` maps surface as `ArchetypeLoadFailure` with reason `"inline schema/template '<ref>' not provided"`.
+> **CR note (render removal — 2026-06-04):** AC-15 originally documented a 3-arg `from_inline_parts(manifest_yaml, schemas, templates)` with a `templates` map keyed by `template_ref`. With the render feature removed, the real signature (`src/registry.rs`) is 2-arg — no `templates` param, no `template_ref`.
+- Callers SHALL use `Registry::from_inline_parts(manifest_yaml, schemas)` (and the strict variant `from_inline_parts_strict`) to build a registry from an in-memory module blob — no filesystem access. `schemas` is a `BTreeMap<String, String>` keyed by the manifest's relative-reference strings (`frontmatter_schema_ref`).
+- Diagnostics and per-archetype failure aggregation behave identically to the filesystem loader; missing entries in the `schemas` map surface as `ArchetypeLoadFailure` with reason `"inline schema '<ref>' not provided"`.
 - Cross-file `$ref` resolution is unavailable under `wasm` (consistent with FR-002-AC-7's existing rejection).
 
 This is an additive amendment — the default (native) build is unchanged. `cargo check --features python` and `cargo check` continue to include `resolve-file`. Verified by `cargo check --no-default-features --features wasm --target wasm32-unknown-unknown --lib`.
