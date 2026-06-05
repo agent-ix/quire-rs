@@ -1,7 +1,0 @@
-{
-  "id": "NFR-001",
-  "title": "Render p50 under one millisecond",
-  "artifact_type": "NFR",
-  "scope": {},
-  "relationships": []
-}

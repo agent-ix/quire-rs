@@ -20,9 +20,8 @@ crate-type = ["cdylib", "rlib"]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(loom)'] }
 
 [dependencies]
-# Tilde-pinned per NFR-009 for load-bearing renderer/parser primitives;
+# Tilde-pinned per NFR-009 for load-bearing parser primitives;
 # caret-pinned for ecosystem-standard helpers.
-minijinja = "~2"
 serde = { version = "^1", features = ["derive"] }
 serde_json = "^1"
 serde_yaml = "^0.9"
@@ -30,7 +29,7 @@ indexmap = { version = "^2", features = ["serde"] }
 thiserror = "^2"
 # Regex driver for the Query API (FR-010). Patterns are author-side
 # (section numbers, bullet shapes, fence info strings) so this is on
-# the Query/extract path, not the hot render path.
+# the Query/extract path, not a hot inner loop.
 regex = "^1"
 # Placeholder validator crate; Task 026 ADR will revisit with bench data.
 # `default-features = false` to drop the `resolve-http`/`reqwest`/`cli` defaults
@@ -72,17 +71,13 @@ python = ["dep:pyo3"]
 # `url::Url::to_file_path`, which doesn't exist on wasm32). See FR-013.
 resolve-file = ["jsonschema/resolve-file"]
 # Filesystem-free build target. Drops `resolve-file` so the crate
-# compiles for `wasm32-unknown-unknown`. Schemas + templates must be
-# passed in-memory via `Registry::from_inline_parts` (see FR-013
-# wasm amendment); `Registry::load_from` / `load_module` / `from_env`
+# compiles for `wasm32-unknown-unknown`. Schemas must be passed
+# in-memory via `Registry::from_inline_parts` (see FR-013 wasm
+# amendment); `Registry::load_from` / `load_module` / `from_env`
 # / `from_default` remain available but operate against whatever
 # filesystem the wasm host exposes (typically none under
 # `--target web`).
 wasm = []
-
-[[bench]]
-name = "render"
-harness = false
 
 [[bench]]
 name = "parse"

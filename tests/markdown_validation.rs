@@ -13,7 +13,7 @@ use quire_rs::validate_document::ValidationReason;
 use quire_rs::Registry;
 
 fn iso_registry() -> Registry {
-    let module = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/render_parity/modules/iso");
+    let module = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/modules/iso");
     Registry::load_module(&module).expect("load iso module")
 }
 
@@ -121,7 +121,6 @@ fn frontmatter_violation_fails() {
 const ASSERT_MANIFEST: &str = r#"name: assert-mod
 artifact_types:
 - name: FR
-  template_ref: templates/fr.md.j2
   frontmatter_schema_ref: schemas/fr.schema.json
   body_extraction:
     yield_pattern:
@@ -142,12 +141,7 @@ fn assert_registry() -> Registry {
         "schemas/fr.schema.json".to_string(),
         r#"{"type":"object","required":["id"],"properties":{"id":{"type":"string"}}}"#.to_string(),
     );
-    let mut templates = BTreeMap::new();
-    templates.insert(
-        "templates/fr.md.j2".to_string(),
-        "id: {{ id }}\n".to_string(),
-    );
-    Registry::from_inline_parts(ASSERT_MANIFEST.as_bytes(), &schemas, &templates)
+    Registry::from_inline_parts(ASSERT_MANIFEST.as_bytes(), &schemas)
         .expect("inline module with assert facet loads")
 }
 

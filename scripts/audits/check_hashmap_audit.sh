@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
 # check_hashmap_audit.sh — NFR-006-AC-3, TC-058
 #
-# Enforce: render/parse code paths MUST NOT use `std::collections::HashMap`
-# (iteration order is observable and breaks determinism). Use `IndexMap` or
-# `BTreeMap` instead.
+# Enforce: parse/validate/extract code paths MUST NOT use
+# `std::collections::HashMap` (iteration order is observable and breaks
+# determinism, NFR-006-AC-3). Use `IndexMap` or `BTreeMap` instead.
 #
 # Scoped to:
 #   src/parser/
-#   src/render/
 #   src/merge.rs
 #   src/extract/
+#   src/validate_document.rs
 #
-# Other modules may use HashMap freely.
+# (The render path is removed.) Other modules may use HashMap freely.
 
 set -euo pipefail
 
@@ -25,9 +25,9 @@ fi
 
 SCOPES=(
   "$SRC/parser"
-  "$SRC/render"
   "$SRC/merge.rs"
   "$SRC/extract"
+  "$SRC/validate_document.rs"
 )
 
 # Build a list of paths that actually exist (skip silently otherwise).

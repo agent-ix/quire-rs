@@ -185,9 +185,13 @@ pub fn validate_assert_for_kind(
     if assert.min_items.is_some() && !matches!(kind, LocatorKind::ListItem) {
         return reject("min_items");
     }
-    // `id_pattern` applies anywhere an id/value is located — no kind
-    // restriction (FR-034). It is, however, the only assert key valid on
-    // frontmatter_field / code_block.
+    // `id_pattern` checks the located scalar value (FR-034). Per
+    // FR-033-AC-7 it is legal on `table_row`, `heading`, `section_body`,
+    // `list_item`, and `frontmatter_field` (scalar) — but NOT on
+    // `code_block`, whose value is a fenced source blob, not an id token.
+    if assert.id_pattern.is_some() && matches!(kind, LocatorKind::CodeBlock) {
+        return reject("id_pattern");
+    }
     Ok(())
 }
 
@@ -361,5 +365,89 @@ yield_pattern:
 "#,
         );
         validate_dsl("FR", &dsl).expect("valid assert");
+    }
+
+    // TC-570 (FR-033-AC-7): the assert-key × locator-kind legality matrix.
+    // For every (kind, key) cell: legal cells pass `validate_assert_for_kind`,
+    // illegal cells produce an `ArchetypeLoadFailure` (DslValidationError)
+    // naming the archetype + offending key. Table-driven across every cell.
+    #[test]
+    fn tc570_assert_key_locator_kind_legality_matrix() {
+        use LocatorKind::*;
+
+        // One LocatorAssert carrying exactly the named key.
+        fn assert_with(key: &str) -> LocatorAssert {
+            let mut a = LocatorAssert::default();
+            match key {
+                "level" => a.level = Some(2),
+                "columns" => a.columns = Some(vec!["ID".to_string()]),
+                "min_rows" => a.min_rows = Some(1),
+                "min_items" => a.min_items = Some(1),
+                "id_column" => a.id_column = Some("ID".to_string()),
+                "id_pattern" => a.id_pattern = Some("^X-".to_string()),
+                other => panic!("unknown key {other}"),
+            }
+            a
+        }
+
+        let kinds = [
+            FrontmatterField,
+            SectionBody,
+            CodeBlock,
+            TableRow,
+            ListItem,
+            Heading,
+        ];
+        let keys = [
+            "level",
+            "columns",
+            "min_rows",
+            "min_items",
+            "id_column",
+            "id_pattern",
+        ];
+
+        // Legality per FR-033-AC-7.
+        fn legal(kind: LocatorKind, key: &str) -> bool {
+            match key {
+                "level" => matches!(kind, SectionBody | Heading),
+                "columns" | "min_rows" | "id_column" => matches!(kind, TableRow),
+                "min_items" => matches!(kind, ListItem),
+                "id_pattern" => matches!(
+                    kind,
+                    TableRow | Heading | SectionBody | ListItem | FrontmatterField
+                ),
+                _ => unreachable!(),
+            }
+        }
+
+        for &kind in &kinds {
+            for &key in &keys {
+                let assert = assert_with(key);
+                let result = validate_assert_for_kind("FR", "k", kind, &assert);
+                if legal(kind, key) {
+                    assert!(
+                        result.is_ok(),
+                        "cell ({}, {key}) should be legal, got {result:?}",
+                        kind.as_str()
+                    );
+                } else {
+                    match result {
+                        Err(QuireError::DslValidationError { archetype, reason }) => {
+                            assert_eq!(archetype, "FR");
+                            assert!(
+                                reason.contains(key) && reason.contains(kind.as_str()),
+                                "cell ({}, {key}) reason should name key+kind: {reason}",
+                                kind.as_str()
+                            );
+                        }
+                        other => panic!(
+                            "cell ({}, {key}) should be illegal, got {other:?}",
+                            kind.as_str()
+                        ),
+                    }
+                }
+            }
+        }
     }
 }

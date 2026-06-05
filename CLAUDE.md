@@ -49,9 +49,9 @@ authoritative references rather than guessing.
 **Performant.** Latency/throughput are normative (NFR-001/002/007/015/016), CI-gated by
 `scripts/check_perf_regression.sh` (10% band over a stored criterion baseline). Determinism
 (NFR-006) is enforced by `scripts/audits/check_hashmap_audit.sh`, which **bans `HashMap`** in
-`src/parser`, `src/render`, `src/merge.rs`, `src/extract` — use `BTreeMap`/`IndexMap` anywhere
-iteration order is observable. Prefer borrowed slices over clones on hot paths; do work once at
-load time (compile-once, render/parse-fast).
+`src/parser`, `src/merge.rs`, `src/extract`, `src/validate_document.rs` — use `BTreeMap`/`IndexMap`
+anywhere iteration order is observable. Prefer borrowed slices over clones on hot paths; do work
+once at load time (compile-once, parse/validate-fast). The render/templating feature is removed.
 
 **Well-spec'd.** FRs precede code. `spec/tests.md` must stay at 100% AC→TC coverage (a `grep`
 integrity check is wired into that file). Honor the gates in `plan/tasks/README.md` — don't start
@@ -86,8 +86,8 @@ change requires a CR note (see CR-002 in FR-024 for the pattern).
 ```
 src/lib.rs             # crate root
 src/parser/            # parse_document → QuireDocument (TS/Py parity)
-src/loader/, registry.rs  # archetype Registry (compiled schema + template)
-src/render/, validate.rs, block_edit.rs, writeback.rs  # render + edit + splice
+src/loader/, registry.rs  # archetype Registry (compiled schema only)
+src/validate.rs, validate_document.rs, writeback.rs  # schema/markdown validate + byte-splice edit
 src/extract/           # body-extraction DSL evaluator
 src/corpus/            # v0.3: load_repo + Spec corpus + resolution + query
 src/python/            # v0.3: PyO3 bindings (feature = "python")

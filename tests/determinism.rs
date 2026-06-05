@@ -1,20 +1,20 @@
 //! Cross-thread + cross-run determinism (NFR-006).
 //!
 //! Identical input → byte-identical output across threads and across
-//! repeated invocations. Covers the parser, the renderer, and the
-//! merge+validate path.
+//! repeated invocations. Covers the parser, `validate_document`,
+//! `extract`, and the merge+validate path.
 
 use std::path::Path;
 use std::sync::Arc;
 use std::thread;
 
-use quire_rs::{apply_patch, parse_document, render_by_name, Registry};
+use quire_rs::{apply_patch, extract, parse_document, validate_document, Registry};
 use serde_json::json;
 
 fn modules_root() -> std::path::PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("tests")
-        .join("render_parity")
+        .join("fixtures")
         .join("modules")
 }
 
@@ -39,19 +39,46 @@ fn parse_is_deterministic_across_threads() {
     }
 }
 
+const FR_DOC: &str = "---\nid: FR-001\ntitle: Determinism\nartifact_type: FR\n---\n\n\
+## Description\n\nThe engine is deterministic.\n\n\
+## Specification\n\nGiven identical input it produces identical output.\n\n\
+## Acceptance Criteria\n\nAll runs agree.\n\n\
+## Dependencies\n\nNone.\n";
+
+// TC-578 (NFR-006-AC-4): validate_document + extract on the same input
+// 100× across threads yield equal ValidationResult (ordered diagnostics)
+// and ExtractionResult (records + edges + diagnostics) every time.
 #[test]
-fn render_is_deterministic_across_threads() {
+fn validate_document_and_extract_are_deterministic_across_threads() {
     let r = Arc::new(Registry::load_from(&[modules_root().as_path()]).expect("load"));
-    let data = Arc::new(json!({"id": "DEMO-001", "title": "deterministic", "body": "ok"}));
-    let baseline = render_by_name(&r, "demo-item", &data).expect("baseline");
+    let arch_name = "FR";
+    let doc = Arc::new(parse_document(FR_DOC));
+
+    let v_baseline = {
+        let arch = r.archetype(arch_name).expect("FR archetype");
+        validate_document(arch, FR_DOC)
+    };
+    let e_baseline = {
+        let arch = r.archetype(arch_name).expect("FR archetype");
+        let dsl = arch.body_extraction().expect("FR has body_extraction");
+        extract(&doc, dsl).expect("extract")
+    };
+
     let handles: Vec<_> = (0..32)
         .map(|_| {
             let r = Arc::clone(&r);
-            let data = Arc::clone(&data);
-            let baseline = baseline.clone();
+            let doc = Arc::clone(&doc);
+            let v_baseline = v_baseline.clone();
+            let e_baseline = e_baseline.clone();
             thread::spawn(move || {
-                let got = render_by_name(&r, "demo-item", &data).unwrap();
-                assert_eq!(got, baseline);
+                for _ in 0..4 {
+                    let arch = r.archetype(arch_name).expect("FR archetype");
+                    let got_v = validate_document(arch, FR_DOC);
+                    assert_eq!(got_v, v_baseline);
+                    let dsl = arch.body_extraction().expect("dsl");
+                    let got_e = extract(&doc, dsl).expect("extract");
+                    assert_eq!(got_e, e_baseline);
+                }
             })
         })
         .collect();

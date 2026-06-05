@@ -25,7 +25,6 @@ use crate::error::QuireError;
 use crate::loader::compile::CompiledArchetype;
 
 pyo3::create_exception!(quire, QuireBaseError, PyException);
-pyo3::create_exception!(quire, QuireRenderError, QuireBaseError);
 pyo3::create_exception!(quire, QuireValidationError, QuireBaseError);
 pyo3::create_exception!(quire, QuireSchemaError, QuireBaseError);
 pyo3::create_exception!(quire, QuireParseError, QuireBaseError);
@@ -35,7 +34,6 @@ pyo3::create_exception!(quire, QuireParseError, QuireBaseError);
 fn quire(m: &Bound<'_, PyModule>) -> PyResult<()> {
     let py = m.py();
     m.add("QuireBaseError", py.get_type::<QuireBaseError>())?;
-    m.add("QuireRenderError", py.get_type::<QuireRenderError>())?;
     m.add(
         "QuireValidationError",
         py.get_type::<QuireValidationError>(),
@@ -44,7 +42,6 @@ fn quire(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("QuireParseError", py.get_type::<QuireParseError>())?;
     m.add_function(wrap_pyfunction!(parse_document, m)?)?;
     m.add_function(wrap_pyfunction!(load_repo, m)?)?;
-    m.add_function(wrap_pyfunction!(render, m)?)?;
     m.add_function(wrap_pyfunction!(validate, m)?)?;
     m.add_function(wrap_pyfunction!(validate_document, m)?)?;
     m.add_function(wrap_pyfunction!(input_contract, m)?)?;
@@ -57,29 +54,6 @@ fn quire(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Registry>()?;
     m.add_class::<ExtractionContext>()?;
     Ok(())
-}
-
-/// Render `archetype_name` from `module_root` against `data`. Returns
-/// the rendered markdown string. Raises `QuireSchemaError` if the
-/// module / archetype fails to load, `QuireRenderError` on template
-/// failure.
-#[pyfunction]
-fn render(
-    py: Python<'_>,
-    archetype_name: &str,
-    module_root: &str,
-    data: &Bound<'_, PyAny>,
-) -> PyResult<String> {
-    let value = py_to_json(data)?;
-    let module = module_root.to_string();
-    let name = archetype_name.to_string();
-    py.detach(|| -> PyResult<String> {
-        let registry = crate::Registry::load_module(Path::new(&module))
-            .map_err(quire_error_to_schema_pyerr)?;
-        let out =
-            crate::render_by_name(&registry, &name, &value).map_err(quire_error_to_render_pyerr)?;
-        Ok(out.into_markdown())
-    })
 }
 
 /// Validate `data` against `archetype_name` from `module_root`.
@@ -766,8 +740,6 @@ fn compile_object_types(value: Value) -> PyResult<BTreeMap<String, Arc<CompiledA
                 frontmatter_validator: None,
                 data_schema: Some(Arc::clone(&raw)),
                 data_validator: Some(Arc::clone(&v)),
-                template_path: None,
-                template_name: None,
                 body_extraction,
                 carry_over: Default::default(),
             }),
@@ -788,20 +760,12 @@ fn quire_error_to_pyerr(e: QuireError) -> PyErr {
         | QuireError::ArchetypeLoadError { .. }
         | QuireError::ManifestError { .. }
         | QuireError::InvalidSearchPath { .. } => QuireSchemaError::new_err(e.to_string()),
-        QuireError::TemplateError { .. } => QuireRenderError::new_err(e.to_string()),
         QuireError::DslValidationError { .. } => QuireParseError::new_err(e.to_string()),
     }
 }
 
 fn quire_error_to_validation_pyerr(e: QuireError) -> PyErr {
     QuireValidationError::new_err(e.to_string())
-}
-
-fn quire_error_to_render_pyerr(e: QuireError) -> PyErr {
-    match &e {
-        QuireError::TemplateError { .. } => QuireRenderError::new_err(e.to_string()),
-        _ => quire_error_to_pyerr(e),
-    }
 }
 
 fn quire_error_to_schema_pyerr(e: QuireError) -> PyErr {

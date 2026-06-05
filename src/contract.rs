@@ -247,7 +247,7 @@ mod tests {
     use std::path::{Path, PathBuf};
 
     fn iso_module() -> PathBuf {
-        Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/render_parity/modules/iso")
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/modules/iso")
     }
 
     fn iso_registry() -> Registry {

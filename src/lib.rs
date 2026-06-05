@@ -1,12 +1,11 @@
-//! High-performance Rust templating + parsing engine for the Filament/Quire ecosystem.
+//! High-performance Rust parsing + validation engine for the Filament/Quire ecosystem.
 //!
-//! v0.2 scope: parser + query + per-block schema validation + render +
-//! writeback. The block-addressable artifact model from `INPUT.md` is
-//! restored — see `spec/spec.md` § 2bis Drift Audit. Markdown is
-//! canonical.
+//! Scope: parser + query + schema validation + markdown document
+//! validation + body-extraction + byte-splice writeback. The render /
+//! templating feature has been removed (no backward-compatibility layer);
+//! markdown is canonical and authored directly. See `spec/spec.md` §2bis.
 
 pub mod ast;
-pub mod block_edit;
 pub mod contract;
 pub mod corpus;
 pub mod diagnostic;
@@ -19,7 +18,6 @@ pub mod parser;
 pub mod python;
 pub mod query;
 pub mod registry;
-pub mod render;
 pub mod validate;
 pub mod validate_document;
 pub mod writeback;
@@ -40,8 +38,7 @@ pub use diagnostic::{Diagnostic, PathTraversalReason};
 // Loader + registry (FR-013 + FR-014).
 pub use loader::compile::CompiledArchetype;
 pub use registry::Registry;
-// Render + validate (FR-001 + FR-002).
-pub use render::{render, render_block, render_by_name, render_with_env, RenderOutput};
+// Schema validation (FR-002).
 pub use validate::{apply_patch, validate, validate_all, validate_block};
 // Markdown-default validation (FR-032 + FR-035).
 pub use validate_document::{
@@ -56,10 +53,8 @@ pub use extract::{extract, ExtractionResult};
 // Assert facet (FR-033) + `{field}` interpolation (FR-034).
 pub use extract::assert_eval::{evaluate_assert, AssertFailure, AssertReason};
 pub use extract::interpolate::{interpolate, UnresolvedField};
-// Writeback (FR-022).
+// Writeback (FR-022) — byte-splice section/block edit.
 pub use writeback::{update_block, update_section};
-// Block edit API (FR-021).
-pub use block_edit::{apply_block_patch, replace_block};
 // Corpus: parallel repo walk (FR-024) + Spec corpus (FR-025); resolution/query in FR-026..027.
 pub use corpus::walk::{load_repo, load_repo_with, LoadedDocument, RepoLoad, WalkOptions};
 pub use corpus::{harvest_edges, Spec};

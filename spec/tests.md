@@ -63,7 +63,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | FR-008 Byte-exact slicing | AC-1..3 | TC-022, TC-023, TC-024 | ✅ Complete |
 | FR-009 Slug-line ID | AC-1..5 | TC-025, TC-026 | ✅ Complete |
 | FR-010 Query API | AC-1..3 | TC-027, TC-028, TC-029 | ✅ Complete |
-| FR-011 DSL (6 locators + yields + asserts) | AC-1..8, 13..19 | TC-018, TC-019, TC-040, TC-070, TC-072, TC-073, TC-563, TC-564, TC-565 (regex), TC-566 (under_section:None), TC-567 ({{…}}), TC-568 (unclosed fence), TC-569 (emit_edges) | ✅ / 🚧 back-fills |
+| FR-011 DSL (6 locators + yields + asserts) | AC-1..8, 13..19 | TC-018, TC-019, TC-040, TC-070, TC-072, TC-073, TC-563, TC-564, TC-565 (regex), TC-566 (under_section:None), TC-567 ({{…}}), TC-568 (unclosed fence), TC-569 (emit_edges) | ✅ |
 | ~~FR-012 Corpus parity suite~~ | — | — | ⛔ RETIRED (render removal) |
 | FR-013 Archetype loader | AC-1..6 | TC-080 (empty env), TC-081 (load iso), TC-082 (bad schema_ref), TC-083 (bench), TC-084 (no IO post-load), TC-085 (no net deps) | ✅ Complete |
 | FR-014 Module activation | AC-1..5 | TC-090 (multi-module), TC-091 (collision), TC-092 (strict), TC-093 (version), TC-094 (17-baseline union) | ✅ Complete |
@@ -77,8 +77,8 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | FR-029 Archetype input contract (recast, ADR 0004) | AC-1..6 | TC-548 (FR/NFR contract), TC-549 (NFR sections), TC-550 (iso required_sections order), TC-551 (byte-stable JSON), TC-552 (unknown→err), TC-553 (unresolved-mapping diag) | 🚧 Pending implementation |
 | FR-030 Required-section validation (superseded by FR-032/FR-033, ADR 0004) | AC-1..6 | TC-529, TC-530, TC-536, TC-528, TC-533 (covered by FR-032/FR-033 TCs) | 🚧 Superseded — covered by FR-032/FR-033 |
 | FR-031 Unified archetype shape | AC-1..6 | TC-522 (renderable), TC-523 (no template), TC-524 (defaults retained), TC-525 (two validators), TC-526 (required_sections ignored+diag), TC-527 (resolve parity) | 🚧 Pending implementation |
-| FR-032 validate_document (markdown) | AC-1..10 | TC-528..533, TC-561 + TC-573 (placeholder set), TC-574 (none/n-a substantive), TC-575 (empty table/list reason), TC-576 (assert on resolved) | 🚧 Pending implementation |
-| FR-033 Locator assert facet | AC-1..9 | TC-534..539, TC-561/562 + TC-570 (legality matrix), TC-571 (id-column precedence), TC-572 (id_pattern non-table) | 🚧 Pending implementation |
+| FR-032 validate_document (markdown) | AC-1..10 | TC-528..533, TC-561 + TC-573 (placeholder set), TC-574 (none/n-a substantive), TC-575 (empty table/list reason), TC-576 (assert on resolved) | ✅ |
+| FR-033 Locator assert facet | AC-1..9 | TC-534..539, TC-561/562 + TC-570 (legality matrix), TC-571 (id-column precedence), TC-572 (id_pattern non-table) | ✅ |
 | FR-034 Assert field interpolation | AC-1..4 | TC-540 (id prefix), TC-541 (missing field diag), TC-542 (regex-escape), TC-543 (no-token static regex) | 🚧 Pending implementation |
 | FR-035 Per-level heading uniqueness | AC-1..4 | TC-544 (dup L2), TC-545 (cross-level ok), TC-546 (iterate_over children), TC-547 (line number) | 🚧 Pending implementation |
 | FR-024 Parallel repo walk (load_repo) | AC-1..9 | TC-470 (N files→N docs), TC-471 (malformed→diagnostic), TC-472 (gitignore), TC-473 (path-sorted determinism), TC-474 (symlink loop), TC-475 (id derivation), TC-476 (bad root), TC-455 (bench), TC-502 (no shared mutable state) | ✅ Complete |
@@ -91,12 +91,12 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | Non-Functional Req | Verification Method | Evidence/Test Cases | Status |
 |--------------------|---------------------|---------------------|--------|
 | ~~NFR-001 Render <1ms~~ | — | — | ⛔ RETIRED (render removal) |
-| NFR-002 Parse 5MB <500ms; validate_document <1ms | criterion bench (median) | TC-052, TC-053, TC-577 (validate_document) | ✅ / 🚧 |
+| NFR-002 Parse 5MB <500ms; validate_document <1ms | criterion bench (median) | TC-052, TC-053, TC-577 (validate_document) | ✅ |
 | NFR-003 Zero unsafe | static check (audit-unsafe) | TC-050 | ✅ Complete |
 | NFR-004 License hygiene | cargo deny check licenses | TC-051 | ✅ Complete |
 | NFR-005 Actionable errors | unit + snapshot | TC-006, TC-054, TC-055 | ✅ Complete |
-| NFR-006 Determinism | proptest (parse + validate_document + extract 100x) | TC-057, TC-058, TC-578 | ✅ / 🚧 |
-| NFR-019 Input robustness (no panic) | fuzz + proptest | TC-579, TC-580 | 🚧 Pending implementation |
+| NFR-006 Determinism | proptest (parse + validate_document + extract 100x) | TC-057, TC-058, TC-578 | ✅ |
+| NFR-019 Input robustness (no panic) | fuzz + proptest | TC-579, TC-580 | ✅ |
 | NFR-007 Load cost amortized | criterion bench + tracing audit | TC-083, TC-120, TC-121 (no recompile), TC-122 (soak) | ✅ Complete |
 | NFR-015 Repo-walk throughput scales | criterion bench (1 + 8 threads) | TC-455 | ✅ Complete |
 | NFR-016 Binding overhead + abi3 | micro-bench + cross-version import | TC-469, TC-464, TC-465, TC-467 | ✅ Complete |
@@ -354,22 +354,22 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-560 | Python `ExtractionContext.from_object_types([...])` extracts a real document from in-memory snapshot without reading module root / `.ix` / package manifest | Integration | P0 | US-003-AC-4 | 🚧 |
 | TC-561 | Multi-yield archetype (`iterate_over` + `per_match`): `validate_document` runs each `per_match` required-locator + `assert` against every iteration unit's local scope — a conformant document passes; a unit missing a required sub-locator → reason `missing`; a unit violating an assert → reason `assert` | Unit | P0 | FR-032-AC-2, FR-033-AC-4 | 🚧 |
 | TC-562 | Registry path: a module loaded via `Registry` whose archetype carries an `assert` facet (AC table `columns` + interpolated `id_pattern`) runs end-to-end through `validate_document` (manifest → load → validate); mis-prefixed id / wrong columns → reason `assert`, conformant passes | Integration | P0 | FR-033-AC-4, FR-033-AC-9 | 🚧 |
-| TC-565 | Locator `regex:` projection: `(\d+)` yields capture group 1; `\d+` (no group) yields group 0; non-match drops key (required:false) or returns `MissingField` (required:true); invalid regex → empty projected value, no panic | Unit | P0 | FR-011-AC-15 | 🚧 |
-| TC-566 | `under_section: None` substrate: `table_row` resolves against joined section bodies using the first table (first-then-any for a required column); `list_item`/`code_block` read the joined-body substrate | Unit | P0 | FR-011-AC-16 | 🚧 |
-| TC-567 | Whole-value `{{ id }}` resolved value contributes no extracted value (placeholder); an embedded `{{x}}` mid-prose does not trigger the rule and surrounding content extracts normally | Unit | P0 | FR-011-AC-17 | 🚧 |
-| TC-568 | Unclosed fenced block (both ` ``` ` and `~~~`) flushed as the final block; trailing content is part of the block, not a phantom following block (parity with FR-007) | Unit | P0 | FR-011-AC-18 | 🚧 |
-| TC-569 | `emit_edges: [{from, type}]` projects one `{record_index, type, target}` edge per extracted record whose field resolves; records lacking the field emit none; distinct from `harvest_edges`; flows through the Python `extract()` envelope `edges` key | Unit | P0 | FR-011-AC-19 | 🚧 |
-| TC-570 | Assert-key × locator-kind legality matrix: each legal cell loads (`level`@section_body/heading; `columns`/`min_rows`/`id_column`@table_row; `min_items`@list_item; `id_pattern`@all listed); each illegal cell → `ArchetypeLoadFailure` naming archetype+locator+key (table-driven) | Unit | P0 | FR-033-AC-7 | 🚧 |
-| TC-571 | `id_column` resolution precedence: `assert.id_column` → locator `column` → column 0; all-three present resolves to `assert.id_column`; `id_column` absent → `column`; both absent → col 0 | Unit | P0 | FR-033-AC-8 | 🚧 |
-| TC-572 | `id_pattern` on non-table locators: matches heading text (`heading`), section first-line/id token (`section_body`), each item (`list_item`), frontmatter scalar (`frontmatter_field`); mismatch → reason `assert`, match passes | Unit | P0 | FR-033-AC-9 | 🚧 |
-| TC-573 | Placeholder sentinel set exact: `TODO:`/`TBD` prefix (case-insensitive) and whole-value `{{…}}`/`placeholder`/`none specified`/empty fail with reason `placeholder`; substantive prose containing `todo` mid-sentence or an embedded `{{x}}` does not | Unit | P0 | FR-032-AC-7 | 🚧 |
-| TC-574 | A required section whose only content is `none` or `n/a` (e.g. `Upstream: none`) is substantive and passes — proving bare `none`/`n/a` are not sentinels | Unit | P0 | FR-032-AC-8 | 🚧 |
-| TC-575 | Required `table_row` → header-only table fails reason `empty`; required `list_item` → item-less list fails reason `empty`; a non-resolving locator fails reason `missing` (none report `placeholder`) | Unit | P0 | FR-032-AC-9 | 🚧 |
-| TC-576 | `assert` on a **resolved** locator is evaluated regardless of `required`: an optional locator that resolves but violates its assert → reason `assert`; an optional locator that does not resolve runs no assert and emits no diagnostic | Unit | P0 | FR-032-AC-10 | 🚧 |
-| TC-577 | Bench: `bench_validate_document` on a typical FR-sized artifact median <1ms (warm registry); >10% vs baseline fails CI | Bench | P0 | NFR-002-AC-4 | 🚧 |
-| TC-578 | Determinism: `validate_document` + `extract` on the same input 100× across threads → equal `ValidationResult` (ordered diagnostics) + `ExtractionResult` (records+edges+diagnostics) | Property | P0 | NFR-006-AC-4 | 🚧 |
-| TC-579 | Fuzz: arbitrary byte slices (lossy `&str`) into `parse_document`/`validate_document`/`extract` run clean (no panic/UB) for the scheduled duration; crashes committed as regression reproducers | Integration | P0 | NFR-019-AC-1 | 🚧 |
-| TC-580 | Proptest: random strings (empty, fence-only, frontmatter-only, deeply nested) into `parse_document`/`validate_document`/`extract` always return a value or typed error, never panic | Property | P0 | NFR-019-AC-2 | 🚧 |
+| TC-565 | Locator `regex:` projection: `(\d+)` yields capture group 1; `\d+` (no group) yields group 0; non-match drops key (required:false) or returns `MissingField` (required:true); invalid regex → empty projected value, no panic | Unit | P0 | FR-011-AC-15 | ✅ |
+| TC-566 | `under_section: None` substrate: `table_row` resolves against joined section bodies using the first table (first-then-any for a required column); `list_item`/`code_block` read the joined-body substrate | Unit | P0 | FR-011-AC-16 | ✅ |
+| TC-567 | Whole-value `{{ id }}` resolved value contributes no extracted value (placeholder); an embedded `{{x}}` mid-prose does not trigger the rule and surrounding content extracts normally | Unit | P0 | FR-011-AC-17 | ✅ |
+| TC-568 | Unclosed fenced block (both ` ``` ` and `~~~`) flushed as the final block; trailing content is part of the block, not a phantom following block (parity with FR-007) | Unit | P0 | FR-011-AC-18 | ✅ |
+| TC-569 | `emit_edges: [{from, type}]` projects one `{record_index, type, target}` edge per extracted record whose field resolves; records lacking the field emit none; distinct from `harvest_edges`; flows through the Python `extract()` envelope `edges` key | Unit | P0 | FR-011-AC-19 | ✅ |
+| TC-570 | Assert-key × locator-kind legality matrix: each legal cell loads (`level`@section_body/heading; `columns`/`min_rows`/`id_column`@table_row; `min_items`@list_item; `id_pattern`@all listed); each illegal cell → `ArchetypeLoadFailure` naming archetype+locator+key (table-driven) | Unit | P0 | FR-033-AC-7 | ✅ |
+| TC-571 | `id_column` resolution precedence: `assert.id_column` → locator `column` → column 0; all-three present resolves to `assert.id_column`; `id_column` absent → `column`; both absent → col 0 | Unit | P0 | FR-033-AC-8 | ✅ |
+| TC-572 | `id_pattern` on non-table locators: matches heading text (`heading`), section first-line/id token (`section_body`), each item (`list_item`), frontmatter scalar (`frontmatter_field`); mismatch → reason `assert`, match passes | Unit | P0 | FR-033-AC-9 | ✅ |
+| TC-573 | Placeholder sentinel set exact: `TODO:`/`TBD` prefix (case-insensitive) and whole-value `{{…}}`/`placeholder`/`none specified`/empty fail with reason `placeholder`; substantive prose containing `todo` mid-sentence or an embedded `{{x}}` does not | Unit | P0 | FR-032-AC-7 | ✅ |
+| TC-574 | A required section whose only content is `none` or `n/a` (e.g. `Upstream: none`) is substantive and passes — proving bare `none`/`n/a` are not sentinels | Unit | P0 | FR-032-AC-8 | ✅ |
+| TC-575 | Required `table_row` → header-only table fails reason `empty`; required `list_item` → item-less list fails reason `empty`; a non-resolving locator fails reason `missing` (none report `placeholder`) | Unit | P0 | FR-032-AC-9 | ✅ |
+| TC-576 | `assert` on a **resolved** locator is evaluated regardless of `required`: an optional locator that resolves but violates its assert → reason `assert`; an optional locator that does not resolve runs no assert and emits no diagnostic | Unit | P0 | FR-032-AC-10 | ✅ |
+| TC-577 | Bench: `bench_validate_document` on a typical FR-sized artifact median <1ms (warm registry); >10% vs baseline fails CI | Bench | P0 | NFR-002-AC-4 | ✅ |
+| TC-578 | Determinism: `validate_document` + `extract` on the same input 100× across threads → equal `ValidationResult` (ordered diagnostics) + `ExtractionResult` (records+edges+diagnostics) | Property | P0 | NFR-006-AC-4 | ✅ |
+| TC-579 | Fuzz: arbitrary byte slices (lossy `&str`) into `parse_document`/`validate_document`/`extract` run clean (no panic/UB) for the scheduled duration; crashes committed as regression reproducers | Integration | P0 | NFR-019-AC-1 | ✅ |
+| TC-580 | Proptest: random strings (empty, fence-only, frontmatter-only, deeply nested) into `parse_document`/`validate_document`/`extract` always return a value or typed error, never panic | Property | P0 | NFR-019-AC-2 | ✅ |
 
 ---
 

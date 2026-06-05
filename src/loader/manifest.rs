@@ -9,7 +9,6 @@
 //! After the FR-031 unification (ADR 0003) there is **one** archetype
 //! shape. A manifest entry MAY carry, all optional except `name`:
 //!
-//! - `template_ref` — optional/legacy render template (FR-001).
 //! - `frontmatter_schema_ref` — JSON Schema over the document frontmatter.
 //! - `data_schema` — JSON Schema over the *extracted record*.
 //! - `body_extraction` — the locator DSL (FR-011), driving both extract
@@ -20,8 +19,9 @@
 //! Both `artifact_types:` and `object_types:` manifest sections (plus a
 //! new `archetypes:` section) deserialize into the same [`Archetype`]
 //! entry — the kind distinction is gone from the compiled model. The
-//! retired fields `required_sections` and `variants` are **rejected**
-//! at load time (no backward-compatibility layer, ADR 0003 / FR-035).
+//! retired fields `required_sections`, `variants`, and `template_ref`
+//! (render removed) are **rejected** at load time (no
+//! backward-compatibility layer, ADR 0003 / FR-031 / FR-035).
 
 use std::path::{Path, PathBuf};
 
@@ -62,17 +62,15 @@ impl Manifest {
 }
 
 /// One unified archetype entry (FR-031). Every field except `name` is
-/// optional; renderability/validatability is derived downstream from
+/// optional; validatability/extractability is derived downstream from
 /// which parts are present.
 ///
 /// `body_extraction` is validated at load time (FR-011-AC-6/7/8) and
-/// the retired `required_sections`/`variants` fields are rejected
-/// (`reject_retired_fields`) — both surface as `ArchetypeLoadFailure`.
+/// the retired `required_sections`/`variants`/`template_ref` fields are
+/// rejected (`retired_field`) — each surfaces as `ArchetypeLoadFailure`.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Archetype {
     pub name: String,
-    #[serde(default)]
-    pub template_ref: Option<PathBuf>,
     #[serde(default)]
     pub frontmatter_schema_ref: Option<PathBuf>,
     #[serde(default)]
@@ -87,14 +85,17 @@ pub struct Archetype {
 }
 
 impl Archetype {
-    /// Reject the retired `required_sections` / `variants` fields with a
-    /// caller-facing reason (no backward-compatibility layer — ADR 0003).
-    /// Returns the offending field name on rejection.
+    /// Reject the retired `required_sections` / `variants` / `template_ref`
+    /// fields with a caller-facing reason (no backward-compatibility layer
+    /// — ADR 0003, render removed). Returns the offending field name on
+    /// rejection.
     pub fn retired_field(&self) -> Option<&'static str> {
         if self.extras.contains_key("required_sections") {
             Some("required_sections")
         } else if self.extras.contains_key("variants") {
             Some("variants")
+        } else if self.extras.contains_key("template_ref") {
+            Some("template_ref")
         } else {
             None
         }
@@ -175,13 +176,11 @@ mod tests {
         let yaml = br#"
 name: spec-artifacts-iso
 version: 0.1.0
-description: ISO artifact templates
+description: ISO artifacts
 artifact_types:
 - name: FR
-  template_ref: templates/fr.md.j2
   frontmatter_schema_ref: schemas/fr-frontmatter.schema.json
 - name: NFR
-  template_ref: templates/nfr.md.j2
   frontmatter_schema_ref: schemas/nfr-frontmatter.schema.json
 "#;
         let m = parse_manifest(yaml).expect("parse");
@@ -189,9 +188,26 @@ artifact_types:
         assert_eq!(m.artifact_types.len(), 2);
         assert_eq!(m.artifact_types[0].name, "FR");
         assert_eq!(
-            m.artifact_types[0].template_ref,
-            Some(PathBuf::from("templates/fr.md.j2"))
+            m.artifact_types[0].frontmatter_schema_ref,
+            Some(PathBuf::from("schemas/fr-frontmatter.schema.json"))
         );
+    }
+
+    #[test]
+    fn template_ref_is_a_retired_field() {
+        // template_ref now lands in `extras` (flatten) and is rejected
+        // by retired_field — the render feature is removed.
+        let yaml = br#"
+name: m
+artifact_types:
+- name: FR
+  template_ref: templates/fr.md.j2
+  frontmatter_schema_ref: schemas/fr.json
+"#;
+        let m = parse_manifest(yaml).expect("parse");
+        let a = &m.artifact_types[0];
+        assert!(a.extras.contains_key("template_ref"));
+        assert_eq!(a.retired_field(), Some("template_ref"));
     }
 
     #[test]
@@ -226,7 +242,6 @@ object_types:
 name: m
 artifact_types:
 - name: FR
-  template_ref: t/fr.md.j2
   frontmatter_schema_ref: s/fr.json
   grammar_ref: iso-spec-core
   defaults:

@@ -1,9 +1,0 @@
-{
-  "id": "FR-001",
-  "title": "Parser preserves byte-exact content",
-  "artifact_type": "FR",
-  "object": "",
-  "relationships": [
-    {"target": "ix://agent-ix/quire-rs/StR-003", "type": "implements", "cardinality": "1:1"}
-  ]
-}

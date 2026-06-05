@@ -11,8 +11,8 @@
 //!   `~/dev/quire/src/core/writeback.ts`.
 //! - [`update_block`]: replace one *block's bytes entirely* — the
 //!   heading line and its content together. Found by block_id (the
-//!   stable `{#blk-id}` attribute). Used internally by the block
-//!   edit API (`apply_block_patch` / `replace_block`).
+//!   stable `{#blk-id}` attribute). This is a pure byte-splice edit;
+//!   the render-dependent block edit API has been removed.
 //!
 //! Both functions operate on byte ranges in `doc.raw`, never on the
 //! parsed tree. The on-disk markdown stays canonical.

@@ -472,4 +472,95 @@ mod tests {
         let a = p.assert().unwrap().clone();
         assert!(evaluate_assert(&doc, &p, &a, None).is_empty());
     }
+
+    // TC-571 (FR-033-AC-8): `id_column` resolution precedence on a
+    // table_row locator is `assert.id_column` → locator `column` → col 0.
+    #[test]
+    fn tc571_id_column_resolution_precedence() {
+        // Table: col0 = Name (no match), col1 = Key (matches ^K-).
+        let doc =
+            parse_document("## T\n| Name | Key |\n| - | - |\n| alpha | K-1 |\n| beta | K-2 |\n");
+
+        // (1) all three present: explicit assert.id_column wins (→ Key).
+        // `column: Name` + col-0 would both point elsewhere; only Key matches.
+        let p1 = prim(
+            "from: table_row\nunder_section: T\ncolumn: Name\nassert:\n  id_column: Key\n  id_pattern: '^K-\\d+$'",
+        );
+        let a1 = p1.assert().unwrap().clone();
+        assert!(
+            evaluate_assert(&doc, &p1, &a1, None).is_empty(),
+            "assert.id_column should win and resolve to Key"
+        );
+
+        // (2) id_column absent → falls back to the locator `column` (Key).
+        let p2 = prim(
+            "from: table_row\nunder_section: T\ncolumn: Key\nassert:\n  id_pattern: '^K-\\d+$'",
+        );
+        let a2 = p2.assert().unwrap().clone();
+        assert!(
+            evaluate_assert(&doc, &p2, &a2, None).is_empty(),
+            "locator column should resolve to Key"
+        );
+        // Sanity: pointing `column` at Name (col 0) fails the ^K- pattern.
+        let p2b = prim(
+            "from: table_row\nunder_section: T\ncolumn: Name\nassert:\n  id_pattern: '^K-\\d+$'",
+        );
+        let a2b = p2b.assert().unwrap().clone();
+        assert_eq!(evaluate_assert(&doc, &p2b, &a2b, None).len(), 2);
+
+        // (3) both absent → column index 0 (Name) is used.
+        let p3 = prim("from: table_row\nunder_section: T\nassert:\n  id_pattern: '^(alpha|beta)$'");
+        let a3 = p3.assert().unwrap().clone();
+        assert!(
+            evaluate_assert(&doc, &p3, &a3, None).is_empty(),
+            "no id_column/column → column 0 (Name)"
+        );
+    }
+
+    // TC-572 (FR-033-AC-9): `id_pattern` on non-table locators applies to
+    // the located scalar value — heading text, section first-line/id
+    // token, each list item, and the frontmatter scalar. A mismatch fails
+    // with reason `assert`; a match passes.
+    #[test]
+    fn tc572_id_pattern_on_non_table_locators() {
+        // heading: matches the heading text.
+        let doc = parse_document("## Algo-1: first\n### sub\nx\n");
+        let h_ok = prim("from: heading\nlevel: 2\nassert:\n  id_pattern: '^Algo-\\d+:'");
+        let ah = h_ok.assert().unwrap().clone();
+        assert!(evaluate_assert(&doc, &h_ok, &ah, None).is_empty());
+        let h_bad = prim("from: heading\nlevel: 2\nassert:\n  id_pattern: '^ZZZ-'");
+        let ahb = h_bad.assert().unwrap().clone();
+        assert_eq!(evaluate_assert(&doc, &h_bad, &ahb, None).len(), 1);
+
+        // section_body: matches the section's first line / id token.
+        let sdoc = parse_document("## Body\nFR-1 is the lead token\n");
+        let s_ok =
+            prim("from: section_body\nafter_heading: Body\nassert:\n  id_pattern: 'FR-\\d+'");
+        let asok = s_ok.assert().unwrap().clone();
+        assert!(evaluate_assert(&sdoc, &s_ok, &asok, None).is_empty());
+        let s_bad =
+            prim("from: section_body\nafter_heading: Body\nassert:\n  id_pattern: '^NOPE-'");
+        let asbad = s_bad.assert().unwrap().clone();
+        assert_eq!(evaluate_assert(&sdoc, &s_bad, &asbad, None).len(), 1);
+
+        // list_item: matches each item.
+        let ldoc = parse_document("## L\n- LI-1\n- LI-2\n");
+        let l_ok = prim("from: list_item\nunder_section: L\nassert:\n  id_pattern: '^LI-\\d+$'");
+        let alok = l_ok.assert().unwrap().clone();
+        assert!(evaluate_assert(&ldoc, &l_ok, &alok, None).is_empty());
+        let lbad = parse_document("## L\n- LI-1\n- bogus\n");
+        assert_eq!(evaluate_assert(&lbad, &l_ok, &alok, None).len(), 1);
+
+        // frontmatter_field: matches the scalar value.
+        let fdoc = parse_document("---\nid: FR-7\n---\n# H\n");
+        let f_ok = prim("from: frontmatter_field\npath: [id]\nassert:\n  id_pattern: '^FR-\\d+$'");
+        let afok = f_ok.assert().unwrap().clone();
+        assert!(evaluate_assert(&fdoc, &f_ok, &afok, fdoc.frontmatter.as_ref()).is_empty());
+        let f_bad = prim("from: frontmatter_field\npath: [id]\nassert:\n  id_pattern: '^XX-'");
+        let afbad = f_bad.assert().unwrap().clone();
+        assert_eq!(
+            evaluate_assert(&fdoc, &f_bad, &afbad, fdoc.frontmatter.as_ref()).len(),
+            1
+        );
+    }
 }

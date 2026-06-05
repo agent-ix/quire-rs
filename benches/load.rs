@@ -13,7 +13,7 @@ use quire_rs::Registry;
 fn bench_load_demo_module(c: &mut Criterion) {
     let parent = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("tests")
-        .join("render_parity")
+        .join("fixtures")
         .join("modules");
     let mut group = c.benchmark_group("load");
     group.bench_function("registry_load_from_demo", |b| {

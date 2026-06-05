@@ -13,7 +13,7 @@ fn registry() -> &'static Registry {
             .parent()
             .unwrap()
             .join("tests")
-            .join("render_parity")
+            .join("fixtures")
             .join("modules");
         Registry::load_from(&[p.as_path()]).expect("load")
     })

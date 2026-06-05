@@ -4,10 +4,38 @@
 //! a small fixture, a medium fixture, and a synthetic ~1 MB doc
 //! (extrapolating to the NFR-002 5 MB target).
 
+use std::path::Path;
+
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use quire_rs::parse_document;
+use quire_rs::{parse_document, validate_document, Registry};
 
 const SMALL: &str = "## A\nfoo\n## B\nbar\n";
+
+/// A typical authored FR artifact (< 32 KB): frontmatter + the four
+/// required sections + an AC table — the NFR-002-AC-4 envelope.
+const FR_ARTIFACT: &str = "---\n\
+id: FR-901\n\
+title: \"A conformant requirement\"\n\
+artifact_type: FR\n\
+---\n\
+# [FR-901] A conformant requirement\n\
+\n\
+## Description\n\
+The system SHALL preserve byte-exact content across a parse round-trip.\n\
+\n\
+## Specification\n\
+On parse, the engine retains every byte of the section body verbatim.\n\
+\n\
+## Acceptance Criteria\n\
+\n\
+| ID | Criteria | Verification |\n\
+|----|----------|--------------|\n\
+| FR-901-AC-1 | Round-trip is byte-identical | Integration Test |\n\
+\n\
+## Dependencies\n\
+\n\
+- **Upstream**: none\n\
+- **Downstream**: none\n";
 
 fn build_medium() -> String {
     let mut s = String::with_capacity(64 * 1024);
@@ -54,5 +82,23 @@ fn bench_parse(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(benches, bench_parse);
+/// NFR-002-AC-4 / TC-577: `validate_document` on a typical FR-sized
+/// artifact against a **warm** Registry (load cost excluded). Target:
+/// median below 1 ms on the canonical baseline runner.
+fn bench_validate_document(c: &mut Criterion) {
+    let module = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/modules/iso");
+    let registry = Registry::load_module(&module).expect("load iso module");
+    let arch = registry.archetype("FR").expect("FR archetype loaded");
+
+    let mut group = c.benchmark_group("validate_document");
+    group.bench_function("fr_artifact", |b| {
+        b.iter(|| {
+            let r = validate_document(black_box(arch), black_box(FR_ARTIFACT));
+            black_box(r);
+        });
+    });
+    group.finish();
+}
+
+criterion_group!(benches, bench_parse, bench_validate_document);
 criterion_main!(benches);

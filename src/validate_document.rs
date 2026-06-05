@@ -224,7 +224,16 @@ fn validate_required_locator(
 
     if locator.required() {
         let (values, _pos) = crate::extract::locator::eval_locator(doc, locator);
-        match content_status(&values) {
+        // FR-032-AC-9: a `table_row`/`list_item` locator that resolves to a
+        // present-but-empty substrate (header-only table, item-less list)
+        // is `empty`, not `missing`; a substrate that does not resolve at
+        // all is `missing`. The generic `content_status` cannot tell these
+        // apart (both yield zero values), so refine for these two kinds.
+        let status = match table_or_list_status(doc, canonical, &values) {
+            Some(s) => s,
+            None => content_status(&values),
+        };
+        match status {
             ContentStatus::Missing => {
                 errors.push(ValidationError {
                     message: format!(
@@ -361,19 +370,76 @@ fn value_to_text(v: &Value) -> String {
     }
 }
 
+/// Refine the status of a `table_row` / `list_item` locator (FR-032-AC-9).
+///
+/// Returns `None` for any other locator kind (caller falls back to the
+/// generic `content_status`). For a `table_row`/`list_item`:
+/// - `Substantive` when it yielded data values (caller still re-checks
+///   placeholder/empty content via `content_status`, so we only special-
+///   case the zero-value case here),
+/// - `Empty` when the substrate **resolves** (the table/list exists under
+///   the named section, or a table is present for `under_section: None`)
+///   but has no data rows / items,
+/// - `Missing` when the substrate does not resolve at all.
+fn table_or_list_status(
+    doc: &QuireDocument,
+    primitive: &LocatorPrimitive,
+    values: &[Value],
+) -> Option<ContentStatus> {
+    // Only zero-value table/list locators need the empty-vs-missing
+    // distinction; once values exist, defer to `content_status`.
+    if !values.is_empty() {
+        return None;
+    }
+    match primitive {
+        LocatorPrimitive::TableRow { under_section, .. } => {
+            let substrate_present = match under_section {
+                Some(name) => crate::query::table_from_section(doc, name).is_some(),
+                None => doc
+                    .sections
+                    .iter()
+                    .any(|s| !crate::query::parse_tables(&s.content).is_empty()),
+            };
+            Some(if substrate_present {
+                ContentStatus::Empty
+            } else {
+                ContentStatus::Missing
+            })
+        }
+        LocatorPrimitive::ListItem { under_section, .. } => {
+            let section_present = match under_section {
+                Some(name) => crate::query::section(doc, name).is_some(),
+                // For under_section:None the substrate is the joined body;
+                // it is "present" whenever the document has any section.
+                None => !doc.sections.is_empty(),
+            };
+            Some(if section_present {
+                ContentStatus::Empty
+            } else {
+                ContentStatus::Missing
+            })
+        }
+        _ => None,
+    }
+}
+
 /// Whether `text` (already trimmed, non-empty) is placeholder-only.
+///
+/// Placeholder sentinel set (FR-032-AC-7, decision 2026-06-04). The set
+/// is **reduced**: bare `none` and `n/a` are NOT sentinels — they reject
+/// legitimate content such as `Upstream: none` (FR-032-AC-8). The exact
+/// set is:
+///
+/// - `TODO` / `TBD` — case-insensitive, matched as a **prefix**.
+/// - `{{…}}` — whole-value unresolved template marker.
+/// - `placeholder` — whole-value, case-insensitive.
+/// - `none specified` — whole-value, case-insensitive.
+/// - empty value — handled by the caller (the empty string).
 fn is_placeholder(text: &str) -> bool {
     let lower = text.to_lowercase();
-    // Exact / leading sentinels.
-    const SENTINELS: &[&str] = &[
-        "todo",
-        "tbd",
-        "placeholder",
-        "none specified",
-        "n/a",
-        "none",
-    ];
-    if SENTINELS.contains(&lower.as_str()) {
+    // Whole-value sentinels.
+    const WHOLE_VALUE_SENTINELS: &[&str] = &["placeholder", "none specified"];
+    if WHOLE_VALUE_SENTINELS.contains(&lower.as_str()) {
         return true;
     }
     // Unresolved Jinja mustache: the whole content is one `{{...}}`.
@@ -381,7 +447,8 @@ fn is_placeholder(text: &str) -> bool {
     if stripped.starts_with("{{") && stripped.ends_with("}}") {
         return true;
     }
-    // A line that is solely a sentinel keyword (e.g. "TODO: ...").
+    // A value whose content begins with a sentinel keyword (e.g.
+    // "TODO: ...", "TBD"). Bare `none`/`n/a` are intentionally absent.
     if lower.starts_with("todo") || lower.starts_with("tbd") {
         return true;
     }
@@ -477,8 +544,6 @@ mod tests {
             frontmatter_validator,
             data_schema: None,
             data_validator: None,
-            template_path: None,
-            template_name: None,
             body_extraction,
             carry_over: ArchetypeCarryOver::default(),
         }
@@ -777,5 +842,179 @@ yield_pattern:
             .find(|e| e.reason == ValidationReason::DuplicateHeading)
             .expect("dup");
         assert_eq!(e.line, Some(6), "second heading is on doc line 6");
+    }
+
+    // ── Placeholder sentinel set + empty/missing reason (FR-032-AC-7..9) ──
+
+    const SPEC_DSL: &str = r#"
+yield_pattern:
+  match:
+    specification:
+      from: section_body
+      after_heading: Specification
+      required: true
+"#;
+
+    fn spec_doc(body: &str) -> String {
+        format!("## Specification\n{body}\n")
+    }
+
+    // TC-573 (FR-032-AC-7): the exact placeholder sentinel set. `TODO:`
+    // /`TBD` prefix (case-insensitive) and whole-value `{{…}}` /
+    // `placeholder` / `none specified` / empty fail with reason
+    // `placeholder`; substantive prose merely containing `todo`
+    // mid-sentence or an embedded `{{x}}` token does NOT.
+    #[test]
+    fn tc573_placeholder_sentinel_set_exact() {
+        let a = archetype(None, Some(SPEC_DSL));
+        let placeholders = [
+            "TODO: fill this in",
+            "tbd",
+            "{{ specification }}",
+            "Placeholder",
+            "none specified",
+        ];
+        for body in placeholders {
+            let r = validate_document(&a, &spec_doc(body));
+            assert!(
+                r.errors
+                    .iter()
+                    .any(|e| e.reason == ValidationReason::Placeholder),
+                "expected placeholder for {body:?}, got {:?}",
+                r.errors
+            );
+        }
+        // Substantive prose that merely mentions the words / embeds a token.
+        let substantive = [
+            "We will not do the todo list shuffle here; this is real content.",
+            "The id field interpolates as {{id}} inside otherwise real prose.",
+        ];
+        for body in substantive {
+            let r = validate_document(&a, &spec_doc(body));
+            assert!(
+                r.is_valid,
+                "expected substantive for {body:?}, got {:?}",
+                r.errors
+            );
+        }
+    }
+
+    // TC-574 (FR-032-AC-8): a required section whose only content is
+    // `none` or `n/a` is substantive and passes — bare `none`/`n/a` are
+    // not sentinels.
+    #[test]
+    fn tc574_bare_none_and_na_are_substantive() {
+        let a = archetype(None, Some(SPEC_DSL));
+        for body in ["none", "n/a", "Upstream: none"] {
+            let r = validate_document(&a, &spec_doc(body));
+            assert!(
+                r.is_valid,
+                "expected substantive for {body:?}, got {:?}",
+                r.errors
+            );
+        }
+    }
+
+    const TABLE_DSL: &str = r#"
+yield_pattern:
+  match:
+    rows:
+      from: table_row
+      under_section: Acceptance Criteria
+      required: true
+"#;
+
+    const LIST_DSL: &str = r#"
+yield_pattern:
+  match:
+    items:
+      from: list_item
+      under_section: Dependencies
+      required: true
+"#;
+
+    // TC-575 (FR-032-AC-9): a required `table_row` resolving to a
+    // header-only table fails `empty`; a required `list_item` resolving to
+    // an item-less list fails `empty`; a non-resolving locator fails
+    // `missing` (none report `placeholder`).
+    #[test]
+    fn tc575_empty_table_and_list_reason_is_empty_not_placeholder() {
+        // Header-only table under a present section → empty.
+        let a = archetype(None, Some(TABLE_DSL));
+        let doc = "## Acceptance Criteria\n\
+                   | ID | Criteria |\n\
+                   |----|----------|\n";
+        let r = validate_document(&a, doc);
+        assert!(
+            r.errors.iter().any(|e| e.reason == ValidationReason::Empty),
+            "{:?}",
+            r.errors
+        );
+        assert!(r
+            .errors
+            .iter()
+            .all(|e| e.reason != ValidationReason::Placeholder));
+
+        // Section absent entirely → missing.
+        let r_missing = validate_document(&a, "## Other\nx\n");
+        assert!(r_missing
+            .errors
+            .iter()
+            .any(|e| e.reason == ValidationReason::Missing));
+
+        // Item-less list under a present section → empty.
+        let a2 = archetype(None, Some(LIST_DSL));
+        let doc2 = "## Dependencies\n\nNo bullet items here, just prose.\n";
+        let r2 = validate_document(&a2, doc2);
+        assert!(
+            r2.errors
+                .iter()
+                .any(|e| e.reason == ValidationReason::Empty),
+            "{:?}",
+            r2.errors
+        );
+        // Section absent → missing.
+        let r2_missing = validate_document(&a2, "## Other\nx\n");
+        assert!(r2_missing
+            .errors
+            .iter()
+            .any(|e| e.reason == ValidationReason::Missing));
+    }
+
+    const OPTIONAL_ASSERT_DSL: &str = r#"
+yield_pattern:
+  match:
+    code:
+      from: section_body
+      after_heading: Code
+      required: false
+      assert:
+        id_pattern: '^OK-'
+"#;
+
+    // TC-576 (FR-032-AC-10): an `assert` on a **resolved** locator is
+    // evaluated regardless of `required`. An optional locator that
+    // resolves but violates its assert → reason `assert`; an optional
+    // locator that does not resolve runs no assert and emits nothing.
+    #[test]
+    fn tc576_assert_on_resolved_optional_locator() {
+        let a = archetype(None, Some(OPTIONAL_ASSERT_DSL));
+        // Resolves, violates id_pattern → assert failure.
+        let bad = "## Code\nNOPE-123 content\n";
+        let r = validate_document(&a, bad);
+        assert!(
+            r.errors
+                .iter()
+                .any(|e| e.reason == ValidationReason::Assert),
+            "{:?}",
+            r.errors
+        );
+        // Resolves, satisfies → valid.
+        let good = "## Code\nOK-123 content\n";
+        assert!(validate_document(&a, good).is_valid);
+        // Does not resolve (no `## Code`) → no assert, no diagnostic.
+        let absent = "## Other\nx\n";
+        let r_absent = validate_document(&a, absent);
+        assert!(r_absent.is_valid, "{:?}", r_absent.errors);
     }
 }

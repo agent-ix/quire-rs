@@ -21,7 +21,20 @@ use crate::ast::{QuireDocument, QuireSection};
 use crate::diagnostic::Diagnostic;
 use crate::error::QuireError;
 use crate::extract::dsl::{EdgeTarget, EmitEdge, ExtractionDsl, IterateKind, IterateOver};
-use crate::extract::locator::{eval_locator, Locator};
+use crate::extract::locator::{eval_locator, is_whole_value_mustache, Locator};
+
+/// FR-011-AC-17: drop resolved values that are a whole-value `{{…}}`
+/// placeholder marker. Used on the extract path so a placeholder-only
+/// locator contributes nothing (a required miss if nothing remains).
+fn drop_whole_value_placeholders(values: Vec<Value>) -> Vec<Value> {
+    values
+        .into_iter()
+        .filter(|v| match v {
+            Value::String(s) => !is_whole_value_mustache(s),
+            _ => true,
+        })
+        .collect()
+}
 
 /// Outcome of an `extract` call.
 #[derive(Debug, Clone, PartialEq)]
@@ -77,6 +90,9 @@ fn eval_match(
     let mut record: Map<String, Value> = Map::new();
     for (key, loc) in match_map {
         let (values, fallback_pos) = eval_locator(doc, loc);
+        // FR-011-AC-17: drop whole-value `{{…}}` placeholders on the
+        // extract path (a required miss if nothing substantive remains).
+        let values = drop_whole_value_placeholders(values);
         if values.is_empty() {
             if loc.required() {
                 return Err(QuireError::MissingField {
@@ -134,6 +150,8 @@ fn eval_multi(
         let mut record: Map<String, Value> = unit.fields.clone();
         for (key, loc) in per {
             let (values, fallback_pos) = eval_locator(&unit.scope, loc);
+            // FR-011-AC-17: drop whole-value `{{…}}` placeholders.
+            let values = drop_whole_value_placeholders(values);
             if values.is_empty() {
                 if loc.required() {
                     return Err(QuireError::MissingField {
@@ -730,5 +748,171 @@ yield_pattern:
             r_without, r_with,
             "extraction output must not change when an assert is present"
         );
+    }
+
+    // ── FR-011 back-fills (TC-565..569) ─────────────────────────────────
+
+    // TC-565 (FR-011-AC-15): per-locator `regex:` projection. `(\d+)`
+    // yields capture group 1; `\d+` (no group) yields group 0; a non-match
+    // drops the key (required:false) or returns MissingField (required:true);
+    // an invalid (uncompilable) regex yields an empty projected value.
+    #[test]
+    fn tc565_regex_projection() {
+        let d = parse_document("---\nid: FR-001\n---\n## V\nrelease 42 build\n");
+
+        // Capture group 1.
+        let g1 = dsl_from(
+            "yield_pattern:\n  match:\n    n:\n      from: section_body\n      after_heading: V\n      regex: '(\\d+)'\n",
+        );
+        let r = extract(&d, &g1).expect("ok");
+        assert_eq!(r.records[0]["n"], serde_json::json!("42"));
+
+        // No group → group 0 (whole match).
+        let g0 = dsl_from(
+            "yield_pattern:\n  match:\n    n:\n      from: section_body\n      after_heading: V\n      regex: 'release \\d+'\n",
+        );
+        let r0 = extract(&d, &g0).expect("ok");
+        assert_eq!(r0.records[0]["n"], serde_json::json!("release 42"));
+
+        // Non-match, required:false → key dropped (a companion required
+        // key keeps the single record alive).
+        let opt = dsl_from(
+            "yield_pattern:\n  match:\n    id:\n      from: frontmatter_field\n      path: [id]\n      required: true\n    n:\n      from: section_body\n      after_heading: V\n      required: false\n      regex: 'ZZZ(\\d+)'\n",
+        );
+        let ro = extract(&d, &opt).expect("ok");
+        assert_eq!(ro.records.len(), 1);
+        assert!(!ro.records[0].contains_key("n"));
+
+        // Non-match, required:true → MissingField.
+        let req = dsl_from(
+            "yield_pattern:\n  match:\n    n:\n      from: section_body\n      after_heading: V\n      required: true\n      regex: 'ZZZ(\\d+)'\n",
+        );
+        assert!(matches!(
+            extract(&d, &req).expect_err("miss"),
+            QuireError::MissingField { .. }
+        ));
+
+        // Invalid regex (unterminated group) → empty projected value, no
+        // panic. required:false so the key is simply absent; a companion
+        // required key keeps the record alive.
+        let bad = dsl_from(
+            "yield_pattern:\n  match:\n    id:\n      from: frontmatter_field\n      path: [id]\n      required: true\n    n:\n      from: section_body\n      after_heading: V\n      required: false\n      regex: '(unterminated'\n",
+        );
+        let rb = extract(&d, &bad).expect("no panic");
+        assert_eq!(rb.records.len(), 1);
+        assert!(!rb.records[0].contains_key("n"));
+    }
+
+    // TC-566 (FR-011-AC-16): `under_section: None` substrate. `table_row`
+    // resolves against the joined body using the first table; `list_item`
+    // and `code_block` read the joined-body substrate.
+    #[test]
+    fn tc566_under_section_none_substrate() {
+        let d = parse_document(
+            "## A\n| K | V |\n| - | - |\n| a | 1 |\n\
+             ## B\n- item-one\n- item-two\n\
+             ## C\n```json\n{\"x\":1}\n```\n",
+        );
+
+        // table_row, under_section omitted → first table in joined body.
+        let t = dsl_from("yield_pattern:\n  match:\n    rows:\n      from: table_row\n");
+        let rt = extract(&d, &t).expect("ok");
+        assert!(rt.records[0]["rows"].as_str().unwrap().contains("a"));
+
+        // list_item, under_section omitted → joined-body bullets.
+        let l = dsl_from("yield_pattern:\n  match:\n    items:\n      from: list_item\n");
+        let rl = extract(&d, &l).expect("ok");
+        let joined = rl.records[0]["items"].as_str().unwrap();
+        assert!(joined.contains("item-one") || joined.contains("item-two"));
+
+        // code_block, under_section omitted → joined-body fenced block.
+        let c = dsl_from(
+            "yield_pattern:\n  match:\n    code:\n      from: code_block\n      language: json\n",
+        );
+        let rc = extract(&d, &c).expect("ok");
+        assert!(rc.records[0]["code"].as_str().unwrap().contains("\"x\""));
+    }
+
+    // TC-567 (FR-011-AC-17): a whole-value `{{ id }}` resolved value
+    // contributes no extracted value (placeholder); an embedded `{{x}}`
+    // mid-prose does not trigger the rule and the surrounding content
+    // extracts normally.
+    #[test]
+    fn tc567_whole_value_mustache_is_placeholder() {
+        // A companion required key keeps the single record alive while the
+        // whole-value `{{ id }}` `s` key is dropped.
+        let whole = parse_document("---\nid: FR-1\n---\n## S\n{{ id }}\n");
+        let dsl = dsl_from(
+            "yield_pattern:\n  match:\n    keep:\n      from: frontmatter_field\n      path: [id]\n      required: true\n    s:\n      from: section_body\n      after_heading: S\n      required: false\n",
+        );
+        let r = extract(&whole, &dsl).expect("ok");
+        assert_eq!(r.records.len(), 1);
+        assert!(
+            !r.records[0].contains_key("s"),
+            "whole-value {{{{…}}}} should contribute nothing, got {:?}",
+            r.records[0]
+        );
+
+        // A required whole-value marker → MissingField.
+        let req = dsl_from(
+            "yield_pattern:\n  match:\n    s:\n      from: section_body\n      after_heading: S\n      required: true\n",
+        );
+        assert!(matches!(
+            extract(&whole, &req).expect_err("placeholder is a required miss"),
+            QuireError::MissingField { .. }
+        ));
+
+        // Embedded token mid-prose → surrounding content extracted.
+        let embedded = parse_document("## S\nThe value {{x}} appears mid-sentence here.\n");
+        let only_s = dsl_from(
+            "yield_pattern:\n  match:\n    s:\n      from: section_body\n      after_heading: S\n      required: true\n",
+        );
+        let r2 = extract(&embedded, &only_s).expect("ok");
+        assert!(r2.records[0]["s"]
+            .as_str()
+            .unwrap()
+            .contains("mid-sentence"));
+    }
+
+    // TC-568 (FR-011-AC-18): an unclosed fenced block (both ``` and ~~~)
+    // is flushed as the final block — trailing content is part of the
+    // block, not a phantom following block.
+    #[test]
+    fn tc568_unclosed_fence_flushed_as_final_block() {
+        for fence in ["```", "~~~"] {
+            let md = format!("## Code\n{fence}rust\nfn main() {{}}\nstill in block\n");
+            let d = parse_document(&md);
+            let dsl = dsl_from(
+                "yield_pattern:\n  match:\n    code:\n      from: code_block\n      under_section: Code\n      language: rust\n",
+            );
+            let r = extract(&d, &dsl).expect("ok");
+            let code = r.records[0]["code"].as_str().unwrap();
+            assert!(
+                code.contains("still in block"),
+                "unclosed {fence} block should include trailing content, got {code:?}"
+            );
+        }
+    }
+
+    // TC-569 (FR-011-AC-19): `emit_edges` projects one edge per record
+    // whose field resolves; records lacking the field emit no edge.
+    #[test]
+    fn tc569_emit_edges_per_record() {
+        // Multi-yield over ### children of ## Items; each unit may carry a
+        // `target:` frontmatter-free section_body that resolves to an id.
+        let md = "## Items\n\
+                  ### One\n#### Ref\nFR-100\n\
+                  ### Two\n(no ref child)\n";
+        let d = parse_document(md);
+        let dsl = dsl_from(
+            "yield_pattern:\n  iterate_over:\n    section_path: [Items]\n    kind: heading\n    depth: 1\n  per_match:\n    name:\n      from: heading\n      required: true\nemit_edges:\n  - type: references\n    target:\n      from: section_body\n      after_heading: Ref\n",
+        );
+        let r = extract(&d, &dsl).expect("ok");
+        // Two records (One, Two); only the first has a Ref child → one edge.
+        assert_eq!(r.records.len(), 2);
+        assert_eq!(r.edges.len(), 1, "{:?}", r.edges);
+        assert_eq!(r.edges[0].record_index, 0);
+        assert_eq!(r.edges[0].edge_type, "references");
+        assert_eq!(r.edges[0].target, "FR-100");
     }
 }

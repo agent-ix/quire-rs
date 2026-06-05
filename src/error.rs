@@ -59,7 +59,7 @@ pub enum QuireError {
     },
 
     // ── Registry / archetype resolution ─────────────────────────────────
-    /// `render_by_name` / `schema_for` called with an unregistered name.
+    /// `schema_for` / `validate` called with an unregistered name.
     #[error("UnknownArchetype: '{name}' is not registered in this Registry")]
     UnknownArchetype { name: String },
 
@@ -91,18 +91,6 @@ pub enum QuireError {
     /// can choose to load-strict or load-best-effort (FR-014).
     #[error("ArchetypeLoadError: {} archetype(s) failed to load", failures.len())]
     ArchetypeLoadError { failures: Vec<ArchetypeLoadFailure> },
-
-    // ── Template engine ─────────────────────────────────────────────────
-    /// A MiniJinja template failed to parse at load time, or to render
-    /// at render time. Wraps the source error rather than reformatting
-    /// it, so the underlying error stays Debug-inspectable for diagnostic
-    /// tooling but the Display form stays neutral.
-    #[error("TemplateError [{archetype}] at {}: {message}", template_path.display())]
-    TemplateError {
-        archetype: String,
-        template_path: PathBuf,
-        message: String,
-    },
 
     // ── Filesystem / search-path ────────────────────────────────────────
     /// A `manifest.yaml` failed to parse or referenced missing files.
@@ -315,14 +303,6 @@ mod tests {
                     second_module: "app".into(),
                 },
                 &["ArchetypeCollision", "fr", "iso", "app"],
-            ),
-            (
-                QuireError::TemplateError {
-                    archetype: "fr".into(),
-                    template_path: PathBuf::from("/m/templates/fr.md.j2"),
-                    message: "expected `endif`".into(),
-                },
-                &["TemplateError", "fr", "/m/templates/fr.md.j2", "endif"],
             ),
             (
                 QuireError::ManifestError {

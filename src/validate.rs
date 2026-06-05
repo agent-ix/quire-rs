@@ -245,8 +245,6 @@ mod tests {
             frontmatter_validator: Some(v),
             data_schema: None,
             data_validator: None,
-            template_path: None,
-            template_name: None,
             body_extraction: None,
             carry_over: Default::default(),
         }

@@ -9,6 +9,8 @@ cargo-fuzz = true
 
 [dependencies]
 libfuzzer-sys = "~0.4"
+serde_json = "^1"
+serde_yaml = "^0.9"
 
 [dependencies.quire-rs]
 path = ".."
@@ -63,5 +65,11 @@ doc = false
 [[bin]]
 name = "fuzz_resolution"
 path = "fuzz_targets/fuzz_resolution.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_validate_extract_query"
+path = "fuzz_targets/fuzz_validate_extract_query.rs"
 test = false
 doc = false

@@ -373,6 +373,17 @@ pub fn eval(doc: &QuireDocument, loc: &LocatorPrimitive) -> Vec<Value> {
     apply_regex(values, regex)
 }
 
+/// FR-011-AC-17 / FR-032: a resolved value whose trimmed content is a
+/// single unresolved `{{ … }}` template marker is a placeholder. On the
+/// **extract** path it contributes no value (the key is omitted); at
+/// **validate** time it surfaces as reason `placeholder`. A `{{…}}` token
+/// embedded inside otherwise substantive content does NOT trigger the
+/// rule — only a whole-value marker does. Shared so both postures agree.
+pub fn is_whole_value_mustache(s: &str) -> bool {
+    let t = s.trim();
+    t.starts_with("{{") && t.ends_with("}}") && t.len() >= 4
+}
+
 fn apply_regex(values: Vec<Value>, pattern: Option<&str>) -> Vec<Value> {
     let Some(pattern) = pattern else {
         return values;

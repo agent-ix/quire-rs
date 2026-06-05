@@ -110,11 +110,11 @@ mutants:
 
 .PHONY: perf-baseline
 perf-baseline:
-	$(CARGO) bench --bench render --bench parse --bench load -- --save-baseline main
+	$(CARGO) bench --bench parse --bench load -- --save-baseline main
 
 .PHONY: perf-check
 perf-check:
-	$(CARGO) bench --bench render --bench parse --bench load -- --baseline main
+	$(CARGO) bench --bench parse --bench load -- --baseline main
 	bash scripts/check_perf_regression.sh
 
 .PHONY: perf-gate

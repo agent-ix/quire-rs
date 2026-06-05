@@ -1,24 +1,19 @@
-//! Schema + template compilation step (FR-013 load-time work).
+//! Schema compilation step (FR-013 load-time work).
 //!
 //! For each archetype in a module manifest the loader resolves the
-//! referenced JSON Schema file and (for `artifact_types`) the
-//! MiniJinja template file, parses both, and caches the parsed forms
-//! in a [`CompiledArchetype`]. Per-render and per-extract paths never
-//! re-read disk after this.
+//! referenced JSON Schema file, parses it, and caches the compiled
+//! validator in a [`CompiledArchetype`]. Per-validate and per-extract
+//! paths never re-read disk after this. The render/templating feature
+//! is removed — no template files are read or compiled.
 //!
 //! Cross-file `$ref` is rejected at compile time (FR-002-AC-7) by
 //! using the `jsonschema` crate without a network resolver — the
 //! default file resolver only walks the document supplied at compile.
-//!
-//! `{% include %}` in templates is rejected at parse time (FR-004) by
-//! configuring the MiniJinja env with includes disabled before
-//! `add_template` runs.
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use jsonschema::JSONSchema;
-use minijinja::Environment;
 use serde_json::Value;
 
 use crate::error::ArchetypeLoadFailure;
@@ -41,10 +36,11 @@ pub struct ArchetypeCarryOver {
 
 /// A unified compiled archetype (FR-031, ADR 0003): one shape that may
 /// carry an optional frontmatter schema, an optional `body_extraction`
-/// DSL, an optional `data_schema`, an optional template, and the
-/// carry-over fields. Renderability/validatability are *derived* from
-/// which parts are present, not from a declared `artifact_type` /
-/// `object_type` kind. Cloning is `Arc`-cheap.
+/// DSL, an optional `data_schema`, and the carry-over fields.
+/// Validatability/extractability are *derived* from which parts are
+/// present, not from a declared `artifact_type` / `object_type` kind.
+/// The render/templating feature is removed — there is no template
+/// field or renderability concept. Cloning is `Arc`-cheap.
 pub struct CompiledArchetype {
     /// Registered archetype name.
     pub name: String,
@@ -65,12 +61,6 @@ pub struct CompiledArchetype {
     /// (FR-031-AC-4) — distinct from the frontmatter validator.
     pub data_schema: Option<Arc<Value>>,
     pub data_validator: Option<Arc<JSONSchema>>,
-    /// On-disk template path. `None` when the archetype declares no
-    /// `template_ref`.
-    pub template_path: Option<PathBuf>,
-    /// Registered template name in the shared MiniJinja env. `None`
-    /// when the archetype declares no template.
-    pub template_name: Option<String>,
     /// Parsed `body_extraction` DSL (FR-011), `None` when absent.
     /// Drives both `extract()` and `validate_document()` (FR-032).
     pub body_extraction: Option<ExtractionDsl>,
@@ -79,11 +69,6 @@ pub struct CompiledArchetype {
 }
 
 impl CompiledArchetype {
-    /// `true` if this archetype has a renderable template.
-    pub fn is_renderable(&self) -> bool {
-        self.template_name.is_some()
-    }
-
     /// `true` if this archetype can be validated — it has a frontmatter
     /// schema and/or a `body_extraction` contract. (An archetype with
     /// neither still trivially "validates", so this reports whether any
@@ -135,7 +120,6 @@ impl std::fmt::Debug for CompiledArchetype {
         f.debug_struct("CompiledArchetype")
             .field("name", &self.name)
             .field("module", &self.module)
-            .field("template_name", &self.template_name)
             .finish_non_exhaustive()
     }
 }
@@ -155,24 +139,6 @@ pub fn compile_schema(schema: &Value) -> Result<JSONSchema, String> {
     JSONSchema::options()
         .compile(schema)
         .map_err(|e| format!("schema compile error: {e}"))
-}
-
-/// Add `template_source` to `env` under `template_name`, returning a
-/// neutral error string on parse failure.
-///
-/// `env` must already be configured with the FR-004 strict settings
-/// (caller's responsibility — see `render::env::build_strict_env`).
-///
-/// Performs the FR-004-AC-4 load-time `{% include %}` / `{% extends %}`
-/// rejection sniff before handing the source to MiniJinja.
-pub fn register_template(
-    env: &mut Environment<'static>,
-    template_name: String,
-    template_source: String,
-) -> Result<(), String> {
-    crate::render::env::reject_includes(&template_source)?;
-    env.add_template_owned(template_name, template_source)
-        .map_err(|e| format!("template parse error: {e}"))
 }
 
 /// Convert a (module, archetype, path, reason) tuple into a
@@ -235,31 +201,5 @@ mod tests {
     fn compile_schema_rejects_malformed() {
         let schema = json!({"type": 99}); // type must be string or array
         assert!(compile_schema(&schema).is_err());
-    }
-
-    #[test]
-    fn register_template_parses_minijinja_source() {
-        let mut env = Environment::new();
-        env.set_undefined_behavior(minijinja::UndefinedBehavior::Strict);
-        register_template(
-            &mut env,
-            "fr".to_string(),
-            "id: {{ id }}\ntitle: {{ title }}\n".to_string(),
-        )
-        .expect("register");
-        let rendered = env
-            .get_template("fr")
-            .unwrap()
-            .render(minijinja::context!(id => "FR-001", title => "Hi"))
-            .unwrap();
-        assert!(rendered.contains("FR-001"));
-        assert!(rendered.contains("Hi"));
-    }
-
-    #[test]
-    fn register_template_surfaces_parse_error() {
-        let mut env = Environment::new();
-        let err = register_template(&mut env, "broken".to_string(), "{% if".to_string());
-        assert!(err.is_err());
     }
 }

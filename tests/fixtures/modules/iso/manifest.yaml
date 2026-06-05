@@ -1,7 +1,7 @@
 manifest_version: 1.0.0
 name: spec-artifacts-iso
 version: 0.1.0
-description: 'Filament Module: ISO-style spec artifact templates (FR, NFR, StR, US, IT, TC, AC, CON) — Jinja .md.j2 templates + frontmatter JSON Schemas + iso-spec-core grammar'
+description: 'Filament Module: ISO-style spec artifacts (FR, NFR, StR, US, IT, TC, AC, CON) — frontmatter JSON Schemas + body_extraction + iso-spec-core grammar'
 archetypes:
 - kind: spec
   name: Spec
@@ -25,7 +25,6 @@ grammars:
 artifact_types:
 - name: FR
   grammar_ref: iso-spec-core
-  template_ref: templates/fr.md.j2
   frontmatter_schema_ref: schemas/fr-frontmatter.schema.json
   defaults:
     id_pattern: FR-{next:03d}
@@ -67,7 +66,6 @@ artifact_types:
           required: true
 - name: NFR
   grammar_ref: iso-spec-core
-  template_ref: templates/nfr.md.j2
   frontmatter_schema_ref: schemas/nfr-frontmatter.schema.json
   defaults:
     id_pattern: NFR-{next:03d}
@@ -106,7 +104,6 @@ artifact_types:
           required: true
 - name: StR
   grammar_ref: iso-spec-core
-  template_ref: templates/str.md.j2
   frontmatter_schema_ref: schemas/str-frontmatter.schema.json
   defaults:
     id_pattern: StR-{next:03d}
@@ -129,7 +126,6 @@ artifact_types:
           required: true
 - name: US
   grammar_ref: iso-spec-core
-  template_ref: templates/us.md.j2
   frontmatter_schema_ref: schemas/us-frontmatter.schema.json
   defaults:
     id_pattern: US-{next:03d}
@@ -152,7 +148,6 @@ artifact_types:
           required: true
 - name: IT
   grammar_ref: iso-spec-core
-  template_ref: templates/it.md.j2
   frontmatter_schema_ref: schemas/it-frontmatter.schema.json
   defaults:
     id_pattern: IT-{next:03d}
@@ -175,7 +170,6 @@ artifact_types:
           required: true
 - name: TC
   grammar_ref: iso-spec-core
-  template_ref: templates/tc.md.j2
   frontmatter_schema_ref: schemas/tc-frontmatter.schema.json
   defaults:
     id_pattern: TC-{next:03d}
@@ -197,7 +191,6 @@ artifact_types:
           required: true
 - name: AC
   grammar_ref: iso-spec-core
-  template_ref: templates/ac.md.j2
   frontmatter_schema_ref: schemas/ac-frontmatter.schema.json
   defaults:
     id_pattern: AC-{next:03d}
@@ -218,7 +211,6 @@ artifact_types:
           required: true
 - name: CON
   grammar_ref: iso-spec-core
-  template_ref: templates/con.md.j2
   frontmatter_schema_ref: schemas/con-frontmatter.schema.json
   defaults:
     id_pattern: CON-{next:03d}

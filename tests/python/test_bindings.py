@@ -15,7 +15,7 @@ import quire
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
 SPEC_DIR = REPO_ROOT / "spec"
 # load_from walks one level deep for module dirs, so point at the parent.
-MODULES_DIR = REPO_ROOT / "tests" / "render_parity" / "modules"
+MODULES_DIR = REPO_ROOT / "tests" / "fixtures" / "modules"
 
 
 def test_parse_document_returns_structured_object():
@@ -94,7 +94,7 @@ def test_validate_unknown_archetype_raises():
 
 # ── Task 038: validate_document binding (FR-032) ─────────────────────
 
-ISO_MODULE = REPO_ROOT / "tests" / "render_parity" / "modules" / "iso"
+ISO_MODULE = REPO_ROOT / "tests" / "fixtures" / "modules" / "iso"
 
 CONFORMANT_FR = (
     "---\n"
@@ -178,22 +178,7 @@ def test_input_contract_unknown_raises():
 
 # ── FR-028 expanded surface ──────────────────────────────────────────
 
-DEMO_MODULE = REPO_ROOT / "tests" / "render_parity" / "modules" / "demo"
-
-
-def test_render_byte_parity_with_rust():
-    """TC-510: quire.render returns byte-equal markdown to Rust render_by_name."""
-    data = {"id": "DEMO-1", "title": "Hello", "tags": ["a", "b"], "body": "body"}
-    out = quire.render("demo-item", str(DEMO_MODULE), data)
-    assert isinstance(out, str)
-    assert "DEMO-1" in out
-    assert "# Hello" in out
-    assert "- a" in out and "- b" in out
-
-
-def test_render_unknown_archetype_raises_schema_error():
-    with pytest.raises(quire.QuireSchemaError):
-        quire.render("no-such", str(DEMO_MODULE), {})
+DEMO_MODULE = REPO_ROOT / "tests" / "fixtures" / "modules" / "demo"
 
 
 def test_validate_happy_path_returns_none():
@@ -241,11 +226,9 @@ def test_extract_envelope_returns_extraction_and_edges(tmp_path):
     so we use a manifest with one. For a clean test, build a tiny module on the fly."""
     mod = tmp_path / "m"
     (mod / "schemas").mkdir(parents=True)
-    (mod / "templates").mkdir()
     (mod / "schemas" / "fr.schema.json").write_text(
         '{"type":"object","properties":{"id":{"type":"string"}}}'
     )
-    (mod / "templates" / "fr.md.j2").write_text("# {{ id }}\n")
     (mod / "manifest.yaml").write_text(
         "name: m\nversion: 0.1.0\nobject_types:\n"
         "  - name: fr\n"
@@ -419,24 +402,20 @@ def test_harvest_edges_string_and_dict_equal():
 
 
 def test_exception_hierarchy_importable():
-    """TC-516: all five exceptions importable and properly nested."""
-    assert issubclass(quire.QuireRenderError, quire.QuireBaseError)
+    """TC-516: the exception hierarchy is importable and properly nested;
+    QuireRenderError is not exported (render removed, FR-028-AC-7)."""
     assert issubclass(quire.QuireValidationError, quire.QuireBaseError)
     assert issubclass(quire.QuireSchemaError, quire.QuireBaseError)
     assert issubclass(quire.QuireParseError, quire.QuireBaseError)
     assert issubclass(quire.QuireBaseError, Exception)
+    assert not hasattr(quire, "QuireRenderError")
 
 
 def test_new_functions_release_gil():
-    """TC-517: concurrent calls to render+validate complete without serializing."""
+    """TC-517: concurrent calls to validate complete without serializing."""
 
     def work(_):
         for _ in range(20):
-            quire.render(
-                "demo-item",
-                str(DEMO_MODULE),
-                {"id": "DEMO-1", "title": "x"},
-            )
             quire.validate(
                 "demo-item",
                 str(DEMO_MODULE),

@@ -3,9 +3,10 @@
 //! Walks each resolved search-path entry one level deep, looking for
 //! module roots (sub-directories containing a `manifest.yaml`). For
 //! each module, parses the manifest and compiles every declared
-//! archetype (schema + optional template) into a [`CompiledArchetype`]
-//! that the [`Registry`](crate::registry::Registry) then exposes to
-//! render/extract consumers.
+//! archetype (schema only — render/templating is removed) into a
+//! [`CompiledArchetype`] that the
+//! [`Registry`](crate::registry::Registry) then exposes to
+//! validate/extract consumers.
 //!
 //! Failures don't abort the load: per-archetype errors are aggregated
 //! into [`QuireError::ArchetypeLoadError`], the rest of the registry
@@ -20,14 +21,11 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use minijinja::Environment;
 use serde_json::Value;
 
 use crate::diagnostic::Diagnostic;
 use crate::error::{ArchetypeLoadFailure, QuireError};
-use crate::loader::compile::{
-    compile_schema, failure, read_schema, register_template, CompiledArchetype,
-};
+use crate::loader::compile::{compile_schema, failure, read_schema, CompiledArchetype};
 use crate::loader::manifest::{load_manifest, Archetype, Manifest};
 use crate::loader::paths::{home_dir, resolve_search_paths, PathDiagnostic};
 
@@ -47,14 +45,20 @@ pub struct LoadOutcome {
     pub failures: Vec<ArchetypeLoadFailure>,
     pub diagnostics: Vec<Diagnostic>,
     pub path_diagnostics: Vec<PathDiagnostic>,
-    pub env: Environment<'static>,
 }
 
-/// Build a strict MiniJinja environment per FR-004. Delegates to
-/// `render::env::build_strict_env` so the env construction has one
-/// owner.
-fn build_strict_env() -> Environment<'static> {
-    crate::render::env::build_strict_env()
+/// Caller-facing reason for a retired manifest field (no
+/// backward-compatibility layer — ADR 0003 / FR-031, render removed).
+fn retired_field_reason(field: &str) -> String {
+    match field {
+        "template_ref" => "retired field `template_ref` is not supported; the render/templating \
+             feature is removed (no backward-compatibility layer)"
+            .to_string(),
+        other => format!(
+            "retired field `{other}` is not supported; move its intent into `body_extraction` \
+             asserts (FR-033)"
+        ),
+    }
 }
 
 /// Load every module reachable from `explicit` (or `IX_SCHEMA_PATH` /
@@ -63,7 +67,6 @@ pub fn load_modules(explicit: &[&Path]) -> LoadOutcome {
     let env_value = std::env::var_os("IX_SCHEMA_PATH");
     let path_diagnostics = resolve_search_paths(explicit, env_value);
 
-    let mut env = build_strict_env();
     let mut modules: Vec<LoadedModule> = Vec::new();
     let mut failures: Vec<ArchetypeLoadFailure> = Vec::new();
     let mut diagnostics: Vec<Diagnostic> = Vec::new();
@@ -94,7 +97,6 @@ pub fn load_modules(explicit: &[&Path]) -> LoadOutcome {
         if let PathDiagnostic::Ok(root) = diag {
             walk_search_root(
                 root,
-                &mut env,
                 &mut modules,
                 &mut failures,
                 &mut diagnostics,
@@ -108,7 +110,6 @@ pub fn load_modules(explicit: &[&Path]) -> LoadOutcome {
         failures,
         diagnostics,
         path_diagnostics,
-        env,
     }
 }
 
@@ -122,7 +123,6 @@ pub fn load_modules(explicit: &[&Path]) -> LoadOutcome {
 /// If `manifest.yaml` is absent, the returned `LoadOutcome` has zero
 /// modules and a single failure listing the missing manifest path.
 pub fn load_single_module(module_root: &Path) -> LoadOutcome {
-    let mut env = build_strict_env();
     let mut modules: Vec<LoadedModule> = Vec::new();
     let mut failures: Vec<ArchetypeLoadFailure> = Vec::new();
     let mut diagnostics: Vec<Diagnostic> = Vec::new();
@@ -145,7 +145,6 @@ pub fn load_single_module(module_root: &Path) -> LoadOutcome {
                 failures,
                 diagnostics,
                 path_diagnostics: Vec::new(),
-                env,
             };
         }
     };
@@ -166,11 +165,10 @@ pub fn load_single_module(module_root: &Path) -> LoadOutcome {
             failures,
             diagnostics,
             path_diagnostics: Vec::new(),
-            env,
         };
     }
 
-    match load_one_module(&canonical, &mut env, &mut diagnostics) {
+    match load_one_module(&canonical, &mut diagnostics) {
         Ok((module, mut per_module_failures)) => {
             if !per_module_failures.is_empty() {
                 failures.append(&mut per_module_failures);
@@ -185,7 +183,6 @@ pub fn load_single_module(module_root: &Path) -> LoadOutcome {
         failures,
         diagnostics,
         path_diagnostics: Vec::new(),
-        env,
     }
 }
 
@@ -194,21 +191,18 @@ pub fn load_single_module(module_root: &Path) -> LoadOutcome {
 ///
 /// `manifest_yaml` is the raw `manifest.yaml` bytes. `schemas` maps the
 /// manifest's relative `frontmatter_schema_ref` strings to schema JSON
-/// text; `templates` maps `template_ref` strings to template source.
+/// text. The render/templating feature is removed, so no `templates`
+/// map is accepted; a manifest declaring `template_ref` is rejected
+/// like any other retired field.
 ///
 /// Per-archetype failures aggregate like the filesystem loader. Module
 /// name is taken from the manifest; if absent it falls back to the
 /// sentinel `"<inline>"` and emits a `ManifestMissingName` diagnostic
 /// (mirroring FR-014-AC-7's path-derived behavior).
-pub fn load_inline_module(
-    manifest_yaml: &[u8],
-    schemas: &BTreeMap<String, String>,
-    templates: &BTreeMap<String, String>,
-) -> LoadOutcome {
-    use crate::loader::compile::{compile_schema, failure, register_template, CompiledArchetype};
+pub fn load_inline_module(manifest_yaml: &[u8], schemas: &BTreeMap<String, String>) -> LoadOutcome {
+    use crate::loader::compile::{compile_schema, failure, CompiledArchetype};
     use crate::loader::manifest::parse_manifest;
 
-    let mut env = build_strict_env();
     let mut modules: Vec<LoadedModule> = Vec::new();
     let mut failures: Vec<ArchetypeLoadFailure> = Vec::new();
     let mut diagnostics: Vec<Diagnostic> = Vec::new();
@@ -229,7 +223,6 @@ pub fn load_inline_module(
                 failures,
                 diagnostics,
                 path_diagnostics: Vec::new(),
-                env,
             };
         }
     };
@@ -251,9 +244,7 @@ pub fn load_inline_module(
                 &module_name,
                 &a.name,
                 inline_root.clone(),
-                format!(
-                    "retired field `{field}` is not supported; move its intent into `body_extraction` asserts (FR-033)"
-                ),
+                retired_field_reason(field),
             ));
             continue;
         }
@@ -315,37 +306,6 @@ pub fn load_inline_module(
             },
         };
 
-        // Template (optional, supplied via `templates`).
-        let (template_path, template_name) = match &a.template_ref {
-            None => (None, None),
-            Some(rel) => {
-                let template_ref_str = rel.to_string_lossy().to_string();
-                let template_src = match templates.get(&template_ref_str) {
-                    Some(s) => s.clone(),
-                    None => {
-                        failures.push(failure(
-                            &module_name,
-                            &a.name,
-                            PathBuf::from(&template_ref_str),
-                            format!("inline template '{template_ref_str}' not provided"),
-                        ));
-                        continue;
-                    }
-                };
-                let template_name = format!("{module_name}::{}", a.name);
-                if let Err(r) = register_template(&mut env, template_name.clone(), template_src) {
-                    failures.push(failure(
-                        &module_name,
-                        &a.name,
-                        PathBuf::from(&template_ref_str),
-                        r,
-                    ));
-                    continue;
-                }
-                (Some(PathBuf::from(&template_ref_str)), Some(template_name))
-            }
-        };
-
         // body_extraction DSL validated at load time.
         if let Some(dsl) = &a.body_extraction {
             if let Err(e) = crate::extract::dsl::validate_dsl(&a.name, dsl) {
@@ -366,8 +326,6 @@ pub fn load_inline_module(
             frontmatter_validator,
             data_schema,
             data_validator,
-            template_path,
-            template_name,
         )));
     }
 
@@ -383,7 +341,6 @@ pub fn load_inline_module(
         failures,
         diagnostics,
         path_diagnostics: Vec::new(),
-        env,
     }
 }
 
@@ -404,7 +361,6 @@ pub fn load_from_default() -> LoadOutcome {
             failures: Vec::new(),
             diagnostics: Vec::new(),
             path_diagnostics: Vec::new(),
-            env: build_strict_env(),
         },
     }
 }
@@ -413,7 +369,6 @@ pub fn load_from_default() -> LoadOutcome {
 /// (each containing a `manifest.yaml`).
 fn walk_search_root(
     root: &Path,
-    env: &mut Environment<'static>,
     modules: &mut Vec<LoadedModule>,
     failures: &mut Vec<ArchetypeLoadFailure>,
     diagnostics: &mut Vec<Diagnostic>,
@@ -451,7 +406,7 @@ fn walk_search_root(
         if !canonical_has_manifest(&canon) {
             continue; // not a module root
         }
-        match load_one_module(&canon, env, diagnostics) {
+        match load_one_module(&canon, diagnostics) {
             Ok((module, mut per_module_failures)) => {
                 if !per_module_failures.is_empty() {
                     failures.append(&mut per_module_failures);
@@ -473,7 +428,6 @@ fn canonical_has_manifest(path: &Path) -> bool {
 /// aggregate them.
 fn load_one_module(
     module_root: &Path,
-    env: &mut Environment<'static>,
     diagnostics: &mut Vec<Diagnostic>,
 ) -> Result<(LoadedModule, Vec<ArchetypeLoadFailure>), ArchetypeLoadFailure> {
     let manifest: Manifest = load_manifest(module_root).map_err(|reason| ArchetypeLoadFailure {
@@ -504,7 +458,7 @@ fn load_one_module(
     let mut failures: Vec<ArchetypeLoadFailure> = Vec::new();
 
     for at in manifest.all_archetypes() {
-        match compile_archetype(&module_name, module_root, at, env) {
+        match compile_archetype(&module_name, module_root, at) {
             Ok(c) => archetypes.push(Arc::new(c)),
             Err(f) => failures.push(f),
         }
@@ -522,14 +476,14 @@ fn load_one_module(
 }
 
 /// Compile one unified archetype (FR-031). Resolves the optional
-/// frontmatter schema + template + data_schema, validates the
-/// `body_extraction` DSL and `assert` facets, and rejects the retired
-/// `required_sections`/`variants` fields (no backward-compat layer).
+/// frontmatter schema + data_schema, validates the `body_extraction`
+/// DSL and `assert` facets, and rejects the retired
+/// `required_sections`/`variants`/`template_ref` fields (no
+/// backward-compat layer, render removed).
 fn compile_archetype(
     module: &str,
     module_root: &Path,
     a: &Archetype,
-    env: &mut Environment<'static>,
 ) -> Result<CompiledArchetype, ArchetypeLoadFailure> {
     // No-compat rule (ADR 0003): retired fields are a hard failure.
     if let Some(field) = a.retired_field() {
@@ -537,9 +491,7 @@ fn compile_archetype(
             module,
             &a.name,
             module_root.join("manifest.yaml"),
-            format!(
-                "retired field `{field}` is not supported; move its intent into `body_extraction` asserts (FR-033)"
-            ),
+            retired_field_reason(field),
         ));
     }
 
@@ -566,20 +518,6 @@ fn compile_archetype(
         None => (None, None),
     };
 
-    // Template (optional/legacy).
-    let (template_path, template_name) = match &a.template_ref {
-        Some(rel) => {
-            let template_path = module_root.join(rel);
-            let template_src = std::fs::read_to_string(&template_path)
-                .map_err(|e| failure(module, &a.name, template_path.clone(), e.to_string()))?;
-            let template_name = qualified_template_name(module, &a.name);
-            register_template(env, template_name.clone(), template_src)
-                .map_err(|r| failure(module, &a.name, template_path.clone(), r))?;
-            (Some(template_path), Some(template_name))
-        }
-        None => (None, None),
-    };
-
     // body_extraction DSL + assert facets validated at load time
     // (FR-011-AC-6/7/8, FR-033-AC-5).
     if let Some(dsl) = &a.body_extraction {
@@ -600,16 +538,13 @@ fn compile_archetype(
         frontmatter_validator,
         data_schema,
         data_validator,
-        template_path,
-        template_name,
     ))
 }
 
 /// Assemble a `CompiledArchetype` from resolved parts, picking the
 /// primary `raw_schema`/`validator` (frontmatter when present, else
 /// data, else an empty permissive object) for the FR-003 `schema_for`
-/// surface and back-compat `validate()` path.
-#[allow(clippy::too_many_arguments)]
+/// surface and the `validate()` path.
 fn finish_compiled(
     module: &str,
     a: &Archetype,
@@ -617,8 +552,6 @@ fn finish_compiled(
     frontmatter_validator: Option<Arc<jsonschema::JSONSchema>>,
     data_schema: Option<Arc<Value>>,
     data_validator: Option<Arc<jsonschema::JSONSchema>>,
-    template_path: Option<PathBuf>,
-    template_name: Option<String>,
 ) -> CompiledArchetype {
     let (raw_schema, validator) = match (&frontmatter_schema, &frontmatter_validator) {
         (Some(s), Some(v)) => (Arc::clone(s), Arc::clone(v)),
@@ -636,8 +569,6 @@ fn finish_compiled(
         frontmatter_validator,
         data_schema,
         data_validator,
-        template_path,
-        template_name,
         body_extraction: a.body_extraction.clone(),
         carry_over: a.carry_over(),
     }
@@ -649,13 +580,6 @@ fn empty_schema_and_validator() -> (Arc<Value>, Arc<jsonschema::JSONSchema>) {
     let schema = Value::Object(serde_json::Map::new());
     let validator = compile_schema(&schema).expect("empty object schema always compiles");
     (Arc::new(schema), Arc::new(validator))
-}
-
-/// Templates are registered under `<module>::<archetype>` so two
-/// modules can declare the same archetype name without colliding in
-/// the shared MiniJinja env.
-fn qualified_template_name(module: &str, archetype: &str) -> String {
-    format!("{module}::{archetype}")
 }
 
 /// Aggregate per-module load results into a single
@@ -722,7 +646,6 @@ pub fn flatten_into_registry(mut outcome: LoadOutcome) -> RegistryShape {
         by_module_and_name,
         module_paths,
         module_versions,
-        env: outcome.env,
         failures: outcome.failures,
         diagnostics: outcome.diagnostics,
         path_diagnostics: outcome.path_diagnostics,
@@ -770,7 +693,6 @@ pub struct RegistryShape {
     pub by_module_and_name: BTreeMap<(String, String), Arc<CompiledArchetype>>,
     pub module_paths: BTreeMap<String, PathBuf>,
     pub module_versions: BTreeMap<String, Option<String>>,
-    pub env: Environment<'static>,
     pub failures: Vec<ArchetypeLoadFailure>,
     pub diagnostics: Vec<Diagnostic>,
     pub path_diagnostics: Vec<PathDiagnostic>,
@@ -794,11 +716,10 @@ mod tests {
 
     fn write_minimal_module(root: &Path, name: &str) {
         fs::create_dir_all(root.join("schemas")).unwrap();
-        fs::create_dir_all(root.join("templates")).unwrap();
         fs::write(
             root.join("manifest.yaml"),
             format!(
-                "name: {name}\nartifact_types:\n- name: foo\n  template_ref: templates/foo.md.j2\n  frontmatter_schema_ref: schemas/foo.schema.json\n"
+                "name: {name}\nartifact_types:\n- name: foo\n  frontmatter_schema_ref: schemas/foo.schema.json\n"
             ),
         )
         .unwrap();
@@ -807,7 +728,6 @@ mod tests {
             r#"{"type":"object","required":["id"],"properties":{"id":{"type":"string"}}}"#,
         )
         .unwrap();
-        fs::write(root.join("templates/foo.md.j2"), "id: {{ id }}\n").unwrap();
     }
 
     #[test]
@@ -830,7 +750,7 @@ mod tests {
         fs::create_dir_all(&module_root).unwrap();
         fs::write(
             module_root.join("manifest.yaml"),
-            "name: mod-b\nartifact_types:\n- name: foo\n  template_ref: t/foo.j2\n  frontmatter_schema_ref: s/missing.json\n",
+            "name: mod-b\nartifact_types:\n- name: foo\n  frontmatter_schema_ref: s/missing.json\n",
         )
         .unwrap();
         let outcome = load_modules(&[&parent]);
@@ -925,22 +845,21 @@ object_types:
 
     // ── Task 037: unified archetype shape (FR-031) ──────────────────
 
-    // TC-522 (FR-031-AC-1): template_ref + frontmatter_schema_ref +
-    // body_extraction compiles to one CompiledArchetype, renderable,
-    // resolvable body contract.
+    // TC-522 (FR-031-AC-1): frontmatter_schema_ref + body_extraction
+    // compiles to one CompiledArchetype that is validatable (frontmatter
+    // schema) and extractable (resolvable body contract); no
+    // renderability concept is exposed (render removed).
     #[test]
-    fn tc522_unified_renderable_archetype_with_body_extraction() {
+    fn tc522_unified_archetype_with_body_extraction() {
         let parent = tmpdir("u-522");
         let root = parent.join("u-mod");
         fs::create_dir_all(root.join("schemas")).unwrap();
-        fs::create_dir_all(root.join("templates")).unwrap();
         fs::write(
             root.join("manifest.yaml"),
             r#"
 name: u-mod
 artifact_types:
 - name: FR
-  template_ref: templates/fr.md.j2
   frontmatter_schema_ref: schemas/fr.schema.json
   body_extraction:
     yield_pattern:
@@ -956,21 +875,19 @@ artifact_types:
             r#"{"type":"object","required":["id"],"properties":{"id":{"type":"string"}}}"#,
         )
         .unwrap();
-        fs::write(root.join("templates/fr.md.j2"), "id: {{ id }}\n").unwrap();
         let outcome = load_modules(&[&parent]);
         assert!(outcome.failures.is_empty(), "{:?}", outcome.failures);
         let arch = &outcome.modules[0].archetypes[0];
         assert_eq!(arch.name, "FR");
-        assert!(arch.is_renderable());
         assert!(arch.is_validatable());
         assert!(arch.body_extraction().is_some());
         assert!(arch.frontmatter_validator().is_some());
     }
 
-    // TC-523 (FR-031-AC-2): body_extraction but no template_ref →
-    // compiles, not renderable, still validatable + extractable.
+    // TC-523 (FR-031-AC-2): body_extraction compiles, validatable +
+    // extractable.
     #[test]
-    fn tc523_unified_archetype_without_template_not_renderable() {
+    fn tc523_unified_archetype_validatable_and_extractable() {
         let parent = tmpdir("u-523");
         let root = parent.join("u-mod");
         fs::create_dir_all(&root).unwrap();
@@ -993,7 +910,6 @@ object_types:
         let outcome = load_modules(&[&parent]);
         assert!(outcome.failures.is_empty(), "{:?}", outcome.failures);
         let arch = &outcome.modules[0].archetypes[0];
-        assert!(!arch.is_renderable());
         assert!(arch.is_validatable());
         assert!(arch.body_extraction().is_some());
     }
@@ -1004,14 +920,12 @@ object_types:
         let parent = tmpdir("u-524");
         let root = parent.join("u-mod");
         fs::create_dir_all(root.join("schemas")).unwrap();
-        fs::create_dir_all(root.join("templates")).unwrap();
         fs::write(
             root.join("manifest.yaml"),
             r#"
 name: u-mod
 artifact_types:
 - name: FR
-  template_ref: templates/fr.md.j2
   frontmatter_schema_ref: schemas/fr.schema.json
   grammar_ref: iso-spec-core
   has_plugin: true
@@ -1022,7 +936,6 @@ artifact_types:
         )
         .unwrap();
         fs::write(root.join("schemas/fr.schema.json"), r#"{"type":"object"}"#).unwrap();
-        fs::write(root.join("templates/fr.md.j2"), "x\n").unwrap();
         let outcome = load_modules(&[&parent]);
         assert!(outcome.failures.is_empty(), "{:?}", outcome.failures);
         let arch = &outcome.modules[0].archetypes[0];
@@ -1042,14 +955,12 @@ artifact_types:
         let parent = tmpdir("u-525");
         let root = parent.join("u-mod");
         fs::create_dir_all(root.join("schemas")).unwrap();
-        fs::create_dir_all(root.join("templates")).unwrap();
         fs::write(
             root.join("manifest.yaml"),
             r#"
 name: u-mod
 artifact_types:
 - name: FR
-  template_ref: templates/fr.md.j2
   frontmatter_schema_ref: schemas/fr.schema.json
   data_schema:
     type: object
@@ -1064,7 +975,6 @@ artifact_types:
             r#"{"type":"object","required":["id"],"properties":{"id":{"type":"string"}}}"#,
         )
         .unwrap();
-        fs::write(root.join("templates/fr.md.j2"), "x\n").unwrap();
         let outcome = load_modules(&[&parent]);
         assert!(outcome.failures.is_empty(), "{:?}", outcome.failures);
         let arch = &outcome.modules[0].archetypes[0];
@@ -1086,14 +996,12 @@ artifact_types:
         let parent = tmpdir("u-526");
         let root = parent.join("u-mod");
         fs::create_dir_all(root.join("schemas")).unwrap();
-        fs::create_dir_all(root.join("templates")).unwrap();
         fs::write(
             root.join("manifest.yaml"),
             r#"
 name: u-mod
 artifact_types:
 - name: FR
-  template_ref: templates/fr.md.j2
   frontmatter_schema_ref: schemas/fr.schema.json
   required_sections:
   - Description
@@ -1102,7 +1010,6 @@ artifact_types:
         )
         .unwrap();
         fs::write(root.join("schemas/fr.schema.json"), r#"{"type":"object"}"#).unwrap();
-        fs::write(root.join("templates/fr.md.j2"), "x\n").unwrap();
         let outcome = load_modules(&[&parent]);
         assert_eq!(outcome.modules[0].archetypes.len(), 0);
         assert_eq!(outcome.failures.len(), 1);
@@ -1110,6 +1017,37 @@ artifact_types:
         assert_eq!(f.archetype, "FR");
         assert!(
             f.reason.contains("required_sections") && f.reason.contains("body_extraction"),
+            "got: {}",
+            f.reason
+        );
+    }
+
+    // TC-526c (FR-031-AC-5): `template_ref` is a hard ArchetypeLoadFailure
+    // (render removed — no backward-compatibility layer).
+    #[test]
+    fn tc526_template_ref_is_hard_load_failure() {
+        let parent = tmpdir("u-526c");
+        let root = parent.join("u-mod");
+        fs::create_dir_all(root.join("schemas")).unwrap();
+        fs::write(
+            root.join("manifest.yaml"),
+            r#"
+name: u-mod
+artifact_types:
+- name: FR
+  template_ref: templates/fr.md.j2
+  frontmatter_schema_ref: schemas/fr.schema.json
+"#,
+        )
+        .unwrap();
+        fs::write(root.join("schemas/fr.schema.json"), r#"{"type":"object"}"#).unwrap();
+        let outcome = load_modules(&[&parent]);
+        assert_eq!(outcome.modules[0].archetypes.len(), 0);
+        assert_eq!(outcome.failures.len(), 1);
+        let f = &outcome.failures[0];
+        assert_eq!(f.archetype, "FR");
+        assert!(
+            f.reason.contains("template_ref") && f.reason.contains("render"),
             "got: {}",
             f.reason
         );

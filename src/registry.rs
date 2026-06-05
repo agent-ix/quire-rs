@@ -7,12 +7,10 @@
 //! construction the registry is frozen — there is no `add` method;
 //! to swap the active archetype set, build a new `Registry` and drop
 //! the previous one. Outstanding `Arc<CompiledArchetype>` clones
-//! continue to work for the duration of any in-flight render.
+//! continue to work for the duration of any in-flight validate/extract.
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-
-use minijinja::Environment;
 
 use crate::diagnostic::Diagnostic;
 use crate::error::{ArchetypeLoadFailure, QuireError};
@@ -34,7 +32,6 @@ struct Inner {
     by_module_and_name: std::collections::BTreeMap<(String, String), Arc<CompiledArchetype>>,
     module_paths: std::collections::BTreeMap<String, PathBuf>,
     module_versions: std::collections::BTreeMap<String, Option<String>>,
-    env: Environment<'static>,
     failures: Vec<ArchetypeLoadFailure>,
     diagnostics: Vec<Diagnostic>,
     path_diagnostics: Vec<PathDiagnostic>,
@@ -122,9 +119,8 @@ impl Registry {
     ///
     /// This is the FR-013 "wasm amendment" entry point: a caller (browser
     /// host, WASM binding, embedded server) that already holds the
-    /// module's manifest + schema files + template files in memory can
-    /// construct a registry directly, bypassing `loader::*`'s filesystem
-    /// walk.
+    /// module's manifest + schema files in memory can construct a
+    /// registry directly, bypassing `loader::*`'s filesystem walk.
     ///
     /// Arguments:
     /// - `manifest_yaml`: the raw bytes of `manifest.yaml`.
@@ -133,8 +129,10 @@ impl Registry {
     ///   `artifact_type.frontmatter_schema_ref` must have a matching
     ///   entry; object-type `data_schema` lives inline in the manifest
     ///   and does not need an entry here.
-    /// - `templates`: map of `<template_ref>` to template source. Every
-    ///   `artifact_type.template_ref` must have a matching entry.
+    ///
+    /// The render/templating feature is removed, so no `templates` map is
+    /// accepted; a manifest declaring `template_ref` is rejected as a
+    /// retired field.
     ///
     /// Per-archetype failures surface in `failures()` exactly as with
     /// the filesystem loader; module collisions emit diagnostics. Use
@@ -143,9 +141,8 @@ impl Registry {
     pub fn from_inline_parts(
         manifest_yaml: &[u8],
         schemas: &std::collections::BTreeMap<String, String>,
-        templates: &std::collections::BTreeMap<String, String>,
     ) -> Result<Self, QuireError> {
-        let outcome = crate::loader::load_inline_module(manifest_yaml, schemas, templates);
+        let outcome = crate::loader::load_inline_module(manifest_yaml, schemas);
         Ok(Self::finish_tolerant(outcome))
     }
 
@@ -154,9 +151,8 @@ impl Registry {
     pub fn from_inline_parts_strict(
         manifest_yaml: &[u8],
         schemas: &std::collections::BTreeMap<String, String>,
-        templates: &std::collections::BTreeMap<String, String>,
     ) -> Result<Self, QuireError> {
-        let outcome = crate::loader::load_inline_module(manifest_yaml, schemas, templates);
+        let outcome = crate::loader::load_inline_module(manifest_yaml, schemas);
         Self::finish_strict(outcome)
     }
 
@@ -176,7 +172,6 @@ impl Registry {
             by_module_and_name,
             module_paths,
             module_versions,
-            env,
             failures,
             diagnostics,
             path_diagnostics,
@@ -187,7 +182,6 @@ impl Registry {
                 by_module_and_name,
                 module_paths,
                 module_versions,
-                env,
                 failures,
                 diagnostics,
                 path_diagnostics,
@@ -265,12 +259,6 @@ impl Registry {
     pub fn path_diagnostics(&self) -> &[PathDiagnostic] {
         &self.inner.path_diagnostics
     }
-
-    /// Shared MiniJinja environment with every loaded template
-    /// registered under `<module>::<archetype>`.
-    pub fn env(&self) -> &Environment<'static> {
-        &self.inner.env
-    }
 }
 
 #[cfg(test)]
@@ -292,11 +280,10 @@ mod tests {
 
     fn write_minimal_module(root: &Path, name: &str) {
         fs::create_dir_all(root.join("schemas")).unwrap();
-        fs::create_dir_all(root.join("templates")).unwrap();
         fs::write(
             root.join("manifest.yaml"),
             format!(
-                "name: {name}\nartifact_types:\n- name: foo\n  template_ref: templates/foo.md.j2\n  frontmatter_schema_ref: schemas/foo.schema.json\n"
+                "name: {name}\nartifact_types:\n- name: foo\n  frontmatter_schema_ref: schemas/foo.schema.json\n"
             ),
         )
         .unwrap();
@@ -305,7 +292,6 @@ mod tests {
             r#"{"type":"object","required":["id"],"properties":{"id":{"type":"string"}}}"#,
         )
         .unwrap();
-        fs::write(root.join("templates/foo.md.j2"), "id: {{ id }}\n").unwrap();
     }
 
     #[test]
@@ -445,7 +431,6 @@ object_types:
         let module_root = parent.join("mod-v");
         fs::create_dir_all(&module_root).unwrap();
         fs::create_dir_all(module_root.join("schemas")).unwrap();
-        fs::create_dir_all(module_root.join("templates")).unwrap();
         fs::write(
             module_root.join("manifest.yaml"),
             "name: mod-v\nversion: \"0.3.1\"\nartifact_types: []\n",
@@ -475,22 +460,18 @@ object_types:
     }
 
     // FR-013 wasm amendment: from_inline_parts builds a registry from
-    // in-memory manifest + schemas + templates with no filesystem access.
+    // in-memory manifest + schemas with no filesystem access (render
+    // removed — no templates map).
     #[test]
     fn from_inline_parts_loads_minimal_module() {
-        let manifest = b"name: mod-inline\nartifact_types:\n- name: foo\n  template_ref: templates/foo.md.j2\n  frontmatter_schema_ref: schemas/foo.schema.json\n";
+        let manifest = b"name: mod-inline\nartifact_types:\n- name: foo\n  frontmatter_schema_ref: schemas/foo.schema.json\n";
         let mut schemas = std::collections::BTreeMap::new();
         schemas.insert(
             "schemas/foo.schema.json".to_string(),
             r#"{"type":"object","required":["id"],"properties":{"id":{"type":"string"}}}"#
                 .to_string(),
         );
-        let mut templates = std::collections::BTreeMap::new();
-        templates.insert(
-            "templates/foo.md.j2".to_string(),
-            "id: {{ id }}\n".to_string(),
-        );
-        let r = Registry::from_inline_parts(manifest, &schemas, &templates).expect("ok");
+        let r = Registry::from_inline_parts(manifest, &schemas).expect("ok");
         assert!(r.archetype("foo").is_some());
         assert_eq!(r.module_names().collect::<Vec<_>>(), vec!["mod-inline"]);
         // Schema round-trips byte-faithfully.
@@ -500,17 +481,28 @@ object_types:
 
     #[test]
     fn from_inline_parts_missing_schema_aggregates_failure() {
-        let manifest = b"name: mod-inline-missing\nartifact_types:\n- name: foo\n  template_ref: templates/foo.md.j2\n  frontmatter_schema_ref: schemas/missing.json\n";
+        let manifest = b"name: mod-inline-missing\nartifact_types:\n- name: foo\n  frontmatter_schema_ref: schemas/missing.json\n";
         let schemas = std::collections::BTreeMap::new();
-        let mut templates = std::collections::BTreeMap::new();
-        templates.insert(
-            "templates/foo.md.j2".to_string(),
-            "id: {{ id }}\n".to_string(),
-        );
-        let r = Registry::from_inline_parts(manifest, &schemas, &templates).expect("tolerant");
+        let r = Registry::from_inline_parts(manifest, &schemas).expect("tolerant");
         assert!(r.archetype("foo").is_none());
         assert_eq!(r.failures().len(), 1);
         assert!(r.failures()[0].reason.contains("not provided"));
+    }
+
+    // FR-013 wasm amendment: a manifest declaring `template_ref` is
+    // rejected as a retired field even via the inline loader.
+    #[test]
+    fn from_inline_parts_rejects_template_ref() {
+        let manifest = b"name: mod-inline-tpl\nartifact_types:\n- name: foo\n  template_ref: templates/foo.md.j2\n  frontmatter_schema_ref: schemas/foo.schema.json\n";
+        let mut schemas = std::collections::BTreeMap::new();
+        schemas.insert(
+            "schemas/foo.schema.json".to_string(),
+            r#"{"type":"object"}"#.to_string(),
+        );
+        let r = Registry::from_inline_parts(manifest, &schemas).expect("tolerant");
+        assert!(r.archetype("foo").is_none());
+        assert_eq!(r.failures().len(), 1);
+        assert!(r.failures()[0].reason.contains("template_ref"));
     }
 
     // FR-003-AC-1: schema_for returns the loaded schema document.
@@ -534,16 +526,16 @@ object_types:
         assert!(matches!(err, QuireError::UnknownArchetype { .. }));
     }
 
-    // FR-004-AC-4: template containing {% include %} fails at load time.
+    // FR-031-AC-5 (render removed): a manifest declaring `template_ref`
+    // is rejected at load — the archetype does not register.
     #[test]
-    fn template_with_include_fails_at_load_time() {
-        let parent = tmpdir("inc");
-        let module_root = parent.join("inc-mod");
+    fn template_ref_is_rejected_at_load_time() {
+        let parent = tmpdir("tpl");
+        let module_root = parent.join("tpl-mod");
         fs::create_dir_all(module_root.join("schemas")).unwrap();
-        fs::create_dir_all(module_root.join("templates")).unwrap();
         fs::write(
             module_root.join("manifest.yaml"),
-            "name: inc-mod\nartifact_types:\n- name: foo\n  template_ref: templates/foo.md.j2\n  frontmatter_schema_ref: schemas/foo.schema.json\n",
+            "name: tpl-mod\nartifact_types:\n- name: foo\n  template_ref: templates/foo.md.j2\n  frontmatter_schema_ref: schemas/foo.schema.json\n",
         )
         .unwrap();
         fs::write(
@@ -551,16 +543,14 @@ object_types:
             r#"{"type":"object"}"#,
         )
         .unwrap();
-        fs::write(
-            module_root.join("templates/foo.md.j2"),
-            "{% include 'other.j2' %}\n",
-        )
-        .unwrap();
         let r = Registry::load_from(&[&parent]).expect("ok");
-        // The archetype is NOT registered (include rejected at load).
+        // The archetype is NOT registered (template_ref rejected at load).
         assert!(r.archetype("foo").is_none());
         // A per-archetype failure was aggregated instead.
-        assert!(r.failures().iter().any(|f| f.archetype == "foo"));
+        assert!(r
+            .failures()
+            .iter()
+            .any(|f| f.archetype == "foo" && f.reason.contains("template_ref")));
     }
 
     // FR-014-AC-2: archetype-name collision keeps the shadowed copy queryable.

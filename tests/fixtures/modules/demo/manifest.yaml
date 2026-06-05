@@ -1,0 +1,9 @@
+name: demo
+version: 0.1.0
+description: |
+  Self-contained bootstrap fixture module for the validate/extract
+  test suites. Hand-authored so the tests have a known fixture
+  independent of any external corpus.
+artifact_types:
+  - name: demo-item
+    frontmatter_schema_ref: schemas/demo-item.schema.json
