@@ -56,7 +56,7 @@
           "target",
           "type"
         ],
-        "additionalProperties": false,
+        "additionalProperties": true,
         "properties": {
           "target": {
             "type": "string",
