@@ -160,7 +160,12 @@ pub struct SearchResult<'d> {
 
 /// Strip a leading numeric prefix like `2.1`, `1.`, or `3.2.1 ` from a
 /// heading and trim surrounding whitespace.
-fn normalize_heading(heading: &str) -> String {
+///
+/// Used both by section-name matching (`section`/`matches_heading`) and by the
+/// `from: heading` locator (`extract::locator::eval_heading`) so that ISO-style
+/// section numbering is treated as decorative consistently: `## 2. Scope`
+/// resolves the same as `## Scope`.
+pub(crate) fn normalize_heading(heading: &str) -> String {
     let stripped = re_section_number().replace(heading, "");
     stripped.trim().to_string()
 }

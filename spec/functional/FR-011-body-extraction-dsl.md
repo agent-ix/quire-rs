@@ -22,11 +22,20 @@ A `Locator` describes how to find one or more values in a parsed `QuireDocument`
 | Primitive | Reads | Parameters |
 |---|---|---|
 | `frontmatter_field` | value at a JSONPath in `doc.frontmatter` | `path: Vec<String>` |
-| `section_body` | text content of a section by exact heading | `after_heading: String` |
+| `section_body` | text content of a section by heading (ISO section-number prefix normalized) | `after_heading: String` |
 | `code_block` | source of a fenced code block by language, **resolved from the `under_section` content slice** (section-owned) | `language: String`, `under_section: Option<String>` |
 | `table_row` | rows from a markdown table, optionally within a section | `under_section: Option<String>`, `column: Option<String>` |
 | `list_item` | items from a bulleted list, optionally within a section, optional list pattern | `under_section: Option<String>`, `pattern: Option<ListPattern>` |
-| `heading` | heading text of a section by level or path | `level: Option<u8>`, `path: Option<Vec<String>>` |
+| `heading` | heading text of a section by level or path (ISO section-number prefix normalized) | `level: Option<u8>`, `path: Option<Vec<String>>` |
+
+> **CR-005 (heading number normalization, 2026-06):** the `from: heading` locator
+> resolves and projects the **section-number-normalized** heading text (stripping a
+> leading `\d+(\.\d+)*\.?` prefix), the same normalization `section_body` /
+> `after_heading` already applies (FR-010). ISO section numbering (`## 2. Scope`) is
+> therefore decorative: a `regex: ^Scope$` heading locator matches both `## Scope`
+> and `## 2. Scope`. This makes the master-requirements archetype (spec-artifacts-iso
+> FR-003) validate the numbered specs that dominate the corpus without forcing a
+> renumbering sweep. See FR-011-AC-20.
 
 ### Section-owned `code_block` resolution — CR-003
 
@@ -182,3 +191,4 @@ Single-yield DSLs return `records.len() <= 1`; multi-yield returns one record pe
 - **FR-011-AC-17**: A required locator whose trimmed resolved value is a whole-value `{{ id }}` marker contributes no extracted value (placeholder); the same `{{x}}` token embedded mid-prose does not trigger the whole-value rule and the surrounding content is extracted normally.
 - **FR-011-AC-18**: An **unclosed** fenced block — both ` ``` ` and `~~~` variants — is flushed as the **final** block (its trailing content is part of the block, not a phantom following block), parity with the parser's FR-007 unclosed-fence behavior.
 - **FR-011-AC-19**: A `body_extraction` declaring `emit_edges: [{from: <field>, type: <t>}]` projects one `{record_index, type, target}` edge per extracted record whose `<field>` resolves to a target, in `ExtractionResult.edges` (single- and multi-yield); records lacking the field emit no edge. These record-derived edges are distinct from `harvest_edges` (frontmatter/`ix://`) and both flow through the Python `extract()` envelope's `edges` key.
+- **FR-011-AC-20** (CR-005): A `from: heading` locator resolves and projects the **section-number-normalized** heading text: against a document with `## 2. Scope`, a `regex: ^Scope$` heading locator matches (and a level-only heading locator projects `Scope`, not `2. Scope`) — the same `\d+(\.\d+)*\.?` normalization `section_body`/`after_heading` applies. A bare `## Scope` matches identically.

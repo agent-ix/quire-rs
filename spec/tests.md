@@ -359,6 +359,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-567 | Whole-value `{{ id }}` resolved value contributes no extracted value (placeholder); an embedded `{{x}}` mid-prose does not trigger the rule and surrounding content extracts normally | Unit | P0 | FR-011-AC-17 | ✅ |
 | TC-568 | Unclosed fenced block (both ` ``` ` and `~~~`) flushed as the final block; trailing content is part of the block, not a phantom following block (parity with FR-007) | Unit | P0 | FR-011-AC-18 | ✅ |
 | TC-569 | `emit_edges: [{from, type}]` projects one `{record_index, type, target}` edge per extracted record whose field resolves; records lacking the field emit none; distinct from `harvest_edges`; flows through the Python `extract()` envelope `edges` key | Unit | P0 | FR-011-AC-19 | ✅ |
+| TC-581 | `from: heading` locator normalizes the ISO section-number prefix: `## 2. Scope` matches a `regex: ^Scope$` heading locator and a numbered master spec validates against the master-requirements archetype (parity with `section_body`/`after_heading`) | Integration | P1 | FR-011-AC-20 | ✅ |
 | TC-570 | Assert-key × locator-kind legality matrix: each legal cell loads (`level`@section_body/heading; `columns`/`min_rows`/`id_column`@table_row; `min_items`@list_item; `id_pattern`@all listed); each illegal cell → `ArchetypeLoadFailure` naming archetype+locator+key (table-driven) | Unit | P0 | FR-033-AC-7 | ✅ |
 | TC-571 | `id_column` resolution precedence: `assert.id_column` → locator `column` → column 0; all-three present resolves to `assert.id_column`; `id_column` absent → `column`; both absent → col 0 | Unit | P0 | FR-033-AC-8 | ✅ |
 | TC-572 | `id_pattern` on non-table locators: matches heading text (`heading`), section first-line/id token (`section_body`), each item (`list_item`), frontmatter scalar (`frontmatter_field`); mismatch → reason `assert`, match passes | Unit | P0 | FR-033-AC-9 | ✅ |
@@ -578,6 +579,7 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-011-AC-17 | TC-567 |
 | FR-011-AC-18 | TC-568 |
 | FR-011-AC-19 | TC-569 |
+| FR-011-AC-20 | TC-581 |
 | FR-013-AC-1 | TC-080 |
 | FR-013-AC-2 | TC-081 |
 | FR-013-AC-3 | TC-082 |
@@ -798,7 +800,7 @@ NFR-006-AC-4, NFR-019-AC-1..2 — covered by TC-565..580. TC-561 is re-pointed o
 FR-033-AC-4 onto FR-033-AC-9 (the non-table `id_pattern` case); TC-562 covers both
 FR-033-AC-4 and FR-033-AC-9.
 
-**Integrity check (grep-verified):** all **291 distinct file-defined ACs** (definition-anchored: bold `**<ID>-AC-N**:` declarations) across `stakeholder/ usecase/ functional/ non-functional/` appear in the AC→TC audit table — **0 uncovered**. Note: `FR-900-AC-1/2` appearing inside FR-034-AC-1's example prose are NOT defined ACs and are excluded from the denominator (match `**…**:` definitions, not inline mentions). Retired ACs (marked `(RETIRED)`, un-bolded) are excluded by construction. Count: 316 (pre-removal) − 41 (retired) + 16 (back-fill) = **291**.
+**Integrity check (grep-verified):** all **292 distinct file-defined ACs** (definition-anchored: bold `**<ID>-AC-N**:` declarations) across `stakeholder/ usecase/ functional/ non-functional/` appear in the AC→TC audit table — **0 uncovered**. Note: `FR-900-AC-1/2` appearing inside FR-034-AC-1's example prose are NOT defined ACs and are excluded from the denominator (match `**…**:` definitions, not inline mentions). Retired ACs (marked `(RETIRED)`, un-bolded) are excluded by construction. Count: 316 (pre-removal) − 41 (retired) + 16 (back-fill) + 1 (FR-011-AC-20, CR-005 heading normalization) = **292**.
 
 ---
 

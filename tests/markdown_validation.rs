@@ -334,6 +334,42 @@ fn master_requirements_optional_sections_accepted() {
     assert!(result.is_valid, "expected valid, got: {:?}", result.errors);
 }
 
+// FR-003 + FR-010: ISO section numbering is decorative. A master spec whose
+// canonical sections carry `## N. Name` prefixes validates the same as the
+// bare `## Name` skeleton — the `from: heading` locator normalizes the number
+// prefix consistently with `section_body`/`after_heading`.
+#[test]
+fn master_requirements_tolerates_numbered_headings() {
+    let r = iso_registry();
+    let a = r.archetype("master-requirements").expect("archetype");
+    let numbered = "---\n\
+artifact_type: master-requirements\n\
+name: x\n\
+org: agent-ix\n\
+component_type: fastapi-service\n\
+---\n\
+# Master Requirements Specification\n\
+\n\
+## 1. Purpose\n\
+Numbered purpose prose, substantive.\n\
+\n\
+## 2. Scope\n\
+### 2.1 In Scope\n\
+- stuff\n\
+\n\
+## 3. System Overview\n\
+### 3.1 System Description\n\
+desc\n\
+\n\
+## 4. Requirements Architecture\n\
+classes\n\
+\n\
+## 5. References\n\
+- ISO 29148\n";
+    let result = quire_rs::validate_document(a, numbered);
+    assert!(result.is_valid, "expected valid, got: {:?}", result.errors);
+}
+
 // FR-035 (TC-544/547): a duplicate heading at the same level fails with
 // reason `duplicate-heading`, line-numbered at the second heading.
 #[test]

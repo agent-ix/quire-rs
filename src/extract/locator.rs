@@ -553,12 +553,12 @@ fn eval_heading(doc: &QuireDocument, level: Option<u8>, path: Option<&[String]>)
             }
         }
         current
-            .map(|s| vec![Value::String(s.heading.clone())])
+            .map(|s| vec![Value::String(crate::query::normalize_heading(&s.heading))])
             .unwrap_or_default()
     } else {
         q_sections(doc, level)
             .into_iter()
-            .map(|s| Value::String(s.heading.clone()))
+            .map(|s| Value::String(crate::query::normalize_heading(&s.heading)))
             .collect()
     }
 }
