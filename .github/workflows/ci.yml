@@ -92,6 +92,13 @@ jobs:
       - name: Ensure miri component
         run: rustup component add miri --toolchain nightly
       - name: cargo miri test --lib
+        env:
+          # Many lib tests load fixture modules from disk (Registry::load_module
+          # → std::fs::canonicalize) and use tempdirs, which Miri's default
+          # filesystem isolation forbids. Disabling isolation lifts only the
+          # syscall sandbox so those reads succeed; UB detection — this job's
+          # actual purpose — is fully retained.
+          MIRIFLAGS: -Zmiri-disable-isolation
         run: cargo +nightly miri test --lib
 
   mutants:
