@@ -13,7 +13,7 @@ use serde_json::Value;
 
 use crate::ast::QuireDocument;
 use crate::query::{
-    extract_diagrams, parse_bullet_list, parse_table, parse_tables, section as q_section,
+    diagrams_from_content, parse_bullet_list, parse_table, parse_tables, section as q_section,
     sections as q_sections, table_from_section, ListPattern,
 };
 
@@ -429,17 +429,25 @@ fn eval_code_block(
     language: Option<&str>,
     under_section: Option<&str>,
 ) -> Vec<Value> {
-    let blocks = extract_diagrams(doc, language);
-    let filtered: Vec<&_> = match under_section {
-        Some(s) => blocks
+    // Section-owned: resolve from the section's content slice (and thus,
+    // under multi-yield, the iteration unit's slice), mirroring
+    // `eval_list_item`. The document-wide `extract_diagrams` harvest is a
+    // separate query, not the locator substrate (FR-011).
+    let content: String = match under_section {
+        Some(h) => match q_section(doc, h) {
+            Some(s) => s.content.clone(),
+            None => return Vec::new(),
+        },
+        None => doc
+            .sections
             .iter()
-            .filter(|b| b.section.as_deref() == Some(s))
-            .collect(),
-        None => blocks.iter().collect(),
+            .map(|s| s.content.as_str())
+            .collect::<Vec<_>>()
+            .join("\n"),
     };
-    filtered
+    diagrams_from_content(&content, language)
         .into_iter()
-        .map(|b| Value::String(b.source.clone()))
+        .map(|b| Value::String(b.source))
         .collect()
 }
 
@@ -635,6 +643,47 @@ mod tests {
         );
         assert_eq!(v.len(), 1);
         assert!(v[0].as_str().unwrap().contains("A-->B"));
+    }
+
+    #[test]
+    fn code_block_under_section_is_section_owned_excludes_other_sections() {
+        // Two mermaid blocks of the same language in DIFFERENT sections.
+        // A `code_block under: Workflow` locator must return ONLY the
+        // block contained in `## Workflow` — the `## Other` block (the
+        // bug: document-wide harvest filtered by heading) must not leak.
+        let d = parse_document(
+            "## Workflow\n```mermaid\ngraph TD; WANT-->ME\n```\n\
+             ## Other\n```mermaid\ngraph TD; LEAK-->NO\n```\n",
+        );
+        let v = eval(
+            &d,
+            &LocatorPrimitive::CodeBlock {
+                language: Some("mermaid".into()),
+                under_section: Some("Workflow".into()),
+                required: false,
+                regex: None,
+                assert: None,
+            },
+        );
+        assert_eq!(v.len(), 1);
+        assert!(v[0].as_str().unwrap().contains("WANT-->ME"));
+        assert!(!v[0].as_str().unwrap().contains("LEAK"));
+    }
+
+    #[test]
+    fn code_block_under_missing_section_returns_empty() {
+        let d = parse_document("## A\n```mermaid\ng\n```\n");
+        let v = eval(
+            &d,
+            &LocatorPrimitive::CodeBlock {
+                language: Some("mermaid".into()),
+                under_section: Some("Nope".into()),
+                required: false,
+                regex: None,
+                assert: None,
+            },
+        );
+        assert!(v.is_empty());
     }
 
     #[test]

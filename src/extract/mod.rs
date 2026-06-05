@@ -498,6 +498,78 @@ yield_pattern:
         );
     }
 
+    // FR-011-AC-13: `code_block` is section-owned, so under iteration
+    // each yielded record gets ITS OWN unit's fenced block — not unit
+    // #1's block for every record (the latent multi-yield gap closed by
+    // routing the locator through the unit's content slice rather than
+    // the document-wide harvest).
+    #[test]
+    fn code_block_per_match_isolates_per_unit_under_iterate_over() {
+        let md = "\
+## Steps\nintro\n\
+### One\n```mermaid\ngraph TD; ONE-->X\n```\n\
+### Two\n```mermaid\ngraph TD; TWO-->Y\n```\n";
+        let d = parse_document(md);
+        let dsl: ExtractionDsl = serde_yaml::from_str(
+            r#"
+yield_pattern:
+  iterate_over:
+    section_path: [Steps]
+    kind: heading
+    depth: 1
+  per_match:
+    diagram:
+      from: code_block
+      language: mermaid
+"#,
+        )
+        .unwrap();
+        let r = extract(&d, &dsl).expect("ok");
+        assert_eq!(r.records.len(), 2);
+        assert!(r.records[0]["diagram"]
+            .as_str()
+            .unwrap()
+            .contains("ONE-->X"));
+        assert!(r.records[1]["diagram"]
+            .as_str()
+            .unwrap()
+            .contains("TWO-->Y"));
+        // Crucially, unit #2 must NOT get unit #1's block.
+        assert!(!r.records[1]["diagram"].as_str().unwrap().contains("ONE"));
+    }
+
+    // FR-011-AC-13: a required `code_block` per_match fails for the
+    // specific unit that lacks its own block (containment, not a
+    // document-wide fallback that would silently borrow a sibling's).
+    #[test]
+    fn code_block_per_match_required_fails_for_unit_missing_its_block() {
+        let md = "\
+## Steps\nintro\n\
+### One\n```mermaid\ngraph TD; ONE-->X\n```\n\
+### Two\nno diagram here\n";
+        let d = parse_document(md);
+        let dsl: ExtractionDsl = serde_yaml::from_str(
+            r#"
+yield_pattern:
+  iterate_over:
+    section_path: [Steps]
+    kind: heading
+    depth: 1
+  per_match:
+    diagram:
+      from: code_block
+      language: mermaid
+      required: true
+"#,
+        )
+        .unwrap();
+        let err = extract(&d, &dsl).expect_err("unit Two has no block");
+        assert!(matches!(
+            err,
+            QuireError::MissingField { key, .. } if key == "diagram"
+        ));
+    }
+
     // FR-011-AC-2
     #[test]
     fn multi_yield_iterate_headings_emits_one_record_per_unit() {

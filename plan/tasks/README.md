@@ -105,6 +105,14 @@ Basis: ADR 0003/0004/0005, FR-031..035, US-014. Supersedes FR-030's
 Python toolchain; 039 needs 037. **No backward-compatibility layer** —
 `required_sections`/`variants` are rejected, not tolerated.
 
+### Track H — Maintenance / containment fixes
+
+Latent-gap fixes surfaced by review; no new feature surface.
+
+| # | Task | Status | Gate |
+|---|---|---|---|
+| 040 | Section-owned `code_block` extraction (FR-011-AC-13, CR-003) | **complete** | — |
+
 ## Quality Gates
 
 | Gate | After | Measures | Pass criteria |

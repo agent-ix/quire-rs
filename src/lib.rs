@@ -29,9 +29,9 @@ pub use ast::{QuireDocument, QuireSection};
 pub use parser::{extract_frontmatter, parse_document, FrontmatterResult, Heading};
 // Query API (FR-010).
 pub use query::{
-    extract_diagrams, parse_bullet_list, parse_table, parse_tables, search, section, sections,
-    table_from_section, DiagramBlock, ListItem, ListPattern, SearchMatch, SearchResult,
-    TableResult,
+    diagrams_from_content, extract_diagrams, parse_bullet_list, parse_table, parse_tables, search,
+    section, sections, table_from_section, DiagramBlock, ListItem, ListPattern, SearchMatch,
+    SearchResult, TableResult,
 };
 // Error shape (NFR-005).
 pub use error::{format_violation, ArchetypeLoadFailure, QuireError, VIOLATION_PREVIEW_MAX};

@@ -323,10 +323,41 @@ fn classify_bullet(raw: &str, pattern: ListPattern) -> ListItem {
 
 // ─── Diagram extraction ─────────────────────────────────────────────────
 
-/// Enumerate fenced code blocks across the document, optionally filtered
-/// by language tag.
+/// Enumerate fenced code blocks across the whole document, optionally
+/// filtered by language tag, annotating each block with its nearest
+/// heading (`DiagramBlock.section`).
+///
+/// This is the **document-wide harvest** query (US-010 / RAG): it scans
+/// `doc.raw` (frontmatter stripped) and tracks the most-recent heading.
+/// It is *not* the substrate for the `code_block` body-extraction
+/// locator — that resolves from a section content slice via
+/// [`diagrams_from_content`] so it stays section-owned and multi-yield
+/// safe (FR-011).
 pub fn extract_diagrams(doc: &QuireDocument, language: Option<&str>) -> Vec<DiagramBlock> {
     let body: &str = strip_frontmatter_view(&doc.raw);
+    scan_fenced_blocks(body, language, true)
+}
+
+/// Parse fenced code blocks from a **content slice**, optionally filtered
+/// by language tag. The slice is already the scope, so blocks carry
+/// `section: None`; only fence/language/`@type` logic is applied (no
+/// heading tracking).
+///
+/// This is the section-owned substrate for the `code_block` locator: the
+/// caller passes the target section's (or iteration unit's) `.content`,
+/// guaranteeing containment and determinism under multi-yield.
+pub fn diagrams_from_content(content: &str, language: Option<&str>) -> Vec<DiagramBlock> {
+    scan_fenced_blocks(content, language, false)
+}
+
+/// Core fenced-block scanner shared by [`extract_diagrams`] (whole-doc,
+/// heading-tracking) and [`diagrams_from_content`] (slice, no headings).
+/// When `track_headings` is false, every block's `section` is `None`.
+fn scan_fenced_blocks(
+    body: &str,
+    language: Option<&str>,
+    track_headings: bool,
+) -> Vec<DiagramBlock> {
     let mut out: Vec<DiagramBlock> = Vec::new();
     let mut current_section: Option<String> = None;
     let mut in_block: bool = false;
@@ -335,7 +366,7 @@ pub fn extract_diagrams(doc: &QuireDocument, language: Option<&str>) -> Vec<Diag
     let mut block_index: usize = 0;
 
     for line in body.split('\n') {
-        if !in_block {
+        if !in_block && track_headings {
             if let Some(cap) = re_heading().captures(line) {
                 current_section = Some(cap.get(2).unwrap().as_str().trim().to_string());
                 continue;
@@ -599,6 +630,37 @@ mod tests {
         let blocks = extract_diagrams(&d, None);
         assert_eq!(blocks.len(), 1);
         assert_eq!(blocks[0].section.as_deref(), Some("A"));
+    }
+
+    // ─── diagrams_from_content (slice substrate) ────────────────────────
+
+    #[test]
+    fn diagrams_from_content_parses_slice_blocks_with_section_none() {
+        let content = "prose\n```mermaid\ngraph TD;\n  a-->b\n```\nmore\n```rust\nfn x() {}\n```";
+        let all = diagrams_from_content(content, None);
+        assert_eq!(all.len(), 2);
+        assert_eq!(all[0].language, "mermaid");
+        assert_eq!(all[0].source, "graph TD;\n  a-->b");
+        // The slice IS the scope — no whole-doc heading tracking.
+        assert_eq!(all[0].section, None);
+        assert_eq!(all[1].language, "rust");
+        assert_eq!(all[1].section, None);
+    }
+
+    #[test]
+    fn diagrams_from_content_filters_by_language() {
+        let content = "```mermaid\ng\n```\n```rust\nfn x() {}\n```";
+        let m = diagrams_from_content(content, Some("mermaid"));
+        assert_eq!(m.len(), 1);
+        assert_eq!(m[0].language, "mermaid");
+    }
+
+    #[test]
+    fn diagrams_from_content_extracts_type_annotation() {
+        let content = "```mermaid\n%% @type: sequence\nfoo\n```";
+        let blocks = diagrams_from_content(content, None);
+        assert_eq!(blocks.len(), 1);
+        assert_eq!(blocks[0].tag.as_deref(), Some("sequence"));
     }
 
     // ─── search ─────────────────────────────────────────────────────────

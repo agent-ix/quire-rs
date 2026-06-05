@@ -23,10 +23,32 @@ A `Locator` describes how to find one or more values in a parsed `QuireDocument`
 |---|---|---|
 | `frontmatter_field` | value at a JSONPath in `doc.frontmatter` | `path: Vec<String>` |
 | `section_body` | text content of a section by exact heading | `after_heading: String` |
-| `code_block` | source of a fenced code block by language, optionally constrained to a section | `language: String`, `under_section: Option<String>` |
+| `code_block` | source of a fenced code block by language, **resolved from the `under_section` content slice** (section-owned) | `language: String`, `under_section: Option<String>` |
 | `table_row` | rows from a markdown table, optionally within a section | `under_section: Option<String>`, `column: Option<String>` |
 | `list_item` | items from a bulleted list, optionally within a section, optional list pattern | `under_section: Option<String>`, `pattern: Option<ListPattern>` |
 | `heading` | heading text of a section by level or path | `level: Option<u8>`, `path: Option<Vec<String>>` |
+
+### Section-owned `code_block` resolution — CR-003
+
+The `code_block` locator is **section-owned**: it resolves fenced blocks from the
+content slice of `under_section` (or, when `under_section` is absent, from the joined
+section bodies of the document — or, under multi-yield, the iteration unit's local
+scope), exactly like `table_row` and `list_item`. This guarantees containment and
+determinism: a `code_block per_match` locator isolates per unit under `iterate_over`,
+and a `code_block` assert under iteration checks only that unit's content.
+
+> **CR-003 note:** The original implementation resolved `code_block` against a
+> **document-wide diagram catalog** (`extract_diagrams(doc)` — every fenced block in
+> `doc.raw`, each annotated with its nearest heading) and then filtered by
+> `under_section == block.section`. That defeated per-unit scoping under multi-yield
+> (`scope_to_section` carries the whole document's `raw`, so the locator saw the entire
+> document) — a latent gap surfaced during the markdown-validation review. It was latent
+> because the only `code_block` users (`process`, `state_machine`, `event` in
+> `spec-objects-business`) are single-yield with a unique `after_heading`. The fix makes
+> the locator read the section content slice (`diagrams_from_content(&content, …)`)
+> while the document-wide `extract_diagrams` remains a **separate harvest query**
+> (US-010 / RAG), no longer the locator substrate. No manifest/schema change: the three
+> object types already declare `after_heading`.
 
 ### Yield patterns (single XOR multi)
 
@@ -86,3 +108,4 @@ Single-yield DSLs return `records.len() <= 1`; multi-yield returns one record pe
 - **FR-011-AC-6**: A DSL with both `match` and `iterate_over` set under `yield_pattern` produces `QuireError::ArchetypeLoadError` at load time, NOT at evaluation time.
 - **FR-011-AC-7**: A DSL with an unknown key (e.g. `from: section_bodyy` typo) produces `QuireError::ArchetypeLoadError` at load time.
 - **FR-011-AC-8**: A DSL with `iterate_over.section_path: [Nonexistent]` against a document missing that section returns `ExtractionResult { records: [], diagnostics: [IterateRootMissing] }`.
+- **FR-011-AC-13**: A `code_block` `per_match` locator under `iterate_over` is section-owned: against a document where each iteration unit owns its own fenced block, each yielded record receives **its own** unit's block (not unit #1's for all), and a `required: true` `code_block` locator returns `QuireError::MissingField` for the specific unit that lacks a block — proving containment, not a document-wide fallback. A single-yield `code_block under: X` returns only `X`'s block, excluding a same-language block in a different section.
