@@ -11,6 +11,14 @@ relationships:
     cardinality: "1:1"
 ---
 
+> **CR note (render removal — 2026-06-04):** The render/templating feature is
+> **removed** from `quire-rs` (no backward-compatibility layer). The loader is now
+> **schema-only**: it no longer parses or registers MiniJinja templates and no longer
+> reads `template_ref`. Manifest entries reference their schema by `schema_ref` /
+> `frontmatter_schema_ref`; a `template_ref` field is ignored at load (and rejected
+> by the unified shape, FR-031). The Behavior and acceptance criteria below are
+> updated to the schema-only contract. See `spec.md` §2bis.
+
 ## Behavior
 
 `quire-rs` SHALL load archetypes from the **local filesystem**. The engine has no network calls, no Filament API client, and no required runtime services. Whatever populates the local directory tree (Filament sync, hand-authoring, git checkout, an unzipped distribution tarball) is outside the engine's concern.
@@ -32,13 +40,11 @@ Each module root SHALL match the existing `spec-artifacts-*` shape:
 ```
 <module-root>/
 ├── manifest.yaml           # artifact_types: [...] (and/or object_types: [...])
-├── schemas/
-│   └── <name>-frontmatter.schema.json
-└── templates/
-    └── <name>.md.j2
+└── schemas/
+    └── <name>-frontmatter.schema.json
 ```
 
-The `manifest.yaml` is the authoritative entry point. It enumerates archetypes; each entry references its schema and template by relative path (`schema_ref`, `template_ref`). The loader does NOT auto-discover schemas/templates from the filesystem layout — every archetype is explicitly declared in a manifest so authoring is intentional.
+The `manifest.yaml` is the authoritative entry point. It enumerates archetypes; each entry references its schema by relative path (`schema_ref` / `frontmatter_schema_ref`). The loader does NOT auto-discover schemas from the filesystem layout — every archetype is explicitly declared in a manifest so authoring is intentional. (Templates and `template_ref` are removed with the render feature.)
 
 ### Public API
 
@@ -76,16 +82,14 @@ Path-safety violations raised by consumers (CLIs, services) that resolve user-co
 For each archetype the loader SHALL:
 
 1. Parse the JSON Schema document and compile it into a runtime validator (e.g. `jsonschema::JSONSchema::compile`).
-2. Parse the MiniJinja template and register it with the long-lived `Environment` (FR-004).
-3. Cache the (validator, template, metadata) tuple as a `CompiledArchetype` keyed by archetype name.
+2. Cache the (validator, metadata, optional `body_extraction` DSL) tuple as a `CompiledArchetype` keyed by archetype name.
 
-Per-render and per-extract operations SHALL NOT re-read disk and SHALL NOT re-parse schemas or templates. Load cost is amortized over the process lifetime (see NFR-007).
+Templates are NOT parsed or registered (render is removed). Per-validate and per-extract operations SHALL NOT re-read disk and SHALL NOT re-parse schemas. Load cost is amortized over the process lifetime (see NFR-007).
 
 ### Error model
 
-- A manifest entry whose `schema_ref` or `template_ref` does not exist on disk: `QuireError::ArchetypeLoadError` with file path and reason. The loader continues with other archetypes and aggregates errors.
+- A manifest entry whose `schema_ref` does not exist on disk: `QuireError::ArchetypeLoadError` with file path and reason. The loader continues with other archetypes and aggregates errors.
 - A schema document that is itself malformed JSON Schema: `QuireError::ArchetypeLoadError` with schema path and parse error.
-- A template that fails MiniJinja parse: `QuireError::ArchetypeLoadError` with template path and parse error.
 - A missing search path entry on disk: warning diagnostic (not a fatal error) — empty modules are valid.
 
 ### Path-handling edge cases
@@ -124,7 +128,7 @@ The loader assumes the upstream sync tool (canonically `ix-cli`, see Appendix A 
 - **FR-013-AC-2**: Pointing `IX_SCHEMA_PATH` at a path containing a copy of `spec-artifacts-iso/spec_artifacts_iso/` produces a registry with the 8 ISO archetypes (FR, NFR, StR, US, IT, TC, AC, CON) all loaded and `archetype("fr")` returns Some.
 - **FR-013-AC-3**: A manifest entry referencing a missing `schema_ref` path produces a `QuireError::ArchetypeLoadError` listing the bad path; other archetypes in the same module load successfully.
 - **FR-013-AC-4**: A criterion bench measures `Registry::load_from(&[corpus_path])` for the full 17-archetype baseline corpus and reports a one-time cost (target: under 50 ms median on baseline hardware).
-- **FR-013-AC-5**: After `Registry::load_from(...)`, calling `render(archetype, data)` against a loaded archetype does NOT read from disk (verified via a `tracing` or `strace`-style audit in CI).
+- **FR-013-AC-5**: After `Registry::load_from(...)`, calling `validate`/`validate_document`/`extract` against a loaded archetype does NOT read from disk (verified via a `tracing` or `strace`-style audit in CI).
 - **FR-013-AC-6**: A test confirms `quire-rs` has no `reqwest`, `hyper`, `tonic`, or other network-client crate in its `Cargo.lock` (verified via dependency audit).
 - **FR-013-AC-7**: A test creates a symlink loop (`a → b → a`) inside a search path and asserts the loader completes with a warning diagnostic and skips the loop.
 - **FR-013-AC-8**: A test sets `IX_SCHEMA_PATH="~/foo:~/foo"` (duplicate canonical path) and asserts modules under `~/foo/` are loaded exactly once.

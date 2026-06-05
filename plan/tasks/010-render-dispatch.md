@@ -1,6 +1,12 @@
 # Task 010: render Dispatch
 
-Status: blocked on Tasks 006, 007, 008, 009
+Status: **RETIRED** (render removal — 2026-06-04)
+
+> The render/templating feature is removed (no backward-compatibility layer). This
+> task (render dispatch, FR-001) is retired; `src/render/` is removed. See `spec.md`
+> §2bis and the retired FR-001. Kept for history.
+
+Original status: blocked on Tasks 006, 007, 008, 009
 
 ## Scope
 

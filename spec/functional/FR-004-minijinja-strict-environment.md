@@ -8,6 +8,14 @@ relationships:
     cardinality: "1:1"
 ---
 
+> **RETIRED (render removal — 2026-06-04):** The render/templating feature is
+> **removed** from `quire-rs` (no backward-compatibility layer). This FR (the strict,
+> long-lived MiniJinja `Environment`) is **retired**: the `minijinja` dependency is
+> dropped and no template environment is constructed. This document is kept for
+> history and traceability only; its acceptance criteria are dropped from the
+> required-coverage tally. The retirement and rationale are recorded in `spec.md`
+> §2bis. New work does not target this FR.
+
 ## Behavior
 
 The render layer SHALL construct exactly one `minijinja::Environment` per process (or per `quire_rs::Renderer` instance, when consumers explicitly opt for an isolated instance). The environment SHALL be configured with:
@@ -30,7 +38,7 @@ Custom MiniJinja filters added by `quire-rs` SHALL be pure (no I/O, no global st
 
 ## Acceptance
 
-- **FR-004-AC-1**: A test renders an FR with a template that references a field absent from `FrData` and asserts the returned error is `QuireError::TemplateError` naming the missing field.
-- **FR-004-AC-2**: A test constructs a `Renderer`, calls `render` from N=64 threads concurrently for 10000 iterations total, and asserts no panic, no race, byte-identical outputs.
-- **FR-004-AC-3**: A criterion bench measures the cost of `Renderer::new()` and reports it; FR-004 documents the expected one-time cost (in the µs range). Subsequent render calls do NOT pay this cost.
-- **FR-004-AC-4**: A test loads a template containing `{% include "other.j2" %}` and asserts `QuireError::ArchetypeLoadError` with the "include not supported" reason.
+- FR-004-AC-1 (RETIRED): A test renders an FR with a template that references a field absent from `FrData` and asserts the returned error is `QuireError::TemplateError` naming the missing field.
+- FR-004-AC-2 (RETIRED): A test constructs a `Renderer`, calls `render` from N=64 threads concurrently for 10000 iterations total, and asserts no panic, no race, byte-identical outputs.
+- FR-004-AC-3 (RETIRED): A criterion bench measures the cost of `Renderer::new()` and reports it; FR-004 documents the expected one-time cost (in the µs range). Subsequent render calls do NOT pay this cost.
+- FR-004-AC-4 (RETIRED): A test loads a template containing `{% include "other.j2" %}` and asserts `QuireError::ArchetypeLoadError` with the "include not supported" reason.

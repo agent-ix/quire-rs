@@ -1,6 +1,13 @@
 # Task 011: Render Parity Test Harness
 
-Status: blocked on Task 010
+Status: **RETIRED** (render removal — 2026-06-04)
+
+> The render/templating feature is removed (no backward-compatibility layer). This
+> task (the `tests/render_parity/` harness, FR-012) is retired; the harness and
+> `corpus.yaml` are removed. See `spec.md` §2bis and the retired FR-012. Kept for
+> history.
+
+Original status: blocked on Task 010
 
 ## Scope
 

@@ -214,6 +214,69 @@ The v0.1 implementation drifted from `INPUT.md`. The v0.2 spec restores discover
 - Heading matching: case-insensitive + section-number normalization. Matches TS exactly.
 - Section content slicing: byte-exact in `quire-rs` (FR-008); TS applies `.strip()`. Required for writeback fidelity.
 
+### C. Render Removal (v0.4 — 2026-06-04)
+
+The render/templating half of `quire-rs` is **removed** — **no backward-compatibility
+layer**, no deprecated-but-kept field, no dual-read. `quire-rs` is now a
+**parse / validate / extract / byte-splice** engine. Markdown is authored directly
+(not generated from typed data) and checked structurally by `validate_document`
+(FR-032). This reverses the original "unify render + parse" mandate (§1, §3) for the
+render half; that prose is retained above for history but is superseded by this
+entry. The `validate` engine fn (data-schema validation, `src/validate.rs`, FR-002)
+**stays** — it backs `validate_document` even though the downstream CLI `--json`
+context mode is removed.
+
+#### Retired (kept for history, ACs dropped from the required-coverage tally)
+
+| Artifact | Kind | Why |
+|---|---|---|
+| **FR-001** Render dispatch | FR | No `render`/`render_by_name`; generic render API removed |
+| **FR-004** Strict MiniJinja env | FR | `minijinja` dependency + `Environment` removed |
+| **FR-012** Archetype render-parity suite | FR | No render path to compare against Python; `render_parity/` removed |
+| **NFR-001** Render latency | NFR | No render path to bench; perf gate now parse/validate/extract |
+| **US-001** LLM emits validated patch (→ render) | US | Render-centric |
+| **US-004** Editor merge-validate-render | US | Render-centric (block edits now byte-splice only) |
+| **US-006** LLM patches one block (render+splice) | US | Render-and-splice path retired |
+| **US-007** LLM replaces a block (render+splice) | US | Render-and-splice path retired |
+| **US-009** LLM creates a new artifact (render) | US | Whole-artifact render retired; author markdown directly |
+| **Gate G2** Render parity | Gate | Retired; G4 reframed to byte-splice-only round-trip |
+| **Tasks 007/010/011/012/013** | Task | Render env / dispatch / parity harness / gate / sweep |
+| **FR-028-AC-1** render byte-parity; **NFR-006-AC-1** render determinism | AC | Render-specific ACs (ids retained, immutable; dropped from tally) |
+
+#### Revised (CR-noted, kept and active)
+
+| Artifact | Change |
+|---|---|
+| **FR-013** Archetype loader | Schema-only; no template parse/register; `template_ref` not read |
+| **FR-031** Unified archetype shape | Drops `template_ref` + `is_renderable()`; `template_ref` is a hard-rejected deprecated field. AC-1/AC-2 recast to validate/extract |
+| **FR-021** Block edit (no FR doc — tests.md only) | Render-and-splice retired; block edit = byte-splice `update_block` (FR-022) |
+| **FR-023 / FR-028** Python bindings | Drop `render`/`render_by_name`/`render_block` + `QuireRenderError`; keep validate/validate_document/extract/parse/load_repo/harvest_edges |
+| **NFR-006** Determinism | Names `parse_document`/`validate_document`/`extract` (render determinism retired) |
+| **Task 014** Perf gates | parse/validate/extract/load only; render bench dropped |
+| **D4** Block edit task | Byte-splice only |
+
+#### Decisions (v0.4 — 2026-06-04)
+
+- **Placeholder sentinel set reduced** (FR-032-AC-7/AC-8): bare `none` and `n/a` are
+  **NOT** sentinels (they reject legitimate content like `Upstream: none`). The set is
+  `TODO`/`TBD` (case-insensitive prefix), whole-value `{{…}}`, whole-value
+  `placeholder`, whole-value `none specified`, and empty.
+- **Empty/header-only tables and item-less lists** report reason **`empty`** (and a
+  wholly-unresolved locator reports **`missing`**) — **not** `placeholder`
+  (FR-032-AC-9). The FR-030 / FR-032 prose is corrected to match the code.
+
+#### Gap back-fills (CR-noted ACs added)
+
+FR-033-AC-7 (assert-kind legality matrix), FR-033-AC-8 (id-column precedence),
+FR-033-AC-9 (`id_pattern` on non-table locators); FR-011-AC-15 (`regex:` projection),
+FR-011-AC-16 (`under_section:None` substrate), FR-011-AC-17 (whole-value `{{…}}`),
+FR-011-AC-18 (unclosed-fence → final block, backtick + tilde), FR-011-AC-19
+(`emit_edges` record-derived edges); FR-032-AC-7..10 (placeholder set / `none`-`n/a` /
+empty-table-list reason / asserts-on-resolved); FR-032-AC-2 (`line` is `Option`,
+`None` for a wholly-absent section); NFR-002-AC-4 (`validate_document` latency),
+NFR-006-AC-4 (validate/extract determinism), and **NFR-019** (input robustness:
+validate/extract/query never panic on arbitrary input).
+
 ---
 
 ## 3. System Overview

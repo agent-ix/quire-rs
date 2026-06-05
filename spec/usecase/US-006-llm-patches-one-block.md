@@ -14,6 +14,14 @@ relationships:
     type: "exercises"
 ---
 
+> **RETIRED (render removal — 2026-06-04):** This user story is render-centric: its
+> central flow is merge → validate → **re-render** → splice (`apply_block_patch`).
+> With the render feature removed (no backward-compatibility layer), the
+> render-and-splice block edit path is gone; block edits are byte-splice-only via
+> `update_block` (FR-022, reframed). This story is therefore **retired**. Kept for
+> history and traceability only; its acceptance and performance criteria are dropped
+> from the required-coverage tally. See `spec.md` §2bis.
+
 ## Story
 
 As an **LLM agent editing one block of an existing artifact**, I want to (1) read the block's current `(block_type, data)` from the parsed document, (2) emit a JSON merge-patch against the block-type schema surfaced via `schema_for(block_type)`, and (3) have the engine merge → validate → re-render → splice the new bytes back into the canonical markdown — so that frontmatter and every other block stay byte-identical.
@@ -30,10 +38,10 @@ The flow is symmetric to `US-001` but **scoped to one block**: the LLM's context
 
 ## Acceptance
 
-- **US-006-AC-1**: A consumer parses an artifact, walks to a specific `block_id`, extracts the block's current data (frontmatter slice or extracted block fields), and feeds `schema_for(block_type)` into a tool envelope.
-- **US-006-AC-2**: `apply_block_patch(registry, doc, block_id, block_type, current_data, patch)` returns full updated markdown; the target block's bytes are the new render; all other blocks are byte-identical.
-- **US-006-AC-3**: An invalid patch (merged data fails schema) returns `SchemaViolation` with a field path the LLM can correct from.
-- **US-006-AC-4**: An unknown `block_id` returns `MissingField` without mutating the doc.
+- US-006-AC-1 (RETIRED): A consumer parses an artifact, walks to a specific `block_id`, extracts the block's current data (frontmatter slice or extracted block fields), and feeds `schema_for(block_type)` into a tool envelope.
+- US-006-AC-2 (RETIRED): `apply_block_patch(registry, doc, block_id, block_type, current_data, patch)` returns full updated markdown; the target block's bytes are the new render; all other blocks are byte-identical.
+- US-006-AC-3 (RETIRED): An invalid patch (merged data fails schema) returns `SchemaViolation` with a field path the LLM can correct from.
+- US-006-AC-4 (RETIRED): An unknown `block_id` returns `MissingField` without mutating the doc.
 
 ## Efficiency Analysis
 

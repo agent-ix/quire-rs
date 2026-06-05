@@ -12,6 +12,14 @@ relationships:
     type: "exercises"
 ---
 
+> **RETIRED (render removal — 2026-06-04):** This user story is render-centric:
+> `schema_for` → emit whole data → **`render_by_name`** → canonical markdown. With
+> the render feature removed (no backward-compatibility layer), there is no
+> whole-artifact render path. New documents are now authored directly as markdown and
+> checked with `validate_document` (FR-032 / US-014). This story is therefore
+> **retired**. Kept for history and traceability only; its acceptance and performance
+> criteria are dropped from the required-coverage tally. See `spec.md` §2bis.
+
 ## Story
 
 As an **LLM agent producing a new artifact** (e.g. drafting a brand-new FR or NFR from a user prompt), I want to call `schema_for(archetype)` once to learn the full schema, emit a complete data value, and have `render(registry, archetype, data)` produce canonical markdown in one shot — no writeback, no existing doc.
@@ -27,9 +35,9 @@ In v0.2 the whole-artifact case is treated as "one giant block whose type is the
 
 ## Acceptance
 
-- **US-009-AC-1**: `render_by_name(registry, "fr", data)` against a value satisfying the FR schema returns `RenderOutput { markdown, diagnostics: [] }` where `markdown` is byte-equal to the Python Jinja2 reference for the same data.
-- **US-009-AC-2**: An invalid `data` (missing required field) returns `SchemaViolation` naming the field path; no markdown is produced.
-- **US-009-AC-3**: The rendered markdown can be re-parsed by `parse_document` and the resulting `QuireDocument` round-trips to the same data fields the LLM emitted (modulo Jinja whitespace).
+- US-009-AC-1 (RETIRED): `render_by_name(registry, "fr", data)` against a value satisfying the FR schema returns `RenderOutput { markdown, diagnostics: [] }` where `markdown` is byte-equal to the Python Jinja2 reference for the same data.
+- US-009-AC-2 (RETIRED): An invalid `data` (missing required field) returns `SchemaViolation` naming the field path; no markdown is produced.
+- US-009-AC-3 (RETIRED): The rendered markdown can be re-parsed by `parse_document` and the resulting `QuireDocument` round-trips to the same data fields the LLM emitted (modulo Jinja whitespace).
 
 ## Efficiency Analysis
 

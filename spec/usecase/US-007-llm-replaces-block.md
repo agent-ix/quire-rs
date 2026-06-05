@@ -10,6 +10,14 @@ relationships:
     type: "exercises"
 ---
 
+> **RETIRED (render removal — 2026-06-04):** This user story is render-centric: its
+> flow validates `new_data` then **renders** and writes it back (`replace_block`).
+> With the render feature removed (no backward-compatibility layer), the
+> render-and-splice path is gone; block edits are byte-splice-only via `update_block`
+> (FR-022, reframed). This story is therefore **retired**. Kept for history and
+> traceability only; its acceptance and performance criteria are dropped from the
+> required-coverage tally. See `spec.md` §2bis.
+
 ## Story
 
 As an **LLM agent making pervasive changes within a single block** (rewriting a section's body, restructuring a list, changing a table's shape), I want to emit the block's *new* data wholesale rather than a merge-patch — so the engine validates the replacement against the block-type schema and writes it back without merge-patch semantics interfering.
@@ -25,10 +33,10 @@ Merge-patch (US-006) is the natural primitive when the LLM changes one or two fi
 
 ## Acceptance
 
-- **US-007-AC-1**: `replace_block` produces the same rendered bytes as running the block-type template against `new_data` directly (verified by TC-441).
-- **US-007-AC-2**: A schema violation in `new_data` returns `SchemaViolation` *before* any markdown is produced; doc is unchanged.
-- **US-007-AC-3**: Untouched blocks + frontmatter byte-identical after `replace_block`.
-- **US-007-AC-4**: An unknown `block_id` returns `MissingField` without mutating the doc.
+- US-007-AC-1 (RETIRED): `replace_block` produces the same rendered bytes as running the block-type template against `new_data` directly (verified by TC-441).
+- US-007-AC-2 (RETIRED): A schema violation in `new_data` returns `SchemaViolation` *before* any markdown is produced; doc is unchanged.
+- US-007-AC-3 (RETIRED): Untouched blocks + frontmatter byte-identical after `replace_block`.
+- US-007-AC-4 (RETIRED): An unknown `block_id` returns `MissingField` without mutating the doc.
 
 ## Efficiency Analysis
 

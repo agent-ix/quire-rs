@@ -71,6 +71,41 @@ heading walk and the code-block scanner agree on what opens and closes a block.
 > `tests/parser_parity/divergences.md` §9), not a parity break: the TS suite has no
 > `~~~` `extractDiagrams` fixture. No manifest/schema change.
 
+### Per-locator `regex:` projection
+
+A `Locator` MAY carry an optional `regex:` string that **projects** the resolved
+raw value before it is yielded (extraction) or asserted (validation). The projection
+rule:
+
+- The `regex` is compiled and matched against the resolved value.
+- If it has **at least one capture group**, the projected value is **capture group 1**.
+  With no capture group, the projected value is **group 0** (the whole match).
+- A **non-match drops the value**: the key is omitted (single-yield) or the unit
+  contributes nothing for that key (multi-yield), exactly as a `required:false` miss.
+  When `required:true`, a non-match is a `MissingField`.
+- An **invalid `regex`** (fails to compile) yields an **empty** projected value (the
+  locator contributes nothing); it is not a load error here (the DSL validator may
+  separately flag it).
+
+The `regex` projection is independent of the `assert.id_pattern` facet (FR-033):
+`regex` shapes the *extracted* value; `id_pattern` *checks* it at validate time.
+
+### Whole-value `{{...}}` rule
+
+A resolved value whose trimmed content is a single unresolved `{{ … }}` template
+marker is treated as a placeholder (empty for extraction purposes; reason
+`placeholder` at validate time per FR-032). A `{{…}}` token embedded inside otherwise
+substantive content does NOT trigger this rule — only a whole-value marker does.
+
+### Substrate when `under_section` is `None`
+
+When a `table_row`, `list_item`, or `code_block` locator omits `under_section`, its
+substrate is the **document body** formed by joining all section bodies (in document
+order). For `table_row` specifically, resolution is **first-table-then-any**: the
+first markdown table found in the joined substrate is used; subsequent tables are
+considered only if the first yields nothing for a required column. (`code_block`'s
+section-owned model under multi-yield is unchanged — see CR-003 above.)
+
 ### Yield patterns (single XOR multi)
 
 Each `body_extraction.yield_pattern` is one of:
@@ -114,9 +149,20 @@ pub fn extract(doc: &QuireDocument, dsl: &ExtractionDsl)
 
 pub struct ExtractionResult {
     pub records: Vec<serde_json::Map<String, Value>>,
+    pub edges: Vec<ExtractedEdge>,
     pub diagnostics: Vec<Diagnostic>,
 }
 ```
+
+### Record-derived edges (`emit_edges`)
+
+A `body_extraction` MAY declare an `emit_edges:` list. Each spec projects an edge
+`{ record_index, type, target }` from a field of each extracted record (single- or
+multi-yield). These record-derived edges are distinct from the per-document
+frontmatter/`ix://` harvest (`harvest_edges`, FR-028-AC-6): `emit_edges` traces
+*extracted record fields* to targets, while `harvest_edges` traces *frontmatter
+`relationships` + body links*. Both surface through the Python `extract()` envelope's
+`edges` key (FR-028-AC-4/AC-9).
 
 Single-yield DSLs return `records.len() <= 1`; multi-yield returns one record per iteration unit.
 
@@ -131,3 +177,8 @@ Single-yield DSLs return `records.len() <= 1`; multi-yield returns one record pe
 - **FR-011-AC-8**: A DSL with `iterate_over.section_path: [Nonexistent]` against a document missing that section returns `ExtractionResult { records: [], diagnostics: [IterateRootMissing] }`.
 - **FR-011-AC-13**: A `code_block` `per_match` locator under `iterate_over` is section-owned: against a document where each iteration unit owns its own fenced block, each yielded record receives **its own** unit's block (not unit #1's for all), and a `required: true` `code_block` locator returns `QuireError::MissingField` for the specific unit that lacks a block — proving containment, not a document-wide fallback. A single-yield `code_block under: X` returns only `X`'s block, excluding a same-language block in a different section.
 - **FR-011-AC-14**: The fenced-code-block scanner recognizes both ` ``` ` and `~~~` fences and closes a block only on a matching-character fence line (parity with the FR-007 parser fence model): a `~~~mermaid` block is extracted with language `mermaid`; a `~~~` line inside a ` ``` ` block (and a ` ``` ` line inside a `~~~` block) is content, not a close; an unclosed `~~~` block is flushed as the final block; and a section-owned `code_block` locator resolves a `~~~` block under its heading.
+- **FR-011-AC-15**: A locator with `regex: '(\d+)'` projects **capture group 1** from its resolved value; with `regex: '\d+'` (no group) it projects **group 0** (the whole match); a value that does not match drops the key (`required:false`) or returns `MissingField` (`required:true`); and an invalid (uncompilable) `regex` yields an empty projected value (the locator contributes nothing, no panic).
+- **FR-011-AC-16**: A `table_row` locator with `under_section: None` resolves against the joined section bodies of the whole document and uses the **first** table found (first-then-any for a required column); a `list_item`/`code_block` locator with `under_section: None` likewise reads the joined-body substrate.
+- **FR-011-AC-17**: A required locator whose trimmed resolved value is a whole-value `{{ id }}` marker contributes no extracted value (placeholder); the same `{{x}}` token embedded mid-prose does not trigger the whole-value rule and the surrounding content is extracted normally.
+- **FR-011-AC-18**: An **unclosed** fenced block — both ` ``` ` and `~~~` variants — is flushed as the **final** block (its trailing content is part of the block, not a phantom following block), parity with the parser's FR-007 unclosed-fence behavior.
+- **FR-011-AC-19**: A `body_extraction` declaring `emit_edges: [{from: <field>, type: <t>}]` projects one `{record_index, type, target}` edge per extracted record whose `<field>` resolves to a target, in `ExtractionResult.edges` (single- and multi-yield); records lacking the field emit no edge. These record-derived edges are distinct from `harvest_edges` (frontmatter/`ix://`) and both flow through the Python `extract()` envelope's `edges` key.

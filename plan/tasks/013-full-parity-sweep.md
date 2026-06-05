@@ -1,6 +1,12 @@
 # Task 013: Full Render Parity Sweep (17 Archetypes)
 
-Status: blocked on Gate G2 (Task 012)
+Status: **RETIRED** (render removal — 2026-06-04)
+
+> The render/templating feature is removed (no backward-compatibility layer). This
+> task (full render parity sweep, FR-012) is retired with the render path. See
+> `spec.md` §2bis and the retired FR-012. Kept for history.
+
+Original status: blocked on Gate G2 (Task 012)
 
 ## Scope
 

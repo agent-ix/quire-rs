@@ -1,6 +1,13 @@
 # Task 007: Strict MiniJinja Environment
 
-Status: blocked on Task 005
+Status: **RETIRED** (render removal — 2026-06-04)
+
+> The render/templating feature is removed (no backward-compatibility layer). This
+> task (the strict MiniJinja `Environment`, FR-004) is retired; the `minijinja`
+> dependency and `src/render/env.rs` are removed. See `spec.md` §2bis and the
+> retired FR-004. Kept for history.
+
+Original status: blocked on Task 005
 
 ## Scope
 

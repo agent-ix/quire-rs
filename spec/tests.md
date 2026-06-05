@@ -34,15 +34,15 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 
 | User Story | Acceptance Criteria | Test Cases | Coverage Status |
 |------------|---------------------|------------|-----------------|
-| US-001 LLM patch + render | AC-1..4 | TC-009, TC-003, TC-006, TC-061 | ✅ Complete |
+| ~~US-001 LLM patch + render~~ | — | — | ⛔ RETIRED (render removal) |
 | US-002 Developer parses doc | AC-1..3 | TC-001, TC-029, TC-002 | ✅ Complete |
 | US-003 Extractor evaluates DSL | AC-1..3 | TC-018, TC-019, TC-040 | ✅ Complete |
-| US-004 Editor patch + render | AC-1..3 | TC-007, TC-042 | ✅ Complete |
+| ~~US-004 Editor patch + render~~ | — | — | ⛔ RETIRED (render removal) |
 | US-005 CI detects regression | AC-1..4 | TC-030, TC-031, TC-041 | ✅ Complete |
-| US-006 LLM patches one block | AC-1..4 + PC-1..4 | TC-420, TC-422, TC-424, TC-440 (correctness) + TC-450 (perf) | ✅ Functional / 🚧 Perf bench pending |
-| US-007 LLM replaces block wholesale | AC-1..4 + PC-1..4 | TC-421, TC-441, TC-422 (correctness) + TC-451 (perf) | ✅ Functional / 🚧 Perf bench pending |
+| ~~US-006 LLM patches one block~~ | — | — | ⛔ RETIRED (render removal; block edits byte-splice only via FR-022) |
+| ~~US-007 LLM replaces block wholesale~~ | — | — | ⛔ RETIRED (render removal; block edits byte-splice only via FR-022) |
 | US-008 Multi-agent collaboration via stable block_id | AC-1..4 + PC-1..5 | TC-431, TC-432, TC-440, TC-443 (correctness) + TC-452 (perf) | ✅ Functional / 🚧 Perf bench pending |
-| US-009 LLM creates new artifact | AC-1..3 + PC-1..4 | TC-003, TC-006, TC-024 (correctness) + TC-042 (perf, existing) | ✅ Complete |
+| ~~US-009 LLM creates new artifact~~ | — | — | ⛔ RETIRED (render removal; author markdown directly + FR-032) |
 | US-010 LLM extracts for RAG | AC-1..5 + PC-1..5 | TC-018, TC-019, TC-040, TC-070, TC-110, TC-152 (correctness) + TC-453, TC-454 (perf) | ✅ Functional / 🚧 Perf bench pending |
 | US-011 Python parses repo via bindings | AC-1..5 + PC-1..3 | TC-463, TC-471, TC-467, TC-475, TC-464 (correctness) + TC-455, TC-469, TC-456 (perf) | ✅ Functional / 🚧 Perf bench pending |
 | US-012 Agent audits whole spec | AC-1..5 + PC-1..3 | TC-493, TC-495, TC-494, TC-496, TC-485 (correctness) + TC-457, TC-458, TC-498 (perf) | ✅ Functional / 🚧 Perf bench pending |
@@ -53,18 +53,18 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 
 | Functional Req | Acceptance Criteria | Test Cases | Coverage Status |
 |----------------|---------------------|------------|-----------------|
-| FR-001 Generic render dispatch | AC-1..5 | TC-003, TC-004, TC-006, TC-008, TC-005 (data-only-change) | ✅ Complete |
+| ~~FR-001 Generic render dispatch~~ | — | — | ⛔ RETIRED (render removal) |
 | FR-002 JsonValue merge-validate | AC-1..5 | TC-007, TC-007b (additional-props), TC-002b (proptest), TC-042b (bench) | ✅ Complete |
 | FR-003 schema_for surfaces fs schema | AC-1..4 | TC-009, TC-009b (unknown), TC-061, TC-062 (no schemars dep) | ✅ Complete |
-| FR-004 Strict MiniJinja env | AC-1..3 | TC-010, TC-008, TC-011 | ✅ Complete |
+| ~~FR-004 Strict MiniJinja env~~ | — | — | ⛔ RETIRED (render removal) |
 | FR-005 parse_document API | AC-1..4 | TC-001, TC-029 | ✅ Complete |
 | FR-006 Frontmatter fallback | AC-1..4 | TC-012, TC-013, TC-014 | ✅ Complete |
 | FR-007 Fenced-block walk | AC-1..4 | TC-015, TC-016, TC-017 | ✅ Complete |
 | FR-008 Byte-exact slicing | AC-1..3 | TC-022, TC-023, TC-024 | ✅ Complete |
 | FR-009 Slug-line ID | AC-1..5 | TC-025, TC-026 | ✅ Complete |
 | FR-010 Query API | AC-1..3 | TC-027, TC-028, TC-029 | ✅ Complete |
-| FR-011 DSL (6 locators + yields) | AC-1..5, AC-13, AC-14 | TC-018, TC-019, TC-040, TC-070 (iterate_over), TC-072 (each locator), TC-073 (corpus sweep), TC-563 (code_block section-owned), TC-564 (tilde fence parity) | ✅ Complete |
-| FR-012 Corpus parity suite | AC-1..5 | TC-030 (sweep), TC-031 (corpus.yaml), TC-041 (regression), TC-039 (data-only-extension) | ✅ Complete |
+| FR-011 DSL (6 locators + yields + asserts) | AC-1..8, 13..19 | TC-018, TC-019, TC-040, TC-070, TC-072, TC-073, TC-563, TC-564, TC-565 (regex), TC-566 (under_section:None), TC-567 ({{…}}), TC-568 (unclosed fence), TC-569 (emit_edges) | ✅ / 🚧 back-fills |
+| ~~FR-012 Corpus parity suite~~ | — | — | ⛔ RETIRED (render removal) |
 | FR-013 Archetype loader | AC-1..6 | TC-080 (empty env), TC-081 (load iso), TC-082 (bad schema_ref), TC-083 (bench), TC-084 (no IO post-load), TC-085 (no net deps) | ✅ Complete |
 | FR-014 Module activation | AC-1..5 | TC-090 (multi-module), TC-091 (collision), TC-092 (strict), TC-093 (version), TC-094 (17-baseline union) | ✅ Complete |
 | FR-016 Fallback locators | AC-1..4 | TC-110 (legacy path), TC-111 (canonical path), TC-112 (optional miss), TC-113 (domain parity) | ✅ Complete |
@@ -77,8 +77,8 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | FR-029 Archetype input contract (recast, ADR 0004) | AC-1..6 | TC-548 (FR/NFR contract), TC-549 (NFR sections), TC-550 (iso required_sections order), TC-551 (byte-stable JSON), TC-552 (unknown→err), TC-553 (unresolved-mapping diag) | 🚧 Pending implementation |
 | FR-030 Required-section validation (superseded by FR-032/FR-033, ADR 0004) | AC-1..6 | TC-529, TC-530, TC-536, TC-528, TC-533 (covered by FR-032/FR-033 TCs) | 🚧 Superseded — covered by FR-032/FR-033 |
 | FR-031 Unified archetype shape | AC-1..6 | TC-522 (renderable), TC-523 (no template), TC-524 (defaults retained), TC-525 (two validators), TC-526 (required_sections ignored+diag), TC-527 (resolve parity) | 🚧 Pending implementation |
-| FR-032 validate_document (markdown) | AC-1..6 | TC-528 (conformant), TC-529 (missing), TC-530 (placeholder), TC-531 (frontmatter), TC-532 (distinct entry points), TC-533 (no body_extraction) | 🚧 Pending implementation |
-| FR-033 Locator assert facet | AC-1..6 | TC-534 (level), TC-535 (columns), TC-536 (min_rows/min_items), TC-537 (id_pattern), TC-538 (load-time-invalid), TC-539 (extract ignores assert) | 🚧 Pending implementation |
+| FR-032 validate_document (markdown) | AC-1..10 | TC-528..533, TC-561 + TC-573 (placeholder set), TC-574 (none/n-a substantive), TC-575 (empty table/list reason), TC-576 (assert on resolved) | 🚧 Pending implementation |
+| FR-033 Locator assert facet | AC-1..9 | TC-534..539, TC-561/562 + TC-570 (legality matrix), TC-571 (id-column precedence), TC-572 (id_pattern non-table) | 🚧 Pending implementation |
 | FR-034 Assert field interpolation | AC-1..4 | TC-540 (id prefix), TC-541 (missing field diag), TC-542 (regex-escape), TC-543 (no-token static regex) | 🚧 Pending implementation |
 | FR-035 Per-level heading uniqueness | AC-1..4 | TC-544 (dup L2), TC-545 (cross-level ok), TC-546 (iterate_over children), TC-547 (line number) | 🚧 Pending implementation |
 | FR-024 Parallel repo walk (load_repo) | AC-1..9 | TC-470 (N files→N docs), TC-471 (malformed→diagnostic), TC-472 (gitignore), TC-473 (path-sorted determinism), TC-474 (symlink loop), TC-475 (id derivation), TC-476 (bad root), TC-455 (bench), TC-502 (no shared mutable state) | ✅ Complete |
@@ -90,12 +90,13 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 
 | Non-Functional Req | Verification Method | Evidence/Test Cases | Status |
 |--------------------|---------------------|---------------------|--------|
-| NFR-001 Render <1ms | criterion bench (median) | TC-042 + per-archetype bench under corpus sweep | ✅ Complete |
-| NFR-002 Parse 5MB <500ms | criterion bench (median) | TC-052, TC-053 | ✅ Complete |
+| ~~NFR-001 Render <1ms~~ | — | — | ⛔ RETIRED (render removal) |
+| NFR-002 Parse 5MB <500ms; validate_document <1ms | criterion bench (median) | TC-052, TC-053, TC-577 (validate_document) | ✅ / 🚧 |
 | NFR-003 Zero unsafe | static check (audit-unsafe) | TC-050 | ✅ Complete |
 | NFR-004 License hygiene | cargo deny check licenses | TC-051 | ✅ Complete |
 | NFR-005 Actionable errors | unit + snapshot | TC-006, TC-054, TC-055 | ✅ Complete |
-| NFR-006 Determinism | proptest (render + parse 100x) | TC-056, TC-057, TC-058 | ✅ Complete |
+| NFR-006 Determinism | proptest (parse + validate_document + extract 100x) | TC-057, TC-058, TC-578 | ✅ / 🚧 |
+| NFR-019 Input robustness (no panic) | fuzz + proptest | TC-579, TC-580 | 🚧 Pending implementation |
 | NFR-007 Load cost amortized | criterion bench + tracing audit | TC-083, TC-120, TC-121 (no recompile), TC-122 (soak) | ✅ Complete |
 | NFR-015 Repo-walk throughput scales | criterion bench (1 + 8 threads) | TC-455 | ✅ Complete |
 | NFR-016 Binding overhead + abi3 | micro-bench + cross-version import | TC-469, TC-464, TC-465, TC-467 | ✅ Complete |
@@ -352,7 +353,23 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-559 | `ExtractionContext` accepts both a bare list of ObjectType dicts and the core envelope `{items: [...]}` | Integration | P0 | FR-028-AC-10 | 🚧 |
 | TC-560 | Python `ExtractionContext.from_object_types([...])` extracts a real document from in-memory snapshot without reading module root / `.ix` / package manifest | Integration | P0 | US-003-AC-4 | 🚧 |
 | TC-561 | Multi-yield archetype (`iterate_over` + `per_match`): `validate_document` runs each `per_match` required-locator + `assert` against every iteration unit's local scope — a conformant document passes; a unit missing a required sub-locator → reason `missing`; a unit violating an assert → reason `assert` | Unit | P0 | FR-032-AC-2, FR-033-AC-4 | 🚧 |
-| TC-562 | Registry path: a module loaded via `Registry` whose archetype carries an `assert` facet (AC table `columns` + interpolated `id_pattern`) runs end-to-end through `validate_document` (manifest → load → validate); mis-prefixed id / wrong columns → reason `assert`, conformant passes | Integration | P0 | FR-033-AC-4 | 🚧 |
+| TC-562 | Registry path: a module loaded via `Registry` whose archetype carries an `assert` facet (AC table `columns` + interpolated `id_pattern`) runs end-to-end through `validate_document` (manifest → load → validate); mis-prefixed id / wrong columns → reason `assert`, conformant passes | Integration | P0 | FR-033-AC-4, FR-033-AC-9 | 🚧 |
+| TC-565 | Locator `regex:` projection: `(\d+)` yields capture group 1; `\d+` (no group) yields group 0; non-match drops key (required:false) or returns `MissingField` (required:true); invalid regex → empty projected value, no panic | Unit | P0 | FR-011-AC-15 | 🚧 |
+| TC-566 | `under_section: None` substrate: `table_row` resolves against joined section bodies using the first table (first-then-any for a required column); `list_item`/`code_block` read the joined-body substrate | Unit | P0 | FR-011-AC-16 | 🚧 |
+| TC-567 | Whole-value `{{ id }}` resolved value contributes no extracted value (placeholder); an embedded `{{x}}` mid-prose does not trigger the rule and surrounding content extracts normally | Unit | P0 | FR-011-AC-17 | 🚧 |
+| TC-568 | Unclosed fenced block (both ` ``` ` and `~~~`) flushed as the final block; trailing content is part of the block, not a phantom following block (parity with FR-007) | Unit | P0 | FR-011-AC-18 | 🚧 |
+| TC-569 | `emit_edges: [{from, type}]` projects one `{record_index, type, target}` edge per extracted record whose field resolves; records lacking the field emit none; distinct from `harvest_edges`; flows through the Python `extract()` envelope `edges` key | Unit | P0 | FR-011-AC-19 | 🚧 |
+| TC-570 | Assert-key × locator-kind legality matrix: each legal cell loads (`level`@section_body/heading; `columns`/`min_rows`/`id_column`@table_row; `min_items`@list_item; `id_pattern`@all listed); each illegal cell → `ArchetypeLoadFailure` naming archetype+locator+key (table-driven) | Unit | P0 | FR-033-AC-7 | 🚧 |
+| TC-571 | `id_column` resolution precedence: `assert.id_column` → locator `column` → column 0; all-three present resolves to `assert.id_column`; `id_column` absent → `column`; both absent → col 0 | Unit | P0 | FR-033-AC-8 | 🚧 |
+| TC-572 | `id_pattern` on non-table locators: matches heading text (`heading`), section first-line/id token (`section_body`), each item (`list_item`), frontmatter scalar (`frontmatter_field`); mismatch → reason `assert`, match passes | Unit | P0 | FR-033-AC-9 | 🚧 |
+| TC-573 | Placeholder sentinel set exact: `TODO:`/`TBD` prefix (case-insensitive) and whole-value `{{…}}`/`placeholder`/`none specified`/empty fail with reason `placeholder`; substantive prose containing `todo` mid-sentence or an embedded `{{x}}` does not | Unit | P0 | FR-032-AC-7 | 🚧 |
+| TC-574 | A required section whose only content is `none` or `n/a` (e.g. `Upstream: none`) is substantive and passes — proving bare `none`/`n/a` are not sentinels | Unit | P0 | FR-032-AC-8 | 🚧 |
+| TC-575 | Required `table_row` → header-only table fails reason `empty`; required `list_item` → item-less list fails reason `empty`; a non-resolving locator fails reason `missing` (none report `placeholder`) | Unit | P0 | FR-032-AC-9 | 🚧 |
+| TC-576 | `assert` on a **resolved** locator is evaluated regardless of `required`: an optional locator that resolves but violates its assert → reason `assert`; an optional locator that does not resolve runs no assert and emits no diagnostic | Unit | P0 | FR-032-AC-10 | 🚧 |
+| TC-577 | Bench: `bench_validate_document` on a typical FR-sized artifact median <1ms (warm registry); >10% vs baseline fails CI | Bench | P0 | NFR-002-AC-4 | 🚧 |
+| TC-578 | Determinism: `validate_document` + `extract` on the same input 100× across threads → equal `ValidationResult` (ordered diagnostics) + `ExtractionResult` (records+edges+diagnostics) | Property | P0 | NFR-006-AC-4 | 🚧 |
+| TC-579 | Fuzz: arbitrary byte slices (lossy `&str`) into `parse_document`/`validate_document`/`extract` run clean (no panic/UB) for the scheduled duration; crashes committed as regression reproducers | Integration | P0 | NFR-019-AC-1 | 🚧 |
+| TC-580 | Proptest: random strings (empty, fence-only, frontmatter-only, deeply nested) into `parse_document`/`validate_document`/`extract` always return a value or typed error, never panic | Property | P0 | NFR-019-AC-2 | 🚧 |
 
 ---
 
@@ -460,10 +477,6 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 
 | AC | Covering TC(s) |
 |---|---|
-| US-001-AC-1 | TC-009 |
-| US-001-AC-2 | TC-003 |
-| US-001-AC-3 | TC-006 |
-| US-001-AC-4 | TC-009 |
 | US-002-AC-1 | TC-200 |
 | US-002-AC-2 | TC-020, TC-021 |
 | US-002-AC-3 | TC-002 |
@@ -471,28 +484,14 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | US-003-AC-2 | TC-019 |
 | US-003-AC-3 | TC-073, TC-040 |
 | US-003-AC-4 | TC-560, TC-558 |
-| US-004-AC-1 | TC-007 |
-| US-004-AC-2 | TC-205 |
-| US-004-AC-3 | TC-206 |
 | US-005-AC-1 | TC-031 |
 | US-005-AC-2 | TC-204 |
 | US-005-AC-3 | TC-204 |
 | US-005-AC-4 | TC-041 |
-| US-006-AC-1 | TC-009, TC-420 |
-| US-006-AC-2 | TC-420, TC-432 |
-| US-006-AC-3 | TC-422 |
-| US-006-AC-4 | TC-424 |
-| US-007-AC-1 | TC-441 |
-| US-007-AC-2 | TC-422 |
-| US-007-AC-3 | TC-432, TC-433 |
-| US-007-AC-4 | TC-424 |
 | US-008-AC-1 | TC-440, TC-432 |
 | US-008-AC-2 | TC-440 |
 | US-008-AC-3 | TC-420 |
 | US-008-AC-4 | TC-443, TC-401 |
-| US-009-AC-1 | TC-003 |
-| US-009-AC-2 | TC-006 |
-| US-009-AC-3 | TC-024 |
 | US-010-AC-1 | TC-070 |
 | US-010-AC-2 | TC-073 |
 | US-010-AC-3 | TC-057 |
@@ -531,11 +530,6 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 
 | AC | Covering TC(s) |
 |---|---|
-| FR-001-AC-1 | TC-003 |
-| FR-001-AC-2 | TC-004 |
-| FR-001-AC-3 | TC-006 |
-| FR-001-AC-4 | TC-008 |
-| FR-001-AC-5 | TC-005 |
 | FR-002-AC-1 | TC-007 |
 | FR-002-AC-2 | TC-007 |
 | FR-002-AC-3 | TC-007b |
@@ -547,10 +541,6 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-003-AC-2 | TC-009b |
 | FR-003-AC-3 | TC-061 |
 | FR-003-AC-4 | TC-062 |
-| FR-004-AC-1 | TC-010 |
-| FR-004-AC-2 | TC-008 |
-| FR-004-AC-3 | TC-011 |
-| FR-004-AC-4 | TC-160 |
 | FR-005-AC-1 | TC-001 |
 | FR-005-AC-2 | TC-001 |
 | FR-005-AC-3 | TC-001 |
@@ -587,11 +577,11 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-011-AC-8 | TC-152 |
 | FR-011-AC-13 | TC-563 |
 | FR-011-AC-14 | TC-564 |
-| FR-012-AC-1 | TC-031 |
-| FR-012-AC-2 | TC-030 |
-| FR-012-AC-3 | TC-041 |
-| FR-012-AC-4 | TC-041 (script existence subsumed by regression check) |
-| FR-012-AC-5 | TC-039 |
+| FR-011-AC-15 | TC-565 |
+| FR-011-AC-16 | TC-566 |
+| FR-011-AC-17 | TC-567 |
+| FR-011-AC-18 | TC-568 |
+| FR-011-AC-19 | TC-569 |
 | FR-013-AC-1 | TC-080 |
 | FR-013-AC-2 | TC-081 |
 | FR-013-AC-3 | TC-082 |
@@ -672,7 +662,6 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-027-AC-7 | TC-499 |
 | FR-027-AC-8 | TC-458 |
 | FR-027-AC-9 | TC-500 |
-| FR-028-AC-1 | TC-510 |
 | FR-028-AC-2 | TC-511 |
 | FR-028-AC-3 | TC-512 |
 | FR-028-AC-4 | TC-513 |
@@ -706,12 +695,19 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-032-AC-4 | TC-531 |
 | FR-032-AC-5 | TC-532 |
 | FR-032-AC-6 | TC-533 |
+| FR-032-AC-7 | TC-573 |
+| FR-032-AC-8 | TC-574 |
+| FR-032-AC-9 | TC-575 |
+| FR-032-AC-10 | TC-576 |
 | FR-033-AC-1 | TC-534 |
 | FR-033-AC-2 | TC-535 |
 | FR-033-AC-3 | TC-536 |
-| FR-033-AC-4 | TC-537, TC-561, TC-562 |
+| FR-033-AC-4 | TC-537, TC-562 |
 | FR-033-AC-5 | TC-538 |
 | FR-033-AC-6 | TC-539 |
+| FR-033-AC-7 | TC-570 |
+| FR-033-AC-8 | TC-571 |
+| FR-033-AC-9 | TC-572, TC-561, TC-562 |
 | FR-034-AC-1 | TC-540 |
 | FR-034-AC-2 | TC-541 |
 | FR-034-AC-3 | TC-542 |
@@ -725,12 +721,10 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 
 | AC | Covering TC(s) |
 |---|---|
-| NFR-001-AC-1 | TC-042 |
-| NFR-001-AC-2 | TC-042 (sweep across corpus) |
-| NFR-001-AC-3 | TC-042 (regression-gate assertion) |
 | NFR-002-AC-1 | TC-052 |
 | NFR-002-AC-2 | TC-052 (regression-gate assertion) |
 | NFR-002-AC-3 | TC-053 |
+| NFR-002-AC-4 | TC-577 |
 | NFR-003-AC-1 | TC-050 |
 | NFR-003-AC-2 | TC-050 |
 | NFR-003-AC-3 | TC-050 |
@@ -741,9 +735,9 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | NFR-005-AC-1 | TC-054 |
 | NFR-005-AC-2 | TC-054 |
 | NFR-005-AC-3 | TC-055 |
-| NFR-006-AC-1 | TC-056 |
 | NFR-006-AC-2 | TC-057 |
 | NFR-006-AC-3 | TC-058 |
+| NFR-006-AC-4 | TC-578 |
 | NFR-007-AC-1 | TC-083 |
 | NFR-007-AC-2 | TC-120 |
 | NFR-007-AC-3 | TC-121 |
@@ -787,12 +781,26 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | NFR-018-AC-2 | TC-505 |
 | NFR-018-AC-3 | TC-504, TC-505 |
 | NFR-018-AC-4 | (process AC; covered by P0-reproducer policy, parity with NFR-011-AC-4) |
+| NFR-019-AC-1 | TC-579 |
+| NFR-019-AC-2 | TC-580 |
 
-**Coverage status: 314 / 314 ACs covered (100%).** v0.2 block model added 16 ACs (FR-019..022, TC-400..443). v0.3 adds 81 ACs — StR-005/006, US-011..013, FR-023..027 (incl. review-added FR-026-AC-8, FR-027-AC-9), NFR-015/016, plus the hardening re-review (NFR-003-AC-4, NFR-012-AC-5, FR-024-AC-9, NFR-017, NFR-018) — all covered by TC-455..507 (plus reused TC-456..459). PC (performance criteria) for US-011..013 are tracked as benches (TC-455..459, TC-469) and marked 🚧 pending implementation, consistent with the US-006..010 perf-bench convention. The v0.3 hardening re-review (loom NFR-017, TSAN/ASAN NFR-018) is recorded in spec.md §19.
+**Coverage status: 295 / 295 ACs covered (100%).** v0.2 block model added 16 ACs (FR-019..022, TC-400..443). v0.3 adds 81 ACs — StR-005/006, US-011..013, FR-023..027 (incl. review-added FR-026-AC-8, FR-027-AC-9), NFR-015/016, plus the hardening re-review (NFR-003-AC-4, NFR-012-AC-5, FR-024-AC-9, NFR-017, NFR-018) — all covered by TC-455..507 (plus reused TC-456..459). PC (performance criteria) for US-011..013 are tracked as benches (TC-455..459, TC-469) and marked 🚧 pending implementation, consistent with the US-006..010 perf-bench convention. The v0.3 hardening re-review (loom NFR-017, TSAN/ASAN NFR-018) is recorded in spec.md §19.
 
 **v0.4 markdown-validation slice** adds 42 ACs — US-014 (author validates markdown), FR-029 (archetype input contract, recast by ADR 0004), FR-030 (required-section validation, superseded by FR-032/FR-033), FR-031 (unified archetype shape), FR-032 (`validate_document`), FR-033 (locator `assert` facet), FR-034 (assert field interpolation), FR-035 (per-level heading uniqueness) — covered by TC-518..553. FR-030's ACs are mapped to the FR-032/FR-033 TCs that subsume them (per its CR note). This slice also back-fills 7 ACs that a prior commit left out of the audit table — FR-013-AC-11..14, FR-028-AC-9/10, US-003-AC-4 — via TC-554..560. New v0.4 TCs are 🚧 pending implementation.
 
-**Integrity check (grep-verified):** all **316 distinct file-defined ACs** (definition-anchored: bold `**<ID>-AC-N**:` declarations) across `stakeholder/ usecase/ functional/ non-functional/` appear in the AC→TC audit table — **0 uncovered**. Note: `FR-900-AC-1/2` appearing inside FR-034-AC-1's example prose are NOT defined ACs and are excluded from the denominator (match `**…**:` definitions, not inline mentions). The spec-review back-filled the v0.2 US-006..010 ACs and the v0.4 slice back-filled FR-013-AC-11..14 / FR-028-AC-9/10 / US-003-AC-4 that were previously covered only outside the audit table.
+**v0.4 render-removal slice (2026-06-04)** retires the render half (no
+backward-compatibility layer — see spec.md §2bis.C). **37 ACs are dropped from the
+required-coverage tally** by un-bolding their definitions (so the integrity grep no
+longer counts them): FR-001 (5), FR-004 (4), FR-012 (5), NFR-001 (3), US-001 (4),
+US-004 (3), US-006 (4), US-007 (4), US-009 (3), plus FR-028-AC-1 and NFR-006-AC-1.
+The retired AC ids are immutable and preserved inline in their (now RETIRED) source
+docs, marked `(RETIRED)`, but are no longer bold-anchored. **16 back-fill ACs are
+added:** FR-011-AC-15..19, FR-033-AC-7..9, FR-032-AC-7..10, NFR-002-AC-4,
+NFR-006-AC-4, NFR-019-AC-1..2 — covered by TC-565..580. TC-561 is re-pointed off
+FR-033-AC-4 onto FR-033-AC-9 (the non-table `id_pattern` case); TC-562 covers both
+FR-033-AC-4 and FR-033-AC-9.
+
+**Integrity check (grep-verified):** all **295 distinct file-defined ACs** (definition-anchored: bold `**<ID>-AC-N**:` declarations) across `stakeholder/ usecase/ functional/ non-functional/` appear in the AC→TC audit table — **0 uncovered**. Note: `FR-900-AC-1/2` appearing inside FR-034-AC-1's example prose are NOT defined ACs and are excluded from the denominator (match `**…**:` definitions, not inline mentions). Retired ACs (marked `(RETIRED)`, un-bolded) are excluded by construction. Count: 316 (pre-removal) − 37 (retired) + 16 (back-fill) = **295**.
 
 ---
 

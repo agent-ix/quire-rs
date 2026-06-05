@@ -1,6 +1,13 @@
 # Task 012: Render Parity Gate (G2)
 
-Status: blocked on Task 011
+Status: **RETIRED** (render removal — 2026-06-04)
+
+> The render/templating feature is removed (no backward-compatibility layer). This
+> task and Quality Gate **G2** (render parity) are retired. Block round-trip
+> integrity is now gated by **G4** (reframed to byte-splice-only). See `spec.md`
+> §2bis and the retired FR-012. Kept for history.
+
+Original status: blocked on Task 011
 
 ## Scope
 

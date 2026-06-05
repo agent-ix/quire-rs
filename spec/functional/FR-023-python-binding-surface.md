@@ -14,9 +14,15 @@ relationships:
     cardinality: "1:1"
 ---
 
+> **CR note (render removal — 2026-06-04):** The render/templating feature is
+> **removed** from `quire-rs` (no backward-compatibility layer). The binding surface
+> drops `render`/`render_block` (and `QuireRenderError`). It exposes
+> parse / extract / validate / `validate_document` / `load_repo` / corpus only. The
+> Behavior below is updated accordingly. See `spec.md` §2bis.
+
 ## Behavior
 
-`quire-rs` SHALL expose its parse, extract, validate, render, and repository-load surfaces to Python through a **feature-gated** PyO3 binding. The binding is built behind the `python` Cargo feature and packaged as a maturin wheel (`quire` on PyPI). When the `python` feature is **off**, the crate SHALL build and behave exactly as it does today: no PyO3 dependency is compiled, no CPython symbols are linked, and the default-feature dependency graph is unchanged (StR-001 boundary, StR-005-AC-2).
+`quire-rs` SHALL expose its parse, extract, validate, and repository-load surfaces to Python through a **feature-gated** PyO3 binding. The binding is built behind the `python` Cargo feature and packaged as a maturin wheel (`quire` on PyPI). When the `python` feature is **off**, the crate SHALL build and behave exactly as it does today: no PyO3 dependency is compiled, no CPython symbols are linked, and the default-feature dependency graph is unchanged (StR-001 boundary, StR-005-AC-2).
 
 The bindings invert the call direction relative to StR-001: Python calls *into* Rust. `quire-rs` still never shells *out* to an interpreter.
 
@@ -27,7 +33,7 @@ The `python` feature SHALL expose, as a Python module `quire`:
 - `parse_document(text: str) -> Document` — wraps `parse_document` (FR-005). `Document` exposes frontmatter (as a Python `dict`), sections (heading, level, content, block id, line bounds), and preamble.
 - `extract(doc, dsl) -> list[dict]` — wraps the body-extraction evaluator (FR-011/016).
 - `validate(data, archetype_or_block_type) -> list[Violation]` — wraps schema validation (FR-002); violations carry the dotted field path and message (NFR-005).
-- `render_block(...) / render(...)` — wraps render dispatch (FR-001).
+- `validate_document(archetype, text) -> ValidationResult` — wraps markdown document validation (FR-032).
 - `Registry` — wraps `Registry::load_from` / `from_env` (FR-013), exposing `archetype_names()` and lookup.
 - `load_repo(path) -> RepoLoad` — wraps the parallel repository walk (FR-024).
 - `Spec` / corpus constructor — wraps the corpus (FR-025) and its queries (FR-027), where the corpus feature is built.

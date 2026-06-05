@@ -21,6 +21,13 @@ relationships:
 > required-section completeness (presence at level, non-empty, no placeholder) and
 > add table-column / row-count / list-item / id assertions. This FR is retained for
 > history and traceability; new work targets FR-032/FR-033. See ADR 0004 and ADR 0005.
+>
+> **Decision note (2026-06-04):** The placeholder sentinel set was **reduced** —
+> bare `none` and `n/a` are NOT sentinels (they reject legitimate content like
+> `Upstream: none`). The authoritative set and matching rules live in FR-032
+> (FR-032-AC-7/AC-8). Empty/header-only tables and item-less lists report reason
+> **`empty`** (and absent locators report **`missing`**) — NOT `placeholder`; see
+> FR-032-AC-9. The prose below is corrected to match.
 
 ## Behavior
 
@@ -28,14 +35,17 @@ relationships:
 
 For any archetype with `required_sections`, validation SHALL parse the artifact body and verify that each required heading exists at the declared level, has non-empty content before the next peer-or-higher heading, and does not consist only of placeholder/default text.
 
-Placeholder content SHALL include:
+Placeholder content (reason `placeholder`) SHALL include (authoritative set in
+FR-032-AC-7):
 
-- `TODO`
-- `TBD`
-- unresolved template markers such as `{{...}}`
-- case-insensitive `placeholder`
-- generic empty-state phrases such as `none specified`
-- empty markdown tables or lists with no substantive cells/items
+- `TODO` / `TBD` (case-insensitive prefix)
+- unresolved template markers — a whole-value `{{...}}`
+- case-insensitive whole-value `placeholder`
+- generic empty-state phrases such as whole-value `none specified`
+
+Bare `none` and `n/a` are **not** placeholders. Empty markdown tables (header-only)
+or lists (no items) are **not** reported as `placeholder` — they report reason
+`empty`; a section/locator that does not resolve at all reports reason `missing`.
 
 The engine SHALL expose this as a durable validation path used by CLI validation and library consumers. Frontmatter schema success is necessary but not sufficient for a document to validate.
 
