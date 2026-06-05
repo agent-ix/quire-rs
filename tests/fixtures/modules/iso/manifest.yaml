@@ -230,6 +230,57 @@ artifact_types:
           from: section_body
           after_heading: Dependencies
           required: true
+- name: master-requirements
+  grammar_ref: iso-spec-core
+  frontmatter_schema_ref: schemas/master-requirements-frontmatter.schema.json
+  allowed_links:
+  - depends_on
+  - references
+  examples: []
+  lint_rules_ref: []
+  body_extraction:
+    yield_pattern:
+      match:
+        title:
+          from: heading
+          level: 1
+          regex: ^Master Requirements Specification$
+          required: true
+          assert:
+            level: 1
+        purpose:
+          from: section_body
+          after_heading: Purpose
+          required: true
+          assert:
+            level: 2
+        scope:
+          from: heading
+          level: 2
+          regex: ^Scope$
+          required: true
+          assert:
+            level: 2
+        system_overview:
+          from: heading
+          level: 2
+          regex: ^System Overview$
+          required: true
+          assert:
+            level: 2
+        requirements_architecture:
+          from: heading
+          level: 2
+          regex: ^Requirements Architecture$
+          required: true
+          assert:
+            level: 2
+        references:
+          from: section_body
+          after_heading: References
+          required: true
+          assert:
+            level: 2
 doc_kinds:
 - spec
 object_types: []

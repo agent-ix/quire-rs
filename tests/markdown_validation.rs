@@ -206,6 +206,134 @@ fn registry_assert_path_fails_on_wrong_columns() {
     );
 }
 
+// ── FR-003 (spec-artifacts-iso): the generic master-requirements archetype ──
+//
+// The root spec.md (artifact_type: master-requirements) validates against the
+// ninth registered archetype: a bespoke frontmatter schema (no id/title; kebab
+// component_type) plus the canonical body (H1 title + Purpose/Scope/System
+// Overview/Requirements Architecture/References). Proves a level-1 heading
+// locator and a frontmatter-only-shape archetype travel manifest → load →
+// validate_document.
+
+const CONFORMANT_MASTER: &str = "---\n\
+artifact_type: master-requirements\n\
+name: example-service\n\
+org: agent-ix\n\
+component_type: fastapi-service\n\
+---\n\
+# Master Requirements Specification\n\
+\n\
+## Purpose\n\
+This document specifies the requirements for the example service so that\n\
+implementers and consumers share one authoritative definition of done.\n\
+\n\
+## Scope\n\
+### In Scope\n\
+- The service's public API and the behaviour each requirement pins down.\n\
+\n\
+## System Overview\n\
+### System Description\n\
+A concise description of the service and its place in the wider system.\n\
+\n\
+## Requirements Architecture\n\
+The requirement classes that make up this specification and how they trace.\n\
+\n\
+## References\n\
+- ISO/IEC/IEEE 29148 — Requirements engineering.\n";
+
+// FR-003-AC-3: a conformant master spec validates.
+#[test]
+fn conformant_master_requirements_validates() {
+    let r = iso_registry();
+    let a = r
+        .archetype("master-requirements")
+        .expect("master-requirements archetype");
+    let result = quire_rs::validate_document(a, CONFORMANT_MASTER);
+    assert!(result.is_valid, "expected valid, got: {:?}", result.errors);
+}
+
+// FR-003-AC-4: a missing component_type fails with reason `frontmatter`.
+#[test]
+fn master_requirements_missing_component_type_fails() {
+    let r = iso_registry();
+    let a = r.archetype("master-requirements").expect("archetype");
+    let mutated = CONFORMANT_MASTER.replace("component_type: fastapi-service\n", "");
+    let result = quire_rs::validate_document(a, &mutated);
+    assert!(!result.is_valid);
+    assert!(result
+        .errors
+        .iter()
+        .any(|e| e.reason == ValidationReason::Frontmatter));
+}
+
+// FR-003-AC-5: a non-kebab component_type fails the pattern (frontmatter).
+#[test]
+fn master_requirements_non_kebab_component_type_fails() {
+    let r = iso_registry();
+    let a = r.archetype("master-requirements").expect("archetype");
+    let mutated = CONFORMANT_MASTER.replace(
+        "component_type: fastapi-service",
+        "component_type: \"Fast API Service\"",
+    );
+    let result = quire_rs::validate_document(a, &mutated);
+    assert!(!result.is_valid);
+    assert!(result
+        .errors
+        .iter()
+        .any(|e| e.reason == ValidationReason::Frontmatter));
+}
+
+// FR-003-AC-6: dropping the H1 title fails with reason `missing` (level-1
+// heading locator).
+#[test]
+fn master_requirements_missing_h1_title_fails() {
+    let r = iso_registry();
+    let a = r.archetype("master-requirements").expect("archetype");
+    let mutated =
+        CONFORMANT_MASTER.replace("# Master Requirements Specification", "# example-service");
+    let result = quire_rs::validate_document(a, &mutated);
+    assert!(!result.is_valid);
+    let e = result
+        .errors
+        .iter()
+        .find(|e| e.reason == ValidationReason::Missing)
+        .expect("a missing diagnostic for the H1 title");
+    assert!(e.message.contains("title"), "{}", e.message);
+}
+
+// FR-003-AC-6: dropping a required canonical section fails with `missing`.
+#[test]
+fn master_requirements_missing_section_fails() {
+    let r = iso_registry();
+    let a = r.archetype("master-requirements").expect("archetype");
+    let mutated = CONFORMANT_MASTER.replace(
+        "## References\n- ISO/IEC/IEEE 29148 — Requirements engineering.\n",
+        "",
+    );
+    let result = quire_rs::validate_document(a, &mutated);
+    assert!(!result.is_valid);
+    let e = result
+        .errors
+        .iter()
+        .find(|e| e.reason == ValidationReason::Missing)
+        .expect("a missing-section diagnostic");
+    assert!(e.message.contains("References"), "{}", e.message);
+}
+
+// FR-003-AC-7: optional/extra sections (Domain Model, Security Model) are
+// accepted — the contract asserts required structure, it does not forbid extras.
+#[test]
+fn master_requirements_optional_sections_accepted() {
+    let r = iso_registry();
+    let a = r.archetype("master-requirements").expect("archetype");
+    let doc = format!(
+        "{CONFORMANT_MASTER}\n## Domain Model\nEntities and invariants.\n\
+\n## Security Model\nActor roles and trust boundaries.\n"
+    );
+    let result = quire_rs::validate_document(a, &doc);
+    assert!(result.is_valid, "expected valid, got: {:?}", result.errors);
+}
+
 // FR-035 (TC-544/547): a duplicate heading at the same level fails with
 // reason `duplicate-heading`, line-numbered at the second heading.
 #[test]
