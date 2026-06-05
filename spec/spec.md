@@ -236,6 +236,7 @@ context mode is removed.
 | **NFR-001** Render latency | NFR | No render path to bench; perf gate now parse/validate/extract |
 | **US-001** LLM emits validated patch (→ render) | US | Render-centric |
 | **US-004** Editor merge-validate-render | US | Render-centric (block edits now byte-splice only) |
+| **US-005** CI detects render regression | US | Render byte-parity suite (`render_parity/`) removed; missed in the first pass, retired here |
 | **US-006** LLM patches one block (render+splice) | US | Render-and-splice path retired |
 | **US-007** LLM replaces a block (render+splice) | US | Render-and-splice path retired |
 | **US-009** LLM creates a new artifact (render) | US | Whole-artifact render retired; author markdown directly |
