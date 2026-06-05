@@ -78,3 +78,29 @@ authorizes it, and where the Rust port asserts the deliberate behavior.
   `---` fences per FR-006-AC-5..6. The TS/Py parity tests never exercise
   these cases, so there's nothing to skip — but a Rust extension test
   in `src/parser/frontmatter.rs` covers them.
+
+## 9. `~~~` (tilde) code fences in `extractDiagrams` are a Rust extension
+
+- **TS reference (`query.ts:extractDiagrams`):** the fence scanner uses
+  `/^```(\w*)/` and closes on `line.trimStart().startsWith('```')` — it
+  recognizes **backtick fences only**. A `~~~` fenced block is invisible
+  to the TS diagram/code-block extractor.
+- **Rust (`src/query.rs:scan_fenced_blocks`):** the scanner recognizes
+  **both** ``` and `~~~` fences, captures the info-string after either,
+  and closes a block ONLY on a fence line of the **same** character (a
+  `~~~` line inside a ``` block — and vice versa — is content). This
+  mirrors the parser's own fence model (`src/parser/walk.rs::fence_kind`,
+  FR-007-AC-3/AC-4), so the heading walk and the code-block scanner agree
+  on what opens/closes a block.
+- **Authority:** FR-011-AC-14 (scanner recognizes ``` and `~~~` with
+  matching-character close, parity with the FR-007 parser fence model).
+  This is an intentional extension of the TS surface, not a parity break:
+  the TS suite has no `~~~` `extractDiagrams` fixture that the Rust
+  behavior would contradict.
+- **Rust ports:** `query_ts.rs::divergence_9_tilde_fences_are_a_rust_extension`
+  asserts the extension; `src/query.rs` unit tests
+  (`tilde_fence_block_is_extracted`, `backtick_block_is_not_closed_by_tilde_line`,
+  `tilde_block_is_not_closed_by_backtick_line`,
+  `unclosed_tilde_block_is_emitted_as_final_block`) and
+  `src/extract/locator.rs::code_block_resolves_tilde_fenced_block_under_section`
+  cover the scanner and the section-owned locator.

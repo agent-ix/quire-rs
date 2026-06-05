@@ -54,7 +54,32 @@ fn re_heading() -> &'static Regex {
 
 fn re_fence_open() -> &'static Regex {
     static R: OnceLock<Regex> = OnceLock::new();
-    R.get_or_init(|| Regex::new(r"^```(\w*)").expect("fence-open regex"))
+    // Either fence character (``` or ~~~), capturing the info-string word.
+    // Mirrors the parser's FR-007 fence model so the scanner and the
+    // heading walk agree on what opens a block.
+    R.get_or_init(|| Regex::new(r"^(?:```|~~~)(\w*)").expect("fence-open regex"))
+}
+
+/// The fence character that opened a code block. A block opened with one
+/// kind is closed ONLY by a fence line of the same kind; a mismatched
+/// fence line is content (mirrors `walk.rs::FenceKind` + FR-007-AC-4).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum FenceKind {
+    Backtick,
+    Tilde,
+}
+
+impl FenceKind {
+    /// The fence kind a `trim_start`ed line opens or closes, if any.
+    fn of_line(trimmed_start: &str) -> Option<Self> {
+        if trimmed_start.starts_with("```") {
+            Some(Self::Backtick)
+        } else if trimmed_start.starts_with("~~~") {
+            Some(Self::Tilde)
+        } else {
+            None
+        }
+    }
 }
 
 fn re_type_annotation() -> &'static Regex {
@@ -360,48 +385,54 @@ fn scan_fenced_blocks(
 ) -> Vec<DiagramBlock> {
     let mut out: Vec<DiagramBlock> = Vec::new();
     let mut current_section: Option<String> = None;
-    let mut in_block: bool = false;
+    // `Some(kind)` while inside a block opened by `kind`; `None` otherwise.
+    let mut open_fence: Option<FenceKind> = None;
     let mut block_lang: String = String::new();
     let mut block_lines: Vec<String> = Vec::new();
     let mut block_index: usize = 0;
 
     for line in body.split('\n') {
-        if !in_block && track_headings {
+        if open_fence.is_none() && track_headings {
             if let Some(cap) = re_heading().captures(line) {
                 current_section = Some(cap.get(2).unwrap().as_str().trim().to_string());
                 continue;
             }
         }
         let trimmed_start = line.trim_start();
-        if !in_block {
-            if let Some(cap) = re_fence_open().captures(trimmed_start) {
-                in_block = true;
-                block_lang = cap
-                    .get(1)
-                    .map(|m| m.as_str().to_string())
-                    .unwrap_or_default();
-                block_lines.clear();
-                continue;
+        match open_fence {
+            None => {
+                if let Some(cap) = re_fence_open().captures(trimmed_start) {
+                    // The capture only matches after a valid fence open, so
+                    // the line's fence kind is necessarily `Some`.
+                    open_fence = FenceKind::of_line(trimmed_start);
+                    block_lang = cap
+                        .get(1)
+                        .map(|m| m.as_str().to_string())
+                        .unwrap_or_default();
+                    block_lines.clear();
+                }
             }
-        } else if trimmed_start.starts_with("```") {
-            push_block(
-                &mut out,
-                &mut block_index,
-                &block_lang,
-                &block_lines,
-                &current_section,
-                language,
-            );
-            in_block = false;
-            block_lang.clear();
-            block_lines.clear();
-            continue;
-        } else {
-            block_lines.push(line.to_string());
-            continue;
+            // Close ONLY on a matching-character fence line; a mismatched
+            // fence (e.g. `~~~` inside a ``` block) is content (FR-007-AC-4).
+            Some(open) if FenceKind::of_line(trimmed_start) == Some(open) => {
+                push_block(
+                    &mut out,
+                    &mut block_index,
+                    &block_lang,
+                    &block_lines,
+                    &current_section,
+                    language,
+                );
+                open_fence = None;
+                block_lang.clear();
+                block_lines.clear();
+            }
+            Some(_) => {
+                block_lines.push(line.to_string());
+            }
         }
     }
-    if in_block && !block_lines.is_empty() {
+    if open_fence.is_some() && !block_lines.is_empty() {
         push_block(
             &mut out,
             &mut block_index,
@@ -661,6 +692,59 @@ mod tests {
         let blocks = diagrams_from_content(content, None);
         assert_eq!(blocks.len(), 1);
         assert_eq!(blocks[0].tag.as_deref(), Some("sequence"));
+    }
+
+    // ─── FR-011-AC-14: tilde (`~~~`) fence support, matching-char close ──
+
+    #[test]
+    fn tilde_fence_block_is_extracted() {
+        let input = "## Diagrams\n~~~mermaid\ngraph TD;\n  a-->b\n~~~";
+        let d = parse_document(input);
+        let all = extract_diagrams(&d, None);
+        assert_eq!(all.len(), 1);
+        assert_eq!(all[0].language, "mermaid");
+        assert_eq!(all[0].source, "graph TD;\n  a-->b");
+        assert_eq!(all[0].section.as_deref(), Some("Diagrams"));
+    }
+
+    #[test]
+    fn tilde_fence_in_content_slice_is_extracted() {
+        let content = "prose\n~~~mermaid\ngraph TD;\n  a-->b\n~~~\nmore";
+        let all = diagrams_from_content(content, None);
+        assert_eq!(all.len(), 1);
+        assert_eq!(all[0].language, "mermaid");
+        assert_eq!(all[0].source, "graph TD;\n  a-->b");
+        assert_eq!(all[0].section, None);
+    }
+
+    #[test]
+    fn backtick_block_is_not_closed_by_tilde_line() {
+        // A `~~~` line inside a ``` block is CONTENT, not a close.
+        let input = "## D\n```mermaid\nfoo\n~~~\nbar\n```";
+        let d = parse_document(input);
+        let all = extract_diagrams(&d, None);
+        assert_eq!(all.len(), 1);
+        assert_eq!(all[0].language, "mermaid");
+        assert_eq!(all[0].source, "foo\n~~~\nbar");
+    }
+
+    #[test]
+    fn tilde_block_is_not_closed_by_backtick_line() {
+        // A ``` line inside a `~~~` block is CONTENT, not a close.
+        let content = "~~~mermaid\nfoo\n```\nbar\n~~~";
+        let all = diagrams_from_content(content, None);
+        assert_eq!(all.len(), 1);
+        assert_eq!(all[0].language, "mermaid");
+        assert_eq!(all[0].source, "foo\n```\nbar");
+    }
+
+    #[test]
+    fn unclosed_tilde_block_is_emitted_as_final_block() {
+        let content = "~~~mermaid\nfoo\nbar";
+        let blocks = diagrams_from_content(content, None);
+        assert_eq!(blocks.len(), 1);
+        assert!(blocks[0].source.contains("foo"));
+        assert!(blocks[0].source.contains("bar"));
     }
 
     // ─── search ─────────────────────────────────────────────────────────

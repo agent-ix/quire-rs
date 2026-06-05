@@ -268,6 +268,22 @@ fn extract_diagrams_assigns_sequential_indices() {
     assert_eq!(diagrams[1].index, 1);
 }
 
+// Divergence #9 (see divergences.md): the TS reference's `extractDiagrams`
+// recognizes ``` fences ONLY (`/^```(\w*)/`). The Rust scanner additionally
+// recognizes `~~~` fences with matching-character close, matching the
+// parser's own FR-007-AC-4 tilde handling. This is a deliberate extension,
+// not a parity break — the TS suite has no `~~~` extractDiagrams fixture to
+// contradict. The Rust-extension behavior is asserted here.
+#[test]
+fn divergence_9_tilde_fences_are_a_rust_extension() {
+    let md = "## Arch\n~~~mermaid\ngraph TD\n  A --> B\n~~~";
+    let doc = parse_document(md);
+    let diagrams = extract_diagrams(&doc, None);
+    assert_eq!(diagrams.len(), 1);
+    assert_eq!(diagrams[0].language, "mermaid");
+    assert!(diagrams[0].source.contains("A --> B"));
+}
+
 // Skipped: `findDiagramByTag` / `parseDelegations` are not part of the
 // quire-rs v1 query surface (FR-010). See divergences.md.
 

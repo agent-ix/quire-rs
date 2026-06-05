@@ -671,6 +671,28 @@ mod tests {
     }
 
     #[test]
+    fn code_block_resolves_tilde_fenced_block_under_section() {
+        // FR-011-AC-14: a section-owned `code_block` locator resolves a
+        // `~~~`-fenced block under its heading, like a ``` block.
+        let d = parse_document(
+            "## Workflow\n~~~mermaid\ngraph TD; WANT-->ME\n~~~\n\
+             ## Other\nprose\n",
+        );
+        let v = eval(
+            &d,
+            &LocatorPrimitive::CodeBlock {
+                language: Some("mermaid".into()),
+                under_section: Some("Workflow".into()),
+                required: false,
+                regex: None,
+                assert: None,
+            },
+        );
+        assert_eq!(v.len(), 1);
+        assert!(v[0].as_str().unwrap().contains("WANT-->ME"));
+    }
+
+    #[test]
     fn code_block_under_missing_section_returns_empty() {
         let d = parse_document("## A\n```mermaid\ng\n```\n");
         let v = eval(

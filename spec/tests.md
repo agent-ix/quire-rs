@@ -63,7 +63,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | FR-008 Byte-exact slicing | AC-1..3 | TC-022, TC-023, TC-024 | ✅ Complete |
 | FR-009 Slug-line ID | AC-1..5 | TC-025, TC-026 | ✅ Complete |
 | FR-010 Query API | AC-1..3 | TC-027, TC-028, TC-029 | ✅ Complete |
-| FR-011 DSL (6 locators + yields) | AC-1..5, AC-13 | TC-018, TC-019, TC-040, TC-070 (iterate_over), TC-072 (each locator), TC-073 (corpus sweep), TC-563 (code_block section-owned) | ✅ Complete |
+| FR-011 DSL (6 locators + yields) | AC-1..5, AC-13, AC-14 | TC-018, TC-019, TC-040, TC-070 (iterate_over), TC-072 (each locator), TC-073 (corpus sweep), TC-563 (code_block section-owned), TC-564 (tilde fence parity) | ✅ Complete |
 | FR-012 Corpus parity suite | AC-1..5 | TC-030 (sweep), TC-031 (corpus.yaml), TC-041 (regression), TC-039 (data-only-extension) | ✅ Complete |
 | FR-013 Archetype loader | AC-1..6 | TC-080 (empty env), TC-081 (load iso), TC-082 (bad schema_ref), TC-083 (bench), TC-084 (no IO post-load), TC-085 (no net deps) | ✅ Complete |
 | FR-014 Module activation | AC-1..5 | TC-090 (multi-module), TC-091 (collision), TC-092 (strict), TC-093 (version), TC-094 (17-baseline union) | ✅ Complete |
@@ -163,6 +163,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-072 | Each of 6 Locator primitives exercised by ≥1 unit test | Unit | P0 | FR-011-AC-1 | 🚧 |
 | TC-073 | DSL required:true missing field returns MissingField | Unit | P0 | FR-011-AC-4 | 🚧 |
 | TC-563 | `code_block` is section-owned: single-yield `under:X` excludes other sections; multi-yield `per_match` isolates each unit's block, required-miss → MissingField for the unit lacking one | Unit | P0 | FR-011-AC-13 | ✅ |
+| TC-564 | Scanner recognizes ``` and `~~~` fences with matching-character close: `~~~mermaid` extracted as `mermaid`; cross-char fence line is content; unclosed `~~~` flushed as final block; section-owned `code_block` resolves a `~~~` block | Unit | P0 | FR-011-AC-14 | ✅ |
 | TC-080 | Registry::from_env() with no IX_SCHEMA_PATH and no default dir → empty registry, no error | Unit | P0 | FR-013-AC-1 | 🚧 |
 | TC-081 | IX_SCHEMA_PATH pointing at spec-artifacts-iso loads all 8 ISO archetypes | Integration | P0 | FR-013-AC-2 | 🚧 |
 | TC-082 | Manifest with missing schema_ref produces ArchetypeLoadError; siblings still load | Integration | P0 | FR-013-AC-3 | 🚧 |
@@ -585,6 +586,7 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-011-AC-7 | TC-151 |
 | FR-011-AC-8 | TC-152 |
 | FR-011-AC-13 | TC-563 |
+| FR-011-AC-14 | TC-564 |
 | FR-012-AC-1 | TC-031 |
 | FR-012-AC-2 | TC-030 |
 | FR-012-AC-3 | TC-041 |
@@ -790,7 +792,7 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 
 **v0.4 markdown-validation slice** adds 42 ACs — US-014 (author validates markdown), FR-029 (archetype input contract, recast by ADR 0004), FR-030 (required-section validation, superseded by FR-032/FR-033), FR-031 (unified archetype shape), FR-032 (`validate_document`), FR-033 (locator `assert` facet), FR-034 (assert field interpolation), FR-035 (per-level heading uniqueness) — covered by TC-518..553. FR-030's ACs are mapped to the FR-032/FR-033 TCs that subsume them (per its CR note). This slice also back-fills 7 ACs that a prior commit left out of the audit table — FR-013-AC-11..14, FR-028-AC-9/10, US-003-AC-4 — via TC-554..560. New v0.4 TCs are 🚧 pending implementation.
 
-**Integrity check (grep-verified):** all **315 distinct file-defined ACs** (definition-anchored: bold `**<ID>-AC-N**:` declarations) across `stakeholder/ usecase/ functional/ non-functional/` appear in the AC→TC audit table — **0 uncovered**. Note: `FR-900-AC-1/2` appearing inside FR-034-AC-1's example prose are NOT defined ACs and are excluded from the denominator (match `**…**:` definitions, not inline mentions). The spec-review back-filled the v0.2 US-006..010 ACs and the v0.4 slice back-filled FR-013-AC-11..14 / FR-028-AC-9/10 / US-003-AC-4 that were previously covered only outside the audit table.
+**Integrity check (grep-verified):** all **316 distinct file-defined ACs** (definition-anchored: bold `**<ID>-AC-N**:` declarations) across `stakeholder/ usecase/ functional/ non-functional/` appear in the AC→TC audit table — **0 uncovered**. Note: `FR-900-AC-1/2` appearing inside FR-034-AC-1's example prose are NOT defined ACs and are excluded from the denominator (match `**…**:` definitions, not inline mentions). The spec-review back-filled the v0.2 US-006..010 ACs and the v0.4 slice back-filled FR-013-AC-11..14 / FR-028-AC-9/10 / US-003-AC-4 that were previously covered only outside the audit table.
 
 ---
 

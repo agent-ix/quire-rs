@@ -50,6 +50,27 @@ and a `code_block` assert under iteration checks only that unit's content.
 > (US-010 / RAG), no longer the locator substrate. No manifest/schema change: the three
 > object types already declare `after_heading`.
 
+### Fence-character parity for `code_block` — CR-004
+
+The fenced-code-block scanner that backs `code_block` (and the document-wide
+`extract_diagrams` harvest) SHALL recognize **both** ` ``` ` (backtick) and `~~~`
+(tilde) fences, capturing the info-string (language word) after either fence, and
+SHALL close a block ONLY on a fence line whose character **matches** the opening
+fence. A `~~~` line inside a ` ``` ` block (and a ` ``` ` line inside a `~~~` block)
+is **content**, not a close. This mirrors the parser's heading-walk fence model
+(FR-007-AC-3 tilde support, FR-007-AC-4 matching-character independence), so the
+heading walk and the code-block scanner agree on what opens and closes a block.
+
+> **CR-004 note:** The original scanner (`src/query.rs`) recognized backtick fences
+> only (`^```(\w*)`), matching the TS reference's `extractDiagrams`. The parser's
+> heading walk already handled `~~~` (FR-007-AC-3/AC-4); the scanner did not, so a
+> `~~~`-fenced diagram was invisible to `code_block`/`extract_diagrams` even though
+> the same block correctly suppressed inner headings during the parse walk. The fix
+> extends the scanner to the same two-fence, matching-character model. This is an
+> intentional extension of the TS surface (recorded in
+> `tests/parser_parity/divergences.md` §9), not a parity break: the TS suite has no
+> `~~~` `extractDiagrams` fixture. No manifest/schema change.
+
 ### Yield patterns (single XOR multi)
 
 Each `body_extraction.yield_pattern` is one of:
@@ -109,3 +130,4 @@ Single-yield DSLs return `records.len() <= 1`; multi-yield returns one record pe
 - **FR-011-AC-7**: A DSL with an unknown key (e.g. `from: section_bodyy` typo) produces `QuireError::ArchetypeLoadError` at load time.
 - **FR-011-AC-8**: A DSL with `iterate_over.section_path: [Nonexistent]` against a document missing that section returns `ExtractionResult { records: [], diagnostics: [IterateRootMissing] }`.
 - **FR-011-AC-13**: A `code_block` `per_match` locator under `iterate_over` is section-owned: against a document where each iteration unit owns its own fenced block, each yielded record receives **its own** unit's block (not unit #1's for all), and a `required: true` `code_block` locator returns `QuireError::MissingField` for the specific unit that lacks a block — proving containment, not a document-wide fallback. A single-yield `code_block under: X` returns only `X`'s block, excluding a same-language block in a different section.
+- **FR-011-AC-14**: The fenced-code-block scanner recognizes both ` ``` ` and `~~~` fences and closes a block only on a matching-character fence line (parity with the FR-007 parser fence model): a `~~~mermaid` block is extracted with language `mermaid`; a `~~~` line inside a ` ``` ` block (and a ` ``` ` line inside a `~~~` block) is content, not a close; an unclosed `~~~` block is flushed as the final block; and a section-owned `code_block` locator resolves a `~~~` block under its heading.
