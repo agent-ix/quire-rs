@@ -215,9 +215,9 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-350 | All 6 fuzz targets compile and run cleanly for 60s on baseline | Integration | P0 | NFR-011-AC-1, NFR-011-AC-2 | 🚧 |
 | TC-351 | .github/workflows/fuzz.yml runs all targets weekly | Static | P0 | NFR-011-AC-3 | 🚧 |
 | TC-352 | Discovered crash reproducer committed under fuzz/corpus + regression test | Integration | P1 | NFR-011-AC-4 | 🚧 |
-| TC-360 | miri CI job runs cargo +nightly miri test --lib on schedule + tag | Static | P0 | NFR-012-AC-1 | 🚧 |
-| TC-361 | miri job completes within 30 minutes | Integration | P0 | NFR-012-AC-3 | 🚧 |
-| TC-362 | miri-flagged UB recorded as P0 issue | Process | P0 | NFR-012-AC-4 | 🚧 |
+| TC-360 | (RETIRED — ADR 0006) miri CI job removed; first-party safety is compile-time `forbid(unsafe_code)` (NFR-003-AC-5) | Static | P0 | NFR-012-AC-1 (RETIRED) | ⊘ |
+| TC-361 | (RETIRED — ADR 0006) miri job removed | Integration | P0 | NFR-012-AC-3 (RETIRED) | ⊘ |
+| TC-362 | (RETIRED — ADR 0006) miri job removed | Process | P0 | NFR-012-AC-4 (RETIRED) | ⊘ |
 | TC-370 | cargo-mutants config declares parser/extract/edges target paths | Static | P0 | NFR-013-AC-1 | 🚧 |
 | TC-371 | CI workflow runs cargo-mutants weekly + workflow_dispatch | Static | P0 | NFR-013-AC-2 | 🚧 |
 | TC-372 | mutants report uploaded as CI artifact | Static | P1 | NFR-013-AC-3 | 🚧 |
@@ -300,7 +300,8 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-504 | TSAN lane: two-thread `load_repo` (GIL-release window) reports zero data races | Integration | P0 | NFR-018-AC-1, NFR-018-AC-3 | 🚧 |
 | TC-505 | ASAN lane: FFI object-handoff test set reports zero leaks/UAF (interpreter noise suppressed) | Integration | P0 | NFR-018-AC-2, NFR-018-AC-3 | 🚧 |
 | TC-506 | `rg 'unsafe {' src/` returns zero matches with `--features python` enabled | Static | P0 | NFR-003-AC-4 | 🚧 |
-| TC-507 | miri job runs without `python` feature; FFI-scope note present in workflow/§19 | Static | P1 | NFR-012-AC-5 | 🚧 |
+| TC-507 | (RETIRED — ADR 0006) miri job removed; FFI scope note moot | Static | P1 | NFR-012-AC-5 (RETIRED) | ⊘ |
+| TC-582 | Crate root carries `#![cfg_attr(not(feature = "python"), forbid(unsafe_code))]`; default `cargo build` compiles (compiler proves zero first-party unsafe) and adding a first-party `unsafe` block fails the default build; `--features python` compiles with forbid scoped off | Static | P0 | NFR-003-AC-5 | 🚧 |
 | TC-510 | `quire.render(archetype, module_root, data)` byte-equals `quire_rs::render_by_name` for same inputs | Integration | P0 | FR-028-AC-1 (RETIRED) | ⛔ RETIRED — render removed |
 | TC-511 | `quire.validate` returns None on valid data; raises `QuireValidationError` with dotted field path on invalid | Integration | P0 | FR-028-AC-2, NFR-005 | 🚧 |
 | TC-512 | `quire.validate_manifest`: happy path returns `[]`; bad payload returns structured `{path, message, schema_keyword}` records; missing schema raises `QuireSchemaError` | Integration | P0 | FR-028-AC-3 | 🚧 |
@@ -727,6 +728,7 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | NFR-003-AC-2 | TC-050 |
 | NFR-003-AC-3 | TC-050 |
 | NFR-003-AC-4 | TC-506 |
+| NFR-003-AC-5 | TC-582 |
 | NFR-004-AC-1 | TC-051 |
 | NFR-004-AC-2 | TC-051 |
 | NFR-004-AC-3 | TC-051 |
@@ -752,11 +754,7 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | NFR-011-AC-2 | TC-350 |
 | NFR-011-AC-3 | TC-351 |
 | NFR-011-AC-4 | TC-352 |
-| NFR-012-AC-1 | TC-360 |
-| NFR-012-AC-2 | (workflow definition; covered by TC-360) |
-| NFR-012-AC-3 | TC-361 |
-| NFR-012-AC-4 | TC-362 |
-| NFR-012-AC-5 | TC-507 |
+| NFR-012-AC-1..5 | RETIRED (ADR 0006 — miri job removed; superseded by NFR-003-AC-5 forbid + cargo-audit NFR-014) |
 | NFR-013-AC-1 | TC-370 |
 | NFR-013-AC-2 | TC-371 |
 | NFR-013-AC-3 | TC-372 |
@@ -782,7 +780,7 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | NFR-019-AC-1 | TC-579 |
 | NFR-019-AC-2 | TC-580 |
 
-**Coverage status: 291 / 291 ACs covered (100%).** v0.2 block model added 16 ACs (FR-019..022, TC-400..443). v0.3 adds 81 ACs — StR-005/006, US-011..013, FR-023..027 (incl. review-added FR-026-AC-8, FR-027-AC-9), NFR-015/016, plus the hardening re-review (NFR-003-AC-4, NFR-012-AC-5, FR-024-AC-9, NFR-017, NFR-018) — all covered by TC-455..507 (plus reused TC-456..459). PC (performance criteria) for US-011..013 are tracked as benches (TC-455..459, TC-469) and marked 🚧 pending implementation, consistent with the US-006..010 perf-bench convention. The v0.3 hardening re-review (loom NFR-017, TSAN/ASAN NFR-018) is recorded in spec.md §19.
+**Coverage status: 288 / 288 ACs covered (100%).** v0.2 block model added 16 ACs (FR-019..022, TC-400..443). v0.3 adds 81 ACs — StR-005/006, US-011..013, FR-023..027 (incl. review-added FR-026-AC-8, FR-027-AC-9), NFR-015/016, plus the hardening re-review (NFR-003-AC-4, FR-024-AC-9, NFR-017, NFR-018) — covered by TC-455..507 (plus reused TC-456..459). The Miri ACs (NFR-012-AC-1..5) were **retired** (ADR 0006) and the compile-time **NFR-003-AC-5** (`forbid(unsafe_code)`, TC-582) added. PC (performance criteria) for US-011..013 are tracked as benches (TC-455..459, TC-469) and marked 🚧 pending implementation, consistent with the US-006..010 perf-bench convention. The v0.3 hardening re-review (loom NFR-017, TSAN/ASAN NFR-018) is recorded in spec.md §19.
 
 **v0.4 markdown-validation slice** adds 42 ACs — US-014 (author validates markdown), FR-029 (archetype input contract, recast by ADR 0004), FR-030 (required-section validation, superseded by FR-032/FR-033), FR-031 (unified archetype shape), FR-032 (`validate_document`), FR-033 (locator `assert` facet), FR-034 (assert field interpolation), FR-035 (per-level heading uniqueness) — covered by TC-518..553. FR-030's ACs are mapped to the FR-032/FR-033 TCs that subsume them (per its CR note). This slice also back-fills 7 ACs that a prior commit left out of the audit table — FR-013-AC-11..14, FR-028-AC-9/10, US-003-AC-4 — via TC-554..560. New v0.4 TCs are 🚧 pending implementation.
 
@@ -800,7 +798,7 @@ NFR-006-AC-4, NFR-019-AC-1..2 — covered by TC-565..580. TC-561 is re-pointed o
 FR-033-AC-4 onto FR-033-AC-9 (the non-table `id_pattern` case); TC-562 covers both
 FR-033-AC-4 and FR-033-AC-9.
 
-**Integrity check (grep-verified):** all **292 distinct file-defined ACs** (definition-anchored: bold `**<ID>-AC-N**:` declarations) across `stakeholder/ usecase/ functional/ non-functional/` appear in the AC→TC audit table — **0 uncovered**. Note: `FR-900-AC-1/2` appearing inside FR-034-AC-1's example prose are NOT defined ACs and are excluded from the denominator (match `**…**:` definitions, not inline mentions). Retired ACs (marked `(RETIRED)`, un-bolded) are excluded by construction. Count: 316 (pre-removal) − 41 (retired) + 16 (back-fill) + 1 (FR-011-AC-20, CR-005 heading normalization) = **292**.
+**Integrity check (grep-verified):** all **288 distinct file-defined ACs** (definition-anchored: bold `**<ID>-AC-N**:` declarations) across `stakeholder/ usecase/ functional/ non-functional/` appear in the AC→TC audit table — **0 uncovered**. Note: `FR-900-AC-1/2` appearing inside FR-034-AC-1's example prose are NOT defined ACs and are excluded from the denominator (match `**…**:` definitions, not inline mentions). Retired ACs (marked `(RETIRED)`, un-bolded) are excluded by construction. Count: 316 (pre-removal) − 41 (retired) + 16 (back-fill) + 1 (FR-011-AC-20, CR-005 heading normalization) − 5 (NFR-012-AC-1..5 retired, ADR 0006) + 1 (NFR-003-AC-5, forbid(unsafe_code)) = **288**.
 
 ---
 
@@ -828,7 +826,7 @@ v0.2 block-model tests (TC-400..443) — ✅ IMPLEMENTED and passing under `make
 
 Total v0.2 block-model assertions exercised: 24 dedicated tests + parser walk tests sharing block_id paths.
 
-v0.3 corpus + bindings tests (TC-455..507) — DRAFT, not yet implemented. Cover the Python binding surface (FR-023), the parallel `load_repo` walk (FR-024), the `Spec` corpus + intra-spec resolution + whole-spec queries (FR-025..027), the new NFRs (walk throughput NFR-015, binding overhead NFR-016), and the v0.3 hardening re-review (loom NFR-017, TSAN/ASAN NFR-018, unsafe/miri FFI scoping NFR-003-AC-4/NFR-012-AC-5, no-shared-mutable-state FR-024-AC-9). 49 new test cases (TC-455..507; incl. TC-500/501 from spec-review and TC-502..507 from the hardening re-review).
+v0.3 corpus + bindings tests (TC-455..507) — DRAFT, not yet implemented. Cover the Python binding surface (FR-023), the parallel `load_repo` walk (FR-024), the `Spec` corpus + intra-spec resolution + whole-spec queries (FR-025..027), the new NFRs (walk throughput NFR-015, binding overhead NFR-016), and the v0.3 hardening re-review (loom NFR-017, TSAN/ASAN NFR-018, unsafe FFI scoping NFR-003-AC-4 (miri NFR-012 retired — ADR 0006; replaced by compile-time NFR-003-AC-5), no-shared-mutable-state FR-024-AC-9). 49 new test cases (TC-455..507; incl. TC-500/501 from spec-review and TC-502..507 from the hardening re-review).
 
 | Category | Total | Passed | Failed | Blocked | Coverage |
 |----------|-------|--------|--------|---------|----------|

@@ -112,7 +112,7 @@ This specification governs a **generic, archetype-agnostic engine** that process
 
 **Cross-cutting:**
 - Safety scaffolding inherited from `agent-ix/rust-lib-cookiecutter` (clippy MSRV, deny.toml, `// SAFETY:` enforcement)
-- Hardening hygiene: fuzz (cargo-fuzz), miri UB check, mutation testing (cargo-mutants), advisory checking (cargo-audit) — all required, not opt-in
+- Hardening hygiene: compile-time `forbid(unsafe_code)` (NFR-003), fuzz (cargo-fuzz), mutation testing (cargo-mutants), advisory checking (cargo-audit) — all required, not opt-in. (The scheduled Miri job was retired — ADR 0006.)
 - Public Rust API stable across parse, render, edit, writeback, and extract surfaces
 - Engine is **offline by default** — works against the local filesystem with zero network dependencies
 
@@ -134,7 +134,7 @@ This specification does not govern:
 - **Cross-document graph queries — *general/stateful*.** `agent-ix/quire` ships a React provider that indexes multiple parsed documents and exposes hooks for cross-doc queries. The *general, stateful* graph engine remains out of scope: no persistence of a resolved graph, no query/traversal DSL, no caching across calls, no incremental reparse on change, and no resolution of references that point into a **different** spec. These are service-layer concerns (see ADR-0002). **Carve-out:** the bounded, in-memory, ephemeral **per-spec corpus** (FR-025/026/027) *is* in scope — it loads one spec, resolves the references *within that loaded set*, and answers whole-spec read-only queries, then is discarded. The rule is: intra-spec resolution = `quire-rs`; inter-spec or stateful = service layer (StR-006).
 - CRDT or OT live-editing semantics.
 - Schema-driven template generation (schemas validate; templates present; neither generates the other).
-- Heavy hardening tooling (kani formal verification, loom / shuttle concurrency permutation, sim-spire) — opt-in via future cookiecutter variant. (Standard Rust safety hygiene — fuzz, miri, mutants, advisory — is required and in scope.)
+- Heavy hardening tooling (kani formal verification, shuttle concurrency permutation, sim-spire) — opt-in via future cookiecutter variant. (Standard Rust safety hygiene — `forbid(unsafe_code)`, fuzz, mutants, advisory — is required and in scope. Scheduled Miri was retired per ADR 0006; loom (NFR-017) is adopted for the concurrency surface.)
 - Real-time multi-user editing.
 - Generating Rust types from JSON Schemas. Downstream Rust consumers that want typed bindings author them by hand or use `schemars` themselves — `quire-rs` does not derive types.
 
@@ -177,7 +177,7 @@ The v0.1 implementation drifted from `INPUT.md`. The v0.2 spec restores discover
 - FR-003 schema_for, FR-004 strict MiniJinja env
 - FR-011/016 body-extraction DSL (reworked around block-level scope)
 - FR-013 archetype loader (reworked: `blocks/<type>/...` layout)
-- NFR-001..007, NFR-009..010, NFR-011..014 (perf, safety, error shape, determinism, dep pinning, API stability, fuzz, miri, mutants, audit)
+- NFR-001..007, NFR-009..010, NFR-011/013/014 (perf, safety, error shape, determinism, dep pinning, API stability, fuzz, mutants, audit). NFR-012 (Miri) retired — ADR 0006.
 - HTML / comrak references: already purged in `08f5b00` (never asked for in discovery)
 
 ### B. quire-TS (`agent-ix/quire`) ↔ quire-rs
@@ -679,7 +679,7 @@ Functional requirements SHALL be verified using one or more of:
 - **Property tests** — `proptest` roundtrips, especially for the parser (parse → render → parse equivalence where applicable)
 - **Criterion benchmarks** — for NFR latency targets
 - **Python binding tests (`pytest`)** — the `python`-feature wheel is verified from Python via a `pytest` harness (built with `maturin develop`): parse/validate/render parity vs the Rust API, exception-mapping, GIL-release concurrency, and abi3 cross-version import (FR-023 / NFR-016). The Rust test suite cannot exercise the FFI boundary; pytest is the verification method for the binding layer.
-- **Concurrency + FFI hardening** — `loom` exhaustive interleaving on the parallel-walk path (NFR-017) and scheduled `TSAN`/`ASAN` lanes on the built extension (NFR-018) cover the concurrency and FFI surfaces that miri cannot reach.
+- **Concurrency + FFI hardening** — `loom` exhaustive interleaving on the parallel-walk path (NFR-017) and scheduled `TSAN`/`ASAN` lanes on the built extension (NFR-018) cover the concurrency and FFI surfaces. (First-party `unsafe`/UB is compile-impossible via `forbid(unsafe_code)`, NFR-003; the Miri job was retired — ADR 0006.)
 
 Verification evidence SHALL reference test cases in `test_cases/`.
 
@@ -786,14 +786,15 @@ If the syncer violates this contract (non-atomic writes, malformed YAML, etc.), 
 |---|---|---|
 | `cargo fmt --check` | Formatting drift | StR-004 (inherited) |
 | `cargo clippy -- -D warnings` | Lint discipline | StR-004 (inherited) |
-| `// SAFETY:` comment enforcement | Unsafe-comment baseline | NFR-003 |
+| `#![forbid(unsafe_code)]` (default build) | Zero first-party `unsafe` — compile-time impossible (scoped off for `python`) | NFR-003 |
+| `// SAFETY:` comment enforcement | Unsafe-comment baseline (covers the `python` build where forbid is off) | NFR-003 |
 | Zero `unsafe` blocks | Memory-safety surface = empty | NFR-003 |
 | `cargo deny check licenses` | License hygiene | NFR-004 |
 | `proptest` (determinism + roundtrip) | Property testing | NFR-006 |
 | Dependency version pinning | Load-bearing crates pinned | NFR-009 |
 | Public API stability (semver) | Consumer contract | NFR-010 |
 | **`cargo-fuzz` on untrusted-input surfaces** | Coverage-guided fuzzing (incl. v0.3 `load_repo` + resolution) | NFR-011 |
-| **`cargo miri test --lib`** | UB detection (incl. in deps); default-feature only — see FFI scope note | NFR-012 |
+| ~~`cargo miri test --lib`~~ **RETIRED** (ADR 0006) | Removed — zero first-party `unsafe` (now compile-enforced by `forbid`); dependency UB → cargo-audit; Miri false-positived on rayon | NFR-012 (retired) |
 | **`cargo-mutants` on high-value paths** | Test-quality validation | NFR-013 |
 | **`cargo-audit` daily + on PR** | RustSec advisory check | NFR-014 |
 | **`loom` on the parallel-walk path** *(v0.3)* | Exhaustive interleaving for the rayon fan-out (FR-024) | NFR-017 |
@@ -802,7 +803,7 @@ If the syncer violates this contract (non-atomic writes, malformed YAML, etc.), 
 
 ### v0.3 re-review (corpus + bindings)
 
-The v0.3 surface — rayon data-parallelism (FR-024), a CPython C-ABI boundary (FR-023), and untrusted on-disk trees — invalidated two v1 skip rationales. **loom** (was skipped: "no synchronization primitives") and the **address/thread sanitizers** (were skipped: "marginal for safe Rust above miri") are now adopted, scoped to the new surfaces. The remaining skips below were re-examined against v0.3 and still hold, with refreshed rationale.
+The v0.3 surface — rayon data-parallelism (FR-024), a CPython C-ABI boundary (FR-023), and untrusted on-disk trees — invalidated two v1 skip rationales. **loom** (was skipped: "no synchronization primitives") and the **address/thread sanitizers** (were skipped: "marginal for safe Rust above the unsafe-comment audit") are now adopted, scoped to the new surfaces. The remaining skips below were re-examined against v0.3 and still hold, with refreshed rationale.
 
 ### Skipped (with rationale)
 
@@ -810,7 +811,7 @@ The v0.3 surface — rayon data-parallelism (FR-024), a CPython C-ABI boundary (
 |---|---|
 | **kani** (model checker) | Best for algorithm kernels with complex invariants and bounded state. `quire-rs` parser is a linear walk; slug normalization is straightforward. v0.3 reference resolution (FR-026) is a hash-join with no complex invariant. `proptest` already covers the relevant invariants at lower operational cost. |
 | **shuttle** (randomized scheduler) | `loom` (NFR-017) adopted instead for the one concurrent path (the FR-024 data-parallel collect). At v0.3's concurrency size, loom's exhaustive small-scope checking is sufficient and stronger than shuttle's randomized scheduling. Reconsider shuttle only if a future version adds shared-mutable concurrency (a cache/pool). |
-| **cargo-careful** (std-with-debug-asserts) | Belt-and-suspenders with miri for the pure-Rust core; redundant signal. (The FFI boundary cargo-careful also cannot reach is covered by NFR-018 sanitizers, not careful.) |
+| **cargo-careful** (std-with-debug-asserts) | Marginal for a `forbid(unsafe_code)` pure-Rust core (no first-party `unsafe`); dependency advisories are covered by cargo-audit. (The FFI boundary cargo-careful cannot reach is covered by NFR-018 sanitizers.) |
 | **cargo-vet** (supply-chain attestation) | High org-wide operational lift (audits, vetted versions, maintained `audits.toml`). v0.3 expands the dependency surface (`ignore`, `rayon`, `sha2`, `uuid`; `pyo3`/`maturin` feature-gated), which raises the *priority* for org-level adoption — but it remains better adopted org-wide than crate-by-crate. `cargo-audit` (NFR-014) covers advisories meanwhile. Defer to ix-org policy. |
 | **Big-endian qemu tests** | `quire-rs` is text-in / text-out. v0.3 id derivation (SHA-256 → UUID5) is byte-deterministic regardless of host endianness; no endian-sensitive binary serialization. |
 | **SIMD differential tests** | `quire-rs` does not use SIMD. rayon data-parallelism is task-level, not SIMD. |
@@ -820,9 +821,9 @@ The v0.3 surface — rayon data-parallelism (FR-024), a CPython C-ABI boundary (
 
 ### Implementation notes
 
-- Fuzz / miri / mutants / **loom (NFR-017)** / **TSAN + ASAN (NFR-018)** run on weekly schedule + workflow_dispatch + tag push — NOT per-PR. Per-PR jobs are the cookiecutter floor (fmt/clippy/test/deny/audit-unsafe/audit-static) plus `cargo-audit`. Heavy hardening lanes are scheduled to keep PR latency low.
+- Fuzz / mutants / **loom (NFR-017)** / **TSAN + ASAN (NFR-018)** run on weekly schedule + workflow_dispatch + tag push — NOT per-PR. Per-PR jobs are the cookiecutter floor (fmt/clippy/test/deny/audit-unsafe/audit-static) plus `cargo-audit`. Heavy hardening lanes are scheduled to keep PR latency low.
 - `make ci` runs the per-PR set locally. `make hardening` runs the scheduled set locally for pre-tag verification (now incl. `make loom` + `make sanitize`).
-- miri runs default-feature only (no FFI); the `python`-feature binding layer is covered by the pytest harness (FR-023) + the sanitizer lanes (NFR-018).
+- **Miri retired (ADR 0006):** first-party `unsafe` is compile-impossible via `#![forbid(unsafe_code)]` (NFR-003-AC-5), so there is no first-party UB surface; dependency advisories are covered by `cargo-audit` (NFR-014). The `python`-feature binding layer is covered by the pytest harness (FR-023) + the sanitizer lanes (NFR-018).
 - Discovered crashes / UB / advisory hits are P0 — fix or contain before next release.
 
 ---

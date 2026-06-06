@@ -11,7 +11,19 @@ relationships:
     cardinality: "1:1"
 ---
 
-## Statement
+> **RETIRED (2026-06, CR — supersedes the Miri job; see ADR 0006).** The Miri job
+> is removed. First-party UB is now a **compile-time impossibility**: NFR-003-AC-5
+> makes the default build carry `#![forbid(unsafe_code)]`, so any first-party
+> `unsafe` is a hard compile error (Miri's runtime check is moot — there is nothing
+> first-party for it to interpret). Miri's only remaining rationale here was
+> **dependency** UB, but Miri-over-deps is low-signal/high-noise — it aborts on a
+> **Stacked-Borrows false-positive inside rayon's thread pool** (a sound, upstream-
+> Miri-tested crate), ran >1h, and `rust-lib-cookiecutter` treats "miri-on-main" as
+> opt-in. Dependency unsoundness is covered by **cargo-audit** (RUSTSEC advisories,
+> NFR-014) + tight pins (NFR-009); the concurrency surface by **loom** (NFR-017).
+> All ACs below are retired (un-bolded; excluded from the AC→TC integrity tally).
+
+## Statement (RETIRED)
 
 `quire-rs` SHALL run `cargo +nightly miri test --lib` on a CI schedule (weekly + workflow_dispatch + on every tag push). miri detects undefined behavior at runtime — even with zero first-party `unsafe` (NFR-003), miri can catch UB introduced by dependency crates (validator, MiniJinja internals, serde, etc.).
 
@@ -36,11 +48,11 @@ Even safe Rust can encounter UB through unsound dep crates. miri's runtime check
 
 ## Acceptance Criteria
 
-- **NFR-012-AC-1**: `.github/workflows/ci.yml` contains a `miri:` job that runs `cargo +nightly miri test --lib` on weekly schedule + workflow_dispatch + tag push.
-- **NFR-012-AC-2**: The job uses caching (`Swatinem/rust-cache@v2`) to amortize the nightly toolchain install.
-- **NFR-012-AC-3**: Test suite under `cargo miri test --lib` completes in under 30 minutes on the GitHub-hosted Ubuntu runner.
-- **NFR-012-AC-4**: A miri-flagged UB violation is recorded as a P0 issue with the offending stack trace.
-- **NFR-012-AC-5**: The `miri` job runs without the `python` feature; a doc note (in the workflow or `spec/spec.md` §19) records that the FFI layer is out of miri's scope and is covered by NFR-018 sanitizer lanes + the FR-023 pytest harness.
+- NFR-012-AC-1 (RETIRED): `.github/workflows/ci.yml` contains a `miri:` job that runs `cargo +nightly miri test --lib` on weekly schedule + workflow_dispatch + tag push.
+- NFR-012-AC-2 (RETIRED): The job uses caching (`Swatinem/rust-cache@v2`) to amortize the nightly toolchain install.
+- NFR-012-AC-3 (RETIRED): Test suite under `cargo miri test --lib` completes in under 30 minutes on the GitHub-hosted Ubuntu runner.
+- NFR-012-AC-4 (RETIRED): A miri-flagged UB violation is recorded as a P0 issue with the offending stack trace.
+- NFR-012-AC-5 (RETIRED): The `miri` job runs without the `python` feature; a doc note records that the FFI layer is out of miri's scope and is covered by NFR-018 sanitizer lanes + the FR-023 pytest harness.
 
 ## Verification
 

@@ -17,7 +17,7 @@ Implement the v0.3 hardening re-review (spec.md §19): prove the parallel-walk p
 - [ ] **TSAN lane (NFR-018-AC-1).** Build the `python`-feature extension with `-Z sanitizer=thread`; run a two-thread `load_repo` harness (the GIL-release window, TC-464) + concurrent `parse_document`. Zero races.
 - [ ] **ASAN lane (NFR-018-AC-2).** Build with `-Z sanitizer=address`; run the object-handoff test set (results crossing to Python then dropped). Zero leaks/UAF in first-party handoff; maintain `asan.supp` for interpreter-internal noise (each suppression carries a rationale).
 - [ ] **Sanitizer CI lanes (NFR-018-AC-3).** Scheduled + workflow_dispatch + tag push; `make sanitize` local target.
-- [ ] **miri scope note (NFR-012-AC-5).** Confirm the `miri` job runs without `python`; record the FFI-out-of-scope note in the workflow/§19.
+- [~] **miri scope note (NFR-012-AC-5).** **RETIRED (ADR 0006)** — the miri job was removed; first-party UB is compile-impossible via `forbid(unsafe_code)` (NFR-003-AC-5).
 - [ ] **unsafe scope (NFR-003-AC-4).** Confirm `rg 'unsafe {' src/` is zero with `--features python`.
 
 ## Owns

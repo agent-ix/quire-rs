@@ -23,9 +23,10 @@ When upstream tightens MSRV, clippy lints, license allowlist, or audit scripts,
 backport changes here via the `backport-code` skill (StR-004-AC-3). Drift is
 detected on each `make ci` run via `scripts/audits/verify_cookiecutter_inheritance.sh`.
 
+- **`#![cfg_attr(not(feature = "python"), forbid(unsafe_code))]`** at the crate root is the safety guarantee: the default build makes any first-party `unsafe` a **compile error** (NFR-003-AC-5). It's scoped off for `--features python` because PyO3 macros expand to `unsafe` in-crate. **The Miri job is retired (ADR 0006)** — with zero first-party `unsafe` enforced at compile time there's no first-party UB surface; dependency advisories are covered by `cargo-audit` (NFR-014), the concurrency surface by `loom` (NFR-017).
 - `clippy.toml` pins MSRV to `1.75` and caps cognitive complexity / arg count
 - `deny.toml` allow-lists licenses and denies unknown registries/git sources
-- `scripts/check_unsafe_comments.sh` runs in CI and locally via `make audit-unsafe`. Every `unsafe {` block must have a `// SAFETY:` comment within the 3 preceding lines, or be listed in `scripts/unsafe_comment_baseline.txt`. Update the baseline with `bash scripts/check_unsafe_comments.sh --update-baseline`.
+- `scripts/check_unsafe_comments.sh` runs in CI and locally via `make audit-unsafe`. Retained because it covers the **`python`** build, where `forbid(unsafe_code)` is scoped off — every `unsafe {` block must have a `// SAFETY:` comment within the 3 preceding lines, or be listed in `scripts/unsafe_comment_baseline.txt` (currently empty). Update the baseline with `bash scripts/check_unsafe_comments.sh --update-baseline`.
 - `rustfmt.toml` uses 100-char width and `StdExternalCrate` import grouping. CI fails on drift.
 - `rust-toolchain.toml` pins to stable + rustfmt + clippy.
 

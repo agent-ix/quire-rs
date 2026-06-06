@@ -88,7 +88,7 @@ the Filament parser cutover. This amends the v0.3 PyO3 binding work.
 - [x] **NFR-009** Dependency version pinning per the validator-choice ADR
 - [x] **NFR-010** API stability + CHANGELOG.md
 - [x] **NFR-011** Fuzz: cargo-fuzz targets for parse, frontmatter, apply_block_patch, extract_dsl, load_manifest, load_schema, update_block
-- [x] **NFR-012** miri UB check (weekly + tag-push)
+- [~] **NFR-012** miri UB check — **RETIRED (ADR 0006)**; superseded by compile-time `forbid(unsafe_code)` (NFR-003-AC-5) + cargo-audit (NFR-014)
 - [x] **NFR-013** Mutation testing (cargo-mutants weekly)
 - [x] **NFR-014** Advisory checking (cargo-audit daily + on PR)
 

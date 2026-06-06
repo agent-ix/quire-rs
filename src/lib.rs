@@ -5,6 +5,11 @@
 //! templating feature has been removed (no backward-compatibility layer);
 //! markdown is canonical and authored directly. See `spec/spec.md` §2bis.
 
+// Compile-time guarantee: no first-party `unsafe`. The `python` feature pulls in
+// PyO3 macros that expand to `unsafe` in-crate, so the forbid is scoped to the
+// non-python build; first-party `src/python` is itself `unsafe`-free (NFR-003).
+#![cfg_attr(not(feature = "python"), forbid(unsafe_code))]
+
 pub mod ast;
 pub mod contract;
 pub mod corpus;

@@ -14,7 +14,7 @@ Implement the four scheduled-hardening NFRs:
 ## Subtasks
 
 - [ ] **Fuzz infrastructure (NFR-011).** `fuzz/` via `cargo +nightly fuzz init`. 6 targets: `fuzz_parse_document`, `fuzz_extract_frontmatter`, `fuzz_apply_patch`, `fuzz_extract_dsl`, `fuzz_load_manifest`, `fuzz_load_schema`. `.github/workflows/fuzz.yml` weekly + workflow_dispatch. `make fuzz` 60s smoke per target.
-- [ ] **miri job (NFR-012).** `miri:` job in `.github/workflows/ci.yml` (schedule + workflow_dispatch + tag push). `make miri` local. Cache nightly + miri component.
+- [~] **miri job (NFR-012).** **RETIRED (ADR 0006)** — job + `make miri` removed; first-party UB is compile-impossible via `forbid(unsafe_code)` (NFR-003-AC-5), dependency advisories via cargo-audit (NFR-014).
 - [ ] **Mutants config + job (NFR-013).** `.cargo/mutants.toml` declaring target paths. `mutants:` job in CI (weekly + workflow_dispatch). `mutants_baseline.txt` placeholder. `make mutants` local.
 - [ ] **Advisory check (NFR-014).** `audit:` job in CI on PR + push + daily 06:00 UTC schedule. `make cargo-audit` local.
 

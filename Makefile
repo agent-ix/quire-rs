@@ -28,11 +28,10 @@ help:
 	@echo ""
 	@echo "Hardening (scheduled / pre-tag):"
 	@echo "  make cargo-audit      - cargo audit (RUSTSEC advisories)"
-	@echo "  make miri             - cargo +nightly miri test --lib (UB detection)"
 	@echo "  make mutants          - cargo mutants -p quire-rs --in-place --check"
 	@echo "  make fuzz             - 60s smoke run of each cargo-fuzz target"
 	@echo "  make audit-static     - Run all scripts/audits/*.sh"
-	@echo "  make hardening        - Full pre-tag set: audit-static + cargo-audit + miri + mutants + fuzz"
+	@echo "  make hardening        - Full pre-tag set: audit-static + cargo-audit + mutants + fuzz + loom"
 
 # =============================================================================
 # Format / Lint / Test
@@ -92,13 +91,8 @@ audit-static:
 # Hardening (scheduled-only in CI; available locally on demand)
 # =============================================================================
 
-.PHONY: miri
-miri:
-	@if ! rustup toolchain list | grep -q nightly; then \
-		echo "miri: nightly toolchain not installed. Run: rustup toolchain install nightly --component miri"; \
-		exit 1; \
-	fi
-	$(CARGO) +nightly miri test --lib
+# miri target retired — ADR 0006 (first-party UB is compile-impossible via
+# forbid(unsafe_code); dependency advisories via cargo-audit; concurrency via loom).
 
 .PHONY: mutants
 mutants:
@@ -186,4 +180,4 @@ local-publish: wheel sdist
 	@echo "Published quire to $(LOCAL_PYPI_URL)"
 
 .PHONY: hardening
-hardening: audit-static cargo-audit miri mutants fuzz loom
+hardening: audit-static cargo-audit mutants fuzz loom
