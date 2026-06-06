@@ -19,6 +19,7 @@
 use std::path::{Path, PathBuf};
 
 use ignore::WalkBuilder;
+#[cfg(not(miri))]
 use rayon::prelude::*;
 use uuid::Uuid;
 
@@ -113,7 +114,17 @@ pub fn load_repo_with(root: &Path, opts: &WalkOptions) -> RepoLoad {
 
     // Phase 2 — data-parallel parse. Each task produces an owned
     // `Outcome`; nothing is shared mutably across threads.
+    //
+    // Under Miri, fall back to sequential iteration: rayon's thread-pool
+    // internals trip Miri's Stacked Borrows model (a known third-party
+    // false-positive), and this region has no first-party `unsafe` to check
+    // (NFR-017 — data-parallel, no shared mutable state). The mapped logic is
+    // identical, so Miri still exercises the parse/load path, just on one
+    // thread. Production and normal `cargo test` builds are unaffected.
+    #[cfg(not(miri))]
     let mut outcomes: Vec<Outcome> = files.par_iter().map(|p| parse_one(p)).collect();
+    #[cfg(miri)]
+    let mut outcomes: Vec<Outcome> = files.iter().map(|p| parse_one(p)).collect();
 
     // Deterministic order, independent of thread scheduling.
     outcomes.sort_by(|a, b| a.path().cmp(b.path()));
