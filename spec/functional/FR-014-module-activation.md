@@ -14,7 +14,7 @@ relationships:
 
 - A `spec-artifacts-*` directory (renders artifacts)
 - A `spec-objects-*` directory (defines object types with `body_extraction` DSLs)
-- A `ix-spec-objects`-style directory
+- A `spec-objects-business`-style directory
 - Any other directory matching the manifest convention (FR-013)
 
 When `Registry::load_from(...)` is given a path containing multiple module roots, each module is loaded independently. The registry tracks:

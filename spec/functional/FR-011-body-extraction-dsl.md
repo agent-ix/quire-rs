@@ -13,7 +13,7 @@ relationships:
 
 ## Behavior
 
-`quire-rs` SHALL evaluate the body-extraction DSL used by `spec-objects-*` and `ix-spec-objects` manifests. The DSL is YAML, loaded into a strongly-typed `ExtractionDsl` Rust struct by the consumer; the engine consumes the deserialized values.
+`quire-rs` SHALL evaluate the body-extraction DSL used by `spec-objects-*` and `spec-objects-business` manifests. The DSL is YAML, loaded into a strongly-typed `ExtractionDsl` Rust struct by the consumer; the engine consumes the deserialized values.
 
 ### Locator primitives (6)
 
@@ -180,7 +180,7 @@ Single-yield DSLs return `records.len() <= 1`; multi-yield returns one record pe
 - **FR-011-AC-1**: Each of the 6 Locator primitives is exercised by at least one unit test against a small fixture document; result matches the filament-parser-lib reference for the same input.
 - **FR-011-AC-2**: A multi-yield DSL with `iterate_over: { section_path: [Algorithms], kind: heading, depth: 1 }` against a document with 3 sub-headings under "Algorithms" emits exactly 3 records.
 - **FR-011-AC-4**: A DSL with `required: true` against a missing value returns `QuireError::MissingField` naming the DSL key.
-- **FR-011-AC-5**: A parity sweep evaluates every `body_extraction` DSL from the six object-source repos (`spec-objects-{architecture,business,enterprise,operational,security}` + `ix-spec-objects`, total 87+ object types) against fixture documents and asserts each `ExtractionResult.records` matches the filament-parser-lib Python reference for the same input.
+- **FR-011-AC-5**: A parity sweep evaluates every `body_extraction` DSL from the six object-source repos (`spec-objects-{architecture,business,enterprise,operational,security}`, total 80+ object types) against fixture documents and asserts each `ExtractionResult.records` matches the filament-parser-lib Python reference for the same input.
 - **FR-011-AC-6**: A DSL with both `match` and `iterate_over` set under `yield_pattern` produces `QuireError::ArchetypeLoadError` at load time, NOT at evaluation time.
 - **FR-011-AC-7**: A DSL with an unknown key (e.g. `from: section_bodyy` typo) produces `QuireError::ArchetypeLoadError` at load time.
 - **FR-011-AC-8**: A DSL with `iterate_over.section_path: [Nonexistent]` against a document missing that section returns `ExtractionResult { records: [], diagnostics: [IterateRootMissing] }`.

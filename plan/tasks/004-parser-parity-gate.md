@@ -11,7 +11,7 @@ Transliterate the TS reference test suite from `~/dev/quire/tests/` and the Pyth
 - [ ] **Inventory.** List every test in both reference suites; categorize by feature (frontmatter / headings / fences / slicing / IDs).
 - [ ] **Fixture port.** Copy input markdown + expected output JSON to `tests/parser_parity/fixtures/`.
 - [ ] **Test transliteration.** One Rust test per TS test. Each loads the fixture, parses with `parse_document`, asserts the expected `QuireDocument`.
-- [ ] **Quire-py structural equivalence (TC-021).** Pick a corpus of ~50 real markdown files (sampled from `spec-artifacts-*` and `ix-spec-objects`). Run quire-py + quire-rs; assert equivalent doc structure.
+- [ ] **Quire-py structural equivalence (TC-021).** Pick a corpus of ~50 real markdown files (sampled from `spec-artifacts-*` and `spec-objects-business`). Run quire-py + quire-rs; assert equivalent doc structure.
 
 ## Owns
 

@@ -29,4 +29,4 @@ Must-Have
 
 - **StR-003-AC-1**: The TS reference test suite in `~/dev/quire/tests/` is transliterated to Rust and lives in `~/dev/quire-rs/tests/parser_parity/`. Every TS test has a Rust counterpart.
 - **StR-003-AC-2**: All transliterated tests pass.
-- **StR-003-AC-3**: A property test takes a corpus of real markdown documents (sampled from `spec-artifacts-*` and `ix-spec-objects`) and asserts quire-rs parse output is deterministic and structurally equivalent to the TypeScript fixture contract.
+- **StR-003-AC-3**: A property test takes a corpus of real markdown documents (sampled from `spec-artifacts-*` and `spec-objects-business`) and asserts quire-rs parse output is deterministic and structurally equivalent to the TypeScript fixture contract.

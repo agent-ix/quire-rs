@@ -373,7 +373,7 @@ Each layer has one job and a narrow interface to the next. The parser does not v
 - **`agent-ix/filament-parser-lib`** — the Python orchestration layer; consumes `quire-rs` in-process via the feature-gated PyO3 bindings (FR-023), superseding its own walk/parse/extract/validate hot paths (StR-005). Keeps tier-3 plugin discovery + dispatch in Python; parser/extractor/validator semantics remain in quire-rs.
 - **`spec-artifacts-*` Python repos** — call `quire-rs` via the same PyO3 bindings for parity-rendered artifacts
 - **`spec-analysis-*` / `spec-matrix` tooling and LLM agents auditing a spec** — load a `spec/` tree into a `Spec` corpus (FR-025) and run whole-spec traceability/coverage/reference queries (FR-027) instead of re-walking + re-greps (US-012, US-013)
-- **`ix-spec-objects` extractors** — evaluate `body_extraction` DSL via the parser's Query API
+- **`spec-objects-business` extractors** — evaluate `body_extraction` DSL via the parser's Query API
 - **CLI tools** — invoke the renderer to produce spec artifacts from typed YAML/JSON sources
 - **LLM agents** — receive the on-disk JSON Schemas (surfaced unchanged via `schema_for`) as tool-call input contracts, emit validated patches that the schema layer accepts and the renderer formats
 
@@ -592,7 +592,7 @@ The Query API SHALL expose, at minimum:
 
 ## 10. Body-Extraction DSL
 
-`quire-rs` SHALL evaluate the YAML-encoded body extraction DSL used by `spec-objects-architecture` and `ix-spec-objects`. Extractors keyed by:
+`quire-rs` SHALL evaluate the YAML-encoded body extraction DSL used by `spec-objects-architecture` and `spec-objects-business`. Extractors keyed by:
 
 - `frontmatter_field` — value at a JSONPath in the parsed frontmatter
 - `section_body` — text of the section under a given heading (uses Quire `section()` internally)

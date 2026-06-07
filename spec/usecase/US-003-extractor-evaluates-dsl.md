@@ -6,7 +6,7 @@ relationships:
   - target: "ix://agent-ix/quire-rs/spec/stakeholder/StR-001"
     type: "implements"
     cardinality: "1:1"
-  - target: "ix://agent-ix/ix-spec-objects"
+  - target: "ix://agent-ix/spec-objects-business"
     type: "consumes"
     cardinality: "1:1"
   - target: "ix://agent-ix/spec-objects-architecture"
@@ -25,6 +25,6 @@ The DSL used to be interpreted by `filament-parser-lib` tier-2 in Python. Each c
 ## Acceptance
 
 - **US-003-AC-1**: A test uses the `api_endpoint` DSL from `~/dev/spec-objects-architecture/spec_objects_architecture/manifest.yaml` and asserts the Rust extractor produces a map containing `id`, `title`, `endpoint`, `routes`, `api_contract` for a real fixture document.
-- **US-003-AC-2**: A test uses the `event` DSL (code_block with `language: json`) from `~/dev/ix-spec-objects/object_types/.../event/` and asserts the extracted JSON is byte-equal to the fenced block content.
+- **US-003-AC-2**: A test uses the `event` DSL (code_block with `language: json`) from `~/dev/spec-objects-business/object_types/.../event/` and asserts the extracted JSON is byte-equal to the fenced block content.
 - **US-003-AC-3**: When a `required: true` key fails to extract, `extract()` returns a typed error naming the missing key and the DSL path that failed.
 - **US-003-AC-4**: A Python test constructs `ExtractionContext.from_object_types([...])` from an in-memory ObjectType snapshot and extracts a real document without reading a module root, `.ix`, or package manifest.

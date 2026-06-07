@@ -11,7 +11,7 @@ Extend the DSL evaluator so a `Locator` may be a fallback chain `[primitive, pri
 - [ ] **Locator::Fallback variant.** Already declared in Task 015's design; this task implements the evaluation order.
 - [ ] **Evaluation.** Try each primitive in order; on first non-empty result, return it. On all-miss, follow `required` semantics.
 - [ ] **Diagnostic.** `FallbackLocatorUsed { key, position, locator_repr }` when position > 0.
-- [ ] **Domain object parity.** `domain` object_type from `ix-spec-objects` uses fallback chains; parity test against filament-parser-lib reference (TC-113).
+- [ ] **Domain object parity.** `domain` object_type from `spec-objects-business` uses fallback chains; parity test against filament-parser-lib reference (TC-113).
 
 ## Owns
 
@@ -36,4 +36,4 @@ TC-110, TC-111, TC-112, TC-113.
 ## Notes
 
 - This is an independent extension of Task 015 — could be done in parallel with Task 016/017 if more agents are available.
-- Reference: `~/dev/ix-spec-objects/object_types/.../domain.yaml`.
+- Reference: `~/dev/spec-objects-business/object_types/.../domain.yaml`.

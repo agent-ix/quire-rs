@@ -23,7 +23,7 @@ Per-runner baselines stored separately (Apple Silicon M2 Pro canonical; Ubuntu x
 
 ## Rationale
 
-Bulk extraction across the `ix-spec-objects` corpus may parse thousands of documents in a single batch. A 5 MB ceiling captures the largest realistic spec/document size; 500 ms is the upper bound at which interactive paths (editor first-paint, live preview) remain responsive.
+Bulk extraction across the `spec-objects-business` corpus may parse thousands of documents in a single batch. A 5 MB ceiling captures the largest realistic spec/document size; 500 ms is the upper bound at which interactive paths (editor first-paint, live preview) remain responsive.
 
 ## Acceptance Criteria
 

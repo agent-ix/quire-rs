@@ -179,7 +179,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-110 | Fallback chain resolves via second locator + emits FallbackLocatorUsed | Unit | P0 | FR-016-AC-1 | 🚧 |
 | TC-111 | Fallback chain resolves via first locator + no fallback diagnostic | Unit | P0 | FR-016-AC-2 | 🚧 |
 | TC-112 | Fallback chain all-miss with required:false omits key | Unit | P1 | FR-016-AC-3 | 🚧 |
-| TC-113 | domain object_type from ix-spec-objects with legacy heading: parity vs python | Parity | P0 | FR-016-AC-4 | 🚧 |
+| TC-113 | domain object_type from spec-objects-business with legacy heading: parity vs python | Parity | P0 | FR-016-AC-4 | 🚧 |
 | TC-120 | Bench: 10 000 sequential renders after load → median <1ms, zero I/O | Bench | P0 | NFR-007-AC-2 | 🚧 |
 | TC-121 | Tracing audit: zero Template::parse and zero JSONSchema::compile during render | Static | P0 | NFR-007-AC-3 | 🚧 |
 | TC-122 | Long-running soak: registry memory footprint flat over 1 M renders | Soak | P1 | NFR-007-AC-4 | 🚧 |
