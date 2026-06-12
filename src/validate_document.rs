@@ -222,17 +222,26 @@ fn validate_required_locator(
     let canonical = locator.canonical();
     let frontmatter = doc.frontmatter.as_ref();
 
+    let (values, _pos) = crate::extract::locator::eval_locator(doc, locator);
+    // FR-032-AC-9: a `table_row`/`list_item` locator that resolves to a
+    // present-but-empty substrate (header-only table, item-less list)
+    // is `empty`, not `missing`; a substrate that does not resolve at
+    // all is `missing`. The generic `content_status` cannot tell these
+    // apart (both yield zero values), so refine for these two kinds.
+    let status = match table_or_list_status(doc, canonical, &values) {
+        Some(s) => s,
+        None => content_status(&values),
+    };
+
+    // FR-032-AC-10: an optional locator that does not resolve runs no
+    // assert and emits no diagnostic. (Previously only value-shaped
+    // asserts no-opped on zero values; a `level` assert against the
+    // absent section leaked a spurious 'section not found' failure.)
+    if !locator.required() && matches!(status, ContentStatus::Missing) {
+        return;
+    }
+
     if locator.required() {
-        let (values, _pos) = crate::extract::locator::eval_locator(doc, locator);
-        // FR-032-AC-9: a `table_row`/`list_item` locator that resolves to a
-        // present-but-empty substrate (header-only table, item-less list)
-        // is `empty`, not `missing`; a substrate that does not resolve at
-        // all is `missing`. The generic `content_status` cannot tell these
-        // apart (both yield zero values), so refine for these two kinds.
-        let status = match table_or_list_status(doc, canonical, &values) {
-            Some(s) => s,
-            None => content_status(&values),
-        };
         match status {
             ContentStatus::Missing => {
                 errors.push(ValidationError {
@@ -1016,5 +1025,33 @@ yield_pattern:
         let absent = "## Other\nx\n";
         let r_absent = validate_document(&a, absent);
         assert!(r_absent.is_valid, "{:?}", r_absent.errors);
+    }
+
+    // TC-576 regression (FR-032-AC-10): a `level` assert on an OPTIONAL
+    // section_body locator must not leak a 'section not found' failure
+    // when the section is absent. (Value-shaped asserts already
+    // no-opped on zero values; the level assert checked the section by
+    // name and reported the miss.)
+    #[test]
+    fn tc576_level_assert_on_absent_optional_section_is_silent() {
+        const DSL: &str = r#"
+yield_pattern:
+  match:
+    inputs:
+      from: section_body
+      after_heading: Inputs
+      required: false
+      assert:
+        level: 2
+"#;
+        let a = archetype(None, Some(DSL));
+        let r = validate_document(&a, "## Other\nprose\n");
+        assert!(r.is_valid, "{:?}", r.errors);
+        // Present at the wrong level still fails.
+        let r_wrong = validate_document(&a, "## Wrap\n### Inputs\nx\n");
+        assert!(r_wrong
+            .errors
+            .iter()
+            .any(|e| e.reason == ValidationReason::Assert));
     }
 }
