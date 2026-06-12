@@ -221,11 +221,44 @@ fn is_separator_row(line: &str) -> bool {
     re_table_separator().is_match(line)
 }
 
+/// Split one table row into cells on UNESCAPED pipes only (GFM:
+/// `\|` inside a cell is a literal pipe, not a delimiter — CR-007).
+/// Leading/trailing delimiter pipes are handled inside the scan so a
+/// row ending in `\|` is not mis-trimmed. The escape is consumed:
+/// `\|` yields `|` in the cell text; every other backslash is kept
+/// verbatim.
+fn split_row_unescaped(line: &str) -> Vec<String> {
+    let mut cells: Vec<String> = Vec::new();
+    let mut cur = String::new();
+    let mut chars = line.trim().chars().peekable();
+    while let Some(c) = chars.next() {
+        match c {
+            '\\' if chars.peek() == Some(&'|') => {
+                cur.push('|');
+                chars.next();
+            }
+            '|' => {
+                cells.push(cur.trim().to_string());
+                cur.clear();
+            }
+            other => cur.push(other),
+        }
+    }
+    cells.push(cur.trim().to_string());
+    // A leading/trailing `|` delimiter produces an empty first/last
+    // fragment — drop those (same semantics as the old prefix/suffix
+    // strip, but escape-aware).
+    if cells.first().is_some_and(|c| c.is_empty()) {
+        cells.remove(0);
+    }
+    if cells.last().is_some_and(|c| c.is_empty()) {
+        cells.pop();
+    }
+    cells
+}
+
 fn parse_cells(line: &str, header_count: Option<usize>) -> Vec<String> {
-    let mut trimmed = line.trim();
-    trimmed = trimmed.strip_prefix('|').unwrap_or(trimmed);
-    trimmed = trimmed.strip_suffix('|').unwrap_or(trimmed);
-    let mut cells: Vec<String> = trimmed.split('|').map(|c| c.trim().to_string()).collect();
+    let mut cells = split_row_unescaped(line);
     if let Some(n) = header_count {
         if cells.len() < n {
             cells.resize(n, String::new());
@@ -592,6 +625,73 @@ mod tests {
         assert_eq!(t.headers, vec!["a"]);
     }
 
+    // ─── CR-007: escaped pipes are literal cell content ─────────────────
+
+    #[test]
+    fn cr007_escaped_pipe_in_body_cell_is_literal_not_delimiter() {
+        // The cell that bit in the wild: `<service\|alias>` was split
+        // into two cells, shifting the row and silently truncating the
+        // last column.
+        let content = "| Name | Type | Description |\n| - | - | - |\n\
+                       | host | <service\\|alias> | upstream target |\n";
+        let t = parse_table(content).unwrap();
+        assert_eq!(
+            t.rows,
+            vec![vec!["host", "<service|alias>", "upstream target"]]
+        );
+    }
+
+    #[test]
+    fn cr007_escaped_pipe_in_header_cell() {
+        let content = "| Value | A\\|B union |\n| - | - |\n| x | y |\n";
+        let t = parse_table(content).unwrap();
+        assert_eq!(t.headers, vec!["Value", "A|B union"]);
+        assert_eq!(t.rows, vec![vec!["x", "y"]]);
+    }
+
+    #[test]
+    fn cr007_cell_ending_in_escaped_pipe_keeps_trailing_pipe() {
+        // A trailing `\|` must not be eaten by the border-trim.
+        let content = "| a | b |\n| - | - |\n| ends-with\\| | z |\n";
+        let t = parse_table(content).unwrap();
+        assert_eq!(t.rows, vec![vec!["ends-with|", "z"]]);
+    }
+
+    #[test]
+    fn cr007_multiple_escapes_and_enum_cells() {
+        let content = "| Name | Values |\n| - | - |\n\
+                       | mode | static\\|identity\\|hybrid |\n";
+        let t = parse_table(content).unwrap();
+        assert_eq!(t.rows, vec![vec!["mode", "static|identity|hybrid"]]);
+    }
+
+    #[test]
+    fn cr007_non_pipe_backslashes_kept_verbatim() {
+        // Only `\|` is an escape; regex-ish content like `\d+` or a
+        // windows path keeps its backslashes.
+        let content = "| Pattern | Path |\n| - | - |\n| ^TC-\\d+$ | C:\\tmp |\n";
+        let t = parse_table(content).unwrap();
+        assert_eq!(t.rows, vec![vec!["^TC-\\d+$", "C:\\tmp"]]);
+    }
+
+    #[test]
+    fn cr007_borderless_rows_still_split_correctly() {
+        let content = "a | b\n- | -\nleft\\|inside | right\n";
+        let t = parse_table(content).unwrap();
+        assert_eq!(t.headers, vec!["a", "b"]);
+        assert_eq!(t.rows, vec![vec!["left|inside", "right"]]);
+    }
+
+    // ─── separator-row characterization (previously untested) ───────────
+
+    #[test]
+    fn separator_row_accepts_gfm_alignment_colons() {
+        let content = "| left | center | right |\n|:--- |:---:| ---:|\n| 1 | 2 | 3 |\n";
+        let t = parse_table(content).unwrap();
+        assert_eq!(t.headers, vec!["left", "center", "right"]);
+        assert_eq!(t.rows, vec![vec!["1", "2", "3"]]);
+    }
+
     // ─── parse_bullet_list ──────────────────────────────────────────────
 
     #[test]
@@ -620,6 +720,15 @@ mod tests {
         assert_eq!(items.len(), 1);
         assert_eq!(items[0].title, "not a bold thing");
         assert_eq!(items[0].description, "");
+    }
+
+    // Previously untested: the bullet regex accepts all three GFM
+    // markers (`-`, `*`, `+`), not just dashes.
+    #[test]
+    fn bullets_accept_star_and_plus_markers() {
+        let items = parse_bullet_list("* starred\n+ plussed\n- dashed", None);
+        let titles: Vec<&str> = items.iter().map(|i| i.title.as_str()).collect();
+        assert_eq!(titles, vec!["starred", "plussed", "dashed"]);
     }
 
     // ─── extract_diagrams ───────────────────────────────────────────────

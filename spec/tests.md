@@ -62,7 +62,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | FR-007 Fenced-block walk | AC-1..4 | TC-015, TC-016, TC-017 | ✅ Complete |
 | FR-008 Byte-exact slicing | AC-1..3 | TC-022, TC-023, TC-024 | ✅ Complete |
 | FR-009 Slug-line ID | AC-1..5 | TC-025, TC-026 | ✅ Complete |
-| FR-010 Query API | AC-1..3 | TC-027, TC-028, TC-029 | ✅ Complete |
+| FR-010 Query API | AC-1..4 | TC-027, TC-028, TC-029, TC-589 (CR-007 escaped pipes + separator/bullet characterization) | ✅ Complete |
 | FR-011 DSL (6 locators + yields + asserts) | AC-1..8, 13..21 | TC-018, TC-019, TC-040, TC-070, TC-072, TC-073, TC-563, TC-564, TC-565 (regex), TC-566 (under_section:None), TC-567 ({{…}}), TC-568 (unclosed fence), TC-569 (emit_edges), TC-583 (multiple:true) | ✅ |
 | ~~FR-012 Corpus parity suite~~ | — | — | ⛔ RETIRED (render removal) |
 | FR-013 Archetype loader | AC-1..6 | TC-080 (empty env), TC-081 (load iso), TC-082 (bad schema_ref), TC-083 (bench), TC-084 (no IO post-load), TC-085 (no net deps) | ✅ Complete |
@@ -142,6 +142,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-027 | Query API module-level signatures compile and re-export | Compile | P0 | FR-010-AC-1 | 🚧 |
 | TC-028 | Query API parity sweep against TS fixtures | Parity | P0 | FR-010-AC-2 | 🚧 |
 | TC-029 | Query API complexity: no quadratic walks | Property | P1 | FR-010-AC-3 | 🚧 |
+| TC-589 | `\|` in table cells is literal (escape consumed) in header/body/cell-final positions; other backslashes verbatim; borderless rows split identically; GFM alignment separators recognized; `-`/`*`/`+` bullets parse | Unit | P0 | FR-010-AC-4 | ✅ |
 | TC-030 | Corpus parity sweep: every archetype × every fixture byte-equals Python reference | Parity | P0 | FR-012-AC-1..2 (RETIRED), StR-002, US-005-AC-1..3 (RETIRED) | 🚧 |
 | TC-031 | tests/render_parity/corpus.yaml exists and lists v1 modules | Static | P0 | FR-012-AC-1 (RETIRED) | ⛔ RETIRED — render removed |
 | TC-039 | Adding archetype to corpus.yaml + fixtures extends suite with no Rust change | Integration | P0 | FR-012-AC-5 | 🚧 |
@@ -573,6 +574,7 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-010-AC-1 | TC-027 |
 | FR-010-AC-2 | TC-028 |
 | FR-010-AC-3 | TC-029 |
+| FR-010-AC-4 | TC-589 |
 | FR-011-AC-1 | TC-072 |
 | FR-011-AC-2 | TC-070 |
 | FR-011-AC-4 | TC-073 |
@@ -793,7 +795,7 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | NFR-019-AC-1 | TC-579 |
 | NFR-019-AC-2 | TC-580 |
 
-**Coverage status: 294 / 294 ACs covered (100%).** v0.4 adds FR-011-AC-21 (CR-006 `multiple: true`, TC-583) and FR-036-AC-1..5 (declarative lint rules, TC-584..588). v0.2 block model added 16 ACs (FR-019..022, TC-400..443). v0.3 adds 81 ACs — StR-005/006, US-011..013, FR-023..027 (incl. review-added FR-026-AC-8, FR-027-AC-9), NFR-015/016, plus the hardening re-review (NFR-003-AC-4, FR-024-AC-9, NFR-017, NFR-018) — covered by TC-455..507 (plus reused TC-456..459). The Miri ACs (NFR-012-AC-1..5) were **retired** (ADR 0006) and the compile-time **NFR-003-AC-5** (`forbid(unsafe_code)`, TC-582) added. PC (performance criteria) for US-011..013 are tracked as benches (TC-455..459, TC-469) and marked 🚧 pending implementation, consistent with the US-006..010 perf-bench convention. The v0.3 hardening re-review (loom NFR-017, TSAN/ASAN NFR-018) is recorded in spec.md §19.
+**Coverage status: 295 / 295 ACs covered (100%).** v0.4 adds FR-011-AC-21 (CR-006 `multiple: true`, TC-583) and FR-036-AC-1..5 (declarative lint rules, TC-584..588). v0.2 block model added 16 ACs (FR-019..022, TC-400..443). v0.3 adds 81 ACs — StR-005/006, US-011..013, FR-023..027 (incl. review-added FR-026-AC-8, FR-027-AC-9), NFR-015/016, plus the hardening re-review (NFR-003-AC-4, FR-024-AC-9, NFR-017, NFR-018) — covered by TC-455..507 (plus reused TC-456..459). The Miri ACs (NFR-012-AC-1..5) were **retired** (ADR 0006) and the compile-time **NFR-003-AC-5** (`forbid(unsafe_code)`, TC-582) added. PC (performance criteria) for US-011..013 are tracked as benches (TC-455..459, TC-469) and marked 🚧 pending implementation, consistent with the US-006..010 perf-bench convention. The v0.3 hardening re-review (loom NFR-017, TSAN/ASAN NFR-018) is recorded in spec.md §19.
 
 **v0.4 markdown-validation slice** adds 42 ACs — US-014 (author validates markdown), FR-029 (archetype input contract, recast by ADR 0004), FR-030 (required-section validation, superseded by FR-032/FR-033), FR-031 (unified archetype shape), FR-032 (`validate_document`), FR-033 (locator `assert` facet), FR-034 (assert field interpolation), FR-035 (per-level heading uniqueness) — covered by TC-518..553. FR-030's ACs are mapped to the FR-032/FR-033 TCs that subsume them (per its CR note). This slice also back-fills 7 ACs that a prior commit left out of the audit table — FR-013-AC-11..14, FR-028-AC-9/10, US-003-AC-4 — via TC-554..560. New v0.4 TCs are 🚧 pending implementation.
 
@@ -811,7 +813,7 @@ NFR-006-AC-4, NFR-019-AC-1..2 — covered by TC-565..580. TC-561 is re-pointed o
 FR-033-AC-4 onto FR-033-AC-9 (the non-table `id_pattern` case); TC-562 covers both
 FR-033-AC-4 and FR-033-AC-9.
 
-**Integrity check (grep-verified):** all **294 distinct file-defined ACs** (definition-anchored: bold `**<ID>-AC-N**:` declarations) across `stakeholder/ usecase/ functional/ non-functional/` appear in the AC→TC audit table — **0 uncovered**. Note: `FR-900-AC-1/2` appearing inside FR-034-AC-1's example prose are NOT defined ACs and are excluded from the denominator (match `**…**:` definitions, not inline mentions). Retired ACs (marked `(RETIRED)`, un-bolded) are excluded by construction. Count: 316 (pre-removal) − 41 (retired) + 16 (back-fill) + 1 (FR-011-AC-20, CR-005 heading normalization) − 5 (NFR-012-AC-1..5 retired, ADR 0006) + 1 (NFR-003-AC-5, forbid(unsafe_code)) + 1 (FR-011-AC-21, CR-006 multiple:true) + 5 (FR-036-AC-1..5, declarative lint rules) = **294**.
+**Integrity check (grep-verified):** all **295 distinct file-defined ACs** (definition-anchored: bold `**<ID>-AC-N**:` declarations) across `stakeholder/ usecase/ functional/ non-functional/` appear in the AC→TC audit table — **0 uncovered**. Note: `FR-900-AC-1/2` appearing inside FR-034-AC-1's example prose are NOT defined ACs and are excluded from the denominator (match `**…**:` definitions, not inline mentions). Retired ACs (marked `(RETIRED)`, un-bolded) are excluded by construction. Count: 316 (pre-removal) − 41 (retired) + 16 (back-fill) + 1 (FR-011-AC-20, CR-005 heading normalization) − 5 (NFR-012-AC-1..5 retired, ADR 0006) + 1 (NFR-003-AC-5, forbid(unsafe_code)) + 1 (FR-011-AC-21, CR-006 multiple:true) + 5 (FR-036-AC-1..5, declarative lint rules) + 1 (FR-010-AC-4, CR-007 escaped pipes) = **295**.
 
 ---
 

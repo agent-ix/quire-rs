@@ -104,3 +104,27 @@ authorizes it, and where the Rust port asserts the deliberate behavior.
   `unclosed_tilde_block_is_emitted_as_final_block`) and
   `src/extract/locator.rs::code_block_resolves_tilde_fenced_block_under_section`
   cover the scanner and the section-owned locator.
+
+## 10. Escaped pipes (`\|`) in table cells are literal content (CR-007)
+
+- **Behavior:** `parse_table`/`parse_tables` split rows on UNESCAPED pipes
+  only; `\|` contributes a literal `|` to the cell text (escape consumed),
+  matching GFM table semantics. Border trimming happens inside the
+  escape-aware scan, so a cell-final `\|` is not eaten. All other
+  backslashes pass through verbatim.
+- **Authority:** FR-010-AC-4 (CR-007, 2026-06-12). The original port used a
+  naive `split('|')` matching the TS reference: an escaped pipe split the
+  cell, shifted later cells, and the header-count truncation silently
+  dropped the last column — corrupted rows with no diagnostic, surfaced by
+  the 2026-06 configuration-table migration.
+- **Parity note:** intentional GFM-conformance extension of the TS surface,
+  not a parity break — the TS/Python fixture suites carry no escaped-pipe
+  table fixture that the Rust behavior would contradict, and the production
+  Python surface consumes this crate via the `quire` wheel.
+- **Rust ports:** `src/query.rs` unit tests
+  (`cr007_escaped_pipe_in_body_cell_is_literal_not_delimiter`,
+  `cr007_escaped_pipe_in_header_cell`,
+  `cr007_cell_ending_in_escaped_pipe_keeps_trailing_pipe`,
+  `cr007_multiple_escapes_and_enum_cells`,
+  `cr007_non_pipe_backslashes_kept_verbatim`,
+  `cr007_borderless_rows_still_split_correctly`).
