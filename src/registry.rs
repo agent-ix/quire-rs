@@ -32,6 +32,7 @@ struct Inner {
     by_module_and_name: std::collections::BTreeMap<(String, String), Arc<CompiledArchetype>>,
     module_paths: std::collections::BTreeMap<String, PathBuf>,
     module_versions: std::collections::BTreeMap<String, Option<String>>,
+    lint_rules: Vec<crate::lint::LintRule>,
     failures: Vec<ArchetypeLoadFailure>,
     diagnostics: Vec<Diagnostic>,
     path_diagnostics: Vec<PathDiagnostic>,
@@ -172,6 +173,7 @@ impl Registry {
             by_module_and_name,
             module_paths,
             module_versions,
+            lint_rules,
             failures,
             diagnostics,
             path_diagnostics,
@@ -182,6 +184,7 @@ impl Registry {
                 by_module_and_name,
                 module_paths,
                 module_versions,
+                lint_rules,
                 failures,
                 diagnostics,
                 path_diagnostics,
@@ -252,6 +255,12 @@ impl Registry {
     /// fatal (`load_strict`, FR-014).
     pub fn failures(&self) -> &[ArchetypeLoadFailure] {
         &self.inner.failures
+    }
+
+    /// Advisory lint rules declared by the loaded modules, in load
+    /// order (FR-036). Evaluate via [`crate::lint::lint_document`].
+    pub fn lint_rules(&self) -> &[crate::lint::LintRule] {
+        &self.inner.lint_rules
     }
 
     /// Path-resolution diagnostics (missing dirs, file-not-dir,
@@ -422,6 +431,52 @@ object_types:
         assert_eq!(r.module_names().count(), 0);
         assert_eq!(r.failures().len(), 1);
         assert!(r.failures()[0].reason.contains("manifest.yaml"));
+    }
+
+    // FR-036: manifest lint_rules are typed at load and surface via
+    // Registry::lint_rules(), in load order.
+    #[test]
+    fn lint_rules_flow_from_manifest_to_registry() {
+        let parent = tmpdir("lint");
+        let module_root = parent.join("mod-lint");
+        fs::create_dir_all(module_root.join("schemas")).unwrap();
+        fs::write(
+            module_root.join("manifest.yaml"),
+            r#"
+name: mod-lint
+artifact_types: []
+lint_rules:
+- type: table_column_values
+  id: ac-verification-method
+  archetypes: [FR]
+  section: Acceptance Criteria
+  column: Verification
+  allowed: [Inspection, Analysis, Demonstration, Test]
+  annotation_pattern: '\(TC-\d+\)'
+  severity: warning
+"#,
+        )
+        .unwrap();
+        let r = Registry::load_module(&module_root).expect("ok");
+        assert_eq!(r.lint_rules().len(), 1);
+        assert_eq!(r.lint_rules()[0].id(), "ac-verification-method");
+    }
+
+    // FR-036: a malformed lint rule fails manifest parse (typed, not
+    // inert passthrough).
+    #[test]
+    fn malformed_lint_rule_fails_module_load() {
+        let parent = tmpdir("lint-bad");
+        let module_root = parent.join("mod-lint-bad");
+        fs::create_dir_all(&module_root).unwrap();
+        fs::write(
+            module_root.join("manifest.yaml"),
+            "name: mod-lint-bad\nartifact_types: []\nlint_rules:\n- type: bogus_rule\n  id: x\n",
+        )
+        .unwrap();
+        let r = Registry::load_module(&module_root).expect("tolerant");
+        assert_eq!(r.module_names().count(), 0);
+        assert_eq!(r.failures().len(), 1);
     }
 
     // FR-014-AC-4: module_version surfaces the manifest version.

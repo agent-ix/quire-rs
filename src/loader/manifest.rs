@@ -47,6 +47,11 @@ pub struct Manifest {
     pub object_types: Vec<Archetype>,
     #[serde(default)]
     pub archetypes: Vec<Archetype>,
+    /// Declarative advisory lint rules (FR-036). Previously this key
+    /// was inert; it is now typed — a malformed rule fails manifest
+    /// parse like any other shape error.
+    #[serde(default)]
+    pub lint_rules: Vec<crate::lint::LintRule>,
 }
 
 impl Manifest {

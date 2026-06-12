@@ -36,6 +36,8 @@ pub struct LoadedModule {
     pub root: PathBuf,
     pub version: Option<String>,
     pub archetypes: Vec<Arc<CompiledArchetype>>,
+    /// Advisory lint rules declared by the module (FR-036).
+    pub lint_rules: Vec<crate::lint::LintRule>,
 }
 
 /// Outcome of a full load pass.
@@ -334,6 +336,7 @@ pub fn load_inline_module(manifest_yaml: &[u8], schemas: &BTreeMap<String, Strin
         root: inline_root,
         version: manifest.version.clone(),
         archetypes,
+        lint_rules: manifest.lint_rules.clone(),
     });
 
     LoadOutcome {
@@ -470,6 +473,7 @@ fn load_one_module(
             root: module_root.to_path_buf(),
             version: manifest.version.clone(),
             archetypes,
+            lint_rules: manifest.lint_rules.clone(),
         },
         failures,
     ))
@@ -641,11 +645,18 @@ pub fn flatten_into_registry(mut outcome: LoadOutcome) -> RegistryShape {
             .push(Diagnostic::DuplicateArchetype { name, modules });
     }
 
+    let lint_rules: Vec<crate::lint::LintRule> = outcome
+        .modules
+        .iter()
+        .flat_map(|m| m.lint_rules.iter().cloned())
+        .collect();
+
     RegistryShape {
         archetypes: active_archetypes,
         by_module_and_name,
         module_paths,
         module_versions,
+        lint_rules,
         failures: outcome.failures,
         diagnostics: outcome.diagnostics,
         path_diagnostics: outcome.path_diagnostics,
@@ -693,6 +704,9 @@ pub struct RegistryShape {
     pub by_module_and_name: BTreeMap<(String, String), Arc<CompiledArchetype>>,
     pub module_paths: BTreeMap<String, PathBuf>,
     pub module_versions: BTreeMap<String, Option<String>>,
+    /// Advisory lint rules aggregated across modules in load order
+    /// (FR-036).
+    pub lint_rules: Vec<crate::lint::LintRule>,
     pub failures: Vec<ArchetypeLoadFailure>,
     pub diagnostics: Vec<Diagnostic>,
     pub path_diagnostics: Vec<PathDiagnostic>,

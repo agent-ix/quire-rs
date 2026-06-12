@@ -128,6 +128,30 @@ Each `body_extraction.yield_pattern` is one of:
 
 Each locator has an implicit or explicit `required: bool`. When `required: true` and the locator fails to find a value, the evaluator returns `QuireError::MissingField { key, locator }`. When `required: false`, the key is omitted (single-yield) or the iteration unit is skipped (multi-yield, only if the iteration locator itself fails).
 
+### Multi-value collapse — `multiple: true` (CR-006)
+
+By default a locator bound under a `match:`/`per_match:` key **collapses to the
+first** resolved value (first-wins). A locator MAY declare `multiple: true`, in
+which case the yielded record keeps **every** resolved value, in document order,
+as a **JSON array**. This lets authors split an inherently complex flow into
+several smaller diagrams (e.g. multiple mermaid blocks under `## Workflow`)
+instead of being forced into one oversized diagram because the evaluator keeps
+only the first block.
+
+- `multiple` defaults to `false`; absent-flag behavior is byte-identical to the
+  prior first-wins contract.
+- In a **fallback chain**, the flag is read from the primitive that actually
+  produced the values (the chain hit), not the canonical head.
+- Under multi-yield, the array is per iteration unit (each unit keeps its own
+  full value list).
+- `required` semantics are unchanged: zero resolved values is still a miss.
+
+> **CR-006 note (2026-06-11):** the first-wins collapse silently dropped every
+> located value after the first — a `process` object with a sequence diagram AND
+> a state diagram under `## Workflow` surfaced only one, with no diagnostic.
+> Discovered during the spec-objects format walkthrough (decision #13:
+> typed diagram anchors + DSL multi-value support).
+
 ### DSL structural validation (load-time)
 
 When a manifest entry's `body_extraction` is loaded, the loader SHALL validate the DSL's structural integrity before storing it:
@@ -192,3 +216,4 @@ Single-yield DSLs return `records.len() <= 1`; multi-yield returns one record pe
 - **FR-011-AC-18**: An **unclosed** fenced block — both ` ``` ` and `~~~` variants — is flushed as the **final** block (its trailing content is part of the block, not a phantom following block), parity with the parser's FR-007 unclosed-fence behavior.
 - **FR-011-AC-19**: A `body_extraction` declaring `emit_edges: [{from: <field>, type: <t>}]` projects one `{record_index, type, target}` edge per extracted record whose `<field>` resolves to a target, in `ExtractionResult.edges` (single- and multi-yield); records lacking the field emit no edge. These record-derived edges are distinct from `harvest_edges` (frontmatter/`ix://`) and both flow through the Python `extract()` envelope's `edges` key.
 - **FR-011-AC-20** (CR-005): A `from: heading` locator resolves and projects the **section-number-normalized** heading text: against a document with `## 2. Scope`, a `regex: ^Scope$` heading locator matches (and a level-only heading locator projects `Scope`, not `2. Scope`) — the same `\d+(\.\d+)*\.?` normalization `section_body`/`after_heading` applies. A bare `## Scope` matches identically.
+- **FR-011-AC-21** (CR-006): A locator with `multiple: true` yields **every** resolved value as a JSON array, in document order — a `code_block(mermaid under Workflow)` locator against a section holding two mermaid blocks yields both. Without the flag the same locator yields only the first (unchanged first-wins contract). In a fallback chain the flag is read from the **hit** primitive; under multi-yield each iteration unit keeps its own full list.

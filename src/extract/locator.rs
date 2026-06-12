@@ -58,6 +58,16 @@ impl Locator {
     pub fn required(&self) -> bool {
         self.canonical().required()
     }
+
+    /// Whether the primitive at `position` (the one whose values were
+    /// used — see [`eval_locator`]) declares `multiple: true`. For a
+    /// bare `Primitive`, `position` is ignored.
+    pub fn multiple_at(&self, position: usize) -> bool {
+        match self {
+            Self::Primitive(p) => p.multiple(),
+            Self::Fallback(chain) => chain.get(position).map(|p| p.multiple()).unwrap_or(false),
+        }
+    }
 }
 
 /// One Locator from a `body_extraction` DSL. Untagged on the YAML
@@ -72,6 +82,8 @@ pub enum LocatorPrimitive {
         #[serde(default = "default_true")]
         required: bool,
         #[serde(default)]
+        multiple: bool,
+        #[serde(default)]
         regex: Option<String>,
         #[serde(default)]
         assert: Option<LocatorAssert>,
@@ -81,6 +93,8 @@ pub enum LocatorPrimitive {
         after_heading: String,
         #[serde(default = "default_true")]
         required: bool,
+        #[serde(default)]
+        multiple: bool,
         #[serde(default)]
         regex: Option<String>,
         #[serde(default)]
@@ -97,6 +111,8 @@ pub enum LocatorPrimitive {
         #[serde(default = "default_true")]
         required: bool,
         #[serde(default)]
+        multiple: bool,
+        #[serde(default)]
         regex: Option<String>,
         #[serde(default)]
         assert: Option<LocatorAssert>,
@@ -112,6 +128,8 @@ pub enum LocatorPrimitive {
         #[serde(default = "default_true")]
         required: bool,
         #[serde(default)]
+        multiple: bool,
+        #[serde(default)]
         regex: Option<String>,
         #[serde(default)]
         assert: Option<LocatorAssert>,
@@ -125,6 +143,8 @@ pub enum LocatorPrimitive {
         pattern: Option<ListPattern>,
         #[serde(default = "default_true")]
         required: bool,
+        #[serde(default)]
+        multiple: bool,
         #[serde(default)]
         regex: Option<String>,
         #[serde(default)]
@@ -140,6 +160,8 @@ pub enum LocatorPrimitive {
         path: Option<Vec<String>>,
         #[serde(default = "default_true")]
         required: bool,
+        #[serde(default)]
+        multiple: bool,
         #[serde(default)]
         regex: Option<String>,
         #[serde(default)]
@@ -274,6 +296,20 @@ impl LocatorPrimitive {
             | Self::TableRow { required, .. }
             | Self::ListItem { required, .. }
             | Self::Heading { required, .. } => *required,
+        }
+    }
+
+    /// Whether the locator declared `multiple: true` — the yielded
+    /// record keeps EVERY located value as a JSON array instead of
+    /// collapsing to the first (FR-011-AC-21).
+    pub fn multiple(&self) -> bool {
+        match self {
+            Self::FrontmatterField { multiple, .. }
+            | Self::SectionBody { multiple, .. }
+            | Self::CodeBlock { multiple, .. }
+            | Self::TableRow { multiple, .. }
+            | Self::ListItem { multiple, .. }
+            | Self::Heading { multiple, .. } => *multiple,
         }
     }
 
@@ -587,6 +623,7 @@ mod tests {
             &LocatorPrimitive::FrontmatterField {
                 path: vec!["id".into()],
                 required: false,
+                multiple: false,
                 regex: None,
                 assert: None,
             },
@@ -602,6 +639,7 @@ mod tests {
             &LocatorPrimitive::FrontmatterField {
                 path: vec!["tags".into()],
                 required: false,
+                multiple: false,
                 regex: None,
                 assert: None,
             },
@@ -617,6 +655,7 @@ mod tests {
             &LocatorPrimitive::FrontmatterField {
                 path: vec!["nope".into()],
                 required: false,
+                multiple: false,
                 regex: None,
                 assert: None,
             },
@@ -632,6 +671,7 @@ mod tests {
             &LocatorPrimitive::SectionBody {
                 after_heading: "Purpose".into(),
                 required: false,
+                multiple: false,
                 regex: None,
                 assert: None,
             },
@@ -648,6 +688,7 @@ mod tests {
                 language: Some("mermaid".into()),
                 under_section: None,
                 required: false,
+                multiple: false,
                 regex: None,
                 assert: None,
             },
@@ -672,6 +713,7 @@ mod tests {
                 language: Some("mermaid".into()),
                 under_section: Some("Workflow".into()),
                 required: false,
+                multiple: false,
                 regex: None,
                 assert: None,
             },
@@ -695,6 +737,7 @@ mod tests {
                 language: Some("mermaid".into()),
                 under_section: Some("Workflow".into()),
                 required: false,
+                multiple: false,
                 regex: None,
                 assert: None,
             },
@@ -712,6 +755,7 @@ mod tests {
                 language: Some("mermaid".into()),
                 under_section: Some("Nope".into()),
                 required: false,
+                multiple: false,
                 regex: None,
                 assert: None,
             },
@@ -728,6 +772,7 @@ mod tests {
                 under_section: Some("API".into()),
                 column: None,
                 required: false,
+                multiple: false,
                 regex: None,
                 assert: None,
             },
@@ -745,6 +790,7 @@ mod tests {
                 under_section: Some("API".into()),
                 column: Some(ColumnRef::Name("Path".into())),
                 required: false,
+                multiple: false,
                 regex: None,
                 assert: None,
             },
@@ -761,6 +807,7 @@ mod tests {
                 under_section: Some("Notes".into()),
                 pattern: None,
                 required: false,
+                multiple: false,
                 regex: None,
                 assert: None,
             },
@@ -778,6 +825,7 @@ mod tests {
                 level: Some(2),
                 path: None,
                 required: false,
+                multiple: false,
                 regex: None,
                 assert: None,
             },
@@ -795,6 +843,7 @@ mod tests {
                 level: None,
                 path: Some(vec!["A".into(), "B".into()]),
                 required: false,
+                multiple: false,
                 regex: None,
                 assert: None,
             },

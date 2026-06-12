@@ -16,6 +16,7 @@ pub mod corpus;
 pub mod diagnostic;
 pub mod error;
 pub mod extract;
+pub mod lint;
 pub mod loader;
 pub mod merge;
 pub mod parser;
@@ -58,6 +59,8 @@ pub use extract::{extract, ExtractionResult};
 // Assert facet (FR-033) + `{field}` interpolation (FR-034).
 pub use extract::assert_eval::{evaluate_assert, AssertFailure, AssertReason};
 pub use extract::interpolate::{interpolate, UnresolvedField};
+// Declarative lint rules (FR-036) — advisory, never blocks extraction.
+pub use lint::{lint_document, LintFinding, LintRule, LintSeverity};
 // Writeback (FR-022) — byte-splice section/block edit.
 pub use writeback::{update_block, update_section};
 // Corpus: parallel repo walk (FR-024) + Spec corpus (FR-025); resolution/query in FR-026..027.

@@ -109,12 +109,28 @@ fn eval_match(
                 locator: loc.canonical().describe(),
             });
         }
-        record.insert(key.clone(), values.into_iter().next().unwrap());
+        record.insert(key.clone(), collapse_values(loc, fallback_pos, values));
     }
     if record.is_empty() {
         Ok(None)
     } else {
         Ok(Some(record))
+    }
+}
+
+/// Collapse a locator's resolved values into the record value:
+/// first-wins for the default single-value contract, or the full
+/// ordered list as a JSON array when the used primitive declares
+/// `multiple: true` (FR-011-AC-21). `values` is non-empty (callers
+/// handle the miss path before collapsing).
+fn collapse_values(loc: &Locator, position_used: usize, values: Vec<Value>) -> Value {
+    if loc.multiple_at(position_used) {
+        Value::Array(values)
+    } else {
+        values
+            .into_iter()
+            .next()
+            .expect("collapse_values requires non-empty values")
     }
 }
 
@@ -168,7 +184,7 @@ fn eval_multi(
                     locator: loc.canonical().describe(),
                 });
             }
-            record.insert(key.clone(), values.into_iter().next().unwrap());
+            record.insert(key.clone(), collapse_values(loc, fallback_pos, values));
         }
         if !record.is_empty() {
             let record_index = records.len();
@@ -450,6 +466,109 @@ yield_pattern:
         let r = extract(&d, &dsl).expect("ok");
         assert_eq!(r.records.len(), 1);
         assert_eq!(r.records[0]["id"], serde_json::json!("FR-001"));
+    }
+
+    // FR-011-AC-21: `multiple: true` keeps every located value as a
+    // JSON array; the default contract still collapses to the first.
+    #[test]
+    fn multiple_true_keeps_all_values_as_array() {
+        let md = "## Workflow\n\
+                  ```mermaid\nflowchart LR\n```\n\
+                  ```mermaid\nstateDiagram-v2\n```\n";
+        let d = parse_document(md);
+        let dsl = dsl_from(
+            r#"
+yield_pattern:
+  match:
+    diagram:
+      from: code_block
+      language: mermaid
+      under_section: Workflow
+      multiple: true
+"#,
+        );
+        let r = extract(&d, &dsl).expect("ok");
+        assert_eq!(r.records.len(), 1);
+        let diagrams = r.records[0]["diagram"].as_array().expect("array");
+        assert_eq!(diagrams.len(), 2);
+        assert!(diagrams[0].as_str().unwrap().contains("flowchart"));
+        assert!(diagrams[1].as_str().unwrap().contains("stateDiagram"));
+    }
+
+    #[test]
+    fn without_multiple_first_value_wins_unchanged() {
+        let md = "## Workflow\n\
+                  ```mermaid\nflowchart LR\n```\n\
+                  ```mermaid\nstateDiagram-v2\n```\n";
+        let d = parse_document(md);
+        let dsl = dsl_from(
+            r#"
+yield_pattern:
+  match:
+    diagram:
+      from: code_block
+      language: mermaid
+      under_section: Workflow
+"#,
+        );
+        let r = extract(&d, &dsl).expect("ok");
+        let v = r.records[0]["diagram"].as_str().expect("scalar string");
+        assert!(v.contains("flowchart"));
+    }
+
+    // FR-011-AC-21: in a fallback chain the `multiple` flag is read
+    // from the primitive that actually produced the values.
+    #[test]
+    fn multiple_in_fallback_chain_uses_hit_primitive_flag() {
+        let md = "## Steps\n- one\n- two\n";
+        let d = parse_document(md);
+        let dsl = dsl_from(
+            r#"
+yield_pattern:
+  match:
+    steps:
+      - from: section_body
+        after_heading: Nonexistent
+      - from: list_item
+        under_section: Steps
+        multiple: true
+"#,
+        );
+        let r = extract(&d, &dsl).expect("ok");
+        let steps = r.records[0]["steps"].as_array().expect("array");
+        assert_eq!(steps.len(), 2);
+    }
+
+    // FR-011-AC-21: multiple:true under iterate_over/per_match keeps
+    // each unit's full value list.
+    #[test]
+    fn multiple_true_applies_per_iteration_unit() {
+        let md = "\
+## Algorithms\nintro\n\
+### A\n\
+```mermaid\na1\n```\n\
+```mermaid\na2\n```\n\
+### B\n\
+```mermaid\nb1\n```\n";
+        let d = parse_document(md);
+        let dsl = dsl_from(
+            r#"
+yield_pattern:
+  iterate_over:
+    section_path: [Algorithms]
+    kind: heading
+    depth: 1
+  per_match:
+    diagrams:
+      from: code_block
+      language: mermaid
+      multiple: true
+"#,
+        );
+        let r = extract(&d, &dsl).expect("ok");
+        assert_eq!(r.records.len(), 2);
+        assert_eq!(r.records[0]["diagrams"].as_array().unwrap().len(), 2);
+        assert_eq!(r.records[1]["diagrams"].as_array().unwrap().len(), 1);
     }
 
     #[test]
