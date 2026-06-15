@@ -25,7 +25,7 @@ As an **LLM agent producing canonical artifacts**, I want the archetype's JSON S
 
 ## Context
 
-The JSON Schema for each archetype is **data, not derived from Rust types** — it lives on disk under `~/.ix/schemas/<module>/schemas/<name>-frontmatter.schema.json`. The engine surfaces it via `quire-rs::schema_for(registry, "fr")`. The agent's tool-call layer uses that schema as the tool's input contract.
+The JSON Schema for each archetype is **data, not derived from Rust types** — it lives on disk under `~/.ix/filament/modules/<module>/schemas/<name>-frontmatter.schema.json`. The engine surfaces it via `quire-rs::schema_for(registry, "fr")`. The agent's tool-call layer uses that schema as the tool's input contract.
 
 When the model emits a structurally invalid patch (or one violating field constraints introduced by the merge), `render` returns a typed `QuireError::SchemaViolation` with the offending field path. The model retries with the field corrected.
 

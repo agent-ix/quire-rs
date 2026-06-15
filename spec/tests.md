@@ -167,7 +167,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-073 | DSL required:true missing field returns MissingField | Unit | P0 | FR-011-AC-4 | 🚧 |
 | TC-563 | `code_block` is section-owned: single-yield `under:X` excludes other sections; multi-yield `per_match` isolates each unit's block, required-miss → MissingField for the unit lacking one | Unit | P0 | FR-011-AC-13 | ✅ |
 | TC-564 | Scanner recognizes ``` and `~~~` fences with matching-character close: `~~~mermaid` extracted as `mermaid`; cross-char fence line is content; unclosed `~~~` flushed as final block; section-owned `code_block` resolves a `~~~` block | Unit | P0 | FR-011-AC-14 | ✅ |
-| TC-080 | Registry::from_env() with no IX_SCHEMA_PATH and no default dir → empty registry, no error | Unit | P0 | FR-013-AC-1 | 🚧 |
+| TC-080 | Registry::from_env() with neither search-path env var (IX_FILAMENT_MODULES_PATH / IX_SCHEMA_PATH) set and no default dir → empty registry, no error | Unit | P0 | FR-013-AC-1 | 🚧 |
 | TC-081 | IX_SCHEMA_PATH pointing at spec-artifacts-iso loads all 8 ISO archetypes | Integration | P0 | FR-013-AC-2 | 🚧 |
 | TC-082 | Manifest with missing schema_ref produces ArchetypeLoadError; siblings still load | Integration | P0 | FR-013-AC-3 | 🚧 |
 | TC-083 | Bench: Registry::load_from baseline corpus < 100 ms median | Bench | P0 | FR-013-AC-4, NFR-007-AC-1 | 🚧 |

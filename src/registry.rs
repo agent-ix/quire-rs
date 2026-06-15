@@ -57,7 +57,8 @@ impl std::fmt::Debug for Registry {
 impl Registry {
     /// Load every module reachable from `paths` (one level deep).
     ///
-    /// Empty `paths` falls back to `IX_SCHEMA_PATH` / `~/.ix/schemas/`
+    /// Empty `paths` falls back to `IX_FILAMENT_MODULES_PATH` /
+    /// `IX_SCHEMA_PATH` / `~/.ix/filament/modules/`
     /// (same as [`from_env`](Registry::from_env)). Module and archetype
     /// name collisions surface as [`Diagnostic`]s, not errors —
     /// see [`load_strict`](Registry::load_strict) for the strict variant.
@@ -103,13 +104,14 @@ impl Registry {
         Self::finish_strict(outcome)
     }
 
-    /// Load from `IX_SCHEMA_PATH` (then default `~/.ix/schemas/`).
+    /// Load from `IX_FILAMENT_MODULES_PATH` / `IX_SCHEMA_PATH` (then the
+    /// default `~/.ix/filament/modules/`).
     pub fn from_env() -> Result<Self, QuireError> {
         let outcome = load_modules(&[]);
         Ok(Self::finish_tolerant(outcome))
     }
 
-    /// Load from `~/.ix/schemas/` only.
+    /// Load from `~/.ix/filament/modules/` only.
     pub fn from_default() -> Result<Self, QuireError> {
         let outcome = crate::loader::load_from_default();
         Ok(Self::finish_tolerant(outcome))

@@ -19,6 +19,17 @@ relationships:
 > by the unified shape, FR-031). The Behavior and acceptance criteria below are
 > updated to the schema-only contract. See `spec.md` §2bis.
 
+> **CR note (module-dir repoint — 2026-06-15):** The default search root moves
+> from `~/.ix/schemas/` to **`~/.ix/filament/modules/`**, and the env override
+> gains a preferred name `IX_FILAMENT_MODULES_PATH` with the legacy
+> `IX_SCHEMA_PATH` retained as a back-compat alias (read only when the new var
+> is unset). This aligns the engine with the single directory that `ix-spec`
+> (via `@agent-ix/ts-plugin-kit`) materializes installed Filament modules into,
+> so one install serves both the CLI and the engine. The change is additive and
+> non-breaking: explicit `load_from`/`load_module` paths are unaffected, and
+> `IX_SCHEMA_PATH` keeps working. The Search-path section and AC-1 below are
+> updated; no new AC is added (the alias is exercised by AC-2/AC-8).
+
 ## Behavior
 
 `quire-rs` SHALL load archetypes from the **local filesystem**. The engine has no network calls, no Filament API client, and no required runtime services. Whatever populates the local directory tree (Filament sync, hand-authoring, git checkout, an unzipped distribution tarball) is outside the engine's concern.
@@ -28,8 +39,8 @@ relationships:
 The engine resolves archetype roots from, in priority order:
 
 1. Explicit `Registry::load_from(paths: &[&Path])` constructor argument.
-2. `IX_SCHEMA_PATH` environment variable — colon-separated list of directories (PATH-style).
-3. Default: `~/.ix/schemas/`.
+2. `IX_FILAMENT_MODULES_PATH` environment variable (preferred), then the legacy `IX_SCHEMA_PATH` alias when the preferred var is unset — colon-separated list of directories (PATH-style).
+3. Default: `~/.ix/filament/modules/`.
 
 Each path entry is treated as a directory containing one or more **module roots**. The engine walks one level deep to discover modules.
 
@@ -54,8 +65,8 @@ pub struct Registry { /* ... */ }
 impl Registry {
     pub fn load_from(paths: &[&Path]) -> Result<Registry, QuireError>;
     pub fn load_module(module_root: &Path) -> Result<Registry, QuireError>;
-    pub fn from_env() -> Result<Registry, QuireError>;        // honors IX_SCHEMA_PATH then default
-    pub fn from_default() -> Result<Registry, QuireError>;    // ~/.ix/schemas/ only
+    pub fn from_env() -> Result<Registry, QuireError>;        // IX_FILAMENT_MODULES_PATH / IX_SCHEMA_PATH then default
+    pub fn from_default() -> Result<Registry, QuireError>;    // ~/.ix/filament/modules/ only
 
     pub fn archetype(&self, name: &str) -> Option<&CompiledArchetype>;
     pub fn archetype_names(&self) -> impl Iterator<Item = &str>;
@@ -97,8 +108,8 @@ Templates are NOT parsed or registered (render is removed). Per-validate and per
 - A search path entry that is a **file, not a directory**: warning diagnostic; entry is skipped, other entries process normally.
 - A search path entry whose **read permission is denied**: warning diagnostic with `errno`; entry is skipped.
 - **Tilde (`~`) expansion**: the loader SHALL expand a leading `~/` or `~` to the user's home directory before resolving. No mid-path tilde expansion.
-- **Environment variables** in `IX_SCHEMA_PATH` entries are NOT expanded — entries are taken literally after splitting on `:`.
-- **Duplicate entries** in `IX_SCHEMA_PATH` (same canonical path appearing more than once): the loader SHALL deduplicate before walking; modules are loaded at most once per canonical path.
+- **Environment variables** in `IX_FILAMENT_MODULES_PATH` / `IX_SCHEMA_PATH` entries are NOT expanded — entries are taken literally after splitting on `:`.
+- **Duplicate entries** in the search-path env var (same canonical path appearing more than once): the loader SHALL deduplicate before walking; modules are loaded at most once per canonical path.
 - **Symlink loops**: the directory walker SHALL maintain a `visited` set of canonical paths and break cycles. Cycle detection emits a warning diagnostic; the cyclic branch is skipped.
 
 ### Concurrency model
@@ -125,7 +136,7 @@ The loader assumes the upstream sync tool (canonically `ix-cli`, see Appendix A 
 
 ## Acceptance
 
-- **FR-013-AC-1**: `Registry::from_env()` with `IX_SCHEMA_PATH` unset and no `~/.ix/schemas/` returns a registry with zero archetypes and no error.
+- **FR-013-AC-1**: `Registry::from_env()` with `IX_FILAMENT_MODULES_PATH` and `IX_SCHEMA_PATH` unset and no `~/.ix/filament/modules/` returns a registry with zero archetypes and no error.
 - **FR-013-AC-2**: Pointing `IX_SCHEMA_PATH` at a path containing a copy of `spec-artifacts-iso/spec_artifacts_iso/` produces a registry with the 8 ISO archetypes (FR, NFR, StR, US, IT, TC, AC, CON) all loaded and `archetype("fr")` returns Some.
 - **FR-013-AC-3**: A manifest entry referencing a missing `schema_ref` path produces a `QuireError::ArchetypeLoadError` listing the bad path; other archetypes in the same module load successfully.
 - **FR-013-AC-4**: A criterion bench measures `Registry::load_from(&[corpus_path])` for the full 17-archetype baseline corpus and reports a one-time cost (target: under 50 ms median on baseline hardware).

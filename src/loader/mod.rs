@@ -27,7 +27,9 @@ use crate::diagnostic::Diagnostic;
 use crate::error::{ArchetypeLoadFailure, QuireError};
 use crate::loader::compile::{compile_schema, failure, read_schema, CompiledArchetype};
 use crate::loader::manifest::{load_manifest, Archetype, Manifest};
-use crate::loader::paths::{home_dir, resolve_search_paths, PathDiagnostic};
+use crate::loader::paths::{
+    default_module_root, module_path_env, resolve_search_paths, PathDiagnostic,
+};
 
 /// Module-level entry produced by [`load_modules`].
 #[derive(Debug)]
@@ -63,10 +65,14 @@ fn retired_field_reason(field: &str) -> String {
     }
 }
 
-/// Load every module reachable from `explicit` (or `IX_SCHEMA_PATH` /
-/// `~/.ix/schemas` when `explicit` is empty).
+/// Load every module reachable from `explicit` (or
+/// `IX_FILAMENT_MODULES_PATH` / `IX_SCHEMA_PATH` / `~/.ix/filament/modules`
+/// when `explicit` is empty).
 pub fn load_modules(explicit: &[&Path]) -> LoadOutcome {
-    let env_value = std::env::var_os("IX_SCHEMA_PATH");
+    let env_value = module_path_env(
+        std::env::var_os("IX_FILAMENT_MODULES_PATH"),
+        std::env::var_os("IX_SCHEMA_PATH"),
+    );
     let path_diagnostics = resolve_search_paths(explicit, env_value);
 
     let mut modules: Vec<LoadedModule> = Vec::new();
@@ -347,16 +353,17 @@ pub fn load_inline_module(manifest_yaml: &[u8], schemas: &BTreeMap<String, Strin
     }
 }
 
-/// Convenience: same as [`load_modules`] but uses only the
-/// `IX_SCHEMA_PATH` env var (or the default `~/.ix/schemas/`).
+/// Convenience: same as [`load_modules`] with no explicit paths — uses
+/// `IX_FILAMENT_MODULES_PATH` / `IX_SCHEMA_PATH` (or the default
+/// `~/.ix/filament/modules/`).
 pub fn load_from_env() -> LoadOutcome {
     load_modules(&[])
 }
 
-/// Convenience: load only from `~/.ix/schemas/`, ignoring
-/// `IX_SCHEMA_PATH`.
+/// Convenience: load only from `~/.ix/filament/modules/`, ignoring the
+/// search-path env vars.
 pub fn load_from_default() -> LoadOutcome {
-    let default_root = home_dir().map(|h| h.join(".ix").join("schemas"));
+    let default_root = default_module_root();
     match default_root {
         Some(root) => load_modules(&[&root]),
         None => LoadOutcome {

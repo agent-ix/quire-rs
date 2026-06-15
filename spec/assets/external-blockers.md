@@ -6,7 +6,7 @@ Tracks dependencies on external systems or repos whose state affects when `quire
 
 - **Status**: not yet built for the Filament → disk sync described in spec.md §17
 - **Affects**: integration testing of the full Filament → ix-cli → quire-rs path
-- **Workaround**: hand-author archetypes into `~/.ix/schemas/` (or git-vendor); `quire-rs` works correctly against any on-disk state regardless of how it got there
+- **Workaround**: hand-author archetypes into `~/.ix/filament/modules/` (or git-vendor); `quire-rs` works correctly against any on-disk state regardless of how it got there
 - **Resolution**: tracked separately in the ix-cli repo
 
 ## Python Jinja2 reference renderer pinning

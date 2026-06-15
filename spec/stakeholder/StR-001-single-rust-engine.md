@@ -31,5 +31,5 @@ Must-Have
 - **StR-001-AC-1**: A single `cargo add quire-rs` is sufficient to obtain render, parse, and extract APIs in a downstream Rust crate.
 - **StR-001-AC-2**: No call site in `quire-rs` shells out to Python, Node, or any other interpreter.
 - **StR-001-AC-3**: `Cargo.lock` audit confirms no HTTP/RPC client crates (`reqwest`, `hyper`, `tonic`, `grpc-*`, etc.) — engine is filesystem-only.
-- **StR-001-AC-4**: Adding a brand-new archetype kind (new JSON Schema + new template) to `~/.ix/schemas/<some-module>/` and restarting the consumer is sufficient for `Registry::archetype("new-name")` to return Some, with no `quire-rs` source change.
+- **StR-001-AC-4**: Adding a brand-new archetype kind (new JSON Schema + new template) to `~/.ix/filament/modules/<some-module>/` and restarting the consumer is sufficient for `Registry::archetype("new-name")` to return Some, with no `quire-rs` source change.
 - **StR-001-AC-5**: A regression suite runs `quire-rs` with `IX_SCHEMA_PATH` pointing at three different on-disk corpora (Filament-synced, hand-authored, test fixture) and confirms identical behavior across all three.

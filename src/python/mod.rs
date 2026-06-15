@@ -506,7 +506,8 @@ impl Registry {
         Ok(Registry { inner })
     }
 
-    /// Load from `IX_SCHEMA_PATH` / `~/.ix/schemas/`.
+    /// Load from `IX_FILAMENT_MODULES_PATH` / `IX_SCHEMA_PATH` /
+    /// `~/.ix/filament/modules/`.
     #[staticmethod]
     fn from_env(py: Python<'_>) -> PyResult<Self> {
         let inner = py

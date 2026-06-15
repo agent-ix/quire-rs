@@ -3,8 +3,9 @@
 //! The loader resolves archetype roots from, in priority order:
 //!
 //! 1. Explicit `Registry::load_from(paths)` argument.
-//! 2. `IX_SCHEMA_PATH` env var — colon-separated PATH-style list.
-//! 3. Default: `~/.ix/schemas/`.
+//! 2. `IX_FILAMENT_MODULES_PATH` env var (preferred), then the legacy
+//!    `IX_SCHEMA_PATH` alias — colon-separated PATH-style list.
+//! 3. Default: `~/.ix/filament/modules/`.
 //!
 //! Each path is tilde-expanded (leading `~/` or `~` only), canonicalized
 //! when possible, and de-duplicated. Missing / file-not-directory /
@@ -65,11 +66,12 @@ pub fn expand_tilde<P: AsRef<Path>>(path: P) -> PathBuf {
     p.to_path_buf()
 }
 
-/// Resolve `IX_SCHEMA_PATH` (colon-separated, no env-var-in-value
+/// Resolve the search-path env value (colon-separated, no env-var-in-value
 /// expansion) plus optional explicit overrides.
 ///
-/// `explicit` wins when non-empty; otherwise `IX_SCHEMA_PATH` is read;
-/// otherwise the default `~/.ix/schemas/` is returned.
+/// `explicit` wins when non-empty; otherwise the caller-supplied `env_value`
+/// (see [`module_path_env`]) is read; otherwise the default
+/// `~/.ix/filament/modules/` ([`default_module_root`]) is returned.
 pub fn resolve_search_paths(
     explicit: &[&Path],
     env_value: Option<OsString>,
@@ -79,8 +81,8 @@ pub fn resolve_search_paths(
     } else if let Some(env) = env_value {
         split_colon_paths(&env)
     } else {
-        match home_dir() {
-            Some(h) => vec![h.join(".ix").join("schemas")],
+        match default_module_root() {
+            Some(root) => vec![root],
             None => Vec::new(),
         }
     };
@@ -128,6 +130,21 @@ fn split_colon_paths(s: &OsString) -> Vec<PathBuf> {
         .collect()
 }
 
+/// The default module search root: `~/.ix/filament/modules`.
+///
+/// quire-rs reads installed Filament modules from here — the same directory
+/// `ix-spec` materializes its default module set into. Returns `None` when no
+/// home directory can be determined.
+pub fn default_module_root() -> Option<PathBuf> {
+    home_dir().map(|h| h.join(".ix").join("filament").join("modules"))
+}
+
+/// Select the module-search env value: `IX_FILAMENT_MODULES_PATH` takes
+/// precedence over the legacy `IX_SCHEMA_PATH` alias (kept for back-compat).
+pub fn module_path_env(filament: Option<OsString>, schema: Option<OsString>) -> Option<OsString> {
+    filament.or(schema)
+}
+
 /// Cross-platform home-dir lookup. Falls back to `HOME` / `USERPROFILE`
 /// env vars without pulling in a separate crate.
 pub fn home_dir() -> Option<PathBuf> {
@@ -169,6 +186,28 @@ mod tests {
     #[test]
     fn expand_tilde_no_op_for_mid_path() {
         assert_eq!(expand_tilde("/foo/~bar"), PathBuf::from("/foo/~bar"));
+    }
+
+    #[test]
+    fn default_module_root_points_at_filament_modules() {
+        let h = home_dir().expect("HOME set");
+        assert_eq!(
+            default_module_root().expect("home"),
+            h.join(".ix").join("filament").join("modules")
+        );
+    }
+
+    #[test]
+    fn module_path_env_prefers_filament_over_schema_alias() {
+        assert_eq!(
+            module_path_env(Some(OsString::from("/a")), Some(OsString::from("/b"))),
+            Some(OsString::from("/a"))
+        );
+        assert_eq!(
+            module_path_env(None, Some(OsString::from("/b"))),
+            Some(OsString::from("/b"))
+        );
+        assert_eq!(module_path_env(None, None), None);
     }
 
     #[test]

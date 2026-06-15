@@ -120,7 +120,7 @@ This specification governs a **generic, archetype-agnostic engine** that process
 
 This specification does not govern:
 
-- **Sync from Filament to disk.** The local schema directory (e.g. `~/.ix/schemas/`) is populated by external tools — `ix-cli` is the canonical syncer (handles Filament auth + transfer). `quire-rs` can consume a path when a caller asks it to load local archetypes, but it never owns `.ix` synchronization and never calls Filament directly.
+- **Sync from Filament to disk.** The local module directory (e.g. `~/.ix/filament/modules/`) is populated by external tools — `ix-cli` / `ix-spec` are the canonical syncers (handle Filament auth + transfer / module install). `quire-rs` can consume a path when a caller asks it to load local archetypes, but it never owns `.ix` synchronization and never calls Filament directly.
 - **Runtime ObjectType registry sourcing.** `filament-core-service` owns the dynamic ObjectType registry. Consumers such as `filament-analysis-worker` and `cloudmanager-local-sync` fetch registry snapshots from core and pass them through parser-lib into `ExtractionContext`. `quire-rs` does not discover those ObjectTypes itself.
 - **Authoring tooling.** Schema files, templates, and manifests are authored elsewhere (in Filament, by hand, by another tool). `quire-rs` does not write archetype data.
 - **Author-time schema validation.** `quire-rs` validates JSON Schema documents at archetype-load time (FR-013). Pre-publish validation (catching authoring errors before they reach disk) is Filament's concern.
@@ -309,10 +309,9 @@ The crate is the Rust home for these responsibilities so that downstream consume
 └──────┬───────┘
        │ (writes files)
        ▼
-┌──────────────┐
-│ ~/.ix/schemas│   filesystem contract — manifest.yaml + schemas/ + templates/
-│  (or IX_SCHEMA_PATH dirs)         per module                                   │
-└──────┬───────┘
+┌────────────────────────┐
+│ ~/.ix/filament/modules │   filesystem contract — manifest.yaml + schemas/ per module
+└──────┬─────────────────┘   (or IX_FILAMENT_MODULES_PATH / IX_SCHEMA_PATH dirs)
        │ (reads at load time)
        ▼
 ┌──────────────┐
@@ -533,7 +532,7 @@ At spec authoring time the local filesystem-synced corpus contains **17 archetyp
 | `spec-artifacts-app` | 2 | ApplicationSpec, MasterRequirements |
 | `spec-artifacts-process` | 7 | ADR, Plan, Task, Review, Finding, TestMatrix, Standard |
 
-This list is **informational, not normative.** The Registry contents are whatever the filesystem holds at load time. Adding a new archetype is a sync operation (new files in `~/.ix/schemas/`), not a code change.
+This list is **informational, not normative.** The Registry contents are whatever the filesystem holds at load time. Adding a new archetype is a sync operation (new files in `~/.ix/filament/modules/`), not a code change.
 
 The parity suite (FR-012) enumerates archetypes from `tests/render_parity/corpus.yaml` and runs against every fixture pair on disk — that file is the byte-parity source of truth, not this table.
 
@@ -752,7 +751,7 @@ Functional requirements MAY declare a lifecycle status:
 | Authenticate to Filament | `ix-cli` | API keys, OAuth, etc. |
 | Discover available modules in Filament | `ix-cli` | |
 | Download module contents to disk | `ix-cli` | Atomic writes per above |
-| Resolve `~/.ix/schemas/` location | `ix-cli` for writes; `quire-rs` for reads (FR-013) | Both honor `IX_SCHEMA_PATH` env var |
+| Resolve `~/.ix/filament/modules/` location | `ix-cli` / `ix-spec` for writes; `quire-rs` for reads (FR-013) | Both honor `IX_FILAMENT_MODULES_PATH` (and the legacy `IX_SCHEMA_PATH` alias) |
 | Module versioning policy | `ix-cli` | quire-rs is version-blind |
 | Conflict resolution between local edits and remote | `ix-cli` | quire-rs sees only the post-resolution state |
 | Load archetypes into runtime registry | `quire-rs` | Pure filesystem reads |
@@ -845,8 +844,8 @@ Canonical definitions for terms used throughout the spec. When in doubt, this se
 | **Diagnostic** | A non-error informational message emitted by the engine (e.g. `DuplicateArchetype`, `FallbackLocatorUsed`). Surfaced in result types alongside the primary value; non-fatal. |
 | **QuireError** | The crate's typed error enum returned in `Result<_, QuireError>` for all fallible operations. Variants are non-exhaustive. Each variant carries enough context (field path, file path, archetype name) for actionable handling. |
 | **QuireDocument** / **QuireSection** | The parsed representation of a markdown document: frontmatter + preamble + nested section tree. Mirrors the TS reference `agent-ix/quire` shape verbatim. |
-| **Search path** | The ordered list of filesystem directories the loader walks to discover modules. Resolved from explicit constructor arg → `IX_SCHEMA_PATH` env var → `~/.ix/schemas/` default. |
+| **Search path** | The ordered list of filesystem directories the loader walks to discover modules. Resolved from explicit constructor arg → `IX_FILAMENT_MODULES_PATH` (then legacy `IX_SCHEMA_PATH`) env var → `~/.ix/filament/modules/` default. |
 | **Filament** | The knowledge platform that authors and stores archetypes as data. Out-of-process from `quire-rs`. Sync to disk is owned by `ix-cli`. |
 | **ix-cli** | The CLI tool that authenticates to Filament and syncs archetypes to the local filesystem. Counterparty to the inter-tool contract in §17. Not invoked by `quire-rs`. |
 | **Parity / byte-parity** | The property that `quire-rs::render(archetype, data)` produces byte-identical output to the Python Jinja2 reference renderer (spec-artifacts-*) given the same input. Verified by `tests/render_parity/`. |
-| **Baseline corpus** | The set of archetype modules present at `~/.ix/schemas/` (or under the v1 informational list in §8.3) used as the parity-test ground truth. Data, not code. |
+| **Baseline corpus** | The set of archetype modules present at `~/.ix/filament/modules/` (or under the v1 informational list in §8.3) used as the parity-test ground truth. Data, not code. |
