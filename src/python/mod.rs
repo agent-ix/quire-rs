@@ -427,14 +427,7 @@ impl Spec {
                 item.set_item("id", &d.id)?;
                 item.set_item("uuid", d.uuid.map(|u| u.to_string()))?;
                 item.set_item("path", d.path.to_string_lossy().into_owned())?;
-                item.set_item(
-                    "type",
-                    d.doc
-                        .frontmatter
-                        .as_ref()
-                        .and_then(|fm| fm.get("artifact_type").or_else(|| fm.get("type")))
-                        .and_then(|v| v.as_str()),
-                )?;
+                item.set_item("type", crate::query::concept_type(&d.doc))?;
                 Ok(Some(item))
             }
         }

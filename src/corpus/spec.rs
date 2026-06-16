@@ -155,14 +155,11 @@ pub(crate) fn artifact_key(doc: &LoadedDocument) -> ArtifactId {
     }
 }
 
-/// The document's frontmatter `type` / `artifact_type` (the latter
-/// wins, matching this repo's own artifacts). `None` when untyped.
+/// The document's concept type — routed through the one canonical
+/// discriminator read ([`crate::query::concept_type`]: `type`, falling
+/// back to legacy `artifact_type` during migration). `None` when untyped.
 pub(crate) fn artifact_type(doc: &LoadedDocument) -> Option<String> {
-    let fm = doc.doc.frontmatter.as_ref()?;
-    fm.get("artifact_type")
-        .or_else(|| fm.get("type"))
-        .and_then(|v| v.as_str())
-        .map(|s| s.to_string())
+    crate::query::concept_type(&doc.doc).map(|s| s.to_string())
 }
 
 #[cfg(test)]
