@@ -1,7 +1,7 @@
 ---
 id: FR-026
 title: "Intra-Spec Reference Resolution"
-artifact_type: FR
+type: FR
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/stakeholder/StR-006"
     type: "implements"

@@ -1,7 +1,7 @@
 ---
 id: FR-034
 title: "Assert Field Interpolation"
-artifact_type: FR
+type: FR
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/functional/FR-033"
     type: "extends"

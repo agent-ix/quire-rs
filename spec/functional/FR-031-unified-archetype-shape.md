@@ -1,7 +1,7 @@
 ---
 id: FR-031
 title: "Unified Archetype Shape"
-artifact_type: FR
+type: FR
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/functional/FR-013"
     type: "extends"

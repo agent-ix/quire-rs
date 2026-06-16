@@ -1,7 +1,7 @@
 ---
 id: FR-028
 title: "Expanded Python Binding Surface (Render / Validate / Extract / Edges)"
-artifact_type: FR
+type: FR
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/functional/FR-023"
     type: "extends"

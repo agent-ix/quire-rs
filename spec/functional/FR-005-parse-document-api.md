@@ -1,7 +1,7 @@
 ---
 id: FR-005
 title: "parse_document API and QuireDocument Shape"
-artifact_type: FR
+type: FR
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/usecase/US-002"
     type: "implements"

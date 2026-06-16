@@ -1,5 +1,5 @@
 ---
-artifact_type: master-requirements
+type: master-requirements
 name: quire-rs
 org: agent-ix
 component_type: rust-lib

@@ -1,7 +1,7 @@
 ---
 id: StR-004
 title: "Inherit Rust Safety Scaffolding from rust-lib-cookiecutter / ecaz"
-artifact_type: StR
+type: StR
 relationships:
   - target: "ix://agent-ix/rust-lib-cookiecutter"
     type: "implements"

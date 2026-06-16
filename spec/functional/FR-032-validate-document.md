@@ -1,7 +1,7 @@
 ---
 id: FR-032
 title: "Markdown Document Validation (validate_document)"
-artifact_type: FR
+type: FR
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/functional/FR-002"
     type: "extends"

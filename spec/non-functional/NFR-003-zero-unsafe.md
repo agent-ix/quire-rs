@@ -1,7 +1,7 @@
 ---
 id: NFR-003
 title: "Zero unsafe Blocks in v1"
-artifact_type: NFR
+type: NFR
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/stakeholder/StR-004"
     type: "implements"

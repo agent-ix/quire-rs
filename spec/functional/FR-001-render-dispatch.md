@@ -1,7 +1,7 @@
 ---
 id: FR-001
 title: "Render Dispatch: Generic Engine Over (Schema, Template, Data)"
-artifact_type: FR
+type: FR
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/usecase/US-001"
     type: "implements"

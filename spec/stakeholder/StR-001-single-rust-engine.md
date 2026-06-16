@@ -1,7 +1,7 @@
 ---
 id: StR-001
 title: "Single Generic Rust Engine for Render + Parse + Extract"
-artifact_type: StR
+type: StR
 ---
 
 ## Stakeholder Need

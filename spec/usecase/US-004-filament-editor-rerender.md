@@ -1,7 +1,7 @@
 ---
 id: US-004
 title: "Filament Editor Receives a Patch, Validates, and Re-Renders"
-artifact_type: US
+type: US
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/stakeholder/StR-001"
     type: "implements"

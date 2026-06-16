@@ -1,7 +1,7 @@
 ---
 id: FR-029
 title: "Archetype Input Contract Surface"
-artifact_type: FR
+type: FR
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/functional/FR-003"
     type: "extends"

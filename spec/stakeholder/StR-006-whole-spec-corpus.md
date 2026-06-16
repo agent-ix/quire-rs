@@ -1,7 +1,7 @@
 ---
 id: StR-006
 title: "Examine a Whole Spec as a Bounded, In-Memory Unit"
-artifact_type: StR
+type: StR
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/stakeholder/StR-001"
     type: "requires"

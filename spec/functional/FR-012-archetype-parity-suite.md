@@ -1,7 +1,7 @@
 ---
 id: FR-012
 title: "Archetype Render Parity Against the Current Filament Corpus"
-artifact_type: FR
+type: FR
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/usecase/US-005"
     type: "implements"

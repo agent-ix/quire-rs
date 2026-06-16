@@ -1,7 +1,7 @@
 ---
 id: NFR-016
 title: "Python Binding Overhead Bounded; abi3 Stability"
-artifact_type: NFR
+type: NFR
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/usecase/US-011"
     type: "implements"

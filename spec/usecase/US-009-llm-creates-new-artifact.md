@@ -1,7 +1,7 @@
 ---
 id: US-009
 title: "LLM Creates a New Artifact From Scratch"
-artifact_type: US
+type: US
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/stakeholder/StR-001"
     type: "implements"

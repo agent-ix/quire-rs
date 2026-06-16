@@ -1,7 +1,7 @@
 ---
 id: US-010
 title: "LLM Extracts Structured Data for Retrieval / Grounding"
-artifact_type: US
+type: US
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/stakeholder/StR-001"
     type: "implements"

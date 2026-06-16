@@ -1,7 +1,7 @@
 ---
 id: FR-036
 title: "Declarative Lint Rules"
-artifact_type: FR
+type: FR
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/functional/FR-013"
     type: "requires"

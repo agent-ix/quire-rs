@@ -1,7 +1,7 @@
 ---
 id: NFR-015
 title: "Repository Walk Throughput Scales With Cores"
-artifact_type: NFR
+type: NFR
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/usecase/US-011"
     type: "implements"

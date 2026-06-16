@@ -1,7 +1,7 @@
 ---
 id: FR-013
 title: "Archetype Loader: Filesystem-First, Sync-Agnostic"
-artifact_type: FR
+type: FR
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/functional/FR-001"
     type: "requires"

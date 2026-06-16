@@ -1,7 +1,7 @@
 ---
 id: NFR-005
 title: "Schema Validation Errors Are Field-Keyed and Actionable"
-artifact_type: NFR
+type: NFR
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/functional/FR-001"
     type: "requires"

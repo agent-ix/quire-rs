@@ -1,7 +1,7 @@
 ---
 id: StR-005
 title: "Native Python Bindings Replace the filament-parser-lib Hot Paths"
-artifact_type: StR
+type: StR
 relationships:
   - target: "ix://agent-ix/filament-parser-lib"
     type: "replaces"

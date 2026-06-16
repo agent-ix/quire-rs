@@ -1,7 +1,7 @@
 ---
 id: FR-023
 title: "Python Binding Surface (Feature-Gated PyO3)"
-artifact_type: FR
+type: FR
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/stakeholder/StR-005"
     type: "implements"

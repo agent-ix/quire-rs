@@ -1,7 +1,7 @@
 ---
 id: FR-007
 title: "Fenced-Code-Block-Aware Heading Walk"
-artifact_type: FR
+type: FR
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/usecase/US-002"
     type: "implements"

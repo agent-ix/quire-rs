@@ -1,7 +1,7 @@
 ---
 id: US-011
 title: "Python Library Parses a Repo of Markdown via quire-rs Bindings"
-artifact_type: US
+type: US
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/stakeholder/StR-005"
     type: "implements"

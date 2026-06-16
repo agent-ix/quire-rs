@@ -1,7 +1,7 @@
 ---
 id: US-013
 title: "Agent Resolves Intra-Spec References to Find Orphans and Dangling Links"
-artifact_type: US
+type: US
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/stakeholder/StR-006"
     type: "implements"

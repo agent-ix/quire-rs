@@ -1,7 +1,7 @@
 ---
 id: NFR-010
 title: "Public API Stability and Semver Policy"
-artifact_type: NFR
+type: NFR
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/stakeholder/StR-001"
     type: "implements"

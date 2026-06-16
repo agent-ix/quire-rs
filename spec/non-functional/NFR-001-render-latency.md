@@ -1,7 +1,7 @@
 ---
 id: NFR-001
 title: "Render Latency: Sub-Millisecond Per Archetype"
-artifact_type: NFR
+type: NFR
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/usecase/US-004"
     type: "implements"

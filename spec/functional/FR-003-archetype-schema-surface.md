@@ -1,7 +1,7 @@
 ---
 id: FR-003
 title: "Archetype JSON Schema Surfaced to LLM Consumers"
-artifact_type: FR
+type: FR
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/usecase/US-001"
     type: "implements"

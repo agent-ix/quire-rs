@@ -1,7 +1,7 @@
 ---
 id: NFR-012
 title: "miri Undefined-Behavior Check on Schedule"
-artifact_type: NFR
+type: NFR
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/non-functional/NFR-003"
     type: "implements"

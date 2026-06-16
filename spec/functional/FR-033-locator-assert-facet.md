@@ -1,7 +1,7 @@
 ---
 id: FR-033
 title: "Locator Assert Facet"
-artifact_type: FR
+type: FR
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/functional/FR-011"
     type: "extends"

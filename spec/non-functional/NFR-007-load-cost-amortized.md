@@ -1,7 +1,7 @@
 ---
 id: NFR-007
 title: "Archetype Load Cost Amortized Across Renders"
-artifact_type: NFR
+type: NFR
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/functional/FR-013"
     type: "requires"

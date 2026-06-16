@@ -1,7 +1,7 @@
 ---
 id: StR-002
 title: "Byte-Parity Render Output with the Python Jinja2 Reference"
-artifact_type: StR
+type: StR
 relationships:
   - target: "ix://agent-ix/spec-artifacts-iso"
     type: "consumes"

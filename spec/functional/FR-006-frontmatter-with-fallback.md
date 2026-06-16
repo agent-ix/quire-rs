@@ -1,7 +1,7 @@
 ---
 id: FR-006
 title: "Frontmatter Extraction with Malformed-Fallback Semantics"
-artifact_type: FR
+type: FR
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/usecase/US-002"
     type: "implements"

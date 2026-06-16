@@ -1,7 +1,7 @@
 ---
 id: US-006
 title: "LLM Patches a Single Block via Schema-Validated Merge"
-artifact_type: US
+type: US
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/stakeholder/StR-001"
     type: "implements"

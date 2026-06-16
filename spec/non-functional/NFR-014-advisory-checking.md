@@ -1,7 +1,7 @@
 ---
 id: NFR-014
 title: "RustSec Advisory Checking (cargo-audit)"
-artifact_type: NFR
+type: NFR
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/non-functional/NFR-004"
     type: "implements"

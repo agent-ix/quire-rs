@@ -1,7 +1,7 @@
 ---
 id: NFR-019
 title: "Input Robustness: No Panic on Arbitrary Input"
-artifact_type: NFR
+type: NFR
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/functional/FR-032"
     type: "requires"

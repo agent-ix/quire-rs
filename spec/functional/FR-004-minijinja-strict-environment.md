@@ -1,7 +1,7 @@
 ---
 id: FR-004
 title: "MiniJinja Environment Configured Strict and Long-Lived"
-artifact_type: FR
+type: FR
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/stakeholder/StR-002"
     type: "implements"

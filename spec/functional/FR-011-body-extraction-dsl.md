@@ -1,7 +1,7 @@
 ---
 id: FR-011
 title: "Body-Extraction DSL Evaluator: Six Locators + Single/Multi-Yield Patterns"
-artifact_type: FR
+type: FR
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/usecase/US-003"
     type: "implements"

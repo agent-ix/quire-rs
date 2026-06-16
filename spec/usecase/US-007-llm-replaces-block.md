@@ -1,7 +1,7 @@
 ---
 id: US-007
 title: "LLM Full-Replaces a Block When Changes Are Pervasive"
-artifact_type: US
+type: US
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/stakeholder/StR-001"
     type: "implements"

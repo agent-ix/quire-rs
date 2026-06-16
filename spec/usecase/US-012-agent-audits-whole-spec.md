@@ -1,7 +1,7 @@
 ---
 id: US-012
 title: "Agent Audits a Whole Spec for Traceability and Coverage Gaps"
-artifact_type: US
+type: US
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/stakeholder/StR-006"
     type: "implements"

@@ -1,7 +1,7 @@
 ---
 id: FR-014
 title: "Module Activation: Multiple Archetype Modules, Namespaced Coexistence"
-artifact_type: FR
+type: FR
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/functional/FR-013"
     type: "requires"

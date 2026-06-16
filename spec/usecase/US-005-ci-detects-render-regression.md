@@ -1,7 +1,7 @@
 ---
 id: US-005
 title: "CI Detects a Render Regression Against Python Reference Fixtures"
-artifact_type: US
+type: US
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/stakeholder/StR-002"
     type: "implements"

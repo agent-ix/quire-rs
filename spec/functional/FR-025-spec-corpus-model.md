@@ -1,7 +1,7 @@
 ---
 id: FR-025
 title: "Spec Corpus Model: Bounded In-Memory Document Set"
-artifact_type: FR
+type: FR
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/stakeholder/StR-006"
     type: "implements"

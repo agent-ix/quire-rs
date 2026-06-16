@@ -1,7 +1,7 @@
 ---
 id: NFR-011
 title: "Fuzz Testing on Untrusted-Input Surfaces"
-artifact_type: NFR
+type: NFR
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/functional/FR-005"
     type: "implements"

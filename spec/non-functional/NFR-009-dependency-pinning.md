@@ -1,7 +1,7 @@
 ---
 id: NFR-009
 title: "Dependency Version Pinning Policy"
-artifact_type: NFR
+type: NFR
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/stakeholder/StR-004"
     type: "implements"

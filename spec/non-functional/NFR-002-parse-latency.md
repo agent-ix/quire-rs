@@ -1,7 +1,7 @@
 ---
 id: NFR-002
 title: "Parse Latency: 5 MB Document Under 500 ms"
-artifact_type: NFR
+type: NFR
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/usecase/US-002"
     type: "implements"

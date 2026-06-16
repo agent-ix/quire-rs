@@ -1,7 +1,7 @@
 ---
 id: US-014
 title: "LLM Authors an Artifact as Markdown and Validates It"
-artifact_type: US
+type: US
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/stakeholder/StR-001"
     type: "implements"

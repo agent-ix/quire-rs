@@ -1,7 +1,7 @@
 ---
 id: FR-010
 title: "Query API Surface (section, sections, tables, lists, diagrams, search)"
-artifact_type: FR
+type: FR
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/usecase/US-002"
     type: "implements"

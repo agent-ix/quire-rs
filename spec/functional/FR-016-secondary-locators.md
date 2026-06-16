@@ -1,7 +1,7 @@
 ---
 id: FR-016
 title: "Secondary / Fallback Locators for Author-Variant Tolerance"
-artifact_type: FR
+type: FR
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/functional/FR-011"
     type: "requires"

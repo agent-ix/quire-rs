@@ -1,7 +1,7 @@
 ---
 id: FR-030
 title: "Required Section Completeness Validation"
-artifact_type: FR
+type: FR
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/functional/FR-002"
     type: "extends"

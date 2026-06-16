@@ -1,7 +1,7 @@
 ---
 id: FR-024
 title: "Parallel Repository Walk + Parse (load_repo)"
-artifact_type: FR
+type: FR
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/stakeholder/StR-005"
     type: "implements"

@@ -1,7 +1,7 @@
 ---
 id: FR-002
 title: "Schema Validation Pipeline: JSON Merge → Compiled Validator → Render"
-artifact_type: FR
+type: FR
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/usecase/US-001"
     type: "implements"

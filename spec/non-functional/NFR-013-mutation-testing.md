@@ -1,7 +1,7 @@
 ---
 id: NFR-013
 title: "Mutation Testing on High-Value Code Paths"
-artifact_type: NFR
+type: NFR
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/functional/FR-005"
     type: "implements"

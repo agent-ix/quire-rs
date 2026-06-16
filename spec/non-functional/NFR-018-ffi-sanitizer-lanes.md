@@ -1,7 +1,7 @@
 ---
 id: NFR-018
 title: "FFI Sanitizer Lanes (TSAN + ASAN on the Python Extension)"
-artifact_type: NFR
+type: NFR
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/functional/FR-023"
     type: "requires"

@@ -1,7 +1,7 @@
 ---
 id: StR-003
 title: "Byte-Parity Parser with agent-ix/quire (TypeScript)"
-artifact_type: StR
+type: StR
 relationships:
   - target: "ix://agent-ix/quire"
     type: "implements"

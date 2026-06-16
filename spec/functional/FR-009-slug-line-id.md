@@ -1,7 +1,7 @@
 ---
 id: FR-009
 title: "Stable Slug-Line ID Format for QuireSection"
-artifact_type: FR
+type: FR
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/usecase/US-002"
     type: "implements"

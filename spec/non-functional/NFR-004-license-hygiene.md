@@ -1,7 +1,7 @@
 ---
 id: NFR-004
 title: "License Hygiene Across Transitive Dependencies"
-artifact_type: NFR
+type: NFR
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/stakeholder/StR-004"
     type: "implements"

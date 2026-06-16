@@ -1,7 +1,7 @@
 ---
 id: FR-035
 title: "Per-Level Heading Uniqueness"
-artifact_type: FR
+type: FR
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/functional/FR-032"
     type: "requires"

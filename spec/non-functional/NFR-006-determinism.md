@@ -1,7 +1,7 @@
 ---
 id: NFR-006
 title: "Determinism: Identical Input Produces Byte-Identical Output"
-artifact_type: NFR
+type: NFR
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/stakeholder/StR-002"
     type: "implements"

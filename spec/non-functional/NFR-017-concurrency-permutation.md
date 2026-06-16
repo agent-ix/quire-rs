@@ -1,7 +1,7 @@
 ---
 id: NFR-017
 title: "Concurrency Permutation for the Parallel Walk (loom)"
-artifact_type: NFR
+type: NFR
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/functional/FR-024"
     type: "requires"

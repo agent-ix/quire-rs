@@ -1,7 +1,7 @@
 ---
 id: FR-027
 title: "Whole-Spec Query API"
-artifact_type: FR
+type: FR
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/stakeholder/StR-006"
     type: "implements"

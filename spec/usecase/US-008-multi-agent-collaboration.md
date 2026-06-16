@@ -1,7 +1,7 @@
 ---
 id: US-008
 title: "Multiple Agents Edit Different Blocks of the Same Artifact"
-artifact_type: US
+type: US
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/stakeholder/StR-001"
     type: "implements"
