@@ -36,3 +36,5 @@ description: "Index of artifacts in this directory."
 * [FR-034: Assert Field Interpolation](./FR-034-assert-field-interpolation.md)
 * [FR-035: Per-Level Heading Uniqueness](./FR-035-per-level-heading-uniqueness.md)
 * [FR-036: Declarative Lint Rules](./FR-036-declarative-lint-rules.md)
+* [FR-037: Base Concept Frontmatter Schema (OKF)](./FR-037-base-concept-schema.md)
+* [FR-038: OKF Bundle Validation: Strict vs Okf Postures + Index Completeness](./FR-038-okf-bundle-validation.md)

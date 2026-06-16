@@ -82,6 +82,8 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | FR-034 Assert field interpolation | AC-1..4 | TC-540 (id prefix), TC-541 (missing field diag), TC-542 (regex-escape), TC-543 (no-token static regex) | 🚧 Pending implementation |
 | FR-035 Per-level heading uniqueness | AC-1..4 | TC-544 (dup L2), TC-545 (cross-level ok), TC-546 (iterate_over children), TC-547 (line number) | 🚧 Pending implementation |
 | FR-036 Declarative lint rules | AC-1..5 | TC-584 (manifest→Registry::lint_rules + malformed rule fails load), TC-585 (vocab finding + annotation pass), TC-586 (archetype scoping), TC-587 (missing section/column → none), TC-588 (lint never affects extract/validate) | ✅ |
+| FR-037 Base concept frontmatter schema (OKF) | AC-1..6 | TC-590 (minimal typed), TC-591 (optional desc/tags), TC-592 (missing type), TC-593 (empty type), TC-594/595/596 (mistyped desc/tags/non-string item), TC-528 (shape wired into validate_document) | ✅ |
+| FR-038 OKF bundle validation (Strict vs Okf + index) | AC-1..8 | TC-600 (strict untyped→error), TC-601 (okf untyped→error), TC-602 (okf tolerates unknown type+broken link, strict rejects), TC-603 (strict conformant+complete index valid), TC-604 (index incompleteness error/warning), TC-605 (root missing okf_version), TC-606 (subdir no okf_version), TC-607 (strict mistyped description) | ✅ |
 | FR-024 Parallel repo walk (load_repo) | AC-1..9 | TC-470 (N files→N docs), TC-471 (malformed→diagnostic), TC-472 (gitignore), TC-473 (path-sorted determinism), TC-474 (symlink loop), TC-475 (id derivation), TC-476 (bad root), TC-455 (bench), TC-502 (no shared mutable state) | ✅ Complete |
 | FR-025 Spec corpus model | AC-1..6 | TC-480 (len), TC-481 (id index), TC-482 (dup id), TC-483 (Send+Sync), TC-484 (scope-guard surface), TC-485 (no-IO queries) | ✅ Complete |
 | FR-026 Intra-spec reference resolution | AC-1..7 | TC-486 (frontmatter edge), TC-487 (ix:// edge), TC-488 (dangling), TC-489 (cross-spec dangling), TC-490 (bidirectional), TC-491 (target-id extraction), TC-492 (O(edges) proptest) | ✅ Complete |
@@ -380,6 +382,21 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-578 | Determinism: `validate_document` + `extract` on the same input 100× across threads → equal `ValidationResult` (ordered diagnostics) + `ExtractionResult` (records+edges+diagnostics) | Property | P0 | NFR-006-AC-4 | ✅ |
 | TC-579 | Fuzz: arbitrary byte slices (lossy `&str`) into `parse_document`/`validate_document`/`extract` run clean (no panic/UB) for the scheduled duration; crashes committed as regression reproducers | Integration | P0 | NFR-019-AC-1 | ✅ |
 | TC-580 | Proptest: random strings (empty, fence-only, frontmatter-only, deeply nested) into `parse_document`/`validate_document`/`extract` always return a value or typed error, never panic | Property | P0 | NFR-019-AC-2 | ✅ |
+| TC-590 | `validate_base_concept` on `{type: FR}` returns no errors (minimal typed concept) | Unit | P0 | FR-037-AC-1 | ✅ |
+| TC-591 | `validate_base_concept` on `{type, description: str, tags: [str]}` returns no errors (optional OKF fields accepted when well-typed) | Unit | P0 | FR-037-AC-2 | ✅ |
+| TC-592 | `validate_base_concept` on frontmatter omitting `type` → exactly one error, reason `frontmatter`, message names `type` | Unit | P0 | FR-037-AC-3 | ✅ |
+| TC-593 | `validate_base_concept` on `{type: ""}` → exactly one error, reason `frontmatter` (`minLength: 1`) | Unit | P0 | FR-037-AC-4 | ✅ |
+| TC-594 | `validate_base_concept` on `{type, description: 7}` → one error naming `description` | Unit | P0 | FR-037-AC-5 | ✅ |
+| TC-595 | `validate_base_concept` on `{type, tags: "x"}` (non-array) → one error naming `tags` | Unit | P0 | FR-037-AC-5 | ✅ |
+| TC-596 | `validate_base_concept` on `{type, tags: ["ok", 3]}` (non-string item) → one error | Unit | P0 | FR-037-AC-5 | ✅ |
+| TC-600 | `validate_bundle_at` Strict: a doc with no `type` → `!is_valid()`, error reason `frontmatter` naming `type` (untyped is a hard error) | Integration | P0 | FR-038-AC-1 | ✅ |
+| TC-601 | `validate_bundle_at` Okf: untyped doc is **still** an error (`!is_valid()`, reason `frontmatter`) | Integration | P0 | FR-038-AC-2 | ✅ |
+| TC-602 | Okf tolerates unknown `type` + dangling `ix://` ref as warnings (`is_valid()`); Strict rejects both as errors | Integration | P0 | FR-038-AC-3 | ✅ |
+| TC-603 | Strict: typed archetype-conformant bundle whose root index lists every sibling + declares `okf_version` → `is_valid()` | Integration | P0 | FR-038-AC-4 | ✅ |
+| TC-604 | Index omitting a sibling → `index-incomplete` naming the file: error under Strict, warning under Okf | Integration | P0 | FR-038-AC-5 | ✅ |
+| TC-605 | Strict: bundle-root index missing `okf_version` → `index-okf-version` error | Integration | P0 | FR-038-AC-6 | ✅ |
+| TC-606 | Strict: subdirectory index without `okf_version` produces no `index-okf-version` finding; nested bundle `is_valid()` | Integration | P0 | FR-038-AC-7 | ✅ |
+| TC-607 | Strict: known `type` but mistyped optional `description` → `!is_valid()`, error names `description` (base concept contract runs in bundle validation) | Integration | P0 | FR-038-AC-8 | ✅ |
 
 ---
 
@@ -730,6 +747,20 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-036-AC-3 | TC-586 |
 | FR-036-AC-4 | TC-587 |
 | FR-036-AC-5 | TC-588 |
+| FR-037-AC-1 | TC-590 |
+| FR-037-AC-2 | TC-591 |
+| FR-037-AC-3 | TC-592 |
+| FR-037-AC-4 | TC-593 |
+| FR-037-AC-5 | TC-594, TC-595, TC-596 |
+| FR-037-AC-6 | TC-528 |
+| FR-038-AC-1 | TC-600 |
+| FR-038-AC-2 | TC-601 |
+| FR-038-AC-3 | TC-602 |
+| FR-038-AC-4 | TC-603 |
+| FR-038-AC-5 | TC-604 |
+| FR-038-AC-6 | TC-605 |
+| FR-038-AC-7 | TC-606 |
+| FR-038-AC-8 | TC-607 |
 
 ### Non-Functional Requirements
 
@@ -795,7 +826,7 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | NFR-019-AC-1 | TC-579 |
 | NFR-019-AC-2 | TC-580 |
 
-**Coverage status: 295 / 295 ACs covered (100%).** v0.4 adds FR-011-AC-21 (CR-006 `multiple: true`, TC-583) and FR-036-AC-1..5 (declarative lint rules, TC-584..588). v0.2 block model added 16 ACs (FR-019..022, TC-400..443). v0.3 adds 81 ACs — StR-005/006, US-011..013, FR-023..027 (incl. review-added FR-026-AC-8, FR-027-AC-9), NFR-015/016, plus the hardening re-review (NFR-003-AC-4, FR-024-AC-9, NFR-017, NFR-018) — covered by TC-455..507 (plus reused TC-456..459). The Miri ACs (NFR-012-AC-1..5) were **retired** (ADR 0006) and the compile-time **NFR-003-AC-5** (`forbid(unsafe_code)`, TC-582) added. PC (performance criteria) for US-011..013 are tracked as benches (TC-455..459, TC-469) and marked 🚧 pending implementation, consistent with the US-006..010 perf-bench convention. The v0.3 hardening re-review (loom NFR-017, TSAN/ASAN NFR-018) is recorded in spec.md §19.
+**Coverage status: 309 / 309 ACs covered (100%).** The OKF slice (2026-06-16) adds FR-037-AC-1..6 (base concept frontmatter schema, TC-590..596 + TC-528) and FR-038-AC-1..8 (OKF bundle validation, TC-600..607) — 14 ACs. v0.4 adds FR-011-AC-21 (CR-006 `multiple: true`, TC-583) and FR-036-AC-1..5 (declarative lint rules, TC-584..588). v0.2 block model added 16 ACs (FR-019..022, TC-400..443). v0.3 adds 81 ACs — StR-005/006, US-011..013, FR-023..027 (incl. review-added FR-026-AC-8, FR-027-AC-9), NFR-015/016, plus the hardening re-review (NFR-003-AC-4, FR-024-AC-9, NFR-017, NFR-018) — covered by TC-455..507 (plus reused TC-456..459). The Miri ACs (NFR-012-AC-1..5) were **retired** (ADR 0006) and the compile-time **NFR-003-AC-5** (`forbid(unsafe_code)`, TC-582) added. PC (performance criteria) for US-011..013 are tracked as benches (TC-455..459, TC-469) and marked 🚧 pending implementation, consistent with the US-006..010 perf-bench convention. The v0.3 hardening re-review (loom NFR-017, TSAN/ASAN NFR-018) is recorded in spec.md §19.
 
 **v0.4 markdown-validation slice** adds 42 ACs — US-014 (author validates markdown), FR-029 (archetype input contract, recast by ADR 0004), FR-030 (required-section validation, superseded by FR-032/FR-033), FR-031 (unified archetype shape), FR-032 (`validate_document`), FR-033 (locator `assert` facet), FR-034 (assert field interpolation), FR-035 (per-level heading uniqueness) — covered by TC-518..553. FR-030's ACs are mapped to the FR-032/FR-033 TCs that subsume them (per its CR note). This slice also back-fills 7 ACs that a prior commit left out of the audit table — FR-013-AC-11..14, FR-028-AC-9/10, US-003-AC-4 — via TC-554..560. New v0.4 TCs are 🚧 pending implementation.
 
@@ -813,7 +844,7 @@ NFR-006-AC-4, NFR-019-AC-1..2 — covered by TC-565..580. TC-561 is re-pointed o
 FR-033-AC-4 onto FR-033-AC-9 (the non-table `id_pattern` case); TC-562 covers both
 FR-033-AC-4 and FR-033-AC-9.
 
-**Integrity check (grep-verified):** all **295 distinct file-defined ACs** (definition-anchored: bold `**<ID>-AC-N**:` declarations) across `stakeholder/ usecase/ functional/ non-functional/` appear in the AC→TC audit table — **0 uncovered**. Note: `FR-900-AC-1/2` appearing inside FR-034-AC-1's example prose are NOT defined ACs and are excluded from the denominator (match `**…**:` definitions, not inline mentions). Retired ACs (marked `(RETIRED)`, un-bolded) are excluded by construction. Count: 316 (pre-removal) − 41 (retired) + 16 (back-fill) + 1 (FR-011-AC-20, CR-005 heading normalization) − 5 (NFR-012-AC-1..5 retired, ADR 0006) + 1 (NFR-003-AC-5, forbid(unsafe_code)) + 1 (FR-011-AC-21, CR-006 multiple:true) + 5 (FR-036-AC-1..5, declarative lint rules) + 1 (FR-010-AC-4, CR-007 escaped pipes) = **295**.
+**Integrity check (grep-verified):** all **309 distinct file-defined ACs** (definition-anchored: bold `**<ID>-AC-N**:` declarations) across `stakeholder/ usecase/ functional/ non-functional/` appear in the AC→TC audit table — **0 uncovered**. Note: `FR-900-AC-1/2` appearing inside FR-034-AC-1's example prose are NOT defined ACs and are excluded from the denominator (match `**…**:` definitions, not inline mentions). Retired ACs (marked `(RETIRED)`, un-bolded) are excluded by construction. Count: 316 (pre-removal) − 41 (retired) + 16 (back-fill) + 1 (FR-011-AC-20, CR-005 heading normalization) − 5 (NFR-012-AC-1..5 retired, ADR 0006) + 1 (NFR-003-AC-5, forbid(unsafe_code)) + 1 (FR-011-AC-21, CR-006 multiple:true) + 5 (FR-036-AC-1..5, declarative lint rules) + 1 (FR-010-AC-4, CR-007 escaped pipes) + 6 (FR-037-AC-1..6, OKF base concept schema) + 8 (FR-038-AC-1..8, OKF bundle validation) = **309**.
 
 ---
 

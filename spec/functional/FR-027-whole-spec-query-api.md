@@ -14,6 +14,14 @@ relationships:
     cardinality: "1:1"
 ---
 
+> **CR note (OKF bundle validation — 2026-06-16):** The `Diagnostic::UntypedArtifact`
+> recorded here is a **corpus-indexer** signal and remains a non-fatal warning for
+> coverage audits — this FR is unchanged. The new OKF **bundle** validator (FR-038)
+> sits one layer up and **promotes "untyped" to a hard error** in both Strict and Okf
+> postures: a bundle document MUST carry a non-empty `type`. The indexer still emits
+> the warning; FR-038 is the layer that rejects it. No silent contradiction: the
+> corpus-level non-fatal diagnostic and the bundle-level error coexist by design.
+
 ## Behavior
 
 `quire-rs` SHALL expose read-only whole-spec queries over a constructed `Spec` (FR-025) and its resolved edge set (FR-026). These are views over an already-resolved in-memory structure — none re-reads the filesystem and none re-parses (StR-006-AC-1).

@@ -1,0 +1,100 @@
+---
+id: FR-038
+title: "OKF Bundle Validation: Strict vs Okf Postures + Index Completeness"
+type: FR
+relationships:
+  - target: "ix://agent-ix/quire-rs/spec/functional/FR-037"
+    type: "requires"
+    cardinality: "1:1"
+  - target: "ix://agent-ix/quire-rs/spec/functional/FR-025"
+    type: "requires"
+    cardinality: "1:1"
+  - target: "ix://agent-ix/quire-rs/spec/functional/FR-026"
+    type: "requires"
+    cardinality: "1:1"
+  - target: "ix://agent-ix/quire-rs/spec/functional/FR-032"
+    type: "requires"
+    cardinality: "1:1"
+---
+
+## Behavior
+
+`quire-rs` SHALL validate a whole **bundle** — a directory tree of authored
+markdown documents loaded as a `Spec` corpus (FR-025) — under one of two
+postures, answering two different questions:
+
+```rust
+pub enum BundlePosture { Strict, Okf }
+
+pub struct BundleFinding { pub path: PathBuf, pub message: String, pub reason: &'static str }
+pub struct BundleReport { pub errors: Vec<BundleFinding>, pub warnings: Vec<BundleFinding> }
+impl BundleReport { pub fn is_valid(&self) -> bool; }   // == errors.is_empty()
+
+pub fn validate_bundle(spec: &Spec, registry: &Registry, posture: BundlePosture, root: &Path) -> BundleReport;
+pub fn validate_bundle_at(root: &Path, registry: &Registry, posture: BundlePosture) -> BundleReport;
+```
+
+`validate_bundle_at` loads `root` into a `Spec` (FR-025) then calls
+`validate_bundle`. A bundle `is_valid()` for its posture iff it has no hard
+errors. `BundlePosture`, `BundleReport`, `BundleFinding`, `validate_bundle`, and
+`validate_bundle_at` are exported from the crate root.
+
+`index.md` / `log.md` keep their archetypes and are validated like any other
+document; only `README.md` / `tests.md` are skipped at walk time (FR-024).
+
+### `type` is required in BOTH postures
+
+Every document in a bundle MUST carry a non-empty `type` regardless of posture.
+A document with a missing or empty `type` is a **hard error** (reason
+`frontmatter`) under both Strict and Okf. This is the OKF-adoption change: an
+untyped corpus document was previously surfaced only as a non-fatal
+`Diagnostic::UntypedArtifact` warning by the `Spec` indexer (FR-024-AC-6 /
+FR-027-AC-9); the bundle validator now **promotes "untyped" to an error**. The
+indexer still records its warning diagnostic for coverage audits; the new strict
+bundle validator is the layer that rejects the document.
+
+### Strict posture
+
+`Strict` answers "is this one of *our* archetype-conformant specs?" For every
+document it requires:
+
+- a **known** `type` — one with a registered archetype; an unregistered type is
+  an error (reason `unknown-type`);
+- satisfaction of the base concept contract (FR-037 `validate_base_concept`, so
+  mistyped `description`/`tags` are rejected) **and** the document's archetype:
+  frontmatter schema + `body_extraction` + heading uniqueness via the existing
+  `validate_document` (FR-032);
+- resolvable `ix://` references — a dangling reference is an error (reason
+  `dangling-reference`);
+- index completeness (below).
+
+### Okf posture (permissive)
+
+`Okf` answers "can we read this *foreign* OKF bundle?" `type` is **still**
+required and non-empty, but:
+
+- **unknown** types are tolerated (warning, reason `unknown-type`);
+- broken `ix://` / relative references degrade to warnings;
+- archetype body contracts are **not** enforced;
+- index gaps degrade to warnings.
+
+### Index completeness
+
+Folded into `validate_bundle`: for every directory containing an `index.md`,
+every sibling artifact `.md` (excluding `index.md` / `log.md` / `README.md` /
+`tests.md`) MUST appear in that index's `## Contents`. Additionally, the
+**bundle-root** `index.md` MUST declare `okf_version` in frontmatter; subdirectory
+indexes need not. A missing sibling (reason `index-incomplete`) or a missing
+root `okf_version` (reason `index-okf-version`) is an error under Strict and a
+warning under Okf.
+
+## Acceptance
+
+- **FR-038-AC-1**: Under `Strict`, a bundle containing a document with no `type` field is `!is_valid()`, with an error whose reason is `frontmatter` and whose message names `type` (untyped is a hard error, not a warning).
+- **FR-038-AC-2**: Under `Okf`, the same untyped document is **still** an error (`!is_valid()`, reason `frontmatter`) — `type` is required even in the permissive posture.
+- **FR-038-AC-3**: Under `Okf`, a document with an unregistered `type` and a dangling `ix://` reference yields `is_valid()` with warnings `unknown-type` and `dangling-reference`; under `Strict` the same bundle is `!is_valid()` with both as errors.
+- **FR-038-AC-4**: Under `Strict`, a bundle whose documents all carry a known, archetype-conformant `type`, whose root `index.md` lists every sibling and declares `okf_version`, validates with no errors (`is_valid()`).
+- **FR-038-AC-5**: A directory whose `index.md` omits a sibling artifact yields an `index-incomplete` finding naming the missing file — an error under `Strict`, a warning under `Okf`.
+- **FR-038-AC-6**: A bundle-root `index.md` lacking `okf_version` in frontmatter yields an `index-okf-version` error under `Strict`.
+- **FR-038-AC-7**: A subdirectory `index.md` without `okf_version` does **not** produce an `index-okf-version` finding (only the bundle root must declare it); an otherwise-conformant nested bundle is `is_valid()` under `Strict`.
+- **FR-038-AC-8**: Under `Strict`, a document with a known `type` but a mistyped optional `description` (e.g. `description: 7`) is `!is_valid()` with an error naming `description` (the base concept contract, FR-037, runs as part of bundle validation).
