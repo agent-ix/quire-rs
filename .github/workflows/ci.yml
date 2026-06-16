@@ -58,6 +58,13 @@ jobs:
   audit:
     name: Cargo Audit (RUSTSEC)
     runs-on: ubuntu-24.04
+    # rustsec/audit-check posts a check-run and files an issue for any
+    # advisory; without these the default (restricted) GITHUB_TOKEN fails
+    # with "Resource not accessible by integration".
+    permissions:
+      contents: read
+      checks: write
+      issues: write
     # Run on PR, push to main, and the daily 06:00 UTC schedule.
     if: >-
       github.event_name == 'pull_request' ||
