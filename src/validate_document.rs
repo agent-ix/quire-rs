@@ -101,6 +101,13 @@ pub fn validate_document(archetype: &CompiledArchetype, doc_text: &str) -> Valid
     let line_offset = body_line_offset(doc_text);
     let mut errors: Vec<ValidationError> = Vec::new();
 
+    // OKF concept shape: `description`/`tags` (when present) must be typed.
+    // `type`-required is enforced at the routing/corpus layer, not here —
+    // a `--archetype` override may legitimately validate a typeless doc
+    // (FR-004-AC-5).
+    let fm = doc.frontmatter.clone().unwrap_or_default();
+    errors.extend(crate::concept::validate_concept_shape(&fm));
+
     validate_frontmatter(archetype, &doc, &mut errors);
     if let Some(dsl) = archetype.body_extraction() {
         validate_body(archetype, &doc, dsl, line_offset, &mut errors);

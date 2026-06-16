@@ -11,6 +11,7 @@
 #![cfg_attr(not(feature = "python"), forbid(unsafe_code))]
 
 pub mod ast;
+pub mod concept;
 pub mod contract;
 pub mod corpus;
 pub mod diagnostic;
@@ -50,6 +51,9 @@ pub use validate::{apply_patch, validate, validate_all, validate_block};
 pub use validate_document::{
     validate_context, validate_document, ValidationError, ValidationReason, ValidationResult,
 };
+// Base concept frontmatter contract (OKF: required `type` + optional
+// `description`/`tags`), validated before archetype routing.
+pub use concept::{base_concept_schema, validate_base_concept, validate_concept_shape};
 // Archetype input contract + authoring skeleton (FR-029 recast).
 pub use contract::{input_contract_for, ContractSection, InputContract};
 // Extract / body-extraction DSL (FR-011 + FR-016).
@@ -66,3 +70,6 @@ pub use writeback::{update_block, update_section};
 // Corpus: parallel repo walk (FR-024) + Spec corpus (FR-025); resolution/query in FR-026..027.
 pub use corpus::walk::{load_repo, load_repo_with, LoadedDocument, RepoLoad, WalkOptions};
 pub use corpus::{harvest_edges, Spec};
+// Bundle validation postures (OKF): strict archetype-conformance vs.
+// permissive foreign-bundle reading, plus index-completeness.
+pub use corpus::{validate_bundle, validate_bundle_at, BundleFinding, BundlePosture, BundleReport};

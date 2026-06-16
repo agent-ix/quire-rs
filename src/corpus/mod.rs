@@ -18,10 +18,14 @@
 pub mod query;
 pub mod resolve;
 pub mod spec;
+pub mod validate;
 pub mod walk;
 
 pub use resolve::{harvest_edges, Edge, Resolution};
 pub use spec::Spec;
+pub use validate::{
+    validate_bundle, validate_bundle_at, BundleFinding, BundlePosture, BundleReport,
+};
 
 /// Opaque, stable human artifact id (e.g. `"FR-023"`). Used as the
 /// intra-spec resolution key — `ix://` link targets and frontmatter

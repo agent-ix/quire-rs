@@ -1,0 +1,30 @@
+manifest_version: 1.0.0
+name: bundle-test
+version: 0.1.0
+description: 'Minimal module for bundle-validation tests: index/log/note archetypes with no body contract.'
+grammars:
+- name: bundle-core
+  version: 0.1.0
+  description: minimal grammar
+  doc_kinds:
+  - note
+artifact_types:
+- name: note
+  grammar_ref: bundle-core
+  frontmatter_schema_ref: schemas/note-frontmatter.schema.json
+  allowed_links:
+  - references
+  examples: []
+  lint_rules_ref: []
+- name: index
+  grammar_ref: bundle-core
+  frontmatter_schema_ref: schemas/index-frontmatter.schema.json
+  allowed_links: []
+  examples: []
+  lint_rules_ref: []
+- name: log
+  grammar_ref: bundle-core
+  frontmatter_schema_ref: schemas/log-frontmatter.schema.json
+  allowed_links: []
+  examples: []
+  lint_rules_ref: []
