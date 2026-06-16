@@ -156,8 +156,8 @@ pub(crate) fn artifact_key(doc: &LoadedDocument) -> ArtifactId {
 }
 
 /// The document's concept type — routed through the one canonical
-/// discriminator read ([`crate::query::concept_type`]: `type`, falling
-/// back to legacy `artifact_type` during migration). `None` when untyped.
+/// discriminator read ([`crate::query::concept_type`]: `type`). `None`
+/// when untyped.
 pub(crate) fn artifact_type(doc: &LoadedDocument) -> Option<String> {
     crate::query::concept_type(&doc.doc).map(|s| s.to_string())
 }
@@ -191,7 +191,7 @@ mod tests {
     }
 
     fn doc(id: &str, ty: &str) -> String {
-        format!("---\nid: {id}\nartifact_type: {ty}\nuuid: 0190b6a0-0000-7000-8000-000000000001\n---\n# {id}\nbody\n")
+        format!("---\nid: {id}\ntype: {ty}\nuuid: 0190b6a0-0000-7000-8000-000000000001\n---\n# {id}\nbody\n")
     }
 
     // TC-480 / FR-025-AC-1: len == number of parsed artifacts.

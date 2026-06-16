@@ -224,7 +224,7 @@ mod tests {
     use crate::parser::parse_document;
 
     const AC_DOC: &str = "\
----\nid: FR-001\nartifact_type: FR\n---\n\
+---\nid: FR-001\ntype: FR\n---\n\
 ## Acceptance Criteria\n\
 | ID | Criteria | Verification |\n\
 | - | - | - |\n\
@@ -288,7 +288,7 @@ mod tests {
     #[test]
     fn scope_column_rule_for_configuration_tables() {
         let md = "\
----\nid: FR-071\nartifact_type: FR\nobject: configuration\n---\n\
+---\nid: FR-071\ntype: FR\nobject: configuration\n---\n\
 ## Configuration\n\
 | Name | Scope | Type | Default | Description |\n\
 | - | - | - | - | - |\n\

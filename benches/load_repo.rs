@@ -20,7 +20,7 @@ fn synthetic_corpus() -> PathBuf {
     fs::create_dir_all(&root).unwrap();
     for i in 0..DOC_COUNT {
         let body = format!(
-            "---\nid: FR-{i:04}\nartifact_type: FR\nuuid: 0190b6a0-0000-7000-8000-{i:012}\n---\n\
+            "---\nid: FR-{i:04}\ntype: FR\nuuid: 0190b6a0-0000-7000-8000-{i:012}\n---\n\
              # Behavior\n\nSome representative requirement prose for document {i}.\n\n\
              ## Acceptance\n\n- **FR-{i:04}-AC-1**: a representative criterion.\n\
              - **FR-{i:04}-AC-2**: another one with a bit more text to parse.\n\n\

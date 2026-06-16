@@ -17,20 +17,16 @@ use serde::{Deserialize, Serialize};
 use crate::ast::{QuireDocument, QuireSection};
 
 /// The document's concept **type** — the discriminator that selects which
-/// archetype validates it. Reads frontmatter `type`, falling back to the
-/// legacy `artifact_type` during the rename migration (the fallback is
-/// removed once every corpus is on `type`). `None` when the document
-/// carries neither.
+/// archetype validates it. Reads frontmatter `type` exclusively. `None`
+/// when the document carries no `type`.
 ///
 /// This is the **one** canonical discriminator read. All routing — CLI
 /// `validate`/`extract`/`lint`, corpus indexing, the Python bindings —
-/// goes through here, so the field name and fallback order can never
-/// drift apart across call sites again.
+/// goes through here, so the field name can never drift apart across call
+/// sites again.
 pub fn concept_type(doc: &QuireDocument) -> Option<&str> {
     let fm = doc.frontmatter.as_ref()?;
-    fm.get("type")
-        .or_else(|| fm.get("artifact_type"))
-        .and_then(|v| v.as_str())
+    fm.get("type").and_then(|v| v.as_str())
 }
 
 // ─── Shared regexes (compile-once) ──────────────────────────────────────

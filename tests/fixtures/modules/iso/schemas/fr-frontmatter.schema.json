@@ -4,7 +4,7 @@
   "required": [
     "id",
     "title",
-    "artifact_type"
+    "type"
   ],
   "additionalProperties": true,
   "properties": {
@@ -16,7 +16,7 @@
       "type": "string",
       "minLength": 1
     },
-    "artifact_type": {
+    "type": {
       "const": "FR"
     },
     "object": {

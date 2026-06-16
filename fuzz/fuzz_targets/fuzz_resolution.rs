@@ -20,7 +20,7 @@ fuzz_target!(|data: &[u8]| {
     let one_line: String = raw.chars().filter(|c| *c != '\n' && *c != '\r').collect();
 
     let md = format!(
-        "---\nid: SRC\nartifact_type: FR\nrelationships:\n  - target: \"{one_line}\"\n    type: implements\n---\n\
+        "---\nid: SRC\ntype: FR\nrelationships:\n  - target: \"{one_line}\"\n    type: implements\n---\n\
          body with a link [x](ix://{raw}) and bare ix://{one_line}\n"
     );
 
@@ -34,7 +34,7 @@ fuzz_target!(|data: &[u8]| {
         path: std::path::PathBuf::from("fuzz/StR-001.md"),
         id: "StR-001".to_string(),
         uuid: None,
-        doc: parse_document("---\nid: StR-001\nartifact_type: StR\n---\n# need\n"),
+        doc: parse_document("---\nid: StR-001\ntype: StR\n---\n# need\n"),
     };
 
     let spec = Spec::from_repo(RepoLoad {

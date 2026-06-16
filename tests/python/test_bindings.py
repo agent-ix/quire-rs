@@ -25,7 +25,7 @@ def test_parse_document_returns_structured_object():
 
     assert isinstance(doc, dict)
     assert doc["frontmatter"]["id"] == "FR-023"
-    assert doc["frontmatter"]["artifact_type"] == "FR"
+    assert doc["frontmatter"]["type"] == "FR"
     sections = doc["sections"]
     assert sections[0]["heading"] == "Behavior"
     assert sections[0]["block_id"] == "blk-1"
@@ -100,7 +100,7 @@ CONFORMANT_FR = (
     "---\n"
     "id: FR-901\n"
     'title: "A conformant requirement"\n'
-    "artifact_type: FR\n"
+    "type: FR\n"
     "---\n"
     "# [FR-901] A conformant requirement\n"
     "\n"
@@ -354,7 +354,7 @@ def test_extract_frontmatter_returns_dict_or_none():
     """TC-514: FR-006 parity — Rust returns frontmatter and body."""
     result = quire.extract_frontmatter("---\nid: X\nartifact_type: FR\n---\n# H\n")
     assert result == {
-        "frontmatter": {"id": "X", "artifact_type": "FR"},
+        "frontmatter": {"id": "X", "type": "FR"},
         "body": "# H\n",
     }
     assert quire.extract_frontmatter("# no frontmatter\n") == {

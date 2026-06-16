@@ -1,0 +1,38 @@
+---
+type: index
+title: "Functional"
+description: "Index of artifacts in this directory."
+---
+# Functional
+
+## Contents
+
+* [FR-001: Render Dispatch: Generic Engine Over (Schema, Template, Data)](./FR-001-render-dispatch.md)
+* [FR-002: Schema Validation Pipeline: JSON Merge → Compiled Validator → Render](./FR-002-schema-validation-pipeline.md)
+* [FR-003: Archetype JSON Schema Surfaced to LLM Consumers](./FR-003-archetype-schema-surface.md)
+* [FR-004: MiniJinja Environment Configured Strict and Long-Lived](./FR-004-minijinja-strict-environment.md)
+* [FR-005: parse_document API and QuireDocument Shape](./FR-005-parse-document-api.md)
+* [FR-006: Frontmatter Extraction with Malformed-Fallback Semantics](./FR-006-frontmatter-with-fallback.md)
+* [FR-007: Fenced-Code-Block-Aware Heading Walk](./FR-007-fenced-block-heading-walk.md)
+* [FR-008: Byte-Exact Section Content Slicing](./FR-008-byte-exact-slicing.md)
+* [FR-009: Stable Slug-Line ID Format for QuireSection](./FR-009-slug-line-id.md)
+* [FR-010: Query API Surface (section, sections, tables, lists, diagrams, search)](./FR-010-query-api.md)
+* [FR-011: Body-Extraction DSL Evaluator: Six Locators + Single/Multi-Yield Patterns](./FR-011-body-extraction-dsl.md)
+* [FR-012: Archetype Render Parity Against the Current Filament Corpus](./FR-012-archetype-parity-suite.md)
+* [FR-013: Archetype Loader: Filesystem-First, Sync-Agnostic](./FR-013-archetype-loader.md)
+* [FR-014: Module Activation: Multiple Archetype Modules, Namespaced Coexistence](./FR-014-module-activation.md)
+* [FR-016: Secondary / Fallback Locators for Author-Variant Tolerance](./FR-016-secondary-locators.md)
+* [FR-023: Python Binding Surface (Feature-Gated PyO3)](./FR-023-python-binding-surface.md)
+* [FR-024: Parallel Repository Walk + Parse (load_repo)](./FR-024-parallel-repo-walk.md)
+* [FR-025: Spec Corpus Model: Bounded In-Memory Document Set](./FR-025-spec-corpus-model.md)
+* [FR-026: Intra-Spec Reference Resolution](./FR-026-intra-spec-reference-resolution.md)
+* [FR-027: Whole-Spec Query API](./FR-027-whole-spec-query-api.md)
+* [FR-028: Expanded Python Binding Surface (Render / Validate / Extract / Edges)](./FR-028-expanded-python-binding-surface.md)
+* [FR-029: Archetype Input Contract Surface](./FR-029-archetype-input-contract.md)
+* [FR-030: Required Section Completeness Validation](./FR-030-required-section-validation.md)
+* [FR-031: Unified Archetype Shape](./FR-031-unified-archetype-shape.md)
+* [FR-032: Markdown Document Validation (validate_document)](./FR-032-validate-document.md)
+* [FR-033: Locator Assert Facet](./FR-033-locator-assert-facet.md)
+* [FR-034: Assert Field Interpolation](./FR-034-assert-field-interpolation.md)
+* [FR-035: Per-Level Heading Uniqueness](./FR-035-per-level-heading-uniqueness.md)
+* [FR-036: Declarative Lint Rules](./FR-036-declarative-lint-rules.md)

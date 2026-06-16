@@ -24,7 +24,7 @@ fn iso_registry() -> Registry {
 const CONFORMANT_FR: &str = "---\n\
 id: FR-901\n\
 title: \"A conformant requirement\"\n\
-artifact_type: FR\n\
+type: FR\n\
 ---\n\
 # [FR-901] A conformant requirement\n\
 \n\
@@ -102,8 +102,8 @@ fn placeholder_section_fails() {
 fn frontmatter_violation_fails() {
     let r = iso_registry();
     let fr = r.archetype("FR").expect("FR archetype");
-    // `artifact_type: NFR` violates the FR `const: "FR"`.
-    let mutated = CONFORMANT_FR.replace("artifact_type: FR", "artifact_type: NFR");
+    // `type: NFR` violates the FR `const: "FR"`.
+    let mutated = CONFORMANT_FR.replace("type: FR", "type: NFR");
     let result = quire_rs::validate_document(fr, &mutated);
     assert!(!result.is_valid);
     assert!(result
@@ -208,7 +208,7 @@ fn registry_assert_path_fails_on_wrong_columns() {
 
 // ── FR-003 (spec-artifacts-iso): the generic master-requirements archetype ──
 //
-// The root spec.md (artifact_type: master-requirements) validates against the
+// The root spec.md (type: master-requirements) validates against the
 // ninth registered archetype: a bespoke frontmatter schema (no id/title; kebab
 // component_type) plus the canonical body (H1 title + Purpose/Scope/System
 // Overview/Requirements Architecture/References). Proves a level-1 heading
@@ -216,7 +216,7 @@ fn registry_assert_path_fails_on_wrong_columns() {
 // validate_document.
 
 const CONFORMANT_MASTER: &str = "---\n\
-artifact_type: master-requirements\n\
+type: master-requirements\n\
 name: example-service\n\
 org: agent-ix\n\
 component_type: fastapi-service\n\
@@ -343,7 +343,7 @@ fn master_requirements_tolerates_numbered_headings() {
     let r = iso_registry();
     let a = r.archetype("master-requirements").expect("archetype");
     let numbered = "---\n\
-artifact_type: master-requirements\n\
+type: master-requirements\n\
 name: x\n\
 org: agent-ix\n\
 component_type: fastapi-service\n\

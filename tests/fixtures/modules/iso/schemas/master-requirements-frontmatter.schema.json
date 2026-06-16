@@ -2,14 +2,14 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
   "required": [
-    "artifact_type",
+    "type",
     "name",
     "org",
     "component_type"
   ],
   "additionalProperties": true,
   "properties": {
-    "artifact_type": {
+    "type": {
       "const": "master-requirements"
     },
     "name": {

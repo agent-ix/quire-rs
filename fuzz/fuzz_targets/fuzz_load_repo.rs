@@ -27,7 +27,7 @@ fuzz_target!(|data: &[u8]| {
         path: std::path::PathBuf::from("fuzz/B.md"),
         id: "B".to_string(),
         uuid: None,
-        doc: parse_document("---\nid: B\nartifact_type: StR\n---\n# target\n"),
+        doc: parse_document("---\nid: B\ntype: StR\n---\n# target\n"),
     };
 
     let spec = Spec::from_repo(RepoLoad {

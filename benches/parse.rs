@@ -16,7 +16,7 @@ const SMALL: &str = "## A\nfoo\n## B\nbar\n";
 const FR_ARTIFACT: &str = "---\n\
 id: FR-901\n\
 title: \"A conformant requirement\"\n\
-artifact_type: FR\n\
+type: FR\n\
 ---\n\
 # [FR-901] A conformant requirement\n\
 \n\

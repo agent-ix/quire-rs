@@ -11,7 +11,7 @@ use crate::corpus::spec::{artifact_key, artifact_type, Spec};
 use crate::corpus::walk::LoadedDocument;
 
 impl Spec {
-    /// Every document whose frontmatter `type`/`artifact_type` equals
+    /// Every document whose frontmatter `type` equals
     /// `ty`, sorted by id. Untyped documents are never returned (they
     /// were diagnosed as `UntypedArtifact` at construction, FR-027-AC-9).
     pub fn by_type(&self, ty: &str) -> Vec<&LoadedDocument> {
@@ -144,9 +144,9 @@ mod tests {
     fn fr(id: &str, implements: Option<&str>) -> String {
         match implements {
             Some(t) => format!(
-                "---\nid: {id}\nartifact_type: FR\nrelationships:\n  - target: \"{t}\"\n    type: implements\n---\n# {id}\n"
+                "---\nid: {id}\ntype: FR\nrelationships:\n  - target: \"{t}\"\n    type: implements\n---\n# {id}\n"
             ),
-            None => format!("---\nid: {id}\nartifact_type: FR\n---\n# {id}\n"),
+            None => format!("---\nid: {id}\ntype: FR\n---\n# {id}\n"),
         }
     }
 
@@ -156,7 +156,7 @@ mod tests {
         write(
             root,
             "s/StR-001.md",
-            "---\nid: StR-001\nartifact_type: StR\n---\n# need\n",
+            "---\nid: StR-001\ntype: StR\n---\n# need\n",
         );
         Spec::from_path(root)
     }

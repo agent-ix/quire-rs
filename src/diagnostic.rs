@@ -71,7 +71,7 @@ pub enum Diagnostic {
         target: String,
         edge_type: String,
     },
-    /// A loaded document has no frontmatter `type`/`artifact_type`
+    /// A loaded document has no frontmatter `type`
     /// (FR-027-AC-9). It is never returned by `by_type` and is reachable
     /// only via `by_id`. Non-fatal.
     UntypedArtifact {
@@ -194,7 +194,7 @@ impl std::fmt::Display for Diagnostic {
             ),
             Self::UntypedArtifact { id, path } => write!(
                 f,
-                "UntypedArtifact: '{}' ({}) has no type/artifact_type field",
+                "UntypedArtifact: '{}' ({}) has no type field",
                 id,
                 path.display()
             ),

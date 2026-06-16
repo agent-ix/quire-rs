@@ -29,7 +29,7 @@ fn corpus(tag: &str, n: usize) -> PathBuf {
         fs::write(
             root.join(format!("FR-{i:04}.md")),
             format!(
-                "---\nid: FR-{i:04}\nartifact_type: FR\n---\n# Behavior\n\nbody {i}\n\n## Acceptance\n\n- ok\n"
+                "---\nid: FR-{i:04}\ntype: FR\n---\n# Behavior\n\nbody {i}\n\n## Acceptance\n\n- ok\n"
             ),
         )
         .unwrap();

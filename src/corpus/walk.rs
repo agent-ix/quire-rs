@@ -283,8 +283,8 @@ mod tests {
         fs::write(path, body).unwrap();
     }
 
-    const FR_023: &str = "---\nid: FR-023\nartifact_type: FR\nuuid: 0190b6a0-0000-7000-8000-000000000023\n---\n# Behavior\nbody\n";
-    const STR_005: &str = "---\nid: StR-005\nartifact_type: StR\nuuid: 0190b6a0-0000-7000-8000-000000000005\n---\n# Need\nbody\n";
+    const FR_023: &str = "---\nid: FR-023\ntype: FR\nuuid: 0190b6a0-0000-7000-8000-000000000023\n---\n# Behavior\nbody\n";
+    const STR_005: &str = "---\nid: StR-005\ntype: StR\nuuid: 0190b6a0-0000-7000-8000-000000000005\n---\n# Need\nbody\n";
 
     // TC-470: N files -> N docs, each matching a direct parse_document.
     #[test]
@@ -404,7 +404,7 @@ mod tests {
         write(
             &root,
             "functional/FR-099.md",
-            "---\nid: FR-099\nartifact_type: FR\n---\n# No uuid\n",
+            "---\nid: FR-099\ntype: FR\n---\n# No uuid\n",
         );
 
         let load = load_repo(&root);

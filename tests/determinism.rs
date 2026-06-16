@@ -39,7 +39,7 @@ fn parse_is_deterministic_across_threads() {
     }
 }
 
-const FR_DOC: &str = "---\nid: FR-001\ntitle: Determinism\nartifact_type: FR\n---\n\n\
+const FR_DOC: &str = "---\nid: FR-001\ntitle: Determinism\ntype: FR\n---\n\n\
 ## Description\n\nThe engine is deterministic.\n\n\
 ## Specification\n\nGiven identical input it produces identical output.\n\n\
 ## Acceptance Criteria\n\nAll runs agree.\n\n\

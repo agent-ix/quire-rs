@@ -285,9 +285,9 @@ fn parse_real_document_with_frontmatter_extracts_typed_fields() {
         "frontmatter.id"
     );
     assert_eq!(
-        fm.get("artifact_type").and_then(|v| v.as_str()),
+        fm.get("type").and_then(|v| v.as_str()),
         Some("FR"),
-        "frontmatter.artifact_type"
+        "frontmatter.type"
     );
     assert!(
         !doc.sections.is_empty(),
