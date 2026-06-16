@@ -28,9 +28,19 @@ Motivating rules (spec-objects format walkthrough, decisions #12/#14,
 - A `Configuration` table's `Scope` column SHALL use
   `creation` / `runtime` / `session`.
 
+> **CR-009 note:** The `section_body_pattern` rule type (FR-036-AC-6) was added
+> as a second advisory lint so a module can nudge prose conventions that live in
+> a section body rather than a table cell — motivated by a `shall`-keyword nudge
+> on a requirement `Statement` and an `IT-XXX-SC-NN` presence nudge. It mirrors
+> the `table_column_values` philosophy exactly: advisory-only (never blocks),
+> `archetypes:`-scoped, and a **missing** section produces no finding (structural
+> presence is FR-032's job). The "v1 ships one rule type" framing is superseded —
+> the discriminated `lint_rules` shape was always designed to grow rule types,
+> and this is the first such addition.
+
 ### Rule shape
 
-`lint_rules:` entries are discriminated by `type:`. v1 ships one rule type:
+`lint_rules:` entries are discriminated by `type:`. Two rule types ship:
 
 ```yaml
 lint_rules:
@@ -42,13 +52,28 @@ lint_rules:
   allowed: [Inspection, Analysis, Demonstration, Test]
   annotation_pattern: '\(TC-\d+(,\s*TC-\d+)*\)'   # optional trailing annotation
   severity: warning                 # warning (default) | error
+- type: section_body_pattern
+  id: statement-shall               # stable identifier, reported per finding
+  archetypes: [FR]                  # optional scope; empty/absent = all docs
+  section: Statement                # heading whose body is checked
+  pattern: '\bshall\b'              # regex the body must contain (is_match)
+  message: 'requirement statements should use "shall"'  # optional custom message
+  severity: warning                 # warning (default) | error
 ```
 
-A cell is **valid** when it equals an allowed value, or begins with an allowed
-value and the remainder (after whitespace) matches `annotation_pattern`
-(anchored as a whole-remainder match). Every other data cell in the named
-column produces one finding `{rule, severity, message}` naming the section,
-column, 1-based row, offending value, and the allowed set.
+For `table_column_values`, a cell is **valid** when it equals an allowed value,
+or begins with an allowed value and the remainder (after whitespace) matches
+`annotation_pattern` (anchored as a whole-remainder match). Every other data
+cell in the named column produces one finding `{rule, severity, message}` naming
+the section, column, 1-based row, offending value, and the allowed set.
+
+For `section_body_pattern`, the body of the section under `section` is checked
+with `is_match` (a containment match, not anchored). When the section is present
+but its body does NOT match `pattern`, ONE finding `{rule, severity, message}`
+is produced — `message` is the rule's custom message when set, otherwise a
+default naming the section and pattern. A **missing** section produces no
+finding (structural presence is validation's job, FR-032, not lint's). An
+invalid regex is skipped without panicking.
 
 ### Loading and evaluation
 
@@ -89,3 +114,15 @@ column, 1-based row, offending value, and the allowed set.
 - **FR-036-AC-5**: Lint evaluation never affects `extract()` /
   `validate_document()` results — a document with lint findings still extracts
   and validates exactly as without the rules loaded.
+- **FR-036-AC-6**: A `section_body_pattern` rule (CR-009) produces no finding
+  when the named section's body — its own content **plus that of every
+  subsection** — matches `pattern` (`is_match`), and exactly one
+  finding `{rule, severity, message}` when the section is present but neither it
+  nor its subsections match — the default message names the section and pattern, a custom
+  `message` overrides it, and the finding's severity mirrors the rule. (Matching
+  the full subtree, not just the direct body, lets a token authored inside a
+  subsection — e.g. an `IT-XXX-SC-NN` id under a `### Step` heading — satisfy the
+  rule.) The rule is scoped via `archetypes:` like `table_column_values` (a non-matching or
+  unresolvable archetype runs it only when unfiltered), and a **missing**
+  section yields no finding. A YAML round-trip preserves the `type:
+  section_body_pattern` discriminator.

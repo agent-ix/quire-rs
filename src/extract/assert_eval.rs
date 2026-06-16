@@ -26,7 +26,7 @@ use crate::query::{parse_bullet_list, parse_table, section as q_section, section
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AssertReason {
     /// A structural assertion (`level`, `columns`, `min_rows`,
-    /// `min_items`, `id_pattern`) did not hold.
+    /// `min_items`, `id_pattern`, `matches`) did not hold.
     Assert,
     /// A `{field}` token referenced a frontmatter key that is absent
     /// (FR-034-AC-2).
@@ -78,6 +78,14 @@ pub fn evaluate_assert(
         && !matches!(primitive.kind(), LocatorKind::TableRow)
     {
         check_value_pattern(doc, primitive, assert, frontmatter, &mut failures);
+    }
+
+    // `matches` — the located content must match a regex. Unlike the
+    // required/content_status checks, a locator that resolves to NO values
+    // (missing/empty section) does NOT fire here — absence is caught
+    // elsewhere (FR-033).
+    if assert.matches.is_some() {
+        check_content_matches(doc, primitive, assert, frontmatter, &mut failures);
     }
 
     failures
@@ -313,6 +321,45 @@ fn check_value_pattern(
                     reason: AssertReason::Assert,
                     message: format!("value '{s}' does not match pattern /{}/", re.as_str()),
                     line: None,
+                });
+            }
+        }
+    }
+}
+
+fn check_content_matches(
+    doc: &QuireDocument,
+    primitive: &LocatorPrimitive,
+    assert: &LocatorAssert,
+    frontmatter: Option<&Map<String, Value>>,
+    failures: &mut Vec<AssertFailure>,
+) {
+    let Some(pattern) = &assert.matches else {
+        return;
+    };
+    let re = match resolve_regex(pattern, frontmatter) {
+        Ok(re) => re,
+        Err(failure) => {
+            failures.push(failure);
+            return;
+        }
+    };
+    // A locator that resolves to no values (missing/empty section) does not
+    // fire `matches` — that absence is the required/content_status path's
+    // job, not this one (FR-033).
+    let values = crate::extract::locator::eval(doc, primitive);
+    let line = located_section_name(primitive)
+        .and_then(|name| q_section(doc, &name).map(|s| s.start_line));
+    for v in &values {
+        if let Some(s) = v.as_str() {
+            if !re.is_match(s) {
+                failures.push(AssertFailure {
+                    reason: AssertReason::Assert,
+                    message: format!(
+                        "section content does not match required pattern /{}/",
+                        re.as_str()
+                    ),
+                    line,
                 });
             }
         }
@@ -561,6 +608,38 @@ mod tests {
         assert_eq!(
             evaluate_assert(&fdoc, &f_bad, &afbad, fdoc.frontmatter.as_ref()).len(),
             1
+        );
+    }
+
+    // TC-608 (FR-033-AC-10): a `section_body` `matches` regex asserts the
+    // located content shape. A body carrying the `As a … / I want … / So
+    // that …` shape passes; one lacking it fails with reason `assert`; a
+    // missing section does NOT fire `matches` (absence is validation's job).
+    #[test]
+    fn tc608_section_body_matches_pattern() {
+        let story = parse_document(
+            "## Story\n**As a** developer\n**I want** a feature\n**So that** I ship it\n",
+        );
+        let ok = prim(
+            "from: section_body\nafter_heading: Story\nassert:\n  matches: '(?is)as an?\\b.+i want\\b.+so that\\b'",
+        );
+        let a = ok.assert().unwrap().clone();
+        assert!(evaluate_assert(&story, &ok, &a, None).is_empty());
+
+        // A body lacking the shape fails with reason `assert`, line-numbered
+        // at the section heading.
+        let no_shape = parse_document("## Story\njust some prose, no story keywords\n");
+        let fails = evaluate_assert(&no_shape, &ok, &a, None);
+        assert_eq!(fails.len(), 1);
+        assert_eq!(fails[0].reason, AssertReason::Assert);
+        assert_eq!(fails[0].line, Some(0));
+        assert!(fails[0].message.contains("does not match"));
+
+        // A missing section resolves to no values → `matches` does NOT fire.
+        let missing = parse_document("## Other\nunrelated\n");
+        assert!(
+            evaluate_assert(&missing, &ok, &a, None).is_empty(),
+            "missing section must not produce a `matches` failure"
         );
     }
 }

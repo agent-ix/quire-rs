@@ -231,6 +231,10 @@ pub struct LocatorAssert {
     /// interpolation (FR-034).
     #[serde(default)]
     pub id_pattern: Option<String>,
+    /// Regex the located content MUST match; supports `{field}`
+    /// interpolation (FR-034).
+    #[serde(default)]
+    pub matches: Option<String>,
 }
 
 impl LocatorAssert {
@@ -242,6 +246,7 @@ impl LocatorAssert {
             && self.min_items.is_none()
             && self.id_column.is_none()
             && self.id_pattern.is_none()
+            && self.matches.is_none()
     }
 }
 

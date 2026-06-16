@@ -49,6 +49,10 @@ pub struct ContractSection {
     /// The id pattern (possibly with `{field}` tokens) the assert pins.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub id_pattern: Option<String>,
+    /// The content-match pattern (possibly with `{field}` tokens) the
+    /// assert pins.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub matches: Option<String>,
 }
 
 /// The per-archetype input contract (FR-029 recast).
@@ -203,6 +207,7 @@ fn contract_section(
         min_rows: assert.and_then(|a| a.min_rows),
         min_items: assert.and_then(|a| a.min_items),
         id_pattern: assert.and_then(|a| a.id_pattern.clone()),
+        matches: assert.and_then(|a| a.matches.clone()),
     }
 }
 

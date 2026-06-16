@@ -8,10 +8,12 @@
 //! vocabulary, or a `Configuration` table `Scope` cell outside
 //! `creation`/`runtime`/`session`).
 //!
-//! One rule type ships in v1: `table_column_values` — every data cell
-//! in a named column of the table under a named section must be one of
-//! an allowed set, optionally followed by an annotation matching a
-//! regex (e.g. `Test (TC-035)`).
+//! Two rule types ship: `table_column_values` — every data cell in a
+//! named column of the table under a named section must be one of an
+//! allowed set, optionally followed by an annotation matching a regex
+//! (e.g. `Test (TC-035)`) — and `section_body_pattern`, which warns when
+//! a named section's body does not match a regex (e.g. a requirement
+//! `Statement` lacking the `shall` keyword).
 //!
 //! A rule may scope itself to specific archetypes via `archetypes:`;
 //! an empty/absent list applies the rule to every document linted
@@ -20,8 +22,8 @@
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
-use crate::ast::QuireDocument;
-use crate::query::table_from_section;
+use crate::ast::{QuireDocument, QuireSection};
+use crate::query::{section, table_from_section};
 
 /// Severity of a lint finding. Lint is advisory either way — severity
 /// is a reporting/exit-code distinction for CLI consumers, not a
@@ -69,18 +71,39 @@ pub enum LintRule {
         #[serde(default)]
         severity: LintSeverity,
     },
+    /// The body of the section under `section` must contain a match for
+    /// `pattern` (an `is_match`, not an anchored whole-body match). A
+    /// missing section produces no finding — structural presence is
+    /// validation's job, not lint's.
+    SectionBodyPattern {
+        /// Stable identifier reported with each finding.
+        id: String,
+        /// Archetype names this rule applies to (empty = all).
+        #[serde(default)]
+        archetypes: Vec<String>,
+        /// Heading of the section whose body is checked.
+        section: String,
+        /// Regex the body must contain (`is_match`).
+        pattern: String,
+        /// Optional custom finding message (overrides the default).
+        #[serde(default)]
+        message: Option<String>,
+        #[serde(default)]
+        severity: LintSeverity,
+    },
 }
 
 impl LintRule {
     pub fn id(&self) -> &str {
         match self {
-            Self::TableColumnValues { id, .. } => id,
+            Self::TableColumnValues { id, .. } | Self::SectionBodyPattern { id, .. } => id,
         }
     }
 
     pub fn severity(&self) -> LintSeverity {
         match self {
-            Self::TableColumnValues { severity, .. } => *severity,
+            Self::TableColumnValues { severity, .. }
+            | Self::SectionBodyPattern { severity, .. } => *severity,
         }
     }
 
@@ -89,7 +112,8 @@ impl LintRule {
     /// not be resolved) only matches unfiltered rules.
     pub fn applies_to(&self, archetype: Option<&str>) -> bool {
         let filter = match self {
-            Self::TableColumnValues { archetypes, .. } => archetypes,
+            Self::TableColumnValues { archetypes, .. }
+            | Self::SectionBodyPattern { archetypes, .. } => archetypes,
         };
         if filter.is_empty() {
             return true;
@@ -141,6 +165,22 @@ pub fn lint_document(
                 *severity,
                 &mut findings,
             ),
+            LintRule::SectionBodyPattern {
+                id,
+                section,
+                pattern,
+                message,
+                severity,
+                ..
+            } => eval_section_body_pattern(
+                doc,
+                id,
+                section,
+                pattern,
+                message.as_deref(),
+                *severity,
+                &mut findings,
+            ),
         }
     }
     findings
@@ -186,6 +226,57 @@ fn eval_table_column_values(
             ),
         });
     }
+}
+
+fn eval_section_body_pattern(
+    doc: &QuireDocument,
+    rule_id: &str,
+    section_heading: &str,
+    pattern: &str,
+    message: Option<&str>,
+    severity: LintSeverity,
+    findings: &mut Vec<LintFinding>,
+) {
+    // Missing section is not a lint finding — structural presence is
+    // validation's job (FR-032), not lint's.
+    let Some(s) = section(doc, section_heading) else {
+        return;
+    };
+    // An invalid regex is skipped (no panic), mirroring how the
+    // table-column rule treats an unparseable annotation pattern.
+    let Ok(re) = Regex::new(pattern) else {
+        return;
+    };
+    // Match against the section's full subtree, not just its direct body:
+    // a section's `content` stops at the next heading of ANY level, so a
+    // token authored inside a subsection (e.g. a success-criterion id under
+    // a `### Step` heading) would be missed by a direct-body check. This is
+    // a "does this section contain X anywhere" advisory, so subsections count.
+    if re.is_match(&section_subtree_text(s)) {
+        return;
+    }
+    findings.push(LintFinding {
+        rule: rule_id.to_string(),
+        severity,
+        message: message.map(str::to_string).unwrap_or_else(|| {
+            format!("section '{section_heading}' body does not match expected pattern /{pattern}/")
+        }),
+    });
+}
+
+/// A section's own content plus the heading + content of every descendant,
+/// joined with newlines — the text a `section_body_pattern` rule matches
+/// against so a token anywhere under the heading (including subsections)
+/// satisfies the rule.
+fn section_subtree_text(s: &QuireSection) -> String {
+    let mut out = String::from(&s.content);
+    for child in &s.children {
+        out.push('\n');
+        out.push_str(&child.heading);
+        out.push('\n');
+        out.push_str(&section_subtree_text(child));
+    }
+    out
 }
 
 /// A cell is valid when it equals an allowed value, or starts with one
@@ -329,5 +420,108 @@ mod tests {
         assert_eq!(rules.len(), 1);
         assert_eq!(rules[0].id(), "ac-verification-method");
         assert_eq!(rules[0].severity(), LintSeverity::Warning);
+    }
+
+    // TC-609 (FR-036-AC-6): `section_body_pattern` advisory rule.
+    fn shall_rule(severity: LintSeverity) -> LintRule {
+        LintRule::SectionBodyPattern {
+            id: "statement-shall".to_string(),
+            archetypes: vec!["FR".to_string()],
+            section: "Statement".to_string(),
+            pattern: r"\bshall\b".to_string(),
+            message: None,
+            severity,
+        }
+    }
+
+    // (a) a body containing the pattern produces NO finding.
+    #[test]
+    fn tc609_section_body_pattern_match_yields_no_finding() {
+        let doc = parse_document("## Statement\nThe system shall do the thing.\n");
+        let findings = lint_document(&[shall_rule(LintSeverity::Warning)], Some("FR"), &doc);
+        assert!(findings.is_empty(), "{findings:?}");
+    }
+
+    // (b) a body lacking the pattern produces exactly one finding with the
+    // rule's severity.
+    #[test]
+    fn tc609_section_body_pattern_mismatch_yields_one_finding() {
+        let doc = parse_document("## Statement\nThe system does the thing.\n");
+        let findings = lint_document(&[shall_rule(LintSeverity::Error)], Some("FR"), &doc);
+        assert_eq!(findings.len(), 1, "{findings:?}");
+        assert_eq!(findings[0].rule, "statement-shall");
+        assert_eq!(findings[0].severity, LintSeverity::Error);
+        assert!(findings[0].message.contains("Statement"));
+    }
+
+    // (c) archetype scoping skips non-matching archetypes.
+    #[test]
+    fn tc609_section_body_pattern_archetype_scoping() {
+        let doc = parse_document("## Statement\nThe system does the thing.\n");
+        let rule = shall_rule(LintSeverity::Warning);
+        assert!(lint_document(std::slice::from_ref(&rule), Some("NFR"), &doc).is_empty());
+        assert!(lint_document(&[rule], None, &doc).is_empty());
+    }
+
+    // (d) a missing section yields no finding.
+    #[test]
+    fn tc609_section_body_pattern_missing_section_yields_no_finding() {
+        let doc = parse_document("## Other\nprose\n");
+        let findings = lint_document(&[shall_rule(LintSeverity::Warning)], Some("FR"), &doc);
+        assert!(findings.is_empty());
+    }
+
+    // (e) YAML round-trip for the new `type: section_body_pattern` rule,
+    // including a custom `message`.
+    #[test]
+    fn tc609_section_body_pattern_yaml_round_trip() {
+        let yaml = r#"
+- type: section_body_pattern
+  id: statement-shall
+  archetypes: [FR]
+  section: Statement
+  pattern: '\bshall\b'
+  message: 'requirement statements should use the keyword "shall"'
+  severity: warning
+"#;
+        let rules: Vec<LintRule> = serde_yaml::from_str(yaml).expect("parse");
+        assert_eq!(rules.len(), 1);
+        assert_eq!(rules[0].id(), "statement-shall");
+        assert_eq!(rules[0].severity(), LintSeverity::Warning);
+
+        // The custom message is emitted verbatim on a mismatch.
+        let doc = parse_document("## Statement\nno keyword here\n");
+        let findings = lint_document(&rules, Some("FR"), &doc);
+        assert_eq!(findings.len(), 1);
+        assert_eq!(
+            findings[0].message,
+            "requirement statements should use the keyword \"shall\""
+        );
+    }
+
+    // (f) a token authored inside a subsection counts — the rule matches the
+    // section's full subtree, not just its direct body (e.g. an `IT-XXX-SC-NN`
+    // id under a `### Step` heading satisfies an IT success-criteria rule).
+    #[test]
+    fn tc609_section_body_pattern_matches_in_subsection() {
+        let rule = LintRule::SectionBodyPattern {
+            id: "it-sc".to_string(),
+            archetypes: vec!["IT".to_string()],
+            section: "Test Procedure".to_string(),
+            pattern: r"\bIT-\d+-SC-\d+".to_string(),
+            message: None,
+            severity: LintSeverity::Warning,
+        };
+        // The SC id lives in a `### Step` subsection, not the H2's direct body.
+        let doc = parse_document(
+            "## Test Procedure\nRun the steps below.\n### Step 1\nDo a thing. IT-001-SC-01: ok.\n",
+        );
+        assert!(
+            lint_document(std::slice::from_ref(&rule), Some("IT"), &doc).is_empty(),
+            "SC id in a subsection should satisfy the rule",
+        );
+        // No SC id anywhere in the subtree → one finding.
+        let doc2 = parse_document("## Test Procedure\nRun the steps.\n### Step 1\nDo a thing.\n");
+        assert_eq!(lint_document(&[rule], Some("IT"), &doc2).len(), 1);
     }
 }

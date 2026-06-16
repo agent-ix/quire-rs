@@ -192,6 +192,12 @@ pub fn validate_assert_for_kind(
     if assert.id_pattern.is_some() && matches!(kind, LocatorKind::CodeBlock) {
         return reject("id_pattern");
     }
+    // `matches` asserts the located content against a regex (FR-033). It is
+    // legal on every content locator EXCEPT `table_row`, whose structure is
+    // checked via `columns`/`min_rows`/`id_pattern`, not a flat content match.
+    if assert.matches.is_some() && matches!(kind, LocatorKind::TableRow) {
+        return reject("matches");
+    }
     Ok(())
 }
 
@@ -385,6 +391,7 @@ yield_pattern:
                 "min_items" => a.min_items = Some(1),
                 "id_column" => a.id_column = Some("ID".to_string()),
                 "id_pattern" => a.id_pattern = Some("^X-".to_string()),
+                "matches" => a.matches = Some("^x".to_string()),
                 other => panic!("unknown key {other}"),
             }
             a
@@ -405,6 +412,7 @@ yield_pattern:
             "min_items",
             "id_column",
             "id_pattern",
+            "matches",
         ];
 
         // Legality per FR-033-AC-7.
@@ -417,6 +425,7 @@ yield_pattern:
                     kind,
                     TableRow | Heading | SectionBody | ListItem | FrontmatterField
                 ),
+                "matches" => !matches!(kind, TableRow),
                 _ => unreachable!(),
             }
         }
