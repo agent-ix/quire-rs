@@ -130,8 +130,5 @@ jobs:
           TWINE_PASSWORD: ${{ steps.key.outputs.b64 }}
           TWINE_REPOSITORY_URL: https://${{ vars.GCP_REGION }}-python.pkg.dev/${{ vars.GCP_PROJECT_NAME }}/${{ vars.GCP_PYPI }}/
         run: |
-          pip install 'twine<6.1.0'
-          # GCP Artifact Registry rejects macOS/Windows platform wheels with
-          # "400 ... no package name, version or file"; the internal consumers
-          # are all linux, so publish only the manylinux wheel(s).
-          twine upload --non-interactive --verbose dist/*linux*.whl
+          pip install twine
+          twine upload --non-interactive --verbose dist/*.whl
