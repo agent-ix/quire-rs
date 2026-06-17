@@ -109,6 +109,12 @@ When a candidate sits in an **inline-code span** (`` `[FR-008](./FR-008-byte-exa
 replaces the code span with a link rather than nesting a link inside code.
 **Fenced** code blocks are never candidates.
 
+A code span holding **more than one** artifact token (e.g. `` `FR-012/FR-013` ``)
+is left **unconverted** — no fix is emitted for any of its tokens. Converting it
+to a single link is ambiguous, and emitting one whole-span fix per token would
+produce **overlapping** byte spans that corrupt on apply. Such tokens fall into
+the Ignore bucket.
+
 ### Idempotence
 
 Applying every `AutoFix` suggestion and re-running `unlinked_references` SHALL
@@ -129,6 +135,7 @@ are unaffected by autofix (nothing is applied for them).
 | FR-039-AC-7 | A token whose parent id is absent from the loaded set yields `fix = WarnOnly { reason: Unresolved }` with no `suggested_link`; the autofix abstains (nothing in the result is applied for it). | Test |
 | FR-039-AC-8 | A token whose parent id maps to more than one loaded document (duplicate ids) yields `fix = WarnOnly { reason: Ambiguous }` with no `suggested_link`. | Test |
 | FR-039-AC-9 | `unlinked_references` results are sorted by `(path, byte_span.start)` and are identical across repeated runs and thread counts for a given loaded set ([NFR-006](../non-functional/NFR-006-determinism.md) determinism). | Test |
+| FR-039-AC-10 | A single inline-code span holding more than one artifact token (e.g. `` `FR-008/FR-009` ``) yields **no** finding for any of those tokens (avoids overlapping whole-span fixes); a single-token code span still yields its `AutoFix`. | Test |
 
 ## Dependencies
 

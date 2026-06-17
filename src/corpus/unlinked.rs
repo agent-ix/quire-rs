@@ -160,6 +160,14 @@ fn scan_document(
         let code_regions: Vec<Range<usize>> =
             code_re.find_iter(content).map(|m| m.range()).collect();
 
+        // Candidate token ranges, so we can tell how many sit in one
+        // inline-code span. A span holding more than one token (e.g.
+        // `` `FR-012/FR-013` ``) can't become a single link, and converting
+        // each token would emit overlapping whole-span fixes that corrupt on
+        // apply — so such tokens are skipped entirely (FR-039).
+        let token_ranges: Vec<Range<usize>> =
+            token_re.find_iter(content).map(|m| m.range()).collect();
+
         for m in token_re.find_iter(content) {
             let tr = m.range();
             // Already inside a Markdown link (text or destination): ignore.
@@ -176,11 +184,21 @@ fn scan_document(
                 continue;
             }
             // An inline-code token is replaced span-and-all (backticks gone).
-            let local = code_regions
+            let code_span = code_regions
                 .iter()
-                .find(|r| r.start <= tr.start && tr.end <= r.end)
-                .cloned()
-                .unwrap_or(tr.clone());
+                .find(|r| r.start <= tr.start && tr.end <= r.end);
+            if let Some(cr) = code_span {
+                // Multiple candidate tokens share this code span -> skip.
+                if token_ranges
+                    .iter()
+                    .filter(|t| cr.start <= t.start && t.end <= cr.end)
+                    .count()
+                    > 1
+                {
+                    continue;
+                }
+            }
+            let local = code_span.cloned().unwrap_or(tr.clone());
             let byte_span = (line_start + local.start)..(line_start + local.end);
 
             let fix = match id_count.get(parent).copied().unwrap_or(0) {
@@ -365,6 +383,41 @@ mod tests {
         let raw = &spec.inner.documents[0].doc.raw;
         assert_eq!(&raw[r.byte_span.clone()], "`FR-008`");
         assert_eq!(autofix(r), Some("[FR-008](./FR-008-byte-exact.md)"));
+    }
+
+    // TC-632 / FR-039-AC-10: a code span holding >1 artifact token is skipped
+    // entirely (converting each would emit overlapping whole-span fixes that
+    // corrupt on apply); a single-token code span still converts.
+    #[test]
+    fn multi_token_code_span_skipped() {
+        let spec = spec_of(vec![
+            doc_at(
+                "spec/functional/FR-001-foo.md",
+                "FR-001",
+                "see `FR-008/FR-009` together\n",
+            ),
+            doc_at("spec/functional/FR-008-byte-exact.md", "FR-008", "# x\n"),
+            doc_at("spec/functional/FR-009-baz.md", "FR-009", "# y\n"),
+        ]);
+        let refs = unlinked_references(&spec);
+        assert!(
+            refs.iter()
+                .all(|r| r.token != "FR-008" && r.token != "FR-009"),
+            "multi-token code span must produce no fixes"
+        );
+
+        // A single-token code span still converts (regression guard).
+        let spec2 = spec_of(vec![
+            doc_at(
+                "spec/functional/FR-001-foo.md",
+                "FR-001",
+                "see `FR-008` alone\n",
+            ),
+            doc_at("spec/functional/FR-008-byte-exact.md", "FR-008", "# x\n"),
+        ]);
+        assert!(unlinked_references(&spec2)
+            .iter()
+            .any(|r| r.token == "FR-008"));
     }
 
     // TC-626 / FR-039-AC-4: fenced block + frontmatter tokens yield no finding.
