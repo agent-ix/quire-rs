@@ -46,6 +46,10 @@ pub enum ValidationReason {
     DuplicateHeading,
     /// A `{field}` token referenced an absent frontmatter key (FR-034).
     UnresolvedField,
+    /// The frontmatter `object:` named an archetype the registry does not
+    /// know (FR-032-AC-12). This is the only **warning**-severity reason;
+    /// it is advisory and never fails validation.
+    UnknownObjectType,
 }
 
 impl ValidationReason {
@@ -59,6 +63,7 @@ impl ValidationReason {
             Self::Frontmatter => "frontmatter",
             Self::DuplicateHeading => "duplicate-heading",
             Self::UnresolvedField => "unresolved-field",
+            Self::UnknownObjectType => "unknown-object-type",
         }
     }
 }
@@ -75,27 +80,59 @@ pub struct ValidationError {
     pub reason: ValidationReason,
 }
 
-/// Outcome of [`validate_document`].
+/// One advisory markdown-validation diagnostic. Distinct from
+/// [`ValidationError`]: warnings never fail validation (`is_valid` ignores
+/// them). The only warning today is the unknown-`object:` case
+/// (FR-032-AC-12) — composed type+object validation where the frontmatter
+/// `object:` names an archetype the registry cannot resolve.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ValidationWarning {
+    /// Human-readable advisory message.
+    pub message: String,
+    /// 1-based document line of the offending element, when known.
+    pub line: Option<usize>,
+    /// Machine-readable reason (e.g. [`ValidationReason::UnknownObjectType`]).
+    pub reason: ValidationReason,
+}
+
+/// Outcome of [`validate_document`] / [`validate_document_in_registry`].
+///
+/// Carries both exit-failing `errors` and advisory `warnings`.
+/// `is_valid` is `errors.is_empty()` — **warnings never fail validation**.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ValidationResult {
     pub is_valid: bool,
     pub errors: Vec<ValidationError>,
+    pub warnings: Vec<ValidationWarning>,
 }
 
 impl ValidationResult {
-    fn from_errors(errors: Vec<ValidationError>) -> Self {
+    fn new(errors: Vec<ValidationError>, warnings: Vec<ValidationWarning>) -> Self {
         Self {
             is_valid: errors.is_empty(),
             errors,
+            warnings,
         }
+    }
+
+    fn from_errors(errors: Vec<ValidationError>) -> Self {
+        Self::new(errors, Vec::new())
     }
 }
 
 /// Validate an authored markdown `doc_text` against `archetype` (FR-032).
 ///
+/// This is the **type-only** path: it validates the document against the
+/// `type` (artifact) archetype alone and never inspects the frontmatter
+/// `object:` field. To compose the `type` archetype with the frontmatter
+/// `object:` archetype (FR-032-AC-11..13), use
+/// [`validate_document_in_registry`], which has the registry needed to
+/// resolve the object archetype by name.
+///
 /// Frontmatter-schema success is **necessary but not sufficient**: a
 /// document with valid frontmatter but a missing/placeholder required
-/// section, a failed assert, or a duplicate heading is invalid.
+/// section, a failed assert, or a duplicate heading is invalid. The
+/// returned [`ValidationResult`] carries no warnings on this path.
 pub fn validate_document(archetype: &CompiledArchetype, doc_text: &str) -> ValidationResult {
     let doc = crate::parse_document(doc_text);
     let line_offset = body_line_offset(doc_text);
@@ -115,6 +152,81 @@ pub fn validate_document(archetype: &CompiledArchetype, doc_text: &str) -> Valid
     check_heading_uniqueness(&doc, line_offset, &mut errors);
 
     ValidationResult::from_errors(errors)
+}
+
+/// Validate an authored markdown `doc_text` against BOTH the `type`
+/// (artifact) `archetype` AND the frontmatter `object:` archetype, with
+/// `object:` resolved from `registry` (FR-032-AC-11..13).
+///
+/// Composition is **always on**: the `type` archetype is validated
+/// exactly as [`validate_document`], then —
+///
+/// - if the frontmatter carries no `object:` key, nothing further happens
+///   (type-only behaviour, identical to [`validate_document`]);
+/// - if `object:` names an archetype `registry` resolves (across
+///   artifact_types AND object_types), that archetype's `body_extraction`
+///   asserts run in the same asserting posture and any failures are
+///   merged into `errors` (tagged with the object archetype name via the
+///   existing `[<archetype>]` diagnostic prefix);
+/// - if `object:` names an archetype `registry` does not know, a single
+///   [`ValidationReason::UnknownObjectType`] **warning** is emitted —
+///   never an error.
+///
+/// The `type` archetype path always produces hard errors; warnings come
+/// only from the object layer and never fail validation.
+pub fn validate_document_in_registry(
+    registry: &crate::Registry,
+    archetype: &CompiledArchetype,
+    doc_text: &str,
+) -> ValidationResult {
+    let doc = crate::parse_document(doc_text);
+    let line_offset = body_line_offset(doc_text);
+    let mut errors: Vec<ValidationError> = Vec::new();
+    let mut warnings: Vec<ValidationWarning> = Vec::new();
+
+    // ── `type` archetype layer (always hard errors) ──
+    let fm = doc.frontmatter.clone().unwrap_or_default();
+    errors.extend(crate::concept::validate_concept_shape(&fm));
+    validate_frontmatter(archetype, &doc, &mut errors);
+    if let Some(dsl) = archetype.body_extraction() {
+        validate_body(archetype, &doc, dsl, line_offset, &mut errors);
+    }
+    check_heading_uniqueness(&doc, line_offset, &mut errors);
+
+    // ── `object:` archetype layer (composed; FR-032-AC-11..13) ──
+    if let Some(object_name) = frontmatter_object(&doc) {
+        match registry.archetype(object_name) {
+            // Resolved: run its body_extraction asserts as hard errors,
+            // merged into the same list. The frontmatter schema of the
+            // object archetype is intentionally NOT re-validated here —
+            // the document's frontmatter is contracted by its `type`
+            // archetype; the object layer only asserts body structure.
+            Some(object_archetype) => {
+                if let Some(dsl) = object_archetype.body_extraction() {
+                    validate_body(object_archetype, &doc, dsl, line_offset, &mut errors);
+                }
+            }
+            // Unresolved: a single advisory warning, not an error.
+            None => warnings.push(ValidationWarning {
+                message: format!(
+                    "unknown object type '{object_name}' declared in frontmatter `object`"
+                ),
+                line: None,
+                reason: ValidationReason::UnknownObjectType,
+            }),
+        }
+    }
+
+    ValidationResult::new(errors, warnings)
+}
+
+/// The frontmatter `object:` value when present and a non-empty string.
+fn frontmatter_object(doc: &QuireDocument) -> Option<&str> {
+    doc.frontmatter
+        .as_ref()?
+        .get("object")?
+        .as_str()
+        .filter(|s| !s.is_empty())
 }
 
 /// Number of body lines preceding the parsed body in the raw document —
@@ -1060,5 +1172,141 @@ yield_pattern:
             .errors
             .iter()
             .any(|e| e.reason == ValidationReason::Assert));
+    }
+
+    // ── Composed type+object validation (FR-032-AC-11..13) ──────────
+    //
+    // A small inline registry with an `FR` artifact_type (requires a
+    // substantive `## Specification` section) and a `process`-like
+    // object_type (requires a mermaid `diagram` code_block under
+    // `## Workflow`) — mirrors the spec-objects-business `process`
+    // archetype's `body_extraction`.
+
+    /// Build a `Registry` with both an `FR` artifact_type and a `process`
+    /// object_type for the composed-validation tests.
+    fn composed_registry() -> crate::Registry {
+        let manifest = br#"
+name: composed-test
+artifact_types:
+- name: FR
+  frontmatter_schema_ref: schemas/fr.schema.json
+  body_extraction:
+    yield_pattern:
+      match:
+        specification:
+          from: section_body
+          after_heading: Specification
+          required: true
+object_types:
+- name: process
+  data_schema:
+    type: object
+  body_extraction:
+    yield_pattern:
+      match:
+        diagram:
+          from: code_block
+          after_heading: Workflow
+          required: true
+          language: mermaid
+"#;
+        let mut schemas = BTreeMap::new();
+        schemas.insert(
+            "schemas/fr.schema.json".to_string(),
+            r#"{"type":"object","required":["id","title"],"properties":{"id":{"type":"string"},"title":{"type":"string"}}}"#
+                .to_string(),
+        );
+        let r = crate::Registry::from_inline_parts(manifest, &schemas).expect("inline registry");
+        assert!(r.failures().is_empty(), "{:?}", r.failures());
+        assert!(r.archetype("FR").is_some(), "FR archetype loaded");
+        assert!(r.archetype("process").is_some(), "process archetype loaded");
+        r
+    }
+
+    // TC-610 (FR-032-AC-11, FR-032-AC-13): `type: FR` + `object: process`
+    // with the FR core present but NO `## Workflow` mermaid block → an
+    // object ERROR (process required `diagram` missing) merged into
+    // `errors`, while the FR part passes independently; is_valid==false.
+    #[test]
+    fn tc610_composed_object_missing_diagram_is_error() {
+        let reg = composed_registry();
+        let fr = reg.archetype("FR").expect("FR");
+        // FR core conformant (substantive Specification); object: process
+        // requires a `## Workflow` mermaid block, which is absent.
+        let doc = "---\nid: FR-001\ntitle: A Thing\nobject: process\n---\n\
+                   ## Specification\nThe system SHALL do a real, concrete thing.\n";
+        let r = validate_document_in_registry(&reg, fr, doc);
+        assert!(!r.is_valid, "expected invalid, got {:?}", r);
+        // Exactly the object error (process diagram missing) — no FR errors.
+        assert!(
+            r.errors
+                .iter()
+                .any(|e| e.message.contains("process") && e.reason == ValidationReason::Missing),
+            "expected a process 'diagram' missing error, got {:?}",
+            r.errors
+        );
+        // The FR (type) portion passes — no FR-tagged error.
+        assert!(
+            !r.errors.iter().any(|e| e.message.contains("[FR]")),
+            "FR portion should pass, got {:?}",
+            r.errors
+        );
+        // No warnings: `process` resolved, so this is a hard error path.
+        assert!(r.warnings.is_empty(), "{:?}", r.warnings);
+    }
+
+    // TC-611 (FR-032-AC-12): `type: FR` (conformant) + `object:
+    // totally-unknown` → exactly one WARNING (reason unknown-object-type,
+    // naming the object), zero errors, is_valid==true.
+    #[test]
+    fn tc611_unknown_object_is_one_warning_zero_errors() {
+        let reg = composed_registry();
+        let fr = reg.archetype("FR").expect("FR");
+        let doc = "---\nid: FR-001\ntitle: A Thing\nobject: totally-unknown\n---\n\
+                   ## Specification\nThe system SHALL do a real, concrete thing.\n";
+        let r = validate_document_in_registry(&reg, fr, doc);
+        assert!(r.is_valid, "expected valid, got errors {:?}", r.errors);
+        assert!(r.errors.is_empty(), "{:?}", r.errors);
+        assert_eq!(r.warnings.len(), 1, "exactly one warning: {:?}", r.warnings);
+        let w = &r.warnings[0];
+        assert_eq!(w.reason, ValidationReason::UnknownObjectType);
+        assert!(
+            w.message.contains("totally-unknown"),
+            "warning names the object: {}",
+            w.message
+        );
+    }
+
+    // TC-612 (FR-032-AC-11): `type: FR` conformant + NO `object:` key
+    // (registry-aware entry point) → no object-layer diagnostics at all;
+    // errors + warnings unchanged from the type-only path.
+    #[test]
+    fn tc612_no_object_key_no_object_diagnostics() {
+        let reg = composed_registry();
+        let fr = reg.archetype("FR").expect("FR");
+        let doc = "---\nid: FR-001\ntitle: A Thing\n---\n\
+                   ## Specification\nThe system SHALL do a real, concrete thing.\n";
+        let composed = validate_document_in_registry(&reg, fr, doc);
+        assert!(composed.is_valid, "{:?}", composed.errors);
+        assert!(composed.warnings.is_empty(), "{:?}", composed.warnings);
+        // Identical errors to the type-only path (no object layer ran).
+        let type_only = validate_document(fr, doc);
+        assert_eq!(composed.errors, type_only.errors);
+    }
+
+    // TC-613 (FR-032-AC-13): `type: FR` + `object: process` WITH a valid
+    // `## Workflow` mermaid block → no object errors, no warnings,
+    // is_valid==true.
+    #[test]
+    fn tc613_composed_conformant_validates() {
+        let reg = composed_registry();
+        let fr = reg.archetype("FR").expect("FR");
+        let doc = "---\nid: FR-001\ntitle: A Thing\nobject: process\n---\n\
+                   ## Specification\nThe system SHALL do a real, concrete thing.\n\
+                   ## Workflow\n```mermaid\nflowchart TD\n  A --> B\n```\n";
+        let r = validate_document_in_registry(&reg, fr, doc);
+        assert!(r.is_valid, "expected valid, got errors {:?}", r.errors);
+        assert!(r.errors.is_empty(), "{:?}", r.errors);
+        assert!(r.warnings.is_empty(), "{:?}", r.warnings);
     }
 }

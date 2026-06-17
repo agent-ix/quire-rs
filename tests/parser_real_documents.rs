@@ -293,10 +293,15 @@ fn parse_real_document_with_frontmatter_extracts_typed_fields() {
         !doc.sections.is_empty(),
         "FR-001 is expected to have ## sections"
     );
-    // Section IDs are stable: heading "Behavior" maps to `behavior-L<line>`.
-    let has_behavior = doc
+    // Section IDs are stable: the heading "Description" maps to
+    // `description-L<line>`. (The spec-corpus cleanup normalized FR-001's
+    // top section heading from "Behavior" to "Description".)
+    let has_description = doc
         .sections
         .iter()
-        .any(|s| s.id.starts_with("behavior-L") && s.heading == "Behavior");
-    assert!(has_behavior, "FR-001 should expose a 'Behavior' section");
+        .any(|s| s.id.starts_with("description-L") && s.heading == "Description");
+    assert!(
+        has_description,
+        "FR-001 should expose a 'Description' section"
+    );
 }

@@ -156,12 +156,25 @@ fn validate_concept(
             let ty = concept_type(&doc.doc).unwrap_or_default();
             match registry.archetype(ty) {
                 Some(archetype) => {
-                    let result = crate::validate_document(archetype, &doc.doc.raw);
+                    // Composed type+object validation (FR-032-AC-11..13):
+                    // the bundle has the registry, so resolve the
+                    // frontmatter `object:` archetype too. Object errors
+                    // merge into bundle errors; an unknown `object:`
+                    // degrades to a bundle warning.
+                    let result =
+                        crate::validate_document_in_registry(registry, archetype, &doc.doc.raw);
                     for err in result.errors {
                         report.errors.push(BundleFinding {
                             path: doc.path.clone(),
                             message: err.message,
                             reason: err.reason.as_str(),
+                        });
+                    }
+                    for warn in result.warnings {
+                        report.warnings.push(BundleFinding {
+                            path: doc.path.clone(),
+                            message: warn.message,
+                            reason: warn.reason.as_str(),
                         });
                     }
                 }

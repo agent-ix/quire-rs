@@ -81,8 +81,11 @@ fn validate(
 
 /// Validate an authored markdown `document_text` against
 /// `archetype_name` from `module_root` (FR-032 — the default,
-/// markdown-default path). Returns
-/// `{is_valid: bool, errors: [{message, line, reason}]}`. Raises
+/// markdown-default path). Composes the `type` archetype with the
+/// frontmatter `object:` archetype (FR-032-AC-11..13). Returns
+/// `{is_valid: bool, errors: [{message, line, reason}],
+/// warnings: [{message, line, reason}]}` — object errors merge into
+/// `errors`; an unknown `object:` is a `warnings` entry. Raises
 /// `QuireSchemaError` if the module / archetype fails to load, and the
 /// `UnknownArchetype`-style `QuireSchemaError` for an unknown archetype
 /// (parity with `validate`).
@@ -103,7 +106,11 @@ fn validate_document<'py>(
         let arch = registry
             .archetype(&name)
             .ok_or_else(|| QuireSchemaError::new_err(format!("unknown archetype: {name}")))?;
-        Ok(crate::validate_document(arch, &text))
+        // Composed type+object validation (FR-032-AC-11..13): the binding
+        // has the registry, so resolve the frontmatter `object:` archetype
+        // too. Object errors merge into `errors`; an unknown `object:` is
+        // surfaced as a `warnings` entry.
+        Ok(crate::validate_document_in_registry(&registry, arch, &text))
     })?;
 
     let out = PyDict::new(py);
@@ -117,6 +124,15 @@ fn validate_document<'py>(
         errors.append(d)?;
     }
     out.set_item("errors", errors)?;
+    let warnings = PyList::empty(py);
+    for w in &result.warnings {
+        let d = PyDict::new(py);
+        d.set_item("message", &w.message)?;
+        d.set_item("line", w.line)?;
+        d.set_item("reason", w.reason.as_str())?;
+        warnings.append(d)?;
+    }
+    out.set_item("warnings", warnings)?;
     Ok(out)
 }
 
