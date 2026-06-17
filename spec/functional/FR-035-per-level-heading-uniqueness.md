@@ -13,16 +13,16 @@ relationships:
 
 ## Description
 
-Per ADR 0005 (#4), `validate_document` (FR-032) SHALL enforce **per-level heading
+Per ADR 0005 (#4), `validate_document` ([FR-032](./FR-032-validate-document.md)) SHALL enforce **per-level heading
 uniqueness**: within a single document, no two headings at the **same heading
 level** may share identical heading text.
 
 This rule makes the flat, name-based locator addressing (`after_heading`,
 `under_section`) unambiguous: `(heading text, level)` is unique, and since asserts
-can pin `level` (FR-033), a locator resolves to exactly one section. Headings with
+can pin `level` ([FR-033](./FR-033-locator-assert-facet.md)), a locator resolves to exactly one section. Headings with
 the same text at *different* levels are permitted (the level disambiguates).
 
-The rule is compatible with multi-yield extraction (`iterate_over`, FR-011):
+The rule is compatible with multi-yield extraction (`iterate_over`, [FR-011](./FR-011-body-extraction-dsl.md)):
 iterated child units (e.g. `### Algorithm A`, `### Algorithm B`) carry **distinct**
 heading text and therefore do not collide.
 
@@ -45,5 +45,5 @@ Violations SHALL produce a line-numbered diagnostic with reason
 
 ## Dependencies
 
-- **Upstream**: FR-032 (requires), FR-005 (requires)
+- **Upstream**: [FR-032](./FR-032-validate-document.md) (requires), [FR-005](./FR-005-parse-document-api.md) (requires)
 - **Downstream**: none

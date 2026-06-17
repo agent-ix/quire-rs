@@ -32,5 +32,5 @@ When walking the document body to collect heading positions, the parser SHALL tr
 
 ## Dependencies
 
-- **Upstream**: US-002, StR-003
-- **Downstream**: FR-005 (`parse_document` heading walk relies on this fence tracking)
+- **Upstream**: [US-002](../usecase/US-002-developer-parses-spec-doc.md), [StR-003](../stakeholder/StR-003-parse-parity-with-quire.md)
+- **Downstream**: [FR-005](./FR-005-parse-document-api.md) (`parse_document` heading walk relies on this fence tracking)

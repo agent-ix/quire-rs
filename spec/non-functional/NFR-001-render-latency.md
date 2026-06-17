@@ -14,15 +14,15 @@ relationships:
 > **RETIRED (render removal — 2026-06-04):** The render/templating feature is
 > **removed** from `quire-rs` (no backward-compatibility layer). This NFR (render
 > latency, sub-millisecond per archetype) is **retired** along with the render path
-> (FR-001) and its user story (US-004). The perf gate (G3 / task 014) now covers
-> parse / validate / `validate_document` / extract latency only — see NFR-002
-> (parse) and NFR-002-AC-4 (`validate_document`). This document is kept for history
+> ([FR-001](../functional/FR-001-render-dispatch.md)) and its user story ([US-004](../usecase/US-004-filament-editor-rerender.md)). The perf gate (G3 / task 014) now covers
+> parse / validate / `validate_document` / extract latency only — see [NFR-002](./NFR-002-parse-latency.md)
+> (parse) and [NFR-002-AC-4](./NFR-002-parse-latency.md) (`validate_document`). This document is kept for history
 > and traceability only; its acceptance criteria are dropped from the
 > required-coverage tally. The retirement is recorded in `spec.md` §2bis.
 
 ## Statement
 
-`quire_rs::render(archetype, data)` for an artifact of typical size SHALL complete in under **1 ms median** on the canonical baseline runner (Apple Silicon M2 Pro, release build, long-lived `Environment` already constructed per FR-004).
+`quire_rs::render(archetype, data)` for an artifact of typical size SHALL complete in under **1 ms median** on the canonical baseline runner (Apple Silicon M2 Pro, release build, long-lived `Environment` already constructed per [FR-004](../functional/FR-004-minijinja-strict-environment.md)).
 
 "Typical size" means: the artifact's typed `data` serialized as JSON is under 8 KB, the rendered markdown output is under 32 KB, and the template has no `{% for %}` loop iterating more than 100 elements.
 
@@ -43,7 +43,7 @@ A criterion regression test compares the latest measurement against the same-run
 
 ## Rationale
 
-The Filament editor (US-004) re-renders on every accepted patch. To stay below a frame budget (16 ms) with room for spare, the render alone must be well under a millisecond. Sub-ms also makes bulk re-rendering of hundreds of artifacts tractable for batch jobs.
+The Filament editor ([US-004](../usecase/US-004-filament-editor-rerender.md)) re-renders on every accepted patch. To stay below a frame budget (16 ms) with room for spare, the render alone must be well under a millisecond. Sub-ms also makes bulk re-rendering of hundreds of artifacts tractable for batch jobs.
 
 ## Acceptance Criteria
 

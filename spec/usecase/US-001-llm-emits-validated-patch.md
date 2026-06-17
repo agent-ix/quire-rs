@@ -14,9 +14,9 @@ relationships:
 > **RETIRED (render removal — 2026-06-04):** This user story is render-centric
 > (emit data → `render` → byte-identical-to-Python markdown). With the render
 > feature removed (no backward-compatibility layer), it is **retired**. The retained
-> schema-surface (`schema_for`, FR-003) and data validation (FR-002) still serve
+> schema-surface (`schema_for`, [FR-003](../functional/FR-003-archetype-schema-surface.md)) and data validation ([FR-002](../functional/FR-002-schema-validation-pipeline.md)) still serve
 > LLM tool-call contracts; markdown authoring is now validated by `validate_document`
-> (FR-032 / US-014). Kept for history and traceability only; its acceptance criteria
+> ([FR-032](../functional/FR-032-validate-document.md) / [US-014](./US-014-author-validates-markdown.md)). Kept for history and traceability only; its acceptance criteria
 > are dropped from the required-coverage tally. See `spec.md` §2bis.
 
 ## Story

@@ -18,8 +18,8 @@ relationships:
 > **removed** from `quire-rs` (no backward-compatibility layer). This FR (the
 > render-parity-against-the-Python-corpus suite) is **retired**: there is no render
 > path to compare, so `tests/render_parity/` and `corpus.yaml` are removed. The
-> remaining parity guarantees are parse parity (StR-003) and the markdown-validation
-> conformance suite (FR-032). This document is kept for history and traceability
+> remaining parity guarantees are parse parity ([StR-003](../stakeholder/StR-003-parse-parity-with-quire.md)) and the markdown-validation
+> conformance suite ([FR-032](./FR-032-validate-document.md)). This document is kept for history and traceability
 > only; its acceptance criteria are dropped from the required-coverage tally. The
 > retirement and rationale are recorded in `spec.md` §2bis. Quality gate **G2** is
 > retired with it. New work does not target this FR.
@@ -61,5 +61,5 @@ This list is informational, not normative — `corpus.yaml` and the on-disk fixt
 
 ## Dependencies
 
-- **Upstream**: US-005, StR-002; requires FR-013 (archetype loader)
+- **Upstream**: [US-005](../usecase/US-005-ci-detects-render-regression.md), [StR-002](../stakeholder/StR-002-render-parity-with-python.md); requires [FR-013](./FR-013-archetype-loader.md) (archetype loader)
 - **Downstream**: none (FR retired — render removed 2026-06-04)

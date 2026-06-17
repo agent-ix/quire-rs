@@ -29,7 +29,7 @@ diagnostics) SHALL each be a pure function of their inputs.
 
 ## Rationale
 
-The parity suite (FR-012) compares byte streams. Any non-determinism makes the parity suite flaky. Beyond CI, downstream consumers depend on rendered markdown landing in git diffs in a stable order across machines.
+The parity suite ([FR-012](../functional/FR-012-archetype-parity-suite.md)) compares byte streams. Any non-determinism makes the parity suite flaky. Beyond CI, downstream consumers depend on rendered markdown landing in git diffs in a stable order across machines.
 
 ## Acceptance Criteria
 

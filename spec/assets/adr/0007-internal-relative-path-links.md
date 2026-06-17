@@ -14,8 +14,8 @@ type: ADR
 
 Authored specs reference other artifacts two ways today. Frontmatter
 `relationships[].target` and body links carry the custom `ix://org/repo/name`
-URI; quire-rs harvests both into the edge set (FR-026). But the overwhelmingly
-common case — an FR citing a sibling `FR-002`, an `umbrella FR-008-CON-4`, the
+URI; quire-rs harvests both into the edge set ([FR-026](../../functional/FR-026-intra-spec-reference-resolution.md)). But the overwhelmingly
+common case — an FR citing a sibling [FR-002](../../functional/FR-002-schema-validation-pipeline.md), an [FR-008-CON-4](../../functional/FR-008-byte-exact-slicing.md), the
 ids in an Acceptance-Criteria table — is **bare prose text**. Those references
 produce no edge.
 
@@ -43,7 +43,7 @@ reference to a sibling in the same bundle.
    `relationships` to other repos). Same-bundle objects/artifacts use the
    relative-path form.
 
-3. **Relative-path links become a third edge source** in resolution (FR-026),
+3. **Relative-path links become a third edge source** in resolution ([FR-026](../../functional/FR-026-intra-spec-reference-resolution.md)),
    alongside frontmatter `relationships` and body `ix://` links, contributing
    `references` edges. `index.md` / `log.md` are navigation documents — their
    wall-to-wall relative links do **not** flood the graph with `references`
@@ -54,7 +54,7 @@ reference to a sibling in the same bundle.
    removes. A bare code only becomes an edge after it is rewritten as an explicit
    link.
 
-5. **Unlinked bare codes are an advisory warning, not an error** (FR-039). The
+5. **Unlinked bare codes are an advisory warning, not an error** ([FR-039](../../functional/FR-039-unlinked-reference-detection.md)). The
    validator classifies each bare artifact-id token into auto-fix / warn-only /
    ignore and, for the auto-fix bucket, emits the exact relative-path link it
    would apply, so an opt-in autofix can apply it deterministically. Warning
@@ -63,16 +63,16 @@ reference to a sibling in the same bundle.
 
 ## Consequences
 
-- FR-026 gains a relative-path edge source and a path→id index; its dedup and
-  determinism contracts extend to the new source. FR-038's existing Okf prose
+- [FR-026](../../functional/FR-026-intra-spec-reference-resolution.md) gains a relative-path edge source and a path→id index; its dedup and
+  determinism contracts extend to the new source. [FR-038](../../functional/FR-038-okf-bundle-validation.md)'s existing Okf prose
   ("broken `ix://` / relative references degrade to warnings") is now backed by
   an actual relative-reference harvest rather than anticipated.
-- A new FR-039 specifies unlinked-reference detection, the three-bucket
+- A new [FR-039](../../functional/FR-039-unlinked-reference-detection.md) specifies unlinked-reference detection, the three-bucket
   classification, and the suggested-fix string; the apply step (byte-splice
   writeback) is surfaced by quire-cli, never auto-run.
 - Authoring skeletons and skills emit relative-path links for siblings and
   `ix://` for cross-repo, so new specs are born linked.
 - Migration of existing specs is via the opt-in autofix plus hand-review;
   bundles migrate organically. Cross-repo `ix://` relationships are untouched.
-- Any future intra-document anchor addressing (linking `FR-024-AC-1` to a row
+- Any future intra-document anchor addressing (linking [FR-024-AC-1](../../functional/FR-024-parallel-repo-walk.md) to a row
   anchor rather than the parent file) amends this ADR.

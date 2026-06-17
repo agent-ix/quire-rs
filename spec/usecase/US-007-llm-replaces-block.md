@@ -24,7 +24,7 @@ As an **LLM agent** making pervasive changes within a single block (rewriting a 
 
 ## Context
 
-Merge-patch (US-006) is the natural primitive when the LLM changes one or two fields. When the LLM rewrites most of a block's content, a merge-patch:
+Merge-patch ([US-006](./US-006-llm-patches-one-block.md)) is the natural primitive when the LLM changes one or two fields. When the LLM rewrites most of a block's content, a merge-patch:
 
 - gets large enough that it's effectively a full replacement anyway, and
 - forces the LLM to reason about whether merge semantics will preserve unwanted prior state (e.g. a deep list that should be empty after the edit but a `null` patch entry on it would behave differently than an explicit `[]`).
@@ -43,34 +43,34 @@ Merge-patch (US-006) is the natural primitive when the LLM changes one or two fi
 **Round trips:** 1.
 
 **LLM context cost** (input tokens):
-- block-type schema: 200–2,000 bytes (same as US-006).
+- block-type schema: 200–2,000 bytes (same as [US-006](./US-006-llm-patches-one-block.md)).
 - current block data: optional — the LLM may not need it if the rewrite is independent of prior content. Otherwise 50–500 bytes.
 
 **LLM output cost** (output tokens):
 - Full block data: typically 200–2,000 bytes — *more* than a merge-patch.
-- Break-even vs US-006: when ~40% of fields change, the merge-patch and the full replacement are comparable in size; beyond that, replace is competitive.
+- Break-even vs [US-006](./US-006-llm-patches-one-block.md): when ~40% of fields change, the merge-patch and the full replacement are comparable in size; beyond that, replace is competitive.
 
 **Server-side cost** per call:
-- Validation: O(new_data size) — same as US-006, no merge step.
-- Render: identical to US-006 (same template).
-- Writeback: identical to US-006 (`update_block` byte splice).
+- Validation: O(new_data size) — same as [US-006](./US-006-llm-patches-one-block.md), no merge step.
+- Render: identical to [US-006](./US-006-llm-patches-one-block.md) (same template).
+- Writeback: identical to [US-006](./US-006-llm-patches-one-block.md) (`update_block` byte splice).
 - *Saves* the deep_merge pass (small, but non-zero on large blocks).
 
-**Comparison to US-006:**
+**Comparison to [US-006](./US-006-llm-patches-one-block.md):**
 - LLM cognitive load: simpler — "produce a valid block" instead of "produce a patch that, when merged, yields a valid block".
 - Token cost: higher output, identical input.
 - Error recoverability: easier — the LLM never has to reason about merge semantics; a schema error means re-emit the value.
 
-**When to prefer US-007 over US-006:**
+**When to prefer US-007 over [US-006](./US-006-llm-patches-one-block.md):**
 - The change touches > ~40% of the block's fields.
 - The block contains arrays/maps where merge semantics are ambiguous (e.g. "did the LLM mean to append or replace?").
 - The LLM is generating block content from scratch and doesn't need to preserve prior state.
 
-**Failure cost:** identical to US-006 (validation-before-render means no half-written markdown).
+**Failure cost:** identical to [US-006](./US-006-llm-patches-one-block.md) (validation-before-render means no half-written markdown).
 
 ## Performance Criteria
 
-- **US-007-PC-1**: `replace_block` on a 10 KB document with a typical 5-block layout completes in p50 < 1 ms, p99 < 5 ms (within ±10% of US-006-PC-1 — the deep-merge step is negligible at this scale). Bench: **TC-451**.
-- **US-007-PC-2**: Per-call memory: identical envelope to US-006 — one allocation for the output `String`.
-- **US-007-PC-3**: Inherits NFR-001 + NFR-007 (render <1 ms, zero disk I/O after load).
+- **US-007-PC-1**: `replace_block` on a 10 KB document with a typical 5-block layout completes in p50 < 1 ms, p99 < 5 ms (within ±10% of [US-006](./US-006-llm-patches-one-block.md)-PC-1 — the deep-merge step is negligible at this scale). Bench: **TC-451**.
+- **US-007-PC-2**: Per-call memory: identical envelope to [US-006](./US-006-llm-patches-one-block.md) — one allocation for the output `String`.
+- **US-007-PC-3**: Inherits [NFR-001](../non-functional/NFR-001-render-latency.md) + [NFR-007](../non-functional/NFR-007-load-cost-amortized.md) (render <1 ms, zero disk I/O after load).
 - **US-007-PC-4**: On larger blocks (≥ 50 KB of rendered content), `replace_block` is measurably *faster* than `apply_block_patch` because it skips the recursive `deep_merge`. The crossover where US-007 wins is documented in the TC-451 report.

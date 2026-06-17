@@ -41,5 +41,5 @@ Resolution rules:
 
 ## Dependencies
 
-- **Upstream**: FR-033 (extends)
+- **Upstream**: [FR-033](./FR-033-locator-assert-facet.md) (extends)
 - **Downstream**: none

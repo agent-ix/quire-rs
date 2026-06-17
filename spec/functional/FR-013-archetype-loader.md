@@ -16,7 +16,7 @@ relationships:
 > **schema-only**: it no longer parses or registers MiniJinja templates and no longer
 > reads `template_ref`. Manifest entries reference their schema by `schema_ref` /
 > `frontmatter_schema_ref`; a `template_ref` field is ignored at load (and rejected
-> by the unified shape, FR-031). The Behavior and acceptance criteria below are
+> by the unified shape, [FR-031](./FR-031-unified-archetype-shape.md)). The Behavior and acceptance criteria below are
 > updated to the schema-only contract. See `spec.md` §2bis.
 
 > **CR note (module-dir repoint — 2026-06-15):** The default search root moves
@@ -82,7 +82,7 @@ Callers that have already resolved a specific module path (e.g. a CLI receiving 
 
 ### Compiled archetype surface
 
-`CompiledArchetype` SHALL expose the parsed `body_extraction` DSL for object types as a public field/accessor (`body_extraction: Option<ExtractionDsl>` and `fn body_extraction(&self) -> Option<&ExtractionDsl>`). The DSL is populated from the same parse pass that validates it at load time (FR-011-AC-6/7/8), so downstream `extract()` callers do NOT need to re-read `manifest.yaml` to drive the extractor.
+`CompiledArchetype` SHALL expose the parsed `body_extraction` DSL for object types as a public field/accessor (`body_extraction: Option<ExtractionDsl>` and `fn body_extraction(&self) -> Option<&ExtractionDsl>`). The DSL is populated from the same parse pass that validates it at load time ([FR-011-AC-6](./FR-011-body-extraction-dsl.md)/7/8), so downstream `extract()` callers do NOT need to re-read `manifest.yaml` to drive the extractor.
 
 ### Path-safety diagnostic
 
@@ -95,7 +95,7 @@ For each archetype the loader SHALL:
 1. Parse the JSON Schema document and compile it into a runtime validator (e.g. `jsonschema::JSONSchema::compile`).
 2. Cache the (validator, metadata, optional `body_extraction` DSL) tuple as a `CompiledArchetype` keyed by archetype name.
 
-Templates are NOT parsed or registered (render is removed). Per-validate and per-extract operations SHALL NOT re-read disk and SHALL NOT re-parse schemas. Load cost is amortized over the process lifetime (see NFR-007).
+Templates are NOT parsed or registered (render is removed). Per-validate and per-extract operations SHALL NOT re-read disk and SHALL NOT re-parse schemas. Load cost is amortized over the process lifetime (see [NFR-007](../non-functional/NFR-007-load-cost-amortized.md)).
 
 ### Error model
 
@@ -126,7 +126,7 @@ The crate exposes an additive Cargo feature `wasm` (v0.3.1) that drops the `json
 > **CR note (render removal — 2026-06-04):** AC-15 originally documented a 3-arg `from_inline_parts(manifest_yaml, schemas, templates)` with a `templates` map keyed by `template_ref`. With the render feature removed, the real signature (`src/registry.rs`) is 2-arg — no `templates` param, no `template_ref`.
 - Callers SHALL use `Registry::from_inline_parts(manifest_yaml, schemas)` (and the strict variant `from_inline_parts_strict`) to build a registry from an in-memory module blob — no filesystem access. `schemas` is a `BTreeMap<String, String>` keyed by the manifest's relative-reference strings (`frontmatter_schema_ref`).
 - Diagnostics and per-archetype failure aggregation behave identically to the filesystem loader; missing entries in the `schemas` map surface as `ArchetypeLoadFailure` with reason `"inline schema '<ref>' not provided"`.
-- Cross-file `$ref` resolution is unavailable under `wasm` (consistent with FR-002-AC-7's existing rejection).
+- Cross-file `$ref` resolution is unavailable under `wasm` (consistent with [FR-002-AC-7](./FR-002-schema-validation-pipeline.md)'s existing rejection).
 
 This is an additive amendment — the default (native) build is unchanged. `cargo check --features python` and `cargo check` continue to include `resolve-file`. Verified by `cargo check --no-default-features --features wasm --target wasm32-unknown-unknown --lib`.
 
@@ -155,5 +155,5 @@ The loader assumes the upstream sync tool (canonically `ix-cli`, see Appendix A 
 
 ## Dependencies
 
-- **Upstream**: StR-001; requires FR-001
-- **Downstream**: FR-012, FR-014 (module activation builds on this loader)
+- **Upstream**: [StR-001](../stakeholder/StR-001-single-rust-engine.md); requires [FR-001](./FR-001-render-dispatch.md)
+- **Downstream**: [FR-012](./FR-012-archetype-parity-suite.md), [FR-014](./FR-014-module-activation.md) (module activation builds on this loader)

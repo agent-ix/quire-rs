@@ -31,7 +31,7 @@ The function operates on JSON values directly (`serde_json::Value`); it does NOT
 
 Patches MAY add new fields to objects whose schema allows them. Patches MAY NOT introduce fields the schema disallows (`additionalProperties: false`); those raise `SchemaViolation`.
 
-The JSON Schema validator implementation uses a high-performance pre-compiled validator (e.g. the `jsonschema` crate's `JSONSchema::compile()` once, then `validate()` per call). Compilation happens at archetype load time (FR-013), not per `apply_patch` call.
+The JSON Schema validator implementation uses a high-performance pre-compiled validator (e.g. the `jsonschema` crate's `JSONSchema::compile()` once, then `validate()` per call). Compilation happens at archetype load time ([FR-013](./FR-013-archetype-loader.md)), not per `apply_patch` call.
 
 ### JSON Schema feature support (v1)
 
@@ -60,5 +60,5 @@ A single `apply_patch` call may produce multiple violations (e.g. `oneOf` agains
 
 ## Dependencies
 
-- **Upstream**: US-001, US-004
-- **Downstream**: FR-003 (surfaces the same compiled schema), FR-013 (load-time schema compilation)
+- **Upstream**: [US-001](../usecase/US-001-llm-emits-validated-patch.md), [US-004](../usecase/US-004-filament-editor-rerender.md)
+- **Downstream**: [FR-003](./FR-003-archetype-schema-surface.md) (surfaces the same compiled schema), [FR-013](./FR-013-archetype-loader.md) (load-time schema compilation)

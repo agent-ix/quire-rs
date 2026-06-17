@@ -14,8 +14,8 @@ relationships:
 > **CR note (recast by ADR 0004):** The input contract is no longer derived from a
 > render template's variables. With direct-markdown authoring (ADR 0004) there is no
 > required render template; the per-archetype contract is a **skeleton/example**
-> derived from `frontmatter_schema_ref` + the `body_extraction` asserts (FR-033) — the
-> structure an author fills and `validate_document` (FR-032) checks. Below, "template
+> derived from `frontmatter_schema_ref` + the `body_extraction` asserts ([FR-033](./FR-033-locator-assert-facet.md)) — the
+> structure an author fills and `validate_document` ([FR-032](./FR-032-validate-document.md)) checks. Below, "template
 > variables" and "required-section → variable mapping" are superseded by "asserts →
 > required structure"; the contract still SHALL be derived from the loaded module
 > (manifest + schema), never inferred from rendered markdown. See ADR 0004.
@@ -25,7 +25,7 @@ relationships:
 `quire-rs` SHALL expose an input contract for each loaded archetype that is suitable for LLM render agents and other non-Rust consumers. The contract SHALL combine:
 
 1. The archetype name.
-2. The frontmatter JSON Schema already exposed by FR-003.
+2. The frontmatter JSON Schema already exposed by [FR-003](./FR-003-archetype-schema-surface.md).
 3. The manifest `required_sections` entries for that archetype.
 4. The template variables referenced by the archetype template.
 5. A mapping from each required section to the template variables that can populate that section, when the template structure makes that mapping statically knowable.
@@ -49,5 +49,5 @@ When a required-section-to-variable mapping cannot be determined statically, the
 
 ## Dependencies
 
-- **Upstream**: FR-003, FR-013
+- **Upstream**: [FR-003](./FR-003-archetype-schema-surface.md), [FR-013](./FR-013-archetype-loader.md)
 - **Downstream**: none

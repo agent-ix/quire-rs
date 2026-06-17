@@ -14,7 +14,7 @@ relationships:
 > **CR note (no backward-compatibility — 2026-06-04):** This FR's original
 > `required_sections` handling ("loads, ignored, one non-fatal diagnostic") is
 > **superseded** by the project's no-deprecated-format-fallback directive (see
-> filament-core FR-035 CR-002). The deprecated keys `required_sections` and
+> filament-core [FR-035](./FR-035-per-level-heading-uniqueness.md) CR-002). The deprecated keys `required_sections` and
 > `variants` are now **hard-rejected** (`ArchetypeLoadFailure`), not tolerated.
 > The Behavior and FR-031-AC-5 below are updated to the hard-rejection contract.
 >
@@ -34,7 +34,7 @@ from the compiled model.
 A compiled archetype MAY carry, all optional except `name`:
 
 - `frontmatter_schema_ref` — JSON Schema validating the document frontmatter (input).
-- `body_extraction` — the locator DSL (FR-011), which drives **both** extraction and validation (FR-032).
+- `body_extraction` — the locator DSL ([FR-011](./FR-011-body-extraction-dsl.md)), which drives **both** extraction and validation ([FR-032](./FR-032-validate-document.md)).
 - `data_schema` — JSON Schema validating the *extracted record* (a distinct validator from frontmatter).
 - carry-over fields with no DSL representation: `defaults.id_pattern`, `allowed_links`, `has_plugin`, `grammar_ref`.
 
@@ -45,14 +45,14 @@ render feature is removed: there is no `template_ref` field, no `is_renderable()
 accessor, and no renderability concept on the compiled archetype.
 
 The manifest fields `required_sections`, `variants`, and `template_ref` are
-**retired**: required-section intent moves to `body_extraction` asserts (FR-033),
+**retired**: required-section intent moves to `body_extraction` asserts ([FR-033](./FR-033-locator-assert-facet.md)),
 variants to separate archetypes (ADR 0005 #1), and `template_ref` is removed with
 the render feature. A manifest that still declares any of these fields SHALL be
 **rejected** with an `ArchetypeLoadFailure` naming the archetype and the
 deprecated field; the archetype does NOT load. There is **no tolerate/ignore path
 and no dual-read** of the deprecated shape (no backward-compatibility layer).
 
-`Registry` lookup by archetype name (FR-013) is unchanged.
+`Registry` lookup by archetype name ([FR-013](./FR-013-archetype-loader.md)) is unchanged.
 
 ## Acceptance Criteria
 
@@ -67,5 +67,5 @@ and no dual-read** of the deprecated shape (no backward-compatibility layer).
 
 ## Dependencies
 
-- **Upstream**: FR-013, FR-011
-- **Downstream**: FR-032, FR-033
+- **Upstream**: [FR-013](./FR-013-archetype-loader.md), [FR-011](./FR-011-body-extraction-dsl.md)
+- **Downstream**: [FR-032](./FR-032-validate-document.md), [FR-033](./FR-033-locator-assert-facet.md)

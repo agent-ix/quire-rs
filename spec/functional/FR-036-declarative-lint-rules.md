@@ -15,7 +15,7 @@ relationships:
 
 Modules MAY declare **advisory lint rules** in `manifest.yaml` under a top-level
 `lint_rules:` list. Lint is a posture distinct from structural validation
-(FR-032): findings NEVER block extraction, validation, or document sync. Lint
+([FR-032](./FR-032-validate-document.md)): findings NEVER block extraction, validation, or document sync. Lint
 surfaces authoring-convention drift — vocabulary discipline that is too soft to
 be a structural assert but too important to leave to prose conventions.
 
@@ -34,7 +34,7 @@ Motivating rules (spec-objects format walkthrough, decisions #12/#14,
 > on a requirement `Statement` and an `IT-XXX-SC-NN` presence nudge. It mirrors
 > the `table_column_values` philosophy exactly: advisory-only (never blocks),
 > `archetypes:`-scoped, and a **missing** section produces no finding (structural
-> presence is FR-032's job). The "v1 ships one rule type" framing is superseded —
+> presence is [FR-032](./FR-032-validate-document.md)'s job). The "v1 ships one rule type" framing is superseded —
 > the discriminated `lint_rules` shape was always designed to grow rule types,
 > and this is the first such addition.
 
@@ -72,12 +72,12 @@ with `is_match` (a containment match, not anchored). When the section is present
 but its body does NOT match `pattern`, ONE finding `{rule, severity, message}`
 is produced — `message` is the rule's custom message when set, otherwise a
 default naming the section and pattern. A **missing** section produces no
-finding (structural presence is validation's job, FR-032, not lint's). An
+finding (structural presence is validation's job, [FR-032](./FR-032-validate-document.md), not lint's). An
 invalid regex is skipped without panicking.
 
 ### Loading and evaluation
 
-- The loader (FR-013) SHALL parse `lint_rules` into a **typed** structure — the
+- The loader ([FR-013](./FR-013-archetype-loader.md)) SHALL parse `lint_rules` into a **typed** structure — the
   key is no longer inert manifest passthrough. A malformed rule fails manifest
   parse like any other shape error.
 - `Registry::lint_rules()` exposes the rules aggregated across loaded modules
@@ -87,7 +87,7 @@ invalid regex is skipped without panicking.
   from frontmatter `artifact_type`) scopes filtered rules; an unresolvable
   archetype runs only unfiltered rules — never an error.
 - A missing section, table, or column produces **no** findings: structural
-  requirements are validation's job (FR-032), not lint's.
+  requirements are validation's job ([FR-032](./FR-032-validate-document.md)), not lint's.
 
 ### Non-goals (v1)
 
@@ -110,5 +110,5 @@ invalid regex is skipped without panicking.
 
 ## Dependencies
 
-- **Upstream**: FR-013 (requires), FR-010 (requires)
+- **Upstream**: [FR-013](./FR-013-archetype-loader.md) (requires), [FR-010](./FR-010-query-api.md) (requires)
 - **Downstream**: none

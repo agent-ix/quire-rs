@@ -25,24 +25,24 @@ relationships:
 > `render(...)` module-level function and the `QuireRenderError` exception class. The
 > retained expanded surface is `validate` / `validate_manifest` / `extract` /
 > `extract_frontmatter` / `harvest_edges` / `ExtractionContext` (plus
-> `validate_document` from FR-023). FR-028-AC-1 (render byte-parity) is **retired**
+> `validate_document` from [FR-023](./FR-023-python-binding-surface.md)). FR-028-AC-1 (render byte-parity) is **retired**
 > and FR-028-AC-7 is revised to the render-free exception hierarchy. See `spec.md`
 > §2bis.
 
 ## Description
 
-The `quire` Python module (FR-023) SHALL additionally expose the following surfaces to allow downstream Python services (filament-core, spec-editor, RAG harnesses) to swap their own per-document parse / validate / extract code for the Rust engine. Runtime extraction has two distinct inputs:
+The `quire` Python module ([FR-023](./FR-023-python-binding-surface.md)) SHALL additionally expose the following surfaces to allow downstream Python services (filament-core, spec-editor, RAG harnesses) to swap their own per-document parse / validate / extract code for the Rust engine. Runtime extraction has two distinct inputs:
 
 - Local authoring/rendering tools may load archetype modules from a filesystem root that was prepared by a CLI or by hand.
 - Service/parser runtimes pass ObjectType rows directly from their caller. They SHALL NOT read `.ix`, package manifests, or a local module registry to discover ObjectTypes.
 
 ### Module-level functions
 
-- `validate(archetype_name: str, module_root: str, data: dict) -> None` — load the module at `module_root`, resolve `archetype_name`; validates `data` against the archetype's compiled JSON Schema. Raises `QuireValidationError` on the first violation (carrying the dotted field path per NFR-005).
+- `validate(archetype_name: str, module_root: str, data: dict) -> None` — load the module at `module_root`, resolve `archetype_name`; validates `data` against the archetype's compiled JSON Schema. Raises `QuireValidationError` on the first violation (carrying the dotted field path per [NFR-005](../non-functional/NFR-005-actionable-schema-errors.md)).
 - `validate_manifest(payload: dict, schema_path: str) -> list[dict]` — compile the JSON Schema at `schema_path` (using the same `jsonschema` validator the engine uses internally) and validate `payload` against it. Returns `[]` when valid; returns structured violations of shape `{path, message, schema_keyword}` when invalid. Raises `QuireSchemaError` on schema load / compile failure. Consumers SHALL NOT parse exception strings to recover validation detail.
 - `extract(archetype_name: str, module_root: str, document_text: str) -> dict` — parse `document_text`, evaluate the archetype's `body_extraction` DSL, and return `{"extraction": [...records], "edges": [{"target", "edge_type"}, ...]}`. Raises `QuireParseError` if the archetype has no DSL.
-- `extract_frontmatter(text: str) -> dict` — returns `{"frontmatter": dict | None, "body": str}` from the Rust FR-006 parser. Python consumers SHALL use this body directly; they SHALL NOT re-split YAML frontmatter locally.
-- `harvest_edges(doc: dict | str) -> list[dict]` — accepts either a raw markdown string or a parsed-document dict (from `parse_document`); returns deduplicated `[{"target", "edge_type"}, ...]` derived from frontmatter `relationships` and body `ix://` links (FR-026 per-doc harvest, no resolution).
+- `extract_frontmatter(text: str) -> dict` — returns `{"frontmatter": dict | None, "body": str}` from the Rust [FR-006](./FR-006-frontmatter-with-fallback.md) parser. Python consumers SHALL use this body directly; they SHALL NOT re-split YAML frontmatter locally.
+- `harvest_edges(doc: dict | str) -> list[dict]` — accepts either a raw markdown string or a parsed-document dict (from `parse_document`); returns deduplicated `[{"target", "edge_type"}, ...]` derived from frontmatter `relationships` and body `ix://` links ([FR-026](./FR-026-intra-spec-reference-resolution.md) per-doc harvest, no resolution).
 
 ### ExtractionContext
 
@@ -66,24 +66,24 @@ The module SHALL expose:
 
 ### GIL
 
-All new module-level functions SHALL release the GIL for the duration of the Rust computation (parity with `load_repo` and `Spec.from_path` per NFR-016).
+All new module-level functions SHALL release the GIL for the duration of the Rust computation (parity with `load_repo` and `Spec.from_path` per [NFR-016](../non-functional/NFR-016-binding-overhead.md)).
 
 ## Acceptance Criteria
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
 | FR-028-AC-1 | (RETIRED — render removal 2026-06-04) Formerly asserted `quire.render(...)` byte-parity with `quire_rs::render_by_name`. The render binding is removed; this criterion is dropped from the required-coverage tally (id retained, immutable). | Inspection |
-| FR-028-AC-2 | `quire.validate(archetype, module_root, valid_data)` returns without raising; `quire.validate(archetype, module_root, invalid_data)` raises `QuireValidationError` whose message carries the same dotted field path the Rust validator produces (NFR-005). | Test |
+| FR-028-AC-2 | `quire.validate(archetype, module_root, valid_data)` returns without raising; `quire.validate(archetype, module_root, invalid_data)` raises `QuireValidationError` whose message carries the same dotted field path the Rust validator produces ([NFR-005](../non-functional/NFR-005-actionable-schema-errors.md)). | Test |
 | FR-028-AC-3 | `quire.validate_manifest(payload, schema_path)` returns `[]` for valid payloads, returns one or more structured `{path, message, schema_keyword}` records for schema violations, and raises `QuireSchemaError` when `schema_path` is missing / unreadable / fails to compile. | Test |
 | FR-028-AC-4 | `quire.extract(archetype, module_root, text)` returns a dict with `extraction` (DSL records) and `edges` (frontmatter + body `ix://` harvest) keys; the `extraction` records match `quire_rs::extract().records` for the same inputs. | Test |
-| FR-028-AC-5 | `quire.extract_frontmatter(text)` returns the exact `frontmatter` and `body` produced by Rust `extract_frontmatter`; BOM, CRLF, malformed-YAML, non-object YAML, and missing-fence behavior match FR-006 without any Python-side splitter. | Test |
+| FR-028-AC-5 | `quire.extract_frontmatter(text)` returns the exact `frontmatter` and `body` produced by Rust `extract_frontmatter`; BOM, CRLF, malformed-YAML, non-object YAML, and missing-fence behavior match [FR-006](./FR-006-frontmatter-with-fallback.md) without any Python-side splitter. | Test |
 | FR-028-AC-6 | `quire.harvest_edges(text_or_dict)` accepts both raw markdown and a parsed-document dict; output is deduplicated and equal between the two input shapes for the same document. | Test |
 | FR-028-AC-7 | Each `Quire*Error` subclass is `issubclass(QuireBaseError, Exception)` and is importable as `from quire import QuireBaseError, QuireValidationError, QuireSchemaError, QuireParseError`. `QuireRenderError` is not exported (render removed). | Test |
-| FR-028-AC-8 | Calling each new module-level function from two Python threads concurrently completes in wall-clock < 2× single-call (GIL release parity with FR-023-AC-5). | Test |
+| FR-028-AC-8 | Calling each new module-level function from two Python threads concurrently completes in wall-clock < 2× single-call (GIL release parity with [FR-023-AC-5](./FR-023-python-binding-surface.md)). | Test |
 | FR-028-AC-9 | `ExtractionContext.from_object_types([...]).extract(name, text)` returns the same records and emitted edges as the Rust extractor for equivalent compiled ObjectTypes, without reading a module root or `.ix` registry. | Test |
 | FR-028-AC-10 | `ExtractionContext` accepts both a bare list of ObjectType dicts and the core API envelope `{items: [...]}`. | Test |
 
 ## Dependencies
 
-- **Upstream**: FR-023, FR-001, FR-002, FR-011, FR-026
+- **Upstream**: [FR-023](./FR-023-python-binding-surface.md), [FR-001](./FR-001-render-dispatch.md), [FR-002](./FR-002-schema-validation-pipeline.md), [FR-011](./FR-011-body-extraction-dsl.md), [FR-026](./FR-026-intra-spec-reference-resolution.md)
 - **Downstream**: none

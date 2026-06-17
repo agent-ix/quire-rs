@@ -38,16 +38,16 @@ relationships:
 
 Per ADR 0004, `quire-rs` SHALL expose `validate_document(archetype, doc_text) ->
 ValidationResult` that validates an authored **markdown document** against a
-unified archetype (FR-031). This is the **default** validation path; the
+unified archetype ([FR-031](./FR-031-unified-archetype-shape.md)). This is the **default** validation path; the
 pre-existing context/data validation (a JSON object against the archetype schema,
-FR-002) remains available as a distinct, explicitly selected path.
+[FR-002](./FR-002-schema-validation-pipeline.md)) remains available as a distinct, explicitly selected path.
 
 `validate_document` SHALL:
 
-1. Parse the document via `parse_document` (FR-005).
+1. Parse the document via `parse_document` ([FR-005](./FR-005-parse-document-api.md)).
 2. Validate the frontmatter against `frontmatter_schema_ref`.
-3. Run the archetype's `body_extraction` locators in an **asserting posture**: each `required: true` locator MUST resolve to content that is non-empty and not placeholder-only; each locator's optional `assert` facet (FR-033) MUST hold; `{field}` interpolation (FR-034) is resolved during assert evaluation.
-4. Enforce the per-level heading-uniqueness rule (FR-035).
+3. Run the archetype's `body_extraction` locators in an **asserting posture**: each `required: true` locator MUST resolve to content that is non-empty and not placeholder-only; each locator's optional `assert` facet ([FR-033](./FR-033-locator-assert-facet.md)) MUST hold; `{field}` interpolation ([FR-034](./FR-034-assert-field-interpolation.md)) is resolved during assert evaluation.
+4. Enforce the per-level heading-uniqueness rule ([FR-035](./FR-035-per-level-heading-uniqueness.md)).
 5. **(composed, registry-aware entry point only)** If frontmatter carries an `object:` string, resolve an archetype by that name from the **same registry/module set** used to resolve `type` (across artifact_types AND object_types). When resolved, run its `body_extraction` asserts in the same asserting posture (step 3) and merge any failures into `errors`. When the name is unknown to the registry, emit one **warning** (reason `unknown-object-type`) — never an error. When `object:` is absent, no object-layer work happens.
 
 ### Placeholder sentinel set (decision — 2026-06-04)
@@ -87,7 +87,7 @@ wheel, and wasm surfaces call it without re-implementing logic.
 | FR-032-AC-2 | A document missing a `required` section fails with a diagnostic naming the archetype, the section, and reason `missing`. The diagnostic's `line` field is `Option<usize>` and is `None` when the section is wholly absent (no heading to point at); it is `Some(n)` when the locator resolved to a place but the content is empty/placeholder. (Parity with quire-cli CR-003.) | Test |
 | FR-032-AC-3 | A document whose required `## Specification` contains only `TODO`/`{{...}}` fails with reason `placeholder`, even when frontmatter JSON Schema validation passes. | Test |
 | FR-032-AC-4 | Frontmatter that violates `frontmatter_schema_ref` fails with reason `frontmatter`, independent of body structure. | Test |
-| FR-032-AC-5 | The markdown path (`validate_document`) and the legacy context/data path (FR-002) are distinct entry points; selecting the context path validates a JSON object and does not parse markdown. | Test |
+| FR-032-AC-5 | The markdown path (`validate_document`) and the legacy context/data path ([FR-002](./FR-002-schema-validation-pipeline.md)) are distinct entry points; selecting the context path validates a JSON object and does not parse markdown. | Test |
 | FR-032-AC-6 | An archetype with no `body_extraction` validates by frontmatter schema + heading-uniqueness only, emitting no body-structure diagnostics. | Test |
 | FR-032-AC-7 | The placeholder sentinel set is exactly `{TODO, TBD (case-insensitive prefix), {{…}} (whole-value), placeholder (whole-value, case-insensitive), none specified (whole-value, case-insensitive), empty}`. A required section whose content is `TODO: …` or a whole-value `{{ id }}` fails with reason `placeholder`; a section whose content is substantive prose that merely contains the word `todo` mid-sentence or an embedded `{{x}}` token does not. | Test |
 | FR-032-AC-8 | A required section whose only content is `none` or `n/a` (e.g. `Upstream: none`) is treated as substantive and passes (these are not sentinels) — proving the reduced set does not reject legitimate content. | Test |
@@ -99,5 +99,5 @@ wheel, and wasm surfaces call it without re-implementing logic.
 
 ## Dependencies
 
-- **Upstream**: FR-002 (extends), FR-005 (requires), FR-011 (requires), FR-030 (supersedes)
-- **Downstream**: FR-033, FR-034, FR-035, FR-037, FR-038
+- **Upstream**: [FR-002](./FR-002-schema-validation-pipeline.md) (extends), [FR-005](./FR-005-parse-document-api.md) (requires), [FR-011](./FR-011-body-extraction-dsl.md) (requires), [FR-030](./FR-030-required-section-validation.md) (supersedes)
+- **Downstream**: [FR-033](./FR-033-locator-assert-facet.md), [FR-034](./FR-034-assert-field-interpolation.md), [FR-035](./FR-035-per-level-heading-uniqueness.md), [FR-037](./FR-037-base-concept-schema.md), [FR-038](./FR-038-okf-bundle-validation.md)

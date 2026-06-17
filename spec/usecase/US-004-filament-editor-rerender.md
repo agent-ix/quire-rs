@@ -15,7 +15,7 @@ relationships:
 > (merge → validate → **render** in one sub-millisecond call). With the render
 > feature removed (no backward-compatibility layer), it is **retired**. Block edits
 > are now byte-splice-only via `update_block` (FR-022); no re-render occurs. The
-> render-latency NFR (NFR-001) is retired with it. Kept for history and traceability
+> render-latency NFR ([NFR-001](../non-functional/NFR-001-render-latency.md)) is retired with it. Kept for history and traceability
 > only; its acceptance criteria are dropped from the required-coverage tally. See
 > `spec.md` §2bis.
 
@@ -25,10 +25,10 @@ As a **Filament editor backend** (the editor app), I want to receive a patch (`{
 
 ## Context
 
-The editor today round-trips edits through a Python service. Cold-start and per-request overhead add tens of milliseconds. Bundling `quire-rs` into the editor backend collapses validate + render into a single sub-millisecond call (see NFR-001).
+The editor today round-trips edits through a Python service. Cold-start and per-request overhead add tens of milliseconds. Bundling `quire-rs` into the editor backend collapses validate + render into a single sub-millisecond call (see [NFR-001](../non-functional/NFR-001-render-latency.md)).
 
 ## Acceptance
 
 - US-004-AC-1 (RETIRED): A test takes a baseline `FrData`, applies a partial patch (`{ title: "new title" }`), and asserts the merged-then-validated render produces markdown with the new title and the original other fields.
 - US-004-AC-2 (RETIRED): A test applies a patch that makes the merged data invalid (e.g. `title: ""`) and asserts a typed validation error with the field path `data.title`, not a render error.
-- US-004-AC-3 (RETIRED): A criterion benchmark `bench_patch_render_fr` averages under 1 ms median for an FR artifact of typical size (verifies NFR-001).
+- US-004-AC-3 (RETIRED): A criterion benchmark `bench_patch_render_fr` averages under 1 ms median for an FR artifact of typical size (verifies [NFR-001](../non-functional/NFR-001-render-latency.md)).

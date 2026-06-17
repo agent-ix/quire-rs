@@ -34,7 +34,7 @@ The v0.2 block model (INPUT.md, FR-019..022) makes one block the natural editing
 - The block's JSON Schema is a thin slice of the artifact-level schema — only the fields the LLM needs to reason about.
 - The merge-patch shape is the LLM's tool-call envelope.
 
-The flow is symmetric to `US-001` but **scoped to one block**: the LLM's context window only needs the schema + current data for that one block, not the entire artifact.
+The flow is symmetric to [US-001](./US-001-llm-emits-validated-patch.md) but **scoped to one block**: the LLM's context window only needs the schema + current data for that one block, not the entire artifact.
 
 ## Acceptance
 
@@ -54,15 +54,15 @@ The flow is symmetric to `US-001` but **scoped to one block**: the LLM's context
 
 **LLM output cost** (output tokens):
 - JSON merge-patch payload: typically 20–500 bytes (only changed fields).
-- Cheaper than US-007 (full-replace) when the change touches few fields.
+- Cheaper than [US-007](./US-007-llm-replaces-block.md) (full-replace) when the change touches few fields.
 
 **Server-side cost** per call:
-- Schema validation: O(merged JSON size) — pre-compiled validator amortized to load-time (FR-013 + NFR-007).
+- Schema validation: O(merged JSON size) — pre-compiled validator amortized to load-time ([FR-013](../functional/FR-013-archetype-loader.md) + [NFR-007](../non-functional/NFR-007-load-cost-amortized.md)).
 - Template render: O(block template size) ≪ O(whole-artifact template).
 - Writeback: O(doc size) byte splice — single allocation, one pass.
-- No disk I/O after `Registry::load_from` (NFR-007 audited).
+- No disk I/O after `Registry::load_from` ([NFR-007](../non-functional/NFR-007-load-cost-amortized.md) audited).
 
-**Comparison to US-001** (whole-artifact patch):
+**Comparison to [US-001](./US-001-llm-emits-validated-patch.md)** (whole-artifact patch):
 - US-006 sends ~10× less context to the LLM (1 block vs 1 artifact).
 - US-006 re-renders ~10× less template surface per call.
 - US-006 is composable: edit a sequence of blocks in N calls without re-rendering N-1 untouched blocks.
@@ -75,5 +75,5 @@ Server-side measurements only — LLM round-trip latency is outside quire-rs's c
 
 - **US-006-PC-1**: `apply_block_patch` on a 10 KB document with a typical 5-block layout completes in p50 < 1 ms, p99 < 5 ms after `Registry::load_from` is warm. Bench: **TC-450**.
 - **US-006-PC-2**: Per-call memory: one allocation for the output `String`, sized at `doc.len() + new_bytes.len()`. No retained intermediates after return. Verified via heap-profile sample in TC-450.
-- **US-006-PC-3**: Inherits NFR-001 (template render <1 ms) and NFR-007 (zero disk I/O after load). Schema validation amortized to load time; per-call validator cost is JSON-walk only.
+- **US-006-PC-3**: Inherits [NFR-001](../non-functional/NFR-001-render-latency.md) (template render <1 ms) and [NFR-007](../non-functional/NFR-007-load-cost-amortized.md) (zero disk I/O after load). Schema validation amortized to load time; per-call validator cost is JSON-walk only.
 - **US-006-PC-4**: Repeated invocation against the same doc + different block_ids: linear in number of calls, no superlinear cost from re-parsing (the consumer parses once and reuses the `QuireDocument`).

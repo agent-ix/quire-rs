@@ -15,7 +15,7 @@ relationships:
 - A `spec-artifacts-*` directory (renders artifacts)
 - A `spec-objects-*` directory (defines object types with `body_extraction` DSLs)
 - A `spec-objects-business`-style directory
-- Any other directory matching the manifest convention (FR-013)
+- Any other directory matching the manifest convention ([FR-013](./FR-013-archetype-loader.md))
 
 When `Registry::load_from(...)` is given a path containing multiple module roots, each module is loaded independently. The registry tracks:
 
@@ -35,7 +35,7 @@ If a manifest does NOT declare a `name`, the loader uses the immediate parent di
 Archetype names are bare strings (`"fr"`, `"adr"`, etc.). When two modules contribute archetypes with the same name, the loader SHALL:
 
 1. Emit a `Diagnostic::DuplicateArchetype { name, modules: [a, b] }` listing all contributing modules.
-2. Apply a deterministic resolution policy: **first-wins, ordered by the registry's search path** (FR-013). The first module discovered for a given name takes precedence; later modules are shadowed but their definitions remain queryable via `Registry::archetype_in_module(module, name)` for diagnostics.
+2. Apply a deterministic resolution policy: **first-wins, ordered by the registry's search path** ([FR-013](./FR-013-archetype-loader.md)). The first module discovered for a given name takes precedence; later modules are shadowed but their definitions remain queryable via `Registry::archetype_in_module(module, name)` for diagnostics.
 3. NOT panic, NOT silently merge.
 
 Consumers who need strict no-collision behavior MAY call `Registry::load_strict(...)` which promotes any duplicate-archetype diagnostic to a `QuireError::ArchetypeCollision`.
@@ -80,5 +80,5 @@ Typical refresh patterns:
 
 ## Dependencies
 
-- **Upstream**: requires FR-013 (archetype loader)
+- **Upstream**: requires [FR-013](./FR-013-archetype-loader.md) (archetype loader)
 - **Downstream**: none

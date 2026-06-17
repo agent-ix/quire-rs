@@ -12,7 +12,7 @@ relationships:
 
 `quire-rs` SHALL run `cargo-audit` against `Cargo.lock` on every PR and on a daily schedule. `cargo-audit` checks the RustSec Advisory Database for known vulnerabilities in dependencies.
 
-This is a separate signal from `cargo deny check advisories` (NFR-004 / deny.toml). cargo-audit pulls the advisory database fresh on each run; cargo-deny uses whatever's in the local database. Both are run; the redundancy catches RustSec advisories filed between cargo-deny releases.
+This is a separate signal from `cargo deny check advisories` ([NFR-004](./NFR-004-license-hygiene.md) / deny.toml). cargo-audit pulls the advisory database fresh on each run; cargo-deny uses whatever's in the local database. Both are run; the redundancy catches RustSec advisories filed between cargo-deny releases.
 
 ### Operational policy
 

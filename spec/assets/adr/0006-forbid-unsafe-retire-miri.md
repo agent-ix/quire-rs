@@ -13,9 +13,9 @@ type: ADR
 ## Context
 
 quire-rs is a markdown parser + schema/document validator + body-extraction engine
-with optional PyO3 bindings (`python` feature) and a `wasm` feature. NFR-003 mandates
+with optional PyO3 bindings (`python` feature) and a `wasm` feature. [NFR-003](../../non-functional/NFR-003-zero-unsafe.md) mandates
 **zero first-party `unsafe`** in v1, historically verified by a script
-(`check_unsafe_comments.sh` + an empty baseline). NFR-012 additionally specified a
+(`check_unsafe_comments.sh` + an empty baseline). [NFR-012](../../non-functional/NFR-012-miri-ub-check.md) additionally specified a
 scheduled **Miri** job — explicitly *not* for first-party `unsafe` (there is none),
 but to catch UB in **dependency** crates (rayon, serde, regex, jsonschema).
 
@@ -43,10 +43,10 @@ During the v0.3.6 stabilization the Miri job proved a poor fit:
    Any first-party `unsafe` in the default build is now a **hard compile error** —
    stronger than catching its UB after the fact. The forbid is scoped off for
    `--features python` because PyO3 macros expand to `unsafe` in-crate; that build
-   stays covered by `check_unsafe_comments.sh` (NFR-003-AC-1/AC-4). This strengthens
-   NFR-003 (new AC-5).
+   stays covered by `check_unsafe_comments.sh` ([NFR-003-AC-1](../../non-functional/NFR-003-zero-unsafe.md)/AC-4). This strengthens
+   [NFR-003](../../non-functional/NFR-003-zero-unsafe.md) (new AC-5).
 
-2. **Retire the Miri job (NFR-012).** Remove the `miri:` CI job, the `make miri`
+2. **Retire the Miri job ([NFR-012](../../non-functional/NFR-012-miri-ub-check.md)).** Remove the `miri:` CI job, the `make miri`
    target, and Miri from the `hardening` composite. With zero first-party `unsafe`
    enforced at compile time, there is no first-party UB surface for Miri to
    interpret; its only remaining rationale (dependency UB) is **low-signal/
@@ -58,10 +58,10 @@ During the v0.3.6 stabilization the Miri job proved a poor fit:
 | Surface | Guard |
 |---|---|
 | First-party `unsafe` / UB (default build) | `#![forbid(unsafe_code)]` — compile-time impossible |
-| First-party `unsafe` on the `python` build | `check_unsafe_comments.sh` + empty baseline (NFR-003) |
-| Dependency unsoundness (known advisories) | `cargo-audit` / RUSTSEC (NFR-014) + tight version pins (NFR-009) |
-| Concurrency (the rayon fan-out) | `loom` exhaustive interleaving (NFR-017) + `check_no_shared_mutable.sh` |
-| FFI boundary (PyO3) | TSAN/ASAN sanitizer lanes (NFR-018) + the FR-023 pytest harness |
+| First-party `unsafe` on the `python` build | `check_unsafe_comments.sh` + empty baseline ([NFR-003](../../non-functional/NFR-003-zero-unsafe.md)) |
+| Dependency unsoundness (known advisories) | `cargo-audit` / RUSTSEC ([NFR-014](../../non-functional/NFR-014-advisory-checking.md)) + tight version pins ([NFR-009](../../non-functional/NFR-009-dependency-pinning.md)) |
+| Concurrency (the rayon fan-out) | `loom` exhaustive interleaving ([NFR-017](../../non-functional/NFR-017-concurrency-permutation.md)) + `check_no_shared_mutable.sh` |
+| FFI boundary (PyO3) | TSAN/ASAN sanitizer lanes ([NFR-018](../../non-functional/NFR-018-ffi-sanitizer-lanes.md)) + the [FR-023](../../functional/FR-023-python-binding-surface.md) pytest harness |
 
 ## Consequences
 
@@ -70,5 +70,5 @@ During the v0.3.6 stabilization the Miri job proved a poor fit:
 - **Negative / accepted**: loss of runtime UB scanning of dependencies' `unsafe`. This
   is acceptable — those crates are top-tier and upstream-Miri-tested, known advisories
   are caught by cargo-audit, and any future first-party `unsafe` (e.g. new FFI) forces
-  a deliberate `#[allow(unsafe_code)]` + the NFR-003 three-step process, at which point
+  a deliberate `#[allow(unsafe_code)]` + the [NFR-003](../../non-functional/NFR-003-zero-unsafe.md) three-step process, at which point
   reintroducing Miri SHALL be reconsidered.

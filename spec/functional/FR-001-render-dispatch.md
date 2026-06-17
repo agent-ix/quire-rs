@@ -15,7 +15,7 @@ relationships:
 > **removed** from `quire-rs` (no backward-compatibility layer). This FR (generic
 > render dispatch over `(schema, template, data)`) is **retired**: there is no
 > `render`/`render_by_name`, no MiniJinja environment, and no byte-parity-with-Python
-> contract. The retained engine validates data (FR-002, unchanged) and byte-splices
+> contract. The retained engine validates data ([FR-002](./FR-002-schema-validation-pipeline.md), unchanged) and byte-splices
 > blocks (FR-022) without rendering. This document is kept for history and
 > traceability only; its acceptance criteria are dropped from the required-coverage
 > tally. The retirement and rationale are recorded in `spec.md` §2bis. Quality gate
@@ -33,19 +33,19 @@ pub fn render(archetype: &CompiledArchetype, data: &serde_json::Value)
 ```
 
 where `CompiledArchetype` carries:
-- A pre-compiled JSON Schema validator (built from a JSON Schema document loaded at archetype-load time — see FR-013)
+- A pre-compiled JSON Schema validator (built from a JSON Schema document loaded at archetype-load time — see [FR-013](./FR-013-archetype-loader.md))
 - A pre-parsed MiniJinja template (compiled once at load time)
 - A stable archetype name + version for diagnostics
 
 The function SHALL:
 
-1. Validate `data` against the compiled JSON Schema. Violations return `QuireError::SchemaViolation` with a field-keyed list (see NFR-005).
-2. Render the validated `data` through the pre-parsed MiniJinja template using the long-lived strict-undefined `Environment` (see FR-004).
+1. Validate `data` against the compiled JSON Schema. Violations return `QuireError::SchemaViolation` with a field-keyed list (see [NFR-005](../non-functional/NFR-005-actionable-schema-errors.md)).
+2. Render the validated `data` through the pre-parsed MiniJinja template using the long-lived strict-undefined `Environment` (see [FR-004](./FR-004-minijinja-strict-environment.md)).
 3. Return the rendered markdown on success.
 
 The engine SHALL NOT panic on any input. It SHALL be re-entrant and safe for concurrent calls. A `CompiledArchetype` is `Send + Sync` and may be shared across threads.
 
-A convenience function `render_by_name(registry: &ArchetypeRegistry, name: &str, data: &Value)` looks up the archetype by name and dispatches to `render`. Name resolution is the responsibility of the registry (FR-013, FR-014).
+A convenience function `render_by_name(registry: &ArchetypeRegistry, name: &str, data: &Value)` looks up the archetype by name and dispatches to `render`. Name resolution is the responsibility of the registry ([FR-013](./FR-013-archetype-loader.md), [FR-014](./FR-014-module-activation.md)).
 
 ## Acceptance Criteria
 
@@ -59,5 +59,5 @@ A convenience function `render_by_name(registry: &ArchetypeRegistry, name: &str,
 
 ## Dependencies
 
-- **Upstream**: US-001, StR-001
+- **Upstream**: [US-001](../usecase/US-001-llm-emits-validated-patch.md), [StR-001](../stakeholder/StR-001-single-rust-engine.md)
 - **Downstream**: none (retired)

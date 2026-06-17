@@ -22,12 +22,12 @@ relationships:
 
 | Target | Surface | Crash criteria |
 |---|---|---|
-| `fuzz_parse_document` | `parse_document(input: &str)` (FR-005) | any panic, timeout >5s, allocation >100 MB |
-| `fuzz_extract_frontmatter` | `extract_frontmatter(input: &str)` (FR-006) | any panic, timeout >2s |
-| `fuzz_apply_patch` | `apply_patch(archetype, current, patch)` (FR-002) | any panic on arbitrary JSON values |
-| `fuzz_extract_dsl` | `extract(doc, dsl)` (FR-011) | any panic, runaway record emission |
-| `fuzz_load_manifest` | Manifest YAML parsing inside FR-013 | any panic on arbitrary YAML |
-| `fuzz_load_schema` | JSON Schema loading inside FR-013 | any panic on arbitrary JSON Schema documents |
+| `fuzz_parse_document` | `parse_document(input: &str)` ([FR-005](../functional/FR-005-parse-document-api.md)) | any panic, timeout >5s, allocation >100 MB |
+| `fuzz_extract_frontmatter` | `extract_frontmatter(input: &str)` ([FR-006](../functional/FR-006-frontmatter-with-fallback.md)) | any panic, timeout >2s |
+| `fuzz_apply_patch` | `apply_patch(archetype, current, patch)` ([FR-002](../functional/FR-002-schema-validation-pipeline.md)) | any panic on arbitrary JSON values |
+| `fuzz_extract_dsl` | `extract(doc, dsl)` ([FR-011](../functional/FR-011-body-extraction-dsl.md)) | any panic, runaway record emission |
+| `fuzz_load_manifest` | Manifest YAML parsing inside [FR-013](../functional/FR-013-archetype-loader.md) | any panic on arbitrary YAML |
+| `fuzz_load_schema` | JSON Schema loading inside [FR-013](../functional/FR-013-archetype-loader.md) | any panic on arbitrary JSON Schema documents |
 
 ### Operational policy
 
@@ -39,7 +39,7 @@ relationships:
 
 ## Rationale
 
-Parser, schema loader, and DSL evaluator all consume input that may be hostile or malformed. Property tests (NFR-006 / proptest) provide some coverage but are bounded by their generators; coverage-guided fuzzing explores edge cases proptest will not.
+Parser, schema loader, and DSL evaluator all consume input that may be hostile or malformed. Property tests ([NFR-006](./NFR-006-determinism.md) / proptest) provide some coverage but are bounded by their generators; coverage-guided fuzzing explores edge cases proptest will not.
 
 ## Acceptance Criteria
 

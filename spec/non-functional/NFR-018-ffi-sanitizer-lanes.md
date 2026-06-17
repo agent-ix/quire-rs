@@ -16,9 +16,9 @@ relationships:
 
 ## Statement
 
-The PyO3 binding (FR-023) introduces a C-ABI boundary against the CPython runtime that **miri cannot reach** (NFR-012 scope note). `quire-rs` SHALL run **ThreadSanitizer (TSAN)** and **AddressSanitizer (ASAN)** against the built `python`-feature extension on a scheduled CI lane to cover the two FFI risk surfaces miri leaves uncovered:
+The PyO3 binding ([FR-023](../functional/FR-023-python-binding-surface.md)) introduces a C-ABI boundary against the CPython runtime that **miri cannot reach** ([NFR-012](./NFR-012-miri-ub-check.md) scope note). `quire-rs` SHALL run **ThreadSanitizer (TSAN)** and **AddressSanitizer (ASAN)** against the built `python`-feature extension on a scheduled CI lane to cover the two FFI risk surfaces miri leaves uncovered:
 
-- **TSAN** — data races in the **GIL-release window** (FR-023 / NFR-016): when a binding entry point releases the GIL and runs the rayon parse, TSAN verifies no Rust thread races with the Python runtime or with another released-GIL call.
+- **TSAN** — data races in the **GIL-release window** ([FR-023](../functional/FR-023-python-binding-surface.md) / [NFR-016](./NFR-016-binding-overhead.md)): when a binding entry point releases the GIL and runs the rayon parse, TSAN verifies no Rust thread races with the Python runtime or with another released-GIL call.
 - **ASAN** — memory errors in **object handoff**: use-after-free, leaks, or refcount errors when Rust constructs Python objects and hands ownership across the boundary.
 
 This NFR supersedes the v1 §19 decision to skip `-Z sanitizer=address|thread` ("marginal value for safe Rust above miri"). That rationale held for a pure-Rust crate; it does not hold across an FFI boundary with a shared interpreter runtime.
@@ -28,7 +28,7 @@ This NFR supersedes the v1 §19 decision to skip `-Z sanitizer=address|thread` (
 - Both sanitizers run on a **scheduled lane** (weekly + workflow_dispatch + tag push), NOT per-PR — building the extension and an instrumented test run under each sanitizer is too slow for PR latency, matching the miri/fuzz/mutants cadence.
 - TSAN target: a two-thread Python harness each calling `quire.load_repo` (the GIL-release concurrency case, TC-464) plus a concurrent `parse_document` mix, built with `-Z sanitizer=thread` on nightly.
 - ASAN target: the object-handoff test set (parse/extract/validate/render results crossing to Python, then dropped) built with `-Z sanitizer=address`, run under an ASAN-aware CPython where feasible (or `PYTHONMALLOC=malloc` to expose allocations).
-- A sanitizer-detected race/leak/UAF is a P0 bug with a committed reproducer (parity with NFR-011-AC-4).
+- A sanitizer-detected race/leak/UAF is a P0 bug with a committed reproducer (parity with [NFR-011-AC-4](./NFR-011-fuzz-testing.md)).
 
 ### Known cost / limitations
 

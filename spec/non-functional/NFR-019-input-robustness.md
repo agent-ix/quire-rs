@@ -17,7 +17,7 @@ relationships:
 ## Statement
 
 The retained query/validate/extract surfaces — `parse_document`,
-`validate_document`, `extract`, and the whole-spec query API (FR-027) — SHALL
+`validate_document`, `extract`, and the whole-spec query API ([FR-027](../functional/FR-027-whole-spec-query-api.md)) — SHALL
 **never panic** on arbitrary input. Given any `&str` (including non-UTF-8-adjacent
 byte sequences passed as lossy text, truncated frontmatter, unbalanced fences,
 megabyte-scale degenerate input, or adversarial Unicode) the engine SHALL return a
@@ -31,7 +31,7 @@ mechanically by fuzzing rather than asserted only in prose.
 
 ## Rationale
 
-`quire-rs` is consumed in-process through the PyO3 bindings (FR-023) by long-lived
+`quire-rs` is consumed in-process through the PyO3 bindings ([FR-023](../functional/FR-023-python-binding-surface.md)) by long-lived
 services (filament-core, analysis workers). A panic there aborts the host process or
 poisons the GIL. The render path that previously carried template-error panics is
 gone; the remaining surfaces take **untrusted document text** directly and must
@@ -42,7 +42,7 @@ degrade to typed errors, not crashes.
 - **NFR-019-AC-1**: A `cargo-fuzz` target feeds arbitrary byte slices (as lossy
   `&str`) into `parse_document`, `validate_document`, and `extract` and runs clean
   (no panic / no UB) for the scheduled fuzz duration; any discovered crash is
-  committed as a regression reproducer (parity with NFR-011-AC-4).
+  committed as a regression reproducer (parity with [NFR-011-AC-4](./NFR-011-fuzz-testing.md)).
 - **NFR-019-AC-2**: A proptest generates random strings (including empty, fence-only,
   frontmatter-only, and deeply nested heading inputs) and asserts `parse_document`,
   `validate_document`, and `extract` each return a value or typed error without
@@ -58,5 +58,5 @@ degrade to typed errors, not crashes.
 
 ## Verification
 
-- Fuzz target under `fuzz/fuzz_targets/` on the scheduled fuzz lane (NFR-011).
+- Fuzz target under `fuzz/fuzz_targets/` on the scheduled fuzz lane ([NFR-011](./NFR-011-fuzz-testing.md)).
 - Proptest in `tests/robustness.rs` run on every PR (`PROPTEST_CASES=512`).

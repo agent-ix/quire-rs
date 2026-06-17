@@ -20,12 +20,12 @@ As an **LLM agent** grounding an answer against a corpus (RAG over a spec, an ar
 
 `extract()` is the lossy projection from `QuireDocument` to `Vec<Record>` where each record is a flat JSON map. The DSL lives in the archetype's manifest (`body_extraction:` field) and is shipped with the schema/template pair — so the *projection shape* travels with the archetype, not the consumer.
 
-Two yield shapes (FR-011):
+Two yield shapes ([FR-011](../functional/FR-011-body-extraction-dsl.md)):
 
 - **Single-yield (`match`)**: one record per document. Used for "give me this artifact's summary".
 - **Multi-yield (`iterate_over`)**: one record per iteration unit (sub-heading, list item, table row). Used for "give me every X in this doc".
 
-Fallback locator chains (FR-016) let the DSL survive legacy heading variants across the corpus.
+Fallback locator chains ([FR-016](../functional/FR-016-secondary-locators.md)) let the DSL survive legacy heading variants across the corpus.
 
 The LLM never sees the DSL — the consumer (RAG pipeline, indexer, orchestrator) does. The LLM sees the records the DSL produced.
 
@@ -35,7 +35,7 @@ The LLM never sees the DSL — the consumer (RAG pipeline, indexer, orchestrator
 - **US-010-AC-2**: Each record contains exactly the fields named in `per_match`, no extras, no missing keys (unless `required: false`).
 - **US-010-AC-3**: `extract()` is pure: identical `(doc, dsl)` inputs produce identical record sequences across runs and threads.
 - **US-010-AC-4**: A document missing the iterate_over root section produces `records: []` + a `Diagnostic::IterateRootMissing` — never an error.
-- **US-010-AC-5**: Fallback locators (FR-016) resolve via the second candidate when the first is absent, emitting `Diagnostic::FallbackLocatorUsed`.
+- **US-010-AC-5**: Fallback locators ([FR-016](../functional/FR-016-secondary-locators.md)) resolve via the second candidate when the first is absent, emitting `Diagnostic::FallbackLocatorUsed`.
 
 ## Efficiency Analysis
 
@@ -47,13 +47,13 @@ The LLM never sees the DSL — the consumer (RAG pipeline, indexer, orchestrator
 - A typical 100-artifact corpus: ~50 KB of extracted records vs ~2 MB of raw markdown. **~40× context savings** for the same grounding fidelity, before any vector-index reranking.
 
 **Server-side cost** per extract call:
-- Parse: O(doc size), one-shot, no I/O (FR-005..009).
+- Parse: O(doc size), one-shot, no I/O ([FR-005](../functional/FR-005-parse-document-api.md)..009).
 - DSL evaluation: O(matches × locators) — bounded by the document's heading/list/table cardinality, not by doc size.
-- Pre-validated at load time (FR-011-AC-6/7): malformed DSLs surface at `Registry::load_from`, not on every call.
+- Pre-validated at load time ([FR-011-AC-6](../functional/FR-011-body-extraction-dsl.md)/7): malformed DSLs surface at `Registry::load_from`, not on every call.
 
 **Comparison to "stuff whole doc into LLM":**
 - Extraction is a single-pass tree walk vs the LLM doing its own implicit parse over tokens. Cheaper to do once at index time than at every query.
-- Extraction is deterministic (NFR-006); LLM "implicit parsing" is not — small wording differences flip what the LLM thinks is "the AC section".
+- Extraction is deterministic ([NFR-006](../non-functional/NFR-006-determinism.md)); LLM "implicit parsing" is not — small wording differences flip what the LLM thinks is "the AC section".
 - Extraction loses fidelity by design — the consumer chose which fields to project. The trade-off is: cheaper context, narrower answers.
 
 **Comparison to vector embeddings:**
@@ -74,8 +74,8 @@ The LLM never sees the DSL — the consumer (RAG pipeline, indexer, orchestrator
 
 ## Performance Criteria
 
-- **US-010-PC-1**: `parse_document` + `extract` on a 10 KB document with a multi-yield DSL emitting ~10 records completes in p50 < 2 ms (parse <1 ms per NFR-002 envelope at this size + extract <1 ms). Bench: **TC-453**.
+- **US-010-PC-1**: `parse_document` + `extract` on a 10 KB document with a multi-yield DSL emitting ~10 records completes in p50 < 2 ms (parse <1 ms per [NFR-002](../non-functional/NFR-002-parse-latency.md) envelope at this size + extract <1 ms). Bench: **TC-453**.
 - **US-010-PC-2**: DSL evaluation cost is O(matches × locators), bounded by document heading/list/table cardinality. Per-locator cost is one tree walk; no schema-validation overhead per record (records are typed as raw `serde_json::Map`, not validated).
-- **US-010-PC-3**: For corpus-scale extraction (100 documents, ~10 records each = ~1,000 records), the parallel sweep completes in p50 < 200 ms on a single thread, < 50 ms on 8 threads (`Send + Sync` confirmed by NFR-006-AC-3). Bench: **TC-454**.
+- **US-010-PC-3**: For corpus-scale extraction (100 documents, ~10 records each = ~1,000 records), the parallel sweep completes in p50 < 200 ms on a single thread, < 50 ms on 8 threads (`Send + Sync` confirmed by [NFR-006-AC-3](../non-functional/NFR-006-determinism.md)). Bench: **TC-454**.
 - **US-010-PC-4**: Memory per extract call: bounded by output `records.len() × record_size`. No retained intermediates from the parse tree (extract returns owned `Vec<JsonMap>`; the `QuireDocument` can be dropped after extract).
-- **US-010-PC-5**: Determinism: identical (doc, dsl) → identical record sequence across runs and threads (NFR-006-AC-1, verified by TC-056 / TC-057 for the parse leg + dedicated proptest on the extract leg).
+- **US-010-PC-5**: Determinism: identical (doc, dsl) → identical record sequence across runs and threads ([NFR-006-AC-1](../non-functional/NFR-006-determinism.md), verified by TC-056 / TC-057 for the parse leg + dedicated proptest on the extract leg).

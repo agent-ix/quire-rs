@@ -12,7 +12,7 @@ Tracks dependencies on external systems or repos whose state affects when `quire
 ## Python Jinja2 reference renderer pinning
 
 - **Status**: spec-artifacts-iso/app/process do not pin Jinja2 version
-- **Affects**: byte-parity tests (FR-012) — a future Jinja2 minor bump in spec-artifacts-iso could silently change whitespace
+- **Affects**: byte-parity tests ([FR-012](../functional/FR-012-archetype-parity-suite.md)) — a future Jinja2 minor bump in spec-artifacts-iso could silently change whitespace
 - **Workaround**: `scripts/parity-venv.txt` pins Jinja2 for `quire-rs`'s parity-fixture regeneration; `tests/render_parity/PROVENANCE.md` records the venv used
 - **Resolution**: ideally spec-artifacts-iso pins Jinja2 in its own `poetry.lock`; until then, our pin is the local source of truth
 
@@ -25,8 +25,8 @@ Tracks dependencies on external systems or repos whose state affects when `quire
 
 ## Validator crate choice
 
-- **Status**: pending bench-driven ADR (NFR-009-AC-2; see `spec/assets/adr/0001-validator-crate.md`)
-- **Affects**: NFR-001 (render <1ms), FR-002 (validation pipeline)
+- **Status**: pending bench-driven ADR ([NFR-009-AC-2](../non-functional/NFR-009-dependency-pinning.md); see `spec/assets/adr/0001-validator-crate.md`)
+- **Affects**: [NFR-001](../non-functional/NFR-001-render-latency.md) (render <1ms), [FR-002](../functional/FR-002-schema-validation-pipeline.md) (validation pipeline)
 - **Resolution**: decided at Task 005 implementation start
 
 ## Windows support

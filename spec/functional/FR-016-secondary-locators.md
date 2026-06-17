@@ -20,7 +20,7 @@ relationships:
 A locator value MAY be either:
 
 - A **single locator** (existing shape) — `{ from: section_body, after_heading: "Entities" }`
-- A **fallback chain** — `[ <locator>, <locator>, ... ]` evaluated in order; the first locator whose result is non-empty wins. If all fail, behavior follows the `required` flag (FR-011): error if required, omit if optional.
+- A **fallback chain** — `[ <locator>, <locator>, ... ]` evaluated in order; the first locator whose result is non-empty wins. If all fail, behavior follows the `required` flag ([FR-011](./FR-011-body-extraction-dsl.md)): error if required, omit if optional.
 
 The chain semantics are deterministic and ordered — author intent dictates priority.
 
@@ -30,7 +30,7 @@ When a fallback chain successfully resolves via a non-first locator, the evaluat
 
 ### Public API
 
-The existing `extract(doc, dsl)` (FR-011) handles fallback chains transparently. No new top-level functions. The `Locator` type internally accepts either a single primitive or a `FallbackChain(Vec<Locator>)`:
+The existing `extract(doc, dsl)` ([FR-011](./FR-011-body-extraction-dsl.md)) handles fallback chains transparently. No new top-level functions. The `Locator` type internally accepts either a single primitive or a `FallbackChain(Vec<Locator>)`:
 
 ```rust
 pub enum Locator {
@@ -52,5 +52,5 @@ YAML serialization handles both shapes via untagged deserialization.
 
 ## Dependencies
 
-- **Upstream**: requires FR-011; implements spec-objects-business
+- **Upstream**: requires [FR-011](./FR-011-body-extraction-dsl.md); implements spec-objects-business
 - **Downstream**: none

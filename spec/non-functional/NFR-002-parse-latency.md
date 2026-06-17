@@ -19,7 +19,7 @@ For smaller documents the target is sublinear in input size up to the headings c
 
 ### Cross-runner policy
 
-Per-runner baselines stored separately (Apple Silicon M2 Pro canonical; Ubuntu x86_64 CI allowance +50%). Same regression-gate policy as NFR-001.
+Per-runner baselines stored separately (Apple Silicon M2 Pro canonical; Ubuntu x86_64 CI allowance +50%). Same regression-gate policy as [NFR-001](./NFR-001-render-latency.md).
 
 ## Rationale
 
@@ -29,7 +29,7 @@ Bulk extraction across the `spec-objects-business` corpus may parse thousands of
 
 - **NFR-002-AC-1**: A criterion benchmark `bench_parse_5mb` loads a synthetic 5 MB document (real markdown content with ~5000 headings) and measures `parse_document`; median below 500 ms.
 - **NFR-002-AC-2**: A regression test compares against a stored baseline; >10% slowdown fails CI.
-- **NFR-002-AC-3**: A correctness test on the same 5 MB document asserts the document round-trips: reconstructing the body from sections + preamble reproduces the input byte-for-byte (verifies FR-008 at scale).
+- **NFR-002-AC-3**: A correctness test on the same 5 MB document asserts the document round-trips: reconstructing the body from sections + preamble reproduces the input byte-for-byte (verifies [FR-008](../functional/FR-008-byte-exact-slicing.md) at scale).
 - **NFR-002-AC-4**: A criterion benchmark `bench_validate_document` validates a typical authored artifact (under 32 KB, FR-sized: frontmatter + required sections + an AC table) against its archetype via `validate_document`; median below **1 ms** on the canonical baseline runner (warm `Registry`). A regression test compares against a stored baseline; >10% slowdown fails CI (same gate policy as NFR-002-AC-2).
 
 ## Measurement and Evaluation

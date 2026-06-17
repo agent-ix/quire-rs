@@ -27,7 +27,7 @@ Errors SHALL NOT leak raw `serde_json::Error`, `jsonschema::ValidationError` (or
 
 ## Rationale
 
-LLM-driven editors (US-001) retry on validation failure. The minimum information needed for the retry to converge is the four-tuple above; without any one of them the model is guessing. Field-keyed messages also surface cleanly in editor UI without further parsing.
+LLM-driven editors ([US-001](../usecase/US-001-llm-emits-validated-patch.md)) retry on validation failure. The minimum information needed for the retry to converge is the four-tuple above; without any one of them the model is guessing. Field-keyed messages also surface cleanly in editor UI without further parsing.
 
 ## Acceptance Criteria
 

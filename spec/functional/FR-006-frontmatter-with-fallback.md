@@ -28,13 +28,13 @@ The parsed frontmatter is a `serde_json::Map<String, Value>` (JSON-compatible va
 | ID | Criteria | Verification |
 |----|----------|--------------|
 | FR-006-AC-1 | `extract_frontmatter("# heading")` returns `frontmatter: None, body: "# heading"`. | Test |
-| FR-006-AC-2 | `extract_frontmatter("---\nid: FR-001\n---\nbody")` returns frontmatter with `id == "FR-001"` and body `"body"`. | Test |
+| FR-006-AC-2 | [FR-001](./FR-001-render-dispatch.md) returns frontmatter with [FR-001](./FR-001-render-dispatch.md) and body `"body"`. | Test |
 | FR-006-AC-3 | `extract_frontmatter("---\nid: : malformed\n---\nbody")` (invalid YAML) returns `frontmatter: None, body: full original input` — not an error. | Test |
-| FR-006-AC-4 | `extract_frontmatter("---\nid: FR-001\nno closing fence\nbody")` returns `frontmatter: None, body: full original input`. | Test |
-| FR-006-AC-5 | `extract_frontmatter("\u{FEFF}---\nid: FR-001\n---\nbody")` (BOM-prefixed input) returns the same result as the BOM-free equivalent — frontmatter parsed, body equal to `"body"` (no BOM in body). | Test |
+| FR-006-AC-4 | [FR-001](./FR-001-render-dispatch.md) returns `frontmatter: None, body: full original input`. | Test |
+| FR-006-AC-5 | [FR-001](./FR-001-render-dispatch.md) (BOM-prefixed input) returns the same result as the BOM-free equivalent — frontmatter parsed, body equal to `"body"` (no BOM in body). | Test |
 | FR-006-AC-6 | `extract_frontmatter("\u{FEFF}# heading")` (BOM-prefixed, no frontmatter) returns `frontmatter: None, body: "# heading"` (BOM stripped from body). | Test |
 
 ## Dependencies
 
-- **Upstream**: US-002, StR-003
-- **Downstream**: FR-005 (`parse_document` populates `QuireDocument.frontmatter` via this)
+- **Upstream**: [US-002](../usecase/US-002-developer-parses-spec-doc.md), [StR-003](../stakeholder/StR-003-parse-parity-with-quire.md)
+- **Downstream**: [FR-005](./FR-005-parse-document-api.md) (`parse_document` populates `QuireDocument.frontmatter` via this)

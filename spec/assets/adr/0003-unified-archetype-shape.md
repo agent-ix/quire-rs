@@ -82,7 +82,7 @@ archetype name).
 - `CompiledArchetype` gains optional fields (template may be absent). Renderable
   vs validatable is a property of which fields are present, surfaced via
   accessors (mirror the existing `is_renderable()`).
-- `module-manifest.schema.json` (filament-core, FR-035) and `quire.validate_manifest`
+- `module-manifest.schema.json` (filament-core, [FR-035](../../functional/FR-035-per-level-heading-uniqueness.md)) and `quire.validate_manifest`
   must accept the unified shape; `required_sections`/`variants` are removed from
   the manifest contract.
 - `spec-artifacts-iso` archetypes are re-authored as the unified shape with

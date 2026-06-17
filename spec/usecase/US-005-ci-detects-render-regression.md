@@ -12,8 +12,8 @@ relationships:
 > render byte-parity suite (`tests/render_parity/` + `cargo test --test render_parity`).
 > With the render feature removed (no backward-compatibility layer), there is no render
 > path to compare against the Python Jinja2 reference, the `render_parity/` fixtures and
-> test are deleted, and StR-002 (render parity) is itself retired. This US is therefore
-> **retired** alongside US-001/004/006/007/009 and FR-012 from the same render-removal
+> test are deleted, and [StR-002](../stakeholder/StR-002-render-parity-with-python.md) (render parity) is itself retired. This US is therefore
+> **retired** alongside [US-001](./US-001-llm-emits-validated-patch.md)/004/006/007/009 and [FR-012](../functional/FR-012-archetype-parity-suite.md) from the same render-removal
 > slice. Kept for history and traceability only; its acceptance criteria are dropped from
 > the required-coverage tally. See `spec.md` §2bis.
 
@@ -23,7 +23,7 @@ As a **maintainer landing a render-side change**, I want CI to run a byte-parity
 
 ## Context
 
-The parity suite is the regression-safety net for StR-002. Without it, a contributor changing the dispatch logic, the `Environment` configuration, or a single template could ship a release that produces near-identical-looking markdown that nonetheless breaks downstream byte-equality assumptions (git diffs, line-tools, scriptable parsers).
+The parity suite is the regression-safety net for [StR-002](../stakeholder/StR-002-render-parity-with-python.md). Without it, a contributor changing the dispatch logic, the `Environment` configuration, or a single template could ship a release that produces near-identical-looking markdown that nonetheless breaks downstream byte-equality assumptions (git diffs, line-tools, scriptable parsers).
 
 ## Acceptance
 

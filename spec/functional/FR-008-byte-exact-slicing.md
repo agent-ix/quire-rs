@@ -32,5 +32,5 @@ Concretely: round-trip property: given `doc = parse_document(input)` and a secti
 
 ## Dependencies
 
-- **Upstream**: US-002, StR-003
-- **Downstream**: FR-005 (`QuireSection.content` slicing within `parse_document`)
+- **Upstream**: [US-002](../usecase/US-002-developer-parses-spec-doc.md), [StR-003](../stakeholder/StR-003-parse-parity-with-quire.md)
+- **Downstream**: [FR-005](./FR-005-parse-document-api.md) (`QuireSection.content` slicing within `parse_document`)

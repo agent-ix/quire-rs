@@ -12,12 +12,12 @@ type: ADR
 
 ## Context
 
-`quire-rs` FR-002 + FR-013 require a Rust JSON Schema validator crate.
-The chosen crate is load-bearing for NFR-001 (render <1 ms median)
+`quire-rs` [FR-002](../../functional/FR-002-schema-validation-pipeline.md) + [FR-013](../../functional/FR-013-archetype-loader.md) require a Rust JSON Schema validator crate.
+The chosen crate is load-bearing for [NFR-001](../../non-functional/NFR-001-render-latency.md) (render <1 ms median)
 because validation cost dominates the render-path budget for small
 templates with complex schemas.
 
-NFR-009-AC-2 requires this decision be benchmark-driven and recorded.
+[NFR-009-AC-2](../../non-functional/NFR-009-dependency-pinning.md) requires this decision be benchmark-driven and recorded.
 
 ## Options surveyed
 
@@ -31,15 +31,15 @@ NFR-009-AC-2 requires this decision be benchmark-driven and recorded.
 
 **Selected: `jsonschema = "~0.18"`** with `default-features = false` and
 the `resolve-file` feature (no HTTP resolver — engine is filesystem-only
-per StR-001 / FR-013).
+per [StR-001](../../stakeholder/StR-001-single-rust-engine.md) / [FR-013](../../functional/FR-013-archetype-loader.md)).
 
 Rationale:
 
 1. **Error shape**: `jsonschema::ValidationError` exposes `instance_path`
    as a JSON Pointer, which `src/validate.rs::json_pointer_to_dotted`
-   converts to the NFR-005 dotted field-path form. This is the
-   highest-value capability — NFR-005-AC-1 mandates field-keyed errors
-   for LLM retry loops (US-001) and any choice that didn't expose
+   converts to the [NFR-005](../../non-functional/NFR-005-actionable-schema-errors.md) dotted field-path form. This is the
+   highest-value capability — [NFR-005-AC-1](../../non-functional/NFR-005-actionable-schema-errors.md) mandates field-keyed errors
+   for LLM retry loops ([US-001](../../usecase/US-001-llm-emits-validated-patch.md)) and any choice that didn't expose
    structured error paths would need a wrapper layer.
 2. **Maturity**: Used in production by `cargo-deny` and a number of
    schema-driven tools; reduces tail-risk.
@@ -50,7 +50,7 @@ Rationale:
 4. **Performance baseline**: see `benches/validator_choice.rs`. On the
    baseline runner (M-class Apple Silicon, dev profile) the validator
    completes a representative `is_valid` call in single-digit µs for
-   the FR schema; this comfortably fits inside NFR-001's per-render
+   the FR schema; this comfortably fits inside [NFR-001](../../non-functional/NFR-001-render-latency.md)'s per-render
    1 ms budget once render-template work is added in.
 
 ## Bench summary
@@ -66,14 +66,14 @@ fleshing out the corpus is the Task 013 follow-up.
 
 ## Consequences
 
-- `Cargo.toml` pins `jsonschema = "~0.18"` per NFR-009-AC-1.
+- `Cargo.toml` pins `jsonschema = "~0.18"` per [NFR-009-AC-1](../../non-functional/NFR-009-dependency-pinning.md).
 - A future revision (0.18 → 0.19 or → `boon`) requires:
   - a CR opening the discussion,
   - a re-run of `benches/validator_choice.rs` on the canonical hardware,
   - a parity re-validation pass against the render-parity corpus (so the
     error-shape conversion in `src/validate.rs::to_schema_violation`
-    still surfaces NFR-005-compliant errors).
-- Cross-file `$ref` is rejected at load time (FR-002-AC-7): the
+    still surfaces [NFR-005](../../non-functional/NFR-005-actionable-schema-errors.md)-compliant errors).
+- Cross-file `$ref` is rejected at load time ([FR-002-AC-7](../../functional/FR-002-schema-validation-pipeline.md)): the
   `default-features = false` config drops the HTTP resolver and the
   loader compiles schemas as standalone documents. Any `$ref` to a
   sibling schema URL fails the `compile_schema` call.

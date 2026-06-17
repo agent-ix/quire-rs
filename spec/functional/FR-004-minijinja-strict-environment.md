@@ -47,5 +47,5 @@ Custom MiniJinja filters added by `quire-rs` SHALL be pure (no I/O, no global st
 
 ## Dependencies
 
-- **Upstream**: StR-002
+- **Upstream**: [StR-002](../stakeholder/StR-002-render-parity-with-python.md)
 - **Downstream**: none (retired)

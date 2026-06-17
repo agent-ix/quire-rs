@@ -23,19 +23,19 @@ relationships:
 
 | Crate | Role | Pinning | Why |
 |---|---|---|---|
-| `minijinja` | template rendering (FR-004) | `~2.x` (or current major) | byte-parity with Python Jinja2 depends on whitespace/filter behavior; minor releases could shift |
-| `jsonschema` (or alternative) | JSON Schema validation (FR-002) | TBD at Task 005 bench | load-bearing for NFR-001; choice is an ADR (see notes) |
-| `serde_yaml` (or `serde_yml`) | manifest + frontmatter parse (FR-006, FR-013) | TBD — `serde_yaml` in maintenance mode | swap to `serde_yml` if upstream goes inactive |
+| `minijinja` | template rendering ([FR-004](../functional/FR-004-minijinja-strict-environment.md)) | `~2.x` (or current major) | byte-parity with Python Jinja2 depends on whitespace/filter behavior; minor releases could shift |
+| `jsonschema` (or alternative) | JSON Schema validation ([FR-002](../functional/FR-002-schema-validation-pipeline.md)) | TBD at Task 005 bench | load-bearing for [NFR-001](./NFR-001-render-latency.md); choice is an ADR (see notes) |
+| `serde_yaml` (or `serde_yml`) | manifest + frontmatter parse ([FR-006](../functional/FR-006-frontmatter-with-fallback.md), [FR-013](../functional/FR-013-archetype-loader.md)) | TBD — `serde_yaml` in maintenance mode | swap to `serde_yml` if upstream goes inactive |
 | `serde_json` | core data type | `^1` | stable |
-| `indexmap` | iteration-order-preserved maps (NFR-006) | `^2` | stable |
+| `indexmap` | iteration-order-preserved maps ([NFR-006](./NFR-006-determinism.md)) | `^2` | stable |
 
-### ADR for validator choice (NFR-001 load-bearing)
+### ADR for validator choice ([NFR-001](./NFR-001-render-latency.md) load-bearing)
 
 Task 005 (archetype loader) SHALL include a bench-driven ADR comparing candidate validator crates:
 
 - `jsonschema` (most popular; mature)
 - `boon` (newer; claimed faster)
-- Custom subset (last resort if neither hits NFR-001)
+- Custom subset (last resort if neither hits [NFR-001](./NFR-001-render-latency.md))
 
 The choice is recorded in `spec/assets/adr/0001-validator-crate.md` with bench numbers.
 
@@ -45,7 +45,7 @@ Dependency bumps within the pinned range are allowed without a CR. Bumps that cr
 
 ## Rationale
 
-NFR-001 byte-parity and perf targets implicitly depend on specific crate behavior. Without pins, an unattended `cargo update` could silently break the parity suite or regress perf. Pinning makes the dependency a first-class spec artifact.
+[NFR-001](./NFR-001-render-latency.md) byte-parity and perf targets implicitly depend on specific crate behavior. Without pins, an unattended `cargo update` could silently break the parity suite or regress perf. Pinning makes the dependency a first-class spec artifact.
 
 ## Acceptance Criteria
 

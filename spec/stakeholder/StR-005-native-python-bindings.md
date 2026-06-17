@@ -27,9 +27,9 @@ This need exists because `filament-parser-lib` (Python) owns the measured per-do
 
 This need is considered satisfied when `quire-rs` builds a Python wheel (`pip install quire`) exposing at least `parse_document`, `extract`, `validate`, `render_block`, and a repository loader, with the underlying work executing in Rust (no Python re-implementation), and when building the crate *without* the `python` feature produces an artifact with no Python/CPython linkage. Satisfaction is further judged by a benchmark over a representative corpus (≥ 500 markdown documents) showing the binding path is at least 5× faster wall-clock than the pure-Python `filament_parser` path, by the binding returning structured objects without a JSON round-trip through a subprocess boundary (no `subprocess`/`Popen`/socket call on the data path), and by an abi3 wheel built once importing on at least two CPython 3.x minor versions without rebuild.
 
-### Boundary with StR-001
+### Boundary with [StR-001](./StR-001-single-rust-engine.md)
 
-StR-001 requires the **core crate** to be filesystem-only and interpreter-free (StR-001-AC-2, StR-001-AC-3). This requirement does not weaken that: the Python binding surface is **feature-gated** (`--features python`). With the feature off, the crate builds and behaves exactly as StR-001 specifies — no Python linkage, no interpreter dependency. The bindings invert the call direction (Python calls *into* Rust); `quire-rs` still never shells *out* to an interpreter.
+[StR-001](./StR-001-single-rust-engine.md) requires the **core crate** to be filesystem-only and interpreter-free ([StR-001-AC-2](./StR-001-single-rust-engine.md), [StR-001-AC-3](./StR-001-single-rust-engine.md)). This requirement does not weaken that: the Python binding surface is **feature-gated** (`--features python`). With the feature off, the crate builds and behaves exactly as [StR-001](./StR-001-single-rust-engine.md) specifies — no Python linkage, no interpreter dependency. The bindings invert the call direction (Python calls *into* Rust); `quire-rs` still never shells *out* to an interpreter.
 
 ### What stays in Python (out of this need)
 
@@ -49,4 +49,4 @@ Must-Have
 - **StR-005-AC-2**: Building `quire-rs` **without** the `python` feature produces an artifact with no Python/CPython linkage — verified by inspecting the default-feature build's linked libraries and `Cargo.lock` feature resolution.
 - **StR-005-AC-3**: A benchmark parses a representative corpus (≥ 500 markdown documents) through the Python binding and through the pre-existing pure-Python `filament_parser` path; the binding path is at least 5× faster wall-clock on the canonical runner.
 - **StR-005-AC-4**: The binding returns structured objects (parsed documents, extraction records, validation errors) to Python without a JSON round-trip through a subprocess boundary — confirmed by the absence of any `subprocess`/`Popen`/socket call on the binding's data path.
-- **StR-005-AC-5**: A wheel built once for the abi3 (stable ABI) target imports successfully on at least two different CPython 3.x minor versions without rebuild (see NFR-016).
+- **StR-005-AC-5**: A wheel built once for the abi3 (stable ABI) target imports successfully on at least two different CPython 3.x minor versions without rebuild (see [NFR-016](../non-functional/NFR-016-binding-overhead.md)).

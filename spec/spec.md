@@ -104,16 +104,16 @@ This specification governs a **generic, archetype-agnostic engine** that process
 - Secondary / fallback locators per field for author-variant tolerance
 
 **Repository + corpus side:**
-- `load_repo(path)` — parallel (rayon), ignore-file-aware directory walk that parses every `.md` into a `QuireDocument`, returning the collection + per-file diagnostics (FR-024). Per-file parse failures are non-fatal.
-- `Spec` corpus — a bounded, in-memory, immutable set of loaded documents indexed by stable artifact id (FR-025), with its **intra-spec** references resolved (FR-026) and read-only whole-spec queries (`by_id`, `by_type`, `referencing`, `outgoing`, `orphans`, `dangling`) over the resolved structure (FR-027). Lifecycle is *load → examine → discard*; the corpus is a data structure, not a stateful engine.
+- `load_repo(path)` — parallel (rayon), ignore-file-aware directory walk that parses every `.md` into a `QuireDocument`, returning the collection + per-file diagnostics ([FR-024](./functional/FR-024-parallel-repo-walk.md)). Per-file parse failures are non-fatal.
+- `Spec` corpus — a bounded, in-memory, immutable set of loaded documents indexed by stable artifact id ([FR-025](./functional/FR-025-spec-corpus-model.md)), with its **intra-spec** references resolved ([FR-026](./functional/FR-026-intra-spec-reference-resolution.md)) and read-only whole-spec queries (`by_id`, `by_type`, `referencing`, `outgoing`, `orphans`, `dangling`) over the resolved structure ([FR-027](./functional/FR-027-whole-spec-query-api.md)). Lifecycle is *load → examine → discard*; the corpus is a data structure, not a stateful engine.
 
 **Python binding side:**
-- Feature-gated (`--features python`) PyO3 + maturin bindings exposing parse / extract / validate / render / `load_repo` / corpus to Python as the `quire` wheel (FR-023). With the feature off, the crate is unchanged and interpreter-free (StR-001 boundary). Bindings invert the call direction (Python calls *into* Rust); the engine never shells *out*. This is the path by which `filament-parser-lib` consumes the engine at native speed (StR-005), superseding its Python hot paths.
+- Feature-gated (`--features python`) PyO3 + maturin bindings exposing parse / extract / validate / render / `load_repo` / corpus to Python as the `quire` wheel ([FR-023](./functional/FR-023-python-binding-surface.md)). With the feature off, the crate is unchanged and interpreter-free ([StR-001](./stakeholder/StR-001-single-rust-engine.md) boundary). Bindings invert the call direction (Python calls *into* Rust); the engine never shells *out*. This is the path by which `filament-parser-lib` consumes the engine at native speed ([StR-005](./stakeholder/StR-005-native-python-bindings.md)), superseding its Python hot paths.
 - `ExtractionContext.from_object_types(...)` compiles caller-supplied ObjectType rows for service runtimes. This path performs no filesystem or network registry discovery; callers own registry sourcing.
 
 **Cross-cutting:**
 - Safety scaffolding inherited from `agent-ix/rust-lib-cookiecutter` (clippy MSRV, deny.toml, `// SAFETY:` enforcement)
-- Hardening hygiene: compile-time `forbid(unsafe_code)` (NFR-003), fuzz (cargo-fuzz), mutation testing (cargo-mutants), advisory checking (cargo-audit) — all required, not opt-in. (The scheduled Miri job was retired — ADR 0006.)
+- Hardening hygiene: compile-time `forbid(unsafe_code)` ([NFR-003](./non-functional/NFR-003-zero-unsafe.md)), fuzz (cargo-fuzz), mutation testing (cargo-mutants), advisory checking (cargo-audit) — all required, not opt-in. (The scheduled Miri job was retired — ADR 0006.)
 - Public Rust API stable across parse, render, edit, writeback, and extract surfaces
 - Engine is **offline by default** — works against the local filesystem with zero network dependencies
 
@@ -124,18 +124,18 @@ This specification does not govern:
 - **Sync from Filament to disk.** The local module directory (e.g. `~/.ix/filament/modules/`) is populated by external tools — `ix-cli` / `ix-spec` are the canonical syncers (handle Filament auth + transfer / module install). `quire-rs` can consume a path when a caller asks it to load local archetypes, but it never owns `.ix` synchronization and never calls Filament directly.
 - **Runtime ObjectType registry sourcing.** `filament-core-service` owns the dynamic ObjectType registry. Consumers such as `filament-analysis-worker` and `cloudmanager-local-sync` fetch registry snapshots from core and pass them through parser-lib into `ExtractionContext`. `quire-rs` does not discover those ObjectTypes itself.
 - **Authoring tooling.** Schema files, templates, and manifests are authored elsewhere (in Filament, by hand, by another tool). `quire-rs` does not write archetype data.
-- **Author-time schema validation.** `quire-rs` validates JSON Schema documents at archetype-load time (FR-013). Pre-publish validation (catching authoring errors before they reach disk) is Filament's concern.
+- **Author-time schema validation.** `quire-rs` validates JSON Schema documents at archetype-load time ([FR-013](./functional/FR-013-archetype-loader.md)). Pre-publish validation (catching authoring errors before they reach disk) is Filament's concern.
 - **Hot reload on filesystem change.** `quire-rs` does NOT watch the filesystem and does NOT automatically reload archetypes when files change on disk. Consumers refresh archetypes by calling `Registry::load_from(...)` again. The previous Registry stays alive for any outstanding references and is dropped when they release. There is no in-place update or change-event subscription.
 - **Schema migration when archetypes evolve.** When an archetype's schema changes (e.g. Filament publishes a new version of `fr-frontmatter.schema.json`), `quire-rs` validates incoming data against the loaded version only. Migrating existing artifacts written against an older schema is Filament's responsibility (or downstream migration tooling).
 - **LLM model-specific tool-call adapters.** `quire-rs::schema_for` returns a JSON Schema. Wrapping it into a model-specific tool-call envelope (OpenAI function-calling shape, Anthropic tool-use shape, etc.) is the consumer's concern.
 - **ID generation (partially relaxed — CR-002).** `quire-rs` validates that *human* artifact IDs match the schema's `pattern` (e.g. `^[A-Z]{2,4}-[0-9]+$`); those are authored upstream (Filament UI, scripts). **However**, as of v0.3 `quire-rs` DOES generate a durable `uuid` (UUID7) when **creating a new artifact** (the whole-artifact render path), embedding it in the new document's frontmatter — going forward every quire-authored doc carries a `uuid`. `quire-rs` still does NOT backfill `uuid`s into pre-existing files on disk (no load-time mutation); `load_repo` reads the `uuid` and reports a non-fatal diagnostic when absent. Cross-repo catalog assignment beyond the per-doc `uuid` remains an upstream/service-layer concern.
-- **Internationalized slug normalization.** FR-009 implements ASCII-only slug normalization to match the TS/Py reference. Non-ASCII heading authoring works (the section parses correctly), but the slug collapses non-ASCII characters to `-`. Full Unicode slug support is deferred to a future version.
+- **Internationalized slug normalization.** [FR-009](./functional/FR-009-slug-line-id.md) implements ASCII-only slug normalization to match the TS/Py reference. Non-ASCII heading authoring works (the section parses correctly), but the slug collapses non-ASCII characters to `-`. Full Unicode slug support is deferred to a future version.
 - **Windows path semantics.** `v1` supports macOS and Linux only. Filesystem-loader behavior on Windows (drive letters, `\` separator, symlink permissions) is undefined.
 - **React UI bindings.** `agent-ix/quire` ships React components for browser-side rendering; those are TypeScript-only. `quire-rs` does not provide a UI layer.
-- **Cross-document graph queries — *general/stateful*.** `agent-ix/quire` ships a React provider that indexes multiple parsed documents and exposes hooks for cross-doc queries. The *general, stateful* graph engine remains out of scope: no persistence of a resolved graph, no query/traversal DSL, no caching across calls, no incremental reparse on change, and no resolution of references that point into a **different** spec. These are service-layer concerns (see ADR-0002). **Carve-out:** the bounded, in-memory, ephemeral **per-spec corpus** (FR-025/026/027) *is* in scope — it loads one spec, resolves the references *within that loaded set*, and answers whole-spec read-only queries, then is discarded. The rule is: intra-spec resolution = `quire-rs`; inter-spec or stateful = service layer (StR-006).
+- **Cross-document graph queries — *general/stateful*.** `agent-ix/quire` ships a React provider that indexes multiple parsed documents and exposes hooks for cross-doc queries. The *general, stateful* graph engine remains out of scope: no persistence of a resolved graph, no query/traversal DSL, no caching across calls, no incremental reparse on change, and no resolution of references that point into a **different** spec. These are service-layer concerns (see ADR-0002). **Carve-out:** the bounded, in-memory, ephemeral **per-spec corpus** ([FR-025](./functional/FR-025-spec-corpus-model.md)/026/027) *is* in scope — it loads one spec, resolves the references *within that loaded set*, and answers whole-spec read-only queries, then is discarded. The rule is: intra-spec resolution = `quire-rs`; inter-spec or stateful = service layer ([StR-006](./stakeholder/StR-006-whole-spec-corpus.md)).
 - CRDT or OT live-editing semantics.
 - Schema-driven template generation (schemas validate; templates present; neither generates the other).
-- Heavy hardening tooling (kani formal verification, shuttle concurrency permutation, sim-spire) — opt-in via future cookiecutter variant. (Standard Rust safety hygiene — `forbid(unsafe_code)`, fuzz, mutants, advisory — is required and in scope. Scheduled Miri was retired per ADR 0006; loom (NFR-017) is adopted for the concurrency surface.)
+- Heavy hardening tooling (kani formal verification, shuttle concurrency permutation, sim-spire) — opt-in via future cookiecutter variant. (Standard Rust safety hygiene — `forbid(unsafe_code)`, fuzz, mutants, advisory — is required and in scope. Scheduled Miri was retired per ADR 0006; loom ([NFR-017](./non-functional/NFR-017-concurrency-permutation.md)) is adopted for the concurrency surface.)
 - Real-time multi-user editing.
 - Generating Rust types from JSON Schemas. Downstream Rust consumers that want typed bindings author them by hand or use `schemars` themselves — `quire-rs` does not derive types.
 
@@ -169,16 +169,16 @@ The v0.1 implementation drifted from `INPUT.md`. The v0.2 spec restores discover
 | FR-018 IxUriResolver + `RelationshipResolver` trait | Removed |
 | NFR-008 Tracing instrumentation | Removed |
 | Layer 1/2/3/4 terminology | Replaced with plain references ("parser", "Query API", "React UI", "cross-document graph") |
-| FR-014 expansion (`load_strict`, `archetype_in_module`, `module_version`) | Trimmed to minimal "multiple modules coexist; collisions diagnosed" |
+| [FR-014](./functional/FR-014-module-activation.md) expansion (`load_strict`, `archetype_in_module`, `module_version`) | Trimmed to minimal "multiple modules coexist; collisions diagnosed" |
 
 #### Stays unchanged
 
-- Parser FRs (FR-005..009): pure port of `agent-ix/quire` core
-- FR-010 Query API: pure port of `agent-ix/quire` query
-- FR-003 schema_for, FR-004 strict MiniJinja env
-- FR-011/016 body-extraction DSL (reworked around block-level scope)
-- FR-013 archetype loader (reworked: `blocks/<type>/...` layout)
-- NFR-001..007, NFR-009..010, NFR-011/013/014 (perf, safety, error shape, determinism, dep pinning, API stability, fuzz, mutants, audit). NFR-012 (Miri) retired — ADR 0006.
+- Parser FRs ([FR-005](./functional/FR-005-parse-document-api.md)..009): pure port of `agent-ix/quire` core
+- [FR-010](./functional/FR-010-query-api.md) Query API: pure port of `agent-ix/quire` query
+- [FR-003](./functional/FR-003-archetype-schema-surface.md) schema_for, [FR-004](./functional/FR-004-minijinja-strict-environment.md) strict MiniJinja env
+- [FR-011](./functional/FR-011-body-extraction-dsl.md)/016 body-extraction DSL (reworked around block-level scope)
+- [FR-013](./functional/FR-013-archetype-loader.md) archetype loader (reworked: `blocks/<type>/...` layout)
+- [NFR-001](./non-functional/NFR-001-render-latency.md)..007, [NFR-009](./non-functional/NFR-009-dependency-pinning.md)..010, [NFR-011](./non-functional/NFR-011-fuzz-testing.md)/013/014 (perf, safety, error shape, determinism, dep pinning, API stability, fuzz, mutants, audit). [NFR-012](./non-functional/NFR-012-miri-ub-check.md) (Miri) retired — ADR 0006.
 - HTML / comrak references: already purged in `08f5b00` (never asked for in discovery)
 
 ### B. quire-TS (`agent-ix/quire`) ↔ quire-rs
@@ -213,7 +213,7 @@ The v0.1 implementation drifted from `INPUT.md`. The v0.2 spec restores discover
 
 - `parse_table` returns `Option::None` on miss; TS returns `{headers: [], rows: []}`. Intentional Rust-idiomatic divergence.
 - Heading matching: case-insensitive + section-number normalization. Matches TS exactly.
-- Section content slicing: byte-exact in `quire-rs` (FR-008); TS applies `.strip()`. Required for writeback fidelity.
+- Section content slicing: byte-exact in `quire-rs` ([FR-008](./functional/FR-008-byte-exact-slicing.md)); TS applies `.strip()`. Required for writeback fidelity.
 
 ### C. Render Removal (v0.4 — 2026-06-04)
 
@@ -221,9 +221,9 @@ The render/templating half of `quire-rs` is **removed** — **no backward-compat
 layer**, no deprecated-but-kept field, no dual-read. `quire-rs` is now a
 **parse / validate / extract / byte-splice** engine. Markdown is authored directly
 (not generated from typed data) and checked structurally by `validate_document`
-(FR-032). This reverses the original "unify render + parse" mandate (§1, §3) for the
+([FR-032](./functional/FR-032-validate-document.md)). This reverses the original "unify render + parse" mandate (§1, §3) for the
 render half; that prose is retained above for history but is superseded by this
-entry. The `validate` engine fn (data-schema validation, `src/validate.rs`, FR-002)
+entry. The `validate` engine fn (data-schema validation, `src/validate.rs`, [FR-002](./functional/FR-002-schema-validation-pipeline.md))
 **stays** — it backs `validate_document` even though the downstream CLI `--json`
 context mode is removed.
 
@@ -231,52 +231,52 @@ context mode is removed.
 
 | Artifact | Kind | Why |
 |---|---|---|
-| **FR-001** Render dispatch | FR | No `render`/`render_by_name`; generic render API removed |
-| **FR-004** Strict MiniJinja env | FR | `minijinja` dependency + `Environment` removed |
-| **FR-012** Archetype render-parity suite | FR | No render path to compare against Python; `render_parity/` removed |
-| **NFR-001** Render latency | NFR | No render path to bench; perf gate now parse/validate/extract |
-| **US-001** LLM emits validated patch (→ render) | US | Render-centric |
-| **US-004** Editor merge-validate-render | US | Render-centric (block edits now byte-splice only) |
-| **US-005** CI detects render regression | US | Render byte-parity suite (`render_parity/`) removed; missed in the first pass, retired here |
-| **US-006** LLM patches one block (render+splice) | US | Render-and-splice path retired |
-| **US-007** LLM replaces a block (render+splice) | US | Render-and-splice path retired |
-| **US-009** LLM creates a new artifact (render) | US | Whole-artifact render retired; author markdown directly |
+| **[FR-001](./functional/FR-001-render-dispatch.md)** Render dispatch | FR | No `render`/`render_by_name`; generic render API removed |
+| **[FR-004](./functional/FR-004-minijinja-strict-environment.md)** Strict MiniJinja env | FR | `minijinja` dependency + `Environment` removed |
+| **[FR-012](./functional/FR-012-archetype-parity-suite.md)** Archetype render-parity suite | FR | No render path to compare against Python; `render_parity/` removed |
+| **[NFR-001](./non-functional/NFR-001-render-latency.md)** Render latency | NFR | No render path to bench; perf gate now parse/validate/extract |
+| **[US-001](./usecase/US-001-llm-emits-validated-patch.md)** LLM emits validated patch (→ render) | US | Render-centric |
+| **[US-004](./usecase/US-004-filament-editor-rerender.md)** Editor merge-validate-render | US | Render-centric (block edits now byte-splice only) |
+| **[US-005](./usecase/US-005-ci-detects-render-regression.md)** CI detects render regression | US | Render byte-parity suite (`render_parity/`) removed; missed in the first pass, retired here |
+| **[US-006](./usecase/US-006-llm-patches-one-block.md)** LLM patches one block (render+splice) | US | Render-and-splice path retired |
+| **[US-007](./usecase/US-007-llm-replaces-block.md)** LLM replaces a block (render+splice) | US | Render-and-splice path retired |
+| **[US-009](./usecase/US-009-llm-creates-new-artifact.md)** LLM creates a new artifact (render) | US | Whole-artifact render retired; author markdown directly |
 | **Gate G2** Render parity | Gate | Retired; G4 reframed to byte-splice-only round-trip |
 | **Tasks 007/010/011/012/013** | Task | Render env / dispatch / parity harness / gate / sweep |
-| **FR-028-AC-1** render byte-parity; **NFR-006-AC-1** render determinism | AC | Render-specific ACs (ids retained, immutable; dropped from tally) |
+| **[FR-028-AC-1](./functional/FR-028-expanded-python-binding-surface.md)** render byte-parity; **[NFR-006-AC-1](./non-functional/NFR-006-determinism.md)** render determinism | AC | Render-specific ACs (ids retained, immutable; dropped from tally) |
 
 #### Revised (CR-noted, kept and active)
 
 | Artifact | Change |
 |---|---|
-| **FR-013** Archetype loader | Schema-only; no template parse/register; `template_ref` not read |
-| **FR-031** Unified archetype shape | Drops `template_ref` + `is_renderable()`; `template_ref` is a hard-rejected deprecated field. AC-1/AC-2 recast to validate/extract |
+| **[FR-013](./functional/FR-013-archetype-loader.md)** Archetype loader | Schema-only; no template parse/register; `template_ref` not read |
+| **[FR-031](./functional/FR-031-unified-archetype-shape.md)** Unified archetype shape | Drops `template_ref` + `is_renderable()`; `template_ref` is a hard-rejected deprecated field. AC-1/AC-2 recast to validate/extract |
 | **FR-021** Block edit (no FR doc — tests.md only) | Render-and-splice retired; block edit = byte-splice `update_block` (FR-022) |
-| **FR-023 / FR-028** Python bindings | Drop `render`/`render_by_name`/`render_block` + `QuireRenderError`; keep validate/validate_document/extract/parse/load_repo/harvest_edges |
-| **NFR-006** Determinism | Names `parse_document`/`validate_document`/`extract` (render determinism retired) |
+| **[FR-023](./functional/FR-023-python-binding-surface.md) / [FR-028](./functional/FR-028-expanded-python-binding-surface.md)** Python bindings | Drop `render`/`render_by_name`/`render_block` + `QuireRenderError`; keep validate/validate_document/extract/parse/load_repo/harvest_edges |
+| **[NFR-006](./non-functional/NFR-006-determinism.md)** Determinism | Names `parse_document`/`validate_document`/`extract` (render determinism retired) |
 | **Task 014** Perf gates | parse/validate/extract/load only; render bench dropped |
 | **D4** Block edit task | Byte-splice only |
 
 #### Decisions (v0.4 — 2026-06-04)
 
-- **Placeholder sentinel set reduced** (FR-032-AC-7/AC-8): bare `none` and `n/a` are
+- **Placeholder sentinel set reduced** ([FR-032-AC-7](./functional/FR-032-validate-document.md)/AC-8): bare `none` and `n/a` are
   **NOT** sentinels (they reject legitimate content like `Upstream: none`). The set is
   `TODO`/`TBD` (case-insensitive prefix), whole-value `{{…}}`, whole-value
   `placeholder`, whole-value `none specified`, and empty.
 - **Empty/header-only tables and item-less lists** report reason **`empty`** (and a
   wholly-unresolved locator reports **`missing`**) — **not** `placeholder`
-  (FR-032-AC-9). The FR-030 / FR-032 prose is corrected to match the code.
+  ([FR-032-AC-9](./functional/FR-032-validate-document.md)). The [FR-030](./functional/FR-030-required-section-validation.md) / [FR-032](./functional/FR-032-validate-document.md) prose is corrected to match the code.
 
 #### Gap back-fills (CR-noted ACs added)
 
-FR-033-AC-7 (assert-kind legality matrix), FR-033-AC-8 (id-column precedence),
-FR-033-AC-9 (`id_pattern` on non-table locators); FR-011-AC-15 (`regex:` projection),
-FR-011-AC-16 (`under_section:None` substrate), FR-011-AC-17 (whole-value `{{…}}`),
-FR-011-AC-18 (unclosed-fence → final block, backtick + tilde), FR-011-AC-19
-(`emit_edges` record-derived edges); FR-032-AC-7..10 (placeholder set / `none`-`n/a` /
-empty-table-list reason / asserts-on-resolved); FR-032-AC-2 (`line` is `Option`,
-`None` for a wholly-absent section); NFR-002-AC-4 (`validate_document` latency),
-NFR-006-AC-4 (validate/extract determinism), and **NFR-019** (input robustness:
+[FR-033-AC-7](./functional/FR-033-locator-assert-facet.md) (assert-kind legality matrix), [FR-033-AC-8](./functional/FR-033-locator-assert-facet.md) (id-column precedence),
+[FR-033-AC-9](./functional/FR-033-locator-assert-facet.md) (`id_pattern` on non-table locators); [FR-011-AC-15](./functional/FR-011-body-extraction-dsl.md) (`regex:` projection),
+[FR-011-AC-16](./functional/FR-011-body-extraction-dsl.md) (`under_section:None` substrate), [FR-011-AC-17](./functional/FR-011-body-extraction-dsl.md) (whole-value `{{…}}`),
+[FR-011-AC-18](./functional/FR-011-body-extraction-dsl.md) (unclosed-fence → final block, backtick + tilde), [FR-011-AC-19](./functional/FR-011-body-extraction-dsl.md)
+(`emit_edges` record-derived edges); [FR-032-AC-7](./functional/FR-032-validate-document.md)..10 (placeholder set / `none`-`n/a` /
+empty-table-list reason / asserts-on-resolved); [FR-032-AC-2](./functional/FR-032-validate-document.md) (`line` is `Option`,
+`None` for a wholly-absent section); [NFR-002-AC-4](./non-functional/NFR-002-parse-latency.md) (`validate_document` latency),
+[NFR-006-AC-4](./non-functional/NFR-006-determinism.md) (validate/extract determinism), and **[NFR-019](./non-functional/NFR-019-input-robustness.md)** (input robustness:
 validate/extract/query never panic on arbitrary input).
 
 ---
@@ -370,9 +370,9 @@ Each layer has one job and a narrow interface to the next. The parser does not v
 ### 3.4 Intended Users
 
 - **Filament document editor** — needs schema-validated edits and re-render on patch
-- **`agent-ix/filament-parser-lib`** — the Python orchestration layer; consumes `quire-rs` in-process via the feature-gated PyO3 bindings (FR-023), superseding its own walk/parse/extract/validate hot paths (StR-005). Keeps tier-3 plugin discovery + dispatch in Python; parser/extractor/validator semantics remain in quire-rs.
+- **`agent-ix/filament-parser-lib`** — the Python orchestration layer; consumes `quire-rs` in-process via the feature-gated PyO3 bindings ([FR-023](./functional/FR-023-python-binding-surface.md)), superseding its own walk/parse/extract/validate hot paths ([StR-005](./stakeholder/StR-005-native-python-bindings.md)). Keeps tier-3 plugin discovery + dispatch in Python; parser/extractor/validator semantics remain in quire-rs.
 - **`spec-artifacts-*` Python repos** — call `quire-rs` via the same PyO3 bindings for parity-rendered artifacts
-- **`spec-analysis-*` / `spec-matrix` tooling and LLM agents auditing a spec** — load a `spec/` tree into a `Spec` corpus (FR-025) and run whole-spec traceability/coverage/reference queries (FR-027) instead of re-walking + re-greps (US-012, US-013)
+- **`spec-analysis-*` / `spec-matrix` tooling and LLM agents auditing a spec** — load a `spec/` tree into a `Spec` corpus ([FR-025](./functional/FR-025-spec-corpus-model.md)) and run whole-spec traceability/coverage/reference queries ([FR-027](./functional/FR-027-whole-spec-query-api.md)) instead of re-walking + re-greps ([US-012](./usecase/US-012-agent-audits-whole-spec.md), [US-013](./usecase/US-013-agent-resolves-intra-spec-refs.md))
 - **`spec-objects-business` extractors** — evaluate `body_extraction` DSL via the parser's Query API
 - **CLI tools** — invoke the renderer to produce spec artifacts from typed YAML/JSON sources
 - **LLM agents** — receive the on-disk JSON Schemas (surfaced unchanged via `schema_for`) as tool-call input contracts, emit validated patches that the schema layer accepts and the renderer formats
@@ -458,11 +458,11 @@ Acceptance criteria define **verifiable outcomes** for functional requirements.
 
 | Artifact | Format | Example |
 |-------|-------|--------|
-| Stakeholder Requirement | `StR-XXX` | `StR-001` |
-| User Story | `US-XXX` | `US-002` |
-| Functional Requirement | `FR-XXX` | `FR-014` |
-| Non-Functional Requirement | `NFR-XXX` | `NFR-003` |
-| Acceptance Criteria | `{FR}-AC-N` | `FR-014-AC-1` |
+| Stakeholder Requirement | `StR-XXX` | [StR-001](./stakeholder/StR-001-single-rust-engine.md) |
+| User Story | `US-XXX` | [US-002](./usecase/US-002-developer-parses-spec-doc.md) |
+| Functional Requirement | `FR-XXX` | [FR-014](./functional/FR-014-module-activation.md) |
+| Non-Functional Requirement | `NFR-XXX` | [NFR-003](./non-functional/NFR-003-zero-unsafe.md) |
+| Acceptance Criteria | `{FR}-AC-N` | [FR-014-AC-1](./functional/FR-014-module-activation.md) |
 | Test Case | `TC-XXX` | `TC-021` |
 | Change Request | `CR-XXX` | `CR-009` |
 
@@ -499,7 +499,7 @@ A `quire-rs` Registry knows an archetype by:
 - **Pre-parsed MiniJinja template** — registered with the long-lived strict environment at load time
 - **Manifest metadata** — `required_sections`, version, etc.
 
-The Registry is populated by FR-013 (filesystem loader) and FR-014 (multi-module activation). No archetype names are hard-coded in Rust source.
+The Registry is populated by [FR-013](./functional/FR-013-archetype-loader.md) (filesystem loader) and [FR-014](./functional/FR-014-module-activation.md) (multi-module activation). No archetype names are hard-coded in Rust source.
 
 ### 8.2 The Schema/Template Pair (on disk)
 
@@ -535,7 +535,7 @@ At spec authoring time the local filesystem-synced corpus contains **17 archetyp
 
 This list is **informational, not normative.** The Registry contents are whatever the filesystem holds at load time. Adding a new archetype is a sync operation (new files in `~/.ix/filament/modules/`), not a code change.
 
-The parity suite (FR-012) enumerates archetypes from `tests/render_parity/corpus.yaml` and runs against every fixture pair on disk — that file is the byte-parity source of truth, not this table.
+The parity suite ([FR-012](./functional/FR-012-archetype-parity-suite.md)) enumerates archetypes from `tests/render_parity/corpus.yaml` and runs against every fixture pair on disk — that file is the byte-parity source of truth, not this table.
 
 ### 8.4 Object Archetypes vs. Artifact Archetypes
 
@@ -621,20 +621,20 @@ The boundary that keeps this in `quire-rs` scope (and out of the territory of th
 
 | In scope (`quire-rs`) | Out of scope (service layer) |
 |---|---|
-| Load a directory into a corpus (FR-024/025) | Persist the resolved graph |
-| Resolve references **within** the loaded set (FR-026) | Resolve references into a **different** spec |
-| Read-only by-id / by-type / reverse-edge / orphan queries (FR-027) | A query / traversal DSL; transitive-closure precompute |
+| Load a directory into a corpus ([FR-024](./functional/FR-024-parallel-repo-walk.md)/025) | Persist the resolved graph |
+| Resolve references **within** the loaded set ([FR-026](./functional/FR-026-intra-spec-reference-resolution.md)) | Resolve references into a **different** spec |
+| Read-only by-id / by-type / reverse-edge / orphan queries ([FR-027](./functional/FR-027-whole-spec-query-api.md)) | A query / traversal DSL; transitive-closure precompute |
 | Immutable, `Send + Sync`, rebuild-to-refresh | Incremental reparse, change subscription, caching |
 
 The rule: **intra-spec resolution = `quire-rs`; inter-spec or stateful = service layer.** A reference whose target is absent from the loaded set is reported as *dangling*, never resolved outside the corpus.
 
 ### 10bis.3 Edges
 
-Edge stubs are harvested from two already-parsed sources and unified into one resolved edge set (FR-026): frontmatter `relationships` entries (`{target, type, cardinality}`) and `ix://` body links. Each edge is classified `Resolved` (target present in the set) or `Dangling` (target absent). Resolution is O(edges) — one hash lookup per stub against the corpus id index — and deterministic.
+Edge stubs are harvested from two already-parsed sources and unified into one resolved edge set ([FR-026](./functional/FR-026-intra-spec-reference-resolution.md)): frontmatter `relationships` entries (`{target, type, cardinality}`) and `ix://` body links. Each edge is classified `Resolved` (target present in the set) or `Dangling` (target absent). Resolution is O(edges) — one hash lookup per stub against the corpus id index — and deterministic.
 
 ### 10bis.4 Consumers
 
-The corpus is the substrate the `spec-analysis-*` and `spec-matrix` skills need: traceability gaps (FRs with no `implements` edge to a StR), coverage gaps (user stories with no test), and reference navigation (everything that references a given artifact). These run today by re-walking and re-greps; against a corpus they query an already-resolved structure (US-012, US-013).
+The corpus is the substrate the `spec-analysis-*` and `spec-matrix` skills need: traceability gaps (FRs with no `implements` edge to a StR), coverage gaps (user stories with no test), and reference navigation (everything that references a given artifact). These run today by re-walking and re-greps; against a corpus they query an already-resolved structure ([US-012](./usecase/US-012-agent-audits-whole-spec.md), [US-013](./usecase/US-013-agent-resolves-intra-spec-refs.md)).
 
 ---
 
@@ -678,8 +678,8 @@ Functional requirements SHALL be verified using one or more of:
 - **Acceptance ports** — for the parser, the TS/Py test fixtures are transliterated into Rust and SHALL all pass
 - **Property tests** — `proptest` roundtrips, especially for the parser (parse → render → parse equivalence where applicable)
 - **Criterion benchmarks** — for NFR latency targets
-- **Python binding tests (`pytest`)** — the `python`-feature wheel is verified from Python via a `pytest` harness (built with `maturin develop`): parse/validate/render parity vs the Rust API, exception-mapping, GIL-release concurrency, and abi3 cross-version import (FR-023 / NFR-016). The Rust test suite cannot exercise the FFI boundary; pytest is the verification method for the binding layer.
-- **Concurrency + FFI hardening** — `loom` exhaustive interleaving on the parallel-walk path (NFR-017) and scheduled `TSAN`/`ASAN` lanes on the built extension (NFR-018) cover the concurrency and FFI surfaces. (First-party `unsafe`/UB is compile-impossible via `forbid(unsafe_code)`, NFR-003; the Miri job was retired — ADR 0006.)
+- **Python binding tests (`pytest`)** — the `python`-feature wheel is verified from Python via a `pytest` harness (built with `maturin develop`): parse/validate/render parity vs the Rust API, exception-mapping, GIL-release concurrency, and abi3 cross-version import ([FR-023](./functional/FR-023-python-binding-surface.md) / [NFR-016](./non-functional/NFR-016-binding-overhead.md)). The Rust test suite cannot exercise the FFI boundary; pytest is the verification method for the binding layer.
+- **Concurrency + FFI hardening** — `loom` exhaustive interleaving on the parallel-walk path ([NFR-017](./non-functional/NFR-017-concurrency-permutation.md)) and scheduled `TSAN`/`ASAN` lanes on the built extension ([NFR-018](./non-functional/NFR-018-ffi-sanitizer-lanes.md)) cover the concurrency and FFI surfaces. (First-party `unsafe`/UB is compile-impossible via `forbid(unsafe_code)`, [NFR-003](./non-functional/NFR-003-zero-unsafe.md); the Miri job was retired — ADR 0006.)
 
 Verification evidence SHALL reference test cases in `test_cases/`.
 
@@ -729,21 +729,21 @@ Functional requirements MAY declare a lifecycle status:
 
 ### Validity
 
-- `manifest.yaml` SHALL be valid YAML, conformant with the structural shape declared in FR-013 (artifact_types and/or object_types arrays, each entry referencing `schema_ref` and `template_ref` by relative path).
-- Each `schema_ref` target SHALL exist on disk and be valid JSON Schema (draft 2020-12, no cross-file `$ref` — see FR-002).
-- Each `template_ref` target SHALL exist on disk and be valid MiniJinja (no `{% include %}` at v1 — see FR-004).
+- `manifest.yaml` SHALL be valid YAML, conformant with the structural shape declared in [FR-013](./functional/FR-013-archetype-loader.md) (artifact_types and/or object_types arrays, each entry referencing `schema_ref` and `template_ref` by relative path).
+- Each `schema_ref` target SHALL exist on disk and be valid JSON Schema (draft 2020-12, no cross-file `$ref` — see [FR-002](./functional/FR-002-schema-validation-pipeline.md)).
+- Each `template_ref` target SHALL exist on disk and be valid MiniJinja (no `{% include %}` at v1 — see [FR-004](./functional/FR-004-minijinja-strict-environment.md)).
 - **Filament SHOULD pre-validate** JSON Schema documents and MiniJinja templates before publishing — catching authoring errors at the authoring layer is preferable to surfacing them as `quire-rs` load errors. This is a SHOULD, not a SHALL: `quire-rs` does NOT depend on Filament's pre-validation for correctness; it always validates at load time.
 - `quire-rs` does NOT validate the syncer's outputs proactively at startup; validation happens lazily at `Registry::load_from(...)` time and surfaces as `QuireError::ArchetypeLoadError` per archetype.
 
 ### Naming
 
 - Module directories SHALL contain a `manifest.yaml` at the module root.
-- The manifest's `name` field, if declared, SHALL be globally unique across all modules a given `Registry` will load (per FR-014).
+- The manifest's `name` field, if declared, SHALL be globally unique across all modules a given `Registry` will load (per [FR-014](./functional/FR-014-module-activation.md)).
 - Archetype names within a module SHALL be unique within that module's manifest.
 
 ### Versioning
 
-- Module-level `version` field in `manifest.yaml` is informational at v1 (per FR-014). The syncer MAY use semver to gate which version of an archetype set is synced; `quire-rs` does not enforce.
+- Module-level `version` field in `manifest.yaml` is informational at v1 (per [FR-014](./functional/FR-014-module-activation.md)). The syncer MAY use semver to gate which version of an archetype set is synced; `quire-rs` does not enforce.
 
 ### Tool ownership
 
@@ -752,7 +752,7 @@ Functional requirements MAY declare a lifecycle status:
 | Authenticate to Filament | `ix-cli` | API keys, OAuth, etc. |
 | Discover available modules in Filament | `ix-cli` | |
 | Download module contents to disk | `ix-cli` | Atomic writes per above |
-| Resolve `~/.ix/filament/modules/` location | `ix-cli` / `ix-spec` for writes; `quire-rs` for reads (FR-013) | Both honor `IX_FILAMENT_MODULES_PATH` (and the legacy `IX_SCHEMA_PATH` alias) |
+| Resolve `~/.ix/filament/modules/` location | `ix-cli` / `ix-spec` for writes; `quire-rs` for reads ([FR-013](./functional/FR-013-archetype-loader.md)) | Both honor `IX_FILAMENT_MODULES_PATH` (and the legacy `IX_SCHEMA_PATH` alias) |
 | Module versioning policy | `ix-cli` | quire-rs is version-blind |
 | Conflict resolution between local edits and remote | `ix-cli` | quire-rs sees only the post-resolution state |
 | Load archetypes into runtime registry | `quire-rs` | Pure filesystem reads |
@@ -778,52 +778,52 @@ If the syncer violates this contract (non-atomic writes, malformed YAML, etc.), 
 
 ## 19. Hardening Posture
 
-`quire-rs` inherits Rust safety scaffolding from `rust-lib-cookiecutter` (StR-004, itself backported from `agent-ix/ecaz`). This section records which ECAZ-grade hardening tools `quire-rs` adopts and which it skips, with rationale. Decisions are pinned to v1; tools marked "skip" may be revisited in v1.1+.
+`quire-rs` inherits Rust safety scaffolding from `rust-lib-cookiecutter` ([StR-004](./stakeholder/StR-004-safety-scaffolding-inheritance.md), itself backported from `agent-ix/ecaz`). This section records which ECAZ-grade hardening tools `quire-rs` adopts and which it skips, with rationale. Decisions are pinned to v1; tools marked "skip" may be revisited in v1.1+.
 
 ### Adopted (specified by NFRs)
 
 | Tool | Purpose | Specified in |
 |---|---|---|
-| `cargo fmt --check` | Formatting drift | StR-004 (inherited) |
-| `cargo clippy -- -D warnings` | Lint discipline | StR-004 (inherited) |
-| `#![forbid(unsafe_code)]` (default build) | Zero first-party `unsafe` — compile-time impossible (scoped off for `python`) | NFR-003 |
-| `// SAFETY:` comment enforcement | Unsafe-comment baseline (covers the `python` build where forbid is off) | NFR-003 |
-| Zero `unsafe` blocks | Memory-safety surface = empty | NFR-003 |
-| `cargo deny check licenses` | License hygiene | NFR-004 |
-| `proptest` (determinism + roundtrip) | Property testing | NFR-006 |
-| Dependency version pinning | Load-bearing crates pinned | NFR-009 |
-| Public API stability (semver) | Consumer contract | NFR-010 |
-| **`cargo-fuzz` on untrusted-input surfaces** | Coverage-guided fuzzing (incl. v0.3 `load_repo` + resolution) | NFR-011 |
-| ~~`cargo miri test --lib`~~ **RETIRED** (ADR 0006) | Removed — zero first-party `unsafe` (now compile-enforced by `forbid`); dependency UB → cargo-audit; Miri false-positived on rayon | NFR-012 (retired) |
-| **`cargo-mutants` on high-value paths** | Test-quality validation | NFR-013 |
-| **`cargo-audit` daily + on PR** | RustSec advisory check | NFR-014 |
-| **`loom` on the parallel-walk path** *(v0.3)* | Exhaustive interleaving for the rayon fan-out (FR-024) | NFR-017 |
-| **`TSAN` on the Python extension** *(v0.3)* | Data races in the GIL-release window (FR-023) | NFR-018 |
-| **`ASAN` on the Python extension** *(v0.3)* | Memory errors in FFI object handoff (FR-023) | NFR-018 |
+| `cargo fmt --check` | Formatting drift | [StR-004](./stakeholder/StR-004-safety-scaffolding-inheritance.md) (inherited) |
+| `cargo clippy -- -D warnings` | Lint discipline | [StR-004](./stakeholder/StR-004-safety-scaffolding-inheritance.md) (inherited) |
+| `#![forbid(unsafe_code)]` (default build) | Zero first-party `unsafe` — compile-time impossible (scoped off for `python`) | [NFR-003](./non-functional/NFR-003-zero-unsafe.md) |
+| `// SAFETY:` comment enforcement | Unsafe-comment baseline (covers the `python` build where forbid is off) | [NFR-003](./non-functional/NFR-003-zero-unsafe.md) |
+| Zero `unsafe` blocks | Memory-safety surface = empty | [NFR-003](./non-functional/NFR-003-zero-unsafe.md) |
+| `cargo deny check licenses` | License hygiene | [NFR-004](./non-functional/NFR-004-license-hygiene.md) |
+| `proptest` (determinism + roundtrip) | Property testing | [NFR-006](./non-functional/NFR-006-determinism.md) |
+| Dependency version pinning | Load-bearing crates pinned | [NFR-009](./non-functional/NFR-009-dependency-pinning.md) |
+| Public API stability (semver) | Consumer contract | [NFR-010](./non-functional/NFR-010-api-stability.md) |
+| **`cargo-fuzz` on untrusted-input surfaces** | Coverage-guided fuzzing (incl. v0.3 `load_repo` + resolution) | [NFR-011](./non-functional/NFR-011-fuzz-testing.md) |
+| ~~`cargo miri test --lib`~~ **RETIRED** (ADR 0006) | Removed — zero first-party `unsafe` (now compile-enforced by `forbid`); dependency UB → cargo-audit; Miri false-positived on rayon | [NFR-012](./non-functional/NFR-012-miri-ub-check.md) (retired) |
+| **`cargo-mutants` on high-value paths** | Test-quality validation | [NFR-013](./non-functional/NFR-013-mutation-testing.md) |
+| **`cargo-audit` daily + on PR** | RustSec advisory check | [NFR-014](./non-functional/NFR-014-advisory-checking.md) |
+| **`loom` on the parallel-walk path** *(v0.3)* | Exhaustive interleaving for the rayon fan-out ([FR-024](./functional/FR-024-parallel-repo-walk.md)) | [NFR-017](./non-functional/NFR-017-concurrency-permutation.md) |
+| **`TSAN` on the Python extension** *(v0.3)* | Data races in the GIL-release window ([FR-023](./functional/FR-023-python-binding-surface.md)) | [NFR-018](./non-functional/NFR-018-ffi-sanitizer-lanes.md) |
+| **`ASAN` on the Python extension** *(v0.3)* | Memory errors in FFI object handoff ([FR-023](./functional/FR-023-python-binding-surface.md)) | [NFR-018](./non-functional/NFR-018-ffi-sanitizer-lanes.md) |
 
 ### v0.3 re-review (corpus + bindings)
 
-The v0.3 surface — rayon data-parallelism (FR-024), a CPython C-ABI boundary (FR-023), and untrusted on-disk trees — invalidated two v1 skip rationales. **loom** (was skipped: "no synchronization primitives") and the **address/thread sanitizers** (were skipped: "marginal for safe Rust above the unsafe-comment audit") are now adopted, scoped to the new surfaces. The remaining skips below were re-examined against v0.3 and still hold, with refreshed rationale.
+The v0.3 surface — rayon data-parallelism ([FR-024](./functional/FR-024-parallel-repo-walk.md)), a CPython C-ABI boundary ([FR-023](./functional/FR-023-python-binding-surface.md)), and untrusted on-disk trees — invalidated two v1 skip rationales. **loom** (was skipped: "no synchronization primitives") and the **address/thread sanitizers** (were skipped: "marginal for safe Rust above the unsafe-comment audit") are now adopted, scoped to the new surfaces. The remaining skips below were re-examined against v0.3 and still hold, with refreshed rationale.
 
 ### Skipped (with rationale)
 
 | Tool | Skipped because |
 |---|---|
-| **kani** (model checker) | Best for algorithm kernels with complex invariants and bounded state. `quire-rs` parser is a linear walk; slug normalization is straightforward. v0.3 reference resolution (FR-026) is a hash-join with no complex invariant. `proptest` already covers the relevant invariants at lower operational cost. |
-| **shuttle** (randomized scheduler) | `loom` (NFR-017) adopted instead for the one concurrent path (the FR-024 data-parallel collect). At v0.3's concurrency size, loom's exhaustive small-scope checking is sufficient and stronger than shuttle's randomized scheduling. Reconsider shuttle only if a future version adds shared-mutable concurrency (a cache/pool). |
-| **cargo-careful** (std-with-debug-asserts) | Marginal for a `forbid(unsafe_code)` pure-Rust core (no first-party `unsafe`); dependency advisories are covered by cargo-audit. (The FFI boundary cargo-careful cannot reach is covered by NFR-018 sanitizers.) |
-| **cargo-vet** (supply-chain attestation) | High org-wide operational lift (audits, vetted versions, maintained `audits.toml`). v0.3 expands the dependency surface (`ignore`, `rayon`, `sha2`, `uuid`; `pyo3`/`maturin` feature-gated), which raises the *priority* for org-level adoption — but it remains better adopted org-wide than crate-by-crate. `cargo-audit` (NFR-014) covers advisories meanwhile. Defer to ix-org policy. |
+| **kani** (model checker) | Best for algorithm kernels with complex invariants and bounded state. `quire-rs` parser is a linear walk; slug normalization is straightforward. v0.3 reference resolution ([FR-026](./functional/FR-026-intra-spec-reference-resolution.md)) is a hash-join with no complex invariant. `proptest` already covers the relevant invariants at lower operational cost. |
+| **shuttle** (randomized scheduler) | `loom` ([NFR-017](./non-functional/NFR-017-concurrency-permutation.md)) adopted instead for the one concurrent path (the [FR-024](./functional/FR-024-parallel-repo-walk.md) data-parallel collect). At v0.3's concurrency size, loom's exhaustive small-scope checking is sufficient and stronger than shuttle's randomized scheduling. Reconsider shuttle only if a future version adds shared-mutable concurrency (a cache/pool). |
+| **cargo-careful** (std-with-debug-asserts) | Marginal for a `forbid(unsafe_code)` pure-Rust core (no first-party `unsafe`); dependency advisories are covered by cargo-audit. (The FFI boundary cargo-careful cannot reach is covered by [NFR-018](./non-functional/NFR-018-ffi-sanitizer-lanes.md) sanitizers.) |
+| **cargo-vet** (supply-chain attestation) | High org-wide operational lift (audits, vetted versions, maintained `audits.toml`). v0.3 expands the dependency surface (`ignore`, `rayon`, `sha2`, `uuid`; `pyo3`/`maturin` feature-gated), which raises the *priority* for org-level adoption — but it remains better adopted org-wide than crate-by-crate. `cargo-audit` ([NFR-014](./non-functional/NFR-014-advisory-checking.md)) covers advisories meanwhile. Defer to ix-org policy. |
 | **Big-endian qemu tests** | `quire-rs` is text-in / text-out. v0.3 id derivation (SHA-256 → UUID5) is byte-deterministic regardless of host endianness; no endian-sensitive binary serialization. |
 | **SIMD differential tests** | `quire-rs` does not use SIMD. rayon data-parallelism is task-level, not SIMD. |
 | **pgrx multi-version test lanes** | N/A — `quire-rs` is not a PostgreSQL extension. |
 
-**Moved to Adopted in v0.3:** `loom` (now NFR-017), `-Z sanitizer=thread` + `-Z sanitizer=address` (now NFR-018). See the Adopted table above.
+**Moved to Adopted in v0.3:** `loom` (now [NFR-017](./non-functional/NFR-017-concurrency-permutation.md)), `-Z sanitizer=thread` + `-Z sanitizer=address` (now [NFR-018](./non-functional/NFR-018-ffi-sanitizer-lanes.md)). See the Adopted table above.
 
 ### Implementation notes
 
-- Fuzz / mutants / **loom (NFR-017)** / **TSAN + ASAN (NFR-018)** run on weekly schedule + workflow_dispatch + tag push — NOT per-PR. Per-PR jobs are the cookiecutter floor (fmt/clippy/test/deny/audit-unsafe/audit-static) plus `cargo-audit`. Heavy hardening lanes are scheduled to keep PR latency low.
+- Fuzz / mutants / **loom ([NFR-017](./non-functional/NFR-017-concurrency-permutation.md))** / **TSAN + ASAN ([NFR-018](./non-functional/NFR-018-ffi-sanitizer-lanes.md))** run on weekly schedule + workflow_dispatch + tag push — NOT per-PR. Per-PR jobs are the cookiecutter floor (fmt/clippy/test/deny/audit-unsafe/audit-static) plus `cargo-audit`. Heavy hardening lanes are scheduled to keep PR latency low.
 - `make ci` runs the per-PR set locally. `make hardening` runs the scheduled set locally for pre-tag verification (now incl. `make loom` + `make sanitize`).
-- **Miri retired (ADR 0006):** first-party `unsafe` is compile-impossible via `#![forbid(unsafe_code)]` (NFR-003-AC-5), so there is no first-party UB surface; dependency advisories are covered by `cargo-audit` (NFR-014). The `python`-feature binding layer is covered by the pytest harness (FR-023) + the sanitizer lanes (NFR-018).
+- **Miri retired (ADR 0006):** first-party `unsafe` is compile-impossible via `#![forbid(unsafe_code)]` ([NFR-003-AC-5](./non-functional/NFR-003-zero-unsafe.md)), so there is no first-party UB surface; dependency advisories are covered by `cargo-audit` ([NFR-014](./non-functional/NFR-014-advisory-checking.md)). The `python`-feature binding layer is covered by the pytest harness ([FR-023](./functional/FR-023-python-binding-surface.md)) + the sanitizer lanes ([NFR-018](./non-functional/NFR-018-ffi-sanitizer-lanes.md)).
 - Discovered crashes / UB / advisory hits are P0 — fix or contain before next release.
 
 ---
@@ -840,7 +840,7 @@ Canonical definitions for terms used throughout the spec. When in doubt, this se
 | **CompiledArchetype** | The runtime representation of a single archetype after loading: a compiled JSON Schema validator + a pre-parsed MiniJinja template + manifest metadata. `Send + Sync`. Held inside a `Registry`. |
 | **Module** | A directory containing `manifest.yaml` + `schemas/` + `templates/` (and/or `object_types/` for object archetypes). Identified by its manifest's `name:` field (or parent dir if unset). Multiple modules coexist in one `Registry`. |
 | **Registry** | The runtime container holding all `CompiledArchetype` instances loaded from one or more search paths. `Send + Sync`. Immutable after construction; reload = construct a new `Registry`. |
-| **Locator** | A DSL primitive that describes how to find a value in a parsed document. One of: `frontmatter_field`, `section_body`, `code_block`, `table_row`, `list_item`, `heading`. May be wrapped in a `Fallback(Vec<Primitive>)` chain (FR-016). |
+| **Locator** | A DSL primitive that describes how to find a value in a parsed document. One of: `frontmatter_field`, `section_body`, `code_block`, `table_row`, `list_item`, `heading`. May be wrapped in a `Fallback(Vec<Primitive>)` chain ([FR-016](./functional/FR-016-secondary-locators.md)). |
 | **Yield pattern** | A DSL construct under `body_extraction.yield_pattern` that determines whether extraction emits one record per document (`match`) or one record per iteration unit (`iterate_over` + `per_match`). |
 | **Diagnostic** | A non-error informational message emitted by the engine (e.g. `DuplicateArchetype`, `FallbackLocatorUsed`). Surfaced in result types alongside the primary value; non-fatal. |
 | **QuireError** | The crate's typed error enum returned in `Result<_, QuireError>` for all fallible operations. Variants are non-exhaustive. Each variant carries enough context (field path, file path, archetype name) for actionable handling. |

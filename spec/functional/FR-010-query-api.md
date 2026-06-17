@@ -60,5 +60,5 @@ Semantics match `agent-ix/quire/src/core/query.ts` exactly:
 
 ## Dependencies
 
-- **Upstream**: US-002, StR-003
+- **Upstream**: [US-002](../usecase/US-002-developer-parses-spec-doc.md), [StR-003](../stakeholder/StR-003-parse-parity-with-quire.md)
 - **Downstream**: none

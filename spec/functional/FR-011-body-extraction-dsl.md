@@ -31,10 +31,10 @@ A `Locator` describes how to find one or more values in a parsed `QuireDocument`
 > **CR-005 (heading number normalization, 2026-06):** the `from: heading` locator
 > resolves and projects the **section-number-normalized** heading text (stripping a
 > leading `\d+(\.\d+)*\.?` prefix), the same normalization `section_body` /
-> `after_heading` already applies (FR-010). ISO section numbering (`## 2. Scope`) is
+> `after_heading` already applies ([FR-010](./FR-010-query-api.md)). ISO section numbering (`## 2. Scope`) is
 > therefore decorative: a `regex: ^Scope$` heading locator matches both `## Scope`
 > and `## 2. Scope`. This makes the master-requirements archetype (spec-artifacts-iso
-> FR-003) validate the numbered specs that dominate the corpus without forcing a
+> [FR-003](./FR-003-archetype-schema-surface.md)) validate the numbered specs that dominate the corpus without forcing a
 > renumbering sweep. See FR-011-AC-20.
 
 ### Section-owned `code_block` resolution — CR-003
@@ -56,7 +56,7 @@ and a `code_block` assert under iteration checks only that unit's content.
 > `spec-objects-business`) are single-yield with a unique `after_heading`. The fix makes
 > the locator read the section content slice (`diagrams_from_content(&content, …)`)
 > while the document-wide `extract_diagrams` remains a **separate harvest query**
-> (US-010 / RAG), no longer the locator substrate. No manifest/schema change: the three
+> ([US-010](../usecase/US-010-llm-extracts-for-rag.md) / RAG), no longer the locator substrate. No manifest/schema change: the three
 > object types already declare `after_heading`.
 
 ### Fence-character parity for `code_block` — CR-004
@@ -67,12 +67,12 @@ The fenced-code-block scanner that backs `code_block` (and the document-wide
 SHALL close a block ONLY on a fence line whose character **matches** the opening
 fence. A `~~~` line inside a ` ``` ` block (and a ` ``` ` line inside a `~~~` block)
 is **content**, not a close. This mirrors the parser's heading-walk fence model
-(FR-007-AC-3 tilde support, FR-007-AC-4 matching-character independence), so the
+([FR-007-AC-3](./FR-007-fenced-block-heading-walk.md) tilde support, [FR-007-AC-4](./FR-007-fenced-block-heading-walk.md) matching-character independence), so the
 heading walk and the code-block scanner agree on what opens and closes a block.
 
 > **CR-004 note:** The original scanner (`src/query.rs`) recognized backtick fences
 > only (`^```(\w*)`), matching the TS reference's `extractDiagrams`. The parser's
-> heading walk already handled `~~~` (FR-007-AC-3/AC-4); the scanner did not, so a
+> heading walk already handled `~~~` ([FR-007-AC-3](./FR-007-fenced-block-heading-walk.md)/AC-4); the scanner did not, so a
 > `~~~`-fenced diagram was invisible to `code_block`/`extract_diagrams` even though
 > the same block correctly suppressed inner headings during the parse walk. The fix
 > extends the scanner to the same two-fence, matching-character model. This is an
@@ -96,14 +96,14 @@ rule:
   locator contributes nothing); it is not a load error here (the DSL validator may
   separately flag it).
 
-The `regex` projection is independent of the `assert.id_pattern` facet (FR-033):
+The `regex` projection is independent of the `assert.id_pattern` facet ([FR-033](./FR-033-locator-assert-facet.md)):
 `regex` shapes the *extracted* value; `id_pattern` *checks* it at validate time.
 
 ### Whole-value `{{...}}` rule
 
 A resolved value whose trimmed content is a single unresolved `{{ … }}` template
 marker is treated as a placeholder (empty for extraction purposes; reason
-`placeholder` at validate time per FR-032). A `{{…}}` token embedded inside otherwise
+`placeholder` at validate time per [FR-032](./FR-032-validate-document.md)). A `{{…}}` token embedded inside otherwise
 substantive content does NOT trigger this rule — only a whole-value marker does.
 
 ### Substrate when `under_section` is `None`
@@ -172,7 +172,7 @@ When a manifest entry's `body_extraction` is loaded, the loader SHALL validate t
 
 ### Bounded output
 
-Per-call output is bounded by document size: `records.len() <= max(headings, list_items, table_rows)` for multi-yield; `records.len() <= 1` for single-yield. The engine does NOT impose an additional cap. Pathological documents (millions of iteration units) consume memory proportional to output size; consumers SHOULD bound input via NFR-002's 5 MB envelope.
+Per-call output is bounded by document size: `records.len() <= max(headings, list_items, table_rows)` for multi-yield; `records.len() <= 1` for single-yield. The engine does NOT impose an additional cap. Pathological documents (millions of iteration units) consume memory proportional to output size; consumers SHOULD bound input via [NFR-002](../non-functional/NFR-002-parse-latency.md)'s 5 MB envelope.
 
 ### Public API
 
@@ -192,10 +192,10 @@ pub struct ExtractionResult {
 A `body_extraction` MAY declare an `emit_edges:` list. Each spec projects an edge
 `{ record_index, type, target }` from a field of each extracted record (single- or
 multi-yield). These record-derived edges are distinct from the per-document
-frontmatter/`ix://` harvest (`harvest_edges`, FR-028-AC-6): `emit_edges` traces
+frontmatter/`ix://` harvest (`harvest_edges`, [FR-028-AC-6](./FR-028-expanded-python-binding-surface.md)): `emit_edges` traces
 *extracted record fields* to targets, while `harvest_edges` traces *frontmatter
 `relationships` + body links*. Both surface through the Python `extract()` envelope's
-`edges` key (FR-028-AC-4/AC-9).
+`edges` key ([FR-028-AC-4](./FR-028-expanded-python-binding-surface.md)/AC-9).
 
 Single-yield DSLs return `records.len() <= 1`; multi-yield returns one record per iteration unit.
 
@@ -211,16 +211,16 @@ Single-yield DSLs return `records.len() <= 1`; multi-yield returns one record pe
 | FR-011-AC-7 | A DSL with an unknown key (e.g. `from: section_bodyy` typo) produces `QuireError::ArchetypeLoadError` at load time. | Test |
 | FR-011-AC-8 | A DSL with `iterate_over.section_path: [Nonexistent]` against a document missing that section returns `ExtractionResult { records: [], diagnostics: [IterateRootMissing] }`. | Test |
 | FR-011-AC-13 | A `code_block` `per_match` locator under `iterate_over` is section-owned: against a document where each iteration unit owns its own fenced block, each yielded record receives its own unit's block (not unit #1's for all), and a `required: true` `code_block` locator returns `QuireError::MissingField` for the specific unit that lacks a block — proving containment, not a document-wide fallback. A single-yield `code_block under: X` returns only `X`'s block, excluding a same-language block in a different section. | Test |
-| FR-011-AC-14 | The fenced-code-block scanner recognizes both backtick and tilde fences and closes a block only on a matching-character fence line (parity with the FR-007 parser fence model): a `~~~mermaid` block is extracted with language `mermaid`; a tilde line inside a backtick block (and vice versa) is content, not a close; an unclosed `~~~` block is flushed as the final block; and a section-owned `code_block` locator resolves a `~~~` block under its heading. | Test |
+| FR-011-AC-14 | The fenced-code-block scanner recognizes both backtick and tilde fences and closes a block only on a matching-character fence line (parity with the [FR-007](./FR-007-fenced-block-heading-walk.md) parser fence model): a `~~~mermaid` block is extracted with language `mermaid`; a tilde line inside a backtick block (and vice versa) is content, not a close; an unclosed `~~~` block is flushed as the final block; and a section-owned `code_block` locator resolves a `~~~` block under its heading. | Test |
 | FR-011-AC-15 | A locator with `regex: '(\d+)'` projects capture group 1 from its resolved value; with `regex: '\d+'` (no group) it projects group 0 (the whole match); a value that does not match drops the key (`required:false`) or returns `MissingField` (`required:true`); and an invalid (uncompilable) `regex` yields an empty projected value (the locator contributes nothing, no panic). | Test |
 | FR-011-AC-16 | A `table_row` locator with `under_section: None` resolves against the joined section bodies of the whole document and uses the first table found (first-then-any for a required column); a `list_item`/`code_block` locator with `under_section: None` likewise reads the joined-body substrate. | Test |
 | FR-011-AC-17 | A required locator whose trimmed resolved value is a whole-value `{{ id }}` marker contributes no extracted value (placeholder); the same `{{x}}` token embedded mid-prose does not trigger the whole-value rule and the surrounding content is extracted normally. | Test |
-| FR-011-AC-18 | An unclosed fenced block — both backtick and tilde variants — is flushed as the final block (its trailing content is part of the block, not a phantom following block), parity with the parser's FR-007 unclosed-fence behavior. | Test |
+| FR-011-AC-18 | An unclosed fenced block — both backtick and tilde variants — is flushed as the final block (its trailing content is part of the block, not a phantom following block), parity with the parser's [FR-007](./FR-007-fenced-block-heading-walk.md) unclosed-fence behavior. | Test |
 | FR-011-AC-19 | A `body_extraction` declaring `emit_edges: [{from: <field>, type: <t>}]` projects one `{record_index, type, target}` edge per extracted record whose `<field>` resolves to a target, in `ExtractionResult.edges` (single- and multi-yield); records lacking the field emit no edge. These record-derived edges are distinct from `harvest_edges` (frontmatter/`ix://`) and both flow through the Python `extract()` envelope's `edges` key. | Test |
 | FR-011-AC-20 | (CR-005) A `from: heading` locator resolves and projects the section-number-normalized heading text: against a document with `## 2. Scope`, a `regex: ^Scope$` heading locator matches (and a level-only heading locator projects `Scope`, not `2. Scope`) — the same `\d+(\.\d+)*\.?` normalization `section_body`/`after_heading` applies. A bare `## Scope` matches identically. | Test |
 | FR-011-AC-21 | (CR-006) A locator with `multiple: true` yields every resolved value as a JSON array, in document order — a `code_block(mermaid under Workflow)` locator against a section holding two mermaid blocks yields both. Without the flag the same locator yields only the first (unchanged first-wins contract). In a fallback chain the flag is read from the hit primitive; under multi-yield each iteration unit keeps its own full list. | Test |
 
 ## Dependencies
 
-- **Upstream**: US-003, filament-parser-lib
-- **Downstream**: FR-016 (fallback locators extend this evaluator)
+- **Upstream**: [US-003](../usecase/US-003-extractor-evaluates-dsl.md), filament-parser-lib
+- **Downstream**: [FR-016](./FR-016-secondary-locators.md) (fallback locators extend this evaluator)

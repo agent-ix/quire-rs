@@ -20,7 +20,7 @@ relationships:
 ## Description
 
 `quire-rs` SHALL validate a whole **bundle** — a directory tree of authored
-markdown documents loaded as a `Spec` corpus (FR-025) — under one of two
+markdown documents loaded as a `Spec` corpus ([FR-025](./FR-025-spec-corpus-model.md)) — under one of two
 postures, answering two different questions:
 
 ```rust
@@ -34,13 +34,13 @@ pub fn validate_bundle(spec: &Spec, registry: &Registry, posture: BundlePosture,
 pub fn validate_bundle_at(root: &Path, registry: &Registry, posture: BundlePosture) -> BundleReport;
 ```
 
-`validate_bundle_at` loads `root` into a `Spec` (FR-025) then calls
+`validate_bundle_at` loads `root` into a `Spec` ([FR-025](./FR-025-spec-corpus-model.md)) then calls
 `validate_bundle`. A bundle `is_valid()` for its posture iff it has no hard
 errors. `BundlePosture`, `BundleReport`, `BundleFinding`, `validate_bundle`, and
 `validate_bundle_at` are exported from the crate root.
 
 `index.md` / `log.md` keep their archetypes and are validated like any other
-document; only `README.md` / `tests.md` are skipped at walk time (FR-024).
+document; only `README.md` / `tests.md` are skipped at walk time ([FR-024](./FR-024-parallel-repo-walk.md)).
 
 ### `type` is required in BOTH postures
 
@@ -48,8 +48,8 @@ Every document in a bundle MUST carry a non-empty `type` regardless of posture.
 A document with a missing or empty `type` is a **hard error** (reason
 `frontmatter`) under both Strict and Okf. This is the OKF-adoption change: an
 untyped corpus document was previously surfaced only as a non-fatal
-`Diagnostic::UntypedArtifact` warning by the `Spec` indexer (FR-024-AC-6 /
-FR-027-AC-9); the bundle validator now **promotes "untyped" to an error**. The
+`Diagnostic::UntypedArtifact` warning by the `Spec` indexer ([FR-024-AC-6](./FR-024-parallel-repo-walk.md) /
+[FR-027-AC-9](./FR-027-whole-spec-query-api.md)); the bundle validator now **promotes "untyped" to an error**. The
 indexer still records its warning diagnostic for coverage audits; the new strict
 bundle validator is the layer that rejects the document.
 
@@ -60,10 +60,10 @@ document it requires:
 
 - a **known** `type` — one with a registered archetype; an unregistered type is
   an error (reason `unknown-type`);
-- satisfaction of the base concept contract (FR-037 `validate_base_concept`, so
+- satisfaction of the base concept contract ([FR-037](./FR-037-base-concept-schema.md) `validate_base_concept`, so
   mistyped `description`/`tags` are rejected) **and** the document's archetype:
   frontmatter schema + `body_extraction` + heading uniqueness via the existing
-  `validate_document` (FR-032);
+  `validate_document` ([FR-032](./FR-032-validate-document.md));
 - resolvable `ix://` references — a dangling reference is an error (reason
   `dangling-reference`);
 - index completeness (below).
@@ -99,9 +99,9 @@ warning under Okf.
 | FR-038-AC-5 | A directory whose `index.md` omits a sibling artifact yields an `index-incomplete` finding naming the missing file — an error under `Strict`, a warning under `Okf`. | Test |
 | FR-038-AC-6 | A bundle-root `index.md` lacking `okf_version` in frontmatter yields an `index-okf-version` error under `Strict`. | Test |
 | FR-038-AC-7 | A subdirectory `index.md` without `okf_version` does not produce an `index-okf-version` finding (only the bundle root must declare it); an otherwise-conformant nested bundle is `is_valid()` under `Strict`. | Test |
-| FR-038-AC-8 | Under `Strict`, a document with a known `type` but a mistyped optional `description` (e.g. `description: 7`) is `!is_valid()` with an error naming `description` (the base concept contract, FR-037, runs as part of bundle validation). | Test |
+| FR-038-AC-8 | Under `Strict`, a document with a known `type` but a mistyped optional `description` (e.g. `description: 7`) is `!is_valid()` with an error naming `description` (the base concept contract, [FR-037](./FR-037-base-concept-schema.md), runs as part of bundle validation). | Test |
 
 ## Dependencies
 
-- **Upstream**: FR-037 (requires), FR-025 (requires), FR-026 (requires), FR-032 (requires)
+- **Upstream**: [FR-037](./FR-037-base-concept-schema.md) (requires), [FR-025](./FR-025-spec-corpus-model.md) (requires), [FR-026](./FR-026-intra-spec-reference-resolution.md) (requires), [FR-032](./FR-032-validate-document.md) (requires)
 - **Downstream**: none

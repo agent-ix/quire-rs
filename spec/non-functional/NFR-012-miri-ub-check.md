@@ -12,7 +12,7 @@ relationships:
 ---
 
 > **RETIRED (2026-06, CR — supersedes the Miri job; see ADR 0006).** The Miri job
-> is removed. First-party UB is now a **compile-time impossibility**: NFR-003-AC-5
+> is removed. First-party UB is now a **compile-time impossibility**: [NFR-003-AC-5](./NFR-003-zero-unsafe.md)
 > makes the default build carry `#![forbid(unsafe_code)]`, so any first-party
 > `unsafe` is a hard compile error (Miri's runtime check is moot — there is nothing
 > first-party for it to interpret). Miri's only remaining rationale here was
@@ -20,7 +20,7 @@ relationships:
 > **Stacked-Borrows false-positive inside rayon's thread pool** (a sound, upstream-
 > Miri-tested crate), ran >1h, and `rust-lib-cookiecutter` treats "miri-on-main" as
 > opt-in. Dependency unsoundness is covered by **cargo-audit** (RUSTSEC advisories,
-> NFR-014) + tight pins (NFR-009); the concurrency surface by **loom** (NFR-017).
+> [NFR-014](./NFR-014-advisory-checking.md)) + tight pins ([NFR-009](./NFR-009-dependency-pinning.md)); the concurrency surface by **loom** ([NFR-017](./NFR-017-concurrency-permutation.md)).
 > All ACs below are retired (un-bolded; excluded from the AC→TC integrity tally).
 
 ## Statement
@@ -28,7 +28,7 @@ relationships:
 **RETIRED (2026-06, CR — supersedes the Miri job; see ADR 0006).** The original
 requirement below is retired and kept for history only.
 
-`quire-rs` SHALL run `cargo +nightly miri test --lib` on a CI schedule (weekly + workflow_dispatch + on every tag push). miri detects undefined behavior at runtime — even with zero first-party `unsafe` (NFR-003), miri can catch UB introduced by dependency crates (validator, MiniJinja internals, serde, etc.).
+`quire-rs` SHALL run `cargo +nightly miri test --lib` on a CI schedule (weekly + workflow_dispatch + on every tag push). miri detects undefined behavior at runtime — even with zero first-party `unsafe` ([NFR-003](./NFR-003-zero-unsafe.md)), miri can catch UB introduced by dependency crates (validator, MiniJinja internals, serde, etc.).
 
 ### Operational policy
 
@@ -39,7 +39,7 @@ requirement below is retired and kept for history only.
 
 ### Scope: the FFI boundary (v0.3)
 
-miri has **no support for the CPython C-API foreign calls** introduced by the PyO3 binding (FR-023). The miri job therefore runs the **default feature set (without `python`)** — it covers the pure-Rust engine (parser, loader, render, validate, corpus, resolution) but cannot execute or check the binding layer. UB and memory-safety in the FFI layer is covered instead by Python-level tests (the pytest harness, FR-023 TCs) and the scheduled sanitizer lanes (NFR-018, ASAN/TSAN on the built extension). This division is deliberate: miri for the safe-Rust core, sanitizers for the FFI boundary.
+miri has **no support for the CPython C-API foreign calls** introduced by the PyO3 binding ([FR-023](../functional/FR-023-python-binding-surface.md)). The miri job therefore runs the **default feature set (without `python`)** — it covers the pure-Rust engine (parser, loader, render, validate, corpus, resolution) but cannot execute or check the binding layer. UB and memory-safety in the FFI layer is covered instead by Python-level tests (the pytest harness, [FR-023](../functional/FR-023-python-binding-surface.md) TCs) and the scheduled sanitizer lanes ([NFR-018](./NFR-018-ffi-sanitizer-lanes.md), ASAN/TSAN on the built extension). This division is deliberate: miri for the safe-Rust core, sanitizers for the FFI boundary.
 
 ### Known cost
 
@@ -55,14 +55,14 @@ Even safe Rust can encounter UB through unsound dep crates. miri's runtime check
 - NFR-012-AC-2 (RETIRED): The job uses caching (`Swatinem/rust-cache@v2`) to amortize the nightly toolchain install.
 - NFR-012-AC-3 (RETIRED): Test suite under `cargo miri test --lib` completes in under 30 minutes on the GitHub-hosted Ubuntu runner.
 - NFR-012-AC-4 (RETIRED): A miri-flagged UB violation is recorded as a P0 issue with the offending stack trace.
-- NFR-012-AC-5 (RETIRED): The `miri` job runs without the `python` feature; a doc note records that the FFI layer is out of miri's scope and is covered by NFR-018 sanitizer lanes + the FR-023 pytest harness.
+- NFR-012-AC-5 (RETIRED): The `miri` job runs without the `python` feature; a doc note records that the FFI layer is out of miri's scope and is covered by [NFR-018](./NFR-018-ffi-sanitizer-lanes.md) sanitizer lanes + the [FR-023](../functional/FR-023-python-binding-surface.md) pytest harness.
 
 ## Measurement and Evaluation
 
 | Metric | Target | Threshold | Method |
 |--------|--------|-----------|--------|
 | Miri job (RETIRED) — UB violations on safe-Rust core | 0 | 0 | Scheduled CI Gate (retired; superseded by `forbid(unsafe_code)`) |
-| First-party UB surface remaining after `#![forbid(unsafe_code)]` | 0 | 0 | Compile-time check (NFR-003) |
+| First-party UB surface remaining after `#![forbid(unsafe_code)]` | 0 | 0 | Compile-time check ([NFR-003](./NFR-003-zero-unsafe.md)) |
 
 ## Verification
 

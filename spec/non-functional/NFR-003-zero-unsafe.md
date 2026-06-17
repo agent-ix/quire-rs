@@ -24,18 +24,18 @@ If a future release introduces an `unsafe` block (e.g. for FFI), the addition re
 > `unsafe` in the default build is a hard **compile error**. The forbid is scoped
 > off for `--features python` (PyO3 macros expand to `unsafe` in-crate); that build
 > stays covered by `check_unsafe_comments.sh` (AC-1/AC-4). This supersedes the
-> scheduled Miri job (NFR-012, retired): with zero first-party `unsafe` enforced at
+> scheduled Miri job ([NFR-012](./NFR-012-miri-ub-check.md), retired): with zero first-party `unsafe` enforced at
 > compile time, there is no first-party UB surface for Miri to interpret; dependency
-> advisories are covered by `cargo-audit` (NFR-014) and the concurrency surface by
-> `loom` (NFR-017).
+> advisories are covered by `cargo-audit` ([NFR-014](./NFR-014-advisory-checking.md)) and the concurrency surface by
+> `loom` ([NFR-017](./NFR-017-concurrency-permutation.md)).
 
 ## Rationale
 
-Inheriting from `agent-ix/ecaz` (StR-004), unsafe code is the highest-risk surface in a Rust crate. A markdown parser + templating engine has no legitimate need for unsafe in v1 — every operation can be expressed in safe Rust with negligible performance penalty.
+Inheriting from `agent-ix/ecaz` ([StR-004](../stakeholder/StR-004-safety-scaffolding-inheritance.md)), unsafe code is the highest-risk surface in a Rust crate. A markdown parser + templating engine has no legitimate need for unsafe in v1 — every operation can be expressed in safe Rust with negligible performance penalty.
 
 ### Scope: the `python` feature (v0.3)
 
-The PyO3 binding (FR-023) is feature-gated. PyO3's `#[pyclass]`/`#[pymethods]`/`#[pymodule]` macros expand to `unsafe` internally, but that unsafe is **upstream** (in the `pyo3` crate), not first-party `quire-rs` source. The zero-unsafe invariant therefore SHALL hold for **first-party source under all feature combinations**, including `--features python`: `quire-rs`'s own `src/python/` module SHALL contain no hand-written `unsafe` blocks. If a PyO3 pattern genuinely requires a first-party `unsafe` block, it follows the same three-step process above (SAFETY comment + review + ADR) and is added to the baseline with rationale.
+The PyO3 binding ([FR-023](../functional/FR-023-python-binding-surface.md)) is feature-gated. PyO3's `#[pyclass]`/`#[pymethods]`/`#[pymodule]` macros expand to `unsafe` internally, but that unsafe is **upstream** (in the `pyo3` crate), not first-party `quire-rs` source. The zero-unsafe invariant therefore SHALL hold for **first-party source under all feature combinations**, including `--features python`: `quire-rs`'s own `src/python/` module SHALL contain no hand-written `unsafe` blocks. If a PyO3 pattern genuinely requires a first-party `unsafe` block, it follows the same three-step process above (SAFETY comment + review + ADR) and is added to the baseline with rationale.
 
 ## Acceptance Criteria
 

@@ -45,5 +45,5 @@ Slug normalization is ASCII-only at v1 (matching TS/Py reference). Non-ASCII hea
 
 ## Dependencies
 
-- **Upstream**: US-002, StR-003
+- **Upstream**: [US-002](../usecase/US-002-developer-parses-spec-doc.md), [StR-003](../stakeholder/StR-003-parse-parity-with-quire.md)
 - **Downstream**: none

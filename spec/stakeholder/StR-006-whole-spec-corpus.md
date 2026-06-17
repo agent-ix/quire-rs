@@ -46,4 +46,4 @@ Should-Have
 - **StR-006-AC-2**: Given a loaded spec, a query returns every artifact of a given type (e.g. all `FR`) and every artifact that references a given artifact id (reverse-edge lookup), entirely from the in-memory structure.
 - **StR-006-AC-3**: A reference whose target id is **not present** in the loaded set is reported as a *dangling* reference rather than an error — the corpus loads successfully and surfaces the dangling edge as a queryable diagnostic.
 - **StR-006-AC-4**: The corpus performs **no** persistence, no background reload, and no resolution of references that target a spec outside the loaded set — confirmed by the absence of any such API on the corpus surface.
-- **StR-006-AC-5**: The corpus value is `Send + Sync` and immutable after construction (same lifecycle contract as `Registry`, StR-001-derived), so a long-lived consumer can share it across threads for read-only analysis.
+- **StR-006-AC-5**: The corpus value is `Send + Sync` and immutable after construction (same lifecycle contract as `Registry`, [StR-001](./StR-001-single-rust-engine.md)-derived), so a long-lived consumer can share it across threads for read-only analysis.
