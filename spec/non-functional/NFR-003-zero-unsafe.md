@@ -45,6 +45,16 @@ The PyO3 binding (FR-023) is feature-gated. PyO3's `#[pyclass]`/`#[pymethods]`/`
 - **NFR-003-AC-4**: `rg 'unsafe\s*\{' src/` returns zero matches **with the `python` feature enabled** (first-party binding source is unsafe-free; PyO3 macro-generated unsafe is upstream and not counted).
 - **NFR-003-AC-5**: The crate root declares `#![cfg_attr(not(feature = "python"), forbid(unsafe_code))]`; the **default** `cargo build` compiles (the compiler proves zero first-party `unsafe`), and introducing any first-party `unsafe` block/fn/`impl` makes the default build **fail to compile**. `cargo build --features python` compiles with the forbid scoped off.
 
+## Measurement and Evaluation
+
+| Metric | Target | Threshold | Method |
+|--------|--------|-----------|--------|
+| First-party `unsafe` blocks in `src/` (default build) | 0 | 0 | Static Analysis (`rg 'unsafe\s*\{' src/`) |
+| First-party `unsafe` blocks with `--features python` | 0 | 0 | Static Analysis |
+| `scripts/check_unsafe_comments.sh` exit status | 0 | 0 | CI Gate |
+| `scripts/unsafe_comment_baseline.txt` entries | 0 (empty) | 0 | CI Gate |
+| Default build compiles under `#![forbid(unsafe_code)]` | Pass | Pass | Compile-time check |
+
 ## Verification
 
 - CI workflow `.github/workflows/ci.yml` runs `bash scripts/check_unsafe_comments.sh` as a required job.

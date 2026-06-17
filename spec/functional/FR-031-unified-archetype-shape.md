@@ -25,7 +25,7 @@ relationships:
 > field. FR-031-AC-1/AC-2 below are recast from renderability assertions to the
 > validate/extract surface. See `spec.md` §2bis.
 
-## Behavior
+## Description
 
 Per ADR 0003, `quire-rs` SHALL compile every manifest archetype into a **single**
 `CompiledArchetype`, removing the `artifact_type` / `object_type` distinction
@@ -54,11 +54,18 @@ and no dual-read** of the deprecated shape (no backward-compatibility layer).
 
 `Registry` lookup by archetype name (FR-013) is unchanged.
 
-## Acceptance
+## Acceptance Criteria
 
-- **FR-031-AC-1**: A manifest archetype declaring `frontmatter_schema_ref` + `body_extraction` compiles to one `CompiledArchetype` that is validatable (frontmatter schema) and extractable (resolvable body contract); no renderability concept is exposed.
-- **FR-031-AC-2**: A manifest archetype declaring `frontmatter_schema_ref` but no `body_extraction` compiles successfully and is validatable by frontmatter schema; `body_extraction()` returns `None`.
-- **FR-031-AC-3**: `defaults.id_pattern`, `allowed_links`, `has_plugin`, and `grammar_ref` are retained on the compiled archetype and readable via accessors.
-- **FR-031-AC-4**: `frontmatter_schema_ref` and `data_schema` are both retained as distinct compiled validators (frontmatter vs extracted record); neither is collapsed into the other.
-- **FR-031-AC-5**: A manifest archetype that still declares `required_sections`, `variants`, or `template_ref` is **rejected** with an `ArchetypeLoadFailure` naming the archetype and the deprecated field; it does NOT load (no tolerate/ignore path).
-- **FR-031-AC-6**: `Registry::archetype(name)` resolves a unified archetype identically to the pre-unification path (same name keying, same first-wins semantics).
+| ID | Criteria | Verification |
+|----|----------|--------------|
+| FR-031-AC-1 | A manifest archetype declaring `frontmatter_schema_ref` + `body_extraction` compiles to one `CompiledArchetype` that is validatable (frontmatter schema) and extractable (resolvable body contract); no renderability concept is exposed. | Test |
+| FR-031-AC-2 | A manifest archetype declaring `frontmatter_schema_ref` but no `body_extraction` compiles successfully and is validatable by frontmatter schema; `body_extraction()` returns `None`. | Test |
+| FR-031-AC-3 | `defaults.id_pattern`, `allowed_links`, `has_plugin`, and `grammar_ref` are retained on the compiled archetype and readable via accessors. | Test |
+| FR-031-AC-4 | `frontmatter_schema_ref` and `data_schema` are both retained as distinct compiled validators (frontmatter vs extracted record); neither is collapsed into the other. | Test |
+| FR-031-AC-5 | A manifest archetype that still declares `required_sections`, `variants`, or `template_ref` is **rejected** with an `ArchetypeLoadFailure` naming the archetype and the deprecated field; it does NOT load (no tolerate/ignore path). | Test |
+| FR-031-AC-6 | `Registry::archetype(name)` resolves a unified archetype identically to the pre-unification path (same name keying, same first-wins semantics). | Test |
+
+## Dependencies
+
+- **Upstream**: FR-013, FR-011
+- **Downstream**: FR-032, FR-033

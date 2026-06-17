@@ -14,7 +14,7 @@ relationships:
 
 ## Story
 
-As an **orchestrator running multiple LLM agents against one artifact** (e.g. a "Behavior" agent and an "Acceptance Criteria" agent both refining one FR), I want each agent's edits scoped to its own block via the stable `{#blk-id}` attribute — so concurrent edits don't collide on heading shifts, line drift, or section reordering, and last-writer-wins per block instead of per file.
+As an **orchestrator** running multiple LLM agents against one artifact (e.g. a "Behavior" agent and an "Acceptance Criteria" agent both refining one FR), I want each agent's edits scoped to its own block via the stable `{#blk-id}` attribute, so that concurrent edits don't collide on heading shifts, line drift, or section reordering, and last-writer-wins per block instead of per file.
 
 ## Context
 

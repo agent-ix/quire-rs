@@ -11,7 +11,7 @@ relationships:
     cardinality: "1:1"
 ---
 
-## Behavior
+## Description
 
 When walking the document body to collect heading positions, the parser SHALL track fenced code block state per the TS/Py reference algorithm:
 
@@ -21,9 +21,16 @@ When walking the document body to collect heading positions, the parser SHALL tr
 4. Mismatched fence types (a backtick fence opened, a tilde line in between) do NOT close the backtick fence — only a matching fence character does.
 5. If the document ends with `in_fence` still true (unclosed fence), trailing lines are treated as inside the block — they are not parsed as headings.
 
-## Acceptance
+## Acceptance Criteria
 
-- **FR-007-AC-1**: For input `## Real\n\`\`\`\n# fake\n\`\`\`\n## Real2`, the parser returns 2 sections (`Real`, `Real2`) — the `# fake` line is inside the fence and not a heading.
-- **FR-007-AC-2**: For input `## Real\n\`\`\`\n## still-inside\n` (no closing fence), the parser returns 1 section (`Real`) — the trailing `## still-inside` is inside the unclosed block.
-- **FR-007-AC-3**: For input `~~~\n# fake\n~~~\n## Real`, the parser returns 1 section (`Real`); the `# fake` is inside the tilde fence.
-- **FR-007-AC-4**: A test transliterated from `~/dev/quire/tests/` covering each variant passes.
+| ID | Criteria | Verification |
+|----|----------|--------------|
+| FR-007-AC-1 | For input `## Real\n\`\`\`\n# fake\n\`\`\`\n## Real2`, the parser returns 2 sections (`Real`, `Real2`) — the `# fake` line is inside the fence and not a heading. | Test |
+| FR-007-AC-2 | For input `## Real\n\`\`\`\n## still-inside\n` (no closing fence), the parser returns 1 section (`Real`) — the trailing `## still-inside` is inside the unclosed block. | Test |
+| FR-007-AC-3 | For input `~~~\n# fake\n~~~\n## Real`, the parser returns 1 section (`Real`); the `# fake` is inside the tilde fence. | Test |
+| FR-007-AC-4 | A test transliterated from `~/dev/quire/tests/` covering each variant passes. | Test |
+
+## Dependencies
+
+- **Upstream**: US-002, StR-003
+- **Downstream**: FR-005 (`parse_document` heading walk relies on this fence tracking)

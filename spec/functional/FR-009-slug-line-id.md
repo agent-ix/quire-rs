@@ -11,7 +11,7 @@ relationships:
     cardinality: "1:1"
 ---
 
-## Behavior
+## Description
 
 `QuireSection.id` SHALL be `<slug>-L<line>` where:
 
@@ -31,12 +31,19 @@ A heading text that produces an empty slug after normalization (e.g. `"## !!!"`,
 
 Slug normalization is ASCII-only at v1 (matching TS/Py reference). Non-ASCII headings parse correctly (the section, content, line index, and heading text are preserved), but the slug collapses non-ASCII characters to `-`. A heading "Café Menu" produces slug `caf-menu`, not `cafe-menu`. Full Unicode slug normalization (e.g. NFD + strip diacritics) is deferred — adding it later is non-breaking for the few documents that depend on the empty-slug behavior, but breaking for any consumer that has cached `caf-menu-L4` style IDs.
 
-## Acceptance
+## Acceptance Criteria
 
-- **FR-009-AC-1**: Heading `"Hello, World!"` at line 0 → id `"hello-world-L0"`.
-- **FR-009-AC-2**: Heading `"2.1 In Scope"` at line 6 → id `"2-1-in-scope-L6"`.
-- **FR-009-AC-3**: Heading `"   leading spaces   "` at line 3 → id `"leading-spaces-L3"`.
-- **FR-009-AC-4**: With a frontmatter block of N lines, a heading on the first body line has line index 0 — frontmatter is NOT counted.
-- **FR-009-AC-5**: A Rust-owned parity test covering each slug variant passes.
-- **FR-009-AC-6**: Heading `"Café Menu"` at line 4 → id `"caf-menu-L4"` (non-ASCII collapses; mirrors TS/Py reference).
-- **FR-009-AC-7**: Heading `"!!!"` at line 7 → id `"-L7"` (degenerate empty slug, line index preserved).
+| ID | Criteria | Verification |
+|----|----------|--------------|
+| FR-009-AC-1 | Heading `"Hello, World!"` at line 0 yields id `"hello-world-L0"`. | Test |
+| FR-009-AC-2 | Heading `"2.1 In Scope"` at line 6 yields id `"2-1-in-scope-L6"`. | Test |
+| FR-009-AC-3 | Heading `"   leading spaces   "` at line 3 yields id `"leading-spaces-L3"`. | Test |
+| FR-009-AC-4 | With a frontmatter block of N lines, a heading on the first body line has line index 0 — frontmatter is NOT counted. | Test |
+| FR-009-AC-5 | A Rust-owned parity test covering each slug variant passes. | Test |
+| FR-009-AC-6 | Heading `"Café Menu"` at line 4 yields id `"caf-menu-L4"` (non-ASCII collapses; mirrors TS/Py reference). | Test |
+| FR-009-AC-7 | Heading `"!!!"` at line 7 yields id `"-L7"` (degenerate empty slug, line index preserved). | Test |
+
+## Dependencies
+
+- **Upstream**: US-002, StR-003
+- **Downstream**: none

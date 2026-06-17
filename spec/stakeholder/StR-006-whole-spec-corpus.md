@@ -19,6 +19,14 @@ Today that work is done in Python by re-walking the directory and re-running reg
 
 `quire-rs` SHALL provide the ability to load an entire spec as a bounded in-memory **corpus**, resolve its **intra-spec** references, and expose read-only whole-spec queries (traceability, coverage, reference navigation).
 
+## Rationale
+
+This need exists because a spec is not a single document but a bounded set of related artifacts (a `spec/` tree of StR, US, FR, NFR, test cases, `spec.md`) whose references point at *each other*, and agents and analysis tooling (the `spec-analysis-*` and `spec-matrix` skills) repeatedly need to examine such a set as a whole — "which FRs trace to no stakeholder need?", "which user stories have no test?", "show me FR-021 and everything that references it." Today that work is done in Python by re-walking the directory and re-running regexes on every query. `quire-rs` already parses each document; what it lacks is a value that holds a *loaded set*, resolves the references among them, and answers whole-set questions — a data structure with a load-examine-discard lifecycle, deliberately distinct from the stateful graph engine that was torn out of `filament-parser-lib`.
+
+## Validation Criteria
+
+This need is considered satisfied when a consumer can load a `spec/` directory into a single `Spec`/corpus value with one call and query it (by-type, referencing/reverse-edge, orphans) entirely from the in-memory structure without re-reading the filesystem, and when a reference whose target id is not present in the loaded set is reported as a queryable *dangling* diagnostic rather than an error. Satisfaction is further judged by the corpus performing no persistence, no background reload, and no resolution of references targeting a spec outside the loaded set, and by the corpus value being `Send + Sync` and immutable after construction (mirroring the `Registry` lifecycle) so it can be shared across threads for read-only analysis.
+
 ### Why this fits quire-rs (and why the old graph engine did not)
 
 A graph engine was previously built into `filament-parser-lib` and torn out. The distinction that keeps this need inside `quire-rs` scope is **data structure vs. stateful engine**:

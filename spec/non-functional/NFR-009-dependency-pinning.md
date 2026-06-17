@@ -54,6 +54,15 @@ NFR-001 byte-parity and perf targets implicitly depend on specific crate behavio
 - **NFR-009-AC-3**: A static check confirms no load-bearing dep uses an unbounded version (e.g. `*` or `>=` without upper bound).
 - **NFR-009-AC-4**: When a load-bearing dep is bumped across its pin, the render-parity suite is re-run and the result documented in the bump PR.
 
+## Measurement and Evaluation
+
+| Metric | Target | Threshold | Method |
+|--------|--------|-----------|--------|
+| Load-bearing deps using tilde/equals pins (`minijinja`, validator, `serde_yaml`/`serde_yml`) | all pinned | all pinned | Static Analysis (`check_dep_pins.sh`) |
+| Load-bearing deps with unbounded version (`*` / `>=` no upper bound) | 0 | 0 | Static Analysis |
+| `spec/assets/adr/0001-validator-crate.md` exists with bench numbers | Pass | Pass | Inspection |
+| Render-parity suite re-run on cross-pin bump | Pass | Pass | CI Gate |
+
 ## Verification
 
 - `scripts/audits/check_dep_pins.sh` (TBD by Task 022) parses `Cargo.toml` and asserts the pinning policy.

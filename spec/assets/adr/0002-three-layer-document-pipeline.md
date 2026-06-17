@@ -1,3 +1,9 @@
+---
+id: ADR-0002
+title: "Three-Layer Document Pipeline (quire-rs / filament-parser-lib / service)"
+type: ADR
+---
+
 # ADR 0002: Three-Layer Document Pipeline (quire-rs / filament-parser-lib / service)
 
 **Status**: draft

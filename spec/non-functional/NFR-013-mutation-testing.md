@@ -46,6 +46,15 @@ Coverage metrics measure code exercised; mutation testing measures behavior veri
 - **NFR-013-AC-3**: The report is uploaded as a CI artifact (`mutants.json` or similar).
 - **NFR-013-AC-4**: `mutants_baseline.txt` tracks accepted survivors with one-line rationale per entry.
 
+## Measurement and Evaluation
+
+| Metric | Target | Threshold | Method |
+|--------|--------|-----------|--------|
+| Mutants caught in parser primitives (`src/parser/`) | > 95% | > 95% (target, not gate) | `cargo-mutants` (scheduled) |
+| Mutants caught in DSL evaluator (`src/extract/`) | > 90% | > 90% (target, not gate) | `cargo-mutants` (scheduled) |
+| Mutants caught in edge harvester | > 90% | > 90% (target, not gate) | `cargo-mutants` (scheduled) |
+| Surviving mutants tracked in `mutants_baseline.txt` with rationale | Pass | Pass | Inspection |
+
 ## Verification
 
 - CI workflow visible; passing run on schedule.

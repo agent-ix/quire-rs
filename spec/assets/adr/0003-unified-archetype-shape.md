@@ -1,3 +1,9 @@
+---
+id: ADR-0003
+title: "Unify artifact_type and object_type into a single archetype shape"
+type: ADR
+---
+
 # ADR 0003: Unify `artifact_type` and `object_type` into a single archetype shape
 
 **Status**: Proposed

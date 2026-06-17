@@ -22,6 +22,14 @@ This decoupling has three pay-offs:
 2. The engine works offline (no Filament reachability required).
 3. The same engine serves Filament-synced corpora, hand-authored corpora, and test fixtures interchangeably.
 
+## Rationale
+
+This need exists because the ecosystem today fragments document-processing across three languages — rendering in Python/Jinja2 (`spec-artifacts-*`), parsing in TypeScript (`quire`), and body extraction in Python (`filament-parser-lib`). Consumers such as the Filament editor, batch extractors, and future CLI tools must coordinate two interpreters or wire cross-language bindings, and hot paths (re-render on patch, bulk extraction across hundreds of objects) pay interpreter and IPC overhead. Worse, behavior drifts subtly across the parallel implementations. A single generic Rust engine that loads archetypes as data SHALL collapse this fragmentation: adding an archetype becomes a data-only change, the engine runs offline with no Filament reachability, and one engine serves Filament-synced, hand-authored, and fixture corpora identically.
+
+## Validation Criteria
+
+This need is considered satisfied when a single `cargo add quire-rs` yields render, parse, and extract APIs with no call site shelling out to Python, Node, or any other interpreter, and a `Cargo.lock` audit confirms no HTTP/RPC client crates (the engine is filesystem-only). Satisfaction is further judged by adding a brand-new archetype kind (new JSON Schema + template) to an on-disk module and restarting the consumer being sufficient for `Registry::archetype("new-name")` to return `Some` with no source change, and by a regression suite running the engine against three different on-disk corpora (Filament-synced, hand-authored, test fixture) and confirming identical behavior across all three.
+
 ## Priority
 
 Must-Have

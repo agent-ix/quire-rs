@@ -30,7 +30,7 @@ relationships:
 > `IX_SCHEMA_PATH` keeps working. The Search-path section and AC-1 below are
 > updated; no new AC is added (the alias is exercised by AC-2/AC-8).
 
-## Behavior
+## Description
 
 `quire-rs` SHALL load archetypes from the **local filesystem**. The engine has no network calls, no Filament API client, and no required runtime services. Whatever populates the local directory tree (Filament sync, hand-authoring, git checkout, an unzipped distribution tarball) is outside the engine's concern.
 
@@ -134,19 +134,26 @@ This is an additive amendment — the default (native) build is unchanged. `carg
 
 The loader assumes the upstream sync tool (canonically `ix-cli`, see Appendix A in `spec.md`) writes files **atomically** — i.e. writes to a temp path and renames, never in-place. The loader does NOT acquire file locks. If a non-atomic writer modifies files during load, partial-read errors surface as `QuireError::ArchetypeLoadError` for the affected archetype; the rest of the registry loads normally.
 
-## Acceptance
+## Acceptance Criteria
 
-- **FR-013-AC-1**: `Registry::from_env()` with `IX_FILAMENT_MODULES_PATH` and `IX_SCHEMA_PATH` unset and no `~/.ix/filament/modules/` returns a registry with zero archetypes and no error.
-- **FR-013-AC-2**: Pointing `IX_SCHEMA_PATH` at a path containing a copy of `spec-artifacts-iso/spec_artifacts_iso/` produces a registry with the 8 ISO archetypes (FR, NFR, StR, US, IT, TC, AC, CON) all loaded and `archetype("fr")` returns Some.
-- **FR-013-AC-3**: A manifest entry referencing a missing `schema_ref` path produces a `QuireError::ArchetypeLoadError` listing the bad path; other archetypes in the same module load successfully.
-- **FR-013-AC-4**: A criterion bench measures `Registry::load_from(&[corpus_path])` for the full 17-archetype baseline corpus and reports a one-time cost (target: under 50 ms median on baseline hardware).
-- **FR-013-AC-5**: After `Registry::load_from(...)`, calling `validate`/`validate_document`/`extract` against a loaded archetype does NOT read from disk (verified via a `tracing` or `strace`-style audit in CI).
-- **FR-013-AC-6**: A test confirms `quire-rs` has no `reqwest`, `hyper`, `tonic`, or other network-client crate in its `Cargo.lock` (verified via dependency audit).
-- **FR-013-AC-7**: A test creates a symlink loop (`a → b → a`) inside a search path and asserts the loader completes with a warning diagnostic and skips the loop.
-- **FR-013-AC-8**: A test sets `IX_SCHEMA_PATH="~/foo:~/foo"` (duplicate canonical path) and asserts modules under `~/foo/` are loaded exactly once.
-- **FR-013-AC-9**: A test confirms `Registry: Send + Sync` (compile-time bound assertion via a generic helper function).
-- **FR-013-AC-10**: A test sets a search-path entry that points to a regular file (not a directory) and asserts the loader emits a warning and processes remaining entries normally.
-- **FR-013-AC-11**: After `Registry::load_from(...)` (or `load_module`), `CompiledArchetype::body_extraction` (field) and `body_extraction()` (accessor) return `Some(ExtractionDsl)` for object types that declared `body_extraction:`, and `None` for archetypes that did not. The returned DSL is the same parsed value validated at load time.
-- **FR-013-AC-12**: `Registry::load_module(module_root)` loads exactly the named module (the directory containing `manifest.yaml`) and does NOT walk siblings under `module_root.parent()`. A test places a real module sibling alongside the target and asserts the sibling is not loaded.
-- **FR-013-AC-13**: `Registry::load_module(module_root)` against a directory with no `manifest.yaml` returns a registry with zero modules and a single `ArchetypeLoadFailure` describing the absent manifest; sibling directories are not promoted.
-- **FR-013-AC-14**: `Diagnostic::PathTraversal { argument, path, reason }` is a defined variant of the (internal) `Diagnostic` enum. A unit test constructs the variant and asserts both human (`Display`) and JSON (`to_json`) renderings carry the variant name, argument, path, and reason discriminator, covering all three `PathTraversalReason` values.
+| ID | Criteria | Verification |
+|----|----------|--------------|
+| FR-013-AC-1 | `Registry::from_env()` with `IX_FILAMENT_MODULES_PATH` and `IX_SCHEMA_PATH` unset and no `~/.ix/filament/modules/` returns a registry with zero archetypes and no error. | Test |
+| FR-013-AC-2 | Pointing `IX_SCHEMA_PATH` at a path containing a copy of `spec-artifacts-iso/spec_artifacts_iso/` produces a registry with the 8 ISO archetypes (FR, NFR, StR, US, IT, TC, AC, CON) all loaded and `archetype("fr")` returns Some. | Test |
+| FR-013-AC-3 | A manifest entry referencing a missing `schema_ref` path produces a `QuireError::ArchetypeLoadError` listing the bad path; other archetypes in the same module load successfully. | Test |
+| FR-013-AC-4 | A criterion bench measures `Registry::load_from(&[corpus_path])` for the full 17-archetype baseline corpus and reports a one-time cost (target: under 50 ms median on baseline hardware). | Test |
+| FR-013-AC-5 | After `Registry::load_from(...)`, calling `validate`/`validate_document`/`extract` against a loaded archetype does NOT read from disk (verified via a `tracing` or `strace`-style audit in CI). | Inspection |
+| FR-013-AC-6 | A test confirms `quire-rs` has no `reqwest`, `hyper`, `tonic`, or other network-client crate in its `Cargo.lock` (verified via dependency audit). | Inspection |
+| FR-013-AC-7 | A test creates a symlink loop (`a → b → a`) inside a search path and asserts the loader completes with a warning diagnostic and skips the loop. | Test |
+| FR-013-AC-8 | A test sets `IX_SCHEMA_PATH="~/foo:~/foo"` (duplicate canonical path) and asserts modules under `~/foo/` are loaded exactly once. | Test |
+| FR-013-AC-9 | A test confirms `Registry: Send + Sync` (compile-time bound assertion via a generic helper function). | Test |
+| FR-013-AC-10 | A test sets a search-path entry that points to a regular file (not a directory) and asserts the loader emits a warning and processes remaining entries normally. | Test |
+| FR-013-AC-11 | After `Registry::load_from(...)` (or `load_module`), `CompiledArchetype::body_extraction` (field) and `body_extraction()` (accessor) return `Some(ExtractionDsl)` for object types that declared `body_extraction:`, and `None` for archetypes that did not. The returned DSL is the same parsed value validated at load time. | Test |
+| FR-013-AC-12 | `Registry::load_module(module_root)` loads exactly the named module (the directory containing `manifest.yaml`) and does NOT walk siblings under `module_root.parent()`. A test places a real module sibling alongside the target and asserts the sibling is not loaded. | Test |
+| FR-013-AC-13 | `Registry::load_module(module_root)` against a directory with no `manifest.yaml` returns a registry with zero modules and a single `ArchetypeLoadFailure` describing the absent manifest; sibling directories are not promoted. | Test |
+| FR-013-AC-14 | `Diagnostic::PathTraversal { argument, path, reason }` is a defined variant of the (internal) `Diagnostic` enum. A unit test constructs the variant and asserts both human (`Display`) and JSON (`to_json`) renderings carry the variant name, argument, path, and reason discriminator, covering all three `PathTraversalReason` values. | Test |
+
+## Dependencies
+
+- **Upstream**: StR-001; requires FR-001
+- **Downstream**: FR-012, FR-014 (module activation builds on this loader)

@@ -11,7 +11,7 @@ relationships:
     cardinality: "1:1"
 ---
 
-## Behavior
+## Description
 
 `quire-rs` SHALL expose:
 
@@ -46,12 +46,19 @@ The JSON Schema validator implementation uses a high-performance pre-compiled va
 
 A single `apply_patch` call may produce multiple violations (e.g. `oneOf` against bad input enumerates each variant). The engine returns all violations without truncation. Consumers SHOULD bound input shape rather than rely on engine-side caps.
 
-## Acceptance
+## Acceptance Criteria
 
-- **FR-002-AC-1**: Given a `Value` containing `{ "title": "old", "body": "content" }` and a patch `{ "title": "new" }`, the merged-validated result is `{ "title": "new", "body": "content" }` — array-and-object merge semantics preserve siblings.
-- **FR-002-AC-2**: Given a current with `title: "valid"` and a patch `{ "title": "" }` against a schema requiring `title` `minLength: 1`, the merged-validated call returns `SchemaViolation` with field path `title` — caught because the merge produced an invalid `title`, even though the patch alone has the field set.
-- **FR-002-AC-3**: A patch introducing an unknown key on an object where the schema sets `additionalProperties: false` raises `SchemaViolation` naming the unknown key.
-- **FR-002-AC-4**: A proptest fuzzes patches across all archetypes in the test corpus and confirms `apply_patch` returns a valid `Value` (per schema) or a typed error — never a panic.
-- **FR-002-AC-5**: Per-call cost of `apply_patch` (excluding schema-compile, which is amortized at load) is dominated by JSON merge and validation; criterion bench shows median below 100 µs for a typical (~4 KB) artifact.
-- **FR-002-AC-6**: A schema with internal `$defs` + recursive `$ref` (e.g. a tree structure) compiles cleanly and validates correctly against a recursive `Value` instance.
-- **FR-002-AC-7**: A schema containing a cross-file `$ref` (e.g. `"$ref": "../other/schema.json"`) produces `QuireError::ArchetypeLoadError` at load time naming the unresolvable ref.
+| ID | Criteria | Verification |
+|----|----------|--------------|
+| FR-002-AC-1 | Given a `Value` containing `{ "title": "old", "body": "content" }` and a patch `{ "title": "new" }`, the merged-validated result is `{ "title": "new", "body": "content" }` — array-and-object merge semantics preserve siblings. | Test |
+| FR-002-AC-2 | Given a current with `title: "valid"` and a patch `{ "title": "" }` against a schema requiring `title` `minLength: 1`, the merged-validated call returns `SchemaViolation` with field path `title` — caught because the merge produced an invalid `title`, even though the patch alone has the field set. | Test |
+| FR-002-AC-3 | A patch introducing an unknown key on an object where the schema sets `additionalProperties: false` raises `SchemaViolation` naming the unknown key. | Test |
+| FR-002-AC-4 | A proptest fuzzes patches across all archetypes in the test corpus and confirms `apply_patch` returns a valid `Value` (per schema) or a typed error — never a panic. | Test |
+| FR-002-AC-5 | Per-call cost of `apply_patch` (excluding schema-compile, which is amortized at load) is dominated by JSON merge and validation; criterion bench shows median below 100 µs for a typical (~4 KB) artifact. | Test |
+| FR-002-AC-6 | A schema with internal `$defs` + recursive `$ref` (e.g. a tree structure) compiles cleanly and validates correctly against a recursive `Value` instance. | Test |
+| FR-002-AC-7 | A schema containing a cross-file `$ref` (e.g. `"$ref": "../other/schema.json"`) produces `QuireError::ArchetypeLoadError` at load time naming the unresolvable ref. | Test |
+
+## Dependencies
+
+- **Upstream**: US-001, US-004
+- **Downstream**: FR-003 (surfaces the same compiled schema), FR-013 (load-time schema compilation)

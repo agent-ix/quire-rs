@@ -38,6 +38,14 @@ The parity suite (FR-012) compares byte streams. Any non-determinism makes the p
 - **NFR-006-AC-3**: A static check via clippy lint or audit confirms no `std::collections::HashMap` usage in parse / extract / validate paths where iteration order is observable (the audit path covers `src/parser`, `src/extract`, `src/validate_document.rs`, `src/merge.rs`).
 - **NFR-006-AC-4**: A proptest runs `validate_document` and `extract` on the same input 100 times across threads; the `ValidationResult` (including ordered diagnostics) and `ExtractionResult` (records + edges + diagnostics) are equal every time.
 
+## Measurement and Evaluation
+
+| Metric | Target | Threshold | Method |
+|--------|--------|-----------|--------|
+| Identical `QuireDocument` across 100 repeated parses | all equal | all equal | Proptest |
+| Identical `ValidationResult` + `ExtractionResult` across 100 threaded runs | all equal | all equal | Proptest |
+| `HashMap` usage in order-observable parse/extract/validate paths | 0 | 0 | Static Analysis (clippy/audit) |
+
 ## Verification
 
 - Proptest suite in `tests/determinism.rs`.

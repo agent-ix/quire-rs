@@ -29,7 +29,7 @@ relationships:
 > and FR-028-AC-7 is revised to the render-free exception hierarchy. See `spec.md`
 > §2bis.
 
-## Behavior
+## Description
 
 The `quire` Python module (FR-023) SHALL additionally expose the following surfaces to allow downstream Python services (filament-core, spec-editor, RAG harnesses) to swap their own per-document parse / validate / extract code for the Rust engine. Runtime extraction has two distinct inputs:
 
@@ -68,15 +68,22 @@ The module SHALL expose:
 
 All new module-level functions SHALL release the GIL for the duration of the Rust computation (parity with `load_repo` and `Spec.from_path` per NFR-016).
 
-## Acceptance
+## Acceptance Criteria
 
-- FR-028-AC-1 — **RETIRED (render removal — 2026-06-04):** formerly asserted `quire.render(...)` byte-parity with `quire_rs::render_by_name`. The render binding is removed; this criterion is dropped from the required-coverage tally (id retained, immutable).
-- **FR-028-AC-2**: `quire.validate(archetype, module_root, valid_data)` returns without raising; `quire.validate(archetype, module_root, invalid_data)` raises `QuireValidationError` whose message carries the same dotted field path the Rust validator produces (NFR-005).
-- **FR-028-AC-3**: `quire.validate_manifest(payload, schema_path)` returns `[]` for valid payloads, returns one or more structured `{path, message, schema_keyword}` records for schema violations, and raises `QuireSchemaError` when `schema_path` is missing / unreadable / fails to compile.
-- **FR-028-AC-4**: `quire.extract(archetype, module_root, text)` returns a dict with `extraction` (DSL records) and `edges` (frontmatter + body `ix://` harvest) keys; the `extraction` records match `quire_rs::extract().records` for the same inputs.
-- **FR-028-AC-5**: `quire.extract_frontmatter(text)` returns the exact `frontmatter` and `body` produced by Rust `extract_frontmatter`; BOM, CRLF, malformed-YAML, non-object YAML, and missing-fence behavior match FR-006 without any Python-side splitter.
-- **FR-028-AC-6**: `quire.harvest_edges(text_or_dict)` accepts both raw markdown and a parsed-document dict; output is deduplicated and equal between the two input shapes for the same document.
-- **FR-028-AC-7**: Each `Quire*Error` subclass is `issubclass(QuireBaseError, Exception)` and is importable as `from quire import QuireBaseError, QuireValidationError, QuireSchemaError, QuireParseError`. `QuireRenderError` is not exported (render removed).
-- **FR-028-AC-8**: Calling each new module-level function from two Python threads concurrently completes in wall-clock < 2× single-call (GIL release parity with FR-023-AC-5).
-- **FR-028-AC-9**: `ExtractionContext.from_object_types([...]).extract(name, text)` returns the same records and emitted edges as the Rust extractor for equivalent compiled ObjectTypes, without reading a module root or `.ix` registry.
-- **FR-028-AC-10**: `ExtractionContext` accepts both a bare list of ObjectType dicts and the core API envelope `{items: [...]}`.
+| ID | Criteria | Verification |
+|----|----------|--------------|
+| FR-028-AC-1 | (RETIRED — render removal 2026-06-04) Formerly asserted `quire.render(...)` byte-parity with `quire_rs::render_by_name`. The render binding is removed; this criterion is dropped from the required-coverage tally (id retained, immutable). | Inspection |
+| FR-028-AC-2 | `quire.validate(archetype, module_root, valid_data)` returns without raising; `quire.validate(archetype, module_root, invalid_data)` raises `QuireValidationError` whose message carries the same dotted field path the Rust validator produces (NFR-005). | Test |
+| FR-028-AC-3 | `quire.validate_manifest(payload, schema_path)` returns `[]` for valid payloads, returns one or more structured `{path, message, schema_keyword}` records for schema violations, and raises `QuireSchemaError` when `schema_path` is missing / unreadable / fails to compile. | Test |
+| FR-028-AC-4 | `quire.extract(archetype, module_root, text)` returns a dict with `extraction` (DSL records) and `edges` (frontmatter + body `ix://` harvest) keys; the `extraction` records match `quire_rs::extract().records` for the same inputs. | Test |
+| FR-028-AC-5 | `quire.extract_frontmatter(text)` returns the exact `frontmatter` and `body` produced by Rust `extract_frontmatter`; BOM, CRLF, malformed-YAML, non-object YAML, and missing-fence behavior match FR-006 without any Python-side splitter. | Test |
+| FR-028-AC-6 | `quire.harvest_edges(text_or_dict)` accepts both raw markdown and a parsed-document dict; output is deduplicated and equal between the two input shapes for the same document. | Test |
+| FR-028-AC-7 | Each `Quire*Error` subclass is `issubclass(QuireBaseError, Exception)` and is importable as `from quire import QuireBaseError, QuireValidationError, QuireSchemaError, QuireParseError`. `QuireRenderError` is not exported (render removed). | Test |
+| FR-028-AC-8 | Calling each new module-level function from two Python threads concurrently completes in wall-clock < 2× single-call (GIL release parity with FR-023-AC-5). | Test |
+| FR-028-AC-9 | `ExtractionContext.from_object_types([...]).extract(name, text)` returns the same records and emitted edges as the Rust extractor for equivalent compiled ObjectTypes, without reading a module root or `.ix` registry. | Test |
+| FR-028-AC-10 | `ExtractionContext` accepts both a bare list of ObjectType dicts and the core API envelope `{items: [...]}`. | Test |
+
+## Dependencies
+
+- **Upstream**: FR-023, FR-001, FR-002, FR-011, FR-026
+- **Downstream**: none

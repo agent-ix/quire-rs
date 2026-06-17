@@ -22,7 +22,7 @@ relationships:
 > the warning; FR-038 is the layer that rejects it. No silent contradiction: the
 > corpus-level non-fatal diagnostic and the bundle-level error coexist by design.
 
-## Behavior
+## Description
 
 `quire-rs` SHALL expose read-only whole-spec queries over a constructed `Spec` (FR-025) and its resolved edge set (FR-026). These are views over an already-resolved in-memory structure — none re-reads the filesystem and none re-parses (StR-006-AC-1).
 
@@ -62,14 +62,21 @@ impl Spec {
 
 - The query surface is **read-only**: no method mutates the corpus, and there is no traversal/query DSL to interpret. Transitive closure, path-finding, and a query language are explicitly **not** provided — they are stateful-engine / service-layer concerns (StR-006). Callers that need transitive reachability compose `outgoing`/`referencing` themselves.
 
-## Acceptance
+## Acceptance Criteria
 
-- **FR-027-AC-1**: `by_type("FR")` over a fixture spec returns exactly the FR documents; `by_type("US")` returns exactly the user stories (US-012-AC-1).
-- **FR-027-AC-2**: `referencing("FR-021")` returns every artifact whose resolved edges target FR-021, and excludes artifacts that do not reference it (US-012-AC-3).
-- **FR-027-AC-3**: `orphans("FR", "implements", Some("StR"))` returns every FR lacking a resolved `implements` edge to a StR, and excludes FRs that have one (US-012-AC-2).
-- **FR-027-AC-4**: A user story with no resolved edge to a test case is returned by the coverage query; one with such an edge is not (US-012-AC-4).
-- **FR-027-AC-5**: `outgoing(id)` includes that document's dangling edges; `referencing` and `dangling` agree — every dangling edge is in exactly one `outgoing` set and the `dangling()` set, and in no `referencing` set.
-- **FR-027-AC-6**: Every query iterator yields in sorted-by-id order; two runs produce identical sequences (NFR-006).
-- **FR-027-AC-7**: A test (tracing/strace-style, parity with FR-013-AC-5) confirms no filesystem read occurs during any query after construction (StR-006-AC-1, US-012-AC-5).
-- **FR-027-AC-8**: A criterion bench measures `by_id`, `referencing`, and `orphans` over a 200-artifact corpus and confirms sub-millisecond per-query latency (US-012-PC-2; feeds TC-458).
-- **FR-027-AC-9**: A document lacking a `type`/`artifact_type` field is never returned by `by_type`, is returned by `by_id`, and produces a `Diagnostic::UntypedArtifact` at construction.
+| ID | Criteria | Verification |
+|----|----------|--------------|
+| FR-027-AC-1 | `by_type("FR")` over a fixture spec returns exactly the FR documents; `by_type("US")` returns exactly the user stories (US-012-AC-1). | Test |
+| FR-027-AC-2 | `referencing("FR-021")` returns every artifact whose resolved edges target FR-021, and excludes artifacts that do not reference it (US-012-AC-3). | Test |
+| FR-027-AC-3 | `orphans("FR", "implements", Some("StR"))` returns every FR lacking a resolved `implements` edge to a StR, and excludes FRs that have one (US-012-AC-2). | Test |
+| FR-027-AC-4 | A user story with no resolved edge to a test case is returned by the coverage query; one with such an edge is not (US-012-AC-4). | Test |
+| FR-027-AC-5 | `outgoing(id)` includes that document's dangling edges; `referencing` and `dangling` agree — every dangling edge is in exactly one `outgoing` set and the `dangling()` set, and in no `referencing` set. | Test |
+| FR-027-AC-6 | Every query iterator yields in sorted-by-id order; two runs produce identical sequences (NFR-006). | Test |
+| FR-027-AC-7 | A test (tracing/strace-style, parity with FR-013-AC-5) confirms no filesystem read occurs during any query after construction (StR-006-AC-1, US-012-AC-5). | Test |
+| FR-027-AC-8 | A criterion bench measures `by_id`, `referencing`, and `orphans` over a 200-artifact corpus and confirms sub-millisecond per-query latency (US-012-PC-2; feeds TC-458). | Test |
+| FR-027-AC-9 | A document lacking a `type`/`artifact_type` field is never returned by `by_type`, is returned by `by_id`, and produces a `Diagnostic::UntypedArtifact` at construction. | Test |
+
+## Dependencies
+
+- **Upstream**: StR-006, FR-025, FR-026
+- **Downstream**: FR-038

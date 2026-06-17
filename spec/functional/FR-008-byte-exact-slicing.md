@@ -11,7 +11,7 @@ relationships:
     cardinality: "1:1"
 ---
 
-## Behavior
+## Description
 
 `QuireSection.content` SHALL be a byte-exact slice of the original input body between the heading line and the next heading (or end of body). Specifically:
 
@@ -22,8 +22,15 @@ relationships:
 
 Concretely: round-trip property: given `doc = parse_document(input)` and a section `s`, concatenating preamble + headings + `s.content` for each section in document order reproduces `input` exactly.
 
-## Acceptance
+## Acceptance Criteria
 
-- **FR-008-AC-1**: For input `## A\n  indented body  \n## B\n`, `section("A").content == "  indented body  "` (preserved leading/trailing spaces).
-- **FR-008-AC-2**: For input containing both `\n` and `\r\n` endings interleaved, `section(...).content` preserves the original endings byte-for-byte.
-- **FR-008-AC-3**: A proptest takes a random markdown document, parses it, and asserts that reconstructing the body from `(preamble, [(heading_line, section.content)])` byte-equals the original body.
+| ID | Criteria | Verification |
+|----|----------|--------------|
+| FR-008-AC-1 | For input `## A\n  indented body  \n## B\n`, `section("A").content == "  indented body  "` (preserved leading/trailing spaces). | Test |
+| FR-008-AC-2 | For input containing both `\n` and `\r\n` endings interleaved, `section(...).content` preserves the original endings byte-for-byte. | Test |
+| FR-008-AC-3 | A proptest takes a random markdown document, parses it, and asserts that reconstructing the body from `(preamble, [(heading_line, section.content)])` byte-equals the original body. | Test |
+
+## Dependencies
+
+- **Upstream**: US-002, StR-003
+- **Downstream**: FR-005 (`QuireSection.content` slicing within `parse_document`)

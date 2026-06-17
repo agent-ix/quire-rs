@@ -1,3 +1,9 @@
+---
+id: ADR-0006
+title: "Compile-time forbid(unsafe_code); retire the Miri job"
+type: ADR
+---
+
 # ADR 0006: Compile-time `forbid(unsafe_code)`; retire the Miri job
 
 **Status**: Accepted

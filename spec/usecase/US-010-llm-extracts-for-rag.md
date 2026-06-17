@@ -14,7 +14,7 @@ relationships:
 
 ## Story
 
-As an **LLM agent grounding an answer against a corpus** (RAG over a spec, an architecture pack, or a process repo), I want to call `extract(doc, dsl)` with a body-extraction DSL declared in the archetype's manifest — so I get back a compact `Vec<JsonMap>` of just the fields I asked for (e.g. "every endpoint", "every acceptance criterion", "every diagram tag"), not the whole markdown body — and feed those records into the LLM's context window instead of the raw doc.
+As an **LLM agent** grounding an answer against a corpus (RAG over a spec, an architecture pack, or a process repo), I want to call `extract(doc, dsl)` with a body-extraction DSL declared in the archetype's manifest, so that I get back a compact `Vec<JsonMap>` of just the fields I asked for (e.g. "every endpoint", "every acceptance criterion", "every diagram tag") — not the whole markdown body — and can feed those records into the LLM's context window instead of the raw doc.
 
 ## Context
 

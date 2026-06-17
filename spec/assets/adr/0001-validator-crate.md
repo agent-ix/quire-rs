@@ -1,3 +1,9 @@
+---
+id: ADR-0001
+title: "JSON Schema Validator Crate Selection"
+type: ADR
+---
+
 # ADR 0001: JSON Schema Validator Crate Selection
 
 **Status**: decided (v1)

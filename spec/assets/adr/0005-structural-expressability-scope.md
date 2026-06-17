@@ -1,3 +1,9 @@
+---
+id: ADR-0005
+title: "Structural-expressability scope and deferred capabilities"
+type: ADR
+---
+
 # ADR 0005: Structural-expressability scope and deferred capabilities
 
 **Status**: Proposed

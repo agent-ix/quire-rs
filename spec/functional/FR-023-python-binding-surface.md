@@ -20,7 +20,7 @@ relationships:
 > parse / extract / validate / `validate_document` / `load_repo` / corpus only. The
 > Behavior below is updated accordingly. See `spec.md` §2bis.
 
-## Behavior
+## Description
 
 `quire-rs` SHALL expose its parse, extract, validate, and repository-load surfaces to Python through a **feature-gated** PyO3 binding. The binding is built behind the `python` Cargo feature and packaged as a maturin wheel (`quire` on PyPI). When the `python` feature is **off**, the crate SHALL build and behave exactly as it does today: no PyO3 dependency is compiled, no CPython symbols are linked, and the default-feature dependency graph is unchanged (StR-001 boundary, StR-005-AC-2).
 
@@ -53,12 +53,19 @@ The `python` feature SHALL expose, as a Python module `quire`:
 - Wheels SHALL be built against the **abi3** (stable ABI) target so one wheel imports across multiple CPython 3.x minor versions without rebuild (NFR-016, StR-005-AC-5).
 - The maturin build configuration lives alongside `Cargo.toml`; the `python` feature gates the `pyo3`/`pyo3-build-config` dependencies so they never enter the default crates.io build.
 
-## Acceptance
+## Acceptance Criteria
 
-- **FR-023-AC-1**: `cargo build` (no features) and `cargo build --features python` both succeed; the no-feature build's `Cargo.lock`/feature resolution shows no `pyo3` linkage (StR-005-AC-2).
-- **FR-023-AC-2**: After `maturin build --features python` and install, `import quire; quire.parse_document(text)` returns an object whose frontmatter, section headings, and block ids match the Rust `parse_document` output for the same input.
-- **FR-023-AC-3**: `quire.validate(bad_data, "fr")` raises (or returns) a violation carrying the same dotted field path that `quire_rs::validate` produces for the same input (NFR-005 parity across the boundary).
-- **FR-023-AC-4**: A test confirms `quire.load_repo(path)` returns one document object per `.md` under `path` and surfaces per-file parse failures as diagnostics (delegates to FR-024).
-- **FR-023-AC-5**: A test runs two concurrent Python threads each calling `quire.load_repo` and confirms they execute concurrently (wall-clock < 2× single-call), demonstrating GIL release (NFR-016).
-- **FR-023-AC-6**: A single abi3 wheel built once imports successfully under two different CPython 3.x minor versions in CI (StR-005-AC-5).
-- **FR-023-AC-7**: A test asserts no `subprocess`, `Popen`, or socket usage exists on the binding's data path (StR-005-AC-4).
+| ID | Criteria | Verification |
+|----|----------|--------------|
+| FR-023-AC-1 | `cargo build` (no features) and `cargo build --features python` both succeed; the no-feature build's `Cargo.lock`/feature resolution shows no `pyo3` linkage (StR-005-AC-2). | Inspection |
+| FR-023-AC-2 | After `maturin build --features python` and install, `import quire; quire.parse_document(text)` returns an object whose frontmatter, section headings, and block ids match the Rust `parse_document` output for the same input. | Test |
+| FR-023-AC-3 | `quire.validate(bad_data, "fr")` raises (or returns) a violation carrying the same dotted field path that `quire_rs::validate` produces for the same input (NFR-005 parity across the boundary). | Test |
+| FR-023-AC-4 | A test confirms `quire.load_repo(path)` returns one document object per `.md` under `path` and surfaces per-file parse failures as diagnostics (delegates to FR-024). | Test |
+| FR-023-AC-5 | A test runs two concurrent Python threads each calling `quire.load_repo` and confirms they execute concurrently (wall-clock < 2× single-call), demonstrating GIL release (NFR-016). | Test |
+| FR-023-AC-6 | A single abi3 wheel built once imports successfully under two different CPython 3.x minor versions in CI (StR-005-AC-5). | Test |
+| FR-023-AC-7 | A test asserts no `subprocess`, `Popen`, or socket usage exists on the binding's data path (StR-005-AC-4). | Inspection |
+
+## Dependencies
+
+- **Upstream**: StR-005; requires FR-024, FR-005
+- **Downstream**: none

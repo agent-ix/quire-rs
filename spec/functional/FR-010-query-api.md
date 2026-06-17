@@ -11,7 +11,7 @@ relationships:
     cardinality: "1:1"
 ---
 
-## Behavior
+## Description
 
 The crate SHALL expose the following query functions in module `quire_rs::query`:
 
@@ -49,9 +49,16 @@ Semantics match `agent-ix/quire/src/core/query.ts` exactly:
 - `extract_diagrams()` returns every fenced code block; optional `language` filters by language tag (case-sensitive).
 - `search()` returns substring matches across heading and content, with section ID and byte offsets.
 
-## Acceptance
+## Acceptance Criteria
 
-- **FR-010-AC-1**: Each function signature compiles and is `pub` from `quire_rs::query`.
-- **FR-010-AC-2**: For every test fixture in `~/dev/quire/tests/` that exercises these functions, the Rust counterpart returns equivalent results.
-- **FR-010-AC-3**: `section()` is `O(n)` where `n` is the total section count; `extract_diagrams()` is `O(lines)`; no quadratic behavior in any function.
-- **FR-010-AC-4** (CR-007): `parse_table`/`parse_tables` treat `\|` as a literal pipe in cell content (escape consumed) in header and body cells, including a cell-final `\|` (not eaten by border trim); non-pipe backslashes (`\d`, `C:\tmp`) pass through verbatim; borderless rows split identically. A GFM alignment separator (`|:---|:---:|---:|`) is recognized, and all three bullet markers (`-`, `*`, `+`) parse — previously untested characterization now pinned.
+| ID | Criteria | Verification |
+|----|----------|--------------|
+| FR-010-AC-1 | Each function signature compiles and is `pub` from `quire_rs::query`. | Test |
+| FR-010-AC-2 | For every test fixture in `~/dev/quire/tests/` that exercises these functions, the Rust counterpart returns equivalent results. | Test |
+| FR-010-AC-3 | `section()` is `O(n)` where `n` is the total section count; `extract_diagrams()` is `O(lines)`; no quadratic behavior in any function. | Analysis |
+| FR-010-AC-4 | (CR-007) `parse_table`/`parse_tables` treat `\|` as a literal pipe in cell content (escape consumed) in header and body cells, including a cell-final `\|` (not eaten by border trim); non-pipe backslashes (`\d`, `C:\tmp`) pass through verbatim; borderless rows split identically. A GFM alignment separator (`\|:---\|:---:\|---:\|`) is recognized, and all three bullet markers (`-`, `*`, `+`) parse — previously untested characterization now pinned. | Test |
+
+## Dependencies
+
+- **Upstream**: US-002, StR-003
+- **Downstream**: none

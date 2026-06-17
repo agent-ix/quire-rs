@@ -21,7 +21,7 @@ relationships:
 
 ## Story
 
-As the **Filament editor app**, I want to receive a patch (`{ block_id, partial_data }`) over the wire, hand it to `quire-rs` to merge-validate-render against the current block, and receive back either a typed validation error or canonical markdown, so that the editor's render path completes in well under a frame (<16 ms) regardless of artifact size.
+As a **Filament editor backend** (the editor app), I want to receive a patch (`{ block_id, partial_data }`) over the wire, hand it to `quire-rs` to merge-validate-render against the current block, and receive back either a typed validation error or canonical markdown, so that the editor's render path completes in well under a frame (<16 ms) regardless of artifact size.
 
 ## Context
 

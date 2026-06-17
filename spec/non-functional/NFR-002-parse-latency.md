@@ -32,6 +32,15 @@ Bulk extraction across the `spec-objects-business` corpus may parse thousands of
 - **NFR-002-AC-3**: A correctness test on the same 5 MB document asserts the document round-trips: reconstructing the body from sections + preamble reproduces the input byte-for-byte (verifies FR-008 at scale).
 - **NFR-002-AC-4**: A criterion benchmark `bench_validate_document` validates a typical authored artifact (under 32 KB, FR-sized: frontmatter + required sections + an AC table) against its archetype via `validate_document`; median below **1 ms** on the canonical baseline runner (warm `Registry`). A regression test compares against a stored baseline; >10% slowdown fails CI (same gate policy as NFR-002-AC-2).
 
+## Measurement and Evaluation
+
+| Metric | Target | Threshold | Method |
+|--------|--------|-----------|--------|
+| `parse_document` latency for 5 MB doc (canonical M2 Pro) | < 500 ms median | 500 ms median | Criterion Benchmark |
+| Parse latency on Ubuntu x86_64 CI runner | within +50% of canonical | < 750 ms median | Criterion Benchmark |
+| `validate_document` latency for typical artifact (< 32 KB, warm Registry) | < 1 ms median | 1 ms median | Criterion Benchmark |
+| Same-runner regression vs stored baseline | no slowdown | < 10% slowdown | Criterion Benchmark |
+
 ## Verification
 
 - Criterion benches in `benches/parse.rs` execute on every PR with a stored baseline.

@@ -1,3 +1,9 @@
+---
+id: ADR-0004
+title: "Direct-markdown authoring; body_extraction asserts as the structural validator"
+type: ADR
+---
+
 # ADR 0004: Direct-markdown authoring; `body_extraction` asserts as the structural validator
 
 **Status**: Proposed

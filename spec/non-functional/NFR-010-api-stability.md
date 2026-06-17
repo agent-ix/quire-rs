@@ -43,6 +43,15 @@ Downstream consumers (Filament editor, CLI tools, future LLM adapters) need stab
 - **NFR-010-AC-3**: `CHANGELOG.md` exists; each release entry classifies changes as Added / Changed / Deprecated / Removed / Fixed / Security.
 - **NFR-010-AC-4**: A `cargo-semver-checks` invocation against the previous published version reports no unexpected breaks.
 
+## Measurement and Evaluation
+
+| Metric | Target | Threshold | Method |
+|--------|--------|-----------|--------|
+| `cargo-semver-checks` unexpected breaks vs previous published version | 0 | 0 | CI Gate |
+| Public enums marked `#[non_exhaustive]` | all | all | Static Analysis / compile-fail test |
+| `CHANGELOG.md` entries classified (Added/Changed/Deprecated/Removed/Fixed/Security) | every release | every release | Inspection |
+| Version bump matches semver policy for the change class | Pass | Pass | Inspection |
+
 ## Verification
 
 - `cargo-semver-checks` run in CI (opt-in via workflow_dispatch initially; promote to PR gate post-1.0).

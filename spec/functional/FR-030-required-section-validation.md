@@ -29,7 +29,7 @@ relationships:
 > **`empty`** (and absent locators report **`missing`**) — NOT `placeholder`; see
 > FR-032-AC-9. The prose below is corrected to match.
 
-## Behavior
+## Description
 
 `quire-rs` validation SHALL enforce manifest `required_sections` for rendered markdown artifacts in addition to frontmatter JSON Schema validation.
 
@@ -51,11 +51,18 @@ The engine SHALL expose this as a durable validation path used by CLI validation
 
 Template authors SHOULD stop emitting friendly placeholder defaults for required sections. If a required input is missing, rendering SHOULD fail before producing a document that would later fail required-section validation.
 
-## Acceptance
+## Acceptance Criteria
 
-- **FR-030-AC-1**: An FR document missing `## Acceptance Criteria` fails validation with a diagnostic naming that required section.
-- **FR-030-AC-2**: An FR document whose `## Specification` contains only `TODO` or unresolved `{{...}}` text fails validation even when frontmatter JSON Schema validation passes.
-- **FR-030-AC-3**: An NFR document whose `## Measurement and Evaluation` table has headers but no substantive measurement rows fails validation.
-- **FR-030-AC-4**: A valid FR document with all required sections populated with substantive content passes required-section validation.
-- **FR-030-AC-5**: Archetypes without `required_sections` continue to validate by frontmatter schema rules without a required-section diagnostic.
-- **FR-030-AC-6**: Diagnostics include archetype name, section name, heading level, and reason (`missing`, `empty`, or `placeholder`).
+| ID | Criteria | Verification |
+|----|----------|--------------|
+| FR-030-AC-1 | An FR document missing `## Acceptance Criteria` fails validation with a diagnostic naming that required section. | Test |
+| FR-030-AC-2 | An FR document whose `## Specification` contains only `TODO` or unresolved `{{...}}` text fails validation even when frontmatter JSON Schema validation passes. | Test |
+| FR-030-AC-3 | An NFR document whose `## Measurement and Evaluation` table has headers but no substantive measurement rows fails validation. | Test |
+| FR-030-AC-4 | A valid FR document with all required sections populated with substantive content passes required-section validation. | Test |
+| FR-030-AC-5 | Archetypes without `required_sections` continue to validate by frontmatter schema rules without a required-section diagnostic. | Test |
+| FR-030-AC-6 | Diagnostics include archetype name, section name, heading level, and reason (`missing`, `empty`, or `placeholder`). | Test |
+
+## Dependencies
+
+- **Upstream**: FR-002, FR-005, FR-013
+- **Downstream**: FR-032, FR-033 (supersede)

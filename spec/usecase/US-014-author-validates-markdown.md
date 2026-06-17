@@ -20,12 +20,12 @@ relationships:
 
 ## Story
 
-As an **LLM agent authoring a new spec artifact**, I want to write the artifact
+As an **LLM agent** authoring a new spec artifact, I want to write the artifact
 **directly as markdown** (filling the archetype's skeleton) and call
 `validate_document(archetype, doc_text)` to confirm it conforms — required
 sections at the right level, tables with the right columns, ids prefixed with the
-document's own id — **without a render/template step**, so hand-authored markdown
-gets a deterministic structural gate.
+document's own id — **without a render/template step**, so that hand-authored
+markdown gets a deterministic structural gate.
 
 ## Context
 

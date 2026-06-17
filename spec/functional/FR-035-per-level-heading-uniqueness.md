@@ -11,7 +11,7 @@ relationships:
     cardinality: "1:1"
 ---
 
-## Behavior
+## Description
 
 Per ADR 0005 (#4), `validate_document` (FR-032) SHALL enforce **per-level heading
 uniqueness**: within a single document, no two headings at the **same heading
@@ -34,9 +34,16 @@ Violations SHALL produce a line-numbered diagnostic with reason
 > uniqueness once recursive path-scoping lands; until then per-level is the rule
 > that keeps name-based addressing sound.
 
-## Acceptance
+## Acceptance Criteria
 
-- **FR-035-AC-1**: A document with two `## Description` headings fails with reason `duplicate-heading` naming the text and level 2.
-- **FR-035-AC-2**: A document with a `## Properties` (level 2) and a `### Properties` (level 3) passes the uniqueness rule (different levels).
-- **FR-035-AC-3**: A document using `iterate_over` with distinct child headings (`### A`, `### B`) passes; introducing a duplicate `### A` fails.
-- **FR-035-AC-4**: The duplicate-heading diagnostic includes a line number for the offending (second) heading.
+| ID | Criteria | Verification |
+|----|----------|--------------|
+| FR-035-AC-1 | A document with two `## Description` headings fails with reason `duplicate-heading` naming the text and level 2. | Test |
+| FR-035-AC-2 | A document with a `## Properties` (level 2) and a `### Properties` (level 3) passes the uniqueness rule (different levels). | Test |
+| FR-035-AC-3 | A document using `iterate_over` with distinct child headings (`### A`, `### B`) passes; introducing a duplicate `### A` fails. | Test |
+| FR-035-AC-4 | The duplicate-heading diagnostic includes a line number for the offending (second) heading. | Test |
+
+## Dependencies
+
+- **Upstream**: FR-032 (requires), FR-005 (requires)
+- **Downstream**: none

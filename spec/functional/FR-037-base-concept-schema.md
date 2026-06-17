@@ -11,7 +11,7 @@ relationships:
     cardinality: "1:1"
 ---
 
-## Behavior
+## Description
 
 `quire-rs` SHALL provide a shared **base "concept" frontmatter schema** — the
 contract every authored document satisfies *before* archetype routing. Under the
@@ -56,11 +56,18 @@ pub fn validate_concept_shape(frontmatter) -> Vec<ValidationError>;  // typing o
 `base_concept_schema`, `validate_base_concept`, and `validate_concept_shape` are
 exported from the crate root.
 
-## Acceptance
+## Acceptance Criteria
 
-- **FR-037-AC-1**: `validate_base_concept` on frontmatter carrying a non-empty `type` (e.g. `type: FR`) and no other fields returns **no** errors.
-- **FR-037-AC-2**: `validate_base_concept` on frontmatter with a non-empty `type`, a string `description`, and a `tags` array of strings returns **no** errors (the optional OKF fields are accepted when well-typed).
-- **FR-037-AC-3**: `validate_base_concept` on frontmatter that **omits** `type` returns exactly one `ValidationError` with reason `frontmatter` whose message names `type`.
-- **FR-037-AC-4**: `validate_base_concept` on frontmatter with an **empty** `type` (`type: ""`) returns exactly one `ValidationError` with reason `frontmatter` (the `minLength: 1` constraint).
-- **FR-037-AC-5**: `validate_base_concept` on frontmatter with a non-string `description` (e.g. `description: 7`) returns one error naming `description`; with a non-array `tags` (e.g. `tags: "x"`) returns one error naming `tags`; with a `tags` array containing a non-string item returns one error.
-- **FR-037-AC-6**: `validate_document` (FR-032) runs `validate_concept_shape` on the parsed frontmatter, so a conformant document whose `type` is present and whose `description`/`tags` (if any) are well-typed validates without a base-field error — confirming the shape check is wired into the per-document path and does not reject well-formed OKF base fields. (`validate_concept_shape` does **not** require `type`, preserving the `--archetype`-override / FR-004-AC-5 typeless-document behavior.)
+| ID | Criteria | Verification |
+|----|----------|--------------|
+| FR-037-AC-1 | `validate_base_concept` on frontmatter carrying a non-empty `type` (e.g. `type: FR`) and no other fields returns no errors. | Test |
+| FR-037-AC-2 | `validate_base_concept` on frontmatter with a non-empty `type`, a string `description`, and a `tags` array of strings returns no errors (the optional OKF fields are accepted when well-typed). | Test |
+| FR-037-AC-3 | `validate_base_concept` on frontmatter that omits `type` returns exactly one `ValidationError` with reason `frontmatter` whose message names `type`. | Test |
+| FR-037-AC-4 | `validate_base_concept` on frontmatter with an empty `type` (`type: ""`) returns exactly one `ValidationError` with reason `frontmatter` (the `minLength: 1` constraint). | Test |
+| FR-037-AC-5 | `validate_base_concept` on frontmatter with a non-string `description` (e.g. `description: 7`) returns one error naming `description`; with a non-array `tags` (e.g. `tags: "x"`) returns one error naming `tags`; with a `tags` array containing a non-string item returns one error. | Test |
+| FR-037-AC-6 | `validate_document` (FR-032) runs `validate_concept_shape` on the parsed frontmatter, so a conformant document whose `type` is present and whose `description`/`tags` (if any) are well-typed validates without a base-field error — confirming the shape check is wired into the per-document path and does not reject well-formed OKF base fields. (`validate_concept_shape` does not require `type`, preserving the `--archetype`-override / FR-004-AC-5 typeless-document behavior.) | Test |
+
+## Dependencies
+
+- **Upstream**: FR-032 (requires), FR-002 (requires)
+- **Downstream**: FR-038

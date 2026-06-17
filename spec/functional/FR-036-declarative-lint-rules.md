@@ -11,7 +11,7 @@ relationships:
     cardinality: "1:1"
 ---
 
-## Behavior
+## Description
 
 Modules MAY declare **advisory lint rules** in `manifest.yaml` under a top-level
 `lint_rules:` list. Lint is a posture distinct from structural validation
@@ -97,32 +97,18 @@ invalid regex is skipped without panicking.
   modules carry stays inert); rules scope via the `archetypes:` filter.
 - No Python binding surface (no current consumer).
 
-## Acceptance
+## Acceptance Criteria
 
-- **FR-036-AC-1**: A manifest declaring the `ac-verification-method` rule loads
-  with `Registry::lint_rules()` returning the typed rule; a manifest with a
-  malformed rule (unknown `type:`) fails module load with an
-  `ArchetypeLoadFailure` naming the manifest.
-- **FR-036-AC-2**: Against an FR document whose AC table holds `Test (TC-035)`,
-  `Inspection`, and `Docs audit` in the Verification column, `lint_document`
-  yields exactly one finding — for `Docs audit` — naming the rule id, row, and
-  allowed set; severity mirrors the rule.
-- **FR-036-AC-3**: A rule scoped `archetypes: [FR]` yields no findings against
-  a document linted as `NFR`, and none when the archetype is unresolvable.
-- **FR-036-AC-4**: A document missing the rule's section, table, or column
-  yields zero findings.
-- **FR-036-AC-5**: Lint evaluation never affects `extract()` /
-  `validate_document()` results — a document with lint findings still extracts
-  and validates exactly as without the rules loaded.
-- **FR-036-AC-6**: A `section_body_pattern` rule (CR-009) produces no finding
-  when the named section's body — its own content **plus that of every
-  subsection** — matches `pattern` (`is_match`), and exactly one
-  finding `{rule, severity, message}` when the section is present but neither it
-  nor its subsections match — the default message names the section and pattern, a custom
-  `message` overrides it, and the finding's severity mirrors the rule. (Matching
-  the full subtree, not just the direct body, lets a token authored inside a
-  subsection — e.g. an `IT-XXX-SC-NN` id under a `### Step` heading — satisfy the
-  rule.) The rule is scoped via `archetypes:` like `table_column_values` (a non-matching or
-  unresolvable archetype runs it only when unfiltered), and a **missing**
-  section yields no finding. A YAML round-trip preserves the `type:
-  section_body_pattern` discriminator.
+| ID | Criteria | Verification |
+|----|----------|--------------|
+| FR-036-AC-1 | A manifest declaring the `ac-verification-method` rule loads with `Registry::lint_rules()` returning the typed rule; a manifest with a malformed rule (unknown `type:`) fails module load with an `ArchetypeLoadFailure` naming the manifest. | Test |
+| FR-036-AC-2 | Against an FR document whose AC table holds `Test (TC-035)`, `Inspection`, and `Docs audit` in the Verification column, `lint_document` yields exactly one finding — for `Docs audit` — naming the rule id, row, and allowed set; severity mirrors the rule. | Test |
+| FR-036-AC-3 | A rule scoped `archetypes: [FR]` yields no findings against a document linted as `NFR`, and none when the archetype is unresolvable. | Test |
+| FR-036-AC-4 | A document missing the rule's section, table, or column yields zero findings. | Test |
+| FR-036-AC-5 | Lint evaluation never affects `extract()` / `validate_document()` results — a document with lint findings still extracts and validates exactly as without the rules loaded. | Test |
+| FR-036-AC-6 | A `section_body_pattern` rule (CR-009) produces no finding when the named section's body — its own content plus that of every subsection — matches `pattern` (`is_match`), and exactly one finding `{rule, severity, message}` when the section is present but neither it nor its subsections match — the default message names the section and pattern, a custom `message` overrides it, and the finding's severity mirrors the rule. (Matching the full subtree, not just the direct body, lets a token authored inside a subsection — e.g. an `IT-XXX-SC-NN` id under a `### Step` heading — satisfy the rule.) The rule is scoped via `archetypes:` like `table_column_values` (a non-matching or unresolvable archetype runs it only when unfiltered), and a missing section yields no finding. A YAML round-trip preserves the `type: section_body_pattern` discriminator. | Test |
+
+## Dependencies
+
+- **Upstream**: FR-013 (requires), FR-010 (requires)
+- **Downstream**: none

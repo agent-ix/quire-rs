@@ -31,6 +31,15 @@ Org-wide license policy prevents copyleft surprises in a redistributable crate. 
 - **NFR-004-AC-2**: A test PR adding a GPL-licensed dependency fails the `licenses` job in CI.
 - **NFR-004-AC-3**: `deny.toml` source bans (`unknown-registry = "deny"`, `unknown-git = "deny"`) are preserved.
 
+## Measurement and Evaluation
+
+| Metric | Target | Threshold | Method |
+|--------|--------|-----------|--------|
+| Transitive deps satisfying `deny.toml` license allowlist | 100% | 100% | CI Gate (`cargo deny check licenses`) |
+| `cargo deny check licenses` exit status | 0 | 0 | CI Gate |
+| Disallowed-license dependency blocked in CI | Pass | Pass | CI Gate |
+| Unknown registry / git source bans preserved | Pass | Pass | Inspection (`deny.toml`) |
+
 ## Verification
 
 - CI workflow `.github/workflows/ci.yml` runs the `licenses` job on every PR.

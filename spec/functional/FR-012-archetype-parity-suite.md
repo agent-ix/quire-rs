@@ -24,7 +24,7 @@ relationships:
 > retirement and rationale are recorded in `spec.md` §2bis. Quality gate **G2** is
 > retired with it. New work does not target this FR.
 
-## Behavior
+## Description
 
 The repository SHALL ship a `tests/render_parity/` harness that consumes the **current Filament archetype corpus as data** — no archetype names are hard-coded in Rust source. The harness:
 
@@ -49,10 +49,17 @@ At the time of spec authoring, the corpus comprises **17 archetypes** across thr
 
 This list is informational, not normative — `corpus.yaml` and the on-disk fixtures are the source of truth.
 
-## Acceptance
+## Acceptance Criteria
 
-- FR-012-AC-1 (RETIRED): `tests/render_parity/corpus.yaml` exists; lists at least the three modules above; each listed module's archetypes have at least one fixture pair under `tests/render_parity/<name>/`.
-- FR-012-AC-2 (RETIRED): `cargo test --test render_parity` reports `>= 17` passing assertions at the v1 baseline (one per archetype × number of fixtures).
-- FR-012-AC-3 (RETIRED): A regression test: deliberately mutate a template in one of the loaded modules (e.g. change `{{ id }}` to `{{ id }}!`) and confirm the parity suite detects and fails with a diff pointing to the affected archetype.
-- FR-012-AC-4 (RETIRED): A fixture-regeneration script `scripts/regenerate_parity_fixtures.sh` invokes the Python Jinja2 reference renderer over every `input.json` and writes the resulting `expected.md`. The script is human-invoked only when the Python reference intentionally changes.
-- FR-012-AC-5 (RETIRED): Adding a new archetype to the corpus (new module + new fixtures) increases the parity suite's assertion count without any Rust source change.
+| ID | Criteria | Verification |
+|----|----------|--------------|
+| FR-012-AC-1 | RETIRED — `tests/render_parity/corpus.yaml` exists; lists at least the three modules above; each listed module's archetypes have at least one fixture pair under `tests/render_parity/<name>/`. | Test |
+| FR-012-AC-2 | RETIRED — `cargo test --test render_parity` reports `>= 17` passing assertions at the v1 baseline (one per archetype × number of fixtures). | Test |
+| FR-012-AC-3 | RETIRED — A regression test: deliberately mutate a template in one of the loaded modules (e.g. change `{{ id }}` to `{{ id }}!`) and confirm the parity suite detects and fails with a diff pointing to the affected archetype. | Test |
+| FR-012-AC-4 | RETIRED — A fixture-regeneration script `scripts/regenerate_parity_fixtures.sh` invokes the Python Jinja2 reference renderer over every `input.json` and writes the resulting `expected.md`. The script is human-invoked only when the Python reference intentionally changes. | Test |
+| FR-012-AC-5 | RETIRED — Adding a new archetype to the corpus (new module + new fixtures) increases the parity suite's assertion count without any Rust source change. | Test |
+
+## Dependencies
+
+- **Upstream**: US-005, StR-002; requires FR-013 (archetype loader)
+- **Downstream**: none (FR retired — render removed 2026-06-04)

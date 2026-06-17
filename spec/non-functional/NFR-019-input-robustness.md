@@ -48,6 +48,14 @@ degrade to typed errors, not crashes.
   `validate_document`, and `extract` each return a value or typed error without
   panicking across all generated cases.
 
+## Measurement and Evaluation
+
+| Metric | Target | Threshold | Method |
+|--------|--------|-----------|--------|
+| Panics / UB from `parse_document`/`validate_document`/`extract` on arbitrary bytes | 0 | 0 | Fuzz Run (scheduled lane) |
+| Proptest cases returning value-or-typed-error without panic | 100% | 100% | Proptest (`PROPTEST_CASES=512`) |
+| Discovered crash committed as regression reproducer | Pass | Pass | Inspection |
+
 ## Verification
 
 - Fuzz target under `fuzz/fuzz_targets/` on the scheduled fuzz lane (NFR-011).

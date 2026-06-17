@@ -20,7 +20,7 @@ relationships:
 
 ## Story
 
-As an **LLM agent making pervasive changes within a single block** (rewriting a section's body, restructuring a list, changing a table's shape), I want to emit the block's *new* data wholesale rather than a merge-patch — so the engine validates the replacement against the block-type schema and writes it back without merge-patch semantics interfering.
+As an **LLM agent** making pervasive changes within a single block (rewriting a section's body, restructuring a list, changing a table's shape), I want to emit the block's *new* data wholesale rather than a merge-patch, so that the engine validates the replacement against the block-type schema and writes it back without merge-patch semantics interfering.
 
 ## Context
 

@@ -11,7 +11,7 @@ relationships:
     cardinality: "1:1"
 ---
 
-## Behavior
+## Description
 
 The crate SHALL export:
 
@@ -49,9 +49,16 @@ Both structs SHALL `derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)`
 3. For empty input, return `QuireDocument { preamble: None, sections: vec![], raw: "".into(), frontmatter: None }`.
 4. Be re-entrant from any thread.
 
-## Acceptance
+## Acceptance Criteria
 
-- **FR-005-AC-1**: `parse_document("")` returns the empty-document value above.
-- **FR-005-AC-2**: `parse_document("preamble only")` returns `QuireDocument { preamble: Some("preamble only"), sections: vec![], raw: "preamble only", frontmatter: None }`.
-- **FR-005-AC-3**: For the canonical TS fixture (`## Parent\nparent content\n### Child\nchild content\n## Sibling\nsibling content`), the returned document has 2 top-level sections; `Parent` has 1 child `Child`; section IDs are `parent-L0`, `child-L2`, `sibling-L4` (or the equivalent with the TS slug rule applied — see FR-009).
-- **FR-005-AC-4**: A proptest checks `parse_document` does not panic on 10000 random UTF-8 strings.
+| ID | Criteria | Verification |
+|----|----------|--------------|
+| FR-005-AC-1 | `parse_document("")` returns the empty-document value above. | Test |
+| FR-005-AC-2 | `parse_document("preamble only")` returns `QuireDocument { preamble: Some("preamble only"), sections: vec![], raw: "preamble only", frontmatter: None }`. | Test |
+| FR-005-AC-3 | For the canonical TS fixture (`## Parent\nparent content\n### Child\nchild content\n## Sibling\nsibling content`), the returned document has 2 top-level sections; `Parent` has 1 child `Child`; section IDs are `parent-L0`, `child-L2`, `sibling-L4` (or the equivalent with the TS slug rule applied — see FR-009). | Test |
+| FR-005-AC-4 | A proptest checks `parse_document` does not panic on 10000 random UTF-8 strings. | Test |
+
+## Dependencies
+
+- **Upstream**: US-002, StR-003
+- **Downstream**: FR-006, FR-007, FR-008, FR-009 (parse internals that build the `QuireDocument`)

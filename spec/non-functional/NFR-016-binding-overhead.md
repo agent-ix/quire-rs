@@ -30,6 +30,15 @@ The "optimal speed" mandate (StR-005) is only met if the FFI boundary itself is 
 - **NFR-016-AC-3**: CI builds one abi3 wheel and imports + smoke-tests it under two CPython 3.x minor versions; both succeed (FR-023-AC-6).
 - **NFR-016-AC-4**: A test confirms returned objects carry no reference forcing a re-parse on the Python side (the data is materialized in Rust and handed over once) — paired with FR-023-AC-7 (no subprocess/socket on the data path).
 
+## Measurement and Evaluation
+
+| Metric | Target | Threshold | Method |
+|--------|--------|-----------|--------|
+| Per-crossing overhead, `quire.parse_document` vs Rust call (≤ 4 KB doc) | < 50 µs median | 50 µs median | Criterion / pytest-benchmark |
+| Two-thread `quire.load_repo` combined wall-clock (GIL released) | < 2× single-call | < 2× single-call | Load Benchmark |
+| abi3 wheel imports across CPython 3.x minor versions | ≥ 2 versions, one wheel | ≥ 2 versions | CI Gate (wheel-build lane) |
+| Returned objects forcing Python-side re-parse | 0 | 0 | Inspection |
+
 ## Verification
 
 - Boundary micro-bench in `benches/py_overhead.rs` (or a maturin-built pytest-benchmark harness) on every PR with the `python` feature.

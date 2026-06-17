@@ -35,6 +35,15 @@ LLM-driven editors (US-001) retry on validation failure. The minimum information
 - **NFR-005-AC-2**: A static check confirms `QuireError::Display` does not contain literal substrings from `serde_json::Error` or the validator crate's native debug forms.
 - **NFR-005-AC-3**: A snapshot test pins one canonical error per archetype for stability.
 
+## Measurement and Evaluation
+
+| Metric | Target | Threshold | Method |
+|--------|--------|-----------|--------|
+| `SchemaViolation` Display carries all four elements (field path, expected, observed, block type) | every violation kind | every violation kind | Inspection (unit tests) |
+| Long observed values truncated | at 80 chars with ellipsis | at 80 chars | Inspection |
+| Display leaks raw `serde_json`/validator debug forms | 0 | 0 | Static Analysis |
+| Per-archetype canonical error snapshot stability | Pass | Pass | Snapshot Test |
+
 ## Verification
 
 - Unit tests in `tests/error_shape.rs` exercise every error variant the codebase emits.

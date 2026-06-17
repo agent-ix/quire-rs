@@ -19,6 +19,14 @@ relationships:
 
 If `ecaz` or `rust-lib-cookiecutter` advances their safety rules, `quire-rs` SHALL adopt the changes via a tracked backport (see `backport-code` skill conventions).
 
+## Rationale
+
+This need exists because `agent-ix/ecaz` invested heavily in Rust safety scaffolding — clippy MSRV pinning, a `deny.toml` license policy, `// SAFETY:` enforcement on every `unsafe` block, and CI gates for fmt/clippy/test/license/unsafe-audit — and that investment was backported into `rust-lib-cookiecutter` as the org's first Rust scaffold. `quire-rs` was scaffolded from that cookiecutter, so letting its inherited safety configuration drift or loosen would forfeit the org-wide guarantees the scaffold exists to provide and would fork `quire-rs` away from the shared baseline. Keeping local changes constrained to tightening-only, and adopting upstream advances via tracked backports, preserves the single source of safety truth.
+
+## Validation Criteria
+
+This need is considered satisfied when `quire-rs/clippy.toml`, `deny.toml`, `rustfmt.toml`, `rust-toolchain.toml`, and `scripts/check_unsafe_comments.sh` match the `rust-lib-cookiecutter` baseline at scaffold time (modulo MSRV updates), and `make ci` enforces the full suite (fmt-check, clippy `-D warnings`, test, deny, audit-unsafe) — the same gates the cookiecutter ships. Satisfaction is further judged by every upstream safety-file update in `ecaz` or `rust-lib-cookiecutter` producing a backport issue against `quire-rs` that references the upstream commit.
+
 ## Priority
 
 Must-Have

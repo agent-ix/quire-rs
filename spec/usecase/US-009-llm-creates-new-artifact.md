@@ -22,7 +22,7 @@ relationships:
 
 ## Story
 
-As an **LLM agent producing a new artifact** (e.g. drafting a brand-new FR or NFR from a user prompt), I want to call `schema_for(archetype)` once to learn the full schema, emit a complete data value, and have `render(registry, archetype, data)` produce canonical markdown in one shot — no writeback, no existing doc.
+As an **LLM agent** producing a new artifact (e.g. drafting a brand-new FR or NFR from a user prompt), I want to call `schema_for(archetype)` once to learn the full schema, emit a complete data value, and have `render(registry, archetype, data)` produce canonical markdown in one shot, so that I get a finished artifact with no writeback and no existing doc required.
 
 ## Context
 

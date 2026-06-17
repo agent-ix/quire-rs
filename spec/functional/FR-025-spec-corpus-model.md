@@ -14,7 +14,7 @@ relationships:
     cardinality: "1:1"
 ---
 
-## Behavior
+## Description
 
 `quire-rs` SHALL provide a `Spec` (corpus) value: a bounded, in-memory set of loaded documents indexed by stable artifact id, with their intra-spec references resolved (FR-026). It is constructed from a `RepoLoad` (FR-024) and is the substrate for whole-spec queries (FR-027).
 
@@ -50,11 +50,18 @@ impl Spec {
 
 - The corpus SHALL expose **no** API to persist itself, to register a filesystem watcher, or to resolve a reference against anything outside the loaded set. The absence of these is a verifiable property of the public surface (StR-006-AC-4). Inter-spec and stateful concerns belong to the service layer (StR-006).
 
-## Acceptance
+## Acceptance Criteria
 
-- **FR-025-AC-1**: `Spec::from_path(spec_dir)` over a fixture spec returns a corpus whose `len()` equals the number of parsed markdown artifacts under the directory.
-- **FR-025-AC-2**: `Spec::from_repo(load)` indexes every document by its id; a by-id lookup (FR-027) returns the matching document and `None` for an absent id.
-- **FR-025-AC-3**: A fixture with two documents sharing an id produces a `Diagnostic::DuplicateArtifactId`; construction succeeds and the first occurrence is the one returned by id lookup.
-- **FR-025-AC-4**: A compile-time assertion confirms `Spec: Send + Sync` (generic-bound helper, parity with FR-013-AC-9).
-- **FR-025-AC-5**: A test confirms the `Spec` public surface exposes no persistence, no watcher-registration, and no external-resolution method (scope guard, StR-006-AC-4) — enforced by an API-surface test/doc-test enumerating the allowed methods.
-- **FR-025-AC-6**: After construction, queries answer with no filesystem read (parity with FR-013-AC-5 audit approach), confirming the corpus is fully in-memory (StR-006-AC-1).
+| ID | Criteria | Verification |
+|----|----------|--------------|
+| FR-025-AC-1 | `Spec::from_path(spec_dir)` over a fixture spec returns a corpus whose `len()` equals the number of parsed markdown artifacts under the directory. | Test |
+| FR-025-AC-2 | `Spec::from_repo(load)` indexes every document by its id; a by-id lookup (FR-027) returns the matching document and `None` for an absent id. | Test |
+| FR-025-AC-3 | A fixture with two documents sharing an id produces a `Diagnostic::DuplicateArtifactId`; construction succeeds and the first occurrence is the one returned by id lookup. | Test |
+| FR-025-AC-4 | A compile-time assertion confirms `Spec: Send + Sync` (generic-bound helper, parity with FR-013-AC-9). | Test |
+| FR-025-AC-5 | A test confirms the `Spec` public surface exposes no persistence, no watcher-registration, and no external-resolution method (scope guard, StR-006-AC-4) — enforced by an API-surface test/doc-test enumerating the allowed methods. | Test |
+| FR-025-AC-6 | After construction, queries answer with no filesystem read (parity with FR-013-AC-5 audit approach), confirming the corpus is fully in-memory (StR-006-AC-1). | Inspection |
+
+## Dependencies
+
+- **Upstream**: StR-006, FR-024, FR-026
+- **Downstream**: FR-027

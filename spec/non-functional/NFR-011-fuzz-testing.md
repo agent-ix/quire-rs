@@ -48,6 +48,15 @@ Parser, schema loader, and DSL evaluator all consume input that may be hostile o
 - **NFR-011-AC-3**: `.github/workflows/fuzz.yml` runs all targets on a weekly schedule.
 - **NFR-011-AC-4**: A documented crash reproducer (when discovered) is committed under `fuzz/corpus/<target>/` with a regression test under `tests/regression/`.
 
+## Measurement and Evaluation
+
+| Metric | Target | Threshold | Method |
+|--------|--------|-----------|--------|
+| Required `cargo-fuzz` targets present and compiling | 6 | 6 | Inspection (`fuzz/fuzz_targets/`) |
+| Crashes per target in 60s smoke run (canonical runner) | 0 | 0 | Fuzz Run |
+| Weekly scheduled fuzz lane (5 min/target) green | Pass | Pass | CI Gate |
+| Discovered crash committed as reproducer + regression test | Pass | Pass | Inspection |
+
 ## Verification
 
 - Weekly scheduled CI run with artifacts uploaded.

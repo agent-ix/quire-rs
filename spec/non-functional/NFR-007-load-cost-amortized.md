@@ -33,6 +33,15 @@ The engine must be cheap to use in hot paths (Filament editor live-preview, bulk
 - **NFR-007-AC-3**: A test instrumented via `tracing` asserts zero `Template::parse` and zero `JSONSchema::compile` calls during a `render` operation.
 - **NFR-007-AC-4**: Holding a `Registry` reference across many `render` calls produces no monotonically growing memory footprint (verified by a long-running soak test).
 
+## Measurement and Evaluation
+
+| Metric | Target | Threshold | Method |
+|--------|--------|-----------|--------|
+| `Registry::load_from` cold load, v1 baseline corpus (canonical M2 Pro) | < 100 ms median | 100 ms median | Criterion Benchmark |
+| Cold load on Ubuntu x86_64 CI runner | within +50% of canonical | < 150 ms median | Criterion Benchmark |
+| Warm per-extract latency (32 KB doc) | < 5 ms median | 5 ms median | Criterion Benchmark |
+| `Template::parse` / `JSONSchema::compile` calls during per-call ops | 0 | 0 | Tracing Instrumentation |
+
 ## Verification
 
 - Criterion benches in `benches/load.rs` execute on every PR with stored baselines.

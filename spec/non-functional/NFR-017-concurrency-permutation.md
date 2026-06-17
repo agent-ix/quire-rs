@@ -33,6 +33,14 @@ This NFR exists because §19 (Hardening Posture) originally skipped loom/shuttle
 - **NFR-017-AC-2**: The loom test scope (file/thread count) is bounded so the lane completes within the CI timeout (≤ 30 min, parity with NFR-012).
 - **NFR-017-AC-3**: `.github/workflows/ci.yml` runs the loom lane on weekly schedule + workflow_dispatch + tag push; a `make loom` target reproduces it locally.
 
+## Measurement and Evaluation
+
+| Metric | Target | Threshold | Method |
+|--------|--------|-----------|--------|
+| Data races found by loom in small-scope parallel parse | 0 | 0 | loom Exhaustive Interleaving |
+| Output identical + path-sorted across all loom schedules | Pass | Pass | loom Exhaustive Interleaving |
+| loom lane completes within CI timeout | ≤ 30 min | ≤ 30 min | Scheduled CI Gate |
+
 ## Verification
 
 - `cargo test --features loom --test concurrency` (or equivalent) visible in CI; passing run on tag push.

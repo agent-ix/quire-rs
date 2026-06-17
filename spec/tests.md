@@ -1,3 +1,9 @@
+---
+id: TM-001
+title: "quire-rs Test Matrix"
+type: TestMatrix
+---
+
 # Test Matrix
 
 ## Overview
@@ -77,7 +83,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | FR-029 Archetype input contract (recast, ADR 0004) | AC-1..6 | TC-548 (FR/NFR contract), TC-549 (NFR sections), TC-550 (iso required_sections order), TC-551 (byte-stable JSON), TC-552 (unknown→err), TC-553 (unresolved-mapping diag) | 🚧 Pending implementation |
 | FR-030 Required-section validation (superseded by FR-032/FR-033, ADR 0004) | AC-1..6 | TC-529, TC-530, TC-536, TC-528, TC-533 (covered by FR-032/FR-033 TCs) | 🚧 Superseded — covered by FR-032/FR-033 |
 | FR-031 Unified archetype shape | AC-1..6 | TC-522 (validatable+extractable, no renderability), TC-523 (no body_extraction → extraction None), TC-524 (defaults retained), TC-525 (two validators), TC-526 (required_sections ignored+diag), TC-527 (resolve parity) | 🚧 Pending implementation |
-| FR-032 validate_document (markdown) | AC-1..10 | TC-528..533, TC-561 + TC-573 (placeholder set), TC-574 (none/n-a substantive), TC-575 (empty table/list reason), TC-576 (assert on resolved) | ✅ |
+| FR-032 validate_document (markdown) | AC-1..13 | TC-528..533, TC-561 + TC-573 (placeholder set), TC-574 (none/n-a substantive), TC-575 (empty table/list reason), TC-576 (assert on resolved), TC-610 (composed object error), TC-611 (unknown object → warning), TC-612 (no object key), TC-613 (composed conformant) | ✅ |
 | FR-033 Locator assert facet | AC-1..10 | TC-534..539, TC-561/562 + TC-570 (legality matrix), TC-571 (id-column precedence), TC-572 (id_pattern non-table), TC-608 (CR-008 `matches` content assert) | ✅ |
 | FR-034 Assert field interpolation | AC-1..4 | TC-540 (id prefix), TC-541 (missing field diag), TC-542 (regex-escape), TC-543 (no-token static regex) | 🚧 Pending implementation |
 | FR-035 Per-level heading uniqueness | AC-1..4 | TC-544 (dup L2), TC-545 (cross-level ok), TC-546 (iterate_over children), TC-547 (line number) | 🚧 Pending implementation |
@@ -399,6 +405,10 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-607 | Strict: known `type` but mistyped optional `description` → `!is_valid()`, error names `description` (base concept contract runs in bundle validation) | Integration | P0 | FR-038-AC-8 | ✅ |
 | TC-608 | `section_body` `assert: {matches: '<regex>'}` — a `## Story` body with the `As a … / I want … / So that …` shape passes; a body lacking it fails with reason `assert` (line-numbered at the section); a missing section does NOT fire `matches`; `matches` rejected on `table_row` at load time (extends the TC-570 legality matrix) | Unit | P0 | FR-033-AC-10 | ✅ |
 | TC-609 | `section_body_pattern` lint rule: body matching `pattern` → no finding; body present but not matching → exactly one finding (default or custom `message`, severity mirrors rule); `archetypes:` scoping skips non-matching/unresolvable archetypes; missing section → no finding; `type: section_body_pattern` YAML round-trips | Unit | P0 | FR-036-AC-6 | ✅ |
+| TC-610 | Composed type+object validation: `type: FR` + `object: process` with the FR core present but **no** `## Workflow` mermaid block → an object **error** (process required `diagram` missing) merged into `errors`, while the FR (`type`) portion passes independently; `is_valid==false` | Unit | P0 | FR-032-AC-11, FR-032-AC-13 | ✅ |
+| TC-611 | Unknown object type: `type: FR` (conformant) + `object: totally-unknown` → exactly one **warning** (reason `unknown-object-type`, message names `totally-unknown`), zero errors, `is_valid==true` | Unit | P0 | FR-032-AC-12 | ✅ |
+| TC-612 | No `object:` key (registry-aware entry point): `type: FR` conformant doc → no object-layer diagnostics at all (errors + warnings unchanged from the type-only path) | Unit | P0 | FR-032-AC-11 | ✅ |
+| TC-613 | Composed conformant: `type: FR` + `object: process` WITH a valid `## Workflow` mermaid block → no object errors, no warnings, `is_valid==true` | Unit | P0 | FR-032-AC-13 | ✅ |
 
 ---
 
@@ -727,6 +737,9 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-032-AC-8 | TC-574 |
 | FR-032-AC-9 | TC-575 |
 | FR-032-AC-10 | TC-576 |
+| FR-032-AC-11 | TC-610, TC-612 |
+| FR-032-AC-12 | TC-611 |
+| FR-032-AC-13 | TC-610, TC-613 |
 | FR-033-AC-1 | TC-534 |
 | FR-033-AC-2 | TC-535 |
 | FR-033-AC-3 | TC-536 |
@@ -830,7 +843,7 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | NFR-019-AC-1 | TC-579 |
 | NFR-019-AC-2 | TC-580 |
 
-**Coverage status: 311 / 311 ACs covered (100%).** The assert/lint extension slice (2026-06-16) adds FR-033-AC-10 (CR-008 `matches` content assert, TC-608) and FR-036-AC-6 (CR-009 `section_body_pattern` lint rule, TC-609) — 2 ACs. The OKF slice (2026-06-16) adds FR-037-AC-1..6 (base concept frontmatter schema, TC-590..596 + TC-528) and FR-038-AC-1..8 (OKF bundle validation, TC-600..607) — 14 ACs. v0.4 adds FR-011-AC-21 (CR-006 `multiple: true`, TC-583) and FR-036-AC-1..5 (declarative lint rules, TC-584..588). v0.2 block model added 16 ACs (FR-019..022, TC-400..443). v0.3 adds 81 ACs — StR-005/006, US-011..013, FR-023..027 (incl. review-added FR-026-AC-8, FR-027-AC-9), NFR-015/016, plus the hardening re-review (NFR-003-AC-4, FR-024-AC-9, NFR-017, NFR-018) — covered by TC-455..507 (plus reused TC-456..459). The Miri ACs (NFR-012-AC-1..5) were **retired** (ADR 0006) and the compile-time **NFR-003-AC-5** (`forbid(unsafe_code)`, TC-582) added. PC (performance criteria) for US-011..013 are tracked as benches (TC-455..459, TC-469) and marked 🚧 pending implementation, consistent with the US-006..010 perf-bench convention. The v0.3 hardening re-review (loom NFR-017, TSAN/ASAN NFR-018) is recorded in spec.md §19.
+**Coverage status: 314 / 314 ACs covered (100%).** The composed type+object validation slice (2026-06-16) adds FR-032-AC-11..13 (`validate_document_in_registry` composes the `type` archetype with the frontmatter `object:` archetype; resolved-object failures are errors, unknown-object is a warning, `ValidationResult` carries typed `warnings`) — TC-610..613, 3 ACs. The assert/lint extension slice (2026-06-16) adds FR-033-AC-10 (CR-008 `matches` content assert, TC-608) and FR-036-AC-6 (CR-009 `section_body_pattern` lint rule, TC-609) — 2 ACs. The OKF slice (2026-06-16) adds FR-037-AC-1..6 (base concept frontmatter schema, TC-590..596 + TC-528) and FR-038-AC-1..8 (OKF bundle validation, TC-600..607) — 14 ACs. v0.4 adds FR-011-AC-21 (CR-006 `multiple: true`, TC-583) and FR-036-AC-1..5 (declarative lint rules, TC-584..588). v0.2 block model added 16 ACs (FR-019..022, TC-400..443). v0.3 adds 81 ACs — StR-005/006, US-011..013, FR-023..027 (incl. review-added FR-026-AC-8, FR-027-AC-9), NFR-015/016, plus the hardening re-review (NFR-003-AC-4, FR-024-AC-9, NFR-017, NFR-018) — covered by TC-455..507 (plus reused TC-456..459). The Miri ACs (NFR-012-AC-1..5) were **retired** (ADR 0006) and the compile-time **NFR-003-AC-5** (`forbid(unsafe_code)`, TC-582) added. PC (performance criteria) for US-011..013 are tracked as benches (TC-455..459, TC-469) and marked 🚧 pending implementation, consistent with the US-006..010 perf-bench convention. The v0.3 hardening re-review (loom NFR-017, TSAN/ASAN NFR-018) is recorded in spec.md §19.
 
 **v0.4 markdown-validation slice** adds 42 ACs — US-014 (author validates markdown), FR-029 (archetype input contract, recast by ADR 0004), FR-030 (required-section validation, superseded by FR-032/FR-033), FR-031 (unified archetype shape), FR-032 (`validate_document`), FR-033 (locator `assert` facet), FR-034 (assert field interpolation), FR-035 (per-level heading uniqueness) — covered by TC-518..553. FR-030's ACs are mapped to the FR-032/FR-033 TCs that subsume them (per its CR note). This slice also back-fills 7 ACs that a prior commit left out of the audit table — FR-013-AC-11..14, FR-028-AC-9/10, US-003-AC-4 — via TC-554..560. New v0.4 TCs are 🚧 pending implementation.
 
@@ -848,7 +861,7 @@ NFR-006-AC-4, NFR-019-AC-1..2 — covered by TC-565..580. TC-561 is re-pointed o
 FR-033-AC-4 onto FR-033-AC-9 (the non-table `id_pattern` case); TC-562 covers both
 FR-033-AC-4 and FR-033-AC-9.
 
-**Integrity check (grep-verified):** all **311 distinct file-defined ACs** (definition-anchored: bold `**<ID>-AC-N**:` declarations) across `stakeholder/ usecase/ functional/ non-functional/` appear in the AC→TC audit table — **0 uncovered**. Note: `FR-900-AC-1/2` appearing inside FR-034-AC-1's example prose are NOT defined ACs and are excluded from the denominator (match `**…**:` definitions, not inline mentions). Retired ACs (marked `(RETIRED)`, un-bolded) are excluded by construction. Count: 316 (pre-removal) − 41 (retired) + 16 (back-fill) + 1 (FR-011-AC-20, CR-005 heading normalization) − 5 (NFR-012-AC-1..5 retired, ADR 0006) + 1 (NFR-003-AC-5, forbid(unsafe_code)) + 1 (FR-011-AC-21, CR-006 multiple:true) + 5 (FR-036-AC-1..5, declarative lint rules) + 1 (FR-010-AC-4, CR-007 escaped pipes) + 6 (FR-037-AC-1..6, OKF base concept schema) + 8 (FR-038-AC-1..8, OKF bundle validation) + 1 (FR-033-AC-10, CR-008 `matches` content assert) + 1 (FR-036-AC-6, CR-009 `section_body_pattern`) = **311**.
+**Integrity check (grep-verified):** all **314 distinct file-defined ACs** (definition-anchored: bold `**<ID>-AC-N**` declarations) across `stakeholder/ usecase/ functional/ non-functional/` appear in the AC→TC audit table — **0 uncovered**. Note: `FR-900-AC-1/2` appearing inside FR-034-AC-1's example prose are NOT defined ACs and are excluded from the denominator (match `**…**:` definitions, not inline mentions). Retired ACs (marked `(RETIRED)`, un-bolded) are excluded by construction. Count: 316 (pre-removal) − 41 (retired) + 16 (back-fill) + 1 (FR-011-AC-20, CR-005 heading normalization) − 5 (NFR-012-AC-1..5 retired, ADR 0006) + 1 (NFR-003-AC-5, forbid(unsafe_code)) + 1 (FR-011-AC-21, CR-006 multiple:true) + 5 (FR-036-AC-1..5, declarative lint rules) + 1 (FR-010-AC-4, CR-007 escaped pipes) + 6 (FR-037-AC-1..6, OKF base concept schema) + 8 (FR-038-AC-1..8, OKF bundle validation) + 1 (FR-033-AC-10, CR-008 `matches` content assert) + 1 (FR-036-AC-6, CR-009 `section_body_pattern`) + 3 (FR-032-AC-11..13, composed type+object validation) = **314**.
 
 ---
 

@@ -42,6 +42,15 @@ This NFR supersedes the v1 §19 decision to skip `-Z sanitizer=address|thread` (
 - **NFR-018-AC-3**: Both lanes run on weekly schedule + workflow_dispatch + tag push (not per-PR); `make sanitize` reproduces them locally.
 - **NFR-018-AC-4**: A sanitizer-detected race/leak/UAF is recorded as a P0 issue with a committed reproducer.
 
+## Measurement and Evaluation
+
+| Metric | Target | Threshold | Method |
+|--------|--------|-----------|--------|
+| TSAN data races in GIL-release window (two-thread `load_repo` harness) | 0 | 0 | Scheduled CI Gate (`-Z sanitizer=thread`) |
+| ASAN leaks / use-after-free in first-party object handoff | 0 | 0 | Scheduled CI Gate (`-Z sanitizer=address`) |
+| Both lanes run weekly + workflow_dispatch + tag push | Pass | Pass | Inspection (CI workflow) |
+| Sanitizer-detected race/leak/UAF committed as P0 reproducer | Pass | Pass | Inspection |
+
 ## Verification
 
 - Sanitizer jobs visible in `.github/workflows/ci.yml`; passing run on tag push; `asan.supp` checked in with rationale comments.

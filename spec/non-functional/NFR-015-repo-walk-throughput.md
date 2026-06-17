@@ -37,6 +37,16 @@ Per-runner baselines stored separately (Apple Silicon M2 Pro canonical; Ubuntu x
 - **NFR-015-AC-3**: A regression test compares against a stored baseline; >10% slowdown on either thread count fails CI.
 - **NFR-015-AC-4**: A correctness assertion on the same corpus confirms `documents.len() == 1000` and the output ordering is path-sorted and identical across both thread counts (ties FR-024-AC-4 / NFR-006 to the throughput bench).
 
+## Measurement and Evaluation
+
+| Metric | Target | Threshold | Method |
+|--------|--------|-----------|--------|
+| `load_repo` p50, 1,000-doc corpus, single-threaded (canonical M2 Pro) | < 600 ms | 600 ms | Criterion Benchmark |
+| `load_repo` p50, 1,000-doc corpus, 8 threads | < 200 ms | 200 ms | Criterion Benchmark |
+| Parallel efficiency `T1 / (8 × T8)` | ≥ 0.6 | ≥ 0.6 | Criterion Benchmark |
+| Same-runner regression vs stored baseline (either thread count) | no slowdown | < 10% slowdown | Criterion Benchmark |
+| Output correctness: `documents.len()` and path-sorted ordering across thread counts | 1000, identical | 1000, identical | Inspection (correctness assertion) |
+
 ## Verification
 
 - Criterion benches in `benches/load_repo.rs` execute on every PR with a stored baseline. Thread count is set via rayon pool configuration in the bench harness.

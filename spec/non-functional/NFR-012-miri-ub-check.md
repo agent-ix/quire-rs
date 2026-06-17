@@ -23,7 +23,10 @@ relationships:
 > NFR-014) + tight pins (NFR-009); the concurrency surface by **loom** (NFR-017).
 > All ACs below are retired (un-bolded; excluded from the AC→TC integrity tally).
 
-## Statement (RETIRED)
+## Statement
+
+**RETIRED (2026-06, CR — supersedes the Miri job; see ADR 0006).** The original
+requirement below is retired and kept for history only.
 
 `quire-rs` SHALL run `cargo +nightly miri test --lib` on a CI schedule (weekly + workflow_dispatch + on every tag push). miri detects undefined behavior at runtime — even with zero first-party `unsafe` (NFR-003), miri can catch UB introduced by dependency crates (validator, MiniJinja internals, serde, etc.).
 
@@ -53,6 +56,13 @@ Even safe Rust can encounter UB through unsound dep crates. miri's runtime check
 - NFR-012-AC-3 (RETIRED): Test suite under `cargo miri test --lib` completes in under 30 minutes on the GitHub-hosted Ubuntu runner.
 - NFR-012-AC-4 (RETIRED): A miri-flagged UB violation is recorded as a P0 issue with the offending stack trace.
 - NFR-012-AC-5 (RETIRED): The `miri` job runs without the `python` feature; a doc note records that the FFI layer is out of miri's scope and is covered by NFR-018 sanitizer lanes + the FR-023 pytest harness.
+
+## Measurement and Evaluation
+
+| Metric | Target | Threshold | Method |
+|--------|--------|-----------|--------|
+| Miri job (RETIRED) — UB violations on safe-Rust core | 0 | 0 | Scheduled CI Gate (retired; superseded by `forbid(unsafe_code)`) |
+| First-party UB surface remaining after `#![forbid(unsafe_code)]` | 0 | 0 | Compile-time check (NFR-003) |
 
 ## Verification
 

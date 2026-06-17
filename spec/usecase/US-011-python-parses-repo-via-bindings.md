@@ -14,7 +14,7 @@ relationships:
 
 ## Story
 
-As **`filament_parser` (the Python orchestration layer)**, I want to call `quire.load_repo(path)` and get back a list of parsed documents — each with frontmatter, section tree, and stable block ids — in a single FFI hop, so that I no longer maintain a Python directory walk + per-file frontmatter parse, and the per-document hot path runs at native Rust speed instead of in the interpreter.
+As a **Python orchestration layer** (`filament_parser`), I want to call `quire.load_repo(path)` and get back a list of parsed documents — each with frontmatter, section tree, and stable block ids — in a single FFI hop, so that I no longer maintain a Python directory walk + per-file frontmatter parse, and the per-document hot path runs at native Rust speed instead of in the interpreter.
 
 ## Context
 

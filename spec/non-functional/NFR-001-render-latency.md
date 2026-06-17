@@ -51,6 +51,14 @@ The Filament editor (US-004) re-renders on every accepted patch. To stay below a
 - NFR-001-AC-2 (RETIRED): A criterion benchmark for each of the 10 archetypes reports median below 1 ms.
 - NFR-001-AC-3 (RETIRED): A regression test compares the latest measurement against a stored baseline; a >10% slowdown fails CI.
 
+## Measurement and Evaluation
+
+| Metric | Target | Threshold | Method |
+|--------|--------|-----------|--------|
+| `render(archetype, data)` latency (typical artifact, canonical M2 Pro) | < 1 ms median | 1 ms median | Criterion Benchmark |
+| Render latency on Ubuntu x86_64 CI runner | within +50% of canonical | < 1.5 ms median | Criterion Benchmark |
+| Same-runner regression vs stored baseline | no slowdown | < 10% slowdown | Criterion Benchmark |
+
 ## Verification
 
 - Criterion benches in `benches/render.rs` execute on every PR with a stored baseline.
