@@ -130,5 +130,5 @@ jobs:
           TWINE_PASSWORD: ${{ steps.key.outputs.b64 }}
           TWINE_REPOSITORY_URL: https://${{ vars.GCP_REGION }}-python.pkg.dev/${{ vars.GCP_PROJECT_NAME }}/${{ vars.GCP_PYPI }}/
         run: |
-          pip install twine
+          pip install 'twine<6.1.0'
           twine upload --non-interactive --verbose dist/*.whl
