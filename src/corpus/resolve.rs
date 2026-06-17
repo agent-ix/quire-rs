@@ -10,6 +10,7 @@
 //! (StR-006-AC-4).
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::path::{Component, Path, PathBuf};
 
 use regex::Regex;
 
@@ -57,10 +58,16 @@ pub(crate) fn resolve(
     by_id: &HashMap<ArtifactId, usize>,
 ) -> ResolveOutput {
     let ix_link = ix_link_regex();
+    let md_link = md_link_regex();
+
+    // Path→id index over the loaded set: the normalized on-disk path of
+    // each document maps to its artifact id. Internal relative-path links
+    // (ADR 0007) resolve through this (FR-026-AC-9).
+    let by_path = build_path_index(documents);
 
     // Harvest into a sorted, deduplicated stub set: identical
-    // (source, target, type) triples from frontmatter + body collapse
-    // to one (FR-026-AC-8); same-pair-different-type stay distinct.
+    // (source, target, type) triples from any source collapse to one
+    // (FR-026-AC-8/AC-11); same-pair-different-type stay distinct.
     let mut stubs: BTreeSet<(ArtifactId, ArtifactId, String)> = BTreeSet::new();
     for doc in documents {
         let source = artifact_key(doc);
@@ -77,6 +84,14 @@ pub(crate) fn resolve(
                 extract_target_id(&target_raw).to_string(),
                 "references".to_string(),
             ));
+        }
+        // Internal relative-path links (ADR 0007). Navigation documents
+        // (`index.md`/`log.md`) are excluded as a source so their
+        // wall-to-wall contents links do not flood the graph (FR-026-AC-10).
+        if !is_nav_doc(&doc.path) {
+            for target in harvest_body_relative_links(doc, &md_link, &by_path) {
+                stubs.insert((source.clone(), target, "references".to_string()));
+            }
         }
     }
 
@@ -167,6 +182,85 @@ fn harvest_body_links(doc: &LoadedDocument, re: &Regex) -> Vec<String> {
     re.find_iter(&doc.doc.raw)
         .map(|m| m.as_str().to_string())
         .collect()
+}
+
+/// Resolve internal relative-path links (`[text](./FR-002-….md)`) in the
+/// document body against the corpus path index (FR-026-AC-9). A link whose
+/// normalized destination matches a loaded document yields that document's
+/// id; one that matches nothing yields the raw destination string, so it
+/// resolves to `Dangling` downstream like an absent `ix://` target.
+fn harvest_body_relative_links(
+    doc: &LoadedDocument,
+    re: &Regex,
+    by_path: &HashMap<PathBuf, ArtifactId>,
+) -> Vec<String> {
+    let base = doc.path.parent().unwrap_or_else(|| Path::new(""));
+    re.captures_iter(&doc.doc.raw)
+        .filter_map(|c| c.get(1).map(|m| m.as_str()))
+        .filter_map(|dest| {
+            let path_part = dest.split('#').next().unwrap_or(dest);
+            if !is_relative_md_dest(path_part) {
+                return None;
+            }
+            let normalized = normalize_lexical(&base.join(path_part));
+            Some(match by_path.get(&normalized) {
+                Some(id) => id.clone(),
+                None => dest.to_string(),
+            })
+        })
+        .collect()
+}
+
+/// True when a Markdown link destination is an internal relative path to a
+/// markdown artifact (not an `ix://`/`http(s)`/`mailto:` URI, not a bare
+/// in-document `#anchor`).
+fn is_relative_md_dest(dest: &str) -> bool {
+    !dest.is_empty()
+        && !dest.contains("://")
+        && !dest.starts_with('#')
+        && !dest.starts_with("mailto:")
+        && !dest.starts_with("tel:")
+        && dest.ends_with(".md")
+}
+
+/// `index.md` / `log.md` are navigation documents, not reference sources.
+fn is_nav_doc(path: &Path) -> bool {
+    matches!(
+        path.file_name().and_then(|n| n.to_str()),
+        Some("index.md") | Some("log.md")
+    )
+}
+
+/// Normalized on-disk path → artifact id for every loaded document.
+fn build_path_index(documents: &[LoadedDocument]) -> HashMap<PathBuf, ArtifactId> {
+    documents
+        .iter()
+        .map(|d| (normalize_lexical(&d.path), artifact_key(d)))
+        .collect()
+}
+
+/// Lexically normalize a path — collapse `.` and `..` segments without any
+/// filesystem access (resolution stays I/O-free and deterministic,
+/// StR-006-AC-4 / NFR-006).
+pub(crate) fn normalize_lexical(p: &Path) -> PathBuf {
+    let mut out = PathBuf::new();
+    for comp in p.components() {
+        match comp {
+            Component::CurDir => {}
+            Component::ParentDir => {
+                out.pop();
+            }
+            other => out.push(other.as_os_str()),
+        }
+    }
+    out
+}
+
+fn md_link_regex() -> Regex {
+    // Match a Markdown inline link's destination: `[text](dest)`, where
+    // `dest` runs up to the closing paren or whitespace. `ix://` and other
+    // URI/anchor destinations are filtered out by `is_relative_md_dest`.
+    Regex::new(r#"\[[^\]]*\]\(([^)\s]+)\)"#).expect("static md-link regex is valid")
 }
 
 /// The artifact id a reference target points at: the last `/`-segment
@@ -359,5 +453,122 @@ mod tests {
             types,
             BTreeSet::from(["implements".to_string(), "references".to_string()])
         );
+    }
+
+    /// A document at an explicit path with a slug-suffixed filename (id != slug),
+    /// so relative-path resolution is exercised independently of the file slug.
+    fn loaded_at(path: &str, id: &str, body: &str) -> LoadedDocument {
+        let text = format!("---\nid: {id}\n---\n{body}");
+        LoadedDocument {
+            path: PathBuf::from(path),
+            id: id.to_string(),
+            uuid: None,
+            doc: parse_document(&text),
+        }
+    }
+
+    // TC-620 / FR-026-AC-9: relative-path body link resolves via the path index
+    // (independent of link text and file slug); an unmatched relative link dangles.
+    #[test]
+    fn relative_path_link_resolves_and_dangles() {
+        let docs = vec![
+            loaded_at(
+                "spec/functional/FR-001-foo.md",
+                "FR-001",
+                "see [the schema](./FR-002-graph-edges.md) and [up](../stakeholder/StR-005-need.md)\n",
+            ),
+            loaded_at("spec/functional/FR-002-graph-edges.md", "FR-002", "# schema\n"),
+            loaded_at("spec/stakeholder/StR-005-need.md", "StR-005", "# need\n"),
+        ];
+        let out = resolve(&docs, &index(&docs));
+        let to_fr002 = out
+            .edges
+            .iter()
+            .find(|e| e.source == "FR-001" && e.target == "FR-002")
+            .unwrap();
+        assert_eq!(to_fr002.edge_type, "references");
+        assert_eq!(to_fr002.resolution, Resolution::Resolved);
+        // `../` segment resolves across directories.
+        assert!(out
+            .edges
+            .iter()
+            .any(|e| e.target == "StR-005" && e.resolution == Resolution::Resolved));
+
+        // A relative link to a path not in the loaded set -> Dangling.
+        let docs2 = vec![loaded_at(
+            "spec/functional/FR-001-foo.md",
+            "FR-001",
+            "see [missing](./FR-999-missing.md)\n",
+        )];
+        let out2 = resolve(&docs2, &index(&docs2));
+        assert_eq!(out2.edges.len(), 1);
+        assert_eq!(out2.edges[0].resolution, Resolution::Dangling);
+    }
+
+    // TC-621 / FR-026-AC-10: relative links in index.md/log.md are not harvested;
+    // the same link in an ordinary artifact is.
+    #[test]
+    fn nav_documents_excluded_as_relative_source() {
+        let docs = vec![
+            loaded_at(
+                "spec/functional/index.md",
+                "",
+                "* [FR-002](./FR-002-graph-edges.md)\n",
+            ),
+            loaded_at(
+                "spec/functional/log.md",
+                "",
+                "* changed [FR-002](./FR-002-graph-edges.md)\n",
+            ),
+            loaded_at(
+                "spec/functional/FR-001-foo.md",
+                "FR-001",
+                "see [it](./FR-002-graph-edges.md)\n",
+            ),
+            loaded_at(
+                "spec/functional/FR-002-graph-edges.md",
+                "FR-002",
+                "# schema\n",
+            ),
+        ];
+        let out = resolve(&docs, &index(&docs));
+        let refs_to_fr002: Vec<_> = out
+            .edges
+            .iter()
+            .filter(|e| e.target == "FR-002" && e.edge_type == "references")
+            .collect();
+        // Only the ordinary FR-001 document contributes the edge.
+        assert_eq!(refs_to_fr002.len(), 1);
+        assert_eq!(refs_to_fr002[0].source, "FR-001");
+    }
+
+    // TC-622 / FR-026-AC-11: identical (source, target, references) from a
+    // relative-path link and an ix:// link / frontmatter entry dedups to one.
+    #[test]
+    fn relative_and_ix_link_dedup_to_one() {
+        let docs = vec![
+            loaded_at(
+                "spec/functional/FR-001-foo.md",
+                "FR-001",
+                "rel [a](./FR-002-graph-edges.md) and ix [b](ix://o/r/FR-002)\n",
+            ),
+            loaded_at(
+                "spec/functional/FR-002-graph-edges.md",
+                "FR-002",
+                "# schema\n",
+            ),
+        ];
+        let out = resolve(&docs, &index(&docs));
+        let edges: Vec<_> = out
+            .edges
+            .iter()
+            .filter(|e| e.source == "FR-001" && e.target == "FR-002")
+            .collect();
+        assert_eq!(
+            edges.len(),
+            1,
+            "relative + ix:// to same target should dedup"
+        );
+        assert_eq!(edges[0].edge_type, "references");
     }
 }

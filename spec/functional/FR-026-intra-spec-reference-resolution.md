@@ -14,18 +14,32 @@ relationships:
     cardinality: "1:1"
 ---
 
+> **CR note (internal relative-path links, ADR 0007, 2026-06-17):** intra-bundle
+> references are authored as **relative-path Markdown links**
+> (`[FR-002](./FR-002-graph-edges.md)`), with `ix://` retained for external /
+> cross-repo references only. This FR gains a **third edge-stub source** —
+> relative-path body links resolved via a path→id index over the loaded corpus —
+> and new ACs (FR-026-AC-9..11). This also makes good FR-038's existing Okf prose
+> ("broken `ix://` / relative references degrade to warnings"), which previously
+> anticipated relative references that nothing harvested. Bare prose codes are
+> still **not** harvested (that heuristic is what ADR 0007 removes); converting a
+> bare code into an explicit link is FR-039's job.
+
 ## Description
 
 At corpus construction (FR-025), `quire-rs` SHALL resolve each document's reference stubs against the loaded set, producing a resolved edge set. Resolution is the join step that makes the reverse-edge and orphan queries of FR-027 possible. It is bounded to the loaded corpus — it never reaches outside the set (StR-006-AC-4).
 
 ### Edge stub sources
 
-A reference stub is harvested from two places already parsed by the engine:
+A reference stub is harvested from three places already parsed/loaded by the engine:
 
 1. **Frontmatter `relationships`** — each entry contributes `{ source_id, target_id, edge_type, cardinality? }`. `target_id` is extracted from the entry's `target` (an `ix://` URI or a bare id); `edge_type` is the entry's `type` (e.g. `implements`, `requires`, `exercises`, `supersedes`).
-2. **`ix://` body links** — links in the markdown body whose URI resolves to an artifact id contribute `{ source_id, target_id, edge_type: "references" }`.
+2. **`ix://` body links** — links in the markdown body whose URI resolves to an artifact id contribute `{ source_id, target_id, edge_type: "references" }`. `ix://` is the **external / cross-repo** form (ADR 0007).
+3. **Relative-path body links** — Markdown links whose destination is a relative file path (`./FR-002-….md`, `../stakeholder/StR-001-….md`) are the **internal / intra-bundle** form (ADR 0007). The destination is normalized relative to the source document's directory and matched against the corpus **path→id index** (built from the loaded documents' paths, FR-025); a match contributes `{ source_id, target_id, edge_type: "references" }`. A relative destination that matches no loaded path is `Dangling` like any other unresolved reference; non-relative destinations (`http(s)://`, `mailto:`, `ix://`, bare in-document `#anchor`) are not relative-path stubs and are ignored by this source.
 
-Both sources feed one unified edge set (US-013-AC-2). When the **same** `(source_id, target_id, edge_type)` triple is declared by both a frontmatter `relationships` entry and an `ix://` body link, the resolver SHALL record it **once** (deduplicated) so it is not double-counted in `referencing`/`outgoing`. A frontmatter-declared `implements` edge and a body `references` edge between the same pair are distinct triples (different `edge_type`) and both are kept.
+   Navigation documents — `index.md` and `log.md` — are excluded as a relative-path **source**: their wall-to-wall relative links list the bundle contents and MUST NOT flood the graph with `references` edges.
+
+All three sources feed one unified edge set (US-013-AC-2). When the **same** `(source_id, target_id, edge_type)` triple is declared by more than one source (e.g. a frontmatter `relationships` entry and a body link, or an `ix://` and a relative-path link to the same target), the resolver SHALL record it **once** (deduplicated) so it is not double-counted in `referencing`/`outgoing`. A frontmatter-declared `implements` edge and a body `references` edge between the same pair are distinct triples (different `edge_type`) and both are kept.
 
 ### Resolution rule
 
@@ -39,7 +53,8 @@ A stub whose target id exists only in a *different* spec resolves to **Dangling*
 ### Target id extraction
 
 - An `ix://` target of the shape `ix://<org>/<repo>/spec/<class>/<ID>` contributes `target_id = <ID>` (the trailing artifact id). A bare `<ID>` target contributes itself.
-- Extraction is purely lexical; the resolver does not fetch or validate the URI's authority. Whether `<ID>` is in the loaded set is the only thing that determines resolved vs. dangling.
+- Extraction for `ix://` / bare targets is purely lexical; the resolver does not fetch or validate the URI's authority. Whether `<ID>` is in the loaded set is the only thing that determines resolved vs. dangling.
+- A **relative-path** target contributes the `target_id` of whichever loaded document occupies the normalized path (path→id index lookup), independent of the link's visible text or the file's slug. Normalization joins the destination onto the source document's directory and collapses `.`/`..` segments; a normalized path outside the corpus, or matching no loaded document, yields no `target_id` and the stub is `Dangling`.
 
 ### Cost and determinism
 
@@ -58,6 +73,9 @@ A stub whose target id exists only in a *different* spec resolves to **Dangling*
 | FR-026-AC-6 | `ix://agent-ix/quire-rs/spec/functional/FR-021` as a target contributes `target_id = "FR-021"`; a bare `FR-021` target contributes the same — both resolve identically. | Test |
 | FR-026-AC-7 | A proptest scales the edge count and confirms resolution time grows linearly (O(edges)) and the classification is identical across thread counts (NFR-006). | Test |
 | FR-026-AC-8 | A fixture declaring the identical `(source, target, type)` edge via both a frontmatter `relationships` entry and an `ix://` body link produces exactly one edge; a same-pair edge with a different `type` from each source produces two. | Test |
+| FR-026-AC-9 | A relative-path body link `[FR-002](./FR-002-….md)` whose normalized destination matches a loaded document produces a `Resolved` `references` edge to that document's id (independent of the link text and the file slug); a relative-path link whose normalized destination matches no loaded document is `Dangling`, like an absent `ix://` target. | Test |
+| FR-026-AC-10 | Relative-path links in an `index.md` or `log.md` contribute **no** `references` edges (navigation documents are excluded as a relative-path source), while a relative-path link in an ordinary artifact document is harvested. | Test |
+| FR-026-AC-11 | The identical `(source, FR-002, references)` edge declared via both a relative-path link and an `ix://` body link (or a frontmatter `references` entry) to the same target produces exactly one edge (dedup parity across all three sources). | Test |
 
 ## Dependencies
 

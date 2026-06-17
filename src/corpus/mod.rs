@@ -18,11 +18,13 @@
 pub mod query;
 pub mod resolve;
 pub mod spec;
+pub mod unlinked;
 pub mod validate;
 pub mod walk;
 
 pub use resolve::{harvest_edges, Edge, Resolution};
 pub use spec::Spec;
+pub use unlinked::{unlinked_references, UnlinkedFix, UnlinkedReason, UnlinkedReference};
 pub use validate::{
     validate_bundle, validate_bundle_at, BundleFinding, BundlePosture, BundleReport,
 };

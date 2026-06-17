@@ -92,8 +92,9 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | FR-038 OKF bundle validation (Strict vs Okf + index) | AC-1..8 | TC-600 (strict untyped→error), TC-601 (okf untyped→error), TC-602 (okf tolerates unknown type+broken link, strict rejects), TC-603 (strict conformant+complete index valid), TC-604 (index incompleteness error/warning), TC-605 (root missing okf_version), TC-606 (subdir no okf_version), TC-607 (strict mistyped description) | ✅ |
 | FR-024 Parallel repo walk (load_repo) | AC-1..9 | TC-470 (N files→N docs), TC-471 (malformed→diagnostic), TC-472 (gitignore), TC-473 (path-sorted determinism), TC-474 (symlink loop), TC-475 (id derivation), TC-476 (bad root), TC-455 (bench), TC-502 (no shared mutable state) | ✅ Complete |
 | FR-025 Spec corpus model | AC-1..6 | TC-480 (len), TC-481 (id index), TC-482 (dup id), TC-483 (Send+Sync), TC-484 (scope-guard surface), TC-485 (no-IO queries) | ✅ Complete |
-| FR-026 Intra-spec reference resolution | AC-1..7 | TC-486 (frontmatter edge), TC-487 (ix:// edge), TC-488 (dangling), TC-489 (cross-spec dangling), TC-490 (bidirectional), TC-491 (target-id extraction), TC-492 (O(edges) proptest) | ✅ Complete |
+| FR-026 Intra-spec reference resolution | AC-1..11 | TC-486 (frontmatter edge), TC-487 (ix:// edge), TC-488 (dangling), TC-489 (cross-spec dangling), TC-490 (bidirectional), TC-491 (target-id extraction), TC-492 (O(edges) proptest), TC-501 (dedup), TC-620 (rel-path edge/dangling), TC-621 (index/log excluded), TC-622 (dedup parity across sources) | ✅ Complete |
 | FR-027 Whole-spec query API | AC-1..8 | TC-493 (by_type), TC-494 (referencing), TC-495 (orphans), TC-496 (coverage), TC-497 (dangling agreement), TC-498 (sorted determinism), TC-499 (no-IO), TC-458 (bench) | ✅ Complete |
+| FR-039 Unlinked reference detection (ADR 0007) | AC-1..9 | TC-623 (auto-fix bare id), TC-624 (sub-id→parent file), TC-625 (inline-code conversion), TC-626 (fenced/frontmatter ignored), TC-627 (already-linked + idempotence), TC-628 (self-reference), TC-629 (unresolved→warn-only), TC-630 (ambiguous→warn-only), TC-631 (sorted determinism) | 🚧 Pending implementation |
 
 ### Non-Functional Requirement Coverage
 
@@ -305,6 +306,18 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-499 | Zero filesystem read during any query after construction (tracing audit) | Static | P0 | FR-027-AC-7, US-012-AC-5 | 🚧 |
 | TC-500 | Untyped doc (no `type` field): excluded from `by_type`, found by `by_id`, emits UntypedArtifact diagnostic | Unit | P1 | FR-027-AC-9 | 🚧 |
 | TC-501 | Identical edge from frontmatter + body deduped to one; same-pair different-type kept as two | Unit | P0 | FR-026-AC-8 | 🚧 |
+| TC-620 | Relative-path body link to a loaded doc → Resolved `references` edge (text/slug-independent); rel link to no loaded path → Dangling | Unit | P0 | FR-026-AC-9 | 🚧 |
+| TC-621 | Relative-path links in `index.md`/`log.md` contribute no `references` edges; the same link in an ordinary artifact is harvested | Unit | P0 | FR-026-AC-10 | 🚧 |
+| TC-622 | Identical `(source, FR-002, references)` from a relative-path link and an `ix://` link / frontmatter entry dedups to one edge | Unit | P0 | FR-026-AC-11 | 🚧 |
+| TC-623 | `unlinked_references`: bare `FR-008` in prose (loaded) → one `AutoFix` with token span + `suggested_link [FR-008](<rel-path>)` | Unit | P0 | FR-039-AC-1 | 🚧 |
+| TC-624 | Sub-id `FR-008-CON-4` → `AutoFix` label = full token, destination = parent `FR-008` file | Unit | P0 | FR-039-AC-2 | 🚧 |
+| TC-625 | Inline-code `` `FR-008` `` → `AutoFix` span covers whole code span (backticks), `suggested_link` is a plain backtick-free link | Unit | P0 | FR-039-AC-3 | 🚧 |
+| TC-626 | Token inside fenced ``` block and token only in frontmatter → no finding | Unit | P0 | FR-039-AC-4 | 🚧 |
+| TC-627 | Token already inside a Markdown link / `ix://` destination → no finding; re-run after applying all `AutoFix` yields none (idempotence) | Unit | P0 | FR-039-AC-5 | 🚧 |
+| TC-628 | Self-reference: own H1, `id:`, own `FR-024-AC-*` rows in FR-024 → no finding; ref to other `FR-008` → finding | Unit | P0 | FR-039-AC-6 | 🚧 |
+| TC-629 | Token whose parent id is absent from the loaded set → `WarnOnly { Unresolved }`, no `suggested_link` | Unit | P0 | FR-039-AC-7 | 🚧 |
+| TC-630 | Token whose parent id maps to >1 loaded doc → `WarnOnly { Ambiguous }`, no `suggested_link` | Unit | P0 | FR-039-AC-8 | 🚧 |
+| TC-631 | `unlinked_references` results sorted by `(path, byte_span.start)`; identical across runs and thread counts | Property | P0 | FR-039-AC-9, NFR-006 | 🚧 |
 | TC-502 | Static audit: no Mutex/RwLock/Atomic in first-party src/; parallel parse collects owned results | Static | P0 | FR-024-AC-9 | 🚧 |
 | TC-503 | loom: parallel parse collection race-free; identical path-sorted output across all interleavings | Property | P0 | NFR-017-AC-1..3 | 🚧 |
 | TC-504 | TSAN lane: two-thread `load_repo` (GIL-release window) reports zero data races | Integration | P0 | NFR-018-AC-1, NFR-018-AC-3 | 🚧 |
@@ -691,6 +704,9 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-026-AC-6 | TC-491 |
 | FR-026-AC-7 | TC-492 |
 | FR-026-AC-8 | TC-501 |
+| FR-026-AC-9 | TC-620 |
+| FR-026-AC-10 | TC-621 |
+| FR-026-AC-11 | TC-622 |
 | FR-027-AC-1 | TC-493 |
 | FR-027-AC-2 | TC-494 |
 | FR-027-AC-3 | TC-495 |
@@ -778,6 +794,15 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-038-AC-6 | TC-605 |
 | FR-038-AC-7 | TC-606 |
 | FR-038-AC-8 | TC-607 |
+| FR-039-AC-1 | TC-623 |
+| FR-039-AC-2 | TC-624 |
+| FR-039-AC-3 | TC-625 |
+| FR-039-AC-4 | TC-626 |
+| FR-039-AC-5 | TC-627 |
+| FR-039-AC-6 | TC-628 |
+| FR-039-AC-7 | TC-629 |
+| FR-039-AC-8 | TC-630 |
+| FR-039-AC-9 | TC-631 |
 
 ### Non-Functional Requirements
 
@@ -843,7 +868,7 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | NFR-019-AC-1 | TC-579 |
 | NFR-019-AC-2 | TC-580 |
 
-**Coverage status: 314 / 314 ACs covered (100%).** The composed type+object validation slice (2026-06-16) adds FR-032-AC-11..13 (`validate_document_in_registry` composes the `type` archetype with the frontmatter `object:` archetype; resolved-object failures are errors, unknown-object is a warning, `ValidationResult` carries typed `warnings`) — TC-610..613, 3 ACs. The assert/lint extension slice (2026-06-16) adds FR-033-AC-10 (CR-008 `matches` content assert, TC-608) and FR-036-AC-6 (CR-009 `section_body_pattern` lint rule, TC-609) — 2 ACs. The OKF slice (2026-06-16) adds FR-037-AC-1..6 (base concept frontmatter schema, TC-590..596 + TC-528) and FR-038-AC-1..8 (OKF bundle validation, TC-600..607) — 14 ACs. v0.4 adds FR-011-AC-21 (CR-006 `multiple: true`, TC-583) and FR-036-AC-1..5 (declarative lint rules, TC-584..588). v0.2 block model added 16 ACs (FR-019..022, TC-400..443). v0.3 adds 81 ACs — StR-005/006, US-011..013, FR-023..027 (incl. review-added FR-026-AC-8, FR-027-AC-9), NFR-015/016, plus the hardening re-review (NFR-003-AC-4, FR-024-AC-9, NFR-017, NFR-018) — covered by TC-455..507 (plus reused TC-456..459). The Miri ACs (NFR-012-AC-1..5) were **retired** (ADR 0006) and the compile-time **NFR-003-AC-5** (`forbid(unsafe_code)`, TC-582) added. PC (performance criteria) for US-011..013 are tracked as benches (TC-455..459, TC-469) and marked 🚧 pending implementation, consistent with the US-006..010 perf-bench convention. The v0.3 hardening re-review (loom NFR-017, TSAN/ASAN NFR-018) is recorded in spec.md §19.
+**Coverage status: 326 / 326 ACs covered (100%).** The internal-links slice (ADR 0007, 2026-06-17) adds FR-026-AC-9..11 (relative-path link edge source + index/log exclusion + dedup parity, TC-620..622) and FR-039-AC-1..9 (unlinked-reference detection & autofix suggestions, TC-623..631) — 12 ACs. The composed type+object validation slice (2026-06-16) adds FR-032-AC-11..13 (`validate_document_in_registry` composes the `type` archetype with the frontmatter `object:` archetype; resolved-object failures are errors, unknown-object is a warning, `ValidationResult` carries typed `warnings`) — TC-610..613, 3 ACs. The assert/lint extension slice (2026-06-16) adds FR-033-AC-10 (CR-008 `matches` content assert, TC-608) and FR-036-AC-6 (CR-009 `section_body_pattern` lint rule, TC-609) — 2 ACs. The OKF slice (2026-06-16) adds FR-037-AC-1..6 (base concept frontmatter schema, TC-590..596 + TC-528) and FR-038-AC-1..8 (OKF bundle validation, TC-600..607) — 14 ACs. v0.4 adds FR-011-AC-21 (CR-006 `multiple: true`, TC-583) and FR-036-AC-1..5 (declarative lint rules, TC-584..588). v0.2 block model added 16 ACs (FR-019..022, TC-400..443). v0.3 adds 81 ACs — StR-005/006, US-011..013, FR-023..027 (incl. review-added FR-026-AC-8, FR-027-AC-9), NFR-015/016, plus the hardening re-review (NFR-003-AC-4, FR-024-AC-9, NFR-017, NFR-018) — covered by TC-455..507 (plus reused TC-456..459). The Miri ACs (NFR-012-AC-1..5) were **retired** (ADR 0006) and the compile-time **NFR-003-AC-5** (`forbid(unsafe_code)`, TC-582) added. PC (performance criteria) for US-011..013 are tracked as benches (TC-455..459, TC-469) and marked 🚧 pending implementation, consistent with the US-006..010 perf-bench convention. The v0.3 hardening re-review (loom NFR-017, TSAN/ASAN NFR-018) is recorded in spec.md §19.
 
 **v0.4 markdown-validation slice** adds 42 ACs — US-014 (author validates markdown), FR-029 (archetype input contract, recast by ADR 0004), FR-030 (required-section validation, superseded by FR-032/FR-033), FR-031 (unified archetype shape), FR-032 (`validate_document`), FR-033 (locator `assert` facet), FR-034 (assert field interpolation), FR-035 (per-level heading uniqueness) — covered by TC-518..553. FR-030's ACs are mapped to the FR-032/FR-033 TCs that subsume them (per its CR note). This slice also back-fills 7 ACs that a prior commit left out of the audit table — FR-013-AC-11..14, FR-028-AC-9/10, US-003-AC-4 — via TC-554..560. New v0.4 TCs are 🚧 pending implementation.
 
@@ -861,7 +886,7 @@ NFR-006-AC-4, NFR-019-AC-1..2 — covered by TC-565..580. TC-561 is re-pointed o
 FR-033-AC-4 onto FR-033-AC-9 (the non-table `id_pattern` case); TC-562 covers both
 FR-033-AC-4 and FR-033-AC-9.
 
-**Integrity check (grep-verified):** all **314 distinct file-defined ACs** (definition-anchored: bold `**<ID>-AC-N**` declarations) across `stakeholder/ usecase/ functional/ non-functional/` appear in the AC→TC audit table — **0 uncovered**. Note: `FR-900-AC-1/2` appearing inside FR-034-AC-1's example prose are NOT defined ACs and are excluded from the denominator (match `**…**:` definitions, not inline mentions). Retired ACs (marked `(RETIRED)`, un-bolded) are excluded by construction. Count: 316 (pre-removal) − 41 (retired) + 16 (back-fill) + 1 (FR-011-AC-20, CR-005 heading normalization) − 5 (NFR-012-AC-1..5 retired, ADR 0006) + 1 (NFR-003-AC-5, forbid(unsafe_code)) + 1 (FR-011-AC-21, CR-006 multiple:true) + 5 (FR-036-AC-1..5, declarative lint rules) + 1 (FR-010-AC-4, CR-007 escaped pipes) + 6 (FR-037-AC-1..6, OKF base concept schema) + 8 (FR-038-AC-1..8, OKF bundle validation) + 1 (FR-033-AC-10, CR-008 `matches` content assert) + 1 (FR-036-AC-6, CR-009 `section_body_pattern`) + 3 (FR-032-AC-11..13, composed type+object validation) = **314**.
+**Integrity check (grep-verified):** all **326 distinct file-defined ACs** (definition-anchored: bold `**<ID>-AC-N**` declarations) across `stakeholder/ usecase/ functional/ non-functional/` appear in the AC→TC audit table — **0 uncovered**. Note: `FR-900-AC-1/2` appearing inside FR-034-AC-1's example prose are NOT defined ACs and are excluded from the denominator (match `**…**:` definitions, not inline mentions). Retired ACs (marked `(RETIRED)`, un-bolded) are excluded by construction. Count: 316 (pre-removal) − 41 (retired) + 16 (back-fill) + 1 (FR-011-AC-20, CR-005 heading normalization) − 5 (NFR-012-AC-1..5 retired, ADR 0006) + 1 (NFR-003-AC-5, forbid(unsafe_code)) + 1 (FR-011-AC-21, CR-006 multiple:true) + 5 (FR-036-AC-1..5, declarative lint rules) + 1 (FR-010-AC-4, CR-007 escaped pipes) + 6 (FR-037-AC-1..6, OKF base concept schema) + 8 (FR-038-AC-1..8, OKF bundle validation) + 1 (FR-033-AC-10, CR-008 `matches` content assert) + 1 (FR-036-AC-6, CR-009 `section_body_pattern`) + 3 (FR-032-AC-11..13, composed type+object validation) + 3 (FR-026-AC-9..11, relative-path link edge source) + 9 (FR-039-AC-1..9, unlinked-reference detection) = **326**.
 
 ---
 

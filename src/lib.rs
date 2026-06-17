@@ -74,3 +74,5 @@ pub use corpus::{harvest_edges, Spec};
 // Bundle validation postures (OKF): strict archetype-conformance vs.
 // permissive foreign-bundle reading, plus index-completeness.
 pub use corpus::{validate_bundle, validate_bundle_at, BundleFinding, BundlePosture, BundleReport};
+// Unlinked-reference detection + autofix suggestions (FR-039, ADR 0007).
+pub use corpus::{unlinked_references, UnlinkedFix, UnlinkedReason, UnlinkedReference};
