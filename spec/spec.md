@@ -121,7 +121,7 @@ This specification governs a **generic, archetype-agnostic engine** that process
 
 This specification does not govern:
 
-- **Sync from Filament to disk.** The local module directory (e.g. `~/.ix/filament/modules/`) is populated by external tools — `ix-cli` / `ix-spec` are the canonical syncers (handle Filament auth + transfer / module install). `quire-rs` can consume a path when a caller asks it to load local archetypes, but it never owns `.ix` synchronization and never calls Filament directly.
+- **Sync from Filament to disk.** The local module directory (e.g. `~/.ix/filament/modules/`) is populated by external tools — `ix-cli` / `quoin` are the canonical syncers (handle Filament auth + transfer / module install). `quire-rs` can consume a path when a caller asks it to load local archetypes, but it never owns `.ix` synchronization and never calls Filament directly.
 - **Runtime ObjectType registry sourcing.** `filament-core-service` owns the dynamic ObjectType registry. Consumers such as `filament-analysis-worker` and `cloudmanager-local-sync` fetch registry snapshots from core and pass them through parser-lib into `ExtractionContext`. `quire-rs` does not discover those ObjectTypes itself.
 - **Authoring tooling.** Schema files, templates, and manifests are authored elsewhere (in Filament, by hand, by another tool). `quire-rs` does not write archetype data.
 - **Author-time schema validation.** `quire-rs` validates JSON Schema documents at archetype-load time ([FR-013](./functional/FR-013-archetype-loader.md)). Pre-publish validation (catching authoring errors before they reach disk) is Filament's concern.
@@ -752,7 +752,7 @@ Functional requirements MAY declare a lifecycle status:
 | Authenticate to Filament | `ix-cli` | API keys, OAuth, etc. |
 | Discover available modules in Filament | `ix-cli` | |
 | Download module contents to disk | `ix-cli` | Atomic writes per above |
-| Resolve `~/.ix/filament/modules/` location | `ix-cli` / `ix-spec` for writes; `quire-rs` for reads ([FR-013](./functional/FR-013-archetype-loader.md)) | Both honor `IX_FILAMENT_MODULES_PATH` (and the legacy `IX_SCHEMA_PATH` alias) |
+| Resolve `~/.ix/filament/modules/` location | `ix-cli` / `quoin` for writes; `quire-rs` for reads ([FR-013](./functional/FR-013-archetype-loader.md)) | Both honor `IX_FILAMENT_MODULES_PATH` (and the legacy `IX_SCHEMA_PATH` alias) |
 | Module versioning policy | `ix-cli` | quire-rs is version-blind |
 | Conflict resolution between local edits and remote | `ix-cli` | quire-rs sees only the post-resolution state |
 | Load archetypes into runtime registry | `quire-rs` | Pure filesystem reads |

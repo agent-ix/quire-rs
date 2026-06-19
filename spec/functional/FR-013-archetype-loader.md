@@ -23,7 +23,7 @@ relationships:
 > from `~/.ix/schemas/` to **`~/.ix/filament/modules/`**, and the env override
 > gains a preferred name `IX_FILAMENT_MODULES_PATH` with the legacy
 > `IX_SCHEMA_PATH` retained as a back-compat alias (read only when the new var
-> is unset). This aligns the engine with the single directory that `ix-spec`
+> is unset). This aligns the engine with the single directory that `quoin`
 > (via `@agent-ix/ts-plugin-kit`) materializes installed Filament modules into,
 > so one install serves both the CLI and the engine. The change is additive and
 > non-breaking: explicit `load_from`/`load_module` paths are unaffected, and

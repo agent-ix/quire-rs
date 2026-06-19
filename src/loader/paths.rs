@@ -133,7 +133,7 @@ fn split_colon_paths(s: &OsString) -> Vec<PathBuf> {
 /// The default module search root: `~/.ix/filament/modules`.
 ///
 /// quire-rs reads installed Filament modules from here — the same directory
-/// `ix-spec` materializes its default module set into. Returns `None` when no
+/// `quoin` materializes its default module set into. Returns `None` when no
 /// home directory can be determined.
 pub fn default_module_root() -> Option<PathBuf> {
     home_dir().map(|h| h.join(".ix").join("filament").join("modules"))

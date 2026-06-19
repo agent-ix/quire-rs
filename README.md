@@ -180,7 +180,7 @@ safety scaffolding and design conventions, and `spec/` for the normative require
 | `quire-cli`          | Thin command-line wrapper over the engine (parse / extract / lookup / edit / validate). | `@agent-ix/quire-cli`   |
 | `quire-wasm`         | WebAssembly bindings bringing parse / extract / validate to browser & Node.       | `@agent-ix/quire-wasm`  |
 | `spec-artifacts-iso` | An archetype **module** (FR / NFR / StR / US / IT / TC / AC / CON) consumed by the engine. | `spec_artifacts_iso` (pypi.ix) |
-| `ix-spec`            | Spec-domain CLI; installs modules and provides agent authoring contracts.         | `@agent-ix/ix-spec`     |
+| `quoin`            | Spec-domain CLI; installs modules and provides agent authoring contracts.         | `@agent-ix/quoin`     |
 
 ## License
 
