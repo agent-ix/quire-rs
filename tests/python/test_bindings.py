@@ -266,6 +266,43 @@ def test_validate_document_column_choices_enforced(tmp_path):
     assert any("huge" in e["message"] for e in res2["errors"])
 
 
+def test_validate_document_scalar_choices_enforced(tmp_path):
+    """CR-010 (FR-033-AC-11): a scalar `choices` enum assert round-trips through
+    the validate_document binding (a Vec<String> across the FFI boundary)."""
+    mod = tmp_path / "m"
+    (mod / "schemas").mkdir(parents=True)
+    (mod / "schemas" / "review.schema.json").write_text(
+        '{"type":"object","required":["id","type"],'
+        '"properties":{"id":{"type":"string"},"type":{"const":"SR"}}}'
+    )
+    (mod / "manifest.yaml").write_text(
+        "manifest_version: 1.0.0\n"
+        "name: m\n"
+        "version: 0.1.0\n"
+        "grammars:\n  - name: g\n    version: 0.1.0\n    doc_kinds: [sr]\n"
+        "archetypes:\n  - kind: sr\n    name: SR\n    doc_backed: true\n"
+        "artifact_types:\n"
+        "  - name: SR\n"
+        "    grammar_ref: g\n"
+        "    frontmatter_schema_ref: schemas/review.schema.json\n"
+        "    body_extraction:\n"
+        "      yield_pattern:\n"
+        "        match:\n"
+        "          severity:\n"
+        "            from: section_body\n"
+        "            after_heading: Severity\n"
+        "            assert:\n"
+        "              choices: [low, medium, high]\n"
+    )
+    ok = "---\nid: SR-1\ntype: SR\n---\n## Severity\nmedium\n"
+    assert quire.validate_document("SR", str(mod), ok)["is_valid"] is True
+
+    bad = "---\nid: SR-1\ntype: SR\n---\n## Severity\ncritical\n"
+    res = quire.validate_document("SR", str(mod), bad)
+    assert res["is_valid"] is False
+    assert "assert" in {e["reason"] for e in res["errors"]}
+
+
 def test_extract_envelope_returns_extraction_and_edges(tmp_path):
     """TC-513: extract returns {extraction, edges}. demo-item has no body_extraction,
     so we use a manifest with one. For a clean test, build a tiny module on the fly."""

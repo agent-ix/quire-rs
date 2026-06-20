@@ -798,6 +798,23 @@ mod tests {
         // Absent section → no values → `choices` does not fire.
         let missing = parse_document("## Other\nx\n");
         assert!(evaluate_assert(&missing, &p, &a, None).is_empty());
+
+        // A `frontmatter_field` value (not pre-trimmed by `eval`) proves the
+        // "exact match after trim" semantic actually lives in the choices check.
+        let fp = prim(
+            "from: frontmatter_field\npath: [severity]\nassert:\n  choices: [low, medium, high]",
+        );
+        let fa = fp.assert().unwrap().clone();
+        let fdoc = parse_document("---\nseverity: '  high  '\n---\n# H\n");
+        assert!(
+            evaluate_assert(&fdoc, &fp, &fa, fdoc.frontmatter.as_ref()).is_empty(),
+            "surrounding whitespace must be trimmed before membership"
+        );
+        let fbad = parse_document("---\nseverity: critical\n---\n# H\n");
+        assert_eq!(
+            evaluate_assert(&fbad, &fp, &fa, fbad.frontmatter.as_ref()).len(),
+            1
+        );
     }
 
     // TC-634 (FR-033-AC-12): `column_choices` constrains every cell in a
@@ -855,5 +872,21 @@ mod tests {
         let fails = evaluate_assert(&doc, &absent, &aabsent, None);
         assert_eq!(fails.len(), 1);
         assert!(fails[0].message.contains("not found"));
+
+        // `{field}` interpolation in a column pattern (FR-034 parity).
+        let interp = prim(
+            "from: table_row\nunder_section: Findings\nassert:\n  column_patterns:\n    ID: '^{prefix}-\\d+$'",
+        );
+        let ainterp = interp.assert().unwrap().clone();
+        let idoc = parse_document(
+            "---\nprefix: FND\n---\n## Findings\n| ID | Severity |\n| - | - |\n| FND-1 | low |\n",
+        );
+        assert!(evaluate_assert(&idoc, &interp, &ainterp, idoc.frontmatter.as_ref()).is_empty());
+        // A missing `{field}` surfaces reason `unresolved-field`, not `assert`.
+        let nofield =
+            parse_document("## Findings\n| ID | Severity |\n| - | - |\n| FND-1 | low |\n");
+        let ufails = evaluate_assert(&nofield, &interp, &ainterp, nofield.frontmatter.as_ref());
+        assert_eq!(ufails.len(), 1);
+        assert_eq!(ufails[0].reason, AssertReason::UnresolvedField);
     }
 }
