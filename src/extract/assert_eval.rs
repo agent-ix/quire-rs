@@ -88,6 +88,13 @@ pub fn evaluate_assert(
         check_content_matches(doc, primitive, assert, frontmatter, &mut failures);
     }
 
+    // `choices` — the located scalar value must be one of a fixed set
+    // (CR-010). Like `matches`, a locator that resolves to no values does
+    // NOT fire. Table columns use `column_choices` (handled in `check_table`).
+    if assert.choices.is_some() && !matches!(primitive.kind(), LocatorKind::TableRow) {
+        check_value_choices(doc, primitive, assert, &mut failures);
+    }
+
     failures
 }
 
@@ -174,7 +181,12 @@ fn check_table(
     let Some((table, line)) = locate_table(doc, primitive) else {
         // Surface a single failure per declared table assert so the
         // missing table is reported (not silently passing).
-        if assert.columns.is_some() || assert.min_rows.is_some() || assert.id_pattern.is_some() {
+        if assert.columns.is_some()
+            || assert.min_rows.is_some()
+            || assert.id_pattern.is_some()
+            || assert.column_choices.is_some()
+            || assert.column_patterns.is_some()
+        {
             failures.push(AssertFailure {
                 reason: AssertReason::Assert,
                 message: "table not found for table_row assert".to_string(),
@@ -252,6 +264,127 @@ fn check_table(
                 failures.push(AssertFailure {
                     reason: AssertReason::Assert,
                     message: format!("id cell '{cell}' does not match pattern /{}/", re.as_str()),
+                    line,
+                });
+            }
+        }
+    }
+
+    // Per-column enum constraints (CR-010): every data cell in the named
+    // column must be one of the listed values (trimmed, exact match).
+    if let Some(col_choices) = &assert.column_choices {
+        for (col, allowed) in col_choices {
+            check_table_column_choices(&table, col, allowed, line, failures);
+        }
+    }
+
+    // Per-column regex constraints (CR-010): every data cell in the named
+    // column must match the (interpolated) pattern.
+    if let Some(col_patterns) = &assert.column_patterns {
+        for (col, pattern) in col_patterns {
+            let re = match resolve_regex(pattern, frontmatter) {
+                Ok(re) => re,
+                Err(failure) => {
+                    failures.push(failure);
+                    continue;
+                }
+            };
+            check_table_column_pattern(&table, col, &re, line, failures);
+        }
+    }
+}
+
+/// Resolve a named table column to its index, pushing a "column not found"
+/// failure when absent (CR-010).
+fn table_column_index(
+    table: &crate::query::TableResult,
+    col: &str,
+    line: Option<usize>,
+    failures: &mut Vec<AssertFailure>,
+) -> Option<usize> {
+    match table.headers.iter().position(|h| h == col) {
+        Some(idx) => Some(idx),
+        None => {
+            failures.push(AssertFailure {
+                reason: AssertReason::Assert,
+                message: format!(
+                    "column '{col}' not found in table headers {:?}",
+                    table.headers
+                ),
+                line,
+            });
+            None
+        }
+    }
+}
+
+fn check_table_column_choices(
+    table: &crate::query::TableResult,
+    col: &str,
+    allowed: &[String],
+    line: Option<usize>,
+    failures: &mut Vec<AssertFailure>,
+) {
+    let Some(idx) = table_column_index(table, col, line, failures) else {
+        return;
+    };
+    for row in &table.rows {
+        let cell = row.get(idx).map(|s| s.trim()).unwrap_or("");
+        if !allowed.iter().any(|a| a == cell) {
+            failures.push(AssertFailure {
+                reason: AssertReason::Assert,
+                message: format!("column '{col}' cell '{cell}' is not one of {allowed:?}"),
+                line,
+            });
+        }
+    }
+}
+
+fn check_table_column_pattern(
+    table: &crate::query::TableResult,
+    col: &str,
+    re: &Regex,
+    line: Option<usize>,
+    failures: &mut Vec<AssertFailure>,
+) {
+    let Some(idx) = table_column_index(table, col, line, failures) else {
+        return;
+    };
+    for row in &table.rows {
+        let cell = row.get(idx).map(String::as_str).unwrap_or("");
+        if !re.is_match(cell) {
+            failures.push(AssertFailure {
+                reason: AssertReason::Assert,
+                message: format!(
+                    "column '{col}' cell '{cell}' does not match pattern /{}/",
+                    re.as_str()
+                ),
+                line,
+            });
+        }
+    }
+}
+
+/// `choices` — the located scalar value(s) must each be one of a fixed set
+/// (CR-010). A locator that resolves to no values does not fire.
+fn check_value_choices(
+    doc: &QuireDocument,
+    primitive: &LocatorPrimitive,
+    assert: &LocatorAssert,
+    failures: &mut Vec<AssertFailure>,
+) {
+    let Some(choices) = &assert.choices else {
+        return;
+    };
+    let line = located_section_name(primitive)
+        .and_then(|name| q_section(doc, &name).map(|s| s.start_line));
+    for v in &crate::extract::locator::eval(doc, primitive) {
+        if let Some(s) = v.as_str() {
+            let value = s.trim();
+            if !choices.iter().any(|c| c == value) {
+                failures.push(AssertFailure {
+                    reason: AssertReason::Assert,
+                    message: format!("value '{value}' is not one of {choices:?}"),
                     line,
                 });
             }
@@ -641,5 +774,119 @@ mod tests {
             evaluate_assert(&missing, &ok, &a, None).is_empty(),
             "missing section must not produce a `matches` failure"
         );
+    }
+
+    // TC-633 (FR-033-AC-11): `choices` scalar enum on a `section_body`
+    // locator passes on a member value, fails reason `assert` on a
+    // non-member, and does NOT fire when the section is absent.
+    #[test]
+    fn tc633_choices_scalar_enum() {
+        let p = prim(
+            "from: section_body\nafter_heading: Severity\nassert:\n  choices: [low, medium, high]",
+        );
+        let a = p.assert().unwrap().clone();
+
+        let ok = parse_document("## Severity\nmedium\n");
+        assert!(evaluate_assert(&ok, &p, &a, None).is_empty());
+
+        let bad = parse_document("## Severity\nhuge\n");
+        let fails = evaluate_assert(&bad, &p, &a, None);
+        assert_eq!(fails.len(), 1);
+        assert_eq!(fails[0].reason, AssertReason::Assert);
+        assert!(fails[0].message.contains("is not one of"));
+
+        // Absent section → no values → `choices` does not fire.
+        let missing = parse_document("## Other\nx\n");
+        assert!(evaluate_assert(&missing, &p, &a, None).is_empty());
+
+        // A `frontmatter_field` value (not pre-trimmed by `eval`) proves the
+        // "exact match after trim" semantic actually lives in the choices check.
+        let fp = prim(
+            "from: frontmatter_field\npath: [severity]\nassert:\n  choices: [low, medium, high]",
+        );
+        let fa = fp.assert().unwrap().clone();
+        let fdoc = parse_document("---\nseverity: '  high  '\n---\n# H\n");
+        assert!(
+            evaluate_assert(&fdoc, &fp, &fa, fdoc.frontmatter.as_ref()).is_empty(),
+            "surrounding whitespace must be trimmed before membership"
+        );
+        let fbad = parse_document("---\nseverity: critical\n---\n# H\n");
+        assert_eq!(
+            evaluate_assert(&fbad, &fp, &fa, fbad.frontmatter.as_ref()).len(),
+            1
+        );
+    }
+
+    // TC-634 (FR-033-AC-12): `column_choices` constrains every cell in a
+    // named table column; an absent column fails "column not found".
+    #[test]
+    fn tc634_column_choices() {
+        let doc = parse_document(
+            "## Findings\n| ID | Severity |\n| - | - |\n| FND-1 | medium |\n| FND-2 | low |\n",
+        );
+        let ok = prim(
+            "from: table_row\nunder_section: Findings\nassert:\n  column_choices:\n    Severity: [low, medium, high]",
+        );
+        let aok = ok.assert().unwrap().clone();
+        assert!(evaluate_assert(&doc, &ok, &aok, None).is_empty());
+
+        let bad = parse_document(
+            "## Findings\n| ID | Severity |\n| - | - |\n| FND-1 | medium |\n| FND-2 | huge |\n",
+        );
+        assert_eq!(evaluate_assert(&bad, &ok, &aok, None).len(), 1);
+
+        // Named column absent → "column not found".
+        let absent = prim(
+            "from: table_row\nunder_section: Findings\nassert:\n  column_choices:\n    Nope: [a]",
+        );
+        let aabsent = absent.assert().unwrap().clone();
+        let fails = evaluate_assert(&doc, &absent, &aabsent, None);
+        assert_eq!(fails.len(), 1);
+        assert!(fails[0].message.contains("not found"));
+    }
+
+    // TC-635 (FR-033-AC-13): `column_patterns` regex-validates every cell in
+    // a named table column; supports `{field}` interpolation; absent column
+    // fails "column not found".
+    #[test]
+    fn tc635_column_patterns() {
+        let doc = parse_document(
+            "## Findings\n| ID | Severity |\n| - | - |\n| FND-1 | medium |\n| FND-2 | low |\n",
+        );
+        let ok = prim(
+            "from: table_row\nunder_section: Findings\nassert:\n  column_patterns:\n    ID: '^FND-\\d+$'",
+        );
+        let aok = ok.assert().unwrap().clone();
+        assert!(evaluate_assert(&doc, &ok, &aok, None).is_empty());
+
+        let bad = parse_document(
+            "## Findings\n| ID | Severity |\n| - | - |\n| FND-1 | medium |\n| nope | low |\n",
+        );
+        assert_eq!(evaluate_assert(&bad, &ok, &aok, None).len(), 1);
+
+        // Named column absent → "column not found".
+        let absent = prim(
+            "from: table_row\nunder_section: Findings\nassert:\n  column_patterns:\n    Missing: '^.'",
+        );
+        let aabsent = absent.assert().unwrap().clone();
+        let fails = evaluate_assert(&doc, &absent, &aabsent, None);
+        assert_eq!(fails.len(), 1);
+        assert!(fails[0].message.contains("not found"));
+
+        // `{field}` interpolation in a column pattern (FR-034 parity).
+        let interp = prim(
+            "from: table_row\nunder_section: Findings\nassert:\n  column_patterns:\n    ID: '^{prefix}-\\d+$'",
+        );
+        let ainterp = interp.assert().unwrap().clone();
+        let idoc = parse_document(
+            "---\nprefix: FND\n---\n## Findings\n| ID | Severity |\n| - | - |\n| FND-1 | low |\n",
+        );
+        assert!(evaluate_assert(&idoc, &interp, &ainterp, idoc.frontmatter.as_ref()).is_empty());
+        // A missing `{field}` surfaces reason `unresolved-field`, not `assert`.
+        let nofield =
+            parse_document("## Findings\n| ID | Severity |\n| - | - |\n| FND-1 | low |\n");
+        let ufails = evaluate_assert(&nofield, &interp, &ainterp, nofield.frontmatter.as_ref());
+        assert_eq!(ufails.len(), 1);
+        assert_eq!(ufails[0].reason, AssertReason::UnresolvedField);
     }
 }
