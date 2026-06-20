@@ -198,6 +198,20 @@ pub fn validate_assert_for_kind(
     if assert.matches.is_some() && matches!(kind, LocatorKind::TableRow) {
         return reject("matches");
     }
+    // `choices` is an enum constraint on a located scalar value (CR-010). Like
+    // scalar `id_pattern`/`matches` it applies to a scalar locator — legal on
+    // `heading`/`section_body`/`list_item`/`frontmatter_field`, illegal on
+    // `table_row` (use `column_choices`) and `code_block`.
+    if assert.choices.is_some() && matches!(kind, LocatorKind::TableRow | LocatorKind::CodeBlock) {
+        return reject("choices");
+    }
+    // Per-column table value asserts (CR-010) — `table_row` only.
+    if assert.column_choices.is_some() && !table_only {
+        return reject("column_choices");
+    }
+    if assert.column_patterns.is_some() && !table_only {
+        return reject("column_patterns");
+    }
     Ok(())
 }
 
@@ -392,6 +406,21 @@ yield_pattern:
                 "id_column" => a.id_column = Some("ID".to_string()),
                 "id_pattern" => a.id_pattern = Some("^X-".to_string()),
                 "matches" => a.matches = Some("^x".to_string()),
+                "choices" => a.choices = Some(vec!["x".to_string()]),
+                "column_choices" => {
+                    a.column_choices = Some(
+                        [("ID".to_string(), vec!["x".to_string()])]
+                            .into_iter()
+                            .collect(),
+                    )
+                }
+                "column_patterns" => {
+                    a.column_patterns = Some(
+                        [("ID".to_string(), "^X-".to_string())]
+                            .into_iter()
+                            .collect(),
+                    )
+                }
                 other => panic!("unknown key {other}"),
             }
             a
@@ -413,6 +442,9 @@ yield_pattern:
             "id_column",
             "id_pattern",
             "matches",
+            "choices",
+            "column_choices",
+            "column_patterns",
         ];
 
         // Legality per FR-033-AC-7.
@@ -426,6 +458,12 @@ yield_pattern:
                     TableRow | Heading | SectionBody | ListItem | FrontmatterField
                 ),
                 "matches" => !matches!(kind, TableRow),
+                // CR-010: `choices` is a scalar enum (not table/code_block);
+                // `column_*` are table-only.
+                "choices" => {
+                    matches!(kind, Heading | SectionBody | ListItem | FrontmatterField)
+                }
+                "column_choices" | "column_patterns" => matches!(kind, TableRow),
                 _ => unreachable!(),
             }
         }

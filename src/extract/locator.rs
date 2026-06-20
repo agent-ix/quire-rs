@@ -7,6 +7,8 @@
 //! collapses sequences to their first element when the locator is
 //! bound under a `match:` key; the multi-yield evaluator iterates.
 
+use std::collections::BTreeMap;
+
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -86,7 +88,7 @@ pub enum LocatorPrimitive {
         #[serde(default)]
         regex: Option<String>,
         #[serde(default)]
-        assert: Option<LocatorAssert>,
+        assert: Option<Box<LocatorAssert>>,
     },
     /// `from: section_body` — text content of `after_heading` section.
     SectionBody {
@@ -98,7 +100,7 @@ pub enum LocatorPrimitive {
         #[serde(default)]
         regex: Option<String>,
         #[serde(default)]
-        assert: Option<LocatorAssert>,
+        assert: Option<Box<LocatorAssert>>,
     },
     /// `from: code_block` — source of the first fenced code block in
     /// `language`, optionally constrained to a section.
@@ -115,7 +117,7 @@ pub enum LocatorPrimitive {
         #[serde(default)]
         regex: Option<String>,
         #[serde(default)]
-        assert: Option<LocatorAssert>,
+        assert: Option<Box<LocatorAssert>>,
     },
     /// `from: table_row` — rows from a table (optionally inside a
     /// section, optionally projecting a single column).
@@ -132,7 +134,7 @@ pub enum LocatorPrimitive {
         #[serde(default)]
         regex: Option<String>,
         #[serde(default)]
-        assert: Option<LocatorAssert>,
+        assert: Option<Box<LocatorAssert>>,
     },
     /// `from: list_item` — items from a bullet list.
     ListItem {
@@ -148,7 +150,7 @@ pub enum LocatorPrimitive {
         #[serde(default)]
         regex: Option<String>,
         #[serde(default)]
-        assert: Option<LocatorAssert>,
+        assert: Option<Box<LocatorAssert>>,
     },
     /// `from: heading` — heading text of sections at `level`, or under
     /// `path`.
@@ -165,7 +167,7 @@ pub enum LocatorPrimitive {
         #[serde(default)]
         regex: Option<String>,
         #[serde(default)]
-        assert: Option<LocatorAssert>,
+        assert: Option<Box<LocatorAssert>>,
     },
 }
 
@@ -235,6 +237,22 @@ pub struct LocatorAssert {
     /// interpolation (FR-034).
     #[serde(default)]
     pub matches: Option<String>,
+    /// Allowed values the located **scalar** content MUST be one of — an
+    /// enum constraint (CR-010, FR-033-AC-11). Legal on scalar content
+    /// locators (`section_body`/`heading`/`list_item`/`frontmatter_field`),
+    /// illegal on `table_row`/`code_block`.
+    #[serde(default)]
+    pub choices: Option<Vec<String>>,
+    /// Per-column allowed value sets for a table (header → values); every
+    /// data cell in that column MUST be one of the values. `table_row`
+    /// only (CR-010, FR-033-AC-12).
+    #[serde(default)]
+    pub column_choices: Option<BTreeMap<String, Vec<String>>>,
+    /// Per-column regex for a table (header → pattern, `{field}`-interpolated);
+    /// every data cell in that column MUST match. `table_row` only
+    /// (CR-010, FR-033-AC-13).
+    #[serde(default)]
+    pub column_patterns: Option<BTreeMap<String, String>>,
 }
 
 impl LocatorAssert {
@@ -247,6 +265,9 @@ impl LocatorAssert {
             && self.id_column.is_none()
             && self.id_pattern.is_none()
             && self.matches.is_none()
+            && self.choices.is_none()
+            && self.column_choices.is_none()
+            && self.column_patterns.is_none()
     }
 }
 
@@ -338,7 +359,7 @@ impl LocatorPrimitive {
             | Self::CodeBlock { assert, .. }
             | Self::TableRow { assert, .. }
             | Self::ListItem { assert, .. }
-            | Self::Heading { assert, .. } => assert.as_ref(),
+            | Self::Heading { assert, .. } => assert.as_deref(),
         }
     }
 }
