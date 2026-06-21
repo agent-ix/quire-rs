@@ -23,10 +23,13 @@
 //! (render removed) are **rejected** at load time (no
 //! backward-compatibility layer, ADR 0003 / FR-031 / FR-035).
 
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
+
+use crate::vocab::{EdgeTypeDef, RoleDef};
 
 /// Top-level `manifest.yaml` shape.
 ///
@@ -52,6 +55,15 @@ pub struct Manifest {
     /// parse like any other shape error.
     #[serde(default)]
     pub lint_rules: Vec<crate::lint::LintRule>,
+    /// Mergeable edge-type registry (FR-040): verb → {description,
+    /// category, optional inverse}. Merged across modules first-wins.
+    #[serde(default)]
+    pub edge_types: BTreeMap<String, EdgeTypeDef>,
+    /// Mergeable role registry (FR-040): role name → {description}.
+    /// Object types opt into roles via their `roles:` list; cross-domain
+    /// `allowed_links` target roles instead of concrete type names.
+    #[serde(default)]
+    pub roles: BTreeMap<String, RoleDef>,
 }
 
 impl Manifest {
@@ -114,9 +126,13 @@ impl Archetype {
             .and_then(|d| d.get("id_pattern"))
             .and_then(|v| v.as_str())
             .map(str::to_string);
-        let allowed_links = self
+        // `allowed_links` accepts the legacy flat-array form (normalized
+        // to `{verb: ["*"]}`) or the FR-040 map form (verb → targets).
+        let allowed_links = crate::vocab::normalize_allowed_links(self.extras.get("allowed_links"));
+        // `roles` — capability tags this object type opts into (FR-040).
+        let roles = self
             .extras
-            .get("allowed_links")
+            .get("roles")
             .and_then(|v| v.as_array())
             .map(|a| {
                 a.iter()
@@ -137,6 +153,7 @@ impl Archetype {
         crate::loader::compile::ArchetypeCarryOver {
             id_pattern,
             allowed_links,
+            roles,
             has_plugin,
             grammar_ref,
         }

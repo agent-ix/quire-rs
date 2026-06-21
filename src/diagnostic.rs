@@ -78,6 +78,34 @@ pub enum Diagnostic {
         id: String,
         path: PathBuf,
     },
+    /// An `edge_types` verb is declared with differing bodies by more
+    /// than one module (FR-040-AC-2). First-wins; advisory, mirrors
+    /// `DuplicateArchetype`. `load_strict` escalates.
+    DuplicateEdgeType {
+        name: String,
+        modules: Vec<String>,
+    },
+    /// A `roles` name is declared with differing bodies by more than one
+    /// module (FR-040-AC-2). First-wins; advisory. `load_strict`
+    /// escalates.
+    DuplicateRole {
+        name: String,
+        modules: Vec<String>,
+    },
+    /// An archetype's `allowed_links` references a verb absent from the
+    /// merged `edge_types` registry (FR-040-AC-3). Advisory; the
+    /// vocabulary is open until declared. `load_strict` escalates.
+    UnknownEdgeType {
+        archetype: String,
+        edge_type: String,
+    },
+    /// An archetype's `roles:` list, or an `allowed_links` target token,
+    /// references a role absent from the merged `roles` registry
+    /// (FR-040-AC-3). Advisory. `load_strict` escalates.
+    UnknownRole {
+        archetype: String,
+        role: String,
+    },
     /// A caller-supplied path argument failed a path-safety check.
     ///
     /// Surfaced by consumers (CLIs, services) that resolve user-controlled
@@ -198,6 +226,27 @@ impl std::fmt::Display for Diagnostic {
                 id,
                 path.display()
             ),
+            Self::DuplicateEdgeType { name, modules } => write!(
+                f,
+                "DuplicateEdgeType: '{}' contributed by modules {:?}; first-wins",
+                name, modules
+            ),
+            Self::DuplicateRole { name, modules } => write!(
+                f,
+                "DuplicateRole: '{}' contributed by modules {:?}; first-wins",
+                name, modules
+            ),
+            Self::UnknownEdgeType {
+                archetype,
+                edge_type,
+            } => write!(
+                f,
+                "UnknownEdgeType: archetype '{archetype}' allowed_links uses '{edge_type}' which is not in any edge_types registry"
+            ),
+            Self::UnknownRole { archetype, role } => write!(
+                f,
+                "UnknownRole: archetype '{archetype}' references role '{role}' which is not in any roles registry"
+            ),
             Self::PathTraversal {
                 argument,
                 path,
@@ -292,6 +341,29 @@ impl Diagnostic {
                 "kind": "UntypedArtifact",
                 "id": id,
                 "path": path.display().to_string(),
+            }),
+            Self::DuplicateEdgeType { name, modules } => json!({
+                "kind": "DuplicateEdgeType",
+                "name": name,
+                "modules": modules,
+            }),
+            Self::DuplicateRole { name, modules } => json!({
+                "kind": "DuplicateRole",
+                "name": name,
+                "modules": modules,
+            }),
+            Self::UnknownEdgeType {
+                archetype,
+                edge_type,
+            } => json!({
+                "kind": "UnknownEdgeType",
+                "archetype": archetype,
+                "edge_type": edge_type,
+            }),
+            Self::UnknownRole { archetype, role } => json!({
+                "kind": "UnknownRole",
+                "archetype": archetype,
+                "role": role,
             }),
             Self::PathTraversal {
                 argument,

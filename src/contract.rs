@@ -55,16 +55,42 @@ pub struct ContractSection {
     pub matches: Option<String>,
 }
 
+/// One allowed relationship verb in the resolved (artifact ∪ object)
+/// vocabulary, presented to the authoring agent (FR-040-AC-11).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct ContractRelationship {
+    /// The edge verb.
+    pub verb: String,
+    /// The verb's category from the merged `edge_types` registry, when
+    /// declared.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub category: Option<String>,
+    /// The verb's description from the merged `edge_types` registry, when
+    /// declared.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    /// Allowed target tokens (concrete object-type names, role names, or
+    /// `"*"`).
+    pub targets: Vec<String>,
+}
+
 /// The per-archetype input contract (FR-029 recast).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct InputContract {
     /// Archetype name.
     pub archetype: String,
+    /// The composed `object:` archetype name, when the contract was built
+    /// for a specific object (FR-040-AC-11).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub object: Option<String>,
     /// Frontmatter JSON Schema (FR-003), or `null` when the archetype
     /// declares none.
     pub frontmatter_schema: Value,
     /// Required body structure, in manifest (`match`) order.
     pub sections: Vec<ContractSection>,
+    /// Resolved relationship vocabulary (artifact ∪ object), verb-sorted
+    /// (FR-040-AC-11).
+    pub relationships: Vec<ContractRelationship>,
     /// Unresolved-mapping diagnostics (FR-029-AC-6) — never silently
     /// dropped sections.
     pub diagnostics: Vec<String>,
@@ -87,6 +113,37 @@ impl InputContract {
         out.push_str(
             "---\n# frontmatter: populate per the archetype's frontmatter schema\n---\n\n",
         );
+
+        // Relationships block (FR-040-AC-11): the resolved (artifact ∪
+        // object) edge vocabulary an author may declare in the frontmatter
+        // `relationships:` array.
+        if !self.relationships.is_empty() {
+            let scope = match &self.object {
+                Some(o) => format!("{} + object:{}", self.archetype, o),
+                None => self.archetype.clone(),
+            };
+            out.push_str(&format!(
+                "<!-- Relationships (frontmatter `relationships:` array, typed `ix://` edges).\n     Allowed for {scope}:\n"
+            ));
+            for r in &self.relationships {
+                let cat = r
+                    .category
+                    .as_deref()
+                    .map(|c| format!(" ({c})"))
+                    .unwrap_or_default();
+                let desc = r
+                    .description
+                    .as_deref()
+                    .map(|d| format!(" — {d}"))
+                    .unwrap_or_default();
+                out.push_str(&format!(
+                    "       {} → {}{cat}{desc}\n",
+                    r.verb,
+                    r.targets.join(", ")
+                ));
+            }
+            out.push_str("-->\n\n");
+        }
 
         for s in &self.sections {
             let level = s.level.unwrap_or(2) as usize;
@@ -137,6 +194,24 @@ pub fn input_contract_for(
     registry: &Registry,
     archetype: &str,
 ) -> Result<InputContract, QuireError> {
+    input_contract_for_object(registry, archetype, None)
+}
+
+/// Build the input contract for `archetype` composed with an optional
+/// `object:` archetype (FR-040-AC-11).
+///
+/// The body sections are the artifact archetype's (the `object:` layer
+/// asserts body structure separately at validation time); the
+/// Relationships vocabulary is the **resolved union** of the artifact and
+/// object `allowed_links`, annotated with each verb's registry category +
+/// description. `object = Some(name)` for an unknown name contributes no
+/// object vocabulary (artifact axis alone). Returns `UnknownArchetype`
+/// only when the *artifact* `archetype` is unregistered (FR-029-AC-5).
+pub fn input_contract_for_object(
+    registry: &Registry,
+    archetype: &str,
+    object: Option<&str>,
+) -> Result<InputContract, QuireError> {
     let arch = registry
         .archetype(archetype)
         .ok_or_else(|| QuireError::UnknownArchetype {
@@ -155,12 +230,54 @@ pub fn input_contract_for(
         build_sections(arch, dsl, &mut sections, &mut diagnostics);
     }
 
+    let object_arch = object.and_then(|o| registry.archetype(o));
+    let relationships = build_relationships(registry, arch, object_arch);
+
     Ok(InputContract {
         archetype: arch.name.clone(),
+        object: object.map(str::to_string),
         frontmatter_schema,
         sections,
+        relationships,
         diagnostics,
     })
+}
+
+/// Build the resolved relationship vocabulary (artifact ∪ object),
+/// verb-sorted, annotating each verb with its `edge_types` registry
+/// category + description when declared (FR-040-AC-11).
+fn build_relationships(
+    registry: &Registry,
+    artifact: &CompiledArchetype,
+    object: Option<&CompiledArchetype>,
+) -> Vec<ContractRelationship> {
+    let resolved = registry.resolve_allowed_links(artifact, object);
+    resolved
+        .into_iter()
+        .map(|(verb, targets)| {
+            let def = registry.edge_types().get(&verb);
+            ContractRelationship {
+                category: def.map(|d| edge_category_str(d.category).to_string()),
+                description: def.map(|d| d.description.clone()),
+                verb,
+                targets,
+            }
+        })
+        .collect()
+}
+
+/// Stable lowercase token for an [`crate::vocab::EdgeCategory`].
+fn edge_category_str(category: crate::vocab::EdgeCategory) -> &'static str {
+    use crate::vocab::EdgeCategory::*;
+    match category {
+        Structural => "structural",
+        Behavioral => "behavioral",
+        Dataflow => "dataflow",
+        Dependency => "dependency",
+        Realization => "realization",
+        Governance => "governance",
+        Traceability => "traceability",
+    }
 }
 
 fn build_sections(
@@ -400,6 +517,77 @@ object_types:
             c.diagnostics
         );
         let _ = fs::remove_dir_all(&parent);
+    }
+
+    /// Inline registry with FR + aggregate_root allowed_links + edge_types
+    /// for the Relationships-block test (FR-040-AC-11).
+    fn rel_registry() -> Registry {
+        let manifest = br#"
+name: rel-test
+artifact_types:
+- name: FR
+  frontmatter_schema_ref: schemas/fr.schema.json
+  allowed_links: [references]
+object_types:
+- name: aggregate_root
+  allowed_links:
+    emits: [event]
+    aggregates: [entity]
+edge_types:
+  references: { description: loose linkage, category: traceability }
+  emits: { description: emits a domain event, category: dataflow }
+  aggregates: { description: owns member entities, category: structural }
+"#;
+        let mut schemas = std::collections::BTreeMap::new();
+        schemas.insert(
+            "schemas/fr.schema.json".to_string(),
+            r#"{"type":"object"}"#.to_string(),
+        );
+        Registry::from_inline_parts(manifest, &schemas).expect("inline registry")
+    }
+
+    // TC-645 (FR-040-AC-11): input_contract_for_object with an object
+    // renders a Relationships block listing each resolved verb with its
+    // category + description + targets; without object, only the artifact
+    // vocabulary is listed.
+    #[test]
+    fn tc645_skeleton_renders_relationships_block() {
+        let r = rel_registry();
+        // With object: union of FR (references) + aggregate_root (emits,
+        // aggregates).
+        let composed = input_contract_for_object(&r, "FR", Some("aggregate_root")).unwrap();
+        let verbs: Vec<&str> = composed
+            .relationships
+            .iter()
+            .map(|x| x.verb.as_str())
+            .collect();
+        assert_eq!(
+            verbs,
+            vec!["aggregates", "emits", "references"],
+            "verb-sorted union"
+        );
+        let sk = composed.skeleton();
+        assert!(sk.contains("FR + object:aggregate_root"));
+        assert!(
+            sk.contains("emits → event (dataflow) — emits a domain event"),
+            "{sk}"
+        );
+        assert!(sk.contains("aggregates → entity (structural)"), "{sk}");
+
+        // Without object: only the artifact axis (references).
+        let artifact_only = input_contract_for(&r, "FR").unwrap();
+        let verbs2: Vec<&str> = artifact_only
+            .relationships
+            .iter()
+            .map(|x| x.verb.as_str())
+            .collect();
+        assert_eq!(verbs2, vec!["references"]);
+        assert!(artifact_only.object.is_none());
+        let sk2 = artifact_only.skeleton();
+        assert!(
+            !sk2.contains("emits"),
+            "no object verbs without object: {sk2}"
+        );
     }
 
     // The skeleton emitter scaffolds headings + literal table headers,

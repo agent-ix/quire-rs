@@ -205,3 +205,79 @@ fn strict_rejects_mistyped_description() {
         .iter()
         .any(|f| f.message.contains("description")));
 }
+
+/// Build an inline registry with a `concept` artifact type plus object
+/// types carrying roles + allowed_links, for the Tier-2 edge-target test
+/// (FR-040-AC-9).
+fn edge_target_registry() -> Registry {
+    let manifest = br#"
+name: edge-target-test
+artifact_types:
+- name: concept
+  frontmatter_schema_ref: schemas/concept.schema.json
+object_types:
+- name: api_endpoint
+  allowed_links:
+    exposes: [domain-object]
+- name: entity
+  roles: [domain-object]
+- name: data_schema
+edge_types:
+  exposes: { description: surface, category: realization }
+roles:
+  domain-object: { description: a business-model type }
+"#;
+    let mut schemas = std::collections::BTreeMap::new();
+    schemas.insert(
+        "schemas/concept.schema.json".to_string(),
+        r#"{"type":"object","required":["id"],"properties":{"id":{"type":"string"}}}"#.to_string(),
+    );
+    Registry::from_inline_parts(manifest, &schemas).expect("inline registry")
+}
+
+/// TC-642 (FR-040-AC-9): a resolved edge whose target object type satisfies
+/// no token in the verb's target list yields a `disallowed-edge-target`
+/// warning; the same verb to a target carrying the required role passes —
+/// across object-type boundaries. Warn-tier: the bundle stays valid.
+#[test]
+fn tc642_disallowed_edge_target_is_warning() {
+    let root = tmpdir("edge_target");
+    // Source api_endpoint `exposes` two targets: an entity (role
+    // domain-object → OK) and a data_schema (no role → flagged).
+    write(
+        &root,
+        "API-1.md",
+        "---\nid: API-1\ntype: concept\nobject: api_endpoint\nrelationships:\n- target: ix://o/r/ENT-1\n  type: exposes\n- target: ix://o/r/DS-1\n  type: exposes\n---\n# API-1\nbody\n",
+    );
+    write(
+        &root,
+        "ENT-1.md",
+        "---\nid: ENT-1\ntype: concept\nobject: entity\n---\n# ENT-1\nbody\n",
+    );
+    write(
+        &root,
+        "DS-1.md",
+        "---\nid: DS-1\ntype: concept\nobject: data_schema\n---\n# DS-1\nbody\n",
+    );
+
+    let report = validate_bundle_at(&root, &edge_target_registry(), BundlePosture::Okf);
+    let target_warnings: Vec<_> = report
+        .warnings
+        .iter()
+        .filter(|f| f.reason == "disallowed-edge-target")
+        .collect();
+    assert_eq!(
+        target_warnings.len(),
+        1,
+        "exactly one disallowed target, got {:?}",
+        report.warnings
+    );
+    assert!(
+        target_warnings[0].message.contains("DS-1")
+            && target_warnings[0].message.contains("data_schema"),
+        "names the offending target + object type: {}",
+        target_warnings[0].message
+    );
+    // Warn-tier: disallowed edge targets never invalidate the bundle.
+    assert!(report.is_valid(), "errors: {:?}", report.errors);
+}

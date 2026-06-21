@@ -27,6 +27,7 @@ pub mod query;
 pub mod registry;
 pub mod validate;
 pub mod validate_document;
+pub mod vocab;
 pub mod writeback;
 
 // Parser surface (FR-005..009).
@@ -56,7 +57,10 @@ pub use validate_document::{
 // `description`/`tags`), validated before archetype routing.
 pub use concept::{base_concept_schema, validate_base_concept, validate_concept_shape};
 // Archetype input contract + authoring skeleton (FR-029 recast).
-pub use contract::{input_contract_for, ContractSection, InputContract};
+pub use contract::{
+    input_contract_for, input_contract_for_object, ContractRelationship, ContractSection,
+    InputContract,
+};
 // Extract / body-extraction DSL (FR-011 + FR-016).
 pub use extract::dsl::{ExtractionDsl, IterateKind, IterateOver, YieldPattern};
 pub use extract::locator::{Locator, LocatorAssert, LocatorKind, LocatorPrimitive};

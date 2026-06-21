@@ -85,6 +85,13 @@ pub enum QuireError {
         second_path: PathBuf,
     },
 
+    /// `load_strict` escalation of an FR-040 edge-vocabulary diagnostic
+    /// (a conflicting edge_types/roles re-declaration, or an
+    /// allowed_links/roles reference to an undeclared verb/role). Carries
+    /// the offending diagnostic's machine-readable `kind` and name.
+    #[error("EdgeVocabularyViolation [{kind}]: '{name}'")]
+    EdgeVocabularyViolation { kind: String, name: String },
+
     // ── Loader ──────────────────────────────────────────────────────────
     /// Aggregated per-archetype load failures. The loader continues past
     /// individual failures and surfaces them all together so consumers

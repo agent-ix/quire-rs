@@ -21,3 +21,4 @@ description: "Index of artifacts in this directory."
 * [US-012: Agent Audits a Whole Spec for Traceability and Coverage Gaps](./US-012-agent-audits-whole-spec.md)
 * [US-013: Agent Resolves Intra-Spec References to Find Orphans and Dangling Links](./US-013-agent-resolves-intra-spec-refs.md)
 * [US-014: LLM Authors an Artifact as Markdown and Validates It](./US-014-author-validates-markdown.md)
+* [US-015: Author Declares an Object's Typed Relationship Vocabulary](./US-015-object-edge-vocabulary.md)
