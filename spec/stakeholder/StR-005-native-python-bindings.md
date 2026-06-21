@@ -4,10 +4,10 @@ title: "Native Python Bindings Replace the filament-parser-lib Hot Paths"
 type: StR
 relationships:
   - target: "ix://agent-ix/filament-parser-lib"
-    type: "replaces"
+    type: "supersedes"
     cardinality: "1:1"
   - target: "ix://agent-ix/quire-rs/spec/stakeholder/StR-001"
-    type: "requires"
+    type: "depends_on"
     cardinality: "1:1"
 ---
 

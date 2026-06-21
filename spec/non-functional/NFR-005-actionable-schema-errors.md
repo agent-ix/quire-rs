@@ -4,13 +4,13 @@ title: "Schema Validation Errors Are Field-Keyed and Actionable"
 type: NFR
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/functional/FR-001"
-    type: "requires"
+    type: "depends_on"
     cardinality: "1:1"
   - target: "ix://agent-ix/quire-rs/spec/functional/FR-002"
-    type: "requires"
+    type: "depends_on"
     cardinality: "1:1"
   - target: "ix://agent-ix/quire-rs/spec/usecase/US-001"
-    type: "implements"
+    type: "traces_to"
     cardinality: "1:1"
 ---
 

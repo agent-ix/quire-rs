@@ -4,13 +4,13 @@ title: "FFI Sanitizer Lanes (TSAN + ASAN on the Python Extension)"
 type: NFR
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/functional/FR-023"
-    type: "requires"
+    type: "depends_on"
     cardinality: "1:1"
   - target: "ix://agent-ix/quire-rs/spec/non-functional/NFR-016"
-    type: "requires"
+    type: "depends_on"
     cardinality: "1:1"
   - target: "ix://agent-ix/quire-rs/spec/stakeholder/StR-004"
-    type: "implements"
+    type: "traces_to"
     cardinality: "1:1"
 ---
 

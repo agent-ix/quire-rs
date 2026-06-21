@@ -4,10 +4,10 @@ title: "Python Binding Overhead Bounded; abi3 Stability"
 type: NFR
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/usecase/US-011"
-    type: "implements"
+    type: "traces_to"
     cardinality: "1:1"
   - target: "ix://agent-ix/quire-rs/spec/functional/FR-023"
-    type: "requires"
+    type: "depends_on"
     cardinality: "1:1"
 ---
 

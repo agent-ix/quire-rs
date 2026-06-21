@@ -4,7 +4,7 @@ title: "Public API Stability and Semver Policy"
 type: NFR
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/stakeholder/StR-001"
-    type: "implements"
+    type: "traces_to"
     cardinality: "1:1"
 ---
 

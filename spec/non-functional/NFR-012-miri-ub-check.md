@@ -4,10 +4,10 @@ title: "miri Undefined-Behavior Check on Schedule"
 type: NFR
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/non-functional/NFR-003"
-    type: "implements"
+    type: "traces_to"
     cardinality: "1:1"
   - target: "ix://agent-ix/quire-rs/spec/stakeholder/StR-004"
-    type: "implements"
+    type: "traces_to"
     cardinality: "1:1"
 ---
 

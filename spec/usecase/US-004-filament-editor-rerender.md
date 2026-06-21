@@ -7,7 +7,7 @@ relationships:
     type: "implements"
     cardinality: "1:1"
   - target: "ix://agent-ix/filament-editor-app"
-    type: "consumes"
+    type: "depends_on"
     cardinality: "1:1"
 ---
 

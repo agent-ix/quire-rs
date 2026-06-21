@@ -4,13 +4,13 @@ title: "Input Robustness: No Panic on Arbitrary Input"
 type: NFR
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/functional/FR-032"
-    type: "requires"
+    type: "depends_on"
     cardinality: "1:1"
   - target: "ix://agent-ix/quire-rs/spec/functional/FR-011"
-    type: "requires"
+    type: "depends_on"
     cardinality: "1:1"
   - target: "ix://agent-ix/quire-rs/spec/functional/FR-027"
-    type: "requires"
+    type: "depends_on"
     cardinality: "1:1"
 ---
 

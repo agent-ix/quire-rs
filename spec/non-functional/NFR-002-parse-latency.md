@@ -4,10 +4,10 @@ title: "Parse Latency: 5 MB Document Under 500 ms"
 type: NFR
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/usecase/US-002"
-    type: "implements"
+    type: "traces_to"
     cardinality: "1:1"
   - target: "ix://agent-ix/quire-rs/spec/functional/FR-005"
-    type: "requires"
+    type: "depends_on"
     cardinality: "1:1"
 ---
 

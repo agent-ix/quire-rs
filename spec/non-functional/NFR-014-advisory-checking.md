@@ -4,7 +4,7 @@ title: "RustSec Advisory Checking (cargo-audit)"
 type: NFR
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/non-functional/NFR-004"
-    type: "implements"
+    type: "traces_to"
     cardinality: "1:1"
 ---
 
