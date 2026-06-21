@@ -4,10 +4,10 @@ title: "Byte-Parity Render Output with the Python Jinja2 Reference"
 type: StR
 relationships:
   - target: "ix://agent-ix/spec-artifacts-iso"
-    type: "consumes"
+    type: "depends_on"
     cardinality: "1:1"
   - target: "ix://agent-ix/spec-artifacts-app"
-    type: "consumes"
+    type: "depends_on"
     cardinality: "1:1"
 ---
 

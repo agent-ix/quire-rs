@@ -4,10 +4,10 @@ title: "Determinism: Identical Input Produces Byte-Identical Output"
 type: NFR
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/stakeholder/StR-002"
-    type: "implements"
+    type: "traces_to"
     cardinality: "1:1"
   - target: "ix://agent-ix/quire-rs/spec/stakeholder/StR-003"
-    type: "implements"
+    type: "traces_to"
     cardinality: "1:1"
 ---
 

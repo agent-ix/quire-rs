@@ -22,7 +22,7 @@ relationships:
     type: "consumes"
     cardinality: "1:1"
   - target: "ix://agent-ix/filament-parser-lib"
-    type: "replaces"
+    type: "supersedes"
     cardinality: "1:1"
     scope:
       - parse_document

@@ -4,7 +4,7 @@ title: "Byte-Parity Parser with agent-ix/quire (TypeScript)"
 type: StR
 relationships:
   - target: "ix://agent-ix/quire"
-    type: "implements"
+    type: "satisfied_by"
     cardinality: "1:1"
 ---
 

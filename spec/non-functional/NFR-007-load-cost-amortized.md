@@ -4,10 +4,10 @@ title: "Archetype Load Cost Amortized Across Renders"
 type: NFR
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/functional/FR-013"
-    type: "requires"
+    type: "depends_on"
     cardinality: "1:1"
   - target: "ix://agent-ix/quire-rs/spec/non-functional/NFR-001"
-    type: "requires"
+    type: "depends_on"
     cardinality: "1:1"
 ---
 

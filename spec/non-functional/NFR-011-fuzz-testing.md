@@ -4,13 +4,13 @@ title: "Fuzz Testing on Untrusted-Input Surfaces"
 type: NFR
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/functional/FR-005"
-    type: "implements"
+    type: "traces_to"
     cardinality: "1:1"
   - target: "ix://agent-ix/quire-rs/spec/functional/FR-002"
-    type: "implements"
+    type: "traces_to"
     cardinality: "1:1"
   - target: "ix://agent-ix/quire-rs/spec/functional/FR-011"
-    type: "implements"
+    type: "traces_to"
     cardinality: "1:1"
 ---
 

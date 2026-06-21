@@ -7,10 +7,10 @@ relationships:
     type: "implements"
     cardinality: "1:1"
   - target: "ix://agent-ix/spec-objects-business"
-    type: "consumes"
+    type: "depends_on"
     cardinality: "1:1"
   - target: "ix://agent-ix/spec-objects-architecture"
-    type: "consumes"
+    type: "depends_on"
     cardinality: "1:1"
 ---
 

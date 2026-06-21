@@ -4,10 +4,10 @@ title: "Examine a Whole Spec as a Bounded, In-Memory Unit"
 type: StR
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/stakeholder/StR-001"
-    type: "requires"
+    type: "depends_on"
     cardinality: "1:1"
   - target: "ix://agent-ix/quire-rs/spec/stakeholder/StR-003"
-    type: "requires"
+    type: "depends_on"
     cardinality: "1:1"
 ---
 

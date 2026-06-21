@@ -4,10 +4,10 @@ title: "Inherit Rust Safety Scaffolding from rust-lib-cookiecutter / ecaz"
 type: StR
 relationships:
   - target: "ix://agent-ix/rust-lib-cookiecutter"
-    type: "implements"
+    type: "satisfied_by"
     cardinality: "1:1"
   - target: "ix://agent-ix/ecaz"
-    type: "implements"
+    type: "satisfied_by"
     cardinality: "1:1"
 ---
 
