@@ -161,16 +161,25 @@ fn input_contract<'py>(
 
 /// Return the markdown authoring skeleton for `archetype_name` from
 /// `module_root` (FR-029 recast) — the artifact handed to an authoring
-/// agent. Unknown archetype → `QuireSchemaError`.
+/// agent. When `object` is given (FR-040-AC-11), the skeleton's
+/// Relationships block lists the composed (artifact ∪ object) edge
+/// vocabulary. Unknown archetype → `QuireSchemaError`.
 #[pyfunction]
-fn input_skeleton(py: Python<'_>, archetype_name: &str, module_root: &str) -> PyResult<String> {
+#[pyo3(signature = (archetype_name, module_root, object=None))]
+fn input_skeleton(
+    py: Python<'_>,
+    archetype_name: &str,
+    module_root: &str,
+    object: Option<&str>,
+) -> PyResult<String> {
     let module = module_root.to_string();
     let name = archetype_name.to_string();
+    let object = object.map(str::to_string);
     py.detach(|| -> PyResult<String> {
         let registry = crate::Registry::load_module(Path::new(&module))
             .map_err(quire_error_to_schema_pyerr)?;
-        let contract =
-            crate::input_contract_for(&registry, &name).map_err(quire_error_to_schema_pyerr)?;
+        let contract = crate::input_contract_for_object(&registry, &name, object.as_deref())
+            .map_err(quire_error_to_schema_pyerr)?;
         Ok(contract.skeleton())
     })
 }
@@ -767,6 +776,7 @@ fn quire_error_to_pyerr(e: QuireError) -> PyErr {
         QuireError::UnknownArchetype { .. }
         | QuireError::ArchetypeCollision { .. }
         | QuireError::ModuleCollision { .. }
+        | QuireError::EdgeVocabularyViolation { .. }
         | QuireError::ArchetypeLoadError { .. }
         | QuireError::ManifestError { .. }
         | QuireError::InvalidSearchPath { .. } => QuireSchemaError::new_err(e.to_string()),

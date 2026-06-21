@@ -30,6 +30,7 @@ use crate::loader::manifest::{load_manifest, Archetype, Manifest};
 use crate::loader::paths::{
     default_module_root, module_path_env, resolve_search_paths, PathDiagnostic,
 };
+use crate::vocab::{EdgeTypeDef, RoleDef};
 
 /// Module-level entry produced by [`load_modules`].
 #[derive(Debug)]
@@ -40,6 +41,10 @@ pub struct LoadedModule {
     pub archetypes: Vec<Arc<CompiledArchetype>>,
     /// Advisory lint rules declared by the module (FR-036).
     pub lint_rules: Vec<crate::lint::LintRule>,
+    /// Edge-type registry contributed by this module (FR-040).
+    pub edge_types: BTreeMap<String, EdgeTypeDef>,
+    /// Role registry contributed by this module (FR-040).
+    pub roles: BTreeMap<String, RoleDef>,
 }
 
 /// Outcome of a full load pass.
@@ -343,6 +348,8 @@ pub fn load_inline_module(manifest_yaml: &[u8], schemas: &BTreeMap<String, Strin
         version: manifest.version.clone(),
         archetypes,
         lint_rules: manifest.lint_rules.clone(),
+        edge_types: manifest.edge_types.clone(),
+        roles: manifest.roles.clone(),
     });
 
     LoadOutcome {
@@ -481,6 +488,8 @@ fn load_one_module(
             version: manifest.version.clone(),
             archetypes,
             lint_rules: manifest.lint_rules.clone(),
+            edge_types: manifest.edge_types.clone(),
+            roles: manifest.roles.clone(),
         },
         failures,
     ))
@@ -658,16 +667,110 @@ pub fn flatten_into_registry(mut outcome: LoadOutcome) -> RegistryShape {
         .flat_map(|m| m.lint_rules.iter().cloned())
         .collect();
 
+    // ── FR-040: merge the edge_types + roles registries (first-wins,
+    // mirroring archetype merge). A name re-declared with a *differing*
+    // body emits a Duplicate{EdgeType,Role} diagnostic; identical
+    // re-declaration is silently idempotent. ──
+    let (edge_types, mut edge_type_dups) = merge_vocab(&outcome.modules, |m| &m.edge_types);
+    for (name, modules) in edge_type_dups.drain(..) {
+        outcome
+            .diagnostics
+            .push(Diagnostic::DuplicateEdgeType { name, modules });
+    }
+    let (roles, mut role_dups) = merge_vocab(&outcome.modules, |m| &m.roles);
+    for (name, modules) in role_dups.drain(..) {
+        outcome
+            .diagnostics
+            .push(Diagnostic::DuplicateRole { name, modules });
+    }
+
+    // ── FR-040: advisory check that every verb used in an archetype's
+    // allowed_links is declared in edge_types, and every role used in a
+    // `roles:` list or as a target token is declared in roles. Open
+    // until declared — non-fatal (load_strict escalates). Deterministic:
+    // active_archetypes is a BTreeMap, allowed_links a BTreeMap. ──
+    for arch in active_archetypes.values() {
+        for (verb, targets) in arch.allowed_links() {
+            if !edge_types.contains_key(verb) {
+                outcome.diagnostics.push(Diagnostic::UnknownEdgeType {
+                    archetype: arch.name.clone(),
+                    edge_type: verb.clone(),
+                });
+            }
+            for token in targets {
+                // A target token may be "*", a concrete archetype name,
+                // or a role. Only flag tokens that are neither "*", a
+                // known archetype, nor a known role.
+                if token == "*"
+                    || active_archetypes.contains_key(token)
+                    || roles.contains_key(token)
+                {
+                    continue;
+                }
+                outcome.diagnostics.push(Diagnostic::UnknownRole {
+                    archetype: arch.name.clone(),
+                    role: token.clone(),
+                });
+            }
+        }
+        for role in arch.roles() {
+            if !roles.contains_key(role) {
+                outcome.diagnostics.push(Diagnostic::UnknownRole {
+                    archetype: arch.name.clone(),
+                    role: role.clone(),
+                });
+            }
+        }
+    }
+
     RegistryShape {
         archetypes: active_archetypes,
         by_module_and_name,
         module_paths,
         module_versions,
         lint_rules,
+        edge_types,
+        roles,
         failures: outcome.failures,
         diagnostics: outcome.diagnostics,
         path_diagnostics: outcome.path_diagnostics,
     }
+}
+
+/// `(name, contributing-module-names)` for one conflicting vocabulary
+/// re-declaration, used to build a `Duplicate{EdgeType,Role}` diagnostic.
+type VocabConflicts = Vec<(String, Vec<String>)>;
+
+/// Merge a per-module vocabulary map (edge_types or roles) across modules
+/// first-wins. Returns the merged map plus, for each name re-declared
+/// with a *differing* body, the contributing module names (the original
+/// winner followed by each conflicting module) for a Duplicate
+/// diagnostic. Identical re-declarations are silently idempotent.
+fn merge_vocab<V: Clone + PartialEq>(
+    modules: &[LoadedModule],
+    pick: impl Fn(&LoadedModule) -> &BTreeMap<String, V>,
+) -> (BTreeMap<String, V>, VocabConflicts) {
+    let mut merged: BTreeMap<String, V> = BTreeMap::new();
+    let mut origin: BTreeMap<String, String> = BTreeMap::new();
+    let mut conflicts: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    for module in modules {
+        for (name, def) in pick(module) {
+            match merged.get(name) {
+                None => {
+                    merged.insert(name.clone(), def.clone());
+                    origin.insert(name.clone(), module.name.clone());
+                }
+                Some(existing) if existing == def => {} // idempotent
+                Some(_) => {
+                    let entry = conflicts
+                        .entry(name.clone())
+                        .or_insert_with(|| vec![origin.get(name).cloned().unwrap_or_default()]);
+                    entry.push(module.name.clone());
+                }
+            }
+        }
+    }
+    (merged, conflicts.into_iter().collect())
 }
 
 /// Strict counterpart of [`flatten_into_registry`]: promotes the first
@@ -694,6 +797,32 @@ pub fn flatten_into_registry_strict(outcome: LoadOutcome) -> Result<RegistryShap
                     second_module,
                 });
             }
+            // FR-040-AC-3: load_strict escalates edge-vocabulary
+            // diagnostics (conflicts + unknown verb/role) to errors.
+            Diagnostic::DuplicateEdgeType { name, .. } => {
+                return Err(QuireError::EdgeVocabularyViolation {
+                    kind: "DuplicateEdgeType".to_string(),
+                    name: name.clone(),
+                });
+            }
+            Diagnostic::DuplicateRole { name, .. } => {
+                return Err(QuireError::EdgeVocabularyViolation {
+                    kind: "DuplicateRole".to_string(),
+                    name: name.clone(),
+                });
+            }
+            Diagnostic::UnknownEdgeType { edge_type, .. } => {
+                return Err(QuireError::EdgeVocabularyViolation {
+                    kind: "UnknownEdgeType".to_string(),
+                    name: edge_type.clone(),
+                });
+            }
+            Diagnostic::UnknownRole { role, .. } => {
+                return Err(QuireError::EdgeVocabularyViolation {
+                    kind: "UnknownRole".to_string(),
+                    name: role.clone(),
+                });
+            }
             _ => {}
         }
     }
@@ -714,6 +843,10 @@ pub struct RegistryShape {
     /// Advisory lint rules aggregated across modules in load order
     /// (FR-036).
     pub lint_rules: Vec<crate::lint::LintRule>,
+    /// Merged edge-type registry, first-wins across modules (FR-040).
+    pub edge_types: BTreeMap<String, EdgeTypeDef>,
+    /// Merged role registry, first-wins across modules (FR-040).
+    pub roles: BTreeMap<String, RoleDef>,
     pub failures: Vec<ArchetypeLoadFailure>,
     pub diagnostics: Vec<Diagnostic>,
     pub path_diagnostics: Vec<PathDiagnostic>,
@@ -963,9 +1096,15 @@ artifact_types:
         assert_eq!(arch.id_pattern(), Some("FR-{next:03d}"));
         assert_eq!(arch.grammar_ref(), Some("iso-spec-core"));
         assert!(arch.has_plugin());
+        // FR-040 CR-001: the flat-array authoring form normalizes to the
+        // `{verb: ["*"]}` map (allowed against any target).
         assert_eq!(
-            arch.allowed_links(),
-            &["implements".to_string(), "refines".to_string()]
+            arch.allowed_links().get("implements"),
+            Some(&vec!["*".to_string()])
+        );
+        assert_eq!(
+            arch.allowed_links().get("refines"),
+            Some(&vec!["*".to_string()])
         );
     }
 

@@ -33,6 +33,8 @@ struct Inner {
     module_paths: std::collections::BTreeMap<String, PathBuf>,
     module_versions: std::collections::BTreeMap<String, Option<String>>,
     lint_rules: Vec<crate::lint::LintRule>,
+    edge_types: std::collections::BTreeMap<String, crate::vocab::EdgeTypeDef>,
+    roles: std::collections::BTreeMap<String, crate::vocab::RoleDef>,
     failures: Vec<ArchetypeLoadFailure>,
     diagnostics: Vec<Diagnostic>,
     path_diagnostics: Vec<PathDiagnostic>,
@@ -176,6 +178,8 @@ impl Registry {
             module_paths,
             module_versions,
             lint_rules,
+            edge_types,
+            roles,
             failures,
             diagnostics,
             path_diagnostics,
@@ -187,6 +191,8 @@ impl Registry {
                 module_paths,
                 module_versions,
                 lint_rules,
+                edge_types,
+                roles,
                 failures,
                 diagnostics,
                 path_diagnostics,
@@ -265,6 +271,57 @@ impl Registry {
         &self.inner.lint_rules
     }
 
+    /// Merged edge-type registry (FR-040), first-wins across modules.
+    pub fn edge_types(&self) -> &std::collections::BTreeMap<String, crate::vocab::EdgeTypeDef> {
+        &self.inner.edge_types
+    }
+
+    /// Merged role registry (FR-040), first-wins across modules.
+    pub fn roles(&self) -> &std::collections::BTreeMap<String, crate::vocab::RoleDef> {
+        &self.inner.roles
+    }
+
+    /// Resolve the edge vocabulary for a document with artifact archetype
+    /// `artifact` and optional `object:` archetype (FR-040-AC-6).
+    ///
+    /// The result is the **union** of both axes' `allowed_links`: a verb
+    /// allowed by either axis is allowed; for a verb on both, the target
+    /// lists are unioned and `"*"` absorbs concrete/role tokens. With
+    /// `object = None` it returns the artifact vocabulary alone.
+    pub fn resolve_allowed_links(
+        &self,
+        artifact: &CompiledArchetype,
+        object: Option<&CompiledArchetype>,
+    ) -> crate::vocab::AllowedLinks {
+        let mut out = artifact.allowed_links().clone();
+        if let Some(o) = object {
+            for (verb, targets) in o.allowed_links() {
+                let entry = out.entry(verb.clone()).or_default();
+                for t in targets {
+                    if !entry.contains(t) {
+                        entry.push(t.clone());
+                    }
+                }
+            }
+        }
+        // `"*"` absorbs: any verb whose target list contains the wildcard
+        // collapses to just `["*"]`.
+        for targets in out.values_mut() {
+            if targets.iter().any(|t| t == "*") {
+                *targets = vec!["*".to_string()];
+            }
+        }
+        out
+    }
+
+    /// True when `token` (a target token from a verb's allowed list) is
+    /// satisfied by `candidate` (the resolved target archetype):
+    /// `token == "*"`, `token` equals the candidate's name, or `token` is
+    /// a role the candidate carries (FR-040-AC-7).
+    pub fn target_satisfies(&self, token: &str, candidate: &CompiledArchetype) -> bool {
+        token == "*" || token == candidate.name || candidate.roles().iter().any(|r| r == token)
+    }
+
     /// Path-resolution diagnostics (missing dirs, file-not-dir,
     /// permission-denied entries). Always advisory.
     pub fn path_diagnostics(&self) -> &[PathDiagnostic] {
@@ -275,6 +332,7 @@ impl Registry {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::vocab::EdgeCategory;
     use std::env;
     use std::fs;
 
@@ -608,6 +666,196 @@ lint_rules:
             .failures()
             .iter()
             .any(|f| f.archetype == "foo" && f.reason.contains("template_ref")));
+    }
+
+    // ── FR-040: object-axis typed edge vocabulary ──────────────────
+
+    fn write_vocab_module(root: &Path, name: &str, body: &str) {
+        fs::create_dir_all(root).unwrap();
+        fs::write(root.join("manifest.yaml"), format!("name: {name}\n{body}")).unwrap();
+    }
+
+    // TC-636 (FR-040-AC-1): edge_types + roles registries load and the
+    // merged Registry exposes both; identical re-declaration across two
+    // modules is silently idempotent (no diagnostic).
+    #[test]
+    fn tc636_edge_types_and_roles_load_and_merge_idempotently() {
+        let p = tmpdir("vocab-636");
+        let body = r#"object_types:
+- name: entity
+  roles: [domain-object]
+edge_types:
+  contains:
+    description: composition
+    category: structural
+    inverse: part_of
+roles:
+  domain-object:
+    description: a business-model type
+"#;
+        // Two modules declare the SAME edge_types/roles bodies.
+        write_vocab_module(&p.join("m1"), "m1", body);
+        write_vocab_module(&p.join("m2"), "m2", body);
+        let r = Registry::load_from(&[&p]).expect("ok");
+        assert!(r.edge_types().contains_key("contains"));
+        assert_eq!(
+            r.edge_types()["contains"].category,
+            EdgeCategory::Structural
+        );
+        assert_eq!(
+            r.edge_types()["contains"].inverse.as_deref(),
+            Some("part_of")
+        );
+        assert!(r.roles().contains_key("domain-object"));
+        // Idempotent: identical re-declaration emits no Duplicate diagnostic.
+        assert!(!r.diagnostics().iter().any(|d| matches!(
+            d,
+            Diagnostic::DuplicateEdgeType { .. } | Diagnostic::DuplicateRole { .. }
+        )));
+    }
+
+    // TC-637 (FR-040-AC-2): differing re-declaration is first-wins +
+    // non-fatal Duplicate{EdgeType,Role}; default load still succeeds.
+    #[test]
+    fn tc637_conflicting_redeclaration_is_first_wins_diagnostic() {
+        let p = tmpdir("vocab-637");
+        write_vocab_module(
+            &p.join("m1"),
+            "m1",
+            "edge_types:\n  calls:\n    description: sync\n    category: behavioral\n",
+        );
+        write_vocab_module(
+            &p.join("m2"),
+            "m2",
+            "edge_types:\n  calls:\n    description: DIFFERENT\n    category: dataflow\n",
+        );
+        let r = Registry::load_from(&[&p]).expect("tolerant ok");
+        // First-wins keeps the earliest body.
+        assert_eq!(r.edge_types()["calls"].category, EdgeCategory::Behavioral);
+        assert!(r
+            .diagnostics()
+            .iter()
+            .any(|d| matches!(d, Diagnostic::DuplicateEdgeType { name, .. } if name == "calls")));
+    }
+
+    // TC-650 (FR-040-AC-3): unknown verb/role → non-fatal diagnostic
+    // (default load succeeds); load_strict escalates to an error.
+    #[test]
+    fn tc650_unknown_verb_and_role_diagnostic_and_strict_escalation() {
+        let p = tmpdir("vocab-650");
+        // `exposes` verb + `mystery` target-role are undeclared; the
+        // `wat` role on the object type is undeclared too.
+        write_vocab_module(
+            &p.join("m1"),
+            "m1",
+            r#"object_types:
+- name: api_endpoint
+  roles: [wat]
+  allowed_links:
+    exposes: [mystery]
+edge_types: {}
+roles: {}
+"#,
+        );
+        let r = Registry::load_from(&[&p]).expect("tolerant ok");
+        assert!(r.diagnostics().iter().any(
+            |d| matches!(d, Diagnostic::UnknownEdgeType { edge_type, .. } if edge_type == "exposes")
+        ));
+        assert!(r
+            .diagnostics()
+            .iter()
+            .any(|d| matches!(d, Diagnostic::UnknownRole { role, .. } if role == "mystery")));
+        assert!(r
+            .diagnostics()
+            .iter()
+            .any(|d| matches!(d, Diagnostic::UnknownRole { role, .. } if role == "wat")));
+        // Strict escalates.
+        let err = Registry::load_strict(&[&p]).expect_err("strict");
+        assert!(matches!(err, QuireError::EdgeVocabularyViolation { .. }));
+    }
+
+    // TC-651 (FR-040-AC-5): object `roles:` list is parsed onto the
+    // compiled archetype and readable via roles(); none reads empty.
+    #[test]
+    fn tc651_object_roles_parsed_onto_archetype() {
+        let p = tmpdir("vocab-651");
+        write_vocab_module(
+            &p.join("m1"),
+            "m1",
+            r#"object_types:
+- name: aggregate_root
+  roles: [domain-object, persistable]
+- name: enumeration
+roles:
+  domain-object: { description: x }
+  persistable: { description: y }
+"#,
+        );
+        let r = Registry::load_from(&[&p]).expect("ok");
+        assert_eq!(
+            r.archetype("aggregate_root").unwrap().roles(),
+            &["domain-object".to_string(), "persistable".to_string()]
+        );
+        assert!(r.archetype("enumeration").unwrap().roles().is_empty());
+    }
+
+    // TC-639 (FR-040-AC-6): resolve_allowed_links unions both axes;
+    // shared verb unions targets and "*" absorbs; object=None → artifact only.
+    #[test]
+    fn tc639_resolve_allowed_links_unions_axes() {
+        let p = tmpdir("vocab-639");
+        write_vocab_module(
+            &p.join("m1"),
+            "m1",
+            r#"artifact_types:
+- name: FR
+  allowed_links: [references]
+object_types:
+- name: aggregate_root
+  allowed_links:
+    references: [aggregate_root]
+    emits: [event]
+edge_types:
+  references: { description: x, category: traceability }
+  emits: { description: y, category: dataflow }
+"#,
+        );
+        let r = Registry::load_from(&[&p]).expect("ok");
+        let fr = r.archetype("FR").unwrap();
+        let agg = r.archetype("aggregate_root").unwrap();
+        // Union with object.
+        let resolved = r.resolve_allowed_links(fr, Some(agg));
+        assert!(resolved.contains_key("emits"));
+        // `references`: artifact had ["*"], object adds [aggregate_root] → "*" absorbs.
+        assert_eq!(resolved["references"], vec!["*".to_string()]);
+        assert_eq!(resolved["emits"], vec!["event".to_string()]);
+        // object=None → artifact vocabulary alone.
+        let artifact_only = r.resolve_allowed_links(fr, None);
+        assert!(!artifact_only.contains_key("emits"));
+        assert_eq!(artifact_only["references"], vec!["*".to_string()]);
+    }
+
+    // TC-640 (FR-040-AC-7): target_satisfies by name, role, or "*".
+    #[test]
+    fn tc640_target_satisfies_name_role_or_star() {
+        let p = tmpdir("vocab-640");
+        write_vocab_module(
+            &p.join("m1"),
+            "m1",
+            r#"object_types:
+- name: entity
+  roles: [domain-object]
+roles:
+  domain-object: { description: x }
+"#,
+        );
+        let r = Registry::load_from(&[&p]).expect("ok");
+        let entity = r.archetype("entity").unwrap();
+        assert!(r.target_satisfies("*", entity));
+        assert!(r.target_satisfies("entity", entity));
+        assert!(r.target_satisfies("domain-object", entity));
+        assert!(!r.target_satisfies("aggregate_root", entity));
+        assert!(!r.target_satisfies("persistable", entity));
     }
 
     // FR-014-AC-2: archetype-name collision keeps the shadowed copy queryable.

@@ -54,6 +54,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | US-012 Agent audits whole spec | AC-1..5 + PC-1..3 | TC-493, TC-495, TC-494, TC-496, TC-485 (correctness) + TC-457, TC-458, TC-498 (perf) | ✅ Functional / 🚧 Perf bench pending |
 | US-013 Agent resolves intra-spec refs | AC-1..5 + PC-1..3 | TC-486, TC-487, TC-488, TC-489, TC-490 (correctness) + TC-459, TC-492 (perf) | ✅ Functional / 🚧 Perf bench pending |
 | US-014 Author validates markdown | AC-1..4 | TC-518, TC-519, TC-520, TC-521 | 🚧 Pending implementation |
+| US-015 Object edge vocabulary | AC-1..4 | TC-646, TC-647, TC-648, TC-649 (exercised by FR-040 TC-641/642/645/650) | ✅ Exercised via FR-040 engine TCs |
 
 ### Functional Requirement Coverage
 
@@ -95,6 +96,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | FR-026 Intra-spec reference resolution | AC-1..11 | TC-486 (frontmatter edge), TC-487 (ix:// edge), TC-488 (dangling), TC-489 (cross-spec dangling), TC-490 (bidirectional), TC-491 (target-id extraction), TC-492 (O(edges) proptest), TC-501 (dedup), TC-620 (rel-path edge/dangling), TC-621 (index/log excluded), TC-622 (dedup parity across sources) | ✅ Complete |
 | FR-027 Whole-spec query API | AC-1..8 | TC-493 (by_type), TC-494 (referencing), TC-495 (orphans), TC-496 (coverage), TC-497 (dangling agreement), TC-498 (sorted determinism), TC-499 (no-IO), TC-458 (bench) | ✅ Complete |
 | FR-039 Unlinked reference detection (ADR 0007) | AC-1..10 | TC-623 (auto-fix bare id), TC-624 (sub-id→parent file), TC-625 (inline-code conversion), TC-626 (fenced/frontmatter ignored), TC-627 (already-linked + idempotence), TC-628 (self-reference), TC-629 (unresolved→warn-only), TC-630 (ambiguous→warn-only), TC-631 (sorted determinism), TC-632 (multi-token code span skipped) | 🚧 Pending implementation |
+| FR-040 Object-axis typed edge vocabulary + cross-domain targets | AC-1..11 | TC-636 (registries load + idempotent merge), TC-637 (conflict→first-wins diagnostic), TC-650 (unknown verb/role diagnostic + strict escalation), TC-638 (array→{v:["*"]} + map round-trip), TC-651 (roles parsed onto archetype), TC-639 (resolve union), TC-640 (target_satisfies name/role/"*"), TC-641 (DisallowedEdgeType warn + unknown-object fallback), TC-642 (DisallowedEdgeTarget warn + role match cross-module + skips), TC-643 (warn-only, non-blocking), TC-644 (sorted determinism), TC-645 (skeleton Relationships block) | ✅ Implemented (engine) |
 
 ### Non-Functional Requirement Coverage
 
@@ -319,6 +321,18 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-630 | Token whose parent id maps to >1 loaded doc → `WarnOnly { Ambiguous }`, no `suggested_link` | Unit | P0 | FR-039-AC-8 | 🚧 |
 | TC-631 | `unlinked_references` results sorted by `(path, byte_span.start)`; identical across runs and thread counts | Property | P0 | FR-039-AC-9, NFR-006 | 🚧 |
 | TC-632 | A code span with >1 artifact token (`` `FR-008/FR-009` ``) yields no finding; a single-token code span still converts | Unit | P0 | FR-039-AC-10 | 🚧 |
+| TC-636 | A manifest declaring `edge_types` (verb → category/description/optional inverse) and `roles` (name → description) loads; merged `Registry` exposes both; identical re-declaration across two modules is silently idempotent (no diagnostic) | Unit | P0 | FR-040-AC-1 | 🚧 |
+| TC-637 | Differing re-declaration of an `edge_types`/`roles` name across modules is first-wins and emits a non-fatal `DuplicateEdgeType`/`DuplicateRole` diagnostic; default load still succeeds | Unit | P0 | FR-040-AC-2, FR-014 | 🚧 |
+| TC-650 | An `allowed_links` key absent from `edge_types`, or a `roles:`/target token absent from `roles`, emits a non-fatal `UnknownEdgeType`/`UnknownRole` diagnostic (default load succeeds); `load_strict` escalates AC-2/AC-3 diagnostics to errors | Unit | P0 | FR-040-AC-3, FR-014 | 🚧 |
+| TC-638 | `allowed_links` array form `[calls, publishes]` normalizes to `{calls:["*"], publishes:["*"]}`; map form `{contains:[value_object]}` round-trips as an `AllowedLinks` map (CR-001, supersedes FR-031 array-only parse) | Unit | P0 | FR-040-AC-4, FR-031 | 🚧 |
+| TC-651 | An object type's `roles: [..]` list is parsed onto its `CompiledArchetype` and readable via `roles()`; an archetype with no roles reads empty | Unit | P0 | FR-040-AC-5 | 🚧 |
+| TC-639 | `resolve_allowed_links(T, Some(O))` returns the union of both axes; a verb on both axes unions target lists and `"*"` absorbs concrete/role tokens; `object=None` returns artifact vocab alone | Unit | P0 | FR-040-AC-6 | 🚧 |
+| TC-640 | `target_satisfies` true when token == target name, token is a role the target carries, or token == `"*"`; false otherwise | Unit | P0 | FR-040-AC-7 | 🚧 |
+| TC-641 | A frontmatter-harvested edge `type` not in `resolve_allowed_links` yields exactly one warning `DisallowedEdgeType` naming source+verb; in-vocabulary-only yields none; unknown `object:` falls back to artifact-axis vocab and Tier-1 still runs | Integration | P0 | FR-040-AC-8, FR-032 | 🚧 |
+| TC-642 | A corpus edge whose target document's `object:` archetype/roles fail the verb's target list yields a warning `DisallowedEdgeTarget`; same verb to a target carrying the required role passes (cross-module); skipped for `"*"`, no-`object:` targets, and dangling/cross-repo targets | Integration | P0 | FR-040-AC-9 | 🚧 |
+| TC-643 | Tier-1/Tier-2 findings are warnings only — they do not block extraction or FR-032 structural validation, and a corpus with disallowed edges still loads | Integration | P0 | FR-040-AC-10, FR-032 | 🚧 |
+| TC-644 | Tier-1/Tier-2 diagnostics sorted by `(source, target, edge_type)`; identical across repeated runs and thread counts | Property | P0 | FR-040-AC-10, NFR-006 | 🚧 |
+| TC-645 | `input_skeleton` with an optional `object` arg renders a Relationships block listing each resolved verb with category/description/targets; without `object`, only the artifact vocabulary is listed | Unit | P0 | FR-040-AC-11, FR-029 | 🚧 |
 | TC-502 | Static audit: no Mutex/RwLock/Atomic in first-party src/; parallel parse collects owned results | Static | P0 | FR-024-AC-9 | 🚧 |
 | TC-503 | loom: parallel parse collection race-free; identical path-sorted output across all interleavings | Property | P0 | NFR-017-AC-1..3 | 🚧 |
 | TC-504 | TSAN lane: two-thread `load_repo` (GIL-release window) reports zero data races | Integration | P0 | NFR-018-AC-1, NFR-018-AC-3 | 🚧 |
@@ -338,6 +352,10 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-519 | Authored artifact with missing section / wrong AC-table columns / mis-prefixed AC id fails with line-numbered diagnostic | Integration | P0 | US-014-AC-2, FR-032, FR-033, FR-034 | 🚧 |
 | TC-520 | Authored artifact with two same-level identical-text headings fails with `duplicate-heading` diagnostic | Integration | P0 | US-014-AC-3, FR-035 | 🚧 |
 | TC-521 | Same archetype `body_extraction` both validates the document and extracts its record (one declaration, two postures) | Integration | P0 | US-014-AC-4, FR-031 | 🚧 |
+| TC-646 | Authoring a doc of type `T` with `object: O`, the skeleton's Relationships block lists the union of `T`'s and `O`'s allowed verbs with category, description, and valid targets | Integration | P0 | US-015-AC-1, FR-040 | 🚧 |
+| TC-647 | A `relationships[].type` in neither the artifact's nor the object's resolved vocabulary surfaces a `DisallowedEdgeType` naming the document and verb | Integration | P0 | US-015-AC-2, FR-040 | 🚧 |
+| TC-648 | An edge to a target whose object-type/roles do not satisfy the verb surfaces `DisallowedEdgeTarget`; an edge whose target carries the required role passes across module boundaries | Integration | P0 | US-015-AC-3, FR-040 | 🚧 |
+| TC-649 | A verb absent from merged `edge_types`, or a role absent from merged `roles`, is rejected at module load — an author cannot reference an undefined edge or role | Integration | P0 | US-015-AC-4, FR-040 | 🚧 |
 | TC-522 | Manifest with `frontmatter_schema_ref`+`body_extraction` compiles to one CompiledArchetype that is validatable (frontmatter schema) and extractable (resolvable body contract); no renderability concept exposed | Unit | P0 | FR-031-AC-1 | 🚧 |
 | TC-523 | Manifest with `frontmatter_schema_ref` but no `body_extraction` compiles and is validatable; `body_extraction()` returns `None` | Unit | P0 | FR-031-AC-2 | 🚧 |
 | TC-524 | `defaults.id_pattern`, `allowed_links`, `has_plugin`, `grammar_ref` retained on compiled archetype + readable via accessors | Unit | P0 | FR-031-AC-3 | 🚧 |
@@ -577,6 +595,10 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | US-014-AC-2 | TC-519 |
 | US-014-AC-3 | TC-520 |
 | US-014-AC-4 | TC-521 |
+| US-015-AC-1 | TC-646 |
+| US-015-AC-2 | TC-647 |
+| US-015-AC-3 | TC-648 |
+| US-015-AC-4 | TC-649 |
 
 ### Functional Requirements
 
@@ -811,6 +833,17 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-039-AC-8 | TC-630 |
 | FR-039-AC-9 | TC-631 |
 | FR-039-AC-10 | TC-632 |
+| FR-040-AC-1 | TC-636 |
+| FR-040-AC-2 | TC-637 |
+| FR-040-AC-3 | TC-650 |
+| FR-040-AC-4 | TC-638 |
+| FR-040-AC-5 | TC-651 |
+| FR-040-AC-6 | TC-639 |
+| FR-040-AC-7 | TC-640 |
+| FR-040-AC-8 | TC-641 |
+| FR-040-AC-9 | TC-642 |
+| FR-040-AC-10 | TC-643, TC-644 |
+| FR-040-AC-11 | TC-645 |
 
 ### Non-Functional Requirements
 
@@ -876,7 +909,7 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | NFR-019-AC-1 | TC-579 |
 | NFR-019-AC-2 | TC-580 |
 
-**Coverage status: 330 / 330 ACs covered (100%).** The per-value assert slice (CR-010, 2026-06-20) adds FR-033-AC-11..13 (`choices` scalar enum + `column_choices`/`column_patterns` per-column table validation, TC-633..635) — 3 ACs. The internal-links slice (ADR 0007, 2026-06-17) adds FR-026-AC-9..11 (relative-path link edge source + index/log exclusion + dedup parity, TC-620..622) and FR-039-AC-1..10 (unlinked-reference detection & autofix suggestions, incl. AC-10 multi-token code-span skip, TC-623..632) — 13 ACs. The composed type+object validation slice (2026-06-16) adds FR-032-AC-11..13 (`validate_document_in_registry` composes the `type` archetype with the frontmatter `object:` archetype; resolved-object failures are errors, unknown-object is a warning, `ValidationResult` carries typed `warnings`) — TC-610..613, 3 ACs. The assert/lint extension slice (2026-06-16) adds FR-033-AC-10 (CR-008 `matches` content assert, TC-608) and FR-036-AC-6 (CR-009 `section_body_pattern` lint rule, TC-609) — 2 ACs. The OKF slice (2026-06-16) adds FR-037-AC-1..6 (base concept frontmatter schema, TC-590..596 + TC-528) and FR-038-AC-1..8 (OKF bundle validation, TC-600..607) — 14 ACs. v0.4 adds FR-011-AC-21 (CR-006 `multiple: true`, TC-583) and FR-036-AC-1..5 (declarative lint rules, TC-584..588). v0.2 block model added 16 ACs (FR-019..022, TC-400..443). v0.3 adds 81 ACs — StR-005/006, US-011..013, FR-023..027 (incl. review-added FR-026-AC-8, FR-027-AC-9), NFR-015/016, plus the hardening re-review (NFR-003-AC-4, FR-024-AC-9, NFR-017, NFR-018) — covered by TC-455..507 (plus reused TC-456..459). The Miri ACs (NFR-012-AC-1..5) were **retired** (ADR 0006) and the compile-time **NFR-003-AC-5** (`forbid(unsafe_code)`, TC-582) added. PC (performance criteria) for US-011..013 are tracked as benches (TC-455..459, TC-469) and marked 🚧 pending implementation, consistent with the US-006..010 perf-bench convention. The v0.3 hardening re-review (loom NFR-017, TSAN/ASAN NFR-018) is recorded in spec.md §19.
+**Coverage status: 345 / 345 ACs covered (100%).** The object-edge-vocabulary slice (FR-040, 2026-06-20) adds FR-040-AC-1..11 (object-axis typed edge vocabulary + cross-domain role-typed targets: mergeable `edge_types`/`roles` registries with first-wins+diagnostic merge, object `roles` parsed onto the archetype, array|map `allowed_links`, union resolution, warn-tier Tier-1/Tier-2 validation, composed skeleton, TC-636..645 + TC-650/651) and US-015-AC-1..4 (author declares an object's relationship vocabulary, TC-646..649) — 15 ACs. The per-value assert slice (CR-010, 2026-06-20) adds FR-033-AC-11..13 (`choices` scalar enum + `column_choices`/`column_patterns` per-column table validation, TC-633..635) — 3 ACs. The internal-links slice (ADR 0007, 2026-06-17) adds FR-026-AC-9..11 (relative-path link edge source + index/log exclusion + dedup parity, TC-620..622) and FR-039-AC-1..10 (unlinked-reference detection & autofix suggestions, incl. AC-10 multi-token code-span skip, TC-623..632) — 13 ACs. The composed type+object validation slice (2026-06-16) adds FR-032-AC-11..13 (`validate_document_in_registry` composes the `type` archetype with the frontmatter `object:` archetype; resolved-object failures are errors, unknown-object is a warning, `ValidationResult` carries typed `warnings`) — TC-610..613, 3 ACs. The assert/lint extension slice (2026-06-16) adds FR-033-AC-10 (CR-008 `matches` content assert, TC-608) and FR-036-AC-6 (CR-009 `section_body_pattern` lint rule, TC-609) — 2 ACs. The OKF slice (2026-06-16) adds FR-037-AC-1..6 (base concept frontmatter schema, TC-590..596 + TC-528) and FR-038-AC-1..8 (OKF bundle validation, TC-600..607) — 14 ACs. v0.4 adds FR-011-AC-21 (CR-006 `multiple: true`, TC-583) and FR-036-AC-1..5 (declarative lint rules, TC-584..588). v0.2 block model added 16 ACs (FR-019..022, TC-400..443). v0.3 adds 81 ACs — StR-005/006, US-011..013, FR-023..027 (incl. review-added FR-026-AC-8, FR-027-AC-9), NFR-015/016, plus the hardening re-review (NFR-003-AC-4, FR-024-AC-9, NFR-017, NFR-018) — covered by TC-455..507 (plus reused TC-456..459). The Miri ACs (NFR-012-AC-1..5) were **retired** (ADR 0006) and the compile-time **NFR-003-AC-5** (`forbid(unsafe_code)`, TC-582) added. PC (performance criteria) for US-011..013 are tracked as benches (TC-455..459, TC-469) and marked 🚧 pending implementation, consistent with the US-006..010 perf-bench convention. The v0.3 hardening re-review (loom NFR-017, TSAN/ASAN NFR-018) is recorded in spec.md §19.
 
 **v0.4 markdown-validation slice** adds 42 ACs — US-014 (author validates markdown), FR-029 (archetype input contract, recast by ADR 0004), FR-030 (required-section validation, superseded by FR-032/FR-033), FR-031 (unified archetype shape), FR-032 (`validate_document`), FR-033 (locator `assert` facet), FR-034 (assert field interpolation), FR-035 (per-level heading uniqueness) — covered by TC-518..553. FR-030's ACs are mapped to the FR-032/FR-033 TCs that subsume them (per its CR note). This slice also back-fills 7 ACs that a prior commit left out of the audit table — FR-013-AC-11..14, FR-028-AC-9/10, US-003-AC-4 — via TC-554..560. New v0.4 TCs are 🚧 pending implementation.
 
@@ -894,7 +927,7 @@ NFR-006-AC-4, NFR-019-AC-1..2 — covered by TC-565..580. TC-561 is re-pointed o
 FR-033-AC-4 onto FR-033-AC-9 (the non-table `id_pattern` case); TC-562 covers both
 FR-033-AC-4 and FR-033-AC-9.
 
-**Integrity check (grep-verified):** all **330 distinct file-defined ACs** (definition-anchored: bold `**<ID>-AC-N**` declarations) across `stakeholder/ usecase/ functional/ non-functional/` appear in the AC→TC audit table — **0 uncovered**. Note: `FR-900-AC-1/2` appearing inside FR-034-AC-1's example prose are NOT defined ACs and are excluded from the denominator (match `**…**:` definitions, not inline mentions). Retired ACs (marked `(RETIRED)`, un-bolded) are excluded by construction. Count: 316 (pre-removal) − 41 (retired) + 16 (back-fill) + 1 (FR-011-AC-20, CR-005 heading normalization) − 5 (NFR-012-AC-1..5 retired, ADR 0006) + 1 (NFR-003-AC-5, forbid(unsafe_code)) + 1 (FR-011-AC-21, CR-006 multiple:true) + 5 (FR-036-AC-1..5, declarative lint rules) + 1 (FR-010-AC-4, CR-007 escaped pipes) + 6 (FR-037-AC-1..6, OKF base concept schema) + 8 (FR-038-AC-1..8, OKF bundle validation) + 1 (FR-033-AC-10, CR-008 `matches` content assert) + 1 (FR-036-AC-6, CR-009 `section_body_pattern`) + 3 (FR-032-AC-11..13, composed type+object validation) + 3 (FR-026-AC-9..11, relative-path link edge source) + 10 (FR-039-AC-1..10, unlinked-reference detection incl. multi-token code-span skip) + 3 (FR-033-AC-11..13, CR-010 per-value enum/regex asserts) = **330**.
+**Integrity check (grep-verified):** all **345 distinct file-defined ACs** (definition-anchored: bold `**<ID>-AC-N**` declarations) across `stakeholder/ usecase/ functional/ non-functional/` appear in the AC→TC audit table — **0 uncovered**. Note: `FR-900-AC-1/2` appearing inside FR-034-AC-1's example prose are NOT defined ACs and are excluded from the denominator (match `**…**:` definitions, not inline mentions). Retired ACs (marked `(RETIRED)`, un-bolded) are excluded by construction. Count: 316 (pre-removal) − 41 (retired) + 16 (back-fill) + 1 (FR-011-AC-20, CR-005 heading normalization) − 5 (NFR-012-AC-1..5 retired, ADR 0006) + 1 (NFR-003-AC-5, forbid(unsafe_code)) + 1 (FR-011-AC-21, CR-006 multiple:true) + 5 (FR-036-AC-1..5, declarative lint rules) + 1 (FR-010-AC-4, CR-007 escaped pipes) + 6 (FR-037-AC-1..6, OKF base concept schema) + 8 (FR-038-AC-1..8, OKF bundle validation) + 1 (FR-033-AC-10, CR-008 `matches` content assert) + 1 (FR-036-AC-6, CR-009 `section_body_pattern`) + 3 (FR-032-AC-11..13, composed type+object validation) + 3 (FR-026-AC-9..11, relative-path link edge source) + 10 (FR-039-AC-1..10, unlinked-reference detection incl. multi-token code-span skip) + 3 (FR-033-AC-11..13, CR-010 per-value enum/regex asserts) + 11 (FR-040-AC-1..11, object-axis typed edge vocabulary + cross-domain targets) + 4 (US-015-AC-1..4, author declares object relationship vocabulary) = **345**.
 
 ---
 

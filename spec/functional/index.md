@@ -39,3 +39,4 @@ description: "Index of artifacts in this directory."
 * [FR-037: Base Concept Frontmatter Schema (OKF)](./FR-037-base-concept-schema.md)
 * [FR-038: OKF Bundle Validation: Strict vs Okf Postures + Index Completeness](./FR-038-okf-bundle-validation.md)
 * [FR-039: Unlinked Reference Detection and Autofix Suggestions](./FR-039-unlinked-reference-detection.md)
+* [FR-040: Object-Axis Typed Edge Vocabulary and Cross-Domain Targets](./FR-040-object-edge-vocabulary.md)

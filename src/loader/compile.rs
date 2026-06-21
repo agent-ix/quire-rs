@@ -26,8 +26,15 @@ use crate::extract::dsl::ExtractionDsl;
 pub struct ArchetypeCarryOver {
     /// `defaults.id_pattern` — ID-allocation hint.
     pub id_pattern: Option<String>,
-    /// `allowed_links` — relationship edge types this archetype permits.
-    pub allowed_links: Vec<String>,
+    /// `allowed_links` — relationship edge vocabulary this archetype
+    /// permits, as verb → allowed target tokens (FR-040, supersedes the
+    /// FR-031 flat-array per CR-001). The legacy array form normalizes
+    /// to `{verb: ["*"]}`.
+    pub allowed_links: crate::vocab::AllowedLinks,
+    /// `roles` — capability tags this (object) archetype opts into;
+    /// cross-domain edges target these instead of concrete type names
+    /// (FR-040).
+    pub roles: Vec<String>,
     /// `has_plugin` — whether a host-side plugin augments this archetype.
     pub has_plugin: bool,
     /// `grammar_ref` — grammar this archetype's body conforms to.
@@ -99,9 +106,16 @@ impl CompiledArchetype {
         self.carry_over.id_pattern.as_deref()
     }
 
-    /// `allowed_links`, possibly empty (FR-031-AC-3).
-    pub fn allowed_links(&self) -> &[String] {
+    /// `allowed_links` as verb → allowed target tokens, possibly empty
+    /// (FR-040-AC-4; supersedes FR-031-AC-3's flat array per CR-001).
+    pub fn allowed_links(&self) -> &crate::vocab::AllowedLinks {
         &self.carry_over.allowed_links
+    }
+
+    /// `roles` this object archetype opts into, possibly empty
+    /// (FR-040-AC-5).
+    pub fn roles(&self) -> &[String] {
+        &self.carry_over.roles
     }
 
     /// `has_plugin` flag (FR-031-AC-3).

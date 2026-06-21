@@ -113,9 +113,85 @@ pub fn validate_bundle(
         }
     }
 
+    // Tier-2 edge-target validation (FR-040-AC-9). `spec.inner.edges` is
+    // already sorted by `(source, target, type)` (resolver collects into a
+    // BTreeSet), so findings come out deterministically. Warn-tier always
+    // (FR-040-AC-10) — never degraded to a Strict error this revision.
+    validate_edge_targets(spec, registry, &mut report);
+
     check_index_completeness(spec, posture, root, &mut report);
 
     report
+}
+
+/// The frontmatter `object:` value of a loaded document, when present and
+/// a non-empty string.
+fn document_object(doc: &LoadedDocument) -> Option<&str> {
+    doc.doc
+        .frontmatter
+        .as_ref()?
+        .get("object")?
+        .as_str()
+        .filter(|s| !s.is_empty())
+}
+
+/// Tier-2: for each **resolved** edge, check that the target document's
+/// `object:` archetype (or any role it carries) satisfies the verb's
+/// target list in the source's resolved `allowed_links` (FR-040-AC-9).
+///
+/// Skipped when the source type/verb is unknown, the verb's target list
+/// is `"*"` or empty (unconstrained), the target declares no `object:`
+/// (no object type to constrain), or its object archetype is unknown.
+/// Cross-repo targets never reach here — they resolve as dangling.
+fn validate_edge_targets(spec: &Spec, registry: &Registry, report: &mut BundleReport) {
+    for edge in spec.inner.edges.iter() {
+        if edge.resolution != Resolution::Dangling {
+            // Resolve the source document's vocabulary for this verb.
+            let Some(source_doc) = spec.by_id(&edge.source) else {
+                continue;
+            };
+            let Some(source_type) = concept_type(&source_doc.doc) else {
+                continue;
+            };
+            let Some(source_arch) = registry.archetype(source_type) else {
+                continue;
+            };
+            let source_obj_arch = document_object(source_doc).and_then(|o| registry.archetype(o));
+            let resolved = registry.resolve_allowed_links(source_arch, source_obj_arch);
+            let Some(targets) = resolved.get(&edge.edge_type) else {
+                // Verb not in the resolved vocabulary — that is Tier-1's
+                // concern (DisallowedEdgeType), not a target violation.
+                continue;
+            };
+            // Unconstrained target list — nothing to check.
+            if targets.is_empty() || targets.iter().any(|t| t == "*") {
+                continue;
+            }
+            // Resolve the target's object archetype.
+            let Some(target_doc) = spec.by_id(&edge.target) else {
+                continue;
+            };
+            let Some(target_obj_name) = document_object(target_doc) else {
+                continue; // no `object:` — nothing to constrain
+            };
+            let Some(target_arch) = registry.archetype(target_obj_name) else {
+                continue;
+            };
+            if !targets
+                .iter()
+                .any(|t| registry.target_satisfies(t, target_arch))
+            {
+                report.warnings.push(BundleFinding {
+                    path: PathBuf::from(&edge.source),
+                    message: format!(
+                        "edge '{}' from '{}' targets '{}' (object type '{}'), which satisfies none of {:?}",
+                        edge.edge_type, edge.source, edge.target, target_obj_name, targets
+                    ),
+                    reason: "disallowed-edge-target",
+                });
+            }
+        }
+    }
 }
 
 /// Per-document checks: base concept contract + (Strict only) full

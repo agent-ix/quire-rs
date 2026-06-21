@@ -50,6 +50,11 @@ pub enum ValidationReason {
     /// know (FR-032-AC-12). This is the only **warning**-severity reason;
     /// it is advisory and never fails validation.
     UnknownObjectType,
+    /// A frontmatter `relationships` edge declared a `type` that is in
+    /// neither the artifact archetype's nor the object archetype's
+    /// resolved `allowed_links` vocabulary (FR-040-AC-8, Tier-1).
+    /// Warning-severity — advisory, never fails validation.
+    DisallowedEdgeType,
 }
 
 impl ValidationReason {
@@ -64,6 +69,7 @@ impl ValidationReason {
             Self::DuplicateHeading => "duplicate-heading",
             Self::UnresolvedField => "unresolved-field",
             Self::UnknownObjectType => "unknown-object-type",
+            Self::DisallowedEdgeType => "disallowed-edge-type",
         }
     }
 }
@@ -194,6 +200,7 @@ pub fn validate_document_in_registry(
     check_heading_uniqueness(&doc, line_offset, &mut errors);
 
     // ── `object:` archetype layer (composed; FR-032-AC-11..13) ──
+    let mut object_archetype: Option<&CompiledArchetype> = None;
     if let Some(object_name) = frontmatter_object(&doc) {
         match registry.archetype(object_name) {
             // Resolved: run its body_extraction asserts as hard errors,
@@ -201,9 +208,10 @@ pub fn validate_document_in_registry(
             // object archetype is intentionally NOT re-validated here —
             // the document's frontmatter is contracted by its `type`
             // archetype; the object layer only asserts body structure.
-            Some(object_archetype) => {
-                if let Some(dsl) = object_archetype.body_extraction() {
-                    validate_body(object_archetype, &doc, dsl, line_offset, &mut errors);
+            Some(arch) => {
+                object_archetype = Some(arch);
+                if let Some(dsl) = arch.body_extraction() {
+                    validate_body(arch, &doc, dsl, line_offset, &mut errors);
                 }
             }
             // Unresolved: a single advisory warning, not an error.
@@ -217,7 +225,71 @@ pub fn validate_document_in_registry(
         }
     }
 
+    // ── Tier-1 edge-type validation (FR-040-AC-8) ──
+    // Resolve the union of the artifact + object allowed_links and flag
+    // any frontmatter `relationships` edge whose `type` is outside it.
+    // When `object:` is unknown, `object_archetype` is None and the
+    // vocabulary falls back to the artifact axis alone. Advisory only.
+    let resolved_links = registry.resolve_allowed_links(archetype, object_archetype);
+    // Skip the check entirely when neither axis declares any vocabulary —
+    // an undeclared archetype must not flag every edge (open vocabulary).
+    if !resolved_links.is_empty() {
+        let source = frontmatter_id(&doc).unwrap_or("<document>");
+        // Collect, then sort by `(target, edge_type)` so the warnings are
+        // ordered by the FR-040-AC-10 key `(source, target, edge_type)`
+        // (source is constant within one document) regardless of the order
+        // the author listed `relationships:`.
+        let mut disallowed: Vec<(String, String)> = harvest_frontmatter_relationships(&doc)
+            .into_iter()
+            .filter(|(edge_type, _target)| !resolved_links.contains_key(edge_type))
+            .map(|(edge_type, target)| (target, edge_type))
+            .collect();
+        disallowed.sort();
+        for (target, edge_type) in disallowed {
+            warnings.push(ValidationWarning {
+                message: format!(
+                    "edge type '{edge_type}' on '{source}' (target '{target}') is not in the \
+                     resolved allowed_links vocabulary"
+                ),
+                line: None,
+                reason: ValidationReason::DisallowedEdgeType,
+            });
+        }
+    }
+
     ValidationResult::new(errors, warnings)
+}
+
+/// `(edge_type, target)` pairs from the document's frontmatter
+/// `relationships` array, mirroring the corpus harvester
+/// ([`crate::corpus::resolve::harvest_edges`]): entries missing `target`
+/// are skipped; entries missing `type` default to `references`.
+fn harvest_frontmatter_relationships(doc: &QuireDocument) -> Vec<(String, String)> {
+    let Some(fm) = doc.frontmatter.as_ref() else {
+        return Vec::new();
+    };
+    let Some(rels) = fm.get("relationships").and_then(|v| v.as_array()) else {
+        return Vec::new();
+    };
+    rels.iter()
+        .filter_map(|entry| {
+            let target = entry.get("target").and_then(|v| v.as_str())?;
+            let edge_type = entry
+                .get("type")
+                .and_then(|v| v.as_str())
+                .unwrap_or("references");
+            Some((edge_type.to_string(), target.to_string()))
+        })
+        .collect()
+}
+
+/// The frontmatter `id:` value when present and a non-empty string.
+fn frontmatter_id(doc: &QuireDocument) -> Option<&str> {
+    doc.frontmatter
+        .as_ref()?
+        .get("id")?
+        .as_str()
+        .filter(|s| !s.is_empty())
 }
 
 /// The frontmatter `object:` value when present and a non-empty string.
@@ -1292,6 +1364,134 @@ object_types:
         // Identical errors to the type-only path (no object layer ran).
         let type_only = validate_document(fr, doc);
         assert_eq!(composed.errors, type_only.errors);
+    }
+
+    /// Registry with FR + aggregate_root each declaring `allowed_links`
+    /// plus the `edge_types` registry, for the Tier-1 edge-vocabulary
+    /// tests (FR-040-AC-8).
+    fn edge_vocab_registry() -> crate::Registry {
+        let manifest = br#"
+name: edge-vocab-test
+artifact_types:
+- name: FR
+  frontmatter_schema_ref: schemas/fr.schema.json
+  allowed_links: [implements, references]
+object_types:
+- name: aggregate_root
+  allowed_links:
+    emits: [event]
+edge_types:
+  implements: { description: x, category: dependency }
+  references: { description: x, category: traceability }
+  emits: { description: x, category: dataflow }
+"#;
+        let mut schemas = BTreeMap::new();
+        schemas.insert(
+            "schemas/fr.schema.json".to_string(),
+            r#"{"type":"object","required":["id","title"],"properties":{"id":{"type":"string"},"title":{"type":"string"}}}"#
+                .to_string(),
+        );
+        let r = crate::Registry::from_inline_parts(manifest, &schemas).expect("inline registry");
+        assert!(r.failures().is_empty(), "{:?}", r.failures());
+        r
+    }
+
+    // TC-641 (FR-040-AC-8): a frontmatter edge whose `type` is outside the
+    // resolved (artifact ∪ object) vocabulary yields exactly one
+    // DisallowedEdgeType warning; in-vocabulary edges yield none; the
+    // object axis contributes its verb (`emits`) to the resolved set.
+    #[test]
+    fn tc641_disallowed_edge_type_is_one_warning() {
+        let reg = edge_vocab_registry();
+        let fr = reg.archetype("FR").expect("FR");
+        // `implements` ∈ FR axis, `emits` ∈ aggregate_root axis (valid);
+        // `teleports` ∈ neither (flagged).
+        let doc = "---\nid: FR-001\ntitle: A Thing\nobject: aggregate_root\n\
+                   relationships:\n\
+                   - target: ix://o/r/US-001\n  type: implements\n\
+                   - target: ix://o/r/EV-001\n  type: emits\n\
+                   - target: ix://o/r/X-001\n  type: teleports\n---\n\
+                   ## Body\nText.\n";
+        let r = validate_document_in_registry(&reg, fr, doc);
+        let edge_warnings: Vec<_> = r
+            .warnings
+            .iter()
+            .filter(|w| w.reason == ValidationReason::DisallowedEdgeType)
+            .collect();
+        assert_eq!(
+            edge_warnings.len(),
+            1,
+            "exactly one disallowed edge, got {:?}",
+            r.warnings
+        );
+        assert!(
+            edge_warnings[0].message.contains("teleports")
+                && edge_warnings[0].message.contains("FR-001"),
+            "warning names verb + source: {}",
+            edge_warnings[0].message
+        );
+        // Warn-tier: edges never fail validation.
+        assert!(r.is_valid, "edges are advisory: {:?}", r.errors);
+    }
+
+    // TC-644 (FR-040-AC-10): Tier-1 disallowed-edge warnings are emitted
+    // sorted by (target, edge_type), independent of the author's
+    // `relationships:` ordering.
+    #[test]
+    fn tc644_tier1_warnings_are_sorted() {
+        let reg = edge_vocab_registry();
+        let fr = reg.archetype("FR").expect("FR");
+        // Three out-of-vocab verbs listed in deliberately unsorted order.
+        let doc = "---\nid: FR-9\ntitle: T\n\
+                   relationships:\n\
+                   - target: ix://o/r/Z-1\n  type: zaps\n\
+                   - target: ix://o/r/A-1\n  type: yanks\n\
+                   - target: ix://o/r/M-1\n  type: xeroxes\n---\n\
+                   ## Body\nText.\n";
+        let r = validate_document_in_registry(&reg, fr, doc);
+        let targets: Vec<&str> = r
+            .warnings
+            .iter()
+            .filter(|w| w.reason == ValidationReason::DisallowedEdgeType)
+            .map(|w| {
+                // message embeds "target '<id>'"
+                let s = w.message.split("target '").nth(1).unwrap();
+                s.split('\'').next().unwrap()
+            })
+            .collect();
+        assert_eq!(
+            targets,
+            vec!["ix://o/r/A-1", "ix://o/r/M-1", "ix://o/r/Z-1"],
+            "sorted by target"
+        );
+    }
+
+    // TC-641b (FR-040-AC-8): when `object:` is unknown, the vocabulary
+    // falls back to the artifact axis alone and Tier-1 still runs.
+    #[test]
+    fn tc641_unknown_object_falls_back_to_artifact_vocab() {
+        let reg = edge_vocab_registry();
+        let fr = reg.archetype("FR").expect("FR");
+        // `emits` is only on the (now-unresolved) object axis → flagged;
+        // `implements` is on the FR axis → fine.
+        let doc = "---\nid: FR-002\ntitle: A Thing\nobject: not-a-real-type\n\
+                   relationships:\n\
+                   - target: ix://o/r/US-001\n  type: implements\n\
+                   - target: ix://o/r/EV-001\n  type: emits\n---\n\
+                   ## Body\nText.\n";
+        let r = validate_document_in_registry(&reg, fr, doc);
+        let edge_warnings: Vec<_> = r
+            .warnings
+            .iter()
+            .filter(|w| w.reason == ValidationReason::DisallowedEdgeType)
+            .collect();
+        assert_eq!(edge_warnings.len(), 1, "{:?}", r.warnings);
+        assert!(edge_warnings[0].message.contains("emits"));
+        // Plus the unknown-object-type warning is still present.
+        assert!(r
+            .warnings
+            .iter()
+            .any(|w| w.reason == ValidationReason::UnknownObjectType));
     }
 
     // TC-613 (FR-032-AC-13): `type: FR` + `object: process` WITH a valid
