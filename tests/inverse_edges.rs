@@ -166,6 +166,31 @@ edge_types:
     );
 }
 
+// TC-652b (FR-041-AC-1): an inverse label used as an `allowed_links` key in a
+// manifest is a valid verb — it does NOT raise UnknownEdgeType at load.
+#[test]
+fn tc652_inverse_label_in_allowed_links_is_known() {
+    let reg = registry(
+        br#"
+name: inv-al
+artifact_types:
+- name: thing
+  frontmatter_schema_ref: schemas/thing.schema.json
+  allowed_links: [consumed_by]
+edge_types:
+  publishes: { description: x, category: dataflow, inverse: consumed_by }
+"#,
+    );
+    let unknown = reg.diagnostics().iter().any(|d| {
+        matches!(d, Diagnostic::UnknownEdgeType { edge_type, .. } if edge_type == "consumed_by")
+    });
+    assert!(
+        !unknown,
+        "inverse label in allowed_links is a known verb: {:?}",
+        reg.diagnostics()
+    );
+}
+
 // ── Tier-2 corpus fixtures (TC-655) ──
 
 fn tmpdir(tag: &str) -> PathBuf {

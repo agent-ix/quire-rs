@@ -726,7 +726,9 @@ pub fn flatten_into_registry(mut outcome: LoadOutcome) -> RegistryShape {
     // active_archetypes is a BTreeMap, allowed_links a BTreeMap. ──
     for arch in active_archetypes.values() {
         for (verb, targets) in arch.allowed_links() {
-            if !edge_types.contains_key(verb) {
+            // FR-041: a declared inverse label is a valid verb, so an
+            // `allowed_links` key that is an inverse label is not unknown.
+            if !edge_types.contains_key(verb) && !inverse_edges.contains_key(verb) {
                 outcome.diagnostics.push(Diagnostic::UnknownEdgeType {
                     archetype: arch.name.clone(),
                     edge_type: verb.clone(),

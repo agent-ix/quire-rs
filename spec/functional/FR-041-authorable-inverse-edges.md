@@ -59,6 +59,11 @@ structural validation.
   from the same merged registry [FR-040](./FR-040-object-edge-vocabulary.md)
   builds; it introduces no new manifest section.
 
+- **Known-verb status.** Because an inverse label is a valid verb, it is **known**
+  wherever a registered `edge_types` key is: an inverse label used as a manifest
+  `allowed_links` key does **not** raise the [FR-040](./FR-040-object-edge-vocabulary.md)
+  `UnknownEdgeType` load diagnostic.
+
 - **Precedence.** If a label `I` is **both** a forward `edge_types` key and a
   declared inverse of some other verb, the **explicit forward registration wins**
   (`I` is governed by its own entry, not treated as an inverse). If two distinct
