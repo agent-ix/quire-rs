@@ -684,6 +684,41 @@ pub fn flatten_into_registry(mut outcome: LoadOutcome) -> RegistryShape {
             .push(Diagnostic::DuplicateRole { name, modules });
     }
 
+    // ── FR-041: derive the inverse-label → forward-verb index from the
+    // merged edge_types. A declared `inverse:` label becomes an authorable
+    // verb (a derived view of its forward edge). Precedence: a label that
+    // is itself a forward `edge_types` key is governed by that forward
+    // registration, never treated as an inverse. Two forward verbs
+    // declaring the same inverse label are first-wins (edge_types is a
+    // BTreeMap, so the lexicographically first forward wins
+    // deterministically) and emit a non-fatal DuplicateInverseEdge. ──
+    let mut inverse_edges: BTreeMap<String, String> = BTreeMap::new();
+    let mut inverse_conflicts: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    for (verb, def) in &edge_types {
+        let Some(label) = def.inverse.as_ref() else {
+            continue;
+        };
+        if edge_types.contains_key(label) {
+            continue; // forward registration governs the name
+        }
+        match inverse_edges.get(label) {
+            None => {
+                inverse_edges.insert(label.clone(), verb.clone());
+            }
+            Some(winner) => {
+                inverse_conflicts
+                    .entry(label.clone())
+                    .or_insert_with(|| vec![winner.clone()])
+                    .push(verb.clone());
+            }
+        }
+    }
+    for (name, forwards) in inverse_conflicts {
+        outcome
+            .diagnostics
+            .push(Diagnostic::DuplicateInverseEdge { name, forwards });
+    }
+
     // ── FR-040: advisory check that every verb used in an archetype's
     // allowed_links is declared in edge_types, and every role used in a
     // `roles:` list or as a target token is declared in roles. Open
@@ -691,7 +726,9 @@ pub fn flatten_into_registry(mut outcome: LoadOutcome) -> RegistryShape {
     // active_archetypes is a BTreeMap, allowed_links a BTreeMap. ──
     for arch in active_archetypes.values() {
         for (verb, targets) in arch.allowed_links() {
-            if !edge_types.contains_key(verb) {
+            // FR-041: a declared inverse label is a valid verb, so an
+            // `allowed_links` key that is an inverse label is not unknown.
+            if !edge_types.contains_key(verb) && !inverse_edges.contains_key(verb) {
                 outcome.diagnostics.push(Diagnostic::UnknownEdgeType {
                     archetype: arch.name.clone(),
                     edge_type: verb.clone(),
@@ -730,6 +767,7 @@ pub fn flatten_into_registry(mut outcome: LoadOutcome) -> RegistryShape {
         module_versions,
         lint_rules,
         edge_types,
+        inverse_edges,
         roles,
         failures: outcome.failures,
         diagnostics: outcome.diagnostics,
@@ -811,6 +849,13 @@ pub fn flatten_into_registry_strict(outcome: LoadOutcome) -> Result<RegistryShap
                     name: name.clone(),
                 });
             }
+            // FR-041-AC-3: load_strict escalates a colliding inverse label.
+            Diagnostic::DuplicateInverseEdge { name, .. } => {
+                return Err(QuireError::EdgeVocabularyViolation {
+                    kind: "DuplicateInverseEdge".to_string(),
+                    name: name.clone(),
+                });
+            }
             Diagnostic::UnknownEdgeType { edge_type, .. } => {
                 return Err(QuireError::EdgeVocabularyViolation {
                     kind: "UnknownEdgeType".to_string(),
@@ -845,6 +890,10 @@ pub struct RegistryShape {
     pub lint_rules: Vec<crate::lint::LintRule>,
     /// Merged edge-type registry, first-wins across modules (FR-040).
     pub edge_types: BTreeMap<String, EdgeTypeDef>,
+    /// Inverse-label → forward-verb index derived from `edge_types`
+    /// (FR-041). An `inverse:` label that is itself a forward `edge_types`
+    /// key is excluded (the forward registration governs).
+    pub inverse_edges: BTreeMap<String, String>,
     /// Merged role registry, first-wins across modules (FR-040).
     pub roles: BTreeMap<String, RoleDef>,
     pub failures: Vec<ArchetypeLoadFailure>,

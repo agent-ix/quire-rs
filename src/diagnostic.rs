@@ -92,6 +92,14 @@ pub enum Diagnostic {
         name: String,
         modules: Vec<String>,
     },
+    /// Two distinct forward `edge_types` verbs declare the **same**
+    /// `inverse:` label (FR-041-AC-3). First-wins (the lexicographically
+    /// first forward verb owns the label); advisory, mirrors
+    /// `DuplicateEdgeType`. `load_strict` escalates.
+    DuplicateInverseEdge {
+        name: String,
+        forwards: Vec<String>,
+    },
     /// An archetype's `allowed_links` references a verb absent from the
     /// merged `edge_types` registry (FR-040-AC-3). Advisory; the
     /// vocabulary is open until declared. `load_strict` escalates.
@@ -236,6 +244,11 @@ impl std::fmt::Display for Diagnostic {
                 "DuplicateRole: '{}' contributed by modules {:?}; first-wins",
                 name, modules
             ),
+            Self::DuplicateInverseEdge { name, forwards } => write!(
+                f,
+                "DuplicateInverseEdge: inverse label '{}' declared by verbs {:?}; first-wins",
+                name, forwards
+            ),
             Self::UnknownEdgeType {
                 archetype,
                 edge_type,
@@ -351,6 +364,11 @@ impl Diagnostic {
                 "kind": "DuplicateRole",
                 "name": name,
                 "modules": modules,
+            }),
+            Self::DuplicateInverseEdge { name, forwards } => json!({
+                "kind": "DuplicateInverseEdge",
+                "name": name,
+                "forwards": forwards,
             }),
             Self::UnknownEdgeType {
                 archetype,

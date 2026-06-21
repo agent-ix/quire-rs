@@ -239,9 +239,16 @@ pub fn validate_document_in_registry(
         // ordered by the FR-040-AC-10 key `(source, target, edge_type)`
         // (source is constant within one document) regardless of the order
         // the author listed `relationships:`.
+        // FR-041: a declared inverse label is type-allowed (recognition
+        // only). Per-archetype allowed_links enforcement for the inverse
+        // belongs to the forward source, which the corpus layer resolves
+        // (Tier-2 normalization); the document level cannot.
+        let inverse = registry.inverse_index();
         let mut disallowed: Vec<(String, String)> = harvest_frontmatter_relationships(&doc)
             .into_iter()
-            .filter(|(edge_type, _target)| !resolved_links.contains_key(edge_type))
+            .filter(|(edge_type, _target)| {
+                !resolved_links.contains_key(edge_type) && !inverse.contains_key(edge_type)
+            })
             .map(|(edge_type, target)| (target, edge_type))
             .collect();
         disallowed.sort();
