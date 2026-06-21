@@ -146,8 +146,21 @@ fn document_object(doc: &LoadedDocument) -> Option<&str> {
 fn validate_edge_targets(spec: &Spec, registry: &Registry, report: &mut BundleReport) {
     for edge in spec.inner.edges.iter() {
         if edge.resolution != Resolution::Dangling {
-            // Resolve the source document's vocabulary for this verb.
-            let Some(source_doc) = spec.by_id(&edge.source) else {
+            // FR-041: normalize an inverse-verb edge `(source, I, target)`
+            // to its forward orientation `(target, F, source)` before the
+            // target check, so the canonical-direction allowed_links rule
+            // applies. A forward edge passes through unchanged.
+            let (fwd_source_id, fwd_verb, fwd_target_id): (&str, &str, &str) =
+                match registry.inverse_index().get(&edge.edge_type) {
+                    Some(forward) => (edge.target.as_str(), forward.as_str(), edge.source.as_str()),
+                    None => (
+                        edge.source.as_str(),
+                        edge.edge_type.as_str(),
+                        edge.target.as_str(),
+                    ),
+                };
+            // Resolve the forward source's vocabulary for the forward verb.
+            let Some(source_doc) = spec.by_id(fwd_source_id) else {
                 continue;
             };
             let Some(source_type) = concept_type(&source_doc.doc) else {
@@ -158,7 +171,7 @@ fn validate_edge_targets(spec: &Spec, registry: &Registry, report: &mut BundleRe
             };
             let source_obj_arch = document_object(source_doc).and_then(|o| registry.archetype(o));
             let resolved = registry.resolve_allowed_links(source_arch, source_obj_arch);
-            let Some(targets) = resolved.get(&edge.edge_type) else {
+            let Some(targets) = resolved.get(fwd_verb) else {
                 // Verb not in the resolved vocabulary — that is Tier-1's
                 // concern (DisallowedEdgeType), not a target violation.
                 continue;
@@ -167,8 +180,8 @@ fn validate_edge_targets(spec: &Spec, registry: &Registry, report: &mut BundleRe
             if targets.is_empty() || targets.iter().any(|t| t == "*") {
                 continue;
             }
-            // Resolve the target's object archetype.
-            let Some(target_doc) = spec.by_id(&edge.target) else {
+            // Resolve the forward target's object archetype.
+            let Some(target_doc) = spec.by_id(fwd_target_id) else {
                 continue;
             };
             let Some(target_obj_name) = document_object(target_doc) else {
@@ -181,6 +194,8 @@ fn validate_edge_targets(spec: &Spec, registry: &Registry, report: &mut BundleRe
                 .iter()
                 .any(|t| registry.target_satisfies(t, target_arch))
             {
+                // Report with the edge as authored (inverse source/target/
+                // verb), per FR-041-AC-4.
                 report.warnings.push(BundleFinding {
                     path: PathBuf::from(&edge.source),
                     message: format!(

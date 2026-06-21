@@ -34,6 +34,7 @@ struct Inner {
     module_versions: std::collections::BTreeMap<String, Option<String>>,
     lint_rules: Vec<crate::lint::LintRule>,
     edge_types: std::collections::BTreeMap<String, crate::vocab::EdgeTypeDef>,
+    inverse_edges: std::collections::BTreeMap<String, String>,
     roles: std::collections::BTreeMap<String, crate::vocab::RoleDef>,
     failures: Vec<ArchetypeLoadFailure>,
     diagnostics: Vec<Diagnostic>,
@@ -179,6 +180,7 @@ impl Registry {
             module_versions,
             lint_rules,
             edge_types,
+            inverse_edges,
             roles,
             failures,
             diagnostics,
@@ -192,6 +194,7 @@ impl Registry {
                 module_versions,
                 lint_rules,
                 edge_types,
+                inverse_edges,
                 roles,
                 failures,
                 diagnostics,
@@ -279,6 +282,15 @@ impl Registry {
     /// Merged role registry (FR-040), first-wins across modules.
     pub fn roles(&self) -> &std::collections::BTreeMap<String, crate::vocab::RoleDef> {
         &self.inner.roles
+    }
+
+    /// Inverse-label → forward-verb index (FR-041). A declared `inverse:`
+    /// label is an authorable verb (a derived view of its forward edge);
+    /// this maps each such label to the forward verb that declared it.
+    /// Excludes labels that are themselves forward `edge_types` keys (the
+    /// forward registration governs).
+    pub fn inverse_index(&self) -> &std::collections::BTreeMap<String, String> {
+        &self.inner.inverse_edges
     }
 
     /// Resolve the edge vocabulary for a document with artifact archetype

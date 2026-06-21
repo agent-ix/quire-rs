@@ -14,3 +14,4 @@ description: "Index of artifacts in this directory."
 * [0005 Structural Expressability Scope](./0005-structural-expressability-scope.md)
 * [0006 Forbid Unsafe Retire Miri](./0006-forbid-unsafe-retire-miri.md)
 * [0007 Internal Relative Path Links](./0007-internal-relative-path-links.md)
+* [0008 Authorable Inverse Edges](./0008-authorable-inverse-edges.md)
