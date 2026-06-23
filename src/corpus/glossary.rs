@@ -64,11 +64,11 @@ fn push_term(raw: &str, out: &mut Vec<String>) {
 mod tests {
     use super::*;
 
-    // TC-674 (FR-044-AC-1): harvest the Term column from a `## Terms` table.
-    // TC-675 (FR-044-AC-2): harvest the bold term from `## Ubiquitous Language`.
-    #[test]
-    fn tc674_675_harvest_terms_and_ubiquitous_language() {
-        let tmp = std::env::temp_dir().join(format!("ql-glossary-{}", std::process::id()));
+    /// Harvest from a repo holding a `Glossary` `## Terms` table (Widget,
+    /// Sprocket) and a `domain` `## Ubiquitous Language` (Place, Capture).
+    /// Shared fixture for TC-674 and TC-675.
+    fn harvest_fixture(tag: &str) -> Vec<String> {
+        let tmp = std::env::temp_dir().join(format!("ql-glossary-{tag}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&tmp);
         std::fs::create_dir_all(&tmp).unwrap();
         std::fs::write(
@@ -81,13 +81,25 @@ mod tests {
             "---\nid: dom-1\ntype: domain\n---\n# Domain\n\n## Ubiquitous Language\n\n- **Place** — convert a draft order.\n- **Capture** — confirm payment.\n",
         )
         .unwrap();
-        let spec = Spec::from_path(&tmp);
-        let terms = glossary_terms(&spec);
+        let terms = glossary_terms(&Spec::from_path(&tmp));
+        let _ = std::fs::remove_dir_all(&tmp);
+        terms
+    }
+
+    // TC-674 (FR-044-AC-1): harvest the Term column from a `## Terms` table.
+    #[test]
+    fn tc674_harvest_terms_table() {
+        let terms = harvest_fixture("674");
         assert!(terms.contains(&"Widget".to_string()));
         assert!(terms.contains(&"Sprocket".to_string()));
+    }
+
+    // TC-675 (FR-044-AC-2): harvest the bold term from `## Ubiquitous Language`.
+    #[test]
+    fn tc675_harvest_ubiquitous_language() {
+        let terms = harvest_fixture("675");
         assert!(terms.contains(&"Place".to_string()));
         assert!(terms.contains(&"Capture".to_string()));
-        let _ = std::fs::remove_dir_all(&tmp);
     }
 
     /// Build a bundle report for a repo whose `Glossary` defines `widget` and
@@ -156,6 +168,23 @@ mod tests {
         std::fs::write(
             tmp.join("FR-001.md"),
             "---\nid: FR-001\ntype: FR\n---\n# FR\n\n## Description\n\nThe system shall do a thing.\n",
+        )
+        .unwrap();
+        let spec = Spec::from_path(&tmp);
+        assert!(glossary_terms(&spec).is_empty());
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    // CON-2 (malformed half): a `## Terms` heading with no table harvests zero
+    // terms and never panics (FR-044-AC-7's sibling constraint).
+    #[test]
+    fn malformed_glossary_harvests_nothing() {
+        let tmp = std::env::temp_dir().join(format!("ql-malformed-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&tmp);
+        std::fs::create_dir_all(&tmp).unwrap();
+        std::fs::write(
+            tmp.join("GLO-001.md"),
+            "---\nid: GLO-001\ntype: Glossary\n---\n# [GLO-001] G\n\n## Terms\n\nNo table here, just prose.\n",
         )
         .unwrap();
         let spec = Spec::from_path(&tmp);
