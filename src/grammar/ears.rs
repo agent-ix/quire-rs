@@ -319,10 +319,13 @@ fn table_statements(section: &QuireSection, line_offset: usize, column: &str) ->
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 /// Strip markdown decoration that would confuse subject/trigger detection:
-/// links `[t](u)` → `t`, bold `**`, and inline code backticks.
+/// links `[t](u)` → `t` and bold `**`. Backticks are **kept** — a backticked
+/// identifier in the response object (`provide \`CodeBlockEditor\``) is the most
+/// concrete object there is, and the object-aware vague-response check treats it
+/// as a concrete signal (FR-042).
 fn normalize(s: &str) -> String {
     let unlinked = re_link().replace_all(s, "$1");
-    unlinked.replace("**", "").replace('`', "")
+    unlinked.replace("**", "")
 }
 
 fn excerpt(s: &str) -> String {
@@ -417,7 +420,7 @@ fn re_concrete_qualifier() -> &'static Regex {
     static R: OnceLock<Regex> = OnceLock::new();
     R.get_or_init(|| {
         Regex::new(
-            r"(?i)\b(by|using|via|per|through|according to|that|which|within|before|after|only|not)\b|\bin order\b|\bidempotent|[0-9<>%]",
+            r"(?i)\b(by|using|via|per|through|according to|that|which|within|before|after|only|not)\b|\bin order\b|\bidempotent|[0-9<>%`]",
         )
         .expect("concrete-qualifier regex")
     })
@@ -536,6 +539,14 @@ mod tests {
         // Object-aware suppression: concrete object / mechanism / numeric bound.
         assert_eq!(
             count(&fr("The system shall provide an endpoint for review runs.")),
+            0
+        );
+        // A backticked identifier is a concrete code object — accepted, so
+        // authors can reference things outside the fixed noun lexicon.
+        assert_eq!(
+            count(&fr(
+                "The system shall provide `CodeBlockEditor`, a fenced editor."
+            )),
             0
         );
         assert_eq!(
