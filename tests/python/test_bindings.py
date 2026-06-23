@@ -20,7 +20,7 @@ MODULES_DIR = REPO_ROOT / "tests" / "fixtures" / "modules"
 
 def test_parse_document_returns_structured_object():
     """TC-461/467: parse returns a native dict, not a JSON string."""
-    md = "---\nid: FR-023\nartifact_type: FR\n---\n# Behavior {#blk-1}\n\nbody\n"
+    md = "---\nid: FR-023\ntype: FR\n---\n# Behavior {#blk-1}\n\nbody\n"
     doc = quire.parse_document(md)
 
     assert isinstance(doc, dict)
@@ -38,10 +38,55 @@ def test_parse_document_malformed_frontmatter_is_tolerant():
     assert doc["frontmatter"] is None  # malformed -> None (FR-006)
 
 
+def test_check_grammar_ears_findings_cross_boundary():
+    """TC-666 (FR-042-AC-10): the EARS grammar entry point is exposed via PyO3
+    and returns the same findings as the in-process Rust call for a fixture."""
+    md = (
+        "---\nid: FR-001\ntype: FR\n---\n"
+        "## Description\n\nOn startup, the service shall support publishing.\n"
+    )
+    findings = quire.check_grammar("iso-spec-core", "FR", md)
+    assert isinstance(findings, list)
+    checks = {f["check"] for f in findings}
+    # vague verb `support` + latent trigger `On …` (matches the Rust unit tests)
+    assert "vague-response" in checks
+    assert "non-canonical-trigger" in checks
+    vague = next(f for f in findings if f["check"] == "vague-response")
+    assert vague["grammar"] == "ears"
+    assert vague["pattern"] == "ubiquitous"
+    assert vague["severity"] == "warning"
+    assert vague["line"] is not None
+    assert vague["statement"]
+
+    # An unknown grammar bundle yields no findings (advisory, never errors).
+    assert quire.check_grammar("nonexistent", "FR", md) == []
+
+
+def test_check_grammar_applies_module_lexicon(tmp_path):
+    """TC-673 (FR-043-AC-7): check_grammar applies a module's concrete lexicon
+    when given module_root; without one it uses an empty lexicon."""
+    md = (
+        "---\nid: FR-001\ntype: FR\n---\n"
+        "## Description\n\nThe system shall support pagination.\n"
+    )
+    # No module → empty lexicon → the bare noun is flagged.
+    findings = quire.check_grammar("iso-spec-core", "FR", md)
+    assert any(f["check"] == "vague-response" for f in findings)
+
+    # A module declaring `pagination` in its lexicon → suppressed.
+    mod = tmp_path / "m"
+    (mod / "schemas").mkdir(parents=True)
+    (mod / "manifest.yaml").write_text(
+        "name: m\nlexicon:\n  pagination:\n    definition: page splitting\n"
+    )
+    findings2 = quire.check_grammar("iso-spec-core", "FR", md, str(mod))
+    assert not any(f["check"] == "vague-response" for f in findings2)
+
+
 def test_load_repo_returns_documents(tmp_path):
     """TC-463: load_repo yields one structured doc per markdown file."""
     (tmp_path / "FR-001.md").write_text(
-        "---\nid: FR-001\nartifact_type: FR\nuuid: 0190b6a0-0000-7000-8000-000000000001\n---\n# H\n"
+        "---\nid: FR-001\ntype: FR\nuuid: 0190b6a0-0000-7000-8000-000000000001\n---\n# H\n"
     )
     docs = quire.load_repo(str(tmp_path))
     assert len(docs) == 1
@@ -434,7 +479,7 @@ def test_extraction_context_errors_on_required_per_match_miss():
 
 def test_extract_frontmatter_returns_dict_or_none():
     """TC-514: FR-006 parity — Rust returns frontmatter and body."""
-    result = quire.extract_frontmatter("---\nid: X\nartifact_type: FR\n---\n# H\n")
+    result = quire.extract_frontmatter("---\nid: X\ntype: FR\n---\n# H\n")
     assert result == {
         "frontmatter": {"id": "X", "type": "FR"},
         "body": "# H\n",

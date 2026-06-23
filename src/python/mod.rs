@@ -44,6 +44,7 @@ fn quire(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(load_repo, m)?)?;
     m.add_function(wrap_pyfunction!(validate, m)?)?;
     m.add_function(wrap_pyfunction!(validate_document, m)?)?;
+    m.add_function(wrap_pyfunction!(check_grammar, m)?)?;
     m.add_function(wrap_pyfunction!(input_contract, m)?)?;
     m.add_function(wrap_pyfunction!(input_skeleton, m)?)?;
     m.add_function(wrap_pyfunction!(validate_manifest, m)?)?;
@@ -133,6 +134,72 @@ fn validate_document<'py>(
         warnings.append(d)?;
     }
     out.set_item("warnings", warnings)?;
+    Ok(out)
+}
+
+/// Run the requirement-grammar bundle `grammar_ref` (e.g. `iso-spec-core`)
+/// against `document_text` as the resolved `archetype` (FR-042). Returns the
+/// list of grammar findings — the same findings the in-process Rust
+/// `check_document_grammar` produces — each a dict
+/// `{grammar, check, pattern, message, line, statement, severity}`. Unlike
+/// `validate_document`, this surfaces the findings directly (not folded into
+/// validation warnings) so the corpus report and review lens can consume them.
+#[pyfunction]
+#[pyo3(signature = (grammar_ref, archetype, document_text, module_root=None))]
+fn check_grammar<'py>(
+    py: Python<'py>,
+    grammar_ref: &str,
+    archetype: &str,
+    document_text: &str,
+    module_root: Option<&str>,
+) -> PyResult<Bound<'py, PyList>> {
+    let gref = grammar_ref.to_string();
+    let arch = archetype.to_string();
+    let text = document_text.to_string();
+    let module = module_root.map(str::to_string);
+
+    let findings = py.detach(|| -> PyResult<Vec<crate::grammar::GrammarFinding>> {
+        let doc = crate::parse_document(&text);
+        let line_offset = crate::validate_document::body_line_offset(&text);
+        // FR-043: with a module, apply its merged lexicon; without, empty.
+        let empty = crate::grammar::GrammarLexicon::empty();
+        // `module_root` may be a single module dir (has `manifest.yaml`) or a
+        // search root whose children are modules — merged like the CLI does.
+        let registry = match &module {
+            Some(m) => {
+                let path = Path::new(m);
+                let r = if path.join("manifest.yaml").is_file() {
+                    crate::Registry::load_module(path)
+                } else {
+                    crate::Registry::load_from(&[path])
+                }
+                .map_err(quire_error_to_schema_pyerr)?;
+                Some(r)
+            }
+            None => None,
+        };
+        let lexicon = registry.as_ref().map_or(&empty, |r| r.lexicon_matcher());
+        Ok(crate::grammar::check_document_grammar(
+            &gref,
+            &arch,
+            &doc,
+            line_offset,
+            lexicon,
+        ))
+    })?;
+
+    let out = PyList::empty(py);
+    for f in findings {
+        let d = PyDict::new(py);
+        d.set_item("grammar", &f.grammar)?;
+        d.set_item("check", &f.check)?;
+        d.set_item("pattern", f.pattern.as_deref())?;
+        d.set_item("message", &f.message)?;
+        d.set_item("line", f.line)?;
+        d.set_item("statement", &f.statement)?;
+        d.set_item("severity", f.severity.as_str())?;
+        out.append(d)?;
+    }
     Ok(out)
 }
 

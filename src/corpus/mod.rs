@@ -15,6 +15,7 @@
 //! - `resolve` — intra-spec reference resolution (FR-026; Task 030).
 //! - `query` — whole-spec query API (FR-027; Task 031).
 
+pub mod glossary;
 pub mod query;
 pub mod resolve;
 pub mod spec;
@@ -22,6 +23,7 @@ pub mod unlinked;
 pub mod validate;
 pub mod walk;
 
+pub use glossary::{glossary_terms, glossary_terms_from_path};
 pub use resolve::{harvest_edges, Edge, Resolution};
 pub use spec::Spec;
 pub use unlinked::{unlinked_references, UnlinkedFix, UnlinkedReason, UnlinkedReference};

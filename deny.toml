@@ -10,6 +10,12 @@ allow = [
     "Unicode-3.0",
     "Zlib",
 ]
+# Our own crate is AGPL-3.0-or-later (the project license); allow it here
+# WITHOUT permitting AGPL in third-party dependencies — the allow-list above
+# stays permissive-only.
+exceptions = [
+    { allow = ["AGPL-3.0-or-later"], crate = "quire-rs" },
+]
 confidence-threshold = 0.9
 
 [bans]

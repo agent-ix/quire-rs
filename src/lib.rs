@@ -17,6 +17,7 @@ pub mod corpus;
 pub mod diagnostic;
 pub mod error;
 pub mod extract;
+pub mod grammar;
 pub mod lint;
 pub mod loader;
 pub mod merge;
@@ -50,8 +51,9 @@ pub use registry::Registry;
 pub use validate::{apply_patch, validate, validate_all, validate_block};
 // Markdown-default validation (FR-032 + FR-035).
 pub use validate_document::{
-    validate_context, validate_document, validate_document_in_registry, ValidationError,
-    ValidationReason, ValidationResult, ValidationWarning,
+    validate_context, validate_document, validate_document_in_registry,
+    validate_document_in_registry_with_lexicon, ValidationError, ValidationReason,
+    ValidationResult, ValidationWarning,
 };
 // Base concept frontmatter contract (OKF: required `type` + optional
 // `description`/`tags`), validated before archetype routing.
@@ -69,12 +71,13 @@ pub use extract::{extract, ExtractionResult};
 pub use extract::assert_eval::{evaluate_assert, AssertFailure, AssertReason};
 pub use extract::interpolate::{interpolate, UnresolvedField};
 // Declarative lint rules (FR-036) — advisory, never blocks extraction.
+pub use grammar::{check_document_grammar, GrammarFinding, GrammarLexicon, GrammarSeverity};
 pub use lint::{lint_document, LintFinding, LintRule, LintSeverity};
 // Writeback (FR-022) — byte-splice section/block edit.
 pub use writeback::{update_block, update_section};
 // Corpus: parallel repo walk (FR-024) + Spec corpus (FR-025); resolution/query in FR-026..027.
 pub use corpus::walk::{load_repo, load_repo_with, LoadedDocument, RepoLoad, WalkOptions};
-pub use corpus::{harvest_edges, Spec};
+pub use corpus::{glossary_terms, glossary_terms_from_path, harvest_edges, Spec};
 // Bundle validation postures (OKF): strict archetype-conformance vs.
 // permissive foreign-bundle reading, plus index-completeness.
 pub use corpus::{validate_bundle, validate_bundle_at, BundleFinding, BundlePosture, BundleReport};

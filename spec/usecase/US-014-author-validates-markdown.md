@@ -16,6 +16,8 @@ relationships:
     type: "exercises"
   - target: "ix://agent-ix/quire-rs/spec/functional/FR-035"
     type: "exercises"
+  - target: "ix://agent-ix/quire-rs/spec/functional/FR-042"
+    type: "exercises"
 ---
 
 ## Story
