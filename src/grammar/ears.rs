@@ -611,6 +611,34 @@ mod tests {
         assert_eq!(count(&fr("The system shall provide flexibility.")), 1);
     }
 
+    // A lexicon term suppresses its plural — including irregular plurals
+    // (FR-043 plural matching; corpus objects are frequently plural).
+    #[test]
+    fn lexicon_matches_plurals() {
+        let fr = |body: &str| format!("---\ntype: FR\n---\n## Description\n\n{body}\n");
+        let count = |text: &str, lexicon: &GrammarLexicon| {
+            check("FR", &doc(text), 0, lexicon)
+                .iter()
+                .filter(|x| x.check == "vague-response")
+                .count()
+        };
+        assert_eq!(
+            count(
+                &fr("The system shall support endpoints."),
+                &lex(&["endpoint"])
+            ),
+            0
+        ); // -s
+        assert_eq!(
+            count(&fr("The system shall enforce policies."), &lex(&["policy"])),
+            0
+        ); // -ies
+        assert_eq!(
+            count(&fr("The system shall provide boxes."), &lex(&["box"])),
+            0
+        ); // -es
+    }
+
     // TC-661 (FR-042-AC-5): non-canonical trigger fires; NFR no-trigger does not.
     #[test]
     fn tc661_non_canonical_trigger() {

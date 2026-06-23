@@ -39,18 +39,22 @@ impl GrammarLexicon {
     /// matched case-insensitively at word boundaries. An empty term set yields a
     /// matcher that recognises nothing.
     pub fn from_terms<'a, I: IntoIterator<Item = &'a str>>(terms: I) -> Self {
-        let escaped: Vec<String> = terms
-            .into_iter()
-            .map(str::trim)
-            .filter(|t| !t.is_empty())
-            .map(regex::escape)
-            .collect();
-        // `s?` matches the regular plural (`endpoint`→`endpoints`) — corpus
-        // objects are frequently plural; mirrors the old concrete-noun rule.
-        let matcher = if escaped.is_empty() {
+        // Each term contributes both its singular and its plural form, so
+        // corpus objects match regardless of number — including irregular
+        // plurals (`policy`→`policies`, `box`→`boxes`).
+        let mut forms: Vec<String> = Vec::new();
+        for t in terms {
+            let t = t.trim();
+            if t.is_empty() {
+                continue;
+            }
+            forms.push(regex::escape(t));
+            forms.push(regex::escape(&pluralize(t)));
+        }
+        let matcher = if forms.is_empty() {
             None
         } else {
-            Regex::new(&format!(r"(?i)\b({})s?\b", escaped.join("|"))).ok()
+            Regex::new(&format!(r"(?i)\b({})\b", forms.join("|"))).ok()
         };
         Self { matcher }
     }
@@ -63,6 +67,27 @@ impl GrammarLexicon {
     /// True when `text` contains an accepted concrete term (word-boundary).
     pub fn contains_term(&self, text: &str) -> bool {
         self.matcher.as_ref().is_some_and(|r| r.is_match(text))
+    }
+}
+
+/// Naive English pluralizer for lexicon terms: consonant+`y`→`ies`, sibilant
+/// (`s`/`x`/`z`/`ch`/`sh`)→`es`, else `+s`. Lexicon terms are lowercase ASCII
+/// nouns, so byte handling is safe.
+fn pluralize(term: &str) -> String {
+    let lower = term.to_ascii_lowercase();
+    let bytes = lower.as_bytes();
+    let n = bytes.len();
+    if n >= 2 && bytes[n - 1] == b'y' && !b"aeiou".contains(&bytes[n - 2]) {
+        format!("{}ies", &term[..n - 1])
+    } else if lower.ends_with('s')
+        || lower.ends_with('x')
+        || lower.ends_with('z')
+        || lower.ends_with("ch")
+        || lower.ends_with("sh")
+    {
+        format!("{term}es")
+    } else {
+        format!("{term}s")
     }
 }
 
