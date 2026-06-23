@@ -23,7 +23,7 @@ pub mod unlinked;
 pub mod validate;
 pub mod walk;
 
-pub use glossary::glossary_terms;
+pub use glossary::{glossary_terms, glossary_terms_from_path};
 pub use resolve::{harvest_edges, Edge, Resolution};
 pub use spec::Spec;
 pub use unlinked::{unlinked_references, UnlinkedFix, UnlinkedReason, UnlinkedReference};

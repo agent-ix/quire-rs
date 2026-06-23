@@ -160,7 +160,7 @@ impl Outcome {
     }
 }
 
-fn discover_files(root: &Path, opts: &WalkOptions) -> Vec<PathBuf> {
+pub(crate) fn discover_files(root: &Path, opts: &WalkOptions) -> Vec<PathBuf> {
     let mut builder = WalkBuilder::new(root);
     builder
         .hidden(!opts.include_hidden)

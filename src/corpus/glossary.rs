@@ -6,33 +6,83 @@
 //! module lexicon ([`crate::Registry::lexicon_with`]) so a repo's domain terms
 //! are accepted as concrete objects in its own EARS grammar check (FR-042/043).
 
+use std::path::Path;
+
 use crate::ast::QuireDocument;
+use crate::corpus::walk::{discover_files, WalkOptions};
 use crate::corpus::Spec;
 use crate::query::{self, ListPattern};
 
-/// Harvest the repo's project glossary terms from a loaded `Spec`: the `Term`
-/// (or `Name`) column of every `## Terms` table, and the bold term of every
-/// `## Ubiquitous Language` bullet (and any `## Ubiquitous Language` table).
-/// Deduplicated and sorted; a corpus with no glossary yields an empty vec.
+/// Harvest the repo's project glossary terms from an **already-loaded** `Spec`:
+/// the `Term` (or `Name`) column of every `## Terms` table, and the bold term
+/// of every `## Ubiquitous Language` bullet (and any `## Ubiquitous Language`
+/// table). Deduplicated and sorted; a corpus with no glossary yields an empty
+/// vec. Use this on the corpus path (`validate_bundle`), where the `Spec` is
+/// already in hand — it adds no I/O. On the per-document validate path, use
+/// [`glossary_terms_from_path`], which never loads the whole corpus.
 pub fn glossary_terms(spec: &Spec) -> Vec<String> {
     let mut terms: Vec<String> = Vec::new();
     for doc in &spec.inner.documents {
-        // `## Terms` table — a `Glossary` artifact.
-        push_table_terms(&doc.doc, "Terms", &mut terms);
-        // `## Ubiquitous Language` — bullet form (`- **Term** — …`) …
-        if let Some(section) = query::section(&doc.doc, "Ubiquitous Language") {
-            for item in
-                query::parse_bullet_list(&section.content, Some(ListPattern::BoldDescription))
-            {
-                push_term(&item.title, &mut terms);
-            }
-        }
-        // … and/or table form under the same heading.
-        push_table_terms(&doc.doc, "Ubiquitous Language", &mut terms);
+        collect_doc_terms(&doc.doc, &mut terms);
     }
     terms.sort();
     terms.dedup();
     terms
+}
+
+/// Harvest project glossary terms by scanning `root`, parsing **only** the
+/// documents that carry a glossary section — never the whole corpus (FR-044).
+///
+/// `Spec::from_path` parses and graph-resolves every file under `root`; that is
+/// far too much work when a repo's glossary lives in a handful of documents.
+/// This enumerates `*.md` files, reads each file's raw text, and parses only
+/// the ones whose text contains a `## Terms` or `## Ubiquitous Language`
+/// heading (a cheap line scan — [`has_glossary_heading`]). Deduplicated and
+/// sorted; a repo with no glossary yields an empty vec.
+pub fn glossary_terms_from_path(root: &Path) -> Vec<String> {
+    let opts = WalkOptions::default();
+    let mut terms: Vec<String> = Vec::new();
+    for path in discover_files(root, &opts) {
+        let Ok(text) = std::fs::read_to_string(&path) else {
+            continue;
+        };
+        if !has_glossary_heading(&text) {
+            continue; // not a glossary-bearing doc — never parsed.
+        }
+        collect_doc_terms(&crate::parse_document(&text), &mut terms);
+    }
+    terms.sort();
+    terms.dedup();
+    terms
+}
+
+/// The cheap pre-filter that keeps [`glossary_terms_from_path`] from parsing
+/// non-glossary documents: true when `text` has a heading (any level) whose
+/// title is `Terms` or `Ubiquitous Language` (case-insensitive).
+pub(crate) fn has_glossary_heading(text: &str) -> bool {
+    text.lines().any(|line| {
+        let trimmed = line.trim_start();
+        if !trimmed.starts_with('#') {
+            return false;
+        }
+        let title = trimmed.trim_start_matches('#').trim();
+        title.eq_ignore_ascii_case("Terms") || title.eq_ignore_ascii_case("Ubiquitous Language")
+    })
+}
+
+/// Collect a single document's glossary terms into `terms` (shared by the
+/// `Spec`-based and path-based harvesters).
+fn collect_doc_terms(doc: &QuireDocument, terms: &mut Vec<String>) {
+    // `## Terms` table — a `Glossary` artifact.
+    push_table_terms(doc, "Terms", terms);
+    // `## Ubiquitous Language` — bullet form (`- **Term** — …`) …
+    if let Some(section) = query::section(doc, "Ubiquitous Language") {
+        for item in query::parse_bullet_list(&section.content, Some(ListPattern::BoldDescription)) {
+            push_term(&item.title, terms);
+        }
+    }
+    // … and/or table form under the same heading.
+    push_table_terms(doc, "Ubiquitous Language", terms);
 }
 
 /// Push the `Term`/`Name` column of a named section's table into `out`.
@@ -100,6 +150,53 @@ mod tests {
         let terms = harvest_fixture("675");
         assert!(terms.contains(&"Place".to_string()));
         assert!(terms.contains(&"Capture".to_string()));
+    }
+
+    // The pre-filter that scopes the path harvester: only docs with an actual
+    // `Terms` / `Ubiquitous Language` HEADING are parsed — not every doc that
+    // merely mentions the words. This is what keeps the per-validate path off a
+    // full-corpus parse.
+    #[test]
+    fn has_glossary_heading_gates_parsing() {
+        assert!(has_glossary_heading("## Terms\n"));
+        assert!(has_glossary_heading("# Title\n\n## Ubiquitous Language\n"));
+        assert!(has_glossary_heading("### terms\n")); // any level, case-insensitive
+                                                      // Not glossary-bearing → never parsed:
+        assert!(!has_glossary_heading(
+            "## Description\n\nThe system shall do X.\n"
+        ));
+        assert!(!has_glossary_heading("These are the terms of service.\n")); // prose, no heading
+        assert!(!has_glossary_heading("| Term | Definition |\n")); // a table row, not a heading
+    }
+
+    // `glossary_terms_from_path` harvests the glossary terms WITHOUT loading the
+    // whole corpus: a scope with one glossary doc among many plain FRs yields
+    // exactly the glossary terms, and matches the Spec-based harvester (parity).
+    // The plain FRs lack a glossary heading, so the gate above skips parsing
+    // them entirely.
+    #[test]
+    fn glossary_terms_from_path_scopes_to_glossary_docs() {
+        let dir = std::env::temp_dir().join(format!("ql-frompath-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("functional")).unwrap();
+        std::fs::write(
+            dir.join("glossary.md"),
+            "---\nid: GLO-001\ntype: Glossary\n---\n# G\n\n## Terms\n\n| Term | Definition |\n|------|------------|\n| Sprocket | a streamed unit |\n",
+        )
+        .unwrap();
+        // Many non-glossary docs — none carry a glossary heading.
+        for i in 0..5 {
+            std::fs::write(
+                dir.join("functional").join(format!("FR-{i:03}.md")),
+                format!("---\nid: FR-{i:03}\ntype: FR\n---\n# FR\n\n## Description\n\nThe system shall provide a sprocket.\n"),
+            )
+            .unwrap();
+        }
+        let from_path = glossary_terms_from_path(&dir);
+        assert_eq!(from_path, vec!["Sprocket".to_string()]);
+        // Parity with the Spec-based harvester over the same tree.
+        assert_eq!(from_path, glossary_terms(&Spec::from_path(&dir)));
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     /// Build a bundle report for a repo whose `Glossary` defines `widget` and
