@@ -250,6 +250,31 @@ pub fn validate_document_in_registry(
     archetype: &CompiledArchetype,
     doc_text: &str,
 ) -> ValidationResult {
+    validate_in_registry_core(registry, archetype, doc_text, registry.lexicon_matcher())
+}
+
+/// As [`validate_document_in_registry`], but the EARS grammar check (FR-042)
+/// runs against an **explicitly supplied** `GrammarLexicon` instead of the
+/// registry's own (FR-044). The orchestrator composes `lexicon` from the merged
+/// module lexicon plus the repo's harvested Ubiquitous-Language terms (see
+/// [`crate::Registry::lexicon_with`] + [`crate::corpus::glossary_terms`]).
+pub fn validate_document_in_registry_with_lexicon(
+    registry: &crate::Registry,
+    archetype: &CompiledArchetype,
+    doc_text: &str,
+    lexicon: &crate::grammar::GrammarLexicon,
+) -> ValidationResult {
+    validate_in_registry_core(registry, archetype, doc_text, lexicon)
+}
+
+/// Shared body of the two registry-backed validation entry points. The only
+/// difference is the `GrammarLexicon` the grammar check consumes.
+fn validate_in_registry_core(
+    registry: &crate::Registry,
+    archetype: &CompiledArchetype,
+    doc_text: &str,
+    lexicon: &crate::grammar::GrammarLexicon,
+) -> ValidationResult {
     let doc = crate::parse_document(doc_text);
     let line_offset = body_line_offset(doc_text);
     let mut errors: Vec<ValidationError> = Vec::new();
@@ -330,12 +355,13 @@ pub fn validate_document_in_registry(
     }
 
     // ── Requirement-grammar layer (EARS, FR-042; advisory by default) ──
-    // Registry-backed path: pass the merged concrete lexicon (FR-043).
+    // The caller chose the lexicon: the module lexicon (FR-043) for the plain
+    // entry point, or that ∪ the repo's project glossary (FR-044).
     run_grammar(
         archetype,
         &doc,
         line_offset,
-        registry.lexicon_matcher(),
+        lexicon,
         &mut errors,
         &mut warnings,
     );

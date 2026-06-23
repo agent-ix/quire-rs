@@ -91,8 +91,14 @@ pub fn validate_bundle(
 ) -> BundleReport {
     let mut report = BundleReport::default();
 
+    // FR-044: harvest the repo's project Ubiquitous-Language terms once and
+    // compose the combined (module ∪ project) lexicon the EARS grammar check
+    // consumes for every document in the bundle.
+    let project_terms = crate::corpus::glossary_terms(spec);
+    let lexicon = registry.lexicon_with(&project_terms);
+
     for doc in &spec.inner.documents {
-        validate_concept(doc, registry, posture, &mut report);
+        validate_concept(doc, registry, posture, &lexicon, &mut report);
     }
 
     // Reference resolution: a dangling `ix://` ref is a hard error under
@@ -215,6 +221,7 @@ fn validate_concept(
     doc: &LoadedDocument,
     registry: &Registry,
     posture: BundlePosture,
+    lexicon: &crate::grammar::GrammarLexicon,
     report: &mut BundleReport,
 ) {
     let fm = doc.doc.frontmatter.clone().unwrap_or_default();
@@ -252,8 +259,12 @@ fn validate_concept(
                     // frontmatter `object:` archetype too. Object errors
                     // merge into bundle errors; an unknown `object:`
                     // degrades to a bundle warning.
-                    let result =
-                        crate::validate_document_in_registry(registry, archetype, &doc.doc.raw);
+                    let result = crate::validate_document_in_registry_with_lexicon(
+                        registry,
+                        archetype,
+                        &doc.doc.raw,
+                        lexicon,
+                    );
                     for err in result.errors {
                         report.errors.push(BundleFinding {
                             path: doc.path.clone(),

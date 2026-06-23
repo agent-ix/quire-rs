@@ -43,3 +43,4 @@ description: "Index of artifacts in this directory."
 * [FR-041: Authorable Inverse Edge Verbs](./FR-041-authorable-inverse-edges.md)
 * [FR-042: Requirement-Grammar Check (EARS)](./FR-042-requirement-grammar-check.md)
 * [FR-043: Module-Supplied Concrete Lexicon for the Grammar](./FR-043-module-concrete-lexicon.md)
+* [FR-044: Project Ubiquitous-Language Lexicon for the Grammar](./FR-044-project-glossary-lexicon.md)

@@ -568,29 +568,42 @@ mod tests {
         );
     }
 
-    // TC-669 (FR-043-AC-3): a lexicon term suppresses; removing it re-flags.
+    fn fr_doc(body: &str) -> String {
+        format!("---\ntype: FR\n---\n## Description\n\n{body}\n")
+    }
+
+    fn vague_count(text: &str, lexicon: &GrammarLexicon) -> usize {
+        check("FR", &doc(text), 0, lexicon)
+            .iter()
+            .filter(|x| x.check == "vague-response")
+            .count()
+    }
+
+    // TC-669 (FR-043-AC-3): a lexicon term suppresses; a different term re-flags.
+    #[test]
+    fn tc669_lexicon_term_suppresses() {
+        let d = fr_doc("The system shall support pagination.");
+        assert_eq!(vague_count(&d, &lex(&["pagination"])), 0); // term present → suppressed
+        assert_eq!(vague_count(&d, &lex(&["cursor"])), 1); // wrong term → still flagged
+        let ep = fr_doc("The system shall provide an endpoint for review runs.");
+        assert_eq!(vague_count(&ep, &lex(&["endpoint"])), 0);
+    }
+
     // TC-670 (FR-043-AC-4): under an empty lexicon a bare domain noun flags —
     // proving no hardcoded concrete-noun list remains in the engine.
     #[test]
-    fn tc669_670_lexicon_drives_concrete() {
-        let fr = |body: &str| format!("---\ntype: FR\n---\n## Description\n\n{body}\n");
-        let count = |text: &str, lexicon: &GrammarLexicon| {
-            check("FR", &doc(text), 0, lexicon)
-                .iter()
-                .filter(|x| x.check == "vague-response")
-                .count()
-        };
-        let doc_text = fr("The system shall support pagination.");
-        // Empty lexicon → bare noun flags (no hardcoded list).
-        assert_eq!(count(&doc_text, &empty()), 1);
-        // Lexicon with the term → suppressed.
-        assert_eq!(count(&doc_text, &lex(&["pagination"])), 0);
-        // A different term does not suppress it.
-        assert_eq!(count(&doc_text, &lex(&["cursor"])), 1);
-        // The same for `provide an endpoint` once `endpoint` is a lexicon term.
-        let ep = fr("The system shall provide an endpoint for review runs.");
-        assert_eq!(count(&ep, &empty()), 1);
-        assert_eq!(count(&ep, &lex(&["endpoint"])), 0);
+    fn tc670_empty_lexicon_flags_bare_noun() {
+        assert_eq!(
+            vague_count(&fr_doc("The system shall support pagination."), &empty()),
+            1
+        );
+        assert_eq!(
+            vague_count(
+                &fr_doc("The system shall provide an endpoint for review runs."),
+                &empty()
+            ),
+            1
+        );
     }
 
     // TC-671 (FR-043-AC-5): backtick / mechanism / bound suppression does not

@@ -306,6 +306,16 @@ impl Registry {
         &self.inner.lexicon_matcher
     }
 
+    /// Compose an ad-hoc `GrammarLexicon` (FR-044) from the merged module
+    /// lexicon keys plus `extra` project terms (a repo's harvested
+    /// Ubiquitous-Language vocabulary). Project terms are per-repo, so they are
+    /// never stored on the immutable `Registry` — this builds a fresh matcher.
+    pub fn lexicon_with(&self, extra: &[String]) -> crate::grammar::GrammarLexicon {
+        let module = self.inner.lexicon.keys().map(String::as_str);
+        let project = extra.iter().map(String::as_str);
+        crate::grammar::GrammarLexicon::from_terms(module.chain(project))
+    }
+
     /// Inverse-label → forward-verb index (FR-041). A declared `inverse:`
     /// label is an authorable verb (a derived view of its forward edge);
     /// this maps each such label to the forward verb that declared it.
@@ -772,17 +782,34 @@ roles:
             .any(|d| matches!(d, Diagnostic::DuplicateEdgeType { name, .. } if name == "calls")));
     }
 
-    // TC-667/668 (FR-043-AC-1/2): a `lexicon` term merges first-wins across
-    // modules, is readable via `Registry::lexicon()`, and a conflicting
-    // redeclaration emits one `DuplicateLexiconTerm`; the precompiled matcher
-    // recognises a merged term.
+    // TC-667 (FR-043-AC-1): a `lexicon` term loads, is readable via
+    // `Registry::lexicon()`, and the precompiled matcher recognises it.
     #[test]
-    fn tc667_668_lexicon_merge_and_accessor() {
+    fn tc667_lexicon_loads_and_accessor() {
         let p = tmpdir("lexicon-667");
+        write_vocab_module(
+            &p.join("m"),
+            "m",
+            "lexicon:\n  pagination:\n    definition: page-splitting\n  cursor:\n    definition: position token\n",
+        );
+        let r = Registry::load_from(&[&p]).expect("tolerant ok");
+        assert!(r.lexicon().contains_key("pagination"));
+        assert!(r.lexicon().contains_key("cursor"));
+        assert!(r
+            .lexicon_matcher()
+            .contains_term("supports pagination today"));
+        assert!(!r.lexicon_matcher().contains_term("unrelated text"));
+    }
+
+    // TC-668 (FR-043-AC-2): a term re-declared with a differing body across
+    // modules is first-wins + emits one `DuplicateLexiconTerm`.
+    #[test]
+    fn tc668_lexicon_merge_first_wins() {
+        let p = tmpdir("lexicon-668");
         write_vocab_module(
             &p.join("m1"),
             "m1",
-            "lexicon:\n  pagination:\n    definition: page-splitting\n  cursor:\n    definition: position token\n",
+            "lexicon:\n  pagination:\n    definition: page-splitting\n",
         );
         write_vocab_module(
             &p.join("m2"),
@@ -791,14 +818,9 @@ roles:
         );
         let r = Registry::load_from(&[&p]).expect("tolerant ok");
         assert_eq!(r.lexicon()["pagination"].definition, "page-splitting"); // first-wins
-        assert!(r.lexicon().contains_key("cursor"));
         assert!(r.diagnostics().iter().any(
             |d| matches!(d, Diagnostic::DuplicateLexiconTerm { name, .. } if name == "pagination")
         ));
-        assert!(r
-            .lexicon_matcher()
-            .contains_term("supports pagination today"));
-        assert!(!r.lexicon_matcher().contains_term("unrelated text"));
     }
 
     // TC-672 (FR-043-AC-6): the registry-backed path applies the merged
@@ -826,6 +848,53 @@ roles:
         // Type-only path: empty lexicon → vague-response present.
         let type_only = crate::validate_document(fr, doc);
         assert!(type_only
+            .warnings
+            .iter()
+            .any(|w| w.message.contains("[ears:vague-response]")));
+    }
+
+    // TC-676 (FR-044-AC-3): `lexicon_with` composes module keys ∪ project terms.
+    #[test]
+    fn tc676_lexicon_with_combines_module_and_project() {
+        let p = tmpdir("lexicon-676");
+        write_vocab_module(
+            &p.join("m"),
+            "m",
+            "lexicon:\n  endpoint:\n    definition: an HTTP path\n",
+        );
+        let r = Registry::load_from(&[&p]).expect("tolerant ok");
+        let lex = r.lexicon_with(&["widget".to_string()]);
+        assert!(lex.contains_term("provide an endpoint")); // module term
+        assert!(lex.contains_term("provide a widget")); // project term
+        assert!(!lex.contains_term("provide flexibility")); // neither
+    }
+
+    // TC-677 (FR-044-AC-4): validate_document_in_registry_with_lexicon injects
+    // the supplied lexicon — a project term suppresses; module-only flags.
+    #[test]
+    fn tc677_with_lexicon_injection_suppresses_project_term() {
+        let p = tmpdir("lexicon-677");
+        let m = p.join("m");
+        fs::create_dir_all(m.join("schemas")).unwrap();
+        fs::write(
+            m.join("manifest.yaml"),
+            "name: m\nartifact_types:\n- name: FR\n  frontmatter_schema_ref: schemas/fr.schema.json\n  grammar_ref: iso-spec-core\n",
+        )
+        .unwrap();
+        fs::write(m.join("schemas/fr.schema.json"), r#"{"type":"object"}"#).unwrap();
+        let r = Registry::load_from(&[&p]).expect("tolerant ok");
+        let fr = r.archetype("FR").expect("FR archetype");
+        let doc = "---\ntype: FR\n---\n## Description\n\nThe system shall provide a widget.\n";
+        // Module-only (empty) lexicon → `widget` is vague.
+        let mod_only = crate::validate_document_in_registry(&r, fr, doc);
+        assert!(mod_only
+            .warnings
+            .iter()
+            .any(|w| w.message.contains("[ears:vague-response]")));
+        // Inject a lexicon with the project term → suppressed.
+        let lex = r.lexicon_with(&["widget".to_string()]);
+        let injected = crate::validate_document_in_registry_with_lexicon(&r, fr, doc, &lex);
+        assert!(!injected
             .warnings
             .iter()
             .any(|w| w.message.contains("[ears:vague-response]")));
