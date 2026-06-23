@@ -219,13 +219,31 @@ fn has_missing_subject(statement: &str) -> bool {
     before.is_empty()
 }
 
+/// Detect a vague response verb — **object-aware** (FR-042). A verb from the
+/// lexicon is only vague when its *object* is abstract or absent: a concrete
+/// object surface (`provide an endpoint`, `process push events`) or a
+/// mechanism/quantitative qualifier (`handle X by Y`, `process within 16 ms`)
+/// states a verifiable response and is suppressed. `be able to` is the one
+/// verb-intrinsic case — capability phrasing — and is always flagged.
 fn vague_verb(statement: &str) -> Option<String> {
     let lower = normalize(statement).to_lowercase();
-    re_vague().captures(&lower).map(|c| {
-        c.get(2)
-            .map(|m| m.as_str().trim().to_string())
-            .unwrap_or_default()
-    })
+    let caps = re_vague().captures(&lower)?;
+    let m = caps.get(2)?;
+    let verb = m.as_str().split_whitespace().collect::<Vec<_>>().join(" ");
+    if verb == "be able to" {
+        return Some(verb); // capability-not-behavior — always vague
+    }
+    let remainder = &lower[m.end()..];
+    if re_concrete_qualifier().is_match(remainder) {
+        return None; // mechanism / numeric / ordering qualifier → concrete
+    }
+    if re_vague_quality().is_match(remainder) {
+        return Some(verb); // abstract quality/manner object → vague
+    }
+    if re_concrete_noun().is_match(remainder) {
+        return None; // concrete object surface → verifiable
+    }
+    Some(verb) // bare / generic response → vague
 }
 
 fn non_canonical_trigger(statement: &str) -> Option<String> {
@@ -392,6 +410,43 @@ fn re_vague() -> &'static Regex {
     })
 }
 
+/// A mechanism, numeric, or ordering qualifier after the verb — the response is
+/// concrete/measurable (`handle X by Y`, `process within 16 ms`, `process only
+/// push events`). Calibrated against the corpus (FR-042 object-aware tuning).
+fn re_concrete_qualifier() -> &'static Regex {
+    static R: OnceLock<Regex> = OnceLock::new();
+    R.get_or_init(|| {
+        Regex::new(
+            r"(?i)\b(by|using|via|per|through|according to|that|which|within|before|after|only|not)\b|\bin order\b|\bidempotent|[0-9<>%]",
+        )
+        .expect("concrete-qualifier regex")
+    })
+}
+
+/// An abstract quality noun or unmeasurable manner — genuine vagueness even with
+/// a grammatical object (`provide flexibility`, `handle errors gracefully`).
+fn re_vague_quality() -> &'static Regex {
+    static R: OnceLock<Regex> = OnceLock::new();
+    R.get_or_init(|| {
+        Regex::new(
+            r"(?i)\b(flexibility|extensibility|robustness|scalability|usability|reliability|maintainability|interoperability|capabilit(y|ies)|functionality|complexity|seamless(ly)?|gracefully|appropriately|efficiently|properly|correctly|reliably|acceptable|reasonable|sufficient|adequate|user-friendly|intuitive|performant|flexible|robust|scalable)\b|\bas (needed|appropriate|required|possible)\b",
+        )
+        .expect("vague-quality regex")
+    })
+}
+
+/// A concrete object surface — the verb names a verifiable response
+/// (`provide an endpoint`, `support listing reviews`, `manage the signing key`).
+fn re_concrete_noun() -> &'static Regex {
+    static R: OnceLock<Regex> = OnceLock::new();
+    R.get_or_init(|| {
+        Regex::new(
+            r"(?i)\b(create|read|update|delete|list|crud|get|post|put|patch)\b|\b(endpoint|operation|method|api|command|event|field|record|token|route|schema|message|request|response|header|query|webhook|handler|interface|file|key|step|layer|connection|session|state|lifecycle|transition|signal|thread|comment|review|workflow|config|overlay|frame|digest|index|mapping|page|view|report|graph|node|edge|module|plugin|object|artifact|document|spec|content|button|box|component|panel|parameter|attachment|dropdown|menu|form|dialog|reply|replies|account|provider|tab|widget|column|row|cell)s?\b",
+        )
+        .expect("concrete-noun regex")
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -457,16 +512,48 @@ mod tests {
         assert_eq!(f.iter().filter(|x| x.check == "missing-subject").count(), 0);
     }
 
-    // TC-660 (FR-042-AC-4): vague-response fires; passive does not.
+    // TC-660 (FR-042-AC-4): vague-response fires; passive does not; the check
+    // is object-aware (a concrete object or mechanism qualifier suppresses it).
     #[test]
     fn tc660_vague_and_passive() {
-        let vague = doc("---\ntype: FR\n---\n## Description\n\nThe system shall support publishing to registries.\n");
-        let f = check("FR", &vague, 0);
-        assert_eq!(f.iter().filter(|x| x.check == "vague-response").count(), 1);
+        let count = |text: &str| {
+            check("FR", &doc(text), 0)
+                .iter()
+                .filter(|x| x.check == "vague-response")
+                .count()
+        };
+        let fr = |body: &str| format!("---\ntype: FR\n---\n## Description\n\n{body}\n");
 
-        let passive = doc("---\ntype: FR\n---\n## Description\n\nMessages shall be included from newest to oldest.\n");
-        let f2 = check("FR", &passive, 0);
-        assert_eq!(f2.iter().filter(|x| x.check == "vague-response").count(), 0);
+        // Bare / abstract object → vague.
+        assert_eq!(
+            count(&fr("The system shall support publishing to registries.")),
+            1
+        );
+        assert_eq!(count(&fr("The system shall provide flexibility.")), 1);
+        // `be able to` is capability phrasing — always vague.
+        assert_eq!(count(&fr("The user shall be able to export the data.")), 1);
+
+        // Object-aware suppression: concrete object / mechanism / numeric bound.
+        assert_eq!(
+            count(&fr("The system shall provide an endpoint for review runs.")),
+            0
+        );
+        assert_eq!(
+            count(&fr("The webhook handler shall process only push events.")),
+            0
+        );
+        assert_eq!(
+            count(&fr(
+                "The system shall handle 404 errors by displaying a toast."
+            )),
+            0
+        );
+
+        // Passive voice is not a vague verb at all.
+        assert_eq!(
+            count(&fr("Messages shall be included from newest to oldest.")),
+            0
+        );
     }
 
     // TC-661 (FR-042-AC-5): non-canonical trigger fires; NFR no-trigger does not.

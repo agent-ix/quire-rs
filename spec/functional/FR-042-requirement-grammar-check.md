@@ -51,7 +51,12 @@ violates a clause rule:
 1. **non-singular** — the statement contains more than one `shall`.
 2. **missing-subject** — the statement names no system/actor subject.
 3. **vague-response** — the response verb is vague (`support`, `handle`,
-   `manage`, `process`, `deal with`, `provide`, `enable`, `be able to`).
+   `manage`, `process`, `deal with`, `provide`, `enable`, `be able to`). The
+   check is **object-aware**: a verb is flagged only when its object is abstract
+   or absent — a concrete object surface (`provide an endpoint`, `process push
+   events`) or a mechanism/quantitative qualifier (`handle X by Y`, `process
+   within 16 ms`) states a verifiable response and is not flagged. `be able to`
+   is the one verb-intrinsic case (capability-not-behavior) and is always flagged.
 4. **non-canonical-trigger** — the statement leads with a non-EARS trigger
    (`On …`, `Upon`, `After`, `Before`, `Once`, `During`) instead of `When`/
    `While`.
