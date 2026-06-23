@@ -163,10 +163,19 @@ fn check_grammar<'py>(
         let line_offset = crate::validate_document::body_line_offset(&text);
         // FR-043: with a module, apply its merged lexicon; without, empty.
         let empty = crate::grammar::GrammarLexicon::empty();
+        // `module_root` may be a single module dir (has `manifest.yaml`) or a
+        // search root whose children are modules — merged like the CLI does.
         let registry = match &module {
-            Some(m) => Some(
-                crate::Registry::load_module(Path::new(m)).map_err(quire_error_to_schema_pyerr)?,
-            ),
+            Some(m) => {
+                let path = Path::new(m);
+                let r = if path.join("manifest.yaml").is_file() {
+                    crate::Registry::load_module(path)
+                } else {
+                    crate::Registry::load_from(&[path])
+                }
+                .map_err(quire_error_to_schema_pyerr)?;
+                Some(r)
+            }
             None => None,
         };
         let lexicon = registry.as_ref().map_or(&empty, |r| r.lexicon_matcher());

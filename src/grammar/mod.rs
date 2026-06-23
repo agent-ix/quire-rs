@@ -45,10 +45,12 @@ impl GrammarLexicon {
             .filter(|t| !t.is_empty())
             .map(regex::escape)
             .collect();
+        // `s?` matches the regular plural (`endpoint`→`endpoints`) — corpus
+        // objects are frequently plural; mirrors the old concrete-noun rule.
         let matcher = if escaped.is_empty() {
             None
         } else {
-            Regex::new(&format!(r"(?i)\b({})\b", escaped.join("|"))).ok()
+            Regex::new(&format!(r"(?i)\b({})s?\b", escaped.join("|"))).ok()
         };
         Self { matcher }
     }
