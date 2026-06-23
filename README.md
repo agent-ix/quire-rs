@@ -184,4 +184,4 @@ safety scaffolding and design conventions, and `spec/` for the normative require
 
 ## License
 
-MIT
+AGPL-3.0-or-later
