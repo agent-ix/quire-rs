@@ -73,6 +73,17 @@ pub struct RoleDef {
     pub description: String,
 }
 
+/// One `lexicon` registry entry (FR-043). A module-declared **concrete term**
+/// the EARS object-aware vague-response check (FR-042) accepts as a verifiable
+/// object. The engine uses the term (the map key); `definition` is documentation
+/// (and feeds a future glossary surface). `category` is an optional grouping tag.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct LexiconTermDef {
+    pub definition: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub category: Option<String>,
+}
+
 /// Normalize a raw `allowed_links` value (array **or** map) into the
 /// canonical [`AllowedLinks`] map (FR-040-AC-4).
 ///

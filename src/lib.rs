@@ -70,7 +70,7 @@ pub use extract::{extract, ExtractionResult};
 pub use extract::assert_eval::{evaluate_assert, AssertFailure, AssertReason};
 pub use extract::interpolate::{interpolate, UnresolvedField};
 // Declarative lint rules (FR-036) — advisory, never blocks extraction.
-pub use grammar::{check_document_grammar, GrammarFinding, GrammarSeverity};
+pub use grammar::{check_document_grammar, GrammarFinding, GrammarLexicon, GrammarSeverity};
 pub use lint::{lint_document, LintFinding, LintRule, LintSeverity};
 // Writeback (FR-022) — byte-splice section/block edit.
 pub use writeback::{update_block, update_section};

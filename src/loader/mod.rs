@@ -30,7 +30,7 @@ use crate::loader::manifest::{load_manifest, Archetype, Manifest};
 use crate::loader::paths::{
     default_module_root, module_path_env, resolve_search_paths, PathDiagnostic,
 };
-use crate::vocab::{EdgeTypeDef, RoleDef};
+use crate::vocab::{EdgeTypeDef, LexiconTermDef, RoleDef};
 
 /// Module-level entry produced by [`load_modules`].
 #[derive(Debug)]
@@ -45,6 +45,8 @@ pub struct LoadedModule {
     pub edge_types: BTreeMap<String, EdgeTypeDef>,
     /// Role registry contributed by this module (FR-040).
     pub roles: BTreeMap<String, RoleDef>,
+    /// Concrete-term lexicon contributed by this module (FR-043).
+    pub lexicon: BTreeMap<String, LexiconTermDef>,
 }
 
 /// Outcome of a full load pass.
@@ -350,6 +352,7 @@ pub fn load_inline_module(manifest_yaml: &[u8], schemas: &BTreeMap<String, Strin
         lint_rules: manifest.lint_rules.clone(),
         edge_types: manifest.edge_types.clone(),
         roles: manifest.roles.clone(),
+        lexicon: manifest.lexicon.clone(),
     });
 
     LoadOutcome {
@@ -490,6 +493,7 @@ fn load_one_module(
             lint_rules: manifest.lint_rules.clone(),
             edge_types: manifest.edge_types.clone(),
             roles: manifest.roles.clone(),
+            lexicon: manifest.lexicon.clone(),
         },
         failures,
     ))
@@ -683,6 +687,13 @@ pub fn flatten_into_registry(mut outcome: LoadOutcome) -> RegistryShape {
             .diagnostics
             .push(Diagnostic::DuplicateRole { name, modules });
     }
+    // FR-043: merge the concrete-term lexicon (same first-wins machinery).
+    let (lexicon, mut lexicon_dups) = merge_vocab(&outcome.modules, |m| &m.lexicon);
+    for (name, modules) in lexicon_dups.drain(..) {
+        outcome
+            .diagnostics
+            .push(Diagnostic::DuplicateLexiconTerm { name, modules });
+    }
 
     // ── FR-041: derive the inverse-label → forward-verb index from the
     // merged edge_types. A declared `inverse:` label becomes an authorable
@@ -769,6 +780,7 @@ pub fn flatten_into_registry(mut outcome: LoadOutcome) -> RegistryShape {
         edge_types,
         inverse_edges,
         roles,
+        lexicon,
         failures: outcome.failures,
         diagnostics: outcome.diagnostics,
         path_diagnostics: outcome.path_diagnostics,
@@ -849,6 +861,13 @@ pub fn flatten_into_registry_strict(outcome: LoadOutcome) -> Result<RegistryShap
                     name: name.clone(),
                 });
             }
+            // FR-043: load_strict escalates a conflicting lexicon term.
+            Diagnostic::DuplicateLexiconTerm { name, .. } => {
+                return Err(QuireError::EdgeVocabularyViolation {
+                    kind: "DuplicateLexiconTerm".to_string(),
+                    name: name.clone(),
+                });
+            }
             // FR-041-AC-3: load_strict escalates a colliding inverse label.
             Diagnostic::DuplicateInverseEdge { name, .. } => {
                 return Err(QuireError::EdgeVocabularyViolation {
@@ -896,6 +915,8 @@ pub struct RegistryShape {
     pub inverse_edges: BTreeMap<String, String>,
     /// Merged role registry, first-wins across modules (FR-040).
     pub roles: BTreeMap<String, RoleDef>,
+    /// Merged concrete-term lexicon, first-wins across modules (FR-043).
+    pub lexicon: BTreeMap<String, LexiconTermDef>,
     pub failures: Vec<ArchetypeLoadFailure>,
     pub diagnostics: Vec<Diagnostic>,
     pub path_diagnostics: Vec<PathDiagnostic>,

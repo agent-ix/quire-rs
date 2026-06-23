@@ -36,6 +36,9 @@ struct Inner {
     edge_types: std::collections::BTreeMap<String, crate::vocab::EdgeTypeDef>,
     inverse_edges: std::collections::BTreeMap<String, String>,
     roles: std::collections::BTreeMap<String, crate::vocab::RoleDef>,
+    /// Merged concrete-term lexicon (FR-043) + its precompiled matcher.
+    lexicon: std::collections::BTreeMap<String, crate::vocab::LexiconTermDef>,
+    lexicon_matcher: crate::grammar::GrammarLexicon,
     failures: Vec<ArchetypeLoadFailure>,
     diagnostics: Vec<Diagnostic>,
     path_diagnostics: Vec<PathDiagnostic>,
@@ -182,10 +185,14 @@ impl Registry {
             edge_types,
             inverse_edges,
             roles,
+            lexicon,
             failures,
             diagnostics,
             path_diagnostics,
         } = shape;
+        // FR-043: precompile the matcher once from the merged lexicon keys.
+        let lexicon_matcher =
+            crate::grammar::GrammarLexicon::from_terms(lexicon.keys().map(String::as_str));
         Self {
             inner: Arc::new(Inner {
                 archetypes,
@@ -196,6 +203,8 @@ impl Registry {
                 edge_types,
                 inverse_edges,
                 roles,
+                lexicon,
+                lexicon_matcher,
                 failures,
                 diagnostics,
                 path_diagnostics,
@@ -282,6 +291,19 @@ impl Registry {
     /// Merged role registry (FR-040), first-wins across modules.
     pub fn roles(&self) -> &std::collections::BTreeMap<String, crate::vocab::RoleDef> {
         &self.inner.roles
+    }
+
+    /// Merged concrete-term lexicon (FR-043), first-wins across modules. The
+    /// EARS object-aware vague-response check consumes these as accepted
+    /// concrete objects; the engine carries no hardcoded noun list.
+    pub fn lexicon(&self) -> &std::collections::BTreeMap<String, crate::vocab::LexiconTermDef> {
+        &self.inner.lexicon
+    }
+
+    /// The precompiled matcher over the merged lexicon (FR-043), passed to the
+    /// grammar on the registry-backed validation path.
+    pub fn lexicon_matcher(&self) -> &crate::grammar::GrammarLexicon {
+        &self.inner.lexicon_matcher
     }
 
     /// Inverse-label → forward-verb index (FR-041). A declared `inverse:`
@@ -748,6 +770,65 @@ roles:
             .diagnostics()
             .iter()
             .any(|d| matches!(d, Diagnostic::DuplicateEdgeType { name, .. } if name == "calls")));
+    }
+
+    // TC-667/668 (FR-043-AC-1/2): a `lexicon` term merges first-wins across
+    // modules, is readable via `Registry::lexicon()`, and a conflicting
+    // redeclaration emits one `DuplicateLexiconTerm`; the precompiled matcher
+    // recognises a merged term.
+    #[test]
+    fn tc667_668_lexicon_merge_and_accessor() {
+        let p = tmpdir("lexicon-667");
+        write_vocab_module(
+            &p.join("m1"),
+            "m1",
+            "lexicon:\n  pagination:\n    definition: page-splitting\n  cursor:\n    definition: position token\n",
+        );
+        write_vocab_module(
+            &p.join("m2"),
+            "m2",
+            "lexicon:\n  pagination:\n    definition: DIFFERENT\n",
+        );
+        let r = Registry::load_from(&[&p]).expect("tolerant ok");
+        assert_eq!(r.lexicon()["pagination"].definition, "page-splitting"); // first-wins
+        assert!(r.lexicon().contains_key("cursor"));
+        assert!(r.diagnostics().iter().any(
+            |d| matches!(d, Diagnostic::DuplicateLexiconTerm { name, .. } if name == "pagination")
+        ));
+        assert!(r
+            .lexicon_matcher()
+            .contains_term("supports pagination today"));
+        assert!(!r.lexicon_matcher().contains_term("unrelated text"));
+    }
+
+    // TC-672 (FR-043-AC-6): the registry-backed path applies the merged
+    // lexicon; the type-only path applies an empty one (more findings).
+    #[test]
+    fn tc672_registry_vs_type_only_lexicon_paths() {
+        let p = tmpdir("lexicon-672");
+        let m = p.join("m");
+        fs::create_dir_all(m.join("schemas")).unwrap();
+        fs::write(
+            m.join("manifest.yaml"),
+            "name: m\nartifact_types:\n- name: FR\n  frontmatter_schema_ref: schemas/fr.schema.json\n  grammar_ref: iso-spec-core\nlexicon:\n  pagination:\n    definition: page splitting\n",
+        )
+        .unwrap();
+        fs::write(m.join("schemas/fr.schema.json"), r#"{"type":"object"}"#).unwrap();
+        let r = Registry::load_from(&[&p]).expect("tolerant ok");
+        let fr = r.archetype("FR").expect("FR archetype");
+        let doc = "---\ntype: FR\n---\n## Description\n\nThe system shall support pagination.\n";
+        // Registry path: lexicon has `pagination` → no vague-response.
+        let with_reg = crate::validate_document_in_registry(&r, fr, doc);
+        assert!(!with_reg
+            .warnings
+            .iter()
+            .any(|w| w.message.contains("[ears:vague-response]")));
+        // Type-only path: empty lexicon → vague-response present.
+        let type_only = crate::validate_document(fr, doc);
+        assert!(type_only
+            .warnings
+            .iter()
+            .any(|w| w.message.contains("[ears:vague-response]")));
     }
 
     // TC-650 (FR-040-AC-3): unknown verb/role → non-fatal diagnostic

@@ -64,6 +64,12 @@ pub struct Manifest {
     /// `allowed_links` target roles instead of concrete type names.
     #[serde(default)]
     pub roles: BTreeMap<String, RoleDef>,
+    /// Mergeable concrete-term lexicon (FR-043): term → {definition,
+    /// optional category}. Merged across modules first-wins; the EARS
+    /// object-aware vague-response check (FR-042) consumes the merged keys
+    /// as accepted concrete objects, so the engine carries no hardcoded list.
+    #[serde(default)]
+    pub lexicon: BTreeMap<String, crate::vocab::LexiconTermDef>,
 }
 
 impl Manifest {

@@ -15,7 +15,7 @@ use std::sync::OnceLock;
 
 use regex::Regex;
 
-use super::{GrammarFinding, GrammarSeverity};
+use super::{GrammarFinding, GrammarLexicon, GrammarSeverity};
 use crate::ast::QuireSection;
 use crate::query;
 
@@ -79,6 +79,7 @@ pub fn check(
     archetype: &str,
     doc: &crate::ast::QuireDocument,
     line_offset: usize,
+    lexicon: &GrammarLexicon,
 ) -> Vec<GrammarFinding> {
     let mut findings = Vec::new();
     for (heading, table_column) in bound_sections(archetype) {
@@ -90,13 +91,18 @@ pub fn check(
             None => prose_statements(section, line_offset),
         };
         for stmt in stmts {
-            check_statement(archetype, &stmt, &mut findings);
+            check_statement(archetype, &stmt, lexicon, &mut findings);
         }
     }
     findings
 }
 
-fn check_statement(archetype: &str, stmt: &Stmt, out: &mut Vec<GrammarFinding>) {
+fn check_statement(
+    archetype: &str,
+    stmt: &Stmt,
+    lexicon: &GrammarLexicon,
+    out: &mut Vec<GrammarFinding>,
+) {
     let pattern = classify(&stmt.text);
     let label = Some(pattern.as_str().to_string());
 
@@ -134,7 +140,7 @@ fn check_statement(archetype: &str, stmt: &Stmt, out: &mut Vec<GrammarFinding>) 
             "statement names no system/actor subject before `shall`".to_string(),
         );
     }
-    if let Some(verb) = vague_verb(&stmt.text) {
+    if let Some(verb) = vague_verb(&stmt.text, lexicon) {
         push(
             out,
             "vague-response",
@@ -219,13 +225,15 @@ fn has_missing_subject(statement: &str) -> bool {
     before.is_empty()
 }
 
-/// Detect a vague response verb — **object-aware** (FR-042). A verb from the
-/// lexicon is only vague when its *object* is abstract or absent: a concrete
-/// object surface (`provide an endpoint`, `process push events`) or a
-/// mechanism/quantitative qualifier (`handle X by Y`, `process within 16 ms`)
-/// states a verifiable response and is suppressed. `be able to` is the one
-/// verb-intrinsic case — capability phrasing — and is always flagged.
-fn vague_verb(statement: &str) -> Option<String> {
+/// Detect a vague response verb — **object-aware** (FR-042) over the
+/// module-supplied concrete `lexicon` (FR-043). A verb from the weak-verb set is
+/// only vague when its *object* is abstract or absent: a mechanism/quantitative
+/// qualifier (`handle X by Y`, `process within 16 ms`), a backticked identifier,
+/// or a **lexicon term** (`provide an endpoint`, `support pagination`) states a
+/// verifiable response and is suppressed. The engine carries no hardcoded
+/// concrete-noun list — concrete terms come from the lexicon. `be able to` is
+/// the one verb-intrinsic case (capability phrasing) and is always flagged.
+fn vague_verb(statement: &str, lexicon: &GrammarLexicon) -> Option<String> {
     let lower = normalize(statement).to_lowercase();
     let caps = re_vague().captures(&lower)?;
     let m = caps.get(2)?;
@@ -235,13 +243,13 @@ fn vague_verb(statement: &str) -> Option<String> {
     }
     let remainder = &lower[m.end()..];
     if re_concrete_qualifier().is_match(remainder) {
-        return None; // mechanism / numeric / ordering qualifier → concrete
+        return None; // mechanism / numeric / ordering / backtick qualifier → concrete
     }
     if re_vague_quality().is_match(remainder) {
         return Some(verb); // abstract quality/manner object → vague
     }
-    if re_concrete_noun().is_match(remainder) {
-        return None; // concrete object surface → verifiable
+    if lexicon.contains_term(remainder) {
+        return None; // a module-declared concrete term → verifiable
     }
     Some(verb) // bare / generic response → vague
 }
@@ -438,24 +446,20 @@ fn re_vague_quality() -> &'static Regex {
     })
 }
 
-/// A concrete object surface — the verb names a verifiable response
-/// (`provide an endpoint`, `support listing reviews`, `manage the signing key`).
-fn re_concrete_noun() -> &'static Regex {
-    static R: OnceLock<Regex> = OnceLock::new();
-    R.get_or_init(|| {
-        Regex::new(
-            r"(?i)\b(create|read|update|delete|list|crud|get|post|put|patch)\b|\b(endpoint|operation|method|api|command|event|field|record|token|route|schema|message|request|response|header|query|webhook|handler|interface|file|key|step|layer|connection|session|state|lifecycle|transition|signal|thread|comment|review|workflow|config|overlay|frame|digest|index|mapping|page|view|report|graph|node|edge|module|plugin|object|artifact|document|spec|content|button|box|component|panel|parameter|attachment|dropdown|menu|form|dialog|reply|replies|account|provider|tab|widget|column|row|cell)s?\b",
-        )
-        .expect("concrete-noun regex")
-    })
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     fn doc(text: &str) -> crate::ast::QuireDocument {
         crate::parse_document(text)
+    }
+
+    fn empty() -> GrammarLexicon {
+        GrammarLexicon::empty()
+    }
+
+    fn lex(terms: &[&str]) -> GrammarLexicon {
+        GrammarLexicon::from_terms(terms.iter().copied())
     }
 
     // TC-657 (FR-042-AC-1): every pattern classifies; no-match → unclassifiable.
@@ -495,11 +499,11 @@ mod tests {
     #[test]
     fn tc658_non_singular() {
         let d = doc("---\ntype: FR\n---\n## Description\n\nThe service shall mint a token and shall carry it downstream.\n");
-        let f = check("FR", &d, 0);
+        let f = check("FR", &d, 0, &empty());
         assert_eq!(f.iter().filter(|x| x.check == "non-singular").count(), 1);
 
         let enumerated = doc("---\ntype: FR\n---\n## Description\n\nThe function shall:\n\n1. Validate the input.\n2. Render the output.\n3. Return the result.\n");
-        let f2 = check("FR", &enumerated, 0);
+        let f2 = check("FR", &enumerated, 0, &empty());
         assert_eq!(f2.iter().filter(|x| x.check == "non-singular").count(), 0);
     }
 
@@ -511,7 +515,7 @@ mod tests {
             "The operator shall be able to resync a repository"
         ));
         let str_doc = doc("---\ntype: StR\n---\n## Stakeholder Need\n\nThe operator shall reconcile a repository on demand.\n");
-        let f = check("StR", &str_doc, 0);
+        let f = check("StR", &str_doc, 0, &empty());
         assert_eq!(f.iter().filter(|x| x.check == "missing-subject").count(), 0);
     }
 
@@ -519,8 +523,10 @@ mod tests {
     // is object-aware (a concrete object or mechanism qualifier suppresses it).
     #[test]
     fn tc660_vague_and_passive() {
+        // Empty lexicon: only the engine-generic signals (mechanism/bound/
+        // backtick) suppress; bare/abstract objects flag.
         let count = |text: &str| {
-            check("FR", &doc(text), 0)
+            check("FR", &doc(text), 0, &empty())
                 .iter()
                 .filter(|x| x.check == "vague-response")
                 .count()
@@ -536,13 +542,8 @@ mod tests {
         // `be able to` is capability phrasing — always vague.
         assert_eq!(count(&fr("The user shall be able to export the data.")), 1);
 
-        // Object-aware suppression: concrete object / mechanism / numeric bound.
-        assert_eq!(
-            count(&fr("The system shall provide an endpoint for review runs.")),
-            0
-        );
-        // A backticked identifier is a concrete code object — accepted, so
-        // authors can reference things outside the fixed noun lexicon.
+        // Object-aware suppression via engine-generic signals (no lexicon needed):
+        // a backticked identifier, an ordering qualifier, a mechanism + bound.
         assert_eq!(
             count(&fr(
                 "The system shall provide `CodeBlockEditor`, a fenced editor."
@@ -567,11 +568,54 @@ mod tests {
         );
     }
 
+    // TC-669 (FR-043-AC-3): a lexicon term suppresses; removing it re-flags.
+    // TC-670 (FR-043-AC-4): under an empty lexicon a bare domain noun flags —
+    // proving no hardcoded concrete-noun list remains in the engine.
+    #[test]
+    fn tc669_670_lexicon_drives_concrete() {
+        let fr = |body: &str| format!("---\ntype: FR\n---\n## Description\n\n{body}\n");
+        let count = |text: &str, lexicon: &GrammarLexicon| {
+            check("FR", &doc(text), 0, lexicon)
+                .iter()
+                .filter(|x| x.check == "vague-response")
+                .count()
+        };
+        let doc_text = fr("The system shall support pagination.");
+        // Empty lexicon → bare noun flags (no hardcoded list).
+        assert_eq!(count(&doc_text, &empty()), 1);
+        // Lexicon with the term → suppressed.
+        assert_eq!(count(&doc_text, &lex(&["pagination"])), 0);
+        // A different term does not suppress it.
+        assert_eq!(count(&doc_text, &lex(&["cursor"])), 1);
+        // The same for `provide an endpoint` once `endpoint` is a lexicon term.
+        let ep = fr("The system shall provide an endpoint for review runs.");
+        assert_eq!(count(&ep, &empty()), 1);
+        assert_eq!(count(&ep, &lex(&["endpoint"])), 0);
+    }
+
+    // TC-671 (FR-043-AC-5): backtick / mechanism / bound suppression does not
+    // depend on the lexicon — it still holds under an empty lexicon.
+    #[test]
+    fn tc671_generic_suppression_lexicon_independent() {
+        let fr = |body: &str| format!("---\ntype: FR\n---\n## Description\n\n{body}\n");
+        let count = |text: &str| {
+            check("FR", &doc(text), 0, &empty())
+                .iter()
+                .filter(|x| x.check == "vague-response")
+                .count()
+        };
+        assert_eq!(count(&fr("The system shall provide `RepoSource`.")), 0); // backtick
+        assert_eq!(count(&fr("The system shall handle errors by retrying.")), 0); // mechanism
+        assert_eq!(count(&fr("The system shall process up to 100 items.")), 0); // bound
+                                                                                // …but an abstract object still flags regardless of lexicon.
+        assert_eq!(count(&fr("The system shall provide flexibility.")), 1);
+    }
+
     // TC-661 (FR-042-AC-5): non-canonical trigger fires; NFR no-trigger does not.
     #[test]
     fn tc661_non_canonical_trigger() {
         let latent = doc("---\ntype: FR\n---\n## Description\n\nOn startup, the service shall perform a full scan.\n");
-        let f = check("FR", &latent, 0);
+        let f = check("FR", &latent, 0, &empty());
         assert_eq!(
             f.iter()
                 .filter(|x| x.check == "non-canonical-trigger")
@@ -580,7 +624,7 @@ mod tests {
         );
 
         let nfr = doc("---\ntype: NFR\n---\n## Statement\n\nThe system shall sustain p95 latency under 200ms.\n");
-        let f2 = check("NFR", &nfr, 0);
+        let f2 = check("NFR", &nfr, 0, &empty());
         assert_eq!(
             f2.iter()
                 .filter(|x| x.check == "non-canonical-trigger")
@@ -595,17 +639,17 @@ mod tests {
         // A vague statement parked in Dependencies (not bound) yields nothing.
         let d =
             doc("---\ntype: FR\n---\n## Dependencies\n\nThe system shall support everything.\n");
-        assert!(check("FR", &d, 0).is_empty());
+        assert!(check("FR", &d, 0, &empty()).is_empty());
         // An IT document binds no sections at all.
         let it = doc("---\ntype: IT\n---\n## Objective\n\nThe system shall support everything.\n");
-        assert!(check("IT", &it, 0).is_empty());
+        assert!(check("IT", &it, 0, &empty()).is_empty());
     }
 
     // TC-664 (FR-042-AC-8): findings carry excerpt, line, pattern, severity.
     #[test]
     fn tc664_finding_fields() {
         let d = doc("---\ntype: FR\n---\n## Description\n\nThe system shall support publishing.\n");
-        let f = check("FR", &d, 0);
+        let f = check("FR", &d, 0, &empty());
         let v = f.iter().find(|x| x.check == "vague-response").unwrap();
         assert!(!v.statement.is_empty());
         assert!(v.line.is_some());
@@ -617,6 +661,6 @@ mod tests {
     #[test]
     fn tc665_skips() {
         let d = doc("---\ntype: FR\n---\n## Description\n\n```\nThe system shall support publishing.\n```\n\n> The system shall support quoting.\n");
-        assert!(check("FR", &d, 0).is_empty());
+        assert!(check("FR", &d, 0, &empty()).is_empty());
     }
 }

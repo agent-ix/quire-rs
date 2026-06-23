@@ -159,7 +159,16 @@ pub fn validate_document(archetype: &CompiledArchetype, doc_text: &str) -> Valid
     check_heading_uniqueness(&doc, line_offset, &mut errors);
 
     let mut warnings: Vec<ValidationWarning> = Vec::new();
-    run_grammar(archetype, &doc, line_offset, &mut errors, &mut warnings);
+    // Type-only path: no registry, so an empty lexicon (FR-043) — only the
+    // engine-generic mechanism/bound/backtick suppression applies.
+    run_grammar(
+        archetype,
+        &doc,
+        line_offset,
+        crate::grammar::empty_lexicon(),
+        &mut errors,
+        &mut warnings,
+    );
 
     ValidationResult::new(errors, warnings)
 }
@@ -168,19 +177,26 @@ pub fn validate_document(archetype: &CompiledArchetype, doc_text: &str) -> Valid
 /// its `grammar_ref`, routing findings into `errors`/`warnings` by severity.
 /// No `grammar_ref` (or an unknown bundle) is a no-op — grammar checking is
 /// advisory by construction and never the reason a document fails to validate
-/// in v1 (severity is policy, defaulting to `warning`).
+/// in v1 (severity is policy, defaulting to `warning`). `lexicon` is the merged
+/// concrete-term lexicon (FR-043); the type-only path passes an empty one.
 fn run_grammar(
     archetype: &CompiledArchetype,
     doc: &QuireDocument,
     line_offset: usize,
+    lexicon: &crate::grammar::GrammarLexicon,
     errors: &mut Vec<ValidationError>,
     warnings: &mut Vec<ValidationWarning>,
 ) {
     let Some(grammar_ref) = archetype.grammar_ref() else {
         return;
     };
-    for f in crate::grammar::check_document_grammar(grammar_ref, &archetype.name, doc, line_offset)
-    {
+    for f in crate::grammar::check_document_grammar(
+        grammar_ref,
+        &archetype.name,
+        doc,
+        line_offset,
+        lexicon,
+    ) {
         route_grammar_finding(f, errors, warnings);
     }
 }
@@ -314,7 +330,15 @@ pub fn validate_document_in_registry(
     }
 
     // ── Requirement-grammar layer (EARS, FR-042; advisory by default) ──
-    run_grammar(archetype, &doc, line_offset, &mut errors, &mut warnings);
+    // Registry-backed path: pass the merged concrete lexicon (FR-043).
+    run_grammar(
+        archetype,
+        &doc,
+        line_offset,
+        registry.lexicon_matcher(),
+        &mut errors,
+        &mut warnings,
+    );
 
     ValidationResult::new(errors, warnings)
 }

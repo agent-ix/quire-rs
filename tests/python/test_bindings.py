@@ -62,6 +62,27 @@ def test_check_grammar_ears_findings_cross_boundary():
     assert quire.check_grammar("nonexistent", "FR", md) == []
 
 
+def test_check_grammar_applies_module_lexicon(tmp_path):
+    """TC-673 (FR-043-AC-7): check_grammar applies a module's concrete lexicon
+    when given module_root; without one it uses an empty lexicon."""
+    md = (
+        "---\nid: FR-001\ntype: FR\n---\n"
+        "## Description\n\nThe system shall support pagination.\n"
+    )
+    # No module → empty lexicon → the bare noun is flagged.
+    findings = quire.check_grammar("iso-spec-core", "FR", md)
+    assert any(f["check"] == "vague-response" for f in findings)
+
+    # A module declaring `pagination` in its lexicon → suppressed.
+    mod = tmp_path / "m"
+    (mod / "schemas").mkdir(parents=True)
+    (mod / "manifest.yaml").write_text(
+        "name: m\nlexicon:\n  pagination:\n    definition: page splitting\n"
+    )
+    findings2 = quire.check_grammar("iso-spec-core", "FR", md, str(mod))
+    assert not any(f["check"] == "vague-response" for f in findings2)
+
+
 def test_load_repo_returns_documents(tmp_path):
     """TC-463: load_repo yields one structured doc per markdown file."""
     (tmp_path / "FR-001.md").write_text(

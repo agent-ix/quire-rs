@@ -42,3 +42,4 @@ description: "Index of artifacts in this directory."
 * [FR-040: Object-Axis Typed Edge Vocabulary and Cross-Domain Targets](./FR-040-object-edge-vocabulary.md)
 * [FR-041: Authorable Inverse Edge Verbs](./FR-041-authorable-inverse-edges.md)
 * [FR-042: Requirement-Grammar Check (EARS)](./FR-042-requirement-grammar-check.md)
+* [FR-043: Module-Supplied Concrete Lexicon for the Grammar](./FR-043-module-concrete-lexicon.md)

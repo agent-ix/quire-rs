@@ -17,7 +17,58 @@
 
 pub mod ears;
 
+use std::sync::OnceLock;
+
+use regex::Regex;
+
 use crate::ast::QuireDocument;
+
+/// A precompiled matcher over the merged module `lexicon` (FR-043): the set of
+/// accepted **concrete terms** the EARS vague-response check (FR-042) treats as
+/// verifiable objects. Built once from the `Registry`'s merged lexicon; the
+/// engine carries no hardcoded concrete-noun list. An empty lexicon (the
+/// type-only `validate_document` path, or `check_grammar` without a module)
+/// matches nothing — generic mechanism/bound/backtick suppression still applies.
+#[derive(Debug, Default)]
+pub struct GrammarLexicon {
+    matcher: Option<Regex>,
+}
+
+impl GrammarLexicon {
+    /// Build a matcher from concrete terms (the merged lexicon keys). Terms are
+    /// matched case-insensitively at word boundaries. An empty term set yields a
+    /// matcher that recognises nothing.
+    pub fn from_terms<'a, I: IntoIterator<Item = &'a str>>(terms: I) -> Self {
+        let escaped: Vec<String> = terms
+            .into_iter()
+            .map(str::trim)
+            .filter(|t| !t.is_empty())
+            .map(regex::escape)
+            .collect();
+        let matcher = if escaped.is_empty() {
+            None
+        } else {
+            Regex::new(&format!(r"(?i)\b({})\b", escaped.join("|"))).ok()
+        };
+        Self { matcher }
+    }
+
+    /// The empty lexicon — recognises no concrete term.
+    pub fn empty() -> Self {
+        Self { matcher: None }
+    }
+
+    /// True when `text` contains an accepted concrete term (word-boundary).
+    pub fn contains_term(&self, text: &str) -> bool {
+        self.matcher.as_ref().is_some_and(|r| r.is_match(text))
+    }
+}
+
+/// The shared empty lexicon for the registry-free paths.
+pub fn empty_lexicon() -> &'static GrammarLexicon {
+    static EMPTY: OnceLock<GrammarLexicon> = OnceLock::new();
+    EMPTY.get_or_init(GrammarLexicon::empty)
+}
 
 /// Severity of a grammar finding. `Warning` is advisory (never fails
 /// validation); `Error` blocks. Severity is **policy**: a deployment may
@@ -73,9 +124,10 @@ pub fn check_document_grammar(
     archetype: &str,
     doc: &QuireDocument,
     line_offset: usize,
+    lexicon: &GrammarLexicon,
 ) -> Vec<GrammarFinding> {
     match grammar_ref {
-        "iso-spec-core" => ears::check(archetype, doc, line_offset),
+        "iso-spec-core" => ears::check(archetype, doc, line_offset, lexicon),
         _ => Vec::new(),
     }
 }

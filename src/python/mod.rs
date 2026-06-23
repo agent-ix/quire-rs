@@ -145,21 +145,39 @@ fn validate_document<'py>(
 /// `validate_document`, this surfaces the findings directly (not folded into
 /// validation warnings) so the corpus report and review lens can consume them.
 #[pyfunction]
+#[pyo3(signature = (grammar_ref, archetype, document_text, module_root=None))]
 fn check_grammar<'py>(
     py: Python<'py>,
     grammar_ref: &str,
     archetype: &str,
     document_text: &str,
+    module_root: Option<&str>,
 ) -> PyResult<Bound<'py, PyList>> {
     let gref = grammar_ref.to_string();
     let arch = archetype.to_string();
     let text = document_text.to_string();
+    let module = module_root.map(str::to_string);
 
-    let findings = py.detach(|| {
+    let findings = py.detach(|| -> PyResult<Vec<crate::grammar::GrammarFinding>> {
         let doc = crate::parse_document(&text);
         let line_offset = crate::validate_document::body_line_offset(&text);
-        crate::grammar::check_document_grammar(&gref, &arch, &doc, line_offset)
-    });
+        // FR-043: with a module, apply its merged lexicon; without, empty.
+        let empty = crate::grammar::GrammarLexicon::empty();
+        let registry = match &module {
+            Some(m) => Some(
+                crate::Registry::load_module(Path::new(m)).map_err(quire_error_to_schema_pyerr)?,
+            ),
+            None => None,
+        };
+        let lexicon = registry.as_ref().map_or(&empty, |r| r.lexicon_matcher());
+        Ok(crate::grammar::check_document_grammar(
+            &gref,
+            &arch,
+            &doc,
+            line_offset,
+            lexicon,
+        ))
+    })?;
 
     let out = PyList::empty(py);
     for f in findings {
