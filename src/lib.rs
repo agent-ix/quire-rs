@@ -77,7 +77,7 @@ pub use lint::{lint_document, LintFinding, LintRule, LintSeverity};
 pub use writeback::{update_block, update_section};
 // Corpus: parallel repo walk (FR-024) + Spec corpus (FR-025); resolution/query in FR-026..027.
 pub use corpus::walk::{load_repo, load_repo_with, LoadedDocument, RepoLoad, WalkOptions};
-pub use corpus::{harvest_edges, Spec};
+pub use corpus::{glossary_terms, harvest_edges, Spec};
 // Bundle validation postures (OKF): strict archetype-conformance vs.
 // permissive foreign-bundle reading, plus index-completeness.
 pub use corpus::{validate_bundle, validate_bundle_at, BundleFinding, BundlePosture, BundleReport};
