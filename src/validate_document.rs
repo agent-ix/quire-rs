@@ -55,6 +55,10 @@ pub enum ValidationReason {
     /// resolved `allowed_links` vocabulary (FR-040-AC-8, Tier-1).
     /// Warning-severity — advisory, never fails validation.
     DisallowedEdgeType,
+    /// A requirement-grammar (EARS, FR-042) finding. Severity is policy:
+    /// advisory `warning` by default, promotable to `error`. Carried for both
+    /// the warning and error routing of grammar findings.
+    Grammar,
 }
 
 impl ValidationReason {
@@ -70,6 +74,7 @@ impl ValidationReason {
             Self::UnresolvedField => "unresolved-field",
             Self::UnknownObjectType => "unknown-object-type",
             Self::DisallowedEdgeType => "disallowed-edge-type",
+            Self::Grammar => "grammar",
         }
     }
 }
@@ -120,10 +125,6 @@ impl ValidationResult {
             warnings,
         }
     }
-
-    fn from_errors(errors: Vec<ValidationError>) -> Self {
-        Self::new(errors, Vec::new())
-    }
 }
 
 /// Validate an authored markdown `doc_text` against `archetype` (FR-032).
@@ -157,7 +158,55 @@ pub fn validate_document(archetype: &CompiledArchetype, doc_text: &str) -> Valid
     }
     check_heading_uniqueness(&doc, line_offset, &mut errors);
 
-    ValidationResult::from_errors(errors)
+    let mut warnings: Vec<ValidationWarning> = Vec::new();
+    run_grammar(archetype, &doc, line_offset, &mut errors, &mut warnings);
+
+    ValidationResult::new(errors, warnings)
+}
+
+/// Run the requirement-grammar (EARS, FR-042) bundle bound to `archetype` via
+/// its `grammar_ref`, routing findings into `errors`/`warnings` by severity.
+/// No `grammar_ref` (or an unknown bundle) is a no-op — grammar checking is
+/// advisory by construction and never the reason a document fails to validate
+/// in v1 (severity is policy, defaulting to `warning`).
+fn run_grammar(
+    archetype: &CompiledArchetype,
+    doc: &QuireDocument,
+    line_offset: usize,
+    errors: &mut Vec<ValidationError>,
+    warnings: &mut Vec<ValidationWarning>,
+) {
+    let Some(grammar_ref) = archetype.grammar_ref() else {
+        return;
+    };
+    for f in crate::grammar::check_document_grammar(grammar_ref, &archetype.name, doc, line_offset)
+    {
+        route_grammar_finding(f, errors, warnings);
+    }
+}
+
+/// Route one grammar finding into `errors` or `warnings` by its severity
+/// (FR-042-AC-7). `Warning` is advisory (never fails validation); `Error`
+/// blocks. Split out from [`run_grammar`] so the severity routing is unit
+/// testable without a `CompiledArchetype`.
+fn route_grammar_finding(
+    f: crate::grammar::GrammarFinding,
+    errors: &mut Vec<ValidationError>,
+    warnings: &mut Vec<ValidationWarning>,
+) {
+    let message = format!("[{}:{}] {}", f.grammar, f.check, f.message);
+    match f.severity {
+        crate::grammar::GrammarSeverity::Warning => warnings.push(ValidationWarning {
+            message,
+            line: f.line,
+            reason: ValidationReason::Grammar,
+        }),
+        crate::grammar::GrammarSeverity::Error => errors.push(ValidationError {
+            message,
+            line: f.line,
+            reason: ValidationReason::Grammar,
+        }),
+    }
 }
 
 /// Validate an authored markdown `doc_text` against BOTH the `type`
@@ -264,6 +313,9 @@ pub fn validate_document_in_registry(
         }
     }
 
+    // ── Requirement-grammar layer (EARS, FR-042; advisory by default) ──
+    run_grammar(archetype, &doc, line_offset, &mut errors, &mut warnings);
+
     ValidationResult::new(errors, warnings)
 }
 
@@ -312,7 +364,7 @@ fn frontmatter_object(doc: &QuireDocument) -> Option<&str> {
 /// the count of newlines consumed by any frontmatter block (plus a
 /// leading BOM). Used to convert a section's 0-based body `start_line`
 /// into a 1-based document line.
-fn body_line_offset(doc_text: &str) -> usize {
+pub(crate) fn body_line_offset(doc_text: &str) -> usize {
     let stripped = doc_text.strip_prefix('\u{FEFF}').unwrap_or(doc_text);
     // `parse_document` stores the verbatim input in `raw`; the parsed
     // body is `raw` minus frontmatter. Recompute the body the same way
@@ -777,6 +829,56 @@ yield_pattern:
 
     fn fr_schema_value() -> Value {
         serde_json::from_str(FR_SCHEMA).unwrap()
+    }
+
+    const FR_DSL_DESC: &str = r#"
+yield_pattern:
+  match:
+    description:
+      from: section_body
+      after_heading: Description
+      required: true
+"#;
+
+    // TC-663 (FR-042-AC-7): grammar warnings never fail validation; an
+    // error-severity finding routes to `errors` and would block.
+    #[test]
+    fn tc663_grammar_severity_routing() {
+        // End-to-end: an FR bound to the EARS grammar (`grammar_ref`) with a
+        // vague Description yields a Grammar *warning* yet still validates.
+        let mut a = archetype(Some(fr_schema_value()), Some(FR_DSL_DESC));
+        a.carry_over.grammar_ref = Some("iso-spec-core".into());
+        let doc = "---\nid: FR-001\ntitle: A Thing\n---\n\
+                   ## Description\nThe system shall support publishing.\n";
+        let r = validate_document(&a, doc);
+        assert!(
+            r.is_valid,
+            "advisory grammar findings must not fail validation"
+        );
+        assert!(r
+            .warnings
+            .iter()
+            .any(|w| w.reason == ValidationReason::Grammar));
+
+        // Routing: an Error-severity finding lands in `errors` (would block).
+        let mut errors = Vec::new();
+        let mut warnings = Vec::new();
+        route_grammar_finding(
+            crate::grammar::GrammarFinding {
+                grammar: "ears".into(),
+                check: "non-singular".into(),
+                pattern: None,
+                message: "x".into(),
+                line: Some(3),
+                statement: "s".into(),
+                severity: crate::grammar::GrammarSeverity::Error,
+            },
+            &mut errors,
+            &mut warnings,
+        );
+        assert_eq!(errors.len(), 1);
+        assert!(warnings.is_empty());
+        assert_eq!(errors[0].reason, ValidationReason::Grammar);
     }
 
     // TC-528 (FR-032-AC-1): conformant document validates.

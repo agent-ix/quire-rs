@@ -44,6 +44,7 @@ fn quire(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(load_repo, m)?)?;
     m.add_function(wrap_pyfunction!(validate, m)?)?;
     m.add_function(wrap_pyfunction!(validate_document, m)?)?;
+    m.add_function(wrap_pyfunction!(check_grammar, m)?)?;
     m.add_function(wrap_pyfunction!(input_contract, m)?)?;
     m.add_function(wrap_pyfunction!(input_skeleton, m)?)?;
     m.add_function(wrap_pyfunction!(validate_manifest, m)?)?;
@@ -133,6 +134,45 @@ fn validate_document<'py>(
         warnings.append(d)?;
     }
     out.set_item("warnings", warnings)?;
+    Ok(out)
+}
+
+/// Run the requirement-grammar bundle `grammar_ref` (e.g. `iso-spec-core`)
+/// against `document_text` as the resolved `archetype` (FR-042). Returns the
+/// list of grammar findings — the same findings the in-process Rust
+/// `check_document_grammar` produces — each a dict
+/// `{grammar, check, pattern, message, line, statement, severity}`. Unlike
+/// `validate_document`, this surfaces the findings directly (not folded into
+/// validation warnings) so the corpus report and review lens can consume them.
+#[pyfunction]
+fn check_grammar<'py>(
+    py: Python<'py>,
+    grammar_ref: &str,
+    archetype: &str,
+    document_text: &str,
+) -> PyResult<Bound<'py, PyList>> {
+    let gref = grammar_ref.to_string();
+    let arch = archetype.to_string();
+    let text = document_text.to_string();
+
+    let findings = py.detach(|| {
+        let doc = crate::parse_document(&text);
+        let line_offset = crate::validate_document::body_line_offset(&text);
+        crate::grammar::check_document_grammar(&gref, &arch, &doc, line_offset)
+    });
+
+    let out = PyList::empty(py);
+    for f in findings {
+        let d = PyDict::new(py);
+        d.set_item("grammar", &f.grammar)?;
+        d.set_item("check", &f.check)?;
+        d.set_item("pattern", f.pattern.as_deref())?;
+        d.set_item("message", &f.message)?;
+        d.set_item("line", f.line)?;
+        d.set_item("statement", &f.statement)?;
+        d.set_item("severity", f.severity.as_str())?;
+        out.append(d)?;
+    }
     Ok(out)
 }
 

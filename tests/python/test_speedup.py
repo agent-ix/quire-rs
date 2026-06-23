@@ -35,7 +35,7 @@ def _make_corpus(root, n):
 
     for i in range(n):
         (root / f"FR-{i:04}.md").write_text(
-            f"---\nid: FR-{i:04}\nartifact_type: FR\n"
+            f"---\nid: FR-{i:04}\ntype: FR\n"
             f"uuid: 0190b6a0-0000-7000-8000-{i:012}\n"
             "relationships:\n"
             '  - target: "StR-001"\n'

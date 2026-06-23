@@ -17,6 +17,7 @@ pub mod corpus;
 pub mod diagnostic;
 pub mod error;
 pub mod extract;
+pub mod grammar;
 pub mod lint;
 pub mod loader;
 pub mod merge;
@@ -69,6 +70,7 @@ pub use extract::{extract, ExtractionResult};
 pub use extract::assert_eval::{evaluate_assert, AssertFailure, AssertReason};
 pub use extract::interpolate::{interpolate, UnresolvedField};
 // Declarative lint rules (FR-036) — advisory, never blocks extraction.
+pub use grammar::{check_document_grammar, GrammarFinding, GrammarSeverity};
 pub use lint::{lint_document, LintFinding, LintRule, LintSeverity};
 // Writeback (FR-022) — byte-splice section/block edit.
 pub use writeback::{update_block, update_section};
