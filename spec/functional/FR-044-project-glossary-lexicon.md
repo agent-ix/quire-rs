@@ -11,7 +11,7 @@ relationships:
     cardinality: "1:1"
 ---
 
-# [FR-044] Project Ubiquitous-Language Lexicon for the Grammar
+# FR-044: Project Ubiquitous-Language Lexicon for the Grammar
 
 ## Description
 

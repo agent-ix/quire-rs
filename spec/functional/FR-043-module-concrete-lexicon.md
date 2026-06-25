@@ -11,7 +11,7 @@ relationships:
     cardinality: "1:1"
 ---
 
-# [FR-043] Module-Supplied Concrete Lexicon for the Grammar
+# FR-043: Module-Supplied Concrete Lexicon for the Grammar
 
 ## Description
 

@@ -19,7 +19,7 @@ relationships:
     cardinality: "1:1"
 ---
 
-# [FR-041] Authorable Inverse Edge Verbs
+# FR-041: Authorable Inverse Edge Verbs
 
 ## Description
 
