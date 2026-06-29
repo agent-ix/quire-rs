@@ -48,6 +48,8 @@ fn quire(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(input_skeleton, m)?)?;
     m.add_function(wrap_pyfunction!(validate_manifest, m)?)?;
     m.add_function(wrap_pyfunction!(extract, m)?)?;
+    m.add_function(wrap_pyfunction!(extract_filament_core, m)?)?;
+    m.add_function(wrap_pyfunction!(extract_core_data, m)?)?;
     m.add_function(wrap_pyfunction!(extract_frontmatter, m)?)?;
     m.add_function(wrap_pyfunction!(harvest_edges, m)?)?;
     m.add_class::<Spec>()?;
@@ -285,6 +287,35 @@ fn extract<'py>(
     }
     out.set_item("edges", edge_list)?;
     Ok(out)
+}
+
+/// Run canonical Filament core-data extraction for one markdown
+/// document. Accepts the JSON-serializable input shape from
+/// `crate::filament::FilamentExtractionInput` as a native Python dict
+/// and returns a native Python dict compatible with
+/// `CoreExtractionResult`.
+#[pyfunction]
+fn extract_core_data<'py>(
+    py: Python<'py>,
+    input: &Bound<'_, PyAny>,
+) -> PyResult<Bound<'py, PyAny>> {
+    extract_filament_core(py, input)
+}
+
+/// Run canonical Filament extraction for one markdown document. Accepts and
+/// returns native Python JSON-ish values without subprocess or stdio policy.
+#[pyfunction]
+fn extract_filament_core<'py>(
+    py: Python<'py>,
+    input: &Bound<'_, PyAny>,
+) -> PyResult<Bound<'py, PyAny>> {
+    let value = py_to_json(input)?;
+    let request: crate::filament::FilamentExtractionInput =
+        serde_json::from_value(value).map_err(|err| PyTypeError::new_err(err.to_string()))?;
+    let result = py.detach(|| crate::filament::extract_filament_core(request));
+    let value =
+        serde_json::to_value(result).map_err(|err| QuireParseError::new_err(err.to_string()))?;
+    json_to_py(py, &value)
 }
 
 /// Extract frontmatter and body from `text` using the Rust FR-006 parser.

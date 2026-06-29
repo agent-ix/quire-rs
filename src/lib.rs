@@ -17,6 +17,7 @@ pub mod corpus;
 pub mod diagnostic;
 pub mod error;
 pub mod extract;
+pub mod filament;
 pub mod lint;
 pub mod loader;
 pub mod merge;
@@ -61,6 +62,10 @@ pub use contract::{input_contract_for, ContractSection, InputContract};
 pub use extract::dsl::{ExtractionDsl, IterateKind, IterateOver, YieldPattern};
 pub use extract::locator::{Locator, LocatorAssert, LocatorKind, LocatorPrimitive};
 pub use extract::{extract, ExtractionResult};
+pub use filament::{
+    extract_filament_core, CoreExtractionDiagnostic, CoreExtractionResult, CoreGraphEdgeRef,
+    CoreGraphNodeRef, CoreObjectTypeRecord, FilamentExtractionInput, FilamentObjectType,
+};
 // Assert facet (FR-033) + `{field}` interpolation (FR-034).
 pub use extract::assert_eval::{evaluate_assert, AssertFailure, AssertReason};
 pub use extract::interpolate::{interpolate, UnresolvedField};
