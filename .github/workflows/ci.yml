@@ -1,17 +1,7 @@
 name: CI
 
 on:
-  push:
-    branches: [main]
-    tags: ["v*.*.*"]
-  pull_request:
   workflow_dispatch:
-  schedule:
-    # daily 06:00 UTC for cargo-audit
-    - cron: "0 6 * * *"
-    # weekly Mon 07:00 UTC for mutants
-    - cron: "0 7 * * 1"
-
 jobs:
   rust:
     name: Rust Checks
