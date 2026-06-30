@@ -96,8 +96,8 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | FR-026 Intra-spec reference resolution | AC-1..11 | TC-486 (frontmatter edge), TC-487 (ix:// edge), TC-488 (dangling), TC-489 (cross-spec dangling), TC-490 (bidirectional), TC-491 (target-id extraction), TC-492 (O(edges) proptest), TC-501 (dedup), TC-620 (rel-path edge/dangling), TC-621 (index/log excluded), TC-622 (dedup parity across sources) | ✅ Complete |
 | FR-027 Whole-spec query API | AC-1..8 | TC-493 (by_type), TC-494 (referencing), TC-495 (orphans), TC-496 (coverage), TC-497 (dangling agreement), TC-498 (sorted determinism), TC-499 (no-IO), TC-458 (bench) | ✅ Complete |
 | FR-039 Unlinked reference detection (ADR 0007) | AC-1..10 | TC-623 (auto-fix bare id), TC-624 (sub-id→parent file), TC-625 (inline-code conversion), TC-626 (fenced/frontmatter ignored), TC-627 (already-linked + idempotence), TC-628 (self-reference), TC-629 (unresolved→warn-only), TC-630 (ambiguous→warn-only), TC-631 (sorted determinism), TC-632 (multi-token code span skipped) | 🚧 Pending implementation |
-| FR-040 Canonical Filament core extraction engine | AC-1..5; CON-1..3 | TC-633, TC-634, TC-635, TC-636, TC-637, TC-642 | ✅ Complete |
-| FR-041 Filament extraction bindings | AC-1..4; CON-1..3 | TC-638, TC-639, TC-640, TC-641 | ✅ Complete |
+| FR-040 Canonical Filament core extraction engine | AC-1..5; CON-1..4 | TC-643..TC-656, TC-642 | ✅ Complete |
+| FR-041 Filament extraction bindings | AC-1..4; CON-1..3 | TC-638, TC-639, TC-640, TC-641, IC-001 | ✅ Complete |
 
 ### Non-Functional Requirement Coverage
 
@@ -115,7 +115,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | NFR-016 Binding overhead + abi3 | micro-bench + cross-version import | TC-469, TC-464, TC-465, TC-467 | ✅ Complete |
 | NFR-017 Concurrency permutation (loom) | loom exhaustive interleaving (scheduled lane) | TC-502, TC-503 | ✅ Complete |
 | NFR-018 FFI sanitizer lanes (TSAN+ASAN) | scheduled sanitizer lanes on the extension | TC-504, TC-505 | ✅ Complete |
-| NFR-020 Filament extraction boundary pure/deterministic | static inspection + parity tests | TC-637, TC-638, TC-642 | ✅ Complete |
+| NFR-020 Filament extraction boundary pure/deterministic | static inspection + parity tests | TC-656, IC-001, TC-642 | ✅ Complete |
 
 ---
 
@@ -333,6 +333,23 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-640 | Binding code contains no extraction-policy branches beyond input/output conversion and error mapping | Static | P0 | FR-041-AC-3 | ✅ |
 | TC-641 | Default Rust build has no Python linkage and WASM target check succeeds with filesystem-free features | Compile | P0 | FR-041-AC-4 | ✅ |
 | TC-642 | Static audit finds no PGlite, Electron, HTTP/auth, CloudManager sync, watcher, or embedding dependencies in extraction module/bindings | Static | P0 | FR-040-CON-1, FR-040-CON-2, FR-040-CON-3, FR-040-CON-4, FR-041-CON-1, FR-041-CON-2, FR-041-CON-3, NFR-020-AC-1 | ✅ |
+| TC-643 | Shared fixture: Tier 1 frontmatter node shape, stable normalized ref, `code`, `title`, and extra frontmatter data | Fixture | P0 | FR-040-AC-1 | ✅ |
+| TC-644 | Shared fixture: Tier 2 DSL record extraction, schema validation, and record-derived edge emission | Fixture | P0 | FR-040-AC-2 | ✅ |
+| TC-645 | Shared fixture: explicit frontmatter `edges:` preserve order, target refs, source refs, and metadata | Fixture | P0 | FR-040-AC-4 | ✅ |
+| TC-646 | Shared fixture: relationship sugar fields emit expected edge types, normalized refs, and provenance metadata | Fixture | P0 | FR-040-AC-4 | ✅ |
+| TC-647 | Shared fixture: `ix://` targets pass through and bare targets normalize to `ix://agent-ix/<repo>/<value>` | Fixture | P0 | FR-040-CON-4 | ✅ |
+| TC-648 | Shared fixture: body markdown `ix://` links emit `references` graph edges and ignore external web links | Fixture | P0 | FR-040-AC-4 | ✅ |
+| TC-649 | Shared fixture: duplicate graph edges dedupe by source/type/target, first edge wins, diagnostic emitted | Fixture | P0 | FR-040-AC-3 | ✅ |
+| TC-650 | Shared fixtures: malformed `relationships:` entries report errors for non-map, missing target, and missing type | Fixture | P0 | FR-040-AC-3 | ✅ |
+| TC-651 | Shared fixture: malformed explicit `edges:` entries report an extraction error without panic | Fixture | P0 | FR-040-AC-3 | ✅ |
+| TC-652 | Shared fixture: schema validation failure prevents node emission and surfaces a field-specific error | Fixture | P0 | FR-040-AC-2, FR-040-AC-3 | ✅ |
+| TC-653 | Shared fixtures: unknown object, no frontmatter, unsupported plugin flag, and malformed body `ix://` produce diagnostics/errors without panic | Fixture | P0 | FR-040-AC-3 | ✅ |
+| TC-654 | Shared fixture: negative scope rejects wikilinks, `spec://`, prose cues, and `https://` as graph edges | Fixture | P0 | FR-040-AC-4 | ✅ |
+| TC-655 | Shared corpus isolation: failing extraction fixtures do not poison later successful fixture extraction | Fixture | P0 | FR-040-AC-3 | ✅ |
+| TC-656 | Shared corpus determinism: every canonical graph fixture produces byte-identical JSON over repeated extraction | Property | P0 | FR-040-AC-5, NFR-020-AC-2 | ✅ |
+| IC-001 | Python and WASM bindings return equivalent JSON over every canonical graph fixture | Integration | P0 | FR-041-AC-1, NFR-020-AC-3 | ✅ |
+| IC-002 | parser-lib shim returns core-data-valid payloads matching canonical graph fixture expectations | Integration | P0 | FR-118 compatibility reference | ✅ |
+| IC-003 | Filament IDE worker merges a real quire-wasm canonical graph fixture into `CoreSyncFilePayload` | Integration | P0 | Filament IDE FR-041 reference | ✅ |
 | TC-502 | Static audit: no Mutex/RwLock/Atomic in first-party src/; parallel parse collects owned results | Static | P0 | FR-024-AC-9 | 🚧 |
 | TC-503 | loom: parallel parse collection race-free; identical path-sorted output across all interleavings | Property | P0 | NFR-017-AC-1..3 | 🚧 |
 | TC-504 | TSAN lane: two-thread `load_repo` (GIL-release window) reports zero data races | Integration | P0 | NFR-018-AC-1, NFR-018-AC-3 | 🚧 |
@@ -819,12 +836,12 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-039-AC-8 | TC-630 |
 | FR-039-AC-9 | TC-631 |
 | FR-039-AC-10 | TC-632 |
-| FR-040-AC-1 | TC-633 |
-| FR-040-AC-2 | TC-634 |
-| FR-040-AC-3 | TC-635 |
-| FR-040-AC-4 | TC-636 |
-| FR-040-AC-5 | TC-637 |
-| FR-041-AC-1 | TC-638 |
+| FR-040-AC-1 | TC-633, TC-643 |
+| FR-040-AC-2 | TC-634, TC-644, TC-652 |
+| FR-040-AC-3 | TC-635, TC-649, TC-650, TC-651, TC-652, TC-653, TC-655 |
+| FR-040-AC-4 | TC-636, TC-645, TC-646, TC-648, TC-654 |
+| FR-040-AC-5 | TC-637, TC-656 |
+| FR-041-AC-1 | TC-638, IC-001 |
 | FR-041-AC-2 | TC-639 |
 | FR-041-AC-3 | TC-640 |
 | FR-041-AC-4 | TC-641 |
@@ -893,10 +910,10 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | NFR-019-AC-1 | TC-579 |
 | NFR-019-AC-2 | TC-580 |
 | NFR-020-AC-1 | TC-642 |
-| NFR-020-AC-2 | TC-637 |
-| NFR-020-AC-3 | TC-638 |
+| NFR-020-AC-2 | TC-637, TC-656 |
+| NFR-020-AC-3 | TC-638, IC-001 |
 
-**Coverage status: 339 / 339 ACs covered (100%).** The Filament extraction unification slice (2026-06-29) adds FR-040-AC-1..5, FR-041-AC-1..4, and NFR-020-AC-1..3, covered by TC-633..642. The internal-links slice (ADR 0007, 2026-06-17) adds FR-026-AC-9..11 (relative-path link edge source + index/log exclusion + dedup parity, TC-620..622) and FR-039-AC-1..10 (unlinked-reference detection & autofix suggestions, incl. AC-10 multi-token code-span skip, TC-623..632) — 13 ACs. The composed type+object validation slice (2026-06-16) adds FR-032-AC-11..13 (`validate_document_in_registry` composes the `type` archetype with the frontmatter `object:` archetype; resolved-object failures are errors, unknown-object is a warning, `ValidationResult` carries typed `warnings`) — TC-610..613, 3 ACs. The assert/lint extension slice (2026-06-16) adds FR-033-AC-10 (CR-008 `matches` content assert, TC-608) and FR-036-AC-6 (CR-009 `section_body_pattern` lint rule, TC-609) — 2 ACs. The OKF slice (2026-06-16) adds FR-037-AC-1..6 (base concept frontmatter schema, TC-590..596 + TC-528) and FR-038-AC-1..8 (OKF bundle validation, TC-600..607) — 14 ACs. v0.4 adds FR-011-AC-21 (CR-006 `multiple: true`, TC-583) and FR-036-AC-1..5 (declarative lint rules, TC-584..588). v0.2 block model added 16 ACs (FR-019..022, TC-400..443). v0.3 adds 81 ACs — StR-005/006, US-011..013, FR-023..027 (incl. review-added FR-026-AC-8, FR-027-AC-9), NFR-015/016, plus the hardening re-review (NFR-003-AC-4, FR-024-AC-9, NFR-017, NFR-018) — covered by TC-455..507 (plus reused TC-456..459). The Miri ACs (NFR-012-AC-1..5) were **retired** (ADR 0006) and the compile-time **NFR-003-AC-5** (`forbid(unsafe_code)`, TC-582) added. PC (performance criteria) for US-011..013 are tracked as benches (TC-455..459, TC-469) and marked 🚧 pending implementation, consistent with the US-006..010 perf-bench convention. The v0.3 hardening re-review (loom NFR-017, TSAN/ASAN NFR-018) is recorded in spec.md §19.
+**Coverage status: 339 / 339 ACs covered (100%).** The Filament extraction unification slice (2026-06-29) adds FR-040-AC-1..5, FR-041-AC-1..4, and NFR-020-AC-1..3, covered by TC-633..642 and hardened by the shared graph fixture corpus TC-643..656 plus integration cases IC-001..IC-003. The internal-links slice (ADR 0007, 2026-06-17) adds FR-026-AC-9..11 (relative-path link edge source + index/log exclusion + dedup parity, TC-620..622) and FR-039-AC-1..10 (unlinked-reference detection & autofix suggestions, incl. AC-10 multi-token code-span skip, TC-623..632) — 13 ACs. The composed type+object validation slice (2026-06-16) adds FR-032-AC-11..13 (`validate_document_in_registry` composes the `type` archetype with the frontmatter `object:` archetype; resolved-object failures are errors, unknown-object is a warning, `ValidationResult` carries typed `warnings`) — TC-610..613, 3 ACs. The assert/lint extension slice (2026-06-16) adds FR-033-AC-10 (CR-008 `matches` content assert, TC-608) and FR-036-AC-6 (CR-009 `section_body_pattern` lint rule, TC-609) — 2 ACs. The OKF slice (2026-06-16) adds FR-037-AC-1..6 (base concept frontmatter schema, TC-590..596 + TC-528) and FR-038-AC-1..8 (OKF bundle validation, TC-600..607) — 14 ACs. v0.4 adds FR-011-AC-21 (CR-006 `multiple: true`, TC-583) and FR-036-AC-1..5 (declarative lint rules, TC-584..588). v0.2 block model added 16 ACs (FR-019..022, TC-400..443). v0.3 adds 81 ACs — StR-005/006, US-011..013, FR-023..027 (incl. review-added FR-026-AC-8, FR-027-AC-9), NFR-015/016, plus the hardening re-review (NFR-003-AC-4, FR-024-AC-9, NFR-017, NFR-018) — covered by TC-455..507 (plus reused TC-456..459). The Miri ACs (NFR-012-AC-1..5) were **retired** (ADR 0006) and the compile-time **NFR-003-AC-5** (`forbid(unsafe_code)`, TC-582) added. PC (performance criteria) for US-011..013 are tracked as benches (TC-455..459, TC-469) and marked 🚧 pending implementation, consistent with the US-006..010 perf-bench convention. The v0.3 hardening re-review (loom NFR-017, TSAN/ASAN NFR-018) is recorded in spec.md §19.
 
 **v0.4 markdown-validation slice** adds 42 ACs — US-014 (author validates markdown), FR-029 (archetype input contract, recast by ADR 0004), FR-030 (required-section validation, superseded by FR-032/FR-033), FR-031 (unified archetype shape), FR-032 (`validate_document`), FR-033 (locator `assert` facet), FR-034 (assert field interpolation), FR-035 (per-level heading uniqueness) — covered by TC-518..553. FR-030's ACs are mapped to the FR-032/FR-033 TCs that subsume them (per its CR note). This slice also back-fills 7 ACs that a prior commit left out of the audit table — FR-013-AC-11..14, FR-028-AC-9/10, US-003-AC-4 — via TC-554..560. New v0.4 TCs are 🚧 pending implementation.
 
