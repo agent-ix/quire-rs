@@ -44,6 +44,9 @@ struct ExpectedEdge {
     data: Option<Value>,
 }
 
+// TC-703 (FR-045-AC-3): shared corpus isolation — a failing extraction fixture
+// (e.g. `frontmatter-unparsable-error`) does not poison later fixtures, since
+// each runs through an independent `extract_filament_core` call.
 #[test]
 fn filament_core_graph_fixture_corpus() {
     for fixture in fixtures() {
@@ -52,6 +55,7 @@ fn filament_core_graph_fixture_corpus() {
     }
 }
 
+// TC-704 (FR-045-AC-5, NFR-020-AC-2): shared corpus determinism.
 #[test]
 fn filament_core_graph_fixture_corpus_is_deterministic() {
     for fixture in fixtures() {

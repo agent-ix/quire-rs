@@ -564,3 +564,64 @@ def test_gil_released_under_concurrency():
     with concurrent.futures.ThreadPoolExecutor(max_workers=2) as ex:
         results = list(ex.map(lambda _: load(), range(4)))
     assert all(r >= 50 for r in results)
+
+
+def _filament_input(markdown):
+    """One-document Filament extraction input (FR-045/FR-046)."""
+    return {
+        "projectId": "project",
+        "documentId": "doc-1",
+        "artifactId": "artifact-1",
+        "relPath": "spec/FR-001.md",
+        "markdown": markdown,
+        "repoName": "example",
+        "objectTypes": [
+            {
+                "name": "capability",
+                "schema": {"type": "object", "additionalProperties": True},
+                "allowedLinks": {},
+                "bodyExtraction": None,
+                "hasPlugin": False,
+                "moduleId": "test-module",
+            }
+        ],
+    }
+
+
+def test_extract_filament_core_tier1_binding():
+    """TC-686 (Python half): the binding returns native core-data JSON, not a
+    string, with a validated graph node carrying frontmatter id/title."""
+    result = quire.extract_filament_core(
+        _filament_input("---\nid: FR-001\ntitle: Pay vendors\nobject: capability\n---\n# Body\n")
+    )
+    assert isinstance(result, dict)
+    assert result["errors"] == []
+    assert len(result["nodes"]) == 1
+    node = result["nodes"][0]
+    assert node["objectType"] == "capability"
+    assert node["ref"] == "ix://agent-ix/example/FR-001"
+    import json
+
+    data = json.loads(node["dataJson"])
+    assert data["code"] == "FR-001"
+    assert data["title"] == "Pay vendors"
+
+
+def test_extract_filament_core_malformed_frontmatter_reports_parse_failure():
+    """TC-686/#127: a complete-but-unparsable frontmatter block surfaces a
+    `parse_failed` error through the binding (reaches Filament index_errors)."""
+    result = quire.extract_filament_core(_filament_input("---\nid: : bad\n---\n# Body\n"))
+    assert result["nodes"] == []
+    assert any("parse_failed" in e for e in result["errors"])
+    assert any(d["code"] == "frontmatter_unparsable" for d in result["diagnostics"])
+
+
+def test_extract_core_data_is_alias_and_deterministic():
+    """`extract_core_data` aliases `extract_filament_core`; identical input
+    yields byte-identical JSON (NFR-020-AC-3 native-value parity)."""
+    import json
+
+    inp = _filament_input("---\nid: FR-001\nobject: capability\ndepends_on:\n  - FR-002\n---\n")
+    a = quire.extract_core_data(inp)
+    b = quire.extract_filament_core(inp)
+    assert json.dumps(a, sort_keys=True) == json.dumps(b, sort_keys=True)

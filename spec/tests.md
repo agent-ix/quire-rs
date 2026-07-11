@@ -376,9 +376,9 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-684 | Relationship sugar and body `ix://` links produce deterministic graph edges with provenance metadata | Unit | P0 | FR-045-AC-4 | ✅ |
 | TC-685 | Repeated Filament extraction over identical inputs produces byte-identical JSON ordering and stable ids | Property | P0 | FR-045-AC-5, NFR-020-AC-2 | ✅ |
 | TC-686 | Python and WASM Filament extraction bindings return equivalent JSON values for shared parity fixtures | Integration | P0 | FR-046-AC-1, NFR-020-AC-3 | ✅ |
-| TC-687 | `@agent-ix/quire-wasm` exports the Filament extraction API and preserves existing parse/extract/validate smoke tests and declarations | Integration | P0 | FR-046-AC-2 | ✅ |
-| TC-688 | Binding code contains no extraction-policy branches beyond input/output conversion and error mapping | Static | P0 | FR-046-AC-3 | ✅ |
-| TC-689 | Default Rust build has no Python linkage and WASM target check succeeds with filesystem-free features | Compile | P0 | FR-046-AC-4 | ✅ |
+| TC-687 | `@agent-ix/quire-wasm` exports the Filament extraction API and preserves existing parse/extract/validate smoke tests and declarations | Integration | P0 | FR-046-AC-2 | 🚧 (downstream `@agent-ix/quire-wasm`) |
+| TC-688 | Binding code contains no extraction-policy branches beyond input/output conversion and error mapping | Static | P0 | FR-046-AC-3 | 🚧 (inspection) |
+| TC-689 | Default Rust build has no Python linkage and WASM target check succeeds with filesystem-free features | Compile | P0 | FR-046-AC-4 | 🚧 (CI wasm-target) |
 | TC-690 | Static audit finds no PGlite, Electron, HTTP/auth, CloudManager sync, watcher, or embedding dependencies in extraction module/bindings | Static | P0 | FR-045-CON-1, FR-045-CON-2, FR-045-CON-3, FR-045-CON-4, FR-046-CON-1, FR-046-CON-2, FR-046-CON-3, NFR-020-AC-1 | ✅ |
 | TC-705 | Malformed-frontmatter fixture (complete fence, unparsable YAML) yields a `parse_failed` error + `frontmatter_unparsable` diagnostic; absent frontmatter stays clean (`no_frontmatter`, empty errors) | Unit | P0 | FR-045-AC-6 | ✅ |
 | TC-706 | `extract_frontmatter` status classification (CR-011): empty/whitespace/comment-only block (YAML null) → `Absent` (not `Malformed`); non-null non-mapping (array/scalar) → `Malformed` | Unit | P0 | FR-006-AC-7 | ✅ |
