@@ -18,6 +18,30 @@
 
 use serde_json::{Map, Value};
 
+/// Why [`extract_frontmatter`] produced (or did not produce) a frontmatter
+/// mapping. This is the single authority for distinguishing an *absent*
+/// frontmatter block from a *present-but-malformed* one, so boundary
+/// consumers (e.g. the Filament extraction engine, FR-045) do not have to
+/// re-derive that fact from the raw markdown.
+///
+/// It is an out-of-band discriminant only: the parity-observable outputs
+/// (`frontmatter`/`body`) are byte-identical across all branches, so this
+/// carries no TS/Py wire-shape impact (cf. the BOM/CRLF extensions above).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FrontmatterStatus {
+    /// No opening `---` fence, an opening fence with no closing `\n---`, or a
+    /// complete fence block whose content is empty / whitespace / comments
+    /// (parses to YAML null). Treated as a document with no usable frontmatter.
+    Absent,
+    /// A complete `---` … `---` block that parsed into a YAML mapping.
+    Present,
+    /// A complete `---` … `---` block was present, but its contents were not
+    /// a parseable YAML mapping: invalid YAML, or a valid non-null, non-object
+    /// value (array / scalar / bool / number). An empty / null block is
+    /// [`Absent`](Self::Absent), not `Malformed`.
+    Malformed,
+}
+
 /// Result of [`extract_frontmatter`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FrontmatterResult {
@@ -26,6 +50,8 @@ pub struct FrontmatterResult {
     /// Markdown body after the closing fence (post-BOM-strip). On the
     /// "no frontmatter" branches this is the entire post-BOM-strip input.
     pub body: String,
+    /// Why `frontmatter` is `None`, or that it parsed. See [`FrontmatterStatus`].
+    pub status: FrontmatterStatus,
 }
 
 /// Extract YAML frontmatter from a markdown string per FR-006.
@@ -40,7 +66,7 @@ pub fn extract_frontmatter(markdown: &str) -> FrontmatterResult {
     } else if stripped.starts_with("---\r\n") {
         5
     } else {
-        return no_frontmatter(stripped);
+        return no_frontmatter(stripped, FrontmatterStatus::Absent);
     };
 
     // First "\n---" closes the frontmatter (TS/Py parity:
@@ -50,7 +76,9 @@ pub fn extract_frontmatter(markdown: &str) -> FrontmatterResult {
     let after_open: &str = &stripped[yaml_start..];
     let close_rel: usize = match after_open.find("\n---") {
         Some(p) => p,
-        None => return no_frontmatter(stripped),
+        // Opening fence but no closing fence: an unterminated block is not a
+        // frontmatter block (conservative — could be a `---` thematic break).
+        None => return no_frontmatter(stripped, FrontmatterStatus::Absent),
     };
     let body_tail: &str = &after_open[close_rel + 4..];
 
@@ -61,15 +89,23 @@ pub fn extract_frontmatter(markdown: &str) -> FrontmatterResult {
 
     let parsed: Value = match serde_yaml::from_str::<Value>(yaml_str) {
         Ok(v) => v,
-        Err(_) => return no_frontmatter(stripped),
+        // A complete fence block whose contents are not parseable YAML.
+        Err(_) => return no_frontmatter(stripped, FrontmatterStatus::Malformed),
     };
 
     let map: Map<String, Value> = match parsed {
         Value::Object(m) => m,
-        // Valid YAML but not an object (null / array / scalar) → no FM.
-        // The spec types frontmatter as Map<String, Value>; non-objects
-        // cannot be represented and are treated as the malformed branch.
-        _ => return no_frontmatter(stripped),
+        // An empty / whitespace-only / comment-only fence block parses to
+        // `Null`: it carries no metadata and is indistinguishable in intent
+        // from having no frontmatter (and `---`\n\n`---` is a common pair of
+        // thematic breaks). Treat it as *absent*, not a parse failure, so it
+        // does not pollute Filament's index_errors (CR-011).
+        Value::Null => return no_frontmatter(stripped, FrontmatterStatus::Absent),
+        // Valid YAML but a non-mapping value (array / scalar / bool / number):
+        // the spec types frontmatter as Map<String, Value>, so a wrong-typed
+        // block is genuinely malformed. Still `frontmatter: None` for FR-006
+        // parity; the status lets boundary consumers surface it.
+        _ => return no_frontmatter(stripped, FrontmatterStatus::Malformed),
     };
 
     // Strip a single leading EOL from the body — it belongs to the
@@ -82,13 +118,15 @@ pub fn extract_frontmatter(markdown: &str) -> FrontmatterResult {
     FrontmatterResult {
         frontmatter: Some(map),
         body: body.to_string(),
+        status: FrontmatterStatus::Present,
     }
 }
 
-fn no_frontmatter(stripped: &str) -> FrontmatterResult {
+fn no_frontmatter(stripped: &str, status: FrontmatterStatus) -> FrontmatterResult {
     FrontmatterResult {
         frontmatter: None,
         body: stripped.to_string(),
+        status,
     }
 }
 
@@ -106,6 +144,8 @@ mod tests {
         let r = extract_frontmatter("# heading");
         assert!(r.frontmatter.is_none());
         assert_eq!(r.body, "# heading");
+        // No opening fence → the block is genuinely absent (not malformed).
+        assert_eq!(r.status, FrontmatterStatus::Absent);
     }
 
     // FR-006-AC-2 / TC-012 (happy path)
@@ -115,6 +155,7 @@ mod tests {
         let map = r.frontmatter.expect("expected frontmatter");
         assert_eq!(map.get("id"), Some(&fm_value("FR-001")));
         assert_eq!(r.body, "body");
+        assert_eq!(r.status, FrontmatterStatus::Present);
     }
 
     // FR-006-AC-3 / TC-013
@@ -124,6 +165,9 @@ mod tests {
         let r = extract_frontmatter(input);
         assert!(r.frontmatter.is_none());
         assert_eq!(r.body, input);
+        // A complete fence block with unparseable YAML is malformed, not absent
+        // (CR-011): boundary consumers surface this as a parse failure.
+        assert_eq!(r.status, FrontmatterStatus::Malformed);
     }
 
     // FR-006-AC-4 / TC-014
@@ -133,6 +177,9 @@ mod tests {
         let r = extract_frontmatter(input);
         assert!(r.frontmatter.is_none());
         assert_eq!(r.body, input);
+        // No closing fence → conservatively treated as absent (could be a
+        // `---` thematic break), so it is NOT a parse failure.
+        assert_eq!(r.status, FrontmatterStatus::Absent);
     }
 
     // FR-006-AC-5 / TC-180
@@ -185,6 +232,32 @@ mod tests {
         let r = extract_frontmatter(input);
         assert!(r.frontmatter.is_none());
         assert_eq!(r.body, input);
+        // Valid YAML but a non-object between complete fences → malformed.
+        assert_eq!(r.status, FrontmatterStatus::Malformed);
+    }
+
+    // FR-006-AC-7 / TC-706 (empty/null → Absent half of the status classification)
+    #[test]
+    fn empty_or_comment_only_frontmatter_is_absent_not_malformed() {
+        // A complete fence block whose content parses to YAML null (empty,
+        // whitespace-only, or comment-only) carries no metadata and must NOT
+        // be reported as a parse failure (CR-011) — it is treated as absent.
+        for input in [
+            "---\n\n---\nbody",
+            "---\n   \n---\nbody",
+            "---\n# only a comment\n---\nbody",
+        ] {
+            let r = extract_frontmatter(input);
+            assert!(
+                r.frontmatter.is_none(),
+                "{input:?} should have no frontmatter"
+            );
+            assert_eq!(
+                r.status,
+                FrontmatterStatus::Absent,
+                "{input:?} should be Absent, not Malformed"
+            );
+        }
     }
 
     #[test]

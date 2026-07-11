@@ -13,7 +13,7 @@ pub mod slice;
 pub mod slug;
 pub mod walk;
 
-pub use frontmatter::{extract_frontmatter, FrontmatterResult};
+pub use frontmatter::{extract_frontmatter, FrontmatterResult, FrontmatterStatus};
 pub use slice::{line_offsets, slice_section_content};
 pub use slug::{slug, slug_line_id};
 pub use walk::{walk_headings, Heading};
