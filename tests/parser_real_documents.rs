@@ -255,8 +255,8 @@ fn first_diff_excerpt(a: &str, b: &str) -> (String, String) {
     let end_a = (common + 80).min(a.len());
     let end_b = (common + 80).min(b.len());
     (
-        format!("…{}…", &a[start..end_a].replace('\n', "⏎")),
-        format!("…{}…", &b[start..end_b].replace('\n', "⏎")),
+        format!("…{}…", a[start..end_a].replace('\n', "⏎")),
+        format!("…{}…", b[start..end_b].replace('\n', "⏎")),
     )
 }
 
