@@ -16,6 +16,7 @@ use sha2::{Digest, Sha256};
 use crate::error::QuireError;
 use crate::extract::dsl::{validate_dsl, ExtractionDsl};
 use crate::loader::compile::compile_schema;
+use crate::parser::FrontmatterStatus;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FilamentExtractionInput {
@@ -168,19 +169,19 @@ pub fn extract_filament_core(input: FilamentExtractionInput) -> CoreExtractionRe
 
     let doc = crate::parse_document(&input.markdown);
     let Some(frontmatter) = doc.frontmatter.clone() else {
-        return CoreExtractionResult {
-            document_id: input.document_id,
-            artifact_id: input.artifact_id,
-            object_types: Vec::new(),
-            nodes: Vec::new(),
-            edges: Vec::new(),
-            diagnostics: vec![diagnostic(
-                "no_frontmatter",
-                "Shared parser skipped markdown without parsable frontmatter",
-                "info",
-                None,
-            )],
-            errors: Vec::new(),
+        // Frontmatter is absent. Ask the parser authority *why* — a document
+        // with no frontmatter block is a clean skip, but a complete fence
+        // block that failed to parse is a malformed document that must reach
+        // Filament's index_errors via CoreExtractionResult.errors (issue #127,
+        // CR-010). This re-parse only runs on the no-frontmatter branch, so
+        // the happy path is unaffected.
+        return match crate::extract_frontmatter(&input.markdown).status {
+            FrontmatterStatus::Malformed => malformed_frontmatter_result(input),
+            // Absent (or the unreachable Present, which would have yielded
+            // Some above): a genuinely non-Filament document, skipped cleanly.
+            FrontmatterStatus::Absent | FrontmatterStatus::Present => {
+                absent_frontmatter_result(input)
+            }
         };
     };
 
@@ -268,6 +269,50 @@ pub fn extract_filament_core(input: FilamentExtractionInput) -> CoreExtractionRe
         edges,
         diagnostics,
         errors,
+    }
+}
+
+/// Result for a document with no frontmatter block: a clean, non-Filament
+/// document. Emits only an informational `no_frontmatter` diagnostic; `errors`
+/// stays empty so nothing is recorded as a parse failure downstream.
+fn absent_frontmatter_result(input: FilamentExtractionInput) -> CoreExtractionResult {
+    CoreExtractionResult {
+        document_id: input.document_id,
+        artifact_id: input.artifact_id,
+        object_types: Vec::new(),
+        nodes: Vec::new(),
+        edges: Vec::new(),
+        diagnostics: vec![diagnostic(
+            "no_frontmatter",
+            "Shared parser skipped markdown without parsable frontmatter",
+            "info",
+            None,
+        )],
+        errors: Vec::new(),
+    }
+}
+
+/// Result for a document with a complete frontmatter fence block that failed
+/// to parse into a YAML mapping. Records a `parse_failed` extraction error so
+/// the failure reaches Filament's index_errors via the MarkStale→apply_stale
+/// path (issue #127, CR-010), alongside a matching error-severity diagnostic.
+fn malformed_frontmatter_result(input: FilamentExtractionInput) -> CoreExtractionResult {
+    CoreExtractionResult {
+        document_id: input.document_id,
+        artifact_id: input.artifact_id,
+        object_types: Vec::new(),
+        nodes: Vec::new(),
+        edges: Vec::new(),
+        diagnostics: vec![diagnostic(
+            "frontmatter_unparsable",
+            "Frontmatter block present but could not be parsed as a YAML mapping",
+            "error",
+            None,
+        )],
+        errors: vec![
+            "parse_failed: frontmatter block present but could not be parsed as a YAML mapping"
+                .to_string(),
+        ],
     }
 }
 
@@ -391,20 +436,20 @@ fn extract_tier1(
     })
 }
 
+/// Nodes, record-derived edges, and diagnostics from one Tier 2 body extraction.
+type Tier2Extraction = (
+    Vec<GraphNode>,
+    Vec<GraphEdge>,
+    Vec<CoreExtractionDiagnostic>,
+);
+
 fn extract_tier2(
     doc: &crate::QuireDocument,
     frontmatter: &Map<String, Value>,
     object_type: &CompiledObjectType,
     dsl: &ExtractionDsl,
     rel_path: &str,
-) -> Result<
-    (
-        Vec<GraphNode>,
-        Vec<GraphEdge>,
-        Vec<CoreExtractionDiagnostic>,
-    ),
-    String,
-> {
+) -> Result<Tier2Extraction, String> {
     let extraction = crate::extract(doc, dsl).map_err(quire_error_message)?;
     let mut nodes = Vec::new();
     for record in &extraction.records {
@@ -878,7 +923,7 @@ fn stable_id(parts: &[&str]) -> String {
     let mut hasher = Sha256::new();
     for (idx, part) in parts.iter().enumerate() {
         if idx > 0 {
-            hasher.update(&[0]);
+            hasher.update([0]);
         }
         hasher.update(part.as_bytes());
     }
@@ -1014,6 +1059,37 @@ mod tests {
             .diagnostics
             .iter()
             .any(|d| d.code == "ix_uri_malformed"));
+    }
+
+    #[test]
+    fn tc657_malformed_frontmatter_is_a_parse_failure_but_absent_is_clean() {
+        // Complete `---` … `---` fence block with unparseable YAML → parse
+        // failure: a non-empty `errors` entry (routed to Filament index_errors
+        // via MarkStale→apply_stale) plus a `frontmatter_unparsable` diagnostic.
+        let malformed = extract_filament_core(base_input("---\nid: : bad\n---\n# Body\n"));
+        assert!(malformed.nodes.is_empty());
+        assert!(malformed.edges.is_empty());
+        assert!(
+            malformed
+                .errors
+                .iter()
+                .any(|err| err.contains("parse_failed")),
+            "expected parse_failed error; got {:?}",
+            malformed.errors
+        );
+        assert!(malformed
+            .diagnostics
+            .iter()
+            .any(|d| d.code == "frontmatter_unparsable" && d.severity == "error"));
+
+        // No frontmatter block at all → clean skip: empty errors, only the
+        // informational `no_frontmatter` diagnostic.
+        let absent = extract_filament_core(base_input("# Body\n"));
+        assert_eq!(absent.errors, Vec::<String>::new());
+        assert!(absent
+            .diagnostics
+            .iter()
+            .any(|d| d.code == "no_frontmatter"));
     }
 
     #[test]

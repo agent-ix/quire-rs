@@ -317,5 +317,19 @@
       "objectTypes": [{ "name": "capability", "schema": { "type": "object", "additionalProperties": true }, "allowedLinks": {}, "bodyExtraction": null, "hasPlugin": false, "moduleId": "test-module" }]
     },
     "expect": { "nodes": [{ "objectType": "capability", "name": "FR-090" }], "edges": [], "diagnosticCodes": ["ix_uri_malformed"], "errorsContain": [] }
+  },
+  {
+    "name": "frontmatter-unparsable-error",
+    "tags": ["TC-657", "sad", "frontmatter"],
+    "input": {
+      "projectId": "project",
+      "documentId": "doc-unparsable-frontmatter",
+      "artifactId": "artifact-unparsable-frontmatter",
+      "relPath": "spec/FR-100.md",
+      "repoName": "example",
+      "markdown": "---\nid: : bad\n---\n# Body\n",
+      "objectTypes": [{ "name": "capability", "schema": { "type": "object", "additionalProperties": true }, "allowedLinks": {}, "bodyExtraction": null, "hasPlugin": false, "moduleId": "test-module" }]
+    },
+    "expect": { "nodes": [], "edges": [], "diagnosticCodes": ["frontmatter_unparsable"], "errorsContain": ["parse_failed"] }
   }
 ]

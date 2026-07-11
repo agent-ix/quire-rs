@@ -35,8 +35,14 @@ core extraction result compatible with the shared `CoreExtractionResult` contrac
 ## Behavior
 
 - The engine SHALL parse frontmatter and markdown using the existing Rust parser.
-- When frontmatter is absent or unparsable, the engine SHALL return an empty extraction
-  result with a `no_frontmatter` informational diagnostic.
+- When a document has no usable frontmatter block (absent, an unterminated opening fence,
+  or an empty / whitespace / comment-only block), the engine SHALL return an empty
+  extraction result with a `no_frontmatter` informational diagnostic and no extraction error.
+- When a document has a complete frontmatter fence block that does not parse into a YAML
+  mapping (invalid YAML, or a non-empty non-mapping value such as an array or scalar), the
+  engine SHALL return an empty extraction result with a `parse_failed` extraction error and
+  a `frontmatter_unparsable` error-severity diagnostic, so the failure reaches Filament's
+  per-document error index.
 - When `frontmatter.object` names an unknown ObjectType, the engine SHALL return no node
   for that object.
 - When `frontmatter.object` names an unknown ObjectType, the engine SHALL emit an
@@ -71,6 +77,19 @@ core extraction result compatible with the shared `CoreExtractionResult` contrac
 | FR-040-AC-3 | Unknown ObjectType, no-frontmatter, malformed `ix://`, duplicate-edge, and plugin-flag fixtures produce diagnostics or errors without panicking. | Test (TC-635) |
 | FR-040-AC-4 | Frontmatter relationship sugar and body `ix://` links produce deterministic graph edges with source/original-target or original-uri metadata. | Test (TC-636) |
 | FR-040-AC-5 | Repeating extraction with identical input produces byte-identical JSON output ordering and stable record ids. | Test (TC-637) |
+| FR-040-AC-6 | A document with a complete but unparsable frontmatter fence block yields a non-empty `errors` entry (`parse_failed`) and a `frontmatter_unparsable` diagnostic, while a document with no frontmatter block stays clean (`no_frontmatter` diagnostic, empty `errors`). | Test (TC-657) |
+
+> **CR-010 note:** The original behavior ("frontmatter absent **or unparsable** → empty
+> result with a `no_frontmatter` informational diagnostic") conflated two distinct cases
+> and was corrected per issue #127: a *malformed* frontmatter block was silently treated
+> as a clean extraction, so per-document parse failures never reached Filament's
+> `index_errors` (the `MarkStale → apply_stale` path only records a document with a
+> non-empty `errors` list). The engine now distinguishes **absent** (clean skip) from
+> **present-but-unparsable** (extraction error). The absent-vs-malformed classification is
+> owned by the parser — [FR-006](./FR-006-frontmatter-with-fallback.md) now exposes a typed
+> frontmatter `status` — and this engine reads that status rather than re-deriving it, so
+> there is a single source of truth. Parser FR-006 parity (frontmatter/body outputs) is
+> unchanged; the malformed → error decision is Filament-boundary policy.
 
 ## Dependencies
 
