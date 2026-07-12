@@ -858,15 +858,22 @@ fn apply_frontmatter_title_code(data: &mut Map<String, Value>, frontmatter: &Map
 /// Tier-0 primary node for an identified artifact document: `name` is the
 /// frontmatter `id`, typed `artifact`, carrying the frontmatter `type`
 /// alongside the usual code/title projection. `None` when the document has
-/// no non-empty `id` (the `document:` primary-ref fallback then applies).
+/// no usable `id` — only scalar string/number ids qualify; `null`, booleans,
+/// lists, and maps would stringify into colliding or junk refs (every
+/// blank-`id:` stub would share one `.../null` node), so those keep the
+/// `document:` primary-ref fallback.
 fn primary_artifact_node(frontmatter: &Map<String, Value>) -> Option<GraphNode> {
-    let id = frontmatter
-        .get("id")
-        .map(value_to_string)
-        .map(|id| id.trim().to_string())
-        .filter(|id| !id.is_empty())?;
+    let raw = frontmatter.get("id")?;
+    if !matches!(raw, Value::String(_) | Value::Number(_)) {
+        return None;
+    }
+    let id = value_to_string(raw).trim().to_string();
+    if id.is_empty() {
+        return None;
+    }
     let mut data = Map::new();
     apply_frontmatter_title_code(&mut data, frontmatter);
+    data.insert("code".to_string(), Value::String(id.clone()));
     if let Some(artifact_type) = frontmatter.get("type") {
         data.insert(
             "artifact_type".to_string(),
@@ -1196,6 +1203,28 @@ mod tests {
         assert_eq!(result.errors, Vec::<String>::new());
         assert_eq!(result.nodes.len(), 1);
         assert_eq!(result.nodes[0].object_type, "capability");
+    }
+
+    #[test]
+    fn tc709_non_scalar_or_blank_ids_do_not_mint_a_primary_node() {
+        for markdown in [
+            "---\nid:\n---\nSee [US-001](ix://agent-ix/example/US-001).\n",
+            "---\nid: \"\"\n---\nSee [US-001](ix://agent-ix/example/US-001).\n",
+            "---\nid: false\n---\nSee [US-001](ix://agent-ix/example/US-001).\n",
+            "---\nid: [a, b]\n---\nSee [US-001](ix://agent-ix/example/US-001).\n",
+            "---\nid: {a: b}\n---\nSee [US-001](ix://agent-ix/example/US-001).\n",
+        ] {
+            let result = extract_filament_core(base_input(markdown));
+            assert_eq!(result.nodes.len(), 0, "no node for {markdown:?}");
+            assert_eq!(
+                result.edges[0].source_ref, "ix://agent-ix/example/document:doc-1",
+                "fallback source for {markdown:?}"
+            );
+        }
+        // Numeric ids are scalar and usable.
+        let numeric = extract_filament_core(base_input("---\nid: 123\n---\n# Body\n"));
+        assert_eq!(numeric.nodes.len(), 1);
+        assert_eq!(numeric.nodes[0].name, "123");
     }
 
     #[test]
