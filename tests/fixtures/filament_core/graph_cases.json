@@ -246,7 +246,7 @@
       "markdown": "---\nid: DOM-001\nobject: domain\ndata: {}\n---\n# Body\n",
       "objectTypes": [{ "name": "domain", "schema": { "type": "object", "required": ["description"], "properties": { "description": { "type": "string" } } }, "allowedLinks": {}, "bodyExtraction": null, "hasPlugin": false, "moduleId": "test-module" }]
     },
-    "expect": { "nodes": [], "edges": [], "diagnosticCodes": [], "errorsContain": ["schema validation failed", "description"] }
+    "expect": { "nodes": [{ "objectType": "artifact", "name": "DOM-001" }], "edges": [], "diagnosticCodes": [], "errorsContain": ["schema validation failed", "description"] }
   },
   {
     "name": "unknown-object-diagnostic",
@@ -260,7 +260,7 @@
       "markdown": "---\nid: FR-070\nobject: missing\n---\n# Body\n",
       "objectTypes": [{ "name": "capability", "schema": { "type": "object", "additionalProperties": true }, "allowedLinks": {}, "bodyExtraction": null, "hasPlugin": false, "moduleId": "test-module" }]
     },
-    "expect": { "nodes": [], "edges": [], "diagnosticCodes": ["unknown_object_type"], "errorsContain": [] }
+    "expect": { "nodes": [{ "objectType": "artifact", "name": "FR-070" }], "edges": [], "diagnosticCodes": ["unknown_object_type"], "errorsContain": [] }
   },
   {
     "name": "no-frontmatter-diagnostic",
@@ -288,7 +288,7 @@
       "markdown": "---\nid: PLUG-001\nobject: plugin\n---\n# Body\n",
       "objectTypes": [{ "name": "plugin", "schema": { "type": "object", "additionalProperties": true }, "allowedLinks": {}, "bodyExtraction": null, "hasPlugin": true, "moduleId": "test-module" }]
     },
-    "expect": { "nodes": [], "edges": [], "diagnosticCodes": [], "errorsContain": ["missing_plugin"] }
+    "expect": { "nodes": [{ "objectType": "artifact", "name": "PLUG-001" }], "edges": [], "diagnosticCodes": [], "errorsContain": ["missing_plugin"] }
   },
   {
     "name": "negative-scope-no-non-ix-links",

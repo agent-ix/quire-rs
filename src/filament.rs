@@ -236,6 +236,17 @@ pub fn extract_filament_core(input: FilamentExtractionInput) -> CoreExtractionRe
         }
     }
 
+    // Tier 0: a document that minted no object-typed node but carries a
+    // frontmatter `id` is still an addressable artifact (`type: FR` +
+    // `id: FR-020` spec docs). Mint its primary node here so every edge
+    // harvested below gets a resolvable `ix://` source ref instead of the
+    // `document:` fallback, which downstream stores cannot bind to a node.
+    if nodes.is_empty() {
+        if let Some(node) = primary_artifact_node(&frontmatter) {
+            nodes.push(node);
+        }
+    }
+
     let primary_ref = nodes
         .first()
         .map(|n| n.name.clone())
@@ -844,6 +855,38 @@ fn apply_frontmatter_title_code(data: &mut Map<String, Value>, frontmatter: &Map
     }
 }
 
+/// Tier-0 primary node for an identified artifact document: `name` is the
+/// frontmatter `id`, typed `artifact`, carrying the frontmatter `type`
+/// alongside the usual code/title projection. `None` when the document has
+/// no usable `id` — only scalar string/number ids qualify; `null`, booleans,
+/// lists, and maps would stringify into colliding or junk refs (every
+/// blank-`id:` stub would share one `.../null` node), so those keep the
+/// `document:` primary-ref fallback.
+fn primary_artifact_node(frontmatter: &Map<String, Value>) -> Option<GraphNode> {
+    let raw = frontmatter.get("id")?;
+    if !matches!(raw, Value::String(_) | Value::Number(_)) {
+        return None;
+    }
+    let id = value_to_string(raw).trim().to_string();
+    if id.is_empty() {
+        return None;
+    }
+    let mut data = Map::new();
+    apply_frontmatter_title_code(&mut data, frontmatter);
+    data.insert("code".to_string(), Value::String(id.clone()));
+    if let Some(artifact_type) = frontmatter.get("type") {
+        data.insert(
+            "artifact_type".to_string(),
+            Value::String(value_to_string(artifact_type)),
+        );
+    }
+    Some(GraphNode {
+        object_type: "artifact".to_string(),
+        name: id,
+        data,
+    })
+}
+
 fn node_name_from_record(record: &Map<String, Value>, rel_path: &str) -> String {
     record
         .get("name")
@@ -1029,7 +1072,11 @@ mod tests {
         let unknown = extract_filament_core(base_input(
             "---\nid: FR-001\nobject: missing\n---\n# Body\n",
         ));
-        assert!(unknown.nodes.is_empty());
+        // The unknown object type is still surfaced, but the identified
+        // document now falls back to its tier-0 primary artifact node
+        // instead of extracting nothing.
+        assert_eq!(unknown.nodes.len(), 1);
+        assert_eq!(unknown.nodes[0].object_type, "artifact");
         assert!(unknown
             .diagnostics
             .iter()
@@ -1110,6 +1157,74 @@ mod tests {
             .any(|edge| edge.edge_type == "references"
                 && edge.target_ref == "ix://agent-ix/example/US-001"
                 && edge.data_json.contains("original_uri")));
+    }
+
+    #[test]
+    fn tc706_identified_document_without_object_mints_primary_artifact_node() {
+        let result = extract_filament_core(base_input(
+            "---\nid: FR-020\ntype: FR\ntitle: Persist settings\nrelationships:\n  - type: implements\n    target: ix://agent-ix/example/US-012\n---\nSee [NFR-016](ix://agent-ix/example/NFR-016).\n",
+        ));
+        assert_eq!(result.errors, Vec::<String>::new());
+        assert_eq!(result.nodes.len(), 1);
+        assert_eq!(result.nodes[0].object_type, "artifact");
+        assert_eq!(result.nodes[0].name, "FR-020");
+        assert_eq!(result.nodes[0].ref_, "ix://agent-ix/example/FR-020");
+        let data: Value = serde_json::from_str(&result.nodes[0].data_json).unwrap();
+        assert_eq!(data["code"], "FR-020");
+        assert_eq!(data["title"], "Persist settings");
+        assert_eq!(data["artifact_type"], "FR");
+        // Every harvested edge is sourced from the minted primary ref, not a
+        // `document:` fallback.
+        assert!(!result.edges.is_empty());
+        for edge in &result.edges {
+            assert_eq!(edge.source_ref, "ix://agent-ix/example/FR-020");
+        }
+    }
+
+    #[test]
+    fn tc707_document_without_id_keeps_document_fallback_source() {
+        let result = extract_filament_core(base_input(
+            "---\ntitle: Notes\n---\nSee [US-001](ix://agent-ix/example/US-001).\n",
+        ));
+        assert_eq!(result.errors, Vec::<String>::new());
+        assert_eq!(result.nodes.len(), 0);
+        assert_eq!(result.edges.len(), 1);
+        assert_eq!(
+            result.edges[0].source_ref,
+            "ix://agent-ix/example/document:doc-1"
+        );
+    }
+
+    #[test]
+    fn tc708_object_typed_document_does_not_mint_extra_artifact_node() {
+        let result = extract_filament_core(base_input(
+            "---\nid: FR-001\ntitle: Pay vendors\nobject: capability\n---\n# Body\n",
+        ));
+        assert_eq!(result.errors, Vec::<String>::new());
+        assert_eq!(result.nodes.len(), 1);
+        assert_eq!(result.nodes[0].object_type, "capability");
+    }
+
+    #[test]
+    fn tc709_non_scalar_or_blank_ids_do_not_mint_a_primary_node() {
+        for markdown in [
+            "---\nid:\n---\nSee [US-001](ix://agent-ix/example/US-001).\n",
+            "---\nid: \"\"\n---\nSee [US-001](ix://agent-ix/example/US-001).\n",
+            "---\nid: false\n---\nSee [US-001](ix://agent-ix/example/US-001).\n",
+            "---\nid: [a, b]\n---\nSee [US-001](ix://agent-ix/example/US-001).\n",
+            "---\nid: {a: b}\n---\nSee [US-001](ix://agent-ix/example/US-001).\n",
+        ] {
+            let result = extract_filament_core(base_input(markdown));
+            assert_eq!(result.nodes.len(), 0, "no node for {markdown:?}");
+            assert_eq!(
+                result.edges[0].source_ref, "ix://agent-ix/example/document:doc-1",
+                "fallback source for {markdown:?}"
+            );
+        }
+        // Numeric ids are scalar and usable.
+        let numeric = extract_filament_core(base_input("---\nid: 123\n---\n# Body\n"));
+        assert_eq!(numeric.nodes.len(), 1);
+        assert_eq!(numeric.nodes[0].name, "123");
     }
 
     #[test]
