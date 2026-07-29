@@ -31,6 +31,12 @@ pub struct FilamentExtractionInput {
     pub markdown: String,
     #[serde(rename = "repo_name", alias = "repoName")]
     pub repo_name: String,
+    /// GitHub-style organization that owns the repository, sourced by the
+    /// consumer from the repo's git remote. Required and never defaulted: the
+    /// extractor is pure mechanism and must not invent an org (the caller owns
+    /// the fallback policy), so a missing `org` is a deserialization error.
+    #[serde(rename = "org", alias = "org")]
+    pub org: String,
     #[serde(rename = "object_types", alias = "objectTypes", default)]
     pub object_types: Vec<FilamentObjectType>,
 }
@@ -255,6 +261,7 @@ pub fn extract_filament_core(input: FilamentExtractionInput) -> CoreExtractionRe
     match frontmatter_edges(
         &frontmatter,
         &primary_ref,
+        &input.org,
         &input.repo_name,
         &mut diagnostics,
     ) {
@@ -268,7 +275,7 @@ pub fn extract_filament_core(input: FilamentExtractionInput) -> CoreExtractionRe
     ));
     raw_edges.append(&mut tier_edges);
 
-    let raw_edges = dedupe_edges(raw_edges, &input.repo_name, &mut diagnostics);
+    let raw_edges = dedupe_edges(raw_edges, &input.org, &input.repo_name, &mut diagnostics);
     let nodes = node_records(&input, nodes);
     let edges = edge_records(&input, raw_edges);
 
@@ -526,6 +533,7 @@ fn validate_against_schema(archetype: &str, schema: &Value, data: &Value) -> Res
 fn frontmatter_edges(
     frontmatter: &Map<String, Value>,
     primary_ref: &str,
+    org: &str,
     repo_name: &str,
     diagnostics: &mut Vec<CoreExtractionDiagnostic>,
 ) -> Result<Vec<GraphEdge>, String> {
@@ -533,12 +541,14 @@ fn frontmatter_edges(
     edges.extend(relationship_sugar_edges(
         frontmatter,
         primary_ref,
+        org,
         repo_name,
         diagnostics,
     ));
     edges.extend(explicit_relationship_edges(
         frontmatter,
         primary_ref,
+        org,
         repo_name,
         diagnostics,
     )?);
@@ -549,6 +559,7 @@ fn frontmatter_edges(
 fn relationship_sugar_edges(
     frontmatter: &Map<String, Value>,
     primary_ref: &str,
+    org: &str,
     repo_name: &str,
     diagnostics: &mut Vec<CoreExtractionDiagnostic>,
 ) -> Vec<GraphEdge> {
@@ -578,6 +589,7 @@ fn relationship_sugar_edges(
                         edge_type,
                         target,
                         format!("frontmatter.{key}[{index}]"),
+                        org,
                         repo_name,
                         diagnostics,
                     ));
@@ -589,6 +601,7 @@ fn relationship_sugar_edges(
                 edge_type,
                 target,
                 format!("frontmatter.{key}"),
+                org,
                 repo_name,
                 diagnostics,
             ));
@@ -600,6 +613,7 @@ fn relationship_sugar_edges(
 fn explicit_relationship_edges(
     frontmatter: &Map<String, Value>,
     primary_ref: &str,
+    org: &str,
     repo_name: &str,
     diagnostics: &mut Vec<CoreExtractionDiagnostic>,
 ) -> Result<Vec<GraphEdge>, String> {
@@ -639,7 +653,7 @@ fn explicit_relationship_edges(
             "original_target".to_string(),
             Value::String(target.to_string()),
         );
-        let target_ref = normalize_ref(repo_name, target);
+        let target_ref = normalize_ref(org, repo_name, target);
         if target.starts_with("ix://") && !is_valid_ix_ref(target) {
             metadata.insert("unresolved".to_string(), Value::Bool(true));
             diagnostics.push(diagnostic(
@@ -702,6 +716,7 @@ fn relationship_edge(
     edge_type: &str,
     target: &str,
     provenance: String,
+    org: &str,
     repo_name: &str,
     diagnostics: &mut Vec<CoreExtractionDiagnostic>,
 ) -> GraphEdge {
@@ -723,7 +738,7 @@ fn relationship_edge(
     GraphEdge {
         source_ref: primary_ref.to_string(),
         edge_type: edge_type.to_string(),
-        target_ref: normalize_ref(repo_name, target),
+        target_ref: normalize_ref(org, repo_name, target),
         metadata,
     }
 }
@@ -768,6 +783,7 @@ fn body_ix_edges(
 
 fn dedupe_edges(
     edges: Vec<GraphEdge>,
+    org: &str,
     repo_name: &str,
     diagnostics: &mut Vec<CoreExtractionDiagnostic>,
 ) -> Vec<GraphEdge> {
@@ -775,9 +791,9 @@ fn dedupe_edges(
     let mut out = Vec::new();
     for edge in edges {
         let key = (
-            normalize_ref(repo_name, &edge.source_ref),
+            normalize_ref(org, repo_name, &edge.source_ref),
             edge.edge_type.clone(),
-            normalize_ref(repo_name, &edge.target_ref),
+            normalize_ref(org, repo_name, &edge.target_ref),
         );
         if seen.insert(key) {
             out.push(edge);
@@ -805,7 +821,7 @@ fn node_records(input: &FilamentExtractionInput, nodes: Vec<GraphNode>) -> Vec<C
     nodes
         .into_iter()
         .map(|node| {
-            let ref_ = normalize_ref(&input.repo_name, &node.name);
+            let ref_ = normalize_ref(&input.org, &input.repo_name, &node.name);
             CoreGraphNodeRef {
                 id: stable_id(&[&input.project_id, "graph-node", &ref_]),
                 project_id: input.project_id.clone(),
@@ -825,8 +841,8 @@ fn edge_records(input: &FilamentExtractionInput, edges: Vec<GraphEdge>) -> Vec<C
     edges
         .into_iter()
         .map(|edge| {
-            let source_ref = normalize_ref(&input.repo_name, &edge.source_ref);
-            let target_ref = normalize_ref(&input.repo_name, &edge.target_ref);
+            let source_ref = normalize_ref(&input.org, &input.repo_name, &edge.source_ref);
+            let target_ref = normalize_ref(&input.org, &input.repo_name, &edge.target_ref);
             CoreGraphEdgeRef {
                 id: stable_id(&[
                     &input.project_id,
@@ -913,11 +929,11 @@ fn is_reserved_frontmatter_key(key: &str) -> bool {
     )
 }
 
-fn normalize_ref(repo_name: &str, value: &str) -> String {
+fn normalize_ref(org: &str, repo_name: &str, value: &str) -> String {
     if value.starts_with("ix://") {
         value.to_string()
     } else {
-        format!("ix://agent-ix/{repo_name}/{value}")
+        format!("ix://{org}/{repo_name}/{value}")
     }
 }
 
@@ -985,6 +1001,7 @@ mod tests {
             rel_path: "spec/FR-001.md".to_string(),
             markdown: markdown.to_string(),
             repo_name: "example".to_string(),
+            org: "agent-ix".to_string(),
             object_types: vec![FilamentObjectType {
                 name: "capability".to_string(),
                 schema: Some(json!({"type": "object", "additionalProperties": true})),
@@ -1011,6 +1028,37 @@ mod tests {
         assert_eq!(data["code"], "FR-001");
         assert_eq!(data["title"], "Pay vendors");
         assert_eq!(data["priority"], "P0");
+    }
+
+    /// The `ix://` org is taken from the supplied input, not a hardcoded
+    /// literal: the same document under a different org mints refs qualified
+    /// with that org for both nodes and harvested edges (agent-ix/quire-rs#14).
+    #[test]
+    fn org_qualifies_refs_from_input_not_a_literal() {
+        let mut input = base_input(
+            "---\nid: FR-001\ntitle: Pay vendors\nobject: capability\ndepends_on: FR-002\n---\n# Body\n",
+        );
+        input.org = "other-org".to_string();
+        let result = extract_filament_core(input);
+        assert_eq!(result.errors, Vec::<String>::new());
+        assert_eq!(result.nodes[0].ref_, "ix://other-org/example/FR-001");
+        assert!(
+            result
+                .edges
+                .iter()
+                .all(|edge| edge.source_ref.starts_with("ix://other-org/example/")),
+            "edge source refs must carry the supplied org, got {:?}",
+            result.edges
+        );
+        assert!(
+            result
+                .edges
+                .iter()
+                .any(|edge| edge.edge_type == "depends_on"
+                    && edge.target_ref == "ix://other-org/example/FR-002"),
+            "relative depends_on target must be qualified with the supplied org, got {:?}",
+            result.edges
+        );
     }
 
     #[test]

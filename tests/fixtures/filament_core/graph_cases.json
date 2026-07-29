@@ -8,6 +8,7 @@
       "artifactId": "artifact-tier1",
       "relPath": "spec/FR-001.md",
       "repoName": "example",
+      "org": "agent-ix",
       "markdown": "---\nid: FR-001\ntitle: Pay vendors\nobject: capability\npriority: P0\n---\n# Body\n",
       "objectTypes": [
         {
@@ -36,6 +37,7 @@
       "artifactId": "artifact-tier2",
       "relPath": "spec/API-001.md",
       "repoName": "example",
+      "org": "agent-ix",
       "markdown": "---\nid: API-001\ntitle: Payments API\nobject: endpoint\n---\n## Endpoint\nGET /payments\n",
       "objectTypes": [
         {
@@ -79,6 +81,7 @@
       "artifactId": "artifact-explicit",
       "relPath": "spec/CAP-001.md",
       "repoName": "example",
+      "org": "agent-ix",
       "markdown": "---\nid: CAP-001\nobject: capability\nedges:\n  - type: requires\n    target: ix://agent-ix/example/FR-014\n  - type: realizes\n    target: ix://agent-ix/example/CAP-PAY\n    metadata:\n      since: v0.2\n---\n# Body\n",
       "objectTypes": [{ "name": "capability", "schema": { "type": "object", "additionalProperties": true }, "allowedLinks": {}, "bodyExtraction": null, "hasPlugin": false, "moduleId": "test-module" }]
     },
@@ -101,6 +104,7 @@
       "artifactId": "artifact-sugar",
       "relPath": "spec/FR-010.md",
       "repoName": "example",
+      "org": "agent-ix",
       "markdown": "---\nid: FR-010\nobject: capability\ndepends_on:\n  - FR-001\nparent: PROC-001\nparent_process: PROC-ROOT\ntemplate_for: spec-X\narchetype_for:\n  - arche-Y\nreplaced_by: FR-999\n---\n# Body\n",
       "objectTypes": [{ "name": "capability", "schema": { "type": "object", "additionalProperties": true }, "allowedLinks": {}, "bodyExtraction": null, "hasPlugin": false, "moduleId": "test-module" }]
     },
@@ -127,6 +131,7 @@
       "artifactId": "artifact-normalize",
       "relPath": "spec/FR-020.md",
       "repoName": "example",
+      "org": "agent-ix",
       "markdown": "---\nid: FR-020\nobject: capability\nrelationships:\n  - target: ix://other-org/other-repo/FR-777\n    type: cross_repo\n  - target: FR-021\n    type: local_ref\n---\n# Body\n",
       "objectTypes": [{ "name": "capability", "schema": { "type": "object", "additionalProperties": true }, "allowedLinks": {}, "bodyExtraction": null, "hasPlugin": false, "moduleId": "test-module" }]
     },
@@ -149,6 +154,7 @@
       "artifactId": "artifact-body-links",
       "relPath": "spec/FR-030.md",
       "repoName": "example",
+      "org": "agent-ix",
       "markdown": "---\nid: FR-030\nobject: capability\n---\nSee [User story](ix://agent-ix/example/US-001) and [external](https://example.com).\n",
       "objectTypes": [{ "name": "capability", "schema": { "type": "object", "additionalProperties": true }, "allowedLinks": {}, "bodyExtraction": null, "hasPlugin": false, "moduleId": "test-module" }]
     },
@@ -168,6 +174,7 @@
       "artifactId": "artifact-dedupe",
       "relPath": "spec/FR-045.md",
       "repoName": "example",
+      "org": "agent-ix",
       "markdown": "---\nid: FR-045\nobject: capability\nrelationships:\n  - target: ix://agent-ix/example/FR-046\n    type: references\n---\nSee [FR-046](ix://agent-ix/example/FR-046).\n",
       "objectTypes": [{ "name": "capability", "schema": { "type": "object", "additionalProperties": true }, "allowedLinks": {}, "bodyExtraction": null, "hasPlugin": false, "moduleId": "test-module" }]
     },
@@ -187,6 +194,7 @@
       "artifactId": "artifact-rel-non-map",
       "relPath": "spec/FR-050.md",
       "repoName": "example",
+      "org": "agent-ix",
       "markdown": "---\nid: FR-050\nobject: capability\nrelationships:\n  - not-a-map\n---\n# Body\n",
       "objectTypes": [{ "name": "capability", "schema": { "type": "object", "additionalProperties": true }, "allowedLinks": {}, "bodyExtraction": null, "hasPlugin": false, "moduleId": "test-module" }]
     },
@@ -201,6 +209,7 @@
       "artifactId": "artifact-rel-missing-target",
       "relPath": "spec/FR-051.md",
       "repoName": "example",
+      "org": "agent-ix",
       "markdown": "---\nid: FR-051\nobject: capability\nrelationships:\n  - type: depends_on\n---\n# Body\n",
       "objectTypes": [{ "name": "capability", "schema": { "type": "object", "additionalProperties": true }, "allowedLinks": {}, "bodyExtraction": null, "hasPlugin": false, "moduleId": "test-module" }]
     },
@@ -215,6 +224,7 @@
       "artifactId": "artifact-rel-missing-type",
       "relPath": "spec/FR-052.md",
       "repoName": "example",
+      "org": "agent-ix",
       "markdown": "---\nid: FR-052\nobject: capability\nrelationships:\n  - target: ix://agent-ix/example/FR-053\n---\n# Body\n",
       "objectTypes": [{ "name": "capability", "schema": { "type": "object", "additionalProperties": true }, "allowedLinks": {}, "bodyExtraction": null, "hasPlugin": false, "moduleId": "test-module" }]
     },
@@ -229,6 +239,7 @@
       "artifactId": "artifact-edge-missing-target",
       "relPath": "spec/FR-060.md",
       "repoName": "example",
+      "org": "agent-ix",
       "markdown": "---\nid: FR-060\nobject: capability\nedges:\n  - type: requires\n---\n# Body\n",
       "objectTypes": [{ "name": "capability", "schema": { "type": "object", "additionalProperties": true }, "allowedLinks": {}, "bodyExtraction": null, "hasPlugin": false, "moduleId": "test-module" }]
     },
@@ -243,6 +254,7 @@
       "artifactId": "artifact-schema",
       "relPath": "spec/DOM-001.md",
       "repoName": "example",
+      "org": "agent-ix",
       "markdown": "---\nid: DOM-001\nobject: domain\ndata: {}\n---\n# Body\n",
       "objectTypes": [{ "name": "domain", "schema": { "type": "object", "required": ["description"], "properties": { "description": { "type": "string" } } }, "allowedLinks": {}, "bodyExtraction": null, "hasPlugin": false, "moduleId": "test-module" }]
     },
@@ -257,6 +269,7 @@
       "artifactId": "artifact-unknown",
       "relPath": "spec/FR-070.md",
       "repoName": "example",
+      "org": "agent-ix",
       "markdown": "---\nid: FR-070\nobject: missing\n---\n# Body\n",
       "objectTypes": [{ "name": "capability", "schema": { "type": "object", "additionalProperties": true }, "allowedLinks": {}, "bodyExtraction": null, "hasPlugin": false, "moduleId": "test-module" }]
     },
@@ -271,6 +284,7 @@
       "artifactId": "artifact-no-frontmatter",
       "relPath": "spec/FR-071.md",
       "repoName": "example",
+      "org": "agent-ix",
       "markdown": "# Body\n",
       "objectTypes": [{ "name": "capability", "schema": { "type": "object", "additionalProperties": true }, "allowedLinks": {}, "bodyExtraction": null, "hasPlugin": false, "moduleId": "test-module" }]
     },
@@ -285,6 +299,7 @@
       "artifactId": "artifact-plugin",
       "relPath": "spec/PLUG-001.md",
       "repoName": "example",
+      "org": "agent-ix",
       "markdown": "---\nid: PLUG-001\nobject: plugin\n---\n# Body\n",
       "objectTypes": [{ "name": "plugin", "schema": { "type": "object", "additionalProperties": true }, "allowedLinks": {}, "bodyExtraction": null, "hasPlugin": true, "moduleId": "test-module" }]
     },
@@ -299,6 +314,7 @@
       "artifactId": "artifact-negative",
       "relPath": "spec/FR-080.md",
       "repoName": "example",
+      "org": "agent-ix",
       "markdown": "---\nid: FR-080\nobject: capability\n---\nSee [[FR-081]], spec://FR-082, prose depends on FR-083, and [web](https://example.com).\n",
       "objectTypes": [{ "name": "capability", "schema": { "type": "object", "additionalProperties": true }, "allowedLinks": {}, "bodyExtraction": null, "hasPlugin": false, "moduleId": "test-module" }]
     },
@@ -313,6 +329,7 @@
       "artifactId": "artifact-bad-body-link",
       "relPath": "spec/FR-090.md",
       "repoName": "example",
+      "org": "agent-ix",
       "markdown": "---\nid: FR-090\nobject: capability\n---\nSee [bad](ix://agent-ix).\n",
       "objectTypes": [{ "name": "capability", "schema": { "type": "object", "additionalProperties": true }, "allowedLinks": {}, "bodyExtraction": null, "hasPlugin": false, "moduleId": "test-module" }]
     },
@@ -327,6 +344,7 @@
       "artifactId": "artifact-unparsable-frontmatter",
       "relPath": "spec/FR-100.md",
       "repoName": "example",
+      "org": "agent-ix",
       "markdown": "---\nid: : bad\n---\n# Body\n",
       "objectTypes": [{ "name": "capability", "schema": { "type": "object", "additionalProperties": true }, "allowedLinks": {}, "bodyExtraction": null, "hasPlugin": false, "moduleId": "test-module" }]
     },
