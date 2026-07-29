@@ -575,6 +575,7 @@ def _filament_input(markdown):
         "relPath": "spec/FR-001.md",
         "markdown": markdown,
         "repoName": "example",
+        "org": "agent-ix",
         "objectTypes": [
             {
                 "name": "capability",
