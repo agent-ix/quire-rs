@@ -35,7 +35,6 @@ pub struct FilamentExtractionInput {
     /// consumer from the repo's git remote. Required and never defaulted: the
     /// extractor is pure mechanism and must not invent an org (the caller owns
     /// the fallback policy), so a missing `org` is a deserialization error.
-    #[serde(rename = "org", alias = "org")]
     pub org: String,
     #[serde(rename = "object_types", alias = "objectTypes", default)]
     pub object_types: Vec<FilamentObjectType>,
