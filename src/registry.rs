@@ -41,6 +41,10 @@ struct Inner {
     lexicon_matcher: crate::grammar::GrammarLexicon,
     /// Merged per-check grammar severity registry (FR-048).
     grammar_severity: crate::grammar::GrammarSeverityMap,
+    /// Merged observable-result verb registry (FR-047) + its precompiled
+    /// matcher (built-in defaults ∪ module declarations).
+    observable_verbs: std::collections::BTreeMap<String, crate::vocab::ObservableVerbDef>,
+    observable_verbs_matcher: crate::grammar::ObservableVerbs,
     failures: Vec<ArchetypeLoadFailure>,
     diagnostics: Vec<Diagnostic>,
     path_diagnostics: Vec<PathDiagnostic>,
@@ -189,6 +193,7 @@ impl Registry {
             roles,
             lexicon,
             grammar_severity,
+            observable_verbs,
             failures,
             diagnostics,
             path_diagnostics,
@@ -196,6 +201,11 @@ impl Registry {
         // FR-043: precompile the matcher once from the merged lexicon keys.
         let lexicon_matcher =
             crate::grammar::GrammarLexicon::from_terms(lexicon.keys().map(String::as_str));
+        // FR-047: precompile the observable-verb matcher once, layering the
+        // merged module registry over the engine's built-in defaults.
+        let observable_verbs_matcher = crate::grammar::ObservableVerbs::with_module_verbs(
+            observable_verbs.keys().map(String::as_str),
+        );
         Self {
             inner: Arc::new(Inner {
                 archetypes,
@@ -209,6 +219,8 @@ impl Registry {
                 lexicon,
                 lexicon_matcher,
                 grammar_severity,
+                observable_verbs,
+                observable_verbs_matcher,
                 failures,
                 diagnostics,
                 path_diagnostics,
@@ -316,6 +328,21 @@ impl Registry {
     /// means `warning`, so an empty map is the all-default map.
     pub fn grammar_severity(&self) -> &crate::grammar::GrammarSeverityMap {
         &self.inner.grammar_severity
+    }
+
+    /// Merged observable-result verb registry (FR-047), first-wins across
+    /// modules. The `ac` grammar's `no-observable-outcome` check consumes these
+    /// on top of the engine's built-in defaults.
+    pub fn observable_verbs(
+        &self,
+    ) -> &std::collections::BTreeMap<String, crate::vocab::ObservableVerbDef> {
+        &self.inner.observable_verbs
+    }
+
+    /// The precompiled observable-verb matcher (FR-047): built-in defaults ∪
+    /// the merged module registry.
+    pub fn observable_verbs_matcher(&self) -> &crate::grammar::ObservableVerbs {
+        &self.inner.observable_verbs_matcher
     }
 
     /// Compose an ad-hoc `GrammarLexicon` (FR-044) from the merged module

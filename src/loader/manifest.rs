@@ -78,6 +78,13 @@ pub struct Manifest {
     /// non-string key) fails manifest parse like any other shape error.
     #[serde(default)]
     pub grammar_severity: BTreeMap<String, crate::grammar::GrammarSeverityLevel>,
+    /// Mergeable observable-result verb registry (FR-047): verb →
+    /// {definition, optional category}. Merged across modules first-wins and
+    /// layered **over** the engine's built-in defaults, which stay at lowest
+    /// precedence. The `ac` grammar's `no-observable-outcome` check consumes
+    /// the merged keys, so the vocabulary is module data (ADR 0009).
+    #[serde(default)]
+    pub observable_verbs: BTreeMap<String, crate::vocab::ObservableVerbDef>,
 }
 
 impl Manifest {

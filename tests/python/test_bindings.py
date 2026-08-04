@@ -83,6 +83,48 @@ def test_check_grammar_applies_module_lexicon(tmp_path):
     assert not any(f["check"] == "vague-response" for f in findings2)
 
 
+def test_check_grammar_ac_findings_cross_boundary(tmp_path):
+    """TC-715 (FR-047-AC-9): the `ac` grammar is exposed through the same PyO3
+    surface and returns the same findings as the in-process Rust call."""
+    md = (
+        "---\nid: FR-001\ntype: FR\n---\n"
+        "## Acceptance Criteria\n\n"
+        "| ID | Criteria | Verification |\n"
+        "|----|----------|--------------|\n"
+        "| FR-001-AC-1 | It all works end to end. | Test |\n"
+        "| FR-001-AC-2 | Given a token, when it expires, then `401` is returned. | Test |\n"
+    )
+    findings = quire.check_grammar("iso-spec-core", "FR", md)
+    ac = [f for f in findings if f["grammar"] == "ac"]
+    assert ac, "the ac grammar must contribute through the binding"
+
+    vacuous = [f for f in ac if f["statement"].startswith("It all works")]
+    checks = {f["check"] for f in vacuous}
+    assert checks == {"unclassifiable", "no-observable-outcome"}
+    assert all(f["pattern"] == "unclassifiable" for f in vacuous)
+    assert all(f["severity"] == "warning" for f in vacuous)
+    assert all(f["line"] is not None for f in vacuous)
+
+    gwt = [f for f in ac if f["statement"].startswith("Given a token")]
+    assert {f["check"] for f in gwt} == {"non-canonical-shape"}
+    assert all(f["pattern"] == "given-when-then" for f in gwt)
+
+    # FR-047-AC-12 / FR-048: module data reaches the binding — declaring the
+    # verb suppresses `no-observable-outcome`, mapping the check `off` removes
+    # it entirely.
+    mod = tmp_path / "m"
+    mod.mkdir(parents=True)
+    (mod / "manifest.yaml").write_text(
+        "name: m\n"
+        "observable_verbs:\n  work:\n    definition: produces a checkable result\n"
+        "grammar_severity:\n  \"ac:unclassifiable\": off\n"
+    )
+    scoped = quire.check_grammar("iso-spec-core", "FR", md, str(mod))
+    scoped_checks = {f["check"] for f in scoped if f["grammar"] == "ac"}
+    assert "no-observable-outcome" not in scoped_checks
+    assert "unclassifiable" not in scoped_checks
+
+
 def test_load_repo_returns_documents(tmp_path):
     """TC-463: load_repo yields one structured doc per markdown file."""
     (tmp_path / "FR-001.md").write_text(

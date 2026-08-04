@@ -184,11 +184,25 @@ fn check_grammar<'py>(
         // FR-048: with a module, apply its merged severity map (an `off` check
         // is dropped, an `error` check is surfaced as such); without, the
         // all-default map keeps every finding a warning.
-        let severity = registry
-            .as_ref()
-            .map_or_else(crate::grammar::default_severity, |r| r.grammar_severity());
+        let severity = match registry.as_ref() {
+            Some(r) => r.grammar_severity(),
+            None => crate::grammar::default_severity(),
+        };
+        // FR-047: likewise for the observable-verb vocabulary — module data
+        // over the engine's built-in defaults.
+        let observable = match registry.as_ref() {
+            Some(r) => r.observable_verbs_matcher(),
+            None => crate::grammar::default_observable_verbs(),
+        };
         Ok(crate::grammar::apply_severity(
-            crate::grammar::check_document_grammar(&gref, &arch, &doc, line_offset, lexicon),
+            crate::grammar::check_document_grammar(
+                &gref,
+                &arch,
+                &doc,
+                line_offset,
+                lexicon,
+                observable,
+            ),
             severity,
         ))
     })?;

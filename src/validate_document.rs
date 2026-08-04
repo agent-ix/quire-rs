@@ -168,6 +168,7 @@ pub fn validate_document(archetype: &CompiledArchetype, doc_text: &str) -> Valid
         &doc,
         line_offset,
         crate::grammar::empty_lexicon(),
+        crate::grammar::default_observable_verbs(),
         crate::grammar::default_severity(),
         &mut errors,
         &mut warnings,
@@ -189,6 +190,7 @@ fn run_grammar(
     doc: &QuireDocument,
     line_offset: usize,
     lexicon: &crate::grammar::GrammarLexicon,
+    observable: &crate::grammar::ObservableVerbs,
     severity: &crate::grammar::GrammarSeverityMap,
     errors: &mut Vec<ValidationError>,
     warnings: &mut Vec<ValidationWarning>,
@@ -202,6 +204,7 @@ fn run_grammar(
         doc,
         line_offset,
         lexicon,
+        observable,
     );
     // FR-048: key each finding against the merged map before routing — `off`
     // drops here, so a suppressed check reaches neither list nor the summary.
@@ -371,6 +374,7 @@ fn validate_in_registry_core(
         &doc,
         line_offset,
         lexicon,
+        registry.observable_verbs_matcher(),
         registry.grammar_severity(),
         &mut errors,
         &mut warnings,

@@ -15,6 +15,7 @@
 //! acceptance criteria) and the `US` story grammar register onto the same
 //! framework later.
 
+pub mod ac;
 pub mod ears;
 
 use std::sync::OnceLock;
@@ -68,6 +69,91 @@ impl GrammarLexicon {
     pub fn contains_term(&self, text: &str) -> bool {
         self.matcher.as_ref().is_some_and(|r| r.is_match(text))
     }
+}
+
+/// The built-in **observable-result verb** vocabulary (FR-047): base forms of
+/// the verbs whose presence in an outcome clause makes the result externally
+/// checkable. Module data extends this set (ADR 0009); the built-ins are the
+/// lowest-precedence layer, never replaced.
+const BUILTIN_OBSERVABLE_VERBS: &[&str] = &[
+    "return", "emit", "yield", "report", "record", "reject", "fail", "exit", "persist", "print",
+    "contain", "equal", "match",
+];
+
+/// A precompiled matcher over the observable-result verbs (FR-047-AC-5/AC-12):
+/// the built-in defaults merged with any module-declared `observable_verbs`
+/// registry. Each verb contributes its inflections, so an outcome clause
+/// matches regardless of tense (`return` → `returns`/`returned`/`returning`).
+#[derive(Debug)]
+pub struct ObservableVerbs {
+    matcher: Option<Regex>,
+}
+
+impl Default for ObservableVerbs {
+    /// The built-in default set, applied when no module declares the registry.
+    fn default() -> Self {
+        Self::with_module_verbs(std::iter::empty())
+    }
+}
+
+impl ObservableVerbs {
+    /// Build a matcher from the built-in defaults plus `module_verbs` (the
+    /// merged `observable_verbs` registry keys). The built-ins sit at lowest
+    /// precedence: a module extends the vocabulary, it does not replace it.
+    pub fn with_module_verbs<'a, I: IntoIterator<Item = &'a str>>(module_verbs: I) -> Self {
+        let mut forms: Vec<String> = Vec::new();
+        for verb in BUILTIN_OBSERVABLE_VERBS
+            .iter()
+            .copied()
+            .chain(module_verbs.into_iter())
+        {
+            let verb = verb.trim();
+            if verb.is_empty() {
+                continue;
+            }
+            for form in inflect(verb) {
+                forms.push(regex::escape(&form));
+            }
+        }
+        let matcher = if forms.is_empty() {
+            None
+        } else {
+            Regex::new(&format!(r"(?i)\b({})\b", forms.join("|"))).ok()
+        };
+        Self { matcher }
+    }
+
+    /// True when `text` carries an observable-result verb (word-boundary).
+    pub fn contains_verb(&self, text: &str) -> bool {
+        self.matcher.as_ref().is_some_and(|r| r.is_match(text))
+    }
+}
+
+/// The shared built-in observable-verb vocabulary for the registry-free paths.
+pub fn default_observable_verbs() -> &'static ObservableVerbs {
+    static DEFAULT: OnceLock<ObservableVerbs> = OnceLock::new();
+    DEFAULT.get_or_init(ObservableVerbs::default)
+}
+
+/// Naive English verb inflector: base, 3rd-person singular, past, and present
+/// participle. Vocabulary verbs are lowercase ASCII, so byte handling is safe.
+fn inflect(verb: &str) -> Vec<String> {
+    let lower = verb.to_ascii_lowercase();
+    let third = if lower.ends_with('s')
+        || lower.ends_with('x')
+        || lower.ends_with('z')
+        || lower.ends_with("ch")
+        || lower.ends_with("sh")
+    {
+        format!("{lower}es")
+    } else {
+        format!("{lower}s")
+    };
+    let (past, participle) = match lower.strip_suffix('e') {
+        Some(stem) => (format!("{lower}d"), format!("{stem}ing")),
+        None => (format!("{lower}ed"), format!("{lower}ing")),
+    };
+    vec![lower, third, past, participle]
 }
 
 /// Naive English pluralizer for lexicon terms: consonant+`y`→`ies`, sibilant
@@ -238,9 +324,17 @@ pub fn check_document_grammar(
     doc: &QuireDocument,
     line_offset: usize,
     lexicon: &GrammarLexicon,
+    observable: &ObservableVerbs,
 ) -> Vec<GrammarFinding> {
     match grammar_ref {
-        "iso-spec-core" => ears::check(archetype, doc, line_offset, lexicon),
+        // The bundle runs every grammar registered on it; each grammar's own
+        // `(archetype, section)` binding decides whether it contributes
+        // (FR-042-AC-6, FR-047-AC-6).
+        "iso-spec-core" => {
+            let mut findings = ears::check(archetype, doc, line_offset, lexicon);
+            findings.extend(ac::check(archetype, doc, line_offset, lexicon, observable));
+            findings
+        }
         _ => Vec::new(),
     }
 }

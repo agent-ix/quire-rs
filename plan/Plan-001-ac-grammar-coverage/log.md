@@ -33,3 +33,12 @@ description: "Chronological log of changes to the Plan-001 bundle."
   pre-routing, type-only all-default degradation, PyO3 parity. TC-716..719,
   TC-722, TC-723, TC-752 green; `make ci` green. `spec/tests.md` statuses stay
   🚧 until Gate G1 (TC-718's end-to-end prose needs the Task-002 `ac` grammar).
+* **2026-08-04** — Task-002 (Track A) completed: the `ac` grammar
+  (`src/grammar/ac.rs`) registers on the `iso-spec-core` bundle with the FR
+  `Criteria`-column and `### <doc-id>-AC-N` supplement bindings, three shapes,
+  and the five checks; `vague-response` shares one implementation with EARS
+  via `ears::vague_verb_in_clause`; `observable_verbs` ships as a module-data
+  registry over built-in defaults (ADR 0009). TC-707..713, TC-751, TC-754,
+  TC-757 green in Rust; TC-715 verified against a built wheel
+  (`tests/python/test_bindings.py`). `make ci` green.
+

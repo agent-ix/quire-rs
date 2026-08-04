@@ -84,6 +84,18 @@ pub struct LexiconTermDef {
     pub category: Option<String>,
 }
 
+/// One `observable_verbs` registry entry (FR-047). A module-declared
+/// **observable-result verb** the `ac` grammar's `no-observable-outcome` check
+/// accepts as evidence of an externally checkable outcome. The engine uses the
+/// verb (the map key) and its inflections; `definition` is documentation.
+/// Mirrors [`LexiconTermDef`] — concrete vocabulary is module data (ADR 0009).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ObservableVerbDef {
+    pub definition: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub category: Option<String>,
+}
+
 /// Normalize a raw `allowed_links` value (array **or** map) into the
 /// canonical [`AllowedLinks`] map (FR-040-AC-4).
 ///

@@ -50,6 +50,8 @@ pub struct LoadedModule {
     /// Per-check grammar severity registry contributed by this module
     /// (FR-048).
     pub grammar_severity: BTreeMap<String, crate::grammar::GrammarSeverityLevel>,
+    /// Observable-result verb registry contributed by this module (FR-047).
+    pub observable_verbs: BTreeMap<String, crate::vocab::ObservableVerbDef>,
 }
 
 /// Outcome of a full load pass.
@@ -357,6 +359,7 @@ pub fn load_inline_module(manifest_yaml: &[u8], schemas: &BTreeMap<String, Strin
         roles: manifest.roles.clone(),
         lexicon: manifest.lexicon.clone(),
         grammar_severity: manifest.grammar_severity.clone(),
+        observable_verbs: manifest.observable_verbs.clone(),
     });
 
     LoadOutcome {
@@ -499,6 +502,7 @@ fn load_one_module(
             roles: manifest.roles.clone(),
             lexicon: manifest.lexicon.clone(),
             grammar_severity: manifest.grammar_severity.clone(),
+            observable_verbs: manifest.observable_verbs.clone(),
         },
         failures,
     ))
@@ -709,6 +713,10 @@ pub fn flatten_into_registry(mut outcome: LoadOutcome) -> RegistryShape {
             .diagnostics
             .push(Diagnostic::DuplicateGrammarSeverity { name, modules });
     }
+    // FR-047: merge the observable-result verb registry (first-wins). The
+    // engine's built-in defaults are layered underneath at matcher-build time,
+    // so a module extends the vocabulary rather than replacing it.
+    let (observable_verbs, _) = merge_vocab(&outcome.modules, |m| &m.observable_verbs);
 
     // ── FR-041: derive the inverse-label → forward-verb index from the
     // merged edge_types. A declared `inverse:` label becomes an authorable
@@ -797,6 +805,7 @@ pub fn flatten_into_registry(mut outcome: LoadOutcome) -> RegistryShape {
         roles,
         lexicon,
         grammar_severity,
+        observable_verbs,
         failures: outcome.failures,
         diagnostics: outcome.diagnostics,
         path_diagnostics: outcome.path_diagnostics,
@@ -936,6 +945,9 @@ pub struct RegistryShape {
     /// Merged per-check grammar severity registry, first-wins across modules
     /// (FR-048). An absent key means `warning`.
     pub grammar_severity: BTreeMap<String, crate::grammar::GrammarSeverityLevel>,
+    /// Merged observable-result verb registry, first-wins across modules
+    /// (FR-047). Layered over the engine's built-in defaults.
+    pub observable_verbs: BTreeMap<String, crate::vocab::ObservableVerbDef>,
     pub failures: Vec<ArchetypeLoadFailure>,
     pub diagnostics: Vec<Diagnostic>,
     pub path_diagnostics: Vec<PathDiagnostic>,
