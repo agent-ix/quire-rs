@@ -32,10 +32,12 @@ skip rules.
 
 The `ac` grammar SHALL classify each statement into exactly one shape:
 
-- `ears` — the statement matches an EARS pattern per the FR-042 classifier;
+- `ears` — the statement matches an EARS pattern per the FR-042 classifier.
+  EARS is the **canonical** acceptance-criteria shape;
 - `given-when-then` — the statement is structured as Given/When/Then clauses
   (a leading `Given`/`When` clause and a `Then`/result clause, in prose or
-  bullet form);
+  bullet form). The shape is recognized — not `unclassifiable` — so property
+  extraction can consume legacy GWT cells while authoring converges on EARS;
 - `unclassifiable` — neither shape matches.
 
 For each statement, the `ac` grammar SHALL emit a finding when the statement
@@ -62,16 +64,27 @@ violates a check:
    `rejects`, `fails`, `exits`, `persists`, `prints`, `contains`, `equals`,
    `matches`, and their inflections). A clause with none of these signals
    (e.g. `The import works correctly`) SHALL be flagged.
+5. **non-canonical-shape** — the statement is `given-when-then`-shaped. The
+   finding steers the author toward the canonical EARS shape, in the same
+   spirit as the EARS `non-canonical-trigger` check; classification still
+   succeeds, so the cell's other checks still run on its `Then` clause.
 
 Each `ac` finding SHALL carry `grammar: "ac"`. The framework SHALL route `ac`
-findings into `ValidationResult` by severity per FR-042, advisory (`warning`)
-by default; per-check promotion to `error` is configured per
+findings into `ValidationResult` by severity per FR-042. The rollout default
+is explicit: every `ac` check ships advisory (`warning`) at most, and each
+check is individually suppressible (`off`) or promotable per
 [FR-048](./FR-048-per-check-grammar-severity.md).
 
 `quire-cli` `validate --summary` SHALL surface findings for **any** grammar in
 the active bundle. The summary parser SHALL group findings by the generic
 prefix `[<grammar>:<check>]` — replacing the hardcoded `[ears:` prefix — so
 the histogram covers every grammar and check.
+
+## Constraints
+
+| ID | Constraint | Type | Validation |
+|----|------------|------|------------|
+| FR-047-CON-1 | `ac` checks SHALL NOT ship promoted to `error` by default: promotion waits for a corpus baseline sweep and an explicit user gate, mirroring the FR-042 EARS rollout precedent | Operational | Inspection |
 
 ## Acceptance Criteria
 
@@ -86,6 +99,7 @@ the histogram covers every grammar and check.
 | FR-047-AC-7 | An `ac` finding carries `grammar: "ac"`, a stable check id, the statement excerpt, a 1-based line number, the classified shape, and a severity, and routes into `ValidationResult` per its severity. | Test (TC-713) |
 | FR-047-AC-8 | `quire validate --summary` histograms findings by the generic `[<grammar>:<check>]` prefix: a corpus emitting both `[ears:*]` and `[ac:*]` findings shows both in the summary. | Test (TC-714) |
 | FR-047-AC-9 | The `ac` grammar entry point is exposed through the existing grammar PyO3 surface and returns the same findings as the in-process Rust call for a fixture document. | Test (TC-715) |
+| FR-047-AC-10 | A `given-when-then`-shaped cell yields one `non-canonical-shape` finding while still classifying `given-when-then` (its other checks run on the `Then` clause); an EARS-shaped cell yields none. | Test (TC-751) |
 
 ## Dependencies
 

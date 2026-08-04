@@ -25,7 +25,12 @@ the mechanism FR-042 left to configuration.
 
 A Filament module MAY declare a `grammar_severity` registry in its
 `manifest.yaml`: a map from `<grammar>:<check>` keys (e.g. `ac:no-observable-outcome`)
-to `warning` or `error`. The loader SHALL merge the per-module `grammar_severity`
+to a level in `off` | `warning` | `error`. The `off` level suppresses the
+check entirely: the framework SHALL record no finding for an `off`-mapped
+check — not in `warnings`, not in `errors`, and not in the `--summary`
+histogram. This is the conservative rollout lever for high-volume advisory
+checks (the [FR-047](./FR-047-acceptance-criteria-grammar.md) AC checks are
+the expected first users). The loader SHALL merge the per-module `grammar_severity`
 registries across all loaded modules first-wins, mirroring the `lexicon` merge
 ([FR-043](./FR-043-module-concrete-lexicon.md)). If two modules redeclare the
 same key with different values, then the loader SHALL emit one non-fatal
@@ -36,10 +41,11 @@ When a grammar emits a finding, the framework SHALL set the finding's severity
 from the merged map keyed by the finding's `grammar` and `check`, defaulting to
 `warning` when the key is absent. Severity routing into `ValidationResult`
 (warning → `warnings`, error → `errors` + `is_valid` false) is unchanged from
-FR-042-AC-7.
+FR-042-AC-7; an `off`-mapped finding is dropped before routing.
 
 `quire validate` SHALL accept a repeatable `--severity <grammar>:<check>=<level>`
-option; a CLI-supplied entry SHALL take precedence over the manifest map for
+option over the same `off` | `warning` | `error` vocabulary; a CLI-supplied
+entry SHALL take precedence over the manifest map for
 that key. The existing `--strict` flag SHALL keep its global semantics
 (escalate the exit code on any remaining warning) unchanged.
 
@@ -59,6 +65,7 @@ matching the empty-lexicon degradation documented in FR-043.
 | FR-048-AC-6 | `--strict` semantics are unchanged: with no severity map, `--strict` still exits 1 on any warning, and without `--strict` the exit code stays 0 for warning-only documents. | Test (TC-721) |
 | FR-048-AC-7 | The type-only `validate_document` path applies the all-default map: every grammar finding surfaces as a warning regardless of any module's manifest. | Test (TC-722) |
 | FR-048-AC-8 | A malformed `grammar_severity` entry (unknown level, non-string key) fails module load like any other manifest shape error. | Test (TC-723) |
+| FR-048-AC-9 | A check mapped `off` (manifest or `--severity ac:vague-response=off`) records no finding in `warnings`, `errors`, or the `--summary` histogram, while sibling checks of the same grammar still report. | Test (TC-752) |
 
 ## Dependencies
 
