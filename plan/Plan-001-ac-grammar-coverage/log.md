@@ -26,3 +26,10 @@ description: "Chronological log of changes to the Plan-001 bundle."
   Rust `#[trace]` crate is a hard Task-010 prerequisite). Also wired the
   FND-005 rework into Task-002: FR-047-AC-12/TC-757 (module-data
   `observable_verbs`).
+* **2026-08-04** — Task-001 (Track A, branch `task/ac-grammar-severity`)
+  completed: FR-048 per-check `grammar_severity` framework — manifest registry
+  with key/level validation, first-wins merge + `DuplicateGrammarSeverity`,
+  `Registry::grammar_severity()`, emission-time application with `off` dropped
+  pre-routing, type-only all-default degradation, PyO3 parity. TC-716..719,
+  TC-722, TC-723, TC-752 green; `make ci` green. `spec/tests.md` statuses stay
+  🚧 until Gate G1 (TC-718's end-to-end prose needs the Task-002 `ac` grammar).

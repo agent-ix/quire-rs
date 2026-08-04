@@ -70,6 +70,14 @@ pub struct Manifest {
     /// as accepted concrete objects, so the engine carries no hardcoded list.
     #[serde(default)]
     pub lexicon: BTreeMap<String, crate::vocab::LexiconTermDef>,
+    /// Mergeable per-check grammar severity registry (FR-048):
+    /// `<grammar>:<check>` → `off` | `warning` | `error`. Merged across
+    /// modules first-wins; the grammar framework keys each emitted finding
+    /// against the merged map, so a deployment can promote or suppress one
+    /// check without a code change. A malformed entry (unknown level,
+    /// non-string key) fails manifest parse like any other shape error.
+    #[serde(default)]
+    pub grammar_severity: BTreeMap<String, crate::grammar::GrammarSeverityLevel>,
 }
 
 impl Manifest {
@@ -171,7 +179,28 @@ impl Archetype {
 /// Returns the typed [`Manifest`] or a `String` error message suitable
 /// for wrapping in `QuireError::ManifestError`.
 pub fn parse_manifest(bytes: &[u8]) -> Result<Manifest, String> {
-    serde_yaml::from_slice::<Manifest>(bytes).map_err(|e| e.to_string())
+    let manifest = serde_yaml::from_slice::<Manifest>(bytes).map_err(|e| e.to_string())?;
+    check_grammar_severity_keys(&manifest)?;
+    Ok(manifest)
+}
+
+/// Reject a malformed `grammar_severity` key (FR-048-AC-8). The level side is
+/// already contracted by [`crate::grammar::GrammarSeverityLevel`]'s enum
+/// deserializer; the key side is not, because YAML stringifies a non-string
+/// scalar key (`12:`) instead of failing. A well-formed key is exactly
+/// `<grammar>:<check>` — two non-empty, whitespace-free halves.
+fn check_grammar_severity_keys(manifest: &Manifest) -> Result<(), String> {
+    for key in manifest.grammar_severity.keys() {
+        let well_formed = key
+            .split_once(':')
+            .is_some_and(|(grammar, check)| !grammar.is_empty() && !check.is_empty());
+        if !well_formed || key.contains(char::is_whitespace) || key.matches(':').count() != 1 {
+            return Err(format!(
+                "grammar_severity key '{key}' is malformed: expected '<grammar>:<check>'"
+            ));
+        }
+    }
+    Ok(())
 }
 
 /// Read + parse `manifest.yaml` from `module_root`.

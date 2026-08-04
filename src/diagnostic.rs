@@ -99,6 +99,13 @@ pub enum Diagnostic {
         name: String,
         modules: Vec<String>,
     },
+    /// A `grammar_severity` key is declared with differing levels by more
+    /// than one module (FR-048-AC-2). First-wins; non-fatal, mirrors
+    /// `DuplicateLexiconTerm`.
+    DuplicateGrammarSeverity {
+        name: String,
+        modules: Vec<String>,
+    },
     /// Two distinct forward `edge_types` verbs declare the **same**
     /// `inverse:` label (FR-041-AC-3). First-wins (the lexicographically
     /// first forward verb owns the label); advisory, mirrors
@@ -256,6 +263,11 @@ impl std::fmt::Display for Diagnostic {
                 "DuplicateLexiconTerm: '{}' contributed by modules {:?}; first-wins",
                 name, modules
             ),
+            Self::DuplicateGrammarSeverity { name, modules } => write!(
+                f,
+                "DuplicateGrammarSeverity: '{}' contributed by modules {:?}; first-wins",
+                name, modules
+            ),
             Self::DuplicateInverseEdge { name, forwards } => write!(
                 f,
                 "DuplicateInverseEdge: inverse label '{}' declared by verbs {:?}; first-wins",
@@ -379,6 +391,11 @@ impl Diagnostic {
             }),
             Self::DuplicateLexiconTerm { name, modules } => json!({
                 "kind": "DuplicateLexiconTerm",
+                "name": name,
+                "modules": modules,
+            }),
+            Self::DuplicateGrammarSeverity { name, modules } => json!({
+                "kind": "DuplicateGrammarSeverity",
                 "name": name,
                 "modules": modules,
             }),

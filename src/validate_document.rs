@@ -161,11 +161,14 @@ pub fn validate_document(archetype: &CompiledArchetype, doc_text: &str) -> Valid
     let mut warnings: Vec<ValidationWarning> = Vec::new();
     // Type-only path: no registry, so an empty lexicon (FR-043) — only the
     // engine-generic mechanism/bound/backtick suppression applies.
+    // FR-048-AC-7: no registry, so the all-default severity map — every
+    // grammar finding surfaces as a warning regardless of any module manifest.
     run_grammar(
         archetype,
         &doc,
         line_offset,
         crate::grammar::empty_lexicon(),
+        crate::grammar::default_severity(),
         &mut errors,
         &mut warnings,
     );
@@ -177,26 +180,32 @@ pub fn validate_document(archetype: &CompiledArchetype, doc_text: &str) -> Valid
 /// its `grammar_ref`, routing findings into `errors`/`warnings` by severity.
 /// No `grammar_ref` (or an unknown bundle) is a no-op — grammar checking is
 /// advisory by construction and never the reason a document fails to validate
-/// in v1 (severity is policy, defaulting to `warning`). `lexicon` is the merged
-/// concrete-term lexicon (FR-043); the type-only path passes an empty one.
+/// by default (severity is policy — `warning` unless a module or the CLI maps
+/// the check otherwise, FR-048). `lexicon` is the merged concrete-term lexicon
+/// (FR-043) and `severity` the merged per-check severity map (FR-048); the
+/// type-only path passes an empty lexicon and the all-default map.
 fn run_grammar(
     archetype: &CompiledArchetype,
     doc: &QuireDocument,
     line_offset: usize,
     lexicon: &crate::grammar::GrammarLexicon,
+    severity: &crate::grammar::GrammarSeverityMap,
     errors: &mut Vec<ValidationError>,
     warnings: &mut Vec<ValidationWarning>,
 ) {
     let Some(grammar_ref) = archetype.grammar_ref() else {
         return;
     };
-    for f in crate::grammar::check_document_grammar(
+    let findings = crate::grammar::check_document_grammar(
         grammar_ref,
         &archetype.name,
         doc,
         line_offset,
         lexicon,
-    ) {
+    );
+    // FR-048: key each finding against the merged map before routing — `off`
+    // drops here, so a suppressed check reaches neither list nor the summary.
+    for f in crate::grammar::apply_severity(findings, severity) {
         route_grammar_finding(f, errors, warnings);
     }
 }
@@ -362,6 +371,7 @@ fn validate_in_registry_core(
         &doc,
         line_offset,
         lexicon,
+        registry.grammar_severity(),
         &mut errors,
         &mut warnings,
     );
@@ -929,6 +939,54 @@ yield_pattern:
         assert_eq!(errors.len(), 1);
         assert!(warnings.is_empty());
         assert_eq!(errors[0].reason, ValidationReason::Grammar);
+    }
+
+    // TC-718 (FR-048-AC-3): with `ac:unclassifiable` mapped to `error`, that
+    // finding lands in `ValidationResult.errors` and clears `is_valid`, while
+    // an `ears` finding with no map entry stays a warning. The `ac` grammar
+    // itself lands in Task-002; this pins the framework's severity-application
+    // + routing contract that FR-047's checks ride on.
+    #[test]
+    fn tc718_per_check_error_routing() {
+        let mut map = crate::grammar::GrammarSeverityMap::new();
+        map.insert(
+            "ac:unclassifiable".into(),
+            crate::grammar::GrammarSeverityLevel::Error,
+        );
+        let emitted = vec![
+            crate::grammar::GrammarFinding {
+                grammar: "ac".into(),
+                check: "unclassifiable".into(),
+                pattern: Some("unclassifiable".into()),
+                message: "criteria cell matches no canonical shape".into(),
+                line: Some(9),
+                statement: "It works".into(),
+                severity: crate::grammar::GrammarSeverity::Warning,
+            },
+            crate::grammar::GrammarFinding {
+                grammar: "ears".into(),
+                check: "vague-response".into(),
+                pattern: None,
+                message: "vague response".into(),
+                line: Some(4),
+                statement: "The system shall support it.".into(),
+                severity: crate::grammar::GrammarSeverity::Warning,
+            },
+        ];
+
+        let mut errors = Vec::new();
+        let mut warnings = Vec::new();
+        for f in crate::grammar::apply_severity(emitted, &map) {
+            route_grammar_finding(f, &mut errors, &mut warnings);
+        }
+
+        assert_eq!(errors.len(), 1);
+        assert!(errors[0].message.contains("[ac:unclassifiable]"));
+        assert_eq!(errors[0].reason, ValidationReason::Grammar);
+        assert_eq!(warnings.len(), 1);
+        assert!(warnings[0].message.contains("[ears:vague-response]"));
+        let result = ValidationResult::new(errors, warnings);
+        assert!(!result.is_valid);
     }
 
     // TC-528 (FR-032-AC-1): conformant document validates.

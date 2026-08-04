@@ -181,12 +181,15 @@ fn check_grammar<'py>(
             None => None,
         };
         let lexicon = registry.as_ref().map_or(&empty, |r| r.lexicon_matcher());
-        Ok(crate::grammar::check_document_grammar(
-            &gref,
-            &arch,
-            &doc,
-            line_offset,
-            lexicon,
+        // FR-048: with a module, apply its merged severity map (an `off` check
+        // is dropped, an `error` check is surfaced as such); without, the
+        // all-default map keeps every finding a warning.
+        let severity = registry
+            .as_ref()
+            .map_or_else(crate::grammar::default_severity, |r| r.grammar_severity());
+        Ok(crate::grammar::apply_severity(
+            crate::grammar::check_document_grammar(&gref, &arch, &doc, line_offset, lexicon),
+            severity,
         ))
     })?;
 

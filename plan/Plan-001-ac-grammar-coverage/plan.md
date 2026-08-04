@@ -252,7 +252,7 @@ its own branch.
 
 | Task | Track | Owns | Depends on | Status |
 |---|---|---|---|---|
-| [Task-001](./tasks/Task-001-fr048-severity-framework.md) | A | FR-048 | — | not_started |
+| [Task-001](./tasks/Task-001-fr048-severity-framework.md) | A | FR-048 | — | completed |
 | [Task-002](./tasks/Task-002-fr047-ac-grammar.md) | A | FR-047 | Task-001 | not_started |
 | [Task-003](./tasks/Task-003-cli-surface-support.md) | A | FR-047-AC-8, FR-048-AC-5/6/10 | Task-002 | not_started |
 | [Task-004](./tasks/Task-004-fr050-traceability-model.md) | B | FR-050-AC-1/2 | — | not_started |

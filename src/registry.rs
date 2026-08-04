@@ -39,6 +39,8 @@ struct Inner {
     /// Merged concrete-term lexicon (FR-043) + its precompiled matcher.
     lexicon: std::collections::BTreeMap<String, crate::vocab::LexiconTermDef>,
     lexicon_matcher: crate::grammar::GrammarLexicon,
+    /// Merged per-check grammar severity registry (FR-048).
+    grammar_severity: crate::grammar::GrammarSeverityMap,
     failures: Vec<ArchetypeLoadFailure>,
     diagnostics: Vec<Diagnostic>,
     path_diagnostics: Vec<PathDiagnostic>,
@@ -186,6 +188,7 @@ impl Registry {
             inverse_edges,
             roles,
             lexicon,
+            grammar_severity,
             failures,
             diagnostics,
             path_diagnostics,
@@ -205,6 +208,7 @@ impl Registry {
                 roles,
                 lexicon,
                 lexicon_matcher,
+                grammar_severity,
                 failures,
                 diagnostics,
                 path_diagnostics,
@@ -304,6 +308,14 @@ impl Registry {
     /// grammar on the registry-backed validation path.
     pub fn lexicon_matcher(&self) -> &crate::grammar::GrammarLexicon {
         &self.inner.lexicon_matcher
+    }
+
+    /// Merged per-check grammar severity registry (FR-048), first-wins across
+    /// modules: `<grammar>:<check>` → `off` | `warning` | `error`. The grammar
+    /// framework keys each emitted finding against this map; an absent key
+    /// means `warning`, so an empty map is the all-default map.
+    pub fn grammar_severity(&self) -> &crate::grammar::GrammarSeverityMap {
+        &self.inner.grammar_severity
     }
 
     /// Compose an ad-hoc `GrammarLexicon` (FR-044) from the merged module
@@ -851,6 +863,142 @@ roles:
             .warnings
             .iter()
             .any(|w| w.message.contains("[ears:vague-response]")));
+    }
+
+    // ── FR-048: per-check grammar severity ─────────────────────────
+
+    /// A module whose `FR` archetype is bound to the EARS grammar, with an
+    /// optional `grammar_severity` block appended to the manifest.
+    fn write_grammar_module(root: &Path, name: &str, extra: &str) {
+        fs::create_dir_all(root.join("schemas")).unwrap();
+        fs::write(
+            root.join("manifest.yaml"),
+            format!(
+                "name: {name}\nartifact_types:\n- name: FR\n  \
+                 frontmatter_schema_ref: schemas/fr.schema.json\n  \
+                 grammar_ref: iso-spec-core\n{extra}"
+            ),
+        )
+        .unwrap();
+        fs::write(root.join("schemas/fr.schema.json"), r#"{"type":"object"}"#).unwrap();
+    }
+
+    // TC-716 (FR-048-AC-1): a manifest `grammar_severity` registry loads and
+    // `Registry::grammar_severity()` returns the merged map.
+    #[test]
+    fn tc716_grammar_severity_loads_and_accessor() {
+        let p = tmpdir("severity-716");
+        write_vocab_module(
+            &p.join("m"),
+            "m",
+            "grammar_severity:\n  \"ac:unclassifiable\": error\n  \"ac:vague-response\": off\n",
+        );
+        let r = Registry::load_from(&[&p]).expect("tolerant ok");
+        assert_eq!(
+            r.grammar_severity().get("ac:unclassifiable"),
+            Some(&crate::grammar::GrammarSeverityLevel::Error)
+        );
+        assert_eq!(
+            r.grammar_severity().get("ac:vague-response"),
+            Some(&crate::grammar::GrammarSeverityLevel::Off)
+        );
+    }
+
+    // TC-717 (FR-048-AC-2): conflicting redeclarations merge first-wins with
+    // one `DuplicateGrammarSeverity`; identical redeclaration emits none.
+    #[test]
+    fn tc717_grammar_severity_merge_first_wins() {
+        let p = tmpdir("severity-717");
+        write_vocab_module(
+            &p.join("m1"),
+            "m1",
+            "grammar_severity:\n  \"ac:unclassifiable\": error\n  \"ac:non-singular\": warning\n",
+        );
+        write_vocab_module(
+            &p.join("m2"),
+            "m2",
+            // `ac:unclassifiable` conflicts; `ac:non-singular` is identical.
+            "grammar_severity:\n  \"ac:unclassifiable\": off\n  \"ac:non-singular\": warning\n",
+        );
+        let r = Registry::load_from(&[&p]).expect("tolerant ok");
+        // First-wins keeps the earliest level.
+        assert_eq!(
+            r.grammar_severity()["ac:unclassifiable"],
+            crate::grammar::GrammarSeverityLevel::Error
+        );
+        let dups: Vec<&str> = r
+            .diagnostics()
+            .iter()
+            .filter_map(|d| match d {
+                Diagnostic::DuplicateGrammarSeverity { name, .. } => Some(name.as_str()),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(dups, vec!["ac:unclassifiable"]);
+    }
+
+    // TC-723 (FR-048-AC-8): a malformed `grammar_severity` entry fails module
+    // load like any other manifest shape error.
+    #[test]
+    fn tc723_malformed_grammar_severity_fails_load() {
+        // Unknown level.
+        let p = tmpdir("severity-723-level");
+        write_vocab_module(
+            &p.join("m"),
+            "m",
+            "grammar_severity:\n  \"ac:unclassifiable\": fatal\n",
+        );
+        let r = Registry::load_from(&[&p]).expect("tolerant ok");
+        assert!(r.module_names().next().is_none(), "module must not load");
+        assert!(r
+            .failures()
+            .iter()
+            .any(|f| f.archetype == "<manifest>" && f.reason.contains("fatal")));
+
+        // Non-string key.
+        let p2 = tmpdir("severity-723-key");
+        write_vocab_module(&p2.join("m"), "m", "grammar_severity:\n  12: error\n");
+        let r2 = Registry::load_from(&[&p2]).expect("tolerant ok");
+        assert!(r2.module_names().next().is_none(), "module must not load");
+        assert!(
+            r2.failures()
+                .iter()
+                .any(|f| f.archetype == "<manifest>"
+                    && f.reason.contains("grammar_severity key '12'"))
+        );
+    }
+
+    // TC-722 (FR-048-AC-7): the type-only `validate_document` path applies the
+    // all-default map — every grammar finding is a warning regardless of the
+    // module's manifest, which promotes the same check to `error`.
+    #[test]
+    fn tc722_type_only_path_applies_all_default_severity() {
+        let p = tmpdir("severity-722");
+        write_grammar_module(
+            &p.join("m"),
+            "m",
+            "grammar_severity:\n  \"ears:vague-response\": error\n",
+        );
+        let r = Registry::load_from(&[&p]).expect("tolerant ok");
+        let fr = r.archetype("FR").expect("FR archetype");
+        let doc = "---\ntype: FR\n---\n## Description\n\nThe system shall support pagination.\n";
+
+        // Registry path: the manifest promotes the check to `error`.
+        let with_reg = crate::validate_document_in_registry(&r, fr, doc);
+        assert!(!with_reg.is_valid);
+        assert!(with_reg
+            .errors
+            .iter()
+            .any(|e| e.message.contains("[ears:vague-response]")));
+
+        // Type-only path: all-default map → the same finding is a warning.
+        let type_only = crate::validate_document(fr, doc);
+        assert!(type_only.is_valid);
+        assert!(type_only
+            .warnings
+            .iter()
+            .any(|w| w.message.contains("[ears:vague-response]")));
+        assert!(type_only.errors.is_empty());
     }
 
     // TC-676 (FR-044-AC-3): `lexicon_with` composes module keys ∪ project terms.

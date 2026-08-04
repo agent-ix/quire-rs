@@ -47,6 +47,9 @@ pub struct LoadedModule {
     pub roles: BTreeMap<String, RoleDef>,
     /// Concrete-term lexicon contributed by this module (FR-043).
     pub lexicon: BTreeMap<String, LexiconTermDef>,
+    /// Per-check grammar severity registry contributed by this module
+    /// (FR-048).
+    pub grammar_severity: BTreeMap<String, crate::grammar::GrammarSeverityLevel>,
 }
 
 /// Outcome of a full load pass.
@@ -353,6 +356,7 @@ pub fn load_inline_module(manifest_yaml: &[u8], schemas: &BTreeMap<String, Strin
         edge_types: manifest.edge_types.clone(),
         roles: manifest.roles.clone(),
         lexicon: manifest.lexicon.clone(),
+        grammar_severity: manifest.grammar_severity.clone(),
     });
 
     LoadOutcome {
@@ -494,6 +498,7 @@ fn load_one_module(
             edge_types: manifest.edge_types.clone(),
             roles: manifest.roles.clone(),
             lexicon: manifest.lexicon.clone(),
+            grammar_severity: manifest.grammar_severity.clone(),
         },
         failures,
     ))
@@ -694,6 +699,16 @@ pub fn flatten_into_registry(mut outcome: LoadOutcome) -> RegistryShape {
             .diagnostics
             .push(Diagnostic::DuplicateLexiconTerm { name, modules });
     }
+    // FR-048: merge the per-check grammar severity registry (same machinery).
+    // A key redeclared with a *differing* level is first-wins + one non-fatal
+    // DuplicateGrammarSeverity; identical redeclaration is idempotent.
+    let (grammar_severity, mut severity_dups) =
+        merge_vocab(&outcome.modules, |m| &m.grammar_severity);
+    for (name, modules) in severity_dups.drain(..) {
+        outcome
+            .diagnostics
+            .push(Diagnostic::DuplicateGrammarSeverity { name, modules });
+    }
 
     // ── FR-041: derive the inverse-label → forward-verb index from the
     // merged edge_types. A declared `inverse:` label becomes an authorable
@@ -781,6 +796,7 @@ pub fn flatten_into_registry(mut outcome: LoadOutcome) -> RegistryShape {
         inverse_edges,
         roles,
         lexicon,
+        grammar_severity,
         failures: outcome.failures,
         diagnostics: outcome.diagnostics,
         path_diagnostics: outcome.path_diagnostics,
@@ -917,6 +933,9 @@ pub struct RegistryShape {
     pub roles: BTreeMap<String, RoleDef>,
     /// Merged concrete-term lexicon, first-wins across modules (FR-043).
     pub lexicon: BTreeMap<String, LexiconTermDef>,
+    /// Merged per-check grammar severity registry, first-wins across modules
+    /// (FR-048). An absent key means `warning`.
+    pub grammar_severity: BTreeMap<String, crate::grammar::GrammarSeverityLevel>,
     pub failures: Vec<ArchetypeLoadFailure>,
     pub diagnostics: Vec<Diagnostic>,
     pub path_diagnostics: Vec<PathDiagnostic>,
