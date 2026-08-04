@@ -103,6 +103,7 @@ the histogram covers every grammar and check.
 | FR-047-AC-8 | `quire validate --summary` histograms findings by the generic `[<grammar>:<check>]` prefix: a corpus emitting both `[ears:*]` and `[ac:*]` findings shows both in the summary. | Test (TC-714) |
 | FR-047-AC-9 | The `ac` grammar entry point is exposed through the existing grammar PyO3 surface and returns the same findings as the in-process Rust call for a fixture document. | Test (TC-715) |
 | FR-047-AC-10 | A `given-when-then`-shaped cell yields one `non-canonical-shape` finding while still classifying `given-when-then` (its other checks run on the `Then` clause); an EARS-shaped cell yields none. | Test (TC-751) |
+| FR-047-AC-11 | Fenced code blocks and blockquotes inside a `### <doc-id>-AC-N` supplement section are skipped: statements inside them are not segmented and yield no `ac` findings, while the surrounding supplement prose is still checked. | Test (TC-754) |
 
 ## Dependencies
 

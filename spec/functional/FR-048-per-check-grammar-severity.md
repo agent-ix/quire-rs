@@ -66,6 +66,7 @@ matching the empty-lexicon degradation documented in FR-043.
 | FR-048-AC-7 | The type-only `validate_document` path applies the all-default map: every grammar finding surfaces as a warning regardless of any module's manifest. | Test (TC-722) |
 | FR-048-AC-8 | A malformed `grammar_severity` entry (unknown level, non-string key) fails module load like any other manifest shape error. | Test (TC-723) |
 | FR-048-AC-9 | A check mapped `off` (manifest or `--severity ac:vague-response=off`) records no finding in `warnings`, `errors`, or the `--summary` histogram, while sibling checks of the same grammar still report. | Test (TC-752) |
+| FR-048-AC-10 | A malformed `--severity` entry (unknown level, missing `=`, or an unparseable `<grammar>:<check>` key) is rejected with a usage diagnostic and a non-zero exit before validation runs. | Test (TC-755) |
 
 ## Dependencies
 
