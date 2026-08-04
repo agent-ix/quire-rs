@@ -66,7 +66,15 @@ core extraction result compatible with the shared `CoreExtractionResult` contrac
 | FR-045-CON-1 | The extraction engine SHALL NOT read PGlite, Electron IPC, HTTP, auth, CloudManager sync, workspace watch queues, or embeddings. | Architecture | Inspection |
 | FR-045-CON-2 | ObjectType snapshots SHALL be supplied by the caller. | Architecture | Test |
 | FR-045-CON-3 | The engine SHALL NOT discover a runtime registry over the network or from service configuration. | Architecture | Test |
-| FR-045-CON-4 | Non-`ix://` graph references SHALL normalize to `ix://agent-ix/<repo_name>/<value>` before record id generation. | Compatibility | Test |
+| FR-045-CON-4 | Non-`ix://` graph references SHALL normalize to `ix://<org>/<repo_name>/<value>` before record id generation, where `org` and `repo_name` are caller-supplied via `FilamentExtractionInput` — the engine carries no default org, and a missing `org` is an input (deserialization) error. | Compatibility | Test |
+
+> **CR-012 note:** CON-4 originally hardcoded the org segment
+> (`ix://agent-ix/<repo_name>/<value>`). PR #15 parameterized it: `org` is a
+> required `FilamentExtractionInput` field and `normalize_ref(org, repo_name,
+> value)` emits `ix://{org}/{repo_name}/{value}` (see
+> `org_qualifies_refs_from_input_not_a_literal` in `src/filament.rs`). The
+> constraint text was aligned with the shipped behavior on 2026-08-04
+> (SR-002 FND-002).
 
 ## Acceptance Criteria
 

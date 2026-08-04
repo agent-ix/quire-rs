@@ -62,11 +62,16 @@ violates a check:
 4. **no-observable-outcome** — the statement's outcome clause names no
    externally checkable result. An outcome is observable when the clause
    carries a concrete-object signal per FR-042 (a backticked identifier, a
-   numeric bound, or a lexicon term) or an observable-result verb from a
-   bounded engine list (`returns`, `emits`, `yields`, `reports`, `records`,
-   `rejects`, `fails`, `exits`, `persists`, `prints`, `contains`, `equals`,
-   `matches`, and their inflections). A clause with none of these signals
-   (e.g. `The import works correctly`) SHALL be flagged.
+   numeric bound, or a lexicon term) or an **observable-result verb**. The
+   observable-verb vocabulary is module data per ADR 0009 (concrete
+   vocabulary is module data): the engine SHALL ship a built-in default set
+   (`returns`, `emits`, `yields`, `reports`, `records`, `rejects`, `fails`,
+   `exits`, `persists`, `prints`, `contains`, `equals`, `matches`, and their
+   inflections), and a module MAY extend or override it via an
+   `observable_verbs` registry in its `manifest.yaml`, merged across modules
+   first-wins with the built-in defaults at lowest precedence — the same
+   merge pattern as the FR-043 `lexicon`. A clause with none of these
+   signals (e.g. `The import works correctly`) SHALL be flagged.
 5. **non-canonical-shape** — the statement is `given-when-then`-shaped. The
    finding steers the author toward the canonical EARS shape, in the same
    spirit as the EARS `non-canonical-trigger` check; classification still
@@ -104,6 +109,7 @@ the histogram covers every grammar and check.
 | FR-047-AC-9 | The `ac` grammar entry point is exposed through the existing grammar PyO3 surface and returns the same findings as the in-process Rust call for a fixture document. | Test (TC-715) |
 | FR-047-AC-10 | A `given-when-then`-shaped cell yields one `non-canonical-shape` finding while still classifying `given-when-then` (its other checks run on the `Then` clause); an EARS-shaped cell yields none. | Test (TC-751) |
 | FR-047-AC-11 | Fenced code blocks and blockquotes inside a `### <doc-id>-AC-N` supplement section are skipped: statements inside them are not segmented and yield no `ac` findings, while the surrounding supplement prose is still checked. | Test (TC-754) |
+| FR-047-AC-12 | The observable-verb vocabulary is module data: a module's `observable_verbs` registry merges first-wins over the built-in defaults (a module-added verb suppresses `no-observable-outcome`), and with no module declaration the built-in default set applies unchanged. | Test (TC-757) |
 
 ## Dependencies
 

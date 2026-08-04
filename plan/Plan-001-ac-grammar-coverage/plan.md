@@ -20,7 +20,7 @@ relationships:
 # Implementation Plan: AC grammar + declarative traceability coverage
 
 TDD plan for implementing FR-047..FR-051 (spec branch `spec/ac-grammar-coverage`,
-reviewed in SR-002, matrix 437/437). **Out of scope by instruction:** ADR-0010
+reviewed in SR-002, matrix 438/438). **Out of scope by instruction:** ADR-0010
 (SMT consistency analysis) — the ADR is `Proposed` with no decision; no
 `quire-analyze` work appears in this plan.
 
@@ -106,24 +106,31 @@ The plan isolates **two work classes that never share a branch or a task**:
 - `FR-050-CON-2`/`FR-051-CON-1` purity applies to `src/coverage`/`src/symbols`
   (working module names) — enforced by the TC-756 static audit.
 
-## External Dependencies (NOT tasks in this repo)
+## External Dependencies (tracked; NOT tasks in this repo)
 
-| Dependency | Where | Blocks |
-|---|---|---|
-| ISO `traceability:` model declaration (+ `ac`/`grammar_severity` ISO defaults) | `spec-artifacts-iso` module (follow-up change) | Real-world activation of FR-049/FR-050 on ISO repos; engine tasks use fixture modules and are NOT blocked |
-| `spec-artifacts-process` FR-003 + future ISO traceability declaration | `spec-artifacts-process` module | FR-050 dogfooding over process-module artifacts (matrix/plan docs); fixture-based tasks not blocked |
-| CLI wiring: `--severity`, generic `--summary` parser, `quire coverage` command | `quire-cli` repo (release-coupled) | TC-714/720/721/755/740 end-to-end runs; engine exposes the APIs (Tasks 002/003/007), CLI PR lands in `quire-cli` |
-| Companion marker packages: pytest plugin (`trace` marker), Rust no-op proc-macro crate, npm vitest/jest helper | separate deliverables (FR-051 Companion deliverables; ADR-0010 placement precedent for separate crates) | Track C legacy-tag migration (Task-010) needs the Rust `#[trace]` crate to rewrite this repo's tests; extractor tasks parse fixtures statically and are NOT blocked |
-| ADR-0010 / SMT (`quire-analyze`) | excluded — Proposed, no decision | nothing in this plan |
+Tracked entries per SR-002 FND-004 — each has an owning repo and explicit
+blocking relationships to the tasks it gates. Do not close a gated task's
+"end-to-end" exit criterion while its EXT entry is `open`.
+
+| ID | Deliverable | Owning repo | Status | Gates (blocking relationship) |
+|---|---|---|---|---|
+| EXT-1 | ISO `traceability:` model declaration (+ `ac`/`grammar_severity` ISO defaults) | `agent-ix/spec-artifacts-iso` | open | Real-world activation of Task-007/Task-008 output on ISO repos, and Task-009's sweep over ISO-declared severity defaults. Engine tasks run on fixture modules — not blocked for implementation, blocked for rollout. |
+| EXT-2 | `FR-003` master-requirements surface + future ISO traceability declaration | `agent-ix/spec-artifacts-process` | open | Task-007 dogfooding of `quire coverage` over process-module artifacts (matrix/plan docs). Fixture-based TCs not blocked. |
+| EXT-3 | CLI wiring: `--severity` flag, generic `--summary` parser, `quire coverage` command | `agent-ix/quire-cli` (release-coupled) | open | End-to-end runs of TC-714/720/721/755/740: Task-003 and Task-007 deliver the engine APIs, their CLI-level exit criteria complete only with the quire-cli PR. |
+| EXT-4a | pytest plugin registering the `trace` marker | companion package (repo TBD, owner: user decision) | open | Python-side migrations in downstream repos; no quire-rs task blocked (fixtures declare forms statically). |
+| EXT-4b | Rust no-op `#[trace]` proc-macro support crate | companion crate (repo TBD, owner: user decision) | open | **Hard prerequisite of Task-010** (this repo's legacy-tag migration rewrites Rust tests to `#[trace(...)]`). Task-010 stops if unpublished. |
+| EXT-4c | npm vitest/jest `trace()` helper | companion package (repo TBD, owner: user decision) | open | TS-side migrations in downstream repos; no quire-rs task blocked. |
+| EXT-5 | ADR-0010 / SMT (`quire-analyze`) | excluded — ADR is Proposed, no decision | n/a | Gates nothing in this plan. |
 
 ## Test Plan
 
 TC definitions live in `spec/tests.md` (TC-707..756, all 🚧). Grouped by module:
 
 ### Grammar (`src/grammar`) — Unit
-- [ ] TC-707..711, TC-751, TC-754 (FR-047): shape classification, every-cell
-  segmentation, non-singular + pair idiom, lexicon-backed vague-response,
-  no-observable-outcome, non-canonical-shape, supplement fenced/quote skip.
+- [ ] TC-707..711, TC-751, TC-754, TC-757 (FR-047): shape classification,
+  every-cell segmentation, non-singular + pair idiom, lexicon-backed
+  vague-response, no-observable-outcome with module-data `observable_verbs`
+  over built-in defaults, non-canonical-shape, supplement fenced/quote skip.
 - [ ] TC-712, TC-713 (FR-047): binding scope; finding fields + severity routing.
 - [ ] TC-716..719, TC-722, TC-723, TC-752 (FR-048): registry load/merge/
   accessor, default-warning, type-only all-default, malformed manifest, `off`.
@@ -190,7 +197,8 @@ Task-009 (C) baseline sweep                  Task-010 (C) legacy trace-tag migra
 - **Scope:** `ac` grammar registration + bindings (Criteria column, AC
   supplement sections), shape classifier, five checks, supplement skip rules,
   finding shape + routing, PyO3 surface.
-- **Difficulty:** Hard — **Exit:** TC-707..713, TC-751, TC-754, TC-715 green.
+- **Difficulty:** Hard — **Exit:** TC-707..713, TC-751, TC-754, TC-757,
+  TC-715 green.
 
 #### A3 (Task-003): CLI-surface support (engine side)
 - **Scope:** generic `[<grammar>:<check>]` finding prefix + summary-grouping

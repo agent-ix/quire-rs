@@ -30,6 +30,8 @@ relationships:
     type: verifies
   - target: ix://agent-ix/quire-rs/TC-754
     type: verifies
+  - target: ix://agent-ix/quire-rs/TC-757
+    type: verifies
 ---
 # Task-002: FR-047 — acceptance-criteria grammar (`ac`)
 
@@ -40,8 +42,9 @@ Register the `ac` grammar on the FR-042 framework: bindings to the FR
 sections; every non-empty cell is a statement (no modal-verb filter); shape
 classification `ears` (canonical) / `given-when-then` / `unclassifiable`; the
 five checks (unclassifiable, non-singular with the positive/negative pair
-idiom, lexicon-backed vague-response, no-observable-outcome with the bounded
-observable-verb list, non-canonical-shape); fenced-block/blockquote skip
+idiom, lexicon-backed vague-response, no-observable-outcome with the
+module-data `observable_verbs` vocabulary over built-in defaults,
+non-canonical-shape); fenced-block/blockquote skip
 inside supplements; findings carry `grammar: "ac"` + check id + excerpt +
 line + shape + severity and route per the Task-001 severity map; PyO3 parity.
 
@@ -54,7 +57,9 @@ line + shape + severity and route per the Task-001 severity map; PyO3 parity.
   clause (TC-751).
 - [ ] **Checks.** non-singular + pair idiom (TC-709); vague-response via the
   merged FR-043/FR-044 lexicon — one implementation, two grammars (TC-710);
-  no-observable-outcome signals (TC-711).
+  no-observable-outcome signals with the module-data `observable_verbs`
+  registry first-wins over built-in defaults, ADR-0009 pattern (TC-711,
+  TC-757).
 - [ ] **Finding shape + routing.** (TC-713) via the FR-048 severity map.
 - [ ] **PyO3 surface.** Same findings as the in-process call (TC-715).
 

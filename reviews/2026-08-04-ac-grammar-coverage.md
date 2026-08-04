@@ -27,12 +27,17 @@ TC in `spec/tests.md` (435/435 rollup verified), all internal links resolve,
 and `quire validate` emits zero findings against the new artifacts (the only
 grammar warnings and structural failures in the corpus are pre-existing on
 main). One clear-cut cross-reference gap was fixed in place (FND-001); the
-remaining findings are recorded open — they concern pre-existing artifacts or
-substantive design questions that this branch must not settle unilaterally.
+remaining four findings were initially recorded open (pre-existing artifacts /
+substantive design questions), then fixed on 2026-08-04 under explicit user
+authorization — see the RESOLVED annotations per finding. Post-fix state:
+FR-045-CON-4 aligned with code via CR-012, FR-042 non-goals reworded,
+external deliverables tracked as EXT entries in Plan-001, and FR-047's
+observable-verb vocabulary made module data (AC-12/TC-757; matrix 438/438).
 
 ## Verdict
 
-**PASS (with open notes)** — the new slice meets the base checklist: clear
+**PASS** (open notes since resolved under user authorization, 2026-08-04) —
+the new slice meets the base checklist: clear
 EARS-shaped normative statements, testable ACs with unique TC backing under
 all six coverage rules, constraints with rationale/validation, dependencies
 declared upstream/downstream, and house-style US structure (illustrative
@@ -45,10 +50,10 @@ findings below are advisory for follow-up, not blockers for this spec slice.
 | ID      | Severity | Summary | Refs |
 | ------- | -------- | ------- | ---- |
 | FND-001 | low      | FIXED — FR-047 frontmatter carried a `requires` edge to FR-043 but not FR-044, while its `vague-response` check normatively consumes the merged module lexicon *and* the project glossary "exactly as the EARS check does". Added the symmetric `requires` FR-044 edge. | FR-047, FR-044 |
-| FND-002 | low      | OPEN — FR-045-CON-4's literal text still normalizes non-`ix://` refs to hardcoded `ix://agent-ix/<repo_name>/<value>`, but PR #15 (main) made the org caller-supplied, and FR-051 correctly describes CON-4 as "the caller-supplied org/repo". FR-045 is pre-existing and untouched by this branch; it needs a CR-note amendment on its own change (see CR-002/CR-011 pattern), not an edit here. | FR-045-CON-4, FR-051 |
-| FND-003 | low      | OPEN — FR-042's "Non-goals (v1)" anticipated "`GWT` (acceptance criteria)" as the future AC grammar; FR-047 ships `ac` with EARS as the canonical shape and GWT as recognized-but-steered (`non-canonical-shape`). Not a contradiction (FR-047 `extends` FR-042 and the non-goal is historical), but a reader of FR-042 alone may expect GWT-canonical. Optional: a CR note on FR-042 pointing forward to FR-047. | FR-042, FR-047-AC-10 |
-| FND-004 | medium   | OPEN — external-coordination risk: FR-049/FR-050 activate only once `spec-artifacts-iso` declares the ISO `traceability:` model, and FR-051's canonical markers imply three companion packages (pytest plugin, Rust proc-macro crate, npm helper) outside quire-rs. All are named in Dependencies/Downstream as follow-ups, which is correct, but no tracking artifact exists in those repos yet; the implementation plan must model them as external dependencies, not tasks. | FR-049, FR-050, FR-051 |
-| FND-005 | medium   | OPEN — architectural tension: FR-047's `no-observable-outcome` check keys on "an observable-result verb from a bounded engine list", while ADR-0009/FR-043 established that concrete vocabulary is module data, not engine code. Whether the observable-verb list should instead be a module-declared registry (like `lexicon:`) is a design decision for the owner — left open, not reworked here. | FR-047, FR-043, ADR-0009 |
+| FND-002 | low      | RESOLVED (2026-08-04, user-authorized) — FR-045-CON-4 reworded via CR-012: the org segment is caller-supplied (`FilamentExtractionInput.org`, no engine default, missing org is an input error), matching PR #15's shipped `normalize_ref(org, repo_name, value)` behavior (verified against `src/filament.rs`, incl. `org_qualifies_refs_from_input_not_a_literal`). | FR-045-CON-4, FR-051 |
+| FND-003 | low      | RESOLVED (2026-08-04, user-authorized) — FR-042's "Non-goals (v1)" bullet minimally reworded: the stale "`GWT` (acceptance criteria)… later" anticipation now points at FR-047's realized `ac` grammar with EARS (not GWT) as the canonical AC shape; a `US` story grammar remains future work. No restructuring of FR-042. | FR-042, FR-047-AC-10 |
+| FND-004 | medium   | RESOLVED (2026-08-04, user-authorized) — external deliverables now have tracked entries EXT-1..EXT-4c in Plan-001's plan.md with owning-repo attribution (`spec-artifacts-iso`, `spec-artifacts-process`, `quire-cli`, three companion marker packages) and explicit blocking relationships to the tasks they gate (Task-003/007/008/009/010; EXT-4b is a hard Task-010 prerequisite), plus a Plan-001 log entry. `spec/assets/external-blockers.md` untouched (untyped). | FR-049, FR-050, FR-051 |
+| FND-005 | medium   | RESOLVED (2026-08-04, user-authorized) — FR-047's observable-verb vocabulary reworked to module data per ADR-0009: the engine ships built-in defaults, modules extend/override via an `observable_verbs` manifest registry merged first-wins (FR-043 `lexicon` pattern). Added FR-047-AC-12 + TC-757; matrix 438/438. | FR-047-AC-12, FR-043, ADR-0009 |
 
 ## Coverage
 

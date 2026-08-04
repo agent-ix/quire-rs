@@ -16,3 +16,13 @@ description: "Chronological log of changes to the Plan-001 bundle."
   decision). External dependencies recorded: `spec-artifacts-iso` traceability
   declaration, `spec-artifacts-process` FR-003, `quire-cli` wiring, companion
   marker packages (pytest plugin, Rust proc-macro crate, npm helper).
+* **2026-08-04** — SR-002 FND-004 resolution (user-authorized): external
+  dependencies converted to tracked entries EXT-1..EXT-5 with owning-repo
+  attribution and explicit blocking relationships to gated tasks —
+  EXT-1 `spec-artifacts-iso` traceability declaration (gates Task-007/008
+  rollout + Task-009 defaults), EXT-2 `spec-artifacts-process` FR-003
+  (gates Task-007 dogfooding), EXT-3 `quire-cli` wiring (gates Task-003/007
+  CLI-level exit criteria), EXT-4a/4b/4c companion marker packages (EXT-4b
+  Rust `#[trace]` crate is a hard Task-010 prerequisite). Also wired the
+  FND-005 rework into Task-002: FR-047-AC-12/TC-757 (module-data
+  `observable_verbs`).
