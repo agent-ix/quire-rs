@@ -9,6 +9,9 @@ relationships:
   - target: "ix://agent-ix/quire-rs/spec/functional/FR-043"
     type: "requires"
     cardinality: "1:1"
+  - target: "ix://agent-ix/quire-rs/spec/functional/FR-044"
+    type: "requires"
+    cardinality: "1:1"
   - target: "ix://agent-ix/quire-rs/spec/usecase/US-014"
     type: "implements"
 ---
