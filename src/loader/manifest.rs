@@ -198,10 +198,7 @@ pub fn parse_manifest(bytes: &[u8]) -> Result<Manifest, String> {
 /// `<grammar>:<check>` — two non-empty, whitespace-free halves.
 fn check_grammar_severity_keys(manifest: &Manifest) -> Result<(), String> {
     for key in manifest.grammar_severity.keys() {
-        let well_formed = key
-            .split_once(':')
-            .is_some_and(|(grammar, check)| !grammar.is_empty() && !check.is_empty());
-        if !well_formed || key.contains(char::is_whitespace) || key.matches(':').count() != 1 {
+        if !crate::grammar::is_severity_key(key) {
             return Err(format!(
                 "grammar_severity key '{key}' is malformed: expected '<grammar>:<check>'"
             ));

@@ -261,6 +261,98 @@ pub fn severity_level(
         .unwrap_or(GrammarSeverityLevel::Warning)
 }
 
+/// A malformed `--severity <grammar>:<check>=<level>` entry (FR-048-AC-10).
+/// The `Display` text is the usage diagnostic a surface prints before exiting
+/// non-zero; it always quotes the offending entry.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum SeverityOverrideError {
+    #[error("--severity entry '{entry}' is malformed: expected '<grammar>:<check>=<level>'")]
+    MalformedEntry { entry: String },
+    #[error(
+        "--severity entry '{entry}' has an unknown level '{level}': expected off|warning|error"
+    )]
+    UnknownLevel { entry: String, level: String },
+}
+
+/// Parse the repeatable `--severity <grammar>:<check>=<level>` option and layer
+/// the entries **over** `manifest` (FR-048-AC-5): a CLI-supplied entry wins for
+/// its key, every other manifest entry survives. A malformed entry is rejected
+/// with a usage diagnostic and no map is produced, so a surface can exit
+/// non-zero before validation runs (FR-048-AC-10).
+pub fn merge_severity_overrides<'a, I: IntoIterator<Item = &'a str>>(
+    manifest: &GrammarSeverityMap,
+    entries: I,
+) -> Result<GrammarSeverityMap, SeverityOverrideError> {
+    let mut merged = manifest.clone();
+    for entry in entries {
+        let (key, level) = parse_severity_entry(entry)?;
+        merged.insert(key, level);
+    }
+    Ok(merged)
+}
+
+/// Parse one `<grammar>:<check>=<level>` entry. The key must be the same
+/// well-formed `<grammar>:<check>` shape the manifest registry accepts.
+fn parse_severity_entry(
+    entry: &str,
+) -> Result<(String, GrammarSeverityLevel), SeverityOverrideError> {
+    let malformed = || SeverityOverrideError::MalformedEntry {
+        entry: entry.to_string(),
+    };
+    let (key, level) = entry.split_once('=').ok_or_else(malformed)?;
+    if !is_severity_key(key) {
+        return Err(malformed());
+    }
+    let level = match level {
+        "off" => GrammarSeverityLevel::Off,
+        "warning" => GrammarSeverityLevel::Warning,
+        "error" => GrammarSeverityLevel::Error,
+        other => {
+            return Err(SeverityOverrideError::UnknownLevel {
+                entry: entry.to_string(),
+                level: other.to_string(),
+            })
+        }
+    };
+    Ok((key.to_string(), level))
+}
+
+/// True when `key` is a well-formed `<grammar>:<check>` registry key: exactly
+/// one colon, two non-empty halves, no whitespace. Shared by the `--severity`
+/// parser and the manifest loader so both surfaces accept the same vocabulary.
+pub fn is_severity_key(key: &str) -> bool {
+    key.matches(':').count() == 1
+        && !key.contains(char::is_whitespace)
+        && key
+            .split_once(':')
+            .is_some_and(|(grammar, check)| !grammar.is_empty() && !check.is_empty())
+}
+
+/// Histogram grammar findings by the generic `[<grammar>:<check>]` message
+/// prefix (FR-047-AC-8) — the `--summary` grouping, covering **every** grammar
+/// in the bundle rather than a hardcoded `[ears:` prefix. Messages without the
+/// prefix (diagnostics from other validation layers) are ignored. `BTreeMap`
+/// keeps the histogram deterministic (NFR-006).
+pub fn summarize_findings<'a, I: IntoIterator<Item = &'a str>>(
+    messages: I,
+) -> std::collections::BTreeMap<String, usize> {
+    let mut out: std::collections::BTreeMap<String, usize> = std::collections::BTreeMap::new();
+    for message in messages {
+        if let Some(key) = finding_prefix_key(message) {
+            *out.entry(key.to_string()).or_insert(0) += 1;
+        }
+    }
+    out
+}
+
+/// The `<grammar>:<check>` key of a message carrying the generic finding
+/// prefix `[<grammar>:<check>] …`, or `None` when it carries no such prefix.
+pub fn finding_prefix_key(message: &str) -> Option<&str> {
+    let rest = message.strip_prefix('[')?;
+    let (key, _) = rest.split_once(']')?;
+    is_severity_key(key).then_some(key)
+}
+
 /// One grammar diagnostic against a single normative statement.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GrammarFinding {
@@ -386,6 +478,103 @@ mod tests {
             .map(|f| format!("{}:{}", f.grammar, f.check))
             .collect();
         assert_eq!(keys, vec!["ac:non-singular", "ears:vague-response"]);
+    }
+
+    // TC-714 (FR-047-AC-8): the summary histogram groups by the generic
+    // `[<grammar>:<check>]` prefix, so a corpus emitting both `[ears:*]` and
+    // `[ac:*]` findings shows both.
+    #[test]
+    fn tc714_summary_groups_every_grammar() {
+        let messages = [
+            "[ears:vague-response] vague response verb `support`",
+            "[ac:unclassifiable] criterion matches neither shape",
+            "[ears:vague-response] vague response verb `provide`",
+            "[ac:no-observable-outcome] outcome clause names no result",
+            "unprefixed diagnostic from another layer",
+        ];
+        let histogram = summarize_findings(messages.iter().copied());
+        assert_eq!(histogram.get("ears:vague-response"), Some(&2));
+        assert_eq!(histogram.get("ac:unclassifiable"), Some(&1));
+        assert_eq!(histogram.get("ac:no-observable-outcome"), Some(&1));
+        assert_eq!(histogram.len(), 3, "unprefixed lines are not histogrammed");
+        // Deterministic ordering (NFR-006).
+        assert_eq!(
+            histogram.keys().collect::<Vec<_>>(),
+            vec![
+                "ac:no-observable-outcome",
+                "ac:unclassifiable",
+                "ears:vague-response"
+            ]
+        );
+    }
+
+    // TC-720 (FR-048-AC-5): `--severity` entries are repeatable and take
+    // precedence over a conflicting manifest entry for the same key.
+    #[test]
+    fn tc720_cli_severity_overrides_manifest() {
+        let mut manifest = GrammarSeverityMap::new();
+        manifest.insert("ears:vague-response".into(), GrammarSeverityLevel::Warning);
+        manifest.insert("ac:unclassifiable".into(), GrammarSeverityLevel::Error);
+
+        let merged = merge_severity_overrides(
+            &manifest,
+            ["ears:vague-response=error", "ac:non-singular=off"],
+        )
+        .expect("well-formed entries");
+
+        // CLI wins for its key…
+        assert_eq!(merged["ears:vague-response"], GrammarSeverityLevel::Error);
+        // …the repeated second entry also lands…
+        assert_eq!(merged["ac:non-singular"], GrammarSeverityLevel::Off);
+        // …and an untouched manifest entry survives.
+        assert_eq!(merged["ac:unclassifiable"], GrammarSeverityLevel::Error);
+
+        // The promoted key now routes a finding as an error.
+        let out = apply_severity(vec![finding("ears", "vague-response")], &merged);
+        assert_eq!(out[0].severity, GrammarSeverity::Error);
+    }
+
+    // TC-721 (FR-048-AC-6): `--strict` semantics are untouched. The engine
+    // surface `--strict` reads is unchanged: with no severity map a grammar
+    // finding is still a warning that leaves the document valid, so the exit
+    // code stays the CLI's own decision.
+    #[test]
+    fn tc721_strict_semantics_unchanged() {
+        let manifest = GrammarSeverityMap::new();
+        let merged = merge_severity_overrides(&manifest, std::iter::empty::<&str>())
+            .expect("no entries is well-formed");
+        assert!(merged.is_empty(), "no overrides → the map is untouched");
+
+        let out = apply_severity(vec![finding("ears", "vague-response")], &merged);
+        assert_eq!(out.len(), 1);
+        assert_eq!(out[0].severity, GrammarSeverity::Warning);
+    }
+
+    // TC-755 (FR-048-AC-10): a malformed `--severity` entry is rejected with a
+    // usage diagnostic before validation runs.
+    #[test]
+    fn tc755_malformed_severity_entry_rejected() {
+        let manifest = GrammarSeverityMap::new();
+        for bad in [
+            "ears:vague-response=fatal", // unknown level
+            "ears:vague-response",       // missing `=`
+            "vague-response=error",      // unparseable key (no `<grammar>:`)
+            "ears:=error",               // empty check
+            ":vague-response=error",     // empty grammar
+            "ears:vague response=error", // whitespace in key
+        ] {
+            let err = merge_severity_overrides(&manifest, [bad])
+                .expect_err(&format!("`{bad}` must be rejected"));
+            let msg = err.to_string();
+            assert!(msg.contains(bad), "diagnostic must quote the entry: {msg}");
+            assert!(
+                msg.contains("--severity"),
+                "diagnostic must name the option: {msg}"
+            );
+        }
+
+        // A well-formed entry is still accepted.
+        assert!(merge_severity_overrides(&manifest, ["ac:unclassifiable=off"]).is_ok());
     }
 
     // FR-048: an `error` mapping promotes the emitted finding's severity.

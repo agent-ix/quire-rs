@@ -207,7 +207,15 @@ Task-009 (C) baseline sweep                  Task-010 (C) legacy trace-tag migra
 - **Difficulty:** Easy — **Exit:** TC-714, TC-720, TC-721, TC-755 green
   against the engine API (CLI end-to-end lands with the quire-cli PR).
 
-#### Gate G1: grammar fixture + baseline readiness
+#### Gate G1: grammar fixture + baseline readiness — **PASSED 2026-08-04**
+Track A TCs green (TC-707..723, TC-751..755, TC-757 minus the EXT-3 CLI
+end-to-end halves), `make ci` green, PyO3 wheel built and `tests/python/`
+green. Dry-run sweep over this repo's `spec/`: 340 `ac` findings across 44 FR
+documents, recorded in Task-009 — no corpus edits. No false-positive class
+found (sampled); the dominant `unclassifiable` count reflects genuinely
+non-EARS corpus authoring, which is Track C's user-gated problem, not a
+classifier defect.
+
 - **Measures:** `ac` findings over the fixture corpus AND a dry-run sweep over
   this repo's own `spec/` (counts only, no edits).
 - **Pass criteria:** zero false-positive classes on fixtures; sweep count
@@ -254,7 +262,7 @@ its own branch.
 |---|---|---|---|---|
 | [Task-001](./tasks/Task-001-fr048-severity-framework.md) | A | FR-048 | — | completed |
 | [Task-002](./tasks/Task-002-fr047-ac-grammar.md) | A | FR-047 | Task-001 | completed |
-| [Task-003](./tasks/Task-003-cli-surface-support.md) | A | FR-047-AC-8, FR-048-AC-5/6/10 | Task-002 | not_started |
+| [Task-003](./tasks/Task-003-cli-surface-support.md) | A | FR-047-AC-8, FR-048-AC-5/6/10 | Task-002 | completed |
 | [Task-004](./tasks/Task-004-fr050-traceability-model.md) | B | FR-050-AC-1/2 | — | not_started |
 | [Task-005](./tasks/Task-005-fr051-symbol-adapters.md) | B | FR-051-AC-1/2/3/9 | — | not_started |
 | [Task-006](./tasks/Task-006-fr051-trace-binding-records.md) | B | FR-051-AC-4..8/10/11 | Task-004, Task-005 | not_started |

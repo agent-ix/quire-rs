@@ -41,4 +41,11 @@ description: "Chronological log of changes to the Plan-001 bundle."
   registry over built-in defaults (ADR 0009). TC-707..713, TC-751, TC-754,
   TC-757 green in Rust; TC-715 verified against a built wheel
   (`tests/python/test_bindings.py`). `make ci` green.
+* **2026-08-04** — Task-003 (Track A) completed and **Gate G1 passed**: generic
+  `[<grammar>:<check>]` summary histogram (`summarize_findings`), repeatable
+  `--severity` parse/merge with a usage diagnostic (`merge_severity_overrides`
+  / `SeverityOverrideError`), one shared `is_severity_key` shape definition,
+  `--strict` untouched. TC-714, TC-720, TC-721, TC-755 green against the engine
+  API (their CLI end-to-end halves land with the EXT-3 `quire-cli` PR). G1
+  dry-run baseline (340 `ac` findings over 44 FR docs) recorded in Task-009.
 
