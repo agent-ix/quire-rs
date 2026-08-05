@@ -73,4 +73,11 @@ description: "Chronological log of changes to the Plan-001 bundle."
   harvested auxiliary sources, emitting posture-degradable
   `dangling-trace-reference` findings in a bundle-stable order. TC-724..TC-731
   green.
+* **2026-08-04** — Task-007 (Track B) completed and **Gate G2 passed**:
+  `src/coverage.rs` computes the generic rollup (unbacked rows, status lies,
+  untracked symbols, per-minting-document counts, totals) as byte-identical
+  JSON, with `CoverageError::ModelUndeclared` for the no-model case; a shared
+  `declared_tables` scanner backs both FR-049 and FR-050. TC-734..TC-740 and
+  the TC-756 boundary audit green. Track B feature work complete — remaining
+  FR-047..051 surface is external (EXT-3 CLI, EXT-4 marker packages).
 

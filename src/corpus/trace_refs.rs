@@ -17,9 +17,9 @@ use std::path::{Path, PathBuf};
 
 use regex::Regex;
 
+use super::declared_tables;
 use super::spec::Spec;
 use super::validate::{BundleFinding, BundlePosture, BundleReport};
-use crate::query::{concept_type, parse_table, section};
 use crate::registry::Registry;
 use crate::traceability::{DocumentReference, TraceTarget};
 
@@ -115,22 +115,25 @@ pub(crate) fn validate_trace_references(
 fn minted_ids(spec: &Spec, root: &Path, target: &TraceTarget) -> BTreeSet<String> {
     let mut ids: BTreeSet<String> = BTreeSet::new();
     if let Some(archetype) = &target.archetype {
+        // A document of the target archetype mints its own id, too — an
+        // authored `TC-900.md` is as much a target as a matrix row.
         for doc in &spec.inner.documents {
-            if concept_type(&doc.doc) != Some(archetype.as_str()) {
-                continue;
-            }
-            // A document of the target archetype mints its own id…
-            if !doc.id.is_empty() {
+            if crate::query::concept_type(&doc.doc) == Some(archetype.as_str())
+                && !doc.id.is_empty()
+            {
                 ids.insert(doc.id.clone());
             }
-            // …plus every id in its declared minting column, when it has one
-            // (the FR `Acceptance Criteria` `ID` column mints AC ids).
-            ids.extend(column_values(&doc.doc, &target.section, &target.id_column));
         }
     }
-    if let Some(document) = &target.document {
-        if let Some(doc) = harvest(root, document) {
-            ids.extend(column_values(&doc, &target.section, &target.id_column));
+    for row in declared_tables::scan(
+        spec,
+        root,
+        target.archetype.as_deref(),
+        target.document.as_deref(),
+        &target.section,
+    ) {
+        if let Some(id) = row.cell(&target.id_column) {
+            ids.insert(id.to_string());
         }
     }
     ids
@@ -142,100 +145,26 @@ fn referencing_rows(
     root: &Path,
     declaration: &DocumentReference,
 ) -> Vec<ReferencingRow> {
-    let mut out = Vec::new();
-    if let Some(archetype) = &declaration.archetype {
-        for doc in &spec.inner.documents {
-            if concept_type(&doc.doc) != Some(archetype.as_str()) {
-                continue;
-            }
-            out.extend(rows_of(
-                &doc.doc,
-                &doc.path,
-                &declaration.section,
-                &declaration.column,
-                declaration.row_id_column.as_deref(),
-            ));
-        }
-    }
-    if let Some(document) = &declaration.document {
-        if let Some(doc) = harvest(root, document) {
-            out.extend(rows_of(
-                &doc,
-                &root.join(document),
-                &declaration.section,
-                &declaration.column,
-                declaration.row_id_column.as_deref(),
-            ));
-        }
-    }
-    out
-}
-
-fn rows_of(
-    doc: &crate::ast::QuireDocument,
-    path: &Path,
-    heading: &str,
-    column: &str,
-    row_id_column: Option<&str>,
-) -> Vec<ReferencingRow> {
-    let Some(sec) = section(doc, heading) else {
-        return Vec::new();
-    };
-    let Some(table) = parse_table(&sec.content) else {
-        return Vec::new();
-    };
-    let Some(col_idx) = column_index(&table.headers, column) else {
-        return Vec::new();
-    };
-    let id_idx = row_id_column.and_then(|c| column_index(&table.headers, c));
-    table
-        .rows
-        .iter()
-        .filter_map(|row| {
-            let cell = row.get(col_idx)?.trim();
-            (!cell.is_empty()).then(|| ReferencingRow {
-                path: path.to_path_buf(),
-                row_id: id_idx
-                    .and_then(|i| row.get(i))
-                    .map(|v| v.trim().to_string())
-                    .filter(|v| !v.is_empty()),
-                cell: cell.to_string(),
-            })
+    declared_tables::scan(
+        spec,
+        root,
+        declaration.archetype.as_deref(),
+        declaration.document.as_deref(),
+        &declaration.section,
+    )
+    .into_iter()
+    .filter_map(|row| {
+        let cell = row.cell(&declaration.column)?.to_string();
+        let row_id = declaration
+            .row_id_column
+            .as_deref()
+            .and_then(|c| row.cell(c))
+            .map(str::to_string);
+        Some(ReferencingRow {
+            path: row.path,
+            row_id,
+            cell,
         })
-        .collect()
-}
-
-/// Non-empty values of `column` in the table under `heading`.
-fn column_values(doc: &crate::ast::QuireDocument, heading: &str, column: &str) -> Vec<String> {
-    let Some(sec) = section(doc, heading) else {
-        return Vec::new();
-    };
-    let Some(table) = parse_table(&sec.content) else {
-        return Vec::new();
-    };
-    let Some(idx) = column_index(&table.headers, column) else {
-        return Vec::new();
-    };
-    table
-        .rows
-        .iter()
-        .filter_map(|row| row.get(idx))
-        .map(|v| v.trim().to_string())
-        .filter(|v| !v.is_empty())
-        .collect()
-}
-
-fn column_index(headers: &[String], column: &str) -> Option<usize> {
-    headers
-        .iter()
-        .position(|h| h.trim().eq_ignore_ascii_case(column))
-}
-
-/// Targeted scan of a declared auxiliary source — a file the corpus walk
-/// excludes as a non-artifact. Unreadable or absent → no ids, no finding: the
-/// declaration names an optional source, not a required one.
-fn harvest(root: &Path, document: &Path) -> Option<crate::ast::QuireDocument> {
-    let path = root.join(document);
-    let text = std::fs::read_to_string(path).ok()?;
-    Some(crate::parse_document(&text))
+    })
+    .collect()
 }

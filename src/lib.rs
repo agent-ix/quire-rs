@@ -14,6 +14,7 @@ pub mod ast;
 pub mod concept;
 pub mod contract;
 pub mod corpus;
+pub mod coverage;
 pub mod diagnostic;
 pub mod error;
 pub mod extract;
@@ -85,6 +86,8 @@ pub use grammar::{check_document_grammar, GrammarFinding, GrammarLexicon, Gramma
 pub use lint::{lint_document, LintFinding, LintRule, LintSeverity};
 // Writeback (FR-022) — byte-splice section/block edit.
 pub use writeback::{update_block, update_section};
+// Declarative coverage computation (FR-050) + source-symbol extraction (FR-051).
+pub use coverage::{compute as compute_coverage, CoverageError, CoverageReport};
 // Corpus: parallel repo walk (FR-024) + Spec corpus (FR-025); resolution/query in FR-026..027.
 pub use corpus::walk::{load_repo, load_repo_with, LoadedDocument, RepoLoad, WalkOptions};
 pub use corpus::{glossary_terms, glossary_terms_from_path, harvest_edges, Spec};

@@ -230,7 +230,13 @@ classifier defect.
 #### B4 (Task-008): FR-049 verification-reference integrity (after B1; parallel to B2/B3)
 #### B5 (Task-007): FR-050 reconciliation + `quire coverage` report (after B1+B3)
 
-#### Gate G2: determinism + genericity
+#### Gate G2: determinism + genericity — **PASSED 2026-08-04**
+Property TCs green (TC-731 findings order, TC-738 byte-identical coverage JSON,
+TC-750 byte-identical records), non-ISO fixture models green (TC-727, TC-739,
+TC-745), TC-756 static boundary audit green, `make ci` green. Track B feature
+work is complete; the remaining FR-050/FR-051 surface is EXT-3 (`quire coverage`
+CLI wiring) and the EXT-4 marker packages.
+
 - **Measures:** Property TCs (TC-731, TC-738, TC-750) and the non-ISO fixture
   models (TC-727, TC-739, TC-745); TC-756 static audit.
 - **Pass criteria:** all green under `make ci`; byte-identical repeat runs.
@@ -266,7 +272,7 @@ its own branch.
 | [Task-004](./tasks/Task-004-fr050-traceability-model.md) | B | FR-050-AC-1/2 | — | completed |
 | [Task-005](./tasks/Task-005-fr051-symbol-adapters.md) | B | FR-051-AC-1/2/3/9 | — | completed |
 | [Task-006](./tasks/Task-006-fr051-trace-binding-records.md) | B | FR-051-AC-4..8/10/11 | Task-004, Task-005 | completed |
-| [Task-007](./tasks/Task-007-fr050-coverage-rollup.md) | B | FR-050-AC-3..9, CON-2 | Task-004, Task-006 | not_started |
+| [Task-007](./tasks/Task-007-fr050-coverage-rollup.md) | B | FR-050-AC-3..9, CON-2 | Task-004, Task-006 | completed |
 | [Task-008](./tasks/Task-008-fr049-reference-integrity.md) | B | FR-049 | Task-004 | completed |
 | [Task-009](./tasks/Task-009-ac-grammar-baseline-sweep.md) | C | corpus cleanup (FR-047-CON-1) | Task-003 (G1) | not_started |
 | [Task-010](./tasks/Task-010-legacy-trace-tag-migration.md) | C | corpus cleanup (FR-051-CON-3) | Task-007 (G2) | not_started |

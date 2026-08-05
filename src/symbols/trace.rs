@@ -562,7 +562,7 @@ mod tests {
                 .find(|v| v.trace_id == id)
                 .unwrap_or_else(|| panic!("no relation for {id}"))
         };
-        // `Trace:` line, line-comment id, and the trace-embedding test name.
+        // `Trace:` line, line-comment id, and the test name that carries an id.
         assert_eq!(by_id("FR-051-AC-11").provenance, TraceProvenance::Legacy);
         assert_eq!(by_id("TC-800").provenance, TraceProvenance::Legacy);
         assert_eq!(by_id("TC-753").form, "test-name-id");
