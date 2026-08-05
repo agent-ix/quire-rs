@@ -14,7 +14,14 @@ make clean          # cargo clean
 make deny           # cargo deny check licenses
 make audit-unsafe   # check that every unsafe block has a // SAFETY: comment
 make ci             # fmt-check + lint + test + deny + audit-unsafe
+make ci-python      # build the wheel + run the PyO3 binding suite
 ```
+
+`make ci` cannot run the binding suite (it needs a built wheel), so **any change
+to `src/grammar/`, `src/python/`, or `tests/python/` must also pass
+`make ci-python`** before merge. That suite is the only verification of the
+PyO3-parity criteria (FR-042-AC-10, FR-043-AC-7, FR-047-AC-9); when nothing ran
+it, TC-715 sat asserting check ids CR-014 had renamed and no gate noticed.
 
 ## Safety scaffolding
 
