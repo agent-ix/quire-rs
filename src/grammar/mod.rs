@@ -235,11 +235,7 @@ impl ObservableVerbs {
     /// precedence: a module extends the vocabulary, it does not replace it.
     pub fn with_module_verbs<'a, I: IntoIterator<Item = &'a str>>(module_verbs: I) -> Self {
         let mut forms: Vec<String> = Vec::new();
-        for verb in BUILTIN_OBSERVABLE_VERBS
-            .iter()
-            .copied()
-            .chain(module_verbs)
-        {
+        for verb in BUILTIN_OBSERVABLE_VERBS.iter().copied().chain(module_verbs) {
             let verb = verb.trim();
             if verb.is_empty() {
                 continue;
