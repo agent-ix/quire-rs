@@ -1039,6 +1039,41 @@ roles:
         assert!(type_only.errors.is_empty());
     }
 
+    // TC-718 (FR-048-AC-3), end-to-end half: with `ac:unclassifiable` mapped
+    // to `error`, a real unclassifiable criteria cell lands in
+    // `ValidationResult.errors` and clears `is_valid`, while an `ears` finding
+    // with no map entry stays a warning. (The framework-level contract is
+    // pinned in `validate_document::tests::tc718_per_check_error_routing`.)
+    #[test]
+    fn tc718_ac_error_routing_end_to_end() {
+        let p = tmpdir("severity-718");
+        write_grammar_module(
+            &p.join("m"),
+            "m",
+            "grammar_severity:\n  \"ac:unclassifiable\": error\n",
+        );
+        let r = Registry::load_from(&[&p]).expect("tolerant ok");
+        let fr = r.archetype("FR").expect("FR archetype");
+        let doc = "---\ntype: FR\n---\n## Description\n\n\
+                   The system shall support publishing.\n\n\
+                   ## Acceptance Criteria\n\n\
+                   | ID | Criteria | Verification |\n|----|----------|--------------|\n\
+                   | FR-001-AC-1 | It all works end to end. | Test |\n";
+        let result = crate::validate_document_in_registry(&r, fr, doc);
+
+        assert!(!result.is_valid, "a promoted `ac` check must block");
+        assert!(result
+            .errors
+            .iter()
+            .any(|e| e.message.contains("[ac:unclassifiable]")));
+        // The unmapped `ears` finding on the Description stays advisory.
+        assert!(result
+            .warnings
+            .iter()
+            .any(|w| w.message.contains("[ears:vague-response]")));
+        assert!(!result.errors.iter().any(|e| e.message.contains("[ears:")));
+    }
+
     // ── FR-050: declarative traceability model ─────────────────────
 
     /// The repo's traceability fixture modules. They live outside
