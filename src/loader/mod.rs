@@ -421,8 +421,16 @@ fn walk_search_root(
         Ok(e) => e,
         Err(_) => return,
     };
-    for entry in entries.flatten() {
-        let candidate = entry.path();
+    // `read_dir` yields in filesystem order, which is unspecified and differs
+    // between machines. Every merge in the registry is **first-wins**, so that
+    // order decides which module's `lexicon` / `grammar_severity` /
+    // `traceability` entry survives a collision — the outcome cannot depend on
+    // how a directory happens to be laid out (NFR-006). Sorting by canonical
+    // path makes module load order, and therefore first-wins, deterministic.
+    let mut candidates: Vec<std::path::PathBuf> =
+        entries.flatten().map(|entry| entry.path()).collect();
+    candidates.sort();
+    for candidate in candidates {
         if !candidate.is_dir() {
             continue;
         }
@@ -1416,6 +1424,25 @@ object_types:
         assert_eq!(outcome.modules[0].archetypes.len(), 0);
         assert_eq!(outcome.failures.len(), 1);
         assert!(outcome.failures[0].reason.contains("variants"));
+    }
+
+    // TC-762 (NFR-006-AC-5, CR-018): module discovery is sorted, so first-wins
+    // resolves the same way on every machine. Directories are created in
+    // reverse order to keep the fixture honest — `read_dir` order is
+    // unspecified, and it was the load order before this.
+    #[test]
+    fn tc762_module_discovery_is_sorted() {
+        let p = tmpdir("sorted-discovery");
+        for name in ["m-zulu", "m-mike", "m-alpha"] {
+            write_minimal_module(&p.join(name), name);
+        }
+        let outcome = load_modules(&[&p]);
+        let names: Vec<&str> = outcome.modules.iter().map(|m| m.name.as_str()).collect();
+        assert_eq!(
+            names,
+            vec!["m-alpha", "m-mike", "m-zulu"],
+            "modules must load in sorted path order, not filesystem order"
+        );
     }
 
     // TC-527 (FR-031-AC-6): Registry::archetype resolves unified

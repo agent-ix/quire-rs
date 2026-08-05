@@ -37,6 +37,15 @@ The parity suite ([FR-012](../functional/FR-012-archetype-parity-suite.md)) comp
 - **NFR-006-AC-2**: A proptest parses the same document 100 times; all returned `QuireDocument` values are equal (Eq).
 - **NFR-006-AC-3**: A static check via clippy lint or audit confirms no `std::collections::HashMap` usage in parse / extract / validate paths where iteration order is observable (the audit path covers `src/parser`, `src/extract`, `src/validate_document.rs`, `src/merge.rs`).
 - **NFR-006-AC-4**: A proptest runs `validate_document` and `extract` on the same input 100 times across threads; the `ValidationResult` (including ordered diagnostics) and `ExtractionResult` (records + edges + diagnostics) are equal every time.
+- **NFR-006-AC-5**: Modules under a search path load in sorted path order regardless of directory-entry order, so every first-wins registry merge (`archetypes`, `lexicon`, `edge_types`, `grammar_severity`, `traceability`) resolves a collision the same way on every machine.
+
+> **CR-018 note:** AC-5 records a determinism hole the CI runner exposed, not a
+> new requirement. Module discovery iterated `std::fs::read_dir` directly, whose
+> order is unspecified, so "first-wins" meant "whichever module the filesystem
+> happened to hand over first". Three merge tests (TC-637, TC-668, TC-717)
+> passed on one machine and failed on another for that reason. Discovery now
+> sorts by path. The gap survived because it is invisible to a single-machine
+> run — the same class of blind spot as a suite that never runs in CI.
 
 ## Measurement and Evaluation
 
