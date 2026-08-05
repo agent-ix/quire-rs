@@ -69,6 +69,31 @@ corpus converges on EARS.
 **Promotion remains user-gated (FR-047-CON-1): no `grammar_severity` default
 has been authored, and none will be without explicit sign-off.**
 
+## Re-baseline after CR-013 + CR-014 (2026-08-04)
+
+The 340-finding baseline above measured a grammar whose canon and whose two
+high-volume checks were both wrong — see `~/dev/reports/2026-08-04-ac-grammar-fit.md`.
+After CR-013 (assertion is the canonical shape) and CR-014 (the vacuity and
+predicate checks replace the allowlist ones, binding widened, inflector fixed):
+
+| Check | Baseline | After |
+|---|---|---|
+| `ac:unclassifiable` | 322 | **0** |
+| `ac:no-observable-outcome` → `ac:vacuous-outcome` | 12 | **0** |
+| `ac:non-canonical-shape` | 2 | **7** |
+| `ac:vague-response` | 2 | 2 |
+| `ac:non-singular` | 2 | 1 |
+| **total over 44 FR documents** | **340** | **10** |
+
+The seven `non-canonical-shape` findings are obligation-shaped criteria in
+FR-047, FR-042, and FR-043 — the documents that describe the grammar, written
+before the canon changed. They are the entire remaining corpus debt, and fixing
+them is a wording change to five-odd cells rather than the 322-cell rewrite the
+original baseline implied.
+
+Ecosystem-wide the same engine reports 3,956 findings across 5,027 requirement
+documents, down from 14,487.
+
 ## Notes
 - Wider-ecosystem sweeps (other repos' corpora) are follow-up work owned by
   those repos — this task covers quire-rs only.
