@@ -48,4 +48,11 @@ description: "Chronological log of changes to the Plan-001 bundle."
   `--strict` untouched. TC-714, TC-720, TC-721, TC-755 green against the engine
   API (their CLI end-to-end halves land with the EXT-3 `quire-cli` PR). G1
   dry-run baseline (340 `ac` findings over 44 FR docs) recorded in Task-009.
+* **2026-08-04** — Task-004 (Track B) completed: the declarative
+  `traceability:` model (`src/traceability.rs`) — trace targets incl. auxiliary
+  documents, document references with capturing patterns, status vocabulary,
+  and the marker/legacy trace-tag grammar — parses, shape-validates at module
+  load, merges first-wins across modules, and is exposed as
+  `Registry::traceability()`. ISO-shaped and non-ISO fixtures live in
+  `tests/fixtures/traceability/`. TC-732, TC-733 green; `make ci` green.
 

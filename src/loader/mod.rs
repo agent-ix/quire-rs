@@ -52,6 +52,8 @@ pub struct LoadedModule {
     pub grammar_severity: BTreeMap<String, crate::grammar::GrammarSeverityLevel>,
     /// Observable-result verb registry contributed by this module (FR-047).
     pub observable_verbs: BTreeMap<String, crate::vocab::ObservableVerbDef>,
+    /// Traceability model contributed by this module (FR-050).
+    pub traceability: crate::traceability::TraceabilityModel,
 }
 
 /// Outcome of a full load pass.
@@ -360,6 +362,7 @@ pub fn load_inline_module(manifest_yaml: &[u8], schemas: &BTreeMap<String, Strin
         lexicon: manifest.lexicon.clone(),
         grammar_severity: manifest.grammar_severity.clone(),
         observable_verbs: manifest.observable_verbs.clone(),
+        traceability: manifest.traceability.clone(),
     });
 
     LoadOutcome {
@@ -503,6 +506,7 @@ fn load_one_module(
             lexicon: manifest.lexicon.clone(),
             grammar_severity: manifest.grammar_severity.clone(),
             observable_verbs: manifest.observable_verbs.clone(),
+            traceability: manifest.traceability.clone(),
         },
         failures,
     ))
@@ -718,6 +722,13 @@ pub fn flatten_into_registry(mut outcome: LoadOutcome) -> RegistryShape {
     // so a module extends the vocabulary rather than replacing it.
     let (observable_verbs, _) = merge_vocab(&outcome.modules, |m| &m.observable_verbs);
 
+    // FR-050: merge the declarative traceability model across modules. Targets,
+    // references, and tag forms accumulate first-wins by name; the singular
+    // `status` vocabulary is taken from the first module that declares one.
+    // A module that declares nothing contributes nothing, so the merged model
+    // stays undeclared until some module declares one.
+    let traceability = merge_traceability(&outcome.modules);
+
     // ── FR-041: derive the inverse-label → forward-verb index from the
     // merged edge_types. A declared `inverse:` label becomes an authorable
     // verb (a derived view of its forward edge). Precedence: a label that
@@ -806,6 +817,7 @@ pub fn flatten_into_registry(mut outcome: LoadOutcome) -> RegistryShape {
         lexicon,
         grammar_severity,
         observable_verbs,
+        traceability,
         failures: outcome.failures,
         diagnostics: outcome.diagnostics,
         path_diagnostics: outcome.path_diagnostics,
@@ -846,6 +858,55 @@ fn merge_vocab<V: Clone + PartialEq>(
         }
     }
     (merged, conflicts.into_iter().collect())
+}
+
+/// Merge the per-module [`TraceabilityModel`](crate::traceability::TraceabilityModel)s
+/// first-wins: an entry whose name is already declared is skipped, and the
+/// first declared `status` vocabulary wins. Declaration order is module load
+/// order, so the merged model is deterministic (NFR-006).
+fn merge_traceability(modules: &[LoadedModule]) -> crate::traceability::TraceabilityModel {
+    let mut merged = crate::traceability::TraceabilityModel::default();
+    for module in modules {
+        let m = &module.traceability;
+        for target in &m.trace_targets {
+            if !merged.trace_targets.iter().any(|t| t.name == target.name) {
+                merged.trace_targets.push(target.clone());
+            }
+        }
+        for reference in &m.document_references {
+            if !merged
+                .document_references
+                .iter()
+                .any(|r| r.name == reference.name)
+            {
+                merged.document_references.push(reference.clone());
+            }
+        }
+        for marker in &m.trace_tags.markers {
+            if !merged
+                .trace_tags
+                .markers
+                .iter()
+                .any(|x| x.name == marker.name)
+            {
+                merged.trace_tags.markers.push(marker.clone());
+            }
+        }
+        for legacy in &m.trace_tags.legacy {
+            if !merged
+                .trace_tags
+                .legacy
+                .iter()
+                .any(|x| x.name == legacy.name)
+            {
+                merged.trace_tags.legacy.push(legacy.clone());
+            }
+        }
+        if merged.status.is_none() {
+            merged.status.clone_from(&m.status);
+        }
+    }
+    merged
 }
 
 /// Strict counterpart of [`flatten_into_registry`]: promotes the first
@@ -948,6 +1009,8 @@ pub struct RegistryShape {
     /// Merged observable-result verb registry, first-wins across modules
     /// (FR-047). Layered over the engine's built-in defaults.
     pub observable_verbs: BTreeMap<String, crate::vocab::ObservableVerbDef>,
+    /// Merged traceability model, first-wins across modules (FR-050).
+    pub traceability: crate::traceability::TraceabilityModel,
     pub failures: Vec<ArchetypeLoadFailure>,
     pub diagnostics: Vec<Diagnostic>,
     pub path_diagnostics: Vec<PathDiagnostic>,

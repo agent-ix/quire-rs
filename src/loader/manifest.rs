@@ -85,6 +85,12 @@ pub struct Manifest {
     /// the merged keys, so the vocabulary is module data (ADR 0009).
     #[serde(default)]
     pub observable_verbs: BTreeMap<String, crate::vocab::ObservableVerbDef>,
+    /// Declarative traceability model (FR-050): which documents mint trace
+    /// ids, which columns reference them, the status vocabulary, and the
+    /// trace-tag grammar. Absent → the model is undeclared; malformed → module
+    /// load fails like any other manifest shape error.
+    #[serde(default)]
+    pub traceability: crate::traceability::TraceabilityModel,
 }
 
 impl Manifest {
@@ -188,6 +194,8 @@ impl Archetype {
 pub fn parse_manifest(bytes: &[u8]) -> Result<Manifest, String> {
     let manifest = serde_yaml::from_slice::<Manifest>(bytes).map_err(|e| e.to_string())?;
     check_grammar_severity_keys(&manifest)?;
+    // FR-050-AC-2: an incoherent `traceability:` declaration is a shape error.
+    manifest.traceability.validate()?;
     Ok(manifest)
 }
 

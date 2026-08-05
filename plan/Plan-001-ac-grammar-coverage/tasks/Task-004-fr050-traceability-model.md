@@ -2,7 +2,7 @@
 id: Task-004
 title: "FR-050 — `traceability:` model loading (shared dependency)"
 type: Task
-status: not_started
+status: completed
 track: B
 priority: P0
 relationships:
@@ -27,16 +27,38 @@ merged across modules and exposed on the `Registry`. Absent section → model
 undeclared; malformed section → module-load failure.
 
 ## Subtasks
-- [ ] **Declaration types.** Typed model structs; no FR/AC/TC semantics in
+- [x] **Declaration types.** Typed model structs; no FR/AC/TC semantics in
   the engine — everything comes from the declaration.
-- [ ] **Loader + validation.** Load, shape-validate (TC-733), expose via a
+- [x] **Loader + validation.** Load, shape-validate (TC-733), expose via a
   `Registry` accessor (TC-732).
-- [ ] **Fixture modules.** ISO-shaped fixture AND a non-ISO fixture (different
+- [x] **Fixture modules.** ISO-shaped fixture AND a non-ISO fixture (different
   archetype/id pattern/status values) for TC-727/739/745 downstream.
 
 ## Deliverables
 - Model types + loader + accessor; two fixture modules; tests tagged TC-732,
   TC-733.
+
+## Implementation record (2026-08-04)
+
+- `src/traceability.rs` holds the model: `TraceTarget` (archetype-minted or
+  auxiliary-`document`-minted, section + `id_column`), `DocumentReference`
+  (section + column + capturing `pattern` + `targets`, optional
+  `row_id_column`), `StatusVocabulary` (`column` + complete/pending/failed
+  value lists with `class_of`), and `TraceTagGrammar` (canonical `markers` and
+  the sunset-gated `legacy` forms, each with a capturing pattern).
+- Every struct is `deny_unknown_fields`, so a typo inside `traceability:` is a
+  module-load failure; `validate()` additionally rejects empty/duplicate names,
+  a target declaring both or neither of `archetype`/`document`, a reference to
+  an undeclared target, a non-capturing pattern, a status value in two classes,
+  and a legacy form rewriting to an undeclared marker.
+- `Registry::traceability()` returns `Option<&TraceabilityModel>` — `None` when
+  nothing is declared, which is what FR-050-AC-9's diagnostic will read.
+  Cross-module merge is first-wins by entry name (loader `merge_traceability`),
+  with the first declared `status` winning.
+- Fixtures live in `tests/fixtures/traceability/{iso,alt}` — deliberately NOT
+  under `tests/fixtures/modules/`, which is a shared search root other tests
+  load wholesale (a fixture declaring its own `FR` shadowed the ISO one and
+  broke the determinism test).
 
 ## Notes
 - The real ISO declaration ships in `spec-artifacts-iso` (external follow-up);

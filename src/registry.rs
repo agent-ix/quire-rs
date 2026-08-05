@@ -45,6 +45,8 @@ struct Inner {
     /// matcher (built-in defaults ∪ module declarations).
     observable_verbs: std::collections::BTreeMap<String, crate::vocab::ObservableVerbDef>,
     observable_verbs_matcher: crate::grammar::ObservableVerbs,
+    /// Merged declarative traceability model (FR-050).
+    traceability: crate::traceability::TraceabilityModel,
     failures: Vec<ArchetypeLoadFailure>,
     diagnostics: Vec<Diagnostic>,
     path_diagnostics: Vec<PathDiagnostic>,
@@ -194,6 +196,7 @@ impl Registry {
             lexicon,
             grammar_severity,
             observable_verbs,
+            traceability,
             failures,
             diagnostics,
             path_diagnostics,
@@ -221,6 +224,7 @@ impl Registry {
                 grammar_severity,
                 observable_verbs,
                 observable_verbs_matcher,
+                traceability,
                 failures,
                 diagnostics,
                 path_diagnostics,
@@ -343,6 +347,13 @@ impl Registry {
     /// the merged module registry.
     pub fn observable_verbs_matcher(&self) -> &crate::grammar::ObservableVerbs {
         &self.inner.observable_verbs_matcher
+    }
+
+    /// The merged declarative traceability model (FR-050), or `None` when no
+    /// active module declares one — consumers report the model as **undeclared**
+    /// rather than computing an empty rollup (FR-050-AC-2/AC-9).
+    pub fn traceability(&self) -> Option<&crate::traceability::TraceabilityModel> {
+        (!self.inner.traceability.is_empty()).then_some(&self.inner.traceability)
     }
 
     /// Compose an ad-hoc `GrammarLexicon` (FR-044) from the merged module
@@ -1026,6 +1037,115 @@ roles:
             .iter()
             .any(|w| w.message.contains("[ears:vague-response]")));
         assert!(type_only.errors.is_empty());
+    }
+
+    // ── FR-050: declarative traceability model ─────────────────────
+
+    /// The repo's traceability fixture modules. They live outside
+    /// `tests/fixtures/modules` on purpose: that directory is a shared search
+    /// root other tests load wholesale, and a fixture declaring its own `FR`
+    /// would shadow the ISO one there.
+    fn fixture_modules() -> PathBuf {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("tests")
+            .join("fixtures")
+            .join("traceability")
+    }
+
+    // TC-732 (FR-050-AC-1): a manifest `traceability:` section declaring trace
+    // targets, document references, a status vocabulary, and a trace-tag
+    // grammar loads, and the Registry exposes the declared model.
+    #[test]
+    fn tc732_traceability_model_loads_and_accessor() {
+        let root = fixture_modules().join("iso");
+        let r = Registry::load_module(&root).expect("load");
+        let model = r.traceability().expect("declared model");
+
+        let target = model
+            .target("acceptance-criterion")
+            .expect("acceptance-criterion target");
+        assert_eq!(target.archetype.as_deref(), Some("FR"));
+        assert_eq!(target.section, "Acceptance Criteria");
+        assert_eq!(target.id_column, "ID");
+        // Auxiliary source: minted by a document outside the corpus walk.
+        assert_eq!(
+            model.target("test-case").unwrap().document,
+            Some(PathBuf::from("tests.md"))
+        );
+
+        let verification = model
+            .document_references
+            .iter()
+            .find(|d| d.name == "verification")
+            .expect("verification reference");
+        assert_eq!(verification.column, "Verification");
+        assert_eq!(verification.targets, vec!["test-case"]);
+
+        let status = model.status.as_ref().expect("status vocabulary");
+        assert_eq!(status.column, "Status");
+        assert_eq!(
+            status.class_of("✅"),
+            crate::traceability::StatusClass::Complete
+        );
+        assert_eq!(
+            status.class_of("🚧"),
+            crate::traceability::StatusClass::Pending
+        );
+
+        assert!(model
+            .trace_tags
+            .markers
+            .iter()
+            .any(|m| m.language == crate::traceability::SourceLanguage::Python));
+        assert!(!model.trace_tags.legacy.is_empty());
+
+        // The non-ISO fixture declares an entirely different vocabulary.
+        let alt = Registry::load_module(&fixture_modules().join("alt"))
+            .expect("load")
+            .traceability()
+            .cloned()
+            .expect("declared model");
+        assert!(alt.target("clause").is_some());
+        assert_eq!(alt.status.as_ref().unwrap().column, "State");
+    }
+
+    // TC-733 (FR-050-AC-2): a malformed `traceability:` section fails module
+    // load like any other manifest shape error; an absent section loads and
+    // marks the model undeclared.
+    #[test]
+    fn tc733_malformed_model_fails_load_absent_is_undeclared() {
+        // Absent section → loads, model undeclared.
+        let p = tmpdir("trace-733-absent");
+        write_vocab_module(&p.join("m"), "m", "artifact_types: []\n");
+        let r = Registry::load_from(&[&p]).expect("tolerant ok");
+        assert!(r.module_names().next().is_some(), "module must load");
+        assert!(r.traceability().is_none(), "model must be undeclared");
+
+        // Malformed: a reference to an undeclared target.
+        let bad = tmpdir("trace-733-bad");
+        write_vocab_module(
+            &bad.join("m"),
+            "m",
+            "traceability:\n  document_references:\n  - name: r\n    archetype: FR\n    \
+             section: S\n    column: C\n    pattern: '(TC-\\d+)'\n    targets: [nope]\n",
+        );
+        let r2 = Registry::load_from(&[&bad]).expect("tolerant ok");
+        assert!(r2.module_names().next().is_none(), "module must not load");
+        assert!(r2
+            .failures()
+            .iter()
+            .any(|f| f.archetype == "<manifest>" && f.reason.contains("undeclared target")));
+
+        // Malformed: an unknown field inside the section.
+        let typo = tmpdir("trace-733-typo");
+        write_vocab_module(
+            &typo.join("m"),
+            "m",
+            "traceability:\n  trace_targets:\n  - name: t\n    archetype: FR\n    section: S\n    \
+             id_column: ID\n    typo: x\n",
+        );
+        let r3 = Registry::load_from(&[&typo]).expect("tolerant ok");
+        assert!(r3.module_names().next().is_none(), "module must not load");
     }
 
     // TC-676 (FR-044-AC-3): `lexicon_with` composes module keys ∪ project terms.
