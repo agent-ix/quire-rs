@@ -94,10 +94,8 @@ fn declaration(trimmed: &str) -> Option<(String, bool)> {
         (r, true)
     } else if let Some(r) = trimmed.strip_prefix("def ") {
         (r, false)
-    } else if let Some(r) = trimmed.strip_prefix("async def ") {
-        (r, false)
     } else {
-        return None;
+        (trimmed.strip_prefix("async def ")?, false)
     };
     let name: String = rest
         .trim_start()

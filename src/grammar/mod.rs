@@ -238,7 +238,7 @@ impl ObservableVerbs {
         for verb in BUILTIN_OBSERVABLE_VERBS
             .iter()
             .copied()
-            .chain(module_verbs.into_iter())
+            .chain(module_verbs)
         {
             let verb = verb.trim();
             if verb.is_empty() {
