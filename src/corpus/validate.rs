@@ -63,7 +63,7 @@ impl BundleReport {
     }
 
     /// Route a finding to errors (Strict) or warnings (Okf).
-    fn degradable(&mut self, posture: BundlePosture, finding: BundleFinding) {
+    pub(crate) fn degradable(&mut self, posture: BundlePosture, finding: BundleFinding) {
         match posture {
             BundlePosture::Strict => self.errors.push(finding),
             BundlePosture::Okf => self.warnings.push(finding),
@@ -124,6 +124,17 @@ pub fn validate_bundle(
     // BTreeSet), so findings come out deterministically. Warn-tier always
     // (FR-040-AC-10) — never degraded to a Strict error this revision.
     validate_edge_targets(spec, registry, &mut report);
+
+    // FR-049: declared table-cell trace references get the same dangling
+    // check `ix://` edges get, driven entirely by the module's traceability
+    // model. A no-op when no module declares one.
+    crate::corpus::trace_refs::validate_trace_references(
+        spec,
+        registry,
+        posture,
+        root,
+        &mut report,
+    );
 
     check_index_completeness(spec, posture, root, &mut report);
 

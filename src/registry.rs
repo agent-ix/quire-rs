@@ -1079,7 +1079,12 @@ roles:
             .find(|d| d.name == "verification")
             .expect("verification reference");
         assert_eq!(verification.column, "Verification");
-        assert_eq!(verification.targets, vec!["test-case"]);
+        // The reference resolves against both the auxiliary matrix rows and
+        // TC documents authored in the bundle.
+        assert_eq!(
+            verification.targets,
+            vec!["test-case", "test-case-document"]
+        );
 
         let status = model.status.as_ref().expect("status vocabulary");
         assert_eq!(status.column, "Status");

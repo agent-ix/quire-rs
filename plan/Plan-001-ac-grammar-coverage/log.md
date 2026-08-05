@@ -67,4 +67,10 @@ description: "Chronological log of changes to the Plan-001 bundle."
   and emits FR-045 graph records with normalized refs. Model gained
   `TraceLegacyForm::id_format` and `TraceMarkerForm::template` — both required
   to satisfy FR-051-AC-11 declaratively. TC-744..748, TC-750, TC-753 green.
+* **2026-08-04** — Task-008 (Track B) completed: FR-049 verification-reference
+  integrity — `validate_bundle` now resolves declared table-cell trace
+  references against a resolution set built from bundle documents plus
+  harvested auxiliary sources, emitting posture-degradable
+  `dangling-trace-reference` findings in a bundle-stable order. TC-724..TC-731
+  green.
 

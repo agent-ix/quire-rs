@@ -19,6 +19,7 @@ pub mod glossary;
 pub mod query;
 pub mod resolve;
 pub mod spec;
+pub mod trace_refs;
 pub mod unlinked;
 pub mod validate;
 pub mod walk;

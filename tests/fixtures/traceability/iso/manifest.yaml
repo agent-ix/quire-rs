@@ -12,6 +12,9 @@ artifact_types:
   grammar_ref: iso-spec-core
   defaults:
     id_pattern: FR-{next:03d}
+- name: TC
+  defaults:
+    id_pattern: TC-{next:03d}
 traceability:
   trace_targets:
   - name: acceptance-criterion
@@ -22,6 +25,11 @@ traceability:
     document: tests.md
     section: Test Cases
     id_column: ID
+  # A TC that is authored as its own document rather than a matrix row.
+  - name: test-case-document
+    archetype: TC
+    section: Description
+    id_column: ID
   document_references:
   - name: verification
     archetype: FR
@@ -29,7 +37,7 @@ traceability:
     column: Verification
     row_id_column: ID
     pattern: '\((TC-\d+)\)'
-    targets: [test-case]
+    targets: [test-case, test-case-document]
   - name: traces-to
     document: tests.md
     section: Test Cases
