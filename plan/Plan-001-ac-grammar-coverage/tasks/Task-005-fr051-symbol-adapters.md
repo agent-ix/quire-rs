@@ -2,7 +2,7 @@
 id: Task-005
 title: "FR-051 — language adapters + stable symbol identities"
 type: Task
-status: not_started
+status: completed
 track: B
 priority: P0
 relationships:
@@ -32,11 +32,11 @@ Per-file degradation: unparseable file → diagnostic, skip, continue
 (FR-051-CON-2).
 
 ## Subtasks
-- [ ] **Parser choice + adapters.** Static parsing only — no build, no type
+- [x] **Parser choice + adapters.** Static parsing only — no build, no type
   resolution, no dependency installation, no execution (FR-051-CON-1).
-- [ ] **Identity + record ids.** Reformat-stable, rename-local (TC-742).
-- [ ] **Test classification.** All three conventions (TC-743).
-- [ ] **Extraction walk.** Deterministic file order; per-file diagnostics
+- [x] **Identity + record ids.** Reformat-stable, rename-local (TC-742).
+- [x] **Test classification.** All three conventions (TC-743).
+- [x] **Extraction walk.** Deterministic file order; per-file diagnostics
   (TC-741, TC-749).
 
 ## Deliverables
@@ -47,3 +47,26 @@ Per-file degradation: unparseable file → diagnostic, skip, continue
 - Parallel-ready: no dependency on Task-004 (marker binding is Task-006).
 - Adapter parser crates must clear `deny.toml` license/registry gates.
 - Unblocks: Task-006.
+
+## Implementation record (2026-08-04)
+
+- `src/symbols/` — `mod.rs` (identity, tree walk, per-file degradation) plus
+  `rust.rs`, `python.rs`, `typescript.rs`. Adapters are **line-structural**
+  (brace depth for Rust/TS, indentation for Python) rather than parser-backed:
+  that is what "syntax level, no build, no type resolution" buys, and it keeps
+  the extractor dependency-free and deterministic. No new crate dependency.
+- Identity = `(language, repo-relative `/`-path, qualified name, kind)` hashed
+  with the FR-045 `stable_id` convention (NUL-separated SHA-256). Line numbers
+  and formatting are excluded; `line` is carried as a non-identity attribute
+  alongside `leading_line`/`end_line`, the span the Task-006 trace binder reads
+  via `Symbol::attached_source`.
+- Test classification: Rust `#[test]`-family attributes (any attribute path
+  whose last segment is `test`, so `#[tokio::test]` counts), Python `test_`
+  functions plus `test_` methods of `Test*` classes, TypeScript `test`/`it`
+  registrations **titled by their registration string**.
+- `SymbolExtraction` retains each file's source so downstream tasks slice spans
+  without re-reading the tree; symbols sort by `(path, line, qualified_name)`.
+- Per-file degradation: an unreadable file or one whose braces do not balance
+  yields a `SymbolDiagnostic` and is skipped; siblings extract normally.
+- Fixtures: `tests/fixtures/symbols/{rust,python,typescript,broken}`.
+- TC-741, TC-742, TC-743, TC-749 green; `make ci` green.

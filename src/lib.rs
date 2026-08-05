@@ -27,6 +27,7 @@ pub mod parser;
 pub mod python;
 pub mod query;
 pub mod registry;
+pub mod symbols;
 pub mod traceability;
 pub mod validate;
 pub mod validate_document;

@@ -55,4 +55,9 @@ description: "Chronological log of changes to the Plan-001 bundle."
   load, merges first-wins across modules, and is exposed as
   `Registry::traceability()`. ISO-shaped and non-ISO fixtures live in
   `tests/fixtures/traceability/`. TC-732, TC-733 green; `make ci` green.
+* **2026-08-04** — Task-005 (Track B, branch `task/traceability-coverage`, cut
+  from the Track A branch tip) completed: `src/symbols/` ships the Rust, Python,
+  and TypeScript adapters — line-structural, dependency-free, no build or type
+  resolution — with stable non-positional identities, per-file degradation, and
+  retained spans for trace binding. TC-741, TC-742, TC-743, TC-749 green.
 
