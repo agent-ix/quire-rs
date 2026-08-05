@@ -24,7 +24,7 @@ use std::sync::OnceLock;
 use regex::Regex;
 
 use super::ears;
-use super::{GrammarFinding, GrammarLexicon, GrammarSeverity, ObservableVerbs};
+use super::{GrammarFinding, GrammarSeverity, GrammarVocabularies};
 use crate::ast::{QuireDocument, QuireSection};
 use crate::query;
 
@@ -93,10 +93,14 @@ pub fn check(
     archetype: &str,
     doc: &QuireDocument,
     line_offset: usize,
-    lexicon: &GrammarLexicon,
-    observable: &ObservableVerbs,
+    vocab: GrammarVocabularies<'_>,
 ) -> Vec<GrammarFinding> {
-    if archetype != "FR" {
+    // CR-014: bind to every requirement archetype that carries an
+    // `Acceptance Criteria` table, not `FR` alone — an ecosystem survey found
+    // US and NFR criteria authored in the same shape, and FR-only reached just
+    // 76.9% of AC-bearing documents. The section/column lookup is what actually
+    // gates: an archetype without the table contributes nothing.
+    if !matches!(archetype, "FR" | "NFR" | "US" | "StR" | "IT") {
         return Vec::new();
     }
     let mut stmts: Vec<Stmt> = Vec::new();
@@ -109,18 +113,13 @@ pub fn check(
 
     let mut findings = Vec::new();
     for stmt in &stmts {
-        check_statement(stmt, lexicon, observable, &mut findings);
+        check_statement(stmt, vocab, &mut findings);
     }
     findings
 }
 
-fn check_statement(
-    stmt: &Stmt,
-    lexicon: &GrammarLexicon,
-    observable: &ObservableVerbs,
-    out: &mut Vec<GrammarFinding>,
-) {
-    let shape = classify(&stmt.text, lexicon, observable);
+fn check_statement(stmt: &Stmt, vocab: GrammarVocabularies<'_>, out: &mut Vec<GrammarFinding>) {
+    let shape = classify(&stmt.text, vocab);
     let label = Some(shape.as_str().to_string());
 
     let push = |out: &mut Vec<GrammarFinding>, check: &str, message: String| {
@@ -139,8 +138,8 @@ fn check_statement(
         push(
             out,
             "unclassifiable",
-            "criterion names neither an input nor an observable outcome; there is nothing to test \
-             against"
+            "criterion states no predicate — a bare noun phrase asserts nothing that can be \
+             tested"
                 .to_string(),
         );
     }
@@ -169,22 +168,47 @@ fn check_statement(
     // a `given-when-then` cell (so a non-canonical cell's other checks still run
     // — FR-047-AC-10), and the whole cell when nothing structured it.
     let outcome = outcome_clause(&stmt.text, shape);
-    if let Some(verb) = ears::vague_verb_in_clause(outcome, lexicon) {
+    if let Some(verb) = ears::vague_verb_in_clause(outcome, vocab.lexicon) {
         push(
             out,
             "vague-response",
             format!("vague outcome verb `{verb}`; name a concrete, verifiable outcome"),
         );
     }
-    if !is_observable(outcome, lexicon, observable) {
+    // CR-014: fire on membership of the *closed* vacuity set, not on absence
+    // from the open-ended observable-verb space. Suppression reads the whole
+    // statement rather than the sliced clause, because an obligation's concrete
+    // signal often sits before the modal ("Repeated calls to `score_ip_encoded`
+    // … SHALL not allocate heap memory").
+    if vocab.vacuous.is_vacuous(outcome) && !carries_signal(&stmt.text, vocab) {
         push(
             out,
-            "no-observable-outcome",
-            "outcome clause names no externally checkable result (no returned value, emitted \
-             record, identifier, or bound)"
-                .to_string(),
+            "vacuous-outcome",
+            "criterion asserts only that something works; name the observable result".to_string(),
         );
     }
+}
+
+/// True when the statement carries something externally checkable: a
+/// concrete-object signal (backticked identifier or numeric bound), a merged
+/// lexicon term, or a declared observable-result verb.
+fn carries_signal(statement: &str, vocab: GrammarVocabularies<'_>) -> bool {
+    let normalized = ears::normalize(statement);
+    re_concrete_object_signal().is_match(&normalized)
+        || vocab.lexicon.contains_term(&normalized)
+        || vocab.observable.contains_verb(&normalized)
+}
+
+/// True when the statement has a **predicate** — a modal or copula, an inflected
+/// or irregular verb form, a declared observable verb, or a concrete signal.
+/// This is the structural question `unclassifiable` asks after CR-014, and it is
+/// deliberately independent of any domain vocabulary being complete.
+fn has_predicate(statement: &str, vocab: GrammarVocabularies<'_>) -> bool {
+    let normalized = ears::normalize(statement);
+    carries_signal(&normalized, vocab)
+        || re_modal_or_copula().is_match(&normalized)
+        || re_inflected_verb().is_match(&normalized)
+        || re_irregular_past().is_match(&normalized)
 }
 
 // ─── Classification ─────────────────────────────────────────────────────────
@@ -195,18 +219,16 @@ fn check_statement(
 /// criterion is an EARS event pattern, not a GWT trigger), then Given/When/Then.
 /// What remains is an `assertion` when it carries an observable signal — the
 /// canonical shape — and `unstructured` when it carries nothing at all.
-pub fn classify(
-    statement: &str,
-    lexicon: &GrammarLexicon,
-    observable: &ObservableVerbs,
-) -> AcShape {
+pub fn classify(statement: &str, vocab: GrammarVocabularies<'_>) -> AcShape {
     if ears::classify(statement) != ears::EarsPattern::Unclassifiable {
         return AcShape::Obligation;
     }
     if is_given_when_then(statement) {
         return AcShape::GivenWhenThen;
     }
-    if is_observable(statement, lexicon, observable) {
+    // CR-014: a criterion with a predicate is an assertion, whatever verb it
+    // uses; only a predicate-less cell is unstructured.
+    if has_predicate(statement, vocab) {
         return AcShape::Assertion;
     }
     AcShape::Unstructured
@@ -265,17 +287,6 @@ fn outcome_clause(statement: &str, shape: AcShape) -> &str {
     }
 }
 
-/// True when the outcome clause names an externally checkable result: a
-/// concrete-object signal per FR-042 (a backticked identifier, a numeric or
-/// comparison bound, or a merged-lexicon term) or an observable-result verb
-/// from the module-data vocabulary (FR-047-AC-5/AC-12).
-fn is_observable(clause: &str, lexicon: &GrammarLexicon, observable: &ObservableVerbs) -> bool {
-    let normalized = ears::normalize(clause);
-    re_concrete_object_signal().is_match(&normalized)
-        || lexicon.contains_term(&normalized)
-        || observable.contains_verb(&normalized)
-}
-
 // ─── Statement extraction ───────────────────────────────────────────────────
 
 /// Every non-empty `Criteria` cell is one statement — no modal-verb filter
@@ -323,27 +334,58 @@ fn supplement_sections(sections: &[QuireSection]) -> Vec<&QuireSection> {
 fn supplement_statements(section: &QuireSection, line_offset: usize) -> Vec<Stmt> {
     let mut out = Vec::new();
     let mut in_fence = false;
-    for (rel, raw_line) in section.content.lines().enumerate() {
-        let trimmed = raw_line.trim_start();
-        if trimmed.starts_with("```") || trimmed.starts_with("~~~") {
-            in_fence = !in_fence;
-            continue;
+    // CR-014: join wrapped prose before segmenting. Splitting per source line
+    // truncated statements mid-clause ("During ambuild in the default build
+    // mode, the native graph builder SHALL use"), which the ecosystem fit check
+    // surfaced as a large share of the findings. A paragraph is a run of
+    // non-blank lines; its first line carries the reported position.
+    let mut paragraph: Vec<&str> = Vec::new();
+    let mut paragraph_line: usize = 0;
+
+    let flush = |paragraph: &mut Vec<&str>, start: usize, out: &mut Vec<Stmt>| {
+        if paragraph.is_empty() {
+            return;
         }
-        if in_fence || trimmed.starts_with('>') || trimmed.starts_with('#') {
-            continue;
-        }
-        let line = ears::strip_list_marker(trimmed);
-        for fragment in line.split(". ") {
+        let joined = paragraph.join(" ");
+        paragraph.clear();
+        for fragment in joined.split(". ") {
             let text = fragment.trim();
             if text.is_empty() {
                 continue;
             }
             out.push(Stmt {
                 text: text.to_string(),
-                line: Some(ears::abs_line(section, rel, line_offset)),
+                line: Some(start),
             });
         }
+    };
+
+    for (rel, raw_line) in section.content.lines().enumerate() {
+        let trimmed = raw_line.trim_start();
+        if trimmed.starts_with("```") || trimmed.starts_with("~~~") {
+            flush(&mut paragraph, paragraph_line, &mut out);
+            in_fence = !in_fence;
+            continue;
+        }
+        if in_fence || trimmed.starts_with('>') || trimmed.starts_with('#') {
+            flush(&mut paragraph, paragraph_line, &mut out);
+            continue;
+        }
+        let line = ears::strip_list_marker(trimmed);
+        if line.trim().is_empty() {
+            flush(&mut paragraph, paragraph_line, &mut out);
+            continue;
+        }
+        // A list marker starts a new statement even without a blank line.
+        if line != trimmed {
+            flush(&mut paragraph, paragraph_line, &mut out);
+        }
+        if paragraph.is_empty() {
+            paragraph_line = ears::abs_line(section, rel, line_offset);
+        }
+        paragraph.push(line);
     }
+    flush(&mut paragraph, paragraph_line, &mut out);
     out
 }
 
@@ -381,6 +423,35 @@ fn re_ac_supplement_heading() -> &'static Regex {
     })
 }
 
+/// A modal or copula — the clearest predicate marker.
+fn re_modal_or_copula() -> &'static Regex {
+    static R: OnceLock<Regex> = OnceLock::new();
+    R.get_or_init(|| {
+        Regex::new(
+            r"(?i)\b(shall|should|must|may|can|cannot|will|won't|would|does|doesn't|do|don't|is|are|was|were|be|been|being|has|have|had)\b",
+        )
+        .expect("modal/copula regex")
+    })
+}
+
+/// An inflected verb form (`-s`, `-ed`, `-ing`) — a weak but broad predicate
+/// signal that needs no vocabulary to be complete.
+fn re_inflected_verb() -> &'static Regex {
+    static R: OnceLock<Regex> = OnceLock::new();
+    R.get_or_init(|| Regex::new(r"(?i)\b\w+(s|ed|ing)\b").expect("inflected-verb regex"))
+}
+
+/// Irregular past/participle forms the `-ed` rule cannot reach.
+fn re_irregular_past() -> &'static Regex {
+    static R: OnceLock<Regex> = OnceLock::new();
+    R.get_or_init(|| {
+        Regex::new(
+            r"(?i)\b(built|sent|written|wrote|kept|made|found|held|ran|begun|threw|thrown|caught|left|lost|shown|drawn|gave|given|took|taken|saw|seen|set|put|cut|read)\b",
+        )
+        .expect("irregular-past regex")
+    })
+}
+
 /// A concrete-object signal per FR-042: a backticked identifier, a digit, or a
 /// comparison/percentage bound.
 fn re_concrete_object_signal() -> &'static Regex {
@@ -396,6 +467,8 @@ mod tests {
         crate::parse_document(text)
     }
 
+    use crate::grammar::{GrammarLexicon, ObservableVerbs, VacuousPredicates};
+
     fn empty_lex() -> GrammarLexicon {
         GrammarLexicon::empty()
     }
@@ -406,6 +479,24 @@ mod tests {
 
     fn verbs() -> ObservableVerbs {
         ObservableVerbs::default()
+    }
+
+    fn vacuities() -> VacuousPredicates {
+        VacuousPredicates::default()
+    }
+
+    /// The vocabularies most tests use: empty lexicon, built-in verb and
+    /// vacuity sets.
+    fn vocab<'a>(
+        lexicon: &'a GrammarLexicon,
+        observable: &'a ObservableVerbs,
+        vacuous: &'a VacuousPredicates,
+    ) -> GrammarVocabularies<'a> {
+        GrammarVocabularies {
+            lexicon,
+            observable,
+            vacuous,
+        }
     }
 
     /// An FR whose `Acceptance Criteria` table carries `cells` as rows.
@@ -421,7 +512,12 @@ mod tests {
     }
 
     fn findings(cells: &[&str]) -> Vec<GrammarFinding> {
-        check("FR", &ac_doc(cells), 0, &empty_lex(), &verbs())
+        check(
+            "FR",
+            &ac_doc(cells),
+            0,
+            vocab(&empty_lex(), &verbs(), &vacuities()),
+        )
     }
 
     fn count(cells: &[&str], check_id: &str) -> usize {
@@ -437,7 +533,7 @@ mod tests {
     // one `unclassifiable` finding.
     #[test]
     fn tc707_shape_classification() {
-        let shape = |text: &str| classify(text, &empty_lex(), &verbs());
+        let shape = |text: &str| classify(text, vocab(&empty_lex(), &verbs(), &vacuities()));
 
         // Canonical: asserts an outcome directly.
         assert_eq!(
@@ -458,11 +554,16 @@ mod tests {
             shape("Given a valid token, when the user submits, then the request is accepted."),
             AcShape::GivenWhenThen
         );
-        // No modal, no Given/When/Then, no observable signal.
-        assert_eq!(shape("It all works end to end."), AcShape::Unstructured);
+        // No predicate at all — a bare noun phrase (CR-014).
+        assert_eq!(shape("Structural evaluation"), AcShape::Unstructured);
+        assert_eq!(shape("Type Check"), AcShape::Unstructured);
+        // …whereas a vacuous-but-predicated cell is an assertion; its defect is
+        // `vacuous-outcome`, not shape.
+        assert_eq!(shape("Navigation works"), AcShape::Assertion);
 
         // `unclassifiable` fires on the unstructured cell only.
-        assert_eq!(count(&["It all works end to end."], "unclassifiable"), 1);
+        assert_eq!(count(&["Structural evaluation"], "unclassifiable"), 1);
+        assert_eq!(count(&["Navigation works"], "unclassifiable"), 0);
         for clean in [
             "The parser returns the parsed record.",
             "The system shall reject the request with `403`.",
@@ -532,73 +633,149 @@ mod tests {
     fn tc710_vague_response_reuses_the_lexicon() {
         let cell = "The system shall support pagination.";
         let vague = |lexicon: &GrammarLexicon| {
-            check("FR", &ac_doc(&[cell]), 0, lexicon, &verbs())
-                .iter()
-                .filter(|f| f.check == "vague-response")
-                .count()
+            check(
+                "FR",
+                &ac_doc(&[cell]),
+                0,
+                vocab(lexicon, &verbs(), &vacuities()),
+            )
+            .iter()
+            .filter(|f| f.check == "vague-response")
+            .count()
         };
         assert_eq!(vague(&empty_lex()), 1);
         assert_eq!(vague(&lex(&["pagination"])), 0);
     }
 
-    // TC-711 (FR-047-AC-5): an outcome clause with neither a concrete-object
-    // signal nor an observable verb flags; returned values, emitted records and
-    // exit codes do not.
+    // TC-711 (FR-047-AC-5, CR-014): a cell headed by a vacuous predicate with
+    // nothing else to check fires `vacuous-outcome`; the same predicate
+    // alongside a concrete signal, a lexicon term, or an observable verb does
+    // not. The check detects membership of a *closed* vacuity set rather than
+    // absence from the open-ended observable-verb space.
     #[test]
-    fn tc711_no_observable_outcome() {
+    fn tc711_vacuous_outcome() {
+        for vacuous in [
+            "Navigation works",
+            "PostgreSQL backend works",
+            "Built-in conditions work correctly",
+            "The result is correct",
+        ] {
+            assert_eq!(count(&[vacuous], "vacuous-outcome"), 1, "{vacuous}");
+        }
+
+        // Suppressed by a concrete-object signal…
         assert_eq!(
-            count(&["The import works correctly."], "no-observable-outcome"),
-            1
+            count(&["Navigation works through `Router`"], "vacuous-outcome"),
+            0
         );
+        // …by an observable-result verb…
         assert_eq!(
             count(
-                &["The parser returns the parsed record."],
-                "no-observable-outcome"
+                &["Pagination works and returns the next cursor"],
+                "vacuous-outcome"
             ),
             0
         );
+        // …and by a merged-lexicon term.
         assert_eq!(
-            count(
-                &["The loader emits a `DuplicateEdgeType` diagnostic."],
-                "no-observable-outcome"
-            ),
+            check(
+                "FR",
+                &ac_doc(&["Pagination works"]),
+                0,
+                vocab(&lex(&["pagination"]), &verbs(), &vacuities()),
+            )
+            .iter()
+            .filter(|f| f.check == "vacuous-outcome")
+            .count(),
             0
         );
-        assert_eq!(
-            count(&["The command exits with code 1."], "no-observable-outcome"),
-            0
-        );
+
+        // A substantive criterion never fires, whatever verb it uses — the
+        // ecosystem fit check found the old allowlist flagging these.
+        for fine in [
+            "Semantic search ranks by relevance",
+            "Cache does not exceed max_size entries",
+            "A partially-built index is cleaned up on recovery",
+            "Volumes are correctly mounted into the container",
+        ] {
+            assert_eq!(count(&[fine], "vacuous-outcome"), 0, "{fine}");
+        }
     }
 
-    // TC-712 (FR-047-AC-6): the `ac` grammar runs only on its bindings — the FR
-    // Criteria column and `### <doc-id>-AC-N` supplements. An FR `Constraints`
-    // cell and an NFR `Statement` are not `ac` territory.
+    // TC-712 (FR-047-AC-6, CR-014): the grammar runs on the `Acceptance
+    // Criteria` `Criteria` column of every requirement archetype that carries
+    // one, plus `### <doc-id>-AC-N` supplements — but on nothing else. An FR
+    // `Constraints` cell and an NFR `Statement` remain EARS territory.
     #[test]
     fn tc712_binding() {
         let constraints = doc("---\nid: FR-001\ntype: FR\n---\n## Constraints\n\n\
              | ID | Constraint | Type | Validation |\n|----|------------|------|------------|\n\
-             | FR-001-CON-1 | It all works end to end. | Operational | Inspection |\n");
-        assert!(check("FR", &constraints, 0, &empty_lex(), &verbs()).is_empty());
+             | FR-001-CON-1 | Structural evaluation | Operational | Inspection |\n");
+        assert!(check(
+            "FR",
+            &constraints,
+            0,
+            vocab(&empty_lex(), &verbs(), &vacuities())
+        )
+        .is_empty());
 
-        let nfr = doc("---\nid: NFR-001\ntype: NFR\n---\n## Statement\n\nIt all works.\n");
-        assert!(check("NFR", &nfr, 0, &empty_lex(), &verbs()).is_empty());
+        let nfr_statement =
+            doc("---\nid: NFR-001\ntype: NFR\n---\n## Statement\n\nStructural evaluation\n");
+        assert!(check(
+            "NFR",
+            &nfr_statement,
+            0,
+            vocab(&empty_lex(), &verbs(), &vacuities())
+        )
+        .is_empty());
+
+        // Every requirement archetype carrying an AC table is checked (CR-014):
+        // FR-only reached just 76.9% of AC-bearing documents in the ecosystem.
+        for archetype in ["FR", "NFR", "US", "StR", "IT"] {
+            let md = format!(
+                "---\nid: {archetype}-001\ntype: {archetype}\n---\n## Acceptance Criteria\n\n\
+                 | ID | Criteria | Verification |\n|----|----------|--------------|\n\
+                 | {archetype}-001-AC-1 | Structural evaluation | Test |\n"
+            );
+            let found = check(
+                archetype,
+                &doc(&md),
+                0,
+                vocab(&empty_lex(), &verbs(), &vacuities()),
+            );
+            assert!(
+                found.iter().any(|f| f.check == "unclassifiable"),
+                "{archetype} acceptance criteria must be checked"
+            );
+        }
+
+        // An archetype with no AC table contributes nothing.
+        let adr = doc("---\nid: ADR-001\ntype: ADR\n---\n## Decision\n\nStructural evaluation\n");
+        assert!(check("ADR", &adr, 0, vocab(&empty_lex(), &verbs(), &vacuities())).is_empty());
 
         // The same prose inside a supplement section IS checked.
-        let supplement =
-            doc("---\nid: FR-001\ntype: FR\n---\n## Notes\n\n### FR-001-AC-1\n\nIt all works.\n");
-        assert!(!check("FR", &supplement, 0, &empty_lex(), &verbs()).is_empty());
+        let supplement = doc(
+            "---\nid: FR-001\ntype: FR\n---\n## Notes\n\n### FR-001-AC-1\n\nStructural evaluation\n",
+        );
+        assert!(!check(
+            "FR",
+            &supplement,
+            0,
+            vocab(&empty_lex(), &verbs(), &vacuities())
+        )
+        .is_empty());
     }
 
     // TC-713 (FR-047-AC-7): finding fields — grammar, check id, excerpt, line,
     // shape, severity.
     #[test]
     fn tc713_finding_fields() {
-        let f = findings(&["It all works end to end."]);
+        let f = findings(&["Structural evaluation"]);
         let u = f.iter().find(|x| x.check == "unclassifiable").unwrap();
         assert_eq!(u.grammar, "ac");
         // `pattern` carries the detected *shape*; the check id names the defect.
         assert_eq!(u.pattern.as_deref(), Some("unstructured"));
-        assert_eq!(u.statement, "It all works end to end.");
+        assert_eq!(u.statement, "Structural evaluation");
         assert!(u.line.is_some());
         assert_eq!(u.severity, GrammarSeverity::Warning);
     }
@@ -615,11 +792,13 @@ mod tests {
         assert!(findings(&[gwt])
             .iter()
             .all(|x| x.pattern.as_deref() == Some("given-when-then")));
-        assert_eq!(count(&[gwt], "no-observable-outcome"), 1);
+        // The `Then` clause is vacuous ("it works correctly") → the outcome
+        // check still runs on it.
+        assert_eq!(count(&[gwt], "vacuous-outcome"), 1);
         assert_eq!(
             count(
                 &["Given a request, when it is unauthenticated, then the API returns `401`."],
-                "no-observable-outcome"
+                "vacuous-outcome"
             ),
             0
         );
@@ -632,7 +811,7 @@ mod tests {
         assert!(findings(&[obligation])
             .iter()
             .all(|x| x.pattern.as_deref() == Some("obligation")));
-        assert_eq!(count(&[obligation], "no-observable-outcome"), 0);
+        assert_eq!(count(&[obligation], "vacuous-outcome"), 0);
 
         // The canonical assertion yields none.
         assert_eq!(
@@ -643,10 +822,7 @@ mod tests {
             0
         );
         // …nor does an unstructured cell: that is `unclassifiable`'s business.
-        assert_eq!(
-            count(&["It all works end to end."], "non-canonical-shape"),
-            0
-        );
+        assert_eq!(count(&["Structural evaluation"], "non-canonical-shape"), 0);
     }
 
     // TC-754 (FR-047-AC-11): fenced blocks and blockquotes inside a supplement
@@ -659,7 +835,7 @@ mod tests {
              ```\nIt all works end to end.\n```\n\n\
              > It all works in quotes.\n",
         );
-        let f = check("FR", &d, 0, &empty_lex(), &verbs());
+        let f = check("FR", &d, 0, vocab(&empty_lex(), &verbs(), &vacuities()));
         assert!(
             !f.iter().any(|x| x.statement.contains("works end to end")),
             "fenced content must not be segmented"
@@ -680,46 +856,85 @@ mod tests {
         // A vacuous supplement line proves the prose really is segmented.
         let vacuous =
             doc("---\nid: FR-001\ntype: FR\n---\n## Notes\n\n### FR-001-AC-1\n\nIt all works.\n");
-        assert!(check("FR", &vacuous, 0, &empty_lex(), &verbs())
-            .iter()
-            .any(|x| x.check == "unclassifiable"));
+        assert!(check(
+            "FR",
+            &vacuous,
+            0,
+            vocab(&empty_lex(), &verbs(), &vacuities())
+        )
+        .iter()
+        .any(|x| x.check == "vacuous-outcome"));
     }
 
-    // TC-757 (FR-047-AC-12): the observable-verb vocabulary is module data — a
-    // module-added verb suppresses `no-observable-outcome`, and with no module
-    // declaration the built-in defaults apply unchanged.
+    // TC-757 (FR-047-AC-12, CR-014): both vocabularies are module data — a
+    // module-added observable verb suppresses `vacuous-outcome`, a module-added
+    // vacuous predicate extends the vacuity set, and with no declaration both
+    // built-in sets apply unchanged.
     #[test]
-    fn tc757_observable_verbs_are_module_data() {
-        let cell = "The pipeline surfaces the review outcome.";
+    fn tc757_vocabularies_are_module_data() {
+        // ── observable verbs suppress ──
+        let cell = "Navigation works once the pipeline surfaces the outcome";
         let flagged = |observable: &ObservableVerbs| {
-            check("FR", &ac_doc(&[cell]), 0, &empty_lex(), observable)
-                .iter()
-                .filter(|f| f.check == "no-observable-outcome")
-                .count()
+            check(
+                "FR",
+                &ac_doc(&[cell]),
+                0,
+                vocab(&empty_lex(), observable, &vacuities()),
+            )
+            .iter()
+            .filter(|f| f.check == "vacuous-outcome")
+            .count()
         };
         // Built-in defaults only: `surfaces` is not an observable-result verb.
         assert_eq!(flagged(&ObservableVerbs::default()), 1);
-        // A module declaring it extends the vocabulary.
+        // A module declaring it extends the vocabulary and suppresses.
         assert_eq!(
             flagged(&ObservableVerbs::with_module_verbs(
                 ["surface"].iter().copied()
             )),
             0
         );
-        // The built-ins survive the module declaration (lowest precedence, not
-        // replaced): `returns` still counts.
+        // The built-ins survive a module declaration (lowest precedence, not
+        // replaced): `returns` still suppresses.
         assert_eq!(
             check(
                 "FR",
-                &ac_doc(&["The parser returns the record."]),
+                &ac_doc(&["Navigation works and returns the next cursor"]),
                 0,
-                &empty_lex(),
-                &ObservableVerbs::with_module_verbs(["surface"].iter().copied()),
+                vocab(
+                    &empty_lex(),
+                    &ObservableVerbs::with_module_verbs(["surface"].iter().copied()),
+                    &vacuities(),
+                ),
             )
             .iter()
-            .filter(|f| f.check == "no-observable-outcome")
+            .filter(|f| f.check == "vacuous-outcome")
             .count(),
             0
+        );
+
+        // ── vacuous predicates extend ──
+        // No observable verb in the sentence, so only the vacuity vocabulary decides.
+        let acceptable = "The outcome is acceptable";
+        let vacuity_flagged = |vacuous: &VacuousPredicates| {
+            check(
+                "FR",
+                &ac_doc(&[acceptable]),
+                0,
+                vocab(&empty_lex(), &verbs(), vacuous),
+            )
+            .iter()
+            .filter(|f| f.check == "vacuous-outcome")
+            .count()
+        };
+        // Built-ins alone do not know `is acceptable`.
+        assert_eq!(vacuity_flagged(&VacuousPredicates::default()), 0);
+        // A module declaring it does.
+        assert_eq!(
+            vacuity_flagged(&VacuousPredicates::with_module_predicates(
+                ["is acceptable"].iter().copied()
+            )),
+            1
         );
     }
 }

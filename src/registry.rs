@@ -45,6 +45,9 @@ struct Inner {
     /// matcher (built-in defaults ∪ module declarations).
     observable_verbs: std::collections::BTreeMap<String, crate::vocab::ObservableVerbDef>,
     observable_verbs_matcher: crate::grammar::ObservableVerbs,
+    /// Merged vacuous-predicate registry (FR-047, CR-014) + its matcher.
+    vacuous_predicates: std::collections::BTreeMap<String, crate::vocab::VacuousPredicateDef>,
+    vacuous_predicates_matcher: crate::grammar::VacuousPredicates,
     /// Merged declarative traceability model (FR-050).
     traceability: crate::traceability::TraceabilityModel,
     failures: Vec<ArchetypeLoadFailure>,
@@ -196,6 +199,7 @@ impl Registry {
             lexicon,
             grammar_severity,
             observable_verbs,
+            vacuous_predicates,
             traceability,
             failures,
             diagnostics,
@@ -208,6 +212,10 @@ impl Registry {
         // merged module registry over the engine's built-in defaults.
         let observable_verbs_matcher = crate::grammar::ObservableVerbs::with_module_verbs(
             observable_verbs.keys().map(String::as_str),
+        );
+        // CR-014: likewise precompile the vacuity matcher once.
+        let vacuous_predicates_matcher = crate::grammar::VacuousPredicates::with_module_predicates(
+            vacuous_predicates.keys().map(String::as_str),
         );
         Self {
             inner: Arc::new(Inner {
@@ -224,6 +232,8 @@ impl Registry {
                 grammar_severity,
                 observable_verbs,
                 observable_verbs_matcher,
+                vacuous_predicates,
+                vacuous_predicates_matcher,
                 traceability,
                 failures,
                 diagnostics,
@@ -347,6 +357,20 @@ impl Registry {
     /// the merged module registry.
     pub fn observable_verbs_matcher(&self) -> &crate::grammar::ObservableVerbs {
         &self.inner.observable_verbs_matcher
+    }
+
+    /// Merged vacuous-predicate registry (FR-047, CR-014), first-wins across
+    /// modules. The `ac` grammar's `vacuous-outcome` check consumes these on top
+    /// of the engine's built-in vacuity set.
+    pub fn vacuous_predicates(
+        &self,
+    ) -> &std::collections::BTreeMap<String, crate::vocab::VacuousPredicateDef> {
+        &self.inner.vacuous_predicates
+    }
+
+    /// The precompiled vacuity matcher (FR-047, CR-014).
+    pub fn vacuous_predicates_matcher(&self) -> &crate::grammar::VacuousPredicates {
+        &self.inner.vacuous_predicates_matcher
     }
 
     /// The merged declarative traceability model (FR-050), or `None` when no

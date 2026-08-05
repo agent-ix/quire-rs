@@ -85,6 +85,12 @@ pub struct Manifest {
     /// the merged keys, so the vocabulary is module data (ADR 0009).
     #[serde(default)]
     pub observable_verbs: BTreeMap<String, crate::vocab::ObservableVerbDef>,
+    /// Mergeable vacuous-predicate registry (FR-047, CR-014): predicate →
+    /// {definition, optional category}. Merged across modules first-wins and
+    /// layered over the engine's built-in vacuity set. The `ac` grammar's
+    /// `vacuous-outcome` check consumes the merged keys.
+    #[serde(default)]
+    pub vacuous_predicates: BTreeMap<String, crate::vocab::VacuousPredicateDef>,
     /// Declarative traceability model (FR-050): which documents mint trace
     /// ids, which columns reference them, the status vocabulary, and the
     /// trace-tag grammar. Absent → the model is undeclared; malformed → module

@@ -194,14 +194,22 @@ fn check_grammar<'py>(
             Some(r) => r.observable_verbs_matcher(),
             None => crate::grammar::default_observable_verbs(),
         };
+        // CR-014: the vacuity vocabulary travels the same way.
+        let vacuous = match registry.as_ref() {
+            Some(r) => r.vacuous_predicates_matcher(),
+            None => crate::grammar::default_vacuous_predicates(),
+        };
         Ok(crate::grammar::apply_severity(
             crate::grammar::check_document_grammar(
                 &gref,
                 &arch,
                 &doc,
                 line_offset,
-                lexicon,
-                observable,
+                crate::grammar::GrammarVocabularies {
+                    lexicon,
+                    observable,
+                    vacuous,
+                },
             ),
             severity,
         ))

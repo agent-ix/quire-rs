@@ -75,9 +75,142 @@ impl GrammarLexicon {
 /// the verbs whose presence in an outcome clause makes the result externally
 /// checkable. Module data extends this set (ADR 0009); the built-ins are the
 /// lowest-precedence layer, never replaced.
+/// Mined from 11,919 ecosystem acceptance-criteria cells (CR-014): the 13-verb
+/// original covered 14.5% of the corpus's 1,201 distinct verb stems, which made
+/// the check that consumed it unusable. This set is the frequency-ranked verb
+/// vocabulary those criteria actually use.
 const BUILTIN_OBSERVABLE_VERBS: &[&str] = &[
-    "return", "emit", "yield", "report", "record", "reject", "fail", "exit", "persist", "print",
-    "contain", "equal", "match",
+    "accept",
+    "allow",
+    "apply",
+    "approve",
+    "assign",
+    "block",
+    "call",
+    "carry",
+    "catch",
+    "change",
+    "clean",
+    "contain",
+    "count",
+    "create",
+    "declare",
+    "define",
+    "delete",
+    "deny",
+    "detect",
+    "discard",
+    "distinguish",
+    "emit",
+    "enforce",
+    "equal",
+    "exceed",
+    "execute",
+    "exist",
+    "exit",
+    "expose",
+    "extract",
+    "fail",
+    "filter",
+    "ignore",
+    "include",
+    "inherit",
+    "insert",
+    "load",
+    "log",
+    "mark",
+    "match",
+    "merge",
+    "mount",
+    "omit",
+    "parse",
+    "pass",
+    "persist",
+    "preserve",
+    "print",
+    "produce",
+    "propagate",
+    "publish",
+    "raise",
+    "rank",
+    "read",
+    "receive",
+    "record",
+    "reject",
+    "remove",
+    "render",
+    "replace",
+    "report",
+    "resolve",
+    "restore",
+    "resume",
+    "retry",
+    "return",
+    "route",
+    "run",
+    "save",
+    "select",
+    "send",
+    "skip",
+    "sort",
+    "split",
+    "start",
+    "stop",
+    "store",
+    "succeed",
+    "throw",
+    "track",
+    "transition",
+    "trigger",
+    "update",
+    "validate",
+    "write",
+    "yield",
+];
+
+/// The built-in **vacuous predicate** set (CR-014): the closed vocabulary of
+/// heads that assert nothing checkable. `vacuous-outcome` detects membership of
+/// *this* set rather than absence from the open-ended observable-verb space —
+/// the inversion the ecosystem fit check forced.
+const BUILTIN_VACUOUS_PREDICATES: &[&str] = &[
+    "works",
+    "working",
+    "behaves",
+    "behave",
+    "functions",
+    "is correct",
+    "is successful",
+    "is fine",
+    "is ok",
+    "work correctly",
+    "work properly",
+    "work as expected",
+];
+
+/// English irregular past/participle forms the suffix inflector cannot derive.
+/// Without these, `write` never matches `written` — a false positive the fit
+/// check found in the wild (CR-014).
+const IRREGULAR_FORMS: &[(&str, &[&str])] = &[
+    ("write", &["wrote", "written"]),
+    ("read", &["read"]),
+    ("send", &["sent"]),
+    ("build", &["built"]),
+    ("keep", &["kept"]),
+    ("make", &["made"]),
+    ("find", &["found"]),
+    ("hold", &["held"]),
+    ("run", &["ran"]),
+    ("throw", &["threw", "thrown"]),
+    ("catch", &["caught"]),
+    ("leave", &["left"]),
+    ("lose", &["lost"]),
+    ("show", &["shown"]),
+    ("give", &["gave", "given"]),
+    ("take", &["took", "taken"]),
+    ("see", &["saw", "seen"]),
+    ("set", &["set"]),
+    ("put", &["put"]),
+    ("cut", &["cut"]),
 ];
 
 /// A precompiled matcher over the observable-result verbs (FR-047-AC-5/AC-12):
@@ -129,6 +262,88 @@ impl ObservableVerbs {
     }
 }
 
+/// A precompiled matcher over the **vacuous predicate** vocabulary (CR-014):
+/// the built-in closed set merged with any module-declared `vacuous_predicates`
+/// registry. Multi-word entries (`is correct`) match with flexible whitespace.
+#[derive(Debug)]
+pub struct VacuousPredicates {
+    matcher: Option<Regex>,
+}
+
+impl Default for VacuousPredicates {
+    fn default() -> Self {
+        Self::with_module_predicates(std::iter::empty())
+    }
+}
+
+impl VacuousPredicates {
+    /// Built-in defaults plus `module_predicates`, the built-ins at lowest
+    /// precedence — a module extends the vocabulary, it never replaces it.
+    pub fn with_module_predicates<'a, I: IntoIterator<Item = &'a str>>(
+        module_predicates: I,
+    ) -> Self {
+        let mut forms: Vec<String> = Vec::new();
+        for predicate in BUILTIN_VACUOUS_PREDICATES
+            .iter()
+            .copied()
+            .chain(module_predicates)
+        {
+            let predicate = predicate.trim();
+            if predicate.is_empty() {
+                continue;
+            }
+            // `is correct` must tolerate any run of whitespace between words.
+            let escaped: Vec<String> = predicate.split_whitespace().map(regex::escape).collect();
+            forms.push(escaped.join(r"\s+"));
+        }
+        let matcher = if forms.is_empty() {
+            None
+        } else {
+            Regex::new(&format!(r"(?i)\b({})\b", forms.join("|"))).ok()
+        };
+        Self { matcher }
+    }
+
+    /// True when `text` is headed by a vacuous predicate. A bare `work` is
+    /// excluded unless qualified (`work correctly`), because the corpus uses it
+    /// far more often as a noun (`pending work`, `available work`) — a false
+    /// positive the fit check caught.
+    pub fn is_vacuous(&self, text: &str) -> bool {
+        self.matcher.as_ref().is_some_and(|r| r.is_match(text))
+    }
+}
+
+/// The shared built-in vacuity vocabulary for the registry-free paths.
+pub fn default_vacuous_predicates() -> &'static VacuousPredicates {
+    static DEFAULT: OnceLock<VacuousPredicates> = OnceLock::new();
+    DEFAULT.get_or_init(VacuousPredicates::default)
+}
+
+/// The vocabularies a grammar consumes. Bundled because the `ac` grammar now
+/// reads three of them and threading each separately through every entry point
+/// was becoming the dominant diff.
+#[derive(Debug, Clone, Copy)]
+pub struct GrammarVocabularies<'a> {
+    /// Merged module lexicon ∪ project glossary (FR-043 / FR-044).
+    pub lexicon: &'a GrammarLexicon,
+    /// Observable-result verbs (FR-047-AC-12, ADR 0009).
+    pub observable: &'a ObservableVerbs,
+    /// Vacuous predicates (FR-047-AC-12, CR-014).
+    pub vacuous: &'a VacuousPredicates,
+}
+
+impl<'a> GrammarVocabularies<'a> {
+    /// The registry-free defaults: empty lexicon, built-in verb and vacuity
+    /// vocabularies.
+    pub fn defaults() -> Self {
+        Self {
+            lexicon: empty_lexicon(),
+            observable: default_observable_verbs(),
+            vacuous: default_vacuous_predicates(),
+        }
+    }
+}
+
 /// The shared built-in observable-verb vocabulary for the registry-free paths.
 pub fn default_observable_verbs() -> &'static ObservableVerbs {
     static DEFAULT: OnceLock<ObservableVerbs> = OnceLock::new();
@@ -139,7 +354,15 @@ pub fn default_observable_verbs() -> &'static ObservableVerbs {
 /// participle. Vocabulary verbs are lowercase ASCII, so byte handling is safe.
 fn inflect(verb: &str) -> Vec<String> {
     let lower = verb.to_ascii_lowercase();
-    let third = if lower.ends_with('s')
+    let bytes = lower.as_bytes();
+    let n = bytes.len();
+    // consonant + `y` → `ies` / `ied` (`carry` → `carries`, `carried`), which the
+    // original inflector got wrong (`carryed`).
+    let consonant_y = n >= 2 && bytes[n - 1] == b'y' && !b"aeiou".contains(&bytes[n - 2]);
+
+    let third = if consonant_y {
+        format!("{}ies", &lower[..n - 1])
+    } else if lower.ends_with('s')
         || lower.ends_with('x')
         || lower.ends_with('z')
         || lower.ends_with("ch")
@@ -149,11 +372,19 @@ fn inflect(verb: &str) -> Vec<String> {
     } else {
         format!("{lower}s")
     };
-    let (past, participle) = match lower.strip_suffix('e') {
-        Some(stem) => (format!("{lower}d"), format!("{stem}ing")),
-        None => (format!("{lower}ed"), format!("{lower}ing")),
+    let (past, participle) = if consonant_y {
+        (format!("{}ied", &lower[..n - 1]), format!("{lower}ing"))
+    } else if let Some(stem) = lower.strip_suffix('e') {
+        (format!("{lower}d"), format!("{stem}ing"))
+    } else {
+        (format!("{lower}ed"), format!("{lower}ing"))
     };
-    vec![lower, third, past, participle]
+
+    let mut forms = vec![lower.clone(), third, past, participle];
+    if let Some((_, irregular)) = IRREGULAR_FORMS.iter().find(|(base, _)| *base == lower) {
+        forms.extend(irregular.iter().map(|f| (*f).to_string()));
+    }
+    forms
 }
 
 /// Naive English pluralizer for lexicon terms: consonant+`y`→`ies`, sibilant
@@ -415,16 +646,15 @@ pub fn check_document_grammar(
     archetype: &str,
     doc: &QuireDocument,
     line_offset: usize,
-    lexicon: &GrammarLexicon,
-    observable: &ObservableVerbs,
+    vocab: GrammarVocabularies<'_>,
 ) -> Vec<GrammarFinding> {
     match grammar_ref {
         // The bundle runs every grammar registered on it; each grammar's own
         // `(archetype, section)` binding decides whether it contributes
         // (FR-042-AC-6, FR-047-AC-6).
         "iso-spec-core" => {
-            let mut findings = ears::check(archetype, doc, line_offset, lexicon);
-            findings.extend(ac::check(archetype, doc, line_offset, lexicon, observable));
+            let mut findings = ears::check(archetype, doc, line_offset, vocab.lexicon);
+            findings.extend(ac::check(archetype, doc, line_offset, vocab));
             findings
         }
         _ => Vec::new(),
