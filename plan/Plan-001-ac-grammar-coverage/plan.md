@@ -118,7 +118,7 @@ blocking relationships to the tasks it gates. Do not close a gated task's
 | EXT-2 | `FR-003` master-requirements surface + future ISO traceability declaration | `agent-ix/spec-artifacts-process` | open | Task-007 dogfooding of `quire coverage` over process-module artifacts (matrix/plan docs). Fixture-based TCs not blocked. |
 | EXT-3 | CLI wiring: `--severity` flag, generic `--summary` parser, `quire coverage` command | `agent-ix/quire-cli` (release-coupled) | open | End-to-end runs of TC-714/720/721/755/740: Task-003 and Task-007 deliver the engine APIs, their CLI-level exit criteria complete only with the quire-cli PR. |
 | EXT-4a | pytest plugin registering the `trace` marker | companion package (repo TBD, owner: user decision) | open | Python-side migrations in downstream repos; no quire-rs task blocked (fixtures declare forms statically). |
-| EXT-4b | Rust no-op `#[trace]` proc-macro support crate | companion crate (repo TBD, owner: user decision) | open | **Hard prerequisite of Task-010** (this repo's legacy-tag migration rewrites Rust tests to `#[trace(...)]`). Task-010 stops if unpublished. |
+| EXT-4b | Rust no-op `#[trace]` proc-macro support crate | [`agent-ix/ix-trace-rs`](https://github.com/agent-ix/ix-trace-rs) | **closed** (2026-08-04) | Was a hard prerequisite of Task-010. The crate exists, `make ci` green, AGPL-3.0-or-later, no dependencies. Task-010 is unblocked; its legacy-recognition *removal* step stays user-gated (FR-051-CON-3). |
 | EXT-4c | npm vitest/jest `trace()` helper | companion package (repo TBD, owner: user decision) | open | TS-side migrations in downstream repos; no quire-rs task blocked. |
 | EXT-5 | ADR-0010 / SMT (`quire-analyze`) | excluded — ADR is Proposed, no decision | n/a | Gates nothing in this plan. |
 
