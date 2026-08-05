@@ -2,7 +2,8 @@
 id: Task-009
 title: "Corpus cleanup — AC-grammar baseline sweep (user-gated promotion)"
 type: Task
-status: not_started
+status: blocked
+blocked_on: "FR-047-CON-1 — severity promotion needs explicit user sign-off"
 track: C
 priority: P2
 relationships:
@@ -26,10 +27,12 @@ and re-record the post-fix baseline. Precedent: the FR-042 EARS rollout
 baseline (791 vague / 333 non-singular before enforcement).
 
 ## Subtasks
-- [ ] **Baseline capture.** Per-check counts over `spec/**/*.md`, committed to
+- [x] **Baseline capture.** Per-check counts over `spec/**/*.md`, committed to
   this task's Notes.
-- [ ] **Mechanical fixes.** Clear-cut wording fixes to AC cells; no semantic
-  requirement changes without a CR note; re-validate + matrix untouched.
+- [x] **Mechanical fixes.** Done, but not as scoped: reading the seven findings
+  showed six of them were checker defects (a quoted keyword read as a use), so
+  the fix landed in the checker as **CR-017** rather than in the prose. The one
+  genuine wording change is FR-047-AC-1. See the CR-017 re-baseline below.
 - [ ] **Promotion proposal.** Present per-check promotion candidates
   (`warning` → `error`, or `off` for high-noise checks) with counts. **STOP:
   promotion is user-gated (FR-047-CON-1) — do not edit any
