@@ -235,12 +235,16 @@ fn bind_symbol(symbol: &Symbol, source: &str, model: &TraceabilityModel, graph: 
                 ),
             });
         }
-        let winner = candidates
+        // A key only exists because something was pushed under it, so the
+        // `else` arm is unreachable — expressed as a match rather than an
+        // `expect` so there is no panic path in library code at all.
+        if let Some(winner) = candidates
             .iter()
             .find(|c| c.provenance == TraceProvenance::Canonical)
             .or_else(|| candidates.first())
-            .expect("at least one attachment");
-        graph.verifies.push(winner.clone());
+        {
+            graph.verifies.push(winner.clone());
+        }
     }
     graph
         .verifies

@@ -392,7 +392,11 @@ fn split_sentences(text: &str) -> Vec<&str> {
     let bytes = text.as_bytes();
     for (i, c) in text.char_indices() {
         match c {
-            '`' => in_code = !in_code,
+            // An unbalanced backtick opens no span — the same rule
+            // `mask_code_spans` applies, so the two readers cannot disagree
+            // about where a span is. Without it a stray backtick would swallow
+            // every remaining sentence boundary in the paragraph.
+            '`' if in_code || text[i + 1..].contains('`') => in_code = !in_code,
             '.' if !in_code && bytes.get(i + 1) == Some(&b' ') => {
                 out.push(&text[start..i]);
                 start = i + 2;
@@ -971,6 +975,19 @@ mod tests {
                 .count(),
             1,
             "the modal after an embedded example must still be seen: {f:?}"
+        );
+
+        // …and an unbalanced backtick does not swallow the following sentence
+        // boundaries either: both readers agree that it opens no span.
+        let d = doc(
+            "---\nid: FR-001\ntype: FR\n---\n## Notes\n\n### FR-001-AC-1\n\n\
+             The loader emits a `partial identifier. The system shall reject it.\n",
+        );
+        let f = check("FR", &d, 0, vocab(&empty_lex(), &verbs(), &vacuities()));
+        assert!(
+            f.iter()
+                .any(|x| x.statement.starts_with("The system shall")),
+            "the second sentence must still be its own statement: {f:?}"
         );
 
         // An unbalanced backtick opens no span, so nothing is masked.

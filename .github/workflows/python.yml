@@ -1,10 +1,24 @@
 name: python-bindings
 
 # Build the feature-gated PyO3 wheel and run the pytest binding suite
-# (FR-023 / Gate G6). Manual-trigger for now.
+# (FR-023 / Gate G6).
+#
+# This suite is the *only* verification of the PyO3-parity criteria
+# (FR-042-AC-10, FR-043-AC-7, FR-047-AC-9 — TC-666, TC-673, TC-715), and
+# `make ci` does not run it: it needs a built wheel. While the workflow was
+# manual-trigger only, TC-715 sat asserting check ids that CR-014 had renamed
+# and nothing caught it. It therefore runs on any change to the crate or the
+# suite as well as on demand.
 
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - "src/**"
+      - "tests/python/**"
+      - "Cargo.toml"
+      - "pyproject.toml"
+      - ".github/workflows/python.yml"
 
 permissions:
   contents: read
