@@ -52,6 +52,8 @@ pub struct LoadedModule {
     pub grammar_severity: BTreeMap<String, crate::grammar::GrammarSeverityLevel>,
     /// Observable-result verb registry contributed by this module (FR-047).
     pub observable_verbs: BTreeMap<String, crate::vocab::ObservableVerbDef>,
+    /// Vacuous-predicate registry contributed by this module (FR-047, CR-014).
+    pub vacuous_predicates: BTreeMap<String, crate::vocab::VacuousPredicateDef>,
     /// Traceability model contributed by this module (FR-050).
     pub traceability: crate::traceability::TraceabilityModel,
 }
@@ -362,6 +364,7 @@ pub fn load_inline_module(manifest_yaml: &[u8], schemas: &BTreeMap<String, Strin
         lexicon: manifest.lexicon.clone(),
         grammar_severity: manifest.grammar_severity.clone(),
         observable_verbs: manifest.observable_verbs.clone(),
+        vacuous_predicates: manifest.vacuous_predicates.clone(),
         traceability: manifest.traceability.clone(),
     });
 
@@ -506,6 +509,7 @@ fn load_one_module(
             lexicon: manifest.lexicon.clone(),
             grammar_severity: manifest.grammar_severity.clone(),
             observable_verbs: manifest.observable_verbs.clone(),
+            vacuous_predicates: manifest.vacuous_predicates.clone(),
             traceability: manifest.traceability.clone(),
         },
         failures,
@@ -721,6 +725,8 @@ pub fn flatten_into_registry(mut outcome: LoadOutcome) -> RegistryShape {
     // engine's built-in defaults are layered underneath at matcher-build time,
     // so a module extends the vocabulary rather than replacing it.
     let (observable_verbs, _) = merge_vocab(&outcome.modules, |m| &m.observable_verbs);
+    // CR-014: same first-wins merge for the vacuity vocabulary.
+    let (vacuous_predicates, _) = merge_vocab(&outcome.modules, |m| &m.vacuous_predicates);
 
     // FR-050: merge the declarative traceability model across modules. Targets,
     // references, and tag forms accumulate first-wins by name; the singular
@@ -817,6 +823,7 @@ pub fn flatten_into_registry(mut outcome: LoadOutcome) -> RegistryShape {
         lexicon,
         grammar_severity,
         observable_verbs,
+        vacuous_predicates,
         traceability,
         failures: outcome.failures,
         diagnostics: outcome.diagnostics,
@@ -1009,6 +1016,9 @@ pub struct RegistryShape {
     /// Merged observable-result verb registry, first-wins across modules
     /// (FR-047). Layered over the engine's built-in defaults.
     pub observable_verbs: BTreeMap<String, crate::vocab::ObservableVerbDef>,
+    /// Merged vacuous-predicate registry, first-wins across modules
+    /// (FR-047, CR-014). Layered over the engine's built-in vacuity set.
+    pub vacuous_predicates: BTreeMap<String, crate::vocab::VacuousPredicateDef>,
     /// Merged traceability model, first-wins across modules (FR-050).
     pub traceability: crate::traceability::TraceabilityModel,
     pub failures: Vec<ArchetypeLoadFailure>,

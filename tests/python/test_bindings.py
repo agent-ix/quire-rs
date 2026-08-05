@@ -101,11 +101,15 @@ def test_check_grammar_ac_findings_cross_boundary(tmp_path):
     vacuous = [f for f in ac if f["statement"].startswith("It all works")]
     checks = {f["check"] for f in vacuous}
     assert checks == {"unclassifiable", "no-observable-outcome"}
-    assert all(f["pattern"] == "unclassifiable" for f in vacuous)
+    # `pattern` carries the detected shape (CR-013): a cell with no structure
+    # and no observable signal is `unstructured`; the check id is the defect.
+    assert all(f["pattern"] == "unstructured" for f in vacuous)
     assert all(f["severity"] == "warning" for f in vacuous)
     assert all(f["line"] is not None for f in vacuous)
 
     gwt = [f for f in ac if f["statement"].startswith("Given a token")]
+    # GWT is a recognized-but-non-canonical rendering (CR-013): the assertion is
+    # the canonical AC shape, so the cell is steered while still classifying.
     assert {f["check"] for f in gwt} == {"non-canonical-shape"}
     assert all(f["pattern"] == "given-when-then" for f in gwt)
 
