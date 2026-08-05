@@ -912,6 +912,13 @@ fn merge_traceability(modules: &[LoadedModule]) -> crate::traceability::Traceabi
         if merged.status.is_none() {
             merged.status.clone_from(&m.status);
         }
+        // CR-015: column vocabularies merge first-wins per column.
+        if merged.vocabularies.test_type.is_empty() {
+            merged
+                .vocabularies
+                .test_type
+                .clone_from(&m.vocabularies.test_type);
+        }
     }
     merged
 }

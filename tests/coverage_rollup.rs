@@ -400,3 +400,74 @@ fn tc756_coverage_and_symbol_modules_have_no_forbidden_surface() {
         }
     }
 }
+
+// ── CR-015: status classification, declared vocabularies, cell normalization ──
+
+/// A module manifest declaring only what a test needs from the model.
+fn model_from(yaml: &str) -> quire_rs::traceability::TraceabilityModel {
+    let module = tmpdir(&format!("cr015-{}", yaml.len()));
+    fs::write(module.join("manifest.yaml"), yaml).expect("write manifest");
+    Registry::load_module(&module)
+        .expect("load module")
+        .traceability()
+        .cloned()
+        .expect("declared model")
+}
+
+// TC-758 (FR-050-AC-10): a status cell with a trailing note classes by its
+// leading marker, and a declared `retired` value classes retired.
+#[test]
+fn tc758_status_classes_by_leading_marker() {
+    use quire_rs::traceability::StatusClass;
+    let model = model_from(
+        "name: m\ntraceability:\n  status:\n    column: Status\n    complete: [\"✅\"]\n    \
+         pending: [\"🚧\"]\n    failed: [\"❌\"]\n    retired: [\"⛔\"]\n",
+    );
+    let status = model.status.as_ref().expect("status vocabulary");
+
+    // Bare markers still class exactly.
+    assert_eq!(status.class_of("✅"), StatusClass::Complete);
+    // …and a marker carrying the reason classes the same, keeping the note.
+    assert_eq!(status.class_of("✅ Complete"), StatusClass::Complete);
+    assert_eq!(
+        status.class_of("🚧 implementation in progress"),
+        StatusClass::Pending
+    );
+    assert_eq!(
+        status.class_of("⛔ RETIRED — render removed"),
+        StatusClass::Retired
+    );
+    // An undeclared value is still unknown, not silently absorbed.
+    assert_eq!(status.class_of("Done"), StatusClass::Unknown);
+    // A word vocabulary keeps working, and a longer word is not a prefix match.
+    let words = model_from(
+        "name: w\ntraceability:\n  status:\n    column: State\n    complete: [\"done\"]\n",
+    );
+    let words = words.status.as_ref().unwrap();
+    assert_eq!(words.class_of("done"), StatusClass::Complete);
+    assert_eq!(words.class_of("done, verified"), StatusClass::Complete);
+    assert_eq!(words.class_of("doneish"), StatusClass::Unknown);
+}
+
+// TC-759 (FR-050-AC-11): a declared column vocabulary is exposed on the
+// Registry, and is the same list a matrix contract would validate against.
+#[test]
+fn tc759_declared_column_vocabulary() {
+    let module = tmpdir("cr015-vocab");
+    fs::write(
+        module.join("manifest.yaml"),
+        "name: m\ntraceability:\n  vocabularies:\n    test_type: [Unit, Integration, E2E, \
+         Property, pg_test]\n",
+    )
+    .expect("write manifest");
+    let registry = Registry::load_module(&module).expect("load module");
+
+    assert_eq!(
+        registry.column_vocabulary("test_type"),
+        ["Unit", "Integration", "E2E", "Property", "pg_test"]
+    );
+    // An undeclared column reports empty rather than a guessed default.
+    assert!(registry.column_vocabulary("priority").is_empty());
+    let bare = Registry::load_module(&fixture_module("alt")).expect("load module");
+    assert!(bare.column_vocabulary("test_type").is_empty());
+}

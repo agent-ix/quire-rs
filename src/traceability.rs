@@ -60,6 +60,22 @@ pub struct TraceabilityModel {
     /// How source symbols carry trace ids (FR-051).
     #[serde(default)]
     pub trace_tags: TraceTagGrammar,
+    /// Column vocabularies the module's matrix contract and this rollup must
+    /// agree on (CR-015). Declaring them here makes the model the single
+    /// source: a contract and its coverage computation cannot drift.
+    #[serde(default)]
+    pub vocabularies: ColumnVocabularies,
+}
+
+/// Declared vocabularies for matrix columns (CR-015).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+#[serde(deny_unknown_fields)]
+pub struct ColumnVocabularies {
+    /// Values the test-type column admits. The module declares the whole list;
+    /// a consumer that wants the ecosystem core plus local additions declares
+    /// both, exactly as `observable_verbs` layers over engine defaults.
+    #[serde(default)]
+    pub test_type: Vec<String>,
 }
 
 /// One kind of trace id and where it is minted: either from an archetype the
@@ -107,6 +123,16 @@ pub struct DocumentReference {
     pub pattern: String,
     /// Names of the [`TraceTarget`]s these references resolve against.
     pub targets: Vec<String>,
+    /// Expand a same-prefix range (`FR-001..FR-006`) into its concrete ids
+    /// before extraction (CR-015). Off unless declared — the engine gains no
+    /// behaviour a module has not asked for.
+    #[serde(default)]
+    pub expand_ranges: bool,
+    /// Drop parenthetical spans before extraction, so a qualifier
+    /// (`FR-022-AC-5 (superseded by FR-030)`) contributes one reference rather
+    /// than two (CR-015). Off unless declared.
+    #[serde(default)]
+    pub strip_annotations: bool,
 }
 
 /// The status column and the values that class as complete / pending / failed.
@@ -122,6 +148,9 @@ pub struct StatusVocabulary {
     pub pending: Vec<String>,
     #[serde(default)]
     pub failed: Vec<String>,
+    /// Values marking a row as withdrawn rather than outstanding (CR-015).
+    #[serde(default)]
+    pub retired: Vec<String>,
 }
 
 /// How a status value classes.
@@ -130,25 +159,57 @@ pub enum StatusClass {
     Complete,
     Pending,
     Failed,
+    /// Withdrawn rather than outstanding (CR-015).
+    Retired,
     /// Declared nowhere in the vocabulary.
     Unknown,
 }
 
 impl StatusVocabulary {
-    /// Class `value` per the declared vocabulary. Comparison is on the trimmed
-    /// value — cells carry incidental padding.
+    /// Class `value` per the declared vocabulary.
+    ///
+    /// Matching is on the **leading marker** (CR-015): the ecosystem authors
+    /// `✅ Complete` and `⚠️ scale evidence deferred`, where the marker carries
+    /// the class and the remainder carries why. An exact match wins first, so a
+    /// vocabulary of whole words (`done`, `planned`) behaves as before.
     pub fn class_of(&self, value: &str) -> StatusClass {
         let v = value.trim();
-        let has = |set: &[String]| set.iter().any(|s| s.trim() == v);
-        if has(&self.complete) {
-            StatusClass::Complete
-        } else if has(&self.pending) {
-            StatusClass::Pending
-        } else if has(&self.failed) {
-            StatusClass::Failed
-        } else {
-            StatusClass::Unknown
+        let exact = |set: &[String]| set.iter().any(|s| s.trim() == v);
+        let leading = |set: &[String]| {
+            set.iter().any(|s| {
+                let s = s.trim();
+                !s.is_empty()
+                    && v.starts_with(s)
+                    // The marker ends where the note begins: any non-alphanumeric
+                    // boundary counts (`✅ Complete`, `done, verified`), so
+                    // `doneish` is still not `done`.
+                    && v[s.len()..]
+                        .chars()
+                        .next()
+                        .map_or(true, |c| !c.is_alphanumeric())
+            })
+        };
+        for (set, class) in [
+            (&self.complete, StatusClass::Complete),
+            (&self.pending, StatusClass::Pending),
+            (&self.failed, StatusClass::Failed),
+            (&self.retired, StatusClass::Retired),
+        ] {
+            if exact(set) {
+                return class;
+            }
         }
+        for (set, class) in [
+            (&self.complete, StatusClass::Complete),
+            (&self.pending, StatusClass::Pending),
+            (&self.failed, StatusClass::Failed),
+            (&self.retired, StatusClass::Retired),
+        ] {
+            if leading(set) {
+                return class;
+            }
+        }
+        StatusClass::Unknown
     }
 }
 
@@ -210,6 +271,7 @@ impl TraceabilityModel {
             && self.status.is_none()
             && self.trace_tags.markers.is_empty()
             && self.trace_tags.legacy.is_empty()
+            && self.vocabularies.test_type.is_empty()
     }
 
     /// Look up a declared target by name.

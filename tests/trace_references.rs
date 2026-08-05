@@ -332,3 +332,52 @@ fn tc731_findings_are_deterministic() {
         assert_eq!(first, render(), "findings must be order-stable");
     }
 }
+
+// TC-760 (FR-050-AC-12, CR-015): declared normalizations apply before ids are
+// read, and only when declared. The `normalizing` and `plain` fixtures carry
+// the same declaration; only the two flags differ, so each half of this test is
+// a controlled comparison.
+#[test]
+fn tc760_declared_cell_normalization() {
+    let root = tmpdir("760");
+    write(
+        &root,
+        "FR-001.md",
+        &fr_document(
+            "FR-001",
+            &[
+                // A range whose *middle* member is absent from the matrix:
+                // expansion introduces the reference, so only the normalizing
+                // module can see it dangle.
+                ("FR-001-AC-1", "TC-001..TC-003"),
+                // A qualifier naming an absent id: stripping the parenthetical
+                // stops it becoming a reference at all.
+                ("FR-001-AC-2", "TC-001 (superseded by TC-404)"),
+            ],
+        ),
+    );
+    write(
+        &root,
+        "tests.md",
+        &tests_matrix(&[("TC-001", "FR-001-AC-1"), ("TC-003", "FR-001-AC-1")]),
+    );
+
+    let ids = |module: &str| -> Vec<String> {
+        let report = validate(&root, module, BundlePosture::Okf);
+        let mut out: Vec<String> = dangling(&report)
+            .iter()
+            .filter_map(|f| f.message.split('\'').nth(1).map(|id| id.to_string()))
+            .collect();
+        out.sort();
+        out.dedup();
+        out
+    };
+
+    // Both flags on: the range expands (TC-002 is missing → dangles) and the
+    // parenthetical is stripped (TC-404 never becomes a reference).
+    assert_eq!(ids("normalizing"), vec!["TC-002".to_string()]);
+
+    // Both flags off: the range is read as its literal endpoints (both exist,
+    // nothing dangles) and the qualifier's id IS read (TC-404 dangles).
+    assert_eq!(ids("plain"), vec!["TC-404".to_string()]);
+}

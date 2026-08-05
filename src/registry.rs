@@ -380,6 +380,16 @@ impl Registry {
         (!self.inner.traceability.is_empty()).then_some(&self.inner.traceability)
     }
 
+    /// The declared vocabulary for a matrix column (CR-015), e.g. `test_type`.
+    /// Empty when no active module declares one — the caller reports the
+    /// vocabulary as undeclared rather than inventing a default.
+    pub fn column_vocabulary(&self, column: &str) -> &[String] {
+        match column {
+            "test_type" => self.inner.traceability.vocabularies.test_type.as_slice(),
+            _ => &[],
+        }
+    }
+
     /// Compose an ad-hoc `GrammarLexicon` (FR-044) from the merged module
     /// lexicon keys plus `extra` project terms (a repo's harvested
     /// Ubiquitous-Language vocabulary). Project terms are per-repo, so they are

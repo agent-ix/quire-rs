@@ -86,6 +86,68 @@ pub(crate) fn rows_of(doc: &QuireDocument, path: &Path, heading: &str) -> Vec<Sc
         .collect()
 }
 
+/// Normalize a reference cell before ids are extracted, per the declaration's
+/// opt-in flags (CR-015). Both consumers — FR-049's dangling check and FR-050's
+/// rollup — call this, so they cannot disagree about what a cell contains.
+///
+/// `strip_annotations` removes parenthetical spans, so a qualifier never
+/// contributes a reference. `expand_ranges` rewrites `FR-001..FR-003` into
+/// `FR-001, FR-002, FR-003`; a range whose ends disagree on prefix, or whose
+/// bounds are inverted, is left untouched for the pattern to reject.
+pub(crate) fn normalize_reference_cell(
+    cell: &str,
+    strip_annotations: bool,
+    expand_ranges: bool,
+) -> String {
+    let mut out = cell.to_string();
+    if strip_annotations {
+        out = re_parenthetical().replace_all(&out, " ").to_string();
+    }
+    if expand_ranges {
+        out = re_range()
+            .replace_all(&out, |caps: &regex::Captures<'_>| expand(caps))
+            .to_string();
+    }
+    out
+}
+
+/// Expand one matched range, or return it unchanged when it is not a coherent
+/// same-prefix ascending range.
+fn expand(caps: &regex::Captures<'_>) -> String {
+    let whole = caps.get(0).map_or("", |m| m.as_str()).to_string();
+    let (prefix, from, to) = (&caps[1], &caps[2], &caps[4]);
+    if prefix != &caps[3] {
+        return whole; // `FR-001..NFR-003` is not a range
+    }
+    let width = from.len();
+    let (Ok(start), Ok(end)) = (from.parse::<u32>(), to.parse::<u32>()) else {
+        return whole;
+    };
+    if end < start || end - start > MAX_RANGE_SPAN {
+        return whole;
+    }
+    (start..=end)
+        .map(|n| format!("{prefix}-{n:0width$}"))
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+/// A range wider than this is treated as authoring noise rather than expanded —
+/// it would swamp the report with ids nobody enumerated deliberately.
+const MAX_RANGE_SPAN: u32 = 200;
+
+fn re_parenthetical() -> &'static regex::Regex {
+    static R: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+    R.get_or_init(|| regex::Regex::new(r"\([^)]*\)").expect("parenthetical regex"))
+}
+
+fn re_range() -> &'static regex::Regex {
+    static R: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+    R.get_or_init(|| {
+        regex::Regex::new(r"([A-Za-z]+)-(\d+)\s*\.\.\s*([A-Za-z]+)-(\d+)").expect("range regex")
+    })
+}
+
 /// Targeted scan of a declared auxiliary source — a file the corpus walk
 /// excludes as a non-artifact (FR-044 glossary-harvester pattern). An absent or
 /// unreadable file yields nothing: the declaration names a source, not a

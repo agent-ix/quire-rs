@@ -154,7 +154,13 @@ fn referencing_rows(
     )
     .into_iter()
     .filter_map(|row| {
-        let cell = row.cell(&declaration.column)?.to_string();
+        // CR-015: apply the declaration's opt-in normalizations before any id
+        // is read out of the cell.
+        let cell = declared_tables::normalize_reference_cell(
+            row.cell(&declaration.column)?,
+            declaration.strip_annotations,
+            declaration.expand_ranges,
+        );
         let row_id = declaration
             .row_id_column
             .as_deref()

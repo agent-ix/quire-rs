@@ -197,9 +197,15 @@ fn reconcile(
             declaration.document.as_deref(),
             &declaration.section,
         ) {
-            let Some(cell) = row.cell(&declaration.column) else {
+            let Some(raw_cell) = row.cell(&declaration.column) else {
                 continue;
             };
+            // CR-015: same normalization as FR-049, from the shared helper.
+            let cell = &declared_tables::normalize_reference_cell(
+                raw_cell,
+                declaration.strip_annotations,
+                declaration.expand_ranges,
+            );
             let row_id = declaration
                 .row_id_column
                 .as_deref()
