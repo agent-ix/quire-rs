@@ -94,6 +94,43 @@ original baseline implied.
 Ecosystem-wide the same engine reports 3,956 findings across 5,027 requirement
 documents, down from 14,487.
 
+## Re-baseline after CR-017 (2026-08-05) — Track C
+
+Diagnosing the seven `non-canonical-shape` findings above as "a wording change
+to five-odd cells" was wrong. Every one of them quoted a keyword as **example
+data** (``a statement with two `shall` clauses yields exactly one
+`non-singular` finding``) — the documents that describe a grammar necessarily
+quote its keywords. Rewording them would have hidden a classifier defect
+(mention read as use) behind prose. CR-017 fixes the classifier instead; the
+only corpus edit is FR-047-AC-1, where `Given/When/Then` was the one keyword
+mentioned outside a code span and is now backticked like every other mention.
+
+| Check | Baseline | After CR-014 | After CR-017 |
+|---|---|---|---|
+| `ac:unclassifiable` | 322 | 0 | **0** |
+| `ac:vacuous-outcome` | 12 | 0 | **0** |
+| `ac:non-canonical-shape` | 2 | 7 | **0** |
+| `ac:non-singular` | 2 | 1 | **0** |
+| `ac:vague-response` | 2 | 2 | **2** |
+| **total** | **340** | **10** | **2** |
+
+The two remaining findings are the PyO3-parity criteria of FR-042 and FR-047
+("*the entry point is exposed through the … binding and returns the same
+findings as the in-process Rust call*"). Both name a concrete outcome in the
+second clause, so `vague-response` firing on *exposed* is a false positive of
+the FR-042 vague-verb heuristic rather than corpus debt — recorded, not
+reworded, and not a reason to touch the wording of a truthful criterion.
+
+Ecosystem-wide over the same 199 repos: **3,956 → 3,949** findings, with no new
+finding in any check (16 mention-only false positives removed; 9 true positives
+restored that code-span-blind sentence segmentation had been splitting apart,
+plus 1 newly surfaced).
+
+**Promotion is still user-gated and still not done (FR-047-CON-1):** no
+`grammar_severity` default has been authored. Reaching zero on four of five
+checks in this corpus is not a licence to promote — the ecosystem still carries
+2,632 `non-canonical-shape` findings.
+
 ## Notes
 - Wider-ecosystem sweeps (other repos' corpora) are follow-up work owned by
   those repos — this task covers quire-rs only.

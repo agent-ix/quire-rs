@@ -11,10 +11,13 @@
 //! - **No modal-verb filter.** Every non-empty criteria cell is a statement.
 //!   An acceptance criterion with no `shall` is still a criterion, and the
 //!   checks below are exactly the ones that catch such a cell.
-//! - **Shape, not pattern.** A criterion is classified `ears` (the canonical
-//!   shape), `given-when-then` (recognized, but steered toward EARS via the
-//!   `non-canonical-shape` check so property extraction can still consume
-//!   legacy GWT cells), or `unclassifiable`.
+//! - **Shape, not pattern.** A criterion is classified `assertion` (the
+//!   canonical shape — CR-013), `obligation` or `given-when-then` (both
+//!   recognized so their outcome clause is still checked, but steered by
+//!   `non-canonical-shape`), or `unstructured`.
+//! - **Mention is not use** (CR-017). A keyword inside an inline code span is
+//!   quoted example data, so shape classification reads a masked copy of the
+//!   statement while the vocabulary checks read the original.
 //!
 //! Every check ships advisory (`warning`); promotion is a per-check policy
 //! lever (FR-048) gated on a corpus baseline sweep (FR-047-CON-1).
@@ -199,6 +202,46 @@ fn carries_signal(statement: &str, vocab: GrammarVocabularies<'_>) -> bool {
         || vocab.observable.contains_verb(&normalized)
 }
 
+/// A backticked span is a **mention** of a token, not a use of it: a criterion
+/// reading ``a statement with two `shall` clauses yields one finding`` quotes
+/// `shall` as example data — it does not itself impose an obligation. Grammar
+/// **keyword** detection therefore reads a masked copy in which every closed
+/// code span's contents are neutralized (CR-017).
+///
+/// The mask is deliberately not applied to the vocabulary checks: a backticked
+/// lexicon term still suppresses `vague-response` (FR-043-AC-3), and a
+/// backticked identifier still counts as a concrete-object signal (FR-042).
+/// Replacing the contents with `x` rather than deleting the span preserves
+/// both of those properties.
+///
+/// The mask is **byte-length-preserving** (each character becomes as many `x`
+/// bytes as it occupied), so an offset found in the masked copy indexes the
+/// original — [`outcome_clause`] relies on that.
+fn mask_code_spans(statement: &str) -> String {
+    let mut out = String::with_capacity(statement.len());
+    let mut rest = statement;
+    while let Some(open) = rest.find('`') {
+        let (before, from_open) = rest.split_at(open);
+        out.push_str(before);
+        let body = &from_open[1..];
+        let Some(close) = body.find('`') else {
+            // An unbalanced backtick opens no span; the tail is ordinary prose.
+            out.push_str(from_open);
+            return out;
+        };
+        out.push('`');
+        for c in body[..close].chars() {
+            for _ in 0..c.len_utf8() {
+                out.push('x');
+            }
+        }
+        out.push('`');
+        rest = &body[close + 1..];
+    }
+    out.push_str(rest);
+    out
+}
+
 /// True when the statement has a **predicate** — a modal or copula, an inflected
 /// or irregular verb form, a declared observable verb, or a concrete signal.
 /// This is the structural question `unclassifiable` asks after CR-014, and it is
@@ -220,10 +263,13 @@ fn has_predicate(statement: &str, vocab: GrammarVocabularies<'_>) -> bool {
 /// What remains is an `assertion` when it carries an observable signal — the
 /// canonical shape — and `unstructured` when it carries nothing at all.
 pub fn classify(statement: &str, vocab: GrammarVocabularies<'_>) -> AcShape {
-    if ears::classify(statement) != ears::EarsPattern::Unclassifiable {
+    // CR-017: shape is decided on the masked copy, so a criterion that *quotes*
+    // a modal or a Given/When/Then keyword is not miscounted as using one.
+    let masked = mask_code_spans(statement);
+    if ears::classify(&masked) != ears::EarsPattern::Unclassifiable {
         return AcShape::Obligation;
     }
-    if is_given_when_then(statement) {
+    if is_given_when_then(&masked) {
         return AcShape::GivenWhenThen;
     }
     // CR-014: a criterion with a predicate is an assertion, whatever verb it
@@ -254,7 +300,8 @@ fn is_given_when_then(statement: &str) -> bool {
 /// idiom (`X yields a finding; Y yields none`) states one behaviour in two
 /// directions and counts as a single obligation (FR-047-AC-3).
 fn obligation_count(statement: &str) -> usize {
-    let lower = ears::normalize(statement).to_lowercase();
+    // CR-017: quoted keywords are mentions, not obligations.
+    let lower = ears::normalize(&mask_code_spans(statement)).to_lowercase();
     let count = re_shall_word()
         .find_iter(&lower)
         .count()
@@ -277,10 +324,15 @@ fn is_positive_negative_pair(lower: &str) -> bool {
 /// `given-when-then`-shaped one, and the whole criterion otherwise (an
 /// unclassifiable cell has no clause structure to slice).
 fn outcome_clause(statement: &str, shape: AcShape) -> &str {
+    // The keyword is located in the masked copy (CR-017) — a *quoted* modal must
+    // not decide where the outcome starts — but the clause returned is the
+    // original text, so the vocabulary checks still see the real words. The mask
+    // preserves byte offsets, so the match indexes `statement` directly.
+    let masked = mask_code_spans(statement);
     let tail = |m: Option<regex::Match<'_>>| m.map(|m| &statement[m.end()..]);
     match shape {
-        AcShape::Obligation => tail(re_shall_word().find(statement)).unwrap_or(statement),
-        AcShape::GivenWhenThen => tail(re_then().find(statement)).unwrap_or(statement),
+        AcShape::Obligation => tail(re_shall_word().find(&masked)).unwrap_or(statement),
+        AcShape::GivenWhenThen => tail(re_then().find(&masked)).unwrap_or(statement),
         // An assertion states its outcome directly, and an unstructured cell has
         // no clause structure to slice — both are judged whole.
         AcShape::Assertion | AcShape::Unstructured => statement,
@@ -328,6 +380,30 @@ fn supplement_sections(sections: &[QuireSection]) -> Vec<&QuireSection> {
     out
 }
 
+/// Split prose into sentences on `". "`, ignoring a boundary that falls **inside
+/// an inline code span** (CR-017): an embedded example
+/// (``` `EXPLAIN … SELECT ... ORDER BY col LIMIT 10` ```) is one quoted token,
+/// and cutting it in half produced a statement whose backticks no longer
+/// balanced — which then hid the modal that followed it.
+fn split_sentences(text: &str) -> Vec<&str> {
+    let mut out = Vec::new();
+    let mut in_code = false;
+    let mut start = 0;
+    let bytes = text.as_bytes();
+    for (i, c) in text.char_indices() {
+        match c {
+            '`' => in_code = !in_code,
+            '.' if !in_code && bytes.get(i + 1) == Some(&b' ') => {
+                out.push(&text[start..i]);
+                start = i + 2;
+            }
+            _ => {}
+        }
+    }
+    out.push(&text[start..]);
+    out
+}
+
 /// Segment a supplement body into statements: one per sentence of prose, with
 /// fenced code blocks and blockquotes skipped per the FR-042 skip rules
 /// (FR-047-AC-11). No modal-verb filter, as with the criteria cells.
@@ -348,7 +424,7 @@ fn supplement_statements(section: &QuireSection, line_offset: usize) -> Vec<Stmt
         }
         let joined = paragraph.join(" ");
         paragraph.clear();
-        for fragment in joined.split(". ") {
+        for fragment in split_sentences(&joined) {
             let text = fragment.trim();
             if text.is_empty() {
                 continue;
@@ -823,6 +899,88 @@ mod tests {
         );
         // …nor does an unstructured cell: that is `unclassifiable`'s business.
         assert_eq!(count(&["Structural evaluation"], "non-canonical-shape"), 0);
+    }
+
+    // TC-761 (FR-047-AC-13): a keyword inside a code span is a *mention*, not a
+    // use — it decides neither the shape nor the obligation count — while the
+    // vocabulary checks still read the real words inside the span (CR-017).
+    #[test]
+    fn tc761_quoted_keywords_are_mentions() {
+        // A criterion about the grammar, quoting `shall` as example data. It is
+        // a canonical assertion of the checker's behaviour, not an obligation.
+        let quoting_modal = "A statement with two `shall` clauses yields exactly one \
+                             `non-singular` finding; an enumerated `The X SHALL:` stem \
+                             followed by a numbered list yields none.";
+        assert_eq!(count(&[quoting_modal], "non-canonical-shape"), 0);
+        assert_eq!(count(&[quoting_modal], "non-singular"), 0);
+        assert_eq!(
+            classify(quoting_modal, vocab(&empty_lex(), &verbs(), &vacuities())),
+            AcShape::Assertion
+        );
+
+        // Same for a quoted Given/When/Then.
+        let quoting_gwt = "A `Given`/`When`/`Then` cell is classified `given-when-then`.";
+        assert_eq!(count(&[quoting_gwt], "non-canonical-shape"), 0);
+
+        // An *unquoted* keyword still means what it says — masking must not
+        // disarm the checks themselves.
+        assert_eq!(
+            count(
+                &["The system shall reject the request with `403`."],
+                "non-canonical-shape"
+            ),
+            1
+        );
+        assert_eq!(
+            count(
+                &["Given a request, when it is stale, then the API returns `410`."],
+                "non-canonical-shape"
+            ),
+            1
+        );
+
+        // The signal checks keep reading the span: masking neutralizes keywords
+        // for shape detection only, so a backticked identifier still counts as a
+        // concrete-object signal and suppresses `vacuous-outcome` (FR-042).
+        assert_eq!(count(&["It all works."], "vacuous-outcome"), 1);
+        assert_eq!(count(&["`Navigation` works."], "vacuous-outcome"), 0);
+        // …and a merged lexicon term inside a span still suppresses
+        // `vague-response` (FR-043-AC-3).
+        let vague = "The system shall support pagination.";
+        assert_eq!(count(&[vague], "vague-response"), 1);
+        let f = check(
+            "FR",
+            &ac_doc(&["The system shall support `pagination`."]),
+            0,
+            vocab(&lex(&["pagination"]), &verbs(), &vacuities()),
+        );
+        assert_eq!(f.iter().filter(|x| x.check == "vague-response").count(), 0);
+
+        // Sentence segmentation does not cut inside a code span: an SQL example
+        // containing `. ` stays one statement, so the modal that follows it is
+        // still outside a span and still classifies `obligation`.
+        let d = doc(
+            "---\nid: FR-001\ntype: FR\n---\n## Notes\n\n### FR-001-AC-1\n\n\
+             `EXPLAIN (FORMAT JSON) SELECT ... ORDER BY col LIMIT 10` on an indexed table \
+             SHALL include a `\"Stats\"` group.\n",
+        );
+        let f = check("FR", &d, 0, vocab(&empty_lex(), &verbs(), &vacuities()));
+        assert_eq!(
+            f.iter()
+                .filter(|x| x.check == "non-canonical-shape")
+                .count(),
+            1,
+            "the modal after an embedded example must still be seen: {f:?}"
+        );
+
+        // An unbalanced backtick opens no span, so nothing is masked.
+        assert_eq!(
+            count(
+                &["The system shall return a `partial identifier."],
+                "non-canonical-shape"
+            ),
+            1
+        );
     }
 
     // TC-754 (FR-047-AC-11): fenced blocks and blockquotes inside a supplement

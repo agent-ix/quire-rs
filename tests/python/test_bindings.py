@@ -100,10 +100,13 @@ def test_check_grammar_ac_findings_cross_boundary(tmp_path):
 
     vacuous = [f for f in ac if f["statement"].startswith("It all works")]
     checks = {f["check"] for f in vacuous}
-    assert checks == {"unclassifiable", "no-observable-outcome"}
-    # `pattern` carries the detected shape (CR-013): a cell with no structure
-    # and no observable signal is `unstructured`; the check id is the defect.
-    assert all(f["pattern"] == "unstructured" for f in vacuous)
+    # CR-014 inverted both high-volume checks: the cell is flagged for asserting
+    # a *vacuous* predicate, not for missing a verb off an allowlist, and it is
+    # not `unclassifiable` — "works" is a predicate, just an empty one.
+    assert checks == {"vacuous-outcome"}
+    # `pattern` carries the detected shape (CR-013). A cell with a predicate is
+    # an `assertion` whatever verb it uses; the check id names the defect.
+    assert all(f["pattern"] == "assertion" for f in vacuous)
     assert all(f["severity"] == "warning" for f in vacuous)
     assert all(f["line"] is not None for f in vacuous)
 

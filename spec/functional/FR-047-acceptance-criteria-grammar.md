@@ -156,6 +156,40 @@ violates a check:
 > `Acceptance Criteria` table. Bullet-form AC sections remain unsegmented by any
 > grammar — recorded as future work, not addressed here.
 
+> **CR-017 note:** Grammar-keyword detection confused **mention with use**. A
+> criterion that quotes a keyword as example data — ``a statement with two
+> `shall` clauses yields exactly one `non-singular` finding`` — was read as
+> though it imposed an obligation. Every one of the seven `non-canonical-shape`
+> findings standing against this repo's own spec after CR-014 was of that kind:
+> FR-042, FR-043 and FR-047 describe a grammar, so they quote its keywords.
+> Rewording them would have hidden a checker defect behind prose.
+>
+> Shape classification and obligation counting therefore read a **masked** copy
+> in which each closed code span's contents are neutralized. The mask is
+> deliberately narrow: the signal and lexicon checks still read the real words,
+> so a backticked identifier still counts as a concrete-object signal (FR-042)
+> and a backticked lexicon term still suppresses `vague-response`
+> (FR-043-AC-3).
+>
+> Masking alone exposed a second defect it would otherwise have made worse.
+> Supplement prose was segmented on `". "` without regard to code spans, so an
+> embedded example (``` `EXPLAIN … SELECT ... ORDER BY col LIMIT 10` ```) was cut
+> in half; the resulting fragment had unbalanced backticks, and the mask then
+> paired them wrongly and swallowed the modal that followed. Sentence
+> segmentation is now code-span aware, which is what makes the mask safe.
+>
+> Measured over the same 199-repo corpus as CR-014: **3,956 → 3,949** findings.
+> Sixteen mention-only false positives are gone; the segmentation fix restores
+> nine true positives the mask alone had hidden and surfaces one more that was
+> previously split apart. **No new finding appears in any other check.** In this
+> repo's own corpus the `ac` findings fall **10 → 2** — `non-canonical-shape`
+> and `non-singular` both reach zero, leaving two `vague-response` findings on
+> the PyO3-parity criteria of FR-042 and FR-047.
+>
+> Whether the same mention/use distinction should apply to the `ears` grammar is
+> **open**: EARS statements quote keywords far less often, and the change is not
+> made here so this slice ships one measured behaviour change rather than two.
+
 Each `ac` finding SHALL carry `grammar: "ac"`. The framework SHALL route `ac`
 findings into `ValidationResult` by severity per FR-042. The rollout default
 is explicit: every `ac` check ships advisory (`warning`) at most, and each
@@ -178,7 +212,7 @@ the histogram covers every grammar and check.
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
-| FR-047-AC-1 | A `Criteria` cell asserting an outcome is classified `assertion` (canonical), an obligation-shaped cell `obligation`, a Given/When/Then cell `given-when-then`, and a cell with no modal, no Given/When/Then structure, and no observable signal is classified `unstructured` and yields one `unclassifiable` finding. | Test (TC-707) |
+| FR-047-AC-1 | A `Criteria` cell asserting an outcome is classified `assertion` (canonical), an obligation-shaped cell `obligation`, a `Given`/`When`/`Then` cell `given-when-then`, and a cell with no modal, no `Given`/`When`/`Then` structure, and no observable signal is classified `unstructured` and yields one `unclassifiable` finding. | Test (TC-707) |
 | FR-047-AC-2 | A non-empty `Criteria` cell with no modal verb is still segmented and checked; an empty cell yields no statement. | Test (TC-708) |
 | FR-047-AC-3 | A cell with two `shall` obligations or two `Then` clauses yields exactly one `non-singular` finding; the positive/negative pair idiom (`X yields a finding; Y yields none`) yields none. | Test (TC-709) |
 | FR-047-AC-4 | A cell whose outcome clause uses a vague verb over an abstract object yields a `vague-response` finding; the same cell with the object present in the merged lexicon yields none. | Test (TC-710) |
@@ -190,6 +224,7 @@ the histogram covers every grammar and check.
 | FR-047-AC-10 | An `obligation`-shaped cell and a `given-when-then`-shaped cell each yield one `non-canonical-shape` finding while still classifying as that shape (their other checks run on their outcome clause); an `assertion` cell yields none. | Test (TC-751) |
 | FR-047-AC-11 | Fenced code blocks and blockquotes inside a `### <doc-id>-AC-N` supplement section are skipped: statements inside them are not segmented and yield no `ac` findings, while the surrounding supplement prose is still checked. | Test (TC-754) |
 | FR-047-AC-12 | Both vocabularies are module data: a module's `observable_verbs` registry merges first-wins over the built-in defaults (a module-added verb suppresses `vacuous-outcome` and gives the cell a predicate), a module's `vacuous_predicates` registry likewise extends the built-in vacuity set, and with no module declaration both built-in default sets apply unchanged. | Test (TC-757) |
+| FR-047-AC-13 | A grammar keyword inside an inline code span is a mention, not a use: a cell reading ``a statement with two `shall` clauses yields one finding`` classifies `assertion` and yields no `non-canonical-shape` or `non-singular` finding, while the same cell with the modal unquoted classifies `obligation`; the span's contents are still read by the signal and lexicon checks, and an unbalanced backtick opens no span. | Test (TC-761) |
 
 ## Dependencies
 
