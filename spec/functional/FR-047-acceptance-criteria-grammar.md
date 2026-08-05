@@ -108,9 +108,19 @@ violates a check:
 > it wears, and the assertion shape supplies the test oracle directly. The
 > canonical shape is therefore the assertion; `unclassifiable` now means
 > "structureless", and `non-canonical-shape` fires on obligations as well as
-> GWT. Roughly 5 cells in this corpus are affected. Shape conformance is not
-> made configurable: FR-048's per-check severity map (`ac:non-canonical-shape:
-> off`) is the opt-out, as for every other check.
+> GWT. Shape conformance is not made configurable: FR-048's per-check severity
+> map (`ac:non-canonical-shape: off`) is the opt-out, as for every other check.
+>
+> An **ecosystem-wide survey** (199 repos, 3,253 requirement documents, 11,919
+> acceptance criteria) confirms the choice is not a quire-rs idiosyncrasy:
+> `assertion` 66.6% (the dominant shape in 139 of 199 repos), `unstructured`
+> 29.2%, `obligation` 2.9%, `given-when-then` 1.3%. Non-canonical shapes are
+> therefore ~4.2% of the corpus (~506 cells, concentrated in 17 repos, four of
+> them authored wholly to the previous EARS canon). Note the quantifier split
+> differs sharply by repo: 24.9% of ecosystem ACs are property-shaped
+> (quantified or metamorphic) against 50.8% in quire-rs itself. The 29.2%
+> `unstructured` share is the reason FR-047-CON-1 keeps every check advisory
+> with user-gated promotion.
 
 Each `ac` finding SHALL carry `grammar: "ac"`. The framework SHALL route `ac`
 findings into `ValidationResult` by severity per FR-042. The rollout default

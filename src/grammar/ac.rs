@@ -28,26 +28,46 @@ use super::{GrammarFinding, GrammarLexicon, GrammarSeverity, ObservableVerbs};
 use crate::ast::{QuireDocument, QuireSection};
 use crate::query;
 
-/// The shape of one acceptance criterion (FR-047).
+/// The shape of one acceptance criterion (FR-047, CR-013).
+///
+/// Classification is **structural**: it locates the outcome clause the checks
+/// read. Only [`AcShape::Assertion`] is canonical — an acceptance criterion is
+/// a verification statement, so the shape that carries the test oracle is the
+/// canonical one. An obligation restates the requirement one level down and a
+/// Given/When/Then cell is a second rendering of the same assertion; both are
+/// steered by `non-canonical-shape`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AcShape {
-    /// Matches an EARS pattern — the canonical acceptance-criteria shape.
-    Ears,
-    /// Given/When/Then — recognized so extraction can consume legacy cells,
-    /// and steered toward EARS by the `non-canonical-shape` check.
+    /// Asserts an outcome directly — **the canonical shape**. Its outcome
+    /// clause is the whole statement.
+    Assertion,
+    /// Matches an EARS pattern, i.e. states an obligation rather than an
+    /// observation. Its outcome clause is the response after the modal verb.
+    Obligation,
+    /// Given/When/Then — recognized so extraction can consume such cells, with
+    /// the `Then` clause as the outcome.
     GivenWhenThen,
-    /// Neither shape matches.
-    Unclassifiable,
+    /// No modal, no Given/When/Then structure, and no observable signal —
+    /// nothing to test with.
+    Unstructured,
 }
 
 impl AcShape {
     /// Stable machine-readable label, carried on the finding's `pattern`.
     pub fn as_str(self) -> &'static str {
         match self {
-            Self::Ears => "ears",
+            Self::Assertion => "assertion",
+            Self::Obligation => "obligation",
             Self::GivenWhenThen => "given-when-then",
-            Self::Unclassifiable => "unclassifiable",
+            Self::Unstructured => "unstructured",
         }
+    }
+
+    /// True when the shape is not the canonical assertion — what
+    /// `non-canonical-shape` reports (`Unstructured` is reported by
+    /// `unclassifiable` instead, so it is excluded here).
+    fn is_non_canonical(self) -> bool {
+        matches!(self, Self::Obligation | Self::GivenWhenThen)
     }
 }
 
@@ -100,7 +120,7 @@ fn check_statement(
     observable: &ObservableVerbs,
     out: &mut Vec<GrammarFinding>,
 ) {
-    let shape = classify(&stmt.text);
+    let shape = classify(&stmt.text, lexicon, observable);
     let label = Some(shape.as_str().to_string());
 
     let push = |out: &mut Vec<GrammarFinding>, check: &str, message: String| {
@@ -115,19 +135,24 @@ fn check_statement(
         });
     };
 
-    if shape == AcShape::Unclassifiable {
+    if shape == AcShape::Unstructured {
         push(
             out,
             "unclassifiable",
-            "criterion matches neither the canonical EARS shape nor Given/When/Then".to_string(),
+            "criterion names neither an input nor an observable outcome; there is nothing to test \
+             against"
+                .to_string(),
         );
     }
-    if shape == AcShape::GivenWhenThen {
+    if shape.is_non_canonical() {
         push(
             out,
             "non-canonical-shape",
-            "criterion is Given/When/Then-shaped; the canonical acceptance-criteria shape is EARS"
-                .to_string(),
+            format!(
+                "criterion is {}-shaped; an acceptance criterion is a verification statement, so \
+                 the canonical shape is a direct assertion of the outcome",
+                shape.as_str()
+            ),
         );
     }
     if obligation_count(&stmt.text) > 1 {
@@ -139,10 +164,10 @@ fn check_statement(
         );
     }
 
-    // Checks 3 and 4 read the *outcome* clause: the response clause of an
-    // `ears`-shaped criterion, the `Then` clause of a `given-when-then`-shaped
-    // one (so a GWT cell's other checks still run — FR-047-AC-10), and the
-    // whole cell when no shape matched.
+    // Checks 3 and 4 read the *outcome* clause: the whole statement for an
+    // `assertion`, the response clause of an `obligation`, the `Then` clause of
+    // a `given-when-then` cell (so a non-canonical cell's other checks still run
+    // — FR-047-AC-10), and the whole cell when nothing structured it.
     let outcome = outcome_clause(&stmt.text, shape);
     if let Some(verb) = ears::vague_verb_in_clause(outcome, lexicon) {
         push(
@@ -164,17 +189,27 @@ fn check_statement(
 
 // ─── Classification ─────────────────────────────────────────────────────────
 
-/// Classify one criterion into an [`AcShape`]. EARS wins when both shapes
-/// could match: it is the canonical form, and a `When … shall …` criterion is
-/// an EARS event pattern, not a GWT trigger.
-pub fn classify(statement: &str) -> AcShape {
+/// Classify one criterion into an [`AcShape`] (CR-013).
+///
+/// Structure first: a modal verb makes it an obligation (a `When … shall …`
+/// criterion is an EARS event pattern, not a GWT trigger), then Given/When/Then.
+/// What remains is an `assertion` when it carries an observable signal — the
+/// canonical shape — and `unstructured` when it carries nothing at all.
+pub fn classify(
+    statement: &str,
+    lexicon: &GrammarLexicon,
+    observable: &ObservableVerbs,
+) -> AcShape {
     if ears::classify(statement) != ears::EarsPattern::Unclassifiable {
-        return AcShape::Ears;
+        return AcShape::Obligation;
     }
     if is_given_when_then(statement) {
         return AcShape::GivenWhenThen;
     }
-    AcShape::Unclassifiable
+    if is_observable(statement, lexicon, observable) {
+        return AcShape::Assertion;
+    }
+    AcShape::Unstructured
 }
 
 /// A Given/When/Then criterion: a `Then`/result clause preceded by a
@@ -222,9 +257,11 @@ fn is_positive_negative_pair(lower: &str) -> bool {
 fn outcome_clause(statement: &str, shape: AcShape) -> &str {
     let tail = |m: Option<regex::Match<'_>>| m.map(|m| &statement[m.end()..]);
     match shape {
-        AcShape::Ears => tail(re_shall_word().find(statement)).unwrap_or(statement),
+        AcShape::Obligation => tail(re_shall_word().find(statement)).unwrap_or(statement),
         AcShape::GivenWhenThen => tail(re_then().find(statement)).unwrap_or(statement),
-        AcShape::Unclassifiable => statement,
+        // An assertion states its outcome directly, and an unstructured cell has
+        // no clause structure to slice — both are judged whole.
+        AcShape::Assertion | AcShape::Unstructured => statement,
     }
 }
 
@@ -394,38 +431,45 @@ mod tests {
             .count()
     }
 
-    // TC-707 (FR-047-AC-1): EARS / GWT / neither classify as the three shapes,
-    // and a cell matching neither yields one `unclassifiable` finding.
+    // TC-707 (FR-047-AC-1, CR-013): the four shapes — `assertion` is canonical,
+    // `obligation` and `given-when-then` are recognized renderings, and a cell
+    // with no structure and no observable signal is `unstructured` and yields
+    // one `unclassifiable` finding.
     #[test]
     fn tc707_shape_classification() {
+        let shape = |text: &str| classify(text, &empty_lex(), &verbs());
+
+        // Canonical: asserts an outcome directly.
         assert_eq!(
-            classify("The system shall reject the request with `403`."),
-            AcShape::Ears
+            shape("The parser returns the parsed record."),
+            AcShape::Assertion
+        );
+        // A concrete-object signal is enough of an outcome to be an assertion.
+        assert_eq!(
+            shape("The merged map contains `ac:unclassifiable`."),
+            AcShape::Assertion
+        );
+        // A modal makes it an obligation, not an assertion.
+        assert_eq!(
+            shape("The system shall reject the request with `403`."),
+            AcShape::Obligation
         );
         assert_eq!(
-            classify("Given a valid token, when the user submits, then the request is accepted."),
+            shape("Given a valid token, when the user submits, then the request is accepted."),
             AcShape::GivenWhenThen
         );
-        assert_eq!(
-            classify("It all works end to end."),
-            AcShape::Unclassifiable
-        );
+        // No modal, no Given/When/Then, no observable signal.
+        assert_eq!(shape("It all works end to end."), AcShape::Unstructured);
 
+        // `unclassifiable` fires on the unstructured cell only.
         assert_eq!(count(&["It all works end to end."], "unclassifiable"), 1);
-        assert_eq!(
-            count(
-                &["The system shall reject the request with `403`."],
-                "unclassifiable"
-            ),
-            0
-        );
-        assert_eq!(
-            count(
-                &["Given a token, when the user submits, then `202` is returned."],
-                "unclassifiable"
-            ),
-            0
-        );
+        for clean in [
+            "The parser returns the parsed record.",
+            "The system shall reject the request with `403`.",
+            "Given a token, when the user submits, then `202` is returned.",
+        ] {
+            assert_eq!(count(&[clean], "unclassifiable"), 0, "{clean}");
+        }
     }
 
     // TC-708 (FR-047-AC-2): a modal-free cell is still segmented and checked;
@@ -552,7 +596,8 @@ mod tests {
         let f = findings(&["It all works end to end."]);
         let u = f.iter().find(|x| x.check == "unclassifiable").unwrap();
         assert_eq!(u.grammar, "ac");
-        assert_eq!(u.pattern.as_deref(), Some("unclassifiable"));
+        // `pattern` carries the detected *shape*; the check id names the defect.
+        assert_eq!(u.pattern.as_deref(), Some("unstructured"));
         assert_eq!(u.statement, "It all works end to end.");
         assert!(u.line.is_some());
         assert_eq!(u.severity, GrammarSeverity::Warning);
@@ -563,15 +608,14 @@ mod tests {
     // `Then` clause; an EARS cell yields none.
     #[test]
     fn tc751_non_canonical_shape() {
+        // GWT: flagged, still classified `given-when-then`, other checks run on
+        // the `Then` clause.
         let gwt = "Given a request, when it is unauthenticated, then it works correctly.";
         assert_eq!(count(&[gwt], "non-canonical-shape"), 1);
-        let f = findings(&[gwt]);
-        assert!(f
+        assert!(findings(&[gwt])
             .iter()
             .all(|x| x.pattern.as_deref() == Some("given-when-then")));
-        // The `Then` clause is vacuous → the outcome check still runs on it.
         assert_eq!(count(&[gwt], "no-observable-outcome"), 1);
-        // …and a GWT cell with an observable `Then` clause passes that check.
         assert_eq!(
             count(
                 &["Given a request, when it is unauthenticated, then the API returns `401`."],
@@ -580,11 +624,27 @@ mod tests {
             0
         );
 
+        // Obligation: also flagged (CR-013 — an AC states an observation, not an
+        // obligation), still classified `obligation`, checks run on the response
+        // clause after the modal.
+        let obligation = "The system shall reject the request with `403`.";
+        assert_eq!(count(&[obligation], "non-canonical-shape"), 1);
+        assert!(findings(&[obligation])
+            .iter()
+            .all(|x| x.pattern.as_deref() == Some("obligation")));
+        assert_eq!(count(&[obligation], "no-observable-outcome"), 0);
+
+        // The canonical assertion yields none.
         assert_eq!(
             count(
-                &["The system shall reject the request with `403`."],
+                &["The parser returns the parsed record."],
                 "non-canonical-shape"
             ),
+            0
+        );
+        // …nor does an unstructured cell: that is `unclassifiable`'s business.
+        assert_eq!(
+            count(&["It all works end to end."], "non-canonical-shape"),
             0
         );
     }
@@ -608,17 +668,21 @@ mod tests {
             !f.iter().any(|x| x.statement.contains("works in quotes")),
             "blockquote content must not be segmented"
         );
-        // The surrounding prose IS segmented and checked: it carries a
-        // backticked identifier and an observable verb, so it passes the
-        // outcome checks and is only steered on shape.
-        let prose: Vec<&GrammarFinding> = f
-            .iter()
-            .filter(|x| x.statement.contains("emits a `Duplicate`"))
-            .collect();
-        assert_eq!(
-            prose.iter().map(|x| x.check.as_str()).collect::<Vec<_>>(),
-            vec!["unclassifiable"]
+        // The surrounding prose IS segmented and checked — it carries a
+        // backticked identifier and an observable verb, so it is a clean
+        // canonical assertion and yields nothing.
+        assert!(
+            f.iter()
+                .all(|x| !x.statement.contains("emits a `Duplicate`")),
+            "canonical supplement prose must be clean: {f:?}"
         );
+
+        // A vacuous supplement line proves the prose really is segmented.
+        let vacuous =
+            doc("---\nid: FR-001\ntype: FR\n---\n## Notes\n\n### FR-001-AC-1\n\nIt all works.\n");
+        assert!(check("FR", &vacuous, 0, &empty_lex(), &verbs())
+            .iter()
+            .any(|x| x.check == "unclassifiable"));
     }
 
     // TC-757 (FR-047-AC-12): the observable-verb vocabulary is module data — a
