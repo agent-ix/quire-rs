@@ -173,6 +173,12 @@ pub struct TraceMarkerForm {
     pub name: String,
     pub language: SourceLanguage,
     pub pattern: String,
+    /// Authoring template for the marker, e.g. `#[trace("{ids}")]`. Present
+    /// only when the module wants mechanical rewrite suggestions from legacy
+    /// forms: FR-051 emits a suggestion "where the equivalent marker is
+    /// derivable", and this template is what makes it derivable.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub template: Option<String>,
 }
 
 /// One legacy textual form (bare id in a docstring, a `Trace:` line, a
@@ -185,6 +191,11 @@ pub struct TraceLegacyForm {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub language: Option<SourceLanguage>,
     pub pattern: String,
+    /// Template rebuilding the trace id from the captures, e.g. `TC-{1}` for a
+    /// test name like `tc741_extracts`. Absent means capture group 1 already
+    /// *is* the id.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub id_format: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub rewrite_to: Option<String>,
 }

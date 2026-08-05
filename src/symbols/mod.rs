@@ -18,6 +18,7 @@
 
 pub mod python;
 pub mod rust;
+pub mod trace;
 pub mod typescript;
 
 use std::path::Path;

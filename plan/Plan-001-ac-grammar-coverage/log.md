@@ -60,4 +60,11 @@ description: "Chronological log of changes to the Plan-001 bundle."
   and TypeScript adapters — line-structural, dependency-free, no build or type
   resolution — with stable non-positional identities, per-file degradation, and
   retained spans for trace binding. TC-741, TC-742, TC-743, TC-749 green.
+* **2026-08-04** — Task-006 (Track B) completed: `src/symbols/trace.rs` binds
+  test symbols to trace ids from the declared grammar (canonical markers +
+  legacy forms with `legacy` provenance and template-derived rewrite
+  suggestions), dedups to one relation and one diagnostic per over-attached id,
+  and emits FR-045 graph records with normalized refs. Model gained
+  `TraceLegacyForm::id_format` and `TraceMarkerForm::template` — both required
+  to satisfy FR-051-AC-11 declaratively. TC-744..748, TC-750, TC-753 green.
 

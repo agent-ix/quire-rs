@@ -47,9 +47,11 @@ traceability:
     - name: rust-trace-attribute
       language: rust
       pattern: '#\[trace\(([^)]*)\)\]'
+      template: '#[trace({ids})]'
     - name: pytest-trace-marker
       language: python
       pattern: '@pytest\.mark\.trace\(([^)]*)\)'
+      template: '@pytest.mark.trace({ids})'
     - name: ts-trace-helper
       language: typescript
       pattern: '\btrace\(([^)]*)\)'
@@ -61,4 +63,7 @@ traceability:
       pattern: '(?://|#)\s*((?:TC|FR|NFR|StR|US|IT)-\d+(?:-[A-Za-z]+-\d+)?)'
       rewrite_to: rust-trace-attribute
     - name: test-name-id
-      pattern: '\b(?:tc|fr|nfr)(\d+)'
+      language: rust
+      pattern: '\bfn (?i:tc)(\d+)_'
+      id_format: 'TC-{1}'
+      rewrite_to: rust-trace-attribute

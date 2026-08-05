@@ -1,0 +1,695 @@
+//! Trace binding and graph relations (FR-051).
+//!
+//! Binds extracted symbols to spec trace ids using **only** the module-declared
+//! trace-tag grammar ([`crate::traceability::TraceTagGrammar`]) — the engine
+//! carries no tag forms of its own. Framework-native markers are the canonical
+//! form and are parsed statically from the source text; the textual forms the
+//! `gap-analysis` workflow greps today bind as a recognized `legacy` class,
+//! carry `legacy` provenance, and yield a mechanical rewrite suggestion where
+//! the target marker declares a template.
+//!
+//! Nothing here executes, imports, or builds the extracted code
+//! (FR-051-CON-1): binding reads the same text the adapters already read.
+
+use std::collections::{BTreeMap, BTreeSet};
+use std::sync::OnceLock;
+
+use regex::Regex;
+use serde_json::{Map, Value};
+
+use super::{stable_id, Symbol, SymbolExtraction, SymbolKind};
+use crate::filament::{CoreGraphEdgeRef, CoreGraphNodeRef};
+use crate::traceability::{SourceLanguage, TraceabilityModel};
+
+/// How a trace binding was authored.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum TraceProvenance {
+    /// A framework-native marker — the canonical form.
+    Canonical,
+    /// A textual legacy form, read during migration only (FR-051-CON-3).
+    Legacy,
+}
+
+impl TraceProvenance {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Canonical => "canonical",
+            Self::Legacy => "legacy",
+        }
+    }
+}
+
+/// One `verifies` relation: a test symbol verifies a spec trace id.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct VerifiesRelation {
+    /// Identity digest of the verifying symbol.
+    pub symbol_id: String,
+    pub symbol: String,
+    pub path: String,
+    /// The referenced trace id, exactly as the declared form yields it.
+    pub trace_id: String,
+    pub provenance: TraceProvenance,
+    /// Name of the declared form that bound it.
+    pub form: String,
+}
+
+/// A mechanical marker-rewrite suggestion for a legacy binding (FR-051-AC-11).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RewriteSuggestion {
+    pub path: String,
+    pub symbol: String,
+    /// 1-based line the legacy form sits on.
+    pub line: usize,
+    pub from_form: String,
+    pub to_marker: String,
+    /// The marker text to insert, rendered from the marker's template.
+    pub suggestion: String,
+}
+
+/// A duplicate binding, dropped to one relation (FR-045 edge-dedup).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TraceDiagnostic {
+    pub path: String,
+    pub symbol: String,
+    pub trace_id: String,
+    pub reason: String,
+}
+
+/// The symbol graph the coverage rollup and knowledge-graph ingestion consume.
+/// Every collection is deterministically ordered (NFR-006).
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct SymbolGraph {
+    pub verifies: Vec<VerifiesRelation>,
+    /// `(symbol id, symbol qualified name, file path)`.
+    pub defined_in: Vec<(String, String, String)>,
+    /// `(container qualified name, member qualified name, file path)`.
+    pub contains: Vec<(String, String, String)>,
+    pub rewrites: Vec<RewriteSuggestion>,
+    pub diagnostics: Vec<TraceDiagnostic>,
+}
+
+impl SymbolGraph {
+    /// Trace ids backed by at least one symbol.
+    pub fn backed_trace_ids(&self) -> BTreeSet<&str> {
+        self.verifies.iter().map(|v| v.trace_id.as_str()).collect()
+    }
+}
+
+/// Bind `extraction` to trace ids per the module-declared grammar, and mint the
+/// `verifies` / `defined_in` / `contains` relations.
+///
+/// Only **test symbols** carry trace bindings: FR-051 attaches markers to the
+/// test symbol, and binding containers would let a `mod tests` block inherit
+/// every marker nested inside it.
+pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolGraph {
+    let mut graph = SymbolGraph::default();
+
+    for symbol in &extraction.symbols {
+        graph.defined_in.push((
+            symbol.id.clone(),
+            symbol.qualified_name.clone(),
+            symbol.path.clone(),
+        ));
+        if let Some(container) = &symbol.container {
+            graph.contains.push((
+                container.clone(),
+                symbol.qualified_name.clone(),
+                symbol.path.clone(),
+            ));
+        }
+        if symbol.kind != SymbolKind::TestFunction {
+            continue;
+        }
+        let Some(source) = extraction.source_of(&symbol.path) else {
+            continue;
+        };
+        bind_symbol(symbol, source, model, &mut graph);
+    }
+
+    graph.defined_in.sort();
+    graph.contains.sort();
+    graph.rewrites.sort_by(|a, b| {
+        (&a.path, a.line, &a.symbol, &a.from_form).cmp(&(&b.path, b.line, &b.symbol, &b.from_form))
+    });
+    graph
+        .diagnostics
+        .sort_by(|a, b| (&a.path, &a.symbol, &a.trace_id).cmp(&(&b.path, &b.symbol, &b.trace_id)));
+    graph
+}
+
+fn bind_symbol(symbol: &Symbol, source: &str, model: &TraceabilityModel, graph: &mut SymbolGraph) {
+    let span = symbol.attached_source(source);
+    // Every attachment of a trace id to this symbol, in discovery order
+    // (canonical markers first, then legacy forms). The id is bound once no
+    // matter how many forms attached it (FR-051-AC-6).
+    let mut attachments: BTreeMap<String, Vec<VerifiesRelation>> = BTreeMap::new();
+    let mut record = |relation: VerifiesRelation| {
+        attachments
+            .entry(relation.trace_id.clone())
+            .or_default()
+            .push(relation);
+    };
+
+    // ── Canonical markers ──
+    for marker in &model.trace_tags.markers {
+        if marker.language != symbol.language {
+            continue;
+        }
+        let Some(re) = compile(&marker.pattern) else {
+            continue;
+        };
+        for caps in re.captures_iter(&span) {
+            let Some(args) = caps.get(1) else { continue };
+            for trace_id in marker_ids(args.as_str()) {
+                record(VerifiesRelation {
+                    symbol_id: symbol.id.clone(),
+                    symbol: symbol.qualified_name.clone(),
+                    path: symbol.path.clone(),
+                    trace_id,
+                    provenance: TraceProvenance::Canonical,
+                    form: marker.name.clone(),
+                });
+            }
+        }
+    }
+
+    // ── Legacy textual forms ──
+    for legacy in &model.trace_tags.legacy {
+        if legacy.language.is_some_and(|l| l != symbol.language) {
+            continue;
+        }
+        let Some(re) = compile(&legacy.pattern) else {
+            continue;
+        };
+        for caps in re.captures_iter(&span) {
+            let Some(trace_id) = legacy_id(&caps, legacy.id_format.as_deref()) else {
+                continue;
+            };
+            record(VerifiesRelation {
+                symbol_id: symbol.id.clone(),
+                symbol: symbol.qualified_name.clone(),
+                path: symbol.path.clone(),
+                trace_id: trace_id.clone(),
+                provenance: TraceProvenance::Legacy,
+                form: legacy.name.clone(),
+            });
+            // A rewrite suggestion is emitted only when the target marker
+            // declares an authoring template — FR-051's "where derivable".
+            if let Some(marker) = legacy
+                .rewrite_to
+                .as_ref()
+                .and_then(|name| model.trace_tags.markers.iter().find(|m| &m.name == name))
+            {
+                if let Some(template) = &marker.template {
+                    let line = symbol.leading_line
+                        + span[..caps.get(0).map_or(0, |m| m.start())]
+                            .matches('\n')
+                            .count();
+                    graph.rewrites.push(RewriteSuggestion {
+                        path: symbol.path.clone(),
+                        symbol: symbol.qualified_name.clone(),
+                        line,
+                        from_form: legacy.name.clone(),
+                        to_marker: marker.name.clone(),
+                        suggestion: template.replace("{ids}", &format!("\"{trace_id}\"")),
+                    });
+                }
+            }
+        }
+    }
+
+    // One relation per trace id: a canonical marker wins over a legacy form,
+    // and an id attached more than once yields exactly one diagnostic naming
+    // every form that attached it (FR-045 edge-dedup convention).
+    for (trace_id, candidates) in attachments {
+        if candidates.len() > 1 {
+            let forms: Vec<&str> = candidates.iter().map(|c| c.form.as_str()).collect();
+            graph.diagnostics.push(TraceDiagnostic {
+                path: symbol.path.clone(),
+                symbol: symbol.qualified_name.clone(),
+                trace_id: trace_id.clone(),
+                reason: format!(
+                    "trace id attached {} times (forms: {}); one relation minted",
+                    candidates.len(),
+                    forms.join(", ")
+                ),
+            });
+        }
+        let winner = candidates
+            .iter()
+            .find(|c| c.provenance == TraceProvenance::Canonical)
+            .or_else(|| candidates.first())
+            .expect("at least one attachment");
+        graph.verifies.push(winner.clone());
+    }
+    graph
+        .verifies
+        .sort_by(|a, b| (&a.path, &a.symbol, &a.trace_id).cmp(&(&b.path, &b.symbol, &b.trace_id)));
+}
+
+/// The trace ids inside a marker's argument list. Quoted arguments are the
+/// authored form (`trace("TC-1", "FR-2-AC-3")`); an unquoted argument list is
+/// taken whole, so a bare-identifier marker form still binds.
+fn marker_ids(args: &str) -> Vec<String> {
+    let quoted: Vec<String> = re_quoted()
+        .captures_iter(args)
+        .filter_map(|c| (1..=2).find_map(|g| c.get(g)))
+        .map(|m| m.as_str().trim().to_string())
+        .filter(|s| !s.is_empty())
+        .collect();
+    if !quoted.is_empty() {
+        return quoted;
+    }
+    args.split(',')
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .collect()
+}
+
+/// The trace id a legacy match yields: capture group 1, or the declared
+/// `id_format` template rendered over the captures (`TC-{1}`).
+fn legacy_id(caps: &regex::Captures<'_>, id_format: Option<&str>) -> Option<String> {
+    match id_format {
+        None => caps.get(1).map(|m| m.as_str().to_string()),
+        Some(template) => {
+            let mut out = template.to_string();
+            for (idx, group) in caps.iter().enumerate().skip(1) {
+                out = out.replace(&format!("{{{idx}}}"), group.map_or("", |m| m.as_str()));
+            }
+            Some(out)
+        }
+    }
+}
+
+/// Compile a module-declared pattern. Patterns are validated at module load
+/// (FR-050-AC-2), so a failure here means the caller built a model in memory;
+/// binding skips the form rather than panicking.
+fn compile(pattern: &str) -> Option<Regex> {
+    Regex::new(pattern).ok()
+}
+
+fn re_quoted() -> &'static Regex {
+    static R: OnceLock<Regex> = OnceLock::new();
+    R.get_or_init(|| Regex::new(r#"'([^']*)'|"([^"]*)""#).expect("quoted-arg regex"))
+}
+
+/// Caller-supplied identity for FR-045 record emission. `org`/`repo_name`
+/// normalize every `ref` per FR-045-CON-4.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SymbolRecordInput {
+    pub project_id: String,
+    pub document_id: String,
+    pub artifact_id: Option<String>,
+    pub org: String,
+    pub repo_name: String,
+}
+
+/// Emit the symbol graph as FR-045 graph records: symbols as node records,
+/// relations as edge records, every `ref` normalized under the caller's
+/// org/repo. Ordering is deterministic and ids are stable digests, so repeated
+/// emission over an identical tree is byte-identical (FR-051-AC-10).
+pub fn graph_records(
+    extraction: &SymbolExtraction,
+    graph: &SymbolGraph,
+    input: &SymbolRecordInput,
+) -> (Vec<CoreGraphNodeRef>, Vec<CoreGraphEdgeRef>) {
+    let mut nodes: Vec<CoreGraphNodeRef> = Vec::new();
+    for symbol in &extraction.symbols {
+        let name = symbol_ref_name(symbol);
+        let ref_ = normalize_ref(&input.org, &input.repo_name, &name);
+        let mut data = Map::new();
+        data.insert(
+            "language".into(),
+            Value::String(symbol.language.as_str().into()),
+        );
+        data.insert("path".into(), Value::String(symbol.path.clone()));
+        data.insert(
+            "qualifiedName".into(),
+            Value::String(symbol.qualified_name.clone()),
+        );
+        data.insert("kind".into(), Value::String(symbol.kind.as_str().into()));
+        data.insert("line".into(), Value::Number(symbol.line.into()));
+        data.insert("symbolId".into(), Value::String(symbol.id.clone()));
+        nodes.push(CoreGraphNodeRef {
+            id: stable_id(&[&input.project_id, "graph-node", &ref_]),
+            project_id: input.project_id.clone(),
+            document_id: input.document_id.clone(),
+            artifact_id: input.artifact_id.clone(),
+            object_type: "source_symbol".to_string(),
+            name,
+            ref_,
+            data_json: json_string(&Value::Object(data)),
+            updated_at: None,
+        });
+    }
+
+    let mut edges: Vec<CoreGraphEdgeRef> = Vec::new();
+    let mut push_edge =
+        |source: String, target: String, edge_type: &str, data: Map<String, Value>| {
+            let source_ref = normalize_ref(&input.org, &input.repo_name, &source);
+            let target_ref = normalize_ref(&input.org, &input.repo_name, &target);
+            edges.push(CoreGraphEdgeRef {
+                id: stable_id(&[
+                    &input.project_id,
+                    "graph-edge",
+                    &source_ref,
+                    &target_ref,
+                    edge_type,
+                ]),
+                project_id: input.project_id.clone(),
+                source_ref,
+                target_ref,
+                edge_type: edge_type.to_string(),
+                data_json: json_string(&Value::Object(data)),
+                updated_at: None,
+            });
+        };
+
+    for relation in &graph.verifies {
+        let mut data = Map::new();
+        data.insert(
+            "provenance".into(),
+            Value::String(relation.provenance.as_str().into()),
+        );
+        data.insert("form".into(), Value::String(relation.form.clone()));
+        push_edge(
+            format!("{}#{}", relation.path, relation.symbol),
+            relation.trace_id.clone(),
+            "verifies",
+            data,
+        );
+    }
+    for (_, symbol, path) in &graph.defined_in {
+        push_edge(
+            format!("{path}#{symbol}"),
+            path.clone(),
+            "defined_in",
+            Map::new(),
+        );
+    }
+    for (container, member, path) in &graph.contains {
+        push_edge(
+            format!("{path}#{container}"),
+            format!("{path}#{member}"),
+            "contains",
+            Map::new(),
+        );
+    }
+    (nodes, edges)
+}
+
+/// The `ref` name of a symbol: `<path>#<qualified name>`, which is unique per
+/// tree and carries no line or formatting information.
+fn symbol_ref_name(symbol: &Symbol) -> String {
+    format!("{}#{}", symbol.path, symbol.qualified_name)
+}
+
+fn normalize_ref(org: &str, repo_name: &str, value: &str) -> String {
+    if value.starts_with("ix://") {
+        value.to_string()
+    } else {
+        format!("ix://{org}/{repo_name}/{value}")
+    }
+}
+
+fn json_string(value: &Value) -> String {
+    serde_json::to_string(value).expect("serializing serde_json::Value cannot fail")
+}
+
+/// The language a symbol was extracted from, exposed for consumers that group
+/// relations per language.
+pub fn language_of(symbol: &Symbol) -> SourceLanguage {
+    symbol.language
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::symbols::extract_tree;
+    use crate::Registry;
+
+    fn fixture_root() -> std::path::PathBuf {
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("tests")
+            .join("fixtures")
+    }
+
+    fn iso_model() -> TraceabilityModel {
+        Registry::load_module(&fixture_root().join("traceability").join("iso"))
+            .expect("load")
+            .traceability()
+            .cloned()
+            .expect("declared model")
+    }
+
+    fn alt_model() -> TraceabilityModel {
+        Registry::load_module(&fixture_root().join("traceability").join("alt"))
+            .expect("load")
+            .traceability()
+            .cloned()
+            .expect("declared model")
+    }
+
+    fn symbols() -> SymbolExtraction {
+        extract_tree(&fixture_root().join("symbols"))
+    }
+
+    fn relations_for<'g>(graph: &'g SymbolGraph, symbol: &str) -> Vec<&'g VerifiesRelation> {
+        graph
+            .verifies
+            .iter()
+            .filter(|v| v.symbol == symbol)
+            .collect()
+    }
+
+    // TC-744 (FR-051-AC-4): each canonical marker form binds statically — one
+    // `verifies` relation per attached trace id, no code executed.
+    #[test]
+    fn tc744_canonical_markers_bind_statically() {
+        let graph = bind(&symbols(), &iso_model());
+
+        // Rust `#[trace("TC-741")]`.
+        let rust = relations_for(&graph, "tests::tc741_extracts");
+        assert!(rust
+            .iter()
+            .any(|r| r.trace_id == "TC-741" && r.form == "rust-trace-attribute"));
+
+        // Python `@pytest.mark.trace("TC-741", "FR-051-AC-1")` — one relation
+        // per attached id.
+        let py = relations_for(&graph, "test_parses_config");
+        let mut ids: Vec<&str> = py.iter().map(|r| r.trace_id.as_str()).collect();
+        ids.sort();
+        assert_eq!(ids, vec!["FR-051-AC-1", "TC-741"]);
+        assert!(py
+            .iter()
+            .all(|r| r.provenance == TraceProvenance::Canonical));
+
+        // A method marker binds to the method, not to its class.
+        assert!(relations_for(&graph, "TestService.test_rejects_empty")
+            .iter()
+            .any(|r| r.trace_id == "TC-743"));
+        assert!(relations_for(&graph, "TestService").is_empty());
+    }
+
+    // TC-745 (FR-051-AC-5): marker forms are module data — a different
+    // declaration binds by its own forms, and no declared forms mints nothing.
+    #[test]
+    fn tc745_forms_are_module_data() {
+        let extraction = crate::symbols::extract_file(
+            "src/lib.rs",
+            SourceLanguage::Rust,
+            "#[covers(\"R-1-C-2\")]\n#[test]\nfn checks_it() {\n    assert!(true);\n}\n",
+        );
+        // The alt module declares `#[covers(...)]`, not `#[trace(...)]`.
+        let alt = bind(&extraction, &alt_model());
+        assert_eq!(alt.verifies.len(), 1);
+        assert_eq!(alt.verifies[0].trace_id, "R-1-C-2");
+        assert_eq!(alt.verifies[0].form, "alt-marker");
+
+        // The ISO declaration knows nothing of `#[covers(...)]`.
+        assert!(bind(&extraction, &iso_model()).verifies.is_empty());
+
+        // No declared forms at all → zero `verifies` relations, while the
+        // structural relations still mint.
+        let none = bind(&extraction, &TraceabilityModel::default());
+        assert!(none.verifies.is_empty());
+        assert!(!none.defined_in.is_empty());
+    }
+
+    // TC-746 (FR-051-AC-6): a trace id attached more than once to one symbol
+    // mints one relation and one diagnostic.
+    #[test]
+    fn tc746_duplicate_binding_is_deduped_with_diagnostic() {
+        let extraction = crate::symbols::extract_file(
+            "src/lib.rs",
+            SourceLanguage::Rust,
+            "#[trace(\"TC-900\")]\n#[trace(\"TC-900\")]\n#[test]\nfn tc900_thing() {\n    let _ = 1;\n}\n",
+        );
+        let graph = bind(&extraction, &iso_model());
+        let dupes: Vec<&VerifiesRelation> = graph
+            .verifies
+            .iter()
+            .filter(|v| v.trace_id == "TC-900")
+            .collect();
+        assert_eq!(dupes.len(), 1, "one relation only");
+        assert_eq!(
+            graph
+                .diagnostics
+                .iter()
+                .filter(|d| d.trace_id == "TC-900")
+                .count(),
+            1
+        );
+        // Marker plus legacy test-name form for the same id also dedups, and
+        // the canonical provenance wins.
+        assert_eq!(dupes[0].provenance, TraceProvenance::Canonical);
+    }
+
+    // TC-753 (FR-051-AC-11): legacy textual forms still bind, carry `legacy`
+    // provenance, and yield a mechanical rewrite suggestion where derivable.
+    #[test]
+    fn tc753_legacy_forms_bind_with_provenance_and_rewrite() {
+        let extraction = crate::symbols::extract_file(
+            "src/lib.rs",
+            SourceLanguage::Rust,
+            "// Trace: FR-051-AC-11\n#[test]\nfn tc753_legacy() {\n    // TC-800\n    let _ = 1;\n}\n",
+        );
+        let graph = bind(&extraction, &iso_model());
+        let by_id = |id: &str| {
+            graph
+                .verifies
+                .iter()
+                .find(|v| v.trace_id == id)
+                .unwrap_or_else(|| panic!("no relation for {id}"))
+        };
+        // `Trace:` line, line-comment id, and the trace-embedding test name.
+        assert_eq!(by_id("FR-051-AC-11").provenance, TraceProvenance::Legacy);
+        assert_eq!(by_id("TC-800").provenance, TraceProvenance::Legacy);
+        assert_eq!(by_id("TC-753").form, "test-name-id");
+
+        // A rewrite suggestion is derivable for the forms whose target marker
+        // declares a template.
+        let suggestion = graph
+            .rewrites
+            .iter()
+            .find(|r| r.from_form == "trace-line")
+            .expect("rewrite suggestion");
+        assert_eq!(suggestion.to_marker, "rust-trace-attribute");
+        assert_eq!(suggestion.suggestion, "#[trace(\"FR-051-AC-11\")]");
+        assert!(suggestion.line >= 1);
+    }
+
+    // TC-748 (FR-051-AC-8): `defined_in` links every symbol to its file and
+    // `contains` links containers to members, deterministically ordered.
+    #[test]
+    fn tc748_structural_relations() {
+        let extraction = symbols();
+        let graph = bind(&extraction, &iso_model());
+
+        assert_eq!(graph.defined_in.len(), extraction.symbols.len());
+        for symbol in &extraction.symbols {
+            assert!(graph.defined_in.iter().any(|(id, name, path)| {
+                id == &symbol.id && name == &symbol.qualified_name && path == &symbol.path
+            }));
+        }
+        assert!(graph.contains.iter().any(|(container, member, path)| {
+            container == "tests" && member == "tests::tc741_extracts" && path == "rust/lib.rs"
+        }));
+
+        let mut sorted = graph.defined_in.clone();
+        sorted.sort();
+        assert_eq!(graph.defined_in, sorted);
+        let mut sorted_contains = graph.contains.clone();
+        sorted_contains.sort();
+        assert_eq!(graph.contains, sorted_contains);
+    }
+
+    fn record_input() -> SymbolRecordInput {
+        SymbolRecordInput {
+            project_id: "project-1".into(),
+            document_id: "doc-1".into(),
+            artifact_id: Some("artifact-1".into()),
+            org: "agent-ix".into(),
+            repo_name: "quire-rs".into(),
+        }
+    }
+
+    // TC-747 (FR-051-AC-7): emitted records match the FR-045 graph-record
+    // shapes with normalized `ref` values.
+    #[test]
+    fn tc747_records_match_fr045_shapes() {
+        let extraction = symbols();
+        let graph = bind(&extraction, &iso_model());
+        let (nodes, edges) = graph_records(&extraction, &graph, &record_input());
+
+        assert!(!nodes.is_empty() && !edges.is_empty());
+        let node = nodes
+            .iter()
+            .find(|n| n.name == "rust/lib.rs#tests::tc741_extracts")
+            .expect("node for the traced test");
+        assert_eq!(node.project_id, "project-1");
+        assert_eq!(node.document_id, "doc-1");
+        assert_eq!(node.artifact_id.as_deref(), Some("artifact-1"));
+        assert_eq!(node.object_type, "source_symbol");
+        assert_eq!(
+            node.ref_,
+            "ix://agent-ix/quire-rs/rust/lib.rs#tests::tc741_extracts"
+        );
+        assert!(node.updated_at.is_none());
+        let data: Value = serde_json::from_str(&node.data_json).expect("data json");
+        assert_eq!(data["kind"], "test_function");
+        assert_eq!(data["language"], "rust");
+
+        // Serialized keys are the FR-045 camelCase record shape.
+        let json = serde_json::to_value(node).expect("serialize");
+        for key in [
+            "id",
+            "projectId",
+            "documentId",
+            "artifactId",
+            "objectType",
+            "name",
+            "ref",
+            "dataJson",
+        ] {
+            assert!(json.get(key).is_some(), "node record is missing {key}");
+        }
+
+        let verifies = edges
+            .iter()
+            .find(|e| e.edge_type == "verifies")
+            .expect("a verifies edge");
+        assert!(verifies.source_ref.starts_with("ix://agent-ix/quire-rs/"));
+        assert!(verifies.target_ref.starts_with("ix://agent-ix/quire-rs/"));
+        let edge_json = serde_json::to_value(verifies).expect("serialize");
+        for key in [
+            "id",
+            "projectId",
+            "sourceRef",
+            "targetRef",
+            "edgeType",
+            "dataJson",
+        ] {
+            assert!(edge_json.get(key).is_some(), "edge record is missing {key}");
+        }
+        assert!(edges.iter().any(|e| e.edge_type == "defined_in"));
+        assert!(edges.iter().any(|e| e.edge_type == "contains"));
+    }
+
+    // TC-750 (FR-051-AC-10, Property): repeated extraction + binding over an
+    // identical tree emits byte-identical JSON and identical record ids.
+    #[test]
+    fn tc750_repeated_extraction_is_byte_identical() {
+        let model = iso_model();
+        let render = || {
+            let extraction = symbols();
+            let graph = bind(&extraction, &model);
+            let (nodes, edges) = graph_records(&extraction, &graph, &record_input());
+            serde_json::to_string(&(nodes, edges)).expect("serialize")
+        };
+        let first = render();
+        for _ in 0..8 {
+            assert_eq!(first, render(), "records must be byte-identical");
+        }
+    }
+}

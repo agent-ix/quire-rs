@@ -265,7 +265,7 @@ its own branch.
 | [Task-003](./tasks/Task-003-cli-surface-support.md) | A | FR-047-AC-8, FR-048-AC-5/6/10 | Task-002 | completed |
 | [Task-004](./tasks/Task-004-fr050-traceability-model.md) | B | FR-050-AC-1/2 | — | completed |
 | [Task-005](./tasks/Task-005-fr051-symbol-adapters.md) | B | FR-051-AC-1/2/3/9 | — | completed |
-| [Task-006](./tasks/Task-006-fr051-trace-binding-records.md) | B | FR-051-AC-4..8/10/11 | Task-004, Task-005 | not_started |
+| [Task-006](./tasks/Task-006-fr051-trace-binding-records.md) | B | FR-051-AC-4..8/10/11 | Task-004, Task-005 | completed |
 | [Task-007](./tasks/Task-007-fr050-coverage-rollup.md) | B | FR-050-AC-3..9, CON-2 | Task-004, Task-006 | not_started |
 | [Task-008](./tasks/Task-008-fr049-reference-integrity.md) | B | FR-049 | Task-004 | not_started |
 | [Task-009](./tasks/Task-009-ac-grammar-baseline-sweep.md) | C | corpus cleanup (FR-047-CON-1) | Task-003 (G1) | not_started |
