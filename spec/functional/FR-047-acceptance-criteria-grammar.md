@@ -325,6 +325,14 @@ violates a check:
 > and `non-singular` both reach zero, leaving two `vague-response` findings on
 > the PyO3-parity criteria of FR-042 and FR-047.
 >
+> **Closed by CR-021** (2026-08-06): `ears` does not adopt the mask, for now.
+> Measured, it is one true fix against two regressions, because `ears`
+> segmentation is line-based and a code span wrapping across source lines leaves
+> the next line beginning inside an unterminated span. Adoption is conditional on
+> paragraph-joining segmentation. The reasoning is recorded in
+> [FR-042](./FR-042-requirement-grammar-check.md); the original open question
+> below is superseded.
+>
 > Whether the same mention/use distinction should apply to the `ears` grammar is
 > **open**: EARS statements quote keywords far less often, and the change is not
 > made here so this slice ships one measured behaviour change rather than two.
