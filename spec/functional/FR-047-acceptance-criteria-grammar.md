@@ -56,20 +56,36 @@ below read; only the `assertion` shape is canonical:
   leading `Given`/`When` clause and a `Then`/result clause, in prose or bullet
   form). Its outcome clause is the `Then` clause, so a GWT cell's other checks
   still run.
-- `unstructured` — none of the above **and no predicate at all**: no modal or
-  copula, no inflected or irregular verb form, no declared observable-result
-  verb, and no concrete-object signal (CR-014).
+- `unstructured` — none of the above **and no predicate marker at all**: no
+  modal or copula, no inflected or irregular verb form, no elided-copula
+  predication, no declared observable-result verb, and no concrete-object signal
+  (CR-014, CR-019).
 
 For each statement, the `ac` grammar SHALL emit a finding when the statement
 violates a check:
 
-1. **unclassifiable** — the statement carries **no predicate at all**: no modal
-   or copula, no inflected verb form, no irregular past form, no declared
-   observable-result verb, and no concrete-object signal. A bare noun phrase
-   (`Structural evaluation`, `Type Check`, `Criterion`) asserts nothing and
-   cannot be tested. The check is deliberately *structural* — it does not ask
-   whether the outcome is a good one, only whether the cell states an outcome
-   (CR-014).
+1. **unclassifiable** — the statement carries **no predicate marker at all**: no
+   modal or copula, no inflected verb form, no irregular past form, no
+   elided-copula predication (an existential/quantifier head or a predicative
+   adjective — CR-019), no declared observable-result verb, and no
+   concrete-object signal. A bare noun phrase (`Structural evaluation`,
+   `Type Check`), a bolded heading (`**Key Generation**`) or a dangling prose
+   fragment (`Current validation note:`) authored into a `Criteria` column
+   asserts nothing and cannot be tested. The check is deliberately *structural*
+   — it does not ask whether the outcome is a good one, only whether the cell
+   states an outcome (CR-014).
+
+   **What this check is and is not (CR-019).** The predicate test is a
+   disjunction of morphological and lexical markers, and one of its branches
+   (`\b\w+(s|ed|ing)\b`) cannot distinguish a verb from a plural noun. Measured
+   over 36,580 `Criteria` cells, **99.6% satisfy it**, and **23.4% satisfy it
+   only through that branch**. It is accordingly a **bare-fragment heuristic** —
+   it reliably catches material that is not a sentence at all — and **not** a
+   test that a finite verb is present. FR-047 does not claim, and the check does
+   not establish, that a passing cell states a testable outcome. The 5,187 → 87
+   drop CR-014 reported is predominantly the test becoming easier to satisfy,
+   not a precision improvement; the honest statement of CR-014's effect is that
+   it exchanged one signal for a much narrower one. See CR-019.
 2. **non-singular** — the statement bundles more than one independent
    obligation: more than one `shall`, or more than one `Then` clause. A single
    criterion pairing one positive and one negative case of the same behavior
@@ -169,6 +185,59 @@ violates a check:
 > `Acceptance Criteria` table. Bullet-form AC sections remain unsegmented by any
 > grammar — recorded as future work, not addressed here.
 
+> **CR-019 note:** Both of CR-014's high-volume checks were re-measured against
+> the open questions on agent-ix/quire-rs#18 and #19, over 36,580 `Criteria`
+> cells in 197 repos, using the harness now committed at
+> `scripts/ac_corpus_sweep.py` (the original run's script was never saved, which
+> is why the decision could not be re-derived). Report:
+> `~/dev/reports/2026-08-06-ac-check-remeasure.md`.
+>
+> **`no-observable-outcome` was restored and re-measured, and CR-014 stands.**
+> All three mechanical defects that inflated its original 51%/~35% measurement
+> are fixed, and the 73-verb vocabulary widening the fit report tested was in
+> fact adopted — the built-in observable set is now 86 verbs. Repaired, the check
+> fires on **14.8%** of cells, a 3.4× drop. But sampled precision **fell** to
+> ~13% (4 of 30), because the mechanical fixes removed the easy true positives
+> and the residual is almost entirely root cause 1 — the open verb space.
+> `invalidates`, `clears`, `revokes`, `displays`, `exchanges`, `recovers`,
+> `activates`, `delegates` are all legitimate observable outcomes absent from an
+> 86-verb list, and the list cannot be finished. A recall frame of 30 unflagged
+> cells found **0** untestable. The check does not reach usable precision even
+> repaired, so it does not return, not even shipping `off`: a check nobody could
+> defensibly enable is not worth the surface. The `remeasure` cargo feature keeps
+> it buildable for measurement and is never enabled in a shipping build.
+>
+> **`unclassifiable` is not what its name claims, and FR-047 now says so.** The
+> predicate test is satisfied by 99.6% of cells, 23.4% through the
+> `\b\w+(s|ed|ing)\b` branch alone, which matches any plural noun. Tightening it
+> to require a finite verb needs part-of-speech tagging, which is out of scope
+> for a deterministic engine; the check is therefore documented honestly as a
+> bare-fragment heuristic (check 1 above) rather than renamed, since the name
+> `unclassifiable` describes the *shape* outcome accurately and only the prose
+> overclaimed.
+>
+> **The false positives both issues required fixing are fixed.** A predication
+> whose copula is elided — an existential/quantifier head or a predicative
+> adjective — is now a predicate (`re_elided_copula`, FR-047-AC-14, TC-763).
+> This removed 92 of 276 `unclassifiable` findings (−33%), and **every one was a
+> false positive**: negative-existence assertions (`No refresh_token in response
+> body`), uniqueness constraints (`Only one active password_reset token per
+> user`), and comparatives (`Lockout response identical to normal failure`) are
+> all perfectly testable. It also fixes the one residual false positive the
+> original fit report called unfixable without part-of-speech tagging
+> (*"…plugin management and template creation operate normally"*). Like
+> `vacuous_predicates`, this is a **closed** set used to *suppress* a finding
+> rather than an open one whose membership is required — the distinction CR-014
+> turned on — and it is engine-built-in rather than module data because it is
+> English grammar, not domain vocabulary.
+>
+> A `-able`/`-ible` predicative-adjective branch was tested and **not adopted**:
+> it would remove 4 further findings, of which one is the template placeholder
+> `[observable outcome]` that should stay flagged. Two true fixes against one
+> regression is not a good trade for a broader rule.
+>
+> No `grammar_severity` default changed; promotion remains user-gated by CON-1.
+
 > **CR-017 note:** Grammar-keyword detection confused **mention with use**. A
 > criterion that quotes a keyword as example data — ``a statement with two
 > `shall` clauses yields exactly one `non-singular` finding`` — was read as
@@ -238,6 +307,7 @@ the histogram covers every grammar and check.
 | FR-047-AC-11 | Fenced code blocks and blockquotes inside a `### <doc-id>-AC-N` supplement section are skipped: statements inside them are not segmented and yield no `ac` findings, while the surrounding supplement prose is still checked. | Test (TC-754) |
 | FR-047-AC-12 | Both vocabularies are module data: a module's `observable_verbs` registry merges first-wins over the built-in defaults (a module-added verb suppresses `vacuous-outcome` and gives the cell a predicate), a module's `vacuous_predicates` registry likewise extends the built-in vacuity set, and with no module declaration both built-in default sets apply unchanged. | Test (TC-757) |
 | FR-047-AC-13 | A grammar keyword inside an inline code span is a mention, not a use: a cell reading ``a statement with two `shall` clauses yields one finding`` classifies `assertion` and yields no `non-canonical-shape` or `non-singular` finding, while the same cell with the modal unquoted classifies `obligation`; the span's contents are still read by the signal and lexicon checks, and an unbalanced backtick opens no span. | Test (TC-761) |
+| FR-047-AC-14 | A predication whose copula is elided is a predicate: a cell headed by an existential or quantifier (`No refresh_token in response body`, `Only one active password_reset token per user at any time`) or carrying a predicative adjective (`No credential-material field present`, `Loki datasource visible in Grafana`, `Lockout response identical to normal failure`) classifies `assertion` and yields no `unclassifiable` finding, while a bare noun phrase, a bolded heading and a dangling prose fragment each still classify `unstructured` and yield one. | Test (TC-763) |
 
 ## Dependencies
 
