@@ -85,9 +85,12 @@ pub struct LexiconTermDef {
 }
 
 /// One `observable_verbs` registry entry (FR-047). A module-declared
-/// **observable-result verb** the `ac` grammar's `no-observable-outcome` check
-/// accepts as evidence of an externally checkable outcome. The engine uses the
-/// verb (the map key) and its inflections; `definition` is documentation.
+/// **observable-result verb** the `ac` grammar reads as evidence of an
+/// externally checkable outcome: it satisfies the `unclassifiable` predicate
+/// and suppresses `vacuous-outcome`. (Before CR-014 this vocabulary was the
+/// membership test of a retired `no-observable-outcome` check; CR-014 demoted
+/// it to a signal source.) The engine uses the verb (the map key) and its
+/// inflections; `definition` is documentation.
 /// Mirrors [`LexiconTermDef`] — concrete vocabulary is module data (ADR 0009).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ObservableVerbDef {

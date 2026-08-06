@@ -345,8 +345,8 @@ impl Registry {
     }
 
     /// Merged observable-result verb registry (FR-047), first-wins across
-    /// modules. The `ac` grammar's `no-observable-outcome` check consumes these
-    /// on top of the engine's built-in defaults.
+    /// modules. The `ac` grammar's `unclassifiable` and `vacuous-outcome`
+    /// checks consume these on top of the engine's built-in defaults (CR-014).
     pub fn observable_verbs(
         &self,
     ) -> &std::collections::BTreeMap<String, crate::vocab::ObservableVerbDef> {

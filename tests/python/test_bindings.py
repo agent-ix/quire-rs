@@ -116,9 +116,14 @@ def test_check_grammar_ac_findings_cross_boundary(tmp_path):
     assert {f["check"] for f in gwt} == {"non-canonical-shape"}
     assert all(f["pattern"] == "given-when-then" for f in gwt)
 
-    # FR-047-AC-12 / FR-048: module data reaches the binding — declaring the
-    # verb suppresses `no-observable-outcome`, mapping the check `off` removes
-    # it entirely.
+    # FR-047-AC-12 / FR-048: module data reaches the binding. Declaring `work`
+    # as an observable verb makes the cell carry signal, which suppresses
+    # `vacuous-outcome` (CR-014 demoted `observable_verbs` to a suppressor);
+    # mapping `ac:unclassifiable` to `off` removes that check entirely.
+    #
+    # Both assertions must name checks that still exist. Asserting the absence
+    # of a *retired* id passes unconditionally and proves nothing — that is how
+    # TC-715 rotted against CR-014's rename.
     mod = tmp_path / "m"
     mod.mkdir(parents=True)
     (mod / "manifest.yaml").write_text(
@@ -128,7 +133,7 @@ def test_check_grammar_ac_findings_cross_boundary(tmp_path):
     )
     scoped = quire.check_grammar("iso-spec-core", "FR", md, str(mod))
     scoped_checks = {f["check"] for f in scoped if f["grammar"] == "ac"}
-    assert "no-observable-outcome" not in scoped_checks
+    assert "vacuous-outcome" not in scoped_checks
     assert "unclassifiable" not in scoped_checks
 
 

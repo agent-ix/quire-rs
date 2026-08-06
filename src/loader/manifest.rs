@@ -81,8 +81,9 @@ pub struct Manifest {
     /// Mergeable observable-result verb registry (FR-047): verb →
     /// {definition, optional category}. Merged across modules first-wins and
     /// layered **over** the engine's built-in defaults, which stay at lowest
-    /// precedence. The `ac` grammar's `no-observable-outcome` check consumes
-    /// the merged keys, so the vocabulary is module data (ADR 0009).
+    /// precedence. The `ac` grammar's `unclassifiable` and `vacuous-outcome`
+    /// checks consume the merged keys (CR-014), so the vocabulary is module
+    /// data (ADR 0009).
     #[serde(default)]
     pub observable_verbs: BTreeMap<String, crate::vocab::ObservableVerbDef>,
     /// Mergeable vacuous-predicate registry (FR-047, CR-014): predicate →

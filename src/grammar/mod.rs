@@ -715,20 +715,20 @@ mod tests {
             "[ears:vague-response] vague response verb `support`",
             "[ac:unclassifiable] criterion matches neither shape",
             "[ears:vague-response] vague response verb `provide`",
-            "[ac:no-observable-outcome] outcome clause names no result",
+            "[ac:vacuous-outcome] outcome clause is vacuous",
             "unprefixed diagnostic from another layer",
         ];
         let histogram = summarize_findings(messages.iter().copied());
         assert_eq!(histogram.get("ears:vague-response"), Some(&2));
         assert_eq!(histogram.get("ac:unclassifiable"), Some(&1));
-        assert_eq!(histogram.get("ac:no-observable-outcome"), Some(&1));
+        assert_eq!(histogram.get("ac:vacuous-outcome"), Some(&1));
         assert_eq!(histogram.len(), 3, "unprefixed lines are not histogrammed");
         // Deterministic ordering (NFR-006).
         assert_eq!(
             histogram.keys().collect::<Vec<_>>(),
             vec![
-                "ac:no-observable-outcome",
                 "ac:unclassifiable",
+                "ac:vacuous-outcome",
                 "ears:vague-response"
             ]
         );

@@ -24,7 +24,7 @@ amendment because FR-042's normative statement is unchanged — this FR supplies
 the mechanism FR-042 left to configuration.
 
 A Filament module MAY declare a `grammar_severity` registry in its
-`manifest.yaml`: a map from `<grammar>:<check>` keys (e.g. `ac:no-observable-outcome`)
+`manifest.yaml`: a map from `<grammar>:<check>` keys (e.g. `ac:vacuous-outcome`)
 to a level in `off` | `warning` | `error`. The `off` level suppresses the
 check entirely: the framework SHALL record no finding for an `off`-mapped
 check — not in `warnings`, not in `errors`, and not in the `--summary`

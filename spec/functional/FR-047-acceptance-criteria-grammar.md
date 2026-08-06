@@ -145,10 +145,23 @@ violates a check:
 > The tests are therefore inverted. `vacuous-outcome` detects a **closed** set of
 > vacuous predicates instead of requiring membership of an open one, and
 > `unclassifiable` asks the structural question — is there a predicate at all —
-> instead of asking whether a verb is on a list. Measured over the same corpus:
-> **25 and 39 findings** respectively (0.21% and 0.33% of cells) against 11,269
-> before, with no true positive lost in sampling. `non-canonical-shape`
-> (2,047 findings, ~95% precision) and the low-volume checks are unchanged.
+> instead of asking whether a verb is on a list.
+>
+> CR-014 changed two things at once — the two predicates *and* the binding — so
+> its result has two figures, and they must be quoted with their condition:
+>
+> | Condition | `vacuous-outcome` | `unclassifiable` |
+> |---|---|---|
+> | Same 199-repo corpus, **FR-only** binding (as measured mid-change) | 25 (0.21%) | 39 (0.33%) |
+> | Same corpus, **widened** binding — what shipped | **32** (~95% precision) | **87** (~80% precision) |
+>
+> Against 11,269 findings from the two retired predicates before the change
+> (6,082 + 5,187), with no true positive lost in sampling. The **shipped**
+> figures are the 32/87 row; they are what
+> `~/dev/reports/2026-08-04-ac-grammar-fit.md` records and what CR-017's
+> 3,956 → 3,949 total is measured against. `non-canonical-shape` rose 2,047 →
+> 2,638 (~95% precision, the rise being the widened binding) and the low-volume
+> checks are otherwise unchanged.
 >
 > The same check also settled the binding: `FR`-only reached 76.9% of AC-bearing
 > documents, and sampled US and NFR criteria are the same shape as FR ones, so
