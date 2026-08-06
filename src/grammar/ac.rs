@@ -190,6 +190,36 @@ fn check_statement(stmt: &Stmt, vocab: GrammarVocabularies<'_>, out: &mut Vec<Gr
             "criterion asserts only that something works; name the observable result".to_string(),
         );
     }
+
+    // ── Measurement instrument, not a shipped check (agent-ix/quire-rs#18) ──
+    //
+    // The check CR-014 retired, restored from `7a259d5` with the three
+    // mechanical defects that inflated its original measurement already fixed:
+    //
+    //   1. irregular / `-y` inflections — fixed in `inflect` (grammar/mod.rs),
+    //      so `written`, `built`, `sent`, `carries` now match their stems;
+    //   2. obligation clause-slicing dropping a pre-modal concrete object —
+    //      fixed here by reading the whole statement, as `vacuous-outcome`
+    //      does, instead of `outcome_clause(...)`;
+    //   3. supplement-prose segmentation producing truncated fragments —
+    //      fixed in `split_sentences` (CR-017), shared by every check.
+    //
+    // The original predicate was `!is_observable(outcome, lexicon, observable)`
+    // where `is_observable` is byte-for-byte today's `carries_signal`, so the
+    // only deliberate change is the clause it reads.
+    //
+    // Behind the `remeasure` feature so no shipping build can emit it. See
+    // `scripts/ac_corpus_sweep.py`.
+    #[cfg(feature = "remeasure")]
+    if !carries_signal(&stmt.text, vocab) {
+        push(
+            out,
+            "no-observable-outcome",
+            "outcome clause names no externally checkable result (no returned value, emitted \
+             record, identifier, or bound)"
+                .to_string(),
+        );
+    }
 }
 
 /// True when the statement carries something externally checkable: a
@@ -243,15 +273,22 @@ fn mask_code_spans(statement: &str) -> String {
 }
 
 /// True when the statement has a **predicate** — a modal or copula, an inflected
-/// or irregular verb form, a declared observable verb, or a concrete signal.
-/// This is the structural question `unclassifiable` asks after CR-014, and it is
-/// deliberately independent of any domain vocabulary being complete.
+/// or irregular verb form, a declared observable verb, a concrete signal, or an
+/// elided-copula predication (CR-019). This is the structural question
+/// `unclassifiable` asks after CR-014, and it is deliberately independent of any
+/// domain vocabulary being complete.
+///
+/// On the corpus this is a weak test — 99.6% of cells satisfy it, 23.4% via the
+/// `-s`/`-ed`/`-ing` branch alone, which cannot tell a verb from a plural noun.
+/// FR-047 describes what it actually catches; do not read the name as a claim
+/// that a finite verb was found (agent-ix/quire-rs#19).
 fn has_predicate(statement: &str, vocab: GrammarVocabularies<'_>) -> bool {
     let normalized = ears::normalize(statement);
     carries_signal(&normalized, vocab)
         || re_modal_or_copula().is_match(&normalized)
         || re_inflected_verb().is_match(&normalized)
         || re_irregular_past().is_match(&normalized)
+        || re_elided_copula().is_match(&normalized)
 }
 
 // ─── Classification ─────────────────────────────────────────────────────────
@@ -519,6 +556,31 @@ fn re_modal_or_copula() -> &'static Regex {
 fn re_inflected_verb() -> &'static Regex {
     static R: OnceLock<Regex> = OnceLock::new();
     R.get_or_init(|| Regex::new(r"(?i)\b\w+(s|ed|ing)\b").expect("inflected-verb regex"))
+}
+
+/// A predication whose copula is **elided** (CR-019): an existential or
+/// quantifier head (`No refresh_token in response body`, `Only one active token
+/// per user`) or a predicative adjective (`No credential-material field
+/// present`, `Loki datasource visible in Grafana`, `Lockout response identical
+/// to normal failure`). Each asserts something perfectly testable while
+/// containing no inflected verb, no modal, and no concrete signal, so before
+/// this branch they classified `unstructured` and drew a spurious
+/// `unclassifiable` finding — the largest false-positive class in the check
+/// (14 of a 40-cell sample).
+///
+/// This is a **closed** set used to *suppress* a finding, not an open one whose
+/// membership is required — the distinction CR-014 turned on. It sits in the
+/// engine rather than in module data because, like [`re_modal_or_copula`], it is
+/// English grammar, not domain vocabulary: an author's project glossary should
+/// not have to declare that `present` is an adjective.
+fn re_elided_copula() -> &'static Regex {
+    static R: OnceLock<Regex> = OnceLock::new();
+    R.get_or_init(|| {
+        Regex::new(
+            r"(?i)(^\s*(no|none|neither|only|exactly|at most|at least)\b|\b(present|absent|missing|visible|hidden|identical|independent|equal|equivalent|unique|empty|non-empty|consistent|idempotent|deterministic|available|unavailable|immutable|atomic|monotonic|stable|reachable|unreachable|distinct|sorted|ordered|unchanged)\b)",
+        )
+        .expect("elided-copula regex")
+    })
 }
 
 /// Irregular past/participle forms the `-ed` rule cannot reach.
@@ -903,6 +965,51 @@ mod tests {
         );
         // …nor does an unstructured cell: that is `unclassifiable`'s business.
         assert_eq!(count(&["Structural evaluation"], "non-canonical-shape"), 0);
+    }
+
+    // TC-763 (FR-047-AC-14): a predication whose copula is elided is a
+    // predicate. An existential/quantifier head or a predicative adjective
+    // asserts something testable while carrying no inflected verb, no modal and
+    // no concrete signal, so before CR-019 it drew a spurious `unclassifiable`
+    // finding — the check's largest false-positive class (agent-ix/quire-rs#19).
+    #[test]
+    fn tc763_elided_copula_is_a_predicate() {
+        let (lx, vb, vc) = (empty_lex(), verbs(), vacuities());
+        let v = vocab(&lx, &vb, &vc);
+
+        // Existential / quantifier heads.
+        for s in [
+            "No refresh_token in response body",
+            "No credential-material field present",
+            "Only one active password_reset token per user at any time",
+        ] {
+            assert_eq!(count(&[s], "unclassifiable"), 0, "{s}");
+            assert_eq!(classify(s, v), AcShape::Assertion, "{s}");
+        }
+
+        // Predicative adjectives with the copula elided.
+        for s in [
+            "Loki datasource visible in Grafana",
+            "Lockout response identical to normal failure",
+            "Password-reset request response time independent of email existence",
+        ] {
+            assert_eq!(count(&[s], "unclassifiable"), 0, "{s}");
+            assert_eq!(classify(s, v), AcShape::Assertion, "{s}");
+        }
+
+        // The true positives are untouched: a heading, a bare noun phrase and a
+        // dangling prose fragment authored into a `Criteria` column still have
+        // no predicate of any kind.
+        for s in [
+            "Structural evaluation",
+            "Key Generation",
+            "Sparse Checkout",
+            "Feature Detection",
+            "Current validation note:",
+        ] {
+            assert_eq!(count(&[s], "unclassifiable"), 1, "{s}");
+            assert_eq!(classify(s, v), AcShape::Unstructured, "{s}");
+        }
     }
 
     // TC-761 (FR-047-AC-13): a keyword inside a code span is a *mention*, not a

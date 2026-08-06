@@ -70,6 +70,13 @@ loom = "^0.7"
 # Native default: include filesystem `$ref` resolution in jsonschema.
 default = ["resolve-file"]
 python = ["dep:pyo3"]
+# Measurement-only. Re-enables the `ac:no-observable-outcome` check CR-014
+# retired, so it can be re-measured over the corpus with the mechanical fixes
+# CR-014/CR-017 applied (agent-ix/quire-rs#18). NEVER enabled in a shipping
+# build: `make ci`, the default build, the wheel and the wasm build all leave
+# it off. Build the measurement wheel with
+# `maturin build --features python,remeasure`.
+remeasure = []
 # Activate jsonschema's `resolve-file` cargo feature. Gated so the
 # `wasm` build can opt out (jsonschema 0.18's resolve-file path calls
 # `url::Url::to_file_path`, which doesn't exist on wasm32). See FR-013.
