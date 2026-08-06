@@ -136,6 +136,7 @@ are unaffected by autofix (nothing is applied for them).
 | FR-039-AC-8 | A token whose parent id maps to more than one loaded document (duplicate ids) yields `fix = WarnOnly { reason: Ambiguous }` with no `suggested_link`. | Test |
 | FR-039-AC-9 | `unlinked_references` results are sorted by `(path, byte_span.start)` and are identical across repeated runs and thread counts for a given loaded set ([NFR-006](../non-functional/NFR-006-determinism.md) determinism). | Test |
 | FR-039-AC-10 | A single inline-code span holding more than one artifact token (e.g. `` `FR-008/FR-009` ``) yields **no** finding for any of those tokens (avoids overlapping whole-span fixes); a single-token code span still yields its `AutoFix`. | Test |
+| FR-039-AC-11 | Every declared sub-id kind resolves to its parent document: `-AC-`, `-CON-` and `-VC-` (StR's validation-criterion kind, CR-020) are each stripped to the parent id, a plain artifact id is unchanged, and a token that merely resembles a sub-id is not stripped. The token regex recognizes the same kinds, so a bare `StR-001-VC-2` in prose is matched whole and its `AutoFix` replaces the whole token — matching only `StR-001` would link the parent and leave a dangling `-VC-2`. | Test (TC-765) |
 
 ## Dependencies
 

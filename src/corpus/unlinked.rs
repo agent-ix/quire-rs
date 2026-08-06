@@ -242,12 +242,17 @@ fn fence_marker(line: &str) -> Option<char> {
 }
 
 /// The parent artifact id of a token — the id with any trailing
-/// `-AC-<n>` / `-CON-<n>` suffix stripped (`FR-008-CON-4` → `FR-008`).
+/// `-AC-<n>` / `-CON-<n>` / `-VC-<n>` suffix stripped (`FR-008-CON-4` →
+/// `FR-008`, `StR-001-VC-2` → `StR-001`).
+///
+/// `-VC-` is StR's validation-criterion kind (CR-020, spec-artifacts-iso#9).
+/// Without it a bare `StR-001-VC-2` in prose resolves to no document and
+/// `quire fix` offers no link.
 fn parent_id(token: &str) -> &str {
-    if let Some(idx) = token.find("-AC-").or_else(|| token.find("-CON-")) {
-        &token[..idx]
-    } else {
-        token
+    const SUB_ID_KINDS: [&str; 3] = ["-AC-", "-CON-", "-VC-"];
+    match SUB_ID_KINDS.iter().filter_map(|k| token.find(k)).min() {
+        Some(idx) => &token[..idx],
+        None => token,
     }
 }
 
@@ -285,10 +290,14 @@ fn relative_dest(from_file: &Path, to_file: &Path) -> String {
 fn token_regex() -> Regex {
     // Only the known artifact-id prefixes — NOT a generic `[A-Z]{2,4}-\d+`,
     // which over-matches standards/notes like `ISO-8601`, `IMPL-4`, `CR-002`
-    // and bare sub-ids like `CON-1`/`AC-2`. A bare `-AC-`/`-CON-` suffix is
-    // only matched as part of a parent artifact id (`FR-008-CON-4`). `StR`
-    // is intentionally mixed-case.
-    Regex::new(r"\b(?:FR|NFR|StR|US|IT|TC)-[0-9]+(?:-(?:AC|CON)-[0-9]+)?\b")
+    // and bare sub-ids like `CON-1`/`AC-2`. A bare `-AC-`/`-CON-`/`-VC-`
+    // suffix is only matched as part of a parent artifact id
+    // (`FR-008-CON-4`, `StR-001-VC-2`). `StR` is intentionally mixed-case.
+    //
+    // The sub-id kinds must stay in sync with `parent_id`: a kind stripped
+    // there but not matched here truncates the token, so the autofix would
+    // link `StR-001` and leave a dangling `-VC-2` behind (CR-020).
+    Regex::new(r"\b(?:FR|NFR|StR|US|IT|TC)-[0-9]+(?:-(?:AC|CON|VC)-[0-9]+)?\b")
         .expect("static token regex is valid")
 }
 
@@ -527,5 +536,37 @@ mod tests {
         }
         // Stable across a re-run.
         assert_eq!(unlinked_references(&spec_of(docs)), refs);
+    }
+
+    // TC-765 (FR-039-AC-11, CR-020): a sub-id token resolves to its parent
+    // document for every declared sub-id kind. `-VC-` is StR's
+    // validation-criterion kind (spec-artifacts-iso#9); without it a bare
+    // `StR-001-VC-2` in prose resolves to nothing and `quire fix` offers no
+    // link — the same regression `-AC-`/`-CON-` would have had.
+    #[test]
+    fn tc765_sub_id_kinds_resolve_to_their_parent() {
+        assert_eq!(parent_id("FR-008-AC-3"), "FR-008");
+        assert_eq!(parent_id("FR-008-CON-4"), "FR-008");
+        assert_eq!(parent_id("StR-001-VC-2"), "StR-001");
+        // A plain artifact id is returned unchanged.
+        assert_eq!(parent_id("StR-001"), "StR-001");
+        // Nothing resembling a sub-id kind is stripped.
+        assert_eq!(parent_id("FR-008-VECTOR-1"), "FR-008-VECTOR-1");
+
+        // End to end: a bare `StR-001-VC-2` in an FR's prose is reported as an
+        // unlinked reference to the StR that owns it.
+        let docs = vec![
+            doc_at(
+                "spec/functional/FR-001-foo.md",
+                "FR-001",
+                "Satisfies StR-001-VC-2 at the import boundary.\n",
+            ),
+            doc_at("spec/stakeholder/StR-001-need.md", "StR-001", "# x\n"),
+        ];
+        let refs = unlinked_references(&spec_of(docs));
+        assert!(
+            refs.iter().any(|r| r.token == "StR-001-VC-2"),
+            "a -VC- sub-id must resolve to its StR: {refs:?}"
+        );
     }
 }
