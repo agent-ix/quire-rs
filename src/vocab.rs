@@ -84,6 +84,33 @@ pub struct LexiconTermDef {
     pub category: Option<String>,
 }
 
+/// One `observable_verbs` registry entry (FR-047). A module-declared
+/// **observable-result verb** the `ac` grammar reads as evidence of an
+/// externally checkable outcome: it satisfies the `unclassifiable` predicate
+/// and suppresses `vacuous-outcome`. (Before CR-014 this vocabulary was the
+/// membership test of a retired `no-observable-outcome` check; CR-014 demoted
+/// it to a signal source.) The engine uses the verb (the map key) and its
+/// inflections; `definition` is documentation.
+/// Mirrors [`LexiconTermDef`] — concrete vocabulary is module data (ADR 0009).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ObservableVerbDef {
+    pub definition: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub category: Option<String>,
+}
+
+/// One `vacuous_predicates` registry entry (FR-047, CR-014). A module-declared
+/// predicate the `ac` grammar's `vacuous-outcome` check treats as asserting
+/// nothing checkable. The engine uses the predicate (the map key) and its
+/// inflections; `definition` is documentation. Mirrors [`ObservableVerbDef`] —
+/// the two registries are the closed and open halves of the same judgement.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct VacuousPredicateDef {
+    pub definition: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub category: Option<String>,
+}
+
 /// Normalize a raw `allowed_links` value (array **or** map) into the
 /// canonical [`AllowedLinks`] map (FR-040-AC-4).
 ///

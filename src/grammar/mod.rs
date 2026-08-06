@@ -15,6 +15,7 @@
 //! acceptance criteria) and the `US` story grammar register onto the same
 //! framework later.
 
+pub mod ac;
 pub mod ears;
 
 use std::sync::OnceLock;
@@ -70,6 +71,318 @@ impl GrammarLexicon {
     }
 }
 
+/// The built-in **observable-result verb** vocabulary (FR-047): base forms of
+/// the verbs whose presence in an outcome clause makes the result externally
+/// checkable. Module data extends this set (ADR 0009); the built-ins are the
+/// lowest-precedence layer, never replaced.
+/// Mined from 11,919 ecosystem acceptance-criteria cells (CR-014): the 13-verb
+/// original covered 14.5% of the corpus's 1,201 distinct verb stems, which made
+/// the check that consumed it unusable. This set is the frequency-ranked verb
+/// vocabulary those criteria actually use.
+const BUILTIN_OBSERVABLE_VERBS: &[&str] = &[
+    "accept",
+    "allow",
+    "apply",
+    "approve",
+    "assign",
+    "block",
+    "call",
+    "carry",
+    "catch",
+    "change",
+    "clean",
+    "contain",
+    "count",
+    "create",
+    "declare",
+    "define",
+    "delete",
+    "deny",
+    "detect",
+    "discard",
+    "distinguish",
+    "emit",
+    "enforce",
+    "equal",
+    "exceed",
+    "execute",
+    "exist",
+    "exit",
+    "expose",
+    "extract",
+    "fail",
+    "filter",
+    "ignore",
+    "include",
+    "inherit",
+    "insert",
+    "load",
+    "log",
+    "mark",
+    "match",
+    "merge",
+    "mount",
+    "omit",
+    "parse",
+    "pass",
+    "persist",
+    "preserve",
+    "print",
+    "produce",
+    "propagate",
+    "publish",
+    "raise",
+    "rank",
+    "read",
+    "receive",
+    "record",
+    "reject",
+    "remove",
+    "render",
+    "replace",
+    "report",
+    "resolve",
+    "restore",
+    "resume",
+    "retry",
+    "return",
+    "route",
+    "run",
+    "save",
+    "select",
+    "send",
+    "skip",
+    "sort",
+    "split",
+    "start",
+    "stop",
+    "store",
+    "succeed",
+    "throw",
+    "track",
+    "transition",
+    "trigger",
+    "update",
+    "validate",
+    "write",
+    "yield",
+];
+
+/// The built-in **vacuous predicate** set (CR-014): the closed vocabulary of
+/// heads that assert nothing checkable. `vacuous-outcome` detects membership of
+/// *this* set rather than absence from the open-ended observable-verb space —
+/// the inversion the ecosystem fit check forced.
+const BUILTIN_VACUOUS_PREDICATES: &[&str] = &[
+    "works",
+    "working",
+    "behaves",
+    "behave",
+    "functions",
+    "is correct",
+    "is successful",
+    "is fine",
+    "is ok",
+    "work correctly",
+    "work properly",
+    "work as expected",
+];
+
+/// English irregular past/participle forms the suffix inflector cannot derive.
+/// Without these, `write` never matches `written` — a false positive the fit
+/// check found in the wild (CR-014).
+const IRREGULAR_FORMS: &[(&str, &[&str])] = &[
+    ("write", &["wrote", "written"]),
+    ("read", &["read"]),
+    ("send", &["sent"]),
+    ("build", &["built"]),
+    ("keep", &["kept"]),
+    ("make", &["made"]),
+    ("find", &["found"]),
+    ("hold", &["held"]),
+    ("run", &["ran"]),
+    ("throw", &["threw", "thrown"]),
+    ("catch", &["caught"]),
+    ("leave", &["left"]),
+    ("lose", &["lost"]),
+    ("show", &["shown"]),
+    ("give", &["gave", "given"]),
+    ("take", &["took", "taken"]),
+    ("see", &["saw", "seen"]),
+    ("set", &["set"]),
+    ("put", &["put"]),
+    ("cut", &["cut"]),
+];
+
+/// A precompiled matcher over the observable-result verbs (FR-047-AC-5/AC-12):
+/// the built-in defaults merged with any module-declared `observable_verbs`
+/// registry. Each verb contributes its inflections, so an outcome clause
+/// matches regardless of tense (`return` → `returns`/`returned`/`returning`).
+#[derive(Debug)]
+pub struct ObservableVerbs {
+    matcher: Option<Regex>,
+}
+
+impl Default for ObservableVerbs {
+    /// The built-in default set, applied when no module declares the registry.
+    fn default() -> Self {
+        Self::with_module_verbs(std::iter::empty())
+    }
+}
+
+impl ObservableVerbs {
+    /// Build a matcher from the built-in defaults plus `module_verbs` (the
+    /// merged `observable_verbs` registry keys). The built-ins sit at lowest
+    /// precedence: a module extends the vocabulary, it does not replace it.
+    pub fn with_module_verbs<'a, I: IntoIterator<Item = &'a str>>(module_verbs: I) -> Self {
+        let mut forms: Vec<String> = Vec::new();
+        for verb in BUILTIN_OBSERVABLE_VERBS.iter().copied().chain(module_verbs) {
+            let verb = verb.trim();
+            if verb.is_empty() {
+                continue;
+            }
+            for form in inflect(verb) {
+                forms.push(regex::escape(&form));
+            }
+        }
+        let matcher = if forms.is_empty() {
+            None
+        } else {
+            Regex::new(&format!(r"(?i)\b({})\b", forms.join("|"))).ok()
+        };
+        Self { matcher }
+    }
+
+    /// True when `text` carries an observable-result verb (word-boundary).
+    pub fn contains_verb(&self, text: &str) -> bool {
+        self.matcher.as_ref().is_some_and(|r| r.is_match(text))
+    }
+}
+
+/// A precompiled matcher over the **vacuous predicate** vocabulary (CR-014):
+/// the built-in closed set merged with any module-declared `vacuous_predicates`
+/// registry. Multi-word entries (`is correct`) match with flexible whitespace.
+#[derive(Debug)]
+pub struct VacuousPredicates {
+    matcher: Option<Regex>,
+}
+
+impl Default for VacuousPredicates {
+    fn default() -> Self {
+        Self::with_module_predicates(std::iter::empty())
+    }
+}
+
+impl VacuousPredicates {
+    /// Built-in defaults plus `module_predicates`, the built-ins at lowest
+    /// precedence — a module extends the vocabulary, it never replaces it.
+    pub fn with_module_predicates<'a, I: IntoIterator<Item = &'a str>>(
+        module_predicates: I,
+    ) -> Self {
+        let mut forms: Vec<String> = Vec::new();
+        for predicate in BUILTIN_VACUOUS_PREDICATES
+            .iter()
+            .copied()
+            .chain(module_predicates)
+        {
+            let predicate = predicate.trim();
+            if predicate.is_empty() {
+                continue;
+            }
+            // `is correct` must tolerate any run of whitespace between words.
+            let escaped: Vec<String> = predicate.split_whitespace().map(regex::escape).collect();
+            forms.push(escaped.join(r"\s+"));
+        }
+        let matcher = if forms.is_empty() {
+            None
+        } else {
+            Regex::new(&format!(r"(?i)\b({})\b", forms.join("|"))).ok()
+        };
+        Self { matcher }
+    }
+
+    /// True when `text` is headed by a vacuous predicate. A bare `work` is
+    /// excluded unless qualified (`work correctly`), because the corpus uses it
+    /// far more often as a noun (`pending work`, `available work`) — a false
+    /// positive the fit check caught.
+    pub fn is_vacuous(&self, text: &str) -> bool {
+        self.matcher.as_ref().is_some_and(|r| r.is_match(text))
+    }
+}
+
+/// The shared built-in vacuity vocabulary for the registry-free paths.
+pub fn default_vacuous_predicates() -> &'static VacuousPredicates {
+    static DEFAULT: OnceLock<VacuousPredicates> = OnceLock::new();
+    DEFAULT.get_or_init(VacuousPredicates::default)
+}
+
+/// The vocabularies a grammar consumes. Bundled because the `ac` grammar now
+/// reads three of them and threading each separately through every entry point
+/// was becoming the dominant diff.
+#[derive(Debug, Clone, Copy)]
+pub struct GrammarVocabularies<'a> {
+    /// Merged module lexicon ∪ project glossary (FR-043 / FR-044).
+    pub lexicon: &'a GrammarLexicon,
+    /// Observable-result verbs (FR-047-AC-12, ADR 0009).
+    pub observable: &'a ObservableVerbs,
+    /// Vacuous predicates (FR-047-AC-12, CR-014).
+    pub vacuous: &'a VacuousPredicates,
+}
+
+impl<'a> GrammarVocabularies<'a> {
+    /// The registry-free defaults: empty lexicon, built-in verb and vacuity
+    /// vocabularies.
+    pub fn defaults() -> Self {
+        Self {
+            lexicon: empty_lexicon(),
+            observable: default_observable_verbs(),
+            vacuous: default_vacuous_predicates(),
+        }
+    }
+}
+
+/// The shared built-in observable-verb vocabulary for the registry-free paths.
+pub fn default_observable_verbs() -> &'static ObservableVerbs {
+    static DEFAULT: OnceLock<ObservableVerbs> = OnceLock::new();
+    DEFAULT.get_or_init(ObservableVerbs::default)
+}
+
+/// Naive English verb inflector: base, 3rd-person singular, past, and present
+/// participle. Vocabulary verbs are lowercase ASCII, so byte handling is safe.
+fn inflect(verb: &str) -> Vec<String> {
+    let lower = verb.to_ascii_lowercase();
+    let bytes = lower.as_bytes();
+    let n = bytes.len();
+    // consonant + `y` → `ies` / `ied` (`carry` → `carries`, `carried`), which the
+    // original inflector got wrong (`carryed`).
+    let consonant_y = n >= 2 && bytes[n - 1] == b'y' && !b"aeiou".contains(&bytes[n - 2]);
+
+    let third = if consonant_y {
+        format!("{}ies", &lower[..n - 1])
+    } else if lower.ends_with('s')
+        || lower.ends_with('x')
+        || lower.ends_with('z')
+        || lower.ends_with("ch")
+        || lower.ends_with("sh")
+    {
+        format!("{lower}es")
+    } else {
+        format!("{lower}s")
+    };
+    let (past, participle) = if consonant_y {
+        (format!("{}ied", &lower[..n - 1]), format!("{lower}ing"))
+    } else if let Some(stem) = lower.strip_suffix('e') {
+        (format!("{lower}d"), format!("{stem}ing"))
+    } else {
+        (format!("{lower}ed"), format!("{lower}ing"))
+    };
+
+    let mut forms = vec![lower.clone(), third, past, participle];
+    if let Some((_, irregular)) = IRREGULAR_FORMS.iter().find(|(base, _)| *base == lower) {
+        forms.extend(irregular.iter().map(|f| (*f).to_string()));
+    }
+    forms
+}
+
 /// Naive English pluralizer for lexicon terms: consonant+`y`→`ies`, sibilant
 /// (`s`/`x`/`z`/`ch`/`sh`)→`es`, else `+s`. Lexicon terms are lowercase ASCII
 /// nouns, so byte handling is safe.
@@ -89,6 +402,13 @@ fn pluralize(term: &str) -> String {
     } else {
         format!("{term}s")
     }
+}
+
+/// The shared **all-default** severity map (FR-048-AC-7) for the registry-free
+/// paths: every check keeps its default `warning` level.
+pub fn default_severity() -> &'static GrammarSeverityMap {
+    static DEFAULT: OnceLock<GrammarSeverityMap> = OnceLock::new();
+    DEFAULT.get_or_init(GrammarSeverityMap::new)
 }
 
 /// The shared empty lexicon for the registry-free paths.
@@ -117,6 +437,149 @@ impl GrammarSeverity {
     }
 }
 
+/// A configured severity **level** for one `<grammar>:<check>` pair (FR-048).
+///
+/// Distinct from [`GrammarSeverity`], which is the severity a *finding*
+/// carries: `Off` is a configuration state with no finding counterpart — an
+/// `off`-mapped check is suppressed entirely (no warning, no error, no
+/// `--summary` entry). Modules declare this vocabulary in their manifest
+/// `grammar_severity` registry; the CLI `--severity` flag overrides it per key.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum GrammarSeverityLevel {
+    Off,
+    Warning,
+    Error,
+}
+
+impl GrammarSeverityLevel {
+    /// Stable machine-readable string for surfaces (CLI, wheel).
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Off => "off",
+            Self::Warning => "warning",
+            Self::Error => "error",
+        }
+    }
+}
+
+/// The merged per-check severity registry (FR-048): `<grammar>:<check>` →
+/// level. `BTreeMap` because the merge order and any diagnostic derived from it
+/// are observable (NFR-006). An absent key means `warning`, so the empty map is
+/// the **all-default** map applied by the registry-free paths.
+pub type GrammarSeverityMap = std::collections::BTreeMap<String, GrammarSeverityLevel>;
+
+/// The registry key for a `(grammar, check)` pair — the `<grammar>:<check>`
+/// form modules and the `--severity` CLI flag both author.
+pub fn severity_key(grammar: &str, check: &str) -> String {
+    format!("{grammar}:{check}")
+}
+
+/// The configured level for `(grammar, check)`, defaulting to `warning` when
+/// the key is absent from `severity` (FR-048-AC-4).
+pub fn severity_level(
+    severity: &GrammarSeverityMap,
+    grammar: &str,
+    check: &str,
+) -> GrammarSeverityLevel {
+    severity
+        .get(&severity_key(grammar, check))
+        .copied()
+        .unwrap_or(GrammarSeverityLevel::Warning)
+}
+
+/// A malformed `--severity <grammar>:<check>=<level>` entry (FR-048-AC-10).
+/// The `Display` text is the usage diagnostic a surface prints before exiting
+/// non-zero; it always quotes the offending entry.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum SeverityOverrideError {
+    #[error("--severity entry '{entry}' is malformed: expected '<grammar>:<check>=<level>'")]
+    MalformedEntry { entry: String },
+    #[error(
+        "--severity entry '{entry}' has an unknown level '{level}': expected off|warning|error"
+    )]
+    UnknownLevel { entry: String, level: String },
+}
+
+/// Parse the repeatable `--severity <grammar>:<check>=<level>` option and layer
+/// the entries **over** `manifest` (FR-048-AC-5): a CLI-supplied entry wins for
+/// its key, every other manifest entry survives. A malformed entry is rejected
+/// with a usage diagnostic and no map is produced, so a surface can exit
+/// non-zero before validation runs (FR-048-AC-10).
+pub fn merge_severity_overrides<'a, I: IntoIterator<Item = &'a str>>(
+    manifest: &GrammarSeverityMap,
+    entries: I,
+) -> Result<GrammarSeverityMap, SeverityOverrideError> {
+    let mut merged = manifest.clone();
+    for entry in entries {
+        let (key, level) = parse_severity_entry(entry)?;
+        merged.insert(key, level);
+    }
+    Ok(merged)
+}
+
+/// Parse one `<grammar>:<check>=<level>` entry. The key must be the same
+/// well-formed `<grammar>:<check>` shape the manifest registry accepts.
+fn parse_severity_entry(
+    entry: &str,
+) -> Result<(String, GrammarSeverityLevel), SeverityOverrideError> {
+    let malformed = || SeverityOverrideError::MalformedEntry {
+        entry: entry.to_string(),
+    };
+    let (key, level) = entry.split_once('=').ok_or_else(malformed)?;
+    if !is_severity_key(key) {
+        return Err(malformed());
+    }
+    let level = match level {
+        "off" => GrammarSeverityLevel::Off,
+        "warning" => GrammarSeverityLevel::Warning,
+        "error" => GrammarSeverityLevel::Error,
+        other => {
+            return Err(SeverityOverrideError::UnknownLevel {
+                entry: entry.to_string(),
+                level: other.to_string(),
+            })
+        }
+    };
+    Ok((key.to_string(), level))
+}
+
+/// True when `key` is a well-formed `<grammar>:<check>` registry key: exactly
+/// one colon, two non-empty halves, no whitespace. Shared by the `--severity`
+/// parser and the manifest loader so both surfaces accept the same vocabulary.
+pub fn is_severity_key(key: &str) -> bool {
+    key.matches(':').count() == 1
+        && !key.contains(char::is_whitespace)
+        && key
+            .split_once(':')
+            .is_some_and(|(grammar, check)| !grammar.is_empty() && !check.is_empty())
+}
+
+/// Histogram grammar findings by the generic `[<grammar>:<check>]` message
+/// prefix (FR-047-AC-8) — the `--summary` grouping, covering **every** grammar
+/// in the bundle rather than a hardcoded `[ears:` prefix. Messages without the
+/// prefix (diagnostics from other validation layers) are ignored. `BTreeMap`
+/// keeps the histogram deterministic (NFR-006).
+pub fn summarize_findings<'a, I: IntoIterator<Item = &'a str>>(
+    messages: I,
+) -> std::collections::BTreeMap<String, usize> {
+    let mut out: std::collections::BTreeMap<String, usize> = std::collections::BTreeMap::new();
+    for message in messages {
+        if let Some(key) = finding_prefix_key(message) {
+            *out.entry(key.to_string()).or_insert(0) += 1;
+        }
+    }
+    out
+}
+
+/// The `<grammar>:<check>` key of a message carrying the generic finding
+/// prefix `[<grammar>:<check>] …`, or `None` when it carries no such prefix.
+pub fn finding_prefix_key(message: &str) -> Option<&str> {
+    let rest = message.strip_prefix('[')?;
+    let (key, _) = rest.split_once(']')?;
+    is_severity_key(key).then_some(key)
+}
+
 /// One grammar diagnostic against a single normative statement.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GrammarFinding {
@@ -137,6 +600,34 @@ pub struct GrammarFinding {
     pub severity: GrammarSeverity,
 }
 
+/// Apply the merged `grammar_severity` map (FR-048) to freshly emitted
+/// `findings`: each finding's severity is set from the map keyed by
+/// `<grammar>:<check>`, defaulting to `warning` when the key is absent, and an
+/// `off`-mapped finding is **dropped here** — before routing — so it appears
+/// neither in `warnings`/`errors` nor in any downstream `--summary` histogram
+/// (FR-048-AC-9). Input order is preserved (NFR-006).
+pub fn apply_severity(
+    findings: Vec<GrammarFinding>,
+    severity: &GrammarSeverityMap,
+) -> Vec<GrammarFinding> {
+    findings
+        .into_iter()
+        .filter_map(
+            |mut f| match severity_level(severity, &f.grammar, &f.check) {
+                GrammarSeverityLevel::Off => None,
+                GrammarSeverityLevel::Warning => {
+                    f.severity = GrammarSeverity::Warning;
+                    Some(f)
+                }
+                GrammarSeverityLevel::Error => {
+                    f.severity = GrammarSeverity::Error;
+                    Some(f)
+                }
+            },
+        )
+        .collect()
+}
+
 /// Run the grammar bundle named `grammar_ref` against `doc`, dispatching by
 /// `archetype` (the **resolved** archetype name, so a `--archetype` override on
 /// a typeless document is still checked). An unknown bundle name yields no
@@ -151,10 +642,173 @@ pub fn check_document_grammar(
     archetype: &str,
     doc: &QuireDocument,
     line_offset: usize,
-    lexicon: &GrammarLexicon,
+    vocab: GrammarVocabularies<'_>,
 ) -> Vec<GrammarFinding> {
     match grammar_ref {
-        "iso-spec-core" => ears::check(archetype, doc, line_offset, lexicon),
+        // The bundle runs every grammar registered on it; each grammar's own
+        // `(archetype, section)` binding decides whether it contributes
+        // (FR-042-AC-6, FR-047-AC-6).
+        "iso-spec-core" => {
+            let mut findings = ears::check(archetype, doc, line_offset, vocab.lexicon);
+            findings.extend(ac::check(archetype, doc, line_offset, vocab));
+            findings
+        }
         _ => Vec::new(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn finding(grammar: &str, check: &str) -> GrammarFinding {
+        GrammarFinding {
+            grammar: grammar.to_string(),
+            check: check.to_string(),
+            pattern: None,
+            message: "m".to_string(),
+            line: Some(1),
+            statement: "s".to_string(),
+            severity: GrammarSeverity::Warning,
+        }
+    }
+
+    // TC-719 (FR-048-AC-4): a finding whose `<grammar>:<check>` key is absent
+    // from the merged map defaults to `warning`.
+    #[test]
+    fn tc719_absent_key_defaults_to_warning() {
+        let mut map = GrammarSeverityMap::new();
+        // A sibling key is mapped; the finding's own key is not.
+        map.insert("ac:unclassifiable".into(), GrammarSeverityLevel::Error);
+        let out = apply_severity(vec![finding("ears", "vague-response")], &map);
+        assert_eq!(out.len(), 1);
+        assert_eq!(out[0].severity, GrammarSeverity::Warning);
+    }
+
+    // TC-752 (FR-048-AC-9): an `off`-mapped check records no finding at all,
+    // while sibling checks of the same grammar still report.
+    #[test]
+    fn tc752_off_drops_the_finding_before_routing() {
+        let mut map = GrammarSeverityMap::new();
+        map.insert("ac:vague-response".into(), GrammarSeverityLevel::Off);
+        let out = apply_severity(
+            vec![
+                finding("ac", "vague-response"),
+                finding("ac", "non-singular"),
+                finding("ears", "vague-response"),
+            ],
+            &map,
+        );
+        let keys: Vec<String> = out
+            .iter()
+            .map(|f| format!("{}:{}", f.grammar, f.check))
+            .collect();
+        assert_eq!(keys, vec!["ac:non-singular", "ears:vague-response"]);
+    }
+
+    // TC-714 (FR-047-AC-8): the summary histogram groups by the generic
+    // `[<grammar>:<check>]` prefix, so a corpus emitting both `[ears:*]` and
+    // `[ac:*]` findings shows both.
+    #[test]
+    fn tc714_summary_groups_every_grammar() {
+        let messages = [
+            "[ears:vague-response] vague response verb `support`",
+            "[ac:unclassifiable] criterion matches neither shape",
+            "[ears:vague-response] vague response verb `provide`",
+            "[ac:vacuous-outcome] outcome clause is vacuous",
+            "unprefixed diagnostic from another layer",
+        ];
+        let histogram = summarize_findings(messages.iter().copied());
+        assert_eq!(histogram.get("ears:vague-response"), Some(&2));
+        assert_eq!(histogram.get("ac:unclassifiable"), Some(&1));
+        assert_eq!(histogram.get("ac:vacuous-outcome"), Some(&1));
+        assert_eq!(histogram.len(), 3, "unprefixed lines are not histogrammed");
+        // Deterministic ordering (NFR-006).
+        assert_eq!(
+            histogram.keys().collect::<Vec<_>>(),
+            vec![
+                "ac:unclassifiable",
+                "ac:vacuous-outcome",
+                "ears:vague-response"
+            ]
+        );
+    }
+
+    // TC-720 (FR-048-AC-5): `--severity` entries are repeatable and take
+    // precedence over a conflicting manifest entry for the same key.
+    #[test]
+    fn tc720_cli_severity_overrides_manifest() {
+        let mut manifest = GrammarSeverityMap::new();
+        manifest.insert("ears:vague-response".into(), GrammarSeverityLevel::Warning);
+        manifest.insert("ac:unclassifiable".into(), GrammarSeverityLevel::Error);
+
+        let merged = merge_severity_overrides(
+            &manifest,
+            ["ears:vague-response=error", "ac:non-singular=off"],
+        )
+        .expect("well-formed entries");
+
+        // CLI wins for its key…
+        assert_eq!(merged["ears:vague-response"], GrammarSeverityLevel::Error);
+        // …the repeated second entry also lands…
+        assert_eq!(merged["ac:non-singular"], GrammarSeverityLevel::Off);
+        // …and an untouched manifest entry survives.
+        assert_eq!(merged["ac:unclassifiable"], GrammarSeverityLevel::Error);
+
+        // The promoted key now routes a finding as an error.
+        let out = apply_severity(vec![finding("ears", "vague-response")], &merged);
+        assert_eq!(out[0].severity, GrammarSeverity::Error);
+    }
+
+    // TC-721 (FR-048-AC-6): `--strict` semantics are untouched. The engine
+    // surface `--strict` reads is unchanged: with no severity map a grammar
+    // finding is still a warning that leaves the document valid, so the exit
+    // code stays the CLI's own decision.
+    #[test]
+    fn tc721_strict_semantics_unchanged() {
+        let manifest = GrammarSeverityMap::new();
+        let merged = merge_severity_overrides(&manifest, std::iter::empty::<&str>())
+            .expect("no entries is well-formed");
+        assert!(merged.is_empty(), "no overrides → the map is untouched");
+
+        let out = apply_severity(vec![finding("ears", "vague-response")], &merged);
+        assert_eq!(out.len(), 1);
+        assert_eq!(out[0].severity, GrammarSeverity::Warning);
+    }
+
+    // TC-755 (FR-048-AC-10): a malformed `--severity` entry is rejected with a
+    // usage diagnostic before validation runs.
+    #[test]
+    fn tc755_malformed_severity_entry_rejected() {
+        let manifest = GrammarSeverityMap::new();
+        for bad in [
+            "ears:vague-response=fatal", // unknown level
+            "ears:vague-response",       // missing `=`
+            "vague-response=error",      // unparseable key (no `<grammar>:`)
+            "ears:=error",               // empty check
+            ":vague-response=error",     // empty grammar
+            "ears:vague response=error", // whitespace in key
+        ] {
+            let err = merge_severity_overrides(&manifest, [bad])
+                .expect_err(&format!("`{bad}` must be rejected"));
+            let msg = err.to_string();
+            assert!(msg.contains(bad), "diagnostic must quote the entry: {msg}");
+            assert!(
+                msg.contains("--severity"),
+                "diagnostic must name the option: {msg}"
+            );
+        }
+
+        // A well-formed entry is still accepted.
+        assert!(merge_severity_overrides(&manifest, ["ac:unclassifiable=off"]).is_ok());
+    }
+
+    // FR-048: an `error` mapping promotes the emitted finding's severity.
+    #[test]
+    fn error_level_promotes_finding_severity() {
+        let mut map = GrammarSeverityMap::new();
+        map.insert("ac:unclassifiable".into(), GrammarSeverityLevel::Error);
+        let out = apply_severity(vec![finding("ac", "unclassifiable")], &map);
+        assert_eq!(out[0].severity, GrammarSeverity::Error);
     }
 }

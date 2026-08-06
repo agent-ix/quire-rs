@@ -238,20 +238,38 @@ fn vague_verb(statement: &str, lexicon: &GrammarLexicon) -> Option<String> {
     let caps = re_vague().captures(&lower)?;
     let m = caps.get(2)?;
     let verb = m.as_str().split_whitespace().collect::<Vec<_>>().join(" ");
+    judge_vague_verb(&verb, &lower[m.end()..], lexicon)
+}
+
+/// The same object-aware judgement over a **bare outcome clause** — no `shall`
+/// anchor. The `ac` grammar (FR-047) checks the response clause of an
+/// `ears`-shaped criterion and the `Then` clause of a `given-when-then`-shaped
+/// one, where the modal verb has already been consumed; this keeps one
+/// vague-verb implementation across the two grammars (FR-047 check 3).
+pub(super) fn vague_verb_in_clause(clause: &str, lexicon: &GrammarLexicon) -> Option<String> {
+    let lower = normalize(clause).to_lowercase();
+    let m = re_vague_bare().find(&lower)?;
+    let verb = m.as_str().split_whitespace().collect::<Vec<_>>().join(" ");
+    judge_vague_verb(&verb, &lower[m.end()..], lexicon)
+}
+
+/// Shared object-awareness: given a matched weak `verb` and the `remainder` of
+/// the clause after it, decide whether the response is verifiable. `be able to`
+/// is the one verb-intrinsic case (capability phrasing) and is always vague.
+fn judge_vague_verb(verb: &str, remainder: &str, lexicon: &GrammarLexicon) -> Option<String> {
     if verb == "be able to" {
-        return Some(verb); // capability-not-behavior — always vague
+        return Some(verb.to_string()); // capability-not-behavior — always vague
     }
-    let remainder = &lower[m.end()..];
     if re_concrete_qualifier().is_match(remainder) {
         return None; // mechanism / numeric / ordering / backtick qualifier → concrete
     }
     if re_vague_quality().is_match(remainder) {
-        return Some(verb); // abstract quality/manner object → vague
+        return Some(verb.to_string()); // abstract quality/manner object → vague
     }
     if lexicon.contains_term(remainder) {
         return None; // a module-declared concrete term → verifiable
     }
-    Some(verb) // bare / generic response → vague
+    Some(verb.to_string()) // bare / generic response → vague
 }
 
 fn non_canonical_trigger(statement: &str) -> Option<String> {
@@ -331,12 +349,12 @@ fn table_statements(section: &QuireSection, line_offset: usize, column: &str) ->
 /// identifier in the response object (`provide \`CodeBlockEditor\``) is the most
 /// concrete object there is, and the object-aware vague-response check treats it
 /// as a concrete signal (FR-042).
-fn normalize(s: &str) -> String {
+pub(super) fn normalize(s: &str) -> String {
     let unlinked = re_link().replace_all(s, "$1");
     unlinked.replace("**", "")
 }
 
-fn excerpt(s: &str) -> String {
+pub(super) fn excerpt(s: &str) -> String {
     let s = s.trim();
     if s.chars().count() > 160 {
         let truncated: String = s.chars().take(157).collect();
@@ -346,7 +364,7 @@ fn excerpt(s: &str) -> String {
     }
 }
 
-fn strip_list_marker(line: &str) -> &str {
+pub(super) fn strip_list_marker(line: &str) -> &str {
     let t = line.trim_start();
     if let Some(rest) = t.strip_prefix("- ").or_else(|| t.strip_prefix("* ")) {
         return rest;
@@ -381,17 +399,17 @@ fn first_word(lower: &str) -> String {
         .to_string()
 }
 
-fn contains_shall(lower: &str) -> bool {
+pub(super) fn contains_shall(lower: &str) -> bool {
     re_shall().is_match(lower)
 }
 
-fn abs_line(section: &QuireSection, rel: usize, line_offset: usize) -> usize {
+pub(super) fn abs_line(section: &QuireSection, rel: usize, line_offset: usize) -> usize {
     line_offset + section.start_line + rel + 1
 }
 
 /// Find the document line of a table cell by locating its text within the
 /// section content; falls back to the section heading line.
-fn locate_line(section: &QuireSection, cell: &str, line_offset: usize) -> Option<usize> {
+pub(super) fn locate_line(section: &QuireSection, cell: &str, line_offset: usize) -> Option<usize> {
     let needle = cell.trim();
     for (rel, raw_line) in section.content.lines().enumerate() {
         if !needle.is_empty() && raw_line.contains(needle) {
@@ -413,12 +431,22 @@ fn re_link() -> &'static Regex {
     R.get_or_init(|| Regex::new(r"\[([^\]]*)\]\([^)]*\)").expect("link regex"))
 }
 
+/// The weak-verb alternation shared by the `shall`-anchored EARS check and the
+/// bare-clause `ac` check — one verb set, two grammars (FR-047).
+const VAGUE_VERBS: &str =
+    r"support|handle|manage|process|deal\s+with|provide|enable|be\s+able\s+to";
+
 fn re_vague() -> &'static Regex {
     static R: OnceLock<Regex> = OnceLock::new();
     R.get_or_init(|| {
-        Regex::new(r"(?i)\bshall\s+(not\s+)?(support|handle|manage|process|deal\s+with|provide|enable|be\s+able\s+to)\b")
-            .expect("vague regex")
+        Regex::new(&format!(r"(?i)\bshall\s+(not\s+)?({VAGUE_VERBS})\b")).expect("vague regex")
     })
+}
+
+/// The same weak verbs without the `shall` anchor, for outcome-clause checking.
+fn re_vague_bare() -> &'static Regex {
+    static R: OnceLock<Regex> = OnceLock::new();
+    R.get_or_init(|| Regex::new(&format!(r"(?i)\b({VAGUE_VERBS})\b")).expect("vague-bare regex"))
 }
 
 /// A mechanism, numeric, or ordering qualifier after the verb — the response is

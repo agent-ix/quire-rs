@@ -169,6 +169,17 @@ sdist:
 pytest:
 	pytest tests/python/ -v
 
+# The PyO3-parity gate. `ci` cannot run the binding suite — it needs a built
+# wheel — so this is the target that proves FR-042-AC-10 / FR-043-AC-7 /
+# FR-047-AC-9 (TC-666, TC-673, TC-715). Required before merging any change to
+# src/grammar/, src/python/, or tests/python/: without it those tests rot
+# silently against a renamed check id, which is exactly what happened to
+# TC-715 across CR-014.
+.PHONY: ci-python
+ci-python: wheel
+	pip install --force-reinstall --no-deps --no-index --find-links dist quire
+	pytest tests/python/ -q
+
 # Publish the abi3 wheel + sdist to the local devpi index (pypi.ix).
 # Mirrors the filament-* `make local-publish` convention.
 .PHONY: local-publish

@@ -39,6 +39,17 @@ struct Inner {
     /// Merged concrete-term lexicon (FR-043) + its precompiled matcher.
     lexicon: std::collections::BTreeMap<String, crate::vocab::LexiconTermDef>,
     lexicon_matcher: crate::grammar::GrammarLexicon,
+    /// Merged per-check grammar severity registry (FR-048).
+    grammar_severity: crate::grammar::GrammarSeverityMap,
+    /// Merged observable-result verb registry (FR-047) + its precompiled
+    /// matcher (built-in defaults ∪ module declarations).
+    observable_verbs: std::collections::BTreeMap<String, crate::vocab::ObservableVerbDef>,
+    observable_verbs_matcher: crate::grammar::ObservableVerbs,
+    /// Merged vacuous-predicate registry (FR-047, CR-014) + its matcher.
+    vacuous_predicates: std::collections::BTreeMap<String, crate::vocab::VacuousPredicateDef>,
+    vacuous_predicates_matcher: crate::grammar::VacuousPredicates,
+    /// Merged declarative traceability model (FR-050).
+    traceability: crate::traceability::TraceabilityModel,
     failures: Vec<ArchetypeLoadFailure>,
     diagnostics: Vec<Diagnostic>,
     path_diagnostics: Vec<PathDiagnostic>,
@@ -186,6 +197,10 @@ impl Registry {
             inverse_edges,
             roles,
             lexicon,
+            grammar_severity,
+            observable_verbs,
+            vacuous_predicates,
+            traceability,
             failures,
             diagnostics,
             path_diagnostics,
@@ -193,6 +208,15 @@ impl Registry {
         // FR-043: precompile the matcher once from the merged lexicon keys.
         let lexicon_matcher =
             crate::grammar::GrammarLexicon::from_terms(lexicon.keys().map(String::as_str));
+        // FR-047: precompile the observable-verb matcher once, layering the
+        // merged module registry over the engine's built-in defaults.
+        let observable_verbs_matcher = crate::grammar::ObservableVerbs::with_module_verbs(
+            observable_verbs.keys().map(String::as_str),
+        );
+        // CR-014: likewise precompile the vacuity matcher once.
+        let vacuous_predicates_matcher = crate::grammar::VacuousPredicates::with_module_predicates(
+            vacuous_predicates.keys().map(String::as_str),
+        );
         Self {
             inner: Arc::new(Inner {
                 archetypes,
@@ -205,6 +229,12 @@ impl Registry {
                 roles,
                 lexicon,
                 lexicon_matcher,
+                grammar_severity,
+                observable_verbs,
+                observable_verbs_matcher,
+                vacuous_predicates,
+                vacuous_predicates_matcher,
+                traceability,
                 failures,
                 diagnostics,
                 path_diagnostics,
@@ -304,6 +334,60 @@ impl Registry {
     /// grammar on the registry-backed validation path.
     pub fn lexicon_matcher(&self) -> &crate::grammar::GrammarLexicon {
         &self.inner.lexicon_matcher
+    }
+
+    /// Merged per-check grammar severity registry (FR-048), first-wins across
+    /// modules: `<grammar>:<check>` → `off` | `warning` | `error`. The grammar
+    /// framework keys each emitted finding against this map; an absent key
+    /// means `warning`, so an empty map is the all-default map.
+    pub fn grammar_severity(&self) -> &crate::grammar::GrammarSeverityMap {
+        &self.inner.grammar_severity
+    }
+
+    /// Merged observable-result verb registry (FR-047), first-wins across
+    /// modules. The `ac` grammar's `unclassifiable` and `vacuous-outcome`
+    /// checks consume these on top of the engine's built-in defaults (CR-014).
+    pub fn observable_verbs(
+        &self,
+    ) -> &std::collections::BTreeMap<String, crate::vocab::ObservableVerbDef> {
+        &self.inner.observable_verbs
+    }
+
+    /// The precompiled observable-verb matcher (FR-047): built-in defaults ∪
+    /// the merged module registry.
+    pub fn observable_verbs_matcher(&self) -> &crate::grammar::ObservableVerbs {
+        &self.inner.observable_verbs_matcher
+    }
+
+    /// Merged vacuous-predicate registry (FR-047, CR-014), first-wins across
+    /// modules. The `ac` grammar's `vacuous-outcome` check consumes these on top
+    /// of the engine's built-in vacuity set.
+    pub fn vacuous_predicates(
+        &self,
+    ) -> &std::collections::BTreeMap<String, crate::vocab::VacuousPredicateDef> {
+        &self.inner.vacuous_predicates
+    }
+
+    /// The precompiled vacuity matcher (FR-047, CR-014).
+    pub fn vacuous_predicates_matcher(&self) -> &crate::grammar::VacuousPredicates {
+        &self.inner.vacuous_predicates_matcher
+    }
+
+    /// The merged declarative traceability model (FR-050), or `None` when no
+    /// active module declares one — consumers report the model as **undeclared**
+    /// rather than computing an empty rollup (FR-050-AC-2/AC-9).
+    pub fn traceability(&self) -> Option<&crate::traceability::TraceabilityModel> {
+        (!self.inner.traceability.is_empty()).then_some(&self.inner.traceability)
+    }
+
+    /// The declared vocabulary for a matrix column (CR-015), e.g. `test_type`.
+    /// Empty when no active module declares one — the caller reports the
+    /// vocabulary as undeclared rather than inventing a default.
+    pub fn column_vocabulary(&self, column: &str) -> &[String] {
+        match column {
+            "test_type" => self.inner.traceability.vocabularies.test_type.as_slice(),
+            _ => &[],
+        }
     }
 
     /// Compose an ad-hoc `GrammarLexicon` (FR-044) from the merged module
@@ -851,6 +935,291 @@ roles:
             .warnings
             .iter()
             .any(|w| w.message.contains("[ears:vague-response]")));
+    }
+
+    // ── FR-048: per-check grammar severity ─────────────────────────
+
+    /// A module whose `FR` archetype is bound to the EARS grammar, with an
+    /// optional `grammar_severity` block appended to the manifest.
+    fn write_grammar_module(root: &Path, name: &str, extra: &str) {
+        fs::create_dir_all(root.join("schemas")).unwrap();
+        fs::write(
+            root.join("manifest.yaml"),
+            format!(
+                "name: {name}\nartifact_types:\n- name: FR\n  \
+                 frontmatter_schema_ref: schemas/fr.schema.json\n  \
+                 grammar_ref: iso-spec-core\n{extra}"
+            ),
+        )
+        .unwrap();
+        fs::write(root.join("schemas/fr.schema.json"), r#"{"type":"object"}"#).unwrap();
+    }
+
+    // TC-716 (FR-048-AC-1): a manifest `grammar_severity` registry loads and
+    // `Registry::grammar_severity()` returns the merged map.
+    #[test]
+    fn tc716_grammar_severity_loads_and_accessor() {
+        let p = tmpdir("severity-716");
+        write_vocab_module(
+            &p.join("m"),
+            "m",
+            "grammar_severity:\n  \"ac:unclassifiable\": error\n  \"ac:vague-response\": off\n",
+        );
+        let r = Registry::load_from(&[&p]).expect("tolerant ok");
+        assert_eq!(
+            r.grammar_severity().get("ac:unclassifiable"),
+            Some(&crate::grammar::GrammarSeverityLevel::Error)
+        );
+        assert_eq!(
+            r.grammar_severity().get("ac:vague-response"),
+            Some(&crate::grammar::GrammarSeverityLevel::Off)
+        );
+    }
+
+    // TC-717 (FR-048-AC-2): conflicting redeclarations merge first-wins with
+    // one `DuplicateGrammarSeverity`; identical redeclaration emits none.
+    #[test]
+    fn tc717_grammar_severity_merge_first_wins() {
+        let p = tmpdir("severity-717");
+        write_vocab_module(
+            &p.join("m1"),
+            "m1",
+            "grammar_severity:\n  \"ac:unclassifiable\": error\n  \"ac:non-singular\": warning\n",
+        );
+        write_vocab_module(
+            &p.join("m2"),
+            "m2",
+            // `ac:unclassifiable` conflicts; `ac:non-singular` is identical.
+            "grammar_severity:\n  \"ac:unclassifiable\": off\n  \"ac:non-singular\": warning\n",
+        );
+        let r = Registry::load_from(&[&p]).expect("tolerant ok");
+        // First-wins keeps the earliest level.
+        assert_eq!(
+            r.grammar_severity()["ac:unclassifiable"],
+            crate::grammar::GrammarSeverityLevel::Error
+        );
+        let dups: Vec<&str> = r
+            .diagnostics()
+            .iter()
+            .filter_map(|d| match d {
+                Diagnostic::DuplicateGrammarSeverity { name, .. } => Some(name.as_str()),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(dups, vec!["ac:unclassifiable"]);
+    }
+
+    // TC-723 (FR-048-AC-8): a malformed `grammar_severity` entry fails module
+    // load like any other manifest shape error.
+    #[test]
+    fn tc723_malformed_grammar_severity_fails_load() {
+        // Unknown level.
+        let p = tmpdir("severity-723-level");
+        write_vocab_module(
+            &p.join("m"),
+            "m",
+            "grammar_severity:\n  \"ac:unclassifiable\": fatal\n",
+        );
+        let r = Registry::load_from(&[&p]).expect("tolerant ok");
+        assert!(r.module_names().next().is_none(), "module must not load");
+        assert!(r
+            .failures()
+            .iter()
+            .any(|f| f.archetype == "<manifest>" && f.reason.contains("fatal")));
+
+        // Non-string key.
+        let p2 = tmpdir("severity-723-key");
+        write_vocab_module(&p2.join("m"), "m", "grammar_severity:\n  12: error\n");
+        let r2 = Registry::load_from(&[&p2]).expect("tolerant ok");
+        assert!(r2.module_names().next().is_none(), "module must not load");
+        assert!(
+            r2.failures()
+                .iter()
+                .any(|f| f.archetype == "<manifest>"
+                    && f.reason.contains("grammar_severity key '12'"))
+        );
+    }
+
+    // TC-722 (FR-048-AC-7): the type-only `validate_document` path applies the
+    // all-default map — every grammar finding is a warning regardless of the
+    // module's manifest, which promotes the same check to `error`.
+    #[test]
+    fn tc722_type_only_path_applies_all_default_severity() {
+        let p = tmpdir("severity-722");
+        write_grammar_module(
+            &p.join("m"),
+            "m",
+            "grammar_severity:\n  \"ears:vague-response\": error\n",
+        );
+        let r = Registry::load_from(&[&p]).expect("tolerant ok");
+        let fr = r.archetype("FR").expect("FR archetype");
+        let doc = "---\ntype: FR\n---\n## Description\n\nThe system shall support pagination.\n";
+
+        // Registry path: the manifest promotes the check to `error`.
+        let with_reg = crate::validate_document_in_registry(&r, fr, doc);
+        assert!(!with_reg.is_valid);
+        assert!(with_reg
+            .errors
+            .iter()
+            .any(|e| e.message.contains("[ears:vague-response]")));
+
+        // Type-only path: all-default map → the same finding is a warning.
+        let type_only = crate::validate_document(fr, doc);
+        assert!(type_only.is_valid);
+        assert!(type_only
+            .warnings
+            .iter()
+            .any(|w| w.message.contains("[ears:vague-response]")));
+        assert!(type_only.errors.is_empty());
+    }
+
+    // TC-718 (FR-048-AC-3), end-to-end half: with `ac:unclassifiable` mapped
+    // to `error`, a real unclassifiable criteria cell lands in
+    // `ValidationResult.errors` and clears `is_valid`, while an `ears` finding
+    // with no map entry stays a warning. (The framework-level contract is
+    // pinned in `validate_document::tests::tc718_per_check_error_routing`.)
+    #[test]
+    fn tc718_ac_error_routing_end_to_end() {
+        let p = tmpdir("severity-718");
+        write_grammar_module(
+            &p.join("m"),
+            "m",
+            "grammar_severity:\n  \"ac:unclassifiable\": error\n",
+        );
+        let r = Registry::load_from(&[&p]).expect("tolerant ok");
+        let fr = r.archetype("FR").expect("FR archetype");
+        let doc = "---\ntype: FR\n---\n## Description\n\n\
+                   The system shall support publishing.\n\n\
+                   ## Acceptance Criteria\n\n\
+                   | ID | Criteria | Verification |\n|----|----------|--------------|\n\
+                   | FR-001-AC-1 | Structural evaluation | Test |\n";
+        let result = crate::validate_document_in_registry(&r, fr, doc);
+
+        assert!(!result.is_valid, "a promoted `ac` check must block");
+        assert!(result
+            .errors
+            .iter()
+            .any(|e| e.message.contains("[ac:unclassifiable]")));
+        // The unmapped `ears` finding on the Description stays advisory.
+        assert!(result
+            .warnings
+            .iter()
+            .any(|w| w.message.contains("[ears:vague-response]")));
+        assert!(!result.errors.iter().any(|e| e.message.contains("[ears:")));
+    }
+
+    // ── FR-050: declarative traceability model ─────────────────────
+
+    /// The repo's traceability fixture modules. They live outside
+    /// `tests/fixtures/modules` on purpose: that directory is a shared search
+    /// root other tests load wholesale, and a fixture declaring its own `FR`
+    /// would shadow the ISO one there.
+    fn fixture_modules() -> PathBuf {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("tests")
+            .join("fixtures")
+            .join("traceability")
+    }
+
+    // TC-732 (FR-050-AC-1): a manifest `traceability:` section declaring trace
+    // targets, document references, a status vocabulary, and a trace-tag
+    // grammar loads, and the Registry exposes the declared model.
+    #[test]
+    fn tc732_traceability_model_loads_and_accessor() {
+        let root = fixture_modules().join("iso");
+        let r = Registry::load_module(&root).expect("load");
+        let model = r.traceability().expect("declared model");
+
+        let target = model
+            .target("acceptance-criterion")
+            .expect("acceptance-criterion target");
+        assert_eq!(target.archetype.as_deref(), Some("FR"));
+        assert_eq!(target.section, "Acceptance Criteria");
+        assert_eq!(target.id_column, "ID");
+        // Auxiliary source: minted by a document outside the corpus walk.
+        assert_eq!(
+            model.target("test-case").unwrap().document,
+            Some(PathBuf::from("tests.md"))
+        );
+
+        let verification = model
+            .document_references
+            .iter()
+            .find(|d| d.name == "verification")
+            .expect("verification reference");
+        assert_eq!(verification.column, "Verification");
+        // The reference resolves against both the auxiliary matrix rows and
+        // TC documents authored in the bundle.
+        assert_eq!(
+            verification.targets,
+            vec!["test-case", "test-case-document"]
+        );
+
+        let status = model.status.as_ref().expect("status vocabulary");
+        assert_eq!(status.column, "Status");
+        assert_eq!(
+            status.class_of("✅"),
+            crate::traceability::StatusClass::Complete
+        );
+        assert_eq!(
+            status.class_of("🚧"),
+            crate::traceability::StatusClass::Pending
+        );
+
+        assert!(model
+            .trace_tags
+            .markers
+            .iter()
+            .any(|m| m.language == crate::traceability::SourceLanguage::Python));
+        assert!(!model.trace_tags.legacy.is_empty());
+
+        // The non-ISO fixture declares an entirely different vocabulary.
+        let alt = Registry::load_module(&fixture_modules().join("alt"))
+            .expect("load")
+            .traceability()
+            .cloned()
+            .expect("declared model");
+        assert!(alt.target("clause").is_some());
+        assert_eq!(alt.status.as_ref().unwrap().column, "State");
+    }
+
+    // TC-733 (FR-050-AC-2): a malformed `traceability:` section fails module
+    // load like any other manifest shape error; an absent section loads and
+    // marks the model undeclared.
+    #[test]
+    fn tc733_malformed_model_fails_load_absent_is_undeclared() {
+        // Absent section → loads, model undeclared.
+        let p = tmpdir("trace-733-absent");
+        write_vocab_module(&p.join("m"), "m", "artifact_types: []\n");
+        let r = Registry::load_from(&[&p]).expect("tolerant ok");
+        assert!(r.module_names().next().is_some(), "module must load");
+        assert!(r.traceability().is_none(), "model must be undeclared");
+
+        // Malformed: a reference to an undeclared target.
+        let bad = tmpdir("trace-733-bad");
+        write_vocab_module(
+            &bad.join("m"),
+            "m",
+            "traceability:\n  document_references:\n  - name: r\n    archetype: FR\n    \
+             section: S\n    column: C\n    pattern: '(TC-\\d+)'\n    targets: [nope]\n",
+        );
+        let r2 = Registry::load_from(&[&bad]).expect("tolerant ok");
+        assert!(r2.module_names().next().is_none(), "module must not load");
+        assert!(r2
+            .failures()
+            .iter()
+            .any(|f| f.archetype == "<manifest>" && f.reason.contains("undeclared target")));
+
+        // Malformed: an unknown field inside the section.
+        let typo = tmpdir("trace-733-typo");
+        write_vocab_module(
+            &typo.join("m"),
+            "m",
+            "traceability:\n  trace_targets:\n  - name: t\n    archetype: FR\n    section: S\n    \
+             id_column: ID\n    typo: x\n",
+        );
+        let r3 = Registry::load_from(&[&typo]).expect("tolerant ok");
+        assert!(r3.module_names().next().is_none(), "module must not load");
     }
 
     // TC-676 (FR-044-AC-3): `lexicon_with` composes module keys ∪ project terms.

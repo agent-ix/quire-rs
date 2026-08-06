@@ -1,0 +1,28 @@
+# CR-015 fixture: a module that opts into both reference normalizations.
+name: traceability-normalizing
+version: 0.1.0
+description: Declares expand_ranges + strip_annotations on its reference
+artifact_types:
+- name: FR
+  defaults:
+    id_pattern: FR-{next:03d}
+traceability:
+  trace_targets:
+  - name: acceptance-criterion
+    archetype: FR
+    section: Acceptance Criteria
+    id_column: ID
+  - name: test-case
+    document: tests.md
+    section: Test Cases
+    id_column: ID
+  document_references:
+  - name: verification
+    archetype: FR
+    section: Acceptance Criteria
+    column: Verification
+    row_id_column: ID
+    pattern: '(TC-\d+)'
+    targets: [test-case]
+    expand_ranges: true
+    strip_annotations: true

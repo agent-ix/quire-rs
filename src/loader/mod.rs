@@ -47,6 +47,15 @@ pub struct LoadedModule {
     pub roles: BTreeMap<String, RoleDef>,
     /// Concrete-term lexicon contributed by this module (FR-043).
     pub lexicon: BTreeMap<String, LexiconTermDef>,
+    /// Per-check grammar severity registry contributed by this module
+    /// (FR-048).
+    pub grammar_severity: BTreeMap<String, crate::grammar::GrammarSeverityLevel>,
+    /// Observable-result verb registry contributed by this module (FR-047).
+    pub observable_verbs: BTreeMap<String, crate::vocab::ObservableVerbDef>,
+    /// Vacuous-predicate registry contributed by this module (FR-047, CR-014).
+    pub vacuous_predicates: BTreeMap<String, crate::vocab::VacuousPredicateDef>,
+    /// Traceability model contributed by this module (FR-050).
+    pub traceability: crate::traceability::TraceabilityModel,
 }
 
 /// Outcome of a full load pass.
@@ -353,6 +362,10 @@ pub fn load_inline_module(manifest_yaml: &[u8], schemas: &BTreeMap<String, Strin
         edge_types: manifest.edge_types.clone(),
         roles: manifest.roles.clone(),
         lexicon: manifest.lexicon.clone(),
+        grammar_severity: manifest.grammar_severity.clone(),
+        observable_verbs: manifest.observable_verbs.clone(),
+        vacuous_predicates: manifest.vacuous_predicates.clone(),
+        traceability: manifest.traceability.clone(),
     });
 
     LoadOutcome {
@@ -408,8 +421,16 @@ fn walk_search_root(
         Ok(e) => e,
         Err(_) => return,
     };
-    for entry in entries.flatten() {
-        let candidate = entry.path();
+    // `read_dir` yields in filesystem order, which is unspecified and differs
+    // between machines. Every merge in the registry is **first-wins**, so that
+    // order decides which module's `lexicon` / `grammar_severity` /
+    // `traceability` entry survives a collision — the outcome cannot depend on
+    // how a directory happens to be laid out (NFR-006). Sorting by canonical
+    // path makes module load order, and therefore first-wins, deterministic.
+    let mut candidates: Vec<std::path::PathBuf> =
+        entries.flatten().map(|entry| entry.path()).collect();
+    candidates.sort();
+    for candidate in candidates {
         if !candidate.is_dir() {
             continue;
         }
@@ -494,6 +515,10 @@ fn load_one_module(
             edge_types: manifest.edge_types.clone(),
             roles: manifest.roles.clone(),
             lexicon: manifest.lexicon.clone(),
+            grammar_severity: manifest.grammar_severity.clone(),
+            observable_verbs: manifest.observable_verbs.clone(),
+            vacuous_predicates: manifest.vacuous_predicates.clone(),
+            traceability: manifest.traceability.clone(),
         },
         failures,
     ))
@@ -694,6 +719,29 @@ pub fn flatten_into_registry(mut outcome: LoadOutcome) -> RegistryShape {
             .diagnostics
             .push(Diagnostic::DuplicateLexiconTerm { name, modules });
     }
+    // FR-048: merge the per-check grammar severity registry (same machinery).
+    // A key redeclared with a *differing* level is first-wins + one non-fatal
+    // DuplicateGrammarSeverity; identical redeclaration is idempotent.
+    let (grammar_severity, mut severity_dups) =
+        merge_vocab(&outcome.modules, |m| &m.grammar_severity);
+    for (name, modules) in severity_dups.drain(..) {
+        outcome
+            .diagnostics
+            .push(Diagnostic::DuplicateGrammarSeverity { name, modules });
+    }
+    // FR-047: merge the observable-result verb registry (first-wins). The
+    // engine's built-in defaults are layered underneath at matcher-build time,
+    // so a module extends the vocabulary rather than replacing it.
+    let (observable_verbs, _) = merge_vocab(&outcome.modules, |m| &m.observable_verbs);
+    // CR-014: same first-wins merge for the vacuity vocabulary.
+    let (vacuous_predicates, _) = merge_vocab(&outcome.modules, |m| &m.vacuous_predicates);
+
+    // FR-050: merge the declarative traceability model across modules. Targets,
+    // references, and tag forms accumulate first-wins by name; the singular
+    // `status` vocabulary is taken from the first module that declares one.
+    // A module that declares nothing contributes nothing, so the merged model
+    // stays undeclared until some module declares one.
+    let traceability = merge_traceability(&outcome.modules);
 
     // ── FR-041: derive the inverse-label → forward-verb index from the
     // merged edge_types. A declared `inverse:` label becomes an authorable
@@ -781,6 +829,10 @@ pub fn flatten_into_registry(mut outcome: LoadOutcome) -> RegistryShape {
         inverse_edges,
         roles,
         lexicon,
+        grammar_severity,
+        observable_verbs,
+        vacuous_predicates,
+        traceability,
         failures: outcome.failures,
         diagnostics: outcome.diagnostics,
         path_diagnostics: outcome.path_diagnostics,
@@ -821,6 +873,62 @@ fn merge_vocab<V: Clone + PartialEq>(
         }
     }
     (merged, conflicts.into_iter().collect())
+}
+
+/// Merge the per-module [`TraceabilityModel`](crate::traceability::TraceabilityModel)s
+/// first-wins: an entry whose name is already declared is skipped, and the
+/// first declared `status` vocabulary wins. Declaration order is module load
+/// order, so the merged model is deterministic (NFR-006).
+fn merge_traceability(modules: &[LoadedModule]) -> crate::traceability::TraceabilityModel {
+    let mut merged = crate::traceability::TraceabilityModel::default();
+    for module in modules {
+        let m = &module.traceability;
+        for target in &m.trace_targets {
+            if !merged.trace_targets.iter().any(|t| t.name == target.name) {
+                merged.trace_targets.push(target.clone());
+            }
+        }
+        for reference in &m.document_references {
+            if !merged
+                .document_references
+                .iter()
+                .any(|r| r.name == reference.name)
+            {
+                merged.document_references.push(reference.clone());
+            }
+        }
+        for marker in &m.trace_tags.markers {
+            if !merged
+                .trace_tags
+                .markers
+                .iter()
+                .any(|x| x.name == marker.name)
+            {
+                merged.trace_tags.markers.push(marker.clone());
+            }
+        }
+        for legacy in &m.trace_tags.legacy {
+            if !merged
+                .trace_tags
+                .legacy
+                .iter()
+                .any(|x| x.name == legacy.name)
+            {
+                merged.trace_tags.legacy.push(legacy.clone());
+            }
+        }
+        if merged.status.is_none() {
+            merged.status.clone_from(&m.status);
+        }
+        // CR-015: column vocabularies merge first-wins per column.
+        if merged.vocabularies.test_type.is_empty() {
+            merged
+                .vocabularies
+                .test_type
+                .clone_from(&m.vocabularies.test_type);
+        }
+    }
+    merged
 }
 
 /// Strict counterpart of [`flatten_into_registry`]: promotes the first
@@ -917,6 +1025,17 @@ pub struct RegistryShape {
     pub roles: BTreeMap<String, RoleDef>,
     /// Merged concrete-term lexicon, first-wins across modules (FR-043).
     pub lexicon: BTreeMap<String, LexiconTermDef>,
+    /// Merged per-check grammar severity registry, first-wins across modules
+    /// (FR-048). An absent key means `warning`.
+    pub grammar_severity: BTreeMap<String, crate::grammar::GrammarSeverityLevel>,
+    /// Merged observable-result verb registry, first-wins across modules
+    /// (FR-047). Layered over the engine's built-in defaults.
+    pub observable_verbs: BTreeMap<String, crate::vocab::ObservableVerbDef>,
+    /// Merged vacuous-predicate registry, first-wins across modules
+    /// (FR-047, CR-014). Layered over the engine's built-in vacuity set.
+    pub vacuous_predicates: BTreeMap<String, crate::vocab::VacuousPredicateDef>,
+    /// Merged traceability model, first-wins across modules (FR-050).
+    pub traceability: crate::traceability::TraceabilityModel,
     pub failures: Vec<ArchetypeLoadFailure>,
     pub diagnostics: Vec<Diagnostic>,
     pub path_diagnostics: Vec<PathDiagnostic>,
@@ -1305,6 +1424,25 @@ object_types:
         assert_eq!(outcome.modules[0].archetypes.len(), 0);
         assert_eq!(outcome.failures.len(), 1);
         assert!(outcome.failures[0].reason.contains("variants"));
+    }
+
+    // TC-762 (NFR-006-AC-5, CR-018): module discovery is sorted, so first-wins
+    // resolves the same way on every machine. Directories are created in
+    // reverse order to keep the fixture honest — `read_dir` order is
+    // unspecified, and it was the load order before this.
+    #[test]
+    fn tc762_module_discovery_is_sorted() {
+        let p = tmpdir("sorted-discovery");
+        for name in ["m-zulu", "m-mike", "m-alpha"] {
+            write_minimal_module(&p.join(name), name);
+        }
+        let outcome = load_modules(&[&p]);
+        let names: Vec<&str> = outcome.modules.iter().map(|m| m.name.as_str()).collect();
+        assert_eq!(
+            names,
+            vec!["m-alpha", "m-mike", "m-zulu"],
+            "modules must load in sorted path order, not filesystem order"
+        );
     }
 
     // TC-527 (FR-031-AC-6): Registry::archetype resolves unified

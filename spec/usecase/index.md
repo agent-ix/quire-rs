@@ -22,3 +22,5 @@ description: "Index of artifacts in this directory."
 * [US-013: Agent Resolves Intra-Spec References to Find Orphans and Dangling Links](./US-013-agent-resolves-intra-spec-refs.md)
 * [US-014: LLM Authors an Artifact as Markdown and Validates It](./US-014-author-validates-markdown.md)
 * [US-015: Author Declares an Object's Typed Relationship Vocabulary](./US-015-object-edge-vocabulary.md)
+* [US-016: Consume canonical Filament extraction from one engine](./US-016-canonical-filament-extraction.md)
+* [US-017: Agent Verifies Requirement Coverage Deterministically](./US-017-agent-verifies-coverage.md)

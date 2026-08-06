@@ -15,10 +15,12 @@
 //! - `resolve` — intra-spec reference resolution (FR-026; Task 030).
 //! - `query` — whole-spec query API (FR-027; Task 031).
 
+pub mod declared_tables;
 pub mod glossary;
 pub mod query;
 pub mod resolve;
 pub mod spec;
+pub mod trace_refs;
 pub mod unlinked;
 pub mod validate;
 pub mod walk;

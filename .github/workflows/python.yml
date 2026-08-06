@@ -1,7 +1,17 @@
 name: python-bindings
 
 # Build the feature-gated PyO3 wheel and run the pytest binding suite
-# (FR-023 / Gate G6). Manual-trigger for now.
+# (FR-023 / Gate G6).
+#
+# This suite is the *only* verification of the PyO3-parity criteria
+# (FR-042-AC-10, FR-043-AC-7, FR-047-AC-9 — TC-666, TC-673, TC-715), and plain
+# `make ci` does not run it: it needs a built wheel. While nothing ran it,
+# TC-715 sat asserting check ids that CR-014 had renamed and nothing caught it.
+#
+# Every workflow in this repo is manual-dispatch by deliberate policy, so the
+# recurrence guard is local rather than a PR trigger: `make ci-python` builds
+# the wheel and runs this suite, and is required before merging any change to
+# `src/grammar/`, `src/python/`, or `tests/python/`.
 
 on:
   workflow_dispatch:

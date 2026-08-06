@@ -83,6 +83,60 @@ def test_check_grammar_applies_module_lexicon(tmp_path):
     assert not any(f["check"] == "vague-response" for f in findings2)
 
 
+def test_check_grammar_ac_findings_cross_boundary(tmp_path):
+    """TC-715 (FR-047-AC-9): the `ac` grammar is exposed through the same PyO3
+    surface and returns the same findings as the in-process Rust call."""
+    md = (
+        "---\nid: FR-001\ntype: FR\n---\n"
+        "## Acceptance Criteria\n\n"
+        "| ID | Criteria | Verification |\n"
+        "|----|----------|--------------|\n"
+        "| FR-001-AC-1 | It all works end to end. | Test |\n"
+        "| FR-001-AC-2 | Given a token, when it expires, then `401` is returned. | Test |\n"
+    )
+    findings = quire.check_grammar("iso-spec-core", "FR", md)
+    ac = [f for f in findings if f["grammar"] == "ac"]
+    assert ac, "the ac grammar must contribute through the binding"
+
+    vacuous = [f for f in ac if f["statement"].startswith("It all works")]
+    checks = {f["check"] for f in vacuous}
+    # CR-014 inverted both high-volume checks: the cell is flagged for asserting
+    # a *vacuous* predicate, not for missing a verb off an allowlist, and it is
+    # not `unclassifiable` — "works" is a predicate, just an empty one.
+    assert checks == {"vacuous-outcome"}
+    # `pattern` carries the detected shape (CR-013). A cell with a predicate is
+    # an `assertion` whatever verb it uses; the check id names the defect.
+    assert all(f["pattern"] == "assertion" for f in vacuous)
+    assert all(f["severity"] == "warning" for f in vacuous)
+    assert all(f["line"] is not None for f in vacuous)
+
+    gwt = [f for f in ac if f["statement"].startswith("Given a token")]
+    # GWT is a recognized-but-non-canonical rendering (CR-013): the assertion is
+    # the canonical AC shape, so the cell is steered while still classifying.
+    assert {f["check"] for f in gwt} == {"non-canonical-shape"}
+    assert all(f["pattern"] == "given-when-then" for f in gwt)
+
+    # FR-047-AC-12 / FR-048: module data reaches the binding. Declaring `work`
+    # as an observable verb makes the cell carry signal, which suppresses
+    # `vacuous-outcome` (CR-014 demoted `observable_verbs` to a suppressor);
+    # mapping `ac:unclassifiable` to `off` removes that check entirely.
+    #
+    # Both assertions must name checks that still exist. Asserting the absence
+    # of a *retired* id passes unconditionally and proves nothing — that is how
+    # TC-715 rotted against CR-014's rename.
+    mod = tmp_path / "m"
+    mod.mkdir(parents=True)
+    (mod / "manifest.yaml").write_text(
+        "name: m\n"
+        "observable_verbs:\n  work:\n    definition: produces a checkable result\n"
+        "grammar_severity:\n  \"ac:unclassifiable\": off\n"
+    )
+    scoped = quire.check_grammar("iso-spec-core", "FR", md, str(mod))
+    scoped_checks = {f["check"] for f in scoped if f["grammar"] == "ac"}
+    assert "vacuous-outcome" not in scoped_checks
+    assert "unclassifiable" not in scoped_checks
+
+
 def test_load_repo_returns_documents(tmp_path):
     """TC-463: load_repo yields one structured doc per markdown file."""
     (tmp_path / "FR-001.md").write_text(

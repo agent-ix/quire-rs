@@ -181,12 +181,37 @@ fn check_grammar<'py>(
             None => None,
         };
         let lexicon = registry.as_ref().map_or(&empty, |r| r.lexicon_matcher());
-        Ok(crate::grammar::check_document_grammar(
-            &gref,
-            &arch,
-            &doc,
-            line_offset,
-            lexicon,
+        // FR-048: with a module, apply its merged severity map (an `off` check
+        // is dropped, an `error` check is surfaced as such); without, the
+        // all-default map keeps every finding a warning.
+        let severity = match registry.as_ref() {
+            Some(r) => r.grammar_severity(),
+            None => crate::grammar::default_severity(),
+        };
+        // FR-047: likewise for the observable-verb vocabulary — module data
+        // over the engine's built-in defaults.
+        let observable = match registry.as_ref() {
+            Some(r) => r.observable_verbs_matcher(),
+            None => crate::grammar::default_observable_verbs(),
+        };
+        // CR-014: the vacuity vocabulary travels the same way.
+        let vacuous = match registry.as_ref() {
+            Some(r) => r.vacuous_predicates_matcher(),
+            None => crate::grammar::default_vacuous_predicates(),
+        };
+        Ok(crate::grammar::apply_severity(
+            crate::grammar::check_document_grammar(
+                &gref,
+                &arch,
+                &doc,
+                line_offset,
+                crate::grammar::GrammarVocabularies {
+                    lexicon,
+                    observable,
+                    vacuous,
+                },
+            ),
+            severity,
         ))
     })?;
 

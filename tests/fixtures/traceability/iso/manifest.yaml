@@ -1,0 +1,77 @@
+# ISO-shaped traceability declaration (FR-050 fixture).
+#
+# Mirrors the declaration `spec-artifacts-iso` is expected to ship (EXT-1):
+# FR documents mint acceptance-criterion ids, an auxiliary Test Matrix mints
+# test-case ids, the Verification cell and the matrix `Traces To` column carry
+# the references, and the matrix `Status` column carries the ✅/🚧/❌ vocabulary.
+name: traceability-iso
+version: 0.1.0
+description: ISO-shaped traceability model fixture
+artifact_types:
+- name: FR
+  grammar_ref: iso-spec-core
+  defaults:
+    id_pattern: FR-{next:03d}
+- name: TC
+  defaults:
+    id_pattern: TC-{next:03d}
+traceability:
+  trace_targets:
+  - name: acceptance-criterion
+    archetype: FR
+    section: Acceptance Criteria
+    id_column: ID
+  - name: test-case
+    document: tests.md
+    section: Test Cases
+    id_column: ID
+  # A TC that is authored as its own document rather than a matrix row.
+  - name: test-case-document
+    archetype: TC
+    section: Description
+    id_column: ID
+  document_references:
+  - name: verification
+    archetype: FR
+    section: Acceptance Criteria
+    column: Verification
+    row_id_column: ID
+    pattern: '\((TC-\d+)\)'
+    targets: [test-case, test-case-document]
+  - name: traces-to
+    document: tests.md
+    section: Test Cases
+    column: Traces To
+    row_id_column: ID
+    pattern: '((?:StR|US|FR|NFR)-\d+(?:-(?:AC|CON)-\d+)?|IT-\d+(?:-SC-\d+)?)'
+    targets: [acceptance-criterion]
+  status:
+    column: Status
+    complete: ["✅"]
+    pending: ["🚧", "⚠️"]
+    failed: ["❌"]
+  trace_tags:
+    markers:
+    - name: rust-trace-attribute
+      language: rust
+      pattern: '#\[trace\(([^)]*)\)\]'
+      template: '#[trace({ids})]'
+    - name: pytest-trace-marker
+      language: python
+      pattern: '@pytest\.mark\.trace\(([^)]*)\)'
+      template: '@pytest.mark.trace({ids})'
+    - name: ts-trace-helper
+      language: typescript
+      pattern: '\btrace\(([^)]*)\)'
+    legacy:
+    - name: trace-line
+      pattern: 'Trace:\s*([A-Za-z]+-\d+(?:-[A-Za-z]+-\d+)?)'
+      rewrite_to: rust-trace-attribute
+    - name: comment-id
+      pattern: '(?://|#)\s*((?:TC|FR|NFR|StR|US|IT)-\d+(?:-[A-Za-z]+-\d+)?)'
+      rewrite_to: rust-trace-attribute
+    - name: test-name-id
+      language: rust
+      pattern: '\bfn (?i:tc)(\d+)_'
+      id_format: 'TC-{1}'
+      rewrite_to: rust-trace-attribute

@@ -74,8 +74,12 @@ passive voice.
 - The framework SHALL NOT judge whether the author chose the *semantically*
   correct keyword (e.g. `When` used for a continuous `While` state); that
   judgment is left to the agent review lens.
-- No grammar other than EARS ships in v1; `GWT` (acceptance criteria) and the
-  `US` story grammar register onto the same framework later.
+- No grammar other than EARS ships in v1; later grammars register onto the
+  same framework. (Since realized by the `ac` acceptance-criteria grammar,
+  [FR-047](./FR-047-acceptance-criteria-grammar.md). EARS stays the grammar for
+  *normative statements* — obligations — while `ac` grades acceptance criteria
+  as verification statements, whose canonical shape is the assertion, not an
+  EARS obligation (CR-013). A `US` story grammar remains future work.)
 
 ## Acceptance Criteria
 

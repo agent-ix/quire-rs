@@ -70,6 +70,34 @@ pub struct Manifest {
     /// as accepted concrete objects, so the engine carries no hardcoded list.
     #[serde(default)]
     pub lexicon: BTreeMap<String, crate::vocab::LexiconTermDef>,
+    /// Mergeable per-check grammar severity registry (FR-048):
+    /// `<grammar>:<check>` → `off` | `warning` | `error`. Merged across
+    /// modules first-wins; the grammar framework keys each emitted finding
+    /// against the merged map, so a deployment can promote or suppress one
+    /// check without a code change. A malformed entry (unknown level,
+    /// non-string key) fails manifest parse like any other shape error.
+    #[serde(default)]
+    pub grammar_severity: BTreeMap<String, crate::grammar::GrammarSeverityLevel>,
+    /// Mergeable observable-result verb registry (FR-047): verb →
+    /// {definition, optional category}. Merged across modules first-wins and
+    /// layered **over** the engine's built-in defaults, which stay at lowest
+    /// precedence. The `ac` grammar's `unclassifiable` and `vacuous-outcome`
+    /// checks consume the merged keys (CR-014), so the vocabulary is module
+    /// data (ADR 0009).
+    #[serde(default)]
+    pub observable_verbs: BTreeMap<String, crate::vocab::ObservableVerbDef>,
+    /// Mergeable vacuous-predicate registry (FR-047, CR-014): predicate →
+    /// {definition, optional category}. Merged across modules first-wins and
+    /// layered over the engine's built-in vacuity set. The `ac` grammar's
+    /// `vacuous-outcome` check consumes the merged keys.
+    #[serde(default)]
+    pub vacuous_predicates: BTreeMap<String, crate::vocab::VacuousPredicateDef>,
+    /// Declarative traceability model (FR-050): which documents mint trace
+    /// ids, which columns reference them, the status vocabulary, and the
+    /// trace-tag grammar. Absent → the model is undeclared; malformed → module
+    /// load fails like any other manifest shape error.
+    #[serde(default)]
+    pub traceability: crate::traceability::TraceabilityModel,
 }
 
 impl Manifest {
@@ -171,7 +199,27 @@ impl Archetype {
 /// Returns the typed [`Manifest`] or a `String` error message suitable
 /// for wrapping in `QuireError::ManifestError`.
 pub fn parse_manifest(bytes: &[u8]) -> Result<Manifest, String> {
-    serde_yaml::from_slice::<Manifest>(bytes).map_err(|e| e.to_string())
+    let manifest = serde_yaml::from_slice::<Manifest>(bytes).map_err(|e| e.to_string())?;
+    check_grammar_severity_keys(&manifest)?;
+    // FR-050-AC-2: an incoherent `traceability:` declaration is a shape error.
+    manifest.traceability.validate()?;
+    Ok(manifest)
+}
+
+/// Reject a malformed `grammar_severity` key (FR-048-AC-8). The level side is
+/// already contracted by [`crate::grammar::GrammarSeverityLevel`]'s enum
+/// deserializer; the key side is not, because YAML stringifies a non-string
+/// scalar key (`12:`) instead of failing. A well-formed key is exactly
+/// `<grammar>:<check>` — two non-empty, whitespace-free halves.
+fn check_grammar_severity_keys(manifest: &Manifest) -> Result<(), String> {
+    for key in manifest.grammar_severity.keys() {
+        if !crate::grammar::is_severity_key(key) {
+            return Err(format!(
+                "grammar_severity key '{key}' is malformed: expected '<grammar>:<check>'"
+            ));
+        }
+    }
+    Ok(())
 }
 
 /// Read + parse `manifest.yaml` from `module_root`.
