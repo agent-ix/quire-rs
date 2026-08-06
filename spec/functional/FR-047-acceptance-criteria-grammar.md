@@ -21,13 +21,26 @@ relationships:
 
 The `iso-spec-core` grammar bundle SHALL include an **acceptance-criteria
 grammar** (`ac`) registered on the [FR-042](./FR-042-requirement-grammar-check.md)
-framework alongside EARS. The `ac` grammar SHALL bind to the `Acceptance
-Criteria` section's `Criteria` table column of **every requirement archetype
-that carries one** — FR, NFR, US, StR, IT — rather than to `FR` alone: the
-criteria of a user story or a quality attribute are verification statements of
-the same kind, and an ecosystem survey found them authored in the same shape
-(CR-014). It SHALL additionally bind to AC supplement subsections (a
-`### <doc-id>-AC-N` heading whose body supplements its table row).
+framework alongside EARS. The `ac` grammar SHALL bind to the `Criteria` column
+of **every requirement archetype whose module contract declares a
+binding-criteria table**, under that archetype's own section heading and with
+its own sub-id kind (CR-020):
+
+| Archetype | Section | Sub-id | Reference the criterion is judged against |
+|---|---|---|---|
+| FR | `## Acceptance Criteria` | `-AC-` | the specification (verification) |
+| NFR | `## Acceptance Criteria` (optional) | `-AC-` | the specification (verification) |
+| StR | `## Validation Criteria` | `-VC-` | the stakeholder's real need (validation) |
+
+`StR` keeps its own heading and sub-id kind: ISO/IEC/IEEE 29148 separates
+*validation* from *verification* at the artifact level, and only the table shape
+is unified. `US` and `IT` are **not** bound — a user story's
+`## Acceptance Examples (Illustrative)` are non-binding by design and `IT`
+declares no criteria table, so an `## Acceptance Criteria` heading on either is
+a structural finding for the module's `forbidden_section` lint rule, not an
+input to this grammar. It SHALL additionally bind to criteria supplement
+subsections (a `### <doc-id>-<kind>-N` heading whose body supplements its table
+row), matched under the archetype's own sub-id kind.
 
 The `ac` grammar SHALL treat every non-empty `Criteria` cell as one statement,
 unlike the EARS segmenter's modal-verb filter: an acceptance criterion with no
@@ -185,6 +198,50 @@ violates a check:
 > `Acceptance Criteria` table. Bullet-form AC sections remain unsegmented by any
 > grammar — recorded as future work, not addressed here.
 
+> **CR-020 note:** CR-014 widened the binding from `FR` alone to
+> FR/NFR/US/StR/IT on a **cell census** — 11,476 FR cells, 340 NFR, 69 US, 20
+> StR, 14 IT. A census measures what authors wrote, not what the contract
+> declares. Checking `spec-artifacts-iso`, only **FR** declared an
+> acceptance-criteria table at all: NFR's section was optional free prose, StR
+> has no `Acceptance Criteria` section (its required section is
+> `## Validation Criteria`), and a US carries `## Acceptance Examples
+> (Illustrative)` whose skeleton states outright that nothing in it is binding.
+> The non-FR counts were not adoption — 20 StR cells across 199 repos are 20
+> improvised tables.
+>
+> That produced two failures in opposite directions. Reading US criteria as
+> binding treats discovery context as verification criteria and inflates every
+> number counting them; missing StR's required validation criteria hides binding
+> criteria that genuinely exist. CR-014's stated premise — "the criteria of a
+> user story … are verification statements of the same kind" — is **wrong for
+> US**, and this note retracts it.
+>
+> The binding now follows the contract (spec-artifacts-iso#9, which gives StR
+> and NFR real tables): per-archetype section + sub-id kind, FR/NFR under
+> `Acceptance Criteria` with `-AC-`, StR under `Validation Criteria` with
+> `-VC-`, and US/IT unbound. Two engine sites follow: `parent_id` and the token
+> regex in `src/corpus/unlinked.rs` both learn `-VC-` (FR-039-AC-11) — the
+> second was not in the issue's plan and was found by the test, since matching
+> only `StR-001` would have linked the parent and left a dangling `-VC-2`; and a
+> `forbidden_section` lint rule type (FR-036-AC-7) gives the module a way to
+> flag an `## Acceptance Criteria` heading on a US, which
+> `section_body_pattern` cannot express because a missing section is defined to
+> produce no finding.
+>
+> **Baseline restated.** Every count taken since CR-014 mixed contract-conformant
+> FR cells with improvised non-FR ones. Re-measured over the same 36,582 cells
+> with `scripts/ac_corpus_sweep.py`: total `ac`+`ears` findings fall **16,792 →
+> 15,247 (−9.2%)**, all of it material read from documents whose contract
+> declares no binding criteria — `non-canonical-shape` 6,859 → 5,958,
+> `vague-response` 315 → 286, `unclassifiable` 184 → 157, `vacuous-outcome`
+> 51 → 40. The `ears` checks are unchanged, as expected: they bind on their own
+> terms.
+>
+> Consequence for downstream work: StR criteria are validated by **demonstration**
+> in an operational context rather than by quantifying over an input domain, so
+> they will legitimately score low on property-extractability. The property-shape
+> classifier (agent-ix/quire-rs#20) must not read that as a quality failure.
+
 > **CR-019 note:** Both of CR-014's high-volume checks were re-measured against
 > the open questions on agent-ix/quire-rs#18 and #19, over 36,580 `Criteria`
 > cells in 197 repos, using the harness now committed at
@@ -299,7 +356,7 @@ the histogram covers every grammar and check.
 | FR-047-AC-3 | A cell with two `shall` obligations or two `Then` clauses yields exactly one `non-singular` finding; the positive/negative pair idiom (`X yields a finding; Y yields none`) yields none. | Test (TC-709) |
 | FR-047-AC-4 | A cell whose outcome clause uses a vague verb over an abstract object yields a `vague-response` finding; the same cell with the object present in the merged lexicon yields none. | Test (TC-710) |
 | FR-047-AC-5 | A cell headed by a vacuous predicate with nothing else to check (`Navigation works`) yields a `vacuous-outcome` finding; the same predicate alongside a concrete-object signal, a lexicon term, or a declared observable-result verb (`Volumes are correctly mounted into the container`) yields none. | Test (TC-711) |
-| FR-047-AC-6 | The `ac` grammar runs on the `Acceptance Criteria` `Criteria` column of every requirement archetype that carries one (FR, NFR, US, StR, IT) plus `### <doc-id>-AC-N` supplement sections; an FR `Constraints` cell and an NFR `Statement` receive EARS findings only. | Test (TC-712) |
+| FR-047-AC-6 | The `ac` grammar runs on the `Criteria` column of each archetype whose contract declares a binding-criteria table, under that archetype's own heading — FR/NFR under `Acceptance Criteria` with `-AC-` supplements, StR under `Validation Criteria` with `-VC-` supplements — and on nothing else: US and IT yield no findings even when they carry an improvised `Acceptance Criteria` table, an `Acceptance Criteria` section on an StR is not its binding section, an FR `Constraints` cell and an NFR `Statement` receive EARS findings only, and an archetype with no criteria table contributes nothing (CR-020). | Test (TC-712) |
 | FR-047-AC-7 | An `ac` finding carries `grammar: "ac"`, a stable check id, the statement excerpt, a 1-based line number, the classified shape, and a severity, and routes into `ValidationResult` per its severity. | Test (TC-713) |
 | FR-047-AC-8 | `quire validate --summary` histograms findings by the generic `[<grammar>:<check>]` prefix: a corpus emitting both `[ears:*]` and `[ac:*]` findings shows both in the summary. | Test (TC-714) |
 | FR-047-AC-9 | The `ac` grammar entry point is exposed through the existing grammar PyO3 surface and returns the same findings as the in-process Rust call for a fixture document. | Test (TC-715) |

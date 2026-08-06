@@ -2,9 +2,10 @@
 //! `iso-spec-core` bundle.
 //!
 //! Where EARS ([`super::ears`]) checks the normative *statements* of a
-//! requirement, `ac` checks its *acceptance criteria*: the cells of the FR
-//! `Acceptance Criteria` table's `Criteria` column, plus any
-//! `### <doc-id>-AC-N` supplement section whose body elaborates one row.
+//! requirement, `ac` checks its **binding criteria**: the `Criteria` column of
+//! the table each archetype's module contract declares, plus any
+//! `### <doc-id>-<kind>-N` supplement section whose body elaborates one row.
+//! Which section and which sub-id kind is per-archetype — see [`BINDINGS`].
 //!
 //! Two things differ from the EARS grammar by design:
 //!
@@ -78,9 +79,50 @@ impl AcShape {
 /// only promotion lever, and promotion is user-gated.
 const DEFAULT_SEVERITY: GrammarSeverity = GrammarSeverity::Warning;
 
-/// The section heading carrying the criteria table, and the column within it.
-const CRITERIA_SECTION: &str = "Acceptance Criteria";
+/// The column carrying the criterion text. One name across every archetype —
+/// only the owning section and the sub-id kind differ.
 const CRITERIA_COLUMN: &str = "Criteria";
+
+/// Where an archetype's **binding criteria** live, and what sub-id kind their
+/// supplement subsections use (CR-020).
+///
+/// The binding follows the module *contract*, not the corpus. `spec-artifacts-iso`
+/// declares a binding-criteria table on exactly three archetypes:
+///
+/// | Archetype | Section | Sub-id | Reference the criterion is judged against |
+/// |---|---|---|---|
+/// | `FR`  | `Acceptance Criteria` | `-AC-` | the specification (verification) |
+/// | `NFR` | `Acceptance Criteria` | `-AC-` | the specification (verification) |
+/// | `StR` | `Validation Criteria` | `-VC-` | the stakeholder's real need (validation) |
+///
+/// `StR` keeps its own heading and sub-id kind deliberately: ISO/IEC/IEEE 29148
+/// separates *validation* from *verification* at the artifact level — a
+/// Stakeholder Requirements Specification is validated, a System/Software
+/// Requirements Specification is verified. Only the table *shape* is unified.
+///
+/// **`US` and `IT` are absent, and that is the point.** CR-014 bound `ac` to
+/// FR/NFR/US/StR/IT on a cell census, but a census measures what authors wrote,
+/// not what the contract declares. A user story's `Acceptance Examples
+/// (Illustrative)` are non-binding by design — its skeleton says so outright —
+/// so reading them as criteria treats discovery context as verification
+/// criteria and inflates every number that counts them. `IT` declares no
+/// criteria table at all. A `## Acceptance Criteria` heading on a `US` is a
+/// structural defect for the module's lint rules (`forbidden_section`), not an
+/// input to this grammar.
+const BINDINGS: &[(&str, &str, &str)] = &[
+    ("FR", "Acceptance Criteria", "AC"),
+    ("NFR", "Acceptance Criteria", "AC"),
+    ("StR", "Validation Criteria", "VC"),
+];
+
+/// The criteria section and supplement sub-id kind for `archetype`, or `None`
+/// when the archetype declares no binding-criteria table.
+fn binding_for(archetype: &str) -> Option<(&'static str, &'static str)> {
+    BINDINGS
+        .iter()
+        .find(|(name, _, _)| *name == archetype)
+        .map(|(_, section, kind)| (*section, *kind))
+}
 
 /// One acceptance criterion with its 1-based document line.
 struct Stmt {
@@ -88,29 +130,28 @@ struct Stmt {
     line: Option<usize>,
 }
 
-/// Check `doc` against the `ac` grammar. The grammar binds to the FR
-/// `Acceptance Criteria` `Criteria` column and to `### <doc-id>-AC-N`
-/// supplement sections; every other archetype and section yields nothing
-/// (FR-047-AC-6).
+/// Check `doc` against the `ac` grammar. The grammar binds to the `Criteria`
+/// column of the archetype's own binding-criteria section and to its
+/// `### <doc-id>-<kind>-N` supplement sections ([`BINDINGS`]); every other
+/// archetype and section yields nothing (FR-047-AC-6).
 pub fn check(
     archetype: &str,
     doc: &QuireDocument,
     line_offset: usize,
     vocab: GrammarVocabularies<'_>,
 ) -> Vec<GrammarFinding> {
-    // CR-014: bind to every requirement archetype that carries an
-    // `Acceptance Criteria` table, not `FR` alone — an ecosystem survey found
-    // US and NFR criteria authored in the same shape, and FR-only reached just
-    // 76.9% of AC-bearing documents. The section/column lookup is what actually
-    // gates: an archetype without the table contributes nothing.
-    if !matches!(archetype, "FR" | "NFR" | "US" | "StR" | "IT") {
+    // CR-020: bind per the module contract, not the corpus census. CR-014
+    // widened this to FR/NFR/US/StR/IT on cell counts, but outside FR those
+    // cells were tables individual authors improvised — 20 StR cells and 69 US
+    // cells across 199 repos. See [`BINDINGS`].
+    let Some((criteria_section, sub_id_kind)) = binding_for(archetype) else {
         return Vec::new();
-    }
+    };
     let mut stmts: Vec<Stmt> = Vec::new();
-    if let Some(section) = query::section(doc, CRITERIA_SECTION) {
+    if let Some(section) = query::section(doc, criteria_section) {
         stmts.extend(criteria_cells(section, line_offset));
     }
-    for section in supplement_sections(&doc.sections) {
+    for section in supplement_sections(&doc.sections, sub_id_kind) {
         stmts.extend(supplement_statements(section, line_offset));
     }
 
@@ -404,15 +445,17 @@ fn criteria_cells(section: &QuireSection, line_offset: usize) -> Vec<Stmt> {
         .collect()
 }
 
-/// Every `### <doc-id>-AC-N` section in the document tree — the supplement
-/// body of one criteria row (e.g. `### FR-047-AC-1`).
-fn supplement_sections(sections: &[QuireSection]) -> Vec<&QuireSection> {
+/// Every `### <doc-id>-<kind>-N` section in the document tree — the supplement
+/// body of one criteria row (e.g. `### FR-047-AC-1`, `### StR-001-VC-2`).
+/// `kind` is the archetype's sub-id kind from [`BINDINGS`], so an `StR`
+/// supplement is matched under `-VC-` and never under `-AC-` (CR-020).
+fn supplement_sections<'a>(sections: &'a [QuireSection], kind: &str) -> Vec<&'a QuireSection> {
     let mut out = Vec::new();
     for s in sections {
-        if re_ac_supplement_heading().is_match(s.heading.trim()) {
+        if re_supplement_heading(kind).is_match(s.heading.trim()) {
             out.push(s);
         }
-        out.extend(supplement_sections(&s.children));
+        out.extend(supplement_sections(&s.children, kind));
     }
     out
 }
@@ -533,11 +576,18 @@ fn re_negative_case() -> &'static Regex {
 }
 
 /// `### <doc-id>-AC-N` — an acceptance-criterion supplement heading.
-fn re_ac_supplement_heading() -> &'static Regex {
-    static R: OnceLock<Regex> = OnceLock::new();
-    R.get_or_init(|| {
-        Regex::new(r"(?i)^[A-Za-z]+-\d+-AC-\d+\b").expect("ac supplement heading regex")
-    })
+fn re_supplement_heading(kind: &str) -> &'static Regex {
+    static AC: OnceLock<Regex> = OnceLock::new();
+    static VC: OnceLock<Regex> = OnceLock::new();
+    let build = |k: &str| {
+        Regex::new(&format!(r"(?i)^[A-Za-z]+-\d+-{k}-\d+\b")).expect("supplement heading regex")
+    };
+    // The kinds come from the closed `BINDINGS` table, so one `OnceLock` each
+    // keeps the compile-once property without a lock or a map.
+    match kind {
+        "VC" => VC.get_or_init(|| build("VC")),
+        _ => AC.get_or_init(|| build("AC")),
+    }
 }
 
 /// A modal or copula — the clearest predicate marker.
@@ -871,13 +921,16 @@ mod tests {
         )
         .is_empty());
 
-        // Every requirement archetype carrying an AC table is checked (CR-014):
-        // FR-only reached just 76.9% of AC-bearing documents in the ecosystem.
-        for archetype in ["FR", "NFR", "US", "StR", "IT"] {
+        // CR-020: the archetypes whose module contract declares a
+        // binding-criteria table, each under its own heading.
+        for (archetype, section, kind) in [
+            ("FR", "Acceptance Criteria", "AC"),
+            ("NFR", "Acceptance Criteria", "AC"),
+        ] {
             let md = format!(
-                "---\nid: {archetype}-001\ntype: {archetype}\n---\n## Acceptance Criteria\n\n\
+                "---\nid: {archetype}-001\ntype: {archetype}\n---\n## {section}\n\n\
                  | ID | Criteria | Verification |\n|----|----------|--------------|\n\
-                 | {archetype}-001-AC-1 | Structural evaluation | Test |\n"
+                 | {archetype}-001-{kind}-1 | Structural evaluation | Test |\n"
             );
             let found = check(
                 archetype,
@@ -887,7 +940,66 @@ mod tests {
             );
             assert!(
                 found.iter().any(|f| f.check == "unclassifiable"),
-                "{archetype} acceptance criteria must be checked"
+                "{archetype} criteria must be checked"
+            );
+        }
+
+        // StR's criteria live under `## Validation Criteria` with a
+        // `Validation` methods column and `-VC-` ids — the ISO 29148
+        // validation/verification split is kept, only the table shape is
+        // unified (spec-artifacts-iso#9).
+        let str_doc = doc(
+            "---\nid: StR-001\ntype: StR\n---\n## Validation Criteria\n\n\
+             | ID | Criteria | Validation |\n|----|----------|------------|\n\
+             | StR-001-VC-1 | Structural evaluation | Demonstration |\n",
+        );
+        assert!(
+            check(
+                "StR",
+                &str_doc,
+                0,
+                vocab(&empty_lex(), &verbs(), &vacuities())
+            )
+            .iter()
+            .any(|f| f.check == "unclassifiable"),
+            "StR validation criteria must be checked under their own heading"
+        );
+
+        // …and an StR `## Acceptance Criteria` section is NOT its binding
+        // section, so it contributes nothing here. Flagging it is the module's
+        // `forbidden_section` lint job, not this grammar's.
+        let str_wrong_heading = doc(
+            "---\nid: StR-001\ntype: StR\n---\n## Acceptance Criteria\n\n\
+             | ID | Criteria | Verification |\n|----|----------|--------------|\n\
+             | StR-001-AC-1 | Structural evaluation | Test |\n",
+        );
+        assert!(check(
+            "StR",
+            &str_wrong_heading,
+            0,
+            vocab(&empty_lex(), &verbs(), &vacuities())
+        )
+        .is_empty());
+
+        // US and IT declare no binding-criteria table. A US's acceptance
+        // examples are non-binding by design, so even an improvised
+        // `## Acceptance Criteria` table on one is not read as criteria —
+        // reading it would treat discovery context as verification criteria.
+        for archetype in ["US", "IT"] {
+            let md = format!(
+                "---\nid: {archetype}-001\ntype: {archetype}\n---\n## Acceptance Criteria\n\n\
+                 | ID | Criteria | Verification |\n|----|----------|--------------|\n\
+                 | {archetype}-001-AC-1 | Structural evaluation | Test |\n"
+            );
+            assert!(
+                check(
+                    archetype,
+                    &doc(&md),
+                    0,
+                    vocab(&empty_lex(), &verbs(), &vacuities())
+                )
+                .is_empty(),
+                "{archetype} declares no binding-criteria table and must not be read"
             );
         }
 
@@ -902,6 +1014,29 @@ mod tests {
         assert!(!check(
             "FR",
             &supplement,
+            0,
+            vocab(&empty_lex(), &verbs(), &vacuities())
+        )
+        .is_empty());
+
+        // A supplement is matched under the archetype's own sub-id kind: StR
+        // supplements are `-VC-`, and an `-AC-` heading on an StR is not one.
+        let vc_supplement = doc(
+            "---\nid: StR-001\ntype: StR\n---\n## Notes\n\n### StR-001-VC-1\n\nStructural evaluation\n",
+        );
+        assert!(!check(
+            "StR",
+            &vc_supplement,
+            0,
+            vocab(&empty_lex(), &verbs(), &vacuities())
+        )
+        .is_empty());
+        let ac_supplement_on_str = doc(
+            "---\nid: StR-001\ntype: StR\n---\n## Notes\n\n### StR-001-AC-1\n\nStructural evaluation\n",
+        );
+        assert!(check(
+            "StR",
+            &ac_supplement_on_str,
             0,
             vocab(&empty_lex(), &verbs(), &vacuities())
         )

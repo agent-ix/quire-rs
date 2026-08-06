@@ -8,12 +8,15 @@
 //! vocabulary, or a `Configuration` table `Scope` cell outside
 //! `creation`/`runtime`/`session`).
 //!
-//! Two rule types ship: `table_column_values` — every data cell in a
+//! Three rule types ship: `table_column_values` — every data cell in a
 //! named column of the table under a named section must be one of an
 //! allowed set, optionally followed by an annotation matching a regex
-//! (e.g. `Test (TC-035)`) — and `section_body_pattern`, which warns when
+//! (e.g. `Test (TC-035)`); `section_body_pattern`, which warns when
 //! a named section's body does not match a regex (e.g. a requirement
-//! `Statement` lacking the `shall` keyword).
+//! `Statement` lacking the `shall` keyword); and `forbidden_section`
+//! (CR-020), which warns when a section the archetype never declared is
+//! present at all (e.g. `## Acceptance Criteria` on a US, whose criteria
+//! are non-binding by design).
 //!
 //! A rule may scope itself to specific archetypes via `archetypes:`;
 //! an empty/absent list applies the rule to every document linted
@@ -91,19 +94,46 @@ pub enum LintRule {
         #[serde(default)]
         severity: LintSeverity,
     },
+    /// The document must **not** carry a section headed `section`. The
+    /// inverse of the other two rules, which only ever check a section that
+    /// is present: this one fires precisely because it is there.
+    ///
+    /// Added for the case a `section_body_pattern` cannot express — a US
+    /// document carrying an `## Acceptance Criteria` heading its archetype
+    /// never declared. Structural *requirements* stay validation's job; a
+    /// heading that is merely not part of the contract is drift, which is
+    /// advisory (CR-020, spec-artifacts-iso#9).
+    ForbiddenSection {
+        /// Stable identifier reported with each finding.
+        id: String,
+        /// Archetype names this rule applies to (empty = all).
+        #[serde(default)]
+        archetypes: Vec<String>,
+        /// Heading that must be absent.
+        section: String,
+        /// Optional custom finding message (overrides the default). Use it to
+        /// point the author at the section they should have used instead.
+        #[serde(default)]
+        message: Option<String>,
+        #[serde(default)]
+        severity: LintSeverity,
+    },
 }
 
 impl LintRule {
     pub fn id(&self) -> &str {
         match self {
-            Self::TableColumnValues { id, .. } | Self::SectionBodyPattern { id, .. } => id,
+            Self::TableColumnValues { id, .. }
+            | Self::SectionBodyPattern { id, .. }
+            | Self::ForbiddenSection { id, .. } => id,
         }
     }
 
     pub fn severity(&self) -> LintSeverity {
         match self {
             Self::TableColumnValues { severity, .. }
-            | Self::SectionBodyPattern { severity, .. } => *severity,
+            | Self::SectionBodyPattern { severity, .. }
+            | Self::ForbiddenSection { severity, .. } => *severity,
         }
     }
 
@@ -113,7 +143,8 @@ impl LintRule {
     pub fn applies_to(&self, archetype: Option<&str>) -> bool {
         let filter = match self {
             Self::TableColumnValues { archetypes, .. }
-            | Self::SectionBodyPattern { archetypes, .. } => archetypes,
+            | Self::SectionBodyPattern { archetypes, .. }
+            | Self::ForbiddenSection { archetypes, .. } => archetypes,
         };
         if filter.is_empty() {
             return true;
@@ -181,9 +212,43 @@ pub fn lint_document(
                 *severity,
                 &mut findings,
             ),
+            LintRule::ForbiddenSection {
+                id,
+                section,
+                message,
+                severity,
+                ..
+            } => eval_forbidden_section(
+                doc,
+                id,
+                section,
+                message.as_deref(),
+                *severity,
+                &mut findings,
+            ),
         }
     }
     findings
+}
+
+fn eval_forbidden_section(
+    doc: &QuireDocument,
+    rule_id: &str,
+    section_heading: &str,
+    message: Option<&str>,
+    severity: LintSeverity,
+    findings: &mut Vec<LintFinding>,
+) {
+    if section(doc, section_heading).is_none() {
+        return;
+    }
+    findings.push(LintFinding {
+        rule: rule_id.to_string(),
+        severity,
+        message: message.map(str::to_string).unwrap_or_else(|| {
+            format!("section '{section_heading}' is not part of this archetype's contract")
+        }),
+    });
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -523,5 +588,58 @@ mod tests {
         // No SC id anywhere in the subtree → one finding.
         let doc2 = parse_document("## Test Procedure\nRun the steps.\n### Step 1\nDo a thing.\n");
         assert_eq!(lint_document(&[rule], Some("IT"), &doc2).len(), 1);
+    }
+
+    // TC-764 (FR-036-AC-7, CR-020): `forbidden_section` fires *because* a
+    // section is present — the inverse of the other two rule types, which only
+    // ever check a section that exists. The motivating case is a US document
+    // carrying an `## Acceptance Criteria` heading its archetype never declared
+    // (spec-artifacts-iso#9); `section_body_pattern` cannot express it, since a
+    // missing section is defined to produce no finding.
+    #[test]
+    fn tc764_forbidden_section() {
+        let yaml = r#"
+- type: forbidden_section
+  id: us-acceptance-criteria-drift
+  archetypes: [US]
+  section: Acceptance Criteria
+  message: "a US carries `## Acceptance Examples (Illustrative)`; nothing on a US is binding"
+  severity: warning
+"#;
+        let rules: Vec<LintRule> = serde_yaml::from_str(yaml).expect("parse");
+        assert_eq!(rules[0].id(), "us-acceptance-criteria-drift");
+        assert_eq!(rules[0].severity(), LintSeverity::Warning);
+
+        // Present → exactly one finding, carrying the custom message.
+        let drifted = parse_document(
+            "## Acceptance Examples (Illustrative)\nGiven X, when Y, then Z.\n\
+             ## Acceptance Criteria\n| ID | Criteria | Verification |\n",
+        );
+        let findings = lint_document(&rules, Some("US"), &drifted);
+        assert_eq!(findings.len(), 1);
+        assert!(findings[0].message.contains("Acceptance Examples"));
+
+        // Absent → no finding. This is the conformant US.
+        let clean =
+            parse_document("## Acceptance Examples (Illustrative)\nGiven X, when Y, then Z.\n");
+        assert!(lint_document(&rules, Some("US"), &clean).is_empty());
+
+        // `archetypes:` scoping applies as it does to the other rule types: the
+        // same heading on an FR is that archetype's contract, not drift.
+        assert!(lint_document(&rules, Some("FR"), &drifted).is_empty());
+        assert!(lint_document(&rules, None, &drifted).is_empty());
+
+        // Default message names the section when none is supplied.
+        let bare = LintRule::ForbiddenSection {
+            id: "x".to_string(),
+            archetypes: vec![],
+            section: "Acceptance Criteria".to_string(),
+            message: None,
+            severity: LintSeverity::Error,
+        };
+        let f = lint_document(&[bare], Some("US"), &drifted);
+        assert_eq!(f.len(), 1);
+        assert!(f[0].message.contains("Acceptance Criteria"));
+        assert_eq!(f[0].severity, LintSeverity::Error);
     }
 }
