@@ -25,6 +25,12 @@ use crate::loader::{
 #[derive(Clone)]
 pub struct Registry {
     inner: Arc<Inner>,
+    /// A surface-supplied `grammar_severity` map layered over the
+    /// module-declared one (FR-048-AC-5, `--severity`). Held beside `Arc<Inner>`
+    /// rather than inside it so a registry stays cheap to clone and `Inner`
+    /// stays non-`Clone` — the loaded module set is immutable, and this is the
+    /// one policy knob a caller may vary per invocation.
+    severity_override: Option<crate::grammar::GrammarSeverityMap>,
 }
 
 struct Inner {
@@ -239,6 +245,7 @@ impl Registry {
                 diagnostics,
                 path_diagnostics,
             }),
+            severity_override: None,
         }
     }
 
@@ -341,7 +348,25 @@ impl Registry {
     /// framework keys each emitted finding against this map; an absent key
     /// means `warning`, so an empty map is the all-default map.
     pub fn grammar_severity(&self) -> &crate::grammar::GrammarSeverityMap {
-        &self.inner.grammar_severity
+        self.severity_override
+            .as_ref()
+            .unwrap_or(&self.inner.grammar_severity)
+    }
+
+    /// Return a registry whose `grammar_severity()` is `severity`, sharing the
+    /// same loaded module set. This is how a surface layers its `--severity`
+    /// overrides over the module-declared map (FR-048-AC-5): merge with
+    /// [`crate::grammar::merge_severity_overrides`] first, then install the
+    /// result here.
+    ///
+    /// Cheap — the `Arc<Inner>` is shared, not copied. Called once per
+    /// invocation before any document is read, never on a hot path.
+    #[must_use]
+    pub fn with_grammar_severity(&self, severity: crate::grammar::GrammarSeverityMap) -> Self {
+        Self {
+            inner: Arc::clone(&self.inner),
+            severity_override: Some(severity),
+        }
     }
 
     /// Merged observable-result verb registry (FR-047), first-wins across
@@ -953,6 +978,41 @@ roles:
         )
         .unwrap();
         fs::write(root.join("schemas/fr.schema.json"), r#"{"type":"object"}"#).unwrap();
+    }
+
+    // TC-766 (FR-048-AC-5): a surface layers its `--severity` overrides over
+    // the module-declared map. The returned registry shares the same loaded
+    // module set — only the severity policy differs.
+    #[test]
+    fn tc766_with_grammar_severity_overrides_the_module_map() {
+        use crate::grammar::{GrammarSeverityLevel, GrammarSeverityMap};
+        let p = tmpdir("severity-766");
+        write_vocab_module(
+            &p.join("m"),
+            "m",
+            "grammar_severity:\n  \"ac:unclassifiable\": error\n",
+        );
+        let r = Registry::load_from(&[&p]).expect("tolerant ok");
+        assert_eq!(
+            r.grammar_severity().get("ac:unclassifiable"),
+            Some(&GrammarSeverityLevel::Error)
+        );
+
+        let mut over = GrammarSeverityMap::new();
+        over.insert("ac:unclassifiable".into(), GrammarSeverityLevel::Off);
+        let scoped = r.with_grammar_severity(over);
+        assert_eq!(
+            scoped.grammar_severity().get("ac:unclassifiable"),
+            Some(&GrammarSeverityLevel::Off),
+            "the override must win for its key"
+        );
+        // The module set is shared, not rebuilt...
+        assert_eq!(scoped.module_names().count(), r.module_names().count());
+        // ...and the original registry is untouched.
+        assert_eq!(
+            r.grammar_severity().get("ac:unclassifiable"),
+            Some(&GrammarSeverityLevel::Error)
+        );
     }
 
     // TC-716 (FR-048-AC-1): a manifest `grammar_severity` registry loads and

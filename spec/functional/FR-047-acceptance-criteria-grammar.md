@@ -149,14 +149,36 @@ violates a check:
 >
 > An **ecosystem-wide survey** (199 repos, 3,253 requirement documents, 11,919
 > acceptance criteria) confirms the choice is not a quire-rs idiosyncrasy:
-> `assertion` 66.6% (the dominant shape in 139 of 199 repos), `unstructured`
-> 29.2%, `obligation` 2.9%, `given-when-then` 1.3%. Non-canonical shapes are
-> therefore ~4.2% of the corpus (~506 cells, concentrated in 17 repos, four of
-> them authored wholly to the previous EARS canon). Note the quantifier split
-> differs sharply by repo: 24.9% of ecosystem ACs are property-shaped
-> (quantified or metamorphic) against 50.8% in quire-rs itself. The 29.2%
-> `unstructured` share is the reason FR-047-CON-1 keeps every check advisory
-> with user-gated promotion.
+> `assertion` is the dominant shape in 139 of 199 repos. Note the quantifier
+> split differs sharply by repo: 24.9% of ecosystem ACs are property-shaped
+> (quantified or metamorphic) against 50.8% in quire-rs itself.
+>
+> **Shape-share figures corrected (CR-022, 2026-08-06).** This note originally
+> recorded `assertion` 66.6% / `unstructured` 29.2% / `obligation` 2.9% /
+> `given-when-then` 1.3%, and concluded that non-canonical shapes were "~4.2% of
+> the corpus (~506 cells, concentrated in 17 repos)". Those figures never agreed
+> with the primary measurement: `non-canonical-shape` fires on exactly
+> `obligation | given-when-then`, and the fit report of the same date and corpus
+> records it at **2,047 findings = 17.2% of cells**. 2.9% + 1.3% cannot produce
+> 17.2%. The distribution table was the wrong record — a check's own finding
+> count is a direct census, not a sample. Re-measured on the current classifier
+> over a deduplicated 192-repo, 16,449-cell corpus
+> (`~/dev/reports/2026-08-06-ac-canonical-shape-sweep.md`):
+>
+> | Shape | Cells | Share |
+> |---|---|---|
+> | `assertion` | 12,909 | **78.5%** |
+> | `obligation` | 3,176 | 19.3% |
+> | `given-when-then` | 282 | 1.7% |
+> | `unstructured` | 82 | 0.5% |
+>
+> `given-when-then` was roughly right; **`obligation` is 19.3%, not 2.9%**, so
+> the conversion target is ~3,458 cells across 50 repos rather than ~506 across
+> 17 — about seven times the scope agent-ix/quire-rs#21 was written against.
+> Concentration is extreme: `ecaz` alone holds 2,413 of them and six repos hold
+> 80%. The `unstructured` share fell from 29.2% to 0.5% across CR-014 and CR-019
+> and is no longer the reason CON-1 keeps promotion gated; the 21.0%
+> non-canonical share is.
 
 > **CR-014 note:** An ecosystem fit check (report:
 > `~/dev/reports/2026-08-04-ac-grammar-fit.md`) ran this grammar through the

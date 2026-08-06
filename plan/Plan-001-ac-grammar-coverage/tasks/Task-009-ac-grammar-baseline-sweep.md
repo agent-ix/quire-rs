@@ -33,10 +33,27 @@ baseline (791 vague / 333 non-singular before enforcement).
   showed six of them were checker defects (a quoted keyword read as a use), so
   the fix landed in the checker as **CR-017** rather than in the prose. The one
   genuine wording change is FR-047-AC-1. See the CR-017 re-baseline below.
-- [ ] **Promotion proposal.** Present per-check promotion candidates
-  (`warning` → `error`, or `off` for high-noise checks) with counts. **STOP:
-  promotion is user-gated (FR-047-CON-1) — do not edit any
-  `grammar_severity` default without explicit sign-off.**
+- [~] **Promotion proposal.** **Written, awaiting sign-off** —
+  `~/dev/reports/2026-08-06-ac-canonical-shape-sweep.md` (CR-022,
+  agent-ix/quire-rs#21). Per-check candidates over a deduplicated 192-repo /
+  16,449-cell corpus, post-CR-019 and post-CR-020:
+
+  | Check | Findings | Rate | Proposal |
+  |---|---|---|---|
+  | `ac:vacuous-outcome` | 31 | 0.19% | → `error` — strongest candidate |
+  | `ac:non-singular` | 121 | 0.74% | → `error` — mechanical, meaning-preserving |
+  | `ac:unclassifiable` | 82 | 0.50% | stay `warning`, re-sample precision post-CR-019 first |
+  | `ac:vague-response` | 101 | 0.61% | stay `warning` — depends on glossary coverage |
+  | `ac:non-canonical-shape` | 3,458 | 21.0% | stay `warning` globally; promote per-repo as each is swept clean |
+
+  The box stays open until the proposal is **signed off**, not when it is
+  written. **STOP: promotion is user-gated (FR-047-CON-1) — no
+  `grammar_severity` default has been edited, and none may be without explicit
+  sign-off.**
+
+  The same report corrects the scope this task was written against: the sweep
+  target is ~3,458 cells across 50 repos, not the ~506 across 17 that FR-047's
+  CR-013 note recorded (corrected there as CR-022). `ecaz` alone holds 2,413.
 
 ## Deliverables
 - Baseline report (before/after counts) in this task file; corpus wording
