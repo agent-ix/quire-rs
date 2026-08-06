@@ -80,6 +80,54 @@ passive voice.
   *normative statements* — obligations — while `ac` grades acceptance criteria
   as verification statements, whose canonical shape is the assertion, not an
   EARS obligation (CR-013). A `US` story grammar remains future work.)
+- **`ears` does NOT adopt the CR-017 mention/use distinction.** The `ac` grammar
+  reads a masked copy of a statement, in which each closed inline code span's
+  contents are neutralized, when classifying shape and counting obligations, so
+  a *quoted* keyword is example data rather than a use. `ears` deliberately does
+  not, and this is a measured decision rather than an open question — see the
+  CR-021 note below.
+
+> **CR-021 note (2026-08-06):** Whether `ears` should adopt CR-017's mention/use
+> mask was left open by CR-017 and is now closed: **it does not, yet.** The mask
+> was implemented at the four `ears` sites that read keywords — pattern
+> classification, `shall` counting, subject detection and trigger detection —
+> and measured over the same corpus as CR-020 with
+> `scripts/ac_corpus_sweep.py` (36,584 cells, 197 repos).
+>
+> Applying it to those four sites alone moved `ears` findings by 4: `non-singular`
+> 1,562 → 1,560 and **`unclassifiable` 448 → 450**. The rise is the tell. When
+> classification is masked but *segmentation* is not, a sentence can be selected
+> as a normative statement because it contains a `shall`, then judged
+> unclassifiable because that `shall` was quoted and does not count. Masking half
+> the pipeline trades one false positive for a different one.
+>
+> Masking the segmentation gate too, and reusing `ac`'s code-span-aware
+> `split_sentences` — the pair CR-017 needed in `ac` — removes the regression
+> (`unclassifiable` back to 448) and leaves `non-singular` at 1,559, a net −3.
+> But reading those three shows **only one is a mention/use fix**:
+>
+> | Repo | Statement | Verdict |
+> |---|---|---|
+> | quire-rs | ``table cell bearing a modal verb (`shall`/`shall not`) — and SHALL skip text`` | correct fix — two of the three modals are quoted |
+> | ix-flow | ``The item SHALL carry a string `id` and SHALL be persisted under its …`` | **regression** — two genuine obligations, silenced |
+> | quoin | ``… `plugin install` SHALL record …, `plugin list` SHALL print …`` | **regression** — two genuine obligations, silenced |
+>
+> The cause is not the mask. It is that `ears` segmentation is **line-based**
+> (recorded above as a v1 limitation). When a code span wraps across source
+> lines, the following line *begins inside* an unterminated span; code-span-aware
+> splitting then treats the remainder of that line as quoted, and the mask
+> neutralizes real modals in it. `ac` does not hit this: its statements are table
+> cells and supplement bodies, not arbitrary wrapped prose lines.
+>
+> One true fix against two regressions is a net loss, so the mask is declined for
+> now. **This is not a decision that the distinction is wrong for `ears`** — it is
+> the same distinction, and the two grammars disagreeing is a real inconsistency
+> that will keep biting hardest in the repos that document grammars. It is a
+> decision that the mask cannot land safely on line-based segmentation. Adopting
+> it is therefore conditional on the paragraph-joining segmentation refinement
+> already recorded as planned: once a statement is a whole sentence rather than a
+> line fragment, re-run this measurement and expect the two regressions to
+> disappear. Until then the divergence is intentional and documented.
 
 ## Acceptance Criteria
 
