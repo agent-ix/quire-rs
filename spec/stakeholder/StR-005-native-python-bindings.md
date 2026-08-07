@@ -25,7 +25,13 @@ This need exists because `filament-parser-lib` (Python) owns the measured per-do
 
 ## Validation Criteria
 
-This need is considered satisfied when `quire-rs` builds a Python wheel (`pip install quire`) exposing at least `parse_document`, `extract`, `validate`, `render_block`, and a repository loader, with the underlying work executing in Rust (no Python re-implementation), and when building the crate *without* the `python` feature produces an artifact with no Python/CPython linkage. Satisfaction is further judged by a benchmark over a representative corpus (≥ 500 markdown documents) showing the binding path is at least 5× faster wall-clock than the pure-Python `filament_parser` path, by the binding returning structured objects without a JSON round-trip through a subprocess boundary (no `subprocess`/`Popen`/socket call on the data path), and by an abi3 wheel built once importing on at least two CPython 3.x minor versions without rebuild.
+| ID | Criteria | Validation |
+|----|----------|------------|
+| StR-005-VC-1 | `quire-rs` builds a Python wheel (`pip install quire`) exposing at least `parse_document`, `extract`, `validate`, `render_block`, and a repository loader, with the underlying work executing in Rust and no Python re-implementation. | Demonstration |
+| StR-005-VC-2 | Building the crate *without* the `python` feature produces an artifact with no Python/CPython linkage. | Inspection |
+| StR-005-VC-3 | A benchmark over a representative corpus (≥ 500 markdown documents) shows the binding path is at least 5× faster wall-clock than the pure-Python `filament_parser` path. | Analysis |
+| StR-005-VC-4 | The binding returns structured objects without a JSON round-trip through a subprocess boundary — no `subprocess`/`Popen`/socket call on the data path. | Inspection |
+| StR-005-VC-5 | An abi3 wheel built once imports on at least two CPython 3.x minor versions without rebuild. | Test |
 
 ### Boundary with [StR-001](./StR-001-single-rust-engine.md)
 

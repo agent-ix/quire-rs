@@ -38,10 +38,12 @@ Downstream consumers (Filament editor, CLI tools, future LLM adapters) need stab
 
 ## Acceptance Criteria
 
-- **NFR-010-AC-1**: `src/lib.rs` re-exports the documented public surface; `Cargo.toml` declares the crate version following the policy above.
-- **NFR-010-AC-2**: Public enums are marked `#[non_exhaustive]` (verified by a static check or a compile-fail test for an exhaustive match outside the crate).
-- **NFR-010-AC-3**: `CHANGELOG.md` exists; each release entry classifies changes as Added / Changed / Deprecated / Removed / Fixed / Security.
-- **NFR-010-AC-4**: A `cargo-semver-checks` invocation against the previous published version reports no unexpected breaks.
+| ID | Criteria | Verification |
+|----|----------|--------------|
+| NFR-010-AC-1 | `src/lib.rs` re-exports the documented public surface; `Cargo.toml` declares the crate version following the policy above. | Inspection |
+| NFR-010-AC-2 | Public enums are marked `#[non_exhaustive]` (verified by a static check or a compile-fail test for an exhaustive match outside the crate). | Test |
+| NFR-010-AC-3 | `CHANGELOG.md` exists; each release entry classifies changes as Added / Changed / Deprecated / Removed / Fixed / Security. | Inspection |
+| NFR-010-AC-4 | A `cargo-semver-checks` invocation against the previous published version reports no unexpected breaks. | Analysis |
 
 ## Measurement and Evaluation
 

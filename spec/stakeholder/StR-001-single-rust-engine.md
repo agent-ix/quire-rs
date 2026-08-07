@@ -28,7 +28,12 @@ This need exists because the ecosystem today fragments document-processing acros
 
 ## Validation Criteria
 
-This need is considered satisfied when a single `cargo add quire-rs` yields render, parse, and extract APIs with no call site shelling out to Python, Node, or any other interpreter, and a `Cargo.lock` audit confirms no HTTP/RPC client crates (the engine is filesystem-only). Satisfaction is further judged by adding a brand-new archetype kind (new JSON Schema + template) to an on-disk module and restarting the consumer being sufficient for `Registry::archetype("new-name")` to return `Some` with no source change, and by a regression suite running the engine against three different on-disk corpora (Filament-synced, hand-authored, test fixture) and confirming identical behavior across all three.
+| ID | Criteria | Validation |
+|----|----------|------------|
+| StR-001-VC-1 | A single `cargo add quire-rs` yields render, parse, and extract APIs with no call site shelling out to Python, Node, or any other interpreter. | Demonstration |
+| StR-001-VC-2 | A `Cargo.lock` audit finds no HTTP/RPC client crates — the engine is filesystem-only. | Inspection |
+| StR-001-VC-3 | Adding a brand-new archetype kind (new JSON Schema + template) to an on-disk module and restarting the consumer is sufficient for `Registry::archetype("new-name")` to return `Some` with no source change. | Demonstration |
+| StR-001-VC-4 | A regression suite runs the engine against three different on-disk corpora (Filament-synced, hand-authored, test fixture) and behavior is identical across all three. | Test |
 
 ## Priority
 

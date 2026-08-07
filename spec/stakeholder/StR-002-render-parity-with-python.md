@@ -25,7 +25,11 @@ This need exists because hundreds of existing spec artifacts across the org were
 
 ## Validation Criteria
 
-This need is considered satisfied when, for each of the 10 archetypes (8 ISO + 2 App), a parity test fixture runs the Python Jinja2 reference and the Rust MiniJinja renderer on identical typed input and asserts byte equality of the markdown output. Satisfaction is judged by every documented difference between the Python and Rust output being captured as a known limitation in `spec/assets/render-parity-notes.md` with rationale (never a silent divergence), and by CI running the parity test suite on every PR so regressions are caught before merge.
+| ID | Criteria | Validation |
+|----|----------|------------|
+| StR-002-VC-1 | For each of the 10 archetypes (8 ISO + 2 App), a parity test fixture runs the Python Jinja2 reference and the Rust MiniJinja renderer on identical typed input and asserts byte equality of the markdown output. | Test |
+| StR-002-VC-2 | Every documented difference between the Python and Rust output is captured as a known limitation in `spec/assets/render-parity-notes.md` with rationale — never a silent divergence. | Inspection |
+| StR-002-VC-3 | CI runs the parity test suite on every PR, so regressions are caught before merge. | Demonstration |
 
 ## Priority
 

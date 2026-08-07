@@ -39,14 +39,10 @@ degrade to typed errors, not crashes.
 
 ## Acceptance Criteria
 
-- **NFR-019-AC-1**: A `cargo-fuzz` target feeds arbitrary byte slices (as lossy
-  `&str`) into `parse_document`, `validate_document`, and `extract` and runs clean
-  (no panic / no UB) for the scheduled fuzz duration; any discovered crash is
-  committed as a regression reproducer (parity with [NFR-011-AC-4](./NFR-011-fuzz-testing.md)).
-- **NFR-019-AC-2**: A proptest generates random strings (including empty, fence-only,
-  frontmatter-only, and deeply nested heading inputs) and asserts `parse_document`,
-  `validate_document`, and `extract` each return a value or typed error without
-  panicking across all generated cases.
+| ID | Criteria | Verification |
+|----|----------|--------------|
+| NFR-019-AC-1 | A `cargo-fuzz` target feeds arbitrary byte slices (as lossy `&str`) into `parse_document`, `validate_document`, and `extract` and runs clean (no panic / no UB) for the scheduled fuzz duration; any discovered crash is committed as a regression reproducer (parity with [NFR-011-AC-4](./NFR-011-fuzz-testing.md)). | Test |
+| NFR-019-AC-2 | A proptest generates random strings (including empty, fence-only, frontmatter-only, and deeply nested heading inputs) and asserts `parse_document`, `validate_document`, and `extract` each return a value or typed error without panicking across all generated cases. | Test |
 
 ## Measurement and Evaluation
 

@@ -25,7 +25,11 @@ This need exists because `agent-ix/ecaz` invested heavily in Rust safety scaffol
 
 ## Validation Criteria
 
-This need is considered satisfied when `quire-rs/clippy.toml`, `deny.toml`, `rustfmt.toml`, `rust-toolchain.toml`, and `scripts/check_unsafe_comments.sh` match the `rust-lib-cookiecutter` baseline at scaffold time (modulo MSRV updates), and `make ci` enforces the full suite (fmt-check, clippy `-D warnings`, test, deny, audit-unsafe) — the same gates the cookiecutter ships. Satisfaction is further judged by every upstream safety-file update in `ecaz` or `rust-lib-cookiecutter` producing a backport issue against `quire-rs` that references the upstream commit.
+| ID | Criteria | Validation |
+|----|----------|------------|
+| StR-004-VC-1 | `quire-rs/clippy.toml`, `deny.toml`, `rustfmt.toml`, `rust-toolchain.toml`, and `scripts/check_unsafe_comments.sh` match the `rust-lib-cookiecutter` baseline at scaffold time, modulo MSRV updates. | Inspection |
+| StR-004-VC-2 | `make ci` enforces the full suite — fmt-check, clippy `-D warnings`, test, deny, audit-unsafe — the same gates the cookiecutter ships. | Demonstration |
+| StR-004-VC-3 | Every upstream safety-file update in `ecaz` or `rust-lib-cookiecutter` produces a backport issue against `quire-rs` that references the upstream commit. | Inspection |
 
 ## Priority
 

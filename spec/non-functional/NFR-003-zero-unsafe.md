@@ -39,11 +39,13 @@ The PyO3 binding ([FR-023](../functional/FR-023-python-binding-surface.md)) is f
 
 ## Acceptance Criteria
 
-- **NFR-003-AC-1**: `bash scripts/check_unsafe_comments.sh` runs in CI and exits 0.
-- **NFR-003-AC-2**: `scripts/unsafe_comment_baseline.txt` is empty (zero entries).
-- **NFR-003-AC-3**: A grep `rg 'unsafe\s*\{' src/` returns zero matches.
-- **NFR-003-AC-4**: `rg 'unsafe\s*\{' src/` returns zero matches **with the `python` feature enabled** (first-party binding source is unsafe-free; PyO3 macro-generated unsafe is upstream and not counted).
-- **NFR-003-AC-5**: The crate root declares `#![cfg_attr(not(feature = "python"), forbid(unsafe_code))]`; the **default** `cargo build` compiles (the compiler proves zero first-party `unsafe`), and introducing any first-party `unsafe` block/fn/`impl` makes the default build **fail to compile**. `cargo build --features python` compiles with the forbid scoped off.
+| ID | Criteria | Verification |
+|----|----------|--------------|
+| NFR-003-AC-1 | `bash scripts/check_unsafe_comments.sh` runs in CI and exits 0. | Demonstration |
+| NFR-003-AC-2 | `scripts/unsafe_comment_baseline.txt` is empty (zero entries). | Inspection |
+| NFR-003-AC-3 | A grep `rg 'unsafe\s*\{' src/` returns zero matches. | Inspection |
+| NFR-003-AC-4 | `rg 'unsafe\s*\{' src/` returns zero matches **with the `python` feature enabled** (first-party binding source is unsafe-free; PyO3 macro-generated unsafe is upstream and not counted). | Inspection |
+| NFR-003-AC-5 | The crate root declares `#![cfg_attr(not(feature = "python"), forbid(unsafe_code))]`; the **default** `cargo build` compiles (the compiler proves zero first-party `unsafe`), and introducing any first-party `unsafe` block/fn/`impl` makes the default build **fail to compile**. `cargo build --features python` compiles with the forbid scoped off. | Demonstration |
 
 ## Measurement and Evaluation
 

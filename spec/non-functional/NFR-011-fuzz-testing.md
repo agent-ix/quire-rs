@@ -43,10 +43,12 @@ Parser, schema loader, and DSL evaluator all consume input that may be hostile o
 
 ## Acceptance Criteria
 
-- **NFR-011-AC-1**: `fuzz/fuzz_targets/` contains the six targets listed above, each compiling against `cargo +nightly fuzz`.
-- **NFR-011-AC-2**: Each target runs cleanly for 60 seconds on the canonical baseline runner without producing a crash.
-- **NFR-011-AC-3**: `.github/workflows/fuzz.yml` runs all targets on a weekly schedule.
-- **NFR-011-AC-4**: A documented crash reproducer (when discovered) is committed under `fuzz/corpus/<target>/` with a regression test under `tests/regression/`.
+| ID | Criteria | Verification |
+|----|----------|--------------|
+| NFR-011-AC-1 | `fuzz/fuzz_targets/` contains the six targets listed above, each compiling against `cargo +nightly fuzz`. | Inspection |
+| NFR-011-AC-2 | Each target runs cleanly for 60 seconds on the canonical baseline runner without producing a crash. | Test |
+| NFR-011-AC-3 | `.github/workflows/fuzz.yml` runs all targets on a weekly schedule. | Inspection |
+| NFR-011-AC-4 | A documented crash reproducer (when discovered) is committed under `fuzz/corpus/<target>/` with a regression test under `tests/regression/`. | Demonstration |
 
 ## Measurement and Evaluation
 

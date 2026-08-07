@@ -49,10 +49,12 @@ Dependency bumps within the pinned range are allowed without a CR. Bumps that cr
 
 ## Acceptance Criteria
 
-- **NFR-009-AC-1**: `Cargo.toml` uses tilde or equals pins for `minijinja`, the chosen JSON Schema validator, and `serde_yaml`/`serde_yml`. Other deps may use caret.
-- **NFR-009-AC-2**: `spec/assets/adr/0001-validator-crate.md` exists and records the choice + bench numbers.
-- **NFR-009-AC-3**: A static check confirms no load-bearing dep uses an unbounded version (e.g. `*` or `>=` without upper bound).
-- **NFR-009-AC-4**: When a load-bearing dep is bumped across its pin, the render-parity suite is re-run and the result documented in the bump PR.
+| ID | Criteria | Verification |
+|----|----------|--------------|
+| NFR-009-AC-1 | `Cargo.toml` uses tilde or equals pins for `minijinja`, the chosen JSON Schema validator, and `serde_yaml`/`serde_yml`. Other deps may use caret. | Inspection |
+| NFR-009-AC-2 | `spec/assets/adr/0001-validator-crate.md` exists and records the choice + bench numbers. | Inspection |
+| NFR-009-AC-3 | A static check confirms no load-bearing dep uses an unbounded version (e.g. `*` or `>=` without upper bound). | Inspection |
+| NFR-009-AC-4 | When a load-bearing dep is bumped across its pin, the render-parity suite is re-run and the result documented in the bump PR. | Demonstration |
 
 ## Measurement and Evaluation
 

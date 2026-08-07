@@ -29,9 +29,11 @@ This NFR exists because §19 (Hardening Posture) originally skipped loom/shuttle
 
 ## Acceptance Criteria
 
-- **NFR-017-AC-1**: A `#[cfg(loom)]` test models the parallel parse collection and passes under loom's exhaustive interleaving (no race; identical, path-sorted output across all schedules).
-- **NFR-017-AC-2**: The loom test scope (file/thread count) is bounded so the lane completes within the CI timeout (≤ 30 min, parity with [NFR-012](./NFR-012-miri-ub-check.md)).
-- **NFR-017-AC-3**: `.github/workflows/ci.yml` runs the loom lane on weekly schedule + workflow_dispatch + tag push; a `make loom` target reproduces it locally.
+| ID | Criteria | Verification |
+|----|----------|--------------|
+| NFR-017-AC-1 | A `#[cfg(loom)]` test models the parallel parse collection and passes under loom's exhaustive interleaving (no race; identical, path-sorted output across all schedules). | Test |
+| NFR-017-AC-2 | The loom test scope (file/thread count) is bounded so the lane completes within the CI timeout (≤ 30 min, parity with [NFR-012](./NFR-012-miri-ub-check.md)). | Analysis |
+| NFR-017-AC-3 | `.github/workflows/ci.yml` runs the loom lane on weekly schedule + workflow_dispatch + tag push; a `make loom` target reproduces it locally. | Inspection |
 
 ## Measurement and Evaluation
 

@@ -27,9 +27,11 @@ Org-wide license policy prevents copyleft surprises in a redistributable crate. 
 
 ## Acceptance Criteria
 
-- **NFR-004-AC-1**: `make deny` (alias for `cargo deny check licenses`) exits 0.
-- **NFR-004-AC-2**: A test PR adding a GPL-licensed dependency fails the `licenses` job in CI.
-- **NFR-004-AC-3**: `deny.toml` source bans (`unknown-registry = "deny"`, `unknown-git = "deny"`) are preserved.
+| ID | Criteria | Verification |
+|----|----------|--------------|
+| NFR-004-AC-1 | `make deny` (alias for `cargo deny check licenses`) exits 0. | Demonstration |
+| NFR-004-AC-2 | A test PR adding a GPL-licensed dependency fails the `licenses` job in CI. | Demonstration |
+| NFR-004-AC-3 | `deny.toml` source bans (`unknown-registry = "deny"`, `unknown-git = "deny"`) are preserved. | Inspection |
 
 ## Measurement and Evaluation
 

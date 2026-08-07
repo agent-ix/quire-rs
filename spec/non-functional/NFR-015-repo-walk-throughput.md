@@ -32,10 +32,12 @@ Per-runner baselines stored separately (Apple Silicon M2 Pro canonical; Ubuntu x
 
 ## Acceptance Criteria
 
-- **NFR-015-AC-1**: A criterion bench `bench_load_repo_1k` loads a synthetic 1,000-document corpus and measures `load_repo` at 1 and 8 threads; medians below 600 ms and 200 ms respectively.
-- **NFR-015-AC-2**: The bench computes parallel efficiency `T1 / (8 × T8)` and asserts ≥ 0.6.
-- **NFR-015-AC-3**: A regression test compares against a stored baseline; >10% slowdown on either thread count fails CI.
-- **NFR-015-AC-4**: A correctness assertion on the same corpus confirms `documents.len() == 1000` and the output ordering is path-sorted and identical across both thread counts (ties [FR-024-AC-4](../functional/FR-024-parallel-repo-walk.md) / [NFR-006](./NFR-006-determinism.md) to the throughput bench).
+| ID | Criteria | Verification |
+|----|----------|--------------|
+| NFR-015-AC-1 | A criterion bench `bench_load_repo_1k` loads a synthetic 1,000-document corpus and measures `load_repo` at 1 and 8 threads; medians below 600 ms and 200 ms respectively. | Analysis |
+| NFR-015-AC-2 | The bench computes parallel efficiency `T1 / (8 × T8)` and asserts ≥ 0.6. | Analysis |
+| NFR-015-AC-3 | A regression test compares against a stored baseline; >10% slowdown on either thread count fails CI. | Test |
+| NFR-015-AC-4 | A correctness assertion on the same corpus confirms `documents.len() == 1000` and the output ordering is path-sorted and identical across both thread counts (ties [FR-024-AC-4](../functional/FR-024-parallel-repo-walk.md) / [NFR-006](./NFR-006-determinism.md) to the throughput bench). | Test |
 
 ## Measurement and Evaluation
 
