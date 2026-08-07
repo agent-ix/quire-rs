@@ -306,10 +306,24 @@ fn check_table(
         }
     }
 
+    // A column declared optional (CR-023) and genuinely absent is not a
+    // per-value failure: `column_choices`/`column_patterns` describe what the
+    // cells must look like *if authored*, and reporting "column not found" for
+    // one the contract just said may be omitted would make `optional_columns`
+    // useless on exactly the contracts that need it. An optional column that
+    // IS present is checked like any other.
+    let declared_optional = assert.optional_columns.as_deref().unwrap_or(&[]);
+    let omitted_optional = |col: &str| {
+        declared_optional.iter().any(|o| o == col) && !table.headers.iter().any(|h| h == col)
+    };
+
     // Per-column enum constraints (CR-010): every data cell in the named
     // column must be one of the listed values (trimmed, exact match).
     if let Some(col_choices) = &assert.column_choices {
         for (col, allowed) in col_choices {
+            if omitted_optional(col) {
+                continue;
+            }
             check_table_column_choices(&table, col, allowed, line, failures);
         }
     }
@@ -318,6 +332,9 @@ fn check_table(
     // column must match the (interpolated) pattern.
     if let Some(col_patterns) = &assert.column_patterns {
         for (col, pattern) in col_patterns {
+            if omitted_optional(col) {
+                continue;
+            }
             let re = match resolve_regex(pattern, frontmatter) {
                 Ok(re) => re,
                 Err(failure) => {

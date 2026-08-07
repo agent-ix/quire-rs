@@ -79,6 +79,7 @@ validate time.
 | FR-033-AC-12 | A `table_row` locator with `assert: {column_choices: {Severity: [low, medium, high]}}` fails with reason `assert` when any data cell in the `Severity` column is not one of the listed values, and passes when every cell is. A column header named in `column_choices` that is absent from the table fails with an explicit "column not found" reason. `column_choices` is illegal on every non-`table_row` locator at load time. | Test |
 | FR-033-AC-13 | A `table_row` locator with `assert: {column_patterns: {ID: '^FND-\d+$'}}` fails with reason `assert` when any data cell in the `ID` column does not match the regex, and passes when every cell matches; the regex supports `{field}` interpolation ([FR-034](./FR-034-assert-field-interpolation.md)). A named column absent from the table fails with an explicit "column not found" reason. `column_patterns` is illegal on every non-`table_row` locator at load time. | Test |
 | FR-033-AC-14 | A `table_row` locator with `assert: {columns: [ID, Criteria, Priority, Verification], optional_columns: [Priority]}` passes whether or not the table carries the `Priority` column, and still fails when a *non*-optional column is absent or the header order differs. `optional_columns` is illegal on every non-`table_row` locator, and illegal when it names a column absent from `columns`, at load time. | Test |
+| FR-033-AC-15 | A `column_choices` or `column_patterns` entry naming a column declared in `optional_columns` does NOT fire when that column is absent from the table (no "column not found" failure); when the column IS present it is checked exactly as any other column, so a disallowed value still fails with reason `assert`. | Test |
 
 <a id="cr-023-note"></a>
 > **CR-023 note:** `optional_columns` (FR-033-AC-14) was added because `columns`
@@ -92,6 +93,13 @@ validate time.
 > the contract instead of the corpus. Order is still enforced and only the
 > *declared* column is forgiving, so this does not weaken `columns` into "any
 > subset will do".
+>
+> FR-033-AC-15 completes the key: the motivating contract declares `Priority`
+> optional **and** constrains its values with `column_choices: [P0..P4]`. Left
+> alone, the per-value check would report "column not found" (FR-033-AC-12) on
+> precisely the documents `optional_columns` exists to admit, so a per-value
+> constraint on a declared-optional column is skipped while that column is
+> absent and enforced normally once it is authored.
 
 ## Dependencies
 
