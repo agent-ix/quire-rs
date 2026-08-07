@@ -25,10 +25,12 @@ The "optimal speed" mandate ([StR-005](../stakeholder/StR-005-native-python-bind
 
 ## Acceptance Criteria
 
-- **NFR-016-AC-1**: A bench compares `quire.parse_document(small_doc)` (Python, warm) against `quire_rs::parse_document(small_doc)` (Rust) and asserts the per-call delta is < 50 µs median.
-- **NFR-016-AC-2**: A test spawns two Python threads each calling `quire.load_repo` on the same corpus and asserts combined wall-clock < 2× a single call (GIL released, [FR-023-AC-5](../functional/FR-023-python-binding-surface.md)).
-- **NFR-016-AC-3**: CI builds one abi3 wheel and imports + smoke-tests it under two CPython 3.x minor versions; both succeed ([FR-023-AC-6](../functional/FR-023-python-binding-surface.md)).
-- **NFR-016-AC-4**: A test confirms returned objects carry no reference forcing a re-parse on the Python side (the data is materialized in Rust and handed over once) — paired with [FR-023-AC-7](../functional/FR-023-python-binding-surface.md) (no subprocess/socket on the data path).
+| ID | Criteria | Verification |
+|----|----------|--------------|
+| NFR-016-AC-1 | A bench compares `quire.parse_document(small_doc)` (Python, warm) against `quire_rs::parse_document(small_doc)` (Rust) and asserts the per-call delta is < 50 µs median. | Analysis |
+| NFR-016-AC-2 | A test spawns two Python threads each calling `quire.load_repo` on the same corpus and asserts combined wall-clock < 2× a single call (GIL released, [FR-023-AC-5](../functional/FR-023-python-binding-surface.md)). | Test |
+| NFR-016-AC-3 | CI builds one abi3 wheel and imports + smoke-tests it under two CPython 3.x minor versions; both succeed ([FR-023-AC-6](../functional/FR-023-python-binding-surface.md)). | Test |
+| NFR-016-AC-4 | A test confirms returned objects carry no reference forcing a re-parse on the Python side (the data is materialized in Rust and handed over once) — paired with [FR-023-AC-7](../functional/FR-023-python-binding-surface.md) (no subprocess/socket on the data path). | Test |
 
 ## Measurement and Evaluation
 

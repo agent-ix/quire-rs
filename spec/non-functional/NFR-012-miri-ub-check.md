@@ -51,11 +51,13 @@ Even safe Rust can encounter UB through unsound dep crates. miri's runtime check
 
 ## Acceptance Criteria
 
-- NFR-012-AC-1 (RETIRED): `.github/workflows/ci.yml` contains a `miri:` job that runs `cargo +nightly miri test --lib` on weekly schedule + workflow_dispatch + tag push.
-- NFR-012-AC-2 (RETIRED): The job uses caching (`Swatinem/rust-cache@v2`) to amortize the nightly toolchain install.
-- NFR-012-AC-3 (RETIRED): Test suite under `cargo miri test --lib` completes in under 30 minutes on the GitHub-hosted Ubuntu runner.
-- NFR-012-AC-4 (RETIRED): A miri-flagged UB violation is recorded as a P0 issue with the offending stack trace.
-- NFR-012-AC-5 (RETIRED): The `miri` job runs without the `python` feature; a doc note records that the FFI layer is out of miri's scope and is covered by [NFR-018](./NFR-018-ffi-sanitizer-lanes.md) sanitizer lanes + the [FR-023](../functional/FR-023-python-binding-surface.md) pytest harness.
+| ID | Criteria | Verification |
+|----|----------|--------------|
+| NFR-012-AC-1 | (RETIRED) `.github/workflows/ci.yml` contains a `miri:` job that runs `cargo +nightly miri test --lib` on weekly schedule + workflow_dispatch + tag push. | Inspection |
+| NFR-012-AC-2 | (RETIRED) The job uses caching (`Swatinem/rust-cache@v2`) to amortize the nightly toolchain install. | Inspection |
+| NFR-012-AC-3 | (RETIRED) Test suite under `cargo miri test --lib` completes in under 30 minutes on the GitHub-hosted Ubuntu runner. | Analysis |
+| NFR-012-AC-4 | (RETIRED) A miri-flagged UB violation is recorded as a P0 issue with the offending stack trace. | Demonstration |
+| NFR-012-AC-5 | (RETIRED) The `miri` job runs without the `python` feature; a doc note records that the FFI layer is out of miri's scope and is covered by [NFR-018](./NFR-018-ffi-sanitizer-lanes.md) sanitizer lanes + the [FR-023](../functional/FR-023-python-binding-surface.md) pytest harness. | Inspection |
 
 ## Measurement and Evaluation
 

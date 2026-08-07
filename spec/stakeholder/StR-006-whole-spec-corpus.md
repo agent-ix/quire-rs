@@ -25,7 +25,12 @@ This need exists because a spec is not a single document but a bounded set of re
 
 ## Validation Criteria
 
-This need is considered satisfied when a consumer can load a `spec/` directory into a single `Spec`/corpus value with one call and query it (by-type, referencing/reverse-edge, orphans) entirely from the in-memory structure without re-reading the filesystem, and when a reference whose target id is not present in the loaded set is reported as a queryable *dangling* diagnostic rather than an error. Satisfaction is further judged by the corpus performing no persistence, no background reload, and no resolution of references targeting a spec outside the loaded set, and by the corpus value being `Send + Sync` and immutable after construction (mirroring the `Registry` lifecycle) so it can be shared across threads for read-only analysis.
+| ID | Criteria | Validation |
+|----|----------|------------|
+| StR-006-VC-1 | A consumer loads a `spec/` directory into a single `Spec`/corpus value with one call and queries it (by-type, referencing/reverse-edge, orphans) entirely from the in-memory structure, without re-reading the filesystem. | Demonstration |
+| StR-006-VC-2 | A reference whose target id is not present in the loaded set is reported as a queryable *dangling* diagnostic rather than an error. | Test |
+| StR-006-VC-3 | The corpus performs no persistence, no background reload, and no resolution of references targeting a spec outside the loaded set. | Inspection |
+| StR-006-VC-4 | The corpus value is `Send + Sync` and immutable after construction, mirroring the `Registry` lifecycle, so it can be shared across threads for read-only analysis. | Test |
 
 ### Why this fits quire-rs (and why the old graph engine did not)
 

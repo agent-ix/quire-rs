@@ -37,10 +37,12 @@ This NFR supersedes the v1 §19 decision to skip `-Z sanitizer=address|thread` (
 
 ## Acceptance Criteria
 
-- **NFR-018-AC-1**: A scheduled CI lane builds the `python`-feature extension with `-Z sanitizer=thread` and runs the two-thread `load_repo` harness; zero races reported.
-- **NFR-018-AC-2**: A scheduled CI lane builds with `-Z sanitizer=address` and runs the object-handoff test set; zero leaks / use-after-free in first-party handoff code (interpreter-internal noise suppressed via `asan.supp` with rationale).
-- **NFR-018-AC-3**: Both lanes run on weekly schedule + workflow_dispatch + tag push (not per-PR); `make sanitize` reproduces them locally.
-- **NFR-018-AC-4**: A sanitizer-detected race/leak/UAF is recorded as a P0 issue with a committed reproducer.
+| ID | Criteria | Verification |
+|----|----------|--------------|
+| NFR-018-AC-1 | A scheduled CI lane builds the `python`-feature extension with `-Z sanitizer=thread` and runs the two-thread `load_repo` harness; zero races reported. | Test |
+| NFR-018-AC-2 | A scheduled CI lane builds with `-Z sanitizer=address` and runs the object-handoff test set; zero leaks / use-after-free in first-party handoff code (interpreter-internal noise suppressed via `asan.supp` with rationale). | Test |
+| NFR-018-AC-3 | Both lanes run on weekly schedule + workflow_dispatch + tag push (not per-PR); `make sanitize` reproduces them locally. | Inspection |
+| NFR-018-AC-4 | A sanitizer-detected race/leak/UAF is recorded as a P0 issue with a committed reproducer. | Demonstration |
 
 ## Measurement and Evaluation
 

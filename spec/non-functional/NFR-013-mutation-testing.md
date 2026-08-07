@@ -41,10 +41,12 @@ Coverage metrics measure code exercised; mutation testing measures behavior veri
 
 ## Acceptance Criteria
 
-- **NFR-013-AC-1**: `Cargo.toml` has a `[package.metadata.mutants]` config (or `.cargo/mutants.toml`) declaring the three target paths.
-- **NFR-013-AC-2**: A CI workflow runs `cargo mutants -p quire-rs --in-place --check` on weekly schedule + workflow_dispatch.
-- **NFR-013-AC-3**: The report is uploaded as a CI artifact (`mutants.json` or similar).
-- **NFR-013-AC-4**: `mutants_baseline.txt` tracks accepted survivors with one-line rationale per entry.
+| ID | Criteria | Verification |
+|----|----------|--------------|
+| NFR-013-AC-1 | `Cargo.toml` has a `[package.metadata.mutants]` config (or `.cargo/mutants.toml`) declaring the three target paths. | Inspection |
+| NFR-013-AC-2 | A CI workflow runs `cargo mutants -p quire-rs --in-place --check` on weekly schedule + workflow_dispatch. | Inspection |
+| NFR-013-AC-3 | The report is uploaded as a CI artifact (`mutants.json` or similar). | Demonstration |
+| NFR-013-AC-4 | `mutants_baseline.txt` tracks accepted survivors with one-line rationale per entry. | Inspection |
 
 ## Measurement and Evaluation
 

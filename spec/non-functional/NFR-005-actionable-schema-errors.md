@@ -31,9 +31,11 @@ LLM-driven editors ([US-001](../usecase/US-001-llm-emits-validated-patch.md)) re
 
 ## Acceptance Criteria
 
-- **NFR-005-AC-1**: Triggering each kind of violation (missing required, wrong type, pattern mismatch, length, enum) produces an error whose `Display` form contains all four elements.
-- **NFR-005-AC-2**: A static check confirms `QuireError::Display` does not contain literal substrings from `serde_json::Error` or the validator crate's native debug forms.
-- **NFR-005-AC-3**: A snapshot test pins one canonical error per archetype for stability.
+| ID | Criteria | Verification |
+|----|----------|--------------|
+| NFR-005-AC-1 | Triggering each kind of violation (missing required, wrong type, pattern mismatch, length, enum) produces an error whose `Display` form contains all four elements. | Test |
+| NFR-005-AC-2 | A static check confirms `QuireError::Display` does not contain literal substrings from `serde_json::Error` or the validator crate's native debug forms. | Inspection |
+| NFR-005-AC-3 | A snapshot test pins one canonical error per archetype for stability. | Test |
 
 ## Measurement and Evaluation
 

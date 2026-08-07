@@ -27,7 +27,11 @@ This need exists because `agent-ix/quire` (TypeScript) is the reference markdown
 
 ## Validation Criteria
 
-This need is considered satisfied when the TS reference test suite in `~/dev/quire/tests/` is transliterated to Rust under `~/dev/quire-rs/tests/parser_parity/` so every TS test has a Rust counterpart, and all transliterated tests pass. Satisfaction is further judged by a property test that takes a corpus of real markdown documents (sampled from `spec-artifacts-*` and `spec-objects-business`) and asserts the `quire-rs` parse output is deterministic and structurally equivalent to the TypeScript fixture contract.
+| ID | Criteria | Validation |
+|----|----------|------------|
+| StR-003-VC-1 | The TS reference test suite in `~/dev/quire/tests/` is transliterated to Rust under `~/dev/quire-rs/tests/parser_parity/`, so every TS test has a Rust counterpart. | Inspection |
+| StR-003-VC-2 | All transliterated parity tests pass. | Test |
+| StR-003-VC-3 | A property test over a corpus of real markdown documents (sampled from `spec-artifacts-*` and `spec-objects-business`) finds the `quire-rs` parse output deterministic and structurally equivalent to the TypeScript fixture contract. | Test |
 
 ## Priority
 

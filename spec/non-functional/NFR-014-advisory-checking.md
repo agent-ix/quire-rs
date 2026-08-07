@@ -28,9 +28,11 @@ Supply-chain attacks on Rust crates have happened (e.g. `bincode` advisories, `s
 
 ## Acceptance Criteria
 
-- **NFR-014-AC-1**: `.github/workflows/ci.yml` contains an `audit:` job running cargo-audit on PR + push + daily.
-- **NFR-014-AC-2**: An advisory ignored via `deny.toml` has a one-line rationale comment.
-- **NFR-014-AC-3**: A test PR adding a crate with a known historical advisory (e.g. an old `chrono` version with the RUSTSEC-2020-0071 fix needed) fails the `audit:` job.
+| ID | Criteria | Verification |
+|----|----------|--------------|
+| NFR-014-AC-1 | `.github/workflows/ci.yml` contains an `audit:` job running cargo-audit on PR + push + daily. | Inspection |
+| NFR-014-AC-2 | An advisory ignored via `deny.toml` has a one-line rationale comment. | Inspection |
+| NFR-014-AC-3 | A test PR adding a crate with a known historical advisory (e.g. an old `chrono` version with the RUSTSEC-2020-0071 fix needed) fails the `audit:` job. | Demonstration |
 
 ## Measurement and Evaluation
 
