@@ -57,7 +57,19 @@ NEXT_H2 = re.compile(r"^##\s+", re.MULTILINE)
 SKIP_DIRS = {
     ".git", "node_modules", "target", "dist", "build", ".venv", "venv",
     "__pycache__", ".mypy_cache", ".pytest_cache", ".next", "vendor",
+    # Worktree checkouts are byte-copies of a repo already counted. Nested ones
+    # matter most: `ecaz` alone carries 20 of them under `.worktrees/` and
+    # `.claude/worktrees/`, so leaving them in multiplies that repo's every
+    # diagnostic by ~20 and makes one repo look like a corpus-wide trend. This
+    # mirrors `spec-artifacts-process/scripts/testmatrix_sweep.py`, which has
+    # always deduped; this harness did not, and the gap inflated the CR-013
+    # ecaz scope by 19x (1,524 findings walked vs 127 in the real `spec/`).
+    "worktrees", ".worktrees",
 }
+
+# Sibling checkouts (`<repo>-task<N>`) are the third worktree shape; they are
+# top-level directories, so a dirname skip cannot catch them.
+WORKTREE_SIBLING = re.compile(r"^.+-task\d+$")
 
 
 def frontmatter_type(text: str) -> str | None:
@@ -124,6 +136,8 @@ def iter_docs(root: Path):
             if arch not in AC_ARCHETYPES:
                 continue
             rel = path.relative_to(root)
+            if WORKTREE_SIBLING.match(rel.parts[0]):
+                continue
             yield rel.parts[0], str(rel), arch, text
 
 
