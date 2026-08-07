@@ -172,6 +172,19 @@ pub fn validate_assert_for_kind(
     }
     // Table-only keys.
     let table_only = matches!(kind, LocatorKind::TableRow);
+    // CR-023: checked before `columns` so a doubly-illegal assert names the
+    // more specific key. `optional_columns` is table-only, and every name it
+    // lists MUST appear in `columns` — an optional column that is not a
+    // declared column would silently do nothing, which is worse than a reject.
+    if let Some(opt) = &assert.optional_columns {
+        if !table_only {
+            return reject("optional_columns");
+        }
+        let declared = assert.columns.as_deref().unwrap_or(&[]);
+        if opt.iter().any(|o| !declared.iter().any(|c| c == o)) {
+            return reject("optional_columns");
+        }
+    }
     if assert.columns.is_some() && !table_only {
         return reject("columns");
     }
@@ -421,6 +434,13 @@ yield_pattern:
                             .collect(),
                     )
                 }
+                // CR-023: `optional_columns` only means anything alongside
+                // `columns`, and load-time validation rejects it otherwise, so
+                // the matrix case carries both.
+                "optional_columns" => {
+                    a.columns = Some(vec!["ID".to_string(), "Priority".to_string()]);
+                    a.optional_columns = Some(vec!["Priority".to_string()]);
+                }
                 other => panic!("unknown key {other}"),
             }
             a
@@ -445,6 +465,7 @@ yield_pattern:
             "choices",
             "column_choices",
             "column_patterns",
+            "optional_columns",
         ];
 
         // Legality per FR-033-AC-7.
@@ -464,6 +485,8 @@ yield_pattern:
                     matches!(kind, Heading | SectionBody | ListItem | FrontmatterField)
                 }
                 "column_choices" | "column_patterns" => matches!(kind, TableRow),
+                // CR-023: declarable-optional columns are table-only.
+                "optional_columns" => matches!(kind, TableRow),
                 _ => unreachable!(),
             }
         }
