@@ -572,6 +572,9 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-635 | `column_patterns` per-column table regex: `assert: {column_patterns: {ID: '^FND-\d+$'}}` passes when every `ID` cell matches, fails reason `assert` on a non-match, supports `{field}` interpolation, and fails "column not found" when absent; rejected on non-`table_row` at load time | Unit | P0 | FR-033-AC-13 | 🚧 |
 | TC-609 | `section_body_pattern` lint rule: body matching `pattern` → no finding; body present but not matching → exactly one finding (default or custom `message`, severity mirrors rule); `archetypes:` scoping skips non-matching/unresolvable archetypes; missing section → no finding; `type: section_body_pattern` YAML round-trips | Unit | P0 | FR-036-AC-6 | ✅ |
 | TC-764 | `forbidden_section` lint rule: section present → exactly one finding (default or custom `message`, severity mirrors rule); section absent → none; `archetypes:` scoping skips non-matching/unresolvable archetypes; `type: forbidden_section` YAML round-trips | Unit | P1 | FR-036-AC-7 | ✅ |
+| TC-770 | `optional_columns: [Priority]` — a table omitting the declared-optional column validates | Unit | P0 | FR-033-AC-14 | ✅ |
+| TC-771 | The same contract still accepts a table that does carry the optional column | Unit | P0 | FR-033-AC-14 | ✅ |
+| TC-772 | Omitting a non-optional column still fails, so `optional_columns` does not degrade into "any subset will do" | Unit | P0 | FR-033-AC-14 | ✅ |
 | TC-610 | Composed type+object validation: `type: FR` + `object: process` with the FR core present but **no** `## Workflow` mermaid block → an object **error** (process required `diagram` missing) merged into `errors`, while the FR (`type`) portion passes independently; `is_valid==false` | Unit | P0 | FR-032-AC-11, FR-032-AC-13 | ✅ |
 | TC-611 | Unknown object type: `type: FR` (conformant) + `object: totally-unknown` → exactly one **warning** (reason `unknown-object-type`, message names `totally-unknown`), zero errors, `is_valid==true` | Unit | P0 | FR-032-AC-12 | ✅ |
 | TC-612 | No `object:` key (registry-aware entry point): `type: FR` conformant doc → no object-layer diagnostics at all (errors + warnings unchanged from the type-only path) | Unit | P0 | FR-032-AC-11 | ✅ |
@@ -927,6 +930,7 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-033-AC-11 | TC-633 |
 | FR-033-AC-12 | TC-634 |
 | FR-033-AC-13 | TC-635 |
+| FR-033-AC-14 | TC-770, TC-771, TC-772 |
 | FR-034-AC-1 | TC-540 |
 | FR-034-AC-2 | TC-541 |
 | FR-034-AC-3 | TC-542 |

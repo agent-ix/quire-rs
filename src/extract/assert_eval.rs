@@ -197,15 +197,51 @@ fn check_table(
     };
 
     if let Some(columns) = &assert.columns {
-        if &table.headers != columns {
-            failures.push(AssertFailure {
-                reason: AssertReason::Assert,
-                message: format!(
-                    "table columns {:?} do not match asserted columns {:?}",
-                    table.headers, columns
-                ),
-                line,
-            });
+        let optional = assert.optional_columns.as_deref().unwrap_or(&[]);
+        if optional.is_empty() {
+            if &table.headers != columns {
+                failures.push(AssertFailure {
+                    reason: AssertReason::Assert,
+                    message: format!(
+                        "table columns {:?} do not match asserted columns {:?}",
+                        table.headers, columns
+                    ),
+                    line,
+                });
+            }
+        } else {
+            // CR-023: headers must be an ordered subsequence of `columns` that
+            // still contains every non-optional column. Order is preserved, so
+            // a reordered or unknown header fails exactly as before; only a
+            // declared-optional column may be absent.
+            let mut it = table.headers.iter();
+            let mut missing: Vec<&String> = Vec::new();
+            let mut consumed = 0usize;
+            for want in columns {
+                match it.clone().next() {
+                    Some(h) if h == want => {
+                        it.next();
+                        consumed += 1;
+                    }
+                    _ if optional.iter().any(|o| o == want) => missing.push(want),
+                    _ => missing.push(want),
+                }
+            }
+            let unknown = consumed != table.headers.len();
+            let required_missing: Vec<&&String> = missing
+                .iter()
+                .filter(|m| !optional.iter().any(|o| o == **m))
+                .collect();
+            if unknown || !required_missing.is_empty() {
+                failures.push(AssertFailure {
+                    reason: AssertReason::Assert,
+                    message: format!(
+                        "table columns {:?} do not match asserted columns {:?} (optional: {:?})",
+                        table.headers, columns, optional
+                    ),
+                    line,
+                });
+            }
         }
     }
 

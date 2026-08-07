@@ -220,6 +220,15 @@ pub struct LocatorAssert {
     /// Ordered list of exact table column headers (case-sensitive).
     #[serde(default)]
     pub columns: Option<Vec<String>>,
+    /// Subset of `columns` a document MAY omit (CR-023).
+    ///
+    /// Without this, `columns` is an exact match, so a contract cannot ask for
+    /// a column that much of an existing corpus never authored without either
+    /// failing every such document or forcing an invented value into it. The
+    /// declared order still holds: the headers must be an ordered subsequence
+    /// of `columns` containing every non-optional one.
+    #[serde(default)]
+    pub optional_columns: Option<Vec<String>>,
     /// Minimum number of data rows in the located table.
     #[serde(default)]
     pub min_rows: Option<usize>,

@@ -21,6 +21,7 @@ The facet supports these optional keys:
 
 - `level` — required heading level of the located section.
 - `columns` — ordered list of exact table column headers the located table MUST have (case-sensitive, in order).
+- `optional_columns` — a subset of `columns` the document MAY omit ([CR-023](#cr-023-note)). The declared order still holds: the headers MUST be an ordered subsequence of `columns` containing every non-optional column. **`table_row` only.**
 - `min_rows` — minimum number of data rows in the located table.
 - `min_items` — minimum number of items in the located list.
 - `id_column` — the table column whose cells are treated as ids.
@@ -77,6 +78,20 @@ validate time.
 | FR-033-AC-11 | A scalar locator (`heading`/`section_body`/`list_item`/`frontmatter_field`) with `assert: {choices: [low, medium, high]}` fails with reason `assert` when the located value is none of the listed values, and passes on an exact (trimmed) match. A locator that resolves to no values does NOT fire `choices`. `choices` is illegal on `table_row` and `code_block` at load time (CR-010). | Test |
 | FR-033-AC-12 | A `table_row` locator with `assert: {column_choices: {Severity: [low, medium, high]}}` fails with reason `assert` when any data cell in the `Severity` column is not one of the listed values, and passes when every cell is. A column header named in `column_choices` that is absent from the table fails with an explicit "column not found" reason. `column_choices` is illegal on every non-`table_row` locator at load time. | Test |
 | FR-033-AC-13 | A `table_row` locator with `assert: {column_patterns: {ID: '^FND-\d+$'}}` fails with reason `assert` when any data cell in the `ID` column does not match the regex, and passes when every cell matches; the regex supports `{field}` interpolation ([FR-034](./FR-034-assert-field-interpolation.md)). A named column absent from the table fails with an explicit "column not found" reason. `column_patterns` is illegal on every non-`table_row` locator at load time. | Test |
+| FR-033-AC-14 | A `table_row` locator with `assert: {columns: [ID, Criteria, Priority, Verification], optional_columns: [Priority]}` passes whether or not the table carries the `Priority` column, and still fails when a *non*-optional column is absent or the header order differs. `optional_columns` is illegal on every non-`table_row` locator, and illegal when it names a column absent from `columns`, at load time. | Test |
+
+<a id="cr-023-note"></a>
+> **CR-023 note:** `optional_columns` (FR-033-AC-14) was added because `columns`
+> is an exact match, which leaves a contract no way to ask for a column an
+> existing corpus never authored. The concrete case is the TestMatrix `Priority`
+> column (agent-ix/spec-artifacts-process#14): 49 of 169 ecosystem matrices carry
+> real test-case rows with no priority anywhere in the document. The only ways
+> out were to fail all 49 forever, or to write an invented priority into each —
+> fabricating planning data to satisfy a checker, which is the failure mode this
+> whole programme exists to catch. Making the column declarable-optional fixes
+> the contract instead of the corpus. Order is still enforced and only the
+> *declared* column is forgiving, so this does not weaken `columns` into "any
+> subset will do".
 
 ## Dependencies
 
