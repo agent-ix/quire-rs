@@ -489,3 +489,84 @@ fn tc772_only_the_declared_column_is_optional() {
         result.errors
     );
 }
+
+// ---------------------------------------------------------------------------
+// CR-023 (cont.): a per-value constraint on a column the contract declared
+// optional must not fire when that column is absent. `column_choices` on a
+// missing column otherwise fails "column not found", which would make
+// `optional_columns` useless on exactly the contract that motivated it — the
+// TestMatrix `Priority` column carries both `optional_columns` and a
+// `column_choices: [P0..P4]` enum.
+// ---------------------------------------------------------------------------
+
+const OPTCOL_CHOICES_MANIFEST: &str = r#"name: optcol-choices-mod
+artifact_types:
+- name: FR
+  frontmatter_schema_ref: schemas/fr.schema.json
+  body_extraction:
+    yield_pattern:
+      match:
+        acceptance_criteria:
+          from: table_row
+          under_section: Acceptance Criteria
+          required: true
+          assert:
+            columns: [ID, Criteria, Priority, Verification]
+            optional_columns: [Priority]
+            column_choices:
+              Priority: [P0, P1, P2]
+"#;
+
+fn optcol_choices_registry() -> Registry {
+    let mut schemas = BTreeMap::new();
+    schemas.insert(
+        "schemas/fr.schema.json".to_string(),
+        r#"{"type":"object","required":["id"],"properties":{"id":{"type":"string"}}}"#.to_string(),
+    );
+    Registry::from_inline_parts(OPTCOL_CHOICES_MANIFEST.as_bytes(), &schemas)
+        .expect("inline module with optional_columns + column_choices loads")
+}
+
+#[test]
+fn tc773_column_choices_does_not_fire_on_an_omitted_optional_column() {
+    let r = optcol_choices_registry();
+    let fr = r.archetype("FR").expect("FR archetype");
+    let doc = optcol_doc(
+        "| ID | Criteria | Verification |",
+        "| FR-800-AC-1 | The thing happens | Test |",
+    );
+    let result = quire_rs::validate_document(fr, &doc);
+    assert!(
+        result.is_valid,
+        "an omitted optional column must not report 'column not found': {:?}",
+        result.errors
+    );
+}
+
+#[test]
+fn tc774_column_choices_still_applies_when_the_optional_column_is_present() {
+    let r = optcol_choices_registry();
+    let fr = r.archetype("FR").expect("FR archetype");
+    let good = "---\nid: FR-800\n---\n\n## Acceptance Criteria\n\n\
+                | ID | Criteria | Priority | Verification |\n|---|---|---|---|\n\
+                | FR-800-AC-1 | The thing happens | P1 | Test |\n"
+        .to_string();
+    assert!(
+        quire_rs::validate_document(fr, &good).is_valid,
+        "a present optional column with a legal value must pass"
+    );
+    let bad = good.replace("| P1 |", "| P9 |");
+    let result = quire_rs::validate_document(fr, &bad);
+    assert!(
+        !result.is_valid,
+        "a present optional column is checked like any other column"
+    );
+    assert!(
+        result
+            .errors
+            .iter()
+            .any(|e| e.reason == ValidationReason::Assert),
+        "expected an assert failure, got: {:?}",
+        result.errors
+    );
+}
