@@ -388,3 +388,104 @@ fn duplicate_heading_fails_with_line() {
     assert!(e.message.contains("Description"), "{}", e.message);
     assert!(e.line.is_some(), "duplicate must be line-numbered");
 }
+
+// ---------------------------------------------------------------------------
+// CR-023: `optional_columns` — a declared subset of `columns` a document MAY
+// omit. Without it, `columns` is an exact match, so a contract cannot require a
+// column an existing corpus never authored without either failing every such
+// document or forcing an invented value into it (the TestMatrix `Priority`
+// case, agent-ix/spec-artifacts-process#14).
+//
+// TC-770..772: the column may be absent, may still be present, and the
+// guarantee that only the *declared* optional column is forgiving.
+// ---------------------------------------------------------------------------
+
+const OPTIONAL_COLS_MANIFEST: &str = r#"name: optcol-mod
+artifact_types:
+- name: FR
+  frontmatter_schema_ref: schemas/fr.schema.json
+  body_extraction:
+    yield_pattern:
+      match:
+        acceptance_criteria:
+          from: table_row
+          under_section: Acceptance Criteria
+          required: true
+          assert:
+            columns: [ID, Criteria, Priority, Verification]
+            optional_columns: [Priority]
+"#;
+
+fn optcol_registry() -> Registry {
+    let mut schemas = BTreeMap::new();
+    schemas.insert(
+        "schemas/fr.schema.json".to_string(),
+        r#"{"type":"object","required":["id"],"properties":{"id":{"type":"string"}}}"#.to_string(),
+    );
+    Registry::from_inline_parts(OPTIONAL_COLS_MANIFEST.as_bytes(), &schemas)
+        .expect("inline module with optional_columns loads")
+}
+
+fn optcol_doc(header: &str, row: &str) -> String {
+    format!(
+        "---\nid: FR-800\n---\n\n## Acceptance Criteria\n\n{}\n{}\n{}\n",
+        header, "|---|---|---|", row
+    )
+}
+
+#[test]
+fn tc770_optional_column_may_be_absent() {
+    let r = optcol_registry();
+    let fr = r.archetype("FR").expect("FR archetype");
+    let doc = optcol_doc(
+        "| ID | Criteria | Verification |",
+        "| FR-800-AC-1 | The thing happens | Test |",
+    );
+    let result = quire_rs::validate_document(fr, &doc);
+    assert!(
+        result.is_valid,
+        "a declared-optional column may be omitted, got: {:?}",
+        result.errors
+    );
+}
+
+#[test]
+fn tc771_optional_column_may_be_present() {
+    let r = optcol_registry();
+    let fr = r.archetype("FR").expect("FR archetype");
+    let doc = optcol_doc(
+        "| ID | Criteria | Priority | Verification |",
+        "| FR-800-AC-1 | The thing happens | P1 | Test |",
+    );
+    let result = quire_rs::validate_document(fr, &doc);
+    assert!(
+        result.is_valid,
+        "the optional column is still accepted when authored, got: {:?}",
+        result.errors
+    );
+}
+
+#[test]
+fn tc772_only_the_declared_column_is_optional() {
+    let r = optcol_registry();
+    let fr = r.archetype("FR").expect("FR archetype");
+    // `Verification` is not declared optional, so dropping it still fails —
+    // `optional_columns` must not degrade into "any subset will do".
+    let doc = optcol_doc(
+        "| ID | Criteria | Priority |",
+        "| FR-800-AC-1 | The thing happens | P1 |",
+    );
+    let result = quire_rs::validate_document(fr, &doc);
+    assert!(
+        !result.is_valid,
+        "omitting a required column must still fail"
+    );
+    assert!(
+        result
+            .errors
+            .iter()
+            .any(|e| e.reason == ValidationReason::Assert),
+        "expected an assert failure, got: {:?}",
+        result.errors
+    );
+}
