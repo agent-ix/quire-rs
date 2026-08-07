@@ -121,13 +121,13 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | US-016 Consume canonical Filament extraction | Illustrative examples | TC-681..TC-690 | ✅ Complete |
 | US-017 Agent verifies coverage deterministically | Illustrative examples | TC-724..TC-750, TC-753, TC-756 (via FR-049/050/051) | 🚧 Pending implementation |
 | FR-045 Canonical Filament core extraction engine | AC-1..6; CON-1..4 | TC-691..TC-704, TC-690, TC-705 | ✅ Complete |
-| FR-046 Filament extraction bindings | AC-1..4; CON-1..3 | TC-686, TC-687, TC-688, TC-689, IC-001 | ✅ Complete |
+| FR-046 Filament extraction bindings | AC-1..4; CON-1..3 | TC-686, TC-687, TC-688, TC-689, TC-767 | ✅ Complete |
 | FR-047 Acceptance-criteria grammar | AC-1..14; CON-1..2 | TC-707 (shape classification, assertion canonical), TC-708 (every non-empty cell segmented), TC-709 (non-singular + pair idiom), TC-710 (vague-response via lexicon), TC-711 (vacuous-outcome), TC-712 (binding), TC-713 (finding fields + routing), TC-714 (generic --summary prefix), TC-715 (PyO3 parity), TC-751 (non-canonical-shape steers obligation/GWT → assertion), TC-754 (fenced/blockquote skip in supplements), TC-757 (module-data observable/vacuity vocabularies), TC-761 (quoted keywords are mentions, not uses — CR-017), TC-763 (elided-copula predication is a predicate — CR-019) | ✅ Implemented (CLI-surface AC-8 awaits EXT-3 `quire-cli`) |
 | FR-048 Per-check grammar severity | AC-1..10 | TC-716 (manifest registry + accessor), TC-717 (first-wins + DuplicateGrammarSeverity), TC-718 (per-check error routing), TC-719 (absent key → warning), TC-720 (--severity override + repeatable), TC-721 (--strict unchanged), TC-722 (type-only all-default), TC-723 (malformed entry fails load), TC-752 (`off` suppresses a check entirely), TC-755 (malformed --severity CLI entry rejected) | ✅ Implemented (CLI-surface AC-5/6/10 await EXT-3 `quire-cli`) |
 | FR-049 Verification-reference integrity | AC-1..8 | TC-724 (resolved reference clean), TC-725 (dangling finding), TC-726 (posture degradation), TC-727 (model-driven pattern/column), TC-728 (auxiliary trace-source harvest), TC-729 (no model → no findings), TC-730 (multi-annotation cells), TC-731 (deterministic findings) | ✅ Implemented |
 | FR-050 Declarative coverage computation | AC-1..12; CON-1..2 | TC-732 (traceability model load), TC-733 (malformed/absent model), TC-734 (unbacked rows), TC-735 (status lies), TC-736 (untracked symbols), TC-737 (per-group counts), TC-738 (byte-identical output), TC-739 (non-ISO model), TC-740 (no model → diagnostic exit), TC-758 (status marker + note, retired class), TC-759 (declared column vocabularies), TC-760 (range expansion + annotation stripping), TC-756 (CON-2 static boundary audit) | ✅ Implemented (AC-9 CLI exit awaits EXT-3 `quire-cli`) |
 | FR-051 Source symbol extraction with relations | AC-1..11; CON-1..3 | TC-741 (adapter symbol extraction), TC-742 (identity stability), TC-743 (test-symbol classification), TC-744 (canonical markers bind statically), TC-745 (marker/tag forms are module data), TC-746 (duplicate-id dedup), TC-747 (FR-045 record shapes), TC-748 (defined_in/contains edges), TC-749 (unparseable-file degradation), TC-750 (byte-identical repeat), TC-753 (legacy textual forms + rewrite suggestions), TC-756 (CON-1 static boundary audit) | ✅ Implemented |
-| NFR-020 Filament extraction boundary pure/deterministic | static inspection + parity tests | TC-704, IC-001, TC-690 | ✅ Complete |
+| NFR-020 Filament extraction boundary pure/deterministic | static inspection + parity tests | TC-704, TC-767, TC-690 | ✅ Complete |
 
 ---
 
@@ -135,20 +135,20 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 
 | Test ID | Title | Type | Priority | Traces To | Status |
 |---------|-------|------|----------|-----------|--------|
-| TC-001 | parse_document handles empty + preamble-only + nested headings | Unit | P0 | FR-005-AC-1..3, US-002 | 🚧 |
+| TC-001 | parse_document handles empty + preamble-only + nested headings | Unit | P0 | FR-005-AC-1, FR-005-AC-2, FR-005-AC-3, US-002 | 🚧 |
 | TC-002 | parse_document does not panic on 10k random inputs | Property | P0 | FR-005-AC-4 | 🚧 |
 | TC-002b | apply_patch proptest fuzz never panics | Property | P0 | FR-002-AC-4 | 🚧 |
-| TC-003 | render against compiled FR archetype byte-equals Python reference | Integration | P0 | FR-001-AC-1 (RETIRED), US-001-AC-2 (RETIRED) | ⛔ RETIRED — render removed |
-| TC-004 | render_by_name("unknown") returns UnknownArchetype | Unit | P0 | FR-001-AC-2 (RETIRED) | ⛔ RETIRED — render removed |
+| TC-003 | render against compiled FR archetype byte-equals Python reference ((RETIRED); (RETIRED)) | Integration | P0 | FR-001-AC-1, US-001-AC-2 | ⛔ RETIRED — render removed |
+| TC-004 | render_by_name("unknown") returns UnknownArchetype ((RETIRED)) | Unit | P0 | FR-001-AC-2 | ⛔ RETIRED — render removed |
 | TC-005 | Adding new archetype to corpus requires no Rust change | Integration | P0 | FR-001-AC-5, StR-001-AC-4 | 🚧 |
-| TC-006 | render returns field-keyed SchemaViolation on missing required | Unit | P0 | FR-001-AC-3 (RETIRED), NFR-005-AC-1 | ⛔ RETIRED — render removed |
-| TC-007 | apply_patch merges then validates merged result | Unit | P0 | FR-002-AC-1..2, US-004-AC-1..2 | 🚧 |
+| TC-006 | render returns field-keyed SchemaViolation on missing required ((RETIRED)) | Unit | P0 | FR-001-AC-3, NFR-005-AC-1 | ⛔ RETIRED — render removed |
+| TC-007 | apply_patch merges then validates merged result | Unit | P0 | FR-002-AC-1, FR-002-AC-2, US-004-AC-1, US-004-AC-2 | 🚧 |
 | TC-007b | apply_patch rejects unknown key under additionalProperties:false | Unit | P0 | FR-002-AC-3 | 🚧 |
-| TC-008 | render is thread-safe under 64-thread concurrency | Integration | P1 | FR-001-AC-4 (RETIRED), FR-004-AC-2 (RETIRED) | ⛔ RETIRED — render removed |
+| TC-008 | render is thread-safe under 64-thread concurrency ((RETIRED); (RETIRED)) | Integration | P1 | FR-001-AC-4, FR-004-AC-2 | ⛔ RETIRED — render removed |
 | TC-009 | schema_for returns the on-disk schema byte-identical | Snapshot | P0 | FR-003-AC-1, US-001-AC-4 | 🚧 |
 | TC-009b | schema_for unknown archetype returns UnknownArchetype | Unit | P1 | FR-003-AC-2 | 🚧 |
-| TC-010 | Strict mode reports missing template field as TemplateError | Unit | P0 | FR-004-AC-1 (RETIRED) | ⛔ RETIRED — render removed |
-| TC-011 | Renderer environment cost measured (one-time) | Bench | P2 | FR-004-AC-3 (RETIRED) | ⛔ RETIRED — render removed |
+| TC-010 | Strict mode reports missing template field as TemplateError ((RETIRED)) | Unit | P0 | FR-004-AC-1 | ⛔ RETIRED — render removed |
+| TC-011 | Renderer environment cost measured (one-time) ((RETIRED)) | Benchmark | P2 | FR-004-AC-3 | ⛔ RETIRED — render removed |
 | TC-012 | extract_frontmatter happy path | Unit | P0 | FR-006-AC-2 | 🚧 |
 | TC-013 | extract_frontmatter malformed YAML returns body fallback | Unit | P0 | FR-006-AC-3 | 🚧 |
 | TC-014 | extract_frontmatter unterminated fence returns body fallback | Unit | P1 | FR-006-AC-4 | 🚧 |
@@ -156,28 +156,28 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-016 | Unclosed fence: trailing lines are not parsed as headings | Unit | P1 | FR-007-AC-2 | 🚧 |
 | TC-017 | Tilde fence behaves identically to backtick fence | Unit | P1 | FR-007-AC-3 | 🚧 |
 | TC-018 | extract evaluates api_endpoint DSL on real fixture | Integration | P0 | FR-011-AC-1, US-003-AC-1 | 🚧 |
-| TC-019 | extract code_block (language: json) byte-equals fenced content | Integration | P0 | FR-011 (code_block locator), US-003-AC-2 | 🚧 |
-| TC-020 | TS reference test suite transliterated; all pass | Parity | P0 | StR-003-AC-2 | 🚧 |
-| TC-021 | quire-rs structural equivalence against canonical TS fixtures on real corpus | Parity | P1 | StR-003-AC-3 | 🚧 |
+| TC-019 | extract code_block (language: json) byte-equals fenced content ((code_block locator)) | Integration | P0 | FR-011, US-003-AC-2 | 🚧 |
+| TC-020 | TS reference test suite transliterated; all pass (parity) | Integration | P0 | StR-003-AC-2 | 🚧 |
+| TC-021 | quire-rs structural equivalence against canonical TS fixtures on real corpus (parity) | Integration | P1 | StR-003-AC-3 | 🚧 |
 | TC-022 | Section content preserves leading/trailing whitespace | Unit | P0 | FR-008-AC-1 | 🚧 |
 | TC-023 | CRLF and LF endings preserved in section content | Unit | P1 | FR-008-AC-2 | 🚧 |
 | TC-024 | Roundtrip: reconstructing body from sections equals input | Property | P0 | FR-008-AC-3, NFR-006 | 🚧 |
-| TC-025 | Slug normalization (lowercase, alphanum-dash, trim) | Unit | P0 | FR-009-AC-1..3 | 🚧 |
-| TC-026 | Line index ignores frontmatter offset | Unit | P0 | FR-009-AC-4..5 | 🚧 |
+| TC-025 | Slug normalization (lowercase, alphanum-dash, trim) | Unit | P0 | FR-009-AC-1, FR-009-AC-2, FR-009-AC-3 | 🚧 |
+| TC-026 | Line index ignores frontmatter offset | Unit | P0 | FR-009-AC-4, FR-009-AC-5 | 🚧 |
 | TC-027 | Query API module-level signatures compile and re-export | Compile | P0 | FR-010-AC-1 | 🚧 |
-| TC-028 | Query API parity sweep against TS fixtures | Parity | P0 | FR-010-AC-2 | 🚧 |
+| TC-028 | Query API parity sweep against TS fixtures (parity) | Integration | P0 | FR-010-AC-2 | 🚧 |
 | TC-029 | Query API complexity: no quadratic walks | Property | P1 | FR-010-AC-3 | 🚧 |
 | TC-589 | `\|` in table cells is literal (escape consumed) in header/body/cell-final positions; other backslashes verbatim; borderless rows split identically; GFM alignment separators recognized; `-`/`*`/`+` bullets parse | Unit | P0 | FR-010-AC-4 | ✅ |
-| TC-030 | Corpus parity sweep: every archetype × every fixture byte-equals Python reference | Parity | P0 | FR-012-AC-1..2 (RETIRED), StR-002, US-005-AC-1..3 (RETIRED) | 🚧 |
-| TC-031 | tests/render_parity/corpus.yaml exists and lists v1 modules | Static | P0 | FR-012-AC-1 (RETIRED) | ⛔ RETIRED — render removed |
+| TC-030 | Corpus parity sweep: every archetype × every fixture byte-equals Python reference (parity) ((RETIRED); (RETIRED)) | Integration | P0 | FR-012-AC-1, FR-012-AC-2, StR-002, US-005-AC-1, US-005-AC-2, US-005-AC-3 | 🚧 |
+| TC-031 | tests/render_parity/corpus.yaml exists and lists v1 modules ((RETIRED)) | Static | P0 | FR-012-AC-1 | ⛔ RETIRED — render removed |
 | TC-039 | Adding archetype to corpus.yaml + fixtures extends suite with no Rust change | Integration | P0 | FR-012-AC-5 | 🚧 |
 | TC-040 | extract sweep across all 87+ object archetypes from 6 source repos | Integration | P0 | FR-011-AC-5, US-003 | 🚧 |
-| TC-041 | Parity suite catches deliberate template mutation | Regression | P0 | FR-012-AC-3 (RETIRED), US-005-AC-4 (RETIRED) | ⛔ RETIRED — render removed |
-| TC-042 | Bench: render per-archetype median <1 ms (sweep across corpus) | Bench | P0 | NFR-001-AC-1..2 (RETIRED) | ⛔ RETIRED — render removed |
-| TC-042b | Bench: apply_patch median <100 µs (typical artifact) | Bench | P1 | FR-002-AC-5 | 🚧 |
+| TC-041 | Parity suite catches deliberate template mutation (regression) ((RETIRED); (RETIRED)) | Integration | P0 | FR-012-AC-3, US-005-AC-4 | ⛔ RETIRED — render removed |
+| TC-042 | Bench: render per-archetype median <1 ms (sweep across corpus) ((RETIRED)) | Benchmark | P0 | NFR-001-AC-1, NFR-001-AC-2 | ⛔ RETIRED — render removed |
+| TC-042b | Bench: apply_patch median <100 µs (typical artifact) | Benchmark | P1 | FR-002-AC-5 | 🚧 |
 | TC-050 | check_unsafe_comments.sh exits 0; baseline empty | Static | P0 | NFR-003 | 🚧 |
 | TC-051 | cargo deny check licenses exits 0 | Static | P0 | NFR-004 | 🚧 |
-| TC-052 | Bench: parse_document 5 MB median <500 ms | Bench | P0 | NFR-002-AC-1 | 🚧 |
+| TC-052 | Bench: parse_document 5 MB median <500 ms | Benchmark | P0 | NFR-002-AC-1 | 🚧 |
 | TC-053 | Bench: 5 MB document round-trips byte-for-byte | Property | P0 | NFR-002-AC-3 | 🚧 |
 | TC-054 | QuireError::Display contains all four required tuple elements | Unit | P0 | NFR-005-AC-1, US-001-AC-3 | 🚧 |
 | TC-055 | QuireError snapshot pins canonical error per archetype | Snapshot | P1 | NFR-005-AC-3 | 🚧 |
@@ -185,7 +185,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-057 | Determinism: parse 100x → Eq | Property | P0 | NFR-006-AC-2 | 🚧 |
 | TC-058 | Static audit: no HashMap in render/parse code paths | Static | P1 | NFR-006-AC-3 | 🚧 |
 | TC-060 | Registry behavior identical across three on-disk corpora (Filament/hand/test) | Integration | P0 | StR-001-AC-5 | 🚧 |
-| TC-061 | LLM tool-call schema round-trip: schema_for → tool input → render | Integration | P1 | US-001-AC-2..3 | 🚧 |
+| TC-061 | LLM tool-call schema round-trip: schema_for → tool input → render | Integration | P1 | US-001-AC-2, US-001-AC-3 | 🚧 |
 | TC-062 | Cargo.lock has no schemars dependency | Static | P1 | FR-003-AC-4 | 🚧 |
 | TC-070 | DSL multi-yield (iterate_over) emits one record per iteration unit | Unit | P0 | FR-011-AC-2 | 🚧 |
 | TC-072 | Each of 6 Locator primitives exercised by ≥1 unit test | Unit | P0 | FR-011-AC-1 | 🚧 |
@@ -195,7 +195,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-080 | Registry::from_env() with neither search-path env var (IX_FILAMENT_MODULES_PATH / IX_SCHEMA_PATH) set and no default dir → empty registry, no error | Unit | P0 | FR-013-AC-1 | 🚧 |
 | TC-081 | IX_SCHEMA_PATH pointing at spec-artifacts-iso loads all 8 ISO archetypes | Integration | P0 | FR-013-AC-2 | 🚧 |
 | TC-082 | Manifest with missing schema_ref produces ArchetypeLoadError; siblings still load | Integration | P0 | FR-013-AC-3 | 🚧 |
-| TC-083 | Bench: Registry::load_from baseline corpus < 100 ms median | Bench | P0 | FR-013-AC-4, NFR-007-AC-1 | 🚧 |
+| TC-083 | Bench: Registry::load_from baseline corpus < 100 ms median | Benchmark | P0 | FR-013-AC-4, NFR-007-AC-1 | 🚧 |
 | TC-084 | After load, render does no disk I/O (verified via strace / tracing audit) | Static | P0 | FR-013-AC-5 | 🚧 |
 | TC-085 | Cargo.lock has no HTTP/RPC client crates | Static | P0 | FR-013-AC-6, StR-001-AC-3 | 🚧 |
 | TC-090 | Two paths each with a module: both modules present in module_names() | Integration | P0 | FR-014-AC-1 | 🚧 |
@@ -206,10 +206,10 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-110 | Fallback chain resolves via second locator + emits FallbackLocatorUsed | Unit | P0 | FR-016-AC-1 | 🚧 |
 | TC-111 | Fallback chain resolves via first locator + no fallback diagnostic | Unit | P0 | FR-016-AC-2 | 🚧 |
 | TC-112 | Fallback chain all-miss with required:false omits key | Unit | P1 | FR-016-AC-3 | 🚧 |
-| TC-113 | domain object_type from spec-objects-business with legacy heading: parity vs python | Parity | P0 | FR-016-AC-4 | 🚧 |
-| TC-120 | Bench: 10 000 sequential renders after load → median <1ms, zero I/O | Bench | P0 | NFR-007-AC-2 | 🚧 |
+| TC-113 | domain object_type from spec-objects-business with legacy heading: parity vs python (parity) | Integration | P0 | FR-016-AC-4 | 🚧 |
+| TC-120 | Bench: 10 000 sequential renders after load → median <1ms, zero I/O | Benchmark | P0 | NFR-007-AC-2 | 🚧 |
 | TC-121 | Tracing audit: zero Template::parse and zero JSONSchema::compile during render | Static | P0 | NFR-007-AC-3 | 🚧 |
-| TC-122 | Long-running soak: registry memory footprint flat over 1 M renders | Soak | P1 | NFR-007-AC-4 | 🚧 |
+| TC-122 | Long-running soak: registry memory footprint flat over 1 M renders (soak) | Integration | P1 | NFR-007-AC-4 | 🚧 |
 | TC-130 | Loader symlink-loop detected; warning emitted; cycle skipped | Integration | P0 | FR-013-AC-7 | 🚧 |
 | TC-131 | Duplicate IX_SCHEMA_PATH entries: modules loaded once | Integration | P0 | FR-013-AC-8 | 🚧 |
 | TC-132 | Registry: Send + Sync (compile-time assertion) | Compile | P0 | FR-013-AC-9 | 🚧 |
@@ -219,7 +219,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-150 | DSL with both match and iterate_over → ArchetypeLoadError at load | Unit | P0 | FR-011-AC-6 | 🚧 |
 | TC-151 | DSL with unknown key → ArchetypeLoadError at load | Unit | P0 | FR-011-AC-7 | 🚧 |
 | TC-152 | iterate_over.section_path missing → empty records + IterateRootMissing | Unit | P0 | FR-011-AC-8 | 🚧 |
-| TC-160 | Template with {% include %} → ArchetypeLoadError | Unit | P0 | FR-004-AC-4 (RETIRED) | ⛔ RETIRED — render removed |
+| TC-160 | Template with {% include %} → ArchetypeLoadError ((RETIRED)) | Unit | P0 | FR-004-AC-4 | ⛔ RETIRED — render removed |
 | TC-170 | Schema with internal $ref + $defs (recursive) compiles + validates | Unit | P0 | FR-002-AC-6 | 🚧 |
 | TC-171 | Schema with cross-file $ref → ArchetypeLoadError at load | Unit | P0 | FR-002-AC-7 | 🚧 |
 | TC-180 | extract_frontmatter handles BOM-prefixed input (with FM) | Unit | P0 | FR-006-AC-5 | 🚧 |
@@ -230,9 +230,9 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-201 | Static grep: no `std::process::Command` invocations targeting python/node/npm/pip in src/ | Static | P0 | StR-001-AC-2 | 🚧 |
 | TC-202 | Doc exists: spec/assets/render-parity-notes.md documents any known whitespace exceptions vs Python reference | Static | P1 | StR-002-AC-2 | 🚧 |
 | TC-203 | Static: clippy.toml / deny.toml / rustfmt.toml / scripts/check_unsafe_comments.sh byte-equal rust-lib-cookiecutter baseline (or documented MSRV bump) | Static | P0 | StR-004-AC-1, StR-004-AC-2 | 🚧 |
-| TC-204 | CI workflow includes render_parity job (not just test job) | Static | P0 | US-005-AC-2 (RETIRED), US-005-AC-3 (RETIRED), StR-002-AC-3 | 🚧 |
+| TC-204 | CI workflow includes render_parity job (not just test job) ((RETIRED); (RETIRED)) | Static | P0 | US-005-AC-2, US-005-AC-3, StR-002-AC-3 | 🚧 |
 | TC-205 | A patch making merged value invalid (title="") returns SchemaViolation, not a render error | Unit | P0 | US-004-AC-2 | 🚧 |
-| TC-206 | Bench: bench_patch_render_fr median < 1ms for typical FR | Bench | P1 | US-004-AC-3 | 🚧 |
+| TC-206 | Bench: bench_patch_render_fr median < 1ms for typical FR | Benchmark | P1 | US-004-AC-3 | 🚧 |
 | TC-330 | Cargo.toml uses tilde/equals pins for load-bearing deps | Static | P0 | NFR-009-AC-1 | 🚧 |
 | TC-331 | spec/assets/adr/0001-validator-crate.md exists with chosen crate + bench numbers | Static | P0 | NFR-009-AC-2 | 🚧 |
 | TC-332 | Static: no load-bearing dep has unbounded version | Static | P0 | NFR-009-AC-3 | 🚧 |
@@ -242,9 +242,9 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-350 | All 6 fuzz targets compile and run cleanly for 60s on baseline | Integration | P0 | NFR-011-AC-1, NFR-011-AC-2 | 🚧 |
 | TC-351 | .github/workflows/fuzz.yml runs all targets weekly | Static | P0 | NFR-011-AC-3 | 🚧 |
 | TC-352 | Discovered crash reproducer committed under fuzz/corpus + regression test | Integration | P1 | NFR-011-AC-4 | 🚧 |
-| TC-360 | (RETIRED — ADR 0006) miri CI job removed; first-party safety is compile-time `forbid(unsafe_code)` (NFR-003-AC-5) | Static | P0 | NFR-012-AC-1 (RETIRED) | ⊘ |
-| TC-361 | (RETIRED — ADR 0006) miri job removed | Integration | P0 | NFR-012-AC-3 (RETIRED) | ⊘ |
-| TC-362 | (RETIRED — ADR 0006) miri job removed | Process | P0 | NFR-012-AC-4 (RETIRED) | ⊘ |
+| TC-360 | (RETIRED — ADR 0006) miri CI job removed; first-party safety is compile-time `forbid(unsafe_code)` (NFR-003-AC-5) ((RETIRED)) | Static | P0 | NFR-012-AC-1 | ⛔ |
+| TC-361 | (RETIRED — ADR 0006) miri job removed ((RETIRED)) | Integration | P0 | NFR-012-AC-3 | ⛔ |
+| TC-362 | (RETIRED — ADR 0006) miri job removed (process) ((RETIRED)) | Manual | P0 | NFR-012-AC-4 | ⛔ |
 | TC-370 | cargo-mutants config declares parser/extract/edges target paths | Static | P0 | NFR-013-AC-1 | 🚧 |
 | TC-371 | CI workflow runs cargo-mutants weekly + workflow_dispatch | Static | P0 | NFR-013-AC-2 | 🚧 |
 | TC-372 | mutants report uploaded as CI artifact | Static | P1 | NFR-013-AC-3 | 🚧 |
@@ -255,7 +255,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-400 | Heading `## Behavior {#blk-7af2}` parses into QuireSection.block_id = "blk-7af2"; heading text = "Behavior" | Unit | P0 | FR-019-AC-1 | ✅ |
 | TC-401 | Round-trip: parse → apply_block_patch → reparse — block_id stays "blk-7af2" | Integration | P0 | FR-019-AC-2 | ✅ |
 | TC-402 | Pandoc attribute stripped from heading text on parse (no `{#…}` trailing in `QuireSection.heading`) | Unit | P0 | FR-019-AC-3 | ✅ |
-| TC-403 | Heading without `{#…}` → block_id = None; heading text byte-identical to input | Unit | P0 | FR-019-AC-1 (negative) | ✅ |
+| TC-403 | Heading without `{#…}` → block_id = None; heading text byte-identical to input ((negative)) | Unit | P0 | FR-019-AC-1 | ✅ |
 | TC-410 | QuireSection.block_id is the canonical addressing primitive; find_block_by_id walks nested sections | Unit | P0 | FR-020-AC-1 | ✅ |
 | TC-411 | Registry::block_type(name) returns the same CompiledArchetype as archetype(name) | Unit | P1 | FR-020-AC-2 | ✅ |
 | TC-420 | apply_block_patch merges patch onto current_data → validates → renders → splices; target block bytes updated | Unit | P0 | FR-021-AC-1 | ✅ |
@@ -268,22 +268,22 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-431 | update_block replaces heading + content range together; addresses by block_id, finds nested blocks | Unit | P0 | FR-022-AC-2 | ✅ |
 | TC-432 | After update_block, untouched blocks byte-identical (incl. trailing whitespace + nested bullets) | Unit | P0 | FR-022-AC-3 | ✅ |
 | TC-433 | Frontmatter (`---\nid: …\n---\n`) byte-identical through update_section + update_block | Unit | P0 | FR-022-AC-4 | ✅ |
-| TC-434 | update_section unknown heading → MissingField | Unit | P0 | FR-022-AC-5 (negative) | ✅ |
-| TC-435 | update_block unknown block_id → MissingField | Unit | P0 | FR-022-AC-5 (negative) | ✅ |
-| TC-440 | End-to-end: parse FR-like artifact, apply_block_patch, assert only patched block's bytes changed | Integration | P0 | FR-019..022 composite | ✅ |
+| TC-434 | update_section unknown heading → MissingField ((negative)) | Unit | P0 | FR-022-AC-5 | ✅ |
+| TC-435 | update_block unknown block_id → MissingField ((negative)) | Unit | P0 | FR-022-AC-5 | ✅ |
+| TC-440 | End-to-end: parse FR-like artifact, apply_block_patch, assert only patched block's bytes changed (composite) | Integration | P0 | FR-019, FR-020, FR-021, FR-022 | ✅ |
 | TC-441 | End-to-end: replace_block renders fresh data into existing block bytes | Integration | P0 | FR-021-AC-2, FR-022-AC-2 | ✅ |
 | TC-442 | End-to-end: empty patch is idempotent (rendered bytes equal current data) | Integration | P1 | FR-021-AC-1 | ✅ |
 | TC-443 | End-to-end: block_id survives parse → patch → reparse | Integration | P0 | FR-019-AC-2 | ✅ |
-| TC-450 | Bench: `apply_block_patch` p50 < 1 ms on 10 KB / 5-block doc; p99 < 5 ms; memory-flat across iterations | Bench | P0 | US-006-PC-1..4 | 🚧 |
-| TC-451 | Bench: `replace_block` p50 < 1 ms on 10 KB / 5-block doc; ±10% of TC-450; report crossover where replace beats patch on large blocks | Bench | P0 | US-007-PC-1, US-007-PC-4 | 🚧 |
-| TC-452 | Bench: 10 sequential block patches on 20 KB doc; p50 < 10 ms; assert linear-in-N (no superlinear regression); document block_id-lookup cost on > 100-block doc | Bench | P0 | US-008-PC-1, US-008-PC-5 | 🚧 |
-| TC-453 | Bench: `parse_document` + `extract` (multi-yield, ~10 records) on 10 KB doc; p50 < 2 ms | Bench | P0 | US-010-PC-1 | 🚧 |
-| TC-454 | Bench: corpus-scale extract (100 docs, 10 records each) single-threaded p50 < 200 ms; 8-thread p50 < 50 ms | Bench | P1 | US-010-PC-3 | 🚧 |
-| TC-455 | Bench: `load_repo` 1k-doc corpus at 1 + 8 threads; p50 < 600 ms / < 200 ms; parallel efficiency ≥ 0.6; output path-sorted | Bench | P0 | FR-024-AC-8, NFR-015-AC-1..4, US-011-PC-1 | 🚧 |
-| TC-456 | Bench: 500+ doc corpus through Python binding ≥ 5× faster than pure-Python filament_parser path | Bench | P0 | StR-005-AC-3, US-011-PC-3 | 🚧 |
-| TC-457 | Bench: `Spec` construct (load + resolve) for 200-artifact spec p50 < 50 ms single-thread | Bench | P0 | US-012-PC-1 | 🚧 |
-| TC-458 | Bench: `by_id` / `referencing` / `orphans` sub-millisecond per query over 200-artifact corpus | Bench | P1 | FR-027-AC-8, US-012-PC-2 | 🚧 |
-| TC-459 | Bench: resolve all references in 200-artifact spec p50 < 5 ms (part of construct budget) | Bench | P1 | US-013-PC-1 | 🚧 |
+| TC-450 | Bench: `apply_block_patch` p50 < 1 ms on 10 KB / 5-block doc; p99 < 5 ms; memory-flat across iterations | Benchmark | P0 | US-006-PC-1, US-006-PC-2, US-006-PC-3, US-006-PC-4 | 🚧 |
+| TC-451 | Bench: `replace_block` p50 < 1 ms on 10 KB / 5-block doc; ±10% of TC-450; report crossover where replace beats patch on large blocks | Benchmark | P0 | US-007-PC-1, US-007-PC-4 | 🚧 |
+| TC-452 | Bench: 10 sequential block patches on 20 KB doc; p50 < 10 ms; assert linear-in-N (no superlinear regression); document block_id-lookup cost on > 100-block doc | Benchmark | P0 | US-008-PC-1, US-008-PC-5 | 🚧 |
+| TC-453 | Bench: `parse_document` + `extract` (multi-yield, ~10 records) on 10 KB doc; p50 < 2 ms | Benchmark | P0 | US-010-PC-1 | 🚧 |
+| TC-454 | Bench: corpus-scale extract (100 docs, 10 records each) single-threaded p50 < 200 ms; 8-thread p50 < 50 ms | Benchmark | P1 | US-010-PC-3 | 🚧 |
+| TC-455 | Bench: `load_repo` 1k-doc corpus at 1 + 8 threads; p50 < 600 ms / < 200 ms; parallel efficiency ≥ 0.6; output path-sorted | Benchmark | P0 | FR-024-AC-8, NFR-015-AC-1, NFR-015-AC-2, NFR-015-AC-3, NFR-015-AC-4, US-011-PC-1 | 🚧 |
+| TC-456 | Bench: 500+ doc corpus through Python binding ≥ 5× faster than pure-Python filament_parser path | Benchmark | P0 | StR-005-AC-3, US-011-PC-3 | 🚧 |
+| TC-457 | Bench: `Spec` construct (load + resolve) for 200-artifact spec p50 < 50 ms single-thread | Benchmark | P0 | US-012-PC-1 | 🚧 |
+| TC-458 | Bench: `by_id` / `referencing` / `orphans` sub-millisecond per query over 200-artifact corpus | Benchmark | P1 | FR-027-AC-8, US-012-PC-2 | 🚧 |
+| TC-459 | Bench: resolve all references in 200-artifact spec p50 < 5 ms (part of construct budget) | Benchmark | P1 | US-013-PC-1 | 🚧 |
 | TC-460 | `cargo build` (no features) and `--features python` both succeed; no pyo3 linkage in default build | Static | P0 | FR-023-AC-1, StR-005-AC-2 | 🚧 |
 | TC-461 | `quire.parse_document(text)` returns frontmatter/headings/block-ids matching Rust `parse_document` | Integration | P0 | FR-023-AC-2, StR-005-AC-1 | 🚧 |
 | TC-462 | `quire.validate(bad, "fr")` violation field-path equals Rust `validate` for same input | Integration | P0 | FR-023-AC-3 | 🚧 |
@@ -292,7 +292,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-465 | One abi3 wheel imports + smoke-tests under two CPython 3.x minor versions | Integration | P0 | FR-023-AC-6, StR-005-AC-5, NFR-016-AC-3 | 🚧 |
 | TC-466 | No `subprocess`/`Popen`/socket on the binding data path (static grep + runtime assert) | Static | P0 | FR-023-AC-7, StR-005-AC-4 | 🚧 |
 | TC-467 | Binding returns structured objects; no Python-side markdown/frontmatter re-parse | Integration | P0 | US-011-AC-3, NFR-016-AC-4 | 🚧 |
-| TC-469 | Bench: per-FFI-crossing overhead for `parse_document` < 50 µs over equivalent Rust call | Bench | P1 | NFR-016-AC-1, US-011-PC-2 | 🚧 |
+| TC-469 | Bench: per-FFI-crossing overhead for `parse_document` < 50 µs over equivalent Rust call | Benchmark | P1 | NFR-016-AC-1, US-011-PC-2 | 🚧 |
 | TC-470 | `load_repo` over N-file tree returns N LoadedDocuments matching direct parse_document | Integration | P0 | FR-024-AC-1 | 🚧 |
 | TC-471 | One malformed file → N-1 good docs + exactly one diagnostic; no panic/error | Integration | P0 | FR-024-AC-2, US-011-AC-2 | 🚧 |
 | TC-472 | `.gitignore` subtree skipped by default; parsed when WalkOptions disables ignore-files | Integration | P0 | FR-024-AC-3 | 🚧 |
@@ -447,31 +447,31 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-761 | A quoted keyword is a mention: a cell quoting `shall` or `Given`/`When`/`Then` in a code span classifies `assertion` and yields no `non-canonical-shape`/`non-singular` finding, while the unquoted form still does; signal and lexicon checks still read inside the span, and an unbalanced backtick opens no span | Unit | P0 | FR-047-AC-13 | ✅ |
 | TC-763 | An elided-copula predication is a predicate: an existential/quantifier head or a predicative adjective classifies `assertion` and yields no `unclassifiable` finding, while a bare noun phrase, a bolded heading and a dangling prose fragment each still classify `unstructured` and yield one | Unit | P1 | FR-047-AC-14 | ✅ |
 | TC-766 | `Registry::with_grammar_severity` layers a surface's `--severity` map over the module-declared one: the override wins for its key, the module set is shared rather than rebuilt, and the original registry is untouched | Unit | P1 | FR-048-AC-5 | ✅ |
-| TC-691 | Shared fixture: Tier 1 frontmatter node shape, stable normalized ref, `code`, `title`, and extra frontmatter data | Fixture | P0 | FR-045-AC-1 | ✅ |
-| TC-692 | Shared fixture: Tier 2 DSL record extraction, schema validation, and record-derived edge emission | Fixture | P0 | FR-045-AC-2 | ✅ |
-| TC-693 | Shared fixture: explicit frontmatter `edges:` preserve order, target refs, source refs, and metadata | Fixture | P0 | FR-045-AC-4 | ✅ |
-| TC-694 | Shared fixture: relationship sugar fields emit expected edge types, normalized refs, and provenance metadata | Fixture | P0 | FR-045-AC-4 | ✅ |
-| TC-695 | Shared fixture: `ix://` targets pass through and bare targets normalize to `ix://agent-ix/<repo>/<value>` | Fixture | P0 | FR-045-CON-4 | ✅ |
-| TC-696 | Shared fixture: body markdown `ix://` links emit `references` graph edges and ignore external web links | Fixture | P0 | FR-045-AC-4 | ✅ |
-| TC-697 | Shared fixture: duplicate graph edges dedupe by source/type/target, first edge wins, diagnostic emitted | Fixture | P0 | FR-045-AC-3 | ✅ |
-| TC-698 | Shared fixtures: malformed `relationships:` entries report errors for non-map, missing target, and missing type | Fixture | P0 | FR-045-AC-3 | ✅ |
-| TC-699 | Shared fixture: malformed explicit `edges:` entries report an extraction error without panic | Fixture | P0 | FR-045-AC-3 | ✅ |
-| TC-700 | Shared fixture: schema validation failure prevents node emission and surfaces a field-specific error | Fixture | P0 | FR-045-AC-2, FR-045-AC-3 | ✅ |
-| TC-701 | Shared fixtures: unknown object, no frontmatter, unsupported plugin flag, and malformed body `ix://` produce diagnostics/errors without panic | Fixture | P0 | FR-045-AC-3 | ✅ |
-| TC-702 | Shared fixture: negative scope rejects wikilinks, `spec://`, prose cues, and `https://` as graph edges | Fixture | P0 | FR-045-AC-4 | ✅ |
-| TC-703 | Shared corpus isolation: failing extraction fixtures do not poison later successful fixture extraction | Fixture | P0 | FR-045-AC-3 | ✅ |
+| TC-691 | Shared fixture: Tier 1 frontmatter node shape, stable normalized ref, `code`, `title`, and extra frontmatter data (shared fixture) | Unit | P0 | FR-045-AC-1 | ✅ |
+| TC-692 | Shared fixture: Tier 2 DSL record extraction, schema validation, and record-derived edge emission (shared fixture) | Unit | P0 | FR-045-AC-2 | ✅ |
+| TC-693 | Shared fixture: explicit frontmatter `edges:` preserve order, target refs, source refs, and metadata (shared fixture) | Unit | P0 | FR-045-AC-4 | ✅ |
+| TC-694 | Shared fixture: relationship sugar fields emit expected edge types, normalized refs, and provenance metadata (shared fixture) | Unit | P0 | FR-045-AC-4 | ✅ |
+| TC-695 | Shared fixture: `ix://` targets pass through and bare targets normalize to `ix://agent-ix/<repo>/<value>` (shared fixture) | Unit | P0 | FR-045-CON-4 | ✅ |
+| TC-696 | Shared fixture: body markdown `ix://` links emit `references` graph edges and ignore external web links (shared fixture) | Unit | P0 | FR-045-AC-4 | ✅ |
+| TC-697 | Shared fixture: duplicate graph edges dedupe by source/type/target, first edge wins, diagnostic emitted (shared fixture) | Unit | P0 | FR-045-AC-3 | ✅ |
+| TC-698 | Shared fixtures: malformed `relationships:` entries report errors for non-map, missing target, and missing type (shared fixture) | Unit | P0 | FR-045-AC-3 | ✅ |
+| TC-699 | Shared fixture: malformed explicit `edges:` entries report an extraction error without panic (shared fixture) | Unit | P0 | FR-045-AC-3 | ✅ |
+| TC-700 | Shared fixture: schema validation failure prevents node emission and surfaces a field-specific error (shared fixture) | Unit | P0 | FR-045-AC-2, FR-045-AC-3 | ✅ |
+| TC-701 | Shared fixtures: unknown object, no frontmatter, unsupported plugin flag, and malformed body `ix://` produce diagnostics/errors without panic (shared fixture) | Unit | P0 | FR-045-AC-3 | ✅ |
+| TC-702 | Shared fixture: negative scope rejects wikilinks, `spec://`, prose cues, and `https://` as graph edges (shared fixture) | Unit | P0 | FR-045-AC-4 | ✅ |
+| TC-703 | Shared corpus isolation: failing extraction fixtures do not poison later successful fixture extraction (shared fixture) | Unit | P0 | FR-045-AC-3 | ✅ |
 | TC-704 | Shared corpus determinism: every canonical graph fixture produces byte-identical JSON over repeated extraction | Property | P0 | FR-045-AC-5, NFR-020-AC-2 | ✅ |
-| IC-001 | Python and WASM bindings return equivalent JSON over every canonical graph fixture | Integration | P0 | FR-046-AC-1, NFR-020-AC-3 | ✅ |
-| IC-002 | parser-lib shim returns core-data-valid payloads matching canonical graph fixture expectations | Integration | P0 | FR-118 compatibility reference | ✅ |
-| IC-003 | Filament IDE worker merges a real quire-wasm canonical graph fixture into `CoreSyncFilePayload` | Integration | P0 | Filament IDE FR-046 reference | ✅ |
+| TC-767 | Python and WASM bindings return equivalent JSON over every canonical graph fixture | Integration | P0 | FR-046-AC-1, NFR-020-AC-3 | ✅ |
+| TC-768 | parser-lib shim returns core-data-valid payloads matching canonical graph fixture expectations (compatibility reference) | Integration | P0 | FR-118 compatibility reference | ✅ |
+| TC-769 | Filament IDE worker merges a real quire-wasm canonical graph fixture into `CoreSyncFilePayload` (Filament IDE FR-046 reference) | Integration | P0 | Filament IDE FR-046 reference | ✅ |
 | TC-502 | Static audit: no Mutex/RwLock/Atomic in first-party src/; parallel parse collects owned results | Static | P0 | FR-024-AC-9 | 🚧 |
-| TC-503 | loom: parallel parse collection race-free; identical path-sorted output across all interleavings | Property | P0 | NFR-017-AC-1..3 | 🚧 |
+| TC-503 | loom: parallel parse collection race-free; identical path-sorted output across all interleavings | Property | P0 | NFR-017-AC-1, NFR-017-AC-2, NFR-017-AC-3 | 🚧 |
 | TC-504 | TSAN lane: two-thread `load_repo` (GIL-release window) reports zero data races | Integration | P0 | NFR-018-AC-1, NFR-018-AC-3 | 🚧 |
 | TC-505 | ASAN lane: FFI object-handoff test set reports zero leaks/UAF (interpreter noise suppressed) | Integration | P0 | NFR-018-AC-2, NFR-018-AC-3 | 🚧 |
 | TC-506 | `rg 'unsafe {' src/` returns zero matches with `--features python` enabled | Static | P0 | NFR-003-AC-4 | 🚧 |
-| TC-507 | (RETIRED — ADR 0006) miri job removed; FFI scope note moot | Static | P1 | NFR-012-AC-5 (RETIRED) | ⊘ |
+| TC-507 | (RETIRED — ADR 0006) miri job removed; FFI scope note moot ((RETIRED)) | Static | P1 | NFR-012-AC-5 | ⛔ |
 | TC-582 | Crate root carries `#![cfg_attr(not(feature = "python"), forbid(unsafe_code))]`; default `cargo build` compiles (compiler proves zero first-party unsafe) and adding a first-party `unsafe` block fails the default build; `--features python` compiles with forbid scoped off | Static | P0 | NFR-003-AC-5 | 🚧 |
-| TC-510 | `quire.render(archetype, module_root, data)` byte-equals `quire_rs::render_by_name` for same inputs | Integration | P0 | FR-028-AC-1 (RETIRED) | ⛔ RETIRED — render removed |
+| TC-510 | `quire.render(archetype, module_root, data)` byte-equals `quire_rs::render_by_name` for same inputs ((RETIRED)) | Integration | P0 | FR-028-AC-1 | ⛔ RETIRED — render removed |
 | TC-511 | `quire.validate` returns None on valid data; raises `QuireValidationError` with dotted field path on invalid | Integration | P0 | FR-028-AC-2, NFR-005 | 🚧 |
 | TC-512 | `quire.validate_manifest`: happy path returns `[]`; bad payload returns structured `{path, message, schema_keyword}` records; missing schema raises `QuireSchemaError` | Integration | P0 | FR-028-AC-3 | 🚧 |
 | TC-513 | `quire.extract(arch, mod_root, text)` returns `{extraction, edges}` dict; `extraction` matches Rust `extract().records` | Integration | P0 | FR-028-AC-4 | 🚧 |
@@ -547,7 +547,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-574 | A required section whose only content is `none` or `n/a` (e.g. `Upstream: none`) is substantive and passes — proving bare `none`/`n/a` are not sentinels | Unit | P0 | FR-032-AC-8 | ✅ |
 | TC-575 | Required `table_row` → header-only table fails reason `empty`; required `list_item` → item-less list fails reason `empty`; a non-resolving locator fails reason `missing` (none report `placeholder`) | Unit | P0 | FR-032-AC-9 | ✅ |
 | TC-576 | `assert` on a **resolved** locator is evaluated regardless of `required`: an optional locator that resolves but violates its assert → reason `assert`; an optional locator that does not resolve runs no assert and emits no diagnostic | Unit | P0 | FR-032-AC-10 | ✅ |
-| TC-577 | Bench: `bench_validate_document` on a typical FR-sized artifact median <1ms (warm registry); >10% vs baseline fails CI | Bench | P0 | NFR-002-AC-4 | ✅ |
+| TC-577 | Bench: `bench_validate_document` on a typical FR-sized artifact median <1ms (warm registry); >10% vs baseline fails CI | Benchmark | P0 | NFR-002-AC-4 | ✅ |
 | TC-578 | Determinism: `validate_document` + `extract` on the same input 100× across threads → equal `ValidationResult` (ordered diagnostics) + `ExtractionResult` (records+edges+diagnostics) | Property | P0 | NFR-006-AC-4 | ✅ |
 | TC-579 | Fuzz: arbitrary byte slices (lossy `&str`) into `parse_document`/`validate_document`/`extract` run clean (no panic/UB) for the scheduled duration; crashes committed as regression reproducers | Integration | P0 | NFR-019-AC-1 | ✅ |
 | TC-580 | Proptest: random strings (empty, fence-only, frontmatter-only, deeply nested) into `parse_document`/`validate_document`/`extract` always return a value or typed error, never panic | Property | P0 | NFR-019-AC-2 | ✅ |
@@ -1014,13 +1014,13 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-045-AC-4 | TC-684, TC-693, TC-694, TC-696, TC-702 |
 | FR-045-AC-5 | TC-685, TC-704 |
 | FR-045-AC-6 | TC-705 |
-| FR-046-AC-1 | TC-686, IC-001 |
+| FR-046-AC-1 | TC-686, TC-767 |
 | FR-046-AC-2 | TC-687 |
 | FR-046-AC-3 | TC-688 |
 | FR-046-AC-4 | TC-689 |
 | NFR-020-AC-1 | TC-690 |
 | NFR-020-AC-2 | TC-685, TC-704 |
-| NFR-020-AC-3 | TC-686, IC-001 |
+| NFR-020-AC-3 | TC-686, TC-767 |
 | FR-047-AC-1 | TC-707 |
 | FR-047-AC-2 | TC-708 |
 | FR-047-AC-3 | TC-709 |
@@ -1142,7 +1142,7 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | NFR-019-AC-1 | TC-579 |
 | NFR-019-AC-2 | TC-580 |
 
-**Coverage status: 446 / 446 ACs covered (100%).** The AC-grammar/traceability-coverage slice (FR-047..FR-051, US-017, 2026-08-04) adds FR-047-AC-1..14 (acceptance-criteria grammar `ac`: assertion-canonical shape classification with obligation/GWT recognized-but-steered via `non-canonical-shape` (CR-013; EARS was the original canon), every-cell segmentation, and the five shipped checks — `unclassifiable` (structural: no predicate at all), `non-singular`, lexicon-backed `vague-response`, `vacuous-outcome` (a closed, module-extensible `vacuous_predicates` set suppressed by any concrete signal, lexicon term, or declared observable verb) and `non-canonical-shape` (CR-014; `observable_verbs` keeps its ADR-0009 module-data role, demoted from a membership test to a suppressor); binding, fenced/blockquote skip in supplements, mention-vs-use masking (CR-017), elided-copula predication (CR-019), generic `[<grammar>:<check>]` --summary; CON-1 gates error-promotion behind a corpus baseline sweep + user sign-off — TC-707..715, TC-751, TC-754, TC-757, TC-761, TC-763), FR-048-AC-1..10 (per-check `grammar_severity` registry over `off`|`warning`|`error` + `--severity` CLI override incl. repeatable form and malformed-entry rejection, first-wins merge, type-only all-default, `off` full suppression — TC-716..723, TC-752, TC-755, TC-766), FR-049-AC-1..8 (model-driven verification-reference integrity, `dangling-trace-reference`, posture degradation, auxiliary trace-source harvest — TC-724..731), FR-050-AC-1..12 (declarative `traceability:` model + generic `quire coverage` rollup: unbacked rows, status lies, untracked symbols, per-group counts, byte-identical output; CR-015 adds the leading-marker status class, declared column vocabularies, and default-off range/annotation normalization — TC-732..740, TC-758..760), and FR-051-AC-1..11 (source-symbol extraction with stable identities; framework-native markers — pytest marker / Rust `#[trace]` attribute / TS `trace()` helper — as the canonical statically-parsed trace form with the textual forms as a sunset-gated legacy class (CON-3); `verifies`/`defined_in`/`contains` relations, FR-045-shaped records — TC-741..750, TC-753; the FR-050-CON-2/FR-051-CON-1 purity constraints are backed by the TC-756 static boundary audit, TC-690 pattern) — 55 ACs. Implementation landed 2026-08-04/05 (Plan-001 Tracks A and B, gates G1/G2 passed, amended by CR-013/CR-014/CR-015): every TC is ✅ except the five stated at the `quire validate` / `quire coverage` **command** level (TC-714, TC-720, TC-721, TC-740, TC-755, awaiting EXT-3 `quire-cli`). The canonical Filament extraction slice (FR-045/FR-046/NFR-020, US-016) adds FR-045-AC-1..6, FR-046-AC-1..4, NFR-020-AC-1..3 (14 ACs incl. FR-006-AC-7 frontmatter status, CR-011), covered by TC-681..706 + IC-001..003. The project-glossary slice (FR-044, 2026-06-23) adds FR-044-AC-1..7 (a repo's authored Ubiquitous-Language terms — a `Glossary` `## Terms` table + `## Ubiquitous Language` bullets — are harvested and composed with the module lexicon into an ad-hoc `GrammarLexicon` injected via `validate_document_in_registry_with_lexicon`; the corpus `validate_bundle` applies it per doc; advisory and a no-op when no glossary exists — TC-674..680) — 7 ACs. The module-lexicon slice (FR-043, ADR 0009, 2026-06-23) adds FR-043-AC-1..7 (modules ship a mergeable `lexicon:` registry the EARS object-aware vague-response check consumes; the engine drops its hardcoded concrete-noun list; the type-only path degrades to an empty lexicon; PyO3 `check_grammar` gains `module_root` — TC-667..673) — 7 ACs. The requirement-grammar slice (FR-042, EARS, 2026-06-22) adds FR-042-AC-1..10 (grammar-check framework with EARS as the first grammar: six-pattern classification, the non-singular/missing-subject/vague-response/non-canonical-trigger clause checks with per-archetype dialects, warning→error severity routing into `ValidationResult`, fenced/quote/reference skip, and PyO3 parity — TC-657..666) — 10 ACs. The authorable-inverse-edges slice (FR-041, ADR 0008, 2026-06-21) adds FR-041-AC-1..5 (declared `inverse:` labels become authorable as derived views of their forward edge: inverse index, Tier-1 recognition, precedence/`DuplicateInverseEdge`, Tier-2 forward normalization, warn-only determinism, TC-652..656) — 5 ACs. The object-edge-vocabulary slice (FR-040, 2026-06-20) adds FR-040-AC-1..11 (object-axis typed edge vocabulary + cross-domain role-typed targets: mergeable `edge_types`/`roles` registries with first-wins+diagnostic merge, object `roles` parsed onto the archetype, array|map `allowed_links`, union resolution, warn-tier Tier-1/Tier-2 validation, composed skeleton, TC-636..645 + TC-650/651) and US-015-AC-1..4 (author declares an object's relationship vocabulary, TC-646..649) — 15 ACs. The per-value assert slice (CR-010, 2026-06-20) adds FR-033-AC-11..13 (`choices` scalar enum + `column_choices`/`column_patterns` per-column table validation, TC-633..635) — 3 ACs. The internal-links slice (ADR 0007, 2026-06-17) adds FR-026-AC-9..11 (relative-path link edge source + index/log exclusion + dedup parity, TC-620..622) and FR-039-AC-1..10 (unlinked-reference detection & autofix suggestions, incl. AC-10 multi-token code-span skip, TC-623..632) — 13 ACs. The composed type+object validation slice (2026-06-16) adds FR-032-AC-11..13 (`validate_document_in_registry` composes the `type` archetype with the frontmatter `object:` archetype; resolved-object failures are errors, unknown-object is a warning, `ValidationResult` carries typed `warnings`) — TC-610..613, 3 ACs. The assert/lint extension slice (2026-06-16) adds FR-033-AC-10 (CR-008 `matches` content assert, TC-608) and FR-036-AC-6 (CR-009 `section_body_pattern` lint rule, TC-609) — 2 ACs. The binding-contract slice (CR-020, 2026-08-06) adds FR-036-AC-7 (`forbidden_section` lint rule — TC-764) and FR-039-AC-11 (`-VC-` sub-id kind in `parent_id` and the token regex — TC-765) — 2 ACs. The OKF slice (2026-06-16) adds FR-037-AC-1..6 (base concept frontmatter schema, TC-590..596 + TC-528) and FR-038-AC-1..8 (OKF bundle validation, TC-600..607) — 14 ACs. v0.4 adds FR-011-AC-21 (CR-006 `multiple: true`, TC-583) and FR-036-AC-1..5 (declarative lint rules, TC-584..588). v0.2 block model added 16 ACs (FR-019..022, TC-400..443). v0.3 adds 81 ACs — StR-005/006, US-011..013, FR-023..027 (incl. review-added FR-026-AC-8, FR-027-AC-9), NFR-015/016, plus the hardening re-review (NFR-003-AC-4, FR-024-AC-9, NFR-017, NFR-018) — covered by TC-455..507 (plus reused TC-456..459). The Miri ACs (NFR-012-AC-1..5) were **retired** (ADR 0006) and the compile-time **NFR-003-AC-5** (`forbid(unsafe_code)`, TC-582) added. PC (performance criteria) for US-011..013 are tracked as benches (TC-455..459, TC-469) and marked 🚧 pending implementation, consistent with the US-006..010 perf-bench convention. The v0.3 hardening re-review (loom NFR-017, TSAN/ASAN NFR-018) is recorded in spec.md §19.
+**Coverage status: 446 / 446 ACs covered (100%).** The AC-grammar/traceability-coverage slice (FR-047..FR-051, US-017, 2026-08-04) adds FR-047-AC-1..14 (acceptance-criteria grammar `ac`: assertion-canonical shape classification with obligation/GWT recognized-but-steered via `non-canonical-shape` (CR-013; EARS was the original canon), every-cell segmentation, and the five shipped checks — `unclassifiable` (structural: no predicate at all), `non-singular`, lexicon-backed `vague-response`, `vacuous-outcome` (a closed, module-extensible `vacuous_predicates` set suppressed by any concrete signal, lexicon term, or declared observable verb) and `non-canonical-shape` (CR-014; `observable_verbs` keeps its ADR-0009 module-data role, demoted from a membership test to a suppressor); binding, fenced/blockquote skip in supplements, mention-vs-use masking (CR-017), elided-copula predication (CR-019), generic `[<grammar>:<check>]` --summary; CON-1 gates error-promotion behind a corpus baseline sweep + user sign-off — TC-707..715, TC-751, TC-754, TC-757, TC-761, TC-763), FR-048-AC-1..10 (per-check `grammar_severity` registry over `off`|`warning`|`error` + `--severity` CLI override incl. repeatable form and malformed-entry rejection, first-wins merge, type-only all-default, `off` full suppression — TC-716..723, TC-752, TC-755, TC-766), FR-049-AC-1..8 (model-driven verification-reference integrity, `dangling-trace-reference`, posture degradation, auxiliary trace-source harvest — TC-724..731), FR-050-AC-1..12 (declarative `traceability:` model + generic `quire coverage` rollup: unbacked rows, status lies, untracked symbols, per-group counts, byte-identical output; CR-015 adds the leading-marker status class, declared column vocabularies, and default-off range/annotation normalization — TC-732..740, TC-758..760), and FR-051-AC-1..11 (source-symbol extraction with stable identities; framework-native markers — pytest marker / Rust `#[trace]` attribute / TS `trace()` helper — as the canonical statically-parsed trace form with the textual forms as a sunset-gated legacy class (CON-3); `verifies`/`defined_in`/`contains` relations, FR-045-shaped records — TC-741..750, TC-753; the FR-050-CON-2/FR-051-CON-1 purity constraints are backed by the TC-756 static boundary audit, TC-690 pattern) — 55 ACs. Implementation landed 2026-08-04/05 (Plan-001 Tracks A and B, gates G1/G2 passed, amended by CR-013/CR-014/CR-015): every TC is ✅ except the five stated at the `quire validate` / `quire coverage` **command** level (TC-714, TC-720, TC-721, TC-740, TC-755, awaiting EXT-3 `quire-cli`). The canonical Filament extraction slice (FR-045/FR-046/NFR-020, US-016) adds FR-045-AC-1..6, FR-046-AC-1..4, NFR-020-AC-1..3 (14 ACs incl. FR-006-AC-7 frontmatter status, CR-011), covered by TC-681..706 + TC-767..003. The project-glossary slice (FR-044, 2026-06-23) adds FR-044-AC-1..7 (a repo's authored Ubiquitous-Language terms — a `Glossary` `## Terms` table + `## Ubiquitous Language` bullets — are harvested and composed with the module lexicon into an ad-hoc `GrammarLexicon` injected via `validate_document_in_registry_with_lexicon`; the corpus `validate_bundle` applies it per doc; advisory and a no-op when no glossary exists — TC-674..680) — 7 ACs. The module-lexicon slice (FR-043, ADR 0009, 2026-06-23) adds FR-043-AC-1..7 (modules ship a mergeable `lexicon:` registry the EARS object-aware vague-response check consumes; the engine drops its hardcoded concrete-noun list; the type-only path degrades to an empty lexicon; PyO3 `check_grammar` gains `module_root` — TC-667..673) — 7 ACs. The requirement-grammar slice (FR-042, EARS, 2026-06-22) adds FR-042-AC-1..10 (grammar-check framework with EARS as the first grammar: six-pattern classification, the non-singular/missing-subject/vague-response/non-canonical-trigger clause checks with per-archetype dialects, warning→error severity routing into `ValidationResult`, fenced/quote/reference skip, and PyO3 parity — TC-657..666) — 10 ACs. The authorable-inverse-edges slice (FR-041, ADR 0008, 2026-06-21) adds FR-041-AC-1..5 (declared `inverse:` labels become authorable as derived views of their forward edge: inverse index, Tier-1 recognition, precedence/`DuplicateInverseEdge`, Tier-2 forward normalization, warn-only determinism, TC-652..656) — 5 ACs. The object-edge-vocabulary slice (FR-040, 2026-06-20) adds FR-040-AC-1..11 (object-axis typed edge vocabulary + cross-domain role-typed targets: mergeable `edge_types`/`roles` registries with first-wins+diagnostic merge, object `roles` parsed onto the archetype, array|map `allowed_links`, union resolution, warn-tier Tier-1/Tier-2 validation, composed skeleton, TC-636..645 + TC-650/651) and US-015-AC-1..4 (author declares an object's relationship vocabulary, TC-646..649) — 15 ACs. The per-value assert slice (CR-010, 2026-06-20) adds FR-033-AC-11..13 (`choices` scalar enum + `column_choices`/`column_patterns` per-column table validation, TC-633..635) — 3 ACs. The internal-links slice (ADR 0007, 2026-06-17) adds FR-026-AC-9..11 (relative-path link edge source + index/log exclusion + dedup parity, TC-620..622) and FR-039-AC-1..10 (unlinked-reference detection & autofix suggestions, incl. AC-10 multi-token code-span skip, TC-623..632) — 13 ACs. The composed type+object validation slice (2026-06-16) adds FR-032-AC-11..13 (`validate_document_in_registry` composes the `type` archetype with the frontmatter `object:` archetype; resolved-object failures are errors, unknown-object is a warning, `ValidationResult` carries typed `warnings`) — TC-610..613, 3 ACs. The assert/lint extension slice (2026-06-16) adds FR-033-AC-10 (CR-008 `matches` content assert, TC-608) and FR-036-AC-6 (CR-009 `section_body_pattern` lint rule, TC-609) — 2 ACs. The binding-contract slice (CR-020, 2026-08-06) adds FR-036-AC-7 (`forbidden_section` lint rule — TC-764) and FR-039-AC-11 (`-VC-` sub-id kind in `parent_id` and the token regex — TC-765) — 2 ACs. The OKF slice (2026-06-16) adds FR-037-AC-1..6 (base concept frontmatter schema, TC-590..596 + TC-528) and FR-038-AC-1..8 (OKF bundle validation, TC-600..607) — 14 ACs. v0.4 adds FR-011-AC-21 (CR-006 `multiple: true`, TC-583) and FR-036-AC-1..5 (declarative lint rules, TC-584..588). v0.2 block model added 16 ACs (FR-019..022, TC-400..443). v0.3 adds 81 ACs — StR-005/006, US-011..013, FR-023..027 (incl. review-added FR-026-AC-8, FR-027-AC-9), NFR-015/016, plus the hardening re-review (NFR-003-AC-4, FR-024-AC-9, NFR-017, NFR-018) — covered by TC-455..507 (plus reused TC-456..459). The Miri ACs (NFR-012-AC-1..5) were **retired** (ADR 0006) and the compile-time **NFR-003-AC-5** (`forbid(unsafe_code)`, TC-582) added. PC (performance criteria) for US-011..013 are tracked as benches (TC-455..459, TC-469) and marked 🚧 pending implementation, consistent with the US-006..010 perf-bench convention. The v0.3 hardening re-review (loom NFR-017, TSAN/ASAN NFR-018) is recorded in spec.md §19.
 
 **v0.4 markdown-validation slice** adds 42 ACs — US-014 (author validates markdown), FR-029 (archetype input contract, recast by ADR 0004), FR-030 (required-section validation, superseded by FR-032/FR-033), FR-031 (unified archetype shape), FR-032 (`validate_document`), FR-033 (locator `assert` facet), FR-034 (assert field interpolation), FR-035 (per-level heading uniqueness) — covered by TC-518..553. FR-030's ACs are mapped to the FR-032/FR-033 TCs that subsume them (per its CR note). This slice also back-fills 7 ACs that a prior commit left out of the audit table — FR-013-AC-11..14, FR-028-AC-9/10, US-003-AC-4 — via TC-554..560. New v0.4 TCs are 🚧 pending implementation.
 
