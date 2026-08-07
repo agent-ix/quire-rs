@@ -72,6 +72,21 @@ SKIP_DIRS = {
 WORKTREE_SIBLING = re.compile(r"^.+-task\d+$")
 
 
+def is_worktree_sibling(root: Path, name: str) -> bool:
+    """True for a `<repo>-task<N>` directory that really is a git worktree.
+
+    The name alone is not proof: a normal repository may legitimately be called
+    `something-task42`, and skipping it would silently drop it from every sweep
+    with no diagnostic — the same class of invisible under-count this harness
+    was already fixed for twice. A linked worktree stores `.git` as a *file*
+    containing a `gitdir:` pointer, whereas a normal clone has a `.git`
+    directory, so the structure distinguishes them exactly.
+    """
+    if not WORKTREE_SIBLING.match(name):
+        return False
+    return (root / name / ".git").is_file()
+
+
 def frontmatter_type(text: str) -> str | None:
     """The document's `type:` field, read from the frontmatter block only."""
     if not text.startswith("---"):
@@ -136,7 +151,7 @@ def iter_docs(root: Path):
             if arch not in AC_ARCHETYPES:
                 continue
             rel = path.relative_to(root)
-            if WORKTREE_SIBLING.match(rel.parts[0]):
+            if is_worktree_sibling(root, rel.parts[0]):
                 continue
             yield rel.parts[0], str(rel), arch, text
 
