@@ -65,6 +65,12 @@ SKIP_DIRS = {
     # always deduped; this harness did not, and the gap inflated the CR-013
     # ecaz scope by 19x (1,524 findings walked vs 127 in the real `spec/`).
     "worktrees", ".worktrees",
+    # The ticket runner materializes a full checkout at
+    # `.ticket-runner/<org>-<repo>-<ticket>/` while a ticket is in flight and
+    # removes it afterwards. Left in, a sweep's result depends on whether a
+    # ticket happened to be running: one StR count moved 440 -> 453 and back
+    # within a single session.
+    ".ticket-runner",
 }
 
 # Sibling checkouts (`<repo>-task<N>`) are the third worktree shape; they are
