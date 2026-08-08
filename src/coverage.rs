@@ -23,6 +23,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::corpus::declared_tables;
 use crate::corpus::spec::Spec;
+use crate::grammar::{AcPropertyCounts, GrammarVocabularies};
 use crate::registry::Registry;
 use crate::symbols::trace::SymbolGraph;
 use crate::traceability::{StatusClass, TraceabilityModel};
@@ -88,11 +89,50 @@ pub struct GroupCounts {
     pub total: usize,
 }
 
-/// Bundle-wide totals; equal to the sum over [`CoverageReport::groups`].
+/// Property-shape counts for one document's binding criteria (FR-050-AC-13,
+/// CR-028), summarizing what [`crate::grammar::property`] classified.
+///
+/// A count is data, not a verdict (FR-050-CON-1): a low `property_shaped`
+/// share is a description of a corpus, never a failing one — CR-020 already
+/// recorded that criteria validated by demonstration legitimately score low.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CriteriaCounts {
+    /// The document the criteria live in, relative to the scope root.
+    pub document: String,
+    /// The archetype the document resolved to.
+    pub archetype: String,
+    /// Binding criteria seen in the document.
+    pub criteria: usize,
+    /// Criteria a downstream generator can extract a property from.
+    pub property_shaped: usize,
+    /// Criteria per property-shape label. `BTreeMap` keeps the histogram
+    /// deterministic (NFR-006).
+    pub by_property: BTreeMap<String, usize>,
+}
+
+/// Bundle-wide totals; the backed/total pair equals the sum over
+/// [`CoverageReport::groups`], the criteria pair the sum over
+/// [`CoverageReport::criteria`].
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CoverageTotals {
     pub backed: usize,
     pub total: usize,
+    /// Binding criteria across the corpus (CR-028).
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub criteria: usize,
+    /// Criteria a generator can extract a property from (CR-028).
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub property_shaped: usize,
+}
+
+/// A zero CR-028 total, which is omitted from the payload rather than written.
+///
+/// Omission is what makes FR-050-AC-13 hold: a corpus binding no criteria
+/// yields no `criteria` entries and no criteria totals, so its report is
+/// byte-for-byte what an engine predating the fields would have written. The
+/// derived `Deserialize` reads an absent key back as zero, so nothing is lost.
+fn is_zero(n: &usize) -> bool {
+    *n == 0
 }
 
 /// The machine-readable coverage report. Every collection is deterministically
@@ -104,6 +144,11 @@ pub struct CoverageReport {
     pub status_lies: Vec<StatusLie>,
     pub untracked_symbols: Vec<UntrackedSymbol>,
     pub groups: Vec<GroupCounts>,
+    /// Per-document property-shape counts (CR-028). Empty for a corpus whose
+    /// documents bind no criteria, so such a report serializes exactly as it
+    /// did before the field existed.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub criteria: Vec<CriteriaCounts>,
     pub totals: CoverageTotals,
 }
 
@@ -135,7 +180,70 @@ pub fn compute(
     let model = registry
         .traceability()
         .ok_or(CoverageError::ModelUndeclared)?;
-    Ok(reconcile(spec, model, graph, root))
+    let mut report = reconcile(spec, model, graph, root);
+    // CR-028: the criteria counts are computed here rather than inside
+    // `reconcile`, which reconciles against the declared model alone and takes
+    // no `Registry`. The vocabularies the classifier reads hang off the same
+    // `registry` this function already holds.
+    report.criteria = criteria_counts(spec, registry, root);
+    report.totals.criteria = report.criteria.iter().map(|c| c.criteria).sum();
+    report.totals.property_shaped = report.criteria.iter().map(|c| c.property_shaped).sum();
+    Ok(report)
+}
+
+/// Per-document property-shape counts over the corpus (CR-028).
+///
+/// The rollup carries **no acceptance-criteria knowledge**: it walks the
+/// already path-sorted corpus, resolves each document's frontmatter type to an
+/// archetype, and asks the grammar layer what that archetype's binding
+/// criteria classify as. A document yielding none — anything the `ac` binding
+/// does not cover, and every document under a module declaring no grammar —
+/// contributes no entry, so a corpus of non-requirement documents produces an
+/// empty list.
+///
+/// This is a pure function of statement text and the merged module
+/// vocabularies: no network, no service, no execution (FR-050-CON-2).
+fn criteria_counts(spec: &Spec, registry: &Registry, root: &Path) -> Vec<CriteriaCounts> {
+    let vocab = GrammarVocabularies {
+        lexicon: registry.lexicon_matcher(),
+        observable: registry.observable_verbs_matcher(),
+        vacuous: registry.vacuous_predicates_matcher(),
+        idioms: registry.property_idioms_matcher(),
+    };
+
+    let mut out: Vec<CriteriaCounts> = Vec::new();
+    for entry in &spec.inner.documents {
+        let Some(archetype) =
+            crate::corpus::spec::artifact_type(entry).and_then(|ty| registry.archetype(&ty))
+        else {
+            continue;
+        };
+        let Some(grammar_ref) = archetype.grammar_ref() else {
+            continue;
+        };
+        // Only the tallies are wanted here, and no tally reads a record's
+        // line, so the line offset is immaterial to this surface.
+        let records = crate::grammar::classify_document_properties(
+            grammar_ref,
+            &archetype.name,
+            &entry.doc,
+            0,
+            vocab,
+        );
+        if records.is_empty() {
+            continue;
+        }
+        let counts = AcPropertyCounts::tally(records.iter());
+        out.push(CriteriaCounts {
+            document: relative(root, &entry.path),
+            archetype: archetype.name.clone(),
+            criteria: counts.criteria,
+            property_shaped: counts.property_shaped,
+            by_property: counts.by_property,
+        });
+    }
+    out.sort_by(|a, b| (&a.document, &a.archetype).cmp(&(&b.document, &b.archetype)));
+    out
 }
 
 fn reconcile(
@@ -290,6 +398,7 @@ fn reconcile(
     let totals = CoverageTotals {
         backed: groups.iter().map(|g| g.backed).sum(),
         total: groups.iter().map(|g| g.total).sum(),
+        ..CoverageTotals::default()
     };
 
     unbacked_rows.sort_by(|a, b| {
@@ -312,6 +421,9 @@ fn reconcile(
         status_lies,
         untracked_symbols,
         groups,
+        // CR-028: filled by `compute`, which holds the `Registry` this
+        // reconciliation deliberately does not take.
+        criteria: Vec::new(),
         totals,
     }
 }
