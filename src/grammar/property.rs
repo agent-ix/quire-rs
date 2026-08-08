@@ -23,35 +23,40 @@
 //! unmasked original. [`mask_code_spans`](super::ac::mask_code_spans) is
 //! byte-length preserving, the same trick `outcome_clause` relies on.
 //!
-//! # The recall-widening experiment (agent-ix/quire-rs#45)
+//! # Quantification is read at two positions (agent-ix/quire-rs#45, CR-029)
 //!
 //! The 2026-08-07 corpus sweep measured `extractable` at ~90% precision and
 //! ~30% recall, and attributed the loss to the reach of one regex: the
-//! universal determiner is anchored at `^\W*`, so a conditional universal
-//! (`When a command exceeds its timeout, …`) or a generic bare-plural subject
-//! (`Exit codes match …`) fires nothing. Three candidate widenings are
-//! implemented here, each behind **its own measurement-only cargo feature**:
+//! universal determiner was anchored at `^\W*`, so a conditional universal
+//! (`When a command exceeds its timeout, …`) fired nothing. Three candidate
+//! widenings were built behind measurement-only cargo features and measured
+//! factorially over one frozen snapshot of 196 repos / 3,304 documents /
+//! 13,801 binding criteria
+//! (`~/dev/reports/2026-08-07-ac-property-recall-experiment.md`), against a gate
+//! fixed in advance: **≥85% precision on each rule's own newly-caught cells**,
+//! n=30 seeded.
 //!
-//! | Feature | Signal prefix | Rule |
-//! |---|---|---|
-//! | `recall-shape-axis` | `recall:shape-axis:` | route the FR-047 `GivenWhenThen` / `Obligation` shapes into extraction |
-//! | `recall-subject-determiner` | `recall:subject-determiner:` | universal determiner at a **bounded subject position**, not only at offset 0 |
-//! | `recall-generic-subject` | `recall:generic-subject:` | bare-plural and gerund generic subjects |
+//! **One passed and is now ordinary classifier behaviour**, the other two were
+//! deleted rather than narrowed:
 //!
-//! They are **default-off and never ship enabled**, exactly as
-//! [`remeasure`](super::ac) is: FR-047-CON-2 forbids per-module shape
-//! configurability, so a runtime knob is not an option, and a rule whose reach
-//! has not been measured is not a rule. Which — if any — becomes unconditional
-//! is decided by the factorial sweep that follows, and recorded in a spec CR
-//! afterwards (the CR-019 precedent: measure behind a feature, then record the
-//! outcome).
+//! | Rule | Newly-caught cells | Precision (n=30) | Outcome |
+//! |---|---|---|---|
+//! | `recall-subject-determiner` | 628 | **30/30 = 100%** | **ships**, unconditional |
+//! | `recall-shape-axis` | 1,006 | 21/30 = 70.0% | deleted |
+//! | `recall-generic-subject` | 4,139 | 17/30 = 56.7% | deleted |
 //!
-//! A build with none of them enabled is byte-identical to today, which
-//! `default_build_is_byte_identical_to_the_shipped_classifier` pins. Each rule
-//! is independently enableable so the sweep can attribute precision and recall
-//! to each separately; when several are on, they are tried in the table's order
-//! and the first match wins, so attribution stays single-valued and the
-//! `signals` trail names which rule fired.
+//! [`recall_subject_determiner`] keeps the shipped rule's closed determiner set
+//! and widens only the *position*, to the two subject heads a fronted clause
+//! creates. It retains its `recall:subject-determiner:` signal ids: attribution
+//! stays useful after adoption, because a corpus census can still separate the
+//! cells this rule reaches from the ones the sentence-initial anchor already
+//! reached.
+//!
+//! A rejected rule is **deleted, not narrowed and not left feature-gated**.
+//! Narrowing a rule until its number looks acceptable is the failure that
+//! retired `no-observable-outcome` (CR-014), and a dormant feature is a rule
+//! nobody measures again. A narrower variant — a GWT-only shape rule, say — is a
+//! new question with its own experiment, not a rescue of this one.
 
 use std::sync::OnceLock;
 
@@ -254,27 +259,11 @@ pub struct Classified {
 ///    shape alone (FR-052-CON-4). A missed idiom therefore degrades a label to
 ///    a less specific shape; it never removes a criterion from extraction.
 pub fn classify_property(statement: &str, idioms: &PropertyIdioms) -> Classified {
-    classify_property_in_shape(statement, None, idioms)
-}
-
-/// [`classify_property`] with the criterion's already-computed FR-047
-/// [`AcShape`] supplied.
-///
-/// The shape is an *input to a measurement-only rule* (`recall-shape-axis`) and
-/// to nothing else: with that feature off the argument is unread and the result
-/// is identical to [`classify_property`]'s. Passing it rather than recomputing
-/// it keeps `ac::classify` called exactly once per criterion, which is also what
-/// makes "reuse the shape already computed" true rather than aspirational.
-pub fn classify_property_in_shape(
-    statement: &str,
-    shape: Option<AcShape>,
-    idioms: &PropertyIdioms,
-) -> Classified {
     let masked = ac::mask_code_spans(statement);
     let markers = predicate_markers(&masked);
     let mut signals: Vec<&'static str> = Vec::new();
 
-    let quantified = quantification(&masked, shape);
+    let quantified = quantification(&masked);
     let structural = match (structural_shape(&masked, &mut signals), quantified) {
         (Some(shape), _) => shape,
         (None, Some(q)) => {
@@ -339,10 +328,10 @@ pub fn classify_document(
     ac::statements(archetype, doc, line_offset)
         .into_iter()
         .map(|stmt| {
-            // The FR-047 axis is computed once and then handed to the FR-052
-            // axis, which is what `recall-shape-axis` reuses.
+            // The FR-047 axis is carried through on the record unchanged; the
+            // FR-052 axis is computed independently from the statement text.
             let shape = ac::classify(&stmt.text, vocab);
-            let classified = classify_property_in_shape(&stmt.text, Some(shape), vocab.idioms);
+            let classified = classify_property(&stmt.text, vocab.idioms);
             let (domain, precondition, oracle) = match classified.spans {
                 Some(s) => (Some(s.domain), s.precondition, Some(s.oracle)),
                 None => (None, None, None),
@@ -405,10 +394,9 @@ fn structural_shape(masked: &str, signals: &mut Vec<&'static str>) -> Option<Pro
 /// A criterion found to quantify over a domain: **where the domain begins** and
 /// **which rule found it**.
 ///
-/// One type for the shipped determiner rule and for every measurement-only
-/// widening, so a widening can only ever move the domain boundary and name
-/// itself — it cannot reach `extractable`, the idiom registry, or the span
-/// logic by any other route.
+/// One type for both determiner positions, so a rule can only ever move the
+/// domain boundary and name itself — it cannot reach `extractable`, the idiom
+/// registry, or the span logic by any other route.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct Quantification {
     /// Byte offset into the masked statement at which the quantified domain
@@ -420,74 +408,21 @@ struct Quantification {
 
 /// Does this criterion quantify over a domain, and where does that domain open?
 ///
-/// The shipped rule — a universal determiner in sentence-initial determiner
-/// position — is tried first and always. Each measurement-only widening is
-/// tried only when everything before it declined, in ascending order of
-/// expected precision risk, so exactly one rule ever fires and the `signals`
-/// trail attributes the classification without re-running the engine.
-///
-/// With no `recall-*` feature enabled this function is the shipped rule and
-/// nothing else.
-fn quantification(masked: &str, shape: Option<AcShape>) -> Option<Quantification> {
-    // Unread unless `recall-shape-axis` is on; naming it here keeps the
-    // signature stable across every feature combination.
-    #[cfg(not(feature = "recall-shape-axis"))]
-    let _ = shape;
-
+/// A universal determiner in **sentence-initial** determiner position is read
+/// first and always; [`recall_subject_determiner`] is read only when that
+/// declined. Exactly one rule ever fires, so the `signals` trail attributes the
+/// classification without re-running the engine.
+fn quantification(masked: &str) -> Option<Quantification> {
     if let Some(m) = re_universal_determiner().find(masked) {
         return Some(Quantification {
             domain_start: m.end(),
             signal: "universal:determiner",
         });
     }
-
-    #[cfg(feature = "recall-shape-axis")]
-    if let Some(q) = recall_shape_axis(masked, shape) {
-        return Some(q);
-    }
-    #[cfg(feature = "recall-subject-determiner")]
-    if let Some(q) = recall_subject_determiner(masked) {
-        return Some(q);
-    }
-    #[cfg(feature = "recall-generic-subject")]
-    if let Some(q) = recall_generic_subject(masked) {
-        return Some(q);
-    }
-
-    None
+    recall_subject_determiner(masked)
 }
 
-/// **`recall-shape-axis`** — route the FR-047 shape axis into extraction.
-///
-/// [`AcShape::GivenWhenThen`] and [`AcShape::Obligation`] are already computed
-/// for every criterion and today ignored here. Both carry a quantification by
-/// construction rather than by wording: a GWT criterion states a precondition
-/// and an oracle, an EARS obligation states a trigger and a response, and in
-/// each case the criterion is a claim about *every* occasion the precondition
-/// or trigger holds — which is exactly what a generator needs.
-///
-/// **No new pattern matching**, which is why this rule is expected to carry the
-/// least precision risk: the shape was decided by `ac`, and the only thing read
-/// here is where the fronted trigger clause ends, so the domain is taken from
-/// the `Given`/`When` clause when the criterion fronts one and from the whole
-/// statement when it does not.
-#[cfg(feature = "recall-shape-axis")]
-fn recall_shape_axis(masked: &str, shape: Option<AcShape>) -> Option<Quantification> {
-    let signal = match shape? {
-        AcShape::GivenWhenThen => "recall:shape-axis:given-when-then",
-        AcShape::Obligation => "recall:shape-axis:obligation",
-        // An assertion is what the shipped rule already reads, and an
-        // unstructured cell carries nothing to quantify over.
-        AcShape::Assertion | AcShape::Unstructured => return None,
-    };
-    Some(Quantification {
-        domain_start: fronted_subordinator_end(masked).unwrap_or(0),
-        signal,
-    })
-}
-
-/// **`recall-subject-determiner`** — the determiner at the **subject**, not at
-/// offset 0.
+/// The determiner at the **subject**, not at offset 0.
 ///
 /// The shipped rule anchors with `^\W*`, so a criterion that fronts its
 /// condition (`When a command exceeds its timeout, the result carries …`)
@@ -508,7 +443,10 @@ fn recall_shape_axis(masked: &str, shape: Option<AcShape>) -> Option<Quantificat
 /// phrase with no comma, a determiner buried in a trailing prepositional phrase
 /// — the rule **refuses** rather than guessing, the same discipline the
 /// `span:refused-weak-boundary` guard already applies to clause boundaries.
-#[cfg(feature = "recall-subject-determiner")]
+///
+/// Measured over the 2026-08-07 snapshot it newly caught 628 criteria at 30/30
+/// precision (90% under the strictest reading of three degenerate
+/// preconditions), which is why it is unconditional rather than gated (CR-029).
 fn recall_subject_determiner(masked: &str) -> Option<Quantification> {
     if let Some(m) = re_fronted_subject_determiner().find(masked) {
         return Some(Quantification {
@@ -523,179 +461,8 @@ fn recall_subject_determiner(masked: &str) -> Option<Quantification> {
     })
 }
 
-/// **`recall-generic-subject`** — bare-plural and gerund generics.
-///
-/// English quantifies generically with **no determiner at all**: a bare plural
-/// subject (`Exit codes match §5 contract …`) and a gerund subject (`Setting a
-/// field to `null` … removes it`, `Following `next_cursor` to exhaustion yields
-/// …`) are both universally quantified readings, and both are invisible to a
-/// determiner rule because there is no determiner to see.
-///
-/// The test is positional and closed-vocabulary, not part-of-speech tagging: it
-/// reads the first few words of the statement, requires the subject head to be
-/// sentence-initial and **not** introduced by a determiner or preposition, and
-/// requires the word after it to be a possible verb — i.e. not a member of the
-/// closed [`NON_VERB_FUNCTION_WORDS`] set. That is the same class of
-/// function-word guard [`re_modifier_context`] already uses.
-///
-/// This rule is expected to carry the **most** false-positive surface of the
-/// three, because a fragment (`Metrics: operation counts, durations, error
-/// rates`) has the same surface shape as a generic claim. Sizing that surface
-/// is what the sweep is for.
-#[cfg(feature = "recall-generic-subject")]
-fn recall_generic_subject(masked: &str) -> Option<Quantification> {
-    // The subject of the sentence, and — when the criterion fronts a clause or
-    // a phrase closed by a comma — the subject of the main clause after it
-    // (`Given split mode, ` **`unchanged lines`** ` align …`). Both are subject
-    // positions bounded by a function word or a comma; no other position is
-    // examined.
-    generic_subject_at(masked, 0).or_else(|| {
-        let comma = re_fronted_material()
-            .find(masked)
-            .map(|m| m.end())
-            .filter(|at| *at < masked.len())?;
-        generic_subject_at(masked, comma)
-    })
-}
-
-/// The generic-subject test applied at one bounded subject position: `at` is a
-/// byte offset in `masked` at which a subject may begin.
-#[cfg(feature = "recall-generic-subject")]
-fn generic_subject_at(masked: &str, at: usize) -> Option<Quantification> {
-    let words = leading_words(masked.get(at..)?, 4);
-    let (first, first_start, first_end) = *words.first()?;
-    let (first_start, first_end) = (at + first_start, at + first_end);
-    let lower = first.to_ascii_lowercase();
-    if NON_VERB_FUNCTION_WORDS.contains(&lower.as_str()) {
-        return None;
-    }
-
-    // A gerund subject: the domain is what the gerund operates on, so it opens
-    // just past the gerund itself.
-    if lower.len() > 4 && lower.ends_with("ing") && words.len() > 1 {
-        return Some(Quantification {
-            domain_start: first_end,
-            signal: "recall:generic-subject:gerund",
-        });
-    }
-
-    // A bare-plural subject: the head is the first `-s` word within the first
-    // three, every word before it is part of the same bare noun phrase, and the
-    // word after it can be a verb. The domain is the subject phrase itself, so
-    // it opens at the head of the statement.
-    let head = words
-        .iter()
-        .take(3)
-        .position(|(w, _, _)| is_bare_plural(w))?;
-    if words[..head]
-        .iter()
-        .any(|(w, _, _)| NON_VERB_FUNCTION_WORDS.contains(&w.to_ascii_lowercase().as_str()))
-    {
-        return None;
-    }
-    let (next, _, _) = words.get(head + 1)?;
-    if NON_VERB_FUNCTION_WORDS.contains(&next.to_ascii_lowercase().as_str()) {
-        return None;
-    }
-    Some(Quantification {
-        domain_start: first_start,
-        signal: "recall:generic-subject:bare-plural",
-    })
-}
-
-/// A plural noun form: three or more letters ending in a bare `s`, not an `-ss`
-/// word (`class`, `success`), and not one of the closed set of English function
-/// and auxiliary words that merely *look* plural.
-#[cfg(feature = "recall-generic-subject")]
-fn is_bare_plural(word: &str) -> bool {
-    let lower = word.to_ascii_lowercase();
-    lower.len() >= 3
-        && lower.ends_with('s')
-        && !lower.ends_with("ss")
-        && !NON_VERB_FUNCTION_WORDS.contains(&lower.as_str())
-        && !PLURAL_LOOKALIKES.contains(&lower.as_str())
-}
-
-/// Closed English words ending in `-s` that are never a plural noun head: the
-/// auxiliaries and the function words. Without this, `was`, `has` and `does`
-/// would each read as a bare-plural subject.
-#[cfg(feature = "recall-generic-subject")]
-const PLURAL_LOOKALIKES: &[&str] = &[
-    "always",
-    "does",
-    "else",
-    "gas",
-    "has",
-    "its",
-    "perhaps",
-    "plus",
-    "sometimes",
-    "thus",
-    "unless",
-    "us",
-    "versus",
-    "was",
-    "whereas",
-    "yes",
-];
-
-/// The first `limit` words of `masked` as `(word, start, end)`, skipping any
-/// leading non-word characters (a bolded or bulleted prefix).
-#[cfg(feature = "recall-generic-subject")]
-fn leading_words(masked: &str, limit: usize) -> Vec<(&str, usize, usize)> {
-    let is_word = |c: char| c.is_alphanumeric() || c == '_' || c == '-';
-    let mut out: Vec<(&str, usize, usize)> = Vec::with_capacity(limit);
-    let mut start: Option<usize> = None;
-    for (i, c) in masked.char_indices() {
-        if is_word(c) {
-            start.get_or_insert(i);
-        } else if let Some(s) = start.take() {
-            out.push((&masked[s..i], s, i));
-            if out.len() == limit {
-                return out;
-            }
-        }
-    }
-    if let Some(s) = start {
-        out.push((&masked[s..], s, masked.len()));
-    }
-    out
-}
-
-/// Closed English function words that **cannot** head a bare generic subject or
-/// stand as its verb: determiners, pronouns, prepositions and conjunctions.
-///
-/// Auxiliaries and copulas are deliberately absent — `4xx errors **do** not
-/// suggest retry` has an auxiliary in verb position, and excluding it would
-/// refuse the very class this rule exists to catch.
-#[cfg(feature = "recall-generic-subject")]
-const NON_VERB_FUNCTION_WORDS: &[&str] = &[
-    "a", "about", "across", "after", "all", "an", "and", "any", "as", "at", "before", "between",
-    "both", "but", "by", "during", "each", "either", "every", "for", "from", "her", "his", "in",
-    "into", "it", "its", "neither", "no", "of", "on", "one", "or", "our", "over", "per", "some",
-    "than", "that", "the", "their", "there", "these", "this", "those", "through", "to", "two",
-    "under", "until", "via", "while", "with", "within", "without", "your",
-];
-
-/// The byte offset just past a **sentence-initial** subordinator, when the
-/// criterion fronts its condition with one.
-///
-/// Sentence-initial by construction (`^\W*`), so a mid-sentence `when` — which
-/// heads a *restrictive filter*, not a fronted clause, and is read by
-/// [`re_filter_marker`] — cannot reach it.
-#[cfg(feature = "recall-shape-axis")]
-fn fronted_subordinator_end(masked: &str) -> Option<usize> {
-    static R: OnceLock<Regex> = OnceLock::new();
-    let re = R.get_or_init(|| {
-        Regex::new(r"(?i)^\W*(given|when|if|while|where|unless|once|after|before)\s+")
-            .expect("fronted-subordinator regex")
-    });
-    re.find(masked).map(|m| m.end())
-}
-
 /// A universal determiner at the head of a **fronted subordinate clause's**
 /// subject: `When` **`a command`** `exceeds its timeout, …`.
-#[cfg(feature = "recall-subject-determiner")]
 fn re_fronted_subject_determiner() -> &'static Regex {
     static R: OnceLock<Regex> = OnceLock::new();
     R.get_or_init(|| {
@@ -713,7 +480,6 @@ fn re_fronted_subject_determiner() -> &'static Regex {
 /// The fronted material is bounded at the *first* comma (`[^,]*`) — the
 /// conservative choice, since a fronted clause carrying its own comma cannot be
 /// delimited without parsing, and the rule refuses there rather than guessing.
-#[cfg(feature = "recall-subject-determiner")]
 fn re_main_subject_determiner() -> &'static Regex {
     static R: OnceLock<Regex> = OnceLock::new();
     R.get_or_init(|| {
@@ -721,24 +487,6 @@ fn re_main_subject_determiner() -> &'static Regex {
             r"(?i)^\W*(given|when|if|while|where|unless|once|after|before|in|for|following|during|upon)\b[^,]*,\s*(a|an|any|every|each|all|no)\s+",
         )
         .expect("main-subject-determiner regex")
-    })
-}
-
-/// Sentence-initial fronted material — a subordinate clause or a prepositional
-/// phrase — up to and including the comma that closes it. The match ends where
-/// the main clause's subject begins.
-///
-/// Same bounding discipline as [`re_main_subject_determiner`]: the *first*
-/// comma, because a fronted clause carrying its own comma cannot be delimited
-/// without parsing.
-#[cfg(feature = "recall-generic-subject")]
-fn re_fronted_material() -> &'static Regex {
-    static R: OnceLock<Regex> = OnceLock::new();
-    R.get_or_init(|| {
-        Regex::new(
-            r"(?i)^\W*(given|when|if|while|where|unless|once|after|before|in|for|following|during|upon)\b[^,]*,\s*",
-        )
-        .expect("fronted-material regex")
     })
 }
 
@@ -1466,29 +1214,17 @@ mod tests {
         assert!(classify_property(ISSUE_CELL, &bare).extractable);
     }
 
-    // ── The recall-widening experiment (agent-ix/quire-rs#45) ───────────────
-    //
-    // Fixtures, not acceptance criteria: these tests cover a *measurement
-    // apparatus*, so they carry no TC id and are not in `spec/tests.md`. What
-    // ships is decided by the sweep these features exist to run, and recorded
-    // in a spec CR afterwards.
+    // ── Quantification at a bounded subject position (CR-029) ───────────────
 
-    /// One real corpus criterion the classifier drops today, and which of the
-    /// three candidate rules — each on its own — recovers it.
-    // Which columns are read depends on which features are enabled — a
-    // default build reads none of them and a single-feature build reads one —
-    // so the fixture table is deliberately wider than any one build needs.
-    #[allow(dead_code)]
+    /// One real corpus criterion the sentence-initial determiner anchor drops,
+    /// and the signal [`recall_subject_determiner`] fires on it — or `None`
+    /// where the rule declines it. Declining is a first-class outcome: a rule
+    /// that cannot bound the subject position refuses rather than guessing.
     struct RecallFixture {
         /// `<repo> <criterion id>`, so a fixture can be traced to its source.
         id: &'static str,
         statement: &'static str,
-        /// The signal each rule fires on this cell, or `None` where the rule
-        /// declines it. Declining is a first-class outcome: a rule that cannot
-        /// bound the subject position refuses rather than guessing.
-        shape_axis: Option<&'static str>,
         subject_determiner: Option<&'static str>,
-        generic_subject: Option<&'static str>,
     }
 
     /// The recall sample from `~/dev/reports/2026-08-07-ac-property-shape-sweep.md`
@@ -1501,204 +1237,157 @@ mod tests {
     /// ten are drawn from re-running the report's own seeded recall frame
     /// (`--properties --sample 30 --seed 20260807`, stream `seed + 1`) and
     /// re-applying the report's rubric — *could a generator produce members of
-    /// a domain and check the stated oracle against them?* The re-run does not
-    /// reproduce the report's draw exactly, because the corpus moved between
-    /// the two runs (13,950 criteria then, 13,801 now); that is recorded here
-    /// rather than papered over.
+    /// a domain and check the stated oracle against them?*
+    ///
+    /// The table is kept **whole** after CR-029, not trimmed to the two cells
+    /// the shipped rule reaches: the fourteen it declines are the negative
+    /// space, and a fixture set holding only the cells a rule catches measures
+    /// nothing. It is also the standing reminder the experiment produced — the
+    /// two deleted rules reached 1 and 11 of these sixteen respectively, which
+    /// predicted neither's corpus precision. A fixture table is an existence
+    /// proof, not a measurement.
     const RECALL_FIXTURES: &[RecallFixture] = &[
         // ── The six the report names verbatim ───────────────────────────────
         RecallFixture {
             id: "ix-agent-tools FR-007-AC-2",
             statement: "When a command exceeds its timeout the result carries `timed_out` true",
-            shape_axis: None,
             subject_determiner: Some("recall:subject-determiner:fronted-subject"),
-            generic_subject: None,
         },
         RecallFixture {
             id: "ts-auth-sdk FR-003-AC-3",
             statement: "Given the identity service returns a non-2xx response, when \
                         `getProfile()` is called, the SDK MUST return `null` silently (not throw).",
-            shape_axis: None,
             subject_determiner: None,
-            generic_subject: None,
         },
         RecallFixture {
             id: "config-overlay FR-005-AC-2",
             statement: "Setting a field to `null` in the overlay removes it from the effective \
                         config",
-            shape_axis: None,
             subject_determiner: None,
-            generic_subject: Some("recall:generic-subject:gerund"),
         },
         RecallFixture {
             id: "filament-ide-rs FR-083-AC-2",
             statement: "Following `next_cursor` to exhaustion yields every project graph node and \
                         edge exactly once, with totals matching the delivered counts",
-            shape_axis: None,
             subject_determiner: None,
-            generic_subject: Some("recall:generic-subject:gerund"),
         },
         RecallFixture {
             id: "identity FR-029-AC-5",
             statement: "Exit codes match §5 contract for each documented failure mode",
-            shape_axis: None,
             subject_determiner: None,
-            generic_subject: Some("recall:generic-subject:bare-plural"),
         },
         RecallFixture {
             id: "sync-github FR-004-AC-4",
             statement: "In metadata-only mode the snapshot carries the source identity, branch, \
                         and head SHA, `container_path` is `None`, and no tarball is downloaded",
-            shape_axis: None,
             subject_determiner: None,
-            generic_subject: None,
         },
         // ── The ten recovered from the re-run of the seeded recall frame ────
         RecallFixture {
             id: "auth FR-026-AC-5",
             statement: "`POST /api/auth/device/approve` with a valid session but missing/invalid \
                         CSRF token returns 403 and records no consent",
-            shape_axis: None,
             subject_determiner: None,
-            generic_subject: None,
         },
         RecallFixture {
             id: "filament-view-ecosystem FR-005-AC-2",
             statement: "Given the component unmounts, the ResizeObserver is disconnected during \
                         cleanup",
-            shape_axis: None,
             subject_determiner: None,
-            generic_subject: None,
         },
         RecallFixture {
             id: "workflow-worker-pool FR-006-AC-2",
             statement: "When broker connected and subscriptions active, `/health/ready` returns \
                         200 with `{\"ready\": true}`",
-            shape_axis: None,
             subject_determiner: None,
-            generic_subject: Some("recall:generic-subject:bare-plural"),
         },
         RecallFixture {
             id: "user-admin-ui FR-017-AC-3",
             statement: "Auditor sessions render read-only audit context without mutation \
                         affordances.",
-            shape_axis: None,
             subject_determiner: None,
-            generic_subject: Some("recall:generic-subject:bare-plural"),
         },
         RecallFixture {
             id: "filament-view-ecosystem FR-008-AC-3",
             statement: "Given a category is toggled off, clicking it again restores its nodes and \
                         links",
-            shape_axis: None,
             subject_determiner: Some("recall:subject-determiner:fronted-subject"),
-            generic_subject: Some("recall:generic-subject:gerund"),
         },
         RecallFixture {
             id: "glitchtip-mcp NFR-003-AC-3",
             statement: "4xx errors do not suggest retry",
-            shape_axis: None,
             subject_determiner: None,
-            generic_subject: Some("recall:generic-subject:bare-plural"),
         },
         RecallFixture {
             id: "code-diff-editor FR-081-AC-2",
             statement: "Given split mode (selectable via `ViewModeSelector`), unchanged lines \
                         align horizontally across columns",
-            shape_axis: None,
             subject_determiner: None,
-            generic_subject: Some("recall:generic-subject:bare-plural"),
         },
         RecallFixture {
             id: "user-admin-ui FR-022-AC-2",
             statement: "Creating a token shows the raw token value once and displays copy \
                         affordance in the success state.",
-            shape_axis: None,
             subject_determiner: None,
-            generic_subject: Some("recall:generic-subject:gerund"),
         },
         RecallFixture {
             id: "markdown-editor FR-096-AC-4",
             statement: "**Given** `text` nodes carrying `comment` or `reviewHighlight` marks \
                         **When** the document is serialized **Then** those marks are omitted from \
                         the output while the underlying text is preserved.",
-            shape_axis: Some("recall:shape-axis:given-when-then"),
             subject_determiner: None,
-            generic_subject: Some("recall:generic-subject:bare-plural"),
         },
         RecallFixture {
             id: "identity FR-057-AC-9",
             statement: "Rate-limited WebAuthn endpoints return stable errors without consuming \
                         challenges or changing credential state.",
-            shape_axis: None,
             subject_determiner: None,
-            generic_subject: Some("recall:generic-subject:bare-plural"),
         },
     ];
 
-    /// Cells that must stay out of extraction whatever is enabled, and one that
-    /// deliberately does not: the `Metrics: …` fragment is the false positive
-    /// `recall-generic-subject` is *expected* to produce, and pinning it is how
-    /// the sweep's precision result stops being a surprise.
+    /// Cells that must stay out of extraction, whichever subject position is
+    /// read.
     ///
-    /// `returns a diagnostic` is the discipline case named in the plan: `a
-    /// diagnostic` is the outcome, not the domain, so no rule may reach it.
-    const RECALL_CONTROLS: &[(&str, &str, bool)] = &[
+    /// `returns a diagnostic` is the discipline case: `a diagnostic` is the
+    /// outcome, not the domain, so no position may reach it. The `Metrics: …`
+    /// fragment was the known false positive of `recall-generic-subject`, the
+    /// rule the 2026-08-07 experiment deleted at 56.7% precision; it is kept
+    /// here as a must-not-fire control, which is what deleting rather than
+    /// narrowing that rule bought.
+    const RECALL_CONTROLS: &[(&str, &str)] = &[
         (
             "determiner in the outcome, not the subject",
             "The loader returns a diagnostic for the second declaration",
-            false,
         ),
         (
             "a specific scenario is not a property",
             "The loader emits a `Duplicate` diagnostic for the second declaration.",
-            false,
         ),
         (
-            "a generic subject with no oracle — the known false positive",
+            "a generic subject with no determiner is not quantification",
             "Metrics: operation counts, durations, error rates",
-            true,
         ),
-        (
-            "no subject a rule can bound",
-            "Unknown user_code → 404",
-            false,
-        ),
+        ("no subject a rule can bound", "Unknown user_code → 404"),
     ];
 
-    /// The FR-047 shape of a statement, as `classify_document` computes it.
-    fn ac_shape_of(statement: &str) -> AcShape {
-        let (lx, ob, vc, id) = (
-            GrammarLexicon::empty(),
-            ObservableVerbs::default(),
-            VacuousPredicates::default(),
-            idioms(),
-        );
-        ac::classify(statement, vocab(&lx, &ob, &vc, &id))
-    }
-
     fn classify_fixture(statement: &str) -> Classified {
-        classify_property_in_shape(statement, Some(ac_shape_of(statement)), &idioms())
+        classify_property(statement, &idioms())
     }
 
-    /// True when a classification was reached by one of the candidate rules.
+    /// True when a classification was reached at a widened subject position
+    /// rather than by the sentence-initial anchor.
     fn recall_signal(c: &Classified) -> Option<&'static str> {
         c.signals.iter().find(|s| s.starts_with("recall:")).copied()
     }
 
-    /// Assert every fixture against one rule's column of [`RECALL_FIXTURES`]:
-    /// the cells it claims become `Universal` and extractable with that exact
-    /// signal, and every other cell is left where the shipped classifier put
-    /// it.
-    #[cfg(any(
-        feature = "recall-shape-axis",
-        feature = "recall-subject-determiner",
-        feature = "recall-generic-subject"
-    ))]
-    fn assert_rule(expected: fn(&RecallFixture) -> Option<&'static str>) {
+    /// TC-792 (FR-052-AC-14): the determiner is read at a bounded subject
+    /// position as well as at offset 0 — and the rule refuses everywhere it
+    /// cannot bound one.
+    #[test]
+    fn tc792_subject_determiner_widens_position_not_vocabulary() {
         for f in RECALL_FIXTURES {
             let c = classify_fixture(f.statement);
-            match expected(f) {
+            match f.subject_determiner {
                 Some(signal) => {
                     assert_eq!(
                         recall_signal(&c),
@@ -1722,64 +1411,13 @@ mod tests {
                 ),
             }
         }
-    }
-
-    /// `recall-shape-axis` recovers the criteria FR-047 already shaped.
-    ///
-    /// It reaches **one** of the sixteen, and that is the measurement, not a
-    /// defect in the fixture set: fourteen of the sixteen classify
-    /// `AcShape::Assertion`, because `ac`'s Given/When/Then test needs an
-    /// explicit `Then` and its obligation test needs `shall`. The rule is
-    /// exactly as wide as the shape axis it reuses — which is why it adds no
-    /// pattern matching and is expected to cost the least precision.
-    #[cfg(all(
-        feature = "recall-shape-axis",
-        not(feature = "recall-subject-determiner"),
-        not(feature = "recall-generic-subject")
-    ))]
-    #[test]
-    fn recall_shape_axis_routes_the_fr047_shapes_into_extraction() {
-        assert_rule(|f| f.shape_axis);
-
-        // …and it really is reading the shape, not the words: the same cell
-        // with no shape supplied is left alone.
-        let gwt = RECALL_FIXTURES
-            .iter()
-            .find(|f| f.shape_axis.is_some())
-            .expect("a Given/When/Then fixture");
-        assert_eq!(ac_shape_of(gwt.statement), AcShape::GivenWhenThen);
-        assert_eq!(
-            recall_signal(&classify_property(gwt.statement, &idioms())),
-            None
-        );
-
-        // The domain is read from the `Given` clause, not from offset 0.
-        let spans = classify_fixture(gwt.statement)
-            .spans
-            .expect("a shaped criterion decomposes");
-        assert!(
-            !spans.domain.text.to_lowercase().starts_with("given"),
-            "the fronted trigger keyword is not part of the domain: {:?}",
-            spans.domain.text
-        );
-    }
-
-    /// `recall-subject-determiner` moves the determiner anchor to a bounded
-    /// subject position — and refuses everywhere it cannot bound one.
-    #[cfg(all(
-        feature = "recall-subject-determiner",
-        not(feature = "recall-shape-axis"),
-        not(feature = "recall-generic-subject")
-    ))]
-    #[test]
-    fn recall_subject_determiner_widens_position_not_vocabulary() {
-        assert_rule(|f| f.subject_determiner);
 
         // The main-clause position fires too, when a fronted phrase closes with
         // a comma.
-        let c = classify_fixture("In strict mode, every finding is promoted to an error");
         assert_eq!(
-            recall_signal(&c),
+            recall_signal(&classify_fixture(
+                "In strict mode, every finding is promoted to an error"
+            )),
             Some("recall:subject-determiner:main-subject")
         );
 
@@ -1799,85 +1437,30 @@ mod tests {
             None,
             "no comma bounds the fronted phrase, so no subject head is bounded"
         );
-    }
 
-    /// `recall-generic-subject` reads determiner-free generic subjects — the
-    /// widest reach of the three, and the widest false-positive surface.
-    #[cfg(all(
-        feature = "recall-generic-subject",
-        not(feature = "recall-shape-axis"),
-        not(feature = "recall-subject-determiner")
-    ))]
-    #[test]
-    fn recall_generic_subject_reads_bare_plural_and_gerund_subjects() {
-        assert_rule(|f| f.generic_subject);
-
-        // A determiner-headed subject is not generic — that is the shipped
-        // rule's job, and this one must not double-claim it.
-        for definite in [
-            "The exit codes match the documented contract",
-            "Their exit codes match the documented contract",
-        ] {
-            assert_eq!(
-                recall_signal(&classify_fixture(definite)),
-                None,
-                "{definite}"
-            );
-        }
-        // An `-ss` word and an auxiliary are not plural noun heads.
-        for lookalike in ["Success is reported to the caller", "Was the record kept"] {
-            assert_eq!(
-                recall_signal(&classify_fixture(lookalike)),
-                None,
-                "{lookalike}"
+        for (why, statement) in RECALL_CONTROLS {
+            assert!(
+                recall_signal(&classify_fixture(statement)).is_none(),
+                "{why}: {statement:?}"
             );
         }
     }
 
-    /// The signal the enabled rules should produce for `f`, under the fixed
-    /// first-match-wins order the three are tried in.
+    /// TC-793 (FR-052-AC-15): widening the determiner's position moved the
+    /// classification of exactly the cells it claims and **nothing else** — no
+    /// `ac` finding moved, and every other shape the classifier reaches lands
+    /// byte-identically where it did before CR-029.
     ///
-    /// Attribution stays single-valued in every one of the seven combinations,
-    /// which is what lets the sweep run the full factorial and still read one
-    /// rule per classification off the `signals` trail.
-    #[cfg(any(
-        feature = "recall-shape-axis",
-        feature = "recall-subject-determiner",
-        feature = "recall-generic-subject"
-    ))]
-    fn expected_under_enabled_rules(f: &RecallFixture) -> Option<&'static str> {
-        #[cfg(feature = "recall-shape-axis")]
-        if f.shape_axis.is_some() {
-            return f.shape_axis;
-        }
-        #[cfg(feature = "recall-subject-determiner")]
-        if f.subject_determiner.is_some() {
-            return f.subject_determiner;
-        }
-        #[cfg(feature = "recall-generic-subject")]
-        if f.generic_subject.is_some() {
-            return f.generic_subject;
-        }
-        None
-    }
-
-    /// Whatever combination is enabled, exactly one rule fires per criterion
-    /// and it is the first enabled rule that claims it.
-    #[cfg(any(
-        feature = "recall-shape-axis",
-        feature = "recall-subject-determiner",
-        feature = "recall-generic-subject"
-    ))]
+    /// This is the pin the recall experiment was carried on: it started life
+    /// asserting a default build was byte-identical to the shipped classifier
+    /// while three rules sat behind cargo features. One of those rules now
+    /// ships, so the pin is rebased onto the adopted behaviour rather than
+    /// retired — the finding stream is still the thing that may not move.
     #[test]
-    fn recall_rules_compose_by_first_match() {
-        assert_rule(expected_under_enabled_rules);
-    }
-
-    /// Every candidate rule leaves the `ac` finding stream untouched — the
-    /// property axis is metadata, and no corpus finding count may move because
-    /// a measurement feature is on (FR-052-AC-7, FR-052-CON-1).
-    #[test]
-    fn recall_features_do_not_perturb_the_ac_finding_stream() {
+    fn tc793_widening_moves_no_finding_and_no_other_shape() {
+        // 1. The `ac` finding stream is untouched. The property axis is
+        //    metadata (FR-052-CON-1), so no corpus finding count may move
+        //    because a criterion is now read as quantified.
         let (lx, ob, vc, id) = (
             GrammarLexicon::empty(),
             ObservableVerbs::default(),
@@ -1899,44 +1482,12 @@ mod tests {
             assert_eq!(
                 ac::check(archetype, &doc, 0, v),
                 before,
-                "{archetype}: a recall feature must not move an `ac` finding"
+                "{archetype}: the property axis must not move an `ac` finding"
             );
         }
-    }
 
-    /// The controls hold under whatever combination is enabled: a determiner in
-    /// the outcome is never a domain, and a specific scenario is never a
-    /// property — while the one known false positive is pinned as a false
-    /// positive rather than discovered as a surprise in the sweep.
-    #[test]
-    fn recall_controls_hold_under_every_feature_combination() {
-        for (why, statement, may_fire) in RECALL_CONTROLS {
-            let c = classify_fixture(statement);
-            let fired = recall_signal(&c).is_some();
-            // A rule that is switched off cannot fire at all, so only the
-            // must-not-fire direction is asserted unconditionally.
-            assert!(
-                !fired || *may_fire,
-                "{why}: {statement:?} -> {:?}",
-                c.signals
-            );
-        }
-    }
-
-    /// A build with **no** `recall-*` feature is byte-identical to the
-    /// classifier FR-052 specifies: every fixture lands on the same shape, the
-    /// same `extractable` value and the same signal trail as on `main`.
-    ///
-    /// This is the pin that makes the experiment safe to carry on a shared
-    /// branch — the features are additive-only, and a default build cannot
-    /// drift into the measurement's behaviour.
-    #[cfg(not(any(
-        feature = "recall-shape-axis",
-        feature = "recall-subject-determiner",
-        feature = "recall-generic-subject"
-    )))]
-    #[test]
-    fn default_build_is_byte_identical_to_the_shipped_classifier() {
+        // 2. Every fixture the rule declines is exactly where the shipped
+        //    classifier left it, shape, `extractable` and signal trail alike.
         let fingerprint = |c: &Classified| {
             format!(
                 "{}|{}|{}",
@@ -1945,27 +1496,21 @@ mod tests {
                 c.signals.join(",")
             )
         };
-
-        // Every recall fixture is exactly where the shipped classifier left it.
         for f in RECALL_FIXTURES {
-            let c = classify_fixture(f.statement);
+            if f.subject_determiner.is_some() {
+                continue;
+            }
             assert_eq!(
-                fingerprint(&c),
+                fingerprint(&classify_fixture(f.statement)),
                 "example|false|example:specific-scenario",
                 "{}",
                 f.id
             );
         }
-        for (why, statement, _) in RECALL_CONTROLS {
-            assert!(
-                recall_signal(&classify_fixture(statement)).is_none(),
-                "{why}"
-            );
-        }
 
-        // …and so is every shape the module's own fixtures reach, so the pin
-        // covers the classifier's whole output surface and not just the cells
-        // the experiment is aimed at.
+        // 3. …and so is every shape the module's own fixtures reach, so the pin
+        //    covers the classifier's whole output surface and not just the
+        //    cells the widening is aimed at.
         let pinned: &[(&str, &str)] = &[
             (
                 ISSUE_CELL,
