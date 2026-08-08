@@ -115,6 +115,12 @@ sets** alone:
 - `Invariant` — `always`, `never`, `invariant`, `regardless of`, `under any`,
   `for any`, `in every case`, `no matter`.
 
+`ErrorCase`, `Lifecycle` and `Concurrency` SHALL likewise carry engine built-in
+signals rather than being reachable through a declared registry alone. A shape
+reachable only by declaration would make its share of a corpus census a
+function of which modules a repo activated, and CON-4 forbids a declared idiom
+from changing whether a criterion is extractable at all.
+
 A Filament module MAY additionally declare a `property_idioms:` registry in its
 `manifest.yaml`, merged first-wins over the engine built-ins — the same pattern
 as the FR-043 `lexicon`, `observable_verbs` and `vacuous_predicates`
@@ -150,12 +156,25 @@ a viewer can render highlights, and text because a UTF-16 consumer handed raw
 UTF-8 byte offsets is a defect generator. The redundancy is checkable, and
 AC-6 checks it.
 
-The metamorphic shapes carry **no spans in v1**. A criterion whose oracle
-boundary rests only on the weak inflected-verb marker also carries no spans:
-that marker cannot distinguish a verb from a plural noun (CR-019 measured 23.4%
-of cells satisfying the predicate test through that branch alone), and a
-confidently wrong span is worse for a generator than an absent one. Refusing
-spans does not change the criterion's shape or its `extractable` value.
+The metamorphic shapes carry **no spans in v1**. A criterion carrying no strong
+marker anywhere — no modal, no copula, no irregular past — also carries no
+spans: the weak inflected-verb marker is `\b\w+(s|ed|ing)\b`, which cannot
+distinguish a verb from a plural noun (CR-019 measured 23.4% of cells
+satisfying the predicate test through that branch alone), so with nothing
+strong to anchor the clause split the first match is as likely to land on a
+plural noun as on the predicate. A confidently wrong span is worse for a
+generator than an absent one.
+
+The refusal is evaluated **per statement, not per marker**. A statement
+carrying a strong marker is anchored, and a weak marker after that anchor is
+read as the oracle boundary — which is why AC-1's own example
+(`A finding whose key is absent from the merged map defaults to warning`)
+yields all three spans: the copula in `is absent` anchors the filter clause, so
+the weak `defaults` that follows it is a boundary rather than a guess. A
+per-marker reading would refuse spans there and contradict AC-1.
+
+Refusing spans does not change the criterion's shape or its `extractable`
+value.
 
 ### The classification record
 
@@ -171,9 +190,13 @@ Each record SHALL carry:
 - `line` — the 1-based file-relative line of the criterion.
 - `shape` — the FR-047 shape axis, carried through unchanged.
 - `property` — the FR-052 shape axis.
-- `extractable` — derived in exactly one place from the property shape and the
-  presence of an oracle, so the coverage column, any summary line and any
-  downstream consumer cannot disagree about the ratio.
+- `extractable` — derived in exactly one place from the **structural**
+  (pre-boost) property shape and the presence of a predicate marker, so the
+  coverage column, any summary line and any downstream consumer cannot disagree
+  about the ratio. It is derived from neither the boosted label nor span
+  emission: deriving it from the boosted label would let a declared idiom flip
+  it, violating CON-4, and deriving it from span emission would make every
+  span-less metamorphic criterion unextractable.
 - `domain`, `precondition`, `oracle` — the optional spans above.
 - `signals` — the stable ids of the signals that fired, in the order they were
   evaluated.
@@ -206,7 +229,7 @@ downstream consumer may upgrade a record on its own evidence.
 | FR-052-AC-1 | A criterion reading `A finding whose key is absent from the merged map defaults to warning` classifies as `Universal` and carries a populated `domain`, `precondition` and `oracle` span. | Test (TC-779) |
 | FR-052-AC-2 | A criterion carrying a round-trip, idempotence, ordering or invariant signal classifies as that metamorphic shape, and a universally quantified round-trip criterion classifies as `RoundTrip` rather than `Universal`, because the fixed precedence ranks structure above quantification. | Test (TC-780) |
 | FR-052-AC-3 | A criterion whose only idiom phrase sits inside an inline code span fires no signal from that phrase, while the same criterion with the phrase unquoted fires it. | Test (TC-781) |
-| FR-052-AC-4 | A criterion whose oracle boundary rests only on the weak inflected-verb marker classifies as `Universal` with all three spans absent, so a consumer never receives a confidently wrong span. | Test (TC-782) |
+| FR-052-AC-4 | A criterion carrying no strong marker to anchor its clause split classifies as `Universal` with all three spans absent, so a consumer never receives a confidently wrong span, while a criterion whose weak boundary marker follows a strong anchor carries its spans. | Test (TC-782) |
 | FR-052-AC-5 | A criterion describing one specific scenario classifies as `Example` with `extractable` false, and that same criterion contributes no finding to any `ac` check. | Test (TC-783) |
 | FR-052-AC-6 | Every span on a classification record satisfies `statement[span.start..span.end] == span.text`, and the spans of one record are in bounds, non-overlapping, and ascending by start offset. | Test (TC-784) |
 | FR-052-AC-7 | A fixture corpus checked with property classification reachable yields the same `ac` findings, in the same order and with the same fields, as the same corpus checked before classification existed. | Test (TC-785) |
