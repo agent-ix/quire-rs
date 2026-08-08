@@ -103,7 +103,6 @@ AC_ARCHETYPES = {"FR", "NFR", "StR"}
 # the frame the fallthrough measurement is drawn from.
 METAMORPHIC_SHAPES = ("round-trip", "idempotence", "ordering", "invariant")
 
-FRONTMATTER_TYPE = re.compile(r"^type:\s*['\"]?([A-Za-z][A-Za-z0-9_-]*)", re.MULTILINE)
 AC_SECTION = re.compile(r"^##\s+Acceptance Criteria\s*$", re.MULTILINE)
 # StR carries its binding criteria under `## Validation Criteria` (CR-020), so
 # the `Verification` join below reads both headings; `criteria_cells` above
@@ -163,14 +162,24 @@ def is_worktree_sibling(root: Path, name: str) -> bool:
 
 
 def frontmatter_type(text: str) -> str | None:
-    """The document's `type:` field, read from the frontmatter block only."""
-    if not text.startswith("---"):
+    """The document's `type:`, read by the **engine's** frontmatter parser.
+
+    This was a local regex until 2026-08-08. Archetype is what decides whether a
+    document enters the sweep at all, so a parser that disagreed with the engine
+    would drop documents from the denominator with no diagnostic — the sweep
+    would under-report and look confident doing it. Measured before the switch:
+    1 disagreement in 21,757 markdown files under `~/dev`, none of which changed
+    AC-archetype selection, so this is not the explanation for any past number —
+    but it removes the class.
+    """
+    try:
+        fm = quire.extract_frontmatter(text).get("frontmatter")
+    except Exception:
         return None
-    end = text.find("\n---", 3)
-    if end == -1:
+    if not isinstance(fm, dict):
         return None
-    m = FRONTMATTER_TYPE.search(text[3:end])
-    return m.group(1) if m else None
+    value = fm.get("type")
+    return value.strip() if isinstance(value, str) else None
 
 
 def criteria_cells(text: str) -> list[str]:
@@ -179,6 +188,13 @@ def criteria_cells(text: str) -> list[str]:
     Mirrors `ac::criteria_cells` closely enough for a denominator, but it is a
     reimplementation, not the engine: use it for sampling frames and ratios, and
     quote engine finding counts for anything normative.
+
+    **This never affects a finding count.** Every finding this sweep reports
+    comes from `quire.check_grammar`, which runs the engine's own extractor over
+    the whole document; this function only builds the denominator, the
+    `--sample-clean` recall frame, and the `--mine-verbs` corpus. The engine
+    has no binding that enumerates AC cells, which is why the reimplementation
+    is still here — adding one is the only way to remove it.
     """
     m = AC_SECTION.search(text)
     if not m:
@@ -608,6 +624,32 @@ def mine_verbs(root: Path, top_n: int) -> list[tuple[str, int]]:
     return unknown
 
 
+def engine_version() -> str:
+    """The installed `quire` wheel's version — the engine that produced the counts.
+
+    A sweep result is meaningless without it. On 2026-08-07 a sweep reporting
+    `ac:non-singular` = 0 was used to promote that check to `error`, while a
+    developer's `quire` CLI reported two findings on quire-rs's own FR-047. Both
+    were right: the wheel carried quire-rs v0.17.0 (with the CR-024/026 fixes),
+    the CLI carried v0.16.0 (without them). Neither number recorded its engine,
+    so the contradiction read as a checker defect for a day. It is recorded now.
+    """
+    try:
+        from importlib.metadata import version
+
+        return version("quire")
+    except Exception:
+        return "unknown"
+
+
+def provenance(root: Path, module_root: str | None) -> str:
+    """The line that makes a reported count re-derivable."""
+    return (
+        f"engine quire {engine_version()}  "
+        f"root {root}  module {module_root or '<none>'}"
+    )
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--root", type=Path, default=Path.home() / "dev")
@@ -726,6 +768,7 @@ def main() -> int:
             })
 
     total_cells = sum(cells_by_archetype.values())
+    print(provenance(root, module_root))
     print(f"docs {docs}  repos {len(cells_by_repo)}  cells {total_cells}")
     print()
     print(f"{'check':34} {'findings':>9} {'rate/cells':>11}")
@@ -756,6 +799,9 @@ def main() -> int:
 
     if args.out:
         args.out.write_text(json.dumps({
+            "engine": engine_version(),
+            "root": str(root),
+            "module": module_root,
             "docs": docs,
             "cells_by_archetype": dict(cells_by_archetype),
             "cells_by_repo": dict(cells_by_repo),
