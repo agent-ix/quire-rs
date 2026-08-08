@@ -132,6 +132,20 @@ impl PropertyShape {
         !matches!(self, Self::Example | Self::Unclassified)
     }
 
+    /// True for the four **metamorphic** shapes — the ones that name a relation
+    /// between runs rather than a predicate over one run.
+    ///
+    /// These are exactly the shapes reachable from the engine's closed
+    /// structural signal sets, and exactly the ones a declared idiom can also
+    /// name. A metamorphic label the structural pass did not carry through to
+    /// extractability is what [`Extraction::Candidate`] exists for (CR-033).
+    pub fn is_metamorphic(self) -> bool {
+        matches!(
+            self,
+            Self::RoundTrip | Self::Idempotence | Self::Ordering | Self::Invariant
+        )
+    }
+
     /// The `idiom:<shape>` signal id, as a `'static` string per variant so the
     /// audit trail allocates nothing.
     fn idiom_signal(self) -> &'static str {
@@ -163,6 +177,60 @@ impl PropertyShape {
         Self::Example,
         Self::Unclassified,
     ];
+}
+
+/// What a downstream generator may do with one criterion (FR-052-AC-16,
+/// CR-033).
+///
+/// The boolean [`AcClassification::extractable`] answers *"did the structural
+/// pass find both a quantified shape and an oracle"*, and CON-4 pins it to the
+/// structural signals alone. It could not also answer *"is this worth a human's
+/// attention"*, and forcing it to would have meant either dropping 63 genuine
+/// metamorphic properties or letting module data silently enter the unattended
+/// generation set. This closed three-valued field answers the second question
+/// separately.
+///
+/// It is **derived** from `property` and `extractable` and feeds back into
+/// neither, so CON-4 is unaffected.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum Extraction {
+    /// The structural pass found a quantified shape *and* an oracle. A
+    /// generator emits a test unattended.
+    Extractable,
+    /// The record carries a metamorphic label the structural pass did not
+    /// corroborate into extractability — either the shape came from a declared
+    /// idiom alone, or the structural shape landed but no predicate marker
+    /// supplied an oracle. A generator MAY emit a test and MUST mark it as
+    /// requiring review.
+    ///
+    /// This is the one field a module declaration can move, and it is safe
+    /// precisely because it is review-gated: nothing reaches an unattended
+    /// generation set through it.
+    Candidate,
+    /// Neither. `Example` and `Unclassified` land here, and neither is a defect
+    /// (FR-052-AC-5).
+    NotExtractable,
+}
+
+impl Extraction {
+    /// Derive the outcome. The **only** place this decision is made.
+    fn derive(property: PropertyShape, extractable: bool) -> Self {
+        match (extractable, property.is_metamorphic()) {
+            (true, _) => Self::Extractable,
+            (false, true) => Self::Candidate,
+            (false, false) => Self::NotExtractable,
+        }
+    }
+
+    /// Stable machine-readable label, carried on every surface.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Extractable => "extractable",
+            Self::Candidate => "candidate",
+            Self::NotExtractable => "not-extractable",
+        }
+    }
 }
 
 /// One clause of a decomposed criterion: a byte range into the **untruncated**
@@ -221,6 +289,9 @@ pub struct AcClassification {
     /// disagree about the ratio — and derived from the *structural* shape
     /// only, never from a module-declared idiom (FR-052-CON-4).
     pub extractable: bool,
+    /// What a generator may do with this criterion (CR-033). Derived from
+    /// `property` and `extractable`; see [`Extraction`].
+    pub extraction: Extraction,
     pub domain: Option<Span>,
     pub precondition: Option<Span>,
     pub oracle: Option<Span>,
@@ -240,6 +311,8 @@ pub struct AcClassification {
 pub struct Classified {
     pub property: PropertyShape,
     pub extractable: bool,
+    /// Derived from `property` and `extractable` (CR-033).
+    pub extraction: Extraction,
     pub spans: Option<Spans>,
     pub signals: Vec<&'static str>,
 }
@@ -308,9 +381,15 @@ pub fn classify_property(statement: &str, idioms: &PropertyIdioms) -> Classified
         None
     };
 
+    // Derived last, from the final label and the structural boolean. It reads
+    // both and writes neither, which is what keeps CON-4 intact while letting a
+    // declared idiom raise a criterion to `Candidate` (CR-033).
+    let extraction = Extraction::derive(property, extractable);
+
     Classified {
         property,
         extractable,
+        extraction,
         spans,
         signals,
     }
@@ -343,6 +422,7 @@ pub fn classify_document(
                 line: stmt.line,
                 property: classified.property,
                 extractable: classified.extractable,
+                extraction: classified.extraction,
                 domain,
                 precondition,
                 oracle,
@@ -1641,5 +1721,98 @@ mod tests {
             // never remove a decomposition a consumer already relies on.
             prop_assert_eq!(&without.spans, &with_module.spans);
         }
+
+        // TC-795 (FR-052-AC-16, CR-033): the three-valued outcome is exactly
+        // the stated function of `property` and `extractable` — extractable
+        // wins outright, a non-extractable metamorphic label is a candidate,
+        // and everything else (crucially `Example` and `Unclassified`) is
+        // `NotExtractable`, so a specific scenario is never raised for review.
+        #[test]
+        fn tc795_extraction_is_the_stated_function(statement in any_statement()) {
+            let c = classify_property(&statement, &idioms());
+            let expected = match (c.extractable, c.property) {
+                (true, _) => Extraction::Extractable,
+                (false, PropertyShape::RoundTrip | PropertyShape::Idempotence
+                    | PropertyShape::Ordering | PropertyShape::Invariant) => Extraction::Candidate,
+                (false, _) => Extraction::NotExtractable,
+            };
+            prop_assert_eq!(c.extraction, expected, "statement: {:?}", statement);
+            prop_assert!(
+                !(matches!(c.property, PropertyShape::Example | PropertyShape::Unclassified)
+                    && c.extraction == Extraction::Candidate),
+                "an Example/Unclassified criterion must never be a candidate: {statement:?}"
+            );
+        }
+
+        // TC-796 (FR-052-AC-17, CR-033): `extraction` is derived and feeds back
+        // into nothing — CON-4 still holds on `extractable` with a registry
+        // declared and without — while `extraction` itself *may* move, which is
+        // the whole point of the third state. A criterion whose metamorphic
+        // label came only from a declaration reads `Candidate` with it and
+        // `NotExtractable` without, and that difference is review-gated.
+        #[test]
+        fn tc796_extraction_is_derived_and_con4_holds(statement in any_statement()) {
+            let declared = PropertyIdioms::with_module_idioms([
+                ("finding", PropertyShape::RoundTrip),
+                ("map", PropertyShape::Invariant),
+            ]);
+            let without = classify_property(&statement, &structural_only());
+            let with_module = classify_property(&statement, &declared);
+
+            // CON-4, restated on this path: the boolean does not move.
+            prop_assert_eq!(without.extractable, with_module.extractable);
+
+            // `extraction` is a pure function of the pair on both runs.
+            prop_assert_eq!(
+                with_module.extraction,
+                Extraction::derive(with_module.property, with_module.extractable)
+            );
+            prop_assert_eq!(
+                without.extraction,
+                Extraction::derive(without.property, without.extractable)
+            );
+
+            // …and the only way the two runs can differ is a declaration
+            // raising a non-extractable criterion to `Candidate`. It can never
+            // reach `Extractable`, which is what keeps module data out of the
+            // unattended generation set.
+            if without.extraction != with_module.extraction {
+                prop_assert_eq!(without.extraction, Extraction::NotExtractable);
+                prop_assert_eq!(with_module.extraction, Extraction::Candidate);
+            }
+        }
+    }
+
+    /// TC-795 (FR-052-AC-16) — the worked cases behind the property test.
+    #[test]
+    fn tc795_extraction_worked_cases() {
+        // A quantified criterion with an oracle: unattended.
+        let c = classify_property(
+            "Every finding whose key is absent from the merged map defaults to warning.",
+            &idioms(),
+        );
+        assert!(c.extractable);
+        assert_eq!(c.extraction, Extraction::Extractable);
+
+        // One specific scenario: not a defect, and not a candidate either.
+        let c = classify_property(
+            "Opening the settings panel shows the current module version.",
+            &idioms(),
+        );
+        assert!(!c.extractable);
+        assert_eq!(c.property, PropertyShape::Example);
+        assert_eq!(c.extraction, Extraction::NotExtractable);
+
+        // A metamorphic label the structural pass did not carry through to
+        // extractability — the 63-criterion class agent-ix/quire-rs#46 named.
+        let declared =
+            PropertyIdioms::with_module_idioms([("settings panel", PropertyShape::RoundTrip)]);
+        let c = classify_property(
+            "Opening the settings panel shows the current module version.",
+            &declared,
+        );
+        assert!(!c.extractable, "CON-4: the boolean must not move");
+        assert_eq!(c.property, PropertyShape::RoundTrip);
+        assert_eq!(c.extraction, Extraction::Candidate);
     }
 }
