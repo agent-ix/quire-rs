@@ -103,7 +103,12 @@ violates a check:
    obligation: more than one `shall`, or more than one `Then` clause. A single
    criterion pairing one positive and one negative case of the same behavior
    (the `X yields a finding; Y yields none` idiom) SHALL count as one
-   obligation.
+   obligation. The idiom SHALL be recognized by the **second obligation**, not
+   by the punctuation joining the two (CR-024): a directly negated modal
+   (`SHALL NOT`, `SHALL never`) or a negation marker inside that obligation's
+   own clause. `Then` clauses SHALL be counted only in a `given-when-then`
+   criterion, and only when the criterion states no modal at all — elsewhere
+   `then` sequences a precedence chain, not an obligation list (CR-024).
 3. **vague-response** — the statement's outcome clause (the whole statement for
    an `assertion`, the response clause of an `obligation`, or the `Then` clause
    of a `given-when-then` statement) uses a vague verb per the FR-042
@@ -113,8 +118,9 @@ violates a check:
    `vague-response` check does — one vague-verb implementation, two grammars.
 4. **vacuous-outcome** — the statement's outcome clause is headed by a
    **vacuous predicate** and carries nothing else to check: the engine SHALL
-   ship a built-in vacuity set (`works`, `working`, `behaves`, `functions`,
-   `work correctly`, `is correct`, `is successful`, `is fine`, `is ok`) that a
+   ship a built-in vacuity set (`works`, `working`, `behaves`,
+   `functions correctly`, `work correctly`, `is correct`, `is successful`,
+   `is fine`, `is ok` — see CR-025 on why `functions` is qualified) that a
    module MAY extend via a `vacuous_predicates` registry in its
    `manifest.yaml`, merged first-wins with the built-in defaults at lowest
    precedence — the same pattern as the FR-043 `lexicon` and the
@@ -359,6 +365,65 @@ violates a check:
 > **open**: EARS statements quote keywords far less often, and the change is not
 > made here so this slice ships one measured behaviour change rather than two.
 
+> **CR-024 note (2026-08-07):** The corpus baseline sweep CON-1 requires
+> before promotion found `non-singular` firing on **23 singular criteria out of
+> 48** — a 48% false-positive rate that would have made the check unusable as an
+> `error`. Both causes were checker defects, and both are the same shape as
+> CR-017: a rule that was right in principle and too narrow in trigger. Per the
+> CR-017 precedent, the checker is fixed rather than the prose.
+>
+> **The pair idiom was tied to its separator.** AC-3's positive/negative rule
+> only fired when the halves were split by `;` or ` while `, so the form the
+> corpus actually writes — ``the task SHALL render `skipped` with reason
+> `"disabled"` and SHALL NOT execute`` — counted as two obligations. Nineteen
+> criteria across eleven repos were flagged for stating one behaviour in two
+> directions. Recognition now reads the **second obligation**: its modal is
+> directly negated, or its clause (delimited at the last separator before that
+> modal, so a `no` in the *first* obligation cannot suppress) carries a negation
+> marker — `` `github_url` SHALL be None ``, `No Secret deletion SHALL occur`,
+> `otherwise it SHALL be omitted`. Bare `not` was dropped from the marker set in
+> the same pass: it is the commonest word in a criterion's condition
+> (`when the record is not found …`), where it says nothing about the second
+> obligation. The `count == 2` guard is unchanged and is what keeps this narrow
+> — a three-obligation criterion is never suppressed however it is worded.
+>
+> **`Then` was counted outside a Given/When/Then criterion.** `obligation_count`
+> took `max(shall_count, then_count)` regardless of shape, so a **precedence
+> chain** scored as plural: ``resolves safeStorage first, then `GITHUB_TOKEN`,
+> then `undefined` `` states one resolution rule and carries no modal verb at
+> all. Four criteria (filament-ide, filament-ide-rs, quoin ×2) were flagged this
+> way, none of them Given/When/Then-shaped. `then` now counts only for a
+> `GivenWhenThen` shape, and a criterion's modals outvote it rather than tying
+> with it — `max` let a narrative `then` win over the obligations actually
+> stated.
+>
+> Neither change touches `DEFAULT_SEVERITY`; CON-1 still gates promotion.
+
+> **CR-025 note (2026-08-07):** `vacuous-outcome` fired on a **noun**. The
+> built-in vacuity set carried bare `functions`, which matched
+> *"a spec requirement node can be traversed to the code **functions** that
+> implement it and the tests that verify it via typed edges"* — a criterion
+> naming a concrete traversal. This is the collision the set already anticipated
+> for `work`, whose doc comment records that the corpus uses it as a noun far
+> more often than as a predicate; `functions` is no different, and the fix is
+> the same one: qualify it (`functions correctly`, `functions properly`,
+> `functions as expected`, `functions independently`). Corpus impact is exactly
+> two cells — the StR-013 criterion above stops firing, and
+> py-observability's *"In-process metric collection functions independently of
+> exporters"* keeps firing through the qualified form.
+
+> **CR-026 note (2026-08-07):** CR-017's mask read only the **first** backtick
+> of a run, so a ``double-tick`` span — the form used to quote a fragment that
+> itself contains a code span — degenerated into an empty span and left the
+> keywords inside it unmasked. The criterion quoting them was then read as
+> though it used them. This was found by dogfooding: the AC-15 row added by
+> CR-024 quotes ``the task SHALL render `skipped` and SHALL NOT execute`` and
+> was itself flagged `non-singular` and `non-canonical-shape` by the very fix it
+> documents. Span matching now follows CommonMark — a run of N backticks is
+> closed by the next run of exactly N, a longer run is content, an unbalanced
+> run still opens no span — and the mask stays byte-length-preserving, which
+> `outcome_clause` depends on.
+
 Each `ac` finding SHALL carry `grammar: "ac"`. The framework SHALL route `ac`
 findings into `ValidationResult` by severity per FR-042. The rollout default
 is explicit: every `ac` check ships advisory (`warning`) at most, and each
@@ -395,6 +460,10 @@ the histogram covers every grammar and check.
 | FR-047-AC-12 | Both vocabularies are module data: a module's `observable_verbs` registry merges first-wins over the built-in defaults (a module-added verb suppresses `vacuous-outcome` and gives the cell a predicate), a module's `vacuous_predicates` registry likewise extends the built-in vacuity set, and with no module declaration both built-in default sets apply unchanged. | Test (TC-757) |
 | FR-047-AC-13 | A grammar keyword inside an inline code span is a mention, not a use: a cell reading ``a statement with two `shall` clauses yields one finding`` classifies `assertion` and yields no `non-canonical-shape` or `non-singular` finding, while the same cell with the modal unquoted classifies `obligation`; the span's contents are still read by the signal and lexicon checks, and an unbalanced backtick opens no span. | Test (TC-761) |
 | FR-047-AC-14 | A predication whose copula is elided is a predicate: a cell headed by an existential or quantifier (`No refresh_token in response body`, `Only one active password_reset token per user at any time`) or carrying a predicative adjective (`No credential-material field present`, `Loki datasource visible in Grafana`, `Lockout response identical to normal failure`) classifies `assertion` and yields no `unclassifiable` finding, while a bare noun phrase, a bolded heading and a dangling prose fragment each still classify `unstructured` and yield one. | Test (TC-763) |
+| FR-047-AC-15 | The positive/negative pair idiom is recognized by its second obligation rather than by a separator (CR-024): ``SHALL render `skipped` … and SHALL NOT execute``, `` SHALL set `git_url` but `github_url` SHALL be None ``, and `SHALL reject … . No Secret deletion SHALL occur.` each yield no `non-singular` finding, while two positive obligations joined the same way (`SHALL emit `A` and SHALL persist `B`.`) still yield one, a criterion whose *condition* contains `not` still yields one, and a three-obligation criterion yields one however it is worded. | Test (TC-775) |
+| FR-047-AC-16 | `Then` counts as an obligation separator only in a `given-when-then` criterion that states no modal (CR-024): a precedence chain (``resolves safeStorage first, then `GITHUB_TOKEN`, then `undefined` ``) yields no `non-singular` finding, while a `Given`/`When`/`Then` cell with two `Then` clauses still yields one. | Test (TC-776) |
+| FR-047-AC-17 | A vacuous predicate that is also a common noun does not fire on the noun (CR-025): a criterion reading `the code functions that implement it` yields no `vacuous-outcome` finding, while the qualified predicate (`functions independently of exporters`) still yields one. | Test (TC-777) |
+| FR-047-AC-18 | A backtick run masks to its matching run (CR-026): a criterion quoting a modal inside a double-tick span classifies `assertion` and yields no `non-singular` or `non-canonical-shape` finding, while an unbalanced run opens no span and leaves a following unquoted modal counted. | Test (TC-778) |
 
 ## Dependencies
 

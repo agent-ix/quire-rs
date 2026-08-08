@@ -177,7 +177,14 @@ const BUILTIN_VACUOUS_PREDICATES: &[&str] = &[
     "working",
     "behaves",
     "behave",
-    "functions",
+    // CR-025: `functions` is qualified for the same reason bare `work` is
+    // excluded — the corpus uses it as a *noun* far more often than as a
+    // predicate ("the code functions that implement it", "helper functions"),
+    // and a noun mention is not a vacuous claim.
+    "functions correctly",
+    "functions properly",
+    "functions as expected",
+    "functions independently",
     "is correct",
     "is successful",
     "is fine",
