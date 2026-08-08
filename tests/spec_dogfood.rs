@@ -40,16 +40,18 @@ const ISO_BUNDLE: &str = "iso-spec-core";
 /// Where a real `spec-artifacts-iso` module lives, when one is reachable:
 /// `$QUIRE_ISO_MODULE`, else the conventional developer checkout. `None` in
 /// CI, which falls back to [`ISO_PROMOTED_ERRORS`].
-fn iso_module_path() -> Option<PathBuf> {
-    let candidate = match std::env::var_os("QUIRE_ISO_MODULE") {
-        Some(v) => PathBuf::from(v),
-        None => PathBuf::from(std::env::var_os("HOME")?)
-            .join("dev/spec-artifacts-iso/spec_artifacts_iso"),
+fn iso_module_path() -> Option<(PathBuf, bool)> {
+    let (candidate, pinned) = match std::env::var_os("QUIRE_ISO_MODULE") {
+        Some(v) => (PathBuf::from(v), true),
+        None => (
+            PathBuf::from(std::env::var_os("HOME")?).join("dev/spec-artifacts-iso/spec_artifacts_iso"),
+            false,
+        ),
     };
     candidate
         .join("manifest.yaml")
         .is_file()
-        .then_some(candidate)
+        .then_some((candidate, pinned))
 }
 
 /// The severity map to judge this repo's own `spec/` by: the real module's
@@ -63,7 +65,7 @@ fn shipped_severity() -> GrammarSeverityMap {
         mirror.insert((*key).to_string(), GrammarSeverityLevel::Error);
     }
 
-    let Some(module) = iso_module_path() else {
+    let Some((module, pinned)) = iso_module_path() else {
         return mirror;
     };
     let registry = Registry::load_module(&module).unwrap_or_else(|e| {
@@ -79,12 +81,21 @@ fn shipped_severity() -> GrammarSeverityMap {
         .filter(|(_, level)| **level == GrammarSeverityLevel::Error)
         .map(|(key, _)| key.as_str())
         .collect();
-    assert_eq!(
-        real_errors,
-        ISO_PROMOTED_ERRORS,
-        "ISO_PROMOTED_ERRORS has drifted from the module at {}; update the mirror",
-        module.display()
-    );
+    // Drift is only a hard failure when the module was named explicitly via
+    // `QUIRE_ISO_MODULE` — that is a deliberate "judge me against this module".
+    // The conventional `~/dev` checkout sits at whatever branch its developer
+    // left it on, so asserting against it turns an unrelated experiment into a
+    // failure here. Warn instead, and still judge `spec/` by the real map: a
+    // mirror that has genuinely rotted is visible, without the flake.
+    if real_errors != ISO_PROMOTED_ERRORS {
+        let message = format!(
+            "ISO_PROMOTED_ERRORS {ISO_PROMOTED_ERRORS:?} disagrees with the module at {}, \
+             which declares {real_errors:?}",
+            module.display()
+        );
+        assert!(!pinned, "{message}; update the mirror");
+        eprintln!("warning: {message} (unpinned checkout — set QUIRE_ISO_MODULE to enforce)");
+    }
     real
 }
 
