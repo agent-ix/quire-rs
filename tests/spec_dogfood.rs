@@ -44,7 +44,8 @@ fn iso_module_path() -> Option<(PathBuf, bool)> {
     let (candidate, pinned) = match std::env::var_os("QUIRE_ISO_MODULE") {
         Some(v) => (PathBuf::from(v), true),
         None => (
-            PathBuf::from(std::env::var_os("HOME")?).join("dev/spec-artifacts-iso/spec_artifacts_iso"),
+            PathBuf::from(std::env::var_os("HOME")?)
+                .join("dev/spec-artifacts-iso/spec_artifacts_iso"),
             false,
         ),
     };
@@ -143,11 +144,7 @@ fn spec_documents() -> Vec<(PathBuf, String, String)> {
 #[test]
 fn tc794_own_spec_carries_no_promoted_error_finding() {
     let severity = shipped_severity();
-    let vocab = GrammarVocabularies {
-        lexicon: quire_rs::grammar::empty_lexicon(),
-        observable: quire_rs::grammar::default_observable_verbs(),
-        vacuous: quire_rs::grammar::default_vacuous_predicates(),
-    };
+    let vocab = GrammarVocabularies::defaults();
 
     let mut errors = Vec::new();
     for (path, archetype, text) in spec_documents() {
