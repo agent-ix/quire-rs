@@ -198,7 +198,7 @@ fn check_statement(stmt: &Stmt, vocab: GrammarVocabularies<'_>, out: &mut Vec<Gr
             ),
         );
     }
-    if obligation_count(&stmt.text) > 1 {
+    if obligation_count(&stmt.text, shape) > 1 {
         push(
             out,
             "non-singular",
@@ -294,23 +294,54 @@ fn mask_code_spans(statement: &str) -> String {
     while let Some(open) = rest.find('`') {
         let (before, from_open) = rest.split_at(open);
         out.push_str(before);
-        let body = &from_open[1..];
-        let Some(close) = body.find('`') else {
-            // An unbalanced backtick opens no span; the tail is ordinary prose.
+        // CommonMark: a run of N backticks is closed by the next run of exactly
+        // N (CR-026). Reading only the first backtick made a ``double-tick``
+        // span — the form used to quote a fragment that itself contains a code
+        // span — degenerate into an empty span, leaving the quoted keywords
+        // *inside* it unmasked and read as though they were used.
+        let ticks = from_open.len() - from_open.trim_start_matches('`').len();
+        let body = &from_open[ticks..];
+        let Some(close) = find_closing_run(body, ticks) else {
+            // An unbalanced run opens no span; the tail is ordinary prose.
             out.push_str(from_open);
             return out;
         };
-        out.push('`');
+        for _ in 0..ticks {
+            out.push('`');
+        }
         for c in body[..close].chars() {
             for _ in 0..c.len_utf8() {
                 out.push('x');
             }
         }
-        out.push('`');
-        rest = &body[close + 1..];
+        for _ in 0..ticks {
+            out.push('`');
+        }
+        rest = &body[close + ticks..];
     }
     out.push_str(rest);
     out
+}
+
+/// The byte offset in `body` of the next backtick run of exactly `ticks`, or
+/// `None` when the span is never closed. A longer run is *not* a closer — it is
+/// content — which is what keeps a `` `nested` `` span inside a double-tick one
+/// from ending it early.
+fn find_closing_run(body: &str, ticks: usize) -> Option<usize> {
+    let bytes = body.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] != b'`' {
+            i += 1;
+            continue;
+        }
+        let run = bytes[i..].iter().take_while(|&&b| b == b'`').count();
+        if run == ticks {
+            return Some(i);
+        }
+        i += run;
+    }
+    None
 }
 
 /// True when the statement has a **predicate** — a modal or copula, an inflected
@@ -373,28 +404,68 @@ fn is_given_when_then(statement: &str) -> bool {
 
 // ─── Clause checks ──────────────────────────────────────────────────────────
 
-/// The number of independent obligations in a criterion: `shall` occurrences
-/// or `Then` clauses, whichever the criterion uses. The positive/negative pair
-/// idiom (`X yields a finding; Y yields none`) states one behaviour in two
-/// directions and counts as a single obligation (FR-047-AC-3).
-fn obligation_count(statement: &str) -> usize {
+/// The number of independent obligations in a criterion: its modal verbs, or —
+/// only when it states its consequents without one — its `Then` clauses. The
+/// positive/negative pair idiom (`X yields a finding; Y yields none`) states one
+/// behaviour in two directions and counts as a single obligation
+/// (FR-047-AC-3).
+///
+/// **`Then` counts only in a Given/When/Then criterion (CR-024).** Elsewhere
+/// `then` sequences a *precedence chain* — ``resolves safeStorage first, then
+/// `GITHUB_TOKEN`, then `undefined` `` — which states one resolution rule, not
+/// one obligation per link. Counting it there scored four corpus criteria as
+/// plural that carry no obligation at all (no modal verb anywhere in them).
+/// Where the criterion has modals, they are the count: `max` let a narrative
+/// `then` outvote them.
+fn obligation_count(statement: &str, shape: AcShape) -> usize {
     // CR-017: quoted keywords are mentions, not obligations.
     let lower = ears::normalize(&mask_code_spans(statement)).to_lowercase();
-    let count = re_shall_word()
-        .find_iter(&lower)
-        .count()
-        .max(re_then().find_iter(&lower).count());
-    if count == 2 && is_positive_negative_pair(&lower) {
+    let modals = re_shall_word().find_iter(&lower).count();
+    let count = if modals > 0 {
+        modals
+    } else if shape == AcShape::GivenWhenThen {
+        re_then().find_iter(&lower).count()
+    } else {
+        0
+    };
+    if count == 2 && is_negated_restatement(&lower) {
         return 1;
     }
     count
 }
 
-/// The `X yields a finding; Y yields none` idiom: two halves separated by `;`
-/// (or ` while `), the second stating the negative case of the same behaviour.
-fn is_positive_negative_pair(lower: &str) -> bool {
-    let halves: Vec<&str> = lower.split(';').flat_map(|h| h.split(" while ")).collect();
-    halves.len() == 2 && re_negative_case().is_match(halves[1])
+/// The positive/negative pair idiom: two obligations whose second states the
+/// same behaviour negatively, so the criterion is singular (FR-047-AC-3).
+///
+/// **The idiom is not tied to a separator (CR-024).** This rule originally
+/// required the two halves to be split by `;` or ` while `, which missed the
+/// form the corpus actually writes — ``SHALL render `skipped` … and SHALL NOT
+/// execute`` — and left 19 singular criteria flagged. What identifies the
+/// negative face is the second obligation, not the punctuation before it:
+///
+/// - its modal is directly negated (`SHALL NOT`, `SHALL never`), or
+/// - its clause carries a negation marker (`` `github_url` SHALL be None ``,
+///   `No Secret deletion SHALL occur`, `otherwise it SHALL be omitted`).
+///
+/// The clause is delimited at the last separator before the second modal so the
+/// marker has to sit in *that* obligation — a `no` inside the first
+/// obligation's own outcome does not suppress. Together with the `count == 2`
+/// guard in [`obligation_count`], a criterion with three obligations is never
+/// suppressed by this rule however it is worded.
+fn is_negated_restatement(lower: &str) -> bool {
+    let mut modals = re_shall_word().find_iter(lower);
+    let (Some(first), Some(second)) = (modals.next(), modals.next()) else {
+        // A `Then`-counted criterion has no modal to negate.
+        return false;
+    };
+    if re_negated_modal().is_match(&lower[second.start()..]) {
+        return true;
+    }
+    let clause_start = re_clause_separator()
+        .find_iter(&lower[first.end()..second.start()])
+        .last()
+        .map_or(first.end(), |m| first.end() + m.end());
+    re_negative_case().is_match(&lower[clause_start..])
 }
 
 /// The outcome clause a criterion is judged on: everything after the modal
@@ -567,11 +638,35 @@ fn re_shall_word() -> &'static Regex {
 }
 
 /// The negative half of the positive/negative pair idiom.
+///
+/// Bare `not` is deliberately absent (CR-024): it is the commonest word in a
+/// criterion's *condition* (`when the record is not found …`), so reading it as
+/// a negative face suppressed real pairs of obligations. A directly negated
+/// modal is recognized by [`re_negated_modal`] instead, which cannot be
+/// confused with a condition.
 fn re_negative_case() -> &'static Regex {
     static R: OnceLock<Regex> = OnceLock::new();
     R.get_or_init(|| {
-        Regex::new(r"(?i)\b(none|no|not|never|neither|nothing|zero|without)\b")
+        Regex::new(r"(?i)\b(none|no|never|neither|nothing|zero|without|otherwise)\b")
             .expect("negative-case regex")
+    })
+}
+
+/// A directly negated obligation — `SHALL NOT`, `SHALL never` — anchored at the
+/// modal it negates (CR-024).
+fn re_negated_modal() -> &'static Regex {
+    static R: OnceLock<Regex> = OnceLock::new();
+    R.get_or_init(|| Regex::new(r"(?i)^shall\s+(not|never)\b").expect("negated-modal regex"))
+}
+
+/// Where one obligation's clause ends and the next begins. `otherwise` is
+/// absent on purpose — it *marks* the negative case rather than delimiting it,
+/// and is read by [`re_negative_case`].
+fn re_clause_separator() -> &'static Regex {
+    static R: OnceLock<Regex> = OnceLock::new();
+    R.get_or_init(|| {
+        Regex::new(r"(?i)(;|\.\s|,\s|\s+and\s+|\s+but\s+|\s+while\s+)")
+            .expect("clause-separator regex")
     })
 }
 
@@ -816,6 +911,166 @@ mod tests {
                 "non-singular"
             ),
             0
+        );
+    }
+
+    // TC-775 (FR-047-AC-15, CR-024): the pair idiom is recognized by the second
+    // obligation, not by the separator joining the two.
+    #[test]
+    fn tc775_pair_idiom_is_not_separator_bound() {
+        // Directly negated second modal — the dominant corpus form.
+        assert_eq!(
+            count(
+                &["When `enabled === false`, the task shall render `skipped` and shall not execute"],
+                "non-singular"
+            ),
+            0
+        );
+        // Negation inside the second obligation's clause, either side of its modal.
+        assert_eq!(
+            count(
+                &[
+                    "Given a non-GitHub remote, the system shall set `git_url` but `github_url` \
+                   shall be None"
+                ],
+                "non-singular"
+            ),
+            0
+        );
+        assert_eq!(
+            count(
+                &["The command shall reject with exit code 2. No Secret deletion shall occur."],
+                "non-singular"
+            ),
+            0
+        );
+        assert_eq!(
+            count(
+                &["The field shall be present in the body; otherwise it shall be omitted"],
+                "non-singular"
+            ),
+            0
+        );
+
+        // Two *positive* obligations joined the same way still flag.
+        assert_eq!(
+            count(
+                &["The system shall emit `A` and shall persist `B`."],
+                "non-singular"
+            ),
+            1
+        );
+        // `not` inside the condition is not a negative face: the second
+        // obligation is positive and independent.
+        assert_eq!(
+            count(
+                &[
+                    "When the record is not found the API shall return `404` and shall log the \
+                   attempt"
+                ],
+                "non-singular"
+            ),
+            1
+        );
+        // Three obligations are never suppressed, however worded.
+        assert_eq!(
+            count(
+                &[
+                    "The value shall be processed in bounded time. The verifier shall return it \
+                   preserved; it shall not hang."
+                ],
+                "non-singular"
+            ),
+            1
+        );
+    }
+
+    // TC-776 (FR-047-AC-16, CR-024): `then` separates obligations only in a
+    // Given/When/Then criterion that states no modal.
+    #[test]
+    fn tc776_then_counts_only_in_a_gwt_criterion() {
+        // A precedence chain: no modal, no Given/When — one resolution rule.
+        assert_eq!(
+            count(
+                &[
+                    "`getGithubToken` resolves safeStorage first, then `GITHUB_TOKEN`, then \
+                   `undefined`."
+                ],
+                "non-singular"
+            ),
+            0
+        );
+        assert_eq!(
+            count(
+                &[
+                    "`--config-root`, then `IX_HOME`, then `~/.ix` select the config root in that \
+                   precedence"
+                ],
+                "non-singular"
+            ),
+            0
+        );
+        // A genuine Given/When/Then cell with two consequents still flags.
+        assert_eq!(
+            count(
+                &[
+                    "Given a token, when it expires, then `401` is returned, and then the session \
+                   is cleared."
+                ],
+                "non-singular"
+            ),
+            1
+        );
+    }
+
+    // TC-777 (FR-047-AC-17, CR-025): a vacuous predicate that is also a common
+    // noun does not fire on the noun.
+    #[test]
+    fn tc777_vacuous_predicate_does_not_fire_on_a_noun() {
+        assert_eq!(
+            count(
+                &["A spec requirement node can be traversed to the code functions that implement \
+                   it and the tests that verify it"],
+                "vacuous-outcome"
+            ),
+            0
+        );
+        // The qualified predicate is still vacuous.
+        assert_eq!(
+            count(
+                &["In-process metric collection functions independently of exporters"],
+                "vacuous-outcome"
+            ),
+            1
+        );
+    }
+
+    // TC-778 (FR-047-AC-18, CR-026): a double-backtick span masks its whole
+    // body, including the keywords and the single-tick spans inside it.
+    #[test]
+    fn tc778_double_backtick_spans_are_masked() {
+        // The CR-024 example quoted as a fragment containing its own code span.
+        let quoting = "The pair idiom is recognized by the second obligation: \
+                       ``the task SHALL render `skipped` and SHALL NOT execute`` yields no \
+                       finding.";
+        assert_eq!(count(&[quoting], "non-singular"), 0);
+        assert_eq!(count(&[quoting], "non-canonical-shape"), 0);
+        assert_eq!(
+            classify(quoting, vocab(&empty_lex(), &verbs(), &vacuities())),
+            AcShape::Assertion
+        );
+
+        // A longer run does not close a shorter one, and an unbalanced run
+        // opens no span — the unquoted modal after it still counts.
+        assert_eq!(
+            count(
+                &[
+                    "An unterminated ``span leaves the rest as prose, so the system shall reject \
+                   it."
+                ],
+                "non-canonical-shape"
+            ),
+            1
         );
     }
 
