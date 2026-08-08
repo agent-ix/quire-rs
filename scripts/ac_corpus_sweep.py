@@ -55,6 +55,16 @@ one wheel per combination (`maturin build --features python,<combo>`), sweep, an
 attribute each classification by its `recall:<rule>:…` signal. They are
 default-off and never ship enabled; what ships is decided by that sweep.
 
+`--snapshot DIR` copies every document the walk yields into `DIR`, preserving
+`<repo>/<relative path>`, and exits. The corpus moves while a multi-run
+experiment is in flight — another agent edits these repos, and PR #48 measured
+13,801 criteria where the 2026-08-07 report measured 13,950 — so a factorial
+sweep must run every combination against **one** frozen tree or its cells are
+not comparable to each other. Sweeping the snapshot with `--root DIR` walks
+exactly the same documents, because the dedupe already happened when the
+snapshot was taken: nothing under it is a worktree, so `SKIP_DIRS` and
+`is_worktree_sibling` have nothing left to exclude.
+
 `--strip-idioms` materialises a copy of `--module` with its `property_idioms:`
 block removed and sweeps against that instead. Two runs — one with, one without —
 plus `--compare A.json B.json` give the FR-052-CON-4 check (`extractable` must be
@@ -264,6 +274,27 @@ def iter_docs(root: Path):
             if is_worktree_sibling(root, rel.parts[0]):
                 continue
             yield rel.parts[0], str(rel), arch, text
+
+
+def snapshot_corpus(root: Path, dest: Path) -> int:
+    """Freeze the walk's documents under `dest` as `<repo>/<relative path>`.
+
+    The experiment's unit of comparison is the *combination*, not the corpus, so
+    every combination has to see byte-identical input. Copying only what
+    `iter_docs` yields keeps the snapshot small (requirement documents only) and
+    keeps the dedupe decision in one place: what is copied is what was walked.
+    """
+    dest.mkdir(parents=True, exist_ok=True)
+    repos: set[str] = set()
+    n = 0
+    for repo, rel, _arch, text in iter_docs(root):
+        out = dest / rel
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(text, encoding="utf-8")
+        repos.add(repo)
+        n += 1
+    print(f"snapshot: {n} documents from {len(repos)} repos → {dest}")
+    return n
 
 
 def scratch_module(verbs: list[str]) -> str:
@@ -610,6 +641,10 @@ def main() -> int:
     ap.add_argument("--verification-vocab", type=int, default=0, metavar="N",
                     help="print the N commonest `Verification` values found in "
                          "the corpus, with the test/non-test call for each")
+    ap.add_argument("--snapshot", type=Path, default=None, metavar="DIR",
+                    help="copy every document the walk yields into DIR "
+                         "(`<repo>/<relative path>`) and exit, so a multi-run "
+                         "experiment can sweep one frozen corpus")
     ap.add_argument("--compare", type=Path, nargs=2, default=None,
                     metavar=("A.json", "B.json"),
                     help="compare a registry-on and a registry-off --properties "
@@ -620,6 +655,10 @@ def main() -> int:
         return compare_runs(*args.compare)
 
     root = args.root.expanduser().resolve()
+
+    if args.snapshot:
+        snapshot_corpus(root, args.snapshot.expanduser().resolve())
+        return 0
 
     if args.mine_verbs:
         for stem, n in mine_verbs(root, args.mine_verbs):
