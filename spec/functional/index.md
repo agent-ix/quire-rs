@@ -51,3 +51,4 @@ description: "Index of artifacts in this directory."
 * [FR-049: Verification-Reference Integrity](./FR-049-verification-reference-integrity.md)
 * [FR-050: Declarative Coverage Computation](./FR-050-declarative-coverage-computation.md)
 * [FR-051: Source Symbol Extraction with Relations](./FR-051-source-symbol-extraction.md)
+* [FR-052: Acceptance-Criteria Property Classification](./FR-052-acceptance-criteria-property-classification.md)

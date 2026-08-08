@@ -76,6 +76,25 @@ fn iso_bundle(suffix: &str, matrix_rows: &[(&str, &str, &str)], traced: &[&str])
     Bundle { scope, source }
 }
 
+/// Rewrite the bundle's FR with `cells` as its `Acceptance Criteria`, keeping
+/// the ids and `Verification` references [`iso_bundle`] mints. Lets one test
+/// choose whether the criteria classify as property-shaped or not.
+fn rewrite_criteria(bundle: &Bundle, cells: &[&str]) {
+    let mut md = String::from(
+        "---\nid: FR-001\ntype: FR\ntitle: A requirement\n---\n\n\
+         ## Acceptance Criteria\n\n\
+         | ID | Criteria | Verification |\n|----|----------|--------------|\n",
+    );
+    for (i, cell) in cells.iter().enumerate() {
+        md.push_str(&format!(
+            "| FR-001-AC-{} | {cell} | Test (TC-{:03}) |\n",
+            i + 1,
+            i + 1
+        ));
+    }
+    write(&bundle.scope, "FR-001.md", &md);
+}
+
 fn report_for(bundle: &Bundle, module: &str) -> Result<CoverageReport, CoverageError> {
     let registry = Registry::load_module(&fixture_module(module)).expect("load module");
     let spec = Spec::from_path(&bundle.scope);
@@ -329,6 +348,220 @@ fn tc740_no_model_is_a_distinct_diagnostic() {
 
     assert_eq!(err, CoverageError::ModelUndeclared);
     assert!(err.to_string().contains("traceability"));
+}
+
+// TC-788 (FR-052-AC-10, FR-050-AC-13): the CR-028 criteria rollup — one entry
+// per document binding criteria plus the two new totals, and byte-identical
+// serialization across runs.
+#[test]
+fn tc788_criteria_counts_and_totals() {
+    let bundle = iso_bundle(
+        "788",
+        &[
+            ("TC-001", "FR-001-AC-1", "✅"),
+            ("TC-002", "FR-001-AC-2", "🚧"),
+        ],
+        &["TC-001"],
+    );
+    // A universally quantified criterion and a specific-scenario one, so the
+    // entry carries a property-shaped count that is neither 0 nor the total.
+    rewrite_criteria(
+        &bundle,
+        &[
+            "A finding whose key is absent from the merged map defaults to warning.",
+            "The loader emits a `Duplicate` diagnostic for the second declaration.",
+        ],
+    );
+    let report = report_for(&bundle, "iso").expect("model declared");
+
+    // One entry per minting document. `tests.md` is not a corpus document and
+    // binds no criteria, so `FR-001.md` is the only contributor.
+    assert_eq!(
+        report
+            .criteria
+            .iter()
+            .map(|c| c.document.as_str())
+            .collect::<Vec<_>>(),
+        vec!["FR-001.md"],
+    );
+    let entry = &report.criteria[0];
+    assert_eq!(entry.archetype, "FR");
+    assert_eq!(entry.criteria, 2, "both AC rows are binding criteria");
+    assert_eq!(
+        entry.property_shaped, 1,
+        "only the quantified criterion is extractable: {:?}",
+        entry.by_property
+    );
+    // The histogram accounts for every criterion exactly once.
+    assert_eq!(
+        entry.by_property.values().sum::<usize>(),
+        entry.criteria,
+        "by_property: {:?}",
+        entry.by_property
+    );
+
+    // The totals are the sum over the entries — the same relation FR-050-AC-6
+    // states for backed/total — and they are present as a pair.
+    assert_eq!(
+        report.totals.criteria,
+        Some(report.criteria.iter().map(|c| c.criteria).sum::<usize>())
+    );
+    assert_eq!(
+        report.totals.property_shaped,
+        Some(
+            report
+                .criteria
+                .iter()
+                .map(|c| c.property_shaped)
+                .sum::<usize>()
+        )
+    );
+    assert_eq!(report.totals.criteria, Some(2));
+    assert_eq!(report.totals.property_shaped, Some(1));
+
+    // …and the classification is data, not a verdict: it moves nothing in the
+    // reconciliation the report already carried.
+    assert_eq!(report.totals.total, 4);
+    assert_eq!(report.totals.backed, 1);
+
+    // FR-050-AC-7 still holds over the enlarged payload.
+    let first = report.to_json();
+    assert!(first.contains("\"criteria\""));
+    assert!(first.contains("property_shaped"));
+    for _ in 0..8 {
+        assert_eq!(
+            first,
+            report_for(&bundle, "iso")
+                .expect("model declared")
+                .to_json(),
+            "coverage JSON must stay byte-identical across runs"
+        );
+    }
+}
+
+// TC-788 (FR-050-AC-13, continued): a corpus binding criteria of which *none*
+// are property-shaped emits `property_shaped: 0` — present and zero, never
+// absent. The two totals move as a pair, so a JSON consumer computing the
+// extraction ratio divides by a number rather than by `undefined`, in exactly
+// the corpus most worth reporting on (CR-020: criteria validated by
+// demonstration legitimately score zero).
+#[test]
+fn tc788_zero_property_shaped_is_emitted_not_omitted() {
+    let bundle = iso_bundle("788-zero", &[("TC-001", "FR-001-AC-1", "✅")], &["TC-001"]);
+    // Two specific scenarios: binding criteria, neither quantified.
+    rewrite_criteria(
+        &bundle,
+        &[
+            "The loader emits a `Duplicate` diagnostic for the second declaration.",
+            "The report lists one row per declared module.",
+        ],
+    );
+    let report = report_for(&bundle, "iso").expect("model declared");
+
+    assert_eq!(report.criteria.len(), 1);
+    assert_eq!(report.criteria[0].criteria, 2);
+    assert_eq!(report.criteria[0].property_shaped, 0);
+    assert_eq!(report.totals.criteria, Some(2));
+    assert_eq!(
+        report.totals.property_shaped,
+        Some(0),
+        "zero is a value, not an absence"
+    );
+
+    let json = report.to_json();
+    let value: serde_json::Value = serde_json::from_str(&json).expect("parses");
+    let totals: Vec<&str> = value["totals"]
+        .as_object()
+        .expect("object")
+        .keys()
+        .map(String::as_str)
+        .collect();
+    assert_eq!(
+        totals,
+        vec!["backed", "criteria", "property_shaped", "total"]
+    );
+    assert_eq!(value["totals"]["property_shaped"], serde_json::json!(0));
+    assert!(
+        json.contains("\"property_shaped\": 0"),
+        "the key must be written, not skipped: {json}"
+    );
+
+    let restored: CoverageReport = serde_json::from_str(&json).expect("round-trips");
+    assert_eq!(restored, report);
+}
+
+// TC-788 (FR-050-AC-13, continued): a corpus binding no criteria carries an
+// empty list, and its JSON is byte-for-byte what an engine predating the
+// field would have written — the CR-028 keys are absent, not zero-valued.
+#[test]
+fn tc788_no_criteria_corpus_is_unchanged() {
+    let root = tmpdir("788-none");
+    let scope = root.join("rules");
+    let source = root.join("src");
+    fs::create_dir_all(&scope).expect("mkdir");
+    fs::create_dir_all(&source).expect("mkdir");
+
+    // The alt archetype declares no `grammar_ref`, so nothing binds criteria.
+    write(
+        &scope,
+        "R-001.md",
+        "---\nid: R-001\ntype: Rule\ntitle: A rule\n---\n\n## Clauses\n\n\
+         | Clause | Evidence |\n|--------|----------|\n\
+         | R-001-C-1 | checked by C-001 |\n",
+    );
+    write(
+        &scope,
+        "checks.md",
+        "# Check Register\n\n## Checks\n\n| Check | Covers | State |\n|-------|--------|-------|\n\
+         | C-001 | R-001-C-1 | done |\n",
+    );
+    write(&source, "lib.rs", "//! No traced symbols.\n");
+
+    let bundle = Bundle { scope, source };
+    let report = report_for(&bundle, "alt").expect("model declared");
+
+    assert!(report.criteria.is_empty(), "{:?}", report.criteria);
+    assert_eq!(report.totals.criteria, None);
+    assert_eq!(report.totals.property_shaped, None);
+
+    let json = report.to_json();
+    assert!(
+        !json.contains("criteria"),
+        "an absent field, not an empty one: {json}"
+    );
+    assert!(!json.contains("property_shaped"), "{json}");
+    // The payload is exactly the pre-CR-028 key set.
+    let value: serde_json::Value = serde_json::from_str(&json).expect("parses");
+    let keys: Vec<&str> = value
+        .as_object()
+        .expect("object")
+        .keys()
+        .map(String::as_str)
+        .collect();
+    // `serde_json::Value` holds its object as a map, so the comparison is over
+    // the key *set*, not the (separately asserted) emitted order.
+    assert_eq!(
+        keys,
+        vec![
+            "groups",
+            "status_lies",
+            "totals",
+            "unbacked_rows",
+            "untracked_symbols"
+        ]
+    );
+    let totals: Vec<&str> = value["totals"]
+        .as_object()
+        .expect("object")
+        .keys()
+        .map(String::as_str)
+        .collect();
+    assert_eq!(totals, vec!["backed", "total"]);
+
+    // A report written by an older engine still round-trips through the
+    // derived `Deserialize` — what `#[serde(default)]` buys.
+    let restored: CoverageReport = serde_json::from_str(&json).expect("round-trips");
+    assert_eq!(restored, report);
 }
 
 // TC-756 (FR-050-CON-2, FR-051-CON-1): static boundary audit over the coverage

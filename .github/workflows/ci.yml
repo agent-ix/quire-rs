@@ -29,6 +29,9 @@ jobs:
       - name: Unsafe audit
         run: bash scripts/check_unsafe_comments.sh
 
+      - name: Property-classifier purity audit (FR-052-CON-1)
+        run: bash scripts/check_property_purity.sh
+
   licenses:
     name: License Check
     runs-on: ubuntu-24.04

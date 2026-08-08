@@ -210,6 +210,40 @@ fn run_grammar(
     }
 }
 
+/// Classify the binding acceptance criteria of `doc_text` by **property
+/// shape** (FR-052), using `registry`'s merged vocabularies — the same
+/// assembly [`run_grammar`] performs, in the one place that assembly already
+/// lives.
+///
+/// Returns the classification records directly. Nothing here touches
+/// [`ValidationResult`]: property classification is metadata, never a verdict,
+/// so it has no severity, no routing and no promotion path (FR-052-CON-1). An
+/// archetype with no `grammar_ref` (or an unknown bundle) yields no records,
+/// exactly as it yields no findings.
+pub fn classify_document_criteria(
+    registry: &crate::Registry,
+    archetype: &CompiledArchetype,
+    doc_text: &str,
+) -> Vec<crate::grammar::property::AcClassification> {
+    let Some(grammar_ref) = archetype.grammar_ref() else {
+        return Vec::new();
+    };
+    let doc = crate::parse_document(doc_text);
+    let line_offset = body_line_offset(doc_text);
+    crate::grammar::classify_document_properties(
+        grammar_ref,
+        &archetype.name,
+        &doc,
+        line_offset,
+        crate::grammar::GrammarVocabularies {
+            lexicon: registry.lexicon_matcher(),
+            observable: registry.observable_verbs_matcher(),
+            vacuous: registry.vacuous_predicates_matcher(),
+            idioms: registry.property_idioms_matcher(),
+        },
+    )
+}
+
 /// Route one grammar finding into `errors` or `warnings` by its severity
 /// (FR-042-AC-7). `Warning` is advisory (never fails validation); `Error`
 /// blocks. Split out from [`run_grammar`] so the severity routing is unit
@@ -374,6 +408,7 @@ fn validate_in_registry_core(
             lexicon,
             observable: registry.observable_verbs_matcher(),
             vacuous: registry.vacuous_predicates_matcher(),
+            idioms: registry.property_idioms_matcher(),
         },
         registry.grammar_severity(),
         &mut errors,

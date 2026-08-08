@@ -99,6 +99,30 @@ model; the engine knows nothing of "AC" or "TC" as concepts.
 | FR-050-AC-10 | A status cell carrying a trailing note (`✅ Complete`) classes by its leading marker, and a value declared in the `retired` class classes as retired rather than unknown. | Test (TC-758) |
 | FR-050-AC-11 | A declared `vocabularies.test_type` is exposed on the `Registry` as the core values plus the module's extensions, and is the same list a matrix contract validates against. | Test (TC-759) |
 | FR-050-AC-12 | With `expand_ranges` declared, `FR-001..FR-003` resolves as three references; with `strip_annotations` declared, `FR-022-AC-5 (superseded by FR-030)` resolves as one. Both are off unless declared. | Test (TC-760) |
+| FR-050-AC-13 | A report over a corpus whose documents carry criteria contains a `criteria` entry per contributing document and the two new totals; a corpus whose documents carry none contains an empty `criteria` list and serializes byte-identically to a report from an engine that predates the field. | Test (TC-788) |
+
+> **CR-028 note (2026-08-07):** `CoverageReport` grows a `criteria` field and
+> `CoverageTotals` grows two counts — a criteria count and a property-shaped
+> count — carrying the classification
+> [FR-052](./FR-052-acceptance-criteria-property-classification.md) computes.
+> The rollup gains a grammar dependency and **no acceptance-criteria knowledge**:
+> it walks the already-path-sorted corpus, asks FR-052 for per-document counts,
+> and skips any document yielding none, so a non-requirement corpus produces an
+> empty list and output identical to today's. The counts are declaration-free by
+> necessity — the process module declares exactly one trace target and no
+> document references over criteria rows, so there is no group to hang a
+> declared column on, and a declaration-driven column would ship structurally
+> present and permanently unpopulated.
+>
+> The FR-050-AC-7 byte-identical guarantee therefore now covers content this FR
+> does not otherwise describe. That is the point of stating it here rather than
+> in FR-052: the ordering discipline is this FR's, the new fields sort into the
+> same determinism block as every other, and `#[serde(default)]` on all three
+> keeps a report written by an older engine round-tripping.
+>
+> FR-050-CON-1 is unaffected. A count is not a verdict, and a low
+> property-shaped count is not a failing corpus — CR-020 already recorded that
+> StR criteria legitimately score low. Judgment stays in the consuming workflow.
 
 > **CR-015 note:** The ecosystem sweep behind FR-003 (report:
 > `spec-artifacts-process/reports/2026-08-04-tests-md-sweep.md`) found the
@@ -115,4 +139,5 @@ model; the engine knows nothing of "AC" or "TC" as concepts.
 ## Dependencies
 
 - **Upstream**: [FR-051](./FR-051-source-symbol-extraction.md) (the symbol graph and trace tags), [FR-027](./FR-027-whole-spec-query-api.md) (corpus queries), [FR-014](./FR-014-module-activation.md) (manifest loading), [FR-010](./FR-010-query-api.md) (table extraction)
+- **Upstream (added CR-028)**: [FR-052](./FR-052-acceptance-criteria-property-classification.md) (the per-criterion property classification the `criteria` counts summarize)
 - **Downstream**: [FR-049](./FR-049-verification-reference-integrity.md) (reference declarations reused by bundle validation); `spec-artifacts-iso` declares the ISO model (follow-up change in that module); the `gap-analysis` workflow replaces its grep step with `quire coverage`

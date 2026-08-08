@@ -144,8 +144,10 @@ violates a check:
 > findings across 44 FR documents, **322 of them `unclassifiable`** — every one
 > a correct report that a declarative assertion is not an obligation. Only 18
 > were substantive. Classifying the corpus by quantifier instead of style showed
-> 50.8% of its 327 acceptance criteria are already property-shaped (42.5%
-> universally quantified, 8.3% metamorphic). An AC's testability depends on
+> ~~50.8%~~ **52.6%** of this repo's acceptance criteria are already
+> property-shaped (the ~~42.5% universally quantified / 8.3% metamorphic~~ split
+> was hand-derived and is superseded by the CR-029 census below). An AC's
+> testability depends on
 > whether it names an input and an observable outcome, not on which prose style
 > it wears, and the assertion shape supplies the test oracle directly. The
 > canonical shape is therefore the assertion; `unclassifiable` now means
@@ -156,8 +158,9 @@ violates a check:
 > An **ecosystem-wide survey** (199 repos, 3,253 requirement documents, 11,919
 > acceptance criteria) confirms the choice is not a quire-rs idiosyncrasy:
 > `assertion` is the dominant shape in 139 of 199 repos. Note the quantifier
-> split differs sharply by repo: 24.9% of ecosystem ACs are property-shaped
-> (quantified or metamorphic) against 50.8% in quire-rs itself.
+> split differs sharply by repo: ~~24.9%~~ **20.6%** of ecosystem ACs are
+> property-shaped (quantified or metamorphic) against ~~50.8%~~ **52.6%** in
+> quire-rs itself — corrected by CR-029 below.
 >
 > **Shape-share figures corrected (CR-022, 2026-08-06).** This note originally
 > recorded `assertion` 66.6% / `unstructured` 29.2% / `obligation` 2.9% /
@@ -185,6 +188,33 @@ violates a check:
 > 80%. The `unstructured` share fell from 29.2% to 0.5% across CR-014 and CR-019
 > and is no longer the reason CON-1 keeps promotion gated; the 21.0%
 > non-canonical share is.
+>
+> **Property-shape figures corrected (CR-029, 2026-08-07).** This note recorded
+> ~~24.9%~~ (ecosystem) and ~~50.8%~~ (quire-rs) as the property-shaped share,
+> with a ~~42.5% quantified / 8.3% metamorphic~~ breakdown. What those figures
+> were wrong about is their provenance, not their arithmetic: they were
+> **hand-classified by quantifier**, over a corpus that was **not deduplicated**
+> — worktree clones of the same repo counted once per clone — and they were
+> produced before any classifier existed, so nothing measured them with the
+> engine that now defines the classification
+> ([FR-052](./FR-052-acceptance-criteria-property-classification.md)). A hand
+> reading of a duplicated corpus is not comparable to an engine census of a
+> deduplicated one, and no figure below has been reconciled toward the old pair.
+> The engine-exact replacement, over **197 deduplicated repositories, 3,333
+> requirement documents and 13,950 binding criteria**
+> (`~/dev/reports/2026-08-07-ac-property-shape-sweep.md`):
+>
+> | Corpus | Criteria | Property-extractable |
+> |---|---|---|
+> | ecosystem (all 197 repos) | 13,950 | **20.6%** (2,867 criteria) |
+> | quire-rs alone | 435 | **52.6%** |
+> | ecosystem excluding quire-rs | — | 19.5% |
+>
+> The gap between a spec written by this program and the rest of the ecosystem
+> is real and slightly *wider* than the old pair recorded, not narrower. Dedupe
+> is load-bearing: the four `.worktrees/phase-b*` trees alone would have counted
+> quire-rs's own spec five times and pulled the ecosystem rate up by roughly two
+> points.
 
 > **CR-014 note:** An ecosystem fit check (report:
 > `~/dev/reports/2026-08-04-ac-grammar-fit.md`) ran this grammar through the
@@ -461,6 +491,33 @@ violates a check:
 > `plan/Plan-001-ac-grammar-coverage/tasks/Task-009-ac-grammar-baseline-sweep.md`.
 > Triage detail: `reports/2026-08-07-ac-promotion-triage.md`.
 
+> **CR-028 note (2026-08-07):** Shape classification gains a **second,
+> orthogonal axis**, owned by [FR-052](./FR-052-acceptance-criteria-property-classification.md).
+> FR-047's axis answers *what prose form is this cell in* — `assertion`,
+> `obligation`, `given-when-then`, `unstructured` — and drives the checks above.
+> FR-052's axis answers *does this cell quantify over an input domain, and which
+> clauses carry its generator domain, precondition and oracle*. The two are
+> independent: an `assertion` may be `Example`, and an `obligation` may still be
+> universally quantified.
+>
+> Nothing in this FR changes. `AcShape` is unchanged and **gains no variant** —
+> a property shape is not an `AcShape` and never appears in one. The `ac`
+> finding stream is **byte-identical** with the classifier present and absent,
+> which FR-052-AC-7 pins as a test rather than leaving as an intention, so every
+> corpus figure recorded in the notes above stands unmoved.
+>
+> The two axes are kept apart deliberately: FR-047 emits findings and its checks
+> are promotable to `error` through [FR-048](./FR-048-per-check-grammar-severity.md),
+> whereas FR-052-CON-1 forbids classification from emitting a finding or
+> carrying a `grammar_severity` key at all. A gate on property shape would push
+> authors to reword criteria to satisfy a checker instead of to describe the
+> system, which is the opposite of what CON-1 above is protecting.
+>
+> What FR-052 does reuse is this FR's binding and its plumbing: the same
+> per-archetype section and sub-id kind (CR-020), the same criteria-cell and
+> supplement-statement collection, and the same CR-017 mention/use mask. A cell
+> this grammar does not read is a cell FR-052 does not classify.
+
 Each `ac` finding SHALL carry `grammar: "ac"`. The framework SHALL route `ac`
 findings into `ValidationResult` by severity per FR-042. The rollout default
 is explicit: every `ac` check ships advisory (`warning`) at most, and each
@@ -505,4 +562,4 @@ the histogram covers every grammar and check.
 ## Dependencies
 
 - **Upstream**: [FR-042](./FR-042-requirement-grammar-check.md) (the grammar framework and its section/table binding), [FR-043](./FR-043-module-concrete-lexicon.md) / [FR-044](./FR-044-project-glossary-lexicon.md) (the lexicon consumed by `vague-response`), [FR-010](./FR-010-query-api.md) (table extraction)
-- **Downstream**: [FR-048](./FR-048-per-check-grammar-severity.md) (per-check severity promotion), the authoring and review workflows consume `ac` findings; the AC quality gate feeds the coverage rollup ([FR-050](./FR-050-declarative-coverage-computation.md))
+- **Downstream**: [FR-048](./FR-048-per-check-grammar-severity.md) (per-check severity promotion), [FR-052](./FR-052-acceptance-criteria-property-classification.md) (property classification over the same binding and the same criteria cells, on a second orthogonal axis — CR-028), the authoring and review workflows consume `ac` findings; the AC quality gate feeds the coverage rollup ([FR-050](./FR-050-declarative-coverage-computation.md))
