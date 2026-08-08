@@ -113,26 +113,28 @@ pub struct CriteriaCounts {
 /// Bundle-wide totals; the backed/total pair equals the sum over
 /// [`CoverageReport::groups`], the criteria pair the sum over
 /// [`CoverageReport::criteria`].
+///
+/// The two CR-028 counts are an **all-or-nothing pair**: both are `Some` for a
+/// corpus binding any criteria and both are `None` for a corpus binding none.
+/// `None` is what keeps FR-050-AC-13's byte-identity — the keys are absent, so
+/// a no-criteria report is byte-for-byte what an engine predating the fields
+/// would have written. They are `Option` rather than a skipped zero because a
+/// corpus with criteria and no property-shaped ones must still emit
+/// `property_shaped: 0`: the primary consumer reads this payload as JSON, and
+/// an absent key there makes the extraction ratio `NaN` in exactly the case
+/// most worth reporting on.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CoverageTotals {
     pub backed: usize,
     pub total: usize,
-    /// Binding criteria across the corpus (CR-028).
-    #[serde(default, skip_serializing_if = "is_zero")]
-    pub criteria: usize,
-    /// Criteria a generator can extract a property from (CR-028).
-    #[serde(default, skip_serializing_if = "is_zero")]
-    pub property_shaped: usize,
-}
-
-/// A zero CR-028 total, which is omitted from the payload rather than written.
-///
-/// Omission is what makes FR-050-AC-13 hold: a corpus binding no criteria
-/// yields no `criteria` entries and no criteria totals, so its report is
-/// byte-for-byte what an engine predating the fields would have written. The
-/// derived `Deserialize` reads an absent key back as zero, so nothing is lost.
-fn is_zero(n: &usize) -> bool {
-    *n == 0
+    /// Binding criteria across the corpus (CR-028), or `None` when the corpus
+    /// binds none.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub criteria: Option<usize>,
+    /// Criteria a generator can extract a property from (CR-028), or `None`
+    /// when the corpus binds no criteria at all. Zero is a real value here.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub property_shaped: Option<usize>,
 }
 
 /// The machine-readable coverage report. Every collection is deterministically
@@ -186,8 +188,13 @@ pub fn compute(
     // no `Registry`. The vocabularies the classifier reads hang off the same
     // `registry` this function already holds.
     report.criteria = criteria_counts(spec, registry, root);
-    report.totals.criteria = report.criteria.iter().map(|c| c.criteria).sum();
-    report.totals.property_shaped = report.criteria.iter().map(|c| c.property_shaped).sum();
+    // Set as a pair, so a consumer never sees a criteria count without the
+    // property-shaped count it is the denominator of.
+    if !report.criteria.is_empty() {
+        report.totals.criteria = Some(report.criteria.iter().map(|c| c.criteria).sum());
+        report.totals.property_shaped =
+            Some(report.criteria.iter().map(|c| c.property_shaped).sum());
+    }
     Ok(report)
 }
 
