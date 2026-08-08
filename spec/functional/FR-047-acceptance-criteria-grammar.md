@@ -491,6 +491,41 @@ violates a check:
 > `plan/Plan-001-ac-grammar-coverage/tasks/Task-009-ac-grammar-baseline-sweep.md`.
 > Triage detail: `reports/2026-08-07-ac-promotion-triage.md`.
 
+> **CR-031 note — the CR-027 figures hold; the tool that contradicted them was
+> stale (2026-08-08).** `quire validate --module <spec-artifacts-iso v0.8.0>`
+> reported two `ac:non-singular` **errors** on this document's own AC-15/AC-16
+> rows — the rows CR-024 added — which read as a masking defect surviving
+> CR-026. It is not. The engine on `main` emits **zero** `ac` findings for this
+> document, and zero `ac:non-singular` / `ac:vacuous-outcome` across all 95 docs
+> of this repo's `spec/`. The two errors came from the installed `quire` CLI
+> v0.10.0, which pins quire-rs **v0.16.0** — the release *before* CR-024/025/026
+> shipped in v0.17.0. Verified by rebuilding `quire-cli` against this tree: the
+> same command on the same document returns no `ac` finding.
+>
+> Re-measured over `~/dev`, worktree-deduped, module `spec-artifacts-iso`
+> v0.8.0 — 4,411 docs / 191 repos / 10,901 cells:
+>
+> | check | engine v0.16.0 (shipped CLI) | engine v0.17.0 (`main`) |
+> |---|---|---|
+> | `ac:non-singular` | 28 | **0** |
+> | `ac:vacuous-outcome` | 2 | **0** |
+>
+> So CR-027's `0`/`0` is correct, and the promotion stands. The exposure is a
+> **toolchain-version** one, not a grammar one: 18 repos currently fail
+> validation on a promoted check when run with the shipped CLI, and every one of
+> those 30 findings disappears on v0.17.0. The remedy is releasing `quire-cli`
+> on quire-rs ≥ v0.17.0, not a checker change and not a prose edit — rewording
+> AC-15/AC-16 would have deleted the examples documenting CR-024 to accommodate
+> a superseded binary.
+>
+> Two gates let a stale-engine reading go unchallenged, and both are closed:
+> `tests/spec_dogfood.rs` never applied the module's promoted severities to this
+> repo's own `spec/` (now FR-048-AC-11 / TC-794), and
+> `scripts/ac_corpus_sweep.py` recorded no engine version, so two conflicting
+> counts could not be told apart (it now prints and stores one). The sweep's
+> *findings* were already engine-derived — its Python table parser only builds
+> the denominator and the recall frame — so it was not the source of any
+> mis-count; its document typing now calls the engine as well.
 > **CR-028 note (2026-08-07):** Shape classification gains a **second,
 > orthogonal axis**, owned by [FR-052](./FR-052-acceptance-criteria-property-classification.md).
 > FR-047's axis answers *what prose form is this cell in* — `assertion`,

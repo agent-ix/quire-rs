@@ -53,6 +53,20 @@ When a grammar runs without a registry (the type-only `validate_document`
 path), the framework SHALL apply the all-default map (every check `warning`),
 matching the empty-lexicon degradation documented in FR-043.
 
+> **CR-031 note — the promotion is now dogfooded (2026-08-08).** A module can
+> promote a check to `error` without this repository's CI noticing: every test
+> here validated against `tests/fixtures/modules/iso`, a fixture that declares
+> no `grammar_severity`, so quire-rs could ship a `spec/` its own published
+> module contract rejects and stay green. AC-11 closes that: the dogfood gate
+> judges this repo's own `spec/` under the promotion `spec-artifacts-iso` ships.
+> Because CI has neither network nor a module checkout, the promoted keys are
+> **mirrored** in the test and the mirror is verified against a real module
+> whenever one is reachable (`$QUIRE_ISO_MODULE`, else the conventional
+> developer checkout) — a vendored manifest copy would rot silently instead.
+> See the CR-031 note in
+> [FR-047](./FR-047-acceptance-criteria-grammar.md) for what this gap let
+> through.
+
 ## Acceptance Criteria
 
 | ID | Criteria | Verification |
@@ -67,6 +81,7 @@ matching the empty-lexicon degradation documented in FR-043.
 | FR-048-AC-8 | A malformed `grammar_severity` entry (unknown level, non-string key) fails module load like any other manifest shape error. | Test (TC-723) |
 | FR-048-AC-9 | A check mapped `off` (manifest or `--severity ac:vague-response=off`) records no finding in `warnings`, `errors`, or the `--summary` histogram, while sibling checks of the same grammar still report. | Test (TC-752) |
 | FR-048-AC-10 | A malformed `--severity` entry (unknown level, missing `=`, or an unparseable `<grammar>:<check>` key) is rejected with a usage diagnostic and a non-zero exit before validation runs. | Test (TC-755) |
+| FR-048-AC-11 | Every document in this repository's own `spec/` is free of findings for the checks the shipped `spec-artifacts-iso` module promotes to `error`, judged on the engine's default vocabularies; when a real module checkout is reachable its merged `grammar_severity` error keys match the promotion the gate asserts. | Test (TC-794) |
 
 ## Dependencies
 
