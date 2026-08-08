@@ -54,6 +54,8 @@ pub struct LoadedModule {
     pub observable_verbs: BTreeMap<String, crate::vocab::ObservableVerbDef>,
     /// Vacuous-predicate registry contributed by this module (FR-047, CR-014).
     pub vacuous_predicates: BTreeMap<String, crate::vocab::VacuousPredicateDef>,
+    /// Property-idiom registry contributed by this module (FR-052).
+    pub property_idioms: BTreeMap<String, crate::vocab::PropertyIdiomDef>,
     /// Traceability model contributed by this module (FR-050).
     pub traceability: crate::traceability::TraceabilityModel,
 }
@@ -365,6 +367,7 @@ pub fn load_inline_module(manifest_yaml: &[u8], schemas: &BTreeMap<String, Strin
         grammar_severity: manifest.grammar_severity.clone(),
         observable_verbs: manifest.observable_verbs.clone(),
         vacuous_predicates: manifest.vacuous_predicates.clone(),
+        property_idioms: manifest.property_idioms.clone(),
         traceability: manifest.traceability.clone(),
     });
 
@@ -518,6 +521,7 @@ fn load_one_module(
             grammar_severity: manifest.grammar_severity.clone(),
             observable_verbs: manifest.observable_verbs.clone(),
             vacuous_predicates: manifest.vacuous_predicates.clone(),
+            property_idioms: manifest.property_idioms.clone(),
             traceability: manifest.traceability.clone(),
         },
         failures,
@@ -735,6 +739,9 @@ pub fn flatten_into_registry(mut outcome: LoadOutcome) -> RegistryShape {
     let (observable_verbs, _) = merge_vocab(&outcome.modules, |m| &m.observable_verbs);
     // CR-014: same first-wins merge for the vacuity vocabulary.
     let (vacuous_predicates, _) = merge_vocab(&outcome.modules, |m| &m.vacuous_predicates);
+    // FR-052: same first-wins merge for the property-idiom vocabulary. It is
+    // read only by the classifier, which emits no finding.
+    let (property_idioms, _) = merge_vocab(&outcome.modules, |m| &m.property_idioms);
 
     // FR-050: merge the declarative traceability model across modules. Targets,
     // references, and tag forms accumulate first-wins by name; the singular
@@ -832,6 +839,7 @@ pub fn flatten_into_registry(mut outcome: LoadOutcome) -> RegistryShape {
         grammar_severity,
         observable_verbs,
         vacuous_predicates,
+        property_idioms,
         traceability,
         failures: outcome.failures,
         diagnostics: outcome.diagnostics,
@@ -1034,6 +1042,9 @@ pub struct RegistryShape {
     /// Merged vacuous-predicate registry, first-wins across modules
     /// (FR-047, CR-014). Layered over the engine's built-in vacuity set.
     pub vacuous_predicates: BTreeMap<String, crate::vocab::VacuousPredicateDef>,
+    /// Merged property-idiom registry, first-wins across modules (FR-052).
+    /// Layered over the engine's built-in idioms.
+    pub property_idioms: BTreeMap<String, crate::vocab::PropertyIdiomDef>,
     /// Merged traceability model, first-wins across modules (FR-050).
     pub traceability: crate::traceability::TraceabilityModel,
     pub failures: Vec<ArchetypeLoadFailure>,

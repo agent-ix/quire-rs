@@ -111,6 +111,25 @@ pub struct VacuousPredicateDef {
     pub category: Option<String>,
 }
 
+/// One `property_idioms` registry entry (FR-052). A module-declared **idiom
+/// phrase** the property classifier reads as evidence of a property shape: the
+/// phrase is the map key, `shape` the [`PropertyShape`](crate::grammar::property::PropertyShape)
+/// it indicates, `definition` documentation.
+///
+/// The registry is a **booster, never a prerequisite** (FR-052-CON-4): the
+/// closed structural signals carry extraction coverage, and a declared phrase
+/// only refines which shape a criterion is labelled with. A missed idiom
+/// therefore degrades a label; it can never remove a criterion from extraction,
+/// which is what keeps this open phrase space from repeating the
+/// `no-observable-outcome` failure (CR-014).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PropertyIdiomDef {
+    pub definition: String,
+    pub shape: crate::grammar::property::PropertyShape,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub category: Option<String>,
+}
+
 /// Normalize a raw `allowed_links` value (array **or** map) into the
 /// canonical [`AllowedLinks`] map (FR-040-AC-4).
 ///

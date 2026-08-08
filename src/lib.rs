@@ -83,7 +83,14 @@ pub use extract::assert_eval::{evaluate_assert, AssertFailure, AssertReason};
 pub use extract::interpolate::{interpolate, UnresolvedField};
 // Declarative lint rules (FR-036) — advisory, never blocks extraction.
 pub use grammar::{check_document_grammar, GrammarFinding, GrammarLexicon, GrammarSeverity};
+// Acceptance-criteria property-shape classification (FR-052) — metadata, never
+// a finding: this surface carries no severity and no promotion path.
+pub use grammar::property::{
+    AcClassification, PropertyIdioms, PropertyShape, Span as PropertySpan, Spans as PropertySpans,
+};
+pub use grammar::{classify_document_properties, AcPropertyCounts};
 pub use lint::{lint_document, LintFinding, LintRule, LintSeverity};
+pub use validate_document::classify_document_criteria;
 // Writeback (FR-022) — byte-splice section/block edit.
 pub use writeback::{update_block, update_section};
 // Declarative coverage computation (FR-050) + source-symbol extraction (FR-051).

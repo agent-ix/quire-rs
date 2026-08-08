@@ -92,6 +92,14 @@ pub struct Manifest {
     /// `vacuous-outcome` check consumes the merged keys.
     #[serde(default)]
     pub vacuous_predicates: BTreeMap<String, crate::vocab::VacuousPredicateDef>,
+    /// Mergeable property-idiom registry (FR-052): phrase → {definition,
+    /// shape, optional category}. Merged across modules first-wins and layered
+    /// **over** the engine's built-in idioms. The FR-052 property classifier
+    /// consumes the merged entries as a label booster only — no finding is
+    /// emitted on that path and `extractable` never depends on a declaration
+    /// (FR-052-CON-4).
+    #[serde(default)]
+    pub property_idioms: BTreeMap<String, crate::vocab::PropertyIdiomDef>,
     /// Declarative traceability model (FR-050): which documents mint trace
     /// ids, which columns reference them, the status vocabulary, and the
     /// trace-tag grammar. Absent → the model is undeclared; malformed → module
