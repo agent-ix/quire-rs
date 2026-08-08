@@ -424,6 +424,43 @@ violates a check:
 > run still opens no span — and the mask stays byte-length-preserving, which
 > `outcome_clause` depends on.
 
+> **CR-027 note — CON-1 satisfied for two checks (2026-08-07).**
+> `ac:vacuous-outcome` and `ac:non-singular` are **promoted to `error`**. CON-1
+> requires a corpus baseline sweep plus explicit user sign-off; both are done,
+> and the promotion is declared where CON-2 says it must be — the FR-048
+> `grammar_severity` map in the `spec-artifacts-iso` manifest (v0.8.0), reaching
+> consumers through `quoin` v0.10.0.
+>
+> **`DEFAULT_SEVERITY` is unchanged.** CON-1 forbids *shipping the engine
+> default* promoted, not promotion itself; the engine still ships every `ac`
+> check advisory and the module opts in. Nothing about this note licenses
+> editing that constant.
+>
+> Measured over 4,448 docs / 192 repos, worktree-deduped:
+>
+> | check | baseline | after CR-024/025/026 | after the corpus sweep |
+> |---|---|---|---|
+> | `ac:vacuous-outcome` | 44 | 41 | **0** |
+> | `ac:non-singular` | 48 | 24 | **0** |
+>
+> Of the 92 baseline findings, **27 were checker defects** (CR-024, CR-025,
+> CR-026) and 65 were real, fixed across 29 repos with each document validated
+> before its PR opened. The split is the whole lesson: a check with a 50%
+> false-positive rate cannot be promoted, and the rate was invisible until the
+> findings were read one by one. This is CR-017's lesson holding a second time —
+> triage before editing prose.
+>
+> **The other three checks stay `warning`.** `ac:non-canonical-shape` is 1,099
+> findings (10.0% of cells) and far too large to gate on — its sweep is
+> agent-ix/quire-rs#29. `ac:unclassifiable` (44) and `ac:vague-response` (109)
+> are unchanged in status; neither has been re-sampled for precision since
+> CR-019, and promotion of either needs its own CON-1 pass.
+>
+> The figures in agent-ix/quire-rs#21 and in the CR-022 proposal were taken over
+> a corpus that counted worktree duplicates and are corrected here and in
+> `plan/Plan-001-ac-grammar-coverage/tasks/Task-009-ac-grammar-baseline-sweep.md`.
+> Triage detail: `reports/2026-08-07-ac-promotion-triage.md`.
+
 Each `ac` finding SHALL carry `grammar: "ac"`. The framework SHALL route `ac`
 findings into `ValidationResult` by severity per FR-042. The rollout default
 is explicit: every `ac` check ships advisory (`warning`) at most, and each
