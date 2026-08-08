@@ -80,7 +80,7 @@ The engine SHALL classify each criterion into exactly one shape drawn from a
 | `Idempotence` | applying an operation a second time yields the first result |
 | `Ordering` | an ordering or stable-sort property over a collection |
 | `Invariant` | a property asserted to hold unconditionally |
-| `Universal` | universally quantified over a generator domain by its determiner |
+| `Universal` | universally quantified over a generator domain by a universal determiner at a **bounded subject position** |
 | `ErrorCase` | a criterion whose outcome is a named failure over a class of bad inputs |
 | `Lifecycle` | a criterion quantifying over an ordered sequence of state transitions |
 | `Concurrency` | a criterion quantifying over interleavings rather than over values |
@@ -110,6 +110,46 @@ Structure therefore outranks quantification: a universally quantified
 round-trip criterion classifies `RoundTrip`. The precedence is pinned here so
 it is a specification decision rather than an implementation accident, and so
 two engine versions cannot disagree about a corpus census.
+
+### Where the universal determiner is read
+
+`Universal` is earned by a **closed universal determiner set** (`a`, `an`,
+`any`, `every`, `each`, `all`, `no`) standing at the head of a **subject**. The
+determiner set is closed English and is not extensible by a module: this is a
+grammatical test, not a vocabulary one.
+
+The engine SHALL read that determiner at three bounded positions, first match
+wins:
+
+1. **sentence-initial** — `Every finding whose key is absent … defaults to
+   warning`;
+2. the **subject of a fronted subordinate clause**, immediately after a
+   sentence-initial subordinator — `When` **`a command`** `exceeds its timeout,
+   the result carries timed_out true`;
+3. the **subject of the main clause**, immediately after the comma that closes
+   fronted material — `In strict mode,` **`every finding`** `is promoted to an
+   error`.
+
+Positions 2 and 3 are pinned to a function word — a sentence-initial
+subordinator or preposition, or the comma that closes what it fronts. This is
+emphatically **not "a determiner anywhere"**: `returns a diagnostic` SHALL NOT
+match, because `a diagnostic` is the outcome and nothing anchors it to a
+subject. Where the subject position cannot be bounded — a fronted phrase with
+no comma, a determiner buried in a trailing prepositional phrase — the engine
+SHALL **refuse** rather than guess, the same discipline the weak-boundary span
+guard applies.
+
+The signals distinguish the three so a census can attribute them:
+`universal:determiner`, `recall:subject-determiner:fronted-subject`,
+`recall:subject-determiner:main-subject`.
+
+> **CR-030 note (2026-08-07) — positions 2 and 3 are new, and are the whole of
+> what the recall experiment adopted.** This FR originally anchored the rule at
+> the start of the statement only, which is what the "determiner rule's reach"
+> open question below was filed against. Three candidate widenings were built
+> behind measurement-only cargo features and measured factorially; one passed
+> its precision gate and became positions 2 and 3, and two were deleted. The
+> full result is CR-030 in [the log](../log.md).
 
 ### Closed structural signals, and the idiom registry as a booster
 
@@ -261,13 +301,48 @@ decisions rather than defects, and they are filed rather than answered here:
   `{property: <metamorphic>, extractable: false}` record: honouring the label
   strains CON-4's intent, ignoring it drops real metamorphic properties. Open as
   [agent-ix/quire-rs#46](https://github.com/agent-ix/quire-rs/issues/46).
-- **The determiner rule's reach** — the rule is anchored at the start of the
+- ~~**The determiner rule's reach** — the rule is anchored at the start of the
   statement, so quantification expressed by a leading `When`/`Given`/`If` or by
   a mid-sentence `any`/`every` is not seen. Sampling puts recall of
   `extractable` at roughly 30% against ~90% precision, and the loss class is a
   closed English pattern rather than an open vocabulary. Whether to extend the
   anchor is a spec decision, open as
-  [agent-ix/quire-rs#45](https://github.com/agent-ix/quire-rs/issues/45).
+  [agent-ix/quire-rs#45](https://github.com/agent-ix/quire-rs/issues/45).~~
+  **Answered by CR-030 (2026-08-07)**, and answered smaller than this bullet
+  expected. The anchor was extended to two further bounded subject positions
+  ("Where the universal determiner is read", above), which took `extractable`
+  from 20.8% to 25.3% of the corpus and recall from 25.2% to 31.3%. It did not
+  produce the ~3× the bullet speculated: of the three widenings measured, the
+  two with the wide reach failed the precision gate and were deleted. **The
+  ~30% recall ceiling stands.** #45 remains open for the ceiling itself, not
+  for the anchor.
+
+### The recall ratio and its denominator
+
+Any figure this FR quotes as *recall* SHALL name its denominator, because the
+population of criteria the classifier **missed** is unobservable and has to be
+estimated from a hand-labelled sample, and two defensible denominators disagree
+by several points.
+
+The engine's own surfaces report **`extractable` as a share of all binding
+criteria** — that ratio has no estimated term in it and is the only one the
+engine computes. Recall figures are measurement-report quantities, and the
+2026-08-07 experiment states two:
+
+- **unrestricted** — every binding criterion is in the denominator;
+- **`Verification`=Test** — only criteria whose `Verification` cell names a
+  test, on the reasoning that a criterion verified by Inspection, Demonstration
+  or Analysis is legitimately not a property.
+
+The test/non-test call SHALL be a **word-boundary match on `test`/`tests`**, not
+a fixed vocabulary: the corpus carries **1,478 distinct `Verification` values
+over 11,933 cells**, and `Test`/`Unit Test`/`Integration Test` together are only
+57% of them, so any fixed set silently reclassifies the tail.
+
+A criterion whose `Verification` cell cannot be joined on `row_id` SHALL be
+reported as **`unknown`**, never assumed either way — **13.5% of criteria
+(1,868 cells)** are in that class. A criterion with no `Verification` cell has
+not been declared non-testable; it has simply not been declared.
 
 ## Constraints
 
@@ -295,6 +370,8 @@ decisions rather than defects, and they are filed rather than answered here:
 | FR-052-AC-11 | A fixture document classified through the PyO3 `classify_properties` binding carries the same records, field for field, as the in-process Rust call over that document. | Test (TC-789) |
 | FR-052-AC-12 | Every criterion in a fixture corpus carries the same `extractable` value with a `property_idioms` registry declared and with none declared, so only the `property` label differs between the two runs (CON-4). | Test (TC-790) |
 | FR-052-AC-13 | A criterion composing two operations with an identity back-reference in its outcome classifies as `RoundTrip` with no registry declared, a criterion pairing a repetition adverb with an equality verb classifies as `Idempotence`, and a criterion whose only ordering-adjacent word is a bare `deterministic`, `before` or `order` classifies as neither. | Test (TC-791) |
+| FR-052-AC-14 | A criterion fronting its condition with a subordinator (`When a command exceeds its timeout, …`) or fronting material closed by a comma before a determiner-headed main subject (`In strict mode, every finding …`) classifies as `Universal` and extractable, carrying the subject-position signal that names which of the two fired; while a definite determiner, an unbounded fronted phrase with no comma, and a determiner standing in the outcome rather than the subject each classify exactly as they did before the position widened. | Test (TC-792) |
+| FR-052-AC-15 | Widening the determiner's position moves no `ac` finding — the finding stream over a fixture corpus is unchanged, field for field and order for order — and every criterion the widened positions decline keeps its exact prior `property`, `extractable` and `signals` values. | Test (TC-793) |
 
 ## Dependencies
 
