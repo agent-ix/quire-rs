@@ -77,30 +77,14 @@ python = ["dep:pyo3"]
 # it off. Build the measurement wheel with
 # `maturin build --features python,remeasure`.
 remeasure = []
-# ── FR-052 recall-widening experiment (agent-ix/quire-rs#45) ────────────────
-# Measurement-only, exactly as `remeasure` above. The 2026-08-07 corpus sweep
-# put `extractable` at ~90% precision / ~30% recall and attributed the loss to
-# the reach of the sentence-initial universal-determiner anchor. These are the
-# three candidate widenings, each **independently** switchable so a factorial
-# corpus experiment can attribute precision and recall to each rule separately:
-#
-#   recall-shape-axis          route the FR-047 GivenWhenThen/Obligation shapes
-#                              into extraction (no new pattern matching)
-#   recall-subject-determiner  the same closed determiner set at a bounded
-#                              subject position, not only at offset 0
-#   recall-generic-subject     bare-plural and gerund generic subjects
-#
-# NEVER enabled in a shipping build: `make ci`, the default build, the wheel and
-# the wasm build all leave them off, and a default build is byte-identical to
-# the classifier FR-052 specifies. They are cargo features rather than a runtime
-# option on purpose — FR-047-CON-2 forbids per-module shape configurability, and
-# a `preferred_*` knob would make the shape a deployment variable instead of a
-# measured decision. What ships is decided by the sweep and recorded in a spec
-# CR afterwards (the CR-019 precedent). Build the measurement wheel with e.g.
-# `maturin build --features python,recall-shape-axis`.
-recall-shape-axis = []
-recall-subject-determiner = []
-recall-generic-subject = []
+# The FR-052 recall-widening experiment (agent-ix/quire-rs#45) carried three
+# candidate rules here, each behind its own measurement-only feature. It is
+# **finished** (CR-030): `recall-subject-determiner` measured 30/30 precision on
+# its own newly-caught cells and is now unconditional classifier behaviour, so
+# it has no feature; `recall-shape-axis` (70.0%) and `recall-generic-subject`
+# (56.7%) missed the ≥85% gate fixed in advance and were **deleted** — not
+# narrowed and not left gated, because a dormant feature is a rule nobody
+# measures again. A narrower variant is a new question with its own experiment.
 # Activate jsonschema's `resolve-file` cargo feature. Gated so the
 # `wasm` build can opt out (jsonschema 0.18's resolve-file path calls
 # `url::Url::to_file_path`, which doesn't exist on wasm32). See FR-013.
