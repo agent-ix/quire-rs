@@ -424,6 +424,33 @@ violates a check:
 > run still opens no span — and the mask stays byte-length-preserving, which
 > `outcome_clause` depends on.
 
+> **CR-027 note (2026-08-07):** Shape classification gains a **second,
+> orthogonal axis**, owned by [FR-052](./FR-052-acceptance-criteria-property-classification.md).
+> FR-047's axis answers *what prose form is this cell in* — `assertion`,
+> `obligation`, `given-when-then`, `unstructured` — and drives the checks above.
+> FR-052's axis answers *does this cell quantify over an input domain, and which
+> clauses carry its generator domain, precondition and oracle*. The two are
+> independent: an `assertion` may be `Example`, and an `obligation` may still be
+> universally quantified.
+>
+> Nothing in this FR changes. `AcShape` is unchanged and **gains no variant** —
+> a property shape is not an `AcShape` and never appears in one. The `ac`
+> finding stream is **byte-identical** with the classifier present and absent,
+> which FR-052-AC-7 pins as a test rather than leaving as an intention, so every
+> corpus figure recorded in the notes above stands unmoved.
+>
+> The two axes are kept apart deliberately: FR-047 emits findings and its checks
+> are promotable to `error` through [FR-048](./FR-048-per-check-grammar-severity.md),
+> whereas FR-052-CON-1 forbids classification from emitting a finding or
+> carrying a `grammar_severity` key at all. A gate on property shape would push
+> authors to reword criteria to satisfy a checker instead of to describe the
+> system, which is the opposite of what CON-1 above is protecting.
+>
+> What FR-052 does reuse is this FR's binding and its plumbing: the same
+> per-archetype section and sub-id kind (CR-020), the same criteria-cell and
+> supplement-statement collection, and the same CR-017 mention/use mask. A cell
+> this grammar does not read is a cell FR-052 does not classify.
+
 Each `ac` finding SHALL carry `grammar: "ac"`. The framework SHALL route `ac`
 findings into `ValidationResult` by severity per FR-042. The rollout default
 is explicit: every `ac` check ships advisory (`warning`) at most, and each
@@ -468,4 +495,4 @@ the histogram covers every grammar and check.
 ## Dependencies
 
 - **Upstream**: [FR-042](./FR-042-requirement-grammar-check.md) (the grammar framework and its section/table binding), [FR-043](./FR-043-module-concrete-lexicon.md) / [FR-044](./FR-044-project-glossary-lexicon.md) (the lexicon consumed by `vague-response`), [FR-010](./FR-010-query-api.md) (table extraction)
-- **Downstream**: [FR-048](./FR-048-per-check-grammar-severity.md) (per-check severity promotion), the authoring and review workflows consume `ac` findings; the AC quality gate feeds the coverage rollup ([FR-050](./FR-050-declarative-coverage-computation.md))
+- **Downstream**: [FR-048](./FR-048-per-check-grammar-severity.md) (per-check severity promotion), [FR-052](./FR-052-acceptance-criteria-property-classification.md) (property classification over the same binding and the same criteria cells, on a second orthogonal axis — CR-027), the authoring and review workflows consume `ac` findings; the AC quality gate feeds the coverage rollup ([FR-050](./FR-050-declarative-coverage-computation.md))
