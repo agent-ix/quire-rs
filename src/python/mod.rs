@@ -45,6 +45,7 @@ fn quire(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(validate, m)?)?;
     m.add_function(wrap_pyfunction!(validate_document, m)?)?;
     m.add_function(wrap_pyfunction!(check_grammar, m)?)?;
+    m.add_function(wrap_pyfunction!(classify_properties, m)?)?;
     m.add_function(wrap_pyfunction!(input_contract, m)?)?;
     m.add_function(wrap_pyfunction!(input_skeleton, m)?)?;
     m.add_function(wrap_pyfunction!(validate_manifest, m)?)?;
@@ -209,6 +210,10 @@ fn check_grammar<'py>(
                     lexicon,
                     observable,
                     vacuous,
+                    idioms: match registry.as_ref() {
+                        Some(r) => r.property_idioms_matcher(),
+                        None => crate::grammar::property::default_property_idioms(),
+                    },
                 },
             ),
             severity,
@@ -225,6 +230,111 @@ fn check_grammar<'py>(
         d.set_item("line", f.line)?;
         d.set_item("statement", &f.statement)?;
         d.set_item("severity", f.severity.as_str())?;
+        out.append(d)?;
+    }
+    Ok(out)
+}
+
+/// Classify the binding acceptance criteria of `document_text` by **property
+/// shape** (FR-052) as the resolved `archetype`, under the grammar bundle
+/// `grammar_ref`. Returns the same records the in-process Rust
+/// `classify_document_properties` produces, each a dict `{row_id, statement,
+/// line, shape, property, extractable, domain, precondition, oracle,
+/// signals}`; a span is `{start, end, text}` or `None`.
+///
+/// This surface carries **no severity and no check id** and never folds into a
+/// validation result: the classification is metadata a generator consumes, not
+/// a verdict (FR-052-CON-1). Span offsets are byte offsets into `statement`,
+/// which is untruncated — the accompanying `text` is what a UTF-16 consumer
+/// should read.
+#[pyfunction]
+#[pyo3(signature = (grammar_ref, archetype, document_text, module_root=None))]
+fn classify_properties<'py>(
+    py: Python<'py>,
+    grammar_ref: &str,
+    archetype: &str,
+    document_text: &str,
+    module_root: Option<&str>,
+) -> PyResult<Bound<'py, PyList>> {
+    let gref = grammar_ref.to_string();
+    let arch = archetype.to_string();
+    let text = document_text.to_string();
+    let module = module_root.map(str::to_string);
+
+    let records = py.detach(
+        || -> PyResult<Vec<crate::grammar::property::AcClassification>> {
+            let doc = crate::parse_document(&text);
+            let line_offset = crate::validate_document::body_line_offset(&text);
+            let empty = crate::grammar::GrammarLexicon::empty();
+            let registry = match &module {
+                Some(m) => {
+                    let path = Path::new(m);
+                    let r = if path.join("manifest.yaml").is_file() {
+                        crate::Registry::load_module(path)
+                    } else {
+                        crate::Registry::load_from(&[path])
+                    }
+                    .map_err(quire_error_to_schema_pyerr)?;
+                    Some(r)
+                }
+                None => None,
+            };
+            let lexicon = registry.as_ref().map_or(&empty, |r| r.lexicon_matcher());
+            let observable = match registry.as_ref() {
+                Some(r) => r.observable_verbs_matcher(),
+                None => crate::grammar::default_observable_verbs(),
+            };
+            let vacuous = match registry.as_ref() {
+                Some(r) => r.vacuous_predicates_matcher(),
+                None => crate::grammar::default_vacuous_predicates(),
+            };
+            // FR-052-AC-8: module idioms over the engine built-ins.
+            let idioms = match registry.as_ref() {
+                Some(r) => r.property_idioms_matcher(),
+                None => crate::grammar::property::default_property_idioms(),
+            };
+            Ok(crate::grammar::classify_document_properties(
+                &gref,
+                &arch,
+                &doc,
+                line_offset,
+                crate::grammar::GrammarVocabularies {
+                    lexicon,
+                    observable,
+                    vacuous,
+                    idioms,
+                },
+            ))
+        },
+    )?;
+
+    let span_dict =
+        |span: Option<&crate::grammar::property::Span>| -> PyResult<Option<Bound<'py, PyDict>>> {
+            match span {
+                None => Ok(None),
+                Some(s) => {
+                    let d = PyDict::new(py);
+                    d.set_item("start", s.start)?;
+                    d.set_item("end", s.end)?;
+                    d.set_item("text", &s.text)?;
+                    Ok(Some(d))
+                }
+            }
+        };
+
+    let out = PyList::empty(py);
+    for r in records {
+        let d = PyDict::new(py);
+        d.set_item("row_id", r.row_id.as_deref())?;
+        d.set_item("statement", &r.statement)?;
+        d.set_item("line", r.line)?;
+        d.set_item("shape", r.shape.as_str())?;
+        d.set_item("property", r.property.as_str())?;
+        d.set_item("extractable", r.extractable)?;
+        d.set_item("domain", span_dict(r.domain.as_ref())?)?;
+        d.set_item("precondition", span_dict(r.precondition.as_ref())?)?;
+        d.set_item("oracle", span_dict(r.oracle.as_ref())?)?;
+        d.set_item("signals", r.signals)?;
         out.append(d)?;
     }
     Ok(out)

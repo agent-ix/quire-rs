@@ -17,6 +17,7 @@
 
 pub mod ac;
 pub mod ears;
+pub mod property;
 
 use std::sync::OnceLock;
 
@@ -333,16 +334,21 @@ pub struct GrammarVocabularies<'a> {
     pub observable: &'a ObservableVerbs,
     /// Vacuous predicates (FR-047-AC-12, CR-014).
     pub vacuous: &'a VacuousPredicates,
+    /// Property idioms (FR-052-AC-8). Read only by the property classifier,
+    /// which emits no finding, so this vocabulary can never influence the `ac`
+    /// finding stream.
+    pub idioms: &'a property::PropertyIdioms,
 }
 
 impl<'a> GrammarVocabularies<'a> {
-    /// The registry-free defaults: empty lexicon, built-in verb and vacuity
-    /// vocabularies.
+    /// The registry-free defaults: empty lexicon, built-in verb, vacuity and
+    /// idiom vocabularies.
     pub fn defaults() -> Self {
         Self {
             lexicon: empty_lexicon(),
             observable: default_observable_verbs(),
             vacuous: default_vacuous_predicates(),
+            idioms: property::default_property_idioms(),
         }
     }
 }
@@ -579,6 +585,49 @@ pub fn summarize_findings<'a, I: IntoIterator<Item = &'a str>>(
     out
 }
 
+/// Per-document property-shape counts (FR-052), the rollup form of a
+/// [`property::AcClassification`] list.
+///
+/// A count is not a verdict: this is the "gradient that reports" boundary
+/// landing in a summary. `BTreeMap` keeps the histogram deterministic
+/// (NFR-006).
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct AcPropertyCounts {
+    /// Binding criteria seen.
+    pub criteria: usize,
+    /// Criteria a generator can extract a property from.
+    pub property_shaped: usize,
+    /// Criteria per [`property::PropertyShape`] label.
+    pub by_property: std::collections::BTreeMap<String, usize>,
+}
+
+impl AcPropertyCounts {
+    /// Tally one document's classification records.
+    pub fn tally<'a, I: IntoIterator<Item = &'a property::AcClassification>>(records: I) -> Self {
+        let mut out = Self::default();
+        for record in records {
+            out.criteria += 1;
+            if record.extractable {
+                out.property_shaped += 1;
+            }
+            *out.by_property
+                .entry(record.property.as_str().to_string())
+                .or_insert(0) += 1;
+        }
+        out
+    }
+
+    /// Accumulate `other` into `self` — the corpus rollup over per-document
+    /// tallies.
+    pub fn merge(&mut self, other: &Self) {
+        self.criteria += other.criteria;
+        self.property_shaped += other.property_shaped;
+        for (shape, count) in &other.by_property {
+            *self.by_property.entry(shape.clone()).or_insert(0) += count;
+        }
+    }
+}
+
 /// The `<grammar>:<check>` key of a message carrying the generic finding
 /// prefix `[<grammar>:<check>] …`, or `None` when it carries no such prefix.
 pub fn finding_prefix_key(message: &str) -> Option<&str> {
@@ -660,6 +709,27 @@ pub fn check_document_grammar(
             findings.extend(ac::check(archetype, doc, line_offset, vocab));
             findings
         }
+        _ => Vec::new(),
+    }
+}
+
+/// Classify the binding acceptance criteria of `doc` by **property shape**
+/// (FR-052), dispatching by `grammar_ref` exactly as
+/// [`check_document_grammar`] does. An unknown bundle yields no records — the
+/// same silent no-op, for the same reason.
+///
+/// This is a **finding-free** surface: the return type carries no severity, no
+/// check id and no message, so nothing on this path can reach
+/// `ValidationResult` or the FR-048 severity registry (FR-052-CON-1).
+pub fn classify_document_properties(
+    grammar_ref: &str,
+    archetype: &str,
+    doc: &QuireDocument,
+    line_offset: usize,
+    vocab: GrammarVocabularies<'_>,
+) -> Vec<property::AcClassification> {
+    match grammar_ref {
+        "iso-spec-core" => property::classify_document(archetype, doc, line_offset, vocab),
         _ => Vec::new(),
     }
 }

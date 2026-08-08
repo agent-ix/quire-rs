@@ -24,7 +24,8 @@ help:
 	@echo "  make clean            - cargo clean"
 	@echo "  make deny             - cargo deny check licenses"
 	@echo "  make audit-unsafe     - Enforce // SAFETY: comments on unsafe blocks"
-	@echo "  make ci               - Per-PR CI gates (fmt-check + lint + test + deny + audit-unsafe + audit-static)"
+	@echo "  make audit-property   - Enforce FR-052-CON-1: no GrammarFinding in the property classifier"
+	@echo "  make ci               - Per-PR CI gates (fmt-check + lint + test + deny + audit-unsafe + audit-property + audit-static)"
 	@echo ""
 	@echo "Hardening (scheduled / pre-tag):"
 	@echo "  make cargo-audit      - cargo audit (RUSTSEC advisories)"
@@ -76,6 +77,10 @@ cargo-audit:
 .PHONY: audit-unsafe
 audit-unsafe:
 	bash scripts/check_unsafe_comments.sh
+
+.PHONY: audit-property
+audit-property:
+	bash scripts/check_property_purity.sh
 
 .PHONY: audit-static
 audit-static:
@@ -149,7 +154,7 @@ sanitize:
 	@echo "sanitizer-instrumented CPython and runs on the scheduled CI lane."
 
 .PHONY: ci
-ci: fmt-check lint test deny audit-unsafe audit-static
+ci: fmt-check lint test deny audit-unsafe audit-property audit-static
 
 # =============================================================================
 # Python wheel / sdist + local-publish (pypi.ix)

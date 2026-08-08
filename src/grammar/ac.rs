@@ -83,6 +83,10 @@ const DEFAULT_SEVERITY: GrammarSeverity = GrammarSeverity::Warning;
 /// only the owning section and the sub-id kind differ.
 const CRITERIA_COLUMN: &str = "Criteria";
 
+/// The column carrying the criterion's own id (`FR-047-AC-3`). Read for the
+/// FR-052 classification record's `row_id`; the checks do not use it.
+const ID_COLUMN: &str = "ID";
+
 /// Where an archetype's **binding criteria** live, and what sub-id kind their
 /// supplement subsections use (CR-020).
 ///
@@ -125,21 +129,29 @@ fn binding_for(archetype: &str) -> Option<(&'static str, &'static str)> {
 }
 
 /// One acceptance criterion with its 1-based document line.
-struct Stmt {
-    text: String,
-    line: Option<usize>,
+pub(super) struct Stmt {
+    pub(super) text: String,
+    pub(super) line: Option<usize>,
+    /// The criterion's own id (`FR-047-AC-3`) — the `ID` column of the
+    /// criteria table, or the `### <doc-id>-<kind>-N` supplement heading.
+    /// `None` when the source carries neither.
+    ///
+    /// The `ac` checks do not read it: a finding is located by line and
+    /// statement. The FR-052 property classifier carries it onto its record,
+    /// because without the criterion id a downstream generator cannot emit the
+    /// tracking tag coverage reconciliation keys on.
+    pub(super) row_id: Option<String>,
 }
 
-/// Check `doc` against the `ac` grammar. The grammar binds to the `Criteria`
-/// column of the archetype's own binding-criteria section and to its
-/// `### <doc-id>-<kind>-N` supplement sections ([`BINDINGS`]); every other
-/// archetype and section yields nothing (FR-047-AC-6).
-pub fn check(
-    archetype: &str,
-    doc: &QuireDocument,
-    line_offset: usize,
-    vocab: GrammarVocabularies<'_>,
-) -> Vec<GrammarFinding> {
+/// Every binding criterion of `doc`, in document order — the `Criteria` column
+/// of the archetype's own binding-criteria section followed by its
+/// `### <doc-id>-<kind>-N` supplement sections ([`BINDINGS`]). An archetype
+/// with no binding-criteria table yields none (FR-047-AC-6).
+///
+/// Shared by [`check`] and the FR-052 property classifier
+/// ([`super::property::classify_document`]) so the two surfaces cannot disagree
+/// about which cells are criteria (FR-052-AC-9).
+pub(super) fn statements(archetype: &str, doc: &QuireDocument, line_offset: usize) -> Vec<Stmt> {
     // CR-020: bind per the module contract, not the corpus census. CR-014
     // widened this to FR/NFR/US/StR/IT on cell counts, but outside FR those
     // cells were tables individual authors improvised — 20 StR cells and 69 US
@@ -152,11 +164,23 @@ pub fn check(
         stmts.extend(criteria_cells(section, line_offset));
     }
     for section in supplement_sections(&doc.sections, sub_id_kind) {
-        stmts.extend(supplement_statements(section, line_offset));
+        stmts.extend(supplement_statements(section, line_offset, sub_id_kind));
     }
+    stmts
+}
 
+/// Check `doc` against the `ac` grammar. The grammar binds to the `Criteria`
+/// column of the archetype's own binding-criteria section and to its
+/// `### <doc-id>-<kind>-N` supplement sections ([`BINDINGS`]); every other
+/// archetype and section yields nothing (FR-047-AC-6).
+pub fn check(
+    archetype: &str,
+    doc: &QuireDocument,
+    line_offset: usize,
+    vocab: GrammarVocabularies<'_>,
+) -> Vec<GrammarFinding> {
     let mut findings = Vec::new();
-    for stmt in &stmts {
+    for stmt in &statements(archetype, doc, line_offset) {
         check_statement(stmt, vocab, &mut findings);
     }
     findings
@@ -288,7 +312,7 @@ fn carries_signal(statement: &str, vocab: GrammarVocabularies<'_>) -> bool {
 /// The mask is **byte-length-preserving** (each character becomes as many `x`
 /// bytes as it occupied), so an offset found in the masked copy indexes the
 /// original — [`outcome_clause`] relies on that.
-fn mask_code_spans(statement: &str) -> String {
+pub(super) fn mask_code_spans(statement: &str) -> String {
     let mut out = String::with_capacity(statement.len());
     let mut rest = statement;
     while let Some(open) = rest.find('`') {
@@ -492,26 +516,42 @@ fn outcome_clause(statement: &str, shape: AcShape) -> &str {
 
 /// Every non-empty `Criteria` cell is one statement — no modal-verb filter
 /// (FR-047-AC-2). A missing section, table, or column yields none.
+///
+/// The `ID` column is read alongside (FR-052): it carries the criterion's own
+/// id onto the statement. A table declaring no `ID` column still yields its
+/// criteria, with no id — the column is optional here, as it is for every
+/// check.
 fn criteria_cells(section: &QuireSection, line_offset: usize) -> Vec<Stmt> {
     let Some(table) = query::parse_table(&section.content) else {
         return Vec::new();
     };
-    let Some(col_idx) = table
-        .headers
-        .iter()
-        .position(|h| h.trim().eq_ignore_ascii_case(CRITERIA_COLUMN))
-    else {
+    let column = |name: &str| {
+        table
+            .headers
+            .iter()
+            .position(|h| h.trim().eq_ignore_ascii_case(name))
+    };
+    let Some(col_idx) = column(CRITERIA_COLUMN) else {
         return Vec::new();
     };
+    let id_idx = column(ID_COLUMN);
     table
         .rows
         .iter()
-        .filter_map(|row| row.get(col_idx))
-        .map(|cell| cell.trim())
-        .filter(|cell| !cell.is_empty())
-        .map(|cell| Stmt {
-            text: cell.to_string(),
-            line: ears::locate_line(section, cell, line_offset),
+        .filter_map(|row| {
+            let cell = row.get(col_idx)?.trim();
+            if cell.is_empty() {
+                return None;
+            }
+            Some(Stmt {
+                text: cell.to_string(),
+                line: ears::locate_line(section, cell, line_offset),
+                row_id: id_idx
+                    .and_then(|i| row.get(i))
+                    .map(|id| id.trim())
+                    .filter(|id| !id.is_empty())
+                    .map(str::to_string),
+            })
         })
         .collect()
 }
@@ -562,7 +602,13 @@ fn split_sentences(text: &str) -> Vec<&str> {
 /// Segment a supplement body into statements: one per sentence of prose, with
 /// fenced code blocks and blockquotes skipped per the FR-042 skip rules
 /// (FR-047-AC-11). No modal-verb filter, as with the criteria cells.
-fn supplement_statements(section: &QuireSection, line_offset: usize) -> Vec<Stmt> {
+///
+/// Every statement carries the supplement's own criterion id, read from the
+/// `### <doc-id>-<kind>-N` heading `kind` matched the section under (FR-052).
+fn supplement_statements(section: &QuireSection, line_offset: usize, kind: &str) -> Vec<Stmt> {
+    let row_id = re_supplement_heading(kind)
+        .find(section.heading.trim())
+        .map(|m| m.as_str().to_string());
     let mut out = Vec::new();
     let mut in_fence = false;
     // CR-014: join wrapped prose before segmenting. Splitting per source line
@@ -587,6 +633,7 @@ fn supplement_statements(section: &QuireSection, line_offset: usize) -> Vec<Stmt
             out.push(Stmt {
                 text: text.to_string(),
                 line: Some(start),
+                row_id: row_id.clone(),
             });
         }
     };
@@ -686,7 +733,7 @@ fn re_supplement_heading(kind: &str) -> &'static Regex {
 }
 
 /// A modal or copula — the clearest predicate marker.
-fn re_modal_or_copula() -> &'static Regex {
+pub(super) fn re_modal_or_copula() -> &'static Regex {
     static R: OnceLock<Regex> = OnceLock::new();
     R.get_or_init(|| {
         Regex::new(
@@ -698,7 +745,7 @@ fn re_modal_or_copula() -> &'static Regex {
 
 /// An inflected verb form (`-s`, `-ed`, `-ing`) — a weak but broad predicate
 /// signal that needs no vocabulary to be complete.
-fn re_inflected_verb() -> &'static Regex {
+pub(super) fn re_inflected_verb() -> &'static Regex {
     static R: OnceLock<Regex> = OnceLock::new();
     R.get_or_init(|| Regex::new(r"(?i)\b\w+(s|ed|ing)\b").expect("inflected-verb regex"))
 }
@@ -729,7 +776,7 @@ fn re_elided_copula() -> &'static Regex {
 }
 
 /// Irregular past/participle forms the `-ed` rule cannot reach.
-fn re_irregular_past() -> &'static Regex {
+pub(super) fn re_irregular_past() -> &'static Regex {
     static R: OnceLock<Regex> = OnceLock::new();
     R.get_or_init(|| {
         Regex::new(
@@ -773,7 +820,8 @@ mod tests {
     }
 
     /// The vocabularies most tests use: empty lexicon, built-in verb and
-    /// vacuity sets.
+    /// vacuity sets. The property idioms are the built-ins too — no `ac` check
+    /// reads them (FR-052-CON-1).
     fn vocab<'a>(
         lexicon: &'a GrammarLexicon,
         observable: &'a ObservableVerbs,
@@ -783,6 +831,7 @@ mod tests {
             lexicon,
             observable,
             vacuous,
+            idioms: crate::grammar::property::default_property_idioms(),
         }
     }
 
