@@ -2,8 +2,7 @@
 id: Task-009
 title: "Corpus cleanup — AC-grammar baseline sweep (user-gated promotion)"
 type: Task
-status: blocked
-blocked_on: "FR-047-CON-1 — severity promotion needs explicit user sign-off"
+status: completed
 track: C
 priority: P2
 relationships:
@@ -33,31 +32,45 @@ baseline (791 vague / 333 non-singular before enforcement).
   showed six of them were checker defects (a quoted keyword read as a use), so
   the fix landed in the checker as **CR-017** rather than in the prose. The one
   genuine wording change is FR-047-AC-1. See the CR-017 re-baseline below.
-- [~] **Promotion proposal.** **Written, awaiting sign-off** —
-  `~/dev/reports/2026-08-06-ac-canonical-shape-sweep.md` (CR-022,
-  agent-ix/quire-rs#21). Per-check candidates over a deduplicated 192-repo /
-  16,449-cell corpus, post-CR-019 and post-CR-020:
+- [x] **Promotion proposal.** **Signed off and executed, 2026-08-07.**
+  `ac:vacuous-outcome` and `ac:non-singular` are now `error`, declared in the
+  `spec-artifacts-iso` v0.8.0 manifest's FR-048 `grammar_severity` map and
+  reaching consumers via `quoin` v0.10.0. `DEFAULT_SEVERITY` is unchanged, so
+  CON-1 holds: the engine still ships advisory and the module declares the
+  promotion (the lever CON-2 sanctions).
 
-  | Check | Findings | Rate | Proposal |
+  **The proposal's own figures were wrong and are corrected here.** They were
+  taken over a 16,449-cell corpus that counted worktree duplicates. Re-derived
+  on the deduplicated corpus — 4,448 docs / 192 repos / 11,022 cells at the
+  start of the work:
+
+  | Check | Proposal said | Actual baseline | Outcome |
   |---|---|---|---|
-  | `ac:vacuous-outcome` | 31 | 0.19% | → `error` — strongest candidate |
-  | `ac:non-singular` | 121 | 0.74% | → `error` — mechanical, meaning-preserving |
-  | `ac:unclassifiable` | 82 | 0.50% | stay `warning`, re-sample precision post-CR-019 first |
-  | `ac:vague-response` | 101 | 0.61% | stay `warning` — depends on glossary coverage |
-  | `ac:non-canonical-shape` | 3,458 | 21.0% | stay `warning` globally; promote per-repo as each is swept clean |
+  | `ac:vacuous-outcome` | 31 / 0.19% | **44** / 0.4% | → `error`, corpus at **0** |
+  | `ac:non-singular` | 121 / 0.74% | **48** / 0.4% | → `error`, corpus at **0** |
+  | `ac:unclassifiable` | 82 / 0.50% | **44** / 0.4% | stays `warning` |
+  | `ac:vague-response` | 101 / 0.61% | **109** / 1.0% | stays `warning` |
+  | `ac:non-canonical-shape` | 3,458 / 21.0% | **1,099** / 10.0% | stays `warning` — agent-ix/quire-rs#29 |
 
-  The box stays open until the proposal is **signed off**, not when it is
-  written. **STOP: promotion is user-gated (FR-047-CON-1) — no
-  `grammar_severity` default has been edited, and none may be without explicit
-  sign-off.**
+  Getting to zero took two passes, recorded in
+  `reports/2026-08-07-ac-promotion-triage.md`:
 
-  The same report corrects the scope this task was written against: the sweep
-  target is ~3,458 cells across 50 repos, not the ~506 across 17 that FR-047's
-  CR-013 note recorded (corrected there as CR-022). `ecaz` alone holds 2,413.
+  1. **27 of the 92 findings were checker defects**, fixed as CR-024/025/026 and
+     shipped in v0.17.0 — the positive/negative pair idiom was tied to its
+     separator (19), `then` was counted outside a Given/When/Then criterion (4),
+     `functions` fired as a noun (3), and a double-backtick span left the
+     keywords it quoted unmasked (1). The CR-017 lesson held a second time:
+     triage before editing prose.
+  2. **The remaining 65 were real**, fixed across 29 repos, one PR each, each
+     document validated before its PR opened.
+
+  Final: **4,448 docs / 192 repos / 11,045 cells, both promoted checks at 0.**
 
 ## Deliverables
-- Baseline report (before/after counts) in this task file; corpus wording
-  fixes on the cleanup branch; a promotion proposal awaiting user decision.
+- Baseline report (before/after counts) in this task file; corpus wording fixes
+  on the cleanup branch; a promotion proposal, signed off and executed —
+  `spec-artifacts-iso` v0.8.0 declares both promoted checks, `quoin` v0.10.0
+  carries the pin. Triage detail: `reports/2026-08-07-ac-promotion-triage.md`.
 
 ## Baseline (Gate G1 dry-run, 2026-08-04 — counts only, no corpus edits)
 
