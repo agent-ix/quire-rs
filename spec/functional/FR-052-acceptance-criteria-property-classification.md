@@ -344,6 +344,44 @@ reported as **`unknown`**, never assumed either way — **13.5% of criteria
 (1,868 cells)** are in that class. A criterion with no `Verification` cell has
 not been declared non-testable; it has simply not been declared.
 
+> **CR-033 note (2026-08-08) — what `{property: <metamorphic>, extractable:
+> false}` means to a consumer.** The Phase B corpus re-measurement found **63
+> criteria — 13.2% of the metamorphic set — carrying a metamorphic property
+> label together with `extractable: false`**, some of them textbook round-trip
+> claims (agent-ix/quire-rs#46). This FR did not say which of the two a
+> downstream generator honours, and both single-valued answers cost something
+> real: honouring the label makes generation depend on module data, which is
+> CON-4's spirit violated even where its letter holds; ignoring the label drops
+> 63 genuine metamorphic properties.
+>
+> The record therefore gains a **third, explicit outcome** rather than forcing
+> the question onto a boolean. `extraction` is a closed three-valued field:
+>
+> - **`extractable`** — the structural pass found both a quantified shape and an
+>   oracle. A generator emits a test unattended.
+> - **`candidate`** — the record carries a metamorphic label the structural pass
+>   did not corroborate into extractability: either the shape came from a
+>   declared idiom alone, or the structural shape landed but no predicate marker
+>   supplied an oracle. A generator MAY emit a test, and MUST mark it as
+>   requiring review.
+> - **`not-extractable`** — neither. `Example` and `Unclassified` live here, and
+>   neither is a defect (AC-5 is unchanged).
+>
+> **`extractable` is untouched**, and CON-4 is untouched with it: the boolean is
+> still derived in exactly one place from the structural shape alone, and TC-790
+> still pins that it is identical with and without a declared registry. What is
+> new is that `extraction` **may** differ between those two runs — a criterion
+> whose metamorphic label came only from a declared idiom reports `candidate`
+> with the registry and `not-extractable` without it. That is deliberate and it
+> is the reason the third state exists rather than a widening of the boolean:
+> `candidate` is **review-gated by construction**, so module data can raise a
+> criterion for human attention without ever silently entering an unattended
+> generation set. CON-4 constrains what ships unattended; it was never a rule
+> that module data may not be read at all.
+>
+> This adds no shape and no severity key, so CON-1 and CON-3 are unaffected, and
+> the `ac` finding stream stays byte-identical (AC-7).
+
 ## Constraints
 
 | ID | Constraint | Type | Validation |
@@ -372,6 +410,8 @@ not been declared non-testable; it has simply not been declared.
 | FR-052-AC-13 | A criterion composing two operations with an identity back-reference in its outcome classifies as `RoundTrip` with no registry declared, a criterion pairing a repetition adverb with an equality verb classifies as `Idempotence`, and a criterion whose only ordering-adjacent word is a bare `deterministic`, `before` or `order` classifies as neither. | Test (TC-791) |
 | FR-052-AC-14 | A criterion fronting its condition with a subordinator (`When a command exceeds its timeout, …`) or fronting material closed by a comma before a determiner-headed main subject (`In strict mode, every finding …`) classifies as `Universal` and extractable, carrying the subject-position signal that names which of the two fired; while a definite determiner, an unbounded fronted phrase with no comma, and a determiner standing in the outcome rather than the subject each classify exactly as they did before the position widened. | Test (TC-792) |
 | FR-052-AC-15 | Widening the determiner's position moves no `ac` finding — the finding stream over a fixture corpus is unchanged, field for field and order for order — and every criterion the widened positions decline keeps its exact prior `property`, `extractable` and `signals` values. | Test (TC-793) |
+| FR-052-AC-16 | A criterion whose `extractable` is true reports `extraction: extractable`; a criterion whose `extractable` is false and whose `property` is one of the four metamorphic shapes reports `extraction: candidate`; every other criterion reports `extraction: not-extractable`, so an `Example` or `Unclassified` criterion is never a candidate. | Test (TC-795) |
+| FR-052-AC-17 | `extraction` is derived from `property` and `extractable` alone and feeds back into neither: every criterion in a fixture corpus carries the same `extractable` value with a `property_idioms` registry declared and with none (CON-4 unchanged), while a criterion whose metamorphic label came only from a declared idiom reports `candidate` with the registry declared and `not-extractable` without it. | Test (TC-796) |
 
 ## Dependencies
 

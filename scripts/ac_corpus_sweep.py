@@ -380,7 +380,8 @@ def sweep_properties(root: Path, module_root: str | None) -> dict:
                 "repo": repo, "path": path, "archetype": arch, "index": i,
                 "row_id": r["row_id"], "statement": r["statement"],
                 "line": r["line"], "shape": r["shape"], "property": r["property"],
-                "extractable": r["extractable"], "signals": list(r["signals"]),
+                "extractable": r["extractable"], "extraction": r["extraction"],
+                "signals": list(r["signals"]),
                 "domain": r["domain"], "precondition": r["precondition"],
                 "oracle": r["oracle"],
                 # The honest-denominator join (agent-ix/quire-rs#45): a criterion
@@ -421,6 +422,14 @@ def print_property_census(run: dict, top_repos: int) -> None:
     print()
     print(f"extractable      {extractable:8d} {100 * extractable / total:7.1f}%" if total else "")
     print(f"oracle span      {spanned:8d} {100 * spanned / total:7.1f}%" if total else "")
+    # CR-033: the three-valued outcome. `candidate` is the class
+    # agent-ix/quire-rs#46 named — a metamorphic label the structural pass did
+    # not carry through to extractability — and it is review-gated, so it is
+    # reported separately and never folded into the extractable ratio.
+    by_extraction = Counter(r.get("extraction") for r in records)
+    for outcome in ("extractable", "candidate", "not-extractable"):
+        n = by_extraction.get(outcome, 0)
+        print(f"{outcome:16} {n:8d} {100 * n / total:7.1f}%" if total else "")
     print()
     print("criteria by archetype: " + ", ".join(
         f"{k} {v}" for k, v in Counter(run["cells_by_archetype"]).most_common()))

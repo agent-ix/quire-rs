@@ -165,6 +165,7 @@ def test_classify_properties_cross_boundary(tmp_path):
     assert universal["property"] == "universal"
     assert universal["shape"] == "assertion"
     assert universal["extractable"] is True
+    assert universal["extraction"] == "extractable"
     assert universal["line"] is not None
     # The statement is untruncated and the span offsets index it.
     assert universal["statement"].startswith("A finding whose key")
@@ -189,6 +190,8 @@ def test_classify_properties_cross_boundary(tmp_path):
     # a first-class outcome, not a defect (FR-052-CON-1).
     assert example["property"] == "example"
     assert example["extractable"] is False
+    # CR-033: an Example criterion is `not-extractable`, never a candidate.
+    assert example["extraction"] == "not-extractable"
     assert example["domain"] is None
     assert example["precondition"] is None
     assert example["oracle"] is None
@@ -214,6 +217,11 @@ def test_classify_properties_cross_boundary(tmp_path):
     assert scoped[0]["property"] == "error-case"
     assert scoped[0]["extractable"] == universal["extractable"]
     assert scoped[1]["extractable"] == example["extractable"]
+    # CR-033: `extraction` crosses the boundary too. `error-case` is not one of
+    # the four metamorphic shapes, so the declaration does not raise a
+    # candidate here — the boosted record stays exactly as extractable as it was.
+    assert scoped[0]["extraction"] == "extractable"
+    assert scoped[1]["extraction"] == "not-extractable"
 
 
 def test_load_repo_returns_documents(tmp_path):

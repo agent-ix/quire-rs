@@ -239,7 +239,7 @@ fn check_grammar<'py>(
 /// shape** (FR-052) as the resolved `archetype`, under the grammar bundle
 /// `grammar_ref`. Returns the same records the in-process Rust
 /// `classify_document_properties` produces, each a dict `{row_id, statement,
-/// line, shape, property, extractable, domain, precondition, oracle,
+/// line, shape, property, extractable, extraction, domain, precondition, oracle,
 /// signals}`; a span is `{start, end, text}` or `None`.
 ///
 /// This surface carries **no severity and no check id** and never folds into a
@@ -331,6 +331,7 @@ fn classify_properties<'py>(
         d.set_item("shape", r.shape.as_str())?;
         d.set_item("property", r.property.as_str())?;
         d.set_item("extractable", r.extractable)?;
+        d.set_item("extraction", r.extraction.as_str())?;
         d.set_item("domain", span_dict(r.domain.as_ref())?)?;
         d.set_item("precondition", span_dict(r.precondition.as_ref())?)?;
         d.set_item("oracle", span_dict(r.oracle.as_ref())?)?;

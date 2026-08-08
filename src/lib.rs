@@ -86,7 +86,8 @@ pub use grammar::{check_document_grammar, GrammarFinding, GrammarLexicon, Gramma
 // Acceptance-criteria property-shape classification (FR-052) — metadata, never
 // a finding: this surface carries no severity and no promotion path.
 pub use grammar::property::{
-    AcClassification, PropertyIdioms, PropertyShape, Span as PropertySpan, Spans as PropertySpans,
+    AcClassification, Extraction, PropertyIdioms, PropertyShape, Span as PropertySpan,
+    Spans as PropertySpans,
 };
 pub use grammar::{classify_document_properties, AcPropertyCounts};
 pub use lint::{lint_document, LintFinding, LintRule, LintSeverity};
