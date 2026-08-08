@@ -48,6 +48,27 @@ CR-020 already recorded the consequence this FR must not misread:
 > — the property-shape classifier (#20) must not read that as a quality
 > failure.
 
+> **CR-028 note (2026-08-07) — the warning stands, its premise does not.** That
+> sentence was written as a prediction about the corpus, and the corpus
+> contradicts it. Measured by this classifier over 197 deduplicated repositories
+> and 13,950 binding criteria
+> (`~/dev/reports/2026-08-07-ac-property-shape-sweep.md`), **StR is the
+> highest-scoring archetype, not the lowest**:
+>
+> | Archetype | Criteria | Extractable | Rate |
+> |---|---|---|---|
+> | FR | 12,052 | 2,316 | 19.2% |
+> | NFR | 781 | 226 | 28.9% |
+> | StR | 1,117 | 325 | **29.1%** |
+>
+> StR `Validation Criteria` are frequently written as determiner-initial
+> capability statements, which the determiner rule catches, while FR criteria
+> skew toward `When`/`Given` conditionals that it does not. What survives is the
+> **rule, not the description**: a low property-extractability score on any
+> archetype — StR included — is still not a quality failure, and this FR is
+> still not a gate on the ratio (CON-1). What is retracted is reading the
+> sentence above as a statement about what this corpus looks like.
+
 ### The property shape taxonomy
 
 The engine SHALL classify each criterion into exactly one shape drawn from a
@@ -128,7 +149,23 @@ The registry is therefore a **booster, never a prerequisite**. Verb pairs
 set whose membership is *required* to earn a label is unsafe — that is what
 retired `no-observable-outcome`. CON-4 keeps the exposure bounded by making
 extraction coverage independent of the registry: a missed idiom degrades a
-label to a less specific shape, never removes a criterion from extraction.
+label, never removes a criterion from extraction.
+
+> **CR-028 note (2026-08-07) — right conclusion, wrong mechanism.** This section
+> originally said a missed idiom degrades a label *to a less specific shape*,
+> naming `Universal` as the shape it falls to — i.e. degradation, not loss,
+> because the degraded cell stays quantified and therefore stays extractable.
+> The corpus does not behave that way. Sweeping 13,950 binding criteria twice
+> over the same wheel and corpus, once with the module registry active and once
+> with it stripped, **61 of the 70 registry-attributable labels (87%) fall to
+> `Example`, not `Universal`**; only 5 (7%) fall to `Universal` as the text
+> assumed. The conclusion survives intact for a different reason than the one
+> given: `extractable` is derived **structurally** under CON-4, so the registry
+> cannot move it, and the sweep confirms this at corpus scale — `extractable`
+> differs on **0 of 13,950 criteria** between the two runs. Extraction coverage
+> is protected by CON-4's derivation rule, not by a fallthrough path. The
+> registry's total reach is those 70 cells, **0.5% of the corpus**, and 0
+> extraction decisions.
 
 ### Span model
 
@@ -189,6 +226,25 @@ A `SchemaShaped` shape is **deliberately excluded**. Its signal would be "an
 OpenAPI schema exists in the repo" — repo state rather than statement text —
 which would break determinism (NFR-006) and make two corpora incomparable. A
 downstream consumer may upgrade a record on its own evidence.
+
+### Open questions this FR does not settle
+
+Two questions the 2026-08-07 corpus measurement raised are genuine design
+decisions rather than defects, and they are filed rather than answered here:
+
+- **A metamorphic label may coexist with `extractable: false`** — 63 criteria,
+  13.2% of the metamorphic set, carry a shape such as `RoundTrip` while their
+  structure reads `Example`. This FR does not state what a consumer does with a
+  `{property: <metamorphic>, extractable: false}` record: honouring the label
+  strains CON-4's intent, ignoring it drops real metamorphic properties. Open as
+  [agent-ix/quire-rs#46](https://github.com/agent-ix/quire-rs/issues/46).
+- **The determiner rule's reach** — the rule is anchored at the start of the
+  statement, so quantification expressed by a leading `When`/`Given`/`If` or by
+  a mid-sentence `any`/`every` is not seen. Sampling puts recall of
+  `extractable` at roughly 30% against ~90% precision, and the loss class is a
+  closed English pattern rather than an open vocabulary. Whether to extend the
+  anchor is a spec decision, open as
+  [agent-ix/quire-rs#45](https://github.com/agent-ix/quire-rs/issues/45).
 
 ## Constraints
 
