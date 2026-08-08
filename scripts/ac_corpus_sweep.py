@@ -40,6 +40,21 @@ so the number in a report must be this census and not a reconstruction of it.
 Output JSON: {mode, module_root, docs, records, cells_by_archetype,
 cells_by_repo}, one record per classified criterion.
 
+Every `--properties` record carries the criterion's `Verification` cell, joined
+on `row_id`, and the census prints **two** recall denominators: every criterion
+marked not extractable, and only those whose `Verification` names a test.
+A criterion verified by Inspection, Demonstration or Analysis is legitimately
+not a property, so counting it as a recall miss understates recall.
+`--verified-by-test` restricts the recall sampling frame to the second;
+`--verification-vocab N` prints the vocabulary the corpus actually contains, so
+the test/non-test call can be judged against the data rather than assumed
+(agent-ix/quire-rs#45).
+
+The three `recall-*` cargo features are measured through this same harness: build
+one wheel per combination (`maturin build --features python,<combo>`), sweep, and
+attribute each classification by its `recall:<rule>:…` signal. They are
+default-off and never ship enabled; what ships is decided by that sweep.
+
 `--strip-idioms` materialises a copy of `--module` with its `property_idioms:`
 block removed and sweeps against that instead. Two runs — one with, one without —
 plus `--compare A.json B.json` give the FR-052-CON-4 check (`extractable` must be
@@ -80,7 +95,23 @@ METAMORPHIC_SHAPES = ("round-trip", "idempotence", "ordering", "invariant")
 
 FRONTMATTER_TYPE = re.compile(r"^type:\s*['\"]?([A-Za-z][A-Za-z0-9_-]*)", re.MULTILINE)
 AC_SECTION = re.compile(r"^##\s+Acceptance Criteria\s*$", re.MULTILINE)
+# StR carries its binding criteria under `## Validation Criteria` (CR-020), so
+# the `Verification` join below reads both headings; `criteria_cells` above
+# deliberately does not, and that divergence is why the census is the primary
+# record and this file's own cell count is not.
+CRITERIA_SECTION = re.compile(r"^##\s+(?:Acceptance|Validation)\s+Criteria\s*$", re.MULTILINE)
 NEXT_H2 = re.compile(r"^##\s+", re.MULTILINE)
+
+# A `Verification` cell **indicates Test** when it names a test at all. The
+# predicate is a word-boundary match on `test`/`tests` rather than membership of
+# a fixed set, because the corpus vocabulary is open: 1,478 distinct values over
+# 10,798 cells, of which `Test`, `Unit Test` and `Integration Test` are only
+# 56%, and the long tail is overwhelmingly `Test (TC-985)`, `Test
+# (tests/core/query.test.ts)`, `Schema Test`, `API Test`, `Security Test` — all
+# of them tests. `--verification-vocab` prints what the corpus actually
+# contains, so this predicate can be re-judged against the data rather than
+# trusted.
+VERIFICATION_IS_TEST = re.compile(r"\btests?\b", re.IGNORECASE)
 # Skip vendored / build trees that would otherwise dominate the walk.
 SKIP_DIRS = {
     ".git", "node_modules", "target", "dist", "build", ".venv", "venv",
@@ -169,6 +200,51 @@ def criteria_cells(text: str) -> list[str]:
     return cells
 
 
+def split_table_row(row: str) -> list[str]:
+    """A markdown table row's cells, respecting escaped pipes."""
+    parts = re.split(r"(?<!\\)\|", row)
+    return [p.strip() for p in parts[1:-1]] if len(parts) >= 3 else []
+
+
+def verification_by_row_id(text: str) -> dict[str, str]:
+    """`{criterion id: Verification cell}` for every binding-criteria table.
+
+    The engine's classification record carries `row_id` but not `Verification`
+    — the grammar has no reason to read that column — so the join happens here,
+    on the criterion id the record already carries at 100% coverage.
+
+    A criterion whose row has no `Verification` cell simply does not appear; the
+    caller reports those as `unknown` rather than assuming either answer, which
+    is the same discipline the `extractable` census applies to `Unclassified`.
+    """
+    out: dict[str, str] = {}
+    for m in CRITERIA_SECTION.finditer(text):
+        rest = text[m.end():]
+        nxt = NEXT_H2.search(rest)
+        section = rest[: nxt.start()] if nxt else rest
+        rows = [ln.strip() for ln in section.splitlines() if ln.strip().startswith("|")]
+        if len(rows) < 2:
+            continue
+        headers = [h.lower() for h in split_table_row(rows[0])]
+        try:
+            id_col = headers.index("id")
+            v_col = headers.index("verification")
+        except ValueError:
+            continue
+        for row in rows[2:]:  # rows[1] is the |---|---| separator
+            cells = split_table_row(row)
+            if max(id_col, v_col) < len(cells) and cells[id_col]:
+                out[cells[id_col]] = cells[v_col]
+    return out
+
+
+def verification_class(value: str | None) -> str:
+    """`test`, `non-test`, or `unknown` for one `Verification` cell."""
+    if value is None or not value.strip():
+        return "unknown"
+    return "test" if VERIFICATION_IS_TEST.search(value) else "non-test"
+
+
 def iter_docs(root: Path):
     """Yield (repo, relative_path, archetype, text) for every requirement doc."""
     for dirpath, dirnames, filenames in os.walk(root):
@@ -248,9 +324,11 @@ def sweep_properties(root: Path, module_root: str | None) -> dict:
         except Exception as exc:  # a malformed doc must not abort the sweep
             print(f"skip {path}: {exc}", file=sys.stderr)
             continue
+        verification = verification_by_row_id(text)
         for i, r in enumerate(found):
             cells_by_archetype[arch] += 1
             cells_by_repo[repo] += 1
+            declared = verification.get(r["row_id"]) if r["row_id"] else None
             records.append({
                 "repo": repo, "path": path, "archetype": arch, "index": i,
                 "row_id": r["row_id"], "statement": r["statement"],
@@ -258,6 +336,12 @@ def sweep_properties(root: Path, module_root: str | None) -> dict:
                 "extractable": r["extractable"], "signals": list(r["signals"]),
                 "domain": r["domain"], "precondition": r["precondition"],
                 "oracle": r["oracle"],
+                # The honest-denominator join (agent-ix/quire-rs#45): a criterion
+                # verified by Inspection, Demonstration or Analysis is
+                # legitimately not a property, and counting it as a recall miss
+                # understates recall.
+                "verification": declared,
+                "verification_class": verification_class(declared),
             })
 
     return {
@@ -295,6 +379,26 @@ def print_property_census(run: dict, top_repos: int) -> None:
         f"{k} {v}" for k, v in Counter(run["cells_by_archetype"]).most_common()))
 
     print()
+    print("── Verification, the honest denominator ──")
+    by_class = Counter(r["verification_class"] for r in records)
+    for cls in ("test", "non-test", "unknown"):
+        n = by_class[cls]
+        share = f"{100 * n / total:.1f}%" if total else "—"
+        print(f"{cls:12} {n:8d} {share:>8}")
+    test_pool = [r for r in records if r["verification_class"] == "test"]
+    missed_all = [r for r in records if not r["extractable"]]
+    missed_test = [r for r in test_pool if not r["extractable"]]
+    print()
+    print(f"recall denominator, unrestricted : {len(missed_all):8d} criteria marked not extractable")
+    print(f"recall denominator, Verification=Test: {len(missed_test):5d} "
+          f"({100 * len(missed_test) / len(missed_all):.1f}% of it)"
+          if missed_all else "")
+    ex_test = sum(1 for r in test_pool if r["extractable"])
+    if test_pool:
+        print(f"extractable within Verification=Test: {ex_test} of {len(test_pool)} "
+              f"({100 * ex_test / len(test_pool):.1f}%)")
+
+    print()
     print(f"{'repo':40} {'criteria':>9} {'extractable':>12} {'rate':>7}")
     per_repo: Counter[str] = Counter(r["repo"] for r in records)
     ex_repo: Counter[str] = Counter(r["repo"] for r in records if r["extractable"])
@@ -302,7 +406,31 @@ def print_property_census(run: dict, top_repos: int) -> None:
         print(f"{repo:40} {n:9d} {ex_repo[repo]:12d} {100 * ex_repo[repo] / n:6.1f}%")
 
 
-def sample_properties(run: dict, n: int, seed: int) -> None:
+def print_verification_vocab(run: dict, top_n: int) -> None:
+    """The `Verification` vocabulary the corpus actually contains.
+
+    Printed rather than assumed: the ISO trio (Inspection / Demonstration /
+    Analysis) is only part of the non-test tail, and a fixed set would silently
+    misclassify `Storybook`, `Code Review`, `Static Analysis` and `CI Check`.
+    Read this table before trusting `VERIFICATION_IS_TEST`.
+    """
+    values = Counter(
+        r["verification"] for r in run["records"] if r["verification"] is not None)
+    total = sum(values.values())
+    print(f"\n─── Verification vocabulary — {len(values)} distinct values over "
+          f"{total} cells ───\n")
+    print(f"{'n':>7}  {'class':9}  value")
+    for value, n in values.most_common(top_n):
+        print(f"{n:7d}  {verification_class(value):9}  {value!r}")
+    non_test = Counter({v: n for v, n in values.items()
+                        if verification_class(v) == "non-test"})
+    print(f"\n─── the non-test tail — {sum(non_test.values())} cells, "
+          f"{len(non_test)} distinct ───\n")
+    for value, n in non_test.most_common(top_n):
+        print(f"{n:7d}  {value!r}")
+
+
+def sample_properties(run: dict, n: int, seed: int, verified_by_test: bool = False) -> None:
     """Four seeded hand-labelling frames, each drawn from its own stream.
 
     Separate streams so adding a frame does not reshuffle the others, and
@@ -313,11 +441,21 @@ def sample_properties(run: dict, n: int, seed: int) -> None:
     open-set miss becomes silent coverage loss rather than a degraded label.
     """
     records = run["records"]
+    # The recall frame is the only one whose denominator is a judgement rather
+    # than a fact: a criterion verified by Inspection, Demonstration or Analysis
+    # is legitimately not a property, so counting it as a miss understates
+    # recall. `--verified-by-test` restricts the frame to criteria the author
+    # said would be tested; both denominators stay available, and the census
+    # above prints their sizes, so a report can state the pair.
+    recall_pool = [r for r in records if not r["extractable"]]
+    recall_label = "RECALL — marked NOT extractable"
+    if verified_by_test:
+        recall_pool = [r for r in recall_pool if r["verification_class"] == "test"]
+        recall_label += ", Verification=Test only"
     frames = [
         ("PRECISION — marked extractable",
          [r for r in records if r["extractable"]]),
-        ("RECALL — marked NOT extractable",
-         [r for r in records if not r["extractable"]]),
+        (recall_label, recall_pool),
         ("SPAN QUALITY — records carrying an oracle span",
          [r for r in records if r["oracle"]]),
         ("IDIOM RECALL — labelled Example (dropped from extraction)",
@@ -328,7 +466,8 @@ def sample_properties(run: dict, n: int, seed: int) -> None:
         print(f"\n─── {label} — {min(n, len(pool))} of {len(pool)} ───")
         for r in rng.sample(pool, min(n, len(pool))):
             print(f"\n  [{r['repo']}] {r['row_id']}  {r['property']}"
-                  f"  extractable={r['extractable']}")
+                  f"  extractable={r['extractable']}"
+                  f"  verification={r['verification']!r}")
             print(f"    {r['statement'][:400]}")
             if r["oracle"]:
                 print(f"    domain:       {(r['domain'] or {}).get('text')}")
@@ -462,6 +601,15 @@ def main() -> int:
                          "`property_idioms:` block removed (the registry-off run)")
     ap.add_argument("--top-repos", type=int, default=25, metavar="N",
                     help="rows in the per-repo table; the JSON always carries all")
+    ap.add_argument("--verified-by-test", action="store_true",
+                    help="restrict the RECALL sampling frame to criteria whose "
+                         "`Verification` cell names a test; Inspection / "
+                         "Demonstration / Analysis criteria are legitimately "
+                         "not properties. The census prints both denominators "
+                         "either way")
+    ap.add_argument("--verification-vocab", type=int, default=0, metavar="N",
+                    help="print the N commonest `Verification` values found in "
+                         "the corpus, with the test/non-test call for each")
     ap.add_argument("--compare", type=Path, nargs=2, default=None,
                     metavar=("A.json", "B.json"),
                     help="compare a registry-on and a registry-off --properties "
@@ -504,8 +652,10 @@ def main() -> int:
     if args.properties:
         run = sweep_properties(root, module_root)
         print_property_census(run, args.top_repos)
+        if args.verification_vocab:
+            print_verification_vocab(run, args.verification_vocab)
         if args.sample:
-            sample_properties(run, args.sample, args.seed)
+            sample_properties(run, args.sample, args.seed, args.verified_by_test)
         if args.out:
             args.out.write_text(json.dumps(run))
             print(f"\nwrote {args.out}")
