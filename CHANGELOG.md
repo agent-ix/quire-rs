@@ -5,6 +5,52 @@ All notable changes to `quire-rs` are documented here. Format follows
 numbers follow semver — pre-1.0, breaking changes may land in minor
 bumps; once 1.0 ships, semver is strict.
 
+## [0.18.0] — 2026-08-08
+
+Phase B of the acceptance-criteria property-testing program (#17, #20).
+
+### Added
+
+- **Acceptance-criteria property classification** (FR-052): a second,
+  orthogonal shape axis over the same `ac` binding. A closed
+  `PropertyShape` enum under one fixed precedence, `{domain, precondition,
+  oracle}` spans that are statement-relative and carry both byte offsets
+  and their own text, `row_id` and a `signals` audit trail on each record,
+  and a module `property_idioms` registry demoted to a **booster** so
+  CON-4 keeps extraction coverage independent of it. Never a
+  `GrammarFinding`, never addressable by a `grammar_severity` key, so
+  `--strict` immunity holds by construction (CON-1). New exports:
+  `classify_document_properties`, `classify_document_criteria`,
+  `AcClassification`, `PropertyShape`, `PropertyIdioms`, `AcPropertyCounts`.
+- **`Extraction`, the three-valued outcome** (FR-052-AC-16/17, CR-033):
+  `extractable | candidate | not-extractable`, derived from `(property,
+  extractable)` and feeding back into neither. `candidate` names a
+  metamorphic label the structural pass did not corroborate — a generator
+  MAY emit and MUST mark the test as requiring review. Closes #46.
+- **Coverage criteria counts** (FR-050-AC-13): `CoverageReport.criteria`
+  plus two `CoverageTotals` counts, emitted as an all-or-nothing pair so a
+  JSON consumer never sees one without the other.
+- **Recall widening** (CR-030): the universal determiner is read at two
+  further bounded subject positions. One of three candidate widenings
+  cleared the ≥85% precision gate fixed in advance; the other two were
+  deleted rather than narrowed.
+- **PyO3 `classify_properties`** with full field parity.
+- **Dogfood gate** (FR-048-AC-11): this repo's own `spec/` is judged under
+  the severity promotion its published module ships.
+
+### Fixed
+
+- Four `ac` checker defects the CON-1 promotion sweep exposed
+  (CR-024/025/026): the pair idiom tied to its separator, `Then` counted
+  outside a Given/When/Then criterion, a vacuous predicate firing on a
+  common noun, and a backtick run masking only to its first tick.
+
+### Changed
+
+- `ac:vacuous-outcome` and `ac:non-singular` are promoted to `error` in
+  the `spec-artifacts-iso` manifest (CR-027). **`DEFAULT_SEVERITY` is
+  unchanged** — the engine still ships every `ac` check advisory.
+
 ## [0.1.0] — unreleased
 
 The initial implementation pass. Lays down every layer of the v1 spec
