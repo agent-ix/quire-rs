@@ -8,6 +8,9 @@ Cargo.lock.bak
 # Local-only handoff notes (not pushed)
 handoff.md
 
+# Scratch worktrees for stacked branches
+.worktrees/
+
 # Python bindings (maturin) + fuzz build artifacts
 .venv/
 .wheeltest/
