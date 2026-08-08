@@ -137,6 +137,85 @@ def test_check_grammar_ac_findings_cross_boundary(tmp_path):
     assert "unclassifiable" not in scoped_checks
 
 
+def test_classify_properties_cross_boundary(tmp_path):
+    """TC-789 (FR-052-AC-11): the property classifier is exposed through PyO3
+    and returns the same records, field for field, as the in-process Rust call
+    over the same fixture (the values asserted here are the ones TC-779 /
+    TC-783 / TC-787 assert in Rust).
+
+    Every assertion below must name a field and a label that still exist —
+    asserting the absence of a retired one passes unconditionally and proves
+    nothing, which is how TC-715 rotted across CR-014.
+    """
+    md = (
+        "---\nid: FR-001\ntype: FR\n---\n"
+        "## Acceptance Criteria\n\n"
+        "| ID | Criteria | Verification |\n"
+        "|----|----------|--------------|\n"
+        "| FR-001-AC-1 | A finding whose key is absent from the merged map "
+        "defaults to warning | Test |\n"
+        "| FR-001-AC-2 | The loader emits a `Duplicate` diagnostic for the "
+        "second declaration. | Test |\n"
+    )
+    records = quire.classify_properties("iso-spec-core", "FR", md)
+    assert [r["row_id"] for r in records] == ["FR-001-AC-1", "FR-001-AC-2"]
+
+    universal, example = records
+    # The FR-052 axis, and the FR-047 axis carried through unchanged.
+    assert universal["property"] == "universal"
+    assert universal["shape"] == "assertion"
+    assert universal["extractable"] is True
+    assert universal["line"] is not None
+    # The statement is untruncated and the span offsets index it.
+    assert universal["statement"].startswith("A finding whose key")
+    for key, text in (
+        ("domain", "finding"),
+        ("precondition", "whose key is absent from the merged map"),
+        ("oracle", "defaults to warning"),
+    ):
+        span = universal[key]
+        assert span is not None, key
+        assert span["text"] == text
+        assert universal["statement"][span["start"] : span["end"]] == text
+    # The audit trail is a list of stable signal ids, in evaluation order.
+    assert universal["signals"] == [
+        "universal:determiner",
+        "span:domain",
+        "span:precondition",
+        "span:oracle",
+    ]
+
+    # A specific scenario is `example`, not extractable, and carries no span —
+    # a first-class outcome, not a defect (FR-052-CON-1).
+    assert example["property"] == "example"
+    assert example["extractable"] is False
+    assert example["domain"] is None
+    assert example["precondition"] is None
+    assert example["oracle"] is None
+
+    # US declares no binding-criteria table, so it yields no records at all.
+    us = md.replace("id: FR-001\ntype: FR", "id: US-001\ntype: US")
+    assert quire.classify_properties("iso-spec-core", "US", us) == []
+    # An unknown bundle is a silent no-op, exactly as it is for check_grammar.
+    assert quire.classify_properties("no-such-bundle", "FR", md) == []
+
+    # FR-052-AC-8: a module `property_idioms` registry reaches the binding and
+    # boosts the label — while `extractable` stays put (FR-052-CON-4).
+    mod = tmp_path / "m"
+    mod.mkdir(parents=True)
+    (mod / "manifest.yaml").write_text(
+        "name: m\n"
+        "property_idioms:\n"
+        "  defaults to:\n"
+        "    definition: an absent key falls back to a declared default\n"
+        "    shape: error-case\n"
+    )
+    scoped = quire.classify_properties("iso-spec-core", "FR", md, str(mod))
+    assert scoped[0]["property"] == "error-case"
+    assert scoped[0]["extractable"] == universal["extractable"]
+    assert scoped[1]["extractable"] == example["extractable"]
+
+
 def test_load_repo_returns_documents(tmp_path):
     """TC-463: load_repo yields one structured doc per markdown file."""
     (tmp_path / "FR-001.md").write_text(

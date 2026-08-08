@@ -54,6 +54,9 @@ struct Inner {
     /// Merged vacuous-predicate registry (FR-047, CR-014) + its matcher.
     vacuous_predicates: std::collections::BTreeMap<String, crate::vocab::VacuousPredicateDef>,
     vacuous_predicates_matcher: crate::grammar::VacuousPredicates,
+    /// Merged property-idiom registry (FR-052) + its matcher.
+    property_idioms: std::collections::BTreeMap<String, crate::vocab::PropertyIdiomDef>,
+    property_idioms_matcher: crate::grammar::property::PropertyIdioms,
     /// Merged declarative traceability model (FR-050).
     traceability: crate::traceability::TraceabilityModel,
     failures: Vec<ArchetypeLoadFailure>,
@@ -206,6 +209,7 @@ impl Registry {
             grammar_severity,
             observable_verbs,
             vacuous_predicates,
+            property_idioms,
             traceability,
             failures,
             diagnostics,
@@ -222,6 +226,13 @@ impl Registry {
         // CR-014: likewise precompile the vacuity matcher once.
         let vacuous_predicates_matcher = crate::grammar::VacuousPredicates::with_module_predicates(
             vacuous_predicates.keys().map(String::as_str),
+        );
+        // FR-052: and the property-idiom matcher, phrase → shape, layered over
+        // the engine's built-in idioms first-wins.
+        let property_idioms_matcher = crate::grammar::property::PropertyIdioms::with_module_idioms(
+            property_idioms
+                .iter()
+                .map(|(phrase, def)| (phrase.as_str(), def.shape)),
         );
         Self {
             inner: Arc::new(Inner {
@@ -240,6 +251,8 @@ impl Registry {
                 observable_verbs_matcher,
                 vacuous_predicates,
                 vacuous_predicates_matcher,
+                property_idioms,
+                property_idioms_matcher,
                 traceability,
                 failures,
                 diagnostics,
@@ -396,6 +409,19 @@ impl Registry {
     /// The precompiled vacuity matcher (FR-047, CR-014).
     pub fn vacuous_predicates_matcher(&self) -> &crate::grammar::VacuousPredicates {
         &self.inner.vacuous_predicates_matcher
+    }
+
+    /// The merged property-idiom registry (FR-052), first-wins across modules.
+    pub fn property_idioms(
+        &self,
+    ) -> &std::collections::BTreeMap<String, crate::vocab::PropertyIdiomDef> {
+        &self.inner.property_idioms
+    }
+
+    /// The precompiled property-idiom matcher: engine built-ins with the
+    /// merged module registry layered over them (FR-052-AC-8).
+    pub fn property_idioms_matcher(&self) -> &crate::grammar::property::PropertyIdioms {
+        &self.inner.property_idioms_matcher
     }
 
     /// The merged declarative traceability model (FR-050), or `None` when no
