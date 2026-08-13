@@ -230,9 +230,19 @@ fn brace_delta(line: &str) -> i64 {
     delta
 }
 
+/// Drop comments from one line, leaving string literals intact.
+///
+/// String-aware by necessity (CR-036): a `/*` inside a literal is not a comment
+/// opener. A git refspec in a template literal —
+/// `` `fetch = +refs/heads/*:refs/remotes/origin/*` `` — used to open a block
+/// comment that never closed, so every following line was stripped, the braces
+/// could not balance, and [`check_balanced`] rejected the whole file. A file
+/// rejected that way yields **zero** symbols, so every trace tag in it binds to
+/// nothing — silently, since the file is otherwise perfectly valid TypeScript.
 fn strip_comment(line: &str, in_block_comment: &mut bool) -> String {
     let mut out = String::with_capacity(line.len());
     let chars: Vec<char> = line.chars().collect();
+    let mut quote: Option<char> = None;
     let mut i = 0;
     while i < chars.len() {
         if *in_block_comment {
@@ -241,6 +251,30 @@ fn strip_comment(line: &str, in_block_comment: &mut bool) -> String {
                 i += 2;
                 continue;
             }
+            i += 1;
+            continue;
+        }
+        // Inside a literal nothing is a comment; the escape is copied with the
+        // character it escapes so a trailing `\` cannot swallow the closer.
+        if let Some(q) = quote {
+            if chars[i] == '\\' {
+                out.push(chars[i]);
+                if let Some(&next) = chars.get(i + 1) {
+                    out.push(next);
+                }
+                i += 2;
+                continue;
+            }
+            if chars[i] == q {
+                quote = None;
+            }
+            out.push(chars[i]);
+            i += 1;
+            continue;
+        }
+        if matches!(chars[i], '"' | '\'' | '`') {
+            quote = Some(chars[i]);
+            out.push(chars[i]);
             i += 1;
             continue;
         }
@@ -295,4 +329,64 @@ fn re_method() -> &'static Regex {
         Regex::new(r"^(?:public\s+|private\s+|protected\s+|static\s+)*([A-Za-z_$][\w$]*)\s*\([^;]*\)\s*(?::\s*[^{]+)?\{")
             .expect("method regex")
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// TC-798 (FR-051-AC-12, CR-036): a `/*` inside a template literal is
+    /// content, not a comment opener.
+    ///
+    /// The stripper scanned raw characters, so one git refspec swallowed the
+    /// rest of the file: braces could not balance, `check_balanced` rejected it,
+    /// and a perfectly valid file yielded **zero** symbols. Nothing about that
+    /// is visible from the file — it parses, its tests pass, its trace tags are
+    /// present and greppable — so every tag in it bound to nothing in silence.
+    #[test]
+    fn tc798_comment_stripping_is_string_aware() {
+        let source = concat!(
+            "function gitConfig(url: string): string {\n",
+            "  return `[remote \"origin\"]\\n\\turl = ${url}",
+            "\\n\\tfetch = +refs/heads/*:refs/remotes/origin/*\\n`;\n",
+            "}\n",
+            "\n",
+            "describe(\"FR-025-AC-9 remotes naming no organization\", () => {\n",
+            "  /**\n",
+            "   * Trace: FR-025-AC-9 — a local-path remote yields no organization.\n",
+            "   */\n",
+            "  test(\"never substitutes a path segment\", () => {\n",
+            "    expect(originOrg(gitConfig(\"../repo\"))).toBeUndefined();\n",
+            "  });\n",
+            "});\n",
+        );
+
+        let symbols = parse("a.test.ts", source).expect("a valid file must parse");
+        let test_symbol = symbols
+            .iter()
+            .find(|s| {
+                s.qualified_name
+                    .ends_with("never substitutes a path segment")
+            })
+            .expect("the registration is a test symbol");
+        assert_eq!(test_symbol.kind, SymbolKind::TestFunction);
+
+        // The span must reach back over the JSDoc, or the tag inside it binds to
+        // nothing even though the file parsed.
+        let span = source
+            .lines()
+            .skip(test_symbol.leading_line - 1)
+            .take(test_symbol.end_line - test_symbol.leading_line + 1)
+            .collect::<Vec<_>>()
+            .join("\n");
+        assert!(span.contains("Trace: FR-025-AC-9"), "{span}");
+
+        // A real comment still strips: a `//` outside a literal hides its line.
+        let mut in_block = false;
+        assert_eq!(
+            strip_comment("const a = 1; // { unbalanced", &mut in_block),
+            "const a = 1; "
+        );
+        assert!(!in_block);
+    }
 }

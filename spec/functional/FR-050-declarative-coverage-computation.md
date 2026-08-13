@@ -102,7 +102,7 @@ model; the engine knows nothing of "AC" or "TC" as concepts.
 | FR-050-AC-13 | A report over a corpus whose documents carry criteria contains a `criteria` entry per contributing document and the two new totals; a corpus whose documents carry none contains an empty `criteria` list and serializes byte-identically to a report from an engine that predates the field. | Test (TC-788) |
 | FR-050-AC-14 | A declared model that mints zero trace targets is reported distinctly from full coverage — never as `100%` — and `quire coverage --strict` exits non-zero on it. | Test (TC-797) |
 
-> **CR-029 note (2026-08-13):** FR-050-AC-9 covers *"no module declares a
+> **CR-035 note (2026-08-13):** FR-050-AC-9 covers *"no module declares a
 > model"*. Nothing covered *"a model is declared and matched no rows"*, so the
 > command had no reason to treat it as anything — and it treated it as success:
 > `(backed * 100).checked_div(total).unwrap_or(100)` printed `0/0 rows backed

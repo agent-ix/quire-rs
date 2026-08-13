@@ -117,6 +117,21 @@ byte-identical JSON ordering and stable record ids.
 | FR-051-AC-9 | An unparseable fixture file yields a per-file diagnostic while the rest of the tree extracts normally. | Test (TC-749) |
 | FR-051-AC-10 | Repeated extraction over an identical fixture tree emits byte-identical JSON and identical record ids. | Test (TC-750) |
 | FR-051-AC-11 | The legacy textual forms (docstring bare id, `Trace:` line, line-comment id, trace-embedding test name) still bind during migration, carry `legacy` provenance on the minted relation, and yield a mechanical marker-rewrite suggestion where derivable. | Test (TC-753) |
+| FR-051-AC-12 | Comment recognition is string-aware: a `//` or `/*` inside a string or template literal is content, not a comment opener, so a valid file containing one still extracts its symbols and binds its tags. | Test (TC-798) |
+
+> **CR-036 note (2026-08-13):** The TypeScript adapter's comment stripper scanned
+> raw characters, so a `/*` inside a literal opened a block comment that never
+> closed. Every line after it was stripped, the braces could not balance, and
+> `check_balanced` rejected the file — which under FR-051-CON-2 means the file
+> yields **zero** symbols and every trace tag in it binds to nothing.
+>
+> The failure is silent by construction. The file is valid TypeScript, its tests
+> run and pass, and its tags are present and greppable; only the symbol graph
+> knows they attached to nothing. It was found in `quoin` by a coverage rollup
+> that scored a correctly-tagged file 0/2, after one git refspec —
+> `` `fetch = +refs/heads/*:refs/remotes/origin/*` `` — in a template literal.
+> AC-12 makes string-awareness a stated property rather than an accident of
+> which characters a corpus happened to contain.
 
 ## Dependencies
 
