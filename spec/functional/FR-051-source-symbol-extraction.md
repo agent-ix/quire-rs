@@ -117,7 +117,7 @@ byte-identical JSON ordering and stable record ids.
 | FR-051-AC-9 | An unparseable fixture file yields a per-file diagnostic while the rest of the tree extracts normally. | Test (TC-749) |
 | FR-051-AC-10 | Repeated extraction over an identical fixture tree emits byte-identical JSON and identical record ids. | Test (TC-750) |
 | FR-051-AC-11 | The legacy textual forms (docstring bare id, `Trace:` line, line-comment id, trace-embedding test name) still bind during migration, carry `legacy` provenance on the minted relation, and yield a mechanical marker-rewrite suggestion where derivable. | Test (TC-753) |
-| FR-051-AC-12 | Comment recognition is string-aware: a `//` or `/*` inside a string or template literal is content, not a comment opener, so a valid file containing one still extracts its symbols and binds its tags. | Test (TC-798) |
+| FR-051-AC-12 | Comment recognition is string-aware, and template-literal state carries across lines: a `//` or `/*` inside a string or template literal is content, not a comment opener, whether it sits on the literal's opening line or a continuation line. | Test (TC-798, TC-799) |
 
 > **CR-036 note (2026-08-13):** The TypeScript adapter's comment stripper scanned
 > raw characters, so a `/*` inside a literal opened a block comment that never
@@ -132,6 +132,15 @@ byte-identical JSON ordering and stable record ids.
 > `` `fetch = +refs/heads/*:refs/remotes/origin/*` `` — in a template literal.
 > AC-12 makes string-awareness a stated property rather than an accident of
 > which characters a corpus happened to contain.
+>
+> **Carried across lines, and that is not a detail.** The first fix tracked quote
+> state per line, which handles a single-line literal and *not* the form the
+> corpus actually writes — the refspec sits on a continuation line of a multi-line
+> template, where a per-line scanner has already forgotten it is inside a literal
+> and re-opens the block comment one line later. The file was rejected exactly as
+> before. A template literal is the only TS/JS string form that can span lines, so
+> it is the only one carried; a `'` or `"` left open at end of line is a malformed
+> line, not a continuation. TC-799 covers the continuation form.
 
 ## Dependencies
 

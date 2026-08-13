@@ -32,10 +32,10 @@ pub(crate) fn parse(path: &str, source: &str) -> Result<Vec<RawSymbol>, String> 
 
     let mut scopes: Vec<(String, i64)> = Vec::new();
     let mut depth: i64 = 0;
-    let mut in_block_comment = false;
+    let mut state = ScanState::default();
 
     for (idx, raw_line) in lines.iter().enumerate() {
-        let line = strip_comment(raw_line, &mut in_block_comment);
+        let line = strip_comment(raw_line, &mut state);
         let trimmed = line.trim();
 
         if let Some(title) = registration(trimmed) {
@@ -191,9 +191,9 @@ fn module_name(path: &str) -> String {
 fn block_end(lines: &[&str], decl_idx: usize) -> usize {
     let mut depth = 0i64;
     let mut seen_open = false;
-    let mut in_block_comment = false;
+    let mut state = ScanState::default();
     for (offset, raw) in lines[decl_idx..].iter().enumerate() {
-        let line = strip_comment(raw, &mut in_block_comment);
+        let line = strip_comment(raw, &mut state);
         if line.contains('{') {
             seen_open = true;
         }
@@ -230,6 +230,17 @@ fn brace_delta(line: &str) -> i64 {
     delta
 }
 
+/// Comment/literal state that must survive from one line to the next.
+///
+/// A block comment spans lines, and so does a **template literal** — the only
+/// string form in TS/JS that can. Both have to be carried, or the scanner
+/// re-enters each line believing it is in code.
+#[derive(Debug, Default, Clone, Copy)]
+struct ScanState {
+    in_block_comment: bool,
+    in_template: bool,
+}
+
 /// Drop comments from one line, leaving string literals intact.
 ///
 /// String-aware by necessity (CR-036): a `/*` inside a literal is not a comment
@@ -239,15 +250,20 @@ fn brace_delta(line: &str) -> i64 {
 /// could not balance, and [`check_balanced`] rejected the whole file. A file
 /// rejected that way yields **zero** symbols, so every trace tag in it binds to
 /// nothing — silently, since the file is otherwise perfectly valid TypeScript.
-fn strip_comment(line: &str, in_block_comment: &mut bool) -> String {
+///
+/// Template state is carried across lines for the same reason: the corpus form
+/// that triggered this writes the refspec on a *continuation* line, where a
+/// per-line scanner has already forgotten it is inside a literal.
+fn strip_comment(line: &str, state: &mut ScanState) -> String {
     let mut out = String::with_capacity(line.len());
     let chars: Vec<char> = line.chars().collect();
-    let mut quote: Option<char> = None;
+    // Only a template literal carries in; `'` and `"` cannot span a line.
+    let mut quote: Option<char> = state.in_template.then_some('`');
     let mut i = 0;
     while i < chars.len() {
-        if *in_block_comment {
+        if state.in_block_comment {
             if chars[i] == '*' && chars.get(i + 1) == Some(&'/') {
-                *in_block_comment = false;
+                state.in_block_comment = false;
                 i += 2;
                 continue;
             }
@@ -282,21 +298,24 @@ fn strip_comment(line: &str, in_block_comment: &mut bool) -> String {
             break;
         }
         if chars[i] == '/' && chars.get(i + 1) == Some(&'*') {
-            *in_block_comment = true;
+            state.in_block_comment = true;
             i += 2;
             continue;
         }
         out.push(chars[i]);
         i += 1;
     }
+    // A `'`/`"` left open at end of line is a malformed line, not a carried
+    // literal — only a backtick continues.
+    state.in_template = quote == Some('`');
     out
 }
 
 fn check_balanced(lines: &[&str]) -> Result<(), String> {
     let mut depth = 0i64;
-    let mut in_block_comment = false;
+    let mut state = ScanState::default();
     for line in lines {
-        depth += brace_delta(&strip_comment(line, &mut in_block_comment));
+        depth += brace_delta(&strip_comment(line, &mut state));
         if depth < 0 {
             return Err("unbalanced braces: a `}` closes no block".to_string());
         }
@@ -382,11 +401,69 @@ mod tests {
         assert!(span.contains("Trace: FR-025-AC-9"), "{span}");
 
         // A real comment still strips: a `//` outside a literal hides its line.
-        let mut in_block = false;
+        let mut state = ScanState::default();
         assert_eq!(
-            strip_comment("const a = 1; // { unbalanced", &mut in_block),
+            strip_comment("const a = 1; // { unbalanced", &mut state),
             "const a = 1; "
         );
-        assert!(!in_block);
+        assert!(!state.in_block_comment);
+    }
+
+    /// TC-799 (FR-051-AC-12, CR-036): the same `/*`, on a **continuation** line
+    /// of a multi-line template literal.
+    ///
+    /// A per-line scanner re-enters each line believing it is in code, so it
+    /// re-opened the block comment one line later and the file was rejected
+    /// exactly as before. The first fix handled only the single-line form; this
+    /// is the form the corpus actually writes, and it is why template state is
+    /// carried across lines rather than reset.
+    #[test]
+    fn tc799_template_literal_state_carries_across_lines() {
+        let source = concat!(
+            "const cfg = `\n",
+            "[remote \"origin\"]\n",
+            "fetch = +refs/heads/*:refs/remotes/origin/*\n",
+            "`;\n",
+            "\n",
+            "describe(\"FR-001-AC-1 group\", () => {\n",
+            "  /**\n",
+            "   * Trace: FR-001-AC-1 — the thing holds.\n",
+            "   */\n",
+            "  test(\"holds\", () => {\n",
+            "    expect(1).toBe(1);\n",
+            "  });\n",
+            "});\n",
+        );
+
+        let symbols = parse("a.test.ts", source).expect("a valid file must parse");
+        let test_symbol = symbols
+            .iter()
+            .find(|s| s.qualified_name.ends_with("holds"))
+            .expect("the registration is a test symbol");
+
+        let span = source
+            .lines()
+            .skip(test_symbol.leading_line - 1)
+            .take(test_symbol.end_line - test_symbol.leading_line + 1)
+            .collect::<Vec<_>>()
+            .join("\n");
+        assert!(span.contains("Trace: FR-001-AC-1"), "{span}");
+
+        // The literal opens and does not close on its own line, and closes on a
+        // later one — the state has to say so at each boundary.
+        let mut state = ScanState::default();
+        strip_comment("const cfg = `", &mut state);
+        assert!(
+            state.in_template,
+            "an unclosed backtick carries into the next line"
+        );
+        strip_comment("fetch = +refs/heads/*:refs/remotes/origin/*", &mut state);
+        assert!(
+            !state.in_block_comment,
+            "`/*` inside the literal is content"
+        );
+        assert!(state.in_template);
+        strip_comment("`;", &mut state);
+        assert!(!state.in_template, "the closing backtick ends it");
     }
 }
