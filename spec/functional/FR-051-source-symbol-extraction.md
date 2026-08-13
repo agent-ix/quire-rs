@@ -118,6 +118,24 @@ byte-identical JSON ordering and stable record ids.
 | FR-051-AC-10 | Repeated extraction over an identical fixture tree emits byte-identical JSON and identical record ids. | Test (TC-750) |
 | FR-051-AC-11 | The legacy textual forms (docstring bare id, `Trace:` line, line-comment id, trace-embedding test name) still bind during migration, carry `legacy` provenance on the minted relation, and yield a mechanical marker-rewrite suggestion where derivable. | Test (TC-753) |
 | FR-051-AC-12 | Comment recognition is string-aware, and template-literal state carries across lines: a `//` or `/*` inside a string or template literal is content, not a comment opener, whether it sits on the literal's opening line or a continuation line. | Test (TC-798, TC-799) |
+| FR-051-AC-13 | A declaration whose signature spans lines binds tags in its docstring: a `def` wrapped by a formatter has the same span as the unwrapped form. | Test (TC-800) |
+
+> **CR-037 note (2026-08-13):** Found by running `gap-analysis` over
+> `spec-artifacts-process` with the new coverage path — two tests differing only
+> in signature wrapping bound differently, and the matrix reported a status lie
+> for the wrapped one.
+>
+> The Python adapter ends a suite at the first line indented no deeper than the
+> declaration. Black wraps any `def` over the line limit, and the closing
+> `) -> None:` sits at the declaration's **own column**, so the span ended there
+> — one line short of the docstring, which is exactly where the trace tag lives.
+> The suite is consumed by parenthesis depth first, then by indentation.
+>
+> This is the same defect class as CR-036 in the TypeScript adapter: a
+> line-structural reader meeting a formatter-produced multi-line construct. Both
+> fail silently and in the direction that loses coverage, which is why each is a
+> stated acceptance criterion now rather than a property of whichever shapes a
+> corpus happened to contain.
 
 > **CR-036 note (2026-08-13):** The TypeScript adapter's comment stripper scanned
 > raw characters, so a `/*` inside a literal opened a block comment that never
