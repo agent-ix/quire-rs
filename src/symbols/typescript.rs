@@ -258,8 +258,38 @@ fn strip_comment(line: &str, state: &mut ScanState) -> String {
     let mut out = String::with_capacity(line.len());
     let chars: Vec<char> = line.chars().collect();
     // Only a template literal carries in; `'` and `"` cannot span a line.
-    let mut quote: Option<char> = state.in_template.then_some('`');
+    //
+    // A carried-in literal's content is **dropped** rather than copied, because
+    // [`brace_delta`] re-derives quote state per line and would otherwise count
+    // a bare `{` inside a multi-line literal as a block open. Dropping is safe
+    // here and only here: a continuation line is never a declaration, and a
+    // `${…}` interpolation is balanced, so removing it leaves the depth intact.
+    // A literal that opens and closes on one line is still copied, since a
+    // backtick-quoted `test(`title`, …)` title has to survive for
+    // [`registration`] to read it.
+    let mut quote: Option<char> = None;
     let mut i = 0;
+    if state.in_template {
+        let mut closed = false;
+        while i < chars.len() {
+            if chars[i] == '\\' {
+                i += 2;
+                continue;
+            }
+            if chars[i] == '`' {
+                closed = true;
+                i += 1;
+                break;
+            }
+            i += 1;
+        }
+        if !closed {
+            // The whole line is literal content and the literal continues, so
+            // the carried flag must survive the early return below.
+            return out;
+        }
+        state.in_template = false;
+    }
     while i < chars.len() {
         if state.in_block_comment {
             if chars[i] == '*' && chars.get(i + 1) == Some(&'/') {
@@ -465,5 +495,33 @@ mod tests {
         assert!(state.in_template);
         strip_comment("`;", &mut state);
         assert!(!state.in_template, "the closing backtick ends it");
+    }
+
+    /// A bare `{` inside a multi-line template literal must not count as a
+    /// block open. `brace_delta` re-derives quote state per line, so the
+    /// carried-in content is dropped rather than copied — otherwise the literal
+    /// unbalances the file and `check_balanced` rejects it, which is the same
+    /// zero-symbol outcome by a different route.
+    #[test]
+    fn tc799_braces_inside_a_multiline_literal_do_not_unbalance() {
+        let source = concat!(
+            "const t = `\n",
+            "a { bare brace\n",
+            "`;\n",
+            "test(\"holds\", () => {\n",
+            "  expect(1).toBe(1);\n",
+            "});\n",
+        );
+        let symbols = parse("a.test.ts", source).expect("a valid file must parse");
+        assert!(
+            symbols.iter().any(|s| s.qualified_name.ends_with("holds")),
+            "the test after the literal must still be a symbol"
+        );
+
+        // And a single-line backtick title still survives stripping, or the
+        // registration regex has nothing to read.
+        let mut state = ScanState::default();
+        assert!(strip_comment("test(`a title`, () => {", &mut state).contains("a title"));
+        assert!(!state.in_template);
     }
 }
