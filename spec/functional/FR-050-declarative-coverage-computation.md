@@ -100,7 +100,27 @@ model; the engine knows nothing of "AC" or "TC" as concepts.
 | FR-050-AC-11 | A declared `vocabularies.test_type` is exposed on the `Registry` as the core values plus the module's extensions, and is the same list a matrix contract validates against. | Test (TC-759) |
 | FR-050-AC-12 | With `expand_ranges` declared, `FR-001..FR-003` resolves as three references; with `strip_annotations` declared, `FR-022-AC-5 (superseded by FR-030)` resolves as one. Both are off unless declared. | Test (TC-760) |
 | FR-050-AC-13 | A report over a corpus whose documents carry criteria contains a `criteria` entry per contributing document and the two new totals; a corpus whose documents carry none contains an empty `criteria` list and serializes byte-identically to a report from an engine that predates the field. | Test (TC-788) |
+| FR-050-AC-14 | A declared model that mints zero trace targets is reported distinctly from full coverage — never as `100%` — and `quire coverage --strict` exits non-zero on it. | Test (TC-797) |
 
+> **CR-035 note (2026-08-13):** FR-050-AC-9 covers *"no module declares a
+> model"*. Nothing covered *"a model is declared and matched no rows"*, so the
+> command had no reason to treat it as anything — and it treated it as success:
+> `(backed * 100).checked_div(total).unwrap_or(100)` printed `0/0 rows backed
+> (100%)`, and `--strict` fires only on non-empty `unbacked_rows` /
+> `status_lies`, which are both empty when nothing matched. A gate wired to that
+> command passed vacuously. It is how the ecosystem-wide failure in
+> `spec-artifacts-process` (agent-ix/spec-artifacts-process#22) went unnoticed
+> for nine days.
+>
+> The two states are opposites and must not render alike: `100%` on an empty
+> denominator means "found nothing", not "all covered". AC-14 makes zero matched
+> rows a distinct report line and a non-zero `--strict` exit.
+>
+> **Scope:** the fix is CLI-only. `CoverageReport` gains no field — a consumer
+> reading `--json` already tests `totals.total == 0`, and a field carrying the
+> same fact would be a second source for it. FR-050-AC-7's byte-identical
+> guarantee is therefore untouched, which is the point of not adding one.
+>
 > **CR-028 note (2026-08-07):** `CoverageReport` grows a `criteria` field and
 > `CoverageTotals` grows two counts — a criteria count and a property-shaped
 > count — carrying the classification
