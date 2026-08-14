@@ -403,6 +403,7 @@ mod tests {
         }
     }
 
+    // TC-585 (FR-036-AC-2): the Verification vocabulary rule, both directions.
     #[test]
     fn allowed_values_and_annotations_pass_others_flagged() {
         let doc = parse_document(AC_DOC);
@@ -418,6 +419,7 @@ mod tests {
         assert!(findings[0].message.contains("row 3"));
     }
 
+    // TC-586 (FR-036-AC-3): a scoped rule ignores documents it does not cover.
     #[test]
     fn archetype_scoping_skips_non_matching_documents() {
         let doc = parse_document(AC_DOC);
@@ -427,6 +429,7 @@ mod tests {
         assert!(lint_document(&[rule], None, &doc).is_empty());
     }
 
+    // TC-587 (FR-036-AC-4): structure is FR-032's job, not a lint finding.
     #[test]
     fn missing_section_or_column_yields_no_findings() {
         let doc = parse_document("## Other\nprose\n");
@@ -469,6 +472,7 @@ mod tests {
         assert!(findings[0].message.contains("vibes"));
     }
 
+    // TC-584 (FR-036-AC-1): rules parse typed and survive a round trip.
     #[test]
     fn rule_yaml_round_trip() {
         let yaml = r#"

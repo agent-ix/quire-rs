@@ -85,6 +85,7 @@ fn bench_parse(c: &mut Criterion) {
 /// NFR-002-AC-4 / TC-577: `validate_document` on a typical FR-sized
 /// artifact against a **warm** Registry (load cost excluded). Target:
 /// median below 1 ms on the canonical baseline runner.
+// TC-577 (NFR-007-AC-1): the validate-document benchmark the CI baseline compares against.
 fn bench_validate_document(c: &mut Criterion) {
     let module = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/modules/iso");
     let registry = Registry::load_module(&module).expect("load iso module");

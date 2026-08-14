@@ -127,12 +127,14 @@ mod tests {
         value.as_object().unwrap().clone()
     }
 
+    // TC-590 (FR-037-AC-1): a minimal typed concept is valid.
     #[test]
     fn accepts_minimal_typed_concept() {
         let errors = validate_base_concept(&fm(json!({ "type": "FR" })));
         assert!(errors.is_empty(), "{errors:?}");
     }
 
+    // TC-591 (FR-037-AC-2): the optional OKF fields when well-formed.
     #[test]
     fn accepts_optional_description_and_tags() {
         let errors = validate_base_concept(&fm(json!({
@@ -143,6 +145,7 @@ mod tests {
         assert!(errors.is_empty(), "{errors:?}");
     }
 
+    // TC-592 (FR-037-AC-3): `type` is required, and the error names it.
     #[test]
     fn rejects_missing_type() {
         let errors = validate_base_concept(&fm(json!({ "id": "FR-001" })));
@@ -151,6 +154,7 @@ mod tests {
         assert!(errors[0].message.contains("type"));
     }
 
+    // TC-593 (FR-037-AC-4): an empty `type` fails `minLength`.
     #[test]
     fn rejects_empty_type() {
         let errors = validate_base_concept(&fm(json!({ "type": "" })));
@@ -158,6 +162,7 @@ mod tests {
         assert_eq!(errors[0].reason, ValidationReason::Frontmatter);
     }
 
+    // TC-594 (FR-037-AC-5): a non-string `description`.
     #[test]
     fn rejects_mistyped_description() {
         let errors = validate_base_concept(&fm(json!({ "type": "FR", "description": 7 })));
@@ -165,6 +170,7 @@ mod tests {
         assert!(errors[0].message.contains("description"));
     }
 
+    // TC-595 (FR-037-AC-5): a non-array `tags`.
     #[test]
     fn rejects_mistyped_tags() {
         let errors = validate_base_concept(&fm(json!({ "type": "FR", "tags": "not-an-array" })));
@@ -172,6 +178,7 @@ mod tests {
         assert!(errors[0].message.contains("tags"));
     }
 
+    // TC-596 (FR-037-AC-5): a non-string item inside `tags`.
     #[test]
     fn rejects_non_string_tag_item() {
         let errors = validate_base_concept(&fm(json!({ "type": "FR", "tags": ["ok", 3] })));
