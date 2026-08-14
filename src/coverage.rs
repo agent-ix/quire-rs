@@ -267,8 +267,11 @@ fn reconcile(
         for row in declared_tables::scan(
             spec,
             root,
-            target.archetype.as_deref(),
-            target.document.as_deref(),
+            declared_tables::DeclaredScope {
+                archetype: target.archetype.as_deref(),
+                document: target.document.as_deref(),
+                exclude: &target.exclude,
+            },
             &target.section,
         ) {
             let Some(id) = row.cell(&target.id_column) else {
@@ -308,8 +311,11 @@ fn reconcile(
         for row in declared_tables::scan(
             spec,
             root,
-            declaration.archetype.as_deref(),
-            declaration.document.as_deref(),
+            declared_tables::DeclaredScope {
+                archetype: declaration.archetype.as_deref(),
+                document: declaration.document.as_deref(),
+                exclude: &declaration.exclude,
+            },
             &declaration.section,
         ) {
             let Some(raw_cell) = row.cell(&declaration.column) else {
@@ -436,12 +442,8 @@ fn reconcile(
 }
 
 /// A path relative to the scope root, `/`-separated so reports are stable
-/// across platforms. Paths outside the root are emitted as-is.
+/// across platforms. Shared with the scan layer so a report path and an
+/// `exclude` glob are matched against the same string (CR-038).
 fn relative(root: &Path, path: &Path) -> String {
-    path.strip_prefix(root)
-        .unwrap_or(path)
-        .components()
-        .map(|c| c.as_os_str().to_string_lossy().to_string())
-        .collect::<Vec<_>>()
-        .join("/")
+    declared_tables::relative_path(root, path)
 }

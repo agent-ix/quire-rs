@@ -704,3 +704,127 @@ fn tc759_declared_column_vocabulary() {
     let bare = Registry::load_module(&fixture_module("alt")).expect("load module");
     assert!(bare.column_vocabulary("test_type").is_empty());
 }
+
+/// A bundle in the shape the CR-038 scoping exists for: a canonical
+/// `spec/tests.md` the corpus walk skips, a second in-corpus matrix, and a
+/// **fixture** matrix under `fixtures/` whose rows are test data — including one
+/// reusing a real id, which is what turns a fixture into a phantom backed row.
+fn scoped_bundle(suffix: &str) -> Bundle {
+    let bundle = iso_bundle(
+        suffix,
+        &[
+            ("TC-001", "FR-001-AC-1", "✅"),
+            ("TC-002", "FR-001-AC-2", "🚧"),
+        ],
+        &["TC-001"],
+    );
+    // In-corpus matrix: a real claim, and the reason `archetype:` binding is
+    // wanted at all.
+    write(
+        &bundle.scope,
+        "matrix.md",
+        "---\nid: TM-002\ntype: TestMatrix\ntitle: Extra matrix\n---\n\n\
+         ## Test Cases\n\n| ID | Traces To | Status |\n|----|-----------|--------|\n\
+         | TC-003 | FR-001-AC-1 | 🚧 |\n",
+    );
+    // Fixture matrix: deliberately reuses TC-001, so admitting it mints a
+    // second TC-001 that the real test appears to back.
+    write(
+        &bundle.scope,
+        "fixtures/bad-matrix.md",
+        "---\nid: TM-900\ntype: TestMatrix\ntitle: Deliberately malformed fixture\n---\n\n\
+         ## Test Cases\n\n| ID | Traces To | Status |\n|----|-----------|--------|\n\
+         | TC-001 | FR-001-AC-1 | ✅ |\n\
+         | TC-900 | FR-001-AC-2 | ✅ |\n",
+    );
+    bundle
+}
+
+// TC-801 (FR-050-AC-15): a declaration excluding `fixtures/**` contributes no
+// rows from a matching document; the same corpus without the exclusion reports
+// the fixture's rows as real.
+#[test]
+fn tc801_excluded_documents_contribute_no_rows() {
+    let bundle = scoped_bundle("801");
+
+    let scoped = report_for(&bundle, "scoped").expect("model declared");
+    let scoped_docs: Vec<&str> = scoped.groups.iter().map(|g| g.document.as_str()).collect();
+    assert!(
+        !scoped_docs.contains(&"fixtures/bad-matrix.md"),
+        "the fixture matrix must mint nothing: {scoped_docs:?}"
+    );
+    assert!(
+        !scoped
+            .unbacked_rows
+            .iter()
+            .any(|r| r.document == "fixtures/bad-matrix.md"),
+        "an excluded document cannot produce reference rows"
+    );
+    assert!(
+        !scoped
+            .status_lies
+            .iter()
+            .any(|l| l.row_id.as_deref() == Some("TC-900")),
+        "TC-900 exists only in the fixture: {:?}",
+        scoped.status_lies
+    );
+
+    // The control: identical corpus, exclusion removed.
+    let unscoped = report_for(&bundle, "unscoped").expect("model declared");
+    let unscoped_docs: Vec<&str> = unscoped
+        .groups
+        .iter()
+        .map(|g| g.document.as_str())
+        .collect();
+    assert!(
+        unscoped_docs.contains(&"fixtures/bad-matrix.md"),
+        "without the exclusion the fixture is admitted: {unscoped_docs:?}"
+    );
+    // The phantom the exclusion exists to prevent: a fixture row reusing TC-001
+    // reads as backed, because the real test bound that id.
+    let phantom = unscoped
+        .groups
+        .iter()
+        .find(|g| g.document == "fixtures/bad-matrix.md")
+        .expect("fixture group");
+    assert_eq!(
+        phantom.backed, 1,
+        "the fixture's reused id reads as backed: {phantom:?}"
+    );
+    assert!(unscoped.totals.total > scoped.totals.total);
+}
+
+// TC-802 (FR-050-AC-15): `archetype` and `document` declared together scan
+// both — the corpus documents of that archetype and the auxiliary file the
+// corpus walk skips — from a single entry.
+#[test]
+fn tc802_archetype_and_document_scan_together() {
+    let bundle = scoped_bundle("802");
+    let report = report_for(&bundle, "scoped").expect("model declared");
+
+    let documents: Vec<&str> = report
+        .groups
+        .iter()
+        .filter(|g| g.target == "test-case")
+        .map(|g| g.document.as_str())
+        .collect();
+    assert!(
+        documents.contains(&"tests.md"),
+        "the auxiliary skipped file must still mint: {documents:?}"
+    );
+    assert!(
+        documents.contains(&"matrix.md"),
+        "the in-corpus matrix must mint from the same entry: {documents:?}"
+    );
+
+    // Rows from both origins reconcile against the same target kind: TC-003
+    // lives in the archetype-bound matrix and nothing binds it.
+    assert!(
+        report
+            .unbacked_rows
+            .iter()
+            .any(|r| r.document == "matrix.md" && r.row_id.as_deref() == Some("TC-003")),
+        "unbacked: {:?}",
+        report.unbacked_rows
+    );
+}

@@ -1,0 +1,53 @@
+# Path-scoped traceability declaration (FR-050-AC-15 / CR-038 fixture).
+#
+# The shape the ecosystem wants and could not express before CR-038: ONE
+# test-case entry covering every `TestMatrix` document in the corpus *plus* the
+# canonical `tests.md` the corpus walk skips, minus the matrices under
+# `fixtures/`, which are test data rather than claims about the repository.
+#
+# Contrast `iso/manifest.yaml`, which needs one entry per matrix filename and
+# has no way to keep a fixture matrix out.
+name: traceability-scoped
+version: 0.1.0
+description: Path-scoped traceability model fixture
+artifact_types:
+- name: FR
+  grammar_ref: iso-spec-core
+  defaults:
+    id_pattern: FR-{next:03d}
+- name: TestMatrix
+  defaults:
+    id_pattern: TM-{next:03d}
+traceability:
+  trace_targets:
+  - name: acceptance-criterion
+    archetype: FR
+    section: Acceptance Criteria
+    id_column: ID
+  - name: test-case
+    archetype: TestMatrix
+    document: tests.md
+    exclude: ["fixtures/**"]
+    section: Test Cases
+    id_column: ID
+  document_references:
+  - name: traces-to
+    archetype: TestMatrix
+    document: tests.md
+    exclude: ["fixtures/**"]
+    section: Test Cases
+    column: Traces To
+    row_id_column: ID
+    pattern: '((?:StR|US|FR|NFR)-\d+(?:-(?:AC|CON)-\d+)?)'
+    targets: [acceptance-criterion]
+  status:
+    column: Status
+    complete: ["✅"]
+    pending: ["🚧", "⚠️"]
+    failed: ["❌"]
+  trace_tags:
+    markers:
+    - name: rust-trace-attribute
+      language: rust
+      pattern: '#\[trace\(([^)]*)\)\]'
+      template: '#[trace({ids})]'

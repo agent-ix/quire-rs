@@ -78,10 +78,11 @@ pub struct ColumnVocabularies {
     pub test_type: Vec<String>,
 }
 
-/// One kind of trace id and where it is minted: either from an archetype the
-/// corpus walk already loads, or from an **auxiliary source** — a document
-/// outside the corpus (e.g. a Test Matrix at `spec/tests.md`) named by a
-/// scope-relative path.
+/// One kind of trace id and where it is minted: from an archetype the corpus
+/// walk already loads, from an **auxiliary source** — a document outside the
+/// corpus (e.g. a Test Matrix at `spec/tests.md`) named by a scope-relative
+/// path — or from both, when an archetype covers most of the minting documents
+/// and one canonical filename the walk skips covers the rest (CR-038).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct TraceTarget {
@@ -93,6 +94,10 @@ pub struct TraceTarget {
     /// Scope-relative path of an auxiliary minting document.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub document: Option<PathBuf>,
+    /// Scope-relative globs whose matching documents mint nothing (CR-038).
+    /// The engine has no idea which paths hold test data; a module says so.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub exclude: Vec<String>,
     /// Heading of the section carrying the minting table.
     pub section: String,
     /// Table column holding the minted id.
@@ -112,6 +117,10 @@ pub struct DocumentReference {
     pub archetype: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub document: Option<PathBuf>,
+    /// Scope-relative globs whose matching documents contribute no reference
+    /// rows (CR-038).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub exclude: Vec<String>,
     /// Heading of the section carrying the referencing table.
     pub section: String,
     /// Column whose cells carry the references.
@@ -298,6 +307,7 @@ impl TraceabilityModel {
                 target.archetype.as_deref(),
                 target.document.as_deref(),
             )?;
+            check_excludes("trace_targets", &target.name, &target.exclude)?;
             check_field("trace_targets", &target.name, "section", &target.section)?;
             check_field(
                 "trace_targets",
@@ -322,6 +332,7 @@ impl TraceabilityModel {
                 reference.archetype.as_deref(),
                 reference.document.as_deref(),
             )?;
+            check_excludes("document_references", &reference.name, &reference.exclude)?;
             check_field(
                 "document_references",
                 &reference.name,
@@ -413,8 +424,13 @@ fn check_field(section: &str, name: &str, field: &str, value: &str) -> Result<()
     Ok(())
 }
 
-/// A target or reference is minted either by an archetype the corpus walk
-/// loads or by an auxiliary document — exactly one, never both, never neither.
+/// A target or reference is minted by an archetype the corpus walk loads, by an
+/// auxiliary document, or by both — but never by neither.
+///
+/// The pair was rejected until CR-038. It is the natural way to say "every
+/// document of this archetype, plus the one canonical filename the corpus walk
+/// skips": `spec/tests.md` is on `DEFAULT_SKIP`, so archetype binding alone
+/// cannot see the file 184 repos call their Test Matrix.
 fn check_origin(
     section: &str,
     name: &str,
@@ -422,15 +438,30 @@ fn check_origin(
     document: Option<&std::path::Path>,
 ) -> Result<(), String> {
     match (archetype, document) {
-        (Some(a), None) if !a.trim().is_empty() => Ok(()),
-        (None, Some(_)) => Ok(()),
-        (Some(_), Some(_)) => Err(format!(
-            "traceability: {section} entry '{name}' declares both `archetype` and `document`"
+        (Some(a), _) if a.trim().is_empty() => Err(format!(
+            "traceability: {section} entry '{name}' has an empty `archetype`"
         )),
-        _ => Err(format!(
+        (Some(_), _) | (None, Some(_)) => Ok(()),
+        (None, None) => Err(format!(
             "traceability: {section} entry '{name}' declares neither `archetype` nor `document`"
         )),
     }
+}
+
+/// Exclusion globs must compile; a typo that silently matched nothing would
+/// quietly readmit the documents the module meant to keep out (CR-038).
+fn check_excludes(section: &str, name: &str, exclude: &[String]) -> Result<(), String> {
+    for pattern in exclude {
+        if pattern.trim().is_empty() {
+            return Err(format!(
+                "traceability: {section} entry '{name}' has an empty `exclude` pattern"
+            ));
+        }
+        globset::Glob::new(pattern).map_err(|e| {
+            format!("traceability: {section} entry '{name}' has an invalid `exclude` pattern: {e}")
+        })?;
+    }
+    Ok(())
 }
 
 /// Patterns must compile and must capture the id they extract.
@@ -538,10 +569,15 @@ document_references:
                 "trace_targets:\n- name: t\n  section: S\n  id_column: ID\n",
                 "neither `archetype` nor `document`",
             ),
-            // both
+            // an archetype declared as an empty string names nothing
             (
-                "trace_targets:\n- name: t\n  archetype: FR\n  document: x.md\n  section: S\n  id_column: ID\n",
-                "both `archetype` and `document`",
+                "trace_targets:\n- name: t\n  archetype: '  '\n  section: S\n  id_column: ID\n",
+                "empty `archetype`",
+            ),
+            // an exclude pattern that cannot compile
+            (
+                "trace_targets:\n- name: t\n  archetype: FR\n  exclude: ['[bad']\n  section: S\n  id_column: ID\n",
+                "invalid `exclude` pattern",
             ),
             // non-capturing pattern
             (
@@ -576,6 +612,32 @@ document_references:
             let err = model(yaml).validate().expect_err(yaml);
             assert!(err.contains(expected), "{err} != {expected}");
         }
+    }
+
+    /// CR-038: the pair used to be rejected. It is how a module says "every
+    /// document of this archetype, plus the one canonical filename the corpus
+    /// walk skips" in a single entry.
+    #[test]
+    fn archetype_and_document_may_be_declared_together() {
+        let m = model(
+            "trace_targets:\n- name: test-case\n  archetype: TestMatrix\n  document: spec/tests.md\n\
+             \n  exclude: ['tests/fixtures/**']\n  section: Test Case Summary\n  id_column: Test ID\n",
+        );
+        m.validate().expect("the pair is a valid origin");
+        let target = m.target("test-case").expect("declared");
+        assert_eq!(target.archetype.as_deref(), Some("TestMatrix"));
+        assert_eq!(target.document, Some(PathBuf::from("spec/tests.md")));
+        assert_eq!(target.exclude, vec!["tests/fixtures/**".to_string()]);
+    }
+
+    #[test]
+    fn exclude_defaults_to_empty_and_is_omitted_when_unset() {
+        let m = model(FULL);
+        assert!(m.target("test-case").unwrap().exclude.is_empty());
+        // FR-050-AC-7: a model declaring no exclusions must serialize exactly
+        // as it did before the field existed.
+        let yaml = serde_yaml::to_string(&m).expect("serialize");
+        assert!(!yaml.contains("exclude"), "{yaml}");
     }
 
     #[test]

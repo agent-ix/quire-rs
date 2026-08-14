@@ -31,32 +31,79 @@ impl ScannedRow {
     }
 }
 
-/// Scan the table under `heading` for a declaration bound to `archetype`
-/// (every bundle document of that type) and/or `document` (one auxiliary file
-/// under `root`, harvested off-corpus). Bundle documents come first, in corpus
-/// order; the auxiliary rows follow.
+/// What one declaration says about where its rows live: an archetype (every
+/// bundle document of that type), an auxiliary `document` under `root`
+/// harvested off-corpus, or both — minus anything `exclude` matches (CR-038).
+///
+/// Passed as a struct rather than four positional arguments because the two
+/// consumers construct it from two different declaration types, and a
+/// same-typed pair of `Option`s is exactly the call site that gets transposed.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct DeclaredScope<'a> {
+    pub archetype: Option<&'a str>,
+    pub document: Option<&'a Path>,
+    pub exclude: &'a [String],
+}
+
+impl DeclaredScope<'_> {
+    /// True when `path` is excluded from this declaration.
+    ///
+    /// Matching is on the **scope-relative** path, which is the only form a
+    /// module can author against: an absolute path is a property of the
+    /// machine, not of the repository.
+    pub(crate) fn excludes(&self, root: &Path, path: &Path) -> bool {
+        if self.exclude.is_empty() {
+            return false;
+        }
+        let relative = relative_path(root, path);
+        self.exclude.iter().any(|pattern| {
+            // Patterns are validated at module load; an uncompilable one here
+            // would mean the model was never validated, so it excludes nothing
+            // rather than silently swallowing every document.
+            globset::Glob::new(pattern)
+                .map(|glob| glob.compile_matcher().is_match(&relative))
+                .unwrap_or(false)
+        })
+    }
+}
+
+/// Scan the table under `heading` for every document `scope` covers. Bundle
+/// documents come first, in corpus order; the auxiliary rows follow.
 pub(crate) fn scan(
     spec: &Spec,
     root: &Path,
-    archetype: Option<&str>,
-    document: Option<&Path>,
+    scope: DeclaredScope<'_>,
     heading: &str,
 ) -> Vec<ScannedRow> {
     let mut out = Vec::new();
-    if let Some(archetype) = archetype {
+    if let Some(archetype) = scope.archetype {
         for doc in &spec.inner.documents {
-            if concept_type(&doc.doc) != Some(archetype) {
+            if concept_type(&doc.doc) != Some(archetype) || scope.excludes(root, &doc.path) {
                 continue;
             }
             out.extend(rows_of(&doc.doc, &doc.path, heading));
         }
     }
-    if let Some(document) = document {
-        if let Some(doc) = harvest(root, document) {
-            out.extend(rows_of(&doc, &root.join(document), heading));
+    if let Some(document) = scope.document {
+        let path = root.join(document);
+        if !scope.excludes(root, &path) {
+            if let Some(doc) = harvest(root, document) {
+                out.extend(rows_of(&doc, &path, heading));
+            }
         }
     }
     out
+}
+
+/// A path relative to the scope root, `/`-separated so declarations and reports
+/// are stable across platforms. Paths outside the root are used as-is.
+pub(crate) fn relative_path(root: &Path, path: &Path) -> String {
+    path.strip_prefix(root)
+        .unwrap_or(path)
+        .components()
+        .map(|c| c.as_os_str().to_string_lossy().to_string())
+        .collect::<Vec<_>>()
+        .join("/")
 }
 
 /// The rows of the table under `heading` in one document.

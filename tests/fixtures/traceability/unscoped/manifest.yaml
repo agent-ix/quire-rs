@@ -1,0 +1,48 @@
+# The same declaration as `scoped/manifest.yaml` with the `exclude` lines
+# removed — the control case for FR-050-AC-15 (CR-038).
+#
+# It exists so the exclusion test asserts a difference rather than an absence:
+# over the identical corpus this module admits the fixture matrix, mints its
+# ids, and reports the phantom row the scoped module keeps out.
+name: traceability-unscoped
+version: 0.1.0
+description: Unscoped control for the path-scoping fixture
+artifact_types:
+- name: FR
+  grammar_ref: iso-spec-core
+  defaults:
+    id_pattern: FR-{next:03d}
+- name: TestMatrix
+  defaults:
+    id_pattern: TM-{next:03d}
+traceability:
+  trace_targets:
+  - name: acceptance-criterion
+    archetype: FR
+    section: Acceptance Criteria
+    id_column: ID
+  - name: test-case
+    archetype: TestMatrix
+    document: tests.md
+    section: Test Cases
+    id_column: ID
+  document_references:
+  - name: traces-to
+    archetype: TestMatrix
+    document: tests.md
+    section: Test Cases
+    column: Traces To
+    row_id_column: ID
+    pattern: '((?:StR|US|FR|NFR)-\d+(?:-(?:AC|CON)-\d+)?)'
+    targets: [acceptance-criterion]
+  status:
+    column: Status
+    complete: ["✅"]
+    pending: ["🚧", "⚠️"]
+    failed: ["❌"]
+  trace_tags:
+    markers:
+    - name: rust-trace-attribute
+      language: rust
+      pattern: '#\[trace\(([^)]*)\)\]'
+      template: '#[trace({ids})]'

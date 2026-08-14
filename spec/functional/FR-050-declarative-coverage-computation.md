@@ -101,7 +101,35 @@ model; the engine knows nothing of "AC" or "TC" as concepts.
 | FR-050-AC-12 | With `expand_ranges` declared, `FR-001..FR-003` resolves as three references; with `strip_annotations` declared, `FR-022-AC-5 (superseded by FR-030)` resolves as one. Both are off unless declared. | Test (TC-760) |
 | FR-050-AC-13 | A report over a corpus whose documents carry criteria contains a `criteria` entry per contributing document and the two new totals; a corpus whose documents carry none contains an empty `criteria` list and serializes byte-identically to a report from an engine that predates the field. | Test (TC-788) |
 | FR-050-AC-14 | A declared model that mints zero trace targets is reported distinctly from full coverage — never as `100%` — and `quire coverage --strict` exits non-zero on it. | Test (TC-797) |
+| FR-050-AC-15 | A trace target or document reference MAY declare `exclude:` path globs, and MAY declare `archetype` and `document` together; excluded documents mint no ids and contribute no reference rows, and a declaration naming both scans the archetype's corpus documents and the auxiliary file in one entry. | Test (TC-801, TC-802) |
 
+> **CR-038 note (2026-08-13):** A trace target had no way to say which paths it
+> covers, and `archetype` + `document` was rejected as an incoherent pair. Both
+> limits fall out of the same fact: `spec/tests.md` is on the corpus walk's
+> `DEFAULT_SKIP`, so `archetype: TestMatrix` cannot see the file 184 repos call
+> their Test Matrix, while every matrix that is *not* named `tests.md` — test
+> fixtures included — is in the corpus and mints ids.
+>
+> Measured cost of having neither: scanning `spec-artifacts-process` by
+> archetype minted 67 test-case ids from `tests/fixtures/testmatrix/*.md`, of
+> which 50 read as **backed**, because a fixture reusing `TC-017` collides with
+> the real one. A phantom backed row is precisely the falsehood this rollup
+> exists to catch. The workaround that shipped instead binds by `document:`
+> path — nine entries where two would do, one of them a filename that exists in
+> a single repo and is dead weight in every other.
+>
+> AC-15 adds `exclude:` globs and allows the pair. Which paths hold test data
+> stays **module-declared**: an engine that knew `tests/fixtures/` was special
+> would be exactly the hardcoded semantics this model exists to avoid.
+> `exclude` is absent-by-default and skipped on serialization, so a model that
+> declares none is byte-identical to one written before the field existed
+> (FR-050-AC-7).
+>
+> **Still open:** archetype binding remains blind to `tests.md` itself; naming
+> it as the entry's `document` is what closes the gap. Whether the walk should
+> stop skipping a file whose frontmatter names a registered archetype is a
+> separate call with ecosystem-wide reach, tracked in agent-ix/quire-rs#63.
+>
 > **CR-035 note (2026-08-13):** FR-050-AC-9 covers *"no module declares a
 > model"*. Nothing covered *"a model is declared and matched no rows"*, so the
 > command had no reason to treat it as anything — and it treated it as success:
