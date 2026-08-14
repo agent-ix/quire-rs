@@ -42,6 +42,7 @@ fn note(id: &str, body: &str) -> String {
 
 /// Strict: a document with no `type` is a hard error (was a non-fatal
 /// `UntypedArtifact` warning before this change).
+// TC-600 (FR-038-AC-1): under Strict an untyped document is a hard error.
 #[test]
 fn strict_untyped_doc_is_error() {
     let root = tmpdir("strict_untyped");
@@ -60,6 +61,7 @@ fn strict_untyped_doc_is_error() {
 
 /// Okf: `type` is still required — an untyped doc is an error even under
 /// the permissive posture.
+// TC-601 (FR-038-AC-2): and the permissive posture does not soften it.
 #[test]
 fn okf_untyped_doc_is_still_error() {
     let root = tmpdir("okf_untyped");
@@ -75,6 +77,7 @@ fn okf_untyped_doc_is_still_error() {
 
 /// Okf tolerates an unknown type and a dangling `ix://` reference as
 /// warnings; Strict rejects the unknown type.
+// TC-602 (FR-038-AC-3): what Okf does soften — unknown type, dangling ref.
 #[test]
 fn okf_tolerates_unknown_type_and_broken_links() {
     let root = tmpdir("okf_tolerant");
@@ -103,6 +106,7 @@ fn okf_tolerates_unknown_type_and_broken_links() {
 
 /// A typed, archetype-conformant bundle whose index lists every sibling +
 /// carries `okf_version` is valid under Strict.
+// TC-603 (FR-038-AC-4): the conformant bundle passes Strict end to end.
 #[test]
 fn strict_conformant_bundle_with_complete_index_is_valid() {
     let root = tmpdir("strict_ok");
@@ -124,6 +128,7 @@ fn strict_conformant_bundle_with_complete_index_is_valid() {
 
 /// An index.md missing a sibling artifact is an index-completeness error
 /// under Strict, a warning under Okf.
+// TC-604 (FR-038-AC-5): a missing sibling is an error, then a warning.
 #[test]
 fn index_incompleteness_is_error_strict_warning_okf() {
     let root = tmpdir("index_incomplete");
@@ -150,6 +155,7 @@ fn index_incompleteness_is_error_strict_warning_okf() {
 }
 
 /// The bundle-root index.md must declare `okf_version`.
+// TC-605 (FR-038-AC-6): the bundle root must declare `okf_version`.
 #[test]
 fn root_index_missing_okf_version_is_flagged() {
     let root = tmpdir("no_okf_version");
@@ -168,6 +174,7 @@ fn root_index_missing_okf_version_is_flagged() {
 }
 
 /// A subdirectory index need not carry `okf_version` (only the root does).
+// TC-606 (FR-038-AC-6): a subdirectory index does not.
 #[test]
 fn subdir_index_does_not_require_okf_version() {
     let root = tmpdir("subdir_index");
@@ -190,6 +197,7 @@ fn subdir_index_does_not_require_okf_version() {
 
 /// A mistyped optional `description` is caught by the base concept contract
 /// under Strict.
+// TC-607 (FR-038-AC-7): the base-concept contract still applies to a known type.
 #[test]
 fn strict_rejects_mistyped_description() {
     let root = tmpdir("mistyped_desc");

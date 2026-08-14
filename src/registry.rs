@@ -526,6 +526,31 @@ mod tests {
         p
     }
 
+    // TC-411 (FR-020-AC-2): block type is an alias over the archetype registry.
+    //
+    // Written when FR-020 was authored (CR-042): the row had been ✅ since v0.2
+    // with nothing behind it, because the requirement it claimed had no
+    // document. CON-1 is what this asserts — one registry, two names for it,
+    // never a second store that can drift.
+    #[test]
+    fn tc411_block_type_is_an_alias_for_archetype() {
+        let root = tmpdir("block-type-alias");
+        // The helper names the module; its one archetype is always `foo`.
+        write_minimal_module(&root, "note");
+        let registry = Registry::load_module(&root).expect("load module");
+
+        let by_block_type = registry.block_type("foo").expect("registered");
+        let by_archetype = registry.archetype("foo").expect("registered");
+        assert!(
+            std::ptr::eq(by_block_type, by_archetype),
+            "both names must resolve to the same compiled archetype, not to equal copies"
+        );
+
+        // And an unregistered name resolves through neither.
+        assert!(registry.block_type("nope").is_none());
+        assert!(registry.archetype("nope").is_none());
+    }
+
     fn write_minimal_module(root: &Path, name: &str) {
         fs::create_dir_all(root.join("schemas")).unwrap();
         fs::write(
