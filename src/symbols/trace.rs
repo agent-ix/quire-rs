@@ -182,19 +182,25 @@ fn bind_symbol(symbol: &Symbol, source: &str, model: &TraceabilityModel, graph: 
             continue;
         };
         for caps in re.captures_iter(&span) {
-            let Some(trace_id) = legacy_id(&caps, legacy.id_format.as_deref()) else {
+            let trace_ids = legacy_ids(&caps, legacy.id_format.as_deref());
+            if trace_ids.is_empty() {
                 continue;
-            };
-            record(VerifiesRelation {
-                symbol_id: symbol.id.clone(),
-                symbol: symbol.qualified_name.clone(),
-                path: symbol.path.clone(),
-                trace_id: trace_id.clone(),
-                provenance: TraceProvenance::Legacy,
-                form: legacy.name.clone(),
-            });
+            }
+            for trace_id in &trace_ids {
+                record(VerifiesRelation {
+                    symbol_id: symbol.id.clone(),
+                    symbol: symbol.qualified_name.clone(),
+                    path: symbol.path.clone(),
+                    trace_id: trace_id.clone(),
+                    provenance: TraceProvenance::Legacy,
+                    form: legacy.name.clone(),
+                });
+            }
             // A rewrite suggestion is emitted only when the target marker
             // declares an authoring template — FR-051's "where derivable".
+            // One match is one authored line, so a match carrying a list of
+            // ids yields one suggestion naming all of them, never one
+            // conflicting single-id rewrite per id (FR-051-AC-16).
             if let Some(marker) = legacy
                 .rewrite_to
                 .as_ref()
@@ -205,13 +211,18 @@ fn bind_symbol(symbol: &Symbol, source: &str, model: &TraceabilityModel, graph: 
                         + span[..caps.get(0).map_or(0, |m| m.start())]
                             .matches('\n')
                             .count();
+                    let ids = trace_ids
+                        .iter()
+                        .map(|id| format!("\"{id}\""))
+                        .collect::<Vec<_>>()
+                        .join(", ");
                     graph.rewrites.push(RewriteSuggestion {
                         path: symbol.path.clone(),
                         symbol: symbol.qualified_name.clone(),
                         line,
                         from_form: legacy.name.clone(),
                         to_marker: marker.name.clone(),
-                        suggestion: template.replace("{ids}", &format!("\"{trace_id}\"")),
+                        suggestion: template.replace("{ids}", &ids),
                     });
                 }
             }
@@ -270,17 +281,29 @@ fn marker_ids(args: &str) -> Vec<String> {
         .collect()
 }
 
-/// The trace id a legacy match yields: capture group 1, or the declared
-/// `id_format` template rendered over the captures (`TC-{1}`).
-fn legacy_id(caps: &regex::Captures<'_>, id_format: Option<&str>) -> Option<String> {
+/// The trace ids a legacy match yields (FR-051-AC-16). Capture group 1 is
+/// comma-split the way [`marker_ids`] splits a marker's argument list, so a
+/// form whose pattern admits a list (`// Trace: FR-1-AC-1, FR-1-AC-2`) binds
+/// every id it carries rather than only the first.
+///
+/// A form declaring `id_format` renders the template over the captures and is
+/// never split: the template's inputs are structural captures (`TC-{1}` over a
+/// function name), which cannot carry a list.
+fn legacy_ids(caps: &regex::Captures<'_>, id_format: Option<&str>) -> Vec<String> {
     match id_format {
-        None => caps.get(1).map(|m| m.as_str().to_string()),
+        None => caps.get(1).map_or_else(Vec::new, |m| {
+            m.as_str()
+                .split(',')
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .collect()
+        }),
         Some(template) => {
             let mut out = template.to_string();
             for (idx, group) in caps.iter().enumerate().skip(1) {
                 out = out.replace(&format!("{{{idx}}}"), group.map_or("", |m| m.as_str()));
             }
-            Some(out)
+            vec![out]
         }
     }
 }
@@ -581,6 +604,84 @@ mod tests {
         assert_eq!(suggestion.to_marker, "rust-trace-attribute");
         assert_eq!(suggestion.suggestion, "#[trace(\"FR-051-AC-11\")]");
         assert!(suggestion.line >= 1);
+    }
+
+    // TC-806 (FR-051-AC-16): a legacy form yields every id its match carries,
+    // and a form declaring `id_format` is unchanged.
+    #[test]
+    fn tc806_legacy_comma_list_binds_every_id() {
+        let extraction = crate::symbols::extract_file(
+            "src/lib.rs",
+            SourceLanguage::Rust,
+            "// Trace: FR-001-AC-1, FR-001-AC-2, FR-001-AC-4\n\
+             #[test]\n\
+             fn tc806_legacy_list() {\n    // TC-033, TC-034\n    let _ = 1;\n}\n",
+        );
+        let graph = bind(&extraction, &iso_model());
+        let ids: Vec<&str> = graph.verifies.iter().map(|v| v.trace_id.as_str()).collect();
+
+        // Every id on both lines binds, not just the first of each.
+        assert_eq!(
+            ids,
+            vec![
+                "FR-001-AC-1",
+                "FR-001-AC-2",
+                "FR-001-AC-4",
+                "TC-033",
+                "TC-034",
+                "TC-806",
+            ]
+        );
+        assert!(graph
+            .verifies
+            .iter()
+            .filter(|v| v.trace_id != "TC-806")
+            .all(|v| v.provenance == TraceProvenance::Legacy));
+
+        // The widened patterns must not re-match a trailing id on its own: one
+        // relation per id, so no dedup diagnostic fires.
+        assert!(
+            graph.diagnostics.is_empty(),
+            "unexpected diagnostics: {:?}",
+            graph.diagnostics
+        );
+
+        // One authored line is one rewrite suggestion naming all of its ids —
+        // never one conflicting single-id rewrite per id.
+        let listed: Vec<&RewriteSuggestion> = graph
+            .rewrites
+            .iter()
+            .filter(|r| r.from_form == "trace-line")
+            .collect();
+        assert_eq!(listed.len(), 1);
+        assert_eq!(
+            listed[0].suggestion,
+            "#[trace(\"FR-001-AC-1\", \"FR-001-AC-2\", \"FR-001-AC-4\")]"
+        );
+
+        // `test-name-id` declares `id_format`, so it renders one id as before.
+        let by_name: Vec<&VerifiesRelation> = graph
+            .verifies
+            .iter()
+            .filter(|v| v.form == "test-name-id")
+            .collect();
+        assert_eq!(by_name.len(), 1);
+        assert_eq!(by_name[0].trace_id, "TC-806");
+    }
+
+    // TC-806 (FR-051-AC-16): irregular spacing and a trailing comma yield the
+    // ids only — never an empty id.
+    #[test]
+    fn tc806_legacy_list_tolerates_irregular_separators() {
+        let extraction = crate::symbols::extract_file(
+            "src/lib.rs",
+            SourceLanguage::Rust,
+            "// Trace: FR-002-AC-1,  FR-002-AC-2 ,\n#[test]\nfn checks_it() {\n    let _ = 1;\n}\n",
+        );
+        let graph = bind(&extraction, &iso_model());
+        let ids: Vec<&str> = graph.verifies.iter().map(|v| v.trace_id.as_str()).collect();
+        assert_eq!(ids, vec!["FR-002-AC-1", "FR-002-AC-2"]);
+        assert!(graph.verifies.iter().all(|v| !v.trace_id.is_empty()));
     }
 
     // TC-748 (FR-051-AC-8): `defined_in` links every symbol to its file and

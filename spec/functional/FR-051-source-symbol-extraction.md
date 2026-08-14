@@ -121,6 +121,41 @@ byte-identical JSON ordering and stable record ids.
 | FR-051-AC-13 | A declaration whose signature spans lines binds tags in its docstring: a `def` wrapped by a formatter has the same span as the unwrapped form. | Test (TC-800) |
 | FR-051-AC-14 | Comment, string and template state is derived once per file and read by every consumer — the balance check, brace depth, and block-end spans — rather than re-derived per consumer. | Test (TC-803) |
 | FR-051-AC-15 | The Rust adapter's lexer recognizes raw strings, lifetimes, character literals and nested block comments, so a brace inside any of them never moves the depth and never rejects the file. | Test (TC-804) |
+| FR-051-AC-16 | A legacy textual form mints one `verifies` relation per trace id its match carries, so a comma-separated list binds every id rather than only the first, and one authored line yields one rewrite suggestion naming all of them; a form declaring `id_format` renders a single id and is not split. | Test (TC-806) |
+
+> **CR-043 note (2026-08-14):** Canonical markers and legacy forms read their
+> ids by different rules. `marker_ids` comma-splits a marker's argument list, so
+> `#[trace("TC-001", "FR-007-AC-1")]` binds both ids; `legacy_id` returned
+> capture group 1 whole, so `// Trace: FR-001-AC-1, FR-001-AC-2` bound the first
+> and silently dropped the rest. Nothing was lost by a bug — the ids were never
+> *read*.
+>
+> **[RAN]** Across `~/dev`, worktrees and `-task<N>` copies excluded: **98
+> legacy comment lines carrying a list, 205 ids binding to nothing, 17 repos** —
+> spanning every declared legacy shape and all three languages. `quoin`'s 24
+> dropped ids were about a tenth of the ecosystem total, and all 15 of its status
+> lies had this one cause (agent-ix/quoin#65).
+>
+> **The engine alone could not fix it, contrary to the filing.**
+> agent-ix/quire-rs#68 stated that no module needs to re-declare anything.
+> Verified against real input, that is false: `Trace:\s*(ID)` matches once and
+> stops at the comma, so capture group 1 is *already* a single id and splitting
+> it moves nothing. Both halves are required — the declared patterns widen their
+> id group to a list, and the engine splits it where `marker_ids` already does.
+> AC-16 states the engine half; the module half lands in
+> `spec-artifacts-process`.
+>
+> **`id_format` is deliberately excluded.** `rust-test-name-id` renders `TC-{1}`
+> over a function name, which cannot carry a list. Splitting a rendered id would
+> be dead code with future risk, so the template path is unchanged.
+>
+> Fixing the grammar rather than splitting the comments is the point:
+> agent-ix/quoin#73 split quoin's 24 onto their own lines and that was the right
+> repo-local fix, but the form reads naturally and the corpus keeps writing it. A
+> grammar that silently means less than it says is the same failure shape as
+> CR-040 and the `describe(` binding.
+>
+> Closes agent-ix/quire-rs#68.
 
 > **CR-040 note (2026-08-13):** The Rust adapter carried the whole class of
 > defect CR-039 had just removed from the TypeScript one, and it was **live**.
