@@ -102,6 +102,35 @@ model; the engine knows nothing of "AC" or "TC" as concepts.
 | FR-050-AC-13 | A report over a corpus whose documents carry criteria contains a `criteria` entry per contributing document and the two new totals; a corpus whose documents carry none contains an empty `criteria` list and serializes byte-identically to a report from an engine that predates the field. | Test (TC-788) |
 | FR-050-AC-14 | A declared model that mints zero trace targets is reported distinctly from full coverage — never as `100%` — and `quire coverage --strict` exits non-zero on it. | Test (TC-797) |
 | FR-050-AC-15 | A trace target or document reference MAY declare `exclude:` path globs, and MAY declare `archetype` and `document` together; excluded documents mint no ids and contribute no reference rows, and a declaration naming both scans the archetype's corpus documents and the auxiliary file in one entry. | Test (TC-801, TC-802) |
+| FR-050-AC-16 | A module MAY declare which test-type values mint no source symbol; an unbacked row carrying one is reported as a no-symbol row rather than a status lie, stays listed as unbacked, and a module declaring none reports exactly as before. | Test (TC-805) |
+
+> **CR-041 note (2026-08-14):** A status lie is a row claiming evidence it does
+> not have. Some rows cannot have that evidence *by their own declared method*:
+> an agent-behaviour eval is verified by running an agent against a live
+> scenario, an inspection by a person reading code. Neither produces a symbol a
+> trace tag could attach to, so reporting them as lies asserts something the
+> declared method makes impossible.
+>
+> Measured in `quoin`, where it bites hardest: of 55 status lies, **40 are
+> agent-behaviour evals** whose answerable ids are an eval id and a user-story
+> id — neither of which any source symbol can ever back (agent-ix/quoin#65).
+> quire-rs's own matrix has exactly one such row, which is why the gap was
+> invisible from here.
+>
+> AC-16 adds `vocabularies.no_source_symbol` plus the `test_type_column` it is
+> read from. Which methods produce code stays **module-declared**: the engine
+> knowing that "Eval" or "Inspection" is special would be the hardcoded
+> semantics FR-050 exists to avoid. The exemption changes the **verdict and
+> never the facts** — an exempted row stays in `unbacked_rows` and the
+> backed/total counts are untouched; only the lie is withdrawn, and a
+> `no_symbol_rows` entry says which declared value withdrew it.
+>
+> `no_symbol_rows` is absent-by-default and skipped when empty, so a module
+> declaring no such vocabulary serializes byte-identically to one written before
+> the field existed (FR-050-AC-7). Declaring a value outside the `test_type`
+> vocabulary, or omitting `test_type_column`, fails module load — a typo there
+> would silently exempt nothing, which is the failure mode this whole programme
+> keeps finding.
 
 > **CR-038 note (2026-08-13):** A trace target had no way to say which paths it
 > covers, and `archetype` + `document` was rejected as an incoherent pair. Both

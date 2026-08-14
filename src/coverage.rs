@@ -69,6 +69,23 @@ pub struct StatusLie {
     pub target_ids: Vec<String>,
 }
 
+/// An unbacked row whose declared verification method mints no source symbol
+/// (FR-050-AC-16, CR-041) — an eval, an inspection, a demonstration.
+///
+/// Reported separately from a status lie, because a lie is a row claiming
+/// evidence it does not have, and this is a row whose own declared method makes
+/// a source tag impossible. Which methods those are is module-declared; the
+/// engine has no opinion about which verification produces code.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct NoSymbolRow {
+    pub reference: String,
+    pub document: String,
+    pub row_id: Option<String>,
+    /// The declared test-type value that exempts the row.
+    pub test_type: String,
+    pub target_ids: Vec<String>,
+}
+
 /// A source symbol whose trace tag resolves to no declared target and no
 /// declared reference row (FR-050-AC-5).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -144,6 +161,11 @@ pub struct CoverageTotals {
 pub struct CoverageReport {
     pub unbacked_rows: Vec<UnbackedRow>,
     pub status_lies: Vec<StatusLie>,
+    /// Unbacked rows exempted from `status_lies` by their declared method
+    /// (CR-041). Empty — and so absent from the JSON — for a module declaring
+    /// no `no_source_symbol` vocabulary, which keeps FR-050-AC-7 byte-identity.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub no_symbol_rows: Vec<NoSymbolRow>,
     pub untracked_symbols: Vec<UntrackedSymbol>,
     pub groups: Vec<GroupCounts>,
     /// Per-document property-shape counts (CR-028). Empty for a corpus whose
@@ -301,6 +323,7 @@ fn reconcile(
     // ── Reference rows: unbacked rows and status lies ──
     let mut unbacked_rows: Vec<UnbackedRow> = Vec::new();
     let mut status_lies: Vec<StatusLie> = Vec::new();
+    let mut no_symbol_rows: Vec<NoSymbolRow> = Vec::new();
     let mut referenced_ids: BTreeSet<String> = BTreeSet::new();
     let mut row_ids: BTreeSet<String> = BTreeSet::new();
 
@@ -366,6 +389,28 @@ fn reconcile(
                 row_id: row_id.clone(),
                 target_ids: answerable.clone(),
             });
+
+            // CR-041: a row verified by a method that mints no source symbol
+            // cannot carry a trace tag, so calling it a lie asserts something
+            // its own declared method makes impossible. It stays in
+            // `unbacked_rows` — that is a fact — and is explained here.
+            let exempting_type = model
+                .vocabularies
+                .test_type_column
+                .as_deref()
+                .and_then(|column| row.cell(column))
+                .filter(|value| model.vocabularies.mints_no_symbol(value));
+            if let Some(test_type) = exempting_type {
+                no_symbol_rows.push(NoSymbolRow {
+                    reference: declaration.name.clone(),
+                    document,
+                    row_id,
+                    test_type: test_type.to_string(),
+                    target_ids: answerable,
+                });
+                continue;
+            }
+
             // A status that classes `complete` over an unbacked row is a lie.
             if let Some(status) = &model.status {
                 if let Some(value) = row.cell(&status.column) {
@@ -425,6 +470,9 @@ fn reconcile(
     status_lies.sort_by(|a, b| {
         (&a.reference, &a.document, &a.row_id).cmp(&(&b.reference, &b.document, &b.row_id))
     });
+    no_symbol_rows.sort_by(|a, b| {
+        (&a.reference, &a.document, &a.row_id).cmp(&(&b.reference, &b.document, &b.row_id))
+    });
     untracked_symbols
         .sort_by(|a, b| (&a.path, &a.symbol, &a.trace_id).cmp(&(&b.path, &b.symbol, &b.trace_id)));
     untracked_symbols.dedup();
@@ -432,6 +480,7 @@ fn reconcile(
     CoverageReport {
         unbacked_rows,
         status_lies,
+        no_symbol_rows,
         untracked_symbols,
         groups,
         // CR-028: filled by `compute`, which holds the `Registry` this

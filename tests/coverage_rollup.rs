@@ -828,3 +828,90 @@ fn tc802_archetype_and_document_scan_together() {
         report.unbacked_rows
     );
 }
+
+/// A matrix whose rows carry a `Type` column, so a declaration can exempt the
+/// methods that mint no source symbol.
+fn typed_matrix_bundle(suffix: &str) -> Bundle {
+    let bundle = iso_bundle(suffix, &[], &["TC-001"]);
+    let mut matrix = String::from(
+        "# Test Matrix\n\n## Test Cases\n\n| ID | Type | Traces To | Status |\n\
+         |----|------|-----------|--------|\n",
+    );
+    for (tc, ty, traces, status) in [
+        // Backed by a real test: never a lie, exempt or not.
+        ("TC-001", "Unit", "FR-001-AC-1", "✅"),
+        // Unbacked, and its method could have produced a symbol → a lie.
+        ("TC-002", "Unit", "FR-001-AC-2", "✅"),
+        // Unbacked, but an agent-behaviour eval has no symbol to tag.
+        ("TC-003", "Eval", "FR-001-AC-2", "✅"),
+        // Same, by inspection.
+        ("TC-004", "Inspection", "FR-001-AC-2", "✅"),
+    ] {
+        matrix.push_str(&format!("| {tc} | {ty} | {traces} | {status} |\n"));
+    }
+    write(&bundle.scope, "tests.md", &matrix);
+    bundle
+}
+
+// TC-805 (FR-050-AC-16): a row whose declared `Type` names a method that mints
+// no source symbol is reported as a no-symbol row rather than a status lie —
+// and only when the module declares the vocabulary.
+#[test]
+fn tc805_no_source_symbol_rows_are_not_status_lies() {
+    let bundle = typed_matrix_bundle("805");
+
+    let report = report_for(&bundle, "no-symbol").expect("model declared");
+    let lies: Vec<&str> = report
+        .status_lies
+        .iter()
+        .filter_map(|l| l.row_id.as_deref())
+        .collect();
+    let exempt: Vec<&str> = report
+        .no_symbol_rows
+        .iter()
+        .filter_map(|r| r.row_id.as_deref())
+        .collect();
+
+    // The unbacked row whose method could have produced a symbol is still a lie.
+    assert_eq!(lies, ["TC-002"], "lies: {lies:?}");
+    // The two whose declared method cannot are explained instead.
+    assert_eq!(exempt, ["TC-003", "TC-004"], "exempt: {exempt:?}");
+    assert_eq!(report.no_symbol_rows[0].test_type, "Eval");
+    assert_eq!(report.no_symbol_rows[1].test_type, "Inspection");
+
+    // Exemption changes the verdict, never the facts: every unbacked row is
+    // still listed as unbacked, and the counts are untouched.
+    let unbacked: Vec<&str> = report
+        .unbacked_rows
+        .iter()
+        .filter_map(|r| r.row_id.as_deref())
+        .collect();
+    for id in ["TC-002", "TC-003", "TC-004"] {
+        assert!(unbacked.contains(&id), "unbacked: {unbacked:?}");
+    }
+    assert!(!unbacked.contains(&"TC-001"));
+}
+
+// TC-805 (FR-050-AC-16, FR-050-AC-7): a module declaring no `no_source_symbol`
+// vocabulary reports exactly as before — the same rows are lies, and the report
+// serializes without the new key.
+#[test]
+fn tc805_undeclared_vocabulary_changes_nothing() {
+    let bundle = typed_matrix_bundle("805-undeclared");
+    let report = report_for(&bundle, "iso").expect("model declared");
+
+    let lies: Vec<&str> = report
+        .status_lies
+        .iter()
+        .filter_map(|l| l.row_id.as_deref())
+        .collect();
+    assert!(
+        lies.contains(&"TC-003") && lies.contains(&"TC-004"),
+        "without the declaration the eval rows are ordinary lies: {lies:?}"
+    );
+    assert!(report.no_symbol_rows.is_empty());
+    assert!(
+        !report.to_json().contains("no_symbol_rows"),
+        "an undeclared vocabulary must leave the JSON byte-identical"
+    );
+}
