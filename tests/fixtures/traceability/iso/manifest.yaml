@@ -64,11 +64,14 @@ traceability:
       language: typescript
       pattern: '\btrace\(([^)]*)\)'
     legacy:
+    # The id group is a comma-separated list, not a single id: a legacy line
+    # reads naturally as `Trace: FR-1-AC-1, FR-1-AC-2` and every id it carries
+    # must bind (FR-051-AC-16). The engine splits capture group 1.
     - name: trace-line
-      pattern: 'Trace:\s*([A-Za-z]+-\d+(?:-[A-Za-z]+-\d+)?)'
+      pattern: 'Trace:\s*([A-Za-z]+-\d+(?:-[A-Za-z]+-\d+)?(?:\s*,\s*[A-Za-z]+-\d+(?:-[A-Za-z]+-\d+)?)*)'
       rewrite_to: rust-trace-attribute
     - name: comment-id
-      pattern: '(?://|#)\s*((?:TC|FR|NFR|StR|US|IT)-\d+(?:-[A-Za-z]+-\d+)?)'
+      pattern: '(?://|#)\s*((?:TC|FR|NFR|StR|US|IT)-\d+(?:-[A-Za-z]+-\d+)?(?:\s*,\s*(?:TC|FR|NFR|StR|US|IT)-\d+(?:-[A-Za-z]+-\d+)?)*)'
       rewrite_to: rust-trace-attribute
     - name: test-name-id
       language: rust
