@@ -18,7 +18,10 @@ use super::{leading_block, RawSymbol, SymbolKind};
 /// Parse `source` into raw symbols, or return a per-file reason to skip it.
 pub(crate) fn parse(path: &str, source: &str) -> Result<Vec<RawSymbol>, String> {
     let lines: Vec<&str> = source.lines().collect();
-    check_balanced(&lines)?;
+    // One lexer pass for the whole file (CR-039). Everything downstream reads
+    // it rather than re-deriving comment/string/template state.
+    let lexed = lex(&lines);
+    check_balanced(&lexed)?;
 
     let module = module_name(path);
     let mut out = vec![RawSymbol {
@@ -32,16 +35,15 @@ pub(crate) fn parse(path: &str, source: &str) -> Result<Vec<RawSymbol>, String> 
 
     let mut scopes: Vec<(String, i64)> = Vec::new();
     let mut depth: i64 = 0;
-    let mut state = ScanState::default();
 
-    for (idx, raw_line) in lines.iter().enumerate() {
-        let line = strip_comment(raw_line, &mut state);
-        let trimmed = line.trim();
+    for (idx, lexed_line) in lexed.iter().enumerate() {
+        let trimmed = lexed_line.code.trim();
 
         if let Some(title) = registration(trimmed) {
             push(
                 &mut out,
                 &lines,
+                &lexed,
                 idx,
                 title,
                 SymbolKind::TestFunction,
@@ -52,6 +54,7 @@ pub(crate) fn parse(path: &str, source: &str) -> Result<Vec<RawSymbol>, String> 
             push(
                 &mut out,
                 &lines,
+                &lexed,
                 idx,
                 qualified.clone(),
                 SymbolKind::Container,
@@ -64,6 +67,7 @@ pub(crate) fn parse(path: &str, source: &str) -> Result<Vec<RawSymbol>, String> 
             push(
                 &mut out,
                 &lines,
+                &lexed,
                 idx,
                 qualify(&scopes, &name),
                 SymbolKind::Function,
@@ -71,7 +75,7 @@ pub(crate) fn parse(path: &str, source: &str) -> Result<Vec<RawSymbol>, String> 
             );
         }
 
-        depth += brace_delta(&line);
+        depth += lexed_line.delta;
         while let Some((_, opened_at)) = scopes.last() {
             if depth <= *opened_at {
                 scopes.pop();
@@ -86,6 +90,7 @@ pub(crate) fn parse(path: &str, source: &str) -> Result<Vec<RawSymbol>, String> 
 fn push(
     out: &mut Vec<RawSymbol>,
     lines: &[&str],
+    lexed: &[LexedLine],
     idx: usize,
     qualified_name: String,
     kind: SymbolKind,
@@ -96,7 +101,7 @@ fn push(
         kind,
         line: idx + 1,
         leading_line: leading_block(lines, idx, is_annotation),
-        end_line: block_end(lines, idx),
+        end_line: block_end(lexed, idx),
         container,
     });
 }
@@ -188,46 +193,28 @@ fn module_name(path: &str) -> String {
     stem.to_string()
 }
 
-fn block_end(lines: &[&str], decl_idx: usize) -> usize {
+/// Where a declaration's block ends, read off the file-wide lex (CR-039).
+///
+/// It used to restart a `ScanState` at the declaration index, so a declaration
+/// following an unclosed block comment or template literal had its span
+/// computed as if the file began there. `lexed` already carries the state the
+/// declaration is actually in.
+fn block_end(lexed: &[LexedLine], decl_idx: usize) -> usize {
     let mut depth = 0i64;
     let mut seen_open = false;
-    let mut state = ScanState::default();
-    for (offset, raw) in lines[decl_idx..].iter().enumerate() {
-        let line = strip_comment(raw, &mut state);
-        if line.contains('{') {
+    for (offset, line) in lexed[decl_idx..].iter().enumerate() {
+        if line.code.contains('{') {
             seen_open = true;
         }
-        depth += brace_delta(&line);
+        depth += line.delta;
         if seen_open && depth <= 0 {
             return decl_idx + offset + 1;
         }
-        if !seen_open && line.trim_end().ends_with(';') {
+        if !seen_open && line.code.trim_end().ends_with(';') {
             return decl_idx + offset + 1;
         }
     }
-    lines.len().max(decl_idx + 1)
-}
-
-fn brace_delta(line: &str) -> i64 {
-    let mut delta = 0i64;
-    let mut quote: Option<char> = None;
-    let mut escaped = false;
-    for c in line.chars() {
-        if escaped {
-            escaped = false;
-            continue;
-        }
-        match (quote, c) {
-            (Some(_), '\\') => escaped = true,
-            (Some(q), ch) if ch == q => quote = None,
-            (Some(_), _) => {}
-            (None, '"') | (None, '\'') | (None, '`') => quote = Some(c),
-            (None, '{') => delta += 1,
-            (None, '}') => delta -= 1,
-            _ => {}
-        }
-    }
-    delta
+    lexed.len().max(decl_idx + 1)
 }
 
 /// Comment/literal state that must survive from one line to the next.
@@ -241,7 +228,30 @@ struct ScanState {
     in_template: bool,
 }
 
-/// Drop comments from one line, leaving string literals intact.
+/// One lexed line: the code with comments and carried literal content removed,
+/// and the brace delta counted **in the same pass** (CR-039).
+///
+/// The delta used to be recomputed by a second function that re-derived quote
+/// state from the stripped text. The two agreed, but only incidentally — three
+/// functions each deriving "am I in a string?" by slightly different rules is
+/// how CR-036 and CR-037 both happened. There is now one derivation.
+#[derive(Debug, Default, Clone)]
+struct LexedLine {
+    code: String,
+    delta: i64,
+}
+
+/// Lex the file once, carrying comment and template state line to line.
+fn lex(lines: &[&str]) -> Vec<LexedLine> {
+    let mut state = ScanState::default();
+    lines
+        .iter()
+        .map(|line| lex_line(line, &mut state))
+        .collect()
+}
+
+/// Drop comments from one line, leaving string literals intact, and count the
+/// braces that are actually code.
 ///
 /// String-aware by necessity (CR-036): a `/*` inside a literal is not a comment
 /// opener. A git refspec in a template literal —
@@ -254,19 +264,17 @@ struct ScanState {
 /// Template state is carried across lines for the same reason: the corpus form
 /// that triggered this writes the refspec on a *continuation* line, where a
 /// per-line scanner has already forgotten it is inside a literal.
-fn strip_comment(line: &str, state: &mut ScanState) -> String {
+fn lex_line(line: &str, state: &mut ScanState) -> LexedLine {
     let mut out = String::with_capacity(line.len());
+    let mut delta = 0i64;
     let chars: Vec<char> = line.chars().collect();
     // Only a template literal carries in; `'` and `"` cannot span a line.
     //
-    // A carried-in literal's content is **dropped** rather than copied, because
-    // [`brace_delta`] re-derives quote state per line and would otherwise count
-    // a bare `{` inside a multi-line literal as a block open. Dropping is safe
-    // here and only here: a continuation line is never a declaration, and a
-    // `${…}` interpolation is balanced, so removing it leaves the depth intact.
-    // A literal that opens and closes on one line is still copied, since a
-    // backtick-quoted `test(`title`, …)` title has to survive for
-    // [`registration`] to read it.
+    // A carried-in literal's content is **dropped** rather than copied: a
+    // continuation line is never a declaration, and a `${…}` interpolation is
+    // balanced, so removing it leaves the depth intact. A literal that opens
+    // and closes on one line is still copied, since a backtick-quoted
+    // `test(`title`, …)` title has to survive for [`registration`] to read it.
     let mut quote: Option<char> = None;
     let mut i = 0;
     if state.in_template {
@@ -286,7 +294,7 @@ fn strip_comment(line: &str, state: &mut ScanState) -> String {
         if !closed {
             // The whole line is literal content and the literal continues, so
             // the carried flag must survive the early return below.
-            return out;
+            return LexedLine { code: out, delta };
         }
         state.in_template = false;
     }
@@ -332,20 +340,26 @@ fn strip_comment(line: &str, state: &mut ScanState) -> String {
             i += 2;
             continue;
         }
+        // Only braces reached here are code: not in a comment, not in a
+        // literal, not in carried template content.
+        match chars[i] {
+            '{' => delta += 1,
+            '}' => delta -= 1,
+            _ => {}
+        }
         out.push(chars[i]);
         i += 1;
     }
     // A `'`/`"` left open at end of line is a malformed line, not a carried
     // literal — only a backtick continues.
     state.in_template = quote == Some('`');
-    out
+    LexedLine { code: out, delta }
 }
 
-fn check_balanced(lines: &[&str]) -> Result<(), String> {
+fn check_balanced(lexed: &[LexedLine]) -> Result<(), String> {
     let mut depth = 0i64;
-    let mut state = ScanState::default();
-    for line in lines {
-        depth += brace_delta(&strip_comment(line, &mut state));
+    for line in lexed {
+        depth += line.delta;
         if depth < 0 {
             return Err("unbalanced braces: a `}` closes no block".to_string());
         }
@@ -432,10 +446,10 @@ mod tests {
 
         // A real comment still strips: a `//` outside a literal hides its line.
         let mut state = ScanState::default();
-        assert_eq!(
-            strip_comment("const a = 1; // { unbalanced", &mut state),
-            "const a = 1; "
-        );
+        let lexed = lex_line("const a = 1; // { unbalanced", &mut state);
+        assert_eq!(lexed.code, "const a = 1; ");
+        // The `{` was inside the comment, so it is not a block open either.
+        assert_eq!(lexed.delta, 0);
         assert!(!state.in_block_comment);
     }
 
@@ -482,26 +496,79 @@ mod tests {
         // The literal opens and does not close on its own line, and closes on a
         // later one — the state has to say so at each boundary.
         let mut state = ScanState::default();
-        strip_comment("const cfg = `", &mut state);
+        lex_line("const cfg = `", &mut state);
         assert!(
             state.in_template,
             "an unclosed backtick carries into the next line"
         );
-        strip_comment("fetch = +refs/heads/*:refs/remotes/origin/*", &mut state);
+        lex_line("fetch = +refs/heads/*:refs/remotes/origin/*", &mut state);
         assert!(
             !state.in_block_comment,
             "`/*` inside the literal is content"
         );
         assert!(state.in_template);
-        strip_comment("`;", &mut state);
+        lex_line("`;", &mut state);
         assert!(!state.in_template, "the closing backtick ends it");
     }
 
+    /// TC-803 (FR-051-AC-14, CR-039): every consumer reads one lex, so the
+    /// three derivations that used to disagree cannot.
+    ///
+    /// The file carries all three constructs that defeated a per-line scanner:
+    /// a block comment holding an unbalanced brace, a multi-line template
+    /// holding another, and an unterminated quote followed by what looks like a
+    /// comment. Under the old shape each of `check_balanced`, `brace_delta` and
+    /// `block_end` derived string/comment state its own way; they agreed here,
+    /// but incidentally. The assertion is now the agreement itself: the deltas
+    /// the balance check sums are the same deltas the spans are cut from.
+    #[test]
+    fn tc803_one_lex_serves_every_consumer() {
+        let source = concat!(
+            "/* a comment holding a brace {\n",
+            "   and closing here */\n",
+            "const cfg = `\n",
+            "a { bare brace in a literal\n",
+            "`;\n",
+            "const re = /['\"]/; // a comment after an unterminated quote {\n",
+            "test(\"holds\", () => {\n",
+            "  expect(1).toBe(1);\n",
+            "});\n",
+        );
+        let lines: Vec<&str> = source.lines().collect();
+        let lexed = lex(&lines);
+
+        // None of the three decoy braces is code, so the file balances on the
+        // one real block alone.
+        check_balanced(&lexed).expect("the file balances");
+        assert_eq!(lexed.iter().map(|l| l.delta).sum::<i64>(), 0);
+        assert_eq!(
+            lexed[0].delta, 0,
+            "a brace inside a block comment is not a block open"
+        );
+        assert_eq!(
+            lexed[3].delta, 0,
+            "a brace inside a carried template literal is not a block open"
+        );
+        assert_eq!(
+            lexed[5].delta, 0,
+            "a brace after an unterminated quote is not a block open"
+        );
+
+        // And the span cut from those same deltas is the declaration's own.
+        let symbols = parse("a.test.ts", source).expect("a valid file must parse");
+        let test_symbol = symbols
+            .iter()
+            .find(|s| s.qualified_name.ends_with("holds"))
+            .expect("the registration is a test symbol");
+        assert_eq!(test_symbol.line, 7);
+        assert_eq!(test_symbol.end_line, 9);
+    }
+
     /// A bare `{` inside a multi-line template literal must not count as a
-    /// block open. `brace_delta` re-derives quote state per line, so the
-    /// carried-in content is dropped rather than copied — otherwise the literal
-    /// unbalances the file and `check_balanced` rejects it, which is the same
-    /// zero-symbol outcome by a different route.
+    /// block open: the carried-in content is dropped rather than copied, and
+    /// since CR-039 the delta is counted in the same pass that drops it.
+    /// Otherwise the literal unbalances the file and `check_balanced` rejects
+    /// it, which is the same zero-symbol outcome by a different route.
     #[test]
     fn tc799_braces_inside_a_multiline_literal_do_not_unbalance() {
         let source = concat!(
@@ -521,7 +588,9 @@ mod tests {
         // And a single-line backtick title still survives stripping, or the
         // registration regex has nothing to read.
         let mut state = ScanState::default();
-        assert!(strip_comment("test(`a title`, () => {", &mut state).contains("a title"));
+        let lexed = lex_line("test(`a title`, () => {", &mut state);
+        assert!(lexed.code.contains("a title"));
+        assert_eq!(lexed.delta, 1, "the trailing brace is code");
         assert!(!state.in_template);
     }
 }
