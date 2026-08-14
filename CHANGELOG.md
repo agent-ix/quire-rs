@@ -5,6 +5,60 @@ All notable changes to `quire-rs` are documented here. Format follows
 numbers follow semver — pre-1.0, breaking changes may land in minor
 bumps; once 1.0 ships, semver is strict.
 
+## [0.20.0] — 2026-08-14
+
+Phase D groundwork: the symbol adapters stop losing whole files, and the
+traceability model learns two things it could not express.
+
+### Added
+
+- **FR-050-AC-15 (CR-038)** — declared **path scoping**. A trace target or
+  document reference may carry `exclude:` globs, and may declare `archetype`
+  and `document` together. Scanning `spec-artifacts-process` by archetype had
+  been minting 67 test-case ids from deliberately malformed fixtures and reading
+  50 of them as *backed*, because a fixture reusing `TC-017` collides with the
+  real one.
+- **FR-050-AC-16 (CR-041)** — module-declared `no_source_symbol` verification
+  methods. A row verified by an agent-behaviour eval or by inspection cannot
+  carry a trace tag, so reporting it as a status lie asserts something its own
+  declared method makes impossible. The exemption changes the verdict and never
+  the facts: the row stays in `unbacked_rows` and the counts are untouched.
+- **FR-051-AC-14 (CR-039)** — one lexer pass per file in the TypeScript adapter,
+  replacing three functions that each re-derived comment/string/template state.
+- **FR-051-AC-15 (CR-040)** — the same for Rust, taught raw strings (`r#"…"#`),
+  lifetimes (`&'a str`), character literals and **nesting** block comments.
+- **FR-019, FR-020, FR-022 (CR-042)** — the v0.2 block model is authored as
+  requirements for the first time. It shipped without documents, which is how
+  10 matrix rows kept claiming `apply_block_patch`, an API the render removal
+  deleted.
+
+### Fixed
+
+- 33 of this crate's own source files — every one holding a `r#"…"#` JSON
+  fixture — were rejected as `unbalanced braces` and yielded **zero** symbols,
+  so every trace tag in them bound to nothing. Skipped files: 33 → 1.
+- `flatten_into_registry` merged `vocabularies` field by field, silently
+  dropping any key added after `test_type`.
+
+### Removed
+
+- **FR-021** (block edit API) is retired. Its whole surface was render-dependent;
+  US-006/US-007's acceptance criteria had already been retired for that reason.
+
+### Measured
+
+On this crate's own matrix, with no row edited to get there:
+
+```
+status lies   140 → 7
+backed rows   144/907 → 358/926
+```
+
+The 7 remaining are untaggable rather than overclaiming — four verified in other
+repos, a criterion bench, a fuzz target, and one asserting an absence.
+
+Matrix at 488/488. TC-801..TC-805 added.
+
 ## [0.18.0] — 2026-08-08
 
 Phase B of the acceptance-criteria property-testing program (#17, #20).
