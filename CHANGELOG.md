@@ -5,6 +5,33 @@ All notable changes to `quire-rs` are documented here. Format follows
 numbers follow semver — pre-1.0, breaking changes may land in minor
 bumps; once 1.0 ships, semver is strict.
 
+## [0.21.0] — 2026-08-14
+
+A legacy trace comment carrying a list binds every id it carries.
+
+### Added
+
+- **FR-051-AC-16 (CR-043)** — a legacy textual form mints one `verifies`
+  relation per trace id its match carries. `marker_ids` already comma-split a
+  canonical marker's argument list, so `#[trace("TC-001", "FR-007-AC-1")]` bound
+  both ids; `legacy_id` returned capture group 1 whole, so
+  `// Trace: FR-001-AC-1, FR-001-AC-2` bound the first and silently dropped the
+  rest. **[RAN]** 98 such lines across `~/dev`, worktrees and `-task<N>` copies
+  excluded: **205 ids binding to nothing across 17 repos**, spanning every
+  declared legacy shape and all three languages.
+
+  A form declaring `id_format` is unchanged — `TC-{1}` renders over a function
+  name, which cannot carry a list. One match is one authored line, so a listed
+  match yields one rewrite suggestion naming all its ids rather than N
+  conflicting single-id rewrites.
+
+  **The engine half alone converts nothing.** `Trace:\s*(ID)` matches once and
+  stops at the comma, so capture group 1 is already a single id. The declared
+  patterns must widen their id group to a list — that half lands in
+  `spec-artifacts-process` and is what turns the 205 into coverage.
+
+  Closes agent-ix/quire-rs#68.
+
 ## [0.20.0] — 2026-08-14
 
 Phase D groundwork: the symbol adapters stop losing whole files, and the
