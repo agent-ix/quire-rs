@@ -45,6 +45,10 @@ jsonschema = { version = "~0.18", default-features = false }
 # `ignore` = ripgrep's gitignore-aware walker; `rayon` = data-parallel parse fan-out.
 ignore = "^0.4"
 rayon = "^1"
+# Module-declared path scoping for the traceability model (FR-050-AC-15).
+# Already in the tree via `ignore`, so this promotes a transitive crate to a
+# direct dependency rather than adding one.
+globset = "^0.4"
 # Document identity (CR-002): `uuid` parses the durable frontmatter `uuid`;
 # the `v7` feature is used when creating a new artifact (time-ordered id).
 uuid = { version = "^1", features = ["v7", "serde"] }

@@ -113,25 +113,27 @@ pub(crate) fn validate_trace_references(
 /// The ids a declared target mints: from bundle documents of the declared
 /// archetype, or from a declared auxiliary document harvested off-corpus.
 fn minted_ids(spec: &Spec, root: &Path, target: &TraceTarget) -> BTreeSet<String> {
+    let scope = declared_tables::DeclaredScope {
+        archetype: target.archetype.as_deref(),
+        document: target.document.as_deref(),
+        exclude: &target.exclude,
+    };
     let mut ids: BTreeSet<String> = BTreeSet::new();
     if let Some(archetype) = &target.archetype {
         // A document of the target archetype mints its own id, too — an
-        // authored `TC-900.md` is as much a target as a matrix row.
+        // authored `TC-900.md` is as much a target as a matrix row. An excluded
+        // document mints neither (CR-038): a fixture is test data whether its
+        // ids come from its frontmatter or from its rows.
         for doc in &spec.inner.documents {
             if crate::query::concept_type(&doc.doc) == Some(archetype.as_str())
                 && !doc.id.is_empty()
+                && !scope.excludes(root, &doc.path)
             {
                 ids.insert(doc.id.clone());
             }
         }
     }
-    for row in declared_tables::scan(
-        spec,
-        root,
-        target.archetype.as_deref(),
-        target.document.as_deref(),
-        &target.section,
-    ) {
+    for row in declared_tables::scan(spec, root, scope, &target.section) {
         if let Some(id) = row.cell(&target.id_column) {
             ids.insert(id.to_string());
         }
@@ -148,8 +150,11 @@ fn referencing_rows(
     declared_tables::scan(
         spec,
         root,
-        declaration.archetype.as_deref(),
-        declaration.document.as_deref(),
+        declared_tables::DeclaredScope {
+            archetype: declaration.archetype.as_deref(),
+            document: declaration.document.as_deref(),
+            exclude: &declaration.exclude,
+        },
         &declaration.section,
     )
     .into_iter()
