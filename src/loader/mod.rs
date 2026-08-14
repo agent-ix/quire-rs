@@ -935,6 +935,21 @@ fn merge_traceability(modules: &[LoadedModule]) -> crate::traceability::Traceabi
                 .test_type
                 .clone_from(&m.vocabularies.test_type);
         }
+        // CR-041: the exemption vocabulary and the column it reads merge the
+        // same way. They are separate keys, so a module may declare the
+        // vocabulary while another supplies the test types it draws from.
+        if merged.vocabularies.test_type_column.is_none() {
+            merged
+                .vocabularies
+                .test_type_column
+                .clone_from(&m.vocabularies.test_type_column);
+        }
+        if merged.vocabularies.no_source_symbol.is_empty() {
+            merged
+                .vocabularies
+                .no_source_symbol
+                .clone_from(&m.vocabularies.no_source_symbol);
+        }
     }
     merged
 }

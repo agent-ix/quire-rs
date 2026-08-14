@@ -1,0 +1,42 @@
+# A model declaring which verification methods mint no source symbol
+# (FR-050-AC-16 / CR-041 fixture). Same shape as `iso`, plus the vocabulary.
+name: traceability-no-symbol
+version: 0.1.0
+description: no_source_symbol vocabulary fixture
+artifact_types:
+- name: FR
+  grammar_ref: iso-spec-core
+  defaults:
+    id_pattern: FR-{next:03d}
+traceability:
+  trace_targets:
+  - name: acceptance-criterion
+    archetype: FR
+    section: Acceptance Criteria
+    id_column: ID
+  - name: test-case
+    document: tests.md
+    section: Test Cases
+    id_column: ID
+  document_references:
+  - name: traces-to
+    document: tests.md
+    section: Test Cases
+    column: Traces To
+    row_id_column: ID
+    pattern: '((?:StR|US|FR|NFR)-\d+(?:-(?:AC|CON)-\d+)?)'
+    targets: [acceptance-criterion]
+  status:
+    column: Status
+    complete: ["✅"]
+    pending: ["🚧"]
+    failed: ["❌"]
+  vocabularies:
+    test_type: [Unit, E2E, Eval, Inspection]
+    test_type_column: Type
+    no_source_symbol: [Eval, Inspection]
+  trace_tags:
+    markers:
+    - name: rust-trace-attribute
+      language: rust
+      pattern: '#\[trace\(([^)]*)\)\]'

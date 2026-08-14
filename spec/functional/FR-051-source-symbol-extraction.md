@@ -119,6 +119,57 @@ byte-identical JSON ordering and stable record ids.
 | FR-051-AC-11 | The legacy textual forms (docstring bare id, `Trace:` line, line-comment id, trace-embedding test name) still bind during migration, carry `legacy` provenance on the minted relation, and yield a mechanical marker-rewrite suggestion where derivable. | Test (TC-753) |
 | FR-051-AC-12 | Comment recognition is string-aware, and template-literal state carries across lines: a `//` or `/*` inside a string or template literal is content, not a comment opener, whether it sits on the literal's opening line or a continuation line. | Test (TC-798, TC-799) |
 | FR-051-AC-13 | A declaration whose signature spans lines binds tags in its docstring: a `def` wrapped by a formatter has the same span as the unwrapped form. | Test (TC-800) |
+| FR-051-AC-14 | Comment, string and template state is derived once per file and read by every consumer — the balance check, brace depth, and block-end spans — rather than re-derived per consumer. | Test (TC-803) |
+| FR-051-AC-15 | The Rust adapter's lexer recognizes raw strings, lifetimes, character literals and nested block comments, so a brace inside any of them never moves the depth and never rejects the file. | Test (TC-804) |
+
+> **CR-040 note (2026-08-13):** The Rust adapter carried the whole class of
+> defect CR-039 had just removed from the TypeScript one, and it was **live**.
+> `brace_delta` modelled a string as "text between unescaped quotes" and a char
+> literal as "text between apostrophes". Rust breaks both: `r#"…"#` is a raw
+> string where `\` escapes nothing and `"` is content, `&'a str` is a lifetime
+> and not an open quote, and block comments **nest**.
+>
+> **[RAN]** 33 of this repo's own source files — every one holding a `r#"…"#`
+> JSON fixture — were rejected as `unbalanced braces` and yielded **zero**
+> symbols, so every trace tag in them bound to nothing. Measured against the
+> repo's own matrix, that alone accounted for **78 of the 140 reported status
+> lies** (agent-ix/quire-rs#60): backed rows went 144/907 → 306/907 and lies
+> 140 → 62 with no matrix edit at all. The matrix was not overclaiming; the
+> adapter could not see the tests.
+>
+> AC-15 gives the Rust adapter the same single-pass lexer AC-14 gives the
+> TypeScript one, taught the four Rust-specific forms. A lifetime is
+> distinguished from a character literal by a closing quote in one of the only
+> two positions a literal can put one — decidable without parsing, because a
+> lifetime is never followed by a quote that soon.
+>
+> Recorded as a measurement, not a triage: the remaining 62 lies are what
+> agent-ix/quire-rs#60 is actually about.
+
+> **CR-039 note (2026-08-13):** CR-036 and CR-037 each fixed one place where a
+> line-structural adapter met a multi-line construct and silently produced
+> **zero** symbols for the whole file. Both were found by measurement rather
+> than by reading, because the failure is invisible from the source: the file
+> parses, its tests pass, its trace tags are present and greppable, and every
+> one of them binds to nothing.
+>
+> The cause was structural, not local. Three functions each derived "am I inside
+> a comment, a string, a template?" by slightly different rules —
+> `check_balanced` and the declaration scan carried state across lines,
+> `brace_delta` re-derived quote state per line, and `block_end` restarted from
+> `ScanState::default()` at the declaration index. AC-14 collapses them into one
+> lexer pass per file whose per-line output — code text plus brace delta — every
+> consumer reads. Agreement between them is now structural instead of
+> incidental.
+>
+> **Measured while doing it:** the `block_end` restart is **not reachable**
+> through `parse`. Every declaration matcher is `^`-anchored, so a line whose
+> code begins mid-construct never presents a declaration to match, and the
+> restart therefore always began in the state the carried lex would have given
+> it. The refactor removes the hazard rather than a live defect — recorded so
+> the next reader does not go looking for the failing corpus case.
+>
+> Closes agent-ix/quire-rs#62.
 
 > **CR-037 note (2026-08-13):** Found by running `gap-analysis` over
 > `spec-artifacts-process` with the new coverage path — two tests differing only

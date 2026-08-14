@@ -184,6 +184,7 @@ mod tests {
     // ─── update_section ─────────────────────────────────────────────
 
     // Port of TS writeback.test.ts FR-014-AC-1: target section replaced.
+    // TC-430 (FR-022-AC-1): the content range is what changes.
     #[test]
     fn update_section_replaces_target_content() {
         let md = "## Purpose\nold purpose\n## Scope\nthe scope\n";
@@ -193,6 +194,7 @@ mod tests {
     }
 
     // FR-014-AC-2: other sections byte-identical.
+    // TC-430 (FR-022-AC-1): and nothing else does.
     #[test]
     fn update_section_preserves_other_sections_byte_identical() {
         let md = "## Purpose\nold\n## Scope\nthe scope   \n  with  spaces\n";
@@ -203,6 +205,7 @@ mod tests {
     }
 
     // FR-014-AC-3: frontmatter preserved.
+    // TC-433 (FR-022-AC-4): frontmatter is byte-identical through the edit.
     #[test]
     fn update_section_preserves_frontmatter_byte_identical() {
         let md = "---\nid: FR-001\ntitle: x\n---\n## Behavior\nold\n## Acceptance\n- AC-1\n";
@@ -213,6 +216,7 @@ mod tests {
         assert!(out.contains("## Acceptance\n- AC-1\n"));
     }
 
+    // TC-434 (FR-022-AC-5): an unknown heading errors and changes nothing.
     #[test]
     fn update_section_unknown_heading_returns_missing_field() {
         let md = "## A\nbody\n";
@@ -231,6 +235,7 @@ mod tests {
 
     // ─── update_block (block_id addressing) ──────────────────────────
 
+    // TC-431 (FR-022-AC-2): a block edit replaces heading and content together.
     #[test]
     fn update_block_replaces_heading_and_content() {
         let md =
@@ -244,6 +249,7 @@ mod tests {
         );
     }
 
+    // TC-432 (FR-022-AC-3): untouched blocks keep their exact bytes.
     #[test]
     fn update_block_other_blocks_byte_identical() {
         let md =
@@ -254,6 +260,7 @@ mod tests {
         assert!(out.contains("## Acceptance {#blk-b}\n- AC-1\n  - nested  \n"));
     }
 
+    // TC-410 (FR-020-AC-1): lookup walks the nested section tree.
     #[test]
     fn update_block_finds_nested_block_id() {
         let md = "## Parent\nparent body\n### Inner {#blk-deep}\ninner old\n## Other\nother\n";
@@ -264,6 +271,7 @@ mod tests {
         assert!(out.contains("## Other\nother\n"));
     }
 
+    // TC-435 (FR-022-AC-5): an unknown block id errors and changes nothing.
     #[test]
     fn update_block_unknown_id_returns_missing_field() {
         let md = "## A {#blk-x}\nbody\n";
@@ -275,6 +283,7 @@ mod tests {
     // Stable round-trip property: update_block followed by
     // parse_document of the result gives back a doc whose block_id is
     // preserved.
+    // TC-443 (FR-019-AC-3): the id survives the write-back it addressed.
     #[test]
     fn update_block_preserves_block_id_through_roundtrip() {
         let md = "## Behavior {#blk-7af2}\nold\n## Acceptance {#blk-9c14}\n- AC\n";

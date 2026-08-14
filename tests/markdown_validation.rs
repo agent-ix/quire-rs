@@ -242,6 +242,8 @@ The requirement classes that make up this specification and how they trace.\n\
 - ISO/IEC/IEEE 29148 — Requirements engineering.\n";
 
 // FR-003-AC-3: a conformant master spec validates.
+// TC-581 (FR-011-AC-20): a numbered master spec validates — the `from: heading`
+// locator normalizes the ISO section-number prefix, so `## 2. Scope` matches.
 #[test]
 fn conformant_master_requirements_validates() {
     let r = iso_registry();

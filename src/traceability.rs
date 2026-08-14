@@ -76,6 +76,31 @@ pub struct ColumnVocabularies {
     /// both, exactly as `observable_verbs` layers over engine defaults.
     #[serde(default)]
     pub test_type: Vec<String>,
+    /// Column carrying the test type on a reference row (CR-041). Needed only
+    /// when `no_source_symbol` is declared — that is the one rule that reads a
+    /// row's type rather than its status.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub test_type_column: Option<String>,
+    /// Test-type values whose verification method mints **no source symbol**
+    /// (CR-041): an agent-behaviour eval, an inspection, a demonstration. A row
+    /// verified this way can never carry a trace tag, so reporting it as a
+    /// status lie asserts something its own declared method makes impossible.
+    ///
+    /// Module-declared, like every other vocabulary here: the engine has no
+    /// opinion about which methods produce code.
+    #[serde(default)]
+    pub no_source_symbol: Vec<String>,
+}
+
+impl ColumnVocabularies {
+    /// True when `value` names a declared method that mints no source symbol.
+    /// Compared case-insensitively, as the column vocabularies are elsewhere.
+    pub fn mints_no_symbol(&self, value: &str) -> bool {
+        let v = value.trim();
+        self.no_source_symbol
+            .iter()
+            .any(|declared| declared.trim().eq_ignore_ascii_case(v))
+    }
 }
 
 /// One kind of trace id and where it is minted: from an archetype the corpus
@@ -375,6 +400,30 @@ impl TraceabilityModel {
                 if !seen.insert(value.as_str()) {
                     return Err(format!(
                         "traceability: status value '{value}' is declared in more than one class"
+                    ));
+                }
+            }
+        }
+
+        // CR-041: the exemption reads a column, so the column must be named,
+        // and a value outside the declared vocabulary is a typo that would
+        // silently exempt nothing.
+        if !self.vocabularies.no_source_symbol.is_empty() {
+            if self.vocabularies.test_type_column.is_none() {
+                return Err("traceability: vocabularies.no_source_symbol needs \
+                            vocabularies.test_type_column to say which column carries the value"
+                    .to_string());
+            }
+            for value in &self.vocabularies.no_source_symbol {
+                if !self
+                    .vocabularies
+                    .test_type
+                    .iter()
+                    .any(|t| t.trim().eq_ignore_ascii_case(value.trim()))
+                {
+                    return Err(format!(
+                        "traceability: vocabularies.no_source_symbol value '{value}' is not in \
+                         the declared test_type vocabulary"
                     ));
                 }
             }
