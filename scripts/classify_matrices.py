@@ -46,6 +46,10 @@ SKIP_DIR_PARTS = {
 }
 TASK_COPY = re.compile(r"-task\d+$")
 
+# Superseded repos stay on disk but are excluded from every sweep; counting
+# filament-ide alongside filament-ide-rs is the same repo counted twice.
+SUPERSEDED = {"filament-ide"}
+
 FRONTMATTER = re.compile(r"\A---\r?\n(.*?)\r?\n---\r?\n", re.DOTALL)
 TYPE_LINE = re.compile(r"^type:\s*(.*?)\s*$", re.MULTILINE)
 # A matrix with no `## Test Case Summary` mints zero `test-case` targets however
@@ -94,7 +98,7 @@ def repos(root: pathlib.Path) -> list[pathlib.Path]:
     for child in sorted(root.iterdir()):
         if not child.is_dir() or child.name.startswith("."):
             continue
-        if TASK_COPY.search(child.name):
+        if TASK_COPY.search(child.name) or child.name in SUPERSEDED:
             continue
         if (child / "spec").is_dir():
             out.append(child)
@@ -113,11 +117,11 @@ def main() -> int:
     rows = []
 
     for repo in repos(root):
-        typed = set()
+        typed = {}
         for path in walk_markdown(repo):
             info = classify(path)
             if info.get("registered"):
-                typed.add(path.relative_to(repo).as_posix())
+                typed[path.relative_to(repo).as_posix()] = info
 
         declared = {}
         for rel in DECLARED_PATHS:
@@ -134,16 +138,13 @@ def main() -> int:
                     **info,
                 }
             )
-        for rel in sorted(typed - set(declared)):
+        for rel in sorted(set(typed) - set(declared)):
             rows.append(
                 {
                     "repo": repo.name,
                     "path": rel,
                     "reach": "archetype-only",
-                    "readable": True,
-                    "frontmatter": True,
-                    "type": REGISTERED,
-                    "registered": True,
+                    **typed[rel],
                 }
             )
 
@@ -178,6 +179,15 @@ def main() -> int:
     print(f"matrices only archetype reaches   : {len(gain)}  [GAIN]", file=sys.stderr)
     print(f"  ...outside any test tree        : {len(real_gain)} across "
           f"{len({r['repo'] for r in real_gain})} repos", file=sys.stderr)
+    # The same notional/real split the loss gets: a gained matrix with no
+    # `## Test Case Summary` mints nothing, so it is not a coverage gain yet —
+    # it is the matrix-layout defect surface (quoin#63) wearing a new reach.
+    costly_gain = [r for r in real_gain if r.get("mints_rows")]
+    print(f"  ...of those, minting rows today : {len(costly_gain)} across "
+          f"{len({r['repo'] for r in costly_gain})} repos  [REAL GAIN]",
+          file=sys.stderr)
+    for r in sorted(costly_gain, key=lambda r: (r["repo"], r["path"])):
+        print(f"      {r['repo']:28s} {r['path']}", file=sys.stderr)
     return 0
 
 
