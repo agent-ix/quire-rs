@@ -374,8 +374,10 @@ fn tc788_criteria_counts_and_totals() {
     );
     let report = report_for(&bundle, "iso").expect("model declared");
 
-    // One entry per minting document. `tests.md` is not a corpus document and
-    // binds no criteria, so `FR-001.md` is the only contributor.
+    // One entry per minting document. These fixture matrices carry no
+    // frontmatter, so under CR-044 membership they are not documents and bind
+    // no criteria — `FR-001.md` is the only contributor. (When #74 removes the
+    // `document:` origin they gain `type: TestMatrix` and this inverts.)
     assert_eq!(
         report
             .criteria
@@ -706,7 +708,9 @@ fn tc759_declared_column_vocabulary() {
 }
 
 /// A bundle in the shape the CR-038 scoping exists for: a canonical
-/// `spec/tests.md` the corpus walk skips, a second in-corpus matrix, and a
+/// `spec/tests.md` reached by `document:` binding rather than by the walk —
+/// it carries no frontmatter, so CR-044 membership excludes it — a second
+/// in-corpus matrix, and a
 /// **fixture** matrix under `fixtures/` whose rows are test data — including one
 /// reusing a real id, which is what turns a fixture into a phantom backed row.
 fn scoped_bundle(suffix: &str) -> Bundle {

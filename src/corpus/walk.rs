@@ -197,6 +197,19 @@ pub(crate) fn discover_files(root: &Path, opts: &WalkOptions) -> Vec<PathBuf> {
     files
 }
 
+/// The corpus-membership rule, in one place (CR-044): a markdown file is a
+/// document iff it carries a frontmatter block.
+///
+/// Shared with [`glossary_terms_from_path`](crate::glossary_terms_from_path),
+/// which scans raw text rather than building a `Spec` but must agree on what
+/// counts as a document — otherwise a `README.md` could define a repository's
+/// ubiquitous language while not being part of its corpus.
+pub(crate) fn is_document(text: &str) -> bool {
+    crate::parser::extract_frontmatter(text)
+        .frontmatter
+        .is_some()
+}
+
 fn has_allowed_extension(path: &Path, extensions: &[String]) -> bool {
     match path.extension().and_then(|e| e.to_str()) {
         Some(ext) => extensions.iter().any(|allowed| allowed == ext),
@@ -229,7 +242,7 @@ fn parse_one(path: &Path) -> Outcome {
     // document missing `type` (which is precisely why `README.md` had to be
     // skipped by name before). Frontmatter present but naming an unregistered
     // type keeps today's behavior — error under `Strict`, warning under `Okf`.
-    if doc.frontmatter.is_none() {
+    if !is_document(&text) {
         return Outcome::NotADocument {
             path: path.to_path_buf(),
         };
@@ -407,51 +420,43 @@ mod tests {
     // motivated the change — it is the canonical filename for `TestMatrix`,
     // a fully registered archetype, and the old skip list made the engine
     // unable to load the canonical instance of a type its own module declares.
+    // TC-807, FR-024-AC-10
     #[test]
     fn tc807_membership_is_type_driven_not_filename_driven() {
         let root = tmpdir("membership");
-        write(&root, "functional/FR-023.md", FR_023);
         write(&root, "tests.md", TM_001);
-        write(&root, "README.md", "# readme\n\nno frontmatter here.\n");
-        write(&root, "CHANGELOG.md", "# changelog\n");
+        // Untyped: frontmatter present, no `type:` key. Still a document —
+        // only a *missing frontmatter block* excludes a file, and which types
+        // are acceptable is validation's question, not the walk's. In a
+        // sibling directory because one directory cannot hold two `tests.md`.
+        write(&root, "module/tests.md", "---\nid: TM-002\n---\n# matrix\n");
         write(
             &root,
             "notes.md",
             "---\nid: N-1\ntype: Nonsense\n---\n# note\n",
         );
+        write(&root, "README.md", "# readme\n\nno frontmatter here.\n");
+        write(&root, "CHANGELOG.md", "# changelog\n");
 
         let load = load_repo(&root);
 
-        // A typed `tests.md` is a document; a frontmatter-less file of any
-        // name is not; an unregistered type is still a document here, and is
-        // triaged downstream by validation, not by the walk.
+        // Exactly three documents, and no filename decided any of it: a typed
+        // `tests.md` is in, an untyped `tests.md` is in, and an unregistered
+        // type is in (triaged downstream by validation, not here).
         let ids: Vec<&str> = load.documents.iter().map(|d| d.id.as_str()).collect();
-        assert_eq!(ids, vec!["FR-023", "N-1", "TM-001"]);
+        assert_eq!(ids, vec!["TM-002", "N-1", "TM-001"]);
 
         // The two frontmatter-less files are dropped **silently** — an
         // ordinary markdown file in a tree is not an error.
-        for path in ["README.md", "CHANGELOG.md"] {
+        for name in ["README.md", "CHANGELOG.md"] {
             assert!(
                 !load
                     .diagnostics
                     .iter()
-                    .any(|d| format!("{d:?}").contains(path)),
-                "{path} produced a diagnostic; it should be silent"
+                    .any(|d| format!("{d:?}").contains(name)),
+                "{name} produced a diagnostic; it should be silent"
             );
         }
-    }
-
-    // An untyped `tests.md` — frontmatter present, no `type:` key — is still a
-    // corpus document; only a *missing frontmatter block* excludes a file.
-    // Which types are acceptable is validation's question, not the walk's.
-    #[test]
-    fn frontmatter_without_type_is_still_a_document() {
-        let root = tmpdir("untyped");
-        write(&root, "tests.md", "---\nid: TM-002\n---\n# matrix\n");
-
-        let load = load_repo(&root);
-        assert_eq!(load.documents.len(), 1);
-        assert_eq!(load.documents[0].id, "TM-002");
     }
 
     // TC-475 / FR-024-AC-6: id + uuid read from frontmatter; missing uuid -> diagnostic.

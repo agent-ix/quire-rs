@@ -82,7 +82,8 @@ impl RepoLoad {
 | FR-024-AC-7 | A `root` that points to a regular file or a nonexistent path returns an empty `RepoLoad` with one warning diagnostic (no error, no panic). | Test |
 | FR-024-AC-8 | A criterion bench measures `load_repo` over a 1,000-document corpus on 1 and 8 threads and records the speedup (feeds [NFR-015](../non-functional/NFR-015-repo-walk-throughput.md)). | Test |
 | FR-024-AC-9 | A static audit (`rg` for `Mutex`/`RwLock`/`Atomic*` in first-party `src/`) confirms the parallel parse uses no hand-written shared-mutable synchronization; the implementation collects owned results rather than mutating a shared buffer (the invariant underpinning [NFR-017](../non-functional/NFR-017-concurrency-permutation.md) and the loom/shuttle skip). | Inspection |
-| FR-024-AC-10 | A bundle containing a typed `tests.md`, an untyped `tests.md` (frontmatter, no `type` key), a frontmatter-less `README.md` and a `notes.md` declaring an unregistered type loads exactly three documents: both `tests.md` files and `notes.md`. `README.md` is absent **and produces no diagnostic**. No filename participates in the walk's decision. | Test (TC-807) |
+| FR-024-AC-10 | A tree containing a typed `tests.md`, an untyped `tests.md` in a sibling directory (frontmatter, no `type` key), a `notes.md` declaring an unregistered type, and frontmatter-less `README.md` and `CHANGELOG.md` files loads exactly the first three; the two frontmatter-less files are absent from `documents` **and produce no diagnostic**. No filename participates in the decision. | Test (TC-807) |
+| FR-024-AC-11 | `glossary_terms_from_path` applies the same membership rule as the walk: a frontmatter-less file carrying a `## Terms` or `## Ubiquitous Language` heading contributes no project term, while the same content in a document does. | Test (TC-808) |
 
 > **CR-044 note (2026-08-15):** The original walk semantics above declared a
 > default skip set of `{README.md, tests.md}`, "matching
