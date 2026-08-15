@@ -5,6 +5,71 @@ All notable changes to `quire-rs` are documented here. Format follows
 numbers follow semver — pre-1.0, breaking changes may land in minor
 bumps; once 1.0 ships, semver is strict.
 
+## [0.22.0] — 2026-08-15
+
+Corpus membership is type-driven. The filename skip list is gone.
+
+### Breaking
+
+- **`WalkOptions::skip_names` is removed.** It is `pub` and re-exported from the
+  crate root. Nothing in `src/` constructed a non-default `WalkOptions`; the
+  only in-crate consumers were `corpus/spec.rs` and `corpus/glossary.rs`, both
+  using `Default`. A downstream crate that set `skip_names` should delete the
+  field — the behavior it configured no longer exists.
+
+### Added
+
+- **FR-024-AC-10 (CR-044)** — a markdown file is a corpus document iff it
+  carries a **frontmatter block**. Filename plays no part. `DEFAULT_SKIP`,
+  `WalkOptions::skip_names` and `is_skipped` are deleted; a file with no
+  frontmatter is dropped **silently**, with no diagnostic, which is what
+  actually retires the `README.md` entry and generalizes to every stray `.md` —
+  a CHANGELOG, an AGENTS file, a design note — without the engine knowing any of
+  their names. Frontmatter present but naming an unregistered type is still a
+  document, triaged by validation as before (error under `Strict`, warning under
+  `Okf`). TC-807.
+
+  The constant was never a decision. It began in
+  `filament-parser-lib/filament_parser/loader.py` as a **graph-ingestion**
+  filter — commit `1d17b6f`: the listed files *"validate via quire as their own
+  archetypes but are **not graph nodes**"* — and quire-rs `8dc32a5` copied it
+  into `load_repo`, a **validation** loader, where *"not a graph node"* became
+  *"not a document."* The engine could not load the canonical instance of
+  `TestMatrix`, a type its own module registers.
+
+  **[RAN]** `scripts/classify_matrices.py` over `~/dev`, worktrees and
+  `-task<N>` copies deduped: of 184 matrices at a bound path, **0 carry no
+  frontmatter block**; 170 are typed `TestMatrix` and are unaffected; 14 are
+  mis-typed (10 declaring `type: index` — those documents saying they are not
+  matrices), of which 6 mint rows today. Against that, **20 real matrices across
+  9 repos become visible for the first time**, 12 of them minting, in filename
+  conventions no enumeration covered — `spec/test-matrix.md`,
+  `spec/test_matrix.md`, `spec/traceability_matrix.md`, `spec/*/matrix/tests.md`.
+
+- **FR-024-AC-11 (CR-044)** — `glossary_terms_from_path` applies the same
+  membership rule. It scans raw text rather than building a `Spec` and inherited
+  the skip through `discover_files`, so its scope would have silently widened to
+  every stray `.md`, letting a file that is not a document define a repository's
+  ubiquitous language. The rule now lives once, in `walk::is_document`. TC-808.
+
+### Changed
+
+- **`NON_ARTIFACT_FILES` reduced to `{index.md, log.md}`.** The `README.md`
+  entry is permanently dead under the frontmatter rule. The `tests.md` entry
+  would have become a live suppression of a genuine index gap: a `TestMatrix` is
+  an artifact and an index that omits it is incomplete. **[RAN]** 4 of 180 repos
+  with a `spec/tests.md` already list it in `spec/index.md`, so **172 now report
+  `index-incomplete`** — authoring debt the suppression was hiding. FR-038 and
+  FR-038-AC-5 updated to match.
+- `tests/spec_dogfood.rs::spec_documents` goes through `load_repo` instead of a
+  hand-rolled `read_dir` recursion. It walked by hand precisely so TC-794 could
+  reach `spec/tests.md` — the type-driven rule, implemented in a test, as a
+  workaround for the engine not implementing it. Third independent markdown
+  walker in the tree; now the second.
+
+Closes agent-ix/quire-rs#63, #73, #76, #77. Review: `SR-005`
+(`reviews/2026-08-15-cr044-type-driven-membership.md`).
+
 ## [0.21.0] — 2026-08-14
 
 A legacy trace comment carrying a list binds every id it carries.
