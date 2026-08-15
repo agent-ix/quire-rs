@@ -26,10 +26,6 @@ use crate::ast::QuireDocument;
 use crate::diagnostic::Diagnostic;
 use crate::parser::parse_document;
 
-/// Files excluded by default — documentation / test-matrix files that
-/// are not artifacts. Matches `filament_parser/loader.py::_DEFAULT_SKIP`.
-const DEFAULT_SKIP: &[&str] = &["README.md", "tests.md"];
-
 /// One parsed document plus its read identity.
 #[derive(Debug, Clone, PartialEq)]
 pub struct LoadedDocument {
@@ -55,9 +51,18 @@ pub struct RepoLoad {
     pub diagnostics: Vec<Diagnostic>,
 }
 
-/// Walk configuration. `Default` matches the Python loader's behavior:
-/// markdown only, gitignore honored, dotfiles skipped, and the
-/// `{README.md, tests.md}` skip set applied.
+/// Walk configuration: markdown only, gitignore honored, dotfiles
+/// skipped.
+///
+/// **Membership is type-driven, not filename-driven** (CR-044). There is
+/// no skip list: a markdown file with a frontmatter block is a candidate
+/// document whatever it is called, and one without a frontmatter block is
+/// not a document at all. The previous `skip_names` default of
+/// `{README.md, tests.md}` was ported from
+/// `filament_parser/loader.py::_DEFAULT_SKIP`, where it meant *"not a
+/// graph node"*; in this validation loader it silently became *"not a
+/// document"*, which made the engine unable to load the canonical
+/// instance of a document type its own module registers.
 #[derive(Debug, Clone)]
 pub struct WalkOptions {
     /// File extensions (without the dot) to parse. Default `["md"]`.
@@ -66,8 +71,6 @@ pub struct WalkOptions {
     pub respect_ignore_files: bool,
     /// Walk hidden files/directories (dotfiles). Default `false`.
     pub include_hidden: bool,
-    /// File names to skip. Default `{README.md, tests.md}`.
-    pub skip_names: Vec<String>,
 }
 
 impl Default for WalkOptions {
@@ -76,7 +79,6 @@ impl Default for WalkOptions {
             extensions: vec!["md".to_string()],
             respect_ignore_files: true,
             include_hidden: false,
-            skip_names: DEFAULT_SKIP.iter().map(|s| s.to_string()).collect(),
         }
     }
 }
@@ -128,6 +130,7 @@ pub fn load_repo_with(root: &Path, opts: &WalkOptions) -> RepoLoad {
                 diagnostics.append(&mut diags);
             }
             Outcome::Failed { diag } => diagnostics.push(diag),
+            Outcome::NotADocument { .. } => {}
         }
     }
 
@@ -146,12 +149,19 @@ enum Outcome {
     Failed {
         diag: Diagnostic,
     },
+    /// Read fine, but carries no frontmatter block — not a document, and
+    /// not an error either (CR-044). Contributes neither a document nor a
+    /// diagnostic; the path is kept only so ordering stays deterministic.
+    NotADocument {
+        path: PathBuf,
+    },
 }
 
 impl Outcome {
     fn path(&self) -> &Path {
         match self {
             Outcome::Loaded { doc, .. } => &doc.path,
+            Outcome::NotADocument { path } => path,
             Outcome::Failed { diag } => match diag {
                 Diagnostic::DocumentUnreadable { path, .. } => path,
                 _ => Path::new(""),
@@ -182,9 +192,6 @@ pub(crate) fn discover_files(root: &Path, opts: &WalkOptions) -> Vec<PathBuf> {
         if !has_allowed_extension(path, &opts.extensions) {
             continue;
         }
-        if is_skipped(path, &opts.skip_names) {
-            continue;
-        }
         files.push(path.to_path_buf());
     }
     files
@@ -193,13 +200,6 @@ pub(crate) fn discover_files(root: &Path, opts: &WalkOptions) -> Vec<PathBuf> {
 fn has_allowed_extension(path: &Path, extensions: &[String]) -> bool {
     match path.extension().and_then(|e| e.to_str()) {
         Some(ext) => extensions.iter().any(|allowed| allowed == ext),
-        None => false,
-    }
-}
-
-fn is_skipped(path: &Path, skip_names: &[String]) -> bool {
-    match path.file_name().and_then(|n| n.to_str()) {
-        Some(name) => skip_names.iter().any(|s| s == name),
         None => false,
     }
 }
@@ -218,6 +218,23 @@ fn parse_one(path: &Path) -> Outcome {
     };
 
     let doc = parse_document(&text);
+
+    // A markdown file with no frontmatter block is not a document (CR-044).
+    // This is the rule that retires the `README.md` filename skip, and it
+    // generalizes to every stray `.md` in a repository — CHANGELOG, AGENTS,
+    // a design note — without the engine knowing any of their names.
+    //
+    // Dropped **silently**, with no diagnostic: an ordinary markdown file
+    // sitting in a tree is not an error, and `validate_document` errors on a
+    // document missing `type` (which is precisely why `README.md` had to be
+    // skipped by name before). Frontmatter present but naming an unregistered
+    // type keeps today's behavior — error under `Strict`, warning under `Okf`.
+    if doc.frontmatter.is_none() {
+        return Outcome::NotADocument {
+            path: path.to_path_buf(),
+        };
+    }
+
     let (id, uuid) = read_identity(&doc);
 
     let mut diags = Vec::new();
@@ -285,6 +302,7 @@ mod tests {
 
     const FR_023: &str = "---\nid: FR-023\ntype: FR\nuuid: 0190b6a0-0000-7000-8000-000000000023\n---\n# Behavior\nbody\n";
     const STR_005: &str = "---\nid: StR-005\ntype: StR\nuuid: 0190b6a0-0000-7000-8000-000000000005\n---\n# Need\nbody\n";
+    const TM_001: &str = "---\nid: TM-001\ntype: TestMatrix\nuuid: 0190b6a0-0000-7000-8000-000000000001\n---\n# Test Matrix\n\n## Test Case Summary\n";
 
     // TC-470: N files -> N docs, each matching a direct parse_document.
     #[test]
@@ -384,17 +402,56 @@ mod tests {
         assert_eq!(all.documents.len(), 2);
     }
 
-    // FR-024 walk semantics: default skip set excludes README.md / tests.md.
+    // FR-024 walk semantics (CR-044): membership is decided by the presence of
+    // a frontmatter block, never by filename. `tests.md` is the case that
+    // motivated the change — it is the canonical filename for `TestMatrix`,
+    // a fully registered archetype, and the old skip list made the engine
+    // unable to load the canonical instance of a type its own module declares.
     #[test]
-    fn default_skip_set_excludes_readme_and_tests() {
-        let root = tmpdir("skip");
+    fn tc807_membership_is_type_driven_not_filename_driven() {
+        let root = tmpdir("membership");
         write(&root, "functional/FR-023.md", FR_023);
-        write(&root, "README.md", "# readme\n");
-        write(&root, "tests.md", "# matrix\n");
+        write(&root, "tests.md", TM_001);
+        write(&root, "README.md", "# readme\n\nno frontmatter here.\n");
+        write(&root, "CHANGELOG.md", "# changelog\n");
+        write(
+            &root,
+            "notes.md",
+            "---\nid: N-1\ntype: Nonsense\n---\n# note\n",
+        );
+
+        let load = load_repo(&root);
+
+        // A typed `tests.md` is a document; a frontmatter-less file of any
+        // name is not; an unregistered type is still a document here, and is
+        // triaged downstream by validation, not by the walk.
+        let ids: Vec<&str> = load.documents.iter().map(|d| d.id.as_str()).collect();
+        assert_eq!(ids, vec!["FR-023", "N-1", "TM-001"]);
+
+        // The two frontmatter-less files are dropped **silently** — an
+        // ordinary markdown file in a tree is not an error.
+        for path in ["README.md", "CHANGELOG.md"] {
+            assert!(
+                !load
+                    .diagnostics
+                    .iter()
+                    .any(|d| format!("{d:?}").contains(path)),
+                "{path} produced a diagnostic; it should be silent"
+            );
+        }
+    }
+
+    // An untyped `tests.md` — frontmatter present, no `type:` key — is still a
+    // corpus document; only a *missing frontmatter block* excludes a file.
+    // Which types are acceptable is validation's question, not the walk's.
+    #[test]
+    fn frontmatter_without_type_is_still_a_document() {
+        let root = tmpdir("untyped");
+        write(&root, "tests.md", "---\nid: TM-002\n---\n# matrix\n");
 
         let load = load_repo(&root);
         assert_eq!(load.documents.len(), 1);
-        assert_eq!(load.documents[0].id, "FR-023");
+        assert_eq!(load.documents[0].id, "TM-002");
     }
 
     // TC-475 / FR-024-AC-6: id + uuid read from frontmatter; missing uuid -> diagnostic.

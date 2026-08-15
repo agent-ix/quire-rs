@@ -100,32 +100,34 @@ fn shipped_severity() -> GrammarSeverityMap {
     real
 }
 
-/// Every `.md` under `spec/` paired with its frontmatter `type`.
+/// Every typed document under `spec/`, paired with its frontmatter `type`.
+///
+/// This used to hand-roll a `read_dir` recursion, for one reason: the corpus
+/// walk dropped `spec/tests.md` by filename, so `Spec::from_path` could not
+/// see the matrix TC-794 has to grammar-check. That was the type-driven
+/// membership rule, implemented here, in a test, as a workaround for the
+/// engine not implementing it — and it made this the third independent
+/// markdown walker in the tree. CR-044 moved the rule into the walk, so this
+/// now goes through the engine like every other caller.
 fn spec_documents() -> Vec<(PathBuf, String, String)> {
-    fn walk(dir: &Path, out: &mut Vec<(PathBuf, String, String)>) {
-        let entries = std::fs::read_dir(dir).unwrap_or_else(|e| panic!("read {dir:?}: {e}"));
-        for entry in entries.flatten() {
-            let path = entry.path();
-            if path.is_dir() {
-                walk(&path, out);
-            } else if path.extension().is_some_and(|e| e == "md") {
-                let Ok(text) = std::fs::read_to_string(&path) else {
-                    continue;
-                };
-                let ty = quire_rs::extract_frontmatter(&text)
-                    .frontmatter
-                    .as_ref()
-                    .and_then(|fm| fm.get("type"))
-                    .and_then(|v| v.as_str())
-                    .map(str::to_string);
-                if let Some(ty) = ty {
-                    out.push((path, ty, text));
-                }
-            }
-        }
-    }
     let mut out = Vec::new();
-    walk(Path::new("spec"), &mut out);
+    for doc in quire_rs::load_repo(Path::new("spec")).documents {
+        // Untyped documents are corpus members but carry no archetype to
+        // check against; validation diagnoses them, not this test.
+        let Some(ty) = doc
+            .doc
+            .frontmatter
+            .as_ref()
+            .and_then(|fm| fm.get("type"))
+            .and_then(|v| v.as_str())
+        else {
+            continue;
+        };
+        let Ok(text) = std::fs::read_to_string(&doc.path) else {
+            continue;
+        };
+        out.push((doc.path.clone(), ty.to_string(), text));
+    }
     out.sort_by(|a, b| a.0.cmp(&b.0));
     out
 }
@@ -182,9 +184,11 @@ fn tc794_own_spec_carries_no_promoted_error_finding() {
 #[test]
 fn loads_the_real_spec_corpus() {
     let spec = dogfood();
-    // ~56 artifacts (StR+US+FR+NFR+spec.md+ADRs); README.md/tests.md skipped.
-    // A lower bound guards against a green-but-empty regression (a bad
-    // root silently yields len()==0 per FR-024-AC-7).
+    // ~57 artifacts (StR+US+FR+NFR+spec.md+ADRs+tests.md). Since CR-044 the
+    // matrix `spec/tests.md` (`type: TestMatrix`, ~1200 lines) is a corpus
+    // document like any other; only frontmatter-less files such as `README.md`
+    // are absent. A lower bound guards against a green-but-empty regression
+    // (a bad root silently yields len()==0 per FR-024-AC-7).
     assert!(
         spec.len() >= 50,
         "expected a populated corpus, got {}",
