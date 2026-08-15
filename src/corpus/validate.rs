@@ -15,7 +15,12 @@
 //!   and archetype-specific body contracts are not enforced.
 //!
 //! `index.md`/`log.md` keep their archetypes and are validated like any
-//! other document; only `README.md`/`tests.md` are skipped at walk time.
+//! other document; they are exempt only from *index-completeness*, which
+//! asks an index to list its sibling artifacts.
+//!
+//! Nothing is exempt by filename at walk time (CR-044). Corpus membership
+//! is decided by the presence of a frontmatter block, so a `README.md` is
+//! not a document and a typed `tests.md` is.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
@@ -26,8 +31,21 @@ use crate::corpus::walk::LoadedDocument;
 use crate::query::{concept_type, section};
 use crate::registry::Registry;
 
-/// Files that are structural, not artifacts, for index-completeness.
-const NON_ARTIFACT_FILES: &[&str] = &["index.md", "log.md", "README.md", "tests.md"];
+/// Bundle-structure files that an `index.md` is not expected to list among its
+/// own siblings: the index cannot be a sibling of itself, and `log.md` is the
+/// bundle's history rather than one of its artifacts.
+///
+/// **Deliberately short** (CR-044). This was a second filename list holding
+/// four names, overlapping the walk's and disagreeing with it. `README.md` is
+/// gone permanently — with membership decided by the presence of a frontmatter
+/// block, a README never becomes a document, so the entry could never fire.
+/// `tests.md` is gone because it is an artifact: `TestMatrix` is a registered
+/// archetype with a frontmatter schema, an `id_pattern` and a `body_extraction`
+/// contract, and an index that omits it is incomplete. **[RAN]** across `~/dev`,
+/// 4 of 180 repos with a `spec/tests.md` already name it in `spec/index.md`;
+/// the other 172 now report `index-incomplete`, which is authoring debt the
+/// suppression was hiding, not a regression this list should absorb.
+const NON_ARTIFACT_FILES: &[&str] = &["index.md", "log.md"];
 
 /// Which validation posture to apply to a bundle.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

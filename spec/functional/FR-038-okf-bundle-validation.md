@@ -81,8 +81,10 @@ required and non-empty, but:
 ### Index completeness
 
 Folded into `validate_bundle`: for every directory containing an `index.md`,
-every sibling artifact `.md` (excluding `index.md` / `log.md` / `README.md` /
-`tests.md`) MUST appear in that index's `## Contents`. Additionally, the
+every sibling artifact `.md` MUST appear in that index's `## Contents`. Only
+`index.md` and `log.md` are exempt — an index cannot be a sibling of itself,
+and `log.md` is the bundle's history rather than one of its artifacts
+(CR-044). Additionally, the
 **bundle-root** `index.md` MUST declare `okf_version` in frontmatter; subdirectory
 indexes need not. A missing sibling (reason `index-incomplete`) or a missing
 root `okf_version` (reason `index-okf-version`) is an error under Strict and a
@@ -96,7 +98,7 @@ warning under Okf.
 | FR-038-AC-2 | Under `Okf`, the same untyped document is still an error (`!is_valid()`, reason `frontmatter`) — `type` is required even in the permissive posture. | Test |
 | FR-038-AC-3 | Under `Okf`, a document with an unregistered `type` and a dangling `ix://` reference yields `is_valid()` with warnings `unknown-type` and `dangling-reference`; under `Strict` the same bundle is `!is_valid()` with both as errors. | Test |
 | FR-038-AC-4 | Under `Strict`, a bundle whose documents all carry a known, archetype-conformant `type`, whose root `index.md` lists every sibling and declares `okf_version`, validates with no errors (`is_valid()`). | Test |
-| FR-038-AC-5 | A directory whose `index.md` omits a sibling artifact yields an `index-incomplete` finding naming the missing file — an error under `Strict`, a warning under `Okf`. | Test |
+| FR-038-AC-5 | A directory whose `index.md` omits a sibling artifact yields an `index-incomplete` finding naming the missing file — an error under `Strict`, a warning under `Okf`. A typed `tests.md` is a sibling artifact for this purpose; only `index.md` and `log.md` are exempt (CR-044). | Test |
 | FR-038-AC-6 | A bundle-root `index.md` lacking `okf_version` in frontmatter yields an `index-okf-version` error under `Strict`. | Test |
 | FR-038-AC-7 | A subdirectory `index.md` without `okf_version` does not produce an `index-okf-version` finding (only the bundle root must declare it); an otherwise-conformant nested bundle is `is_valid()` under `Strict`. | Test |
 | FR-038-AC-8 | Under `Strict`, a document with a known `type` but a mistyped optional `description` (e.g. `description: 7`) is `!is_valid()` with an error naming `description` (the base concept contract, [FR-037](./FR-037-base-concept-schema.md), runs as part of bundle validation). | Test |

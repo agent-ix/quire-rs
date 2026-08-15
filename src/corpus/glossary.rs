@@ -9,7 +9,7 @@
 use std::path::Path;
 
 use crate::ast::QuireDocument;
-use crate::corpus::walk::{discover_files, WalkOptions};
+use crate::corpus::walk::{discover_files, is_document, WalkOptions};
 use crate::corpus::Spec;
 use crate::query::{self, ListPattern};
 
@@ -46,6 +46,15 @@ pub fn glossary_terms_from_path(root: &Path) -> Vec<String> {
         let Ok(text) = std::fs::read_to_string(&path) else {
             continue;
         };
+        // Same membership rule as the corpus walk (CR-044). `discover_files`
+        // used to apply a `{README.md, tests.md}` skip that this function
+        // inherited without asking for it; when the skip went, the scope here
+        // would have silently widened to every stray `.md`. A repository's
+        // ubiquitous language is defined by its documents, so a file that is
+        // not a document does not get to name terms.
+        if !is_document(&text) {
+            continue;
+        }
         if !has_glossary_heading(&text) {
             continue; // not a glossary-bearing doc — never parsed.
         }
@@ -196,6 +205,43 @@ mod tests {
         assert_eq!(from_path, vec!["Sprocket".to_string()]);
         // Parity with the Spec-based harvester over the same tree.
         assert_eq!(from_path, glossary_terms(&Spec::from_path(&dir)));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    // TC-808 (FR-024-AC-11, CR-044): this scanner reads raw text rather than
+    // building a `Spec`, so it needs the membership rule applied explicitly.
+    // It used to inherit the walk's `{README.md, tests.md}` skip through
+    // `discover_files`; when that skip went, the scope here would have widened
+    // in silence to every stray `.md`. A repository's ubiquitous language is
+    // defined by its documents.
+    // TC-808, FR-024-AC-11
+    #[test]
+    fn tc808_from_path_applies_the_corpus_membership_rule() {
+        let dir = std::env::temp_dir().join(format!("ql-membership-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+
+        // Identical glossary content, once without frontmatter and once with.
+        let body = "# Project\n\n## Ubiquitous Language\n\n- **Sprocket** — a streamed unit.\n";
+        std::fs::write(dir.join("README.md"), body).unwrap();
+        assert_eq!(
+            glossary_terms_from_path(&dir),
+            Vec::<String>::new(),
+            "a file that is not a document must not name project terms"
+        );
+
+        std::fs::write(
+            dir.join("domain.md"),
+            format!("---\nid: dom-1\ntype: domain\n---\n{body}"),
+        )
+        .unwrap();
+        assert_eq!(glossary_terms_from_path(&dir), vec!["Sprocket".to_string()]);
+
+        // And the two harvesters still agree over the same tree.
+        assert_eq!(
+            glossary_terms_from_path(&dir),
+            glossary_terms(&Spec::from_path(&dir))
+        );
         let _ = std::fs::remove_dir_all(&dir);
     }
 
