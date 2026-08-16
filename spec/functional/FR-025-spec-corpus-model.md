@@ -20,6 +20,15 @@ relationships:
 
 The corpus is a **data structure, not a stateful engine**. It performs no persistence, no background reload, no incremental update, and no resolution outside the loaded set ([StR-006-AC-4](../stakeholder/StR-006-whole-spec-corpus.md)). Its lifecycle is *construct, query, drop*.
 
+### Two-tier document model (CR-047)
+
+Each loaded document holds **two tiers** (the [FR-005](./FR-005-parse-document-api.md) header/body split, CR-046, applied to the corpus):
+
+- **Header tier — eager at construction**: path, `id`, `uuid`, the full frontmatter mapping, and the verbatim document text. Indexing, [FR-026](./FR-026-intra-spec-reference-resolution.md) reference resolution, and every [FR-027](./FR-027-whole-spec-query-api.md) query that reads only identity/frontmatter/raw text are answered from this tier.
+- **Body tier — lazy**: the parsed `QuireDocument` is materialised on **first access, exactly once**; concurrent first accessors receive the **identical** value. Materialisation is a pure function of the stored verbatim text — it performs no filesystem read.
+
+External immutability is unchanged: `Spec` stays `Send + Sync` and externally immutable — no query ever returns a different answer twice.
+
 ### Public API
 
 ```rust
@@ -59,7 +68,25 @@ impl Spec {
 | FR-025-AC-3 | A fixture with two documents sharing an id produces a `Diagnostic::DuplicateArtifactId`; construction succeeds and the first occurrence is the one returned by id lookup. | Test |
 | FR-025-AC-4 | A compile-time assertion confirms `Spec: Send + Sync` (generic-bound helper, parity with [FR-013-AC-9](./FR-013-archetype-loader.md)). | Test |
 | FR-025-AC-5 | A test confirms the `Spec` public surface exposes no persistence, no watcher-registration, and no external-resolution method (scope guard, [StR-006-AC-4](../stakeholder/StR-006-whole-spec-corpus.md)) — enforced by an API-surface test/doc-test enumerating the allowed methods. | Test |
-| FR-025-AC-6 | After construction, queries answer with no filesystem read (parity with [FR-013-AC-5](./FR-013-archetype-loader.md) audit approach), confirming the corpus is fully in-memory ([StR-006-AC-1](../stakeholder/StR-006-whole-spec-corpus.md)). | Inspection |
+| FR-025-AC-6 | After construction, queries answer with no filesystem read (parity with [FR-013-AC-5](./FR-013-archetype-loader.md) audit approach), confirming the corpus is fully in-memory ([StR-006-AC-1](../stakeholder/StR-006-whole-spec-corpus.md)) — **including lazy body materialisation** (CR-047): first-touch `body()` parses the verbatim text captured at load and performs no filesystem read either. | Inspection (extended TC-485) |
+| FR-025-AC-7 | `len`/`by_id`/`by_type`/`diagnostics` and the [FR-026](./FR-026-intra-spec-reference-resolution.md)/[FR-027](./FR-027-whole-spec-query-api.md) edge queries (`edges`/`outgoing`/`referencing`/`dangling`/`orphans`) complete with **zero body parses**; touching one document's body then parses exactly that document (CR-047). | Test (TC-817) |
+| FR-025-AC-8 | Concurrent first-touch of the same document's body parses **exactly once** and every racer receives the identical `QuireDocument` (CR-047; the loom model in [NFR-017-AC-4](../non-functional/NFR-017-concurrency-permutation.md), raced for real under the [NFR-018](../non-functional/NFR-018-ffi-sanitizer-lanes.md) TSAN lane). | Test (TC-815, TC-816) |
+
+> **CR-047 note (2026-08-15):** Bodies are lazy (agent-ix/quire-rs#93, umbrella
+> #90). Since CR-046 the walk parses **headers only** — membership, identity
+> and the full frontmatter map come from one frontmatter extraction — so a
+> caller that never reads a body no longer pays for parsing one:
+> `Spec::from_path` on a corpus where no body-reading query runs parses zero
+> bodies, and resolution stays eager over frontmatter + raw text alone. The
+> body tier is a per-document once-init cell behind `Arc<SpecInner>`, seeded on
+> first `body()` access. The trade this makes is deliberate: a lazy cache
+> needs interior mutability, which the FR-024-AC-9 no-shared-mutable audit
+> banned wholesale — the audit's pattern is therefore **widened** (it now also
+> catches `OnceLock`/`OnceCell`) and the cell is a **named, justified
+> exemption** in `scripts/audits/check_no_shared_mutable.sh`, not a silenced
+> pattern; the FR-024-AC-9 guarantee itself narrows to the parallel walk
+> fan-out, which never touches the cell. Concurrency risk is carried by
+> NFR-017-AC-4 (loom, TC-815) and the NFR-018 TSAN lane (TC-816).
 
 ## Dependencies
 

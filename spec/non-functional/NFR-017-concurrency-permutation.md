@@ -25,7 +25,7 @@ This NFR exists because §19 (Hardening Posture) originally skipped loom/shuttle
 
 ### Relationship to shuttle
 
-`shuttle` (randomized scheduling for larger state spaces) is NOT adopted: at v0.3's concurrency size (one data-parallel collect, no locks) loom's exhaustive small-scope checking is sufficient and stronger. If a future version introduces actual shared-mutable concurrency (a cache, a pool with shared state), shuttle SHALL be reconsidered.
+`shuttle` (randomized scheduling for larger state spaces) is NOT adopted, and the reconsideration clause this paragraph used to carry — reconsider "if a future version introduces actual shared-mutable concurrency (a cache, a pool with shared state)" — is now **resolved explicitly** (CR-047): the [FR-025](../functional/FR-025-spec-corpus-model.md) lazy body cache is that future version, and its state space is **one once-init cell × two threads** — exactly loom's exhaustive small-scope sweet spot, not the large randomized space shuttle exists for. Shuttle stays not adopted; the cache is covered by a loom permutation instead (AC-4). One modeling limit is recorded: the production primitive is `std::sync::OnceLock`, which loom cannot instrument (loom ships no OnceLock model and cannot see into std's internals), so the loom permutation models the once-cell **contract** — exactly-once init, racers agree on the stored value — with loom primitives, and the real primitive is raced for real under the [NFR-018](./NFR-018-ffi-sanitizer-lanes.md) TSAN lane (`tests/corpus_concurrency.rs`, TC-816).
 
 ## Acceptance Criteria
 
@@ -34,6 +34,18 @@ This NFR exists because §19 (Hardening Posture) originally skipped loom/shuttle
 | NFR-017-AC-1 | A `#[cfg(loom)]` test models the parallel parse collection and passes under loom's exhaustive interleaving (no race; identical, path-sorted output across all schedules). | Test |
 | NFR-017-AC-2 | The loom test scope (file/thread count) is bounded so the lane completes within the CI timeout (≤ 30 min, parity with [NFR-012](./NFR-012-miri-ub-check.md)). | Analysis |
 | NFR-017-AC-3 | `.github/workflows/ci.yml` runs the loom lane on weekly schedule + workflow_dispatch + tag push; a `make loom` target reproduces it locally. | Inspection |
+| NFR-017-AC-4 | A loom permutation covers concurrent **first-touch of one document's lazy body** ([FR-025-AC-8](../functional/FR-025-spec-corpus-model.md), CR-047): two threads race the once-cell, the init runs exactly once, and both racers observe the identical value, under every interleaving. The std `OnceLock` production primitive is modeled by contract (loom limitation, see *Relationship to shuttle*) and raced for real under the [NFR-018](./NFR-018-ffi-sanitizer-lanes.md) TSAN lane. | Test (TC-815) |
+
+> **CR-047 note (2026-08-15):** The FR-025 lazy body cache introduces the
+> first sanctioned interior mutability in `src/corpus` (a per-document
+> once-init cell behind `Arc<SpecInner>`), which is the concurrency the
+> original loom permutation did not model — [FR-024-AC-9](../functional/FR-024-parallel-repo-walk.md)'s
+> blanket no-`Mutex`/`RwLock`/`Atomic` audit was standing in for it. That AC
+> is narrowed to the walk fan-out and the audit widened with a named
+> exemption list; this NFR gains AC-4 so the risk the audit stood in for is
+> covered by an exhaustive permutation instead of a ban, and the shuttle
+> paragraph's "reconsider if a cache appears" clause is resolved above
+> (agent-ix/quire-rs#93, umbrella #90).
 
 ## Measurement and Evaluation
 

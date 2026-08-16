@@ -15,6 +15,7 @@
 //! - `resolve` — intra-spec reference resolution (FR-026; Task 030).
 //! - `query` — whole-spec query API (FR-027; Task 031).
 
+mod body_cache;
 pub mod declared_tables;
 pub mod glossary;
 pub mod query;

@@ -16,19 +16,19 @@ fuzz_target!(|data: &[u8]| {
         return;
     };
 
-    let fuzzed = LoadedDocument {
-        path: std::path::PathBuf::from("fuzz/A.md"),
-        id: "A".to_string(),
-        uuid: None,
-        doc: parse_document(text),
-    };
+    let fuzzed = LoadedDocument::from_parsed(
+        std::path::PathBuf::from("fuzz/A.md"),
+        "A".to_string(),
+        None,
+        parse_document(text),
+    );
     // A fixed second document so resolution has a real target to hit.
-    let target = LoadedDocument {
-        path: std::path::PathBuf::from("fuzz/B.md"),
-        id: "B".to_string(),
-        uuid: None,
-        doc: parse_document("---\nid: B\ntype: StR\n---\n# target\n"),
-    };
+    let target = LoadedDocument::from_parsed(
+        std::path::PathBuf::from("fuzz/B.md"),
+        "B".to_string(),
+        None,
+        parse_document("---\nid: B\ntype: StR\n---\n# target\n"),
+    );
 
     let spec = Spec::from_repo(RepoLoad {
         documents: vec![fuzzed, target],

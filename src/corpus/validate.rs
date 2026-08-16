@@ -28,7 +28,7 @@ use std::path::{Path, PathBuf};
 use crate::corpus::resolve::Resolution;
 use crate::corpus::spec::Spec;
 use crate::corpus::walk::LoadedDocument;
-use crate::query::{concept_type, section};
+use crate::query::section;
 use crate::registry::Registry;
 
 /// Bundle-structure files that an `index.md` is not expected to list among its
@@ -176,9 +176,7 @@ pub fn validate_bundle(
 /// The frontmatter `object:` value of a loaded document, when present and
 /// a non-empty string.
 fn document_object(doc: &LoadedDocument) -> Option<&str> {
-    doc.doc
-        .frontmatter
-        .as_ref()?
+    doc.frontmatter()?
         .get("object")?
         .as_str()
         .filter(|s| !s.is_empty())
@@ -212,7 +210,7 @@ fn validate_edge_targets(spec: &Spec, registry: &Registry, report: &mut BundleRe
             let Some(source_doc) = spec.by_id(fwd_source_id) else {
                 continue;
             };
-            let Some(source_type) = concept_type(&source_doc.doc) else {
+            let Some(source_type) = source_doc.concept_type() else {
                 continue;
             };
             let Some(source_arch) = registry.archetype(source_type) else {
@@ -267,11 +265,11 @@ fn validate_concept(
     lexicon: &crate::grammar::GrammarLexicon,
     report: &mut BundleReport,
 ) {
-    let fm = doc.doc.frontmatter.clone().unwrap_or_default();
+    let fm = doc.frontmatter().cloned().unwrap_or_default();
 
     // `type` is required + non-empty in BOTH postures — this is the
     // "untyped corpus doc is an error, not a warning" fix.
-    match concept_type(&doc.doc) {
+    match doc.concept_type() {
         None | Some("") => {
             report.errors.push(BundleFinding {
                 path: doc.path.clone(),
@@ -294,7 +292,7 @@ fn validate_concept(
                 });
             }
 
-            let ty = concept_type(&doc.doc).unwrap_or_default();
+            let ty = doc.concept_type().unwrap_or_default();
             match registry.archetype(ty) {
                 Some(archetype) => {
                     // Composed type+object validation (FR-032-AC-11..13):
@@ -305,7 +303,7 @@ fn validate_concept(
                     let result = crate::validate_document_in_registry_with_lexicon(
                         registry,
                         archetype,
-                        &doc.doc.raw,
+                        doc.raw(),
                         lexicon,
                     );
                     for err in result.errors {
@@ -333,7 +331,7 @@ fn validate_concept(
         BundlePosture::Okf => {
             // Permissive: unknown types are tolerated as a warning; the
             // archetype body contract is not enforced for foreign bundles.
-            let ty = concept_type(&doc.doc).unwrap_or_default();
+            let ty = doc.concept_type().unwrap_or_default();
             if registry.archetype(ty).is_none() {
                 report.warnings.push(BundleFinding {
                     path: doc.path.clone(),
@@ -372,9 +370,7 @@ fn check_index_completeness(
         let dir_canon = dir.canonicalize().unwrap_or_else(|_| dir.clone());
         if dir_canon == root {
             let has_okf = index_doc
-                .doc
-                .frontmatter
-                .as_ref()
+                .frontmatter()
                 .and_then(|fm| fm.get("okf_version"))
                 .is_some();
             if !has_okf {
@@ -415,9 +411,9 @@ fn check_index_completeness(
 /// section. Falls back to the whole document when no `Contents` heading is
 /// present (a permissive read).
 fn contents_basenames(index_doc: &LoadedDocument) -> BTreeSet<String> {
-    let text = section(&index_doc.doc, "Contents")
+    let text = section(index_doc.body(), "Contents")
         .map(|s| s.content.clone())
-        .unwrap_or_else(|| index_doc.doc.raw.clone());
+        .unwrap_or_else(|| index_doc.raw().to_string());
 
     let mut out = BTreeSet::new();
     for target in markdown_link_targets(&text) {

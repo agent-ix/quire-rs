@@ -2,6 +2,10 @@
 //! measured at 1 and 8 threads. Asserts the parse fan-out scales with
 //! cores (parallel efficiency is computed from the two medians).
 //!
+//! Since CR-047 the walk parses headers only, so `load_repo_1k` measures
+//! the header-tier walk; `load_repo_1k_bodies` additionally forces every
+//! lazy body so NFR-015's full-parse scaling claim stays evidenced.
+//!
 //! Run: `cargo bench --bench load_repo`. The thread count is set via a
 //! scoped rayon pool so a single process can measure both.
 
@@ -10,6 +14,7 @@ use std::path::PathBuf;
 
 use criterion::{criterion_group, criterion_main, Criterion};
 use quire_rs::load_repo;
+use rayon::prelude::*;
 
 const DOC_COUNT: usize = 1_000;
 
@@ -34,6 +39,7 @@ fn synthetic_corpus() -> PathBuf {
 fn bench_load_repo(c: &mut Criterion) {
     let root = synthetic_corpus();
 
+    // Header-tier walk only (the CR-047 lazy-body default).
     let mut group = c.benchmark_group("load_repo_1k");
     for threads in [1usize, 8usize] {
         let pool = rayon::ThreadPoolBuilder::new()
@@ -45,6 +51,28 @@ fn bench_load_repo(c: &mut Criterion) {
                 pool.install(|| {
                     let load = load_repo(&root);
                     assert_eq!(load.documents.len(), DOC_COUNT);
+                    load
+                })
+            });
+        });
+    }
+    group.finish();
+
+    // Walk + every body forced (the pre-CR-047 full-parse quantity).
+    let mut group = c.benchmark_group("load_repo_1k_bodies");
+    for threads in [1usize, 8usize] {
+        let pool = rayon::ThreadPoolBuilder::new()
+            .num_threads(threads)
+            .build()
+            .unwrap();
+        group.bench_function(format!("threads_{threads}"), |b| {
+            b.iter(|| {
+                pool.install(|| {
+                    let load = load_repo(&root);
+                    assert_eq!(load.documents.len(), DOC_COUNT);
+                    load.documents.par_iter().for_each(|d| {
+                        d.body();
+                    });
                     load
                 })
             });

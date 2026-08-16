@@ -67,12 +67,19 @@ gated work early. **Never silently edit `spec/` from an implementation branch**:
 change requires a CR note (see CR-002 in FR-024 for the pattern).
 
 **v0.3 invariants (corpus + bindings).**
-- `load_repo`'s parallel parse is **data-parallel with no shared mutable state** (no
-  `Mutex`/`RwLock`/`Atomic` in first-party code) — `par_iter().map().collect()` of owned results,
-  diagnostics gathered after the parallel region (FR-024-AC-9; this is what the NFR-017 loom check
-  proves).
+- `load_repo`'s parallel parse **fan-out** is data-parallel with no shared mutable state —
+  `par_iter().map().collect()` of owned results, diagnostics gathered after the parallel region
+  (FR-024-AC-9 as amended by CR-047; this is what the NFR-017 loom check proves). Interior
+  mutability elsewhere in `src/corpus` exists **only** as a named, justified exemption in
+  `scripts/audits/check_no_shared_mutable.sh` (whose pattern also catches `OnceLock`/`OnceCell`):
+  currently the FR-025 lazy body cell (`body_cache.rs`) and the compile-once regexes in
+  `declared_tables.rs`. Anything else fails `make ci`.
 - The corpus (`Spec`) is immutable, `Arc<Inner>`-wrapped, `Send + Sync` — **mirror `Registry`**
-  (`src/registry.rs`), don't invent a new lifecycle.
+  (`src/registry.rs`), don't invent a new lifecycle. Headers (path/id/uuid/frontmatter map/verbatim
+  text) are **eager** at construction; bodies are **lazy** behind a per-document once-cell
+  (first touch parses exactly once, no filesystem read; concurrent first accessors get the
+  identical value — FR-025-AC-7/8, loom TC-815 + TSAN TC-816). External immutability is
+  unchanged: no query ever returns a different answer twice.
 - Document identity is **read, never derived**: `id` = human artifact id (resolution key), `uuid` =
   durable UUID7 from frontmatter (catalog id). No path/content derivation, no file mutation at load.
 - First-party `src/python/` stays **`unsafe`-free**; PyO3 macro-generated unsafe is upstream and

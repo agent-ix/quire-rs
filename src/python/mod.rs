@@ -464,18 +464,14 @@ fn extract<'py>(
         let result = crate::extract(&doc, dsl).map_err(quire_error_to_pyerr)?;
 
         // Harvest edges off a LoadedDocument view.
-        let loaded = LoadedDocument {
-            path: std::path::PathBuf::new(),
-            id: doc
-                .frontmatter
-                .as_ref()
-                .and_then(|fm| fm.get("id"))
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_string(),
-            uuid: None,
-            doc,
-        };
+        let id = doc
+            .frontmatter
+            .as_ref()
+            .and_then(|fm| fm.get("id"))
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string();
+        let loaded = LoadedDocument::from_parsed(std::path::PathBuf::new(), id, None, doc);
         let edges = crate::harvest_edges(&loaded);
         Ok(ExtractOut {
             records: result.records,
@@ -560,12 +556,7 @@ fn harvest_edges<'py>(py: Python<'py>, doc: &Bound<'py, PyAny>) -> PyResult<Boun
     // `frontmatter`/`raw` if present; otherwise fall back to text.
     let loaded = if let Ok(s) = doc.extract::<String>() {
         let parsed = crate::parse_document(&s);
-        LoadedDocument {
-            path: std::path::PathBuf::new(),
-            id: String::new(),
-            uuid: None,
-            doc: parsed,
-        }
+        LoadedDocument::from_parsed(std::path::PathBuf::new(), String::new(), None, parsed)
     } else if let Ok(d) = doc.cast::<PyDict>() {
         // Reconstruct a minimal QuireDocument view from the dict.
         let raw = d
@@ -577,12 +568,7 @@ fn harvest_edges<'py>(py: Python<'py>, doc: &Bound<'py, PyAny>) -> PyResult<Boun
         // doc with frontmatter-only edges from the dict.
         if !raw.is_empty() {
             let parsed = crate::parse_document(&raw);
-            LoadedDocument {
-                path: std::path::PathBuf::new(),
-                id: String::new(),
-                uuid: None,
-                doc: parsed,
-            }
+            LoadedDocument::from_parsed(std::path::PathBuf::new(), String::new(), None, parsed)
         } else {
             // Build a QuireDocument with frontmatter only.
             let mut fm: serde_json::Map<String, Value> = serde_json::Map::new();
@@ -599,12 +585,7 @@ fn harvest_edges<'py>(py: Python<'py>, doc: &Bound<'py, PyAny>) -> PyResult<Boun
                 raw: String::new(),
                 frontmatter: if fm.is_empty() { None } else { Some(fm) },
             };
-            LoadedDocument {
-                path: std::path::PathBuf::new(),
-                id: String::new(),
-                uuid: None,
-                doc: qdoc,
-            }
+            LoadedDocument::from_parsed(std::path::PathBuf::new(), String::new(), None, qdoc)
         }
     } else {
         return Err(PyTypeError::new_err(
@@ -636,14 +617,24 @@ fn parse_document<'py>(py: Python<'py>, text: &str) -> PyResult<Bound<'py, PyDic
 /// released (NFR-016).
 #[pyfunction]
 fn load_repo<'py>(py: Python<'py>, root: &str) -> PyResult<Bound<'py, PyList>> {
-    let load = py.detach(|| crate::load_repo(Path::new(root)));
+    let load = py.detach(|| {
+        use rayon::prelude::*;
+        let load = crate::load_repo(Path::new(root));
+        // This binding returns every parsed body, so force the lazy body
+        // tier here (CR-047) — in parallel, on the rayon pool, with the
+        // GIL still released — rather than one by one during conversion.
+        load.documents.par_iter().for_each(|d| {
+            d.body();
+        });
+        load
+    });
     let list = PyList::empty(py);
     for d in &load.documents {
         let item = PyDict::new(py);
         item.set_item("path", d.path.to_string_lossy().into_owned())?;
         item.set_item("id", &d.id)?;
         item.set_item("uuid", d.uuid.map(|u| u.to_string()))?;
-        item.set_item("doc", document_to_py(py, &d.doc)?)?;
+        item.set_item("doc", document_to_py(py, d.body())?)?;
         list.append(item)?;
     }
     Ok(list)
@@ -686,7 +677,7 @@ impl Spec {
                 item.set_item("id", &d.id)?;
                 item.set_item("uuid", d.uuid.map(|u| u.to_string()))?;
                 item.set_item("path", d.path.to_string_lossy().into_owned())?;
-                item.set_item("type", crate::query::concept_type(&d.doc))?;
+                item.set_item("type", d.concept_type())?;
                 Ok(Some(item))
             }
         }

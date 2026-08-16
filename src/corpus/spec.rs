@@ -155,11 +155,11 @@ pub(crate) fn artifact_key(doc: &LoadedDocument) -> ArtifactId {
     }
 }
 
-/// The document's concept type — routed through the one canonical
-/// discriminator read ([`crate::query::concept_type`]: `type`). `None`
-/// when untyped.
+/// The document's concept type — the same `type` read as the canonical
+/// discriminator ([`crate::query::concept_type`]), answered from the
+/// header tier without a body parse (CR-047). `None` when untyped.
 pub(crate) fn artifact_type(doc: &LoadedDocument) -> Option<String> {
-    crate::query::concept_type(&doc.doc).map(|s| s.to_string())
+    doc.concept_type().map(|s| s.to_string())
 }
 
 #[cfg(test)]
@@ -265,5 +265,56 @@ mod tests {
         fs::remove_dir_all(&root).unwrap(); // directory gone
         assert_eq!(spec.len(), 1);
         assert!(spec.by_id("FR-023").is_some());
+        // CR-047: the lazy body parse needs no filesystem either — the
+        // verbatim text was captured at load, so first-touch
+        // materialisation succeeds with the directory gone.
+        let body = spec.by_id("FR-023").unwrap().body();
+        assert_eq!(body.sections.len(), 1);
+        assert_eq!(body.sections[0].heading, "FR-023");
+    }
+
+    // TC-817 / FR-025-AC-7 (CR-047): the header-tier query surface — len,
+    // by_id, by_type, diagnostics, and the FR-026/FR-027 edge queries —
+    // completes with ZERO body parses; touching one body then parses
+    // exactly that one document and no other.
+    #[test]
+    fn tc817_queries_parse_zero_bodies() {
+        let root = tmpdir("lazy");
+        write(
+            &root,
+            "f/FR-023.md",
+            "---\nid: FR-023\ntype: FR\nrelationships:\n  - target: \"StR-005\"\n    type: implements\n---\n# FR-023\nsee also a dangling [link](ix://o/r/StR-404)\n",
+        );
+        write(&root, "f/FR-024.md", &doc("FR-024", "FR"));
+        write(&root, "s/StR-005.md", &doc("StR-005", "StR"));
+        let spec = Spec::from_path(&root);
+
+        // Construction (walk + indexing + FR-026 resolution) plus every
+        // header-tier query below runs off frontmatter + verbatim text.
+        assert_eq!(spec.len(), 3);
+        assert!(!spec.is_empty());
+        assert!(spec.by_id("FR-023").is_some());
+        assert_eq!(spec.by_type("FR").len(), 2);
+        let _ = spec.diagnostics();
+        assert!(!spec.edges().is_empty());
+        assert!(!spec.outgoing("FR-023").is_empty());
+        assert!(!spec.referencing("StR-005").is_empty());
+        assert_eq!(spec.dangling().len(), 1);
+        assert_eq!(spec.orphans("FR", "implements", Some("StR")).len(), 1);
+
+        for d in &spec.inner.documents {
+            assert!(
+                !d.body_is_parsed(),
+                "{}: body parsed during header-tier queries",
+                d.id
+            );
+        }
+
+        // First touch materialises exactly the touched document.
+        let touched = spec.by_id("FR-023").unwrap();
+        assert!(!touched.body().sections.is_empty());
+        for d in &spec.inner.documents {
+            assert_eq!(d.body_is_parsed(), d.id == "FR-023");
+        }
     }
 }

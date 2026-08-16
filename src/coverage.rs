@@ -252,10 +252,14 @@ fn criteria_counts(spec: &Spec, registry: &Registry, root: &Path) -> Vec<Criteri
         };
         // Only the tallies are wanted here, and no tally reads a record's
         // line, so the line offset is immaterial to this surface.
+        //
+        // The body touch happens only past the archetype/grammar gates
+        // above (CR-047): a document under a module declaring no grammar
+        // stays unparsed.
         let records = crate::grammar::classify_document_properties(
             grammar_ref,
             &archetype.name,
-            &entry.doc,
+            entry.body(),
             0,
             vocab,
         );
