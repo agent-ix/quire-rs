@@ -5,7 +5,10 @@ All notable changes to `quire-rs` are documented here. Format follows
 numbers follow semver — pre-1.0, breaking changes may land in minor
 bumps; once 1.0 ships, semver is strict.
 
-## [Unreleased]
+## [0.23.0] — 2026-08-15
+
+The document walk is bounded to a caller-supplied root, and the parse
+splits into a cheap header tier and an expensive body tier.
 
 ### Added
 
