@@ -5,6 +5,73 @@ All notable changes to `quire-rs` are documented here. Format follows
 numbers follow semver — pre-1.0, breaking changes may land in minor
 bumps; once 1.0 ships, semver is strict.
 
+## [0.26.0] — 2026-08-16
+
+The post-ship review of the #90 program (SpecReview **SR-006**, verdict
+FAIL) landed nine changes. Two are behavior fixes on public API; the rest
+are gates for claims that had none. Closes agent-ix/quire-rs#107, #108,
+#109, #111, #112, #114, #115 and the engine halves of #110 and #113
+(umbrella #106).
+
+### Fixed
+
+- **FR-005-AC-7 (CR-050)** — `parse_body` no longer panics when handed a
+  `Header` parsed from a different string. `Header` is owned and stored
+  beside an owned text, so the pair is constructible from safe, public,
+  PyO3/wasm-reachable API, and the private body offset was sliced
+  unchecked: out of bounds on a shorter string, char-boundary inside a
+  multi-byte character. The offset is re-derived from the string actually
+  given — one `is_char_boundary` on the correct path. TC-819.
+- **FR-024-AC-12 (CR-051)** — the frontmatter-less bridge emits a
+  **distinct machine reason** for the malformed flavor
+  (`malformed-frontmatter`) instead of tagging both `no-frontmatter`. The
+  engine had the distinction and the bridge dropped it, so only the human
+  message differed. TC-820.
+- **FR-050-AC-19 (CR-054)** — a declaration that selects nothing is now
+  reported instead of failing open: an unreadable declared `document:`
+  (previously `.ok()?`, swallowing every IO error), a declared archetype
+  no document has when the model minted nothing, and a model with no
+  trace targets. `CoverageReport.diagnostics` is absent when empty, so
+  FR-050-AC-7 byte-identity holds. TC-822.
+- **FR-044-AC-8 (CR-055)** — the glossary heading pre-filter matched the
+  raw title verbatim while the lookup it gates normalizes ISO section
+  numbering, so `## 3.2 Ubiquitous Language` stopped contributing terms
+  and shrank the composed EARS lexicon in silence. TC-823.
+- **(CR-056)** — the code walk's excluded subtree is compared by
+  **identity**, not by exact path: on a case-insensitive filesystem
+  `<scope>/Spec` satisfied the caller's `is_dir()` check while `==` never
+  matched it, so every spec document was ingested a second time as
+  source. Symlinked roots resolve too.
+
+### Added
+
+- **FR-005-AC-8 (CR-052)** — a checked-in golden corpus pins
+  `parse_document` byte-for-byte against a snapshot captured from the
+  engine **before** the CR-046 tier split. The current engine reproduces
+  it exactly. TC-821.
+- **FR-050-AC-20 (CR-057)** — the byte-identity property that CR-045,
+  CR-047 and CR-049 rest their correctness argument on gets an actual
+  gate: a fixture corpus exercising the whole reconciliation surface,
+  its report checked in and byte-diffed, regenerated only by
+  `make coverage-baseline-update`. TC-824.
+
+### Changed
+
+- **(CR-053)** — FR-024-AC-9's three compensating controls are enforced
+  end to end. `check_no_shared_mutable.sh` joins the ci.yml
+  `audit-static` job and `sanitize` joins `make hardening`; the audit
+  matches exemptions by repo-relative path and exact source line, fails
+  on a stale entry, prints every `why`, and covers `LazyLock`, `Cell`,
+  `RefCell`, `thread_local!`, `static mut` and `unsafe impl Sync` across
+  `src/corpus` **and** `src/python`. TC-816 widens to 8 threads × 16
+  documents plus the rayon-forcing shape `python::load_repo` runs.
+- **(CR-058)** — `spec/tests.md` reports zero status lies, down from ten.
+  The AC→TC headline is reworded as **mapping** completeness, and
+  performance criteria get one treatment across all user stories.
+- Internal: `parse_header_status` removes a second copying frontmatter
+  extraction from the walk, and `is_document` stops copying the body to
+  answer a yes/no question (CR-046 leftovers).
+
 ## [0.25.0] — 2026-08-15
 
 Bodies are lazy: the corpus parses headers at load and each document's
