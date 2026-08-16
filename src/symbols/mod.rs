@@ -38,6 +38,15 @@ pub enum SymbolKind {
     /// A container: Rust `struct`/`enum`/`trait`/`mod`, a Python class or
     /// module, a TypeScript class or module.
     Container,
+    /// A benchmark: a function the language's benchmark convention registers
+    /// as one — a Rust `#[bench]`, or a function named in a `criterion_group!`
+    /// (CR-061). It is evidence a matrix row can be verified by, and it is not
+    /// a container, so it binds trace ids.
+    Benchmark,
+    /// A fuzz target: the entry point of a `#![no_main]` fuzz-target file
+    /// (CR-061). The macro invocation declares no `fn`, so this is the one
+    /// symbol whose span is the whole file — see the Rust adapter.
+    FuzzTarget,
 }
 
 impl SymbolKind {
@@ -47,7 +56,29 @@ impl SymbolKind {
             Self::Function => "function",
             Self::TestFunction => "test_function",
             Self::Container => "container",
+            Self::Benchmark => "benchmark",
+            Self::FuzzTarget => "fuzz_target",
         }
+    }
+
+    /// True when a trace tag attached to this symbol **binds** (CR-061).
+    ///
+    /// The rule is not "test functions", it is **leaf evidence**. Two things
+    /// are excluded and for two different reasons:
+    ///
+    /// - A [`Container`](Self::Container) would let a `mod tests` block inherit
+    ///   every marker nested inside it (the original FR-051 reason).
+    /// - A plain [`Function`](Self::Function) is production code, whose doc
+    ///   comments routinely cite the acceptance criteria they implement.
+    ///   Binding those would mass-manufacture backing out of prose.
+    ///
+    /// A bench and a fuzz target are neither: each is a leaf artifact that
+    /// exists to verify something and runs in CI.
+    pub fn binds_trace_ids(self) -> bool {
+        matches!(
+            self,
+            Self::TestFunction | Self::Benchmark | Self::FuzzTarget
+        )
     }
 }
 

@@ -12,6 +12,13 @@
 //! Any discovered crash is committed as a regression reproducer
 //! (parity with NFR-011-AC-4).
 
+// TC-579, NFR-019-AC-1: this target is the enforcement identity of the row.
+//
+// The tag is a `//` line rather than the `//!` header above it: the declared
+// legacy forms match `//` and `///`, and `//!` matches neither, so a tag
+// written there binds nothing. It binds from here — several lines above the
+// invocation — because a fuzz target's span is its whole file (CR-061).
+
 use std::sync::OnceLock;
 
 use libfuzzer_sys::fuzz_target;

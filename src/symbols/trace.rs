@@ -17,7 +17,7 @@ use std::sync::OnceLock;
 use regex::Regex;
 use serde_json::{Map, Value};
 
-use super::{stable_id, Symbol, SymbolExtraction, SymbolKind};
+use super::{stable_id, Symbol, SymbolExtraction};
 use crate::filament::{CoreGraphEdgeRef, CoreGraphNodeRef};
 use crate::traceability::{SourceLanguage, TraceabilityModel};
 
@@ -98,9 +98,15 @@ impl SymbolGraph {
 /// Bind `extraction` to trace ids per the module-declared grammar, and mint the
 /// `verifies` / `defined_in` / `contains` relations.
 ///
-/// Only **test symbols** carry trace bindings: FR-051 attaches markers to the
-/// test symbol, and binding containers would let a `mod tests` block inherit
-/// every marker nested inside it.
+/// Only **leaf evidence symbols** carry trace bindings — a test function, a
+/// benchmark, or a fuzz target ([`super::SymbolKind::binds_trace_ids`]). Binding
+/// containers would let a `mod tests` block inherit every marker nested inside
+/// it, and binding plain functions would turn production doc comments that cite
+/// an acceptance criterion into backing for it (CR-061).
+///
+/// If you are here because a row will not bind: check the symbol's *kind*
+/// first. Tagging harder never helps, and a shell audit mints no symbol at all
+/// — `language_of` reads Rust, Python and TypeScript.
 pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolGraph {
     let mut graph = SymbolGraph::default();
 
@@ -117,7 +123,7 @@ pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolG
                 symbol.path.clone(),
             ));
         }
-        if symbol.kind != SymbolKind::TestFunction {
+        if !symbol.kind.binds_trace_ids() {
             continue;
         }
         let Some(source) = extraction.source_of(&symbol.path) else {
@@ -570,6 +576,86 @@ mod tests {
         // Marker plus legacy test-name form for the same id also dedups, and
         // the canonical provenance wins.
         assert_eq!(dupes[0].provenance, TraceProvenance::Canonical);
+    }
+
+    // TC-828 (FR-051-AC-17, CR-061): a benchmark and a fuzz target are leaf
+    // evidence and bind; a container and a plain production function do not.
+    //
+    // The two exclusions are for two different reasons and both matter. A
+    // container would let a `mod tests` block inherit every marker nested
+    // inside it — the original FR-051 reason. A plain function is production
+    // code whose doc comments routinely cite the acceptance criteria they
+    // implement, so binding those would manufacture backing out of prose.
+    #[test]
+    fn tc828_benchmarks_and_fuzz_targets_bind_but_production_code_does_not() {
+        let bench = crate::symbols::extract_file(
+            "benches/parse.rs",
+            SourceLanguage::Rust,
+            concat!(
+                "/// TC-577, NFR-002-AC-4: the validate-document bench.\n",
+                "fn bench_validate(c: &mut Criterion) {\n",
+                "    let _ = c;\n",
+                "}\n",
+                "criterion_group!(benches, bench_validate);\n",
+            ),
+        );
+        let graph = bind(&bench, &iso_model());
+        let mut ids: Vec<&str> = graph.verifies.iter().map(|v| v.trace_id.as_str()).collect();
+        ids.sort();
+        assert_eq!(
+            ids,
+            vec!["NFR-002-AC-4", "TC-577"],
+            "a registered bench binds every id on the line"
+        );
+
+        // The tag sits at the top of the file, separated from the invocation by
+        // `use` statements and a helper — so it binds only because the fuzz
+        // target's span is the whole file. `leading_block` cannot reach across
+        // non-comment lines.
+        let fuzz = crate::symbols::extract_file(
+            "fuzz/fuzz_targets/f.rs",
+            SourceLanguage::Rust,
+            concat!(
+                "#![no_main]\n",
+                "// TC-579: must never panic on arbitrary input.\n",
+                "\n",
+                "use libfuzzer_sys::fuzz_target;\n",
+                "\n",
+                "fn registry() -> usize {\n",
+                "    1\n",
+                "}\n",
+                "\n",
+                "fuzz_target!(|data: &[u8]| {\n",
+                "    let _ = data;\n",
+                "});\n",
+            ),
+        );
+        let graph = bind(&fuzz, &iso_model());
+        assert!(
+            graph.verifies.iter().any(|v| v.trace_id == "TC-579"),
+            "the file is the target's annotation block: {:?}",
+            graph.verifies
+        );
+
+        // Production code citing an AC in a doc comment backs nothing, and
+        // neither does the module that contains it.
+        let production = crate::symbols::extract_file(
+            "src/lib.rs",
+            SourceLanguage::Rust,
+            concat!(
+                "// TC-741: this module implements it.\n",
+                "mod thing {\n",
+                "    /// FR-051-AC-1: resolves the archetype.\n",
+                "    pub fn resolve() -> usize {\n",
+                "        1\n",
+                "    }\n",
+                "}\n",
+            ),
+        );
+        assert!(
+            bind(&production, &iso_model()).verifies.is_empty(),
+            "prose in production code is not evidence"
+        );
     }
 
     // TC-753 (FR-051-AC-11): legacy textual forms still bind, carry `legacy`

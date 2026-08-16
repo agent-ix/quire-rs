@@ -9,6 +9,16 @@ bumps; once 1.0 ships, semver is strict.
 
 ### Added
 
+- **FR-051-AC-17 (CR-061)** — `trace::bind` binds **leaf evidence**, not
+  only test functions: `SymbolKind::Benchmark` (a `#[bench]`, or a
+  function a `criterion_group!` registers) and `SymbolKind::FuzzTarget`
+  (a `fuzz_target!` invocation, which declares no `fn` and so minted no
+  symbol at all) now carry trace bindings. Containers and plain functions
+  still bind nothing — a `mod tests` block must not inherit its members'
+  markers, and production doc comments citing an acceptance criterion are
+  not backing for it. TC-577 and TC-579 go 🚧 → ✅. TC-502 does **not**:
+  a shell audit is never opened by the extractor, which reads
+  `.rs`/`.py`/`.ts`. TC-827, TC-828.
 - **FR-050-AC-13/15 (CR-060)** — a **model-level** `traceability.exclude:`,
   whose matching documents mint no trace ids, contribute no reference
   rows, and are not classified for criteria. (Document validation is

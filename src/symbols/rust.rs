@@ -8,6 +8,18 @@
 //! Test classification is the `#[test]` **family**: any attribute in the
 //! declaration's annotation block whose path ends in `test` — `#[test]`,
 //! `#[tokio::test]`, `#[rstest]`, `#[wasm_bindgen_test]`.
+//!
+//! Two other verification methods produce leaf symbols and are classified as
+//! such, because a matrix row verified by them can otherwise never be backed
+//! however it is tagged (CR-061):
+//!
+//! - **Benchmarks.** A criterion bench carries no attribute — it is an ordinary
+//!   `fn` *registered* by `criterion_group!(name, a, b)`. So the registrations
+//!   are collected in the same pass and the named functions are promoted
+//!   afterwards. `#[bench]` is recognised directly.
+//! - **Fuzz targets.** `fuzz_target!(|data: &[u8]| { … })` declares no `fn` at
+//!   all, so nothing was extracted from those files at all. One symbol is
+//!   minted for the invocation.
 
 use super::{leading_block, RawSymbol, SymbolKind};
 
@@ -22,10 +34,26 @@ pub(crate) fn parse(source: &str) -> Result<Vec<RawSymbol>, String> {
     // Scope stack: (qualified prefix, brace depth at which the scope opened).
     let mut scopes: Vec<(String, i64)> = Vec::new();
     let mut depth: i64 = 0;
+    // Functions a `criterion_group!` registers as benchmarks. Collected here
+    // because the registration follows the functions it names (CR-061).
+    let mut registered_benches: Vec<String> = Vec::new();
 
     for (idx, lexed_line) in lexed.iter().enumerate() {
         let trimmed = lexed_line.code.trim();
         let opens = trimmed.contains('{');
+
+        if let Some(names) = criterion_group_members(&lexed, idx) {
+            registered_benches.extend(names);
+        }
+        // At most one per file. A second invocation would mint a second symbol
+        // with the identical `(language, path, qualified_name, kind)` identity,
+        // and two symbols sharing an id is malformed however unlikely libfuzzer
+        // makes it (FR-051-AC-2).
+        if !out.iter().any(|s| s.kind == SymbolKind::FuzzTarget) {
+            if let Some(symbol) = fuzz_target(&lexed, idx) {
+                out.push(symbol);
+            }
+        }
 
         if let Some((name, kind)) = declaration(trimmed) {
             let container = scopes.last().map(|(prefix, _)| prefix.clone());
@@ -37,6 +65,8 @@ pub(crate) fn parse(source: &str) -> Result<Vec<RawSymbol>, String> {
                 DeclKind::Function => {
                     if is_test(&lines, idx) {
                         SymbolKind::TestFunction
+                    } else if is_bench(&lines, idx) {
+                        SymbolKind::Benchmark
                     } else {
                         SymbolKind::Function
                     }
@@ -75,7 +105,141 @@ pub(crate) fn parse(source: &str) -> Result<Vec<RawSymbol>, String> {
             }
         }
     }
+
+    // A registered bench is promoted after the whole file is read, because
+    // `criterion_group!` follows the functions it names. Only a top-level,
+    // untested function qualifies: a name repeated inside a `mod` is a
+    // different symbol, and `#[test] fn` stays a test.
+    for symbol in out.iter_mut() {
+        if symbol.kind == SymbolKind::Function
+            && symbol.container.is_none()
+            && registered_benches.contains(&symbol.qualified_name)
+        {
+            symbol.kind = SymbolKind::Benchmark;
+        }
+    }
     Ok(out)
+}
+
+/// The function names a `criterion_group!` registers, or `None` when the line
+/// does not open one.
+///
+/// The first argument is the group's own name, not a benchmark. The invocation
+/// may wrap, so it is read to its closing parenthesis.
+fn criterion_group_members(lexed: &[LexedLine], idx: usize) -> Option<Vec<String>> {
+    let first = lexed[idx].code.trim();
+    let after = first
+        .strip_prefix("criterion_group!")
+        .or_else(|| first.strip_prefix("criterion::criterion_group!"))?
+        .trim_start();
+    if !after.starts_with(['(', '{', '[']) {
+        return None;
+    }
+    // The opening line's arguments are passed as a slice rather than as an
+    // offset: the lexed line keeps the whitespace a stripped `//` comment left
+    // behind, so any offset derived from the *trimmed* line addresses the
+    // wrong bytes of the untrimmed one — which silently registered nothing.
+    let args = macro_arguments(after, lexed, idx);
+
+    // Two invocation forms: the plain list `(name, a, b)`, and the long
+    // `(name = g; config = c(); targets = a, b)` — where the config expression
+    // has parentheses of its own, which is why the arguments are read by
+    // nesting depth rather than to the first `)`.
+    let args = match split_targets_clause(&args) {
+        Some(rest) => rest,
+        None => args
+            .split_once(',')
+            .map(|(_group_name, rest)| rest.to_string())
+            .unwrap_or_default(),
+    };
+    Some(
+        args.split(',')
+            .map(|name| name.trim().trim_end_matches(';').trim().to_string())
+            .filter(|name| !name.is_empty() && ident(name).as_deref() == Some(name.as_str()))
+            .collect(),
+    )
+}
+
+/// The list after a long-form `targets =` clause, or `None` for the short form.
+///
+/// Matched as a whole word followed by `=`, so a group or bench *named*
+/// `targets_something` is not mistaken for the clause.
+fn split_targets_clause(args: &str) -> Option<String> {
+    let mut rest = args;
+    while let Some(at) = rest.find("targets") {
+        let (before, from) = rest.split_at(at);
+        let after = &from["targets".len()..];
+        // `.is_none_or` is stable since 1.82; the crate's MSRV is 1.75.
+        let boundary_before = match before.chars().next_back() {
+            Some(c) => !c.is_alphanumeric() && c != '_',
+            None => true,
+        };
+        if boundary_before && after.trim_start().starts_with('=') {
+            return Some(after.trim_start()[1..].to_string());
+        }
+        rest = after;
+    }
+    None
+}
+
+/// The text between a macro invocation's delimiters, across lines, matched by
+/// nesting depth. `open` is the invocation's first line from its opening
+/// delimiter onwards.
+fn macro_arguments(open: &str, lexed: &[LexedLine], idx: usize) -> String {
+    let mut out = String::new();
+    let mut depth = 0i32;
+    for (offset, line) in lexed[idx..].iter().enumerate() {
+        let text = if offset == 0 {
+            open
+        } else {
+            out.push(' ');
+            line.code.as_str()
+        };
+        for c in text.chars() {
+            match c {
+                '(' | '{' | '[' => {
+                    depth += 1;
+                    if depth == 1 {
+                        continue; // the opening delimiter itself
+                    }
+                }
+                ')' | '}' | ']' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        return out;
+                    }
+                }
+                _ => {}
+            }
+            out.push(c);
+        }
+    }
+    out
+}
+
+/// One symbol for a `fuzz_target!` invocation, or `None`.
+///
+/// The macro declares no `fn`, so before CR-061 a fuzz-target file yielded no
+/// symbol at all and its trace tag bound to nothing.
+///
+/// **Its span is the whole file from line 1.** A `#![no_main]` fuzz-target file
+/// declares exactly one entry point, so its `//!` module header *is* the
+/// invocation's annotation block — which is where the tag is naturally
+/// written, and `leading_block` cannot reach it across the intervening `use`
+/// statements.
+fn fuzz_target(lexed: &[LexedLine], idx: usize) -> Option<RawSymbol> {
+    let trimmed = lexed[idx].code.trim();
+    if !trimmed.starts_with("fuzz_target!") {
+        return None;
+    }
+    Some(RawSymbol {
+        qualified_name: "fuzz_target".to_string(),
+        kind: SymbolKind::FuzzTarget,
+        line: idx + 1,
+        leading_line: 1,
+        end_line: block_end(lexed, idx),
+        container: None,
+    })
 }
 
 enum DeclKind {
@@ -167,6 +331,18 @@ fn is_annotation(line: &str) -> bool {
 
 /// The `#[test]` family: any attribute whose path segment ends in `test`.
 fn is_test(lines: &[&str], decl_idx: usize) -> bool {
+    has_attribute(lines, decl_idx, "test")
+}
+
+/// The `#[bench]` family, the same way (CR-061). A criterion bench carries no
+/// attribute and is recognised by its `criterion_group!` registration instead.
+fn is_bench(lines: &[&str], decl_idx: usize) -> bool {
+    has_attribute(lines, decl_idx, "bench")
+}
+
+/// True when the declaration's annotation block holds an attribute whose final
+/// path segment is `segment` — `#[test]`, `#[tokio::test]`, `#[rstest]`.
+fn has_attribute(lines: &[&str], decl_idx: usize, segment: &str) -> bool {
     let start = leading_block(lines, decl_idx, is_annotation).saturating_sub(1);
     lines[start..decl_idx].iter().any(|l| {
         let t = l.trim();
@@ -174,7 +350,7 @@ fn is_test(lines: &[&str], decl_idx: usize) -> bool {
             return false;
         };
         let path = inner.split(['(', ',']).next().unwrap_or("").trim();
-        path.rsplit("::").next().is_some_and(|seg| seg == "test")
+        path.rsplit("::").next().is_some_and(|seg| seg == segment)
     })
 }
 
@@ -490,6 +666,152 @@ mod tests {
             let lexed = lex_line(line, &mut state);
             assert_eq!(lexed.delta, *want, "delta for {line:?}: {lexed:?}");
         }
+    }
+
+    /// TC-827 (FR-051-AC-17, CR-061): a criterion bench carries no attribute —
+    /// it is an ordinary `fn` that `criterion_group!` registers — so the
+    /// registration is what classifies it. Both invocation forms, wrapped or
+    /// not, and `#[bench]` directly.
+    ///
+    /// Measured before the fix: tagging `benches/parse.rs`'s
+    /// `bench_validate_document` left TC-577 unbacked, because the function was
+    /// a plain `SymbolKind::Function` and `trace::bind` skipped it.
+    #[test]
+    fn tc827_criterion_registrations_classify_benchmarks() {
+        let source = concat!(
+            "fn bench_parse(c: &mut Criterion) {\n",
+            "    let _ = c;\n",
+            "}\n",
+            "fn bench_validate(c: &mut Criterion) {\n",
+            "    let _ = c;\n",
+            "}\n",
+            "fn helper() -> usize {\n",
+            "    1\n",
+            "}\n",
+            "mod inner {\n",
+            // Same name, nested: a different symbol, and not registered.
+            "    fn bench_parse() {\n",
+            "        let _ = 1;\n",
+            "    }\n",
+            "}\n",
+            "criterion_group!(\n",
+            "    benches,\n",
+            "    bench_parse,\n",
+            "    bench_validate\n",
+            ");\n",
+            "criterion_main!(benches);\n",
+        );
+
+        let symbols = parse(source).expect("valid file");
+        let kind = |name: &str| {
+            symbols
+                .iter()
+                .find(|s| s.qualified_name == name)
+                .unwrap_or_else(|| panic!("{name} is a symbol"))
+                .kind
+        };
+        assert_eq!(kind("bench_parse"), SymbolKind::Benchmark);
+        assert_eq!(kind("bench_validate"), SymbolKind::Benchmark);
+        assert_eq!(
+            kind("helper"),
+            SymbolKind::Function,
+            "an unregistered function is not a benchmark"
+        );
+        assert_eq!(
+            kind("inner::bench_parse"),
+            SymbolKind::Function,
+            "a nested namesake is a different symbol and was never registered"
+        );
+
+        // The single-line short form, and the long `targets =` form.
+        let short = parse("fn b() {\n}\ncriterion_group!(g, b);\n").expect("valid");
+        assert_eq!(short[0].kind, SymbolKind::Benchmark);
+        let long = parse(concat!(
+            "fn b() {\n}\n",
+            "criterion_group!(name = g; config = c(); targets = b);\n",
+        ))
+        .expect("valid");
+        assert_eq!(long[0].kind, SymbolKind::Benchmark);
+
+        // And the attribute form needs no registration at all.
+        let attribute =
+            parse("#[bench]\nfn b(x: &mut Bencher) {\n    let _ = x;\n}\n").expect("valid");
+        assert_eq!(attribute[0].kind, SymbolKind::Benchmark);
+    }
+
+    /// TC-827 (FR-051-AC-17, CR-061): the registration is read from the lexed
+    /// line, which keeps the whitespace a stripped `//` comment leaves behind.
+    /// An offset derived from the trimmed line addresses the wrong bytes of the
+    /// untrimmed one, and the registration is missed **in silence** — the exact
+    /// failure mode this whole change exists to remove.
+    #[test]
+    fn tc827_a_trailing_comment_does_not_hide_the_registration() {
+        let symbols = parse(concat!(
+            "fn b() {\n",
+            "}\n",
+            "criterion_group!(g, b); // the registration, with a comment after it\n",
+            "criterion_main!(g);\n",
+        ))
+        .expect("valid");
+        assert_eq!(symbols[0].kind, SymbolKind::Benchmark);
+    }
+
+    /// TC-827 (FR-051-AC-17, CR-061): `targets` is matched as a whole word
+    /// followed by `=`, so a bench or group whose *name* merely starts with it
+    /// is still registered rather than eaten by the long-form parse.
+    #[test]
+    fn tc827_a_name_beginning_with_targets_is_not_the_targets_clause() {
+        let symbols =
+            parse("fn targets_parse() {\n}\ncriterion_group!(g, targets_parse);\n").expect("valid");
+        assert_eq!(
+            symbols[0].kind,
+            SymbolKind::Benchmark,
+            "the short form's list must survive a name starting with `targets`"
+        );
+    }
+
+    /// TC-827 (FR-051-AC-17, CR-061): `fuzz_target!` declares no `fn`, so
+    /// before this a fuzz-target file yielded **no symbol at all** and its tag
+    /// bound to nothing. The symbol's span starts at line 1: the file's `//!`
+    /// module header is the invocation's annotation block, and it is where the
+    /// tag is naturally written.
+    #[test]
+    fn tc827_a_fuzz_target_is_one_symbol_spanning_its_file() {
+        let source = concat!(
+            "#![no_main]\n",
+            "//! NFR-019 fuzz target (TC-579).\n",
+            "\n",
+            "use libfuzzer_sys::fuzz_target;\n",
+            "\n",
+            "fn helper() -> usize {\n",
+            "    1\n",
+            "}\n",
+            "\n",
+            "fuzz_target!(|data: &[u8]| {\n",
+            "    let _ = data;\n",
+            "});\n",
+        );
+
+        let symbols = parse(source).expect("valid file");
+        let target = symbols
+            .iter()
+            .find(|s| s.kind == SymbolKind::FuzzTarget)
+            .expect("the invocation mints a symbol");
+        assert_eq!(target.qualified_name, "fuzz_target");
+        assert_eq!(target.line, 10);
+        assert_eq!(target.leading_line, 1, "the module header is in the span");
+        assert_eq!(target.end_line, 12);
+        assert!(target.container.is_none());
+
+        // The helper beside it stays an ordinary function.
+        assert_eq!(
+            symbols
+                .iter()
+                .find(|s| s.qualified_name == "helper")
+                .expect("helper")
+                .kind,
+            SymbolKind::Function
+        );
     }
 
     /// A string or raw string left open carries to the next line, and a `//`
