@@ -1,0 +1,51 @@
+# A traceability model that passes `validate` and still selects nothing
+# (CR-054 fixture). Every declaration below is shape-valid — the model loads —
+# yet each one scans an empty set at runtime:
+#
+#   - `acceptance-criterion` declares archetype `FRR`, a typo. No corpus
+#     document has that type, so the scan is empty and, since CR-049, no body
+#     is parsed either.
+#   - `test-case` names `missing.md`, which does not exist. The read failed
+#     silently before CR-054 and every id it would have minted vanished.
+#
+# The point of the fixture is that the engine used to report `total: 0`,
+# exit 0 and no diagnostic for both.
+name: traceability-fails-open
+version: 0.1.0
+description: Declared-but-selects-nothing traceability model fixture
+artifact_types:
+- name: FR
+  defaults:
+    id_pattern: FR-{next:03d}
+- name: TC
+  defaults:
+    id_pattern: TC-{next:03d}
+traceability:
+  trace_targets:
+  - name: acceptance-criterion
+    archetype: FRR
+    section: Acceptance Criteria
+    id_column: ID
+  - name: test-case
+    document: missing.md
+    section: Test Cases
+    id_column: ID
+  document_references:
+  - name: verification
+    archetype: FRR
+    section: Acceptance Criteria
+    column: Verification
+    row_id_column: ID
+    pattern: '\((TC-\d+)\)'
+    targets: [test-case]
+  status:
+    column: Status
+    complete: ["✅"]
+    pending: ["🚧"]
+    failed: ["❌"]
+  trace_tags:
+    markers:
+    - name: rust-trace-attribute
+      language: rust
+      pattern: '#\[trace\(([^)]*)\)\]'
+      template: '#[trace({ids})]'
