@@ -112,7 +112,7 @@ fn scan_document(
     id_path: &HashMap<&str, &Path>,
     out: &mut Vec<UnlinkedReference>,
 ) {
-    let raw = &doc.doc.raw;
+    let raw = doc.raw();
     let own_id = doc.id.as_str();
     let source = artifact_key(doc);
 
@@ -317,12 +317,12 @@ mod tests {
 
     fn doc_at(path: &str, id: &str, body: &str) -> LoadedDocument {
         let text = format!("---\nid: {id}\ntype: FR\n---\n{body}");
-        LoadedDocument {
-            path: PathBuf::from(path),
-            id: id.to_string(),
-            uuid: None,
-            doc: parse_document(&text),
-        }
+        LoadedDocument::from_parsed(
+            PathBuf::from(path),
+            id.to_string(),
+            None,
+            parse_document(&text),
+        )
     }
 
     fn spec_of(docs: Vec<LoadedDocument>) -> Spec {
@@ -355,7 +355,7 @@ mod tests {
         let r = refs.iter().find(|r| r.token == "FR-008").unwrap();
         assert_eq!(autofix(r), Some("[FR-008](./FR-008-byte-exact.md)"));
         // Span covers exactly the token text.
-        let raw = &spec.inner.documents[0].doc.raw;
+        let raw = spec.inner.documents[0].raw();
         assert_eq!(&raw[r.byte_span.clone()], "FR-008");
     }
 
@@ -389,7 +389,7 @@ mod tests {
         ]);
         let refs = unlinked_references(&spec);
         let r = refs.iter().find(|r| r.token == "FR-008").unwrap();
-        let raw = &spec.inner.documents[0].doc.raw;
+        let raw = spec.inner.documents[0].raw();
         assert_eq!(&raw[r.byte_span.clone()], "`FR-008`");
         assert_eq!(autofix(r), Some("[FR-008](./FR-008-byte-exact.md)"));
     }

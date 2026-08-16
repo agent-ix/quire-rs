@@ -23,7 +23,13 @@ use crate::query::{self, ListPattern};
 pub fn glossary_terms(spec: &Spec) -> Vec<String> {
     let mut terms: Vec<String> = Vec::new();
     for doc in &spec.inner.documents {
-        collect_doc_terms(&doc.doc, &mut terms);
+        // Same cheap pre-filter as the path harvester (CR-047): only a
+        // glossary-bearing document pays for a body parse, so
+        // `validate_bundle` does not force every body in the corpus.
+        if !has_glossary_heading(doc.raw()) {
+            continue;
+        }
+        collect_doc_terms(doc.body(), &mut terms);
     }
     terms.sort();
     terms.dedup();

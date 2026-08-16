@@ -24,18 +24,18 @@ fuzz_target!(|data: &[u8]| {
          body with a link [x](ix://{raw}) and bare ix://{one_line}\n"
     );
 
-    let src = LoadedDocument {
-        path: std::path::PathBuf::from("fuzz/SRC.md"),
-        id: "SRC".to_string(),
-        uuid: None,
-        doc: parse_document(&md),
-    };
-    let str_target = LoadedDocument {
-        path: std::path::PathBuf::from("fuzz/StR-001.md"),
-        id: "StR-001".to_string(),
-        uuid: None,
-        doc: parse_document("---\nid: StR-001\ntype: StR\n---\n# need\n"),
-    };
+    let src = LoadedDocument::from_parsed(
+        std::path::PathBuf::from("fuzz/SRC.md"),
+        "SRC".to_string(),
+        None,
+        parse_document(&md),
+    );
+    let str_target = LoadedDocument::from_parsed(
+        std::path::PathBuf::from("fuzz/StR-001.md"),
+        "StR-001".to_string(),
+        None,
+        parse_document("---\nid: StR-001\ntype: StR\n---\n# need\n"),
+    );
 
     let spec = Spec::from_repo(RepoLoad {
         documents: vec![src, str_target],

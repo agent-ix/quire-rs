@@ -159,7 +159,8 @@ pub fn harvest_edges(doc: &LoadedDocument) -> Vec<(String, String)> {
 /// `relationships` array. Entries missing a `target` are skipped;
 /// entries missing a `type` default to `references`.
 fn harvest_frontmatter(doc: &LoadedDocument) -> Vec<(String, String)> {
-    let Some(fm) = doc.doc.frontmatter.as_ref() else {
+    // Header tier only (CR-047): resolution stays eager with zero body parses.
+    let Some(fm) = doc.frontmatter() else {
         return Vec::new();
     };
     let Some(rels) = fm.get("relationships").and_then(|v| v.as_array()) else {
@@ -179,7 +180,7 @@ fn harvest_frontmatter(doc: &LoadedDocument) -> Vec<(String, String)> {
 
 /// Raw `ix://` URIs found in the document body.
 fn harvest_body_links(doc: &LoadedDocument, re: &Regex) -> Vec<String> {
-    re.find_iter(&doc.doc.raw)
+    re.find_iter(doc.raw())
         .map(|m| m.as_str().to_string())
         .collect()
 }
@@ -195,7 +196,7 @@ fn harvest_body_relative_links(
     by_path: &HashMap<PathBuf, ArtifactId>,
 ) -> Vec<String> {
     let base = doc.path.parent().unwrap_or_else(|| Path::new(""));
-    re.captures_iter(&doc.doc.raw)
+    re.captures_iter(doc.raw())
         .filter_map(|c| c.get(1).map(|m| m.as_str()))
         .filter_map(|dest| {
             let path_part = dest.split('#').next().unwrap_or(dest);
@@ -307,12 +308,12 @@ mod tests {
 
     fn loaded(id: &str, frontmatter_extra: &str, body: &str) -> LoadedDocument {
         let text = format!("---\nid: {id}\n{frontmatter_extra}---\n{body}");
-        LoadedDocument {
-            path: PathBuf::from(format!("{id}.md")),
-            id: id.to_string(),
-            uuid: None,
-            doc: parse_document(&text),
-        }
+        LoadedDocument::from_parsed(
+            PathBuf::from(format!("{id}.md")),
+            id.to_string(),
+            None,
+            parse_document(&text),
+        )
     }
 
     fn index(docs: &[LoadedDocument]) -> HashMap<ArtifactId, usize> {
@@ -459,12 +460,12 @@ mod tests {
     /// so relative-path resolution is exercised independently of the file slug.
     fn loaded_at(path: &str, id: &str, body: &str) -> LoadedDocument {
         let text = format!("---\nid: {id}\n---\n{body}");
-        LoadedDocument {
-            path: PathBuf::from(path),
-            id: id.to_string(),
-            uuid: None,
-            doc: parse_document(&text),
-        }
+        LoadedDocument::from_parsed(
+            PathBuf::from(path),
+            id.to_string(),
+            None,
+            parse_document(&text),
+        )
     }
 
     // TC-620 / FR-026-AC-9: relative-path body link resolves via the path index

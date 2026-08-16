@@ -5,6 +5,26 @@ All notable changes to `quire-rs` are documented here. Format follows
 numbers follow semver — pre-1.0, breaking changes may land in minor
 bumps; once 1.0 ships, semver is strict.
 
+## [Unreleased]
+
+Bodies are lazy: the corpus parses headers at load and each document's
+body on first touch, exactly once.
+
+### Breaking
+
+- **FR-025-AC-7..8, NFR-017-AC-4 (CR-047)** — `LoadedDocument.doc` (public
+  field) is replaced by accessors: `raw()` (verbatim text), `frontmatter()`,
+  `concept_type()`, `body()` (first-touch parse — exactly once, no filesystem
+  read, concurrent first accessors receive the identical value), plus
+  `from_parsed(path, id, uuid, doc)` for constructing one from an
+  already-parsed `QuireDocument`. `load_repo` no longer parses bodies:
+  `len`/`by_id`/`by_type`/`diagnostics` and the FR-026/027 edge queries
+  complete with zero body parses. FR-024-AC-9 narrows to the walk fan-out;
+  `check_no_shared_mutable.sh` widens its pattern to `OnceLock`/`OnceCell`
+  and gains a named exemption list. The PyO3 `load_repo` binding is
+  unchanged in shape (bodies are forced in parallel with the GIL released).
+  TC-815..817. (agent-ix/quire-rs#93, umbrella #90)
+
 ## [0.24.0] — 2026-08-15
 
 `validate_bundle` states the two roots separately.

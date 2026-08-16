@@ -82,7 +82,7 @@ impl RepoLoad {
 | FR-024-AC-6 | A document's `LoadedDocument.id` equals its frontmatter `id` (empty string when absent), and `LoadedDocument.uuid` equals its frontmatter `uuid` parsed as a `Uuid` (`None` when absent or unparseable); neither is derived from path or content, and no file is written during load. Both are read from the header tier (`parse_header`, [FR-005](./FR-005-parse-document-api.md), CR-046) — the guarantee is unchanged, its source is narrowed to the one frontmatter extraction that also decides membership. A document missing `uuid` emits a non-fatal `Diagnostic::MissingUuid { path }`. (Corpus-level id/type keying diagnostics — duplicate id, untyped — are [FR-025](./FR-025-spec-corpus-model.md)/[FR-027](./FR-027-whole-spec-query-api.md) concerns, not the walk's.) | Test |
 | FR-024-AC-7 | A `root` that points to a regular file or a nonexistent path returns an empty `RepoLoad` with one warning diagnostic (no error, no panic). | Test |
 | FR-024-AC-8 | A criterion bench measures `load_repo` over a 1,000-document corpus on 1 and 8 threads and records the speedup (feeds [NFR-015](../non-functional/NFR-015-repo-walk-throughput.md)). | Test |
-| FR-024-AC-9 | A static audit (`rg` for `Mutex`/`RwLock`/`Atomic*` in first-party `src/`) confirms the parallel parse uses no hand-written shared-mutable synchronization; the implementation collects owned results rather than mutating a shared buffer (the invariant underpinning [NFR-017](../non-functional/NFR-017-concurrency-permutation.md) and the loom/shuttle skip). | Inspection |
+| FR-024-AC-9 | The **parallel parse fan-out** uses no shared-mutable synchronization: it is a `par_iter().map().collect()` of owned results, with diagnostics gathered after the parallel region (the invariant underpinning [NFR-017](../non-functional/NFR-017-concurrency-permutation.md) and the loom/shuttle skip). Interior mutability elsewhere in `src/corpus` appears **only** as a named, justified exemption in `scripts/audits/check_no_shared_mutable.sh`, whose pattern now also catches `OnceLock`/`OnceCell` so exemptions are visible, not silent (CR-047). | Inspection |
 | FR-024-AC-10 | A tree containing a typed `tests.md`, an untyped `tests.md` in a sibling directory (frontmatter, no `type` key), a `notes.md` declaring an unregistered type, and frontmatter-less `README.md` and `CHANGELOG.md` files loads exactly the first three; the two frontmatter-less files are absent from `documents` **and produce no diagnostic**. No filename participates in the decision. | Test (TC-807) |
 | FR-024-AC-11 | `glossary_terms_from_path` applies the same membership rule as the walk: a frontmatter-less file carrying a `## Terms` or `## Ubiquitous Language` heading contributes no project term, while the same content in a document does. | Test (TC-808) |
 
@@ -156,6 +156,25 @@ impl RepoLoad {
 > `read_identity` and the duplicate `is_document` extraction CR-044 had
 > introduced after the full parse. The guarantee (read, never derived; no
 > file written) is unchanged (agent-ix/quire-rs#92, umbrella #90).
+
+> **CR-047 note (2026-08-15):** AC-9 is **narrowed to the walk and stated
+> that way** — from "no `Mutex`/`RwLock`/`Atomic*` anywhere in first-party
+> `src/`" to "the parallel parse fan-out uses no shared-mutable
+> synchronization" (agent-ix/quire-rs#93, umbrella #90). The occasion is the
+> FR-025 lazy body tier: a per-document once-init cell behind `Arc<SpecInner>`
+> is a different mechanism with a different failure surface than the walk —
+> the rayon fan-out builds every document with an empty cell and parses no
+> body, so the data-parallel-collect invariant this AC protects is untouched.
+> The audit is **not loosened until it goes quiet**: its pattern is *widened*
+> to also match `OnceLock`/`OnceCell` (which the old pattern missed entirely —
+> `declared_tables.rs` had carried compile-once `OnceLock` regexes invisibly),
+> and every hit must either fail the build or appear in a **named exemption
+> list** (`file|match-substring|why`) stating what is exempt and why. The
+> concurrency risk the blanket ban stood in for moves to explicit coverage:
+> [NFR-017](../non-functional/NFR-017-concurrency-permutation.md)-AC-4 (loom
+> first-touch permutation, TC-815) and the
+> [NFR-018](../non-functional/NFR-018-ffi-sanitizer-lanes.md) TSAN lane
+> (TC-816).
 
 ## Dependencies
 

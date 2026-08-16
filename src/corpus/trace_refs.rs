@@ -125,7 +125,7 @@ fn minted_ids(spec: &Spec, root: &Path, target: &TraceTarget) -> BTreeSet<String
         // document mints neither (CR-038): a fixture is test data whether its
         // ids come from its frontmatter or from its rows.
         for doc in &spec.inner.documents {
-            if crate::query::concept_type(&doc.doc) == Some(archetype.as_str())
+            if doc.concept_type() == Some(archetype.as_str())
                 && !doc.id.is_empty()
                 && !scope.excludes(root, &doc.path)
             {

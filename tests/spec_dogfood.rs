@@ -114,19 +114,13 @@ fn spec_documents() -> Vec<(PathBuf, String, String)> {
     for doc in quire_rs::load_repo(Path::new("spec")).documents {
         // Untyped documents are corpus members but carry no archetype to
         // check against; validation diagnoses them, not this test.
-        let Some(ty) = doc
-            .doc
-            .frontmatter
-            .as_ref()
-            .and_then(|fm| fm.get("type"))
-            .and_then(|v| v.as_str())
-        else {
+        let Some(ty) = doc.concept_type().map(str::to_string) else {
             continue;
         };
         let Ok(text) = std::fs::read_to_string(&doc.path) else {
             continue;
         };
-        out.push((doc.path.clone(), ty.to_string(), text));
+        out.push((doc.path.clone(), ty, text));
     }
     out.sort_by(|a, b| a.0.cmp(&b.0));
     out

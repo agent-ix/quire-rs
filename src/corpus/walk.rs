@@ -1,9 +1,11 @@
 //! Parallel repository walk + parse — `load_repo` (FR-024, NFR-015).
 //!
 //! Walks a directory tree (ignore-file aware), parses every markdown
-//! file into a [`QuireDocument`] on a rayon pool, and returns the
-//! collection plus per-file diagnostics. Per-file failures are
-//! non-fatal.
+//! file's **header tier** on a rayon pool, and returns the collection
+//! plus per-file diagnostics. Per-file failures are non-fatal. Bodies
+//! are NOT parsed here (CR-047): each [`LoadedDocument`] carries the
+//! verbatim text and materialises its [`QuireDocument`] on first
+//! [`body()`](LoadedDocument::body) access, exactly once.
 //!
 //! **Identity is read, never derived** (CR-002): the human `id` and
 //! durable `uuid` come straight from frontmatter; nothing is hashed,
@@ -14,20 +16,27 @@
 //! .collect()` of *owned* results — no `Mutex`/`RwLock`/`Atomic`.
 //! Diagnostics are gathered after the parallel region. Output is
 //! sorted by path so results are reproducible regardless of thread
-//! scheduling (NFR-006).
+//! scheduling (NFR-006). The per-document lazy body cell is not walk
+//! state — see `body_cache.rs` for why it does not touch this
+//! invariant.
 
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use ignore::WalkBuilder;
 use rayon::prelude::*;
 use uuid::Uuid;
 
 use crate::ast::QuireDocument;
+use crate::corpus::body_cache::LazyBody;
 use crate::diagnostic::Diagnostic;
-use crate::parser::{parse_body, parse_header, Header};
+use crate::parser::{parse_header, Header};
 
-/// One parsed document plus its read identity.
-#[derive(Debug, Clone, PartialEq)]
+/// One loaded document: its read identity plus the two parse tiers —
+/// the eager header tier (verbatim text + frontmatter, FR-005/CR-046)
+/// and the lazy body tier ([`QuireDocument`], parsed on first
+/// [`body()`](LoadedDocument::body) access, CR-047).
+#[derive(Clone)]
 pub struct LoadedDocument {
     /// Path on disk (absolute or root-relative as discovered).
     pub path: PathBuf,
@@ -37,8 +46,106 @@ pub struct LoadedDocument {
     /// Durable catalog id from frontmatter `uuid` (a UUID7, authored by
     /// quire). `None` when absent or unparseable.
     pub uuid: Option<Uuid>,
-    /// The parsed document.
-    pub doc: QuireDocument,
+    /// The full verbatim file text (header tier; what [`Self::raw`] serves).
+    text: Arc<str>,
+    /// The parsed header for walk-loaded documents. `None` only for
+    /// [`Self::from_parsed`] documents, whose body cell is seeded at
+    /// construction so the header is never needed to parse.
+    header: Option<Header>,
+    /// The lazy body tier (see `body_cache.rs`).
+    body: LazyBody,
+}
+
+impl LoadedDocument {
+    /// The full verbatim document text, as read from disk.
+    pub fn raw(&self) -> &str {
+        &self.text
+    }
+
+    /// The parsed frontmatter mapping (header tier — no body parse).
+    /// Every walk-loaded corpus document has one; `None` can occur only
+    /// for a [`Self::from_parsed`] document whose text carried no
+    /// frontmatter block.
+    pub fn frontmatter(&self) -> Option<&serde_json::Map<String, serde_json::Value>> {
+        match &self.header {
+            Some(h) => Some(&h.frontmatter),
+            None => self.seeded_body().frontmatter.as_ref(),
+        }
+    }
+
+    /// The document's concept type — frontmatter `type` as a string,
+    /// exactly the [`crate::query::concept_type`] read, answered from
+    /// the header tier without a body parse.
+    pub fn concept_type(&self) -> Option<&str> {
+        self.frontmatter()?.get("type").and_then(|v| v.as_str())
+    }
+
+    /// The parsed body tier. First access parses via the header
+    /// (exactly once, no filesystem read — the text was captured at
+    /// load); every later access returns the same cached value.
+    pub fn body(&self) -> &QuireDocument {
+        match &self.header {
+            Some(header) => self.body.get_or_parse(&self.text, header),
+            None => self.seeded_body(),
+        }
+    }
+
+    /// Build a `LoadedDocument` from an already-parsed [`QuireDocument`]
+    /// (test fixtures, fuzz targets, the PyO3 `harvest_edges` view). The
+    /// body cell is seeded, so no re-parse ever happens and no header is
+    /// needed; `frontmatter()` reports the parsed document's own map.
+    pub fn from_parsed(path: PathBuf, id: String, uuid: Option<Uuid>, doc: QuireDocument) -> Self {
+        LoadedDocument {
+            path,
+            id,
+            uuid,
+            text: doc.raw.clone().into(),
+            header: None,
+            body: LazyBody::seeded(doc),
+        }
+    }
+
+    /// Whether the body tier has been materialised. Test observability
+    /// only (TC-816/TC-817) — not part of the corpus contract.
+    #[doc(hidden)]
+    pub fn body_is_parsed(&self) -> bool {
+        self.body.is_parsed()
+    }
+
+    /// The body cell of a headerless (`from_parsed`) document, which is
+    /// seeded by construction.
+    fn seeded_body(&self) -> &QuireDocument {
+        self.body
+            .get()
+            .expect("a headerless LoadedDocument is always seeded (from_parsed)")
+    }
+}
+
+/// Manual: equality is over the document's *content* — path, identity,
+/// verbatim text, frontmatter — never over body-cache state, so two loads
+/// of the same tree compare equal whether or not a body was touched
+/// (TC-473 path-sorted determinism, NFR-006).
+impl PartialEq for LoadedDocument {
+    fn eq(&self, other: &Self) -> bool {
+        self.path == other.path
+            && self.id == other.id
+            && self.uuid == other.uuid
+            && *self.text == *other.text
+            && self.frontmatter() == other.frontmatter()
+    }
+}
+
+/// Manual for the same reason as `PartialEq`: cache state is not part of
+/// the document's observable identity.
+impl std::fmt::Debug for LoadedDocument {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("LoadedDocument")
+            .field("path", &self.path)
+            .field("id", &self.id)
+            .field("uuid", &self.uuid)
+            .field("raw", &self.text)
+            .finish()
+    }
 }
 
 /// Result of a [`load_repo`] call: the successes plus non-fatal
@@ -126,7 +233,7 @@ pub fn load_repo_with(root: &Path, opts: &WalkOptions) -> RepoLoad {
     for outcome in outcomes {
         match outcome {
             Outcome::Loaded { doc, mut diags } => {
-                documents.push(doc);
+                documents.push(*doc);
                 diagnostics.append(&mut diags);
             }
             Outcome::Failed { diag } => diagnostics.push(diag),
@@ -140,10 +247,12 @@ pub fn load_repo_with(root: &Path, opts: &WalkOptions) -> RepoLoad {
     }
 }
 
-/// Per-file parse result — owned, no shared state.
+/// Per-file parse result — owned, no shared state. The document is boxed
+/// so the common `NotADocument`/`Failed` outcomes don't pay the large
+/// variant's size (clippy::large_enum_variant).
 enum Outcome {
     Loaded {
-        doc: LoadedDocument,
+        doc: Box<LoadedDocument>,
         diags: Vec<Diagnostic>,
     },
     Failed {
@@ -250,23 +359,25 @@ fn parse_one(path: &Path) -> Outcome {
     };
 
     // Identity comes from the header — read, never derived (CR-002).
-    let doc = parse_body(&text, &header);
-    let Header { id, uuid, .. } = header;
-
+    // NO body parse happens in the walk (CR-047): the body tier is
+    // materialised lazily on first `body()` access, so the rayon region
+    // stays a data-parallel collect of owned header-tier results.
     let mut diags = Vec::new();
-    if uuid.is_none() {
+    if header.uuid.is_none() {
         diags.push(Diagnostic::MissingUuid {
             path: path.to_path_buf(),
         });
     }
 
     Outcome::Loaded {
-        doc: LoadedDocument {
+        doc: Box::new(LoadedDocument {
             path: path.to_path_buf(),
-            id,
-            uuid,
-            doc,
-        },
+            id: header.id.clone(),
+            uuid: header.uuid,
+            text: text.into(),
+            header: Some(header),
+            body: LazyBody::empty(),
+        }),
         diags,
     }
 }
@@ -315,7 +426,7 @@ mod tests {
 
         assert_eq!(load.documents.len(), 2);
         let fr = load.documents.iter().find(|d| d.id == "FR-023").unwrap();
-        assert_eq!(fr.doc, parse_document(FR_023));
+        assert_eq!(fr.body(), &parse_document(FR_023));
         assert_eq!(
             fr.uuid,
             Some(Uuid::parse_str("0190b6a0-0000-7000-8000-000000000023").unwrap())

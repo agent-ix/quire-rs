@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 
 use super::spec::Spec;
 use crate::ast::QuireDocument;
-use crate::query::{concept_type, parse_table, section};
+use crate::query::{parse_table, section};
 
 /// One scanned table row: the document it lives in and its cells keyed by the
 /// table's own column headers (trimmed, as authored).
@@ -78,10 +78,12 @@ pub(crate) fn scan(
     let mut out = Vec::new();
     if let Some(archetype) = scope.archetype {
         for doc in &spec.inner.documents {
-            if concept_type(&doc.doc) != Some(archetype) || scope.excludes(root, &doc.path) {
+            // Header-tier gate first (CR-047): only an archetype-matching,
+            // non-excluded document pays for a body parse.
+            if doc.concept_type() != Some(archetype) || scope.excludes(root, &doc.path) {
                 continue;
             }
-            out.extend(rows_of(&doc.doc, &doc.path, heading));
+            out.extend(rows_of(doc.body(), &doc.path, heading));
         }
     }
     if let Some(document) = scope.document {
