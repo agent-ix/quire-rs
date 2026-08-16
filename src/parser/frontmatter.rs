@@ -54,10 +54,32 @@ pub struct FrontmatterResult {
     pub status: FrontmatterStatus,
 }
 
+/// Borrowed-body result of [`extract_frontmatter_ref`] — identical semantics
+/// to [`FrontmatterResult`], with `body` as a slice of the input instead of a
+/// copy. This is what makes the header tier ([`super::parse_header`], CR-046)
+/// genuinely cheap: membership and identity are decided without copying the
+/// file. Internal only; the public FR-006 surface is unchanged.
+pub(crate) struct FrontmatterRef<'a> {
+    pub frontmatter: Option<Map<String, Value>>,
+    pub body: &'a str,
+    pub status: FrontmatterStatus,
+}
+
 /// Extract YAML frontmatter from a markdown string per FR-006.
 ///
 /// See module docs for the four branches.
 pub fn extract_frontmatter(markdown: &str) -> FrontmatterResult {
+    let r = extract_frontmatter_ref(markdown);
+    FrontmatterResult {
+        frontmatter: r.frontmatter,
+        body: r.body.to_string(),
+        status: r.status,
+    }
+}
+
+/// The borrowed-body core of [`extract_frontmatter`]. In every branch `body`
+/// is a suffix of the (BOM-stripped) input, so it borrows rather than copies.
+pub(crate) fn extract_frontmatter_ref(markdown: &str) -> FrontmatterRef<'_> {
     let stripped: &str = markdown.strip_prefix('\u{FEFF}').unwrap_or(markdown);
 
     // Detect opening fence: "---\n" or "---\r\n" at the very start.
@@ -115,17 +137,17 @@ pub fn extract_frontmatter(markdown: &str) -> FrontmatterResult {
         .or_else(|| body_tail.strip_prefix('\n'))
         .unwrap_or(body_tail);
 
-    FrontmatterResult {
+    FrontmatterRef {
         frontmatter: Some(map),
-        body: body.to_string(),
+        body,
         status: FrontmatterStatus::Present,
     }
 }
 
-fn no_frontmatter(stripped: &str, status: FrontmatterStatus) -> FrontmatterResult {
-    FrontmatterResult {
+fn no_frontmatter(stripped: &str, status: FrontmatterStatus) -> FrontmatterRef<'_> {
+    FrontmatterRef {
         frontmatter: None,
-        body: stripped.to_string(),
+        body: stripped,
         status,
     }
 }

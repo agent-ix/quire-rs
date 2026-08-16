@@ -18,11 +18,79 @@ pub use slice::{line_offsets, slice_section_content};
 pub use slug::{slug, slug_line_id};
 pub use walk::{walk_headings, Heading};
 
+use serde_json::{Map, Value};
+use uuid::Uuid;
+
 use crate::ast::{QuireDocument, QuireSection};
+
+/// The cheap header tier of a document parse (FR-005 two tiers, CR-046).
+///
+/// Membership and identity are decided entirely by frontmatter, by exactly
+/// the keys carried here plus the full mapping for resolution and validation
+/// reads. The body contributes nothing to either — it is the expensive tier,
+/// materialised by [`parse_body`] only for documents something actually
+/// queries.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Header {
+    /// Human artifact id from frontmatter `id`; empty string when absent
+    /// (FR-024-AC-6 — read, never derived).
+    pub id: String,
+    /// Frontmatter `type` — the corpus membership/selection discriminator.
+    pub type_: Option<String>,
+    /// Durable catalog id from frontmatter `uuid`; `None` when absent or
+    /// unparseable.
+    pub uuid: Option<Uuid>,
+    /// The full parsed frontmatter mapping — everything identity, edge
+    /// resolution and frontmatter validation read without a body parse.
+    pub frontmatter: Map<String, Value>,
+    /// Byte offset of the body within the input `parse_header` was given,
+    /// so [`parse_body`] slices instead of re-extracting.
+    body_offset: usize,
+}
+
+/// Parse only the frontmatter block of `markdown` (FR-005 header tier).
+///
+/// `None` means *not a document*: no frontmatter block, an unterminated
+/// fence, or a block that is not a YAML mapping — the same membership rule
+/// as `extract_frontmatter().frontmatter.is_some()` (CR-044). One
+/// frontmatter extraction, no body work, no copy of the input.
+pub fn parse_header(markdown: &str) -> Option<Header> {
+    let fm = frontmatter::extract_frontmatter_ref(markdown);
+    let map = fm.frontmatter?;
+    let id = map
+        .get("id")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+    let type_ = map.get("type").and_then(|v| v.as_str()).map(str::to_string);
+    let uuid = map
+        .get("uuid")
+        .and_then(|v| v.as_str())
+        .and_then(|s| Uuid::parse_str(s).ok());
+    Some(Header {
+        id,
+        type_,
+        uuid,
+        frontmatter: map,
+        body_offset: markdown.len() - fm.body.len(),
+    })
+}
+
+/// Parse the body of `markdown` under an already-parsed [`Header`]
+/// (FR-005 body tier). `markdown` must be the same input the header came
+/// from. Composing the two tiers is exactly [`parse_document`].
+pub fn parse_body(markdown: &str, header: &Header) -> QuireDocument {
+    parse_body_at(
+        markdown,
+        header.body_offset,
+        Some(header.frontmatter.clone()),
+    )
+}
 
 /// Parse a markdown string into a [`QuireDocument`] per FR-005.
 ///
-/// Pipeline:
+/// Composes the two tiers (CR-046): one frontmatter extraction decides the
+/// header, then the body pipeline runs —
 /// 1. [`extract_frontmatter`] strips frontmatter + BOM.
 /// 2. [`walk_headings`] collects heading positions (fence-aware).
 /// 3. [`slice_section_content`] yields byte-exact content per section.
@@ -35,8 +103,18 @@ pub fn parse_document(markdown: &str) -> QuireDocument {
         return QuireDocument::empty();
     }
 
-    let fm = extract_frontmatter(markdown);
-    let body: &str = &fm.body;
+    let fm = frontmatter::extract_frontmatter_ref(markdown);
+    parse_body_at(markdown, markdown.len() - fm.body.len(), fm.frontmatter)
+}
+
+/// The body pipeline shared by [`parse_body`] and [`parse_document`]:
+/// `body_offset` locates the post-frontmatter body inside `markdown`.
+fn parse_body_at(
+    markdown: &str,
+    body_offset: usize,
+    frontmatter: Option<Map<String, Value>>,
+) -> QuireDocument {
+    let body: &str = &markdown[body_offset..];
     let raw: String = markdown.to_string();
 
     if body.is_empty() {
@@ -44,7 +122,7 @@ pub fn parse_document(markdown: &str) -> QuireDocument {
             preamble: None,
             sections: Vec::new(),
             raw,
-            frontmatter: fm.frontmatter,
+            frontmatter,
         };
     }
 
@@ -57,7 +135,7 @@ pub fn parse_document(markdown: &str) -> QuireDocument {
             preamble: trimmed_to_option(body),
             sections: Vec::new(),
             raw,
-            frontmatter: fm.frontmatter,
+            frontmatter,
         };
     }
 
@@ -101,7 +179,7 @@ pub fn parse_document(markdown: &str) -> QuireDocument {
         preamble,
         sections: assemble_tree(flat),
         raw,
-        frontmatter: fm.frontmatter,
+        frontmatter,
     }
 }
 
@@ -273,12 +351,85 @@ mod tests {
         assert_eq!(d.sections[1].end_line, 4);
     }
 
+    // TC-812 (FR-005-AC-5): the header tier alone decides membership — a
+    // frontmatter-less, unterminated, or non-mapping input is None, with no
+    // body pipeline reachable from parse_header at all.
+    #[test]
+    fn tc812_parse_header_none_for_non_documents() {
+        for input in [
+            "# readme\n\nno frontmatter here.\n", // no fence
+            "---\nid: FR-001\nno closing fence",  // unterminated
+            "---\n- a\n- b\n---\nbody",           // valid YAML, not a mapping
+            "---\nid: : malformed\n---\nbody",    // unparseable YAML
+            "",                                   // empty input
+        ] {
+            assert!(
+                parse_header(input).is_none(),
+                "{input:?} should not be a document"
+            );
+        }
+    }
+
+    // TC-812 (FR-005-AC-5): the header carries id/type/uuid and the full
+    // frontmatter mapping — identity is read, never derived (FR-024-AC-6).
+    #[test]
+    fn tc812_parse_header_reads_identity_and_full_map() {
+        let input = "---\nid: FR-001\ntype: FR\nuuid: 01890a5d-ac96-774b-bcce-b302099a8057\nextra: kept\n---\n## A\nbody";
+        let h = parse_header(input).expect("document");
+        assert_eq!(h.id, "FR-001");
+        assert_eq!(h.type_.as_deref(), Some("FR"));
+        assert_eq!(
+            h.uuid,
+            Some(uuid::Uuid::parse_str("01890a5d-ac96-774b-bcce-b302099a8057").unwrap())
+        );
+        assert_eq!(
+            h.frontmatter.get("extra").and_then(|v| v.as_str()),
+            Some("kept")
+        );
+
+        let no_id = parse_header("---\ntype: FR\n---\nbody").expect("document");
+        assert_eq!(
+            no_id.id, "",
+            "id is empty string when absent, never derived"
+        );
+        assert_eq!(no_id.uuid, None);
+    }
+
+    // TC-813 (FR-005-AC-6): parse_document is exactly the composition of the
+    // two tiers — parse_body under a parse_header header is byte-identical.
+    #[test]
+    fn tc813_parse_document_composes_the_tiers() {
+        for input in [
+            "---\nid: FR-001\ntype: FR\n---\n## A\n\n  body  \n\n### B\nchild\n## C\n",
+            "---\nid: x\n---\n",
+            "---\nid: x\n---\npreamble only, no headings",
+            "\u{FEFF}---\nid: bom\n---\n## H\ncontent",
+            "---\r\nid: crlf\r\n---\r\nbody\r\n",
+        ] {
+            let header = parse_header(input).expect("document");
+            assert_eq!(
+                parse_body(input, &header),
+                parse_document(input),
+                "tiers must compose to parse_document for {input:?}"
+            );
+        }
+    }
+
     proptest! {
         // FR-005-AC-4 / TC-002: parse_document does not panic on any input.
         #![proptest_config(ProptestConfig::with_cases(10_000))]
         #[test]
         fn never_panics_on_arbitrary_utf8(s in "\\PC*") {
             let _ = parse_document(&s);
+        }
+
+        // TC-813 (FR-005-AC-6): tier composition equals parse_document on
+        // arbitrary input — whenever the input is a document at all.
+        #[test]
+        fn tiers_compose_on_arbitrary_utf8(s in "\\PC*") {
+            if let Some(h) = parse_header(&s) {
+                prop_assert_eq!(parse_body(&s, &h), parse_document(&s));
+            }
         }
     }
 
