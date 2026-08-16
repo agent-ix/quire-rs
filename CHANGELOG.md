@@ -5,6 +5,25 @@ All notable changes to `quire-rs` are documented here. Format follows
 numbers follow semver — pre-1.0, breaking changes may land in minor
 bumps; once 1.0 ships, semver is strict.
 
+## [Unreleased]
+
+### Added
+
+- **FR-050-AC-17 (CR-045)** — the walk is bounded to a caller-supplied
+  **document root**. `quire coverage` derives two distinct roots from its one
+  `--scope`: document root `<scope>/spec` for `Spec::from_path`, code root
+  `<scope>` for symbol extraction, excluding the document root — documents are
+  not source. New `symbols::extract_tree_excluding(root, exclude)`;
+  `extract_tree(root)` is unchanged and equal to an empty exclusion. The
+  phantom `[--source <DIR>]` flag is withdrawn from FR-050 — both roots derive
+  from `--scope`, no manifest key, no flag. A scope with no `spec/` is a named
+  diagnostic in the CLI, never a silent fallback to the wider tree. The
+  repo-root crawl this fixes is what produced the 9,172 frontmatter errors
+  across 223 repos that CR-044 silenced at the membership layer; they are now
+  gone because the files are never visited, not because they were classified
+  away. TC-809; TC-810/TC-811 land with the `quire-cli` two-root derivation.
+  (agent-ix/quire-rs#91, umbrella #90)
+
 ## [0.22.0] — 2026-08-15
 
 Corpus membership is type-driven. The filename skip list is gone.
