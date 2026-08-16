@@ -67,7 +67,25 @@ generically, and SHALL emit a machine-readable report containing:
 4. **Per-target-group counts** — for each minting document (e.g. each FR),
    backed and total trace-target counts.
 
-`quire coverage [PATHS] --scope <DIR> [--source <DIR>]...` SHALL print the
+### Two roots, one scope (CR-045)
+
+`quire coverage --scope <DIR>` SHALL derive **two distinct roots** from its
+single scope and never interchange them:
+
+- **document root** — `<scope>/spec`, the only tree walked for corpus
+  documents (`Spec::from_path`); the walk never leaves it ([FR-024](./FR-024-parallel-repo-walk.md)).
+- **code root** — `<scope>`, the tree scanned for source symbols
+  ([FR-051](./FR-051-source-symbol-extraction.md)), **excluding the document
+  root** — documents are not source.
+
+A scope with no `spec/` directory SHALL exit with a diagnostic naming the
+missing document root — never a silent fallback to walking the scope itself,
+which is how the repository-wide crawl survived. `spec/` is convention, not
+configuration: no manifest key and no flag relocates it. Report paths remain
+relative to `<scope>`, so minted `document:` paths keep their `spec/` prefix
+and reports over a compliant repo are byte-identical across the split.
+
+`quire coverage [PATHS] --scope <DIR>` SHALL print the
 report as JSON on stdout; repeated runs over identical inputs SHALL emit
 byte-identical output (NFR-006 ordering discipline). When the active modules
 declare no traceability model, the command SHALL exit with a distinct
@@ -103,6 +121,19 @@ model; the engine knows nothing of "AC" or "TC" as concepts.
 | FR-050-AC-14 | A declared model that mints zero trace targets is reported distinctly from full coverage — never as `100%` — and `quire coverage --strict` exits non-zero on it. | Test (TC-797) |
 | FR-050-AC-15 | A trace target or document reference MAY declare `exclude:` path globs, and MAY declare `archetype` and `document` together; excluded documents mint no ids and contribute no reference rows, and a declaration naming both scans the archetype's corpus documents and the auxiliary file in one entry. | Test (TC-801, TC-802) |
 | FR-050-AC-16 | A module MAY declare which test-type values mint no source symbol; an unbacked row carrying one is reported as a no-symbol row rather than a status lie, stays listed as unbacked, and a module declaring none reports exactly as before. | Test (TC-805) |
+| FR-050-AC-17 | The two roots derive from one `--scope` and stay distinct: repo-root files (`README.md`, `CHANGELOG.md`, `plan/*.md`) are never read as documents, the code walk never enters the document root, the minted-id set over a compliant repo is byte-identical to a pre-split run, and a scope with no `spec/` directory exits with a diagnostic naming the missing root (CR-045). | Test (TC-809, TC-810, TC-811) |
+
+> **CR-045 note (2026-08-15):** The *Two roots, one scope* section and AC-17
+> are new, and the phantom `[--source <DIR>]...` flag is withdrawn from the
+> invocation line — it was specified but never implemented, and the decided
+> design derives both roots from the one `--scope` instead of adding a second
+> flag (umbrella agent-ix/quire-rs#90: `spec/` is convention, not
+> configuration). Before this note, `quire coverage` handed `--scope` to both
+> `Spec::from_path` and the symbol extractor, so the corpus walk read the
+> whole repository — see the CR-045 note in
+> [FR-024](./FR-024-parallel-repo-walk.md) for the measured blast radius.
+> `--scope` stays the report's relativization base; only what is *traversed*
+> changes, never what is *reconciled* (AC-7 byte-identity is the gate).
 
 > **CR-041 note (2026-08-14):** A status lie is a row claiming evidence it does
 > not have. Some rows cannot have that evidence *by their own declared method*:

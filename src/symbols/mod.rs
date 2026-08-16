@@ -164,8 +164,19 @@ pub fn language_of(path: &Path) -> Option<SourceLanguage> {
 /// Extract every symbol under `root`, walking gitignore-aware like the corpus
 /// loader. `root` is the identity base: emitted paths are relative to it.
 pub fn extract_tree(root: &Path) -> SymbolExtraction {
+    extract_tree_excluding(root, &[])
+}
+
+/// Like [`extract_tree`], but subtrees named in `exclude` (root-relative
+/// directory paths) are never entered. Coverage passes the document root
+/// here: documents are not source, so the code walk must not descend into
+/// `spec/` (FR-050 two-roots, CR-045).
+pub fn extract_tree_excluding(root: &Path, exclude: &[&Path]) -> SymbolExtraction {
+    let excluded: Vec<std::path::PathBuf> = exclude.iter().map(|e| root.join(e)).collect();
     let mut files: Vec<(String, SourceLanguage, std::path::PathBuf)> = Vec::new();
-    for entry in ignore::WalkBuilder::new(root).build().flatten() {
+    let mut walk = ignore::WalkBuilder::new(root);
+    walk.filter_entry(move |entry| !excluded.iter().any(|ex| entry.path() == ex));
+    for entry in walk.build().flatten() {
         let path = entry.path();
         if !path.is_file() {
             continue;
@@ -291,6 +302,31 @@ mod tests {
             .join("tests")
             .join("fixtures")
             .join("symbols")
+    }
+
+    // TC-809 (FR-050-AC-17): the code walk never enters an excluded subtree —
+    // coverage passes the document root so documents are not scanned as
+    // source — and an empty exclusion list is exactly extract_tree (CR-045).
+    #[test]
+    fn tc809_excluded_subtree_is_never_entered() {
+        let all = extract_tree(&fixture_root());
+        let without_rust = extract_tree_excluding(&fixture_root(), &[Path::new("rust")]);
+        assert!(all.symbols.iter().any(|s| s.path.starts_with("rust/")));
+        assert!(
+            without_rust
+                .symbols
+                .iter()
+                .all(|s| !s.path.starts_with("rust/")),
+            "excluded subtree leaked into the extraction"
+        );
+        assert!(without_rust
+            .symbols
+            .iter()
+            .any(|s| s.path.starts_with("python/")));
+
+        let empty_exclude = extract_tree_excluding(&fixture_root(), &[]);
+        assert_eq!(all.symbols, empty_exclude.symbols);
+        assert_eq!(all.diagnostics, empty_exclude.diagnostics);
     }
 
     // TC-741 (FR-051-AC-1): each adapter extracts functions, test functions,

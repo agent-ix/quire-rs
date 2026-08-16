@@ -44,6 +44,7 @@ impl RepoLoad {
 - The walk SHALL be **ignore-file aware**: `.gitignore` and `.ignore` entries under the root are honored by default (via the `ignore` crate), so vendored/build directories are skipped. `WalkOptions` MAY disable this.
 - Only files matching the markdown extension set (`.md` by default; configurable via `WalkOptions`) are parsed. Non-markdown files are skipped silently.
 - Corpus membership SHALL be **type-driven, not filename-driven**: a markdown file carrying a frontmatter block is a candidate document whatever it is named, and a markdown file with **no frontmatter block is not a document** and is dropped silently, with no diagnostic. There is no skip set and no `WalkOptions::skip_names` (CR-044).
+- The walk SHALL be bounded by the **document root** the caller supplies: it never ascends above that root and never reads outside it. The document root is the directory that holds authored documents — by ecosystem convention `<repo>/spec` — and is **not the repository root**; consumers derive it from their scope rather than passing the scope through ([FR-050](./FR-050-declarative-coverage-computation.md) states the two-root derivation). A caller whose document root is missing surfaces that as a named condition; falling back to walking a wider tree is how a repository-wide crawl survives unnoticed (CR-045).
 - Frontmatter present but naming an unregistered `type` is still a corpus document. Which types are acceptable is a validation question ([FR-025](./FR-025-spec-corpus-model.md), bundle postures), not the walk's.
 - Hidden files/directories (dotfiles) are skipped by default; configurable.
 - Symlink loops SHALL be broken via a visited-canonical-path set (same guarantee as [FR-013](./FR-013-archetype-loader.md)); a cycle emits a warning diagnostic and the branch is skipped.
@@ -134,6 +135,19 @@ impl RepoLoad {
 > **Ecosystem-wide, ~100 of 184 matrices fail the current contract once
 > visible.** That is the deliverable, not a cost. No suppression is added to
 > keep validation green.
+
+> **CR-045 note (2026-08-15):** The walk-bounding clause under *Walk semantics*
+> is new. Nothing anywhere declared a document root — `quire coverage`, `fix`,
+> and OKF `validate` all handed the repository root to `Spec::from_path`, so
+> "every document" meant every `.md` in the repository: `README.md`,
+> `AGENTS.md`, `CHANGELOG.md`, `plan/`, `reviews/` and `docs/` were read and
+> fully parsed as candidate spec documents. That misrouted traversal produced
+> 9,172 `required 'type' is missing` errors across 223 repos, which CR-044
+> then silenced at the membership layer — the right membership rule, but also
+> the evidence of this bug being discarded. The bound is stated here because
+> the walk is where it must hold; the two-root derivation consumers use to
+> honor it lives in [FR-050](./FR-050-declarative-coverage-computation.md)
+> (agent-ix/quire-rs#91, umbrella #90).
 
 ## Dependencies
 
