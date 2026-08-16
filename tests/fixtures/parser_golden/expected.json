@@ -1,0 +1,288 @@
+{
+  "block_ids.md": {
+    "frontmatter": {
+      "id": "BLK-001",
+      "type": "note"
+    },
+    "preamble": null,
+    "raw": "---\nid: BLK-001\ntype: note\n---\n## Titled Section {#blk-intro}\nintro body\n\n### Nested {#blk-nested}\nnested body\n\n## No Attribute\nplain body\n",
+    "sections": [
+      {
+        "block_id": "blk-intro",
+        "children": [
+          {
+            "block_id": "blk-nested",
+            "children": [],
+            "content": "nested body\n\n",
+            "end_line": 5,
+            "heading": "Nested",
+            "id": "nested-L3",
+            "level": 3,
+            "start_line": 3
+          }
+        ],
+        "content": "intro body\n\n",
+        "end_line": 2,
+        "heading": "Titled Section",
+        "id": "titled-section-L0",
+        "level": 2,
+        "start_line": 0
+      },
+      {
+        "children": [],
+        "content": "plain body\n",
+        "end_line": 8,
+        "heading": "No Attribute",
+        "id": "no-attribute-L6",
+        "level": 2,
+        "start_line": 6
+      }
+    ]
+  },
+  "bom_crlf.md": {
+    "frontmatter": {
+      "id": "BOM-001",
+      "type": "note"
+    },
+    "preamble": null,
+    "raw": "﻿---\r\nid: BOM-001\r\ntype: note\r\n---\r\n## Heading\r\ncontent with CRLF\r\n\r\n### Sub\r\nmore\r\n",
+    "sections": [
+      {
+        "children": [
+          {
+            "children": [],
+            "content": "more\r\n",
+            "end_line": 5,
+            "heading": "Sub",
+            "id": "sub-L3",
+            "level": 3,
+            "start_line": 3
+          }
+        ],
+        "content": "content with CRLF\r\n\r\n",
+        "end_line": 2,
+        "heading": "Heading",
+        "id": "heading-L0",
+        "level": 2,
+        "start_line": 0
+      }
+    ]
+  },
+  "edge_whitespace.md": {
+    "frontmatter": {
+      "id": "WS-001",
+      "type": "note"
+    },
+    "preamble": null,
+    "raw": "---\nid: WS-001\ntype: note\n---\n##\tTab After Hashes\ntab body   \n\n\n\n####### Seven Hashes Is Not A Heading\n#NoSpace\n\n##   Padded Heading   \npadded body\t\n",
+    "sections": [
+      {
+        "children": [],
+        "content": "tab body   \n\n\n\n####### Seven Hashes Is Not A Heading\n#NoSpace\n\n",
+        "end_line": 7,
+        "heading": "Tab After Hashes",
+        "id": "tab-after-hashes-L0",
+        "level": 2,
+        "start_line": 0
+      },
+      {
+        "children": [],
+        "content": "padded body\t\n",
+        "end_line": 10,
+        "heading": "Padded Heading",
+        "id": "padded-heading-L8",
+        "level": 2,
+        "start_line": 8
+      }
+    ]
+  },
+  "empty_body.md": {
+    "frontmatter": {
+      "id": "EMPTY-001",
+      "type": "note"
+    },
+    "preamble": null,
+    "raw": "---\nid: EMPTY-001\ntype: note\n---\n",
+    "sections": []
+  },
+  "fenced.md": {
+    "frontmatter": {
+      "id": "FENCE-001",
+      "type": "note"
+    },
+    "preamble": null,
+    "raw": "---\nid: FENCE-001\ntype: note\n---\n## Real Heading\n\n```markdown\n## Not a heading — inside a fence\n### Also not one\n```\n\n~~~python\n# not a heading either\n~~~\n\n## After The Fences\ntail content\n",
+    "sections": [
+      {
+        "children": [],
+        "content": "\n```markdown\n## Not a heading — inside a fence\n### Also not one\n```\n\n~~~python\n# not a heading either\n~~~\n\n",
+        "end_line": 10,
+        "heading": "Real Heading",
+        "id": "real-heading-L0",
+        "level": 2,
+        "start_line": 0
+      },
+      {
+        "children": [],
+        "content": "tail content\n",
+        "end_line": 13,
+        "heading": "After The Fences",
+        "id": "after-the-fences-L11",
+        "level": 2,
+        "start_line": 11
+      }
+    ]
+  },
+  "nested.md": {
+    "frontmatter": {
+      "id": "FR-001",
+      "nested": {
+        "key": "value",
+        "list": [
+          "one",
+          "two"
+        ]
+      },
+      "tags": [
+        "alpha",
+        "beta"
+      ],
+      "type": "FR",
+      "uuid": "01890a5d-ac96-774b-bcce-b302099a8057"
+    },
+    "preamble": "Preamble prose before the first heading.\nSecond preamble line.",
+    "raw": "---\nid: FR-001\ntype: FR\nuuid: 01890a5d-ac96-774b-bcce-b302099a8057\ntags: [alpha, beta]\nnested:\n  key: value\n  list:\n    - one\n    - two\n---\n\nPreamble prose before the first heading.\nSecond preamble line.\n\n## Parent\nparent content\n\n### Child\nchild content\n\n#### Grandchild\ngrandchild content\n\n## Sibling\nsibling content\n",
+    "sections": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "children": [],
+                "content": "grandchild content\n\n",
+                "end_line": 12,
+                "heading": "Grandchild",
+                "id": "grandchild-L10",
+                "level": 4,
+                "start_line": 10
+              }
+            ],
+            "content": "child content\n\n",
+            "end_line": 9,
+            "heading": "Child",
+            "id": "child-L7",
+            "level": 3,
+            "start_line": 7
+          }
+        ],
+        "content": "parent content\n\n",
+        "end_line": 6,
+        "heading": "Parent",
+        "id": "parent-L4",
+        "level": 2,
+        "start_line": 4
+      },
+      {
+        "children": [],
+        "content": "sibling content\n",
+        "end_line": 15,
+        "heading": "Sibling",
+        "id": "sibling-L13",
+        "level": 2,
+        "start_line": 13
+      }
+    ]
+  },
+  "no_frontmatter.md": {
+    "frontmatter": null,
+    "preamble": null,
+    "raw": "# Plain Document\n\nNo frontmatter block at all.\n\n## Section One\ncontent\n",
+    "sections": [
+      {
+        "children": [
+          {
+            "children": [],
+            "content": "content\n",
+            "end_line": 6,
+            "heading": "Section One",
+            "id": "section-one-L4",
+            "level": 2,
+            "start_line": 4
+          }
+        ],
+        "content": "\nNo frontmatter block at all.\n\n",
+        "end_line": 3,
+        "heading": "Plain Document",
+        "id": "plain-document-L0",
+        "level": 1,
+        "start_line": 0
+      }
+    ]
+  },
+  "no_headings.md": {
+    "frontmatter": {
+      "id": "NOTE-001",
+      "type": "note"
+    },
+    "preamble": "Just a preamble, no headings at all.\n\nAnother paragraph.",
+    "raw": "---\nid: NOTE-001\ntype: note\n---\nJust a preamble, no headings at all.\n\nAnother paragraph.\n",
+    "sections": []
+  },
+  "unicode.md": {
+    "frontmatter": {
+      "description": "émojis, ünïcode & CJK",
+      "id": "UNI-001",
+      "type": "note"
+    },
+    "preamble": null,
+    "raw": "---\nid: UNI-001\ntype: note\ndescription: \"émojis, ünïcode & CJK\"\n---\n## 概要\nCJK heading body.\n\n## 🚀 Launch\nEmoji heading body.\n\n## Duplicate\nfirst\n\n## Duplicate\nsecond\n\n##### Level Jump To Five\nskipped levels\n",
+    "sections": [
+      {
+        "children": [],
+        "content": "CJK heading body.\n\n",
+        "end_line": 2,
+        "heading": "概要",
+        "id": "-L0",
+        "level": 2,
+        "start_line": 0
+      },
+      {
+        "children": [],
+        "content": "Emoji heading body.\n\n",
+        "end_line": 5,
+        "heading": "🚀 Launch",
+        "id": "launch-L3",
+        "level": 2,
+        "start_line": 3
+      },
+      {
+        "children": [],
+        "content": "first\n\n",
+        "end_line": 8,
+        "heading": "Duplicate",
+        "id": "duplicate-L6",
+        "level": 2,
+        "start_line": 6
+      },
+      {
+        "children": [
+          {
+            "children": [],
+            "content": "skipped levels\n",
+            "end_line": 14,
+            "heading": "Level Jump To Five",
+            "id": "level-jump-to-five-L12",
+            "level": 5,
+            "start_line": 12
+          }
+        ],
+        "content": "second\n\n",
+        "end_line": 11,
+        "heading": "Duplicate",
+        "id": "duplicate-L9",
+        "level": 2,
+        "start_line": 9
+      }
+    ]
+  }
+}

@@ -85,8 +85,9 @@ arbitrary UTF-8 without panicking, for any argument pair (CR-050).
 | FR-005-AC-3 | For the canonical TS fixture (`## Parent\nparent content\n### Child\nchild content\n## Sibling\nsibling content`), the returned document has 2 top-level sections; `Parent` has 1 child `Child`; section IDs are `parent-L0`, `child-L2`, `sibling-L4` (or the equivalent with the TS slug rule applied — see [FR-009](./FR-009-slug-line-id.md)). | Test |
 | FR-005-AC-4 | A proptest checks `parse_document` does not panic on 10000 random UTF-8 strings. | Test |
 | FR-005-AC-5 | `parse_header` returns `None` for a frontmatter-less, unterminated-fence, or non-mapping input without entering the body pipeline, and for a document returns `id` (empty string when absent), `type`, `uuid` and the full frontmatter mapping — identity read, never derived (CR-046). | Test (TC-812) |
-| FR-005-AC-6 | `parse_body` under a `parse_header` header equals `parse_document` byte-for-byte — on named fixtures (BOM, CRLF, empty body, no headings) and on arbitrary UTF-8 input by proptest (CR-046). | Test (TC-813) |
+| FR-005-AC-6 | `parse_body` under a `parse_header` header equals `parse_document` — on named fixtures (BOM, CRLF, empty body, no headings) and on arbitrary UTF-8 input by proptest. Both sides share one body pipeline, so this states that the tiers *compose*; it is not evidence about pre-refactor output, which is AC-8's job (CR-046, scoped by CR-052). | Test (TC-813) |
 | FR-005-AC-7 | `parse_body` is total in its header: for every pair of arbitrary UTF-8 inputs `(a, b)` where `parse_header(a)` is a document, `parse_body(b, &header)` returns a document whose `raw` is `b` — no panic when the header's body offset is past the end of `b` or inside one of its multi-byte characters (CR-050). | Test (TC-819) |
+| FR-005-AC-8 | `parse_document` over a checked-in golden corpus (frontmatter shapes, nesting, fences, BOM/CRLF, block ids, unicode, whitespace edges, no-frontmatter) serializes byte-identically to a snapshot captured from the engine **before** the CR-046 tier split, and the two-tier path serializes to the same bytes as `parse_document`. The snapshot is a fixed reference, not a regenerated expectation: changing it is a spec change requiring a CR note (CR-052). | Test (TC-821) |
 
 > **CR-046 note (2026-08-15):** `parse_document` previously fused the cheap
 > frontmatter read with the expensive body parse — no caller could buy the
@@ -119,6 +120,20 @@ arbitrary UTF-8 without panicking, for any argument pair (CR-050).
 > A pair that happens to be in bounds and on a boundary is undetectable and
 > stays the caller's contract — the guarantee is *no panic*, not *no misuse*
 > (agent-ix/quire-rs#107, umbrella #106).
+
+> **CR-052 note (2026-08-15):** CR-046's "signature, semantics and outputs are
+> unchanged" was pinned by nothing. AC-6's proptest asserts
+> `parse_body(s, &parse_header(s)) == parse_document(s)`, but the split left
+> both sides funnelling into one `parse_body_at` with `body_offset` computed by
+> the identical expression, so the only difference it exercises is
+> `Some(map)` vs `Some(map.clone())` — an off-by-one in the shared pipeline
+> passes on both sides — and it compares by `PartialEq`, not by bytes. A
+> refactor cannot be its own reference. AC-8 adds one: a checked-in golden
+> corpus with a snapshot captured by running the engine at `7b1db82`, the
+> commit before CR-046 landed. Measured on adoption: the current engine
+> reproduces that capture byte-for-byte, so the CR-046 claim now has evidence
+> instead of an assertion. AC-6 is rescoped to the composition statement it
+> actually makes (agent-ix/quire-rs#108, umbrella #106).
 
 ## Dependencies
 
