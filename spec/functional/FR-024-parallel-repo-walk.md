@@ -43,7 +43,7 @@ impl RepoLoad {
 
 - The walk SHALL be **ignore-file aware**: `.gitignore` and `.ignore` entries under the root are honored by default (via the `ignore` crate), so vendored/build directories are skipped. `WalkOptions` MAY disable this.
 - Only files matching the markdown extension set (`.md` by default; configurable via `WalkOptions`) are parsed. Non-markdown files are skipped silently.
-- Corpus membership SHALL be **type-driven, not filename-driven**: a markdown file carrying a frontmatter block is a candidate document whatever it is named, and a markdown file with **no frontmatter block is not a document** and is dropped silently, with no diagnostic. There is no skip set and no `WalkOptions::skip_names` (CR-044).
+- Corpus membership SHALL be **type-driven, not filename-driven**: a markdown file carrying a frontmatter block is a candidate document whatever it is named, and a markdown file with **no frontmatter block is not a document**. There is no skip set and no `WalkOptions::skip_names` (CR-044). A non-document under the walked root SHALL emit a non-fatal `Diagnostic::DocumentWithoutFrontmatter` naming its path — warning tier, exit code unchanged, the file still contributes nothing — with the malformed-block case (a complete `---` fence pair whose content is not a YAML mapping) distinguished from the absent/unterminated case. It SHALL NOT be re-suppressed by filename: a name list is exactly what CR-044 removed (CR-048).
 - The walk SHALL be bounded by the **document root** the caller supplies: it never ascends above that root and never reads outside it. The document root is the directory that holds authored documents — by ecosystem convention `<repo>/spec` — and is **not the repository root**; consumers derive it from their scope rather than passing the scope through ([FR-050](./FR-050-declarative-coverage-computation.md) states the two-root derivation). A caller whose document root is missing surfaces that as a named condition; falling back to walking a wider tree is how a repository-wide crawl survives unnoticed (CR-045).
 - Frontmatter present but naming an unregistered `type` is still a corpus document. Which types are acceptable is a validation question ([FR-025](./FR-025-spec-corpus-model.md), bundle postures), not the walk's.
 - Hidden files/directories (dotfiles) are skipped by default; configurable.
@@ -83,7 +83,7 @@ impl RepoLoad {
 | FR-024-AC-7 | A `root` that points to a regular file or a nonexistent path returns an empty `RepoLoad` with one warning diagnostic (no error, no panic). | Test |
 | FR-024-AC-8 | A criterion bench measures `load_repo` over a 1,000-document corpus on 1 and 8 threads and records the speedup (feeds [NFR-015](../non-functional/NFR-015-repo-walk-throughput.md)). | Test |
 | FR-024-AC-9 | The **parallel parse fan-out** uses no shared-mutable synchronization: it is a `par_iter().map().collect()` of owned results, with diagnostics gathered after the parallel region (the invariant underpinning [NFR-017](../non-functional/NFR-017-concurrency-permutation.md) and the loom/shuttle skip). Interior mutability elsewhere in `src/corpus` appears **only** as a named, justified exemption in `scripts/audits/check_no_shared_mutable.sh`, whose pattern now also catches `OnceLock`/`OnceCell` so exemptions are visible, not silent (CR-047). | Inspection |
-| FR-024-AC-10 | A tree containing a typed `tests.md`, an untyped `tests.md` in a sibling directory (frontmatter, no `type` key), a `notes.md` declaring an unregistered type, and frontmatter-less `README.md` and `CHANGELOG.md` files loads exactly the first three; the two frontmatter-less files are absent from `documents` **and produce no diagnostic**. No filename participates in the decision. | Test (TC-807) |
+| FR-024-AC-10 | A document root containing a typed `tests.md`, an untyped `tests.md` in a sibling directory (frontmatter, no `type` key), a `notes.md` declaring an unregistered type, a frontmatter-less draft, and a malformed-frontmatter file loads exactly the first three; each frontmatter-less file under the root is absent from `documents` **and emits exactly one non-fatal `DocumentWithoutFrontmatter` warning naming its path**, with the malformed case distinguished. Frontmatter-less files *outside* the walked root (`README.md`, `CHANGELOG.md` at the repository root) are never visited and produce nothing. No filename participates in any decision (CR-048). | Test (TC-807) |
 | FR-024-AC-11 | `glossary_terms_from_path` applies the same membership rule as the walk: a frontmatter-less file carrying a `## Terms` or `## Ubiquitous Language` heading contributes no project term, while the same content in a document does. | Test (TC-808) |
 
 > **CR-044 note (2026-08-15):** The original walk semantics above declared a
@@ -175,6 +175,32 @@ impl RepoLoad {
 > first-touch permutation, TC-815) and the
 > [NFR-018](../non-functional/NFR-018-ffi-sanitizer-lanes.md) TSAN lane
 > (TC-816).
+
+> **CR-048 note (2026-08-15):** CR-044's *silent* drop is inverted — the
+> membership rule stands, the silence does not. The silence was justified
+> entirely by tolerating a walk pointed at a repository root, where
+> `README.md`, `AGENTS.md`, `CHANGELOG.md` and `plan/*.md` are legitimately
+> present and legitimately not documents; silence was the only way to stop
+> 9,172 false errors across 223 repos. CR-045 expired that rationale: with
+> the walk bounded to the document root, those files are never visited, and
+> what remains is a markdown file someone put in the spec directory with no
+> front block — almost certainly an authoring mistake (a draft missing its
+> front block, a malformed `---` fence, a note filed in the wrong place).
+> Dropping it in silence was the noisy-warning problem running the other
+> way: **a real error nobody ever saw** — absent from the corpus, from
+> `index.md` completeness, and from coverage denominators, with nothing
+> saying so. The warning is **never re-suppressed by filename**: deleting
+> `DEFAULT_SKIP` is why `TestMatrix` is loadable at all, and a new name list
+> to quiet this finding would undo it. `FrontmatterStatus` already
+> distinguishes a malformed block (complete fences, not a YAML mapping) from
+> an absent one, so that sharper case carries its own message; the no-fence
+> and unterminated-fence cases both classify `Absent` (FR-006, CR-011) and
+> share one. AC-10's "produce no diagnostic" assertion inverts; TC-807's
+> `README.md`/`CHANGELOG.md` fixtures move outside the document root, where
+> CR-045 makes them invisible rather than tolerated. `validate_bundle`
+> bridges the walk diagnostic into `BundleReport` as a warning (reason
+> `no-frontmatter`) in both postures, so `quire validate` actually shows it
+> (agent-ix/quire-rs#95, umbrella #90).
 
 ## Dependencies
 

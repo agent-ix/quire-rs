@@ -128,6 +128,19 @@ pub enum Diagnostic {
         archetype: String,
         role: String,
     },
+    /// A markdown file under the document root carries no usable
+    /// frontmatter block, so it is not a document and contributes nothing
+    /// to the corpus (CR-048, inverting CR-044's silent drop). Warning
+    /// tier, non-fatal: the run's exit code is unchanged. Inside `spec/`
+    /// this is almost certainly an authoring mistake — a draft that never
+    /// got its front block, a malformed `---` fence, a note filed in the
+    /// wrong place — and silence was a real error nobody ever saw.
+    /// `malformed` distinguishes a complete fence block that is not a
+    /// YAML mapping (a sharper finding) from an absent/unterminated block.
+    DocumentWithoutFrontmatter {
+        path: PathBuf,
+        malformed: bool,
+    },
     /// A caller-supplied path argument failed a path-safety check.
     ///
     /// Surfaced by consumers (CLIs, services) that resolve user-controlled
@@ -284,6 +297,21 @@ impl std::fmt::Display for Diagnostic {
                 f,
                 "UnknownRole: archetype '{archetype}' references role '{role}' which is not in any roles registry"
             ),
+            Self::DocumentWithoutFrontmatter { path, malformed } => {
+                if *malformed {
+                    write!(
+                        f,
+                        "DocumentWithoutFrontmatter: {} has a frontmatter block that is not a YAML mapping — not a document, not loaded",
+                        path.display()
+                    )
+                } else {
+                    write!(
+                        f,
+                        "DocumentWithoutFrontmatter: {} is under the document root but has no frontmatter block — not a document, not loaded",
+                        path.display()
+                    )
+                }
+            }
             Self::PathTraversal {
                 argument,
                 path,
@@ -416,6 +444,11 @@ impl Diagnostic {
                 "kind": "UnknownRole",
                 "archetype": archetype,
                 "role": role,
+            }),
+            Self::DocumentWithoutFrontmatter { path, malformed } => json!({
+                "kind": "DocumentWithoutFrontmatter",
+                "path": path.display().to_string(),
+                "malformed": malformed,
             }),
             Self::PathTraversal {
                 argument,
