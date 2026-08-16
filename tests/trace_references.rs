@@ -381,3 +381,66 @@ fn tc760_declared_cell_normalization() {
     // nothing dangles) and the qualifier's id IS read (TC-404 dangles).
     assert_eq!(ids("plain"), vec!["TC-404".to_string()]);
 }
+
+// TC-814 (FR-049-AC-9, CR-045): the corpus is walked from the document root
+// while the module's path-bound declarations keep resolving against the
+// scope. Conflating the two roots silently un-mints every path-bound trace
+// target — the regression the two-parameter `validate_bundle` exists to
+// prevent.
+#[test]
+fn tc814_reference_root_stays_the_scope_when_corpus_is_nested() {
+    let root = tmpdir("814");
+
+    // A module authored against the repository scope: the auxiliary matrix
+    // is declared at `spec/tests.md`, exactly as spec-artifacts-process
+    // declares it.
+    let module = root.join("m");
+    fs::create_dir_all(&module).expect("mkdir module");
+    fs::write(
+        module.join("manifest.yaml"),
+        "name: m\nmanifest_version: 1.0.0\nversion: 0.0.1\nartifact_types:\n\
+         - name: FR\n\
+         traceability:\n  trace_targets:\n  - name: test-case\n\
+         \x20   document: spec/tests.md\n    section: Test Cases\n\
+         \x20   id_column: ID\n\
+         \x20 document_references:\n  - name: verification\n    archetype: FR\n\
+         \x20   section: Acceptance Criteria\n    column: Verification\n\
+         \x20   row_id_column: ID\n    pattern: '\\((TC-\\d+)\\)'\n\
+         \x20   targets: [test-case]\n",
+    )
+    .expect("write manifest");
+
+    write(
+        &root,
+        "spec/FR-001.md",
+        &fr_document("FR-001", &[("FR-001-AC-1", "Test (TC-001)")]),
+    );
+    write(
+        &root,
+        "spec/tests.md",
+        &tests_matrix(&[("TC-001", "FR-001-AC-1")]),
+    );
+
+    let registry = Registry::load_module(&module).expect("load module");
+    let spec_root = root.join("spec");
+    let spec = quire_rs::Spec::from_path(&spec_root);
+
+    // Two roots stated separately: the reference resolves.
+    let split = quire_rs::validate_bundle(&spec, &registry, BundlePosture::Okf, &spec_root, &root);
+    assert!(
+        dangling(&split).is_empty(),
+        "path-bound target must mint against the scope: {:?}",
+        dangling(&split)
+    );
+
+    // Conflated roots: `spec/tests.md` no longer resolves relative to the
+    // document root, the target un-mints, and the reference dangles.
+    let conflated =
+        quire_rs::validate_bundle(&spec, &registry, BundlePosture::Okf, &spec_root, &spec_root);
+    assert_eq!(
+        dangling(&conflated).len(),
+        1,
+        "conflating the roots should un-mint the path-bound target: {:?}",
+        dangling(&conflated)
+    );
+}

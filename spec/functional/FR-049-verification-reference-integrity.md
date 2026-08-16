@@ -64,6 +64,18 @@ findings.
 | FR-049-AC-6 | With no traceability model declared by any active module, `validate_bundle` emits zero `dangling-trace-reference` findings for any input. | Test (TC-729) |
 | FR-049-AC-7 | A cell bearing multiple annotations (`Test (TC-035, TC-036)`) resolves each id independently and reports only the unresolved ones. | Test (TC-730) |
 | FR-049-AC-8 | Findings are deterministic: repeated validation of the same bundle yields the same findings in the same order. | Test (TC-731) |
+| FR-049-AC-9 | With the corpus walked from a document root nested under the scope, model-declared `document:` paths and `exclude:` globs resolve against the **reference root** (the scope), not the document root: a `document: spec/tests.md` target mints when `validate_bundle` receives the two roots separately, and un-mints — every reference to it dangling — when the roots are conflated (CR-045). | Test (TC-814) |
+
+> **CR-045 note (2026-08-15):** `validate_bundle` gains the same two-root
+> split `compute_coverage` has always had via its `root` parameter: a
+> `document_root` (locates the root `index.md`) and a `reference_root` (the
+> base for the model's `document:`/`exclude:` paths, which modules author
+> against the repository scope — `spec/tests.md`). Found while landing the
+> #91 CLI derivation: bounding the OKF bundle root to `<scope>/spec` with a
+> single conflated root silently un-minted every path-bound trace target,
+> surfacing as 123 new `dangling-trace-reference` findings on this repo's
+> own spec. `validate_bundle_at` keeps single-root semantics for
+> self-contained bundles (agent-ix/quire-rs#91, umbrella #90).
 
 ## Dependencies
 
