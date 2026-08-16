@@ -5,11 +5,12 @@ All notable changes to `quire-rs` are documented here. Format follows
 numbers follow semver — pre-1.0, breaking changes may land in minor
 bumps; once 1.0 ships, semver is strict.
 
-## [Unreleased]
+## [0.25.0] — 2026-08-15
 
 Bodies are lazy: the corpus parses headers at load and each document's
-body on first touch, exactly once. And a frontmatter-less file inside the
-document root warns instead of vanishing.
+body on first touch, exactly once. Coverage parses only the archetypes
+its model declares. And a frontmatter-less file inside the document root
+warns instead of vanishing. Completes umbrella agent-ix/quire-rs#90.
 
 ### Added
 
