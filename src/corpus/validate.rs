@@ -120,7 +120,6 @@ pub fn validate_bundle(
     document_root: &Path,
     reference_root: &Path,
 ) -> BundleReport {
-    let root = document_root;
     let mut report = BundleReport::default();
 
     // CR-048: a frontmatter-less markdown file under the document root is a
@@ -202,7 +201,7 @@ pub fn validate_bundle(
         &mut report,
     );
 
-    check_index_completeness(spec, posture, root, &mut report);
+    check_index_completeness(spec, posture, document_root, &mut report);
 
     report
 }

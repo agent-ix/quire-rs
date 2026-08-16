@@ -172,10 +172,31 @@ pub fn extract_tree(root: &Path) -> SymbolExtraction {
 /// here: documents are not source, so the code walk must not descend into
 /// `spec/` (FR-050 two-roots, CR-045).
 pub fn extract_tree_excluding(root: &Path, exclude: &[&Path]) -> SymbolExtraction {
-    let excluded: Vec<std::path::PathBuf> = exclude.iter().map(|e| root.join(e)).collect();
+    // Canonicalized, because an exclusion stated as a path must hold wherever
+    // the caller's `is_dir()` check held (CR-056). On a case-insensitive
+    // filesystem — macOS/APFS, the canonical perf runner — `<scope>/Spec`
+    // satisfies `scope.join("spec").is_dir()` while an exact path `==` never
+    // matches it, so the exclusion silently lapsed and every spec document was
+    // ingested a second time as source. Canonicalizing both sides also settles
+    // a symlinked `spec/`, which resolves to its target on one side only.
+    let excluded: Vec<std::path::PathBuf> = exclude
+        .iter()
+        .map(|e| root.join(e))
+        .map(|p| std::fs::canonicalize(&p).unwrap_or(p))
+        .collect();
     let mut files: Vec<(String, SourceLanguage, std::path::PathBuf)> = Vec::new();
     let mut walk = ignore::WalkBuilder::new(root);
-    walk.filter_entry(move |entry| !excluded.iter().any(|ex| entry.path() == ex));
+    walk.filter_entry(move |entry| {
+        // Only directories can be an excluded subtree, and canonicalizing
+        // every file would put a syscall on the hot path of the NFR-015 walk.
+        if !entry.file_type().is_some_and(|t| t.is_dir()) {
+            return true;
+        }
+        let path = entry.path();
+        let canonical = std::fs::canonicalize(path);
+        let candidate: &Path = canonical.as_deref().unwrap_or(path);
+        !excluded.iter().any(|ex| ex == candidate)
+    });
     for entry in walk.build().flatten() {
         let path = entry.path();
         if !path.is_file() {
@@ -327,6 +348,75 @@ mod tests {
         let empty_exclude = extract_tree_excluding(&fixture_root(), &[]);
         assert_eq!(all.symbols, empty_exclude.symbols);
         assert_eq!(all.diagnostics, empty_exclude.diagnostics);
+    }
+
+    // TC-809 (FR-050-AC-17, CR-056): the exclusion must hold wherever the
+    // caller's `is_dir()` check held. On a case-insensitive filesystem
+    // `<scope>/Spec` satisfies `scope.join("spec").is_dir()` while an exact
+    // path `==` never matches it — so `quire coverage` on macOS/APFS excluded
+    // nothing and ingested every spec document a second time as source. The
+    // assertion is conditional on the filesystem actually being
+    // case-insensitive, since on ext4 the two directories are simply distinct.
+    #[test]
+    fn tc809_exclusion_survives_a_case_insensitive_filesystem() {
+        let root = std::env::temp_dir().join(format!(
+            "quire-sym-case-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(root.join("Spec")).expect("mkdir");
+        std::fs::write(root.join("Spec/doc.rs"), "fn in_spec() {}\n").expect("write");
+        std::fs::write(root.join("lib.rs"), "fn in_source() {}\n").expect("write");
+
+        // Does this filesystem resolve `spec` to the `Spec` we created?
+        let case_insensitive = root.join("spec").is_dir();
+
+        let out = extract_tree_excluding(&root, &[Path::new("spec")]);
+        let saw_spec = out.symbols.iter().any(|s| s.path.starts_with("Spec/"));
+        if case_insensitive {
+            assert!(
+                !saw_spec,
+                "a case-insensitive filesystem accepted `spec` as the directory, \
+                 so excluding `spec` must exclude it: {:?}",
+                out.symbols
+            );
+        }
+        // Either way the rest of the tree is still extracted.
+        assert!(out.symbols.iter().any(|s| s.path == "lib.rs"));
+
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    // TC-809 (FR-050-AC-17, CR-056): and a symlinked document root is excluded
+    // by what it resolves to, not by the name the caller happened to use.
+    #[cfg(unix)]
+    #[test]
+    fn tc809_exclusion_follows_a_symlinked_root() {
+        let root = std::env::temp_dir().join(format!(
+            "quire-sym-link-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(root.join("real_spec")).expect("mkdir");
+        std::fs::write(root.join("real_spec/doc.rs"), "fn in_spec() {}\n").expect("write");
+        std::fs::write(root.join("lib.rs"), "fn in_source() {}\n").expect("write");
+        std::os::unix::fs::symlink(root.join("real_spec"), root.join("spec")).expect("symlink");
+
+        let out = extract_tree_excluding(&root, &[Path::new("spec")]);
+        assert!(
+            !out.symbols.iter().any(|s| s.path.starts_with("real_spec/")),
+            "the symlink target is the excluded subtree: {:?}",
+            out.symbols
+        );
+        assert!(out.symbols.iter().any(|s| s.path == "lib.rs"));
+
+        let _ = std::fs::remove_dir_all(&root);
     }
 
     // TC-741 (FR-051-AC-1): each adapter extracts functions, test functions,
