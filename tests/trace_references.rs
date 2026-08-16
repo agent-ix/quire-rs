@@ -444,3 +444,69 @@ fn tc814_reference_root_stays_the_scope_when_corpus_is_nested() {
         dangling(&conflated)
     );
 }
+
+// TC-814 (FR-049-AC-9, CR-056): the `exclude:` half of the two-root split.
+// A glob is authored against the repository scope exactly as `document:` is
+// — `exclude: ["spec/fixtures/**"]` — so it must be matched against the
+// **reference** root. Matched against the document root instead, the same
+// glob addresses `spec/spec/fixtures/**`, excludes nothing, and a fixture
+// matrix's ids mint as if they were real. This is the more fragile half:
+// `document:` un-mints loudly (a reference dangles), while a lapsed exclusion
+// *adds* ids and every reference still resolves.
+#[test]
+fn tc814_exclude_globs_resolve_against_the_reference_root() {
+    let root = tmpdir("814-exclude");
+
+    let module = root.join("m");
+    fs::create_dir_all(&module).expect("mkdir module");
+    fs::write(
+        module.join("manifest.yaml"),
+        "name: m\nmanifest_version: 1.0.0\nversion: 0.0.1\nartifact_types:\n\
+         - name: FR\n\
+         traceability:\n  trace_targets:\n  - name: test-case\n\
+         \x20   archetype: FR\n    section: Acceptance Criteria\n\
+         \x20   id_column: ID\n    exclude: ['spec/fixtures/**']\n\
+         \x20 document_references:\n  - name: verification\n    archetype: FR\n\
+         \x20   section: Acceptance Criteria\n    column: Verification\n\
+         \x20   row_id_column: ID\n    pattern: '\\((TC-\\d+)\\)'\n\
+         \x20   targets: [test-case]\n    exclude: ['spec/fixtures/**']\n",
+    )
+    .expect("write manifest");
+
+    // A real requirement, and a deliberately broken fixture under the
+    // excluded subtree whose reference cannot resolve.
+    write(
+        &root,
+        "spec/FR-001.md",
+        &fr_document("FR-001", &[("FR-001-AC-1", "ok")]),
+    );
+    write(
+        &root,
+        "spec/fixtures/FR-900.md",
+        &fr_document("FR-900", &[("FR-900-AC-1", "Test (TC-404)")]),
+    );
+
+    let registry = Registry::load_module(&module).expect("load module");
+    let spec_root = root.join("spec");
+    let spec = quire_rs::Spec::from_path(&spec_root);
+
+    // Two roots stated separately: the glob is authored against the scope, so
+    // the fixture is excluded and its dangling reference is never read.
+    let split = quire_rs::validate_bundle(&spec, &registry, BundlePosture::Okf, &spec_root, &root);
+    assert!(
+        dangling(&split).is_empty(),
+        "the excluded fixture must contribute no reference: {:?}",
+        dangling(&split)
+    );
+
+    // Conflated roots: the same glob now addresses `spec/spec/fixtures/**`,
+    // matches nothing, and the fixture is read as a real document.
+    let conflated =
+        quire_rs::validate_bundle(&spec, &registry, BundlePosture::Okf, &spec_root, &spec_root);
+    assert_eq!(
+        dangling(&conflated).len(),
+        1,
+        "conflating the roots should lapse the exclusion: {:?}",
+        dangling(&conflated)
+    );
+}
