@@ -1,0 +1,145 @@
+{
+  "unbacked_rows": [
+    {
+      "reference": "traces-to",
+      "document": "spec/tests.md",
+      "row_id": "TC-002",
+      "target_ids": [
+        "FR-001-AC-2",
+        "TC-002"
+      ]
+    },
+    {
+      "reference": "traces-to",
+      "document": "spec/tests.md",
+      "row_id": "TC-003",
+      "target_ids": [
+        "FR-002-AC-1",
+        "TC-003"
+      ]
+    },
+    {
+      "reference": "traces-to",
+      "document": "spec/tests.md",
+      "row_id": "TC-004",
+      "target_ids": [
+        "FR-001-AC-1",
+        "TC-004"
+      ]
+    },
+    {
+      "reference": "traces-to",
+      "document": "spec/tests.md",
+      "row_id": "TC-005",
+      "target_ids": [
+        "FR-999-AC-1",
+        "TC-005"
+      ]
+    },
+    {
+      "reference": "verification",
+      "document": "spec/FR-001.md",
+      "row_id": "FR-001-AC-2",
+      "target_ids": [
+        "FR-001-AC-2",
+        "TC-002"
+      ]
+    },
+    {
+      "reference": "verification",
+      "document": "spec/FR-002.md",
+      "row_id": "FR-002-AC-1",
+      "target_ids": [
+        "FR-002-AC-1",
+        "TC-404"
+      ]
+    }
+  ],
+  "status_lies": [
+    {
+      "reference": "traces-to",
+      "document": "spec/tests.md",
+      "row_id": "TC-003",
+      "status": "✅",
+      "target_ids": [
+        "FR-002-AC-1",
+        "TC-003"
+      ]
+    }
+  ],
+  "no_symbol_rows": [
+    {
+      "reference": "traces-to",
+      "document": "spec/tests.md",
+      "row_id": "TC-004",
+      "test_type": "Eval",
+      "target_ids": [
+        "FR-001-AC-1",
+        "TC-004"
+      ]
+    }
+  ],
+  "untracked_symbols": [
+    {
+      "path": "src/lib.rs",
+      "symbol": "tests::covers_nothing_declared",
+      "trace_id": "TC-999"
+    }
+  ],
+  "groups": [
+    {
+      "document": "spec/FR-001.md",
+      "target": "acceptance-criterion",
+      "backed": 0,
+      "total": 2
+    },
+    {
+      "document": "spec/FR-002.md",
+      "target": "acceptance-criterion",
+      "backed": 0,
+      "total": 1
+    },
+    {
+      "document": "spec/tests.md",
+      "target": "test-case",
+      "backed": 1,
+      "total": 5
+    }
+  ],
+  "criteria": [
+    {
+      "document": "spec/FR-001.md",
+      "archetype": "FR",
+      "criteria": 2,
+      "property_shaped": 1,
+      "by_property": {
+        "example": 1,
+        "universal": 1
+      }
+    },
+    {
+      "document": "spec/FR-002.md",
+      "archetype": "FR",
+      "criteria": 1,
+      "property_shaped": 1,
+      "by_property": {
+        "universal": 1
+      }
+    },
+    {
+      "document": "spec/fixtures/FR-900.md",
+      "archetype": "FR",
+      "criteria": 1,
+      "property_shaped": 1,
+      "by_property": {
+        "invariant": 1
+      }
+    }
+  ],
+  "totals": {
+    "backed": 1,
+    "total": 8,
+    "criteria": 4,
+    "property_shaped": 3
+  }
+}

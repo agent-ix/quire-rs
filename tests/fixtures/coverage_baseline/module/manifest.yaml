@@ -1,0 +1,59 @@
+# The traceability declaration the coverage baseline is computed under.
+#
+# Deliberately exercises the whole reconciliation surface in one corpus:
+# archetype-minted ids, an auxiliary matrix, an `exclude:` glob, the status
+# vocabulary (complete/pending/failed), the `no_source_symbol` exemption, and
+# an archetype nothing declares. See tests/coverage_baseline.rs.
+name: traceability-baseline
+version: 0.1.0
+description: Fixture module for the FR-050-AC-7 byte-identity baseline
+artifact_types:
+- name: FR
+  grammar_ref: iso-spec-core
+  defaults:
+    id_pattern: FR-{next:03d}
+- name: TC
+  defaults:
+    id_pattern: TC-{next:03d}
+traceability:
+  trace_targets:
+  - name: acceptance-criterion
+    archetype: FR
+    section: Acceptance Criteria
+    id_column: ID
+    exclude: ['spec/fixtures/**']
+  - name: test-case
+    document: spec/tests.md
+    section: Test Cases
+    id_column: ID
+  document_references:
+  - name: verification
+    archetype: FR
+    section: Acceptance Criteria
+    column: Verification
+    row_id_column: ID
+    pattern: '\((TC-\d+)\)'
+    targets: [test-case]
+    exclude: ['spec/fixtures/**']
+  - name: traces-to
+    document: spec/tests.md
+    section: Test Cases
+    column: Traces To
+    row_id_column: ID
+    pattern: '((?:StR|US|FR|NFR)-\d+(?:-(?:AC|CON)-\d+)?)'
+    targets: [acceptance-criterion]
+  status:
+    column: Status
+    complete: ["✅"]
+    pending: ["🚧"]
+    failed: ["❌"]
+  vocabularies:
+    test_type: [Unit, E2E, Eval, Inspection]
+    test_type_column: Type
+    no_source_symbol: [Eval, Inspection]
+  trace_tags:
+    markers:
+    - name: rust-trace-attribute
+      language: rust
+      pattern: '#\[trace\(([^)]*)\)\]'
+      template: '#[trace({ids})]'
