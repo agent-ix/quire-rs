@@ -445,6 +445,57 @@ fn tc814_reference_root_stays_the_scope_when_corpus_is_nested() {
     );
 }
 
+// TC-825 (FR-050-AC-19, CR-059): `quire validate` is the *second* consumer of
+// the scan vocabulary, and CR-054's whole point was that the two must not
+// disagree about what to call the same finding. So the absent/unreadable split
+// is asserted here too: an optional auxiliary document this repository does not
+// have is silent while the model mints, and a document that is present and does
+// not open is a warning either way.
+#[test]
+fn tc825_validate_agrees_about_absent_and_unreadable_documents() {
+    let scan_reasons = |report: &BundleReport| -> Vec<&'static str> {
+        report
+            .errors
+            .iter()
+            .chain(report.warnings.iter())
+            .map(|f| f.reason)
+            .filter(|r| r.ends_with("-declared-document"))
+            .collect()
+    };
+
+    // `optional-aux` declares `evals.md` and `matrix.md`; this bundle has
+    // neither, and mints normally through the FR archetype and `tests.md`.
+    let root = tmpdir("825-absent");
+    write(
+        &root,
+        "FR-001.md",
+        &fr_document("FR-001", &[("FR-001-AC-1", "Test (TC-001)")]),
+    );
+    write(
+        &root,
+        "tests.md",
+        &tests_matrix(&[("TC-001", "FR-001-AC-1")]),
+    );
+
+    let report = validate(&root, "optional-aux", BundlePosture::Okf);
+    assert!(
+        scan_reasons(&report).is_empty(),
+        "an absent optional declaration must be silent here too: {:?}",
+        report.warnings
+    );
+
+    // The same bundle, with `evals.md` present and unopenable — a directory
+    // where a file was declared. The model still mints, and this is reported.
+    fs::create_dir_all(root.join("evals.md")).expect("mkdir evals.md");
+    let report = validate(&root, "optional-aux", BundlePosture::Okf);
+    assert_eq!(
+        scan_reasons(&report),
+        vec!["unreadable-declared-document"],
+        "a present, unopenable document is the CR-045 class: {:?}",
+        report.warnings
+    );
+}
+
 // TC-814 (FR-049-AC-9, CR-056): the `exclude:` half of the two-root split.
 // A glob is authored against the repository scope exactly as `document:` is
 // — `exclude: ["spec/fixtures/**"]` — so it must be matched against the

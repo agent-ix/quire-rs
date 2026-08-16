@@ -5,6 +5,23 @@ All notable changes to `quire-rs` are documented here. Format follows
 numbers follow semver — pre-1.0, breaking changes may land in minor
 bumps; once 1.0 ships, semver is strict.
 
+## [Unreleased]
+
+### Fixed
+
+- **FR-050-AC-19 (CR-059)** — an **absent** declared auxiliary
+  `document:` is no longer reported as an unreadable one. CR-054
+  flattened `io::Error` at the point of the read, so `NotFound` — the
+  ordinary case for an optional declaration a fleet module ships across
+  200+ repositories — was indistinguishable from permission denied or a
+  directory where a file was expected. Six such diagnostics fired on
+  this repository's own spec. `absent-declared-document` is a new
+  machine reason, reported only when the model minted nothing at all,
+  the rule `archetype-matches-nothing` already used;
+  `unreadable-declared-document` narrows to the always-wrong case and is
+  still reported either way. `quire validate` reports the same two
+  tokens. TC-825.
+
 ## [0.26.0] — 2026-08-16
 
 The post-ship review of the #90 program (SpecReview **SR-006**, verdict
