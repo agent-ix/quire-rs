@@ -45,8 +45,14 @@ pub(crate) fn parse(source: &str) -> Result<Vec<RawSymbol>, String> {
         if let Some(names) = criterion_group_members(&lexed, idx) {
             registered_benches.extend(names);
         }
-        if let Some(symbol) = fuzz_target(&lexed, idx) {
-            out.push(symbol);
+        // At most one per file. A second invocation would mint a second symbol
+        // with the identical `(language, path, qualified_name, kind)` identity,
+        // and two symbols sharing an id is malformed however unlikely libfuzzer
+        // makes it (FR-051-AC-2).
+        if !out.iter().any(|s| s.kind == SymbolKind::FuzzTarget) {
+            if let Some(symbol) = fuzz_target(&lexed, idx) {
+                out.push(symbol);
+            }
         }
 
         if let Some((name, kind)) = declaration(trimmed) {
@@ -129,14 +135,18 @@ fn criterion_group_members(lexed: &[LexedLine], idx: usize) -> Option<Vec<String
     if !after.starts_with(['(', '{', '[']) {
         return None;
     }
-    let args = macro_arguments(lexed, idx, after.len());
+    // The opening line's arguments are passed as a slice rather than as an
+    // offset: the lexed line keeps the whitespace a stripped `//` comment left
+    // behind, so any offset derived from the *trimmed* line addresses the
+    // wrong bytes of the untrimmed one — which silently registered nothing.
+    let args = macro_arguments(after, lexed, idx);
 
     // Two invocation forms: the plain list `(name, a, b)`, and the long
     // `(name = g; config = c(); targets = a, b)` — where the config expression
     // has parentheses of its own, which is why the arguments are read by
     // nesting depth rather than to the first `)`.
-    let args = match args.split_once("targets") {
-        Some((_, rest)) => rest.trim_start().trim_start_matches('=').to_string(),
+    let args = match split_targets_clause(&args) {
+        Some(rest) => rest,
         None => args
             .split_once(',')
             .map(|(_group_name, rest)| rest.to_string())
@@ -150,17 +160,37 @@ fn criterion_group_members(lexed: &[LexedLine], idx: usize) -> Option<Vec<String
     )
 }
 
+/// The list after a long-form `targets =` clause, or `None` for the short form.
+///
+/// Matched as a whole word followed by `=`, so a group or bench *named*
+/// `targets_something` is not mistaken for the clause.
+fn split_targets_clause(args: &str) -> Option<String> {
+    let mut rest = args;
+    while let Some(at) = rest.find("targets") {
+        let (before, from) = rest.split_at(at);
+        let after = &from["targets".len()..];
+        // `.is_none_or` is stable since 1.82; the crate's MSRV is 1.75.
+        let boundary_before = match before.chars().next_back() {
+            Some(c) => !c.is_alphanumeric() && c != '_',
+            None => true,
+        };
+        if boundary_before && after.trim_start().starts_with('=') {
+            return Some(after.trim_start()[1..].to_string());
+        }
+        rest = after;
+    }
+    None
+}
+
 /// The text between a macro invocation's delimiters, across lines, matched by
-/// nesting depth. `open_len` is the length of the invocation's first line from
-/// its opening delimiter.
-fn macro_arguments(lexed: &[LexedLine], idx: usize, open_len: usize) -> String {
+/// nesting depth. `open` is the invocation's first line from its opening
+/// delimiter onwards.
+fn macro_arguments(open: &str, lexed: &[LexedLine], idx: usize) -> String {
     let mut out = String::new();
     let mut depth = 0i32;
-    let first = lexed[idx].code.trim_start();
-    let start = first.len().saturating_sub(open_len);
     for (offset, line) in lexed[idx..].iter().enumerate() {
         let text = if offset == 0 {
-            &first[start..]
+            open
         } else {
             out.push(' ');
             line.code.as_str()
@@ -707,6 +737,37 @@ mod tests {
         let attribute =
             parse("#[bench]\nfn b(x: &mut Bencher) {\n    let _ = x;\n}\n").expect("valid");
         assert_eq!(attribute[0].kind, SymbolKind::Benchmark);
+    }
+
+    /// TC-827 (FR-051-AC-17, CR-061): the registration is read from the lexed
+    /// line, which keeps the whitespace a stripped `//` comment leaves behind.
+    /// An offset derived from the trimmed line addresses the wrong bytes of the
+    /// untrimmed one, and the registration is missed **in silence** — the exact
+    /// failure mode this whole change exists to remove.
+    #[test]
+    fn tc827_a_trailing_comment_does_not_hide_the_registration() {
+        let symbols = parse(concat!(
+            "fn b() {\n",
+            "}\n",
+            "criterion_group!(g, b); // the registration, with a comment after it\n",
+            "criterion_main!(g);\n",
+        ))
+        .expect("valid");
+        assert_eq!(symbols[0].kind, SymbolKind::Benchmark);
+    }
+
+    /// TC-827 (FR-051-AC-17, CR-061): `targets` is matched as a whole word
+    /// followed by `=`, so a bench or group whose *name* merely starts with it
+    /// is still registered rather than eaten by the long-form parse.
+    #[test]
+    fn tc827_a_name_beginning_with_targets_is_not_the_targets_clause() {
+        let symbols =
+            parse("fn targets_parse() {\n}\ncriterion_group!(g, targets_parse);\n").expect("valid");
+        assert_eq!(
+            symbols[0].kind,
+            SymbolKind::Benchmark,
+            "the short form's list must survive a name starting with `targets`"
+        );
     }
 
     /// TC-827 (FR-051-AC-17, CR-061): `fuzz_target!` declares no `fn`, so
