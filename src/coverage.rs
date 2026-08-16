@@ -233,7 +233,7 @@ pub fn compute(
     // `reconcile`, which reconciles against the declared model alone and takes
     // no `Registry`. The vocabularies the classifier reads hang off the same
     // `registry` this function already holds.
-    report.criteria = criteria_counts(spec, registry, root);
+    report.criteria = criteria_counts(spec, registry, model, root);
     // Set as a pair, so a consumer never sees a criteria count without the
     // property-shaped count it is the denominator of.
     if !report.criteria.is_empty() {
@@ -254,18 +254,38 @@ pub fn compute(
 /// contributes no entry, so a corpus of non-requirement documents produces an
 /// empty list.
 ///
+/// The walk is declaration-free by necessity — criteria classification is not a
+/// declared target — but it is not *scope*-free: the model-level `exclude:`
+/// says which paths hold no corpus data at all, and this walk reads it (CR-060).
+/// Before that, a deliberately malformed fixture under an excluded path
+/// contributed to `criteria` and to both totals, inflating the denominator, and
+/// its body was parsed despite the declaration saying it is not corpus data.
+///
 /// This is a pure function of statement text and the merged module
 /// vocabularies: no network, no service, no execution (FR-050-CON-2).
-fn criteria_counts(spec: &Spec, registry: &Registry, root: &Path) -> Vec<CriteriaCounts> {
+fn criteria_counts(
+    spec: &Spec,
+    registry: &Registry,
+    model: &TraceabilityModel,
+    root: &Path,
+) -> Vec<CriteriaCounts> {
     let vocab = GrammarVocabularies {
         lexicon: registry.lexicon_matcher(),
         observable: registry.observable_verbs_matcher(),
         vacuous: registry.vacuous_predicates_matcher(),
         idioms: registry.property_idioms_matcher(),
     };
+    let excluded = declared_tables::ExcludeSet::compile(&model.exclude);
 
     let mut out: Vec<CriteriaCounts> = Vec::new();
     for entry in &spec.inner.documents {
+        // Path-only, and ahead of every other gate: an excluded document must
+        // not be classified *or* body-parsed (CR-060). It matches on the same
+        // `relative_path` derivation a report path uses, so a glob and a
+        // reported path compare as the same string (CR-038).
+        if excluded.excludes(root, &entry.path) {
+            continue;
+        }
         let Some(archetype) =
             crate::corpus::spec::artifact_type(entry).and_then(|ty| registry.archetype(&ty))
         else {
@@ -310,11 +330,15 @@ fn reconcile(
     root: &Path,
 ) -> CoverageReport {
     let backed: BTreeSet<&str> = graph.backed_trace_ids();
+    // CR-060: compiled once for the whole reconciliation — every declaration
+    // is scoped by it.
+    let model_exclude = declared_tables::ExcludeSet::compile(&model.exclude);
 
     // ── Minted targets, grouped by their minting document ──
     let mut ctx = declared_tables::ScanContext::default();
     let mut minted: Vec<MintedTarget> = Vec::new();
     for target in &model.trace_targets {
+        let exclude = declared_tables::ExcludeSet::compile(&target.exclude);
         for row in declared_tables::scan(
             spec,
             root,
@@ -322,7 +346,8 @@ fn reconcile(
                 name: &target.name,
                 archetype: target.archetype.as_deref(),
                 document: target.document.as_deref(),
-                exclude: &target.exclude,
+                exclude: &exclude,
+                model_exclude: &model_exclude,
             },
             &target.section,
             &mut ctx,
@@ -362,6 +387,7 @@ fn reconcile(
         let Ok(pattern) = regex::Regex::new(&declaration.pattern) else {
             continue; // patterns are validated at module load
         };
+        let exclude = declared_tables::ExcludeSet::compile(&declaration.exclude);
         for row in declared_tables::scan(
             spec,
             root,
@@ -369,7 +395,8 @@ fn reconcile(
                 name: &declaration.name,
                 archetype: declaration.archetype.as_deref(),
                 document: declaration.document.as_deref(),
-                exclude: &declaration.exclude,
+                exclude: &exclude,
+                model_exclude: &model_exclude,
             },
             &declaration.section,
             &mut ctx,

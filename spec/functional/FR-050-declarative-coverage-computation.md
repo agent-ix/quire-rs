@@ -133,14 +133,51 @@ model; the engine knows nothing of "AC" or "TC" as concepts.
 | FR-050-AC-10 | A status cell carrying a trailing note (`✅ Complete`) classes by its leading marker, and a value declared in the `retired` class classes as retired rather than unknown. | Test (TC-758) |
 | FR-050-AC-11 | A declared `vocabularies.test_type` is exposed on the `Registry` as the core values plus the module's extensions, and is the same list a matrix contract validates against. | Test (TC-759) |
 | FR-050-AC-12 | With `expand_ranges` declared, `FR-001..FR-003` resolves as three references; with `strip_annotations` declared, `FR-022-AC-5 (superseded by FR-030)` resolves as one. Both are off unless declared. | Test (TC-760) |
-| FR-050-AC-13 | A report over a corpus whose documents carry criteria contains a `criteria` entry per contributing document and the two new totals; a corpus whose documents carry none contains an empty `criteria` list and serializes byte-identically to a report from an engine that predates the field. | Test (TC-788) |
+| FR-050-AC-13 | A report over a corpus whose documents carry criteria contains a `criteria` entry per contributing document and the two new totals; a corpus whose documents carry none contains an empty `criteria` list and serializes byte-identically to a report from an engine that predates the field. A document the model-level `exclude:` matches contributes no entry, is counted in neither total, and is not body-parsed. | Test (TC-788, TC-826) |
 | FR-050-AC-14 | A declared model that mints zero trace targets is reported distinctly from full coverage — never as `100%` — and `quire coverage --strict` exits non-zero on it. | Test (TC-797) |
-| FR-050-AC-15 | A trace target or document reference MAY declare `exclude:` path globs, and MAY declare `archetype` and `document` together; excluded documents mint no ids and contribute no reference rows, and a declaration naming both scans the archetype's corpus documents and the auxiliary file in one entry. | Test (TC-801, TC-802) |
+| FR-050-AC-15 | A trace target or document reference MAY declare `exclude:` path globs, and MAY declare `archetype` and `document` together; excluded documents mint no ids and contribute no reference rows, and a declaration naming both scans the archetype's corpus documents and the auxiliary file in one entry. The model MAY additionally declare a model-level `exclude:` meaning "not corpus data for any purpose", which scopes every declaration in addition to its own and merges across modules as a union; its patterns are compile-checked like any other, and declaring it alone leaves the model undeclared. | Test (TC-801, TC-802, TC-826) |
 | FR-050-AC-16 | A module MAY declare which test-type values mint no source symbol; an unbacked row carrying one is reported as a no-symbol row rather than a status lie, stays listed as unbacked, and a module declaring none reports exactly as before. | Test (TC-805) |
 | FR-050-AC-17 | The two roots derive from one `--scope` and stay distinct: repo-root files (`README.md`, `CHANGELOG.md`, `plan/*.md`) are never read as documents, the code walk never enters the document root, the minted-id set over a compliant repo is byte-identical to a pre-split run, and a scope with no `spec/` directory exits with a diagnostic naming the missing root (CR-045). | Test (TC-809, TC-810, TC-811) |
 | FR-050-AC-18 | During coverage computation, a corpus document whose archetype no trace target, document reference, or grammar binding names has its body left unmaterialised; a declared archetype's body is parsed; selection is decided on the header tier and never by filename; a module declaring no `traceability:` model still errors (`ModelUndeclared`) before any selection; and the report is byte-identical to a full-parse engine's (CR-049). | Test (TC-818, TC-738) |
 | FR-050-AC-19 | A declaration that selects nothing is reported in `CoverageReport.diagnostics` and as a `quire validate` warning, never in silence: a declared auxiliary `document:` that is **present and cannot be read** is reported against every declaration naming it, with the path and the OS error, whether or not the model minted; a declared `document:` that is **absent**, and a declared `archetype:` no corpus document has, are reported when the model minted no id at all; and a model declaring no `trace_targets` is reported as minting nothing. The two document reasons are distinct machine tokens, and `quire coverage` and `quire validate` report the same token for the same finding. The list is empty — and the key absent — for a model whose declarations select, so FR-050-AC-7 byte-identity holds (CR-054, amended CR-059). | Test (TC-822, TC-825) |
 | FR-050-AC-20 | The byte-identity property is gated by a checked-in baseline, not by inspection: a fixture corpus exercising minted ids, an auxiliary matrix, an `exclude:` glob, all three status classes, the `no_source_symbol` exemption, an untracked symbol, a dangling reference, an undeclared archetype and criteria classification has its report stored as `tests/fixtures/coverage_baseline/expected.json` and byte-diffed on every test run. Regeneration is a deliberate act (`make coverage-baseline-update`) whose diff is reviewed, and a companion test fails if the corpus stops exercising any of that surface (CR-057). | Test (TC-824) |
+
+> **CR-060 note (2026-08-16):** AC-13 and AC-15 gain a **model-level**
+> `exclude:`. CR-038 put `exclude:` on trace targets and document references,
+> and `declared_tables::scan` applies it. The CR-028 criteria counts walk the
+> corpus on their own axis — frontmatter `type` → archetype → grammar binding —
+> and had no exclusion to apply at all, because criteria classification is not
+> a declared target and there was nothing to hang one on.
+>
+> So a document under a declared-excluded path still contributed to
+> `CoverageReport.criteria` and to `totals.criteria` / `totals.property_shaped`.
+> Deliberately malformed fixture data inflated the criteria denominator, and its
+> body was parsed during coverage despite the declaration saying it is not
+> corpus data — the same class CR-038 fixed for trace targets, where scanning
+> `spec-artifacts-process` by archetype minted 67 test-case ids out of
+> `tests/fixtures/testmatrix/*.md`.
+>
+> The fix is not to union the declared excludes into the criteria walk. That
+> couples two axes CR-028 kept orthogonal, and it silently promotes a
+> per-declaration statement — "these documents mint no ids *for me*" — into a
+> global one. **Which paths hold test data is a property of the repository**, so
+> it is declared once, at the model: `traceability.exclude`. Both the criteria
+> walk and every declaration read it, and a per-declaration `exclude:` keeps its
+> narrower meaning unchanged.
+>
+> Consequences worth stating. It merges across modules as a **union**, not
+> first-wins like every named entry: a path one module calls non-corpus must not
+> become corpus because another loaded first, and the set does not depend on
+> load order (NFR-006). It does not make a model *declared* — a module saying
+> only "these paths are not corpus data" has declared nothing to reconcile
+> against. And the globs are now compiled **once** per model rather than per
+> pattern per question, because the criteria walk asks about every document in
+> the corpus and a glob build per document would land on the NFR-015 walk.
+>
+> This changes the report for repositories that declare `exclude:` and have
+> criteria under the excluded paths, so it is a deliberate, reviewable diff
+> against the AC-20 baseline — whose companion test pinned this leak on purpose
+> so that closing it could not be absorbed. Closes agent-ix/quire-rs#124.
 
 > **CR-059 note (2026-08-16):** AC-19 is amended: an **absent** declared
 > document and a **present but unreadable** one are no longer the same finding.

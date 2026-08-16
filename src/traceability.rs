@@ -48,6 +48,17 @@ impl SourceLanguage {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 #[serde(deny_unknown_fields)]
 pub struct TraceabilityModel {
+    /// Path globs holding data that is **not corpus data for any purpose**
+    /// (CR-060): test fixtures, deliberately malformed samples, vendored
+    /// examples. Every declaration is scoped by it, and so is the CR-028
+    /// criteria walk, which has no declaration of its own to hang an
+    /// exclusion on.
+    ///
+    /// Which paths hold test data is a property of the repository, not of one
+    /// declaration — a `TraceTarget::exclude` says "these documents mint no
+    /// ids for *me*", which is a different, still-supported statement.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub exclude: Vec<String>,
     /// Documents/sections that mint trace ids.
     #[serde(default)]
     pub trace_targets: Vec<TraceTarget>,
@@ -317,6 +328,8 @@ impl TraceabilityModel {
     /// first problem, which the manifest loader turns into a module-load
     /// failure (FR-050-AC-2).
     pub fn validate(&self) -> Result<(), String> {
+        check_excludes("model-level `exclude`", &self.exclude)?;
+
         let mut target_names: BTreeSet<&str> = BTreeSet::new();
         for target in &self.trace_targets {
             check_named("trace_targets", &target.name)?;
@@ -332,7 +345,10 @@ impl TraceabilityModel {
                 target.archetype.as_deref(),
                 target.document.as_deref(),
             )?;
-            check_excludes("trace_targets", &target.name, &target.exclude)?;
+            check_excludes(
+                &format!("trace_targets entry '{}'", target.name),
+                &target.exclude,
+            )?;
             check_field("trace_targets", &target.name, "section", &target.section)?;
             check_field(
                 "trace_targets",
@@ -357,7 +373,10 @@ impl TraceabilityModel {
                 reference.archetype.as_deref(),
                 reference.document.as_deref(),
             )?;
-            check_excludes("document_references", &reference.name, &reference.exclude)?;
+            check_excludes(
+                &format!("document_references entry '{}'", reference.name),
+                &reference.exclude,
+            )?;
             check_field(
                 "document_references",
                 &reference.name,
@@ -499,15 +518,18 @@ fn check_origin(
 
 /// Exclusion globs must compile; a typo that silently matched nothing would
 /// quietly readmit the documents the module meant to keep out (CR-038).
-fn check_excludes(section: &str, name: &str, exclude: &[String]) -> Result<(), String> {
+///
+/// `location` reads as the place the patterns were authored, because the same
+/// rule now guards a model-level `exclude:` that belongs to no entry (CR-060).
+fn check_excludes(location: &str, exclude: &[String]) -> Result<(), String> {
     for pattern in exclude {
         if pattern.trim().is_empty() {
             return Err(format!(
-                "traceability: {section} entry '{name}' has an empty `exclude` pattern"
+                "traceability: {location} has an empty `exclude` pattern"
             ));
         }
         globset::Glob::new(pattern).map_err(|e| {
-            format!("traceability: {section} entry '{name}' has an invalid `exclude` pattern: {e}")
+            format!("traceability: {location} has an invalid `exclude` pattern: {e}")
         })?;
     }
     Ok(())
@@ -687,6 +709,39 @@ document_references:
         // as it did before the field existed.
         let yaml = serde_yaml::to_string(&m).expect("serialize");
         assert!(!yaml.contains("exclude"), "{yaml}");
+    }
+
+    // TC-826 (CR-060): the model-level `exclude:` is a repository fact, so it
+    // is not what makes a model *declared* — a module that says only "these
+    // paths are not corpus data" has declared no model to reconcile against.
+    #[test]
+    fn model_level_exclude_alone_is_still_an_undeclared_model() {
+        let m = model("exclude: ['spec/fixtures/**']\n");
+        assert_eq!(m.exclude, vec!["spec/fixtures/**".to_string()]);
+        assert!(m.is_empty());
+        m.validate().expect("valid");
+
+        // FR-050-AC-7: unset, it serializes exactly as before the field.
+        let yaml = serde_yaml::to_string(&model(FULL)).expect("serialize");
+        assert!(!yaml.contains("exclude"), "{yaml}");
+    }
+
+    // TC-826 (CR-060): the same compile check `exclude:` has carried since
+    // CR-038 — a pattern that cannot compile would quietly readmit everything
+    // the module meant to keep out.
+    #[test]
+    fn model_level_exclude_patterns_must_compile() {
+        let bad = model("exclude: ['[bad']\n");
+        let err = bad.validate().expect_err("must not validate");
+        assert!(err.contains("invalid `exclude` pattern"), "{err}");
+        assert!(
+            err.contains("model-level"),
+            "names where it was authored: {err}"
+        );
+
+        let empty = model("exclude: ['  ']\n");
+        let err = empty.validate().expect_err("must not validate");
+        assert!(err.contains("empty `exclude` pattern"), "{err}");
     }
 
     #[test]

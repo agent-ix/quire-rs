@@ -1,0 +1,55 @@
+# Model-level path scoping (FR-050-AC-15 / CR-060 fixture).
+#
+# `iso`, with one addition: `traceability.exclude` — "these paths are not corpus
+# data for any purpose". No declaration carries an `exclude:` of its own, so
+# every exclusion this fixture demonstrates comes from the model level: the
+# minting scan, the reference scan, *and* the CR-028 criteria walk, which has no
+# declaration to hang an exclusion on and so had none before CR-060.
+name: traceability-model-scoped
+version: 0.1.0
+description: Model-level exclusion fixture
+artifact_types:
+- name: FR
+  grammar_ref: iso-spec-core
+  defaults:
+    id_pattern: FR-{next:03d}
+- name: TC
+  defaults:
+    id_pattern: TC-{next:03d}
+traceability:
+  exclude: ['fixtures/**']
+  trace_targets:
+  - name: acceptance-criterion
+    archetype: FR
+    section: Acceptance Criteria
+    id_column: ID
+  - name: test-case
+    document: tests.md
+    section: Test Cases
+    id_column: ID
+  document_references:
+  - name: verification
+    archetype: FR
+    section: Acceptance Criteria
+    column: Verification
+    row_id_column: ID
+    pattern: '\((TC-\d+)\)'
+    targets: [test-case]
+  - name: traces-to
+    document: tests.md
+    section: Test Cases
+    column: Traces To
+    row_id_column: ID
+    pattern: '((?:StR|US|FR|NFR)-\d+(?:-(?:AC|CON)-\d+)?)'
+    targets: [acceptance-criterion]
+  status:
+    column: Status
+    complete: ["✅"]
+    pending: ["🚧", "⚠️"]
+    failed: ["❌"]
+  trace_tags:
+    markers:
+    - name: rust-trace-attribute
+      language: rust
+      pattern: '#\[trace\(([^)]*)\)\]'
+      template: '#[trace({ids})]'
