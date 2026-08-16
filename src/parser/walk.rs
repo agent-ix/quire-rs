@@ -72,7 +72,7 @@ pub fn walk_headings(lines: &[&str]) -> Vec<Heading> {
 /// Recognized shape: `... {#<id>}` at end-of-text. `<id>` is one or
 /// more non-whitespace, non-`}` characters. Permissive author syntax;
 /// the engine doesn't restrict ID character set.
-fn strip_trailing_block_id(text: &mut String) -> Option<String> {
+pub(crate) fn strip_trailing_block_id(text: &mut String) -> Option<String> {
     let trimmed_end = text.trim_end_matches(|c: char| c.is_whitespace());
     if !trimmed_end.ends_with('}') {
         return None;
