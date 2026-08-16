@@ -7,6 +7,22 @@ bumps; once 1.0 ships, semver is strict.
 
 ## [Unreleased]
 
+### Added
+
+- **FR-050-AC-13/15 (CR-060)** — a **model-level** `traceability.exclude:`,
+  whose matching documents mint no trace ids, contribute no reference
+  rows, and are not classified for criteria. (Document validation is
+  unaffected — an excluded fixture is still schema-checked.) `exclude:` scoped the
+  declarations but never the CR-028 criteria walk, which has no
+  declaration to hang one on — so deliberately malformed fixture data
+  inflated `totals.criteria` / `totals.property_shaped` and was
+  body-parsed anyway. The new key scopes the criteria walk *and* every
+  declaration, in addition to each declaration's own `exclude:`, and
+  merges across modules as a union. Exclusion globs are now compiled once
+  per model rather than per pattern per question. **Report change**: a
+  repository declaring the new key with criteria under those paths sees
+  smaller criteria totals. TC-826.
+
 ### Fixed
 
 - **FR-050-AC-19 (CR-059)** — an **absent** declared auxiliary

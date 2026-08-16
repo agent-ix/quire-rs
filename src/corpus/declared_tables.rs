@@ -45,7 +45,61 @@ pub(crate) struct DeclaredScope<'a> {
     pub name: &'a str,
     pub archetype: Option<&'a str>,
     pub document: Option<&'a Path>,
-    pub exclude: &'a [String],
+    /// This declaration's own `exclude:` — "these documents mint no ids for
+    /// *me*" (CR-038).
+    pub exclude: &'a ExcludeSet,
+    /// The model-level `exclude:` — "these paths hold no traceable data"
+    /// (CR-060). Applied in addition to the declaration's own, never instead.
+    pub model_exclude: &'a ExcludeSet,
+}
+
+/// Compiled exclusion globs.
+///
+/// Compiled **once** rather than per call: `excludes` is asked about every
+/// document of a declared archetype, and since CR-060 about every document in
+/// the corpus for the criteria walk, so compiling each pattern per question
+/// would put a glob build on the NFR-015 walk.
+///
+/// An empty set matches nothing, which is what an undeclared `exclude:` means.
+#[derive(Debug, Default)]
+pub(crate) struct ExcludeSet {
+    set: Option<globset::GlobSet>,
+}
+
+impl ExcludeSet {
+    /// Compile `patterns`. Patterns are validated at module load, so one that
+    /// does not compile here would mean the model was never validated: it is
+    /// dropped rather than allowed to swallow every document.
+    pub(crate) fn compile(patterns: &[String]) -> Self {
+        if patterns.is_empty() {
+            return Self::default();
+        }
+        let mut builder = globset::GlobSetBuilder::new();
+        for pattern in patterns {
+            if let Ok(glob) = globset::Glob::new(pattern) {
+                builder.add(glob);
+            }
+        }
+        Self {
+            set: builder.build().ok(),
+        }
+    }
+
+    /// True when `relative` — a scope-relative, `/`-separated path — is
+    /// excluded.
+    fn matches(&self, relative: &str) -> bool {
+        self.set.as_ref().is_some_and(|set| set.is_match(relative))
+    }
+
+    /// True when `path` is excluded, deriving the scope-relative form only
+    /// when there is something to match it against.
+    pub(crate) fn excludes(&self, root: &Path, path: &Path) -> bool {
+        !self.is_empty() && self.matches(&relative_path(root, path))
+    }
+
+    fn is_empty(&self) -> bool {
+        self.set.is_none()
+    }
 }
 
 /// What a scan noticed about the **declaration**, as opposed to its rows
@@ -205,24 +259,18 @@ impl ScanContext {
 }
 
 impl DeclaredScope<'_> {
-    /// True when `path` is excluded from this declaration.
+    /// True when `path` is excluded from this declaration, by its own
+    /// `exclude:` or by the model-level one (CR-060).
     ///
     /// Matching is on the **scope-relative** path, which is the only form a
     /// module can author against: an absolute path is a property of the
     /// machine, not of the repository.
     pub(crate) fn excludes(&self, root: &Path, path: &Path) -> bool {
-        if self.exclude.is_empty() {
+        if self.exclude.is_empty() && self.model_exclude.is_empty() {
             return false;
         }
         let relative = relative_path(root, path);
-        self.exclude.iter().any(|pattern| {
-            // Patterns are validated at module load; an uncompilable one here
-            // would mean the model was never validated, so it excludes nothing
-            // rather than silently swallowing every document.
-            globset::Glob::new(pattern)
-                .map(|glob| glob.compile_matcher().is_match(&relative))
-                .unwrap_or(false)
-        })
+        self.exclude.matches(&relative) || self.model_exclude.matches(&relative)
     }
 }
 

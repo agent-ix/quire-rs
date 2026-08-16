@@ -891,6 +891,18 @@ fn merge_traceability(modules: &[LoadedModule]) -> crate::traceability::Traceabi
     let mut merged = crate::traceability::TraceabilityModel::default();
     for module in modules {
         let m = &module.traceability;
+        // CR-060: the model-level exclusion is the one key that merges as a
+        // **union**, not first-wins. It states a fact about the repository —
+        // "these paths are not corpus data" — and a path one module declares
+        // non-corpus must not become corpus because another module happened to
+        // load first. The set it yields does not depend on load order, which
+        // the named-entry merges get from their first-wins rule instead
+        // (NFR-006).
+        for pattern in &m.exclude {
+            if !merged.exclude.contains(pattern) {
+                merged.exclude.push(pattern.clone());
+            }
+        }
         for target in &m.trace_targets {
             if !merged.trace_targets.iter().any(|t| t.name == target.name) {
                 merged.trace_targets.push(target.clone());
@@ -1097,6 +1109,48 @@ mod tests {
             r#"{"type":"object","required":["id"],"properties":{"id":{"type":"string"}}}"#,
         )
         .unwrap();
+    }
+
+    // TC-826 (CR-060): the model-level exclusion is the one traceability key
+    // that merges as a **union**. Every other key is first-wins by name, which
+    // is right for a named declaration and wrong for a statement of fact: a
+    // path one module declares non-corpus must not become corpus because
+    // another module happened to load first.
+    #[test]
+    fn model_level_exclude_merges_as_a_union() {
+        let parent = tmpdir("merge-exclude");
+        for (name, exclude, target) in [
+            ("mod-a", "spec/fixtures/**", "acceptance-criterion"),
+            ("mod-b", "vendor/**", "test-case"),
+            // A third module repeating mod-a's pattern must not duplicate it.
+            ("mod-c", "spec/fixtures/**", "eval-case"),
+        ] {
+            let root = parent.join(name);
+            fs::create_dir_all(&root).unwrap();
+            fs::write(
+                root.join("manifest.yaml"),
+                format!(
+                    "name: {name}\nartifact_types:\n- name: foo\n\
+                     traceability:\n  exclude: ['{exclude}']\n  trace_targets:\n\
+                     \x20 - name: {target}\n    archetype: foo\n    section: S\n    id_column: ID\n"
+                ),
+            )
+            .unwrap();
+        }
+
+        let outcome = load_modules(&[&parent]);
+        assert!(outcome.failures.is_empty(), "{:?}", outcome.failures);
+        let merged = merge_traceability(&outcome.modules);
+        assert_eq!(
+            merged.exclude,
+            vec!["spec/fixtures/**".to_string(), "vendor/**".to_string()],
+            "both patterns survive, deduplicated"
+        );
+        assert_eq!(
+            merged.trace_targets.len(),
+            3,
+            "and the named entries merge as before"
+        );
     }
 
     #[test]

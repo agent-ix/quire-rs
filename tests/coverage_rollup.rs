@@ -798,6 +798,87 @@ fn tc801_excluded_documents_contribute_no_rows() {
     assert!(unscoped.totals.total > scoped.totals.total);
 }
 
+// TC-826 (FR-050-AC-13 / AC-15, CR-060): a model-level `exclude:` scopes the
+// **criteria walk**, which has no declaration of its own to hang an exclusion
+// on and so had none at all before this.
+//
+// Deliberately malformed fixture data was minting nothing and referencing
+// nothing — correct — while still contributing to `criteria` and to both
+// totals, inflating the denominator, and being body-parsed despite the
+// declaration saying it is not corpus data (agent-ix/quire-rs#124).
+#[test]
+fn tc826_model_level_exclusion_scopes_the_criteria_walk() {
+    let bundle = iso_bundle(
+        "826-model-scoped",
+        &[("TC-001", "FR-001-AC-1", "✅")],
+        &["TC-001"],
+    );
+    // A fixture FR: same archetype, same grammar binding, deliberately reusing
+    // a real AC id and referencing a TC nothing mints.
+    write(
+        &bundle.scope,
+        "fixtures/FR-900.md",
+        "---\nid: FR-900\ntype: FR\ntitle: Deliberately malformed fixture\n---\n\n\
+         ## Acceptance Criteria\n\n\
+         | ID | Criteria | Verification |\n|----|----------|--------------|\n\
+         | FR-001-AC-1 | The system shall always hold it. | Test (TC-666) |\n",
+    );
+
+    let scoped = report_for(&bundle, "model-scoped").expect("model declared");
+    assert!(
+        !scoped
+            .criteria
+            .iter()
+            .any(|c| c.document.contains("fixtures/")),
+        "an excluded document contributed criteria: {:?}",
+        scoped.criteria
+    );
+    assert!(
+        !scoped
+            .groups
+            .iter()
+            .any(|g| g.document.contains("fixtures/")),
+        "and mints no ids: {:?}",
+        scoped.groups
+    );
+    assert!(
+        !scoped.to_json().contains("TC-666"),
+        "and its references are never read"
+    );
+
+    // The exclusion scopes **traceability**, not membership: the fixture is
+    // still a document in the corpus, and `validate_bundle` still schema- and
+    // grammar-checks it. Being outside the rollup is not a licence to be
+    // malformed in ways nobody reports.
+    let spec = Spec::from_path(&bundle.scope);
+    assert!(
+        spec.by_id("FR-900").is_some(),
+        "an excluded document is still loaded and still validated"
+    );
+
+    // The control: the same corpus under a model declaring no exclusion at all.
+    // Every count the fixture inflates is visible here.
+    let unscoped = report_for(&bundle, "iso").expect("model declared");
+    assert!(
+        unscoped
+            .criteria
+            .iter()
+            .any(|c| c.document.contains("fixtures/")),
+        "without the exclusion the fixture is counted: {:?}",
+        unscoped.criteria
+    );
+    assert!(
+        unscoped.totals.criteria > scoped.totals.criteria,
+        "the fixture inflates the criteria denominator: {:?} vs {:?}",
+        unscoped.totals,
+        scoped.totals
+    );
+    assert!(
+        unscoped.totals.property_shaped > scoped.totals.property_shaped,
+        "and the property-shaped numerator with it"
+    );
+}
+
 // TC-802 (FR-050-AC-15): `archetype` and `document` declared together scan
 // both — the corpus documents of that archetype and the auxiliary file the
 // corpus walk skips — from a single entry.

@@ -16,11 +16,18 @@ artifact_types:
   defaults:
     id_pattern: TC-{next:03d}
 traceability:
+  # CR-060: model-level — these paths hold no traceable data. Scopes the
+  # declarations below *and* the CR-028 criteria walk, which has no declaration
+  # of its own to hang an exclusion on. Document validation is unaffected:
+  # `FR-900.md` is still schema-checked, it just traces nothing.
+  exclude: ['spec/fixtures/**']
   trace_targets:
   - name: acceptance-criterion
     archetype: FR
     section: Acceptance Criteria
     id_column: ID
+    # Kept alongside the model-level one, so the baseline keeps exercising the
+    # per-declaration form too (CR-038).
     exclude: ['spec/fixtures/**']
   - name: test-case
     document: spec/tests.md

@@ -51,13 +51,16 @@ pub(crate) fn validate_trace_references(
         return;
     }
 
+    // CR-060: compiled once — every declaration below is scoped by it.
+    let model_exclude = declared_tables::ExcludeSet::compile(&model.exclude);
+
     // Resolution sets, one per declared target kind.
     let mut ctx = declared_tables::ScanContext::default();
     let mut resolution: BTreeMap<&str, BTreeSet<String>> = BTreeMap::new();
     for target in &model.trace_targets {
         resolution.insert(
             target.name.as_str(),
-            minted_ids(spec, root, target, &mut ctx),
+            minted_ids(spec, root, target, &model_exclude, &mut ctx),
         );
     }
 
@@ -74,7 +77,7 @@ pub(crate) fn validate_trace_references(
                 resolvable.extend(ids.iter());
             }
         }
-        for row in referencing_rows(spec, root, declaration, &mut ctx) {
+        for row in referencing_rows(spec, root, declaration, &model_exclude, &mut ctx) {
             for caps in pattern.captures_iter(&row.cell) {
                 let Some(id) = caps.get(1).map(|m| m.as_str().trim()) else {
                     continue;
@@ -135,13 +138,16 @@ fn minted_ids(
     spec: &Spec,
     root: &Path,
     target: &TraceTarget,
+    model_exclude: &declared_tables::ExcludeSet,
     ctx: &mut declared_tables::ScanContext,
 ) -> BTreeSet<String> {
+    let exclude = declared_tables::ExcludeSet::compile(&target.exclude);
     let scope = declared_tables::DeclaredScope {
         name: &target.name,
         archetype: target.archetype.as_deref(),
         document: target.document.as_deref(),
-        exclude: &target.exclude,
+        exclude: &exclude,
+        model_exclude,
     };
     let mut ids: BTreeSet<String> = BTreeSet::new();
     if let Some(archetype) = &target.archetype {
@@ -171,8 +177,10 @@ fn referencing_rows(
     spec: &Spec,
     root: &Path,
     declaration: &DocumentReference,
+    model_exclude: &declared_tables::ExcludeSet,
     ctx: &mut declared_tables::ScanContext,
 ) -> Vec<ReferencingRow> {
+    let exclude = declared_tables::ExcludeSet::compile(&declaration.exclude);
     declared_tables::scan(
         spec,
         root,
@@ -180,7 +188,8 @@ fn referencing_rows(
             name: &declaration.name,
             archetype: declaration.archetype.as_deref(),
             document: declaration.document.as_deref(),
-            exclude: &declaration.exclude,
+            exclude: &exclude,
+            model_exclude,
         },
         &declaration.section,
         ctx,

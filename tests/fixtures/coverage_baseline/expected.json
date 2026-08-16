@@ -125,21 +125,12 @@
       "by_property": {
         "universal": 1
       }
-    },
-    {
-      "document": "spec/fixtures/FR-900.md",
-      "archetype": "FR",
-      "criteria": 1,
-      "property_shaped": 1,
-      "by_property": {
-        "invariant": 1
-      }
     }
   ],
   "totals": {
     "backed": 1,
     "total": 8,
-    "criteria": 4,
-    "property_shaped": 3
+    "criteria": 3,
+    "property_shaped": 2
   }
 }

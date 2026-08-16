@@ -134,20 +134,25 @@ fn tc824_the_baseline_corpus_still_exercises_the_surface() {
         report.groups
     );
 
-    // KNOWN GAP, pinned deliberately (agent-ix/quire-rs#124): `exclude:` is
-    // declared on trace targets and document references, and the CR-028
-    // criteria counts walk the corpus on their own axis with no exclusion to
-    // apply — so deliberately malformed fixture data still inflates the
-    // criteria denominator. The baseline's job is to pin what the engine does
-    // today, defects included; asserting the leak here means closing #124
-    // fails this test and the baseline diff is reviewed rather than absorbed.
+    // TC-826 (CR-060): and the model-level `exclude:` holds on the criteria
+    // axis too. Until #124, the CR-028 walk had no exclusion to apply, so
+    // deliberately malformed fixture data inflated the criteria denominator
+    // and was body-parsed despite the declaration saying it is not corpus
+    // data. This is the assertion the CR-057 baseline pinned inverted.
     assert!(
-        report
+        !report
             .criteria
             .iter()
             .any(|c| c.document.contains("fixtures/")),
-        "if this now passes, #124 was fixed: regenerate the baseline and \
-         drop this assertion"
+        "an excluded document contributed criteria: {:?}",
+        report.criteria
+    );
+    assert!(
+        !spec
+            .by_id("FR-900")
+            .expect("FR-900 is in the corpus")
+            .body_is_parsed(),
+        "an excluded document must not be body-parsed either"
     );
     // And the undeclared archetype was never body-parsed (CR-049).
     assert!(
