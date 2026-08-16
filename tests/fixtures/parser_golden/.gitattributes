@@ -1,0 +1,5 @@
+# The golden corpus is byte-exact input: the snapshot in expected.json holds
+# each file's `raw` verbatim, CRLF and BOM included. Line-ending normalization
+# on checkout would rewrite the fixture and break TC-821 on a fresh clone, so
+# these files are never text-normalized.
+* -text
