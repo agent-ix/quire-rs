@@ -726,6 +726,113 @@ lint_rules:
         assert_eq!(r.lint_rules()[0].id(), "ac-verification-method");
     }
 
+    // TC-588 (FR-036-AC-5): lint evaluation never affects extraction or
+    // validation. The same document through the same archetype, once under a
+    // module carrying a lint rule it violates and once under the identical
+    // module without the rule, must produce byte-identical `extract()` and
+    // `validate_document()` results — the rules are advisory by construction,
+    // not by convention. The row claimed this since v0.4 with no test
+    // (CR-058).
+    #[test]
+    fn tc588_lint_rules_leave_extract_and_validate_byte_identical() {
+        let parent = tmpdir("lint-identity");
+        let archetype = r#"
+- name: FR
+  frontmatter_schema_ref: schemas/fr.json
+  body_extraction:
+    yield_pattern:
+      match:
+        acceptance_criteria:
+          from: section_body
+          after_heading: Acceptance Criteria
+          required: true
+"#;
+        let lint = r#"
+lint_rules:
+- type: table_column_values
+  id: ac-verification-method
+  archetypes: [FR]
+  section: Acceptance Criteria
+  column: Verification
+  allowed: [Inspection, Analysis, Demonstration, Test]
+  annotation_pattern: '\(TC-\d+\)'
+  severity: warning
+"#;
+        // A document that VIOLATES the rule ("Docs audit" is not allowed), so
+        // the lint layer is doing work rather than sitting inert.
+        let doc = "---\nid: FR-001\ntype: FR\n---\n\
+                   ## Acceptance Criteria\n\
+                   | ID | Criteria | Verification |\n\
+                   | - | - | - |\n\
+                   | FR-001-AC-1 | does x | Test (TC-035) |\n\
+                   | FR-001-AC-2 | does y | Docs audit |\n";
+
+        let build = |name: &str, rules: &str| {
+            let module_root = parent.join(name);
+            fs::create_dir_all(module_root.join("schemas")).unwrap();
+            fs::write(
+                module_root.join("manifest.yaml"),
+                format!("name: {name}\nartifact_types:{archetype}{rules}"),
+            )
+            .unwrap();
+            fs::write(
+                module_root.join("schemas/fr.json"),
+                r#"{"type":"object","required":["id"],"properties":{"id":{"type":"string"}}}"#,
+            )
+            .unwrap();
+            Registry::load_module(&module_root).expect("module loads")
+        };
+
+        let with_rules = build("mod-with-lint", lint);
+        let without_rules = build("mod-without-lint", "");
+
+        assert_eq!(
+            with_rules.lint_rules().len(),
+            1,
+            "the rule is loaded; failures={:?}",
+            with_rules.failures()
+        );
+        assert!(without_rules.lint_rules().is_empty());
+
+        let a = with_rules.archetype("FR").expect("archetype");
+        let b = without_rules.archetype("FR").expect("archetype");
+
+        // The lint layer sees a real violation under the rule-carrying module.
+        let parsed = crate::parser::parse_document(doc);
+        assert_eq!(
+            crate::lint::lint_document(with_rules.lint_rules(), Some("FR"), &parsed).len(),
+            1,
+            "the fixture must actually violate the rule, or this proves nothing"
+        );
+
+        // …and neither downstream result moves a byte. `ExtractionResult`
+        // and `ValidationResult` compare structurally; the debug rendering is
+        // the byte-level form the row's wording asks for.
+        let extract_with = crate::extract(&parsed, a.body_extraction().expect("dsl")).unwrap();
+        let extract_without = crate::extract(&parsed, b.body_extraction().expect("dsl")).unwrap();
+        assert_eq!(
+            extract_with, extract_without,
+            "lint rules changed extraction"
+        );
+        assert_eq!(
+            format!("{extract_with:?}"),
+            format!("{extract_without:?}"),
+            "lint rules changed extraction output bytes"
+        );
+
+        let validate_with = crate::validate_document(a, doc);
+        let validate_without = crate::validate_document(b, doc);
+        assert_eq!(
+            validate_with, validate_without,
+            "lint rules changed validation"
+        );
+        assert_eq!(
+            format!("{validate_with:?}"),
+            format!("{validate_without:?}"),
+            "lint rules changed validation output bytes"
+        );
+    }
+
     // FR-036: a malformed lint rule fails manifest parse (typed, not
     // inert passthrough).
     #[test]
