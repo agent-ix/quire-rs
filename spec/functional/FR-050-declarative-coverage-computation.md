@@ -139,8 +139,43 @@ model; the engine knows nothing of "AC" or "TC" as concepts.
 | FR-050-AC-16 | A module MAY declare which test-type values mint no source symbol; an unbacked row carrying one is reported as a no-symbol row rather than a status lie, stays listed as unbacked, and a module declaring none reports exactly as before. | Test (TC-805) |
 | FR-050-AC-17 | The two roots derive from one `--scope` and stay distinct: repo-root files (`README.md`, `CHANGELOG.md`, `plan/*.md`) are never read as documents, the code walk never enters the document root, the minted-id set over a compliant repo is byte-identical to a pre-split run, and a scope with no `spec/` directory exits with a diagnostic naming the missing root (CR-045). | Test (TC-809, TC-810, TC-811) |
 | FR-050-AC-18 | During coverage computation, a corpus document whose archetype no trace target, document reference, or grammar binding names has its body left unmaterialised; a declared archetype's body is parsed; selection is decided on the header tier and never by filename; a module declaring no `traceability:` model still errors (`ModelUndeclared`) before any selection; and the report is byte-identical to a full-parse engine's (CR-049). | Test (TC-818, TC-738) |
-| FR-050-AC-19 | A declaration that selects nothing is reported in `CoverageReport.diagnostics` and as a `quire validate` warning, never in silence: a declared auxiliary `document:` that cannot be read is reported against every declaration naming it, with the path and the OS error; a declared `archetype:` no corpus document has is reported when the model minted no id at all; and a model declaring no `trace_targets` is reported as minting nothing. The list is empty — and the key absent — for a model whose declarations select, so FR-050-AC-7 byte-identity holds (CR-054). | Test (TC-822) |
+| FR-050-AC-19 | A declaration that selects nothing is reported in `CoverageReport.diagnostics` and as a `quire validate` warning, never in silence: a declared auxiliary `document:` that is **present and cannot be read** is reported against every declaration naming it, with the path and the OS error, whether or not the model minted; a declared `document:` that is **absent**, and a declared `archetype:` no corpus document has, are reported when the model minted no id at all; and a model declaring no `trace_targets` is reported as minting nothing. The two document reasons are distinct machine tokens, and `quire coverage` and `quire validate` report the same token for the same finding. The list is empty — and the key absent — for a model whose declarations select, so FR-050-AC-7 byte-identity holds (CR-054, amended CR-059). | Test (TC-822, TC-825) |
 | FR-050-AC-20 | The byte-identity property is gated by a checked-in baseline, not by inspection: a fixture corpus exercising minted ids, an auxiliary matrix, an `exclude:` glob, all three status classes, the `no_source_symbol` exemption, an untracked symbol, a dangling reference, an undeclared archetype and criteria classification has its report stored as `tests/fixtures/coverage_baseline/expected.json` and byte-diffed on every test run. Regeneration is a deliberate act (`make coverage-baseline-update`) whose diff is reviewed, and a companion test fails if the corpus stops exercising any of that surface (CR-057). | Test (TC-824) |
+
+> **CR-059 note (2026-08-16):** AC-19 is amended: an **absent** declared
+> document and a **present but unreadable** one are no longer the same finding.
+> CR-054 made a declared `document:` that fails to open a reported diagnostic
+> instead of a swallowed `.ok()?`, and flattened `io::Error` to a string at the
+> point of the read — so `NotFound` became indistinguishable from permission
+> denied, an IO error, or a directory where a file was expected.
+>
+> Measured: running the v0.26.0 engine against this repository produced **six**
+> such diagnostics, all of one shape — `spec/evals.md` and `spec/matrix.md`,
+> named by three declarations each. `spec-artifacts-process` declares those two
+> auxiliary sources, this repository's matrix is `spec/tests.md`, and it has
+> neither. The declarations are **optional by convention**: a module shipped
+> across 200+ repositories names the auxiliary documents any of them *might*
+> have. So the diagnostic was technically true and practically noise, and it
+> would have fired on most repositories on that module the moment they upgraded.
+> This is the finding that made SR-007 CONDITIONAL rather than PASS.
+>
+> The two failures are different facts. `NotFound` over an optional fleet-wide
+> declaration is the **ordinary** case, and it gets the rule
+> `archetype-matches-nothing` already uses and for the same reason — reported
+> only when the model minted nothing at all, which is the shape a typo in the
+> one document that mattered produces. Anything else is **always** wrong: the
+> file is there and the ids vanished anyway, which is precisely the CR-045
+> silent-un-minting class CR-054 was filed about, and it is reported either way.
+>
+> Two machine reasons, not one: `unreadable-declared-document` keeps its
+> meaning narrowed to the always-wrong case, and `absent-declared-document` is
+> new. Both consumers read the one `scan_reason` vocabulary, so `quire validate`
+> cannot drift from `quire coverage` — the property CR-054 established, now
+> asserted on the validate side too, which had no test at all.
+>
+> This changes the report for repositories that declare absent auxiliary
+> documents, so it is a deliberate, reviewable diff against the AC-20 baseline.
+> Which is what that baseline is for. Closes agent-ix/quire-rs#129.
 
 > **CR-049 note (2026-08-15):** The *Declaration-driven body selection*
 > section and AC-18 are new. The model was always a projection the engine

@@ -522,9 +522,12 @@ fn reconcile(
                 declaration,
                 reason: declared_tables::scan_reason(&diagnostic).to_string(),
                 message,
+                // Both document-level diagnostics name a document; the
+                // declaration-level one has none to point at (CR-059).
                 path: matches!(
                     diagnostic,
                     declared_tables::ScanDiagnostic::UnreadableDocument { .. }
+                        | declared_tables::ScanDiagnostic::AbsentDocument { .. }
                 )
                 .then(|| relative(root, &path)),
             }

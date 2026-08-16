@@ -980,11 +980,13 @@ fn tc818_coverage_parses_only_declared_archetype_bodies() {
     );
 }
 
-// TC-822 (FR-050-AC-19, CR-054): a model that loads and selects nothing is
-// reported, not silently accepted. Both shapes reach the report: an archetype
-// no document has (a typo in the declaration), and a declared auxiliary
-// document that cannot be read — the CR-045 silent-un-minting class, where
-// the ids simply vanish and the only symptom is a distant count.
+// TC-822 (FR-050-AC-19, CR-054, amended CR-059): a model that loads and
+// selects nothing is reported, not silently accepted. Both shapes reach the
+// report: an archetype no document has (a typo in the declaration), and a
+// declared auxiliary document that did not resolve to rows — the CR-045
+// silent-un-minting class, where the ids simply vanish and the only symptom is
+// a distant count. The fixture's document is absent, and this model mints
+// nothing, which is when an absence is the thing to check first.
 #[test]
 fn tc822_declarations_that_select_nothing_are_reported() {
     let bundle = iso_bundle(
@@ -1010,8 +1012,9 @@ fn tc822_declarations_that_select_nothing_are_reported() {
         report.diagnostics
     );
     assert!(
-        reasons.contains(&"unreadable-declared-document"),
-        "an unreadable declared document must be reported: {:?}",
+        reasons.contains(&"absent-declared-document"),
+        "a declared document that does not exist must be reported when the model \
+         minted nothing: {:?}",
         report.diagnostics
     );
 
@@ -1027,13 +1030,13 @@ fn tc822_declarations_that_select_nothing_are_reported() {
         archetype.message
     );
 
-    let unreadable = report
+    let absent = report
         .diagnostics
         .iter()
-        .find(|d| d.reason == "unreadable-declared-document")
+        .find(|d| d.reason == "absent-declared-document")
         .expect("present");
-    assert_eq!(unreadable.declaration, "test-case");
-    assert_eq!(unreadable.path.as_deref(), Some("missing.md"));
+    assert_eq!(absent.declaration, "test-case");
+    assert_eq!(absent.path.as_deref(), Some("missing.md"));
 
     // Order is a property of the model, not of the walk (NFR-006).
     let again = report_for(&bundle, "fails-open").expect("model declared");
@@ -1060,6 +1063,39 @@ fn tc822_a_healthy_model_reports_no_diagnostics_and_no_key() {
     assert!(
         !report.to_json().contains("diagnostics"),
         "an empty diagnostics list must leave the JSON byte-identical"
+    );
+}
+
+// TC-825 (FR-050-AC-19, CR-059): a module shipped across a fleet names the
+// auxiliary documents any of its repositories *might* have. On a repository
+// that has neither, and whose model mints normally through everything else,
+// those absences are ordinary and stay out of the report.
+//
+// Measured before the fix: CR-054 reported six of these against quire-rs's own
+// spec, and would have reported them on most repositories on
+// `spec-artifacts-process` the moment they upgraded.
+#[test]
+fn tc825_absent_optional_auxiliary_documents_are_not_reported() {
+    let bundle = iso_bundle(
+        "825-optional-aux",
+        &[("TC-001", "FR-001-AC-1", "✅")],
+        &["TC-001"],
+    );
+    let report = report_for(&bundle, "optional-aux").expect("model declared");
+
+    assert!(
+        report.totals.total > 0,
+        "the model must mint, or the absence would be the thing to check"
+    );
+    assert!(
+        report.diagnostics.is_empty(),
+        "an optional auxiliary declaration this repository has no instance of \
+         must be silent: {:?}",
+        report.diagnostics
+    );
+    assert!(
+        !report.to_json().contains("diagnostics"),
+        "and the key stays absent, so FR-050-AC-7 byte-identity holds"
     );
 }
 
