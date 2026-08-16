@@ -1,12 +1,18 @@
 //! Real-thread concurrency check for the parallel walk (FR-024) — the
 //! runtime counterpart to the exhaustive loom model in `concurrency.rs`.
 //!
-//! Two OS threads each run `load_repo` over the same corpus and must
-//! produce byte-identical, path-sorted results (NFR-006) with no data
-//! race. This runs in normal `cargo test` for correctness and is the
-//! target for the scheduled ThreadSanitizer lane (NFR-018, `make
-//! sanitize`) — TSAN instruments the rayon fan-out here for races the
-//! loom model proves are absent.
+//! Threads run `load_repo` and first-touch lazy bodies over shared corpora
+//! and must produce byte-identical, path-sorted results (NFR-006) with no
+//! data race. This runs in normal `cargo test` for correctness and is the
+//! target for the ThreadSanitizer lane (NFR-018, `make sanitize`, in `make
+//! hardening` since CR-053) — TSAN instruments the rayon fan-out here for
+//! races the loom model proves are absent.
+//!
+//! This file is the load-bearing control for the FR-025 once-cell, because
+//! it is the only place the **real** `OnceLock` runs: loom ships no model
+//! of it, so TC-815 mirrors the contract with loom primitives instead.
+//! CR-053 widened the coverage accordingly — past 2 threads × 1 document,
+//! and over the rayon-forcing shape `python::load_repo` runs.
 
 use std::fs;
 use std::path::PathBuf;
@@ -82,6 +88,112 @@ fn concurrent_first_touch_parses_once_and_agrees() {
     for d in spec.by_type("FR") {
         assert_eq!(d.body_is_parsed(), d.id == "FR-0003");
     }
+
+    fs::remove_dir_all(&root).ok();
+}
+
+// TC-816 (FR-025-AC-8, CR-047, widened CR-053): the same contract past
+// 2 threads × 1 document. Eight OS threads first-touch SIXTEEN documents,
+// each thread starting at a different offset so the racers collide on
+// different cells at different moments rather than lining up on one. Every
+// thread must observe the identical body for every document, and each
+// document must end up parsed exactly once — `body_is_parsed()` is the
+// observable that a second init would have to move.
+#[test]
+fn concurrent_first_touch_over_many_documents_agrees() {
+    const DOCS: usize = 16;
+    const THREADS: usize = 8;
+
+    let root = corpus("many_first_touch", DOCS);
+    let spec = Spec::from_path(&root);
+    assert_eq!(spec.len(), DOCS);
+
+    let handles: Vec<_> = (0..THREADS)
+        .map(|t| {
+            let spec = spec.clone(); // shares the same Arc'd inner
+            thread::spawn(move || {
+                // Each thread walks the corpus from its own offset.
+                (0..DOCS)
+                    .map(|i| {
+                        let id = format!("FR-{:04}", (i + t * 3) % DOCS);
+                        let doc = spec.by_id(&id).unwrap();
+                        let first = doc.body();
+                        assert!(
+                            std::ptr::eq(first, doc.body()),
+                            "{id}: repeated access re-parsed"
+                        );
+                        (id, first.clone())
+                    })
+                    .collect::<Vec<_>>()
+            })
+        })
+        .collect();
+
+    let per_thread: Vec<Vec<(String, _)>> =
+        handles.into_iter().map(|h| h.join().unwrap()).collect();
+
+    // Every thread observed the identical body for every document.
+    for t in 1..THREADS {
+        for (id, body) in &per_thread[t] {
+            let reference = per_thread[0]
+                .iter()
+                .find(|(other, _)| other == id)
+                .map(|(_, b)| b)
+                .expect("same corpus in every thread");
+            assert_eq!(body, reference, "{id}: racers disagreed on the body");
+        }
+    }
+
+    // All of them are materialised, and the count is exactly the corpus.
+    assert_eq!(
+        spec.by_type("FR")
+            .iter()
+            .filter(|d| d.body_is_parsed())
+            .count(),
+        DOCS
+    );
+
+    fs::remove_dir_all(&root).ok();
+}
+
+// TC-816 (FR-025-AC-8, CR-053): the shape `python::load_repo` runs — a rayon
+// region that forces every lazy body after the walk, with the GIL released.
+// The PyO3 binding does exactly this (`load.documents.par_iter().for_each(|d|
+// d.body())`), and it is the only place first-touch happens *inside* a
+// parallel region; the walk itself never touches a body cell. Covering it in
+// Rust puts it on the TSAN lane, which the wheel-only binding suite is not.
+#[test]
+fn rayon_forced_bodies_match_a_sequential_force() {
+    use rayon::prelude::*;
+
+    let root = corpus("rayon_force", 64);
+    let spec = Spec::from_path(&root);
+
+    let expected: Vec<_> = {
+        let sequential = Spec::from_path(&root);
+        sequential
+            .by_type("FR")
+            .iter()
+            .map(|d| d.body().clone())
+            .collect()
+    };
+
+    let docs = spec.by_type("FR");
+    assert!(docs.iter().all(|d| !d.body_is_parsed()));
+    docs.par_iter().for_each(|d| {
+        d.body();
+    });
+
+    let forced: Vec<_> = spec
+        .by_type("FR")
+        .iter()
+        .map(|d| d.body().clone())
+        .collect();
+    assert_eq!(
+        forced, expected,
+        "parallel force must land on the same bodies as a sequential one"
+    );
+    assert!(spec.by_type("FR").iter().all(|d| d.body_is_parsed()));
 
     fs::remove_dir_all(&root).ok();
 }
