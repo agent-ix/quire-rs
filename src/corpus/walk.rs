@@ -30,7 +30,7 @@ use uuid::Uuid;
 use crate::ast::QuireDocument;
 use crate::corpus::body_cache::LazyBody;
 use crate::diagnostic::Diagnostic;
-use crate::parser::{parse_header, Header};
+use crate::parser::Header;
 
 /// One loaded document: its read identity plus the two parse tiers —
 /// the eager header tier (verbatim text + frontmatter, FR-005/CR-046)
@@ -316,7 +316,10 @@ pub(crate) fn discover_files(root: &Path, opts: &WalkOptions) -> Vec<PathBuf> {
 /// counts as a document — otherwise a `README.md` could define a repository's
 /// ubiquitous language while not being part of its corpus.
 pub(crate) fn is_document(text: &str) -> bool {
-    crate::parser::extract_frontmatter(text)
+    // The borrowing extraction: this decides membership for every file the
+    // glossary harvester sees, and the owning variant copied the whole body
+    // to answer a yes/no question (CR-046 leftover, removed CR-055).
+    crate::parser::frontmatter::extract_frontmatter_ref(text)
         .frontmatter
         .is_some()
 }
@@ -361,12 +364,14 @@ fn parse_one(path: &Path) -> Outcome {
     // contributes nothing. Never re-suppressed by filename — the CR-044
     // rule holds. Frontmatter present but naming an unregistered type keeps
     // today's behavior — error under `Strict`, warning under `Okf`.
-    let Some(header) = parse_header(&text) else {
-        // `Malformed` (a complete fence block that is not a YAML mapping)
-        // is the sharper finding; absent/unterminated blocks read as a
-        // misplaced or draft file (FR-006 status classification).
-        let malformed = crate::parser::extract_frontmatter(&text).status
-            == crate::parser::FrontmatterStatus::Malformed;
+    // `Malformed` (a complete fence block that is not a YAML mapping) is the
+    // sharper finding; absent/unterminated blocks read as a misplaced or draft
+    // file (FR-006 status classification). The status comes from the SAME
+    // extraction that decided membership — recovering it used to cost a
+    // second, copying `extract_frontmatter` over the whole text (CR-055).
+    let (header, status) = crate::parser::parse_header_status(&text);
+    let Some(header) = header else {
+        let malformed = status == crate::parser::FrontmatterStatus::Malformed;
         return Outcome::NotADocument {
             path: path.to_path_buf(),
             diag: Diagnostic::DocumentWithoutFrontmatter {

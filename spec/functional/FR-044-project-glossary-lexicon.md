@@ -59,6 +59,7 @@ terms once and SHALL validate each document with the combined lexicon.
 | FR-044-AC-5 | `validate_bundle` harvests the loaded `Spec`'s project terms and applies the combined lexicon to every document in the bundle. | Test |
 | FR-044-AC-6 | The project-glossary suppression is advisory: a document with project-glossary-suppressed and remaining findings still reports `is_valid` per its structural errors alone. | Test |
 | FR-044-AC-7 | A repository that authors no glossary harvests an empty term set, and its validation is identical to the module-only lexicon path. | Test |
+| FR-044-AC-8 | The harvester's heading pre-filter recognizes exactly what the section lookup it gates would match: an ISO-numbered heading (`## 3.2 Ubiquitous Language`, `### 4. Terms`) and a heading carrying a Pandoc block id contribute their terms, while a heading that merely contains the words does not. A glossary-bearing file with no frontmatter block contributes no terms — the FR-024-AC-11 membership rule is unchanged — and is reported as a `DocumentWithoutFrontmatter` diagnostic rather than skipped in silence (CR-055). | Test (TC-823) |
 
 ## Dependencies
 

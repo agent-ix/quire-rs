@@ -56,8 +56,24 @@ pub struct Header {
 /// as `extract_frontmatter().frontmatter.is_some()` (CR-044). One
 /// frontmatter extraction, no body work, no copy of the input.
 pub fn parse_header(markdown: &str) -> Option<Header> {
+    parse_header_status(markdown).0
+}
+
+/// [`parse_header`] plus the FR-006 frontmatter status of the same single
+/// extraction (CR-055).
+///
+/// `None` says *not a document* without saying which way: an absent block and
+/// a block that is not a YAML mapping are different findings (CR-048 reports
+/// them under different reasons). The walk needed that distinction and
+/// recovered it by running a **second**, copying `extract_frontmatter` over
+/// the same text — the CR-046 leftover this removes. Crate-internal so the
+/// public two-tier surface stays the three functions FR-005 states.
+pub(crate) fn parse_header_status(markdown: &str) -> (Option<Header>, FrontmatterStatus) {
     let fm = frontmatter::extract_frontmatter_ref(markdown);
-    let map = fm.frontmatter?;
+    let status = fm.status;
+    let Some(map) = fm.frontmatter else {
+        return (None, status);
+    };
     let id = map
         .get("id")
         .and_then(|v| v.as_str())
@@ -68,13 +84,16 @@ pub fn parse_header(markdown: &str) -> Option<Header> {
         .get("uuid")
         .and_then(|v| v.as_str())
         .and_then(|s| Uuid::parse_str(s).ok());
-    Some(Header {
-        id,
-        type_,
-        uuid,
-        frontmatter: map,
-        body_offset: markdown.len() - fm.body.len(),
-    })
+    (
+        Some(Header {
+            id,
+            type_,
+            uuid,
+            frontmatter: map,
+            body_offset: markdown.len() - fm.body.len(),
+        }),
+        status,
+    )
 }
 
 /// Parse the body of `markdown` under an already-parsed [`Header`]

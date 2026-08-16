@@ -46,8 +46,27 @@ pub fn glossary_terms(spec: &Spec) -> Vec<String> {
 /// heading (a cheap line scan — [`has_glossary_heading`]). Deduplicated and
 /// sorted; a repo with no glossary yields an empty vec.
 pub fn glossary_terms_from_path(root: &Path) -> Vec<String> {
+    glossary_terms_from_path_with_diagnostics(root).0
+}
+
+/// [`glossary_terms_from_path`], plus the membership diagnostics it used to
+/// swallow (CR-055).
+///
+/// CR-048 inverted the walk's silence about frontmatter-less markdown under
+/// the document root, but this — the **second** consumer of the same
+/// membership rule (FR-024-AC-11) — kept skipping in silence. A
+/// `spec/glossary.md` that lost its front block contributes no terms, shrinks
+/// the composed EARS lexicon, and says nothing about why; the symptom surfaces
+/// as `vague-response` firing on the repo's own domain nouns, one indirection
+/// away from the cause. The diagnostic is the same
+/// [`Diagnostic::DocumentWithoutFrontmatter`](crate::diagnostic::Diagnostic)
+/// the walk emits, because it is the same rule.
+pub fn glossary_terms_from_path_with_diagnostics(
+    root: &Path,
+) -> (Vec<String>, Vec<crate::diagnostic::Diagnostic>) {
     let opts = WalkOptions::default();
     let mut terms: Vec<String> = Vec::new();
+    let mut diagnostics: Vec<crate::diagnostic::Diagnostic> = Vec::new();
     for path in discover_files(root, &opts) {
         let Ok(text) = std::fs::read_to_string(&path) else {
             continue;
@@ -59,6 +78,16 @@ pub fn glossary_terms_from_path(root: &Path) -> Vec<String> {
         // ubiquitous language is defined by its documents, so a file that is
         // not a document does not get to name terms.
         if !is_document(&text) {
+            // Reported only when the file looked like it meant to contribute:
+            // every README under the root is frontmatter-less and legitimately
+            // so, and warning about each would bury the one that matters.
+            if has_glossary_heading(&text) {
+                diagnostics.push(crate::diagnostic::Diagnostic::DocumentWithoutFrontmatter {
+                    path: path.clone(),
+                    malformed: crate::parser::frontmatter::extract_frontmatter_ref(&text).status
+                        == crate::parser::FrontmatterStatus::Malformed,
+                });
+            }
             continue;
         }
         if !has_glossary_heading(&text) {
@@ -68,19 +97,35 @@ pub fn glossary_terms_from_path(root: &Path) -> Vec<String> {
     }
     terms.sort();
     terms.dedup();
-    terms
+    diagnostics.sort_by_key(|d| format!("{d:?}"));
+    (terms, diagnostics)
 }
 
-/// The cheap pre-filter that keeps [`glossary_terms_from_path`] from parsing
-/// non-glossary documents: true when `text` has a heading (any level) whose
-/// title is `Terms` or `Ubiquitous Language` (case-insensitive).
+/// The cheap pre-filter that keeps both harvesters from parsing non-glossary
+/// documents: true when `text` has a heading (any level) that
+/// [`query::section`] would match against `Terms` or `Ubiquitous Language`.
+///
+/// **It must agree with the lookup it gates** (CR-055). It originally compared
+/// the raw title verbatim while `section` matches through
+/// [`query::normalize_heading`], which treats ISO section numbering as
+/// decorative — so `## 3.2 Ubiquitous Language` and `### 4. Terms`, the
+/// standard ISO heading form, were filtered out before the lookup that would
+/// have found them. A pre-filter stricter than what it gates does not save
+/// work, it silently changes the answer: those repos' domain nouns dropped out
+/// of the composed EARS lexicon, where their only symptom is `vague-response`
+/// newly firing on a repo's own vocabulary.
 pub(crate) fn has_glossary_heading(text: &str) -> bool {
     text.lines().any(|line| {
         let trimmed = line.trim_start();
         if !trimmed.starts_with('#') {
             return false;
         }
-        let title = trimmed.trim_start_matches('#').trim();
+        // Normalize exactly as the parsed section heading would be: the walk
+        // strips a trailing Pandoc `{#block-id}` from heading text, and
+        // `matches_heading` then normalizes the section number away.
+        let mut title = trimmed.trim_start_matches('#').trim().to_string();
+        crate::parser::walk::strip_trailing_block_id(&mut title);
+        let title = query::normalize_heading(&title);
         title.eq_ignore_ascii_case("Terms") || title.eq_ignore_ascii_case("Ubiquitous Language")
     })
 }
@@ -340,5 +385,96 @@ mod tests {
         let spec = Spec::from_path(&tmp);
         assert!(glossary_terms(&spec).is_empty());
         let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    // TC-823 (FR-044-AC-8, CR-055): the pre-filter agrees with the lookup it
+    // gates. ISO heading form numbers its sections, and `query::section`
+    // treats that numbering as decorative — so a pre-filter matching the raw
+    // title verbatim filtered out exactly the documents the lookup would have
+    // found, and their terms left the composed lexicon in silence.
+    #[test]
+    fn tc823_numbered_headings_still_harvest() {
+        for heading in [
+            "## 3.2 Ubiquitous Language",
+            "### 4. Terms",
+            "## 2.1. Ubiquitous Language",
+            "## Ubiquitous Language {#blk-ul}",
+        ] {
+            assert!(
+                has_glossary_heading(&format!("# Doc\n\n{heading}\n")),
+                "{heading:?} must reach the section lookup"
+            );
+        }
+        // Still not glossary-bearing — the filter did not become a pass-all.
+        assert!(!has_glossary_heading("## 3.2 Scope\n"));
+        assert!(!has_glossary_heading("## Terms of Service\n"));
+    }
+
+    // TC-823 (FR-044-AC-8, CR-055): and end to end — a numbered heading
+    // harvests the same terms an unnumbered one does, through both harvesters.
+    #[test]
+    fn tc823_numbered_heading_harvests_end_to_end() {
+        let dir = std::env::temp_dir().join(format!("ql-numbered-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(
+            dir.join("domain.md"),
+            "---\nid: dom-1\ntype: domain\n---\n# Domain\n\n## 3.2 Ubiquitous Language\n\n- **Sprocket** — a streamed unit.\n",
+        )
+        .unwrap();
+
+        assert_eq!(
+            glossary_terms_from_path(&dir),
+            vec!["Sprocket".to_string()],
+            "a numbered ISO heading must contribute its terms"
+        );
+        assert_eq!(
+            glossary_terms(&Spec::from_path(&dir)),
+            vec!["Sprocket".to_string()],
+            "and both harvesters must agree"
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    // TC-823 (FR-044-AC-8, CR-055): a glossary-bearing file with no front
+    // block is reported, not silently skipped. It stays out of the harvest —
+    // the membership rule is unchanged — but the operator is told why the
+    // terms are missing instead of meeting `vague-response` on their own
+    // domain nouns one indirection later.
+    #[test]
+    fn tc823_a_frontmatterless_glossary_is_reported() {
+        let dir = std::env::temp_dir().join(format!("ql-silent-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let body = "# Project\n\n## Ubiquitous Language\n\n- **Sprocket** — a streamed unit.\n";
+        std::fs::write(dir.join("glossary.md"), body).unwrap();
+        // A frontmatter-less file with no glossary heading is ordinary and
+        // stays quiet — every repo has READMEs.
+        std::fs::write(dir.join("README.md"), "# Readme\n\nprose.\n").unwrap();
+
+        let (terms, diagnostics) = glossary_terms_from_path_with_diagnostics(&dir);
+        assert!(terms.is_empty(), "membership rule unchanged: {terms:?}");
+        assert_eq!(
+            diagnostics.len(),
+            1,
+            "exactly the glossary-bearing non-document is reported: {diagnostics:?}"
+        );
+        assert!(
+            format!("{:?}", diagnostics[0]).contains("glossary.md"),
+            "names the path: {:?}",
+            diagnostics[0]
+        );
+
+        // Give it a front block and both the terms and the silence return.
+        std::fs::write(
+            dir.join("glossary.md"),
+            format!("---\nid: dom-1\ntype: domain\n---\n{body}"),
+        )
+        .unwrap();
+        let (terms, diagnostics) = glossary_terms_from_path_with_diagnostics(&dir);
+        assert_eq!(terms, vec!["Sprocket".to_string()]);
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }
