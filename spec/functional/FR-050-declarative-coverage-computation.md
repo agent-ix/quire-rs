@@ -85,6 +85,22 @@ configuration: no manifest key and no flag relocates it. Report paths remain
 relative to `<scope>`, so minted `document:` paths keep their `spec/` prefix
 and reports over a compliant repo are byte-identical across the split.
 
+### Declaration-driven body selection (CR-049)
+
+The `traceability:` model is a projection stated before the walk begins —
+*these archetypes, these sections, these columns*. The engine SHALL honor it
+as a **bound on what is parsed**, not just a filter on what is reported:
+during coverage computation, a corpus document whose archetype no trace
+target, document reference, or grammar binding names has its body left
+unmaterialised ([FR-025](./FR-025-spec-corpus-model.md) lazy tier). Selection
+is decided on the header tier (frontmatter `type`), **never by filename**
+(CR-044), and `exclude:` globs apply *after* archetype selection, not
+instead of it. A declared archetype whose document lacks the declared
+section (e.g. a root index-of-matrices `TestMatrix` with no
+`## Test Case Summary`) is legal and simply mints nothing. A caller that
+needs every body — `quire validate`'s structural pass — asks for every
+body; the point is that it *asks*.
+
 `quire coverage [PATHS] --scope <DIR>` SHALL print the
 report as JSON on stdout; repeated runs over identical inputs SHALL emit
 byte-identical output (NFR-006 ordering discipline). When the active modules
@@ -122,6 +138,22 @@ model; the engine knows nothing of "AC" or "TC" as concepts.
 | FR-050-AC-15 | A trace target or document reference MAY declare `exclude:` path globs, and MAY declare `archetype` and `document` together; excluded documents mint no ids and contribute no reference rows, and a declaration naming both scans the archetype's corpus documents and the auxiliary file in one entry. | Test (TC-801, TC-802) |
 | FR-050-AC-16 | A module MAY declare which test-type values mint no source symbol; an unbacked row carrying one is reported as a no-symbol row rather than a status lie, stays listed as unbacked, and a module declaring none reports exactly as before. | Test (TC-805) |
 | FR-050-AC-17 | The two roots derive from one `--scope` and stay distinct: repo-root files (`README.md`, `CHANGELOG.md`, `plan/*.md`) are never read as documents, the code walk never enters the document root, the minted-id set over a compliant repo is byte-identical to a pre-split run, and a scope with no `spec/` directory exits with a diagnostic naming the missing root (CR-045). | Test (TC-809, TC-810, TC-811) |
+| FR-050-AC-18 | During coverage computation, a corpus document whose archetype no trace target, document reference, or grammar binding names has its body left unmaterialised; a declared archetype's body is parsed; selection is decided on the header tier and never by filename; a module declaring no `traceability:` model still errors (`ModelUndeclared`) before any selection; and the report is byte-identical to a full-parse engine's (CR-049). | Test (TC-818, TC-738) |
+
+> **CR-049 note (2026-08-15):** The *Declaration-driven body selection*
+> section and AC-18 are new. The model was always a projection the engine
+> discarded — `reconcile` reads one named section of one named archetype,
+> one named column per trace target, and was handed a full parse of every
+> markdown file in the tree. With the header/body split (CR-046) and the
+> lazy body tier (CR-047), the selection the model declares now bounds what
+> is parsed: `declared_tables::scan` and `criteria_counts` decide on the
+> header tier (frontmatter `type`, then the archetype's grammar binding)
+> and only then touch `body()`. This changes what is *parsed*, never what
+> is *reconciled* — byte-identity of the report (AC-7) is the whole gate.
+> `quire properties` remains glob-driven and builds no corpus; if it grows
+> a corpus-driven mode, its selection is "archetypes with a grammar
+> binding", the same read `criteria_counts` uses
+> (agent-ix/quire-rs#94, umbrella #90).
 
 > **CR-045 note (2026-08-15):** The *Two roots, one scope* section and AC-17
 > are new, and the phantom `[--source <DIR>]...` flag is withdrawn from the

@@ -919,3 +919,45 @@ fn tc805_undeclared_vocabulary_changes_nothing() {
         "an undeclared vocabulary must leave the JSON byte-identical"
     );
 }
+
+// TC-818 (FR-050-AC-18, CR-049): coverage parses bodies only for the
+// archetypes its declared model names. Selection is decided on the header
+// tier (frontmatter `type`), never by filename, before any body touch —
+// the declaration the engine used to discard now bounds what is parsed.
+#[test]
+fn tc818_coverage_parses_only_declared_archetype_bodies() {
+    let bundle = iso_bundle("818", &[("TC-001", "FR-001-AC-1", "✅")], &["TC-001"]);
+    // Documents whose archetypes no trace target, document reference, or
+    // grammar binding names: real corpus members, never body-parsed here.
+    write(
+        &bundle.scope,
+        "ADR-001.md",
+        "---\nid: ADR-001\ntype: ADR\n---\n# adr\n\n## Context\n\nwords.\n",
+    );
+    write(
+        &bundle.scope,
+        "NOTE-001.md",
+        "---\nid: NOTE-001\ntype: Note\n---\n# note\n\n## Body\n\nwords.\n",
+    );
+
+    let registry = Registry::load_module(&fixture_module("iso")).expect("load module");
+    let spec = Spec::from_path(&bundle.scope);
+    let extraction = extract_tree(&bundle.source);
+    let model = registry.traceability().cloned().unwrap_or_default();
+    let graph = trace::bind(&extraction, &model);
+    let report = compute(&spec, &registry, &graph, &bundle.scope).expect("report");
+    assert!(report.totals.total > 0, "the declared model must mint");
+
+    // Declared archetype: the FR's body was read — its AC table minted ids.
+    assert!(
+        spec.by_id("FR-001").expect("FR-001").body_is_parsed(),
+        "the declared archetype's body must have been parsed"
+    );
+    // Undeclared archetypes: bodies stay unparsed through the whole rollup.
+    for id in ["ADR-001", "NOTE-001"] {
+        assert!(
+            !spec.by_id(id).expect(id).body_is_parsed(),
+            "{id} is not declared by the model; its body was parsed during coverage"
+        );
+    }
+}
