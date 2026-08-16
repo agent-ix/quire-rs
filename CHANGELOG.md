@@ -5,7 +5,9 @@ All notable changes to `quire-rs` are documented here. Format follows
 numbers follow semver — pre-1.0, breaking changes may land in minor
 bumps; once 1.0 ships, semver is strict.
 
-## [Unreleased]
+## [0.24.0] — 2026-08-15
+
+`validate_bundle` states the two roots separately.
 
 ### Breaking
 
