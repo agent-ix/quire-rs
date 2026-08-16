@@ -9,6 +9,17 @@ bumps; once 1.0 ships, semver is strict.
 
 ### Added
 
+- **FR-005-AC-5..6 (CR-046)** — `parse_document` splits into two tiers:
+  `parse_header(md) -> Option<Header>` (one frontmatter extraction, no body
+  work, no input copy; `None` = not a document per the CR-044 rule) and
+  `parse_body(md, &Header) -> QuireDocument`, with `parse_document`
+  composing them — signature and outputs unchanged, pinned by a composition
+  proptest. `Header` carries `id`/`type_`/`uuid` **and the full frontmatter
+  map**. `walk::parse_one` decides membership + identity via `parse_header`,
+  retiring `read_identity` and the duplicate post-parse `extract_frontmatter`
+  from CR-044 — a non-document now costs one read and one failed fence check.
+  TC-812, TC-813. (agent-ix/quire-rs#92, umbrella #90)
+
 - **FR-050-AC-17 (CR-045)** — the walk is bounded to a caller-supplied
   **document root**. `quire coverage` derives two distinct roots from its one
   `--scope`: document root `<scope>/spec` for `Spec::from_path`, code root

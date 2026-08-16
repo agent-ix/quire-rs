@@ -79,7 +79,7 @@ impl RepoLoad {
 | FR-024-AC-3 | A `.gitignore` entry excluding a subdirectory causes files under it to be skipped by default; with `WalkOptions` disabling ignore-files, they are parsed. | Test |
 | FR-024-AC-4 | `documents` is sorted by path; two runs over the same tree produce byte-identical ordering and content ([NFR-006](../non-functional/NFR-006-determinism.md)). | Test |
 | FR-024-AC-5 | A symlink loop inside the tree completes with a warning diagnostic and no infinite walk (parity with [FR-013-AC-7](./FR-013-archetype-loader.md)). | Test |
-| FR-024-AC-6 | A document's `LoadedDocument.id` equals its frontmatter `id` (empty string when absent), and `LoadedDocument.uuid` equals its frontmatter `uuid` parsed as a `Uuid` (`None` when absent or unparseable); neither is derived from path or content, and no file is written during load. A document missing `uuid` emits a non-fatal `Diagnostic::MissingUuid { path }`. (Corpus-level id/type keying diagnostics — duplicate id, untyped — are [FR-025](./FR-025-spec-corpus-model.md)/[FR-027](./FR-027-whole-spec-query-api.md) concerns, not the walk's.) | Test |
+| FR-024-AC-6 | A document's `LoadedDocument.id` equals its frontmatter `id` (empty string when absent), and `LoadedDocument.uuid` equals its frontmatter `uuid` parsed as a `Uuid` (`None` when absent or unparseable); neither is derived from path or content, and no file is written during load. Both are read from the header tier (`parse_header`, [FR-005](./FR-005-parse-document-api.md), CR-046) — the guarantee is unchanged, its source is narrowed to the one frontmatter extraction that also decides membership. A document missing `uuid` emits a non-fatal `Diagnostic::MissingUuid { path }`. (Corpus-level id/type keying diagnostics — duplicate id, untyped — are [FR-025](./FR-025-spec-corpus-model.md)/[FR-027](./FR-027-whole-spec-query-api.md) concerns, not the walk's.) | Test |
 | FR-024-AC-7 | A `root` that points to a regular file or a nonexistent path returns an empty `RepoLoad` with one warning diagnostic (no error, no panic). | Test |
 | FR-024-AC-8 | A criterion bench measures `load_repo` over a 1,000-document corpus on 1 and 8 threads and records the speedup (feeds [NFR-015](../non-functional/NFR-015-repo-walk-throughput.md)). | Test |
 | FR-024-AC-9 | A static audit (`rg` for `Mutex`/`RwLock`/`Atomic*` in first-party `src/`) confirms the parallel parse uses no hand-written shared-mutable synchronization; the implementation collects owned results rather than mutating a shared buffer (the invariant underpinning [NFR-017](../non-functional/NFR-017-concurrency-permutation.md) and the loom/shuttle skip). | Inspection |
@@ -148,6 +148,14 @@ impl RepoLoad {
 > the walk is where it must hold; the two-root derivation consumers use to
 > honor it lives in [FR-050](./FR-050-declarative-coverage-computation.md)
 > (agent-ix/quire-rs#91, umbrella #90).
+
+> **CR-046 note (2026-08-15):** AC-6's identity read is narrowed to the
+> header tier: `walk::parse_one` calls `parse_header`
+> ([FR-005](./FR-005-parse-document-api.md)), which decides membership and
+> identity in **one** frontmatter extraction — retiring the walk's own
+> `read_identity` and the duplicate `is_document` extraction CR-044 had
+> introduced after the full parse. The guarantee (read, never derived; no
+> file written) is unchanged (agent-ix/quire-rs#92, umbrella #90).
 
 ## Dependencies
 

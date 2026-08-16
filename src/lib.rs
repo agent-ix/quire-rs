@@ -38,7 +38,8 @@ pub mod writeback;
 // Parser surface (FR-005..009).
 pub use ast::{QuireDocument, QuireSection};
 pub use parser::{
-    extract_frontmatter, parse_document, FrontmatterResult, FrontmatterStatus, Heading,
+    extract_frontmatter, parse_body, parse_document, parse_header, FrontmatterResult,
+    FrontmatterStatus, Header, Heading,
 };
 // Query API (FR-010).
 pub use query::{

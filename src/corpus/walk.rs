@@ -24,7 +24,7 @@ use uuid::Uuid;
 
 use crate::ast::QuireDocument;
 use crate::diagnostic::Diagnostic;
-use crate::parser::parse_document;
+use crate::parser::{parse_body, parse_header, Header};
 
 /// One parsed document plus its read identity.
 #[derive(Debug, Clone, PartialEq)]
@@ -230,8 +230,9 @@ fn parse_one(path: &Path) -> Outcome {
         }
     };
 
-    let doc = parse_document(&text);
-
+    // The header tier decides membership AND identity in one frontmatter
+    // extraction (CR-046) — no body work is done for a non-document.
+    //
     // A markdown file with no frontmatter block is not a document (CR-044).
     // This is the rule that retires the `README.md` filename skip, and it
     // generalizes to every stray `.md` in a repository — CHANGELOG, AGENTS,
@@ -242,13 +243,15 @@ fn parse_one(path: &Path) -> Outcome {
     // document missing `type` (which is precisely why `README.md` had to be
     // skipped by name before). Frontmatter present but naming an unregistered
     // type keeps today's behavior — error under `Strict`, warning under `Okf`.
-    if !is_document(&text) {
+    let Some(header) = parse_header(&text) else {
         return Outcome::NotADocument {
             path: path.to_path_buf(),
         };
-    }
+    };
 
-    let (id, uuid) = read_identity(&doc);
+    // Identity comes from the header — read, never derived (CR-002).
+    let doc = parse_body(&text, &header);
+    let Header { id, uuid, .. } = header;
 
     let mut diags = Vec::new();
     if uuid.is_none() {
@@ -268,29 +271,13 @@ fn parse_one(path: &Path) -> Outcome {
     }
 }
 
-/// Read `(id, uuid)` from frontmatter — never derived (CR-002).
-fn read_identity(doc: &QuireDocument) -> (String, Option<Uuid>) {
-    let fm = match doc.frontmatter.as_ref() {
-        Some(fm) => fm,
-        None => return (String::new(), None),
-    };
-    let id = fm
-        .get("id")
-        .and_then(|v| v.as_str())
-        .unwrap_or("")
-        .to_string();
-    let uuid = fm
-        .get("uuid")
-        .and_then(|v| v.as_str())
-        .and_then(|s| Uuid::parse_str(s).ok());
-    (id, uuid)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::fs;
     use std::path::PathBuf;
+
+    use crate::parser::parse_document;
 
     fn tmpdir(tag: &str) -> PathBuf {
         let mut p = std::env::temp_dir();
