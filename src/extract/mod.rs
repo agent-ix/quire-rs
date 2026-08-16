@@ -471,6 +471,8 @@ yield_pattern:
     // FR-011-AC-21: `multiple: true` keeps every located value as a
     // JSON array; the default contract still collapses to the first.
     #[test]
+    // TC-583 (FR-011-AC-21, CR-006): `multiple: true` keeps every located
+    // value as a JSON array.
     fn multiple_true_keeps_all_values_as_array() {
         let md = "## Workflow\n\
                   ```mermaid\nflowchart LR\n```\n\
@@ -496,6 +498,7 @@ yield_pattern:
     }
 
     #[test]
+    // TC-583 (FR-011-AC-21, CR-006): absent flag → first-wins, unchanged.
     fn without_multiple_first_value_wins_unchanged() {
         let md = "## Workflow\n\
                   ```mermaid\nflowchart LR\n```\n\
@@ -519,6 +522,8 @@ yield_pattern:
     // FR-011-AC-21: in a fallback chain the `multiple` flag is read
     // from the primitive that actually produced the values.
     #[test]
+    // TC-583 (FR-011-AC-21, CR-006): a fallback chain reads the flag from the
+    // primitive that hit.
     fn multiple_in_fallback_chain_uses_hit_primitive_flag() {
         let md = "## Steps\n- one\n- two\n";
         let d = parse_document(md);
@@ -542,6 +547,7 @@ yield_pattern:
     // FR-011-AC-21: multiple:true under iterate_over/per_match keeps
     // each unit's full value list.
     #[test]
+    // TC-583 (FR-011-AC-21, CR-006): multi-yield keeps per-unit lists.
     fn multiple_true_applies_per_iteration_unit() {
         let md = "\
 ## Algorithms\nintro\n\
@@ -641,6 +647,8 @@ yield_pattern:
     // routing the locator through the unit's content slice rather than
     // the document-wide harvest).
     #[test]
+    // TC-563 (FR-011-AC-13): multi-yield `per_match` isolates each unit's
+    // own block rather than sharing the section's first one.
     fn code_block_per_match_isolates_per_unit_under_iterate_over() {
         let md = "\
 ## Steps\nintro\n\
@@ -679,6 +687,8 @@ yield_pattern:
     // specific unit that lacks its own block (containment, not a
     // document-wide fallback that would silently borrow a sibling's).
     #[test]
+    // TC-563 (FR-011-AC-13): and a required miss is a MissingField for the
+    // unit lacking one, not for the document.
     fn code_block_per_match_required_fails_for_unit_missing_its_block() {
         let md = "\
 ## Steps\nintro\n\
