@@ -44,7 +44,8 @@ pub struct Header {
     /// resolution and frontmatter validation read without a body parse.
     pub frontmatter: Map<String, Value>,
     /// Byte offset of the body within the input `parse_header` was given,
-    /// so [`parse_body`] slices instead of re-extracting.
+    /// so [`parse_body`] slices instead of re-extracting. Nothing in the type
+    /// system binds it to that input — see [`body_offset_in`].
     body_offset: usize,
 }
 
@@ -77,14 +78,35 @@ pub fn parse_header(markdown: &str) -> Option<Header> {
 }
 
 /// Parse the body of `markdown` under an already-parsed [`Header`]
-/// (FR-005 body tier). `markdown` must be the same input the header came
-/// from. Composing the two tiers is exactly [`parse_document`].
+/// (FR-005 body tier). `markdown` should be the same input the header came
+/// from; a mismatched pair is defined rather than a panic (FR-005-AC-7, see
+/// [`body_offset_in`]). Composing the two tiers is exactly [`parse_document`].
 pub fn parse_body(markdown: &str, header: &Header) -> QuireDocument {
     parse_body_at(
         markdown,
-        header.body_offset,
+        body_offset_in(markdown, header),
         Some(header.frontmatter.clone()),
     )
+}
+
+/// Where `header`'s body starts inside `markdown` (FR-005-AC-7).
+///
+/// [`Header::body_offset`] is an offset into the input [`parse_header`] was
+/// given, and the type system cannot bind the two: a `Header` is owned and
+/// stored *beside* an owned text (`corpus::LoadedDocument`), so it cannot
+/// borrow from its input. `parse_body(other, &header)` is therefore
+/// constructible, and FR-005's purity clause forbids it panicking on a public,
+/// PyO3/wasm-reachable entry point. When the offset does not land on a char
+/// boundary of `markdown` the pair cannot be the one the header came from, so
+/// the offset is re-derived from `markdown` itself and the parse describes the
+/// input it was actually given. Correct usage costs one `is_char_boundary`.
+fn body_offset_in(markdown: &str, header: &Header) -> usize {
+    if markdown.is_char_boundary(header.body_offset) {
+        header.body_offset
+    } else {
+        let fm = frontmatter::extract_frontmatter_ref(markdown);
+        markdown.len() - fm.body.len()
+    }
 }
 
 /// Parse a markdown string into a [`QuireDocument`] per FR-005.
@@ -108,13 +130,15 @@ pub fn parse_document(markdown: &str) -> QuireDocument {
 }
 
 /// The body pipeline shared by [`parse_body`] and [`parse_document`]:
-/// `body_offset` locates the post-frontmatter body inside `markdown`.
+/// `body_offset` locates the post-frontmatter body inside `markdown`. Total in
+/// `body_offset` — both callers derive it from `markdown`, and the slice stays
+/// checked so no offset can panic the parser (FR-005-AC-4/AC-7).
 fn parse_body_at(
     markdown: &str,
     body_offset: usize,
     frontmatter: Option<Map<String, Value>>,
 ) -> QuireDocument {
-    let body: &str = &markdown[body_offset..];
+    let body: &str = markdown.get(body_offset..).unwrap_or("");
     let raw: String = markdown.to_string();
 
     if body.is_empty() {
@@ -415,12 +439,57 @@ mod tests {
         }
     }
 
+    // TC-819 (FR-005-AC-7): parse_body is total in its header. `body_offset`
+    // is an offset into the input the header came from, so a caller can pair a
+    // header with a different string; that must describe the string actually
+    // given, never panic (public API, PyO3/wasm-reachable).
+    #[test]
+    fn tc819_parse_body_with_a_foreign_header_is_total() {
+        // Frontmatter block is 28 bytes, so `body_offset` is 28.
+        let header =
+            parse_header("---\nid: FR-001\ntype: FR\n---\n## A\nbody\n").expect("document");
+
+        // Offset past the end of the other input.
+        let short = parse_body("hi", &header);
+        assert_eq!(short.raw, "hi");
+        assert_eq!(short.preamble.as_deref(), Some("hi"));
+        assert_eq!(
+            short
+                .frontmatter
+                .as_ref()
+                .and_then(|m| m.get("id"))
+                .and_then(|v| v.as_str()),
+            Some("FR-001"),
+            "the header's own frontmatter is still what the document carries"
+        );
+
+        // Offset inside a multi-byte char of the other input (36 bytes, char
+        // boundaries every 3 — byte 28 is mid-char).
+        let straddling = "日".repeat(12);
+        assert_eq!(parse_body(&straddling, &header).raw, straddling);
+
+        // Offset in bounds and on a boundary: no way to detect the mismatch,
+        // but the result is still a parse of the input it was given.
+        let in_bounds = "x".repeat(40);
+        assert_eq!(parse_body(&in_bounds, &header).raw, in_bounds);
+    }
+
     proptest! {
         // FR-005-AC-4 / TC-002: parse_document does not panic on any input.
         #![proptest_config(ProptestConfig::with_cases(10_000))]
         #[test]
         fn never_panics_on_arbitrary_utf8(s in "\\PC*") {
             let _ = parse_document(&s);
+        }
+
+        // TC-819 (FR-005-AC-7): no (header input, body input) pair panics
+        // parse_body, and the document always describes the body input.
+        #[test]
+        fn tc819_parse_body_never_panics_on_a_foreign_header(a in "\\PC*", b in "\\PC*") {
+            if let Some(h) = parse_header(&a) {
+                let doc = parse_body(&b, &h);
+                prop_assert_eq!(doc.raw.as_str(), b.as_str());
+            }
         }
 
         // TC-813 (FR-005-AC-6): tier composition equals parse_document on
