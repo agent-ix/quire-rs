@@ -164,5 +164,7 @@ jobs:
         run: bash scripts/audits/check_dep_pins.sh
       - name: check_hashmap_audit
         run: bash scripts/audits/check_hashmap_audit.sh
+      - name: check_no_shared_mutable
+        run: bash scripts/audits/check_no_shared_mutable.sh
       - name: verify_cookiecutter_inheritance
         run: bash scripts/audits/verify_cookiecutter_inheritance.sh

@@ -4,11 +4,20 @@
 // identical value. This cell is per-document state behind `Arc<SpecInner>`,
 // NOT walk state: the FR-024 rayon fan-out never touches it (the walk builds
 // every `LoadedDocument` with an empty cell and no body parse), so the
-// walk-is-lock-free invariant (FR-024-AC-9) is untouched. It is the named
-// audit exemption in `scripts/audits/check_no_shared_mutable.sh`; its
-// exactly-once + agreed-value contract is proven by the NFR-017 loom model
-// (TC-815) and raced for real under TSAN in `tests/corpus_concurrency.rs`
-// (TC-816).
+// walk-is-lock-free invariant (FR-024-AC-9) is untouched.
+//
+// The cell IS touched from a parallel region elsewhere, and the wording here
+// used to read as though it never were (CR-053): `python::load_repo` opens
+// its own rayon region *after* the walk to force every body with the GIL
+// released. That is sound — `OnceLock::get_or_init` is exactly the primitive
+// for it — and it is now covered rather than assumed:
+// `tests/corpus_concurrency.rs` races the real cell over 8 threads × 16
+// documents and reproduces the rayon-forcing shape, on the NFR-018 TSAN lane
+// (TC-816). The NFR-017 loom model (TC-815) mirrors the once-cell *contract*,
+// since loom ships no `OnceLock` model and cannot instrument std's.
+//
+// This is the named exemption in `scripts/audits/check_no_shared_mutable.sh`,
+// which scopes to `src/corpus` **and** `src/python` for exactly that reason.
 
 use crate::ast::QuireDocument;
 use crate::parser::{parse_body, Header};

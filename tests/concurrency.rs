@@ -50,8 +50,16 @@ fn parallel_collect_is_race_free_and_order_independent() {
 // instrument — loom ships no OnceLock model and cannot see into std's
 // internals — so this permutation models the once-cell **contract** with
 // loom primitives: a `Mutex<Option<_>>` cell plus an atomic init counter,
-// both threads racing `get_or_insert_with`. The real primitive is raced
-// for real under TSAN in tests/corpus_concurrency.rs (TC-816, NFR-018).
+// both threads racing `get_or_insert_with`. What this proves is that the
+// *contract* is sound under every interleaving; it proves nothing about
+// std's implementation of it.
+//
+// That gap is why TC-816 is the load-bearing control, not a formality: the
+// real `OnceLock` is raced for real in tests/corpus_concurrency.rs under the
+// NFR-018 TSAN lane, now over 8 threads × 16 documents and over the
+// rayon-forcing shape `python::load_repo` runs — not the single 2 × 1 case
+// this model mirrors (CR-053). `make hardening` runs `sanitize`, so the lane
+// is in the local pre-tag set rather than only on a scheduled runner.
 #[test]
 fn lazy_body_first_touch_parses_once_and_agrees() {
     loom::model(|| {

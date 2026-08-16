@@ -196,4 +196,4 @@ local-publish: wheel sdist
 	@echo "Published quire to $(LOCAL_PYPI_URL)"
 
 .PHONY: hardening
-hardening: audit-static cargo-audit mutants fuzz loom
+hardening: audit-static cargo-audit mutants fuzz loom sanitize
