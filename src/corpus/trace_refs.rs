@@ -52,9 +52,13 @@ pub(crate) fn validate_trace_references(
     }
 
     // Resolution sets, one per declared target kind.
+    let mut ctx = declared_tables::ScanContext::default();
     let mut resolution: BTreeMap<&str, BTreeSet<String>> = BTreeMap::new();
     for target in &model.trace_targets {
-        resolution.insert(target.name.as_str(), minted_ids(spec, root, target));
+        resolution.insert(
+            target.name.as_str(),
+            minted_ids(spec, root, target, &mut ctx),
+        );
     }
 
     // Collect findings before pushing so their order is a property of the
@@ -70,7 +74,7 @@ pub(crate) fn validate_trace_references(
                 resolvable.extend(ids.iter());
             }
         }
-        for row in referencing_rows(spec, root, declaration) {
+        for row in referencing_rows(spec, root, declaration, &mut ctx) {
             for caps in pattern.captures_iter(&row.cell) {
                 let Some(id) = caps.get(1).map(|m| m.as_str().trim()) else {
                     continue;
@@ -96,6 +100,21 @@ pub(crate) fn validate_trace_references(
         }
     }
 
+    // CR-054: a declaration that scanned nothing is reported as a warning
+    // naming the declaration, in both postures. Before this, an `archetype:`
+    // typo or an unreadable declared document produced an empty resolution
+    // set in silence — and since CR-049 made selection load-bearing, the same
+    // silence also stopped the engine parsing the bodies it would have read.
+    let minted_anything = resolution.values().any(|ids| !ids.is_empty());
+    for (declaration, diagnostic) in ctx.into_diagnostics(minted_anything) {
+        let (path, message) = declared_tables::scan_finding(&declaration, &diagnostic, root);
+        report.warnings.push(BundleFinding {
+            path,
+            message,
+            reason: declared_tables::scan_reason(&diagnostic),
+        });
+    }
+
     findings.sort();
     findings.dedup();
     for (path, _, message) in findings {
@@ -112,8 +131,14 @@ pub(crate) fn validate_trace_references(
 
 /// The ids a declared target mints: from bundle documents of the declared
 /// archetype, or from a declared auxiliary document harvested off-corpus.
-fn minted_ids(spec: &Spec, root: &Path, target: &TraceTarget) -> BTreeSet<String> {
+fn minted_ids(
+    spec: &Spec,
+    root: &Path,
+    target: &TraceTarget,
+    ctx: &mut declared_tables::ScanContext,
+) -> BTreeSet<String> {
     let scope = declared_tables::DeclaredScope {
+        name: &target.name,
         archetype: target.archetype.as_deref(),
         document: target.document.as_deref(),
         exclude: &target.exclude,
@@ -133,7 +158,7 @@ fn minted_ids(spec: &Spec, root: &Path, target: &TraceTarget) -> BTreeSet<String
             }
         }
     }
-    for row in declared_tables::scan(spec, root, scope, &target.section) {
+    for row in declared_tables::scan(spec, root, scope, &target.section, ctx) {
         if let Some(id) = row.cell(&target.id_column) {
             ids.insert(id.to_string());
         }
@@ -146,16 +171,19 @@ fn referencing_rows(
     spec: &Spec,
     root: &Path,
     declaration: &DocumentReference,
+    ctx: &mut declared_tables::ScanContext,
 ) -> Vec<ReferencingRow> {
     declared_tables::scan(
         spec,
         root,
         declared_tables::DeclaredScope {
+            name: &declaration.name,
             archetype: declaration.archetype.as_deref(),
             document: declaration.document.as_deref(),
             exclude: &declaration.exclude,
         },
         &declaration.section,
+        ctx,
     )
     .into_iter()
     .filter_map(|row| {

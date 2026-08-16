@@ -939,6 +939,16 @@ fn tc818_coverage_parses_only_declared_archetype_bodies() {
         "NOTE-001.md",
         "---\nid: NOTE-001\ntype: Note\n---\n# note\n\n## Body\n\nwords.\n",
     );
+    // The falsifier (CR-054): an undeclared type in a file NAMED like a
+    // declared one. With the undeclared documents also named unlike the
+    // declared ones, a filename-driven engine passed this test — the
+    // fixture could not tell "decided on the header tier" from "decided by
+    // the FR-* filename", which is the claim FR-050-AC-18 actually makes.
+    write(
+        &bundle.scope,
+        "FR-002.md",
+        "---\nid: FR-002\ntype: Note\n---\n# note\n\n## Acceptance Criteria\n\n| ID | Criteria |\n|----|----------|\n| FR-002-AC-1 | never minted |\n",
+    );
 
     let registry = Registry::load_module(&fixture_module("iso")).expect("load module");
     let spec = Spec::from_path(&bundle.scope);
@@ -953,11 +963,124 @@ fn tc818_coverage_parses_only_declared_archetype_bodies() {
         spec.by_id("FR-001").expect("FR-001").body_is_parsed(),
         "the declared archetype's body must have been parsed"
     );
-    // Undeclared archetypes: bodies stay unparsed through the whole rollup.
-    for id in ["ADR-001", "NOTE-001"] {
+    // Undeclared archetypes: bodies stay unparsed through the whole rollup —
+    // including the one whose FILENAME matches the declared archetype's.
+    for id in ["ADR-001", "NOTE-001", "FR-002"] {
         assert!(
             !spec.by_id(id).expect(id).body_is_parsed(),
             "{id} is not declared by the model; its body was parsed during coverage"
         );
     }
+    // And nothing it holds reached the report: a filename-driven engine would
+    // have minted its AC row.
+    assert!(
+        !report.to_json().contains("FR-002"),
+        "an undeclared type in an FR-named file must mint nothing: {}",
+        report.to_json()
+    );
+}
+
+// TC-822 (FR-050-AC-19, CR-054): a model that loads and selects nothing is
+// reported, not silently accepted. Both shapes reach the report: an archetype
+// no document has (a typo in the declaration), and a declared auxiliary
+// document that cannot be read — the CR-045 silent-un-minting class, where
+// the ids simply vanish and the only symptom is a distant count.
+#[test]
+fn tc822_declarations_that_select_nothing_are_reported() {
+    let bundle = iso_bundle(
+        "822-selects-nothing",
+        &[("TC-001", "FR-001-AC-1", "✅")],
+        &[],
+    );
+    let report = report_for(&bundle, "fails-open").expect("model declared");
+
+    assert_eq!(
+        report.totals.total, 0,
+        "the fixture's whole point is that it mints nothing"
+    );
+
+    let reasons: Vec<&str> = report
+        .diagnostics
+        .iter()
+        .map(|d| d.reason.as_str())
+        .collect();
+    assert!(
+        reasons.contains(&"archetype-matches-nothing"),
+        "an archetype no document has must be reported: {:?}",
+        report.diagnostics
+    );
+    assert!(
+        reasons.contains(&"unreadable-declared-document"),
+        "an unreadable declared document must be reported: {:?}",
+        report.diagnostics
+    );
+
+    let archetype = report
+        .diagnostics
+        .iter()
+        .find(|d| d.reason == "archetype-matches-nothing")
+        .expect("present");
+    assert_eq!(archetype.declaration, "acceptance-criterion");
+    assert!(
+        archetype.message.contains("FRR"),
+        "names the archetype nothing has: {}",
+        archetype.message
+    );
+
+    let unreadable = report
+        .diagnostics
+        .iter()
+        .find(|d| d.reason == "unreadable-declared-document")
+        .expect("present");
+    assert_eq!(unreadable.declaration, "test-case");
+    assert_eq!(unreadable.path.as_deref(), Some("missing.md"));
+
+    // Order is a property of the model, not of the walk (NFR-006).
+    let again = report_for(&bundle, "fails-open").expect("model declared");
+    assert_eq!(report.diagnostics, again.diagnostics);
+}
+
+// TC-822 (FR-050-AC-19, CR-054): and a model whose declarations all select
+// something reports no diagnostics at all — the key is absent from the JSON,
+// so FR-050-AC-7 byte-identity holds for every repo without the defect.
+#[test]
+fn tc822_a_healthy_model_reports_no_diagnostics_and_no_key() {
+    let bundle = iso_bundle(
+        "822-healthy",
+        &[("TC-001", "FR-001-AC-1", "✅")],
+        &["TC-001"],
+    );
+    let report = report_for(&bundle, "iso").expect("model declared");
+
+    assert!(
+        report.diagnostics.is_empty(),
+        "a model selecting normally must report nothing: {:?}",
+        report.diagnostics
+    );
+    assert!(
+        !report.to_json().contains("diagnostics"),
+        "an empty diagnostics list must leave the JSON byte-identical"
+    );
+}
+
+// TC-822 (FR-050-AC-19, CR-054): excluding every document of a declared
+// archetype is a deliberate act, not a missing archetype — the count that
+// decides is taken before `exclude` applies.
+#[test]
+fn tc822_excluding_every_match_is_not_a_missing_archetype() {
+    let bundle = iso_bundle(
+        "822-excluded",
+        &[("TC-001", "FR-001-AC-1", "✅")],
+        &["TC-001"],
+    );
+    let report = report_for(&bundle, "scoped").expect("model declared");
+
+    assert!(
+        !report
+            .diagnostics
+            .iter()
+            .any(|d| d.reason == "archetype-matches-nothing"),
+        "an exclusion is not a typo: {:?}",
+        report.diagnostics
+    );
 }

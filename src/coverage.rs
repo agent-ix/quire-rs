@@ -173,7 +173,31 @@ pub struct CoverageReport {
     /// did before the field existed.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub criteria: Vec<CriteriaCounts>,
+    /// Declarations that scanned nothing, and why (CR-054). Empty — and so
+    /// absent from the JSON — for a model whose every declaration selected
+    /// something, which keeps FR-050-AC-7 byte-identity.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub diagnostics: Vec<CoverageDiagnostic>,
     pub totals: CoverageTotals,
+}
+
+/// A declaration that produced no rows for a reason the operator can act on
+/// (CR-054): no scope at all, an archetype no document has, or a declared
+/// auxiliary document that could not be read.
+///
+/// Non-fatal and never an exit code on its own — but since CR-049 made body
+/// selection load-bearing on the declaration, a silent one of these is an
+/// engine that parsed nothing and reported full coverage of nothing.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CoverageDiagnostic {
+    /// The declaration's name, as the model authored it.
+    pub declaration: String,
+    /// Stable machine token, shared with `quire validate`'s bundle warnings.
+    pub reason: String,
+    pub message: String,
+    /// The unreadable document, when the diagnostic is about one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub path: Option<String>,
 }
 
 impl CoverageReport {
@@ -288,17 +312,20 @@ fn reconcile(
     let backed: BTreeSet<&str> = graph.backed_trace_ids();
 
     // ── Minted targets, grouped by their minting document ──
+    let mut ctx = declared_tables::ScanContext::default();
     let mut minted: Vec<MintedTarget> = Vec::new();
     for target in &model.trace_targets {
         for row in declared_tables::scan(
             spec,
             root,
             declared_tables::DeclaredScope {
+                name: &target.name,
                 archetype: target.archetype.as_deref(),
                 document: target.document.as_deref(),
                 exclude: &target.exclude,
             },
             &target.section,
+            &mut ctx,
         ) {
             let Some(id) = row.cell(&target.id_column) else {
                 continue;
@@ -339,11 +366,13 @@ fn reconcile(
             spec,
             root,
             declared_tables::DeclaredScope {
+                name: &declaration.name,
                 archetype: declaration.archetype.as_deref(),
                 document: declaration.document.as_deref(),
                 exclude: &declaration.exclude,
             },
             &declaration.section,
+            &mut ctx,
         ) {
             let Some(raw_cell) = row.cell(&declaration.column) else {
                 continue;
@@ -481,6 +510,45 @@ fn reconcile(
         .sort_by(|a, b| (&a.path, &a.symbol, &a.trace_id).cmp(&(&b.path, &b.symbol, &b.trace_id)));
     untracked_symbols.dedup();
 
+    // CR-054: declarations that selected nothing, rendered from the one
+    // shared vocabulary `quire validate` also reports them under. Already
+    // sorted by `into_diagnostics`, so the order is a property of the model.
+    let mut diagnostics: Vec<CoverageDiagnostic> = ctx
+        .into_diagnostics(totals.total > 0)
+        .into_iter()
+        .map(|(declaration, diagnostic)| {
+            let (path, message) = declared_tables::scan_finding(&declaration, &diagnostic, root);
+            CoverageDiagnostic {
+                declaration,
+                reason: declared_tables::scan_reason(&diagnostic).to_string(),
+                message,
+                path: matches!(
+                    diagnostic,
+                    declared_tables::ScanDiagnostic::UnreadableDocument { .. }
+                )
+                .then(|| relative(root, &path)),
+            }
+        })
+        .collect();
+
+    // A model declared without a single trace target mints nothing at all, so
+    // every ratio it reports is over an empty denominator. `is_empty()` reads
+    // it as *declared* (status or trace-tag entries alone are enough), which
+    // is why `ModelUndeclared` never fires for it (CR-054).
+    if model.trace_targets.is_empty() {
+        diagnostics.insert(
+            0,
+            CoverageDiagnostic {
+                declaration: "traceability".to_string(),
+                reason: "model-mints-nothing".to_string(),
+                message: "the declared traceability model has no trace_targets, so it \
+                          mints no ids and every count is over an empty denominator"
+                    .to_string(),
+                path: None,
+            },
+        );
+    }
+
     CoverageReport {
         unbacked_rows,
         status_lies,
@@ -490,6 +558,7 @@ fn reconcile(
         // CR-028: filled by `compute`, which holds the `Registry` this
         // reconciliation deliberately does not take.
         criteria: Vec::new(),
+        diagnostics,
         totals,
     }
 }
