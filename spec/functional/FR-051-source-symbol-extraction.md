@@ -122,6 +122,55 @@ byte-identical JSON ordering and stable record ids.
 | FR-051-AC-14 | Comment, string and template state is derived once per file and read by every consumer — the balance check, brace depth, and block-end spans — rather than re-derived per consumer. | Test (TC-803) |
 | FR-051-AC-15 | The Rust adapter's lexer recognizes raw strings, lifetimes, character literals and nested block comments, so a brace inside any of them never moves the depth and never rejects the file. | Test (TC-804) |
 | FR-051-AC-16 | A legacy textual form mints one `verifies` relation per trace id its match carries, so a comma-separated list binds every id rather than only the first, and one authored line yields one rewrite suggestion naming all of them; a form declaring `id_format` renders a single id and is not split. | Test (TC-806) |
+| FR-051-AC-17 | A Rust benchmark — an attribute-marked one, or a function a `criterion_group!` registers in either invocation form — classifies as a benchmark symbol, and a `fuzz_target!` invocation mints one fuzz-target symbol whose span is its whole file. Both bind trace ids; a container and a plain function still bind none. | Test (TC-827, TC-828) |
+
+> **CR-061 note (2026-08-16):** AC-17 is new. `trace::bind` skipped every
+> symbol that was not a `TestFunction`, so a trace tag attached to anything else
+> bound nothing — and three whole verification *methods* could never back a
+> matrix row however they were tagged. CR-058 measured this by tagging them and
+> re-running: TC-577 (a criterion bench), TC-579 (a `fuzz_target!`) and TC-502
+> (a shell audit) stayed unbacked, and were marked 🚧 with the reason inline as
+> the least-wrong option and explicitly not a resolution.
+>
+> The guard's real rule is **leaf evidence**, and the two things it must exclude
+> are excluded for two different reasons. A **container** would let a `mod tests`
+> block inherit every marker nested inside it — the original FR-051 reason, and
+> still right. A plain **function** is production code, whose doc comments in
+> this repository routinely cite the acceptance criteria they implement; binding
+> those would manufacture backing out of prose, which is a far larger error than
+> the one being fixed. A bench and a fuzz target are neither: each is a leaf
+> artifact that exists to verify something and runs in CI.
+>
+> This was preferred to declaring `Benchmark` and `Fuzz` in the module's
+> CR-041 `no_source_symbol` vocabulary. That mechanism exists for methods that
+> **cannot** produce a symbol — an agent eval, a person reading code — and
+> withdraws the accusation while leaving the row unbacked. A bench *is* a
+> symbol; saying otherwise to quiet the report would be false, and would change
+> verdicts for every repository on `spec-artifacts-process`.
+>
+> Two adapter facts fall out of it. A criterion bench carries no attribute — it
+> is an ordinary `fn` that `criterion_group!` *registers* — so the registrations
+> are collected in the same pass and the named top-level functions are promoted
+> afterwards. And `fuzz_target!` declares no `fn` at all, so those files
+> previously yielded **no symbol whatsoever**; the invocation now mints one whose
+> span starts at line 1, because a `#![no_main]` fuzz-target file declares
+> exactly one entry point and its header is that entry point's annotation block.
+>
+> Two constraints worth recording, because "tag the test harder" is the obvious
+> wrong first move for anyone who hits this:
+>
+> - A `//!` module header binds nothing. The declared legacy forms match `//`
+>   and `///`; `//!` matches neither. TC-579's tag was written there and bound
+>   nothing even after the span reached it.
+> - `/// NFR-002-AC-4 / TC-577` binds `NFR-002-AC-4` only. The declared list
+>   separator is a comma, so a `/`-separated pair drops its second id in
+>   silence. Filed separately against `spec-artifacts-process`.
+>
+> **TC-502 is not resolved by this.** A shell audit is not a Rust symbol:
+> `language_of` reads `.rs`, `.py` and `.ts`/`.tsx`, so `.sh` is never opened
+> and no widening of the binder reaches it. It stays 🚧 with its note corrected
+> to name the actual blocker, and the shell-language question is filed
+> separately. Closes agent-ix/quire-rs#126.
 
 > **CR-043 note (2026-08-14):** Canonical markers and legacy forms read their
 > ids by different rules. `marker_ids` comma-splits a marker's argument list, so
