@@ -131,14 +131,28 @@ pub fn validate_bundle(
     for diag in spec.diagnostics() {
         if let crate::diagnostic::Diagnostic::DocumentWithoutFrontmatter { path, malformed } = diag
         {
+            // The two flavors carry distinct reasons (CR-051): a consumer
+            // triaging the machine surface acts differently on "this file was
+            // never meant to be a document" than on "someone wrote a
+            // frontmatter block and it does not parse as a mapping". The
+            // engine already distinguishes them (`malformed: bool` on the
+            // diagnostic); dropping that at this boundary made the second
+            // indistinguishable from the first.
+            let (message, reason) = if *malformed {
+                (
+                    "frontmatter block is not a YAML mapping; file is not a document and was not loaded",
+                    "malformed-frontmatter",
+                )
+            } else {
+                (
+                    "no frontmatter block; file is not a document and was not loaded",
+                    "no-frontmatter",
+                )
+            };
             report.warnings.push(BundleFinding {
                 path: path.clone(),
-                message: if *malformed {
-                    "frontmatter block is not a YAML mapping; file is not a document and was not loaded".to_string()
-                } else {
-                    "no frontmatter block; file is not a document and was not loaded".to_string()
-                },
-                reason: "no-frontmatter",
+                message: message.to_string(),
+                reason,
             });
         }
     }

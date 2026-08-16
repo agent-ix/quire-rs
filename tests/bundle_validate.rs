@@ -289,3 +289,80 @@ fn tc642_disallowed_edge_target_is_warning() {
     // Warn-tier: disallowed edge targets never invalidate the bundle.
     assert!(report.is_valid(), "errors: {:?}", report.errors);
 }
+
+/// TC-820 (FR-024-AC-12): the CR-048 walk→bundle bridge. A frontmatter-less
+/// file and a malformed-frontmatter file under the document root each become
+/// exactly one `BundleReport` **warning** naming the path — in both postures,
+/// never an error — and the two flavors carry distinct machine reasons so a
+/// consumer can triage "not meant to be a document" apart from "someone wrote
+/// a front block and it does not parse" (CR-051).
+#[test]
+fn tc820_frontmatter_less_files_bridge_into_bundle_warnings() {
+    for posture in [BundlePosture::Strict, BundlePosture::Okf] {
+        let root = tmpdir("fm_bridge");
+        write(&root, "NOTE-001.md", &note("NOTE-001", "real document"));
+        write(&root, "draft.md", "# draft\n\nno front block at all.\n");
+        // A complete fence block that is valid YAML but not a mapping.
+        write(&root, "listy.md", "---\n- a\n- b\n---\n# listy\nbody\n");
+
+        let report = validate_bundle_at(&root, &bundle_registry(), posture);
+
+        let absent: Vec<_> = report
+            .warnings
+            .iter()
+            .filter(|f| f.reason == "no-frontmatter")
+            .collect();
+        let malformed: Vec<_> = report
+            .warnings
+            .iter()
+            .filter(|f| f.reason == "malformed-frontmatter")
+            .collect();
+
+        assert_eq!(
+            absent.len(),
+            1,
+            "{posture:?}: exactly one no-frontmatter warning, got {:?}",
+            report.warnings
+        );
+        assert_eq!(
+            malformed.len(),
+            1,
+            "{posture:?}: the malformed flavor is distinguishable, got {:?}",
+            report.warnings
+        );
+        assert!(
+            absent[0].path.ends_with("draft.md"),
+            "{posture:?}: names the path, got {:?}",
+            absent[0].path
+        );
+        assert!(
+            malformed[0].path.ends_with("listy.md"),
+            "{posture:?}: names the path, got {:?}",
+            malformed[0].path
+        );
+        assert!(
+            malformed[0].message.contains("not a YAML mapping"),
+            "{posture:?}: human message states the flavor too: {}",
+            malformed[0].message
+        );
+
+        // Never an error, in either posture — the file is not a document, so
+        // nothing structural can be wrong with it as one. The bundle stays
+        // valid, which is what the CLI's exit code reads.
+        assert!(
+            !report
+                .errors
+                .iter()
+                .any(|f| f.reason == "no-frontmatter" || f.reason == "malformed-frontmatter"),
+            "{posture:?}: bridged as warnings only, errors: {:?}",
+            report.errors
+        );
+        assert!(
+            report.is_valid(),
+            "{posture:?}: exit code unchanged, errors: {:?}",
+            report.errors
+        );
+
+        fs::remove_dir_all(&root).ok();
+    }
+}
