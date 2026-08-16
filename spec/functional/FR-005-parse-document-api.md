@@ -35,7 +35,10 @@ pub struct Header {
   stated as a type. Membership and identity are decided entirely here; the
   body contributes nothing to either.
 - **`parse_body`** runs the body pipeline (headings, byte-exact section
-  slices, tree assembly) under an already-parsed header.
+  slices, tree assembly) under an already-parsed header. It is **total in its
+  header**: `Header` is owned, so a caller can pair one with a string it did
+  not come from, and that pair SHALL yield a document describing the string it
+  was given rather than panicking (CR-050).
 - **`parse_document`** composes the tiers with unchanged signature and
   semantics — every existing caller and the PyO3/wasm surfaces are untouched.
 
@@ -69,6 +72,10 @@ Both structs SHALL `derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)`
 3. For empty input, return `QuireDocument { preamble: None, sections: vec![], raw: "".into(), frontmatter: None }`.
 4. Be re-entrant from any thread.
 
+The purity clause (1) is a property of the whole exported surface, not of
+`parse_document` alone: `parse_header` and `parse_body` SHALL likewise accept
+arbitrary UTF-8 without panicking, for any argument pair (CR-050).
+
 ## Acceptance Criteria
 
 | ID | Criteria | Verification |
@@ -79,6 +86,7 @@ Both structs SHALL `derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)`
 | FR-005-AC-4 | A proptest checks `parse_document` does not panic on 10000 random UTF-8 strings. | Test |
 | FR-005-AC-5 | `parse_header` returns `None` for a frontmatter-less, unterminated-fence, or non-mapping input without entering the body pipeline, and for a document returns `id` (empty string when absent), `type`, `uuid` and the full frontmatter mapping — identity read, never derived (CR-046). | Test (TC-812) |
 | FR-005-AC-6 | `parse_body` under a `parse_header` header equals `parse_document` byte-for-byte — on named fixtures (BOM, CRLF, empty body, no headings) and on arbitrary UTF-8 input by proptest (CR-046). | Test (TC-813) |
+| FR-005-AC-7 | `parse_body` is total in its header: for every pair of arbitrary UTF-8 inputs `(a, b)` where `parse_header(a)` is a document, `parse_body(b, &header)` returns a document whose `raw` is `b` — no panic when the header's body offset is past the end of `b` or inside one of its multi-byte characters (CR-050). | Test (TC-819) |
 
 > **CR-046 note (2026-08-15):** `parse_document` previously fused the cheap
 > frontmatter read with the expensive body parse — no caller could buy the
@@ -96,6 +104,21 @@ Both structs SHALL `derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)`
 > edge resolution (FR-026) and frontmatter validation read the map and must
 > be able to do so without a body parse. `parse_document`'s signature,
 > semantics and outputs are unchanged (agent-ix/quire-rs#92, umbrella #90).
+
+> **CR-050 note (2026-08-15):** CR-046 split the parse surface but stated its
+> purity clause against `parse_document` only, and `Header` carries a private
+> byte offset into the input it was parsed from. Nothing binds the two: a
+> `Header` is owned and stored *beside* an owned text (`LoadedDocument`), so it
+> cannot borrow from its input, and `parse_body(other, &header)` is
+> constructible from safe, public, PyO3/wasm-reachable API. It sliced that
+> offset unchecked, so a mismatched pair panicked — out of bounds when the
+> other string is shorter, char-boundary when the offset lands inside one of
+> its multi-byte characters. AC-7 states the totality the doc comment already
+> claimed; the implementation re-derives the offset from the string it was
+> actually given, which costs one `is_char_boundary` on the correct path.
+> A pair that happens to be in bounds and on a boundary is undetectable and
+> stays the caller's contract — the guarantee is *no panic*, not *no misuse*
+> (agent-ix/quire-rs#107, umbrella #106).
 
 ## Dependencies
 
