@@ -5,6 +5,19 @@ All notable changes to `quire-rs` are documented here. Format follows
 numbers follow semver — pre-1.0, breaking changes may land in minor
 bumps; once 1.0 ships, semver is strict.
 
+## [Unreleased]
+
+### Breaking
+
+- **FR-049-AC-9 (CR-045)** — `validate_bundle` takes the two roots
+  separately: `document_root` (locates the root `index.md`) and
+  `reference_root` (the base for model-declared `document:`/`exclude:`
+  paths, which modules author against the repository scope). A corpus
+  walked from `<scope>/spec` with one conflated root silently un-minted
+  every path-bound trace target — 123 spurious `dangling-trace-reference`
+  findings on this repo's own spec. `validate_bundle_at(root, …)` is
+  unchanged (both roots = `root`). TC-814.
+
 ## [0.23.0] — 2026-08-15
 
 The document walk is bounded to a caller-supplied root, and the parse

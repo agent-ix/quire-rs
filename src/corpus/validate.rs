@@ -89,24 +89,38 @@ impl BundleReport {
     }
 }
 
-/// Load `root` as a corpus and validate it under `posture`.
+/// Load `root` as a corpus and validate it under `posture`. Both the
+/// document root and the reference root are `root` — the shape for a
+/// self-contained bundle whose traceability model declares paths relative
+/// to the bundle itself.
 pub fn validate_bundle_at(
     root: &Path,
     registry: &Registry,
     posture: BundlePosture,
 ) -> BundleReport {
     let spec = Spec::from_path(root);
-    validate_bundle(&spec, registry, posture, root)
+    validate_bundle(&spec, registry, posture, root, root)
 }
 
-/// Validate an already-loaded `spec` under `posture`. `root` identifies the
-/// bundle root (used to locate the root `index.md`).
+/// Validate an already-loaded `spec` under `posture`, with the two roots
+/// stated separately (CR-045, the same split `compute_coverage` has always
+/// had via its `root` parameter):
+///
+/// - `document_root` — the directory the corpus was walked from; locates
+///   the root `index.md` for OKF completeness.
+/// - `reference_root` — the base the module's `traceability:` model paths
+///   and `exclude:` globs resolve against. Models are authored against the
+///   repository scope (`document: spec/tests.md`), so a caller that walked
+///   `<scope>/spec` passes `<scope>` here; conflating the two silently
+///   un-mints every path-bound trace target.
 pub fn validate_bundle(
     spec: &Spec,
     registry: &Registry,
     posture: BundlePosture,
-    root: &Path,
+    document_root: &Path,
+    reference_root: &Path,
 ) -> BundleReport {
+    let root = document_root;
     let mut report = BundleReport::default();
 
     // FR-044: harvest the repo's project Ubiquitous-Language terms once and
@@ -150,7 +164,7 @@ pub fn validate_bundle(
         spec,
         registry,
         posture,
-        root,
+        reference_root,
         &mut report,
     );
 
