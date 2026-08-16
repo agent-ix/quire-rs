@@ -135,7 +135,7 @@ model; the engine knows nothing of "AC" or "TC" as concepts.
 | FR-050-AC-12 | With `expand_ranges` declared, `FR-001..FR-003` resolves as three references; with `strip_annotations` declared, `FR-022-AC-5 (superseded by FR-030)` resolves as one. Both are off unless declared. | Test (TC-760) |
 | FR-050-AC-13 | A report over a corpus whose documents carry criteria contains a `criteria` entry per contributing document and the two new totals; a corpus whose documents carry none contains an empty `criteria` list and serializes byte-identically to a report from an engine that predates the field. A document the model-level `exclude:` matches contributes no entry, is counted in neither total, and is not body-parsed. | Test (TC-788, TC-826) |
 | FR-050-AC-14 | A declared model that mints zero trace targets is reported distinctly from full coverage — never as `100%` — and `quire coverage --strict` exits non-zero on it. | Test (TC-797) |
-| FR-050-AC-15 | A trace target or document reference MAY declare `exclude:` path globs, and MAY declare `archetype` and `document` together; excluded documents mint no ids and contribute no reference rows, and a declaration naming both scans the archetype's corpus documents and the auxiliary file in one entry. The model MAY additionally declare a model-level `exclude:` meaning "not corpus data for any purpose", which scopes every declaration in addition to its own and merges across modules as a union; its patterns are compile-checked like any other, and declaring it alone leaves the model undeclared. | Test (TC-801, TC-802, TC-826) |
+| FR-050-AC-15 | A trace target or document reference MAY declare `exclude:` path globs, and MAY declare `archetype` and `document` together; excluded documents mint no ids and contribute no reference rows, and a declaration naming both scans the archetype's corpus documents and the auxiliary file in one entry. The model MAY additionally declare a model-level `exclude:` whose matching documents mint no trace ids, contribute no reference rows, and are not classified for criteria; it scopes every declaration in addition to that declaration's own, merges across modules as a union, has its patterns compile-checked like any other, and leaves the model undeclared when it is all a module declares. Document validation is unaffected. | Test (TC-801, TC-802, TC-826) |
 | FR-050-AC-16 | A module MAY declare which test-type values mint no source symbol; an unbacked row carrying one is reported as a no-symbol row rather than a status lie, stays listed as unbacked, and a module declaring none reports exactly as before. | Test (TC-805) |
 | FR-050-AC-17 | The two roots derive from one `--scope` and stay distinct: repo-root files (`README.md`, `CHANGELOG.md`, `plan/*.md`) are never read as documents, the code walk never enters the document root, the minted-id set over a compliant repo is byte-identical to a pre-split run, and a scope with no `spec/` directory exits with a diagnostic naming the missing root (CR-045). | Test (TC-809, TC-810, TC-811) |
 | FR-050-AC-18 | During coverage computation, a corpus document whose archetype no trace target, document reference, or grammar binding names has its body left unmaterialised; a declared archetype's body is parsed; selection is decided on the header tier and never by filename; a module declaring no `traceability:` model still errors (`ModelUndeclared`) before any selection; and the report is byte-identical to a full-parse engine's (CR-049). | Test (TC-818, TC-738) |
@@ -164,6 +164,13 @@ model; the engine knows nothing of "AC" or "TC" as concepts.
 > it is declared once, at the model: `traceability.exclude`. Both the criteria
 > walk and every declaration read it, and a per-declaration `exclude:` keeps its
 > narrower meaning unchanged.
+>
+> It scopes **traceability only**, and the AC says so rather than saying "not
+> corpus data", which would promise more than it delivers. An excluded document
+> is still a document: `validate_bundle` schema- and grammar-checks it like any
+> other. Being outside the coverage rollup is not a licence to be malformed in
+> ways nobody reports — and a deliberately malformed fixture is usually
+> malformed in exactly one axis on purpose.
 >
 > Consequences worth stating. It merges across modules as a **union**, not
 > first-wins like every named entry: a path one module calls non-corpus must not

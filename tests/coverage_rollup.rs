@@ -846,6 +846,16 @@ fn tc826_model_level_exclusion_scopes_the_criteria_walk() {
         "and its references are never read"
     );
 
+    // The exclusion scopes **traceability**, not membership: the fixture is
+    // still a document in the corpus, and `validate_bundle` still schema- and
+    // grammar-checks it. Being outside the rollup is not a licence to be
+    // malformed in ways nobody reports.
+    let spec = Spec::from_path(&bundle.scope);
+    assert!(
+        spec.by_id("FR-900").is_some(),
+        "an excluded document is still loaded and still validated"
+    );
+
     // The control: the same corpus under a model declaring no exclusion at all.
     // Every count the fixture inflates is visible here.
     let unscoped = report_for(&bundle, "iso").expect("model declared");

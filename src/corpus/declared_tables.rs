@@ -48,8 +48,8 @@ pub(crate) struct DeclaredScope<'a> {
     /// This declaration's own `exclude:` — "these documents mint no ids for
     /// *me*" (CR-038).
     pub exclude: &'a ExcludeSet,
-    /// The model-level `exclude:` — "these paths are not corpus data for any
-    /// purpose" (CR-060). Applied in addition, never instead.
+    /// The model-level `exclude:` — "these paths hold no traceable data"
+    /// (CR-060). Applied in addition to the declaration's own, never instead.
     pub model_exclude: &'a ExcludeSet,
 }
 
