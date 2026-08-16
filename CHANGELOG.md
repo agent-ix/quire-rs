@@ -20,7 +20,9 @@ bumps; once 1.0 ships, semver is strict.
   a shell audit is never opened by the extractor, which reads
   `.rs`/`.py`/`.ts`. TC-827, TC-828.
 - **FR-050-AC-13/15 (CR-060)** — a **model-level** `traceability.exclude:`,
-  meaning "not corpus data for any purpose". `exclude:` scoped the
+  whose matching documents mint no trace ids, contribute no reference
+  rows, and are not classified for criteria. (Document validation is
+  unaffected — an excluded fixture is still schema-checked.) `exclude:` scoped the
   declarations but never the CR-028 criteria walk, which has no
   declaration to hang one on — so deliberately malformed fixture data
   inflated `totals.criteria` / `totals.property_shaped` and was

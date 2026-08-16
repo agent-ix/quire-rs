@@ -16,9 +16,10 @@ artifact_types:
   defaults:
     id_pattern: TC-{next:03d}
 traceability:
-  # CR-060: model-level — "not corpus data for any purpose". Scopes the
+  # CR-060: model-level — these paths hold no traceable data. Scopes the
   # declarations below *and* the CR-028 criteria walk, which has no declaration
-  # of its own to hang an exclusion on.
+  # of its own to hang an exclusion on. Document validation is unaffected:
+  # `FR-900.md` is still schema-checked, it just traces nothing.
   exclude: ['spec/fixtures/**']
   trace_targets:
   - name: acceptance-criterion

@@ -48,15 +48,21 @@ impl SourceLanguage {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 #[serde(deny_unknown_fields)]
 pub struct TraceabilityModel {
-    /// Path globs holding data that is **not corpus data for any purpose**
-    /// (CR-060): test fixtures, deliberately malformed samples, vendored
-    /// examples. Every declaration is scoped by it, and so is the CR-028
-    /// criteria walk, which has no declaration of its own to hang an
+    /// Path globs holding **no traceable data** (CR-060): test fixtures,
+    /// deliberately malformed samples, vendored examples. A document under one
+    /// mints no trace ids, contributes no reference rows, and is not classified
+    /// for criteria — so every declaration is scoped by it, and so is the
+    /// CR-028 criteria walk, which has no declaration of its own to hang an
     /// exclusion on.
     ///
     /// Which paths hold test data is a property of the repository, not of one
     /// declaration — a `TraceTarget::exclude` says "these documents mint no
     /// ids for *me*", which is a different, still-supported statement.
+    ///
+    /// It scopes **traceability only**. An excluded document is still a
+    /// document: `validate_bundle` schema- and grammar-checks it like any
+    /// other, because a fixture being outside the coverage rollup is not a
+    /// licence for it to be malformed in ways nobody reports.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub exclude: Vec<String>,
     /// Documents/sections that mint trace ids.
