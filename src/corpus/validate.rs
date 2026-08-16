@@ -123,6 +123,26 @@ pub fn validate_bundle(
     let root = document_root;
     let mut report = BundleReport::default();
 
+    // CR-048: a frontmatter-less markdown file under the document root is a
+    // warning naming the path — in BOTH postures (never an error: the file
+    // is not a document, so nothing structural can be wrong with it as one).
+    // Walk diagnostics live on `Spec`, not in this report, so the finding is
+    // bridged here or `quire validate` would never show it.
+    for diag in spec.diagnostics() {
+        if let crate::diagnostic::Diagnostic::DocumentWithoutFrontmatter { path, malformed } = diag
+        {
+            report.warnings.push(BundleFinding {
+                path: path.clone(),
+                message: if *malformed {
+                    "frontmatter block is not a YAML mapping; file is not a document and was not loaded".to_string()
+                } else {
+                    "no frontmatter block; file is not a document and was not loaded".to_string()
+                },
+                reason: "no-frontmatter",
+            });
+        }
+    }
+
     // FR-044: harvest the repo's project Ubiquitous-Language terms once and
     // compose the combined (module ∪ project) lexicon the EARS grammar check
     // consumes for every document in the bundle.

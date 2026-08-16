@@ -8,7 +8,21 @@ bumps; once 1.0 ships, semver is strict.
 ## [Unreleased]
 
 Bodies are lazy: the corpus parses headers at load and each document's
-body on first touch, exactly once.
+body on first touch, exactly once. And a frontmatter-less file inside the
+document root warns instead of vanishing.
+
+### Added
+
+- **FR-024-AC-10 inverted (CR-048)** — a frontmatter-less `.md` under the
+  walked root emits one non-fatal `Diagnostic::DocumentWithoutFrontmatter`
+  naming its path (malformed-block flavor distinguished); exit code
+  unchanged, the file still contributes nothing. CR-044's silence was
+  justified only by tolerating the repo-root walk CR-045 removed — inside
+  `spec/` a missing front block is almost certainly an authoring mistake,
+  and silence made it a real error nobody ever saw. Never re-suppressed by
+  filename. `validate_bundle` bridges the diagnostic into `BundleReport`
+  warnings (reason `no-frontmatter`) in both postures, so `quire validate`
+  shows it. TC-807 updated. (agent-ix/quire-rs#95, umbrella #90)
 
 ### Breaking
 

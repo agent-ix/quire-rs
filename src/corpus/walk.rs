@@ -237,7 +237,7 @@ pub fn load_repo_with(root: &Path, opts: &WalkOptions) -> RepoLoad {
                 diagnostics.append(&mut diags);
             }
             Outcome::Failed { diag } => diagnostics.push(diag),
-            Outcome::NotADocument { .. } => {}
+            Outcome::NotADocument { diag, .. } => diagnostics.push(diag),
         }
     }
 
@@ -258,11 +258,13 @@ enum Outcome {
     Failed {
         diag: Diagnostic,
     },
-    /// Read fine, but carries no frontmatter block — not a document, and
-    /// not an error either (CR-044). Contributes neither a document nor a
-    /// diagnostic; the path is kept only so ordering stays deterministic.
+    /// Read fine, but carries no frontmatter block — not a document
+    /// (CR-044), surfaced as a non-fatal warning naming the path (CR-048).
+    /// Contributes no document; the path is kept so ordering stays
+    /// deterministic.
     NotADocument {
         path: PathBuf,
+        diag: Diagnostic,
     },
 }
 
@@ -270,7 +272,7 @@ impl Outcome {
     fn path(&self) -> &Path {
         match self {
             Outcome::Loaded { doc, .. } => &doc.path,
-            Outcome::NotADocument { path } => path,
+            Outcome::NotADocument { path, .. } => path,
             Outcome::Failed { diag } => match diag {
                 Diagnostic::DocumentUnreadable { path, .. } => path,
                 _ => Path::new(""),
@@ -347,14 +349,30 @@ fn parse_one(path: &Path) -> Outcome {
     // generalizes to every stray `.md` in a repository — CHANGELOG, AGENTS,
     // a design note — without the engine knowing any of their names.
     //
-    // Dropped **silently**, with no diagnostic: an ordinary markdown file
-    // sitting in a tree is not an error, and `validate_document` errors on a
-    // document missing `type` (which is precisely why `README.md` had to be
-    // skipped by name before). Frontmatter present but naming an unregistered
-    // type keeps today's behavior — error under `Strict`, warning under `Okf`.
+    // Dropped with a **warning** (CR-048, inverting CR-044's silence): the
+    // silent drop was justified only by tolerating a walk pointed at a
+    // repository root, where README/CHANGELOG are legitimately present and
+    // legitimately not documents. With the walk bounded to the document
+    // root (CR-045), what remains here is a markdown file someone put in
+    // the spec directory that carries no front block — almost certainly an
+    // authoring mistake, and silence made it a real error nobody ever saw:
+    // absent from the corpus, from index completeness, and from coverage
+    // denominators, with nothing saying so. Non-fatal; the file still
+    // contributes nothing. Never re-suppressed by filename — the CR-044
+    // rule holds. Frontmatter present but naming an unregistered type keeps
+    // today's behavior — error under `Strict`, warning under `Okf`.
     let Some(header) = parse_header(&text) else {
+        // `Malformed` (a complete fence block that is not a YAML mapping)
+        // is the sharper finding; absent/unterminated blocks read as a
+        // misplaced or draft file (FR-006 status classification).
+        let malformed = crate::parser::extract_frontmatter(&text).status
+            == crate::parser::FrontmatterStatus::Malformed;
         return Outcome::NotADocument {
             path: path.to_path_buf(),
+            diag: Diagnostic::DocumentWithoutFrontmatter {
+                path: path.to_path_buf(),
+                malformed,
+            },
         };
     };
 
@@ -518,10 +536,13 @@ mod tests {
     // motivated the change — it is the canonical filename for `TestMatrix`,
     // a fully registered archetype, and the old skip list made the engine
     // unable to load the canonical instance of a type its own module declares.
-    // TC-807, FR-024-AC-10
+    // TC-807, FR-024-AC-10 (CR-048: the CR-044 "produce no diagnostic"
+    // assertion is inverted — a frontmatter-less file INSIDE the walked
+    // root warns; files outside the root are simply never visited, #91).
     #[test]
-    fn tc807_membership_is_type_driven_not_filename_driven() {
-        let root = tmpdir("membership");
+    fn tc807_membership_is_type_driven_and_frontmatterless_warns() {
+        let scope = tmpdir("membership");
+        let root = scope.join("spec");
         write(&root, "tests.md", TM_001);
         // Untyped: frontmatter present, no `type:` key. Still a document —
         // only a *missing frontmatter block* excludes a file, and which types
@@ -533,26 +554,59 @@ mod tests {
             "notes.md",
             "---\nid: N-1\ntype: Nonsense\n---\n# note\n",
         );
-        write(&root, "README.md", "# readme\n\nno frontmatter here.\n");
-        write(&root, "CHANGELOG.md", "# changelog\n");
+        // Repo-root strays live OUTSIDE the document root (CR-045): the walk
+        // never visits them, so they produce nothing at all.
+        write(&scope, "README.md", "# readme\n\nno frontmatter here.\n");
+        write(&scope, "CHANGELOG.md", "# changelog\n");
+        // A frontmatter-less file INSIDE the document root: almost certainly
+        // an authoring mistake — a draft that never got its front block.
+        write(&root, "draft.md", "# a draft\n\nno front block yet.\n");
+        // A malformed block (complete fences, not a YAML mapping) is the
+        // sharper flavor of the same finding.
+        write(&root, "broken.md", "---\n- a\n- b\n---\n# broken\n");
 
         let load = load_repo(&root);
 
         // Exactly three documents, and no filename decided any of it: a typed
         // `tests.md` is in, an untyped `tests.md` is in, and an unregistered
-        // type is in (triaged downstream by validation, not here).
+        // type is in (triaged downstream by validation, not here). The
+        // frontmatter-less files contribute nothing to the corpus.
         let ids: Vec<&str> = load.documents.iter().map(|d| d.id.as_str()).collect();
         assert_eq!(ids, vec!["TM-002", "N-1", "TM-001"]);
 
-        // The two frontmatter-less files are dropped **silently** — an
-        // ordinary markdown file in a tree is not an error.
+        // Each in-root frontmatter-less file warns EXACTLY once, naming its
+        // path and carrying the right flavor (CR-048).
+        let fm_warnings: Vec<(&PathBuf, bool)> = load
+            .diagnostics
+            .iter()
+            .filter_map(|d| match d {
+                Diagnostic::DocumentWithoutFrontmatter { path, malformed } => {
+                    Some((path, *malformed))
+                }
+                _ => None,
+            })
+            .collect();
+        assert_eq!(
+            fm_warnings.len(),
+            2,
+            "expected one warning per in-root frontmatter-less file: {fm_warnings:?}"
+        );
+        assert!(fm_warnings
+            .iter()
+            .any(|(p, malformed)| p.ends_with("draft.md") && !malformed));
+        assert!(fm_warnings
+            .iter()
+            .any(|(p, malformed)| p.ends_with("broken.md") && *malformed));
+
+        // Files outside the document root are never visited: no diagnostic
+        // of any kind mentions them (#91 makes them invisible, not CR-044).
         for name in ["README.md", "CHANGELOG.md"] {
             assert!(
                 !load
                     .diagnostics
                     .iter()
                     .any(|d| format!("{d:?}").contains(name)),
-                "{name} produced a diagnostic; it should be silent"
+                "{name} is outside the document root and should never be visited"
             );
         }
     }
