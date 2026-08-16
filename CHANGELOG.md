@@ -13,6 +13,15 @@ document root warns instead of vanishing.
 
 ### Added
 
+- **FR-050-AC-18 (CR-049)** — coverage's body selection is
+  declaration-driven: a corpus document whose archetype no trace target,
+  document reference, or grammar binding names keeps its body
+  unmaterialised through the whole rollup — selection decided on the
+  header tier, never by filename, `exclude:` globs applying after
+  selection — while the report stays byte-identical to a full-parse
+  engine (AC-7 is the whole gate). Emergent from the CR-047 lazy tier: no
+  new API, no mode flag. TC-818. (agent-ix/quire-rs#94, umbrella #90)
+
 - **FR-024-AC-10 inverted (CR-048)** — a frontmatter-less `.md` under the
   walked root emits one non-fatal `Diagnostic::DocumentWithoutFrontmatter`
   naming its path (malformed-block flavor distinguished); exit code

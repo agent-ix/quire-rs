@@ -29,6 +29,8 @@ Each loaded document holds **two tiers** (the [FR-005](./FR-005-parse-document-a
 
 External immutability is unchanged: `Spec` stays `Send + Sync` and externally immutable — no query ever returns a different answer twice.
 
+The two tiers give consumers a **caller-declared depth** (CR-049): a caller touches exactly the bodies its own declarations name — coverage materialises the archetypes its `traceability:` model declares ([FR-050](./FR-050-declarative-coverage-computation.md) AC-18), validation reads every document because validating every document is what it declares it does — rather than every caller silently receiving maximum depth. Depth is expressed by *touching*, never by a mode flag: the corpus has one shape and the lazy tier makes selective consumption free.
+
 ### Public API
 
 ```rust
@@ -71,6 +73,15 @@ impl Spec {
 | FR-025-AC-6 | After construction, queries answer with no filesystem read (parity with [FR-013-AC-5](./FR-013-archetype-loader.md) audit approach), confirming the corpus is fully in-memory ([StR-006-AC-1](../stakeholder/StR-006-whole-spec-corpus.md)) — **including lazy body materialisation** (CR-047): first-touch `body()` parses the verbatim text captured at load and performs no filesystem read either. | Inspection (extended TC-485) |
 | FR-025-AC-7 | `len`/`by_id`/`by_type`/`diagnostics` and the [FR-026](./FR-026-intra-spec-reference-resolution.md)/[FR-027](./FR-027-whole-spec-query-api.md) edge queries (`edges`/`outgoing`/`referencing`/`dangling`/`orphans`) complete with **zero body parses**; touching one document's body then parses exactly that document (CR-047). | Test (TC-817) |
 | FR-025-AC-8 | Concurrent first-touch of the same document's body parses **exactly once** and every racer receives the identical `QuireDocument` (CR-047; the loom model in [NFR-017-AC-4](../non-functional/NFR-017-concurrency-permutation.md), raced for real under the [NFR-018](../non-functional/NFR-018-ffi-sanitizer-lanes.md) TSAN lane). | Test (TC-815, TC-816) |
+
+> **CR-049 note (2026-08-15):** The caller-declared-depth paragraph is new
+> (agent-ix/quire-rs#94, umbrella #90). It states what the lazy tier is
+> *for*: the `traceability:` model was always a projection declared before
+> the walk began, and the engine parsed everything and filtered afterwards.
+> Depth is emergent from CR-047's first-touch semantics — no new API, no
+> mode flag — so the testable claim lives on the consumer:
+> FR-050-AC-18 pins that coverage leaves undeclared archetypes' bodies
+> unmaterialised while the report stays byte-identical.
 
 > **CR-047 note (2026-08-15):** Bodies are lazy (agent-ix/quire-rs#93, umbrella
 > #90). Since CR-046 the walk parses **headers only** — membership, identity
