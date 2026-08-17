@@ -50,6 +50,26 @@ fmt-check:
 lint:
 	$(CARGO) clippy --all-targets -- -D warnings
 
+# The `python` feature is gated off in every target above, so nothing in `ci`
+# ever compiles `src/python/`. FR-056 added a field to `GrammarVocabularies`,
+# two PyO3 struct literals were not updated, and quire-rs shipped v0.29.0 AND
+# v0.30.0 unable to build a wheel at all — discovered only when the wheel job
+# was finally dispatched. CLAUDE.md already says a `src/grammar/` change must
+# pass `make ci-python`; nothing enforced it.
+#
+# This is the cheap half: it type-checks the binding without needing a built
+# wheel or an interpreter, so a missing field can no longer reach a tag. It
+# does NOT replace `make ci-python`, which runs the binding suite and is still
+# the only verification of the PyO3-parity criteria.
+#
+# Its own CARGO_TARGET_DIR on purpose: `--features python` resolves a different
+# feature set, and sharing the default target dir makes the next `cargo test`
+# link against artifacts built for the other set — which surfaces as bogus
+# "trait Serialize is not implemented" errors on types that plainly derive it.
+.PHONY: check-python
+check-python:
+	CARGO_TARGET_DIR=target/python-check $(CARGO) check --features python --quiet
+
 .PHONY: test
 test:
 	$(CARGO) test
@@ -163,7 +183,7 @@ coverage-baseline-update:
 	@git --no-pager diff --stat -- tests/fixtures/coverage_baseline/expected.json
 
 .PHONY: ci
-ci: fmt-check lint test deny audit-unsafe audit-property audit-static
+ci: fmt-check lint check-python test deny audit-unsafe audit-property audit-static
 
 # =============================================================================
 # Python wheel / sdist + local-publish (pypi.ix)

@@ -214,6 +214,10 @@ fn check_grammar<'py>(
                         Some(r) => r.property_idioms_matcher(),
                         None => crate::grammar::property::default_property_idioms(),
                     },
+                    ambiguous: match registry.as_ref() {
+                        Some(r) => r.ambiguity_terms_matcher(),
+                        None => crate::grammar::default_ambiguity_terms(),
+                    },
                 },
             ),
             severity,
@@ -293,6 +297,12 @@ fn classify_properties<'py>(
                 Some(r) => r.property_idioms_matcher(),
                 None => crate::grammar::property::default_property_idioms(),
             };
+            // FR-056: module ambiguity terms over the engine built-ins, the
+            // same layering the other three vocabularies use.
+            let ambiguous = match registry.as_ref() {
+                Some(r) => r.ambiguity_terms_matcher(),
+                None => crate::grammar::default_ambiguity_terms(),
+            };
             Ok(crate::grammar::classify_document_properties(
                 &gref,
                 &arch,
@@ -303,6 +313,7 @@ fn classify_properties<'py>(
                     observable,
                     vacuous,
                     idioms,
+                    ambiguous,
                 },
             ))
         },
