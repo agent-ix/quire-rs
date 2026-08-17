@@ -7,6 +7,25 @@ bumps; once 1.0 ships, semver is strict.
 
 ## [Unreleased]
 
+### Added
+
+- **FR-054-AC-11 — an uncatalogued verification method is reported**
+  (agent-ix/quire-rs#152, **CR-064**). The catalog shipped with two vocabularies
+  derived from it, `verification_method` and `verification_class`, and **nothing
+  read them** — so a `Verification` cell saying `CI Gate` sat in the report
+  looking exactly like one saying `Test`. Measured across the ecosystem: **55 of
+  577** obligations declared a method matching no catalog entry, and quoin's
+  conformance check skipped every one of them silently, which meant the
+  requirements whose verification is least well defined were the ones nothing
+  questioned.
+
+  Reported as a coverage diagnostic (`uncatalogued-verification-method`), never
+  a grammar finding and never an error (new CON-5) — whether the gap fails a
+  build is the consuming workflow's policy. One diagnostic per distinct
+  (source, method) pair with the row count and an example document, and total
+  silence when no module declares a catalog, because an absent catalog cannot
+  answer the question.
+
 ### Fixed
 
 - **FR-053 said five things the code did not do** (agent-ix/quire-rs#151,

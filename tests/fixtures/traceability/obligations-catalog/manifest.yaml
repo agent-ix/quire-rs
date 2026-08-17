@@ -1,0 +1,33 @@
+# FR-054-AC-11 fixture: an obligation source AND a verification catalog.
+#
+# The catalog declares one method id (`property-based-testing`) in one class
+# (`Test`). A `Verification` cell reading either of those is catalogued; a cell
+# reading anything else — `CI Gate`, `Criterion Benchmark`, the strings the real
+# ecosystem turned out to be full of — is not, and until FR-054-AC-11 nothing
+# said so.
+name: traceability-obligations-catalog
+version: 0.1.0
+description: An obligation source checked against a declared catalog (FR-054 fixture)
+artifact_types:
+- name: FR
+  grammar_ref: iso-spec-core
+  defaults:
+    id_pattern: FR-{next:03d}
+traceability:
+  trace_targets:
+  - name: acceptance-criterion
+    archetype: FR
+    section: Acceptance Criteria
+    id_column: ID
+  obligations:
+  - name: acceptance-criterion
+    target: acceptance-criterion
+    statement_column: Criteria
+    method_column: Verification
+verification_catalog:
+  property-based-testing:
+    name: Property-based testing
+    class: Test
+    definition: >-
+      Assert a property over generated inputs rather than over fixed examples.
+    evidence_kind: Property
