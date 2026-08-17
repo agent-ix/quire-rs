@@ -52,3 +52,4 @@ description: "Index of artifacts in this directory."
 * [FR-050: Declarative Coverage Computation](./FR-050-declarative-coverage-computation.md)
 * [FR-051: Source Symbol Extraction with Relations](./FR-051-source-symbol-extraction.md)
 * [FR-052: Acceptance-Criteria Property Classification](./FR-052-acceptance-criteria-property-classification.md)
+* [FR-053: Obligation Record](./FR-053-obligation-record.md)

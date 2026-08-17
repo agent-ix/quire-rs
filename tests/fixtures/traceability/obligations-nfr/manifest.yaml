@@ -1,0 +1,29 @@
+# FR-053 fixture: an obligation source over rows that mint no id of their own.
+#
+# The NFR `Measurement and Evaluation` table is the motivating case — every row
+# is a quantified obligation (metric, target, threshold, method) and none has an
+# ID column, so ids are rendered from `id_format` rather than read.
+name: traceability-obligations-nfr
+version: 0.1.0
+description: Archetype-bound obligation source with rendered ids (FR-053 fixture)
+artifact_types:
+- name: NFR
+  grammar_ref: iso-spec-core
+  defaults:
+    id_pattern: NFR-{next:03d}
+traceability:
+  trace_targets:
+  - name: acceptance-criterion
+    archetype: NFR
+    section: Acceptance Criteria
+    id_column: ID
+  obligations:
+  - name: nfr-metric
+    archetype: NFR
+    section: Measurement and Evaluation
+    id_format: "{document}-M-{row}"
+    statement_column: Metric
+    method_column: Method
+    parameters:
+      target: Target
+      threshold: Threshold

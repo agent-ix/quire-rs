@@ -230,7 +230,7 @@ pub fn classify_document_criteria(
     };
     let doc = crate::parse_document(doc_text);
     let line_offset = body_line_offset(doc_text);
-    crate::grammar::classify_document_properties(
+    let mut records = crate::grammar::classify_document_properties(
         grammar_ref,
         &archetype.name,
         &doc,
@@ -241,7 +241,23 @@ pub fn classify_document_criteria(
             vacuous: registry.vacuous_predicates_matcher(),
             idioms: registry.property_idioms_matcher(),
         },
-    )
+    );
+
+    // FR-053: attach the obligation each criterion states, matched by row id.
+    // Empty for a module declaring no `obligations:` sources, and the whole
+    // lookup is skipped in that case so an unadopting corpus pays nothing.
+    if let Some(model) = registry
+        .traceability()
+        .filter(|m| !m.obligations.is_empty())
+    {
+        let by_id = crate::obligation::for_document(model, &archetype.name, &doc);
+        for record in &mut records {
+            if let Some(id) = &record.row_id {
+                record.obligation = by_id.get(id).cloned();
+            }
+        }
+    }
+    records
 }
 
 /// Route one grammar finding into `errors` or `warnings` by its severity

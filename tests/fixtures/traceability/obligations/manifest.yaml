@@ -1,0 +1,45 @@
+# FR-053 fixture: obligation sources bound through a declared trace target.
+#
+# The acceptance-criterion source inherits archetype, section and id column from
+# the `acceptance-criterion` trace target, so the obligation id is by
+# construction the id the rollup and every trace tag already key on.
+name: traceability-obligations
+version: 0.1.0
+description: Obligation sources over an ISO-shaped model (FR-053 fixture)
+artifact_types:
+- name: FR
+  grammar_ref: iso-spec-core
+  defaults:
+    id_pattern: FR-{next:03d}
+- name: TestMatrix
+  defaults:
+    id_pattern: TM-{next:03d}
+traceability:
+  trace_targets:
+  - name: acceptance-criterion
+    archetype: FR
+    section: Acceptance Criteria
+    id_column: ID
+  - name: test-case
+    archetype: TestMatrix
+    section: Test Cases
+    id_column: ID
+  document_references:
+  - name: verification
+    archetype: FR
+    section: Acceptance Criteria
+    column: Verification
+    row_id_column: ID
+    pattern: '\((TC-\d+)\)'
+    targets: [test-case]
+  status:
+    column: Status
+    complete: ["✅"]
+    pending: ["🚧"]
+    failed: ["❌"]
+  obligations:
+  - name: acceptance-criterion
+    target: acceptance-criterion
+    statement_column: Criteria
+    method_column: Verification
+    criticality_column: Priority
