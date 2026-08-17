@@ -314,3 +314,118 @@ fn ambiguity_terms_layer_over_builtins() {
     let extended = AmbiguityTerms::with_module_terms(["snappy"].into_iter());
     assert_eq!(extended.len(), builtin.len() + 1);
 }
+
+// TC-876 (FR-056-AC-10): a table finding reports the ROW's line, not the
+// section heading's.
+//
+// Every `Constraints` finding used to carry `section.start_line + 1`, so a
+// document with five flawed constraints reported five findings at one line —
+// which makes a mechanical lint something the reader has to re-find by hand,
+// and precision is this pack's whole value proposition (#153, CR-065).
+#[test]
+fn tc876_table_findings_carry_the_row_line() {
+    let registry = plain("876");
+    let doc = "---\nid: FR-001\ntype: FR\ntitle: A requirement\n---\n\n\
+               ## Description\n\nThe parser shall accept the input.\n\n\
+               ## Constraints\n\n\
+               | ID | Constraint | Type | Verification |\n\
+               |----|------------|------|--------------|\n\
+               | FR-001-CON-1 | The engine shall be robust. | Architecture | Inspection |\n\
+               | FR-001-CON-2 | The store shall be adequate. | Architecture | Inspection |\n";
+
+    let archetype = registry.archetype("FR").expect("FR archetype");
+    let lines: Vec<Option<usize>> =
+        quire_rs::validate_document_in_registry(&registry, archetype, doc)
+            .warnings
+            .iter()
+            .filter(|w| w.message.starts_with("[quality:ambiguous-term]"))
+            .map(|w| w.line)
+            .collect();
+
+    assert_eq!(lines.len(), 2, "both constraints are ambiguous");
+    assert_ne!(
+        lines[0], lines[1],
+        "two rows on two lines must not report one line: {lines:?}",
+    );
+}
+
+// TC-877 (FR-056-AC-11): a `must`-only statement is judged.
+//
+// The prose collection gate admitted `shall` and `should` alone, while
+// `mixed-modal` reads all four modals — so "The parser must reject adequate
+// input" reached none of the three checks. The gate and the checks disagreed
+// about what a normative statement is (#153, CR-065).
+#[test]
+fn tc877_must_only_statement_is_judged() {
+    let registry = plain("877");
+    assert_eq!(
+        checks(&registry, &fr("The parser must reject adequate input.")),
+        ["ambiguous-term"],
+        "a `must` requirement is a requirement",
+    );
+    assert_eq!(
+        checks(&registry, &fr("The record may be optimized.")),
+        ["ambiguous-term"],
+        "so is a `may` one",
+    );
+    // And a line carrying no modal at all is still not a normative statement.
+    assert!(checks(&registry, &fr("This section explains the adequate case.")).is_empty());
+}
+
+// TC-878 (FR-056-AC-12): `by <deadline>` and `by <sort key>` do not count as
+// an agent.
+//
+// The suppressor was `\bby\s+(?:the\s+|a\s+|an\s+)?\w`, which any word
+// satisfied. "shall be written by 12:00" and "shall be sorted by name" both
+// silenced the finding, leaving the requirement unallocated and the lint quiet
+// — the false negative is the quiet kind (#153, CR-065).
+#[test]
+fn tc878_by_a_deadline_or_a_sort_key_is_not_an_agent() {
+    let registry = plain("878");
+    for statement in [
+        "The record shall be written by 12:00.",
+        "The rows shall be sorted by name.",
+        "The entries shall be grouped by priority.",
+        "The output shall be validated.",
+    ] {
+        assert!(
+            checks(&registry, &fr(statement)).contains(&"agentless-passive".to_string()),
+            "no agent is named in: {statement}",
+        );
+    }
+    for statement in [
+        "The record shall be written by the archiver.",
+        "The input shall be validated by a downstream service.",
+    ] {
+        assert!(
+            !checks(&registry, &fr(statement)).contains(&"agentless-passive".to_string()),
+            "an agent IS named in: {statement}",
+        );
+    }
+}
+
+// TC-879 (FR-056-AC-13): an unknown key in `ambiguity_terms` fails module load.
+//
+// `VerificationMethodDef` rejected unknown fields and `AmbiguityTermDef` did
+// not, so a typo'd key in a module's lexicon was accepted in silence (#153).
+#[test]
+fn tc879_unknown_ambiguity_term_key_fails_load() {
+    let root = std::env::temp_dir().join(format!("quire-rs-quality-badkey-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(&root).expect("mkdir");
+    fs::write(
+        root.join("manifest.yaml"),
+        "name: quality-badkey\nmanifest_version: 1.0.0\nversion: 0.0.1\nartifact_types:\n\
+         - name: FR\n  grammar_ref: iso-spec-core\n\
+         ambiguity_terms:\n  snappy:\n    definiton: a typo\n",
+    )
+    .expect("write manifest");
+
+    let outcome = quire_rs::loader::load_single_module(&root);
+    let reasons: Vec<&str> = outcome.failures.iter().map(|f| f.reason.as_str()).collect();
+    assert!(
+        reasons.iter().any(|r| r.contains("definiton")),
+        "the typo must be named, not discarded: {reasons:#?}",
+    );
+    assert!(outcome.modules.is_empty());
+}

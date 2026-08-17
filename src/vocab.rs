@@ -136,6 +136,7 @@ pub struct PropertyIdiomDef {
 /// inflections; `definition` is documentation. Mirrors [`VacuousPredicateDef`],
 /// which is the same arrangement for the same reason (ADR 0009).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct AmbiguityTermDef {
     pub definition: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]

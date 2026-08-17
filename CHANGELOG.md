@@ -28,6 +28,31 @@ bumps; once 1.0 ships, semver is strict.
 
 ### Fixed
 
+- **FR-056's quality pack reached fewer statements than it claimed, and pointed
+  at the wrong line when it did** (agent-ix/quire-rs#153, **CR-065**). New
+  AC-10..13 and CON-5.
+  - **Table findings now carry the row's line** (TC-876). Every `Constraints`
+    finding reported the section heading's line, so five flawed rows produced
+    five findings at one line.
+  - **All four modals are collected** (TC-877). The prose gate admitted `shall`
+    and `should` while `mixed-modal` judges four, so "The parser must reject
+    adequate input" reached no check at all.
+  - **`by <deadline>` and `by <sort key>` no longer count as an agent**
+    (TC-878). The old suppressor accepted any word after `by`, so "shall be
+    written by 12:00" and "shall be sorted by name" silenced the finding. An
+    agent wrapped in emphasis or a code span now *does* count, which the old
+    regex rejected. New CON-5 records the direction to err in.
+  - **`AmbiguityTermDef` rejects unknown fields** (TC-879), as
+    `VerificationMethodDef` always did.
+
+  **[RAN]** the fit check on both trees over the same 3,342 documents in 239
+  repositories: `agentless-passive` 680 → **668**, `ambiguous-term` 146 → **161**,
+  `mixed-modal` 130 → **131**, documents with ≥1 finding 675 (20.2%) → **688
+  (20.6%)**. The `agentless-passive` fall is markup-wrapped agents ceasing to be
+  false positives, outnumbering the sort keys and deadlines that ceased to be
+  false negatives; the `ambiguous-term` rise is 15 `must`/`may` requirements no
+  check had ever seen.
+
 - **FR-053 said five things the code did not do** (agent-ix/quire-rs#151,
   **CR-063**), each ✅ in the matrix because its AC was verified against the
   helper rather than against the surface a consumer reads.

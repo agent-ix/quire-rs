@@ -23,7 +23,7 @@ use std::sync::OnceLock;
 
 use regex::Regex;
 
-use super::ears::{abs_line, contains_shall, excerpt, normalize};
+use super::ears::{abs_line, excerpt, locate_line, normalize};
 use super::{GrammarFinding, GrammarSeverity};
 use crate::ast::QuireSection;
 use crate::query;
@@ -270,7 +270,7 @@ fn agentless_passive(statement: &str) -> Option<String> {
     let caps = re_passive().captures(&lower)?;
     let verb = caps.get(1)?.as_str().to_string();
     let rest = &lower[caps.get(0)?.end()..];
-    if re_by_agent().is_match(rest) {
+    if has_agent(rest) {
         return None;
     }
     Some(verb)
@@ -311,7 +311,12 @@ fn prose_statements(section: &QuireSection, line_offset: usize) -> Vec<Stmt> {
             continue;
         }
         let text = normalize(trimmed);
-        if !contains_shall(&text.to_lowercase()) && !re_should().is_match(&text.to_lowercase()) {
+        // Admit exactly the modals the checks below judge. `mixed-modal` reads
+        // all four, so gating collection on `shall`/`should` alone meant a
+        // requirement written "The parser must reject adequate input" reached
+        // none of the three checks — the collection gate and the checks
+        // disagreed about what a normative statement is (#153, CR-065).
+        if !is_normative(&text) {
             continue;
         }
         out.push(Stmt {
@@ -340,10 +345,30 @@ fn table_statements(section: &QuireSection, line_offset: usize, column: &str) ->
             let cell = row.get(col_idx)?.trim();
             (!cell.is_empty()).then(|| Stmt {
                 text: normalize(cell),
-                line: Some(line_offset + section.start_line + 1),
+                // The ROW's line, not the section's. Every finding in a
+                // Constraints table used to point at the heading, which makes a
+                // mechanical lint something the reader has to re-find by hand —
+                // and precision is the whole value proposition here (#153).
+                // `locate_line` is the helper `ears` already uses for exactly
+                // this, and falls back to the heading when the cell text cannot
+                // be located.
+                line: locate_line(section, cell, line_offset),
             })
         })
         .collect()
+}
+
+/// True when the statement carries any of the four modals the checks judge.
+///
+/// `mixed-modal` reads `shall`, `should`, `may` and `must`, so the collection
+/// gate must admit all four or a `must`-only requirement is never handed to any
+/// check at all (#153, CR-065).
+fn is_normative(text: &str) -> bool {
+    let lower = text.to_lowercase();
+    re_shall_w().is_match(&lower)
+        || re_should().is_match(&lower)
+        || re_must().is_match(&lower)
+        || re_may().is_match(&lower)
 }
 
 // ─── Compiled once ──────────────────────────────────────────────────────────
@@ -353,9 +378,99 @@ fn re_passive() -> &'static Regex {
     R.get_or_init(|| Regex::new(r"\bshall\s+be\s+([a-z]+(?:ed|en))\b").expect("passive regex"))
 }
 
-fn re_by_agent() -> &'static Regex {
-    static R: OnceLock<Regex> = OnceLock::new();
-    R.get_or_init(|| Regex::new(r"\bby\s+(?:the\s+|a\s+|an\s+)?\w").expect("by-agent regex"))
+/// Words that follow `by` in a phrase that names no agent.
+///
+/// Sort keys and grouping axes. `sorted by name` says how, not who.
+const NOT_AN_AGENT: &[&str] = &[
+    "name",
+    "names",
+    "id",
+    "ids",
+    "key",
+    "keys",
+    "index",
+    "order",
+    "path",
+    "paths",
+    "date",
+    "dates",
+    "size",
+    "length",
+    "position",
+    "column",
+    "columns",
+    "row",
+    "rows",
+    "line",
+    "lines",
+    "type",
+    "types",
+    "kind",
+    "kinds",
+    "value",
+    "values",
+    "priority",
+    "timestamp",
+    "timestamps",
+    "default",
+    "convention",
+    "construction",
+    "definition",
+];
+
+/// True when `rest` carries a `by <agent>` phrase.
+///
+/// The old test was the regex `\bby\s+(?:the\s+|a\s+|an\s+)?\w`, which **any**
+/// word after `by` satisfied — so "the record shall be written by 12:00" and
+/// "the rows shall be sorted by name" both suppressed the finding, leaving the
+/// requirement unallocated and the lint silent (#153, CR-065). The check looks
+/// for a missing **agent**, so a deadline and a sort key are excluded.
+///
+/// Written as a scan rather than a regex because the `regex` crate has no
+/// look-ahead by design, and a negative set is the natural shape here.
+///
+/// Erring toward *accepting* an agent keeps this advisory check under-reporting
+/// rather than crying wolf — the CR-014 discipline.
+fn has_agent(rest: &str) -> bool {
+    let mut from = 0usize;
+    while let Some(idx) = rest[from..].find("by") {
+        let start = from + idx;
+        from = start + 2;
+        // Whole word.
+        let before_ok = start == 0
+            || !rest[..start]
+                .chars()
+                .next_back()
+                .is_some_and(|c| c.is_alphanumeric());
+        let after = &rest[start + 2..];
+        if !before_ok || !after.starts_with(char::is_whitespace) {
+            continue;
+        }
+        let mut words = after.split_whitespace();
+        let Some(mut head) = words.next() else {
+            continue;
+        };
+        // Skip one article: `by the parser` names the parser.
+        if matches!(head, "the" | "a" | "an") {
+            let Some(next) = words.next() else {
+                continue;
+            };
+            head = next;
+        }
+        let head = head.trim_matches(|c: char| !c.is_alphanumeric());
+        if head.is_empty() {
+            continue;
+        }
+        // A deadline (`by 12:00`, `by 2026-01-01`) allocates to nobody.
+        if head.starts_with(|c: char| c.is_ascii_digit()) {
+            continue;
+        }
+        if NOT_AN_AGENT.contains(&head.to_lowercase().as_str()) {
+            continue;
+        }
+        return true;
+    }
+    false
 }
 
 fn re_shall_w() -> &'static Regex {
