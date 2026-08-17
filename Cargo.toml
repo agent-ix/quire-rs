@@ -63,6 +63,12 @@ getrandom = { version = "^0.3", features = ["wasm_js"], optional = true }
 [dev-dependencies]
 proptest = "^1"
 criterion = "^0.5"
+# FR-055: the published output schemas declare draft 2020-12, and `jsonschema`
+# gates that draft behind a non-default feature. Enabled for tests only, so the
+# contract is validated as the draft it claims rather than silently falling back
+# to an older one. No runtime effect — the crate's own dependency is unchanged,
+# and no new crate enters the graph.
+jsonschema = { version = "~0.18", default-features = false, features = ["draft202012"] }
 
 # Concurrency-permutation harness (NFR-017). Only compiled under
 # `--cfg loom`; the scheduled `make loom` lane sets that flag. Models the
