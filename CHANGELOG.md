@@ -5,7 +5,13 @@ All notable changes to `quire-rs` are documented here. Format follows
 numbers follow semver — pre-1.0, breaking changes may land in minor
 bumps; once 1.0 ships, semver is strict.
 
-## [Unreleased]
+## [0.27.0] — 2026-08-16
+
+The three SR-007 blockers (CR-059..CR-061), reviewed as a stack by SpecReview
+**SR-008**: measured against the real `spec-artifacts-process` module, diagnostics
+went 6 → 0 with no status lies, TC-577 and TC-579 backed. Released so corpus
+measurements run on an engine that binds leaf evidence — a sweep on 0.26.0
+undercounts resolved trace tags (agent-ix/quire-rs#78).
 
 ### Added
 
