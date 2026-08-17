@@ -18,6 +18,7 @@
 pub mod ac;
 pub mod ears;
 pub mod property;
+pub mod quality;
 
 use std::sync::OnceLock;
 
@@ -338,6 +339,9 @@ pub struct GrammarVocabularies<'a> {
     /// which emits no finding, so this vocabulary can never influence the `ac`
     /// finding stream.
     pub idioms: &'a property::PropertyIdioms,
+    /// Ambiguity lexicon for the requirement-quality pack (FR-056), module
+    /// terms layered over the engine built-ins.
+    pub ambiguous: &'a quality::AmbiguityTerms,
 }
 
 impl<'a> GrammarVocabularies<'a> {
@@ -349,8 +353,15 @@ impl<'a> GrammarVocabularies<'a> {
             observable: default_observable_verbs(),
             vacuous: default_vacuous_predicates(),
             idioms: property::default_property_idioms(),
+            ambiguous: default_ambiguity_terms(),
         }
     }
+}
+
+/// The shared built-in ambiguity lexicon for the registry-free paths (FR-056).
+pub fn default_ambiguity_terms() -> &'static quality::AmbiguityTerms {
+    static DEFAULT: OnceLock<quality::AmbiguityTerms> = OnceLock::new();
+    DEFAULT.get_or_init(quality::AmbiguityTerms::builtin)
 }
 
 /// The shared built-in observable-verb vocabulary for the registry-free paths.
@@ -707,6 +718,10 @@ pub fn check_document_grammar(
         "iso-spec-core" => {
             let mut findings = ears::check(archetype, doc, line_offset, vocab.lexicon);
             findings.extend(ac::check(archetype, doc, line_offset, vocab));
+            // FR-056: a third grammar on the same bundle, keyed `quality:*` so
+            // FR-048 can silence or promote it independently of EARS pattern
+            // conformance — a different judgement deserves a different lever.
+            findings.extend(quality::check(archetype, doc, line_offset, vocab.ambiguous));
             findings
         }
         _ => Vec::new(),

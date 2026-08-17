@@ -281,6 +281,7 @@ fn criteria_counts(
         observable: registry.observable_verbs_matcher(),
         vacuous: registry.vacuous_predicates_matcher(),
         idioms: registry.property_idioms_matcher(),
+        ambiguous: registry.ambiguity_terms_matcher(),
     };
     let excluded = declared_tables::ExcludeSet::compile(&model.exclude);
 

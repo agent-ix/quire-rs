@@ -55,3 +55,4 @@ description: "Index of artifacts in this directory."
 * [FR-053: Obligation Record](./FR-053-obligation-record.md)
 * [FR-054: Verification-Method Catalog](./FR-054-verification-method-catalog.md)
 * [FR-055: Published JSON Output Contract](./FR-055-published-output-contract.md)
+* [FR-056: Requirement-Quality Lints](./FR-056-requirement-quality-lints.md)

@@ -106,6 +106,12 @@ pub struct Manifest {
     /// load fails like any other manifest shape error.
     #[serde(default)]
     pub traceability: crate::traceability::TraceabilityModel,
+    /// Mergeable ambiguity lexicon (FR-056): term → {definition, optional
+    /// category}. Merged first-wins and layered **over** the engine's built-in
+    /// ambiguity terms, so a module extends the lexicon rather than replacing
+    /// it — the `vacuous_predicates` arrangement (ADR 0009).
+    #[serde(default)]
+    pub ambiguity_terms: BTreeMap<String, crate::vocab::AmbiguityTermDef>,
     /// Mergeable verification-method catalog (FR-054): method id →
     /// {name, class, definition, evidence kind, applicability, tooling}.
     /// Merged across modules first-wins. The engine knows the entry *shape* and

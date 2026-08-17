@@ -832,6 +832,7 @@ mod tests {
             observable,
             vacuous,
             idioms: crate::grammar::property::default_property_idioms(),
+            ambiguous: crate::grammar::default_ambiguity_terms(),
         }
     }
 

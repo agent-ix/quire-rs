@@ -130,6 +130,18 @@ pub struct PropertyIdiomDef {
     pub category: Option<String>,
 }
 
+/// One `ambiguity_terms` registry entry (FR-056). A module-declared term the
+/// requirement-quality pack reads as leaving a reader unable to say what would
+/// satisfy the requirement. The engine uses the term (the map key) and its
+/// inflections; `definition` is documentation. Mirrors [`VacuousPredicateDef`],
+/// which is the same arrangement for the same reason (ADR 0009).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AmbiguityTermDef {
+    pub definition: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub category: Option<String>,
+}
+
 /// One `verification_catalog` registry entry (FR-054). A module-declared
 /// **method by which a requirement can be verified**, keyed by method id.
 ///
