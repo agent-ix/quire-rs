@@ -5,6 +5,87 @@ All notable changes to `quire-rs` are documented here. Format follows
 numbers follow semver — pre-1.0, breaking changes may land in minor
 bumps; once 1.0 ships, semver is strict.
 
+## [0.28.0] — 2026-08-17
+
+`archetype:` is the only trace-target origin. The `document:` path-binding form
+is deleted. Cut so the ADR-0011 verification program (agent-ix/quire-rs#81) —
+whose P1 track adds manifest keys under the engine-before-module rule — starts
+from a released baseline rather than from unreleased `main`.
+
+### Breaking
+
+- **A module declaring `document:` on a trace target or a document reference no
+  longer loads.** The nested structs are `deny_unknown_fields`, so the retired
+  key is rejected rather than silently ignored: a module that has not migrated
+  fails loudly instead of minting nothing. Migration is one line per
+  declaration — replace the path with the `archetype:` that types the document,
+  and scope fixture data with `exclude:`. `spec-artifacts-process` v0.14.0 ships
+  the matching collapse, nine declarations to three.
+
+### Changed
+
+- **FR-050-AC-15 / AC-19 (CR-062)** — `archetype:` is the single required origin
+  for a trace target and a document reference alike. The `document:` form
+  existed for exactly one reason, recorded verbatim in `traceability.rs`:
+  "`spec/tests.md` is on `DEFAULT_SKIP`, so archetype binding alone cannot see
+  the file 184 repos call their Test Matrix." Type-driven corpus membership
+  (#73, v0.26.0) deleted that premise, and what remained cost coverage, because
+  path binding **enumerates**: the module declared three near-identical targets,
+  one per filename the ecosystem happens to use, and reached nothing nested — a
+  correctly authored matrix at `spec/<module>/matrix/tests.md` minted zero ids.
+  TC-829 and TC-830 replace TC-802.
+
+  **[RAN]** `scripts/sweep_coverage.py` over `~/dev`, 238 repositories,
+  worktrees deduped, with the matching `spec-artifacts-process` collapse: dead
+  trace tags fall from **1,401 occurrences / 1,052 distinct ids to 1,207 / 873**.
+  The whole change is one repository — `filament-ide-rs`, **214 → 20** dead
+  tags, rollup 17/850 → **473/2,184** rows backed — because it is the only
+  repository authoring nested module matrices today, and the shape the ecosystem
+  is moving toward, which is what makes enumeration the wrong contract rather
+  than merely an inelegant one. Rebinding `test-case` alone leaves 49 dead tags
+  there: `traces-to` and `functional-coverage` were path-bound too and could not
+  read the nested matrices they describe.
+
+- **`exclude:` is load-bearing, not optional.** Archetype binding is what lets a
+  fixture matrix mint phantom ids — a fixture exercising the `TestMatrix`
+  contract legitimately *is* `type: TestMatrix`. That concern kept path binding
+  alive through CR-038 (67 phantom ids, 50 of them reported "backed"); it is
+  answered by exclusion rather than by enumeration.
+
+- **A mistyped matrix now mints nothing**, where under path binding frontmatter
+  was irrelevant to minting. **[RAN]** 14 of 184 ecosystem matrices were untyped
+  or mistyped, 6 of them real matrices carrying a Test Case Summary
+  (agent-ix/quire-rs#75). Left alone this change would have taken repositories
+  minting zero test-case ids from 154 to **159** — the exact regression #75
+  existed to prevent. All six were corrected first and the sweep re-run:
+  **153**, one better than the path-bound baseline. Zero matrices in the
+  ecosystem are frontmatter-less, so the case that could have gone silently
+  invisible is empty.
+
+### Removed
+
+- **`ScanContext::harvest`, the harvest cache, and `HarvestError`** — the
+  off-corpus reader that existed only to serve path binding.
+- **The `unreadable-declared-document` and `absent-declared-document`
+  diagnostics.** CR-059 shipped them in v0.27.0 for the code path this release
+  deletes — the right call for the interim, dead now. A minting document that
+  cannot be read is the walk's `DocumentUnreadable` / `MissingUuid`, strictly
+  better than the silent `None` the off-corpus reader returned.
+  `archetype-matches-nothing` is the surviving reason, and a misspelled
+  archetype the surviving shape of the same fault. TC-825 is retired with the
+  split it pinned.
+
+### Added
+
+- `scripts/sweep_coverage.py` — the ecosystem dead-trace-tag sweep
+  (agent-ix/quire-rs#78). It re-derives #72's numbers with a *released* engine
+  and an *explicit* module path, the two things the 2026-08-14 measurement got
+  wrong: an engine without CR-061 reads resolved tags as dead, and
+  `~/.ix/filament/modules` lags the source tree. Dedupe rules match
+  `scripts/classify_matrices.py` so the two sweeps count the same population.
+
+Closes agent-ix/quire-rs#74.
+
 ## [0.27.0] — 2026-08-16
 
 The three SR-007 blockers (CR-059..CR-061), reviewed as a stack by SpecReview
