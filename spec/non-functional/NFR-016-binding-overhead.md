@@ -36,9 +36,9 @@ The "optimal speed" mandate ([StR-005](../stakeholder/StR-005-native-python-bind
 
 | Metric | Target | Threshold | Method |
 |--------|--------|-----------|--------|
-| Per-crossing overhead, `quire.parse_document` vs Rust call (≤ 4 KB doc) | < 50 µs median | 50 µs median | Criterion / pytest-benchmark |
-| Two-thread `quire.load_repo` combined wall-clock (GIL released) | < 2× single-call | < 2× single-call | Load Benchmark |
-| abi3 wheel imports across CPython 3.x minor versions | ≥ 2 versions, one wheel | ≥ 2 versions | CI Gate (wheel-build lane) |
+| Per-crossing overhead, `quire.parse_document` vs Rust call (≤ 4 KB doc) | < 50 µs median | 50 µs median | performance-benchmarking (Criterion / pytest-benchmark) |
+| Two-thread `quire.load_repo` combined wall-clock (GIL released) | < 2× single-call | < 2× single-call | performance-benchmarking (two-thread load harness) |
+| abi3 wheel imports across CPython 3.x minor versions | ≥ 2 versions, one wheel | ≥ 2 versions | integration-testing (abi3 wheel-build lane) |
 | Returned objects forcing Python-side re-parse | 0 | 0 | Inspection |
 
 ## Verification

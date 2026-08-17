@@ -49,8 +49,8 @@ Downstream consumers (Filament editor, CLI tools, future LLM adapters) need stab
 
 | Metric | Target | Threshold | Method |
 |--------|--------|-----------|--------|
-| `cargo-semver-checks` unexpected breaks vs previous published version | 0 | 0 | CI Gate |
-| Public enums marked `#[non_exhaustive]` | all | all | Static Analysis / compile-fail test |
+| `cargo-semver-checks` unexpected breaks vs previous published version | 0 | 0 | static-quality (cargo-semver-checks, CI-gated) |
+| Public enums marked `#[non_exhaustive]` | all | all | static-quality (compile-fail test) |
 | `CHANGELOG.md` entries classified (Added/Changed/Deprecated/Removed/Fixed/Security) | every release | every release | Inspection |
 | Version bump matches semver policy for the change class | Pass | Pass | Inspection |
 

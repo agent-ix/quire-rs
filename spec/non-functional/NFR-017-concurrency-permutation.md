@@ -51,9 +51,9 @@ This NFR exists because §19 (Hardening Posture) originally skipped loom/shuttle
 
 | Metric | Target | Threshold | Method |
 |--------|--------|-----------|--------|
-| Data races found by loom in small-scope parallel parse | 0 | 0 | loom Exhaustive Interleaving |
-| Output identical + path-sorted across all loom schedules | Pass | Pass | loom Exhaustive Interleaving |
-| loom lane completes within CI timeout | ≤ 30 min | ≤ 30 min | Scheduled CI Gate |
+| Data races found by loom in small-scope parallel parse | 0 | 0 | deterministic-simulation (loom, exhaustive interleaving) |
+| Output identical + path-sorted across all loom schedules | Pass | Pass | deterministic-simulation (loom, exhaustive interleaving) |
+| loom lane completes within CI timeout | ≤ 30 min | ≤ 30 min | performance-benchmarking (loom lane wall-clock) |
 
 ## Verification
 

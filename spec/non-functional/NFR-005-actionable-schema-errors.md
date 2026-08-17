@@ -43,8 +43,8 @@ LLM-driven editors ([US-001](../usecase/US-001-llm-emits-validated-patch.md)) re
 |--------|--------|-----------|--------|
 | `SchemaViolation` Display carries all four elements (field path, expected, observed, block type) | every violation kind | every violation kind | Inspection (unit tests) |
 | Long observed values truncated | at 80 chars with ellipsis | at 80 chars | Inspection |
-| Display leaks raw `serde_json`/validator debug forms | 0 | 0 | Static Analysis |
-| Per-archetype canonical error snapshot stability | Pass | Pass | Snapshot Test |
+| Display leaks raw `serde_json`/validator debug forms | 0 | 0 | static-quality |
+| Per-archetype canonical error snapshot stability | Pass | Pass | golden-approval-testing |
 
 ## Verification
 

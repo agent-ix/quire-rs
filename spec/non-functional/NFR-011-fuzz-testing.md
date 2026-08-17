@@ -55,8 +55,8 @@ Parser, schema loader, and DSL evaluator all consume input that may be hostile o
 | Metric | Target | Threshold | Method |
 |--------|--------|-----------|--------|
 | Required `cargo-fuzz` targets present and compiling | 6 | 6 | Inspection (`fuzz/fuzz_targets/`) |
-| Crashes per target in 60s smoke run (canonical runner) | 0 | 0 | Fuzz Run |
-| Weekly scheduled fuzz lane (5 min/target) green | Pass | Pass | CI Gate |
+| Crashes per target in 60s smoke run (canonical runner) | 0 | 0 | fuzzing (cargo-fuzz) |
+| Weekly scheduled fuzz lane (5 min/target) green | Pass | Pass | fuzzing (weekly scheduled lane) |
 | Discovered crash committed as reproducer + regression test | Pass | Pass | Inspection |
 
 ## Verification

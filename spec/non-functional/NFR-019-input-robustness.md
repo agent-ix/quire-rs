@@ -48,8 +48,8 @@ degrade to typed errors, not crashes.
 
 | Metric | Target | Threshold | Method |
 |--------|--------|-----------|--------|
-| Panics / UB from `parse_document`/`validate_document`/`extract` on arbitrary bytes | 0 | 0 | Fuzz Run (scheduled lane) |
-| Proptest cases returning value-or-typed-error without panic | 100% | 100% | Proptest (`PROPTEST_CASES=512`) |
+| Panics / UB from `parse_document`/`validate_document`/`extract` on arbitrary bytes | 0 | 0 | fuzzing (cargo-fuzz, scheduled lane) |
+| property-based-testing (proptest) cases returning value-or-typed-error without panic | 100% | 100% | property-based-testing (proptest, `PROPTEST_CASES=512`) |
 | Discovered crash committed as regression reproducer | Pass | Pass | Inspection |
 
 ## Verification

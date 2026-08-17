@@ -37,9 +37,9 @@ Org-wide license policy prevents copyleft surprises in a redistributable crate. 
 
 | Metric | Target | Threshold | Method |
 |--------|--------|-----------|--------|
-| Transitive deps satisfying `deny.toml` license allowlist | 100% | 100% | CI Gate (`cargo deny check licenses`) |
-| `cargo deny check licenses` exit status | 0 | 0 | CI Gate |
-| Disallowed-license dependency blocked in CI | Pass | Pass | CI Gate |
+| Transitive deps satisfying `deny.toml` license allowlist | 100% | 100% | sca-sbom (cargo deny check licenses) |
+| `cargo deny check licenses` exit status | 0 | 0 | sca-sbom (cargo-deny, CI-gated) |
+| Disallowed-license dependency blocked in CI | Pass | Pass | sca-sbom (cargo-deny, CI-gated) |
 | Unknown registry / git source bans preserved | Pass | Pass | Inspection (`deny.toml`) |
 
 ## Verification

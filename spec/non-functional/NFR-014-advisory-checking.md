@@ -38,10 +38,10 @@ Supply-chain attacks on Rust crates have happened (e.g. `bincode` advisories, `s
 
 | Metric | Target | Threshold | Method |
 |--------|--------|-----------|--------|
-| Unaddressed RustSec advisories matching `Cargo.lock` | 0 | 0 | CI Gate (`cargo-audit`) |
+| Unaddressed RustSec advisories matching `Cargo.lock` | 0 | 0 | sca-sbom (cargo-audit) |
 | `audit:` job runs on PR + push + daily schedule | Pass | Pass | Inspection (CI workflow) |
 | Ignored advisory carries one-line rationale in `deny.toml` | Pass | Pass | Inspection |
-| New advisory match blocks merge | Pass | Pass | CI Gate |
+| New advisory match blocks merge | Pass | Pass | sca-sbom (cargo-audit, CI-gated) |
 
 ## Verification
 

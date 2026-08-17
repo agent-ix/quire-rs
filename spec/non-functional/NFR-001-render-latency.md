@@ -57,9 +57,9 @@ The Filament editor ([US-004](../usecase/US-004-filament-editor-rerender.md)) re
 
 | Metric | Target | Threshold | Method |
 |--------|--------|-----------|--------|
-| `render(archetype, data)` latency (typical artifact, canonical M2 Pro) | < 1 ms median | 1 ms median | Criterion Benchmark |
-| Render latency on Ubuntu x86_64 CI runner | within +50% of canonical | < 1.5 ms median | Criterion Benchmark |
-| Same-runner regression vs stored baseline | no slowdown | < 10% slowdown | Criterion Benchmark |
+| `render(archetype, data)` latency (typical artifact, canonical M2 Pro) | < 1 ms median | 1 ms median | performance-benchmarking (Criterion) |
+| Render latency on Ubuntu x86_64 CI runner | within +50% of canonical | < 1.5 ms median | performance-benchmarking (Criterion) |
+| Same-runner regression vs stored baseline | no slowdown | < 10% slowdown | performance-benchmarking (Criterion) |
 
 ## Verification
 

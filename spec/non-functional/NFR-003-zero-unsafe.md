@@ -51,11 +51,11 @@ The PyO3 binding ([FR-023](../functional/FR-023-python-binding-surface.md)) is f
 
 | Metric | Target | Threshold | Method |
 |--------|--------|-----------|--------|
-| First-party `unsafe` blocks in `src/` (default build) | 0 | 0 | Static Analysis (`rg 'unsafe\s*\{' src/`) |
-| First-party `unsafe` blocks with `--features python` | 0 | 0 | Static Analysis |
-| `scripts/check_unsafe_comments.sh` exit status | 0 | 0 | CI Gate |
-| `scripts/unsafe_comment_baseline.txt` entries | 0 (empty) | 0 | CI Gate |
-| Default build compiles under `#![forbid(unsafe_code)]` | Pass | Pass | Compile-time check |
+| First-party `unsafe` blocks in `src/` (default build) | 0 | 0 | static-quality (`rg 'unsafe\s*\{' src/`) |
+| First-party `unsafe` blocks with `--features python` | 0 | 0 | static-quality |
+| `scripts/check_unsafe_comments.sh` exit status | 0 | 0 | static-quality (check_unsafe_comments.sh, CI-gated) |
+| `scripts/unsafe_comment_baseline.txt` entries | 0 (empty) | 0 | static-quality (baseline file, CI-gated) |
+| Default build compiles under `#![forbid(unsafe_code)]` | Pass | Pass | compile-time-check |
 
 ## Verification
 
