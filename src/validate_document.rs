@@ -220,10 +220,16 @@ fn run_grammar(
 /// so it has no severity, no routing and no promotion path (FR-052-CON-1). An
 /// archetype with no `grammar_ref` (or an unknown bundle) yields no records,
 /// exactly as it yields no findings.
+/// `path` is where the caller read `doc_text` from, and exists for one reason:
+/// an `obligations:` source may declare `exclude:` globs, and without a path
+/// this surface cannot honour them while `coverage` does — so an excluded
+/// fixture would state no obligation in one payload and state one in the other
+/// (FR-053-AC-14, CR-063). `None` for content with no location, such as stdin.
 pub fn classify_document_criteria(
     registry: &crate::Registry,
     archetype: &CompiledArchetype,
     doc_text: &str,
+    path: Option<&std::path::Path>,
 ) -> Vec<crate::grammar::property::AcClassification> {
     let Some(grammar_ref) = archetype.grammar_ref() else {
         return Vec::new();
@@ -251,7 +257,7 @@ pub fn classify_document_criteria(
         .traceability()
         .filter(|m| !m.obligations.is_empty())
     {
-        let by_id = crate::obligation::for_document(model, &archetype.name, &doc);
+        let by_id = crate::obligation::for_document(model, &archetype.name, &doc, path);
         for record in &mut records {
             if let Some(id) = &record.row_id {
                 record.obligation = by_id.get(id).cloned();

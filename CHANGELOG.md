@@ -9,6 +9,40 @@ bumps; once 1.0 ships, semver is strict.
 
 ### Fixed
 
+- **FR-053 said five things the code did not do** (agent-ix/quire-rs#151,
+  **CR-063**), each ✅ in the matrix because its AC was verified against the
+  helper rather than against the surface a consumer reads.
+  - **AC-8's diagnostic did not exist.** `derive` returns skipped rows and
+    `coverage.rs` discarded them; a row whose statement cell is empty was
+    dropped silently from every payload. Skipped rows now become a
+    `obligation-row-states-nothing` coverage diagnostic naming the document and
+    the row ordinal (TC-870).
+  - **NFC is applied for real** (TC-871). The Behavior section always said
+    "Unicode NFC, then trim, then collapse"; `normalize_statement` skipped the
+    NFC on a dependency argument. `unicode-normalization` is added — an editor
+    rewriting a decomposed accent was otherwise indistinguishable from a
+    reworded requirement, which is the false-positive suspect link the FR itself
+    says gets a detector switched off.
+  - **Record order is source *declaration* order** (TC-872), not source name.
+    The two look identical for a single-source module, which is how the
+    divergence survived review.
+  - **AC-11 corrected** to match its own test, the `skip_serializing_if`
+    attribute and the published schema: the empty `obligations` list is
+    **absent**, which is what preserves FR-050-AC-7 byte-identity.
+  - **New AC-14 — `exclude:` binds both surfaces** (TC-873).
+    `classify_document_criteria` now takes the document's path and applies the
+    same globs `derive` does. Before, a criterion in an excluded fixture minted
+    nothing in the rollup and still carried an `obligation` in
+    `properties --json` — which is what spec-correctness generates tests from,
+    so it became a generated test tagged for an id nothing could ever back.
+
+### Changed
+
+- **Breaking (library):** `classify_document_criteria` takes a fourth argument,
+  `path: Option<&Path>`. `None` preserves the old behaviour for content with no
+  location (stdin); callers that read from a file should pass it so `exclude:`
+  can apply.
+
 - **The v0.29.0 tree failed two of its own gates** (agent-ix/quire-rs#150), found
   by the post-merge review of the ADR-0011 P1 wave. `TC-853` was **flaky**:
   `tests/verification_catalog.rs`'s `merged()` built its fixture in a temp

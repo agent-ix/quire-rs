@@ -1,4 +1,4 @@
-//! FR-053 — obligation records (TC-831..TC-843).
+//! FR-053 — obligation records (TC-831..TC-843, TC-870..TC-873).
 //!
 //! Bundles are built on disk per test so derivation runs over the real corpus
 //! walk rather than a hand-assembled `Spec`.
@@ -271,6 +271,153 @@ fn tc838_empty_statement_row_is_skipped_and_reported() {
     assert_eq!(skipped[0].source, "acceptance-criterion");
 }
 
+// TC-870 (FR-053-AC-8): the skipped row reaches the coverage report, which is
+// the only surface anybody reads. TC-838 proves `derive` returns it; this proves
+// it is not dropped on the way out (#151, CR-063).
+#[test]
+fn tc870_skipped_row_is_reported_in_the_coverage_report() {
+    let scope = ac_bundle(
+        "870",
+        "| FR-001-AC-1 | The system shall do it. | Test (TC-001) | P1 |\n\
+         | FR-001-AC-2 |  | Test (TC-002) | P2 |\n",
+    );
+    let source = scope.parent().unwrap().join("src");
+    fs::create_dir_all(&source).expect("mkdir");
+    write(&source, "lib.rs", "//! empty\n");
+
+    let registry = Registry::load_module(&fixture_module("obligations")).expect("load module");
+    let spec = Spec::from_path(&scope);
+    let model = registry.traceability().cloned().unwrap();
+    let graph = trace::bind(&extract_tree(&source), &model);
+    let report = compute(&spec, &registry, &graph, &scope).expect("report");
+
+    let reported: Vec<_> = report
+        .diagnostics
+        .iter()
+        .filter(|d| d.reason == "obligation-row-states-nothing")
+        .collect();
+    assert_eq!(reported.len(), 1, "{:#?}", report.diagnostics);
+    assert_eq!(reported[0].declaration, "acceptance-criterion");
+    assert_eq!(reported[0].path.as_deref(), Some("FR-001.md"));
+    assert!(
+        reported[0].message.contains("row 2"),
+        "the row ordinal must be named: {}",
+        reported[0].message,
+    );
+    // And it reaches the JSON, since that is what a consumer parses.
+    assert!(report.to_json().contains("obligation-row-states-nothing"));
+}
+
+// TC-871 (FR-053-AC-4): Unicode normalization form does not change the hash.
+// The FR asserted this and the code skipped it; NFC is now applied (CR-063).
+#[test]
+fn tc871_hash_is_normalization_form_insensitive() {
+    // "café" composed (U+00E9) vs decomposed (e + U+0301). A reader cannot tell
+    // them apart and neither may the hash.
+    let composed = "The parser shall accept a caf\u{e9} token.";
+    let decomposed = "The parser shall accept a cafe\u{301} token.";
+    assert_ne!(composed, decomposed, "the fixture must differ as bytes");
+    assert_eq!(
+        statement_hash(composed),
+        statement_hash(decomposed),
+        "an editor rewriting NFD to NFC is not a change of statement",
+    );
+    // And normalization does not flatten a real difference.
+    assert_ne!(
+        statement_hash(composed),
+        statement_hash("The parser shall accept a cafe token."),
+    );
+}
+
+// TC-872 (FR-053-AC-9): record order follows source DECLARATION order, not
+// source name. The fixture declares `zzz-metric` before `aaa-criterion`, so the
+// two orderings disagree — which is the only way to tell them apart (#151).
+#[test]
+fn tc872_order_is_declaration_order_not_source_name() {
+    let scope = tmpdir("872").join("spec");
+    fs::create_dir_all(&scope).expect("mkdir");
+    write(
+        &scope,
+        "FR-001.md",
+        "---\nid: FR-001\ntype: FR\ntitle: A requirement\n---\n\n\
+         ## Acceptance Criteria\n\n\
+         | ID | Criteria | Verification |\n|----|----------|--------------|\n\
+         | FR-001-AC-1 | The system shall do it. | Test |\n",
+    );
+    write(
+        &scope,
+        "NFR-001.md",
+        "---\nid: NFR-001\ntype: NFR\ntitle: A budget\n---\n\n\
+         ## Measurement and Evaluation\n\n\
+         | Metric | Method |\n|--------|--------|\n\
+         | Amortized load cost | Benchmark |\n",
+    );
+
+    let obligations = derive_at(&scope, "obligations-ordered");
+    assert_eq!(obligations.len(), 2, "{obligations:#?}");
+    assert_eq!(
+        obligations
+            .iter()
+            .map(|o| o.source.as_str())
+            .collect::<Vec<_>>(),
+        ["zzz-metric", "aaa-criterion"],
+        "sources must read in declaration order; alphabetical is the bug",
+    );
+}
+
+// TC-873 (FR-053-AC-14): an `exclude`d document states no obligation on EITHER
+// surface. Before #151 the rollup honoured the glob and the classification path
+// did not, so an excluded fixture criterion carried an obligation a generator
+// would have emitted a dead trace tag for.
+#[test]
+fn tc873_exclude_applies_to_both_surfaces() {
+    let scope = tmpdir("873").join("spec");
+    fs::create_dir_all(&scope).expect("mkdir");
+    let body = "---\nid: FR-001\ntype: FR\ntitle: A requirement\n---\n\n\
+                ## Acceptance Criteria\n\n\
+                | ID | Criteria | Verification |\n|----|----------|--------------|\n\
+                | FR-001-AC-1 | The system shall do it. | Test |\n";
+    write(&scope, "FR-001.md", body);
+    write(
+        &scope,
+        "fixtures/FR-009.md",
+        &body.replace("FR-001", "FR-009"),
+    );
+
+    // The rollup: one record, the excluded fixture contributes none.
+    let obligations = derive_at(&scope, "obligations-excluded");
+    assert_eq!(obligations.len(), 1, "{obligations:#?}");
+    assert_eq!(obligations[0].document, "FR-001.md");
+
+    // The classification path, handed each document with its path.
+    let registry =
+        Registry::load_module(&fixture_module("obligations-excluded")).expect("load module");
+    let archetype = registry.archetype("FR").expect("FR archetype");
+
+    let included = quire_rs::classify_document_criteria(
+        &registry,
+        archetype,
+        body,
+        Some(Path::new("FR-001.md")),
+    );
+    assert!(
+        included[0].obligation.is_some(),
+        "an included document still states its obligation",
+    );
+
+    let excluded = quire_rs::classify_document_criteria(
+        &registry,
+        archetype,
+        &body.replace("FR-001", "FR-009"),
+        Some(Path::new("fixtures/FR-009.md")),
+    );
+    assert!(
+        excluded[0].obligation.is_none(),
+        "an excluded document must state no obligation on this surface either: {:#?}",
+        excluded[0].obligation,
+    );
+}
+
 // TC-839 (FR-053-AC-9): derivation is deterministic and ordered.
 #[test]
 fn tc839_derivation_is_deterministic() {
@@ -303,7 +450,7 @@ fn tc840_classification_carries_the_obligation() {
 
     let with = Registry::load_module(&fixture_module("obligations")).expect("load");
     let archetype = with.archetype("FR").expect("FR archetype");
-    let records = quire_rs::classify_document_criteria(&with, archetype, doc);
+    let records = quire_rs::classify_document_criteria(&with, archetype, doc, None);
     assert_eq!(records.len(), 1, "{records:#?}");
     let ob = records[0]
         .obligation
@@ -320,7 +467,7 @@ fn tc840_classification_carries_the_obligation() {
     // A module declaring no obligation sources: same records, no obligation.
     let without = Registry::load_module(&fixture_module("iso")).expect("load");
     let archetype = without.archetype("FR").expect("FR archetype");
-    let plain = quire_rs::classify_document_criteria(&without, archetype, doc);
+    let plain = quire_rs::classify_document_criteria(&without, archetype, doc, None);
     assert_eq!(plain.len(), 1);
     assert!(plain[0].obligation.is_none());
     // Field-for-field unchanged apart from the new field.
@@ -414,7 +561,7 @@ fn tc843_nested_obligation_does_not_repeat_the_record() {
                | FR-001-AC-1 | Every finding defaults to warning. | Test (TC-001) | P1 |\n";
     let registry = Registry::load_module(&fixture_module("obligations")).expect("load");
     let archetype = registry.archetype("FR").expect("FR archetype");
-    let records = quire_rs::classify_document_criteria(&registry, archetype, doc);
+    let records = quire_rs::classify_document_criteria(&registry, archetype, doc, None);
     let ob = records[0].obligation.as_ref().expect("attached");
 
     let json: serde_json::Value = serde_json::to_value(ob).expect("serialize");

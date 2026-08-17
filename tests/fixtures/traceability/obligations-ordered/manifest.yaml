@@ -1,0 +1,37 @@
+# FR-053-AC-9 fixture: two obligation sources whose declaration order is the
+# REVERSE of their alphabetical order.
+#
+# `zzz-metric` is declared first and `aaa-criterion` second, so a report ordered
+# by source name and a report ordered by declaration order cannot agree. That is
+# the whole point: sorting by name looked identical to sorting by declaration
+# order for every single-source module, which is how the divergence survived
+# review (#151, CR-063).
+name: traceability-obligations-ordered
+version: 0.1.0
+description: Two obligation sources in non-alphabetical declaration order
+artifact_types:
+- name: FR
+  grammar_ref: iso-spec-core
+  defaults:
+    id_pattern: FR-{next:03d}
+- name: NFR
+  grammar_ref: iso-spec-core
+  defaults:
+    id_pattern: NFR-{next:03d}
+traceability:
+  trace_targets:
+  - name: acceptance-criterion
+    archetype: FR
+    section: Acceptance Criteria
+    id_column: ID
+  obligations:
+  - name: zzz-metric
+    archetype: NFR
+    section: Measurement and Evaluation
+    id_format: "{document}-M-{row}"
+    statement_column: Metric
+    method_column: Method
+  - name: aaa-criterion
+    target: acceptance-criterion
+    statement_column: Criteria
+    method_column: Verification
