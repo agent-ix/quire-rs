@@ -5,7 +5,20 @@ All notable changes to `quire-rs` are documented here. Format follows
 numbers follow semver — pre-1.0, breaking changes may land in minor
 bumps; once 1.0 ships, semver is strict.
 
-## [Unreleased]
+## [0.30.0] — 2026-08-17
+
+The post-merge review of the ADR-0011 P1 wave (agent-ix/quire-rs#81), landed.
+Four tickets — a red release tree, and three FRs whose Test Matrix read ✅ over
+behaviour the code did not have.
+
+**The pattern worth naming.** In every one of the three, the acceptance criterion
+was written at the *function* boundary and verified against the helper that
+implements half of it, so the suite could not tell "implemented" from
+"implemented and reachable". FR-053-AC-8's diagnostic was returned by `derive`
+and dropped by its only caller; FR-054's derived vocabularies were computed
+correctly and read by nothing; FR-056's collection gate admitted fewer statements
+than its checks judged. Each test passed. None of them was testing the surface a
+consumer reads.
 
 ### Added
 
@@ -99,6 +112,8 @@ bumps; once 1.0 ships, semver is strict.
   mis-indented struct literal in `src/loader/mod.rs`; the tree is formatted.
   Verified: `make ci` green, `TC-853` 20/20 in isolation and 5/5 full parallel
   suite runs.
+
+Closes agent-ix/quire-rs#150, #151, #152, #153.
 
 ## [0.29.0] — 2026-08-17
 
