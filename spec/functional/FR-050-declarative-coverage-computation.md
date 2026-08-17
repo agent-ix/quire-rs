@@ -159,7 +159,7 @@ model; the engine knows nothing of "AC" or "TC" as concepts.
 > **Measured** across `~/dev`, 238 repositories, worktrees deduped
 > (`scripts/sweep_coverage.py`, agent-ix/quire-rs#78), with this change plus the
 > matching `spec-artifacts-process` collapse: dead trace tags fall from **1,401
-> occurrences / 1,052 distinct ids to 1,208 / 874**. The whole change is one
+> occurrences / 1,052 distinct ids to 1,207 / 873**. The whole change is one
 > repository — `filament-ide-rs`, **214 → 20** dead tags, rollup 17/850 →
 > **473/2,184** rows backed — because it is the only repository in the ecosystem
 > authoring nested module matrices. It is also the shape the ecosystem is moving
