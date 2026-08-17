@@ -131,7 +131,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | FR-053 Obligation record | AC-1..14; CON-1..4 | TC-831 (target-bound source, ids the rollup already mints), TC-832 (archetype-bound source, rendered ids over the NFR measurement table), TC-833 (both-or-neither origin rejected at parse), TC-834 (hash is whitespace-insensitive and word-sensitive, incl. inside code spans), TC-835 (one cell, two readings: method vs FR-049 reference), TC-836 (absent parameters omitted), TC-837 (criticality optional), TC-838 (empty statement skipped and reported), TC-839 (deterministic, ordered), TC-840 (classification record carries it), TC-841 (coverage report carries it; absent key preserves FR-050-AC-7), TC-842 (hash follows the statement, not its position), TC-843 (nested form does not repeat the record), TC-870 (the skipped-row diagnostic reaches the report), TC-871 (NFC), TC-872 (declaration order, not source name), TC-873 (`exclude` binds both surfaces) | ✅ Implemented |
 | FR-054 Verification-method catalog | AC-1..11; CON-1..5 | TC-844 (entries exposed intact), TC-845 (first-wins + DuplicateVerificationMethod), TC-846 (undeclared is None, not empty), TC-847 (unknown key fails load), TC-848 (empty required field fails load), TC-849 (derived vocabularies track the merge), TC-850 (test_type unchanged; unknown name empty), TC-851 (CON-2 applicability opaque), TC-852 (CON-3 no finding), TC-853 (CON-4 derived, never authored twice), TC-874 (an uncatalogued method is reported), TC-875 (no catalog asks no question) | ✅ Implemented |
 | FR-055 Published JSON output contract | AC-1..7; CON-1..3 | TC-854 (schemas valid + versioned), TC-855 (baseline conforms), TC-856 (every optional key exercised), TC-857 (emitted criteria conform), TC-858 (additionalProperties closed at depth), TC-859 (optional/required split matches the engine), TC-860 (CON-1/CON-2 no version key, no schemars) | ✅ Implemented (the `properties` envelope conformance test lives in `quire-cli`, which assembles it) |
-| FR-056 Requirement-quality lints | AC-1..9; CON-1..4 | TC-861 (built-in term fires), TC-862 (longest term names the finding), TC-863 (CON-2 module terms layer over built-ins), TC-864 (allocation, not voice), TC-865 (two modals), TC-866 (CR-017 mention parity), TC-867 (CON-1 advisory + per-check `off`), TC-868 (CON-4 ears/ac streams unchanged), TC-869 (checks independent) | ✅ Implemented |
+| FR-056 Requirement-quality lints | AC-1..13; CON-1..5 | TC-861 (built-in term fires), TC-862 (longest term names the finding), TC-863 (CON-2 module terms layer over built-ins), TC-864 (allocation, not voice), TC-865 (two modals), TC-866 (CR-017 mention parity), TC-867 (CON-1 advisory + per-check `off`), TC-868 (CON-4 ears/ac streams unchanged), TC-869 (checks independent), TC-876 (row-level line attribution), TC-877 (all four modals collected), TC-878 (a deadline or a sort key is not an agent), TC-879 (unknown ambiguity_terms key fails load) | ✅ Implemented |
 | NFR-020 Filament extraction boundary pure/deterministic | static inspection + parity tests | TC-704, TC-767, TC-690 | ✅ Complete |
 
 ---
@@ -680,6 +680,10 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-867 | Every quality finding routes to warnings and never errors, and an FR-048 `quality:<check>=off` removes that check entirely (FR-056, CON-1) | Integration | P0 | FR-056-AC-7 | ✅ |
 | TC-868 | Silencing the whole pack leaves the `ears` and `ac` finding streams identical field-for-field — the pack adds a grammar, it does not reinterpret the two that exist (FR-056, CON-4) | Integration | P0 | FR-056-AC-8 | ✅ |
 | TC-869 | A statement violating three checks reports three findings — the checks are independent, not first-match (FR-056) | Integration | P1 | FR-056-AC-9 | ✅ |
+| TC-876 | Two flawed rows of a `Constraints` table report two document lines, not two copies of the section heading's line — a mechanical lint that cannot point at the row makes the reader re-find it by hand (FR-056) | Unit | P1 | FR-056-AC-10 | ✅ |
+| TC-877 | A `must`-only and a `may`-only prose requirement are judged by the pack, and a line carrying no modal at all is judged by none — the collection gate admits exactly the four modals `mixed-modal` reads (FR-056) | Unit | P0 | FR-056-AC-11 | ✅ |
+| TC-878 | `by 12:00`, `by name` and `by priority` do not suppress `agentless-passive`, while `by the archiver` does, and an agent wrapped in emphasis or a code span still counts as named (FR-056) | Unit | P0 | FR-056-AC-12 | ✅ |
+| TC-879 | A typo'd key inside an `ambiguity_terms` entry fails module load naming the key, as `verification_catalog` already did (FR-056) | Unit | P1 | FR-056-AC-13 | ✅ |
 | TC-797 | A declared model matching zero rows: `quire coverage` renders `0/0` distinctly and never as `100%`, and `--strict` exits non-zero on it — the state that made a wired gate pass vacuously (CR-035) | Integration | P0 | FR-050-AC-14 | 🚧 awaiting EXT-3 `quire-cli` (CLI behaviour; `tests/cli_coverage.rs` — CR-058) |
 | TC-610 | Composed type+object validation: `type: FR` + `object: process` with the FR core present but **no** `## Workflow` mermaid block → an object **error** (process required `diagram` missing) merged into `errors`, while the FR (`type`) portion passes independently; `is_valid==false` | Unit | P0 | FR-032-AC-11, FR-032-AC-13 | ✅ |
 | TC-611 | Unknown object type: `type: FR` (conformant) + `object: totally-unknown` → exactly one **warning** (reason `unknown-object-type`, message names `totally-unknown`), zero errors, `is_valid==true` | Unit | P0 | FR-032-AC-12 | ✅ |
@@ -1262,6 +1266,10 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-056-AC-7 | TC-867 |
 | FR-056-AC-8 | TC-868 |
 | FR-056-AC-9 | TC-869 |
+| FR-056-AC-10 | TC-876 |
+| FR-056-AC-11 | TC-877 |
+| FR-056-AC-12 | TC-878 |
+| FR-056-AC-13 | TC-879 |
 
 ### Non-Functional Requirements
 

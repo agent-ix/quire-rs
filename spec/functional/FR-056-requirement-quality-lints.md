@@ -122,6 +122,7 @@ the report has to name what the author actually wrote.
 | FR-056-CON-2 | The engine's built-in ambiguity lexicon SHALL be closed, with a module's declared terms layered over it rather than replacing it. An open set whose membership drives a finding is the shape CR-014 retired. | Architecture | Test |
 | FR-056-CON-3 | No check SHALL depend on a judgement the engine cannot make exactly. Each fires on a closed list, a syntactic pattern, or a token count — never on an inference about meaning. | Architecture | Inspection |
 | FR-056-CON-4 | The pack SHALL NOT change any `ears` or `ac` finding. It adds a grammar; it does not reinterpret the two that exist. | Architecture | Test |
+| FR-056-CON-5 | `agentless-passive` SHALL err toward reading a phrase as naming an agent when it cannot tell. An advisory check that under-reports is survivable; one that cries wolf on correctly allocated requirements is the CR-014 failure mode. | Architecture | Test |
 
 ## Acceptance Criteria
 
@@ -136,6 +137,10 @@ the report has to name what the author actually wrote.
 | FR-056-AC-7 | Every finding the pack emits carries `Warning` severity, and each is independently addressable by an FR-048 `quality:<check>` key — set to `off`, the check contributes nothing (CON-1). | Test (TC-867) |
 | FR-056-AC-8 | A corpus checked with the quality pack reachable yields the same `ears` and `ac` findings, in the same order and with the same fields, as the same corpus checked before the pack existed (CON-4). | Test (TC-868) |
 | FR-056-AC-9 | A statement violating two checks reports two findings, one per check, rather than the first one only. | Test (TC-869) |
+| FR-056-AC-10 | A finding on a table row reports that **row's** document line, not the section heading's, so two flawed rows report two lines. | Test (TC-876) |
+| FR-056-AC-11 | A prose statement carrying any of `shall`, `should`, `may` or `must` is judged by every check in the pack; a line carrying none of the four is judged by none. The collection gate admits exactly the modals the checks read. | Test (TC-877) |
+| FR-056-AC-12 | `agentless-passive` is suppressed by a named agent and **not** by `by <deadline>`, `by <sort key>` or `by <grouping axis>`; an agent wrapped in markdown emphasis or an inline code span still counts as named. | Test (TC-878) |
+| FR-056-AC-13 | An unknown key inside an `ambiguity_terms` entry fails module load naming the key, exactly as `verification_catalog` does. | Test (TC-879) |
 
 ## Dependencies
 
