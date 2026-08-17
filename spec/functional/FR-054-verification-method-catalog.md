@@ -143,6 +143,7 @@ advises nothing.
 | FR-054-CON-2 | The engine SHALL NOT interpret `applicability:`. It stores and surfaces the rules; deciding which requirement they match is the advisor's judgement, and an engine that understood one axis would owe an understanding of every axis a future module invents. | Architecture | Inspection |
 | FR-054-CON-3 | Catalog entries SHALL NOT participate in validation: no finding, no severity, no [FR-048](./FR-048-per-check-grammar-severity.md) key. A declared method a document does not use is data, and an undeclared method a document does use is the auditor's finding, not the engine's. | Architecture | Test |
 | FR-054-CON-4 | The derived vocabularies SHALL be computed from the merged catalog, never authored alongside it. A second authored copy is the duplication this FR exists to remove. | Architecture | Test |
+| FR-054-CON-5 | The uncatalogued-method report SHALL be a coverage **diagnostic**, never a `GrammarFinding` and never an error. It names a gap between what an author wrote and what a module declared; deciding whether that gap fails a build is the consuming workflow's policy, exactly as FR-053-CON-4 requires of everything else on the obligation path. | Architecture | Test |
 
 ## Acceptance Criteria
 
@@ -158,6 +159,7 @@ advises nothing.
 | FR-054-AC-8 | A catalog whose entries declare no `applicability` is exposed with an empty rule map, and one declaring rules the engine has never heard of is exposed with those rules verbatim (CON-2). | Test (TC-851) |
 | FR-054-AC-9 | A corpus validated with a catalog declared produces the same findings, in the same order and with the same fields, as the same corpus with no catalog declared (CON-3). | Test (TC-852) |
 | FR-054-AC-10 | The derived vocabularies change when the catalog changes and are never read from a separate declaration: a module declaring a catalog and no vocabulary block still answers `verification_method` (CON-4). | Test (TC-853) |
+| FR-054-AC-11 | An obligation whose declared method matches neither a catalog method id nor a catalog class is reported in the coverage report as `uncatalogued-verification-method`, once per distinct (source, method) pair with the row count and an example document. A corpus whose modules declare no catalog is reported nothing, because an absent catalog cannot answer the question. | Test (TC-874, TC-875) |
 
 ## Dependencies
 

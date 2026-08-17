@@ -248,7 +248,78 @@ pub fn compute(
         report.totals.property_shaped =
             Some(report.criteria.iter().map(|c| c.property_shaped).sum());
     }
+    // FR-054-AC-11: reported here rather than in `reconcile`, which takes no
+    // `Registry` and so cannot see the catalog the methods are checked against.
+    report
+        .diagnostics
+        .extend(uncatalogued_methods(&report.obligations, registry));
     Ok(report)
+}
+
+/// Declared methods that are in no catalog (FR-054-AC-11).
+///
+/// The catalog exists so a verification method is a **declared thing** rather
+/// than a habit, and until this the two were indistinguishable: the derived
+/// `verification_method` / `verification_class` vocabularies had no reader, so
+/// a cell saying `CI Gate` sat in the report looking exactly like one saying
+/// `Test`. Measured across the ecosystem at the time this landed, 55 of 577
+/// obligations declared a method matching no catalog entry, and downstream
+/// quoin's conformance check *skipped* each of them — so the requirements whose
+/// verification is least well defined were the ones nothing questioned.
+///
+/// **Skipped entirely when no module declares a catalog.** An absent catalog
+/// means the question cannot be asked, which is a different answer from "yes"
+/// — and it keeps FR-050-AC-7 byte-identity for every module that has not
+/// adopted one.
+///
+/// One diagnostic per distinct (source, method) pair, not per row: 14 rows
+/// reading `Criterion Benchmark` are one decision to make, and 14 identical
+/// diagnostics is how a report stops being read.
+fn uncatalogued_methods(
+    obligations: &[crate::obligation::Obligation],
+    registry: &Registry,
+) -> Vec<CoverageDiagnostic> {
+    if registry.verification_catalog().is_none() {
+        return Vec::new();
+    }
+    let methods = registry.column_vocabulary("verification_method");
+    let classes = registry.column_vocabulary("verification_class");
+    let known = |declared: &str| {
+        let declared = declared.trim();
+        methods.iter().any(|m| m.eq_ignore_ascii_case(declared))
+            || classes.iter().any(|c| c.eq_ignore_ascii_case(declared))
+    };
+
+    // (source, method) -> (row count, first document). BTreeMap so the order is
+    // a property of the data rather than of the walk (NFR-006).
+    let mut unknown: BTreeMap<(&str, &str), (usize, &str)> = BTreeMap::new();
+    for obligation in obligations {
+        let Some(method) = obligation.method.as_deref() else {
+            continue;
+        };
+        if known(method) {
+            continue;
+        }
+        let entry = unknown
+            .entry((&obligation.source, method))
+            .or_insert((0, &obligation.document));
+        entry.0 += 1;
+    }
+
+    unknown
+        .into_iter()
+        .map(|((source, method), (rows, document))| CoverageDiagnostic {
+            declaration: source.to_string(),
+            reason: "uncatalogued-verification-method".to_string(),
+            message: format!(
+                "'{method}' is neither a declared verification_catalog method id nor a \
+                 declared class, so nothing can say what discharging it means ({rows} \
+                 row(s), first in '{document}'). Add a catalog entry, or write a \
+                 declared method in the cell"
+            ),
+            path: Some(document.to_string()),
+        })
+        .collect()
 }
 
 /// Per-document property-shape counts over the corpus (CR-028).

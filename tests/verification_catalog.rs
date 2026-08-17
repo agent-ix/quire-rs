@@ -256,3 +256,115 @@ fn tc853_derived_vocabularies_need_no_separate_declaration() {
     let merged = merged("853");
     assert_eq!(merged.column_vocabulary("verification_method").len(), 3);
 }
+
+// TC-874 (FR-054-AC-11): a declared method that is in no catalog is reported.
+//
+// This is what finally gives the derived vocabularies a reader. Before it,
+// `column_vocabulary("verification_method")` was built at registry construction
+// and consulted by exactly one test — so a `Verification` cell reading `CI Gate`
+// sat in the report looking exactly like one reading `Test`, and quoin's
+// conformance check skipped it silently. Measured across the ecosystem when this
+// landed: 55 of 577 obligations declared a method no catalog carried.
+#[test]
+fn tc874_uncatalogued_method_is_reported() {
+    let dir = std::env::temp_dir().join(format!("quire-rs-uncat-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&dir);
+    let scope = dir.join("spec");
+    fs::create_dir_all(&scope).expect("mkdir");
+    fs::write(
+        scope.join("FR-001.md"),
+        "---\nid: FR-001\ntype: FR\ntitle: A requirement\n---\n\n\
+         ## Acceptance Criteria\n\n\
+         | ID | Criteria | Verification |\n|----|----------|--------------|\n\
+         | FR-001-AC-1 | The system shall do it. | Test |\n\
+         | FR-001-AC-2 | The system shall also do it. | property-based-testing |\n\
+         | FR-001-AC-3 | The system shall keep doing it. | CI Gate |\n\
+         | FR-001-AC-4 | The system shall still do it. | CI Gate |\n",
+    )
+    .expect("write");
+    let src = dir.join("src");
+    fs::create_dir_all(&src).expect("mkdir");
+    fs::write(src.join("lib.rs"), "//! empty\n").expect("write");
+
+    let module = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests")
+        .join("fixtures")
+        .join("traceability")
+        .join("obligations-catalog");
+    let registry = Registry::load_module(&module).expect("load module");
+    let spec = quire_rs::Spec::from_path(&scope);
+    let model = registry.traceability().cloned().expect("model");
+    let graph = quire_rs::symbols::trace::bind(&quire_rs::symbols::extract_tree(&src), &model);
+    let report = quire_rs::coverage::compute(&spec, &registry, &graph, &scope).expect("report");
+
+    let reported: Vec<_> = report
+        .diagnostics
+        .iter()
+        .filter(|d| d.reason == "uncatalogued-verification-method")
+        .collect();
+
+    // One diagnostic, not two: the same unknown method on two rows is one
+    // decision to make, and a diagnostic per row is how a report stops being
+    // read. `Test` (a declared class) and `property-based-testing` (a declared
+    // id) are both catalogued, so neither is reported.
+    assert_eq!(reported.len(), 1, "{:#?}", report.diagnostics);
+    assert!(
+        reported[0].message.contains("CI Gate"),
+        "{:#?}",
+        reported[0]
+    );
+    assert!(
+        reported[0].message.contains("2 row(s)"),
+        "{:#?}",
+        reported[0]
+    );
+    assert_eq!(reported[0].declaration, "acceptance-criterion");
+    assert_eq!(reported[0].path.as_deref(), Some("FR-001.md"));
+    assert!(report
+        .to_json()
+        .contains("uncatalogued-verification-method"));
+}
+
+// TC-875 (FR-054-AC-11): with no catalog declared, the check is silent.
+//
+// An absent catalog means the question cannot be asked, which is a different
+// answer from "yes" — and it is what keeps FR-050-AC-7 byte-identity for every
+// module that has not adopted one.
+#[test]
+fn tc875_no_catalog_asks_no_question() {
+    let dir = std::env::temp_dir().join(format!("quire-rs-uncat-none-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&dir);
+    let scope = dir.join("spec");
+    fs::create_dir_all(&scope).expect("mkdir");
+    fs::write(
+        scope.join("FR-001.md"),
+        "---\nid: FR-001\ntype: FR\ntitle: A requirement\n---\n\n\
+         ## Acceptance Criteria\n\n\
+         | ID | Criteria | Verification | Priority |\n|----|----------|--------------|----------|\n\
+         | FR-001-AC-1 | The system shall do it. | CI Gate | P1 |\n",
+    )
+    .expect("write");
+    let src = dir.join("src");
+    fs::create_dir_all(&src).expect("mkdir");
+    fs::write(src.join("lib.rs"), "//! empty\n").expect("write");
+
+    let module = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests")
+        .join("fixtures")
+        .join("traceability")
+        .join("obligations");
+    let registry = Registry::load_module(&module).expect("load module");
+    let spec = quire_rs::Spec::from_path(&scope);
+    let model = registry.traceability().cloned().expect("model");
+    let graph = quire_rs::symbols::trace::bind(&quire_rs::symbols::extract_tree(&src), &model);
+    let report = quire_rs::coverage::compute(&spec, &registry, &graph, &scope).expect("report");
+
+    assert!(
+        !report
+            .diagnostics
+            .iter()
+            .any(|d| d.reason == "uncatalogued-verification-method"),
+        "a module declaring no catalog cannot be told its method is uncatalogued: {:#?}",
+        report.diagnostics,
+    );
+}
