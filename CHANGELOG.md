@@ -5,6 +5,23 @@ All notable changes to `quire-rs` are documented here. Format follows
 numbers follow semver — pre-1.0, breaking changes may land in minor
 bumps; once 1.0 ships, semver is strict.
 
+## [Unreleased]
+
+### Fixed
+
+- **The v0.29.0 tree failed two of its own gates** (agent-ix/quire-rs#150), found
+  by the post-merge review of the ADR-0011 P1 wave. `TC-853` was **flaky**:
+  `tests/verification_catalog.rs`'s `merged()` built its fixture in a temp
+  directory keyed on the process id, and tests in one binary share a pid and run
+  on parallel threads — so one test's `remove_dir_all` could race another's
+  `load_from`, which is how the merge was observed to yield two methods instead
+  of three. Each call now takes a per-test suffix, matching the `tmpdir(suffix)`
+  convention the rest of the suite already uses. `cargo fmt --check` also
+  reported drift in eight files across #144–#148, including a visibly
+  mis-indented struct literal in `src/loader/mod.rs`; the tree is formatted.
+  Verified: `make ci` green, `TC-853` 20/20 in isolation and 5/5 full parallel
+  suite runs.
+
 ## [0.29.0] — 2026-08-17
 
 The engine half of the ADR-0011 verification program (agent-ix/quire-rs#81, P1),

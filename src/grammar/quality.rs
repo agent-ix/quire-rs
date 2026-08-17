@@ -283,11 +283,16 @@ fn agentless_passive(statement: &str) -> Option<String> {
 /// statement on its own is a legitimate recommendation.
 fn mixed_modal(statement: &str) -> Option<(&'static str, &'static str)> {
     let lower = statement.to_lowercase();
-    let present: Vec<&'static str> = [("shall", re_shall_w()), ("should", re_should()), ("may", re_may()), ("must", re_must())]
-        .into_iter()
-        .filter(|(_, re)| re.is_match(&lower))
-        .map(|(name, _)| name)
-        .collect();
+    let present: Vec<&'static str> = [
+        ("shall", re_shall_w()),
+        ("should", re_should()),
+        ("may", re_may()),
+        ("must", re_must()),
+    ]
+    .into_iter()
+    .filter(|(_, re)| re.is_match(&lower))
+    .map(|(name, _)| name)
+    .collect();
     (present.len() >= 2).then(|| (present[0], present[1]))
 }
 
@@ -345,9 +350,7 @@ fn table_statements(section: &QuireSection, line_offset: usize, column: &str) ->
 
 fn re_passive() -> &'static Regex {
     static R: OnceLock<Regex> = OnceLock::new();
-    R.get_or_init(|| {
-        Regex::new(r"\bshall\s+be\s+([a-z]+(?:ed|en))\b").expect("passive regex")
-    })
+    R.get_or_init(|| Regex::new(r"\bshall\s+be\s+([a-z]+(?:ed|en))\b").expect("passive regex"))
 }
 
 fn re_by_agent() -> &'static Regex {
@@ -382,8 +385,14 @@ mod tests {
     #[test]
     fn builtin_lexicon_matches_whole_words_and_inflections() {
         let lex = AmbiguityTerms::builtin();
-        assert_eq!(lex.first_match("the system shall minimize latency"), Some("minimize"));
-        assert_eq!(lex.first_match("the system minimizes latency"), Some("minimize"));
+        assert_eq!(
+            lex.first_match("the system shall minimize latency"),
+            Some("minimize")
+        );
+        assert_eq!(
+            lex.first_match("the system minimizes latency"),
+            Some("minimize")
+        );
         // Not a substring hit: `optimizer` is a noun, not the unbounded verb.
         assert_eq!(lex.first_match("the optimizerbank shall run"), None);
     }
@@ -417,12 +426,18 @@ mod tests {
             agentless_passive("the input shall be validated by the parser"),
             None,
         );
-        assert_eq!(agentless_passive("the parser shall validate the input"), None);
+        assert_eq!(
+            agentless_passive("the parser shall validate the input"),
+            None
+        );
     }
 
     #[test]
     fn mixed_modal_reports_the_pair() {
-        assert_eq!(mixed_modal("the system shall retry and should log"), Some(("shall", "should")));
+        assert_eq!(
+            mixed_modal("the system shall retry and should log"),
+            Some(("shall", "should"))
+        );
         // One modal is not a defect: a `should` on its own is a recommendation.
         assert_eq!(mixed_modal("the system should log"), None);
         assert_eq!(mixed_modal("the system shall retry"), None);

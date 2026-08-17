@@ -18,14 +18,24 @@ fn registry(name: &str) -> Registry {
 }
 
 /// Both fixture modules under one search root, so the merge runs for real.
-fn merged() -> Registry {
-    let root = std::env::temp_dir().join(format!("quire-rs-catalog-{}", std::process::id()));
+///
+/// `suffix` is per **test**, not per process: tests in one binary share a pid
+/// and run on parallel threads, so a root keyed on the pid alone let one test's
+/// `remove_dir_all` race another's `load_from` — which is how TC-853 failed
+/// intermittently with two merged methods instead of three (#150).
+fn merged(suffix: &str) -> Registry {
+    let root =
+        std::env::temp_dir().join(format!("quire-rs-catalog-{}-{suffix}", std::process::id()));
     let _ = fs::remove_dir_all(&root);
     fs::create_dir_all(&root).expect("mkdir");
     for name in ["one", "two"] {
         let dst = root.join(name);
         fs::create_dir_all(&dst).expect("mkdir");
-        fs::copy(fixture(name).join("manifest.yaml"), dst.join("manifest.yaml")).expect("copy");
+        fs::copy(
+            fixture(name).join("manifest.yaml"),
+            dst.join("manifest.yaml"),
+        )
+        .expect("copy");
     }
     Registry::load_from(&[root.as_path()]).expect("load merged")
 }
@@ -63,15 +73,23 @@ fn tc844_catalog_entries_are_exposed_intact() {
 // TC-845 (FR-054-AC-2): a colliding id merges first-wins and is reported.
 #[test]
 fn tc845_duplicate_method_is_first_wins_and_reported() {
-    let registry = merged();
+    let registry = merged("845");
     let catalog = registry.verification_catalog().expect("catalog declared");
 
     // Three ids: two from `one`, one from `two`. The collision did not add one.
-    assert_eq!(catalog.len(), 3, "{:#?}", catalog.keys().collect::<Vec<_>>());
+    assert_eq!(
+        catalog.len(),
+        3,
+        "{:#?}",
+        catalog.keys().collect::<Vec<_>>()
+    );
     // First-wins: `catalog-one` loads first (lexicographic search-root order),
     // so its body survives and `catalog-two`'s is skipped.
     assert_eq!(catalog["property-based-testing"].class, "Test");
-    assert_eq!(catalog["property-based-testing"].name, "Property-based testing");
+    assert_eq!(
+        catalog["property-based-testing"].name,
+        "Property-based testing"
+    );
     assert!(catalog.contains_key("fault-injection"));
 
     let reported: Vec<String> = registry
@@ -81,7 +99,10 @@ fn tc845_duplicate_method_is_first_wins_and_reported() {
         .filter(|d| d.starts_with("DuplicateVerificationMethod"))
         .collect();
     assert_eq!(reported.len(), 1, "{reported:#?}");
-    assert!(reported[0].contains("property-based-testing"), "{reported:#?}");
+    assert!(
+        reported[0].contains("property-based-testing"),
+        "{reported:#?}"
+    );
     assert!(reported[0].contains("catalog-one"), "{reported:#?}");
     assert!(reported[0].contains("catalog-two"), "{reported:#?}");
 }
@@ -99,11 +120,7 @@ fn tc846_no_catalog_is_undeclared_not_empty() {
 #[test]
 fn tc847_unknown_key_fails_load() {
     let outcome = quire_rs::loader::load_single_module(&fixture("bad-key"));
-    let reasons: Vec<&str> = outcome
-        .failures
-        .iter()
-        .map(|f| f.reason.as_str())
-        .collect();
+    let reasons: Vec<&str> = outcome.failures.iter().map(|f| f.reason.as_str()).collect();
     assert!(
         reasons.iter().any(|r| r.contains("evidence_knid")),
         "the typo must be named, not discarded: {reasons:#?}",
@@ -115,11 +132,7 @@ fn tc847_unknown_key_fails_load() {
 #[test]
 fn tc848_empty_required_field_fails_load() {
     let outcome = quire_rs::loader::load_single_module(&fixture("empty-field"));
-    let reasons: Vec<&str> = outcome
-        .failures
-        .iter()
-        .map(|f| f.reason.as_str())
-        .collect();
+    let reasons: Vec<&str> = outcome.failures.iter().map(|f| f.reason.as_str()).collect();
     assert!(
         reasons
             .iter()
@@ -132,7 +145,7 @@ fn tc848_empty_required_field_fails_load() {
 // TC-849 (FR-054-AC-6): the two derived vocabularies come from the catalog.
 #[test]
 fn tc849_derived_vocabularies_come_from_the_catalog() {
-    let registry = merged();
+    let registry = merged("849");
     assert_eq!(
         registry.column_vocabulary("verification_method"),
         [
@@ -178,7 +191,9 @@ fn tc851_applicability_is_opaque() {
 
     let arch = &catalog["architecture-conformance"];
     assert_eq!(
-        arch.applicability.get("forbidden_dependency_edges").unwrap(),
+        arch.applicability
+            .get("forbidden_dependency_edges")
+            .unwrap(),
         &vec!["*".to_string()],
         "an unknown rule name must survive verbatim",
     );
@@ -198,7 +213,7 @@ fn tc852_catalog_changes_no_finding() {
                | FR-001-AC-1 | The system shall support pagination. | Test |\n";
 
     let without = registry("none");
-    let with = merged();
+    let with = merged("852");
 
     // Both registries declare an `FR` archetype; only `catalog-none` gives it a
     // grammar_ref, so that registry is the one with findings to move. The
@@ -238,6 +253,6 @@ fn tc853_derived_vocabularies_need_no_separate_declaration() {
     );
     // And they move when the catalog moves: merging in a second module adds
     // exactly the id that module contributed.
-    let merged = merged();
+    let merged = merged("853");
     assert_eq!(merged.column_vocabulary("verification_method").len(), 3);
 }
