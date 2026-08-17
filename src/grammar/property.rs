@@ -302,6 +302,15 @@ pub struct AcClassification {
     /// `Unclassified` is the explicit outcome instead, and this trail is what
     /// makes every record re-derivable from its own output.
     pub signals: Vec<&'static str>,
+    /// The obligation this criterion states (FR-053), when its module declares
+    /// an obligation source over this archetype. `None` for a module declaring
+    /// none — classification is field-for-field unchanged either way, so a
+    /// corpus that has not adopted obligations serializes exactly as before.
+    ///
+    /// `AcClassification` is not `Serialize`; the JSON shape is built by hand
+    /// in `quire-cli`'s `record_json`, deliberately, so that adding a field
+    /// here is a decision about what consumers see rather than a side effect.
+    pub obligation: Option<crate::obligation::CriterionObligation>,
 }
 
 /// The outcome of classifying one statement — everything
@@ -427,6 +436,12 @@ pub fn classify_document(
                 precondition,
                 oracle,
                 signals: classified.signals,
+                // FR-053: filled by the caller that holds the traceability
+                // model. This function classifies statements and has no model,
+                // deliberately — CON-4's "extractable never depends on module
+                // data" is easier to keep true when the module data is not in
+                // scope here at all.
+                obligation: None,
             }
         })
         .collect()

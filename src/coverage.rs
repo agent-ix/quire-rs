@@ -24,6 +24,7 @@ use serde::{Deserialize, Serialize};
 use crate::corpus::declared_tables;
 use crate::corpus::spec::Spec;
 use crate::grammar::{AcPropertyCounts, GrammarVocabularies};
+use crate::obligation::Obligation;
 use crate::registry::Registry;
 use crate::symbols::trace::SymbolGraph;
 use crate::traceability::{StatusClass, TraceabilityModel};
@@ -178,6 +179,12 @@ pub struct CoverageReport {
     /// something, which keeps FR-050-AC-7 byte-identity.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub diagnostics: Vec<CoverageDiagnostic>,
+    /// Derived obligation records (FR-053), ordered by source then document
+    /// then row. Empty — and so absent from the JSON — for a model declaring no
+    /// `obligations:` sources, which keeps FR-050-AC-7 byte-identity for every
+    /// module that has not adopted them.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub obligations: Vec<Obligation>,
     pub totals: CoverageTotals,
 }
 
@@ -584,6 +591,10 @@ fn reconcile(
         // reconciliation deliberately does not take.
         criteria: Vec::new(),
         diagnostics,
+        // FR-053: derived here rather than in `compute` because obligations
+        // read the same declared tables this reconciliation already walks, and
+        // need no `Registry`.
+        obligations: crate::obligation::derive(spec, root, model).0,
         totals,
     }
 }

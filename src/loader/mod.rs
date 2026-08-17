@@ -917,6 +917,14 @@ fn merge_traceability(modules: &[LoadedModule]) -> crate::traceability::Traceabi
                 merged.document_references.push(reference.clone());
             }
         }
+        // FR-053: obligation sources merge first-wins by name, like every
+        // other named entry — a source one module declares must not be
+        // redefined by another that happened to load later.
+        for source in &m.obligations {
+            if !merged.obligations.iter().any(|s| s.name == source.name) {
+                merged.obligations.push(source.clone());
+            }
+        }
         for marker in &m.trace_tags.markers {
             if !merged
                 .trace_tags

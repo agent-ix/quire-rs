@@ -1,0 +1,23 @@
+# FR-053 fixture (TC-833): an obligation source declaring BOTH `target` and
+# `archetype`. A source inherits from a trace target or names its own archetype,
+# never both — this must fail module load rather than silently pick one.
+name: traceability-obligations-both
+version: 0.1.0
+description: Invalid obligation source, both origins declared (FR-053 fixture)
+artifact_types:
+- name: FR
+  defaults:
+    id_pattern: FR-{next:03d}
+traceability:
+  trace_targets:
+  - name: acceptance-criterion
+    archetype: FR
+    section: Acceptance Criteria
+    id_column: ID
+  obligations:
+  - name: ambiguous
+    target: acceptance-criterion
+    archetype: FR
+    section: Acceptance Criteria
+    id_format: "{document}-M-{row}"
+    statement_column: Criteria

@@ -1,0 +1,19 @@
+# FR-053 fixture (TC-833): an obligation source declaring NEITHER `target` nor
+# `archetype`, so nothing says which documents state it. Load-time error: the
+# alternative is a source that silently yields nothing, reported nowhere.
+name: traceability-obligations-neither
+version: 0.1.0
+description: Invalid obligation source, no origin declared (FR-053 fixture)
+artifact_types:
+- name: FR
+  defaults:
+    id_pattern: FR-{next:03d}
+traceability:
+  trace_targets:
+  - name: acceptance-criterion
+    archetype: FR
+    section: Acceptance Criteria
+    id_column: ID
+  obligations:
+  - name: originless
+    statement_column: Criteria

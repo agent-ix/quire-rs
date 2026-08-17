@@ -15,7 +15,7 @@
 //! and a malformed section fails module load like any other manifest shape
 //! error.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 
@@ -81,6 +81,74 @@ pub struct TraceabilityModel {
     /// source: a contract and its coverage computation cannot drift.
     #[serde(default)]
     pub vocabularies: ColumnVocabularies,
+    /// Which rows state **obligations** — the quire↔quoin contract (FR-053).
+    /// Empty means the module declares none, and every obligation surface is
+    /// then empty rather than absent.
+    #[serde(default)]
+    pub obligations: Vec<ObligationSource>,
+}
+
+/// One kind of row that states an obligation (FR-053).
+///
+/// The engine knows the *shape* — id, statement, method, parameters,
+/// criticality — and never a column name, a method name or an archetype. A
+/// module says which of its rows are obligations and which cell carries what.
+///
+/// Minting documents resolve in exactly one of two ways, and declaring both or
+/// neither is a load-time error:
+///
+/// * [`target`](Self::target) names a declared [`TraceTarget`], reusing its
+///   archetype, section and id column. An acceptance criterion is then not
+///   declared twice, and the obligation id is by construction the id the
+///   rollup and every trace tag already key on.
+/// * [`archetype`](Self::archetype) + [`section`](Self::section) +
+///   [`id_format`](Self::id_format) covers a table whose rows mint no id of
+///   their own — the NFR `Measurement and Evaluation` table, where every row is
+///   a quantified obligation and none has an `ID` column.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ObligationSource {
+    /// Source name, used in report entries and diagnostics.
+    pub name: String,
+    /// Names a declared [`TraceTarget`] to inherit archetype/section/id from.
+    /// Mutually exclusive with `archetype`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub target: Option<String>,
+    /// Archetype whose documents carry these rows. Mutually exclusive with
+    /// `target`; requires `section` and `id_format`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub archetype: Option<String>,
+    /// Heading of the section carrying the table. Required with `archetype`,
+    /// ignored with `target` (which supplies its own).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub section: Option<String>,
+    /// Template rendering an id for a row that has none: `{document}` is the
+    /// owning document's id, `{row}` the 1-based row ordinal. Required with
+    /// `archetype`, ignored with `target`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub id_format: Option<String>,
+    /// Scope-relative globs whose matching documents state no obligations.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub exclude: Vec<String>,
+    /// Column carrying the normative statement — the text that is hashed.
+    pub statement_column: String,
+    /// Column carrying the declared verification method. A trailing
+    /// parenthetical annotation is dropped, so a `Verification` cell reading
+    /// `Test (TC-707)` yields `Test` while FR-049 still reads `TC-707` from
+    /// the same cell.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub method_column: Option<String>,
+    /// Column carrying criticality. Genuinely optional: the ISO acceptance
+    /// criteria contract is `ID | Criteria | Verification` and carries no
+    /// priority column, so declaring one is a module's choice rather than a
+    /// precondition for obligations to exist.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub criticality_column: Option<String>,
+    /// Result key → source column. Carries a metric's target and threshold,
+    /// a t-way strength, a mutation-score floor — whatever the method needs,
+    /// travelling with the obligation instead of being re-parsed downstream.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub parameters: BTreeMap<String, String>,
 }
 
 /// Declared vocabularies for matrix columns (CR-015).
@@ -327,6 +395,10 @@ impl TraceabilityModel {
             && self.trace_tags.markers.is_empty()
             && self.trace_tags.legacy.is_empty()
             && self.vocabularies.test_type.is_empty()
+            // FR-053: obligations mint records, so a model declaring only them
+            // has declared something. (Unlike the model-level `exclude`, which
+            // states what is *not* corpus data and reconciles nothing — CR-060.)
+            && self.obligations.is_empty()
     }
 
     /// Look up a declared target by name.
@@ -414,6 +486,102 @@ impl TraceabilityModel {
                         reference.name
                     ));
                 }
+            }
+        }
+
+        // FR-053: an obligation source resolves its minting documents exactly
+        // one way. Both or neither is a declaration that cannot be executed,
+        // and failing at load is the only place it can be reported against the
+        // declaration rather than against a mysteriously empty report.
+        let mut obligation_names: BTreeSet<&str> = BTreeSet::new();
+        for source in &self.obligations {
+            check_named("obligations", &source.name)?;
+            if !obligation_names.insert(source.name.as_str()) {
+                return Err(format!(
+                    "traceability: duplicate obligations entry '{}'",
+                    source.name
+                ));
+            }
+            match (&source.target, &source.archetype) {
+                (Some(_), Some(_)) => {
+                    return Err(format!(
+                        "traceability: obligations entry '{}' declares both 'target' and \
+                         'archetype'; a source inherits from a trace target or names its own \
+                         archetype, never both",
+                        source.name
+                    ))
+                }
+                (None, None) => {
+                    return Err(format!(
+                        "traceability: obligations entry '{}' declares neither 'target' nor \
+                         'archetype', so nothing says which documents state it",
+                        source.name
+                    ))
+                }
+                (Some(target), None) => {
+                    if !target_names.contains(target.as_str()) {
+                        return Err(format!(
+                            "traceability: obligations entry '{}' references undeclared target \
+                             '{target}'",
+                            source.name
+                        ));
+                    }
+                }
+                (None, Some(archetype)) => {
+                    check_field("obligations", &source.name, "archetype", archetype)?;
+                    let Some(section) = &source.section else {
+                        return Err(format!(
+                            "traceability: obligations entry '{}' declares 'archetype' without \
+                             'section'",
+                            source.name
+                        ));
+                    };
+                    check_field("obligations", &source.name, "section", section)?;
+                    let Some(id_format) = &source.id_format else {
+                        return Err(format!(
+                            "traceability: obligations entry '{}' declares 'archetype' without \
+                             'id_format'; rows under an archetype-bound section mint no id of \
+                             their own",
+                            source.name
+                        ));
+                    };
+                    // A template naming neither placeholder renders one id for
+                    // every row, so every obligation after the first would
+                    // silently overwrite the one before.
+                    if !id_format.contains("{document}") && !id_format.contains("{row}") {
+                        return Err(format!(
+                            "traceability: obligations entry '{}' has an id_format naming \
+                             neither {{document}} nor {{row}}, so every row would render the \
+                             same id",
+                            source.name
+                        ));
+                    }
+                }
+            }
+            check_excludes(
+                &format!("obligations entry '{}'", source.name),
+                &source.exclude,
+            )?;
+            check_field(
+                "obligations",
+                &source.name,
+                "statement_column",
+                &source.statement_column,
+            )?;
+            for (key, column) in &source.parameters {
+                if key.trim().is_empty() {
+                    return Err(format!(
+                        "traceability: obligations entry '{}' declares a parameter with an \
+                         empty key",
+                        source.name
+                    ));
+                }
+                check_field(
+                    "obligations",
+                    &source.name,
+                    &format!("parameters.{key}"),
+                    column,
+                )?;
             }
         }
 
