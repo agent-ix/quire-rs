@@ -57,6 +57,14 @@ struct Inner {
     /// Merged property-idiom registry (FR-052) + its matcher.
     property_idioms: std::collections::BTreeMap<String, crate::vocab::PropertyIdiomDef>,
     property_idioms_matcher: crate::grammar::property::PropertyIdioms,
+    /// Merged verification-method catalog (FR-054).
+    verification_catalog: std::collections::BTreeMap<String, crate::vocab::VerificationMethodDef>,
+    /// Sorted catalog keys — the `verification_method` vocabulary, derived from
+    /// the catalog at construction rather than authored a second time (CON-4).
+    verification_methods: Vec<String>,
+    /// Sorted distinct `class` values — the `verification_class` vocabulary,
+    /// derived the same way.
+    verification_classes: Vec<String>,
     /// Merged declarative traceability model (FR-050).
     traceability: crate::traceability::TraceabilityModel,
     failures: Vec<ArchetypeLoadFailure>,
@@ -210,6 +218,7 @@ impl Registry {
             observable_verbs,
             vacuous_predicates,
             property_idioms,
+            verification_catalog,
             traceability,
             failures,
             diagnostics,
@@ -234,6 +243,17 @@ impl Registry {
                 .iter()
                 .map(|(phrase, def)| (phrase.as_str(), def.shape)),
         );
+        // FR-054-CON-4: both vocabularies are *derived* from the merged
+        // catalog here, never read from a separate declaration. A second
+        // authored copy is the duplication this FR exists to remove.
+        let verification_methods: Vec<String> = verification_catalog.keys().cloned().collect();
+        let verification_classes: Vec<String> = {
+            let mut set: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+            for method in verification_catalog.values() {
+                set.insert(method.class.clone());
+            }
+            set.into_iter().collect()
+        };
         Self {
             inner: Arc::new(Inner {
                 archetypes,
@@ -253,6 +273,9 @@ impl Registry {
                 vacuous_predicates_matcher,
                 property_idioms,
                 property_idioms_matcher,
+                verification_catalog,
+                verification_methods,
+                verification_classes,
                 traceability,
                 failures,
                 diagnostics,
@@ -431,12 +454,29 @@ impl Registry {
         (!self.inner.traceability.is_empty()).then_some(&self.inner.traceability)
     }
 
-    /// The declared vocabulary for a matrix column (CR-015), e.g. `test_type`.
+    /// The merged verification-method catalog (FR-054), or `None` when no
+    /// active module declares one — consumers report the catalog as
+    /// **undeclared** rather than as containing no methods, exactly as
+    /// [`traceability`](Registry::traceability) does for its model.
+    pub fn verification_catalog(
+        &self,
+    ) -> Option<&std::collections::BTreeMap<String, crate::vocab::VerificationMethodDef>> {
+        (!self.inner.verification_catalog.is_empty()).then_some(&self.inner.verification_catalog)
+    }
+
+    /// The declared vocabulary for a named column (CR-015, widened by FR-054).
     /// Empty when no active module declares one — the caller reports the
     /// vocabulary as undeclared rather than inventing a default.
+    ///
+    /// `verification_method` and `verification_class` are **derived from the
+    /// merged catalog**, so they cannot drift from it: they *are* it. That is
+    /// what makes the catalog a single source rather than a fourth copy of the
+    /// same vocabulary (FR-054-CON-4).
     pub fn column_vocabulary(&self, column: &str) -> &[String] {
         match column {
             "test_type" => self.inner.traceability.vocabularies.test_type.as_slice(),
+            "verification_method" => self.inner.verification_methods.as_slice(),
+            "verification_class" => self.inner.verification_classes.as_slice(),
             _ => &[],
         }
     }

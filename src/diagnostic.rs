@@ -106,6 +106,13 @@ pub enum Diagnostic {
         name: String,
         modules: Vec<String>,
     },
+    /// A `verification_catalog` method id is declared with differing bodies by
+    /// more than one module (FR-054-AC-2). First-wins; non-fatal, mirrors
+    /// `DuplicateLexiconTerm`.
+    DuplicateVerificationMethod {
+        name: String,
+        modules: Vec<String>,
+    },
     /// Two distinct forward `edge_types` verbs declare the **same**
     /// `inverse:` label (FR-041-AC-3). First-wins (the lexicographically
     /// first forward verb owns the label); advisory, mirrors
@@ -281,6 +288,11 @@ impl std::fmt::Display for Diagnostic {
                 "DuplicateGrammarSeverity: '{}' contributed by modules {:?}; first-wins",
                 name, modules
             ),
+            Self::DuplicateVerificationMethod { name, modules } => write!(
+                f,
+                "DuplicateVerificationMethod: '{}' contributed by modules {:?}; first-wins",
+                name, modules
+            ),
             Self::DuplicateInverseEdge { name, forwards } => write!(
                 f,
                 "DuplicateInverseEdge: inverse label '{}' declared by verbs {:?}; first-wins",
@@ -424,6 +436,11 @@ impl Diagnostic {
             }),
             Self::DuplicateGrammarSeverity { name, modules } => json!({
                 "kind": "DuplicateGrammarSeverity",
+                "name": name,
+                "modules": modules,
+            }),
+            Self::DuplicateVerificationMethod { name, modules } => json!({
+                "kind": "DuplicateVerificationMethod",
                 "name": name,
                 "modules": modules,
             }),

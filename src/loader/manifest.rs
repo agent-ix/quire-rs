@@ -106,6 +106,13 @@ pub struct Manifest {
     /// load fails like any other manifest shape error.
     #[serde(default)]
     pub traceability: crate::traceability::TraceabilityModel,
+    /// Mergeable verification-method catalog (FR-054): method id →
+    /// {name, class, definition, evidence kind, applicability, tooling}.
+    /// Merged across modules first-wins. The engine knows the entry *shape* and
+    /// never the meaning of any value in it, so an external user's catalog
+    /// drives their advice exactly as this ecosystem's drives ours.
+    #[serde(default)]
+    pub verification_catalog: BTreeMap<String, crate::vocab::VerificationMethodDef>,
 }
 
 impl Manifest {
@@ -211,6 +218,15 @@ pub fn parse_manifest(bytes: &[u8]) -> Result<Manifest, String> {
     check_grammar_severity_keys(&manifest)?;
     // FR-050-AC-2: an incoherent `traceability:` declaration is a shape error.
     manifest.traceability.validate()?;
+    // FR-054-AC-5: a catalog entry that cannot say what it is advises nothing,
+    // and would otherwise sit in the merged registry looking like data.
+    for (id, method) in &manifest.verification_catalog {
+        if let Some(field) = method.empty_field() {
+            return Err(format!(
+                "verification_catalog entry '{id}' has an empty `{field}`"
+            ));
+        }
+    }
     Ok(manifest)
 }
 

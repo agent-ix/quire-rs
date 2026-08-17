@@ -1,0 +1,20 @@
+# FR-054 fixture: a module declaring no catalog at all. `verification_catalog()`
+# must yield None rather than an empty map, so a consumer reports the catalog as
+# UNDECLARED rather than as containing no methods — the FR-050-AC-2 distinction,
+# applied to this registry.
+name: catalog-none
+version: 0.1.0
+description: No verification catalog declared (FR-054 fixture)
+artifact_types:
+- name: FR
+  grammar_ref: iso-spec-core
+  defaults:
+    id_pattern: FR-{next:03d}
+traceability:
+  trace_targets:
+  - name: acceptance-criterion
+    archetype: FR
+    section: Acceptance Criteria
+    id_column: ID
+  vocabularies:
+    test_type: [Unit, Integration, Property]

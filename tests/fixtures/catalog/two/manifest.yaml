@@ -1,0 +1,24 @@
+# FR-054 fixture: a second module redeclaring one id with a DIFFERENT body,
+# and contributing one of its own. First-wins, and the collision is reported —
+# two modules disagreeing about what a method means is not something to absorb
+# in silence.
+name: catalog-two
+version: 0.1.0
+description: Second verification-method catalog, one colliding id (FR-054)
+artifact_types:
+- name: NFR
+  defaults:
+    id_pattern: NFR-{next:03d}
+verification_catalog:
+  property-based-testing:
+    name: Property testing
+    class: Demonstration
+    definition: A deliberately different body for the same id.
+  fault-injection:
+    name: Fault injection
+    class: Test
+    definition: >-
+      Induce a failure the system claims to tolerate and observe that it does.
+    evidence_kind: test-run
+    applicability:
+      characteristics: [reliability]
