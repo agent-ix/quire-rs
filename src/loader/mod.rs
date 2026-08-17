@@ -56,6 +56,8 @@ pub struct LoadedModule {
     pub vacuous_predicates: BTreeMap<String, crate::vocab::VacuousPredicateDef>,
     /// Property-idiom registry contributed by this module (FR-052).
     pub property_idioms: BTreeMap<String, crate::vocab::PropertyIdiomDef>,
+    /// Verification-method catalog contributed by this module (FR-054).
+    pub verification_catalog: BTreeMap<String, crate::vocab::VerificationMethodDef>,
     /// Traceability model contributed by this module (FR-050).
     pub traceability: crate::traceability::TraceabilityModel,
 }
@@ -368,6 +370,7 @@ pub fn load_inline_module(manifest_yaml: &[u8], schemas: &BTreeMap<String, Strin
         observable_verbs: manifest.observable_verbs.clone(),
         vacuous_predicates: manifest.vacuous_predicates.clone(),
         property_idioms: manifest.property_idioms.clone(),
+        verification_catalog: manifest.verification_catalog.clone(),
         traceability: manifest.traceability.clone(),
     });
 
@@ -522,6 +525,7 @@ fn load_one_module(
             observable_verbs: manifest.observable_verbs.clone(),
             vacuous_predicates: manifest.vacuous_predicates.clone(),
             property_idioms: manifest.property_idioms.clone(),
+        verification_catalog: manifest.verification_catalog.clone(),
             traceability: manifest.traceability.clone(),
         },
         failures,
@@ -742,6 +746,17 @@ pub fn flatten_into_registry(mut outcome: LoadOutcome) -> RegistryShape {
     // FR-052: same first-wins merge for the property-idiom vocabulary. It is
     // read only by the classifier, which emits no finding.
     let (property_idioms, _) = merge_vocab(&outcome.modules, |m| &m.property_idioms);
+    // FR-054: same first-wins merge for the verification-method catalog. Unlike
+    // the vocabularies above, a re-declared id IS reported — a catalog is a
+    // registry of distinct methods, and two modules disagreeing about what
+    // `mutation-testing` means is the kind of collision an operator must see.
+    let (verification_catalog, mut catalog_dups) =
+        merge_vocab(&outcome.modules, |m| &m.verification_catalog);
+    for (name, modules) in catalog_dups.drain(..) {
+        outcome
+            .diagnostics
+            .push(Diagnostic::DuplicateVerificationMethod { name, modules });
+    }
 
     // FR-050: merge the declarative traceability model across modules. Targets,
     // references, and tag forms accumulate first-wins by name; the singular
@@ -840,6 +855,7 @@ pub fn flatten_into_registry(mut outcome: LoadOutcome) -> RegistryShape {
         observable_verbs,
         vacuous_predicates,
         property_idioms,
+        verification_catalog,
         traceability,
         failures: outcome.failures,
         diagnostics: outcome.diagnostics,
@@ -1080,6 +1096,7 @@ pub struct RegistryShape {
     /// Merged property-idiom registry, first-wins across modules (FR-052).
     /// Layered over the engine's built-in idioms.
     pub property_idioms: BTreeMap<String, crate::vocab::PropertyIdiomDef>,
+    pub verification_catalog: BTreeMap<String, crate::vocab::VerificationMethodDef>,
     /// Merged traceability model, first-wins across modules (FR-050).
     pub traceability: crate::traceability::TraceabilityModel,
     pub failures: Vec<ArchetypeLoadFailure>,

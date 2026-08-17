@@ -1,0 +1,15 @@
+# FR-054 fixture (TC-848): an entry whose `definition` is whitespace-only. A
+# catalog entry that cannot say what it is advises nothing, and would otherwise
+# sit in the merged registry looking like data.
+name: catalog-empty-field
+version: 0.1.0
+description: Catalog entry with an empty definition (FR-054 fixture)
+artifact_types:
+- name: FR
+  defaults:
+    id_pattern: FR-{next:03d}
+verification_catalog:
+  smoke-testing:
+    name: Smoke testing
+    class: Test
+    definition: "   "

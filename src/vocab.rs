@@ -130,6 +130,58 @@ pub struct PropertyIdiomDef {
     pub category: Option<String>,
 }
 
+/// One `verification_catalog` registry entry (FR-054). A module-declared
+/// **method by which a requirement can be verified**, keyed by method id.
+///
+/// `class` is a **free string**, not a closed IADT enum, and that is the point:
+/// this ecosystem classifies by ISO 29148's `Inspection | Analysis |
+/// Demonstration | Test`, and an external user classifying by 29119-4 technique
+/// family or by assurance level must be able to. An engine-side enum would make
+/// the catalog agent-ix's rather than theirs (CON-1).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct VerificationMethodDef {
+    /// Human-readable method name.
+    pub name: String,
+    /// Classification axis — IADT here, whatever the declaring module uses
+    /// elsewhere. Never interpreted by the engine.
+    pub class: String,
+    /// What the method does, in the declaring module's words.
+    pub definition: String,
+    /// The kind of artifact discharging this method produces (a test run, a
+    /// coverage report, a signed inspection). Consumed by the evidence store;
+    /// opaque here.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub evidence_kind: Option<String>,
+    /// Rule name → values that trigger advising this method. **Stored and
+    /// surfaced, never interpreted** (CON-2): deciding which requirement a rule
+    /// matches is the advisor's judgement, and an engine that understood
+    /// `property_shapes` would owe an understanding of every axis a future
+    /// module invents.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub applicability: BTreeMap<String, Vec<String>>,
+    /// Example tooling, as documentation. The engine names no tool.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub tooling: Vec<String>,
+}
+
+impl VerificationMethodDef {
+    /// Reject an entry that cannot say what it is. Returns the offending field
+    /// name; a catalog entry with an empty name, class or definition advises
+    /// nothing and would sit in the registry looking like data.
+    pub fn empty_field(&self) -> Option<&'static str> {
+        if self.name.trim().is_empty() {
+            Some("name")
+        } else if self.class.trim().is_empty() {
+            Some("class")
+        } else if self.definition.trim().is_empty() {
+            Some("definition")
+        } else {
+            None
+        }
+    }
+}
+
 /// Normalize a raw `allowed_links` value (array **or** map) into the
 /// canonical [`AllowedLinks`] map (FR-040-AC-4).
 ///
