@@ -5,6 +5,99 @@ All notable changes to `quire-rs` are documented here. Format follows
 numbers follow semver — pre-1.0, breaking changes may land in minor
 bumps; once 1.0 ships, semver is strict.
 
+## [0.29.0] — 2026-08-17
+
+The engine half of the ADR-0011 verification program (agent-ix/quire-rs#81, P1),
+released as one version because the **engine-before-module** rule means every
+key below must be released before `spec-artifacts-process` may declare it — and
+two releases would have blocked that module twice.
+
+Four new FRs, 39 new acceptance criteria, all backed. **Every addition is
+skip-when-empty**: a module that declares none of the new blocks produces a
+byte-identical `coverage --json` payload, which the CR-057 baseline gate proves
+rather than asserts.
+
+### Added
+
+- **FR-053 — the obligation record**, the quire↔quoin contract ADR 0011 names
+  and neither side had. Requirement id + normalized statement **content hash** +
+  verification method + parameters + criticality, derived from what the author
+  already wrote — choosing an acceptance criterion's `Verification` method *is*
+  minting the obligation. Which rows state obligations is module data
+  (`traceability.obligations:`), so the engine knows the shape and never a
+  column name, a method name or an archetype. Two source forms: `target:`
+  inherits from a declared trace target, so an AC is not declared twice and the
+  obligation id is by construction the id the rollup already keys on; and
+  `archetype:` + `section:` + `id_format:` covers rows minting no id of their
+  own — the NFR `Measurement and Evaluation` table, present in **19 of 19** of
+  this repo's NFRs, where every row is a quantified obligation and none has an
+  `ID` column. Declaring both origins or neither fails at parse.
+
+  **The hash deliberately does not reuse the CR-017 mask**, which the ticket
+  proposed. `mask_code_spans` replaces a code span's *contents* with `x` so a
+  quoted keyword reads as a mention — right for grammar detection, wrong for a
+  hash: ``reject a `foo` token`` and ``reject a `bar` token`` mask identically,
+  and a suspect-link detector built on that stays silent through the exact
+  rename it exists to catch. Normalization is NFC + trim + whitespace collapse.
+  TC-831..TC-843.
+
+- **FR-054 — the verification-method catalog.** `verification_catalog:` is a
+  map of method id → {name, class, definition, evidence kind, applicability,
+  tooling}, merged first-wins. Unlike the other vocabularies a re-declared id
+  **is** reported (`DuplicateVerificationMethod`): two modules disagreeing about
+  what `mutation-testing` means is a collision an operator must see. `class` is
+  a **free string**, not a closed IADT enum, and `applicability:` is **opaque** —
+  stored and surfaced, never interpreted — because deciding which requirement a
+  rule matches is the advisor's judgement. `Registry::column_vocabulary` becomes
+  a real named lookup answering `verification_method` and `verification_class`,
+  both **derived from the merged catalog**, which is what makes it a single
+  source rather than a fourth copy. TC-844..TC-853.
+
+- **FR-055 — the published JSON output contract.** `schemas/output/coverage-v1.schema.json`
+  and `properties-v1.schema.json`, hand-authored (`schemars` stays banned —
+  deriving them would make the contract a shadow of the implementation, changing
+  silently whenever a struct did). The version lives in the `$id` and filename,
+  never in the payload (FR-008-AC-5 stands). The conformance gate validates the
+  **CR-057 byte-golden baseline**, so one corpus carries both gates and a payload
+  change fails both unless the schema moves with it. TC-854..TC-860.
+
+- **FR-056 — the requirement-quality lint pack**, three checks under a new
+  `quality:` grammar id so FR-048 can silence or promote 29148 quality
+  independently of EARS conformance: `ambiguous-term` (closed,
+  module-extensible denylist), `agentless-passive` (`shall be <participle>` with
+  no `by <agent>`), `mixed-modal`. Advisory on arrival.
+
+  **[RAN]** the CR-014 fit check *before* shipping — `cargo run --example
+  fr056_fit_check` over `~/dev`, **239 repositories, 3,335 FR/NFR/StR
+  documents**, worktrees deduped: `agentless-passive` 678, `ambiguous-term` 145,
+  `mixed-modal` 130, and **674/3,335 = 20.2%** of documents carry at least one.
+  Dogfooded at **22.4%** on this repo's own spec. Unlike the check CR-014
+  retired, detection here is exact by construction — a closed list, a syntactic
+  shape, a token count — so the question was the rate, not the precision.
+  TC-861..TC-869.
+
+### Changed
+
+- `Registry` gains `verification_catalog()`, `ambiguity_terms()`,
+  `ambiguity_terms_matcher()`; `column_vocabulary` answers three names where it
+  matched one hardcoded string.
+- `AcClassification` gains `obligation`; `CoverageReport` gains `obligations`.
+  Both absent when empty.
+- `GrammarVocabularies` gains `ambiguous`. Constructing one by struct literal
+  needs the new field; `GrammarVocabularies::defaults()` is unchanged.
+
+### Deferred
+
+- **`from_vocabulary` on `LocatorAssert`** — the decision #133 left to Specify.
+  Resolving a vocabulary reference inside an assert must happen after the
+  cross-module merge, which means either threading a `Registry` through
+  `evaluate_assert` or rewriting compiled archetypes at registry construction.
+  Each is a real change with its own acceptance surface, against a duplication
+  currently held honest by a passing test. Filed as agent-ix/quire-rs#146 with
+  the design recorded; the *lookup* half ships here.
+
+Closes agent-ix/quire-rs#82, #133, #134, #83.
+
 ## [0.28.0] — 2026-08-17
 
 `archetype:` is the only trace-target origin. The `document:` path-binding form
