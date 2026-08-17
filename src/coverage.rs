@@ -582,6 +582,28 @@ fn reconcile(
         );
     }
 
+    // FR-053: derived here rather than in `compute` because obligations read
+    // the same declared tables this reconciliation already walks, and need no
+    // `Registry`.
+    let (obligations, skipped) = crate::obligation::derive(spec, root, model);
+
+    // FR-053-AC-8: a row whose statement cell is empty contributes no record,
+    // and the AC says it is skipped **with a diagnostic**. It was not — the
+    // second half of `derive`'s return was dropped here, so the only surface
+    // that ever named a skipped row was a unit test calling `derive` directly
+    // (CR-063). An authoring error nobody is told about is an authoring error
+    // nobody fixes.
+    diagnostics.extend(skipped.iter().map(|row| CoverageDiagnostic {
+        declaration: row.source.clone(),
+        reason: "obligation-row-states-nothing".to_string(),
+        message: format!(
+            "row {} of '{}' states no obligation: the source's statement column \
+             is empty, so the row mints no record",
+            row.row, row.document
+        ),
+        path: Some(row.document.clone()),
+    }));
+
     CoverageReport {
         unbacked_rows,
         status_lies,
@@ -592,10 +614,7 @@ fn reconcile(
         // reconciliation deliberately does not take.
         criteria: Vec::new(),
         diagnostics,
-        // FR-053: derived here rather than in `compute` because obligations
-        // read the same declared tables this reconciliation already walks, and
-        // need no `Registry`.
-        obligations: crate::obligation::derive(spec, root, model).0,
+        obligations,
         totals,
     }
 }

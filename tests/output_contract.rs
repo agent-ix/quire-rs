@@ -170,7 +170,7 @@ fn tc857_emitted_criteria_conform() {
                |----|----------|--------------|----------|\n\
                | FR-001-AC-1 | Every finding absent from the merged map defaults to warning. | Test (TC-001) | P1 |\n\
                | FR-001-AC-2 | Logging in with a magic link lands on the dashboard. | Demonstration | P3 |\n";
-    let records = quire_rs::classify_document_criteria(&registry, archetype, doc);
+    let records = quire_rs::classify_document_criteria(&registry, archetype, doc, None);
     assert!(!records.is_empty(), "the fixture must produce records");
 
     for record in &records {

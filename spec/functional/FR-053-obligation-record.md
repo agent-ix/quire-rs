@@ -140,8 +140,17 @@ Records SHALL travel on the existing interfaces, adding no command:
   hash, method and criticality are all readable from the criterion's own row,
   where a document path is not.
 - The [FR-050](./FR-050-declarative-coverage-computation.md) coverage report
-  gains an `obligations` list, ordered by id, so the rollup and the obligations
-  are one read rather than two.
+  gains an `obligations` list — ordered by source **declaration** order, then
+  document path, then row ordinal (AC-9) — so the rollup and the obligations are
+  one read rather than two. The list is skipped when empty, so a module
+  declaring no sources emits a byte-identical payload (AC-11).
+
+  > **CR-063** (2026-08-17) corrected this paragraph. It said "ordered by id",
+  > which no code ever did and which contradicts AC-9 in the same document; and
+  > AC-11 said the empty list is "present rather than absent", which contradicts
+  > its own test, the `skip_serializing_if` attribute and the published schema.
+  > Three statements of one fact, two of them wrong, is what a single source
+  > exists to prevent.
 
 Neither payload SHALL gain a version key
 ([FR-008](./FR-008-cli-boundary.md)-AC-5 stands); contract versioning lives in
@@ -209,16 +218,17 @@ with an empty statement — an obligation nothing can state is not an obligation
 | FR-053-AC-1 | A module declaring an obligation source with `target:` yields one record per row of the named trace target's table, each carrying the same id the coverage rollup mints for that row. | Test (TC-831) |
 | FR-053-AC-2 | A module declaring an obligation source with `archetype:`, `section:` and `id_format:` yields one record per row of a table whose rows carry no id column, with ids rendered from `{document}` and the 1-based `{row}`. | Test (TC-832) |
 | FR-053-AC-3 | An obligation source declaring both `target:` and `archetype:`, or neither, is rejected at manifest parse: the module contributes nothing, the load failure names the offending source, and no obligation is derived from the unexecutable declaration. | Test (TC-833) |
-| FR-053-AC-4 | Two statements differing only in leading, trailing or internal whitespace, or in Unicode normalization form, produce the same `statement_hash`; two statements differing in any word — including a word inside an inline code span — produce different hashes. | Test (TC-834) |
+| FR-053-AC-4 | Two statements differing only in leading, trailing or internal whitespace, or in Unicode normalization form, produce the same `statement_hash`; two statements differing in any word — including a word inside an inline code span — produce different hashes. | Test (TC-834, TC-871) |
 | FR-053-AC-5 | A `method_column` cell reading `Test (TC-707)` yields method `Test`, and the same cell continues to yield the reference `TC-707` to FR-049's integrity check, so the two readings of one cell do not interfere. | Test (TC-835) |
 | FR-053-AC-6 | A source declaring `parameters:` yields a record whose parameter map carries one entry per declared key that has a non-empty cell, with absent keys omitted rather than present-and-empty. | Test (TC-836) |
 | FR-053-AC-7 | A source declaring no `criticality_column` yields records whose criticality is absent, and the records are otherwise identical to those from the same source with a criticality column declared and empty. | Test (TC-837) |
-| FR-053-AC-8 | A row whose statement cell is empty is skipped with a diagnostic naming the document and the row ordinal, and contributes no record. | Test (TC-838) |
-| FR-053-AC-9 | Two runs of obligation derivation over an identical corpus serialize byte-identically, and the record order is by source declaration order, then document id, then row ordinal. | Test (TC-839) |
+| FR-053-AC-8 | A row whose statement cell is empty is skipped with a diagnostic naming the document and the row ordinal, and contributes no record. The diagnostic appears in the coverage report a consumer reads, not only in the derivation helper's return value. | Test (TC-838, TC-870) |
+| FR-053-AC-9 | Two runs of obligation derivation over an identical corpus serialize byte-identically, and the record order is by source **declaration** order (never source name), then scope-relative document path, then row ordinal. | Test (TC-839, TC-872) |
 | FR-053-AC-10 | A criterion whose module declares an obligation source over its archetype carries a populated `obligation` on its property classification record, matched to the criterion by row id; a criterion whose module declares none carries `obligation: null` and is otherwise field-for-field unchanged. | Test (TC-840) |
 | FR-053-AC-13 | The obligation nested on a classification record carries no `id`, `statement` or `document` key, because the record and its enclosing object already carry all three. | Test (TC-843) |
-| FR-053-AC-11 | A coverage report over a corpus with declared obligation sources carries one `obligations` entry per minting row, and a corpus with no declared sources carries an empty list rather than an absent key, so FR-050-AC-7 byte-identity holds. | Test (TC-841) |
+| FR-053-AC-11 | A coverage report over a corpus with declared obligation sources carries one `obligations` entry per minting row, and a corpus with no declared sources carries an **absent** `obligations` key — the empty list serializes away — so FR-050-AC-7 byte-identity holds for every module that has not adopted them. | Test (TC-841) |
 | FR-053-AC-12 | The statement hash of a criterion is unchanged when that criterion moves to a different file, changes line number, or has its id renumbered, and changes when a single word of the statement changes. | Test (TC-842) |
+| FR-053-AC-14 | An `exclude:` glob on an obligation source removes the matching document's rows from **both** obligation surfaces — the coverage rollup and the `obligation` nested on a property classification record — so the two never disagree about whether a row states an obligation. Content with no path (stdin) matches no glob. | Test (TC-873) |
 
 ## Dependencies
 

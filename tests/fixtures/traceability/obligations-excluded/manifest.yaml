@@ -1,0 +1,28 @@
+# FR-053-AC-14 fixture: an obligation source that excludes a subtree.
+#
+# `exclude:` scopes what states an obligation, and BOTH surfaces must honour it
+# — `coverage --json` (which walks the corpus) and `properties --json` (which is
+# handed one document at a time). A criterion that mints nothing in the rollup
+# and still carries a nested `obligation` on its classification record is a
+# generator's licence to emit a trace tag for an id nothing can ever back.
+name: traceability-obligations-excluded
+version: 0.1.0
+description: An obligation source with an exclude (FR-053 fixture)
+artifact_types:
+- name: FR
+  grammar_ref: iso-spec-core
+  defaults:
+    id_pattern: FR-{next:03d}
+traceability:
+  trace_targets:
+  - name: acceptance-criterion
+    archetype: FR
+    section: Acceptance Criteria
+    id_column: ID
+  obligations:
+  - name: acceptance-criterion
+    target: acceptance-criterion
+    exclude:
+    - "**/fixtures/**"
+    statement_column: Criteria
+    method_column: Verification

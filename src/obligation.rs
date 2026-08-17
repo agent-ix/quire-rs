@@ -94,18 +94,42 @@ pub struct CriterionObligation {
 /// no corpus. Only `target:`-bound sources whose archetype matches can apply:
 /// an `archetype:`+`id_format:` source describes rows that mint no id, and the
 /// `ac` grammar binds no such row, so none can ever appear here.
+///
+/// `path` is the document's location as the caller named it, and **is matched
+/// against the same `exclude:` globs [`derive`] applies** (FR-053-AC-14). Two
+/// surfaces of one contract must not disagree about whether a row states an
+/// obligation: a criterion in an excluded fixture that mints nothing in
+/// `coverage --json` and *does* carry an obligation in `properties --json` is
+/// a generator's licence to emit a trace tag for an id nothing will ever back —
+/// the quire-rs#72 dead-tag failure arriving through a new door.
+///
+/// `None` means the caller has no path to match (stdin), in which case no
+/// exclude can apply: a glob matches a location, and content piped in has none.
 pub fn for_document(
     model: &TraceabilityModel,
     archetype: &str,
     doc: &crate::ast::QuireDocument,
+    path: Option<&Path>,
 ) -> BTreeMap<String, CriterionObligation> {
     let mut out = BTreeMap::new();
+    let model_exclude = ExcludeSet::compile(&model.exclude);
     for source in &model.obligations {
         let Some(resolved) = resolve(source, model) else {
             continue;
         };
         if resolved.archetype != archetype {
             continue;
+        }
+        if let Some(path) = path {
+            // `excludes` derives the relative form from a root; the caller's
+            // path is already the string a glob is written against, so the root
+            // is empty and the path is matched as given.
+            let root = Path::new("");
+            if model_exclude.excludes(root, path)
+                || ExcludeSet::compile(&source.exclude).excludes(root, path)
+            {
+                continue;
+            }
         }
         let Some(id_column) = resolved.id_column else {
             continue;
@@ -162,16 +186,21 @@ pub fn for_document(
 /// re-wrap or a trailing space does not churn the hash — without ever equating
 /// two statements a reader would read differently.
 ///
-/// NFC is applied by comparing char classes rather than pulling a Unicode
-/// normalization dependency: the engine has no `unicode-normalization` crate
-/// and NFR-009 pins dependencies deliberately. Statements in this corpus are
-/// authored NFC by every editor in use; the trim-and-collapse pass is what
-/// carries the property in practice, and a future NFC pass can be added without
-/// changing any consumer, because it only ever *reduces* churn.
+/// NFC is applied for real (CR-063). The FR shipped asserting the property in
+/// AC-4 and skipping it in code, on the argument that NFR-009 pins dependencies
+/// and this corpus is authored NFC anyway. Both halves of that argument were
+/// weak: an editor on macOS emits NFD for a composed accent, and an unnormalized
+/// hash turns *that* into a suspect link nobody caused — the false positive the
+/// FR itself says gets a detector switched off within a week.
+/// `unicode-normalization` is permissively licensed and already covered by
+/// `deny.toml`'s allow-list, which makes honouring the AC cheaper than amending
+/// it.
 pub fn normalize_statement(statement: &str) -> String {
+    use unicode_normalization::UnicodeNormalization;
+
     let mut out = String::with_capacity(statement.len());
     let mut in_space = false;
-    for ch in statement.trim().chars() {
+    for ch in statement.trim().nfc() {
         if ch.is_whitespace() {
             in_space = true;
             continue;
@@ -231,20 +260,24 @@ pub struct SkippedRow {
 
 /// Derive every obligation the model declares, in a deterministic order.
 ///
-/// Order is (source declaration order, document id, row ordinal) and every map
-/// is a `BTreeMap`, so two runs over identical inputs serialize byte-identically
-/// (NFR-006, FR-053-AC-9).
+/// Order is (source **declaration order**, document path, row ordinal) and
+/// every map is a `BTreeMap`, so two runs over identical inputs serialize
+/// byte-identically (NFR-006, FR-053-AC-9).
+///
+/// Declaration order, not source name: the module author writes the sources in
+/// the order the report should read, and sorting by name instead would silently
+/// reorder every report the day somebody renamed a source (CR-063).
 pub fn derive(
     spec: &Spec,
     root: &Path,
     model: &TraceabilityModel,
 ) -> (Vec<Obligation>, Vec<SkippedRow>) {
-    let mut out = Vec::new();
+    let mut out: Vec<(usize, Obligation)> = Vec::new();
     let mut skipped = Vec::new();
     let model_exclude = ExcludeSet::compile(&model.exclude);
     let mut ctx = ScanContext::default();
 
-    for source in &model.obligations {
+    for (order, source) in model.obligations.iter().enumerate() {
         let Some(resolved) = resolve(source, model) else {
             // Unreachable for a validated model — `TraceabilityModel::validate`
             // rejects both-or-neither and an undeclared target at load. Skipped
@@ -260,14 +293,22 @@ pub fn derive(
             model_exclude: &model_exclude,
         };
         let rows = declared_tables::scan(spec, root, scope, resolved.section, &mut ctx);
-        collect(source, &resolved, &rows, root, &mut out, &mut skipped);
+        collect(
+            source,
+            order,
+            &resolved,
+            &rows,
+            root,
+            &mut out,
+            &mut skipped,
+        );
     }
 
     // Sort is stable and the scan already yields documents in corpus order, so
-    // this only enforces the by-document ordering the AC states without
-    // disturbing row order within a document.
-    out.sort_by(|a, b| (&a.source, &a.document).cmp(&(&b.source, &b.document)));
-    (out, skipped)
+    // this only enforces the by-declaration-then-document ordering the AC states
+    // without disturbing row order within a document.
+    out.sort_by(|a, b| (a.0, &a.1.document).cmp(&(b.0, &b.1.document)));
+    (out.into_iter().map(|(_, o)| o).collect(), skipped)
 }
 
 /// What a source resolved to: where its rows live and how they are identified.
@@ -303,10 +344,11 @@ fn resolve<'a>(source: &'a ObligationSource, model: &'a TraceabilityModel) -> Op
 
 fn collect(
     source: &ObligationSource,
+    order: usize,
     resolved: &Resolved<'_>,
     rows: &[ScannedRow],
     root: &Path,
-    out: &mut Vec<Obligation>,
+    out: &mut Vec<(usize, Obligation)>,
     skipped: &mut Vec<SkippedRow>,
 ) {
     // The row ordinal is per document, not per scan: `{row}` must mean "the
@@ -354,24 +396,27 @@ fn collect(
             }
         }
 
-        out.push(Obligation {
-            source: source.name.clone(),
-            id,
-            document,
-            statement: statement.to_string(),
-            statement_hash: statement_hash(statement),
-            method: source
-                .method_column
-                .as_deref()
-                .and_then(|c| row.cell(c))
-                .and_then(method_of),
-            parameters,
-            criticality: source
-                .criticality_column
-                .as_deref()
-                .and_then(|c| row.cell(c))
-                .map(str::to_string),
-        });
+        out.push((
+            order,
+            Obligation {
+                source: source.name.clone(),
+                id,
+                document,
+                statement: statement.to_string(),
+                statement_hash: statement_hash(statement),
+                method: source
+                    .method_column
+                    .as_deref()
+                    .and_then(|c| row.cell(c))
+                    .and_then(method_of),
+                parameters,
+                criticality: source
+                    .criticality_column
+                    .as_deref()
+                    .and_then(|c| row.cell(c))
+                    .map(str::to_string),
+            },
+        ));
     }
 }
 
