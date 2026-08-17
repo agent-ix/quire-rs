@@ -344,8 +344,7 @@ fn reconcile(
             root,
             declared_tables::DeclaredScope {
                 name: &target.name,
-                archetype: target.archetype.as_deref(),
-                document: target.document.as_deref(),
+                archetype: &target.archetype,
                 exclude: &exclude,
                 model_exclude: &model_exclude,
             },
@@ -393,8 +392,7 @@ fn reconcile(
             root,
             declared_tables::DeclaredScope {
                 name: &declaration.name,
-                archetype: declaration.archetype.as_deref(),
-                document: declaration.document.as_deref(),
+                archetype: &declaration.archetype,
                 exclude: &exclude,
                 model_exclude: &model_exclude,
             },
@@ -544,19 +542,16 @@ fn reconcile(
         .into_diagnostics(totals.total > 0)
         .into_iter()
         .map(|(declaration, diagnostic)| {
-            let (path, message) = declared_tables::scan_finding(&declaration, &diagnostic, root);
+            let (_, message) = declared_tables::scan_finding(&declaration, &diagnostic, root);
             CoverageDiagnostic {
                 declaration,
                 reason: declared_tables::scan_reason(&diagnostic).to_string(),
                 message,
-                // Both document-level diagnostics name a document; the
-                // declaration-level one has none to point at (CR-059).
-                path: matches!(
-                    diagnostic,
-                    declared_tables::ScanDiagnostic::UnreadableDocument { .. }
-                        | declared_tables::ScanDiagnostic::AbsentDocument { .. }
-                )
-                .then(|| relative(root, &path)),
+                // Since CR-062 the only scan diagnostic is declaration-level,
+                // and a declaration-level fault has no document to point at.
+                // The field stays on the report shape: a future diagnostic that
+                // does name a document must not require a payload change.
+                path: None,
             }
         })
         .collect();

@@ -2,8 +2,9 @@
 #
 # Deliberately shares no vocabulary with the ISO shape: a different archetype
 # (`Rule`), a different id pattern (`R-12/C-3`), different column names, and a
-# word-based status vocabulary. The engine must produce a correct rollup from
-# this declaration alone.
+# word-based status vocabulary — including its own evidence archetype
+# (`CheckRegister`), so nothing here reuses the ISO `TestMatrix` name either.
+# The engine must produce a correct rollup from this declaration alone.
 name: traceability-alt
 version: 0.1.0
 description: Non-ISO traceability model fixture
@@ -11,6 +12,9 @@ artifact_types:
 - name: Rule
   defaults:
     id_pattern: R-{next:03d}
+- name: CheckRegister
+  defaults:
+    id_pattern: CR-{next:03d}
 traceability:
   trace_targets:
   - name: clause
@@ -18,7 +22,7 @@ traceability:
     section: Clauses
     id_column: Clause
   - name: check
-    document: checks.md
+    archetype: CheckRegister
     section: Checks
     id_column: Check
   document_references:
@@ -30,7 +34,7 @@ traceability:
     pattern: 'checked by (C-\d+)'
     targets: [check]
   - name: covers
-    document: checks.md
+    archetype: CheckRegister
     section: Checks
     column: Covers
     row_id_column: Check

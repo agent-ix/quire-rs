@@ -56,8 +56,11 @@ fn iso_bundle(suffix: &str, matrix_rows: &[(&str, &str, &str)], traced: &[&str])
          | FR-001-AC-2 | The system shall also do it. | Test (TC-002) |\n",
     );
 
+    // CR-062: the matrix is reached by archetype, so it must declare one. It
+    // was frontmatter-less while `document:` binding read it off-corpus.
     let mut matrix = String::from(
-        "# Test Matrix\n\n## Test Cases\n\n| ID | Traces To | Status |\n|----|-----------|--------|\n",
+        "---\nid: TM-001\ntype: TestMatrix\ntitle: Test Matrix\n---\n\n\
+         # Test Matrix\n\n## Test Cases\n\n| ID | Traces To | Status |\n|----|-----------|--------|\n",
     );
     for (tc, traces_to, status) in matrix_rows {
         matrix.push_str(&format!("| {tc} | {traces_to} | {status} |\n"));
@@ -295,7 +298,10 @@ fn tc739_non_iso_model_rolls_up() {
     write(
         &scope,
         "checks.md",
-        "# Check Register\n\n## Checks\n\n| Check | Covers | State |\n|-------|--------|-------|\n\
+        // CR-062: reached by archetype, so it declares one — `CheckRegister`,
+        // the alt module's own evidence archetype, not the ISO `TestMatrix`.
+        "---\nid: CR-001\ntype: CheckRegister\ntitle: Check Register\n---\n\n\
+         # Check Register\n\n## Checks\n\n| Check | Covers | State |\n|-------|--------|-------|\n\
          | C-001 | R-001-C-1 | done |\n\
          | C-002 | R-001-C-2 | done |\n",
     );
@@ -879,12 +885,13 @@ fn tc826_model_level_exclusion_scopes_the_criteria_walk() {
     );
 }
 
-// TC-802 (FR-050-AC-15): `archetype` and `document` declared together scan
-// both — the corpus documents of that archetype and the auxiliary file the
-// corpus walk skips — from a single entry.
+// TC-830 (FR-050-AC-15, CR-062): ONE archetype-bound entry mints from every
+// matrix in the corpus, whatever each one is called. This is what replaced
+// enumeration: the retired `document:` form needed an entry per filename and
+// still reached nothing nested.
 #[test]
-fn tc802_archetype_and_document_scan_together() {
-    let bundle = scoped_bundle("802");
+fn tc830_one_archetype_entry_mints_from_every_matrix_filename() {
+    let bundle = scoped_bundle("830");
     let report = report_for(&bundle, "scoped").expect("model declared");
 
     let documents: Vec<&str> = report
@@ -893,17 +900,19 @@ fn tc802_archetype_and_document_scan_together() {
         .filter(|g| g.target == "test-case")
         .map(|g| g.document.as_str())
         .collect();
+    // Two different filenames, one declaration — and `scoped` declares exactly
+    // one `test-case` entry, so neither is reached by a path.
     assert!(
         documents.contains(&"tests.md"),
-        "the auxiliary skipped file must still mint: {documents:?}"
+        "the canonical filename must mint: {documents:?}"
     );
     assert!(
         documents.contains(&"matrix.md"),
-        "the in-corpus matrix must mint from the same entry: {documents:?}"
+        "a differently-named matrix must mint from the same entry: {documents:?}"
     );
 
-    // Rows from both origins reconcile against the same target kind: TC-003
-    // lives in the archetype-bound matrix and nothing binds it.
+    // Rows from both documents reconcile against the same target kind: TC-003
+    // lives in `matrix.md` and nothing binds it.
     assert!(
         report
             .unbacked_rows
@@ -919,7 +928,8 @@ fn tc802_archetype_and_document_scan_together() {
 fn typed_matrix_bundle(suffix: &str) -> Bundle {
     let bundle = iso_bundle(suffix, &[], &["TC-001"]);
     let mut matrix = String::from(
-        "# Test Matrix\n\n## Test Cases\n\n| ID | Type | Traces To | Status |\n\
+        "---\nid: TM-001\ntype: TestMatrix\ntitle: Test Matrix\n---\n\n\
+         # Test Matrix\n\n## Test Cases\n\n| ID | Type | Traces To | Status |\n\
          |----|------|-----------|--------|\n",
     );
     for (tc, ty, traces, status) in [
@@ -1092,32 +1102,48 @@ fn tc822_declarations_that_select_nothing_are_reported() {
         "an archetype no document has must be reported: {:?}",
         report.diagnostics
     );
-    assert!(
-        reasons.contains(&"absent-declared-document"),
-        "a declared document that does not exist must be reported when the model \
-         minted nothing: {:?}",
+    // CR-062: `archetype-matches-nothing` is the only scan diagnostic. The
+    // `absent-declared-document` and `unreadable-declared-document` reasons went
+    // with the `document:` form — there is no declared path left to be absent,
+    // and a minting document that cannot be *read* is now the walk's
+    // `DocumentUnreadable`, which is strictly better than the silent `None` the
+    // off-corpus reader returned.
+    assert_eq!(
+        reasons,
+        vec![
+            "archetype-matches-nothing",
+            "archetype-matches-nothing",
+            "archetype-matches-nothing"
+        ],
+        "every declaration selects nothing, each for the same reason: {:?}",
         report.diagnostics
     );
 
     let archetype = report
         .diagnostics
         .iter()
-        .find(|d| d.reason == "archetype-matches-nothing")
+        .find(|d| d.declaration == "acceptance-criterion")
         .expect("present");
-    assert_eq!(archetype.declaration, "acceptance-criterion");
     assert!(
         archetype.message.contains("FRR"),
         "names the archetype nothing has: {}",
         archetype.message
     );
 
-    let absent = report
+    let target = report
         .diagnostics
         .iter()
-        .find(|d| d.reason == "absent-declared-document")
+        .find(|d| d.declaration == "test-case")
         .expect("present");
-    assert_eq!(absent.declaration, "test-case");
-    assert_eq!(absent.path.as_deref(), Some("missing.md"));
+    assert!(
+        target.message.contains("TestMatrixx"),
+        "a misspelled matrix archetype is reported the same way: {}",
+        target.message
+    );
+    assert_eq!(
+        target.path, None,
+        "a declaration-level fault has no document to point at"
+    );
 
     // Order is a property of the model, not of the walk (NFR-006).
     let again = report_for(&bundle, "fails-open").expect("model declared");
@@ -1144,39 +1170,6 @@ fn tc822_a_healthy_model_reports_no_diagnostics_and_no_key() {
     assert!(
         !report.to_json().contains("diagnostics"),
         "an empty diagnostics list must leave the JSON byte-identical"
-    );
-}
-
-// TC-825 (FR-050-AC-19, CR-059): a module shipped across a fleet names the
-// auxiliary documents any of its repositories *might* have. On a repository
-// that has neither, and whose model mints normally through everything else,
-// those absences are ordinary and stay out of the report.
-//
-// Measured before the fix: CR-054 reported six of these against quire-rs's own
-// spec, and would have reported them on most repositories on
-// `spec-artifacts-process` the moment they upgraded.
-#[test]
-fn tc825_absent_optional_auxiliary_documents_are_not_reported() {
-    let bundle = iso_bundle(
-        "825-optional-aux",
-        &[("TC-001", "FR-001-AC-1", "✅")],
-        &["TC-001"],
-    );
-    let report = report_for(&bundle, "optional-aux").expect("model declared");
-
-    assert!(
-        report.totals.total > 0,
-        "the model must mint, or the absence would be the thing to check"
-    );
-    assert!(
-        report.diagnostics.is_empty(),
-        "an optional auxiliary declaration this repository has no instance of \
-         must be silent: {:?}",
-        report.diagnostics
-    );
-    assert!(
-        !report.to_json().contains("diagnostics"),
-        "and the key stays absent, so FR-050-AC-7 byte-identity holds"
     );
 }
 

@@ -135,13 +135,67 @@ model; the engine knows nothing of "AC" or "TC" as concepts.
 | FR-050-AC-12 | With `expand_ranges` declared, `FR-001..FR-003` resolves as three references; with `strip_annotations` declared, `FR-022-AC-5 (superseded by FR-030)` resolves as one. Both are off unless declared. | Test (TC-760) |
 | FR-050-AC-13 | A report over a corpus whose documents carry criteria contains a `criteria` entry per contributing document and the two new totals; a corpus whose documents carry none contains an empty `criteria` list and serializes byte-identically to a report from an engine that predates the field. A document the model-level `exclude:` matches contributes no entry, is counted in neither total, and is not body-parsed. | Test (TC-788, TC-826) |
 | FR-050-AC-14 | A declared model that mints zero trace targets is reported distinctly from full coverage — never as `100%` — and `quire coverage --strict` exits non-zero on it. | Test (TC-797) |
-| FR-050-AC-15 | A trace target or document reference MAY declare `exclude:` path globs, and MAY declare `archetype` and `document` together; excluded documents mint no ids and contribute no reference rows, and a declaration naming both scans the archetype's corpus documents and the auxiliary file in one entry. The model MAY additionally declare a model-level `exclude:` whose matching documents mint no trace ids, contribute no reference rows, and are not classified for criteria; it scopes every declaration in addition to that declaration's own, merges across modules as a union, has its patterns compile-checked like any other, and leaves the model undeclared when it is all a module declares. Document validation is unaffected. | Test (TC-801, TC-802, TC-826) |
+| FR-050-AC-15 | A trace target or document reference declares exactly one origin, `archetype:`, and MAY declare `exclude:` path globs; excluded documents mint no ids and contribute no reference rows. The model MAY additionally declare a model-level `exclude:` whose matching documents mint no trace ids, contribute no reference rows, and are not classified for criteria; it scopes every declaration in addition to that declaration's own, merges across modules as a union, has its patterns compile-checked like any other, and leaves the model undeclared when it is all a module declares. Document validation is unaffected. | Test (TC-801, TC-826, TC-829) |
 | FR-050-AC-16 | A module MAY declare which test-type values mint no source symbol; an unbacked row carrying one is reported as a no-symbol row rather than a status lie, stays listed as unbacked, and a module declaring none reports exactly as before. | Test (TC-805) |
 | FR-050-AC-17 | The two roots derive from one `--scope` and stay distinct: repo-root files (`README.md`, `CHANGELOG.md`, `plan/*.md`) are never read as documents, the code walk never enters the document root, the minted-id set over a compliant repo is byte-identical to a pre-split run, and a scope with no `spec/` directory exits with a diagnostic naming the missing root (CR-045). | Test (TC-809, TC-810, TC-811) |
 | FR-050-AC-18 | During coverage computation, a corpus document whose archetype no trace target, document reference, or grammar binding names has its body left unmaterialised; a declared archetype's body is parsed; selection is decided on the header tier and never by filename; a module declaring no `traceability:` model still errors (`ModelUndeclared`) before any selection; and the report is byte-identical to a full-parse engine's (CR-049). | Test (TC-818, TC-738) |
-| FR-050-AC-19 | A declaration that selects nothing is reported in `CoverageReport.diagnostics` and as a `quire validate` warning, never in silence: a declared auxiliary `document:` that is **present and cannot be read** is reported against every declaration naming it, with the path and the OS error, whether or not the model minted; a declared `document:` that is **absent**, and a declared `archetype:` no corpus document has, are reported when the model minted no id at all; and a model declaring no `trace_targets` is reported as minting nothing. The two document reasons are distinct machine tokens, and `quire coverage` and `quire validate` report the same token for the same finding. The list is empty — and the key absent — for a model whose declarations select, so FR-050-AC-7 byte-identity holds (CR-054, amended CR-059). | Test (TC-822, TC-825) |
+| FR-050-AC-19 | A declaration that selects nothing is reported in `CoverageReport.diagnostics` and as a `quire validate` warning, never in silence: a declared `archetype:` no corpus document has is reported when the model minted no id at all, and a model declaring no `trace_targets` is reported as minting nothing. `quire coverage` and `quire validate` report the same machine token for the same finding. The list is empty — and the key absent — for a model whose declarations select, so FR-050-AC-7 byte-identity holds (CR-054, amended CR-059, narrowed CR-062). | Test (TC-822) |
 | FR-050-AC-20 | The byte-identity property is gated by a checked-in baseline, not by inspection: a fixture corpus exercising minted ids, an auxiliary matrix, an `exclude:` glob, all three status classes, the `no_source_symbol` exemption, an untracked symbol, a dangling reference, an undeclared archetype and criteria classification has its report stored as `tests/fixtures/coverage_baseline/expected.json` and byte-diffed on every test run. Regeneration is a deliberate act (`make coverage-baseline-update`) whose diff is reviewed, and a companion test fails if the corpus stops exercising any of that surface (CR-057). | Test (TC-824) |
 
+> **CR-062 note (2026-08-17):** AC-15 and AC-19 are narrowed: the `document:`
+> origin is **deleted**, and `archetype:` is the single required origin for a
+> trace target and a document reference alike. `agent-ix/quire-rs#74`.
+>
+> The form existed for one reason, recorded verbatim in `traceability.rs` at the
+> time: "`spec/tests.md` is on `DEFAULT_SKIP`, so archetype binding alone cannot
+> see the file 184 repos call their Test Matrix." Type-driven corpus membership
+> (#73, v0.26.0) deleted that premise. Two ways to acquire a minting document
+> then bought nothing and cost coverage, because path binding **enumerates**:
+> the module declared three near-identical targets, one per filename the
+> ecosystem happens to use (`spec/tests.md`, `spec/matrix.md`, `spec/evals.md`),
+> and reached nothing nested. A correctly authored matrix at
+> `spec/<module>/matrix/tests.md` minted zero ids.
+>
+> **Measured** across `~/dev`, 238 repositories, worktrees deduped
+> (`scripts/sweep_coverage.py`, agent-ix/quire-rs#78), with this change plus the
+> matching `spec-artifacts-process` collapse: dead trace tags fall from **1,401
+> occurrences / 1,052 distinct ids to 1,208 / 874**. The whole change is one
+> repository — `filament-ide-rs`, **214 → 20** dead tags, rollup 17/850 →
+> **473/2,184** rows backed — because it is the only repository in the ecosystem
+> authoring nested module matrices. It is also the shape the ecosystem is moving
+> toward, which is what makes enumeration the wrong contract rather than merely
+> an inelegant one.
+>
+> Collapsing the *references* matters as much as the target: rebinding
+> `test-case` alone leaves 49 dead tags in that repo, because `traces-to` and
+> `functional-coverage` were path-bound too and could not read the nested
+> matrices they describe. Nine declarations become three.
+>
+> Three consequences, each deliberate:
+>
+> 1. **`exclude:` is now load-bearing, not optional.** Archetype binding is what
+>    lets a fixture matrix mint phantom ids — a fixture that exercises the
+>    `TestMatrix` contract legitimately *is* `type: TestMatrix`. This is the
+>    concern that kept path binding alive through CR-038 (67 phantom ids out of
+>    `tests/fixtures/testmatrix/*.md`, 50 of them reported "backed"), and it is
+>    answered by exclusion rather than by enumeration.
+> 2. **A minting document that cannot be read is now reported *better*.** The
+>    off-corpus reader returned `None` and emitted nothing until CR-054; the walk
+>    emits `DocumentUnreadable` / `MissingUuid`. So AC-19's
+>    `unreadable-declared-document` and `absent-declared-document` reasons are
+>    withdrawn — CR-059 shipped them in v0.27.0 for a code path this change
+>    deletes, which was the right call for the interim and is dead now.
+>    `archetype-matches-nothing` is the surviving reason, and a misspelled
+>    archetype is the surviving shape of the same fault.
+> 3. **A mistyped matrix now mints nothing.** Under path binding, frontmatter was
+>    irrelevant to minting. Measured before landing: 14 of 184 ecosystem matrices
+>    were untyped or mistyped, **6 of them real matrices** carrying a Test Case
+>    Summary (agent-ix/quire-rs#75). Left alone, this change would have taken
+>    repositories minting zero test-case ids from 154 to 159. All six were
+>    corrected first, and the measurement re-run: **153**. Zero matrices in the
+>    ecosystem are frontmatter-less, which is the case that could have gone
+>    silently invisible, and it is empty.
+>
 > **CR-060 note (2026-08-16):** AC-13 and AC-15 gain a **model-level**
 > `exclude:`. CR-038 put `exclude:` on trace targets and document references,
 > and `declared_tables::scan` applies it. The CR-028 criteria counts walk the

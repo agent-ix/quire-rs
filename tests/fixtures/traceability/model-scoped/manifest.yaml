@@ -16,6 +16,9 @@ artifact_types:
 - name: TC
   defaults:
     id_pattern: TC-{next:03d}
+- name: TestMatrix
+  defaults:
+    id_pattern: TM-{next:03d}
 traceability:
   exclude: ['fixtures/**']
   trace_targets:
@@ -24,7 +27,7 @@ traceability:
     section: Acceptance Criteria
     id_column: ID
   - name: test-case
-    document: tests.md
+    archetype: TestMatrix
     section: Test Cases
     id_column: ID
   document_references:
@@ -36,7 +39,7 @@ traceability:
     pattern: '\((TC-\d+)\)'
     targets: [test-case]
   - name: traces-to
-    document: tests.md
+    archetype: TestMatrix
     section: Test Cases
     column: Traces To
     row_id_column: ID

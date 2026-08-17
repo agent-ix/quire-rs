@@ -16,7 +16,6 @@
 //! error.
 
 use std::collections::BTreeSet;
-use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
@@ -120,24 +119,30 @@ impl ColumnVocabularies {
     }
 }
 
-/// One kind of trace id and where it is minted: from an archetype the corpus
-/// walk already loads, from an **auxiliary source** — a document outside the
-/// corpus (e.g. a Test Matrix at `spec/tests.md`) named by a scope-relative
-/// path — or from both, when an archetype covers most of the minting documents
-/// and one canonical filename the walk skips covers the rest (CR-038).
+/// One kind of trace id and the archetype whose documents mint it.
+///
+/// Binding is by archetype only (CR-062). The `document:` form — a
+/// scope-relative path harvested off-corpus — existed because
+/// `corpus/walk.rs` skipped `tests.md`, so archetype binding could not see the
+/// file most repositories call their Test Matrix. Type-driven corpus membership
+/// removed that premise, and one way to acquire a minting document is enough:
+/// path binding enumerated filenames (`spec/tests.md`, `spec/matrix.md`,
+/// `spec/evals.md`, one declaration each) and reached nothing nested, so a
+/// matrix at `spec/<module>/matrix/tests.md` minted no ids however correctly it
+/// was authored.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct TraceTarget {
     /// Kind name, referenced by [`DocumentReference::targets`].
     pub name: String,
-    /// Archetype whose documents mint these ids (corpus-minted targets).
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub archetype: Option<String>,
-    /// Scope-relative path of an auxiliary minting document.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub document: Option<PathBuf>,
+    /// Archetype whose documents mint these ids.
+    pub archetype: String,
     /// Scope-relative globs whose matching documents mint nothing (CR-038).
     /// The engine has no idea which paths hold test data; a module says so.
+    ///
+    /// **More** load-bearing since CR-062, not less: archetype binding is what
+    /// lets a fixture matrix mint phantom ids, and a fixture that exercises the
+    /// `TestMatrix` contract legitimately *is* `type: TestMatrix`.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub exclude: Vec<String>,
     /// Heading of the section carrying the minting table.
@@ -155,10 +160,9 @@ pub struct TraceTarget {
 pub struct DocumentReference {
     /// Reference name, used in report entries and diagnostics.
     pub name: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub archetype: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub document: Option<PathBuf>,
+    /// Archetype whose documents carry these references (CR-062: archetype
+    /// only, for the reasons on [`TraceTarget`]).
+    pub archetype: String,
     /// Scope-relative globs whose matching documents contribute no reference
     /// rows (CR-038).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -345,11 +349,11 @@ impl TraceabilityModel {
                     target.name
                 ));
             }
-            check_origin(
+            check_field(
                 "trace_targets",
                 &target.name,
-                target.archetype.as_deref(),
-                target.document.as_deref(),
+                "archetype",
+                &target.archetype,
             )?;
             check_excludes(
                 &format!("trace_targets entry '{}'", target.name),
@@ -373,11 +377,11 @@ impl TraceabilityModel {
                     reference.name
                 ));
             }
-            check_origin(
+            check_field(
                 "document_references",
                 &reference.name,
-                reference.archetype.as_deref(),
-                reference.document.as_deref(),
+                "archetype",
+                &reference.archetype,
             )?;
             check_excludes(
                 &format!("document_references entry '{}'", reference.name),
@@ -498,30 +502,6 @@ fn check_field(section: &str, name: &str, field: &str, value: &str) -> Result<()
     Ok(())
 }
 
-/// A target or reference is minted by an archetype the corpus walk loads, by an
-/// auxiliary document, or by both — but never by neither.
-///
-/// The pair was rejected until CR-038. It is the natural way to say "every
-/// document of this archetype, plus the one canonical filename the corpus walk
-/// skips": `spec/tests.md` is on `DEFAULT_SKIP`, so archetype binding alone
-/// cannot see the file 184 repos call their Test Matrix.
-fn check_origin(
-    section: &str,
-    name: &str,
-    archetype: Option<&str>,
-    document: Option<&std::path::Path>,
-) -> Result<(), String> {
-    match (archetype, document) {
-        (Some(a), _) if a.trim().is_empty() => Err(format!(
-            "traceability: {section} entry '{name}' has an empty `archetype`"
-        )),
-        (Some(_), _) | (None, Some(_)) => Ok(()),
-        (None, None) => Err(format!(
-            "traceability: {section} entry '{name}' declares neither `archetype` nor `document`"
-        )),
-    }
-}
-
 /// Exclusion globs must compile; a typo that silently matched nothing would
 /// quietly readmit the documents the module meant to keep out (CR-038).
 ///
@@ -570,7 +550,7 @@ trace_targets:
   section: Acceptance Criteria
   id_column: ID
 - name: test-case
-  document: tests.md
+  archetype: TestMatrix
   section: Test Cases
   id_column: TC ID
 document_references:
@@ -604,10 +584,7 @@ trace_tags:
         assert!(!m.is_empty());
         m.validate().expect("valid");
         assert_eq!(m.trace_targets.len(), 2);
-        assert_eq!(
-            m.target("test-case").unwrap().document,
-            Some(PathBuf::from("tests.md"))
-        );
+        assert_eq!(m.target("test-case").unwrap().archetype, "TestMatrix");
         assert_eq!(m.document_references[0].targets, vec!["test-case"]);
         assert_eq!(
             m.status.as_ref().unwrap().class_of(" done "),
@@ -640,11 +617,6 @@ document_references:
   targets: [nope]
 "#,
                 "undeclared target",
-            ),
-            // neither archetype nor document
-            (
-                "trace_targets:\n- name: t\n  section: S\n  id_column: ID\n",
-                "neither `archetype` nor `document`",
             ),
             // an archetype declared as an empty string names nothing
             (
@@ -691,20 +663,46 @@ document_references:
         }
     }
 
-    /// CR-038: the pair used to be rejected. It is how a module says "every
-    /// document of this archetype, plus the one canonical filename the corpus
-    /// walk skips" in a single entry.
+    /// TC-829 (FR-050-AC-7, CR-062): `archetype` is the only origin, and it is
+    /// required. A `document:` key — the deleted form — is now an unknown field,
+    /// which `deny_unknown_fields` rejects rather than silently ignores: a module
+    /// carrying the old declaration fails load instead of minting nothing.
     #[test]
-    fn archetype_and_document_may_be_declared_together() {
+    fn tc829_archetype_is_the_only_origin() {
         let m = model(
-            "trace_targets:\n- name: test-case\n  archetype: TestMatrix\n  document: spec/tests.md\n\
+            "trace_targets:\n- name: test-case\n  archetype: TestMatrix\n\
              \n  exclude: ['tests/fixtures/**']\n  section: Test Case Summary\n  id_column: Test ID\n",
         );
-        m.validate().expect("the pair is a valid origin");
+        m.validate().expect("archetype alone is a valid origin");
         let target = m.target("test-case").expect("declared");
-        assert_eq!(target.archetype.as_deref(), Some("TestMatrix"));
-        assert_eq!(target.document, Some(PathBuf::from("spec/tests.md")));
+        assert_eq!(target.archetype, "TestMatrix");
         assert_eq!(target.exclude, vec!["tests/fixtures/**".to_string()]);
+
+        let stale = "trace_targets:\n- name: test-case\n  document: spec/tests.md\n\
+                     \n  section: Test Case Summary\n  id_column: Test ID\n";
+        let error = serde_yaml::from_str::<TraceabilityModel>(stale)
+            .expect_err("the deleted form must not load");
+        assert!(
+            error.to_string().contains("document"),
+            "the error must name the retired key: {error}"
+        );
+
+        let empty = "trace_targets:\n- name: test-case\n  archetype: ''\n\
+                     \n  section: Test Case Summary\n  id_column: Test ID\n";
+        let error = model(empty).validate().expect_err("empty archetype");
+        assert!(error.contains("archetype"), "{error}");
+
+        // A target with no origin at all was a `validate()` error while
+        // `archetype` was optional. Now it is a *deserialization* error, which
+        // is strictly earlier: the module fails to load rather than loading and
+        // then failing its own coherence check.
+        let none = "trace_targets:\n- name: test-case\n  section: S\n  id_column: ID\n";
+        let error = serde_yaml::from_str::<TraceabilityModel>(none)
+            .expect_err("a target with no origin must not load");
+        assert!(
+            error.to_string().contains("archetype"),
+            "the error must name the missing origin: {error}"
+        );
     }
 
     #[test]

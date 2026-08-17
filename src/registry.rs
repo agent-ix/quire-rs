@@ -1351,14 +1351,11 @@ roles:
         let target = model
             .target("acceptance-criterion")
             .expect("acceptance-criterion target");
-        assert_eq!(target.archetype.as_deref(), Some("FR"));
+        assert_eq!(target.archetype, "FR");
         assert_eq!(target.section, "Acceptance Criteria");
         assert_eq!(target.id_column, "ID");
-        // Auxiliary source: minted by a document outside the corpus walk.
-        assert_eq!(
-            model.target("test-case").unwrap().document,
-            Some(PathBuf::from("tests.md"))
-        );
+        // CR-062: every target is archetype-bound, the Test Matrix included.
+        assert_eq!(model.target("test-case").unwrap().archetype, "TestMatrix");
 
         let verification = model
             .document_references

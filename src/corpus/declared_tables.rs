@@ -1,9 +1,9 @@
 //! Scanning the tables a traceability model declares (FR-049 / FR-050).
 //!
 //! Both the reference-integrity check and the coverage rollup read the same
-//! shape: "the table under section S of every document of archetype A, or of a
-//! declared auxiliary document". This is that one scan, so the two consumers
-//! cannot drift apart on which rows they see.
+//! shape: "the table under section S of every document of archetype A". This is
+//! that one scan, so the two consumers cannot drift apart on which rows they
+//! see.
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -31,20 +31,17 @@ impl ScannedRow {
     }
 }
 
-/// What one declaration says about where its rows live: an archetype (every
-/// bundle document of that type), an auxiliary `document` under `root`
-/// harvested off-corpus, or both — minus anything `exclude` matches (CR-038).
+/// What one declaration says about where its rows live: every bundle document
+/// of an archetype, minus anything `exclude` matches (CR-038, CR-060).
 ///
-/// Passed as a struct rather than four positional arguments because the two
-/// consumers construct it from two different declaration types, and a
-/// same-typed pair of `Option`s is exactly the call site that gets transposed.
+/// Passed as a struct rather than positional arguments because the two
+/// consumers construct it from two different declaration types.
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct DeclaredScope<'a> {
     /// The declaration's own name, so a diagnostic can say which one of them
     /// scanned nothing (CR-054).
     pub name: &'a str,
-    pub archetype: Option<&'a str>,
-    pub document: Option<&'a Path>,
+    pub archetype: &'a str,
     /// This declaration's own `exclude:` — "these documents mint no ids for
     /// *me*" (CR-038).
     pub exclude: &'a ExcludeSet,
@@ -122,67 +119,19 @@ pub(crate) enum ScanDiagnostic {
     /// Counted before `exclude` applies, so excluding every match is not
     /// reported as a missing archetype.
     ArchetypeMatchesNothing { archetype: String },
-    /// A declared auxiliary document is present and could not be read:
-    /// permission denied, an IO error, a directory where a file was expected.
-    /// The CR-045 class — the read failed, every id it would have minted
-    /// vanished, and the only symptom was a distant dangling-reference count.
-    ///
-    /// Always reported, whether or not the model minted: the file is *there*
-    /// and the ids vanished anyway, which is never ordinary (CR-059).
-    UnreadableDocument { path: PathBuf, error: String },
-    /// A declared auxiliary document is absent (`NotFound`).
-    ///
-    /// Reported **only when the model minted nothing at all** — the same rule
-    /// [`ScanDiagnostic::ArchetypeMatchesNothing`] uses, for the same reason.
-    /// A module shipped across a fleet names the auxiliary documents any of its
-    /// repositories *might* have: `spec-artifacts-process` declares
-    /// `spec/evals.md` and `spec/matrix.md`, and a repository whose matrix is
-    /// `spec/tests.md` has neither. That declaration is optional by convention,
-    /// so reporting it on every such repository is noise nobody reads (CR-059).
-    ///
-    /// It is the cause worth naming only when nothing minted, which is the
-    /// shape a typo in the one document that mattered produces.
-    AbsentDocument { path: PathBuf },
 }
 
-/// Rows plus a per-path harvest cache and the diagnostics above, shared across
-/// every declaration in one reconciliation.
+/// The diagnostics above, shared across every declaration in one
+/// reconciliation.
 ///
-/// The cache is the reason this is a context rather than four arguments:
-/// `harvest` re-read and re-parsed its document once per declaration, and the
-/// document a model names is typically `spec/tests.md` — the largest file in
-/// the repo — read once per trace target *and* once per document reference.
-/// CR-049's "the model bounds what is parsed" was inverted for exactly the
-/// documents the model names explicitly (CR-054).
+/// Held a per-path harvest cache until CR-062: `harvest` re-read and re-parsed
+/// the document a model named once per declaration. With binding by archetype
+/// only, every minting document is a corpus document whose body is already
+/// behind the FR-025 per-document once-cell, so the cache had nothing left to
+/// cache.
 #[derive(Debug, Default)]
 pub(crate) struct ScanContext {
-    harvested: BTreeMap<PathBuf, Result<QuireDocument, HarvestError>>,
     diagnostics: Vec<(String, ScanDiagnostic)>,
-}
-
-/// Why a harvest failed, retaining the one distinction `to_string()` destroys.
-///
-/// `std::fs::read_to_string` fails for two different reasons and CR-054 treated
-/// them as one: `NotFound` — the ordinary case for an optional declaration
-/// across a fleet — and everything else, which is always wrong (CR-059).
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct HarvestError {
-    message: String,
-    absent: bool,
-}
-
-impl HarvestError {
-    /// The diagnostic this failure is, once a declaration named it.
-    fn as_diagnostic(&self, path: PathBuf) -> ScanDiagnostic {
-        if self.absent {
-            ScanDiagnostic::AbsentDocument { path }
-        } else {
-            ScanDiagnostic::UnreadableDocument {
-                path,
-                error: self.message.clone(),
-            }
-        }
-    }
 }
 
 impl ScanContext {
@@ -197,64 +146,21 @@ impl ScanContext {
     /// model rather than of the walk (NFR-006).
     ///
     /// `minted_anything` says whether the model produced any id at all. A
-    /// declared archetype no document has — and, since CR-059, a declared
-    /// document that is simply *absent* — is reported only when it did not: a
+    /// declared archetype no document has is reported only when it did not: a
     /// model that mints normally while one optional declaration selects nothing
     /// is healthy, and saying so on every repo would be noise nobody reads.
     ///
-    /// A declared document that is **present and unreadable** is reported
-    /// either way. That is the CR-045 class the rule was built for: the file is
-    /// there, it did not open, and its ids vanished silently.
+    /// Since CR-062 that is the only diagnostic this scan produces. A minting
+    /// document that cannot be *read* is now reported by the walk, as
+    /// `DocumentUnreadable` / `MissingUuid` — an improvement over the
+    /// `document:` form, whose reader returned `None` and said nothing.
     pub(crate) fn into_diagnostics(self, minted_anything: bool) -> Vec<(String, ScanDiagnostic)> {
         let mut out = self.diagnostics;
         if minted_anything {
-            out.retain(|(_, d)| {
-                !matches!(
-                    d,
-                    ScanDiagnostic::ArchetypeMatchesNothing { .. }
-                        | ScanDiagnostic::AbsentDocument { .. }
-                )
-            });
+            out.retain(|(_, d)| !matches!(d, ScanDiagnostic::ArchetypeMatchesNothing { .. }));
         }
         out.sort();
         out
-    }
-
-    /// Read + parse `document` under `root`, **once per path** however many
-    /// declarations name it.
-    ///
-    /// The failure is cached too, and re-reported against each declaration
-    /// that asked: the read happening once is a performance property, while
-    /// which declarations are affected is what the operator acts on, and
-    /// collapsing the second into the first would answer the wrong question.
-    ///
-    /// The failure is classified at the point of the read, because that is the
-    /// only place `io::ErrorKind` still exists (CR-059).
-    fn harvest(
-        &mut self,
-        declaration: &str,
-        root: &Path,
-        document: &Path,
-    ) -> Option<&QuireDocument> {
-        let path = root.join(document);
-        if !self.harvested.contains_key(&path) {
-            let read = std::fs::read_to_string(&path)
-                .map(|text| crate::parse_document(&text))
-                .map_err(|error| HarvestError {
-                    absent: error.kind() == std::io::ErrorKind::NotFound,
-                    message: error.to_string(),
-                });
-            self.harvested.insert(path.clone(), read);
-        }
-        match self.harvested.get(&path) {
-            Some(Ok(_)) => self.harvested.get(&path).and_then(|r| r.as_ref().ok()),
-            Some(Err(error)) => {
-                let diagnostic = error.as_diagnostic(path);
-                self.note(declaration, diagnostic);
-                None
-            }
-            None => None,
-        }
     }
 }
 
@@ -274,8 +180,8 @@ impl DeclaredScope<'_> {
     }
 }
 
-/// Scan the table under `heading` for every document `scope` covers. Bundle
-/// documents come first, in corpus order; the auxiliary rows follow.
+/// Scan the table under `heading` for every corpus document of `scope`'s
+/// archetype, in corpus order.
 pub(crate) fn scan(
     spec: &Spec,
     root: &Path,
@@ -284,38 +190,28 @@ pub(crate) fn scan(
     ctx: &mut ScanContext,
 ) -> Vec<ScannedRow> {
     let mut out = Vec::new();
-    if let Some(archetype) = scope.archetype {
-        let mut of_archetype = 0usize;
-        for doc in &spec.inner.documents {
-            // Header-tier gate first (CR-047): only an archetype-matching,
-            // non-excluded document pays for a body parse.
-            if doc.concept_type() != Some(archetype) {
-                continue;
-            }
-            of_archetype += 1;
-            if scope.excludes(root, &doc.path) {
-                continue;
-            }
-            out.extend(rows_of(doc.body(), &doc.path, heading));
+    let mut of_archetype = 0usize;
+    for doc in &spec.inner.documents {
+        // Header-tier gate first (CR-047): only an archetype-matching,
+        // non-excluded document pays for a body parse.
+        if doc.concept_type() != Some(scope.archetype) {
+            continue;
         }
-        // Counted before `exclude`: a declaration that deliberately excludes
-        // all of its matches is not a missing archetype (CR-054).
-        if of_archetype == 0 {
-            ctx.note(
-                scope.name,
-                ScanDiagnostic::ArchetypeMatchesNothing {
-                    archetype: archetype.to_string(),
-                },
-            );
+        of_archetype += 1;
+        if scope.excludes(root, &doc.path) {
+            continue;
         }
+        out.extend(rows_of(doc.body(), &doc.path, heading));
     }
-    if let Some(document) = scope.document {
-        let path = root.join(document);
-        if !scope.excludes(root, &path) {
-            if let Some(doc) = ctx.harvest(scope.name, root, document) {
-                out.extend(rows_of(doc, &path, heading));
-            }
-        }
+    // Counted before `exclude`: a declaration that deliberately excludes
+    // all of its matches is not a missing archetype (CR-054).
+    if of_archetype == 0 {
+        ctx.note(
+            scope.name,
+            ScanDiagnostic::ArchetypeMatchesNothing {
+                archetype: scope.archetype.to_string(),
+            },
+        );
     }
     out
 }
@@ -426,14 +322,11 @@ fn re_range() -> &'static regex::Regex {
 pub(crate) fn scan_reason(diagnostic: &ScanDiagnostic) -> &'static str {
     match diagnostic {
         ScanDiagnostic::ArchetypeMatchesNothing { .. } => "archetype-matches-nothing",
-        ScanDiagnostic::UnreadableDocument { .. } => "unreadable-declared-document",
-        ScanDiagnostic::AbsentDocument { .. } => "absent-declared-document",
     }
 }
 
 /// The path a scan diagnostic is about and its human message. The path is the
-/// unreadable document where there is one, and the scope root otherwise —
-/// a declaration-level fault has no document to point at.
+/// scope root: a declaration-level fault has no single document to point at.
 pub(crate) fn scan_finding(
     declaration: &str,
     diagnostic: &ScanDiagnostic,
@@ -447,153 +340,5 @@ pub(crate) fn scan_finding(
                  document in the corpus has — it scans nothing and mints no rows"
             ),
         ),
-        ScanDiagnostic::UnreadableDocument { path, error } => (
-            path.clone(),
-            format!(
-                "declaration '{declaration}' names document '{}', which is present and could \
-                 not be read ({error}) — every row it would have contributed is missing",
-                path.display()
-            ),
-        ),
-        ScanDiagnostic::AbsentDocument { path } => (
-            path.clone(),
-            format!(
-                "declaration '{declaration}' names document '{}', which does not exist — the \
-                 model minted nothing at all, so this is the declaration to check first",
-                path.display()
-            ),
-        ),
-    }
-}
-
-// The targeted scan of a declared auxiliary source — a file the corpus walk
-// excludes as a non-artifact (FR-044 glossary-harvester pattern) — lives on
-// `ScanContext::harvest`, which caches it per path and reports a failed read
-// instead of swallowing it (CR-054), distinguishing an absent file from an
-// unreadable one (CR-059).
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn tmpdir(tag: &str) -> PathBuf {
-        let mut p = std::env::temp_dir();
-        p.push(format!(
-            "quire_scan_{tag}_{}",
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        ));
-        std::fs::create_dir_all(&p).unwrap();
-        p
-    }
-
-    // TC-822 (FR-050-AC-19, CR-054): the harvest cache. A model names the same
-    // auxiliary document from several declarations — typically `spec/tests.md`,
-    // the largest file in the repo — and it must be read and parsed once, not
-    // once per declaration. Deleting the file between calls makes the cache
-    // observable: a second read would fail.
-    #[test]
-    fn tc822_harvest_reads_a_declared_document_once() {
-        let root = tmpdir("harvest_cache");
-        let doc = root.join("tests.md");
-        std::fs::write(&doc, "# Matrix\n\n## Test Cases\n\nbody\n").unwrap();
-
-        let mut ctx = ScanContext::default();
-        let first = ctx
-            .harvest("test-case", &root, Path::new("tests.md"))
-            .expect("first read")
-            .clone();
-
-        std::fs::remove_file(&doc).unwrap();
-
-        let second = ctx
-            .harvest("traces-to", &root, Path::new("tests.md"))
-            .expect("served from cache, not re-read");
-        assert_eq!(&first, second);
-        assert!(
-            ctx.into_diagnostics(false).is_empty(),
-            "a cached hit must not report the file as unreadable"
-        );
-
-        std::fs::remove_dir_all(&root).ok();
-    }
-
-    // TC-822 (FR-050-AC-19, CR-054, amended CR-059): the failure is cached too
-    // — one read — but every declaration that named the document is reported,
-    // because which declarations are affected is what the operator acts on.
-    #[test]
-    fn tc822_a_failed_harvest_is_reported_per_declaration() {
-        let root = tmpdir("harvest_missing");
-        let mut ctx = ScanContext::default();
-
-        assert!(ctx
-            .harvest("test-case", &root, Path::new("missing.md"))
-            .is_none());
-        assert!(ctx
-            .harvest("traces-to", &root, Path::new("missing.md"))
-            .is_none());
-
-        let reported: Vec<(String, &'static str)> = ctx
-            .into_diagnostics(false)
-            .iter()
-            .map(|(declaration, d)| (declaration.clone(), scan_reason(d)))
-            .collect();
-        assert_eq!(
-            reported,
-            vec![
-                ("test-case".to_string(), "absent-declared-document"),
-                ("traces-to".to_string(), "absent-declared-document"),
-            ]
-        );
-
-        std::fs::remove_dir_all(&root).ok();
-    }
-
-    // TC-825 (FR-050-AC-19, CR-059): an *absent* declared document is the
-    // optional-declaration case — a module shipped across a fleet names the
-    // auxiliary documents any of its repositories might have — so it is
-    // reported only when the model minted nothing at all.
-    #[test]
-    fn tc825_an_absent_document_is_silent_once_the_model_mints() {
-        let root = tmpdir("harvest_absent");
-        let mut ctx = ScanContext::default();
-
-        assert!(ctx
-            .harvest("functional-coverage-evals", &root, Path::new("evals.md"))
-            .is_none());
-
-        assert!(
-            ctx.into_diagnostics(true).is_empty(),
-            "a model that mints normally while one optional declaration names a \
-             document this repository does not have is healthy"
-        );
-
-        std::fs::remove_dir_all(&root).ok();
-    }
-
-    // TC-825 (FR-050-AC-19, CR-059): a document that is *present* and does not
-    // open is the CR-045 class — the ids vanished while the file was right
-    // there — so it is reported whether or not the model minted.
-    //
-    // The unreadable file is a directory where a file was declared: portable,
-    // unlike a permission bit, and one of the failure modes the ticket names.
-    #[test]
-    fn tc825_a_present_unreadable_document_is_always_reported() {
-        let root = tmpdir("harvest_unreadable");
-        std::fs::create_dir_all(root.join("tests.md")).unwrap();
-
-        let mut ctx = ScanContext::default();
-        assert!(ctx
-            .harvest("test-case", &root, Path::new("tests.md"))
-            .is_none());
-
-        let reported = ctx.into_diagnostics(true);
-        assert_eq!(reported.len(), 1, "reported even though the model minted");
-        assert_eq!(reported[0].0, "test-case");
-        assert_eq!(scan_reason(&reported[0].1), "unreadable-declared-document");
-
-        std::fs::remove_dir_all(&root).ok();
     }
 }

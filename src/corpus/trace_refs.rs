@@ -144,24 +144,24 @@ fn minted_ids(
     let exclude = declared_tables::ExcludeSet::compile(&target.exclude);
     let scope = declared_tables::DeclaredScope {
         name: &target.name,
-        archetype: target.archetype.as_deref(),
-        document: target.document.as_deref(),
+        archetype: &target.archetype,
         exclude: &exclude,
         model_exclude,
     };
     let mut ids: BTreeSet<String> = BTreeSet::new();
-    if let Some(archetype) = &target.archetype {
-        // A document of the target archetype mints its own id, too — an
-        // authored `TC-900.md` is as much a target as a matrix row. An excluded
-        // document mints neither (CR-038): a fixture is test data whether its
-        // ids come from its frontmatter or from its rows.
-        for doc in &spec.inner.documents {
-            if doc.concept_type() == Some(archetype.as_str())
-                && !doc.id.is_empty()
-                && !scope.excludes(root, &doc.path)
-            {
-                ids.insert(doc.id.clone());
-            }
+    // A document of the target archetype mints its own id, too — an authored
+    // `TC-900.md` is as much a target as a matrix row. An excluded document
+    // mints neither (CR-038): a fixture is test data whether its ids come from
+    // its frontmatter or from its rows.
+    //
+    // This is an axis `scan()` does not cover: it reads table rows, this reads
+    // frontmatter `id`.
+    for doc in &spec.inner.documents {
+        if doc.concept_type() == Some(target.archetype.as_str())
+            && !doc.id.is_empty()
+            && !scope.excludes(root, &doc.path)
+        {
+            ids.insert(doc.id.clone());
         }
     }
     for row in declared_tables::scan(spec, root, scope, &target.section, ctx) {
@@ -186,8 +186,7 @@ fn referencing_rows(
         root,
         declared_tables::DeclaredScope {
             name: &declaration.name,
-            archetype: declaration.archetype.as_deref(),
-            document: declaration.document.as_deref(),
+            archetype: &declaration.archetype,
             exclude: &exclude,
             model_exclude,
         },

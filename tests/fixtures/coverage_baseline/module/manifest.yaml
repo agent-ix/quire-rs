@@ -15,6 +15,9 @@ artifact_types:
 - name: TC
   defaults:
     id_pattern: TC-{next:03d}
+- name: TestMatrix
+  defaults:
+    id_pattern: TM-{next:03d}
 traceability:
   # CR-060: model-level — these paths hold no traceable data. Scopes the
   # declarations below *and* the CR-028 criteria walk, which has no declaration
@@ -30,7 +33,7 @@ traceability:
     # per-declaration form too (CR-038).
     exclude: ['spec/fixtures/**']
   - name: test-case
-    document: spec/tests.md
+    archetype: TestMatrix
     section: Test Cases
     id_column: ID
   document_references:
@@ -43,7 +46,7 @@ traceability:
     targets: [test-case]
     exclude: ['spec/fixtures/**']
   - name: traces-to
-    document: spec/tests.md
+    archetype: TestMatrix
     section: Test Cases
     column: Traces To
     row_id_column: ID
