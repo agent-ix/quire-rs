@@ -48,8 +48,8 @@ This NFR supersedes the v1 §19 decision to skip `-Z sanitizer=address|thread` (
 
 | Metric | Target | Threshold | Method |
 |--------|--------|-----------|--------|
-| TSAN data races in GIL-release window (two-thread `load_repo` harness) | 0 | 0 | Scheduled CI Gate (`-Z sanitizer=thread`) |
-| ASAN leaks / use-after-free in first-party object handoff | 0 | 0 | Scheduled CI Gate (`-Z sanitizer=address`) |
+| TSAN data races in GIL-release window (two-thread `load_repo` harness) | 0 | 0 | dynamic-analysis-sanitizer (ThreadSanitizer, `-Z sanitizer=thread`) |
+| ASAN leaks / use-after-free in first-party object handoff | 0 | 0 | dynamic-analysis-sanitizer (AddressSanitizer, `-Z sanitizer=address`) |
 | Both lanes run weekly + workflow_dispatch + tag push | Pass | Pass | Inspection (CI workflow) |
 | Sanitizer-detected race/leak/UAF committed as P0 reproducer | Pass | Pass | Inspection |
 

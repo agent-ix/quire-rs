@@ -39,10 +39,10 @@ The engine must be cheap to use in hot paths (Filament editor live-preview, bulk
 
 | Metric | Target | Threshold | Method |
 |--------|--------|-----------|--------|
-| `Registry::load_from` cold load, v1 baseline corpus (canonical M2 Pro) | < 100 ms median | 100 ms median | Criterion Benchmark |
-| Cold load on Ubuntu x86_64 CI runner | within +50% of canonical | < 150 ms median | Criterion Benchmark |
-| Warm per-extract latency (32 KB doc) | < 5 ms median | 5 ms median | Criterion Benchmark |
-| `Template::parse` / `JSONSchema::compile` calls during per-call ops | 0 | 0 | Tracing Instrumentation |
+| `Registry::load_from` cold load, v1 baseline corpus (canonical M2 Pro) | < 100 ms median | 100 ms median | performance-benchmarking (Criterion) |
+| Cold load on Ubuntu x86_64 CI runner | within +50% of canonical | < 150 ms median | performance-benchmarking (Criterion) |
+| Warm per-extract latency (32 KB doc) | < 5 ms median | 5 ms median | performance-benchmarking (Criterion) |
+| `Template::parse` / `JSONSchema::compile` calls during per-call ops | 0 | 0 | runtime-monitoring (tracing) |
 
 ## Verification
 

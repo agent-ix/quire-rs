@@ -38,10 +38,10 @@ Bulk extraction across the `spec-objects-business` corpus may parse thousands of
 
 | Metric | Target | Threshold | Method |
 |--------|--------|-----------|--------|
-| `parse_document` latency for 5 MB doc (canonical M2 Pro) | < 500 ms median | 500 ms median | Criterion Benchmark |
-| Parse latency on Ubuntu x86_64 CI runner | within +50% of canonical | < 750 ms median | Criterion Benchmark |
-| `validate_document` latency for typical artifact (< 32 KB, warm Registry) | < 1 ms median | 1 ms median | Criterion Benchmark |
-| Same-runner regression vs stored baseline | no slowdown | < 10% slowdown | Criterion Benchmark |
+| `parse_document` latency for 5 MB doc (canonical M2 Pro) | < 500 ms median | 500 ms median | performance-benchmarking (Criterion) |
+| Parse latency on Ubuntu x86_64 CI runner | within +50% of canonical | < 750 ms median | performance-benchmarking (Criterion) |
+| `validate_document` latency for typical artifact (< 32 KB, warm Registry) | < 1 ms median | 1 ms median | performance-benchmarking (Criterion) |
+| Same-runner regression vs stored baseline | no slowdown | < 10% slowdown | performance-benchmarking (Criterion) |
 
 ## Verification
 

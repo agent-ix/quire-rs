@@ -52,9 +52,9 @@ Coverage metrics measure code exercised; mutation testing measures behavior veri
 
 | Metric | Target | Threshold | Method |
 |--------|--------|-----------|--------|
-| Mutants caught in parser primitives (`src/parser/`) | > 95% | > 95% (target, not gate) | `cargo-mutants` (scheduled) |
-| Mutants caught in DSL evaluator (`src/extract/`) | > 90% | > 90% (target, not gate) | `cargo-mutants` (scheduled) |
-| Mutants caught in edge harvester | > 90% | > 90% (target, not gate) | `cargo-mutants` (scheduled) |
+| Mutants caught in parser primitives (`src/parser/`) | > 95% | > 95% (target, not gate) | mutation-testing (cargo-mutants, scheduled) |
+| Mutants caught in DSL evaluator (`src/extract/`) | > 90% | > 90% (target, not gate) | mutation-testing (cargo-mutants, scheduled) |
+| Mutants caught in edge harvester | > 90% | > 90% (target, not gate) | mutation-testing (cargo-mutants, scheduled) |
 | Surviving mutants tracked in `mutants_baseline.txt` with rationale | Pass | Pass | Inspection |
 
 ## Verification

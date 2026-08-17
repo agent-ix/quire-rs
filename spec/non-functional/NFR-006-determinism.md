@@ -53,9 +53,9 @@ The parity suite ([FR-012](../functional/FR-012-archetype-parity-suite.md)) comp
 
 | Metric | Target | Threshold | Method |
 |--------|--------|-----------|--------|
-| Identical `QuireDocument` across 100 repeated parses | all equal | all equal | Proptest |
-| Identical `ValidationResult` + `ExtractionResult` across 100 threaded runs | all equal | all equal | Proptest |
-| `HashMap` usage in order-observable parse/extract/validate paths | 0 | 0 | Static Analysis (clippy/audit) |
+| Identical `QuireDocument` across 100 repeated parses | all equal | all equal | property-based-testing (proptest) |
+| Identical `ValidationResult` + `ExtractionResult` across 100 threaded runs | all equal | all equal | property-based-testing (proptest) |
+| `HashMap` usage in order-observable parse/extract/validate paths | 0 | 0 | static-quality (clippy/audit) |
 
 ## Verification
 

@@ -63,8 +63,8 @@ Even safe Rust can encounter UB through unsound dep crates. miri's runtime check
 
 | Metric | Target | Threshold | Method |
 |--------|--------|-----------|--------|
-| Miri job (RETIRED) — UB violations on safe-Rust core | 0 | 0 | Scheduled CI Gate (retired; superseded by `forbid(unsafe_code)`) |
-| First-party UB surface remaining after `#![forbid(unsafe_code)]` | 0 | 0 | Compile-time check ([NFR-003](./NFR-003-zero-unsafe.md)) |
+| Miri job (RETIRED) — UB violations on safe-Rust core | 0 | 0 | dynamic-analysis-sanitizer (Miri; RETIRED, superseded by `forbid(unsafe_code)`) |
+| First-party UB surface remaining after `#![forbid(unsafe_code)]` | 0 | 0 | compile-time-check ([NFR-003](./NFR-003-zero-unsafe.md)) |
 
 ## Verification
 

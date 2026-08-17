@@ -43,10 +43,10 @@ Per-runner baselines stored separately (Apple Silicon M2 Pro canonical; Ubuntu x
 
 | Metric | Target | Threshold | Method |
 |--------|--------|-----------|--------|
-| `load_repo` p50, 1,000-doc corpus, single-threaded (canonical M2 Pro) | < 600 ms | 600 ms | Criterion Benchmark |
-| `load_repo` p50, 1,000-doc corpus, 8 threads | < 200 ms | 200 ms | Criterion Benchmark |
-| Parallel efficiency `T1 / (8 × T8)` | ≥ 0.6 | ≥ 0.6 | Criterion Benchmark |
-| Same-runner regression vs stored baseline (either thread count) | no slowdown | < 10% slowdown | Criterion Benchmark |
+| `load_repo` p50, 1,000-doc corpus, single-threaded (canonical M2 Pro) | < 600 ms | 600 ms | performance-benchmarking (Criterion) |
+| `load_repo` p50, 1,000-doc corpus, 8 threads | < 200 ms | 200 ms | performance-benchmarking (Criterion) |
+| Parallel efficiency `T1 / (8 × T8)` | ≥ 0.6 | ≥ 0.6 | performance-benchmarking (Criterion) |
+| Same-runner regression vs stored baseline (either thread count) | no slowdown | < 10% slowdown | performance-benchmarking (Criterion) |
 | Output correctness: `documents.len()` and path-sorted ordering across thread counts | 1000, identical | 1000, identical | Inspection (correctness assertion) |
 
 ## Verification

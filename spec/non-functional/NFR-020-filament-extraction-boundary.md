@@ -31,9 +31,9 @@ produce identical results without hidden runtime dependencies or side effects.
 
 | Metric | Target | Threshold | Method |
 |--------|--------|-----------|--------|
-| Runtime side-effect dependencies in extraction module | 0 | 0 | Static Inspection |
-| Repeated-output mismatch count for parity fixtures | 0 | 0 | Unit Test |
-| Python/WASM binding divergence count for shared fixtures | 0 | 0 | Integration Test |
+| Runtime side-effect dependencies in extraction module | 0 | 0 | inspection (static) |
+| Repeated-output mismatch count for parity fixtures | 0 | 0 | unit-testing |
+| Python/WASM binding divergence count for shared fixtures | 0 | 0 | integration-testing |
 
 ## Verification
 
