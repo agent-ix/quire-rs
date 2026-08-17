@@ -240,6 +240,7 @@ pub fn classify_document_criteria(
             observable: registry.observable_verbs_matcher(),
             vacuous: registry.vacuous_predicates_matcher(),
             idioms: registry.property_idioms_matcher(),
+            ambiguous: registry.ambiguity_terms_matcher(),
         },
     );
 
@@ -425,6 +426,7 @@ fn validate_in_registry_core(
             observable: registry.observable_verbs_matcher(),
             vacuous: registry.vacuous_predicates_matcher(),
             idioms: registry.property_idioms_matcher(),
+            ambiguous: registry.ambiguity_terms_matcher(),
         },
         registry.grammar_severity(),
         &mut errors,

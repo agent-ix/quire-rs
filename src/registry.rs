@@ -65,6 +65,10 @@ struct Inner {
     /// Sorted distinct `class` values — the `verification_class` vocabulary,
     /// derived the same way.
     verification_classes: Vec<String>,
+    /// Merged ambiguity lexicon (FR-056).
+    ambiguity_terms: std::collections::BTreeMap<String, crate::vocab::AmbiguityTermDef>,
+    /// Precompiled matcher, module terms layered over the engine built-ins.
+    ambiguity_terms_matcher: crate::grammar::quality::AmbiguityTerms,
     /// Merged declarative traceability model (FR-050).
     traceability: crate::traceability::TraceabilityModel,
     failures: Vec<ArchetypeLoadFailure>,
@@ -219,6 +223,7 @@ impl Registry {
             vacuous_predicates,
             property_idioms,
             verification_catalog,
+            ambiguity_terms,
             traceability,
             failures,
             diagnostics,
@@ -254,6 +259,11 @@ impl Registry {
             }
             set.into_iter().collect()
         };
+        // FR-056: precompile the ambiguity matcher once, module terms layered
+        // over the engine built-ins first-wins.
+        let ambiguity_terms_matcher = crate::grammar::quality::AmbiguityTerms::with_module_terms(
+            ambiguity_terms.keys().map(String::as_str),
+        );
         Self {
             inner: Arc::new(Inner {
                 archetypes,
@@ -276,6 +286,8 @@ impl Registry {
                 verification_catalog,
                 verification_methods,
                 verification_classes,
+                ambiguity_terms,
+                ambiguity_terms_matcher,
                 traceability,
                 failures,
                 diagnostics,
@@ -452,6 +464,19 @@ impl Registry {
     /// rather than computing an empty rollup (FR-050-AC-2/AC-9).
     pub fn traceability(&self) -> Option<&crate::traceability::TraceabilityModel> {
         (!self.inner.traceability.is_empty()).then_some(&self.inner.traceability)
+    }
+
+    /// The merged `ambiguity_terms` registry (FR-056).
+    pub fn ambiguity_terms(
+        &self,
+    ) -> &std::collections::BTreeMap<String, crate::vocab::AmbiguityTermDef> {
+        &self.inner.ambiguity_terms
+    }
+
+    /// The precompiled ambiguity matcher (FR-056): module terms layered over
+    /// the engine built-ins, which are never replaced.
+    pub fn ambiguity_terms_matcher(&self) -> &crate::grammar::quality::AmbiguityTerms {
+        &self.inner.ambiguity_terms_matcher
     }
 
     /// The merged verification-method catalog (FR-054), or `None` when no
