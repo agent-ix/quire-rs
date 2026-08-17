@@ -5,6 +5,32 @@ All notable changes to `quire-rs` are documented here. Format follows
 numbers follow semver — pre-1.0, breaking changes may land in minor
 bumps; once 1.0 ships, semver is strict.
 
+## [0.30.1] — 2026-08-17
+
+### Fixed
+
+- **The Python wheel could not be built at all** since v0.29.0. FR-056 added
+  `ambiguous` to `GrammarVocabularies` and two PyO3 struct literals in
+  `src/python/mod.rs` were never updated, so `--features python` failed to
+  compile with `missing field \`ambiguous\``. v0.29.0 and v0.30.0 both shipped
+  in that state; it surfaced only when the wheel job was finally dispatched.
+
+  `CLAUDE.md` already required it — *"any change to `src/grammar/`,
+  `src/python/`, or `tests/python/` must also pass `make ci-python`"* — and
+  nothing enforced it, which is the same gap that let TC-715 sit asserting
+  renamed check ids.
+
+### Changed
+
+- **`make ci` now runs `check-python`.** `cargo check --features python` needs
+  no wheel and no interpreter, so a missing field can no longer reach a tag. It
+  does **not** replace `make ci-python`, which runs the binding suite and
+  remains the only verification of the PyO3-parity criteria. It builds in its
+  own `CARGO_TARGET_DIR`: `--features python` resolves a different feature set,
+  and sharing the default target dir makes the next `cargo test` link against
+  artifacts from the other set — surfacing as bogus "trait `Serialize` is not
+  implemented" errors on types that plainly derive it.
+
 ## [0.30.0] — 2026-08-17
 
 The post-merge review of the ADR-0011 P1 wave (agent-ix/quire-rs#81), landed.
