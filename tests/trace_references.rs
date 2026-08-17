@@ -1,7 +1,9 @@
 //! FR-049 — verification-reference integrity (TC-724..TC-731).
 //!
-//! Bundles are built on disk per test so the auxiliary-source harvest (a
-//! `tests.md` the corpus walk excludes) exercises the real filesystem path.
+//! Bundles are built on disk per test so the walk that acquires the matrix
+//! exercises the real filesystem path. Before CR-062 the matrix was read
+//! off-corpus by `document:` binding and needed no frontmatter; now it is an
+//! ordinary corpus document of archetype `TestMatrix`.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -39,10 +41,10 @@ fn fr_document(id: &str, rows: &[(&str, &str)]) -> String {
     out
 }
 
-/// A Test Matrix at the bundle root — a declared auxiliary trace source that
-/// the corpus walk skips as a non-artifact.
+/// A Test Matrix at the bundle root, reached by archetype like any other
+/// corpus document (CR-062).
 fn tests_matrix(rows: &[(&str, &str)]) -> String {
-    let mut out = String::from("# Test Matrix\n\n## Test Cases\n\n| ID | Traces To | Status |\n|----|-----------|--------|\n");
+    let mut out = String::from("---\nid: TM-001\ntype: TestMatrix\ntitle: Test Matrix\n---\n\n# Test Matrix\n\n## Test Cases\n\n| ID | Traces To | Status |\n|----|-----------|--------|\n");
     for (tc, traces_to) in rows {
         out.push_str(&format!("| {tc} | {traces_to} | ✅ |\n"));
     }
@@ -197,7 +199,8 @@ fn tc727_pattern_and_column_are_module_data() {
         // The title heading must not repeat the declared section name —
         // `section()` returns the first heading that matches, and a level-1
         // `# Checks` would shadow the level-2 table section.
-        "# Check Register\n\n## Checks\n\n| Check | Covers | State |\n|-------|--------|-------|\n\
+        "---\nid: CR-001\ntype: CheckRegister\ntitle: Check Register\n---\n\n\
+         # Check Register\n\n## Checks\n\n| Check | Covers | State |\n|-------|--------|-------|\n\
          | C-001 | R-001-C-1 | done |\n",
     );
 
@@ -382,128 +385,17 @@ fn tc760_declared_cell_normalization() {
     assert_eq!(ids("plain"), vec!["TC-404".to_string()]);
 }
 
-// TC-814 (FR-049-AC-9, CR-045): the corpus is walked from the document root
-// while the module's path-bound declarations keep resolving against the
-// scope. Conflating the two roots silently un-mints every path-bound trace
-// target — the regression the two-parameter `validate_bundle` exists to
-// prevent.
-#[test]
-fn tc814_reference_root_stays_the_scope_when_corpus_is_nested() {
-    let root = tmpdir("814");
-
-    // A module authored against the repository scope: the auxiliary matrix
-    // is declared at `spec/tests.md`, exactly as spec-artifacts-process
-    // declares it.
-    let module = root.join("m");
-    fs::create_dir_all(&module).expect("mkdir module");
-    fs::write(
-        module.join("manifest.yaml"),
-        "name: m\nmanifest_version: 1.0.0\nversion: 0.0.1\nartifact_types:\n\
-         - name: FR\n\
-         traceability:\n  trace_targets:\n  - name: test-case\n\
-         \x20   document: spec/tests.md\n    section: Test Cases\n\
-         \x20   id_column: ID\n\
-         \x20 document_references:\n  - name: verification\n    archetype: FR\n\
-         \x20   section: Acceptance Criteria\n    column: Verification\n\
-         \x20   row_id_column: ID\n    pattern: '\\((TC-\\d+)\\)'\n\
-         \x20   targets: [test-case]\n",
-    )
-    .expect("write manifest");
-
-    write(
-        &root,
-        "spec/FR-001.md",
-        &fr_document("FR-001", &[("FR-001-AC-1", "Test (TC-001)")]),
-    );
-    write(
-        &root,
-        "spec/tests.md",
-        &tests_matrix(&[("TC-001", "FR-001-AC-1")]),
-    );
-
-    let registry = Registry::load_module(&module).expect("load module");
-    let spec_root = root.join("spec");
-    let spec = quire_rs::Spec::from_path(&spec_root);
-
-    // Two roots stated separately: the reference resolves.
-    let split = quire_rs::validate_bundle(&spec, &registry, BundlePosture::Okf, &spec_root, &root);
-    assert!(
-        dangling(&split).is_empty(),
-        "path-bound target must mint against the scope: {:?}",
-        dangling(&split)
-    );
-
-    // Conflated roots: `spec/tests.md` no longer resolves relative to the
-    // document root, the target un-mints, and the reference dangles.
-    let conflated =
-        quire_rs::validate_bundle(&spec, &registry, BundlePosture::Okf, &spec_root, &spec_root);
-    assert_eq!(
-        dangling(&conflated).len(),
-        1,
-        "conflating the roots should un-mint the path-bound target: {:?}",
-        dangling(&conflated)
-    );
-}
-
-// TC-825 (FR-050-AC-19, CR-059): `quire validate` is the *second* consumer of
-// the scan vocabulary, and CR-054's whole point was that the two must not
-// disagree about what to call the same finding. So the absent/unreadable split
-// is asserted here too: an optional auxiliary document this repository does not
-// have is silent while the model mints, and a document that is present and does
-// not open is a warning either way.
-#[test]
-fn tc825_validate_agrees_about_absent_and_unreadable_documents() {
-    let scan_reasons = |report: &BundleReport| -> Vec<&'static str> {
-        report
-            .errors
-            .iter()
-            .chain(report.warnings.iter())
-            .map(|f| f.reason)
-            .filter(|r| r.ends_with("-declared-document"))
-            .collect()
-    };
-
-    // `optional-aux` declares `evals.md` and `matrix.md`; this bundle has
-    // neither, and mints normally through the FR archetype and `tests.md`.
-    let root = tmpdir("825-absent");
-    write(
-        &root,
-        "FR-001.md",
-        &fr_document("FR-001", &[("FR-001-AC-1", "Test (TC-001)")]),
-    );
-    write(
-        &root,
-        "tests.md",
-        &tests_matrix(&[("TC-001", "FR-001-AC-1")]),
-    );
-
-    let report = validate(&root, "optional-aux", BundlePosture::Okf);
-    assert!(
-        scan_reasons(&report).is_empty(),
-        "an absent optional declaration must be silent here too: {:?}",
-        report.warnings
-    );
-
-    // The same bundle, with `evals.md` present and unopenable — a directory
-    // where a file was declared. The model still mints, and this is reported.
-    fs::create_dir_all(root.join("evals.md")).expect("mkdir evals.md");
-    let report = validate(&root, "optional-aux", BundlePosture::Okf);
-    assert_eq!(
-        scan_reasons(&report),
-        vec!["unreadable-declared-document"],
-        "a present, unopenable document is the CR-045 class: {:?}",
-        report.warnings
-    );
-}
-
-// TC-814 (FR-049-AC-9, CR-056): the `exclude:` half of the two-root split.
-// A glob is authored against the repository scope exactly as `document:` is
+// TC-814 (FR-049-AC-9, CR-056, amended CR-062): the two-root split, which now
+// rests entirely on `exclude:`. A glob is authored against the repository scope
 // — `exclude: ["spec/fixtures/**"]` — so it must be matched against the
-// **reference** root. Matched against the document root instead, the same
-// glob addresses `spec/spec/fixtures/**`, excludes nothing, and a fixture
-// matrix's ids mint as if they were real. This is the more fragile half:
-// `document:` un-mints loudly (a reference dangles), while a lapsed exclusion
-// *adds* ids and every reference still resolves.
+// **reference** root. Matched against the document root instead, the same glob
+// addresses `spec/spec/fixtures/**`, excludes nothing, and a fixture matrix's
+// ids mint as if they were real.
+//
+// This was always the more fragile half, and since CR-062 it is the only one:
+// the path-bound half un-minted loudly (a reference dangled), while a lapsed
+// exclusion *adds* ids and every reference still resolves. Deleting `document:`
+// removed the loud half of the risk, not the quiet one.
 #[test]
 fn tc814_exclude_globs_resolve_against_the_reference_root() {
     let root = tmpdir("814-exclude");

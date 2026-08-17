@@ -5,11 +5,15 @@
 #   - `acceptance-criterion` declares archetype `FRR`, a typo. No corpus
 #     document has that type, so the scan is empty and, since CR-049, no body
 #     is parsed either.
-#   - `test-case` names `missing.md`, which does not exist. The read failed
-#     silently before CR-054 and every id it would have minted vanished.
+#   - `test-case` declares archetype `TestMatrixx`, the same class of typo.
+#     Before CR-054 it minted nothing in silence.
 #
 # The point of the fixture is that the engine used to report `total: 0`,
 # exit 0 and no diagnostic for both.
+#
+# CR-062: `test-case` named the non-existent `missing.md` until the `document:`
+# form was deleted. A misspelled archetype is the surviving shape of the same
+# fault — a declaration that is valid and selects nothing.
 name: traceability-fails-open
 version: 0.1.0
 description: Declared-but-selects-nothing traceability model fixture
@@ -20,6 +24,9 @@ artifact_types:
 - name: TC
   defaults:
     id_pattern: TC-{next:03d}
+- name: TestMatrix
+  defaults:
+    id_pattern: TM-{next:03d}
 traceability:
   trace_targets:
   - name: acceptance-criterion
@@ -27,7 +34,7 @@ traceability:
     section: Acceptance Criteria
     id_column: ID
   - name: test-case
-    document: missing.md
+    archetype: TestMatrixx
     section: Test Cases
     id_column: ID
   document_references:

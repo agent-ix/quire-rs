@@ -26,14 +26,12 @@ traceability:
     id_column: ID
   - name: test-case
     archetype: TestMatrix
-    document: tests.md
     exclude: ["fixtures/**"]
     section: Test Cases
     id_column: ID
   document_references:
   - name: traces-to
     archetype: TestMatrix
-    document: tests.md
     exclude: ["fixtures/**"]
     section: Test Cases
     column: Traces To
