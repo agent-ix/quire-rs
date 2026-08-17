@@ -131,13 +131,11 @@ fn tc833_ambiguous_or_originless_source_fails_load() {
         // and the failure names the offending source rather than leaving an
         // unexecutable declaration to yield an inexplicably empty report.
         let outcome = quire_rs::loader::load_single_module(&fixture_module(module));
-        let reasons: Vec<&str> = outcome
-            .failures
-            .iter()
-            .map(|f| f.reason.as_str())
-            .collect();
+        let reasons: Vec<&str> = outcome.failures.iter().map(|f| f.reason.as_str()).collect();
         assert!(
-            reasons.iter().any(|r| r.contains(source) && r.contains(expected)),
+            reasons
+                .iter()
+                .any(|r| r.contains(source) && r.contains(expected)),
             "module {module} loaded without naming source '{source}': {reasons:#?}",
         );
         assert!(

@@ -13,7 +13,8 @@ fn iso_module() -> PathBuf {
 /// A module declaring the FR archetype on `iso-spec-core`, plus whatever
 /// `ambiguity_terms` the caller wants.
 fn module_with_terms(suffix: &str, terms: &[&str]) -> PathBuf {
-    let root = std::env::temp_dir().join(format!("quire-rs-quality-{}-{suffix}", std::process::id()));
+    let root =
+        std::env::temp_dir().join(format!("quire-rs-quality-{}-{suffix}", std::process::id()));
     let _ = fs::remove_dir_all(&root);
     fs::create_dir_all(&root).expect("mkdir");
     let mut yaml = String::from(
@@ -31,7 +32,9 @@ fn module_with_terms(suffix: &str, terms: &[&str]) -> PathBuf {
 }
 
 fn fr(description: &str) -> String {
-    format!("---\nid: FR-001\ntype: FR\ntitle: A requirement\n---\n\n## Description\n\n{description}\n")
+    format!(
+        "---\nid: FR-001\ntype: FR\ntitle: A requirement\n---\n\n## Description\n\n{description}\n"
+    )
 }
 
 /// The `quality:` findings a document produces, as `(check, message)`.
@@ -70,7 +73,10 @@ fn tc861_builtin_ambiguity_term_fires_and_names_the_term() {
         &registry,
         &fr("The system shall provide adequate throughput."),
     );
-    let ambiguous: Vec<_> = findings.iter().filter(|(c, _)| c == "ambiguous-term").collect();
+    let ambiguous: Vec<_> = findings
+        .iter()
+        .filter(|(c, _)| c == "ambiguous-term")
+        .collect();
     assert_eq!(ambiguous.len(), 1, "{findings:#?}");
     assert!(ambiguous[0].1.contains("`adequate`"), "{:?}", ambiguous[0]);
 
@@ -104,12 +110,13 @@ fn tc862_longest_term_names_the_finding() {
 // TC-863 (FR-056-AC-3): module terms layer OVER the built-ins, never replace.
 #[test]
 fn tc863_module_terms_extend_the_builtins() {
-    let registry =
-        Registry::load_module(&module_with_terms("extend", &["snappy"])).expect("load");
+    let registry = Registry::load_module(&module_with_terms("extend", &["snappy"])).expect("load");
 
     let declared = quality_findings(&registry, &fr("The interface shall feel snappy."));
     assert!(
-        declared.iter().any(|(c, m)| c == "ambiguous-term" && m.contains("`snappy`")),
+        declared
+            .iter()
+            .any(|(c, m)| c == "ambiguous-term" && m.contains("`snappy`")),
         "the declared term did not fire: {declared:#?}",
     );
 
@@ -117,7 +124,9 @@ fn tc863_module_terms_extend_the_builtins() {
     // replaces rather than layers.
     let builtin = quality_findings(&registry, &fr("The system shall be robust."));
     assert!(
-        builtin.iter().any(|(c, m)| c == "ambiguous-term" && m.contains("`robust`")),
+        builtin
+            .iter()
+            .any(|(c, m)| c == "ambiguous-term" && m.contains("`robust`")),
         "a built-in stopped firing once a module declared its own: {builtin:#?}",
     );
 }
@@ -128,18 +137,26 @@ fn tc864_agentless_passive_is_about_allocation_not_voice() {
     let registry = plain("864");
     let agentless = quality_findings(&registry, &fr("The input shall be validated."));
     assert!(
-        agentless.iter().any(|(c, m)| c == "agentless-passive" && m.contains("validated")),
+        agentless
+            .iter()
+            .any(|(c, m)| c == "agentless-passive" && m.contains("validated")),
         "{agentless:#?}",
     );
 
-    let allocated = checks(&registry, &fr("The input shall be validated by the parser."));
+    let allocated = checks(
+        &registry,
+        &fr("The input shall be validated by the parser."),
+    );
     assert!(
         !allocated.iter().any(|c| c == "agentless-passive"),
         "naming the agent must clear the finding — the passive voice is not the defect: {allocated:?}",
     );
 
     let active = checks(&registry, &fr("The parser shall validate the input."));
-    assert!(!active.iter().any(|c| c == "agentless-passive"), "{active:?}");
+    assert!(
+        !active.iter().any(|c| c == "agentless-passive"),
+        "{active:?}"
+    );
 }
 
 // TC-865 (FR-056-AC-5): two modals is the defect; one is not.
@@ -154,7 +171,10 @@ fn tc865_mixed_modal_needs_two_modals() {
         .iter()
         .find(|(c, _)| c == "mixed-modal")
         .expect("fires");
-    assert!(finding.1.contains("shall") && finding.1.contains("should"), "{finding:?}");
+    assert!(
+        finding.1.contains("shall") && finding.1.contains("should"),
+        "{finding:?}"
+    );
 
     let single = checks(&registry, &fr("The system shall retry the request."));
     assert!(!single.iter().any(|c| c == "mixed-modal"), "{single:?}");
@@ -173,7 +193,10 @@ fn tc866_quoted_term_is_a_mention_not_a_use() {
         "a term inside a code span is a mention, not an ambiguous requirement: {quoted:?}",
     );
 
-    let used = checks(&registry, &fr("The loader shall optimize the manifest at load time."));
+    let used = checks(
+        &registry,
+        &fr("The loader shall optimize the manifest at load time."),
+    );
     assert!(
         used.iter().any(|c| c == "ambiguous-term"),
         "the same term unquoted must fire: {used:?}",
@@ -233,9 +256,18 @@ fn tc868_ears_and_ac_findings_are_unchanged() {
     // byte-for-byte identical — the only honest way to assert CON-4.
     let silenced = registry.with_grammar_severity(
         [
-            ("quality:ambiguous-term", quire_rs::grammar::GrammarSeverityLevel::Off),
-            ("quality:agentless-passive", quire_rs::grammar::GrammarSeverityLevel::Off),
-            ("quality:mixed-modal", quire_rs::grammar::GrammarSeverityLevel::Off),
+            (
+                "quality:ambiguous-term",
+                quire_rs::grammar::GrammarSeverityLevel::Off,
+            ),
+            (
+                "quality:agentless-passive",
+                quire_rs::grammar::GrammarSeverityLevel::Off,
+            ),
+            (
+                "quality:mixed-modal",
+                quire_rs::grammar::GrammarSeverityLevel::Off,
+            ),
         ]
         .into_iter()
         .map(|(k, v)| (k.to_string(), v))
@@ -255,7 +287,10 @@ fn tc868_ears_and_ac_findings_are_unchanged() {
         non_quality(&baseline),
         "the quality pack moved an `ears` or `ac` finding",
     );
-    assert!(!non_quality(&result).is_empty(), "the fixture must produce other findings to compare");
+    assert!(
+        !non_quality(&result).is_empty(),
+        "the fixture must produce other findings to compare"
+    );
 }
 
 // TC-869 (FR-056-AC-9): checks are independent, so two defects report twice.

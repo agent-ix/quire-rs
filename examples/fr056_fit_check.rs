@@ -22,17 +22,27 @@ fn main() {
     // Dedupe worktree copies the way scripts/sweep_coverage.py does.
     repos.retain(|p| {
         let n = p.file_name().and_then(|s| s.to_str()).unwrap_or("");
-        if let Some(only) = &only { return n == only }
+        if let Some(only) = &only {
+            return n == only;
+        }
         !n.contains("-task") && n != "worktrees"
     });
 
     for repo in &repos {
         let spec = repo.join("spec");
         for entry in walk(&spec) {
-            let Ok(text) = std::fs::read_to_string(&entry) else { continue };
-            let Some(ty) = frontmatter_type(&text) else { continue };
-            if !matches!(ty.as_str(), "FR" | "NFR" | "StR") { continue }
-            let Some(archetype) = registry.archetype(&ty) else { continue };
+            let Ok(text) = std::fs::read_to_string(&entry) else {
+                continue;
+            };
+            let Some(ty) = frontmatter_type(&text) else {
+                continue;
+            };
+            if !matches!(ty.as_str(), "FR" | "NFR" | "StR") {
+                continue;
+            }
+            let Some(archetype) = registry.archetype(&ty) else {
+                continue;
+            };
             docs_total += 1;
             let result = quire_rs::validate_document_in_registry(&registry, archetype, &text);
             let mut hit = false;
@@ -43,34 +53,49 @@ fn main() {
                     hit = true;
                     let ex = examples.entry(name).or_default();
                     if ex.len() < 4 {
-                        ex.push(format!("{}: {}", entry.display(), w.message.chars().take(150).collect::<String>()));
+                        ex.push(format!(
+                            "{}: {}",
+                            entry.display(),
+                            w.message.chars().take(150).collect::<String>()
+                        ));
                     }
                 }
             }
-            if hit { docs_hit += 1 }
+            if hit {
+                docs_hit += 1
+            }
         }
     }
     println!("repos scanned: {}", repos.len());
     println!("FR/NFR/StR documents: {docs_total}");
-    println!("documents with >=1 quality finding: {docs_hit} ({:.1}%)",
-             100.0 * docs_hit as f64 / docs_total.max(1) as f64);
+    println!(
+        "documents with >=1 quality finding: {docs_hit} ({:.1}%)",
+        100.0 * docs_hit as f64 / docs_total.max(1) as f64
+    );
     for (check, n) in &per_check {
         println!("  quality:{check}: {n} findings");
     }
     println!("\n--- samples ---");
     for (check, ex) in &examples {
         println!("[{check}]");
-        for e in ex { println!("   {e}"); }
+        for e in ex {
+            println!("   {e}");
+        }
     }
 }
 
 fn walk(dir: &Path) -> Vec<std::path::PathBuf> {
     let mut out = Vec::new();
-    let Ok(rd) = std::fs::read_dir(dir) else { return out };
+    let Ok(rd) = std::fs::read_dir(dir) else {
+        return out;
+    };
     for e in rd.filter_map(|e| e.ok()) {
         let p = e.path();
-        if p.is_dir() { out.extend(walk(&p)) }
-        else if p.extension().is_some_and(|x| x == "md") { out.push(p) }
+        if p.is_dir() {
+            out.extend(walk(&p))
+        } else if p.extension().is_some_and(|x| x == "md") {
+            out.push(p)
+        }
     }
     out
 }

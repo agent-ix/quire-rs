@@ -34,9 +34,7 @@ fn compile(name: &str) -> JSONSchema {
 fn errors(schema: &JSONSchema, instance: &Value) -> Vec<String> {
     match schema.validate(instance) {
         Ok(()) => Vec::new(),
-        Err(errs) => errs
-            .map(|e| format!("{}: {e}", e.instance_path))
-            .collect(),
+        Err(errs) => errs.map(|e| format!("{}: {e}", e.instance_path)).collect(),
     }
 }
 
@@ -78,7 +76,10 @@ fn tc854_published_schemas_are_valid_and_versioned() {
 fn tc855_coverage_baseline_conforms() {
     let schema = compile("coverage-v1.schema.json");
     let errs = errors(&schema, &baseline());
-    assert!(errs.is_empty(), "the checked-in baseline violates the published contract:\n{errs:#?}");
+    assert!(
+        errs.is_empty(),
+        "the checked-in baseline violates the published contract:\n{errs:#?}"
+    );
 }
 
 // TC-856 (FR-055-AC-3): the optional keys are covered by a payload that
@@ -240,7 +241,10 @@ fn tc858_added_fields_are_rejected_at_every_level() {
     );
 
     let mut in_array = baseline();
-    if let Some(first) = in_array["groups"].as_array_mut().and_then(|a| a.first_mut()) {
+    if let Some(first) = in_array["groups"]
+        .as_array_mut()
+        .and_then(|a| a.first_mut())
+    {
         first["surprise"] = json!(true);
         assert!(
             !errors(&schema, &in_array).is_empty(),
@@ -266,7 +270,13 @@ fn tc859_optional_and_required_split_matches_the_engine() {
     }
 
     // Required: the engine always emits these, so their absence is a defect.
-    for required in ["unbacked_rows", "status_lies", "untracked_symbols", "groups", "totals"] {
+    for required in [
+        "unbacked_rows",
+        "status_lies",
+        "untracked_symbols",
+        "groups",
+        "totals",
+    ] {
         let mut payload = baseline();
         payload.as_object_mut().unwrap().remove(required);
         assert!(

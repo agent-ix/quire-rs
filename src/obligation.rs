@@ -433,8 +433,14 @@ mod tests {
 
     #[test]
     fn document_id_takes_the_prefix_and_number() {
-        assert_eq!(document_id("spec/non-functional/NFR-006-determinism.md"), "NFR-006");
-        assert_eq!(document_id("spec/functional/FR-050-declarative.md"), "FR-050");
+        assert_eq!(
+            document_id("spec/non-functional/NFR-006-determinism.md"),
+            "NFR-006"
+        );
+        assert_eq!(
+            document_id("spec/functional/FR-050-declarative.md"),
+            "FR-050"
+        );
         assert_eq!(document_id("notes.md"), "notes");
     }
 }
