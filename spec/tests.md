@@ -78,7 +78,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | FR-019 Stable block identifiers | AC-1..3; CON-1 | TC-400 (block_id parsed; no attribute → None), TC-402 (attribute stripped from heading text), TC-443 (id survives write-back + reparse), TC-403 (negative) | ✅ Complete (document authored, CR-042) |
 | FR-020 Block addressing | AC-1..2; CON-1 | TC-410 (nested block_id lookup), TC-411 (block_type → archetype 1:1 alias) | ✅ Complete (CR-042 — the absent `Block` struct is the design, stated as CON-1) |
 | ~~FR-021 Block edit API~~ | — | — | ⛔ RETIRED (CR-042: `apply_block_patch`/`replace_block` were render-dependent and removed with render; US-006/US-007 ACs already retired) |
-| FR-022 Write-back primitives | AC-1..5; CON-1 | TC-430 (update_section replaces content), TC-431 (update_block replaces heading+content), TC-432 (other blocks byte-identical), TC-433 (frontmatter preserved), TC-434/435 (missing heading/id → MissingField) | ✅ Complete |
+| FR-022 Write-back primitives | AC-1..7; CON-1 | TC-430 (update_section replaces content), TC-431 (update_block replaces heading+content), TC-432 (other blocks byte-identical), TC-433 (frontmatter preserved), TC-434/435 (missing heading/id → MissingField), TC-896 (CR-069 self-write identity + end-of-file separator) | ✅ Complete |
 | FR-023 PyO3 binding surface | AC-1..7 | TC-460 (feature-gate), TC-461 (parse parity), TC-462 (validate parity), TC-463 (load_repo via binding), TC-464 (GIL release), TC-465 (abi3 cross-version), TC-466 (no subprocess) | ✅ Complete |
 | FR-028 Expanded Python surface | AC-1..8 | TC-510 (⛔ RETIRED — render removed), TC-511 (validate happy+sad), TC-512 (validate_manifest), TC-513 (extract envelope), TC-514 (extract_frontmatter), TC-515 (harvest_edges dict+str), TC-516 (exception hierarchy), TC-517 (GIL release multi-thread) | ✅ Complete |
 | FR-029 Archetype input contract (recast, ADR 0004) | AC-1..6 | TC-548 (FR/NFR contract), TC-549 (NFR sections), TC-550 (iso required_sections order), TC-551 (byte-stable JSON), TC-552 (unknown→err), TC-553 (unresolved-mapping diag) | 🚧 Pending implementation |
@@ -167,7 +167,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-021 | quire-rs structural equivalence against canonical TS fixtures on real corpus (parity) | Integration | P1 | StR-003-AC-3 | 🚧 |
 | TC-022 | Section content preserves leading/trailing whitespace | Unit | P0 | FR-008-AC-1 | 🚧 |
 | TC-023 | CRLF and LF endings preserved in section content | Unit | P1 | FR-008-AC-2 | 🚧 |
-| TC-024 | Roundtrip: reconstructing body from sections equals input | Property | P0 | FR-008-AC-3, NFR-006 | 🚧 |
+| TC-024 | Roundtrip: reconstructing body from `(preamble, [(heading_line, content)])` byte-equals the input, over 10 000 generated bodies (`src/parser/slice.rs`; carried no TC id until CR-069) | Property | P0 | FR-008-AC-3, NFR-006 | ✅ |
 | TC-025 | Slug normalization (lowercase, alphanum-dash, trim) | Unit | P0 | FR-009-AC-1, FR-009-AC-2, FR-009-AC-3 | 🚧 |
 | TC-026 | Line index ignores frontmatter offset | Unit | P0 | FR-009-AC-4, FR-009-AC-5 | 🚧 |
 | TC-027 | Query API module-level signatures compile and re-export | Compile | P0 | FR-010-AC-1 | 🚧 |
@@ -695,6 +695,13 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-887 | Findings appear in the same order with and without a severity map, and repeated runs over one bundle agree (NFR-006) | Integration | P1 | FR-057-AC-10 | ✅ |
 | TC-888 | `unknown-type` and the missing-`type` error stand even with `bundle:unknown-type` and `bundle:frontmatter` mapped `off`, and carry no pack, so no key can ever address them | Integration | P0 | FR-057-CON-1 | ✅ |
 | TC-889 | With `refs:dangling-reference` off, a bundle that also has a dangling trace reference still reports `dangling-trace-reference` at its unchanged count | Integration | P0 | FR-057-AC-6 | ✅ |
+| TC-890 | `normalize_statement` is idempotent, and `statement_hash` is invariant under it — an obligation's identity cannot depend on how many times its text was round-tripped | Property | P0 | FR-053-AC-4 | ✅ |
+| TC-891 | `ears::normalize` is idempotent and never lengthens its input. Before CR-069 stripping `**` could synthesize a link the link pass had already run past (`[]**()` → `[]()` → `""`); the generator draws from the tokens the function rewrites, because a plain `.*` strategy passed 2 000 cases against the broken form | Property | P0 | FR-042-AC-1 | ✅ |
+| TC-892 | `normalize_reference_cell` is idempotent under every combination of the two opt-in flags, and is the identity with both off. Before CR-069 a chained range `FR-001..FR-003..FR-005` expanded only its first range and left a `..` the pattern rejects | Property | P0 | FR-049-AC-1 | ✅ |
+| TC-893 | `slug` is idempotent, its output alphabet is closed over `[a-z0-9-]` for any input including non-ASCII, and `slug_line_id` ignores surrounding whitespace on the heading — formatting cannot move a block id | Property | P0 | FR-009-AC-1, FR-009-AC-3, FR-009-AC-6 | ✅ |
+| TC-894 | `mask_code_spans` is idempotent, preserves byte length (so an offset found in the mask indexes the original), and never *introduces* a backtick. Equality of backtick positions would be wrong — a backtick inside a span is span content | Property | P0 | FR-047-AC-18 | ✅ |
+| TC-895 | `allowed_links` normalization reaches a fixpoint: re-serializing a normalized map and normalizing again yields the same map, from both the array and the map authoring form | Property | P1 | FR-040-AC-4 | ✅ |
+| TC-896 | `update_section` with a section's **own** content is the byte-identity on the whole document, including an empty section; and a write into a section whose heading is the document's last line inserts the separating line break instead of concatenating onto the heading text | Property | P0 | FR-022-AC-6, FR-022-AC-7 | ✅ |
 | TC-797 | A declared model matching zero rows: `quire coverage` renders `0/0` distinctly and never as `100%`, and `--strict` exits non-zero on it — the state that made a wired gate pass vacuously (CR-035) | Integration | P0 | FR-050-AC-14 | 🚧 awaiting EXT-3 `quire-cli` (CLI behaviour; `tests/cli_coverage.rs` — CR-058) |
 | TC-610 | Composed type+object validation: `type: FR` + `object: process` with the FR core present but **no** `## Workflow` mermaid block → an object **error** (process required `diagram` missing) merged into `errors`, while the FR (`type`) portion passes independently; `is_valid==false` | Unit | P0 | FR-032-AC-11, FR-032-AC-13 | ✅ |
 | TC-611 | Unknown object type: `type: FR` (conformant) + `object: totally-unknown` → exactly one **warning** (reason `unknown-object-type`, message names `totally-unknown`), zero errors, `is_valid==true` | Unit | P0 | FR-032-AC-12 | ✅ |
@@ -885,7 +892,7 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-008-AC-1 | TC-022 |
 | FR-008-AC-2 | TC-023 |
 | FR-008-AC-3 | TC-024 |
-| FR-009-AC-1 | TC-025 |
+| FR-009-AC-1 | TC-025, TC-893 |
 | FR-009-AC-2 | TC-025 |
 | FR-009-AC-3 | TC-025 |
 | FR-009-AC-4 | TC-026 |
@@ -947,6 +954,8 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-022-AC-3 | TC-432 |
 | FR-022-AC-4 | TC-433 |
 | FR-022-AC-5 | TC-434, TC-435 |
+| FR-022-AC-6 | TC-896 |
+| FR-022-AC-7 | TC-896 |
 | FR-023-AC-1 | TC-460 |
 | FR-023-AC-2 | TC-461 |
 | FR-023-AC-3 | TC-462 |
@@ -1094,7 +1103,7 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-040-AC-1 | TC-636 |
 | FR-040-AC-2 | TC-637 |
 | FR-040-AC-3 | TC-650 |
-| FR-040-AC-4 | TC-638 |
+| FR-040-AC-4 | TC-638, TC-895 |
 | FR-040-AC-5 | TC-651 |
 | FR-040-AC-6 | TC-639 |
 | FR-040-AC-7 | TC-640 |
@@ -1107,7 +1116,7 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-041-AC-3 | TC-654 |
 | FR-041-AC-4 | TC-655 |
 | FR-041-AC-5 | TC-656 |
-| FR-042-AC-1 | TC-657 |
+| FR-042-AC-1 | TC-657, TC-891 |
 | FR-042-AC-2 | TC-658 |
 | FR-042-AC-3 | TC-659 |
 | FR-042-AC-4 | TC-660 |
@@ -1167,7 +1176,7 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-047-AC-15 | TC-775 |
 | FR-047-AC-16 | TC-776 |
 | FR-047-AC-17 | TC-777 |
-| FR-047-AC-18 | TC-778 |
+| FR-047-AC-18 | TC-778, TC-894 |
 | FR-048-AC-5 | TC-720, TC-766 |
 | FR-048-AC-6 | TC-721 |
 | FR-048-AC-7 | TC-722 |
@@ -1175,7 +1184,7 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-048-AC-9 | TC-752 |
 | FR-048-AC-10 | TC-755 |
 | FR-048-AC-11 | TC-794 |
-| FR-049-AC-1 | TC-724 |
+| FR-049-AC-1 | TC-724, TC-892 |
 | FR-049-AC-2 | TC-725 |
 | FR-049-AC-3 | TC-726 |
 | FR-049-AC-4 | TC-727 |
@@ -1241,7 +1250,7 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-053-AC-1 | TC-831 |
 | FR-053-AC-2 | TC-832 |
 | FR-053-AC-3 | TC-833 |
-| FR-053-AC-4 | TC-834, TC-871 |
+| FR-053-AC-4 | TC-834, TC-871, TC-890 |
 | FR-053-AC-5 | TC-835 |
 | FR-053-AC-6 | TC-836 |
 | FR-053-AC-7 | TC-837 |

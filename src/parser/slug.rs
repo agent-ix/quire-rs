@@ -111,3 +111,50 @@ mod tests {
         assert_eq!(slug("v1.2.3-alpha"), "v1-2-3-alpha");
     }
 }
+
+#[cfg(test)]
+mod props_metamorphic {
+    use proptest::prelude::*;
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(4000))]
+
+        /// TC-893 (FR-009, CR-069, Property): slugging is idempotent — a slug is
+        /// already a slug. Block ids are minted from this, so a non-idempotent
+        /// slug would make an id depend on how it was reached.
+        #[test]
+        fn tc893_slug_is_idempotent(s in "\\PC*") {
+            let once = super::slug(&s);
+            prop_assert_eq!(super::slug(&once), once.clone(), "input={:?}", s);
+        }
+
+        /// TC-893 (FR-009, CR-069, Property): the output alphabet is closed —
+        /// lowercase ASCII alphanumerics and `-` only, for any input including
+        /// non-ASCII (FR-009-AC-6).
+        #[test]
+        fn tc893_slug_alphabet_is_closed(s in "\\PC*") {
+            let out = super::slug(&s);
+            prop_assert!(
+                out.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-'),
+                "input={:?} slug={:?}", s, out
+            );
+        }
+
+        /// TC-893 (FR-009-AC-3, CR-069, Property): surrounding whitespace on a
+        /// heading is formatting, not content — it cannot change the id. This is
+        /// the ticket's "content invariance under formatting-only edits"
+        /// relation at the level where the engine actually claims it.
+        #[test]
+        fn tc893_slug_line_id_ignores_surrounding_whitespace(
+            s in "[^\\p{White_Space}\\p{Cc}][^\\p{Cc}]{0,20}",
+            line in 0usize..500,
+        ) {
+            let padded = format!("  {}  ", s.trim());
+            prop_assert_eq!(
+                super::slug_line_id(&padded, line),
+                super::slug_line_id(s.trim(), line),
+                "input={:?}", s
+            );
+        }
+    }
+}
