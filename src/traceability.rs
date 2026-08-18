@@ -269,6 +269,40 @@ pub struct ObligationSource {
     /// travelling with the obligation instead of being re-parsed downstream.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub parameters: BTreeMap<String, String>,
+    /// Read this source's table as a **configuration space** and mint ONE
+    /// obligation for the whole table rather than one per row (FR-061).
+    ///
+    /// A new source *kind*, not a new mechanism: the statement hash, the
+    /// suspect link and the `parameters` carriage are the ones FR-053 already
+    /// defines. What differs is arity — a t-way obligation is a statement about
+    /// the interaction of every row, so one row cannot carry it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub combinatorial: Option<CombinatorialColumns>,
+}
+
+/// Which columns of a configuration-dimensions table mean what (FR-061).
+///
+/// The engine knows no dimension, no value and no strength — a module says
+/// which column holds each, exactly as `statement_column` and `method_column`
+/// do for criteria rows.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CombinatorialColumns {
+    /// Column naming each configuration dimension.
+    pub dimension_column: String,
+    /// Column listing that dimension's values, comma-separated.
+    pub values_column: String,
+    /// Column listing forbidden combinations (`dim=value & dim=value`).
+    ///
+    /// Optional because a space may genuinely have none — but a module that
+    /// omits it on a space that does have them mints obligations over
+    /// combinations that cannot exist, and the target becomes permanently
+    /// unreachable.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub excludes_column: Option<String>,
+    /// Interaction strength. 2 is the usual default; 3 is for spaces whose
+    /// failures are known to need three-way interaction.
+    pub strength: usize,
 }
 
 /// Declared vocabularies for matrix columns (CR-015).
@@ -697,6 +731,38 @@ impl TraceabilityModel {
                 "statement_column",
                 &source.statement_column,
             )?;
+            if let Some(combinatorial) = &source.combinatorial {
+                check_field(
+                    "obligations",
+                    &source.name,
+                    "combinatorial.dimension_column",
+                    &combinatorial.dimension_column,
+                )?;
+                check_field(
+                    "obligations",
+                    &source.name,
+                    "combinatorial.values_column",
+                    &combinatorial.values_column,
+                )?;
+                if let Some(column) = &combinatorial.excludes_column {
+                    check_field(
+                        "obligations",
+                        &source.name,
+                        "combinatorial.excludes_column",
+                        column,
+                    )?;
+                }
+                // Strength 0 mints an obligation over nothing, which reads as a
+                // declared configuration space that demands no coverage at all
+                // — worse than absent, because it looks answered.
+                if combinatorial.strength == 0 {
+                    return Err(format!(
+                        "traceability: obligations entry '{}' declares combinatorial strength 0, \
+                         which demands coverage of nothing while reading as declared",
+                        source.name
+                    ));
+                }
+            }
             for (key, column) in &source.parameters {
                 if key.trim().is_empty() {
                     return Err(format!(

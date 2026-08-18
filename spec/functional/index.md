@@ -60,3 +60,4 @@ description: "Index of artifacts in this directory."
 * [FR-058: Upward-Trace Completeness](./FR-058-upward-trace-completeness.md)
 * [FR-059: Declared-Vocabulary Coverage](./FR-059-declared-vocabulary-coverage.md)
 * [FR-060: Vocabulary References in Body-Extraction Asserts](./FR-060-vocabulary-references.md)
+* [FR-061: Combinatorial Obligations from Declared Configuration Dimensions](./FR-061-combinatorial-obligations.md)

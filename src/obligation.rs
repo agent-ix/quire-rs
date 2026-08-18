@@ -131,6 +131,17 @@ pub fn for_document(
                 continue;
             }
         }
+        // FR-061: a combinatorial source states ONE obligation about the
+        // interaction of every row, so it is minted from the whole table and
+        // needs no id column — the id comes from `id_format` alone.
+        if let Some(combinatorial) = &source.combinatorial {
+            if let Some((id, obligation)) =
+                combinatorial_obligation(source, combinatorial, &resolved, doc)
+            {
+                out.entry(id).or_insert(obligation);
+            }
+            continue;
+        }
         let Some(id_column) = resolved.id_column else {
             continue;
         };
@@ -170,6 +181,86 @@ pub fn for_document(
         }
     }
     out
+}
+
+/// One obligation over a whole declared configuration space (FR-061).
+///
+/// Returns `None` when the document declares no such table, or declares one
+/// with no usable dimension: an empty space demands coverage of nothing, and
+/// minting an obligation for it would put a permanently-satisfied row in the
+/// report that reads exactly like a real one.
+fn combinatorial_obligation(
+    source: &crate::traceability::ObligationSource,
+    columns: &crate::traceability::CombinatorialColumns,
+    resolved: &Resolved<'_>,
+    doc: &crate::ast::QuireDocument,
+) -> Option<(String, CriterionObligation)> {
+    use crate::combinatorial::{parse_exclusion, split_values, ConfigurationSpace, Dimension};
+
+    let mut dimensions = Vec::new();
+    let mut exclusions = Vec::new();
+    for row in declared_tables::rows_of(doc, Path::new(""), resolved.section) {
+        if let Some(cell) = columns.excludes_column.as_deref().and_then(|c| row.cell(c)) {
+            if let Some(exclusion) = parse_exclusion(cell) {
+                exclusions.push(exclusion);
+            }
+        }
+        let (Some(name), Some(values)) = (
+            row.cell(&columns.dimension_column),
+            row.cell(&columns.values_column),
+        ) else {
+            continue;
+        };
+        let values = split_values(values);
+        // A dimension with one value is not a dimension: it takes part in no
+        // interaction, and counting it would inflate nothing while suggesting
+        // the space is wider than it is.
+        if values.len() < 2 {
+            continue;
+        }
+        dimensions.push(Dimension {
+            name: name.trim().to_string(),
+            values,
+        });
+    }
+    if dimensions.len() < 2 {
+        return None;
+    }
+
+    let space = ConfigurationSpace {
+        dimensions,
+        exclusions,
+    };
+    let id_format = resolved.id_format?;
+    let id = render_id(id_format, doc_id(doc).unwrap_or_default().as_str(), 1);
+    let mut parameters = std::collections::BTreeMap::new();
+    parameters.insert("strength".to_string(), columns.strength.to_string());
+    parameters.insert("dimensions".to_string(), space.dimensions.len().to_string());
+    // The number the obligation is FOR. Carried in `parameters` so quoin reads
+    // it from the contract rather than recomputing a figure that must agree.
+    parameters.insert(
+        "tuples".to_string(),
+        space.tuples(columns.strength).to_string(),
+    );
+    Some((
+        id.clone(),
+        CriterionObligation {
+            source: source.name.clone(),
+            statement_hash: statement_hash(&space.statement(columns.strength)),
+            method: None,
+            parameters,
+            criticality: None,
+        },
+    ))
+}
+
+/// The document's own id, for rendering `{document}`.
+fn doc_id(doc: &crate::ast::QuireDocument) -> Option<String> {
+    doc.frontmatter
+        .as_ref()?
+        .get("id")
+        .and_then(serde_json::Value::as_str)
+        .map(str::to_string)
 }
 
 /// Normalize a statement for hashing: NFC, trim, collapse whitespace runs.
