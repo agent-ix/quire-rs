@@ -5,6 +5,55 @@ All notable changes to `quire-rs` are documented here. Format follows
 numbers follow semver — pre-1.0, breaking changes may land in minor
 bumps; once 1.0 ships, semver is strict.
 
+## [0.31.0] — 2026-08-18
+
+The ADR-0011 Phase 2 Wave A + Wave B engine surface.
+
+### Added
+
+- **FR-057 — per-check corpus severity (CR-068).** Corpus findings now carry a
+  `<pack>:<check>` severity key (`bundle`, `refs`, `edges`, `trace`), tunable
+  through the same FR-048 registry and `--severity` layering the grammars use.
+  A module can map one check `off` without touching its siblings.
+
+- **FR-058 — upward-trace completeness (CR-073).** The first analysis class that
+  finds a *missing* requirement. Downward coverage answers "is what we wrote
+  verified"; nothing answered "is anything missing", and nothing operating over
+  existing spec text can, because a requirement nobody wrote leaves no trace to
+  follow. A module declares `traceability.required_relations` — `from`, `edges`,
+  `to`, `direction`, `check` — and `traceability.acyclic_edges`. The engine holds
+  no archetype name, no verb and no chain, so "every hazard must be mitigated"
+  is manifest data rather than a second engine check.
+
+- **CR-067 — an `ix://` URI grammar** replacing the previous blacklist, so a
+  fully-formed reference in prose resolves whether or not it is in backticks,
+  and a bare `ix://` discussing the protocol does not mint an edge.
+
+- **CR-069 — metamorphic property suite** and two writeback fixes found by it.
+
+### Fixed
+
+- **CR-074 — a required relation that cannot be executed now fails at module
+  load.** `edges: []` accepts no verb, so nothing satisfies the relation and
+  *every* `from` document is reported — hundreds of findings against correctly
+  linked documents. A `check` token containing `:` or whitespace leaves the
+  relation running at a severity no `--severity` flag and no module override can
+  name. A blank verb in `acyclic_edges` walks a graph no edge matches. None is
+  visible in the output.
+
+- **CR-075 — a relation naming a document kind nothing has now reports itself.**
+  The silent twin of the above: a typo in `from` selects zero documents, so the
+  relation checks nothing. Measured — changing `from: FR` to `from: FRR` leaves a
+  genuine orphan requirement unreported and the whole run clean. Verbs are
+  deliberately excluded from this rule; FR-041-AC-2 permits verbs absent from
+  `edge_types`, and a misspelt verb already fails loudly.
+
+### Repository
+
+- `mutants.out/` and `mutants.out.old/` — 178 files of `cargo-mutants` run
+  output — untracked. `.gitignore` no longer ignores `*.proptest-regressions`:
+  those files are how a discovered counterexample stays discovered.
+
 ## [0.30.1] — 2026-08-17
 
 ### Fixed
