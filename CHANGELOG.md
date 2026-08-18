@@ -5,6 +5,15 @@ All notable changes to `quire-rs` are documented here. Format follows
 numbers follow semver — pre-1.0, breaking changes may land in minor
 bumps; once 1.0 ships, semver is strict.
 
+## [0.31.1] — 2026-08-18
+
+### Fixed
+
+- A finding for a relation declared `to: []` read "from **any any** document" —
+  the article was hardcoded in the message template and already present in the
+  noun phrase. Found by the first end-to-end run against `spec-objects-safety`,
+  whose `hazard-has-mitigation` relation is exactly that shape. TC-910.
+
 ## [0.31.0] — 2026-08-18
 
 The ADR-0011 Phase 2 Wave A + Wave B engine surface.

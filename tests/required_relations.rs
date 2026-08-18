@@ -514,3 +514,35 @@ fn tc909_an_fr_satisfying_a_use_case_is_not_an_orphan() {
     );
     fs::remove_dir_all(&root).ok();
 }
+
+// TC-910 (FR-058-AC-1): the finding reads as a sentence for both shapes of
+// `to` — a constrained list and the `to: []` "any document" case.
+//
+// The first end-to-end run against `spec-objects-safety`, whose
+// `hazard-has-mitigation` relation uses `to: []`, printed
+// "nothing reaches 'HAZ-002' by 'mitigates' from any any document". The
+// article was hardcoded in the template AND present in the noun phrase.
+#[test]
+fn tc910_the_finding_reads_as_a_sentence() {
+    let root = tmpdir("910");
+    write(&root, "StR-001.md", &str_doc("StR-001"));
+    write(&root, "FR-001.md", &fr("FR-001", None));
+
+    let report = validate(&root, None);
+    for f in report.errors.iter().chain(report.warnings.iter()) {
+        assert!(
+            !f.message.contains("any any"),
+            "doubled article in: {}",
+            f.message
+        );
+    }
+    // The constrained case still names the kinds it accepts.
+    let orphan = findings(&report, "orphan-fr");
+    assert_eq!(orphan.len(), 1);
+    assert!(
+        orphan[0].message.contains("any StR/US"),
+        "names the accepted kinds with one article: {}",
+        orphan[0].message
+    );
+    fs::remove_dir_all(&root).ok();
+}

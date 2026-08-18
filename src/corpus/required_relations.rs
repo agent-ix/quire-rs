@@ -190,22 +190,26 @@ fn check_relation(
         }
 
         let verbs = relation.edges.join("/");
+        // Renders the whole noun phrase, article included. The templates below
+        // must NOT prepend "any": with `to: []` this is already "any document",
+        // and a hardcoded article produced "from any any document" in the first
+        // end-to-end run against `spec-objects-safety`.
         let kinds = if relation.to.is_empty() {
             "any document".to_string()
         } else {
-            relation.to.join("/")
+            format!("any {}", relation.to.join("/"))
         };
         let message = match relation.direction {
             RelationDirection::Outgoing => format!(
-                "'{}' has no '{verbs}' edge to any {kinds} — declared by '{}'",
+                "'{}' has no '{verbs}' edge to {kinds} — declared by '{}'",
                 doc.id, relation.name
             ),
             RelationDirection::Incoming => format!(
-                "nothing reaches '{}' by '{verbs}' from any {kinds} — declared by '{}'",
+                "nothing reaches '{}' by '{verbs}' from {kinds} — declared by '{}'",
                 doc.id, relation.name
             ),
             RelationDirection::Either => format!(
-                "'{}' has no '{verbs}' edge to or from any {kinds} — declared by '{}'",
+                "'{}' has no '{verbs}' edge to or from {kinds} — declared by '{}'",
                 doc.id, relation.name
             ),
         };
