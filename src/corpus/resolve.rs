@@ -572,4 +572,60 @@ mod tests {
         );
         assert_eq!(edges[0].edge_type, "references");
     }
+
+    // TC-897 (FR-026-AC-14, CR-071): every clause of the relative-destination
+    // filter is load-bearing, checked one exclusion at a time.
+    //
+    // Found by the agent-ix/quoin#48 mutation pilot: `cargo mutants` scoped to
+    // FR-026's traced files turned each `&&` in `is_relative_md_dest` into `||`
+    // and **no test failed**. The AC already said it — "non-relative
+    // destinations (`http(s)://`, `mailto:`, `ix://`, bare in-document
+    // `#anchor`) are not relative-path stubs and are ignored by this source" —
+    // so this is the half of AC-9 the suite asserted in prose and nowhere else.
+    // TC-620 covers the positive case and the dangling case; nothing covered
+    // the exclusions.
+    #[test]
+    fn tc897_every_relative_destination_exclusion_is_load_bearing() {
+        // The one accepted shape.
+        assert!(is_relative_md_dest("./FR-002-graph-edges.md"));
+        assert!(is_relative_md_dest("../stakeholder/StR-005-need.md"));
+
+        // Each exclusion, alone. Any of these flipping to `||` makes one of
+        // these pass.
+        for excluded in [
+            "",                              // empty
+            "https://example.com/a.md",      // scheme
+            "ix://o/r/FR-002",               // the external form (no .md either)
+            "ix://o/r/FR-002.md",            // scheme even with a .md tail
+            "#anchor",                       // in-document anchor
+            "mailto:someone@example.com.md", // mailto, .md tail and all
+            "tel:+15551234.md",              // tel, likewise
+            "./FR-002-graph-edges.txt",      // not markdown
+            "./FR-002-graph-edges",          // no extension
+        ] {
+            assert!(
+                !is_relative_md_dest(excluded),
+                "{excluded:?} must not be harvested as a relative-path stub"
+            );
+        }
+    }
+
+    // TC-897 (FR-026-AC-14, CR-071): and end to end — a document whose only
+    // links are excluded destinations mints no edge at all.
+    #[test]
+    fn tc897_excluded_destinations_mint_no_edges() {
+        let docs = vec![loaded_at(
+            "spec/functional/FR-001-foo.md",
+            "FR-001",
+            "[web](https://example.com/a.md) [anchor](#section) \
+             [mail](mailto:a@b.com.md) [phone](tel:+15551234.md) \
+             [plain](./notes.txt)\n",
+        )];
+        let out = resolve(&docs, &index(&docs));
+        assert!(
+            out.edges.is_empty(),
+            "no excluded destination may mint an edge, got {:?}",
+            out.edges
+        );
+    }
 }

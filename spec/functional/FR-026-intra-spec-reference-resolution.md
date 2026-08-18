@@ -76,6 +76,12 @@ A stub whose target id exists only in a *different* spec resolves to **Dangling*
 | FR-026-AC-9 | A relative-path body link `[FR-002](./FR-002-….md)` whose normalized destination matches a loaded document produces a `Resolved` `references` edge to that document's id (independent of the link text and the file slug); a relative-path link whose normalized destination matches no loaded document is `Dangling`, like an absent `ix://` target. | Test |
 | FR-026-AC-10 | Relative-path links in an `index.md` or `log.md` contribute **no** `references` edges (navigation documents are excluded as a relative-path source), while a relative-path link in an ordinary artifact document is harvested. | Test |
 | FR-026-AC-11 | The identical [FR-002](./FR-002-schema-validation-pipeline.md) edge declared via both a relative-path link and an `ix://` body link (or a frontmatter `references` entry) to the same target produces exactly one edge (dedup parity across all three sources). | Test |
+| FR-026-AC-14 | Every clause of the relative-destination filter is checked **one exclusion at a time**: an empty destination, any `scheme://` form, a bare `#anchor`, `mailto:`, `tel:`, and a non-`.md` extension each yield no stub, including where the excluded form also carries a `.md` tail. AC-9 stated this and nothing tested it — the gap was found by mutating each `&&` in the filter to `||` with no test failing (CR-071). | Test |
+
+> **AC-12 and AC-13 are reserved for CR-067** (agent-ix/quire-rs#89, the `ix://`
+> URI grammar), which is open against `main` and numbered first. This criterion
+> takes AC-14 so the two land without a numbering conflict, rather than
+> colliding and being renumbered during a merge nobody would re-read.
 
 ## Dependencies
 
