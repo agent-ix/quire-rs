@@ -86,6 +86,71 @@ pub struct TraceabilityModel {
     /// then empty rather than absent.
     #[serde(default)]
     pub obligations: Vec<ObligationSource>,
+    /// Edges every document of a kind must have (FR-058). Empty means the
+    /// module declares none and the check is a no-op — the same shape every
+    /// other declaration in this model uses.
+    #[serde(default)]
+    pub required_relations: Vec<RequiredRelation>,
+    /// Edge verbs that must not form a cycle (FR-058). `refines` and `derives`
+    /// are the motivating pair: a requirement that transitively refines itself
+    /// states nothing, and no per-document check can see it.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub acyclic_edges: Vec<String>,
+}
+
+/// An edge every document of one kind must have (FR-058) — the declaration
+/// behind upward-trace completeness.
+///
+/// Nothing here is engine knowledge. The engine knows the *shape* — "documents
+/// of kind K must have an edge of one of these verbs, in this direction, to a
+/// document of one of these kinds" — and never that an FR traces to a StR. That
+/// is the same split [`DocumentReference`] draws for table cells, and it is what
+/// lets a security module state "every hazard must be mitigated by something"
+/// as manifest data instead of a second engine check.
+///
+/// **Direction is the whole point.** Upward tracing is the only analysis class
+/// that finds *missing* requirements: an FR with no upstream need is a feature
+/// nobody asked for, and a StR nothing implements is a need nobody built. They
+/// are the same declaration read in opposite directions, so they are one type
+/// with a [`direction`](Self::direction) rather than two checks.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RequiredRelation {
+    /// Declaration name, used in the finding and in diagnostics.
+    pub name: String,
+    /// Archetype whose documents carry the obligation to have this edge.
+    pub from: String,
+    /// Accepted edge verbs. Any one of them satisfies the relation — a module
+    /// that accepts `implements` or `refines` says so here rather than
+    /// declaring the relation twice.
+    pub edges: Vec<String>,
+    /// Accepted archetypes at the other end. Empty means "any document in the
+    /// bundle", which is the honest reading of a module that constrains the
+    /// verb but not the target.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub to: Vec<String>,
+    /// Which way the edge must point from the `from` document.
+    pub direction: RelationDirection,
+    /// The `<check>` half of the `trace:<check>` severity key (FR-057), so a
+    /// module tunes each declared relation independently. Kebab-case, matching
+    /// the registry's key pattern.
+    pub check: String,
+    /// Scope-relative globs whose matching documents are exempt from this
+    /// relation — the same opt-out [`TraceTarget`] has (CR-038).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub exclude: Vec<String>,
+}
+
+/// Which way a [`RequiredRelation`]'s edge must point.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum RelationDirection {
+    /// The `from` document must be the **source**: an FR with no `implements`
+    /// edge to any StR is an orphan requirement.
+    Outgoing,
+    /// The `from` document must be the **target**: a StR with no incoming
+    /// `implements` edge is a stated need nothing builds.
+    Incoming,
 }
 
 /// One kind of row that states an obligation (FR-053).
@@ -399,6 +464,14 @@ impl TraceabilityModel {
             // has declared something. (Unlike the model-level `exclude`, which
             // states what is *not* corpus data and reconciles nothing — CR-060.)
             && self.obligations.is_empty()
+            // FR-058: same reasoning. A module whose whole model is "every FR
+            // must trace to a StR" has declared something, and omitting these
+            // dropped that model on the floor — `traceability()` returned
+            // `None` and the check never ran. Every field that makes the model
+            // *do* something has to be listed here; the list is the definition
+            // of "declared nothing", not a summary of it.
+            && self.required_relations.is_empty()
+            && self.acyclic_edges.is_empty()
     }
 
     /// Look up a declared target by name.

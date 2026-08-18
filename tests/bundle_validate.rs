@@ -562,7 +562,7 @@ fn tc886_findings_carry_severity_and_a_wellformed_key() {
     let report = validate_bundle_at(&root, &bundle_registry(), BundlePosture::Okf);
 
     // AC-8: the tokens are byte-identical to their pre-FR-057 values.
-    let reasons: BTreeSet<&str> = all(&report).map(|f| f.reason).collect();
+    let reasons: BTreeSet<&str> = all(&report).map(|f| f.reason.as_ref()).collect();
     for expected in [
         "dangling-reference",
         "index-incomplete",
@@ -588,7 +588,7 @@ fn tc886_findings_carry_severity_and_a_wellformed_key() {
         packed += 1;
         assert!(known.contains(&p), "undeclared pack {p:?} on {f:?}");
         let key = f.severity_key().expect("a packed finding has a key");
-        assert_eq!(key, severity_key(p, f.reason));
+        assert_eq!(key, severity_key(p, &f.reason));
         assert!(
             quire_rs::grammar::is_severity_key(&key),
             "`--severity {key}=off` would be rejected"

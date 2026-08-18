@@ -495,27 +495,29 @@ fn tc889_switching_one_pack_off_leaves_siblings_reporting() {
     };
 
     let baseline = validate_bundle_at(&root, &registry, BundlePosture::Okf);
-    let reasons = |r: &BundleReport| -> Vec<&'static str> {
+    let reasons = |r: &BundleReport| -> Vec<String> {
         r.errors
             .iter()
             .chain(r.warnings.iter())
-            .map(|f| f.reason)
+            .map(|f| f.reason.to_string())
             .collect()
     };
     assert!(
-        reasons(&baseline).contains(&"dangling-reference"),
+        reasons(&baseline).iter().any(|r| r == "dangling-reference"),
         "fixture must produce both: {:?}",
         reasons(&baseline)
     );
     assert!(
-        reasons(&baseline).contains(&"dangling-trace-reference"),
+        reasons(&baseline)
+            .iter()
+            .any(|r| r == "dangling-trace-reference"),
         "fixture must produce both: {:?}",
         reasons(&baseline)
     );
 
     let scoped = validate_bundle_at(&root, &with_refs_off, BundlePosture::Okf);
     assert!(
-        !reasons(&scoped).contains(&"dangling-reference"),
+        !reasons(&scoped).iter().any(|r| r == "dangling-reference"),
         "refs pack was switched off: {:?}",
         reasons(&scoped)
     );

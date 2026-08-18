@@ -19,6 +19,7 @@ mod body_cache;
 pub mod declared_tables;
 pub mod glossary;
 pub mod query;
+pub mod required_relations;
 pub mod resolve;
 pub mod spec;
 pub mod trace_refs;

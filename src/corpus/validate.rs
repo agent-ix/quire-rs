@@ -22,6 +22,7 @@
 //! is decided by the presence of a frontmatter block, so a `README.md` is
 //! not a document and a typed `tests.md` is.
 
+use std::borrow::Cow;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
@@ -85,7 +86,13 @@ pub struct BundleFinding {
     /// Human-readable message.
     pub message: String,
     /// Stable machine-readable reason token.
-    pub reason: &'static str,
+    ///
+    /// `Cow` rather than `&'static str` (FR-058): every reason the engine emits
+    /// is a literal, but a **module-declared** required-relation names its own
+    /// check, and that token is owned by the manifest. Leaking it to obtain a
+    /// `&'static str` would grow the heap on every `validate_bundle` call — a
+    /// corpus sweep calls it once per repository.
+    pub reason: Cow<'static, str>,
     /// Check pack this finding belongs to, or `None` for a document-level
     /// result bridged in from schema validation (FR-057-CON-1). With `reason`
     /// it forms the `<pack>:<check>` severity-registry key.
@@ -99,14 +106,14 @@ impl BundleFinding {
     /// A finding from a check pack, before severity is resolved.
     pub(crate) fn in_pack(
         pack: &'static str,
-        reason: &'static str,
+        reason: impl Into<Cow<'static, str>>,
         path: PathBuf,
         message: String,
     ) -> Self {
         Self {
             path,
             message,
-            reason,
+            reason: reason.into(),
             pack: Some(pack),
             severity: GrammarSeverity::Warning,
         }
@@ -114,11 +121,15 @@ impl BundleFinding {
 
     /// A document-level result bridged into the bundle report. Not registrable
     /// (FR-057-CON-1), so it carries no pack.
-    pub(crate) fn bridged(reason: &'static str, path: PathBuf, message: String) -> Self {
+    pub(crate) fn bridged(
+        reason: impl Into<Cow<'static, str>>,
+        path: PathBuf,
+        message: String,
+    ) -> Self {
         Self {
             path,
             message,
-            reason,
+            reason: reason.into(),
             pack: None,
             severity: GrammarSeverity::Error,
         }
@@ -128,7 +139,7 @@ impl BundleFinding {
     /// registrable at all.
     pub fn severity_key(&self) -> Option<String> {
         self.pack
-            .map(|pack| crate::grammar::severity_key(pack, self.reason))
+            .map(|pack| crate::grammar::severity_key(pack, &self.reason))
     }
 }
 
@@ -320,6 +331,17 @@ pub fn validate_bundle(
     // check `ix://` edges get, driven entirely by the module's traceability
     // model. A no-op when no module declares one.
     crate::corpus::trace_refs::validate_trace_references(
+        spec,
+        registry,
+        posture,
+        reference_root,
+        &mut report,
+    );
+
+    // FR-058: upward-trace completeness — the declared edges every document of
+    // a kind must have, in either direction, plus any declared acyclic verb.
+    // A no-op when the module declares neither.
+    crate::corpus::required_relations::validate_required_relations(
         spec,
         registry,
         posture,
