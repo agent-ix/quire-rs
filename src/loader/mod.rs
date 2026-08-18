@@ -951,6 +951,24 @@ fn merge_traceability(modules: &[LoadedModule]) -> crate::traceability::Traceabi
                 merged.obligations.push(source.clone());
             }
         }
+        // FR-058: required relations and acyclic verbs merge like every other
+        // named entry — first-wins by name for relations, union for the verb
+        // list (a verb one module declares acyclic must not become cyclic
+        // because another loaded first, the same reasoning `exclude` uses).
+        for relation in &m.required_relations {
+            if !merged
+                .required_relations
+                .iter()
+                .any(|r| r.name == relation.name)
+            {
+                merged.required_relations.push(relation.clone());
+            }
+        }
+        for verb in &m.acyclic_edges {
+            if !merged.acyclic_edges.contains(verb) {
+                merged.acyclic_edges.push(verb.clone());
+            }
+        }
         for marker in &m.trace_tags.markers {
             if !merged
                 .trace_tags

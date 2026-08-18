@@ -1,0 +1,68 @@
+# FR-058 fixture: a module declaring upward-trace completeness contracts.
+#
+# The whole point of the declaration is that none of this is engine knowledge —
+# the archetypes, the verbs, the direction, and the severity-key token all come
+# from here. A different module states a different chain (hazard → mitigation)
+# with the same engine code.
+name: traceability-required-relations
+version: 0.1.0
+description: Required-relation and acyclic-edge declarations (quire-rs FR-058)
+artifact_types:
+- name: StR
+  defaults:
+    id_pattern: StR-{next:03d}
+- name: FR
+  defaults:
+    id_pattern: FR-{next:03d}
+- name: TestMatrix
+  defaults:
+    id_pattern: TM-{next:03d}
+# Declared because both relations below accept `US` as an upstream kind. The
+# 29148 chain is stakeholder -> system -> software, so an FR may hang off a use
+# case rather than directly off a stakeholder requirement. Leaving it undeclared
+# made the `to: [StR, US]` half of each relation dead text: nothing exercised it
+# and the new `undeclared-relation-vocabulary` check reported it (TC-908).
+- name: US
+  defaults:
+    id_pattern: US-{next:03d}
+traceability:
+  exclude:
+  - "spec/fixtures/**"
+  required_relations:
+  # Upward: a functional requirement with no stakeholder need behind it is a
+  # feature nobody asked for.
+  # The 29148 chain is stakeholder -> system -> software, so an FR may hang off
+  # a use case rather than directly off a stakeholder requirement. Declaring
+  # only StR here reported every FR that traces to a US — 6 of quire-rs's 38, a
+  # 16% false-positive rate that was a fault in the *declaration*, not the
+  # engine. Fixing it is a manifest edit, which is the whole reason the contract
+  # is module data.
+  # Verbs taken from the decision recorded in spec-artifacts-iso FR-004
+  # (2026-08-18): `implements` keeps its declared meaning — fulfilling an
+  # interface or contract — and is NOT overloaded for requirement lineage.
+  # `satisfied_by` is the generic stakeholder-requirement-to-artifact link,
+  # authorable from either end via its `satisfies` inverse.
+  #
+  # This deliberately does NOT accept `implements`, even though the corpus
+  # spells this link that way 956 times. Those edges are corpus debt under the
+  # decision, and accepting them would be fitting the rule to the specs that
+  # exist rather than stating what a good one looks like.
+  - name: fr-has-upstream-need
+    from: FR
+    edges: [satisfies, satisfied_by]
+    to: [StR, US]
+    direction: either
+    check: orphan-fr
+  # Downward: a stated need nothing implements is a need nobody built. Same
+  # declaration, read the other way.
+  # `direction: either` because `satisfied_by` and `satisfies` are one edge
+  # (iso FR-004, quire-rs FR-041): the stakeholder requirement may declare it
+  # pointing down, or the artifact may declare it pointing up.
+  - name: str-is-satisfied
+    from: StR
+    edges: [satisfies, satisfied_by]
+    to: [FR, US]
+    direction: either
+    check: unsatisfied-str
+  acyclic_edges:
+  - derives_from

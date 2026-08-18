@@ -86,6 +86,82 @@ pub struct TraceabilityModel {
     /// then empty rather than absent.
     #[serde(default)]
     pub obligations: Vec<ObligationSource>,
+    /// Edges every document of a kind must have (FR-058). Empty means the
+    /// module declares none and the check is a no-op — the same shape every
+    /// other declaration in this model uses.
+    #[serde(default)]
+    pub required_relations: Vec<RequiredRelation>,
+    /// Edge verbs that must not form a cycle (FR-058). `refines` and `derives`
+    /// are the motivating pair: a requirement that transitively refines itself
+    /// states nothing, and no per-document check can see it.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub acyclic_edges: Vec<String>,
+}
+
+/// An edge every document of one kind must have (FR-058) — the declaration
+/// behind upward-trace completeness.
+///
+/// Nothing here is engine knowledge. The engine knows the *shape* — "documents
+/// of kind K must have an edge of one of these verbs, in this direction, to a
+/// document of one of these kinds" — and never that an FR traces to a StR. That
+/// is the same split [`DocumentReference`] draws for table cells, and it is what
+/// lets a security module state "every hazard must be mitigated by something"
+/// as manifest data instead of a second engine check.
+///
+/// **Direction is the whole point.** Upward tracing is the only analysis class
+/// that finds *missing* requirements: an FR with no upstream need is a feature
+/// nobody asked for, and a StR nothing implements is a need nobody built. They
+/// are the same declaration read in opposite directions, so they are one type
+/// with a [`direction`](Self::direction) rather than two checks.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RequiredRelation {
+    /// Declaration name, used in the finding and in diagnostics.
+    pub name: String,
+    /// Archetype whose documents carry the obligation to have this edge.
+    pub from: String,
+    /// Accepted edge verbs. Any one of them satisfies the relation — a module
+    /// that accepts `implements` or `refines` says so here rather than
+    /// declaring the relation twice.
+    pub edges: Vec<String>,
+    /// Accepted archetypes at the other end. Empty means "any document in the
+    /// bundle", which is the honest reading of a module that constrains the
+    /// verb but not the target.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub to: Vec<String>,
+    /// Which way the edge must point from the `from` document.
+    pub direction: RelationDirection,
+    /// The `<check>` half of the `trace:<check>` severity key (FR-057), so a
+    /// module tunes each declared relation independently. Kebab-case, matching
+    /// the registry's key pattern.
+    pub check: String,
+    /// Scope-relative globs whose matching documents are exempt from this
+    /// relation — the same opt-out [`TraceTarget`] has (CR-038).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub exclude: Vec<String>,
+}
+
+/// Which way a [`RequiredRelation`]'s edge must point.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum RelationDirection {
+    /// The `from` document must be the **source**: an FR with no `implements`
+    /// edge to any StR is an orphan requirement.
+    Outgoing,
+    /// The `from` document must be the **target**: a StR with no incoming
+    /// `implements` edge is a stated need nothing builds.
+    Incoming,
+    /// Either end satisfies it.
+    ///
+    /// Needed because a link between the same two documents is authored from
+    /// whichever end the author was writing. A stakeholder requirement is
+    /// "implemented" both when an FR declares `implements` **pointing at it**
+    /// and when the requirement itself declares `satisfied_by` **pointing at**
+    /// the FR — 956 `implements` edges and 328 `satisfied_by` edges exist side
+    /// by side in this ecosystem. Declaring two one-way relations would not
+    /// express it: two relations are two independent obligations, and a
+    /// document satisfying one would still be reported by the other.
+    Either,
 }
 
 /// One kind of row that states an obligation (FR-053).
@@ -399,6 +475,14 @@ impl TraceabilityModel {
             // has declared something. (Unlike the model-level `exclude`, which
             // states what is *not* corpus data and reconciles nothing — CR-060.)
             && self.obligations.is_empty()
+            // FR-058: same reasoning. A module whose whole model is "every FR
+            // must trace to a StR" has declared something, and omitting these
+            // dropped that model on the floor — `traceability()` returned
+            // `None` and the check never ran. Every field that makes the model
+            // *do* something has to be listed here; the list is the definition
+            // of "declared nothing", not a summary of it.
+            && self.required_relations.is_empty()
+            && self.acyclic_edges.is_empty()
     }
 
     /// Look up a declared target by name.
@@ -582,6 +666,81 @@ impl TraceabilityModel {
                     &format!("parameters.{key}"),
                     column,
                 )?;
+            }
+        }
+
+        // FR-058: a required relation that cannot be executed must fail at
+        // load. Every rule below rejects a declaration whose *runtime* effect
+        // is silent and wrong rather than absent — the failure mode this whole
+        // model is built to avoid, since a check reporting nothing and a check
+        // reporting everything both look like "no bug here" from the outside.
+        let mut relation_names: BTreeSet<&str> = BTreeSet::new();
+        for relation in &self.required_relations {
+            check_named("required_relations", &relation.name)?;
+            if !relation_names.insert(relation.name.as_str()) {
+                return Err(format!(
+                    "traceability: duplicate required_relations entry '{}'",
+                    relation.name
+                ));
+            }
+            check_field("required_relations", &relation.name, "from", &relation.from)?;
+            // No accepted verb means no edge can satisfy the relation, so
+            // EVERY `from` document is reported. That reads as a corpus-wide
+            // defect rather than as the empty declaration it is.
+            if relation.edges.is_empty() {
+                return Err(format!(
+                    "traceability: required_relations entry '{}' declares no edges, so no link \
+                     could ever satisfy it and every '{}' document would be reported",
+                    relation.name, relation.from
+                ));
+            }
+            for edge in &relation.edges {
+                check_field("required_relations", &relation.name, "edges", edge)?;
+            }
+            // An empty entry here is the mirror image: `to` is meaningful when
+            // absent (any document satisfies), so a blank string is a typo that
+            // would narrow the accepted set to a target nothing can match.
+            for target in &relation.to {
+                check_field("required_relations", &relation.name, "to", target)?;
+            }
+            check_field(
+                "required_relations",
+                &relation.name,
+                "check",
+                &relation.check,
+            )?;
+            // The token is the `<check>` half of a `trace:<check>` severity key
+            // (FR-057). One that cannot round-trip through the registry is a
+            // relation whose severity can never be tuned or switched off —
+            // `is_severity_key` is the same predicate the `--severity` CLI
+            // parser uses, so both surfaces accept exactly one vocabulary.
+            if !crate::grammar::is_severity_key(&crate::grammar::severity_key(
+                "trace",
+                &relation.check,
+            )) {
+                return Err(format!(
+                    "traceability: required_relations entry '{}' has a `check` token '{}' that \
+                     cannot form a `trace:<check>` severity key, so its severity could never be \
+                     configured",
+                    relation.name, relation.check
+                ));
+            }
+            check_excludes(
+                &format!("required_relations entry '{}'", relation.name),
+                &relation.exclude,
+            )?;
+        }
+
+        // An empty verb here would make `check_acyclic` walk a graph keyed on
+        // the empty string — no edge matches, so the cycle check silently
+        // covers nothing while the declaration says it does.
+        for edge in &self.acyclic_edges {
+            if edge.trim().is_empty() {
+                return Err(
+                    "traceability: acyclic_edges contains an empty verb, which would check \
+                     nothing while appearing to be declared"
+                        .to_string(),
+                );
             }
         }
 

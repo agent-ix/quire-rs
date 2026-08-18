@@ -1,3 +1,0 @@
-src/corpus/resolve.rs:60:5: replace resolve -> ResolveOutput with Default::default()
-src/corpus/resolve.rs:264:5: replace md_link_regex -> Regex with Default::default()
-src/corpus/resolve.rs:277:5: replace ix_link_regex -> Regex with Default::default()
