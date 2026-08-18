@@ -14,6 +14,21 @@ relationships:
     cardinality: "1:1"
 ---
 
+> **CR note (CR-067, mention-vs-use in the edge harvest, 2026-08-17):** a link
+> **mentioned** inside a code span or a fenced code block is example data, not a
+> reference. Both body harvesters scanned the document's verbatim text with no
+> masking, so prose *documenting* the link syntax minted a real edge — a bare
+> `` `ix://` `` yields a stub whose target is a lone backtick, which then reports
+> as a dangling reference (agent-ix/quire-rs#89). This FR gains
+> **FR-026-AC-12..13 and CON-1**: both body sources read a masked copy of the
+> document, and the mask is applied inside the harvest functions so the corpus
+> resolver and the single-document [FR-023](./FR-023-python-binding-surface.md)
+> surface cannot disagree about it. Frontmatter `relationships` are structured
+> data and are unaffected. This is the same rule CR-017 established for the
+> `ac` grammar and [FR-039](./FR-039-unlinked-reference-detection.md)-AC-4/AC-10
+> established for unlinked-reference detection; the masker is now one
+> implementation rather than a third copy.
+
 > **CR note (internal relative-path links, ADR 0007, 2026-06-17):** intra-bundle
 > references are authored as **relative-path Markdown links**
 > (`[FR-002](./FR-002-graph-edges.md)`), with `ix://` retained for external /
@@ -38,6 +53,28 @@ A reference stub is harvested from three places already parsed/loaded by the eng
 3. **Relative-path body links** — Markdown links whose destination is a relative file path ([FR-002](./FR-002-schema-validation-pipeline.md), [StR-001](../stakeholder/StR-001-single-rust-engine.md)) are the **internal / intra-bundle** form (ADR 0007). The destination is normalized relative to the source document's directory and matched against the corpus **path→id index** (built from the loaded documents' paths, [FR-025](./FR-025-spec-corpus-model.md)); a match contributes `{ source_id, target_id, edge_type: "references" }`. A relative destination that matches no loaded path is `Dangling` like any other unresolved reference; non-relative destinations (`http(s)://`, `mailto:`, `ix://`, bare in-document `#anchor`) are not relative-path stubs and are ignored by this source.
 
    Navigation documents — `index.md` and `log.md` — are excluded as a relative-path **source**: their wall-to-wall relative links list the bundle contents and MUST NOT flood the graph with `references` edges.
+
+#### Mention vs. use (CR-067)
+
+Both **body** sources SHALL read a copy of the document in which the contents of every closed
+code span and fenced code block are neutralized. A link written inside `` ` `` … `` ` `` or a
+```` ``` ```` fence is a **mention** of the link syntax — example data in prose that documents
+the format — and MUST NOT contribute an edge stub. A code span is the canonical way to write
+*about* a syntax, so without this the corpus cannot document its own link format: a sentence
+containing a bare `` `ix://` `` mints a stub whose target is a lone backtick, which then reports
+as a dangling reference against an artifact id that could never exist.
+
+The mask is **byte-length-preserving**, so a match found in the masked copy indexes the original
+and the harvested target text is the document's own bytes, unchanged. Frontmatter
+`relationships` entries are structured data, not prose, and are **not** masked. An unbalanced
+backtick run opens no span and leaves the remaining text readable, so a stray backtick cannot
+silently suppress every later link in a document.
+
+This is the same rule [FR-039](./FR-039-unlinked-reference-detection.md)-AC-4/AC-10 applies to
+unlinked-reference detection and CR-017 applies to the `ac` grammar, and it is the **same
+implementation** — the two consumers differ only in what they do with a span (this FR neutralizes
+its contents; FR-039 needs the span's byte range in order to replace it), so FR-039 keeps its own
+region scan and shares the masking rule's definition rather than its call.
 
 All three sources feed one unified edge set ([US-013-AC-2](../usecase/US-013-agent-resolves-intra-spec-refs.md)). When the **same** `(source_id, target_id, edge_type)` triple is declared by more than one source (e.g. a frontmatter `relationships` entry and a body link, or an `ix://` and a relative-path link to the same target), the resolver SHALL record it **once** (deduplicated) so it is not double-counted in `referencing`/`outgoing`. A frontmatter-declared `implements` edge and a body `references` edge between the same pair are distinct triples (different `edge_type`) and both are kept.
 
@@ -76,6 +113,14 @@ A stub whose target id exists only in a *different* spec resolves to **Dangling*
 | FR-026-AC-9 | A relative-path body link `[FR-002](./FR-002-….md)` whose normalized destination matches a loaded document produces a `Resolved` `references` edge to that document's id (independent of the link text and the file slug); a relative-path link whose normalized destination matches no loaded document is `Dangling`, like an absent `ix://` target. | Test |
 | FR-026-AC-10 | Relative-path links in an `index.md` or `log.md` contribute **no** `references` edges (navigation documents are excluded as a relative-path source), while a relative-path link in an ordinary artifact document is harvested. | Test |
 | FR-026-AC-11 | The identical [FR-002](./FR-002-schema-validation-pipeline.md) edge declared via both a relative-path link and an `ix://` body link (or a frontmatter `references` entry) to the same target produces exactly one edge (dedup parity across all three sources). | Test |
+| FR-026-AC-12 | An `ix://` URI inside an inline code span or a fenced code block contributes **no** edge stub — including a bare `` `ix://` `` written to document the syntax, which previously minted a stub whose target was a lone backtick (CR-067). The same URI in ordinary prose, in a Markdown link destination, or in an autolink still contributes its stub, and the harvested target text is byte-identical to the document's. | Test |
+| FR-026-AC-13 | A relative-path Markdown link inside an inline code span or a fenced code block contributes **no** edge stub; the same link outside one still does. An unbalanced backtick run opens no span, so links after it are still harvested. | Test |
+
+## Constraints
+
+| ID | Constraint | Verification |
+|----|-----------|--------------|
+| FR-026-CON-1 | Code-span masking SHALL be applied **inside** the body-harvest functions, not at their call sites, so the corpus resolver and the single-document harvest surface exposed to the Python binding ([FR-023](./FR-023-python-binding-surface.md)) cannot disagree about which links are mentions. Adding a third caller MUST NOT require repeating the rule. | Test |
 
 ## Dependencies
 
