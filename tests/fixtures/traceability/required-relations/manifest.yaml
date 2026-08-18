@@ -29,19 +29,31 @@ traceability:
   # 16% false-positive rate that was a fault in the *declaration*, not the
   # engine. Fixing it is a manifest edit, which is the whole reason the contract
   # is module data.
+  # Verb list deliberately NARROW. The corpus also spells this link `traces_to`
+  # (368 edges), `derives_from` (131) and `satisfied_by` (328), and accepting
+  # all of them would drop the finding count by hundreds — which is exactly the
+  # wrong reason to widen a rule. Whether those are synonyms for one relation or
+  # distinct relations is a question about the declared edge vocabulary
+  # (spec-artifacts-iso#16, 76 verbs across 7 categories, currently undocumented).
+  # Until that is answered, the rule states one form and the corpus is flagged
+  # for the rest — see CLAUDE.md "Adding or improving a check".
   - name: fr-has-upstream-need
     from: FR
     edges: [implements, refines]
     to: [StR, US]
-    direction: outgoing
+    direction: either
     check: orphan-fr
   # Downward: a stated need nothing implements is a need nobody built. Same
   # declaration, read the other way.
+  # `direction: either` because the same link is authored from whichever end
+  # the author was writing — that is a fact about the graph, true regardless of
+  # the finding count, so it stays. The verb list stays narrow for the reason
+  # above.
   - name: str-is-implemented
     from: StR
     edges: [implements, refines]
     to: [FR, US]
-    direction: incoming
+    direction: either
     check: unimplemented-str
   acyclic_edges:
   - refines

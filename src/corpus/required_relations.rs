@@ -99,15 +99,22 @@ fn check_relation(
             continue; // nothing to key an edge on
         }
 
-        let satisfied = match relation.direction {
-            RelationDirection::Outgoing => spec.outgoing(&doc.id).iter().any(|e| {
+        let has_outgoing = || {
+            spec.outgoing(&doc.id).iter().any(|e| {
                 accepted_edges.contains(e.edge_type.as_str())
                     && target_is_accepted(spec, &e.target, e.resolution, &accepted_targets)
-            }),
-            RelationDirection::Incoming => spec.referencing(&doc.id).iter().any(|e| {
+            })
+        };
+        let has_incoming = || {
+            spec.referencing(&doc.id).iter().any(|e| {
                 accepted_edges.contains(e.edge_type.as_str())
                     && target_is_accepted(spec, &e.source, Resolution::Resolved, &accepted_targets)
-            }),
+            })
+        };
+        let satisfied = match relation.direction {
+            RelationDirection::Outgoing => has_outgoing(),
+            RelationDirection::Incoming => has_incoming(),
+            RelationDirection::Either => has_outgoing() || has_incoming(),
         };
         if satisfied {
             continue;
@@ -126,6 +133,10 @@ fn check_relation(
             ),
             RelationDirection::Incoming => format!(
                 "nothing reaches '{}' by '{verbs}' from any {kinds} — declared by '{}'",
+                doc.id, relation.name
+            ),
+            RelationDirection::Either => format!(
+                "'{}' has no '{verbs}' edge to or from any {kinds} — declared by '{}'",
                 doc.id, relation.name
             ),
         };

@@ -151,6 +151,17 @@ pub enum RelationDirection {
     /// The `from` document must be the **target**: a StR with no incoming
     /// `implements` edge is a stated need nothing builds.
     Incoming,
+    /// Either end satisfies it.
+    ///
+    /// Needed because a link between the same two documents is authored from
+    /// whichever end the author was writing. A stakeholder requirement is
+    /// "implemented" both when an FR declares `implements` **pointing at it**
+    /// and when the requirement itself declares `satisfied_by` **pointing at**
+    /// the FR — 956 `implements` edges and 328 `satisfied_by` edges exist side
+    /// by side in this ecosystem. Declaring two one-way relations would not
+    /// express it: two relations are two independent obligations, and a
+    /// document satisfying one would still be reported by the other.
+    Either,
 }
 
 /// One kind of row that states an obligation (FR-053).
