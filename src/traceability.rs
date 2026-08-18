@@ -669,6 +669,81 @@ impl TraceabilityModel {
             }
         }
 
+        // FR-058: a required relation that cannot be executed must fail at
+        // load. Every rule below rejects a declaration whose *runtime* effect
+        // is silent and wrong rather than absent — the failure mode this whole
+        // model is built to avoid, since a check reporting nothing and a check
+        // reporting everything both look like "no bug here" from the outside.
+        let mut relation_names: BTreeSet<&str> = BTreeSet::new();
+        for relation in &self.required_relations {
+            check_named("required_relations", &relation.name)?;
+            if !relation_names.insert(relation.name.as_str()) {
+                return Err(format!(
+                    "traceability: duplicate required_relations entry '{}'",
+                    relation.name
+                ));
+            }
+            check_field("required_relations", &relation.name, "from", &relation.from)?;
+            // No accepted verb means no edge can satisfy the relation, so
+            // EVERY `from` document is reported. That reads as a corpus-wide
+            // defect rather than as the empty declaration it is.
+            if relation.edges.is_empty() {
+                return Err(format!(
+                    "traceability: required_relations entry '{}' declares no edges, so no link \
+                     could ever satisfy it and every '{}' document would be reported",
+                    relation.name, relation.from
+                ));
+            }
+            for edge in &relation.edges {
+                check_field("required_relations", &relation.name, "edges", edge)?;
+            }
+            // An empty entry here is the mirror image: `to` is meaningful when
+            // absent (any document satisfies), so a blank string is a typo that
+            // would narrow the accepted set to a target nothing can match.
+            for target in &relation.to {
+                check_field("required_relations", &relation.name, "to", target)?;
+            }
+            check_field(
+                "required_relations",
+                &relation.name,
+                "check",
+                &relation.check,
+            )?;
+            // The token is the `<check>` half of a `trace:<check>` severity key
+            // (FR-057). One that cannot round-trip through the registry is a
+            // relation whose severity can never be tuned or switched off —
+            // `is_severity_key` is the same predicate the `--severity` CLI
+            // parser uses, so both surfaces accept exactly one vocabulary.
+            if !crate::grammar::is_severity_key(&crate::grammar::severity_key(
+                "trace",
+                &relation.check,
+            )) {
+                return Err(format!(
+                    "traceability: required_relations entry '{}' has a `check` token '{}' that \
+                     cannot form a `trace:<check>` severity key, so its severity could never be \
+                     configured",
+                    relation.name, relation.check
+                ));
+            }
+            check_excludes(
+                &format!("required_relations entry '{}'", relation.name),
+                &relation.exclude,
+            )?;
+        }
+
+        // An empty verb here would make `check_acyclic` walk a graph keyed on
+        // the empty string — no edge matches, so the cycle check silently
+        // covers nothing while the declaration says it does.
+        for edge in &self.acyclic_edges {
+            if edge.trim().is_empty() {
+                return Err(
+                    "traceability: acyclic_edges contains an empty verb, which would check \
+                     nothing while appearing to be declared"
+                        .to_string(),
+                );
+            }
+        }
+
         if let Some(status) = &self.status {
             check_field("status", &status.column, "column", &status.column)?;
             let mut seen: BTreeSet<&str> = BTreeSet::new();

@@ -74,6 +74,27 @@ constrained. The target is not loaded, so nothing can say what archetype it is, 
 would let a typo satisfy the very requirement it broke. With `to: []` the verb alone is the
 contract and a cross-repo edge counts — which is a reading a module opts into deliberately.
 
+### Why a bad declaration must fail at load
+
+Every other declaration in this model fails at load when it cannot be executed, and this one has a
+sharper reason to: **its failure modes are quiet and plausible rather than obviously broken.**
+
+A relation with `edges: []` accepts no verb, so nothing can satisfy it and *every* `from` document
+is reported. On a real repository that is hundreds of findings against documents that are correctly
+linked — a report that reads as a corpus-wide defect and sends someone to fix the specs. The mirror
+image is just as bad: a `check` token that cannot form a `trace:<check>` severity key leaves the
+relation running with a severity no `--severity` flag and no module override can ever name, so it
+cannot be tuned or switched off. A blank verb in `acyclic_edges` walks a graph no edge matches, and
+the cycle check silently covers nothing while reading as declared.
+
+None of these is visible in the output. A check reporting everything and a check reporting nothing
+both look like "no bug here" from the outside, and the only place they can be reported *against the
+declaration that caused them* rather than against innocent documents is module load.
+
+The `check` token is validated with `grammar::is_severity_key` — the same predicate the `--severity`
+CLI parser uses — so the manifest and the command line accept exactly one vocabulary rather than
+drifting into two.
+
 ## Acceptance Criteria
 
 | ID | Criteria | Verification |
@@ -87,6 +108,7 @@ contract and a cross-repo edge counts — which is a reading a module opts into 
 | FR-058-AC-7 | Findings are advisory by default: a bundle whose only faults are upward-trace findings stays valid under both postures unless a module says otherwise. | Test (TC-903) |
 | FR-058-AC-8 | A module declaring neither `required_relations` nor `acyclic_edges` produces byte-identical output to one that never heard of this FR. | Test (TC-904) |
 | FR-058-AC-9 | Findings are ordered by document then id, and identical across runs over one bundle ([NFR-006](../non-functional/NFR-006-determinism.md)). | Test (TC-902) |
+| FR-058-AC-10 | A declaration that cannot be executed SHALL fail at module load, naming the offending entry: no accepted `edges`, an empty `from`/`check`/`edges`/`to` entry, a duplicate relation name, a `check` token that cannot form a `trace:<check>` severity key, an uncompilable `exclude` glob, or a blank verb in `acyclic_edges`. | Test (TC-906, TC-907) |
 
 ## Constraints
 

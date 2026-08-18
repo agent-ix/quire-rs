@@ -313,3 +313,104 @@ fn tc905_every_declared_field_survives_the_merge() {
         "a model with only required relations must not read as empty"
     );
 }
+
+// TC-906 (FR-058-AC-10): a required relation that cannot be executed is
+// rejected at load, not discovered as a corpus-wide false alarm.
+//
+// The two failure modes below are the reason this check exists at all. Neither
+// is loud: both produce a *plausible* report rather than an error, so the
+// declaration looks fine and the corpus looks broken.
+//
+//   * `edges: []` — no verb can satisfy the relation, so EVERY `from`
+//     document is reported. On a real repository that is hundreds of findings
+//     against documents that are perfectly well linked.
+//   * a `check` token that cannot form a `trace:<check>` severity key — the
+//     relation runs, but no `--severity` flag and no module override can ever
+//     name it, so it cannot be tuned or switched off.
+//
+// Both are caught by `TraceabilityModel::validate`, which is the only place
+// that can report them against the declaration rather than against the
+// documents.
+#[test]
+fn tc906_an_unexecutable_relation_is_rejected_at_load() {
+    use quire_rs::traceability::{RelationDirection, RequiredRelation, TraceabilityModel};
+
+    let relation = |edges: Vec<&str>, check: &str| RequiredRelation {
+        name: "upward".to_string(),
+        from: "FR".to_string(),
+        edges: edges.into_iter().map(str::to_string).collect(),
+        to: vec!["StR".to_string()],
+        direction: RelationDirection::Either,
+        check: check.to_string(),
+        exclude: vec![],
+    };
+    let model = |r: RequiredRelation| TraceabilityModel {
+        required_relations: vec![r],
+        ..TraceabilityModel::default()
+    };
+
+    // Baseline: the same declaration, well-formed, loads.
+    model(relation(vec!["satisfies"], "orphan-fr"))
+        .validate()
+        .expect("a well-formed relation loads");
+
+    let err = model(relation(vec![], "orphan-fr"))
+        .validate()
+        .expect_err("no accepted verb means nothing could ever satisfy it");
+    assert!(
+        err.contains("declares no edges") && err.contains("every 'FR' document would be reported"),
+        "the error names the consequence, not just the empty field: {err}"
+    );
+
+    // A colon in the token would make `trace:a:b` ambiguous; whitespace breaks
+    // the `--severity` entry the same way. Both must fail.
+    for bad in ["orphan:fr", "orphan fr", ""] {
+        let err = model(relation(vec!["satisfies"], bad))
+            .validate()
+            .expect_err("a check token that cannot form a severity key is rejected");
+        assert!(
+            err.contains("required_relations"),
+            "the error names the declaration for token {bad:?}: {err}"
+        );
+    }
+
+    // A blank verb in `acyclic_edges` would walk a graph no edge matches — the
+    // cycle check would silently cover nothing while reading as declared.
+    let err = TraceabilityModel {
+        acyclic_edges: vec![String::new()],
+        ..TraceabilityModel::default()
+    }
+    .validate()
+    .expect_err("an empty acyclic verb checks nothing");
+    assert!(err.contains("acyclic_edges"), "{err}");
+}
+
+// TC-907 (FR-058-AC-10): two relations cannot share a name.
+//
+// The name is what the finding is reported under and what a reader matches
+// against the manifest. Two entries sharing one name make a report that cannot
+// be traced back to the declaration that produced it.
+#[test]
+fn tc907_duplicate_relation_names_are_rejected() {
+    use quire_rs::traceability::{RelationDirection, RequiredRelation, TraceabilityModel};
+
+    let one = RequiredRelation {
+        name: "upward".to_string(),
+        from: "FR".to_string(),
+        edges: vec!["satisfies".to_string()],
+        to: vec![],
+        direction: RelationDirection::Outgoing,
+        check: "orphan-fr".to_string(),
+        exclude: vec![],
+    };
+    let err = TraceabilityModel {
+        required_relations: vec![one.clone(), one],
+        ..TraceabilityModel::default()
+    }
+    .validate()
+    .expect_err("duplicate names are rejected");
+    assert!(
+        err.contains("duplicate required_relations entry 'upward'"),
+        "{err}"
+    );
+}
