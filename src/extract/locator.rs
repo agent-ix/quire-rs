@@ -262,6 +262,25 @@ pub struct LocatorAssert {
     /// (CR-010, FR-033-AC-13).
     #[serde(default)]
     pub column_patterns: Option<BTreeMap<String, String>>,
+    /// Name of a declared vocabulary whose values are the allowed scalar
+    /// content — the dereferencing counterpart to [`choices`](Self::choices)
+    /// (FR-060).
+    ///
+    /// A contract that writes the values out has a second copy of a list the
+    /// traceability model already declares, and the two are then kept in
+    /// agreement only by someone remembering. Naming the vocabulary removes the
+    /// copy rather than testing it.
+    ///
+    /// Resolved at registry construction, **after** the cross-module merge: the
+    /// vocabulary a contract names may be declared by a different module than
+    /// the archetype naming it.
+    #[serde(default)]
+    pub from_vocabulary: Option<String>,
+    /// Per-column named vocabularies for a table (header → vocabulary name) —
+    /// the dereferencing counterpart to
+    /// [`column_choices`](Self::column_choices) (FR-060). `table_row` only.
+    #[serde(default)]
+    pub column_vocabularies: Option<BTreeMap<String, String>>,
 }
 
 impl LocatorAssert {
@@ -276,6 +295,8 @@ impl LocatorAssert {
             && self.matches.is_none()
             && self.choices.is_none()
             && self.column_choices.is_none()
+            && self.from_vocabulary.is_none()
+            && self.column_vocabularies.is_none()
             && self.column_patterns.is_none()
     }
 }
@@ -357,6 +378,24 @@ impl LocatorPrimitive {
             Self::TableRow { .. } => LocatorKind::TableRow,
             Self::ListItem { .. } => LocatorKind::ListItem,
             Self::Heading { .. } => LocatorKind::Heading,
+        }
+    }
+
+    /// Mutable access to the optional `assert:` facet (FR-060).
+    ///
+    /// Exists so `Registry::from_shape` can dereference a named vocabulary
+    /// into the literal `choices` the evaluator already understands, once,
+    /// after the cross-module merge. The evaluator itself never sees a
+    /// vocabulary name — it is resolved before any document is validated, so
+    /// the hot path is unchanged.
+    pub(crate) fn assert_mut(&mut self) -> Option<&mut LocatorAssert> {
+        match self {
+            Self::FrontmatterField { assert, .. }
+            | Self::SectionBody { assert, .. }
+            | Self::CodeBlock { assert, .. }
+            | Self::TableRow { assert, .. }
+            | Self::ListItem { assert, .. }
+            | Self::Heading { assert, .. } => assert.as_deref_mut(),
         }
     }
 

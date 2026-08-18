@@ -264,6 +264,26 @@ impl Registry {
         let ambiguity_terms_matcher = crate::grammar::quality::AmbiguityTerms::with_module_terms(
             ambiguity_terms.keys().map(String::as_str),
         );
+        // FR-060: dereference named vocabularies in body-extraction asserts.
+        //
+        // HERE and not earlier: the vocabulary a contract names may be declared
+        // by a DIFFERENT MODULE than the archetype naming it, so resolution
+        // cannot happen at module compile time — only after the cross-module
+        // merge, which is exactly this point. And here rather than in the
+        // evaluator, so `evaluate_assert` keeps its signature and the
+        // per-document hot path never sees a vocabulary name at all.
+        let lookup = |name: &str| -> Vec<String> {
+            named_vocabulary(
+                name,
+                &traceability.vocabularies.test_type,
+                &verification_methods,
+                &verification_classes,
+            )
+            .to_vec()
+        };
+        let archetypes = crate::loader::vocabulary_refs::resolve_vocabularies(archetypes, &lookup);
+        let by_module_and_name =
+            crate::loader::vocabulary_refs::resolve_vocabularies(by_module_and_name, &lookup);
         Self {
             inner: Arc::new(Inner {
                 archetypes,
@@ -498,12 +518,12 @@ impl Registry {
     /// what makes the catalog a single source rather than a fourth copy of the
     /// same vocabulary (FR-054-CON-4).
     pub fn column_vocabulary(&self, column: &str) -> &[String] {
-        match column {
-            "test_type" => self.inner.traceability.vocabularies.test_type.as_slice(),
-            "verification_method" => self.inner.verification_methods.as_slice(),
-            "verification_class" => self.inner.verification_classes.as_slice(),
-            _ => &[],
-        }
+        named_vocabulary(
+            column,
+            &self.inner.traceability.vocabularies.test_type,
+            &self.inner.verification_methods,
+            &self.inner.verification_classes,
+        )
     }
 
     /// Compose an ad-hoc `GrammarLexicon` (FR-044) from the merged module
@@ -570,6 +590,30 @@ impl Registry {
     /// permission-denied entries). Always advisory.
     pub fn path_diagnostics(&self) -> &[PathDiagnostic] {
         &self.inner.path_diagnostics
+    }
+}
+
+/// The values behind a vocabulary name (FR-054, FR-060).
+///
+/// A free function rather than a method because it is needed **twice**: by
+/// `Registry::column_vocabulary` for callers, and by `Registry::from_shape`
+/// while building the registry, where no `Registry` exists yet.
+///
+/// Sharing it is the point. Two copies of the name→vocabulary mapping would be
+/// exactly the duplication FR-060 exists to remove — a contract's
+/// `from_vocabulary: test_type` and a caller's `column_vocabulary("test_type")`
+/// resolving through different matches is how they drift.
+fn named_vocabulary<'v>(
+    name: &str,
+    test_type: &'v [String],
+    verification_methods: &'v [String],
+    verification_classes: &'v [String],
+) -> &'v [String] {
+    match name {
+        "test_type" => test_type,
+        "verification_method" => verification_methods,
+        "verification_class" => verification_classes,
+        _ => &[],
     }
 }
 

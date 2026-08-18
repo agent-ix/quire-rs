@@ -59,3 +59,4 @@ description: "Index of artifacts in this directory."
 * [FR-057: Per-Check Corpus Severity Configuration](./FR-057-corpus-check-severity.md)
 * [FR-058: Upward-Trace Completeness](./FR-058-upward-trace-completeness.md)
 * [FR-059: Declared-Vocabulary Coverage](./FR-059-declared-vocabulary-coverage.md)
+* [FR-060: Vocabulary References in Body-Extraction Asserts](./FR-060-vocabulary-references.md)

@@ -225,6 +225,19 @@ pub fn validate_assert_for_kind(
     if assert.column_patterns.is_some() && !table_only {
         return reject("column_patterns");
     }
+    // FR-060: the dereferencing forms obey the SAME per-kind rules as the
+    // literals they stand in for. A reference that could sit where its literal
+    // could not would be a way to smuggle a scalar constraint onto a table —
+    // the check would then be declared and unenforceable, which is worse than
+    // being rejected.
+    if assert.from_vocabulary.is_some()
+        && matches!(kind, LocatorKind::TableRow | LocatorKind::CodeBlock)
+    {
+        return reject("from_vocabulary");
+    }
+    if assert.column_vocabularies.is_some() && !table_only {
+        return reject("column_vocabularies");
+    }
     Ok(())
 }
 

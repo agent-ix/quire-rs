@@ -7,6 +7,14 @@ description: "Chronological log of structural changes to this bundle."
 
 ## History
 
+* **2026-08-18** — **CR-077**: new [FR-060](./functional/FR-060-vocabulary-references.md) — **vocabulary references in body-extraction asserts** (agent-ix/quire-rs#146). `from_vocabulary:` and `column_vocabularies:` name a declared vocabulary instead of restating it, resolved into literal choices at registry construction. Route 2 of the two the ticket described: the public `evaluate_assert` signature is untouched, and resolution happens after the cross-module merge **because it must** — the vocabulary a contract names may be declared by a different module than the archetype naming it.
+
+  **A reference obeys its literal's per-locator-kind rules**, and that was found by a failing test rather than by design: the first implementation let `from_vocabulary` — the scalar counterpart to `choices`, illegal on `table_row` since CR-010 — sit on a table row where nothing would ever enforce it. A reference that can sit where its literal cannot is a way to smuggle a constraint into a position that ignores it, and declared-but-unenforceable is worse than rejected. TC-924.
+
+  An unknown vocabulary name resolves to an **empty** choice set, never to an absent constraint: dropping it would let a typo silently *widen* the contract so every value passes, the same quiet-wrong-answer class as CR-075. `CompiledArchetype` gains the `Clone` its own doc comment already promised. TC-919..924.
+
+  Also fixes the `Constraints` table headers on **FR-058 and FR-060 and FR-059**, which shipped as `ID | Constraint | Verification` where the archetype asserts `ID | Constraint | Type | Validation` — three documents that failed the module's own contract while describing checks that enforce contracts.
+
 * **2026-08-18** — **CR-076**: new [FR-059](./functional/FR-059-declared-vocabulary-coverage.md) — **declared-vocabulary coverage** (agent-ix/quire-rs#162). A bundle can be 100% AC-covered and still carry no requirement anywhere for reliability or security: every document is individually fine and the *set* is wrong. The generic primitive — *given a declared vocabulary and a declared projection onto it, which values does no document claim?* — with 25010 characteristics as one instance and test-type and STRIDE coverage as others.
 
   **The vocabulary is read from the projected archetype's frontmatter-schema `enum`, never restated in the manifest.** #162 was filed against a scope proposing a hardcoded nine-item list; the vocabulary is already module data and has **twelve** values. A second list would be free to drift, which is the defect CR-015 closed.

@@ -48,6 +48,7 @@ pub struct ArchetypeCarryOver {
 /// present, not from a declared `artifact_type` / `object_type` kind.
 /// The render/templating feature is removed — there is no template
 /// field or renderability concept. Cloning is `Arc`-cheap.
+#[derive(Clone)]
 pub struct CompiledArchetype {
     /// Registered archetype name.
     pub name: String,
