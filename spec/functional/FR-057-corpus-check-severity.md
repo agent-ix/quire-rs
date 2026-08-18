@@ -92,22 +92,22 @@ already guarantees is preserved (NFR-006).
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
-| FR-057-AC-1 | Validating a bundle on disk under `Okf` with a registry mapping `refs:dangling-reference` to `error` puts the dangling-reference finding in `errors` and makes `is_valid()` false, where the same bundle with no mapping reports it as a warning. | Test |
-| FR-057-AC-2 | The same key mapped `warning` under `Strict` demotes a finding that is a hard error by default, and `is_valid()` becomes true — the promotion lever works in both directions. | Test |
-| FR-057-AC-3 | A check mapped `off` records no finding in `errors` and none in `warnings`, in either posture. | Test |
-| FR-057-AC-4 | With no entry for its key, every check in the pack table keeps the exact tier it had before this FR — posture-routed for the four posture-routed checks, warning-in-both-postures for the three that are fixed — verified per check rather than in aggregate. | Test |
-| FR-057-AC-5 | Overrides layered through `Registry::with_grammar_severity` (the path `quire validate --severity` takes, FR-048-AC-5) apply to corpus checks, and a CLI-shaped entry wins over a conflicting module-declared entry for the same key. | Test |
-| FR-057-AC-6 | Mapping one check `off` leaves its siblings reporting: with `refs:dangling-reference=off`, a bundle that also has a dangling **trace** reference still reports `trace:dangling-trace-reference`. | Test |
-| FR-057-AC-7 | Every `BundleFinding` carries the severity that was applied, so a surface renders the configured level rather than inferring it from which vector the finding landed in. | Test |
-| FR-057-AC-8 | The `reason` token of every check listed in the pack table is byte-identical to its pre-FR value, so a consumer matching on the machine surface is unaffected. | Test |
-| FR-057-AC-9 | Every corpus finding routed through the pack surface carries a well-formed `<pack>:<check>` key accepted by `is_severity_key`, so a pack cannot ship unregistrable — asserted over the packs the engine emits, not a hardcoded list. | Test |
-| FR-057-AC-10 | Findings appear in the same order with and without a severity map, and repeated runs over one bundle are identical (NFR-006). | Test |
+| FR-057-AC-1 | Validating a bundle on disk under `Okf` with a registry mapping `refs:dangling-reference` to `error` puts the dangling-reference finding in `errors` and makes `is_valid()` false, where the same bundle with no mapping reports it as a warning. | Test (TC-883) |
+| FR-057-AC-2 | The same key mapped `warning` under `Strict` demotes a finding that is a hard error by default, and `is_valid()` becomes true — the promotion lever works in both directions. | Test (TC-883) |
+| FR-057-AC-3 | A check mapped `off` records no finding in `errors` and none in `warnings`, in either posture. | Test (TC-883) |
+| FR-057-AC-4 | With no entry for its key, every check in the pack table keeps the exact tier it had before this FR — posture-routed for the four posture-routed checks, warning-in-both-postures for the three that are fixed — verified per check rather than in aggregate. | Test (TC-884) |
+| FR-057-AC-5 | Overrides layered through `Registry::with_grammar_severity` (the path `quire validate --severity` takes, FR-048-AC-5) apply to corpus checks, and a CLI-shaped entry wins over a conflicting module-declared entry for the same key. | Test (TC-885) |
+| FR-057-AC-6 | Mapping one check `off` leaves its siblings reporting: with `refs:dangling-reference=off`, a bundle that also has a dangling **trace** reference still reports `trace:dangling-trace-reference`. | Test (TC-889) |
+| FR-057-AC-7 | Every `BundleFinding` carries the severity that was applied, so a surface renders the configured level rather than inferring it from which vector the finding landed in. | Test (TC-886) |
+| FR-057-AC-8 | The `reason` token of every check listed in the pack table is byte-identical to its pre-FR value, so a consumer matching on the machine surface is unaffected. | Test (TC-886) |
+| FR-057-AC-9 | Every corpus finding routed through the pack surface carries a well-formed `<pack>:<check>` key accepted by `is_severity_key`, so a pack cannot ship unregistrable — asserted over the packs the engine emits, not a hardcoded list. | Test (TC-886) |
+| FR-057-AC-10 | Findings appear in the same order with and without a severity map, and repeated runs over one bundle are identical (NFR-006). | Test (TC-887) |
 
 ## Constraints
 
 | ID | Constraint | Verification |
 |----|-----------|--------------|
-| FR-057-CON-1 | Document-level validation results bridged into `BundleReport` — base-concept violations, archetype schema errors, `unknown-type`, missing `type` — SHALL NOT be registrable. Mapping them would let a module switch off schema validation under a severity key. | Test |
+| FR-057-CON-1 | Document-level validation results bridged into `BundleReport` — base-concept violations, archetype schema errors, `unknown-type`, missing `type` — SHALL NOT be registrable. Mapping them would let a module switch off schema validation under a severity key. | Test (TC-888) |
 | FR-057-CON-2 | This FR introduces **no new manifest key** and no `module-manifest.schema.json` change. It reuses `grammar_severity`, which is open-valued on both halves as released in `spec-artifacts-iso` v0.12.0. | Inspection |
 
 ## Dependencies
