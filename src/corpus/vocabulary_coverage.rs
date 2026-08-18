@@ -93,6 +93,11 @@ fn declared_values(registry: &Registry, coverage: &VocabularyCoverage) -> Option
 /// `oneOf` branch per document flavour — and a check that only understood the
 /// flat shape would report "no such vocabulary" for a schema that plainly
 /// declares one. Depth is bounded by the schema, which is finite and loaded.
+///
+/// When a schema declares the same field in two branches with different enums,
+/// the **shallowest** match wins, then the alphabetically-first key —
+/// `serde_json`'s `Map` is a sorted-key `BTreeMap`, so the walk is stable
+/// across runs (NFR-006) rather than merely happening to be.
 fn enum_at(schema: &Value, field: &str) -> Option<Vec<String>> {
     let mut queue: VecDeque<&Value> = VecDeque::new();
     queue.push_back(schema);
