@@ -26,6 +26,42 @@ to `src/grammar/`, `src/python/`, or `tests/python/` must also pass
 PyO3-parity criteria (FR-042-AC-10, FR-043-AC-7, FR-047-AC-9); when nothing ran
 it, TC-715 sat asserting check ids CR-014 had renamed and no gate noticed.
 
+## Adding or improving a check
+
+This crate ships the checks. A new one pointed at the `~/dev` corpus will fire in
+the hundreds or thousands. **That is the expected result, not a signal the check
+is wrong.**
+
+A high finding count means exactly one of two things, and which is a question of
+fact:
+
+- **Bad rule** — the check misreads correct data.
+- **Bad corpus** — the check reads correctly and the specs are wrong.
+
+**Settle it by reading flagged documents**, not by preference. For each: *is the
+thing the check complains about actually absent?* If the document has it in a
+form the check could not read, the rule is wrong. If the document genuinely
+lacks it, the finding stands. Report the split as a number — "sampled 10, 3 rule,
+7 real" — because a finding count is a census, not a precision estimate. This is
+the CR-014 / CR-019 / CR-022 discipline: each of those retired or rebuilt a check
+*after* measuring, and CR-019 found a predicate satisfied by 99.6% of cells.
+
+**Never widen a rule because it lowers the count.** The rule states what a good
+spec looks like; it does not fit the specs that exist. A widening needs a reason
+true independent of the number — "these two verbs mean the same thing in the
+declared edge vocabulary" is a reason, "this drops 400 findings" is not. And when
+two forms do mean the same thing, prefer **unifying the corpus on one and
+flagging the rest** over accepting both: a rule that accepts every spelling
+enforces nothing (see the `unify means enforce` rule).
+
+Say which of the two you did, and why, whenever a rule changes after a
+measurement.
+
+**Advisory-first is about blast radius, not about whether findings matter.** Ship
+a new corpus check at `warning` via the FR-057 severity registry so findings land
+and stay visible; promotion to `error` is a separate, measured, user-gated
+decision.
+
 ## Safety scaffolding
 
 Backported from `agent-ix/rust-lib-cookiecutter` (originally from `agent-ix/ecaz`).
