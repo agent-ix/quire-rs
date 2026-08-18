@@ -11,6 +11,7 @@
 #![cfg_attr(not(feature = "python"), forbid(unsafe_code))]
 
 pub mod ast;
+pub mod combinatorial;
 pub mod concept;
 pub mod contract;
 pub mod corpus;
