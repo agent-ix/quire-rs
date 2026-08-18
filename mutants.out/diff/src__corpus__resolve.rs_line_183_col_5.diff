@@ -1,0 +1,23 @@
+--- src/corpus/resolve.rs
++++ replace harvest_body_links -> Vec<String> with vec![]
+@@ -175,19 +175,17 @@
+                 .unwrap_or("references");
+             Some((target.to_string(), edge_type.to_string()))
+         })
+         .collect()
+ }
+ 
+ /// Raw `ix://` URIs found in the document body.
+ fn harvest_body_links(doc: &LoadedDocument, re: &Regex) -> Vec<String> {
+-    re.find_iter(doc.raw())
+-        .map(|m| m.as_str().to_string())
+-        .collect()
++    vec![] /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ /// Resolve internal relative-path links (`[text](./FR-002-….md)`) in the
+ /// document body against the corpus path index (FR-026-AC-9). A link whose
+ /// normalized destination matches a loaded document yields that document's
+ /// id; one that matches nothing yields the raw destination string, so it
+ /// resolves to `Dangling` downstream like an absent `ix://` target.
+ fn harvest_body_relative_links(

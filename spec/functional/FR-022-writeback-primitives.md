@@ -12,6 +12,16 @@ relationships:
 ---
 # FR-022: Write-back Primitives
 
+> **CR note (CR-069, the empty-section and end-of-file splices, 2026-08-18):**
+> this FR gains **AC-6 and AC-7**. Both were found by the metamorphic property
+> suite (agent-ix/quire-rs#84) the first time `update_section` was stated as a
+> relation instead of as five examples. AC-1..AC-5 all held; what they never
+> asked was whether the primitive is the **identity** when the replacement is
+> the section's own content, and neither reaches a section with an empty byte
+> range. An empty section gained a blank line on every rewrite, and a heading on
+> the document's last line had the new content concatenated onto the heading
+> text itself. The second is data loss, not formatting.
+
 ## Description
 
 `quire-rs` SHALL edit a markdown document by **splicing bytes**, and SHALL
@@ -46,6 +56,8 @@ not exist SHALL be an error, and SHALL leave the document unchanged.
 | FR-022-AC-3 | After a block replacement, untouched blocks are byte-identical, including trailing whitespace and nested list markers. | Test (TC-432) |
 | FR-022-AC-4 | Frontmatter is byte-identical through both primitives. | Test (TC-433) |
 | FR-022-AC-5 | An unknown heading and an unknown block id each return `MissingField` and leave the document unchanged. | Test (TC-434, TC-435) |
+| FR-022-AC-6 | Replacing a section's content with **its own current content** returns the document byte-identical, for every section including an **empty** one — a heading immediately followed by the next heading, or by end of file. A speculative rewrite is therefore a no-op rather than a source of churn. | Test (TC-896) |
+| FR-022-AC-7 | Writing content into a section whose heading line is the **last line of the document** (no trailing newline) inserts the line break that separates them, so the heading text is unchanged and the new content parses as content. Concatenating the two — turning `## Aa` plus `body` into a heading reading `Aa body` — is document corruption and MUST NOT occur. | Test (TC-896) |
 
 > **CR-042 note (2026-08-14):** Authored after the fact. This shipped in v0.2 and
 > was never written up. The tests were there the whole time — the eight cases in

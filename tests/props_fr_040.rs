@@ -85,3 +85,56 @@ proptest! {
 fn fr_040_ac_4_absent_yields_empty() {
     assert!(normalize_allowed_links(None).is_empty());
 }
+
+/// TC-895 (FR-040-AC-4, CR-069, Property): `allowed_links` normalization is a
+/// **fixpoint** — re-serializing a normalized map and normalizing it again
+/// yields the same map. Array form and map form are two authoring spellings of
+/// one value, and this is what says the normalized form is the canonical one
+/// rather than merely *a* form.
+mod props_metamorphic {
+    use super::*;
+
+    /// The map form of an already-normalized `AllowedLinks`.
+    fn to_value(links: &AllowedLinks) -> Value {
+        Value::Object(
+            links
+                .iter()
+                .map(|(verb, targets)| {
+                    (
+                        verb.clone(),
+                        Value::Array(targets.iter().map(|t| json!(t)).collect()),
+                    )
+                })
+                .collect(),
+        )
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(3000))]
+
+        /// spec-correctness: row=FR-040-AC-4 property=fixpoint extraction=extractable origin=manual review=none
+        #[test]
+        fn tc895_normalization_reaches_a_fixpoint(verbs in prop::collection::vec(verb(), 0..12)) {
+            // Array form is the lossier spelling; normalizing it once must land
+            // on a value that normalizes to itself.
+            let array = Value::Array(verbs.iter().map(|v| json!(v)).collect());
+            let once = normalize_allowed_links(Some(&array));
+            let twice = normalize_allowed_links(Some(&to_value(&once)));
+            prop_assert_eq!(twice, once);
+        }
+
+        /// spec-correctness: row=FR-040-AC-4 property=fixpoint extraction=extractable origin=manual review=none
+        #[test]
+        fn tc895_map_form_is_already_a_fixpoint(
+            pairs in prop::collection::vec((verb(), prop::collection::vec(verb(), 0..4)), 0..10)
+        ) {
+            let mut object = serde_json::Map::new();
+            for (v, targets) in &pairs {
+                object.insert(v.clone(), Value::Array(targets.iter().map(|t| json!(t)).collect()));
+            }
+            let once = normalize_allowed_links(Some(&Value::Object(object)));
+            let twice = normalize_allowed_links(Some(&to_value(&once)));
+            prop_assert_eq!(twice, once);
+        }
+    }
+}

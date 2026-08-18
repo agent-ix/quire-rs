@@ -61,6 +61,7 @@ PATTERN='(::Mutex[^A-Za-z0-9_]|::RwLock[^A-Za-z0-9_]|[^A-Za-z0-9_]Mutex<|[^A-Za-
 EXEMPTIONS=(
   "src/corpus/body_cache.rs|pub(crate) struct LazyBody(std::sync::OnceLock<QuireDocument>);|FR-025 lazy body tier: per-document once-init cell behind Arc<SpecInner>; not walk state — the FR-024 rayon fan-out builds every LoadedDocument with an empty cell and parses no body. Exactly-once + agreed-value proven by the NFR-017 loom model (TC-815) and raced for real under TSAN (tests/corpus_concurrency.rs, TC-816)."
   "src/corpus/declared_tables.rs|static R: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();|compile-once static regex, idempotent deterministic init, outside the parallel region (pre-existing; CR-047's widened pattern made it visible instead of silent)."
+  "src/corpus/resolve.rs|static R: std::sync::OnceLock<Regex> = std::sync::OnceLock::new();|compile-once static regex, same shape as declared_tables.rs. CR-072: both link regexes were rebuilt on every call and harvest_edges is the per-document Python-binding surface, so a consumer walking N documents paid N compilations — measured at 148us to compile against 4.8us to scan."
 )
 
 violations=()

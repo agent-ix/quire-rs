@@ -1,0 +1,21 @@
+--- src/corpus/resolve.rs
++++ delete ! in harvest_body_relative_links
+@@ -195,17 +195,17 @@
+     re: &Regex,
+     by_path: &HashMap<PathBuf, ArtifactId>,
+ ) -> Vec<String> {
+     let base = doc.path.parent().unwrap_or_else(|| Path::new(""));
+     re.captures_iter(doc.raw())
+         .filter_map(|c| c.get(1).map(|m| m.as_str()))
+         .filter_map(|dest| {
+             let path_part = dest.split('#').next().unwrap_or(dest);
+-            if !is_relative_md_dest(path_part) {
++            if  /* ~ changed by cargo-mutants ~ */is_relative_md_dest(path_part) {
+                 return None;
+             }
+             let normalized = normalize_lexical(&base.join(path_part));
+             Some(match by_path.get(&normalized) {
+                 Some(id) => id.clone(),
+                 None => dest.to_string(),
+             })
+         })

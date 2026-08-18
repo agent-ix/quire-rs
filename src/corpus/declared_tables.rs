@@ -262,19 +262,49 @@ pub(crate) fn rows_of(doc: &QuireDocument, path: &Path, heading: &str) -> Vec<Sc
 /// contributes a reference. `expand_ranges` rewrites `FR-001..FR-003` into
 /// `FR-001, FR-002, FR-003`; a range whose ends disagree on prefix, or whose
 /// bounds are inverted, is left untouched for the pattern to reject.
+/// Run to a **fixpoint** (CR-069). One pass leaves a chained range half-read:
+/// `FR-001..FR-003..FR-005` expands its leftmost range and leaves `..FR-005`
+/// behind, which the declaration's pattern then rejects — so a cell the engine
+/// could have read reports as a dangling trace reference instead. Nested
+/// annotations behave the same way, `((a))` needing two passes.
+///
+/// **[RAN]** before changing it: zero cells across the 237 `~/dev` spec bundles
+/// contain a chained range, so this closes a latent defect and moves no current
+/// output.
+///
+/// Each pass consumes at least one `..` it can expand, and an expansion emits
+/// comma-separated ids containing no `..` of its own, so the loop terminates.
+/// The bound is a guard on the fuzz surface, not the termination argument.
 pub(crate) fn normalize_reference_cell(
     cell: &str,
     strip_annotations: bool,
     expand_ranges: bool,
 ) -> String {
+    const MAX_PASSES: usize = 16;
     let mut out = cell.to_string();
-    if strip_annotations {
-        out = re_parenthetical().replace_all(&out, " ").to_string();
-    }
-    if expand_ranges {
-        out = re_range()
-            .replace_all(&out, |caps: &regex::Captures<'_>| expand(caps))
-            .to_string();
+    for pass in 0..MAX_PASSES {
+        let mut once = out.clone();
+        if strip_annotations {
+            once = re_parenthetical().replace_all(&once, " ").to_string();
+        }
+        if expand_ranges {
+            once = re_range()
+                .replace_all(&once, |caps: &regex::Captures<'_>| expand(caps))
+                .to_string();
+        }
+        if once == out {
+            return out;
+        }
+        out = once;
+        // Reaching the ceiling means the termination argument above is wrong —
+        // each pass consumes at least one `..` and an expansion emits none — so
+        // it would take a cell with 16 chained ranges. Fail in tests rather than
+        // silently returning a non-fixpoint the pattern will then reject
+        // (CR-072).
+        debug_assert!(
+            pass + 1 < MAX_PASSES,
+            "normalize_reference_cell did not converge in {MAX_PASSES} passes: {cell:?}"
+        );
     }
     out
 }
@@ -340,5 +370,83 @@ pub(crate) fn scan_finding(
                  document in the corpus has — it scans nothing and mints no rows"
             ),
         ),
+    }
+}
+
+#[cfg(test)]
+mod props_metamorphic {
+    use proptest::prelude::*;
+
+    /// Cells built from the tokens the two opt-in normalizations rewrite —
+    /// parentheses and `..` ranges — so chained and nested forms are reached.
+    fn cellish() -> impl Strategy<Value = String> {
+        let tok = prop_oneof![
+            Just("(".to_string()),
+            Just(")".to_string()),
+            Just("..".to_string()),
+            Just(", ".to_string()),
+            "FR-[0-9]{3}".prop_map(|s| s),
+            "[a-z]{1,3}".prop_map(|s| s),
+        ];
+        proptest::collection::vec(tok, 0..10).prop_map(|v| v.concat())
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(3000))]
+
+        /// TC-892 (FR-049, CR-069, Property): cell normalization is idempotent
+        /// under every combination of the two opt-in flags. Its counterexample
+        /// before the fixpoint loop was the chained range
+        /// `FR-375..FR-432..FR-432`, which left a `..` the pattern rejects.
+        #[test]
+        fn tc892_reference_cell_normalization_is_idempotent(
+            s in cellish(),
+            strip in any::<bool>(),
+            expand in any::<bool>(),
+        ) {
+            let once = super::normalize_reference_cell(&s, strip, expand);
+            prop_assert_eq!(
+                super::normalize_reference_cell(&once, strip, expand),
+                once.clone(),
+                "input={:?} strip={} expand={}", s, strip, expand
+            );
+        }
+
+        /// TC-892 (FR-049, CR-069, Property): with both flags off the cell is
+        /// returned unchanged — normalization is opt-in (CR-015), so the
+        /// no-declaration path must be the identity.
+        #[test]
+        fn tc892_no_flags_is_the_identity(s in cellish()) {
+            prop_assert_eq!(super::normalize_reference_cell(&s, false, false), s.clone());
+        }
+    }
+}
+
+#[cfg(test)]
+mod cr069_regressions {
+    /// TC-892 regression (FR-049, CR-069): the generator's minimized witness.
+    /// A chained range expanded only its leftmost pair and left a `..` behind,
+    /// which the declaration's pattern then rejects — so a cell the engine could
+    /// have read reported as a dangling trace reference instead.
+    #[test]
+    fn tc892_chained_ranges_expand_completely() {
+        let out = super::normalize_reference_cell("FR-001..FR-003..FR-005", false, true);
+        assert_eq!(out, "FR-001, FR-002, FR-003, FR-004, FR-005");
+        assert!(!out.contains(".."), "no range marker may survive: {out}");
+
+        // A nested annotation leaves a stray `)`: the annotation regex is not
+        // nesting-aware, so `((note))` matches `((note)` and the outer `)`
+        // survives. Recorded as it is rather than asserted away — the residual
+        // carries no id, so it cannot mint a false reference, and making the
+        // stripper nesting-aware is a separate decision with its own blast
+        // radius. What CR-069 fixes is that the result is now a **fixpoint**:
+        // a second pass changes nothing.
+        let once = super::normalize_reference_cell("TC-001 ((note))", true, false);
+        assert_eq!(once, "TC-001  )");
+        assert_eq!(
+            super::normalize_reference_cell(&once, true, false),
+            once,
+            "whatever it leaves behind must be stable"
+        );
     }
 }

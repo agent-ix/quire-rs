@@ -56,3 +56,4 @@ description: "Index of artifacts in this directory."
 * [FR-054: Verification-Method Catalog](./FR-054-verification-method-catalog.md)
 * [FR-055: Published JSON Output Contract](./FR-055-published-output-contract.md)
 * [FR-056: Requirement-Quality Lints](./FR-056-requirement-quality-lints.md)
+* [FR-057: Per-Check Corpus Severity Configuration](./FR-057-corpus-check-severity.md)

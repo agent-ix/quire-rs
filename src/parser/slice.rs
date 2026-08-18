@@ -226,12 +226,17 @@ mod tests {
     }
 
     proptest! {
-        // FR-008-AC-3: round-trip stitch is byte-exact for any body.
-        // 10 000 cases matches the parse-document no-panic budget;
-        // this property is load-bearing for writeback (Task 012+).
+        // TC-024 (FR-008-AC-3, NFR-006, Property): round-trip stitch is
+        // byte-exact for any body. 10 000 cases matches the parse-document
+        // no-panic budget; this property is load-bearing for writeback.
+        //
+        // The name carried no TC id until CR-069, so `spec/tests.md` read
+        // `🚧 Pending` over a property that had been running on every `make ci`
+        // since the parser landed — the inverse of the green-matrix defect this
+        // program exists to catch, and just as misleading.
         #![proptest_config(ProptestConfig::with_cases(10_000))]
         #[test]
-        fn roundtrip_stitch_is_byte_exact(body in any_body()) {
+        fn tc024_roundtrip_stitch_is_byte_exact(body in any_body()) {
             prop_assert_eq!(reconstruct(&body), body);
         }
     }

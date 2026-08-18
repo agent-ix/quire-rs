@@ -1,0 +1,31 @@
+--- src/corpus/resolve.rs
++++ replace normalize_lexical -> PathBuf with Default::default()
+@@ -239,27 +239,17 @@
+         .map(|d| (normalize_lexical(&d.path), artifact_key(d)))
+         .collect()
+ }
+ 
+ /// Lexically normalize a path — collapse `.` and `..` segments without any
+ /// filesystem access (resolution stays I/O-free and deterministic,
+ /// StR-006-AC-4 / NFR-006).
+ pub(crate) fn normalize_lexical(p: &Path) -> PathBuf {
+-    let mut out = PathBuf::new();
+-    for comp in p.components() {
+-        match comp {
+-            Component::CurDir => {}
+-            Component::ParentDir => {
+-                out.pop();
+-            }
+-            other => out.push(other.as_os_str()),
+-        }
+-    }
+-    out
++    Default::default() /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn md_link_regex() -> Regex {
+     // Match a Markdown inline link's destination: `[text](dest)`, where
+     // `dest` runs up to the closing paren or whitespace. `ix://` and other
+     // URI/anchor destinations are filtered out by `is_relative_md_dest`.
+     Regex::new(r#"\[[^\]]*\]\(([^)\s]+)\)"#).expect("static md-link regex is valid")
+ }

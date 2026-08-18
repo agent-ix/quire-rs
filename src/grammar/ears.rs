@@ -349,9 +349,40 @@ fn table_statements(section: &QuireSection, line_offset: usize, column: &str) ->
 /// identifier in the response object (`provide \`CodeBlockEditor\``) is the most
 /// concrete object there is, and the object-aware vague-response check treats it
 /// as a concrete signal (FR-042).
+/// Run to a **fixpoint** (CR-069). One pass is not enough: the two rewrites can
+/// feed each other, so stripping bold can *synthesize* a link the link pass has
+/// already run past. `[]**()` normalizes to `[]()` in one pass and to `""` in
+/// two — and the authored shape that reaches it, `[FR-001]**(see note)**`, would
+/// have left raw markdown link syntax in the text the grammar reads as prose.
+///
+/// **[RAN]** before changing it: zero documents across the 237 `~/dev` spec
+/// bundles contain the triggering shape (`]**(` occurs twice, both with a space
+/// before the paren, which does not form a link). So this closes a latent defect
+/// and moves no current output.
+///
+/// Each pass strictly shortens the string — a link drops its brackets and
+/// destination, a bold marker drops two bytes — so the loop terminates on its
+/// own. The bound is a guard against pathological input on the fuzz surface,
+/// not the termination argument.
 pub(super) fn normalize(s: &str) -> String {
-    let unlinked = re_link().replace_all(s, "$1");
-    unlinked.replace("**", "")
+    const MAX_PASSES: usize = 16;
+    let mut out = s.to_string();
+    for pass in 0..MAX_PASSES {
+        let once = re_link().replace_all(&out, "$1").replace("**", "");
+        if once == out {
+            return out;
+        }
+        out = once;
+        // Reaching the ceiling means the termination argument above is wrong,
+        // not that the input was unusual — each pass strictly shortens, so 16
+        // passes require a 16-byte-longer input than any statement has. Fail in
+        // tests rather than silently returning a non-fixpoint (CR-072).
+        debug_assert!(
+            pass + 1 < MAX_PASSES,
+            "ears::normalize did not converge in {MAX_PASSES} passes: {s:?}"
+        );
+    }
+    out
 }
 
 pub(super) fn excerpt(s: &str) -> String {
@@ -731,5 +762,64 @@ mod tests {
     fn tc665_skips() {
         let d = doc("---\ntype: FR\n---\n## Description\n\n```\nThe system shall support publishing.\n```\n\n> The system shall support quoting.\n");
         assert!(check("FR", &d, 0, &empty()).is_empty());
+    }
+}
+
+#[cfg(test)]
+mod props_metamorphic {
+    use proptest::prelude::*;
+
+    /// Strings built from the tokens `normalize` rewrites, so the generator
+    /// actually reaches the interaction between the two rewrites. A plain `.*`
+    /// strategy passed 2,000 cases against the pre-CR-069 single-pass form —
+    /// it essentially never produces `[](...)` or `**`.
+    fn markdownish() -> impl Strategy<Value = String> {
+        let tok = prop_oneof![
+            Just("[".to_string()),
+            Just("]".to_string()),
+            Just("(".to_string()),
+            Just(")".to_string()),
+            Just("**".to_string()),
+            Just("*".to_string()),
+            Just("`".to_string()),
+            "[a-z]{1,3}".prop_map(|s| s),
+        ];
+        proptest::collection::vec(tok, 0..14).prop_map(|v| v.concat())
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(4000))]
+
+        /// TC-891 (FR-042, CR-069, Property): EARS normalization is idempotent.
+        /// Its counterexample before the fixpoint loop was `[]**()`, which
+        /// normalized to `[]()` and then to `""`.
+        #[test]
+        fn tc891_ears_normalize_is_idempotent(s in markdownish()) {
+            let once = super::normalize(&s);
+            prop_assert_eq!(super::normalize(&once), once.clone(), "input={:?}", s);
+        }
+
+        /// TC-891 (FR-042, CR-069, Property): and it never lengthens its input,
+        /// which is what makes the fixpoint loop terminate.
+        #[test]
+        fn tc891_ears_normalize_never_grows(s in markdownish()) {
+            prop_assert!(super::normalize(&s).len() <= s.len(), "input={:?}", s);
+        }
+    }
+}
+
+#[cfg(test)]
+mod cr069_regressions {
+    /// TC-891 regression (FR-042, CR-069): the generator's minimized witness.
+    /// Stripping `**` synthesized a link the link pass had already run past, so
+    /// one pass left `[]()` — raw markdown link syntax in the text the grammar
+    /// reads as prose — and a second pass reduced it to `""`.
+    #[test]
+    fn tc891_bold_removal_can_synthesize_a_link() {
+        assert_eq!(super::normalize("[]**()"), "");
+        // The authored shape that reaches it.
+        assert_eq!(super::normalize("[FR-001]**(see note)**"), "FR-001");
+        // A link that was already a link is unaffected — one pass was enough.
+        assert_eq!(super::normalize("**[label](url)**"), "label");
     }
 }

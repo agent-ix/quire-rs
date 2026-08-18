@@ -1,0 +1,22 @@
+--- src/corpus/resolve.rs
++++ replace extract_target_id -> &str with ""
+@@ -262,18 +262,17 @@
+     // `dest` runs up to the closing paren or whitespace. `ix://` and other
+     // URI/anchor destinations are filtered out by `is_relative_md_dest`.
+     Regex::new(r#"\[[^\]]*\]\(([^)\s]+)\)"#).expect("static md-link regex is valid")
+ }
+ 
+ /// The artifact id a reference target points at: the last `/`-segment
+ /// of an `ix://` URI, or a bare id unchanged (FR-026-AC-6).
+ pub(crate) fn extract_target_id(target: &str) -> &str {
+-    let rest = target.strip_prefix("ix://").unwrap_or(target);
+-    rest.rsplit('/').next().unwrap_or(rest)
++    "" /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn ix_link_regex() -> Regex {
+     // Match an ix:// URI up to whitespace or a closing delimiter so it
+     // works for `[t](ix://…)`, `<ix://…>`, and bare occurrences.
+     Regex::new(r#"ix://[^\s)\]>"']+"#).expect("static ix-link regex is valid")
+ }
+ 

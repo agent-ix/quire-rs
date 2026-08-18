@@ -123,6 +123,34 @@ audit-static:
 mutants:
 	$(CARGO) mutants -p quire-rs --in-place --check
 
+# agent-ix/quoin#48 pilot: mutation-score one requirement instead of the whole
+# crate. The file set is *computed*, not guessed — `mutants_scope` resolves
+# `FR → {AC} → {TC} → {file}` through the module's declared reference columns
+# (FR-049/FR-050) and the FR-051 `verifies` relations.
+#
+# Two hops, not one: `verifies` binds symbols to **TC** ids, so the
+# requirement→test edge lives in the Test Matrix and cannot be read off the
+# symbol graph alone.
+#
+# Usage: make mutants-fr FR=FR-026
+.PHONY: mutants-fr
+mutants-fr:
+	@test -n "$(FR)" || { echo "usage: make mutants-fr FR=FR-026" >&2; exit 2; }
+	@files=$$($(CARGO) run --release --quiet --example mutants_scope -- $(FR) --files-only); \
+	if [ -z "$$files" ]; then \
+	  echo "$(FR): no mutable file in the traced set — nothing to mutate." >&2; \
+	  $(CARGO) run --release --quiet --example mutants_scope -- $(FR) >&2; \
+	  exit 1; \
+	fi; \
+	echo "$(FR) mutation scope:"; echo "$$files" | sed 's/^/  /'; \
+	args=""; for f in $$files; do args="$$args --file $$f"; done; \
+	$(CARGO) mutants -p quire-rs $$args
+
+.PHONY: mutants-scope
+mutants-scope:
+	@test -n "$(FR)" || { echo "usage: make mutants-scope FR=FR-026" >&2; exit 2; }
+	@$(CARGO) run --release --quiet --example mutants_scope -- $(FR)
+
 # =============================================================================
 # Perf gates (Task 014, NFR-001/002/007)
 # =============================================================================

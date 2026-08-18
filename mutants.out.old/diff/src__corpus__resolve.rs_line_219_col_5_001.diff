@@ -1,0 +1,26 @@
+--- src/corpus/resolve.rs
++++ replace is_relative_md_dest -> bool with false
+@@ -211,22 +211,17 @@
+         })
+         .collect()
+ }
+ 
+ /// True when a Markdown link destination is an internal relative path to a
+ /// markdown artifact (not an `ix://`/`http(s)`/`mailto:` URI, not a bare
+ /// in-document `#anchor`).
+ fn is_relative_md_dest(dest: &str) -> bool {
+-    !dest.is_empty()
+-        && !dest.contains("://")
+-        && !dest.starts_with('#')
+-        && !dest.starts_with("mailto:")
+-        && !dest.starts_with("tel:")
+-        && dest.ends_with(".md")
++    false /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ /// `index.md` / `log.md` are navigation documents, not reference sources.
+ fn is_nav_doc(path: &Path) -> bool {
+     matches!(
+         path.file_name().and_then(|n| n.to_str()),
+         Some("index.md") | Some("log.md")
+     )

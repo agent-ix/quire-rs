@@ -1660,3 +1660,60 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+mod props_metamorphic {
+    use proptest::prelude::*;
+
+    /// Backtick-dense strings, so runs of every length and unbalanced tails are
+    /// reached. A `.*` strategy essentially never produces a closed code span.
+    fn tickish() -> impl Strategy<Value = String> {
+        let tok = prop_oneof![
+            Just("`".to_string()),
+            Just("``".to_string()),
+            Just("```".to_string()),
+            Just("\n".to_string()),
+            "[a-z]{1,3}".prop_map(|s| s),
+        ];
+        proptest::collection::vec(tok, 0..14).prop_map(|v| v.concat())
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(4000))]
+
+        /// TC-894 (FR-047-AC-18, CR-017/CR-026, CR-069, Property): masking is
+        /// idempotent — a masked span masks to itself.
+        #[test]
+        fn tc894_mask_code_spans_is_idempotent(s in tickish()) {
+            let once = super::mask_code_spans(&s);
+            prop_assert_eq!(super::mask_code_spans(&once), once.clone(), "input={:?}", s);
+        }
+
+        /// TC-894 (FR-047-AC-18, CR-069, Property): masking preserves byte
+        /// length. `outcome_clause` locates a keyword in the masked copy and
+        /// slices the *original* with that offset, so any drift here would
+        /// silently mis-slice rather than fail loudly.
+        #[test]
+        fn tc894_mask_code_spans_preserves_byte_length(s in tickish()) {
+            prop_assert_eq!(super::mask_code_spans(&s).len(), s.len(), "input={:?}", s);
+        }
+
+        /// TC-894 (FR-047-AC-18, CR-069, Property): masking never *introduces* a
+        /// backtick, and every backtick it keeps is at the offset it already
+        /// occupied — the output's backtick positions are a subset of the
+        /// input's. Equality would be wrong: a backtick inside a span is span
+        /// content and is masked like any other byte (`` ```\n`\n``` `` is the
+        /// witness). Subset is the invariant that matters, because a mask that
+        /// could synthesize a delimiter would change which spans a second pass
+        /// sees, and idempotence would be luck rather than structure.
+        #[test]
+        fn tc894_mask_code_spans_never_introduces_a_backtick(s in tickish()) {
+            let out = super::mask_code_spans(&s);
+            let positions = |t: &str| -> std::collections::BTreeSet<usize> {
+                t.bytes().enumerate().filter(|(_, b)| *b == b'`').map(|(i, _)| i).collect()
+            };
+            let (before, after) = (positions(&s), positions(&out));
+            prop_assert!(after.is_subset(&before), "input={:?} masked={:?}", s, out);
+        }
+    }
+}
