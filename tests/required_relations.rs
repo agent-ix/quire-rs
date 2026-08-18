@@ -414,3 +414,103 @@ fn tc907_duplicate_relation_names_are_rejected() {
         "{err}"
     );
 }
+
+// TC-908 (FR-058-AC-11): a relation naming a kind nothing declares and no
+// document is reports itself, instead of silently checking nothing.
+//
+// This is the failure this check exists for, and it is invisible without it.
+// Measured on the fixture: changing `from: FR` to `from: FRR` leaves FR-001 —
+// a genuine orphan with no upstream need — UNREPORTED, and the whole run comes
+// back clean. A one-character slip disables the check, and from the outside
+// that is indistinguishable from a bundle with nothing wrong.
+//
+// `TraceabilityModel::validate` cannot catch it: it runs per module at
+// manifest-parse time, and a relation legitimately names kinds another module
+// contributes. Only here are the merged registry and the walked bundle both in
+// hand.
+#[test]
+fn tc908_a_relation_naming_a_dead_kind_reports_itself() {
+    let root = tmpdir("908");
+    write(&root, "StR-001.md", &str_doc("StR-001"));
+    write(&root, "FR-001.md", &fr("FR-001", None));
+
+    // The fixture module is well-formed, so nothing is dead and the orphan is
+    // found the normal way.
+    let clean = validate(&root, None);
+    assert!(
+        findings(&clean, "undeclared-relation-vocabulary").is_empty(),
+        "a well-formed declaration reports no dead kind: {:?}",
+        findings(&clean, "undeclared-relation-vocabulary")
+    );
+    assert_eq!(
+        findings(&clean, "orphan-fr").len(),
+        1,
+        "the orphan is found while the declaration is intact"
+    );
+
+    // Now typo the archetype the relation selects on.
+    let module = tmpdir("908_module");
+    let manifest = fs::read_to_string(fixture_module("required-relations").join("manifest.yaml"))
+        .expect("read fixture manifest")
+        .replace("    from: FR\n", "    from: FRR\n");
+    fs::write(module.join("manifest.yaml"), &manifest).expect("write");
+
+    let registry = Registry::load_module(&module).expect("a typoed `from` still loads");
+    let report = validate_bundle_at(&root, &registry, BundlePosture::Okf);
+
+    // The orphan silently vanishes — this is the damage.
+    assert!(
+        findings(&report, "orphan-fr").is_empty(),
+        "the typo really does disable the check, which is why the guard is needed"
+    );
+    // …and the declaration says so itself.
+    let dead = findings(&report, "undeclared-relation-vocabulary");
+    assert_eq!(dead.len(), 1, "one dead declaration: {dead:?}");
+    assert!(
+        dead[0].message.contains("FRR") && dead[0].message.contains("fr-has-upstream-need"),
+        "names the dead kind and the declaration that carries it: {}",
+        dead[0].message
+    );
+
+    fs::remove_dir_all(&root).ok();
+    fs::remove_dir_all(&module).ok();
+}
+
+// TC-909 (FR-058-AC-2): the `to` list accepts more than one upstream kind, so
+// an FR hanging off a use case rather than a stakeholder requirement satisfies
+// the same relation.
+//
+// The 29148 chain is stakeholder -> system -> software. Declaring only `StR`
+// reported 6 of quire-rs's 38 FRs — a 16% false-positive rate that was a fault
+// in the DECLARATION, not the engine, and fixing it was a manifest edit. The
+// fixture accepted `US` in `to:` from the start but never declared the kind and
+// no test exercised it, so the behaviour this comment describes was untested.
+#[test]
+fn tc909_an_fr_satisfying_a_use_case_is_not_an_orphan() {
+    let root = tmpdir("909");
+    write(
+        &root,
+        "US-001.md",
+        "---\nid: US-001\ntype: US\ntitle: A use case\n---\n\n## Description\n\nThe operator does it.\n",
+    );
+    write(
+        &root,
+        "FR-001.md",
+        &fr("FR-001", Some(("satisfies", "US-001"))),
+    );
+    write(&root, "FR-002.md", &fr("FR-002", None));
+
+    let report = validate(&root, None);
+    let hits = findings(&report, "orphan-fr");
+    assert_eq!(
+        hits.len(),
+        1,
+        "only the FR with no upstream need at all is reported: {hits:?}"
+    );
+    assert!(
+        hits[0].message.contains("FR-002"),
+        "the use-case-backed FR is not the one reported: {}",
+        hits[0].message
+    );
+    fs::remove_dir_all(&root).ok();
+}

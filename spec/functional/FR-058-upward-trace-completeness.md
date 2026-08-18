@@ -95,6 +95,32 @@ The `check` token is validated with `grammar::is_severity_key` — the same pred
 CLI parser uses — so the manifest and the command line accept exactly one vocabulary rather than
 drifting into two.
 
+### A declaration that names a kind nothing has
+
+`edges: []` fails loudly. The opposite typo fails **silently**, and it is the worse of the two.
+
+`from` selects documents by kind. A `from` naming a kind nothing has selects **zero** documents, so
+the relation checks nothing at all. Measured on the fixture: changing `from: FR` to `from: FRR`
+leaves a genuine orphan requirement unreported and the run comes back clean. One character disables
+the check, and the result is indistinguishable from a bundle with nothing wrong.
+
+So a relation naming a kind that **no loaded module declares and no document in the bundle is**
+SHALL report itself. Either condition alone makes the kind live: a declared kind with no documents
+yet is a contract waiting for content, and an undeclared kind that documents do use is a different
+defect other checks already report.
+
+This cannot be a load-time rule. `TraceabilityModel::validate` runs per module at manifest-parse
+time, before the merge, and a relation legitimately names kinds another module contributes —
+`from: hazard` in `spec-objects-safety` pointing `to: [FR]` from `spec-artifacts-iso`. The merged
+registry and the walked bundle are both in hand only at validation.
+
+**Verbs are deliberately excluded from this rule.** A first attempt checked `edges` against the
+module's `edge_types` and immediately fired on the fixture's own working declaration, because a
+single-module fixture declares no vocabulary of its own while still using `satisfies` correctly —
+and [FR-041](./FR-041-edge-vocabulary-validation.md)-AC-2 already permits verbs absent from
+`edge_types`. That is a bad rule, not a bad fixture. A misspelt verb also fails loudly, which is the
+case that needs no help.
+
 ## Acceptance Criteria
 
 | ID | Criteria | Verification |
@@ -109,6 +135,7 @@ drifting into two.
 | FR-058-AC-8 | A module declaring neither `required_relations` nor `acyclic_edges` produces byte-identical output to one that never heard of this FR. | Test (TC-904) |
 | FR-058-AC-9 | Findings are ordered by document then id, and identical across runs over one bundle ([NFR-006](../non-functional/NFR-006-determinism.md)). | Test (TC-902) |
 | FR-058-AC-10 | A declaration that cannot be executed SHALL fail at module load, naming the offending entry: no accepted `edges`, an empty `from`/`check`/`edges`/`to` entry, a duplicate relation name, a `check` token that cannot form a `trace:<check>` severity key, an uncompilable `exclude` glob, or a blank verb in `acyclic_edges`. | Test (TC-906, TC-907) |
+| FR-058-AC-11 | A relation naming a document kind that no loaded module declares **and** no document in the bundle is SHALL report itself under `trace:undeclared-relation-vocabulary`, naming the kind and the declaration. Verbs are deliberately **not** checked this way — an absent `edge_types` entry is legal (FR-041-AC-2) and a misspelt verb already fails loudly. | Test (TC-908) |
 
 ## Constraints
 

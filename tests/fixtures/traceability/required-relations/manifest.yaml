@@ -17,6 +17,14 @@ artifact_types:
 - name: TestMatrix
   defaults:
     id_pattern: TM-{next:03d}
+# Declared because both relations below accept `US` as an upstream kind. The
+# 29148 chain is stakeholder -> system -> software, so an FR may hang off a use
+# case rather than directly off a stakeholder requirement. Leaving it undeclared
+# made the `to: [StR, US]` half of each relation dead text: nothing exercised it
+# and the new `undeclared-relation-vocabulary` check reported it (TC-908).
+- name: US
+  defaults:
+    id_pattern: US-{next:03d}
 traceability:
   exclude:
   - "spec/fixtures/**"

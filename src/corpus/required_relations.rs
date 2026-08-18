@@ -54,6 +54,7 @@ pub(crate) fn validate_required_relations(
     let mut findings: Vec<(PathBuf, String, String, String)> = Vec::new();
 
     for relation in &model.required_relations {
+        check_declaration_is_live(spec, registry, relation, root, &mut findings);
         check_relation(spec, relation, root, &model_exclude, &mut findings);
     }
     for verb in &model.acyclic_edges {
@@ -69,6 +70,74 @@ pub(crate) fn validate_required_relations(
             BundleFinding::in_pack(pack::TRACE, check, path, message),
         );
     }
+}
+
+/// Report a relation naming a document kind that is **dead**: no loaded module
+/// declares it and no document in the bundle is one.
+///
+/// A typo in `from` selects **zero** documents, so the relation silently checks
+/// nothing. Measured: changing `from: FR` to `from: FRR` in the fixture leaves a
+/// genuine orphan requirement unreported and the whole run clean — a
+/// one-character slip disables the check with no diagnostic anywhere, which from
+/// the outside is indistinguishable from a bundle with nothing wrong.
+///
+/// [`TraceabilityModel::validate`] cannot catch it: it runs per module at
+/// manifest-parse time, before the merge, and a relation legitimately names
+/// kinds another module contributes (`from: hazard` in `spec-objects-safety`
+/// pointing `to: [FR]` from `spec-artifacts-iso`). Here the merged registry and
+/// the walked bundle are both available, which is what makes the question
+/// answerable at all.
+///
+/// **Deliberately not checked: `edges`.** A verb is allowed to be absent from
+/// `edge_types` — FR-041-AC-2 says so for inverse labels, and a single-module
+/// fixture declares no vocabulary of its own while still using `satisfies`
+/// correctly. Flagging verbs fired on the fixture's own working declaration,
+/// which is a bad rule rather than a bad fixture. A misspelt verb also fails
+/// *loudly* — nothing satisfies the relation, so every `from` document is
+/// reported — where a misspelt `from` fails silently, and silence is the case
+/// that needs a check.
+///
+/// [`TraceabilityModel::validate`]: crate::traceability::TraceabilityModel::validate
+fn check_declaration_is_live(
+    spec: &Spec,
+    registry: &Registry,
+    relation: &RequiredRelation,
+    root: &Path,
+    out: &mut Vec<(PathBuf, String, String, String)>,
+) {
+    // A kind is live if a module declares it OR a document in the bundle is
+    // one. Either alone is enough: a declared kind with no documents yet is a
+    // contract waiting for content, and an undeclared kind that documents do
+    // use is a separate defect other checks already report.
+    let is_live = |kind: &str| {
+        registry.archetype_names().any(|n| n == kind) || !spec.by_type(kind).is_empty()
+    };
+
+    let mut dead: Vec<String> = Vec::new();
+    if !is_live(&relation.from) {
+        dead.push(format!("from '{}'", relation.from));
+    }
+    // `to: []` means "any document" and is not a defect (FR-058-AC-1).
+    for target in &relation.to {
+        if !is_live(target) {
+            dead.push(format!("to '{target}'"));
+        }
+    }
+    if dead.is_empty() {
+        return;
+    }
+
+    out.push((
+        root.to_path_buf(),
+        String::new(),
+        "undeclared-relation-vocabulary".to_string(),
+        format!(
+            "required relation '{}' names {} — no loaded module declares that kind and no \
+             document in this bundle is one, so the relation matches nothing",
+            relation.name,
+            dead.join(", ")
+        ),
+    ));
 }
 
 /// Every document of `relation.from` that lacks the declared edge.
