@@ -282,7 +282,7 @@ pub(crate) fn normalize_reference_cell(
 ) -> String {
     const MAX_PASSES: usize = 16;
     let mut out = cell.to_string();
-    for _ in 0..MAX_PASSES {
+    for pass in 0..MAX_PASSES {
         let mut once = out.clone();
         if strip_annotations {
             once = re_parenthetical().replace_all(&once, " ").to_string();
@@ -293,9 +293,18 @@ pub(crate) fn normalize_reference_cell(
                 .to_string();
         }
         if once == out {
-            break;
+            return out;
         }
         out = once;
+        // Reaching the ceiling means the termination argument above is wrong —
+        // each pass consumes at least one `..` and an expansion emits none — so
+        // it would take a cell with 16 chained ranges. Fail in tests rather than
+        // silently returning a non-fixpoint the pattern will then reject
+        // (CR-072).
+        debug_assert!(
+            pass + 1 < MAX_PASSES,
+            "normalize_reference_cell did not converge in {MAX_PASSES} passes: {cell:?}"
+        );
     }
     out
 }

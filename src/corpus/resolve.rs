@@ -78,7 +78,7 @@ pub(crate) fn resolve(
                 edge_type,
             ));
         }
-        for target_raw in harvest_body_links(doc, &ix_link) {
+        for target_raw in harvest_body_links(doc, ix_link) {
             stubs.insert((
                 source.clone(),
                 extract_target_id(&target_raw).to_string(),
@@ -89,7 +89,7 @@ pub(crate) fn resolve(
         // (`index.md`/`log.md`) are excluded as a source so their
         // wall-to-wall contents links do not flood the graph (FR-026-AC-10).
         if !is_nav_doc(&doc.path) {
-            for target in harvest_body_relative_links(doc, &md_link, &by_path) {
+            for target in harvest_body_relative_links(doc, md_link, &by_path) {
                 stubs.insert((source.clone(), target, "references".to_string()));
             }
         }
@@ -146,7 +146,7 @@ pub fn harvest_edges(doc: &LoadedDocument) -> Vec<(String, String)> {
     for (target_raw, edge_type) in harvest_frontmatter(doc) {
         out.insert((extract_target_id(&target_raw).to_string(), edge_type));
     }
-    for target_raw in harvest_body_links(doc, &ix_link) {
+    for target_raw in harvest_body_links(doc, ix_link) {
         out.insert((
             extract_target_id(&target_raw).to_string(),
             "references".to_string(),
@@ -266,11 +266,24 @@ pub(crate) fn normalize_lexical(p: &Path) -> PathBuf {
     out
 }
 
-fn md_link_regex() -> Regex {
+/// Compiled once (CR-072). Both link regexes were rebuilt on every call, and
+/// [`harvest_edges`] is the **per-document** surface the Python binding exposes,
+/// so a consumer walking N documents paid N compilations. Measured: **148µs to
+/// compile against 4.8µs to scan a 20-line document — 31× the work it enables**.
+/// Pre-existing rather than introduced by the CR-067 grammar (the blacklist it
+/// replaced compiled in 161µs, slightly slower), and found by the Wave A review.
+///
+/// `OnceLock` here follows `declared_tables.rs` and is a named exemption in
+/// `scripts/audits/check_no_shared_mutable.sh`: idempotent deterministic init,
+/// outside the FR-024 parallel region.
+fn md_link_regex() -> &'static Regex {
     // Match a Markdown inline link's destination: `[text](dest)`, where
     // `dest` runs up to the closing paren or whitespace. `ix://` and other
     // URI/anchor destinations are filtered out by `is_relative_md_dest`.
-    Regex::new(r#"\[[^\]]*\]\(([^)\s]+)\)"#).expect("static md-link regex is valid")
+    static R: std::sync::OnceLock<Regex> = std::sync::OnceLock::new();
+    R.get_or_init(|| {
+        Regex::new(r#"\[[^\]]*\]\(([^)\s]+)\)"#).expect("static md-link regex is valid")
+    })
 }
 
 /// The artifact id a reference target points at: the last `/`-segment
@@ -305,12 +318,16 @@ pub(crate) fn extract_target_id(target: &str) -> &str {
 /// is a reference to another artifact wherever it appears; a code span is
 /// typography. (FR-039 already takes the same position from the other side — it
 /// converts a backticked artifact id *into* a link.)
-fn ix_link_regex() -> Regex {
+/// Compiled once — see [`md_link_regex`] for the measurement (CR-072).
+fn ix_link_regex() -> &'static Regex {
     // At least one alphanumeric, written inline because the `regex` crate has
     // no lookahead. This is what stops `...` and `--` from being segments.
     const SEG: &str = r"[A-Za-z0-9._~@%+-]*[A-Za-z0-9][A-Za-z0-9._~@%+-]*";
-    Regex::new(&format!(r"ix://{SEG}(?:/{SEG})+(?:#[A-Za-z0-9._~-]+)?"))
-        .expect("static ix-link regex is valid")
+    static R: std::sync::OnceLock<Regex> = std::sync::OnceLock::new();
+    R.get_or_init(|| {
+        Regex::new(&format!(r"ix://{SEG}(?:/{SEG})+(?:#[A-Za-z0-9._~-]+)?"))
+            .expect("static ix-link regex is valid")
+    })
 }
 
 #[cfg(test)]

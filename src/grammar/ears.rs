@@ -367,12 +367,20 @@ fn table_statements(section: &QuireSection, line_offset: usize, column: &str) ->
 pub(super) fn normalize(s: &str) -> String {
     const MAX_PASSES: usize = 16;
     let mut out = s.to_string();
-    for _ in 0..MAX_PASSES {
+    for pass in 0..MAX_PASSES {
         let once = re_link().replace_all(&out, "$1").replace("**", "");
         if once == out {
-            break;
+            return out;
         }
         out = once;
+        // Reaching the ceiling means the termination argument above is wrong,
+        // not that the input was unusual — each pass strictly shortens, so 16
+        // passes require a 16-byte-longer input than any statement has. Fail in
+        // tests rather than silently returning a non-fixpoint (CR-072).
+        debug_assert!(
+            pass + 1 < MAX_PASSES,
+            "ears::normalize did not converge in {MAX_PASSES} passes: {s:?}"
+        );
     }
     out
 }

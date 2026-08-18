@@ -123,8 +123,18 @@ fn main() {
 /// Every `~/dev/<repo>/spec` bundle, worktree copies and `-task<N>` clones
 /// dropped the way `scripts/sweep_coverage.py` does, plus the named exclusions.
 fn sweep_repos() -> Vec<PathBuf> {
-    let mut repos: Vec<_> = std::fs::read_dir("/home/peter/dev")
-        .expect("read ~/dev")
+    // The workspace root is the corpus this measures, so it is a parameter
+    // rather than one machine's path (CR-072). `IX_WORKSPACE` overrides;
+    // otherwise the parent of this checkout, which is the conventional layout.
+    let workspace = std::env::var("IX_WORKSPACE").unwrap_or_else(|_| {
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap_or(Path::new("."))
+            .to_string_lossy()
+            .into_owned()
+    });
+    let mut repos: Vec<_> = std::fs::read_dir(&workspace)
+        .unwrap_or_else(|e| panic!("read workspace {workspace}: {e} (set IX_WORKSPACE)"))
         .filter_map(|e| e.ok())
         .map(|e| e.path())
         .filter(|p| p.is_dir() && p.join("spec").is_dir())

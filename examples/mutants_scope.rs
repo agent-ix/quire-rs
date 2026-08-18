@@ -26,10 +26,41 @@ fn main() {
     let files_only = args.any(|a| a == "--files-only");
 
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let module = Path::new("/home/peter/dev/spec-artifacts-process/spec_artifacts_process");
-    let registry = Registry::load_module(module).expect("load process module");
+
+    // The traceability model is module data, so this needs a module checkout.
+    // Overridable rather than hardcoded to one machine's layout: the default is
+    // the conventional sibling checkout, and `QUIRE_PROCESS_MODULE` names it
+    // anywhere else. It fails with the variable's name rather than a path
+    // nobody else has (CR-072).
+    let module = std::env::var("QUIRE_PROCESS_MODULE").unwrap_or_else(|_| {
+        root.parent()
+            .unwrap_or(Path::new(".."))
+            .join("spec-artifacts-process/spec_artifacts_process")
+            .to_string_lossy()
+            .into_owned()
+    });
+    let module = Path::new(&module);
+    if !module.is_dir() {
+        eprintln!(
+            "traceability module not found at {}\n\
+             set QUIRE_PROCESS_MODULE to a spec-artifacts-process checkout",
+            module.display()
+        );
+        std::process::exit(1);
+    }
+    let registry = match Registry::load_module(module) {
+        Ok(registry) => registry,
+        Err(e) => {
+            eprintln!("could not load {}: {e}", module.display());
+            std::process::exit(1);
+        }
+    };
     let Some(model) = registry.traceability() else {
-        eprintln!("the active module declares no traceability model");
+        eprintln!(
+            "{} declares no traceability model — the scope needs one to resolve \
+             the requirement→test hop",
+            module.display()
+        );
         std::process::exit(1);
     };
 
