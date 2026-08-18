@@ -28,6 +28,7 @@ use std::path::{Path, PathBuf};
 use crate::corpus::resolve::Resolution;
 use crate::corpus::spec::Spec;
 use crate::corpus::walk::LoadedDocument;
+use crate::grammar::{GrammarSeverity, GrammarSeverityLevel, GrammarSeverityMap};
 use crate::query::section;
 use crate::registry::Registry;
 
@@ -56,7 +57,27 @@ pub enum BundlePosture {
     Okf,
 }
 
-/// One bundle-level finding (error or warning).
+/// The corpus check packs (FR-057). A pack is the `<pack>` half of the
+/// `grammar_severity` registry key; the `<check>` half is the finding's existing
+/// `reason` token, which this FR deliberately leaves unchanged — it is the
+/// machine surface `quire validate` already prints.
+///
+/// Document-level results bridged into [`BundleReport`] (schema errors,
+/// `unknown-type`, missing `type`) carry **no** pack and are not registrable:
+/// mapping them would let a module switch off schema validation under a
+/// severity key (FR-057-CON-1).
+pub mod pack {
+    /// Bundle structure — FR-038. Frontmatter presence and index completeness.
+    pub const BUNDLE: &str = "bundle";
+    /// Reference resolution — FR-026.
+    pub const REFS: &str = "refs";
+    /// Edge-target vocabulary — FR-040.
+    pub const EDGES: &str = "edges";
+    /// Declared traceability references — FR-049.
+    pub const TRACE: &str = "trace";
+}
+
+/// One bundle-level finding.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BundleFinding {
     /// Document or directory the finding concerns.
@@ -65,6 +86,50 @@ pub struct BundleFinding {
     pub message: String,
     /// Stable machine-readable reason token.
     pub reason: &'static str,
+    /// Check pack this finding belongs to, or `None` for a document-level
+    /// result bridged in from schema validation (FR-057-CON-1). With `reason`
+    /// it forms the `<pack>:<check>` severity-registry key.
+    pub pack: Option<&'static str>,
+    /// The severity that was applied (FR-057-AC-7), so a surface renders the
+    /// configured level instead of inferring it from which vector it landed in.
+    pub severity: GrammarSeverity,
+}
+
+impl BundleFinding {
+    /// A finding from a check pack, before severity is resolved.
+    pub(crate) fn in_pack(
+        pack: &'static str,
+        reason: &'static str,
+        path: PathBuf,
+        message: String,
+    ) -> Self {
+        Self {
+            path,
+            message,
+            reason,
+            pack: Some(pack),
+            severity: GrammarSeverity::Warning,
+        }
+    }
+
+    /// A document-level result bridged into the bundle report. Not registrable
+    /// (FR-057-CON-1), so it carries no pack.
+    pub(crate) fn bridged(reason: &'static str, path: PathBuf, message: String) -> Self {
+        Self {
+            path,
+            message,
+            reason,
+            pack: None,
+            severity: GrammarSeverity::Error,
+        }
+    }
+
+    /// The `<pack>:<check>` severity-registry key, when this finding is
+    /// registrable at all.
+    pub fn severity_key(&self) -> Option<String> {
+        self.pack
+            .map(|pack| crate::grammar::severity_key(pack, self.reason))
+    }
 }
 
 /// Outcome of [`validate_bundle`]: hard errors + non-fatal warnings.
@@ -80,12 +145,64 @@ impl BundleReport {
         self.errors.is_empty()
     }
 
-    /// Route a finding to errors (Strict) or warnings (Okf).
-    pub(crate) fn degradable(&mut self, posture: BundlePosture, finding: BundleFinding) {
-        match posture {
-            BundlePosture::Strict => self.errors.push(finding),
-            BundlePosture::Okf => self.warnings.push(finding),
+    /// Push a document-level result bridged in from schema validation. Not
+    /// registrable (FR-057-CON-1).
+    pub(crate) fn bridged(&mut self, severity: GrammarSeverity, finding: BundleFinding) {
+        match severity {
+            GrammarSeverity::Error => self.errors.push(finding),
+            GrammarSeverity::Warning => self.warnings.push(finding),
         }
+    }
+
+    /// Route a pack finding, honouring the module's `<pack>:<check>` entry when
+    /// there is one (FR-057).
+    ///
+    /// `unconfigured` is the tier the check uses when the registry says nothing.
+    /// It is **not** a blanket `warning`: FR-048-AC-4's default would silently
+    /// downgrade every corpus check that hard-errors under `Strict` today, and
+    /// turning a failing build green is not a severity mechanism's job. Each
+    /// caller passes the tier it had before FR-057 (FR-057-AC-4); a pack added
+    /// after FR-057 passes `Warning`.
+    pub(crate) fn route(
+        &mut self,
+        severity: &GrammarSeverityMap,
+        unconfigured: GrammarSeverity,
+        mut finding: BundleFinding,
+    ) {
+        let key = finding
+            .severity_key()
+            .expect("route() is for pack findings; bridged ones use bridged()");
+        // Deliberately not `grammar::severity_level`: that function bakes in
+        // FR-048-AC-4's warning default, and this surface needs "absent" to mean
+        // "whatever this check did before", not "warning".
+        match severity.get(&key).copied() {
+            Some(GrammarSeverityLevel::Off) => {}
+            Some(GrammarSeverityLevel::Warning) => {
+                finding.severity = GrammarSeverity::Warning;
+                self.warnings.push(finding);
+            }
+            Some(GrammarSeverityLevel::Error) => {
+                finding.severity = GrammarSeverity::Error;
+                self.errors.push(finding);
+            }
+            None => {
+                finding.severity = unconfigured;
+                match unconfigured {
+                    GrammarSeverity::Error => self.errors.push(finding),
+                    GrammarSeverity::Warning => self.warnings.push(finding),
+                }
+            }
+        }
+    }
+}
+
+/// The tier a posture-routed check uses when the registry says nothing: a hard
+/// error under `Strict`, a warning under `Okf` — the behaviour these checks had
+/// before FR-057 (FR-057-AC-4).
+pub(crate) fn posture_tier(posture: BundlePosture) -> GrammarSeverity {
+    match posture {
+        BundlePosture::Strict => GrammarSeverity::Error,
+        BundlePosture::Okf => GrammarSeverity::Warning,
     }
 }
 
@@ -121,6 +238,11 @@ pub fn validate_bundle(
     reference_root: &Path,
 ) -> BundleReport {
     let mut report = BundleReport::default();
+    // FR-057: the merged `<pack>:<check>` registry, already carrying whatever a
+    // surface layered over the module map via `Registry::with_grammar_severity`
+    // — which is how `quire validate --severity` reaches corpus checks without
+    // any change to the CLI (FR-048-AC-5).
+    let severity = registry.grammar_severity();
 
     // CR-048: a frontmatter-less markdown file under the document root is a
     // warning naming the path — in BOTH postures (never an error: the file
@@ -148,11 +270,13 @@ pub fn validate_bundle(
                     "no-frontmatter",
                 )
             };
-            report.warnings.push(BundleFinding {
-                path: path.clone(),
-                message: message.to_string(),
-                reason,
-            });
+            // Fixed warning tier in both postures (CR-048) — the file is not a
+            // document, so nothing structural can be wrong with it as one.
+            report.route(
+                severity,
+                GrammarSeverity::Warning,
+                BundleFinding::in_pack(pack::BUNDLE, reason, path.clone(), message.to_string()),
+            );
         }
     }
 
@@ -170,16 +294,18 @@ pub fn validate_bundle(
     // Strict, a warning under OKF (foreign targets are expected).
     for edge in spec.inner.edges.iter() {
         if edge.resolution == Resolution::Dangling {
-            report.degradable(
-                posture,
-                BundleFinding {
-                    path: PathBuf::from(&edge.source),
-                    message: format!(
+            report.route(
+                severity,
+                posture_tier(posture),
+                BundleFinding::in_pack(
+                    pack::REFS,
+                    "dangling-reference",
+                    PathBuf::from(&edge.source),
+                    format!(
                         "dangling reference '{}' (edge '{}') has no target in the bundle",
                         edge.target, edge.edge_type
                     ),
-                    reason: "dangling-reference",
-                },
+                ),
             );
         }
     }
@@ -188,7 +314,7 @@ pub fn validate_bundle(
     // already sorted by `(source, target, type)` (resolver collects into a
     // BTreeSet), so findings come out deterministically. Warn-tier always
     // (FR-040-AC-10) — never degraded to a Strict error this revision.
-    validate_edge_targets(spec, registry, &mut report);
+    validate_edge_targets(spec, registry, severity, &mut report);
 
     // FR-049: declared table-cell trace references get the same dangling
     // check `ix://` edges get, driven entirely by the module's traceability
@@ -201,7 +327,7 @@ pub fn validate_bundle(
         &mut report,
     );
 
-    check_index_completeness(spec, posture, document_root, &mut report);
+    check_index_completeness(spec, posture, severity, document_root, &mut report);
 
     report
 }
@@ -223,7 +349,12 @@ fn document_object(doc: &LoadedDocument) -> Option<&str> {
 /// is `"*"` or empty (unconstrained), the target declares no `object:`
 /// (no object type to constrain), or its object archetype is unknown.
 /// Cross-repo targets never reach here — they resolve as dangling.
-fn validate_edge_targets(spec: &Spec, registry: &Registry, report: &mut BundleReport) {
+fn validate_edge_targets(
+    spec: &Spec,
+    registry: &Registry,
+    severity: &GrammarSeverityMap,
+    report: &mut BundleReport,
+) {
     for edge in spec.inner.edges.iter() {
         if edge.resolution != Resolution::Dangling {
             // FR-041: normalize an inverse-verb edge `(source, I, target)`
@@ -275,15 +406,20 @@ fn validate_edge_targets(spec: &Spec, registry: &Registry, report: &mut BundleRe
                 .any(|t| registry.target_satisfies(t, target_arch))
             {
                 // Report with the edge as authored (inverse source/target/
-                // verb), per FR-041-AC-4.
-                report.warnings.push(BundleFinding {
-                    path: PathBuf::from(&edge.source),
-                    message: format!(
-                        "edge '{}' from '{}' targets '{}' (object type '{}'), which satisfies none of {:?}",
-                        edge.edge_type, edge.source, edge.target, target_obj_name, targets
+                // verb), per FR-041-AC-4. Warn tier always (FR-040-AC-10).
+                report.route(
+                    severity,
+                    GrammarSeverity::Warning,
+                    BundleFinding::in_pack(
+                        pack::EDGES,
+                        "disallowed-edge-target",
+                        PathBuf::from(&edge.source),
+                        format!(
+                            "edge '{}' from '{}' targets '{}' (object type '{}'), which satisfies none of {:?}",
+                            edge.edge_type, edge.source, edge.target, target_obj_name, targets
+                        ),
                     ),
-                    reason: "disallowed-edge-target",
-                });
+                );
             }
         }
     }
@@ -304,11 +440,14 @@ fn validate_concept(
     // "untyped corpus doc is an error, not a warning" fix.
     match doc.concept_type() {
         None | Some("") => {
-            report.errors.push(BundleFinding {
-                path: doc.path.clone(),
-                message: "frontmatter is missing the required, non-empty 'type'".to_string(),
-                reason: "frontmatter",
-            });
+            report.bridged(
+                GrammarSeverity::Error,
+                BundleFinding::bridged(
+                    "frontmatter",
+                    doc.path.clone(),
+                    "frontmatter is missing the required, non-empty 'type'".to_string(),
+                ),
+            );
             return;
         }
         Some(_) => {}
@@ -318,11 +457,10 @@ fn validate_concept(
         BundlePosture::Strict => {
             // Full base concept contract (typing of description/tags too).
             for err in crate::concept::validate_base_concept(&fm) {
-                report.errors.push(BundleFinding {
-                    path: doc.path.clone(),
-                    message: err.message,
-                    reason: err.reason.as_str(),
-                });
+                report.bridged(
+                    GrammarSeverity::Error,
+                    BundleFinding::bridged(err.reason.as_str(), doc.path.clone(), err.message),
+                );
             }
 
             let ty = doc.concept_type().unwrap_or_default();
@@ -340,25 +478,34 @@ fn validate_concept(
                         lexicon,
                     );
                     for err in result.errors {
-                        report.errors.push(BundleFinding {
-                            path: doc.path.clone(),
-                            message: err.message,
-                            reason: err.reason.as_str(),
-                        });
+                        report.bridged(
+                            GrammarSeverity::Error,
+                            BundleFinding::bridged(
+                                err.reason.as_str(),
+                                doc.path.clone(),
+                                err.message,
+                            ),
+                        );
                     }
                     for warn in result.warnings {
-                        report.warnings.push(BundleFinding {
-                            path: doc.path.clone(),
-                            message: warn.message,
-                            reason: warn.reason.as_str(),
-                        });
+                        report.bridged(
+                            GrammarSeverity::Warning,
+                            BundleFinding::bridged(
+                                warn.reason.as_str(),
+                                doc.path.clone(),
+                                warn.message,
+                            ),
+                        );
                     }
                 }
-                None => report.errors.push(BundleFinding {
-                    path: doc.path.clone(),
-                    message: format!("unknown type '{ty}' (no archetype registered for it)"),
-                    reason: "unknown-type",
-                }),
+                None => report.bridged(
+                    GrammarSeverity::Error,
+                    BundleFinding::bridged(
+                        "unknown-type",
+                        doc.path.clone(),
+                        format!("unknown type '{ty}' (no archetype registered for it)"),
+                    ),
+                ),
             }
         }
         BundlePosture::Okf => {
@@ -366,11 +513,14 @@ fn validate_concept(
             // archetype body contract is not enforced for foreign bundles.
             let ty = doc.concept_type().unwrap_or_default();
             if registry.archetype(ty).is_none() {
-                report.warnings.push(BundleFinding {
-                    path: doc.path.clone(),
-                    message: format!("unknown type '{ty}' tolerated under OKF posture"),
-                    reason: "unknown-type",
-                });
+                report.bridged(
+                    GrammarSeverity::Warning,
+                    BundleFinding::bridged(
+                        "unknown-type",
+                        doc.path.clone(),
+                        format!("unknown type '{ty}' tolerated under OKF posture"),
+                    ),
+                );
             }
         }
     }
@@ -382,6 +532,7 @@ fn validate_concept(
 fn check_index_completeness(
     spec: &Spec,
     posture: BundlePosture,
+    severity: &GrammarSeverityMap,
     root: &Path,
     report: &mut BundleReport,
 ) {
@@ -407,14 +558,15 @@ fn check_index_completeness(
                 .and_then(|fm| fm.get("okf_version"))
                 .is_some();
             if !has_okf {
-                report.degradable(
-                    posture,
-                    BundleFinding {
-                        path: index_doc.path.clone(),
-                        message: "root index.md is missing 'okf_version' in frontmatter"
-                            .to_string(),
-                        reason: "index-okf-version",
-                    },
+                report.route(
+                    severity,
+                    posture_tier(posture),
+                    BundleFinding::in_pack(
+                        pack::BUNDLE,
+                        "index-okf-version",
+                        index_doc.path.clone(),
+                        "root index.md is missing 'okf_version' in frontmatter".to_string(),
+                    ),
                 );
             }
         }
@@ -427,13 +579,15 @@ fn check_index_completeness(
                 continue;
             }
             if !listed.contains(&name) {
-                report.degradable(
-                    posture,
-                    BundleFinding {
-                        path: index_doc.path.clone(),
-                        message: format!("index.md does not list sibling artifact '{name}'"),
-                        reason: "index-incomplete",
-                    },
+                report.route(
+                    severity,
+                    posture_tier(posture),
+                    BundleFinding::in_pack(
+                        pack::BUNDLE,
+                        "index-incomplete",
+                        index_doc.path.clone(),
+                        format!("index.md does not list sibling artifact '{name}'"),
+                    ),
                 );
             }
         }

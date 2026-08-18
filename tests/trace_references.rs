@@ -453,3 +453,77 @@ fn tc814_exclude_globs_resolve_against_the_reference_root() {
         dangling(&conflated)
     );
 }
+
+// TC-889 (FR-057-AC-6): the severity registry is per check, so switching one
+// pack off leaves its siblings reporting. The trace pack is the one P2's new
+// checks will sit beside, so the independence is worth pinning here rather than
+// only over the packs that happen to share a file.
+#[test]
+fn tc889_switching_one_pack_off_leaves_siblings_reporting() {
+    use quire_rs::grammar::{GrammarSeverityLevel, GrammarSeverityMap};
+
+    let root = tmpdir("889");
+    // A trace reference to a TC nothing mints…
+    write(
+        &root,
+        "FR-001.md",
+        &fr_document("FR-001", &[("FR-001-AC-1", "Test (TC-404)")]),
+    );
+    write(
+        &root,
+        "tests.md",
+        &tests_matrix(&[("TC-001", "FR-001-AC-1")]),
+    );
+    // …and, separately, a dangling `ix://` reference.
+    write(
+        &root,
+        "FR-002.md",
+        &format!(
+            "{}\nSee [missing](ix://o/r/MISSING).\n",
+            fr_document("FR-002", &[("FR-002-AC-1", "Test (TC-001)")])
+        ),
+    );
+
+    let registry = Registry::load_module(&fixture_module("iso")).expect("load module");
+    let with_refs_off = {
+        let mut map = GrammarSeverityMap::new();
+        map.insert(
+            "refs:dangling-reference".to_string(),
+            GrammarSeverityLevel::Off,
+        );
+        registry.with_grammar_severity(map)
+    };
+
+    let baseline = validate_bundle_at(&root, &registry, BundlePosture::Okf);
+    let reasons = |r: &BundleReport| -> Vec<&'static str> {
+        r.errors
+            .iter()
+            .chain(r.warnings.iter())
+            .map(|f| f.reason)
+            .collect()
+    };
+    assert!(
+        reasons(&baseline).contains(&"dangling-reference"),
+        "fixture must produce both: {:?}",
+        reasons(&baseline)
+    );
+    assert!(
+        reasons(&baseline).contains(&"dangling-trace-reference"),
+        "fixture must produce both: {:?}",
+        reasons(&baseline)
+    );
+
+    let scoped = validate_bundle_at(&root, &with_refs_off, BundlePosture::Okf);
+    assert!(
+        !reasons(&scoped).contains(&"dangling-reference"),
+        "refs pack was switched off: {:?}",
+        reasons(&scoped)
+    );
+    assert_eq!(
+        dangling(&scoped).len(),
+        dangling(&baseline).len(),
+        "the trace pack is untouched"
+    );
+
+    fs::remove_dir_all(&root).ok();
+}

@@ -5,6 +5,7 @@
 //! "untyped corpus doc is an error, not a warning" fix); unknown types,
 //! broken `ix://` links, and index gaps degrade to warnings only under Okf.
 
+use std::collections::BTreeSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -365,4 +366,306 @@ fn tc820_frontmatter_less_files_bridge_into_bundle_warnings() {
 
         fs::remove_dir_all(&root).ok();
     }
+}
+
+// ── FR-057: per-check corpus severity ──────────────────────────────────
+//
+// The knob P2's new corpus checks (agent-ix/quire-rs#85, #162) need in order to
+// ship advisory and be tuned per repository. Exercised through
+// `validate_bundle_at` against a bundle on disk with a `Registry` carrying the
+// merged map — the same path `quire validate --severity` takes.
+
+use quire_rs::corpus::validate::pack;
+use quire_rs::grammar::{
+    merge_severity_overrides, severity_key, GrammarSeverityLevel, GrammarSeverityMap,
+};
+use quire_rs::{BundleFinding, BundleReport, GrammarSeverity};
+
+/// The bundle test module with a `<pack>:<check>` severity map installed, the
+/// way `Registry::with_grammar_severity` installs one for a surface.
+fn severity_registry(entries: &[(&str, GrammarSeverityLevel)]) -> Registry {
+    let mut map = GrammarSeverityMap::new();
+    for (key, level) in entries {
+        map.insert((*key).to_string(), *level);
+    }
+    bundle_registry().with_grammar_severity(map)
+}
+
+fn count(findings: &[BundleFinding], reason: &str) -> usize {
+    findings.iter().filter(|f| f.reason == reason).count()
+}
+
+fn all(report: &BundleReport) -> impl Iterator<Item = &BundleFinding> {
+    report.errors.iter().chain(report.warnings.iter())
+}
+
+/// A bundle whose only fault is one dangling `ix://` reference.
+fn one_dangling_ref(tag: &str) -> PathBuf {
+    let root = tmpdir(tag);
+    write(
+        &root,
+        "NOTE-001.md",
+        &note("NOTE-001", "see [missing](ix://o/r/MISSING)"),
+    );
+    root
+}
+
+// TC-883 (FR-057-AC-1/AC-2/AC-3): a mapped key promotes, demotes, and
+// suppresses a corpus check — the three states posture alone could not reach.
+#[test]
+fn tc883_registry_promotes_demotes_and_suppresses() {
+    let root = one_dangling_ref("883");
+    const KEY: &str = "refs:dangling-reference";
+
+    // Unconfigured under Okf: one warning, bundle valid.
+    let base = validate_bundle_at(&root, &bundle_registry(), BundlePosture::Okf);
+    assert!(base.is_valid(), "errors: {:?}", base.errors);
+    assert_eq!(count(&base.warnings, "dangling-reference"), 1);
+
+    // AC-1 — `error` promotes it out of Okf's warning tier.
+    let promoted = validate_bundle_at(
+        &root,
+        &severity_registry(&[(KEY, GrammarSeverityLevel::Error)]),
+        BundlePosture::Okf,
+    );
+    assert!(!promoted.is_valid(), "error must fail the bundle");
+    assert_eq!(count(&promoted.errors, "dangling-reference"), 1);
+    assert_eq!(count(&promoted.warnings, "dangling-reference"), 0);
+
+    // AC-2 — `warning` demotes what Strict makes a hard error, and the bundle
+    // becomes valid. The lever works in both directions.
+    let strict_base = validate_bundle_at(&root, &bundle_registry(), BundlePosture::Strict);
+    assert!(!strict_base.is_valid(), "Strict errors by default");
+    assert_eq!(count(&strict_base.errors, "dangling-reference"), 1);
+
+    let demoted = validate_bundle_at(
+        &root,
+        &severity_registry(&[(KEY, GrammarSeverityLevel::Warning)]),
+        BundlePosture::Strict,
+    );
+    assert_eq!(count(&demoted.errors, "dangling-reference"), 0);
+    assert_eq!(count(&demoted.warnings, "dangling-reference"), 1);
+    assert!(demoted.is_valid(), "errors: {:?}", demoted.errors);
+
+    // AC-3 — `off` records nothing at all, in either posture.
+    for posture in [BundlePosture::Strict, BundlePosture::Okf] {
+        let off = validate_bundle_at(
+            &root,
+            &severity_registry(&[(KEY, GrammarSeverityLevel::Off)]),
+            posture,
+        );
+        assert_eq!(count(&off.errors, "dangling-reference"), 0, "{posture:?}");
+        assert_eq!(count(&off.warnings, "dangling-reference"), 0, "{posture:?}");
+    }
+
+    fs::remove_dir_all(&root).ok();
+}
+
+// TC-884 (FR-057-AC-4): with no entry, every check keeps the exact tier it had
+// before FR-057 — checked per check, not in aggregate. FR-048-AC-4's blanket
+// `warning` default deliberately does NOT apply here: it would silently
+// downgrade every corpus check that hard-errors under Strict today.
+#[test]
+fn tc884_unconfigured_checks_keep_their_prior_tier() {
+    // Posture-routed: error under Strict, warning under Okf.
+    let root = tmpdir("884_posture");
+    write(
+        &root,
+        "index.md",
+        "---\nid: IDX\ntype: index\n---\n# Index\n\n## Contents\n",
+    );
+    write(
+        &root,
+        "NOTE-001.md",
+        &note("NOTE-001", "see [missing](ix://o/r/MISSING)"),
+    );
+    for (posture, in_errors) in [(BundlePosture::Strict, true), (BundlePosture::Okf, false)] {
+        let r = validate_bundle_at(&root, &bundle_registry(), posture);
+        let (hit, miss) = if in_errors {
+            (&r.errors, &r.warnings)
+        } else {
+            (&r.warnings, &r.errors)
+        };
+        for reason in [
+            "dangling-reference",
+            "index-incomplete",
+            "index-okf-version",
+        ] {
+            assert_eq!(count(hit, reason), 1, "{posture:?}: {reason} tier moved");
+            assert_eq!(count(miss, reason), 0, "{posture:?}: {reason} tier moved");
+        }
+    }
+    fs::remove_dir_all(&root).ok();
+
+    // Fixed warning tier in both postures — never promoted by Strict.
+    let root = tmpdir("884_fixed");
+    write(&root, "NOTE-001.md", &note("NOTE-001", "fine"));
+    write(&root, "loose.md", "no frontmatter at all\n");
+    write(&root, "listy.md", "---\n- a\n- b\n---\n# listy\n");
+    for posture in [BundlePosture::Strict, BundlePosture::Okf] {
+        let r = validate_bundle_at(&root, &bundle_registry(), posture);
+        for reason in ["no-frontmatter", "malformed-frontmatter"] {
+            assert_eq!(count(&r.warnings, reason), 1, "{posture:?}: {reason}");
+            assert_eq!(count(&r.errors, reason), 0, "{posture:?}: {reason}");
+        }
+    }
+    fs::remove_dir_all(&root).ok();
+}
+
+// TC-885 (FR-057-AC-5): overrides layered the way `quire validate --severity`
+// layers them reach corpus checks, and a CLI entry beats a module entry for the
+// same key. This is `apply_severity_overrides` in quire-cli, verbatim.
+#[test]
+fn tc885_cli_shaped_overrides_reach_corpus_checks() {
+    let root = one_dangling_ref("885");
+    const KEY: &str = "refs:dangling-reference";
+
+    // Module declares `error`…
+    let module = severity_registry(&[(KEY, GrammarSeverityLevel::Error)]);
+    assert!(!validate_bundle_at(&root, &module, BundlePosture::Okf).is_valid());
+
+    // …and the CLI turns it off for this run.
+    let merged =
+        merge_severity_overrides(module.grammar_severity(), [format!("{KEY}=off").as_str()])
+            .expect("well-formed entry");
+    let scoped = module.with_grammar_severity(merged);
+    let r = validate_bundle_at(&root, &scoped, BundlePosture::Okf);
+    assert_eq!(count(&r.errors, "dangling-reference"), 0);
+    assert_eq!(count(&r.warnings, "dangling-reference"), 0);
+    assert!(r.is_valid());
+
+    // The module registry it was derived from is untouched.
+    assert!(!validate_bundle_at(&root, &module, BundlePosture::Okf).is_valid());
+
+    fs::remove_dir_all(&root).ok();
+}
+
+// TC-886 (FR-057-AC-7/AC-8/AC-9): the finding carries the level that was
+// applied; the `reason` token consumers match on is unchanged; and every pack
+// finding has a key `--severity` would accept — asserted over what the engine
+// emits rather than a hardcoded list, so a new pack cannot ship unregistrable.
+#[test]
+fn tc886_findings_carry_severity_and_a_wellformed_key() {
+    let root = tmpdir("886");
+    write(
+        &root,
+        "index.md",
+        "---\nid: IDX\ntype: index\n---\n# Index\n\n## Contents\n",
+    );
+    write(
+        &root,
+        "NOTE-001.md",
+        &note("NOTE-001", "see [missing](ix://o/r/MISSING)"),
+    );
+    write(&root, "loose.md", "no frontmatter at all\n");
+
+    let report = validate_bundle_at(&root, &bundle_registry(), BundlePosture::Okf);
+
+    // AC-8: the tokens are byte-identical to their pre-FR-057 values.
+    let reasons: BTreeSet<&str> = all(&report).map(|f| f.reason).collect();
+    for expected in [
+        "dangling-reference",
+        "index-incomplete",
+        "index-okf-version",
+        "no-frontmatter",
+    ] {
+        assert!(reasons.contains(expected), "missing reason {expected}");
+    }
+
+    // AC-7: severity matches the vector the finding landed in.
+    for f in report.errors.iter() {
+        assert_eq!(f.severity, GrammarSeverity::Error, "{f:?}");
+    }
+    for f in report.warnings.iter() {
+        assert_eq!(f.severity, GrammarSeverity::Warning, "{f:?}");
+    }
+
+    // AC-9: every pack finding is registrable, and its pack is a declared one.
+    let known = [pack::BUNDLE, pack::REFS, pack::EDGES, pack::TRACE];
+    let mut packed = 0usize;
+    for f in all(&report) {
+        let Some(p) = f.pack else { continue };
+        packed += 1;
+        assert!(known.contains(&p), "undeclared pack {p:?} on {f:?}");
+        let key = f.severity_key().expect("a packed finding has a key");
+        assert_eq!(key, severity_key(p, f.reason));
+        assert!(
+            quire_rs::grammar::is_severity_key(&key),
+            "`--severity {key}=off` would be rejected"
+        );
+    }
+    assert!(packed >= 4, "expected several pack findings, got {packed}");
+
+    fs::remove_dir_all(&root).ok();
+}
+
+// TC-887 (FR-057-AC-10): order is a property of the bundle, not of the map
+// (NFR-006) — findings come out in the same order with and without a registry,
+// and identically across runs.
+#[test]
+fn tc887_severity_does_not_perturb_order() {
+    let root = tmpdir("887");
+    write(
+        &root,
+        "index.md",
+        "---\nid: IDX\ntype: index\n---\n# Index\n\n## Contents\n",
+    );
+    for id in ["NOTE-003", "NOTE-001", "NOTE-002"] {
+        write(
+            &root,
+            &format!("{id}.md"),
+            &note(id, "see [missing](ix://o/r/MISSING)"),
+        );
+    }
+
+    let shape = |r: &BundleReport| -> Vec<(String, PathBuf)> {
+        all(r)
+            .map(|f| (f.reason.to_string(), f.path.clone()))
+            .collect()
+    };
+
+    let plain = validate_bundle_at(&root, &bundle_registry(), BundlePosture::Okf);
+    let mapped = validate_bundle_at(
+        &root,
+        &severity_registry(&[("refs:dangling-reference", GrammarSeverityLevel::Warning)]),
+        BundlePosture::Okf,
+    );
+    assert_eq!(shape(&plain), shape(&mapped), "a map must not reorder");
+
+    let again = validate_bundle_at(&root, &bundle_registry(), BundlePosture::Okf);
+    assert_eq!(shape(&plain), shape(&again), "repeated runs must agree");
+
+    fs::remove_dir_all(&root).ok();
+}
+
+// TC-888 (FR-057-CON-1): document-level results bridged into the report are NOT
+// registrable. A module that could map `unknown-type: off` would be switching
+// off schema validation under a severity key, which is a different decision.
+#[test]
+fn tc888_bridged_document_results_are_not_registrable() {
+    let root = tmpdir("888");
+    write(
+        &root,
+        "X-1.md",
+        "---\nid: X-1\ntype: weird\n---\n# x\nbody\n",
+    );
+    write(&root, "Y-1.md", "---\nid: Y-1\n---\n# y\nbody\n");
+
+    // Even with both keys mapped `off`, the findings stand.
+    let registry = severity_registry(&[
+        ("bundle:unknown-type", GrammarSeverityLevel::Off),
+        ("bundle:frontmatter", GrammarSeverityLevel::Off),
+    ]);
+    let report = validate_bundle_at(&root, &registry, BundlePosture::Strict);
+    assert!(!report.is_valid());
+    assert_eq!(count(&report.errors, "unknown-type"), 1);
+    assert_eq!(count(&report.errors, "frontmatter"), 1);
+
+    // And they carry no pack, so no key could ever address them.
+    for f in all(&report).filter(|f| f.reason == "unknown-type" || f.reason == "frontmatter") {
+        assert_eq!(f.pack, None, "{f:?} must not be registrable");
+        assert_eq!(f.severity_key(), None, "{f:?} must have no key");
+    }
+
+    fs::remove_dir_all(&root).ok();
 }
