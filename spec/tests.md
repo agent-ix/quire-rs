@@ -134,6 +134,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | FR-058 Upward-trace completeness | AC-1..11; CON-1..2 | TC-898 (orphan reported, linked one not), TC-899 (any declared verb satisfies), TC-900 (incoming direction), TC-901 (dangling cannot satisfy), TC-902 (cycle once, ordered), TC-903 (per-relation severity + advisory), TC-904 (undeclared module unchanged), TC-905 (CON-1 every field survives the merge), TC-906 (unexecutable declaration rejected at load), TC-907 (duplicate relation name rejected), TC-908 (dead relation vocabulary reports itself), TC-909 (a use-case-backed FR is not an orphan), TC-910 (the finding reads as a sentence) | ✅ Implemented |
 | FR-059 Declared-vocabulary coverage | AC-1..8; CON-1..4 | TC-911 (unowned value reported), TC-912 (vocabulary read from the schema), TC-913 (justified absence covers), TC-914 (justification on any document), TC-915 (independently tunable), TC-916 (no enum reports itself), TC-917 (undeclared module unchanged), TC-918 (empty projection is one finding) | ✅ Implemented |
 | FR-060 Vocabulary references | AC-1..6; CON-1..3 | TC-919 (column reference resolves), TC-920 (scalar reference resolves), TC-921 (unknown name is empty not absent), TC-922 (literal wins over reference), TC-923 (untouched archetype unchanged), TC-924 (a reference obeys its literal's kind rules) | ✅ Implemented |
+
 | FR-061 Combinatorial obligations | AC-1..9; CON-1..3 | TC-925 (tuple count), TC-926 (strength beyond dimensions is 0), TC-927 (forbidden combination excluded), TC-928 (exclusion bites at higher strength), TC-929 (statement covers the space), TC-930 (cells parse as authored), TC-931 (one obligation minted end to end), TC-932 (no interaction mints nothing), TC-933 (strength 0 rejected at load) | ✅ Implemented |
 | FR-057 Per-check corpus severity | AC-1..10; CON-1..2 | TC-883 (promote/demote/off), TC-884 (unconfigured tier per check), TC-885 (`--severity`-shaped layering reaches corpus checks), TC-886 (severity carried, reason stable, key well-formed), TC-887 (order unperturbed), TC-888 (CON-1 bridged results not registrable), TC-889 (sibling packs independent) | ✅ Implemented |
 | FR-056 Requirement-quality lints | AC-1..13; CON-1..5 | TC-861 (built-in term fires), TC-862 (longest term names the finding), TC-863 (CON-2 module terms layer over built-ins), TC-864 (allocation, not voice), TC-865 (two modals), TC-866 (CR-017 mention parity), TC-867 (CON-1 advisory + per-check `off`), TC-868 (CON-4 ears/ac streams unchanged), TC-869 (checks independent), TC-876 (row-level line attribution), TC-877 (all four modals collected), TC-878 (a deadline or a sort key is not an agent), TC-879 (unknown ambiguity_terms key fails load) | ✅ Implemented |
@@ -733,6 +734,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-922 | A literal `choices` beside a reference wins and the reference is dropped rather than merged | Integration | P1 | FR-060-AC-4 | ✅ |
 | TC-923 | An archetype naming no vocabulary is byte-identical and not cloned | Integration | P0 | FR-060-AC-5 | ✅ |
 | TC-924 | A reference is legal exactly where its literal is: `from_vocabulary` rejected on `table_row`, `column_vocabularies` rejected off it — found by a failing test, not by design | Integration | P0 | FR-060-AC-6 | ✅ |
+
 | TC-925 | The t-way tuple count is the sum over every set of t dimensions of the product of their value counts — hand-computable on a small case | Unit | P0 | FR-061-AC-1 | ✅ |
 | TC-926 | A strength of 0, or above the dimension count, yields 0 tuples rather than an error or the full product | Unit | P0 | FR-061-AC-2 | ✅ |
 | TC-927 | A forbidden combination is excluded — counting one that cannot exist makes the target permanently unreachable | Unit | P0 | FR-061-AC-3 | ✅ |
@@ -1054,6 +1056,7 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-060-AC-4 | TC-922 |
 | FR-060-AC-5 | TC-923 |
 | FR-060-AC-6 | TC-924 |
+
 | FR-061-AC-1 | TC-925 |
 | FR-061-AC-2 | TC-926 |
 | FR-061-AC-3 | TC-927 |

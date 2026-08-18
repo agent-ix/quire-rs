@@ -7,6 +7,7 @@ description: "Chronological log of structural changes to this bundle."
 
 ## History
 
+
 * **2026-08-18** — **CR-078**: new [FR-061](./functional/FR-061-combinatorial-obligations.md) — **combinatorial obligations from declared configuration dimensions** (agent-ix/quire-rs#163). Config-space bugs hide in interactions no single-dimension test exercises, and "we tested the configurations" is unquantifiable without a declared space. A module declares which columns of a table hold dimensions, values and forbidden combinations; the engine mints **one** obligation over the interaction of every row.
 
   **A new source kind, not a new mechanism.** FR-053's `parameters` map already documented "a t-way strength"; the statement hash, the suspect link and the parameter carriage are inherited unchanged. What differs is arity — a t-way obligation is a statement about every row at once, so no single row can carry it, which is why it needed a declaration rather than another column. This adds a field to an existing key rather than a fourth P2 manifest key.
