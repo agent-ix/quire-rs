@@ -178,9 +178,18 @@ fn harvest_frontmatter(doc: &LoadedDocument) -> Vec<(String, String)> {
         .collect()
 }
 
-/// Raw `ix://` URIs found in the document body.
+/// Raw `ix://` URIs found in the document body, matched against the
+/// [`ix_link_regex`] grammar.
+///
+/// One rule the regex cannot express (the `regex` crate has no lookahead):
+/// **a match immediately followed by `/` is discarded.** A trailing slash means
+/// the next segment failed the grammar, so the URI is truncated rather than
+/// complete — `ix://org/repo/...` would otherwise match its first two segments
+/// and mint an edge to `repo`, which is not what the author wrote (CR-067).
 fn harvest_body_links(doc: &LoadedDocument, re: &Regex) -> Vec<String> {
-    re.find_iter(doc.raw())
+    let raw = doc.raw();
+    re.find_iter(raw)
+        .filter(|m| raw.as_bytes().get(m.end()) != Some(&b'/'))
         .map(|m| m.as_str().to_string())
         .collect()
 }
@@ -271,10 +280,37 @@ pub(crate) fn extract_target_id(target: &str) -> &str {
     rest.rsplit('/').next().unwrap_or(rest)
 }
 
+/// The `ix://` URI grammar (CR-067):
+///
+/// ```text
+/// ix-uri   = "ix://" segment ( "/" segment )+ ( "#" fragment )?
+/// segment  = URI-legal characters, at least one of them alphanumeric
+/// ```
+///
+/// Two segments minimum, because `ix://agent-ix/workflow-service` — a
+/// repo-level reference — is a real and common form. The last segment is
+/// **not** required to look like an artifact id: `ix://agent-ix/ecaz/`​`master-requirements`
+/// and `ix://agent-ix/ecaz/spire-partition-object-header` reference declared
+/// objects, not `XX-000` ids, and both are legitimate.
+///
+/// This replaced a blacklist (`ix://[^\s)\]>"']+`) that did not treat a
+/// backtick as a delimiter, so prose naming the protocol — a bare
+/// `` `ix://` `` — matched as ``ix://` `` and minted a reference whose target
+/// was the closing backtick (agent-ix/quire-rs#89). Stating which characters a
+/// URI *may* contain, rather than guessing which ones end it, also rejects the
+/// documentation templates the blacklist accepted: `ix://{code}`,
+/// `ix://<org>/<repo>/…`, and an `ix://([^)]+)` regex quoted in prose.
+///
+/// Backticks and fenced blocks are **not** consulted. A well-formed `ix://` URI
+/// is a reference to another artifact wherever it appears; a code span is
+/// typography. (FR-039 already takes the same position from the other side — it
+/// converts a backticked artifact id *into* a link.)
 fn ix_link_regex() -> Regex {
-    // Match an ix:// URI up to whitespace or a closing delimiter so it
-    // works for `[t](ix://…)`, `<ix://…>`, and bare occurrences.
-    Regex::new(r#"ix://[^\s)\]>"']+"#).expect("static ix-link regex is valid")
+    // At least one alphanumeric, written inline because the `regex` crate has
+    // no lookahead. This is what stops `...` and `--` from being segments.
+    const SEG: &str = r"[A-Za-z0-9._~@%+-]*[A-Za-z0-9][A-Za-z0-9._~@%+-]*";
+    Regex::new(&format!(r"ix://{SEG}(?:/{SEG})+(?:#[A-Za-z0-9._~-]+)?"))
+        .expect("static ix-link regex is valid")
 }
 
 #[cfg(test)]
@@ -571,5 +607,148 @@ mod tests {
             "relative + ix:// to same target should dedup"
         );
         assert_eq!(edges[0].edge_type, "references");
+    }
+
+    // TC-880 / FR-026-AC-12 (CR-067): every `ix://` shape the ecosystem
+    // actually authors still matches. The counts are occurrences across the
+    // 237 `~/dev` spec bundles at the time of the change — this test exists so
+    // that a future tightening of the grammar has to argue with real usage
+    // rather than with an invented example.
+    #[test]
+    fn tc880_grammar_accepts_every_authored_shape() {
+        let re = ix_link_regex();
+        let hit = |s: &str| re.find(s).map(|m| m.as_str().to_string());
+
+        // org/repo/ID — 5,080 occurrences, the dominant form.
+        assert_eq!(
+            hit("ix://agent-ix/ecaz/FR-048").as_deref(),
+            Some("ix://agent-ix/ecaz/FR-048")
+        );
+        // org/repo/spec/class/ID — 540, the form FR-026-AC-6 documents.
+        assert_eq!(
+            hit("ix://agent-ix/quire-rs/spec/functional/FR-021").as_deref(),
+            Some("ix://agent-ix/quire-rs/spec/functional/FR-021")
+        );
+        // org/repo — 225. A repo-level reference is why the minimum is two
+        // segments and not three.
+        assert_eq!(
+            hit("ix://agent-ix/workflow-service").as_deref(),
+            Some("ix://agent-ix/workflow-service")
+        );
+        // org/repo/spec/class/subdir/ID — 107 (`ix-ui`/`ix-cli` nest by area).
+        assert_eq!(
+            hit("ix://agent-ix/ix-ui/spec/functional/cli/FR-001").as_deref(),
+            Some("ix://agent-ix/ix-ui/spec/functional/cli/FR-001")
+        );
+        // A target that is a declared object slug, not an `XX-000` id — 55 +
+        // 20 occurrences. "The last segment must look like FR-001" would be a
+        // wrong rule, and this is the evidence.
+        assert_eq!(
+            hit("ix://agent-ix/spec-artifacts-iso/master-requirements").as_deref(),
+            Some("ix://agent-ix/spec-artifacts-iso/master-requirements")
+        );
+        assert_eq!(
+            hit("ix://agent-ix/ecaz/spire-partition-object-header").as_deref(),
+            Some("ix://agent-ix/ecaz/spire-partition-object-header")
+        );
+        // Underscored object-type form, and a non-`agent-ix` authority.
+        assert_eq!(
+            hit("ix://agent-ix/identity/aggregate_root/User").as_deref(),
+            Some("ix://agent-ix/identity/aggregate_root/User")
+        );
+        assert_eq!(
+            hit("ix://npm/react-router-dom").as_deref(),
+            Some("ix://npm/react-router-dom")
+        );
+        // A `#fragment` is part of the URI.
+        assert_eq!(
+            hit("ix://agent-ix/ecaz/spire-leaf-v2#segment_tuple").as_deref(),
+            Some("ix://agent-ix/ecaz/spire-leaf-v2#segment_tuple")
+        );
+        // Closing delimiters still end the URI, in every authored wrapper.
+        assert_eq!(
+            hit("see [the FR](ix://o/r/spec/functional/FR-021) here").as_deref(),
+            Some("ix://o/r/spec/functional/FR-021")
+        );
+        assert_eq!(
+            hit("<ix://o/r/StR-001>.").as_deref(),
+            Some("ix://o/r/StR-001")
+        );
+        // And — the whole point of the revision — a well-formed URI inside a
+        // code span or a fenced block is still a reference. Backticks are
+        // typography, not semantics.
+        assert_eq!(
+            hit("write `ix://o/r/FR-002` like this").as_deref(),
+            Some("ix://o/r/FR-002")
+        );
+        assert_eq!(
+            hit("```\nix://o/r/FR-003\n```").as_deref(),
+            Some("ix://o/r/FR-003")
+        );
+    }
+
+    // TC-881 / FR-026-AC-13 (CR-067, agent-ix/quire-rs#89): the bare protocol
+    // and every malformed form the corpus contains mint nothing. The reported
+    // defect is the first case: `` `ix://` `` matched as ``ix://` `` and the
+    // harvested target was the closing backtick.
+    #[test]
+    fn tc881_grammar_rejects_the_bare_protocol_and_placeholders() {
+        let re = ix_link_regex();
+        for malformed in [
+            "A broken `ix://` link is tolerated as a warning.", // 158 occurrences
+            "the ix:// scheme",
+            "ix://",
+            "ix://agent-ix",                       // one segment
+            "ix://<org>/<repo>/spec/<class>/<ID>", // 11, doc template
+            "ix://{code}",                         // 5, placeholder
+            "matched by `ix://([^)]+)` in prose",  // a regex, not a URI
+        ] {
+            assert_eq!(
+                re.find(malformed).map(|m| m.as_str()),
+                None,
+                "must mint nothing: {malformed:?}"
+            );
+        }
+
+        // A truncated URI is discarded whole rather than matching its first
+        // two segments — `ix://org/repo/...` is not a reference to `repo`.
+        let docs = vec![loaded("FR-023", "", "see ix://agent-ix/quire-rs/...\n")];
+        let out = resolve(&docs, &index(&docs));
+        assert!(
+            out.edges.is_empty(),
+            "a truncated URI must mint nothing, got {:?}",
+            out.edges
+        );
+
+        // End to end on the reported reproduction: a matrix whose prose
+        // documents the link format mints no edge and no diagnostic.
+        let docs = vec![loaded(
+            "TM-009",
+            "",
+            "A broken `ix://` link is tolerated as a warning.\n",
+        )];
+        let out = resolve(&docs, &index(&docs));
+        assert!(out.edges.is_empty(), "got {:?}", out.edges);
+        assert!(out.diagnostics.is_empty(), "got {:?}", out.diagnostics);
+    }
+
+    // TC-882 / FR-026-CON-1 (CR-067): `harvest_edges` — the single-document
+    // surface behind the Python binding — reads the same grammar as corpus
+    // resolution, because both go through `harvest_body_links`.
+    #[test]
+    fn tc882_single_doc_harvest_reads_the_same_grammar() {
+        let doc = loaded(
+            "FR-023",
+            "relationships:\n  - target: \"StR-005\"\n    type: implements\n",
+            "The `ix://` form is external. See `ix://o/r/spec/stakeholder/StR-007`.\n",
+        );
+        assert_eq!(
+            harvest_edges(&doc),
+            vec![
+                ("StR-005".to_string(), "implements".to_string()),
+                ("StR-007".to_string(), "references".to_string()),
+            ],
+            "the bare protocol is dropped; the backticked URI is kept"
+        );
     }
 }
