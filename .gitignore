@@ -11,6 +11,12 @@ handoff.md
 # Scratch worktrees for stacked branches
 .worktrees/
 
+# cargo-mutants run output (agent-ix/quoin#48) + proptest failure seeds
+mutants.out/
+mutants.out.old/
+proptest-regressions/
+*.proptest-regressions
+
 # Python bindings (maturin) + fuzz build artifacts
 .venv/
 .wheeltest/
