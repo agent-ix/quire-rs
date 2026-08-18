@@ -104,12 +104,12 @@ why findings ship advisory and severity is settable per repository.
 
 ## Constraints
 
-| ID | Constraint | Verification |
-|----|-----------|--------------|
-| FR-059-CON-1 | The engine SHALL contain no vocabulary value, no field name, and no archetype name belonging to any particular vocabulary. A second vocabulary is a manifest entry, never a second check. | Inspection |
-| FR-059-CON-2 | The **verdict** on a justified-absence record — whether the stated reason is acceptable, and any hard-100% policy — stays in `agent-ix/quoin#81`. This FR computes coverage and records what the bundle says; it does not judge it. | Inspection |
-| FR-059-CON-3 | Judging requirement *quality* per characteristic is [FR-056](./FR-056-requirement-quality-lints.md)'s lane, not this one. | Inspection |
-| FR-059-CON-4 | Promotion of `trace:unowned-*` from `warning` to `error` requires a corpus sweep and explicit user sign-off, as every check before it. The fit-check above is that sweep's baseline, not its authorisation. | Inspection |
+| ID | Constraint | Type | Validation |
+|----|-----------|------|------------|
+| FR-059-CON-1 | The engine SHALL contain no vocabulary value, no field name, and no archetype name belonging to any particular vocabulary. A second vocabulary is a manifest entry, never a second check. | Design | Inspection |
+| FR-059-CON-2 | The **verdict** on a justified-absence record — whether the stated reason is acceptable, and any hard-100% policy — stays in `agent-ix/quoin#81`. This FR computes coverage and records what the bundle says; it does not judge it. | Design | Inspection |
+| FR-059-CON-3 | Judging requirement *quality* per characteristic is [FR-056](./FR-056-requirement-quality-lints.md)'s lane, not this one. | Design | Inspection |
+| FR-059-CON-4 | Promotion of `trace:unowned-*` from `warning` to `error` requires a corpus sweep and explicit user sign-off, as every check before it. The fit-check above is that sweep's baseline, not its authorisation. | Design | Inspection |
 
 ## Dependencies
 

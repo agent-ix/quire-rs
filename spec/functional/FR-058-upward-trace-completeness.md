@@ -139,10 +139,10 @@ case that needs no help.
 
 ## Constraints
 
-| ID | Constraint | Verification |
-|----|-----------|--------------|
-| FR-058-CON-1 | Every field of `TraceabilityModel` SHALL survive both `is_empty` and the cross-module merge. Neither is an exhaustive `match`, so a field added to the struct and to nothing else compiles and is silently dropped — which is exactly what happened while building this FR, twice in one change. | Test (TC-905) |
-| FR-058-CON-2 | The engine SHALL contain no archetype name, verb, or direction belonging to any particular traceability chain. A second chain is a manifest entry, never a second check. | Inspection |
+| ID | Constraint | Type | Validation |
+|----|-----------|------|------------|
+| FR-058-CON-1 | Every field of `TraceabilityModel` SHALL survive both `is_empty` and the cross-module merge. Neither is an exhaustive `match`, so a field added to the struct and to nothing else compiles and is silently dropped — which is exactly what happened while building this FR, twice in one change. | Design | Test (TC-905) |
+| FR-058-CON-2 | The engine SHALL contain no archetype name, verb, or direction belonging to any particular traceability chain. A second chain is a manifest entry, never a second check. | Design | Inspection |
 
 ## Dependencies
 

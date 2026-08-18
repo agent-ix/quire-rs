@@ -16,6 +16,7 @@
 pub mod compile;
 pub mod manifest;
 pub mod paths;
+pub(crate) mod vocabulary_refs;
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
