@@ -8,6 +8,11 @@
 //! spec) is [`Resolution::Dangling`]. Resolution is O(edges) — one hash
 //! lookup per stub — and never reaches outside the loaded set
 //! (StR-006-AC-4).
+//!
+//! Both **body** harvesters read a code-span-masked copy of the document
+//! (CR-067): a link quoted inside `` ` `` … `` ` `` or a fence is a *mention* of
+//! the link syntax, not a reference. Frontmatter `relationships` are structured
+//! data and are read as-is.
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::path::{Component, Path, PathBuf};
@@ -18,6 +23,7 @@ use crate::corpus::spec::artifact_key;
 use crate::corpus::walk::LoadedDocument;
 use crate::corpus::ArtifactId;
 use crate::diagnostic::Diagnostic;
+use crate::markdown::mask_code_spans;
 
 /// A resolved or dangling reference between two artifacts.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -179,9 +185,20 @@ fn harvest_frontmatter(doc: &LoadedDocument) -> Vec<(String, String)> {
 }
 
 /// Raw `ix://` URIs found in the document body.
+///
+/// The scan runs over a code-span-masked copy (FR-026-AC-12, CR-067): a link
+/// written inside `` ` `` … `` ` `` or a fence is a **mention** of the link
+/// syntax, not a reference. Masking here rather than at the call site is
+/// FR-026-CON-1 — [`resolve`] and the public [`harvest_edges`] both go through
+/// this function, so they cannot disagree about which links are mentions.
+///
+/// The mask is byte-length-preserving, so each match's range indexes the
+/// original text and the harvested URI is the document's own bytes.
 fn harvest_body_links(doc: &LoadedDocument, re: &Regex) -> Vec<String> {
-    re.find_iter(doc.raw())
-        .map(|m| m.as_str().to_string())
+    let raw = doc.raw();
+    let masked = mask_code_spans(raw);
+    re.find_iter(&masked)
+        .map(|m| raw[m.range()].to_string())
         .collect()
 }
 
@@ -190,14 +207,19 @@ fn harvest_body_links(doc: &LoadedDocument, re: &Regex) -> Vec<String> {
 /// normalized destination matches a loaded document yields that document's
 /// id; one that matches nothing yields the raw destination string, so it
 /// resolves to `Dangling` downstream like an absent `ix://` target.
+///
+/// Masked on the same terms as [`harvest_body_links`] (FR-026-AC-13, CR-067):
+/// a relative-path link quoted inside a code span or a fence is example data.
 fn harvest_body_relative_links(
     doc: &LoadedDocument,
     re: &Regex,
     by_path: &HashMap<PathBuf, ArtifactId>,
 ) -> Vec<String> {
     let base = doc.path.parent().unwrap_or_else(|| Path::new(""));
-    re.captures_iter(doc.raw())
-        .filter_map(|c| c.get(1).map(|m| m.as_str()))
+    let raw = doc.raw();
+    let masked = mask_code_spans(raw);
+    re.captures_iter(&masked)
+        .filter_map(|c| c.get(1).map(|m| &raw[m.range()]))
         .filter_map(|dest| {
             let path_part = dest.split('#').next().unwrap_or(dest);
             if !is_relative_md_dest(path_part) {
@@ -571,5 +593,129 @@ mod tests {
             "relative + ix:// to same target should dedup"
         );
         assert_eq!(edges[0].edge_type, "references");
+    }
+
+    // TC-881 / FR-026-AC-12 (CR-067, agent-ix/quire-rs#89): an `ix://` inside a
+    // code span or a fenced block mints no stub — the reported shape is a bare
+    // `` `ix://` `` in prose about the link format, whose harvested target was a
+    // lone backtick and reported as a dangling reference. The same URI used for
+    // real still mints its edge, byte-identical to the document's own text.
+    #[test]
+    fn tc881_ix_links_in_code_spans_are_mentions() {
+        let docs = vec![loaded(
+            "TM-009",
+            "",
+            "A broken `ix://` link is tolerated as a warning.\n\
+             Write it as `ix://o/r/spec/functional/FR-002` when you mean one.\n\
+             ```\nix://o/r/spec/functional/FR-003\n```\n",
+        )];
+        let out = resolve(&docs, &index(&docs));
+        assert!(
+            out.edges.is_empty(),
+            "mentions must mint no edges, got {:?}",
+            out.edges
+        );
+        assert!(
+            out.diagnostics.is_empty(),
+            "no mention may reach a dangling-reference diagnostic: {:?}",
+            out.diagnostics
+        );
+
+        // A real link in the same document still resolves, and the harvested
+        // target is extracted from the original bytes.
+        let docs2 = vec![
+            loaded(
+                "FR-023",
+                "",
+                "The `ix://` form is external. See [it](ix://o/r/spec/stakeholder/StR-005).\n",
+            ),
+            loaded("StR-005", "", "# need\n"),
+        ];
+        let out2 = resolve(&docs2, &index(&docs2));
+        let edge = out2.edges.iter().find(|e| e.source == "FR-023").unwrap();
+        assert_eq!(edge.target, "StR-005");
+        assert_eq!(edge.resolution, Resolution::Resolved);
+        assert_eq!(out2.edges.len(), 1, "only the used link is an edge");
+    }
+
+    // TC-882 / FR-026-AC-13 (CR-067): the relative-path harvester is masked on
+    // the same terms, and an unbalanced backtick opens no span so links after it
+    // are still harvested.
+    #[test]
+    fn tc882_relative_links_in_code_spans_are_mentions() {
+        let docs = vec![
+            loaded_at(
+                "spec/functional/FR-001-foo.md",
+                "FR-001",
+                "Author it as `[FR-002](./FR-002-graph-edges.md)`.\n\
+                 ```\n[FR-002](./FR-002-graph-edges.md)\n```\n",
+            ),
+            loaded_at(
+                "spec/functional/FR-002-graph-edges.md",
+                "FR-002",
+                "# schema\n",
+            ),
+        ];
+        let out = resolve(&docs, &index(&docs));
+        assert!(
+            out.edges.is_empty(),
+            "quoted relative links must mint no edges, got {:?}",
+            out.edges
+        );
+
+        // A stray backtick must not swallow the rest of the document.
+        let docs2 = vec![
+            loaded_at(
+                "spec/functional/FR-001-foo.md",
+                "FR-001",
+                "an unclosed ` then a real [FR-002](./FR-002-graph-edges.md)\n",
+            ),
+            loaded_at(
+                "spec/functional/FR-002-graph-edges.md",
+                "FR-002",
+                "# schema\n",
+            ),
+        ];
+        let out2 = resolve(&docs2, &index(&docs2));
+        assert!(
+            out2.edges
+                .iter()
+                .any(|e| e.target == "FR-002" && e.resolution == Resolution::Resolved),
+            "an unbalanced backtick opens no span: {:?}",
+            out2.edges
+        );
+    }
+
+    // TC-883 / FR-026-CON-1 (CR-067): the mask lives inside the harvest
+    // functions, so the single-document surface the Python binding exposes
+    // (`quire.harvest_edges`, FR-023) and corpus resolution agree about which
+    // links are mentions. Masking at the call site would have left this one
+    // reading the raw text.
+    #[test]
+    fn tc883_single_doc_harvest_agrees_with_resolution() {
+        let doc = loaded(
+            "FR-023",
+            "relationships:\n  - target: \"StR-005\"\n    type: implements\n",
+            "The `ix://` form is external. See [it](ix://o/r/spec/stakeholder/StR-007).\n",
+        );
+        let harvested = harvest_edges(&doc);
+        assert_eq!(
+            harvested,
+            vec![
+                ("StR-005".to_string(), "implements".to_string()),
+                ("StR-007".to_string(), "references".to_string()),
+            ],
+            "the mention must not appear on the single-document surface"
+        );
+
+        // The same document through `resolve` yields the same target set.
+        let docs = vec![doc];
+        let out = resolve(&docs, &index(&docs));
+        let via_resolve: BTreeSet<_> = out
+            .edges
+            .iter()
+            .map(|e| (e.target.clone(), e.edge_type.clone()))
+            .collect();
+        assert_eq!(via_resolve, harvested.into_iter().collect::<BTreeSet<_>>());
     }
 }

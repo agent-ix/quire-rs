@@ -22,6 +22,7 @@ pub mod filament;
 pub mod grammar;
 pub mod lint;
 pub mod loader;
+pub(crate) mod markdown;
 pub mod merge;
 pub mod obligation;
 pub mod parser;

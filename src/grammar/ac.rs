@@ -309,64 +309,14 @@ fn carries_signal(statement: &str, vocab: GrammarVocabularies<'_>) -> bool {
 /// Replacing the contents with `x` rather than deleting the span preserves
 /// both of those properties.
 ///
-/// The mask is **byte-length-preserving** (each character becomes as many `x`
-/// bytes as it occupied), so an offset found in the masked copy indexes the
-/// original — [`outcome_clause`] relies on that.
-pub(super) fn mask_code_spans(statement: &str) -> String {
-    let mut out = String::with_capacity(statement.len());
-    let mut rest = statement;
-    while let Some(open) = rest.find('`') {
-        let (before, from_open) = rest.split_at(open);
-        out.push_str(before);
-        // CommonMark: a run of N backticks is closed by the next run of exactly
-        // N (CR-026). Reading only the first backtick made a ``double-tick``
-        // span — the form used to quote a fragment that itself contains a code
-        // span — degenerate into an empty span, leaving the quoted keywords
-        // *inside* it unmasked and read as though they were used.
-        let ticks = from_open.len() - from_open.trim_start_matches('`').len();
-        let body = &from_open[ticks..];
-        let Some(close) = find_closing_run(body, ticks) else {
-            // An unbalanced run opens no span; the tail is ordinary prose.
-            out.push_str(from_open);
-            return out;
-        };
-        for _ in 0..ticks {
-            out.push('`');
-        }
-        for c in body[..close].chars() {
-            for _ in 0..c.len_utf8() {
-                out.push('x');
-            }
-        }
-        for _ in 0..ticks {
-            out.push('`');
-        }
-        rest = &body[close + ticks..];
-    }
-    out.push_str(rest);
-    out
-}
-
-/// The byte offset in `body` of the next backtick run of exactly `ticks`, or
-/// `None` when the span is never closed. A longer run is *not* a closer — it is
-/// content — which is what keeps a `` `nested` `` span inside a double-tick one
-/// from ending it early.
-fn find_closing_run(body: &str, ticks: usize) -> Option<usize> {
-    let bytes = body.as_bytes();
-    let mut i = 0;
-    while i < bytes.len() {
-        if bytes[i] != b'`' {
-            i += 1;
-            continue;
-        }
-        let run = bytes[i..].iter().take_while(|&&b| b == b'`').count();
-        if run == ticks {
-            return Some(i);
-        }
-        i += run;
-    }
-    None
-}
+/// The mask is **byte-length-preserving**, so an offset found in the masked
+/// copy indexes the original — [`outcome_clause`] relies on that.
+///
+/// The rule now has a second consumer — [`crate::corpus::resolve`] harvests
+/// `ix://` and relative-path edges from a masked copy for the same
+/// mention-vs-use reason (CR-067) — so the implementation lives in
+/// [`crate::markdown`] and is re-exported here rather than being written twice.
+pub(super) use crate::markdown::mask_code_spans;
 
 /// True when the statement has a **predicate** — a modal or copula, an inflected
 /// or irregular verb form, a declared observable verb, a concrete signal, or an

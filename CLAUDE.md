@@ -13,7 +13,10 @@ make build          # release build
 make clean          # cargo clean
 make deny           # cargo deny check licenses
 make audit-unsafe   # check that every unsafe block has a // SAFETY: comment
-make ci             # fmt-check + lint + test + deny + audit-unsafe
+make audit-property # FR-052-CON-1: no GrammarFinding in the property classifier
+make audit-static   # run every scripts/audits/*.sh
+make check-python   # type-check --features python (own CARGO_TARGET_DIR)
+make ci             # fmt-check + lint + check-python + test + deny + audit-unsafe + audit-property + audit-static
 make ci-python      # build the wheel + run the PyO3 binding suite
 ```
 
