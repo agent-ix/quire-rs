@@ -133,11 +133,30 @@ fn splice_section_content(
 
     let mut out = String::with_capacity(doc.raw.len() + new_content.len());
     out.push_str(&doc.raw[..abs_start]);
+
+    // CR-069: the heading line has no `\n` of its own when it is the last line
+    // of the document, and the content range then starts *at EOF*, immediately
+    // after the heading text. Writing content there without a separator
+    // concatenates the two: `## Aa` + `body` became the heading `Aa body` —
+    // document corruption, not a formatting wobble. Found by TC-896.
+    let needs_separator =
+        !new_content.is_empty() && abs_start > 0 && !doc.raw[..abs_start].ends_with('\n');
+    if needs_separator {
+        out.push('\n');
+    }
+
     out.push_str(new_content);
     // Keep the original line boundary at content_end. If the
     // original content ended with `\n` (next-heading boundary or EOF
     // after `\n`), preserve it; otherwise don't add one.
-    if trailing_newline && !new_content.ends_with('\n') {
+    //
+    // CR-069: only when there is content to terminate. An **empty** section has
+    // an empty byte range, so there is no trailing newline of its own to
+    // preserve — `trailing_newline` is reading the heading line's newline, and
+    // acting on it inserted a blank line every time. Rewriting an empty section
+    // with its own (empty) content therefore was not the identity, so a tool
+    // that rewrites speculatively churned the document on every pass.
+    if trailing_newline && !new_content.is_empty() && !new_content.ends_with('\n') {
         out.push('\n');
     }
     out.push_str(&doc.raw[abs_end..]);
