@@ -1,9 +1,0 @@
-src/corpus/resolve.rs:144:5: replace harvest_edges -> Vec<(String, String)> with vec![]
-src/corpus/resolve.rs:144:5: replace harvest_edges -> Vec<(String, String)> with vec![(String::new(), String::new())]
-src/corpus/resolve.rs:144:5: replace harvest_edges -> Vec<(String, String)> with vec![(String::new(), "xyzzy".into())]
-src/corpus/resolve.rs:144:5: replace harvest_edges -> Vec<(String, String)> with vec![("xyzzy".into(), String::new())]
-src/corpus/resolve.rs:144:5: replace harvest_edges -> Vec<(String, String)> with vec![("xyzzy".into(), "xyzzy".into())]
-src/corpus/resolve.rs:224:9: replace && with || in is_relative_md_dest
-src/corpus/resolve.rs:223:9: replace && with || in is_relative_md_dest
-src/corpus/resolve.rs:222:9: replace && with || in is_relative_md_dest
-src/corpus/resolve.rs:221:9: replace && with || in is_relative_md_dest
