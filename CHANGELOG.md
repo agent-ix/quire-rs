@@ -5,6 +5,42 @@ All notable changes to `quire-rs` are documented here. Format follows
 numbers follow semver — pre-1.0, breaking changes may land in minor
 bumps; once 1.0 ships, semver is strict.
 
+## [0.33.0] — 2026-08-18
+
+### Added
+
+- **FR-060 — vocabulary references in body-extraction asserts (CR-077).**
+  `from_vocabulary:` and `column_vocabularies:` name a declared vocabulary
+  instead of restating it, resolved into literal choices at registry
+  construction — which is where it must happen, because the vocabulary a
+  contract names may be declared by a *different module* than the archetype
+  naming it. A reference is legal exactly where its literal counterpart is; an
+  unknown name resolves to an empty choice set rather than to "no constraint",
+  so a typo cannot silently widen a contract.
+
+- **FR-061 — combinatorial obligations from declared configuration dimensions
+  (CR-078).** A module declares which columns hold dimensions, values and
+  forbidden combinations; the engine mints one obligation over the interaction
+  of every row, carrying `strength`, `dimensions` and `tuples` in the FR-053
+  `parameters` map.
+
+  The number is the **t-way tuple count**, deliberately not a covering-array
+  size: the minimum array is NP-hard and depends on the generator, while the
+  tuple count is a property of the declared space alone. Forbidden combinations
+  are first-class and bite at every strength above their own width.
+
+  Three ways to declare nothing are rejected — strength 0 at load, fewer than
+  two real dimensions, and a strength above the dimension count — because each
+  would read as a declared space demanding coverage of nothing, which is worse
+  than absent because it looks answered.
+
+### Fixed
+
+- The `Constraints` tables on FR-058, FR-059 and FR-060 declared
+  `ID | Constraint | Verification` where the archetype asserts
+  `ID | Constraint | Type | Validation`. Three documents failing the module's
+  own contract while describing checks that enforce contracts.
+
 ## [0.32.0] — 2026-08-18
 
 ### Added
