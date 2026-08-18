@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "id": { "type": "string" },
+    "type": { "const": "NFR" },
+    "quality_attribute": {
+      "description": "The vocabulary. Declared ONCE, here — the manifest reads it.",
+      "enum": ["reliability", "security", "usability", "safety"]
+    }
+  }
+}

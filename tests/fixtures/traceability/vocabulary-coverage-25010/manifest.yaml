@@ -1,0 +1,19 @@
+# FR-059 fit-check module (agent-ix/quire-rs#162). Its ONLY declaration is the
+# 25010 vocabulary coverage, so a sweep with it attributes every finding to this
+# check and nothing else — the ticket's "one check per sweep" requirement.
+#
+# The schema is COPIED FROM spec-artifacts-iso rather than re-authored, so the
+# 12 values under test are the ecosystem's own.
+name: traceability-vocabulary-coverage-25010
+version: 0.1.0
+description: FR-059 fit-check — ISO 25010 characteristic coverage
+archetypes:
+- kind: NFR
+  name: NFR
+  frontmatter_schema_ref: schemas/nfr-frontmatter.schema.json
+traceability:
+  vocabulary_coverage:
+  - name: quality-characteristics
+    from: NFR
+    field: quality_attribute
+    check: unowned-quality-characteristic

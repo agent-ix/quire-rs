@@ -348,6 +348,13 @@ pub fn validate_bundle(
         reference_root,
         &mut report,
     );
+    crate::corpus::vocabulary_coverage::validate_vocabulary_coverage(
+        spec,
+        registry,
+        posture,
+        reference_root,
+        &mut report,
+    );
 
     check_index_completeness(spec, posture, severity, document_root, &mut report);
 
