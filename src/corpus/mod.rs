@@ -25,6 +25,7 @@ pub mod spec;
 pub mod trace_refs;
 pub mod unlinked;
 pub mod validate;
+pub mod vocabulary_coverage;
 pub mod walk;
 
 pub use glossary::{glossary_terms, glossary_terms_from_path};

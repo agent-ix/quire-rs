@@ -96,6 +96,50 @@ pub struct TraceabilityModel {
     /// states nothing, and no per-document check can see it.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub acyclic_edges: Vec<String>,
+    /// Declared vocabularies whose values documents are expected to claim
+    /// (FR-059). Empty means the module declares none and the check is a
+    /// no-op, the same shape every other declaration in this model uses.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub vocabulary_coverage: Vec<VocabularyCoverage>,
+}
+
+/// One vocabulary whose values documents are expected to claim (FR-059).
+///
+/// The generic question behind "does this corpus have a reliability
+/// requirement at all": *given a declared vocabulary and a declared projection
+/// from documents onto it, which values does no document claim?* ISO 25010
+/// quality characteristics are one instance; test-type coverage over a matrix
+/// and STRIDE-category coverage over declared threats are others.
+///
+/// **The vocabulary is read, never authored here.** `field` names a frontmatter
+/// field on `from`'s archetype whose schema already declares an `enum`, and
+/// that enum *is* the vocabulary. Restating the values in the manifest would
+/// mint a second list free to drift from the first — which is exactly the
+/// defect CR-015 closed, and the reason `agent-ix/quire-rs#162` was filed
+/// against a scope that proposed walking a hardcoded list.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct VocabularyCoverage {
+    /// Declaration name, reported in the finding.
+    pub name: String,
+    /// Archetype whose documents claim values, and whose frontmatter schema
+    /// declares the vocabulary.
+    pub from: String,
+    /// Frontmatter field carrying the claim. Its `enum` in `from`'s
+    /// frontmatter schema is the vocabulary.
+    pub field: String,
+    /// The `<check>` half of the `trace:<check>` severity key (FR-057).
+    pub check: String,
+    /// Frontmatter field on **any** document in the bundle listing values
+    /// deliberately not applicable here. A value named there is *covered*, not
+    /// unowned: "this product has no safety characteristic, and here is where
+    /// we said so" is an answer, and a check that cannot accept one forces
+    /// either a false finding or a fabricated requirement.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub justified_absence_field: Option<String>,
+    /// Scope-relative globs whose matching documents neither claim nor justify.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub exclude: Vec<String>,
 }
 
 /// An edge every document of one kind must have (FR-058) — the declaration
@@ -483,6 +527,7 @@ impl TraceabilityModel {
             // of "declared nothing", not a summary of it.
             && self.required_relations.is_empty()
             && self.acyclic_edges.is_empty()
+            && self.vocabulary_coverage.is_empty()
     }
 
     /// Look up a declared target by name.
@@ -742,6 +787,60 @@ impl TraceabilityModel {
                         .to_string(),
                 );
             }
+        }
+
+        // FR-059: same discipline as required relations — a declaration whose
+        // runtime effect is silent and wrong fails at load.
+        let mut coverage_names: BTreeSet<&str> = BTreeSet::new();
+        for coverage in &self.vocabulary_coverage {
+            check_named("vocabulary_coverage", &coverage.name)?;
+            if !coverage_names.insert(coverage.name.as_str()) {
+                return Err(format!(
+                    "traceability: duplicate vocabulary_coverage entry '{}'",
+                    coverage.name
+                ));
+            }
+            check_field(
+                "vocabulary_coverage",
+                &coverage.name,
+                "from",
+                &coverage.from,
+            )?;
+            check_field(
+                "vocabulary_coverage",
+                &coverage.name,
+                "field",
+                &coverage.field,
+            )?;
+            check_field(
+                "vocabulary_coverage",
+                &coverage.name,
+                "check",
+                &coverage.check,
+            )?;
+            if !crate::grammar::is_severity_key(&crate::grammar::severity_key(
+                "trace",
+                &coverage.check,
+            )) {
+                return Err(format!(
+                    "traceability: vocabulary_coverage entry '{}' has a `check` token '{}' that \
+                     cannot form a `trace:<check>` severity key, so its severity could never be \
+                     configured",
+                    coverage.name, coverage.check
+                ));
+            }
+            if let Some(field) = &coverage.justified_absence_field {
+                check_field(
+                    "vocabulary_coverage",
+                    &coverage.name,
+                    "justified_absence_field",
+                    field,
+                )?;
+            }
+            check_excludes(
+                &format!("vocabulary_coverage entry '{}'", coverage.name),
+                &coverage.exclude,
+            )?;
         }
 
         if let Some(status) = &self.status {

@@ -132,6 +132,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | FR-054 Verification-method catalog | AC-1..11; CON-1..5 | TC-844 (entries exposed intact), TC-845 (first-wins + DuplicateVerificationMethod), TC-846 (undeclared is None, not empty), TC-847 (unknown key fails load), TC-848 (empty required field fails load), TC-849 (derived vocabularies track the merge), TC-850 (test_type unchanged; unknown name empty), TC-851 (CON-2 applicability opaque), TC-852 (CON-3 no finding), TC-853 (CON-4 derived, never authored twice), TC-874 (an uncatalogued method is reported), TC-875 (no catalog asks no question) | ✅ Implemented |
 | FR-055 Published JSON output contract | AC-1..7; CON-1..3 | TC-854 (schemas valid + versioned), TC-855 (baseline conforms), TC-856 (every optional key exercised), TC-857 (emitted criteria conform), TC-858 (additionalProperties closed at depth), TC-859 (optional/required split matches the engine), TC-860 (CON-1/CON-2 no version key, no schemars) | ✅ Implemented (the `properties` envelope conformance test lives in `quire-cli`, which assembles it) |
 | FR-058 Upward-trace completeness | AC-1..11; CON-1..2 | TC-898 (orphan reported, linked one not), TC-899 (any declared verb satisfies), TC-900 (incoming direction), TC-901 (dangling cannot satisfy), TC-902 (cycle once, ordered), TC-903 (per-relation severity + advisory), TC-904 (undeclared module unchanged), TC-905 (CON-1 every field survives the merge), TC-906 (unexecutable declaration rejected at load), TC-907 (duplicate relation name rejected), TC-908 (dead relation vocabulary reports itself), TC-909 (a use-case-backed FR is not an orphan), TC-910 (the finding reads as a sentence) | ✅ Implemented |
+| FR-059 Declared-vocabulary coverage | AC-1..8; CON-1..4 | TC-911 (unowned value reported), TC-912 (vocabulary read from the schema), TC-913 (justified absence covers), TC-914 (justification on any document), TC-915 (independently tunable), TC-916 (no enum reports itself), TC-917 (undeclared module unchanged), TC-918 (empty projection is one finding) | ✅ Implemented |
 | FR-057 Per-check corpus severity | AC-1..10; CON-1..2 | TC-883 (promote/demote/off), TC-884 (unconfigured tier per check), TC-885 (`--severity`-shaped layering reaches corpus checks), TC-886 (severity carried, reason stable, key well-formed), TC-887 (order unperturbed), TC-888 (CON-1 bridged results not registrable), TC-889 (sibling packs independent) | ✅ Implemented |
 | FR-056 Requirement-quality lints | AC-1..13; CON-1..5 | TC-861 (built-in term fires), TC-862 (longest term names the finding), TC-863 (CON-2 module terms layer over built-ins), TC-864 (allocation, not voice), TC-865 (two modals), TC-866 (CR-017 mention parity), TC-867 (CON-1 advisory + per-check `off`), TC-868 (CON-4 ears/ac streams unchanged), TC-869 (checks independent), TC-876 (row-level line attribution), TC-877 (all four modals collected), TC-878 (a deadline or a sort key is not an agent), TC-879 (unknown ambiguity_terms key fails load) | ✅ Implemented |
 | NFR-020 Filament extraction boundary pure/deterministic | static inspection + parity tests | TC-704, TC-767, TC-690 | ✅ Complete |
@@ -716,6 +717,14 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-908 | A relation whose `from` names a kind nothing declares and no document is reports itself; the same typo silently disables the orphan check, which is the damage the guard prevents | Integration | P0 | FR-058-AC-11 | ✅ |
 | TC-909 | An FR satisfying a `US` rather than a `StR` is not an orphan — the `to` list accepts several upstream kinds (the 29148 stakeholder→system→software chain) | Integration | P1 | FR-058-AC-2 | ✅ |
 | TC-910 | The finding reads as a sentence for both shapes of `to` — the `to: []` case rendered "from any any document" in the first end-to-end run against spec-objects-safety | Integration | P2 | FR-058-AC-1 | ✅ |
+| TC-911 | A declared vocabulary value no document claims is reported and a claimed one is not — the all-functional-requirements failure mode, invisible to every per-document check | Integration | P0 | FR-059-AC-1 | ✅ |
+| TC-912 | The vocabulary is READ from the projected archetype's frontmatter-schema `enum`; the fixture manifest restates no value, so a manifest-list implementation could not pass | Integration | P0 | FR-059-AC-2 | ✅ |
+| TC-913 | A value named in the declared justified-absence field counts as covered — a check that cannot accept an answer forces a false finding or a fabricated requirement | Integration | P0 | FR-059-AC-3 | ✅ |
+| TC-914 | The justification may live on any document, not only the projected archetype — otherwise an NFR must be authored to say an NFR is unnecessary | Integration | P1 | FR-059-AC-4 | ✅ |
+| TC-915 | The finding carries its own `trace:<check>` key: advisory by default, dropped by `off`, promoted by `error` | Integration | P0 | FR-059-AC-5 | ✅ |
+| TC-916 | A declaration whose field yields no `enum` reports itself rather than silently reporting nothing unowned | Integration | P0 | FR-059-AC-7 | ✅ |
+| TC-917 | A module declaring no `vocabulary_coverage` sees byte-identical output | Integration | P0 | FR-059-AC-6 | ✅ |
+| TC-918 | An empty projection is ONE finding naming how many values are unowned, not one per value — 90 of 243 corpus bundles have no NFR at all, which was 1080 of 2792 findings | Integration | P0 | FR-059-AC-8 | ✅ |
 | TC-897 | Every exclusion in the relative-destination filter is load-bearing, one at a time — empty, `scheme://`, `#anchor`, `mailto:`, `tel:`, non-`.md` — including forms carrying a `.md` tail; and end to end, a document whose only links are excluded destinations mints no edge. Found by the quoin#48 mutation pilot: each `&&` flipped to `||` with no test failing | Unit | P0 | FR-026-AC-14 | ✅ |
 | TC-797 | A declared model matching zero rows: `quire coverage` renders `0/0` distinctly and never as `100%`, and `--strict` exits non-zero on it — the state that made a wired gate pass vacuously (CR-035) | Integration | P0 | FR-050-AC-14 | 🚧 awaiting EXT-3 `quire-cli` (CLI behaviour; `tests/cli_coverage.rs` — CR-058) |
 | TC-610 | Composed type+object validation: `type: FR` + `object: process` with the FR core present but **no** `## Workflow` mermaid block → an object **error** (process required `diagram` missing) merged into `errors`, while the FR (`type`) portion passes independently; `is_valid==false` | Unit | P0 | FR-032-AC-11, FR-032-AC-13 | ✅ |
@@ -1014,6 +1023,14 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-026-AC-14 | TC-897 |
 | FR-058-AC-1 | TC-898 |
 | FR-058-AC-1 | TC-910 |
+| FR-059-AC-1 | TC-911 |
+| FR-059-AC-2 | TC-912 |
+| FR-059-AC-3 | TC-913 |
+| FR-059-AC-4 | TC-914 |
+| FR-059-AC-5 | TC-915 |
+| FR-059-AC-6 | TC-917 |
+| FR-059-AC-7 | TC-916 |
+| FR-059-AC-8 | TC-918 |
 | FR-058-AC-2 | TC-899 |
 | FR-058-AC-2 | TC-909 |
 | FR-058-AC-3 | TC-900 |

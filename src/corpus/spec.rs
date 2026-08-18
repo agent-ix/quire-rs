@@ -128,6 +128,16 @@ impl Spec {
 
     /// Look up a document by its artifact key (human `id`, else uuid,
     /// else path). `None` if absent. O(1).
+    /// Every loaded document, in the stable path order `load_repo` produced.
+    ///
+    /// Crate-internal: the public query surface is `by_id`/`by_type`, and a
+    /// check that wants "any document in the bundle" (FR-059's justified
+    /// absence, which is recorded on the spec document rather than on a
+    /// requirement) needs the whole set rather than one archetype's.
+    pub(crate) fn all(&self) -> &[LoadedDocument] {
+        &self.inner.documents
+    }
+
     pub fn by_id(&self, id: &str) -> Option<&LoadedDocument> {
         self.inner
             .by_id

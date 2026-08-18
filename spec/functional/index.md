@@ -58,3 +58,4 @@ description: "Index of artifacts in this directory."
 * [FR-056: Requirement-Quality Lints](./FR-056-requirement-quality-lints.md)
 * [FR-057: Per-Check Corpus Severity Configuration](./FR-057-corpus-check-severity.md)
 * [FR-058: Upward-Trace Completeness](./FR-058-upward-trace-completeness.md)
+* [FR-059: Declared-Vocabulary Coverage](./FR-059-declared-vocabulary-coverage.md)

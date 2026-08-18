@@ -1,0 +1,22 @@
+# FR-059 fixture: a module declaring vocabulary coverage.
+#
+# The vocabulary lives in the NFR frontmatter schema and NOWHERE ELSE. The
+# manifest names the archetype and the field; the engine reads the enum. A
+# second copy here would be free to drift from the schema, which is the defect
+# CR-015 closed.
+name: traceability-vocabulary-coverage
+version: 0.1.0
+description: Declared-vocabulary coverage (quire-rs FR-059)
+archetypes:
+- kind: NFR
+  name: NFR
+  frontmatter_schema_ref: schemas/nfr.schema.json
+- kind: Spec
+  name: Spec
+traceability:
+  vocabulary_coverage:
+  - name: quality-characteristics
+    from: NFR
+    field: quality_attribute
+    justified_absence_field: quality_attributes_not_applicable
+    check: unowned-quality-characteristic

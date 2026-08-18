@@ -969,6 +969,16 @@ fn merge_traceability(modules: &[LoadedModule]) -> crate::traceability::Traceabi
                 merged.acyclic_edges.push(verb.clone());
             }
         }
+        // FR-059: first-wins by name, like every other named entry.
+        for coverage in &m.vocabulary_coverage {
+            if !merged
+                .vocabulary_coverage
+                .iter()
+                .any(|c| c.name == coverage.name)
+            {
+                merged.vocabulary_coverage.push(coverage.clone());
+            }
+        }
         for marker in &m.trace_tags.markers {
             if !merged
                 .trace_tags
