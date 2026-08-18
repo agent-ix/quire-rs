@@ -5,6 +5,34 @@ All notable changes to `quire-rs` are documented here. Format follows
 numbers follow semver — pre-1.0, breaking changes may land in minor
 bumps; once 1.0 ships, semver is strict.
 
+## [0.32.0] — 2026-08-18
+
+### Added
+
+- **FR-059 — declared-vocabulary coverage (CR-076).** A bundle can be 100%
+  acceptance-criterion covered and still carry no requirement anywhere for
+  reliability or security: every document individually fine, the *set* wrong.
+  The generic primitive — *given a declared vocabulary and a declared projection
+  onto it, which values does no document claim?* — with ISO 25010 characteristics
+  as one instance and test-type and STRIDE coverage as others.
+
+  **The vocabulary is read from the projected archetype's own frontmatter-schema
+  `enum`, never restated in the manifest.** A second list would be free to drift
+  from the first, which is the defect CR-015 closed.
+
+  Justified absence is first-class: a value recorded in a declared "not
+  applicable" field counts as covered, and that record may live on any document
+  in the bundle.
+
+  **[RAN]** over 243 `~/dev` bundles: 285/689 NFR documents (41.4%) carry
+  `quality_attribute` and 0/2474 FRs do; `safety` is claimed by nothing in the
+  ecosystem; and 90 bundles carry no NFR at all. That last figure changed the
+  design — an empty projection is one finding rather than one per value, taking
+  the sweep from 2792 findings to 1802 without any bundle ceasing to be reported.
+
+  On this corpus the check reports labelling debt more often than quality gaps,
+  and the FR says so. Advisory, per-repo settable via FR-057.
+
 ## [0.31.1] — 2026-08-18
 
 ### Fixed
