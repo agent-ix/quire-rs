@@ -1,0 +1,21 @@
+--- src/corpus/resolve.rs
++++ replace md_link_regex -> Regex with Default::default()
+@@ -256,17 +256,17 @@
+     }
+     out
+ }
+ 
+ fn md_link_regex() -> Regex {
+     // Match a Markdown inline link's destination: `[text](dest)`, where
+     // `dest` runs up to the closing paren or whitespace. `ix://` and other
+     // URI/anchor destinations are filtered out by `is_relative_md_dest`.
+-    Regex::new(r#"\[[^\]]*\]\(([^)\s]+)\)"#).expect("static md-link regex is valid")
++    Default::default() /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ /// The artifact id a reference target points at: the last `/`-segment
+ /// of an `ix://` URI, or a bare id unchanged (FR-026-AC-6).
+ pub(crate) fn extract_target_id(target: &str) -> &str {
+     let rest = target.strip_prefix("ix://").unwrap_or(target);
+     rest.rsplit('/').next().unwrap_or(rest)
+ }

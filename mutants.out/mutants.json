@@ -1,0 +1,1282 @@
+[
+  {
+    "diff": "--- src/corpus/resolve.rs\n+++ replace resolve -> ResolveOutput with Default::default()\n@@ -52,91 +52,17 @@\n }\n \n /// Resolve every reference in `documents` against `by_id`. Deterministic\n /// (stubs are collected into a sorted set before edges are built).\n pub(crate) fn resolve(\n     documents: &[LoadedDocument],\n     by_id: &HashMap<ArtifactId, usize>,\n ) -> ResolveOutput {\n-    let ix_link = ix_link_regex();\n-    let md_link = md_link_regex();\n-\n-    // Path→id index over the loaded set: the normalized on-disk path of\n-    // each document maps to its artifact id. Internal relative-path links\n-    // (ADR 0007) resolve through this (FR-026-AC-9).\n-    let by_path = build_path_index(documents);\n-\n-    // Harvest into a sorted, deduplicated stub set: identical\n-    // (source, target, type) triples from any source collapse to one\n-    // (FR-026-AC-8/AC-11); same-pair-different-type stay distinct.\n-    let mut stubs: BTreeSet<(ArtifactId, ArtifactId, String)> = BTreeSet::new();\n-    for doc in documents {\n-        let source = artifact_key(doc);\n-        for (target_raw, edge_type) in harvest_frontmatter(doc) {\n-            stubs.insert((\n-                source.clone(),\n-                extract_target_id(&target_raw).to_string(),\n-                edge_type,\n-            ));\n-        }\n-        for target_raw in harvest_body_links(doc, &ix_link) {\n-            stubs.insert((\n-                source.clone(),\n-                extract_target_id(&target_raw).to_string(),\n-                \"references\".to_string(),\n-            ));\n-        }\n-        // Internal relative-path links (ADR 0007). Navigation documents\n-        // (`index.md`/`log.md`) are excluded as a source so their\n-        // wall-to-wall contents links do not flood the graph (FR-026-AC-10).\n-        if !is_nav_doc(&doc.path) {\n-            for target in harvest_body_relative_links(doc, &md_link, &by_path) {\n-                stubs.insert((source.clone(), target, \"references\".to_string()));\n-            }\n-        }\n-    }\n-\n-    let mut edges = Vec::with_capacity(stubs.len());\n-    let mut outgoing: BTreeMap<ArtifactId, Vec<usize>> = BTreeMap::new();\n-    let mut incoming: BTreeMap<ArtifactId, Vec<usize>> = BTreeMap::new();\n-    let mut diagnostics = Vec::new();\n-\n-    for (source, target, edge_type) in stubs {\n-        let resolution = if by_id.contains_key(&target) {\n-            Resolution::Resolved\n-        } else {\n-            Resolution::Dangling\n-        };\n-        let idx = edges.len();\n-        outgoing.entry(source.clone()).or_default().push(idx);\n-        match resolution {\n-            Resolution::Resolved => {\n-                incoming.entry(target.clone()).or_default().push(idx);\n-            }\n-            Resolution::Dangling => diagnostics.push(Diagnostic::DanglingReference {\n-                source: source.clone(),\n-                target: target.clone(),\n-                edge_type: edge_type.clone(),\n-            }),\n-        }\n-        edges.push(Edge {\n-            source,\n-            target,\n-            edge_type,\n-            resolution,\n-        });\n-    }\n-\n-    ResolveOutput {\n-        edges,\n-        outgoing,\n-        incoming,\n-        diagnostics,\n-    }\n+    Default::default() /* ~ changed by cargo-mutants ~ */\n }\n \n /// Harvest *all* edge stubs (frontmatter + body `ix://` links) for a\n /// single document, dedup'd. Returns `(target_id, edge_type)` pairs\n /// where `target_id` is already reduced via [`extract_target_id`].\n /// This is the public single-doc shape used by the Python binding\n /// (`quire.harvest_edges`) — corpus-level resolution still goes\n /// through [`resolve`].\n",
+    "file": "src/corpus/resolve.rs",
+    "function": {
+      "function_name": "resolve",
+      "return_type": "-> ResolveOutput",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 135
+        },
+        "start": {
+          "column": 1,
+          "line": 54
+        }
+      }
+    },
+    "genre": "FnValue",
+    "name": "src/corpus/resolve.rs:60:5: replace resolve -> ResolveOutput with Default::default()",
+    "package": "quire-rs",
+    "replacement": "Default::default()",
+    "span": {
+      "end": {
+        "column": 6,
+        "line": 134
+      },
+      "start": {
+        "column": 5,
+        "line": 60
+      }
+    }
+  },
+  {
+    "diff": "--- src/corpus/resolve.rs\n+++ delete ! in resolve\n@@ -83,17 +83,17 @@\n                 source.clone(),\n                 extract_target_id(&target_raw).to_string(),\n                 \"references\".to_string(),\n             ));\n         }\n         // Internal relative-path links (ADR 0007). Navigation documents\n         // (`index.md`/`log.md`) are excluded as a source so their\n         // wall-to-wall contents links do not flood the graph (FR-026-AC-10).\n-        if !is_nav_doc(&doc.path) {\n+        if  /* ~ changed by cargo-mutants ~ */is_nav_doc(&doc.path) {\n             for target in harvest_body_relative_links(doc, &md_link, &by_path) {\n                 stubs.insert((source.clone(), target, \"references\".to_string()));\n             }\n         }\n     }\n \n     let mut edges = Vec::with_capacity(stubs.len());\n     let mut outgoing: BTreeMap<ArtifactId, Vec<usize>> = BTreeMap::new();\n",
+    "file": "src/corpus/resolve.rs",
+    "function": {
+      "function_name": "resolve",
+      "return_type": "-> ResolveOutput",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 135
+        },
+        "start": {
+          "column": 1,
+          "line": 54
+        }
+      }
+    },
+    "genre": "UnaryOperator",
+    "name": "src/corpus/resolve.rs:91:12: delete ! in resolve",
+    "package": "quire-rs",
+    "replacement": "",
+    "span": {
+      "end": {
+        "column": 13,
+        "line": 91
+      },
+      "start": {
+        "column": 12,
+        "line": 91
+      }
+    }
+  },
+  {
+    "diff": "--- src/corpus/resolve.rs\n+++ replace harvest_edges -> Vec<(String, String)> with vec![]\n@@ -136,28 +136,17 @@\n \n /// Harvest *all* edge stubs (frontmatter + body `ix://` links) for a\n /// single document, dedup'd. Returns `(target_id, edge_type)` pairs\n /// where `target_id` is already reduced via [`extract_target_id`].\n /// This is the public single-doc shape used by the Python binding\n /// (`quire.harvest_edges`) — corpus-level resolution still goes\n /// through [`resolve`].\n pub fn harvest_edges(doc: &LoadedDocument) -> Vec<(String, String)> {\n-    let ix_link = ix_link_regex();\n-    let mut out: BTreeSet<(String, String)> = BTreeSet::new();\n-    for (target_raw, edge_type) in harvest_frontmatter(doc) {\n-        out.insert((extract_target_id(&target_raw).to_string(), edge_type));\n-    }\n-    for target_raw in harvest_body_links(doc, &ix_link) {\n-        out.insert((\n-            extract_target_id(&target_raw).to_string(),\n-            \"references\".to_string(),\n-        ));\n-    }\n-    out.into_iter().collect()\n+    vec![] /* ~ changed by cargo-mutants ~ */\n }\n \n /// `(target, edge_type)` pairs from the document's frontmatter\n /// `relationships` array. Entries missing a `target` are skipped;\n /// entries missing a `type` default to `references`.\n fn harvest_frontmatter(doc: &LoadedDocument) -> Vec<(String, String)> {\n     // Header tier only (CR-047): resolution stays eager with zero body parses.\n     let Some(fm) = doc.frontmatter() else {\n",
+    "file": "src/corpus/resolve.rs",
+    "function": {
+      "function_name": "harvest_edges",
+      "return_type": "-> Vec<(String, String)>",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 156
+        },
+        "start": {
+          "column": 1,
+          "line": 137
+        }
+      }
+    },
+    "genre": "FnValue",
+    "name": "src/corpus/resolve.rs:144:5: replace harvest_edges -> Vec<(String, String)> with vec![]",
+    "package": "quire-rs",
+    "replacement": "vec![]",
+    "span": {
+      "end": {
+        "column": 30,
+        "line": 155
+      },
+      "start": {
+        "column": 5,
+        "line": 144
+      }
+    }
+  },
+  {
+    "diff": "--- src/corpus/resolve.rs\n+++ replace harvest_edges -> Vec<(String, String)> with vec![(String::new(), String::new())]\n@@ -136,28 +136,17 @@\n \n /// Harvest *all* edge stubs (frontmatter + body `ix://` links) for a\n /// single document, dedup'd. Returns `(target_id, edge_type)` pairs\n /// where `target_id` is already reduced via [`extract_target_id`].\n /// This is the public single-doc shape used by the Python binding\n /// (`quire.harvest_edges`) — corpus-level resolution still goes\n /// through [`resolve`].\n pub fn harvest_edges(doc: &LoadedDocument) -> Vec<(String, String)> {\n-    let ix_link = ix_link_regex();\n-    let mut out: BTreeSet<(String, String)> = BTreeSet::new();\n-    for (target_raw, edge_type) in harvest_frontmatter(doc) {\n-        out.insert((extract_target_id(&target_raw).to_string(), edge_type));\n-    }\n-    for target_raw in harvest_body_links(doc, &ix_link) {\n-        out.insert((\n-            extract_target_id(&target_raw).to_string(),\n-            \"references\".to_string(),\n-        ));\n-    }\n-    out.into_iter().collect()\n+    vec![(String::new(), String::new())] /* ~ changed by cargo-mutants ~ */\n }\n \n /// `(target, edge_type)` pairs from the document's frontmatter\n /// `relationships` array. Entries missing a `target` are skipped;\n /// entries missing a `type` default to `references`.\n fn harvest_frontmatter(doc: &LoadedDocument) -> Vec<(String, String)> {\n     // Header tier only (CR-047): resolution stays eager with zero body parses.\n     let Some(fm) = doc.frontmatter() else {\n",
+    "file": "src/corpus/resolve.rs",
+    "function": {
+      "function_name": "harvest_edges",
+      "return_type": "-> Vec<(String, String)>",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 156
+        },
+        "start": {
+          "column": 1,
+          "line": 137
+        }
+      }
+    },
+    "genre": "FnValue",
+    "name": "src/corpus/resolve.rs:144:5: replace harvest_edges -> Vec<(String, String)> with vec![(String::new(), String::new())]",
+    "package": "quire-rs",
+    "replacement": "vec![(String::new(), String::new())]",
+    "span": {
+      "end": {
+        "column": 30,
+        "line": 155
+      },
+      "start": {
+        "column": 5,
+        "line": 144
+      }
+    }
+  },
+  {
+    "diff": "--- src/corpus/resolve.rs\n+++ replace harvest_edges -> Vec<(String, String)> with vec![(String::new(), \"xyzzy\".into())]\n@@ -136,28 +136,17 @@\n \n /// Harvest *all* edge stubs (frontmatter + body `ix://` links) for a\n /// single document, dedup'd. Returns `(target_id, edge_type)` pairs\n /// where `target_id` is already reduced via [`extract_target_id`].\n /// This is the public single-doc shape used by the Python binding\n /// (`quire.harvest_edges`) — corpus-level resolution still goes\n /// through [`resolve`].\n pub fn harvest_edges(doc: &LoadedDocument) -> Vec<(String, String)> {\n-    let ix_link = ix_link_regex();\n-    let mut out: BTreeSet<(String, String)> = BTreeSet::new();\n-    for (target_raw, edge_type) in harvest_frontmatter(doc) {\n-        out.insert((extract_target_id(&target_raw).to_string(), edge_type));\n-    }\n-    for target_raw in harvest_body_links(doc, &ix_link) {\n-        out.insert((\n-            extract_target_id(&target_raw).to_string(),\n-            \"references\".to_string(),\n-        ));\n-    }\n-    out.into_iter().collect()\n+    vec![(String::new(), \"xyzzy\".into())] /* ~ changed by cargo-mutants ~ */\n }\n \n /// `(target, edge_type)` pairs from the document's frontmatter\n /// `relationships` array. Entries missing a `target` are skipped;\n /// entries missing a `type` default to `references`.\n fn harvest_frontmatter(doc: &LoadedDocument) -> Vec<(String, String)> {\n     // Header tier only (CR-047): resolution stays eager with zero body parses.\n     let Some(fm) = doc.frontmatter() else {\n",
+    "file": "src/corpus/resolve.rs",
+    "function": {
+      "function_name": "harvest_edges",
+      "return_type": "-> Vec<(String, String)>",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 156
+        },
+        "start": {
+          "column": 1,
+          "line": 137
+        }
+      }
+    },
+    "genre": "FnValue",
+    "name": "src/corpus/resolve.rs:144:5: replace harvest_edges -> Vec<(String, String)> with vec![(String::new(), \"xyzzy\".into())]",
+    "package": "quire-rs",
+    "replacement": "vec![(String::new(), \"xyzzy\".into())]",
+    "span": {
+      "end": {
+        "column": 30,
+        "line": 155
+      },
+      "start": {
+        "column": 5,
+        "line": 144
+      }
+    }
+  },
+  {
+    "diff": "--- src/corpus/resolve.rs\n+++ replace harvest_edges -> Vec<(String, String)> with vec![(\"xyzzy\".into(), String::new())]\n@@ -136,28 +136,17 @@\n \n /// Harvest *all* edge stubs (frontmatter + body `ix://` links) for a\n /// single document, dedup'd. Returns `(target_id, edge_type)` pairs\n /// where `target_id` is already reduced via [`extract_target_id`].\n /// This is the public single-doc shape used by the Python binding\n /// (`quire.harvest_edges`) — corpus-level resolution still goes\n /// through [`resolve`].\n pub fn harvest_edges(doc: &LoadedDocument) -> Vec<(String, String)> {\n-    let ix_link = ix_link_regex();\n-    let mut out: BTreeSet<(String, String)> = BTreeSet::new();\n-    for (target_raw, edge_type) in harvest_frontmatter(doc) {\n-        out.insert((extract_target_id(&target_raw).to_string(), edge_type));\n-    }\n-    for target_raw in harvest_body_links(doc, &ix_link) {\n-        out.insert((\n-            extract_target_id(&target_raw).to_string(),\n-            \"references\".to_string(),\n-        ));\n-    }\n-    out.into_iter().collect()\n+    vec![(\"xyzzy\".into(), String::new())] /* ~ changed by cargo-mutants ~ */\n }\n \n /// `(target, edge_type)` pairs from the document's frontmatter\n /// `relationships` array. Entries missing a `target` are skipped;\n /// entries missing a `type` default to `references`.\n fn harvest_frontmatter(doc: &LoadedDocument) -> Vec<(String, String)> {\n     // Header tier only (CR-047): resolution stays eager with zero body parses.\n     let Some(fm) = doc.frontmatter() else {\n",
+    "file": "src/corpus/resolve.rs",
+    "function": {
+      "function_name": "harvest_edges",
+      "return_type": "-> Vec<(String, String)>",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 156
+        },
+        "start": {
+          "column": 1,
+          "line": 137
+        }
+      }
+    },
+    "genre": "FnValue",
+    "name": "src/corpus/resolve.rs:144:5: replace harvest_edges -> Vec<(String, String)> with vec![(\"xyzzy\".into(), String::new())]",
+    "package": "quire-rs",
+    "replacement": "vec![(\"xyzzy\".into(), String::new())]",
+    "span": {
+      "end": {
+        "column": 30,
+        "line": 155
+      },
+      "start": {
+        "column": 5,
+        "line": 144
+      }
+    }
+  },
+  {
+    "diff": "--- src/corpus/resolve.rs\n+++ replace harvest_edges -> Vec<(String, String)> with vec![(\"xyzzy\".into(), \"xyzzy\".into())]\n@@ -136,28 +136,17 @@\n \n /// Harvest *all* edge stubs (frontmatter + body `ix://` links) for a\n /// single document, dedup'd. Returns `(target_id, edge_type)` pairs\n /// where `target_id` is already reduced via [`extract_target_id`].\n /// This is the public single-doc shape used by the Python binding\n /// (`quire.harvest_edges`) — corpus-level resolution still goes\n /// through [`resolve`].\n pub fn harvest_edges(doc: &LoadedDocument) -> Vec<(String, String)> {\n-    let ix_link = ix_link_regex();\n-    let mut out: BTreeSet<(String, String)> = BTreeSet::new();\n-    for (target_raw, edge_type) in harvest_frontmatter(doc) {\n-        out.insert((extract_target_id(&target_raw).to_string(), edge_type));\n-    }\n-    for target_raw in harvest_body_links(doc, &ix_link) {\n-        out.insert((\n-            extract_target_id(&target_raw).to_string(),\n-            \"references\".to_string(),\n-        ));\n-    }\n-    out.into_iter().collect()\n+    vec![(\"xyzzy\".into(), \"xyzzy\".into())] /* ~ changed by cargo-mutants ~ */\n }\n \n /// `(target, edge_type)` pairs from the document's frontmatter\n /// `relationships` array. Entries missing a `target` are skipped;\n /// entries missing a `type` default to `references`.\n fn harvest_frontmatter(doc: &LoadedDocument) -> Vec<(String, String)> {\n     // Header tier only (CR-047): resolution stays eager with zero body parses.\n     let Some(fm) = doc.frontmatter() else {\n",
+    "file": "src/corpus/resolve.rs",
+    "function": {
+      "function_name": "harvest_edges",
+      "return_type": "-> Vec<(String, String)>",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 156
+        },
+        "start": {
+          "column": 1,
+          "line": 137
+        }
+      }
+    },
+    "genre": "FnValue",
+    "name": "src/corpus/resolve.rs:144:5: replace harvest_edges -> Vec<(String, String)> with vec![(\"xyzzy\".into(), \"xyzzy\".into())]",
+    "package": "quire-rs",
+    "replacement": "vec![(\"xyzzy\".into(), \"xyzzy\".into())]",
+    "span": {
+      "end": {
+        "column": 30,
+        "line": 155
+      },
+      "start": {
+        "column": 5,
+        "line": 144
+      }
+    }
+  },
+  {
+    "diff": "--- src/corpus/resolve.rs\n+++ replace harvest_frontmatter -> Vec<(String, String)> with vec![]\n@@ -155,32 +155,17 @@\n     out.into_iter().collect()\n }\n \n /// `(target, edge_type)` pairs from the document's frontmatter\n /// `relationships` array. Entries missing a `target` are skipped;\n /// entries missing a `type` default to `references`.\n fn harvest_frontmatter(doc: &LoadedDocument) -> Vec<(String, String)> {\n     // Header tier only (CR-047): resolution stays eager with zero body parses.\n-    let Some(fm) = doc.frontmatter() else {\n-        return Vec::new();\n-    };\n-    let Some(rels) = fm.get(\"relationships\").and_then(|v| v.as_array()) else {\n-        return Vec::new();\n-    };\n-    rels.iter()\n-        .filter_map(|entry| {\n-            let target = entry.get(\"target\").and_then(|v| v.as_str())?;\n-            let edge_type = entry\n-                .get(\"type\")\n-                .and_then(|v| v.as_str())\n-                .unwrap_or(\"references\");\n-            Some((target.to_string(), edge_type.to_string()))\n-        })\n-        .collect()\n+    vec![] /* ~ changed by cargo-mutants ~ */\n }\n \n /// Raw `ix://` URIs found in the document body.\n fn harvest_body_links(doc: &LoadedDocument, re: &Regex) -> Vec<String> {\n     re.find_iter(doc.raw())\n         .map(|m| m.as_str().to_string())\n         .collect()\n }\n",
+    "file": "src/corpus/resolve.rs",
+    "function": {
+      "function_name": "harvest_frontmatter",
+      "return_type": "-> Vec<(String, String)>",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 179
+        },
+        "start": {
+          "column": 1,
+          "line": 158
+        }
+      }
+    },
+    "genre": "FnValue",
+    "name": "src/corpus/resolve.rs:163:5: replace harvest_frontmatter -> Vec<(String, String)> with vec![]",
+    "package": "quire-rs",
+    "replacement": "vec![]",
+    "span": {
+      "end": {
+        "column": 19,
+        "line": 178
+      },
+      "start": {
+        "column": 5,
+        "line": 163
+      }
+    }
+  },
+  {
+    "diff": "--- src/corpus/resolve.rs\n+++ replace harvest_frontmatter -> Vec<(String, String)> with vec![(String::new(), String::new())]\n@@ -155,32 +155,17 @@\n     out.into_iter().collect()\n }\n \n /// `(target, edge_type)` pairs from the document's frontmatter\n /// `relationships` array. Entries missing a `target` are skipped;\n /// entries missing a `type` default to `references`.\n fn harvest_frontmatter(doc: &LoadedDocument) -> Vec<(String, String)> {\n     // Header tier only (CR-047): resolution stays eager with zero body parses.\n-    let Some(fm) = doc.frontmatter() else {\n-        return Vec::new();\n-    };\n-    let Some(rels) = fm.get(\"relationships\").and_then(|v| v.as_array()) else {\n-        return Vec::new();\n-    };\n-    rels.iter()\n-        .filter_map(|entry| {\n-            let target = entry.get(\"target\").and_then(|v| v.as_str())?;\n-            let edge_type = entry\n-                .get(\"type\")\n-                .and_then(|v| v.as_str())\n-                .unwrap_or(\"references\");\n-            Some((target.to_string(), edge_type.to_string()))\n-        })\n-        .collect()\n+    vec![(String::new(), String::new())] /* ~ changed by cargo-mutants ~ */\n }\n \n /// Raw `ix://` URIs found in the document body.\n fn harvest_body_links(doc: &LoadedDocument, re: &Regex) -> Vec<String> {\n     re.find_iter(doc.raw())\n         .map(|m| m.as_str().to_string())\n         .collect()\n }\n",
+    "file": "src/corpus/resolve.rs",
+    "function": {
+      "function_name": "harvest_frontmatter",
+      "return_type": "-> Vec<(String, String)>",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 179
+        },
+        "start": {
+          "column": 1,
+          "line": 158
+        }
+      }
+    },
+    "genre": "FnValue",
+    "name": "src/corpus/resolve.rs:163:5: replace harvest_frontmatter -> Vec<(String, String)> with vec![(String::new(), String::new())]",
+    "package": "quire-rs",
+    "replacement": "vec![(String::new(), String::new())]",
+    "span": {
+      "end": {
+        "column": 19,
+        "line": 178
+      },
+      "start": {
+        "column": 5,
+        "line": 163
+      }
+    }
+  },
+  {
+    "diff": "--- src/corpus/resolve.rs\n+++ replace harvest_frontmatter -> Vec<(String, String)> with vec![(String::new(), \"xyzzy\".into())]\n@@ -155,32 +155,17 @@\n     out.into_iter().collect()\n }\n \n /// `(target, edge_type)` pairs from the document's frontmatter\n /// `relationships` array. Entries missing a `target` are skipped;\n /// entries missing a `type` default to `references`.\n fn harvest_frontmatter(doc: &LoadedDocument) -> Vec<(String, String)> {\n     // Header tier only (CR-047): resolution stays eager with zero body parses.\n-    let Some(fm) = doc.frontmatter() else {\n-        return Vec::new();\n-    };\n-    let Some(rels) = fm.get(\"relationships\").and_then(|v| v.as_array()) else {\n-        return Vec::new();\n-    };\n-    rels.iter()\n-        .filter_map(|entry| {\n-            let target = entry.get(\"target\").and_then(|v| v.as_str())?;\n-            let edge_type = entry\n-                .get(\"type\")\n-                .and_then(|v| v.as_str())\n-                .unwrap_or(\"references\");\n-            Some((target.to_string(), edge_type.to_string()))\n-        })\n-        .collect()\n+    vec![(String::new(), \"xyzzy\".into())] /* ~ changed by cargo-mutants ~ */\n }\n \n /// Raw `ix://` URIs found in the document body.\n fn harvest_body_links(doc: &LoadedDocument, re: &Regex) -> Vec<String> {\n     re.find_iter(doc.raw())\n         .map(|m| m.as_str().to_string())\n         .collect()\n }\n",
+    "file": "src/corpus/resolve.rs",
+    "function": {
+      "function_name": "harvest_frontmatter",
+      "return_type": "-> Vec<(String, String)>",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 179
+        },
+        "start": {
+          "column": 1,
+          "line": 158
+        }
+      }
+    },
+    "genre": "FnValue",
+    "name": "src/corpus/resolve.rs:163:5: replace harvest_frontmatter -> Vec<(String, String)> with vec![(String::new(), \"xyzzy\".into())]",
+    "package": "quire-rs",
+    "replacement": "vec![(String::new(), \"xyzzy\".into())]",
+    "span": {
+      "end": {
+        "column": 19,
+        "line": 178
+      },
+      "start": {
+        "column": 5,
+        "line": 163
+      }
+    }
+  },
+  {
+    "diff": "--- src/corpus/resolve.rs\n+++ replace harvest_frontmatter -> Vec<(String, String)> with vec![(\"xyzzy\".into(), String::new())]\n@@ -155,32 +155,17 @@\n     out.into_iter().collect()\n }\n \n /// `(target, edge_type)` pairs from the document's frontmatter\n /// `relationships` array. Entries missing a `target` are skipped;\n /// entries missing a `type` default to `references`.\n fn harvest_frontmatter(doc: &LoadedDocument) -> Vec<(String, String)> {\n     // Header tier only (CR-047): resolution stays eager with zero body parses.\n-    let Some(fm) = doc.frontmatter() else {\n-        return Vec::new();\n-    };\n-    let Some(rels) = fm.get(\"relationships\").and_then(|v| v.as_array()) else {\n-        return Vec::new();\n-    };\n-    rels.iter()\n-        .filter_map(|entry| {\n-            let target = entry.get(\"target\").and_then(|v| v.as_str())?;\n-            let edge_type = entry\n-                .get(\"type\")\n-                .and_then(|v| v.as_str())\n-                .unwrap_or(\"references\");\n-            Some((target.to_string(), edge_type.to_string()))\n-        })\n-        .collect()\n+    vec![(\"xyzzy\".into(), String::new())] /* ~ changed by cargo-mutants ~ */\n }\n \n /// Raw `ix://` URIs found in the document body.\n fn harvest_body_links(doc: &LoadedDocument, re: &Regex) -> Vec<String> {\n     re.find_iter(doc.raw())\n         .map(|m| m.as_str().to_string())\n         .collect()\n }\n",
+    "file": "src/corpus/resolve.rs",
+    "function": {
+      "function_name": "harvest_frontmatter",
+      "return_type": "-> Vec<(String, String)>",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 179
+        },
+        "start": {
+          "column": 1,
+          "line": 158
+        }
+      }
+    },
+    "genre": "FnValue",
+    "name": "src/corpus/resolve.rs:163:5: replace harvest_frontmatter -> Vec<(String, String)> with vec![(\"xyzzy\".into(), String::new())]",
+    "package": "quire-rs",
+    "replacement": "vec![(\"xyzzy\".into(), String::new())]",
+    "span": {
+      "end": {
+        "column": 19,
+        "line": 178
+      },
+      "start": {
+        "column": 5,
+        "line": 163
+      }
+    }
+  },
+  {
+    "diff": "--- src/corpus/resolve.rs\n+++ replace harvest_frontmatter -> Vec<(String, String)> with vec![(\"xyzzy\".into(), \"xyzzy\".into())]\n@@ -155,32 +155,17 @@\n     out.into_iter().collect()\n }\n \n /// `(target, edge_type)` pairs from the document's frontmatter\n /// `relationships` array. Entries missing a `target` are skipped;\n /// entries missing a `type` default to `references`.\n fn harvest_frontmatter(doc: &LoadedDocument) -> Vec<(String, String)> {\n     // Header tier only (CR-047): resolution stays eager with zero body parses.\n-    let Some(fm) = doc.frontmatter() else {\n-        return Vec::new();\n-    };\n-    let Some(rels) = fm.get(\"relationships\").and_then(|v| v.as_array()) else {\n-        return Vec::new();\n-    };\n-    rels.iter()\n-        .filter_map(|entry| {\n-            let target = entry.get(\"target\").and_then(|v| v.as_str())?;\n-            let edge_type = entry\n-                .get(\"type\")\n-                .and_then(|v| v.as_str())\n-                .unwrap_or(\"references\");\n-            Some((target.to_string(), edge_type.to_string()))\n-        })\n-        .collect()\n+    vec![(\"xyzzy\".into(), \"xyzzy\".into())] /* ~ changed by cargo-mutants ~ */\n }\n \n /// Raw `ix://` URIs found in the document body.\n fn harvest_body_links(doc: &LoadedDocument, re: &Regex) -> Vec<String> {\n     re.find_iter(doc.raw())\n         .map(|m| m.as_str().to_string())\n         .collect()\n }\n",
+    "file": "src/corpus/resolve.rs",
+    "function": {
+      "function_name": "harvest_frontmatter",
+      "return_type": "-> Vec<(String, String)>",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 179
+        },
+        "start": {
+          "column": 1,
+          "line": 158
+        }
+      }
+    },
+    "genre": "FnValue",
+    "name": "src/corpus/resolve.rs:163:5: replace harvest_frontmatter -> Vec<(String, String)> with vec![(\"xyzzy\".into(), \"xyzzy\".into())]",
+    "package": "quire-rs",
+    "replacement": "vec![(\"xyzzy\".into(), \"xyzzy\".into())]",
+    "span": {
+      "end": {
+        "column": 19,
+        "line": 178
+      },
+      "start": {
+        "column": 5,
+        "line": 163
+      }
+    }
+  },
+  {
+    "diff": "--- src/corpus/resolve.rs\n+++ replace harvest_body_links -> Vec<String> with vec![]\n@@ -175,19 +175,17 @@\n                 .unwrap_or(\"references\");\n             Some((target.to_string(), edge_type.to_string()))\n         })\n         .collect()\n }\n \n /// Raw `ix://` URIs found in the document body.\n fn harvest_body_links(doc: &LoadedDocument, re: &Regex) -> Vec<String> {\n-    re.find_iter(doc.raw())\n-        .map(|m| m.as_str().to_string())\n-        .collect()\n+    vec![] /* ~ changed by cargo-mutants ~ */\n }\n \n /// Resolve internal relative-path links (`[text](./FR-002-….md)`) in the\n /// document body against the corpus path index (FR-026-AC-9). A link whose\n /// normalized destination matches a loaded document yields that document's\n /// id; one that matches nothing yields the raw destination string, so it\n /// resolves to `Dangling` downstream like an absent `ix://` target.\n fn harvest_body_relative_links(\n",
+    "file": "src/corpus/resolve.rs",
+    "function": {
+      "function_name": "harvest_body_links",
+      "return_type": "-> Vec<String>",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 186
+        },
+        "start": {
+          "column": 1,
+          "line": 181
+        }
+      }
+    },
+    "genre": "FnValue",
+    "name": "src/corpus/resolve.rs:183:5: replace harvest_body_links -> Vec<String> with vec![]",
+    "package": "quire-rs",
+    "replacement": "vec![]",
+    "span": {
+      "end": {
+        "column": 19,
+        "line": 185
+      },
+      "start": {
+        "column": 5,
+        "line": 183
+      }
+    }
+  },
+  {
+    "diff": "--- src/corpus/resolve.rs\n+++ replace harvest_body_links -> Vec<String> with vec![String::new()]\n@@ -175,19 +175,17 @@\n                 .unwrap_or(\"references\");\n             Some((target.to_string(), edge_type.to_string()))\n         })\n         .collect()\n }\n \n /// Raw `ix://` URIs found in the document body.\n fn harvest_body_links(doc: &LoadedDocument, re: &Regex) -> Vec<String> {\n-    re.find_iter(doc.raw())\n-        .map(|m| m.as_str().to_string())\n-        .collect()\n+    vec![String::new()] /* ~ changed by cargo-mutants ~ */\n }\n \n /// Resolve internal relative-path links (`[text](./FR-002-….md)`) in the\n /// document body against the corpus path index (FR-026-AC-9). A link whose\n /// normalized destination matches a loaded document yields that document's\n /// id; one that matches nothing yields the raw destination string, so it\n /// resolves to `Dangling` downstream like an absent `ix://` target.\n fn harvest_body_relative_links(\n",
+    "file": "src/corpus/resolve.rs",
+    "function": {
+      "function_name": "harvest_body_links",
+      "return_type": "-> Vec<String>",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 186
+        },
+        "start": {
+          "column": 1,
+          "line": 181
+        }
+      }
+    },
+    "genre": "FnValue",
+    "name": "src/corpus/resolve.rs:183:5: replace harvest_body_links -> Vec<String> with vec![String::new()]",
+    "package": "quire-rs",
+    "replacement": "vec![String::new()]",
+    "span": {
+      "end": {
+        "column": 19,
+        "line": 185
+      },
+      "start": {
+        "column": 5,
+        "line": 183
+      }
+    }
+  },
+  {
+    "diff": "--- src/corpus/resolve.rs\n+++ replace harvest_body_links -> Vec<String> with vec![\"xyzzy\".into()]\n@@ -175,19 +175,17 @@\n                 .unwrap_or(\"references\");\n             Some((target.to_string(), edge_type.to_string()))\n         })\n         .collect()\n }\n \n /// Raw `ix://` URIs found in the document body.\n fn harvest_body_links(doc: &LoadedDocument, re: &Regex) -> Vec<String> {\n-    re.find_iter(doc.raw())\n-        .map(|m| m.as_str().to_string())\n-        .collect()\n+    vec![\"xyzzy\".into()] /* ~ changed by cargo-mutants ~ */\n }\n \n /// Resolve internal relative-path links (`[text](./FR-002-….md)`) in the\n /// document body against the corpus path index (FR-026-AC-9). A link whose\n /// normalized destination matches a loaded document yields that document's\n /// id; one that matches nothing yields the raw destination string, so it\n /// resolves to `Dangling` downstream like an absent `ix://` target.\n fn harvest_body_relative_links(\n",
+    "file": "src/corpus/resolve.rs",
+    "function": {
+      "function_name": "harvest_body_links",
+      "return_type": "-> Vec<String>",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 186
+        },
+        "start": {
+          "column": 1,
+          "line": 181
+        }
+      }
+    },
+    "genre": "FnValue",
+    "name": "src/corpus/resolve.rs:183:5: replace harvest_body_links -> Vec<String> with vec![\"xyzzy\".into()]",
+    "package": "quire-rs",
+    "replacement": "vec![\"xyzzy\".into()]",
+    "span": {
+      "end": {
+        "column": 19,
+        "line": 185
+      },
+      "start": {
+        "column": 5,
+        "line": 183
+      }
+    }
+  },
+  {
+    "diff": "--- src/corpus/resolve.rs\n+++ replace harvest_body_relative_links -> Vec<String> with vec![]\n@@ -190,31 +190,17 @@\n /// normalized destination matches a loaded document yields that document's\n /// id; one that matches nothing yields the raw destination string, so it\n /// resolves to `Dangling` downstream like an absent `ix://` target.\n fn harvest_body_relative_links(\n     doc: &LoadedDocument,\n     re: &Regex,\n     by_path: &HashMap<PathBuf, ArtifactId>,\n ) -> Vec<String> {\n-    let base = doc.path.parent().unwrap_or_else(|| Path::new(\"\"));\n-    re.captures_iter(doc.raw())\n-        .filter_map(|c| c.get(1).map(|m| m.as_str()))\n-        .filter_map(|dest| {\n-            let path_part = dest.split('#').next().unwrap_or(dest);\n-            if !is_relative_md_dest(path_part) {\n-                return None;\n-            }\n-            let normalized = normalize_lexical(&base.join(path_part));\n-            Some(match by_path.get(&normalized) {\n-                Some(id) => id.clone(),\n-                None => dest.to_string(),\n-            })\n-        })\n-        .collect()\n+    vec![] /* ~ changed by cargo-mutants ~ */\n }\n \n /// True when a Markdown link destination is an internal relative path to a\n /// markdown artifact (not an `ix://`/`http(s)`/`mailto:` URI, not a bare\n /// in-document `#anchor`).\n fn is_relative_md_dest(dest: &str) -> bool {\n     !dest.is_empty()\n         && !dest.contains(\"://\")\n",
+    "file": "src/corpus/resolve.rs",
+    "function": {
+      "function_name": "harvest_body_relative_links",
+      "return_type": "-> Vec<String>",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 213
+        },
+        "start": {
+          "column": 1,
+          "line": 188
+        }
+      }
+    },
+    "genre": "FnValue",
+    "name": "src/corpus/resolve.rs:198:5: replace harvest_body_relative_links -> Vec<String> with vec![]",
+    "package": "quire-rs",
+    "replacement": "vec![]",
+    "span": {
+      "end": {
+        "column": 19,
+        "line": 212
+      },
+      "start": {
+        "column": 5,
+        "line": 198
+      }
+    }
+  },
+  {
+    "diff": "--- src/corpus/resolve.rs\n+++ replace harvest_body_relative_links -> Vec<String> with vec![String::new()]\n@@ -190,31 +190,17 @@\n /// normalized destination matches a loaded document yields that document's\n /// id; one that matches nothing yields the raw destination string, so it\n /// resolves to `Dangling` downstream like an absent `ix://` target.\n fn harvest_body_relative_links(\n     doc: &LoadedDocument,\n     re: &Regex,\n     by_path: &HashMap<PathBuf, ArtifactId>,\n ) -> Vec<String> {\n-    let base = doc.path.parent().unwrap_or_else(|| Path::new(\"\"));\n-    re.captures_iter(doc.raw())\n-        .filter_map(|c| c.get(1).map(|m| m.as_str()))\n-        .filter_map(|dest| {\n-            let path_part = dest.split('#').next().unwrap_or(dest);\n-            if !is_relative_md_dest(path_part) {\n-                return None;\n-            }\n-            let normalized = normalize_lexical(&base.join(path_part));\n-            Some(match by_path.get(&normalized) {\n-                Some(id) => id.clone(),\n-                None => dest.to_string(),\n-            })\n-        })\n-        .collect()\n+    vec![String::new()] /* ~ changed by cargo-mutants ~ */\n }\n \n /// True when a Markdown link destination is an internal relative path to a\n /// markdown artifact (not an `ix://`/`http(s)`/`mailto:` URI, not a bare\n /// in-document `#anchor`).\n fn is_relative_md_dest(dest: &str) -> bool {\n     !dest.is_empty()\n         && !dest.contains(\"://\")\n",
+    "file": "src/corpus/resolve.rs",
+    "function": {
+      "function_name": "harvest_body_relative_links",
+      "return_type": "-> Vec<String>",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 213
+        },
+        "start": {
+          "column": 1,
+          "line": 188
+        }
+      }
+    },
+    "genre": "FnValue",
+    "name": "src/corpus/resolve.rs:198:5: replace harvest_body_relative_links -> Vec<String> with vec![String::new()]",
+    "package": "quire-rs",
+    "replacement": "vec![String::new()]",
+    "span": {
+      "end": {
+        "column": 19,
+        "line": 212
+      },
+      "start": {
+        "column": 5,
+        "line": 198
+      }
+    }
+  },
+  {
+    "diff": "--- src/corpus/resolve.rs\n+++ replace harvest_body_relative_links -> Vec<String> with vec![\"xyzzy\".into()]\n@@ -190,31 +190,17 @@\n /// normalized destination matches a loaded document yields that document's\n /// id; one that matches nothing yields the raw destination string, so it\n /// resolves to `Dangling` downstream like an absent `ix://` target.\n fn harvest_body_relative_links(\n     doc: &LoadedDocument,\n     re: &Regex,\n     by_path: &HashMap<PathBuf, ArtifactId>,\n ) -> Vec<String> {\n-    let base = doc.path.parent().unwrap_or_else(|| Path::new(\"\"));\n-    re.captures_iter(doc.raw())\n-        .filter_map(|c| c.get(1).map(|m| m.as_str()))\n-        .filter_map(|dest| {\n-            let path_part = dest.split('#').next().unwrap_or(dest);\n-            if !is_relative_md_dest(path_part) {\n-                return None;\n-            }\n-            let normalized = normalize_lexical(&base.join(path_part));\n-            Some(match by_path.get(&normalized) {\n-                Some(id) => id.clone(),\n-                None => dest.to_string(),\n-            })\n-        })\n-        .collect()\n+    vec![\"xyzzy\".into()] /* ~ changed by cargo-mutants ~ */\n }\n \n /// True when a Markdown link destination is an internal relative path to a\n /// markdown artifact (not an `ix://`/`http(s)`/`mailto:` URI, not a bare\n /// in-document `#anchor`).\n fn is_relative_md_dest(dest: &str) -> bool {\n     !dest.is_empty()\n         && !dest.contains(\"://\")\n",
+    "file": "src/corpus/resolve.rs",
+    "function": {
+      "function_name": "harvest_body_relative_links",
+      "return_type": "-> Vec<String>",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 213
+        },
+        "start": {
+          "column": 1,
+          "line": 188
+        }
+      }
+    },
+    "genre": "FnValue",
+    "name": "src/corpus/resolve.rs:198:5: replace harvest_body_relative_links -> Vec<String> with vec![\"xyzzy\".into()]",
+    "package": "quire-rs",
+    "replacement": "vec![\"xyzzy\".into()]",
+    "span": {
+      "end": {
+        "column": 19,
+        "line": 212
+      },
+      "start": {
+        "column": 5,
+        "line": 198
+      }
+    }
+  },
+  {
+    "diff": "--- src/corpus/resolve.rs\n+++ delete ! in harvest_body_relative_links\n@@ -195,17 +195,17 @@\n     re: &Regex,\n     by_path: &HashMap<PathBuf, ArtifactId>,\n ) -> Vec<String> {\n     let base = doc.path.parent().unwrap_or_else(|| Path::new(\"\"));\n     re.captures_iter(doc.raw())\n         .filter_map(|c| c.get(1).map(|m| m.as_str()))\n         .filter_map(|dest| {\n             let path_part = dest.split('#').next().unwrap_or(dest);\n-            if !is_relative_md_dest(path_part) {\n+            if  /* ~ changed by cargo-mutants ~ */is_relative_md_dest(path_part) {\n                 return None;\n             }\n             let normalized = normalize_lexical(&base.join(path_part));\n             Some(match by_path.get(&normalized) {\n                 Some(id) => id.clone(),\n                 None => dest.to_string(),\n             })\n         })\n",
+    "file": "src/corpus/resolve.rs",
+    "function": {
+      "function_name": "harvest_body_relative_links",
+      "return_type": "-> Vec<String>",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 213
+        },
+        "start": {
+          "column": 1,
+          "line": 188
+        }
+      }
+    },
+    "genre": "UnaryOperator",
+    "name": "src/corpus/resolve.rs:203:16: delete ! in harvest_body_relative_links",
+    "package": "quire-rs",
+    "replacement": "",
+    "span": {
+      "end": {
+        "column": 17,
+        "line": 203
+      },
+      "start": {
+        "column": 16,
+        "line": 203
+      }
+    }
+  },
+  {
+    "diff": "--- src/corpus/resolve.rs\n+++ replace is_relative_md_dest -> bool with true\n@@ -211,22 +211,17 @@\n         })\n         .collect()\n }\n \n /// True when a Markdown link destination is an internal relative path to a\n /// markdown artifact (not an `ix://`/`http(s)`/`mailto:` URI, not a bare\n /// in-document `#anchor`).\n fn is_relative_md_dest(dest: &str) -> bool {\n-    !dest.is_empty()\n-        && !dest.contains(\"://\")\n-        && !dest.starts_with('#')\n-        && !dest.starts_with(\"mailto:\")\n-        && !dest.starts_with(\"tel:\")\n-        && dest.ends_with(\".md\")\n+    true /* ~ changed by cargo-mutants ~ */\n }\n \n /// `index.md` / `log.md` are navigation documents, not reference sources.\n fn is_nav_doc(path: &Path) -> bool {\n     matches!(\n         path.file_name().and_then(|n| n.to_str()),\n         Some(\"index.md\") | Some(\"log.md\")\n     )\n",
+    "file": "src/corpus/resolve.rs",
+    "function": {
+      "function_name": "is_relative_md_dest",
+      "return_type": "-> bool",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 225
+        },
+        "start": {
+          "column": 1,
+          "line": 215
+        }
+      }
+    },
+    "genre": "FnValue",
+    "name": "src/corpus/resolve.rs:219:5: replace is_relative_md_dest -> bool with true",
+    "package": "quire-rs",
+    "replacement": "true",
+    "span": {
+      "end": {
+        "column": 33,
+        "line": 224
+      },
+      "start": {
+        "column": 5,
+        "line": 219
+      }
+    }
+  },
+  {
+    "diff": "--- src/corpus/resolve.rs\n+++ replace is_relative_md_dest -> bool with false\n@@ -211,22 +211,17 @@\n         })\n         .collect()\n }\n \n /// True when a Markdown link destination is an internal relative path to a\n /// markdown artifact (not an `ix://`/`http(s)`/`mailto:` URI, not a bare\n /// in-document `#anchor`).\n fn is_relative_md_dest(dest: &str) -> bool {\n-    !dest.is_empty()\n-        && !dest.contains(\"://\")\n-        && !dest.starts_with('#')\n-        && !dest.starts_with(\"mailto:\")\n-        && !dest.starts_with(\"tel:\")\n-        && dest.ends_with(\".md\")\n+    false /* ~ changed by cargo-mutants ~ */\n }\n \n /// `index.md` / `log.md` are navigation documents, not reference sources.\n fn is_nav_doc(path: &Path) -> bool {\n     matches!(\n         path.file_name().and_then(|n| n.to_str()),\n         Some(\"index.md\") | Some(\"log.md\")\n     )\n",
+    "file": "src/corpus/resolve.rs",
+    "function": {
+      "function_name": "is_relative_md_dest",
+      "return_type": "-> bool",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 225
+        },
+        "start": {
+          "column": 1,
+          "line": 215
+        }
+      }
+    },
+    "genre": "FnValue",
+    "name": "src/corpus/resolve.rs:219:5: replace is_relative_md_dest -> bool with false",
+    "package": "quire-rs",
+    "replacement": "false",
+    "span": {
+      "end": {
+        "column": 33,
+        "line": 224
+      },
+      "start": {
+        "column": 5,
+        "line": 219
+      }
+    }
+  },
+  {
+    "diff": "--- src/corpus/resolve.rs\n+++ replace && with || in is_relative_md_dest\n@@ -216,17 +216,17 @@\n /// markdown artifact (not an `ix://`/`http(s)`/`mailto:` URI, not a bare\n /// in-document `#anchor`).\n fn is_relative_md_dest(dest: &str) -> bool {\n     !dest.is_empty()\n         && !dest.contains(\"://\")\n         && !dest.starts_with('#')\n         && !dest.starts_with(\"mailto:\")\n         && !dest.starts_with(\"tel:\")\n-        && dest.ends_with(\".md\")\n+        || /* ~ changed by cargo-mutants ~ */ dest.ends_with(\".md\")\n }\n \n /// `index.md` / `log.md` are navigation documents, not reference sources.\n fn is_nav_doc(path: &Path) -> bool {\n     matches!(\n         path.file_name().and_then(|n| n.to_str()),\n         Some(\"index.md\") | Some(\"log.md\")\n     )\n",
+    "file": "src/corpus/resolve.rs",
+    "function": {
+      "function_name": "is_relative_md_dest",
+      "return_type": "-> bool",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 225
+        },
+        "start": {
+          "column": 1,
+          "line": 215
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/corpus/resolve.rs:224:9: replace && with || in is_relative_md_dest",
+    "package": "quire-rs",
+    "replacement": "||",
+    "span": {
+      "end": {
+        "column": 11,
+        "line": 224
+      },
+      "start": {
+        "column": 9,
+        "line": 224
+      }
+    }
+  },
+  {
+    "diff": "--- src/corpus/resolve.rs\n+++ replace && with || in is_relative_md_dest\n@@ -215,17 +215,17 @@\n /// True when a Markdown link destination is an internal relative path to a\n /// markdown artifact (not an `ix://`/`http(s)`/`mailto:` URI, not a bare\n /// in-document `#anchor`).\n fn is_relative_md_dest(dest: &str) -> bool {\n     !dest.is_empty()\n         && !dest.contains(\"://\")\n         && !dest.starts_with('#')\n         && !dest.starts_with(\"mailto:\")\n-        && !dest.starts_with(\"tel:\")\n+        || /* ~ changed by cargo-mutants ~ */ !dest.starts_with(\"tel:\")\n         && dest.ends_with(\".md\")\n }\n \n /// `index.md` / `log.md` are navigation documents, not reference sources.\n fn is_nav_doc(path: &Path) -> bool {\n     matches!(\n         path.file_name().and_then(|n| n.to_str()),\n         Some(\"index.md\") | Some(\"log.md\")\n",
+    "file": "src/corpus/resolve.rs",
+    "function": {
+      "function_name": "is_relative_md_dest",
+      "return_type": "-> bool",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 225
+        },
+        "start": {
+          "column": 1,
+          "line": 215
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/corpus/resolve.rs:223:9: replace && with || in is_relative_md_dest",
+    "package": "quire-rs",
+    "replacement": "||",
+    "span": {
+      "end": {
+        "column": 11,
+        "line": 223
+      },
+      "start": {
+        "column": 9,
+        "line": 223
+      }
+    }
+  },
+  {
+    "diff": "--- src/corpus/resolve.rs\n+++ replace && with || in is_relative_md_dest\n@@ -214,17 +214,17 @@\n \n /// True when a Markdown link destination is an internal relative path to a\n /// markdown artifact (not an `ix://`/`http(s)`/`mailto:` URI, not a bare\n /// in-document `#anchor`).\n fn is_relative_md_dest(dest: &str) -> bool {\n     !dest.is_empty()\n         && !dest.contains(\"://\")\n         && !dest.starts_with('#')\n-        && !dest.starts_with(\"mailto:\")\n+        || /* ~ changed by cargo-mutants ~ */ !dest.starts_with(\"mailto:\")\n         && !dest.starts_with(\"tel:\")\n         && dest.ends_with(\".md\")\n }\n \n /// `index.md` / `log.md` are navigation documents, not reference sources.\n fn is_nav_doc(path: &Path) -> bool {\n     matches!(\n         path.file_name().and_then(|n| n.to_str()),\n",
+    "file": "src/corpus/resolve.rs",
+    "function": {
+      "function_name": "is_relative_md_dest",
+      "return_type": "-> bool",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 225
+        },
+        "start": {
+          "column": 1,
+          "line": 215
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/corpus/resolve.rs:222:9: replace && with || in is_relative_md_dest",
+    "package": "quire-rs",
+    "replacement": "||",
+    "span": {
+      "end": {
+        "column": 11,
+        "line": 222
+      },
+      "start": {
+        "column": 9,
+        "line": 222
+      }
+    }
+  },
+  {
+    "diff": "--- src/corpus/resolve.rs\n+++ replace && with || in is_relative_md_dest\n@@ -213,17 +213,17 @@\n }\n \n /// True when a Markdown link destination is an internal relative path to a\n /// markdown artifact (not an `ix://`/`http(s)`/`mailto:` URI, not a bare\n /// in-document `#anchor`).\n fn is_relative_md_dest(dest: &str) -> bool {\n     !dest.is_empty()\n         && !dest.contains(\"://\")\n-        && !dest.starts_with('#')\n+        || /* ~ changed by cargo-mutants ~ */ !dest.starts_with('#')\n         && !dest.starts_with(\"mailto:\")\n         && !dest.starts_with(\"tel:\")\n         && dest.ends_with(\".md\")\n }\n \n /// `index.md` / `log.md` are navigation documents, not reference sources.\n fn is_nav_doc(path: &Path) -> bool {\n     matches!(\n",
+    "file": "src/corpus/resolve.rs",
+    "function": {
+      "function_name": "is_relative_md_dest",
+      "return_type": "-> bool",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 225
+        },
+        "start": {
+          "column": 1,
+          "line": 215
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/corpus/resolve.rs:221:9: replace && with || in is_relative_md_dest",
+    "package": "quire-rs",
+    "replacement": "||",
+    "span": {
+      "end": {
+        "column": 11,
+        "line": 221
+      },
+      "start": {
+        "column": 9,
+        "line": 221
+      }
+    }
+  },
+  {
+    "diff": "--- src/corpus/resolve.rs\n+++ replace && with || in is_relative_md_dest\n@@ -212,17 +212,17 @@\n         .collect()\n }\n \n /// True when a Markdown link destination is an internal relative path to a\n /// markdown artifact (not an `ix://`/`http(s)`/`mailto:` URI, not a bare\n /// in-document `#anchor`).\n fn is_relative_md_dest(dest: &str) -> bool {\n     !dest.is_empty()\n-        && !dest.contains(\"://\")\n+        || /* ~ changed by cargo-mutants ~ */ !dest.contains(\"://\")\n         && !dest.starts_with('#')\n         && !dest.starts_with(\"mailto:\")\n         && !dest.starts_with(\"tel:\")\n         && dest.ends_with(\".md\")\n }\n \n /// `index.md` / `log.md` are navigation documents, not reference sources.\n fn is_nav_doc(path: &Path) -> bool {\n",
+    "file": "src/corpus/resolve.rs",
+    "function": {
+      "function_name": "is_relative_md_dest",
+      "return_type": "-> bool",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 225
+        },
+        "start": {
+          "column": 1,
+          "line": 215
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/corpus/resolve.rs:220:9: replace && with || in is_relative_md_dest",
+    "package": "quire-rs",
+    "replacement": "||",
+    "span": {
+      "end": {
+        "column": 11,
+        "line": 220
+      },
+      "start": {
+        "column": 9,
+        "line": 220
+      }
+    }
+  },
+  {
+    "diff": "--- src/corpus/resolve.rs\n+++ delete ! in is_relative_md_dest\n@@ -211,17 +211,17 @@\n         })\n         .collect()\n }\n \n /// True when a Markdown link destination is an internal relative path to a\n /// markdown artifact (not an `ix://`/`http(s)`/`mailto:` URI, not a bare\n /// in-document `#anchor`).\n fn is_relative_md_dest(dest: &str) -> bool {\n-    !dest.is_empty()\n+     /* ~ changed by cargo-mutants ~ */dest.is_empty()\n         && !dest.contains(\"://\")\n         && !dest.starts_with('#')\n         && !dest.starts_with(\"mailto:\")\n         && !dest.starts_with(\"tel:\")\n         && dest.ends_with(\".md\")\n }\n \n /// `index.md` / `log.md` are navigation documents, not reference sources.\n",
+    "file": "src/corpus/resolve.rs",
+    "function": {
+      "function_name": "is_relative_md_dest",
+      "return_type": "-> bool",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 225
+        },
+        "start": {
+          "column": 1,
+          "line": 215
+        }
+      }
+    },
+    "genre": "UnaryOperator",
+    "name": "src/corpus/resolve.rs:219:5: delete ! in is_relative_md_dest",
+    "package": "quire-rs",
+    "replacement": "",
+    "span": {
+      "end": {
+        "column": 6,
+        "line": 219
+      },
+      "start": {
+        "column": 5,
+        "line": 219
+      }
+    }
+  },
+  {
+    "diff": "--- src/corpus/resolve.rs\n+++ delete ! in is_relative_md_dest\n@@ -212,17 +212,17 @@\n         .collect()\n }\n \n /// True when a Markdown link destination is an internal relative path to a\n /// markdown artifact (not an `ix://`/`http(s)`/`mailto:` URI, not a bare\n /// in-document `#anchor`).\n fn is_relative_md_dest(dest: &str) -> bool {\n     !dest.is_empty()\n-        && !dest.contains(\"://\")\n+        &&  /* ~ changed by cargo-mutants ~ */dest.contains(\"://\")\n         && !dest.starts_with('#')\n         && !dest.starts_with(\"mailto:\")\n         && !dest.starts_with(\"tel:\")\n         && dest.ends_with(\".md\")\n }\n \n /// `index.md` / `log.md` are navigation documents, not reference sources.\n fn is_nav_doc(path: &Path) -> bool {\n",
+    "file": "src/corpus/resolve.rs",
+    "function": {
+      "function_name": "is_relative_md_dest",
+      "return_type": "-> bool",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 225
+        },
+        "start": {
+          "column": 1,
+          "line": 215
+        }
+      }
+    },
+    "genre": "UnaryOperator",
+    "name": "src/corpus/resolve.rs:220:12: delete ! in is_relative_md_dest",
+    "package": "quire-rs",
+    "replacement": "",
+    "span": {
+      "end": {
+        "column": 13,
+        "line": 220
+      },
+      "start": {
+        "column": 12,
+        "line": 220
+      }
+    }
+  },
+  {
+    "diff": "--- src/corpus/resolve.rs\n+++ delete ! in is_relative_md_dest\n@@ -213,17 +213,17 @@\n }\n \n /// True when a Markdown link destination is an internal relative path to a\n /// markdown artifact (not an `ix://`/`http(s)`/`mailto:` URI, not a bare\n /// in-document `#anchor`).\n fn is_relative_md_dest(dest: &str) -> bool {\n     !dest.is_empty()\n         && !dest.contains(\"://\")\n-        && !dest.starts_with('#')\n+        &&  /* ~ changed by cargo-mutants ~ */dest.starts_with('#')\n         && !dest.starts_with(\"mailto:\")\n         && !dest.starts_with(\"tel:\")\n         && dest.ends_with(\".md\")\n }\n \n /// `index.md` / `log.md` are navigation documents, not reference sources.\n fn is_nav_doc(path: &Path) -> bool {\n     matches!(\n",
+    "file": "src/corpus/resolve.rs",
+    "function": {
+      "function_name": "is_relative_md_dest",
+      "return_type": "-> bool",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 225
+        },
+        "start": {
+          "column": 1,
+          "line": 215
+        }
+      }
+    },
+    "genre": "UnaryOperator",
+    "name": "src/corpus/resolve.rs:221:12: delete ! in is_relative_md_dest",
+    "package": "quire-rs",
+    "replacement": "",
+    "span": {
+      "end": {
+        "column": 13,
+        "line": 221
+      },
+      "start": {
+        "column": 12,
+        "line": 221
+      }
+    }
+  },
+  {
+    "diff": "--- src/corpus/resolve.rs\n+++ delete ! in is_relative_md_dest\n@@ -214,17 +214,17 @@\n \n /// True when a Markdown link destination is an internal relative path to a\n /// markdown artifact (not an `ix://`/`http(s)`/`mailto:` URI, not a bare\n /// in-document `#anchor`).\n fn is_relative_md_dest(dest: &str) -> bool {\n     !dest.is_empty()\n         && !dest.contains(\"://\")\n         && !dest.starts_with('#')\n-        && !dest.starts_with(\"mailto:\")\n+        &&  /* ~ changed by cargo-mutants ~ */dest.starts_with(\"mailto:\")\n         && !dest.starts_with(\"tel:\")\n         && dest.ends_with(\".md\")\n }\n \n /// `index.md` / `log.md` are navigation documents, not reference sources.\n fn is_nav_doc(path: &Path) -> bool {\n     matches!(\n         path.file_name().and_then(|n| n.to_str()),\n",
+    "file": "src/corpus/resolve.rs",
+    "function": {
+      "function_name": "is_relative_md_dest",
+      "return_type": "-> bool",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 225
+        },
+        "start": {
+          "column": 1,
+          "line": 215
+        }
+      }
+    },
+    "genre": "UnaryOperator",
+    "name": "src/corpus/resolve.rs:222:12: delete ! in is_relative_md_dest",
+    "package": "quire-rs",
+    "replacement": "",
+    "span": {
+      "end": {
+        "column": 13,
+        "line": 222
+      },
+      "start": {
+        "column": 12,
+        "line": 222
+      }
+    }
+  },
+  {
+    "diff": "--- src/corpus/resolve.rs\n+++ delete ! in is_relative_md_dest\n@@ -215,17 +215,17 @@\n /// True when a Markdown link destination is an internal relative path to a\n /// markdown artifact (not an `ix://`/`http(s)`/`mailto:` URI, not a bare\n /// in-document `#anchor`).\n fn is_relative_md_dest(dest: &str) -> bool {\n     !dest.is_empty()\n         && !dest.contains(\"://\")\n         && !dest.starts_with('#')\n         && !dest.starts_with(\"mailto:\")\n-        && !dest.starts_with(\"tel:\")\n+        &&  /* ~ changed by cargo-mutants ~ */dest.starts_with(\"tel:\")\n         && dest.ends_with(\".md\")\n }\n \n /// `index.md` / `log.md` are navigation documents, not reference sources.\n fn is_nav_doc(path: &Path) -> bool {\n     matches!(\n         path.file_name().and_then(|n| n.to_str()),\n         Some(\"index.md\") | Some(\"log.md\")\n",
+    "file": "src/corpus/resolve.rs",
+    "function": {
+      "function_name": "is_relative_md_dest",
+      "return_type": "-> bool",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 225
+        },
+        "start": {
+          "column": 1,
+          "line": 215
+        }
+      }
+    },
+    "genre": "UnaryOperator",
+    "name": "src/corpus/resolve.rs:223:12: delete ! in is_relative_md_dest",
+    "package": "quire-rs",
+    "replacement": "",
+    "span": {
+      "end": {
+        "column": 13,
+        "line": 223
+      },
+      "start": {
+        "column": 12,
+        "line": 223
+      }
+    }
+  },
+  {
+    "diff": "--- src/corpus/resolve.rs\n+++ replace is_nav_doc -> bool with true\n@@ -221,20 +221,17 @@\n         && !dest.starts_with('#')\n         && !dest.starts_with(\"mailto:\")\n         && !dest.starts_with(\"tel:\")\n         && dest.ends_with(\".md\")\n }\n \n /// `index.md` / `log.md` are navigation documents, not reference sources.\n fn is_nav_doc(path: &Path) -> bool {\n-    matches!(\n-        path.file_name().and_then(|n| n.to_str()),\n-        Some(\"index.md\") | Some(\"log.md\")\n-    )\n+    true /* ~ changed by cargo-mutants ~ */\n }\n \n /// Normalized on-disk path → artifact id for every loaded document.\n fn build_path_index(documents: &[LoadedDocument]) -> HashMap<PathBuf, ArtifactId> {\n     documents\n         .iter()\n         .map(|d| (normalize_lexical(&d.path), artifact_key(d)))\n         .collect()\n",
+    "file": "src/corpus/resolve.rs",
+    "function": {
+      "function_name": "is_nav_doc",
+      "return_type": "-> bool",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 233
+        },
+        "start": {
+          "column": 1,
+          "line": 227
+        }
+      }
+    },
+    "genre": "FnValue",
+    "name": "src/corpus/resolve.rs:229:5: replace is_nav_doc -> bool with true",
+    "package": "quire-rs",
+    "replacement": "true",
+    "span": {
+      "end": {
+        "column": 6,
+        "line": 232
+      },
+      "start": {
+        "column": 5,
+        "line": 229
+      }
+    }
+  },
+  {
+    "diff": "--- src/corpus/resolve.rs\n+++ replace is_nav_doc -> bool with false\n@@ -221,20 +221,17 @@\n         && !dest.starts_with('#')\n         && !dest.starts_with(\"mailto:\")\n         && !dest.starts_with(\"tel:\")\n         && dest.ends_with(\".md\")\n }\n \n /// `index.md` / `log.md` are navigation documents, not reference sources.\n fn is_nav_doc(path: &Path) -> bool {\n-    matches!(\n-        path.file_name().and_then(|n| n.to_str()),\n-        Some(\"index.md\") | Some(\"log.md\")\n-    )\n+    false /* ~ changed by cargo-mutants ~ */\n }\n \n /// Normalized on-disk path → artifact id for every loaded document.\n fn build_path_index(documents: &[LoadedDocument]) -> HashMap<PathBuf, ArtifactId> {\n     documents\n         .iter()\n         .map(|d| (normalize_lexical(&d.path), artifact_key(d)))\n         .collect()\n",
+    "file": "src/corpus/resolve.rs",
+    "function": {
+      "function_name": "is_nav_doc",
+      "return_type": "-> bool",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 233
+        },
+        "start": {
+          "column": 1,
+          "line": 227
+        }
+      }
+    },
+    "genre": "FnValue",
+    "name": "src/corpus/resolve.rs:229:5: replace is_nav_doc -> bool with false",
+    "package": "quire-rs",
+    "replacement": "false",
+    "span": {
+      "end": {
+        "column": 6,
+        "line": 232
+      },
+      "start": {
+        "column": 5,
+        "line": 229
+      }
+    }
+  },
+  {
+    "diff": "--- src/corpus/resolve.rs\n+++ replace build_path_index -> HashMap<PathBuf, ArtifactId> with HashMap::new()\n@@ -229,20 +229,17 @@\n     matches!(\n         path.file_name().and_then(|n| n.to_str()),\n         Some(\"index.md\") | Some(\"log.md\")\n     )\n }\n \n /// Normalized on-disk path → artifact id for every loaded document.\n fn build_path_index(documents: &[LoadedDocument]) -> HashMap<PathBuf, ArtifactId> {\n-    documents\n-        .iter()\n-        .map(|d| (normalize_lexical(&d.path), artifact_key(d)))\n-        .collect()\n+    HashMap::new() /* ~ changed by cargo-mutants ~ */\n }\n \n /// Lexically normalize a path — collapse `.` and `..` segments without any\n /// filesystem access (resolution stays I/O-free and deterministic,\n /// StR-006-AC-4 / NFR-006).\n pub(crate) fn normalize_lexical(p: &Path) -> PathBuf {\n     let mut out = PathBuf::new();\n     for comp in p.components() {\n",
+    "file": "src/corpus/resolve.rs",
+    "function": {
+      "function_name": "build_path_index",
+      "return_type": "-> HashMap<PathBuf, ArtifactId>",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 241
+        },
+        "start": {
+          "column": 1,
+          "line": 235
+        }
+      }
+    },
+    "genre": "FnValue",
+    "name": "src/corpus/resolve.rs:237:5: replace build_path_index -> HashMap<PathBuf, ArtifactId> with HashMap::new()",
+    "package": "quire-rs",
+    "replacement": "HashMap::new()",
+    "span": {
+      "end": {
+        "column": 19,
+        "line": 240
+      },
+      "start": {
+        "column": 5,
+        "line": 237
+      }
+    }
+  },
+  {
+    "diff": "--- src/corpus/resolve.rs\n+++ replace build_path_index -> HashMap<PathBuf, ArtifactId> with HashMap::from_iter([(Default::default(), Default::default())])\n@@ -229,20 +229,17 @@\n     matches!(\n         path.file_name().and_then(|n| n.to_str()),\n         Some(\"index.md\") | Some(\"log.md\")\n     )\n }\n \n /// Normalized on-disk path → artifact id for every loaded document.\n fn build_path_index(documents: &[LoadedDocument]) -> HashMap<PathBuf, ArtifactId> {\n-    documents\n-        .iter()\n-        .map(|d| (normalize_lexical(&d.path), artifact_key(d)))\n-        .collect()\n+    HashMap::from_iter([(Default::default(), Default::default())]) /* ~ changed by cargo-mutants ~ */\n }\n \n /// Lexically normalize a path — collapse `.` and `..` segments without any\n /// filesystem access (resolution stays I/O-free and deterministic,\n /// StR-006-AC-4 / NFR-006).\n pub(crate) fn normalize_lexical(p: &Path) -> PathBuf {\n     let mut out = PathBuf::new();\n     for comp in p.components() {\n",
+    "file": "src/corpus/resolve.rs",
+    "function": {
+      "function_name": "build_path_index",
+      "return_type": "-> HashMap<PathBuf, ArtifactId>",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 241
+        },
+        "start": {
+          "column": 1,
+          "line": 235
+        }
+      }
+    },
+    "genre": "FnValue",
+    "name": "src/corpus/resolve.rs:237:5: replace build_path_index -> HashMap<PathBuf, ArtifactId> with HashMap::from_iter([(Default::default(), Default::default())])",
+    "package": "quire-rs",
+    "replacement": "HashMap::from_iter([(Default::default(), Default::default())])",
+    "span": {
+      "end": {
+        "column": 19,
+        "line": 240
+      },
+      "start": {
+        "column": 5,
+        "line": 237
+      }
+    }
+  },
+  {
+    "diff": "--- src/corpus/resolve.rs\n+++ replace normalize_lexical -> PathBuf with Default::default()\n@@ -239,27 +239,17 @@\n         .map(|d| (normalize_lexical(&d.path), artifact_key(d)))\n         .collect()\n }\n \n /// Lexically normalize a path — collapse `.` and `..` segments without any\n /// filesystem access (resolution stays I/O-free and deterministic,\n /// StR-006-AC-4 / NFR-006).\n pub(crate) fn normalize_lexical(p: &Path) -> PathBuf {\n-    let mut out = PathBuf::new();\n-    for comp in p.components() {\n-        match comp {\n-            Component::CurDir => {}\n-            Component::ParentDir => {\n-                out.pop();\n-            }\n-            other => out.push(other.as_os_str()),\n-        }\n-    }\n-    out\n+    Default::default() /* ~ changed by cargo-mutants ~ */\n }\n \n fn md_link_regex() -> Regex {\n     // Match a Markdown inline link's destination: `[text](dest)`, where\n     // `dest` runs up to the closing paren or whitespace. `ix://` and other\n     // URI/anchor destinations are filtered out by `is_relative_md_dest`.\n     Regex::new(r#\"\\[[^\\]]*\\]\\(([^)\\s]+)\\)\"#).expect(\"static md-link regex is valid\")\n }\n",
+    "file": "src/corpus/resolve.rs",
+    "function": {
+      "function_name": "normalize_lexical",
+      "return_type": "-> PathBuf",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 258
+        },
+        "start": {
+          "column": 1,
+          "line": 243
+        }
+      }
+    },
+    "genre": "FnValue",
+    "name": "src/corpus/resolve.rs:247:5: replace normalize_lexical -> PathBuf with Default::default()",
+    "package": "quire-rs",
+    "replacement": "Default::default()",
+    "span": {
+      "end": {
+        "column": 8,
+        "line": 257
+      },
+      "start": {
+        "column": 5,
+        "line": 247
+      }
+    }
+  },
+  {
+    "diff": "--- src/corpus/resolve.rs\n+++ replace md_link_regex -> Regex with Default::default()\n@@ -256,17 +256,17 @@\n     }\n     out\n }\n \n fn md_link_regex() -> Regex {\n     // Match a Markdown inline link's destination: `[text](dest)`, where\n     // `dest` runs up to the closing paren or whitespace. `ix://` and other\n     // URI/anchor destinations are filtered out by `is_relative_md_dest`.\n-    Regex::new(r#\"\\[[^\\]]*\\]\\(([^)\\s]+)\\)\"#).expect(\"static md-link regex is valid\")\n+    Default::default() /* ~ changed by cargo-mutants ~ */\n }\n \n /// The artifact id a reference target points at: the last `/`-segment\n /// of an `ix://` URI, or a bare id unchanged (FR-026-AC-6).\n pub(crate) fn extract_target_id(target: &str) -> &str {\n     let rest = target.strip_prefix(\"ix://\").unwrap_or(target);\n     rest.rsplit('/').next().unwrap_or(rest)\n }\n",
+    "file": "src/corpus/resolve.rs",
+    "function": {
+      "function_name": "md_link_regex",
+      "return_type": "-> Regex",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 265
+        },
+        "start": {
+          "column": 1,
+          "line": 260
+        }
+      }
+    },
+    "genre": "FnValue",
+    "name": "src/corpus/resolve.rs:264:5: replace md_link_regex -> Regex with Default::default()",
+    "package": "quire-rs",
+    "replacement": "Default::default()",
+    "span": {
+      "end": {
+        "column": 85,
+        "line": 264
+      },
+      "start": {
+        "column": 5,
+        "line": 264
+      }
+    }
+  },
+  {
+    "diff": "--- src/corpus/resolve.rs\n+++ replace extract_target_id -> &str with \"\"\n@@ -262,18 +262,17 @@\n     // `dest` runs up to the closing paren or whitespace. `ix://` and other\n     // URI/anchor destinations are filtered out by `is_relative_md_dest`.\n     Regex::new(r#\"\\[[^\\]]*\\]\\(([^)\\s]+)\\)\"#).expect(\"static md-link regex is valid\")\n }\n \n /// The artifact id a reference target points at: the last `/`-segment\n /// of an `ix://` URI, or a bare id unchanged (FR-026-AC-6).\n pub(crate) fn extract_target_id(target: &str) -> &str {\n-    let rest = target.strip_prefix(\"ix://\").unwrap_or(target);\n-    rest.rsplit('/').next().unwrap_or(rest)\n+    \"\" /* ~ changed by cargo-mutants ~ */\n }\n \n fn ix_link_regex() -> Regex {\n     // Match an ix:// URI up to whitespace or a closing delimiter so it\n     // works for `[t](ix://…)`, `<ix://…>`, and bare occurrences.\n     Regex::new(r#\"ix://[^\\s)\\]>\"']+\"#).expect(\"static ix-link regex is valid\")\n }\n \n",
+    "file": "src/corpus/resolve.rs",
+    "function": {
+      "function_name": "extract_target_id",
+      "return_type": "-> &str",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 272
+        },
+        "start": {
+          "column": 1,
+          "line": 267
+        }
+      }
+    },
+    "genre": "FnValue",
+    "name": "src/corpus/resolve.rs:270:5: replace extract_target_id -> &str with \"\"",
+    "package": "quire-rs",
+    "replacement": "\"\"",
+    "span": {
+      "end": {
+        "column": 44,
+        "line": 271
+      },
+      "start": {
+        "column": 5,
+        "line": 270
+      }
+    }
+  },
+  {
+    "diff": "--- src/corpus/resolve.rs\n+++ replace extract_target_id -> &str with \"xyzzy\"\n@@ -262,18 +262,17 @@\n     // `dest` runs up to the closing paren or whitespace. `ix://` and other\n     // URI/anchor destinations are filtered out by `is_relative_md_dest`.\n     Regex::new(r#\"\\[[^\\]]*\\]\\(([^)\\s]+)\\)\"#).expect(\"static md-link regex is valid\")\n }\n \n /// The artifact id a reference target points at: the last `/`-segment\n /// of an `ix://` URI, or a bare id unchanged (FR-026-AC-6).\n pub(crate) fn extract_target_id(target: &str) -> &str {\n-    let rest = target.strip_prefix(\"ix://\").unwrap_or(target);\n-    rest.rsplit('/').next().unwrap_or(rest)\n+    \"xyzzy\" /* ~ changed by cargo-mutants ~ */\n }\n \n fn ix_link_regex() -> Regex {\n     // Match an ix:// URI up to whitespace or a closing delimiter so it\n     // works for `[t](ix://…)`, `<ix://…>`, and bare occurrences.\n     Regex::new(r#\"ix://[^\\s)\\]>\"']+\"#).expect(\"static ix-link regex is valid\")\n }\n \n",
+    "file": "src/corpus/resolve.rs",
+    "function": {
+      "function_name": "extract_target_id",
+      "return_type": "-> &str",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 272
+        },
+        "start": {
+          "column": 1,
+          "line": 267
+        }
+      }
+    },
+    "genre": "FnValue",
+    "name": "src/corpus/resolve.rs:270:5: replace extract_target_id -> &str with \"xyzzy\"",
+    "package": "quire-rs",
+    "replacement": "\"xyzzy\"",
+    "span": {
+      "end": {
+        "column": 44,
+        "line": 271
+      },
+      "start": {
+        "column": 5,
+        "line": 270
+      }
+    }
+  },
+  {
+    "diff": "--- src/corpus/resolve.rs\n+++ replace ix_link_regex -> Regex with Default::default()\n@@ -269,17 +269,17 @@\n pub(crate) fn extract_target_id(target: &str) -> &str {\n     let rest = target.strip_prefix(\"ix://\").unwrap_or(target);\n     rest.rsplit('/').next().unwrap_or(rest)\n }\n \n fn ix_link_regex() -> Regex {\n     // Match an ix:// URI up to whitespace or a closing delimiter so it\n     // works for `[t](ix://…)`, `<ix://…>`, and bare occurrences.\n-    Regex::new(r#\"ix://[^\\s)\\]>\"']+\"#).expect(\"static ix-link regex is valid\")\n+    Default::default() /* ~ changed by cargo-mutants ~ */\n }\n \n #[cfg(test)]\n mod tests {\n     use super::*;\n \n     // TC-491 / FR-026-AC-6: target-id extraction is a pure function.\n     #[test]\n",
+    "file": "src/corpus/resolve.rs",
+    "function": {
+      "function_name": "ix_link_regex",
+      "return_type": "-> Regex",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 278
+        },
+        "start": {
+          "column": 1,
+          "line": 274
+        }
+      }
+    },
+    "genre": "FnValue",
+    "name": "src/corpus/resolve.rs:277:5: replace ix_link_regex -> Regex with Default::default()",
+    "package": "quire-rs",
+    "replacement": "Default::default()",
+    "span": {
+      "end": {
+        "column": 79,
+        "line": 277
+      },
+      "start": {
+        "column": 5,
+        "line": 277
+      }
+    }
+  }
+]

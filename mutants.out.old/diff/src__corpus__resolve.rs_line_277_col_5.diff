@@ -1,0 +1,21 @@
+--- src/corpus/resolve.rs
++++ replace ix_link_regex -> Regex with Default::default()
+@@ -269,17 +269,17 @@
+ pub(crate) fn extract_target_id(target: &str) -> &str {
+     let rest = target.strip_prefix("ix://").unwrap_or(target);
+     rest.rsplit('/').next().unwrap_or(rest)
+ }
+ 
+ fn ix_link_regex() -> Regex {
+     // Match an ix:// URI up to whitespace or a closing delimiter so it
+     // works for `[t](ix://…)`, `<ix://…>`, and bare occurrences.
+-    Regex::new(r#"ix://[^\s)\]>"']+"#).expect("static ix-link regex is valid")
++    Default::default() /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ #[cfg(test)]
+ mod tests {
+     use super::*;
+ 
+     // TC-491 / FR-026-AC-6: target-id extraction is a pure function.
+     #[test]

@@ -1,0 +1,35 @@
+--- src/corpus/resolve.rs
++++ replace harvest_body_relative_links -> Vec<String> with vec!["xyzzy".into()]
+@@ -190,31 +190,17 @@
+ /// normalized destination matches a loaded document yields that document's
+ /// id; one that matches nothing yields the raw destination string, so it
+ /// resolves to `Dangling` downstream like an absent `ix://` target.
+ fn harvest_body_relative_links(
+     doc: &LoadedDocument,
+     re: &Regex,
+     by_path: &HashMap<PathBuf, ArtifactId>,
+ ) -> Vec<String> {
+-    let base = doc.path.parent().unwrap_or_else(|| Path::new(""));
+-    re.captures_iter(doc.raw())
+-        .filter_map(|c| c.get(1).map(|m| m.as_str()))
+-        .filter_map(|dest| {
+-            let path_part = dest.split('#').next().unwrap_or(dest);
+-            if !is_relative_md_dest(path_part) {
+-                return None;
+-            }
+-            let normalized = normalize_lexical(&base.join(path_part));
+-            Some(match by_path.get(&normalized) {
+-                Some(id) => id.clone(),
+-                None => dest.to_string(),
+-            })
+-        })
+-        .collect()
++    vec!["xyzzy".into()] /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ /// True when a Markdown link destination is an internal relative path to a
+ /// markdown artifact (not an `ix://`/`http(s)`/`mailto:` URI, not a bare
+ /// in-document `#anchor`).
+ fn is_relative_md_dest(dest: &str) -> bool {
+     !dest.is_empty()
+         && !dest.contains("://")

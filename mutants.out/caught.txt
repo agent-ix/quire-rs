@@ -1,0 +1,32 @@
+src/corpus/resolve.rs:91:12: delete ! in resolve
+src/corpus/resolve.rs:163:5: replace harvest_frontmatter -> Vec<(String, String)> with vec![]
+src/corpus/resolve.rs:163:5: replace harvest_frontmatter -> Vec<(String, String)> with vec![(String::new(), String::new())]
+src/corpus/resolve.rs:163:5: replace harvest_frontmatter -> Vec<(String, String)> with vec![(String::new(), "xyzzy".into())]
+src/corpus/resolve.rs:163:5: replace harvest_frontmatter -> Vec<(String, String)> with vec![("xyzzy".into(), String::new())]
+src/corpus/resolve.rs:163:5: replace harvest_frontmatter -> Vec<(String, String)> with vec![("xyzzy".into(), "xyzzy".into())]
+src/corpus/resolve.rs:183:5: replace harvest_body_links -> Vec<String> with vec![]
+src/corpus/resolve.rs:183:5: replace harvest_body_links -> Vec<String> with vec![String::new()]
+src/corpus/resolve.rs:183:5: replace harvest_body_links -> Vec<String> with vec!["xyzzy".into()]
+src/corpus/resolve.rs:198:5: replace harvest_body_relative_links -> Vec<String> with vec![]
+src/corpus/resolve.rs:198:5: replace harvest_body_relative_links -> Vec<String> with vec![String::new()]
+src/corpus/resolve.rs:198:5: replace harvest_body_relative_links -> Vec<String> with vec!["xyzzy".into()]
+src/corpus/resolve.rs:203:16: delete ! in harvest_body_relative_links
+src/corpus/resolve.rs:219:5: replace is_relative_md_dest -> bool with true
+src/corpus/resolve.rs:219:5: replace is_relative_md_dest -> bool with false
+src/corpus/resolve.rs:224:9: replace && with || in is_relative_md_dest
+src/corpus/resolve.rs:223:9: replace && with || in is_relative_md_dest
+src/corpus/resolve.rs:222:9: replace && with || in is_relative_md_dest
+src/corpus/resolve.rs:221:9: replace && with || in is_relative_md_dest
+src/corpus/resolve.rs:220:9: replace && with || in is_relative_md_dest
+src/corpus/resolve.rs:219:5: delete ! in is_relative_md_dest
+src/corpus/resolve.rs:220:12: delete ! in is_relative_md_dest
+src/corpus/resolve.rs:221:12: delete ! in is_relative_md_dest
+src/corpus/resolve.rs:222:12: delete ! in is_relative_md_dest
+src/corpus/resolve.rs:223:12: delete ! in is_relative_md_dest
+src/corpus/resolve.rs:229:5: replace is_nav_doc -> bool with true
+src/corpus/resolve.rs:229:5: replace is_nav_doc -> bool with false
+src/corpus/resolve.rs:237:5: replace build_path_index -> HashMap<PathBuf, ArtifactId> with HashMap::new()
+src/corpus/resolve.rs:237:5: replace build_path_index -> HashMap<PathBuf, ArtifactId> with HashMap::from_iter([(Default::default(), Default::default())])
+src/corpus/resolve.rs:247:5: replace normalize_lexical -> PathBuf with Default::default()
+src/corpus/resolve.rs:270:5: replace extract_target_id -> &str with ""
+src/corpus/resolve.rs:270:5: replace extract_target_id -> &str with "xyzzy"

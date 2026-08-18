@@ -1,0 +1,940 @@
+
+*** src/corpus/resolve.rs:203:16: delete ! in harvest_body_relative_links
+
+*** mutation diff:
+--- src/corpus/resolve.rs
++++ delete ! in harvest_body_relative_links
+@@ -195,17 +195,17 @@
+     re: &Regex,
+     by_path: &HashMap<PathBuf, ArtifactId>,
+ ) -> Vec<String> {
+     let base = doc.path.parent().unwrap_or_else(|| Path::new(""));
+     re.captures_iter(doc.raw())
+         .filter_map(|c| c.get(1).map(|m| m.as_str()))
+         .filter_map(|dest| {
+             let path_part = dest.split('#').next().unwrap_or(dest);
+-            if !is_relative_md_dest(path_part) {
++            if  /* ~ changed by cargo-mutants ~ */is_relative_md_dest(path_part) {
+                 return None;
+             }
+             let normalized = normalize_lexical(&base.join(path_part));
+             Some(match by_path.get(&normalized) {
+                 Some(id) => id.clone(),
+                 None => dest.to_string(),
+             })
+         })
+
+
+*** /home/peter/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo test --no-run --verbose --package=quire-rs@0.30.1
+       Fresh unicode-ident v1.0.24
+       Fresh cfg-if v1.0.4
+       Fresh stable_deref_trait v1.2.1
+       Fresh autocfg v1.5.1
+       Fresh memchr v2.8.0
+       Fresh version_check v0.9.5
+       Fresh litemap v0.8.2
+       Fresh regex-syntax v0.8.10
+       Fresh writeable v0.6.3
+       Fresh smallvec v1.15.1
+       Fresh utf8_iter v1.0.4
+       Fresh proc-macro2 v1.0.106
+       Fresh aho-corasick v1.1.4
+       Fresh once_cell v1.21.4
+       Fresh itoa v1.0.18
+       Fresh typenum v1.20.1
+       Fresh quote v1.0.45
+       Fresh libc v0.2.186
+       Fresh serde_core v1.0.228
+       Fresh regex-automata v0.4.14
+       Fresh crossbeam-utils v0.8.21
+       Fresh icu_normalizer_data v2.2.0
+       Fresh either v1.16.0
+       Fresh bitflags v2.11.1
+       Fresh same-file v1.0.6
+       Fresh time-core v0.1.8
+       Fresh syn v2.0.117
+       Fresh num-traits v0.2.19
+       Fresh getrandom v0.3.4
+       Fresh getrandom v0.4.2
+       Fresh icu_properties_data v2.2.0
+       Fresh crossbeam-epoch v0.9.20
+       Fresh generic-array v0.14.7
+       Fresh zmij v1.0.21
+       Fresh scopeguard v1.2.0
+       Fresh percent-encoding v2.3.2
+       Fresh powerfmt v0.2.0
+       Fresh bit-vec v0.6.3
+       Fresh linux-raw-sys v0.12.1
+       Fresh num-conv v0.2.2
+       Fresh regex v1.12.3
+       Fresh walkdir v2.5.0
+       Fresh nom v8.0.0
+       Fresh synstructure v0.13.2
+       Fresh zerovec-derive v0.11.3
+       Fresh displaydoc v0.2.5
+       Fresh zerocopy-derive v0.8.48
+       Fresh serde_derive v1.0.228
+       Fresh num-integer v0.1.46
+       Fresh crossbeam-deque v0.8.6
+       Fresh rand_core v0.9.5
+       Fresh num-complex v0.4.6
+       Fresh serde_json v1.0.150
+       Fresh parking_lot_core v0.9.12
+       Fresh bit-set v0.5.3
+       Fresh crypto-common v0.1.7
+       Fresh form_urlencoded v1.2.2
+       Fresh block-buffer v0.10.4
+       Fresh lock_api v0.4.14
+       Fresh deranged v0.5.8
+       Fresh time-macros v0.2.27
+       Fresh rustix v1.1.4
+       Fresh bstr v1.12.1
+       Fresh clap_lex v1.1.0
+       Fresh zerofrom-derive v0.1.7
+       Fresh yoke-derive v0.8.2
+       Fresh zerocopy v0.8.48
+       Fresh serde v1.0.228
+       Fresh num-bigint v0.4.6
+       Fresh num-iter v0.1.45
+       Fresh rayon-core v1.13.0
+       Fresh fastrand v2.4.1
+       Fresh plotters-backend v0.3.7
+       Fresh anstyle v1.0.14
+       Fresh hashbrown v0.17.1
+       Fresh tinyvec_macros v0.1.1
+       Fresh ciborium-io v0.2.2
+       Fresh lazy_static v1.5.0
+       Fresh equivalent v1.0.2
+       Fresh log v0.4.29
+       Fresh time v0.3.47
+       Fresh fancy-regex v0.13.0
+       Fresh digest v0.10.7
+       Fresh parking_lot v0.12.5
+       Fresh zerofrom v0.1.8
+       Fresh num-rational v0.4.2
+       Fresh half v2.7.1
+       Fresh ppv-lite86 v0.2.21
+       Fresh tempfile v3.27.0
+       Fresh globset v0.4.18
+       Fresh tinyvec v1.12.0
+       Fresh clap_builder v4.6.0
+       Fresh indexmap v2.14.0
+       Fresh ahash v0.8.12
+       Fresh rayon v1.12.0
+       Fresh plotters-svg v0.3.7
+       Fresh anyhow v1.0.102
+       Fresh uuid v1.23.1
+       Fresh iso8601 v0.6.3
+       Fresh thiserror-impl v2.0.18
+       Fresh wait-timeout v0.2.1
+       Fresh itertools v0.10.5
+       Fresh fnv v1.0.7
+       Fresh cast v0.3.0
+       Fresh yoke v0.8.2
+       Fresh num v0.4.3
+       Fresh ciborium-ll v0.2.2
+       Fresh base64 v0.22.1
+       Fresh num-cmp v0.1.0
+       Fresh ryu v1.0.23
+       Fresh quick-error v1.2.3
+       Fresh bytecount v0.6.9
+       Fresh unsafe-libyaml v0.2.11
+       Fresh cpufeatures v0.2.17
+       Fresh bit-vec v0.8.0
+       Fresh unicode-normalization v0.1.25
+       Fresh clap v4.6.1
+       Fresh ignore v0.4.25
+       Fresh thiserror v2.0.18
+       Fresh rand_chacha v0.9.0
+       Fresh plotters v0.3.7
+       Fresh criterion-plot v0.5.0
+       Fresh tinytemplate v1.2.1
+       Fresh rand_xorshift v0.4.0
+       Fresh rand v0.9.4
+       Fresh zerovec v0.11.6
+       Fresh zerotrie v0.2.4
+       Fresh fraction v0.15.4
+       Fresh sha2 v0.10.9
+       Fresh serde_yaml v0.9.34+deprecated
+       Fresh bit-set v0.8.0
+       Fresh ciborium v0.2.2
+       Fresh rusty-fork v0.3.1
+       Fresh is-terminal v0.4.17
+       Fresh unarray v0.1.4
+       Fresh oorandom v11.1.5
+       Fresh anes v0.1.6
+       Fresh tinystr v0.8.3
+       Fresh potential_utf v0.1.5
+       Fresh criterion v0.5.1
+       Fresh proptest v1.11.0
+       Fresh icu_locale_core v2.2.0
+       Fresh icu_collections v2.2.0
+       Fresh icu_provider v2.2.0
+       Fresh icu_properties v2.2.0
+       Fresh icu_normalizer v2.2.0
+       Fresh idna_adapter v1.2.2
+       Fresh idna v1.1.0
+       Fresh url v2.5.8
+       Fresh jsonschema v0.18.3
+       Dirty quire-rs v0.30.1 (/tmp/cargo-mutants-quire-rs-oCcoIv.tmp): the file `src/corpus/resolve.rs` has changed (1787080952.103158161s, 14s after last build at 1787080938.491764236s)
+   Compiling quire-rs v0.30.1 (/tmp/cargo-mutants-quire-rs-oCcoIv.tmp)
+     Running `/home/peter/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name quire_rs --edition=2021 src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type cdylib --crate-type rlib --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --warn=unexpected_cfgs --check-cfg 'cfg(loom)' --cfg 'feature="default"' --cfg 'feature="resolve-file"' --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values("default", "python", "remeasure", "resolve-file", "wasm"))' -C metadata=8819c712b08ecf1c --out-dir /home/peter/.cargo-target/debug/deps -C incremental=/home/peter/.cargo-target/debug/incremental -L dependency=/home/peter/.cargo-target/debug/deps --extern globset=/home/peter/.cargo-target/debug/deps/libglobset-4b77ac717fc9f468.rlib --extern ignore=/home/peter/.cargo-target/debug/deps/libignore-69ddc8f5a1b018bc.rlib --extern indexmap=/home/peter/.cargo-target/debug/deps/libindexmap-4eecd7ffa380c3a7.rlib --extern jsonschema=/home/peter/.cargo-target/debug/deps/libjsonschema-f779fd5fb9f15d5c.rlib --extern rayon=/home/peter/.cargo-target/debug/deps/librayon-d3e0b4243631151c.rlib --extern regex=/home/peter/.cargo-target/debug/deps/libregex-53a4bdcef0a18e9e.rlib --extern serde=/home/peter/.cargo-target/debug/deps/libserde-bfa0e911ce3f89e8.rlib --extern serde_json=/home/peter/.cargo-target/debug/deps/libserde_json-e84a5626fe148831.rlib --extern serde_yaml=/home/peter/.cargo-target/debug/deps/libserde_yaml-cb1fc181b8b687a5.rlib --extern sha2=/home/peter/.cargo-target/debug/deps/libsha2-332268d5d0808ca9.rlib --extern thiserror=/home/peter/.cargo-target/debug/deps/libthiserror-16ac0fd995ef6c50.rlib --extern unicode_normalization=/home/peter/.cargo-target/debug/deps/libunicode_normalization-63fb7e2576f51c1d.rlib --extern uuid=/home/peter/.cargo-target/debug/deps/libuuid-b02cbfbbd67921a7.rlib`
+     Running `/home/peter/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name quire_rs --edition=2021 src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --warn=unexpected_cfgs --check-cfg 'cfg(loom)' --test --cfg 'feature="default"' --cfg 'feature="resolve-file"' --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values("default", "python", "remeasure", "resolve-file", "wasm"))' -C metadata=05fbb76afd43e791 -C extra-filename=-e7a034749eeaa008 --out-dir /home/peter/.cargo-target/debug/deps -C incremental=/home/peter/.cargo-target/debug/incremental -L dependency=/home/peter/.cargo-target/debug/deps --extern criterion=/home/peter/.cargo-target/debug/deps/libcriterion-00707c68f219e39b.rlib --extern globset=/home/peter/.cargo-target/debug/deps/libglobset-4b77ac717fc9f468.rlib --extern ignore=/home/peter/.cargo-target/debug/deps/libignore-69ddc8f5a1b018bc.rlib --extern indexmap=/home/peter/.cargo-target/debug/deps/libindexmap-4eecd7ffa380c3a7.rlib --extern jsonschema=/home/peter/.cargo-target/debug/deps/libjsonschema-f779fd5fb9f15d5c.rlib --extern proptest=/home/peter/.cargo-target/debug/deps/libproptest-75cc026f351a0d29.rlib --extern rayon=/home/peter/.cargo-target/debug/deps/librayon-d3e0b4243631151c.rlib --extern regex=/home/peter/.cargo-target/debug/deps/libregex-53a4bdcef0a18e9e.rlib --extern serde=/home/peter/.cargo-target/debug/deps/libserde-bfa0e911ce3f89e8.rlib --extern serde_json=/home/peter/.cargo-target/debug/deps/libserde_json-e84a5626fe148831.rlib --extern serde_yaml=/home/peter/.cargo-target/debug/deps/libserde_yaml-cb1fc181b8b687a5.rlib --extern sha2=/home/peter/.cargo-target/debug/deps/libsha2-332268d5d0808ca9.rlib --extern thiserror=/home/peter/.cargo-target/debug/deps/libthiserror-16ac0fd995ef6c50.rlib --extern unicode_normalization=/home/peter/.cargo-target/debug/deps/libunicode_normalization-63fb7e2576f51c1d.rlib --extern uuid=/home/peter/.cargo-target/debug/deps/libuuid-b02cbfbbd67921a7.rlib`
+     Running `/home/peter/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name trace_references --edition=2021 tests/trace_references.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --warn=unexpected_cfgs --check-cfg 'cfg(loom)' --test --cfg 'feature="default"' --cfg 'feature="resolve-file"' --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values("default", "python", "remeasure", "resolve-file", "wasm"))' -C metadata=4decb7532cc66b37 -C extra-filename=-1925e5d348da24ec --out-dir /home/peter/.cargo-target/debug/deps -C incremental=/home/peter/.cargo-target/debug/incremental -L dependency=/home/peter/.cargo-target/debug/deps --extern criterion=/home/peter/.cargo-target/debug/deps/libcriterion-00707c68f219e39b.rlib --extern globset=/home/peter/.cargo-target/debug/deps/libglobset-4b77ac717fc9f468.rlib --extern ignore=/home/peter/.cargo-target/debug/deps/libignore-69ddc8f5a1b018bc.rlib --extern indexmap=/home/peter/.cargo-target/debug/deps/libindexmap-4eecd7ffa380c3a7.rlib --extern jsonschema=/home/peter/.cargo-target/debug/deps/libjsonschema-f779fd5fb9f15d5c.rlib --extern proptest=/home/peter/.cargo-target/debug/deps/libproptest-75cc026f351a0d29.rlib --extern quire_rs=/home/peter/.cargo-target/debug/deps/libquire_rs.rlib --extern rayon=/home/peter/.cargo-target/debug/deps/librayon-d3e0b4243631151c.rlib --extern regex=/home/peter/.cargo-target/debug/deps/libregex-53a4bdcef0a18e9e.rlib --extern serde=/home/peter/.cargo-target/debug/deps/libserde-bfa0e911ce3f89e8.rlib --extern serde_json=/home/peter/.cargo-target/debug/deps/libserde_json-e84a5626fe148831.rlib --extern serde_yaml=/home/peter/.cargo-target/debug/deps/libserde_yaml-cb1fc181b8b687a5.rlib --extern sha2=/home/peter/.cargo-target/debug/deps/libsha2-332268d5d0808ca9.rlib --extern thiserror=/home/peter/.cargo-target/debug/deps/libthiserror-16ac0fd995ef6c50.rlib --extern unicode_normalization=/home/peter/.cargo-target/debug/deps/libunicode_normalization-63fb7e2576f51c1d.rlib --extern uuid=/home/peter/.cargo-target/debug/deps/libuuid-b02cbfbbd67921a7.rlib`
+     Running `/home/peter/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name coverage_baseline --edition=2021 tests/coverage_baseline.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --warn=unexpected_cfgs --check-cfg 'cfg(loom)' --test --cfg 'feature="default"' --cfg 'feature="resolve-file"' --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values("default", "python", "remeasure", "resolve-file", "wasm"))' -C metadata=7fd89b764867bbf6 -C extra-filename=-314bf01b33fd68cb --out-dir /home/peter/.cargo-target/debug/deps -C incremental=/home/peter/.cargo-target/debug/incremental -L dependency=/home/peter/.cargo-target/debug/deps --extern criterion=/home/peter/.cargo-target/debug/deps/libcriterion-00707c68f219e39b.rlib --extern globset=/home/peter/.cargo-target/debug/deps/libglobset-4b77ac717fc9f468.rlib --extern ignore=/home/peter/.cargo-target/debug/deps/libignore-69ddc8f5a1b018bc.rlib --extern indexmap=/home/peter/.cargo-target/debug/deps/libindexmap-4eecd7ffa380c3a7.rlib --extern jsonschema=/home/peter/.cargo-target/debug/deps/libjsonschema-f779fd5fb9f15d5c.rlib --extern proptest=/home/peter/.cargo-target/debug/deps/libproptest-75cc026f351a0d29.rlib --extern quire_rs=/home/peter/.cargo-target/debug/deps/libquire_rs.rlib --extern rayon=/home/peter/.cargo-target/debug/deps/librayon-d3e0b4243631151c.rlib --extern regex=/home/peter/.cargo-target/debug/deps/libregex-53a4bdcef0a18e9e.rlib --extern serde=/home/peter/.cargo-target/debug/deps/libserde-bfa0e911ce3f89e8.rlib --extern serde_json=/home/peter/.cargo-target/debug/deps/libserde_json-e84a5626fe148831.rlib --extern serde_yaml=/home/peter/.cargo-target/debug/deps/libserde_yaml-cb1fc181b8b687a5.rlib --extern sha2=/home/peter/.cargo-target/debug/deps/libsha2-332268d5d0808ca9.rlib --extern thiserror=/home/peter/.cargo-target/debug/deps/libthiserror-16ac0fd995ef6c50.rlib --extern unicode_normalization=/home/peter/.cargo-target/debug/deps/libunicode_normalization-63fb7e2576f51c1d.rlib --extern uuid=/home/peter/.cargo-target/debug/deps/libuuid-b02cbfbbd67921a7.rlib`
+     Running `/home/peter/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name integration --edition=2021 tests/integration.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --warn=unexpected_cfgs --check-cfg 'cfg(loom)' --test --cfg 'feature="default"' --cfg 'feature="resolve-file"' --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values("default", "python", "remeasure", "resolve-file", "wasm"))' -C metadata=a46a97cfbfd8f341 -C extra-filename=-213695e8efba1067 --out-dir /home/peter/.cargo-target/debug/deps -C incremental=/home/peter/.cargo-target/debug/incremental -L dependency=/home/peter/.cargo-target/debug/deps --extern criterion=/home/peter/.cargo-target/debug/deps/libcriterion-00707c68f219e39b.rlib --extern globset=/home/peter/.cargo-target/debug/deps/libglobset-4b77ac717fc9f468.rlib --extern ignore=/home/peter/.cargo-target/debug/deps/libignore-69ddc8f5a1b018bc.rlib --extern indexmap=/home/peter/.cargo-target/debug/deps/libindexmap-4eecd7ffa380c3a7.rlib --extern jsonschema=/home/peter/.cargo-target/debug/deps/libjsonschema-f779fd5fb9f15d5c.rlib --extern proptest=/home/peter/.cargo-target/debug/deps/libproptest-75cc026f351a0d29.rlib --extern quire_rs=/home/peter/.cargo-target/debug/deps/libquire_rs.rlib --extern rayon=/home/peter/.cargo-target/debug/deps/librayon-d3e0b4243631151c.rlib --extern regex=/home/peter/.cargo-target/debug/deps/libregex-53a4bdcef0a18e9e.rlib --extern serde=/home/peter/.cargo-target/debug/deps/libserde-bfa0e911ce3f89e8.rlib --extern serde_json=/home/peter/.cargo-target/debug/deps/libserde_json-e84a5626fe148831.rlib --extern serde_yaml=/home/peter/.cargo-target/debug/deps/libserde_yaml-cb1fc181b8b687a5.rlib --extern sha2=/home/peter/.cargo-target/debug/deps/libsha2-332268d5d0808ca9.rlib --extern thiserror=/home/peter/.cargo-target/debug/deps/libthiserror-16ac0fd995ef6c50.rlib --extern unicode_normalization=/home/peter/.cargo-target/debug/deps/libunicode_normalization-63fb7e2576f51c1d.rlib --extern uuid=/home/peter/.cargo-target/debug/deps/libuuid-b02cbfbbd67921a7.rlib`
+     Running `/home/peter/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name mutants_scope --edition=2021 examples/mutants_scope.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type bin --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --warn=unexpected_cfgs --check-cfg 'cfg(loom)' --cfg 'feature="default"' --cfg 'feature="resolve-file"' --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values("default", "python", "remeasure", "resolve-file", "wasm"))' -C metadata=cbb639bfbf9119a8 -C extra-filename=-bb9cd35196119829 --out-dir /home/peter/.cargo-target/debug/examples -C incremental=/home/peter/.cargo-target/debug/incremental -L dependency=/home/peter/.cargo-target/debug/deps --extern criterion=/home/peter/.cargo-target/debug/deps/libcriterion-00707c68f219e39b.rlib --extern globset=/home/peter/.cargo-target/debug/deps/libglobset-4b77ac717fc9f468.rlib --extern ignore=/home/peter/.cargo-target/debug/deps/libignore-69ddc8f5a1b018bc.rlib --extern indexmap=/home/peter/.cargo-target/debug/deps/libindexmap-4eecd7ffa380c3a7.rlib --extern jsonschema=/home/peter/.cargo-target/debug/deps/libjsonschema-f779fd5fb9f15d5c.rlib --extern proptest=/home/peter/.cargo-target/debug/deps/libproptest-75cc026f351a0d29.rlib --extern quire_rs=/home/peter/.cargo-target/debug/deps/libquire_rs.rlib --extern rayon=/home/peter/.cargo-target/debug/deps/librayon-d3e0b4243631151c.rlib --extern regex=/home/peter/.cargo-target/debug/deps/libregex-53a4bdcef0a18e9e.rlib --extern serde=/home/peter/.cargo-target/debug/deps/libserde-bfa0e911ce3f89e8.rlib --extern serde_json=/home/peter/.cargo-target/debug/deps/libserde_json-e84a5626fe148831.rlib --extern serde_yaml=/home/peter/.cargo-target/debug/deps/libserde_yaml-cb1fc181b8b687a5.rlib --extern sha2=/home/peter/.cargo-target/debug/deps/libsha2-332268d5d0808ca9.rlib --extern thiserror=/home/peter/.cargo-target/debug/deps/libthiserror-16ac0fd995ef6c50.rlib --extern unicode_normalization=/home/peter/.cargo-target/debug/deps/libunicode_normalization-63fb7e2576f51c1d.rlib --extern uuid=/home/peter/.cargo-target/debug/deps/libuuid-b02cbfbbd67921a7.rlib`
+     Running `/home/peter/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name markdown_validation --edition=2021 tests/markdown_validation.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --warn=unexpected_cfgs --check-cfg 'cfg(loom)' --test --cfg 'feature="default"' --cfg 'feature="resolve-file"' --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values("default", "python", "remeasure", "resolve-file", "wasm"))' -C metadata=8c638f169230947c -C extra-filename=-926822ca07c5362f --out-dir /home/peter/.cargo-target/debug/deps -C incremental=/home/peter/.cargo-target/debug/incremental -L dependency=/home/peter/.cargo-target/debug/deps --extern criterion=/home/peter/.cargo-target/debug/deps/libcriterion-00707c68f219e39b.rlib --extern globset=/home/peter/.cargo-target/debug/deps/libglobset-4b77ac717fc9f468.rlib --extern ignore=/home/peter/.cargo-target/debug/deps/libignore-69ddc8f5a1b018bc.rlib --extern indexmap=/home/peter/.cargo-target/debug/deps/libindexmap-4eecd7ffa380c3a7.rlib --extern jsonschema=/home/peter/.cargo-target/debug/deps/libjsonschema-f779fd5fb9f15d5c.rlib --extern proptest=/home/peter/.cargo-target/debug/deps/libproptest-75cc026f351a0d29.rlib --extern quire_rs=/home/peter/.cargo-target/debug/deps/libquire_rs.rlib --extern rayon=/home/peter/.cargo-target/debug/deps/librayon-d3e0b4243631151c.rlib --extern regex=/home/peter/.cargo-target/debug/deps/libregex-53a4bdcef0a18e9e.rlib --extern serde=/home/peter/.cargo-target/debug/deps/libserde-bfa0e911ce3f89e8.rlib --extern serde_json=/home/peter/.cargo-target/debug/deps/libserde_json-e84a5626fe148831.rlib --extern serde_yaml=/home/peter/.cargo-target/debug/deps/libserde_yaml-cb1fc181b8b687a5.rlib --extern sha2=/home/peter/.cargo-target/debug/deps/libsha2-332268d5d0808ca9.rlib --extern thiserror=/home/peter/.cargo-target/debug/deps/libthiserror-16ac0fd995ef6c50.rlib --extern unicode_normalization=/home/peter/.cargo-target/debug/deps/libunicode_normalization-63fb7e2576f51c1d.rlib --extern uuid=/home/peter/.cargo-target/debug/deps/libuuid-b02cbfbbd67921a7.rlib`
+     Running `/home/peter/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name verification_catalog --edition=2021 tests/verification_catalog.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --warn=unexpected_cfgs --check-cfg 'cfg(loom)' --test --cfg 'feature="default"' --cfg 'feature="resolve-file"' --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values("default", "python", "remeasure", "resolve-file", "wasm"))' -C metadata=4304749f8a5500bb -C extra-filename=-c665f72313521a43 --out-dir /home/peter/.cargo-target/debug/deps -C incremental=/home/peter/.cargo-target/debug/incremental -L dependency=/home/peter/.cargo-target/debug/deps --extern criterion=/home/peter/.cargo-target/debug/deps/libcriterion-00707c68f219e39b.rlib --extern globset=/home/peter/.cargo-target/debug/deps/libglobset-4b77ac717fc9f468.rlib --extern ignore=/home/peter/.cargo-target/debug/deps/libignore-69ddc8f5a1b018bc.rlib --extern indexmap=/home/peter/.cargo-target/debug/deps/libindexmap-4eecd7ffa380c3a7.rlib --extern jsonschema=/home/peter/.cargo-target/debug/deps/libjsonschema-f779fd5fb9f15d5c.rlib --extern proptest=/home/peter/.cargo-target/debug/deps/libproptest-75cc026f351a0d29.rlib --extern quire_rs=/home/peter/.cargo-target/debug/deps/libquire_rs.rlib --extern rayon=/home/peter/.cargo-target/debug/deps/librayon-d3e0b4243631151c.rlib --extern regex=/home/peter/.cargo-target/debug/deps/libregex-53a4bdcef0a18e9e.rlib --extern serde=/home/peter/.cargo-target/debug/deps/libserde-bfa0e911ce3f89e8.rlib --extern serde_json=/home/peter/.cargo-target/debug/deps/libserde_json-e84a5626fe148831.rlib --extern serde_yaml=/home/peter/.cargo-target/debug/deps/libserde_yaml-cb1fc181b8b687a5.rlib --extern sha2=/home/peter/.cargo-target/debug/deps/libsha2-332268d5d0808ca9.rlib --extern thiserror=/home/peter/.cargo-target/debug/deps/libthiserror-16ac0fd995ef6c50.rlib --extern unicode_normalization=/home/peter/.cargo-target/debug/deps/libunicode_normalization-63fb7e2576f51c1d.rlib --extern uuid=/home/peter/.cargo-target/debug/deps/libuuid-b02cbfbbd67921a7.rlib`
+     Running `/home/peter/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name props_fr_040 --edition=2021 tests/props_fr_040.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --warn=unexpected_cfgs --check-cfg 'cfg(loom)' --test --cfg 'feature="default"' --cfg 'feature="resolve-file"' --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values("default", "python", "remeasure", "resolve-file", "wasm"))' -C metadata=e8b10945ce028a34 -C extra-filename=-6bbf654d3843f070 --out-dir /home/peter/.cargo-target/debug/deps -C incremental=/home/peter/.cargo-target/debug/incremental -L dependency=/home/peter/.cargo-target/debug/deps --extern criterion=/home/peter/.cargo-target/debug/deps/libcriterion-00707c68f219e39b.rlib --extern globset=/home/peter/.cargo-target/debug/deps/libglobset-4b77ac717fc9f468.rlib --extern ignore=/home/peter/.cargo-target/debug/deps/libignore-69ddc8f5a1b018bc.rlib --extern indexmap=/home/peter/.cargo-target/debug/deps/libindexmap-4eecd7ffa380c3a7.rlib --extern jsonschema=/home/peter/.cargo-target/debug/deps/libjsonschema-f779fd5fb9f15d5c.rlib --extern proptest=/home/peter/.cargo-target/debug/deps/libproptest-75cc026f351a0d29.rlib --extern quire_rs=/home/peter/.cargo-target/debug/deps/libquire_rs.rlib --extern rayon=/home/peter/.cargo-target/debug/deps/librayon-d3e0b4243631151c.rlib --extern regex=/home/peter/.cargo-target/debug/deps/libregex-53a4bdcef0a18e9e.rlib --extern serde=/home/peter/.cargo-target/debug/deps/libserde-bfa0e911ce3f89e8.rlib --extern serde_json=/home/peter/.cargo-target/debug/deps/libserde_json-e84a5626fe148831.rlib --extern serde_yaml=/home/peter/.cargo-target/debug/deps/libserde_yaml-cb1fc181b8b687a5.rlib --extern sha2=/home/peter/.cargo-target/debug/deps/libsha2-332268d5d0808ca9.rlib --extern thiserror=/home/peter/.cargo-target/debug/deps/libthiserror-16ac0fd995ef6c50.rlib --extern unicode_normalization=/home/peter/.cargo-target/debug/deps/libunicode_normalization-63fb7e2576f51c1d.rlib --extern uuid=/home/peter/.cargo-target/debug/deps/libuuid-b02cbfbbd67921a7.rlib`
+     Running `/home/peter/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name determinism --edition=2021 tests/determinism.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --warn=unexpected_cfgs --check-cfg 'cfg(loom)' --test --cfg 'feature="default"' --cfg 'feature="resolve-file"' --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values("default", "python", "remeasure", "resolve-file", "wasm"))' -C metadata=e051cd23dc0aec24 -C extra-filename=-2857822bc32933f0 --out-dir /home/peter/.cargo-target/debug/deps -C incremental=/home/peter/.cargo-target/debug/incremental -L dependency=/home/peter/.cargo-target/debug/deps --extern criterion=/home/peter/.cargo-target/debug/deps/libcriterion-00707c68f219e39b.rlib --extern globset=/home/peter/.cargo-target/debug/deps/libglobset-4b77ac717fc9f468.rlib --extern ignore=/home/peter/.cargo-target/debug/deps/libignore-69ddc8f5a1b018bc.rlib --extern indexmap=/home/peter/.cargo-target/debug/deps/libindexmap-4eecd7ffa380c3a7.rlib --extern jsonschema=/home/peter/.cargo-target/debug/deps/libjsonschema-f779fd5fb9f15d5c.rlib --extern proptest=/home/peter/.cargo-target/debug/deps/libproptest-75cc026f351a0d29.rlib --extern quire_rs=/home/peter/.cargo-target/debug/deps/libquire_rs.rlib --extern rayon=/home/peter/.cargo-target/debug/deps/librayon-d3e0b4243631151c.rlib --extern regex=/home/peter/.cargo-target/debug/deps/libregex-53a4bdcef0a18e9e.rlib --extern serde=/home/peter/.cargo-target/debug/deps/libserde-bfa0e911ce3f89e8.rlib --extern serde_json=/home/peter/.cargo-target/debug/deps/libserde_json-e84a5626fe148831.rlib --extern serde_yaml=/home/peter/.cargo-target/debug/deps/libserde_yaml-cb1fc181b8b687a5.rlib --extern sha2=/home/peter/.cargo-target/debug/deps/libsha2-332268d5d0808ca9.rlib --extern thiserror=/home/peter/.cargo-target/debug/deps/libthiserror-16ac0fd995ef6c50.rlib --extern unicode_normalization=/home/peter/.cargo-target/debug/deps/libunicode_normalization-63fb7e2576f51c1d.rlib --extern uuid=/home/peter/.cargo-target/debug/deps/libuuid-b02cbfbbd67921a7.rlib`
+     Running `/home/peter/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name parser_real_documents --edition=2021 tests/parser_real_documents.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --warn=unexpected_cfgs --check-cfg 'cfg(loom)' --test --cfg 'feature="default"' --cfg 'feature="resolve-file"' --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values("default", "python", "remeasure", "resolve-file", "wasm"))' -C metadata=f7de133e556dd3f1 -C extra-filename=-393f56f842408214 --out-dir /home/peter/.cargo-target/debug/deps -C incremental=/home/peter/.cargo-target/debug/incremental -L dependency=/home/peter/.cargo-target/debug/deps --extern criterion=/home/peter/.cargo-target/debug/deps/libcriterion-00707c68f219e39b.rlib --extern globset=/home/peter/.cargo-target/debug/deps/libglobset-4b77ac717fc9f468.rlib --extern ignore=/home/peter/.cargo-target/debug/deps/libignore-69ddc8f5a1b018bc.rlib --extern indexmap=/home/peter/.cargo-target/debug/deps/libindexmap-4eecd7ffa380c3a7.rlib --extern jsonschema=/home/peter/.cargo-target/debug/deps/libjsonschema-f779fd5fb9f15d5c.rlib --extern proptest=/home/peter/.cargo-target/debug/deps/libproptest-75cc026f351a0d29.rlib --extern quire_rs=/home/peter/.cargo-target/debug/deps/libquire_rs.rlib --extern rayon=/home/peter/.cargo-target/debug/deps/librayon-d3e0b4243631151c.rlib --extern regex=/home/peter/.cargo-target/debug/deps/libregex-53a4bdcef0a18e9e.rlib --extern serde=/home/peter/.cargo-target/debug/deps/libserde-bfa0e911ce3f89e8.rlib --extern serde_json=/home/peter/.cargo-target/debug/deps/libserde_json-e84a5626fe148831.rlib --extern serde_yaml=/home/peter/.cargo-target/debug/deps/libserde_yaml-cb1fc181b8b687a5.rlib --extern sha2=/home/peter/.cargo-target/debug/deps/libsha2-332268d5d0808ca9.rlib --extern thiserror=/home/peter/.cargo-target/debug/deps/libthiserror-16ac0fd995ef6c50.rlib --extern unicode_normalization=/home/peter/.cargo-target/debug/deps/libunicode_normalization-63fb7e2576f51c1d.rlib --extern uuid=/home/peter/.cargo-target/debug/deps/libuuid-b02cbfbbd67921a7.rlib`
+     Running `/home/peter/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name no_hidden_recompile --edition=2021 tests/no_hidden_recompile.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --warn=unexpected_cfgs --check-cfg 'cfg(loom)' --test --cfg 'feature="default"' --cfg 'feature="resolve-file"' --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values("default", "python", "remeasure", "resolve-file", "wasm"))' -C metadata=ad06ec04735c9bc2 -C extra-filename=-b52910e54f5b6127 --out-dir /home/peter/.cargo-target/debug/deps -C incremental=/home/peter/.cargo-target/debug/incremental -L dependency=/home/peter/.cargo-target/debug/deps --extern criterion=/home/peter/.cargo-target/debug/deps/libcriterion-00707c68f219e39b.rlib --extern globset=/home/peter/.cargo-target/debug/deps/libglobset-4b77ac717fc9f468.rlib --extern ignore=/home/peter/.cargo-target/debug/deps/libignore-69ddc8f5a1b018bc.rlib --extern indexmap=/home/peter/.cargo-target/debug/deps/libindexmap-4eecd7ffa380c3a7.rlib --extern jsonschema=/home/peter/.cargo-target/debug/deps/libjsonschema-f779fd5fb9f15d5c.rlib --extern proptest=/home/peter/.cargo-target/debug/deps/libproptest-75cc026f351a0d29.rlib --extern quire_rs=/home/peter/.cargo-target/debug/deps/libquire_rs.rlib --extern rayon=/home/peter/.cargo-target/debug/deps/librayon-d3e0b4243631151c.rlib --extern regex=/home/peter/.cargo-target/debug/deps/libregex-53a4bdcef0a18e9e.rlib --extern serde=/home/peter/.cargo-target/debug/deps/libserde-bfa0e911ce3f89e8.rlib --extern serde_json=/home/peter/.cargo-target/debug/deps/libserde_json-e84a5626fe148831.rlib --extern serde_yaml=/home/peter/.cargo-target/debug/deps/libserde_yaml-cb1fc181b8b687a5.rlib --extern sha2=/home/peter/.cargo-target/debug/deps/libsha2-332268d5d0808ca9.rlib --extern thiserror=/home/peter/.cargo-target/debug/deps/libthiserror-16ac0fd995ef6c50.rlib --extern unicode_normalization=/home/peter/.cargo-target/debug/deps/libunicode_normalization-63fb7e2576f51c1d.rlib --extern uuid=/home/peter/.cargo-target/debug/deps/libuuid-b02cbfbbd67921a7.rlib`
+     Running `/home/peter/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name filament_boundary_audit --edition=2021 tests/filament_boundary_audit.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --warn=unexpected_cfgs --check-cfg 'cfg(loom)' --test --cfg 'feature="default"' --cfg 'feature="resolve-file"' --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values("default", "python", "remeasure", "resolve-file", "wasm"))' -C metadata=d2f624545225dec8 -C extra-filename=-ef24c96f8d9855e1 --out-dir /home/peter/.cargo-target/debug/deps -C incremental=/home/peter/.cargo-target/debug/incremental -L dependency=/home/peter/.cargo-target/debug/deps --extern criterion=/home/peter/.cargo-target/debug/deps/libcriterion-00707c68f219e39b.rlib --extern globset=/home/peter/.cargo-target/debug/deps/libglobset-4b77ac717fc9f468.rlib --extern ignore=/home/peter/.cargo-target/debug/deps/libignore-69ddc8f5a1b018bc.rlib --extern indexmap=/home/peter/.cargo-target/debug/deps/libindexmap-4eecd7ffa380c3a7.rlib --extern jsonschema=/home/peter/.cargo-target/debug/deps/libjsonschema-f779fd5fb9f15d5c.rlib --extern proptest=/home/peter/.cargo-target/debug/deps/libproptest-75cc026f351a0d29.rlib --extern quire_rs=/home/peter/.cargo-target/debug/deps/libquire_rs.rlib --extern rayon=/home/peter/.cargo-target/debug/deps/librayon-d3e0b4243631151c.rlib --extern regex=/home/peter/.cargo-target/debug/deps/libregex-53a4bdcef0a18e9e.rlib --extern serde=/home/peter/.cargo-target/debug/deps/libserde-bfa0e911ce3f89e8.rlib --extern serde_json=/home/peter/.cargo-target/debug/deps/libserde_json-e84a5626fe148831.rlib --extern serde_yaml=/home/peter/.cargo-target/debug/deps/libserde_yaml-cb1fc181b8b687a5.rlib --extern sha2=/home/peter/.cargo-target/debug/deps/libsha2-332268d5d0808ca9.rlib --extern thiserror=/home/peter/.cargo-target/debug/deps/libthiserror-16ac0fd995ef6c50.rlib --extern unicode_normalization=/home/peter/.cargo-target/debug/deps/libunicode_normalization-63fb7e2576f51c1d.rlib --extern uuid=/home/peter/.cargo-target/debug/deps/libuuid-b02cbfbbd67921a7.rlib`
+     Running `/home/peter/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name concurrency --edition=2021 tests/concurrency.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --warn=unexpected_cfgs --check-cfg 'cfg(loom)' --test --cfg 'feature="default"' --cfg 'feature="resolve-file"' --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values("default", "python", "remeasure", "resolve-file", "wasm"))' -C metadata=ae6980449975abbf -C extra-filename=-054a531314a7251a --out-dir /home/peter/.cargo-target/debug/deps -C incremental=/home/peter/.cargo-target/debug/incremental -L dependency=/home/peter/.cargo-target/debug/deps --extern criterion=/home/peter/.cargo-target/debug/deps/libcriterion-00707c68f219e39b.rlib --extern globset=/home/peter/.cargo-target/debug/deps/libglobset-4b77ac717fc9f468.rlib --extern ignore=/home/peter/.cargo-target/debug/deps/libignore-69ddc8f5a1b018bc.rlib --extern indexmap=/home/peter/.cargo-target/debug/deps/libindexmap-4eecd7ffa380c3a7.rlib --extern jsonschema=/home/peter/.cargo-target/debug/deps/libjsonschema-f779fd5fb9f15d5c.rlib --extern proptest=/home/peter/.cargo-target/debug/deps/libproptest-75cc026f351a0d29.rlib --extern quire_rs=/home/peter/.cargo-target/debug/deps/libquire_rs.rlib --extern rayon=/home/peter/.cargo-target/debug/deps/librayon-d3e0b4243631151c.rlib --extern regex=/home/peter/.cargo-target/debug/deps/libregex-53a4bdcef0a18e9e.rlib --extern serde=/home/peter/.cargo-target/debug/deps/libserde-bfa0e911ce3f89e8.rlib --extern serde_json=/home/peter/.cargo-target/debug/deps/libserde_json-e84a5626fe148831.rlib --extern serde_yaml=/home/peter/.cargo-target/debug/deps/libserde_yaml-cb1fc181b8b687a5.rlib --extern sha2=/home/peter/.cargo-target/debug/deps/libsha2-332268d5d0808ca9.rlib --extern thiserror=/home/peter/.cargo-target/debug/deps/libthiserror-16ac0fd995ef6c50.rlib --extern unicode_normalization=/home/peter/.cargo-target/debug/deps/libunicode_normalization-63fb7e2576f51c1d.rlib --extern uuid=/home/peter/.cargo-target/debug/deps/libuuid-b02cbfbbd67921a7.rlib`
+     Running `/home/peter/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name inverse_edges --edition=2021 tests/inverse_edges.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --warn=unexpected_cfgs --check-cfg 'cfg(loom)' --test --cfg 'feature="default"' --cfg 'feature="resolve-file"' --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values("default", "python", "remeasure", "resolve-file", "wasm"))' -C metadata=6f3b9091b4c8d23b -C extra-filename=-8affb9ed0c1a0567 --out-dir /home/peter/.cargo-target/debug/deps -C incremental=/home/peter/.cargo-target/debug/incremental -L dependency=/home/peter/.cargo-target/debug/deps --extern criterion=/home/peter/.cargo-target/debug/deps/libcriterion-00707c68f219e39b.rlib --extern globset=/home/peter/.cargo-target/debug/deps/libglobset-4b77ac717fc9f468.rlib --extern ignore=/home/peter/.cargo-target/debug/deps/libignore-69ddc8f5a1b018bc.rlib --extern indexmap=/home/peter/.cargo-target/debug/deps/libindexmap-4eecd7ffa380c3a7.rlib --extern jsonschema=/home/peter/.cargo-target/debug/deps/libjsonschema-f779fd5fb9f15d5c.rlib --extern proptest=/home/peter/.cargo-target/debug/deps/libproptest-75cc026f351a0d29.rlib --extern quire_rs=/home/peter/.cargo-target/debug/deps/libquire_rs.rlib --extern rayon=/home/peter/.cargo-target/debug/deps/librayon-d3e0b4243631151c.rlib --extern regex=/home/peter/.cargo-target/debug/deps/libregex-53a4bdcef0a18e9e.rlib --extern serde=/home/peter/.cargo-target/debug/deps/libserde-bfa0e911ce3f89e8.rlib --extern serde_json=/home/peter/.cargo-target/debug/deps/libserde_json-e84a5626fe148831.rlib --extern serde_yaml=/home/peter/.cargo-target/debug/deps/libserde_yaml-cb1fc181b8b687a5.rlib --extern sha2=/home/peter/.cargo-target/debug/deps/libsha2-332268d5d0808ca9.rlib --extern thiserror=/home/peter/.cargo-target/debug/deps/libthiserror-16ac0fd995ef6c50.rlib --extern unicode_normalization=/home/peter/.cargo-target/debug/deps/libunicode_normalization-63fb7e2576f51c1d.rlib --extern uuid=/home/peter/.cargo-target/debug/deps/libuuid-b02cbfbbd67921a7.rlib`
+     Running `/home/peter/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name parser_parity --edition=2021 tests/parser_parity.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --warn=unexpected_cfgs --check-cfg 'cfg(loom)' --test --cfg 'feature="default"' --cfg 'feature="resolve-file"' --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values("default", "python", "remeasure", "resolve-file", "wasm"))' -C metadata=c24a09011276331c -C extra-filename=-8d5fc566ff8deb70 --out-dir /home/peter/.cargo-target/debug/deps -C incremental=/home/peter/.cargo-target/debug/incremental -L dependency=/home/peter/.cargo-target/debug/deps --extern criterion=/home/peter/.cargo-target/debug/deps/libcriterion-00707c68f219e39b.rlib --extern globset=/home/peter/.cargo-target/debug/deps/libglobset-4b77ac717fc9f468.rlib --extern ignore=/home/peter/.cargo-target/debug/deps/libignore-69ddc8f5a1b018bc.rlib --extern indexmap=/home/peter/.cargo-target/debug/deps/libindexmap-4eecd7ffa380c3a7.rlib --extern jsonschema=/home/peter/.cargo-target/debug/deps/libjsonschema-f779fd5fb9f15d5c.rlib --extern proptest=/home/peter/.cargo-target/debug/deps/libproptest-75cc026f351a0d29.rlib --extern quire_rs=/home/peter/.cargo-target/debug/deps/libquire_rs.rlib --extern rayon=/home/peter/.cargo-target/debug/deps/librayon-d3e0b4243631151c.rlib --extern regex=/home/peter/.cargo-target/debug/deps/libregex-53a4bdcef0a18e9e.rlib --extern serde=/home/peter/.cargo-target/debug/deps/libserde-bfa0e911ce3f89e8.rlib --extern serde_json=/home/peter/.cargo-target/debug/deps/libserde_json-e84a5626fe148831.rlib --extern serde_yaml=/home/peter/.cargo-target/debug/deps/libserde_yaml-cb1fc181b8b687a5.rlib --extern sha2=/home/peter/.cargo-target/debug/deps/libsha2-332268d5d0808ca9.rlib --extern thiserror=/home/peter/.cargo-target/debug/deps/libthiserror-16ac0fd995ef6c50.rlib --extern unicode_normalization=/home/peter/.cargo-target/debug/deps/libunicode_normalization-63fb7e2576f51c1d.rlib --extern uuid=/home/peter/.cargo-target/debug/deps/libuuid-b02cbfbbd67921a7.rlib`
+     Running `/home/peter/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name output_contract --edition=2021 tests/output_contract.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --warn=unexpected_cfgs --check-cfg 'cfg(loom)' --test --cfg 'feature="default"' --cfg 'feature="resolve-file"' --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values("default", "python", "remeasure", "resolve-file", "wasm"))' -C metadata=179522b8eea15e33 -C extra-filename=-4971baa7d7746fc5 --out-dir /home/peter/.cargo-target/debug/deps -C incremental=/home/peter/.cargo-target/debug/incremental -L dependency=/home/peter/.cargo-target/debug/deps --extern criterion=/home/peter/.cargo-target/debug/deps/libcriterion-00707c68f219e39b.rlib --extern globset=/home/peter/.cargo-target/debug/deps/libglobset-4b77ac717fc9f468.rlib --extern ignore=/home/peter/.cargo-target/debug/deps/libignore-69ddc8f5a1b018bc.rlib --extern indexmap=/home/peter/.cargo-target/debug/deps/libindexmap-4eecd7ffa380c3a7.rlib --extern jsonschema=/home/peter/.cargo-target/debug/deps/libjsonschema-f779fd5fb9f15d5c.rlib --extern proptest=/home/peter/.cargo-target/debug/deps/libproptest-75cc026f351a0d29.rlib --extern quire_rs=/home/peter/.cargo-target/debug/deps/libquire_rs.rlib --extern rayon=/home/peter/.cargo-target/debug/deps/librayon-d3e0b4243631151c.rlib --extern regex=/home/peter/.cargo-target/debug/deps/libregex-53a4bdcef0a18e9e.rlib --extern serde=/home/peter/.cargo-target/debug/deps/libserde-bfa0e911ce3f89e8.rlib --extern serde_json=/home/peter/.cargo-target/debug/deps/libserde_json-e84a5626fe148831.rlib --extern serde_yaml=/home/peter/.cargo-target/debug/deps/libserde_yaml-cb1fc181b8b687a5.rlib --extern sha2=/home/peter/.cargo-target/debug/deps/libsha2-332268d5d0808ca9.rlib --extern thiserror=/home/peter/.cargo-target/debug/deps/libthiserror-16ac0fd995ef6c50.rlib --extern unicode_normalization=/home/peter/.cargo-target/debug/deps/libunicode_normalization-63fb7e2576f51c1d.rlib --extern uuid=/home/peter/.cargo-target/debug/deps/libuuid-b02cbfbbd67921a7.rlib`
+     Running `/home/peter/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name fr056_fit_check --edition=2021 examples/fr056_fit_check.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type bin --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --warn=unexpected_cfgs --check-cfg 'cfg(loom)' --cfg 'feature="default"' --cfg 'feature="resolve-file"' --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values("default", "python", "remeasure", "resolve-file", "wasm"))' -C metadata=c4de50488d8daa96 -C extra-filename=-d7ebe1a427fa478a --out-dir /home/peter/.cargo-target/debug/examples -C incremental=/home/peter/.cargo-target/debug/incremental -L dependency=/home/peter/.cargo-target/debug/deps --extern criterion=/home/peter/.cargo-target/debug/deps/libcriterion-00707c68f219e39b.rlib --extern globset=/home/peter/.cargo-target/debug/deps/libglobset-4b77ac717fc9f468.rlib --extern ignore=/home/peter/.cargo-target/debug/deps/libignore-69ddc8f5a1b018bc.rlib --extern indexmap=/home/peter/.cargo-target/debug/deps/libindexmap-4eecd7ffa380c3a7.rlib --extern jsonschema=/home/peter/.cargo-target/debug/deps/libjsonschema-f779fd5fb9f15d5c.rlib --extern proptest=/home/peter/.cargo-target/debug/deps/libproptest-75cc026f351a0d29.rlib --extern quire_rs=/home/peter/.cargo-target/debug/deps/libquire_rs.rlib --extern rayon=/home/peter/.cargo-target/debug/deps/librayon-d3e0b4243631151c.rlib --extern regex=/home/peter/.cargo-target/debug/deps/libregex-53a4bdcef0a18e9e.rlib --extern serde=/home/peter/.cargo-target/debug/deps/libserde-bfa0e911ce3f89e8.rlib --extern serde_json=/home/peter/.cargo-target/debug/deps/libserde_json-e84a5626fe148831.rlib --extern serde_yaml=/home/peter/.cargo-target/debug/deps/libserde_yaml-cb1fc181b8b687a5.rlib --extern sha2=/home/peter/.cargo-target/debug/deps/libsha2-332268d5d0808ca9.rlib --extern thiserror=/home/peter/.cargo-target/debug/deps/libthiserror-16ac0fd995ef6c50.rlib --extern unicode_normalization=/home/peter/.cargo-target/debug/deps/libunicode_normalization-63fb7e2576f51c1d.rlib --extern uuid=/home/peter/.cargo-target/debug/deps/libuuid-b02cbfbbd67921a7.rlib`
+     Running `/home/peter/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name trace_dogfood --edition=2021 tests/trace_dogfood.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --warn=unexpected_cfgs --check-cfg 'cfg(loom)' --test --cfg 'feature="default"' --cfg 'feature="resolve-file"' --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values("default", "python", "remeasure", "resolve-file", "wasm"))' -C metadata=2bd79da3e872bbf8 -C extra-filename=-9655c2d50ecf2cab --out-dir /home/peter/.cargo-target/debug/deps -C incremental=/home/peter/.cargo-target/debug/incremental -L dependency=/home/peter/.cargo-target/debug/deps --extern criterion=/home/peter/.cargo-target/debug/deps/libcriterion-00707c68f219e39b.rlib --extern globset=/home/peter/.cargo-target/debug/deps/libglobset-4b77ac717fc9f468.rlib --extern ignore=/home/peter/.cargo-target/debug/deps/libignore-69ddc8f5a1b018bc.rlib --extern indexmap=/home/peter/.cargo-target/debug/deps/libindexmap-4eecd7ffa380c3a7.rlib --extern jsonschema=/home/peter/.cargo-target/debug/deps/libjsonschema-f779fd5fb9f15d5c.rlib --extern proptest=/home/peter/.cargo-target/debug/deps/libproptest-75cc026f351a0d29.rlib --extern quire_rs=/home/peter/.cargo-target/debug/deps/libquire_rs.rlib --extern rayon=/home/peter/.cargo-target/debug/deps/librayon-d3e0b4243631151c.rlib --extern regex=/home/peter/.cargo-target/debug/deps/libregex-53a4bdcef0a18e9e.rlib --extern serde=/home/peter/.cargo-target/debug/deps/libserde-bfa0e911ce3f89e8.rlib --extern serde_json=/home/peter/.cargo-target/debug/deps/libserde_json-e84a5626fe148831.rlib --extern serde_yaml=/home/peter/.cargo-target/debug/deps/libserde_yaml-cb1fc181b8b687a5.rlib --extern sha2=/home/peter/.cargo-target/debug/deps/libsha2-332268d5d0808ca9.rlib --extern thiserror=/home/peter/.cargo-target/debug/deps/libthiserror-16ac0fd995ef6c50.rlib --extern unicode_normalization=/home/peter/.cargo-target/debug/deps/libunicode_normalization-63fb7e2576f51c1d.rlib --extern uuid=/home/peter/.cargo-target/debug/deps/libuuid-b02cbfbbd67921a7.rlib`
+     Running `/home/peter/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name coverage_rollup --edition=2021 tests/coverage_rollup.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --warn=unexpected_cfgs --check-cfg 'cfg(loom)' --test --cfg 'feature="default"' --cfg 'feature="resolve-file"' --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values("default", "python", "remeasure", "resolve-file", "wasm"))' -C metadata=a158505624c5e1f7 -C extra-filename=-3dff034b5eb9ba2f --out-dir /home/peter/.cargo-target/debug/deps -C incremental=/home/peter/.cargo-target/debug/incremental -L dependency=/home/peter/.cargo-target/debug/deps --extern criterion=/home/peter/.cargo-target/debug/deps/libcriterion-00707c68f219e39b.rlib --extern globset=/home/peter/.cargo-target/debug/deps/libglobset-4b77ac717fc9f468.rlib --extern ignore=/home/peter/.cargo-target/debug/deps/libignore-69ddc8f5a1b018bc.rlib --extern indexmap=/home/peter/.cargo-target/debug/deps/libindexmap-4eecd7ffa380c3a7.rlib --extern jsonschema=/home/peter/.cargo-target/debug/deps/libjsonschema-f779fd5fb9f15d5c.rlib --extern proptest=/home/peter/.cargo-target/debug/deps/libproptest-75cc026f351a0d29.rlib --extern quire_rs=/home/peter/.cargo-target/debug/deps/libquire_rs.rlib --extern rayon=/home/peter/.cargo-target/debug/deps/librayon-d3e0b4243631151c.rlib --extern regex=/home/peter/.cargo-target/debug/deps/libregex-53a4bdcef0a18e9e.rlib --extern serde=/home/peter/.cargo-target/debug/deps/libserde-bfa0e911ce3f89e8.rlib --extern serde_json=/home/peter/.cargo-target/debug/deps/libserde_json-e84a5626fe148831.rlib --extern serde_yaml=/home/peter/.cargo-target/debug/deps/libserde_yaml-cb1fc181b8b687a5.rlib --extern sha2=/home/peter/.cargo-target/debug/deps/libsha2-332268d5d0808ca9.rlib --extern thiserror=/home/peter/.cargo-target/debug/deps/libthiserror-16ac0fd995ef6c50.rlib --extern unicode_normalization=/home/peter/.cargo-target/debug/deps/libunicode_normalization-63fb7e2576f51c1d.rlib --extern uuid=/home/peter/.cargo-target/debug/deps/libuuid-b02cbfbbd67921a7.rlib`
+     Running `/home/peter/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name corpus_concurrency --edition=2021 tests/corpus_concurrency.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --warn=unexpected_cfgs --check-cfg 'cfg(loom)' --test --cfg 'feature="default"' --cfg 'feature="resolve-file"' --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values("default", "python", "remeasure", "resolve-file", "wasm"))' -C metadata=e3a0f75c2ca7c98c -C extra-filename=-a4a0ab3f0dcf19a2 --out-dir /home/peter/.cargo-target/debug/deps -C incremental=/home/peter/.cargo-target/debug/incremental -L dependency=/home/peter/.cargo-target/debug/deps --extern criterion=/home/peter/.cargo-target/debug/deps/libcriterion-00707c68f219e39b.rlib --extern globset=/home/peter/.cargo-target/debug/deps/libglobset-4b77ac717fc9f468.rlib --extern ignore=/home/peter/.cargo-target/debug/deps/libignore-69ddc8f5a1b018bc.rlib --extern indexmap=/home/peter/.cargo-target/debug/deps/libindexmap-4eecd7ffa380c3a7.rlib --extern jsonschema=/home/peter/.cargo-target/debug/deps/libjsonschema-f779fd5fb9f15d5c.rlib --extern proptest=/home/peter/.cargo-target/debug/deps/libproptest-75cc026f351a0d29.rlib --extern quire_rs=/home/peter/.cargo-target/debug/deps/libquire_rs.rlib --extern rayon=/home/peter/.cargo-target/debug/deps/librayon-d3e0b4243631151c.rlib --extern regex=/home/peter/.cargo-target/debug/deps/libregex-53a4bdcef0a18e9e.rlib --extern serde=/home/peter/.cargo-target/debug/deps/libserde-bfa0e911ce3f89e8.rlib --extern serde_json=/home/peter/.cargo-target/debug/deps/libserde_json-e84a5626fe148831.rlib --extern serde_yaml=/home/peter/.cargo-target/debug/deps/libserde_yaml-cb1fc181b8b687a5.rlib --extern sha2=/home/peter/.cargo-target/debug/deps/libsha2-332268d5d0808ca9.rlib --extern thiserror=/home/peter/.cargo-target/debug/deps/libthiserror-16ac0fd995ef6c50.rlib --extern unicode_normalization=/home/peter/.cargo-target/debug/deps/libunicode_normalization-63fb7e2576f51c1d.rlib --extern uuid=/home/peter/.cargo-target/debug/deps/libuuid-b02cbfbbd67921a7.rlib`
+     Running `/home/peter/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name robustness --edition=2021 tests/robustness.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --warn=unexpected_cfgs --check-cfg 'cfg(loom)' --test --cfg 'feature="default"' --cfg 'feature="resolve-file"' --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values("default", "python", "remeasure", "resolve-file", "wasm"))' -C metadata=58edcaefb52b6a90 -C extra-filename=-8cfb99bb6bdd4155 --out-dir /home/peter/.cargo-target/debug/deps -C incremental=/home/peter/.cargo-target/debug/incremental -L dependency=/home/peter/.cargo-target/debug/deps --extern criterion=/home/peter/.cargo-target/debug/deps/libcriterion-00707c68f219e39b.rlib --extern globset=/home/peter/.cargo-target/debug/deps/libglobset-4b77ac717fc9f468.rlib --extern ignore=/home/peter/.cargo-target/debug/deps/libignore-69ddc8f5a1b018bc.rlib --extern indexmap=/home/peter/.cargo-target/debug/deps/libindexmap-4eecd7ffa380c3a7.rlib --extern jsonschema=/home/peter/.cargo-target/debug/deps/libjsonschema-f779fd5fb9f15d5c.rlib --extern proptest=/home/peter/.cargo-target/debug/deps/libproptest-75cc026f351a0d29.rlib --extern quire_rs=/home/peter/.cargo-target/debug/deps/libquire_rs.rlib --extern rayon=/home/peter/.cargo-target/debug/deps/librayon-d3e0b4243631151c.rlib --extern regex=/home/peter/.cargo-target/debug/deps/libregex-53a4bdcef0a18e9e.rlib --extern serde=/home/peter/.cargo-target/debug/deps/libserde-bfa0e911ce3f89e8.rlib --extern serde_json=/home/peter/.cargo-target/debug/deps/libserde_json-e84a5626fe148831.rlib --extern serde_yaml=/home/peter/.cargo-target/debug/deps/libserde_yaml-cb1fc181b8b687a5.rlib --extern sha2=/home/peter/.cargo-target/debug/deps/libsha2-332268d5d0808ca9.rlib --extern thiserror=/home/peter/.cargo-target/debug/deps/libthiserror-16ac0fd995ef6c50.rlib --extern unicode_normalization=/home/peter/.cargo-target/debug/deps/libunicode_normalization-63fb7e2576f51c1d.rlib --extern uuid=/home/peter/.cargo-target/debug/deps/libuuid-b02cbfbbd67921a7.rlib`
+     Running `/home/peter/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name parser_golden --edition=2021 tests/parser_golden.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --warn=unexpected_cfgs --check-cfg 'cfg(loom)' --test --cfg 'feature="default"' --cfg 'feature="resolve-file"' --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values("default", "python", "remeasure", "resolve-file", "wasm"))' -C metadata=01a1899ec258d9f1 -C extra-filename=-b0d2673e7674f84c --out-dir /home/peter/.cargo-target/debug/deps -C incremental=/home/peter/.cargo-target/debug/incremental -L dependency=/home/peter/.cargo-target/debug/deps --extern criterion=/home/peter/.cargo-target/debug/deps/libcriterion-00707c68f219e39b.rlib --extern globset=/home/peter/.cargo-target/debug/deps/libglobset-4b77ac717fc9f468.rlib --extern ignore=/home/peter/.cargo-target/debug/deps/libignore-69ddc8f5a1b018bc.rlib --extern indexmap=/home/peter/.cargo-target/debug/deps/libindexmap-4eecd7ffa380c3a7.rlib --extern jsonschema=/home/peter/.cargo-target/debug/deps/libjsonschema-f779fd5fb9f15d5c.rlib --extern proptest=/home/peter/.cargo-target/debug/deps/libproptest-75cc026f351a0d29.rlib --extern quire_rs=/home/peter/.cargo-target/debug/deps/libquire_rs.rlib --extern rayon=/home/peter/.cargo-target/debug/deps/librayon-d3e0b4243631151c.rlib --extern regex=/home/peter/.cargo-target/debug/deps/libregex-53a4bdcef0a18e9e.rlib --extern serde=/home/peter/.cargo-target/debug/deps/libserde-bfa0e911ce3f89e8.rlib --extern serde_json=/home/peter/.cargo-target/debug/deps/libserde_json-e84a5626fe148831.rlib --extern serde_yaml=/home/peter/.cargo-target/debug/deps/libserde_yaml-cb1fc181b8b687a5.rlib --extern sha2=/home/peter/.cargo-target/debug/deps/libsha2-332268d5d0808ca9.rlib --extern thiserror=/home/peter/.cargo-target/debug/deps/libthiserror-16ac0fd995ef6c50.rlib --extern unicode_normalization=/home/peter/.cargo-target/debug/deps/libunicode_normalization-63fb7e2576f51c1d.rlib --extern uuid=/home/peter/.cargo-target/debug/deps/libuuid-b02cbfbbd67921a7.rlib`
+     Running `/home/peter/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name quality_lints --edition=2021 tests/quality_lints.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --warn=unexpected_cfgs --check-cfg 'cfg(loom)' --test --cfg 'feature="default"' --cfg 'feature="resolve-file"' --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values("default", "python", "remeasure", "resolve-file", "wasm"))' -C metadata=32d6a44acbae5ce5 -C extra-filename=-f7206dbf0bc6d0f9 --out-dir /home/peter/.cargo-target/debug/deps -C incremental=/home/peter/.cargo-target/debug/incremental -L dependency=/home/peter/.cargo-target/debug/deps --extern criterion=/home/peter/.cargo-target/debug/deps/libcriterion-00707c68f219e39b.rlib --extern globset=/home/peter/.cargo-target/debug/deps/libglobset-4b77ac717fc9f468.rlib --extern ignore=/home/peter/.cargo-target/debug/deps/libignore-69ddc8f5a1b018bc.rlib --extern indexmap=/home/peter/.cargo-target/debug/deps/libindexmap-4eecd7ffa380c3a7.rlib --extern jsonschema=/home/peter/.cargo-target/debug/deps/libjsonschema-f779fd5fb9f15d5c.rlib --extern proptest=/home/peter/.cargo-target/debug/deps/libproptest-75cc026f351a0d29.rlib --extern quire_rs=/home/peter/.cargo-target/debug/deps/libquire_rs.rlib --extern rayon=/home/peter/.cargo-target/debug/deps/librayon-d3e0b4243631151c.rlib --extern regex=/home/peter/.cargo-target/debug/deps/libregex-53a4bdcef0a18e9e.rlib --extern serde=/home/peter/.cargo-target/debug/deps/libserde-bfa0e911ce3f89e8.rlib --extern serde_json=/home/peter/.cargo-target/debug/deps/libserde_json-e84a5626fe148831.rlib --extern serde_yaml=/home/peter/.cargo-target/debug/deps/libserde_yaml-cb1fc181b8b687a5.rlib --extern sha2=/home/peter/.cargo-target/debug/deps/libsha2-332268d5d0808ca9.rlib --extern thiserror=/home/peter/.cargo-target/debug/deps/libthiserror-16ac0fd995ef6c50.rlib --extern unicode_normalization=/home/peter/.cargo-target/debug/deps/libunicode_normalization-63fb7e2576f51c1d.rlib --extern uuid=/home/peter/.cargo-target/debug/deps/libuuid-b02cbfbbd67921a7.rlib`
+     Running `/home/peter/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name bundle_validate --edition=2021 tests/bundle_validate.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --warn=unexpected_cfgs --check-cfg 'cfg(loom)' --test --cfg 'feature="default"' --cfg 'feature="resolve-file"' --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values("default", "python", "remeasure", "resolve-file", "wasm"))' -C metadata=efafd9ec1ec65b4f -C extra-filename=-a2c103a61e062c43 --out-dir /home/peter/.cargo-target/debug/deps -C incremental=/home/peter/.cargo-target/debug/incremental -L dependency=/home/peter/.cargo-target/debug/deps --extern criterion=/home/peter/.cargo-target/debug/deps/libcriterion-00707c68f219e39b.rlib --extern globset=/home/peter/.cargo-target/debug/deps/libglobset-4b77ac717fc9f468.rlib --extern ignore=/home/peter/.cargo-target/debug/deps/libignore-69ddc8f5a1b018bc.rlib --extern indexmap=/home/peter/.cargo-target/debug/deps/libindexmap-4eecd7ffa380c3a7.rlib --extern jsonschema=/home/peter/.cargo-target/debug/deps/libjsonschema-f779fd5fb9f15d5c.rlib --extern proptest=/home/peter/.cargo-target/debug/deps/libproptest-75cc026f351a0d29.rlib --extern quire_rs=/home/peter/.cargo-target/debug/deps/libquire_rs.rlib --extern rayon=/home/peter/.cargo-target/debug/deps/librayon-d3e0b4243631151c.rlib --extern regex=/home/peter/.cargo-target/debug/deps/libregex-53a4bdcef0a18e9e.rlib --extern serde=/home/peter/.cargo-target/debug/deps/libserde-bfa0e911ce3f89e8.rlib --extern serde_json=/home/peter/.cargo-target/debug/deps/libserde_json-e84a5626fe148831.rlib --extern serde_yaml=/home/peter/.cargo-target/debug/deps/libserde_yaml-cb1fc181b8b687a5.rlib --extern sha2=/home/peter/.cargo-target/debug/deps/libsha2-332268d5d0808ca9.rlib --extern thiserror=/home/peter/.cargo-target/debug/deps/libthiserror-16ac0fd995ef6c50.rlib --extern unicode_normalization=/home/peter/.cargo-target/debug/deps/libunicode_normalization-63fb7e2576f51c1d.rlib --extern uuid=/home/peter/.cargo-target/debug/deps/libuuid-b02cbfbbd67921a7.rlib`
+     Running `/home/peter/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name spec_dogfood --edition=2021 tests/spec_dogfood.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --warn=unexpected_cfgs --check-cfg 'cfg(loom)' --test --cfg 'feature="default"' --cfg 'feature="resolve-file"' --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values("default", "python", "remeasure", "resolve-file", "wasm"))' -C metadata=d236bb76dffbc9f7 -C extra-filename=-77a3d5c4730f971c --out-dir /home/peter/.cargo-target/debug/deps -C incremental=/home/peter/.cargo-target/debug/incremental -L dependency=/home/peter/.cargo-target/debug/deps --extern criterion=/home/peter/.cargo-target/debug/deps/libcriterion-00707c68f219e39b.rlib --extern globset=/home/peter/.cargo-target/debug/deps/libglobset-4b77ac717fc9f468.rlib --extern ignore=/home/peter/.cargo-target/debug/deps/libignore-69ddc8f5a1b018bc.rlib --extern indexmap=/home/peter/.cargo-target/debug/deps/libindexmap-4eecd7ffa380c3a7.rlib --extern jsonschema=/home/peter/.cargo-target/debug/deps/libjsonschema-f779fd5fb9f15d5c.rlib --extern proptest=/home/peter/.cargo-target/debug/deps/libproptest-75cc026f351a0d29.rlib --extern quire_rs=/home/peter/.cargo-target/debug/deps/libquire_rs.rlib --extern rayon=/home/peter/.cargo-target/debug/deps/librayon-d3e0b4243631151c.rlib --extern regex=/home/peter/.cargo-target/debug/deps/libregex-53a4bdcef0a18e9e.rlib --extern serde=/home/peter/.cargo-target/debug/deps/libserde-bfa0e911ce3f89e8.rlib --extern serde_json=/home/peter/.cargo-target/debug/deps/libserde_json-e84a5626fe148831.rlib --extern serde_yaml=/home/peter/.cargo-target/debug/deps/libserde_yaml-cb1fc181b8b687a5.rlib --extern sha2=/home/peter/.cargo-target/debug/deps/libsha2-332268d5d0808ca9.rlib --extern thiserror=/home/peter/.cargo-target/debug/deps/libthiserror-16ac0fd995ef6c50.rlib --extern unicode_normalization=/home/peter/.cargo-target/debug/deps/libunicode_normalization-63fb7e2576f51c1d.rlib --extern uuid=/home/peter/.cargo-target/debug/deps/libuuid-b02cbfbbd67921a7.rlib`
+     Running `/home/peter/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name filament_core_fixtures --edition=2021 tests/filament_core_fixtures.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --warn=unexpected_cfgs --check-cfg 'cfg(loom)' --test --cfg 'feature="default"' --cfg 'feature="resolve-file"' --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values("default", "python", "remeasure", "resolve-file", "wasm"))' -C metadata=3842ba2229bc9b43 -C extra-filename=-63e135b25b2935af --out-dir /home/peter/.cargo-target/debug/deps -C incremental=/home/peter/.cargo-target/debug/incremental -L dependency=/home/peter/.cargo-target/debug/deps --extern criterion=/home/peter/.cargo-target/debug/deps/libcriterion-00707c68f219e39b.rlib --extern globset=/home/peter/.cargo-target/debug/deps/libglobset-4b77ac717fc9f468.rlib --extern ignore=/home/peter/.cargo-target/debug/deps/libignore-69ddc8f5a1b018bc.rlib --extern indexmap=/home/peter/.cargo-target/debug/deps/libindexmap-4eecd7ffa380c3a7.rlib --extern jsonschema=/home/peter/.cargo-target/debug/deps/libjsonschema-f779fd5fb9f15d5c.rlib --extern proptest=/home/peter/.cargo-target/debug/deps/libproptest-75cc026f351a0d29.rlib --extern quire_rs=/home/peter/.cargo-target/debug/deps/libquire_rs.rlib --extern rayon=/home/peter/.cargo-target/debug/deps/librayon-d3e0b4243631151c.rlib --extern regex=/home/peter/.cargo-target/debug/deps/libregex-53a4bdcef0a18e9e.rlib --extern serde=/home/peter/.cargo-target/debug/deps/libserde-bfa0e911ce3f89e8.rlib --extern serde_json=/home/peter/.cargo-target/debug/deps/libserde_json-e84a5626fe148831.rlib --extern serde_yaml=/home/peter/.cargo-target/debug/deps/libserde_yaml-cb1fc181b8b687a5.rlib --extern sha2=/home/peter/.cargo-target/debug/deps/libsha2-332268d5d0808ca9.rlib --extern thiserror=/home/peter/.cargo-target/debug/deps/libthiserror-16ac0fd995ef6c50.rlib --extern unicode_normalization=/home/peter/.cargo-target/debug/deps/libunicode_normalization-63fb7e2576f51c1d.rlib --extern uuid=/home/peter/.cargo-target/debug/deps/libuuid-b02cbfbbd67921a7.rlib`
+     Running `/home/peter/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name obligations --edition=2021 tests/obligations.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --warn=unexpected_cfgs --check-cfg 'cfg(loom)' --test --cfg 'feature="default"' --cfg 'feature="resolve-file"' --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values("default", "python", "remeasure", "resolve-file", "wasm"))' -C metadata=67cde9df9b69d76c -C extra-filename=-e8a399f40a8a83e3 --out-dir /home/peter/.cargo-target/debug/deps -C incremental=/home/peter/.cargo-target/debug/incremental -L dependency=/home/peter/.cargo-target/debug/deps --extern criterion=/home/peter/.cargo-target/debug/deps/libcriterion-00707c68f219e39b.rlib --extern globset=/home/peter/.cargo-target/debug/deps/libglobset-4b77ac717fc9f468.rlib --extern ignore=/home/peter/.cargo-target/debug/deps/libignore-69ddc8f5a1b018bc.rlib --extern indexmap=/home/peter/.cargo-target/debug/deps/libindexmap-4eecd7ffa380c3a7.rlib --extern jsonschema=/home/peter/.cargo-target/debug/deps/libjsonschema-f779fd5fb9f15d5c.rlib --extern proptest=/home/peter/.cargo-target/debug/deps/libproptest-75cc026f351a0d29.rlib --extern quire_rs=/home/peter/.cargo-target/debug/deps/libquire_rs.rlib --extern rayon=/home/peter/.cargo-target/debug/deps/librayon-d3e0b4243631151c.rlib --extern regex=/home/peter/.cargo-target/debug/deps/libregex-53a4bdcef0a18e9e.rlib --extern serde=/home/peter/.cargo-target/debug/deps/libserde-bfa0e911ce3f89e8.rlib --extern serde_json=/home/peter/.cargo-target/debug/deps/libserde_json-e84a5626fe148831.rlib --extern serde_yaml=/home/peter/.cargo-target/debug/deps/libserde_yaml-cb1fc181b8b687a5.rlib --extern sha2=/home/peter/.cargo-target/debug/deps/libsha2-332268d5d0808ca9.rlib --extern thiserror=/home/peter/.cargo-target/debug/deps/libthiserror-16ac0fd995ef6c50.rlib --extern unicode_normalization=/home/peter/.cargo-target/debug/deps/libunicode_normalization-63fb7e2576f51c1d.rlib --extern uuid=/home/peter/.cargo-target/debug/deps/libuuid-b02cbfbbd67921a7.rlib`
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 6.16s
+  Executable `/home/peter/.cargo-target/debug/deps/quire_rs-e7a034749eeaa008`
+  Executable `/home/peter/.cargo-target/debug/deps/bundle_validate-a2c103a61e062c43`
+  Executable `/home/peter/.cargo-target/debug/deps/concurrency-054a531314a7251a`
+  Executable `/home/peter/.cargo-target/debug/deps/corpus_concurrency-a4a0ab3f0dcf19a2`
+  Executable `/home/peter/.cargo-target/debug/deps/coverage_baseline-314bf01b33fd68cb`
+  Executable `/home/peter/.cargo-target/debug/deps/coverage_rollup-3dff034b5eb9ba2f`
+  Executable `/home/peter/.cargo-target/debug/deps/determinism-2857822bc32933f0`
+  Executable `/home/peter/.cargo-target/debug/deps/filament_boundary_audit-ef24c96f8d9855e1`
+  Executable `/home/peter/.cargo-target/debug/deps/filament_core_fixtures-63e135b25b2935af`
+  Executable `/home/peter/.cargo-target/debug/deps/integration-213695e8efba1067`
+  Executable `/home/peter/.cargo-target/debug/deps/inverse_edges-8affb9ed0c1a0567`
+  Executable `/home/peter/.cargo-target/debug/deps/markdown_validation-926822ca07c5362f`
+  Executable `/home/peter/.cargo-target/debug/deps/no_hidden_recompile-b52910e54f5b6127`
+  Executable `/home/peter/.cargo-target/debug/deps/obligations-e8a399f40a8a83e3`
+  Executable `/home/peter/.cargo-target/debug/deps/output_contract-4971baa7d7746fc5`
+  Executable `/home/peter/.cargo-target/debug/deps/parser_golden-b0d2673e7674f84c`
+  Executable `/home/peter/.cargo-target/debug/deps/parser_parity-8d5fc566ff8deb70`
+  Executable `/home/peter/.cargo-target/debug/deps/parser_real_documents-393f56f842408214`
+  Executable `/home/peter/.cargo-target/debug/deps/props_fr_040-6bbf654d3843f070`
+  Executable `/home/peter/.cargo-target/debug/deps/quality_lints-f7206dbf0bc6d0f9`
+  Executable `/home/peter/.cargo-target/debug/deps/robustness-8cfb99bb6bdd4155`
+  Executable `/home/peter/.cargo-target/debug/deps/spec_dogfood-77a3d5c4730f971c`
+  Executable `/home/peter/.cargo-target/debug/deps/trace_dogfood-9655c2d50ecf2cab`
+  Executable `/home/peter/.cargo-target/debug/deps/trace_references-1925e5d348da24ec`
+  Executable `/home/peter/.cargo-target/debug/deps/verification_catalog-c665f72313521a43`
+
+*** result: Success
+
+*** /home/peter/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo test --verbose --package=quire-rs@0.30.1
+       Fresh unicode-ident v1.0.24
+       Fresh cfg-if v1.0.4
+       Fresh stable_deref_trait v1.2.1
+       Fresh autocfg v1.5.1
+       Fresh memchr v2.8.0
+       Fresh version_check v0.9.5
+       Fresh writeable v0.6.3
+       Fresh regex-syntax v0.8.10
+       Fresh litemap v0.8.2
+       Fresh utf8_iter v1.0.4
+       Fresh proc-macro2 v1.0.106
+       Fresh aho-corasick v1.1.4
+       Fresh smallvec v1.15.1
+       Fresh once_cell v1.21.4
+       Fresh itoa v1.0.18
+       Fresh typenum v1.20.1
+       Fresh quote v1.0.45
+       Fresh libc v0.2.186
+       Fresh serde_core v1.0.228
+       Fresh crossbeam-utils v0.8.21
+       Fresh regex-automata v0.4.14
+       Fresh icu_properties_data v2.2.0
+       Fresh either v1.16.0
+       Fresh time-core v0.1.8
+       Fresh num-conv v0.2.2
+       Fresh percent-encoding v2.3.2
+       Fresh bitflags v2.11.1
+       Fresh same-file v1.0.6
+       Fresh syn v2.0.117
+       Fresh num-traits v0.2.19
+       Fresh getrandom v0.3.4
+       Fresh icu_normalizer_data v2.2.0
+       Fresh getrandom v0.4.2
+       Fresh crossbeam-epoch v0.9.20
+       Fresh generic-array v0.14.7
+       Fresh zmij v1.0.21
+       Fresh bit-vec v0.6.3
+       Fresh scopeguard v1.2.0
+       Fresh linux-raw-sys v0.12.1
+       Fresh powerfmt v0.2.0
+       Fresh walkdir v2.5.0
+       Fresh time-macros v0.2.27
+       Fresh regex v1.12.3
+       Fresh form_urlencoded v1.2.2
+       Fresh synstructure v0.13.2
+       Fresh zerovec-derive v0.11.3
+       Fresh displaydoc v0.2.5
+       Fresh zerocopy-derive v0.8.48
+       Fresh serde_derive v1.0.228
+       Fresh num-integer v0.1.46
+       Fresh crossbeam-deque v0.8.6
+       Fresh num-complex v0.4.6
+       Fresh rand_core v0.9.5
+       Fresh serde_json v1.0.150
+       Fresh rustix v1.1.4
+       Fresh block-buffer v0.10.4
+       Fresh deranged v0.5.8
+       Fresh bit-set v0.5.3
+       Fresh lock_api v0.4.14
+       Fresh parking_lot_core v0.9.12
+       Fresh crypto-common v0.1.7
+       Fresh bstr v1.12.1
+       Fresh nom v8.0.0
+       Fresh ciborium-io v0.2.2
+       Fresh zerofrom-derive v0.1.7
+       Fresh yoke-derive v0.8.2
+       Fresh zerocopy v0.8.48
+       Fresh serde v1.0.228
+       Fresh num-bigint v0.4.6
+       Fresh num-iter v0.1.45
+       Fresh rayon-core v1.13.0
+       Fresh clap_lex v1.1.0
+       Fresh tinyvec_macros v0.1.1
+       Fresh plotters-backend v0.3.7
+       Fresh fastrand v2.4.1
+       Fresh hashbrown v0.17.1
+       Fresh log v0.4.29
+       Fresh lazy_static v1.5.0
+       Fresh anstyle v1.0.14
+       Fresh equivalent v1.0.2
+       Fresh parking_lot v0.12.5
+       Fresh fancy-regex v0.13.0
+       Fresh digest v0.10.7
+       Fresh time v0.3.47
+       Fresh zerofrom v0.1.8
+       Fresh num-rational v0.4.2
+       Fresh half v2.7.1
+       Fresh plotters-svg v0.3.7
+       Fresh tempfile v3.27.0
+       Fresh ppv-lite86 v0.2.21
+       Fresh clap_builder v4.6.0
+       Fresh ahash v0.8.12
+       Fresh indexmap v2.14.0
+       Fresh tinyvec v1.12.0
+       Fresh rayon v1.12.0
+       Fresh globset v0.4.18
+       Fresh anyhow v1.0.102
+       Fresh iso8601 v0.6.3
+       Fresh uuid v1.23.1
+       Fresh thiserror-impl v2.0.18
+       Fresh wait-timeout v0.2.1
+       Fresh itertools v0.10.5
+       Fresh unsafe-libyaml v0.2.11
+       Fresh bit-vec v0.8.0
+       Fresh yoke v0.8.2
+       Fresh num v0.4.3
+       Fresh ciborium-ll v0.2.2
+       Fresh num-cmp v0.1.0
+       Fresh cast v0.3.0
+       Fresh quick-error v1.2.3
+       Fresh base64 v0.22.1
+       Fresh bytecount v0.6.9
+       Fresh ryu v1.0.23
+       Fresh cpufeatures v0.2.17
+       Fresh fnv v1.0.7
+       Fresh clap v4.6.1
+       Fresh plotters v0.3.7
+       Fresh rand_chacha v0.9.0
+       Fresh ignore v0.4.25
+       Fresh unicode-normalization v0.1.25
+       Fresh thiserror v2.0.18
+       Fresh bit-set v0.8.0
+       Fresh tinytemplate v1.2.1
+       Fresh rand v0.9.4
+       Fresh rand_xorshift v0.4.0
+       Fresh zerovec v0.11.6
+       Fresh zerotrie v0.2.4
+       Fresh fraction v0.15.4
+       Fresh serde_yaml v0.9.34+deprecated
+       Fresh sha2 v0.10.9
+       Fresh criterion-plot v0.5.0
+       Fresh rusty-fork v0.3.1
+       Fresh ciborium v0.2.2
+       Fresh is-terminal v0.4.17
+       Fresh anes v0.1.6
+       Fresh unarray v0.1.4
+       Fresh oorandom v11.1.5
+       Fresh tinystr v0.8.3
+       Fresh potential_utf v0.1.5
+       Fresh proptest v1.11.0
+       Fresh criterion v0.5.1
+       Fresh icu_locale_core v2.2.0
+       Fresh icu_collections v2.2.0
+       Fresh icu_provider v2.2.0
+       Fresh icu_normalizer v2.2.0
+       Fresh icu_properties v2.2.0
+       Fresh idna_adapter v1.2.2
+       Fresh idna v1.1.0
+       Fresh url v2.5.8
+       Fresh jsonschema v0.18.3
+       Fresh quire-rs v0.30.1 (/tmp/cargo-mutants-quire-rs-oCcoIv.tmp)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running `/home/peter/.cargo-target/debug/deps/quire_rs-e7a034749eeaa008`
+
+running 507 tests
+test ast::tests::document_is_send_and_sync ... ok
+test ast::tests::empty_document_value ... ok
+test ast::tests::round_trip_serde_json ... ok
+test corpus::glossary::tests::has_glossary_heading_gates_parsing ... ok
+test concept::tests::accepts_minimal_typed_concept ... ok
+test concept::tests::accepts_optional_description_and_tags ... ok
+test concept::tests::rejects_mistyped_description ... ok
+test concept::tests::rejects_mistyped_tags ... ok
+test concept::tests::rejects_non_string_tag_item ... ok
+test concept::tests::rejects_empty_type ... ok
+test concept::tests::rejects_missing_type ... ok
+test corpus::glossary::tests::tc823_numbered_headings_still_harvest ... ok
+test corpus::glossary::tests::tc680_no_glossary_empty ... ok
+test corpus::glossary::tests::malformed_glossary_harvests_nothing ... ok
+test corpus::glossary::tests::tc674_harvest_terms_table ... ok
+test corpus::query::tests::dangling_appears_in_outgoing_not_referencing ... ok
+test corpus::glossary::tests::tc675_harvest_ubiquitous_language ... ok
+test corpus::query::tests::by_type_returns_exactly_that_type_sorted ... ok
+test corpus::glossary::tests::tc823_a_frontmatterless_glossary_is_reported ... ok
+test corpus::glossary::tests::glossary_terms_from_path_scopes_to_glossary_docs ... ok
+test corpus::query::tests::orphans_finds_untraced_frs ... ok
+test corpus::resolve::tests::absent_target_is_dangling ... ok
+test corpus::resolve::tests::extract_target_id_handles_uri_and_bare ... ok
+test corpus::resolve::tests::cross_spec_target_is_dangling_not_resolved ... ok
+test corpus::query::tests::untyped_document_is_excluded_and_diagnosed ... ok
+test corpus::resolve::tests::body_link_resolves ... ok
+test corpus::glossary::tests::tc823_numbered_heading_harvests_end_to_end ... ok
+test corpus::glossary::tests::tc808_from_path_applies_the_corpus_membership_rule ... ok
+test corpus::resolve::tests::tc897_every_relative_destination_exclusion_is_load_bearing ... ok
+test corpus::query::tests::referencing_is_reverse_lookup ... ok
+test corpus::resolve::tests::ix_regex_extracts_from_markdown_link_and_autolink ... ok
+test corpus::resolve::tests::frontmatter_relationship_resolves ... ok
+test corpus::query::tests::query_results_are_deterministic ... ok
+test corpus::resolve::tests::relative_and_ix_link_dedup_to_one ... ok
+test corpus::resolve::tests::nav_documents_excluded_as_relative_source ... FAILED
+test corpus::resolve::tests::dedup_collapses_identical_triples ... ok
+test corpus::resolve::tests::tc897_excluded_destinations_mint_no_edges ... FAILED
+test corpus::spec::tests::spec_is_send_sync ... ok
+test corpus::resolve::tests::resolved_edge_is_bidirectional ... ok
+test corpus::resolve::tests::relative_path_link_resolves_and_dangles ... FAILED
+test corpus::spec::tests::corpus_is_immutable_and_shares_inner ... ok
+test corpus::spec::tests::len_matches_artifact_count ... ok
+test corpus::spec::tests::by_id_present_and_absent ... ok
+test corpus::spec::tests::duplicate_id_diagnosed_first_wins ... ok
+test corpus::spec::tests::queries_need_no_filesystem_after_construction ... ok
+test corpus::unlinked::tests::already_linked_ignored ... ok
+test corpus::unlinked::tests::bare_id_in_prose_is_autofix ... ok
+test corpus::unlinked::tests::fenced_and_frontmatter_ignored ... ok
+test contract::tests::tc553_unresolved_mapping_still_included ... ok
+test corpus::spec::tests::tc817_queries_parse_zero_bodies ... FAILED
+test corpus::walk::tests::file_root_yields_empty_with_warning ... ok
+test corpus::walk::tests::loads_one_document_per_markdown_file ... ok
+test corpus::walk::tests::gitignore_honored_by_default_and_overridable ... ok
+test corpus::walk::tests::missing_root_yields_empty_with_warning ... ok
+test corpus::walk::tests::identity_is_read_and_missing_uuid_diagnosed ... ok
+test corpus::unlinked::tests::self_reference_skipped ... ok
+test corpus::walk::tests::repo_load_is_send_sync ... ok
+test corpus::unlinked::tests::sub_id_links_to_parent_file ... ok
+test corpus::walk::tests::malformed_file_is_diagnosed_not_fatal ... ok
+test diagnostic::tests::diagnostic_satisfies_trait_bounds ... ok
+test error::tests::archetype_load_error_counts_failures ... ok
+test diagnostic::tests::display_strings_carry_variant_name_and_identifier ... ok
+test error::tests::every_quire_error_variant_displays_variant_name_and_identifier ... ok
+test error::tests::format_violation_truncates_long_observed_value ... ok
+test error::tests::module_collision_names_both_paths ... ok
+test error::tests::format_violation_snapshot_for_fr_archetype ... ok
+test error::tests::quire_error_is_send_and_sync ... ok
+test error::tests::schema_violation_display_does_not_leak_validator_internals ... ok
+test error::tests::truncate_preview_is_char_safe_for_multibyte ... ok
+test error::tests::schema_violation_display_contains_four_tuple ... ok
+test error::tests::unknown_archetype_names_the_offender ... ok
+test extract::assert_eval::tests::tc534_level_assert ... ok
+test diagnostic::tests::path_traversal_variant_renders_human_and_json ... ok
+test extract::assert_eval::tests::tc535_columns_assert ... ok
+test corpus::walk::tests::output_is_path_sorted_and_deterministic ... ok
+test extract::assert_eval::tests::tc536_min_rows_and_min_items ... ok
+test contract::tests::tc549_nfr_contract ... ok
+test corpus::unlinked::tests::ambiguous_is_warn_only ... ok
+test contract::tests::tc550_every_archetype_sections_in_manifest_order ... ok
+test corpus::walk::tests::tc807_membership_is_type_driven_and_frontmatterless_warns ... ok
+test extract::assert_eval::tests::tc540_id_pattern_interpolation ... ok
+test extract::assert_eval::tests::tc543_static_pattern ... ok
+test extract::assert_eval::tests::tc542_regex_escape ... ok
+test corpus::unlinked::tests::tc765_sub_id_kinds_resolve_to_their_parent ... ok
+test extract::assert_eval::tests::tc633_choices_scalar_enum ... ok
+test extract::dsl::tests::columns_on_section_body_is_load_error ... ok
+test extract::dsl::tests::both_match_and_iterate_over_is_dsl_error ... ok
+test extract::assert_eval::tests::tc541_unresolved_field ... ok
+test extract::assert_eval::tests::tc634_column_choices ... ok
+test extract::dsl::tests::min_items_on_table_row_is_load_error ... ok
+test contract::tests::tc552_unknown_archetype_errors ... ok
+test extract::dsl::tests::match_pattern_round_trips_through_yaml ... ok
+test extract::dsl::tests::tc570_assert_key_locator_kind_legality_matrix ... ok
+test extract::dsl::tests::neither_match_nor_iterate_over_is_dsl_error ... ok
+test extract::dsl::tests::iterate_over_pattern_validates ... ok
+test extract::assert_eval::tests::tc537_id_pattern_assert ... ok
+test extract::dsl::tests::unknown_key_in_yield_pattern_fails_yaml_parse ... ok
+test extract::dsl::tests::valid_table_assert_passes_load ... ok
+test extract::dsl::tests::unknown_assert_key_fails_yaml_parse ... ok
+test extract::interpolate::tests::missing_field_is_error ... ok
+test extract::interpolate::tests::no_token_returns_unchanged ... ok
+test extract::interpolate::tests::missing_frontmatter_is_error ... ok
+test extract::interpolate::tests::resolves_id_token ... ok
+test corpus::unlinked::tests::inline_code_token_converted ... ok
+test corpus::unlinked::tests::unresolved_is_warn_only ... ok
+test extract::locator::tests::frontmatter_field_missing_path_returns_empty ... ok
+test extract::locator::tests::code_block_under_missing_section_returns_empty ... ok
+test extract::locator::tests::frontmatter_field_array_value_returned_whole ... ok
+test extract::interpolate::tests::value_with_metacharacters_is_escaped ... ok
+test extract::locator::tests::heading_path_walks_named_chain ... ok
+test contract::tests::tc548_fr_contract ... ok
+test extract::locator::tests::section_body_returns_trimmed_content ... ok
+test extract::locator::tests::table_row_column_projection ... ok
+test extract::locator::tests::list_item_returns_parsed_items ... ok
+test extract::locator::tests::frontmatter_field_walks_path ... ok
+test extract::locator::tests::table_row_returns_objects_with_header_keys ... ok
+test extract::tests::fallback_canonical_position_does_not_emit_diagnostic ... ok
+test extract::assert_eval::tests::tc571_id_column_resolution_precedence ... ok
+test extract::assert_eval::tests::tc635_column_patterns ... ok
+test extract::tests::extraction_ignores_assert_facet ... ok
+test extract::tests::fallback_secondary_position_emits_diagnostic ... ok
+test extract::tests::locator_primitive_only_still_parses ... ok
+test extract::tests::iterate_root_missing_emits_diagnostic_and_zero_records ... ok
+test extract::assert_eval::tests::tc608_section_body_matches_pattern ... ok
+test contract::tests::tc645_skeleton_renders_relationships_block ... ok
+test extract::tests::multi_yield_iterate_headings_emits_one_record_per_unit ... ok
+test extract::tests::multi_yield_required_miss_returns_missing_field ... ok
+test extract::locator::tests::heading_returns_all_at_level ... ok
+test extract::tests::multiple_in_fallback_chain_uses_hit_primitive_flag ... ok
+test extract::tests::per_match_locators_evaluate_against_unit_local_scope ... ok
+test extract::tests::required_miss_returns_missing_field ... ok
+test extract::tests::single_yield_collects_all_resolved_keys ... ok
+test extract::tests::tc569_emit_edges_per_record ... ok
+test extract::tests::tc567_whole_value_mustache_is_placeholder ... ok
+test contract::tests::skeleton_scaffolds_headings_and_tables ... ok
+test extract::assert_eval::tests::tc572_id_pattern_on_non_table_locators ... ok
+test filament::tests::tc681_tier1_frontmatter_extracts_core_node ... ok
+test filament::tests::org_qualifies_refs_from_input_not_a_literal ... ok
+test filament::tests::tc684_relationship_sugar_and_body_ix_links_have_metadata ... ok
+test filament::tests::tc705_malformed_frontmatter_is_a_parse_failure_but_absent_is_clean ... ok
+test extract::tests::multiple_true_applies_per_iteration_unit ... ok
+test extract::locator::tests::code_block_resolves_tilde_fenced_block_under_section ... ok
+test extract::tests::without_multiple_first_value_wins_unchanged ... ok
+test extract::tests::code_block_per_match_isolates_per_unit_under_iterate_over ... ok
+test extract::tests::code_block_per_match_required_fails_for_unit_missing_its_block ... ok
+test extract::tests::multiple_true_keeps_all_values_as_array ... ok
+test extract::tests::tc568_unclosed_fence_flushed_as_final_block ... ok
+test extract::locator::tests::code_block_returns_source_filtered_by_language ... ok
+test filament::tests::tc682_tier2_uses_rust_dsl_records_and_edges ... ok
+test extract::locator::tests::code_block_under_section_is_section_owned_excludes_other_sections ... ok
+test extract::tests::tc566_under_section_none_substrate ... ok
+test extract::tests::tc565_regex_projection ... ok
+test filament::tests::tc706_identified_document_without_object_mints_primary_artifact_node ... ok
+test filament::tests::tc708_object_typed_document_does_not_mint_extra_artifact_node ... ok
+test filament::tests::tc685_repeated_extraction_is_byte_identical ... ok
+test filament::tests::tc707_document_without_id_keeps_document_fallback_source ... ok
+test filament::tests::tc683_error_fixtures_are_reported_without_panic ... ok
+test corpus::unlinked::tests::results_sorted_and_stable ... ok
+test filament::tests::tc709_non_scalar_or_blank_ids_do_not_mint_a_primary_node ... ok
+test corpus::unlinked::tests::multi_token_code_span_skipped ... ok
+test corpus::glossary::tests::tc679_validate_bundle_grammar_is_advisory ... ok
+test grammar::ears::tests::tc657_classification ... ok
+test grammar::ears::tests::tc658_non_singular ... ok
+test grammar::ears::tests::tc659_missing_subject ... ok
+test corpus::glossary::tests::tc678_validate_bundle_harvests_and_applies ... ok
+test grammar::ears::tests::tc660_vague_and_passive ... ok
+test grammar::ears::tests::tc661_non_canonical_trigger ... ok
+test grammar::ears::tests::tc662_binding ... ok
+test grammar::ears::tests::tc664_finding_fields ... ok
+test grammar::ears::tests::tc665_skips ... ok
+test grammar::ears::tests::tc670_empty_lexicon_flags_bare_noun ... ok
+test grammar::ears::tests::lexicon_matches_plurals ... ok
+test grammar::ears::tests::tc671_generic_suppression_lexicon_independent ... ok
+test grammar::ears::tests::tc669_lexicon_term_suppresses ... ok
+test contract::tests::tc551_contract_json_is_byte_stable ... ok
+test grammar::ac::tests::tc713_finding_fields ... ok
+test grammar::ac::tests::tc777_vacuous_predicate_does_not_fire_on_a_noun ... ok
+test grammar::ac::tests::tc710_vague_response_reuses_the_lexicon ... ok
+test grammar::property::tests::tc779_universal_decomposition_yields_three_spans ... ok
+test grammar::ac::tests::tc754_supplement_skip_rules ... ok
+test grammar::ac::tests::tc776_then_counts_only_in_a_gwt_criterion ... ok
+test grammar::ac::tests::tc708_every_non_empty_cell_is_a_statement ... ok
+test grammar::property::tests::tc791_closed_structural_signals_need_no_registry ... ok
+test grammar::property::tests::tc782_weak_only_boundary_refuses_spans ... ok
+test grammar::property::tests::tc783_example_is_not_extractable_and_not_a_defect ... ok
+test grammar::ac::tests::tc778_double_backtick_spans_are_masked ... ok
+test grammar::ac::tests::tc709_non_singular_and_pair_idiom ... ok
+test grammar::property::tests::tc781_quoted_idioms_are_mentions ... ok
+test grammar::property::tests::tc780_metamorphic_shapes_and_fixed_precedence ... ok
+test grammar::property::tests::tc786_module_idioms_merge_first_wins ... ok
+test grammar::quality::tests::builtin_lexicon_matches_whole_words_and_inflections ... ok
+test grammar::quality::tests::agentless_passive_needs_an_absent_agent ... ok
+test grammar::quality::tests::longest_term_wins_so_the_report_names_what_was_written ... ok
+test grammar::property::tests::tc785_ac_finding_stream_is_unchanged_by_classification ... ok
+test grammar::tests::error_level_promotes_finding_severity ... ok
+test grammar::tests::tc714_summary_groups_every_grammar ... ok
+test grammar::quality::tests::mixed_modal_reports_the_pair ... ok
+test grammar::tests::tc719_absent_key_defaults_to_warning ... ok
+test grammar::tests::tc720_cli_severity_overrides_manifest ... ok
+test grammar::tests::tc721_strict_semantics_unchanged ... ok
+test grammar::tests::tc755_malformed_severity_entry_rejected ... ok
+test grammar::tests::tc752_off_drops_the_finding_before_routing ... ok
+test lint::tests::archetype_scoping_skips_non_matching_documents ... ok
+test lint::tests::missing_section_or_column_yields_no_findings ... ok
+test grammar::quality::tests::module_terms_extend_rather_than_replace ... ok
+test lint::tests::scope_column_rule_for_configuration_tables ... ok
+test lint::tests::allowed_values_and_annotations_pass_others_flagged ... ok
+test lint::tests::rule_yaml_round_trip ... ok
+test lint::tests::tc609_section_body_pattern_match_yields_no_finding ... ok
+test lint::tests::severity_error_is_carried_on_findings ... ok
+test lint::tests::tc609_section_body_pattern_archetype_scoping ... ok
+test lint::tests::tc609_section_body_pattern_missing_section_yields_no_finding ... ok
+test lint::tests::tc764_forbidden_section ... ok
+test loader::compile::tests::compile_schema_accepts_object_constraint ... ok
+test loader::compile::tests::compile_schema_rejects_malformed ... ok
+test lint::tests::tc609_section_body_pattern_mismatch_yields_one_finding ... ok
+test loader::compile::tests::read_schema_strips_bom ... ok
+test loader::manifest::tests::load_manifest_reads_disk ... ok
+test lint::tests::tc609_section_body_pattern_yaml_round_trip ... ok
+test loader::manifest::tests::extras_are_captured_via_flatten ... ok
+test loader::manifest::tests::name_is_optional_when_yaml_omits_it ... ok
+test loader::manifest::tests::parses_artifact_types ... ok
+test lint::tests::tc609_section_body_pattern_matches_in_subsection ... ok
+test loader::manifest::tests::parses_object_types ... ok
+test loader::paths::tests::default_module_root_points_at_filament_modules ... ok
+test loader::paths::tests::duplicate_canonical_paths_dedupe ... ok
+test loader::manifest::tests::template_ref_is_a_retired_field ... ok
+test loader::paths::tests::expand_tilde_no_op_for_absolute ... ok
+test loader::paths::tests::expand_tilde_no_op_for_mid_path ... ok
+test loader::paths::tests::expand_tilde_subpath ... ok
+test loader::paths::tests::file_not_directory_is_diagnosed_not_fatal ... ok
+test loader::paths::tests::expand_tilde_root ... ok
+test loader::paths::tests::missing_path_classified_as_missing_not_error ... ok
+test loader::paths::tests::module_path_env_prefers_filament_over_schema_alias ... ok
+test grammar::ac::tests::tc757_vocabularies_are_module_data ... ok
+test loader::paths::tests::resolve_with_explicit_wins_over_env ... ok
+test loader::paths::tests::split_colon_paths_drops_empties ... ok
+test loader::tests::aggregates_failure_for_missing_schema ... ok
+test loader::tests::model_level_exclude_merges_as_a_union ... ok
+test loader::tests::module_collision_is_fatal_in_strict_mode ... ok
+test loader::tests::compiled_archetype_exposes_body_extraction_dsl ... ok
+test loader::tests::loads_minimal_module_from_explicit_path ... ok
+test loader::tests::module_collision_emits_diagnostic_but_loads_first_wins ... ok
+test loader::tests::registry_is_send_and_sync ... ok
+test loader::tests::symlink_loop_does_not_panic_or_recurse ... ok
+test loader::tests::tc523_unified_archetype_validatable_and_extractable ... ok
+test loader::tests::tc525_frontmatter_and_data_schemas_are_distinct ... ok
+test loader::tests::tc524_carry_over_fields_retained ... ok
+test loader::tests::tc522_unified_archetype_with_body_extraction ... ok
+test loader::tests::tc526_variants_is_hard_load_failure ... ok
+test merge::tests::arrays_are_replaced_wholesale_not_appended ... ok
+test merge::tests::merges_disjoint_keys ... ok
+test loader::tests::tc526_template_ref_is_hard_load_failure ... ok
+test loader::tests::tc526_required_sections_is_hard_load_failure ... ok
+test merge::tests::null_patch_replaces_object ... ok
+test merge::tests::patch_wins_for_overlapping_scalar ... ok
+test merge::tests::preserves_siblings_during_merge ... ok
+test obligation::tests::code_span_contents_change_the_hash ... ok
+test obligation::tests::document_id_takes_the_prefix_and_number ... ok
+test obligation::tests::id_template_renders_document_and_row ... ok
+test obligation::tests::method_drops_a_trailing_annotation ... ok
+test obligation::tests::normalization_collapses_whitespace_but_not_words ... ok
+test parser::frontmatter::tests::body_preserves_leading_blank_lines_after_fence ... ok
+test parser::frontmatter::tests::bom_prefix_with_frontmatter ... ok
+test parser::frontmatter::tests::bom_prefix_without_frontmatter ... ok
+test parser::frontmatter::tests::closing_fence_at_eof_no_trailing_newline ... ok
+test parser::frontmatter::tests::crlf_line_endings_around_fences ... ok
+test merge::tests::nested_objects_merge_recursively ... ok
+test parser::frontmatter::tests::empty_or_comment_only_frontmatter_is_absent_not_malformed ... ok
+test parser::frontmatter::tests::malformed_yaml_returns_body_fallback ... ok
+test parser::frontmatter::tests::no_frontmatter_returns_input_as_body ... ok
+test parser::frontmatter::tests::non_object_yaml_falls_back ... ok
+test parser::frontmatter::tests::unterminated_fence_returns_body_fallback ... ok
+test parser::slice::tests::blank_lines_inside_content_are_preserved ... ok
+test parser::slice::tests::empty_section_between_adjacent_headings ... ok
+test parser::slice::tests::last_section_runs_to_end_of_body ... ok
+test parser::slice::tests::last_section_with_trailing_newline_keeps_it ... ok
+test parser::slice::tests::line_offsets_for_empty_body ... ok
+test parser::slice::tests::line_offsets_for_trailing_newline ... ok
+test parser::slice::tests::line_offsets_matches_split_positions ... ok
+test parser::slice::tests::preserves_crlf_byte_for_byte ... ok
+test parser::slice::tests::preserves_leading_and_trailing_whitespace ... ok
+test parser::slice::tests::reconstruct_handcrafted_cases ... ok
+test loader::tests::tc762_module_discovery_is_sorted ... ok
+test parser::frontmatter::tests::happy_path_parses_yaml_and_strips_fences ... ok
+test parser::frontmatter::tests::first_close_fence_wins_ts_parity ... ok
+test parser::slug::tests::degenerate_heading_keeps_line_index ... ok
+test parser::slug::tests::empty_heading_yields_empty_slug_with_line ... ok
+test parser::slug::tests::embedded_digits_preserved ... ok
+test parser::slug::tests::emoji_collapses_to_dash_and_strips ... ok
+test parser::slug::tests::leading_and_trailing_whitespace_stripped ... ok
+test parser::slug::tests::lowercase_alphanum_dash_basic ... ok
+test parser::slug::tests::non_ascii_collapses_to_dash ... ok
+test parser::slug::tests::numeric_and_punctuation_collapse_to_dashes ... ok
+test parser::slug::tests::runs_of_punctuation_collapse_to_single_dash ... ok
+test parser::slug::tests::unicode_lowercase_then_ascii_filter ... ok
+test parser::tests::canonical_ts_fixture_produces_expected_tree ... ok
+test parser::tests::content_is_byte_exact_not_trimmed ... ok
+test parser::tests::empty_input_returns_empty_document ... ok
+test parser::tests::frontmatter_is_attached_and_does_not_shift_line_indices ... ok
+test parser::tests::level_skip_still_nests_under_nearest_lower_level ... ok
+test parser::tests::preamble_only_input ... ok
+test parser::tests::sibling_at_same_level_does_not_nest ... ok
+test parser::tests::start_and_end_lines_match_python_reference ... ok
+test parser::tests::tc812_parse_header_none_for_non_documents ... ok
+test parser::tests::tc812_parse_header_reads_identity_and_full_map ... ok
+test parser::tests::tc813_parse_document_composes_the_tiers ... ok
+test parser::tests::cross_thread_determinism ... ok
+test grammar::property::tests::tc795_extraction_worked_cases ... ok
+test parser::tests::tc819_parse_body_with_a_foreign_header_is_total ... ok
+test parser::tests::whitespace_only_body_yields_no_preamble ... ok
+test parser::walk::tests::backtick_fence_blocks_inner_headings ... ok
+test parser::walk::tests::block_id_allows_alphanumeric_dash_underscore ... ok
+test parser::walk::tests::block_id_round_trip_parse_reparse_is_stable ... ok
+test parser::walk::tests::block_id_survives_trailing_whitespace_before_attribute ... ok
+test parser::walk::tests::fence_line_with_info_string_still_toggles ... ok
+test parser::walk::tests::heading_text_is_trimmed_including_crlf ... ok
+test parser::walk::tests::heading_without_attribute_has_no_block_id ... ok
+test parser::walk::tests::headings_at_levels_one_through_six ... ok
+test parser::walk::tests::leading_whitespace_before_hashes_is_not_a_heading ... ok
+test parser::walk::tests::line_indices_match_input_positions ... ok
+test parser::walk::tests::malformed_attribute_with_whitespace_is_not_an_id ... ok
+test parser::walk::tests::mismatched_fence_does_not_close_backtick_block ... ok
+test parser::walk::tests::missing_space_after_hashes_is_not_a_heading ... ok
+test parser::walk::tests::pandoc_block_id_attribute_is_stripped_from_text ... ok
+test parser::walk::tests::seven_hashes_is_not_a_heading ... ok
+test parser::walk::tests::tilde_fence_behaves_like_backtick ... ok
+test parser::walk::tests::unclosed_fence_swallows_trailing_lines ... ok
+test query::tests::backtick_block_is_not_closed_by_tilde_line ... ok
+test query::tests::bullets_accept_star_and_plus_markers ... ok
+test query::tests::bullets_default_to_bold_description ... ok
+test query::tests::bullets_plain_pattern_keeps_raw_text ... ok
+test query::tests::bullets_unmatched_pattern_falls_back_to_raw ... ok
+test query::tests::cr007_borderless_rows_still_split_correctly ... ok
+test query::tests::cr007_cell_ending_in_escaped_pipe_keeps_trailing_pipe ... ok
+test query::tests::cr007_escaped_pipe_in_body_cell_is_literal_not_delimiter ... ok
+test query::tests::cr007_escaped_pipe_in_header_cell ... ok
+test query::tests::cr007_multiple_escapes_and_enum_cells ... ok
+test query::tests::cr007_non_pipe_backslashes_kept_verbatim ... ok
+test loader::tests::tc527_registry_resolves_unified_archetype ... ok
+test query::tests::diagrams_collected_with_section_context_and_language ... ok
+test query::tests::diagrams_from_content_extracts_type_annotation ... ok
+test query::tests::diagrams_from_content_filters_by_language ... ok
+test query::tests::diagrams_from_content_parses_slice_blocks_with_section_none ... ok
+test query::tests::diagram_type_annotation_is_extracted ... ok
+test query::tests::diagrams_in_frontmatter_doc_skip_the_fence_block ... ok
+test query::tests::parse_table_handles_pipe_delimited_with_borders ... ok
+test query::tests::parse_table_normalizes_short_and_long_rows ... ok
+test query::tests::parse_table_returns_none_when_absent ... ok
+test query::tests::parse_tables_finds_multiple ... ok
+test query::tests::search_returns_empty_when_no_match ... ok
+test query::tests::search_returns_section_aware_hits ... ok
+test query::tests::section_matches_case_insensitively_and_strips_numbers ... ok
+test query::tests::section_recurses_into_children ... ok
+test query::tests::sections_filtered_by_level ... ok
+test query::tests::separator_row_accepts_gfm_alignment_colons ... ok
+test query::tests::table_from_section_pulls_first_in_named_section ... ok
+test grammar::ac::tests::tc775_pair_idiom_is_not_separator_bound ... ok
+test query::tests::tilde_block_is_not_closed_by_backtick_line ... ok
+test query::tests::sections_walk_scales_subquadratically ... ok
+test query::tests::unclosed_diagram_block_is_emitted_as_final_block ... ok
+test query::tests::tilde_fence_block_is_extracted ... ok
+test query::tests::unclosed_tilde_block_is_emitted_as_final_block ... ok
+test query::tests::tilde_fence_in_content_slice_is_extracted ... ok
+test registry::tests::from_inline_parts_loads_minimal_module ... ok
+test grammar::ac::tests::tc751_non_canonical_shape ... ok
+test registry::tests::from_inline_parts_missing_schema_aggregates_failure ... ok
+test registry::tests::archetype_collision_keeps_shadowed_via_archetype_in_module ... ok
+test registry::tests::invalid_dsl_in_object_type_fails_at_load ... ok
+test registry::tests::lint_rules_flow_from_manifest_to_registry ... ok
+test grammar::ac::tests::tc712_binding ... ok
+test grammar::ac::tests::tc711_vacuous_outcome ... ok
+test registry::tests::from_inline_parts_rejects_template_ref ... ok
+test registry::tests::module_collision_in_strict_mode_returns_error ... ok
+test grammar::ac::tests::tc707_shape_classification ... ok
+test registry::tests::load_from_loads_a_minimal_module ... ok
+test registry::tests::load_module_loads_single_module_directly ... ok
+test grammar::ac::tests::tc763_elided_copula_is_a_predicate ... ok
+test registry::tests::malformed_lint_rule_fails_module_load ... ok
+test grammar::property::tests::tc787_binding_parity_with_the_ac_grammar ... ok
+test grammar::ac::tests::tc761_quoted_keywords_are_mentions ... ok
+test registry::tests::manifest_without_name_derives_from_parent_dir ... ok
+test registry::tests::load_module_without_manifest_reports_failure ... ok
+test registry::tests::module_collision_in_tolerant_mode_emits_diagnostic ... ok
+test registry::tests::module_version_surfaces_manifest_version ... ok
+test registry::tests::registry_is_send_sync_and_cheap_to_clone ... ok
+test grammar::property::tests::tc792_subject_determiner_widens_position_not_vocabulary ... ok
+test registry::tests::tc411_block_type_is_an_alias_for_archetype ... ok
+test registry::tests::tc637_conflicting_redeclaration_is_first_wins_diagnostic ... ok
+test registry::tests::tc636_edge_types_and_roles_load_and_merge_idempotently ... ok
+test registry::tests::tc639_resolve_allowed_links_unions_axes ... ok
+test registry::tests::schema_for_returns_loaded_schema ... ok
+test registry::tests::schema_for_unknown_returns_unknown_archetype ... ok
+test registry::tests::tc651_object_roles_parsed_onto_archetype ... ok
+test registry::tests::tc667_lexicon_loads_and_accessor ... ok
+test registry::tests::tc650_unknown_verb_and_role_diagnostic_and_strict_escalation ... ok
+test registry::tests::tc668_lexicon_merge_first_wins ... ok
+test registry::tests::tc640_target_satisfies_name_role_or_star ... ok
+test registry::tests::tc676_lexicon_with_combines_module_and_project ... ok
+test registry::tests::tc588_lint_rules_leave_extract_and_validate_byte_identical ... ok
+test registry::tests::tc672_registry_vs_type_only_lexicon_paths ... ok
+test symbols::python::tests::paren_depth_ignores_quotes_and_comments ... ok
+test symbols::python::tests::tc800_wrapped_signature_span_reaches_the_docstring ... ok
+test symbols::rust::tests::tc804_lexer_counts_only_code_braces ... ok
+test symbols::rust::tests::tc804_rust_lexing_is_string_and_lifetime_aware ... ok
+test symbols::rust::tests::tc804_string_state_carries_across_lines ... ok
+test symbols::rust::tests::tc827_a_fuzz_target_is_one_symbol_spanning_its_file ... ok
+test symbols::rust::tests::tc827_a_name_beginning_with_targets_is_not_the_targets_clause ... ok
+test symbols::rust::tests::tc827_a_trailing_comment_does_not_hide_the_registration ... ok
+test symbols::rust::tests::tc827_criterion_registrations_classify_benchmarks ... ok
+test registry::tests::tc717_grammar_severity_merge_first_wins ... ok
+test registry::tests::tc677_with_lexicon_injection_suppresses_project_term ... ok
+test symbols::tests::tc742_identity_survives_reformatting ... ok
+test registry::tests::tc718_ac_error_routing_end_to_end ... ok
+test registry::tests::tc722_type_only_path_applies_all_default_severity ... ok
+test grammar::property::tests::tc793_widening_moves_no_finding_and_no_other_shape ... ok
+test symbols::tests::tc809_exclusion_survives_a_case_insensitive_filesystem ... ok
+test symbols::tests::tc809_exclusion_follows_a_symlinked_root ... ok
+test symbols::tests::tc743_test_classification_per_language ... ok
+test symbols::tests::tc749_unparseable_file_degrades_per_file ... ok
+test symbols::tests::tc741_adapters_extract_symbols_with_attributes ... ok
+test registry::tests::tc716_grammar_severity_loads_and_accessor ... ok
+test symbols::tests::tc809_excluded_subtree_is_never_entered ... ok
+test registry::tests::tc766_with_grammar_severity_overrides_the_module_map ... ok
+test registry::tests::template_ref_is_rejected_at_load_time ... ok
+test registry::tests::tc723_malformed_grammar_severity_fails_load ... ok
+test registry::tests::tc732_traceability_model_loads_and_accessor ... ok
+test symbols::typescript::tests::tc798_comment_stripping_is_string_aware ... ok
+test symbols::typescript::tests::tc799_braces_inside_a_multiline_literal_do_not_unbalance ... ok
+test symbols::typescript::tests::tc799_template_literal_state_carries_across_lines ... ok
+test symbols::typescript::tests::tc803_one_lex_serves_every_consumer ... ok
+test traceability::tests::default_model_is_undeclared ... ok
+test traceability::tests::exclude_defaults_to_empty_and_is_omitted_when_unset ... ok
+test symbols::trace::tests::tc746_duplicate_binding_is_deduped_with_diagnostic ... ok
+test traceability::tests::model_level_exclude_alone_is_still_an_undeclared_model ... ok
+test traceability::tests::model_level_exclude_patterns_must_compile ... ok
+test traceability::tests::tc829_archetype_is_the_only_origin ... ok
+test traceability::tests::unknown_field_is_a_parse_error ... ok
+test traceability::tests::validation_rejects_incoherent_declarations ... ok
+test validate::tests::additional_property_is_rejected_when_disallowed ... ok
+test registry::tests::tc733_malformed_model_fails_load_absent_is_undeclared ... ok
+test validate::tests::json_pointer_to_dotted_handles_indices_and_keys ... ok
+test validate::tests::merge_preserves_siblings_through_apply_patch ... ok
+test validate::tests::merged_shape_validation_rejects_emptied_required_field ... ok
+test traceability::tests::full_model_parses_and_validates ... ok
+test validate::tests::schema_validation_detail_preserves_keyword_and_missing_field_path ... ok
+test symbols::trace::tests::tc806_legacy_list_tolerates_irregular_separators ... ok
+test validate_document::tests::tc529_missing_required_section ... ok
+test validate_document::tests::tc528_conformant_document_is_valid ... ok
+test validate_document::tests::tc530_placeholder_section ... ok
+test validate_document::tests::tc531_frontmatter_violation ... ok
+test validate::tests::recursive_ref_through_defs_validates_tree ... ok
+test validate_document::tests::tc532_context_path_is_distinct ... ok
+test validate_document::tests::tc533_no_body_extraction_only_frontmatter_and_headings ... ok
+test validate_document::tests::tc544_duplicate_heading_level_2 ... ok
+test validate_document::tests::tc545_same_text_different_levels_ok ... ok
+test validate_document::tests::tc546_iterate_over_children ... ok
+test validate_document::tests::tc547_duplicate_line_is_second_heading ... ok
+test symbols::trace::tests::tc753_legacy_forms_bind_with_provenance_and_rewrite ... ok
+test validate_document::tests::tc561_multi_yield_conformant_validates ... ok
+test validate_document::tests::tc561_multi_yield_missing_dsl_conformant_validates ... ok
+test validate_document::tests::tc561_multi_yield_unit_missing_required_fails ... ok
+test validate_document::tests::tc573_placeholder_sentinel_set_exact ... ok
+test validate_document::tests::tc574_bare_none_and_na_are_substantive ... ok
+test validate_document::tests::tc576_assert_on_resolved_optional_locator ... ok
+test validate_document::tests::tc575_empty_table_and_list_reason_is_empty_not_placeholder ... ok
+test validate_document::tests::tc562_multi_yield_unit_assert_fails ... ok
+test validate_document::tests::tc576_level_assert_on_absent_optional_section_is_silent ... ok
+test symbols::trace::tests::tc806_legacy_comma_list_binds_every_id ... ok
+test symbols::trace::tests::tc748_structural_relations ... ok
+test symbols::trace::tests::tc744_canonical_markers_bind_statically ... ok
+test symbols::trace::tests::tc745_forms_are_module_data ... ok
+test validate_document::tests::tc663_grammar_severity_routing ... ok
+test validate_document::tests::tc718_per_check_error_routing ... ok
+test symbols::trace::tests::tc747_records_match_fr045_shapes ... ok
+test vocab::tests::array_form_normalizes_to_star_targets ... ok
+test vocab::tests::edge_category_deserializes_lowercase ... ok
+test vocab::tests::absent_or_scalar_yields_empty ... ok
+test validate_document::tests::tc612_no_object_key_no_object_diagnostics ... ok
+test vocab::tests::map_form_preserves_target_lists ... ok
+test writeback::tests::update_block_finds_nested_block_id ... ok
+test writeback::tests::update_block_other_blocks_byte_identical ... ok
+test writeback::tests::update_block_preserves_block_id_through_roundtrip ... ok
+test writeback::tests::update_block_replaces_heading_and_content ... ok
+test writeback::tests::update_block_unknown_id_returns_missing_field ... ok
+test writeback::tests::update_section_preserves_frontmatter_byte_identical ... ok
+test writeback::tests::update_section_preserves_other_sections_byte_identical ... ok
+test writeback::tests::update_section_replaces_target_content ... ok
+test writeback::tests::update_section_unknown_heading_returns_missing_field ... ok
+test writeback::tests::update_section_handles_no_frontmatter ... ok
+test validate_document::tests::tc613_composed_conformant_validates ... ok
+test validate_document::tests::tc641_unknown_object_falls_back_to_artifact_vocab ... ok
+test validate_document::tests::tc610_composed_object_missing_diagram_is_error ... ok
+test validate_document::tests::tc611_unknown_object_is_one_warning_zero_errors ... ok
+test validate_document::tests::tc644_tier1_warnings_are_sorted ... ok
+test validate_document::tests::tc641_disallowed_edge_type_is_one_warning ... ok
+test symbols::trace::tests::tc828_benchmarks_and_fuzz_targets_bind_but_production_code_does_not ... ok
+test symbols::trace::tests::tc750_repeated_extraction_is_byte_identical ... ok
+test parser::tests::tiers_compose_on_arbitrary_utf8 ... ok
+test parser::tests::never_panics_on_arbitrary_utf8 ... ok
+test parser::tests::tc819_parse_body_never_panics_on_a_foreign_header ... ok
+test grammar::property::tests::tc795_extraction_is_the_stated_function ... ok
+test grammar::property::tests::tc784_span_offsets_and_text_agree ... ok
+test grammar::property::tests::tc796_extraction_is_derived_and_con4_holds ... ok
+test validate::tests::apply_patch_never_panics ... ok
+test grammar::property::tests::tc790_extractable_is_registry_independent ... ok
+test parser::slice::tests::roundtrip_stitch_is_byte_exact ... ok
+
+failures:
+
+---- corpus::resolve::tests::nav_documents_excluded_as_relative_source stdout ----
+
+thread 'corpus::resolve::tests::nav_documents_excluded_as_relative_source' (4070285) panicked at src/corpus/resolve.rs:542:9:
+assertion `left == right` failed
+  left: 0
+ right: 1
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- corpus::resolve::tests::tc897_excluded_destinations_mint_no_edges stdout ----
+
+thread 'corpus::resolve::tests::tc897_excluded_destinations_mint_no_edges' (4070290) panicked at src/corpus/resolve.rs:625:9:
+no excluded destination may mint an edge, got [Edge { source: "FR-001", target: "#section", edge_type: "references", resolution: Dangling }, Edge { source: "FR-001", target: "./notes.txt", edge_type: "references", resolution: Dangling }, Edge { source: "FR-001", target: "https://example.com/a.md", edge_type: "references", resolution: Dangling }, Edge { source: "FR-001", target: "mailto:a@b.com.md", edge_type: "references", resolution: Dangling }, Edge { source: "FR-001", target: "tel:+15551234.md", edge_type: "references", resolution: Dangling }]
+
+---- corpus::resolve::tests::relative_path_link_resolves_and_dangles stdout ----
+
+thread 'corpus::resolve::tests::relative_path_link_resolves_and_dangles' (4070287) panicked at src/corpus/resolve.rs:489:14:
+called `Option::unwrap()` on a `None` value
+
+---- corpus::spec::tests::tc817_queries_parse_zero_bodies stdout ----
+
+thread 'corpus::spec::tests::tc817_queries_parse_zero_bodies' (4070297) panicked at src/corpus/spec.rs:302:9:
+assertion `left == right` failed
+  left: 2
+ right: 1
+
+
+failures:
+    corpus::resolve::tests::nav_documents_excluded_as_relative_source
+    corpus::resolve::tests::relative_path_link_resolves_and_dangles
+    corpus::resolve::tests::tc897_excluded_destinations_mint_no_edges
+    corpus::spec::tests::tc817_queries_parse_zero_bodies
+
+test result: FAILED. 503 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.50s
+
+error: test failed, to rerun pass `-p quire-rs --lib`
+
+*** result: Failure(101)

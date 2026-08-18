@@ -1,0 +1,24 @@
+--- src/corpus/resolve.rs
++++ replace is_nav_doc -> bool with false
+@@ -221,20 +221,17 @@
+         && !dest.starts_with('#')
+         && !dest.starts_with("mailto:")
+         && !dest.starts_with("tel:")
+         && dest.ends_with(".md")
+ }
+ 
+ /// `index.md` / `log.md` are navigation documents, not reference sources.
+ fn is_nav_doc(path: &Path) -> bool {
+-    matches!(
+-        path.file_name().and_then(|n| n.to_str()),
+-        Some("index.md") | Some("log.md")
+-    )
++    false /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ /// Normalized on-disk path → artifact id for every loaded document.
+ fn build_path_index(documents: &[LoadedDocument]) -> HashMap<PathBuf, ArtifactId> {
+     documents
+         .iter()
+         .map(|d| (normalize_lexical(&d.path), artifact_key(d)))
+         .collect()

@@ -19,7 +19,8 @@ use regex::Regex;
 
 use super::declared_tables;
 use super::spec::Spec;
-use super::validate::{BundleFinding, BundlePosture, BundleReport};
+use super::validate::{pack, posture_tier, BundleFinding, BundlePosture, BundleReport};
+use crate::grammar::GrammarSeverity;
 use crate::registry::Registry;
 use crate::traceability::{DocumentReference, TraceTarget};
 
@@ -109,25 +110,29 @@ pub(crate) fn validate_trace_references(
     // set in silence — and since CR-049 made selection load-bearing, the same
     // silence also stopped the engine parsing the bodies it would have read.
     let minted_anything = resolution.values().any(|ids| !ids.is_empty());
+    let severity = registry.grammar_severity();
     for (declaration, diagnostic) in ctx.into_diagnostics(minted_anything) {
         let (path, message) = declared_tables::scan_finding(&declaration, &diagnostic, root);
-        report.warnings.push(BundleFinding {
-            path,
-            message,
-            reason: declared_tables::scan_reason(&diagnostic),
-        });
+        // Warn tier in both postures (CR-054), now tunable (FR-057).
+        report.route(
+            severity,
+            GrammarSeverity::Warning,
+            BundleFinding::in_pack(
+                pack::TRACE,
+                declared_tables::scan_reason(&diagnostic),
+                path,
+                message,
+            ),
+        );
     }
 
     findings.sort();
     findings.dedup();
     for (path, _, message) in findings {
-        report.degradable(
-            posture,
-            BundleFinding {
-                path,
-                message,
-                reason: "dangling-trace-reference",
-            },
+        report.route(
+            severity,
+            posture_tier(posture),
+            BundleFinding::in_pack(pack::TRACE, "dangling-trace-reference", path, message),
         );
     }
 }

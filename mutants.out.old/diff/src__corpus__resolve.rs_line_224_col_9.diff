@@ -1,0 +1,21 @@
+--- src/corpus/resolve.rs
++++ replace && with || in is_relative_md_dest
+@@ -216,17 +216,17 @@
+ /// markdown artifact (not an `ix://`/`http(s)`/`mailto:` URI, not a bare
+ /// in-document `#anchor`).
+ fn is_relative_md_dest(dest: &str) -> bool {
+     !dest.is_empty()
+         && !dest.contains("://")
+         && !dest.starts_with('#')
+         && !dest.starts_with("mailto:")
+         && !dest.starts_with("tel:")
+-        && dest.ends_with(".md")
++        || /* ~ changed by cargo-mutants ~ */ dest.ends_with(".md")
+ }
+ 
+ /// `index.md` / `log.md` are navigation documents, not reference sources.
+ fn is_nav_doc(path: &Path) -> bool {
+     matches!(
+         path.file_name().and_then(|n| n.to_str()),
+         Some("index.md") | Some("log.md")
+     )
