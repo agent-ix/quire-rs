@@ -79,7 +79,7 @@ fn tc898_an_fr_with_no_upstream_need_is_reported() {
     write(
         &root,
         "FR-001.md",
-        &fr("FR-001", Some(("implements", "StR-001"))),
+        &fr("FR-001", Some(("satisfies", "StR-001"))),
     );
     write(&root, "FR-002.md", &fr("FR-002", None));
 
@@ -109,12 +109,12 @@ fn tc899_any_declared_verb_satisfies_the_relation() {
     write(
         &root,
         "FR-001.md",
-        &fr("FR-001", Some(("implements", "StR-001"))),
+        &fr("FR-001", Some(("satisfies", "StR-001"))),
     );
     write(
         &root,
         "FR-002.md",
-        &fr("FR-002", Some(("refines", "StR-001"))),
+        &fr("FR-002", Some(("satisfies", "StR-001"))),
     );
     // A verb the declaration does not accept does not satisfy it.
     write(
@@ -133,18 +133,18 @@ fn tc899_any_declared_verb_satisfies_the_relation() {
 // TC-900 (FR-058-AC-3): the `incoming` direction reads the same declaration
 // the other way — a stated need nothing implements is a need nobody built.
 #[test]
-fn tc900_a_need_nothing_implements_is_reported() {
+fn tc900_a_need_nothing_satisfies_is_reported() {
     let root = tmpdir("900");
     write(&root, "StR-001.md", &str_doc("StR-001"));
     write(&root, "StR-002.md", &str_doc("StR-002"));
     write(
         &root,
         "FR-001.md",
-        &fr("FR-001", Some(("implements", "StR-001"))),
+        &fr("FR-001", Some(("satisfies", "StR-001"))),
     );
 
     let report = validate(&root, None);
-    let hits = findings(&report, "unimplemented-str");
+    let hits = findings(&report, "unsatisfied-str");
     assert_eq!(hits.len(), 1, "exactly the unbuilt need: {hits:?}");
     assert!(hits[0].message.contains("StR-002"), "{}", hits[0].message);
     fs::remove_dir_all(&root).ok();
@@ -160,7 +160,7 @@ fn tc901_a_dangling_edge_does_not_satisfy_a_constrained_relation() {
     write(
         &root,
         "FR-001.md",
-        &fr("FR-001", Some(("implements", "StR-404"))),
+        &fr("FR-001", Some(("satisfies", "StR-404"))),
     );
 
     let report = validate(&root, None);
@@ -174,30 +174,34 @@ fn tc901_a_dangling_edge_does_not_satisfy_a_constrained_relation() {
 }
 
 // TC-902 (FR-058-AC-5): a cycle over a declared acyclic verb is reported once,
-// naming the path. A requirement that transitively refines itself states
+// naming the path. A requirement that transitively derives from itself states
 // nothing, and no per-document check can see it.
+//
+// The verb is `derives_from` — the vocabulary's declared decomposition-lineage
+// edge (spec-artifacts-iso FR-004). `refines`, which an earlier draft used, is
+// not in the vocabulary at all.
 #[test]
-fn tc902_a_refines_cycle_is_reported_once() {
+fn tc902_a_derivation_cycle_is_reported_once() {
     let root = tmpdir("902");
     write(&root, "StR-001.md", &str_doc("StR-001"));
     write(
         &root,
         "FR-001.md",
-        &fr("FR-001", Some(("refines", "FR-002"))),
+        &fr("FR-001", Some(("derives_from", "FR-002"))),
     );
     write(
         &root,
         "FR-002.md",
-        &fr("FR-002", Some(("refines", "FR-003"))),
+        &fr("FR-002", Some(("derives_from", "FR-003"))),
     );
     write(
         &root,
         "FR-003.md",
-        &fr("FR-003", Some(("refines", "FR-001"))),
+        &fr("FR-003", Some(("derives_from", "FR-001"))),
     );
 
     let report = validate(&root, None);
-    let hits = findings(&report, "cyclic-refines");
+    let hits = findings(&report, "cyclic-derives_from");
     assert_eq!(
         hits.len(),
         1,
@@ -223,7 +227,7 @@ fn tc903_each_relation_is_independently_tunable() {
     // Unconfigured: both fire, and under Okf both are warnings.
     let base = validate(&root, None);
     assert_eq!(findings(&base, "orphan-fr").len(), 1);
-    assert_eq!(findings(&base, "unimplemented-str").len(), 2);
+    assert_eq!(findings(&base, "unsatisfied-str").len(), 2);
     assert!(base.is_valid(), "advisory by default: {:?}", base.errors);
 
     // One off, the other untouched — the keys are per declaration.
@@ -232,7 +236,7 @@ fn tc903_each_relation_is_independently_tunable() {
     let scoped = validate(&root, Some(map));
     assert_eq!(findings(&scoped, "orphan-fr").len(), 0, "switched off");
     assert_eq!(
-        findings(&scoped, "unimplemented-str").len(),
+        findings(&scoped, "unsatisfied-str").len(),
         2,
         "its sibling is untouched"
     );
@@ -267,7 +271,7 @@ fn tc904_a_module_declaring_nothing_sees_no_change() {
 
     let plain = Registry::load_module(&fixture_module("plain")).expect("load plain");
     let report = validate_bundle_at(&root, &plain, BundlePosture::Okf);
-    for reason in ["orphan-fr", "unimplemented-str", "cyclic-refines"] {
+    for reason in ["orphan-fr", "unsatisfied-str", "cyclic-refines"] {
         assert!(
             findings(&report, reason).is_empty(),
             "{reason} must not fire for an undeclared module"
@@ -299,7 +303,7 @@ fn tc905_every_declared_field_survives_the_merge() {
         2,
         "required_relations survived the merge"
     );
-    assert_eq!(model.acyclic_edges, vec!["refines".to_string()]);
+    assert_eq!(model.acyclic_edges, vec!["derives_from".to_string()]);
     assert!(!model.exclude.is_empty(), "exclude survived the merge");
 
     // And the same model read through `is_empty` — the gate that decides

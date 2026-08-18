@@ -29,31 +29,32 @@ traceability:
   # 16% false-positive rate that was a fault in the *declaration*, not the
   # engine. Fixing it is a manifest edit, which is the whole reason the contract
   # is module data.
-  # Verb list deliberately NARROW. The corpus also spells this link `traces_to`
-  # (368 edges), `derives_from` (131) and `satisfied_by` (328), and accepting
-  # all of them would drop the finding count by hundreds — which is exactly the
-  # wrong reason to widen a rule. Whether those are synonyms for one relation or
-  # distinct relations is a question about the declared edge vocabulary
-  # (spec-artifacts-iso#16, 76 verbs across 7 categories, currently undocumented).
-  # Until that is answered, the rule states one form and the corpus is flagged
-  # for the rest — see CLAUDE.md "Adding or improving a check".
+  # Verbs taken from the decision recorded in spec-artifacts-iso FR-004
+  # (2026-08-18): `implements` keeps its declared meaning — fulfilling an
+  # interface or contract — and is NOT overloaded for requirement lineage.
+  # `satisfied_by` is the generic stakeholder-requirement-to-artifact link,
+  # authorable from either end via its `satisfies` inverse.
+  #
+  # This deliberately does NOT accept `implements`, even though the corpus
+  # spells this link that way 956 times. Those edges are corpus debt under the
+  # decision, and accepting them would be fitting the rule to the specs that
+  # exist rather than stating what a good one looks like.
   - name: fr-has-upstream-need
     from: FR
-    edges: [implements, refines]
+    edges: [satisfies, satisfied_by]
     to: [StR, US]
     direction: either
     check: orphan-fr
   # Downward: a stated need nothing implements is a need nobody built. Same
   # declaration, read the other way.
-  # `direction: either` because the same link is authored from whichever end
-  # the author was writing — that is a fact about the graph, true regardless of
-  # the finding count, so it stays. The verb list stays narrow for the reason
-  # above.
-  - name: str-is-implemented
+  # `direction: either` because `satisfied_by` and `satisfies` are one edge
+  # (iso FR-004, quire-rs FR-041): the stakeholder requirement may declare it
+  # pointing down, or the artifact may declare it pointing up.
+  - name: str-is-satisfied
     from: StR
-    edges: [implements, refines]
+    edges: [satisfies, satisfied_by]
     to: [FR, US]
     direction: either
-    check: unimplemented-str
+    check: unsatisfied-str
   acyclic_edges:
-  - refines
+  - derives_from

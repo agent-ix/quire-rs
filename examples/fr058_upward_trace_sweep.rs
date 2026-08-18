@@ -42,7 +42,7 @@ fn main() {
             let reason = f.reason.to_string();
             if !matches!(
                 reason.as_str(),
-                "orphan-fr" | "unimplemented-str" | "cyclic-refines"
+                "orphan-fr" | "unsatisfied-str" | "cyclic-derives_from"
             ) {
                 continue;
             }
