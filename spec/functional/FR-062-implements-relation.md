@@ -71,6 +71,30 @@ this diff touch"* — the input to scoped CI, impact analysis and review routing
 | FR-062-AC-2 | An `implements` marker on an evidence symbol, and a `verifies` marker on a production symbol, each bind nothing — the kinds are complements. | Test (TC-937) |
 | FR-062-AC-3 | A requirement named by several markers yields one relation, ordered deterministically. | Test (TC-938) |
 | FR-062-AC-4 | The relation reaches the `coverage --json` contract, and moves no coverage number: not `backed`, not `totals`, not `untracked_symbols`. | Test (TC-939) |
+| FR-062-AC-5 | Marker forms declared in a module manifest survive the load: the merged model carries them, a model declaring only them does not read as empty, and `bind` mints from them. | Test (TC-940) |
+
+> **CR-081 (module-declared forms survive the load — 2026-08-19):** the relation
+> was inert wherever it was actually used. `trace_tags.implements` was added to
+> `TraceabilityModel` and to neither of the two **hand-maintained per-field
+> functions** that model passes through — `merge_traceability`, which combines
+> the per-module models, and `is_empty`, which decides whether a model counts as
+> declared at all. Neither is an exhaustive `match`, so the compiler said
+> nothing.
+>
+> The consequence, stated plainly: a repository whose production code was
+> correctly annotated and whose module correctly declared the forms got an empty
+> `implements` array from `quire coverage`, with no error and no diagnostic.
+>
+> **Every one of TC-936..TC-939 passed throughout**, because each builds the
+> model with `TraceabilityModel::default()` and pushes forms onto it — the
+> in-memory shape, never the load path. That is the same gap CR-076 and CR-080
+> each closed one layer at a time: minted but not exposed, then exposed but not
+> loadable.
+>
+> TC-905 exists to catch precisely this ("a field added to the model and to
+> nothing else fails here") and did not, because its assertions are hand-listed
+> too. It now names `trace_tags.implements`, and AC-5 adds the load-path test the
+> other four bypass.
 
 ### Minting it is not the same as exposing it
 

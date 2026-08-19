@@ -66,3 +66,14 @@ traceability:
     check: unsatisfied-str
   acyclic_edges:
   - derives_from
+  # FR-062 (CR-081): declared here because this fixture is what TC-905 reads to
+  # prove every field of a model survives the merge. `implements` was added to
+  # the model and to neither hand-maintained per-field function, so a module
+  # declaring these forms had them silently discarded and the relation could
+  # never be minted through the loader — the only path a consumer has.
+  trace_tags:
+    implements:
+    - name: rust-implements-attr
+      language: rust
+      pattern: '#\[implements\("([^"]+)"\)\]'
+      template: '#[implements("{ids}")]'

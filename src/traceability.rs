@@ -565,6 +565,12 @@ impl TraceabilityModel {
             && self.status.is_none()
             && self.trace_tags.markers.is_empty()
             && self.trace_tags.legacy.is_empty()
+            // FR-062 (CR-081): the third marker list, listed for the same
+            // reason as the two above. Both hand-maintained per-field
+            // functions — this one and `merge_traceability` — missed it when
+            // the field was added, which is the failure TC-905 was written to
+            // catch and did not, because its assertions are hand-listed too.
+            && self.trace_tags.implements.is_empty()
             && self.vocabularies.test_type.is_empty()
             // FR-053: obligations mint records, so a model declaring only them
             // has declared something. (Unlike the model-level `exclude`, which

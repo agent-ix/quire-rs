@@ -305,6 +305,21 @@ fn tc905_every_declared_field_survives_the_merge() {
     );
     assert_eq!(model.acyclic_edges, vec!["derives_from".to_string()]);
     assert!(!model.exclude.is_empty(), "exclude survived the merge");
+    // CR-081: `trace_tags.implements` (FR-062) is the field this test was
+    // supposed to protect and did not. The assertions here are hand-listed too,
+    // so a new field is covered only once someone adds a line — which is why
+    // this one is stated against the fixture's declared form by name rather
+    // than by a non-empty check.
+    assert_eq!(
+        model
+            .trace_tags
+            .implements
+            .iter()
+            .map(|f| f.name.as_str())
+            .collect::<Vec<_>>(),
+        vec!["rust-implements-attr"],
+        "trace_tags.implements survived the merge"
+    );
 
     // And the same model read through `is_empty` — the gate that decides
     // whether `traceability()` returns anything at all.

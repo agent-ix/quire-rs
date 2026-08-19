@@ -193,3 +193,50 @@ fn tc939_implements_reaches_the_report_without_moving_a_total() {
 
     std::fs::remove_dir_all(&dir).ok();
 }
+
+// TC-940 (FR-062-AC-5, CR-081): the forms reach `bind` when they come from a
+// module manifest, which is the only way a consumer ever supplies them.
+//
+// Every test above builds the model in memory, and that is exactly why they all
+// passed while the relation was dead in the field. `merge_traceability` and
+// `TraceabilityModel::is_empty` are both hand-maintained per-field functions,
+// and neither listed `trace_tags.implements` — so a module declaring the forms
+// had them dropped between the manifest and the graph, and `quire coverage`
+// reported an empty `implements` array for a repository whose production code
+// was correctly annotated.
+//
+// The distinction this test draws is load path vs. struct: `Registry::load_module`
+// on the left, `TraceabilityModel::default()` on the right. Only the left one
+// is what a consumer runs.
+#[test]
+fn tc940_declared_forms_survive_the_module_load() {
+    let fixture = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/traceability/required-relations");
+    let registry = quire_rs::registry::Registry::load_module(&fixture).expect("load");
+    let model = registry
+        .traceability()
+        .expect("a model declaring implements forms is a declared model");
+
+    let dir = std::env::temp_dir().join(format!("quire-impl-940-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).expect("mkdir");
+    std::fs::write(
+        dir.join("lib.rs"),
+        "#[implements(\"FR-053\")]\npub fn parse_manifest(text: &str) -> usize { text.len() }\n",
+    )
+    .expect("write");
+
+    let graph = trace::bind(&quire_rs::symbols::extract_tree(&dir), model);
+
+    assert_eq!(
+        graph.implements.len(),
+        1,
+        "the manifest's forms never reached bind: {:?}",
+        graph.implements
+    );
+    assert_eq!(graph.implements[0].trace_id, "FR-053");
+    assert_eq!(graph.implements[0].form, "rust-implements-attr");
+    assert!(graph.backed_trace_ids().is_empty());
+
+    std::fs::remove_dir_all(&dir).ok();
+}
