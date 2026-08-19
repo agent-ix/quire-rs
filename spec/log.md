@@ -8,6 +8,12 @@ description: "Chronological log of structural changes to this bundle."
 ## History
 
 
+* **2026-08-19** — **CR-078**: the obligation record carries `target_ids` (FR-053-AC-11, TC-935). A criteria row states a **method** and the **test cases** that discharge it — `Test (TC-707)`, `Eval (TC-EV-054, TC-EV-055)` — and the record kept the first while discarding the second, though `method_of` finds that same `(` to know where the method ends.
+
+  That cost a consumer the join its own spec states: quoin's store binds a run's trace ids against **obligation** ids, so an adapter reporting a **test-case** id — an agent-eval report keys on the scenario — bound nothing while `FR-038-AC-8 → TC-EV-057` sat in the table the engine had just read. Recovering it meant re-parsing the criteria table, the duplication FR-050 exists to prevent (#180).
+
+  **Additive on the published v1 contract**: `schemas/output/coverage-v1.schema.json` is `additionalProperties: false`, so emitting the field without amending it would have made every consumer reject the payload. Not in `required`, so an older engine's output still validates. An unclosed parenthetical reads nothing rather than to end-of-cell — reading on turns a typo into a plausible-looking id that binds to nothing.
+
 * **2026-08-19** — **CR-077**: FR-013 declares its **Configuration Dimensions** — the first real configuration space in the ecosystem. `features(default|python|wasm)` × `target(linux|wasm32)`, minus the two pairs that cannot be built: `default` activates `jsonschema/resolve-file`, whose path calls `url::Url::to_file_path` (absent on wasm32, and the entire reason the `wasm` feature exists), and `python` activates `pyo3/extension-module`, which links a host interpreter wasm32 does not have. Four of six pairs are real.
 
   The prose in this FR already said all of that; nothing could measure it. `quire coverage` now mints `FR-013-CFG-1` — `2-way over features(default|python|wasm) target(linux|wasm32) excluding[…]`, `tuples: 4` — and quoin FR-035 reports which pairs a run reached and names the ones it did not. Declaring the exclusions is not tidiness: demanding coverage of a combination that cannot be built makes the target permanently unreachable, and an unreachable target is one nobody acts on.
