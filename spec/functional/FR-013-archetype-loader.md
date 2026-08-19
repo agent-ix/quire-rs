@@ -134,6 +134,29 @@ This is an additive amendment — the default (native) build is unchanged. `carg
 
 The loader assumes the upstream sync tool (canonically `ix-cli`, see Appendix A in `spec.md`) writes files **atomically** — i.e. writes to a temp path and renames, never in-place. The loader does NOT acquire file locks. If a non-atomic writer modifies files during load, partial-read errors surface as `QuireError::ArchetypeLoadError` for the affected archetype; the rest of the registry loads normally.
 
+## Configuration Dimensions
+
+The build configurations this requirement is stated over. Declared as a table so
+quire-rs FR-061 mints one **combinatorial obligation** for the space and quoin
+FR-035 can say which pairs a run actually reached — the prose above says the
+same thing and nothing could measure it.
+
+| Dimension | Values | Excludes |
+|-----------|--------|----------|
+| features | default, python, wasm | features=default & target=wasm32 |
+| target | linux, wasm32 | features=python & target=wasm32 |
+
+Both exclusions are facts about the code, not conveniences. `default` activates
+`jsonschema/resolve-file`, whose path calls `url::Url::to_file_path` — absent on
+`wasm32-unknown-unknown`, which is the entire reason the `wasm` feature exists.
+`python` activates `pyo3/extension-module`, which links against a host
+interpreter that a wasm32 target does not have.
+
+So of the six pairs the dimensions describe, **two cannot exist** and the
+obligation is over the remaining four. Declaring them is not tidiness: demanding
+coverage of a combination that cannot be built makes the target permanently
+unreachable, and an unreachable target is one nobody acts on.
+
 ## Acceptance Criteria
 
 | ID | Criteria | Verification |

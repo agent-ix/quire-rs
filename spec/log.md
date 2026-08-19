@@ -8,6 +8,10 @@ description: "Chronological log of structural changes to this bundle."
 ## History
 
 
+* **2026-08-19** — **CR-077**: FR-013 declares its **Configuration Dimensions** — the first real configuration space in the ecosystem. `features(default|python|wasm)` × `target(linux|wasm32)`, minus the two pairs that cannot be built: `default` activates `jsonschema/resolve-file`, whose path calls `url::Url::to_file_path` (absent on wasm32, and the entire reason the `wasm` feature exists), and `python` activates `pyo3/extension-module`, which links a host interpreter wasm32 does not have. Four of six pairs are real.
+
+  The prose in this FR already said all of that; nothing could measure it. `quire coverage` now mints `FR-013-CFG-1` — `2-way over features(default|python|wasm) target(linux|wasm32) excluding[…]`, `tuples: 4` — and quoin FR-035 reports which pairs a run reached and names the ones it did not. Declaring the exclusions is not tidiness: demanding coverage of a combination that cannot be built makes the target permanently unreachable, and an unreachable target is one nobody acts on.
+
 * **2026-08-19** — **CR-076**: FR-061's combinatorial branch reaches the **corpus** path (FR-061-AC-10, TC-934). An obligation is minted by two functions — `obligation::for_document`, which single-document validation calls, and `obligation::derive`, which the rollup behind `quire coverage` calls. **The branch shipped in only the first.** A module declaring a configuration matrix minted one obligation *per dimension row*, the exact shape the source exists to replace, and the `coverage --json` contract quoin reads never carried a combinatorial obligation at all — so quoin FR-035 could never fire however the module was declared.
 
   Found the first time a module actually declared one (spec-artifacts-process FR-007 CR-027, v0.19.0): a two-row probe minted `FR-001-CFG-1` and `FR-001-CFG-2` instead of one. TC-931 had asserted the contract over `for_document` and described it as *"the function every consumer of the FR-055 contract reaches"* — a false premise, and the reason this shipped.
