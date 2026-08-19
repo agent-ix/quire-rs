@@ -127,6 +127,7 @@ impl ValidationResult {
     }
 }
 
+/// Implements: FR-030
 /// Validate an authored markdown `doc_text` against `archetype` (FR-032).
 ///
 /// This is the **type-only** path: it validates the document against the

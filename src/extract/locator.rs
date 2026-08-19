@@ -412,6 +412,7 @@ impl LocatorPrimitive {
     }
 }
 
+/// Implements: FR-016
 /// Evaluate a [`Locator`] (primitive or fallback chain) against
 /// `doc`. For a fallback chain, returns the first primitive that
 /// produces a non-empty result and records its position so the caller

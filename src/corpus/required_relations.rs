@@ -27,6 +27,7 @@ use super::validate::{pack, posture_tier, BundleFinding, BundlePosture, BundleRe
 use crate::registry::Registry;
 use crate::traceability::{RelationDirection, RequiredRelation};
 
+/// Implements: FR-058
 /// Check every declared required relation, plus any declared acyclic edge sets.
 ///
 /// A no-op when the active module declares neither (FR-058-AC-8), which is the

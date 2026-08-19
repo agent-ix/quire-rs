@@ -28,6 +28,7 @@ use super::validate::{pack, posture_tier, BundleFinding, BundlePosture, BundleRe
 use crate::registry::Registry;
 use crate::traceability::VocabularyCoverage;
 
+/// Implements: FR-059
 /// Check every declared vocabulary coverage.
 ///
 /// A no-op when the module declares none (FR-059-AC-6), the same early return

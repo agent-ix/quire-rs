@@ -34,6 +34,7 @@ use crate::extract::dsl::ExtractionDsl;
 use crate::extract::locator::{Locator, LocatorAssert};
 use crate::loader::compile::CompiledArchetype;
 
+/// Implements: FR-060
 /// Resolve every named vocabulary in `archetypes`, keyed by whatever the
 /// caller keys them by.
 ///

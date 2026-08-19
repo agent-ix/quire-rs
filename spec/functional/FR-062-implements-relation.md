@@ -96,6 +96,45 @@ this diff touch"* — the input to scoped CI, impact analysis and review routing
 > too. It now names `trace_tags.implements`, and AC-5 adds the load-path test the
 > other four bypass.
 
+> **CR-082 (the relation is adopted, and what it bought — 2026-08-19):** the
+> relation existing changes nothing until production code carries the marker, so
+> this crate annotates its own.
+>
+> **What the number counts.** One row per functional requirement in
+> `spec/functional/` — 58 of them — asking a single question: does
+> `mutants_scope` name at least one file under `src/` that `cargo mutants --file`
+> could mutate for that requirement? Not how many files, not how good the tests
+> are. Just: is there anything to mutate at all.
+>
+> | | FRs with a mutable target |
+> |---|---|
+> | before, scoping by `verifies` alone | **40 of 58** |
+> | after, 15 production symbols annotated | **55 of 58** |
+>
+> The earlier figure recorded on this programme was 38 of 52; the population has
+> grown by six requirements since, which is why the baseline is re-derived here
+> rather than quoted.
+>
+> **The three that remain are correct, not missed.** FR-004 (strict minijinja
+> environment) and FR-012 (render-parity harness) describe the **render layer,
+> which this crate removed** — there is no production code to mutate and
+> inventing an annotation would point mutation testing at something else.
+> FR-055's contract is **authored JSON schemas** under `schemas/`, and its own
+> CON-1 requires they be authored rather than generated, so there is no Rust
+> behind it either. A requirement about data has no mutable target and should
+> not be given a fake one.
+>
+> **`mutants_scope` unions the two edges rather than replacing one with the
+> other.** An annotated requirement whose tests are also co-located should mutate
+> both files; dropping the inferred half the moment one marker appeared would
+> make annotating a requirement *narrow* its own scope. The report names which
+> edge produced each path, so a reader can tell a stated scope from an inferred
+> one.
+>
+> Measured after annotating: 15 `implements` edges, `totals.backed` unchanged at
+> **483** and `untracked_symbols` unchanged at **15** — CON-1 holds under real
+> adoption, not only in the fixture.
+
 ### Minting it is not the same as exposing it
 
 `FR-061` shipped a combinatorial branch that existed only on the single-document

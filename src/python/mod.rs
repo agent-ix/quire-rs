@@ -29,6 +29,7 @@ pyo3::create_exception!(quire, QuireValidationError, QuireBaseError);
 pyo3::create_exception!(quire, QuireSchemaError, QuireBaseError);
 pyo3::create_exception!(quire, QuireParseError, QuireBaseError);
 
+/// Implements: FR-023, FR-028
 /// The `quire` Python module.
 #[pymodule]
 fn quire(m: &Bound<'_, PyModule>) -> PyResult<()> {

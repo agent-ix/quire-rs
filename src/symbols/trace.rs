@@ -183,6 +183,7 @@ pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolG
     graph
 }
 
+/// Implements: FR-062
 /// Bind a production symbol to the requirements it implements (FR-062).
 ///
 /// Structurally simpler than [`bind_symbol`] because there is nothing to

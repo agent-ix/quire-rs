@@ -103,6 +103,7 @@ fn bound_sections(archetype: &str) -> &'static [(&'static str, Option<&'static s
     }
 }
 
+/// Implements: FR-056
 /// Check `doc` against the requirement-quality pack.
 ///
 /// `ambiguous` is the merged module registry layered over [`BUILTIN_AMBIGUOUS`].

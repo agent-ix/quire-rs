@@ -493,6 +493,7 @@ impl GrammarSeverityLevel {
 /// the **all-default** map applied by the registry-free paths.
 pub type GrammarSeverityMap = std::collections::BTreeMap<String, GrammarSeverityLevel>;
 
+/// Implements: FR-057
 /// The registry key for a `(grammar, check)` pair — the `<grammar>:<check>`
 /// form modules and the `--severity` CLI flag both author.
 pub fn severity_key(grammar: &str, check: &str) -> String {

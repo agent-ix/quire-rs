@@ -168,6 +168,7 @@ struct GraphEdge {
     metadata: Map<String, Value>,
 }
 
+/// Implements: FR-046
 pub fn extract_filament_core(input: FilamentExtractionInput) -> CoreExtractionResult {
     let mut diagnostics = Vec::new();
     let mut errors = Vec::new();
