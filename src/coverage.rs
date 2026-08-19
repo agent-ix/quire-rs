@@ -96,6 +96,22 @@ pub struct UntrackedSymbol {
     pub trace_id: String,
 }
 
+/// One `implements` edge as the JSON contract carries it (FR-062).
+///
+/// Deliberately separate from `untracked_symbols` and from the backed set. This
+/// is **scope**, not evidence — which requirement a production symbol is about —
+/// and a consumer that folded it into either would let unverified code claim
+/// coverage, the backdoor CR-061 closed.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ImplementsRecord {
+    pub path: String,
+    pub symbol: String,
+    /// The requirement this code implements.
+    pub trace_id: String,
+    /// Name of the declared marker form that bound it.
+    pub form: String,
+}
+
 /// Backed/total trace-target counts for one minting document (FR-050-AC-6).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GroupCounts {
@@ -185,6 +201,13 @@ pub struct CoverageReport {
     /// module that has not adopted them.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub obligations: Vec<Obligation>,
+    /// Requirement → production code (FR-062). Empty — and so absent from the
+    /// JSON — for a module declaring no `implements` marker forms, which keeps
+    /// FR-050-AC-7 byte-identity for every module that has not adopted them.
+    ///
+    /// **Carries no weight in `totals`.** Scope is not evidence.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub implements: Vec<ImplementsRecord>,
     pub totals: CoverageTotals,
 }
 
@@ -686,6 +709,19 @@ fn reconcile(
         criteria: Vec::new(),
         diagnostics,
         obligations,
+        // FR-062. Carried through to the JSON so a consumer can scope work by
+        // requirement; deliberately NOT folded into `totals`, `backed` or
+        // `untracked_symbols` — scope is not evidence.
+        implements: graph
+            .implements
+            .iter()
+            .map(|relation| ImplementsRecord {
+                path: relation.path.clone(),
+                symbol: relation.symbol.clone(),
+                trace_id: relation.trace_id.clone(),
+                form: relation.form.clone(),
+            })
+            .collect(),
         totals,
     }
 }
