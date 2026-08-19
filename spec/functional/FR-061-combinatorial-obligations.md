@@ -77,6 +77,22 @@ tests it.
 Computing achieved coverage from a run record, and the gap list, stay in `agent-ix/quoin#90`.
 Generating or executing the combinations is invariant 1's line and belongs to consumer CI.
 
+### Both minting paths, or the feature is unreachable
+
+An obligation is minted by two functions: `obligation::for_document`, which
+single-document validation calls, and `obligation::derive`, which the corpus
+rollup behind `quire coverage` calls.
+
+**The combinatorial branch shipped in only the first.** A module declaring a
+configuration matrix therefore minted one obligation *per dimension row* — the
+exact shape this source exists to replace — and the `coverage --json` contract
+quoin reads never carried a combinatorial obligation at all. CR-076.
+
+The two paths must agree on more than arity. They mint the same id, the same
+`strength`/`dimensions`/`tuples` parameters and the same statement hash, because
+a binding made while validating a document has to match the obligation the
+rollup reports. TC-934 asserts that identity rather than just the count.
+
 ## Acceptance Criteria
 
 | ID | Criteria | Verification |
@@ -90,6 +106,7 @@ Generating or executing the combinations is invariant 1's line and belongs to co
 | FR-061-AC-7 | `obligation::for_document` mints **one** obligation for the whole table, with its id from `id_format` and `strength`/`dimensions`/`tuples` in `parameters`. | Test (TC-931) |
 | FR-061-AC-8 | A space with fewer than two real dimensions mints nothing. | Test (TC-932) |
 | FR-061-AC-9 | A combinatorial source declaring strength 0 fails at module load, naming the source. | Test (TC-933) |
+| FR-061-AC-10 | The corpus path mints the same one obligation as the single-document path — same id, same parameters, same statement hash — so a binding made against one matches the other. | Test (TC-934) |
 
 ## Constraints
 

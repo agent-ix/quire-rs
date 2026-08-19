@@ -8,6 +8,12 @@ description: "Chronological log of structural changes to this bundle."
 ## History
 
 
+* **2026-08-19** — **CR-076**: FR-061's combinatorial branch reaches the **corpus** path (FR-061-AC-10, TC-934). An obligation is minted by two functions — `obligation::for_document`, which single-document validation calls, and `obligation::derive`, which the rollup behind `quire coverage` calls. **The branch shipped in only the first.** A module declaring a configuration matrix minted one obligation *per dimension row*, the exact shape the source exists to replace, and the `coverage --json` contract quoin reads never carried a combinatorial obligation at all — so quoin FR-035 could never fire however the module was declared.
+
+  Found the first time a module actually declared one (spec-artifacts-process FR-007 CR-027, v0.19.0): a two-row probe minted `FR-001-CFG-1` and `FR-001-CFG-2` instead of one. TC-931 had asserted the contract over `for_document` and described it as *"the function every consumer of the FR-055 contract reaches"* — a false premise, and the reason this shipped.
+
+  The two paths mint the **same** obligation, not merely the same count: same id, same `strength`/`dimensions`/`tuples` parameters, same statement hash. A binding made while validating a document has to match the obligation the rollup reports, and TC-934 asserts that identity rather than the arity alone.
+
 * **2026-08-18** — **CR-078**: new [FR-061](./functional/FR-061-combinatorial-obligations.md) — **combinatorial obligations from declared configuration dimensions** (agent-ix/quire-rs#163). Config-space bugs hide in interactions no single-dimension test exercises, and "we tested the configurations" is unquantifiable without a declared space. A module declares which columns of a table hold dimensions, values and forbidden combinations; the engine mints **one** obligation over the interaction of every row.
 
   **A new source kind, not a new mechanism.** FR-053's `parameters` map already documented "a t-way strength"; the statement hash, the suspect link and the parameter carriage are inherited unchanged. What differs is arity — a t-way obligation is a statement about every row at once, so no single row can carry it, which is why it needed a declaration rather than another column. This adds a field to an existing key rather than a fourth P2 manifest key.
