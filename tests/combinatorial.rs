@@ -279,3 +279,101 @@ fn tc933_strength_zero_is_rejected() {
     let err = model.validate().expect_err("strength 0 is rejected");
     assert!(err.contains("strength 0"), "{err}");
 }
+
+// TC-934 (FR-061-AC-10): a declared space mints ONE obligation through the
+// CORPUS path too, identically to the single-document path.
+//
+// TC-931 states the same contract over `obligation::for_document` and calls it
+// "the function every consumer of the FR-055 contract reaches". That was wrong,
+// and the wrongness is the whole reason this test exists: `quire coverage` —
+// the surface quoin actually reads — calls `obligation::derive`, which had no
+// combinatorial branch at all. A declared configuration matrix therefore minted
+// one obligation PER DIMENSION ROW, the exact shape the source exists to
+// replace, and quoin FR-035 could never see a combinatorial obligation however
+// the module was declared (CR-076).
+//
+// The two paths must agree on more than arity: an obligation minted by one and
+// read by the other has to be the SAME obligation, or a binding made during
+// validation would not match the one coverage reports.
+#[test]
+fn tc934_the_corpus_path_mints_the_same_one_obligation() {
+    use quire_rs::corpus::Spec;
+    use quire_rs::traceability::{CombinatorialColumns, ObligationSource, TraceabilityModel};
+
+    let model = TraceabilityModel {
+        obligations: vec![ObligationSource {
+            name: "configuration-space".to_string(),
+            target: None,
+            archetype: Some("FR".to_string()),
+            section: Some("Configuration Dimensions".to_string()),
+            id_format: Some("{document}-COMB".to_string()),
+            exclude: vec![],
+            statement_column: "Dimension".to_string(),
+            method_column: None,
+            criticality_column: None,
+            parameters: Default::default(),
+            combinatorial: Some(CombinatorialColumns {
+                dimension_column: "Dimension".to_string(),
+                values_column: "Values".to_string(),
+                excludes_column: Some("Excludes".to_string()),
+                strength: 2,
+            }),
+        }],
+        ..TraceabilityModel::default()
+    };
+    model.validate().expect("a well-formed source loads");
+
+    let text = "---\nid: FR-001\ntype: FR\ntitle: A requirement\n---\n\n\
+        ## Configuration Dimensions\n\n\
+        | Dimension | Values | Excludes |\n\
+        |---|---|---|\n\
+        | features | default, python, wasm | features=python & target=wasm32 |\n\
+        | target | linux, wasm32 | |\n\
+        | policy | tolerant, strict | |\n";
+
+    let mut root = std::env::temp_dir();
+    root.push(format!(
+        "quire_comb_derive_{}",
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    std::fs::create_dir_all(&root).unwrap();
+    std::fs::write(root.join("FR-001.md"), text).unwrap();
+
+    let spec = Spec::from_path(&root);
+    let (obligations, _skipped) = quire_rs::obligation::derive(&spec, &root, &model);
+
+    // ONE for the whole table, not one per dimension row.
+    assert_eq!(obligations.len(), 1, "{obligations:?}");
+    let obligation = &obligations[0];
+    assert_eq!(obligation.id, "FR-001-COMB");
+    assert_eq!(obligation.source, "configuration-space");
+
+    // The same numbers `for_document` carries — 3·2 + 3·2 + 2·2 = 16 pairs,
+    // less the one the exclusion forbids.
+    assert_eq!(
+        obligation.parameters.get("strength").map(String::as_str),
+        Some("2")
+    );
+    assert_eq!(
+        obligation.parameters.get("dimensions").map(String::as_str),
+        Some("3")
+    );
+    assert_eq!(
+        obligation.parameters.get("tuples").map(String::as_str),
+        Some("15")
+    );
+
+    // And the same statement hash, which is what makes a binding portable
+    // between the two paths.
+    let doc = quire_rs::parse_document(text);
+    let by_document = quire_rs::obligation::for_document(&model, "FR", &doc, None);
+    let twin = by_document
+        .get("FR-001-COMB")
+        .expect("the single-document path mints the same id");
+    assert_eq!(obligation.statement_hash, twin.statement_hash);
+
+    std::fs::remove_dir_all(&root).ok();
+}

@@ -384,6 +384,27 @@ pub fn derive(
             model_exclude: &model_exclude,
         };
         let rows = declared_tables::scan(spec, root, scope, resolved.section, &mut ctx);
+        // FR-061: a combinatorial source states ONE obligation per document
+        // about the interaction of that document's rows, so it never reaches
+        // the row-per-obligation path below.
+        //
+        // This branch existed only in `for_document` until CR-076. `quire
+        // coverage` calls THIS function, so a declared configuration matrix
+        // minted one obligation per dimension row — the exact shape the source
+        // exists to replace — and quoin FR-035 could never see a combinatorial
+        // obligation however the module was declared.
+        if let Some(combinatorial) = &source.combinatorial {
+            collect_combinatorial(
+                source,
+                order,
+                &resolved,
+                combinatorial,
+                &rows,
+                root,
+                &mut out,
+            );
+            continue;
+        }
         collect(
             source,
             order,
@@ -430,6 +451,106 @@ fn resolve<'a>(source: &'a ObligationSource, model: &'a TraceabilityModel) -> Op
             id_format: Some(source.id_format.as_deref()?),
         }),
         _ => None,
+    }
+}
+
+/// One combinatorial obligation per document (FR-061), from scanned rows.
+///
+/// The corpus twin of [`combinatorial_obligation`], which works from a parsed
+/// document. Both build the same [`ConfigurationSpace`] and hash the same
+/// statement, so an obligation derived here and one derived during
+/// single-document validation are the same obligation — that identity is what
+/// lets a binding made against one be read by the other.
+///
+/// Rows are grouped by document because a space is a property of one document's
+/// table. Scanning the corpus yields every matching table at once, and folding
+/// them together would invent a space no document declares.
+fn collect_combinatorial(
+    source: &ObligationSource,
+    order: usize,
+    resolved: &Resolved<'_>,
+    columns: &crate::traceability::CombinatorialColumns,
+    rows: &[ScannedRow],
+    root: &Path,
+    out: &mut Vec<(usize, Obligation)>,
+) {
+    use crate::combinatorial::{parse_exclusion, split_values, ConfigurationSpace, Dimension};
+
+    let Some(template) = resolved.id_format else {
+        // A combinatorial source mints no id from a column — the table has one
+        // id, not one per row — so without a template there is nothing to name
+        // the obligation. Silent rather than skipped: `TraceabilityModel`
+        // validation rejects this at load, so reaching here means an
+        // unvalidated model, which yields no obligations by design.
+        return;
+    };
+
+    let mut by_document: BTreeMap<&Path, (Vec<Dimension>, Vec<crate::combinatorial::Exclusion>)> =
+        BTreeMap::new();
+    for row in rows {
+        let entry = by_document.entry(row.path.as_path()).or_default();
+        if let Some(cell) = columns.excludes_column.as_deref().and_then(|c| row.cell(c)) {
+            if let Some(exclusion) = parse_exclusion(cell) {
+                entry.1.push(exclusion);
+            }
+        }
+        let (Some(name), Some(values)) = (
+            row.cell(&columns.dimension_column),
+            row.cell(&columns.values_column),
+        ) else {
+            continue;
+        };
+        let values = split_values(values);
+        // A dimension with one value takes part in no interaction. Counting it
+        // would widen the reported space without widening the real one.
+        if values.len() < 2 {
+            continue;
+        }
+        entry.0.push(Dimension {
+            name: name.trim().to_string(),
+            values,
+        });
+    }
+
+    for (path, (dimensions, exclusions)) in by_document {
+        // Fewer than two dimensions is not a configuration space, and minting
+        // an obligation for it would put a permanently-satisfied row in the
+        // report that reads exactly like a real one.
+        if dimensions.len() < 2 {
+            continue;
+        }
+        let space = ConfigurationSpace {
+            dimensions,
+            exclusions,
+        };
+        let statement = space.statement(columns.strength);
+        let document = declared_tables::relative_path(root, path);
+        let stem = document_id(&document);
+        // The SAME parameters `for_document` carries. An obligation minted by
+        // one path and read by the other must be the same obligation, or a
+        // binding made during validation would not match the one coverage
+        // reports — and `tuples` in particular is the number quoin FR-035
+        // measures against rather than recomputing.
+        let mut parameters = BTreeMap::new();
+        parameters.insert("strength".to_string(), columns.strength.to_string());
+        parameters.insert("dimensions".to_string(), space.dimensions.len().to_string());
+        parameters.insert(
+            "tuples".to_string(),
+            space.tuples(columns.strength).to_string(),
+        );
+        out.push((
+            order,
+            Obligation {
+                source: source.name.clone(),
+                id: render_id(template, &stem, 1),
+                document,
+                statement_hash: statement_hash(&statement),
+                statement,
+                method: None,
+                parameters,
+                criticality: None,
+            },
+        ));
     }
 }
 
