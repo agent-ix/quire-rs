@@ -500,6 +500,23 @@ pub struct TraceTagGrammar {
     pub markers: Vec<TraceMarkerForm>,
     #[serde(default)]
     pub legacy: Vec<TraceLegacyForm>,
+    /// Marker forms binding a **production** symbol to the requirement it
+    /// implements (FR-062).
+    ///
+    /// A separate list, not a flag on `markers`, and that is the whole design.
+    /// `verifies` means *"this test would fail if the behaviour broke"* —
+    /// evidence, and it can back an acceptance criterion. `implements` means
+    /// *"this code is what the requirement is about"* — scope, and it must
+    /// never back one.
+    ///
+    /// CR-061 stopped `verifies` binding production symbols precisely because a
+    /// doc comment citing `FR-053-AC-1` would otherwise count as evidence for
+    /// it. Widening `verifies` was the wrong fix; so is a shared list with a
+    /// discriminator, because the two would then differ by a field a typo can
+    /// flip. They differ by which list declares them and which symbol kinds
+    /// they may attach to.
+    #[serde(default)]
+    pub implements: Vec<TraceMarkerForm>,
 }
 
 /// One canonical marker form — a statically parseable construct attached to a

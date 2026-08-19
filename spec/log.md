@@ -8,6 +8,12 @@ description: "Chronological log of structural changes to this bundle."
 ## History
 
 
+* **2026-08-19** — **CR-079**: new [FR-062](./functional/FR-062-implements-relation.md) — the **requirement→production-code** relation (agent-ix/quire-rs#171). FR-051 links an *evidence* symbol to a trace id; nothing linked a requirement to the code that implements it, and the cost is measured: **14 of this repo's 52 FRs have no mutable target**, because every symbol verifying them lives in `tests/`. Reach correlated with test placement rather than requirement quality.
+
+  **Two relations, no path between them.** `verifies` means *"this test would fail if the behaviour broke"* and may back an acceptance criterion; `implements` means *"this code is what the requirement is about"* and never may. CR-061 stopped `verifies` binding production symbols precisely so a doc comment citing a criterion could not count as evidence for it, and widening `verifies` was the wrong fix — so is a shared type with a discriminator, which puts one typo between scope and evidence.
+
+  The separation is **structural**: a separate declared list (`trace_tags.implements`), a separate relation type (`ImplementsRelation`), and **complementary symbol kinds** — `verifies` binds only evidence symbols, `implements` only production ones. A mis-declared pattern therefore yields *no* relation rather than the *wrong* one: an `implements` marker on a test binds nothing, and a `trace` marker on production code still binds nothing. TC-936..TC-938.
+
 * **2026-08-19** — **CR-078**: the obligation record carries `target_ids` (FR-053-AC-11, TC-935). A criteria row states a **method** and the **test cases** that discharge it — `Test (TC-707)`, `Eval (TC-EV-054, TC-EV-055)` — and the record kept the first while discarding the second, though `method_of` finds that same `(` to know where the method ends.
 
   That cost a consumer the join its own spec states: quoin's store binds a run's trace ids against **obligation** ids, so an adapter reporting a **test-case** id — an agent-eval report keys on the scenario — bound nothing while `FR-038-AC-8 → TC-EV-057` sat in the table the engine had just read. Recovering it meant re-parsing the criteria table, the duplication FR-050 exists to prevent (#180).

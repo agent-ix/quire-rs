@@ -80,6 +80,23 @@ impl SymbolKind {
             Self::TestFunction | Self::Benchmark | Self::FuzzTarget
         )
     }
+
+    /// Whether this symbol can carry an `implements` marker (FR-062).
+    ///
+    /// The exact complement of [`Self::binds_trace_ids`], and deliberately so.
+    /// `verifies` says *"this test would fail if the behaviour broke"* and only
+    /// evidence symbols may claim it; `implements` says *"this code is what the
+    /// requirement is about"* and only production symbols may.
+    ///
+    /// Making them complements means the two relations cannot be confused by a
+    /// mis-declared pattern: a marker on a test binds nothing as `implements`,
+    /// and a marker on a production function binds nothing as `verifies`. That
+    /// is the CR-061 separation enforced by symbol kind rather than by
+    /// convention — widening `verifies` was the wrong fix, and so would be
+    /// widening this.
+    pub fn carries_implements(self) -> bool {
+        matches!(self, Self::Function | Self::Container)
+    }
 }
 
 /// One extracted symbol.
