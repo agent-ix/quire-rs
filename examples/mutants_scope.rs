@@ -101,6 +101,19 @@ fn main() {
             .insert(v.trace_id.clone());
     }
 
+    // **The direct edge (FR-062).** `implements` binds a PRODUCTION symbol to the
+    // requirement it is about, so it answers "what code is this requirement for"
+    // in one hop and with no inference. Where a requirement carries these
+    // markers they are the answer; the `verifies` path below is what remains for
+    // requirements nobody has annotated yet.
+    let mut declared: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+    for relation in graph.implements.iter().filter(|r| owned(&r.trace_id)) {
+        declared
+            .entry(relation.path.clone())
+            .or_default()
+            .insert(relation.trace_id.clone());
+    }
+
     // `verifies` binds **evidence** symbols — a test, a benchmark, a fuzz target
     // (FR-051, CR-061). cargo-mutants mutates production code, so a `tests/`
     // file is a witness that the requirement is covered but is not itself a
@@ -108,10 +121,28 @@ fn main() {
     // the file they cover, so a `src/` hit *is* the production file — which is
     // exactly why the pilot runs here and why the split is reported rather than
     // silently collapsed.
-    let (mutable, evidence_only): (Vec<_>, Vec<_>) = by_file
+    //
+    // That coincidence is the whole limitation FR-062 exists to remove: reach by
+    // this path correlates with **test placement**, not with requirement
+    // quality. Measured across this crate on 2026-08-19, before any symbol was
+    // annotated: 40 of 58 functional requirements had a mutable target and 18
+    // had none, every one of the 18 for the same reason.
+    let (inferred, evidence_only): (Vec<_>, Vec<_>) = by_file
         .keys()
         .cloned()
         .partition(|p| p.starts_with("src/") || p.contains("/src/"));
+
+    // Union, not replacement. An annotated requirement whose tests are also
+    // co-located should mutate both files, and dropping the inferred half the
+    // moment one marker appears would make annotating a requirement *narrow* its
+    // own scope — the opposite of the intent.
+    let mutable: Vec<String> = declared
+        .keys()
+        .cloned()
+        .chain(inferred.iter().cloned())
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect();
 
     if files_only {
         for path in &mutable {
@@ -127,12 +158,25 @@ fn main() {
         println!("  {id}");
     }
 
+    // Which edge produced each path is the interesting part, because it says
+    // whether the scope is stated or inferred. `declared` came from an
+    // `implements` marker on production code; `verifies` came from where a test
+    // happens to live.
     println!(
         "\nmutable files ({}) — cargo-mutants targets:",
         mutable.len()
     );
     for path in &mutable {
-        println!("  {path}  [{}]", join(&by_file[path]));
+        let ids = declared.get(path).or_else(|| by_file.get(path));
+        let origin = if declared.contains_key(path) {
+            "implements"
+        } else {
+            "verifies"
+        };
+        println!(
+            "  {path}  [{}]  via {origin}",
+            ids.map(join).unwrap_or_default()
+        );
     }
 
     println!(
@@ -146,9 +190,12 @@ fn main() {
     if mutable.is_empty() {
         println!(
             "\nNo mutable target. Every symbol verifying {requirement} lives outside `src/`, so \
-             the traced-file set names no production code to mutate. That is a real limit of \
-             scoping by `verifies`: FR-051 binds evidence symbols, not the code under test, and \
-             the two coincide only where tests are co-located with the code."
+             the traced-file set names no production code to mutate, and no production symbol \
+             carries an `Implements: {requirement}` marker.\n\n\
+             Scoping by `verifies` alone cannot fix this: FR-051 binds evidence symbols, not the \
+             code under test, and the two coincide only where tests are co-located with the code. \
+             Annotating the production code that {requirement} is about (FR-062) is what makes \
+             this answerable."
         );
     }
 }

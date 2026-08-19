@@ -198,6 +198,7 @@ pub fn for_document(
     out
 }
 
+/// Implements: FR-061
 /// One obligation over a whole declared configuration space (FR-061).
 ///
 /// Returns `None` when the document declares no such table, or declares one

@@ -499,6 +499,7 @@ impl Registry {
         &self.inner.ambiguity_terms_matcher
     }
 
+    /// Implements: FR-054
     /// The merged verification-method catalog (FR-054), or `None` when no
     /// active module declares one — consumers report the catalog as
     /// **undeclared** rather than as containing no methods, exactly as
@@ -545,6 +546,7 @@ impl Registry {
         &self.inner.inverse_edges
     }
 
+    /// Implements: FR-041
     /// Resolve the edge vocabulary for a document with artifact archetype
     /// `artifact` and optional `object:` archetype (FR-040-AC-6).
     ///

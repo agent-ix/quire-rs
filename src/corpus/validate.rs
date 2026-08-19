@@ -230,6 +230,7 @@ pub fn validate_bundle_at(
     validate_bundle(&spec, registry, posture, root, root)
 }
 
+/// Implements: FR-038
 /// Validate an already-loaded `spec` under `posture`, with the two roots
 /// stated separately (CR-045, the same split `compute_coverage` has always
 /// had via its `root` parameter):
