@@ -8,6 +8,10 @@ description: "Chronological log of structural changes to this bundle."
 ## History
 
 
+* **2026-08-19** — **CR-080**: FR-062's relation reaches the **`coverage --json` contract** (FR-062-AC-4, TC-939). Minting a relation into `SymbolGraph` is not the same as exposing it: CR-076 had just shown that a combinatorial branch existing only on the single-document path meant `quire coverage` never carried it, and `implements` had the identical gap the day it was written — caught by checking the consumer surface rather than by shipping.
+
+  The report carries `implements` as its own array, additive on the published v1 contract and absent for a module declaring no marker forms. It is **not** folded into `backed`, `totals` or `untracked_symbols`: an `implements` edge is not a trace tag pointing at nothing, and counting it anywhere would let production code that merely cites a requirement move a coverage number — the backdoor CR-061 closed. TC-939 asserts both halves: that the field is in the serialized payload, and that `totals.backed` stays 0.
+
 * **2026-08-19** — **CR-079**: new [FR-062](./functional/FR-062-implements-relation.md) — the **requirement→production-code** relation (agent-ix/quire-rs#171). FR-051 links an *evidence* symbol to a trace id; nothing linked a requirement to the code that implements it, and the cost is measured: **14 of this repo's 52 FRs have no mutable target**, because every symbol verifying them lives in `tests/`. Reach correlated with test placement rather than requirement quality.
 
   **Two relations, no path between them.** `verifies` means *"this test would fail if the behaviour broke"* and may back an acceptance criterion; `implements` means *"this code is what the requirement is about"* and never may. CR-061 stopped `verifies` binding production symbols precisely so a doc comment citing a criterion could not count as evidence for it, and widening `verifies` was the wrong fix — so is a shared type with a discriminator, which puts one typo between scope and evidence.

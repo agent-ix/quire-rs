@@ -70,6 +70,20 @@ this diff touch"* — the input to scoped CI, impact analysis and review routing
 | FR-062-AC-1 | A production symbol carrying a declared `implements` marker mints an `implements` relation, and that relation backs no trace id. | Test (TC-936) |
 | FR-062-AC-2 | An `implements` marker on an evidence symbol, and a `verifies` marker on a production symbol, each bind nothing — the kinds are complements. | Test (TC-937) |
 | FR-062-AC-3 | A requirement named by several markers yields one relation, ordered deterministically. | Test (TC-938) |
+| FR-062-AC-4 | The relation reaches the `coverage --json` contract, and moves no coverage number: not `backed`, not `totals`, not `untracked_symbols`. | Test (TC-939) |
+
+### Minting it is not the same as exposing it
+
+`FR-061` shipped a combinatorial branch that existed only on the single-document
+path, so `quire coverage` — the surface every consumer reads — never carried it
+(CR-076). A relation in `SymbolGraph` that no consumer can see is a capability
+nothing reaches.
+
+So the report carries `implements` as its own array, additive on the published
+v1 contract and absent for a module declaring no marker forms. It is **not**
+folded into `backed`, `totals` or `untracked_symbols`: an `implements` edge is
+not a trace tag pointing at nothing, and counting it anywhere would let
+production code that merely cites a requirement move a coverage number.
 
 ## Constraints
 

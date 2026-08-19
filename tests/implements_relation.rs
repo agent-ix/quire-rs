@@ -118,3 +118,78 @@ fn tc938_relations_are_deduped_and_ordered() {
     // FR-050 before FR-053, and FR-053 once despite two markers naming it.
     assert_eq!(ids, vec!["FR-050", "FR-053"], "{:?}", graph.implements);
 }
+
+// TC-939 (FR-062-AC-4): the relation reaches the JSON contract, and changes no
+// coverage number.
+//
+// FR-061 shipped a combinatorial branch that existed only on the single-document
+// path, so `quire coverage` — the surface every consumer reads — never carried
+// it (CR-076). This asserts the equivalent for `implements` rather than assuming
+// that minting a relation makes it reachable: a relation in `SymbolGraph` that
+// no consumer can see is a capability nothing reaches.
+#[test]
+fn tc939_implements_reaches_the_report_without_moving_a_total() {
+    use quire_rs::Registry;
+
+    let dir = std::env::temp_dir().join(format!("quire-impl-939-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    let scope = dir.join("spec");
+    std::fs::create_dir_all(&scope).expect("mkdir");
+    std::fs::write(
+        scope.join("FR-001.md"),
+        "---\nid: FR-001\ntype: FR\ntitle: A requirement\n---\n\n\
+         ## Acceptance Criteria\n\n\
+         | ID | Criteria | Verification |\n|----|----------|--------------|\n\
+         | FR-001-AC-1 | The system shall do it. | Test |\n",
+    )
+    .expect("write");
+    let src = dir.join("src");
+    std::fs::create_dir_all(&src).expect("mkdir");
+    std::fs::write(
+        src.join("lib.rs"),
+        "#[implements(\"FR-001\")]\npub fn does_it(x: usize) -> usize { x }\n",
+    )
+    .expect("write");
+
+    let module = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests")
+        .join("fixtures")
+        .join("traceability")
+        .join("obligations-catalog");
+    let registry = Registry::load_module(&module).expect("load module");
+    let spec = quire_rs::Spec::from_path(&scope);
+
+    let mut model = registry.traceability().cloned().expect("model");
+    model.trace_tags.implements.push(TraceMarkerForm {
+        name: "rust-implements-attr".to_string(),
+        language: SourceLanguage::Rust,
+        pattern: r#"#\[implements\("([^"]+)"\)\]"#.to_string(),
+        template: None,
+    });
+    let graph = trace::bind(&quire_rs::symbols::extract_tree(&src), &model);
+    let report = quire_rs::coverage::compute(&spec, &registry, &graph, &scope).expect("report");
+
+    // It reaches the report a consumer reads.
+    assert_eq!(report.implements.len(), 1, "{:?}", report.implements);
+    assert_eq!(report.implements[0].trace_id, "FR-001");
+    assert_eq!(report.implements[0].form, "rust-implements-attr");
+
+    // And moves no coverage number: the criterion is still unbacked, because
+    // production code citing a requirement is scope, not evidence.
+    assert_eq!(report.totals.backed, 0, "{:?}", report.totals);
+    assert!(
+        report.untracked_symbols.is_empty(),
+        "an implements edge is not an untracked trace tag: {:?}",
+        report.untracked_symbols
+    );
+
+    // The serialized payload carries it too — a field the struct has and the
+    // JSON drops is the same defect one layer down.
+    let json = serde_json::to_value(&report).expect("serialize");
+    assert!(
+        json.get("implements").is_some(),
+        "the JSON contract must carry it: {json}"
+    );
+
+    std::fs::remove_dir_all(&dir).ok();
+}
