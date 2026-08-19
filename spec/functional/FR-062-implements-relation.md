@@ -134,6 +134,17 @@ this diff touch"* — the input to scoped CI, impact analysis and review routing
 > Measured after annotating: 15 `implements` edges, `totals.backed` unchanged at
 > **483** and `untracked_symbols` unchanged at **15** — CON-1 holds under real
 > adoption, not only in the fixture.
+>
+> **Review follow-up (SR).** The first draft applied the `src/` partition to the
+> `verifies` half only, so an `Implements:` marker on a function in `tests/` was
+> handed straight to `cargo mutants --file` and the test code mutated. The
+> engine cannot prevent it — `implements` binds any `Function`/`Container`, and a
+> helper in `tests/` is a `Function` — so the partition applies to **both**
+> edges: a `tests/` file is never a mutable target however it was reached. The
+> mis-annotation lands in `evidence-only` with a note naming the mistake instead
+> of being silently obeyed. A second defect in the same block: the evidence-only
+> report indexed the `verifies` map directly, so a declared-only path there
+> panicked. Neither changes the 55-of-58 figure.
 
 ### Minting it is not the same as exposing it
 
