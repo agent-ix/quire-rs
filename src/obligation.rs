@@ -63,6 +63,21 @@ pub struct Obligation {
     /// column — the ISO acceptance-criteria contract carries none.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub criticality: Option<String>,
+    /// Test-case ids the method cell names, e.g. `Test (TC-707)` → `["TC-707"]`
+    /// (FR-053-AC-11).
+    ///
+    /// The engine already parses these — `method_of` finds the same `(` to know
+    /// where the method name ends, and the reconciliation resolves the row
+    /// through them — and then dropped them on the way out. A consumer binding
+    /// evidence keyed on a **test case** rather than on the criterion could not
+    /// see the join its own spec states, and had no way to recover it short of
+    /// re-parsing the criteria table (agent-ix/quire-rs#180).
+    ///
+    /// Empty when the cell names none. Parsed from the same split `method_of`
+    /// uses, so the two cannot disagree about where the method ends and the
+    /// targets begin.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub target_ids: Vec<String>,
 }
 
 /// The obligation as it rides on one property-classification record (FR-053).
@@ -331,6 +346,35 @@ fn method_of(cell: &str) -> Option<String> {
     (!trimmed.is_empty()).then(|| trimmed.to_string())
 }
 
+/// Ids named in the method cell's trailing parenthetical.
+///
+/// `Test (TC-707)` → `["TC-707"]`; `Eval (TC-EV-054, TC-EV-055)` → both. The
+/// split is the same `find('(')` [`method_of`] uses, deliberately: one function
+/// takes the head and the other the tail, so they cannot disagree about where
+/// the method name ends.
+///
+/// Comma-separated, trimmed, empties dropped. Nothing is validated against a
+/// vocabulary here — whether `TC-707` exists is the reconciliation's question,
+/// and answering it twice is how two answers start to differ.
+fn target_ids_of(cell: &str) -> Vec<String> {
+    let Some(open) = cell.find('(') else {
+        return Vec::new();
+    };
+    let tail = &cell[open + 1..];
+    let inner = match tail.rfind(')') {
+        Some(close) => &tail[..close],
+        // An unclosed parenthetical is malformed, and reading to end-of-cell
+        // would turn a typo into a plausible-looking id. Read nothing.
+        None => return Vec::new(),
+    };
+    inner
+        .split(',')
+        .map(|part| part.trim())
+        .filter(|part| !part.is_empty())
+        .map(str::to_string)
+        .collect()
+}
+
 /// Render an `id_format` template for a row that mints no id of its own.
 fn render_id(template: &str, document: &str, row: usize) -> String {
     template
@@ -549,6 +593,9 @@ fn collect_combinatorial(
                 method: None,
                 parameters,
                 criticality: None,
+                // A configuration table declares no method cell and so names
+                // no test case; the obligation is over the space itself.
+                target_ids: Vec::new(),
             },
         ));
     }
@@ -627,6 +674,14 @@ fn collect(
                     .as_deref()
                     .and_then(|c| row.cell(c))
                     .map(str::to_string),
+                // From the SAME cell the method comes from, so the join the
+                // criteria table states travels with the obligation.
+                target_ids: source
+                    .method_column
+                    .as_deref()
+                    .and_then(|c| row.cell(c))
+                    .map(target_ids_of)
+                    .unwrap_or_default(),
             },
         ));
     }

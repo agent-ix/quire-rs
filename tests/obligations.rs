@@ -575,3 +575,51 @@ fn tc843_nested_obligation_does_not_repeat_the_record() {
     assert!(object.contains_key("source"));
     assert!(object.contains_key("statement_hash"));
 }
+
+// TC-935 (FR-053-AC-11): the obligation carries the test-case ids its method
+// cell names, so a consumer binding evidence keyed on a TEST CASE can join.
+//
+// The engine already parses this parenthetical — `method_of` finds the same `(`
+// to know where the method name ends, and the reconciliation resolves the row
+// through those ids — and then dropped them on the way out. quoin's evidence
+// store binds by matching a run's trace ids against OBLIGATION ids, so an
+// adapter reporting `TC-EV-057` (an agent-eval report keys on the scenario)
+// bound nothing, while the join `FR-038-AC-8 → TC-EV-057` sat in the criteria
+// table the engine had just read (agent-ix/quire-rs#180).
+#[test]
+fn tc935_obligation_carries_the_ids_its_method_cell_names() {
+    let scope = ac_bundle(
+        "935",
+        "| FR-001-AC-1 | The system shall do it. | Test (TC-001) | P1 |\n\
+         | FR-001-AC-2 | It shall also do it. | Eval (TC-EV-054, TC-EV-055) | P1 |\n\
+         | FR-001-AC-3 | A person reads it. | Inspection | P2 |\n\
+         | FR-001-AC-4 | Malformed annotation. | Test (TC-004 | P2 |\n",
+    );
+    let obligations = derive_at(&scope, "obligations");
+    assert_eq!(obligations.len(), 4, "{obligations:#?}");
+
+    // One id, and the method is still just the head.
+    assert_eq!(obligations[0].target_ids, vec!["TC-001".to_string()]);
+    assert_eq!(obligations[0].method.as_deref(), Some("Test"));
+
+    // Several, comma-separated and trimmed — the eval case that motivated this.
+    assert_eq!(
+        obligations[1].target_ids,
+        vec!["TC-EV-054".to_string(), "TC-EV-055".to_string()]
+    );
+    assert_eq!(obligations[1].method.as_deref(), Some("Eval"));
+
+    // A cell naming none carries none, rather than an empty-string id.
+    assert!(obligations[2].target_ids.is_empty());
+    assert_eq!(obligations[2].method.as_deref(), Some("Inspection"));
+
+    // An unclosed parenthetical reads NOTHING. Reading to end-of-cell would
+    // turn a typo into a plausible-looking id that binds to nothing and looks
+    // like a real target.
+    assert!(
+        obligations[3].target_ids.is_empty(),
+        "{:?}",
+        obligations[3].target_ids
+    );
+    assert_eq!(obligations[3].method.as_deref(), Some("Test"));
+}

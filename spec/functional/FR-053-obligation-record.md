@@ -211,6 +211,26 @@ with an empty statement — an obligation nothing can state is not an obligation
 | FR-053-CON-3 | The content hash SHALL be computed from the normalized statement alone — never from the id, the document path, the line number or the method. A statement that moves file or renumbers has not changed, and a suspect-link detector that fires on a move is one that gets switched off. | Architecture | Test |
 | FR-053-CON-4 | Obligation derivation SHALL NOT construct a `GrammarFinding` or carry a [FR-048](./FR-048-per-check-grammar-severity.md) `grammar_severity` key, so no obligation can fail a build. A missing method is a report, not an error, until a consuming workflow decides otherwise. | Architecture | Test |
 
+### The join the record used to drop
+
+A criteria row states two things about verification: the **method** and the
+**test cases** that discharge it — `Test (TC-707)`, `Eval (TC-EV-054, TC-EV-055)`.
+The record carried the first and discarded the second, even though `method_of`
+finds that same `(` to know where the method name ends.
+
+That cost a consumer the join its own spec states. quoin's evidence store binds
+by matching a run's trace ids against **obligation** ids; an adapter reporting a
+**test case** id — an agent-eval report keys on the scenario, `TC-EV-057` — bound
+nothing, while `FR-038-AC-8 → TC-EV-057` sat in the table the engine had just
+read. Recovering it meant re-parsing the criteria table, which is the
+duplication FR-050 exists to prevent (agent-ix/quire-rs#180).
+
+`target_ids` is **additive** on the published v1 contract: absent on payloads
+from an older engine, omitted where the cell names none, and not in `required`.
+An unclosed parenthetical reads nothing rather than to end-of-cell — reading on
+would turn a typo into a plausible-looking id that binds to nothing and looks
+like a real target.
+
 ## Acceptance Criteria
 
 | ID | Criteria | Verification |
@@ -225,6 +245,7 @@ with an empty statement — an obligation nothing can state is not an obligation
 | FR-053-AC-8 | A row whose statement cell is empty is skipped with a diagnostic naming the document and the row ordinal, and contributes no record. The diagnostic appears in the coverage report a consumer reads, not only in the derivation helper's return value. | Test (TC-838, TC-870) |
 | FR-053-AC-9 | Two runs of obligation derivation over an identical corpus serialize byte-identically, and the record order is by source **declaration** order (never source name), then scope-relative document path, then row ordinal. | Test (TC-839, TC-872) |
 | FR-053-AC-10 | A criterion whose module declares an obligation source over its archetype carries a populated `obligation` on its property classification record, matched to the criterion by row id; a criterion whose module declares none carries `obligation: null` and is otherwise field-for-field unchanged. | Test (TC-840) |
+| FR-053-AC-11 | The record carries the test-case ids its method cell names, so a consumer binding evidence keyed on a test case can join without re-parsing the criteria table. A cell naming none carries none, and an unclosed parenthetical reads nothing. | Test (TC-935) |
 | FR-053-AC-13 | The obligation nested on a classification record carries no `id`, `statement` or `document` key, because the record and its enclosing object already carry all three. | Test (TC-843) |
 | FR-053-AC-11 | A coverage report over a corpus with declared obligation sources carries one `obligations` entry per minting row, and a corpus with no declared sources carries an **absent** `obligations` key — the empty list serializes away — so FR-050-AC-7 byte-identity holds for every module that has not adopted them. | Test (TC-841) |
 | FR-053-AC-12 | The statement hash of a criterion is unchanged when that criterion moves to a different file, changes line number, or has its id renumbered, and changes when a single word of the statement changes. | Test (TC-842) |
