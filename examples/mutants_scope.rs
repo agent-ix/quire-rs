@@ -127,22 +127,27 @@ fn main() {
     // quality. Measured across this crate on 2026-08-19, before any symbol was
     // annotated: 40 of 58 functional requirements had a mutable target and 18
     // had none, every one of the 18 for the same reason.
-    let (inferred, evidence_only): (Vec<_>, Vec<_>) = by_file
-        .keys()
-        .cloned()
-        .partition(|p| p.starts_with("src/") || p.contains("/src/"));
-
+    //
     // Union, not replacement. An annotated requirement whose tests are also
     // co-located should mutate both files, and dropping the inferred half the
     // moment one marker appears would make annotating a requirement *narrow* its
     // own scope — the opposite of the intent.
-    let mutable: Vec<String> = declared
+    //
+    // The `src/` partition applies to BOTH edges, and to the declared one for a
+    // reason a declaration cannot override: cargo-mutants mutates production
+    // code, and a `tests/` file is never a valid target however it was reached.
+    // The engine cannot tell the two apart on its own — `implements` binds any
+    // `Function`/`Container`, and a helper in `tests/` is a `Function` — so
+    // without this a mis-annotated test file would be handed to
+    // `cargo mutants --file` and its own test code mutated. It lands in
+    // `evidence-only` instead, where the author can see the mistake.
+    let (mutable, evidence_only): (Vec<_>, Vec<_>) = declared
         .keys()
         .cloned()
-        .chain(inferred.iter().cloned())
+        .chain(by_file.keys().cloned())
         .collect::<BTreeSet<_>>()
         .into_iter()
-        .collect();
+        .partition(|p| p.starts_with("src/") || p.contains("/src/"));
 
     if files_only {
         for path in &mutable {
@@ -152,7 +157,11 @@ fn main() {
     }
 
     println!("requirement: {requirement}");
-    let ids: BTreeSet<&String> = by_file.values().flatten().collect();
+    let ids: BTreeSet<&String> = by_file
+        .values()
+        .chain(declared.values())
+        .flatten()
+        .collect();
     println!("bound trace ids: {}", ids.len());
     for id in &ids {
         println!("  {id}");
@@ -161,22 +170,26 @@ fn main() {
     // Which edge produced each path is the interesting part, because it says
     // whether the scope is stated or inferred. `declared` came from an
     // `implements` marker on production code; `verifies` came from where a test
-    // happens to live.
+    // happens to live. A path both edges reached is reported as `implements`,
+    // because a stated scope is the stronger claim.
+    //
+    // Looked up through `describe`, not by indexing: a path may come from
+    // either map, and `by_file[path]` panics for one the other produced.
+    let describe = |path: &String| -> (String, &'static str) {
+        match (declared.get(path), by_file.get(path)) {
+            (Some(ids), _) => (join(ids), "implements"),
+            (None, Some(ids)) => (join(ids), "verifies"),
+            (None, None) => (String::new(), "unknown"),
+        }
+    };
+
     println!(
         "\nmutable files ({}) — cargo-mutants targets:",
         mutable.len()
     );
     for path in &mutable {
-        let ids = declared.get(path).or_else(|| by_file.get(path));
-        let origin = if declared.contains_key(path) {
-            "implements"
-        } else {
-            "verifies"
-        };
-        println!(
-            "  {path}  [{}]  via {origin}",
-            ids.map(join).unwrap_or_default()
-        );
+        let (ids, origin) = describe(path);
+        println!("  {path}  [{ids}]  via {origin}");
     }
 
     println!(
@@ -184,7 +197,13 @@ fn main() {
         evidence_only.len()
     );
     for path in &evidence_only {
-        println!("  {path}  [{}]", join(&by_file[path]));
+        let (ids, origin) = describe(path);
+        let note = if origin == "implements" {
+            "  <- an `Implements:` marker outside `src/`: mutation targets production code"
+        } else {
+            ""
+        };
+        println!("  {path}  [{ids}]  via {origin}{note}");
     }
 
     if mutable.is_empty() {
