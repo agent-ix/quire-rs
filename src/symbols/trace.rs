@@ -53,6 +53,29 @@ pub struct VerifiesRelation {
     pub form: String,
 }
 
+/// One `implements` relation: a production symbol implements a requirement
+/// (FR-062).
+///
+/// Deliberately a **different type** from [`VerifiesRelation`], not the same one
+/// with a flag. The two answer different questions — *"would this test fail if
+/// the behaviour broke"* versus *"is this the code the requirement is about"* —
+/// and only the first is evidence. A shared type with a discriminator would put
+/// one typo between scope and evidence.
+///
+/// Carries no `provenance`: there is no legacy `implements` form to migrate
+/// from, and inventing the field would suggest one exists.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ImplementsRelation {
+    /// Identity digest of the implementing symbol.
+    pub symbol_id: String,
+    pub symbol: String,
+    pub path: String,
+    /// The requirement id this code implements.
+    pub trace_id: String,
+    /// Name of the declared form that bound it.
+    pub form: String,
+}
+
 /// A mechanical marker-rewrite suggestion for a legacy binding (FR-051-AC-11).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RewriteSuggestion {
@@ -80,6 +103,11 @@ pub struct TraceDiagnostic {
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct SymbolGraph {
     pub verifies: Vec<VerifiesRelation>,
+    /// Requirement → production code (FR-062). **Never** consulted by
+    /// [`Self::backed_trace_ids`]: this is scope, not evidence, and letting it
+    /// back an acceptance criterion is exactly the coverage backdoor CR-061
+    /// closed.
+    pub implements: Vec<ImplementsRelation>,
     /// `(symbol id, symbol qualified name, file path)`.
     pub defined_in: Vec<(String, String, String)>,
     /// `(container qualified name, member qualified name, file path)`.
@@ -123,15 +151,27 @@ pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolG
                 symbol.path.clone(),
             ));
         }
-        if !symbol.kind.binds_trace_ids() {
-            continue;
-        }
         let Some(source) = extraction.source_of(&symbol.path) else {
             continue;
         };
+        // A production symbol carries `implements`, an evidence symbol carries
+        // `verifies`, and the kinds are complements — so no symbol can be read
+        // as both and a mis-declared pattern binds nothing rather than binding
+        // the wrong relation.
+        if symbol.kind.carries_implements() {
+            bind_implements(symbol, source, model, &mut graph);
+            continue;
+        }
+        if !symbol.kind.binds_trace_ids() {
+            continue;
+        }
         bind_symbol(symbol, source, model, &mut graph);
     }
 
+    graph.implements.sort_by(|a, b| {
+        (&a.path, &a.symbol, &a.trace_id, &a.form).cmp(&(&b.path, &b.symbol, &b.trace_id, &b.form))
+    });
+    graph.implements.dedup();
     graph.defined_in.sort();
     graph.contains.sort();
     graph.rewrites.sort_by(|a, b| {
@@ -141,6 +181,44 @@ pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolG
         .diagnostics
         .sort_by(|a, b| (&a.path, &a.symbol, &a.trace_id).cmp(&(&b.path, &b.symbol, &b.trace_id)));
     graph
+}
+
+/// Bind a production symbol to the requirements it implements (FR-062).
+///
+/// Structurally simpler than [`bind_symbol`] because there is nothing to
+/// reconcile: no legacy forms, so no provenance and no rewrite suggestions, and
+/// no precedence between forms. A requirement named twice by two forms yields
+/// one relation after the dedup in [`bind`].
+fn bind_implements(
+    symbol: &Symbol,
+    source: &str,
+    model: &TraceabilityModel,
+    graph: &mut SymbolGraph,
+) {
+    if model.trace_tags.implements.is_empty() {
+        return;
+    }
+    let span = symbol.attached_source(source);
+    for marker in &model.trace_tags.implements {
+        if marker.language != symbol.language {
+            continue;
+        }
+        let Some(re) = compile(&marker.pattern) else {
+            continue;
+        };
+        for caps in re.captures_iter(&span) {
+            let Some(args) = caps.get(1) else { continue };
+            for trace_id in marker_ids(args.as_str()) {
+                graph.implements.push(ImplementsRelation {
+                    symbol_id: symbol.id.clone(),
+                    symbol: symbol.qualified_name.clone(),
+                    path: symbol.path.clone(),
+                    trace_id,
+                    form: marker.name.clone(),
+                });
+            }
+        }
+    }
 }
 
 fn bind_symbol(symbol: &Symbol, source: &str, model: &TraceabilityModel, graph: &mut SymbolGraph) {
