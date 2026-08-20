@@ -1161,6 +1161,7 @@ pub struct RegistryShape {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ix_trace_rs::trace;
     use std::fs;
 
     fn tmpdir(suffix: &str) -> PathBuf {
@@ -1190,7 +1191,8 @@ mod tests {
         .unwrap();
     }
 
-    // TC-826 (CR-060): the model-level exclusion is the one traceability key
+    #[trace("TC-826")]
+    // the model-level exclusion is the one traceability key (CR-060)
     // that merges as a **union**. Every other key is first-wins by name, which
     // is right for a named declaration and wrong for a statement of fact: a
     // path one module declares non-corpus must not become corpus because
@@ -1296,7 +1298,8 @@ mod tests {
         assert_send_sync::<CompiledArchetype>();
     }
 
-    // FR-013-AC-11: CompiledArchetype.body_extraction surfaces the
+    #[trace("FR-013-AC-11")]
+    // CompiledArchetype.body_extraction surfaces the
     // parsed DSL from the source object_type so downstream extract()
     // callers don't have to re-read manifest.yaml.
     #[test]
@@ -1347,7 +1350,8 @@ object_types:
 
     // ── Task 037: unified archetype shape (FR-031) ──────────────────
 
-    // TC-522, FR-031-AC-1: frontmatter_schema_ref + body_extraction
+    #[trace("TC-522", "FR-031-AC-1")]
+    // frontmatter_schema_ref + body_extraction
     // compiles to one CompiledArchetype that is validatable (frontmatter
     // schema) and extractable (resolvable body contract); no
     // renderability concept is exposed (render removed).
@@ -1386,7 +1390,8 @@ artifact_types:
         assert!(arch.frontmatter_validator().is_some());
     }
 
-    // TC-523, FR-031-AC-2: body_extraction compiles, validatable +
+    #[trace("TC-523", "FR-031-AC-2")]
+    // body_extraction compiles, validatable +
     // extractable.
     #[test]
     fn tc523_unified_archetype_validatable_and_extractable() {
@@ -1416,7 +1421,8 @@ object_types:
         assert!(arch.body_extraction().is_some());
     }
 
-    // TC-524, FR-031-AC-3: carry-over fields retained + readable.
+    #[trace("TC-524", "FR-031-AC-3")]
+    // carry-over fields retained + readable.
     #[test]
     fn tc524_carry_over_fields_retained() {
         let parent = tmpdir("u-524");
@@ -1456,7 +1462,8 @@ artifact_types:
         );
     }
 
-    // TC-525, FR-031-AC-4: frontmatter_schema_ref + data_schema are
+    #[trace("TC-525", "FR-031-AC-4")]
+    // frontmatter_schema_ref + data_schema are
     // two distinct compiled validators, neither collapsed.
     #[test]
     fn tc525_frontmatter_and_data_schemas_are_distinct() {
@@ -1496,7 +1503,8 @@ artifact_types:
         assert!(!dv.is_valid(&serde_json::json!({"id": "FR-1"})));
     }
 
-    // TC-526, FR-031-AC-5: required_sections is rejected as a hard
+    #[trace("TC-526", "FR-031-AC-5")]
+    // required_sections is rejected as a hard
     // ArchetypeLoadFailure (no-compat rule overrides FR-031-AC-5's
     // softer "non-fatal diagnostic" — see CR note in task 037).
     #[test]
@@ -1530,7 +1538,8 @@ artifact_types:
         );
     }
 
-    // TC-526c, FR-031-AC-5: `template_ref` is a hard ArchetypeLoadFailure
+    #[trace("TC-526c", "FR-031-AC-5")]
+    // `template_ref` is a hard ArchetypeLoadFailure
     // (render removed — no backward-compatibility layer).
     #[test]
     fn tc526_template_ref_is_hard_load_failure() {
@@ -1561,7 +1570,8 @@ artifact_types:
         );
     }
 
-    // TC-526b: `variants` is likewise a hard failure (no-compat rule).
+    #[trace("TC-526b")]
+    // `variants` is likewise a hard failure (no-compat rule).
     #[test]
     fn tc526_variants_is_hard_load_failure() {
         let parent = tmpdir("u-526b");
@@ -1585,7 +1595,8 @@ object_types:
         assert!(outcome.failures[0].reason.contains("variants"));
     }
 
-    // TC-762, NFR-006-AC-5 (CR-018): module discovery is sorted, so first-wins
+    #[trace("TC-762", "NFR-006-AC-5")]
+    // module discovery is sorted, so first-wins (CR-018)
     // resolves the same way on every machine. Directories are created in
     // reverse order to keep the fixture honest — `read_dir` order is
     // unspecified, and it was the load order before this.
@@ -1604,7 +1615,8 @@ object_types:
         );
     }
 
-    // TC-527, FR-031-AC-6: Registry::archetype resolves unified
+    #[trace("TC-527", "FR-031-AC-6")]
+    // Registry::archetype resolves unified
     // archetype identically (same keying + first-wins).
     #[test]
     fn tc527_registry_resolves_unified_archetype() {
@@ -1631,7 +1643,8 @@ object_types:
         assert!(arch.body_extraction().is_some());
     }
 
-    // FR-013-AC-7: symlink loop is broken without panic.
+    #[trace("FR-013-AC-7")]
+    // symlink loop is broken without panic.
     #[test]
     #[cfg(unix)]
     fn symlink_loop_does_not_panic_or_recurse() {

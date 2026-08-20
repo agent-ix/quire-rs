@@ -52,20 +52,21 @@ pub fn slug_line_id(text: &str, line: usize) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ix_trace_rs::trace;
 
-    // FR-009-AC-1
+    #[trace("FR-009-AC-1")]
     #[test]
     fn lowercase_alphanum_dash_basic() {
         assert_eq!(slug_line_id("Hello, World!", 0), "hello-world-L0");
     }
 
-    // FR-009-AC-2
+    #[trace("FR-009-AC-2")]
     #[test]
     fn numeric_and_punctuation_collapse_to_dashes() {
         assert_eq!(slug_line_id("2.1 In Scope", 6), "2-1-in-scope-L6");
     }
 
-    // FR-009-AC-3
+    #[trace("FR-009-AC-3")]
     #[test]
     fn leading_and_trailing_whitespace_stripped() {
         assert_eq!(slug_line_id("   leading spaces   ", 3), "leading-spaces-L3");

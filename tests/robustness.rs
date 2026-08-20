@@ -9,6 +9,7 @@
 use std::path::Path;
 use std::sync::OnceLock;
 
+use ix_trace_rs::trace;
 use proptest::prelude::*;
 use quire_rs::{extract, parse_document, validate_document, Registry};
 
@@ -72,7 +73,8 @@ proptest! {
 }
 
 // Explicit edge cases (cheap, deterministic) alongside the proptest.
-// TC-580, NFR-019-AC-2: the named edge cases — empty, fence-only,
+#[trace("TC-580", "NFR-019-AC-2")]
+// the named edge cases — empty, fence-only,
 // frontmatter-only, deeply nested — run clean through the whole pipeline.
 #[test]
 fn no_panic_on_explicit_edge_cases() {

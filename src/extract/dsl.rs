@@ -244,6 +244,7 @@ pub fn validate_assert_for_kind(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ix_trace_rs::trace;
 
     fn parse(yaml: &str) -> ExtractionDsl {
         serde_yaml::from_str(yaml).expect("parse")
@@ -287,7 +288,7 @@ yield_pattern:
         validate_dsl("ot", &dsl).expect("ok");
     }
 
-    // FR-011-AC-6
+    #[trace("FR-011-AC-6")]
     #[test]
     fn both_match_and_iterate_over_is_dsl_error() {
         let dsl = parse(
@@ -315,7 +316,7 @@ yield_pattern:
         assert!(matches!(err, QuireError::DslValidationError { .. }));
     }
 
-    // FR-011-AC-7
+    #[trace("FR-011-AC-7")]
     #[test]
     fn unknown_key_in_yield_pattern_fails_yaml_parse() {
         let r: Result<ExtractionDsl, _> = serde_yaml::from_str(
@@ -327,7 +328,8 @@ yield_pattern:
         assert!(r.is_err(), "deny_unknown_fields should reject unknown keys");
     }
 
-    // TC-538, FR-033-AC-5: an unknown assert key fails YAML parse
+    #[trace("TC-538", "FR-033-AC-5")]
+    // an unknown assert key fails YAML parse
     // (deny_unknown_fields on LocatorAssert).
     #[test]
     fn unknown_assert_key_fails_yaml_parse() {
@@ -348,7 +350,8 @@ yield_pattern:
         );
     }
 
-    // TC-538, FR-033-AC-5: `columns` on a `section_body` locator is a
+    #[trace("TC-538", "FR-033-AC-5")]
+    // `columns` on a `section_body` locator is a
     // load-time DslValidationError naming the locator.
     #[test]
     fn columns_on_section_body_is_load_error() {
@@ -375,7 +378,8 @@ yield_pattern:
         }
     }
 
-    // TC-538: `min_items` on a `table_row` locator is rejected.
+    #[trace("TC-538")]
+    // `min_items` on a `table_row` locator is rejected.
     #[test]
     fn min_items_on_table_row_is_load_error() {
         let dsl = parse(
@@ -413,7 +417,8 @@ yield_pattern:
         validate_dsl("FR", &dsl).expect("valid assert");
     }
 
-    // TC-570, FR-033-AC-7: the assert-key × locator-kind legality matrix.
+    #[trace("TC-570", "FR-033-AC-7")]
+    // the assert-key × locator-kind legality matrix.
     // For every (kind, key) cell: legal cells pass `validate_assert_for_kind`,
     // illegal cells produce an `ArchetypeLoadFailure` (DslValidationError)
     // naming the archetype + offending key. Table-driven across every cell.

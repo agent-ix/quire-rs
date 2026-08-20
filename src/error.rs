@@ -179,6 +179,7 @@ pub fn truncate_preview(value: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ix_trace_rs::trace;
 
     fn fixture_violation() -> QuireError {
         QuireError::SchemaViolation {
@@ -189,7 +190,8 @@ mod tests {
         }
     }
 
-    // NFR-005-AC-1: SchemaViolation Display contains all four elements.
+    #[trace("NFR-005-AC-1")]
+    // SchemaViolation Display contains all four elements.
     #[test]
     fn schema_violation_display_contains_four_tuple() {
         let s = fixture_violation().to_string();
@@ -199,7 +201,8 @@ mod tests {
         assert!(s.contains("observed"), "{s}");
     }
 
-    // NFR-005-AC-2: no leaked validator/serde internal noise.
+    #[trace("NFR-005-AC-2")]
+    // no leaked validator/serde internal noise.
     #[test]
     fn schema_violation_display_does_not_leak_validator_internals() {
         let s = fixture_violation().to_string();

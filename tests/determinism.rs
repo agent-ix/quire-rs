@@ -8,6 +8,7 @@ use std::path::Path;
 use std::sync::Arc;
 use std::thread;
 
+use ix_trace_rs::trace;
 use quire_rs::{apply_patch, extract, parse_document, validate_document, Registry};
 use serde_json::json;
 
@@ -45,7 +46,8 @@ const FR_DOC: &str = "---\nid: FR-001\ntitle: Determinism\ntype: FR\n---\n\n\
 ## Acceptance Criteria\n\nAll runs agree.\n\n\
 ## Dependencies\n\nNone.\n";
 
-// TC-578, NFR-006-AC-4: validate_document + extract on the same input
+#[trace("TC-578", "NFR-006-AC-4")]
+// validate_document + extract on the same input
 // 100× across threads yield equal ValidationResult (ordered diagnostics)
 // and ExtractionResult (records + edges + diagnostics) every time.
 #[test]

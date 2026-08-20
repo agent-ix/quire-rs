@@ -228,6 +228,7 @@ fn preview_value(v: &Value) -> String {
 mod tests {
     use super::*;
     use crate::loader::compile::{compile_schema, CompiledArchetype};
+    use ix_trace_rs::trace;
     use proptest::prelude::*;
     use serde_json::json;
     use std::sync::Arc;
@@ -250,7 +251,7 @@ mod tests {
         }
     }
 
-    // FR-002-AC-1
+    #[trace("FR-002-AC-1")]
     #[test]
     fn merge_preserves_siblings_through_apply_patch() {
         let arch = archetype(json!({
@@ -267,7 +268,8 @@ mod tests {
         assert_eq!(out, json!({"title": "new", "body": "content"}));
     }
 
-    // FR-002-AC-2: merged-shape validation catches a patch that wipes
+    #[trace("FR-002-AC-2")]
+    // merged-shape validation catches a patch that wipes
     // a required-by-minLength field.
     #[test]
     fn merged_shape_validation_rejects_emptied_required_field() {
@@ -287,7 +289,7 @@ mod tests {
         );
     }
 
-    // FR-002-AC-3
+    #[trace("FR-002-AC-3")]
     #[test]
     fn additional_property_is_rejected_when_disallowed() {
         let arch = archetype(json!({
@@ -302,7 +304,8 @@ mod tests {
         assert!(s.contains("unknown") || s.contains("additional"), "{s}");
     }
 
-    // FR-002-AC-6: $defs + recursive $ref compiles and validates.
+    #[trace("FR-002-AC-6")]
+    // $defs + recursive $ref compiles and validates.
     #[test]
     fn recursive_ref_through_defs_validates_tree() {
         let schema = json!({

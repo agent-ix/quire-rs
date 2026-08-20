@@ -1,3 +1,4 @@
+use ix_trace_rs::trace;
 use quire_rs::{extract_filament_core, CoreExtractionResult, FilamentExtractionInput};
 use serde::Deserialize;
 use serde_json::Value;
@@ -44,7 +45,8 @@ struct ExpectedEdge {
     data: Option<Value>,
 }
 
-// TC-703, FR-045-AC-3: shared corpus isolation — a failing extraction fixture
+#[trace("TC-703", "FR-045-AC-3")]
+// shared corpus isolation — a failing extraction fixture
 // (e.g. `frontmatter-unparsable-error`) does not poison later fixtures, since
 // each runs through an independent `extract_filament_core` call.
 //
@@ -52,18 +54,30 @@ struct ExpectedEdge {
 // They are listed individually rather than as a range because the trace grammar
 // binds one id per comment line, and because a reader looking up any one of them
 // should land here.
-// TC-691, FR-045-AC-1: Tier 1 frontmatter node shape.
-// TC-692, FR-045-AC-2: Tier 2 DSL records and record-derived edges.
-// TC-693, FR-045-AC-4: explicit `edges:` order, refs and metadata.
-// TC-694, FR-045-AC-4: relationship sugar fields and their provenance.
-// TC-695, FR-046-AC-2: `ix://` passthrough and bare-target normalization.
-// TC-696, FR-046-AC-3: body `ix://` links become `references` edges.
-// TC-697, FR-045-AC-6: duplicate edges dedupe, first wins, with a diagnostic.
-// TC-698, FR-045-AC-6: malformed `relationships:` entries report errors.
-// TC-699, FR-045-AC-6: malformed explicit `edges:` entries do not panic.
-// TC-700, FR-045-AC-6: a schema failure prevents node emission.
-// TC-701, FR-045-AC-6: unknown object, no frontmatter, bad plugin flag.
-// TC-702, FR-046-AC-4: the negative scope — wikilinks, `spec://`, prose, http.
+#[trace("TC-691", "FR-045-AC-1")]
+// Tier 1 frontmatter node shape.
+#[trace("TC-692", "FR-045-AC-2")]
+// Tier 2 DSL records and record-derived edges.
+#[trace("TC-693", "FR-045-AC-4")]
+// explicit `edges:` order, refs and metadata.
+#[trace("TC-694", "FR-045-AC-4")]
+// relationship sugar fields and their provenance.
+#[trace("TC-695", "FR-046-AC-2")]
+// `ix://` passthrough and bare-target normalization.
+#[trace("TC-696", "FR-046-AC-3")]
+// body `ix://` links become `references` edges.
+#[trace("TC-697", "FR-045-AC-6")]
+// duplicate edges dedupe, first wins, with a diagnostic.
+#[trace("TC-698", "FR-045-AC-6")]
+// malformed `relationships:` entries report errors.
+#[trace("TC-699", "FR-045-AC-6")]
+// malformed explicit `edges:` entries do not panic.
+#[trace("TC-700", "FR-045-AC-6")]
+// a schema failure prevents node emission.
+#[trace("TC-701", "FR-045-AC-6")]
+// unknown object, no frontmatter, bad plugin flag.
+#[trace("TC-702", "FR-046-AC-4")]
+// the negative scope — wikilinks, `spec://`, prose, http.
 #[test]
 fn filament_core_graph_fixture_corpus() {
     for fixture in fixtures() {
@@ -72,7 +86,8 @@ fn filament_core_graph_fixture_corpus() {
     }
 }
 
-// TC-704, FR-045-AC-5, NFR-020-AC-2: shared corpus determinism.
+#[trace("TC-704", "FR-045-AC-5", "NFR-020-AC-2")]
+// shared corpus determinism.
 #[test]
 fn filament_core_graph_fixture_corpus_is_deterministic() {
     for fixture in fixtures() {

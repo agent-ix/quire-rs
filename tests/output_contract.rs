@@ -8,6 +8,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use ix_trace_rs::trace;
 use jsonschema::JSONSchema;
 use serde_json::{json, Value};
 
@@ -48,7 +49,8 @@ fn baseline() -> Value {
         .expect("baseline is valid JSON")
 }
 
-// TC-854, FR-055-AC-1: the artifacts are themselves valid, and self-identify.
+#[trace("TC-854", "FR-055-AC-1")]
+// the artifacts are themselves valid, and self-identify.
 #[test]
 fn tc854_published_schemas_are_valid_and_versioned() {
     for name in ["coverage-v1.schema.json", "properties-v1.schema.json"] {
@@ -70,7 +72,8 @@ fn tc854_published_schemas_are_valid_and_versioned() {
     }
 }
 
-// TC-855, FR-055-AC-2: the CR-057 byte-golden corpus is also the contract
+#[trace("TC-855", "FR-055-AC-2")]
+// the CR-057 byte-golden corpus is also the contract
 // corpus — one input, two gates, reviewed in one diff.
 #[test]
 fn tc855_coverage_baseline_conforms() {
@@ -82,7 +85,8 @@ fn tc855_coverage_baseline_conforms() {
     );
 }
 
-// TC-856, FR-055-AC-3: the optional keys are covered by a payload that
+#[trace("TC-856", "FR-055-AC-3")]
+// the optional keys are covered by a payload that
 // actually carries them, not only by one that omits them — the way an optional
 // field quietly stops being described.
 #[test]
@@ -144,7 +148,8 @@ fn tc856_payload_carrying_every_optional_key_conforms() {
     assert!(errs.is_empty(), "{errs:#?}");
 }
 
-// TC-857, FR-055-AC-4: every criterion the engine actually emits conforms.
+#[trace("TC-857", "FR-055-AC-4")]
+// every criterion the engine actually emits conforms.
 #[test]
 fn tc857_emitted_criteria_conform() {
     let schema_doc = schema_value("properties-v1.schema.json");
@@ -223,7 +228,8 @@ fn record_json(r: &quire_rs::AcClassification) -> Value {
     })
 }
 
-// TC-858, FR-055-AC-5: `additionalProperties: false` holds at depth, not only
+#[trace("TC-858", "FR-055-AC-5")]
+// `additionalProperties: false` holds at depth, not only
 // at the root — the usual place a hand-authored schema is accidentally open.
 #[test]
 fn tc858_added_fields_are_rejected_at_every_level() {
@@ -253,7 +259,8 @@ fn tc858_added_fields_are_rejected_at_every_level() {
     }
 }
 
-// TC-859, FR-055-AC-6: the optional/required split matches the engine's
+#[trace("TC-859", "FR-055-AC-6")]
+// the optional/required split matches the engine's
 // skip-when-empty behaviour, in both directions.
 #[test]
 fn tc859_optional_and_required_split_matches_the_engine() {
@@ -286,7 +293,8 @@ fn tc859_optional_and_required_split_matches_the_engine() {
     }
 }
 
-// TC-860, FR-055-AC-7: the contract is carried by the artifact alone.
+#[trace("TC-860", "FR-055-AC-7")]
+// the contract is carried by the artifact alone.
 #[test]
 fn tc860_no_version_key_in_the_payload_and_no_schemars() {
     let payload = baseline();

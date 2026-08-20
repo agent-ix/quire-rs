@@ -753,6 +753,7 @@ pub fn classify_document_properties(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ix_trace_rs::trace;
 
     fn finding(grammar: &str, check: &str) -> GrammarFinding {
         GrammarFinding {
@@ -766,7 +767,8 @@ mod tests {
         }
     }
 
-    // TC-719, FR-048-AC-4: a finding whose `<grammar>:<check>` key is absent
+    #[trace("TC-719", "FR-048-AC-4")]
+    // a finding whose `<grammar>:<check>` key is absent
     // from the merged map defaults to `warning`.
     #[test]
     fn tc719_absent_key_defaults_to_warning() {
@@ -778,7 +780,8 @@ mod tests {
         assert_eq!(out[0].severity, GrammarSeverity::Warning);
     }
 
-    // TC-752, FR-048-AC-9: an `off`-mapped check records no finding at all,
+    #[trace("TC-752", "FR-048-AC-9")]
+    // an `off`-mapped check records no finding at all,
     // while sibling checks of the same grammar still report.
     #[test]
     fn tc752_off_drops_the_finding_before_routing() {
@@ -799,7 +802,8 @@ mod tests {
         assert_eq!(keys, vec!["ac:non-singular", "ears:vague-response"]);
     }
 
-    // TC-714, FR-047-AC-8: the summary histogram groups by the generic
+    #[trace("TC-714", "FR-047-AC-8")]
+    // the summary histogram groups by the generic
     // `[<grammar>:<check>]` prefix, so a corpus emitting both `[ears:*]` and
     // `[ac:*]` findings shows both.
     #[test]
@@ -827,7 +831,8 @@ mod tests {
         );
     }
 
-    // TC-720, FR-048-AC-5: `--severity` entries are repeatable and take
+    #[trace("TC-720", "FR-048-AC-5")]
+    // `--severity` entries are repeatable and take
     // precedence over a conflicting manifest entry for the same key.
     #[test]
     fn tc720_cli_severity_overrides_manifest() {
@@ -853,7 +858,8 @@ mod tests {
         assert_eq!(out[0].severity, GrammarSeverity::Error);
     }
 
-    // TC-721, FR-048-AC-6: `--strict` semantics are untouched. The engine
+    #[trace("TC-721", "FR-048-AC-6")]
+    // `--strict` semantics are untouched. The engine
     // surface `--strict` reads is unchanged: with no severity map a grammar
     // finding is still a warning that leaves the document valid, so the exit
     // code stays the CLI's own decision.
@@ -869,7 +875,8 @@ mod tests {
         assert_eq!(out[0].severity, GrammarSeverity::Warning);
     }
 
-    // TC-755, FR-048-AC-10: a malformed `--severity` entry is rejected with a
+    #[trace("TC-755", "FR-048-AC-10")]
+    // a malformed `--severity` entry is rejected with a
     // usage diagnostic before validation runs.
     #[test]
     fn tc755_malformed_severity_entry_rejected() {
@@ -896,7 +903,8 @@ mod tests {
         assert!(merge_severity_overrides(&manifest, ["ac:unclassifiable=off"]).is_ok());
     }
 
-    // FR-048-AC-3: an `error` mapping promotes the emitted finding to an error.
+    #[trace("FR-048-AC-3")]
+    // an `error` mapping promotes the emitted finding to an error.
     #[test]
     fn error_level_promotes_finding_severity() {
         let mut map = GrammarSeverityMap::new();

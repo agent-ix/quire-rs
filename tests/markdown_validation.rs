@@ -9,6 +9,7 @@
 use std::collections::BTreeMap;
 use std::path::Path;
 
+use ix_trace_rs::trace;
 use quire_rs::validate_document::ValidationReason;
 use quire_rs::Registry;
 
@@ -45,7 +46,8 @@ On parse, the engine retains every byte of the section body verbatim.\n\
 - **Upstream**: none\n\
 - **Downstream**: none\n";
 
-// TC-528, FR-032-AC-1: a conformant FR validates.
+#[trace("TC-528", "FR-032-AC-1")]
+// a conformant FR validates.
 #[test]
 fn conformant_fr_validates() {
     let r = iso_registry();
@@ -55,7 +57,8 @@ fn conformant_fr_validates() {
     assert!(result.errors.is_empty());
 }
 
-// TC-529, FR-032-AC-2: removing a required section fails with reason
+#[trace("TC-529", "FR-032-AC-2")]
+// removing a required section fails with reason
 // `missing`, naming the archetype + section.
 #[test]
 fn missing_required_section_fails() {
@@ -78,7 +81,8 @@ On parse, the engine retains every byte of the section body verbatim.\n\n",
     assert!(e.message.contains("Specification"), "{}", e.message);
 }
 
-// TC-530, FR-032-AC-3: a placeholder-only required section fails with
+#[trace("TC-530", "FR-032-AC-3")]
+// a placeholder-only required section fails with
 // reason `placeholder` even though the frontmatter is valid.
 #[test]
 fn placeholder_section_fails() {
@@ -96,7 +100,8 @@ fn placeholder_section_fails() {
         .any(|e| e.reason == ValidationReason::Placeholder));
 }
 
-// TC-531, FR-032-AC-4: a frontmatter-schema violation fails with reason
+#[trace("TC-531", "FR-032-AC-4")]
+// a frontmatter-schema violation fails with reason
 // `frontmatter`, independent of body structure.
 #[test]
 fn frontmatter_violation_fails() {
@@ -112,7 +117,8 @@ fn frontmatter_violation_fails() {
         .any(|e| e.reason == ValidationReason::Frontmatter));
 }
 
-// TC-562, FR-033-AC-4 (registry path): an archetype that carries an
+#[trace("TC-562", "FR-033-AC-4")]
+// an archetype that carries an (registry path)
 // `assert` facet (AC table `columns` + interpolated `id_pattern`),
 // loaded via `Registry`, is wired manifest → load → `validate_document`.
 // This proves the assert path travels the whole pipeline, not just the
@@ -241,8 +247,10 @@ The requirement classes that make up this specification and how they trace.\n\
 ## References\n\
 - ISO/IEC/IEEE 29148 — Requirements engineering.\n";
 
-// FR-032-AC-1: a conformant master spec validates.
-// TC-581, FR-011-AC-20: a numbered master spec validates — the `from: heading`
+#[trace("FR-032-AC-1")]
+// a conformant master spec validates.
+#[trace("TC-581", "FR-011-AC-20")]
+// a numbered master spec validates — the `from: heading`
 // locator normalizes the ISO section-number prefix, so `## 2. Scope` matches.
 #[test]
 fn conformant_master_requirements_validates() {
@@ -254,7 +262,8 @@ fn conformant_master_requirements_validates() {
     assert!(result.is_valid, "expected valid, got: {:?}", result.errors);
 }
 
-// FR-032-AC-4: a missing component_type fails with reason `frontmatter`.
+#[trace("FR-032-AC-4")]
+// a missing component_type fails with reason `frontmatter`.
 #[test]
 fn master_requirements_missing_component_type_fails() {
     let r = iso_registry();
@@ -268,7 +277,8 @@ fn master_requirements_missing_component_type_fails() {
         .any(|e| e.reason == ValidationReason::Frontmatter));
 }
 
-// FR-032-AC-4: a non-kebab component_type fails the pattern (frontmatter).
+#[trace("FR-032-AC-4")]
+// a non-kebab component_type fails the pattern (frontmatter).
 #[test]
 fn master_requirements_non_kebab_component_type_fails() {
     let r = iso_registry();
@@ -285,7 +295,8 @@ fn master_requirements_non_kebab_component_type_fails() {
         .any(|e| e.reason == ValidationReason::Frontmatter));
 }
 
-// FR-032-AC-2: dropping the H1 title fails with reason `missing` (level-1
+#[trace("FR-032-AC-2")]
+// dropping the H1 title fails with reason `missing` (level-1
 // heading locator).
 #[test]
 fn master_requirements_missing_h1_title_fails() {
@@ -303,7 +314,8 @@ fn master_requirements_missing_h1_title_fails() {
     assert!(e.message.contains("title"), "{}", e.message);
 }
 
-// FR-032-AC-2: dropping a required canonical section fails with `missing`.
+#[trace("FR-032-AC-2")]
+// dropping a required canonical section fails with `missing`.
 #[test]
 fn master_requirements_missing_section_fails() {
     let r = iso_registry();
@@ -322,7 +334,8 @@ fn master_requirements_missing_section_fails() {
     assert!(e.message.contains("References"), "{}", e.message);
 }
 
-// FR-032-AC-1: optional/extra sections (Domain Model, Security Model) are
+#[trace("FR-032-AC-1")]
+// optional/extra sections (Domain Model, Security Model) are
 // accepted — the contract asserts required structure, it does not forbid extras.
 #[test]
 fn master_requirements_optional_sections_accepted() {
@@ -336,7 +349,8 @@ fn master_requirements_optional_sections_accepted() {
     assert!(result.is_valid, "expected valid, got: {:?}", result.errors);
 }
 
-// FR-032-AC-1: ISO section numbering is decorative (FR-010 locators). A master spec whose
+#[trace("FR-032-AC-1")]
+// ISO section numbering is decorative (FR-010 locators). A master spec whose
 // canonical sections carry `## N. Name` prefixes validates the same as the
 // bare `## Name` skeleton — the `from: heading` locator normalizes the number
 // prefix consistently with `section_body`/`after_heading`.
@@ -372,7 +386,8 @@ classes\n\
     assert!(result.is_valid, "expected valid, got: {:?}", result.errors);
 }
 
-// FR-035 (TC-544/547): a duplicate heading at the same level fails with
+#[trace("FR-035")]
+// a duplicate heading at the same level fails with (TC-544/547)
 // reason `duplicate-heading`, line-numbered at the second heading.
 #[test]
 fn duplicate_heading_fails_with_line() {

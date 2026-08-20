@@ -314,6 +314,7 @@ mod tests {
     use super::*;
     use crate::corpus::walk::RepoLoad;
     use crate::parser::parse_document;
+    use ix_trace_rs::trace;
 
     fn doc_at(path: &str, id: &str, body: &str) -> LoadedDocument {
         let text = format!("---\nid: {id}\ntype: FR\n---\n{body}");
@@ -538,7 +539,8 @@ mod tests {
         assert_eq!(unlinked_references(&spec_of(docs)), refs);
     }
 
-    // TC-765, FR-039-AC-11 (CR-020): a sub-id token resolves to its parent
+    #[trace("TC-765", "FR-039-AC-11")]
+    // a sub-id token resolves to its parent (CR-020)
     // document for every declared sub-id kind. `-VC-` is StR's
     // validation-criterion kind (spec-artifacts-iso#9); without it a bare
     // `StR-001-VC-2` in prose resolves to nothing and `quire fix` offers no

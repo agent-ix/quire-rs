@@ -3,6 +3,7 @@
 use std::fs;
 use std::path::PathBuf;
 
+use ix_trace_rs::trace;
 use quire_rs::grammar::quality::AmbiguityTerms;
 use quire_rs::{GrammarSeverity, Registry};
 
@@ -65,7 +66,8 @@ fn plain(suffix: &str) -> Registry {
     Registry::load_module(&module_with_terms(suffix, &[])).expect("load")
 }
 
-// TC-861, FR-056-AC-1: a built-in ambiguity term fires and names itself.
+#[trace("TC-861", "FR-056-AC-1")]
+// a built-in ambiguity term fires and names itself.
 #[test]
 fn tc861_builtin_ambiguity_term_fires_and_names_the_term() {
     let registry = plain("861");
@@ -91,7 +93,8 @@ fn tc861_builtin_ambiguity_term_fires_and_names_the_term() {
     );
 }
 
-// TC-862, FR-056-AC-2: the longest matching term names the finding, so the
+#[trace("TC-862", "FR-056-AC-2")]
+// the longest matching term names the finding, so the
 // report says what the author wrote.
 #[test]
 fn tc862_longest_term_names_the_finding() {
@@ -107,7 +110,8 @@ fn tc862_longest_term_names_the_finding() {
     );
 }
 
-// TC-863, FR-056-AC-3: module terms layer OVER the built-ins, never replace.
+#[trace("TC-863", "FR-056-AC-3")]
+// module terms layer OVER the built-ins, never replace.
 #[test]
 fn tc863_module_terms_extend_the_builtins() {
     let registry = Registry::load_module(&module_with_terms("extend", &["snappy"])).expect("load");
@@ -131,7 +135,8 @@ fn tc863_module_terms_extend_the_builtins() {
     );
 }
 
-// TC-864, FR-056-AC-4: the check is about missing allocation, not the voice.
+#[trace("TC-864", "FR-056-AC-4")]
+// the check is about missing allocation, not the voice.
 #[test]
 fn tc864_agentless_passive_is_about_allocation_not_voice() {
     let registry = plain("864");
@@ -159,7 +164,8 @@ fn tc864_agentless_passive_is_about_allocation_not_voice() {
     );
 }
 
-// TC-865, FR-056-AC-5: two modals is the defect; one is not.
+#[trace("TC-865", "FR-056-AC-5")]
+// two modals is the defect; one is not.
 #[test]
 fn tc865_mixed_modal_needs_two_modals() {
     let registry = plain("865");
@@ -180,7 +186,8 @@ fn tc865_mixed_modal_needs_two_modals() {
     assert!(!single.iter().any(|c| c == "mixed-modal"), "{single:?}");
 }
 
-// TC-866, FR-056-AC-6: CR-017 parity — a quoted term is a mention.
+#[trace("TC-866", "FR-056-AC-6")]
+// CR-017 parity — a quoted term is a mention.
 #[test]
 fn tc866_quoted_term_is_a_mention_not_a_use() {
     let registry = plain("866");
@@ -203,7 +210,8 @@ fn tc866_quoted_term_is_a_mention_not_a_use() {
     );
 }
 
-// TC-867, FR-056-AC-7: advisory on arrival, and individually silenceable.
+#[trace("TC-867", "FR-056-AC-7")]
+// advisory on arrival, and individually silenceable.
 #[test]
 fn tc867_advisory_and_individually_addressable() {
     let registry = plain("867");
@@ -238,7 +246,8 @@ fn tc867_advisory_and_individually_addressable() {
     );
 }
 
-// TC-868, FR-056-AC-8: the pack adds a grammar, it does not reinterpret the
+#[trace("TC-868", "FR-056-AC-8")]
+// the pack adds a grammar, it does not reinterpret the
 // two that exist (CON-4).
 #[test]
 fn tc868_ears_and_ac_findings_are_unchanged() {
@@ -294,7 +303,8 @@ fn tc868_ears_and_ac_findings_are_unchanged() {
     );
 }
 
-// TC-869, FR-056-AC-9: checks are independent, so two defects report twice.
+#[trace("TC-869", "FR-056-AC-9")]
+// checks are independent, so two defects report twice.
 #[test]
 fn tc869_two_defects_report_two_findings() {
     let registry = plain("869");
@@ -316,7 +326,8 @@ fn ambiguity_terms_layer_over_builtins() {
     assert_eq!(extended.len(), builtin.len() + 1);
 }
 
-// TC-876, FR-056-AC-10: a table finding reports the ROW's line, not the
+#[trace("TC-876", "FR-056-AC-10")]
+// a table finding reports the ROW's line, not the
 // section heading's.
 //
 // Every `Constraints` finding used to carry `section.start_line + 1`, so a
@@ -350,7 +361,8 @@ fn tc876_table_findings_carry_the_row_line() {
     );
 }
 
-// TC-877, FR-056-AC-11: a `must`-only statement is judged.
+#[trace("TC-877", "FR-056-AC-11")]
+// a `must`-only statement is judged.
 //
 // The prose collection gate admitted `shall` and `should` alone, while
 // `mixed-modal` reads all four modals — so "The parser must reject adequate
@@ -373,7 +385,8 @@ fn tc877_must_only_statement_is_judged() {
     assert!(checks(&registry, &fr("This section explains the adequate case.")).is_empty());
 }
 
-// TC-878, FR-056-AC-12: `by <deadline>` and `by <sort key>` do not count as
+#[trace("TC-878", "FR-056-AC-12")]
+// `by <deadline>` and `by <sort key>` do not count as
 // an agent.
 //
 // The suppressor was `\bby\s+(?:the\s+|a\s+|an\s+)?\w`, which any word
@@ -405,7 +418,8 @@ fn tc878_by_a_deadline_or_a_sort_key_is_not_an_agent() {
     }
 }
 
-// TC-879, FR-056-AC-13: an unknown key in `ambiguity_terms` fails module load.
+#[trace("TC-879", "FR-056-AC-13")]
+// an unknown key in `ambiguity_terms` fails module load.
 //
 // `VerificationMethodDef` rejected unknown fields and `AmbiguityTermDef` did
 // not, so a typo'd key in a module's lexicon was accepted in silence (#153).
