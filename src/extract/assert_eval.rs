@@ -578,12 +578,14 @@ fn resolve_regex(
 mod tests {
     use super::*;
     use crate::parser::parse_document;
+    use ix_trace_rs::trace;
 
     fn prim(yaml: &str) -> LocatorPrimitive {
         serde_yaml::from_str(yaml).expect("parse locator")
     }
 
-    // TC-534, FR-033-AC-1: section_body assert level.
+    #[trace("TC-534", "FR-033-AC-1")]
+    // section_body assert level.
     #[test]
     fn tc534_level_assert() {
         let doc = parse_document("## Purpose\nbody\n### Deep\nx\n");
@@ -599,7 +601,8 @@ mod tests {
         assert_eq!(fails[0].line, Some(2));
     }
 
-    // TC-535, FR-033-AC-2: table_row columns exact text + order.
+    #[trace("TC-535", "FR-033-AC-2")]
+    // table_row columns exact text + order.
     #[test]
     fn tc535_columns_assert() {
         let doc = parse_document(
@@ -619,7 +622,8 @@ mod tests {
         assert_eq!(evaluate_assert(&doc, &bad, &ab, None).len(), 1);
     }
 
-    // TC-536, FR-033-AC-3: min_rows / min_items.
+    #[trace("TC-536", "FR-033-AC-3")]
+    // min_rows / min_items.
     #[test]
     fn tc536_min_rows_and_min_items() {
         let header_only = parse_document("## T\n| ID |\n| - |\n");
@@ -636,7 +640,8 @@ mod tests {
         assert!(evaluate_assert(&with_item, &li, &al, None).is_empty());
     }
 
-    // TC-537, FR-033-AC-4: id_column + id_pattern.
+    #[trace("TC-537", "FR-033-AC-4")]
+    // id_column + id_pattern.
     #[test]
     fn tc537_id_pattern_assert() {
         let doc = parse_document(
@@ -652,7 +657,8 @@ mod tests {
         assert_eq!(evaluate_assert(&bad, &ok, &a, None).len(), 1);
     }
 
-    // TC-540, FR-034-AC-1: id_pattern interpolation with this doc's id.
+    #[trace("TC-540", "FR-034-AC-1")]
+    // id_pattern interpolation with this doc's id.
     #[test]
     fn tc540_id_pattern_interpolation() {
         let doc = parse_document(
@@ -670,7 +676,8 @@ mod tests {
         assert_eq!(fails.len(), 1);
     }
 
-    // TC-541, FR-034-AC-2: unresolved field → reason unresolved-field.
+    #[trace("TC-541", "FR-034-AC-2")]
+    // unresolved field → reason unresolved-field.
     #[test]
     fn tc541_unresolved_field() {
         let doc = parse_document("## AC\n| ID |\n| - |\n| X-1 |\n");
@@ -684,7 +691,8 @@ mod tests {
         assert!(fails[0].message.contains("missing"));
     }
 
-    // TC-542, FR-034-AC-3: regex metacharacters in value are escaped.
+    #[trace("TC-542", "FR-034-AC-3")]
+    // regex metacharacters in value are escaped.
     #[test]
     fn tc542_regex_escape() {
         let doc = parse_document("---\nid: A.B+\n---\n## AC\n| ID |\n| - |\n| A.B+ |\n");
@@ -695,7 +703,8 @@ mod tests {
         assert!(evaluate_assert(&doc, &p, &a, doc.frontmatter.as_ref()).is_empty());
     }
 
-    // TC-543, FR-034-AC-4: static pattern with no token.
+    #[trace("TC-543", "FR-034-AC-4")]
+    // static pattern with no token.
     #[test]
     fn tc543_static_pattern() {
         let doc = parse_document("## AC\n| ID |\n| - |\n| AC-1 |\n");
@@ -706,7 +715,8 @@ mod tests {
         assert!(evaluate_assert(&doc, &p, &a, None).is_empty());
     }
 
-    // TC-571, FR-033-AC-8: `id_column` resolution precedence on a
+    #[trace("TC-571", "FR-033-AC-8")]
+    // `id_column` resolution precedence on a
     // table_row locator is `assert.id_column` → locator `column` → col 0.
     #[test]
     fn tc571_id_column_resolution_precedence() {
@@ -750,7 +760,8 @@ mod tests {
         );
     }
 
-    // TC-572, FR-033-AC-9: `id_pattern` on non-table locators applies to
+    #[trace("TC-572", "FR-033-AC-9")]
+    // `id_pattern` on non-table locators applies to
     // the located scalar value — heading text, section first-line/id
     // token, each list item, and the frontmatter scalar. A mismatch fails
     // with reason `assert`; a match passes.
@@ -797,7 +808,8 @@ mod tests {
         );
     }
 
-    // TC-608, FR-033-AC-10: a `section_body` `matches` regex asserts the
+    #[trace("TC-608", "FR-033-AC-10")]
+    // a `section_body` `matches` regex asserts the
     // located content shape. A body carrying the `As a … / I want … / So
     // that …` shape passes; one lacking it fails with reason `assert`; a
     // missing section does NOT fire `matches` (absence is validation's job).
@@ -829,7 +841,8 @@ mod tests {
         );
     }
 
-    // TC-633, FR-033-AC-11: `choices` scalar enum on a `section_body`
+    #[trace("TC-633", "FR-033-AC-11")]
+    // `choices` scalar enum on a `section_body`
     // locator passes on a member value, fails reason `assert` on a
     // non-member, and does NOT fire when the section is absent.
     #[test]
@@ -870,7 +883,8 @@ mod tests {
         );
     }
 
-    // TC-634, FR-033-AC-12: `column_choices` constrains every cell in a
+    #[trace("TC-634", "FR-033-AC-12")]
+    // `column_choices` constrains every cell in a
     // named table column; an absent column fails "column not found".
     #[test]
     fn tc634_column_choices() {
@@ -898,7 +912,8 @@ mod tests {
         assert!(fails[0].message.contains("not found"));
     }
 
-    // TC-635, FR-033-AC-13: `column_patterns` regex-validates every cell in
+    #[trace("TC-635", "FR-033-AC-13")]
+    // `column_patterns` regex-validates every cell in
     // a named table column; supports `{field}` interpolation; absent column
     // fails "column not found".
     #[test]

@@ -333,6 +333,7 @@ fn ix_link_regex() -> &'static Regex {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ix_trace_rs::trace;
 
     // TC-491 / FR-026-AC-6: target-id extraction is a pure function.
     #[test]
@@ -768,7 +769,8 @@ mod tests {
             "the bare protocol is dropped; the backticked URI is kept"
         );
     }
-    // TC-897, FR-026-AC-14 (CR-071): every clause of the relative-destination
+    #[trace("TC-897", "FR-026-AC-14")]
+    // every clause of the relative-destination (CR-071)
     // filter is load-bearing, checked one exclusion at a time.
     //
     // Found by the agent-ix/quoin#48 mutation pilot: `cargo mutants` scoped to
@@ -805,7 +807,8 @@ mod tests {
         }
     }
 
-    // TC-897, FR-026-AC-14 (CR-071): and end to end — a document whose only
+    #[trace("TC-897", "FR-026-AC-14")]
+    // and end to end — a document whose only (CR-071)
     // links are excluded destinations mints no edge at all.
     #[test]
     fn tc897_excluded_destinations_mint_no_edges() {

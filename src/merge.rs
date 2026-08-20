@@ -32,6 +32,7 @@ pub fn deep_merge(current: &Value, patch: &Value) -> Value {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ix_trace_rs::trace;
     use serde_json::json;
 
     #[test]
@@ -48,7 +49,7 @@ mod tests {
         assert_eq!(deep_merge(&a, &b), json!({"title": "new"}));
     }
 
-    // FR-002-AC-1
+    #[trace("FR-002-AC-1")]
     #[test]
     fn preserves_siblings_during_merge() {
         let a = json!({"title": "old", "body": "content"});

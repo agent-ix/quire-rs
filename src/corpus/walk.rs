@@ -408,6 +408,7 @@ fn parse_one(path: &Path) -> Outcome {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ix_trace_rs::trace;
     use std::fs;
     use std::path::PathBuf;
 
@@ -438,7 +439,8 @@ mod tests {
     const STR_005: &str = "---\nid: StR-005\ntype: StR\nuuid: 0190b6a0-0000-7000-8000-000000000005\n---\n# Need\nbody\n";
     const TM_001: &str = "---\nid: TM-001\ntype: TestMatrix\nuuid: 0190b6a0-0000-7000-8000-000000000001\n---\n# Test Matrix\n\n## Test Case Summary\n";
 
-    // TC-470: N files -> N docs, each matching a direct parse_document.
+    #[trace("TC-470")]
+    // N files -> N docs, each matching a direct parse_document.
     #[test]
     fn loads_one_document_per_markdown_file() {
         let root = tmpdir("n_docs");
@@ -541,7 +543,8 @@ mod tests {
     // motivated the change — it is the canonical filename for `TestMatrix`,
     // a fully registered archetype, and the old skip list made the engine
     // unable to load the canonical instance of a type its own module declares.
-    // TC-807, FR-024-AC-10 (CR-048: the CR-044 "produce no diagnostic"
+    #[trace("TC-807", "FR-024-AC-10")]
+    // (CR-048: the CR-044 "produce no diagnostic"
     // assertion is inverted — a frontmatter-less file INSIDE the walked
     // root warns; files outside the root are simply never visited, #91).
     #[test]

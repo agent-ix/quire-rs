@@ -1053,6 +1053,7 @@ fn check_capturing_pattern(section: &str, name: &str, pattern: &str) -> Result<(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ix_trace_rs::trace;
 
     fn model(yaml: &str) -> TraceabilityModel {
         serde_yaml::from_str(yaml).expect("parse")
@@ -1230,7 +1231,8 @@ document_references:
         assert!(!yaml.contains("exclude"), "{yaml}");
     }
 
-    // TC-826 (CR-060): the model-level `exclude:` is a repository fact, so it
+    #[trace("TC-826")]
+    // the model-level `exclude:` is a repository fact, so it (CR-060)
     // is not what makes a model *declared* — a module that says only "these
     // paths are not corpus data" has declared no model to reconcile against.
     #[test]
@@ -1245,7 +1247,8 @@ document_references:
         assert!(!yaml.contains("exclude"), "{yaml}");
     }
 
-    // TC-826 (CR-060): the same compile check `exclude:` has carried since
+    #[trace("TC-826")]
+    // the same compile check `exclude:` has carried since (CR-060)
     // CR-038 — a pattern that cannot compile would quietly readmit everything
     // the module meant to keep out.
     #[test]

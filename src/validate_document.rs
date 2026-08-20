@@ -896,6 +896,7 @@ pub fn validate_context(
 mod tests {
     use super::*;
     use crate::loader::compile::{compile_schema, ArchetypeCarryOver, CompiledArchetype};
+    use ix_trace_rs::trace;
     use std::sync::Arc;
 
     /// Build a CompiledArchetype with an optional frontmatter schema and
@@ -964,7 +965,8 @@ yield_pattern:
       required: true
 "#;
 
-    // TC-663, FR-042-AC-7: grammar warnings never fail validation; an
+    #[trace("TC-663", "FR-042-AC-7")]
+    // grammar warnings never fail validation; an
     // error-severity finding routes to `errors` and would block.
     #[test]
     fn tc663_grammar_severity_routing() {
@@ -1005,7 +1007,8 @@ yield_pattern:
         assert_eq!(errors[0].reason, ValidationReason::Grammar);
     }
 
-    // TC-718, FR-048-AC-3: with `ac:unclassifiable` mapped to `error`, that
+    #[trace("TC-718", "FR-048-AC-3")]
+    // with `ac:unclassifiable` mapped to `error`, that
     // finding lands in `ValidationResult.errors` and clears `is_valid`, while
     // an `ears` finding with no map entry stays a warning. The `ac` grammar
     // itself lands in Task-002; this pins the framework's severity-application
@@ -1053,7 +1056,8 @@ yield_pattern:
         assert!(!result.is_valid);
     }
 
-    // TC-528, FR-032-AC-1: conformant document validates.
+    #[trace("TC-528", "FR-032-AC-1")]
+    // conformant document validates.
     #[test]
     fn tc528_conformant_document_is_valid() {
         let a = archetype(Some(fr_schema_value()), Some(FR_DSL));
@@ -1065,7 +1069,8 @@ yield_pattern:
         assert!(r.errors.is_empty());
     }
 
-    // TC-529, FR-032-AC-2: missing required section → reason missing,
+    #[trace("TC-529", "FR-032-AC-2")]
+    // missing required section → reason missing,
     // line-numbered, names archetype + section.
     #[test]
     fn tc529_missing_required_section() {
@@ -1083,7 +1088,8 @@ yield_pattern:
         assert!(e.message.contains("Specification"), "{}", e.message);
     }
 
-    // TC-530, FR-032-AC-3: placeholder-only required section → reason
+    #[trace("TC-530", "FR-032-AC-3")]
+    // placeholder-only required section → reason
     // placeholder, even when frontmatter schema passes.
     #[test]
     fn tc530_placeholder_section() {
@@ -1109,7 +1115,8 @@ yield_pattern:
             .any(|e| e.reason == ValidationReason::Placeholder));
     }
 
-    // TC-531, FR-032-AC-4: frontmatter violation → reason frontmatter,
+    #[trace("TC-531", "FR-032-AC-4")]
+    // frontmatter violation → reason frontmatter,
     // independent of body.
     #[test]
     fn tc531_frontmatter_violation() {
@@ -1126,7 +1133,8 @@ yield_pattern:
             .any(|e| e.reason == ValidationReason::Frontmatter));
     }
 
-    // TC-532, FR-032-AC-5: the context/data path validates a JSON
+    #[trace("TC-532", "FR-032-AC-5")]
+    // the context/data path validates a JSON
     // object and does not parse markdown.
     #[test]
     fn tc532_context_path_is_distinct() {
@@ -1142,7 +1150,8 @@ yield_pattern:
         assert!(validate_context(&a, &bad).is_err());
     }
 
-    // TC-533, FR-032-AC-6: archetype with no body_extraction validates
+    #[trace("TC-533", "FR-032-AC-6")]
+    // archetype with no body_extraction validates
     // by frontmatter + heading-uniqueness only; no body-structure errors.
     #[test]
     fn tc533_no_body_extraction_only_frontmatter_and_headings() {
@@ -1176,7 +1185,8 @@ yield_pattern:
         id_pattern: '^Algo-\d+:'
 "#;
 
-    // TC-561 (FR-032 step 3 / FR-033): multi-yield archetype — a
+    #[trace("TC-561")]
+    // multi-yield archetype — a (FR-032 step 3 / FR-033)
     // conformant document (every iteration unit carries its required
     // sub-locator with a satisfied assert) validates.
     #[test]
@@ -1206,7 +1216,8 @@ yield_pattern:
       required: true
 "#;
 
-    // TC-561: a unit missing its required per_match sub-locator (no
+    #[trace("TC-561")]
+    // a unit missing its required per_match sub-locator (no
     // `#### Detail` child) fails with reason `missing`, naming the key.
     #[test]
     fn tc561_multi_yield_unit_missing_required_fails() {
@@ -1238,7 +1249,8 @@ yield_pattern:
         assert!(r.is_valid, "{:?}", r.errors);
     }
 
-    // TC-562, FR-033: a unit whose required sub-locator violates its
+    #[trace("TC-562", "FR-033")]
+    // a unit whose required sub-locator violates its
     // assert (list-item text does not match the id_pattern) fails with
     // reason `assert`; a conformant sibling does not.
     #[test]
@@ -1258,7 +1270,8 @@ yield_pattern:
         );
     }
 
-    // TC-544, FR-035-AC-1: two `## Description` → duplicate-heading,
+    #[trace("TC-544", "FR-035-AC-1")]
+    // two `## Description` → duplicate-heading,
     // names text + level 2.
     #[test]
     fn tc544_duplicate_heading_level_2() {
@@ -1275,7 +1288,8 @@ yield_pattern:
         assert!(e.message.contains("level 2"), "{}", e.message);
     }
 
-    // TC-545, FR-035-AC-2: same text at different levels passes.
+    #[trace("TC-545", "FR-035-AC-2")]
+    // same text at different levels passes.
     #[test]
     fn tc545_same_text_different_levels_ok() {
         let a = archetype(None, None);
@@ -1290,7 +1304,8 @@ yield_pattern:
         );
     }
 
-    // TC-546, FR-035-AC-3: iterate_over distinct child headings pass;
+    #[trace("TC-546", "FR-035-AC-3")]
+    // iterate_over distinct child headings pass;
     // a duplicate child fails.
     #[test]
     fn tc546_iterate_over_children() {
@@ -1308,7 +1323,8 @@ yield_pattern:
             .any(|e| e.reason == ValidationReason::DuplicateHeading));
     }
 
-    // TC-547, FR-035-AC-4: the duplicate diagnostic carries the line of
+    #[trace("TC-547", "FR-035-AC-4")]
+    // the duplicate diagnostic carries the line of
     // the offending (second) heading.
     #[test]
     fn tc547_duplicate_line_is_second_heading() {
@@ -1340,7 +1356,8 @@ yield_pattern:
         format!("## Specification\n{body}\n")
     }
 
-    // TC-573, FR-032-AC-7: the exact placeholder sentinel set. `TODO:`
+    #[trace("TC-573", "FR-032-AC-7")]
+    // the exact placeholder sentinel set. `TODO:`
     // /`TBD` prefix (case-insensitive) and whole-value `{{…}}` /
     // `placeholder` / `none specified` / empty fail with reason
     // `placeholder`; substantive prose merely containing `todo`
@@ -1380,7 +1397,8 @@ yield_pattern:
         }
     }
 
-    // TC-574, FR-032-AC-8: a required section whose only content is
+    #[trace("TC-574", "FR-032-AC-8")]
+    // a required section whose only content is
     // `none` or `n/a` is substantive and passes — bare `none`/`n/a` are
     // not sentinels.
     #[test]
@@ -1414,7 +1432,8 @@ yield_pattern:
       required: true
 "#;
 
-    // TC-575, FR-032-AC-9: a required `table_row` resolving to a
+    #[trace("TC-575", "FR-032-AC-9")]
+    // a required `table_row` resolving to a
     // header-only table fails `empty`; a required `list_item` resolving to
     // an item-less list fails `empty`; a non-resolving locator fails
     // `missing` (none report `placeholder`).
@@ -1473,7 +1492,8 @@ yield_pattern:
         id_pattern: '^OK-'
 "#;
 
-    // TC-576, FR-032-AC-10: an `assert` on a **resolved** locator is
+    #[trace("TC-576", "FR-032-AC-10")]
+    // an `assert` on a **resolved** locator is
     // evaluated regardless of `required`. An optional locator that
     // resolves but violates its assert → reason `assert`; an optional
     // locator that does not resolve runs no assert and emits nothing.
@@ -1576,7 +1596,8 @@ object_types:
         r
     }
 
-    // TC-610, FR-032-AC-11, FR-032-AC-13: `type: FR` + `object: process`
+    #[trace("TC-610", "FR-032-AC-11", "FR-032-AC-13")]
+    // `type: FR` + `object: process`
     // with the FR core present but NO `## Workflow` mermaid block → an
     // object ERROR (process required `diagram` missing) merged into
     // `errors`, while the FR part passes independently; is_valid==false.
@@ -1608,7 +1629,8 @@ object_types:
         assert!(r.warnings.is_empty(), "{:?}", r.warnings);
     }
 
-    // TC-611, FR-032-AC-12: `type: FR` (conformant) + `object:
+    #[trace("TC-611", "FR-032-AC-12")]
+    // `type: FR` (conformant) + `object:
     // totally-unknown` → exactly one WARNING (reason unknown-object-type,
     // naming the object), zero errors, is_valid==true.
     #[test]
@@ -1630,7 +1652,8 @@ object_types:
         );
     }
 
-    // TC-612, FR-032-AC-11: `type: FR` conformant + NO `object:` key
+    #[trace("TC-612", "FR-032-AC-11")]
+    // `type: FR` conformant + NO `object:` key
     // (registry-aware entry point) → no object-layer diagnostics at all;
     // errors + warnings unchanged from the type-only path.
     #[test]
@@ -1677,7 +1700,8 @@ edge_types:
         r
     }
 
-    // TC-641, FR-040-AC-8: a frontmatter edge whose `type` is outside the
+    #[trace("TC-641", "FR-040-AC-8")]
+    // a frontmatter edge whose `type` is outside the
     // resolved (artifact ∪ object) vocabulary yields exactly one
     // DisallowedEdgeType warning; in-vocabulary edges yield none; the
     // object axis contributes its verb (`emits`) to the resolved set.
@@ -1715,7 +1739,8 @@ edge_types:
         assert!(r.is_valid, "edges are advisory: {:?}", r.errors);
     }
 
-    // TC-644, FR-040-AC-10: Tier-1 disallowed-edge warnings are emitted
+    #[trace("TC-644", "FR-040-AC-10")]
+    // Tier-1 disallowed-edge warnings are emitted
     // sorted by (target, edge_type), independent of the author's
     // `relationships:` ordering.
     #[test]
@@ -1747,7 +1772,8 @@ edge_types:
         );
     }
 
-    // TC-641b, FR-040-AC-8: when `object:` is unknown, the vocabulary
+    #[trace("TC-641b", "FR-040-AC-8")]
+    // when `object:` is unknown, the vocabulary
     // falls back to the artifact axis alone and Tier-1 still runs.
     #[test]
     fn tc641_unknown_object_falls_back_to_artifact_vocab() {
@@ -1775,7 +1801,8 @@ edge_types:
             .any(|w| w.reason == ValidationReason::UnknownObjectType));
     }
 
-    // TC-613, FR-032-AC-13: `type: FR` + `object: process` WITH a valid
+    #[trace("TC-613", "FR-032-AC-13")]
+    // `type: FR` + `object: process` WITH a valid
     // `## Workflow` mermaid block → no object errors, no warnings,
     // is_valid==true.
     #[test]

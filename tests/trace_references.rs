@@ -8,6 +8,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use ix_trace_rs::trace;
 use quire_rs::{validate_bundle_at, BundleFinding, BundlePosture, BundleReport, Registry};
 
 fn fixture_module(name: &str) -> PathBuf {
@@ -73,7 +74,8 @@ fn validate(root: &Path, module: &str, posture: BundlePosture) -> BundleReport {
     validate_bundle_at(root, &registry, posture)
 }
 
-// TC-724, FR-049-AC-1: references that resolve — one to a declared
+#[trace("TC-724", "FR-049-AC-1")]
+// references that resolve — one to a declared
 // trace-source row, one to a TC document in the bundle — yield no finding.
 #[test]
 fn tc724_resolved_references_are_clean() {
@@ -110,7 +112,8 @@ fn tc724_resolved_references_are_clean() {
     );
 }
 
-// TC-725, FR-049-AC-2: an unresolved id yields one finding carrying the
+#[trace("TC-725", "FR-049-AC-2")]
+// an unresolved id yields one finding carrying the
 // document path and the id.
 #[test]
 fn tc725_unresolved_reference_is_reported() {
@@ -134,7 +137,8 @@ fn tc725_unresolved_reference_is_reported() {
     assert!(findings[0].path.ends_with("FR-001.md"));
 }
 
-// TC-726, FR-049-AC-3: the finding is posture-degradable — error under
+#[trace("TC-726", "FR-049-AC-3")]
+// the finding is posture-degradable — error under
 // Strict, warning under Okf.
 #[test]
 fn tc726_posture_degradable() {
@@ -178,7 +182,8 @@ fn tc726_posture_degradable() {
         .all(|f| f.reason != "dangling-trace-reference"));
 }
 
-// TC-727, FR-049-AC-4: the pattern and column come from the declaration — a
+#[trace("TC-727", "FR-049-AC-4")]
+// the pattern and column come from the declaration — a
 // module with a different vocabulary resolves by its own model.
 #[test]
 fn tc727_pattern_and_column_are_module_data() {
@@ -216,7 +221,8 @@ fn tc727_pattern_and_column_are_module_data() {
     assert!(dangling(&validate(&root, "iso", BundlePosture::Okf)).is_empty());
 }
 
-// TC-728, FR-049-AC-5: a declared auxiliary source outside the corpus walk
+#[trace("TC-728", "FR-049-AC-5")]
+// a declared auxiliary source outside the corpus walk
 // contributes its minted ids to the resolution set.
 #[test]
 fn tc728_auxiliary_source_contributes_ids() {
@@ -246,7 +252,8 @@ fn tc728_auxiliary_source_contributes_ids() {
     );
 }
 
-// TC-729, FR-049-AC-6: with no declared model, the check emits nothing.
+#[trace("TC-729", "FR-049-AC-6")]
+// with no declared model, the check emits nothing.
 #[test]
 fn tc729_no_model_no_findings() {
     let root = tmpdir("729");
@@ -272,7 +279,8 @@ fn tc729_no_model_no_findings() {
     }
 }
 
-// TC-730, FR-049-AC-7: a cell with several annotations resolves each id
+#[trace("TC-730", "FR-049-AC-7")]
+// a cell with several annotations resolves each id
 // independently and reports only the unresolved ones.
 #[test]
 fn tc730_multiple_annotations_resolve_independently() {
@@ -298,7 +306,8 @@ fn tc730_multiple_annotations_resolve_independently() {
     assert!(!findings[0].message.contains("TC-001"));
 }
 
-// TC-731, FR-049-AC-8 (Property): repeated validation yields the same findings
+#[trace("TC-731", "FR-049-AC-8")]
+// repeated validation yields the same findings (Property)
 // in the same order.
 #[test]
 fn tc731_findings_are_deterministic() {
@@ -336,7 +345,8 @@ fn tc731_findings_are_deterministic() {
     }
 }
 
-// TC-760, FR-050-AC-12 (CR-015): declared normalizations apply before ids are
+#[trace("TC-760", "FR-050-AC-12")]
+// declared normalizations apply before ids are (CR-015)
 // read, and only when declared. The `normalizing` and `plain` fixtures carry
 // the same declaration; only the two flags differ, so each half of this test is
 // a controlled comparison.
@@ -385,7 +395,8 @@ fn tc760_declared_cell_normalization() {
     assert_eq!(ids("plain"), vec!["TC-404".to_string()]);
 }
 
-// TC-814, FR-049-AC-9 (CR-056, amended CR-062): the two-root split, which now
+#[trace("TC-814", "FR-049-AC-9")]
+// the two-root split, which now (CR-056, amended CR-062)
 // rests entirely on `exclude:`. A glob is authored against the repository scope
 // — `exclude: ["spec/fixtures/**"]` — so it must be matched against the
 // **reference** root. Matched against the document root instead, the same glob
@@ -454,7 +465,8 @@ fn tc814_exclude_globs_resolve_against_the_reference_root() {
     );
 }
 
-// TC-889, FR-057-AC-6: the severity registry is per check, so switching one
+#[trace("TC-889", "FR-057-AC-6")]
+// the severity registry is per check, so switching one
 // pack off leaves its siblings reporting. The trace pack is the one P2's new
 // checks will sit beside, so the independence is worth pinning here rather than
 // only over the packs that happen to share a file.

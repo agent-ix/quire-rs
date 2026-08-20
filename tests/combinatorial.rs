@@ -1,5 +1,7 @@
 //! FR-061 — combinatorial obligations (TC-925..TC-930).
 
+use ix_trace_rs::trace;
+
 use quire_rs::combinatorial::{
     parse_exclusion, split_values, ConfigurationSpace, Dimension, Exclusion,
 };
@@ -18,7 +20,8 @@ fn space(dimensions: Vec<Dimension>, exclusions: Vec<Exclusion>) -> Configuratio
     }
 }
 
-// TC-925, FR-061-AC-1: the t-way tuple count is the sum over every set of t
+#[trace("TC-925", "FR-061-AC-1")]
+// the t-way tuple count is the sum over every set of t
 // dimensions of the product of their value counts.
 //
 // Hand-computable on purpose. Sizes 2, 3, 2 at t=2 give 2·3 + 2·2 + 3·2 = 16.
@@ -41,7 +44,8 @@ fn tc925_the_tuple_count_is_the_declared_number() {
     assert_eq!(s.tuples(1), 7);
 }
 
-// TC-926, FR-061-AC-2: a strength greater than the number of dimensions is 0,
+#[trace("TC-926", "FR-061-AC-2")]
+// a strength greater than the number of dimensions is 0,
 // not an error and not the full product.
 //
 // There is no 3-way interaction among two dimensions. Reporting one would put
@@ -54,7 +58,8 @@ fn tc926_strength_beyond_the_dimensions_is_zero() {
     assert_eq!(s.tuples(2), 4);
 }
 
-// TC-927, FR-061-AC-3: a forbidden combination is removed from the count.
+#[trace("TC-927", "FR-061-AC-3")]
+// a forbidden combination is removed from the count.
 //
 // Counting a combination that cannot exist makes the target permanently
 // unreachable, which is the fastest way to get a coverage number ignored.
@@ -79,7 +84,8 @@ fn tc927_a_forbidden_combination_is_not_an_obligation() {
     assert_eq!(excluded.tuples(2), 5);
 }
 
-// TC-928, FR-061-AC-4: an exclusion forbids every WIDER tuple containing it.
+#[trace("TC-928", "FR-061-AC-4")]
+// an exclusion forbids every WIDER tuple containing it.
 //
 // A two-value constraint has to bite at strength 3 as well, or a space would
 // become less constrained as the strength rises — which is backwards.
@@ -104,7 +110,8 @@ fn tc928_an_exclusion_bites_at_higher_strength() {
     assert_eq!(excluded.tuples(3), 6);
 }
 
-// TC-929, FR-061-AC-5: the statement carries every declared value, so any
+#[trace("TC-929", "FR-061-AC-5")]
+// the statement carries every declared value, so any
 // change to the space changes its hash.
 //
 // This is the entire suspect-link mechanism, inherited rather than reinvented:
@@ -121,7 +128,8 @@ fn tc929_the_statement_covers_the_whole_space() {
     assert_ne!(before.statement(2), before.statement(3));
 }
 
-// TC-930, FR-061-AC-6: declared cells are parsed the way a spec author writes
+#[trace("TC-930", "FR-061-AC-6")]
+// declared cells are parsed the way a spec author writes
 // them, and a repeated value is not counted twice.
 //
 // A duplicate would inflate every tuple count its dimension takes part in, so
@@ -145,7 +153,8 @@ fn tc930_cells_parse_as_authored() {
     assert!(parse_exclusion("nonsense & target=wasm32").is_none());
 }
 
-// TC-931, FR-061-AC-7: a declared configuration space mints ONE obligation
+#[trace("TC-931", "FR-061-AC-7")]
+// a declared configuration space mints ONE obligation
 // through the real minter, carrying the number in `parameters`.
 //
 // Stated over `obligation::for_document`, the function every consumer of the
@@ -207,7 +216,8 @@ fn tc931_a_declared_space_mints_one_obligation() {
     assert!(!obligation.statement_hash.is_empty());
 }
 
-// TC-932, FR-061-AC-8: a space with fewer than two real dimensions mints
+#[trace("TC-932", "FR-061-AC-8")]
+// a space with fewer than two real dimensions mints
 // nothing.
 //
 // A one-dimension "space" takes part in no interaction. Minting an obligation
@@ -251,7 +261,8 @@ fn tc932_a_space_with_no_interaction_mints_nothing() {
     assert!(quire_rs::obligation::for_document(&model, "FR", &doc, None).is_empty());
 }
 
-// TC-933, FR-061-AC-9: strength 0 is rejected at load.
+#[trace("TC-933", "FR-061-AC-9")]
+// strength 0 is rejected at load.
 #[test]
 fn tc933_strength_zero_is_rejected() {
     use quire_rs::traceability::{CombinatorialColumns, ObligationSource, TraceabilityModel};
@@ -280,7 +291,8 @@ fn tc933_strength_zero_is_rejected() {
     assert!(err.contains("strength 0"), "{err}");
 }
 
-// TC-934, FR-061-AC-10: a declared space mints ONE obligation through the
+#[trace("TC-934", "FR-061-AC-10")]
+// a declared space mints ONE obligation through the
 // CORPUS path too, identically to the single-document path.
 //
 // TC-931 states the same contract over `obligation::for_document` and calls it

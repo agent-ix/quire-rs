@@ -4,6 +4,7 @@
 //! forward edge): Tier-1 recognizes it, Tier-2 normalizes it to the forward
 //! orientation for the target check. Warn-tier + deterministic.
 
+use ix_trace_rs::trace;
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -29,7 +30,8 @@ fn registry(manifest: &[u8]) -> Registry {
     r
 }
 
-// TC-652, FR-041-AC-1: the merged registry exposes an inverse index mapping
+#[trace("TC-652", "FR-041-AC-1")]
+// the merged registry exposes an inverse index mapping
 // each declared `inverse:` label to its forward verb; a registry with no
 // declared inverses exposes an empty index.
 #[test]
@@ -70,7 +72,8 @@ edge_types:
     assert!(bare.inverse_index().is_empty());
 }
 
-// TC-653, FR-041-AC-2: a frontmatter edge whose `type` is a declared inverse
+#[trace("TC-653", "FR-041-AC-2")]
+// a frontmatter edge whose `type` is a declared inverse
 // label is type-allowed during validate (no DisallowedEdgeType), even though
 // it is absent from resolve_allowed_links; a verb that is neither a resolved
 // key nor a known inverse still yields exactly one DisallowedEdgeType.
@@ -113,7 +116,8 @@ edge_types:
     assert!(r.is_valid, "edges are advisory");
 }
 
-// TC-654, FR-041-AC-3: a label that is both a forward edge_types key and an
+#[trace("TC-654", "FR-041-AC-3")]
+// a label that is both a forward edge_types key and an
 // inverse of another verb resolves to the forward registration (not the
 // inverse); two forward verbs declaring the same inverse label are first-wins
 // and emit a non-fatal DuplicateInverseEdge.
@@ -166,7 +170,8 @@ edge_types:
     );
 }
 
-// TC-652b, FR-041-AC-1: an inverse label used as an `allowed_links` key in a
+#[trace("TC-652b", "FR-041-AC-1")]
+// an inverse label used as an `allowed_links` key in a
 // manifest is a valid verb — it does NOT raise UnknownEdgeType at load.
 #[test]
 fn tc652_inverse_label_in_allowed_links_is_known() {
@@ -241,7 +246,8 @@ edge_types:
     )
 }
 
-// TC-655, FR-041-AC-4: a corpus inverse edge `(B, consumed_by, A)` is
+#[trace("TC-655", "FR-041-AC-4")]
+// a corpus inverse edge `(B, consumed_by, A)` is
 // normalized to `(A, publishes, B)` before target_satisfies; a forward-valid
 // target passes, a forward-direction mismatch yields one DisallowedEdgeTarget
 // reported with the authored inverse source/target/edge_type.
@@ -301,7 +307,8 @@ fn tc655_tier2_inverse_normalization() {
     );
 }
 
-// TC-656, FR-041-AC-5: inverse recognition/normalization are warnings only
+#[trace("TC-656", "FR-041-AC-5")]
+// inverse recognition/normalization are warnings only
 // and deterministic — the inverse index is identical across repeated loads.
 #[test]
 fn tc656_warn_only_and_deterministic() {

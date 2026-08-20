@@ -15,6 +15,9 @@ allow = [
 # stays permissive-only.
 exceptions = [
     { allow = ["AGPL-3.0-or-later"], crate = "quire-rs" },
+    # The trace marker is AGPL like the rest of the toolchain. A dev-dependency
+    # only, and not transitive, so this admits nothing into a consumer's graph.
+    { allow = ["AGPL-3.0-or-later"], crate = "ix-trace-rs" },
 ]
 confidence-threshold = 0.9
 
@@ -28,3 +31,6 @@ version = 2
 [sources]
 unknown-registry = "deny"
 unknown-git = "deny"
+# The only git source: the trace-marker crate, which is not published to a
+# registry. Listed explicitly so `unknown-git = "deny"` keeps its teeth.
+allow-git = ["https://github.com/agent-ix/ix-trace-rs"]

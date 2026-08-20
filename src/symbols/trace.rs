@@ -692,6 +692,7 @@ mod tests {
     use super::*;
     use crate::symbols::extract_tree;
     use crate::Registry;
+    use ix_trace_rs::trace;
 
     fn fixture_root() -> std::path::PathBuf {
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -727,7 +728,8 @@ mod tests {
             .collect()
     }
 
-    // TC-744, FR-051-AC-4: each canonical marker form binds statically — one
+    #[trace("TC-744", "FR-051-AC-4")]
+    // each canonical marker form binds statically — one
     // `verifies` relation per attached trace id, no code executed.
     #[test]
     fn tc744_canonical_markers_bind_statically() {
@@ -756,7 +758,8 @@ mod tests {
         assert!(relations_for(&graph, "TestService").is_empty());
     }
 
-    // TC-745, FR-051-AC-5: marker forms are module data — a different
+    #[trace("TC-745", "FR-051-AC-5")]
+    // marker forms are module data — a different
     // declaration binds by its own forms, and no declared forms mints nothing.
     #[test]
     fn tc745_forms_are_module_data() {
@@ -781,7 +784,8 @@ mod tests {
         assert!(!none.defined_in.is_empty());
     }
 
-    // TC-746, FR-051-AC-6: a trace id attached more than once to one symbol
+    #[trace("TC-746", "FR-051-AC-6")]
+    // a trace id attached more than once to one symbol
     // mints one relation and one diagnostic.
     #[test]
     fn tc746_duplicate_binding_is_deduped_with_diagnostic() {
@@ -810,7 +814,8 @@ mod tests {
         assert_eq!(dupes[0].provenance, TraceProvenance::Canonical);
     }
 
-    // TC-828, FR-051-AC-17 (CR-061): a benchmark and a fuzz target are leaf
+    #[trace("TC-828", "FR-051-AC-17")]
+    // a benchmark and a fuzz target are leaf (CR-061)
     // evidence and bind; a container and a plain production function do not.
     //
     // The two exclusions are for two different reasons and both matter. A
@@ -890,7 +895,8 @@ mod tests {
         );
     }
 
-    // TC-753, FR-051-AC-11: legacy textual forms still bind, carry `legacy`
+    #[trace("TC-753", "FR-051-AC-11")]
+    // legacy textual forms still bind, carry `legacy`
     // provenance, and yield a mechanical rewrite suggestion where derivable.
     #[test]
     fn tc753_legacy_forms_bind_with_provenance_and_rewrite() {
@@ -924,7 +930,8 @@ mod tests {
         assert!(suggestion.line >= 1);
     }
 
-    // TC-894, FR-051-AC-6: a legacy tag inside a Rust string literal is data,
+    #[trace("TC-894", "FR-051-AC-6")]
+    // a legacy tag inside a Rust string literal is data,
     // not a marker. This engine's own suite feeds tag-shaped snippets to the
     // extractor as fixtures, and before the mask every one of them bound and
     // showed up as an untracked symbol. The ids below sit outside any declared
@@ -948,7 +955,8 @@ mod tests {
         );
     }
 
-    // TC-895, FR-051-AC-6: the mask must not reach the canonical marker, whose
+    #[trace("TC-895", "FR-051-AC-6")]
+    // the mask must not reach the canonical marker, whose
     // ids are string literals by design. Masking before matching it would
     // suppress exactly the form the grammar prefers.
     #[test]
@@ -970,7 +978,8 @@ mod tests {
         );
     }
 
-    // TC-806, FR-051-AC-16: a legacy form yields every id its match carries,
+    #[trace("TC-806", "FR-051-AC-16")]
+    // a legacy form yields every id its match carries,
     // and a form declaring `id_format` is unchanged.
     #[test]
     fn tc806_legacy_comma_list_binds_every_id() {
@@ -1033,7 +1042,8 @@ mod tests {
         assert_eq!(by_name[0].trace_id, "TC-806");
     }
 
-    // TC-806, FR-051-AC-16: irregular spacing and a trailing comma yield the
+    #[trace("TC-806", "FR-051-AC-16")]
+    // irregular spacing and a trailing comma yield the
     // ids only — never an empty id.
     #[test]
     fn tc806_legacy_list_tolerates_irregular_separators() {
@@ -1048,7 +1058,8 @@ mod tests {
         assert!(graph.verifies.iter().all(|v| !v.trace_id.is_empty()));
     }
 
-    // TC-748, FR-051-AC-8: `defined_in` links every symbol to its file and
+    #[trace("TC-748", "FR-051-AC-8")]
+    // `defined_in` links every symbol to its file and
     // `contains` links containers to members, deterministically ordered.
     #[test]
     fn tc748_structural_relations() {
@@ -1083,7 +1094,8 @@ mod tests {
         }
     }
 
-    // TC-747, FR-051-AC-7: emitted records match the FR-045 graph-record
+    #[trace("TC-747", "FR-051-AC-7")]
+    // emitted records match the FR-045 graph-record
     // shapes with normalized `ref` values.
     #[test]
     fn tc747_records_match_fr045_shapes() {
@@ -1145,7 +1157,8 @@ mod tests {
         assert!(edges.iter().any(|e| e.edge_type == "contains"));
     }
 
-    // TC-750, FR-051-AC-10 (Property): repeated extraction + binding over an
+    #[trace("TC-750", "FR-051-AC-10")]
+    // repeated extraction + binding over an (Property)
     // identical tree emits byte-identical JSON and identical record ids.
     #[test]
     fn tc750_repeated_extraction_is_byte_identical() {

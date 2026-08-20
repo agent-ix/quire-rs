@@ -143,6 +143,7 @@ fn parse_heading(line: &str) -> Option<(usize, String)> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ix_trace_rs::trace;
 
     fn lines(s: &str) -> Vec<&str> {
         s.split('\n').collect()
@@ -178,7 +179,8 @@ mod tests {
         assert_eq!(hs[0].text, "Real");
     }
 
-    // FR-007-AC-4: mismatched fence character does not close an open fence.
+    #[trace("FR-007-AC-4")]
+    // mismatched fence character does not close an open fence.
     #[test]
     fn mismatched_fence_does_not_close_backtick_block() {
         let input = "```\n~~~\n# still-inside\n```\n## Real";
@@ -237,8 +239,10 @@ mod tests {
         assert_eq!(hs[1].line, 4);
     }
 
-    // FR-019-AC-2: the `{#…}` attribute is stripped from the heading text.
-    // TC-402, FR-019-AC-2: the attribute is parsed off the heading text.
+    #[trace("FR-019-AC-2")]
+    // the `{#…}` attribute is stripped from the heading text.
+    #[trace("TC-402", "FR-019-AC-2")]
+    // the attribute is parsed off the heading text.
     #[test]
     fn pandoc_block_id_attribute_is_stripped_from_text() {
         let hs = walk_headings(&lines("## Behavior {#blk-7af2}"));
@@ -247,7 +251,8 @@ mod tests {
         assert_eq!(hs[0].block_id.as_deref(), Some("blk-7af2"));
     }
 
-    // TC-403, FR-019-AC-1: no attribute means no id, never a synthesized one.
+    #[trace("TC-403", "FR-019-AC-1")]
+    // no attribute means no id, never a synthesized one.
     #[test]
     fn heading_without_attribute_has_no_block_id() {
         let hs = walk_headings(&lines("## Behavior"));
@@ -255,7 +260,8 @@ mod tests {
         assert!(hs[0].block_id.is_none());
     }
 
-    // TC-400, FR-019-AC-1: the id characters an author may write.
+    #[trace("TC-400", "FR-019-AC-1")]
+    // the id characters an author may write.
     #[test]
     fn block_id_allows_alphanumeric_dash_underscore() {
         let hs = walk_headings(&lines("### Section foo {#abc_123-XY}"));
@@ -279,7 +285,8 @@ mod tests {
         assert_eq!(hs[0].block_id.as_deref(), Some("blk-x"));
     }
 
-    // TC-443, FR-019-AC-3: the id survives a reparse.
+    #[trace("TC-443", "FR-019-AC-3")]
+    // the id survives a reparse.
     #[test]
     fn block_id_round_trip_parse_reparse_is_stable() {
         // Document is parsed, the section's block_id captured, and a

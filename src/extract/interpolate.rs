@@ -82,6 +82,7 @@ fn scalar_to_string(v: &Value) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ix_trace_rs::trace;
     use serde_json::json;
 
     fn fm(pairs: &[(&str, Value)]) -> Map<String, Value> {
@@ -92,7 +93,8 @@ mod tests {
         m
     }
 
-    // FR-034-AC-1: `{id}` resolves to frontmatter.id.
+    #[trace("FR-034-AC-1")]
+    // `{id}` resolves to frontmatter.id.
     #[test]
     fn resolves_id_token() {
         let m = fm(&[("id", json!("FR-900"))]);
@@ -100,7 +102,8 @@ mod tests {
         assert_eq!(out, r"^FR\-900-AC-\d+$");
     }
 
-    // FR-034-AC-2: missing field → UnresolvedField, not silent pass.
+    #[trace("FR-034-AC-2")]
+    // missing field → UnresolvedField, not silent pass.
     #[test]
     fn missing_field_is_error() {
         let m = fm(&[("id", json!("FR-900"))]);
@@ -114,7 +117,8 @@ mod tests {
         assert_eq!(err.field, "id");
     }
 
-    // FR-034-AC-3: regex metacharacters in the value are escaped.
+    #[trace("FR-034-AC-3")]
+    // regex metacharacters in the value are escaped.
     #[test]
     fn value_with_metacharacters_is_escaped() {
         let m = fm(&[("id", json!("A.B+"))]);
@@ -125,7 +129,8 @@ mod tests {
         assert!(!re.is_match("AxBB"));
     }
 
-    // FR-034-AC-4: no token → unchanged (quantifiers untouched).
+    #[trace("FR-034-AC-4")]
+    // no token → unchanged (quantifiers untouched).
     #[test]
     fn no_token_returns_unchanged() {
         let m = fm(&[("id", json!("FR-900"))]);

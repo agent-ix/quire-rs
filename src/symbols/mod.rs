@@ -365,6 +365,7 @@ pub(crate) fn leading_block(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ix_trace_rs::trace;
 
     fn fixture_root() -> std::path::PathBuf {
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -373,7 +374,8 @@ mod tests {
             .join("symbols")
     }
 
-    // TC-809, FR-050-AC-17: the code walk never enters an excluded subtree —
+    #[trace("TC-809", "FR-050-AC-17")]
+    // the code walk never enters an excluded subtree —
     // coverage passes the document root so documents are not scanned as
     // source — and an empty exclusion list is exactly extract_tree (CR-045).
     #[test]
@@ -398,7 +400,8 @@ mod tests {
         assert_eq!(all.diagnostics, empty_exclude.diagnostics);
     }
 
-    // TC-809, FR-050-AC-17 (CR-056): the exclusion must hold wherever the
+    #[trace("TC-809", "FR-050-AC-17")]
+    // the exclusion must hold wherever the (CR-056)
     // caller's `is_dir()` check held. On a case-insensitive filesystem
     // `<scope>/Spec` satisfies `scope.join("spec").is_dir()` while an exact
     // path `==` never matches it — so `quire coverage` on macOS/APFS excluded
@@ -438,7 +441,8 @@ mod tests {
         let _ = std::fs::remove_dir_all(&root);
     }
 
-    // TC-809, FR-050-AC-17 (CR-056): and a symlinked document root is excluded
+    #[trace("TC-809", "FR-050-AC-17")]
+    // and a symlinked document root is excluded (CR-056)
     // by what it resolves to, not by the name the caller happened to use.
     #[cfg(unix)]
     #[test]
@@ -467,7 +471,8 @@ mod tests {
         let _ = std::fs::remove_dir_all(&root);
     }
 
-    // TC-741, FR-051-AC-1: each adapter extracts functions, test functions,
+    #[trace("TC-741", "FR-051-AC-1")]
+    // each adapter extracts functions, test functions,
     // and containers from a fixture tree, and every symbol carries language,
     // repo-relative path, qualified path, kind, and a line attribute.
     #[test]
@@ -518,7 +523,8 @@ mod tests {
         assert_eq!(keys, sorted);
     }
 
-    // TC-742, FR-051-AC-2: reformatting changes no id; renaming changes only
+    #[trace("TC-742", "FR-051-AC-2")]
+    // reformatting changes no id; renaming changes only
     // the renamed symbol's id.
     #[test]
     fn tc742_identity_survives_reformatting() {
@@ -566,7 +572,8 @@ mod tests {
         assert_ne!(id_of(&base, "alpha"), id_of(&renamed, "beta"));
     }
 
-    // TC-743, FR-051-AC-3: each language's test convention classifies test
+    #[trace("TC-743", "FR-051-AC-3")]
+    // each language's test convention classifies test
     // symbols; sibling non-test symbols stay plain functions.
     #[test]
     fn tc743_test_classification_per_language() {
@@ -599,7 +606,8 @@ mod tests {
         assert_eq!(kind_of("parseConfig"), SymbolKind::Function);
     }
 
-    // TC-749, FR-051-AC-9 (CON-2): an unparseable file yields a per-file
+    #[trace("TC-749", "FR-051-AC-9")]
+    // an unparseable file yields a per-file (CON-2)
     // diagnostic while the rest of the tree extracts normally.
     #[test]
     fn tc749_unparseable_file_degrades_per_file() {

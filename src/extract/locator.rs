@@ -678,6 +678,7 @@ fn eval_heading(doc: &QuireDocument, level: Option<u8>, path: Option<&[String]>)
 mod tests {
     use super::*;
     use crate::parser::parse_document;
+    use ix_trace_rs::trace;
     use serde_json::json;
 
     fn doc() -> QuireDocument {
@@ -773,7 +774,8 @@ mod tests {
     }
 
     #[test]
-    // TC-563, FR-011-AC-13: `code_block` is section-owned — a single-yield
+    #[trace("TC-563", "FR-011-AC-13")]
+    // `code_block` is section-owned — a single-yield
     // `under:X` never reaches another section's block.
     fn code_block_under_section_is_section_owned_excludes_other_sections() {
         // Two mermaid blocks of the same language in DIFFERENT sections.
@@ -801,7 +803,8 @@ mod tests {
     }
 
     #[test]
-    // TC-564, FR-011-AC-14: a `~~~` fence closes on its own character, and a
+    #[trace("TC-564", "FR-011-AC-14")]
+    // a `~~~` fence closes on its own character, and a
     // section-owned `code_block` resolves it.
     fn code_block_resolves_tilde_fenced_block_under_section() {
         // FR-011-AC-14: a section-owned `code_block` locator resolves a

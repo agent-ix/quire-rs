@@ -508,6 +508,7 @@ fn re_vague_quality() -> &'static Regex {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ix_trace_rs::trace;
 
     fn doc(text: &str) -> crate::ast::QuireDocument {
         crate::parse_document(text)
@@ -521,7 +522,8 @@ mod tests {
         GrammarLexicon::from_terms(terms.iter().copied())
     }
 
-    // TC-657, FR-042-AC-1: every pattern classifies; no-match → unclassifiable.
+    #[trace("TC-657", "FR-042-AC-1")]
+    // every pattern classifies; no-match → unclassifiable.
     #[test]
     fn tc657_classification() {
         assert_eq!(
@@ -554,7 +556,8 @@ mod tests {
         );
     }
 
-    // TC-658, FR-042-AC-2: non-singular fires on 2 shalls; enumerated stem doesn't.
+    #[trace("TC-658", "FR-042-AC-2")]
+    // non-singular fires on 2 shalls; enumerated stem doesn't.
     #[test]
     fn tc658_non_singular() {
         let d = doc("---\ntype: FR\n---\n## Description\n\nThe service shall mint a token and shall carry it downstream.\n");
@@ -566,7 +569,8 @@ mod tests {
         assert_eq!(f2.iter().filter(|x| x.check == "non-singular").count(), 0);
     }
 
-    // TC-659, FR-042-AC-3: missing-subject fires; StR stakeholder subject doesn't.
+    #[trace("TC-659", "FR-042-AC-3")]
+    // missing-subject fires; StR stakeholder subject doesn't.
     #[test]
     fn tc659_missing_subject() {
         assert!(has_missing_subject("shall be created lazily on first use"));
@@ -578,7 +582,8 @@ mod tests {
         assert_eq!(f.iter().filter(|x| x.check == "missing-subject").count(), 0);
     }
 
-    // TC-660, FR-042-AC-4: vague-response fires; passive does not; the check
+    #[trace("TC-660", "FR-042-AC-4")]
+    // vague-response fires; passive does not; the check
     // is object-aware (a concrete object or mechanism qualifier suppresses it).
     #[test]
     fn tc660_vague_and_passive() {
@@ -638,7 +643,8 @@ mod tests {
             .count()
     }
 
-    // TC-669, FR-043-AC-3: a lexicon term suppresses; a different term re-flags.
+    #[trace("TC-669", "FR-043-AC-3")]
+    // a lexicon term suppresses; a different term re-flags.
     #[test]
     fn tc669_lexicon_term_suppresses() {
         let d = fr_doc("The system shall support pagination.");
@@ -648,7 +654,8 @@ mod tests {
         assert_eq!(vague_count(&ep, &lex(&["endpoint"])), 0);
     }
 
-    // TC-670, FR-043-AC-4: under an empty lexicon a bare domain noun flags —
+    #[trace("TC-670", "FR-043-AC-4")]
+    // under an empty lexicon a bare domain noun flags —
     // proving no hardcoded concrete-noun list remains in the engine.
     #[test]
     fn tc670_empty_lexicon_flags_bare_noun() {
@@ -665,7 +672,8 @@ mod tests {
         );
     }
 
-    // TC-671, FR-043-AC-5: backtick / mechanism / bound suppression does not
+    #[trace("TC-671", "FR-043-AC-5")]
+    // backtick / mechanism / bound suppression does not
     // depend on the lexicon — it still holds under an empty lexicon.
     #[test]
     fn tc671_generic_suppression_lexicon_independent() {
@@ -711,7 +719,8 @@ mod tests {
         ); // -es
     }
 
-    // TC-661, FR-042-AC-5: non-canonical trigger fires; NFR no-trigger does not.
+    #[trace("TC-661", "FR-042-AC-5")]
+    // non-canonical trigger fires; NFR no-trigger does not.
     #[test]
     fn tc661_non_canonical_trigger() {
         let latent = doc("---\ntype: FR\n---\n## Description\n\nOn startup, the service shall perform a full scan.\n");
@@ -733,7 +742,8 @@ mod tests {
         );
     }
 
-    // TC-662, FR-042-AC-6: grammar runs only on bound (archetype, section) pairs.
+    #[trace("TC-662", "FR-042-AC-6")]
+    // grammar runs only on bound (archetype, section) pairs.
     #[test]
     fn tc662_binding() {
         // A vague statement parked in Dependencies (not bound) yields nothing.
@@ -745,7 +755,8 @@ mod tests {
         assert!(check("IT", &it, 0, &empty()).is_empty());
     }
 
-    // TC-664, FR-042-AC-8: findings carry excerpt, line, pattern, severity.
+    #[trace("TC-664", "FR-042-AC-8")]
+    // findings carry excerpt, line, pattern, severity.
     #[test]
     fn tc664_finding_fields() {
         let d = doc("---\ntype: FR\n---\n## Description\n\nThe system shall support publishing.\n");
@@ -757,7 +768,8 @@ mod tests {
         assert_eq!(v.severity, GrammarSeverity::Warning);
     }
 
-    // TC-665, FR-042-AC-9: fenced/quote/reference content is not a statement.
+    #[trace("TC-665", "FR-042-AC-9")]
+    // fenced/quote/reference content is not a statement.
     #[test]
     fn tc665_skips() {
         let d = doc("---\ntype: FR\n---\n## Description\n\n```\nThe system shall support publishing.\n```\n\n> The system shall support quoting.\n");

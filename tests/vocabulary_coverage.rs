@@ -9,6 +9,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use ix_trace_rs::trace;
 use quire_rs::grammar::{GrammarSeverityLevel, GrammarSeverityMap};
 use quire_rs::{validate_bundle_at, BundleFinding, BundlePosture, BundleReport, Registry};
 
@@ -70,7 +71,8 @@ fn unowned(report: &BundleReport) -> Vec<String> {
         .collect()
 }
 
-// TC-911, FR-059-AC-1: a declared value no document claims is reported, and a
+#[trace("TC-911", "FR-059-AC-1")]
+// a declared value no document claims is reported, and a
 // claimed one is not.
 //
 // This is the all-functional-requirements failure mode: a bundle can be 100%
@@ -94,7 +96,8 @@ fn tc911_a_value_no_document_claims_is_reported() {
     fs::remove_dir_all(&root).ok();
 }
 
-// TC-912, FR-059-AC-2: the vocabulary is READ from the archetype's frontmatter
+#[trace("TC-912", "FR-059-AC-2")]
+// the vocabulary is READ from the archetype's frontmatter
 // schema, not restated in the manifest.
 //
 // The fixture manifest names an archetype and a field and lists no values at
@@ -129,7 +132,8 @@ fn tc912_the_vocabulary_comes_from_the_schema() {
     fs::remove_dir_all(&root).ok();
 }
 
-// TC-913, FR-059-AC-3: a written "not applicable" record covers a value.
+#[trace("TC-913", "FR-059-AC-3")]
+// a written "not applicable" record covers a value.
 //
 // A check that cannot accept an answer forces one of two bad outcomes: a
 // permanent false finding, or a fabricated requirement written to silence it.
@@ -159,7 +163,8 @@ fn tc913_a_justified_absence_covers_the_value() {
     fs::remove_dir_all(&root).ok();
 }
 
-// TC-914, FR-059-AC-4: the justification may live on ANY document, not only on
+#[trace("TC-914", "FR-059-AC-4")]
+// the justification may live on ANY document, not only on
 // one of the archetype being counted.
 //
 // "This product has no safety characteristic" is a statement about the product.
@@ -187,7 +192,8 @@ fn tc914_the_justification_need_not_be_on_the_counted_archetype() {
     fs::remove_dir_all(&root).ok();
 }
 
-// TC-915, FR-059-AC-5: the finding carries its own `trace:<check>` severity
+#[trace("TC-915", "FR-059-AC-5")]
+// the finding carries its own `trace:<check>` severity
 // key, so a repository tunes it without touching any other corpus check.
 #[test]
 fn tc915_the_check_is_independently_tunable() {
@@ -227,7 +233,8 @@ fn tc915_the_check_is_independently_tunable() {
     fs::remove_dir_all(&root).ok();
 }
 
-// TC-916, FR-059-AC-7: a declaration naming a field the schema gives no enum
+#[trace("TC-916", "FR-059-AC-7")]
+// a declaration naming a field the schema gives no enum
 // reports itself rather than silently covering everything.
 //
 // The CR-075 failure mode in a second place: with no vocabulary there is
@@ -274,7 +281,8 @@ fn tc916_a_declaration_with_no_vocabulary_reports_itself() {
     fs::remove_dir_all(&module).ok();
 }
 
-// TC-917, FR-059-AC-6: a module declaring no vocabulary coverage produces
+#[trace("TC-917", "FR-059-AC-6")]
+// a module declaring no vocabulary coverage produces
 // byte-identical output to one that never heard of this FR.
 //
 // The same guarantee FR-058-AC-8 makes. A new corpus pack that changed the
@@ -303,7 +311,8 @@ fn tc917_a_module_declaring_nothing_sees_no_change() {
     fs::remove_dir_all(&root).ok();
 }
 
-// TC-918, FR-059-AC-8: an empty projection is ONE finding, not one per value.
+#[trace("TC-918", "FR-059-AC-8")]
+// an empty projection is ONE finding, not one per value.
 //
 // Measured over 243 `~/dev` bundles during the FR-059 fit-check: 90 carry no
 // NFR document at all. Reporting each of the 12 declared characteristics as

@@ -701,6 +701,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682"
 
 [[package]]
+name = "ix-trace-rs"
+version = "0.1.0"
+source = "git+https://github.com/agent-ix/ix-trace-rs?tag=v0.1.1#2ce4ebf47f726b9d76388220545cd0abda8a5cfb"
+
+[[package]]
 name = "js-sys"
 version = "0.3.99"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1131,6 +1136,7 @@ dependencies = [
  "globset",
  "ignore",
  "indexmap",
+ "ix-trace-rs",
  "jsonschema",
  "loom",
  "proptest",

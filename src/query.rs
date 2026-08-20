@@ -573,6 +573,7 @@ pub fn search<'d>(doc: &'d QuireDocument, query: &str) -> Vec<SearchResult<'d>> 
 mod tests {
     use super::*;
     use crate::parser::parse_document;
+    use ix_trace_rs::trace;
 
     // ─── section / sections ─────────────────────────────────────────────
 
@@ -640,7 +641,8 @@ mod tests {
 
     // ─── CR-007: escaped pipes are literal cell content ─────────────────
 
-    // TC-589, FR-010-AC-4 (CR-007): an escaped pipe is cell content, not a delimiter.
+    #[trace("TC-589", "FR-010-AC-4")]
+    // an escaped pipe is cell content, not a delimiter. (CR-007)
     #[test]
     fn cr007_escaped_pipe_in_body_cell_is_literal_not_delimiter() {
         // The cell that bit in the wild: `<service\|alias>` was split

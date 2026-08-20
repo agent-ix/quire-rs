@@ -16,6 +16,7 @@
 
 use std::path::{Path, PathBuf};
 
+use ix_trace_rs::trace;
 use quire_rs::symbols::{extract_tree, trace};
 use quire_rs::Registry;
 
@@ -42,7 +43,8 @@ fn backed_in(dir: &str) -> Vec<String> {
         .collect()
 }
 
-// TC-828, FR-051-AC-17 (CR-061): the criterion bench backs its row, and it
+#[trace("TC-828", "FR-051-AC-17")]
+// the criterion bench backs its row, and it (CR-061)
 // backs *every* id on its tag line — the comma-list form.
 #[test]
 fn tc828_the_validate_document_bench_backs_tc577() {
@@ -55,7 +57,8 @@ fn tc828_the_validate_document_bench_backs_tc577() {
     }
 }
 
-// TC-828, FR-051-AC-17 (CR-061): the fuzz target backs its row, from a tag
+#[trace("TC-828", "FR-051-AC-17")]
+// the fuzz target backs its row, from a tag (CR-061)
 // several lines above the invocation — the span is the whole file.
 #[test]
 fn tc828_the_fuzz_target_backs_tc579() {

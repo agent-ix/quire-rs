@@ -365,6 +365,7 @@ pub fn addresses_section(kind: LocatorKind) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ix_trace_rs::trace;
     use std::fs;
     use std::path::{Path, PathBuf};
 
@@ -376,7 +377,8 @@ mod tests {
         Registry::load_module(&iso_module()).expect("load iso")
     }
 
-    // TC-548, FR-029-AC-1: FR contract has frontmatter schema + the four
+    #[trace("TC-548", "FR-029-AC-1")]
+    // FR contract has frontmatter schema + the four
     // required sections (derived from body_extraction).
     #[test]
     fn tc548_fr_contract() {
@@ -402,7 +404,8 @@ mod tests {
         }
     }
 
-    // TC-549, FR-029-AC-2: NFR contract feeds Scope, Measurement and
+    #[trace("TC-549", "FR-029-AC-2")]
+    // NFR contract feeds Scope, Measurement and
     // Evaluation, Verification.
     #[test]
     fn tc549_nfr_contract() {
@@ -421,7 +424,8 @@ mod tests {
         }
     }
 
-    // TC-550, FR-029-AC-3: every iso archetype's contract contains each
+    #[trace("TC-550", "FR-029-AC-3")]
+    // every iso archetype's contract contains each
     // body_extraction section exactly once, in manifest (match) order.
     #[test]
     fn tc550_every_archetype_sections_in_manifest_order() {
@@ -449,7 +453,8 @@ mod tests {
         }
     }
 
-    // TC-551, FR-029-AC-4: JSON serialization is byte-identical across
+    #[trace("TC-551", "FR-029-AC-4")]
+    // JSON serialization is byte-identical across
     // repeated calls.
     #[test]
     fn tc551_contract_json_is_byte_stable() {
@@ -465,7 +470,8 @@ mod tests {
         assert_eq!(ja, serde_json::to_string(&c.to_json()).unwrap());
     }
 
-    // TC-552, FR-029-AC-5: unknown archetype → UnknownArchetype.
+    #[trace("TC-552", "FR-029-AC-5")]
+    // unknown archetype → UnknownArchetype.
     #[test]
     fn tc552_unknown_archetype_errors() {
         let r = iso_registry();
@@ -473,7 +479,8 @@ mod tests {
         assert!(matches!(err, QuireError::UnknownArchetype { .. }));
     }
 
-    // TC-553, FR-029-AC-6: a required locator that cannot map to a
+    #[trace("TC-553", "FR-029-AC-6")]
+    // a required locator that cannot map to a
     // concrete section still appears in the contract, with an
     // unresolved-mapping diagnostic.
     #[test]
@@ -546,7 +553,8 @@ edge_types:
         Registry::from_inline_parts(manifest, &schemas).expect("inline registry")
     }
 
-    // TC-645, FR-040-AC-11: input_contract_for_object with an object
+    #[trace("TC-645", "FR-040-AC-11")]
+    // input_contract_for_object with an object
     // renders a Relationships block listing each resolved verb with its
     // category + description + targets; without object, only the artifact
     // vocabulary is listed.
