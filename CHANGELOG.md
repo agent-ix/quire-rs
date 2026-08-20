@@ -5,6 +5,47 @@ All notable changes to `quire-rs` are documented here. Format follows
 numbers follow semver — pre-1.0, breaking changes may land in minor
 bumps; once 1.0 ships, semver is strict.
 
+## [0.40.0] — 2026-08-20
+
+> Entries for 0.34.0–0.39.1 were never written; the convention lapsed and this
+> resumes it rather than backfilling six releases.
+
+### Changed
+
+- **Trace binding no longer reads string literals as source (#198).** A symbol's
+  attached span includes its body, so any file carrying tag-shaped text inside a
+  string bound ids nobody authored — this engine's own suite is built out of such
+  fixtures. Legacy textual forms are now matched against a span whose Rust string
+  *contents* are blanked, preserving byte length and line breaks so the
+  rewrite-suggestion offset arithmetic is unaffected.
+
+  The mask is applied to **legacy forms only**. Canonical markers put their ids
+  inside string literals by design (`#[trace("TC-707")]`), so masking before
+  matching them would suppress exactly the form the grammar prefers.
+
+  **Consumers may see reported coverage fall.** That is the fix working: the
+  bindings it removes were never authored. In this repo it removed four, two of
+  which were backing acceptance criteria with tests that verify something else.
+
+### Added
+
+- **The crate now uses the canonical marker itself (#201).** 435 comment tags
+  became `#[trace(...)]` attributes via `ix-trace-rs` v0.1.1, a dev-dependency
+  with zero runtime dependencies. A malformed id is now a compile error spanned
+  to the offending literal. 222 tags stay comments where an attribute has nothing
+  to attach to — `fuzz_target!` declares no `fn`, and inline markers sit mid-body.
+
+  The conversion surfaced four ids the comment pattern was silently truncating:
+  `rust-comment-id` has no room for a trailing letter, so `TC-526b` matched as
+  `TC-526` and bound a different, declared row.
+
+### Fixed
+
+- **Criterion coverage was understated by the comment form (#193).** 403 tags
+  written as `// TC-548 (FR-029-AC-1)` bound only their first id, because
+  `rust-comment-id` captures from immediately after `//`. Converted to the comma
+  form the pattern admits; acceptance-criterion coverage went 64/496 to 361/496.
+
 ## [0.33.0] — 2026-08-18
 
 ### Added
