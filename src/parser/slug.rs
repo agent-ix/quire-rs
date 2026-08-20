@@ -140,7 +140,7 @@ mod props_metamorphic {
             );
         }
 
-        /// TC-893 (FR-009-AC-3, CR-069, Property): surrounding whitespace on a
+        /// TC-893, FR-009-AC-3 (CR-069, Property): surrounding whitespace on a
         /// heading is formatting, not content — it cannot change the id. This is
         /// the ticket's "content invariance under formatting-only edits"
         /// relation at the level where the engine actually claims it.

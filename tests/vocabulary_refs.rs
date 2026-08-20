@@ -63,7 +63,7 @@ fn matrix_assert(registry: &Registry) -> quire_rs::extract::locator::LocatorAsse
     locator.canonical().assert().expect("assert").clone()
 }
 
-// TC-919 (FR-060-AC-1): `column_vocabularies` resolves to the declared values.
+// TC-919, FR-060-AC-1: `column_vocabularies` resolves to the declared values.
 //
 // The contract names `test_type`; the values come from the traceability model
 // and appear nowhere in the archetype. That is the whole point — a second copy
@@ -91,7 +91,7 @@ fn tc919_a_named_column_vocabulary_resolves() {
     fs::remove_dir_all(&dir).ok();
 }
 
-// TC-920 (FR-060-AC-2): `from_vocabulary` resolves the scalar counterpart.
+// TC-920, FR-060-AC-2: `from_vocabulary` resolves the scalar counterpart.
 #[test]
 fn tc920_a_named_scalar_vocabulary_resolves() {
     let dir = module_scalar(
@@ -113,7 +113,7 @@ fn tc920_a_named_scalar_vocabulary_resolves() {
     fs::remove_dir_all(&dir).ok();
 }
 
-// TC-921 (FR-060-AC-3): a name nothing declares resolves to an EMPTY choice
+// TC-921, FR-060-AC-3: a name nothing declares resolves to an EMPTY choice
 // set, not to "no constraint".
 //
 // The distinction matters. Dropping the constraint would let a typo silently
@@ -137,7 +137,7 @@ fn tc921_an_unknown_vocabulary_is_empty_not_absent() {
     fs::remove_dir_all(&dir).ok();
 }
 
-// TC-922 (FR-060-AC-4): a literal beside a reference wins, and the reference is
+// TC-922, FR-060-AC-4: a literal beside a reference wins, and the reference is
 // dropped rather than merged.
 //
 // Two sources for one constraint is the duplication this FR removes. Unioning
@@ -157,7 +157,7 @@ fn tc922_a_literal_wins_over_a_reference() {
     fs::remove_dir_all(&dir).ok();
 }
 
-// TC-923 (FR-060-AC-5): an archetype naming no vocabulary is untouched.
+// TC-923, FR-060-AC-5: an archetype naming no vocabulary is untouched.
 //
 // The byte-identity guarantee. A module that has not adopted this must compile
 // to exactly what it compiled to before the FR existed.
@@ -179,7 +179,7 @@ fn tc923_an_archetype_naming_nothing_is_unchanged() {
     fs::remove_dir_all(&dir).ok();
 }
 
-// TC-924 (FR-060-AC-6): a reference obeys the same per-locator-kind rules as
+// TC-924, FR-060-AC-6: a reference obeys the same per-locator-kind rules as
 // the literal it stands in for.
 //
 // Found by a test failure rather than by design: `choices` is illegal on

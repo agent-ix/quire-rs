@@ -86,7 +86,7 @@ fn fr_040_ac_4_absent_yields_empty() {
     assert!(normalize_allowed_links(None).is_empty());
 }
 
-/// TC-895 (FR-040-AC-4, CR-069, Property): `allowed_links` normalization is a
+/// TC-895, FR-040-AC-4 (CR-069, Property): `allowed_links` normalization is a
 /// **fixpoint** — re-serializing a normalized map and normalizing it again
 /// yields the same map. Array form and map form are two authoring spellings of
 /// one value, and this is what says the normalized form is the canonical one

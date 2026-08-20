@@ -176,7 +176,7 @@ fn module_name(path: &str) -> String {
 mod tests {
     use super::*;
 
-    /// TC-800 (FR-051-AC-13, CR-037): a signature black wrapped still reaches
+    /// TC-800, FR-051-AC-13 (CR-037): a signature black wrapped still reaches
     /// its docstring.
     ///
     /// `def f(\n  arg,\n) -> None:` closes at the declaration's own column, and

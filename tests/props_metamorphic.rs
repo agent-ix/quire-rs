@@ -97,7 +97,7 @@ proptest! {
         }
     }
 
-    /// TC-896 (FR-022-AC-1, CR-069, Property): after replacing one section's
+    /// TC-896, FR-022-AC-1 (CR-069, Property): after replacing one section's
     /// content, re-parsing yields the same heading structure and the new content
     /// under that heading — the write is readable back through the parser, which
     /// is the fixpoint the byte-splice has to hit for a round-trip edit to be

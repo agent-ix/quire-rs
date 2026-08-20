@@ -26,7 +26,7 @@ fn model() -> TraceabilityModel {
     model
 }
 
-// TC-936 (FR-062-AC-1): a production function carries the requirement it
+// TC-936, FR-062-AC-1: a production function carries the requirement it
 // implements, and that relation is NOT evidence.
 #[test]
 fn tc936_a_production_symbol_implements_without_backing() {
@@ -56,7 +56,7 @@ fn tc936_a_production_symbol_implements_without_backing() {
     assert!(graph.verifies.is_empty());
 }
 
-// TC-937 (FR-062-AC-2): the two markers cannot be confused, because the symbol
+// TC-937, FR-062-AC-2: the two markers cannot be confused, because the symbol
 // kinds they attach to are complements.
 #[test]
 fn tc937_the_two_relations_do_not_cross() {
@@ -94,7 +94,7 @@ fn tc937_the_two_relations_do_not_cross() {
     );
 }
 
-// TC-938 (FR-062-AC-3): one requirement named by several markers yields one
+// TC-938, FR-062-AC-3: one requirement named by several markers yields one
 // relation, and the ordering is deterministic (NFR-006).
 #[test]
 fn tc938_relations_are_deduped_and_ordered() {
@@ -119,7 +119,7 @@ fn tc938_relations_are_deduped_and_ordered() {
     assert_eq!(ids, vec!["FR-050", "FR-053"], "{:?}", graph.implements);
 }
 
-// TC-939 (FR-062-AC-4): the relation reaches the JSON contract, and changes no
+// TC-939, FR-062-AC-4: the relation reaches the JSON contract, and changes no
 // coverage number.
 //
 // FR-061 shipped a combinatorial branch that existed only on the single-document
@@ -194,7 +194,7 @@ fn tc939_implements_reaches_the_report_without_moving_a_total() {
     std::fs::remove_dir_all(&dir).ok();
 }
 
-// TC-940 (FR-062-AC-5, CR-081): the forms reach `bind` when they come from a
+// TC-940, FR-062-AC-5 (CR-081): the forms reach `bind` when they come from a
 // module manifest, which is the only way a consumer ever supplies them.
 //
 // Every test above builds the model in memory, and that is exactly why they all

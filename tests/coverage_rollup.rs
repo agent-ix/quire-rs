@@ -107,7 +107,7 @@ fn report_for(bundle: &Bundle, module: &str) -> Result<CoverageReport, CoverageE
     compute(&spec, &registry, &graph, &bundle.scope)
 }
 
-// TC-734 (FR-050-AC-3): a reference row whose trace target has no backing
+// TC-734, FR-050-AC-3: a reference row whose trace target has no backing
 // `verifies` relation appears in unbacked rows with the row id and target id.
 #[test]
 fn tc734_unbacked_rows() {
@@ -141,7 +141,7 @@ fn tc734_unbacked_rows() {
     assert!(row.target_ids.contains(&"FR-001-AC-2".to_string()));
 }
 
-// TC-735 (FR-050-AC-4): a `complete`-classed row with no backing symbol is a
+// TC-735, FR-050-AC-4: a `complete`-classed row with no backing symbol is a
 // status lie; the same row with a backing symbol is not.
 #[test]
 fn tc735_status_lies() {
@@ -185,7 +185,7 @@ fn tc735_status_lies() {
         .is_empty());
 }
 
-// TC-736 (FR-050-AC-5): a symbol whose trace tag resolves to no declared
+// TC-736, FR-050-AC-5: a symbol whose trace tag resolves to no declared
 // target or row appears in untracked symbols with its file and symbol name.
 #[test]
 fn tc736_untracked_symbols() {
@@ -207,7 +207,7 @@ fn tc736_untracked_symbols() {
     assert!(entry.symbol.contains("covers_1"));
 }
 
-// TC-737 (FR-050-AC-6): per-minting-document counts, summing to the totals.
+// TC-737, FR-050-AC-6: per-minting-document counts, summing to the totals.
 #[test]
 fn tc737_per_group_counts_sum_to_totals() {
     let bundle = iso_bundle(
@@ -249,7 +249,7 @@ fn tc737_per_group_counts_sum_to_totals() {
     assert_eq!(report.totals.backed, 2);
 }
 
-// TC-738 (FR-050-AC-7, Property): repeated runs over identical inputs emit
+// TC-738, FR-050-AC-7 (Property): repeated runs over identical inputs emit
 // byte-identical JSON.
 #[test]
 fn tc738_report_json_is_byte_identical() {
@@ -277,7 +277,7 @@ fn tc738_report_json_is_byte_identical() {
     }
 }
 
-// TC-739 (FR-050-AC-8): a non-ISO vocabulary gets a correct rollup from its
+// TC-739, FR-050-AC-8: a non-ISO vocabulary gets a correct rollup from its
 // own declaration, with no engine change.
 #[test]
 fn tc739_non_iso_model_rolls_up() {
@@ -335,7 +335,7 @@ fn tc739_non_iso_model_rolls_up() {
     assert_eq!(report.status_lies[0].status, "done");
 }
 
-// TC-740 (FR-050-AC-9): with no declared model, coverage fails with a distinct
+// TC-740, FR-050-AC-9: with no declared model, coverage fails with a distinct
 // diagnostic naming the missing declaration — never an empty report.
 #[test]
 fn tc740_no_model_is_a_distinct_diagnostic() {
@@ -356,7 +356,7 @@ fn tc740_no_model_is_a_distinct_diagnostic() {
     assert!(err.to_string().contains("traceability"));
 }
 
-// TC-788 (FR-052-AC-10, FR-050-AC-13): the CR-028 criteria rollup — one entry
+// TC-788, FR-052-AC-10, FR-050-AC-13: the CR-028 criteria rollup — one entry
 // per document binding criteria plus the two new totals, and byte-identical
 // serialization across runs.
 #[test]
@@ -447,7 +447,7 @@ fn tc788_criteria_counts_and_totals() {
     }
 }
 
-// TC-788 (FR-050-AC-13, continued): a corpus binding criteria of which *none*
+// TC-788, FR-050-AC-13 (continued): a corpus binding criteria of which *none*
 // are property-shaped emits `property_shaped: 0` — present and zero, never
 // absent. The two totals move as a pair, so a JSON consumer computing the
 // extraction ratio divides by a number rather than by `undefined`, in exactly
@@ -498,7 +498,7 @@ fn tc788_zero_property_shaped_is_emitted_not_omitted() {
     assert_eq!(restored, report);
 }
 
-// TC-788 (FR-050-AC-13, continued): a corpus binding no criteria carries an
+// TC-788, FR-050-AC-13 (continued): a corpus binding no criteria carries an
 // empty list, and its JSON is byte-for-byte what an engine predating the
 // field would have written — the CR-028 keys are absent, not zero-valued.
 #[test]
@@ -572,7 +572,7 @@ fn tc788_no_criteria_corpus_is_unchanged() {
     assert_eq!(restored, report);
 }
 
-// TC-756 (FR-050-CON-2, FR-051-CON-1): static boundary audit over the coverage
+// TC-756, FR-050-CON-2, FR-051-CON-1: static boundary audit over the coverage
 // and symbol modules — no network or service I/O, and no execution of the code
 // the symbols were extracted from. Mirrors the TC-690 pattern.
 #[test]
@@ -655,7 +655,7 @@ fn model_from(yaml: &str) -> quire_rs::traceability::TraceabilityModel {
         .expect("declared model")
 }
 
-// TC-758 (FR-050-AC-10): a status cell with a trailing note classes by its
+// TC-758, FR-050-AC-10: a status cell with a trailing note classes by its
 // leading marker, and a declared `retired` value classes retired.
 #[test]
 fn tc758_status_classes_by_leading_marker() {
@@ -690,7 +690,7 @@ fn tc758_status_classes_by_leading_marker() {
     assert_eq!(words.class_of("doneish"), StatusClass::Unknown);
 }
 
-// TC-759 (FR-050-AC-11): a declared column vocabulary is exposed on the
+// TC-759, FR-050-AC-11: a declared column vocabulary is exposed on the
 // Registry, and is the same list a matrix contract would validate against.
 #[test]
 fn tc759_declared_column_vocabulary() {
@@ -750,7 +750,7 @@ fn scoped_bundle(suffix: &str) -> Bundle {
     bundle
 }
 
-// TC-801 (FR-050-AC-15): a declaration excluding `fixtures/**` contributes no
+// TC-801, FR-050-AC-15: a declaration excluding `fixtures/**` contributes no
 // rows from a matching document; the same corpus without the exclusion reports
 // the fixture's rows as real.
 #[test]
@@ -885,7 +885,7 @@ fn tc826_model_level_exclusion_scopes_the_criteria_walk() {
     );
 }
 
-// TC-830 (FR-050-AC-15, CR-062): ONE archetype-bound entry mints from every
+// TC-830, FR-050-AC-15 (CR-062): ONE archetype-bound entry mints from every
 // matrix in the corpus, whatever each one is called. This is what replaced
 // enumeration: the retired `document:` form needed an entry per filename and
 // still reached nothing nested.
@@ -948,7 +948,7 @@ fn typed_matrix_bundle(suffix: &str) -> Bundle {
     bundle
 }
 
-// TC-805 (FR-050-AC-16): a row whose declared `Type` names a method that mints
+// TC-805, FR-050-AC-16: a row whose declared `Type` names a method that mints
 // no source symbol is reported as a no-symbol row rather than a status lie —
 // and only when the module declares the vocabulary.
 #[test]
@@ -987,7 +987,7 @@ fn tc805_no_source_symbol_rows_are_not_status_lies() {
     assert!(!unbacked.contains(&"TC-001"));
 }
 
-// TC-805 (FR-050-AC-16, FR-050-AC-7): a module declaring no `no_source_symbol`
+// TC-805, FR-050-AC-16, FR-050-AC-7: a module declaring no `no_source_symbol`
 // vocabulary reports exactly as before — the same rows are lies, and the report
 // serializes without the new key.
 #[test]
@@ -1011,7 +1011,7 @@ fn tc805_undeclared_vocabulary_changes_nothing() {
     );
 }
 
-// TC-818 (FR-050-AC-18, CR-049): coverage parses bodies only for the
+// TC-818, FR-050-AC-18 (CR-049): coverage parses bodies only for the
 // archetypes its declared model names. Selection is decided on the header
 // tier (frontmatter `type`), never by filename, before any body touch —
 // the declaration the engine used to discard now bounds what is parsed.
@@ -1071,7 +1071,7 @@ fn tc818_coverage_parses_only_declared_archetype_bodies() {
     );
 }
 
-// TC-822 (FR-050-AC-19, CR-054, amended CR-059): a model that loads and
+// TC-822, FR-050-AC-19 (CR-054, amended CR-059): a model that loads and
 // selects nothing is reported, not silently accepted. Both shapes reach the
 // report: an archetype no document has (a typo in the declaration), and a
 // declared auxiliary document that did not resolve to rows — the CR-045
@@ -1150,7 +1150,7 @@ fn tc822_declarations_that_select_nothing_are_reported() {
     assert_eq!(report.diagnostics, again.diagnostics);
 }
 
-// TC-822 (FR-050-AC-19, CR-054): and a model whose declarations all select
+// TC-822, FR-050-AC-19 (CR-054): and a model whose declarations all select
 // something reports no diagnostics at all — the key is absent from the JSON,
 // so FR-050-AC-7 byte-identity holds for every repo without the defect.
 #[test]
@@ -1173,7 +1173,7 @@ fn tc822_a_healthy_model_reports_no_diagnostics_and_no_key() {
     );
 }
 
-// TC-822 (FR-050-AC-19, CR-054): excluding every document of a declared
+// TC-822, FR-050-AC-19 (CR-054): excluding every document of a declared
 // archetype is a deliberate act, not a missing archetype — the count that
 // decides is taken before `exclude` applies.
 #[test]

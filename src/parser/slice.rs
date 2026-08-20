@@ -226,7 +226,7 @@ mod tests {
     }
 
     proptest! {
-        // TC-024 (FR-008-AC-3, NFR-006, Property): round-trip stitch is
+        // TC-024, FR-008-AC-3, NFR-006 (Property): round-trip stitch is
         // byte-exact for any body. 10 000 cases matches the parse-document
         // no-panic budget; this property is load-bearing for writeback.
         //

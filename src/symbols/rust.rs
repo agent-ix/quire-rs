@@ -597,7 +597,7 @@ fn check_balanced(lexed: &[LexedLine]) -> Result<(), String> {
 mod tests {
     use super::*;
 
-    /// TC-804 (FR-051-AC-15, CR-040): a file is not rejected for braces that
+    /// TC-804, FR-051-AC-15 (CR-040): a file is not rejected for braces that
     /// live in a raw string, a lifetime, a char literal or a nested comment.
     ///
     /// Measured before the fix: **33 of quire-rs's own source files** — every
@@ -668,7 +668,7 @@ mod tests {
         }
     }
 
-    /// TC-827 (FR-051-AC-17, CR-061): a criterion bench carries no attribute —
+    /// TC-827, FR-051-AC-17 (CR-061): a criterion bench carries no attribute —
     /// it is an ordinary `fn` that `criterion_group!` registers — so the
     /// registration is what classifies it. Both invocation forms, wrapped or
     /// not, and `#[bench]` directly.
@@ -739,7 +739,7 @@ mod tests {
         assert_eq!(attribute[0].kind, SymbolKind::Benchmark);
     }
 
-    /// TC-827 (FR-051-AC-17, CR-061): the registration is read from the lexed
+    /// TC-827, FR-051-AC-17 (CR-061): the registration is read from the lexed
     /// line, which keeps the whitespace a stripped `//` comment leaves behind.
     /// An offset derived from the trimmed line addresses the wrong bytes of the
     /// untrimmed one, and the registration is missed **in silence** — the exact
@@ -756,7 +756,7 @@ mod tests {
         assert_eq!(symbols[0].kind, SymbolKind::Benchmark);
     }
 
-    /// TC-827 (FR-051-AC-17, CR-061): `targets` is matched as a whole word
+    /// TC-827, FR-051-AC-17 (CR-061): `targets` is matched as a whole word
     /// followed by `=`, so a bench or group whose *name* merely starts with it
     /// is still registered rather than eaten by the long-form parse.
     #[test]
@@ -770,7 +770,7 @@ mod tests {
         );
     }
 
-    /// TC-827 (FR-051-AC-17, CR-061): `fuzz_target!` declares no `fn`, so
+    /// TC-827, FR-051-AC-17 (CR-061): `fuzz_target!` declares no `fn`, so
     /// before this a fuzz-target file yielded **no symbol at all** and its tag
     /// bound to nothing. The symbol's span starts at line 1: the file's `//!`
     /// module header is the invocation's annotation block, and it is where the

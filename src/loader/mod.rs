@@ -1347,7 +1347,7 @@ object_types:
 
     // ── Task 037: unified archetype shape (FR-031) ──────────────────
 
-    // TC-522 (FR-031-AC-1): frontmatter_schema_ref + body_extraction
+    // TC-522, FR-031-AC-1: frontmatter_schema_ref + body_extraction
     // compiles to one CompiledArchetype that is validatable (frontmatter
     // schema) and extractable (resolvable body contract); no
     // renderability concept is exposed (render removed).
@@ -1386,7 +1386,7 @@ artifact_types:
         assert!(arch.frontmatter_validator().is_some());
     }
 
-    // TC-523 (FR-031-AC-2): body_extraction compiles, validatable +
+    // TC-523, FR-031-AC-2: body_extraction compiles, validatable +
     // extractable.
     #[test]
     fn tc523_unified_archetype_validatable_and_extractable() {
@@ -1416,7 +1416,7 @@ object_types:
         assert!(arch.body_extraction().is_some());
     }
 
-    // TC-524 (FR-031-AC-3): carry-over fields retained + readable.
+    // TC-524, FR-031-AC-3: carry-over fields retained + readable.
     #[test]
     fn tc524_carry_over_fields_retained() {
         let parent = tmpdir("u-524");
@@ -1456,7 +1456,7 @@ artifact_types:
         );
     }
 
-    // TC-525 (FR-031-AC-4): frontmatter_schema_ref + data_schema are
+    // TC-525, FR-031-AC-4: frontmatter_schema_ref + data_schema are
     // two distinct compiled validators, neither collapsed.
     #[test]
     fn tc525_frontmatter_and_data_schemas_are_distinct() {
@@ -1496,7 +1496,7 @@ artifact_types:
         assert!(!dv.is_valid(&serde_json::json!({"id": "FR-1"})));
     }
 
-    // TC-526 (FR-031-AC-5): required_sections is rejected as a hard
+    // TC-526, FR-031-AC-5: required_sections is rejected as a hard
     // ArchetypeLoadFailure (no-compat rule overrides FR-031-AC-5's
     // softer "non-fatal diagnostic" — see CR note in task 037).
     #[test]
@@ -1530,7 +1530,7 @@ artifact_types:
         );
     }
 
-    // TC-526c (FR-031-AC-5): `template_ref` is a hard ArchetypeLoadFailure
+    // TC-526c, FR-031-AC-5: `template_ref` is a hard ArchetypeLoadFailure
     // (render removed — no backward-compatibility layer).
     #[test]
     fn tc526_template_ref_is_hard_load_failure() {
@@ -1585,7 +1585,7 @@ object_types:
         assert!(outcome.failures[0].reason.contains("variants"));
     }
 
-    // TC-762 (NFR-006-AC-5, CR-018): module discovery is sorted, so first-wins
+    // TC-762, NFR-006-AC-5 (CR-018): module discovery is sorted, so first-wins
     // resolves the same way on every machine. Directories are created in
     // reverse order to keep the fixture honest — `read_dir` order is
     // unspecified, and it was the load order before this.
@@ -1604,7 +1604,7 @@ object_types:
         );
     }
 
-    // TC-527 (FR-031-AC-6): Registry::archetype resolves unified
+    // TC-527, FR-031-AC-6: Registry::archetype resolves unified
     // archetype identically (same keying + first-wins).
     #[test]
     fn tc527_registry_resolves_unified_archetype() {

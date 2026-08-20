@@ -768,7 +768,7 @@ mod tests {
             "the bare protocol is dropped; the backticked URI is kept"
         );
     }
-    // TC-897 (FR-026-AC-14, CR-071): every clause of the relative-destination
+    // TC-897, FR-026-AC-14 (CR-071): every clause of the relative-destination
     // filter is load-bearing, checked one exclusion at a time.
     //
     // Found by the agent-ix/quoin#48 mutation pilot: `cargo mutants` scoped to
@@ -805,7 +805,7 @@ mod tests {
         }
     }
 
-    // TC-897 (FR-026-AC-14, CR-071): and end to end — a document whose only
+    // TC-897, FR-026-AC-14 (CR-071): and end to end — a document whose only
     // links are excluded destinations mints no edge at all.
     #[test]
     fn tc897_excluded_destinations_mint_no_edges() {

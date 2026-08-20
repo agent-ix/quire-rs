@@ -864,7 +864,7 @@ mod tests {
             .count()
     }
 
-    // TC-707 (FR-047-AC-1, CR-013): the four shapes — `assertion` is canonical,
+    // TC-707, FR-047-AC-1 (CR-013): the four shapes — `assertion` is canonical,
     // `obligation` and `given-when-then` are recognized renderings, and a cell
     // with no structure and no observable signal is `unstructured` and yields
     // one `unclassifiable` finding.
@@ -910,7 +910,7 @@ mod tests {
         }
     }
 
-    // TC-708 (FR-047-AC-2): a modal-free cell is still segmented and checked;
+    // TC-708, FR-047-AC-2: a modal-free cell is still segmented and checked;
     // an empty cell yields no statement at all.
     #[test]
     fn tc708_every_non_empty_cell_is_a_statement() {
@@ -923,7 +923,7 @@ mod tests {
         assert!(findings(&["   "]).is_empty());
     }
 
-    // TC-709 (FR-047-AC-3): two obligations yield exactly one `non-singular`;
+    // TC-709, FR-047-AC-3: two obligations yield exactly one `non-singular`;
     // the positive/negative pair idiom yields none.
     #[test]
     fn tc709_non_singular_and_pair_idiom() {
@@ -964,7 +964,7 @@ mod tests {
         );
     }
 
-    // TC-775 (FR-047-AC-15, CR-024): the pair idiom is recognized by the second
+    // TC-775, FR-047-AC-15 (CR-024): the pair idiom is recognized by the second
     // obligation, not by the separator joining the two.
     #[test]
     fn tc775_pair_idiom_is_not_separator_bound() {
@@ -1035,7 +1035,7 @@ mod tests {
         );
     }
 
-    // TC-776 (FR-047-AC-16, CR-024): `then` separates obligations only in a
+    // TC-776, FR-047-AC-16 (CR-024): `then` separates obligations only in a
     // Given/When/Then criterion that states no modal.
     #[test]
     fn tc776_then_counts_only_in_a_gwt_criterion() {
@@ -1073,7 +1073,7 @@ mod tests {
         );
     }
 
-    // TC-777 (FR-047-AC-17, CR-025): a vacuous predicate that is also a common
+    // TC-777, FR-047-AC-17 (CR-025): a vacuous predicate that is also a common
     // noun does not fire on the noun.
     #[test]
     fn tc777_vacuous_predicate_does_not_fire_on_a_noun() {
@@ -1095,7 +1095,7 @@ mod tests {
         );
     }
 
-    // TC-778 (FR-047-AC-18, CR-026): a double-backtick span masks its whole
+    // TC-778, FR-047-AC-18 (CR-026): a double-backtick span masks its whole
     // body, including the keywords and the single-tick spans inside it.
     #[test]
     fn tc778_double_backtick_spans_are_masked() {
@@ -1124,7 +1124,7 @@ mod tests {
         );
     }
 
-    // TC-710 (FR-047-AC-4): a vague outcome verb over an abstract object flags;
+    // TC-710, FR-047-AC-4: a vague outcome verb over an abstract object flags;
     // the same cell with the object in the merged lexicon does not.
     #[test]
     fn tc710_vague_response_reuses_the_lexicon() {
@@ -1144,7 +1144,7 @@ mod tests {
         assert_eq!(vague(&lex(&["pagination"])), 0);
     }
 
-    // TC-711 (FR-047-AC-5, CR-014): a cell headed by a vacuous predicate with
+    // TC-711, FR-047-AC-5 (CR-014): a cell headed by a vacuous predicate with
     // nothing else to check fires `vacuous-outcome`; the same predicate
     // alongside a concrete signal, a lexicon term, or an observable verb does
     // not. The check detects membership of a *closed* vacuity set rather than
@@ -1199,7 +1199,7 @@ mod tests {
         }
     }
 
-    // TC-712 (FR-047-AC-6, CR-014): the grammar runs on the `Acceptance
+    // TC-712, FR-047-AC-6 (CR-014): the grammar runs on the `Acceptance
     // Criteria` `Criteria` column of every requirement archetype that carries
     // one, plus `### <doc-id>-AC-N` supplements — but on nothing else. An FR
     // `Constraints` cell and an NFR `Statement` remain EARS territory.
@@ -1348,7 +1348,7 @@ mod tests {
         .is_empty());
     }
 
-    // TC-713 (FR-047-AC-7): finding fields — grammar, check id, excerpt, line,
+    // TC-713, FR-047-AC-7: finding fields — grammar, check id, excerpt, line,
     // shape, severity.
     #[test]
     fn tc713_finding_fields() {
@@ -1362,7 +1362,7 @@ mod tests {
         assert_eq!(u.severity, GrammarSeverity::Warning);
     }
 
-    // TC-751 (FR-047-AC-10): a GWT cell yields one `non-canonical-shape` while
+    // TC-751, FR-047-AC-10: a GWT cell yields one `non-canonical-shape` while
     // still classifying `given-when-then`, and its other checks run on the
     // `Then` clause; an EARS cell yields none.
     #[test]
@@ -1407,7 +1407,7 @@ mod tests {
         assert_eq!(count(&["Structural evaluation"], "non-canonical-shape"), 0);
     }
 
-    // TC-763 (FR-047-AC-14): a predication whose copula is elided is a
+    // TC-763, FR-047-AC-14: a predication whose copula is elided is a
     // predicate. An existential/quantifier head or a predicative adjective
     // asserts something testable while carrying no inflected verb, no modal and
     // no concrete signal, so before CR-019 it drew a spurious `unclassifiable`
@@ -1452,7 +1452,7 @@ mod tests {
         }
     }
 
-    // TC-761 (FR-047-AC-13): a keyword inside a code span is a *mention*, not a
+    // TC-761, FR-047-AC-13: a keyword inside a code span is a *mention*, not a
     // use — it decides neither the shape nor the obligation count — while the
     // vocabulary checks still read the real words inside the span (CR-017).
     #[test]
@@ -1547,7 +1547,7 @@ mod tests {
         );
     }
 
-    // TC-754 (FR-047-AC-11): fenced blocks and blockquotes inside a supplement
+    // TC-754, FR-047-AC-11: fenced blocks and blockquotes inside a supplement
     // section are skipped; the surrounding prose is still checked.
     #[test]
     fn tc754_supplement_skip_rules() {
@@ -1588,7 +1588,7 @@ mod tests {
         .any(|x| x.check == "vacuous-outcome"));
     }
 
-    // TC-757 (FR-047-AC-12, CR-014): both vocabularies are module data — a
+    // TC-757, FR-047-AC-12 (CR-014): both vocabularies are module data — a
     // module-added observable verb suppresses `vacuous-outcome`, a module-added
     // vacuous predicate extends the vacuity set, and with no declaration both
     // built-in sets apply unchanged.
@@ -1681,7 +1681,7 @@ mod props_metamorphic {
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(4000))]
 
-        /// TC-894 (FR-047-AC-18, CR-017/CR-026, CR-069, Property): masking is
+        /// TC-894, FR-047-AC-18 (CR-017/CR-026, CR-069, Property): masking is
         /// idempotent — a masked span masks to itself.
         #[test]
         fn tc894_mask_code_spans_is_idempotent(s in tickish()) {
@@ -1689,7 +1689,7 @@ mod props_metamorphic {
             prop_assert_eq!(super::mask_code_spans(&once), once.clone(), "input={:?}", s);
         }
 
-        /// TC-894 (FR-047-AC-18, CR-069, Property): masking preserves byte
+        /// TC-894, FR-047-AC-18 (CR-069, Property): masking preserves byte
         /// length. `outcome_clause` locates a keyword in the masked copy and
         /// slices the *original* with that offset, so any drift here would
         /// silently mis-slice rather than fail loudly.
@@ -1698,7 +1698,7 @@ mod props_metamorphic {
             prop_assert_eq!(super::mask_code_spans(&s).len(), s.len(), "input={:?}", s);
         }
 
-        /// TC-894 (FR-047-AC-18, CR-069, Property): masking never *introduces* a
+        /// TC-894, FR-047-AC-18 (CR-069, Property): masking never *introduces* a
         /// backtick, and every backtick it keeps is at the offset it already
         /// occupied — the output's backtick positions are a subset of the
         /// input's. Equality would be wrong: a backtick inside a span is span

@@ -40,7 +40,7 @@ fn merged(suffix: &str) -> Registry {
     Registry::load_from(&[root.as_path()]).expect("load merged")
 }
 
-// TC-844 (FR-054-AC-1): every declared field survives to the accessor.
+// TC-844, FR-054-AC-1: every declared field survives to the accessor.
 #[test]
 fn tc844_catalog_entries_are_exposed_intact() {
     let registry = registry("one");
@@ -70,7 +70,7 @@ fn tc844_catalog_entries_are_exposed_intact() {
     );
 }
 
-// TC-845 (FR-054-AC-2): a colliding id merges first-wins and is reported.
+// TC-845, FR-054-AC-2: a colliding id merges first-wins and is reported.
 #[test]
 fn tc845_duplicate_method_is_first_wins_and_reported() {
     let registry = merged("845");
@@ -107,7 +107,7 @@ fn tc845_duplicate_method_is_first_wins_and_reported() {
     assert!(reported[0].contains("catalog-two"), "{reported:#?}");
 }
 
-// TC-846 (FR-054-AC-3): undeclared is None, not an empty map.
+// TC-846, FR-054-AC-3: undeclared is None, not an empty map.
 #[test]
 fn tc846_no_catalog_is_undeclared_not_empty() {
     assert!(
@@ -116,7 +116,7 @@ fn tc846_no_catalog_is_undeclared_not_empty() {
     );
 }
 
-// TC-847 (FR-054-AC-4): an unknown key fails load naming the key.
+// TC-847, FR-054-AC-4: an unknown key fails load naming the key.
 #[test]
 fn tc847_unknown_key_fails_load() {
     let outcome = quire_rs::loader::load_single_module(&fixture("bad-key"));
@@ -128,7 +128,7 @@ fn tc847_unknown_key_fails_load() {
     assert!(outcome.modules.is_empty());
 }
 
-// TC-848 (FR-054-AC-5): an empty required field fails load naming the method.
+// TC-848, FR-054-AC-5: an empty required field fails load naming the method.
 #[test]
 fn tc848_empty_required_field_fails_load() {
     let outcome = quire_rs::loader::load_single_module(&fixture("empty-field"));
@@ -142,7 +142,7 @@ fn tc848_empty_required_field_fails_load() {
     assert!(outcome.modules.is_empty());
 }
 
-// TC-849 (FR-054-AC-6): the two derived vocabularies come from the catalog.
+// TC-849, FR-054-AC-6: the two derived vocabularies come from the catalog.
 #[test]
 fn tc849_derived_vocabularies_come_from_the_catalog() {
     let registry = merged("849");
@@ -162,7 +162,7 @@ fn tc849_derived_vocabularies_come_from_the_catalog() {
     );
 }
 
-// TC-850 (FR-054-AC-7): `test_type` is unchanged; an unknown name is empty.
+// TC-850, FR-054-AC-7: `test_type` is unchanged; an unknown name is empty.
 #[test]
 fn tc850_test_type_unchanged_and_unknown_name_is_empty() {
     let none = registry("none");
@@ -182,7 +182,7 @@ fn tc850_test_type_unchanged_and_unknown_name_is_empty() {
     assert!(!one.column_vocabulary("verification_method").is_empty());
 }
 
-// TC-851 (FR-054-AC-8): applicability is carried verbatim and never
+// TC-851, FR-054-AC-8: applicability is carried verbatim and never
 // interpreted — including a rule name the engine has never heard of (CON-2).
 #[test]
 fn tc851_applicability_is_opaque() {
@@ -203,7 +203,7 @@ fn tc851_applicability_is_opaque() {
     assert!(two["property-based-testing"].applicability.is_empty());
 }
 
-// TC-852 (FR-054-AC-9): declaring a catalog moves no finding (CON-3).
+// TC-852, FR-054-AC-9: declaring a catalog moves no finding (CON-3).
 #[test]
 fn tc852_catalog_changes_no_finding() {
     let doc = "---\nid: FR-001\ntype: FR\ntitle: A requirement\n---\n\n\
@@ -237,7 +237,7 @@ fn tc852_catalog_changes_no_finding() {
     }
 }
 
-// TC-853 (FR-054-AC-10): the derived vocabularies are never read from a
+// TC-853, FR-054-AC-10: the derived vocabularies are never read from a
 // separate declaration (CON-4).
 #[test]
 fn tc853_derived_vocabularies_need_no_separate_declaration() {
@@ -257,7 +257,7 @@ fn tc853_derived_vocabularies_need_no_separate_declaration() {
     assert_eq!(merged.column_vocabulary("verification_method").len(), 3);
 }
 
-// TC-874 (FR-054-AC-11): a declared method that is in no catalog is reported.
+// TC-874, FR-054-AC-11: a declared method that is in no catalog is reported.
 //
 // This is what finally gives the derived vocabularies a reader. Before it,
 // `column_vocabulary("verification_method")` was built at registry construction
@@ -325,7 +325,7 @@ fn tc874_uncatalogued_method_is_reported() {
         .contains("uncatalogued-verification-method"));
 }
 
-// TC-875 (FR-054-AC-11): with no catalog declared, the check is silent.
+// TC-875, FR-054-AC-11: with no catalog declared, the check is silent.
 //
 // An absent catalog means the question cannot be asked, which is a different
 // answer from "yes" — and it is what keeps FR-050-AC-7 byte-identity for every

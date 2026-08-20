@@ -196,7 +196,7 @@ mod tests {
         terms
     }
 
-    // TC-674 (FR-044-AC-1): harvest the Term column from a `## Terms` table.
+    // TC-674, FR-044-AC-1: harvest the Term column from a `## Terms` table.
     #[test]
     fn tc674_harvest_terms_table() {
         let terms = harvest_fixture("674");
@@ -204,7 +204,7 @@ mod tests {
         assert!(terms.contains(&"Sprocket".to_string()));
     }
 
-    // TC-675 (FR-044-AC-2): harvest the bold term from `## Ubiquitous Language`.
+    // TC-675, FR-044-AC-2: harvest the bold term from `## Ubiquitous Language`.
     #[test]
     fn tc675_harvest_ubiquitous_language() {
         let terms = harvest_fixture("675");
@@ -259,7 +259,7 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
     }
 
-    // TC-808 (FR-024-AC-11, CR-044): this scanner reads raw text rather than
+    // TC-808, FR-024-AC-11 (CR-044): this scanner reads raw text rather than
     // building a `Spec`, so it needs the membership rule applied explicitly.
     // It used to inherit the walk's `{README.md, tests.md}` skip through
     // `discover_files`; when that skip went, the scope here would have widened
@@ -335,7 +335,7 @@ mod tests {
         report
     }
 
-    // TC-678 (FR-044-AC-5): validate_bundle harvests the Spec's project terms
+    // TC-678, FR-044-AC-5: validate_bundle harvests the Spec's project terms
     // and applies the combined lexicon — the FR's `widget` is suppressed.
     #[test]
     fn tc678_validate_bundle_harvests_and_applies() {
@@ -346,7 +346,7 @@ mod tests {
             .any(|w| w.message.contains("[ears:vague-response]")));
     }
 
-    // TC-679 (FR-044-AC-6): the project-glossary suppression is advisory —
+    // TC-679, FR-044-AC-6: the project-glossary suppression is advisory —
     // grammar findings never become bundle errors.
     #[test]
     fn tc679_validate_bundle_grammar_is_advisory() {
@@ -354,7 +354,7 @@ mod tests {
         assert!(!report.errors.iter().any(|e| e.reason == "grammar"));
     }
 
-    // TC-680 (FR-044-AC-7): a repo with no glossary harvests nothing.
+    // TC-680, FR-044-AC-7: a repo with no glossary harvests nothing.
     #[test]
     fn tc680_no_glossary_empty() {
         let tmp = std::env::temp_dir().join(format!("ql-noglossary-{}", std::process::id()));
@@ -387,7 +387,7 @@ mod tests {
         let _ = std::fs::remove_dir_all(&tmp);
     }
 
-    // TC-823 (FR-044-AC-8, CR-055): the pre-filter agrees with the lookup it
+    // TC-823, FR-044-AC-8 (CR-055): the pre-filter agrees with the lookup it
     // gates. ISO heading form numbers its sections, and `query::section`
     // treats that numbering as decorative — so a pre-filter matching the raw
     // title verbatim filtered out exactly the documents the lookup would have
@@ -410,7 +410,7 @@ mod tests {
         assert!(!has_glossary_heading("## Terms of Service\n"));
     }
 
-    // TC-823 (FR-044-AC-8, CR-055): and end to end — a numbered heading
+    // TC-823, FR-044-AC-8 (CR-055): and end to end — a numbered heading
     // harvests the same terms an unnumbered one does, through both harvesters.
     #[test]
     fn tc823_numbered_heading_harvests_end_to_end() {
@@ -436,7 +436,7 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
     }
 
-    // TC-823 (FR-044-AC-8, CR-055): a glossary-bearing file with no front
+    // TC-823, FR-044-AC-8 (CR-055): a glossary-bearing file with no front
     // block is reported, not silently skipped. It stays out of the harvest —
     // the membership rule is unchanged — but the operator is told why the
     // terms are missing instead of meeting `vague-response` on their own

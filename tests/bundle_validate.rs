@@ -43,7 +43,7 @@ fn note(id: &str, body: &str) -> String {
 
 /// Strict: a document with no `type` is a hard error (was a non-fatal
 /// `UntypedArtifact` warning before this change).
-// TC-600 (FR-038-AC-1): under Strict an untyped document is a hard error.
+// TC-600, FR-038-AC-1: under Strict an untyped document is a hard error.
 #[test]
 fn strict_untyped_doc_is_error() {
     let root = tmpdir("strict_untyped");
@@ -62,7 +62,7 @@ fn strict_untyped_doc_is_error() {
 
 /// Okf: `type` is still required — an untyped doc is an error even under
 /// the permissive posture.
-// TC-601 (FR-038-AC-2): and the permissive posture does not soften it.
+// TC-601, FR-038-AC-2: and the permissive posture does not soften it.
 #[test]
 fn okf_untyped_doc_is_still_error() {
     let root = tmpdir("okf_untyped");
@@ -78,7 +78,7 @@ fn okf_untyped_doc_is_still_error() {
 
 /// Okf tolerates an unknown type and a dangling `ix://` reference as
 /// warnings; Strict rejects the unknown type.
-// TC-602 (FR-038-AC-3): what Okf does soften — unknown type, dangling ref.
+// TC-602, FR-038-AC-3: what Okf does soften — unknown type, dangling ref.
 #[test]
 fn okf_tolerates_unknown_type_and_broken_links() {
     let root = tmpdir("okf_tolerant");
@@ -107,7 +107,7 @@ fn okf_tolerates_unknown_type_and_broken_links() {
 
 /// A typed, archetype-conformant bundle whose index lists every sibling +
 /// carries `okf_version` is valid under Strict.
-// TC-603 (FR-038-AC-4): the conformant bundle passes Strict end to end.
+// TC-603, FR-038-AC-4: the conformant bundle passes Strict end to end.
 #[test]
 fn strict_conformant_bundle_with_complete_index_is_valid() {
     let root = tmpdir("strict_ok");
@@ -129,7 +129,7 @@ fn strict_conformant_bundle_with_complete_index_is_valid() {
 
 /// An index.md missing a sibling artifact is an index-completeness error
 /// under Strict, a warning under Okf.
-// TC-604 (FR-038-AC-5): a missing sibling is an error, then a warning.
+// TC-604, FR-038-AC-5: a missing sibling is an error, then a warning.
 #[test]
 fn index_incompleteness_is_error_strict_warning_okf() {
     let root = tmpdir("index_incomplete");
@@ -156,7 +156,7 @@ fn index_incompleteness_is_error_strict_warning_okf() {
 }
 
 /// The bundle-root index.md must declare `okf_version`.
-// TC-605 (FR-038-AC-6): the bundle root must declare `okf_version`.
+// TC-605, FR-038-AC-6: the bundle root must declare `okf_version`.
 #[test]
 fn root_index_missing_okf_version_is_flagged() {
     let root = tmpdir("no_okf_version");
@@ -175,7 +175,7 @@ fn root_index_missing_okf_version_is_flagged() {
 }
 
 /// A subdirectory index need not carry `okf_version` (only the root does).
-// TC-606 (FR-038-AC-6): a subdirectory index does not.
+// TC-606, FR-038-AC-6: a subdirectory index does not.
 #[test]
 fn subdir_index_does_not_require_okf_version() {
     let root = tmpdir("subdir_index");
@@ -198,7 +198,7 @@ fn subdir_index_does_not_require_okf_version() {
 
 /// A mistyped optional `description` is caught by the base concept contract
 /// under Strict.
-// TC-607 (FR-038-AC-7): the base-concept contract still applies to a known type.
+// TC-607, FR-038-AC-7: the base-concept contract still applies to a known type.
 #[test]
 fn strict_rejects_mistyped_description() {
     let root = tmpdir("mistyped_desc");
@@ -244,7 +244,7 @@ roles:
     Registry::from_inline_parts(manifest, &schemas).expect("inline registry")
 }
 
-/// TC-642 (FR-040-AC-9): a resolved edge whose target object type satisfies
+/// TC-642, FR-040-AC-9: a resolved edge whose target object type satisfies
 /// no token in the verb's target list yields a `disallowed-edge-target`
 /// warning; the same verb to a target carrying the required role passes —
 /// across object-type boundaries. Warn-tier: the bundle stays valid.
@@ -291,7 +291,7 @@ fn tc642_disallowed_edge_target_is_warning() {
     assert!(report.is_valid(), "errors: {:?}", report.errors);
 }
 
-/// TC-820 (FR-024-AC-12): the CR-048 walk→bundle bridge. A frontmatter-less
+/// TC-820, FR-024-AC-12: the CR-048 walk→bundle bridge. A frontmatter-less
 /// file and a malformed-frontmatter file under the document root each become
 /// exactly one `BundleReport` **warning** naming the path — in both postures,
 /// never an error — and the two flavors carry distinct machine reasons so a
@@ -461,7 +461,7 @@ fn tc883_registry_promotes_demotes_and_suppresses() {
     fs::remove_dir_all(&root).ok();
 }
 
-// TC-884 (FR-057-AC-4): with no entry, every check keeps the exact tier it had
+// TC-884, FR-057-AC-4: with no entry, every check keeps the exact tier it had
 // before FR-057 — checked per check, not in aggregate. FR-048-AC-4's blanket
 // `warning` default deliberately does NOT apply here: it would silently
 // downgrade every corpus check that hard-errors under Strict today.
@@ -512,7 +512,7 @@ fn tc884_unconfigured_checks_keep_their_prior_tier() {
     fs::remove_dir_all(&root).ok();
 }
 
-// TC-885 (FR-057-AC-5): overrides layered the way `quire validate --severity`
+// TC-885, FR-057-AC-5: overrides layered the way `quire validate --severity`
 // layers them reach corpus checks, and a CLI entry beats a module entry for the
 // same key. This is `apply_severity_overrides` in quire-cli, verbatim.
 #[test]
@@ -599,7 +599,7 @@ fn tc886_findings_carry_severity_and_a_wellformed_key() {
     fs::remove_dir_all(&root).ok();
 }
 
-// TC-887 (FR-057-AC-10): order is a property of the bundle, not of the map
+// TC-887, FR-057-AC-10: order is a property of the bundle, not of the map
 // (NFR-006) — findings come out in the same order with and without a registry,
 // and identically across runs.
 #[test]
@@ -638,7 +638,7 @@ fn tc887_severity_does_not_perturb_order() {
     fs::remove_dir_all(&root).ok();
 }
 
-// TC-888 (FR-057-CON-1): document-level results bridged into the report are NOT
+// TC-888, FR-057-CON-1: document-level results bridged into the report are NOT
 // registrable. A module that could map `unknown-type: off` would be switching
 // off schema validation under a severity key, which is a different decision.
 #[test]

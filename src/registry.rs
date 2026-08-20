@@ -637,7 +637,7 @@ mod tests {
         p
     }
 
-    // TC-411 (FR-020-AC-2): block type is an alias over the archetype registry.
+    // TC-411, FR-020-AC-2: block type is an alias over the archetype registry.
     //
     // Written when FR-020 was authored (CR-042): the row had been ✅ since v0.2
     // with nothing behind it, because the requirement it claimed had no
@@ -837,7 +837,7 @@ lint_rules:
         assert_eq!(r.lint_rules()[0].id(), "ac-verification-method");
     }
 
-    // TC-588 (FR-036-AC-5): lint evaluation never affects extraction or
+    // TC-588, FR-036-AC-5: lint evaluation never affects extraction or
     // validation. The same document through the same archetype, once under a
     // module carrying a lint rule it violates and once under the identical
     // module without the rule, must produce byte-identical `extract()` and
@@ -1097,7 +1097,7 @@ lint_rules:
         fs::write(root.join("manifest.yaml"), format!("name: {name}\n{body}")).unwrap();
     }
 
-    // TC-636 (FR-040-AC-1): edge_types + roles registries load and the
+    // TC-636, FR-040-AC-1: edge_types + roles registries load and the
     // merged Registry exposes both; identical re-declaration across two
     // modules is silently idempotent (no diagnostic).
     #[test]
@@ -1136,7 +1136,7 @@ roles:
         )));
     }
 
-    // TC-637 (FR-040-AC-2): differing re-declaration is first-wins +
+    // TC-637, FR-040-AC-2: differing re-declaration is first-wins +
     // non-fatal Duplicate{EdgeType,Role}; default load still succeeds.
     #[test]
     fn tc637_conflicting_redeclaration_is_first_wins_diagnostic() {
@@ -1160,7 +1160,7 @@ roles:
             .any(|d| matches!(d, Diagnostic::DuplicateEdgeType { name, .. } if name == "calls")));
     }
 
-    // TC-667 (FR-043-AC-1): a `lexicon` term loads, is readable via
+    // TC-667, FR-043-AC-1: a `lexicon` term loads, is readable via
     // `Registry::lexicon()`, and the precompiled matcher recognises it.
     #[test]
     fn tc667_lexicon_loads_and_accessor() {
@@ -1179,7 +1179,7 @@ roles:
         assert!(!r.lexicon_matcher().contains_term("unrelated text"));
     }
 
-    // TC-668 (FR-043-AC-2): a term re-declared with a differing body across
+    // TC-668, FR-043-AC-2: a term re-declared with a differing body across
     // modules is first-wins + emits one `DuplicateLexiconTerm`.
     #[test]
     fn tc668_lexicon_merge_first_wins() {
@@ -1201,7 +1201,7 @@ roles:
         ));
     }
 
-    // TC-672 (FR-043-AC-6): the registry-backed path applies the merged
+    // TC-672, FR-043-AC-6: the registry-backed path applies the merged
     // lexicon; the type-only path applies an empty one (more findings).
     #[test]
     fn tc672_registry_vs_type_only_lexicon_paths() {
@@ -1249,7 +1249,7 @@ roles:
         fs::write(root.join("schemas/fr.schema.json"), r#"{"type":"object"}"#).unwrap();
     }
 
-    // TC-766 (FR-048-AC-5): a surface layers its `--severity` overrides over
+    // TC-766, FR-048-AC-5: a surface layers its `--severity` overrides over
     // the module-declared map. The returned registry shares the same loaded
     // module set — only the severity policy differs.
     #[test]
@@ -1284,7 +1284,7 @@ roles:
         );
     }
 
-    // TC-716 (FR-048-AC-1): a manifest `grammar_severity` registry loads and
+    // TC-716, FR-048-AC-1: a manifest `grammar_severity` registry loads and
     // `Registry::grammar_severity()` returns the merged map.
     #[test]
     fn tc716_grammar_severity_loads_and_accessor() {
@@ -1305,7 +1305,7 @@ roles:
         );
     }
 
-    // TC-717 (FR-048-AC-2): conflicting redeclarations merge first-wins with
+    // TC-717, FR-048-AC-2: conflicting redeclarations merge first-wins with
     // one `DuplicateGrammarSeverity`; identical redeclaration emits none.
     #[test]
     fn tc717_grammar_severity_merge_first_wins() {
@@ -1338,7 +1338,7 @@ roles:
         assert_eq!(dups, vec!["ac:unclassifiable"]);
     }
 
-    // TC-723 (FR-048-AC-8): a malformed `grammar_severity` entry fails module
+    // TC-723, FR-048-AC-8: a malformed `grammar_severity` entry fails module
     // load like any other manifest shape error.
     #[test]
     fn tc723_malformed_grammar_severity_fails_load() {
@@ -1369,7 +1369,7 @@ roles:
         );
     }
 
-    // TC-722 (FR-048-AC-7): the type-only `validate_document` path applies the
+    // TC-722, FR-048-AC-7: the type-only `validate_document` path applies the
     // all-default map — every grammar finding is a warning regardless of the
     // module's manifest, which promotes the same check to `error`.
     #[test]
@@ -1402,7 +1402,7 @@ roles:
         assert!(type_only.errors.is_empty());
     }
 
-    // TC-718 (FR-048-AC-3), end-to-end half: with `ac:unclassifiable` mapped
+    // TC-718, FR-048-AC-3, end-to-end half: with `ac:unclassifiable` mapped
     // to `error`, a real unclassifiable criteria cell lands in
     // `ValidationResult.errors` and clears `is_valid`, while an `ears` finding
     // with no map entry stays a warning. (The framework-level contract is
@@ -1450,7 +1450,7 @@ roles:
             .join("traceability")
     }
 
-    // TC-732 (FR-050-AC-1): a manifest `traceability:` section declaring trace
+    // TC-732, FR-050-AC-1: a manifest `traceability:` section declaring trace
     // targets, document references, a status vocabulary, and a trace-tag
     // grammar loads, and the Registry exposes the declared model.
     #[test]
@@ -1509,7 +1509,7 @@ roles:
         assert_eq!(alt.status.as_ref().unwrap().column, "State");
     }
 
-    // TC-733 (FR-050-AC-2): a malformed `traceability:` section fails module
+    // TC-733, FR-050-AC-2: a malformed `traceability:` section fails module
     // load like any other manifest shape error; an absent section loads and
     // marks the model undeclared.
     #[test]
@@ -1548,7 +1548,7 @@ roles:
         assert!(r3.module_names().next().is_none(), "module must not load");
     }
 
-    // TC-676 (FR-044-AC-3): `lexicon_with` composes module keys ∪ project terms.
+    // TC-676, FR-044-AC-3: `lexicon_with` composes module keys ∪ project terms.
     #[test]
     fn tc676_lexicon_with_combines_module_and_project() {
         let p = tmpdir("lexicon-676");
@@ -1564,7 +1564,7 @@ roles:
         assert!(!lex.contains_term("provide flexibility")); // neither
     }
 
-    // TC-677 (FR-044-AC-4): validate_document_in_registry_with_lexicon injects
+    // TC-677, FR-044-AC-4: validate_document_in_registry_with_lexicon injects
     // the supplied lexicon — a project term suppresses; module-only flags.
     #[test]
     fn tc677_with_lexicon_injection_suppresses_project_term() {
@@ -1595,7 +1595,7 @@ roles:
             .any(|w| w.message.contains("[ears:vague-response]")));
     }
 
-    // TC-650 (FR-040-AC-3): unknown verb/role → non-fatal diagnostic
+    // TC-650, FR-040-AC-3: unknown verb/role → non-fatal diagnostic
     // (default load succeeds); load_strict escalates to an error.
     #[test]
     fn tc650_unknown_verb_and_role_diagnostic_and_strict_escalation() {
@@ -1631,7 +1631,7 @@ roles: {}
         assert!(matches!(err, QuireError::EdgeVocabularyViolation { .. }));
     }
 
-    // TC-651 (FR-040-AC-5): object `roles:` list is parsed onto the
+    // TC-651, FR-040-AC-5: object `roles:` list is parsed onto the
     // compiled archetype and readable via roles(); none reads empty.
     #[test]
     fn tc651_object_roles_parsed_onto_archetype() {
@@ -1656,7 +1656,7 @@ roles:
         assert!(r.archetype("enumeration").unwrap().roles().is_empty());
     }
 
-    // TC-639 (FR-040-AC-6): resolve_allowed_links unions both axes;
+    // TC-639, FR-040-AC-6: resolve_allowed_links unions both axes;
     // shared verb unions targets and "*" absorbs; object=None → artifact only.
     #[test]
     fn tc639_resolve_allowed_links_unions_axes() {
@@ -1692,7 +1692,7 @@ edge_types:
         assert_eq!(artifact_only["references"], vec!["*".to_string()]);
     }
 
-    // TC-640 (FR-040-AC-7): target_satisfies by name, role, or "*".
+    // TC-640, FR-040-AC-7: target_satisfies by name, role, or "*".
     #[test]
     fn tc640_target_satisfies_name_role_or_star() {
         let p = tmpdir("vocab-640");

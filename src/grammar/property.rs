@@ -1003,7 +1003,7 @@ mod tests {
     const ISSUE_CELL: &str =
         "A finding whose key is absent from the merged map defaults to warning";
 
-    // TC-779 (FR-052-AC-1): the issue's own cell classifies `Universal` with
+    // TC-779, FR-052-AC-1: the issue's own cell classifies `Universal` with
     // all three spans populated.
     #[test]
     fn tc779_universal_decomposition_yields_three_spans() {
@@ -1033,7 +1033,7 @@ mod tests {
         );
     }
 
-    // TC-780 (FR-052-AC-2): each metamorphic idiom labels to its own shape, and
+    // TC-780, FR-052-AC-2: each metamorphic idiom labels to its own shape, and
     // a universally quantified round-trip labels `RoundTrip` — structure
     // outranks quantification under the fixed precedence.
     #[test]
@@ -1067,7 +1067,7 @@ mod tests {
         assert!(classify_property(quantified, &idioms()).spans.is_none());
     }
 
-    // TC-781 (FR-052-AC-3): CR-017 parity — an idiom phrase inside an inline
+    // TC-781, FR-052-AC-3: CR-017 parity — an idiom phrase inside an inline
     // code span is a mention and fires no signal; unquoted, it fires.
     #[test]
     fn tc781_quoted_idioms_are_mentions() {
@@ -1083,7 +1083,7 @@ mod tests {
         assert_eq!(shape(used_idiom), PropertyShape::Concurrency);
     }
 
-    // TC-782 (FR-052-AC-4): a criterion whose oracle boundary rests only on the
+    // TC-782, FR-052-AC-4: a criterion whose oracle boundary rests only on the
     // weak inflected-verb marker classifies `Universal` with all three spans
     // absent — a confidently wrong span is worse for a generator than none —
     // and refusing spans changes neither the shape nor `extractable`.
@@ -1105,7 +1105,7 @@ mod tests {
         assert!(classify_property(anchored, &idioms()).spans.is_some());
     }
 
-    // TC-783 (FR-052-AC-5): a specific-scenario criterion classifies `Example`
+    // TC-783, FR-052-AC-5: a specific-scenario criterion classifies `Example`
     // with `extractable == false`, and contributes zero findings to any `ac`
     // check — classification is metadata, never a verdict (FR-052-CON-1).
     #[test]
@@ -1134,7 +1134,7 @@ mod tests {
         );
     }
 
-    // TC-785 (FR-052-AC-7, FR-052-CON-1): the `ac` finding stream over a
+    // TC-785, FR-052-AC-7 (FR-052-CON-1): the `ac` finding stream over a
     // fixture corpus is unchanged finding-for-finding, field-for-field and
     // order-for-order by the classifier's presence. This is what guarantees no
     // existing corpus number moves.
@@ -1179,7 +1179,7 @@ mod tests {
         }
     }
 
-    // TC-786 (FR-052-AC-8): a module `property_idioms` registry merges
+    // TC-786, FR-052-AC-8: a module `property_idioms` registry merges
     // first-wins over the engine built-ins; an absent declaration classifies
     // against the built-ins alone (mirrors TC-757).
     #[test]
@@ -1216,7 +1216,7 @@ mod tests {
         );
     }
 
-    // TC-787 (FR-052-AC-9, CR-020): classification sees exactly the cells
+    // TC-787, FR-052-AC-9 (CR-020): classification sees exactly the cells
     // `ac::check` sees — FR/NFR `Acceptance Criteria`, StR `Validation
     // Criteria`, and their supplements — while a US or IT document yields no
     // records and no finding.
@@ -1270,7 +1270,7 @@ mod tests {
         assert_eq!(records[0].property, PropertyShape::Universal);
     }
 
-    // TC-791 (FR-052-AC-13): the closed structural signals fire with no
+    // TC-791, FR-052-AC-13: the closed structural signals fire with no
     // registry at all, and the ordering lexicon deliberately excludes the words
     // that would swallow `Example`.
     #[test]
@@ -1476,7 +1476,7 @@ mod tests {
         c.signals.iter().find(|s| s.starts_with("recall:")).copied()
     }
 
-    /// TC-792 (FR-052-AC-14): the determiner is read at a bounded subject
+    /// TC-792, FR-052-AC-14: the determiner is read at a bounded subject
     /// position as well as at offset 0 — and the rule refuses everywhere it
     /// cannot bound one.
     #[test]
@@ -1542,7 +1542,7 @@ mod tests {
         }
     }
 
-    /// TC-793 (FR-052-AC-15): widening the determiner's position moved the
+    /// TC-793, FR-052-AC-15: widening the determiner's position moved the
     /// classification of exactly the cells it claims and **nothing else** — no
     /// `ac` finding moved, and every other shape the classifier reaches lands
     /// byte-identically where it did before CR-030.
@@ -1688,7 +1688,7 @@ mod tests {
     }
 
     proptest! {
-        // TC-784 (FR-052-AC-6): for every emitted span,
+        // TC-784, FR-052-AC-6: for every emitted span,
         // `statement[start..end] == text`; the spans of one record are in
         // bounds, non-overlapping and ascending by start offset.
         #[test]
@@ -1717,7 +1717,7 @@ mod tests {
             }
         }
 
-        // TC-790 (FR-052-AC-12, FR-052-CON-4): `extractable` is identical with
+        // TC-790, FR-052-AC-12 (FR-052-CON-4): `extractable` is identical with
         // the idiom registry present and absent — only the `property` label may
         // differ — so a missed idiom degrades a label and never coverage.
         #[test]
@@ -1738,7 +1738,7 @@ mod tests {
             prop_assert_eq!(&without.spans, &with_module.spans);
         }
 
-        // TC-795 (FR-052-AC-16, CR-033): the three-valued outcome is exactly
+        // TC-795, FR-052-AC-16 (CR-033): the three-valued outcome is exactly
         // the stated function of `property` and `extractable` — extractable
         // wins outright, a non-extractable metamorphic label is a candidate,
         // and everything else (crucially `Example` and `Unclassified`) is
@@ -1760,7 +1760,7 @@ mod tests {
             );
         }
 
-        // TC-796 (FR-052-AC-17, CR-033): `extraction` is derived and feeds back
+        // TC-796, FR-052-AC-17 (CR-033): `extraction` is derived and feeds back
         // into nothing — CON-4 still holds on `extractable` with a registry
         // declared and without — while `extraction` itself *may* move, which is
         // the whole point of the third state. A criterion whose metamorphic
@@ -1799,7 +1799,7 @@ mod tests {
         }
     }
 
-    /// TC-795 (FR-052-AC-16) — the worked cases behind the property test.
+    /// TC-795, FR-052-AC-16 — the worked cases behind the property test.
     #[test]
     fn tc795_extraction_worked_cases() {
         // A quantified criterion with an oracle: unattended.

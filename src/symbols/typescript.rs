@@ -398,7 +398,7 @@ fn re_method() -> &'static Regex {
 mod tests {
     use super::*;
 
-    /// TC-798 (FR-051-AC-12, CR-036): a `/*` inside a template literal is
+    /// TC-798, FR-051-AC-12 (CR-036): a `/*` inside a template literal is
     /// content, not a comment opener.
     ///
     /// The stripper scanned raw characters, so one git refspec swallowed the
@@ -453,7 +453,7 @@ mod tests {
         assert!(!state.in_block_comment);
     }
 
-    /// TC-799 (FR-051-AC-12, CR-036): the same `/*`, on a **continuation** line
+    /// TC-799, FR-051-AC-12 (CR-036): the same `/*`, on a **continuation** line
     /// of a multi-line template literal.
     ///
     /// A per-line scanner re-enters each line believing it is in code, so it
@@ -511,7 +511,7 @@ mod tests {
         assert!(!state.in_template, "the closing backtick ends it");
     }
 
-    /// TC-803 (FR-051-AC-14, CR-039): every consumer reads one lex, so the
+    /// TC-803, FR-051-AC-14 (CR-039): every consumer reads one lex, so the
     /// three derivations that used to disagree cannot.
     ///
     /// The file carries all three constructs that defeated a per-line scanner:

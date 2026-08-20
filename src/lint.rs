@@ -403,7 +403,7 @@ mod tests {
         }
     }
 
-    // TC-585 (FR-036-AC-2): the Verification vocabulary rule, both directions.
+    // TC-585, FR-036-AC-2: the Verification vocabulary rule, both directions.
     #[test]
     fn allowed_values_and_annotations_pass_others_flagged() {
         let doc = parse_document(AC_DOC);
@@ -419,7 +419,7 @@ mod tests {
         assert!(findings[0].message.contains("row 3"));
     }
 
-    // TC-586 (FR-036-AC-3): a scoped rule ignores documents it does not cover.
+    // TC-586, FR-036-AC-3: a scoped rule ignores documents it does not cover.
     #[test]
     fn archetype_scoping_skips_non_matching_documents() {
         let doc = parse_document(AC_DOC);
@@ -429,7 +429,7 @@ mod tests {
         assert!(lint_document(&[rule], None, &doc).is_empty());
     }
 
-    // TC-587 (FR-036-AC-4): structure is FR-032's job, not a lint finding.
+    // TC-587, FR-036-AC-4: structure is FR-032's job, not a lint finding.
     #[test]
     fn missing_section_or_column_yields_no_findings() {
         let doc = parse_document("## Other\nprose\n");
@@ -472,7 +472,7 @@ mod tests {
         assert!(findings[0].message.contains("vibes"));
     }
 
-    // TC-584 (FR-036-AC-1): rules parse typed and survive a round trip.
+    // TC-584, FR-036-AC-1: rules parse typed and survive a round trip.
     #[test]
     fn rule_yaml_round_trip() {
         let yaml = r#"
@@ -491,7 +491,7 @@ mod tests {
         assert_eq!(rules[0].severity(), LintSeverity::Warning);
     }
 
-    // TC-609 (FR-036-AC-6): `section_body_pattern` advisory rule.
+    // TC-609, FR-036-AC-6: `section_body_pattern` advisory rule.
     fn shall_rule(severity: LintSeverity) -> LintRule {
         LintRule::SectionBodyPattern {
             id: "statement-shall".to_string(),
@@ -594,7 +594,7 @@ mod tests {
         assert_eq!(lint_document(&[rule], Some("IT"), &doc2).len(), 1);
     }
 
-    // TC-764 (FR-036-AC-7, CR-020): `forbidden_section` fires *because* a
+    // TC-764, FR-036-AC-7 (CR-020): `forbidden_section` fires *because* a
     // section is present — the inverse of the other two rule types, which only
     // ever check a section that exists. The motivating case is a US document
     // carrying an `## Acceptance Criteria` heading its archetype never declared

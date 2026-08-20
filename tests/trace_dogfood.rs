@@ -42,7 +42,7 @@ fn backed_in(dir: &str) -> Vec<String> {
         .collect()
 }
 
-// TC-828 (FR-051-AC-17, CR-061): the criterion bench backs its row, and it
+// TC-828, FR-051-AC-17 (CR-061): the criterion bench backs its row, and it
 // backs *every* id on its tag line — the comma-list form.
 #[test]
 fn tc828_the_validate_document_bench_backs_tc577() {
@@ -55,7 +55,7 @@ fn tc828_the_validate_document_bench_backs_tc577() {
     }
 }
 
-// TC-828 (FR-051-AC-17, CR-061): the fuzz target backs its row, from a tag
+// TC-828, FR-051-AC-17 (CR-061): the fuzz target backs its row, from a tag
 // several lines above the invocation — the span is the whole file.
 #[test]
 fn tc828_the_fuzz_target_backs_tc579() {

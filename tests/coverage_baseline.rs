@@ -53,7 +53,7 @@ fn render_report() -> String {
     format!("{}\n", report.to_json())
 }
 
-/// TC-824 (FR-050-AC-7, CR-057): the coverage report over the baseline corpus
+/// TC-824, FR-050-AC-7 (CR-057): the coverage report over the baseline corpus
 /// is byte-identical to the checked-in snapshot.
 #[test]
 fn tc824_coverage_report_matches_the_checked_in_baseline() {
@@ -79,7 +79,7 @@ fn tc824_coverage_report_matches_the_checked_in_baseline() {
     );
 }
 
-/// TC-824 (FR-050-AC-7, CR-057): and the baseline corpus still exercises what
+/// TC-824, FR-050-AC-7 (CR-057): and the baseline corpus still exercises what
 /// it was chosen to exercise. A gate over a corpus that has quietly stopped
 /// producing findings passes forever while measuring nothing — the failure
 /// mode of every baseline nobody re-reads.
