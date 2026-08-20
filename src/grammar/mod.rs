@@ -896,7 +896,7 @@ mod tests {
         assert!(merge_severity_overrides(&manifest, ["ac:unclassifiable=off"]).is_ok());
     }
 
-    // FR-048: an `error` mapping promotes the emitted finding's severity.
+    // FR-048-AC-3: an `error` mapping promotes the emitted finding to an error.
     #[test]
     fn error_level_promotes_finding_severity() {
         let mut map = GrammarSeverityMap::new();

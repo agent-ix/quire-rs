@@ -244,7 +244,8 @@ def test_spec_queries_on_real_spec():
     frs = spec.by_type("FR")
     assert "FR-025" in frs and "FR-027" in frs
 
-    # FR-025/026/027 implement StR-006 -> reverse lookup finds them.
+    # Those three requirements implement StR-006, so the reverse lookup
+    # finds them. (Ids kept out of tag-shaped position: a trailing `/` binds.)
     referrers = [src for (src, _etype) in spec.referencing("StR-006")]
     for fr in ("FR-025", "FR-026", "FR-027"):
         assert fr in referrers
@@ -696,7 +697,7 @@ def test_new_functions_release_gil():
 
 
 def test_gil_released_under_concurrency():
-    """NFR-016: two threads each loading the spec run concurrently
+    """NFR-016-AC-2: two threads each loading the spec run concurrently
     (GIL released during the Rust work), so they don't serialize."""
 
     def load():

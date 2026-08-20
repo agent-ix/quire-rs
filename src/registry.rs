@@ -808,7 +808,7 @@ object_types:
         assert!(r.failures()[0].reason.contains("manifest.yaml"));
     }
 
-    // FR-036: manifest lint_rules are typed at load and surface via
+    // FR-036-AC-1: manifest lint_rules are typed at load and surface via
     // Registry::lint_rules(), in load order.
     #[test]
     fn lint_rules_flow_from_manifest_to_registry() {
@@ -944,7 +944,8 @@ lint_rules:
         );
     }
 
-    // FR-036: a malformed lint rule fails manifest parse (typed, not
+    // FR-036-AC-1: a malformed lint rule fails manifest parse — the negative
+    // path of "typed at load" (typed, not
     // inert passthrough).
     #[test]
     fn malformed_lint_rule_fails_module_load() {

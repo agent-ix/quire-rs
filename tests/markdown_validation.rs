@@ -241,7 +241,7 @@ The requirement classes that make up this specification and how they trace.\n\
 ## References\n\
 - ISO/IEC/IEEE 29148 — Requirements engineering.\n";
 
-// FR-003-AC-3: a conformant master spec validates.
+// FR-032-AC-1: a conformant master spec validates.
 // TC-581, FR-011-AC-20: a numbered master spec validates — the `from: heading`
 // locator normalizes the ISO section-number prefix, so `## 2. Scope` matches.
 #[test]
@@ -254,7 +254,7 @@ fn conformant_master_requirements_validates() {
     assert!(result.is_valid, "expected valid, got: {:?}", result.errors);
 }
 
-// FR-003-AC-4: a missing component_type fails with reason `frontmatter`.
+// FR-032-AC-4: a missing component_type fails with reason `frontmatter`.
 #[test]
 fn master_requirements_missing_component_type_fails() {
     let r = iso_registry();
@@ -268,7 +268,7 @@ fn master_requirements_missing_component_type_fails() {
         .any(|e| e.reason == ValidationReason::Frontmatter));
 }
 
-// FR-003-AC-5: a non-kebab component_type fails the pattern (frontmatter).
+// FR-032-AC-4: a non-kebab component_type fails the pattern (frontmatter).
 #[test]
 fn master_requirements_non_kebab_component_type_fails() {
     let r = iso_registry();
@@ -285,7 +285,7 @@ fn master_requirements_non_kebab_component_type_fails() {
         .any(|e| e.reason == ValidationReason::Frontmatter));
 }
 
-// FR-003-AC-6: dropping the H1 title fails with reason `missing` (level-1
+// FR-032-AC-2: dropping the H1 title fails with reason `missing` (level-1
 // heading locator).
 #[test]
 fn master_requirements_missing_h1_title_fails() {
@@ -303,7 +303,7 @@ fn master_requirements_missing_h1_title_fails() {
     assert!(e.message.contains("title"), "{}", e.message);
 }
 
-// FR-003-AC-6: dropping a required canonical section fails with `missing`.
+// FR-032-AC-2: dropping a required canonical section fails with `missing`.
 #[test]
 fn master_requirements_missing_section_fails() {
     let r = iso_registry();
@@ -322,7 +322,7 @@ fn master_requirements_missing_section_fails() {
     assert!(e.message.contains("References"), "{}", e.message);
 }
 
-// FR-003-AC-7: optional/extra sections (Domain Model, Security Model) are
+// FR-032-AC-1: optional/extra sections (Domain Model, Security Model) are
 // accepted — the contract asserts required structure, it does not forbid extras.
 #[test]
 fn master_requirements_optional_sections_accepted() {
@@ -336,7 +336,7 @@ fn master_requirements_optional_sections_accepted() {
     assert!(result.is_valid, "expected valid, got: {:?}", result.errors);
 }
 
-// FR-003 + FR-010: ISO section numbering is decorative. A master spec whose
+// FR-032-AC-1: ISO section numbering is decorative (FR-010 locators). A master spec whose
 // canonical sections carry `## N. Name` prefixes validates the same as the
 // bare `## Name` skeleton — the `from: heading` locator normalizes the number
 // prefix consistently with `section_body`/`after_heading`.
