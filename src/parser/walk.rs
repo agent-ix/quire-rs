@@ -237,7 +237,7 @@ mod tests {
         assert_eq!(hs[1].line, 4);
     }
 
-    // FR-019: stable block IDs via Pandoc heading attribute.
+    // FR-019-AC-2: the `{#…}` attribute is stripped from the heading text.
     // TC-402, FR-019-AC-2: the attribute is parsed off the heading text.
     #[test]
     fn pandoc_block_id_attribute_is_stripped_from_text() {

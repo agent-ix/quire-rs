@@ -222,6 +222,149 @@ fn bind_implements(
     }
 }
 
+/// Blank the *contents* of Rust string literals, preserving byte length and
+/// line structure so downstream offset arithmetic is unaffected.
+///
+/// A symbol's attached source includes its body, so any file that carries
+/// trace-shaped text inside a string literal binds ids that were never
+/// authored as tags. This engine's own suite is full of them — it feeds
+/// tag-shaped snippets to the extractor as fixtures, and every one of those
+/// bound. (No example is spelled out here: a comment containing a real tag
+/// would itself bind, which is the same defect one level up.)
+///
+/// Applied to the **legacy textual forms only**. Canonical markers put their
+/// ids inside string literals by design (`#[trace("TC-707")]`), so masking
+/// before matching them would suppress exactly the form the grammar prefers.
+///
+/// Comments are left intact — that is where legacy tags live. A `"` inside a
+/// comment must not open a string, or an apostrophe-quote in prose would mask
+/// every line that follows.
+fn mask_rust_string_contents(span: &str) -> String {
+    let mut out = String::with_capacity(span.len());
+    let mut block_depth: u32 = 0;
+    let mut raw_hashes: Option<usize> = None;
+    let mut in_string = false;
+
+    for line in span.split_inclusive('\n') {
+        let chars: Vec<char> = line.chars().collect();
+        let mut i = 0;
+        // A masked char becomes a space, but only when it is ASCII — a
+        // multi-byte char is replaced by itself so byte offsets never shift.
+        let blank = |c: char, out: &mut String| {
+            if c == '\n' || c == '\r' || !c.is_ascii() {
+                out.push(c);
+            } else {
+                out.push(' ');
+            }
+        };
+
+        while i < chars.len() {
+            let c = chars[i];
+
+            if let Some(hashes) = raw_hashes {
+                if c == '"' && chars[i + 1..].iter().take(hashes).all(|h| *h == '#') {
+                    raw_hashes = None;
+                    out.push(c);
+                    for h in chars[i + 1..].iter().take(hashes) {
+                        out.push(*h);
+                    }
+                    i += 1 + hashes;
+                    continue;
+                }
+                blank(c, &mut out);
+                i += 1;
+                continue;
+            }
+
+            if in_string {
+                if c == '\\' {
+                    blank(c, &mut out);
+                    if let Some(n) = chars.get(i + 1) {
+                        blank(*n, &mut out);
+                    }
+                    i += 2;
+                    continue;
+                }
+                if c == '"' {
+                    in_string = false;
+                    out.push(c);
+                } else {
+                    blank(c, &mut out);
+                }
+                i += 1;
+                continue;
+            }
+
+            if block_depth > 0 {
+                if c == '/' && chars.get(i + 1) == Some(&'*') {
+                    block_depth += 1;
+                    out.push_str("/*");
+                    i += 2;
+                    continue;
+                }
+                if c == '*' && chars.get(i + 1) == Some(&'/') {
+                    block_depth -= 1;
+                    out.push_str("*/");
+                    i += 2;
+                    continue;
+                }
+                out.push(c);
+                i += 1;
+                continue;
+            }
+
+            // A line comment runs to end of line and is kept verbatim: legacy
+            // tags live here.
+            if c == '/' && chars.get(i + 1) == Some(&'/') {
+                for rest in &chars[i..] {
+                    out.push(*rest);
+                }
+                break;
+            }
+            if c == '/' && chars.get(i + 1) == Some(&'*') {
+                block_depth = 1;
+                out.push_str("/*");
+                i += 2;
+                continue;
+            }
+            // `r"…"` / `r#"…"#` / `br#"…"#`
+            if (c == 'r' || c == 'b') && !prev_is_ident(&chars, i) {
+                let mut j = i;
+                if chars[j] == 'b' {
+                    j += 1;
+                }
+                if chars.get(j) == Some(&'r') {
+                    let start = j + 1;
+                    let hashes = chars[start..].iter().take_while(|h| **h == '#').count();
+                    if chars.get(start + hashes) == Some(&'"') {
+                        raw_hashes = Some(hashes);
+                        for k in &chars[i..=start + hashes] {
+                            out.push(*k);
+                        }
+                        i = start + hashes + 1;
+                        continue;
+                    }
+                }
+            }
+            if c == '"' {
+                in_string = true;
+                out.push(c);
+                i += 1;
+                continue;
+            }
+            out.push(c);
+            i += 1;
+        }
+    }
+    out
+}
+
+/// True when the char before `i` could continue an identifier, so an `r` there
+/// is part of a name (`str"` never opens a raw string) rather than a prefix.
+fn prev_is_ident(chars: &[char], i: usize) -> bool {
+    i > 0 && (chars[i - 1].is_alphanumeric() || chars[i - 1] == '_')
+}
+
 fn bind_symbol(symbol: &Symbol, source: &str, model: &TraceabilityModel, graph: &mut SymbolGraph) {
     let span = symbol.attached_source(source);
     // Every attachment of a trace id to this symbol, in discovery order
@@ -259,6 +402,16 @@ fn bind_symbol(symbol: &Symbol, source: &str, model: &TraceabilityModel, graph: 
     }
 
     // ── Legacy textual forms ──
+    //
+    // Matched against a span whose Rust string *contents* are blanked. A
+    // legacy tag is comment text; trace-shaped characters inside a string
+    // literal are data the file happens to carry, and binding them invents
+    // coverage nobody authored. Byte length and line breaks are preserved, so
+    // the rewrite-suggestion offset arithmetic below is unaffected.
+    let legacy_span = match symbol.language {
+        SourceLanguage::Rust => mask_rust_string_contents(&span),
+        _ => span.clone(),
+    };
     for legacy in &model.trace_tags.legacy {
         if legacy.language.is_some_and(|l| l != symbol.language) {
             continue;
@@ -266,7 +419,7 @@ fn bind_symbol(symbol: &Symbol, source: &str, model: &TraceabilityModel, graph: 
         let Some(re) = compile(&legacy.pattern) else {
             continue;
         };
-        for caps in re.captures_iter(&span) {
+        for caps in re.captures_iter(&legacy_span) {
             let trace_ids = legacy_ids(&caps, legacy.id_format.as_deref());
             if trace_ids.is_empty() {
                 continue;
@@ -293,7 +446,7 @@ fn bind_symbol(symbol: &Symbol, source: &str, model: &TraceabilityModel, graph: 
             {
                 if let Some(template) = &marker.template {
                     let line = symbol.leading_line
-                        + span[..caps.get(0).map_or(0, |m| m.start())]
+                        + legacy_span[..caps.get(0).map_or(0, |m| m.start())]
                             .matches('\n')
                             .count();
                     let ids = trace_ids
@@ -769,6 +922,52 @@ mod tests {
         assert_eq!(suggestion.to_marker, "rust-trace-attribute");
         assert_eq!(suggestion.suggestion, "#[trace(\"FR-051-AC-11\")]");
         assert!(suggestion.line >= 1);
+    }
+
+    // TC-894, FR-051-AC-6: a legacy tag inside a Rust string literal is data,
+    // not a marker. This engine's own suite feeds tag-shaped snippets to the
+    // extractor as fixtures, and before the mask every one of them bound and
+    // showed up as an untracked symbol. The ids below sit outside any declared
+    // range so this test cannot itself mint coverage.
+    #[test]
+    fn tc894_a_trace_tag_inside_a_string_literal_does_not_bind() {
+        let extraction = crate::symbols::extract_file(
+            "src/lib.rs",
+            SourceLanguage::Rust,
+            "#[test]\n\
+             fn holds_a_fixture() {\n\
+             \x20   let fixture = \"// TC-901, FR-901-AC-1: prose\";\n\
+             \x20   let _ = fixture;\n\
+             }\n",
+        );
+        let graph = bind(&extraction, &iso_model());
+        let ids: Vec<&str> = graph.verifies.iter().map(|v| v.trace_id.as_str()).collect();
+        assert!(
+            !ids.contains(&"TC-901") && !ids.contains(&"FR-901-AC-1"),
+            "ids inside a string literal must not bind; got {ids:?}"
+        );
+    }
+
+    // TC-895, FR-051-AC-6: the mask must not reach the canonical marker, whose
+    // ids are string literals by design. Masking before matching it would
+    // suppress exactly the form the grammar prefers.
+    #[test]
+    fn tc895_the_canonical_marker_still_binds_its_string_arguments() {
+        let extraction = crate::symbols::extract_file(
+            "src/lib.rs",
+            SourceLanguage::Rust,
+            "#[trace(\"TC-902\", \"FR-902-AC-1\")]\n\
+             #[test]\n\
+             fn carries_a_canonical_marker() {\n\
+             \x20   let _ = 1;\n\
+             }\n",
+        );
+        let graph = bind(&extraction, &iso_model());
+        let ids: Vec<&str> = graph.verifies.iter().map(|v| v.trace_id.as_str()).collect();
+        assert!(
+            ids.contains(&"TC-902") && ids.contains(&"FR-902-AC-1"),
+            "the canonical marker's string arguments must still bind; got {ids:?}"
+        );
     }
 
     // TC-806, FR-051-AC-16: a legacy form yields every id its match carries,

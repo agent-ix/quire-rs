@@ -242,7 +242,8 @@ fn reverse_lookup_finds_the_referencing_frs() {
 #[test]
 fn real_stakeholder_targets_are_not_dangling() {
     let spec = dogfood();
-    // StR-005 / StR-006 exist on disk, so no edge to them is dangling.
+    // Both stakeholder requirements exist on disk, so no edge to them is
+    // dangling. (Ids kept out of a tag-shaped position: `StR-005 /` would bind.)
     for str_id in ["StR-005", "StR-006"] {
         assert!(
             spec.dangling().iter().all(|e| e.target != str_id),
