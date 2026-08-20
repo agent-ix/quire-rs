@@ -69,7 +69,7 @@ fn derive_at(scope: &Path, module: &str) -> Vec<quire_rs::Obligation> {
     derive(&spec, scope, &model_of(module)).0
 }
 
-// TC-831 (FR-053-AC-1): a `target:`-bound source yields one record per row of
+// TC-831, FR-053-AC-1: a `target:`-bound source yields one record per row of
 // the named trace target's table, keyed on the id the rollup already mints.
 #[test]
 fn tc831_target_bound_source_mints_one_record_per_row() {
@@ -91,7 +91,7 @@ fn tc831_target_bound_source_mints_one_record_per_row() {
     assert_eq!(obligations[1].method.as_deref(), Some("Analysis"));
 }
 
-// TC-832 (FR-053-AC-2): an `archetype:`+`id_format:` source covers rows with no
+// TC-832, FR-053-AC-2: an `archetype:`+`id_format:` source covers rows with no
 // id column, rendering `{document}` and the 1-based `{row}`.
 #[test]
 fn tc832_archetype_bound_source_renders_ids() {
@@ -119,7 +119,7 @@ fn tc832_archetype_bound_source_renders_ids() {
     assert_eq!(obligations[1].parameters.get("threshold").unwrap(), "< 8ms");
 }
 
-// TC-833 (FR-053-AC-3): a source declaring both origins, or neither, fails
+// TC-833, FR-053-AC-3: a source declaring both origins, or neither, fails
 // module load with a diagnostic naming it.
 #[test]
 fn tc833_ambiguous_or_originless_source_fails_load() {
@@ -156,7 +156,7 @@ fn tc833_ambiguous_or_originless_source_fails_load() {
     }
 }
 
-// TC-834 (FR-053-AC-4): whitespace does not churn the hash; a word does —
+// TC-834, FR-053-AC-4: whitespace does not churn the hash; a word does —
 // including a word inside an inline code span, which the CR-017 mask would have
 // collapsed.
 #[test]
@@ -176,7 +176,7 @@ fn tc834_hash_is_whitespace_insensitive_and_word_sensitive() {
     );
 }
 
-// TC-835 (FR-053-AC-5): one cell, two readings. The method drops the trailing
+// TC-835, FR-053-AC-5: one cell, two readings. The method drops the trailing
 // annotation; FR-049 still reads the reference out of the same cell.
 #[test]
 fn tc835_method_and_reference_read_the_same_cell() {
@@ -208,7 +208,7 @@ fn tc835_method_and_reference_read_the_same_cell() {
     );
 }
 
-// TC-836 (FR-053-AC-6): declared parameters with no cell are omitted, never
+// TC-836, FR-053-AC-6: declared parameters with no cell are omitted, never
 // present-and-empty. A threshold nobody wrote is not a threshold of zero.
 #[test]
 fn tc836_absent_parameters_are_omitted() {
@@ -233,7 +233,7 @@ fn tc836_absent_parameters_are_omitted() {
     );
 }
 
-// TC-837 (FR-053-AC-7): criticality is genuinely optional — a source declaring
+// TC-837, FR-053-AC-7: criticality is genuinely optional — a source declaring
 // no column, and one declaring an empty column, agree on every other field.
 #[test]
 fn tc837_criticality_is_optional() {
@@ -251,7 +251,7 @@ fn tc837_criticality_is_optional() {
     assert!(!declared_but_empty[0].statement_hash.is_empty());
 }
 
-// TC-838 (FR-053-AC-8): a row whose statement cell is empty is skipped and
+// TC-838, FR-053-AC-8: a row whose statement cell is empty is skipped and
 // reported, never emitted as a record stating nothing.
 #[test]
 fn tc838_empty_statement_row_is_skipped_and_reported() {
@@ -271,7 +271,7 @@ fn tc838_empty_statement_row_is_skipped_and_reported() {
     assert_eq!(skipped[0].source, "acceptance-criterion");
 }
 
-// TC-870 (FR-053-AC-8): the skipped row reaches the coverage report, which is
+// TC-870, FR-053-AC-8: the skipped row reaches the coverage report, which is
 // the only surface anybody reads. TC-838 proves `derive` returns it; this proves
 // it is not dropped on the way out (#151, CR-063).
 #[test]
@@ -308,7 +308,7 @@ fn tc870_skipped_row_is_reported_in_the_coverage_report() {
     assert!(report.to_json().contains("obligation-row-states-nothing"));
 }
 
-// TC-871 (FR-053-AC-4): Unicode normalization form does not change the hash.
+// TC-871, FR-053-AC-4: Unicode normalization form does not change the hash.
 // The FR asserted this and the code skipped it; NFC is now applied (CR-063).
 #[test]
 fn tc871_hash_is_normalization_form_insensitive() {
@@ -329,7 +329,7 @@ fn tc871_hash_is_normalization_form_insensitive() {
     );
 }
 
-// TC-872 (FR-053-AC-9): record order follows source DECLARATION order, not
+// TC-872, FR-053-AC-9: record order follows source DECLARATION order, not
 // source name. The fixture declares `zzz-metric` before `aaa-criterion`, so the
 // two orderings disagree — which is the only way to tell them apart (#151).
 #[test]
@@ -365,7 +365,7 @@ fn tc872_order_is_declaration_order_not_source_name() {
     );
 }
 
-// TC-873 (FR-053-AC-14): an `exclude`d document states no obligation on EITHER
+// TC-873, FR-053-AC-14: an `exclude`d document states no obligation on EITHER
 // surface. Before #151 the rollup honoured the glob and the classification path
 // did not, so an excluded fixture criterion carried an obligation a generator
 // would have emitted a dead trace tag for.
@@ -418,7 +418,7 @@ fn tc873_exclude_applies_to_both_surfaces() {
     );
 }
 
-// TC-839 (FR-053-AC-9): derivation is deterministic and ordered.
+// TC-839, FR-053-AC-9: derivation is deterministic and ordered.
 #[test]
 fn tc839_derivation_is_deterministic() {
     let scope = ac_bundle(
@@ -438,7 +438,7 @@ fn tc839_derivation_is_deterministic() {
     assert_eq!(a[1].id, "FR-001-AC-2");
 }
 
-// TC-840 (FR-053-AC-10): the classification record carries the obligation,
+// TC-840, FR-053-AC-10: the classification record carries the obligation,
 // matched by row id — and carries `None` for a module declaring no sources.
 #[test]
 fn tc840_classification_carries_the_obligation() {
@@ -478,7 +478,7 @@ fn tc840_classification_carries_the_obligation() {
     assert_eq!(plain[0].signals, records[0].signals);
 }
 
-// TC-841 (FR-053-AC-11): the coverage report carries the records, and a model
+// TC-841, FR-053-AC-11: the coverage report carries the records, and a model
 // declaring no sources carries an empty list that serializes away entirely, so
 // FR-050-AC-7 byte-identity holds for every module that has not adopted them.
 #[test]
@@ -509,7 +509,7 @@ fn tc841_coverage_report_carries_obligations() {
     }
 }
 
-// TC-842 (FR-053-AC-12): the hash follows the statement, not its position. A
+// TC-842, FR-053-AC-12: the hash follows the statement, not its position. A
 // suspect-link detector that fires on a file move is one that gets switched off.
 #[test]
 fn tc842_hash_survives_a_move_and_a_renumber() {
@@ -550,7 +550,7 @@ fn tc842_hash_survives_a_move_and_a_renumber() {
     assert_ne!(a[0].statement_hash, c[0].statement_hash);
 }
 
-// TC-843 (FR-053-AC-13): the nested obligation carries no id, statement or
+// TC-843, FR-053-AC-13: the nested obligation carries no id, statement or
 // document — the record and its enclosing object already have all three.
 #[test]
 fn tc843_nested_obligation_does_not_repeat_the_record() {
@@ -576,7 +576,7 @@ fn tc843_nested_obligation_does_not_repeat_the_record() {
     assert!(object.contains_key("statement_hash"));
 }
 
-// TC-935 (FR-053-AC-11): the obligation carries the test-case ids its method
+// TC-935, FR-053-AC-11: the obligation carries the test-case ids its method
 // cell names, so a consumer binding evidence keyed on a TEST CASE can join.
 //
 // The engine already parses this parenthetical — `method_of` finds the same `(`

@@ -640,7 +640,7 @@ mod tests {
 
     // ─── CR-007: escaped pipes are literal cell content ─────────────────
 
-    // TC-589 (FR-010-AC-4, CR-007): an escaped pipe is cell content, not a delimiter.
+    // TC-589, FR-010-AC-4 (CR-007): an escaped pipe is cell content, not a delimiter.
     #[test]
     fn cr007_escaped_pipe_in_body_cell_is_literal_not_delimiter() {
         // The cell that bit in the wild: `<service\|alias>` was split

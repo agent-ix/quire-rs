@@ -238,7 +238,7 @@ mod tests {
     }
 
     // FR-019: stable block IDs via Pandoc heading attribute.
-    // TC-402 (FR-019-AC-2): the attribute is parsed off the heading text.
+    // TC-402, FR-019-AC-2: the attribute is parsed off the heading text.
     #[test]
     fn pandoc_block_id_attribute_is_stripped_from_text() {
         let hs = walk_headings(&lines("## Behavior {#blk-7af2}"));
@@ -247,7 +247,7 @@ mod tests {
         assert_eq!(hs[0].block_id.as_deref(), Some("blk-7af2"));
     }
 
-    // TC-403 (FR-019-AC-1): no attribute means no id, never a synthesized one.
+    // TC-403, FR-019-AC-1: no attribute means no id, never a synthesized one.
     #[test]
     fn heading_without_attribute_has_no_block_id() {
         let hs = walk_headings(&lines("## Behavior"));
@@ -255,7 +255,7 @@ mod tests {
         assert!(hs[0].block_id.is_none());
     }
 
-    // TC-400 (FR-019-AC-1): the id characters an author may write.
+    // TC-400, FR-019-AC-1: the id characters an author may write.
     #[test]
     fn block_id_allows_alphanumeric_dash_underscore() {
         let hs = walk_headings(&lines("### Section foo {#abc_123-XY}"));
@@ -279,7 +279,7 @@ mod tests {
         assert_eq!(hs[0].block_id.as_deref(), Some("blk-x"));
     }
 
-    // TC-443 (FR-019-AC-3): the id survives a reparse.
+    // TC-443, FR-019-AC-3: the id survives a reparse.
     #[test]
     fn block_id_round_trip_parse_reparse_is_stable() {
         // Document is parsed, the section's block_id captured, and a

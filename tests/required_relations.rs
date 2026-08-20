@@ -68,7 +68,7 @@ fn findings<'r>(report: &'r BundleReport, reason: &str) -> Vec<&'r BundleFinding
         .collect()
 }
 
-// TC-898 (FR-058-AC-1): an FR with no upstream edge to a declared kind is
+// TC-898, FR-058-AC-1: an FR with no upstream edge to a declared kind is
 // reported; one that has the edge is not. This is the orphan-requirement case —
 // a feature nobody asked for — and it is the only analysis class that finds a
 // *missing* requirement rather than an unverified one.
@@ -99,7 +99,7 @@ fn tc898_an_fr_with_no_upstream_need_is_reported() {
     fs::remove_dir_all(&root).ok();
 }
 
-// TC-899 (FR-058-AC-2): any one of the declared verbs satisfies the relation —
+// TC-899, FR-058-AC-2: any one of the declared verbs satisfies the relation —
 // a module that accepts `implements` or `refines` says so once rather than
 // declaring the relation twice.
 #[test]
@@ -130,7 +130,7 @@ fn tc899_any_declared_verb_satisfies_the_relation() {
     fs::remove_dir_all(&root).ok();
 }
 
-// TC-900 (FR-058-AC-3): the `incoming` direction reads the same declaration
+// TC-900, FR-058-AC-3: the `incoming` direction reads the same declaration
 // the other way — a stated need nothing implements is a need nobody built.
 #[test]
 fn tc900_a_need_nothing_satisfies_is_reported() {
@@ -150,7 +150,7 @@ fn tc900_a_need_nothing_satisfies_is_reported() {
     fs::remove_dir_all(&root).ok();
 }
 
-// TC-901 (FR-058-AC-4): a **dangling** edge does not satisfy a relation whose
+// TC-901, FR-058-AC-4: a **dangling** edge does not satisfy a relation whose
 // targets are constrained. The target is not in the bundle, so nothing can say
 // what archetype it is — and accepting it would let a typo satisfy the
 // requirement it broke.
@@ -173,7 +173,7 @@ fn tc901_a_dangling_edge_does_not_satisfy_a_constrained_relation() {
     fs::remove_dir_all(&root).ok();
 }
 
-// TC-902 (FR-058-AC-5): a cycle over a declared acyclic verb is reported once,
+// TC-902, FR-058-AC-5: a cycle over a declared acyclic verb is reported once,
 // naming the path. A requirement that transitively derives from itself states
 // nothing, and no per-document check can see it.
 //
@@ -261,7 +261,7 @@ fn tc903_each_relation_is_independently_tunable() {
     fs::remove_dir_all(&root).ok();
 }
 
-// TC-904 (FR-058-AC-8): a module declaring neither key is a no-op — the report
+// TC-904, FR-058-AC-8: a module declaring neither key is a no-op — the report
 // is byte-identical to one from a module that never heard of FR-058.
 #[test]
 fn tc904_a_module_declaring_nothing_sees_no_change() {
@@ -280,7 +280,7 @@ fn tc904_a_module_declaring_nothing_sees_no_change() {
     fs::remove_dir_all(&root).ok();
 }
 
-// TC-905 (FR-058-CON-1): every field of the declared model survives a merge.
+// TC-905, FR-058-CON-1: every field of the declared model survives a merge.
 //
 // This exists because adding `required_relations` broke **two** hand-maintained
 // per-field functions at once — `TraceabilityModel::is_empty`, which decides
@@ -329,7 +329,7 @@ fn tc905_every_declared_field_survives_the_merge() {
     );
 }
 
-// TC-906 (FR-058-AC-10): a required relation that cannot be executed is
+// TC-906, FR-058-AC-10: a required relation that cannot be executed is
 // rejected at load, not discovered as a corpus-wide false alarm.
 //
 // The two failure modes below are the reason this check exists at all. Neither
@@ -400,7 +400,7 @@ fn tc906_an_unexecutable_relation_is_rejected_at_load() {
     assert!(err.contains("acyclic_edges"), "{err}");
 }
 
-// TC-907 (FR-058-AC-10): two relations cannot share a name.
+// TC-907, FR-058-AC-10: two relations cannot share a name.
 //
 // The name is what the finding is reported under and what a reader matches
 // against the manifest. Two entries sharing one name make a report that cannot
@@ -430,7 +430,7 @@ fn tc907_duplicate_relation_names_are_rejected() {
     );
 }
 
-// TC-908 (FR-058-AC-11): a relation naming a kind nothing declares and no
+// TC-908, FR-058-AC-11: a relation naming a kind nothing declares and no
 // document is reports itself, instead of silently checking nothing.
 //
 // This is the failure this check exists for, and it is invisible without it.
@@ -491,7 +491,7 @@ fn tc908_a_relation_naming_a_dead_kind_reports_itself() {
     fs::remove_dir_all(&module).ok();
 }
 
-// TC-909 (FR-058-AC-2): the `to` list accepts more than one upstream kind, so
+// TC-909, FR-058-AC-2: the `to` list accepts more than one upstream kind, so
 // an FR hanging off a use case rather than a stakeholder requirement satisfies
 // the same relation.
 //
@@ -530,7 +530,7 @@ fn tc909_an_fr_satisfying_a_use_case_is_not_an_orphan() {
     fs::remove_dir_all(&root).ok();
 }
 
-// TC-910 (FR-058-AC-1): the finding reads as a sentence for both shapes of
+// TC-910, FR-058-AC-1: the finding reads as a sentence for both shapes of
 // `to` — a constrained list and the `to: []` "any document" case.
 //
 // The first end-to-end run against `spec-objects-safety`, whose

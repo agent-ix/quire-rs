@@ -327,7 +327,7 @@ yield_pattern:
         assert!(r.is_err(), "deny_unknown_fields should reject unknown keys");
     }
 
-    // TC-538 (FR-033-AC-5): an unknown assert key fails YAML parse
+    // TC-538, FR-033-AC-5: an unknown assert key fails YAML parse
     // (deny_unknown_fields on LocatorAssert).
     #[test]
     fn unknown_assert_key_fails_yaml_parse() {
@@ -348,7 +348,7 @@ yield_pattern:
         );
     }
 
-    // TC-538 (FR-033-AC-5): `columns` on a `section_body` locator is a
+    // TC-538, FR-033-AC-5: `columns` on a `section_body` locator is a
     // load-time DslValidationError naming the locator.
     #[test]
     fn columns_on_section_body_is_load_error() {
@@ -413,7 +413,7 @@ yield_pattern:
         validate_dsl("FR", &dsl).expect("valid assert");
     }
 
-    // TC-570 (FR-033-AC-7): the assert-key × locator-kind legality matrix.
+    // TC-570, FR-033-AC-7: the assert-key × locator-kind legality matrix.
     // For every (kind, key) cell: legal cells pass `validate_assert_for_kind`,
     // illegal cells produce an `ArchetypeLoadFailure` (DslValidationError)
     // naming the archetype + offending key. Table-driven across every cell.

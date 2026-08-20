@@ -765,7 +765,7 @@ mod props_metamorphic {
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(4000))]
 
-        /// TC-890 (FR-053-AC-4, CR-069, Property): statement normalization is
+        /// TC-890, FR-053-AC-4 (CR-069, Property): statement normalization is
         /// idempotent. The obligation id is a hash of this output, so a
         /// non-idempotent normalizer would mean an obligation's identity
         /// depended on how many times the text had been round-tripped.
@@ -775,7 +775,7 @@ mod props_metamorphic {
             prop_assert_eq!(super::normalize_statement(&once), once.clone(), "input={:?}", s);
         }
 
-        /// TC-890 (FR-053-AC-4, CR-069, Property): and the hash follows the
+        /// TC-890, FR-053-AC-4 (CR-069, Property): and the hash follows the
         /// normalized form, so hashing a statement and hashing its own
         /// normalization agree — the whitespace-insensitivity TC-834 asserts on
         /// examples, stated over the whole input space.

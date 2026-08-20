@@ -766,7 +766,7 @@ mod tests {
         }
     }
 
-    // TC-719 (FR-048-AC-4): a finding whose `<grammar>:<check>` key is absent
+    // TC-719, FR-048-AC-4: a finding whose `<grammar>:<check>` key is absent
     // from the merged map defaults to `warning`.
     #[test]
     fn tc719_absent_key_defaults_to_warning() {
@@ -778,7 +778,7 @@ mod tests {
         assert_eq!(out[0].severity, GrammarSeverity::Warning);
     }
 
-    // TC-752 (FR-048-AC-9): an `off`-mapped check records no finding at all,
+    // TC-752, FR-048-AC-9: an `off`-mapped check records no finding at all,
     // while sibling checks of the same grammar still report.
     #[test]
     fn tc752_off_drops_the_finding_before_routing() {
@@ -799,7 +799,7 @@ mod tests {
         assert_eq!(keys, vec!["ac:non-singular", "ears:vague-response"]);
     }
 
-    // TC-714 (FR-047-AC-8): the summary histogram groups by the generic
+    // TC-714, FR-047-AC-8: the summary histogram groups by the generic
     // `[<grammar>:<check>]` prefix, so a corpus emitting both `[ears:*]` and
     // `[ac:*]` findings shows both.
     #[test]
@@ -827,7 +827,7 @@ mod tests {
         );
     }
 
-    // TC-720 (FR-048-AC-5): `--severity` entries are repeatable and take
+    // TC-720, FR-048-AC-5: `--severity` entries are repeatable and take
     // precedence over a conflicting manifest entry for the same key.
     #[test]
     fn tc720_cli_severity_overrides_manifest() {
@@ -853,7 +853,7 @@ mod tests {
         assert_eq!(out[0].severity, GrammarSeverity::Error);
     }
 
-    // TC-721 (FR-048-AC-6): `--strict` semantics are untouched. The engine
+    // TC-721, FR-048-AC-6: `--strict` semantics are untouched. The engine
     // surface `--strict` reads is unchanged: with no severity map a grammar
     // finding is still a warning that leaves the document valid, so the exit
     // code stays the CLI's own decision.
@@ -869,7 +869,7 @@ mod tests {
         assert_eq!(out[0].severity, GrammarSeverity::Warning);
     }
 
-    // TC-755 (FR-048-AC-10): a malformed `--severity` entry is rejected with a
+    // TC-755, FR-048-AC-10: a malformed `--severity` entry is rejected with a
     // usage diagnostic before validation runs.
     #[test]
     fn tc755_malformed_severity_entry_rejected() {

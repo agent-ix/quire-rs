@@ -45,7 +45,7 @@ On parse, the engine retains every byte of the section body verbatim.\n\
 - **Upstream**: none\n\
 - **Downstream**: none\n";
 
-// TC-528 (FR-032-AC-1): a conformant FR validates.
+// TC-528, FR-032-AC-1: a conformant FR validates.
 #[test]
 fn conformant_fr_validates() {
     let r = iso_registry();
@@ -55,7 +55,7 @@ fn conformant_fr_validates() {
     assert!(result.errors.is_empty());
 }
 
-// TC-529 (FR-032-AC-2): removing a required section fails with reason
+// TC-529, FR-032-AC-2: removing a required section fails with reason
 // `missing`, naming the archetype + section.
 #[test]
 fn missing_required_section_fails() {
@@ -78,7 +78,7 @@ On parse, the engine retains every byte of the section body verbatim.\n\n",
     assert!(e.message.contains("Specification"), "{}", e.message);
 }
 
-// TC-530 (FR-032-AC-3): a placeholder-only required section fails with
+// TC-530, FR-032-AC-3: a placeholder-only required section fails with
 // reason `placeholder` even though the frontmatter is valid.
 #[test]
 fn placeholder_section_fails() {
@@ -96,7 +96,7 @@ fn placeholder_section_fails() {
         .any(|e| e.reason == ValidationReason::Placeholder));
 }
 
-// TC-531 (FR-032-AC-4): a frontmatter-schema violation fails with reason
+// TC-531, FR-032-AC-4: a frontmatter-schema violation fails with reason
 // `frontmatter`, independent of body structure.
 #[test]
 fn frontmatter_violation_fails() {
@@ -112,7 +112,7 @@ fn frontmatter_violation_fails() {
         .any(|e| e.reason == ValidationReason::Frontmatter));
 }
 
-// TC-562 (FR-033-AC-4, registry path): an archetype that carries an
+// TC-562, FR-033-AC-4 (registry path): an archetype that carries an
 // `assert` facet (AC table `columns` + interpolated `id_pattern`),
 // loaded via `Registry`, is wired manifest → load → `validate_document`.
 // This proves the assert path travels the whole pipeline, not just the
@@ -242,7 +242,7 @@ The requirement classes that make up this specification and how they trace.\n\
 - ISO/IEC/IEEE 29148 — Requirements engineering.\n";
 
 // FR-003-AC-3: a conformant master spec validates.
-// TC-581 (FR-011-AC-20): a numbered master spec validates — the `from: heading`
+// TC-581, FR-011-AC-20: a numbered master spec validates — the `from: heading`
 // locator normalizes the ISO section-number prefix, so `## 2. Scope` matches.
 #[test]
 fn conformant_master_requirements_validates() {

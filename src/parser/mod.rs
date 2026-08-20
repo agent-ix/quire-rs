@@ -394,7 +394,7 @@ mod tests {
         assert_eq!(d.sections[1].end_line, 4);
     }
 
-    // TC-812 (FR-005-AC-5): the header tier alone decides membership — a
+    // TC-812, FR-005-AC-5: the header tier alone decides membership — a
     // frontmatter-less, unterminated, or non-mapping input is None, with no
     // body pipeline reachable from parse_header at all.
     #[test]
@@ -413,7 +413,7 @@ mod tests {
         }
     }
 
-    // TC-812 (FR-005-AC-5): the header carries id/type/uuid and the full
+    // TC-812, FR-005-AC-5: the header carries id/type/uuid and the full
     // frontmatter mapping — identity is read, never derived (FR-024-AC-6).
     #[test]
     fn tc812_parse_header_reads_identity_and_full_map() {
@@ -438,7 +438,7 @@ mod tests {
         assert_eq!(no_id.uuid, None);
     }
 
-    // TC-813 (FR-005-AC-6): parse_document is exactly the composition of the
+    // TC-813, FR-005-AC-6: parse_document is exactly the composition of the
     // two tiers — parse_body under a parse_header header is byte-identical.
     #[test]
     fn tc813_parse_document_composes_the_tiers() {
@@ -458,7 +458,7 @@ mod tests {
         }
     }
 
-    // TC-819 (FR-005-AC-7): parse_body is total in its header. `body_offset`
+    // TC-819, FR-005-AC-7: parse_body is total in its header. `body_offset`
     // is an offset into the input the header came from, so a caller can pair a
     // header with a different string; that must describe the string actually
     // given, never panic (public API, PyO3/wasm-reachable).
@@ -501,7 +501,7 @@ mod tests {
             let _ = parse_document(&s);
         }
 
-        // TC-819 (FR-005-AC-7): no (header input, body input) pair panics
+        // TC-819, FR-005-AC-7: no (header input, body input) pair panics
         // parse_body, and the document always describes the body input.
         #[test]
         fn tc819_parse_body_never_panics_on_a_foreign_header(a in "\\PC*", b in "\\PC*") {
@@ -511,7 +511,7 @@ mod tests {
             }
         }
 
-        // TC-813 (FR-005-AC-6): tier composition equals parse_document on
+        // TC-813, FR-005-AC-6: tier composition equals parse_document on
         // arbitrary input — whenever the input is a document at all.
         #[test]
         fn tiers_compose_on_arbitrary_utf8(s in "\\PC*") {

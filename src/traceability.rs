@@ -1178,7 +1178,7 @@ document_references:
         }
     }
 
-    /// TC-829 (FR-050-AC-7, CR-062): `archetype` is the only origin, and it is
+    /// TC-829, FR-050-AC-7 (CR-062): `archetype` is the only origin, and it is
     /// required. A `document:` key — the deleted form — is now an unknown field,
     /// which `deny_unknown_fields` rejects rather than silently ignores: a module
     /// carrying the old declaration fails load instead of minting nothing.

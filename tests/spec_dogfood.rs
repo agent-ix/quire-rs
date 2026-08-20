@@ -126,7 +126,7 @@ fn spec_documents() -> Vec<(PathBuf, String, String)> {
     out
 }
 
-/// TC-794 (FR-048-AC-11) — this repository's own `spec/` carries no finding of
+/// TC-794, FR-048-AC-11 — this repository's own `spec/` carries no finding of
 /// a check the shipped module promotes to `error`.
 ///
 /// The gate this closes: on 2026-08-07 `spec-artifacts-iso` v0.8.0 promoted
