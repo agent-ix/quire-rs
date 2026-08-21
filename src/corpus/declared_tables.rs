@@ -84,7 +84,11 @@ impl ExcludeSet {
 
     /// True when `relative` — a scope-relative, `/`-separated path — is
     /// excluded.
-    fn matches(&self, relative: &str) -> bool {
+    ///
+    /// `pub(crate)` since CR-085: the symbol walk has already normalized the
+    /// relative path for its own identity, and going through [`excludes`] would
+    /// make it build a `Path` and re-derive that string for every file.
+    pub(crate) fn matches(&self, relative: &str) -> bool {
         self.set.as_ref().is_some_and(|set| set.is_match(relative))
     }
 
@@ -94,7 +98,7 @@ impl ExcludeSet {
         !self.is_empty() && self.matches(&relative_path(root, path))
     }
 
-    fn is_empty(&self) -> bool {
+    pub(crate) fn is_empty(&self) -> bool {
         self.set.is_none()
     }
 }

@@ -142,6 +142,57 @@ model; the engine knows nothing of "AC" or "TC" as concepts.
 | FR-050-AC-19 | A declaration that selects nothing is reported in `CoverageReport.diagnostics` and as a `quire validate` warning, never in silence: a declared `archetype:` no corpus document has is reported when the model minted no id at all, and a model declaring no `trace_targets` is reported as minting nothing. `quire coverage` and `quire validate` report the same machine token for the same finding. The list is empty — and the key absent — for a model whose declarations select, so FR-050-AC-7 byte-identity holds (CR-054, amended CR-059, narrowed CR-062). | Test (TC-822) |
 | FR-050-AC-20 | The byte-identity property is gated by a checked-in baseline, not by inspection: a fixture corpus exercising minted ids, an auxiliary matrix, an `exclude:` glob, all three status classes, an undeclared status value (CR-083), the `no_source_symbol` exemption, an untracked symbol, a dangling reference, an undeclared archetype and criteria classification has its report stored as `tests/fixtures/coverage_baseline/expected.json` and byte-diffed on every test run. Regeneration is a deliberate act (`make coverage-baseline-update`) whose diff is reviewed, and a companion test fails if the corpus stops exercising any of that surface (CR-057). | Test (TC-824) |
 | FR-050-AC-21 | A reference row whose authored status value the declared `traceability.status` vocabulary classes as none of `complete`, `pending`, `failed` or `retired` is reported in `CoverageReport.undeclared_statuses` with the declaration, the document, the row id and the authored value verbatim — whether or not the row is backed. A corpus whose every status value is declared reports an empty list, the key is absent from the JSON, and the payload is byte-identical to a report from an engine predating the field. The list does not affect `totals`, and `--strict` does not gate on it (CR-083). | Test (TC-941, TC-942) |
+| FR-050-AC-22 | The model MAY declare `source_exclude:` path globs under the **code** root; a source file matching one yields no symbols and no trace bindings, a non-matching glob leaves the extraction byte-identical, and the document walk's `groups` and `totals` are unaffected either way. The key merges across modules as a union, has its patterns compile-checked at module load like every other glob list, and leaves the model undeclared when it is all a module declares. It can only subtract: a `source_exclude` of `spec/**` neither un-excludes the document root nor admits anything under it (CR-085). | Test (TC-944, TC-945) |
+
+> **CR-085 note (2026-08-20):** AC-22 is new — a declared `source_exclude:`
+> scopes the **source-symbol walk**. `agent-ix/quire-rs#199`.
+>
+> `quire coverage` walked the code tree with exactly one exclusion, the document
+> root, and that exclusion is the caller's argument rather than anything a module
+> can say. So a repository whose fixtures deliberately contain trace tags
+> reported them as untracked symbols forever. This crate is the case in hand:
+> `tests/fixtures/coverage_baseline/scope/src/lib.rs` carries `#[trace("TC-999")]`
+> on a test that nothing declares, because *being unbacked is what it tests*. The
+> fixture cannot change, so nothing on the authoring side could fix it.
+>
+> **A new key, not a widening of `exclude`, and the reason is measurable.**
+> Every existing `exclude:` — model-level and per-declaration alike — is applied
+> to a **document** path; none has ever been shown a source file. Meanwhile
+> `spec-artifacts-process` FR-004-AC-9 *requires* every trace target to exclude
+> `tests/**`, and **194 of this crate's ~458 `#[trace(` markers live under
+> `tests/`** — a share that is near total in every Python and TypeScript
+> repository in the ecosystem. A single key meaning both would delete the
+> evidence tree and read as a catastrophic coverage regression. `tests/**` must
+> therefore never appear on `source_exclude`; the declared value anchors at the
+> fixture directory (`tests/fixtures/**`), and `globset` anchors a pattern at the
+> start unless it opens with `**/`, so it cannot reach `src/tests/fixtures/`.
+>
+> **This does not violate CR-045.** That note forbids *relocating* the two roots:
+> "`spec/` is convention, not configuration: no manifest key and no flag
+> relocates it." `source_exclude` subtracts *within* the code root and can do
+> nothing else. Both roots still derive from one `--scope`, neither is nameable,
+> and the document root's exclusion remains the caller's non-configurable
+> argument — the globs are a second filter applied after it. TC-944 asserts the
+> one-way property directly: declaring `spec/**` as a source glob neither
+> un-excludes the document root nor admits anything under it.
+>
+> Applied **per file, after `language_of`**, never as a directory prune:
+> `tests/fixtures/**` does not match the directory `tests/fixtures` itself, so
+> glob pruning in `filter_entry` would be unreliable in precisely the case the
+> key exists for. The `ExcludeSet` is compiled once outside the walk, for the
+> reason CR-060 gave it its own type.
+>
+> **Scope, measured rather than quoted.** #199 says #198 "took the other 14",
+> leaving `TC-999` as the last untracked symbol. That was stale on arrival:
+> measured on the pinned engine, repo-root self-coverage reports **1** untracked
+> symbol, not 4 — #198 landed and had already removed three `concat!`-fixture
+> cases. So this change takes quire-rs from 1 to **0**. The three the earlier
+> count included are trace-shaped ids inside string fixtures in real `src/`
+> files, which no path glob can reach; they are not this ticket's.
+>
+> `spec/reviews/SR-048-wave-b-gap-analysis.md` triages `TC-999` as a permanent
+> finding. It stops being reported from a repo-root scope once a module declares
+> the glob, so that triage line is superseded and now says so.
 
 > **CR-083 note (2026-08-20):** A status value the model's vocabulary classes as
 > nothing is reported as its own defect (AC-21). `agent-ix/quire-rs#192`.
