@@ -10,14 +10,19 @@ use std::path::{Path, PathBuf};
 
 use super::spec::Spec;
 use crate::ast::QuireDocument;
-use crate::query::{parse_table, section};
+use crate::query::section;
 
-/// One scanned table row: the document it lives in and its cells keyed by the
-/// table's own column headers (trimmed, as authored).
+/// One scanned table row: the document it lives in, its cells keyed by the
+/// table's own column headers (trimmed, as authored), and the 1-based document
+/// line the row sits on (#210).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ScannedRow {
     pub path: PathBuf,
     pub cells: BTreeMap<String, String>,
+    /// 1-based line of the row in its document, frontmatter included — the
+    /// same numbering `validate` findings use, so a consumer can render
+    /// `path:line:` and an editor can jump to the authored row.
+    pub line: usize,
 }
 
 impl ScannedRow {
@@ -262,13 +267,20 @@ pub(crate) fn rows_of(doc: &QuireDocument, path: &Path, heading: &str) -> Vec<Sc
     let Some(sec) = section(doc, heading) else {
         return Vec::new();
     };
-    let Some(table) = parse_table(&sec.content) else {
+    let Some((table, row_lines)) = crate::query::parse_table_with_lines(&sec.content) else {
         return Vec::new();
     };
+    // The frontmatter's line count, so a section's body-relative `start_line`
+    // converts to the 1-based document line `validate` findings use (#210).
+    // Parsed line information was discarded here from v0.1: `ScannedRow` had
+    // no line, so no coverage record could say which authored row it was
+    // about, and `path:line:` output was impossible downstream.
+    let line_offset = crate::validate_document::body_line_offset(&doc.raw);
     table
         .rows
         .iter()
-        .map(|row| {
+        .zip(row_lines)
+        .map(|(row, rel)| {
             let mut cells = BTreeMap::new();
             for (idx, header) in table.headers.iter().enumerate() {
                 cells.insert(
@@ -279,6 +291,14 @@ pub(crate) fn rows_of(doc: &QuireDocument, path: &Path, heading: &str) -> Vec<Sc
             ScannedRow {
                 path: path.to_path_buf(),
                 cells,
+                // `validate_document::to_doc_line` arithmetic over the row's
+                // body line: content index `rel` sits `rel + 1` lines below
+                // the 0-based heading line, and `+ 1` converts to 1-based.
+                // Hand-verified against authored fixtures (TC-955); NOT
+                // `ears::abs_line`, which is one line short of the file for
+                // exactly this shape — a latent defect in the grammar
+                // findings' `line`, out of #210's scope and noted there.
+                line: line_offset + sec.start_line + rel + 2,
             }
         })
         .collect()

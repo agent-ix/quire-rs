@@ -51,6 +51,10 @@ pub struct VerifiesRelation {
     pub provenance: TraceProvenance,
     /// Name of the declared form that bound it.
     pub form: String,
+    /// 1-based declaration line of the verifying symbol (#210) — what
+    /// `untracked_symbols` renders, and a non-identity attribute like
+    /// [`Symbol::line`](super::Symbol::line) itself.
+    pub line: usize,
 }
 
 /// One `implements` relation: a production symbol implements a requirement
@@ -404,6 +408,7 @@ fn bind_symbol(symbol: &Symbol, source: &str, model: &TraceabilityModel, graph: 
                     trace_id,
                     provenance: TraceProvenance::Canonical,
                     form: marker.name.clone(),
+                    line: symbol.line,
                 });
             }
         }
@@ -440,6 +445,7 @@ fn bind_symbol(symbol: &Symbol, source: &str, model: &TraceabilityModel, graph: 
                     trace_id: trace_id.clone(),
                     provenance: TraceProvenance::Legacy,
                     form: legacy.name.clone(),
+                    line: symbol.line,
                 });
             }
             // A rewrite suggestion is emitted only when the target marker

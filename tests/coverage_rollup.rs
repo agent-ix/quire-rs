@@ -467,6 +467,92 @@ fn tc953_excluded_source_file_count_reaches_the_coverage_json() {
     );
 }
 
+#[trace("TC-955", "FR-050-AC-26")]
+// every row-shaped record carries the 1-based document
+// line of the matrix row it came from (#210): line information was discarded
+// at `parse_table` since v0.1, so no consumer could render `path:line:` or
+// jump an editor to the offending row. The fixture's row positions are
+// hand-counted ground truth, frontmatter included — the same numbering
+// `validate` findings use — and two unbacked rows in one document must report
+// different lines.
+#[test]
+fn tc955_row_shaped_records_carry_the_matrix_row_line() {
+    // tests.md: 5 frontmatter lines, blank, heading, blank, section heading,
+    // blank, header (11), separator (12), rows at 13 and 14. FR-001.md: the
+    // AC rows sit at 11 and 12.
+    let bundle = iso_bundle(
+        "955",
+        &[
+            ("TC-001", "FR-001-AC-1", "✅"),
+            ("TC-002", "FR-001-AC-2", "🟡"),
+        ],
+        &[],
+    );
+    let report = report_for(&bundle, "iso").expect("model declared");
+
+    let lines: Vec<(Option<&str>, &str, Option<usize>)> = report
+        .unbacked_rows
+        .iter()
+        .map(|r| (r.row_id.as_deref(), r.document.as_str(), r.line))
+        .collect();
+    assert!(
+        lines.contains(&(Some("TC-001"), "tests.md", Some(13)))
+            && lines.contains(&(Some("TC-002"), "tests.md", Some(14))),
+        "two unbacked rows in one document report their own distinct lines: {lines:?}",
+    );
+    assert!(
+        lines.contains(&(Some("FR-001-AC-1"), "FR-001.md", Some(11)))
+            && lines.contains(&(Some("FR-001-AC-2"), "FR-001.md", Some(12))),
+        "the line accounts for the frontmatter block: {lines:?}",
+    );
+
+    // The lie and the undeclared status point at their rows too.
+    assert_eq!(report.status_lies.len(), 1);
+    assert_eq!(report.status_lies[0].line, Some(13));
+    assert_eq!(report.undeclared_statuses.len(), 1);
+    assert_eq!(report.undeclared_statuses[0].line, Some(14));
+
+    // And so does a no-symbol row (Type column shifts nothing: the line is
+    // the row's, not a cell's). typed_matrix_bundle rows sit at 13..16.
+    let typed = typed_matrix_bundle("955-typed");
+    let report = report_for(&typed, "no-symbol").expect("model declared");
+    let no_symbol: Vec<(Option<&str>, Option<usize>)> = report
+        .no_symbol_rows
+        .iter()
+        .map(|r| (r.row_id.as_deref(), r.line))
+        .collect();
+    assert_eq!(
+        no_symbol,
+        vec![(Some("TC-003"), Some(15)), (Some("TC-004"), Some(16))],
+        "no-symbol rows carry their matrix-row lines",
+    );
+}
+
+#[trace("TC-956", "FR-050-AC-26")]
+// `untracked_symbols` carries the 1-based declaration
+// line of the tagged test (#210) — `SymbolRecord` always had it, the
+// `VerifiesRelation` in between discarded it.
+#[test]
+fn tc956_untracked_symbols_carry_the_tagged_tests_line() {
+    // iso_bundle's lib.rs: 4 preamble lines, then 5 lines per traced entry —
+    // covers_1's `fn` declaration sits on line 12.
+    let bundle = iso_bundle(
+        "956",
+        &[("TC-001", "FR-001-AC-1", "✅")],
+        &["TC-001", "TC-999"],
+    );
+    let report = report_for(&bundle, "iso").expect("model declared");
+
+    assert_eq!(report.untracked_symbols.len(), 1);
+    let entry = &report.untracked_symbols[0];
+    assert_eq!(entry.trace_id, "TC-999");
+    assert_eq!(
+        entry.line,
+        Some(12),
+        "the untracked symbol's line is the tagged test's declaration line",
+    );
+}
+
 #[trace("TC-736", "FR-050-AC-5")]
 // a symbol whose trace tag resolves to no declared
 // target or row appears in untracked symbols with its file and symbol name.

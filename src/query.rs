@@ -285,6 +285,19 @@ fn parse_cells(line: &str, header_count: Option<usize>) -> Vec<String> {
 /// Parse the first pipe-delimited markdown table at or near the top of
 /// `content`. Returns `None` if no header+separator pair is found.
 pub fn parse_table(content: &str) -> Option<TableResult> {
+    parse_table_with_lines(content).map(|(table, _)| table)
+}
+
+/// Like [`parse_table`], but also returns each row's 0-based line index within
+/// `content` — one entry per row, in row order (#210).
+///
+/// A separate seam rather than a field on [`TableResult`]: the public shape is
+/// mirrored by downstream consumers, and the one caller that needs positions —
+/// the declared-table scan, so a coverage record can say which authored line it
+/// is about — is in-crate. The index is against the same `content.split('\n')`
+/// numbering `ears::locate_line` uses, so both convert to a document line by
+/// the same arithmetic.
+pub(crate) fn parse_table_with_lines(content: &str) -> Option<(TableResult, Vec<usize>)> {
     let lines: Vec<&str> = content.split('\n').collect();
     let header_line: usize = lines
         .windows(2)
@@ -292,14 +305,16 @@ pub fn parse_table(content: &str) -> Option<TableResult> {
     let headers = parse_cells(lines[header_line], None);
     let header_count = headers.len();
     let mut rows: Vec<Vec<String>> = Vec::new();
-    for line in lines.iter().skip(header_line + 2) {
+    let mut row_lines: Vec<usize> = Vec::new();
+    for (idx, line) in lines.iter().enumerate().skip(header_line + 2) {
         let t = line.trim();
         if t.is_empty() || !t.contains('|') {
             break;
         }
         rows.push(parse_cells(line, Some(header_count)));
+        row_lines.push(idx);
     }
-    Some(TableResult { headers, rows })
+    Some((TableResult { headers, rows }, row_lines))
 }
 
 /// Parse every pipe-delimited table in `content`.

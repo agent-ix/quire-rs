@@ -56,6 +56,10 @@ pub struct UnbackedRow {
     /// Trace ids the row is answerable for — its own id plus the ids it
     /// references — none of which any symbol backs.
     pub target_ids: Vec<String>,
+    /// 1-based document line of the matrix row (#210). Optional on the wire so
+    /// a payload from an engine predating the field still deserializes.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub line: Option<usize>,
 }
 
 /// A row whose status classes as `complete` while nothing backs it
@@ -68,6 +72,9 @@ pub struct StatusLie {
     /// The authored status value.
     pub status: String,
     pub target_ids: Vec<String>,
+    /// 1-based document line of the matrix row (#210).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub line: Option<usize>,
 }
 
 /// An unbacked row whose declared verification method mints no source symbol
@@ -85,6 +92,9 @@ pub struct NoSymbolRow {
     /// The declared test-type value that exempts the row.
     pub test_type: String,
     pub target_ids: Vec<String>,
+    /// 1-based document line of the matrix row (#210).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub line: Option<usize>,
 }
 
 /// A reference row whose authored status classes outside the module's declared
@@ -107,6 +117,11 @@ pub struct UndeclaredStatus {
     pub row_id: Option<String>,
     /// The authored status value, verbatim.
     pub status: String,
+    /// 1-based document line of the matrix row (#210). Two byte-identical
+    /// duplicate rows still collapse to ONE record (CR-086); the record
+    /// carries the first duplicate's line.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub line: Option<usize>,
 }
 
 /// A source symbol whose trace tag resolves to no declared target and no
@@ -116,6 +131,9 @@ pub struct UntrackedSymbol {
     pub path: String,
     pub symbol: String,
     pub trace_id: String,
+    /// 1-based declaration line of the tagged symbol (#210).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub line: Option<usize>,
 }
 
 /// One `implements` edge as the JSON contract carries it (FR-062).
@@ -648,6 +666,7 @@ fn reconcile(
                             document: document.clone(),
                             row_id: row_id.clone(),
                             status: value.to_string(),
+                            line: Some(row.line),
                         });
                     }
                 }
@@ -662,6 +681,7 @@ fn reconcile(
                 document: document.clone(),
                 row_id: row_id.clone(),
                 target_ids: answerable.clone(),
+                line: Some(row.line),
             });
 
             // CR-041: a row verified by a method that mints no source symbol
@@ -681,6 +701,7 @@ fn reconcile(
                     row_id,
                     test_type: test_type.to_string(),
                     target_ids: answerable,
+                    line: Some(row.line),
                 });
                 continue;
             }
@@ -695,6 +716,7 @@ fn reconcile(
                             row_id,
                             status: value.to_string(),
                             target_ids: answerable,
+                            line: Some(row.line),
                         });
                     }
                 }
@@ -715,6 +737,7 @@ fn reconcile(
             path: relation.path.clone(),
             symbol: relation.symbol.clone(),
             trace_id: relation.trace_id.clone(),
+            line: Some(relation.line),
         })
         .collect();
 
@@ -756,8 +779,17 @@ fn reconcile(
         ))
     });
     // Two identical matching rows in one document are one defect, not two
-    // records — mirrors `untracked_symbols` below (#213).
-    undeclared_statuses.dedup();
+    // records — mirrors `untracked_symbols` below (#213). Compared without
+    // `line` (#210): the duplicates sit on different lines by definition, and
+    // letting the line distinguish them would quietly reopen CR-086. The
+    // sort above is stable, so the surviving record is the first — lowest —
+    // line.
+    undeclared_statuses.dedup_by(|a, b| {
+        a.reference == b.reference
+            && a.document == b.document
+            && a.row_id == b.row_id
+            && a.status == b.status
+    });
     untracked_symbols
         .sort_by(|a, b| (&a.path, &a.symbol, &a.trace_id).cmp(&(&b.path, &b.symbol, &b.trace_id)));
     untracked_symbols.dedup();

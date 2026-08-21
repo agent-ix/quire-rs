@@ -97,32 +97,37 @@ fn tc856_payload_carrying_every_optional_key_conforms() {
             "reference": "verification",
             "document": "FR-001.md",
             "row_id": "FR-001-AC-1",
-            "target_ids": ["TC-001"]
+            "target_ids": ["TC-001"],
+            "line": 9
         }],
         "status_lies": [{
             "reference": "traces-to",
             "document": "tests.md",
             "row_id": "TC-001",
             "status": "✅",
-            "target_ids": ["TC-001"]
+            "target_ids": ["TC-001"],
+            "line": 11
         }],
         "no_symbol_rows": [{
             "reference": "traces-to",
             "document": "tests.md",
             "row_id": "TC-002",
             "test_type": "Eval",
-            "target_ids": ["TC-002"]
+            "target_ids": ["TC-002"],
+            "line": 12
         }],
         "undeclared_statuses": [{
             "reference": "traces-to",
             "document": "tests.md",
             "row_id": "TC-003",
-            "status": "⚠️ scale evidence deferred"
+            "status": "⚠️ scale evidence deferred",
+            "line": 13
         }],
         "untracked_symbols": [{
             "path": "src/lib.rs",
             "symbol": "tests::covers_nothing",
-            "trace_id": "TC-999"
+            "trace_id": "TC-999",
+            "line": 7
         }],
         "shared_trace_ids": [{
             "trace_id": "TC-004",
@@ -365,6 +370,56 @@ fn tc947_implements_key_is_omitted_when_empty_and_carried_when_populated() {
     assert!(
         errors(&schema, &populated_json).is_empty(),
         "the contract must accept a payload carrying `implements`",
+    );
+}
+
+#[trace("TC-957", "FR-050-AC-26")]
+// the `line` keys are optional in BOTH directions
+// (#210, the CR-083 additive pattern): a record whose line was not recovered
+// serializes with no key at all — never `null` — a recovered one carries it,
+// and the published contract accepts both payloads, so a consumer written
+// against the pre-line schema reads an unchanged shape and a payload from a
+// pre-line engine still conforms.
+#[test]
+fn tc957_line_keys_are_optional_in_both_directions() {
+    use quire_rs::coverage::{CoverageReport, UnbackedRow, UntrackedSymbol};
+
+    let schema = compile("coverage-v1.schema.json");
+
+    let mut report = CoverageReport::default();
+    report.unbacked_rows.push(UnbackedRow {
+        reference: "verification".to_string(),
+        document: "FR-001.md".to_string(),
+        row_id: Some("FR-001-AC-1".to_string()),
+        target_ids: vec!["TC-001".to_string()],
+        line: None,
+    });
+    report.untracked_symbols.push(UntrackedSymbol {
+        path: "src/lib.rs".to_string(),
+        symbol: "tests::covers_nothing".to_string(),
+        trace_id: "TC-999".to_string(),
+        line: None,
+    });
+    let without: Value = serde_json::from_str(&report.to_json()).expect("valid JSON");
+    assert!(
+        without["unbacked_rows"][0].get("line").is_none()
+            && without["untracked_symbols"][0].get("line").is_none(),
+        "an unrecovered line must be omitted, not serialized as null",
+    );
+
+    report.unbacked_rows[0].line = Some(13);
+    report.untracked_symbols[0].line = Some(7);
+    let with: Value = serde_json::from_str(&report.to_json()).expect("valid JSON");
+    assert_eq!(with["unbacked_rows"][0]["line"], json!(13));
+    assert_eq!(with["untracked_symbols"][0]["line"], json!(7));
+
+    assert!(
+        errors(&schema, &without).is_empty(),
+        "the contract must accept a payload omitting the line keys",
+    );
+    assert!(
+        errors(&schema, &with).is_empty(),
+        "the contract must accept a payload carrying them",
     );
 }
 

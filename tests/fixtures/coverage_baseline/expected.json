@@ -7,7 +7,8 @@
       "target_ids": [
         "FR-001-AC-2",
         "TC-002"
-      ]
+      ],
+      "line": 14
     },
     {
       "reference": "traces-to",
@@ -16,7 +17,8 @@
       "target_ids": [
         "FR-002-AC-1",
         "TC-003"
-      ]
+      ],
+      "line": 15
     },
     {
       "reference": "traces-to",
@@ -25,7 +27,8 @@
       "target_ids": [
         "FR-001-AC-1",
         "TC-004"
-      ]
+      ],
+      "line": 16
     },
     {
       "reference": "traces-to",
@@ -34,7 +37,8 @@
       "target_ids": [
         "FR-999-AC-1",
         "TC-005"
-      ]
+      ],
+      "line": 17
     },
     {
       "reference": "traces-to",
@@ -43,7 +47,8 @@
       "target_ids": [
         "FR-002-AC-1",
         "TC-006"
-      ]
+      ],
+      "line": 18
     },
     {
       "reference": "verification",
@@ -52,7 +57,8 @@
       "target_ids": [
         "FR-001-AC-2",
         "TC-002"
-      ]
+      ],
+      "line": 16
     },
     {
       "reference": "verification",
@@ -61,7 +67,8 @@
       "target_ids": [
         "FR-002-AC-1",
         "TC-404"
-      ]
+      ],
+      "line": 15
     }
   ],
   "status_lies": [
@@ -73,7 +80,8 @@
       "target_ids": [
         "FR-002-AC-1",
         "TC-003"
-      ]
+      ],
+      "line": 15
     }
   ],
   "no_symbol_rows": [
@@ -85,7 +93,8 @@
       "target_ids": [
         "FR-001-AC-1",
         "TC-004"
-      ]
+      ],
+      "line": 16
     }
   ],
   "undeclared_statuses": [
@@ -93,14 +102,16 @@
       "reference": "traces-to",
       "document": "spec/tests.md",
       "row_id": "TC-006",
-      "status": "⚠️ scale evidence deferred"
+      "status": "⚠️ scale evidence deferred",
+      "line": 18
     }
   ],
   "untracked_symbols": [
     {
       "path": "src/lib.rs",
       "symbol": "tests::covers_nothing_declared",
-      "trace_id": "TC-999"
+      "trace_id": "TC-999",
+      "line": 13
     }
   ],
   "groups": [

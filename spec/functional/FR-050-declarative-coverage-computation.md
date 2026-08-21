@@ -146,8 +146,32 @@ model; the engine knows nothing of "AC" or "TC" as concepts.
 | FR-050-AC-23 | A trace id that is the row id of a **status-carrying** reference row and is bound by more than one distinct source symbol — distinctness is the `(path, symbol)` pair — is reported in `CoverageReport.shared_trace_ids` with the id and every binding symbol, deterministically ordered by id and inside each record by `(path, symbol)`. An id whose rows carry no status (an acceptance criterion verified by several tests) is never reported. A corpus whose every status-row id is uniquely bound reports an empty list, the key is absent from the JSON, and the payload is byte-identical to a report from an engine predating the field. The list does not affect `totals`, and `--strict` does not gate on it (CR-087). | Test (TC-950, TC-951) |
 | FR-050-AC-24 | The number of source files a declared `source_exclude:` glob removes from the symbol walk is counted and carried into the coverage report as `excluded_source_files`; a report over a model declaring no `source_exclude`, or one whose globs match nothing, omits the key entirely — never `0` — and serializes byte-identically to a report from an engine predating the field (CR-088). | Test (TC-952, TC-953) |
 | FR-050-AC-25 | A `source_exclude` list containing a pattern that does not compile never partially filters: module load rejects it with an error naming `source_exclude` as the key at fault, and an extraction invoked with globs that bypassed model validation applies **no** glob at all and surfaces a diagnostic naming the offending pattern (CR-088). | Test (TC-954, TC-945) |
+| FR-050-AC-26 | Every row-shaped coverage record — `unbacked_rows`, `status_lies`, `no_symbol_rows`, `undeclared_statuses` — carries the 1-based document line (frontmatter included, the numbering `validate` findings use) of the matrix row it came from, with two unbacked rows in one document reporting different lines; `untracked_symbols` carries the tagged symbol's declaration line. The contract's `line` keys are optional and omitted — never `null` — when unrecovered, so a payload from an engine predating them still conforms and a conformant reader of the prior schema is unbroken (CR-089). | Test (TC-955, TC-956, TC-957) |
 
-> **CR-088 note (2026-08-21):** AC-24 and AC-25 are new — what `source_exclude`
+> **CR-089 note (2026-08-21):** AC-26 is new — coverage records say which
+> authored line they are about. `agent-ix/quire-rs#210`.
+>
+> No coverage record carried a line, so a consumer could not render
+> `path:line: message` the way `validate` does, and an editor or agent could
+> not jump to the offending matrix row — the blocker for the lint-shaped
+> output in the companion `quire-cli` issue. The loss was two layers down:
+> `parse_table` discarded line positions at parse, so `ScannedRow` had
+> nothing to carry. Recovered without new parsing: `parse_table_with_lines`
+> returns each row's content-relative line, and `rows_of` converts through
+> `body_line_offset` + the section's `start_line` — the `to_doc_line`
+> arithmetic, hand-verified against authored fixtures. Deliberately **not**
+> `ears::abs_line`: measured against the real files, the grammar findings'
+> line is one short for exactly this shape (`make validate` reports
+> NFR-015's `effective` on line 20; it sits on 21) — a latent grammar-layer
+> defect noted on #210 and out of its scope. `VerifiesRelation` now carries
+> the symbol's declaration line, so `untracked_symbols` points at the tagged
+> test. CR-086's dedup is preserved by comparing without `line`: two
+> byte-identical duplicate rows still collapse to one record, which carries
+> the first duplicate's line — letting the line distinguish them would have
+> quietly reopened that decision. Contract: additive optional `line` on the
+> five `$defs` (FR-055-CON-3), tc856 exercises them, TC-957 pins
+> omitted-never-null in both directions, and the CR-057 byte-golden regen
+> diff is the reviewed record of every recovered line. AC-24 and AC-25 are new — what `source_exclude`
 > subtracts is observable, and an invalid glob is loud. `agent-ix/quire-rs#215`.
 >
 > CR-085 shipped the key verified safe as written, and the agreed direction was

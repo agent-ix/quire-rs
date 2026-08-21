@@ -91,7 +91,8 @@
           "type": "array",
           "items": { "type": "string" },
           "description": "Trace ids the row is answerable for — its own plus the ids it references — none of which any symbol backs."
-        }
+        },
+        "line": { "type": "integer", "minimum": 1, "description": "1-based document line of the matrix row (#210). Additive under FR-055-CON-3: absent on a payload from an engine predating the field." }
       }
     },
     "StatusLie": {
@@ -103,7 +104,8 @@
         "document": { "type": "string" },
         "row_id": { "type": ["string", "null"] },
         "status": { "type": "string", "description": "The authored status value, verbatim." },
-        "target_ids": { "type": "array", "items": { "type": "string" } }
+        "target_ids": { "type": "array", "items": { "type": "string" } },
+        "line": { "type": "integer", "minimum": 1, "description": "1-based document line of the matrix row (#210). Additive under FR-055-CON-3." }
       }
     },
     "UndeclaredStatus": {
@@ -114,7 +116,8 @@
         "reference": { "type": "string", "description": "The declaration that produced the row." },
         "document": { "type": "string", "description": "Scope-relative path, `/`-separated on every platform." },
         "row_id": { "type": ["string", "null"] },
-        "status": { "type": "string", "description": "The authored status value, verbatim. No class is carried: having none is the finding." }
+        "status": { "type": "string", "description": "The authored status value, verbatim. No class is carried: having none is the finding." },
+        "line": { "type": "integer", "minimum": 1, "description": "1-based document line of the matrix row (#210). Duplicate byte-identical rows still collapse to one record (CR-086), which carries the first duplicate's line. Additive under FR-055-CON-3." }
       }
     },
     "NoSymbolRow": {
@@ -126,7 +129,8 @@
         "document": { "type": "string" },
         "row_id": { "type": ["string", "null"] },
         "test_type": { "type": "string", "description": "The declared test-type value that exempts the row." },
-        "target_ids": { "type": "array", "items": { "type": "string" } }
+        "target_ids": { "type": "array", "items": { "type": "string" } },
+        "line": { "type": "integer", "minimum": 1, "description": "1-based document line of the matrix row (#210). Additive under FR-055-CON-3." }
       }
     },
     "UntrackedSymbol": {
@@ -136,7 +140,8 @@
       "properties": {
         "path": { "type": "string" },
         "symbol": { "type": "string" },
-        "trace_id": { "type": "string" }
+        "trace_id": { "type": "string" },
+        "line": { "type": "integer", "minimum": 1, "description": "1-based declaration line of the tagged symbol (#210). Additive under FR-055-CON-3." }
       }
     },
     "SharedTraceId": {
