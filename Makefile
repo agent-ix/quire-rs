@@ -25,7 +25,8 @@ help:
 	@echo "  make deny             - cargo deny check licenses"
 	@echo "  make audit-unsafe     - Enforce // SAFETY: comments on unsafe blocks"
 	@echo "  make audit-property   - Enforce FR-052-CON-1: no GrammarFinding in the property classifier"
-	@echo "  make ci               - Per-PR CI gates (fmt-check + lint + test + deny + audit-unsafe + audit-property + audit-static)"
+	@echo "  make validate         - Validate spec/ with the working-tree engine (#212 gate)"
+	@echo "  make ci               - Per-PR CI gates (fmt-check + lint + test + deny + audit-unsafe + audit-property + audit-static + validate)"
 	@echo ""
 	@echo "Hardening (scheduled / pre-tag):"
 	@echo "  make cargo-audit      - cargo audit (RUSTSEC advisories)"
@@ -210,8 +211,19 @@ coverage-baseline-update:
 		tc824_coverage_report_matches_the_checked_in_baseline
 	@git --no-pager diff --stat -- tests/fixtures/coverage_baseline/expected.json
 
+# The #212 gate: the engine under test validates its own spec/ tree. PR #204
+# corrupted a spec/tests.md row, every target below stayed green, and the
+# corruption shipped inside v0.41.0 — nothing here ever ran structural
+# validation against this repo's own matrix. Runs the working-tree engine
+# (cargo run --example), never an installed `quire` CLI, which lags the branch
+# under test. Module resolution follows the CLI (IX_FILAMENT_MODULES_PATH /
+# ~/.ix/filament/modules). Local gate only: CI workflows stay tag/dispatch.
+.PHONY: validate
+validate:
+	$(CARGO) run --quiet --example spec_validate
+
 .PHONY: ci
-ci: fmt-check lint check-python test deny audit-unsafe audit-property audit-static
+ci: fmt-check lint check-python test deny audit-unsafe audit-property audit-static validate
 
 # =============================================================================
 # Python wheel / sdist + local-publish (pypi.ix)

@@ -105,10 +105,10 @@ already guarantees is preserved (NFR-006).
 
 ## Constraints
 
-| ID | Constraint | Verification |
-|----|-----------|--------------|
-| FR-057-CON-1 | Document-level validation results bridged into `BundleReport` — base-concept violations, archetype schema errors, `unknown-type`, missing `type` — SHALL NOT be registrable. Mapping them would let a module switch off schema validation under a severity key. | Test (TC-888) |
-| FR-057-CON-2 | This FR introduces **no new manifest key** and no `module-manifest.schema.json` change. It reuses `grammar_severity`, which is open-valued on both halves as released in `spec-artifacts-iso` v0.12.0. | Inspection |
+| ID | Constraint | Type | Validation |
+|----|-----------|------|------------|
+| FR-057-CON-1 | Document-level validation results bridged into `BundleReport` — base-concept violations, archetype schema errors, `unknown-type`, missing `type` — SHALL NOT be registrable. Mapping them would let a module switch off schema validation under a severity key. | Architecture | Test (TC-888) |
+| FR-057-CON-2 | This FR introduces **no new manifest key** and no `module-manifest.schema.json` change. It reuses `grammar_severity`, which is open-valued on both halves as released in `spec-artifacts-iso` v0.12.0. | Compatibility | Inspection |
 
 ## Dependencies
 

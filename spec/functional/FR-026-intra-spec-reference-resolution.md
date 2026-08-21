@@ -128,9 +128,9 @@ must contribute nothing, not an edge to `repo`.
 
 ## Constraints
 
-| ID | Constraint | Verification |
-|----|-----------|--------------|
-| FR-026-CON-1 | A well-formed `ix://` URI SHALL contribute its stub **regardless of markdown context** — inside an inline code span, inside a fenced block, or in plain prose. The harvester MUST NOT consult backticks or fences. A code span is typography; making a link inside one invisible would silently drop real references and would contradict [FR-039](./FR-039-unlinked-reference-detection.md)-AC-3, which converts a *backticked* artifact id into a link. Known consequence, measured at **75 of ~5,950 `ix://` lines (1.3%)**: an `ix://` inside a fenced block that is genuinely illustrative rather than a reference will contribute an edge. Narrowing that is a separate decision and requires its own corpus measurement. | Test (TC-882) |
+| ID | Constraint | Type | Validation |
+|----|-----------|------|------------|
+| FR-026-CON-1 | A well-formed `ix://` URI SHALL contribute its stub **regardless of markdown context** — inside an inline code span, inside a fenced block, or in plain prose. The harvester MUST NOT consult backticks or fences. A code span is typography; making a link inside one invisible would silently drop real references and would contradict [FR-039](./FR-039-unlinked-reference-detection.md)-AC-3, which converts a *backticked* artifact id into a link. Known consequence, measured at **75 of ~5,950 `ix://` lines (1.3%)**: an `ix://` inside a fenced block that is genuinely illustrative rather than a reference will contribute an edge. Narrowing that is a separate decision and requires its own corpus measurement. | Design | Test (TC-882) |
 
 ## Dependencies
 
