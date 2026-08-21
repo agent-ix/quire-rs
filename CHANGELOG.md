@@ -5,6 +5,56 @@ All notable changes to `quire-rs` are documented here. Format follows
 numbers follow semver — pre-1.0, breaking changes may land in minor
 bumps; once 1.0 ships, semver is strict.
 
+## [0.41.0] — 2026-08-20
+
+### Added
+
+- **`undeclared_statuses` — a status value the model classes as nothing is now a
+  reported defect (#192, CR-083, FR-050-AC-21).** `StatusClass::Unknown` had been
+  computed and discarded since the class existed: the only consumer asked
+  `== Complete`, `Unknown` compared false, and the row left the report. A value a
+  module's structural contract *admits* and its traceability model *does not
+  class* was therefore exempt from the status-lie check by construction. Measured
+  over the 239 `~/dev` repositories, in the one locator that declares
+  `column_patterns.Status`: **20 rows across 5 repositories**. The classification
+  runs above the backed early-continue, so drift is reported on backed rows too —
+  a check that saw only unbacked rows would report a subset and read as complete.
+  Additive on the published v1 contract; a conformant corpus omits the key.
+  `--strict` deliberately does not gate on it in this release.
+
+- **`traceability.source_exclude` scopes the source-symbol walk (#199, CR-085,
+  FR-050-AC-22).** The code walk had one exclusion — the document root — and it is
+  the caller's argument, not anything a module can state, so a repository whose
+  fixtures deliberately hold trace tags reported them as untracked forever. This
+  is a **new key, not a widening of `exclude`**: every existing exclusion is
+  applied to a document path, while `spec-artifacts-process` requires trace
+  targets to exclude `tests/**` — and 194 of this crate's ~458 `#[trace(` markers
+  live under `tests/`. One key meaning both would delete the evidence tree.
+  `tests/**` must never appear on `source_exclude`. It can only subtract: a
+  `source_exclude` of `spec/**` cannot un-exclude the document root.
+
+### Fixed
+
+- **Curried and line-wrapped TypeScript registrations bind (#189, CR-084,
+  FR-051-AC-18).** `it.skipIf(cond)(…)` and `it.each([…])(…)` — the conditional
+  and parametrised forms both vitest and jest ship — registered *no symbol at
+  all*, as did any registration whose title wrapped onto a later line. With no
+  symbol, neither a legacy comment id nor a canonical `trace(…)` call in the body
+  had anything to attach to, so migrating to the canonical form would not have
+  fixed it. Ecosystem population: **one** occurrence carrying a trace id, so this
+  is a latent-authoring-trap fix rather than coverage recovery. The forward scan
+  stops at the first non-blank text — a scan that hunted for a quote would name a
+  test after an unrelated string, and a wrong symbol name is worse than none.
+
+### Internal
+
+- **One definition of the corpus dedupe rules (#202).** Four sweep harnesses each
+  carried their own answer to "which directories are repositories" and they
+  disagreed; every gap had already cost a published number. `scripts/corpus.py`
+  is the union, taking the strictest correct rule from each — notably a
+  `<repo>-task<N>` directory is now *verified* to be a linked worktree rather than
+  matched by name.
+
 ## [0.40.0] — 2026-08-20
 
 > Entries for 0.34.0–0.39.1 were never written; the convention lapsed and this
