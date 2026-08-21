@@ -71,6 +71,13 @@ lint:
 check-python:
 	CARGO_TARGET_DIR=target/python-check $(CARGO) check --features python --quiet
 
+# The scripts/ tooling test suite (#217, #219). `check-python` is a cargo
+# type-check of the PyO3 binding and collects no Python tests, so the sweep
+# harness and corpus rules are verified here.
+.PHONY: check-scripts
+check-scripts:
+	python3 -m pytest scripts/tests -q
+
 .PHONY: test
 test:
 	$(CARGO) test
@@ -223,7 +230,7 @@ validate:
 	$(CARGO) run --quiet --example spec_validate
 
 .PHONY: ci
-ci: fmt-check lint check-python test deny audit-unsafe audit-property audit-static validate
+ci: fmt-check lint check-python check-scripts test deny audit-unsafe audit-property audit-static validate
 
 # =============================================================================
 # Python wheel / sdist + local-publish (pypi.ix)

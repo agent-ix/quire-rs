@@ -223,7 +223,7 @@ mod tests {
         assert!(spec.referencing("StR-404").is_empty());
     }
 
-    // TC-498, FR-027-AC-6 + NFR-006: query results deterministic across runs.
+    // TC-498, FR-027-AC-6: query results deterministic across runs (NFR-006).
     #[test]
     fn query_results_are_deterministic() {
         let root = tmpdir("determ");

@@ -501,7 +501,7 @@ mod tests {
         );
     }
 
-    // TC-473, FR-024-AC-4 + NFR-006: path-sorted, byte-identical across runs.
+    // TC-473, FR-024-AC-4: path-sorted, byte-identical across runs (NFR-006).
     #[test]
     fn output_is_path_sorted_and_deterministic() {
         let root = tmpdir("sorted");

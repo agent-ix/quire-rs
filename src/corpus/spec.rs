@@ -245,7 +245,7 @@ mod tests {
         );
     }
 
-    // TC-483, FR-025-AC-4 + StR-006-AC-5: Send + Sync.
+    // TC-483, FR-025-AC-4: Send + Sync (StR-006-AC-5).
     #[test]
     fn spec_is_send_sync() {
         fn assert_send_sync<T: Send + Sync>() {}

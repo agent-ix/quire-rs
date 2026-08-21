@@ -1,16 +1,57 @@
 ---
-type: Review
-id: SR-049
+type: SpecReview
+id: SR-050
 title: "Slash-separated trace-id chains: census and normalization"
 analysis: base
 ---
 
 # Slash-separated trace-id chains — census
 
+## Summary
+
+A corpus-wide census of slash-joined trace-id chains — the authoring form the
+comma-only legacy grammar silently truncates — with `quire-rs`'s auto-editable
+lines normalized in the same commit. 214 GREEN chains corpus-wide before the
+sweep; 55 swept here; the remaining classes are refused with the reason
+recorded per line. The findings table at the end restates the census classes.
+
 Harness: `scripts/slash_tag_sweep.py`, committed with this report. Engine:
 `quire-cli` @ `quire-rs v0.41.0`, module `spec-artifacts-process` @ v0.22.0.
-Corpus: `/home/peter/dev`, **238 repositories** enumerated by
-`scripts/corpus.py`. Excluded: ['ecaz'].
+Corpus: `/home/peter/dev`, **239 repositories** enumerated by
+`scripts/corpus.py`, **238 scanned** after the exclusion below. Excluded:
+['ecaz'].
+
+> **Correction note (2026-08-21, #217/#219).** This document is amended in
+> place; the census tables stay as the harness reported them on 2026-08-20.
+>
+> * **Identity.** Shipped as `id: SR-049`, colliding with
+>   `spec/reviews/SR-049-fr059-code-review.md` (undetected because `reports/`
+>   is outside the doc root), and `type: Review` where the convention is
+>   `SpecReview`. Re-identified as **SR-050**, the next free id across all
+>   refs.
+> * **Corpus attribution (cross-ref #219).** `scripts/corpus.py` enumerates
+>   **239** repositories; **238** is `repos_scanned` after the `ecaz`
+>   exclusion. The header labelled 238 as "enumerated by `scripts/corpus.py`",
+>   conflating the two. The harness census now names them
+>   `repos_enumerated` and `repos_scanned_after_exclusions`.
+> * **Arithmetic.** The sweep commit's diff edits **55** lines in `quire-rs`,
+>   not the 56 this report claimed below (corrected inline). The pre-edit
+>   per-repo census that would settle the one-line discrepancy was never
+>   captured — the committed JSON is post-edit only (`quire-rs green: 0`),
+>   violating the harness docstring's own census rule. The harness now emits
+>   `totals` (before) and `totals_after_write` in one artifact.
+> * **Three GREEN edits were placebos.** `FR-024-AC-4`, `FR-025-AC-4` and
+>   `FR-027-AC-6` sat on lines with a ` + <id>` tail
+>   (`// TC-473 / FR-024-AC-4 + NFR-006:`); the rewritten comma list still
+>   binds only the first id past such a tail, and all three were measured
+>   unbacked on main. The classifier judged the slash-span, not the rewritten
+>   line; rule **R7** now refuses GREEN when the rewritten line cannot bind.
+>   The three lines are repaired in-tree (#217): measured with the same
+>   binary/module before and after, `totals.backed` 883 → **886**,
+>   `unbacked_rows` 282 → **279** with all three ids leaving the list, and
+>   `untracked_symbols` unchanged at 1 (the deliberate TC-999 fixture).
+>   `FR-025-AC-6` shares the line shape but its row is method Inspection; its
+>   line is left as-is and now classifies AMBER under R7.
 
 ## The defect
 
@@ -34,9 +75,10 @@ Taken **before** any edit, over the whole corpus:
 | **ELISION** — numeric shorthand (`FR-011-AC-6/7/8`) | 62 | refused; a different transform |
 | **PROSE** — the line is not a tag line | 788 | refused; rewriting would mint a binding that does not exist |
 
-`quire-rs`'s 56 GREEN lines are swept in this commit, so a re-run of the harness
-now reports **158** GREEN remaining. The per-repository table below is that
-remaining population — the work still to do.
+`quire-rs`'s 55 GREEN lines are swept in this commit (the diff-verified count;
+this report originally claimed 56 — see the correction note), and a re-run of
+the harness reported **158** GREEN remaining. The per-repository table below is
+that remaining population — the work still to do.
 
 | class | lines | disposition |
 |---|---:|---|
@@ -137,3 +179,13 @@ ever does.
 `ecaz` keeps its own trace vocabulary (`ADR-085 D8`, `FR-079/005-P1`) and would
 produce a large, wrong-looking diff in a repository that has its own open
 findings. It gets this report and an issue, not an edit.
+
+## Findings
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-001 | high | 214 GREEN slash-joined chains across the 238 scanned repositories drop every id after the first inside the legacy-form regex, with no diagnostic; 55 swept in `quire-rs` here, 158 remain for the #211 tail | ix://agent-ix/quire-rs/spec/functional/FR-051 |
+| FND-002 | medium | 189 AMBER chains carry an id no trace target mints (`-CON-`, `-SC-`, `-ATK-`, bare requirement ids); rewriting one adds an `untracked_symbol`, not coverage — refused, needs a per-repo decision | ix://agent-ix/quire-rs/spec/functional/FR-051 |
+| FND-003 | low | 62 ELISION chains use the numeric shorthand (`FR-011-AC-6/7/8`); comma replacement would corrupt them — a different transform, out of scope | ix://agent-ix/quire-rs/spec/functional/FR-051 |
+| FND-004 | low | 788 PROSE lines hold a slash chain that no form binds today; rewriting would mint bindings nobody authored — counted and refused | ix://agent-ix/quire-rs/spec/functional/FR-051 |
+| FND-005 | high | Three of the 55 `quire-rs` GREEN edits were placebos: a ` + <id>` tail keeps the rewritten comma list unbindable past the first id (`FR-024-AC-4`, `FR-025-AC-4`, `FR-027-AC-6` measured unbacked). Repaired in-tree and guarded by rule R7 (#217, correction note above) | ix://agent-ix/quire-rs/spec/functional/FR-024 |
