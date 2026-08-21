@@ -53,6 +53,20 @@ on the archetype being counted. "This product has no safety characteristic" is a
 the product; its natural home is the spec or master-requirements document. Requiring it on an NFR
 would mean authoring an NFR to say an NFR is unnecessary.
 
+### The classification is reported, not only the residue
+
+The warning stream names the **unowned** set and nothing else, so a consumer could not tell an
+owned value from an excused one — very different facts: one means a requirement exists, the other
+means somebody wrote the value into the justified-absence field and the check went quiet. quoin's
+verdict policy (FR-037, `agent-ix/quoin#81`) needs exactly that split, and before CR-091 it had to
+open every document in the bundle and parse its frontmatter — a second frontmatter reader in a
+toolchain whose discipline is that quire is the parser (`agent-ix/quire-rs#179`).
+
+The coverage payload therefore carries one record per declared value — owned / excused / unowned,
+with the deciding documents — so "who excused this, and where" is answerable from the record. The
+warning stream is unchanged: findings stay the residue, at the granularity FR-059-AC-8 chose.
+Whether an excuse is *justified* remains verdict policy and stays out of the engine (CON-2).
+
 ### An empty projection is one fact
 
 When **no document of the projected archetype exists at all**, the finding SHALL be a single
@@ -101,6 +115,8 @@ why findings ship advisory and severity is settable per repository.
 | FR-059-AC-6 | A module declaring no `vocabulary_coverage` produces byte-identical output to one that never heard of this FR. | Test (TC-917) |
 | FR-059-AC-7 | A declaration whose archetype or field yields no `enum` reports **itself** under `trace:undeclared-coverage-vocabulary`, rather than silently reporting no unowned value. | Test (TC-916) |
 | FR-059-AC-8 | When no document of the projected archetype exists, the finding is a single statement that nothing projects, naming how many values are unowned — not one finding per value. | Test (TC-918) |
+| FR-059-AC-9 | The coverage payload carries one `vocabulary_coverage` record per declared value — `{vocabulary, archetype, field, check, value, state, documents}` with `state` ∈ `owned` / `excused` / `unowned` and the deciding documents (claimants for owned, justified-absence recorders for excused, empty for unowned; a claimed value is owned even when also recorded absent). The key is absent — never empty — for a module declaring no `vocabulary_coverage` (CR-091). | Test (TC-962, TC-963, TC-964, TC-965) |
+| FR-059-AC-10 | A declaration whose archetype or field yields no `enum` is reported on the coverage surface as an `undeclared-coverage-vocabulary` diagnostic — the same token as AC-7's bundle warning — rather than silently minting no record (CR-091). | Test (TC-966) |
 
 ## Constraints
 

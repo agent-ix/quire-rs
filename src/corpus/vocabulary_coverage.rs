@@ -17,14 +17,16 @@
 //! list in the manifest would be free to drift from the first, which is the
 //! defect CR-015 closed.
 
-use std::collections::{BTreeSet, VecDeque};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::path::{Path, PathBuf};
 
 use serde_json::Value;
 
-use super::declared_tables::ExcludeSet;
+use super::declared_tables::{relative_path, ExcludeSet};
 use super::spec::Spec;
 use super::validate::{pack, posture_tier, BundleFinding, BundlePosture, BundleReport};
+use super::walk::LoadedDocument;
+use crate::coverage::{CoverageDiagnostic, VocabularyValueRecord, VocabularyValueState};
 use crate::registry::Registry;
 use crate::traceability::VocabularyCoverage;
 
@@ -127,6 +129,96 @@ fn enum_at(schema: &Value, field: &str) -> Option<Vec<String>> {
     None
 }
 
+/// One declaration's classification: every claimed and every excused value,
+/// with the scope-relative documents that decide it.
+///
+/// The single walk both surfaces read (CR-091). The warning stream and the
+/// coverage records answer different questions over the same facts, and two
+/// independent walks would be free to drift — the CR-015 defect, between two
+/// outputs instead of two declarations.
+struct Classification {
+    /// The declared vocabulary, in the schema enum's order.
+    values: Vec<String>,
+    /// No claimable document of the projected archetype exists at all.
+    projected_empty: bool,
+    /// Claimed value → the projected documents claiming it.
+    owned: BTreeMap<String, BTreeSet<String>>,
+    /// Justified value → the documents (any archetype) recording the absence.
+    excused: BTreeMap<String, BTreeSet<String>>,
+}
+
+/// The dead-declaration message, shared verbatim by the bundle warning and the
+/// coverage diagnostic so the two surfaces cannot disagree about the fault.
+fn dead_declaration_message(coverage: &VocabularyCoverage) -> String {
+    format!(
+        "vocabulary_coverage '{}' reads '{}' on archetype '{}', which declares no such \
+         enum — the check can never report anything",
+        coverage.name, coverage.field, coverage.from
+    )
+}
+
+/// Classify one declaration, or `None` when its vocabulary does not exist.
+fn classify(
+    spec: &Spec,
+    registry: &Registry,
+    coverage: &VocabularyCoverage,
+    root: &Path,
+    model_exclude: &ExcludeSet,
+) -> Option<Classification> {
+    let values = declared_values(registry, coverage)?;
+    let exclude = ExcludeSet::compile_validated(&coverage.exclude);
+    let claimable = |doc: &&LoadedDocument| {
+        !exclude.excludes(root, &doc.path) && !model_exclude.excludes(root, &doc.path)
+    };
+    let claims = |doc: &LoadedDocument, field: &str| {
+        let mut out = BTreeSet::new();
+        if let Some(fm) = doc.frontmatter() {
+            collect_strings(fm.get(field), &mut out);
+        }
+        out
+    };
+
+    // Claimed: a document of the declared archetype carrying the field.
+    let projected: Vec<&LoadedDocument> = spec
+        .by_type(&coverage.from)
+        .into_iter()
+        .filter(claimable)
+        .collect();
+    let mut owned: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+    for doc in &projected {
+        for value in claims(doc, &coverage.field) {
+            owned
+                .entry(value)
+                .or_default()
+                .insert(relative_path(root, &doc.path));
+        }
+    }
+
+    // Justified: ANY document in the bundle naming the value as not applicable.
+    // Deliberately not restricted to `from`'s archetype — the natural home for
+    // "this product has no safety characteristic" is the bundle's own spec or
+    // master-requirements document, not one of the requirements it is a
+    // statement about.
+    let mut excused: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+    if let Some(field) = &coverage.justified_absence_field {
+        for doc in spec.all().iter().filter(claimable) {
+            for value in claims(doc, field) {
+                excused
+                    .entry(value)
+                    .or_default()
+                    .insert(relative_path(root, &doc.path));
+            }
+        }
+    }
+
+    Some(Classification {
+        projected_empty: projected.is_empty(),
+        values,
+        owned,
+        excused,
+    })
+}
+
 /// Every declared value that no document claims and nothing justifies.
 fn check_coverage(
     spec: &Spec,
@@ -136,41 +228,19 @@ fn check_coverage(
     model_exclude: &ExcludeSet,
     out: &mut Vec<(PathBuf, String, String)>,
 ) {
-    let exclude = ExcludeSet::compile_validated(&coverage.exclude);
     let check = coverage.check.clone();
 
-    let Some(values) = declared_values(registry, coverage) else {
+    let Some(classification) = classify(spec, registry, coverage, root, model_exclude) else {
         // The declaration names a vocabulary that does not exist, so it can
         // never report anything. Silence here would be indistinguishable from
         // full coverage — the CR-075 failure mode, in a second place.
         out.push((
             root.to_path_buf(),
             "undeclared-coverage-vocabulary".to_string(),
-            format!(
-                "vocabulary_coverage '{}' reads '{}' on archetype '{}', which declares no such \
-                 enum — the check can never report anything",
-                coverage.name, coverage.field, coverage.from
-            ),
+            dead_declaration_message(coverage),
         ));
         return;
     };
-
-    let claimable = |doc: &&crate::corpus::walk::LoadedDocument| {
-        !exclude.excludes(root, &doc.path) && !model_exclude.excludes(root, &doc.path)
-    };
-    let claim =
-        |doc: &crate::corpus::walk::LoadedDocument, field: &str, out: &mut BTreeSet<String>| {
-            if let Some(fm) = doc.frontmatter() {
-                collect_strings(fm.get(field), out);
-            }
-        };
-
-    // Claimed: a document of the declared archetype carrying the field.
-    let projected: Vec<&crate::corpus::walk::LoadedDocument> = spec
-        .by_type(&coverage.from)
-        .into_iter()
-        .filter(claimable)
-        .collect();
 
     // An EMPTY projection is one fact, not `values.len()` of them. Measured
     // over 243 `~/dev` bundles: 90 carry no NFR document at all, and reporting
@@ -184,7 +254,7 @@ fn check_coverage(
     // actually has: a check should make the most specific true statement it
     // can, and twelve restatements of one fact are less actionable than the
     // fact.
-    if projected.is_empty() {
+    if classification.projected_empty {
         out.push((
             root.to_path_buf(),
             check.clone(),
@@ -193,38 +263,16 @@ fn check_coverage(
                 coverage.from,
                 coverage.field,
                 coverage.name,
-                values.len()
+                classification.values.len()
             ),
         ));
         return;
     }
 
-    let mut covered: BTreeSet<String> = BTreeSet::new();
-    for doc in projected {
-        claim(doc, &coverage.field, &mut covered);
-    }
-
-    // Justified: ANY document in the bundle naming the value as not applicable.
-    // Deliberately not restricted to `from`'s archetype — the natural home for
-    // "this product has no safety characteristic" is the bundle's own spec or
-    // master-requirements document, not one of the requirements it is a
-    // statement about.
-    let mut justified: BTreeSet<String> = BTreeSet::new();
-    if let Some(field) = &coverage.justified_absence_field {
-        for doc in spec.all().iter().filter(claimable) {
-            claim(doc, field, &mut justified);
+    for value in &classification.values {
+        if classification.owned.contains_key(value) || classification.excused.contains_key(value) {
+            continue;
         }
-    }
-
-    let unowned: Vec<&String> = values
-        .iter()
-        .filter(|v| !covered.contains(v.as_str()) && !justified.contains(v.as_str()))
-        .collect();
-    if unowned.is_empty() {
-        return;
-    }
-
-    for value in unowned {
         out.push((
             root.to_path_buf(),
             check.clone(),
@@ -240,6 +288,75 @@ fn check_coverage(
             ),
         ));
     }
+}
+
+/// Implements: FR-059
+/// Per-value classification records for the coverage payload (FR-059-AC-9,
+/// CR-091, `agent-ix/quire-rs#179`).
+///
+/// The warning stream reports only the unowned **residue**, so a consumer
+/// could not tell an owned value from an excused one without opening every
+/// document in the bundle and parsing its frontmatter — a second frontmatter
+/// reader in a toolchain whose discipline is that quire is the parser. The
+/// records carry the whole classification instead: one record per declared
+/// value, owned / excused / unowned, with the deciding documents.
+///
+/// A declaration whose vocabulary does not exist yields a
+/// `undeclared-coverage-vocabulary` diagnostic — the same token the bundle
+/// warning uses — because on this surface too, silence would be
+/// indistinguishable from a module that declared nothing (FR-059-AC-10).
+pub(crate) fn coverage_records(
+    spec: &Spec,
+    registry: &Registry,
+    root: &Path,
+) -> (Vec<VocabularyValueRecord>, Vec<CoverageDiagnostic>) {
+    let Some(model) = registry.traceability() else {
+        return (Vec::new(), Vec::new());
+    };
+    if model.vocabulary_coverage.is_empty() {
+        return (Vec::new(), Vec::new());
+    }
+    let model_exclude = ExcludeSet::compile_validated(&model.exclude);
+
+    let mut records = Vec::new();
+    let mut diagnostics = Vec::new();
+    for coverage in &model.vocabulary_coverage {
+        let Some(classification) = classify(spec, registry, coverage, root, &model_exclude) else {
+            diagnostics.push(CoverageDiagnostic {
+                declaration: coverage.name.clone(),
+                reason: "undeclared-coverage-vocabulary".to_string(),
+                message: dead_declaration_message(coverage),
+                path: None,
+                value: None,
+            });
+            continue;
+        };
+        for value in &classification.values {
+            // A value both claimed and excused reads as OWNED: a requirement
+            // exists, and the stale justified-absence record is the consumer's
+            // (quoin FR-037's) finding to make from the same records.
+            let (state, documents) = if let Some(docs) = classification.owned.get(value) {
+                (VocabularyValueState::Owned, docs.iter().cloned().collect())
+            } else if let Some(docs) = classification.excused.get(value) {
+                (
+                    VocabularyValueState::Excused,
+                    docs.iter().cloned().collect(),
+                )
+            } else {
+                (VocabularyValueState::Unowned, Vec::new())
+            };
+            records.push(VocabularyValueRecord {
+                vocabulary: coverage.name.clone(),
+                archetype: coverage.from.clone(),
+                field: coverage.field.clone(),
+                check: coverage.check.clone(),
+                value: value.clone(),
+                state,
+                documents,
+            });
+        }
+    }
+    (records, diagnostics)
 }
 
 /// Collect a frontmatter value as one or more claimed strings.

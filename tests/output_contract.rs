@@ -148,7 +148,17 @@ fn tc856_payload_carrying_every_optional_key_conforms() {
             "declaration": "test-case",
             "reason": "archetype-matches-nothing",
             "message": "no document of archetype TestMatrix",
-            "path": null
+            "path": null,
+            "value": "CI Gate"
+        }],
+        "vocabulary_coverage": [{
+            "vocabulary": "quality-characteristics",
+            "archetype": "NFR",
+            "field": "quality_attribute",
+            "check": "unowned-quality-characteristic",
+            "value": "safety",
+            "state": "excused",
+            "documents": ["spec.md"]
         }],
         "obligations": [{
             "source": "acceptance-criterion",
@@ -298,6 +308,7 @@ fn tc859_optional_and_required_split_matches_the_engine() {
         "obligations",
         "implements",
         "excluded_source_files",
+        "vocabulary_coverage",
     ] {
         let mut payload = baseline();
         payload.as_object_mut().unwrap().remove(optional);

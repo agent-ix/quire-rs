@@ -295,6 +295,13 @@ pub struct CoverageReport {
     /// **Carries no weight in `totals`.** Scope is not evidence.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub implements: Vec<ImplementsRecord>,
+    /// Per-value classification of every declared coverage vocabulary
+    /// (FR-059-AC-9, CR-091): owned / excused / unowned, with the deciding
+    /// documents. Empty — and so absent from the JSON — for a module declaring
+    /// no `vocabulary_coverage`, which keeps FR-050-AC-7 byte-identity for
+    /// every module that has not adopted the declaration.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub vocabulary_coverage: Vec<VocabularyValueRecord>,
     /// Source files a declared `source_exclude` glob removed from the symbol
     /// walk (FR-050-AC-24, #215). Zero — and so absent from the JSON — for a
     /// model declaring no `source_exclude`, or one whose globs match nothing,
@@ -330,6 +337,62 @@ pub struct CoverageDiagnostic {
     /// The unreadable document, when the diagnostic is about one.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub path: Option<String>,
+    /// The vocabulary or catalog value the diagnostic is about, verbatim, when
+    /// it is about exactly one (FR-054-AC-12, CR-091).
+    /// `uncatalogued-verification-method` carries the authored method here —
+    /// the same string the obligation records carry in `method` — so a
+    /// consumer joins the two by equality instead of regexing a human
+    /// sentence, which was the only recovery path before (#179; quoin#168's
+    /// mismatch/uncatalogued split is the filed reader).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub value: Option<String>,
+}
+
+/// How one declared vocabulary value stands in the bundle (FR-059-AC-9,
+/// CR-091).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum VocabularyValueState {
+    /// A document of the projected archetype claims it: a requirement exists.
+    /// Wins over `excused` when a value is both claimed and recorded absent —
+    /// the stale absence record is then the consumer's finding to make.
+    Owned,
+    /// The declared justified-absence field records it — somebody wrote the
+    /// value down as deliberately not addressed. Whether the excuse was earned
+    /// is verdict policy and stays out of the engine (FR-059-CON-2).
+    Excused,
+    /// Nothing claims it and nothing excuses it — the residue the warning
+    /// stream reports.
+    Unowned,
+}
+
+/// One declared vocabulary value, classified (FR-059-AC-9, CR-091).
+///
+/// The `quire validate` warning stream reports only the unowned residue, so a
+/// consumer could not tell an owned value from an excused one — very different
+/// facts: one means a requirement exists, the other means the check went quiet
+/// because somebody wrote the value into the justified-absence field. Before
+/// this record the only recovery was to open every document in the bundle and
+/// parse its frontmatter (`agent-ix/quire-rs#179`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct VocabularyValueRecord {
+    /// The `vocabulary_coverage` declaration's name.
+    pub vocabulary: String,
+    /// The projected archetype (the declaration's `from`).
+    pub archetype: String,
+    /// The frontmatter field whose schema `enum` is the vocabulary.
+    pub field: String,
+    /// The declared `<check>` severity token, joining the record to the
+    /// warning stream's findings.
+    pub check: String,
+    /// The vocabulary value, verbatim from the schema enum.
+    pub value: String,
+    /// The classification.
+    pub state: VocabularyValueState,
+    /// Scope-relative documents that decide the state: the claimants for
+    /// `owned`, the justified-absence recorders for `excused`, empty for
+    /// `unowned`.
+    pub documents: Vec<String>,
 }
 
 impl CoverageReport {
@@ -378,6 +441,13 @@ pub fn compute(
     report
         .diagnostics
         .extend(uncatalogued_methods(&report.obligations, registry));
+    // FR-059-AC-9 (CR-091): also here rather than in `reconcile`, because the
+    // vocabulary lives in an archetype's frontmatter schema, which only the
+    // `Registry` can read.
+    let (vocabulary_records, dead_declarations) =
+        crate::corpus::vocabulary_coverage::coverage_records(spec, registry, root);
+    report.vocabulary_coverage = vocabulary_records;
+    report.diagnostics.extend(dead_declarations);
     Ok(report)
 }
 
@@ -443,6 +513,10 @@ fn uncatalogued_methods(
                  declared method in the cell"
             ),
             path: Some(document.to_string()),
+            // Verbatim — the same string the obligation records carry in
+            // `method` — so the join is equality, not prose parsing
+            // (FR-054-AC-12).
+            value: Some(method.to_string()),
         })
         .collect()
 }
@@ -811,6 +885,7 @@ fn reconcile(
                 // The field stays on the report shape: a future diagnostic that
                 // does name a document must not require a payload change.
                 path: None,
+                value: None,
             }
         })
         .collect();
@@ -829,6 +904,7 @@ fn reconcile(
                           mints no ids and every count is over an empty denominator"
                     .to_string(),
                 path: None,
+                value: None,
             },
         );
     }
@@ -853,6 +929,7 @@ fn reconcile(
             row.row, row.document
         ),
         path: Some(row.document.clone()),
+        value: None,
     }));
 
     // ── Shared trace ids: one id bound by several distinct symbols ──
@@ -899,6 +976,10 @@ fn reconcile(
         // CR-028: filled by `compute`, which holds the `Registry` this
         // reconciliation deliberately does not take.
         criteria: Vec::new(),
+        // FR-059-AC-9 (CR-091): likewise filled by `compute` — the vocabulary
+        // lives in an archetype's frontmatter schema, which only the
+        // `Registry` can read.
+        vocabulary_coverage: Vec::new(),
         diagnostics,
         obligations,
         // FR-062. Carried through to the JSON so a consumer can scope work by

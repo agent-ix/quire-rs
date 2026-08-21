@@ -160,6 +160,7 @@ advises nothing.
 | FR-054-AC-9 | A corpus validated with a catalog declared produces the same findings, in the same order and with the same fields, as the same corpus with no catalog declared (CON-3). | Test (TC-852) |
 | FR-054-AC-10 | The derived vocabularies change when the catalog changes and are never read from a separate declaration: a module declaring a catalog and no vocabulary block still answers `verification_method` (CON-4). | Test (TC-853) |
 | FR-054-AC-11 | An obligation whose declared method matches neither a catalog method id nor a catalog class is reported in the coverage report as `uncatalogued-verification-method`, once per distinct (source, method) pair with the row count and an example document. A corpus whose modules declare no catalog is reported nothing, because an absent catalog cannot answer the question. | Test (TC-874, TC-875) |
+| FR-054-AC-12 | The `uncatalogued-verification-method` diagnostic carries the authored method in a structured `value` field, verbatim — the identical string the obligation records carry in `method` — so a consumer joins the two by equality rather than parsing the message; a diagnostic not about one value omits the key (CR-091). | Test (TC-967) |
 
 ## Dependencies
 

@@ -337,6 +337,74 @@ fn tc874_uncatalogued_method_is_reported() {
         .contains("uncatalogued-verification-method"));
 }
 
+#[trace("TC-967", "FR-054-AC-12")]
+// the uncatalogued diagnostic carries the offending method
+// in a structured `value` field, verbatim — the same string the obligation
+// records carry in `method` — so a consumer joins the two by equality instead
+// of regexing a human sentence (#179; the quoin#168 mismatch/uncatalogued
+// split reads exactly this).
+#[test]
+fn tc967_uncatalogued_diagnostic_carries_the_method_as_a_value() {
+    let dir = std::env::temp_dir().join(format!("quire-rs-uncat-val-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&dir);
+    let scope = dir.join("spec");
+    fs::create_dir_all(&scope).expect("mkdir");
+    fs::write(
+        scope.join("FR-001.md"),
+        "---\nid: FR-001\ntype: FR\ntitle: A requirement\n---\n\n\
+         ## Acceptance Criteria\n\n\
+         | ID | Criteria | Verification |\n|----|----------|--------------|\n\
+         | FR-001-AC-1 | The system shall keep doing it. | CI Gate |\n",
+    )
+    .expect("write");
+    let src = dir.join("src");
+    fs::create_dir_all(&src).expect("mkdir");
+    fs::write(src.join("lib.rs"), "//! empty\n").expect("write");
+
+    let module = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests")
+        .join("fixtures")
+        .join("traceability")
+        .join("obligations-catalog");
+    let registry = Registry::load_module(&module).expect("load module");
+    let spec = quire_rs::Spec::from_path(&scope);
+    let model = registry.traceability().cloned().expect("model");
+    let graph = quire_rs::symbols::trace::bind(&quire_rs::symbols::extract_tree(&src), &model);
+    let report = quire_rs::coverage::compute(&spec, &registry, &graph, &scope).expect("report");
+
+    let diagnostic = report
+        .diagnostics
+        .iter()
+        .find(|d| d.reason == "uncatalogued-verification-method")
+        .expect("the CI Gate row is uncatalogued");
+    assert_eq!(
+        diagnostic.value.as_deref(),
+        Some("CI Gate"),
+        "the value must be structural and verbatim, not recoverable only by \
+         parsing the message: {diagnostic:#?}"
+    );
+    let authored = report
+        .obligations
+        .iter()
+        .find_map(|o| o.method.as_deref())
+        .expect("the obligation carries the authored method");
+    assert_eq!(
+        diagnostic.value.as_deref(),
+        Some(authored),
+        "the diagnostic's value and the obligation's method must join by equality"
+    );
+    // And a diagnostic that is not about one value carries no key at all.
+    let json: serde_json::Value = serde_json::from_str(&report.to_json()).expect("valid JSON");
+    for d in json["diagnostics"].as_array().expect("diagnostics") {
+        if d["reason"] != "uncatalogued-verification-method" {
+            assert!(
+                d.get("value").is_none(),
+                "an absent value must be omitted, never null: {d:#?}"
+            );
+        }
+    }
+}
+
 #[trace("TC-875", "FR-054-AC-11")]
 // with no catalog declared, the check is silent.
 //

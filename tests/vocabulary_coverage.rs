@@ -1,4 +1,5 @@
-//! FR-059 — declared-vocabulary coverage (TC-911..TC-916).
+//! FR-059 — declared-vocabulary coverage (TC-911..TC-916, and the CR-091
+//! coverage-payload classification records, TC-962..TC-966).
 //!
 //! Bundles are built on disk per test so the whole path runs. The vocabulary in
 //! every assertion below comes from the fixture module's NFR **frontmatter
@@ -360,4 +361,207 @@ fn tc918_an_empty_projection_is_one_finding() {
         "once something projects, each unowned value is named"
     );
     fs::remove_dir_all(&root).ok();
+}
+
+// ─── CR-091 (#179): the coverage payload classifies every declared value ───
+//
+// The warnings above report only the RESIDUE — the unowned set. A consumer
+// (quoin FR-037 is the filed one) also needs to tell an owned value from an
+// excused one, and today the only way is to open every document in the bundle
+// and parse its frontmatter — a second frontmatter reader in a tool whose whole
+// discipline is that quire is the parser. These tests pin the per-value records
+// on `quire coverage --json`.
+
+fn coverage_report_for(scope: &Path, registry: &Registry) -> quire_rs::coverage::CoverageReport {
+    let src = scope.join("no-source");
+    fs::create_dir_all(&src).expect("mkdir");
+    let spec = quire_rs::Spec::from_path(scope);
+    let model = registry.traceability().cloned().expect("model");
+    let graph = quire_rs::symbols::trace::bind(&quire_rs::symbols::extract_tree(&src), &model);
+    quire_rs::coverage::compute(&spec, registry, &graph, scope).expect("report")
+}
+
+fn coverage_report(scope: &Path) -> quire_rs::coverage::CoverageReport {
+    let registry = Registry::load_module(&fixture_module("vocabulary-coverage")).expect("load");
+    coverage_report_for(scope, &registry)
+}
+
+/// The three-state bundle every classification test reads: `reliability` is
+/// claimed, `safety` is excused on a Spec document, `security` and `usability`
+/// are neither.
+fn classified_bundle(tag: &str) -> PathBuf {
+    let root = tmpdir(tag);
+    write(&root, "NFR-001.md", &nfr("NFR-001", Some("reliability")));
+    write(
+        &root,
+        "spec.md",
+        "---\nid: SPEC-001\ntype: Spec\ntitle: The product\n\
+         quality_attributes_not_applicable:\n  - safety\n---\n\n## Description\n\n\
+         A CLI that controls no physical process.\n",
+    );
+    root
+}
+
+#[trace("TC-962", "FR-059-AC-9")]
+// a claimed value is an `owned` record naming the claiming
+// document — a fact the warning stream never carries, because a covered value
+// produces no warning at all.
+#[test]
+fn tc962_a_claimed_value_is_an_owned_record() {
+    let root = classified_bundle("962");
+    let report = coverage_report(&root);
+
+    let owned: Vec<_> = report
+        .vocabulary_coverage
+        .iter()
+        .filter(|r| r.state == quire_rs::coverage::VocabularyValueState::Owned)
+        .collect();
+    assert_eq!(owned.len(), 1, "{:#?}", report.vocabulary_coverage);
+    let record = owned[0];
+    assert_eq!(record.value, "reliability");
+    assert_eq!(record.vocabulary, "quality-characteristics");
+    assert_eq!(record.archetype, "NFR");
+    assert_eq!(record.field, "quality_attribute");
+    assert_eq!(record.check, "unowned-quality-characteristic");
+    assert_eq!(
+        record.documents,
+        vec!["NFR-001.md".to_string()],
+        "who owns it, and where, without a second frontmatter reader"
+    );
+    fs::remove_dir_all(&root).ok();
+}
+
+#[trace("TC-963", "FR-059-AC-9")]
+// an excused value is an `excused` record naming the
+// excusing document. Owned and excused are very different facts — one means a
+// requirement exists, the other means somebody wrote the value into the
+// justified-absence field and the check went quiet — and the flat warning
+// stream collapses them into the same silence.
+#[test]
+fn tc963_an_excused_value_is_an_excused_record_naming_the_excuser() {
+    let root = classified_bundle("963");
+    let report = coverage_report(&root);
+
+    let excused: Vec<_> = report
+        .vocabulary_coverage
+        .iter()
+        .filter(|r| r.state == quire_rs::coverage::VocabularyValueState::Excused)
+        .collect();
+    assert_eq!(excused.len(), 1, "{:#?}", report.vocabulary_coverage);
+    assert_eq!(excused[0].value, "safety");
+    assert_eq!(
+        excused[0].documents,
+        vec!["spec.md".to_string()],
+        "\"who excused this, and where\" is answerable from the record — the \
+         document is the Spec, not the projected archetype"
+    );
+    fs::remove_dir_all(&root).ok();
+}
+
+#[trace("TC-964", "FR-059-AC-9")]
+// a value nothing claims and nothing excuses is an
+// `unowned` record with no documents, and the record set covers every declared
+// value exactly once, in the schema's own order.
+#[test]
+fn tc964_an_unclaimed_unexcused_value_is_an_unowned_record() {
+    let root = classified_bundle("964");
+    let report = coverage_report(&root);
+
+    let states: Vec<(&str, &quire_rs::coverage::VocabularyValueState)> = report
+        .vocabulary_coverage
+        .iter()
+        .map(|r| (r.value.as_str(), &r.state))
+        .collect();
+    use quire_rs::coverage::VocabularyValueState as S;
+    assert_eq!(
+        states,
+        vec![
+            ("reliability", &S::Owned),
+            ("security", &S::Unowned),
+            ("usability", &S::Unowned),
+            ("safety", &S::Excused),
+        ],
+        "one record per declared value, in the schema enum's order"
+    );
+    for record in report
+        .vocabulary_coverage
+        .iter()
+        .filter(|r| r.state == S::Unowned)
+    {
+        assert!(
+            record.documents.is_empty(),
+            "nothing claims it, so nothing to point at: {record:#?}"
+        );
+    }
+    fs::remove_dir_all(&root).ok();
+}
+
+#[trace("TC-965", "FR-059-AC-9")]
+// a module declaring no `vocabulary_coverage` serializes
+// with no `vocabulary_coverage` key at all — the FR-050-AC-7 byte-identity
+// every additive payload key before this one has kept.
+#[test]
+fn tc965_a_module_declaring_nothing_serializes_no_key() {
+    let root = tmpdir("965");
+    write(&root, "NFR-001.md", &nfr("NFR-001", Some("reliability")));
+    let registry = Registry::load_module(&fixture_module("required-relations")).expect("load");
+    let report = coverage_report_for(&root, &registry);
+
+    assert!(report.vocabulary_coverage.is_empty());
+    let json: serde_json::Value = serde_json::from_str(&report.to_json()).expect("valid JSON");
+    assert!(
+        !json
+            .as_object()
+            .unwrap()
+            .contains_key("vocabulary_coverage"),
+        "an empty record set must be omitted, not serialized as `[]`"
+    );
+    fs::remove_dir_all(&root).ok();
+}
+
+#[trace("TC-966", "FR-059-AC-10")]
+// a declaration whose field yields no enum reports itself
+// on the coverage surface too, under the same `undeclared-coverage-vocabulary`
+// token the bundle warning uses. Without this, a dead declaration and an
+// undeclared one read identically in the payload — no records either way —
+// which is the CR-075 silence in a third place.
+#[test]
+fn tc966_a_dead_declaration_is_a_coverage_diagnostic() {
+    let module = tmpdir("966_module");
+    let source = fixture_module("vocabulary-coverage");
+    fs::create_dir_all(module.join("schemas")).expect("mkdir");
+    fs::copy(
+        source.join("schemas/nfr.schema.json"),
+        module.join("schemas/nfr.schema.json"),
+    )
+    .expect("copy schema");
+    let manifest = fs::read_to_string(source.join("manifest.yaml"))
+        .expect("read")
+        .replace("    field: quality_attribute\n", "    field: not_a_field\n");
+    fs::write(module.join("manifest.yaml"), manifest).expect("write");
+
+    let root = tmpdir("966");
+    write(&root, "NFR-001.md", &nfr("NFR-001", Some("reliability")));
+    let registry = Registry::load_module(&module).expect("a bad field still loads");
+    let report = coverage_report_for(&root, &registry);
+
+    assert!(
+        report.vocabulary_coverage.is_empty(),
+        "with no vocabulary there is nothing to classify"
+    );
+    let dead: Vec<_> = report
+        .diagnostics
+        .iter()
+        .filter(|d| d.reason == "undeclared-coverage-vocabulary")
+        .collect();
+    assert_eq!(dead.len(), 1, "{:#?}", report.diagnostics);
+    assert_eq!(dead[0].declaration, "quality-characteristics");
+    assert!(
+        dead[0].message.contains("not_a_field") && dead[0].message.contains("NFR"),
+        "names the field and the archetype: {}",
+        dead[0].message
+    );
+
+    fs::remove_dir_all(&root).ok();
+    fs::remove_dir_all(&module).ok();
 }
