@@ -39,7 +39,7 @@ pub(crate) fn parse(path: &str, source: &str) -> Result<Vec<RawSymbol>, String> 
     for (idx, lexed_line) in lexed.iter().enumerate() {
         let trimmed = lexed_line.code.trim();
 
-        if let Some(title) = registration(trimmed) {
+        if let Some(title) = registration(&lexed, idx) {
             push(
                 &mut out,
                 &lines,
@@ -120,14 +120,171 @@ fn scope_container(scopes: &[(String, i64)], module: &str) -> Option<String> {
         .or_else(|| Some(module.to_string()))
 }
 
+/// How far past the opening line a registration's title may begin. Vitest and
+/// prettier both wrap a long curried call, and the title lands on the very next
+/// line; three is slack for a formatted argument list without letting a string
+/// several statements away become a test name.
+const TITLE_LOOKAHEAD_LINES: usize = 3;
+
 /// A `test('title', …)` / `it("title", …)` registration — the title is the
 /// symbol name. `describe(…)` blocks group tests but register none themselves.
-fn registration(trimmed: &str) -> Option<String> {
-    let caps = re_registration().captures(trimmed)?;
-    // Groups 2/3/4 are the single-, double-, and backtick-quoted title forms.
-    (2..=4)
-        .find_map(|g| caps.get(g))
-        .map(|m| m.as_str().to_string())
+///
+/// Reads the whole-file lex rather than one line (CR-084), which buys the two
+/// shapes the single-line regex could not see:
+///
+/// * **Curried modifiers.** `it.skipIf(cond)(…)` and `it.each([…])(…)` are the
+///   conditional and parametrised forms both vitest and jest ship. The first
+///   `(` holds the condition, not the title.
+/// * **A title on a later line**, which is simply how either of the above is
+///   formatted once it exceeds the line width.
+///
+/// Neither registered a symbol at all before, and that is worse than a missed
+/// tag: with no symbol, a legacy comment id and a canonical `trace(…)` call
+/// inside the body have nothing to attach to, so the test runs, passes and binds
+/// nothing, silently and always in the direction that loses coverage.
+fn registration(lexed: &[LexedLine], idx: usize) -> Option<String> {
+    let first = lexed.get(idx)?.code.trim_start();
+    let open = registration_open(first)?;
+    read_title(lexed, idx, first, open)
+}
+
+/// Byte offset just past the `(` that opens the registration call, or `None`
+/// when the line does not open one.
+fn registration_open(line: &str) -> Option<usize> {
+    let bytes = line.as_bytes();
+    let ident = |c: &u8| c.is_ascii_alphanumeric() || *c == b'_' || *c == b'$';
+    let mut i = 0;
+
+    if line.starts_with("await") && bytes.get(5).is_some_and(u8::is_ascii_whitespace) {
+        i = 5;
+        while bytes.get(i).is_some_and(u8::is_ascii_whitespace) {
+            i += 1;
+        }
+    }
+
+    // `test` or `it`, and nothing longer — `iterate(` registers nothing.
+    let name = ["test", "it"]
+        .into_iter()
+        .find(|n| line[i..].starts_with(n))?;
+    i += name.len();
+    if bytes.get(i).is_some_and(ident) {
+        return None;
+    }
+
+    loop {
+        // A `.modifier` chain: `.skip`, `.each`, `.concurrent.skip`, …
+        while bytes.get(i) == Some(&b'.') {
+            i += 1;
+            let start = i;
+            while bytes.get(i).is_some_and(ident) {
+                i += 1;
+            }
+            if i == start {
+                return None;
+            }
+        }
+        while bytes.get(i).is_some_and(u8::is_ascii_whitespace) {
+            i += 1;
+        }
+        if bytes.get(i) != Some(&b'(') {
+            return None;
+        }
+        let open = i + 1;
+        match close_paren(bytes, i) {
+            // The group closed on this line and another `(` follows, so what
+            // closed was a curried modifier's arguments and the registration
+            // call is the next one along.
+            Some(close) => {
+                let mut j = close + 1;
+                while bytes.get(j).is_some_and(u8::is_ascii_whitespace) {
+                    j += 1;
+                }
+                if bytes.get(j) == Some(&b'(') {
+                    i = j;
+                    continue;
+                }
+                return Some(open);
+            }
+            // Unclosed on this line: the callback body spans lines, so this
+            // group *is* the registration call.
+            None => return Some(open),
+        }
+    }
+}
+
+/// Offset of the `)` matching the `(` at `open`, searching this line only.
+/// Quoted spans are skipped, so a paren inside a string literal cannot unbalance
+/// the count. `None` when the group does not close on this line.
+fn close_paren(bytes: &[u8], open: usize) -> Option<usize> {
+    let mut depth = 0i32;
+    let mut i = open;
+    let mut quote: Option<u8> = None;
+    while i < bytes.len() {
+        let c = bytes[i];
+        match quote {
+            Some(q) => {
+                if c == b'\\' {
+                    i += 2;
+                    continue;
+                }
+                if c == q {
+                    quote = None;
+                }
+            }
+            None => match c {
+                b'\'' | b'"' | b'`' => quote = Some(c),
+                b'(' => depth += 1,
+                b')' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        return Some(i);
+                    }
+                }
+                _ => {}
+            },
+        }
+        i += 1;
+    }
+    None
+}
+
+/// The quoted title at or after `open`, following the line break into at most
+/// [`TITLE_LOOKAHEAD_LINES`] further lines.
+///
+/// Stops at the first non-blank text rather than hunting for a quote: in
+/// `it(name, …)` the title is a variable, and scanning past it would name the
+/// test after some unrelated string literal further down the argument list.
+///
+/// **Known limitation, by design.** `lex_line` drops content carried in from an
+/// unterminated template literal, so a title written inside a multi-line
+/// template yields no quote here and registers nothing — the same outcome as
+/// before this change, and preferable to registering a wrong name.
+fn read_title(lexed: &[LexedLine], idx: usize, first: &str, open: usize) -> Option<String> {
+    for offset in 0..=TITLE_LOOKAHEAD_LINES {
+        let text = if offset == 0 {
+            first.get(open..)?
+        } else {
+            lexed.get(idx + offset)?.code.as_str()
+        };
+        let text = text.trim_start();
+        if text.is_empty() {
+            continue;
+        }
+        return quoted(text);
+    }
+    None
+}
+
+/// Contents of a leading quoted literal. Escapes are not interpreted, matching
+/// the `[^']*` the single-line regex used before CR-084.
+fn quoted(text: &str) -> Option<String> {
+    let quote = *text.as_bytes().first()?;
+    if !matches!(quote, b'\'' | b'"' | b'`') {
+        return None;
+    }
+    let rest = text.get(1..)?;
+    let end = rest.find(quote as char)?;
+    Some(rest[..end].to_string())
 }
 
 fn class_declaration(trimmed: &str) -> Option<String> {
@@ -370,14 +527,6 @@ fn check_balanced(lexed: &[LexedLine]) -> Result<(), String> {
     Ok(())
 }
 
-fn re_registration() -> &'static Regex {
-    static R: OnceLock<Regex> = OnceLock::new();
-    R.get_or_init(|| {
-        Regex::new(r#"^(?:await\s+)?(test|it)(?:\.\w+)?\(\s*(?:'([^']*)'|"([^"]*)"|`([^`]*)`)"#)
-            .expect("registration regex")
-    })
-}
-
 fn re_arrow_const() -> &'static Regex {
     static R: OnceLock<Regex> = OnceLock::new();
     R.get_or_init(|| {
@@ -397,6 +546,114 @@ fn re_method() -> &'static Regex {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// TC-943, FR-051-AC-18 (CR-084): a curried modifier registration, and a
+    /// title beginning on a later line, register a test symbol.
+    ///
+    /// `it.skipIf(cond)("TC-118 …")` produced **no symbol at all**, because the
+    /// single-line regex required the title's quote to follow `it(` immediately.
+    /// A registration the extractor cannot see is worse than a missed tag: the
+    /// test runs, passes, and neither a legacy comment id nor a canonical
+    /// `trace(…)` in its body has anything to bind to.
+    #[test]
+    fn tc943_curried_and_wrapped_registrations_bind() {
+        let source = concat!(
+            "describe(\"self-update\", () => {\n",
+            "  it.skipIf(installed === null)(\n",
+            "    \"TC-118 the installed CLI satisfies the pinned premise\",\n",
+            "    () => { expect(1).toBe(1); },\n",
+            "  );\n",
+            "  it.each([1, 2])(\"TC-119 each case %i\", (n) => { expect(n).toBe(n); });\n",
+            // Verbatim from `typesetter/tests/ToleranceTaxonomy.test.ts:69` —
+            // the only occurrence in ~/dev carrying a trace id, and therefore
+            // the only tag this change actually recovers. A shape copied from
+            // the corpus, not one imagined for the test.
+            "  it.each([...benignSamples, ...materialSamples])(\n",
+            "    'FR-043-AC-2 the real corpus shape',\n",
+            "    (id, input) => { expect(id).toBe(id); },\n",
+            "  );\n",
+            "  test(\n",
+            "    'TC-120 a plain call wrapped for width',\n",
+            "    () => { expect(2).toBe(2); },\n",
+            "  );\n",
+            "  it.concurrent.skip(\"TC-121 a chained modifier\", () => {});\n",
+            "  it(\"TC-122 the ordinary form still binds\", () => {});\n",
+            "});\n",
+        );
+
+        let symbols = parse("self-update.test.ts", source).expect("a valid file must parse");
+        let tests: Vec<&str> = symbols
+            .iter()
+            .filter(|s| s.kind == SymbolKind::TestFunction)
+            .map(|s| s.qualified_name.as_str())
+            .collect();
+
+        assert_eq!(
+            tests,
+            vec![
+                "TC-118 the installed CLI satisfies the pinned premise",
+                "TC-119 each case %i",
+                "FR-043-AC-2 the real corpus shape",
+                "TC-120 a plain call wrapped for width",
+                "TC-121 a chained modifier",
+                "TC-122 the ordinary form still binds",
+            ],
+            "every registration form must yield exactly one test symbol",
+        );
+    }
+
+    /// TC-943, FR-051-AC-18 (CR-084): the forward scan does not over-reach.
+    ///
+    /// The failure this guards is subtler than the one it fixes. A scan that
+    /// hunted for *any* quote would name a test after an unrelated string, and a
+    /// wrong symbol name is worse than none: it binds a tag to the wrong
+    /// requirement instead of visibly binding nothing.
+    #[test]
+    fn tc943_the_forward_scan_refuses_what_is_not_a_title() {
+        // A variable title. The scan must stop at `name`, not walk on to the
+        // string two lines down.
+        let variable = concat!(
+            "it(\n",
+            "  name,\n",
+            "  () => { expect(\"TC-500 not a title\").toBe(1); },\n",
+            ");\n",
+        );
+        assert!(
+            parse("a.test.ts", variable)
+                .expect("parses")
+                .iter()
+                .all(|s| s.kind != SymbolKind::TestFunction),
+            "a variable title registers nothing rather than something wrong",
+        );
+
+        // An identifier that merely starts with `it`.
+        let lookalike = "iterate(\"TC-501 not a registration\", () => {});\n";
+        assert!(
+            parse("b.test.ts", lookalike)
+                .expect("parses")
+                .iter()
+                .all(|s| s.kind != SymbolKind::TestFunction),
+            "`iterate(` is not `it(`",
+        );
+
+        // Beyond the lookahead window: a title four lines down is not this
+        // registration's.
+        let far = concat!(
+            "it(\n",
+            "\n",
+            "\n",
+            "\n",
+            "  \"TC-502 too far to be ours\",\n",
+            ");\n",
+        );
+        assert!(
+            parse("c.test.ts", far)
+                .expect("parses")
+                .iter()
+                .all(|s| s.kind != SymbolKind::TestFunction),
+            "the lookahead window is bounded",
+        );
+    }
 
     /// TC-798, FR-051-AC-12 (CR-036): a `/*` inside a template literal is
     /// content, not a comment opener.
