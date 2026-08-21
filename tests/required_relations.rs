@@ -329,6 +329,14 @@ fn tc905_every_declared_field_survives_the_merge() {
         vec!["rust-implements-attr"],
         "trace_tags.implements survived the merge"
     );
+    // CR-085: stated by declared value for the same reason, not by a non-empty
+    // check — a merge that dropped the key and one that mangled it read the
+    // same to `!is_empty()`.
+    assert_eq!(
+        model.source_exclude,
+        vec!["tests/fixtures/**".to_string()],
+        "source_exclude survived the merge"
+    );
 
     // And the same model read through `is_empty` — the gate that decides
     // whether `traceability()` returns anything at all.

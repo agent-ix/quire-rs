@@ -925,6 +925,14 @@ fn merge_traceability(modules: &[LoadedModule]) -> crate::traceability::Traceabi
         // load first. The set it yields does not depend on load order, which
         // the named-entry merges get from their first-wins rule instead
         // (NFR-006).
+        // CR-085: `source_exclude` merges as a union for exactly the CR-060
+        // reason above — a path one module declares "not source" must not become
+        // source because another module loaded first.
+        for pattern in &m.source_exclude {
+            if !merged.source_exclude.contains(pattern) {
+                merged.source_exclude.push(pattern.clone());
+            }
+        }
         for pattern in &m.exclude {
             if !merged.exclude.contains(pattern) {
                 merged.exclude.push(pattern.clone());

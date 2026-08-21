@@ -220,6 +220,31 @@ pub fn extract_tree(root: &Path) -> SymbolExtraction {
 /// here: documents are not source, so the code walk must not descend into
 /// `spec/` (FR-050 two-roots, CR-045).
 pub fn extract_tree_excluding(root: &Path, exclude: &[&Path]) -> SymbolExtraction {
+    extract_tree_scoped(root, exclude, &[])
+}
+
+/// Like [`extract_tree_excluding`], but additionally skips files matching a
+/// declared `traceability.source_exclude` glob (FR-050-AC-22, CR-085).
+///
+/// Two filters, deliberately different in kind:
+///
+/// * `exclude_dirs` is the caller's **non-configurable** argument — the document
+///   root. No manifest key and no flag names it (FR-050 CR-045), and it prunes
+///   whole subtrees before they are walked.
+/// * `exclude_globs` is **module-declared data** naming fixture trees that hold
+///   no traceable source. It can only subtract, and it is applied per file
+///   *after* `language_of`, never as a directory prune: `tests/fixtures/**` does
+///   not match the directory `tests/fixtures` itself, so glob-based
+///   `filter_entry` pruning would be unreliable in exactly the case it is for.
+pub fn extract_tree_scoped(
+    root: &Path,
+    exclude_dirs: &[&Path],
+    exclude_globs: &[String],
+) -> SymbolExtraction {
+    let exclude = exclude_dirs;
+    // Compiled once, outside the walk, for the CR-060 reason `ExcludeSet` was
+    // given its own type: this is asked about every source file in the repo.
+    let globs = crate::corpus::declared_tables::ExcludeSet::compile(exclude_globs);
     // Canonicalized, because an exclusion stated as a path must hold wherever
     // the caller's `is_dir()` check held (CR-056). On a case-insensitive
     // filesystem — macOS/APFS, the canonical perf runner — `<scope>/Spec`
@@ -254,7 +279,11 @@ pub fn extract_tree_excluding(root: &Path, exclude: &[&Path]) -> SymbolExtractio
             continue;
         };
         let rel = path.strip_prefix(root).unwrap_or(path);
-        files.push((normalize_path(rel), language, path.to_path_buf()));
+        let relative = normalize_path(rel);
+        if !globs.is_empty() && globs.matches(&relative) {
+            continue;
+        }
+        files.push((relative, language, path.to_path_buf()));
     }
     // Sort before reading so the output order never depends on walk order.
     files.sort();
@@ -398,6 +427,86 @@ mod tests {
         let empty_exclude = extract_tree_excluding(&fixture_root(), &[]);
         assert_eq!(all.symbols, empty_exclude.symbols);
         assert_eq!(all.diagnostics, empty_exclude.diagnostics);
+    }
+
+    #[trace("TC-944", "FR-050-AC-22")]
+    // a declared `source_exclude` glob removes the matching
+    // file's symbols, a non-matching one changes nothing, and the key can only
+    // subtract: it cannot un-exclude the document root (CR-085).
+    #[test]
+    fn tc944_declared_globs_subtract_from_the_source_walk() {
+        let all = extract_tree(&fixture_root());
+        assert!(
+            all.symbols.iter().any(|s| s.path.starts_with("rust/")),
+            "fixture premise: the tree holds rust symbols",
+        );
+
+        // A matching glob removes exactly those files.
+        let filtered = extract_tree_scoped(&fixture_root(), &[], &["rust/**".to_string()]);
+        assert!(
+            filtered
+                .symbols
+                .iter()
+                .all(|s| !s.path.starts_with("rust/")),
+            "a declared glob did not remove its files",
+        );
+        assert!(filtered
+            .symbols
+            .iter()
+            .any(|s| s.path.starts_with("python/")));
+
+        // A non-matching glob changes nothing at all — byte-identity for every
+        // repository that declares one and is not affected by it.
+        let untouched = extract_tree_scoped(&fixture_root(), &[], &["no/such/path/**".to_string()]);
+        assert_eq!(all.symbols, untouched.symbols);
+        assert_eq!(all.diagnostics, untouched.diagnostics);
+
+        // An empty glob list is exactly `extract_tree_excluding`.
+        let empty = extract_tree_scoped(&fixture_root(), &[], &[]);
+        assert_eq!(all.symbols, empty.symbols);
+
+        // Anchoring: `globset` anchors at the start unless the pattern opens
+        // with `**/`, so a fixture glob cannot reach a same-named directory
+        // nested under source. This is why `tests/fixtures/**` is safe to
+        // declare ecosystem-wide and `tests/**` would not be.
+        let nested = extract_tree_scoped(&fixture_root(), &[], &["fixtures/rust/**".to_string()]);
+        assert_eq!(
+            all.symbols, nested.symbols,
+            "a start-anchored glob must not match a nested directory of the same name",
+        );
+    }
+
+    #[trace("TC-944", "FR-050-AC-22", "FR-050-AC-17")]
+    // the key can only subtract. Declaring `spec/**` as a
+    // source glob cannot un-exclude the document root, because the two filters
+    // are different in kind: the root is the caller's non-configurable argument
+    // (CR-045) and the globs are a second filter applied after it.
+    #[test]
+    fn tc944_source_globs_cannot_un_exclude_the_document_root() {
+        let root = std::env::temp_dir().join(format!(
+            "quire-sym-subtract-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(root.join("spec")).expect("mkdir");
+        std::fs::write(root.join("spec/doc.rs"), "fn in_spec() {}\n").expect("write");
+        std::fs::write(root.join("lib.rs"), "fn in_source() {}\n").expect("write");
+
+        let out = extract_tree_scoped(&root, &[Path::new("spec")], &["spec/**".to_string()]);
+        assert!(
+            out.symbols.iter().all(|s| !s.path.starts_with("spec/")),
+            "declaring the document root as a source glob must not admit it",
+        );
+        assert!(
+            out.symbols.iter().any(|s| s.path == "lib.rs"),
+            "and must not remove real source: {:?}",
+            out.symbols,
+        );
+
+        let _ = std::fs::remove_dir_all(&root);
     }
 
     #[trace("TC-809", "FR-050-AC-17")]
