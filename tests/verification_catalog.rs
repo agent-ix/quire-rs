@@ -268,6 +268,51 @@ fn tc853_derived_vocabularies_need_no_separate_declaration() {
     assert_eq!(merged.column_vocabulary("verification_method").len(), 3);
 }
 
+#[trace("TC-968", "FR-054-AC-13")]
+// a declared cost survives to the accessor verbatim, and an
+// entry declaring none reads `None` — never a default. Before this field a
+// correct-but-expensive method (`concolic-execution` is the filed case: an
+// escalation of last resort after cheap random search stalls) ranked
+// identically to a cheap one, and the single most important piece of guidance
+// about the technique could not be written anywhere a machine reads (#190).
+#[test]
+fn tc968_cost_is_exposed_intact_and_absent_reads_none() {
+    let registry = registry("one");
+    let catalog = registry.verification_catalog().expect("catalog declared");
+
+    assert_eq!(
+        catalog["architecture-conformance"].cost.as_deref(),
+        Some("assurance-only"),
+        "the declared cost must survive verbatim — the engine neither \
+         interprets nor normalizes it (CON-6)"
+    );
+    assert_eq!(
+        catalog["property-based-testing"].cost, None,
+        "an entry declaring no cost reads None — absence is 'the module said \
+         nothing', which a consumer must not read as cheap"
+    );
+}
+
+#[trace("TC-969", "FR-054-AC-13")]
+// the serialized entry — the shape the advisor's payload
+// carries — omits an undeclared cost entirely and carries a declared one, so
+// a consumer written before the field existed reads an unchanged entry from
+// every catalog that has not adopted it.
+#[test]
+fn tc969_cost_serializes_additively_in_both_directions() {
+    let registry = registry("one");
+    let catalog = registry.verification_catalog().expect("catalog declared");
+
+    let with = serde_json::to_value(&catalog["architecture-conformance"]).expect("serializes");
+    assert_eq!(with["cost"], serde_json::json!("assurance-only"));
+
+    let without = serde_json::to_value(&catalog["property-based-testing"]).expect("serializes");
+    assert!(
+        without.get("cost").is_none(),
+        "an undeclared cost must be omitted, never null: {without:#?}"
+    );
+}
+
 #[trace("TC-874", "FR-054-AC-11")]
 // a declared method that is in no catalog is reported.
 //

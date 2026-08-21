@@ -166,6 +166,17 @@ pub struct VerificationMethodDef {
     /// opaque here.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub evidence_kind: Option<String>,
+    /// What reaching for this method costs, as an ordinal posture the
+    /// declaring module chooses — e.g. `first-line` / `escalation` /
+    /// `assurance-only` (FR-054-AC-13, `agent-ix/quire-rs#190`). A free
+    /// string like [`class`](Self::class), for the same CON-1 reason: an
+    /// external user pricing by wall-clock tier or by assurance level must be
+    /// able to. **Stored and surfaced, never interpreted** (CON-6): weighting
+    /// a recommendation by cost is the advisor's judgement, exactly as
+    /// matching `applicability` is. Absent means the module said nothing —
+    /// which a consumer must not read as "cheap".
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cost: Option<String>,
     /// Rule name → values that trigger advising this method. **Stored and
     /// surfaced, never interpreted** (CON-2): deciding which requirement a rule
     /// matches is the advisor's judgement, and an engine that understood

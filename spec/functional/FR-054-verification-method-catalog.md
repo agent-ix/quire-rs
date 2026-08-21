@@ -62,6 +62,22 @@ level, or by anything else must be able to, and an engine-side enum would make
 the catalog agent-ix's rather than theirs. The engine knows the *shape* of an
 entry and never the meaning of any value in it.
 
+### A method can say what it costs
+
+An entry MAY declare `cost:` — an **ordinal posture**, e.g. `first-line` / `escalation` /
+`assurance-only` (CR-092, `agent-ix/quire-rs#190`). Before it there was nowhere to say that
+`concolic-execution` is an escalation of last resort reached after cheap random search stalls, or
+that `fault-injection` is not something to reach for before a passing test — so quoin's advisor
+ranked a correct-but-expensive method identically to a cheap one, and an advisor that recommends
+the expensive thing with the same confidence as the cheap thing trains people to ignore it. The
+guidance lived as skill-local prose marked interim, which is the arrangement ADR-0011 moved away
+from.
+
+`cost` is a free string like `class`, for the same generality reason: an external user pricing by
+wall-clock tier or assurance level must be able to. It is stored and surfaced, never interpreted
+(CON-6) — the ranking weight is the advisor's judgement, exactly as matching `applicability` is.
+An absent `cost` means the module said nothing, which a consumer must not read as "cheap".
+
 ### Applicability rules are opaque to the engine
 
 `applicability:` is a map of rule name to a list of values. The engine SHALL
@@ -112,8 +128,8 @@ the catalog.
 
 ## Outputs
 
-- `VerificationMethod { name, class, definition, evidence_kind, applicability,
-  tooling }`, keyed by method id, merged first-wins.
+- `VerificationMethod { name, class, definition, evidence_kind, cost,
+  applicability, tooling }`, keyed by method id, merged first-wins.
 - `Registry::verification_catalog()` — the merged map, or `None` when no active
   module declares one.
 - `Registry::column_vocabulary(name)` — extended to the three names above.
@@ -121,8 +137,8 @@ the catalog.
 ## Behavior
 
 The engine SHALL parse `verification_catalog:` as a map of id → entry. `name`,
-`class` and `definition` are required; `evidence_kind`, `applicability` and
-`tooling` are optional. The entry struct SHALL be `deny_unknown_fields`, so a
+`class` and `definition` are required; `evidence_kind`, `cost`, `applicability`
+and `tooling` are optional. The entry struct SHALL be `deny_unknown_fields`, so a
 typo fails module load rather than being silently discarded — the house rule
 that costs an engine release before a module may declare a new key, and the
 reason this FR ships before any module declares the block.
@@ -144,6 +160,7 @@ advises nothing.
 | FR-054-CON-3 | Catalog entries SHALL NOT participate in validation: no finding, no severity, no [FR-048](./FR-048-per-check-grammar-severity.md) key. A declared method a document does not use is data, and an undeclared method a document does use is the auditor's finding, not the engine's. | Architecture | Test |
 | FR-054-CON-4 | The derived vocabularies SHALL be computed from the merged catalog, never authored alongside it. A second authored copy is the duplication this FR exists to remove. | Architecture | Test |
 | FR-054-CON-5 | The uncatalogued-method report SHALL be a coverage **diagnostic**, never a `GrammarFinding` and never an error. It names a gap between what an author wrote and what a module declared; deciding whether that gap fails a build is the consuming workflow's policy, exactly as FR-053-CON-4 requires of everything else on the obligation path. | Architecture | Test |
+| FR-054-CON-6 | The engine SHALL NOT interpret `cost`: no ordering among values, no ranking weight, no default for an absent one. It stores and surfaces the posture; weighting a recommendation by it is the advisor's judgement (CR-092). | Architecture | Inspection |
 
 ## Acceptance Criteria
 
@@ -161,6 +178,7 @@ advises nothing.
 | FR-054-AC-10 | The derived vocabularies change when the catalog changes and are never read from a separate declaration: a module declaring a catalog and no vocabulary block still answers `verification_method` (CON-4). | Test (TC-853) |
 | FR-054-AC-11 | An obligation whose declared method matches neither a catalog method id nor a catalog class is reported in the coverage report as `uncatalogued-verification-method`, once per distinct (source, method) pair with the row count and an example document. A corpus whose modules declare no catalog is reported nothing, because an absent catalog cannot answer the question. | Test (TC-874, TC-875) |
 | FR-054-AC-12 | The `uncatalogued-verification-method` diagnostic carries the authored method in a structured `value` field, verbatim — the identical string the obligation records carry in `method` — so a consumer joins the two by equality rather than parsing the message; a diagnostic not about one value omits the key (CR-091). | Test (TC-967) |
+| FR-054-AC-13 | An entry declaring `cost` exposes it verbatim through `Registry::verification_catalog()` and the serialized entry; one declaring none reads `None` and serializes with no `cost` key — never `null` — so the payload the advisor reads is unchanged for every catalog that has not adopted the field (CR-092). | Test (TC-968, TC-969) |
 
 ## Dependencies
 

@@ -28,6 +28,9 @@ verification_catalog:
     definition: >-
       Check the implemented dependency structure against the declared one.
     evidence_kind: static-analysis
+    # An ordinal posture, not a measurement. The value is the module's own —
+    # the engine stores and surfaces it without interpreting it (CON-6).
+    cost: assurance-only
     applicability:
       # A rule name the engine has never heard of, on purpose (CON-2).
       forbidden_dependency_edges: ["*"]
