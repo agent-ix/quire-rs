@@ -60,6 +60,13 @@ finds a tagged test with no matrix row to reconcile it against:
 by construction — it is a fixture asserting that a scope covers nothing declared. The other 14 are
 real drift worth a separate ticket rather than an in-wave fix.
 
+> **Superseded 2026-08-20 by CR-085 (`agent-ix/quire-rs#199`).** The `TC-999` line above triaged a
+> permanent finding; it is no longer one. A module may now declare `traceability.source_exclude`,
+> and a repo-root scope declaring `tests/fixtures/**` reports it no more. Recorded rather than
+> deleted: the triage was correct when written, and the date it stopped being correct is the useful
+> part. The other 14 are also stale in the opposite direction — CR-078 (#198) removed three of them,
+> and a re-measurement on the pinned engine finds **1** untracked symbol at repo-root scope, not 15.
+
 ### What was checked and found clean
 
 - **All twelve Wave B test cases backed.** TC-898 … TC-909, each resolving to a test function whose

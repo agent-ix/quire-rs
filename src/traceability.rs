@@ -64,6 +64,31 @@ pub struct TraceabilityModel {
     /// licence for it to be malformed in ways nobody reports.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub exclude: Vec<String>,
+    /// Path globs under the **code** root holding no traceable source (CR-085):
+    /// fixture trees whose whole purpose is to contain a tag nothing declares.
+    ///
+    /// Deliberately a separate key from [`exclude`], which is about **documents**
+    /// and has never been applied to a source file. The two vocabularies must
+    /// not merge, and the reason is measurable: FR-004-AC-9 in
+    /// `spec-artifacts-process` *requires* every trace target to exclude
+    /// `tests/**`, while 194 of this crate's ~458 `#[trace(` markers live under
+    /// `tests/` — and in every Python and TypeScript repository in the ecosystem
+    /// that share is near total. A key that meant both would delete the evidence
+    /// tree and read as a catastrophic coverage regression.
+    ///
+    /// **`tests/**` must never appear here.** Anchor at the fixture directory —
+    /// `tests/fixtures/**`, not `tests/**`. `globset` anchors a pattern at the
+    /// start unless it opens with `**/`, so `tests/fixtures/**` cannot match
+    /// `src/tests/fixtures/x.rs`.
+    ///
+    /// This **subtracts within** the code root and can do nothing else. It does
+    /// not relocate either root, so FR-050 CR-045 ("`spec/` is convention, not
+    /// configuration: no manifest key and no flag relocates it") is untouched —
+    /// the document root's exclusion stays the caller's non-configurable
+    /// argument, and these globs are a second filter applied after it. TC-944
+    /// asserts that a `source_exclude` of `spec/**` cannot un-exclude `spec/`.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub source_exclude: Vec<String>,
     /// Documents/sections that mint trace ids.
     #[serde(default)]
     pub trace_targets: Vec<TraceTarget>,
@@ -585,6 +610,13 @@ impl TraceabilityModel {
             && self.required_relations.is_empty()
             && self.acyclic_edges.is_empty()
             && self.vocabulary_coverage.is_empty()
+        // CR-085: `source_exclude` is deliberately **absent** from this list,
+        // mirroring the model-level `exclude` two fields above it. Both state
+        // what is *not* traceable data; neither reconciles anything, so a module
+        // whose whole model is "these paths are not source" has declared
+        // nothing. Written down because the surrounding comment says every field
+        // that makes the model *do* something must be listed, and the next
+        // reader will otherwise correct the omission.
     }
 
     /// Look up a declared target by name.
@@ -597,6 +629,7 @@ impl TraceabilityModel {
     /// failure (FR-050-AC-2).
     pub fn validate(&self) -> Result<(), String> {
         check_excludes("model-level `exclude`", &self.exclude)?;
+        check_excludes("model-level `source_exclude`", &self.source_exclude)?;
 
         let mut target_names: BTreeSet<&str> = BTreeSet::new();
         for target in &self.trace_targets {
@@ -1057,6 +1090,40 @@ mod tests {
 
     fn model(yaml: &str) -> TraceabilityModel {
         serde_yaml::from_str(yaml).expect("parse")
+    }
+
+    #[trace("TC-945", "FR-050-AC-22")]
+    // `source_exclude` is validated at load like every other
+    // glob list, and a model declaring only it has still declared nothing
+    // (CR-085).
+    #[test]
+    fn tc945_source_exclude_is_validated_and_declares_nothing() {
+        model("source_exclude: ['tests/fixtures/**']")
+            .validate()
+            .expect("a well-formed glob list is valid");
+
+        // A pattern that does not compile is rejected at load, where it names
+        // the module, rather than silently matching nothing forever.
+        let err = model("source_exclude: ['tests/fixtures/[**']")
+            .validate()
+            .expect_err("an invalid glob must be rejected");
+        assert!(
+            err.contains("source_exclude"),
+            "the error must name the key that is wrong: {err}"
+        );
+
+        let err = model("source_exclude: ['  ']")
+            .validate()
+            .expect_err("an empty pattern must be rejected");
+        assert!(err.contains("source_exclude"), "{err}");
+
+        // Declaring only what is *not* source reconciles nothing, so the model
+        // still reads as undeclared — the same rule the model-level `exclude`
+        // follows, and the reason neither is listed in `is_empty`.
+        assert!(
+            model("source_exclude: ['tests/fixtures/**']").is_empty(),
+            "a model that declares only non-source paths has declared nothing"
+        );
     }
 
     const FULL: &str = r#"

@@ -28,6 +28,12 @@ artifact_types:
 traceability:
   exclude:
   - "spec/fixtures/**"
+  # CR-085: declared here so TC-905 can assert it survives the merge by its
+  # authored value. Both per-field functions it guards — `is_empty` and
+  # `merge_traceability` — are hand-maintained with no exhaustive `match`, so a
+  # new field is covered only once a line is added for it.
+  source_exclude:
+  - "tests/fixtures/**"
   required_relations:
   # Upward: a functional requirement with no stakeholder need behind it is a
   # feature nobody asked for.
