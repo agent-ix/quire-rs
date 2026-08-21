@@ -628,8 +628,8 @@ impl TraceabilityModel {
     /// first problem, which the manifest loader turns into a module-load
     /// failure (FR-050-AC-2).
     pub fn validate(&self) -> Result<(), String> {
-        check_excludes("model-level `exclude`", &self.exclude)?;
-        check_excludes("model-level `source_exclude`", &self.source_exclude)?;
+        check_excludes("model-level", "exclude", &self.exclude)?;
+        check_excludes("model-level", "source_exclude", &self.source_exclude)?;
 
         let mut target_names: BTreeSet<&str> = BTreeSet::new();
         for target in &self.trace_targets {
@@ -648,6 +648,7 @@ impl TraceabilityModel {
             )?;
             check_excludes(
                 &format!("trace_targets entry '{}'", target.name),
+                "exclude",
                 &target.exclude,
             )?;
             check_field("trace_targets", &target.name, "section", &target.section)?;
@@ -676,6 +677,7 @@ impl TraceabilityModel {
             )?;
             check_excludes(
                 &format!("document_references entry '{}'", reference.name),
+                "exclude",
                 &reference.exclude,
             )?;
             check_field(
@@ -779,6 +781,7 @@ impl TraceabilityModel {
             }
             check_excludes(
                 &format!("obligations entry '{}'", source.name),
+                "exclude",
                 &source.exclude,
             )?;
             check_field(
@@ -894,6 +897,7 @@ impl TraceabilityModel {
             }
             check_excludes(
                 &format!("required_relations entry '{}'", relation.name),
+                "exclude",
                 &relation.exclude,
             )?;
         }
@@ -961,6 +965,7 @@ impl TraceabilityModel {
             }
             check_excludes(
                 &format!("vocabulary_coverage entry '{}'", coverage.name),
+                "exclude",
                 &coverage.exclude,
             )?;
         }
@@ -1055,16 +1060,20 @@ fn check_field(section: &str, name: &str, field: &str, value: &str) -> Result<()
 ///
 /// `location` reads as the place the patterns were authored, because the same
 /// rule now guards a model-level `exclude:` that belongs to no entry (CR-060).
-fn check_excludes(location: &str, exclude: &[String]) -> Result<(), String> {
+/// `key` is the key the patterns sit under — `exclude` or `source_exclude` —
+/// so the error names the thing to fix rather than hardcoding `exclude` for
+/// both (#215: the `source_exclude` message read "invalid `exclude` pattern",
+/// and tc945's `contains("source_exclude")` was satisfied by the location
+/// prefix alone).
+fn check_excludes(location: &str, key: &str, exclude: &[String]) -> Result<(), String> {
     for pattern in exclude {
         if pattern.trim().is_empty() {
             return Err(format!(
-                "traceability: {location} has an empty `exclude` pattern"
+                "traceability: {location} has an empty `{key}` pattern"
             ));
         }
-        globset::Glob::new(pattern).map_err(|e| {
-            format!("traceability: {location} has an invalid `exclude` pattern: {e}")
-        })?;
+        globset::Glob::new(pattern)
+            .map_err(|e| format!("traceability: {location} has an invalid `{key}` pattern: {e}"))?;
     }
     Ok(())
 }
@@ -1107,15 +1116,19 @@ mod tests {
         let err = model("source_exclude: ['tests/fixtures/[**']")
             .validate()
             .expect_err("an invalid glob must be rejected");
+        // The **noun**, not merely the location prefix (#215): until then the
+        // message read "invalid `exclude` pattern" for a `source_exclude`
+        // list, and a bare `contains("source_exclude")` was satisfied by the
+        // location alone.
         assert!(
-            err.contains("source_exclude"),
-            "the error must name the key that is wrong: {err}"
+            err.contains("invalid `source_exclude` pattern"),
+            "the error must name the key that is wrong, as the noun: {err}"
         );
 
         let err = model("source_exclude: ['  ']")
             .validate()
             .expect_err("an empty pattern must be rejected");
-        assert!(err.contains("source_exclude"), "{err}");
+        assert!(err.contains("empty `source_exclude` pattern"), "{err}");
 
         // Declaring only what is *not* source reconciles nothing, so the model
         // still reads as undeclared — the same rule the model-level `exclude`

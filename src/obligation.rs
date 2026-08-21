@@ -127,7 +127,7 @@ pub fn for_document(
     path: Option<&Path>,
 ) -> BTreeMap<String, CriterionObligation> {
     let mut out = BTreeMap::new();
-    let model_exclude = ExcludeSet::compile(&model.exclude);
+    let model_exclude = ExcludeSet::compile_validated(&model.exclude);
     for source in &model.obligations {
         let Some(resolved) = resolve(source, model) else {
             continue;
@@ -141,7 +141,7 @@ pub fn for_document(
             // is empty and the path is matched as given.
             let root = Path::new("");
             if model_exclude.excludes(root, path)
-                || ExcludeSet::compile(&source.exclude).excludes(root, path)
+                || ExcludeSet::compile_validated(&source.exclude).excludes(root, path)
             {
                 continue;
             }
@@ -410,7 +410,7 @@ pub fn derive(
 ) -> (Vec<Obligation>, Vec<SkippedRow>) {
     let mut out: Vec<(usize, Obligation)> = Vec::new();
     let mut skipped = Vec::new();
-    let model_exclude = ExcludeSet::compile(&model.exclude);
+    let model_exclude = ExcludeSet::compile_validated(&model.exclude);
     let mut ctx = ScanContext::default();
 
     for (order, source) in model.obligations.iter().enumerate() {
@@ -421,7 +421,7 @@ pub fn derive(
             // model should get no obligations, not a crash.
             continue;
         };
-        let exclude = ExcludeSet::compile(&source.exclude);
+        let exclude = ExcludeSet::compile_validated(&source.exclude);
         let scope = DeclaredScope {
             name: &source.name,
             archetype: resolved.archetype,

@@ -114,6 +114,11 @@ pub struct SymbolGraph {
     pub contains: Vec<(String, String, String)>,
     pub rewrites: Vec<RewriteSuggestion>,
     pub diagnostics: Vec<TraceDiagnostic>,
+    /// Source files a declared `source_exclude` glob removed from the walk,
+    /// copied from [`SymbolExtraction::excluded_source_files`] so the coverage
+    /// rollup — which sees only this graph — can report it (FR-050-AC-24,
+    /// #215).
+    pub excluded_source_files: usize,
 }
 
 impl SymbolGraph {
@@ -136,7 +141,10 @@ impl SymbolGraph {
 /// first. Tagging harder never helps, and a shell audit mints no symbol at all
 /// — `language_of` reads Rust, Python and TypeScript.
 pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolGraph {
-    let mut graph = SymbolGraph::default();
+    let mut graph = SymbolGraph {
+        excluded_source_files: extraction.excluded_source_files,
+        ..SymbolGraph::default()
+    };
 
     for symbol in &extraction.symbols {
         graph.defined_in.push((

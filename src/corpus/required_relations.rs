@@ -48,7 +48,7 @@ pub(crate) fn validate_required_relations(
     }
 
     let severity = registry.grammar_severity();
-    let model_exclude = ExcludeSet::compile(&model.exclude);
+    let model_exclude = ExcludeSet::compile_validated(&model.exclude);
 
     // Collected before pushing so order is a property of the bundle rather than
     // of the walk (the FR-049-AC-8 discipline).
@@ -149,7 +149,7 @@ fn check_relation(
     model_exclude: &ExcludeSet,
     out: &mut Vec<(PathBuf, String, String, String)>,
 ) {
-    let exclude = ExcludeSet::compile(&relation.exclude);
+    let exclude = ExcludeSet::compile_validated(&relation.exclude);
     // Owned, not leaked. The check token is the `<check>` half of a
     // `trace:<check>` severity key and comes from the manifest, so it cannot be
     // a `&'static str` without leaking one per call — and a corpus sweep calls

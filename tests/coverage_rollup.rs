@@ -426,6 +426,47 @@ fn tc951_uniquely_bound_ids_report_nothing_and_omit_the_key() {
     );
 }
 
+#[trace("TC-953", "FR-050-AC-24")]
+// what `source_exclude` subtracts is carried all the way
+// into the report (#215): the count travels extraction → symbol graph →
+// `CoverageReport.excluded_source_files` and the JSON key, and is ABSENT —
+// never 0 — when nothing was excluded, keeping FR-050-AC-7 byte-identity for
+// every repository already conformant. Before this an over-broad glob's
+// subtraction was invisible in both human and JSON output, indistinguishable
+// from tests that were never written.
+#[test]
+fn tc953_excluded_source_file_count_reaches_the_coverage_json() {
+    use quire_rs::symbols::extract_tree_scoped;
+
+    let bundle = iso_bundle("953", &[("TC-001", "FR-001-AC-1", "✅")], &["TC-001"]);
+    let registry = Registry::load_module(&fixture_module("iso")).expect("load module");
+    let spec = Spec::from_path(&bundle.scope);
+    let model = registry.traceability().cloned().expect("declared model");
+
+    // The glob subtracts the bundle's only source file: one exclusion.
+    let excluded = extract_tree_scoped(&bundle.source, &[], &["lib.rs".to_string()]);
+    let graph = trace::bind(&excluded, &model);
+    let report = compute(&spec, &registry, &graph, &bundle.scope).expect("model declared");
+    assert_eq!(
+        report.excluded_source_files, 1,
+        "the walk's count is the report's"
+    );
+    assert!(
+        report.to_json().contains("\"excluded_source_files\": 1"),
+        "the count must reach the JSON payload",
+    );
+
+    // No glob: nothing excluded, and the key is absent — not 0.
+    let full = extract_tree_scoped(&bundle.source, &[], &[]);
+    let graph = trace::bind(&full, &model);
+    let report = compute(&spec, &registry, &graph, &bundle.scope).expect("model declared");
+    assert_eq!(report.excluded_source_files, 0);
+    assert!(
+        !report.to_json().contains("excluded_source_files"),
+        "a repository excluding nothing must not carry the key at all",
+    );
+}
+
 #[trace("TC-736", "FR-050-AC-5")]
 // a symbol whose trace tag resolves to no declared
 // target or row appears in untracked symbols with its file and symbol name.

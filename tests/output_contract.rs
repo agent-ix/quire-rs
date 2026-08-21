@@ -155,6 +155,7 @@ fn tc856_payload_carrying_every_optional_key_conforms() {
             "parameters": {"threshold": "< 8ms"},
             "criticality": "P1"
         }],
+        "excluded_source_files": 3,
         "totals": {"backed": 1, "total": 2, "criteria": 2, "property_shaped": 1}
     });
     let errs = errors(&schema, &full);
@@ -291,6 +292,7 @@ fn tc859_optional_and_required_split_matches_the_engine() {
         "diagnostics",
         "obligations",
         "implements",
+        "excluded_source_files",
     ] {
         let mut payload = baseline();
         payload.as_object_mut().unwrap().remove(optional);

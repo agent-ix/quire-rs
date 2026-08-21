@@ -67,6 +67,10 @@ unicode-normalization = "0.1"
 # to a consumer's: dev-dependencies are not transitive. Pinned to an exact
 # tag, which satisfies NFR-009-AC-3 more strictly than a caret range.
 ix-trace-rs = { git = "https://github.com/agent-ix/ix-trace-rs", tag = "v0.1.1" }
+# RAII temp dirs for tests that build throwaway trees (#215): the manual
+# `std::env::temp_dir()` + `remove_dir_all` pattern leaks the tree on any
+# assertion failure, because the cleanup line is never reached.
+tempfile = "^3"
 proptest = "^1"
 criterion = "^0.5"
 # FR-055: the published output schemas declare draft 2020-12, and `jsonschema`

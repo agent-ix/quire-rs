@@ -48,7 +48,7 @@ pub(crate) fn validate_vocabulary_coverage(
     }
 
     let severity = registry.grammar_severity();
-    let model_exclude = ExcludeSet::compile(&model.exclude);
+    let model_exclude = ExcludeSet::compile_validated(&model.exclude);
     let mut findings: Vec<(PathBuf, String, String)> = Vec::new();
 
     for coverage in &model.vocabulary_coverage {
@@ -136,7 +136,7 @@ fn check_coverage(
     model_exclude: &ExcludeSet,
     out: &mut Vec<(PathBuf, String, String)>,
 ) {
-    let exclude = ExcludeSet::compile(&coverage.exclude);
+    let exclude = ExcludeSet::compile_validated(&coverage.exclude);
     let check = coverage.check.clone();
 
     let Some(values) = declared_values(registry, coverage) else {

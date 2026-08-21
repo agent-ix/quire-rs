@@ -174,6 +174,11 @@ pub struct SymbolExtraction {
     pub files: Vec<SourceFile>,
     /// Per-file diagnostics, ordered by path.
     pub diagnostics: Vec<SymbolDiagnostic>,
+    /// Source files a declared `source_exclude` glob removed from the walk
+    /// (FR-050-AC-24, #215). A count, not a listing: what the operator needs
+    /// is to notice that an over-broad glob subtracted real backing — which
+    /// otherwise reads exactly like tests that were never written.
+    pub excluded_source_files: usize,
 }
 
 impl SymbolExtraction {
@@ -242,9 +247,30 @@ pub fn extract_tree_scoped(
     exclude_globs: &[String],
 ) -> SymbolExtraction {
     let exclude = exclude_dirs;
+    let mut glob_diagnostics: Vec<SymbolDiagnostic> = Vec::new();
     // Compiled once, outside the walk, for the CR-060 reason `ExcludeSet` was
     // given its own type: this is asked about every source file in the repo.
-    let globs = crate::corpus::declared_tables::ExcludeSet::compile(exclude_globs);
+    //
+    // This is a `pub` entry point taking `&[String]`, so nothing guarantees
+    // the globs went through `TraceabilityModel::validate`. A list that does
+    // not compile is refused **as one unit** (FR-050-AC-25, #215): no glob
+    // applies — never a partial subset — and a diagnostic names the pattern.
+    let globs = match crate::corpus::declared_tables::ExcludeSet::compile(exclude_globs) {
+        Ok(globs) => globs,
+        Err(reason) => {
+            let pattern = exclude_globs
+                .iter()
+                .find(|p| globset::Glob::new(p).is_err())
+                .map(String::as_str)
+                .unwrap_or_default();
+            glob_diagnostics.push(SymbolDiagnostic {
+                path: pattern.to_string(),
+                reason: format!("source_exclude not applied — {reason}"),
+            });
+            crate::corpus::declared_tables::ExcludeSet::default()
+        }
+    };
+    let mut excluded_source_files = 0usize;
     // Canonicalized, because an exclusion stated as a path must hold wherever
     // the caller's `is_dir()` check held (CR-056). On a case-insensitive
     // filesystem — macOS/APFS, the canonical perf runner — `<scope>/Spec`
@@ -281,6 +307,7 @@ pub fn extract_tree_scoped(
         let rel = path.strip_prefix(root).unwrap_or(path);
         let relative = normalize_path(rel);
         if !globs.is_empty() && globs.matches(&relative) {
+            excluded_source_files += 1;
             continue;
         }
         files.push((relative, language, path.to_path_buf()));
@@ -288,7 +315,13 @@ pub fn extract_tree_scoped(
     // Sort before reading so the output order never depends on walk order.
     files.sort();
 
-    let mut out = SymbolExtraction::default();
+    let mut out = SymbolExtraction {
+        excluded_source_files,
+        // A refused glob list is reported ahead of any per-file diagnostic:
+        // it is about the declaration, not about a file the walk touched.
+        diagnostics: glob_diagnostics,
+        ..SymbolExtraction::default()
+    };
     for (rel, language, abs) in files {
         match std::fs::read_to_string(&abs) {
             Ok(source) => out.extend_with_file(&rel, language, source),
@@ -476,6 +509,66 @@ mod tests {
         );
     }
 
+    #[trace("TC-952", "FR-050-AC-24")]
+    // the walk counts what a declared glob subtracts. A
+    // matching glob's removals are counted, a non-matching or empty glob list
+    // counts zero — the count is what makes an over-broad glob observable
+    // instead of indistinguishable from tests that were never written (#215).
+    #[test]
+    fn tc952_excluded_source_files_are_counted() {
+        let all = extract_tree(&fixture_root());
+        assert_eq!(
+            all.excluded_source_files, 0,
+            "no globs means nothing was excluded"
+        );
+
+        let filtered = extract_tree_scoped(&fixture_root(), &[], &["rust/**".to_string()]);
+        let removed = all
+            .files
+            .iter()
+            .filter(|f| f.path.starts_with("rust/"))
+            .count();
+        assert!(removed > 0, "fixture premise: the glob removes files");
+        assert_eq!(
+            filtered.excluded_source_files, removed,
+            "every file the glob removed is counted, and nothing else",
+        );
+
+        let untouched = extract_tree_scoped(&fixture_root(), &[], &["no/such/path/**".to_string()]);
+        assert_eq!(
+            untouched.excluded_source_files, 0,
+            "a non-matching glob excludes nothing"
+        );
+    }
+
+    #[trace("TC-954", "FR-050-AC-25")]
+    // an invalid glob errors loudly instead of partially
+    // filtering. `ExcludeSet::compile` used to drop what did not compile and
+    // apply the rest — so a caller bypassing `TraceabilityModel::validate` got
+    // silent partial filtering. Now the whole list is refused as one unit: no
+    // glob applies, and a diagnostic names the pattern (#215).
+    #[test]
+    fn tc954_an_invalid_glob_is_loud_and_never_partially_filters() {
+        let all = extract_tree(&fixture_root());
+        let globs = vec!["rust/**".to_string(), "fixtures/[**".to_string()];
+        let out = extract_tree_scoped(&fixture_root(), &[], &globs);
+
+        assert!(
+            out.symbols.iter().any(|s| s.path.starts_with("rust/")),
+            "the valid glob must NOT apply once the list is refused — partial \
+             filtering is the defect",
+        );
+        assert_eq!(all.symbols, out.symbols, "no glob filtering at all");
+        assert_eq!(out.excluded_source_files, 0, "nothing was excluded");
+        assert!(
+            out.diagnostics
+                .iter()
+                .any(|d| d.path == "fixtures/[**" && d.reason.contains("source_exclude")),
+            "the diagnostic must name the pattern that does not compile: {:?}",
+            out.diagnostics,
+        );
+    }
+
     #[trace("TC-949", "FR-050-AC-22", "FR-050-AC-17")]
     // the key can only subtract. Declaring `spec/**` as a
     // source glob cannot un-exclude the document root, because the two filters
@@ -485,19 +578,16 @@ mod tests {
     // source symbol.)
     #[test]
     fn tc949_source_globs_cannot_un_exclude_the_document_root() {
-        let root = std::env::temp_dir().join(format!(
-            "quire-sym-subtract-{}",
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        ));
-        let _ = std::fs::remove_dir_all(&root);
+        // `TempDir` rather than a hand-rolled `std::env::temp_dir()` path
+        // (#215): the manual pattern's cleanup line is unreachable on any
+        // assertion failure, so every red run leaked the tree.
+        let dir = tempfile::TempDir::new().expect("tempdir");
+        let root = dir.path();
         std::fs::create_dir_all(root.join("spec")).expect("mkdir");
         std::fs::write(root.join("spec/doc.rs"), "fn in_spec() {}\n").expect("write");
         std::fs::write(root.join("lib.rs"), "fn in_source() {}\n").expect("write");
 
-        let out = extract_tree_scoped(&root, &[Path::new("spec")], &["spec/**".to_string()]);
+        let out = extract_tree_scoped(root, &[Path::new("spec")], &["spec/**".to_string()]);
         assert!(
             out.symbols.iter().all(|s| !s.path.starts_with("spec/")),
             "declaring the document root as a source glob must not admit it",
@@ -507,8 +597,6 @@ mod tests {
             "and must not remove real source: {:?}",
             out.symbols,
         );
-
-        let _ = std::fs::remove_dir_all(&root);
     }
 
     #[trace("TC-809", "FR-050-AC-17")]

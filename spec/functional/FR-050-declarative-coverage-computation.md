@@ -144,8 +144,29 @@ model; the engine knows nothing of "AC" or "TC" as concepts.
 | FR-050-AC-21 | A reference row whose authored status value the declared `traceability.status` vocabulary classes as none of `complete`, `pending`, `failed` or `retired` is reported in `CoverageReport.undeclared_statuses` with the declaration, the document, the row id and the authored value verbatim — whether or not the row is backed. A corpus whose every status value is declared reports an empty list, the key is absent from the JSON, and the payload is byte-identical to a report from an engine predating the field. The list does not affect `totals`, and `--strict` does not gate on it (CR-083). | Test (TC-941, TC-942, TC-946) |
 | FR-050-AC-22 | The model MAY declare `source_exclude:` path globs under the **code** root; a source file matching one yields no symbols and no trace bindings, a non-matching glob leaves the extraction byte-identical, and the document walk's `groups` and `totals` are unaffected either way. The key merges across modules as a union, has its patterns compile-checked at module load like every other glob list, and leaves the model undeclared when it is all a module declares. It can only subtract: a `source_exclude` of `spec/**` neither un-excludes the document root nor admits anything under it (CR-085). | Test (TC-944, TC-945, TC-949) |
 | FR-050-AC-23 | A trace id that is the row id of a **status-carrying** reference row and is bound by more than one distinct source symbol — distinctness is the `(path, symbol)` pair — is reported in `CoverageReport.shared_trace_ids` with the id and every binding symbol, deterministically ordered by id and inside each record by `(path, symbol)`. An id whose rows carry no status (an acceptance criterion verified by several tests) is never reported. A corpus whose every status-row id is uniquely bound reports an empty list, the key is absent from the JSON, and the payload is byte-identical to a report from an engine predating the field. The list does not affect `totals`, and `--strict` does not gate on it (CR-087). | Test (TC-950, TC-951) |
+| FR-050-AC-24 | The number of source files a declared `source_exclude:` glob removes from the symbol walk is counted and carried into the coverage report as `excluded_source_files`; a report over a model declaring no `source_exclude`, or one whose globs match nothing, omits the key entirely — never `0` — and serializes byte-identically to a report from an engine predating the field (CR-088). | Test (TC-952, TC-953) |
+| FR-050-AC-25 | A `source_exclude` list containing a pattern that does not compile never partially filters: module load rejects it with an error naming `source_exclude` as the key at fault, and an extraction invoked with globs that bypassed model validation applies **no** glob at all and surfaces a diagnostic naming the offending pattern (CR-088). | Test (TC-954, TC-945) |
 
-> **CR-087 note (2026-08-21):** AC-23 is new — one test-case id names one
+> **CR-088 note (2026-08-21):** AC-24 and AC-25 are new — what `source_exclude`
+> subtracts is observable, and an invalid glob is loud. `agent-ix/quire-rs#215`.
+>
+> CR-085 shipped the key verified safe as written, and the agreed direction was
+> minimal prevention, maximal observability: a bad glob cannot be fully
+> prevented, so it must be loud, not silent. Three silences remained. The walk
+> bare-`continue`d on a match, so an over-broad glob silently dropped
+> legitimate backing and the report read as a coverage regression
+> indistinguishable from tests that were never written — AC-24 makes the
+> subtraction a count on the report (`SymbolExtraction.excluded_source_files` →
+> `SymbolGraph` → `CoverageReport`, skip-zero for AC-7 byte-identity; the
+> human-rendered census line is `quire-cli`'s half and lands with its batch).
+> `ExcludeSet::compile` dropped an uncompilable pattern and applied the rest —
+> partial filtering with no diagnostic for any caller not routed through
+> `TraceabilityModel::validate`, and `extract_tree_scoped` is `pub` over
+> `&[String]` — AC-25 makes the compile seam a `Result` refusing the whole
+> list as one unit, mirroring what validation does at load. And the load-time
+> error for an invalid `source_exclude` read "invalid `exclude` pattern",
+> with tc945's `contains("source_exclude")` satisfied by the location prefix
+> alone; the message now names the key it checks and tc945 asserts the noun. AC-23 is new — one test-case id names one
 > source symbol, and an id shared by several is a reported defect.
 > `agent-ix/quire-rs#216`.
 >

@@ -64,21 +64,47 @@ pub(crate) struct ExcludeSet {
 }
 
 impl ExcludeSet {
-    /// Compile `patterns`. Patterns are validated at module load, so one that
-    /// does not compile here would mean the model was never validated: it is
-    /// dropped rather than allowed to swallow every document.
-    pub(crate) fn compile(patterns: &[String]) -> Self {
+    /// Compile `patterns`, refusing the **whole list** on the first pattern
+    /// that does not compile (#215). Until then an uncompilable pattern was
+    /// silently dropped while the rest still applied — partial filtering with
+    /// no diagnostic, for any caller not routed through
+    /// [`TraceabilityModel::validate`](crate::traceability::TraceabilityModel::validate).
+    /// All-or-nothing mirrors what validation does at module load: an invalid
+    /// glob list never filters, it errors.
+    ///
+    /// The error names the offending pattern; the caller names the key it was
+    /// authored under.
+    pub(crate) fn compile(patterns: &[String]) -> Result<Self, String> {
         if patterns.is_empty() {
-            return Self::default();
+            return Ok(Self::default());
         }
         let mut builder = globset::GlobSetBuilder::new();
         for pattern in patterns {
-            if let Ok(glob) = globset::Glob::new(pattern) {
-                builder.add(glob);
-            }
+            let glob = globset::Glob::new(pattern)
+                .map_err(|e| format!("invalid glob pattern '{pattern}': {e}"))?;
+            builder.add(glob);
         }
-        Self {
-            set: builder.build().ok(),
+        let set = builder
+            .build()
+            .map_err(|e| format!("glob set does not build: {e}"))?;
+        Ok(Self { set: Some(set) })
+    }
+
+    /// [`Self::compile`] for patterns that already passed
+    /// `TraceabilityModel::validate` at module load (FR-050-AC-2), where an
+    /// error is unreachable. A hand-built model that skipped validation fails
+    /// the debug assertion in tests; in release it filters **nothing** — never
+    /// partially — which the count/diagnostic surfaces of #215 make visible.
+    pub(crate) fn compile_validated(patterns: &[String]) -> Self {
+        match Self::compile(patterns) {
+            Ok(set) => set,
+            Err(reason) => {
+                debug_assert!(
+                    false,
+                    "unvalidated exclude patterns reached compile: {reason}"
+                );
+                Self::default()
+            }
         }
     }
 

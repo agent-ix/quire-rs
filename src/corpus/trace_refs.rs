@@ -53,7 +53,7 @@ pub(crate) fn validate_trace_references(
     }
 
     // CR-060: compiled once — every declaration below is scoped by it.
-    let model_exclude = declared_tables::ExcludeSet::compile(&model.exclude);
+    let model_exclude = declared_tables::ExcludeSet::compile_validated(&model.exclude);
 
     // Resolution sets, one per declared target kind.
     let mut ctx = declared_tables::ScanContext::default();
@@ -146,7 +146,7 @@ fn minted_ids(
     model_exclude: &declared_tables::ExcludeSet,
     ctx: &mut declared_tables::ScanContext,
 ) -> BTreeSet<String> {
-    let exclude = declared_tables::ExcludeSet::compile(&target.exclude);
+    let exclude = declared_tables::ExcludeSet::compile_validated(&target.exclude);
     let scope = declared_tables::DeclaredScope {
         name: &target.name,
         archetype: &target.archetype,
@@ -185,7 +185,7 @@ fn referencing_rows(
     model_exclude: &declared_tables::ExcludeSet,
     ctx: &mut declared_tables::ScanContext,
 ) -> Vec<ReferencingRow> {
-    let exclude = declared_tables::ExcludeSet::compile(&declaration.exclude);
+    let exclude = declared_tables::ExcludeSet::compile_validated(&declaration.exclude);
     declared_tables::scan(
         spec,
         root,

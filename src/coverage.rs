@@ -277,7 +277,22 @@ pub struct CoverageReport {
     /// **Carries no weight in `totals`.** Scope is not evidence.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub implements: Vec<ImplementsRecord>,
+    /// Source files a declared `source_exclude` glob removed from the symbol
+    /// walk (FR-050-AC-24, #215). Zero — and so absent from the JSON — for a
+    /// model declaring no `source_exclude`, or one whose globs match nothing,
+    /// which keeps FR-050-AC-7 byte-identity for every repository already
+    /// conformant. Without it an over-broad glob silently drops legitimate
+    /// backing and the report reads as a coverage regression, indistinguishable
+    /// from tests that were never written.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub excluded_source_files: usize,
     pub totals: CoverageTotals,
+}
+
+/// `skip_serializing_if` predicate for the FR-050-AC-24 count: zero is the
+/// no-op case every pre-existing report was in, so it stays off the wire.
+fn is_zero(n: &usize) -> bool {
+    *n == 0
 }
 
 /// A declaration that produced no rows for a reason the operator can act on
@@ -446,7 +461,7 @@ fn criteria_counts(
         idioms: registry.property_idioms_matcher(),
         ambiguous: registry.ambiguity_terms_matcher(),
     };
-    let excluded = declared_tables::ExcludeSet::compile(&model.exclude);
+    let excluded = declared_tables::ExcludeSet::compile_validated(&model.exclude);
 
     let mut out: Vec<CriteriaCounts> = Vec::new();
     for entry in &spec.inner.documents {
@@ -503,13 +518,13 @@ fn reconcile(
     let backed: BTreeSet<&str> = graph.backed_trace_ids();
     // CR-060: compiled once for the whole reconciliation — every declaration
     // is scoped by it.
-    let model_exclude = declared_tables::ExcludeSet::compile(&model.exclude);
+    let model_exclude = declared_tables::ExcludeSet::compile_validated(&model.exclude);
 
     // ── Minted targets, grouped by their minting document ──
     let mut ctx = declared_tables::ScanContext::default();
     let mut minted: Vec<MintedTarget> = Vec::new();
     for target in &model.trace_targets {
-        let exclude = declared_tables::ExcludeSet::compile(&target.exclude);
+        let exclude = declared_tables::ExcludeSet::compile_validated(&target.exclude);
         for row in declared_tables::scan(
             spec,
             root,
@@ -564,7 +579,7 @@ fn reconcile(
         let Ok(pattern) = regex::Regex::new(&declaration.pattern) else {
             continue; // patterns are validated at module load
         };
-        let exclude = declared_tables::ExcludeSet::compile(&declaration.exclude);
+        let exclude = declared_tables::ExcludeSet::compile_validated(&declaration.exclude);
         for row in declared_tables::scan(
             spec,
             root,
@@ -867,6 +882,10 @@ fn reconcile(
                 form: relation.form.clone(),
             })
             .collect(),
+        // FR-050-AC-24 (#215): what the declared `source_exclude` subtracted,
+        // carried by the graph because this reconciliation never sees the
+        // extraction itself.
+        excluded_source_files: graph.excluded_source_files,
         totals,
     }
 }
