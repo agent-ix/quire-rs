@@ -33,7 +33,7 @@ import sys
 # former, and missing it added 5 phantom matrices to the first run of this
 # sweep. The rules live in `corpus.py`; this script used to carry a partial copy
 # that omitted `.ticket-runner` and matched `-task<N>` by name alone.
-from corpus import markdown_files, repos
+from corpus import is_test_data, markdown_files, repos
 
 DECLARED_PATHS = ("spec/tests.md", "spec/matrix.md", "spec/evals.md")
 REGISTERED = "TestMatrix"
@@ -72,13 +72,6 @@ def classify(path: pathlib.Path) -> dict:
         "registered": declared == REGISTERED,
         "mints_rows": mints,
     }
-
-
-def is_test_data(path: str) -> bool:
-    """The same rule a module declares with `exclude: ['tests/**']`. A fixture
-    matrix is not a coverage gain; spec-artifacts-process ships 30 deliberately
-    malformed ones."""
-    return path.startswith("tests/") or "/tests/" in path or "/fixtures/" in path
 
 
 def walk_markdown(repo: pathlib.Path):

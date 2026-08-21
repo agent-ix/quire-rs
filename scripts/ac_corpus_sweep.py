@@ -88,6 +88,8 @@ from pathlib import Path
 
 import quire  # type: ignore[import-not-found]
 
+from corpus import SKIP_DIRS, is_worktree_sibling
+
 BUNDLE = "iso-spec-core"
 # The archetypes `ac::check` binds to (`BINDINGS`, src/grammar/ac.rs). CR-020
 # narrowed the binding to FR/NFR/StR — US and IT criteria are demonstrations of
@@ -121,13 +123,12 @@ NEXT_H2 = re.compile(r"^##\s+", re.MULTILINE)
 # contains, so this predicate can be re-judged against the data rather than
 # trusted.
 VERIFICATION_IS_TEST = re.compile(r"\btests?\b", re.IGNORECASE)
-# The walk-exclusion rules and the verified worktree-sibling test now live in
-# `corpus.py`. They originated here — this harness is where the ecaz 19x scope
-# inflation (1,524 findings walked against 127 in the real `spec/`) and the
-# ticket-runner flap (an StR count moving 440 -> 453 and back inside one
-# session) were diagnosed — and `corpus.py` adopted them verbatim as the
-# strictest of the four copies that existed.
-from corpus import SKIP_DIRS, is_worktree_sibling  # noqa: F401
+# The walk-exclusion rules and the verified worktree-sibling test live in
+# `corpus.py` (imported at the top with the rest). They originated here — this
+# harness is where the ecaz 19x scope inflation (1,524 findings walked against
+# 127 in the real `spec/`) and the ticket-runner flap (an StR count moving
+# 440 -> 453 and back inside one session) were diagnosed — and `corpus.py`
+# adopted them verbatim as the strictest of the four copies that existed.
 
 
 def frontmatter_type(text: str) -> str | None:

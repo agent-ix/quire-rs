@@ -24,6 +24,27 @@ source rather than the most common one — see `is_worktree_sibling`.
 
 Import it; do not copy it. A fifth divergent copy is how the next wrong number
 gets published.
+
+## What `repos()` counts — and how to cite the number (#219)
+
+One count per **non-hidden top-level directory of the root that carries a
+`spec/` directory**, minus `SKIP_DIRS` names, minus `SUPERSEDED` repos, minus
+verified worktree siblings (`<repo>-task<N>` whose `.git` is a file). On
+2026-08-21 that enumerates **239** repositories under `~/dev`.
+
+A sweep that then excludes repos (the slash sweep skips `ecaz`) is reporting a
+**different** number. Name them apart — `repos_enumerated` vs
+`repos_scanned_after_exclusions` — and never label the post-exclusion figure
+as "enumerated by scripts/corpus.py": the 2026-08-20 sweep report published
+238 under exactly that label while #202/#203/CHANGELOG said 239, and the
+discrepancy took a retro review (SR-010) to resolve as an attribution error.
+
+## Importing this module
+
+The scripts are flat executables: run directly, CPython puts `scripts/` on
+`sys.path`, so sibling `from corpus import …` resolves from any cwd. The two
+other entry modes add the same path entry explicitly — `scripts/__init__.py`
+for `python -m scripts.<name>`, `scripts/tests/conftest.py` for pytest.
 """
 
 from __future__ import annotations
