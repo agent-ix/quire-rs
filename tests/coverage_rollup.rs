@@ -188,6 +188,102 @@ fn tc735_status_lies() {
         .is_empty());
 }
 
+#[trace("TC-941", "FR-050-AC-21")]
+// a status value the model classes as nothing is reported
+// as its own defect, carrying the authored string verbatim — and a corpus whose
+// every status is declared omits the key entirely.
+#[test]
+fn tc941_undeclared_status_is_reported() {
+    // `🟡` is in no `traceability.status` list, so `class_of` returns `Unknown`.
+    // Before CR-083 that was computed and thrown away: the row was not backed,
+    // not a lie, and named nowhere.
+    //
+    // The glyph matters. `⚠️` would *not* work here — this fixture classes it as
+    // `pending` (`fixtures/traceability/iso/manifest.yaml:54`), which is the
+    // choice `spec-artifacts-process` never made and the reason the real corpus
+    // has the divergence this check exists to catch. `🟡` is undeclared in both,
+    // and is authored in the wild (`ecaz/spec/tests.md`).
+    let drifting = iso_bundle(
+        "941-drift",
+        &[
+            ("TC-001", "FR-001-AC-1", "✅"),
+            ("TC-002", "FR-001-AC-2", "🟡 scale evidence deferred"),
+        ],
+        &["TC-001"],
+    );
+    let report = report_for(&drifting, "iso").expect("model declared");
+
+    let drifted: Vec<&str> = report
+        .undeclared_statuses
+        .iter()
+        .filter_map(|s| s.row_id.as_deref())
+        .collect();
+    assert_eq!(drifted, vec!["TC-002"], "report: {report:?}");
+
+    let entry = &report.undeclared_statuses[0];
+    assert_eq!(entry.reference, "traces-to");
+    assert_eq!(entry.document, "tests.md");
+    // Verbatim, note and all: the reader needs to see which value drifted, and
+    // the leading marker alone would not distinguish two undeclared glyphs.
+    assert_eq!(entry.status, "🟡 scale evidence deferred");
+
+    // FR-050-AC-7 byte-identity: a conformant corpus serializes exactly as it
+    // did before the field existed.
+    let clean = iso_bundle(
+        "941-clean",
+        &[
+            ("TC-001", "FR-001-AC-1", "✅"),
+            ("TC-002", "FR-001-AC-2", "🚧"),
+        ],
+        &["TC-001"],
+    );
+    let clean_report = report_for(&clean, "iso").expect("model declared");
+    assert!(clean_report.undeclared_statuses.is_empty());
+    assert!(
+        !clean_report.to_json().contains("undeclared_statuses"),
+        "an all-declared corpus must not carry the key at all",
+    );
+}
+
+#[trace("TC-942", "FR-050-AC-21")]
+// vocabulary drift is reported on a *backed* row too. The
+// classification sits above the backed early-continue deliberately: drift is a
+// property of the declaration, not of the row's evidence.
+#[test]
+fn tc942_undeclared_status_is_seen_on_a_backed_row() {
+    // TC-001 is bound by a real symbol, so it never reaches `unbacked_rows` and
+    // never reaches the status-lie block. Classing status down there would
+    // report drift on unbacked rows only — a backstop that sees a subset.
+    let bundle = iso_bundle(
+        "942",
+        &[
+            ("TC-001", "FR-001-AC-1", "🟡 review-open"),
+            ("TC-002", "FR-001-AC-2", "🚧"),
+        ],
+        &["TC-001", "TC-002"],
+    );
+    let report = report_for(&bundle, "iso").expect("model declared");
+
+    assert!(
+        report.unbacked_rows.is_empty(),
+        "fixture premise: every row is backed — {:?}",
+        report.unbacked_rows,
+    );
+    assert!(report.status_lies.is_empty());
+
+    let drifted: Vec<&str> = report
+        .undeclared_statuses
+        .iter()
+        .filter_map(|s| s.row_id.as_deref())
+        .collect();
+    assert_eq!(
+        drifted,
+        vec!["TC-001"],
+        "a backed row's undeclared status must still be reported",
+    );
+    assert_eq!(report.undeclared_statuses[0].status, "🟡 review-open");
+}
+
 #[trace("TC-736", "FR-050-AC-5")]
 // a symbol whose trace tag resolves to no declared
 // target or row appears in untracked symbols with its file and symbol name.

@@ -37,6 +37,15 @@
       ]
     },
     {
+      "reference": "traces-to",
+      "document": "spec/tests.md",
+      "row_id": "TC-006",
+      "target_ids": [
+        "FR-002-AC-1",
+        "TC-006"
+      ]
+    },
+    {
       "reference": "verification",
       "document": "spec/FR-001.md",
       "row_id": "FR-001-AC-2",
@@ -79,6 +88,14 @@
       ]
     }
   ],
+  "undeclared_statuses": [
+    {
+      "reference": "traces-to",
+      "document": "spec/tests.md",
+      "row_id": "TC-006",
+      "status": "⚠️ scale evidence deferred"
+    }
+  ],
   "untracked_symbols": [
     {
       "path": "src/lib.rs",
@@ -103,7 +120,7 @@
       "document": "spec/tests.md",
       "target": "test-case",
       "backed": 1,
-      "total": 5
+      "total": 6
     }
   ],
   "criteria": [
@@ -129,7 +146,7 @@
   ],
   "totals": {
     "backed": 1,
-    "total": 8,
+    "total": 9,
     "criteria": 3,
     "property_shaped": 2
   }

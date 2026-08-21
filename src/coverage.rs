@@ -87,6 +87,28 @@ pub struct NoSymbolRow {
     pub target_ids: Vec<String>,
 }
 
+/// A reference row whose authored status classes outside the module's declared
+/// status vocabulary (FR-050-AC-21, CR-083).
+///
+/// [`StatusClass::Unknown`] was computed and discarded from v0.1 until this
+/// existed: the only consumer asked `== Complete`, `Unknown` compared false, and
+/// the row fell out of every report. A value the contract admits and the model
+/// does not class is therefore exempt from the status-lie check *by
+/// construction* — not because it is honest, but because the engine had no
+/// opinion about it and said nothing.
+///
+/// This is a **vocabulary-drift backstop**, not a verdict on the row. It carries
+/// the authored string verbatim so the reader can see which value drifted; the
+/// class is deliberately absent, because "no class" is the whole finding.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct UndeclaredStatus {
+    pub reference: String,
+    pub document: String,
+    pub row_id: Option<String>,
+    /// The authored status value, verbatim.
+    pub status: String,
+}
+
 /// A source symbol whose trace tag resolves to no declared target and no
 /// declared reference row (FR-050-AC-5).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -183,6 +205,12 @@ pub struct CoverageReport {
     /// no `no_source_symbol` vocabulary, which keeps FR-050-AC-7 byte-identity.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub no_symbol_rows: Vec<NoSymbolRow>,
+    /// Rows whose status value the model classes as nothing (CR-083). Empty —
+    /// and so absent from the JSON — for a corpus whose every status value is
+    /// declared, which keeps FR-050-AC-7 byte-identity for every module and
+    /// repository already conformant.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub undeclared_statuses: Vec<UndeclaredStatus>,
     pub untracked_symbols: Vec<UntrackedSymbol>,
     pub groups: Vec<GroupCounts>,
     /// Per-document property-shape counts (CR-028). Empty for a corpus whose
@@ -481,6 +509,7 @@ fn reconcile(
     let mut unbacked_rows: Vec<UnbackedRow> = Vec::new();
     let mut status_lies: Vec<StatusLie> = Vec::new();
     let mut no_symbol_rows: Vec<NoSymbolRow> = Vec::new();
+    let mut undeclared_statuses: Vec<UndeclaredStatus> = Vec::new();
     let mut referenced_ids: BTreeSet<String> = BTreeSet::new();
     let mut row_ids: BTreeSet<String> = BTreeSet::new();
 
@@ -538,11 +567,31 @@ fn reconcile(
             ids.sort();
             ids.dedup();
             let is_backed = answerable.iter().any(|id| backed.contains(id.as_str()));
+            let document = relative(root, &row.path);
+
+            // CR-083: an undeclared status is classified **above** the backed
+            // early-continue, and that placement is the whole point. Vocabulary
+            // drift is a property of the declaration, not of the row's evidence:
+            // a backstop that only ever sees unbacked rows is a by-product, not
+            // a backstop. `class_of` has always returned `Unknown` here; until
+            // now nothing asked.
+            if let Some(status) = &model.status {
+                if let Some(value) = row.cell(&status.column) {
+                    if status.class_of(value) == StatusClass::Unknown {
+                        undeclared_statuses.push(UndeclaredStatus {
+                            reference: declaration.name.clone(),
+                            document: document.clone(),
+                            row_id: row_id.clone(),
+                            status: value.to_string(),
+                        });
+                    }
+                }
+            }
+
             if is_backed {
                 continue;
             }
 
-            let document = relative(root, &row.path);
             unbacked_rows.push(UnbackedRow {
                 reference: declaration.name.clone(),
                 document: document.clone(),
@@ -633,6 +682,14 @@ fn reconcile(
     no_symbol_rows.sort_by(|a, b| {
         (&a.reference, &a.document, &a.row_id).cmp(&(&b.reference, &b.document, &b.row_id))
     });
+    undeclared_statuses.sort_by(|a, b| {
+        (&a.reference, &a.document, &a.row_id, &a.status).cmp(&(
+            &b.reference,
+            &b.document,
+            &b.row_id,
+            &b.status,
+        ))
+    });
     untracked_symbols
         .sort_by(|a, b| (&a.path, &a.symbol, &a.trace_id).cmp(&(&b.path, &b.symbol, &b.trace_id)));
     untracked_symbols.dedup();
@@ -702,6 +759,7 @@ fn reconcile(
         unbacked_rows,
         status_lies,
         no_symbol_rows,
+        undeclared_statuses,
         untracked_symbols,
         groups,
         // CR-028: filled by `compute`, which holds the `Registry` this
