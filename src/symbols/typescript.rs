@@ -602,14 +602,16 @@ mod tests {
         );
     }
 
-    /// TC-943, FR-051-AC-18 (CR-084): the forward scan does not over-reach.
+    /// TC-948, FR-051-AC-18 (CR-084; re-idded from a duplicate TC-943 by
+    /// CR-087 — one test-case id names one source symbol): the forward scan
+    /// does not over-reach.
     ///
     /// The failure this guards is subtler than the one it fixes. A scan that
     /// hunted for *any* quote would name a test after an unrelated string, and a
     /// wrong symbol name is worse than none: it binds a tag to the wrong
     /// requirement instead of visibly binding nothing.
     #[test]
-    fn tc943_the_forward_scan_refuses_what_is_not_a_title() {
+    fn tc948_the_forward_scan_refuses_what_is_not_a_title() {
         // A variable title. The scan must stop at `name`, not walk on to the
         // string two lines down.
         let variable = concat!(

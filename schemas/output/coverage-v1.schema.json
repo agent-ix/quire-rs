@@ -38,6 +38,11 @@
       "description": "FR-050-AC-5: source symbols whose trace tag resolves to no declared target or reference row.",
       "items": { "$ref": "#/$defs/UntrackedSymbol" }
     },
+    "shared_trace_ids": {
+      "type": "array",
+      "description": "FR-050-AC-23 (CR-087): trace ids bound by more than one distinct source symbol. One id names one symbol; a row backed by N symbols stays green while N-1 of its tests rot. ABSENT — not empty — for a corpus whose every id is uniquely bound, which is what keeps FR-050-AC-7 byte-identity. Carries no weight in `totals`, and `--strict` does not gate on it in this revision. Additive under FR-055-CON-3.",
+      "items": { "$ref": "#/$defs/SharedTraceId" }
+    },
     "groups": {
       "type": "array",
       "description": "FR-050-AC-6: backed/total counts per minting document and target kind.",
@@ -127,6 +132,29 @@
         "path": { "type": "string" },
         "symbol": { "type": "string" },
         "trace_id": { "type": "string" }
+      }
+    },
+    "SharedTraceId": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["trace_id", "symbols"],
+      "properties": {
+        "trace_id": { "type": "string", "minLength": 1, "description": "The trace id, exactly as the binding forms yield it." },
+        "symbols": {
+          "type": "array",
+          "minItems": 2,
+          "items": { "$ref": "#/$defs/SharedTraceSymbol" },
+          "description": "The distinct binding symbols, ordered by (path, symbol). Always at least two — a uniquely bound id mints no record."
+        }
+      }
+    },
+    "SharedTraceSymbol": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "symbol"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "symbol": { "type": "string", "minLength": 1 }
       }
     },
     "GroupCounts": {

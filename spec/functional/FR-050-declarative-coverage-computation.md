@@ -141,8 +141,37 @@ model; the engine knows nothing of "AC" or "TC" as concepts.
 | FR-050-AC-18 | During coverage computation, a corpus document whose archetype no trace target, document reference, or grammar binding names has its body left unmaterialised; a declared archetype's body is parsed; selection is decided on the header tier and never by filename; a module declaring no `traceability:` model still errors (`ModelUndeclared`) before any selection; and the report is byte-identical to a full-parse engine's (CR-049). | Test (TC-818, TC-738) |
 | FR-050-AC-19 | A declaration that selects nothing is reported in `CoverageReport.diagnostics` and as a `quire validate` warning, never in silence: a declared `archetype:` no corpus document has is reported when the model minted no id at all, and a model declaring no `trace_targets` is reported as minting nothing. `quire coverage` and `quire validate` report the same machine token for the same finding. The list is empty — and the key absent — for a model whose declarations select, so FR-050-AC-7 byte-identity holds (CR-054, amended CR-059, narrowed CR-062). | Test (TC-822) |
 | FR-050-AC-20 | The byte-identity property is gated by a checked-in baseline, not by inspection: a fixture corpus exercising minted ids, an auxiliary matrix, an `exclude:` glob, all three status classes, an undeclared status value (CR-083), the `no_source_symbol` exemption, an untracked symbol, a dangling reference, an undeclared archetype and criteria classification has its report stored as `tests/fixtures/coverage_baseline/expected.json` and byte-diffed on every test run. Regeneration is a deliberate act (`make coverage-baseline-update`) whose diff is reviewed, and a companion test fails if the corpus stops exercising any of that surface (CR-057). | Test (TC-824) |
-| FR-050-AC-21 | A reference row whose authored status value the declared `traceability.status` vocabulary classes as none of `complete`, `pending`, `failed` or `retired` is reported in `CoverageReport.undeclared_statuses` with the declaration, the document, the row id and the authored value verbatim — whether or not the row is backed. A corpus whose every status value is declared reports an empty list, the key is absent from the JSON, and the payload is byte-identical to a report from an engine predating the field. The list does not affect `totals`, and `--strict` does not gate on it (CR-083). | Test (TC-941, TC-942) |
-| FR-050-AC-22 | The model MAY declare `source_exclude:` path globs under the **code** root; a source file matching one yields no symbols and no trace bindings, a non-matching glob leaves the extraction byte-identical, and the document walk's `groups` and `totals` are unaffected either way. The key merges across modules as a union, has its patterns compile-checked at module load like every other glob list, and leaves the model undeclared when it is all a module declares. It can only subtract: a `source_exclude` of `spec/**` neither un-excludes the document root nor admits anything under it (CR-085). | Test (TC-944, TC-945) |
+| FR-050-AC-21 | A reference row whose authored status value the declared `traceability.status` vocabulary classes as none of `complete`, `pending`, `failed` or `retired` is reported in `CoverageReport.undeclared_statuses` with the declaration, the document, the row id and the authored value verbatim — whether or not the row is backed. A corpus whose every status value is declared reports an empty list, the key is absent from the JSON, and the payload is byte-identical to a report from an engine predating the field. The list does not affect `totals`, and `--strict` does not gate on it (CR-083). | Test (TC-941, TC-942, TC-946) |
+| FR-050-AC-22 | The model MAY declare `source_exclude:` path globs under the **code** root; a source file matching one yields no symbols and no trace bindings, a non-matching glob leaves the extraction byte-identical, and the document walk's `groups` and `totals` are unaffected either way. The key merges across modules as a union, has its patterns compile-checked at module load like every other glob list, and leaves the model undeclared when it is all a module declares. It can only subtract: a `source_exclude` of `spec/**` neither un-excludes the document root nor admits anything under it (CR-085). | Test (TC-944, TC-945, TC-949) |
+| FR-050-AC-23 | A trace id that is the row id of a **status-carrying** reference row and is bound by more than one distinct source symbol — distinctness is the `(path, symbol)` pair — is reported in `CoverageReport.shared_trace_ids` with the id and every binding symbol, deterministically ordered by id and inside each record by `(path, symbol)`. An id whose rows carry no status (an acceptance criterion verified by several tests) is never reported. A corpus whose every status-row id is uniquely bound reports an empty list, the key is absent from the JSON, and the payload is byte-identical to a report from an engine predating the field. The list does not affect `totals`, and `--strict` does not gate on it (CR-087). | Test (TC-950, TC-951) |
+
+> **CR-087 note (2026-08-21):** AC-23 is new — one test-case id names one
+> source symbol, and an id shared by several is a reported defect.
+> `agent-ix/quire-rs#216`.
+>
+> v0.41.0 shipped two instances in this very crate — TC-943 tagged on two test
+> fns (`src/symbols/typescript.rs`, CR-084) and TC-944 on two
+> (`src/symbols/mod.rs`, CR-085) — and no surface reported either: the matrix
+> lists each id once, the row is backed by *any* one of its binders, and so the
+> row stays green while the other test rots or is deleted. The id has stopped
+> naming which evidence backs the row.
+>
+> The policy decision #216 asked for: **1:1 for status-carrying row ids, not a
+> declared N:1 convention.** The trace id is the join key between matrix row
+> and evidence; an id that names a set cannot say which member satisfied it.
+> The scoping is measured, not assumed: unscoped, the check fired on 100+ ids
+> in this repository alone, overwhelmingly acceptance-criterion ids that are
+> N:1 **by design** (TC-941 and TC-942 both bind FR-050-AC-21) — a rule
+> misreading correct data. Scoped to ids whose rows carry a status — the rows
+> whose green can rot — it reports 51 ids here, sampled 10/10 real: all are
+> the older several-fns-per-row authoring convention (facet splits like
+> TC-609 ×6, cross-surface parity like TC-528 bound from Rust and Python).
+> Those 51 stay visible as advisory corpus debt; unification on 1:1 is
+> enforcement work gated on its own measurement, per the promotion rule.
+> Advisory-first, as CR-083 did it: a report list that does not affect
+> `totals` and is not gated by `--strict` in this revision. The two shipped
+> instances are re-idded in the same change (TC-948, TC-949) and no longer
+> appear in the list.
 
 > **CR-085 note (2026-08-20):** AC-22 is new — a declared `source_exclude:`
 > scopes the **source-symbol walk**. `agent-ix/quire-rs#199`.

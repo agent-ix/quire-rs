@@ -476,13 +476,15 @@ mod tests {
         );
     }
 
-    #[trace("TC-944", "FR-050-AC-22", "FR-050-AC-17")]
+    #[trace("TC-949", "FR-050-AC-22", "FR-050-AC-17")]
     // the key can only subtract. Declaring `spec/**` as a
     // source glob cannot un-exclude the document root, because the two filters
     // are different in kind: the root is the caller's non-configurable argument
     // (CR-045) and the globs are a second filter applied after it.
+    // (Re-idded from a duplicate TC-944 by CR-087 — one test-case id names one
+    // source symbol.)
     #[test]
-    fn tc944_source_globs_cannot_un_exclude_the_document_root() {
+    fn tc949_source_globs_cannot_un_exclude_the_document_root() {
         let root = std::env::temp_dir().join(format!(
             "quire-sym-subtract-{}",
             std::time::SystemTime::now()

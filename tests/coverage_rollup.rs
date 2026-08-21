@@ -343,6 +343,89 @@ fn tc946_duplicate_undeclared_status_rows_yield_one_record() {
     );
 }
 
+#[trace("TC-950", "FR-050-AC-23")]
+// one test-case id names one source symbol: an id bound by
+// two distinct symbols is reported in `shared_trace_ids` with both binders,
+// ordered, and the rollup's counts are untouched — the row is still backed,
+// which is exactly why the state needs its own surface (CR-087; the shipped
+// instances were TC-943 ×2 and TC-944 ×2 in v0.41.0, invisible to every
+// report).
+#[test]
+fn tc950_an_id_bound_by_two_symbols_is_reported_with_both_binders() {
+    // `iso_bundle` mints one distinct test fn per entry, so a repeated id is
+    // two different symbols binding the same id.
+    let bundle = iso_bundle(
+        "950",
+        &[
+            ("TC-001", "FR-001-AC-1", "✅"),
+            ("TC-002", "FR-001-AC-2", "✅"),
+        ],
+        &["TC-001", "TC-001", "TC-002"],
+    );
+    let report = report_for(&bundle, "iso").expect("model declared");
+
+    assert_eq!(
+        report.shared_trace_ids.len(),
+        1,
+        "exactly one shared id: {:?}",
+        report.shared_trace_ids,
+    );
+    let shared = &report.shared_trace_ids[0];
+    assert_eq!(shared.trace_id, "TC-001");
+    let symbols: Vec<&str> = shared.symbols.iter().map(|s| s.symbol.as_str()).collect();
+    assert_eq!(
+        symbols,
+        vec!["tests::covers_0", "tests::covers_1"],
+        "both distinct binders, deterministically ordered",
+    );
+
+    // The report is advisory: the row stays backed and the totals stay what
+    // they were — that a shared id keeps its row green is the defect the list
+    // exists to make visible, not something the list changes. The totals are
+    // the bundle's four minted targets (two AC ids, two TC ids) with the two
+    // TC ids symbol-backed — identical to the uniquely-bound bundle TC-951
+    // measures.
+    assert!(report.unbacked_rows.is_empty());
+    assert!(report.status_lies.is_empty());
+    assert_eq!((report.totals.backed, report.totals.total), (2, 4));
+}
+
+#[trace("TC-951", "FR-050-AC-23")]
+// the check's negative space, in both halves. A corpus
+// whose every status-row id is uniquely bound reports an empty list and the
+// key is ABSENT from the JSON — byte-identity (FR-050-AC-7) for every
+// repository already conformant, exactly as `undeclared_statuses` keeps it.
+// And the scoping is load-bearing: an id whose rows carry NO status (an
+// acceptance criterion verified by several tests) is legitimately N:1 and is
+// never reported, even when several distinct symbols bind it (CR-087).
+#[test]
+fn tc951_uniquely_bound_ids_report_nothing_and_omit_the_key() {
+    // Two extra symbols both bind the AC id directly — the deliberate
+    // many-tests-per-criterion shape (TC-941/TC-942 both bind FR-050-AC-21 in
+    // this very repository). The AC table carries no status column, so this
+    // must mint no record.
+    let bundle = iso_bundle(
+        "951",
+        &[
+            ("TC-001", "FR-001-AC-1", "✅"),
+            ("TC-002", "FR-001-AC-2", "✅"),
+        ],
+        &["TC-001", "TC-002", "FR-001-AC-1", "FR-001-AC-1"],
+    );
+    let report = report_for(&bundle, "iso").expect("model declared");
+
+    assert!(
+        report.shared_trace_ids.is_empty(),
+        "unique status-row bindings and shared NON-status ids alike must mint \
+         no record: {:?}",
+        report.shared_trace_ids,
+    );
+    assert!(
+        !report.to_json().contains("shared_trace_ids"),
+        "a conformant corpus must not carry the key at all",
+    );
+}
+
 #[trace("TC-736", "FR-050-AC-5")]
 // a symbol whose trace tag resolves to no declared
 // target or row appears in untracked symbols with its file and symbol name.

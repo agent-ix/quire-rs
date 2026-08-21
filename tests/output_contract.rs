@@ -124,6 +124,13 @@ fn tc856_payload_carrying_every_optional_key_conforms() {
             "symbol": "tests::covers_nothing",
             "trace_id": "TC-999"
         }],
+        "shared_trace_ids": [{
+            "trace_id": "TC-004",
+            "symbols": [
+                {"path": "src/lib.rs", "symbol": "tests::covers_it"},
+                {"path": "src/lib.rs", "symbol": "tests::also_covers_it"}
+            ]
+        }],
         "groups": [{"document": "tests.md", "target": "test-case", "backed": 1, "total": 2}],
         "criteria": [{
             "document": "FR-001.md",
@@ -279,6 +286,7 @@ fn tc859_optional_and_required_split_matches_the_engine() {
     for optional in [
         "no_symbol_rows",
         "undeclared_statuses",
+        "shared_trace_ids",
         "criteria",
         "diagnostics",
         "obligations",

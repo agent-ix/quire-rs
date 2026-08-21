@@ -134,6 +134,41 @@ pub struct ImplementsRecord {
     pub form: String,
 }
 
+/// One binding symbol of a shared trace id (FR-050-AC-23).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SharedTraceSymbol {
+    pub path: String,
+    pub symbol: String,
+}
+
+/// A trace id bound by more than one distinct source symbol (FR-050-AC-23,
+/// CR-087).
+///
+/// The policy this reports on: **one test-case id names one source symbol.**
+/// A row backed by N symbols is satisfied by any one of them, so the row can
+/// stay green while N−1 of its tests rot or are deleted — the id has stopped
+/// naming which evidence backs the row. v0.41.0 shipped two instances
+/// (TC-943 ×2, TC-944 ×2) and no surface reported either.
+///
+/// **Scoped to ids that are row ids of status-carrying rows** — the rows whose
+/// green can rot. An id whose rows carry no status (an acceptance criterion
+/// verified by several tests, e.g. FR-050-AC-21 by TC-941 *and* TC-942) is
+/// legitimately N:1 and never reported; measured unscoped over this repository
+/// the list held 100+ such records, which is a rule misreading correct data,
+/// not a corpus defect.
+///
+/// Like `undeclared_statuses` (CR-083), this is a **report list, not a gate**:
+/// it does not affect `totals` and `--strict` does not gate on it in this
+/// revision — advisory-first, promotion is a separate measured decision.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SharedTraceId {
+    /// The trace id, exactly as the binding forms yield it.
+    pub trace_id: String,
+    /// The distinct binding symbols, ordered by `(path, symbol)`. Always at
+    /// least two — a uniquely bound id mints no record.
+    pub symbols: Vec<SharedTraceSymbol>,
+}
+
 /// Backed/total trace-target counts for one minting document (FR-050-AC-6).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GroupCounts {
@@ -212,6 +247,12 @@ pub struct CoverageReport {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub undeclared_statuses: Vec<UndeclaredStatus>,
     pub untracked_symbols: Vec<UntrackedSymbol>,
+    /// Trace ids bound by more than one distinct source symbol (FR-050-AC-23,
+    /// CR-087). Empty — and so absent from the JSON — for a corpus whose every
+    /// id is uniquely bound, which keeps FR-050-AC-7 byte-identity for every
+    /// repository already conformant. Does not affect `totals`.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub shared_trace_ids: Vec<SharedTraceId>,
     pub groups: Vec<GroupCounts>,
     /// Per-document property-shape counts (CR-028). Empty for a corpus whose
     /// documents bind no criteria, so such a report serializes exactly as it
@@ -512,6 +553,12 @@ fn reconcile(
     let mut undeclared_statuses: Vec<UndeclaredStatus> = Vec::new();
     let mut referenced_ids: BTreeSet<String> = BTreeSet::new();
     let mut row_ids: BTreeSet<String> = BTreeSet::new();
+    // Row ids of rows that carry a status cell (FR-050-AC-23, CR-087). The
+    // one-id-one-symbol policy is scoped to these: a status-classed row backed
+    // by any one of N binders stays green while the other N−1 rot, which is
+    // the defect. An id whose rows carry no status (an acceptance criterion
+    // verified by several tests) is legitimately N:1 and never reported.
+    let mut status_row_ids: BTreeSet<String> = BTreeSet::new();
 
     for declaration in &model.document_references {
         let Ok(pattern) = regex::Regex::new(&declaration.pattern) else {
@@ -577,6 +624,9 @@ fn reconcile(
             // now nothing asked.
             if let Some(status) = &model.status {
                 if let Some(value) = row.cell(&status.column) {
+                    if let Some(id) = &row_id {
+                        status_row_ids.insert(id.clone());
+                    }
                     if status.class_of(value) == StatusClass::Unknown {
                         undeclared_statuses.push(UndeclaredStatus {
                             reference: declaration.name.clone(),
@@ -758,12 +808,46 @@ fn reconcile(
         path: Some(row.document.clone()),
     }));
 
+    // ── Shared trace ids: one id bound by several distinct symbols ──
+    // (FR-050-AC-23, CR-087). Scoped to ids that are row ids of
+    // status-carrying rows — the population where N binders let a green row
+    // rot N−1 tests deep. Grouped through BTree collections so the record
+    // order — and inside each record the symbol order — is a property of the
+    // data, not of the walk (NFR-006). Distinctness is `(path, symbol)`: the
+    // same symbol binding one id through two declared forms (or a duplicated
+    // in-symbol id, FR-051's dedup) is one binder, not a shared id.
+    let mut binders: BTreeMap<&str, BTreeSet<(&str, &str)>> = BTreeMap::new();
+    for relation in &graph.verifies {
+        if !status_row_ids.contains(&relation.trace_id) {
+            continue;
+        }
+        binders
+            .entry(relation.trace_id.as_str())
+            .or_default()
+            .insert((relation.path.as_str(), relation.symbol.as_str()));
+    }
+    let shared_trace_ids: Vec<SharedTraceId> = binders
+        .into_iter()
+        .filter(|(_, symbols)| symbols.len() > 1)
+        .map(|(trace_id, symbols)| SharedTraceId {
+            trace_id: trace_id.to_string(),
+            symbols: symbols
+                .into_iter()
+                .map(|(path, symbol)| SharedTraceSymbol {
+                    path: path.to_string(),
+                    symbol: symbol.to_string(),
+                })
+                .collect(),
+        })
+        .collect();
+
     CoverageReport {
         unbacked_rows,
         status_lies,
         no_symbol_rows,
         undeclared_statuses,
         untracked_symbols,
+        shared_trace_ids,
         groups,
         // CR-028: filled by `compute`, which holds the `Registry` this
         // reconciliation deliberately does not take.
