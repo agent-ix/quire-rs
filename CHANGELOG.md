@@ -5,6 +5,55 @@ All notable changes to `quire-rs` are documented here. Format follows
 numbers follow semver — pre-1.0, breaking changes may land in minor
 bumps; once 1.0 ships, semver is strict.
 
+## [0.42.0] — 2026-08-21
+
+Quality-assurance hardening release: every change below was landed with a
+pre-release code review + gap analysis (reviews/2026-08-21-wp3-*.md, SR-051/052)
+— the gate v0.41.0 shipped without.
+
+### Added
+
+- **Coverage records carry the 1-based line (#210, CR-089, FR-050-AC-26).**
+  `UnbackedRow`, `StatusLie`, `NoSymbolRow`, `UndeclaredStatus`, `UntrackedSymbol`
+  gain an optional `line` — omitted, never null, when unrecovered. A finding you
+  cannot jump to is a finding someone re-derives by hand.
+- **`source_exclude` subtraction is observable (#215, CR-088, FR-050-AC-24/25).**
+  The report carries `excluded_source_files`; an invalid glob list refuses loudly
+  (all-or-nothing) instead of silently partial-filtering. An over-broad glob now
+  reads as configuration, not as missing tests.
+- **`shared_trace_ids` — one status-carrying row id bound by N symbols is reported
+  (#216, CR-087, FR-050-AC-23).** Advisory-first; v0.41.0 itself shipped two such
+  duplicates (TC-943, TC-944 — both resolved here).
+- **`vocabulary_coverage` — every declared vocabulary value classified
+  owned / excused / unowned (#179, CR-091, FR-059).** Diagnostics carry the
+  authored value verbatim so consumers (quoin's advisor) can distinguish
+  uncatalogued vocabulary from genuine disagreement without re-deriving.
+- **A catalog method entry can state its cost (#190, CR-092, FR-054-CON-6).**
+  Stored and surfaced, never interpreted; advisor-side ranking is consumer work.
+
+### Fixed
+
+- **The Test Matrix corruption v0.41.0 shipped (#209) is in a tag for the first
+  time**, and the gate that would have caught it now exists: `make validate`
+  runs the working-tree engine against the repo's own spec and reconciles the
+  on-disk tree against the loaded corpus (#212, SR-051 FND-001) — dogfooding it
+  found and repaired 33 matrix rows silently minting nothing (f154fc8).
+- **`undeclared_statuses` deduplicates (#213, CR-086)**; the `implements`
+  optional-key acceptance got its discrete matrix record (TC-947).
+- Foreign-id `Traces To` cells (TC-768/769) and two constraint-table mismatches
+  (FR-026/FR-057) no longer fail validation (#218).
+
+### Internal
+
+- **Slash-sweep harness rebuilt before the #211 tail (#217)**: all chains per
+  line, span-replace, counted refusals, dirty-tree refusal, and rule R7 — GREEN
+  requires the *rewritten* line to be bindable, the guard that would have caught
+  the three placebo edits #208 shipped (repaired in-tree: backed 883→886).
+- `scripts/corpus.py` tested and import-hardened (#219); the 238-vs-239 corpus
+  figure resolved as an attribution error (239 enumerated, 238 scanned after
+  exclusions). TS registration scanner grammar pinned through `extract_tree`
+  with fixtures (#214, CR-090).
+
 ## [0.41.0] — 2026-08-20
 
 ### Added
