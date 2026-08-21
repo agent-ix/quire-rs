@@ -284,6 +284,65 @@ fn tc942_undeclared_status_is_seen_on_a_backed_row() {
     assert_eq!(report.undeclared_statuses[0].status, "🟡 review-open");
 }
 
+#[trace("TC-946", "FR-050-AC-21")]
+// two identical matching rows are one defect, not two records — the list is
+// deduplicated after its sort, mirroring `untracked_symbols` (#213). Before
+// this, `undeclared_statuses` was the only reconciliation list sorted but
+// never deduplicated, so a duplicated authored row yielded a duplicated
+// record.
+#[test]
+fn tc946_duplicate_undeclared_status_rows_yield_one_record() {
+    // The same drifting row authored twice, byte-identical. The matrix is
+    // malformed — a duplicated row id is its own (separate) defect — but the
+    // reconciliation must not amplify it: one undeclared value at one row id
+    // is one drift finding.
+    let bundle = iso_bundle(
+        "946-dup",
+        &[
+            ("TC-001", "FR-001-AC-1", "✅"),
+            ("TC-002", "FR-001-AC-2", "🟡 scale evidence deferred"),
+            ("TC-002", "FR-001-AC-2", "🟡 scale evidence deferred"),
+        ],
+        &["TC-001"],
+    );
+    let report = report_for(&bundle, "iso").expect("model declared");
+
+    let drifted: Vec<&str> = report
+        .undeclared_statuses
+        .iter()
+        .filter_map(|s| s.row_id.as_deref())
+        .collect();
+    assert_eq!(
+        drifted,
+        vec!["TC-002"],
+        "identical duplicate rows must collapse to one record: {:?}",
+        report.undeclared_statuses,
+    );
+
+    // Two DIFFERENT undeclared values on duplicate row ids are two findings:
+    // dedup collapses identical records only, never distinct drifted values.
+    let distinct = iso_bundle(
+        "946-distinct",
+        &[
+            ("TC-001", "FR-001-AC-1", "✅"),
+            ("TC-002", "FR-001-AC-2", "🟡 scale evidence deferred"),
+            ("TC-002", "FR-001-AC-2", "🔵 second drifted value"),
+        ],
+        &["TC-001"],
+    );
+    let report = report_for(&distinct, "iso").expect("model declared");
+    let statuses: Vec<&str> = report
+        .undeclared_statuses
+        .iter()
+        .map(|s| s.status.as_str())
+        .collect();
+    assert_eq!(
+        statuses,
+        vec!["🔵 second drifted value", "🟡 scale evidence deferred"],
+        "distinct drifted values must both survive the dedup",
+    );
+}
+
 #[trace("TC-736", "FR-050-AC-5")]
 // a symbol whose trace tag resolves to no declared
 // target or row appears in untracked symbols with its file and symbol name.

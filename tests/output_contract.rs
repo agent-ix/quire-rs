@@ -309,6 +309,55 @@ fn tc859_optional_and_required_split_matches_the_engine() {
     }
 }
 
+#[trace("TC-947", "FR-055-AC-6")]
+// the `implements` optional-key acceptance, pinned in both
+// directions against the ENGINE, not only the schema. #203 (CR-083) silently
+// widened tc859's optional list with `implements` — a real correction
+// (`skip_serializing_if` since CR-080) with no matrix presence (#213,
+// SR-010 FND-003). This is the discrete record: an empty `implements`
+// serializes with no key at all (FR-050-AC-7 byte-identity for modules that
+// have not adopted the marker forms), a populated one carries the key, and
+// the published contract accepts both payloads.
+#[test]
+fn tc947_implements_key_is_omitted_when_empty_and_carried_when_populated() {
+    use quire_rs::coverage::{CoverageReport, ImplementsRecord};
+
+    let schema = compile("coverage-v1.schema.json");
+
+    // Engine direction, empty: no `implements` key anywhere in the payload.
+    let empty = CoverageReport::default();
+    let empty_json: Value = serde_json::from_str(&empty.to_json()).expect("valid JSON");
+    assert!(
+        !empty_json.as_object().unwrap().contains_key("implements"),
+        "an empty `implements` must be omitted, not serialized as `[]`",
+    );
+
+    // Engine direction, populated: the key is present and shaped as declared.
+    let mut populated = CoverageReport::default();
+    populated.implements.push(ImplementsRecord {
+        path: "src/lib.rs".to_string(),
+        symbol: "compute".to_string(),
+        trace_id: "FR-001".to_string(),
+        form: "implements-comment".to_string(),
+    });
+    let populated_json: Value = serde_json::from_str(&populated.to_json()).expect("valid JSON");
+    assert_eq!(
+        populated_json["implements"][0]["trace_id"],
+        json!("FR-001"),
+        "a populated `implements` must carry its records",
+    );
+
+    // Contract direction: the published schema accepts both engine outputs.
+    assert!(
+        errors(&schema, &empty_json).is_empty(),
+        "the contract must accept a payload omitting `implements`",
+    );
+    assert!(
+        errors(&schema, &populated_json).is_empty(),
+        "the contract must accept a payload carrying `implements`",
+    );
+}
+
 #[trace("TC-860", "FR-055-AC-7")]
 // the contract is carried by the artifact alone.
 #[test]

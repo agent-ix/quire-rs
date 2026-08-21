@@ -690,6 +690,9 @@ fn reconcile(
             &b.status,
         ))
     });
+    // Two identical matching rows in one document are one defect, not two
+    // records — mirrors `untracked_symbols` below (#213).
+    undeclared_statuses.dedup();
     untracked_symbols
         .sort_by(|a, b| (&a.path, &a.symbol, &a.trace_id).cmp(&(&b.path, &b.symbol, &b.trace_id)));
     untracked_symbols.dedup();
