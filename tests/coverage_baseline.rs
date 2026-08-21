@@ -107,6 +107,10 @@ fn tc824_the_baseline_corpus_still_exercises_the_surface() {
         "the no_source_symbol exemption"
     );
     assert!(
+        !report.undeclared_statuses.is_empty(),
+        "a status value the module's vocabulary classes as nothing (CR-083)"
+    );
+    assert!(
         !report.untracked_symbols.is_empty(),
         "a symbol tagged with an id nothing declares"
     );

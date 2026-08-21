@@ -140,8 +140,45 @@ model; the engine knows nothing of "AC" or "TC" as concepts.
 | FR-050-AC-17 | The two roots derive from one `--scope` and stay distinct: repo-root files (`README.md`, `CHANGELOG.md`, `plan/*.md`) are never read as documents, the code walk never enters the document root, the minted-id set over a compliant repo is byte-identical to a pre-split run, and a scope with no `spec/` directory exits with a diagnostic naming the missing root (CR-045). | Test (TC-809, TC-810, TC-811) |
 | FR-050-AC-18 | During coverage computation, a corpus document whose archetype no trace target, document reference, or grammar binding names has its body left unmaterialised; a declared archetype's body is parsed; selection is decided on the header tier and never by filename; a module declaring no `traceability:` model still errors (`ModelUndeclared`) before any selection; and the report is byte-identical to a full-parse engine's (CR-049). | Test (TC-818, TC-738) |
 | FR-050-AC-19 | A declaration that selects nothing is reported in `CoverageReport.diagnostics` and as a `quire validate` warning, never in silence: a declared `archetype:` no corpus document has is reported when the model minted no id at all, and a model declaring no `trace_targets` is reported as minting nothing. `quire coverage` and `quire validate` report the same machine token for the same finding. The list is empty — and the key absent — for a model whose declarations select, so FR-050-AC-7 byte-identity holds (CR-054, amended CR-059, narrowed CR-062). | Test (TC-822) |
-| FR-050-AC-20 | The byte-identity property is gated by a checked-in baseline, not by inspection: a fixture corpus exercising minted ids, an auxiliary matrix, an `exclude:` glob, all three status classes, the `no_source_symbol` exemption, an untracked symbol, a dangling reference, an undeclared archetype and criteria classification has its report stored as `tests/fixtures/coverage_baseline/expected.json` and byte-diffed on every test run. Regeneration is a deliberate act (`make coverage-baseline-update`) whose diff is reviewed, and a companion test fails if the corpus stops exercising any of that surface (CR-057). | Test (TC-824) |
+| FR-050-AC-20 | The byte-identity property is gated by a checked-in baseline, not by inspection: a fixture corpus exercising minted ids, an auxiliary matrix, an `exclude:` glob, all three status classes, an undeclared status value (CR-083), the `no_source_symbol` exemption, an untracked symbol, a dangling reference, an undeclared archetype and criteria classification has its report stored as `tests/fixtures/coverage_baseline/expected.json` and byte-diffed on every test run. Regeneration is a deliberate act (`make coverage-baseline-update`) whose diff is reviewed, and a companion test fails if the corpus stops exercising any of that surface (CR-057). | Test (TC-824) |
+| FR-050-AC-21 | A reference row whose authored status value the declared `traceability.status` vocabulary classes as none of `complete`, `pending`, `failed` or `retired` is reported in `CoverageReport.undeclared_statuses` with the declaration, the document, the row id and the authored value verbatim — whether or not the row is backed. A corpus whose every status value is declared reports an empty list, the key is absent from the JSON, and the payload is byte-identical to a report from an engine predating the field. The list does not affect `totals`, and `--strict` does not gate on it (CR-083). | Test (TC-941, TC-942) |
 
+> **CR-083 note (2026-08-20):** A status value the model's vocabulary classes as
+> nothing is reported as its own defect (AC-21). `agent-ix/quire-rs#192`.
+>
+> `StatusClass::Unknown` has existed since the class was introduced and was
+> computed and discarded on every run: the only consumer asked
+> `class_of(value) == Complete`, `Unknown` compared false, and the row fell out
+> of the report. A value the module's structural contract **admits** and its
+> traceability model **does not class** was therefore exempt from the status-lie
+> check by construction — not because the row was honest, but because the engine
+> had an opinion, formed it, and threw it away.
+>
+> This is not hypothetical, and CR-015 already predicted it: it recorded the
+> matrix vocabularies as "declared in two places … and drifting". Measured on
+> `~/dev` today, over rows in the one locator that declares
+> `column_patterns.Status`: **20 rows across 5 repositories** carry a status the
+> model classes as nothing — 18 `⚠️` and 2 `🟡`. `spec-artifacts-process` admits
+> `⚠️` at `manifest.yaml:261` and declares no class for it at `:825`; `🟡` is
+> admitted by neither and fails validation already.
+>
+> **Placement is the substance of this change.** The classification runs *above*
+> the `is_backed` early-continue, alongside the row's `document`. Vocabulary
+> drift is a property of the declaration, not of the row's evidence, so a check
+> that only ever saw unbacked rows would report a subset and read as complete.
+> TC-942 is that assertion: a backed row with an undeclared status is reported,
+> and it is the test that fails if the block is ever moved back down.
+>
+> **`--strict` deliberately does not gate on this list, in this release.** At the
+> moment it ships, repositories across the ecosystem would flip red on an engine
+> bump for a condition none of them has been told about yet. Promotion is a
+> separate, measured, user-gated decision once the corpus is clean — the same
+> advisory-first sequence FR-042 used. A gate is deferred here, never lowered.
+>
+> The record carries the authored string verbatim and **no class**: having none
+> is the entire finding, and two undeclared glyphs in one corpus are
+> distinguishable only by the value. `StatusClass` is not serialized.
+>
 > **CR-062 note (2026-08-17):** AC-15 and AC-19 are narrowed: the `document:`
 > origin is **deleted**, and `archetype:` is the single required origin for a
 > trace target and a document reference alike. `agent-ix/quire-rs#74`.

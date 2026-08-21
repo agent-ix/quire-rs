@@ -113,6 +113,12 @@ fn tc856_payload_carrying_every_optional_key_conforms() {
             "test_type": "Eval",
             "target_ids": ["TC-002"]
         }],
+        "undeclared_statuses": [{
+            "reference": "traces-to",
+            "document": "tests.md",
+            "row_id": "TC-003",
+            "status": "⚠️ scale evidence deferred"
+        }],
         "untracked_symbols": [{
             "path": "src/lib.rs",
             "symbol": "tests::covers_nothing",
@@ -267,7 +273,17 @@ fn tc859_optional_and_required_split_matches_the_engine() {
     let schema = compile("coverage-v1.schema.json");
 
     // Optional: the engine omits these entirely when empty.
-    for optional in ["no_symbol_rows", "criteria", "diagnostics", "obligations"] {
+    // `implements` was absent from this list until CR-083 — it has carried
+    // `skip_serializing_if` since CR-080, so the list disagreed with the engine
+    // in the one direction this test exists to catch.
+    for optional in [
+        "no_symbol_rows",
+        "undeclared_statuses",
+        "criteria",
+        "diagnostics",
+        "obligations",
+        "implements",
+    ] {
         let mut payload = baseline();
         payload.as_object_mut().unwrap().remove(optional);
         assert!(
