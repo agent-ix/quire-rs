@@ -196,7 +196,7 @@ mod tests {
         assert_eq!(orphans, vec!["FR-002"]); // FR-001 has the edge; FR-002 doesn't
     }
 
-    // TC-500 / FR-027-AC-9: untyped doc -> not in by_type, in by_id, diagnostic.
+    // TC-500, FR-027-AC-9: untyped doc -> not in by_type, in by_id, diagnostic.
     #[test]
     fn untyped_document_is_excluded_and_diagnosed() {
         let root = tmpdir("untyped");
@@ -210,7 +210,7 @@ mod tests {
             .any(|d| matches!(d, Diagnostic::UntypedArtifact { .. })));
     }
 
-    // TC-497 / FR-027-AC-5: outgoing includes dangling; dangling()/referencing agree.
+    // TC-497, FR-027-AC-5: outgoing includes dangling; dangling()/referencing agree.
     #[test]
     fn dangling_appears_in_outgoing_not_referencing() {
         let root = tmpdir("dangling");
@@ -223,7 +223,7 @@ mod tests {
         assert!(spec.referencing("StR-404").is_empty());
     }
 
-    // TC-498 / FR-027-AC-6 + NFR-006: query results deterministic across runs.
+    // TC-498, FR-027-AC-6 + NFR-006: query results deterministic across runs.
     #[test]
     fn query_results_are_deterministic() {
         let root = tmpdir("determ");

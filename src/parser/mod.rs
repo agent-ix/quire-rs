@@ -499,7 +499,7 @@ mod tests {
     }
 
     proptest! {
-        // FR-005-AC-4 / TC-002: parse_document does not panic on any input.
+        // FR-005-AC-4, TC-002: parse_document does not panic on any input.
         #![proptest_config(ProptestConfig::with_cases(10_000))]
         #[test]
         fn never_panics_on_arbitrary_utf8(s in "\\PC*") {

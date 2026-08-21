@@ -149,7 +149,7 @@ mod tests {
         s.split('\n').collect()
     }
 
-    // FR-007-AC-1 / TC-015
+    // FR-007-AC-1, TC-015
     #[test]
     fn backtick_fence_blocks_inner_headings() {
         let input = "## Real\n```\n# fake\n```\n## Real2";
@@ -161,7 +161,7 @@ mod tests {
         assert_eq!(hs[1].level, 2);
     }
 
-    // FR-007-AC-2 / TC-016
+    // FR-007-AC-2, TC-016
     #[test]
     fn unclosed_fence_swallows_trailing_lines() {
         let input = "## Real\n```\n## still-inside\n";
@@ -170,7 +170,7 @@ mod tests {
         assert_eq!(hs[0].text, "Real");
     }
 
-    // FR-007-AC-3 / TC-017
+    // FR-007-AC-3, TC-017
     #[test]
     fn tilde_fence_behaves_like_backtick() {
         let input = "~~~\n# fake\n~~~\n## Real";

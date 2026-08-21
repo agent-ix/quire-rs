@@ -107,7 +107,7 @@ mod tests {
         // split produces ["abc", ""]; we have 2 line starts.
     }
 
-    // FR-008-AC-1 / TC-022
+    // FR-008-AC-1, TC-022
     #[test]
     fn preserves_leading_and_trailing_whitespace() {
         let body = "## A\n  indented body  \n## B\n";
@@ -120,7 +120,7 @@ mod tests {
         assert_eq!(a, "  indented body  \n");
     }
 
-    // FR-008-AC-2 / TC-023
+    // FR-008-AC-2, TC-023
     #[test]
     fn preserves_crlf_byte_for_byte() {
         let body = "## A\r\nhello\r\nworld\r\n## B\r\n";
@@ -172,7 +172,7 @@ mod tests {
         assert_eq!(a, "\n  para 1  \n\n\n  para 2  \n");
     }
 
-    /// FR-008-AC-3 / TC-024 invariant: reassembling preamble + (heading
+    /// FR-008-AC-3, TC-024 invariant: reassembling preamble + (heading
     /// line + content) for each section yields `body` byte-for-byte.
     /// Because each `content_i` already includes the `\n` that follows
     /// its last content line (up to the next heading), the join is

@@ -204,7 +204,7 @@ mod tests {
         format!("---\nid: {id}\ntype: {ty}\nuuid: 0190b6a0-0000-7000-8000-000000000001\n---\n# {id}\nbody\n")
     }
 
-    // TC-480 / FR-025-AC-1: len == number of parsed artifacts.
+    // TC-480, FR-025-AC-1: len == number of parsed artifacts.
     #[test]
     fn len_matches_artifact_count() {
         let root = tmpdir("len");
@@ -215,7 +215,7 @@ mod tests {
         assert!(!spec.is_empty());
     }
 
-    // TC-481 / FR-025-AC-2: by_id present -> Some, absent -> None.
+    // TC-481, FR-025-AC-2: by_id present -> Some, absent -> None.
     #[test]
     fn by_id_present_and_absent() {
         let root = tmpdir("by_id");
@@ -225,7 +225,7 @@ mod tests {
         assert!(spec.by_id("FR-999").is_none());
     }
 
-    // TC-482 / FR-025-AC-3: duplicate id -> diagnostic, first-wins, no fail.
+    // TC-482, FR-025-AC-3: duplicate id -> diagnostic, first-wins, no fail.
     #[test]
     fn duplicate_id_diagnosed_first_wins() {
         let root = tmpdir("dup");
@@ -245,14 +245,14 @@ mod tests {
         );
     }
 
-    // TC-483 / FR-025-AC-4 + StR-006-AC-5: Send + Sync.
+    // TC-483, FR-025-AC-4 + StR-006-AC-5: Send + Sync.
     #[test]
     fn spec_is_send_sync() {
         fn assert_send_sync<T: Send + Sync>() {}
         assert_send_sync::<Spec>();
     }
 
-    // TC-484 / FR-025-AC-5: scope guard — the corpus is read-only and
+    // TC-484, FR-025-AC-5: scope guard — the corpus is read-only and
     // immutable. There is no &mut self method, no add/insert/save/watch.
     // This compiles only because the surface is read-only; a clone shares
     // the same Arc'd inner (no independent mutation path).
@@ -265,7 +265,7 @@ mod tests {
         assert!(Arc::ptr_eq(&spec.inner, &clone.inner));
     }
 
-    // TC-485 / FR-025-AC-6 + StR-006-AC-1: queries do no filesystem IO
+    // TC-485, FR-025-AC-6 + StR-006-AC-1: queries do no filesystem IO
     // after construction — load once, then drop the directory.
     #[test]
     fn queries_need_no_filesystem_after_construction() {
@@ -283,7 +283,7 @@ mod tests {
         assert_eq!(body.sections[0].heading, "FR-023");
     }
 
-    // TC-817 / FR-025-AC-7 (CR-047): the header-tier query surface — len,
+    // TC-817, FR-025-AC-7 (CR-047): the header-tier query surface — len,
     // by_id, by_type, diagnostics, and the FR-026/FR-027 edge queries —
     // completes with ZERO body parses; touching one body then parses
     // exactly that one document and no other.
