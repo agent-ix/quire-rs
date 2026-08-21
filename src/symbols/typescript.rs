@@ -545,16 +545,19 @@ fn re_method() -> &'static Regex {
 
 #[cfg(test)]
 mod tests {
+    use ix_trace_rs::trace;
+
     use super::*;
 
-    /// TC-943, FR-051-AC-18 (CR-084): a curried modifier registration, and a
-    /// title beginning on a later line, register a test symbol.
-    ///
-    /// `it.skipIf(cond)("TC-118 …")` produced **no symbol at all**, because the
-    /// single-line regex required the title's quote to follow `it(` immediately.
-    /// A registration the extractor cannot see is worse than a missed tag: the
-    /// test runs, passes, and neither a legacy comment id nor a canonical
-    /// `trace(…)` in its body has anything to bind to.
+    #[trace("TC-943", "FR-051-AC-18")]
+    // a curried modifier registration, and a title (CR-084)
+    // beginning on a later line, register a test symbol.
+    //
+    // `it.skipIf(cond)("TC-118 …")` produced **no symbol at all**, because the
+    // single-line regex required the title's quote to follow `it(` immediately.
+    // A registration the extractor cannot see is worse than a missed tag: the
+    // test runs, passes, and neither a legacy comment id nor a canonical
+    // `trace(…)` in its body has anything to bind to.
     #[test]
     fn tc943_curried_and_wrapped_registrations_bind() {
         let source = concat!(
@@ -602,14 +605,15 @@ mod tests {
         );
     }
 
-    /// TC-948, FR-051-AC-18 (CR-084; re-idded from a duplicate TC-943 by
-    /// CR-087 — one test-case id names one source symbol): the forward scan
-    /// does not over-reach.
-    ///
-    /// The failure this guards is subtler than the one it fixes. A scan that
-    /// hunted for *any* quote would name a test after an unrelated string, and a
-    /// wrong symbol name is worse than none: it binds a tag to the wrong
-    /// requirement instead of visibly binding nothing.
+    #[trace("TC-948", "FR-051-AC-18")]
+    // the forward scan does not over-reach (CR-084;
+    // re-idded from a duplicate TC-943 by CR-087 — one test-case id names one
+    // source symbol).
+    //
+    // The failure this guards is subtler than the one it fixes. A scan that
+    // hunted for *any* quote would name a test after an unrelated string, and a
+    // wrong symbol name is worse than none: it binds a tag to the wrong
+    // requirement instead of visibly binding nothing.
     #[test]
     fn tc948_the_forward_scan_refuses_what_is_not_a_title() {
         // A variable title. The scan must stop at `name`, not walk on to the
@@ -657,14 +661,15 @@ mod tests {
         );
     }
 
-    /// TC-798, FR-051-AC-12 (CR-036): a `/*` inside a template literal is
-    /// content, not a comment opener.
-    ///
-    /// The stripper scanned raw characters, so one git refspec swallowed the
-    /// rest of the file: braces could not balance, `check_balanced` rejected it,
-    /// and a perfectly valid file yielded **zero** symbols. Nothing about that
-    /// is visible from the file — it parses, its tests pass, its trace tags are
-    /// present and greppable — so every tag in it bound to nothing in silence.
+    #[trace("TC-798", "FR-051-AC-12")]
+    // a `/*` inside a template literal is content, (CR-036)
+    // not a comment opener.
+    //
+    // The stripper scanned raw characters, so one git refspec swallowed the
+    // rest of the file: braces could not balance, `check_balanced` rejected it,
+    // and a perfectly valid file yielded **zero** symbols. Nothing about that
+    // is visible from the file — it parses, its tests pass, its trace tags are
+    // present and greppable — so every tag in it bound to nothing in silence.
     #[test]
     fn tc798_comment_stripping_is_string_aware() {
         let source = concat!(
@@ -851,5 +856,41 @@ mod tests {
         assert!(lexed.code.contains("a title"));
         assert_eq!(lexed.delta, 1, "the trailing brace is code");
         assert!(!state.in_template);
+    }
+
+    #[trace("TC-961", "FR-051-AC-18")]
+    // the widened grammar's edges, pinned one by one (CR-090).
+    //
+    // CR-084 loosened two boundaries the old regex held — exactly one
+    // `\.\w+` modifier and no whitespace before `(` — and no test said where
+    // the new boundary sits, so it could drift again unnoticed. Each case
+    // here is one edge: what the grammar now admits, and what stays outside.
+    #[test]
+    fn tc961_the_widened_grammar_edges_are_pinned() {
+        let registers = |line: &str| {
+            parse("a.test.ts", &format!("{line}\n"))
+                .expect("parses")
+                .iter()
+                .any(|s| s.kind == SymbolKind::TestFunction)
+        };
+
+        // Admitted: whitespace between the identifier/modifier chain and `(`.
+        assert!(registers("test ('spaced call', () => {});"));
+        assert!(registers("it.skip ('spaced after a modifier', () => {});"));
+        // Admitted: whitespace between curried groups.
+        assert!(registers(
+            "it.skipIf(cond) ('spaced curried group', () => {});"
+        ));
+        // Admitted: an unbounded `.modifier` chain — the old regex took one.
+        assert!(registers("it.a.b.c.d('a deep chain', () => {});"));
+
+        // Outside: whitespace before the `.` splits the chain off `it`.
+        assert!(!registers("it .skip('split chain', () => {});"));
+        // Outside: an empty modifier name.
+        assert!(!registers("it.('empty modifier', () => {});"));
+        // Outside: an identifier continuing past `test`/`it`.
+        assert!(!registers("test2('not a registration', () => {});"));
+        // Outside: `await` glued to the callee is one identifier, not a form.
+        assert!(!registers("awaitit('not awaited', () => {});"));
     }
 }

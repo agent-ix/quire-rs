@@ -123,7 +123,7 @@ byte-identical JSON ordering and stable record ids.
 | FR-051-AC-15 | The Rust adapter's lexer recognizes raw strings, lifetimes, character literals and nested block comments, so a brace inside any of them never moves the depth and never rejects the file. | Test (TC-804) |
 | FR-051-AC-16 | A legacy textual form mints one `verifies` relation per trace id its match carries, so a comma-separated list binds every id rather than only the first, and one authored line yields one rewrite suggestion naming all of them; a form declaring `id_format` renders a single id and is not split. | Test (TC-806) |
 | FR-051-AC-17 | A Rust benchmark — an attribute-marked one, or a function a `criterion_group!` registers in either invocation form, whether or not the registration line carries a trailing comment — classifies as a benchmark symbol, and a `fuzz_target!` invocation mints one fuzz-target symbol per file whose span is its whole file. Both bind trace ids; a container and a plain function still bind none. Each kind's stable label (`benchmark`, `fuzz_target`) is part of the symbol identity and of the FR-045 record's `kind` field. | Test (TC-827, TC-828) |
-| FR-051-AC-18 | A `test`/`it` registration whose modifier chain is curried (`it.skipIf(cond)(…)`, `it.each([…])(…)`), or whose title literal begins on a later line, registers a test symbol named by that title, with the span and leading block any other registration gets. The scan is bounded and stops at the first non-blank text: a title held in a variable, an identifier merely beginning with `it`, and a literal beyond the window each register nothing rather than something wrong. A title inside a multi-line template literal is out of scope and registers nothing (CR-084). | Test (TC-943, TC-948) |
+| FR-051-AC-18 | A `test`/`it` registration whose modifier chain is curried (`it.skipIf(cond)(…)`, `it.each([…])(…)`), or whose title literal begins on a later line, registers a test symbol named by that title, with the span and leading block any other registration gets. The scan is bounded and stops at the first non-blank text: a title held in a variable, an identifier merely beginning with `it`, and a literal beyond the window each register nothing rather than something wrong. A title inside a multi-line template literal is out of scope and registers nothing (CR-084). | Test (TC-943, TC-948, TC-958, TC-960, TC-961) |
 
 > **CR-084 note (2026-08-20):** AC-18 is new. The TypeScript adapter registered
 > **no symbol at all** for a curried registration — `it.skipIf(cond)(…)` and
@@ -160,6 +160,21 @@ byte-identical JSON ordering and stable record ids.
 > content carried in from an unterminated template literal, so a title written
 > inside a multi-line template registers nothing — the pre-CR-084 outcome, and
 > preferable to registering a wrong name.
+
+> **CR-090 note (2026-08-21):** the three gaps CR-084 shipped with are closed
+> (`agent-ix/quire-rs#214`). The widened grammar — whitespace between the
+> identifier/modifier chain and `(`, and an unbounded `.modifier` chain, where
+> the old regex allowed exactly one `\.\w+` and no whitespace — was unpinned;
+> TC-961 pins each admitted edge and each boundary that stays closed. CR-084's
+> "no fixture change" left the scanner verified only through the crate-private
+> `parse()`; the fixture `tests/fixtures/symbols/typescript/registration.test.ts`
+> now carries every widened form plus the negative shapes, and TC-958/TC-960
+> exercise them through `extract_tree` — the path every consumer uses. The
+> CR-084 pair's legacy doc-comment tags migrate to `#[trace]` (TC-798's too),
+> per FR-051-CON-3's direction of travel. No criterion changes.
+> (Allocation note: TC-959 is skipped — the string already occurs as quoted
+> foreign census data in `reports/2026-08-20-slash-trace-sweep.json`, and the
+> all-refs collision grep must stay clean.)
 
 > **CR-061 note (2026-08-16):** AC-17 is new. `trace::bind` skipped every
 > symbol that was not a `TestFunction`, so a trace tag attached to anything else

@@ -805,6 +805,91 @@ mod tests {
         assert_eq!(kind_of("parseConfig"), SymbolKind::Function);
     }
 
+    #[trace("TC-958", "FR-051-AC-18")]
+    // every widened registration form — curried, (CR-090)
+    // parametrised, multi-modifier, wrapped, whitespace-separated, awaited —
+    // reaches `extract_tree` as a test symbol named by its title, in
+    // declaration order, with the span and container any other registration
+    // gets. CR-084 verified the scanner only through the crate-private
+    // `parse()`; this is the same grammar on the path every consumer uses.
+    #[test]
+    fn tc958_widened_registrations_reach_extract_tree() {
+        let out = extract_tree(&fixture_root());
+        let file = "typescript/registration.test.ts";
+        let tests: Vec<&Symbol> = out
+            .symbols
+            .iter()
+            .filter(|s| s.path == file && s.kind == SymbolKind::TestFunction)
+            .collect();
+        let titles: Vec<&str> = tests.iter().map(|s| s.qualified_name.as_str()).collect();
+        assert_eq!(
+            titles,
+            vec![
+                "the ordinary form registers",
+                "a curried condition with a wrapped title registers",
+                "a parametrised case registers %i",
+                "a multi-modifier chain registers",
+                "a plain call wrapped for width registers",
+                "whitespace before the argument list registers",
+                "whitespace between curried groups registers",
+                "an awaited registration registers",
+            ],
+            "every widened form must yield exactly one test symbol, in order",
+        );
+        for symbol in &tests {
+            assert_eq!(symbol.language, SourceLanguage::Typescript);
+            assert_eq!(
+                symbol.container.as_deref(),
+                Some("typescript/registration.test"),
+                "a registration's container is the module: {symbol:?}",
+            );
+            assert!(
+                symbol.leading_line <= symbol.line && symbol.line <= symbol.end_line,
+                "span attributes must bracket the declaration: {symbol:?}",
+            );
+            assert!(!symbol.id.is_empty());
+        }
+        // The rest of the file still extracts around them.
+        assert!(out
+            .symbols
+            .iter()
+            .any(|s| s.path == file && s.qualified_name == "currentVersion"));
+        assert!(out
+            .symbols
+            .iter()
+            .any(|s| s.path == file && s.qualified_name == "Harness.ready"));
+    }
+
+    #[trace("TC-960", "FR-051-AC-18")]
+    // the negative shapes in the same fixture register (CR-090)
+    // nothing through `extract_tree`: a variable title, a title past the
+    // lookahead window, an identifier merely starting with `it`, and a
+    // whitespace-split modifier chain. A wrong symbol name is worse than
+    // none, so absence — not some fallback — is the pinned outcome.
+    #[test]
+    fn tc960_non_registrations_stay_out_of_extract_tree() {
+        let out = extract_tree(&fixture_root());
+        assert!(
+            out.diagnostics
+                .iter()
+                .all(|d| !d.path.contains("registration")),
+            "the fixture must parse cleanly: {:?}",
+            out.diagnostics,
+        );
+        for absent in [
+            "a variable is never a title",
+            "a title past the lookahead window is not ours",
+            "an identifier merely starting with it",
+            "whitespace before the modifier chain is outside the grammar",
+            "iterate",
+        ] {
+            assert!(
+                out.symbols.iter().all(|s| s.qualified_name != absent),
+                "`{absent}` must not become a symbol",
+            );
+        }
+    }
+
     #[trace("TC-749", "FR-051-AC-9")]
     // an unparseable file yields a per-file (CON-2)
     // diagnostic while the rest of the tree extracts normally.
