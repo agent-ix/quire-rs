@@ -48,10 +48,17 @@ fn main() {
     let mut documents = 0usize;
     let mut failed_documents = 0usize;
     let mut warning_count = 0usize;
+    let mut skipped_untyped: Vec<String> = Vec::new();
+    let mut loaded_paths: std::collections::BTreeSet<PathBuf> = std::collections::BTreeSet::new();
     for doc in &corpus.documents {
+        loaded_paths.insert(doc.path.clone());
         // Untyped/frontmatter-less files are bundle-level authoring debt, not
         // structural regressions; `quire validate` diagnoses them separately.
+        // NAMED in the summary rather than silently dropped (SR-051): a gate
+        // whose population can shrink without a trace goes green on exactly
+        // the corruption class it exists to catch.
         let Some(archetype_name) = doc.concept_type().map(str::to_string) else {
+            skipped_untyped.push(doc.path.display().to_string());
             continue;
         };
         let Ok(text) = std::fs::read_to_string(&doc.path) else {
@@ -91,9 +98,51 @@ fn main() {
         }
     }
 
+    // ── Population integrity (SR-051 FND: the gate's blind spot) ──
+    // A one-character corruption of a document's frontmatter fence drops the
+    // file from `load_repo`'s corpus entirely, so it never reaches the loop
+    // above and the gate shrank by one document, green. Measured: breaking
+    // FR-050's opening `---` yielded `126 document(s), 0 failed`, exit 0.
+    // The reconciliation: every `.md` on disk under `spec/` is either a
+    // loaded document or lives under `spec/assets/` (the two frontmatter-less
+    // notes); anything else is a file the engine could not read as a document
+    // — the #204 corruption class, one tier up — and fails the gate.
+    let mut on_disk: Vec<PathBuf> = Vec::new();
+    let mut pending: Vec<PathBuf> = vec![root.join("spec")];
+    while let Some(dir) = pending.pop() {
+        let Ok(entries) = std::fs::read_dir(&dir) else {
+            continue;
+        };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                pending.push(path);
+            } else if path.extension().is_some_and(|e| e == "md") {
+                on_disk.push(path);
+            }
+        }
+    }
+    on_disk.sort();
+    let assets = root.join("spec").join("assets");
+    for path in on_disk {
+        if !loaded_paths.contains(&path) && !path.starts_with(&assets) {
+            eprintln!(
+                "error: {}: on disk but not loaded as a document — corrupt or \
+                 missing frontmatter? (spec/ documents must load; move \
+                 deliberately frontmatter-less notes under spec/assets/)",
+                path.display()
+            );
+            failed_documents += 1;
+        }
+    }
+
+    for path in &skipped_untyped {
+        println!("skipped (untyped, not validated): {path}");
+    }
     println!(
         "spec_validate: {documents} document(s), {failed_documents} failed, \
-         {warning_count} warning(s)"
+         {warning_count} warning(s), {} untyped skipped",
+        skipped_untyped.len()
     );
     if failed_documents > 0 {
         std::process::exit(1);
