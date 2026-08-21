@@ -123,6 +123,43 @@ byte-identical JSON ordering and stable record ids.
 | FR-051-AC-15 | The Rust adapter's lexer recognizes raw strings, lifetimes, character literals and nested block comments, so a brace inside any of them never moves the depth and never rejects the file. | Test (TC-804) |
 | FR-051-AC-16 | A legacy textual form mints one `verifies` relation per trace id its match carries, so a comma-separated list binds every id rather than only the first, and one authored line yields one rewrite suggestion naming all of them; a form declaring `id_format` renders a single id and is not split. | Test (TC-806) |
 | FR-051-AC-17 | A Rust benchmark — an attribute-marked one, or a function a `criterion_group!` registers in either invocation form, whether or not the registration line carries a trailing comment — classifies as a benchmark symbol, and a `fuzz_target!` invocation mints one fuzz-target symbol per file whose span is its whole file. Both bind trace ids; a container and a plain function still bind none. Each kind's stable label (`benchmark`, `fuzz_target`) is part of the symbol identity and of the FR-045 record's `kind` field. | Test (TC-827, TC-828) |
+| FR-051-AC-18 | A `test`/`it` registration whose modifier chain is curried (`it.skipIf(cond)(…)`, `it.each([…])(…)`), or whose title literal begins on a later line, registers a test symbol named by that title, with the span and leading block any other registration gets. The scan is bounded and stops at the first non-blank text: a title held in a variable, an identifier merely beginning with `it`, and a literal beyond the window each register nothing rather than something wrong. A title inside a multi-line template literal is out of scope and registers nothing (CR-084). | Test (TC-943) |
+
+> **CR-084 note (2026-08-20):** AC-18 is new. The TypeScript adapter registered
+> **no symbol at all** for a curried registration — `it.skipIf(cond)(…)` and
+> `it.each([…])(…)`, the conditional and parametrised forms both vitest and jest
+> ship — and for any registration whose title wrapped onto a later line, which is
+> simply how either is formatted past the line width.
+>
+> AC-3 named "TypeScript `test`/`it` registrations" and said nothing about
+> modifiers, currying, or multi-line calls. There was no acceptance criterion to
+> violate, which is why this survived: the regex matched the shape its author had
+> in mind, and the shapes it did not match were indistinguishable from a file
+> containing no tests.
+>
+> **The consequence is worse than a missed tag.** With no symbol, there is
+> nothing for a legacy comment id *or* a canonical `trace(…)` call in the body to
+> attach to — so migrating a repo to the canonical form would not have fixed it.
+> The test runs, passes, and binds nothing, silently and always in the direction
+> that loses coverage. Same class as CR-036/037, CR-040 and #68.
+>
+> **Measured before deciding the shape**, per this repo's rule that a count
+> decides whether a finding is a rule problem or a corpus problem: across the 239
+> `~/dev` repositories, curried registrations whose title carries a trace id number
+> **one** — `typesetter/tests/ToleranceTaxonomy.test.ts:69`. This is a
+> latent-authoring-trap fix, not coverage recovery, and it is scoped accordingly:
+> a bounded forward scan over the lex `parse` already holds, no new abstraction,
+> and no fixture change. TC-943 embeds that one real line verbatim.
+>
+> The scan **stops at the first non-blank text** rather than hunting for a quote.
+> A scan that hunted would name a test after an unrelated string further down the
+> argument list, and a wrong symbol name is worse than none: it binds a tag to the
+> wrong requirement instead of visibly binding nothing.
+>
+> One limitation is deliberate and asserted rather than chased: `lex_line` drops
+> content carried in from an unterminated template literal, so a title written
+> inside a multi-line template registers nothing — the pre-CR-084 outcome, and
+> preferable to registering a wrong name.
 
 > **CR-061 note (2026-08-16):** AC-17 is new. `trace::bind` skipped every
 > symbol that was not a `TestFunction`, so a trace tag attached to anything else
