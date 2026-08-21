@@ -27,28 +27,16 @@ import pathlib
 import re
 import sys
 
-DECLARED_PATHS = ("spec/tests.md", "spec/matrix.md", "spec/evals.md")
-REGISTERED = "TestMatrix"
-
 # A worktree or a `-task<N>` scratch copy is the same repo counted twice. The
 # 2026-08-14 sweep reported 184 matrices where the truth was 183 for exactly
-# this reason.
-# NB `.claude/worktrees/` as well as `.worktrees/` — ecaz uses the former, and
-# missing it added 5 phantom matrices to the first run of this sweep.
-SKIP_DIR_PARTS = {
-    ".worktrees",
-    "worktrees",
-    "node_modules",
-    "target",
-    ".git",
-    "dist",
-    ".venv",
-}
-TASK_COPY = re.compile(r"-task\d+$")
+# this reason. NB `.claude/worktrees/` as well as `.worktrees/` — ecaz uses the
+# former, and missing it added 5 phantom matrices to the first run of this
+# sweep. The rules live in `corpus.py`; this script used to carry a partial copy
+# that omitted `.ticket-runner` and matched `-task<N>` by name alone.
+from corpus import markdown_files, repos
 
-# Superseded repos stay on disk but are excluded from every sweep; counting
-# filament-ide alongside filament-ide-rs is the same repo counted twice.
-SUPERSEDED = {"filament-ide"}
+DECLARED_PATHS = ("spec/tests.md", "spec/matrix.md", "spec/evals.md")
+REGISTERED = "TestMatrix"
 
 FRONTMATTER = re.compile(r"\A---\r?\n(.*?)\r?\n---\r?\n", re.DOTALL)
 TYPE_LINE = re.compile(r"^type:\s*(.*?)\s*$", re.MULTILINE)
@@ -93,23 +81,8 @@ def is_test_data(path: str) -> bool:
     return path.startswith("tests/") or "/tests/" in path or "/fixtures/" in path
 
 
-def repos(root: pathlib.Path) -> list[pathlib.Path]:
-    out = []
-    for child in sorted(root.iterdir()):
-        if not child.is_dir() or child.name.startswith("."):
-            continue
-        if TASK_COPY.search(child.name) or child.name in SUPERSEDED:
-            continue
-        if (child / "spec").is_dir():
-            out.append(child)
-    return out
-
-
 def walk_markdown(repo: pathlib.Path):
-    for path in repo.rglob("*.md"):
-        if SKIP_DIR_PARTS & set(path.relative_to(repo).parts):
-            continue
-        yield path
+    yield from markdown_files(repo)
 
 
 def main() -> int:

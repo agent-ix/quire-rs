@@ -121,44 +121,13 @@ NEXT_H2 = re.compile(r"^##\s+", re.MULTILINE)
 # contains, so this predicate can be re-judged against the data rather than
 # trusted.
 VERIFICATION_IS_TEST = re.compile(r"\btests?\b", re.IGNORECASE)
-# Skip vendored / build trees that would otherwise dominate the walk.
-SKIP_DIRS = {
-    ".git", "node_modules", "target", "dist", "build", ".venv", "venv",
-    "__pycache__", ".mypy_cache", ".pytest_cache", ".next", "vendor",
-    # Worktree checkouts are byte-copies of a repo already counted. Nested ones
-    # matter most: `ecaz` alone carries 20 of them under `.worktrees/` and
-    # `.claude/worktrees/`, so leaving them in multiplies that repo's every
-    # diagnostic by ~20 and makes one repo look like a corpus-wide trend. This
-    # mirrors `spec-artifacts-process/scripts/testmatrix_sweep.py`, which has
-    # always deduped; this harness did not, and the gap inflated the CR-013
-    # ecaz scope by 19x (1,524 findings walked vs 127 in the real `spec/`).
-    "worktrees", ".worktrees",
-    # The ticket runner materializes a full checkout at
-    # `.ticket-runner/<org>-<repo>-<ticket>/` while a ticket is in flight and
-    # removes it afterwards. Left in, a sweep's result depends on whether a
-    # ticket happened to be running: one StR count moved 440 -> 453 and back
-    # within a single session.
-    ".ticket-runner",
-}
-
-# Sibling checkouts (`<repo>-task<N>`) are the third worktree shape; they are
-# top-level directories, so a dirname skip cannot catch them.
-WORKTREE_SIBLING = re.compile(r"^.+-task\d+$")
-
-
-def is_worktree_sibling(root: Path, name: str) -> bool:
-    """True for a `<repo>-task<N>` directory that really is a git worktree.
-
-    The name alone is not proof: a normal repository may legitimately be called
-    `something-task42`, and skipping it would silently drop it from every sweep
-    with no diagnostic — the same class of invisible under-count this harness
-    was already fixed for twice. A linked worktree stores `.git` as a *file*
-    containing a `gitdir:` pointer, whereas a normal clone has a `.git`
-    directory, so the structure distinguishes them exactly.
-    """
-    if not WORKTREE_SIBLING.match(name):
-        return False
-    return (root / name / ".git").is_file()
+# The walk-exclusion rules and the verified worktree-sibling test now live in
+# `corpus.py`. They originated here — this harness is where the ecaz 19x scope
+# inflation (1,524 findings walked against 127 in the real `spec/`) and the
+# ticket-runner flap (an StR count moving 440 -> 453 and back inside one
+# session) were diagnosed — and `corpus.py` adopted them verbatim as the
+# strictest of the four copies that existed.
+from corpus import SKIP_DIRS, is_worktree_sibling  # noqa: F401
 
 
 def frontmatter_type(text: str) -> str | None:

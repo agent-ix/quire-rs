@@ -36,25 +36,15 @@ import re
 import subprocess
 import sys
 
-# Same dedupe rules as classify_matrices.py — a worktree or a `-task<N>` scratch
-# copy is the same repo counted twice. The 2026-08-14 sweep reported 184 matrices
-# where the truth was 183 for exactly this reason.
-TASK_COPY = re.compile(r"-task\d+$")
-SUPERSEDED = {"filament-ide"}
+# Dedupe rules live in `corpus.py` — a worktree or a `-task<N>` scratch copy is
+# the same repo counted twice. The 2026-08-14 sweep reported 184 matrices where
+# the truth was 183 for exactly this reason. This script previously carried its
+# own copy of the rules which had neither `SKIP_DIRS` nor verified worktree
+# detection, so its numbers excluded less than the other harnesses' did.
+from corpus import repos
+
 DECLARED_PATHS = ("spec/tests.md", "spec/matrix.md", "spec/evals.md")
 SUMMARY = re.compile(r"^##\s+Test Case Summary\s*$", re.MULTILINE)
-
-
-def repos(root: pathlib.Path) -> list[pathlib.Path]:
-    out = []
-    for child in sorted(root.iterdir()):
-        if not child.is_dir() or child.name.startswith("."):
-            continue
-        if TASK_COPY.search(child.name) or child.name in SUPERSEDED:
-            continue
-        if (child / "spec").is_dir():
-            out.append(child)
-    return out
 
 
 def mints_test_cases(repo: pathlib.Path) -> bool:
