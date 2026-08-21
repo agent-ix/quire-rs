@@ -458,7 +458,7 @@ mod tests {
         );
     }
 
-    // TC-476 / FR-024-AC-7: bad root -> empty + one warning, no panic.
+    // TC-476, FR-024-AC-7: bad root -> empty + one warning, no panic.
     #[test]
     fn missing_root_yields_empty_with_warning() {
         let load = load_repo(Path::new("/no/such/dir/quire-test"));
@@ -481,7 +481,7 @@ mod tests {
         ));
     }
 
-    // TC-471 / FR-024-AC-2: one malformed (non-UTF8) file -> N-1 docs + 1 diagnostic.
+    // TC-471, FR-024-AC-2: one malformed (non-UTF8) file -> N-1 docs + 1 diagnostic.
     #[test]
     fn malformed_file_is_diagnosed_not_fatal() {
         let root = tmpdir("malformed");
@@ -501,7 +501,7 @@ mod tests {
         );
     }
 
-    // TC-473 / FR-024-AC-4 + NFR-006: path-sorted, byte-identical across runs.
+    // TC-473, FR-024-AC-4 + NFR-006: path-sorted, byte-identical across runs.
     #[test]
     fn output_is_path_sorted_and_deterministic() {
         let root = tmpdir("sorted");
@@ -518,7 +518,7 @@ mod tests {
         assert_eq!(paths, sorted);
     }
 
-    // TC-472 / FR-024-AC-3: .gitignore honored by default; overridable.
+    // TC-472, FR-024-AC-3: .gitignore honored by default; overridable.
     #[test]
     fn gitignore_honored_by_default_and_overridable() {
         let root = tmpdir("gitignore");
@@ -619,7 +619,7 @@ mod tests {
         }
     }
 
-    // TC-475 / FR-024-AC-6: id + uuid read from frontmatter; missing uuid -> diagnostic.
+    // TC-475, FR-024-AC-6: id + uuid read from frontmatter; missing uuid -> diagnostic.
     #[test]
     fn identity_is_read_and_missing_uuid_diagnosed() {
         let root = tmpdir("identity");

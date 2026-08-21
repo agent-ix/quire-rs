@@ -72,13 +72,13 @@ mod tests {
         assert_eq!(slug_line_id("   leading spaces   ", 3), "leading-spaces-L3");
     }
 
-    // FR-009-AC-6 / TC-190: non-ASCII collapses to '-' (matches TS/Py).
+    // FR-009-AC-6, TC-190: non-ASCII collapses to '-' (matches TS/Py).
     #[test]
     fn non_ascii_collapses_to_dash() {
         assert_eq!(slug_line_id("Café Menu", 4), "caf-menu-L4");
     }
 
-    // FR-009-AC-7 / TC-191: degenerate heading yields "-L<line>".
+    // FR-009-AC-7, TC-191: degenerate heading yields "-L<line>".
     #[test]
     fn degenerate_heading_keeps_line_index() {
         assert_eq!(slug_line_id("!!!", 7), "-L7");

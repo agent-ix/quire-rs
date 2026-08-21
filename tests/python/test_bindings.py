@@ -311,7 +311,7 @@ CONFORMANT_FR = (
 
 
 def test_validate_document_conformant_is_valid():
-    """TC-528/TC-533 (binding happy path): a conformant FR markdown
+    """TC-528, TC-533 (binding happy path): a conformant FR markdown
     document validates through the wheel."""
     result = quire.validate_document("FR", str(ISO_MODULE), CONFORMANT_FR)
     assert result["is_valid"] is True
@@ -319,7 +319,7 @@ def test_validate_document_conformant_is_valid():
 
 
 def test_validate_document_flags_missing_section_with_reason_and_line():
-    """TC-529/TC-533 (binding sad path): a missing required section is
+    """TC-529, TC-533 (binding sad path): a missing required section is
     flagged with a reason and a line-numbered error shape."""
     mutated = CONFORMANT_FR.replace(
         "## Specification\n"

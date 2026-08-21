@@ -335,7 +335,7 @@ mod tests {
     use super::*;
     use ix_trace_rs::trace;
 
-    // TC-491 / FR-026-AC-6: target-id extraction is a pure function.
+    // TC-491, FR-026-AC-6: target-id extraction is a pure function.
     #[test]
     fn extract_target_id_handles_uri_and_bare() {
         assert_eq!(
@@ -377,7 +377,7 @@ mod tests {
             .collect()
     }
 
-    // TC-486 / FR-026-AC-1: frontmatter relationship to a present id -> Resolved.
+    // TC-486, FR-026-AC-1: frontmatter relationship to a present id -> Resolved.
     #[test]
     fn frontmatter_relationship_resolves() {
         let docs = vec![
@@ -395,7 +395,7 @@ mod tests {
         assert_eq!(edge.resolution, Resolution::Resolved);
     }
 
-    // TC-487 / FR-026-AC-2: ix:// body link to a present id -> Resolved, type "references".
+    // TC-487, FR-026-AC-2: ix:// body link to a present id -> Resolved, type "references".
     #[test]
     fn body_link_resolves() {
         let docs = vec![
@@ -412,7 +412,7 @@ mod tests {
         assert_eq!(edge.resolution, Resolution::Resolved);
     }
 
-    // TC-488 / FR-026-AC-3: absent target -> Dangling + diagnostic; no failure.
+    // TC-488, FR-026-AC-3: absent target -> Dangling + diagnostic; no failure.
     #[test]
     fn absent_target_is_dangling() {
         let docs = vec![loaded(
@@ -433,7 +433,7 @@ mod tests {
         );
     }
 
-    // TC-489 / FR-026-AC-4: cross-spec target (absent from loaded set) -> Dangling.
+    // TC-489, FR-026-AC-4: cross-spec target (absent from loaded set) -> Dangling.
     #[test]
     fn cross_spec_target_is_dangling_not_resolved() {
         // Target lives only in a *different* spec — not in this index.
@@ -447,7 +447,7 @@ mod tests {
         assert_eq!(out.edges[0].resolution, Resolution::Dangling);
     }
 
-    // TC-490 / FR-026-AC-5: a Resolved edge is in both outgoing(src) and incoming(tgt).
+    // TC-490, FR-026-AC-5: a Resolved edge is in both outgoing(src) and incoming(tgt).
     #[test]
     fn resolved_edge_is_bidirectional() {
         let docs = vec![
@@ -466,7 +466,7 @@ mod tests {
         assert_eq!(from[0], to[0]); // same edge slot
     }
 
-    // TC-501 / FR-026-AC-8: identical (src,target,type) from both sources -> one edge;
+    // TC-501, FR-026-AC-8: identical (src,target,type) from both sources -> one edge;
     // same pair, different type -> two.
     #[test]
     fn dedup_collapses_identical_triples() {
@@ -522,7 +522,7 @@ mod tests {
         )
     }
 
-    // TC-620 / FR-026-AC-9: relative-path body link resolves via the path index
+    // TC-620, FR-026-AC-9: relative-path body link resolves via the path index
     // (independent of link text and file slug); an unmatched relative link dangles.
     #[test]
     fn relative_path_link_resolves_and_dangles() {
@@ -560,7 +560,7 @@ mod tests {
         assert_eq!(out2.edges[0].resolution, Resolution::Dangling);
     }
 
-    // TC-621 / FR-026-AC-10: relative links in index.md/log.md are not harvested;
+    // TC-621, FR-026-AC-10: relative links in index.md/log.md are not harvested;
     // the same link in an ordinary artifact is.
     #[test]
     fn nav_documents_excluded_as_relative_source() {
@@ -597,7 +597,7 @@ mod tests {
         assert_eq!(refs_to_fr002[0].source, "FR-001");
     }
 
-    // TC-622 / FR-026-AC-11: identical (source, target, references) from a
+    // TC-622, FR-026-AC-11: identical (source, target, references) from a
     // relative-path link and an ix:// link / frontmatter entry dedups to one.
     #[test]
     fn relative_and_ix_link_dedup_to_one() {
@@ -627,7 +627,7 @@ mod tests {
         assert_eq!(edges[0].edge_type, "references");
     }
 
-    // TC-880 / FR-026-AC-12 (CR-067): every `ix://` shape the ecosystem
+    // TC-880, FR-026-AC-12 (CR-067): every `ix://` shape the ecosystem
     // actually authors still matches. The counts are occurrences across the
     // 237 `~/dev` spec bundles at the time of the change — this test exists so
     // that a future tightening of the grammar has to argue with real usage
@@ -705,7 +705,7 @@ mod tests {
         );
     }
 
-    // TC-881 / FR-026-AC-13 (CR-067, agent-ix/quire-rs#89): the bare protocol
+    // TC-881, FR-026-AC-13 (CR-067, agent-ix/quire-rs#89): the bare protocol
     // and every malformed form the corpus contains mint nothing. The reported
     // defect is the first case: `` `ix://` `` matched as ``ix://` `` and the
     // harvested target was the closing backtick.
