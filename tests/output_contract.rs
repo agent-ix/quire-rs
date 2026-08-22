@@ -309,6 +309,9 @@ fn tc859_optional_and_required_split_matches_the_engine() {
         "implements",
         "excluded_source_files",
         "vocabulary_coverage",
+        // CR-093: present whenever the walk found an evidence symbol, so a
+        // corpus with no source tree at all omits it.
+        "binding_census",
     ] {
         let mut payload = baseline();
         payload.as_object_mut().unwrap().remove(optional);

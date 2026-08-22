@@ -148,6 +148,51 @@ model; the engine knows nothing of "AC" or "TC" as concepts.
 | FR-050-AC-25 | A `source_exclude` list containing a pattern that does not compile never partially filters: module load rejects it with an error naming `source_exclude` as the key at fault, and an extraction invoked with globs that bypassed model validation applies **no** glob at all and surfaces a diagnostic naming the offending pattern (CR-088). | Test (TC-954, TC-945) |
 | FR-050-AC-26 | Every row-shaped coverage record — `unbacked_rows`, `status_lies`, `no_symbol_rows`, `undeclared_statuses` — carries the 1-based document line (frontmatter included, the numbering `validate` findings use) of the matrix row it came from, with two unbacked rows in one document reporting different lines; `untracked_symbols` carries the tagged symbol's declaration line. The contract's `line` keys are optional and omitted — never `null` — when unrecovered, so a payload from an engine predating them still conforms and a conformant reader of the prior schema is unbroken (CR-089). | Test (TC-955, TC-956, TC-957) |
 
+| FR-050-AC-27 | The coverage report carries the FR-051-AC-19 binding census as `binding_census`, **unconditionally** — present whenever the code walk found at least one evidence symbol, whether or not anything bound, so a reader can tell a healthy premise from a hollow one without waiting for a failure. A language with candidates and zero bound is additionally reported in `diagnostics` under `no-symbol-bound`; a language binding a smaller fraction of its candidates than the declared floor is reported under `low-symbol-binding` with both counts rather than a verdict. Both records name the language in `value`, declare `traceability.trace_tags`, and name every form that was consulted. A language at or above the floor is reported in the census and in no diagnostic. Neither record affects `totals`, and `--strict` does not gate on them (CR-093). | Test (TC-983, TC-984) |
+
+> **CR-093 note (2026-08-22):** AC-27 is new — the report states the premise its
+> percentage rests on. `agent-ix/quire-rs#227`, epic `agent-ix/quoin#197`.
+>
+> `quire coverage` printed `555/2389 rows backed (23%)` over
+> `agent-ix/filament-ide-rs` while its declared tag patterns matched **0 of
+> 1,292** Rust evidence symbols. Correct arithmetic, meaningless number, and no
+> signal anywhere in the payload that the traceability model could read the
+> repository at all. A census that cannot say *"I may be measuring less than you
+> think"* invites exactly the three SpecReviews (SR-150/151/152) that cited it.
+>
+> **Unconditional, and that breaks this FR's own convention on purpose.** Every
+> other list here is skipped when empty so a conformant repository's payload
+> stays byte-identical to a pre-field engine's — `no_symbol_rows`,
+> `undeclared_statuses`, `shared_trace_ids`, `excluded_source_files` all do it.
+> Those are defect lists: empty means nothing to say. This one is not a defect
+> list. `1,292 candidates, 1,290 bound` is a reassurance no previous version of
+> this payload could give, and a premise that only appears when it fails is one
+> a reader cannot lean on when it holds. So `binding_census` is present for
+> every repository with source symbols, and the checked-in FR-050-AC-20 baseline
+> was regenerated to match — the diff is the census block and nothing else.
+> FR-050-AC-7 is untouched: the guarantee there is that repeated runs agree, and
+> they do.
+>
+> **Two reasons, not one threshold.** `no-symbol-bound` is unambiguous — every
+> candidate walked, every declared pattern missed — and needs no judgement.
+> `low-symbol-binding` exists because at 3% a tail of genuinely untagged tests
+> and a near-miss pattern look identical from inside the engine, so it reports
+> both counts and names the forms rather than asserting which. The floor is
+> **5%**, and it is deliberately not a coverage target: an unbound candidate is
+> usually a real untagged test, and a repository mid-migration sits well under
+> any number worth calling healthy. It is the point below which the likeliest
+> explanation stops being "tests are untagged" and starts being "the binder
+> cannot read this convention" — a different finding with a different fix.
+>
+> **Why the existing channel did not cover it.** `diagnostics` was already
+> populated and read — 33 records on that corpus, all
+> `uncatalogued-verification-method` — so the mechanism, the schema slot and the
+> rendering all existed. There was simply no diagnostic class for "the extractor
+> ran and matched nothing". And `untracked_symbols` is not this either: it
+> reports symbols that bound to an id no row declares, i.e. symbols that
+> *matched* a pattern. A symbol matching no pattern was invisible to every
+> output surface.
+
 > **CR-089 note (2026-08-21):** AC-26 is new — coverage records say which
 > authored line they are about. `agent-ix/quire-rs#210`.
 >

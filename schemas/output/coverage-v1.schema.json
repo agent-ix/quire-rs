@@ -78,9 +78,41 @@
       "minimum": 1,
       "description": "FR-050-AC-24 (#215): source files a declared `source_exclude` glob removed from the symbol walk. ABSENT — never 0 — for a model declaring no `source_exclude` or one whose globs match nothing, which is what keeps FR-050-AC-7 byte-identity. Additive under FR-055-CON-3. Without it an over-broad glob silently drops legitimate backing and the report reads as a coverage regression."
     },
+    "binding_census": {
+      "type": "array",
+      "description": "FR-050-AC-27 / FR-051-AC-19 (CR-093, #227): what the trace binder examined and what bound, per language. Unlike every other list here this is not a defect list — it is the premise the backed/total ratio rests on, so it is present whenever the code walk found an evidence symbol, whether or not anything bound. `1292 candidates, 0 bound` is the shape that produced a confident 23% over a corpus the binder could not read; `1292 candidates, 1290 bound` is a reassurance no earlier payload could give. ABSENT only when no language yielded an evidence symbol. Additive under FR-055-CON-3.",
+      "items": { "$ref": "#/$defs/BindingCensus" }
+    },
     "totals": { "$ref": "#/$defs/CoverageTotals" }
   },
   "$defs": {
+    "BindingCensus": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["language", "candidates", "bound", "forms"],
+      "properties": {
+        "language": {
+          "type": "string",
+          "enum": ["rust", "python", "typescript"],
+          "description": "The stable language label the symbol identities use."
+        },
+        "candidates": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Evidence symbols examined — those whose kind admits a trace tag (test function, benchmark, fuzz target). A container or a production function is never a candidate (CR-061), so this is not a count of all symbols."
+        },
+        "bound": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Candidates that minted at least one `verifies` relation. Counts SYMBOLS, not relations: a test carrying five ids counts once, so a handful of heavily-tagged tests cannot hide a thousand unreadable ones."
+        },
+        "forms": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Every declared form consulted for this language, marker names before legacy — the list to check when `bound` is 0 and `candidates` is not."
+        }
+      }
+    },
     "UnbackedRow": {
       "type": "object",
       "additionalProperties": false,

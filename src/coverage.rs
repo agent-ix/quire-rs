@@ -26,7 +26,7 @@ use crate::corpus::spec::Spec;
 use crate::grammar::{AcPropertyCounts, GrammarVocabularies};
 use crate::obligation::Obligation;
 use crate::registry::Registry;
-use crate::symbols::trace::SymbolGraph;
+use crate::symbols::trace::{BindingCensus, SymbolGraph};
 use crate::traceability::{StatusClass, TraceabilityModel};
 
 /// Why a coverage run produced no report.
@@ -311,6 +311,22 @@ pub struct CoverageReport {
     /// from tests that were never written.
     #[serde(default, skip_serializing_if = "is_zero")]
     pub excluded_source_files: usize,
+    /// What the trace binder looked at and what bound, per language
+    /// (FR-050-AC-27, CR-093).
+    ///
+    /// **Reported unconditionally**, unlike every other list on this report,
+    /// and the difference is the point. The rest are defect lists: empty means
+    /// nothing to say. This one is the premise the whole report rests on, and a
+    /// premise that only appears when it fails is one a reader cannot rely on
+    /// when it holds. `1,292 candidates, 0 bound` needs no threshold to be
+    /// alarming; `1,292 candidates, 1,290 bound` is a reassurance no previous
+    /// version of this payload could give.
+    ///
+    /// Empty — and so absent — only when the code walk found no evidence symbol
+    /// in any language, which is the one case where there is genuinely nothing
+    /// to report.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub binding_census: Vec<BindingCensus>,
     pub totals: CoverageTotals,
 }
 
@@ -909,6 +925,13 @@ fn reconcile(
         );
     }
 
+    // CR-093: the binder could not read a language it was pointed at. Ordered
+    // ahead of the obligation diagnostics and after the declaration-scan ones
+    // because it invalidates more than either: a language that bound nothing
+    // makes every unbacked row in it unreadable, not just the rows one
+    // declaration selects.
+    diagnostics.extend(binding_diagnostics(&graph.binding_census));
+
     // FR-053: derived here rather than in `compute` because obligations read
     // the same declared tables this reconciliation already walks, and need no
     // `Registry`.
@@ -999,8 +1022,77 @@ fn reconcile(
         // carried by the graph because this reconciliation never sees the
         // extraction itself.
         excluded_source_files: graph.excluded_source_files,
+        // FR-050-AC-27 (CR-093): the premise, carried whether or not it holds.
+        binding_census: graph.binding_census.clone(),
         totals,
     }
+}
+
+/// The fraction of a language's candidates that must bind before the census
+/// stops being a finding (FR-050-AC-27, CR-093).
+///
+/// Deliberately low. This is not a coverage target — an unbound candidate is
+/// usually a real untagged test, and a repository mid-migration will sit well
+/// under any number worth calling healthy. It is the floor below which the most
+/// likely explanation stops being "tests are untagged" and starts being "the
+/// binder cannot read this repository's convention", which is a different
+/// finding with a different fix.
+const BINDING_FLOOR: f64 = 0.05;
+
+/// Diagnostics for a language the binder examined and could not read
+/// (FR-050-AC-27, CR-093).
+///
+/// Two reasons, and the split is the actionable part: `no-symbol-bound` is
+/// unambiguous — every candidate was walked and every declared pattern missed —
+/// while `low-symbol-binding` reports both counts and lets the reader judge,
+/// because at 3% the tail of untagged tests and a near-miss pattern look alike
+/// from here.
+fn binding_diagnostics(census: &[BindingCensus]) -> Vec<CoverageDiagnostic> {
+    census
+        .iter()
+        .filter(|entry| entry.candidates > 0)
+        .filter_map(|entry| {
+            let forms = if entry.forms.is_empty() {
+                "none declared".to_string()
+            } else {
+                entry.forms.join(", ")
+            };
+            let (reason, message) = if entry.bound == 0 {
+                (
+                    "no-symbol-bound",
+                    format!(
+                        "{} {} evidence symbols were examined and none carried a tag any \
+                         declared form matched (forms: {forms}); every row those symbols \
+                         verify is reported unbacked, which is indistinguishable from a \
+                         missing test",
+                        entry.candidates, entry.language
+                    ),
+                )
+            } else if (entry.bound as f64) < (entry.candidates as f64) * BINDING_FLOOR {
+                (
+                    "low-symbol-binding",
+                    format!(
+                        "{} of {} {} evidence symbols bound a trace id (forms: {forms}); \
+                         below {}% the likeliest reading is a marker-form mismatch rather \
+                         than untagged tests",
+                        entry.bound,
+                        entry.candidates,
+                        entry.language,
+                        (BINDING_FLOOR * 100.0) as usize
+                    ),
+                )
+            } else {
+                return None;
+            };
+            Some(CoverageDiagnostic {
+                declaration: "traceability.trace_tags".to_string(),
+                reason: reason.to_string(),
+                message,
+                path: None,
+                value: Some(entry.language.clone()),
+            })
+        })
+        .collect()
 }
 
 /// A path relative to the scope root, `/`-separated so reports are stable

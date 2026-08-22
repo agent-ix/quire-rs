@@ -155,6 +155,16 @@
       }
     }
   ],
+  "binding_census": [
+    {
+      "language": "rust",
+      "candidates": 2,
+      "bound": 2,
+      "forms": [
+        "rust-trace-attribute"
+      ]
+    }
+  ],
   "totals": {
     "backed": 1,
     "total": 9,

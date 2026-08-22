@@ -15,6 +15,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::sync::OnceLock;
 
 use regex::Regex;
+use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
 use super::{stable_id, Symbol, SymbolExtraction};
@@ -102,6 +103,37 @@ pub struct TraceDiagnostic {
     pub reason: String,
 }
 
+/// What the binder looked at, and what bound, for one language (FR-051-AC-19,
+/// CR-093).
+///
+/// The engine already knew both numbers — it walks the candidates to match them
+/// — and reported neither, so a corpus whose tag convention matches no declared
+/// pattern produced a low coverage percentage that reads exactly like missing
+/// tests. Measured on `agent-ix/filament-ide-rs`: 1,292 Rust candidates, 0
+/// bound, reported as `555/2389 rows backed (23%)` with no other signal.
+///
+/// `bound` counts **symbols**, not relations: a test carrying five ids is one
+/// bound candidate. The question this answers is "could the binder read this
+/// repository's convention at all", and one symbol binding many ids is no more
+/// evidence of that than one binding a single id.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct BindingCensus {
+    /// Stable machine label — `rust`, `python`, `typescript`.
+    pub language: String,
+    /// Evidence symbols the binder examined: those whose kind
+    /// ([`SymbolKind::binds_trace_ids`](super::SymbolKind::binds_trace_ids))
+    /// admits a trace tag at all. A container or a production function is not a
+    /// candidate and never was, so counting it here would make every repository
+    /// look half-unbound.
+    pub candidates: usize,
+    /// Candidates that minted at least one `verifies` relation.
+    pub bound: usize,
+    /// Every declared form consulted for this language, marker names first,
+    /// then legacy — the list to check when `bound` is 0 and `candidates` is
+    /// not.
+    pub forms: Vec<String>,
+}
+
 /// The symbol graph the coverage rollup and knowledge-graph ingestion consume.
 /// Every collection is deterministically ordered (NFR-006).
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -118,6 +150,10 @@ pub struct SymbolGraph {
     pub contains: Vec<(String, String, String)>,
     pub rewrites: Vec<RewriteSuggestion>,
     pub diagnostics: Vec<TraceDiagnostic>,
+    /// Per-language candidate/bound counts (FR-051-AC-19, CR-093). Ordered by
+    /// language label, and present for every language the walk saw at least one
+    /// evidence symbol in.
+    pub binding_census: Vec<BindingCensus>,
     /// Source files a declared `source_exclude` glob removed from the walk,
     /// copied from [`SymbolExtraction::excluded_source_files`] so the coverage
     /// rollup — which sees only this graph — can report it (FR-050-AC-24,
@@ -149,6 +185,10 @@ pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolG
         excluded_source_files: extraction.excluded_source_files,
         ..SymbolGraph::default()
     };
+    // FR-051-AC-19: what was looked at, per language, and what bound. Keyed by
+    // the stable language label so the census order is a property of the data
+    // rather than of the walk (NFR-006).
+    let mut census: BTreeMap<&'static str, (usize, usize)> = BTreeMap::new();
 
     for symbol in &extraction.symbols {
         graph.defined_in.push((
@@ -177,8 +217,28 @@ pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolG
         if !symbol.kind.binds_trace_ids() {
             continue;
         }
+        // Counted around the call rather than inside it: `bind_symbol` only
+        // ever appends to `verifies`, so the length delta is exactly "did this
+        // candidate bind" — and the count stays correct if the binder grows
+        // another form.
+        let before = graph.verifies.len();
         bind_symbol(symbol, source, model, &mut graph);
+        let entry = census.entry(symbol.language.as_str()).or_default();
+        entry.0 += 1;
+        if graph.verifies.len() > before {
+            entry.1 += 1;
+        }
     }
+
+    graph.binding_census = census
+        .into_iter()
+        .map(|(language, (candidates, bound))| BindingCensus {
+            language: language.to_string(),
+            candidates,
+            bound,
+            forms: declared_forms(model, language),
+        })
+        .collect();
 
     graph.implements.sort_by(|a, b| {
         (&a.path, &a.symbol, &a.trace_id, &a.form).cmp(&(&b.path, &b.symbol, &b.trace_id, &b.form))
@@ -193,6 +253,34 @@ pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolG
         .diagnostics
         .sort_by(|a, b| (&a.path, &a.symbol, &a.trace_id).cmp(&(&b.path, &b.symbol, &b.trace_id)));
     graph
+}
+
+/// Every declared form the binder consults for `language`, markers before
+/// legacy forms — the order [`bind_symbol`] tries them in (FR-051-AC-19).
+///
+/// A legacy form declaring no `language` applies to all of them, which is the
+/// same rule `bind_symbol` uses; naming it under each language is what makes
+/// the list answer "which patterns had a chance at this file".
+fn declared_forms(model: &TraceabilityModel, language: &str) -> Vec<String> {
+    let applies = |declared: Option<SourceLanguage>| match declared {
+        Some(l) => l.as_str() == language,
+        None => true,
+    };
+    model
+        .trace_tags
+        .markers
+        .iter()
+        .filter(|m| applies(Some(m.language)))
+        .map(|m| m.name.clone())
+        .chain(
+            model
+                .trace_tags
+                .legacy
+                .iter()
+                .filter(|l| applies(l.language))
+                .map(|l| l.name.clone()),
+        )
+        .collect()
 }
 
 /// Implements: FR-062
@@ -1187,5 +1275,115 @@ mod tests {
         for _ in 0..8 {
             assert_eq!(first, render(), "records must be byte-identical");
         }
+    }
+
+    /// Every declared form rewritten to a pattern nothing can match, so the
+    /// binder walks the same candidates and binds none — the shape
+    /// `agent-ix/filament-ide-rs` was in.
+    fn unmatchable(mut model: TraceabilityModel) -> TraceabilityModel {
+        for marker in &mut model.trace_tags.markers {
+            marker.pattern = "ZZZ_NO_SUCH_MARKER_FORM".to_string();
+        }
+        for legacy in &mut model.trace_tags.legacy {
+            legacy.pattern = "ZZZ_NO_SUCH_LEGACY_FORM".to_string();
+        }
+        model
+    }
+
+    #[trace("TC-982", "FR-051-AC-19")]
+    // the binder reports what it looked at and what
+    // bound, per language, so a corpus whose convention matches no declared
+    // pattern is distinguishable from one with no tests.
+    #[test]
+    fn tc982_binding_census_counts_candidates_and_bound_per_language() {
+        let extraction = symbols();
+        let bound = bind(&extraction, &iso_model());
+
+        assert!(
+            !bound.binding_census.is_empty(),
+            "a tree with evidence symbols reports a census"
+        );
+
+        // Ordered by the stable language label, so the census is a property of
+        // the data rather than of the walk (NFR-006).
+        let languages: Vec<&str> = bound
+            .binding_census
+            .iter()
+            .map(|c| c.language.as_str())
+            .collect();
+        let mut sorted = languages.clone();
+        sorted.sort_unstable();
+        assert_eq!(languages, sorted, "census order is deterministic");
+
+        // `candidates` counts evidence symbols and nothing else: a container or
+        // a production function was never eligible, so counting it would make
+        // every repository look half-unbound.
+        for entry in &bound.binding_census {
+            let expected = extraction
+                .symbols
+                .iter()
+                .filter(|s| s.language.as_str() == entry.language && s.kind.binds_trace_ids())
+                .count();
+            assert_eq!(
+                entry.candidates, expected,
+                "{} candidates count evidence symbols",
+                entry.language
+            );
+            assert!(entry.bound <= entry.candidates);
+            assert!(
+                !entry.forms.is_empty(),
+                "{} names the forms that had a chance",
+                entry.language
+            );
+        }
+
+        // `bound` counts symbols, not relations: the Python fixture binds two
+        // ids from one marker and must still count once.
+        for entry in &bound.binding_census {
+            let relations = bound
+                .verifies
+                .iter()
+                .filter(|v| {
+                    extraction
+                        .symbols
+                        .iter()
+                        .any(|s| s.id == v.symbol_id && s.language.as_str() == entry.language)
+                })
+                .count();
+            assert!(
+                entry.bound <= relations,
+                "{}: {} bound symbols cannot exceed {} relations",
+                entry.language,
+                entry.bound,
+                relations
+            );
+        }
+
+        let rust = bound
+            .binding_census
+            .iter()
+            .find(|c| c.language == "rust")
+            .expect("the fixture tree has rust evidence symbols");
+        assert!(rust.bound > 0, "the ISO model reads the fixture's tags");
+
+        // The same tree, the same candidates, every declared pattern rewritten
+        // to match nothing: the counts separate "no tests" from "cannot read
+        // the convention", which is the whole point.
+        let blind = bind(&extraction, &unmatchable(iso_model()));
+        assert_eq!(
+            blind.binding_census.len(),
+            bound.binding_census.len(),
+            "the same languages are reported either way"
+        );
+        for (before, after) in bound.binding_census.iter().zip(&blind.binding_census) {
+            assert_eq!(before.language, after.language);
+            assert_eq!(
+                before.candidates, after.candidates,
+                "{}: the candidate walk does not depend on the patterns",
+                before.language
+            );
+            assert_eq!(after.bound, 0, "{}: nothing binds", after.language);
+        }
+        assert!(blind.verifies.is_empty());
     }
 }
