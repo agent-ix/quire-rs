@@ -122,3 +122,25 @@ def test_silent_zero_counts_only_what_the_engine_did_not_already_report():
     # A metric that did not run has no ratio to be hollow.
     absent = {"name": "coverage.implements", "state": "not_computed"}
     assert silent_zeros({"metrics": [absent], "diagnostics": []}) == 0
+
+    # CR-102: a COUNT is exempt. `matched` and the value are the same fact, so
+    # zero reports that none was found. coverage.implements reads an honest
+    # 0 of 42 on spec-artifacts-process; before the shape existed this gate
+    # read 0 only because the engine's own false-positive hollow-denominator
+    # satisfied the `covered` clause -- two defects cancelling.
+    counted = {
+        "name": "coverage.implements", "state": "measured", "shape": "count",
+        "value": 0, "population": 42, "examined": 42, "matched": 0,
+    }
+    assert silent_zeros({"metrics": [counted], "diagnostics": []}) == 0
+    # The identical numbers as a ratio still fail, so this measures the shape
+    # rather than the arithmetic.
+    assert silent_zeros({
+        "metrics": [{**counted, "shape": "ratio"}], "diagnostics": [],
+    }) == 1
+    # An engine predating CR-102 emits no shape; read it as a ratio, the
+    # reading that can still fail the gate rather than silently pass it.
+    assert silent_zeros({
+        "metrics": [{k: v for k, v in counted.items() if k != "shape"}],
+        "diagnostics": [],
+    }) == 1

@@ -1,6 +1,7 @@
 {
   "self": {
-    "coverage.backed_pct": 72.81,
+    "coverage.backed_pct": 72.91,
+    "coverage.binding_read_pct": 63.55,
     "coverage.dead_tags": 0,
     "sentinel.silent_zero": 0
   }

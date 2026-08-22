@@ -232,7 +232,7 @@ mod tests {
     use super::*;
     use ix_trace_rs::trace;
 
-    #[trace("TC-985", "FR-063-AC-1")]
+    #[trace("TC-985", "FR-063-AC-1", "FR-063-AC-6")]
     // a hollow denominator is a population the
     // measurement could not read, and it is distinguishable from every
     // neighbouring shape.

@@ -402,7 +402,7 @@ mod tests {
         );
     }
 
-    #[trace("TC-1003", "FR-064-AC-1")]
+    #[trace("TC-1003", "FR-064-AC-5")]
     // an arrow function is not a narrowing guard: a TypeScript (CR-102)
     // suite of ordinary `it(... () => {...})` tests reports nothing.
     #[test]
@@ -431,7 +431,7 @@ mod tests {
         );
     }
 
-    #[trace("TC-1004", "FR-064-AC-1")]
+    #[trace("TC-1004", "FR-064-AC-5")]
     // a comment is prose, not an oracle: code quoted inside one (CR-102)
     // counts as neither an assertion nor a guard.
     #[test]
