@@ -806,6 +806,7 @@ fn inline_definitions(text: &str) -> BTreeMap<String, usize> {
 mod tests {
     use super::*;
     use ix_trace_rs::trace;
+    use proptest::prelude::*;
 
     fn profile(limit: usize) -> PlainLanguageProfile {
         PlainLanguageProfile {
@@ -986,5 +987,17 @@ mod tests {
                 && !f.excerpt.is_empty()
                 && valid.contains(f.rule.as_str())
         }));
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(1_000))]
+
+        #[trace("TC-972", "FR-063-AC-3")]
+        #[test]
+        fn reader_view_is_total_and_deterministic(markdown in "\\PC*") {
+            let first = reader_blocks(&markdown);
+            prop_assert_eq!(&first, &reader_blocks(&markdown));
+            prop_assert!(first.iter().all(|block| block.line > 0));
+        }
     }
 }
