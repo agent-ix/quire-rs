@@ -2030,6 +2030,18 @@ fn tc1001_suspicions_reach_the_report_and_move_nothing() {
         before,
         "a suspicion is advisory: removing them changes no other number"
     );
-    // Absent from the JSON when there are none.
-    assert!(!clean.to_json().contains("suspicions"));
+    // Absent from the JSON when there are none — asserted as a missing KEY,
+    // not as an absent substring (CR-102). The substring form answers a
+    // different question now that the metric envelope NAMES its keys: any
+    // future field or method sentence containing the word would fail it, and a
+    // `suspicions` key nested anywhere would pass it.
+    let payload: serde_json::Value = serde_json::from_str(&clean.to_json()).expect("valid json");
+    assert!(
+        payload
+            .as_object()
+            .expect("payload is an object")
+            .get("suspicions")
+            .is_none(),
+        "no suspicions means no key, not an empty list: {payload:#}"
+    );
 }
