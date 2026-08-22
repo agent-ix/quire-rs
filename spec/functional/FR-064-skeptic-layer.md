@@ -64,6 +64,12 @@ In Rust a test fails on panic, so absence of an assertion macro is not absence o
 class was removed rather than tuned. **The finding is assertions that do not *run*, not assertions
 that do not exist.**
 
+**That reasoning is Rust's, and does not generalize (CR-102).** A `vitest` test whose body contains
+no `expect()` passes silently, so in TypeScript absence of an assertion *is* absence of an oracle —
+the shape this class was written to catch. The measurement above was taken on this crate's Rust
+corpus only. The class stays removed for Rust; whether it should exist for TypeScript is a separate
+question with its own corpus, and it is not answered here.
+
 ### What the static check can and cannot say
 
 It reads shape, not sample distribution — that needs a run. So it reports *"every assertion sits
@@ -74,11 +80,26 @@ Narrowing guards are `if let` / `while let` / a `match` arm. A plain `if` on a b
 deliberately excluded: it is also how every table-driven test is written, and including it made the
 check fire across most of the corpus for reasons unrelated to vacuity.
 
+### The vocabulary is per language, and empty where nothing was measured
+
+Both lists — assertions and guards — belong to a language, not to the check. `=> {` is a `match` arm
+in Rust and an **arrow function** in TypeScript; one shared list makes every `it("…", () => { … })`
+body a guard.
+
+Where a language has no measured equivalent of the shape, its guard list is **empty** and the check
+reports nothing for that language. That is the honest state: neither TypeScript nor Python has a
+binding-and-testing construct like `if let`, and what should stand in for one is an open question
+that gets its own measurement before anything fires.
+
+Comments are stripped before matching. A comment is prose, not an oracle, and prose that quotes code
+is otherwise read as code.
+
 ## Acceptance Criteria
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
-| FR-064-AC-1 | An evidence symbol whose every assertion sits behind a narrowing guard yields a `vacuous-under-guard` suspicion carrying the guarded/total counts. A symbol with at least one unguarded assertion yields none, a symbol with **no** assertion macro yields none — in Rust a test fails on panic — and a production symbol is never judged. | Test (TC-997, TC-998) |
+| FR-064-AC-1 | An evidence symbol whose every assertion sits behind a narrowing guard yields a `vacuous-under-guard` suspicion carrying the guarded/total counts. A symbol with at least one unguarded assertion yields none, a symbol with **no** assertion macro yields none — in Rust a test fails on panic — and a production symbol is never judged. A guard that opens and closes on **one line** guards the assertion on that line. | Test (TC-997, TC-998, TC-1002) |
+| FR-064-AC-5 | The assertion and guard vocabularies are selected by the symbol's language. A language with no measured narrowing construct — TypeScript and Python — has an empty guard list and yields no `vacuous-under-guard` suspicion, so a TypeScript arrow function is never read as a `match` arm. Comments are stripped before matching, in every language. | Test (TC-1003, TC-1004) |
 | FR-064-AC-2 | An oracle whose token similarity to the implementation it judges meets the declared floor yields an `oracle-resembles-implementation` suspicion carrying the score and the floor; an oracle that judges the same subject independently yields none. | Test (TC-999) |
 | FR-064-AC-3 | Similarity is computed over identifier tokens, so reformatting scores identical and shared keywords alone do not make two unrelated fragments similar; an empty side scores 0 rather than dividing by zero. | Test (TC-1000) |
 | FR-064-AC-4 | Suspicions reach `CoverageReport.suspicions`, ordered deterministically by `(path, line, symbol)`, each carrying `kind`, `path`, `symbol`, `line`, `message` and a non-empty `evidence`. They affect no total, no diagnostic count and no exit code. The list is empty — and the key absent — for a corpus with none. | Test (TC-1001) |
@@ -96,6 +117,57 @@ check fire across most of the corpus for reasons unrelated to vacuity.
 | FR-064-CON-2 | Neither check executes, imports or builds the code it reads — the FR-051-CON-1 boundary, unchanged. | Design | Inspection — both read the same text the binder does |
 | FR-064-CON-3 | The assertion vocabulary is a closed list. An open heuristic (`any call containing "assert"`) binds helpers that may themselves assert nothing. | Design | Inspection of `ASSERTIONS` |
 
+> **CR-102 note (2026-08-22):** `agent-ix/quire-rs#235`, reopened. Three
+> false-positive classes in the shipped `v0.44.0` check, all found by running it
+> against corpora other than this crate (SR-054).
+>
+> **The guard list was Rust's, applied to every language.** `=> {` is a `match`
+> arm here and an arrow function in TypeScript, so every `vitest` body opened a
+> guard: **549 suspicions from 551 candidates** on `agent-ix/quoin`, against 2
+> of 883 here. Sampled three, **3 rule, 0 real**. This is a narrowing, and the
+> justification does not rest on the count — `=> {` in TypeScript is a
+> different construct. TypeScript and Python now carry an empty guard list
+> rather than a guessed one; inventing an unmeasured equivalent to keep the
+> check firing is the mistake one level over.
+>
+> **A single-line guard was invisible.** `assertion_positions` tested the
+> assertion before the guard and pushed only when `opens > closes`, so
+> `if let Some(x) = y { assert!(x) }` reported **0 suspicions** while the
+> multi-line spelling reported one — and the doc comment claimed the opposite.
+> The corpus that motivated this work writes single-line guards.
+>
+> **Comments were read as code.** TC-1003's own comment quotes the TypeScript
+> token it describes, and the check reported that test as vacuous — the
+> wrong-language misread one level up. Comments are now stripped before
+> matching, and braces counted on the stripped text.
+>
+> Measured after: `quoin` 549 → **0**, this crate 3 → **2** (the two genuine
+> TC-1596-shaped positives, unchanged), `quire-cli` and
+> `spec-artifacts-process` 0 → 0.
+>
+> **CR-102 note (2026-08-22):** `agent-ix/quire-rs#235`, reopened. Three
+> false-positive classes in the shipped `v0.44.0` check, all found by running it
+> against corpora other than this crate (SR-054).
+>
+> **The guard list was Rust's, applied to every language.** `=> {` is a `match`
+> arm here and an arrow function in TypeScript, so every `vitest` body opened a
+> guard: **549 suspicions from 551 candidates** on `agent-ix/quoin`, against 2
+> of 883 here. Sampled three, **3 rule, 0 real**. The justification for
+> narrowing does not rest on the count — `=> {` in TypeScript is a different
+> construct. TypeScript and Python now carry an empty guard list rather than a
+> guessed one.
+>
+> **A single-line guard was invisible.** The assertion was tested before the
+> guard, and the guard pushed only when `opens > closes`, so
+> `if let Some(x) = y { assert!(x) }` reported **0 suspicions** while the
+> multi-line spelling reported one — and the doc comment claimed the opposite.
+>
+> **Comments were read as code.** TC-1003's own comment quotes the TypeScript
+> token it describes, and the check reported that test as vacuous.
+>
+> Measured after: `quoin` 549 → **0**, this crate 3 → **2** (the two genuine
+> TC-1596-shaped positives), `quire-cli` and `spec-artifacts-process` 0 → 0.
+>
 > **CR-100 note (2026-08-22):** FR-064 is new. `agent-ix/quire-rs#235` and
 > `agent-ix/quire-rs#236`; epic `agent-ix/quoin#197`.
 >

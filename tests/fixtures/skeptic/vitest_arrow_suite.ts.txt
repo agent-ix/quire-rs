@@ -1,0 +1,12 @@
+describe("TC-150 the advisor is reachable from a command", () => {
+  it("exposes a command class with the flags the workflow needs", async () => {
+    const mod = await import("../src/commands/advise.js");
+    expect(mod.default).toBeDefined();
+    expect(mod.default.flags).toHaveProperty("row");
+  });
+
+  it("advises from the property shape when quire supplies one", async () => {
+    const advice = await advise({ shape: "universal" });
+    expect(advice.kind).toBe("property");
+  });
+});

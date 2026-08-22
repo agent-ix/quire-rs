@@ -25,6 +25,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::symbols::{Symbol, SymbolExtraction};
+use crate::traceability::SourceLanguage;
 
 /// What kind of doubt this is.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -66,7 +67,7 @@ pub struct Suspicion {
 /// heuristic ("any call containing `assert`") binds `assert_within_budget`, a
 /// helper that may itself assert nothing, and the point is to be *right* about
 /// the shape rather than to catch every spelling.
-const ASSERTIONS: &[&str] = &[
+const RUST_ASSERTIONS: &[&str] = &[
     "assert!",
     "assert_eq!",
     "assert_ne!",
@@ -80,6 +81,22 @@ const ASSERTIONS: &[&str] = &[
     "unwrap()",
 ];
 
+/// The `vitest` / `jest` vocabulary. `expect(` is the whole surface in
+/// practice; `assert(` covers the `node:assert` spelling a few suites use.
+const TYPESCRIPT_ASSERTIONS: &[&str] = &["expect(", "assert(", "assert."];
+
+/// `pytest` asserts with the bare statement; `self.assert` catches the
+/// `unittest` spelling and `pytest.raises` the context-manager oracle.
+const PYTHON_ASSERTIONS: &[&str] = &["assert ", "self.assert", "pytest.raises"];
+
+fn assertions_for(language: SourceLanguage) -> &'static [&'static str] {
+    match language {
+        SourceLanguage::Rust => RUST_ASSERTIONS,
+        SourceLanguage::Typescript => TYPESCRIPT_ASSERTIONS,
+        SourceLanguage::Python => PYTHON_ASSERTIONS,
+    }
+}
+
 /// Guard openers that NARROW the input space — the shape that makes an
 /// assertion conditional on the sample.
 ///
@@ -87,7 +104,31 @@ const ASSERTIONS: &[&str] = &[
 /// on a boolean does too, but it is also how every table-driven test is
 /// written, so it is excluded: including it made the check fire on most of the
 /// corpus for a reason that had nothing to do with vacuity.
-const NARROWING_GUARDS: &[&str] = &["if let ", "while let ", "=> {"];
+const RUST_NARROWING_GUARDS: &[&str] = &["if let ", "while let ", "=> {"];
+
+/// **Empty, deliberately (CR-102).** Neither language has a binding-and-testing
+/// construct like `if let`, and the shape this check reports has not been
+/// measured in either.
+///
+/// The previous revision shared Rust's list, whose `"=> {"` entry means a
+/// `match` arm in Rust and an **arrow function** in TypeScript — so every
+/// `it("…", () => { … })` body opened a guard and every assertion inside one
+/// counted as guarded. Measured on `agent-ix/quoin` that was **549 suspicions
+/// from 551 candidates**, against 2 of 883 on this crate. Sampled three, all
+/// rule, none real.
+///
+/// This is a narrowing, and its justification is independent of the count:
+/// `=> {` in TypeScript is a different construct, not a narrowing guard. What
+/// the equivalent shape *is* in these languages is an open question and gets
+/// its own measurement before anything fires here.
+const NO_MEASURED_GUARDS: &[&str] = &[];
+
+fn narrowing_guards_for(language: SourceLanguage) -> &'static [&'static str] {
+    match language {
+        SourceLanguage::Rust => RUST_NARROWING_GUARDS,
+        SourceLanguage::Typescript | SourceLanguage::Python => NO_MEASURED_GUARDS,
+    }
+}
 
 /// Property suites whose assertions may never run (FR-064-AC-1).
 ///
@@ -108,7 +149,7 @@ pub fn vacuous_property_suites(extraction: &SymbolExtraction) -> Vec<Suspicion> 
             continue;
         };
         let span = symbol.attached_source(source);
-        let (total, guarded) = assertion_positions(&span);
+        let (total, guarded) = assertion_positions(&span, symbol.language);
 
         // `total == 0` is deliberately NOT a finding. Measured on this
         // repository it was 57 of 65 suspicions and **12 of 12 sampled were
@@ -142,29 +183,64 @@ pub fn vacuous_property_suites(extraction: &SymbolExtraction) -> Vec<Suspicion> 
 ///
 /// Brace depth relative to the guard, not a parser: this reads the same text
 /// the binder does and must not acquire a Rust front-end to answer a question
-/// about shape. A guard that opens and closes on one line contributes nothing,
-/// which is correct — `if let Some(x) = y { assert!(x) }` on one line is still
-/// guarded, and is caught by the depth check below.
-fn assertion_positions(span: &str) -> (usize, usize) {
+/// about shape.
+///
+/// A guard that opens **and closes on one line** covers that line only, and is
+/// handled here rather than by the depth tracking — it never enters
+/// `guard_depths`, because by the next line it is already closed (CR-102). The
+/// previous revision tested the assertion before considering the guard and
+/// pushed only when `opens > closes`, so `if let Some(x) = y { assert!(x) }`
+/// reported **0 suspicions** while its multi-line spelling reported one.
+/// The code part of a line: everything before a line comment (CR-102).
+///
+/// A comment is prose, not an oracle. Left in, prose that *quotes* code is read
+/// as code — this crate's own TC-1003 was reported vacuous because a comment
+/// explaining the TypeScript arrow-function bug contained the token it names,
+/// which is the wrong-language misread one level up. Braces are counted on the
+/// stripped text for the same reason.
+///
+/// Not a lexer: `//` inside a string literal is treated as a comment. The
+/// alternative is a front-end per language, which FR-064-CON-2 rules out, and
+/// an assertion sharing a line with a `://` is not a shape worth the cost.
+fn strip_comment(line: &str, language: SourceLanguage) -> &str {
+    let marker = match language {
+        SourceLanguage::Rust | SourceLanguage::Typescript => "//",
+        SourceLanguage::Python => "#",
+    };
+    match line.find(marker) {
+        Some(at) => &line[..at],
+        None => line,
+    }
+}
+
+fn assertion_positions(span: &str, language: SourceLanguage) -> (usize, usize) {
+    let assertions = assertions_for(language);
+    let guards = narrowing_guards_for(language);
     let mut total = 0usize;
     let mut guarded = 0usize;
     let mut guard_depths: Vec<usize> = Vec::new();
     let mut depth = 0usize;
 
     for line in span.lines() {
-        let trimmed = line.trim();
+        let code = strip_comment(line, language);
+        let trimmed = code.trim();
         // Close first: a `}` on this line ends a guard that opened above it.
-        let opens = line.matches('{').count();
-        let closes = line.matches('}').count();
+        let opens = code.matches('{').count();
+        let closes = code.matches('}').count();
 
-        if ASSERTIONS.iter().any(|a| trimmed.contains(a)) {
+        // Resolve the guard BEFORE the assertion: a guard opening on this line
+        // covers an assertion that sits on it.
+        let opens_guard = guards.iter().any(|g| trimmed.contains(g));
+        let closed_on_this_line = opens_guard && opens > 0 && closes >= opens;
+
+        if assertions.iter().any(|a| trimmed.contains(a)) {
             total += 1;
-            if !guard_depths.is_empty() {
+            if !guard_depths.is_empty() || closed_on_this_line {
                 guarded += 1;
             }
         }
 
-        if NARROWING_GUARDS.iter().any(|g| trimmed.contains(g)) && opens > closes {
+        if opens_guard && opens > closes {
             guard_depths.push(depth);
         }
         depth = depth + opens - closes.min(depth + opens);
@@ -276,6 +352,120 @@ mod tests {
 
     fn extract(body: &str) -> SymbolExtraction {
         extract_file("src/lib.rs", SourceLanguage::Rust, body)
+    }
+
+    fn extract_ts(body: &str) -> SymbolExtraction {
+        extract_file("tests/thing.test.ts", SourceLanguage::Typescript, body)
+    }
+
+    #[trace("TC-1002", "FR-064-AC-1")]
+    // a narrowing guard that opens and closes on ONE line (CR-102)
+    // still guards the assertion sitting on it.
+    #[test]
+    fn tc1002_a_single_line_guard_guards_the_assertion_on_it() {
+        // Identical in meaning to TC-997's multi-line spelling. It reported
+        // nothing until CR-102: the assertion was tested before the guard, and
+        // the guard was pushed only when it stayed open past the line.
+        let vacuous = extract(
+            "#[cfg(test)]\nmod tests {\n\
+             #[test]\n\
+             fn tc1596_property() {\n\
+             for sample in samples() {\n\
+             if let Ok(Some(v)) = parse(sample) { prop_assert_eq!(v.len(), 3); }\n\
+             }\n\
+             }\n\
+             }\n",
+        );
+        let found = vacuous_property_suites(&vacuous);
+        assert_eq!(found.len(), 1, "{found:#?}");
+        assert_eq!(found[0].kind, "vacuous-under-guard");
+        assert!(
+            found[0].evidence.contains("1 of 1"),
+            "{}",
+            found[0].evidence
+        );
+
+        // The control: same one-line brace shape, no narrowing guard. A `for`
+        // body is not a guard, so its assertion is unguarded and nothing fires.
+        let sound = extract(
+            "#[cfg(test)]\nmod tests {\n\
+             #[test]\n\
+             fn tc1597_property() {\n\
+             for sample in samples() { assert_eq!(parse(sample).len(), 3); }\n\
+             }\n\
+             }\n",
+        );
+        assert!(
+            vacuous_property_suites(&sound).is_empty(),
+            "{:#?}",
+            vacuous_property_suites(&sound)
+        );
+    }
+
+    #[trace("TC-1003", "FR-064-AC-1")]
+    // an arrow function is not a narrowing guard: a TypeScript (CR-102)
+    // suite of ordinary `it(... () => {...})` tests reports nothing.
+    #[test]
+    fn tc1003_typescript_arrow_functions_are_not_guards() {
+        // Verbatim shape of the 549-of-551 false positive on agent-ix/quoin:
+        // every vitest body is `() => {`, which the shared Rust guard list read
+        // as a `match` arm.
+        //
+        // The fixture lives in a `.ts.txt` file rather than a string literal
+        // here **because this check reads raw text**: inlined, its `() => {`
+        // would sit in a Rust symbol, Rust's guard list would match it, and
+        // this very test would be reported as vacuous — the same
+        // wrong-language misread, one level up. `.txt` binds to no
+        // `SourceLanguage`, so the walk never treats it as source.
+        let ts = extract_ts(include_str!(
+            "../tests/fixtures/skeptic/vitest_arrow_suite.ts.txt"
+        ));
+        assert!(
+            !ts.symbols.is_empty(),
+            "the TypeScript extractor bound nothing, so this asserts nothing"
+        );
+        assert_eq!(
+            vacuous_property_suites(&ts),
+            vec![],
+            "an arrow function is not a narrowing guard"
+        );
+    }
+
+    #[trace("TC-1004", "FR-064-AC-1")]
+    // a comment is prose, not an oracle: code quoted inside one (CR-102)
+    // counts as neither an assertion nor a guard.
+    #[test]
+    fn tc1004_code_quoted_in_a_comment_is_not_code() {
+        // Both the guard and the assertion here exist ONLY in a comment. Before
+        // CR-102 this symbol reported `1 of 1 assertions guarded` and was
+        // called vacuous, which is how this crate's own TC-1003 got reported.
+        let commented = extract(
+            "#[cfg(test)]\nmod tests {\n\
+             #[test]\n\
+             fn tc999_documented() {\n\
+             // if let Some(x) = y { assert_eq!(x, 1); }\n\
+             let outcome = run();\n\
+             }\n\
+             }\n",
+        );
+        assert_eq!(
+            vacuous_property_suites(&commented),
+            vec![],
+            "a commented-out guard and assertion are not a vacuous suite"
+        );
+
+        // The control: the same two tokens as real code DO report, so this is
+        // measuring comment-stripping rather than the absence of a match.
+        let real = extract(
+            "#[cfg(test)]\nmod tests {\n\
+             #[test]\n\
+             fn tc999_documented() {\n\
+             if let Some(x) = y { assert_eq!(x, 1); }\n\
+             let outcome = run();\n\
+             }\n\
+             }\n",
+        );
+        assert_eq!(vacuous_property_suites(&real).len(), 1);
     }
 
     #[trace("TC-997", "FR-064-AC-1")]
