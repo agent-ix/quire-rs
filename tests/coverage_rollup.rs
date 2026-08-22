@@ -1959,3 +1959,77 @@ fn tc989_the_properties_headline_separates_the_catch_all() {
         assert_eq!(example.all_three, 0);
     }
 }
+
+#[trace("TC-1001", "FR-064-AC-4", "FR-064-CON-1")]
+// suspicions reach the report, ordered and (CR-100)
+// evidenced, and change no number and no exit.
+#[test]
+fn tc1001_suspicions_reach_the_report_and_move_nothing() {
+    let bundle = iso_bundle("1001", &[("TC-001", "FR-001-AC-1", "✅")], &[]);
+    // Two tests whose only assertion sits behind a narrowing guard — the shape
+    // measured green while checking 2.3% of its samples.
+    fs::write(
+        bundle.source.join("lib.rs"),
+        concat!(
+            "//! fixture\n\n#[cfg(test)]\nmod tests {\n",
+            "    #[trace(\"TC-001\")]\n    #[test]\n",
+            "    fn covers_0() {\n",
+            "        if let Some(v) = parse() {\n",
+            "            assert_eq!(v, 1);\n",
+            "        }\n    }\n",
+            "    #[trace(\"TC-002\")]\n    #[test]\n",
+            "    fn covers_1() {\n",
+            "        if let Some(v) = parse() {\n",
+            "            assert_eq!(v, 2);\n",
+            "        }\n    }\n}\n",
+        ),
+    )
+    .expect("write");
+
+    let report = report_for(&bundle, "iso").expect("model declared");
+    assert_eq!(report.suspicions.len(), 2, "{:#?}", report.suspicions);
+    for s in &report.suspicions {
+        assert_eq!(s.kind, "vacuous-under-guard");
+        assert!(
+            !s.evidence.is_empty(),
+            "a suspicion carries its measurement"
+        );
+        assert!(s.line > 0);
+    }
+    // Deterministically ordered by (path, line, symbol).
+    let lines: Vec<usize> = report.suspicions.iter().map(|s| s.line).collect();
+    let mut sorted = lines.clone();
+    sorted.sort_unstable();
+    assert_eq!(lines, sorted);
+
+    // CON-1: advisory. It moves no total and adds no diagnostic.
+    let before = (
+        report.totals.backed,
+        report.totals.total,
+        report.diagnostics.len(),
+    );
+    fs::write(
+        bundle.source.join("lib.rs"),
+        concat!(
+            "//! fixture\n\n#[cfg(test)]\nmod tests {\n",
+            "    #[trace(\"TC-001\")]\n    #[test]\n",
+            "    fn covers_0() {\n        assert_eq!(parse(), 1);\n    }\n",
+            "    #[trace(\"TC-002\")]\n    #[test]\n",
+            "    fn covers_1() {\n        assert_eq!(parse(), 2);\n    }\n}\n",
+        ),
+    )
+    .expect("write");
+    let clean = report_for(&bundle, "iso").expect("model declared");
+    assert!(clean.suspicions.is_empty(), "{:#?}", clean.suspicions);
+    assert_eq!(
+        (
+            clean.totals.backed,
+            clean.totals.total,
+            clean.diagnostics.len()
+        ),
+        before,
+        "a suspicion is advisory: removing them changes no other number"
+    );
+    // Absent from the JSON when there are none.
+    assert!(!clean.to_json().contains("suspicions"));
+}

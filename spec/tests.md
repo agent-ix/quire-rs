@@ -788,6 +788,11 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-985 | A hollow metric is a non-zero population with input offered and none read; a zero `examined` (nothing to read), a zero population, and a low-but-non-zero `matched` are each not hollow — the `examined` half was added because without it the check fired on a fixture whose source tree is one comment line (CR-094) | Unit | P0 | FR-063-AC-1 | ✅ |
 | TC-986 | `not computed` and `computed zero` are unequal, serialize under different states, and the uncomputed one carries no `value`/`population`/`examined`/`matched` at all — there is no zero to be read as an answer; both round-trip (CR-094, #226) | Unit | P0 | FR-063-AC-2 | ✅ |
 | TC-987 | A metric cannot be constructed without a unit and a method, and reports its numerator (CR-094) | Unit | P1 | FR-063-AC-1 | ✅ |
+| TC-997 | Every assertion behind a narrowing guard is a `vacuous-under-guard` suspicion carrying guarded/total; one unguarded assertion yields none (CR-100) | Unit | P0 | FR-064-AC-1 | ✅ |
+| TC-998 | Absence of an assertion MACRO is not a finding: a `never panics` proptest and a compile-time `assert_send_sync::<T>()` both yield nothing — measured, that rule was wrong 12 of 12 sampled — and production code is never judged (CR-100) | Unit | P0 | FR-064-AC-1 | ✅ |
+| TC-999 | An oracle that is a character-for-character copy of the implementation scores 1.00 and is reported; one that judges the same subject independently is not (CR-100) | Unit | P0 | FR-064-AC-2 | ✅ |
+| TC-1000 | Similarity reads identifier tokens: reformatting scores identical, shared keywords alone stay under the floor, an empty side scores 0 (CR-100) | Unit | P0 | FR-064-AC-3 | ✅ |
+| TC-1001 | Suspicions reach the report ordered by `(path, line, symbol)` each carrying non-empty evidence; removing them changes no total and no diagnostic count, and the key is absent when there are none (CR-100) | Integration | P0 | FR-064-AC-4, FR-064-CON-1 | ✅ |
 | TC-992 | Marker-form mismatch and its control: an undeclared marker spelling yields candidates with zero bound, `no-symbol-bound` and `hollow-denominator`; the same tree with the declared spelling fires none of them and reports `matched` equal to `examined` (CR-098) | Integration | P0 | FR-050-AC-29 | ✅ |
 | TC-993 | A stale test NAME over a correct marker binds correctly and is reported as no defect on either side (CR-098) | Integration | P0 | FR-050-AC-29 | ✅ |
 | TC-994 | A corpus with no evidence symbols reports 0% honestly: `examined` 0, not hollow, no diagnostic — the case `examined` exists for (CR-098) | Integration | P0 | FR-050-AC-29 | ✅ |
@@ -1124,6 +1129,10 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-033-AC-16 | TC-991 |
 | FR-050-AC-28 | TC-989 |
 | FR-050-AC-29 | TC-992, TC-993, TC-994, TC-995, TC-996 |
+| FR-064-AC-1 | TC-997, TC-998 |
+| FR-064-AC-2 | TC-999 |
+| FR-064-AC-3 | TC-1000 |
+| FR-064-AC-4 | TC-1001 |
 | FR-050-AC-30 | `scripts/tests/test_bench.py` (Inspection — python-side gate, mints no Rust symbol) |
 | FR-052-AC-18 | TC-989 |
 | FR-052-AC-19 | TC-780, TC-990 |

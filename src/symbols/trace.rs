@@ -165,6 +165,13 @@ pub struct SymbolGraph {
     /// marker. Counts symbols, not relations, for the same reason
     /// [`BindingCensus::bound`] does.
     pub implements_bound: usize,
+    /// Evidence symbols whose assertions may never run (FR-064-AC-1, CR-100).
+    ///
+    /// Computed here rather than one layer up because this is where the
+    /// extraction and the symbol kinds are both in hand — and because minting
+    /// a fact and exposing it one release later is the CR-076/CR-080 shape this
+    /// repository has now paid for four times.
+    pub suspicions: Vec<crate::skeptic::Suspicion>,
     /// Source files a declared `source_exclude` glob removed from the walk,
     /// copied from [`SymbolExtraction::excluded_source_files`] so the coverage
     /// rollup — which sees only this graph — can report it (FR-050-AC-24,
@@ -249,6 +256,7 @@ pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolG
         }
     }
 
+    graph.suspicions = crate::skeptic::vacuous_property_suites(extraction);
     graph.binding_census = census
         .into_iter()
         .map(|(language, (candidates, bound))| BindingCensus {

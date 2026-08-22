@@ -369,6 +369,15 @@ pub struct CoverageReport {
     /// engine that predates them".
     #[serde(default)]
     pub metrics: Vec<Metric>,
+    /// Things that look wrong, with the measurement that made them look wrong
+    /// (FR-064). **Advisory always** — a suspicion is a claim about a shape,
+    /// not a verdict, and it affects no total and no exit code.
+    ///
+    /// Empty — and so absent — for a corpus whose suites all check every
+    /// sample, which keeps FR-050-AC-7 byte-identity for every repository
+    /// already clean.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub suspicions: Vec<crate::skeptic::Suspicion>,
     pub totals: CoverageTotals,
 }
 
@@ -1245,6 +1254,9 @@ fn reconcile(
         // FR-063: filled by `compute`, which is where the criteria totals one
         // of these metrics describes are set.
         metrics: Vec::new(),
+        // FR-064: carried by the graph, because the binder is where the
+        // extraction and the symbol kinds are both in hand.
+        suspicions: graph.suspicions.clone(),
         totals,
     }
 }

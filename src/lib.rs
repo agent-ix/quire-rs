@@ -31,6 +31,7 @@ pub mod parser;
 pub mod python;
 pub mod query;
 pub mod registry;
+pub mod skeptic;
 pub mod symbols;
 pub mod traceability;
 pub mod validate;

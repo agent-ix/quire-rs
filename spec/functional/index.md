@@ -66,3 +66,4 @@ description: "Index of artifacts in this directory."
 >>>>>>> origin/main
 * [FR-062: The requirement-to-production-code relation](./FR-062-implements-relation.md)
 * [FR-063: The metric provenance envelope](./FR-063-metric-provenance-envelope.md)
+* [FR-064: The skeptic layer](./FR-064-skeptic-layer.md)
