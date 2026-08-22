@@ -18,7 +18,9 @@ use serde_json::{Map, Value};
 use crate::ast::QuireDocument;
 use crate::extract::interpolate::interpolate;
 use crate::extract::locator::{ColumnRef, LocatorAssert, LocatorKind, LocatorPrimitive};
-use crate::query::{parse_bullet_list, parse_table, section as q_section, sections as q_sections};
+use crate::query::{
+    parse_bullet_list, parse_table_with_lines, section as q_section, sections as q_sections,
+};
 
 /// Why an assert check failed. Maps onto `validate_document`'s reason
 /// vocabulary: `assert` for a structural mismatch, `unresolved-field`
@@ -38,8 +40,19 @@ pub enum AssertReason {
 pub struct AssertFailure {
     pub reason: AssertReason,
     pub message: String,
-    /// 0-based body line of the located section, if known.
+    /// 0-based body line. For a **row-scoped** failure this is the offending
+    /// row's own line (FR-033-AC-16, CR-097); for a table-scoped one it is the
+    /// located section's start line, as before.
     pub line: Option<usize>,
+    /// The offending row's id, when the assert declares an `id_column` and the
+    /// failure is about one row (FR-033-AC-16, CR-097).
+    ///
+    /// Without it, a per-cell failure named neither the row it came from nor a
+    /// line that distinguished it: measured on `agent-ix/filament-ide-rs`, 496
+    /// `[assert]` findings shared **one distinct line per document** and 15
+    /// carried a row id anywhere, so two byte-identical strings at one locus
+    /// were the whole report for two different rows.
+    pub row_id: Option<String>,
 }
 
 /// Evaluate `assert` for `primitive` against `doc`. Returns every failed
@@ -130,6 +143,7 @@ fn check_level(
                     reason: AssertReason::Assert,
                     message: format!("no heading found at asserted level {level}"),
                     line: None,
+                    row_id: None,
                 });
             }
             return;
@@ -145,30 +159,60 @@ fn check_level(
                 s.heading, s.level
             ),
             line: Some(s.start_line),
+            row_id: None,
         }),
         None => failures.push(AssertFailure {
             reason: AssertReason::Assert,
             message: format!("section not found for level assert (required level {level})"),
             line: None,
+            row_id: None,
         }),
     }
 }
 
+/// The located table, the section's start line, and each data row's own
+/// **document** line (FR-033-AC-16, CR-097).
+///
+/// `parse_table_with_lines` returns content-relative row lines; adding the
+/// section's start line converts them to the same 0-based body numbering every
+/// other failure already reports, so a row-scoped finding and a table-scoped
+/// one are read the same way.
 fn locate_table(
     doc: &QuireDocument,
     primitive: &LocatorPrimitive,
-) -> Option<(crate::query::TableResult, Option<usize>)> {
-    let section_name = located_section_name(primitive);
-    match section_name {
+) -> Option<(crate::query::TableResult, Option<usize>, Vec<usize>)> {
+    let with_lines = |content: &str, start: usize| {
+        parse_table_with_lines(content).map(|(t, rows)| {
+            let rows = rows.into_iter().map(|r| r + start).collect::<Vec<_>>();
+            (t, Some(start), rows)
+        })
+    };
+    match located_section_name(primitive) {
         Some(name) => {
             let s = q_section(doc, &name)?;
-            parse_table(&s.content).map(|t| (t, Some(s.start_line)))
+            with_lines(&s.content, s.start_line)
         }
         None => doc
             .sections
             .iter()
-            .find_map(|s| parse_table(&s.content).map(|t| (t, Some(s.start_line)))),
+            .find_map(|s| with_lines(&s.content, s.start_line)),
     }
+}
+
+/// The offending row's identity, as the declared `id_column` cell.
+///
+/// `None` when the assert declares no `id_column` or the table has no such
+/// header — the engine names the row by what the contract said identifies it,
+/// and guesses nothing when the contract said nothing.
+fn row_identity(
+    table: &crate::query::TableResult,
+    assert: &LocatorAssert,
+    row: &[String],
+) -> Option<String> {
+    let col = assert.id_column.as_deref()?;
+    let idx = table.headers.iter().position(|h| h == col)?;
+    let cell = row.get(idx)?.trim();
+    (!cell.is_empty()).then(|| cell.to_string())
 }
 
 fn check_table(
@@ -178,7 +222,7 @@ fn check_table(
     frontmatter: Option<&Map<String, Value>>,
     failures: &mut Vec<AssertFailure>,
 ) {
-    let Some((table, line)) = locate_table(doc, primitive) else {
+    let Some((table, line, row_lines)) = locate_table(doc, primitive) else {
         // Surface a single failure per declared table assert so the
         // missing table is reported (not silently passing).
         if assert.columns.is_some()
@@ -191,6 +235,7 @@ fn check_table(
                 reason: AssertReason::Assert,
                 message: "table not found for table_row assert".to_string(),
                 line: None,
+                row_id: None,
             });
         }
         return;
@@ -207,6 +252,7 @@ fn check_table(
                         table.headers, columns
                     ),
                     line,
+                    row_id: None,
                 });
             }
         } else {
@@ -240,6 +286,7 @@ fn check_table(
                         table.headers, columns, optional
                     ),
                     line,
+                    row_id: None,
                 });
             }
         }
@@ -254,6 +301,7 @@ fn check_table(
                     table.rows.len()
                 ),
                 line,
+                row_id: None,
             });
         }
     }
@@ -291,16 +339,21 @@ fn check_table(
                     assert.id_column, table.headers
                 ),
                 line,
+                row_id: None,
             });
             return;
         };
-        for row in &table.rows {
+        for (n, row) in table.rows.iter().enumerate() {
             let cell = row.get(idx).map(String::as_str).unwrap_or("");
             if !re.is_match(cell) {
                 failures.push(AssertFailure {
                     reason: AssertReason::Assert,
                     message: format!("id cell '{cell}' does not match pattern /{}/", re.as_str()),
-                    line,
+                    line: row_lines.get(n).copied().or(line),
+                    // The id itself is the offending cell, so naming it twice
+                    // would read as two facts. The line is what this failure
+                    // was missing.
+                    row_id: None,
                 });
             }
         }
@@ -324,7 +377,7 @@ fn check_table(
             if omitted_optional(col) {
                 continue;
             }
-            check_table_column_choices(&table, col, allowed, line, failures);
+            check_table_column_choices(&table, assert, col, allowed, line, &row_lines, failures);
         }
     }
 
@@ -342,7 +395,7 @@ fn check_table(
                     continue;
                 }
             };
-            check_table_column_pattern(&table, col, &re, line, failures);
+            check_table_column_pattern(&table, assert, col, &re, line, &row_lines, failures);
         }
     }
 }
@@ -365,6 +418,7 @@ fn table_column_index(
                     table.headers
                 ),
                 line,
+                row_id: None,
             });
             None
         }
@@ -373,21 +427,24 @@ fn table_column_index(
 
 fn check_table_column_choices(
     table: &crate::query::TableResult,
+    assert: &LocatorAssert,
     col: &str,
     allowed: &[String],
     line: Option<usize>,
+    row_lines: &[usize],
     failures: &mut Vec<AssertFailure>,
 ) {
     let Some(idx) = table_column_index(table, col, line, failures) else {
         return;
     };
-    for row in &table.rows {
+    for (n, row) in table.rows.iter().enumerate() {
         let cell = row.get(idx).map(|s| s.trim()).unwrap_or("");
         if !allowed.iter().any(|a| a == cell) {
             failures.push(AssertFailure {
                 reason: AssertReason::Assert,
                 message: format!("column '{col}' cell '{cell}' is not one of {allowed:?}"),
-                line,
+                line: row_lines.get(n).copied().or(line),
+                row_id: row_identity(table, assert, row),
             });
         }
     }
@@ -395,15 +452,17 @@ fn check_table_column_choices(
 
 fn check_table_column_pattern(
     table: &crate::query::TableResult,
+    assert: &LocatorAssert,
     col: &str,
     re: &Regex,
     line: Option<usize>,
+    row_lines: &[usize],
     failures: &mut Vec<AssertFailure>,
 ) {
     let Some(idx) = table_column_index(table, col, line, failures) else {
         return;
     };
-    for row in &table.rows {
+    for (n, row) in table.rows.iter().enumerate() {
         let cell = row.get(idx).map(String::as_str).unwrap_or("");
         if !re.is_match(cell) {
             failures.push(AssertFailure {
@@ -412,7 +471,8 @@ fn check_table_column_pattern(
                     "column '{col}' cell '{cell}' does not match pattern /{}/",
                     re.as_str()
                 ),
-                line,
+                line: row_lines.get(n).copied().or(line),
+                row_id: row_identity(table, assert, row),
             });
         }
     }
@@ -439,6 +499,7 @@ fn check_value_choices(
                     reason: AssertReason::Assert,
                     message: format!("value '{value}' is not one of {choices:?}"),
                     line,
+                    row_id: None,
                 });
             }
         }
@@ -459,6 +520,7 @@ fn check_min_items(
                     reason: AssertReason::Assert,
                     message: format!("section '{name}' not found for min_items assert"),
                     line: None,
+                    row_id: None,
                 });
                 return;
             }
@@ -478,6 +540,7 @@ fn check_min_items(
             reason: AssertReason::Assert,
             message: format!("list has {count} item(s) but assert requires at least {min_items}"),
             line,
+            row_id: None,
         });
     }
 }
@@ -507,6 +570,7 @@ fn check_value_pattern(
                     reason: AssertReason::Assert,
                     message: format!("value '{s}' does not match pattern /{}/", re.as_str()),
                     line: None,
+                    row_id: None,
                 });
             }
         }
@@ -546,6 +610,7 @@ fn check_content_matches(
                         re.as_str()
                     ),
                     line,
+                    row_id: None,
                 });
             }
         }
@@ -566,11 +631,13 @@ fn resolve_regex(
             e.field
         ),
         line: None,
+        row_id: None,
     })?;
     Regex::new(&resolved).map_err(|e| AssertFailure {
         reason: AssertReason::Assert,
         message: format!("assert pattern is not a valid regex: {e}"),
         line: None,
+        row_id: None,
     })
 }
 
@@ -582,6 +649,97 @@ mod tests {
 
     fn prim(yaml: &str) -> LocatorPrimitive {
         serde_yaml::from_str(yaml).expect("parse locator")
+    }
+
+    #[trace("TC-991", "FR-033-AC-16")]
+    // a row-scoped failure names the row and its (CR-097)
+    // own line; a table-scoped one keeps the section line and names no row.
+    #[test]
+    fn tc991_row_scoped_failures_carry_the_row_and_its_line() {
+        // Two rows failing the same check. Before CR-097 these were two
+        // byte-identical findings at one line — the whole report for two
+        // different rows.
+        let doc = parse_document(concat!(
+            "## T\n",
+            "| Test ID | Type |\n",
+            "| - | - |\n",
+            "| TC-001 | Unit |\n",
+            "| TC-002 | Inspection |\n",
+            "| TC-003 | Analysis |\n",
+        ));
+        let choices = prim(concat!(
+            "from: table_row\n",
+            "under_section: T\n",
+            "assert:\n",
+            "  id_column: Test ID\n",
+            "  column_choices:\n",
+            "    Type: [Unit]\n",
+        ));
+        let a = choices.assert().unwrap().clone();
+        let fails = evaluate_assert(&doc, &choices, &a, None);
+        assert_eq!(fails.len(), 2, "{fails:?}");
+
+        let ids: Vec<Option<&str>> = fails.iter().map(|f| f.row_id.as_deref()).collect();
+        assert_eq!(ids, vec![Some("TC-002"), Some("TC-003")]);
+
+        // Distinct lines, in row order — the property the corpus run measured
+        // as "one distinct line per document".
+        let lines: Vec<Option<usize>> = fails.iter().map(|f| f.line).collect();
+        assert!(
+            lines[0].is_some() && lines[0] < lines[1],
+            "each row reports its own line: {lines:?}"
+        );
+        // …and the two findings are no longer equal field for field.
+        assert_ne!(fails[0], fails[1]);
+
+        // `column_patterns` is the same shape.
+        let patterns = prim(concat!(
+            "from: table_row\n",
+            "under_section: T\n",
+            "assert:\n",
+            "  id_column: Test ID\n",
+            "  column_patterns:\n",
+            "    Type: '^Unit$'\n",
+        ));
+        let a = patterns.assert().unwrap().clone();
+        let fails = evaluate_assert(&doc, &patterns, &a, None);
+        assert_eq!(
+            fails
+                .iter()
+                .map(|f| f.row_id.as_deref())
+                .collect::<Vec<_>>(),
+            vec![Some("TC-002"), Some("TC-003")]
+        );
+
+        // A table-scoped failure keeps the section line and names no row:
+        // `min_rows` is about the table, not about any row in it.
+        let empty = parse_document(concat!("## T\n", "| Test ID | Type |\n", "| - | - |\n",));
+        let rows = prim(concat!(
+            "from: table_row\n",
+            "under_section: T\n",
+            "assert:\n",
+            "  id_column: Test ID\n",
+            "  min_rows: 1\n",
+        ));
+        let a = rows.assert().unwrap().clone();
+        let fails = evaluate_assert(&empty, &rows, &a, None);
+        assert_eq!(fails.len(), 1);
+        assert_eq!(fails[0].row_id, None);
+
+        // No `id_column` declared: the row line still lands, and no id is
+        // guessed from the first cell.
+        let undeclared = prim(concat!(
+            "from: table_row\n",
+            "under_section: T\n",
+            "assert:\n",
+            "  column_choices:\n",
+            "    Type: [Unit]\n",
+        ));
+        let a = undeclared.assert().unwrap().clone();
+        let fails = evaluate_assert(&doc, &undeclared, &a, None);
+        assert_eq!(fails.len(), 2);
+        assert!(fails.iter().all(|f| f.row_id.is_none()));
+        assert!(fails[0].line < fails[1].line);
     }
 
     #[trace("TC-534", "FR-033-AC-1")]

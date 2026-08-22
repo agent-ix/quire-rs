@@ -80,8 +80,64 @@ validate time.
 | FR-033-AC-13 | A `table_row` locator with `assert: {column_patterns: {ID: '^FND-\d+$'}}` fails with reason `assert` when any data cell in the `ID` column does not match the regex, and passes when every cell matches; the regex supports `{field}` interpolation ([FR-034](./FR-034-assert-field-interpolation.md)). A named column absent from the table fails with an explicit "column not found" reason. `column_patterns` is illegal on every non-`table_row` locator at load time. | Test |
 | FR-033-AC-14 | A `table_row` locator with `assert: {columns: [ID, Criteria, Priority, Verification], optional_columns: [Priority]}` passes whether or not the table carries the `Priority` column, and still fails when a *non*-optional column is absent or the header order differs. `optional_columns` is illegal on every non-`table_row` locator, and illegal when it names a column absent from `columns`, at load time. | Test |
 | FR-033-AC-15 | A `column_choices` or `column_patterns` entry naming a column declared in `optional_columns` does NOT fire when that column is absent from the table (no "column not found" failure); when the column IS present it is checked exactly as any other column, so a disallowed value still fails with reason `assert`. | Test |
+| FR-033-AC-16 | A row-scoped assert failure — `column_choices`, `column_patterns`, `id_pattern` — reports the offending **row's own** document line rather than the table's start line, and carries the row's `id_column` cell as `row_id` when the assert declares one; the rendered message leads with that id. A table-scoped failure (`columns`, `min_rows`, table-not-found, column-not-found) keeps the located section's line and carries no `row_id`. An assert declaring no `id_column`, or a table lacking that header, yields a row line and no id — never a guessed one. | Test (TC-991) |
 
 <a id="cr-023-note"></a>
+
+> **CR-097 note (2026-08-22):** AC-16 is new — a row-scoped failure says which
+> row. `agent-ix/quire-cli#58`, epic `agent-ix/quoin#197`.
+>
+> **What the number counts:** `[assert]` findings from
+> `quire validate --scope . "spec/**/*.md" "plan/**/*.md" "reviews/**/*.md"`
+> over `agent-ix/filament-ide-rs` @ `fc5d644`, under `quire 0.29.0` / engine
+> `v0.42.0` / `spec-artifacts-process v0.23.0`: **496 findings, 15 of which
+> carried a row id anywhere, and exactly ONE distinct line per document.** Every
+> assert against `spec/service/matrix/tests.md` reported `line 25`. So 481
+> findings read like this, twice in a row, byte-identical, naming neither of the
+> two rows they came from:
+>
+> ```
+> spec/service/matrix/tests.md: line 25: [TestMatrix] 'test_cases': column 'Type' cell 'Inspection' is not one of [...]
+> spec/service/matrix/tests.md: line 25: [TestMatrix] 'test_cases': column 'Type' cell 'Inspection' is not one of [...]
+> ```
+>
+> `Inspection` appears 112 times across that corpus. There was no way to act on
+> an individual one without hand-diffing the table against the vocabulary — and
+> not even the machine surface disambiguated them, since the two records were
+> equal field for field.
+>
+> **The engine already had both facts.** It walks `table.rows` to evaluate a
+> column assert, so the row index was in hand; `parse_table_with_lines` (CR-089,
+> which fixed the same defect for coverage records) already returns per-row
+> lines and the assert evaluator was simply calling `parse_table` instead. And
+> `LocatorAssert::id_column` — *"table column whose cells are treated as ids"* —
+> has been declared by every matrix contract in the ecosystem since FR-033
+> shipped.
+>
+> **No new declaration, and no guessing.** The row is named by the column the
+> contract already said identifies it. An assert declaring no `id_column`, or a
+> table lacking that header, gets the row's line and no id rather than a
+> first-cell heuristic — the engine knows nothing of "TC", and inferring an id
+> column would put it back in the business of knowing.
+>
+> **Measured after, on the same corpus** — population: `[assert]` findings over
+> `filament-ide-rs/spec/**` whose document type the process module resolves,
+> which is a **narrower set than the 496** above (that run also walked `plan/`
+> and `reviews/`), so these are not two ends of one delta:
+>
+> | | |
+> |---|---|
+> | assert findings | **144** |
+> | carrying a row id | **144** |
+> | documents with more than one distinct assert line | **11 of 11** |
+>
+> Before, that last row was 0 of 11.
+>
+> **`id_pattern`'s failure deliberately carries no `row_id`.** The id cell *is*
+> the offending value and already appears in the message; naming it twice would
+> read as two facts. That failure gains the row line, which is what it was
+> missing.
+
 > **CR-023 note:** `optional_columns` (FR-033-AC-14) was added because `columns`
 > is an exact match, which leaves a contract no way to ask for a column an
 > existing corpus never authored. The concrete case is the TestMatrix `Priority`

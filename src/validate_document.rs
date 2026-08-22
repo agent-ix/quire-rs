@@ -664,8 +664,18 @@ fn validate_required_locator(
                 AssertReason::Assert => ValidationReason::Assert,
                 AssertReason::UnresolvedField => ValidationReason::UnresolvedField,
             };
+            // CR-097: a row-scoped failure leads with the row's own id, so two
+            // cells failing the same check in one table are two distinguishable
+            // findings rather than two byte-identical strings at one locus.
+            let message = match &failure.row_id {
+                Some(row_id) => format!(
+                    "[{}] '{key}': {row_id}: {}",
+                    archetype.name, failure.message
+                ),
+                None => format!("[{}] '{key}': {}", archetype.name, failure.message),
+            };
             errors.push(ValidationError {
-                message: format!("[{}] '{key}': {}", archetype.name, failure.message),
+                message,
                 line: failure
                     .line
                     .map(|l| to_doc_line(line_offset, l))
