@@ -24,6 +24,7 @@ use serde::{Deserialize, Serialize};
 use crate::corpus::declared_tables;
 use crate::corpus::spec::Spec;
 use crate::grammar::{AcPropertyCounts, GrammarVocabularies};
+use crate::metric::Metric;
 use crate::obligation::Obligation;
 use crate::registry::Registry;
 use crate::symbols::trace::{BindingCensus, SymbolGraph};
@@ -327,6 +328,19 @@ pub struct CoverageReport {
     /// to report.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub binding_census: Vec<BindingCensus>,
+    /// Every headline number this report emits, with its unit, population,
+    /// method and match count (FR-063-AC-3).
+    ///
+    /// The generalization of `binding_census`: that field names the one premise
+    /// the backed/total ratio happens to rest on, and this makes stating the
+    /// premise a property of **every** ratio the payload carries. A percentage
+    /// without its match counts cannot be constructed.
+    ///
+    /// Always present — a report emits at least `coverage.backed` — so a
+    /// consumer never has to decide whether absence means "no metrics" or "an
+    /// engine that predates them".
+    #[serde(default)]
+    pub metrics: Vec<Metric>,
     pub totals: CoverageTotals,
 }
 
@@ -464,7 +478,151 @@ pub fn compute(
         crate::corpus::vocabulary_coverage::coverage_records(spec, registry, root);
     report.vocabulary_coverage = vocabulary_records;
     report.diagnostics.extend(dead_declarations);
+    // FR-063: last, because a metric describes a number the steps above
+    // finished computing — `criteria` in particular is set here rather than in
+    // `reconcile`.
+    report.metrics = coverage_metrics(&report, model, graph);
+    report
+        .diagnostics
+        .extend(hollow_denominators(&report.metrics));
     Ok(report)
+}
+
+/// Every headline number the coverage payload emits, enveloped (FR-063-AC-3).
+///
+/// The set is fixed rather than derived: a metric exists because somebody
+/// renders it as a ratio, and a list that grew automatically with the struct
+/// would fill up with fields nobody divides.
+fn coverage_metrics(
+    report: &CoverageReport,
+    model: &TraceabilityModel,
+    graph: &SymbolGraph,
+) -> Vec<Metric> {
+    // The premise under `backed/total`: source symbols that bound a trace id.
+    // Summed across languages, because the ratio is bundle-wide and a per
+    // language split already exists in `binding_census`.
+    let bound_symbols: usize = report.binding_census.iter().map(|c| c.bound).sum();
+    let walked_symbols: usize = report.binding_census.iter().map(|c| c.candidates).sum();
+
+    let mut metrics = vec![Metric::measured(
+        "coverage.backed",
+        "matrix row",
+        "rows of the declared reference tables whose trace target is bound by at \
+         least one source symbol; `matched` counts the evidence symbols that bound \
+         a trace id out of the `examined` evidence symbols walked, so matched 0 of \
+         a non-zero examined is a ratio computed over a corpus the binder could not \
+         read",
+        report.totals.backed,
+        report.totals.total,
+        walked_symbols,
+        bound_symbols,
+    )];
+
+    metrics.push(
+        match (report.totals.property_shaped, report.totals.criteria) {
+            (Some(shaped), Some(criteria)) => Metric::measured(
+                "coverage.property_shaped",
+                "acceptance criterion",
+                "criteria the FR-052 classifier reads a property shape from; `matched` \
+             counts criteria that reached the classifier at all",
+                shaped,
+                criteria,
+                criteria,
+                criteria,
+            ),
+            _ => Metric::not_computed(
+                "coverage.property_shaped",
+                "acceptance criterion",
+                "criteria the FR-052 classifier reads a property shape from",
+                "no corpus document in scope binds an acceptance criterion, so nothing \
+             was classified",
+            ),
+        },
+    );
+
+    // #226, folded: an absent list and an uncomputed one are the same bytes.
+    // Here they are different states.
+    metrics.push(if model.vocabularies.no_source_symbol.is_empty() {
+        Metric::not_computed(
+            "coverage.no_symbol_rows",
+            "matrix row",
+            "unbacked rows exempted by a verification method that mints no source \
+             symbol",
+            "the module declares no `vocabularies.no_source_symbol`, so no row can \
+             be exempt by its method and every unbacked row reads as a missing test",
+        )
+    } else {
+        Metric::measured(
+            "coverage.no_symbol_rows",
+            "matrix row",
+            "unbacked rows whose declared test type is in the module's \
+             `no_source_symbol` vocabulary; `matched` counts the rows reconciled",
+            report.no_symbol_rows.len(),
+            report.totals.total,
+            report.totals.total,
+            report.totals.total,
+        )
+    });
+
+    metrics.push(if model.trace_tags.implements.is_empty() {
+        Metric::not_computed(
+            "coverage.implements",
+            "production symbol",
+            "production symbols carrying a declared `implements` marker",
+            "the module declares no `trace_tags.implements` forms, so the \
+             requirement-to-code relation was never derived — this is unasked, not \
+             none",
+        )
+    } else {
+        Metric::measured(
+            "coverage.implements",
+            "production symbol",
+            "production symbols carrying at least one declared `implements` marker; \
+             `matched` and the value coincide because every bound symbol is a \
+             matched one, and `population` is the production symbols examined",
+            graph.implements_bound,
+            graph.implements_candidates,
+            graph.implements_candidates,
+            graph.implements_bound,
+        )
+    });
+
+    metrics
+}
+
+/// A ratio computed over a population the measurement could not read
+/// (FR-063-AC-5).
+///
+/// The generalization of `no-symbol-bound`: that diagnostic knows it is about
+/// the trace binder and can name the declared forms to check, and it stays,
+/// because a finding that says what to look at beats one that says a number is
+/// wrong. This one fires for any metric, including ones added later that have
+/// no bespoke check of their own — which is the point of a schema invariant.
+fn hollow_denominators(metrics: &[Metric]) -> Vec<CoverageDiagnostic> {
+    metrics
+        .iter()
+        .filter(|metric| metric.is_hollow())
+        .map(|metric| CoverageDiagnostic {
+            declaration: "metrics".to_string(),
+            reason: "hollow-denominator".to_string(),
+            message: format!(
+                "`{}` reports a ratio over a population of {}, so the number is \
+                 arithmetic over nothing; {}",
+                metric.name,
+                match metric.measurement {
+                    crate::metric::Measurement::Measured {
+                        population,
+                        examined,
+                        ..
+                    } => format!("{population} but read none of the {examined} input(s) it walked"),
+                    crate::metric::Measurement::NotComputed { .. } => String::new(),
+                },
+                metric.method
+            ),
+            path: None,
+            value: Some(metric.name.clone()),
+        })
+        .collect()
 }
 
 /// Declared methods that are in no catalog (FR-054-AC-11).
@@ -1024,6 +1182,9 @@ fn reconcile(
         excluded_source_files: graph.excluded_source_files,
         // FR-050-AC-27 (CR-093): the premise, carried whether or not it holds.
         binding_census: graph.binding_census.clone(),
+        // FR-063: filled by `compute`, which is where the criteria totals one
+        // of these metrics describes are set.
+        metrics: Vec::new(),
         totals,
     }
 }

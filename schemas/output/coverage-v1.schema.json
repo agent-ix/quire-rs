@@ -83,9 +83,62 @@
       "description": "FR-050-AC-27 / FR-051-AC-19 (CR-093, #227): what the trace binder examined and what bound, per language. Unlike every other list here this is not a defect list — it is the premise the backed/total ratio rests on, so it is present whenever the code walk found an evidence symbol, whether or not anything bound. `1292 candidates, 0 bound` is the shape that produced a confident 23% over a corpus the binder could not read; `1292 candidates, 1290 bound` is a reassurance no earlier payload could give. ABSENT only when no language yielded an evidence symbol. Additive under FR-055-CON-3.",
       "items": { "$ref": "#/$defs/BindingCensus" }
     },
+    "metrics": {
+      "type": "array",
+      "description": "FR-063 (CR-094, #229): every headline number this payload emits, with its unit, population, method and match count. The generalization of `binding_census` — that field names the one premise `backed/total` happens to rest on; this makes stating the premise a property of every ratio, so a percentage cannot be emitted without the counts that say whether it measured anything. Always emitted by the engine; OPTIONAL here so a payload from an engine predating the field still conforms (FR-055-CON-3).",
+      "items": { "$ref": "#/$defs/Metric" }
+    },
     "totals": { "$ref": "#/$defs/CoverageTotals" }
   },
   "$defs": {
+    "Metric": {
+      "type": "object",
+      "description": "One emitted number and its provenance. `state` discriminates: a measurement that RAN carries value/population/matched; one that did not carries `because` and no numbers at all, so 'not computed' can never be read as a zero (#226).",
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["name", "unit", "method", "state", "value", "population", "examined", "matched"],
+          "properties": {
+            "name": { "$ref": "#/$defs/MetricName" },
+            "unit": { "$ref": "#/$defs/MetricUnit" },
+            "method": { "$ref": "#/$defs/MetricMethod" },
+            "state": { "const": "measured" },
+            "value": { "type": "integer", "minimum": 0, "description": "The numerator, in `unit`." },
+            "population": { "type": "integer", "minimum": 0, "description": "The denominator, in `unit`. Zero is legitimate — measuring nothing and saying so is honest (FR-050-AC-14)." },
+            "examined": { "type": "integer", "minimum": 0, "description": "How many INPUTS the measurement was offered, in whatever unit `method` names — source symbols walked, criteria reaching the classifier, rows reconciled." },
+            "matched": { "type": "integer", "minimum": 0, "description": "How many of those inputs it successfully read. Paired with `examined` because their difference is the point: matched 0 of examined 0 means there was nothing to read and the zero is honest; matched 0 of examined 1292 means the measurement was handed its input and could not read any of it — the shape that produced a confident 23% over a corpus the binder could not parse." }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["name", "unit", "method", "state", "because"],
+          "properties": {
+            "name": { "$ref": "#/$defs/MetricName" },
+            "unit": { "$ref": "#/$defs/MetricUnit" },
+            "method": { "$ref": "#/$defs/MetricMethod" },
+            "state": { "const": "not_computed" },
+            "because": { "type": "string", "minLength": 1, "description": "The condition that decided it, in the engine's own vocabulary — 'the module declares no `implements` marker forms', not 'no data'." }
+          }
+        }
+      ]
+    },
+    "MetricName": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+      "description": "Stable dotted token — `coverage.backed`. Machine-joinable, never rendered prose."
+    },
+    "MetricUnit": {
+      "type": "string",
+      "minLength": 1,
+      "description": "What ONE of `value` is: `matrix row`, `acceptance criterion`, `production symbol`. Singular, so a reader can say '555 matrix rows'."
+    },
+    "MetricMethod": {
+      "type": "string",
+      "minLength": 1,
+      "description": "How the number was arrived at, and what `matched` counts for it — written for somebody deciding whether to trust the ratio."
+    },
     "BindingCensus": {
       "type": "object",
       "additionalProperties": false,
