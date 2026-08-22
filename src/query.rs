@@ -240,7 +240,7 @@ fn is_separator_row(line: &str) -> bool {
 /// row ending in `\|` is not mis-trimmed. The escape is consumed:
 /// `\|` yields `|` in the cell text; every other backslash is kept
 /// verbatim.
-fn split_row_unescaped(line: &str) -> Vec<String> {
+pub(crate) fn split_row_unescaped(line: &str) -> Vec<String> {
     let mut cells: Vec<String> = Vec::new();
     let mut cur = String::new();
     let mut chars = line.trim().chars().peekable();

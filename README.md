@@ -75,7 +75,12 @@ and as **WebAssembly**.
 
 **Lint**
 - `lint_document` — declarative, advisory lint rules (`table_column_values`,
-  `section_body_pattern`) declared in the manifest. Lint never blocks validation.
+  `section_body_pattern`, `forbidden_section`) declared in the manifest. Lint never blocks
+  validation.
+- `reader_blocks` / `check_plain_language_at` — source-located reader-visible prose and
+  accountable batch analysis for the project-owned `sentence-length`, `heading-skip`, and
+  `undefined-acronym` rules. Thresholds, applicability and vocabulary come from an explicit
+  named/versioned `PlainLanguageProfile`; the engine ships no default profile.
 
 **Diagnostics & errors**
 - `QuireError` (typed, `thiserror`-derived) and `format_violation` for actionable messages

@@ -133,6 +133,7 @@ Top-level keys:
 | `artifact_types`   | The document-type archetypes (FR, NFR, …).                          |
 | `object_types`     | Object archetypes (for composed `object:` validation).             |
 | `lint_rules`       | Advisory lint rules (§7).                                           |
+| `plain_language_profiles` | Named/versioned reader-language profiles (§7).              |
 
 > **Composition** belongs on entries under `archetypes:` (the container), not on
 > `artifact_types:`. A container declares `composition.expected_artifacts: [...]`.
@@ -372,7 +373,7 @@ pub struct ValidationResult {
 ## 7. Lint rules
 
 Lint is **advisory** — it never blocks validation or extraction. Rules are declared in the
-manifest under `lint_rules` and discriminated by `type:`. Two rule types ship:
+manifest under `lint_rules` and discriminated by `type:`. Three rule types ship:
 
 ```yaml
 lint_rules:
@@ -394,6 +395,40 @@ lint_rules:
 
 Apply them with `lint_document(&doc, registry.lint_rules())`, which returns
 `LintFinding { rule, severity, message }`.
+
+### Reader-visible plain-language profiles
+
+Plain-language analysis uses the same Rust Markdown boundary and never asks a
+caller to reconstruct visible prose. A module may declare named profiles:
+
+```yaml
+plain_language_profiles:
+  engineering-docs:
+    version: 1.0.0
+    document_types: [FR, NFR, StR, US]
+    sentence_word_limit: 35
+    max_heading_level_step: 1
+    known_acronyms:
+      API: application programming interface
+    ignored_uppercase_terms: [SHALL, MUST, MAY]
+```
+
+```rust
+let profile = registry
+    .plain_language_profile("engineering-docs")
+    .expect("profile selected explicitly");
+let report = quire::check_plain_language_at(
+    std::path::Path::new("spec"),
+    "engineering-docs",
+    profile,
+);
+```
+
+`PlainLanguageReport` records the profile id/version, a fingerprint of every
+effective setting, readable document/block counts, source-located warning
+findings and skipped inputs. `readable_blocks == 0` is therefore distinct from
+a clean run. The feature makes no external-standard conformance claim and has
+no implicit profile or promotion path.
 
 ---
 
