@@ -26,6 +26,7 @@ pub mod loader;
 pub mod merge;
 pub mod obligation;
 pub mod parser;
+pub mod plain_language;
 #[cfg(feature = "python")]
 pub mod python;
 pub mod query;
@@ -95,6 +96,11 @@ pub use grammar::property::{
 };
 pub use grammar::{classify_document_properties, AcPropertyCounts};
 pub use lint::{lint_document, LintFinding, LintRule, LintSeverity};
+pub use plain_language::{
+    check_plain_language, check_plain_language_at, check_plain_language_repo_load, reader_blocks,
+    PlainLanguageFinding, PlainLanguageProfile, PlainLanguageReport, ReaderBlock, ReaderBlockKind,
+    SkippedPlainLanguageInput,
+};
 pub use validate_document::classify_document_criteria;
 // Writeback (FR-022) — byte-splice section/block edit.
 pub use writeback::{update_block, update_section};

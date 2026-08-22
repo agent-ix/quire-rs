@@ -61,6 +61,8 @@ pub struct LoadedModule {
     pub verification_catalog: BTreeMap<String, crate::vocab::VerificationMethodDef>,
     /// Ambiguity lexicon contributed by this module (FR-056).
     pub ambiguity_terms: BTreeMap<String, crate::vocab::AmbiguityTermDef>,
+    /// Named advisory language profiles contributed by this module (FR-063).
+    pub plain_language_profiles: BTreeMap<String, crate::plain_language::PlainLanguageProfile>,
     /// Traceability model contributed by this module (FR-050).
     pub traceability: crate::traceability::TraceabilityModel,
 }
@@ -375,6 +377,7 @@ pub fn load_inline_module(manifest_yaml: &[u8], schemas: &BTreeMap<String, Strin
         property_idioms: manifest.property_idioms.clone(),
         verification_catalog: manifest.verification_catalog.clone(),
         ambiguity_terms: manifest.ambiguity_terms.clone(),
+        plain_language_profiles: manifest.plain_language_profiles.clone(),
         traceability: manifest.traceability.clone(),
     });
 
@@ -531,6 +534,7 @@ fn load_one_module(
             property_idioms: manifest.property_idioms.clone(),
             verification_catalog: manifest.verification_catalog.clone(),
             ambiguity_terms: manifest.ambiguity_terms.clone(),
+            plain_language_profiles: manifest.plain_language_profiles.clone(),
             traceability: manifest.traceability.clone(),
         },
         failures,
@@ -760,6 +764,8 @@ pub fn flatten_into_registry(mut outcome: LoadOutcome) -> RegistryShape {
     // these are *sets*, and re-declaring a term with a different gloss changes
     // nothing the engine reads.
     let (ambiguity_terms, _) = merge_vocab(&outcome.modules, |m| &m.ambiguity_terms);
+    let (plain_language_profiles, _) =
+        merge_vocab(&outcome.modules, |m| &m.plain_language_profiles);
     let (verification_catalog, mut catalog_dups) =
         merge_vocab(&outcome.modules, |m| &m.verification_catalog);
     for (name, modules) in catalog_dups.drain(..) {
@@ -867,6 +873,7 @@ pub fn flatten_into_registry(mut outcome: LoadOutcome) -> RegistryShape {
         property_idioms,
         verification_catalog,
         ambiguity_terms,
+        plain_language_profiles,
         traceability,
         failures: outcome.failures,
         diagnostics: outcome.diagnostics,
@@ -1159,6 +1166,7 @@ pub struct RegistryShape {
     pub property_idioms: BTreeMap<String, crate::vocab::PropertyIdiomDef>,
     pub verification_catalog: BTreeMap<String, crate::vocab::VerificationMethodDef>,
     pub ambiguity_terms: BTreeMap<String, crate::vocab::AmbiguityTermDef>,
+    pub plain_language_profiles: BTreeMap<String, crate::plain_language::PlainLanguageProfile>,
     /// Merged traceability model, first-wins across modules (FR-050).
     pub traceability: crate::traceability::TraceabilityModel,
     pub failures: Vec<ArchetypeLoadFailure>,
