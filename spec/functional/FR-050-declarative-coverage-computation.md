@@ -153,8 +153,42 @@ model; the engine knows nothing of "AC" or "TC" as concepts.
 | FR-050-AC-28 | The criteria rollup carries the FR-052-AC-18 split: `totals.specific_shaped` alongside `criteria` and `property_shaped` as an all-or-nothing triple, a per-document `specific_shaped` count absent when zero, and a per-document `grounding` map giving, per shape label, how many of its records carry `domain` / `precondition` / `oracle` and how many carry all three. `coverage.specific_shaped` is emitted as its own FR-063 metric over the same denominator as `coverage.property_shaped`, so the two are comparable and the honest figure is findable by name (CR-095). | Test (TC-989) |
 | FR-050-AC-29 | A declarative corpus case is data: `{name, issue_ref, tags, input, expect}`, where `input` is a whole miniature repository (module manifest, spec documents, source files) and `expect` names only the facts the case is about. One parameterized test runs every case; each case is uniquely named, carries at least one tracking id, and carries an `issue_ref` naming the filing it regresses. Two runs of a case produce byte-identical reports. `expect` can assert diagnostics that must be **absent** as well as present. | Test (TC-992..TC-996) |
 | FR-050-AC-30 | A corpus benchmark scores declared metrics against checked-in baselines with **ratchet** semantics: better rewrites the baseline, equal holds, worse fails naming the metric and both values. Every metric declares unit / population / method / direction, and a number outside the dictionary is refused. A `gate-zero` metric never ratchets — it is a gate with no tolerance. A corpus entry that cannot be read is **skipped loudly**, and a metric the payload cannot supply is **omitted with its reason**, never scored zero. A tier-2 entry declares a pinned SHA and a run against a different tree is refused. Reports are deterministic. | Test (`scripts/tests/test_bench.py`) |
+| FR-050-AC-31 | A cross-corpus sweep snapshots per-repository numbers across the enumerated ecosystem and compares two snapshots as a **distribution**: improved / regressed / unchanged counts, the net gain, and the fraction of that gain contributed by a single repository. A repository the engine cannot read is recorded as unreadable rather than scored zero; a population that moved between snapshots is reported, and the comparison is over the intersection. Gains and regressions are counted separately and never netted into one number. | Test (`scripts/tests/test_overfit_check.py`) |
 
 
+
+
+> **CR-101 note (2026-08-22):** AC-31 is new — the overfit check.
+> `agent-ix/quire-rs#237`; epic `agent-ix/quoin#197`.
+>
+> An improvement tuned against `filament-ide-rs` might be an improvement to the
+> **engine**, or an improvement to `filament-ide-rs`. One corpus cannot tell
+> those apart, and the whole metric-integrity programme would be worth little
+> if its gains turned out to be one repository's.
+>
+> **A distribution, not an average.** The statistic that answers the question is
+> *concentration*: what fraction of the total gain came from a single
+> repository. A change lifting four repositories by five rows each and a change
+> lifting one by twenty produce the same ecosystem total and mean opposite
+> things. The script reports the number and names the repository; it does not
+> pass or fail on it, because whether concentration is overfitting depends on
+> what changed and a script cannot know that.
+>
+> **Gains and regressions are never netted.** A change that lifts most
+> repositories while breaking one is a different fact from one that lifts them
+> all, and a single signed total erases it.
+>
+> **A moving population is reported.** A sweep that silently shrank its own
+> population would show every remaining repository improving — so the
+> comparison is over the intersection and says how many entries dropped or
+> appeared.
+>
+> **Unreadable is not zero.** A repository the engine could not read is recorded
+> as unreadable, for the reason this entire programme exists: scored as 0 it is
+> indistinguishable from a repository with nothing in it.
+>
+> `workflow_dispatch` only. 241 repositories is minutes of work, and a gate that
+> runs on every push is a gate somebody disables.
 
 > **CR-099 note (2026-08-22):** AC-30 is new — the corpus benchmark.
 > `agent-ix/quire-rs#231`, implementing the engine half of `agent-ix/quoin`

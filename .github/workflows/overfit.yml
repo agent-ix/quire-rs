@@ -1,0 +1,39 @@
+name: overfit-check
+
+# Cross-corpus generalization sweep (quire-rs#237).
+#
+# `workflow_dispatch` ONLY, and deliberately so: this walks 241 repositories and
+# takes minutes. A gate that runs on every push is a gate somebody disables, and
+# a disabled gate detects nothing — the same posture as `make bench` and the
+# rest of this repository's expensive checks.
+#
+# It answers one question a single corpus cannot: is an improvement tuned
+# against `filament-ide-rs` an improvement to the ENGINE, or to that corpus? The
+# report is a distribution, not an average, because an average hides exactly the
+# case worth catching.
+
+on:
+  workflow_dispatch:
+    inputs:
+      baseline:
+        description: "Artifact name of a previous snapshot to compare against (optional)"
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Sweep the corpus
+        run: |
+          python3 scripts/overfit_check.py \
+            --snapshot overfit-snapshot.json \
+            --module "${QUIRE_MODULE:-}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: overfit-snapshot
+          path: overfit-snapshot.json
