@@ -5,6 +5,67 @@ All notable changes to `quire-rs` are documented here. Format follows
 numbers follow semver — pre-1.0, breaking changes may land in minor
 bumps; once 1.0 ships, semver is strict.
 
+## [0.43.0] — 2026-08-22
+
+Metric-integrity release. Every change below answers one finding from battletest
+pass 2 (agent-ix/quoin#197): the toolchain was a good reporter and a poor
+skeptic — it published a confident `555/2389 rows backed (23%)` over a corpus
+whose declared tag patterns matched **0 of 1,292** evidence symbols, and three
+SpecReviews were built on the number.
+
+### Added
+
+- **The binder says what it looked at (#227, CR-093, FR-050-AC-27 /
+  FR-051-AC-19).** `binding_census` reports per-language `candidates` / `bound` /
+  the declared `forms` consulted, carried **unconditionally** — unlike every
+  other list on the report, because a premise that only appears when it fails is
+  one a reader cannot lean on when it holds. Two diagnostics: `no-symbol-bound`
+  for the unambiguous case, `low-symbol-binding` under a 5% floor reporting both
+  counts rather than a verdict.
+- **The metric provenance envelope (#229, CR-094, FR-063).** Every headline
+  number carries `{name, unit, method, value, population, examined, matched}`, so
+  a percentage cannot be emitted without the counts that say whether it measured
+  anything. `hollow-denominator` fires when a measurement was offered input, read
+  none of it, and published a ratio anyway. `examined` was not in the first
+  design — the suite caught that `matched: 0` alone fires on every greenfield
+  corpus.
+- **`not computed` is a first-class state, folding #226.** That filing reported
+  `null`; the engine emits these keys **absent**, verified against two
+  repositories. The real ambiguity — absence cannot distinguish "computed, none"
+  from "never computed" — is now `Measurement::NotComputed`, carrying the
+  condition and **no numbers at all**.
+- **The honest properties headline (#230, CR-095, FR-050-AC-28 /
+  FR-052-AC-18).** `515/951 extractable (54%)` had 440 of those 515 in the
+  `universal` catch-all; the specifically-shaped figure was 78/951 — 8%. Both
+  reach the envelope by name. Per-shape span `grounding` is reported alongside,
+  because the shapes that said the most carried the fewest spans.
+- **A row-scoped assert failure says which row (agent-ix/quire-cli#58, CR-097,
+  FR-033-AC-16).** 496 `[assert]` findings over `filament-ide-rs` shared **one
+  distinct line per document** and 15 carried a row id. Now every row-scoped
+  failure carries the row's own line and its declared `id_column` cell — no new
+  declaration and no guessing; an assert without `id_column` gets a line and no
+  id.
+
+### Fixed
+
+- **Decomposition keys on quantification, not on the winning label (#228,
+  CR-096, FR-052-AC-19).** One condition —
+  `if structural == PropertyShape::Universal` — meant an `invariant` statement
+  that `quantification` had already succeeded on had its decomposition computed
+  and thrown away. Measured on this repository's own `spec/`: fully-grounded
+  specific-shape records **1 → 18**, with `universal` unchanged at 96.
+
+### Known limits
+
+- **`grounding` counts spans present, never spans correct.** Hand-reading seven
+  newly-spanned records found 2 well-segmented and 5 not; seven `universal`
+  records from the shipped path were 4 good and 3 poor, with the same failure
+  shapes. The boundary heuristic degrades on long clause-heavy statements and
+  that is pre-existing — filed as #241, not fixed here.
+- The metric envelope covers the **coverage** payload. `properties --json` and
+  `validate`'s surfaces are assembled by `quire-cli` and adopt the type there
+  (agent-ix/quire-cli#60).
+
 ## [0.42.0] — 2026-08-21
 
 Quality-assurance hardening release: every change below was landed with a
