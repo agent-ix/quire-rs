@@ -24,7 +24,7 @@ use serde::{Deserialize, Serialize};
 use crate::corpus::declared_tables;
 use crate::corpus::spec::Spec;
 use crate::grammar::{AcPropertyCounts, GrammarVocabularies, GroundingCounts};
-use crate::metric::Metric;
+use crate::metric::{Metric, MetricShape};
 use crate::obligation::Obligation;
 use crate::registry::Registry;
 use crate::symbols::trace::{BindingCensus, SymbolGraph};
@@ -573,6 +573,7 @@ fn coverage_metrics(
                 "coverage.property_shaped",
                 "acceptance criterion",
                 "criteria the FR-052 classifier reads a property shape from",
+                MetricShape::Ratio,
                 "no corpus document in scope binds an acceptance criterion, so nothing \
              was classified",
             ),
@@ -601,6 +602,7 @@ fn coverage_metrics(
                 "coverage.specific_shaped",
                 "acceptance criterion",
                 "extractable criteria whose shape names what property to write",
+                MetricShape::Ratio,
                 "no corpus document in scope binds an acceptance criterion, so nothing \
              was classified",
             ),
@@ -615,17 +617,17 @@ fn coverage_metrics(
             "matrix row",
             "unbacked rows exempted by a verification method that mints no source \
              symbol",
+            MetricShape::Count,
             "the module declares no `vocabularies.no_source_symbol`, so no row can \
              be exempt by its method and every unbacked row reads as a missing test",
         )
     } else {
-        Metric::measured(
+        Metric::counted(
             "coverage.no_symbol_rows",
             "matrix row",
             "unbacked rows whose declared test type is in the module's \
-             `no_source_symbol` vocabulary; `matched` counts the rows reconciled",
+             `no_source_symbol` vocabulary, counted over every row reconciled",
             report.no_symbol_rows.len(),
-            report.totals.total,
             report.totals.total,
             report.totals.total,
         )
@@ -636,21 +638,21 @@ fn coverage_metrics(
             "coverage.implements",
             "production symbol",
             "production symbols carrying a declared `implements` marker",
+            MetricShape::Count,
             "the module declares no `trace_tags.implements` forms, so the \
              requirement-to-code relation was never derived — this is unasked, not \
              none",
         )
     } else {
-        Metric::measured(
+        Metric::counted(
             "coverage.implements",
             "production symbol",
-            "production symbols carrying at least one declared `implements` marker; \
-             `matched` and the value coincide because every bound symbol is a \
-             matched one, and `population` is the production symbols examined",
+            "production symbols carrying at least one declared `implements` marker, \
+             counted over the production symbols examined; a zero means none is \
+             annotated, not that none was read",
             graph.implements_bound,
             graph.implements_candidates,
             graph.implements_candidates,
-            graph.implements_bound,
         )
     });
 
@@ -669,25 +671,34 @@ fn hollow_denominators(metrics: &[Metric]) -> Vec<CoverageDiagnostic> {
     metrics
         .iter()
         .filter(|metric| metric.is_hollow())
-        .map(|metric| CoverageDiagnostic {
-            declaration: "metrics".to_string(),
-            reason: "hollow-denominator".to_string(),
-            message: format!(
-                "`{}` reports a ratio over a population of {}, so the number is \
-                 arithmetic over nothing; {}",
-                metric.name,
-                match metric.measurement {
-                    crate::metric::Measurement::Measured {
-                        population,
-                        examined,
-                        ..
-                    } => format!("{population} but read none of the {examined} input(s) it walked"),
-                    crate::metric::Measurement::NotComputed { .. } => String::new(),
-                },
-                metric.method
-            ),
-            path: None,
-            value: Some(metric.name.clone()),
+        .filter_map(|metric| {
+            // `is_hollow` is false for every `NotComputed`, so this destructure
+            // always succeeds — `filter_map` states that rather than rendering
+            // a half-sentence for a branch that cannot happen (CR-102).
+            let crate::metric::Measurement::Measured {
+                population,
+                examined,
+                ..
+            } = metric.measurement
+            else {
+                return None;
+            };
+            Some(CoverageDiagnostic {
+                declaration: "metrics".to_string(),
+                reason: "hollow-denominator".to_string(),
+                message: format!(
+                    "`{}` published a ratio over {} {}{} but read none of the {} \
+                     it walked, so the number is arithmetic over nothing; {}",
+                    metric.name,
+                    population,
+                    metric.unit,
+                    if population == 1 { "" } else { "s" },
+                    examined,
+                    metric.method
+                ),
+                path: None,
+                value: Some(metric.name.clone()),
+            })
         })
         .collect()
 }

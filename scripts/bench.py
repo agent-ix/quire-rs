@@ -274,12 +274,25 @@ def silent_zeros(payload: dict) -> int:
     The engine already reports this as `hollow-denominator` (FR-063-AC-5); the
     sentinel counts the ones that slipped past it, so the gate does not depend
     on the same code path it is checking.
+
+    **Count-shaped metrics are exempt (CR-102).** For a tally `matched` and the
+    value are the same fact, so `matched: 0` reports that none was found rather
+    than that none was read. Before the shape existed this sentinel read `0`
+    only because the engine's own false-positive `hollow-denominator` was
+    satisfying the `covered` clause above — two defects cancelling. Fixing the
+    engine alone would have turned this gate red on `coverage.implements`
+    reading an honest 0 of 42.
     """
     reasons = {d.get("reason") for d in payload.get("diagnostics", [])}
     covered = "hollow-denominator" in reasons or "no-symbol-bound" in reasons
     silent = 0
     for metric in payload.get("metrics", []):
         if metric.get("state") != "measured":
+            continue
+        # Absent `shape` means an engine predating CR-102; treat it as a ratio,
+        # which is the reading that can still fail the gate rather than the one
+        # that silently passes it.
+        if metric.get("shape", "ratio") != "ratio":
             continue
         if metric.get("population", 0) > 0 and metric.get("examined", 0) > 0 \
                 and metric.get("matched", 0) == 0 and not covered:
