@@ -5,6 +5,58 @@ All notable changes to `quire-rs` are documented here. Format follows
 numbers follow semver — pre-1.0, breaking changes may land in minor
 bumps; once 1.0 ships, semver is strict.
 
+## [0.44.0] — 2026-08-22
+
+The skeptic half of the metric-integrity programme (agent-ix/quoin#197). v0.43.0
+made the numbers honest; this makes the toolchain measurable and adds the two
+finding classes only manual review had ever caught.
+
+### Added
+
+- **The skeptic layer (#235, #236, CR-100, FR-064).** `vacuous-under-guard`
+  reports a suite whose every assertion sits behind a narrowing guard — the
+  shape of a property suite measured green while checking **2.3%** of its
+  samples. `oracle-resembles-implementation` reports an oracle that is a copy of
+  the code it judges, which asserts only that the code equals itself. Suspicions
+  are **advisory always**: no total, no `--strict`, no exit code.
+- **The declarative regression corpus (#232, #233, #234, CR-098, FR-050-AC-29).**
+  Six battletest failure families as data, each carrying the filing it
+  regresses. Adding a regression is adding a JSON object. `expect` asserts
+  **absence** as well as presence — the half that catches a check firing on
+  healthy input.
+- **The corpus benchmark (#231, CR-099, FR-050-AC-30).** `make bench` scores
+  declared metrics against checked-in baselines with ratchet semantics. Three
+  refusals: an unreadable corpus is skipped loudly, an unsupplied metric is
+  omitted **with its reason**, and a run that can score nothing exits non-zero.
+- **The cross-corpus overfit check (#237, CR-101, FR-050-AC-31).** 241
+  repositories, compared as a **distribution**: a gain concentrated in one
+  repository and a gain spread across many produce the same total and mean
+  opposite things.
+
+### Fixed
+
+- **Two vacuous property tests in this crate's own parser suite**, found by the
+  new detector on its first run: `tc819_parse_body_never_panics_on_a_foreign_header`
+  and `tiers_compose_on_arbitrary_utf8` guard their `prop_assert` on
+  `parse_header` returning `Some`, which random `\PC*` input rarely does. The
+  first comment even says *"whenever the input is a document at all"* — the
+  guard was known and its cost was not. Reported, not yet rewritten.
+- **The two `/// TC-89N regression (…)` doc comments** are swept onto a
+  delimiter form (spec-artifacts-process CR-038), the single real convention
+  loss that change cost across the whole corpus.
+
+### Known limits
+
+- The vacuity detector's first draft also reported *absence of an assertion
+  macro*; measured over 921 evidence symbols that was 57 of 65 suspicions and
+  **12 of 12 sampled were rule, not real** — in Rust a test fails on panic, so
+  no macro is not no oracle. The class was removed rather than tuned.
+- `oracle_copies` takes explicit pairs. The join from a criterion's oracle span
+  to the implementation it judges needs the `Registry` and the `implements`
+  relation, and is not wired.
+- Span **boundaries** degrade on long clause-heavy statements (#241), so
+  `grounding` counts spans present, never spans correct.
+
 ## [0.43.0] — 2026-08-22
 
 Metric-integrity release. Every change below answers one finding from battletest
