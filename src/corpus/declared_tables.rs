@@ -474,7 +474,7 @@ mod props_metamorphic {
 
 #[cfg(test)]
 mod cr069_regressions {
-    /// TC-892 regression (FR-049, CR-069): the generator's minimized witness.
+    /// TC-892: regression (FR-049, CR-069) — the generator's minimized witness.
     /// A chained range expanded only its leftmost pair and left a `..` behind,
     /// which the declaration's pattern then rejects — so a cell the engine could
     /// have read reported as a dangling trace reference instead.

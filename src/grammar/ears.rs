@@ -822,7 +822,7 @@ mod props_metamorphic {
 
 #[cfg(test)]
 mod cr069_regressions {
-    /// TC-891 regression (FR-042, CR-069): the generator's minimized witness.
+    /// TC-891: regression (FR-042, CR-069) — the generator's minimized witness.
     /// Stripping `**` synthesized a link the link pass had already run past, so
     /// one pass left `[]()` — raw markdown link syntax in the text the grammar
     /// reads as prose — and a second pass reduced it to `""`.
