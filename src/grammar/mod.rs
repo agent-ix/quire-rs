@@ -609,8 +609,63 @@ pub struct AcPropertyCounts {
     pub criteria: usize,
     /// Criteria a generator can extract a property from.
     pub property_shaped: usize,
+    /// Criteria that are extractable **and** carry a shape naming what
+    /// property to write — everything but the `universal` catch-all, `example`
+    /// and `unclassified` (FR-052-AC-18, CR-095).
+    ///
+    /// The honest half of the headline. `property_shaped` counts what a
+    /// generator could in principle quantify over; this counts what the
+    /// classifier actually told the reader.
+    pub specific_shaped: usize,
     /// Criteria per [`property::PropertyShape`] label.
     pub by_property: std::collections::BTreeMap<String, usize>,
+    /// Span-grounding per shape label (FR-052-AC-18, CR-095): how many records
+    /// of each shape carry the `domain` / `precondition` / `oracle` spans a
+    /// downstream generator needs.
+    ///
+    /// Measured, the two halves of a classification record were almost
+    /// disjoint and in the wrong direction: 65 of the 67 specific-shape
+    /// non-`example` records carried **zero** spans, while every span-bearing
+    /// record but nine was `universal`. Reporting the rate per shape is what
+    /// makes that visible without a bespoke sweep.
+    pub grounding: std::collections::BTreeMap<String, GroundingCounts>,
+}
+
+/// How many records of one property shape carry each extraction span
+/// (FR-052-AC-18, CR-095).
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct GroundingCounts {
+    /// Records of this shape.
+    pub records: usize,
+    pub domain: usize,
+    pub precondition: usize,
+    pub oracle: usize,
+    /// Records carrying all three — the set `spec-correctness` can actually be
+    /// driven from.
+    pub all_three: usize,
+}
+
+impl GroundingCounts {
+    fn tally(&mut self, record: &property::AcClassification) {
+        self.records += 1;
+        let (domain, precondition, oracle) = (
+            record.domain.is_some(),
+            record.precondition.is_some(),
+            record.oracle.is_some(),
+        );
+        self.domain += usize::from(domain);
+        self.precondition += usize::from(precondition);
+        self.oracle += usize::from(oracle);
+        self.all_three += usize::from(domain && precondition && oracle);
+    }
+
+    fn merge(&mut self, other: &Self) {
+        self.records += other.records;
+        self.domain += other.domain;
+        self.precondition += other.precondition;
+        self.oracle += other.oracle;
+        self.all_three += other.all_three;
+    }
 }
 
 impl AcPropertyCounts {
@@ -621,10 +676,20 @@ impl AcPropertyCounts {
             out.criteria += 1;
             if record.extractable {
                 out.property_shaped += 1;
+                // Both halves, deliberately: a specifically-shaped criterion
+                // the generator cannot quantify over is not something the
+                // classifier "told the reader what to write" about.
+                if record.property.is_specific() {
+                    out.specific_shaped += 1;
+                }
             }
             *out.by_property
                 .entry(record.property.as_str().to_string())
                 .or_insert(0) += 1;
+            out.grounding
+                .entry(record.property.as_str().to_string())
+                .or_default()
+                .tally(record);
         }
         out
     }
@@ -634,8 +699,15 @@ impl AcPropertyCounts {
     pub fn merge(&mut self, other: &Self) {
         self.criteria += other.criteria;
         self.property_shaped += other.property_shaped;
+        self.specific_shaped += other.specific_shaped;
         for (shape, count) in &other.by_property {
             *self.by_property.entry(shape.clone()).or_insert(0) += count;
+        }
+        for (shape, counts) in &other.grounding {
+            self.grounding
+                .entry(shape.clone())
+                .or_default()
+                .merge(counts);
         }
     }
 }

@@ -861,11 +861,25 @@ fn tc788_zero_property_shaped_is_emitted_not_omitted() {
         .keys()
         .map(String::as_str)
         .collect();
+    // CR-095 adds `specific_shaped` to the all-or-nothing set: it is the
+    // honest half of the same headline, so it is present exactly when the
+    // other two are and absent exactly when they are.
     assert_eq!(
         totals,
-        vec!["backed", "criteria", "property_shaped", "total"]
+        vec![
+            "backed",
+            "criteria",
+            "property_shaped",
+            "specific_shaped",
+            "total"
+        ]
     );
     assert_eq!(value["totals"]["property_shaped"], serde_json::json!(0));
+    assert_eq!(
+        value["totals"]["specific_shaped"],
+        serde_json::json!(0),
+        "zero is a value here too"
+    );
     assert!(
         json.contains("\"property_shaped\": 0"),
         "the key must be written, not skipped: {json}"
@@ -1866,4 +1880,82 @@ fn tc988_coverage_metrics_carry_provenance_and_flag_a_hollow_denominator() {
         "an honest zero is not a finding: {:?}",
         greenfield.diagnostics
     );
+}
+
+#[trace("TC-989", "FR-050-AC-28", "FR-052-AC-18")]
+// the catch-all is split out of the headline, and (CR-095)
+// the span-grounding rate is reported per shape — the two facts a bare
+// `extractable (54%)` hid.
+#[test]
+fn tc989_the_properties_headline_separates_the_catch_all() {
+    let bundle = iso_bundle("989", &[("TC-001", "FR-001-AC-1", "✅")], &["TC-001"]);
+
+    // Two criteria a generator can quantify over. Neither names a property to
+    // write: `universal` is the catch-all, and `example` is one scenario.
+    rewrite_criteria(
+        &bundle,
+        &[
+            "For every configuration, the parser shall accept the document.",
+            "Given a config of 3 lines, the parser shall accept it.",
+        ],
+    );
+    let report = report_for(&bundle, "iso").expect("model declared");
+    let criteria = report.totals.criteria.expect("criteria bound");
+    assert_eq!(
+        report.totals.specific_shaped,
+        Some(0),
+        "a corpus of catch-alls says so: {:?}",
+        report.criteria
+    );
+    assert!(
+        report.totals.property_shaped.expect("shaped") > 0,
+        "and `extractable` is still the larger, still-true number"
+    );
+
+    // Both figures reach the envelope under their own names, so a reader who
+    // repeats the first can find the second. This is the whole failure:
+    // 54% travels and 8% does not.
+    let shaped = metric_for(&report, "coverage.property_shaped");
+    let specific = metric_for(&report, "coverage.specific_shaped");
+    assert_eq!(specific.value(), Some(0));
+    assert_eq!(specific.unit, shaped.unit);
+    match specific.measurement {
+        Measurement::Measured { population, .. } => assert_eq!(
+            population, criteria as u64,
+            "both are ratios over the same denominator, so they are comparable"
+        ),
+        Measurement::NotComputed { .. } => panic!("criteria were classified"),
+    }
+    assert!(
+        specific.method.contains("universal"),
+        "the method names what it excludes: {}",
+        specific.method
+    );
+
+    // Grounding is reported per shape, so "which shapes arrive usable" is
+    // readable without a bespoke sweep.
+    let doc = report
+        .criteria
+        .iter()
+        .find(|c| !c.grounding.is_empty())
+        .expect("a document with classified criteria");
+    let records: usize = doc.grounding.values().map(|g| g.records).sum();
+    assert_eq!(
+        records, doc.criteria,
+        "every classified criterion is counted exactly once"
+    );
+    for (shape, counts) in &doc.grounding {
+        assert!(counts.domain <= counts.records, "{shape}");
+        assert!(counts.precondition <= counts.records, "{shape}");
+        assert!(counts.oracle <= counts.records, "{shape}");
+        assert!(
+            counts.all_three <= counts.domain.min(counts.precondition).min(counts.oracle),
+            "{shape}: all-three cannot exceed any of its parts"
+        );
+    }
+    // `example` is not-extractable by construction, so its records carry no
+    // spans — the one shape whose zero is correct rather than a finding.
+    if let Some(example) = doc.grounding.get("example") {
+        assert_eq!(example.all_three, 0);
+    }
 }

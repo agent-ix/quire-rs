@@ -143,6 +143,22 @@
       "by_property": {
         "example": 1,
         "universal": 1
+      },
+      "grounding": {
+        "example": {
+          "records": 1,
+          "domain": 0,
+          "precondition": 0,
+          "oracle": 0,
+          "all_three": 0
+        },
+        "universal": {
+          "records": 1,
+          "domain": 0,
+          "precondition": 0,
+          "oracle": 0,
+          "all_three": 0
+        }
       }
     },
     {
@@ -152,6 +168,15 @@
       "property_shaped": 1,
       "by_property": {
         "universal": 1
+      },
+      "grounding": {
+        "universal": {
+          "records": 1,
+          "domain": 0,
+          "precondition": 0,
+          "oracle": 0,
+          "all_three": 0
+        }
       }
     }
   ],
@@ -187,6 +212,16 @@
       "matched": 3
     },
     {
+      "name": "coverage.specific_shaped",
+      "unit": "acceptance criterion",
+      "method": "extractable criteria whose shape names what property to write — every shape but the `universal` catch-all, `example` and `unclassified`; `matched` counts criteria that reached the classifier. NOT a quality ranking: a `universal` criterion is often the right thing to write",
+      "state": "measured",
+      "value": 0,
+      "population": 3,
+      "examined": 3,
+      "matched": 3
+    },
+    {
       "name": "coverage.no_symbol_rows",
       "unit": "matrix row",
       "method": "unbacked rows whose declared test type is in the module's `no_source_symbol` vocabulary; `matched` counts the rows reconciled",
@@ -208,6 +243,7 @@
     "backed": 1,
     "total": 9,
     "criteria": 3,
-    "property_shaped": 2
+    "property_shaped": 2,
+    "specific_shaped": 0
   }
 }
