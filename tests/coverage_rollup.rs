@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 
 use ix_trace_rs::trace;
 use quire_rs::coverage::{compute, CoverageError, CoverageReport};
+use quire_rs::metric::{Measurement, Metric};
 use quire_rs::symbols::trace::BindingCensus;
 use quire_rs::symbols::{extract_tree, trace};
 use quire_rs::{Registry, Spec};
@@ -910,31 +911,44 @@ fn tc788_no_criteria_corpus_is_unchanged() {
     assert_eq!(report.totals.property_shaped, None);
 
     let json = report.to_json();
+    // Asserted as an absent KEY rather than an absent substring (CR-094): the
+    // FR-063 metric block names `coverage.property_shaped` even when it was
+    // not computed — that naming is the point of the envelope — so a substring
+    // test now answers a different question from the one this AC asks.
+    let value: serde_json::Value = serde_json::from_str(&json).expect("parses");
+    let object = value.as_object().expect("object");
     assert!(
-        !json.contains("criteria"),
+        !object.contains_key("criteria"),
         "an absent field, not an empty one: {json}"
     );
-    assert!(!json.contains("property_shaped"), "{json}");
-    // The payload is exactly the pre-CR-028 key set.
-    let value: serde_json::Value = serde_json::from_str(&json).expect("parses");
-    let keys: Vec<&str> = value
-        .as_object()
-        .expect("object")
-        .keys()
-        .map(String::as_str)
-        .collect();
+    let keys: Vec<&str> = object.keys().map(String::as_str).collect();
     // `serde_json::Value` holds its object as a map, so the comparison is over
     // the key *set*, not the (separately asserted) emitted order.
     assert_eq!(
         keys,
         vec![
             "groups",
+            "metrics",
             "status_lies",
             "totals",
             "unbacked_rows",
             "untracked_symbols"
         ]
     );
+    // The uncomputed metric says so in its own state, and carries no numbers
+    // that could be read as a zero.
+    let shaped = value["metrics"]
+        .as_array()
+        .expect("metrics")
+        .iter()
+        .find(|m| m["name"] == "coverage.property_shaped")
+        .expect("the metric is named whether or not it ran");
+    assert_eq!(shaped["state"], "not_computed");
+    assert!(shaped.get("value").is_none());
+    assert!(!value["totals"]
+        .as_object()
+        .expect("object")
+        .contains_key("property_shaped"));
     let totals: Vec<&str> = value["totals"]
         .as_object()
         .expect("object")
@@ -1390,9 +1404,30 @@ fn tc805_undeclared_vocabulary_changes_nothing() {
         "without the declaration the eval rows are ordinary lies: {lies:?}"
     );
     assert!(report.no_symbol_rows.is_empty());
+    // Absent KEY, not absent substring (CR-094): the FR-063 envelope names
+    // `coverage.no_symbol_rows` precisely so an undeclared vocabulary reads as
+    // "not computed" rather than as "none found" — the #226 ambiguity.
+    let value: serde_json::Value = serde_json::from_str(&report.to_json()).expect("parses");
     assert!(
-        !report.to_json().contains("no_symbol_rows"),
-        "an undeclared vocabulary must leave the JSON byte-identical"
+        !value
+            .as_object()
+            .expect("object")
+            .contains_key("no_symbol_rows"),
+        "an undeclared vocabulary must leave the row list absent"
+    );
+    let metric = value["metrics"]
+        .as_array()
+        .expect("metrics")
+        .iter()
+        .find(|m| m["name"] == "coverage.no_symbol_rows")
+        .expect("named whether or not it ran");
+    assert_eq!(metric["state"], "not_computed");
+    assert!(
+        metric["because"]
+            .as_str()
+            .expect("a reason")
+            .contains("no_source_symbol"),
+        "the condition is named in the engine's own vocabulary: {metric}"
     );
 }
 
@@ -1721,5 +1756,114 @@ fn tc984_binding_below_the_floor_is_reported_with_both_counts() {
             .any(|d| d.reason == "low-symbol-binding"),
         "over the floor is silence: {:?}",
         over.diagnostics
+    );
+}
+
+fn metric_for<'r>(report: &'r CoverageReport, name: &str) -> &'r Metric {
+    report
+        .metrics
+        .iter()
+        .find(|m| m.name == name)
+        .unwrap_or_else(|| panic!("no `{name}` metric in {:?}", report.metrics))
+}
+
+#[trace("TC-988", "FR-063-AC-3", "FR-063-AC-4", "FR-063-AC-5")]
+// every headline number the coverage payload (CR-094)
+// emits carries its unit, population, examined and matched counts, and a ratio
+// computed over input the measurement could not read is a diagnostic.
+#[test]
+fn tc988_coverage_metrics_carry_provenance_and_flag_a_hollow_denominator() {
+    let bundle = iso_bundle(
+        "988",
+        &[
+            ("TC-001", "FR-001-AC-1", "✅"),
+            ("TC-002", "FR-001-AC-2", "✅"),
+        ],
+        &[],
+    );
+
+    // ── Hollow: real tests, real tags, a marker spelling nothing declares ──
+    rewrite_source(&bundle, 3, 0);
+    let report = report_for(&bundle, "iso").expect("model declared");
+
+    let backed = metric_for(&report, "coverage.backed");
+    assert_eq!(backed.unit, "matrix row");
+    assert!(
+        !backed.method.is_empty(),
+        "a metric states how it was taken"
+    );
+    match backed.measurement {
+        Measurement::Measured {
+            population,
+            examined,
+            matched,
+            ..
+        } => {
+            assert!(population > 0, "there are rows to be a ratio over");
+            assert_eq!(examined, 3, "three evidence symbols were walked");
+            assert_eq!(matched, 0, "and none of them was read");
+        }
+        Measurement::NotComputed { .. } => panic!("backed/total is always computed"),
+    }
+    assert!(backed.is_hollow());
+
+    let finding = report
+        .diagnostics
+        .iter()
+        .find(|d| d.reason == "hollow-denominator")
+        .unwrap_or_else(|| panic!("no hollow finding in {:?}", report.diagnostics));
+    assert_eq!(finding.value.as_deref(), Some("coverage.backed"));
+    assert_eq!(finding.declaration, "metrics");
+
+    // FR-063-AC-4: `implements` draws its denominator from the production
+    // symbols examined, so the relation count is never a bare number. The iso
+    // module declares no `implements` forms, so this is the #226 fold: the
+    // metric is named, states it did not run, and carries no zero.
+    let implements = metric_for(&report, "coverage.implements");
+    match &implements.measurement {
+        Measurement::NotComputed { because } => {
+            assert!(
+                because.contains("implements"),
+                "the condition is named, not 'no data': {because}"
+            );
+        }
+        Measurement::Measured { .. } => panic!("the iso module declares no implements forms"),
+    }
+    assert_eq!(implements.value(), None, "not computed is not a zero");
+
+    // ── Read cleanly: the same tree, the declared spelling ──
+    rewrite_source(&bundle, 3, 3);
+    let healthy = report_for(&bundle, "iso").expect("model declared");
+    let backed = metric_for(&healthy, "coverage.backed");
+    assert!(!backed.is_hollow());
+    assert!(
+        !healthy
+            .diagnostics
+            .iter()
+            .any(|d| d.reason == "hollow-denominator"),
+        "a measurement that read its input reports nothing: {:?}",
+        healthy.diagnostics
+    );
+
+    // ── Nothing to read: a repository with no tests is 0%, honestly ──
+    // The distinction `examined` exists for. Without it this fires on every
+    // greenfield corpus, which would make the check worthless.
+    fs::write(bundle.source.join("lib.rs"), "//! No symbols at all.\n").expect("write");
+    let greenfield = report_for(&bundle, "iso").expect("model declared");
+    let backed = metric_for(&greenfield, "coverage.backed");
+    match backed.measurement {
+        Measurement::Measured {
+            examined, matched, ..
+        } => assert_eq!((examined, matched), (0, 0)),
+        Measurement::NotComputed { .. } => panic!("backed/total is always computed"),
+    }
+    assert!(!backed.is_hollow(), "nothing offered is not a hollow read");
+    assert!(
+        !greenfield
+            .diagnostics
+            .iter()
+            .any(|d| d.reason == "hollow-denominator"),
+        "an honest zero is not a finding: {:?}",
+        greenfield.diagnostics
     );
 }

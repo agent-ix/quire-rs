@@ -24,6 +24,7 @@ pub mod grammar;
 pub mod lint;
 pub mod loader;
 pub mod merge;
+pub mod metric;
 pub mod obligation;
 pub mod parser;
 #[cfg(feature = "python")]

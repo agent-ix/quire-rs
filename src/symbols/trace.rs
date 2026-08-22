@@ -154,6 +154,17 @@ pub struct SymbolGraph {
     /// language label, and present for every language the walk saw at least one
     /// evidence symbol in.
     pub binding_census: Vec<BindingCensus>,
+    /// Production symbols examined for an `implements` marker — the complement
+    /// of [`BindingCensus::candidates`] (FR-063-AC-4, CR-094).
+    ///
+    /// The denominator [`Self::implements`] is drawn from. Without it the
+    /// relation count is a bare number: 16 relations reads the same whether 20
+    /// production symbols were examined or 20,000.
+    pub implements_candidates: usize,
+    /// Production symbols that carried at least one declared `implements`
+    /// marker. Counts symbols, not relations, for the same reason
+    /// [`BindingCensus::bound`] does.
+    pub implements_bound: usize,
     /// Source files a declared `source_exclude` glob removed from the walk,
     /// copied from [`SymbolExtraction::excluded_source_files`] so the coverage
     /// rollup — which sees only this graph — can report it (FR-050-AC-24,
@@ -211,7 +222,15 @@ pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolG
         // as both and a mis-declared pattern binds nothing rather than binding
         // the wrong relation.
         if symbol.kind.carries_implements() {
+            // Counted around the call for the same reason the evidence census
+            // is: `bind_implements` only appends, so the delta is exactly "did
+            // this production symbol carry a marker".
+            let before = graph.implements.len();
             bind_implements(symbol, source, model, &mut graph);
+            graph.implements_candidates += 1;
+            if graph.implements.len() > before {
+                graph.implements_bound += 1;
+            }
             continue;
         }
         if !symbol.kind.binds_trace_ids() {

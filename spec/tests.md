@@ -785,6 +785,10 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-982 | The binding census counts evidence-symbol candidates and bound symbols per language, ordered by language label, naming the forms consulted; a container and a production function are never candidates; `bound` counts symbols not relations; and the same tree bound against a grammar matching nothing reports identical candidates with zero bound (CR-093) | Unit | P0 | FR-051-AC-19 | ✅ |
 | TC-983 | A language whose evidence symbols all fail to bind is a `no-symbol-bound` diagnostic naming the language, the candidate count and every consulted form; the same tree with the declared spelling reports the census, no diagnostic, and carries `binding_census` in the JSON either way (CR-093) | Integration | P0 | FR-050-AC-27 | ✅ |
 | TC-984 | 1 of 21 candidates bound is a `low-symbol-binding` diagnostic carrying both counts rather than a verdict, and is not the zero case; 2 of 21 is over the floor and reports nothing (CR-093) | Integration | P0 | FR-050-AC-27 | ✅ |
+| TC-985 | A hollow metric is a non-zero population with input offered and none read; a zero `examined` (nothing to read), a zero population, and a low-but-non-zero `matched` are each not hollow — the `examined` half was added because without it the check fired on a fixture whose source tree is one comment line (CR-094) | Unit | P0 | FR-063-AC-1 | ✅ |
+| TC-986 | `not computed` and `computed zero` are unequal, serialize under different states, and the uncomputed one carries no `value`/`population`/`examined`/`matched` at all — there is no zero to be read as an answer; both round-trip (CR-094, #226) | Unit | P0 | FR-063-AC-2 | ✅ |
+| TC-987 | A metric cannot be constructed without a unit and a method, and reports its numerator (CR-094) | Unit | P1 | FR-063-AC-1 | ✅ |
+| TC-988 | Every coverage headline number is enveloped with unit, method, population, `examined` and `matched`; three tests carrying an undeclared marker spelling make `coverage.backed` hollow and mint a `hollow-denominator` diagnostic naming it; `coverage.implements` reports `not_computed` with the condition named; and the same tree read cleanly, and a tree with no symbols at all, each report nothing (CR-094) | Integration | P0 | FR-063-AC-3, FR-063-AC-4, FR-063-AC-5 | ✅ |
 | TC-897 | Every exclusion in the relative-destination filter is load-bearing, one at a time — empty, `scheme://`, `#anchor`, `mailto:`, `tel:`, non-`.md` — including forms carrying a `.md` tail; and end to end, a document whose only links are excluded destinations mints no edge. Found by the quoin#48 mutation pilot: each `&&` flipped to `\|\|` with no test failing | Unit | P0 | FR-026-AC-14 | ✅ |
 | TC-797 | A declared model matching zero rows: `quire coverage` renders `0/0` distinctly and never as `100%`, and `--strict` exits non-zero on it — the state that made a wired gate pass vacuously (CR-035) | Integration | P0 | FR-050-AC-14 | 🚧 awaiting EXT-3 `quire-cli` (CLI behaviour; `tests/cli_coverage.rs` — CR-058) |
 | TC-610 | Composed type+object validation: `type: FR` + `object: process` with the FR core present but **no** `## Workflow` mermaid block → an object **error** (process required `diagram` missing) merged into `errors`, while the FR (`type`) portion passes independently; `is_valid==false` | Unit | P0 | FR-032-AC-11, FR-032-AC-13 | ✅ |
@@ -1109,6 +1113,11 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-061-AC-7 | TC-931 |
 | FR-061-AC-8 | TC-932 |
 | FR-061-AC-9 | TC-933 |
+| FR-063-AC-1 | TC-985, TC-987 |
+| FR-063-AC-2 | TC-986 |
+| FR-063-AC-3 | TC-988 |
+| FR-063-AC-4 | TC-988 |
+| FR-063-AC-5 | TC-988 |
 | FR-058-AC-2 | TC-899 |
 | FR-058-AC-2 | TC-909 |
 | FR-058-AC-3 | TC-900 |
