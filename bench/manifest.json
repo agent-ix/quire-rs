@@ -1,0 +1,58 @@
+{
+  "$comment": "The engine benchmark's pinned inputs (FR-050-AC-30, CR-099; agent-ix/quire-rs#231). Metric dictionary first, corpora second — a metric that does not declare unit/population/method is not one this benchmark emits (agent-ix/quoin FR-043-AC-1).",
+  "metrics": {
+    "coverage.backed_pct": {
+      "unit": "percent of matrix rows",
+      "population": "reference rows the declared model reconciles in the corpus entry",
+      "method": "quire coverage --scope <entry>; backed / total. A partial read shows up as `matched` far below `examined` in the same payload (FR-063), which is why this is scored alongside binding_read_pct rather than alone",
+      "direction": "higher-is-better"
+    },
+    "coverage.binding_read_pct": {
+      "unit": "percent of evidence symbols",
+      "population": "evidence symbols the code walk examined",
+      "method": "sum(binding_census.bound) / sum(binding_census.candidates). THE PREMISE metric: 0% here made `555/2389 (23%)` arithmetic over nothing, and no coverage figure means anything while it is low",
+      "direction": "higher-is-better"
+    },
+    "coverage.dead_tags": {
+      "unit": "trace tag",
+      "population": "trace markers written in source across the corpus entry",
+      "method": "count of untracked_symbols — a marker whose id no trace target ever minted. #72 measured 1,014 of these; the point of tracking it is that the number stops being silence",
+      "direction": "lower-is-better"
+    },
+    "coverage.minting_repos": {
+      "unit": "repository",
+      "population": "repositories walked in the corpus entry",
+      "method": "repositories whose declared matrix paths carry a `## Test Case Summary` — the section the `test-case` target reads. #72 measured 153 of 237 minting ZERO; that zero becomes a tracked number rather than an absence nobody looks at",
+      "direction": "higher-is-better"
+    },
+    "properties.specific_shaped_pct": {
+      "unit": "percent of acceptance criteria",
+      "population": "binding acceptance criteria in the corpus entry",
+      "method": "totals.specific_shaped / totals.criteria — the honest half of the extractable headline (CR-095). Scored INSTEAD of the bare extractable figure, which reads as 54% where the specific figure is 8%",
+      "direction": "higher-is-better"
+    },
+    "sentinel.silent_zero": {
+      "unit": "metric",
+      "population": "metrics emitted across every corpus entry",
+      "method": "metrics with matched = 0 over a non-zero population and NO accompanying diagnostic. This is a GATE, not a score: expected exactly 0, no tolerance, no ratchet. It is the shape of the defect that made three published SpecReviews wrong",
+      "direction": "gate-zero"
+    }
+  },
+  "corpora": [
+    {
+      "name": "self",
+      "tier": 1,
+      "path": ".",
+      "identity": "working-tree",
+      "$comment": "This repository, at whatever it is. Not pinned on purpose: it is the fast inner-loop entry and its job is to move as the engine does."
+    },
+    {
+      "name": "filament-ide-rs",
+      "tier": 2,
+      "path": "../filament-ide-rs",
+      "identity": "sha",
+      "pinned_sha": "fc5d644",
+      "$comment": "The battletest pass-2 corpus. PINNED: a run against a different SHA is refused rather than scored, because a score that moves on an unpinned corpus says nothing about which change moved it (agent-ix/quoin FR-043-AC-8)."
+    }
+  ]
+}

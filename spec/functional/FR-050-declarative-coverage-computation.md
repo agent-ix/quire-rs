@@ -152,7 +152,47 @@ model; the engine knows nothing of "AC" or "TC" as concepts.
 
 | FR-050-AC-28 | The criteria rollup carries the FR-052-AC-18 split: `totals.specific_shaped` alongside `criteria` and `property_shaped` as an all-or-nothing triple, a per-document `specific_shaped` count absent when zero, and a per-document `grounding` map giving, per shape label, how many of its records carry `domain` / `precondition` / `oracle` and how many carry all three. `coverage.specific_shaped` is emitted as its own FR-063 metric over the same denominator as `coverage.property_shaped`, so the two are comparable and the honest figure is findable by name (CR-095). | Test (TC-989) |
 | FR-050-AC-29 | A declarative corpus case is data: `{name, issue_ref, tags, input, expect}`, where `input` is a whole miniature repository (module manifest, spec documents, source files) and `expect` names only the facts the case is about. One parameterized test runs every case; each case is uniquely named, carries at least one tracking id, and carries an `issue_ref` naming the filing it regresses. Two runs of a case produce byte-identical reports. `expect` can assert diagnostics that must be **absent** as well as present. | Test (TC-992..TC-996) |
+| FR-050-AC-30 | A corpus benchmark scores declared metrics against checked-in baselines with **ratchet** semantics: better rewrites the baseline, equal holds, worse fails naming the metric and both values. Every metric declares unit / population / method / direction, and a number outside the dictionary is refused. A `gate-zero` metric never ratchets — it is a gate with no tolerance. A corpus entry that cannot be read is **skipped loudly**, and a metric the payload cannot supply is **omitted with its reason**, never scored zero. A tier-2 entry declares a pinned SHA and a run against a different tree is refused. Reports are deterministic. | Test (`scripts/tests/test_bench.py`) |
 
+
+
+> **CR-099 note (2026-08-22):** AC-30 is new — the corpus benchmark.
+> `agent-ix/quire-rs#231`, implementing the engine half of `agent-ix/quoin`
+> FR-043; epic `agent-ix/quoin#197`.
+>
+> `coverage_baseline`'s byte-diff pattern extended from one fixture to the whole
+> corpus. It **extends** the existing sweep tooling rather than replacing it:
+> `sweep_coverage.py` and `ac_corpus_sweep.py` still do the walking; what is new
+> is the pinned manifest, the score report and the ratchet.
+>
+> **Ratchet, not threshold.** A hand-picked threshold invites the number to be
+> tuned to it — which is how `ac:unclassifiable` came to pass 99.2% of corpus
+> cells (CR-019). A baseline moves only through `make bench-update`, whose diff
+> belongs in the pull request.
+>
+> **Three refusals, and each is the point.** A corpus entry that cannot be read
+> is skipped loudly; a metric the payload cannot supply is omitted **with its
+> reason**; a run that can score nothing at all exits non-zero. Scoring any of
+> those as `0` would reproduce the silent-zero defect *inside the thing built to
+> catch it*.
+>
+> The two absences are distinguished, because they mean different things: a
+> missing `binding_census` key means the engine predates FR-050-AC-27 and the
+> score would be measuring the toolchain's **version**; an empty one means the
+> corpus genuinely has no evidence symbols.
+>
+> **The sentinel does not depend on the code path it checks.** `hollow-denominator`
+> is the engine's own report (FR-063-AC-5); the sentinel counts hollow metrics
+> the engine did **not** flag, so a regression in that diagnostic cannot hide
+> itself.
+>
+> **It caught two things on its first live run, both real.** The pinned tier-2
+> corpus had moved — `filament-ide-rs` is at `16eca41`, not the adjudicated
+> `fc5d644` — and the SHA gate refused to score it rather than answering a
+> different question with the same key. And the ratchet failed on `dead_tags`
+> 0 → 1: a Python docstring in the benchmark's own test file opened with
+> `FR-043-AC-9`, a **quoin** requirement id, which `python-docstring-id` bound
+> as a quire-rs trace tag. The reference was reworded; the number is back to 0.
 
 > **CR-098 note (2026-08-22):** AC-29 is new — the regression corpus is data.
 > `agent-ix/quire-rs#232` and `agent-ix/quire-rs#233`, carrying

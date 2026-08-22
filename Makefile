@@ -209,6 +209,27 @@ sanitize:
 	@echo "NOTE: TSAN/ASAN of the GIL window + Python object handoff needs a"
 	@echo "sanitizer-instrumented CPython and runs on the scheduled CI lane."
 
+# The corpus-scale benchmark (quire-rs#231, CR-099) — `coverage-baseline`'s
+# byte-diff pattern extended from one fixture to the whole corpus.
+#
+# Ratchet, not threshold: a run may only match-or-beat the checked-in value,
+# and lowering one requires `bench-update` plus a written justification in the
+# PR. A hand-picked threshold invites the number to be tuned to it, which is
+# how `ac:unclassifiable` came to pass 99.2% of corpus cells (CR-019).
+#
+# Needs `quire` on PATH and a module; a corpus entry that cannot be read is
+# SKIPPED loudly, never scored 0 — a missing corpus scored as zero is the
+# silent-zero defect this benchmark exists to catch.
+BENCH_MODULE ?= $(HOME)/dev/spec-artifacts-process/spec_artifacts_process
+.PHONY: bench
+bench:
+	python3 scripts/bench.py --module $(BENCH_MODULE)
+
+# Deliberate regeneration. The diff belongs in the pull request.
+.PHONY: bench-update
+bench-update:
+	python3 scripts/bench.py --update --module $(BENCH_MODULE)
+
 .PHONY: coverage-baseline-update
 coverage-baseline-update:
 	@echo "Regenerating the FR-050-AC-7 coverage baseline (CR-057)."
