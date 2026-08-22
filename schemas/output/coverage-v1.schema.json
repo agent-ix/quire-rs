@@ -139,6 +139,7 @@
             "name",
             "unit",
             "method",
+            "shape",
             "state",
             "value",
             "population",
@@ -154,6 +155,9 @@
             },
             "method": {
               "$ref": "#/$defs/MetricMethod"
+            },
+            "shape": {
+              "$ref": "#/$defs/MetricShape"
             },
             "state": {
               "const": "measured"
@@ -187,6 +191,7 @@
             "name",
             "unit",
             "method",
+            "shape",
             "state",
             "because"
           ],
@@ -199,6 +204,9 @@
             },
             "method": {
               "$ref": "#/$defs/MetricMethod"
+            },
+            "shape": {
+              "$ref": "#/$defs/MetricShape"
             },
             "state": {
               "const": "not_computed"
@@ -226,6 +234,14 @@
       "type": "string",
       "minLength": 1,
       "description": "How the number was arrived at, and what `matched` counts for it \u2014 written for somebody deciding whether to trust the ratio."
+    },
+    "MetricShape": {
+      "type": "string",
+      "enum": [
+        "ratio",
+        "count"
+      ],
+      "description": "Whether `value` is a share of `population` or a tally in its own right (CR-102, #229). HOLLOWNESS IS A PROPERTY OF RATIOS ONLY: for a `count`, `matched` and `value` are the same fact, so `matched: 0` reports the finding rather than a failure to look. `coverage.implements` read 0 of 42 production symbols on agent-ix/spec-artifacts-process and was reported as arithmetic over nothing; the honest report is '0 of 42'. Additive under FR-055-CON-3."
     },
     "BindingCensus": {
       "type": "object",

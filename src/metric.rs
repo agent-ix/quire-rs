@@ -66,10 +66,30 @@ pub enum Measurement {
     },
 }
 
+/// Whether `value` is a share of `population` or a tally in its own right
+/// (CR-102).
+///
+/// The distinction exists because **hollowness is a property of ratios only**.
+/// A ratio whose numerator came from reading nothing is arithmetic over
+/// nothing; a count that read everything and found none is simply zero, and
+/// zero is the answer.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MetricShape {
+    /// `value` out of `population` — the share is the point, and a denominator
+    /// the measurement could not read makes the share meaningless.
+    Ratio,
+    /// `value` is a tally; `population` states what was searched to reach it.
+    /// `matched` and `value` coincide, so `matched: 0` is the finding itself
+    /// rather than a failure to look.
+    Count,
+}
+
 /// One emitted number, with everything a reader needs to know what it counts.
 ///
-/// Constructed through [`Metric::measured`] / [`Metric::not_computed`] so a
-/// metric cannot be built without its unit and method.
+/// Constructed through [`Metric::measured`] / [`Metric::counted`] /
+/// [`Metric::not_computed`] so a metric cannot be built without its unit,
+/// method and shape.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Metric {
     /// Stable dotted token — `coverage.backed`. Machine-joinable, never
@@ -81,12 +101,16 @@ pub struct Metric {
     /// How the number was arrived at, and what `matched` counts for it. One
     /// sentence, written for somebody deciding whether to trust the ratio.
     pub method: String,
+    /// Whether `value` is a share or a tally. Decides whether
+    /// [`Metric::is_hollow`] applies at all.
+    pub shape: MetricShape,
     #[serde(flatten)]
     pub measurement: Measurement,
 }
 
 impl Metric {
-    /// A metric whose measurement ran.
+    /// A **ratio** whose measurement ran: `value` out of `population`, from
+    /// `matched` of the `examined` inputs.
     pub fn measured(
         name: &str,
         unit: &str,
@@ -100,6 +124,7 @@ impl Metric {
             name: name.to_string(),
             unit: unit.to_string(),
             method: method.to_string(),
+            shape: MetricShape::Ratio,
             measurement: Measurement::Measured {
                 value: value as u64,
                 population: population as u64,
@@ -109,12 +134,47 @@ impl Metric {
         }
     }
 
-    /// A metric the engine did not compute, and the condition that decided it.
-    pub fn not_computed(name: &str, unit: &str, method: &str, because: &str) -> Self {
+    /// A **count** whose measurement ran: `value` found by searching
+    /// `population`, having examined `examined` inputs.
+    ///
+    /// `matched` is `value` by construction — for a tally they are the same
+    /// fact, and letting a caller pass them separately invites the pair to
+    /// disagree.
+    pub fn counted(
+        name: &str,
+        unit: &str,
+        method: &str,
+        value: usize,
+        population: usize,
+        examined: usize,
+    ) -> Self {
         Self {
             name: name.to_string(),
             unit: unit.to_string(),
             method: method.to_string(),
+            shape: MetricShape::Count,
+            measurement: Measurement::Measured {
+                value: value as u64,
+                population: population as u64,
+                examined: examined as u64,
+                matched: value as u64,
+            },
+        }
+    }
+
+    /// A metric the engine did not compute, and the condition that decided it.
+    pub fn not_computed(
+        name: &str,
+        unit: &str,
+        method: &str,
+        shape: MetricShape,
+        because: &str,
+    ) -> Self {
+        Self {
+            name: name.to_string(),
+            unit: unit.to_string(),
+            method: method.to_string(),
+            shape,
             measurement: Measurement::NotComputed {
                 because: because.to_string(),
             },
@@ -125,8 +185,14 @@ impl Metric {
     /// and could not read: a non-empty denominator, input offered, and
     /// **nothing** matched.
     ///
-    /// Three exclusions, each a shape that looks similar and is not:
+    /// Four exclusions, each a shape that looks similar and is not:
     ///
+    /// - **[`MetricShape::Count`]** — `matched` *is* `value` for a tally, so
+    ///   `matched: 0` reports the finding rather than a failure to look
+    ///   (CR-102). `coverage.implements` read 0 of 42 production symbols on
+    ///   `agent-ix/spec-artifacts-process` and was called arithmetic over
+    ///   nothing; the honest report is "0 of 42". This crate reads 15 of 1,412,
+    ///   which is why a ratchet over one repository never saw it.
     /// - **`examined` 0** — there was nothing to read. A repository with no
     ///   tests reports 0% honestly, and calling that hollow would fire the
     ///   check on every greenfield corpus.
@@ -140,15 +206,16 @@ impl Metric {
     /// What remains needs no threshold: input was offered, none of it was
     /// read, and a ratio was published anyway.
     pub fn is_hollow(&self) -> bool {
-        matches!(
-            self.measurement,
-            Measurement::Measured {
-                population,
-                examined,
-                matched: 0,
-                ..
-            } if population > 0 && examined > 0
-        )
+        self.shape == MetricShape::Ratio
+            && matches!(
+                self.measurement,
+                Measurement::Measured {
+                    population,
+                    examined,
+                    matched: 0,
+                    ..
+                } if population > 0 && examined > 0
+            )
     }
 
     /// The numerator, when the measurement ran.
@@ -194,10 +261,22 @@ mod tests {
             "coverage.implements",
             "requirement",
             "…",
+            MetricShape::Count,
             "the module declares no `implements` marker forms",
         );
         assert!(!absent.is_hollow());
         assert_eq!(absent.value(), None);
+
+        // A COUNT is never hollow (CR-102): `matched` IS the value, so zero is
+        // the finding rather than a failure to read. This is the shape that
+        // reported `coverage.implements` -- 0 of 42 production symbols on
+        // agent-ix/spec-artifacts-process -- as arithmetic over nothing.
+        let honest_zero =
+            Metric::counted("coverage.implements", "production symbol", "…", 0, 42, 42);
+        assert!(!honest_zero.is_hollow());
+        // The same numbers as a RATIO still are, so this measures the shape
+        // rather than the arithmetic.
+        assert!(Metric::measured("coverage.backed", "matrix row", "…", 0, 42, 42, 0).is_hollow());
     }
 
     #[trace("TC-986", "FR-063-AC-2")]
@@ -206,7 +285,13 @@ mod tests {
     #[test]
     fn tc986_not_computed_is_not_a_zero() {
         let zero = Metric::measured("m", "row", "counted every row", 0, 12, 12, 12);
-        let absent = Metric::not_computed("m", "row", "counted every row", "nothing declared it");
+        let absent = Metric::not_computed(
+            "m",
+            "row",
+            "counted every row",
+            MetricShape::Ratio,
+            "nothing declared it",
+        );
         assert_ne!(zero, absent);
 
         let zero_json = serde_json::to_value(&zero).expect("serialize");

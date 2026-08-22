@@ -88,12 +88,43 @@ of their own — which is what makes it a schema invariant rather than another s
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
-| FR-063-AC-1 | A metric carries a name, a unit and a method, and there is no constructor that can omit them. A metric is hollow when its population is non-zero, its `examined` count is non-zero, and `matched` is zero; a zero `examined`, a zero `population`, and a low-but-non-zero `matched` are each not hollow. | Test (TC-985, TC-987) |
+| FR-063-AC-1 | A metric carries a name, a unit, a method and a **shape**, and there is no constructor that can omit them. A **ratio** is hollow when its population is non-zero, its `examined` count is non-zero, and `matched` is zero; a zero `examined`, a zero `population`, and a low-but-non-zero `matched` are each not hollow. | Test (TC-985, TC-987) |
+| FR-063-AC-6 | A **count** is never hollow: `matched` and `value` are the same fact for a tally, so `matched: 0` over a non-zero examined reports that none was found, not that none was read. The identical numbers carried as a ratio are still hollow, so the shape decides and not the arithmetic. | Test (TC-985) |
 | FR-063-AC-2 | A measurement that did not run serializes with a distinct state and a stated reason, carries no `value`, `population`, `examined` or `matched`, is unequal to the same metric measured as zero, and round-trips through the contract. | Test (TC-986) |
 | FR-063-AC-3 | The coverage payload carries one enveloped metric for every headline number it emits, each with its unit, method, population, `examined` and `matched` counts. | Test (TC-988) |
 | FR-063-AC-4 | `coverage.implements` draws its population from the production symbols examined, so the relation count is never a bare number; a module declaring no `implements` forms reports it as not computed with the condition named. | Test (TC-988) |
 | FR-063-AC-5 | A metric whose measurement was offered input and read none of it is reported in `CoverageReport.diagnostics` under `hollow-denominator`, naming the metric; the same corpus read cleanly, and a corpus offering no input at all, each report nothing. | Test (TC-988) |
 
+> **CR-102 note (2026-08-22):** `agent-ix/quire-rs#229`, reopened. The
+> hollowness rule shipped in `v0.44.0` fires on an **honest zero** (SR-054).
+>
+> **`is_hollow` is a ratio test, and it was applied to counts.** For
+> `coverage.implements` the value *is* the match count — the metric's own
+> `method` string said so — so `matched: 0` means no production symbol carries
+> an `Implements:` marker, which is the answer rather than a failure to read.
+> Measured on `agent-ix/spec-artifacts-process` at `v0.24.0`: **0 of 42
+> production symbols, reported as arithmetic over nothing.** `quire-cli` reads
+> 0 of 214 and was the same. This crate reads 15 of 1,412, which is why a
+> ratchet whose corpus is one repository never saw it.
+>
+> **AC-1 encoded the defect, so no test could catch it.** It stated hollowness
+> as `population != 0 && examined != 0 && matched == 0` with no exception, and
+> TC-985 tested exactly that using `coverage.backed` — a ratio — for all four
+> cases. The criterion was wrong, not the test. `shape` is now a field rather
+> than a convention, because a rule that depends on which kind of number this is
+> cannot read that from the prose in `method`.
+>
+> **Coupled with `agent-ix/quoin#198`.** FR-043-AC-6's silent-zero sentinel
+> excuses a metric with `matched = 0` when a diagnostic accompanies it, and the
+> false positive here *was* that diagnostic. Removing it alone would make the
+> sentinel fire on the same honest zero, so both ship together.
+>
+> **The `hollow-denominator` message was also rebuilt.** The template said "a
+> ratio over a population of {}" while the substitution carried its own clause,
+> and `(s)` was pluralising a computed count by hand. One template now, and the
+> dead `NotComputed` branch is gone — `is_hollow` is false for every uncomputed
+> metric, so rendering half a sentence for it was unreachable code.
+>
 > **CR-094 note (2026-08-22):** FR-063 is new. `agent-ix/quire-rs#229`, folding
 > `agent-ix/quire-rs#226`; epic `agent-ix/quoin#197`.
 >

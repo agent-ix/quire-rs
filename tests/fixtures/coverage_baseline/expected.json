@@ -195,6 +195,7 @@
       "name": "coverage.backed",
       "unit": "matrix row",
       "method": "rows of the declared reference tables whose trace target is bound by at least one source symbol; `matched` counts the evidence symbols that bound a trace id out of the `examined` evidence symbols walked, so matched 0 of a non-zero examined is a ratio computed over a corpus the binder could not read",
+      "shape": "ratio",
       "state": "measured",
       "value": 1,
       "population": 9,
@@ -205,6 +206,7 @@
       "name": "coverage.property_shaped",
       "unit": "acceptance criterion",
       "method": "criteria the FR-052 classifier reads a property shape from; `matched` counts criteria that reached the classifier at all",
+      "shape": "ratio",
       "state": "measured",
       "value": 2,
       "population": 3,
@@ -215,6 +217,7 @@
       "name": "coverage.specific_shaped",
       "unit": "acceptance criterion",
       "method": "extractable criteria whose shape names what property to write — every shape but the `universal` catch-all, `example` and `unclassified`; `matched` counts criteria that reached the classifier. NOT a quality ranking: a `universal` criterion is often the right thing to write",
+      "shape": "ratio",
       "state": "measured",
       "value": 0,
       "population": 3,
@@ -224,17 +227,19 @@
     {
       "name": "coverage.no_symbol_rows",
       "unit": "matrix row",
-      "method": "unbacked rows whose declared test type is in the module's `no_source_symbol` vocabulary; `matched` counts the rows reconciled",
+      "method": "unbacked rows whose declared test type is in the module's `no_source_symbol` vocabulary, counted over every row reconciled",
+      "shape": "count",
       "state": "measured",
       "value": 1,
       "population": 9,
       "examined": 9,
-      "matched": 9
+      "matched": 1
     },
     {
       "name": "coverage.implements",
       "unit": "production symbol",
       "method": "production symbols carrying a declared `implements` marker",
+      "shape": "count",
       "state": "not_computed",
       "because": "the module declares no `trace_tags.implements` forms, so the requirement-to-code relation was never derived — this is unasked, not none"
     }
