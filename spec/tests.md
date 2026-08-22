@@ -138,6 +138,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | FR-061 Combinatorial obligations | AC-1..10; CON-1..3 | TC-925 (tuple count), TC-926 (strength beyond dimensions is 0), TC-927 (forbidden combination excluded), TC-928 (exclusion bites at higher strength), TC-929 (statement covers the space), TC-930 (cells parse as authored), TC-931 (one obligation minted end to end), TC-932 (no interaction mints nothing), TC-933 (strength 0 rejected at load), TC-934 (the CORPUS path mints the same one obligation — the branch shipped only in the single-document path, so `quire coverage` minted one obligation per dimension row and quoin FR-035 could never see a combinatorial obligation) | ✅ Implemented |
 | FR-057 Per-check corpus severity | AC-1..10; CON-1..2 | TC-883 (promote/demote/off), TC-884 (unconfigured tier per check), TC-885 (`--severity`-shaped layering reaches corpus checks), TC-886 (severity carried, reason stable, key well-formed), TC-887 (order unperturbed), TC-888 (CON-1 bridged results not registrable), TC-889 (sibling packs independent) | ✅ Implemented |
 | FR-056 Requirement-quality lints | AC-1..13; CON-1..5 | TC-861 (built-in term fires), TC-862 (longest term names the finding), TC-863 (CON-2 module terms layer over built-ins), TC-864 (allocation, not voice), TC-865 (two modals), TC-866 (CR-017 mention parity), TC-867 (CON-1 advisory + per-check `off`), TC-868 (CON-4 ears/ac streams unchanged), TC-869 (checks independent), TC-876 (row-level line attribution), TC-877 (all four modals collected), TC-878 (a deadline or a sort key is not an agent), TC-879 (unknown ambiguity_terms key fails load) | ✅ Implemented |
+| FR-063 Plain-language profiles | AC-1..12; CON-1..5 | TC-970..TC-981 (reader blocks, three advisory checks, typed profiles, batch accountability, configuration identity and non-interference) | ✅ Implemented |
 | NFR-020 Filament extraction boundary pure/deterministic | static inspection + parity tests | TC-704, TC-767, TC-690 | ✅ Complete |
 
 ---
@@ -782,6 +783,18 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-967 | The `uncatalogued-verification-method` diagnostic carries the authored method in a structured `value` field, byte-equal to the obligation records' `method`, and a diagnostic not about one value omits the key — never `null` (CR-091) | Integration | P0 | FR-054-AC-12 | ✅ |
 | TC-968 | A declared catalog `cost` survives to the accessor verbatim, and an entry declaring none reads `None` — absence is "the module said nothing", never a default (CR-092) | Integration | P0 | FR-054-AC-13 | ✅ |
 | TC-969 | The serialized catalog entry omits an undeclared `cost` entirely — never `null` — and carries a declared one, so a consumer written before the field existed reads an unchanged entry from every catalog that has not adopted it (CR-092) | Integration | P1 | FR-054-AC-13 | ✅ |
+| TC-970 | Reader blocks exclude frontmatter, fenced/indented/inline code and comments while retaining visible prose and frontmatter-inclusive 1-based lines | Unit | P0 | FR-063-AC-1 | ✅ |
+| TC-971 | Nested lists, wrapped paragraphs, quotes and alerts yield independently located reader blocks with normalized visible text | Unit | P0 | FR-063-AC-2 | ✅ |
+| TC-972 | Table cells are visible, delimiters are not, and malformed Markdown is deterministic and panic-free | Unit | P0 | FR-063-AC-3 | ✅ |
+| TC-973 | Sentence length fires strictly above the configured word boundary and ignores code/link destinations | Unit | P0 | FR-063-AC-4 | ✅ |
+| TC-974 | Heading skip fires only when the increase exceeds the configured step | Unit | P0 | FR-063-AC-5 | ✅ |
+| TC-975 | Undefined acronym reports first use only; profile vocabulary, inline definitions and code suppress it | Unit | P0 | FR-063-AC-6 | ✅ |
+| TC-976 | Typed profiles load from manifests and reject empty identity, zero thresholds and malformed acronym entries | Integration | P0 | FR-063-AC-7 | ✅ |
+| TC-977 | Profile merge is deterministic first-wins and the registry accessor has no implicit default | Integration | P1 | FR-063-AC-8 | ✅ |
+| TC-978 | Batch accounting distinguishes clean readable input from zero readable input and records stable skip reasons | Integration | P0 | FR-063-AC-9 | ✅ |
+| TC-979 | Effective configuration changes alter the profile fingerprint and repeated reports serialize identically | Unit | P0 | FR-063-AC-10 | ✅ |
+| TC-980 | Findings carry warning severity, path, line and excerpt and use only the three declared project rule ids | Unit | P0 | FR-063-AC-11 | ✅ |
+| TC-981 | Running the advisory profile leaves validation, grammar, extraction and writeback outputs unchanged | Integration | P0 | FR-063-AC-12 | ✅ |
 | TC-897 | Every exclusion in the relative-destination filter is load-bearing, one at a time — empty, `scheme://`, `#anchor`, `mailto:`, `tel:`, non-`.md` — including forms carrying a `.md` tail; and end to end, a document whose only links are excluded destinations mints no edge. Found by the quoin#48 mutation pilot: each `&&` flipped to `\|\|` with no test failing | Unit | P0 | FR-026-AC-14 | ✅ |
 | TC-797 | A declared model matching zero rows: `quire coverage` renders `0/0` distinctly and never as `100%`, and `--strict` exits non-zero on it — the state that made a wired gate pass vacuously (CR-035) | Integration | P0 | FR-050-AC-14 | 🚧 awaiting EXT-3 `quire-cli` (CLI behaviour; `tests/cli_coverage.rs` — CR-058) |
 | TC-610 | Composed type+object validation: `type: FR` + `object: process` with the FR core present but **no** `## Workflow` mermaid block → an object **error** (process required `diagram` missing) merged into `errors`, while the FR (`type`) portion passes independently; `is_valid==false` | Unit | P0 | FR-032-AC-11, FR-032-AC-13 | ✅ |
@@ -1433,6 +1446,18 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-057-AC-8 | TC-886 |
 | FR-057-AC-9 | TC-886 |
 | FR-057-AC-10 | TC-887 |
+| FR-063-AC-1 | TC-970 |
+| FR-063-AC-2 | TC-971 |
+| FR-063-AC-3 | TC-972 |
+| FR-063-AC-4 | TC-973 |
+| FR-063-AC-5 | TC-974 |
+| FR-063-AC-6 | TC-975 |
+| FR-063-AC-7 | TC-976 |
+| FR-063-AC-8 | TC-977 |
+| FR-063-AC-9 | TC-978 |
+| FR-063-AC-10 | TC-979 |
+| FR-063-AC-11 | TC-980 |
+| FR-063-AC-12 | TC-981 |
 
 ### Non-Functional Requirements
 

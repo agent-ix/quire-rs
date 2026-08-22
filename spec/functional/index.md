@@ -62,3 +62,4 @@ description: "Index of artifacts in this directory."
 * [FR-060: Vocabulary References in Body-Extraction Asserts](./FR-060-vocabulary-references.md)
 * [FR-061: Combinatorial Obligations from Declared Configuration Dimensions](./FR-061-combinatorial-obligations.md)
 * [FR-062: The requirement-to-production-code relation](./FR-062-implements-relation.md)
+* [FR-063: Plain-language profiles over reader-visible prose](./FR-063-plain-language-profiles.md)

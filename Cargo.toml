@@ -134,6 +134,10 @@ harness = false
 name = "load_repo"
 harness = false
 
+[[bench]]
+name = "plain_language"
+harness = false
+
 [profile.release]
 lto = "thin"
 codegen-units = 1
