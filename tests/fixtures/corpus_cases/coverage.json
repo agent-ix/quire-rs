@@ -1,0 +1,224 @@
+[
+  {
+    "name": "marker-form-mismatch",
+    "issue_ref": "agent-ix/spec-artifacts-process#59",
+    "tags": [
+      "TC-992",
+      "coverage",
+      "binding"
+    ],
+    "comment": "Real tests, real tags, a marker spelling the module never declared. filament-ide-rs: 1,292 such symbols, 0 bound, reported as 555/2389 (23%) with nothing saying so.",
+    "input": {
+      "module": "name: bench\nmanifest_version: 1.0.0\nversion: 0.0.1\nartifact_types:\n- name: FR\n  grammar_ref: iso-spec-core\n- name: TestMatrix\ntraceability:\n  trace_targets:\n  - name: test-case\n    archetype: TestMatrix\n    section: Test Cases\n    id_column: ID\n  - name: acceptance-criterion\n    archetype: FR\n    section: Acceptance Criteria\n    id_column: ID\n  document_references:\n  - name: traces-to\n    archetype: TestMatrix\n    section: Test Cases\n    row_id_column: ID\n    column: Traces To\n    targets: [acceptance-criterion, test-case]\n    pattern: '([A-Z]{2,4}-\\d+(?:-[A-Z]{2,4}-\\d+)?)'\n  status:\n    column: Status\n    complete: [\"\\u2705\"]\n    pending: [\"\\U0001F6A7\"]\n  trace_tags:\n    markers:\n    - name: rust-trace-attribute\n      language: rust\n      pattern: '#\\[trace\\(([^)]*)\\)\\]'\n      template: '#[trace({ids})]'\n",
+      "documents": {
+        "FR-001.md": "---\nid: FR-001\ntype: FR\n---\n\n## Acceptance Criteria\n\n| ID | Criteria | Verification |\n|----|----------|--------------|\n| FR-001-AC-1 | Every finding shall default to warning. | Test (TC-001) |\n",
+        "tests.md": "---\nid: TM-001\ntype: TestMatrix\n---\n\n## Test Cases\n\n| ID | Traces To | Status |\n|----|-----------|--------|\n| TC-001 | FR-001-AC-1 | 🚧 |\n"
+      },
+      "sources": {
+        "lib.rs": "//! fixture\n\n#[cfg(test)]\nmod tests {\n    #[tracks(\"TC-001\")]\n    #[test]\n    fn covers_0() {\n        let _ = 1;\n    }\n}\n"
+      }
+    },
+    "expect": {
+      "backed": 0,
+      "binding_census": [
+        {
+          "language": "rust",
+          "candidates": 1,
+          "bound": 0
+        }
+      ],
+      "diagnostic_reasons": [
+        "no-symbol-bound",
+        "hollow-denominator"
+      ],
+      "metrics": [
+        {
+          "name": "coverage.backed",
+          "state": "measured",
+          "examined": 1,
+          "matched": 0,
+          "hollow": true
+        }
+      ],
+      "total": 2
+    }
+  },
+  {
+    "name": "marker-form-declared",
+    "issue_ref": "agent-ix/spec-artifacts-process#59",
+    "tags": [
+      "TC-992",
+      "coverage",
+      "binding"
+    ],
+    "comment": "The control. Same tree, the declared spelling: nothing fires, and the census becomes the reassurance the payload could not previously give.",
+    "input": {
+      "module": "name: bench\nmanifest_version: 1.0.0\nversion: 0.0.1\nartifact_types:\n- name: FR\n  grammar_ref: iso-spec-core\n- name: TestMatrix\ntraceability:\n  trace_targets:\n  - name: test-case\n    archetype: TestMatrix\n    section: Test Cases\n    id_column: ID\n  - name: acceptance-criterion\n    archetype: FR\n    section: Acceptance Criteria\n    id_column: ID\n  document_references:\n  - name: traces-to\n    archetype: TestMatrix\n    section: Test Cases\n    row_id_column: ID\n    column: Traces To\n    targets: [acceptance-criterion, test-case]\n    pattern: '([A-Z]{2,4}-\\d+(?:-[A-Z]{2,4}-\\d+)?)'\n  status:\n    column: Status\n    complete: [\"\\u2705\"]\n    pending: [\"\\U0001F6A7\"]\n  trace_tags:\n    markers:\n    - name: rust-trace-attribute\n      language: rust\n      pattern: '#\\[trace\\(([^)]*)\\)\\]'\n      template: '#[trace({ids})]'\n",
+      "documents": {
+        "FR-001.md": "---\nid: FR-001\ntype: FR\n---\n\n## Acceptance Criteria\n\n| ID | Criteria | Verification |\n|----|----------|--------------|\n| FR-001-AC-1 | Every finding shall default to warning. | Test (TC-001) |\n",
+        "tests.md": "---\nid: TM-001\ntype: TestMatrix\n---\n\n## Test Cases\n\n| ID | Traces To | Status |\n|----|-----------|--------|\n| TC-001 | FR-001-AC-1 | 🚧 |\n"
+      },
+      "sources": {
+        "lib.rs": "//! fixture\n\n#[cfg(test)]\nmod tests {\n    #[trace(\"TC-001\")]\n    #[test]\n    fn covers_0() {\n        let _ = 1;\n    }\n}\n"
+      }
+    },
+    "expect": {
+      "backed": 1,
+      "binding_census": [
+        {
+          "language": "rust",
+          "candidates": 1,
+          "bound": 1
+        }
+      ],
+      "absent_diagnostic_reasons": [
+        "no-symbol-bound",
+        "low-symbol-binding",
+        "hollow-denominator"
+      ],
+      "metrics": [
+        {
+          "name": "coverage.backed",
+          "state": "measured",
+          "examined": 1,
+          "matched": 1,
+          "hollow": false
+        }
+      ],
+      "total": 2
+    }
+  },
+  {
+    "name": "stale-name-correct-trace",
+    "issue_ref": "agent-ix/quire-rs#227",
+    "tags": [
+      "TC-993",
+      "coverage",
+      "binding"
+    ],
+    "comment": "A test whose NAME carries an id the matrix does not declare while its marker carries one it does. The binding is correct; the name is stale. Neither the row nor the symbol should be reported as a defect.",
+    "input": {
+      "module": "name: bench\nmanifest_version: 1.0.0\nversion: 0.0.1\nartifact_types:\n- name: FR\n  grammar_ref: iso-spec-core\n- name: TestMatrix\ntraceability:\n  trace_targets:\n  - name: test-case\n    archetype: TestMatrix\n    section: Test Cases\n    id_column: ID\n  - name: acceptance-criterion\n    archetype: FR\n    section: Acceptance Criteria\n    id_column: ID\n  document_references:\n  - name: traces-to\n    archetype: TestMatrix\n    section: Test Cases\n    row_id_column: ID\n    column: Traces To\n    targets: [acceptance-criterion, test-case]\n    pattern: '([A-Z]{2,4}-\\d+(?:-[A-Z]{2,4}-\\d+)?)'\n  status:\n    column: Status\n    complete: [\"\\u2705\"]\n    pending: [\"\\U0001F6A7\"]\n  trace_tags:\n    markers:\n    - name: rust-trace-attribute\n      language: rust\n      pattern: '#\\[trace\\(([^)]*)\\)\\]'\n      template: '#[trace({ids})]'\n",
+      "documents": {
+        "FR-001.md": "---\nid: FR-001\ntype: FR\n---\n\n## Acceptance Criteria\n\n| ID | Criteria | Verification |\n|----|----------|--------------|\n| FR-001-AC-1 | Every finding shall default to warning. | Test (TC-001) |\n",
+        "tests.md": "---\nid: TM-001\ntype: TestMatrix\n---\n\n## Test Cases\n\n| ID | Traces To | Status |\n|----|-----------|--------|\n| TC-001 | FR-001-AC-1 | 🚧 |\n"
+      },
+      "sources": {
+        "lib.rs": "//! fixture\n\n#[cfg(test)]\nmod tests {\n    #[trace(\"TC-001\")]\n    #[test]\n    fn tc_999_renamed_but_still_correct() {\n        let _ = 1;\n    }\n}\n"
+      }
+    },
+    "expect": {
+      "backed": 1,
+      "binding_census": [
+        {
+          "language": "rust",
+          "candidates": 1,
+          "bound": 1
+        }
+      ],
+      "absent_diagnostic_reasons": [
+        "no-symbol-bound",
+        "hollow-denominator"
+      ],
+      "total": 2
+    }
+  },
+  {
+    "name": "greenfield-no-symbols",
+    "issue_ref": "agent-ix/quire-rs#229",
+    "tags": [
+      "TC-994",
+      "coverage",
+      "metric"
+    ],
+    "comment": "A repository with no tests reports 0% HONESTLY. This is the case `examined` exists for: without it the hollow-denominator gate fires on every greenfield corpus, which the first draft of FR-063 did.",
+    "input": {
+      "module": "name: bench\nmanifest_version: 1.0.0\nversion: 0.0.1\nartifact_types:\n- name: FR\n  grammar_ref: iso-spec-core\n- name: TestMatrix\ntraceability:\n  trace_targets:\n  - name: test-case\n    archetype: TestMatrix\n    section: Test Cases\n    id_column: ID\n  - name: acceptance-criterion\n    archetype: FR\n    section: Acceptance Criteria\n    id_column: ID\n  document_references:\n  - name: traces-to\n    archetype: TestMatrix\n    section: Test Cases\n    row_id_column: ID\n    column: Traces To\n    targets: [acceptance-criterion, test-case]\n    pattern: '([A-Z]{2,4}-\\d+(?:-[A-Z]{2,4}-\\d+)?)'\n  status:\n    column: Status\n    complete: [\"\\u2705\"]\n    pending: [\"\\U0001F6A7\"]\n  trace_tags:\n    markers:\n    - name: rust-trace-attribute\n      language: rust\n      pattern: '#\\[trace\\(([^)]*)\\)\\]'\n      template: '#[trace({ids})]'\n",
+      "documents": {
+        "FR-001.md": "---\nid: FR-001\ntype: FR\n---\n\n## Acceptance Criteria\n\n| ID | Criteria | Verification |\n|----|----------|--------------|\n| FR-001-AC-1 | Every finding shall default to warning. | Test (TC-001) |\n",
+        "tests.md": "---\nid: TM-001\ntype: TestMatrix\n---\n\n## Test Cases\n\n| ID | Traces To | Status |\n|----|-----------|--------|\n| TC-001 | FR-001-AC-1 | 🚧 |\n"
+      },
+      "sources": {
+        "lib.rs": "//! No symbols at all.\n"
+      }
+    },
+    "expect": {
+      "backed": 0,
+      "absent_diagnostic_reasons": [
+        "hollow-denominator",
+        "no-symbol-bound"
+      ],
+      "metrics": [
+        {
+          "name": "coverage.backed",
+          "state": "measured",
+          "examined": 0,
+          "matched": 0,
+          "hollow": false
+        }
+      ],
+      "total": 2
+    }
+  },
+  {
+    "name": "implements-never-asked",
+    "issue_ref": "agent-ix/quire-rs#226",
+    "tags": [
+      "TC-995",
+      "coverage",
+      "metric"
+    ],
+    "comment": "A module declaring no `implements` forms. An empty list and an uncomputed one are the same bytes; the metric says which. `not_computed` carries no numbers at all, so there is no zero to be read as an answer.",
+    "input": {
+      "module": "name: bench\nmanifest_version: 1.0.0\nversion: 0.0.1\nartifact_types:\n- name: FR\n  grammar_ref: iso-spec-core\n- name: TestMatrix\ntraceability:\n  trace_targets:\n  - name: test-case\n    archetype: TestMatrix\n    section: Test Cases\n    id_column: ID\n  - name: acceptance-criterion\n    archetype: FR\n    section: Acceptance Criteria\n    id_column: ID\n  document_references:\n  - name: traces-to\n    archetype: TestMatrix\n    section: Test Cases\n    row_id_column: ID\n    column: Traces To\n    targets: [acceptance-criterion, test-case]\n    pattern: '([A-Z]{2,4}-\\d+(?:-[A-Z]{2,4}-\\d+)?)'\n  status:\n    column: Status\n    complete: [\"\\u2705\"]\n    pending: [\"\\U0001F6A7\"]\n  trace_tags:\n    markers:\n    - name: rust-trace-attribute\n      language: rust\n      pattern: '#\\[trace\\(([^)]*)\\)\\]'\n      template: '#[trace({ids})]'\n",
+      "documents": {
+        "FR-001.md": "---\nid: FR-001\ntype: FR\n---\n\n## Acceptance Criteria\n\n| ID | Criteria | Verification |\n|----|----------|--------------|\n| FR-001-AC-1 | Every finding shall default to warning. | Test (TC-001) |\n",
+        "tests.md": "---\nid: TM-001\ntype: TestMatrix\n---\n\n## Test Cases\n\n| ID | Traces To | Status |\n|----|-----------|--------|\n| TC-001 | FR-001-AC-1 | 🚧 |\n"
+      },
+      "sources": {
+        "lib.rs": "//! fixture\n\n#[cfg(test)]\nmod tests {\n    #[trace(\"TC-001\")]\n    #[test]\n    fn covers_0() {\n        let _ = 1;\n    }\n}\n"
+      }
+    },
+    "expect": {
+      "metrics": [
+        {
+          "name": "coverage.implements",
+          "state": "not_computed"
+        }
+      ]
+    }
+  },
+  {
+    "name": "catch-all-headline",
+    "issue_ref": "agent-ix/quire-rs#230",
+    "tags": [
+      "TC-996",
+      "properties",
+      "metric"
+    ],
+    "comment": "Every extractable criterion is the `universal` catch-all, so `specific_shaped` is 0 while `property_shaped` is not. 54% vs 8% on the pass-2 corpus — both true, one misleading.",
+    "input": {
+      "module": "name: bench\nmanifest_version: 1.0.0\nversion: 0.0.1\nartifact_types:\n- name: FR\n  grammar_ref: iso-spec-core\n- name: TestMatrix\ntraceability:\n  trace_targets:\n  - name: test-case\n    archetype: TestMatrix\n    section: Test Cases\n    id_column: ID\n  - name: acceptance-criterion\n    archetype: FR\n    section: Acceptance Criteria\n    id_column: ID\n  document_references:\n  - name: traces-to\n    archetype: TestMatrix\n    section: Test Cases\n    row_id_column: ID\n    column: Traces To\n    targets: [acceptance-criterion, test-case]\n    pattern: '([A-Z]{2,4}-\\d+(?:-[A-Z]{2,4}-\\d+)?)'\n  status:\n    column: Status\n    complete: [\"\\u2705\"]\n    pending: [\"\\U0001F6A7\"]\n  trace_tags:\n    markers:\n    - name: rust-trace-attribute\n      language: rust\n      pattern: '#\\[trace\\(([^)]*)\\)\\]'\n      template: '#[trace({ids})]'\n",
+      "documents": {
+        "FR-001.md": "---\nid: FR-001\ntype: FR\n---\n\n## Acceptance Criteria\n\n| ID | Criteria | Verification |\n|----|----------|--------------|\n| FR-001-AC-1 | Every finding shall default to warning. | Test (TC-001) |\n",
+        "tests.md": "---\nid: TM-001\ntype: TestMatrix\n---\n\n## Test Cases\n\n| ID | Traces To | Status |\n|----|-----------|--------|\n| TC-001 | FR-001-AC-1 | 🚧 |\n"
+      },
+      "sources": {
+        "lib.rs": "//! fixture\n\n#[cfg(test)]\nmod tests {\n    #[trace(\"TC-001\")]\n    #[test]\n    fn covers_0() {\n        let _ = 1;\n    }\n}\n"
+      }
+    },
+    "expect": {
+      "metrics": [
+        {
+          "name": "coverage.specific_shaped",
+          "state": "measured",
+          "value": 0
+        },
+        {
+          "name": "coverage.property_shaped",
+          "state": "measured"
+        }
+      ]
+    }
+  }
+]

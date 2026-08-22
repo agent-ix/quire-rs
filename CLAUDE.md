@@ -26,6 +26,40 @@ to `src/grammar/`, `src/python/`, or `tests/python/` must also pass
 PyO3-parity criteria (FR-042-AC-10, FR-043-AC-7, FR-047-AC-9); when nothing ran
 it, TC-715 sat asserting check ids CR-014 had renamed and no gate noticed.
 
+## Every defect lands with a fixture
+
+A filed defect gets a **declarative case** in `tests/fixtures/corpus_cases/`,
+not a new `.rs` file:
+
+```json
+{
+  "name": "marker-form-mismatch",
+  "issue_ref": "agent-ix/spec-artifacts-process#59",
+  "tags": ["TC-992", "coverage", "binding"],
+  "input":  { "module": "...", "documents": {...}, "sources": {...} },
+  "expect": { "backed": 0, "diagnostic_reasons": ["no-symbol-bound"] }
+}
+```
+
+`issue_ref` is **required**. A fixture whose origin is unrecorded becomes a
+fixture nobody dares change, which is how a corpus rots into a set of
+assertions everybody works around. `every_case_is_attributed_and_uniquely_named`
+enforces it.
+
+**Assert absence too.** `absent_diagnostic_reasons` is the half a fixture
+usually forgets, and it is the half that catches a check firing on healthy
+input — the failure mode that killed two diagnostics during CR-094. Where a
+case is about a defect, add its **control**: the same tree without the defect,
+asserting that nothing fires.
+
+**Assert only what the case is about.** Every `expect` field is optional. A
+corpus where each case pins the whole envelope fails forty cases on one
+unrelated change, and is then relaxed wholesale.
+
+Directory corpora stay for what needs real filesystem topology — the walk,
+exclusion globs, symlinks. The claim is narrower: a scenario expressible as
+data should not cost a file.
+
 ## Adding or improving a check
 
 This crate ships the checks. A new one pointed at the `~/dev` corpus will fire in

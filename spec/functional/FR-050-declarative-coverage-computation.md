@@ -151,6 +151,48 @@ model; the engine knows nothing of "AC" or "TC" as concepts.
 | FR-050-AC-27 | The coverage report carries the FR-051-AC-19 binding census as `binding_census`, **unconditionally** — present whenever the code walk found at least one evidence symbol, whether or not anything bound, so a reader can tell a healthy premise from a hollow one without waiting for a failure. A language with candidates and zero bound is additionally reported in `diagnostics` under `no-symbol-bound`; a language binding a smaller fraction of its candidates than the declared floor is reported under `low-symbol-binding` with both counts rather than a verdict. Both records name the language in `value`, declare `traceability.trace_tags`, and name every form that was consulted. A language at or above the floor is reported in the census and in no diagnostic. Neither record affects `totals`, and `--strict` does not gate on them (CR-093). | Test (TC-983, TC-984) |
 
 | FR-050-AC-28 | The criteria rollup carries the FR-052-AC-18 split: `totals.specific_shaped` alongside `criteria` and `property_shaped` as an all-or-nothing triple, a per-document `specific_shaped` count absent when zero, and a per-document `grounding` map giving, per shape label, how many of its records carry `domain` / `precondition` / `oracle` and how many carry all three. `coverage.specific_shaped` is emitted as its own FR-063 metric over the same denominator as `coverage.property_shaped`, so the two are comparable and the honest figure is findable by name (CR-095). | Test (TC-989) |
+| FR-050-AC-29 | A declarative corpus case is data: `{name, issue_ref, tags, input, expect}`, where `input` is a whole miniature repository (module manifest, spec documents, source files) and `expect` names only the facts the case is about. One parameterized test runs every case; each case is uniquely named, carries at least one tracking id, and carries an `issue_ref` naming the filing it regresses. Two runs of a case produce byte-identical reports. `expect` can assert diagnostics that must be **absent** as well as present. | Test (TC-992..TC-996) |
+
+
+> **CR-098 note (2026-08-22):** AC-29 is new — the regression corpus is data.
+> `agent-ix/quire-rs#232` and `agent-ix/quire-rs#233`, carrying
+> `agent-ix/quire-rs#234`; epic `agent-ix/quoin#197`.
+>
+> `tests/fixtures/filament_core/graph_cases.json` — an 18-case
+> `{name, tags, input, expect}` array behind one parameterized test — was the
+> **only** data-driven scenario corpus in this repository. Everything else was
+> hand-authored directory convention, which is why every new regression cost a
+> new `.rs` file and why the six battletest failure families had nowhere to
+> land.
+>
+> **`expect` asserts absence as well as presence.** `absent_diagnostic_reasons`
+> is the half a fixture usually forgets, and it is the half that catches a check
+> firing on healthy input — the failure mode that killed two diagnostics during
+> CR-094 and that a presence-only corpus cannot express. The
+> `marker-form-declared` case exists purely as the control for
+> `marker-form-mismatch`: same tree, declared spelling, nothing fires.
+>
+> **`issue_ref` is required, not decorative** (`agent-ix/quire-rs#234`). A
+> fixture whose origin is unrecorded becomes a fixture nobody dares change,
+> which is how a corpus rots into a set of assertions everybody works around.
+> `every_case_is_attributed_and_uniquely_named` enforces it.
+>
+> **Every field of `expect` is optional**, so a case asserts what it is about
+> and stays silent on the rest. A corpus where each case pins the whole envelope
+> fails forty cases on one unrelated change, and is then relaxed wholesale.
+>
+> **Directory corpora stay for what needs them.** A case here has no filesystem
+> topology beyond the paths it lists, so anything about the walk, exclusion
+> globs or symlinks still belongs in a real fixture tree. The claim is narrower:
+> a scenario expressible as data should not cost a file.
+>
+> **Writing the six cases found no engine defect, and one fixture-authoring
+> trap.** The first draft declared only an `acceptance-criterion` trace target,
+> so a symbol binding `TC-001` left `backed` at 0 while `unbacked_rows` was
+> empty — which reads as an inconsistency and is not one: `totals` counts minted
+> **targets** bound, `unbacked_rows` counts **reference rows** unsatisfied, and
+> a row is satisfied by its own id or any it references. The fixture module now
+> declares both targets, as the real ISO module does.
 
 > **CR-095 note (2026-08-22):** AC-28 is new — the catch-all is split out of the
 > headline. `agent-ix/quire-rs#230`, epic `agent-ix/quoin#197`.
