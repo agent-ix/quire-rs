@@ -316,6 +316,8 @@ fn tc859_optional_and_required_split_matches_the_engine() {
         // so a payload from an engine predating the field still conforms
         // (FR-055-CON-3).
         "metrics",
+        // CR-100: absent for a corpus whose suites all check every sample.
+        "suspicions",
     ] {
         let mut payload = baseline();
         payload.as_object_mut().unwrap().remove(optional);

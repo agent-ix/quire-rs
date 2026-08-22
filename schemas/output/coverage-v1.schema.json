@@ -118,6 +118,13 @@
     },
     "totals": {
       "$ref": "#/$defs/CoverageTotals"
+    },
+    "suspicions": {
+      "type": "array",
+      "description": "FR-064 (CR-100, #235/#236): things that look wrong, with the measurement that made them look wrong. ADVISORY ALWAYS \u2014 a suspicion is a claim about a shape, not a verdict; it affects no total and no exit code. These are the finding classes only manual review caught in battletest pass 2. ABSENT for a corpus whose suites all check every sample, which keeps FR-050-AC-7 byte-identity.",
+      "items": {
+        "$ref": "#/$defs/Suspicion"
+      }
     }
   },
   "$defs": {
@@ -799,6 +806,47 @@
           "type": "integer",
           "minimum": 0,
           "description": "Records carrying all three \u2014 the set `spec-correctness` can actually be driven from."
+        }
+      }
+    },
+    "Suspicion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "path",
+        "symbol",
+        "line",
+        "message",
+        "evidence"
+      ],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "vacuous-under-guard",
+            "oracle-resembles-implementation"
+          ],
+          "description": "`vacuous-under-guard`: every assertion sits behind a narrowing guard, so an input that does not enter it passes unchecked \u2014 the shape of a suite measured green while checking 2.3% of its samples. `oracle-resembles-implementation`: the oracle closely resembles the code it judges, so it asserts only that the code equals itself."
+        },
+        "path": {
+          "type": "string"
+        },
+        "symbol": {
+          "type": "string"
+        },
+        "line": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidence": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The numbers behind the claim, rendered. Not decoration: a suspicion a reader cannot check in one look is one they learn to scroll past, which is how an advisory check becomes noise rather than a skeptic."
         }
       }
     }
