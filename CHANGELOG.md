@@ -5,6 +5,43 @@ All notable changes to `quire-rs` are documented here. Format follows
 numbers follow semver — pre-1.0, breaking changes may land in minor
 bumps; once 1.0 ships, semver is strict.
 
+## [0.44.1] — 2026-08-22
+
+Both checks 0.44.0 shipped were measured against this crate only, and each
+produces false positives elsewhere (`agent-ix/quire-rs#235`, `#229`; reviews
+SR-053, SR-054). No API removed; `Metric` gains a required `shape`.
+
+### Fixed
+
+- **The vacuity detector read every language with Rust's guard list (#235,
+  CR-102).** `=> {` is a `match` arm in Rust and an **arrow function** in
+  TypeScript, so every `vitest` body opened a guard: **549 suspicions from 551
+  candidates** on `agent-ix/quoin`, against 2 of 883 here. Sampled three, **3
+  rule, 0 real**. TypeScript and Python now carry an empty guard list rather
+  than a guessed one. Two further false-positive classes in the same check: a
+  guard opening and closing on **one line** was invisible (and the doc comment
+  claimed otherwise), and **comments were read as code**.
+- **`hollow-denominator` fired on an honest zero (#229, CR-102).** Hollowness is
+  a property of **ratios**; for a **count** `matched` and the value are the same
+  fact, so `matched: 0` reports that none was found. `coverage.implements` read
+  0 of 42 production symbols on `spec-artifacts-process` and 0 of 214 on
+  `quire-cli`, both reported as arithmetic over nothing. FR-063-AC-1 stated the
+  rule without the exception, so TC-985 validated it faithfully and passed — the
+  criterion was wrong, not the test.
+- **The silent-zero sentinel exempts counts (#229).** It read `0` only because
+  the false positive above satisfied its "no accompanying diagnostic" clause.
+  Coupled with `agent-ix/quoin#218`; neither half is safe alone.
+- **The `hollow-denominator` message did not compose.** Template and
+  substitution each carried their own clause, and `(s)` pluralised by hand.
+
+### Changed
+
+- **`Metric` carries a `shape`** (`ratio` | `count`), required in
+  `coverage-v1.schema.json` and emitted on every metric. `Metric::counted` is
+  new; `Metric::not_computed` takes the shape.
+- `coverage.no_symbol_rows` reports `matched` equal to its value rather than to
+  the row total, now that it is declared a count.
+
 ## [0.44.0] — 2026-08-22
 
 The skeptic half of the metric-integrity programme (agent-ix/quoin#197). v0.43.0
