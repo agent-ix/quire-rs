@@ -173,13 +173,16 @@ pub fn reader_blocks(markdown: &str) -> Vec<ReaderBlock> {
     let mut fence: Option<(u8, usize)> = None;
     let mut in_comment = false;
     let mut active_alert = false;
+    let mut in_table = false;
+    let mut lines = body.split('\n').enumerate().peekable();
 
-    for (index, raw_line) in body.split('\n').enumerate() {
+    while let Some((index, raw_line)) = lines.next() {
         let line_no = base_line + index;
         let (quote_depth, quoted) = strip_quote_prefix(raw_line);
         let fence_view = quoted.trim_start();
         if let Some((marker, width)) = fence_marker(fence_view) {
             flush_pending(&mut pending, &mut blocks);
+            in_table = false;
             match fence {
                 None => fence = Some((marker, width)),
                 Some((open, open_width)) if open == marker && width >= open_width => fence = None,
@@ -198,6 +201,7 @@ pub fn reader_blocks(markdown: &str) -> Vec<ReaderBlock> {
         }
         if trimmed.is_empty() {
             flush_pending(&mut pending, &mut blocks);
+            in_table = false;
             continue;
         }
         if is_indented_code(quoted) {
@@ -221,24 +225,38 @@ pub fn reader_blocks(markdown: &str) -> Vec<ReaderBlock> {
             flush_pending(&mut pending, &mut blocks);
             continue;
         }
+        if !trimmed.contains('|') {
+            in_table = false;
+        }
         if trimmed.contains('|') {
-            let cells = table_cells(trimmed);
-            if cells.len() >= 2 {
-                flush_pending(&mut pending, &mut blocks);
-                if !is_table_delimiter(&cells) {
-                    for cell in cells {
-                        let text = normalize_inline(&cell);
-                        if !text.is_empty() {
-                            blocks.push(ReaderBlock {
-                                kind: ReaderBlockKind::TableCell,
-                                text,
-                                line: line_no,
-                                heading_level: None,
-                            });
+            let starts_table = !in_table
+                && lines.peek().is_some_and(|(_, next)| {
+                    let (_, next) = strip_quote_prefix(next);
+                    let next = next.trim();
+                    next.contains('|') && is_table_delimiter(&table_cells(next))
+                });
+            if in_table || starts_table {
+                let cells = table_cells(trimmed);
+                if cells.is_empty() {
+                    in_table = false;
+                } else {
+                    flush_pending(&mut pending, &mut blocks);
+                    in_table = true;
+                    if !is_table_delimiter(&cells) {
+                        for cell in cells {
+                            let text = normalize_inline(&cell);
+                            if !text.is_empty() {
+                                blocks.push(ReaderBlock {
+                                    kind: ReaderBlockKind::TableCell,
+                                    text,
+                                    line: line_no,
+                                    heading_level: None,
+                                });
+                            }
                         }
                     }
+                    continue;
                 }
-                continue;
             }
         }
 
@@ -248,9 +266,14 @@ pub fn reader_blocks(markdown: &str) -> Vec<ReaderBlock> {
             active_alert = true;
             continue;
         }
+        let list_continuation = !list_item
+            && pending
+                .as_ref()
+                .is_some_and(|block| block.kind == ReaderBlockKind::ListItem)
+            && visible.starts_with(char::is_whitespace);
         let kind = if quote_depth > 0 && active_alert {
             ReaderBlockKind::Alert
-        } else if list_item {
+        } else if list_item || list_continuation {
             ReaderBlockKind::ListItem
         } else if quote_depth > 0 {
             ReaderBlockKind::Quote
@@ -453,9 +476,18 @@ fn check_blocks(
             }
         }
 
-        defined.extend(inline_definitions(&block.text));
-        for acronym in acronym_tokens(&block.text) {
-            if defined.contains(&acronym) || !reported.insert(acronym.clone()) {
+        let inline = inline_definitions(&block.text);
+        for (offset, acronym) in acronym_tokens(&block.text) {
+            // A definition suppresses its own parenthesized occurrence and
+            // later uses, never an earlier use in the same prose block.
+            if inline
+                .get(acronym)
+                .is_some_and(|definition_offset| *definition_offset <= offset)
+            {
+                defined.insert(acronym.to_string());
+                continue;
+            }
+            if defined.contains(acronym) || !reported.insert(acronym.to_string()) {
                 continue;
             }
             findings.push(finding(
@@ -465,6 +497,7 @@ fn check_blocks(
                 format!("acronym '{acronym}' is not defined in this document or profile"),
             ));
         }
+        defined.extend(inline.into_keys());
     }
     findings
 }
@@ -550,10 +583,11 @@ fn table_cells(line: &str) -> Vec<String> {
 }
 
 fn is_table_delimiter(cells: &[String]) -> bool {
-    cells.iter().all(|cell| {
-        let cell = cell.trim_matches(':').trim();
-        cell.len() >= 3 && cell.chars().all(|c| c == '-')
-    })
+    !cells.is_empty()
+        && cells.iter().all(|cell| {
+            let cell = cell.trim_matches(':').trim();
+            cell.len() >= 3 && cell.chars().all(|c| c == '-')
+        })
 }
 
 fn strip_list_marker(line: &str) -> (bool, &str) {
@@ -686,11 +720,26 @@ fn word_count(text: &str) -> usize {
     count
 }
 
-fn acronym_tokens(text: &str) -> Vec<String> {
-    text.split(|c: char| !(c.is_ascii_alphanumeric() || c == '-'))
-        .filter(|token| is_acronym(token))
-        .map(str::to_string)
-        .collect()
+fn acronym_tokens(text: &str) -> Vec<(usize, &str)> {
+    let mut out = Vec::new();
+    let mut start = None;
+    for (index, ch) in text.char_indices() {
+        if ch.is_ascii_alphanumeric() || ch == '-' {
+            start.get_or_insert(index);
+        } else if let Some(token_start) = start.take() {
+            let token = &text[token_start..index];
+            if is_acronym(token) {
+                out.push((token_start, token));
+            }
+        }
+    }
+    if let Some(token_start) = start {
+        let token = &text[token_start..];
+        if is_acronym(token) {
+            out.push((token_start, token));
+        }
+    }
+    out
 }
 
 fn is_acronym(token: &str) -> bool {
@@ -716,8 +765,8 @@ fn is_artifact_identifier(token: &str) -> bool {
         && number.chars().all(|c| c.is_ascii_digit())
 }
 
-fn inline_definitions(text: &str) -> BTreeSet<String> {
-    let mut out = BTreeSet::new();
+fn inline_definitions(text: &str) -> BTreeMap<String, usize> {
+    let mut out = BTreeMap::new();
     for (open, _) in text.match_indices('(') {
         let rest = &text[open + 1..];
         let Some(close) = rest.find(')') else {
@@ -745,7 +794,9 @@ fn inline_definitions(text: &str) -> BTreeSet<String> {
             .filter(|c| c.is_ascii_alphabetic())
             .collect();
         if initials == letters {
-            out.insert(acronym.to_string());
+            let leading_space = rest[..close].len() - rest[..close].trim_start().len();
+            out.entry(acronym.to_string())
+                .or_insert(open + 1 + leading_space);
         }
     }
     out
@@ -795,10 +846,11 @@ mod tests {
     #[trace("TC-971", "FR-063-AC-2")]
     #[test]
     fn compound_reader_blocks_keep_shapes_and_wrapping() {
-        let input = "Paragraph wraps\nonto another line.\n\n- first\n  - nested\n> quote wraps\n> here\n> [!NOTE]\n> alert body";
+        let input = "Paragraph wraps\nonto another line.\n\n- first\n  wraps here\n  - nested\n> quote wraps\n> here\n> [!NOTE]\n> alert body";
         let blocks = reader_blocks(input);
         assert_eq!(blocks[0].text, "Paragraph wraps onto another line.");
         assert_eq!(blocks[1].kind, ReaderBlockKind::ListItem);
+        assert_eq!(blocks[1].text, "first wraps here");
         assert_eq!(blocks[2].text, "nested");
         assert_eq!(blocks[3].kind, ReaderBlockKind::Quote);
         assert_eq!(blocks[3].text, "quote wraps here");
@@ -809,16 +861,19 @@ mod tests {
     #[trace("TC-972", "FR-063-AC-3")]
     #[test]
     fn tables_and_malformed_input_are_bounded() {
-        let input = "| Name | Meaning |\n|---|:---:|\n| API | visible words |\n| `A\\|B` | still visible |\n```\nunclosed";
+        let input = "Choice A | choice B remains prose.\n\n| Name | Meaning |\n|---|:---:|\n| API | visible words |\n| `A\\|B` | still visible |\n\n| Solo |\n|---|\n| value |\n```\nunclosed";
         let first = reader_blocks(input);
         assert_eq!(first, reader_blocks(input));
+        assert_eq!(first[0].kind, ReaderBlockKind::Paragraph);
+        assert_eq!(first[0].text, "Choice A | choice B remains prose.");
         assert_eq!(
             first
                 .iter()
                 .filter(|b| b.kind == ReaderBlockKind::TableCell)
                 .count(),
-            5
+            7
         );
+        assert!(first.iter().any(|block| block.text == "Solo"));
         assert!(!first.iter().any(|b| b.text.contains("---")));
     }
 
@@ -871,6 +926,21 @@ mod tests {
             .collect();
         assert_eq!(acronyms.len(), 1);
         assert!(acronyms[0].contains("XYZ"));
+
+        let late_definition = check_plain_language(
+            Path::new("a.md"),
+            "SLO appears first. Service level objective (SLO) is defined later.",
+            &p,
+        );
+        assert_eq!(
+            late_definition
+                .iter()
+                .filter(|finding| {
+                    finding.rule == UNDEFINED_ACRONYM && finding.message.contains("SLO")
+                })
+                .count(),
+            1
+        );
     }
 
     #[trace("TC-979", "FR-063-AC-10")]
