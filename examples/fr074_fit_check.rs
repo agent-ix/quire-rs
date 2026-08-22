@@ -1,4 +1,4 @@
-// FR-063 advisory fit check. Repository membership is supplied by
+// FR-074 advisory fit check. Repository membership is supplied by
 // scripts/plain_language_sweep.py, which imports the corpus authority rather
 // than copying its exclusions here.
 use std::collections::{BTreeMap, BTreeSet};
@@ -24,7 +24,7 @@ struct Summary {
 fn main() {
     let repositories: Vec<PathBuf> = std::env::args_os().skip(1).map(PathBuf::from).collect();
     if repositories.is_empty() {
-        eprintln!("usage: fr063_fit_check <repository>...");
+        eprintln!("usage: fr074_fit_check <repository>...");
         std::process::exit(2);
     }
     let profile = measurement_profile();

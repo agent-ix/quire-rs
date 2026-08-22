@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the compiled FR-063 fit check over the canonical repository corpus."""
+"""Run the compiled FR-074 fit check over the canonical repository corpus."""
 
 from __future__ import annotations
 
@@ -14,14 +14,14 @@ def main() -> int:
     dev_root = Path(__file__).resolve().parents[2]
     selected = repos(dev_root)
     env = dict(os.environ)
-    env.setdefault("CARGO_TARGET_DIR", "/tmp/quire-rs-fr063-sweep-target")
+    env.setdefault("CARGO_TARGET_DIR", "/tmp/quire-rs-fr074-sweep-target")
     subprocess.run(
         [
             "cargo",
             "run",
             "--quiet",
             "--example",
-            "fr063_fit_check",
+            "fr074_fit_check",
             "--",
             *(str(repo) for repo in selected),
         ],

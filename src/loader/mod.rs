@@ -351,6 +351,7 @@ pub fn load_inline_module(manifest_yaml: &[u8], schemas: &BTreeMap<String, Strin
                     version: manifest.version.clone(),
                     archetypes,
                     semantic: None,
+                    plain_language_profiles: Default::default(),
                     // This path returns before any clause-set file is resolved.
                     clause_sets: Vec::new(),
                     lint_rules: manifest.lint_rules.clone(),
@@ -656,6 +657,7 @@ fn load_one_module(
                     version: manifest.version.clone(),
                     archetypes,
                     semantic: None,
+                    plain_language_profiles: Default::default(),
                     // This path returns before any clause-set file is resolved.
                     clause_sets: Vec::new(),
                     lint_rules: manifest.lint_rules.clone(),
