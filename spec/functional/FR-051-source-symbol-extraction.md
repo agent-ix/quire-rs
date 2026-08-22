@@ -124,6 +124,49 @@ byte-identical JSON ordering and stable record ids.
 | FR-051-AC-16 | A legacy textual form mints one `verifies` relation per trace id its match carries, so a comma-separated list binds every id rather than only the first, and one authored line yields one rewrite suggestion naming all of them; a form declaring `id_format` renders a single id and is not split. | Test (TC-806) |
 | FR-051-AC-17 | A Rust benchmark — an attribute-marked one, or a function a `criterion_group!` registers in either invocation form, whether or not the registration line carries a trailing comment — classifies as a benchmark symbol, and a `fuzz_target!` invocation mints one fuzz-target symbol per file whose span is its whole file. Both bind trace ids; a container and a plain function still bind none. Each kind's stable label (`benchmark`, `fuzz_target`) is part of the symbol identity and of the FR-045 record's `kind` field. | Test (TC-827, TC-828) |
 | FR-051-AC-18 | A `test`/`it` registration whose modifier chain is curried (`it.skipIf(cond)(…)`, `it.each([…])(…)`), or whose title literal begins on a later line, registers a test symbol named by that title, with the span and leading block any other registration gets. The scan is bounded and stops at the first non-blank text: a title held in a variable, an identifier merely beginning with `it`, and a literal beyond the window each register nothing rather than something wrong. A title inside a multi-line template literal is out of scope and registers nothing (CR-084). | Test (TC-943, TC-948, TC-958, TC-960, TC-961) |
+| FR-051-AC-19 | Binding reports a per-language census of what it examined: `candidates` counts the evidence symbols whose kind admits a trace tag, `bound` counts those that minted at least one `verifies` relation, and `forms` names every declared form consulted for that language, markers before legacy. `bound` counts symbols, not relations, so a test carrying five ids counts once. A container or a production function is never a candidate. The census is ordered by language label, is present for every language the walk saw an evidence symbol in, and its `candidates` count does not depend on the declared patterns — the same tree bound against a grammar that matches nothing reports the same candidates and zero bound (CR-093). | Test (TC-982) |
+
+> **CR-093 note (2026-08-22):** AC-19 is new — the binder says what it looked
+> at. `agent-ix/quire-rs#227`, epic `agent-ix/quoin#197`.
+>
+> The engine already had both numbers. It walks every candidate in order to
+> match it, so it knows how many it examined and how many bound, and it reported
+> neither. On a corpus whose tag convention matches no declared pattern that
+> silence is the whole defect: the rows those symbols verify come back unbacked,
+> and unbacked is exactly what a missing test looks like.
+>
+> **What the number counts:** evidence symbols in `agent-ix/filament-ide-rs` @
+> `fc5d644`, under `quire 0.29.0` / engine `v0.42.0` /
+> `spec-artifacts-process v0.23.0` — **1,292 Rust candidates, 0 bound**,
+> reported as `Coverage: 555/2389 rows backed (23%)` and nothing else. The two
+> declared conventions both missed: `fn tc_NNN_` against a pattern with no
+> separator (fixed in `spec-artifacts-process#59`), and 643 `/// Tracing:` lines
+> against a declared `Trace:` keyword. Establishing that took a controlled
+> experiment — copy the module, widen one regex, re-run, diff the census — to
+> learn something the engine had observed and discarded.
+>
+> **Three published SpecReviews were built on it.** SR-150, SR-151 and SR-152 in
+> that repository cite coverage figures computed under the broken match, and one
+> carried a finding — "TC-441/TC-446 are status lies" — as an open corpus-policy
+> question across all three. They were not lying; the tool could not read the
+> line their proof sat on.
+>
+> **`bound` counts symbols, not relations**, and the distinction is load-bearing.
+> The question is "could the binder read this repository's convention at all",
+> and one test carrying five ids is no more evidence of that than one carrying a
+> single id. Counting relations would let a handful of heavily-tagged tests hide
+> a thousand unreadable ones.
+>
+> **A container and a production function are not candidates.** CR-061 settled
+> that only leaf evidence binds; counting the symbols that were never eligible
+> would put every repository's census at a fraction of 1 and make the number
+> meaningless in the ordinary case — which is the failure mode this AC exists to
+> end, one layer over.
+>
+> **Not `untracked_symbols`.** That reports symbols that bound to an id no row
+> declares — symbols that *matched a pattern*. A symbol matching no pattern was
+> invisible to every output surface, which is why the count had to be new rather
+> than derived.
 
 > **CR-084 note (2026-08-20):** AC-18 is new. The TypeScript adapter registered
 > **no symbol at all** for a curried registration — `it.skipIf(cond)(…)` and

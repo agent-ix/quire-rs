@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 
 use ix_trace_rs::trace;
 use quire_rs::coverage::{compute, CoverageError, CoverageReport};
+use quire_rs::symbols::trace::BindingCensus;
 use quire_rs::symbols::{extract_tree, trace};
 use quire_rs::{Registry, Spec};
 
@@ -1580,5 +1581,145 @@ fn tc822_excluding_every_match_is_not_a_missing_archetype() {
             .any(|d| d.reason == "archetype-matches-nothing"),
         "an exclusion is not a typo: {:?}",
         report.diagnostics
+    );
+}
+
+/// Rewrite the bundle's source tree with `total` test functions, the first
+/// `readable` of them carrying the declared `#[trace(...)]` marker and the rest
+/// carrying an attribute no declared form matches.
+///
+/// This is the `agent-ix/filament-ide-rs` shape in miniature: real tests, real
+/// tags, a marker spelling the module never declared.
+fn rewrite_source(bundle: &Bundle, total: usize, readable: usize) {
+    let mut lib = String::from("//! Fixture source tree.\n\n#[cfg(test)]\nmod tests {\n");
+    for idx in 0..total {
+        let attribute = if idx < readable { "trace" } else { "tracks" };
+        lib.push_str(&format!(
+            "    #[{attribute}(\"TC-{:03}\")]\n    #[test]\n    fn covers_{idx}() {{\n        \
+             let _ = 1;\n    }}\n",
+            idx + 1
+        ));
+    }
+    lib.push_str("}\n");
+    let path = bundle.source.join("lib.rs");
+    fs::write(path, lib).expect("write");
+}
+
+fn census_for<'r>(report: &'r CoverageReport, language: &str) -> &'r BindingCensus {
+    report
+        .binding_census
+        .iter()
+        .find(|c| c.language == language)
+        .unwrap_or_else(|| panic!("no {language} census in {:?}", report.binding_census))
+}
+
+#[trace("TC-983", "FR-050-AC-27")]
+// a language whose evidence symbols all fail to (CR-093)
+// bind is reported as a diagnostic naming the counts and the declared forms,
+// never as a low percentage indistinguishable from missing tests.
+#[test]
+fn tc983_a_language_that_binds_nothing_is_a_diagnostic() {
+    let bundle = iso_bundle(
+        "983",
+        &[
+            ("TC-001", "FR-001-AC-1", "✅"),
+            ("TC-002", "FR-001-AC-2", "✅"),
+        ],
+        &[],
+    );
+    rewrite_source(&bundle, 3, 0);
+    let report = report_for(&bundle, "iso").expect("model declared");
+
+    // The premise, stated: three symbols were examined and none bound.
+    let census = census_for(&report, "rust");
+    assert_eq!(census.candidates, 3);
+    assert_eq!(census.bound, 0);
+    assert_eq!(
+        census.forms,
+        vec![
+            "rust-trace-attribute",
+            "trace-line",
+            "comment-id",
+            "test-name-id"
+        ],
+        "markers first, then legacy — the order the binder tries them in"
+    );
+
+    let finding = report
+        .diagnostics
+        .iter()
+        .find(|d| d.reason == "no-symbol-bound")
+        .unwrap_or_else(|| panic!("no binding diagnostic in {:?}", report.diagnostics));
+    assert_eq!(finding.declaration, "traceability.trace_tags");
+    assert_eq!(finding.value.as_deref(), Some("rust"));
+    assert!(
+        finding.message.contains('3') && finding.message.contains("rust-trace-attribute"),
+        "the message carries the count and the forms to check: {}",
+        finding.message
+    );
+
+    // Same tree, same tests, the declared spelling: the diagnostic goes away
+    // and the census becomes the reassurance the payload could not give before.
+    rewrite_source(&bundle, 3, 3);
+    let healthy = report_for(&bundle, "iso").expect("model declared");
+    let census = census_for(&healthy, "rust");
+    assert_eq!((census.candidates, census.bound), (3, 3));
+    assert!(
+        !healthy
+            .diagnostics
+            .iter()
+            .any(|d| d.reason == "no-symbol-bound" || d.reason == "low-symbol-binding"),
+        "a language that reads cleanly reports nothing: {:?}",
+        healthy.diagnostics
+    );
+    // Reported whether or not it holds — that is what makes it a premise
+    // rather than a defect list.
+    assert!(healthy.to_json().contains("binding_census"));
+}
+
+#[trace("TC-984", "FR-050-AC-27")]
+// below the binding floor the likeliest reading (CR-093)
+// is a marker-form mismatch rather than untagged tests, and the diagnostic
+// reports both counts rather than asserting which.
+#[test]
+fn tc984_binding_below_the_floor_is_reported_with_both_counts() {
+    let bundle = iso_bundle("984", &[("TC-001", "FR-001-AC-1", "✅")], &[]);
+
+    // 1 of 21 = 4.8%, under the 5% floor.
+    rewrite_source(&bundle, 21, 1);
+    let report = report_for(&bundle, "iso").expect("model declared");
+    let census = census_for(&report, "rust");
+    assert_eq!((census.candidates, census.bound), (21, 1));
+
+    let finding = report
+        .diagnostics
+        .iter()
+        .find(|d| d.reason == "low-symbol-binding")
+        .unwrap_or_else(|| panic!("no floor diagnostic in {:?}", report.diagnostics));
+    assert_eq!(finding.value.as_deref(), Some("rust"));
+    assert!(
+        finding.message.contains("1 of 21"),
+        "both counts, so the reader judges rather than the engine: {}",
+        finding.message
+    );
+    assert!(
+        !report
+            .diagnostics
+            .iter()
+            .any(|d| d.reason == "no-symbol-bound"),
+        "something bound, so this is not the zero case"
+    );
+
+    // 2 of 21 = 9.5%, over the floor: an untagged tail is not a finding.
+    rewrite_source(&bundle, 21, 2);
+    let over = report_for(&bundle, "iso").expect("model declared");
+    assert_eq!(census_for(&over, "rust").bound, 2);
+    assert!(
+        !over
+            .diagnostics
+            .iter()
+            .any(|d| d.reason == "low-symbol-binding"),
+        "over the floor is silence: {:?}",
+        over.diagnostics
     );
 }
