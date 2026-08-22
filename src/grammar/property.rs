@@ -408,15 +408,26 @@ pub fn classify_property(statement: &str, idioms: &PropertyIdioms) -> Classified
         None => structural,
     };
 
-    // Only a universally quantified criterion is decomposed. The metamorphic
-    // shapes carry no spans in v1, and decomposition keys on the *structural*
-    // shape so the registry cannot add or remove spans either.
-    let spans = if structural == PropertyShape::Universal {
-        quantified
-            .and_then(|q| decompose(statement, &masked, q.domain_start, &markers, &mut signals))
-    } else {
-        None
-    };
+    // Decomposition keys on **quantification**, not on which structural shape
+    // won the label (FR-052-AC-19, CR-096).
+    //
+    // Until v0.34 this read `if structural == PropertyShape::Universal`, and
+    // that one condition is why the shapes carrying the most meaning carried no
+    // spans: an `invariant` statement is usually a plainer `SHALL` clause than a
+    // `universal` one, `quantification` had already succeeded on it, and the
+    // gate threw the result away because a higher-precedence structural signal
+    // had claimed the label. Shape and decomposition are orthogonal axes — one
+    // says *what kind of property*, the other says *what to generate over* — and
+    // a criterion can and should carry both.
+    //
+    // Nothing else moves. `decompose` was already general: it reads the masked
+    // statement, the determiner end and the predicate markers, none of which are
+    // Universal-specific. A statement that is not quantified still has
+    // `quantified == None` and still carries no spans, so a shape that genuinely
+    // states no domain gains nothing invented. And the registry still cannot
+    // reach this: `quantified` is structural, so FR-052-CON-4 holds unchanged.
+    let spans = quantified
+        .and_then(|q| decompose(statement, &masked, q.domain_start, &markers, &mut signals));
 
     // Derived last, from the final label and the structural boolean. It reads
     // both and writes neither, which is what keeps CON-4 intact while letting a
@@ -1032,6 +1043,56 @@ mod tests {
     const ISSUE_CELL: &str =
         "A finding whose key is absent from the merged map defaults to warning";
 
+    #[trace("TC-990", "FR-052-AC-19")]
+    // decomposition keys on quantification, not on (CR-096)
+    // the winning structural label, and invents nothing for a statement that
+    // states no domain.
+    #[test]
+    fn tc990_decomposition_keys_on_quantification_not_on_the_label() {
+        // One statement, quantified, whose structural signal is `invariant` —
+        // the shape that carried the most meaning and the fewest spans.
+        let quantified = "Every finding whose key is absent from the merged map \
+                          never defaults to warning";
+        let c = classify_property(quantified, &idioms());
+        assert_eq!(
+            c.property,
+            PropertyShape::Invariant,
+            "precedence still ranks structure above quantification"
+        );
+        let spans = c
+            .spans
+            .expect("winning a structural label does not un-quantify a statement");
+        assert_eq!(spans.domain.text, "finding");
+        assert!(spans.oracle.text.contains("warning"), "{:?}", spans.oracle);
+
+        // The same decomposition the `universal` path produces, so this is one
+        // gate widened rather than a second extractor.
+        let universal = classify_property(ISSUE_CELL, &idioms());
+        let universal_spans = universal.spans.expect("the issue cell decomposes");
+        assert_eq!(universal.property, PropertyShape::Universal);
+        assert_eq!(spans.domain.text, universal_spans.domain.text);
+
+        // A specific-shape statement that states no domain still carries no
+        // spans: nothing is invented for a shape with nothing to quantify over.
+        let unquantified = "Applying the migration twice yields the same result";
+        let c = classify_property(unquantified, &idioms());
+        assert_eq!(c.property, PropertyShape::Idempotence);
+        assert!(c.spans.is_none());
+
+        // CON-4 is untouched: `quantification` is structural, so a declared
+        // idiom can neither add spans nor remove them. Asserted as span
+        // equality with and without a registry, in both directions — the
+        // quantified statement keeps its spans, the unquantified one keeps its
+        // absence.
+        let bare = classify_property(quantified, &PropertyIdioms::default());
+        let bare_spans = bare.spans.expect("the registry is not what decomposes");
+        assert_eq!(bare_spans.domain.text, spans.domain.text);
+        assert_eq!(bare_spans.oracle.text, spans.oracle.text);
+        assert!(classify_property(unquantified, &PropertyIdioms::default())
+            .spans
+            .is_none());
+    }
+
     #[trace("TC-779", "FR-052-AC-1")]
     // the issue's own cell classifies `Universal` with
     // all three spans populated.
@@ -1094,8 +1155,25 @@ mod tests {
             "the fixture must really be universally quantified"
         );
         assert_eq!(shape(quantified), PropertyShape::RoundTrip);
-        // …and the metamorphic shapes carry no spans in v1.
-        assert!(classify_property(quantified, &idioms()).spans.is_none());
+        // …and since CR-096 it carries spans anyway. Shape and decomposition
+        // are orthogonal axes: winning a higher-precedence structural label
+        // does not un-quantify the statement, and the v1 gate that discarded
+        // the decomposition here is what left 65 of 67 specific-shape records
+        // with nothing `spec-correctness` could be driven from.
+        assert!(
+            classify_property(quantified, &idioms()).spans.is_some(),
+            "a quantified metamorphic statement decomposes"
+        );
+        // The other direction, which is what keeps this honest: a metamorphic
+        // statement that states no domain still carries no spans, so nothing
+        // is invented for a shape that genuinely has nothing to quantify over.
+        let unquantified = "Applying the migration twice yields the same result";
+        assert_eq!(shape(unquantified), PropertyShape::Idempotence);
+        assert!(
+            !re_universal_determiner().is_match(unquantified),
+            "the fixture must really state no domain"
+        );
+        assert!(classify_property(unquantified, &idioms()).spans.is_none());
     }
 
     #[trace("TC-781", "FR-052-AC-3")]

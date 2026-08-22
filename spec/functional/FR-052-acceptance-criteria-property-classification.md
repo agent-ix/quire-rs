@@ -391,6 +391,69 @@ not been declared non-testable; it has simply not been declared.
 | FR-052-CON-3 | The property shape enum SHALL be closed in the engine. Extension happens by declaring idiom phrases, never by adding a shape: a shape with no downstream generator silently drops criteria. | Architecture | Inspection |
 | FR-052-CON-4 | A criterion's `extractable` value SHALL NOT depend on any module-declared idiom. Extraction coverage rests on the closed structural signals; the idiom registry refines labels only. | Architecture | Test |
 
+
+> **CR-096 note (2026-08-22):** AC-19 is new — decomposition stops keying on the
+> winning label. `agent-ix/quire-rs#228`, epic `agent-ix/quoin#197`.
+>
+> **The cause was one condition, and it was neither of the two the filing
+> proposed.** `#228` asked whether the shape classifier and the span extractor
+> run on different normalizations, or whether specific-shape statements are
+> routed past the extractor. Neither: both read the same masked statement, and
+> `classify_property` carried an explicit gate —
+>
+> ```rust
+> let spans = if structural == PropertyShape::Universal { … } else { None };
+> ```
+>
+> — with the comment *"the metamorphic shapes carry no spans in v1"*. So
+> `quantification` had already succeeded on those statements and `decompose`
+> would have run; the result was computed and discarded because a
+> higher-precedence structural signal had claimed the **label**. Shape and
+> decomposition are orthogonal axes — one says what kind of property, the other
+> says what to generate over — and a criterion can carry both. `decompose` was
+> already general: it reads the masked statement, the determiner end and the
+> predicate markers, none of which are `Universal`-specific.
+>
+> **Measured on this repository's own `spec/`** — 608 criteria, engine at this
+> branch, module `spec-artifacts-iso`, counting records that carry **all three**
+> spans:
+>
+> | shape | records | grounded before | grounded after |
+> |---|---|---|---|
+> | invariant | 39 | 0 | **13** |
+> | round-trip | 8 | 0 | **3** |
+> | ordering | 18 | 0 | **1** |
+> | idempotence | 3 | 1 | 1 |
+> | concurrency | 5 | 0 | 0 |
+> | lifecycle | 1 | 0 | 0 |
+> | **specific total** | **74** | **1** | **18** |
+> | universal | 283 | 96 | **96 — unchanged** |
+>
+> `universal` moving not at all is the check that this widened the gate and
+> changed nothing else.
+>
+> **What this does NOT claim, and the sample that says so.** `grounding` counts
+> spans **present**, never spans **correct**. Seven newly-spanned records were
+> read by hand: **2 were well-segmented and 5 were not** — domains that swallow
+> the predicate (`FR-032-AC-10`, `FR-036-AC-6`), and one precondition/oracle
+> boundary falling inside a hyphenated word (`FR-024-AC-10`, `frontmatter-` /
+> `less draft`).
+>
+> **That is a pre-existing extractor defect, not one this introduces.** Seven
+> `universal` records — the shipped path — were sampled the same way: **4 good,
+> 3 poor**, including the identical mid-word split on `FR-002-AC-2`
+> (`merged-` / `validated`) and a domain of `of the 6 Locator` on
+> `FR-011-AC-1`. The boundary heuristic degrades on long clause-heavy
+> statements, and specific-shape criteria in this corpus are longer, which is
+> why their sample reads worse. Filed separately rather than fixed here, so this
+> change stays one thing: `agent-ix/quire-rs#241`.
+>
+> **The v1 assertion was inverted, not deleted.** TC-780 asserted
+> `spans.is_none()` for a quantified round-trip. It now asserts `is_some()`
+> *and* adds the opposite direction — an unquantified `idempotence` statement
+> still carries no spans — so nothing is invented for a shape that genuinely
+> has no domain.
+
 ## Acceptance Criteria
 
 | ID | Criteria | Verification |
@@ -413,6 +476,7 @@ not been declared non-testable; it has simply not been declared.
 | FR-052-AC-16 | A criterion whose `extractable` is true reports `extraction: extractable`; a criterion whose `extractable` is false and whose `property` is one of the four metamorphic shapes reports `extraction: candidate`; every other criterion reports `extraction: not-extractable`, so an `Example` or `Unclassified` criterion is never a candidate. | Test (TC-795) |
 | FR-052-AC-17 | `extraction` is derived from `property` and `extractable` alone and feeds back into neither: every criterion in a fixture corpus carries the same `extractable` value with a `property_idioms` registry declared and with none (CON-4 unchanged), while a criterion whose metamorphic label came only from a declared idiom reports `candidate` with the registry declared and `not-extractable` without it. | Test (TC-796) |
 | FR-052-AC-18 | A property shape is **specific** when it names what property to write — every shape but the `universal` catch-all, `example` and `unclassified`. The per-document tally reports `specific_shaped` (extractable **and** specific) alongside `property_shaped`, and a `grounding` tally giving, per shape label, how many of that shape's records carry `domain` / `precondition` / `oracle` and how many carry all three. The specific set is a reading-list distinction, not a quality ranking, and gates nothing. | Test (TC-989) |
+| FR-052-AC-19 | Decomposition keys on quantification, not on the winning structural label: a statement that is universally quantified carries `domain` / `precondition` / `oracle` spans whichever shape the precedence order assigns it, and a statement that states no domain carries none whatever its shape. A declared idiom can still neither add nor remove spans (CON-4 unchanged). | Test (TC-780, TC-990) |
 
 ## Dependencies
 
