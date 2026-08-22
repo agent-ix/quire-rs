@@ -139,6 +139,34 @@ impl PropertyShape {
     /// structural signal sets, and exactly the ones a declared idiom can also
     /// name. A metamorphic label the structural pass did not carry through to
     /// extractability is what [`Extraction::Candidate`] exists for (CR-033).
+    /// Whether this shape tells a reader **what property to write**
+    /// (FR-052-AC-18, CR-095).
+    ///
+    /// The three excluded variants are excluded for three different reasons,
+    /// and none of them is "low quality":
+    ///
+    /// - [`Universal`](Self::Universal) is the **catch-all**. It says the
+    ///   statement is quantified over a domain and nothing more; the shape adds
+    ///   no information a generator can act on beyond `extractable` itself.
+    /// - [`Example`](Self::Example) is `not-extractable` by construction — one
+    ///   scenario, not quantified. A first-class outcome, never a defect.
+    /// - [`Unclassified`](Self::Unclassified) means no signal fired.
+    ///
+    /// Measured on `agent-ix/filament-ide-rs` — 951 criteria across 274 spec
+    /// files — the headline read `515/951 criteria extractable (54%)`, and
+    /// **440 of those 515 were `universal`**. The specifically-shaped set was
+    /// 78. 54% reads as "half this specification is property-testable"; 8% is
+    /// the honest figure for "the classifier said what property to write". Both
+    /// are true and only one is what a reader takes from a summary line.
+    ///
+    /// This is **not** a quality ranking and must not become a gate: a
+    /// `universal` criterion is often the right thing to write. It is a
+    /// reading-list distinction — the specifically-shaped set is the tractable
+    /// one to sit down with.
+    pub fn is_specific(self) -> bool {
+        !matches!(self, Self::Universal | Self::Example | Self::Unclassified)
+    }
+
     pub fn is_metamorphic(self) -> bool {
         matches!(
             self,

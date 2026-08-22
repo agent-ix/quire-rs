@@ -150,6 +150,47 @@ model; the engine knows nothing of "AC" or "TC" as concepts.
 
 | FR-050-AC-27 | The coverage report carries the FR-051-AC-19 binding census as `binding_census`, **unconditionally** — present whenever the code walk found at least one evidence symbol, whether or not anything bound, so a reader can tell a healthy premise from a hollow one without waiting for a failure. A language with candidates and zero bound is additionally reported in `diagnostics` under `no-symbol-bound`; a language binding a smaller fraction of its candidates than the declared floor is reported under `low-symbol-binding` with both counts rather than a verdict. Both records name the language in `value`, declare `traceability.trace_tags`, and name every form that was consulted. A language at or above the floor is reported in the census and in no diagnostic. Neither record affects `totals`, and `--strict` does not gate on them (CR-093). | Test (TC-983, TC-984) |
 
+| FR-050-AC-28 | The criteria rollup carries the FR-052-AC-18 split: `totals.specific_shaped` alongside `criteria` and `property_shaped` as an all-or-nothing triple, a per-document `specific_shaped` count absent when zero, and a per-document `grounding` map giving, per shape label, how many of its records carry `domain` / `precondition` / `oracle` and how many carry all three. `coverage.specific_shaped` is emitted as its own FR-063 metric over the same denominator as `coverage.property_shaped`, so the two are comparable and the honest figure is findable by name (CR-095). | Test (TC-989) |
+
+> **CR-095 note (2026-08-22):** AC-28 is new — the catch-all is split out of the
+> headline. `agent-ix/quire-rs#230`, epic `agent-ix/quoin#197`.
+>
+> `quire properties` headlined `515/951 criteria extractable (54%)` over
+> `agent-ix/filament-ide-rs` — 951 criteria across 274 spec files, under
+> `quire 0.29.0` / engine `v0.42.0` / `spec-artifacts-process v0.23.0`. **440 of
+> those 515 were the `universal` catch-all.** Excluding it, the specifically
+> shaped set was **78/951 = 8%**.
+>
+> Both numbers are true. 54% reads as *"half this specification is
+> property-testable"*, and 8% is the honest figure for *"the classifier said
+> what property to write"* — and only the first is what a reader takes from a
+> summary line and repeats. The fix is one clause, and it is worth an AC
+> because the misreading is what the line invites.
+>
+> **What the split is, and is not.** Three shapes are excluded and for three
+> different reasons: `universal` is the catch-all and adds nothing beyond
+> `extractable` itself, `example` is `not-extractable` by construction, and
+> `unclassified` means no signal fired. **This is not a quality ranking and must
+> not become a gate** — a `universal` criterion is very often the right thing to
+> write. It is a *reading-list* distinction: 78 specifically-shaped criteria out
+> of 951 is a tractable set to sit down with, and `idempotence` on an
+> `FR-029-AC-1` pointed straight at a property worth writing.
+>
+> **Grounding is reported per shape because the two halves were disjoint in the
+> wrong direction.** A classification record carries a shape *and* a
+> decomposition (`domain` / `precondition` / `oracle`), and measured on that
+> corpus **65 of the 67 specific-shape non-`example` records carried zero
+> spans**, while every span-bearing record but nine was `universal`. So the
+> shapes that told a reader the most arrived with nothing a generator could be
+> driven from, and the catch-all arrived with the decomposition. Per-shape rates
+> make that readable from the payload instead of from a bespoke sweep.
+>
+> **Deliberately not a widening of the classifier.** `agent-ix/quire-rs#45`
+> settled 31.3% recall at 93.3% precision as a measured ceiling and closed it as
+> answered; nothing here trades that away. The remaining half of
+> `agent-ix/quire-rs#228` — *why* a plainer `SHALL` clause defeats the span
+> extractor when a `universal` one does not — stays open as its own question.
+
 > **CR-093 note (2026-08-22):** AC-27 is new — the report states the premise its
 > percentage rests on. `agent-ix/quire-rs#227`, epic `agent-ix/quoin#197`.
 >

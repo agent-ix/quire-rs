@@ -23,7 +23,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::corpus::declared_tables;
 use crate::corpus::spec::Spec;
-use crate::grammar::{AcPropertyCounts, GrammarVocabularies};
+use crate::grammar::{AcPropertyCounts, GrammarVocabularies, GroundingCounts};
 use crate::metric::Metric;
 use crate::obligation::Obligation;
 use crate::registry::Registry;
@@ -215,9 +215,26 @@ pub struct CriteriaCounts {
     pub criteria: usize,
     /// Criteria a downstream generator can extract a property from.
     pub property_shaped: usize,
+    /// Extractable criteria carrying a shape that names what property to write
+    /// — everything but the `universal` catch-all (FR-050-AC-28, CR-095).
+    ///
+    /// Zero — and so absent — for a document whose every extractable criterion
+    /// is `universal`, which keeps FR-050-AC-7 byte-identity for a report from
+    /// an engine predating the field.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub specific_shaped: usize,
     /// Criteria per property-shape label. `BTreeMap` keeps the histogram
     /// deterministic (NFR-006).
     pub by_property: BTreeMap<String, usize>,
+    /// Span-grounding per shape (FR-050-AC-28, CR-095): of each shape's
+    /// records, how many carry `domain` / `precondition` / `oracle`.
+    ///
+    /// The shapes that say the most carried the least: 65 of 67 specific-shape
+    /// non-`example` records had zero spans, so `spec-correctness` could not be
+    /// driven from the very records that named a property worth writing.
+    /// Empty — and so absent — for a document binding no criteria.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub grounding: BTreeMap<String, GroundingCounts>,
 }
 
 /// Bundle-wide totals; the backed/total pair equals the sum over
@@ -245,6 +262,17 @@ pub struct CoverageTotals {
     /// when the corpus binds no criteria at all. Zero is a real value here.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub property_shaped: Option<usize>,
+    /// Extractable criteria carrying a shape that names what property to write
+    /// (FR-050-AC-28, CR-095). `None` alongside the other two, for the same
+    /// reason.
+    ///
+    /// **The honest half of the headline.** `515/951 extractable (54%)` reads
+    /// as "half this specification is property-testable"; 440 of those 515 were
+    /// the `universal` catch-all, and the figure for "the classifier said what
+    /// property to write" was 78/951 — 8%. Both true, one misleading, and a
+    /// summary line carrying only the first is the one a reader repeats.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub specific_shaped: Option<usize>,
 }
 
 /// The machine-readable coverage report. Every collection is deterministically
@@ -465,6 +493,8 @@ pub fn compute(
         report.totals.criteria = Some(report.criteria.iter().map(|c| c.criteria).sum());
         report.totals.property_shaped =
             Some(report.criteria.iter().map(|c| c.property_shaped).sum());
+        report.totals.specific_shaped =
+            Some(report.criteria.iter().map(|c| c.specific_shaped).sum());
     }
     // FR-054-AC-11: reported here rather than in `reconcile`, which takes no
     // `Registry` and so cannot see the catalog the methods are checked against.
@@ -534,6 +564,34 @@ fn coverage_metrics(
                 "coverage.property_shaped",
                 "acceptance criterion",
                 "criteria the FR-052 classifier reads a property shape from",
+                "no corpus document in scope binds an acceptance criterion, so nothing \
+             was classified",
+            ),
+        },
+    );
+
+    // CR-095: the honest companion to `coverage.property_shaped`. Emitted as
+    // its own metric rather than as a field on that one, because a reader who
+    // sees only the first number must be able to find the second by name — the
+    // whole failure being that 54% travels and 8% does not.
+    metrics.push(
+        match (report.totals.specific_shaped, report.totals.criteria) {
+            (Some(specific), Some(criteria)) => Metric::measured(
+                "coverage.specific_shaped",
+                "acceptance criterion",
+                "extractable criteria whose shape names what property to write — every \
+             shape but the `universal` catch-all, `example` and `unclassified`; \
+             `matched` counts criteria that reached the classifier. NOT a quality \
+             ranking: a `universal` criterion is often the right thing to write",
+                specific,
+                criteria,
+                criteria,
+                criteria,
+            ),
+            _ => Metric::not_computed(
+                "coverage.specific_shaped",
+                "acceptance criterion",
+                "extractable criteria whose shape names what property to write",
                 "no corpus document in scope binds an acceptance criterion, so nothing \
              was classified",
             ),
@@ -768,7 +826,9 @@ fn criteria_counts(
             archetype: archetype.name.clone(),
             criteria: counts.criteria,
             property_shaped: counts.property_shaped,
+            specific_shaped: counts.specific_shaped,
             by_property: counts.by_property,
+            grounding: counts.grounding,
         });
     }
     out.sort_by(|a, b| (&a.document, &a.archetype).cmp(&(&b.document, &b.archetype)));
