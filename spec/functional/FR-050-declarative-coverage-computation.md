@@ -780,7 +780,7 @@ model; the engine knows nothing of "AC" or "TC" as concepts.
 
 - **Upstream**: [FR-051](./FR-051-source-symbol-extraction.md) (the symbol graph and trace tags), [FR-027](./FR-027-whole-spec-query-api.md) (corpus queries), [FR-014](./FR-014-module-activation.md) (manifest loading), [FR-010](./FR-010-query-api.md) (table extraction)
 - **Upstream (added CR-028)**: [FR-052](./FR-052-acceptance-criteria-property-classification.md) (the per-criterion property classification the `criteria` counts summarize)
-- **Downstream**: [FR-049](./FR-049-verification-reference-integrity.md) (reference declarations reused by bundle validation); `spec-artifacts-iso` declares the ISO model (follow-up change in that module); the `gap-analysis` workflow replaces its grep step with `quire coverage`
+- **Downstream**: [FR-049](./FR-049-verification-reference-integrity.md) (reference declarations reused by bundle validation); `spec-artifacts-iso` declares the ISO model (follow-up change in that module); the `gap-analysis` workflow replaces its grep step with `quire coverage`; [FR-065](./FR-065-controlled-corpus-contract.md) (the controlled corpus whose cases assert against this payload — a case's `expect` is written against the shape published by FR-055)
 
 > **CR-103 note (2026-08-22):** `agent-ix/quire-rs#237`, reopened.
 > SR-054 FND-005 — **the ratchet's corpus was one language.**
