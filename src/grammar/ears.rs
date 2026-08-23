@@ -434,8 +434,21 @@ pub(super) fn contains_shall(lower: &str) -> bool {
     re_shall().is_match(lower)
 }
 
+/// The 1-based **document** line of content-relative index `rel` in `section`.
+///
+/// A section's `content` begins on the line AFTER its heading, so `rel` sits at
+/// body line `start_line + rel + 1`, and `+ 1` more converts to 1-based. Both
+/// terms are load-bearing and one of them was missing (#257): every grammar
+/// finding and every classified criterion named the line above itself, which on
+/// a markdown table is the `|---|---|` separator.
+///
+/// Must stay equal to `corpus::declared_tables::rows_of`'s arithmetic, which
+/// was hand-verified against authored fixtures (TC-955) and was the only one of
+/// the three paths that had it right. Two paths disagreeing about one row's
+/// line is the defect; `agent-ix/quire-rs#254` was the same arithmetic missing
+/// the same term in `extract::assert_eval`.
 pub(super) fn abs_line(section: &QuireSection, rel: usize, line_offset: usize) -> usize {
-    line_offset + section.start_line + rel + 1
+    line_offset + section.start_line + rel + 2
 }
 
 /// Find the document line of a table cell by locating its text within the
@@ -520,6 +533,62 @@ mod tests {
 
     fn lex(terms: &[&str]) -> GrammarLexicon {
         GrammarLexicon::from_terms(terms.iter().copied())
+    }
+
+    #[trace("TC-1007", "FR-052-AC-18")]
+    // #257: the ABSOLUTE document line of a classified criterion, with
+    // frontmatter present, and it agrees with the coverage path.
+    #[test]
+    fn tc1007_a_classified_criterion_carries_its_own_document_line() {
+        // The shape that exposed it. Counted rather than reasoned about:
+        //
+        //  1  ---
+        //  2  id: FR-001
+        //  3  type: FR
+        //  4  ---
+        //  5
+        //  6  ## Acceptance Criteria
+        //  7
+        //  8  | ID | Criteria | Verification |
+        //  9  |----|----------|--------------|
+        // 10  | FR-001-AC-1 | Every request shall carry a trace id. | Test |
+        // 11  | FR-001-AC-2 | Every response shall carry a status.  | Test |
+        //
+        // Line 9 is the separator and carries no criterion. Reporting 9 and 10
+        // for the two rows is what shipped, and `abs_line` backs every grammar
+        // finding's line as well as every `AcClassification.line`, so the whole
+        // positional surface was one short.
+        //
+        // ABSOLUTE, not relative: TC-991 asserted `lines[0] < lines[1]` for the
+        // same class of defect in `assert_eval` and every off-by-N satisfies
+        // that — which is precisely how one shipped (#254).
+        let text = concat!(
+            "---\nid: FR-001\ntype: FR\n---\n\n",
+            "## Acceptance Criteria\n\n",
+            "| ID | Criteria | Verification |\n",
+            "|----|----------|--------------|\n",
+            "| FR-001-AC-1 | Every request shall carry a trace id. | Test |\n",
+            "| FR-001-AC-2 | Every response shall carry a status. | Test |\n",
+        );
+        let parsed = doc(text);
+        let offset = crate::validate_document::body_line_offset(text);
+        let records = crate::grammar::classify_document_properties(
+            "iso-spec-core",
+            "FR",
+            &parsed,
+            offset,
+            crate::grammar::GrammarVocabularies::defaults(),
+        );
+
+        let lines: Vec<_> = records.iter().map(|r| (r.row_id.clone(), r.line)).collect();
+        assert_eq!(
+            lines,
+            vec![
+                (Some("FR-001-AC-1".to_string()), Some(10)),
+                (Some("FR-001-AC-2".to_string()), Some(11)),
+            ],
+            "each criterion reports its own document line, not the row above it"
+        );
     }
 
     #[trace("TC-657", "FR-042-AC-1")]

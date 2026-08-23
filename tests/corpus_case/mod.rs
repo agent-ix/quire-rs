@@ -81,6 +81,13 @@ pub struct ExpectCensus {
     pub language: String,
     pub candidates: Option<usize>,
     pub bound: Option<usize>,
+    /// Where the census says one unbound candidate is, `path:line` (#256).
+    ///
+    /// A count cannot be opened, and `no-symbol-bound` named the language and
+    /// nothing else. Asserting the exact locus rather than its presence:
+    /// "carries an example" is satisfied by an example pointing anywhere, and
+    /// the whole finding is that it points at the right place.
+    pub unbound_example: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -179,6 +186,17 @@ pub fn assert_expected(case: &CorpusCase, report: &quire_rs::CoverageReport) {
         }
         if let Some(bound) = want.bound {
             assert_eq!(got.bound, bound, "{name}: {} bound", got.language);
+        }
+        if let Some(at) = &want.unbound_example {
+            let example = got.unbound_example.as_ref().unwrap_or_else(|| {
+                panic!("{name}: {} census carries no unbound example", got.language)
+            });
+            assert_eq!(
+                format!("{}:{}", example.path, example.line),
+                *at,
+                "{name}: {} unbound example",
+                got.language
+            );
         }
     }
 
