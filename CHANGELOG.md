@@ -5,6 +5,33 @@ All notable changes to `quire-rs` are documented here. Format follows
 numbers follow semver — pre-1.0, breaking changes may land in minor
 bumps; once 1.0 ships, semver is strict.
 
+## [0.44.2] — 2026-08-22
+
+Benchmark and test-harness only — `src/` is untouched, so consumers pinning the
+engine need not move.
+
+### Fixed
+
+- **The ratchet measured one language (#237, CR-103).** `bench/manifest.json`
+  listed `self` and `filament-ide-rs`, both Rust, and the second is skipped
+  whenever it sits off its pin — so the benchmark that exists to catch a check
+  going wrong measured exactly one Rust repository. That is why 0.44.1's two
+  false-positive classes reached a release. `quoin` (TypeScript) and
+  `spec-artifacts-process` (Python) are now scored, each being the corpus that
+  exposed one of them.
+- **The determinism test could not fail.** It called a pure function twice and
+  compared. It now asserts the absence of any time-varying field on a scored
+  row, verified by adding `generated_at` and watching it fail.
+
+### Added
+
+- **`skeptic.suspicion_rate`** — suspicions over evidence symbols examined.
+  Reverting the 0.44.1 guard-list fix moves `quoin` from 0.0 to 99.1 and the
+  run exits 1. Baselines: `quoin` 0.0, `spec-artifacts-process` 0.0, `self`
+  0.21.
+- **A corpus entry may declare a `metrics` allowlist**, so a tree carried for
+  language coverage does not thrash a ratchet with its content churn.
+
 ## [0.44.1] — 2026-08-22
 
 Both checks 0.44.0 shipped were measured against this crate only, and each
