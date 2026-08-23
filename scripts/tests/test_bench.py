@@ -14,7 +14,15 @@ import pytest
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
-from bench import BenchError, compare, metrics_from, pct, score, silent_zeros  # noqa: E402
+from bench import (  # noqa: E402
+    BenchError,
+    compare,
+    metrics_from,
+    pct,
+    score,
+    selected,
+    silent_zeros,
+)
 
 MANIFEST = json.loads(
     (pathlib.Path(__file__).resolve().parents[2] / "bench" / "manifest.json").read_text()
@@ -64,17 +72,35 @@ def test_an_undeclared_metric_is_refused():
         score(MANIFEST, {"self": {"coverage.invented": 1}}, {})
 
 
-def test_the_report_is_deterministic_and_carries_provenance():
-    """Two runs over identical inputs produce identical reports (quoin
-    FR-043-AC-9),
-    and every row carries the unit/population/method its metric declares — so a
-    reader can interrogate a number without opening the manifest."""
+def test_the_report_carries_no_time_varying_field_and_states_its_provenance():
+    """The report is byte-stable across runs (quoin FR-043-AC-9), and every row
+    carries the unit/population/method its metric declares — so a reader can
+    interrogate a number without opening the manifest.
+
+    **Asserts the absence directly (CR-103).** This was two `score()` calls
+    compared for equality, which cannot fail: `score` is pure over its
+    arguments, so nothing you could change inside it breaks that assertion
+    short of deliberately injecting a clock. The guard it was reaching for is
+    "no field varies with time", and that is what it now checks — a `now`,
+    `timestamp` or `generated_at` added to a row fails here, where the
+    equality form would have sailed through two calls a microsecond apart.
+    """
     observed = {"self": {"coverage.backed_pct": 51.0, "sentinel.silent_zero": 0}}
-    first = score(MANIFEST, observed, {})
-    second = score(MANIFEST, observed, {})
-    assert first == second
-    for row in first["rows"]:
+    report = score(MANIFEST, observed, {})
+
+    assert report["rows"], "an empty report asserts nothing below"
+    for row in report["rows"]:
         assert row["unit"] and row["population"] and row["method"]
+        stamped = sorted(
+            k for k in row
+            if any(t in k.lower() for t in ("time", "date", "stamp", "now", "generated", "ran_at"))
+        )
+        assert not stamped, f"time-varying field(s) in a scored row: {stamped}"
+
+    # Serializable with sorted keys and no float drift, which is what makes the
+    # byte-comparison in `make bench` meaningful rather than incidental.
+    once = json.dumps(report, sort_keys=True)
+    assert once == json.dumps(score(MANIFEST, observed, {}), sort_keys=True)
 
 
 def test_metrics_are_omitted_rather_than_zeroed_when_unreadable(capsys):
@@ -144,3 +170,62 @@ def test_silent_zero_counts_only_what_the_engine_did_not_already_report():
         "metrics": [{k: v for k, v in counted.items() if k != "shape"}],
         "diagnostics": [],
     }) == 1
+
+
+def test_a_corpus_can_scope_which_metrics_it_is_scored_on(capsys):
+    """CR-103: `quoin` and `spec-artifacts-process` are carried for LANGUAGE
+    coverage, not for their coverage figures.
+
+    Their `backed_pct` moves whenever somebody writes a spec row, and
+    ratcheting a tree this repository does not control would train everyone to
+    run `bench-update` reflexively — which is how a ratchet stops being one.
+    An entry with no `metrics` key is scored on everything, as before.
+    """
+    measured = {
+        "coverage.backed_pct": 72.9,
+        "sentinel.silent_zero": 0,
+        "skeptic.suspicion_rate": 0.0,
+    }
+    gates = ["sentinel.silent_zero", "skeptic.suspicion_rate"]
+
+    assert selected({"name": "quoin", "metrics": gates}, measured) == {
+        "sentinel.silent_zero": 0,
+        "skeptic.suspicion_rate": 0.0,
+    }
+    # No allowlist means every metric, so existing entries are unaffected.
+    assert selected({"name": "self"}, measured) == measured
+
+    # A declared metric the payload could not supply is named, not silently
+    # dropped — the same rule `metrics_from` follows for an unreadable field.
+    out = selected({"name": "quoin", "metrics": gates + ["coverage.implements_pct"]}, measured)
+    assert "coverage.implements_pct" not in out
+    assert "coverage.implements_pct" in capsys.readouterr().err
+
+
+def test_suspicion_rate_is_the_language_coverage_guard():
+    """CR-103: the number that would have caught the v0.44.0 misread.
+
+    549 suspicions over 551 TypeScript candidates is a rule reading the wrong
+    language, not a corpus full of vacuous tests. Verified end to end: reverting
+    the guard-list fix moves `quoin/skeptic.suspicion_rate` from 0.0 to 99.1 and
+    `make bench` exits 1.
+    """
+    misread = {
+        "totals": {"backed": 1, "total": 2},
+        "binding_census": [{"language": "typescript", "candidates": 551, "bound": 374}],
+        "suspicions": [{"kind": "vacuous-under-guard"} for _ in range(549)],
+    }
+    assert metrics_from(misread)["skeptic.suspicion_rate"] == 99.64
+
+    # The shipped shape: two genuine positives in nine hundred symbols.
+    honest = {
+        "totals": {"backed": 1, "total": 2},
+        "binding_census": [{"language": "rust", "candidates": 883, "bound": 591}],
+        "suspicions": [{"kind": "vacuous-under-guard"}, {"kind": "vacuous-under-guard"}],
+    }
+    assert metrics_from(honest)["skeptic.suspicion_rate"] == 0.23
+
+    # No evidence symbols means no rate, not 0% — the silent zero this
+    # benchmark exists to catch, produced by the benchmark itself.
+    empty = {"totals": {}, "binding_census": [], "suspicions": []}
+    assert "skeptic.suspicion_rate" not in metrics_from(empty)

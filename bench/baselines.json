@@ -1,8 +1,17 @@
 {
+  "quoin": {
+    "sentinel.silent_zero": 0,
+    "skeptic.suspicion_rate": 0.0
+  },
   "self": {
     "coverage.backed_pct": 72.91,
     "coverage.binding_read_pct": 63.55,
     "coverage.dead_tags": 0,
-    "sentinel.silent_zero": 0
+    "sentinel.silent_zero": 0,
+    "skeptic.suspicion_rate": 0.21
+  },
+  "spec-artifacts-process": {
+    "sentinel.silent_zero": 0,
+    "skeptic.suspicion_rate": 0.0
   }
 }

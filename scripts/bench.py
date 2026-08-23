@@ -256,7 +256,36 @@ def metrics_from(payload: dict) -> dict[str, Any]:
     else:
         skip("properties.specific_shaped_pct", "no binding criteria")
     out["sentinel.silent_zero"] = silent_zeros(payload)
+
+    # The language-coverage guard (CR-103). A check measured on one language and
+    # shipped to all of them is what put 549 suspicions on 551 TypeScript
+    # candidates in v0.44.0; this is the number that would have said so.
+    if candidates:
+        out["skeptic.suspicion_rate"] = pct(len(payload.get("suspicions", [])), candidates)
+    else:
+        skip("skeptic.suspicion_rate", "no evidence symbols examined")
     return out
+
+
+def selected(entry: dict, measured: dict[str, Any]) -> dict[str, Any]:
+    """The metrics a corpus entry declares, or all of them.
+
+    A `metrics` allowlist exists so a corpus can be carried for **language
+    coverage** without its content churn thrashing a ratchet. `quoin` and
+    `spec-artifacts-process` are working trees this repository does not
+    control: their `backed_pct` moves whenever somebody writes a spec row, and
+    ratcheting that would train everyone to run `bench-update` reflexively —
+    which is how a ratchet stops being one. What they are here to hold still is
+    the pair of gates that failed in v0.44.0, and those do not move with
+    content.
+    """
+    declared = entry.get("metrics")
+    if declared is None:
+        return measured
+    missing = [m for m in declared if m not in measured]
+    for name in missing:
+        skip(name, f"declared by corpus {entry['name']!r} but not measurable in its payload")
+    return {k: v for k, v in measured.items() if k in declared}
 
 
 def skip(metric: str, why: str) -> None:
@@ -315,7 +344,7 @@ def collect(manifest: dict, quire: str, module: str | None) -> dict:
             print(f"skip {entry['name']}: {exc}", file=sys.stderr)
             continue
         print(f"…{entry['name']} @ {identity}", file=sys.stderr)
-        observed[entry["name"]] = metrics_from(payload)
+        observed[entry["name"]] = selected(entry, metrics_from(payload))
     if not observed:
         raise BenchError(
             "no corpus entry could be scored — refusing to report a pass over "

@@ -1138,6 +1138,7 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-064-AC-4 | TC-1001 |
 | FR-064-AC-5 | TC-1003, TC-1004 |
 | FR-050-AC-31 | `scripts/tests/test_overfit_check.py` (Inspection — python-side sweep, mints no Rust symbol) |
+| FR-050-AC-32 | `scripts/tests/test_bench.py` (Inspection — python-side gate, mints no Rust symbol) |
 | FR-050-AC-30 | `scripts/tests/test_bench.py` (Inspection — python-side gate, mints no Rust symbol) |
 | FR-052-AC-18 | TC-989 |
 | FR-052-AC-19 | TC-780, TC-990 |
