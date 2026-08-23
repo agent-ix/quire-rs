@@ -131,6 +131,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | FR-053 Obligation record | AC-1..14; CON-1..4 | TC-831 (target-bound source, ids the rollup already mints), TC-832 (archetype-bound source, rendered ids over the NFR measurement table), TC-833 (both-or-neither origin rejected at parse), TC-834 (hash is whitespace-insensitive and word-sensitive, incl. inside code spans), TC-835 (one cell, two readings: method vs FR-049 reference), TC-836 (absent parameters omitted), TC-837 (criticality optional), TC-838 (empty statement skipped and reported), TC-839 (deterministic, ordered), TC-840 (classification record carries it), TC-841 (coverage report carries it; absent key preserves FR-050-AC-7), TC-842 (hash follows the statement, not its position), TC-843 (nested form does not repeat the record), TC-870 (the skipped-row diagnostic reaches the report), TC-871 (NFC), TC-872 (declaration order, not source name), TC-873 (`exclude` binds both surfaces) | ✅ Implemented |
 | FR-054 Verification-method catalog | AC-1..13; CON-1..6 | TC-844 (entries exposed intact), TC-845 (first-wins + DuplicateVerificationMethod), TC-846 (undeclared is None, not empty), TC-847 (unknown key fails load), TC-848 (empty required field fails load), TC-849 (derived vocabularies track the merge), TC-850 (test_type unchanged; unknown name empty), TC-851 (CON-2 applicability opaque), TC-852 (CON-3 no finding), TC-853 (CON-4 derived, never authored twice), TC-874 (an uncatalogued method is reported), TC-875 (no catalog asks no question), TC-967 (CR-091 the diagnostic carries the method as a structured `value`), TC-968, TC-969 (CR-092 `cost` exposed intact + additive serialization) | ✅ Implemented |
 | FR-055 Published JSON output contract | AC-1..8; CON-1..3 | TC-854 (schemas valid + versioned), TC-855 (baseline conforms), TC-856 (every optional key exercised), TC-857 (emitted criteria conform), TC-858 (additionalProperties closed at depth), TC-859 (optional/required split matches the engine), TC-947 (CR-086 `implements` optional-key record), TC-860 (CON-1/CON-2 no version key, no schemars), TC-1010 (CR-104 instrument provenance is optional and closed) | ✅ Implemented (the `properties` envelope conformance test lives in `quire-cli`, which assembles it) |
+| FR-065 Controlled-corpus contract | AC-1..21; CON-1..4 | TC-1011 (read in place; mutating copies), TC-1012 (required fields + control pairing), TC-1013 (optional expect fields), TC-1014 (the bounds vocabulary), TC-1015 (gap_count is a count), TC-1016 (the L1/L2/L3 ladder), TC-1017 (every failure case has its control), TC-1018 (the real module binds by default), TC-1019 (determinism), TC-1020 (reproducible by hand, with a module), TC-1021 (one declaration of each vocabulary, read from corpus.yaml) | 🚧 Spec authored; tests land with #267/#266 |
 | FR-058 Upward-trace completeness | AC-1..11; CON-1..2 | TC-898 (orphan reported, linked one not), TC-899 (any declared verb satisfies), TC-900 (incoming direction), TC-901 (dangling cannot satisfy), TC-902 (cycle once, ordered), TC-903 (per-relation severity + advisory), TC-904 (undeclared module unchanged), TC-905 (CON-1 every field survives the merge), TC-906 (unexecutable declaration rejected at load), TC-907 (duplicate relation name rejected), TC-908 (dead relation vocabulary reports itself), TC-909 (a use-case-backed FR is not an orphan), TC-910 (the finding reads as a sentence) | ✅ Implemented |
 | FR-059 Declared-vocabulary coverage | AC-1..10; CON-1..4 | TC-911 (unowned value reported), TC-912 (vocabulary read from the schema), TC-913 (justified absence covers), TC-914 (justification on any document), TC-915 (independently tunable), TC-916 (no enum reports itself), TC-917 (undeclared module unchanged), TC-918 (empty projection is one finding), TC-962, TC-963, TC-964, TC-965 (CR-091 owned/excused/unowned payload records + absent-key byte-identity), TC-966 (CR-091 dead declaration is a coverage diagnostic) | ✅ Implemented |
 | FR-060 Vocabulary references | AC-1..6; CON-1..3 | TC-919 (column reference resolves), TC-920 (scalar reference resolves), TC-921 (unknown name is empty not absent), TC-922 (literal wins over reference), TC-923 (untouched archetype unchanged), TC-924 (a reference obeys its literal's kind rules) | ✅ Implemented |
@@ -685,6 +686,17 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-859 | Removing an optional key leaves a payload valid and removing a required one does not, in both directions, so the split matches the engine's skip-when-empty behaviour rather than being asserted (FR-055) | Integration | P0 | FR-055-AC-6 | ✅ |
 | TC-860 | No payload carries a `version`, `$schema` or `schema_version` key, and `schemars` is absent from the lockfile — the contract is carried by the published artifact alone (FR-055, CON-1/CON-2) | Integration | P0 | FR-055-AC-7 | ✅ |
 | TC-1010 | Both payloads accept an optional `engine` provenance object and reject one missing `cli`, `engine` or `capabilities` or carrying an undeclared member; a `-<n>-g<sha>` engine string survives verbatim and an unrecognised capability token is accepted, so the envelope is closed while its vocabulary stays open (CR-104, agent-ix/quire-cli#68) | Integration | P0 | FR-055-AC-8 | ✅ |
+| TC-1011 | A non-mutating case is read from disk in place with nothing generated or copied, and a mutating case operates on a copy leaving its checked-in `input/` byte-unchanged — the property that distinguishes a corpus from a generator (FR-065) | Integration | P0 | FR-065-AC-1, FR-065-AC-2 | 🚧 awaiting #267 (the runner) / #266 (the corpus artifact) |
+| TC-1012 | A case omitting any required `case.yaml` field is rejected naming the case and the field, and a `control` declaring no `control_for` is rejected — a fixture whose origin or pairing is unrecorded becomes one nobody dares change (FR-065) | Unit | P0 | FR-065-AC-3, FR-065-AC-4 | 🚧 awaiting #267 (the runner) / #266 (the corpus artifact) |
+| TC-1013 | An omitted `expect` field is asserted on by nothing rather than defaulted, so a case pins only what it is about and one unrelated change cannot fail forty cases (FR-065) | Unit | P0 | FR-065-AC-5 | 🚧 awaiting #267 (the runner) / #266 (the corpus artifact) |
+| TC-1014 | Every declared cell reads as exactly one of `covered`/`out-of-scope`/`GAP`; an `out-of-scope` cell with an empty reason is rejected, and a cell in no state is rejected naming the case and language (FR-065) | Unit | P0 | FR-065-AC-6, FR-065-AC-7, FR-065-AC-8 | 🚧 awaiting #267 (the runner) / #266 (the corpus artifact) |
+| TC-1015 | `bounds.gap_count` renders as an integer count on every payload this crate emits and as a ratio on none — FR-063-AC-6 applied to this metric, since a ratio falls as easy cases are added and hides the hard missing one (FR-065) | Integration | P0 | FR-065-AC-9, FR-065-AC-10 | 🚧 awaiting #267 (the runner) / #266 (the corpus artifact) |
+| TC-1016 | A failing case reports the highest detection level reached and the first level lost, distinguishing L1/L2/L3 — `the case failed` and `the message stopped naming the row` are different repairs (FR-065) | Integration | P0 | FR-065-AC-11, FR-065-AC-12 | 🚧 awaiting #267 (the runner) / #266 (the corpus artifact) |
+| TC-1017 | A failure case whose `control_for` partner is absent is rejected naming the missing control, and a present control produces no finding for the mode its partner asserts — #250 scored perfect recall firing 549 times on 551 candidates (FR-065) | Integration | P0 | FR-065-AC-13, FR-065-AC-14 | 🚧 awaiting #267 (the runner) / #266 (the corpus artifact) |
+| TC-1018 | A case binding a variant module without naming a relaxation ticket is rejected, and one binding the vendored ecosystem module loads without naming one — a corpus whose manifest always matches cannot exhibit the defect stranding 3,514 TC ids (FR-065) | Unit | P0 | FR-065-AC-15, FR-065-AC-16 | 🚧 awaiting #267 (the runner) / #266 (the corpus artifact) |
+| TC-1019 | Two runs of one case over unchanged input produce byte-identical result records (FR-065) | Integration | P0 | FR-065-AC-17 | 🚧 awaiting #267 (the runner) / #266 (the corpus artifact) |
+| TC-1020 | Each case carries the invocation that reproduces it and that invocation names a module — without `--module` no model loads, the run reports 0/0, and the case cannot exhibit the declaration defect it exists for (FR-065) | Integration | P0 | FR-065-AC-18 | 🚧 awaiting #267 (the runner) / #266 (the corpus artifact) |
+| TC-1021 | The runner reads the bounds enum, the ladder level names and the mode families from `corpus.yaml` rather than compiled-in lists: a value added there is accepted with no code change, and a case naming an undeclared family is rejected — which is what makes single-definition checkable from one repository (FR-065) | Integration | P0 | FR-065-AC-19, FR-065-AC-20, FR-065-AC-21 | 🚧 awaiting #267 (the runner) / #266 (the corpus artifact) |
 | TC-861 | A built-in ambiguity term fires `quality:ambiguous-term` naming the term, and a quantified statement fires nothing (FR-056) | Integration | P0 | FR-056-AC-1 | ✅ |
 | TC-862 | `as appropriate` is reported as itself, not as the `appropriate` inside it — the report names what the author wrote (FR-056) | Integration | P1 | FR-056-AC-2 | ✅ |
 | TC-863 | A module's declared terms fire **and** every built-in still fires — the registry layers over the built-ins rather than replacing them (FR-056, CON-2) | Integration | P0 | FR-056-AC-3 | ✅ |
@@ -1461,6 +1473,27 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-055-AC-6 | TC-859, TC-947 |
 | FR-055-AC-7 | TC-860 |
 | FR-055-AC-8 | TC-1010 |
+| FR-065-AC-1 | TC-1011 |
+| FR-065-AC-2 | TC-1011 |
+| FR-065-AC-3 | TC-1012 |
+| FR-065-AC-4 | TC-1012 |
+| FR-065-AC-5 | TC-1013 |
+| FR-065-AC-6 | TC-1014 |
+| FR-065-AC-7 | TC-1014 |
+| FR-065-AC-8 | TC-1014 |
+| FR-065-AC-9 | TC-1015 |
+| FR-065-AC-10 | TC-1015 |
+| FR-065-AC-11 | TC-1016 |
+| FR-065-AC-12 | TC-1016 |
+| FR-065-AC-13 | TC-1017 |
+| FR-065-AC-14 | TC-1017 |
+| FR-065-AC-15 | TC-1018 |
+| FR-065-AC-16 | TC-1018 |
+| FR-065-AC-17 | TC-1019 |
+| FR-065-AC-18 | TC-1020 |
+| FR-065-AC-19 | TC-1021 |
+| FR-065-AC-20 | TC-1021 |
+| FR-065-AC-21 | TC-1021 |
 | FR-056-AC-1 | TC-861 |
 | FR-056-AC-2 | TC-862 |
 | FR-056-AC-3 | TC-863 |
