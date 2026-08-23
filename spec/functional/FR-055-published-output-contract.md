@@ -82,9 +82,19 @@ schema that describes what it was written against.
 > `CoverageReport::to_json` — which cannot know a CLI version — still conforms,
 > and so does a payload from any CLI predating the field.
 >
-> `quire-cli` FR-008-AC-5 is narrowed in the same terms in that repository; the
-> ban on a CLI **version string standing alone** in the payload is what it meant
-> and what survives.
+> The sibling narrowing of `quire-cli` FR-008-AC-5 is carried by
+> agent-ix/quire-cli#69 and is **not** a fact about this repository — stating a
+> cross-repo change in the present indicative is how a spec comes to assert
+> something that never landed, and no gate here could notice. What that change
+> argues is the same thing in the same terms: the ban on a CLI **version string
+> standing alone** in the payload is what AC-5 meant and what survives.
+>
+> **This constraint is enforced over the schemas, not over one payload.** TC-860
+> originally read a single payload instance and checked its root keys, which was
+> a weaker gate than the constraint even before this change — and CR-104 is the
+> change that introduces nesting for a banned key to hide in. It now walks every
+> `properties` map in both published artifacts, so a declared
+> `engine.schema_version` fails here rather than in a consumer.
 
 ### The gate rides the baseline that already exists
 
@@ -125,8 +135,16 @@ optional and SHALL give it no default. "Absent" and "present and empty" are
 different facts on these payloads, and the byte-identity property depends on the
 difference.
 
-An open machine vocabulary — the `diagnostics[].reason` token — SHALL NOT be
-enumerated. A schema that closed it would reject a payload from a newer engine
+A key **no** engine surface emits — one assembled by a consuming CLI, which is
+the only layer holding the fact — SHALL likewise be optional, and SHALL be
+admitted only where its absence is a defect the payload alone can be read to
+diagnose. `engine` (CR-104) is the first: `CoverageReport` has no such member
+and never will, because this crate cannot know which binary is calling it. The
+optionality is not a courtesy to older consumers here; it is what keeps an
+in-process `to_json` caller conformant.
+
+An open machine vocabulary — the `diagnostics[].reason` token, and the `engine`
+block's `capabilities` list — SHALL NOT be enumerated. A schema that closed it would reject a payload from a newer engine
 that a consumer could otherwise read, converting a forward-compatible addition
 into a break. A **closed** engine enum (`property`, `extraction`, `shape`) SHALL
 be enumerated, because those are closed by construction

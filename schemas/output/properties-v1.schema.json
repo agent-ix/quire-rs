@@ -28,7 +28,7 @@
         },
         "engine": {
           "type": "string",
-          "description": "The resolved `quire-rs` version actually linked, taken from the lockfile entry. A `-<n>-g<sha>` suffix is carried VERBATIM and never rounded to the nearest tag."
+          "description": "The resolved `quire-rs` version actually linked, read from the `?tag=` / `?rev=` / `?branch=` locator of the consuming crate's lockfile entry, or the commit sha where the locator is absent — not that entry's `version` field, which for a git dependency is the dependency's own stale manifest constant. A `-<n>-g<sha>` suffix, a bare rev, or a branch name is carried VERBATIM and never rounded to the nearest tag."
         },
         "capabilities": {
           "type": "array",

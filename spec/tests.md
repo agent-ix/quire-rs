@@ -1460,6 +1460,7 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-055-AC-5 | TC-858 |
 | FR-055-AC-6 | TC-859, TC-947 |
 | FR-055-AC-7 | TC-860 |
+| FR-055-AC-8 | TC-1010 |
 | FR-056-AC-1 | TC-861 |
 | FR-056-AC-2 | TC-862 |
 | FR-056-AC-3 | TC-863 |

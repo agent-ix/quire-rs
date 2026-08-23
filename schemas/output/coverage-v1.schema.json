@@ -143,7 +143,7 @@
         },
         "engine": {
           "type": "string",
-          "description": "The resolved `quire-rs` version actually linked, taken from the lockfile entry rather than from a constant in either tree \u2014 a constant records what somebody wrote, the lockfile records what was built. A `-<n>-g<sha>` suffix is carried VERBATIM and never rounded to the nearest tag: the whole defect is a binary claiming a version it does not have."
+          "description": "The resolved `quire-rs` version actually linked, read from the consuming crate's lockfile entry \u2014 specifically the `?tag=` / `?rev=` / `?branch=` locator in that entry's `source` field, or the commit sha where the locator is absent. NOT the entry's `version` field: for a git dependency that field is the dependency's own manifest constant, and this crate's manifest has read `0.33.0` at every tag from v0.42.0 through v0.45.0, so reading it would restate the defect one layer down. A `-<n>-g<sha>` suffix, a bare rev, or a branch name is carried VERBATIM and never rounded to the nearest tag: the whole defect is a binary claiming a version it does not have."
         },
         "capabilities": {
           "type": "array",
