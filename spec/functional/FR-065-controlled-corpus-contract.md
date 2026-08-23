@@ -122,18 +122,26 @@ bounds say so.
 
 ### Reproducible by hand, or it has regressed to what it replaced
 
-A case reproduces with the invocation recorded in its own `case.yaml`, over its own
-directory, with no harness and no generator:
+A case reproduces with the invocation recorded in its own `case.yaml`, with no harness
+and no generator. It runs **from the corpus root**:
 
 ```
-cd cases/<mode>/<case>/input
-quire coverage --scope . --module ../../../../modules/ecosystem --json
+quire coverage --scope cases/<mode>/<case>/input --module modules/ecosystem --json
 ```
 
 The `--module` argument is not optional decoration: without it no traceability model
 loads, the run reports `0/0 rows backed`, and the case cannot exhibit the declaration
 defect it exists for. If the only way to see a case fail is to run the runner, the
 corpus is code again and the contract has bought nothing.
+
+**Why from the root and not from inside `input/`.** The first draft of this requirement
+documented `cd input && … --module ../../../../modules/ecosystem`, which **the CLI
+rejects**: `--module` refuses a path containing `..` under
+[FR-005](./FR-005-path-safety.md) path safety, and the refusal is correct — a module
+argument that can climb out of the tree it was given is the traversal that guard exists
+for. Written that way, no case could bind a shared module at all, AC-16 was unreachable
+by construction rather than deferred, and the vendored declaration was decorative. Found
+by running it.
 
 ## Inputs
 
