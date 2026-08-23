@@ -132,6 +132,35 @@ pub struct BindingCensus {
     /// then legacy — the list to check when `bound` is 0 and `candidates` is
     /// not.
     pub forms: Vec<String>,
+    /// One candidate that bound nothing — a place to look (#256).
+    ///
+    /// The census is a count, and a count cannot be opened. `no-symbol-bound`
+    /// named the LANGUAGE (`rust`) and nothing else, so a reader with 1,292
+    /// unbound symbols was told which of three languages to search. This is the
+    /// lowest `(path, line)` among the unbound, so it is deterministic
+    /// (NFR-006) and it is a real symbol the reader can put a cursor on.
+    ///
+    /// `None` when every candidate bound, which is also when the diagnostic
+    /// does not fire. Skipped rather than serialized as `null`, matching
+    /// `specific_shaped` and `grounding`: FR-050-AC-7 byte-identity means a
+    /// report from a corpus with nothing unbound must not change shape because
+    /// a later engine learned to name one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub unbound_example: Option<UnboundSymbol>,
+}
+
+/// Where one unbound evidence symbol is (#256).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct UnboundSymbol {
+    /// Repo-relative, `/`-separated.
+    pub path: String,
+    /// 1-based line of the symbol's annotation block, not its `fn` line: a
+    /// marker that failed to match is written where the annotation is, and
+    /// that is the line the reader has to edit.
+    pub line: usize,
+    /// Qualified name, so the reader can confirm they are looking at the same
+    /// symbol after the file moves.
+    pub symbol: String,
 }
 
 /// The symbol graph the coverage rollup and knowledge-graph ingestion consume.
@@ -206,7 +235,8 @@ pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolG
     // FR-051-AC-19: what was looked at, per language, and what bound. Keyed by
     // the stable language label so the census order is a property of the data
     // rather than of the walk (NFR-006).
-    let mut census: BTreeMap<&'static str, (usize, usize)> = BTreeMap::new();
+    // candidates, bound, and the lowest-positioned unbound candidate (#256).
+    let mut census: BTreeMap<&'static str, (usize, usize, Option<UnboundSymbol>)> = BTreeMap::new();
 
     for symbol in &extraction.symbols {
         graph.defined_in.push((
@@ -253,18 +283,37 @@ pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolG
         entry.0 += 1;
         if graph.verifies.len() > before {
             entry.1 += 1;
+        } else {
+            // Keep the LOWEST (path, line), not the first walked: the walk
+            // order is the scan's and a report that changes when a file is
+            // renamed is a report nobody can diff (NFR-006).
+            let candidate = UnboundSymbol {
+                path: symbol.path.clone(),
+                line: symbol.leading_line,
+                symbol: symbol.qualified_name.clone(),
+            };
+            let better = match &entry.2 {
+                None => true,
+                Some(current) => (&candidate.path, candidate.line) < (&current.path, current.line),
+            };
+            if better {
+                entry.2 = Some(candidate);
+            }
         }
     }
 
     graph.suspicions = crate::skeptic::vacuous_property_suites(extraction);
     graph.binding_census = census
         .into_iter()
-        .map(|(language, (candidates, bound))| BindingCensus {
-            language: language.to_string(),
-            candidates,
-            bound,
-            forms: declared_forms(model, language),
-        })
+        .map(
+            |(language, (candidates, bound, unbound_example))| BindingCensus {
+                language: language.to_string(),
+                candidates,
+                bound,
+                forms: declared_forms(model, language),
+                unbound_example,
+            },
+        )
         .collect();
 
     graph.implements.sort_by(|a, b| {

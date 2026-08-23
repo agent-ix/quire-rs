@@ -1301,12 +1301,26 @@ fn binding_diagnostics(census: &[BindingCensus]) -> Vec<CoverageDiagnostic> {
             } else {
                 entry.forms.join(", ")
             };
+            // One unbound symbol, named. A census is a count and a count
+            // cannot be opened: this diagnostic named the LANGUAGE and nothing
+            // else, so a reader holding 1,292 unbound Rust symbols was told to
+            // search Rust (#256). `at` is the sentence a reader can act on;
+            // `path` is the same fact as a field, so `path:line` output and the
+            // benchmark's positional scoring both work.
+            let at = entry.unbound_example.as_ref().map(|e| {
+                format!(
+                    " — for example `{}` at {}:{}, whose annotation carries no \
+                     matching form",
+                    e.symbol, e.path, e.line
+                )
+            });
+            let at = at.unwrap_or_default();
             let (reason, message) = if entry.bound == 0 {
                 (
                     "no-symbol-bound",
                     format!(
                         "{} {} evidence symbols were examined and none carried a tag any \
-                         declared form matched (forms: {forms}); every row those symbols \
+                         declared form matched (forms: {forms}){at}; every row those symbols \
                          verify is reported unbacked, which is indistinguishable from a \
                          missing test",
                         entry.candidates, entry.language
@@ -1316,7 +1330,7 @@ fn binding_diagnostics(census: &[BindingCensus]) -> Vec<CoverageDiagnostic> {
                 (
                     "low-symbol-binding",
                     format!(
-                        "{} of {} {} evidence symbols bound a trace id (forms: {forms}); \
+                        "{} of {} {} evidence symbols bound a trace id (forms: {forms}){at}; \
                          below {}% the likeliest reading is a marker-form mismatch rather \
                          than untagged tests",
                         entry.bound,
@@ -1332,7 +1346,7 @@ fn binding_diagnostics(census: &[BindingCensus]) -> Vec<CoverageDiagnostic> {
                 declaration: "traceability.trace_tags".to_string(),
                 reason: reason.to_string(),
                 message,
-                path: None,
+                path: entry.unbound_example.as_ref().map(|e| e.path.clone()),
                 value: Some(entry.language.clone()),
             })
         })

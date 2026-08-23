@@ -803,6 +803,8 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-996 | A corpus whose every extractable criterion is the catch-all reports `specific_shaped` 0 alongside a non-zero `property_shaped` (CR-098) | Integration | P0 | FR-050-AC-29 | ✅ |
 | TC-991 | A row-scoped assert failure carries the offending row's `id_column` cell and its own document line, so two rows failing one check are two distinguishable findings rather than two byte-identical strings at one locus; a table-scoped failure (`min_rows`) keeps the section line and names no row; and an assert declaring no `id_column` yields a row line with no guessed id (CR-097) | Unit | P0 | FR-033-AC-16 | ✅ |
 | TC-1005 | The whole-document line a row-scoped assert reports is the offending row's own, not the dashed separator line above it, checked through `validate_document` with frontmatter present so the frontmatter offset, section start, heading line and 1-based conversion are verified together; its control fires nothing (#254) | Unit | P0 | FR-033-AC-16 | ✅ |
+| TC-1006 | The binding census names ONE unbound candidate — the lowest `(path, line)` so it is deterministic, at the ANNOTATION line rather than the `fn` line because that is what a reader edits — and `no-symbol-bound` carries it as `path` and in its message; the control, the same tree with the declared marker, carries no example and fires nothing (#256) | Unit | P0 | FR-051-AC-19 | ✅ |
+| TC-1007 | A classified criterion reports its own ABSOLUTE document line with frontmatter present, not the separator row above it — asserted as exact values because a relative assertion is satisfied by every off-by-N, which is how #254 shipped (#257) | Unit | P0 | FR-052-AC-18 | ✅ |
 | TC-990 | Decomposition keys on quantification, not on the winning label: a quantified `invariant` statement carries the same spans the `universal` path produces, an unquantified `idempotence` statement carries none, and both hold identically with and without a declared idiom registry (CON-4 unchanged) (CR-096) | Unit | P0 | FR-052-AC-19 | ✅ |
 | TC-989 | The catch-all is split out of the headline: a corpus whose every extractable criterion is `universal` reports `specific_shaped` 0 while `property_shaped` stays non-zero, both figures reach the FR-063 envelope under their own names over the same denominator, and per-shape `grounding` counts every classified criterion exactly once with `all_three` never exceeding any of its parts (CR-095) | Integration | P0 | FR-050-AC-28, FR-052-AC-18 | ✅ |
 | TC-988 | Every coverage headline number is enveloped with unit, method, population, `examined` and `matched`; three tests carrying an undeclared marker spelling make `coverage.backed` hollow and mint a `hollow-denominator` diagnostic naming it; `coverage.implements` reports `not_computed` with the condition named; and the same tree read cleanly, and a tree with no symbols at all, each report nothing (CR-094) | Integration | P0 | FR-063-AC-3, FR-063-AC-4, FR-063-AC-5 | ✅ |
@@ -1141,7 +1143,7 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-050-AC-31 | `scripts/tests/test_overfit_check.py` (Inspection — python-side sweep, mints no Rust symbol) |
 | FR-050-AC-32 | `scripts/tests/test_bench.py` (Inspection — python-side gate, mints no Rust symbol) |
 | FR-050-AC-30 | `scripts/tests/test_bench.py` (Inspection — python-side gate, mints no Rust symbol) |
-| FR-052-AC-18 | TC-989 |
+| FR-052-AC-18 | TC-989, TC-1007 |
 | FR-052-AC-19 | TC-780, TC-990 |
 | FR-063-AC-1 | TC-985, TC-987 |
 | FR-063-AC-6 | TC-985 |
@@ -1403,7 +1405,7 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-051-AC-16 | TC-806 |
 | FR-051-AC-17 | TC-827, TC-828 |
 | FR-051-AC-18 | TC-943, TC-948, TC-958, TC-960, TC-961 |
-| FR-051-AC-19 | TC-982 |
+| FR-051-AC-19 | TC-982, TC-1006 |
 | FR-052-AC-1 | TC-779 |
 | FR-052-AC-2 | TC-780 |
 | FR-052-AC-3 | TC-781 |

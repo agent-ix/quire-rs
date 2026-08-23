@@ -278,6 +278,10 @@
             "type": "string"
           },
           "description": "Every declared form consulted for this language, marker names before legacy \u2014 the list to check when `bound` is 0 and `candidates` is not."
+        },
+        "unbound_example": {
+          "$ref": "#/$defs/UnboundSymbol",
+          "description": "ABSENT when every candidate bound \u2014 which is also when no binding diagnostic fires \u2014 so a report over a fully-bound corpus keeps the shape an engine predating this field emitted (FR-050-AC-7). Additive under FR-055-CON-3."
         }
       }
     },
@@ -863,6 +867,31 @@
           "type": "string",
           "minLength": 1,
           "description": "The numbers behind the claim, rendered. Not decoration: a suspicion a reader cannot check in one look is one they learn to scroll past, which is how an advisory check becomes noise rather than a skeptic."
+        }
+      }
+    },
+    "UnboundSymbol": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "line",
+        "symbol"
+      ],
+      "description": "One evidence symbol that bound nothing, so `no-symbol-bound` names a place instead of a language (#256). The lowest `(path, line)` among the unbound, so it is deterministic under NFR-006 and does not move when a file is renamed. ONE example, not all of them: the finding is about the language's convention, and a diagnostic carrying a thousand paths is a diagnostic nobody reads.",
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "Repo-relative, `/`-separated, matching every other path in this payload."
+        },
+        "line": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "1-based line of the symbol's ANNOTATION block, not its declaration line: a marker that failed to match is written where the annotation is, and that is the line the reader has to edit."
+        },
+        "symbol": {
+          "type": "string",
+          "description": "Qualified name, so a reader can confirm the same symbol after a file moves."
         }
       }
     }
