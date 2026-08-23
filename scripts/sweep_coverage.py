@@ -8,15 +8,30 @@ v0.26.0; this re-measures against a released engine.
 
 Two things the earlier sweep got wrong, both fixed here:
 
-* **The engine must be released.** CR-061 (v0.27.0) widened `trace::bind` to
-  benchmarks and fuzz targets, so a tag on a `criterion_group!` bench resolves
-  where it previously did not. Numbers taken on an older engine are stale on
-  arrival. `--engine` is recorded in the output.
+* **The engine must be the pinned one, and it must say so itself.** CR-061
+  (v0.27.0) widened `trace::bind` to benchmarks and fuzz targets, so a tag on a
+  `criterion_group!` bench resolves where it previously did not. Numbers taken
+  on an older engine are stale on arrival.
 * **The module must not be the stale installed copy.** `~/.ix/filament/modules`
   lags the source repository — at the time of writing it was missing the Phase D
   comma-list trace patterns (205 ids across 17 repos) and the `tests/**`
   exclusions on the FR/NFR archetype targets. Pass `--module` pointing at the
   source tree so the model is the current one, and record which.
+
+## Provenance is measured, never typed (#265)
+
+This script used to take `--engine`, a **string the operator typed**, and record
+it in the output. Unverified, so it was not provenance — it made a report *look*
+sourced, which is worse than a report that admits it is not. It also took
+`--quire <bin>`, defaulting to whatever was on `PATH`; the installed binary was
+16 releases behind this tree at the time of writing, and `Makefile:246` had
+already stated the correct rule for `make validate` two years running.
+
+Both are gone. The binary is **built from the consuming workspace at its pinned
+rev**, and the engine version is read from the `engine` block of the payloads it
+emits (quire-cli#68). A binary that cannot say what it links cannot be swept
+with, and a binary missing a capability the sweep depends on **aborts naming the
+token** rather than omitting a metric and printing the rest.
 
 Dead tags are `untracked_symbols`: a trace marker written in source whose id no
 trace target ever minted. A repo "mints zero test-case targets" when none of the
@@ -24,7 +39,7 @@ three declared matrix paths carries a `## Test Case Summary` — the section the
 `test-case` target reads.
 
 Usage:
-  python3 sweep_coverage.py --quire <bin> --module <dir> [root]
+  python3 sweep_coverage.py --consumer ../quire-cli --module <dir> [root]
 """
 
 from __future__ import annotations
@@ -41,10 +56,54 @@ import sys
 # the truth was 183 for exactly this reason. This script previously carried its
 # own copy of the rules which had neither `SKIP_DIRS` nor verified worktree
 # detection, so its numbers excluded less than the other harnesses' did.
+from check_engine import Drift, assert_capabilities, reported_engine
 from corpus import repos
 
 DECLARED_PATHS = ("spec/tests.md", "spec/matrix.md", "spec/evals.md")
 SUMMARY = re.compile(r"^##\s+Test Case Summary\s*$", re.MULTILINE)
+
+# What this sweep's own numbers rest on. `binding_census` is the premise behind
+# every backed/total figure it prints — without it the sweep cannot say whether
+# the binder read a single test in a repo, and a coverage percentage over an
+# unread corpus is the exact shape that produced four passes of wrong answers.
+REQUIRED_CAPABILITIES = ("binding_census",)
+
+
+def build_engine(consumer: pathlib.Path) -> str:
+    """Build `quire` from the consuming workspace and return the binary path.
+
+    Never a `PATH` lookup. `Makefile:246` has stated the rule for `make validate`
+    since #212 — "runs the working-tree engine, never an installed `quire` CLI,
+    which lags the branch under test" — and the sweeps never adopted it, which
+    is how a binary 16 releases behind produced ecosystem figures nobody
+    questioned.
+    """
+    manifest = consumer / "Cargo.toml"
+    if not manifest.is_file():
+        raise Drift(f"no consumer workspace at {consumer}")
+    print(f"building the engine from {consumer} …", file=sys.stderr)
+    done = subprocess.run(
+        ["cargo", "build", "--release", "--manifest-path", str(manifest),
+         "--message-format", "json"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if done.returncode != 0:
+        raise Drift(f"building {consumer}: {done.stderr.strip()[-400:]}")
+    # The path comes from cargo's own message stream rather than a guessed
+    # `target/release/quire`: a workspace, a `CARGO_TARGET_DIR`, or a shared
+    # target directory all move it, and guessing is how a sweep silently runs a
+    # stale binary left over from an earlier build.
+    for line in done.stdout.splitlines():
+        try:
+            message = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if message.get("reason") == "compiler-artifact" and message.get("executable"):
+            if message.get("target", {}).get("name") == "quire":
+                return message["executable"]
+    raise Drift(f"cargo built {consumer} but emitted no `quire` executable")
 
 
 def mints_test_cases(repo: pathlib.Path) -> bool:
@@ -78,20 +137,54 @@ def coverage(quire: str, repo: pathlib.Path, module: str | None) -> dict | None:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("root", nargs="?", default="~/dev")
-    parser.add_argument("--quire", required=True, help="path to the quire binary")
+    parser.add_argument(
+        "--consumer",
+        default="../quire-cli",
+        help="workspace to build the engine from, at its pinned rev (default: ../quire-cli)",
+    )
     parser.add_argument("--module", help="module directory supplying the traceability model")
-    parser.add_argument("--engine", default="", help="engine version string, recorded in output")
     args = parser.parse_args()
+
+    here = pathlib.Path(__file__).resolve().parent.parent
+    consumer = pathlib.Path(args.consumer).expanduser()
+    if not consumer.is_absolute():
+        consumer = (here.parent / consumer.name).resolve()
+
+    try:
+        quire = build_engine(consumer)
+    except Drift as error:
+        print(f"sweep_coverage: {error}", file=sys.stderr)
+        return 1
 
     root = pathlib.Path(args.root).expanduser()
     rows = []
+    engine: str | None = None
 
     for repo in repos(root):
-        report = coverage(args.quire, repo, args.module)
+        report = coverage(quire, repo, args.module)
         row = {"repo": repo.name, "mints_test_cases": mints_test_cases(repo)}
         if report is None or "error" in report:
             row["error"] = (report or {}).get("error", "unknown")
         else:
+            # Provenance off the FIRST clean payload, then held. Checked on
+            # every subsequent one: a sweep is a long-running loop over hundreds
+            # of repositories, and a binary swapped underneath it halfway
+            # through would otherwise be reported as one measurement.
+            try:
+                version, capabilities = reported_engine(report)
+                if engine is None:
+                    assert_capabilities(capabilities, list(REQUIRED_CAPABILITIES))
+                    engine = version
+                    print(f"engine: {version} ({', '.join(capabilities)})", file=sys.stderr)
+                elif version != engine:
+                    raise Drift(
+                        f"{repo.name} was measured by engine {version} while the "
+                        f"sweep began on {engine}. The binary changed mid-run, so "
+                        f"these rows are not one measurement."
+                    )
+            except Drift as error:
+                print(f"sweep_coverage: {error}", file=sys.stderr)
+                return 1
             untracked = report.get("untracked_symbols", [])
             groups = report.get("groups", [])
             # Measured, not inferred: a repo mints test-case ids when the engine
@@ -115,7 +208,10 @@ def main() -> int:
         rows.append(row)
         print(f"  {row['repo']:34s} {row.get('dead_tags', row.get('error'))}", file=sys.stderr)
 
-    print(json.dumps({"engine": args.engine, "module": args.module, "repos": rows}, indent=1))
+    print(json.dumps(
+        {"engine": engine, "module": args.module, "consumer": str(consumer), "repos": rows},
+        indent=1,
+    ))
 
     ok = [r for r in rows if "error" not in r]
     failed = [r for r in rows if "error" in r]
@@ -126,7 +222,7 @@ def main() -> int:
     with_dead = [r for r in ok if r["dead_tags"]]
 
     out = sys.stderr
-    print(f"\nengine                            : {args.engine or 'unrecorded'}", file=out)
+    print(f"\nengine (from the payload)         : {engine or 'no clean payload'}", file=out)
     print(f"module                            : {args.module or 'discovered'}", file=out)
     print(f"repos with a spec/ directory      : {len(rows)}", file=out)
     print(f"  reported cleanly                : {len(ok)}", file=out)
