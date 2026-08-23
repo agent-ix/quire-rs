@@ -44,13 +44,47 @@ silently whenever a struct did — which is the failure this FR exists to close,
 not a convenience it should adopt. `schemars` stays banned; FR-003-AC-4 already
 said consumers supply pre-built schemas, and this is the crate supplying them.
 
-### The version lives in the artifact, not the payload
+### The CONTRACT version lives in the artifact, not the payload
 
-[FR-008](./FR-008-byte-exact-slicing.md)-AC-5 bans a CLI-added payload field, so
-there is no `"version"` key and SHALL NOT be one. Versioning lives in the
-schema's `$id` and filename — `coverage-v1.schema.json`. A breaking payload
-change mints `-v2` beside it rather than editing `-v1` in place, so a consumer
-pinned to v1 keeps a schema that describes what it was written against.
+There is no `"version"` key naming which revision of this contract a payload
+conforms to, and SHALL NOT be one. Versioning lives in the schema's `$id` and
+filename — `coverage-v1.schema.json`. A breaking payload change mints `-v2`
+beside it rather than editing `-v1` in place, so a consumer pinned to v1 keeps a
+schema that describes what it was written against.
+
+> **CR-104** (agent-ix/quire-cli#68, agent-ix/quire-rs#264 Wave 0) — *the
+> contract version and the instrument version are different facts, and CON-2
+> conflated them.*
+>
+> As written, CON-2 forbade "a version key, a schema reference, or **any other
+> field** for the benefit of this contract", citing `quire-cli` FR-008-AC-5 ("no
+> CLI version string appears in JSON output"). Read literally, that banned the
+> one field the measurement programme most needs.
+>
+> The two are not the same claim. **Contract version** answers *which schema
+> describes this shape* — and putting it in the payload is genuinely wrong,
+> because it lets a payload assert its own conformance. That ban stands
+> unchanged. **Instrument provenance** answers *which build computed these
+> numbers* — and its absence is a measured defect, not a design property:
+> `quire --version` reports the CLI crate version while the engine is a git
+> dependency pinned by tag that **no surface reports**. The installed CLI 0.29.0
+> pins engine v0.42.0; `binding_census` landed in v0.43.0. Every ecosystem figure
+> in four battletest passes was produced by a binary that could not emit the one
+> signal saying whether the binder read a single test, and nothing in its output
+> said so. A payload saved to disk carried no way to find out afterwards.
+>
+> CON-2 is narrowed to the contract-version case it was actually arguing for.
+> An `engine` object carrying `{cli, engine, capabilities}` is admitted, and
+> AC-8 gates its shape. `capabilities` is a **token list, not version
+> arithmetic**: a consumer asserts it needs `binding_census`, never that the
+> engine is `>= 0.43.0`, because a version comparison in a consumer is a second
+> place the contract lives. The key stays **optional**, so an in-process
+> `CoverageReport::to_json` — which cannot know a CLI version — still conforms,
+> and so does a payload from any CLI predating the field.
+>
+> `quire-cli` FR-008-AC-5 is narrowed in the same terms in that repository; the
+> ban on a CLI **version string standing alone** in the payload is what it meant
+> and what survives.
 
 ### The gate rides the baseline that already exists
 
@@ -104,7 +138,7 @@ value outside them is a defect a consumer should hear about.
 | ID | Constraint | Type | Validation |
 |----|------------|------|------------|
 | FR-055-CON-1 | The schemas SHALL be authored, never generated. A derived contract changes silently with the type it derives from, which is the failure this FR closes. `schemars` stays out of the dependency graph. | Architecture | Test |
-| FR-055-CON-2 | No payload SHALL gain a version key, a schema reference, or any other field for the benefit of this contract (FR-008-AC-5). The contract is carried by the published artifact alone. | Architecture | Test |
+| FR-055-CON-2 | No payload SHALL gain a key naming which revision of this contract it conforms to — no version key, no schema reference, no `$schema` (CR-104). The contract is carried by the published artifact alone. A payload SHALL NOT assert its own conformance. This does not reach instrument provenance, which is a different fact and is admitted by AC-8. | Architecture | Test |
 | FR-055-CON-3 | A breaking payload change SHALL mint a new versioned schema file rather than editing an existing one in place, so a consumer pinned to a version keeps a schema describing what it pinned. | Process | Inspection |
 
 ## Acceptance Criteria
@@ -118,6 +152,7 @@ value outside them is a defect a consumer should hear about.
 | FR-055-AC-5 | A payload with an added field is rejected by its schema, confirming `additionalProperties: false` holds everywhere rather than only at the root. | Test (TC-858) |
 | FR-055-AC-6 | Removing an optional key from a valid payload leaves it valid, and removing a required one makes it invalid, so the optional/required split matches the engine's skip-when-empty behaviour. | Test (TC-859) |
 | FR-055-AC-7 | Neither payload contains a `version`, `$schema` or `schema_version` key, and `schemars` is absent from the dependency graph (CON-1, CON-2). | Test (TC-860) |
+| FR-055-AC-8 | Both schemas define an optional `engine` object requiring `cli`, `engine` and `capabilities` (CR-104). A payload carrying one conforms; a payload omitting it conforms; a payload whose `engine` is missing a required member, or carries an undeclared member, is rejected. | Test (TC-1010) |
 
 ## Dependencies
 

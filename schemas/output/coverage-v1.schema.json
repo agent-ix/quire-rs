@@ -125,9 +125,36 @@
       "items": {
         "$ref": "#/$defs/Suspicion"
       }
+    },
+    "engine": {
+      "$ref": "#/$defs/EngineProvenance"
     }
   },
   "$defs": {
+    "EngineProvenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cli", "engine", "capabilities"],
+      "description": "Which instrument produced this payload (agent-ix/quire-cli#68, CR-104). Assembled by `quire-cli`, which is the only layer that knows both versions; ABSENT from a payload built by calling `CoverageReport::to_json` in-process, and absent from any CLI predating the field. NOT the contract version \u2014 that stays in the `$id` and the filename, and FR-055-CON-2 still forbids a payload key naming it. This is provenance of the MEASUREMENT: a current CLI can link a stale engine, and every number in this payload is only as trustworthy as the engine that computed it.",
+      "properties": {
+        "cli": {
+          "type": "string",
+          "description": "The `quire-cli` crate version."
+        },
+        "engine": {
+          "type": "string",
+          "description": "The resolved `quire-rs` version actually linked, taken from the lockfile entry rather than from a constant in either tree \u2014 a constant records what somebody wrote, the lockfile records what was built. A `-<n>-g<sha>` suffix is carried VERBATIM and never rounded to the nearest tag: the whole defect is a binary claiming a version it does not have."
+        },
+        "capabilities": {
+          "type": "array",
+          "uniqueItems": true,
+          "description": "What this build can emit, as tokens. DELIBERATELY OPEN, and deliberately not version arithmetic: a consumer asserts it needs `binding_census`, not that the engine is `>= 0.43.0`, because a version comparison in a consumer is a second place the contract lives. A newer CLI adding a token must not break a consumer written against an older one.",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
     "Metric": {
       "type": "object",
       "description": "One emitted number and its provenance. `state` discriminates: a measurement that RAN carries value/population/matched; one that did not carries `because` and no numbers at all, so 'not computed' can never be read as a zero (#226).",

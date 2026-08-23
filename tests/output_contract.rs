@@ -466,3 +466,114 @@ fn tc860_no_version_key_in_the_payload_and_no_schemars() {
     );
     assert!(Path::new(&repo().join("schemas/output")).is_dir());
 }
+
+#[trace("TC-1010", "FR-055-AC-8")]
+// CR-104 / agent-ix/quire-cli#68: instrument provenance is
+// admitted, and its shape is closed. Both payloads, both directions, because a
+// definition that only one schema carries is the drift this FR exists to stop.
+#[test]
+fn tc1010_engine_provenance_is_optional_and_its_shape_is_closed() {
+    // A minimal conforming instance of each payload, so the assertions below
+    // are about `engine` and nothing else.
+    let cases: [(&str, Value); 2] = [
+        (
+            "coverage-v1.schema.json",
+            json!({
+                "unbacked_rows": [],
+                "status_lies": [],
+                "untracked_symbols": [],
+                "groups": [],
+                "totals": {"backed": 0, "total": 0},
+            }),
+        ),
+        ("properties-v1.schema.json", json!({ "documents": [] })),
+    ];
+
+    for (name, base) in cases {
+        let schema = compile(name);
+
+        // Optional: the in-process `to_json` caller cannot know a CLI version,
+        // and a payload from a CLI predating the field must still read.
+        assert!(
+            errors(&schema, &base).is_empty(),
+            "{name}: omitting `engine` must conform — {:#?}",
+            errors(&schema, &base),
+        );
+
+        let with_engine = |engine: Value| {
+            let mut v = base.clone();
+            v.as_object_mut()
+                .expect("object")
+                .insert("engine".into(), engine);
+            v
+        };
+
+        let full = with_engine(json!({
+            "cli": "0.30.2",
+            "engine": "0.45.0",
+            "capabilities": ["binding_census", "metrics_envelope", "suspicions"],
+        }));
+        assert!(
+            errors(&schema, &full).is_empty(),
+            "{name}: a payload carrying provenance must conform — {:#?}",
+            errors(&schema, &full),
+        );
+
+        // The `-<n>-g<sha>` form is carried verbatim, never rounded to the
+        // nearest tag. A schema that only ever saw `0.45.0` would happily
+        // acquire a `pattern` that rejects the one string this field exists to
+        // preserve — the CLI built off a tag it does not sit on.
+        let described = with_engine(json!({
+            "cli": "0.30.2",
+            "engine": "0.45.0-3-g99e97f0",
+            "capabilities": [],
+        }));
+        assert!(
+            errors(&schema, &described).is_empty(),
+            "{name}: a git-describe suffix must survive verbatim — {:#?}",
+            errors(&schema, &described),
+        );
+
+        // Each member is required. Dropping one is the shape a half-wired
+        // emitter produces, and it must not pass as provenance.
+        for missing in ["cli", "engine", "capabilities"] {
+            let mut engine = json!({
+                "cli": "0.30.2",
+                "engine": "0.45.0",
+                "capabilities": [],
+            });
+            engine.as_object_mut().expect("object").remove(missing);
+            let payload = with_engine(engine);
+            assert!(
+                !errors(&schema, &payload).is_empty(),
+                "{name}: `engine` missing `{missing}` must be rejected",
+            );
+        }
+
+        // Closed, like every other definition here (AC-5). `capabilities` is
+        // the open vocabulary; the envelope around it is not.
+        let extra = with_engine(json!({
+            "cli": "0.30.2",
+            "engine": "0.45.0",
+            "capabilities": [],
+            "build": "release",
+        }));
+        assert!(
+            !errors(&schema, &extra).is_empty(),
+            "{name}: an undeclared member of `engine` must be rejected",
+        );
+
+        // ...but the token vocabulary itself is NOT enumerated: a newer CLI
+        // adding a token must not break a consumer pinned to this schema.
+        let unknown_token = with_engine(json!({
+            "cli": "0.30.2",
+            "engine": "0.45.0",
+            "capabilities": ["a_capability_this_schema_has_never_heard_of"],
+        }));
+        assert!(
+            errors(&schema, &unknown_token).is_empty(),
+            "{name}: the capability vocabulary must stay open — {:#?}",
+            errors(&schema, &unknown_token),
+        );
+    }
+}
