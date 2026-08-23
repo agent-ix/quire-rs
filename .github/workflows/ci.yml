@@ -8,6 +8,19 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+        with:
+          # #267: the controlled corpus is a submodule at `corpus/`, and
+          # `tests/corpus_cases.rs` reads its cases in place. Without this the
+          # suite fails at load with "the corpus submodule is not checked out".
+          #
+          # `agent-ix/qa-corpus` is PRIVATE, so the job's default GITHUB_TOKEN
+          # cannot read it — the checkout needs a PAT with `repo` scope in
+          # `secrets.CORPUS_TOKEN`. Absent that secret the submodule step fails
+          # loudly, which is the right failure: a green run over a corpus that
+          # was never checked out is the silent-zero this programme exists to
+          # end.
+          submodules: recursive
+          token: ${{ secrets.CORPUS_TOKEN || secrets.GITHUB_TOKEN }}
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
