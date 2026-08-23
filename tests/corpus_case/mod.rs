@@ -71,6 +71,22 @@ pub struct CaseExpect {
     /// Per-language binding census expectations.
     #[serde(default)]
     pub binding_census: Vec<ExpectCensus>,
+    /// Where a diagnostic points, `reason` -> `path` (#261).
+    ///
+    /// Asserting the reason alone is satisfied by a finding pointing anywhere,
+    /// and "it names a place" is the whole claim being made — so the place is
+    /// asserted, not its presence.
+    #[serde(default)]
+    pub diagnostic_paths: BTreeMap<String, String>,
+    /// A substring each diagnostic's message must carry, `reason` -> text.
+    ///
+    /// `diagnostic_paths` pins the `path` FIELD, and a finding can carry a
+    /// correct path while its prose names nothing a reader can act on — which
+    /// is what "an alert must say where" is actually about. Measured: removing
+    /// the example criterion from `catch-all-universal`'s message left every
+    /// path assertion passing.
+    #[serde(default)]
+    pub diagnostic_message_contains: BTreeMap<String, String>,
     /// Row ids the report explains as verified by a method that mints no
     /// source symbol (#259). Asserted by id, not by count: a count is
     /// satisfied by exempting the wrong row.
@@ -203,6 +219,32 @@ pub fn assert_expected(case: &CorpusCase, report: &quire_rs::CoverageReport) {
                 got.language
             );
         }
+    }
+
+    for (reason, path) in &e.diagnostic_paths {
+        let got = report
+            .diagnostics
+            .iter()
+            .find(|d| d.reason == *reason)
+            .unwrap_or_else(|| panic!("{name}: no `{reason}` diagnostic to locate"));
+        assert_eq!(
+            got.path.as_deref(),
+            Some(path.as_str()),
+            "{name}: `{reason}` must name {path}"
+        );
+    }
+
+    for (reason, needle) in &e.diagnostic_message_contains {
+        let got = report
+            .diagnostics
+            .iter()
+            .find(|d| d.reason == *reason)
+            .unwrap_or_else(|| panic!("{name}: no `{reason}` diagnostic"));
+        assert!(
+            got.message.contains(needle.as_str()),
+            "{name}: `{reason}` message must contain `{needle}`, got: {}",
+            got.message
+        );
     }
 
     if let Some(want) = &e.no_symbol_rows {

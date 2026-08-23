@@ -806,6 +806,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-1006 | The binding census names ONE unbound candidate — the lowest `(path, line)` so it is deterministic, at the ANNOTATION line rather than the `fn` line because that is what a reader edits — and `no-symbol-bound` carries it as `path` and in its message; the control, the same tree with the declared marker, carries no example and fires nothing (#256) | Unit | P0 | FR-051-AC-19 | ✅ |
 | TC-1007 | A classified criterion reports its own ABSOLUTE document line with frontmatter present, not the separator row above it — asserted as exact values because a relative assertion is satisfied by every off-by-N, which is how #254 shipped (#257) | Unit | P0 | FR-052-AC-18 | ✅ |
 | TC-1008 | The `no_source_symbol` vocabulary is consulted for BOTH the declared test-type column and each reference declaration's own column, with parentheticals stripped so `Inspection (TC-002)` names the method it annotates; its control, the same tree verified by `Test`, exempts nothing (#259) | Unit | P0 | FR-050-AC-16 | ✅ |
+| TC-1009 | `catch-all-universal` is a LOCATED diagnostic, not only a moving metric: one finding per corpus carrying the all-universal document count and naming a criterion at `path:line`; its control, one specifically-shaped criterion, silences it (#261) | Unit | P0 | FR-050-AC-28 | ✅ |
 | TC-990 | Decomposition keys on quantification, not on the winning label: a quantified `invariant` statement carries the same spans the `universal` path produces, an unquantified `idempotence` statement carries none, and both hold identically with and without a declared idiom registry (CON-4 unchanged) (CR-096) | Unit | P0 | FR-052-AC-19 | ✅ |
 | TC-989 | The catch-all is split out of the headline: a corpus whose every extractable criterion is `universal` reports `specific_shaped` 0 while `property_shaped` stays non-zero, both figures reach the FR-063 envelope under their own names over the same denominator, and per-shape `grounding` counts every classified criterion exactly once with `all_three` never exceeding any of its parts (CR-095) | Integration | P0 | FR-050-AC-28, FR-052-AC-18 | ✅ |
 | TC-988 | Every coverage headline number is enveloped with unit, method, population, `examined` and `matched`; three tests carrying an undeclared marker spelling make `coverage.backed` hollow and mint a `hollow-denominator` diagnostic naming it; `coverage.implements` reports `not_computed` with the condition named; and the same tree read cleanly, and a tree with no symbols at all, each report nothing (CR-094) | Integration | P0 | FR-063-AC-3, FR-063-AC-4, FR-063-AC-5 | ✅ |
@@ -1134,7 +1135,7 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-061-AC-8 | TC-932 |
 | FR-061-AC-9 | TC-933 |
 | FR-033-AC-16 | TC-991, TC-1005 |
-| FR-050-AC-28 | TC-989 |
+| FR-050-AC-28 | TC-989, TC-1009 |
 | FR-050-AC-29 | TC-992, TC-993, TC-994, TC-995, TC-996 |
 | FR-064-AC-1 | TC-997, TC-998, TC-1002 |
 | FR-064-AC-2 | TC-999 |

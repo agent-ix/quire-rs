@@ -116,10 +116,24 @@ fn tc824_the_baseline_corpus_still_exercises_the_surface() {
     );
     assert!(!report.groups.is_empty(), "per-document group counts");
     assert!(!report.criteria.is_empty(), "criteria classification");
+    // "Healthy MODEL", not healthy corpus: this fixture deliberately carries
+    // unbacked rows, status lies and untracked symbols, and the assertion is
+    // that its module DECLARATION is sound — no unread marker form, no dead
+    // declaration, no ratio over a population the binder could not read.
+    //
+    // `catch-all-universal` (#261) is the one diagnostic that describes
+    // criterion PROSE rather than the model, so it is excluded by name and
+    // everything else — including any reason added later — still fails here.
+    // An allowlist would have quietly stopped gating each new check; naming the
+    // single exclusion keeps the gate closed by default.
+    let model_health: Vec<_> = report
+        .diagnostics
+        .iter()
+        .filter(|d| d.reason != "catch-all-universal")
+        .collect();
     assert!(
-        report.diagnostics.is_empty(),
-        "the baseline model is healthy: {:?}",
-        report.diagnostics
+        model_health.is_empty(),
+        "the baseline model is healthy: {model_health:?}"
     );
 
     // The `exclude:` glob holds where it is declared: the fixture's colliding

@@ -235,6 +235,32 @@ pub struct CriteriaCounts {
     /// Empty — and so absent — for a document binding no criteria.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub grounding: BTreeMap<String, GroundingCounts>,
+    /// One extractable criterion the classifier gave the `universal` catch-all
+    /// — a place to look (#261).
+    ///
+    /// Present only when this document has extractable criteria and a specific
+    /// shape for NONE of them, which is also the only time the
+    /// `catch-all-universal` diagnostic reads it. Absent otherwise, so a
+    /// document with any specifically-shaped criterion keeps the bytes an
+    /// engine predating the field emitted (FR-050-AC-7).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub catch_all_example: Option<CatchAllCriterion>,
+}
+
+/// Where one `universal`-shaped criterion is (#261).
+///
+/// `coverage.specific_shaped` is a ratio over a corpus and names no criterion,
+/// so a reader watching it fall has every spec file to search. This is the
+/// lowest-lined criterion of the document that has no specifically-shaped one,
+/// which makes the number openable.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CatchAllCriterion {
+    /// The criterion's own id, when the table declares one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub row_id: Option<String>,
+    /// 1-based document line.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub line: Option<usize>,
 }
 
 /// Bundle-wide totals; the backed/total pair equals the sum over
@@ -524,6 +550,12 @@ pub fn compute(
     report
         .diagnostics
         .extend(hollow_denominators(&report.metrics));
+    // #261: after `criteria` is populated, and beside the hollow-denominator
+    // check for the same reason — both are about a number the report already
+    // publishes, said in a form a reader can open.
+    report
+        .diagnostics
+        .extend(catch_all_documents(&report.criteria));
     Ok(report)
 }
 
@@ -657,6 +689,65 @@ fn coverage_metrics(
     });
 
     metrics
+}
+
+/// Documents whose every extractable criterion is the `universal` catch-all
+/// (FR-050-AC-28, #261).
+///
+/// `coverage.specific_shaped` already reports the split — that was CR-095, and
+/// it is what made "54% extractable" and "8% the tool told me what to write"
+/// two visible numbers instead of one. But a ratio over a corpus names no
+/// criterion, so a reader watching it fall has every spec file to search.
+///
+/// ONE diagnostic for the corpus, not one per document. Measured across five
+/// repositories before choosing: 23/51, 41/85, 69/139, 6/9 and 8/28 documents
+/// are all-`universal`, so per-document would add 147 findings and read as a
+/// flood rather than a fact. The count carries the scale and the example
+/// carries the locus, the same shape `no-symbol-bound` uses.
+///
+/// A corpus-level `specific_shaped == 0` was the other candidate and is
+/// rejected on measurement: it fires on NONE of those five repositories, so it
+/// would be a check that cannot fire — the very family this programme is
+/// building a detector for.
+///
+/// **Data, not a verdict** (FR-050-CON-1). A `universal` criterion is often the
+/// right thing to write, and CR-020 recorded that criteria validated by
+/// demonstration legitimately score low. This says where the catch-alls are; it
+/// does not say they are wrong.
+fn catch_all_documents(criteria: &[CriteriaCounts]) -> Vec<CoverageDiagnostic> {
+    let binding: Vec<&CriteriaCounts> = criteria.iter().filter(|c| c.property_shaped > 0).collect();
+    let all_universal: Vec<&CriteriaCounts> = binding
+        .iter()
+        .copied()
+        .filter(|c| c.specific_shaped == 0)
+        .collect();
+    let Some(first) = all_universal.first() else {
+        return Vec::new();
+    };
+    // `criteria` is sorted by document, so `first` is deterministic (NFR-006).
+    let at = match &first.catch_all_example {
+        Some(example) => {
+            let id = example.row_id.as_deref().unwrap_or("its first criterion");
+            match example.line {
+                Some(line) => format!(" — for example `{id}` at {}:{line}", first.document),
+                None => format!(" — for example `{id}` in {}", first.document),
+            }
+        }
+        None => String::new(),
+    };
+    vec![CoverageDiagnostic {
+        declaration: "criteria".to_string(),
+        reason: "catch-all-universal".to_string(),
+        message: format!(
+            "{} of {} documents binding extractable criteria named a specific property \
+             shape for none of them{at}; the extractable headline counts what a generator \
+             could quantify over, and this is the part it could not tell you what to write",
+            all_universal.len(),
+            binding.len()
+        ),
+        path: Some(first.document.clone()),
+        value: Some("coverage.specific_shaped".to_string()),
+    }]
 }
 
 /// A ratio computed over a population the measurement could not read
@@ -824,8 +915,10 @@ fn criteria_counts(
         let Some(grammar_ref) = archetype.grammar_ref() else {
             continue;
         };
-        // Only the tallies are wanted here, and no tally reads a record's
-        // line, so the line offset is immaterial to this surface.
+        // The line offset is NO LONGER immaterial (#261): the catch-all
+        // example carries a document line, so the same conversion every other
+        // located finding uses is needed here too. It was `0` while nothing
+        // read a record's line.
         //
         // The body touch happens only past the archetype/grammar gates
         // above (CR-047): a document under a module declaring no grammar
@@ -834,13 +927,29 @@ fn criteria_counts(
             grammar_ref,
             &archetype.name,
             entry.body(),
-            0,
+            crate::validate_document::body_line_offset(&entry.body().raw),
             vocab,
         );
         if records.is_empty() {
             continue;
         }
         let counts = AcPropertyCounts::tally(records.iter());
+        // The lowest-lined `universal` criterion, and only when the document
+        // named a specific shape for none of them. A document with one
+        // specific criterion is not what this finding is about, and carrying
+        // an example there would make the field noise rather than a locus.
+        let catch_all_example = (counts.property_shaped > 0 && counts.specific_shaped == 0)
+            .then(|| {
+                records
+                    .iter()
+                    .filter(|r| r.extractable)
+                    .min_by_key(|r| (r.line.unwrap_or(usize::MAX), r.row_id.clone()))
+                    .map(|r| CatchAllCriterion {
+                        row_id: r.row_id.clone(),
+                        line: r.line,
+                    })
+            })
+            .flatten();
         out.push(CriteriaCounts {
             document: relative(root, &entry.path),
             archetype: archetype.name.clone(),
@@ -849,6 +958,7 @@ fn criteria_counts(
             specific_shaped: counts.specific_shaped,
             by_property: counts.by_property,
             grounding: counts.grounding,
+            catch_all_example,
         });
     }
     out.sort_by(|a, b| (&a.document, &a.archetype).cmp(&(&b.document, &b.archetype)));

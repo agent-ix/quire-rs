@@ -572,6 +572,10 @@
             "$ref": "#/$defs/GroundingCounts"
           },
           "description": "FR-050-AC-28 (CR-095, #230): per shape label, how many of its records carry the domain/precondition/oracle spans a generator needs. The shapes that say the most carried the least \u2014 65 of 67 specific-shape non-`example` records had zero spans \u2014 so `spec-correctness` could not be driven from the very records that named a property worth writing. Key order is deterministic (NFR-006)."
+        },
+        "catch_all_example": {
+          "$ref": "#/$defs/CatchAllCriterion",
+          "description": "ABSENT unless this document has extractable criteria and a specific shape for NONE of them \u2014 which is also the only time anything reads it \u2014 so a document with any specifically-shaped criterion keeps the bytes an engine predating the field emitted (FR-050-AC-7). Additive under FR-055-CON-3."
         }
       }
     },
@@ -892,6 +896,22 @@
         "symbol": {
           "type": "string",
           "description": "Qualified name, so a reader can confirm the same symbol after a file moves."
+        }
+      }
+    },
+    "CatchAllCriterion": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "One extractable criterion the classifier gave the `universal` catch-all, so `catch-all-universal` names a place instead of only a ratio (#261). The lowest-lined such criterion of a document that has no specifically-shaped one.",
+      "properties": {
+        "row_id": {
+          "type": "string",
+          "description": "The criterion's own id, ABSENT when the table declares no id column \u2014 never guessed."
+        },
+        "line": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "1-based document line of the criterion."
         }
       }
     }
