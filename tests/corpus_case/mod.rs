@@ -71,6 +71,11 @@ pub struct CaseExpect {
     /// Per-language binding census expectations.
     #[serde(default)]
     pub binding_census: Vec<ExpectCensus>,
+    /// Row ids the report explains as verified by a method that mints no
+    /// source symbol (#259). Asserted by id, not by count: a count is
+    /// satisfied by exempting the wrong row.
+    #[serde(default)]
+    pub no_symbol_rows: Option<Vec<String>>,
     /// Per-metric expectations, keyed on the metric name.
     #[serde(default)]
     pub metrics: Vec<ExpectMetric>,
@@ -198,6 +203,18 @@ pub fn assert_expected(case: &CorpusCase, report: &quire_rs::CoverageReport) {
                 got.language
             );
         }
+    }
+
+    if let Some(want) = &e.no_symbol_rows {
+        let mut got: Vec<String> = report
+            .no_symbol_rows
+            .iter()
+            .filter_map(|r| r.row_id.clone())
+            .collect();
+        got.sort();
+        let mut want = want.clone();
+        want.sort();
+        assert_eq!(got, want, "{name}: no_symbol_rows");
     }
 
     for want in &e.metrics {

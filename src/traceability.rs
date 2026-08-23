@@ -990,6 +990,12 @@ impl TraceabilityModel {
         // CR-041: the exemption reads a column, so the column must be named,
         // and a value outside the declared vocabulary is a typo that would
         // silently exempt nothing.
+        //
+        // #259: the exemption now ALSO reads each reference declaration's own
+        // column, because that column is the method on an FR criteria table.
+        // `test_type_column` stays required anyway — it is the matrix column
+        // and the one `test_type` validates — so this check is unchanged; only
+        // its reach grew.
         if !self.vocabularies.no_source_symbol.is_empty() {
             if self.vocabularies.test_type_column.is_none() {
                 return Err("traceability: vocabularies.no_source_symbol needs \
