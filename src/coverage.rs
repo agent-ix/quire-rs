@@ -1016,12 +1016,40 @@ fn reconcile(
             // cannot carry a trace tag, so calling it a lie asserts something
             // its own declared method makes impossible. It stays in
             // `unbacked_rows` — that is a fact — and is explained here.
+            // Two columns carry a verification method, and the exemption read
+            // one (#259). A matrix `Type` cell saying `Inspection` was
+            // exempted; the identical word in an FR Acceptance Criteria
+            // `Verification` cell was not — one module vocabulary, consulted
+            // for one of the two places it governs. Measured on
+            // filament-ide-rs @ 6f87a7e: 21 exempt, 15 identical rows not.
+            //
+            // The second column is the DECLARATION'S OWN, not a new module
+            // key: a reference declaration already names the column it reads,
+            // and for `verification` that column IS the method. So every
+            // existing module is fixed now rather than when each adopts a key.
+            // For `traces-to` the declaration's column carries ids, no declared
+            // method matches, and the `test_type_column` path still handles it.
+            //
+            // Parentheticals are stripped before comparing, because
+            // `Inspection (TC-085)` names the method `Inspection` annotated
+            // with its evidence — the same normalization `strip_annotations`
+            // applies to ids, applied to the method. Eleven of the fifteen are
+            // written that way, so an exact compare misses them even reading
+            // the right column.
+            let mints_no_symbol = |value: &str| {
+                let bare = declared_tables::normalize_reference_cell(value, true, false);
+                model.vocabularies.mints_no_symbol(bare.trim())
+            };
             let exempting_type = model
                 .vocabularies
                 .test_type_column
                 .as_deref()
                 .and_then(|column| row.cell(column))
-                .filter(|value| model.vocabularies.mints_no_symbol(value));
+                .filter(|value| mints_no_symbol(value))
+                .or_else(|| {
+                    row.cell(&declaration.column)
+                        .filter(|value| mints_no_symbol(value))
+                });
             if let Some(test_type) = exempting_type {
                 no_symbol_rows.push(NoSymbolRow {
                     reference: declaration.name.clone(),

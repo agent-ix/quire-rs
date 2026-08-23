@@ -222,6 +222,54 @@
     }
   },
   {
+    "name": "no-symbol-method-in-the-verification-column",
+    "issue_ref": "agent-ix/quire-rs#259",
+    "tags": [
+      "TC-1008",
+      "coverage",
+      "no-source-symbol"
+    ],
+    "comment": "CR-041's exemption read `test_type_column` and nothing else, so the same declared vocabulary governed two columns and was consulted for one. Measured on filament-ide-rs @ 6f87a7e: 21 matrix rows exempt, 15 FR criteria rows naming the identical method NOT exempt. And the compare was exact, so `Inspection (TC-002)` would miss even reading the right column \u2014 eleven of the fifteen are annotated that way.",
+    "input": {
+      "module": "name: bench\nmanifest_version: 1.0.0\nversion: 0.0.1\nartifact_types:\n- name: FR\n  grammar_ref: iso-spec-core\n- name: TestMatrix\ntraceability:\n  trace_targets:\n  - name: test-case\n    archetype: TestMatrix\n    section: Test Cases\n    id_column: ID\n  - name: acceptance-criterion\n    archetype: FR\n    section: Acceptance Criteria\n    id_column: ID\n  document_references:\n  - name: verification\n    archetype: FR\n    section: Acceptance Criteria\n    row_id_column: ID\n    column: Verification\n    targets: [test-case]\n    pattern: '\\b(TC-\\d+)\\b'\n    strip_annotations: false\n  status:\n    column: Status\n    complete: [\"\\u2705\"]\n    pending: [\"\\U0001F6A7\"]\n  vocabularies:\n    test_type_column: Type\n    test_type: [Unit, Inspection]\n    no_source_symbol: [Inspection]\n  trace_tags:\n    markers:\n    - name: rust-trace-attribute\n      language: rust\n      pattern: '#\\[trace\\(([^)]*)\\)\\]'\n      template: '#[trace({ids})]'\n",
+      "documents": {
+        "FR-001.md": "---\nid: FR-001\ntype: FR\n---\n\n## Acceptance Criteria\n\n| ID | Criteria | Verification |\n|----|----------|--------------|\n| FR-001-AC-1 | Every finding shall default to warning. | Test (TC-001) |\n| FR-001-AC-2 | Domain behaviour shall remain absent from the core. | Inspection (TC-002) |\n",
+        "tests.md": "---\nid: TM-001\ntype: TestMatrix\n---\n\n## Test Cases\n\n| ID | Traces To | Type | Status |\n|----|-----------|------|--------|\n| TC-001 | FR-001-AC-1 | Unit | \u2705 |\n| TC-002 | FR-001-AC-2 | Inspection | \u2705 |\n"
+      },
+      "sources": {
+        "lib.rs": "//! fixture\n\n#[cfg(test)]\nmod tests {\n    #[trace(\"TC-001\")]\n    #[test]\n    fn covers_0() {\n        let _ = 1;\n    }\n}\n"
+      }
+    },
+    "expect": {
+      "no_symbol_rows": [
+        "FR-001-AC-2"
+      ]
+    }
+  },
+  {
+    "name": "no-symbol-method-in-the-verification-column-control",
+    "issue_ref": "agent-ix/quire-rs#259",
+    "tags": [
+      "TC-1008",
+      "coverage",
+      "no-source-symbol"
+    ],
+    "comment": "The control: the identical tree with AC-2 verified by `Test` instead. No row names a declared no-symbol method, so nothing is exempted. Without it the assertion above is satisfied by an exemption that fires on every row \u2014 and an exemption that cannot stay silent is a coverage backdoor, not a check.",
+    "input": {
+      "module": "name: bench\nmanifest_version: 1.0.0\nversion: 0.0.1\nartifact_types:\n- name: FR\n  grammar_ref: iso-spec-core\n- name: TestMatrix\ntraceability:\n  trace_targets:\n  - name: test-case\n    archetype: TestMatrix\n    section: Test Cases\n    id_column: ID\n  - name: acceptance-criterion\n    archetype: FR\n    section: Acceptance Criteria\n    id_column: ID\n  document_references:\n  - name: verification\n    archetype: FR\n    section: Acceptance Criteria\n    row_id_column: ID\n    column: Verification\n    targets: [test-case]\n    pattern: '\\b(TC-\\d+)\\b'\n    strip_annotations: false\n  status:\n    column: Status\n    complete: [\"\\u2705\"]\n    pending: [\"\\U0001F6A7\"]\n  vocabularies:\n    test_type_column: Type\n    test_type: [Unit, Inspection]\n    no_source_symbol: [Inspection]\n  trace_tags:\n    markers:\n    - name: rust-trace-attribute\n      language: rust\n      pattern: '#\\[trace\\(([^)]*)\\)\\]'\n      template: '#[trace({ids})]'\n",
+      "documents": {
+        "FR-001.md": "---\nid: FR-001\ntype: FR\n---\n\n## Acceptance Criteria\n\n| ID | Criteria | Verification |\n|----|----------|--------------|\n| FR-001-AC-1 | Every finding shall default to warning. | Test (TC-001) |\n| FR-001-AC-2 | Domain behaviour shall remain absent from the core. | Test (TC-002) |\n",
+        "tests.md": "---\nid: TM-001\ntype: TestMatrix\n---\n\n## Test Cases\n\n| ID | Traces To | Type | Status |\n|----|-----------|------|--------|\n| TC-001 | FR-001-AC-1 | Unit | \u2705 |\n| TC-002 | FR-001-AC-2 | Inspection | \u2705 |\n"
+      },
+      "sources": {
+        "lib.rs": "//! fixture\n\n#[cfg(test)]\nmod tests {\n    #[trace(\"TC-001\")]\n    #[test]\n    fn covers_0() {\n        let _ = 1;\n    }\n}\n"
+      }
+    },
+    "expect": {
+      "no_symbol_rows": []
+    }
+  },
+  {
     "name": "stale-name-correct-trace",
     "issue_ref": "agent-ix/quire-rs#227",
     "tags": [
