@@ -5,6 +5,64 @@ All notable changes to `quire-rs` are documented here. Format follows
 numbers follow semver — pre-1.0, breaking changes may land in minor
 bumps; once 1.0 ships, semver is strict.
 
+## [0.45.0] — 2026-08-23
+
+Localisation. Every fix here changes **where** a finding says to look, never
+whether it fires — and three of the four were the same off-by-one arithmetic in
+three independent code paths.
+
+Driven by `agent-ix/quoin`'s tier-1 benchmark, whose `finding_localisation_rate`
+— the share of confirmed findings whose reported location matches the labelled
+one — read **40%** on its first scored run and reads **80%** after this release.
+
+### Fixed
+
+- **A row-scoped assert named the separator, not the row (#254).** Every
+  `[assert]` failure carrying a `row_id` pointed one line above the offending
+  row, which on a markdown table is `|---|---|`. `coverage` reported the same
+  row correctly, so two paths in this crate disagreed about one row's line.
+  `TC-991` existed for exactly this criterion and asserted `lines[0] <
+  lines[1]` — distinctness and order, which every off-by-N satisfies. It now
+  pins absolute lines, and TC-1005 pins the whole-document line with
+  frontmatter present.
+- **`ears::abs_line` was one short (#257).** The same missing term, backing
+  every grammar finding — `ears:*`, `quality:*`, `ac:*` — and every
+  `AcClassification.line`. `quire properties` reported a criterion on line 10 as
+  line 9. `corpus/declared_tables.rs` had named this as a latent defect since
+  #210 and was the only one of the three paths that had it right. **Every
+  advisory grammar warning's line moves by +1, to the correct value.**
+- **`no_source_symbol` governed two columns and was read from one (#259).** A
+  matrix `Type` cell saying `Inspection` was exempted; the identical word in an
+  FR Acceptance Criteria `Verification` cell was not. Measured on
+  `filament-ide-rs`: 21 exempt, **15 identical rows not**. The exemption now
+  also consults each reference declaration's own column — not a new module key,
+  so every existing module is fixed now — and strips parentheticals, because
+  `Inspection (TC-085)` names the method it annotates and eleven of the fifteen
+  are written that way. `no_symbol_rows` 21 → 36; `unbacked_rows` and
+  `status_lies` unchanged, so nothing was over-exempted into silence.
+
+### Added
+
+- **`BindingCensus.unbound_example` (#256).** `no-symbol-bound` named the
+  LANGUAGE — `path: null`, `value: "rust"` — so a reader holding 1,292 unbound
+  symbols across 24 crates was told to search Rust. The census now carries one
+  unbound candidate, the lowest `(path, line)` so it is deterministic, at the
+  ANNOTATION line because that is what the reader edits; the diagnostic sets
+  `path` from it and names it in the message.
+- **`catch-all-universal` as a located diagnostic (#261).**
+  `coverage.specific_shaped` reported the split and named no criterion. One
+  diagnostic per corpus now carries the all-universal document count and one
+  criterion at `path:line`. Shape chosen by measurement: a corpus-level
+  `specific_shaped == 0` fires on none of five real repositories, and
+  per-document fires 147 times across them. Data, not a verdict (FR-050-CON-1).
+- **`CriteriaCounts.catch_all_example`**, feeding it. `criteria_counts` now
+  passes the real line offset, which was `0` while nothing read a record's line.
+
+Both new payload fields are `skip_serializing_if`-absent when empty, so a report
+over a conformant corpus keeps the bytes an earlier engine emitted
+(FR-050-AC-7), and both are declared in `schemas/output/coverage-v1.schema.json`,
+additive under FR-055-CON-3.
+
 ## [0.44.2] — 2026-08-22
 
 Benchmark and test-harness only — `src/` is untouched, so consumers pinning the
