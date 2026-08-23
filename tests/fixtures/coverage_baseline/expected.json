@@ -159,6 +159,10 @@
           "oracle": 0,
           "all_three": 0
         }
+      },
+      "catch_all_example": {
+        "row_id": "FR-001-AC-1",
+        "line": 15
       }
     },
     {
@@ -177,7 +181,20 @@
           "oracle": 0,
           "all_three": 0
         }
+      },
+      "catch_all_example": {
+        "row_id": "FR-002-AC-1",
+        "line": 15
       }
+    }
+  ],
+  "diagnostics": [
+    {
+      "declaration": "criteria",
+      "reason": "catch-all-universal",
+      "message": "2 of 2 documents binding extractable criteria named a specific property shape for none of them — for example `FR-001-AC-1` at spec/FR-001.md:15; the extractable headline counts what a generator could quantify over, and this is the part it could not tell you what to write",
+      "path": "spec/FR-001.md",
+      "value": "coverage.specific_shaped"
     }
   ],
   "binding_census": [
