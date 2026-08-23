@@ -56,7 +56,7 @@ import sys
 # the truth was 183 for exactly this reason. This script previously carried its
 # own copy of the rules which had neither `SKIP_DIRS` nor verified worktree
 # detection, so its numbers excluded less than the other harnesses' did.
-from check_engine import Drift, assert_capabilities, reported_engine
+from check_engine import Drift, assert_capabilities, build_engine, reported_engine
 from corpus import repos
 
 DECLARED_PATHS = ("spec/tests.md", "spec/matrix.md", "spec/evals.md")
@@ -67,43 +67,6 @@ SUMMARY = re.compile(r"^##\s+Test Case Summary\s*$", re.MULTILINE)
 # the binder read a single test in a repo, and a coverage percentage over an
 # unread corpus is the exact shape that produced four passes of wrong answers.
 REQUIRED_CAPABILITIES = ("binding_census",)
-
-
-def build_engine(consumer: pathlib.Path) -> str:
-    """Build `quire` from the consuming workspace and return the binary path.
-
-    Never a `PATH` lookup. `Makefile:246` has stated the rule for `make validate`
-    since #212 — "runs the working-tree engine, never an installed `quire` CLI,
-    which lags the branch under test" — and the sweeps never adopted it, which
-    is how a binary 16 releases behind produced ecosystem figures nobody
-    questioned.
-    """
-    manifest = consumer / "Cargo.toml"
-    if not manifest.is_file():
-        raise Drift(f"no consumer workspace at {consumer}")
-    print(f"building the engine from {consumer} …", file=sys.stderr)
-    done = subprocess.run(
-        ["cargo", "build", "--release", "--manifest-path", str(manifest),
-         "--message-format", "json"],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if done.returncode != 0:
-        raise Drift(f"building {consumer}: {done.stderr.strip()[-400:]}")
-    # The path comes from cargo's own message stream rather than a guessed
-    # `target/release/quire`: a workspace, a `CARGO_TARGET_DIR`, or a shared
-    # target directory all move it, and guessing is how a sweep silently runs a
-    # stale binary left over from an earlier build.
-    for line in done.stdout.splitlines():
-        try:
-            message = json.loads(line)
-        except json.JSONDecodeError:
-            continue
-        if message.get("reason") == "compiler-artifact" and message.get("executable"):
-            if message.get("target", {}).get("name") == "quire":
-                return message["executable"]
-    raise Drift(f"cargo built {consumer} but emitted no `quire` executable")
 
 
 def mints_test_cases(repo: pathlib.Path) -> bool:
@@ -151,7 +114,7 @@ def main() -> int:
         consumer = (here.parent / consumer.name).resolve()
 
     try:
-        quire = build_engine(consumer)
+        quire = build_engine(consumer, release=True)
     except Drift as error:
         print(f"sweep_coverage: {error}", file=sys.stderr)
         return 1
@@ -207,6 +170,20 @@ def main() -> int:
             )
         rows.append(row)
         print(f"  {row['repo']:34s} {row.get('dead_tags', row.get('error'))}", file=sys.stderr)
+
+    # No clean payload means nothing verified the instrument, and every figure
+    # below would be a zero over an unmeasured corpus — the silent-zero the
+    # capability abort exists to prevent, arrived at by a different route. The
+    # first version printed `"engine": null` and exited 0.
+    if engine is None:
+        print(
+            f"sweep_coverage: not one of {len(rows)} repositories produced a "
+            f"readable payload, so the engine was never identified and nothing "
+            f"here was measured. Refusing to print a zero over an unmeasured "
+            f"corpus.",
+            file=sys.stderr,
+        )
+        return 1
 
     print(json.dumps(
         {"engine": engine, "module": args.module, "consumer": str(consumer), "repos": rows},

@@ -232,7 +232,13 @@ def test_the_gate_passes_on_the_real_pin(tmp_path):
         check=False,
     )
     assert done.returncode == 0, done.stderr
-    assert "reachable from HEAD" in done.stdout
+    assert "quire-cli pins" in done.stdout
+    # The distance is REPORTED, never a verdict: during a campaign the consumer
+    # pins the last merged commit while this tree moves ahead, and that is the
+    # normal state. What makes distance a defect is a missing capability, which
+    # `--require` catches by name.
+    assert "HEAD" in done.stdout
+    assert "check_engine: OK" in done.stdout
 
 
 def test_a_payload_missing_a_required_capability_exits_non_zero(tmp_path):
@@ -260,3 +266,304 @@ def test_a_payload_missing_a_required_capability_exits_non_zero(tmp_path):
     )
     assert done.returncode == 1, done.stdout
     assert "binding_census" in done.stderr
+
+
+# --- defects the #283 review found, each with its control -----------------
+
+
+def test_a_commented_out_pin_is_not_a_pin(tmp_path):
+    """Found by review: the first regex matched a commented-out line. An
+    operator commenting the old pin above the new one is the ordinary way this
+    file gets edited, and it made the gate validate the dead line."""
+    manifest = write_manifest(
+        tmp_path,
+        '[dependencies]\n'
+        '# quire-rs = { git = "https://x", rev = "deadbee" }\n'
+        'quire-rs = { git = "https://x", rev = "84740d4" }\n',
+    )
+    assert read_pin(manifest) == ("rev", "84740d4")
+
+
+def test_a_differently_named_crate_does_not_supply_our_pin(tmp_path):
+    """Found by review: no left word boundary, so `my-quire-rs` was read as
+    ours. The existing sibling test only covered a PRECEDING entry."""
+    manifest = write_manifest(
+        tmp_path, '[dependencies]\nmy-quire-rs = { git = "https://y", rev = "ddddddd" }\n'
+    )
+    with pytest.raises(Drift, match="declares no `rev`/`tag`"):
+        read_pin(manifest)
+
+
+def test_the_toml_table_form_is_read(tmp_path):
+    """Found by review: Cargo writes this whenever the entry grows past one
+    line, and the first version rejected it as unpinned — a false failure
+    accusing a correctly pinned consumer."""
+    manifest = write_manifest(
+        tmp_path,
+        '[dependencies.quire-rs]\ngit = "https://x"\nrev = "84740d4"\n\n'
+        '[dev-dependencies]\ntempfile = "3"\n',
+    )
+    assert read_pin(manifest) == ("rev", "84740d4")
+
+
+def test_a_branch_name_is_not_a_pin(tmp_path):
+    """Found by review: `rev = "main"` resolved fine and passed. It is the
+    'resolves to whatever the default branch happens to be' state this
+    function's own error text calls the opposite of provenance."""
+    manifest = write_manifest(
+        tmp_path, '[dependencies]\nquire-rs = { git = "https://x", rev = "main" }\n'
+    )
+    with pytest.raises(Drift, match="neither a commit sha nor a version tag"):
+        read_pin(manifest)
+
+    # The controls: both legitimate forms still pass.
+    sha = write_manifest(
+        tmp_path / "a" if (tmp_path / "a").mkdir() is None else tmp_path,
+        '[dependencies]\nquire-rs = { git = "https://x", rev = "84740d4" }\n',
+    )
+    assert read_pin(sha) == ("rev", "84740d4")
+    tag = write_manifest(
+        tmp_path / "b" if (tmp_path / "b").mkdir() is None else tmp_path,
+        '[dependencies]\nquire-rs = { git = "https://x", tag = "v0.45.0" }\n',
+    )
+    assert read_pin(tag) == ("tag", "v0.45.0")
+
+
+def test_a_relative_consumer_path_is_not_reduced_to_its_basename(tmp_path):
+    """Found by review, and the worst of the three: `repo.parent /
+    consumer.name` threw away everything but the last component, so
+    `--consumer nested/quire-cli` silently read `../quire-cli` instead and
+    reported OK on a manifest it had never opened."""
+    import pathlib
+
+    repo = pathlib.Path(__file__).resolve().parent.parent.parent
+    nested = tmp_path / "nested" / "quire-cli"
+    nested.mkdir(parents=True)
+    (nested / "Cargo.toml").write_text(
+        '[dependencies]\nquire-rs = { git = "https://x", rev = "0000000000000000000000000000000000000000" }\n',
+        encoding="utf-8",
+    )
+    done = subprocess.run(
+        ["python3", str(repo / "scripts" / "check_engine.py"),
+         "--repo", str(repo), "--consumer", str(nested)],
+        capture_output=True, text=True, check=False,
+    )
+    assert done.returncode == 1, done.stdout
+    assert "does not exist in this repository" in done.stderr
+
+
+def test_an_unreachable_pin_is_refused(tmp_path):
+    """Found by review: the module's headline third fact — 'a pin to a commit
+    on an abandoned branch resolves fine and is still drift' — had no test at
+    all. Built here as a real git repo with a real orphan commit."""
+    import pathlib
+
+    from check_engine import assert_reachable
+
+    repo = tmp_path / "engine"
+    repo.mkdir()
+    run = lambda *a: subprocess.run(
+        ["git", "-C", str(repo), "-c", "user.email=t@t", "-c", "user.name=t", *a],
+        check=True, capture_output=True,
+    )
+    subprocess.run(["git", "init", "-q", "-b", "main", str(repo)], check=True)
+    (repo / "f").write_text("1")
+    run("add", "-A")
+    run("commit", "-qm", "one")
+
+    # An orphan branch: a real commit this repo contains, unreachable from HEAD.
+    run("checkout", "-q", "--orphan", "abandoned")
+    (repo / "g").write_text("2")
+    run("add", "-A")
+    run("commit", "-qm", "abandoned")
+    orphan = subprocess.run(
+        ["git", "-C", str(repo), "rev-parse", "HEAD"],
+        capture_output=True, text=True, check=True,
+    ).stdout.strip()
+    run("checkout", "-q", "main")
+
+    with pytest.raises(Drift, match="not reachable from this tree's HEAD"):
+        assert_reachable(repo, orphan, "abandoned")
+
+    # The control: HEAD itself is reachable from HEAD.
+    head = subprocess.run(
+        ["git", "-C", str(repo), "rev-parse", "HEAD"],
+        capture_output=True, text=True, check=True,
+    ).stdout.strip()
+    assert_reachable(repo, head, "main")
+
+
+def test_a_reported_version_may_carry_a_leading_v(tmp_path):
+    """Found by review: only `declared` was v-normalized, so a payload
+    reporting `v0.45.0` against `tag = "v0.45.0"` was refused with a
+    self-contradictory message naming the same string twice."""
+    assert_agrees("v0.45.0", "v0.45.0", SHA)
+    assert_agrees("0.45.0", "v0.45.0", SHA)
+
+
+def test_a_malformed_payload_file_prints_the_refusal_line_not_a_traceback(tmp_path):
+    """Found by review: `json.loads` on --payload raised through the Drift
+    handler, so a bad file exited with a raw traceback instead of the
+    `check_engine: FAIL` line every other refusal prints."""
+    import pathlib
+
+    repo = pathlib.Path(__file__).resolve().parent.parent.parent
+    consumer = repo.parent / "quire-cli"
+    if not (consumer / "Cargo.toml").is_file():
+        pytest.skip("no quire-cli workspace beside this repository")
+
+    bad = tmp_path / "bad.json"
+    bad.write_text("{not json", encoding="utf-8")
+    done = subprocess.run(
+        ["python3", str(repo / "scripts" / "check_engine.py"),
+         "--repo", str(repo), "--consumer", str(consumer), "--payload", str(bad)],
+        capture_output=True, text=True, check=False,
+    )
+    assert done.returncode == 1
+    assert "check_engine: FAIL" in done.stderr
+    assert "Traceback" not in done.stderr
+
+
+def test_the_ac4_capability_abort_is_independent_of_the_pin_form(tmp_path):
+    """Found by review: the original AC-4 end-to-end test stuffed the pin
+    string into `engine.engine`, so it only reached `assert_capabilities`
+    because today's pin happens to be a rev. With a tag pin it died earlier in
+    `assert_agrees` and never mentioned the missing token.
+
+    Driven against a fixture consumer whose pin this repo really contains, so
+    the form is controlled here rather than inherited from the working tree."""
+    import pathlib
+
+    repo = pathlib.Path(__file__).resolve().parent.parent.parent
+    head = subprocess.run(
+        ["git", "-C", str(repo), "rev-parse", "HEAD"],
+        capture_output=True, text=True, check=True,
+    ).stdout.strip()
+
+    consumer = tmp_path / "consumer"
+    consumer.mkdir()
+    (consumer / "Cargo.toml").write_text(
+        f'[dependencies]\nquire-rs = {{ git = "https://x", rev = "{head}" }}\n',
+        encoding="utf-8",
+    )
+    payload = tmp_path / "payload.json"
+    payload.write_text(
+        json.dumps({"engine": {"cli": "0.30.2", "engine": head,
+                               "capabilities": ["metrics_envelope"]}}),
+        encoding="utf-8",
+    )
+    done = subprocess.run(
+        ["python3", str(repo / "scripts" / "check_engine.py"),
+         "--repo", str(repo), "--consumer", str(consumer),
+         "--payload", str(payload), "--require", "binding_census"],
+        capture_output=True, text=True, check=False,
+    )
+    assert done.returncode == 1, done.stdout
+    assert "binding_census" in done.stderr
+
+
+# --- sweep_coverage: the deliverable script had no tests at all ------------
+
+
+def test_the_sweep_refuses_to_print_a_zero_over_an_unmeasured_corpus(tmp_path, monkeypatch):
+    """Found by review: when NO repository produced a readable payload, the
+    sweep printed `"engine": null` and exited 0 — a zero headline over a corpus
+    nothing measured, which is the silent-zero defect arrived at by a different
+    route than the capability abort guards.
+
+    `assert_capabilities` runs only on the first CLEAN payload, so a run where
+    every repo errors never reaches it at all."""
+    import sweep_coverage
+
+    root = tmp_path / "dev"
+    (root / "repo-a" / "spec").mkdir(parents=True)
+    (root / "repo-a" / "spec" / "tests.md").write_text("# x\n", encoding="utf-8")
+
+    monkeypatch.setattr(sweep_coverage, "build_engine", lambda *a, **k: "/nonexistent/quire")
+    monkeypatch.setattr(sweep_coverage, "repos", lambda _root: [root / "repo-a"])
+    monkeypatch.setattr(
+        sweep_coverage, "coverage", lambda *a, **k: {"error": "engine absent"}
+    )
+    monkeypatch.setattr("sys.argv", ["sweep_coverage.py", str(root)])
+
+    assert sweep_coverage.main() == 1
+
+
+def test_the_sweep_takes_provenance_from_the_payload_and_aborts_on_a_missing_token(
+    tmp_path, monkeypatch
+):
+    """AC-3 and AC-4 through the sweep's OWN loop, not through
+    `check_engine.assert_capabilities` in isolation — the review's point being
+    that nothing proved the sweep aborts."""
+    import sweep_coverage
+
+    root = tmp_path / "dev"
+    (root / "repo-a" / "spec").mkdir(parents=True)
+
+    monkeypatch.setattr(sweep_coverage, "build_engine", lambda *a, **k: "/built/quire")
+    monkeypatch.setattr(sweep_coverage, "repos", lambda _root: [root / "repo-a"])
+    monkeypatch.setattr("sys.argv", ["sweep_coverage.py", str(root)])
+
+    # A payload from an engine predating the census: the sweep must abort.
+    monkeypatch.setattr(
+        sweep_coverage,
+        "coverage",
+        lambda *a, **k: {
+            "totals": {"backed": 0, "total": 0},
+            "groups": [],
+            "untracked_symbols": [],
+            "engine": {"cli": "0.29.0", "engine": "0.42.0", "capabilities": ["suspicions"]},
+        },
+    )
+    assert sweep_coverage.main() == 1
+
+    # The control: the same shape carrying the token measures and exits 0.
+    monkeypatch.setattr(
+        sweep_coverage,
+        "coverage",
+        lambda *a, **k: {
+            "totals": {"backed": 1, "total": 2},
+            "groups": [{"target": "test-case", "backed": 1, "total": 2}],
+            "untracked_symbols": [],
+            "engine": {
+                "cli": "0.30.2",
+                "engine": "84740d4",
+                "capabilities": ["binding_census"],
+            },
+        },
+    )
+    assert sweep_coverage.main() == 0
+
+
+def test_the_sweep_refuses_a_binary_that_changes_mid_run(tmp_path, monkeypatch):
+    """The mid-run swap guard, which the review flagged as unreachable-and-
+    untested. Driven through the loop with two payloads reporting different
+    engines, which is the state it exists for."""
+    import sweep_coverage
+
+    root = tmp_path / "dev"
+    for name in ("repo-a", "repo-b"):
+        (root / name / "spec").mkdir(parents=True)
+
+    versions = iter(["84740d4", "0000000"])
+
+    def payload(*_a, **_k):
+        return {
+            "totals": {"backed": 0, "total": 0},
+            "groups": [],
+            "untracked_symbols": [],
+            "engine": {
+                "cli": "0.30.2",
+                "engine": next(versions),
+                "capabilities": ["binding_census"],
+            },
+        }
+
+    monkeypatch.setattr(sweep_coverage, "build_engine", lambda *a, **k: "/built/quire")
+    monkeypatch.setattr(
+        sweep_coverage, "repos", lambda _root: [root / "repo-a", root / "repo-b"]
+    )
+    monkeypatch.setattr(sweep_coverage, "coverage", payload)
+    monkeypatch.setattr("sys.argv", ["sweep_coverage.py", str(root)])
+
+    assert sweep_coverage.main() == 1

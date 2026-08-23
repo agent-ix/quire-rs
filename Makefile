@@ -263,12 +263,19 @@ validate:
 # Skipped, loudly, when the consumer is not checked out beside this repo: a
 # missing sibling is an environment fact, not drift, and failing on it would
 # make `ci` unrunnable for anyone who cloned one repository.
+# `--build --require` is the WHOLE GATE, not an option. Without them the check
+# compares a manifest to a tree and nothing more — and a pin to v0.42.0, which
+# is exactly the incident above, is an ancestor of HEAD and passes. The
+# capability tokens are what make distance a verdict: a pinned engine that
+# cannot emit `binding_census` fails here, by name, whatever its version says.
 QUIRE_CLI ?= ../quire-cli
+ENGINE_CAPABILITIES ?= binding_census metrics_envelope
 
 .PHONY: check-engine
 check-engine:
 	@if [ -f "$(QUIRE_CLI)/Cargo.toml" ]; then \
-		python3 scripts/check_engine.py --consumer "$(QUIRE_CLI)"; \
+		python3 scripts/check_engine.py --consumer "$(QUIRE_CLI)" --build \
+			$(foreach token,$(ENGINE_CAPABILITIES),--require $(token)); \
 	else \
 		echo "check_engine: SKIP — no consumer workspace at $(QUIRE_CLI)"; \
 	fi
