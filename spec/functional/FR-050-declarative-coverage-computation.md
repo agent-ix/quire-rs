@@ -154,6 +154,7 @@ model; the engine knows nothing of "AC" or "TC" as concepts.
 | FR-050-AC-29 | A declarative corpus case is data: `{name, issue_ref, tags, input, expect}`, where `input` is a whole miniature repository (module manifest, spec documents, source files) and `expect` names only the facts the case is about. One parameterized test runs every case; each case is uniquely named, carries at least one tracking id, and carries an `issue_ref` naming the filing it regresses. Two runs of a case produce byte-identical reports. `expect` can assert diagnostics that must be **absent** as well as present. | Test (TC-992..TC-996) |
 | FR-050-AC-30 | A corpus benchmark scores declared metrics against checked-in baselines with **ratchet** semantics: better rewrites the baseline, equal holds, worse fails naming the metric and both values. Every metric declares unit / population / method / direction, and a number outside the dictionary is refused. A `gate-zero` metric never ratchets — it is a gate with no tolerance. A corpus entry that cannot be read is **skipped loudly**, and a metric the payload cannot supply is **omitted with its reason**, never scored zero. A tier-2 entry declares a pinned SHA and a run against a different tree is refused. Reports are deterministic. | Test (`scripts/tests/test_bench.py`) |
 | FR-050-AC-31 | A cross-corpus sweep snapshots per-repository numbers across the enumerated ecosystem and compares two snapshots as a **distribution**: improved / regressed / unchanged counts, the net gain, and the fraction of that gain contributed by a single repository. A repository the engine cannot read is recorded as unreadable rather than scored zero; a population that moved between snapshots is reported, and the comparison is over the intersection. Gains and regressions are counted separately and never netted into one number. | Test (`scripts/tests/test_overfit_check.py`) |
+| FR-050-AC-32 | The benchmark corpus spans **every language the binder binds**, and a corpus entry may declare which metrics it is scored on so it can be carried for language coverage without its content churn thrashing a ratchet. `skeptic.suspicion_rate` — suspicions over evidence symbols examined — is scored per entry: a rate near 100% is a rule misreading a language, not a corpus full of vacuous tests. | Test (`scripts/tests/test_bench.py`) |
 
 
 
@@ -780,3 +781,40 @@ model; the engine knows nothing of "AC" or "TC" as concepts.
 - **Upstream**: [FR-051](./FR-051-source-symbol-extraction.md) (the symbol graph and trace tags), [FR-027](./FR-027-whole-spec-query-api.md) (corpus queries), [FR-014](./FR-014-module-activation.md) (manifest loading), [FR-010](./FR-010-query-api.md) (table extraction)
 - **Upstream (added CR-028)**: [FR-052](./FR-052-acceptance-criteria-property-classification.md) (the per-criterion property classification the `criteria` counts summarize)
 - **Downstream**: [FR-049](./FR-049-verification-reference-integrity.md) (reference declarations reused by bundle validation); `spec-artifacts-iso` declares the ISO model (follow-up change in that module); the `gap-analysis` workflow replaces its grep step with `quire coverage`
+
+> **CR-103 note (2026-08-22):** `agent-ix/quire-rs#237`, reopened.
+> SR-054 FND-005 — **the ratchet's corpus was one language.**
+>
+> `bench/manifest.json` listed `self` and `filament-ide-rs`, both Rust, and the
+> second is skipped whenever it sits off its pin. So the benchmark that exists
+> to catch a check going wrong measured exactly one Rust repository, which is
+> why CR-102's two false-positive classes reached a release: the TypeScript
+> misread needed a TypeScript corpus to be visible, and the count-shaped
+> hollow-denominator needed a repository where `coverage.implements` reads
+> zero. Neither existed.
+>
+> **`quoin` (TypeScript) and `spec-artifacts-process` (Python) are now scored,
+> and each is the corpus that exposed one of those defects.** They are working
+> trees this repository does not control, so they carry a `metrics` allowlist
+> and are scored on the two **gates** only. Ratcheting their `backed_pct` would
+> move whenever somebody writes a spec row and train everyone to run
+> `bench-update` reflexively, which is how a ratchet stops being one.
+>
+> **`skeptic.suspicion_rate` is the guard, and it was verified end to end** —
+> not by reasoning about it. Reverting the CR-102 guard-list fix and re-running:
+>
+> ```
+> !! quoin/skeptic.suspicion_rate: 99.1 (baseline 0.0) [percent of evidence symbols]
+>      regressed against 0.0
+> $ echo $?   # 1
+> ```
+>
+> Restored, it reads `0.0` and the run is green. Current baselines: `quoin`
+> 0.0, `spec-artifacts-process` 0.0, `self` 0.21 — the two genuine
+> TC-1596-shaped positives in this crate's parser suite.
+>
+> **The determinism test was also rewritten.** SR-014 FND-003: it called a pure
+> function twice and compared, which cannot fail short of deliberately
+> injecting a clock. It now asserts the absence of any time-varying field on a
+> scored row, which is the guard it was reaching for — verified by adding
+> `generated_at` to a row and watching it fail.

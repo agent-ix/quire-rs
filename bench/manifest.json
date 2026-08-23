@@ -36,6 +36,12 @@
       "population": "metrics emitted across every corpus entry",
       "method": "metrics with matched = 0 over a non-zero population and NO accompanying diagnostic. This is a GATE, not a score: expected exactly 0, no tolerance, no ratchet. It is the shape of the defect that made three published SpecReviews wrong",
       "direction": "gate-zero"
+    },
+    "skeptic.suspicion_rate": {
+      "unit": "percent of evidence symbols",
+      "population": "evidence symbols the code walk examined in the corpus entry",
+      "method": "len(suspicions) / sum(binding_census.candidates). THE LANGUAGE-COVERAGE guard (CR-103): v0.44.0 shipped a vacuity detector whose Rust guard list read `=> {` as a match arm, which is an arrow function in TypeScript — 549 suspicions over 551 candidates on agent-ix/quoin, against 2 of 883 here. A rate near 100% is a rule misreading a language, not a corpus full of vacuous tests",
+      "direction": "lower-is-better"
     }
   },
   "corpora": [
@@ -53,6 +59,28 @@
       "identity": "sha",
       "pinned_sha": "fc5d644",
       "$comment": "The battletest pass-2 corpus. PINNED: a run against a different SHA is refused rather than scored, because a score that moves on an unpinned corpus says nothing about which change moved it (agent-ix/quoin FR-043-AC-8)."
+    },
+    {
+      "name": "quoin",
+      "tier": 1,
+      "path": "../quoin",
+      "identity": "working-tree",
+      "metrics": [
+        "sentinel.silent_zero",
+        "skeptic.suspicion_rate"
+      ],
+      "$comment": "TYPESCRIPT. Carried for language coverage, not for its coverage figures: this is the corpus that exposed CR-102's 549-of-551 misread, and no TypeScript tree was scored before it. Scored on the two gates only — its backed_pct moves whenever somebody writes a spec row, and ratcheting a tree this repository does not control would train everyone to run bench-update reflexively."
+    },
+    {
+      "name": "spec-artifacts-process",
+      "tier": 1,
+      "path": "../spec-artifacts-process",
+      "identity": "working-tree",
+      "metrics": [
+        "sentinel.silent_zero",
+        "skeptic.suspicion_rate"
+      ],
+      "$comment": "PYTHON. The corpus that exposed CR-102's hollow-denominator false positive: coverage.implements reads an honest 0 of 42 here and was reported as arithmetic over nothing, while this repository reads 15 of 1412 and could never have shown it. Same gate-only scoping as quoin."
     }
   ]
 }
