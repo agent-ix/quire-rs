@@ -173,17 +173,23 @@ fn check_level(
 /// The located table, the section's start line, and each data row's own
 /// **document** line (FR-033-AC-16, CR-097).
 ///
-/// `parse_table_with_lines` returns content-relative row lines; adding the
-/// section's start line converts them to the same 0-based body numbering every
-/// other failure already reports, so a row-scoped finding and a table-scoped
-/// one are read the same way.
+/// `parse_table_with_lines` returns row lines relative to the section's
+/// **content**, which begins on the line *after* the heading. So a content
+/// index `rel` sits at body line `start + rel + 1`, and `to_doc_line` adds the
+/// frontmatter offset and the 1-based conversion on top.
+///
+/// The `+ 1` is the heading line, and omitting it (#254) put every row-scoped
+/// assert failure on the `|---|---|` separator — a locus carrying no data. The
+/// coverage path does the same conversion at `corpus::declared_tables::rows_of`
+/// and lands on the data row; two paths disagreeing about one row's line is the
+/// defect, so this arithmetic must keep matching that one.
 fn locate_table(
     doc: &QuireDocument,
     primitive: &LocatorPrimitive,
 ) -> Option<(crate::query::TableResult, Option<usize>, Vec<usize>)> {
     let with_lines = |content: &str, start: usize| {
         parse_table_with_lines(content).map(|(t, rows)| {
-            let rows = rows.into_iter().map(|r| r + start).collect::<Vec<_>>();
+            let rows = rows.into_iter().map(|r| r + start + 1).collect::<Vec<_>>();
             (t, Some(start), rows)
         })
     };
@@ -643,6 +649,8 @@ fn resolve_regex(
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
+
     use super::*;
     use crate::parser::parse_document;
     use ix_trace_rs::trace;
@@ -682,12 +690,20 @@ mod tests {
         let ids: Vec<Option<&str>> = fails.iter().map(|f| f.row_id.as_deref()).collect();
         assert_eq!(ids, vec![Some("TC-002"), Some("TC-003")]);
 
-        // Distinct lines, in row order — the property the corpus run measured
-        // as "one distinct line per document".
+        // The ABSOLUTE body line of each offending row, not merely distinct
+        // ones in order (#254). The original assertion here was `lines[0] <
+        // lines[1]`, which every off-by-N satisfies — and one shipped: these
+        // pointed at the row above, which on a markdown table is the
+        // `|---|---|` separator. A relative assertion cannot catch a
+        // translation, and FR-033-AC-16 asks for the row's OWN line.
+        //
+        // Body lines, 0-based: 0 `## T`, 1 header, 2 separator, 3 TC-001,
+        // 4 TC-002, 5 TC-003. The two failing rows are TC-002 and TC-003.
         let lines: Vec<Option<usize>> = fails.iter().map(|f| f.line).collect();
-        assert!(
-            lines[0].is_some() && lines[0] < lines[1],
-            "each row reports its own line: {lines:?}"
+        assert_eq!(
+            lines,
+            vec![Some(4), Some(5)],
+            "each row reports its own body line, not the one above it"
         );
         // …and the two findings are no longer equal field for field.
         assert_ne!(fails[0], fails[1]);
@@ -739,7 +755,94 @@ mod tests {
         let fails = evaluate_assert(&doc, &undeclared, &a, None);
         assert_eq!(fails.len(), 2);
         assert!(fails.iter().all(|f| f.row_id.is_none()));
-        assert!(fails[0].line < fails[1].line);
+        assert_eq!(
+            fails.iter().map(|f| f.line).collect::<Vec<_>>(),
+            vec![Some(4), Some(5)]
+        );
+    }
+
+    #[trace("TC-1005", "FR-033-AC-16")]
+    // #254: the whole-document line a row-scoped assert reports, through the
+    // real `validate_document` path with frontmatter present, and it agrees
+    // with what the coverage path reports for the same row.
+    #[test]
+    fn tc1005_row_assert_line_is_the_offending_row_in_the_whole_document() {
+        // The shape that exposed the defect: a TestMatrix with frontmatter, so
+        // the finding's line is the sum of the frontmatter offset, the section
+        // start, the heading line and the 1-based conversion. Every one of
+        // those has to be right, and only a whole-document assertion checks
+        // them together — the in-crate `evaluate_assert` tests above see body
+        // lines and cannot see the frontmatter term at all.
+        //
+        //  1  ---
+        //  2  id: TM-001
+        //  3  type: TestMatrix
+        //  4  ---
+        //  5
+        //  6  ## Test Cases
+        //  7
+        //  8  | ID | Traces To | Type | Status |
+        //  9  |----|-----------|------|--------|
+        // 10  | TC-001 | FR-001-AC-1 | Demonstration | ✅ |
+        //
+        // Line 9 is the separator and carries no data; line 10 is the cell the
+        // check is about. Reporting 9 is what shipped.
+        const MANIFEST: &str = concat!(
+            "name: row-line-mod\n",
+            "artifact_types:\n",
+            "- name: TestMatrix\n",
+            "  body_extraction:\n",
+            "    yield_pattern:\n",
+            "      match:\n",
+            "        test_cases:\n",
+            "          from: table_row\n",
+            "          under_section: Test Cases\n",
+            "          required: true\n",
+            "          multiple: true\n",
+            "          assert:\n",
+            "            id_column: ID\n",
+            "            column_choices:\n",
+            "              Type: [Unit, Integration, Inspection]\n",
+        );
+        let registry = crate::Registry::from_inline_parts(MANIFEST.as_bytes(), &BTreeMap::new())
+            .expect("inline module loads");
+        let archetype = registry.archetype("TestMatrix").expect("TestMatrix");
+
+        let doc = concat!(
+            "---\nid: TM-001\ntype: TestMatrix\n---\n\n",
+            "## Test Cases\n\n",
+            "| ID | Traces To | Type | Status |\n",
+            "|----|-----------|------|--------|\n",
+            "| TC-001 | FR-001-AC-1 | Demonstration | ✅ |\n",
+        )
+        .to_string();
+
+        let result = crate::validate_document(archetype, &doc);
+        let asserts: Vec<_> = result
+            .errors
+            .iter()
+            .filter(|e| e.reason == crate::ValidationReason::Assert)
+            .collect();
+        assert_eq!(asserts.len(), 1, "{:?}", result.errors);
+        assert_eq!(
+            asserts[0].line,
+            Some(10),
+            "the finding must name the row carrying `Demonstration`, not the \
+             separator above it: {:?}",
+            asserts[0]
+        );
+
+        // The control: the same tree with a declared value fires nothing, so
+        // the assertion above is about the defect and not about the check
+        // being loud.
+        let clean = doc.replace("Demonstration", "Inspection");
+        assert!(
+            crate::validate_document(archetype, &clean)
+                .errors
+                .iter()
+                .all(|e| e.reason != crate::ValidationReason::Assert),
+            "a declared Type value must fire no assert"
+        );
     }
 
     #[trace("TC-534", "FR-033-AC-1")]
