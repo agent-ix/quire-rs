@@ -23,6 +23,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from check_engine import Drift, build_engine
+
 ROOT = Path(__file__).resolve().parent.parent
 MANIFEST = ROOT / "bench" / "manifest.json"
 BASELINES = ROOT / "bench" / "baselines.json"
@@ -157,7 +159,13 @@ def main() -> int:
                     help="rewrite baselines from this run (deliberate regen)")
     ap.add_argument("--observed", type=Path,
                     help="score a pre-collected observation file instead of sweeping")
-    ap.add_argument("--quire", default="quire", help="quire binary to sweep with")
+    # #265: no PATH lookup. `--quire` defaulted to whatever was installed, so
+    # the checked-in ratchet baseline was produced by a binary nobody chose —
+    # measured on this machine, the installed `quire 0.30.2` emits no `engine`
+    # block at all. The binary is built from the consuming workspace at its
+    # pinned rev instead, exactly as `sweep_coverage.py` now does.
+    ap.add_argument("--consumer", default="../quire-cli",
+                    help="workspace to build the engine from (default: ../quire-cli)")
     ap.add_argument("--module", default=None,
                     help="module directory supplying the traceability model")
     args = ap.parse_args()
@@ -169,7 +177,14 @@ def main() -> int:
         if args.observed:
             observed = json.loads(args.observed.read_text())
         else:
-            observed = collect(manifest, args.quire, args.module)
+            consumer = Path(args.consumer).expanduser()
+            if not consumer.is_absolute():
+                consumer = (ROOT / consumer).resolve()
+            try:
+                quire = build_engine(consumer, release=True)
+            except Drift as error:
+                raise BenchError(str(error)) from error
+            observed = collect(manifest, quire, args.module)
     except BenchError as exc:
         print(f"bench: {exc}", file=sys.stderr)
         return 2
@@ -240,6 +255,17 @@ def metrics_from(payload: dict) -> dict[str, Any]:
     #   - the key is missing entirely  → the engine predates the field, and the
     #     score would be measuring the toolchain's version, not its quality;
     #   - the key is present and empty → the corpus genuinely has none.
+    # #265 AC-4 says a sweep lacking a required capability must abort rather
+    # than "omit the metric and continue". This skip STAYS, because it is not
+    # that failure mode: `skip()` records the metric as not-computed WITH its
+    # reason (the FR-063 posture — a measurement that did not run carries
+    # `because` and no numbers, so it can never be read as a zero), which is
+    # already the honest answer. What AC-4 forbids is printing a figure over a
+    # missing premise, and this prints no figure. The behaviour is quoin#197's
+    # dictionary — a sibling programme, explicitly not this EPIC's to redefine
+    # — and `test_metrics_are_omitted_rather_than_zeroed_when_unreadable` pins
+    # it. Building from the pinned workspace, above, is what #265 actually owes
+    # this script.
     if "binding_census" not in payload:
         skip("coverage.binding_read_pct", "payload carries no binding_census "
              "(engine predates FR-050-AC-27 — needs quire-rs >= v0.43.0)")

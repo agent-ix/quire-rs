@@ -250,8 +250,38 @@ coverage-baseline-update:
 validate:
 	$(CARGO) run --quiet --example spec_validate
 
+# The #265 gate: the engine a consumer LINKS is the engine in this tree.
+#
+# `quire-cli/Cargo.toml` pins this crate independently of this crate's identity
+# and nothing compared the two. Measured: the installed CLI 0.29.0 pinned engine
+# v0.42.0 while `binding_census` landed in v0.43.0, so four battletest passes
+# reported figures from a binary that could not emit the one signal saying
+# whether the binder read a test. Direct analogue of
+# `quoin/scripts/check-version-agreement.mjs`, applied to the seam that one
+# never covered.
+#
+# Skipped, loudly, when the consumer is not checked out beside this repo: a
+# missing sibling is an environment fact, not drift, and failing on it would
+# make `ci` unrunnable for anyone who cloned one repository.
+# `--build --require` is the WHOLE GATE, not an option. Without them the check
+# compares a manifest to a tree and nothing more — and a pin to v0.42.0, which
+# is exactly the incident above, is an ancestor of HEAD and passes. The
+# capability tokens are what make distance a verdict: a pinned engine that
+# cannot emit `binding_census` fails here, by name, whatever its version says.
+QUIRE_CLI ?= ../quire-cli
+ENGINE_CAPABILITIES ?= binding_census metrics_envelope
+
+.PHONY: check-engine
+check-engine:
+	@if [ -f "$(QUIRE_CLI)/Cargo.toml" ]; then \
+		python3 scripts/check_engine.py --consumer "$(QUIRE_CLI)" --build \
+			$(foreach token,$(ENGINE_CAPABILITIES),--require $(token)); \
+	else \
+		echo "check_engine: SKIP — no consumer workspace at $(QUIRE_CLI)"; \
+	fi
+
 .PHONY: ci
-ci: fmt-check lint check-python check-scripts test deny audit-unsafe audit-property audit-static validate
+ci: fmt-check lint check-python check-scripts test deny audit-unsafe audit-property audit-static validate check-engine
 
 # =============================================================================
 # Python wheel / sdist + local-publish (pypi.ix)
