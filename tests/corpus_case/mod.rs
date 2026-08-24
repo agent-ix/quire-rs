@@ -200,6 +200,20 @@ pub struct CaseExpect {
     /// L1. Per-metric expectations, keyed on the metric name.
     #[serde(default)]
     pub metrics: Vec<ExpectMetric>,
+    /// Substrings `quire validate` must report, for a case whose family is a
+    /// STRUCTURAL defect rather than a coverage one.
+    ///
+    /// `undeclared-type-value` is the first: a `Type` cell outside the declared
+    /// vocabulary produces a coverage payload **byte-identical to a healthy
+    /// control's**, so a corpus that ran only `coverage` asserted nothing about
+    /// the family its fixture was named for.
+    #[serde(default)]
+    pub validate_contains: Vec<String>,
+    /// Substrings `quire validate` must NOT report — the control half. Every
+    /// fixture here shares three structural findings, so asserting presence
+    /// without absence would restate what all of them produce.
+    #[serde(default)]
+    pub validate_absent: Vec<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -246,22 +260,21 @@ impl Case {
 
 /// Load every module under a module PATH.
 ///
-/// `Registry::from_env` is the only public surface that reads a search path, so
-/// the path is handed to it through `IX_FILAMENT_MODULES_PATH`. Every corpus
-/// case that needs a path wants the SAME one — the vendored `modules/ecosystem`
-/// — so setting it once is deterministic rather than a race between tests, and
-/// the `Once` makes that explicit instead of accidental.
+/// `Registry::load_from` treats each argument as a **search root** whose
+/// children are inspected for module manifests — which is exactly a module
+/// path. The first version of this reached for `IX_FILAMENT_MODULES_PATH` and
+/// `std::env::set_var` behind a `Once`, justified by a claim that
+/// `Registry::from_env` was the only public surface reading a search path.
+/// That claim was false: `load_from` is public, documented, and already used by
+/// three other test files here.
+///
+/// The env route also wrote process-wide state from a test binary whose eight
+/// tests run as threads, and `set_var` is `unsafe fn` from edition 2024 — in a
+/// crate whose root carries `forbid(unsafe_code)` and whose ADR-0006 retired
+/// Miri on the reasoning that there is no first-party unsafe. One safe line
+/// replaces all of it.
 fn load_module_path(path: &Path, case_id: &str) -> quire_rs::Registry {
-    static SET: std::sync::Once = std::sync::Once::new();
-    SET.call_once(|| std::env::set_var("IX_FILAMENT_MODULES_PATH", path));
-    let configured = std::env::var("IX_FILAMENT_MODULES_PATH").unwrap_or_default();
-    assert_eq!(
-        configured,
-        path.to_string_lossy(),
-        "{case_id}: two different module paths in one run — the search path is \
-         process-wide, so a second one would silently re-use the first",
-    );
-    quire_rs::Registry::from_env()
+    quire_rs::Registry::load_from(&[path])
         .unwrap_or_else(|e| panic!("{case_id}: module path {} failed: {e}", path.display()))
 }
 
@@ -411,6 +424,38 @@ pub fn run(case: &Case) -> quire_rs::CoverageReport {
     let graph = quire_rs::symbols::trace::bind(&extraction, &model);
     quire_rs::coverage::compute(&spec, &registry, &graph, &input)
         .unwrap_or_else(|e| panic!("{}: compute failed: {e}", case.meta.id))
+}
+
+/// Every `quire validate` finding over a case's own spec tree, as one string.
+///
+/// A second command, because a structural defect is not a coverage one — and
+/// running only `coverage` is how a fixture came to assert exactly what the
+/// healthy control asserts.
+fn validate_report(case: &Case) -> String {
+    let input = case.input();
+    let module = corpus_root().join("modules").join(&case.meta.module);
+    let registry = if module.join("manifest.yaml").is_file() {
+        quire_rs::Registry::load_module(&module)
+    } else {
+        quire_rs::Registry::load_from(&[&module])
+    }
+    .unwrap_or_else(|e| panic!("{}: module load failed: {e}", case.meta.id));
+
+    let report = quire_rs::validate_bundle_at(
+        &input.join("spec"),
+        &registry,
+        quire_rs::BundlePosture::Strict,
+    );
+    // Errors AND warnings: a structural defect's severity is the module's
+    // decision, and a case asserting the finding should not also have to know
+    // which bucket the declaration put it in.
+    report
+        .errors
+        .iter()
+        .chain(report.warnings.iter())
+        .map(|f| format!("{}: [{}] {}", f.path.display(), f.reason, f.message))
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 /// Grade `report` against the case's expectations, collecting every mismatch
@@ -626,6 +671,23 @@ pub fn grade(case: &Case, report: &quire_rs::CoverageReport) -> Outcome {
                         want.name,
                         metric.is_hollow()
                     ),
+                );
+            }
+        }
+    }
+
+    if !e.validate_contains.is_empty() || !e.validate_absent.is_empty() {
+        let report = validate_report(case);
+        for want in &e.validate_contains {
+            if !report.contains(want.as_str()) {
+                fail(Level::L1Detected, format!("validate output lacks {want:?}"));
+            }
+        }
+        for unwanted in &e.validate_absent {
+            if report.contains(unwanted.as_str()) {
+                fail(
+                    Level::L1Detected,
+                    format!("validate reports {unwanted:?} on input that must be clean of it"),
                 );
             }
         }
