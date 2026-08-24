@@ -180,7 +180,20 @@ fn every_case_is_attributed_and_uniquely_named() {
 #[test]
 fn tc1017_every_control_names_a_case_that_exists() {
     let cases = load_cases();
-    let ids: BTreeSet<&str> = cases.iter().map(|c| c.meta.id.as_str()).collect();
+    // A control pairs with its failure case IN THE SAME LANGUAGE. With language
+    // sets the ids carry a `-<language>` suffix while `control_for` names the
+    // case, so resolution is by (case, language) — matching on the bare id
+    // would have said a perfectly-paired set names no case.
+    // Resolved against a case's `id` OR its `case`. A single-language fixture
+    // is named by its id; a set is named by the inventory row it claims, and a
+    // fixture that reclaimed a row (#268) has an id that is neither.
+    let mut pairs: BTreeSet<(String, &str)> = BTreeSet::new();
+    for c in &cases {
+        pairs.insert((c.meta.id.clone(), c.meta.language.as_str()));
+        if let Some(case) = &c.meta.case {
+            pairs.insert((case.clone(), c.meta.language.as_str()));
+        }
+    }
 
     for case in cases.iter().filter(|c| c.meta.kind == "control") {
         let partner = case
@@ -189,9 +202,10 @@ fn tc1017_every_control_names_a_case_that_exists() {
             .as_deref()
             .unwrap_or_else(|| panic!("{}: a control declares control_for", case.meta.id));
         assert!(
-            ids.contains(partner),
-            "{}: control_for names `{partner}`, which is no case",
-            case.meta.id
+            pairs.contains(&(partner.to_string(), case.meta.language.as_str())),
+            "{}: control_for names `{partner}`, which is no case in {}",
+            case.meta.id,
+            case.meta.language
         );
         // A control is input on which nothing may be found. `findable: true`
         // on one tells a recall-scoring consumer to expect a finding there.
