@@ -280,9 +280,16 @@ fn tc1021_the_vocabularies_come_from_the_corpus_not_from_this_file() {
         let module = corpus_case::corpus_root()
             .join("modules")
             .join(&case.meta.module);
+        // One module, or a PATH of them — `ecosystem` is the second.
+        let resolves = module.join("manifest.yaml").is_file()
+            || std::fs::read_dir(&module).is_ok_and(|entries| {
+                entries
+                    .filter_map(Result::ok)
+                    .any(|e| e.path().join("manifest.yaml").is_file())
+            });
         assert!(
-            module.join("manifest.yaml").is_file(),
-            "{}: module `{}` names no manifest at {}",
+            resolves,
+            "{}: module `{}` names no manifest under {}",
             case.meta.id,
             case.meta.module,
             module.display(),
@@ -338,9 +345,14 @@ fn tc1020_the_documented_invocation_names_the_module_that_loads() {
         // FR-065-AC-18: the invocation names a module. Without one no model
         // loads, the run reports 0/0, and the case cannot exhibit the
         // declaration defect it exists for.
-        let declared = format!("--module modules/{}", case.meta.module);
+        // A single module is selected with `--module`; a module PATH with
+        // `IX_FILAMENT_MODULES_PATH`, because `--module` takes one directory.
+        // Either way the invocation must NAME the module the case declares, or
+        // two runners test different things and neither notices (#266).
+        let by_flag = format!("--module modules/{}", case.meta.module);
+        let by_path = format!("IX_FILAMENT_MODULES_PATH=modules/{}", case.meta.module);
         assert!(
-            reproduce.contains(&declared),
+            reproduce.contains(&by_flag) || reproduce.contains(&by_path),
             "{}: declares `module: {}` but its invocation says `{reproduce}`. \
              Two runners would test different modules and neither would notice.",
             case.meta.id,
