@@ -156,7 +156,8 @@ model; the engine knows nothing of "AC" or "TC" as concepts.
 | FR-050-AC-31 | A cross-corpus sweep snapshots per-repository numbers across the enumerated ecosystem and compares two snapshots as a **distribution**: improved / regressed / unchanged counts, the net gain, and the fraction of that gain contributed by a single repository. A repository the engine cannot read is recorded as unreadable rather than scored zero; a population that moved between snapshots is reported, and the comparison is over the intersection. Gains and regressions are counted separately and never netted into one number. | Test (`scripts/tests/test_overfit_check.py`) |
 | FR-050-AC-32 | The benchmark corpus spans **every language the binder binds**, and a corpus entry may declare which metrics it is scored on so it can be carried for language coverage without its content churn thrashing a ratchet. `skeptic.suspicion_rate` — suspicions over evidence symbols examined — is scored per entry: a rate near 100% is a rule misreading a language, not a corpus full of vacuous tests. | Test (`scripts/tests/test_bench.py`) |
 | FR-050-AC-33 | A **trace target** that selects a document by archetype and then reads nothing out of it is reported per document, never in silence, under two distinct machine tokens: `section-matches-nothing` when the declared `section:` heading is absent, and `id-column-matches-nothing` when the section is found and the declared `id_column` is not among the table's headers. Each record names the document in `path` and names, in its message, both the value **found** and the value **declared**; the section record additionally names the `id_column` it could **not** check, because the absent heading strands the table before the column is read. Neither is gated on whether any other declaration minted, so a model minting its criteria normally still reports a stranded matrix. A reference declaration — whose section is legitimately optional — and a document carrying the declared heading and column both report neither (CR-117). | Test (TC-1033, TC-1034, TC-1035) |
-| FR-050-AC-34 | A declaration's `section:` accepts **one heading name or several**, on that one key: a scalar as before, or a sequence. Every named section of a document contributes its own table, in **document order**, and each is checked for the declared `id_column` separately. An entry containing `*` matches any run of characters, including none; an entry containing none is the heading exactly, matched as `query::section` has always matched it — so a declaration naming one section selects exactly what it selected before, and no other metacharacter is introduced. An empty sequence, or a blank entry, fails module load naming the declaration. When no named section is present the `section-matches-nothing` record names **every** section the declaration tried, and a one-name declaration round-trips back out as the scalar it was authored as (CR-118). | Test (TC-1037, TC-1038) |
+| FR-050-AC-34 | A declaration's `section:` accepts **one heading name or several**, on that one key: a scalar as before, or a sequence. Every named section of a document contributes its own table, in **document order**, and each is checked for the declared `id_column` separately. An entry containing `*` matches any run of characters, including none; an entry containing none is the heading exactly, matched as `query::section` has always matched it — and no other metacharacter is introduced. A one-name declaration selects the same headings it always did, with one measured exception: where a document repeats that heading, every occurrence now contributes where the first alone used to — `tables_of` walks all matching sections while `query::section` returned the first. Measured: **0 of 393** TestMatrix documents repeat the ecosystem declared heading, so the ecosystem is unaffected, but it is a behaviour change and is stated as one rather than as an identity. An empty sequence, or a blank entry, fails module load naming the declaration. When no named section is present the `section-matches-nothing` record names **every** section the declaration tried, and a one-name declaration round-trips back out as the scalar it was authored as (CR-118). | Test (TC-1037, TC-1038) |
+| FR-050-AC-35 | Where every declared section a document **has** holds no table, the declaration reports `section-holds-no-table` naming the document, the sections it matched and the sections it declares. One table-less section among others is not reported — a parent heading whose rows live under its sub-headings is ordinary. The record exists because that shape mints nothing while both sibling diagnostics stand down: the section **was** found, so `section-matches-nothing` cannot fire, and there is no table, so `id-column-matches-nothing` has no headers to read (CR-120). | Test (TC-1041) |
 
 
 
@@ -236,13 +237,25 @@ model; the engine knows nothing of "AC" or "TC" as concepts.
 >
 > **One key, and `*` is the only metacharacter.** A second `sections:` key
 > would be two spellings of one thing under `deny_unknown_fields`, and every
-> reader would have to handle both. A *glob* would make `?`, `[`, `]`, `{` and
-> `}` special, and headings are prose — `Edge Cases [deferred]` and
-> ``FR-045 — `ix local auth kubeconfig rotate` `` are real ecosystem headings —
-> so an existing declaration's meaning would change silently. A name carrying
-> no `*` is the heading exactly, which is what makes "a target declaring one
-> section does not start matching others" a property of the design rather than
-> a test.
+> reader would have to handle both.
+>
+> A *glob* would make `?`, `[`, `]`, `{` and `}` special. Measured: **21**
+> distinct `section:` values are declared across every `manifest.yaml` under
+> `~/dev` and **none carries a glob metacharacter**, and of the 2,802 headings
+> in 417 `type: TestMatrix` documents exactly **one** carries `[`/`]` (a
+> markdown link) while `?`, `{`, `}` and `*` appear in none. So globset would
+> not change the meaning of any declaration that exists today — this is a
+> hazard the design forecloses, not one it was observed to hit, and it is
+> claimed as no more than that.
+>
+> An earlier draft of this note cited `Edge Cases [deferred]` as a real
+> ecosystem heading. **It is not.** It appears nowhere in `~/dev` and was
+> invented to support the conclusion. The conclusion survives on the census
+> above; the example did not exist.
+>
+> A name carrying no `*` is the heading exactly, which is what makes "a target
+> declaring one section does not start matching others" a property of the
+> design rather than a test.
 >
 > **The reference declaration widens with the target.** `traces-to` reads
 > `Traces To` off the rows `test-case` mints. A section the target reaches and
