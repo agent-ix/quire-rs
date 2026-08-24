@@ -2383,3 +2383,191 @@ fn tc1036_the_section_hit_rate_is_a_ratio_over_the_documents_the_archetype_selec
         "a measurement that never ran has no denominator to be hollow"
     );
 }
+
+// ─── CR-118 / #272: one heading name, and the rows under the other headings ──
+
+/// A matrix whose four rows sit under four different headings. Three of them
+/// are what the `iso-sections` module declares; `Edge Cases` is not, and is the
+/// control inside the fixture — a widened declaration reads the sections it
+/// names and stops there.
+///
+/// `TC-002`, under the qualified heading, claims `✅` and no test carries it.
+/// That makes it a **status lie**, which is computed off the *reference*
+/// declaration rather than the target — so the row is the one assertion that
+/// can tell whether the reference was widened alongside the target.
+fn matrix_across_headings(bundle: &Bundle) {
+    write(
+        &bundle.scope,
+        "tests.md",
+        "---\nid: TM-001\ntype: TestMatrix\ntitle: Test Matrix\n---\n\n\
+         # Test Matrix\n\n\
+         ## Test Cases\n\n| ID | Traces To | Status |\n|----|-----------|--------|\n\
+         | TC-001 | FR-001-AC-1 | ✅ |\n\n\
+         ## Test Cases (plugin scope)\n\n| ID | Traces To | Status |\n|----|-----------|--------|\n\
+         | TC-002 | FR-001-AC-2 | ✅ |\n\n\
+         ## Integration Test Matrix\n\n| ID | Traces To | Status |\n|----|-----------|--------|\n\
+         | TC-003 | FR-001-AC-1 | ✅ |\n\n\
+         ## Edge Cases\n\n| ID | Traces To | Status |\n|----|-----------|--------|\n\
+         | TC-004 | FR-001-AC-2 | ✅ |\n",
+    );
+}
+
+#[trace("TC-1037", "FR-050-AC-34")]
+// a declaration naming SEVERAL sections mints from (CR-118)
+// every one of them, in document order, and the same declaration naming ONE
+// section still mints from exactly that one — a widening a module did not ask
+// for is the failure mode this fixture pair exists to catch.
+#[test]
+fn tc1037_a_declaration_naming_several_sections_mints_from_all_of_them() {
+    let bundle = iso_bundle(
+        "1037",
+        &[("TC-001", "FR-001-AC-1", "✅")],
+        // TC-002 is deliberately untagged — see `matrix_across_headings`.
+        &["TC-001", "TC-003", "TC-004"],
+    );
+    matrix_across_headings(&bundle);
+
+    // The widened declaration: `Test Cases*` reaches the bare heading and the
+    // locally-qualified one, `Integration Test Matrix` is named literally, and
+    // `Edge Cases` is named by neither.
+    let wide = report_for(&bundle, "iso-sections").expect("model declared");
+    let minted: Vec<(&str, usize, usize)> = wide
+        .groups
+        .iter()
+        .filter(|g| g.target == "test-case")
+        .map(|g| (g.document.as_str(), g.backed, g.total))
+        .collect();
+    assert_eq!(
+        minted,
+        vec![("tests.md", 2, 3)],
+        "three declared sections, three rows, and the untagged one unbacked: {:?}",
+        wide.groups
+    );
+
+    // The row under the undeclared heading is the in-fixture control. Its test
+    // binds — `TC-004` is tagged — so it can only be missing because no
+    // declaration reached its row, and it says so in `untracked_symbols`.
+    assert!(
+        wide.untracked_symbols
+            .iter()
+            .any(|u| u.trace_id == "TC-004"),
+        "a heading the declaration does not name mints nothing: {:?}",
+        wide.untracked_symbols
+    );
+    assert!(
+        !wide
+            .untracked_symbols
+            .iter()
+            .any(|u| u.trace_id == "TC-003"),
+        "and the ones it does name leave nothing homeless: {:?}",
+        wide.untracked_symbols
+    );
+
+    // The REFERENCE declaration was widened in step, so a row under a qualified
+    // heading is read as a reference row too — and TC-002's `✅` over no test
+    // is reported as the status lie it is. Widening only the target would mint
+    // that row's id and leave its claim unread.
+    assert_eq!(
+        wide.status_lies
+            .iter()
+            .map(|l| l.row_id.as_deref().unwrap_or(""))
+            .collect::<Vec<_>>(),
+        vec!["TC-002"],
+        "the reference reads every section the target mints from: {:?}",
+        wide.status_lies
+    );
+
+    // ── The control: the SAME tree read by the SAME model with `section: Test
+    // Cases` — one name, no wildcard. It must mint the one row under that exact
+    // heading and no other, or the single-string form has silently changed
+    // meaning for every module in the ecosystem.
+    let narrow = report_for(&bundle, "iso").expect("model declared");
+    let minted: Vec<(&str, usize, usize)> = narrow
+        .groups
+        .iter()
+        .filter(|g| g.target == "test-case")
+        .map(|g| (g.document.as_str(), g.backed, g.total))
+        .collect();
+    assert_eq!(
+        minted,
+        vec![("tests.md", 1, 1)],
+        "one declared section, one row — a target declaring one section does \
+         not start matching others: {:?}",
+        narrow.groups
+    );
+    assert!(
+        narrow.status_lies.is_empty(),
+        "and its reference reads that one section too, so the lie under the \
+         qualified heading is one this reading never saw: {:?}",
+        narrow.status_lies
+    );
+
+    // Nothing about the widening is a new diagnostic: the sections are found,
+    // so the CR-117 tokens stay silent on both readings.
+    for (label, report) in [("wide", &wide), ("narrow", &narrow)] {
+        assert!(
+            !report
+                .diagnostics
+                .iter()
+                .any(|d| d.reason == "section-matches-nothing"),
+            "{label}: a declared section that was found is not one that was not: {:?}",
+            report.diagnostics
+        );
+    }
+}
+
+#[trace("TC-1038", "FR-050-AC-34")]
+// when NONE of several declared sections is in the (CR-118)
+// document, the message names every one of them. A declaration naming three
+// headings and a finding naming one leaves its reader to guess which of the
+// three the document was supposed to spell.
+#[test]
+fn tc1038_the_section_finding_names_every_declared_section() {
+    let bundle = iso_bundle("1038", &[("TC-001", "FR-001-AC-1", "✅")], &["TC-001"]);
+    // Not one of `Test Cases*` / `Integration Test Matrix`.
+    write(
+        &bundle.scope,
+        "tests.md",
+        "---\nid: TM-001\ntype: TestMatrix\ntitle: Test Matrix\n---\n\n\
+         # Test Matrix\n\n## Verification Cases\n\n\
+         | ID | Traces To | Status |\n|----|-----------|--------|\n\
+         | TC-001 | FR-001-AC-1 | ✅ |\n",
+    );
+    let report = report_for(&bundle, "iso-sections").expect("model declared");
+
+    let finding = diagnostic_for(&report, "section-matches-nothing");
+    assert_eq!(finding.declaration, "test-case");
+    assert_eq!(finding.path.as_deref(), Some("tests.md"));
+    for declared in ["'Test Cases*'", "'Integration Test Matrix'"] {
+        assert!(
+            finding.message.contains(declared),
+            "names every section it tried ({declared}): {}",
+            finding.message
+        );
+    }
+    assert!(
+        finding.message.contains("'Verification Cases'"),
+        "and what the document has instead: {}",
+        finding.message
+    );
+
+    // A wildcard is not a licence to match anything: `Test Cases*` anchors at
+    // the start, so a heading that merely contains the words is not reached.
+    write(
+        &bundle.scope,
+        "tests.md",
+        "---\nid: TM-001\ntype: TestMatrix\ntitle: Test Matrix\n---\n\n\
+         # Test Matrix\n\n## Deferred Test Cases\n\n\
+         | ID | Traces To | Status |\n|----|-----------|--------|\n\
+         | TC-001 | FR-001-AC-1 | ✅ |\n",
+    );
+    let anchored = report_for(&bundle, "iso-sections").expect("model declared");
+    assert!(
+        anchored
+            .diagnostics
+            .iter()
+            .any(|d| d.reason == "section-matches-nothing"),
+        "`Test Cases*` is a prefix, not a substring: {:?}",
+        anchored.diagnostics
+    );
+}

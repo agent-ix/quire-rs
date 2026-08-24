@@ -1,0 +1,97 @@
+# The `iso` fixture with its matrix declaration widened to SEVERAL sections
+# (CR-118, agent-ix/quire-rs#272).
+#
+# Byte-identical to `iso/manifest.yaml` apart from the two `section:` keys on
+# the declarations that read the Test Matrix — which is the point: the pair is
+# the control and the case for "a target declaring one section does not start
+# matching others".
+#
+# The target and the reference are widened TOGETHER. They read the same table —
+# `test-case` mints the `ID` column and `traces-to` reads `Traces To` off the
+# same rows — so widening only the target would mint ids out of a section whose
+# cells nothing then reads.
+name: traceability-iso-sections
+version: 0.1.0
+description: ISO-shaped traceability model fixture
+artifact_types:
+- name: FR
+  grammar_ref: iso-spec-core
+  defaults:
+    id_pattern: FR-{next:03d}
+- name: TC
+  defaults:
+    id_pattern: TC-{next:03d}
+- name: TestMatrix
+  defaults:
+    id_pattern: TM-{next:03d}
+traceability:
+  trace_targets:
+  - name: acceptance-criterion
+    archetype: FR
+    section: Acceptance Criteria
+    id_column: ID
+  - name: test-case
+    archetype: TestMatrix
+    # A wildcard entry and a literal one, so both halves of the surface are
+    # exercised by the same declaration. `Test Cases*` reaches the bare heading
+    # and every locally-qualified spelling of it; `Integration Test Matrix` is a
+    # differently-named table and reads better as a name than as a pattern.
+    section:
+    - Test Cases*
+    - Integration Test Matrix
+    id_column: ID
+  # A TC that is authored as its own document rather than a matrix row.
+  - name: test-case-document
+    archetype: TC
+    section: Description
+    id_column: ID
+  document_references:
+  - name: verification
+    archetype: FR
+    section: Acceptance Criteria
+    column: Verification
+    row_id_column: ID
+    pattern: '\((TC-\d+)\)'
+    targets: [test-case, test-case-document]
+  - name: traces-to
+    archetype: TestMatrix
+    section:
+    - Test Cases*
+    - Integration Test Matrix
+    column: Traces To
+    row_id_column: ID
+    pattern: '((?:StR|US|FR|NFR)-\d+(?:-(?:AC|CON)-\d+)?|IT-\d+(?:-SC-\d+)?)'
+    targets: [acceptance-criterion]
+  status:
+    column: Status
+    complete: ["✅"]
+    pending: ["🚧", "⚠️"]
+    failed: ["❌"]
+  trace_tags:
+    markers:
+    - name: rust-trace-attribute
+      language: rust
+      pattern: '#\[trace\(([^)]*)\)\]'
+      template: '#[trace({ids})]'
+    - name: pytest-trace-marker
+      language: python
+      pattern: '@pytest\.mark\.trace\(([^)]*)\)'
+      template: '@pytest.mark.trace({ids})'
+    - name: ts-trace-helper
+      language: typescript
+      pattern: '\btrace\(([^)]*)\)'
+    legacy:
+    # The id group is a comma-separated list, not a single id: a legacy line
+    # reads naturally as `Trace: FR-1-AC-1, FR-1-AC-2` and every id it carries
+    # must bind (FR-051-AC-16). The engine splits capture group 1.
+    - name: trace-line
+      pattern: 'Trace:\s*([A-Za-z]+-\d+(?:-[A-Za-z]+-\d+)?(?:\s*,\s*[A-Za-z]+-\d+(?:-[A-Za-z]+-\d+)?)*)'
+      rewrite_to: rust-trace-attribute
+    - name: comment-id
+      pattern: '(?://|#)\s*((?:TC|FR|NFR|StR|US|IT)-\d+(?:-[A-Za-z]+-\d+)?(?:\s*,\s*(?:TC|FR|NFR|StR|US|IT)-\d+(?:-[A-Za-z]+-\d+)?)*)'
+      rewrite_to: rust-trace-attribute
+    - name: test-name-id
+      language: rust
+      pattern: '\bfn (?i:tc)(\d+)_'
+      id_format: 'TC-{1}'
+      rewrite_to: rust-trace-attribute

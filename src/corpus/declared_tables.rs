@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 
 use super::spec::Spec;
 use crate::ast::QuireDocument;
-use crate::query::section;
+use crate::traceability::SectionNames;
 
 /// One scanned table row: the document it lives in, its cells keyed by the
 /// table's own column headers (trimmed, as authored), and the 1-based document
@@ -206,8 +206,11 @@ pub(crate) enum ScanDiagnostic {
         /// `exclude` glob are both matched against (CR-038).
         document: String,
         archetype: String,
-        /// The section the declaration asked for.
-        section: String,
+        /// EVERY section the declaration asked for, as authored (CR-118).
+        /// A declaration may name several since #272, and "the declared
+        /// section was not found" naming one of three is a message whose
+        /// reader has to open the manifest to learn what the other two were.
+        sections: Vec<String>,
         /// The headings the document actually has, in document order.
         headings: Vec<String>,
         /// The id column this scan could not reach.
@@ -227,6 +230,10 @@ pub(crate) enum ScanDiagnostic {
     /// leaves all 606 ids stranded.
     IdColumnMatchesNothing {
         document: String,
+        /// The heading of the section the table was actually found under —
+        /// the matched one, not the declared pattern (CR-118). With several
+        /// sections declared, "the table under `*Test Case Summary*`" names no
+        /// table a reader can open.
         section: String,
         /// The id column the declaration asked for.
         id_column: String,
@@ -345,13 +352,18 @@ impl DeclaredScope<'_> {
     }
 }
 
-/// Scan the table under `heading` for every corpus document of `scope`'s
-/// archetype, in corpus order.
+/// Scan the tables under the declared `sections` for every corpus document of
+/// `scope`'s archetype, in corpus order.
+///
+/// Every section a declaration names contributes (CR-118, #272), in **document
+/// order** — a matrix that groups its rows under three headings mints all
+/// three tables, and the order of the rows is a property of the document rather
+/// than of the order the module happened to list its headings in (NFR-006).
 pub(crate) fn scan(
     spec: &Spec,
     root: &Path,
     scope: DeclaredScope<'_>,
-    heading: &str,
+    sections: &SectionNames,
     ctx: &mut ScanContext,
 ) -> Vec<ScannedRow> {
     let mut out = Vec::new();
@@ -367,58 +379,65 @@ pub(crate) fn scan(
             continue;
         }
         // `scanned` distinguishes the two shapes `rows_of` collapsed into one
-        // empty `Vec`: a section that is not there at all, and a section that
-        // is there and holds no table (CR-117). Only the first is a minting
-        // defect; the second is an empty matrix, which is a repository with no
-        // tests yet.
-        let scanned = table_of(doc.body(), &doc.path, heading);
+        // empty `Vec`: no declared section is there at all, and a declared
+        // section that is there and holds no table (CR-117). Only the first is
+        // a minting defect; the second is an empty matrix, which is a
+        // repository with no tests yet.
+        let scanned = tables_of(doc.body(), &doc.path, sections);
         if scope.mints.is_some() {
             ctx.census.selected += 1;
-            if !matches!(scanned, ScannedTable::NoSection { .. }) {
+            if !scanned.is_empty() {
                 ctx.census.section_found += 1;
             }
         }
-        match scanned {
-            ScannedTable::NoSection { headings } => {
-                if let Some(id_column) = scope.mints {
+        if scanned.is_empty() {
+            if let Some(id_column) = scope.mints {
+                ctx.note(
+                    scope.name,
+                    ScanDiagnostic::SectionMatchesNothing {
+                        document: relative_path(root, &doc.path),
+                        archetype: scope.archetype.to_string(),
+                        sections: sections.names().to_vec(),
+                        headings: document_headings(doc.body()),
+                        id_column: id_column.to_string(),
+                    },
+                );
+            }
+            continue;
+        }
+        for (heading, table) in scanned {
+            let ScannedTable::Table { headers, rows } = table else {
+                continue; // the section is there and holds no table
+            };
+            // The id column is read off the CALLER's `TraceTarget`
+            // (`coverage.rs` does `row.cell(&target.id_column)`), so the
+            // check could equally have lived there. It lives here because
+            // this is the only place that holds the table's headers when
+            // the table has **no rows** — a caller iterating `ScannedRow`s
+            // sees nothing to inspect — and because putting it beside the
+            // section check keeps the two halves of one declaration's
+            // failure in one arm each, rather than one here and one three
+            // call sites away.
+            //
+            // Per MATCHED section since CR-118: a matrix whose `Test Case
+            // Summary (plugin scope)` table is right and whose `(discovery
+            // scope)` table names the wrong column has one working table and
+            // one broken one, and a check over "the" table can only describe
+            // one of them.
+            if let Some(id_column) = scope.mints {
+                if !headers.iter().any(|h| h.eq_ignore_ascii_case(id_column)) {
                     ctx.note(
                         scope.name,
-                        ScanDiagnostic::SectionMatchesNothing {
+                        ScanDiagnostic::IdColumnMatchesNothing {
                             document: relative_path(root, &doc.path),
-                            archetype: scope.archetype.to_string(),
-                            section: heading.to_string(),
-                            headings,
+                            section: heading,
                             id_column: id_column.to_string(),
+                            columns: headers,
                         },
                     );
                 }
             }
-            ScannedTable::NoTable => {}
-            ScannedTable::Table { headers, rows } => {
-                // The id column is read off the CALLER's `TraceTarget`
-                // (`coverage.rs` does `row.cell(&target.id_column)`), so the
-                // check could equally have lived there. It lives here because
-                // this is the only place that holds the table's headers when
-                // the table has **no rows** — a caller iterating `ScannedRow`s
-                // sees nothing to inspect — and because putting it beside the
-                // section check keeps the two halves of one declaration's
-                // failure in one `match` arm each, rather than one here and one
-                // three call sites away.
-                if let Some(id_column) = scope.mints {
-                    if !headers.iter().any(|h| h.eq_ignore_ascii_case(id_column)) {
-                        ctx.note(
-                            scope.name,
-                            ScanDiagnostic::IdColumnMatchesNothing {
-                                document: relative_path(root, &doc.path),
-                                section: heading.to_string(),
-                                id_column: id_column.to_string(),
-                                columns: headers,
-                            },
-                        );
-                    }
-                }
-                out.extend(rows);
-            }
+            out.extend(rows);
         }
     }
     // Counted before `exclude`: a declaration that deliberately excludes
@@ -445,16 +464,15 @@ pub(crate) fn relative_path(root: &Path, path: &Path) -> String {
         .join("/")
 }
 
-/// What one document offered a declared scan (CR-117).
+/// What one **matched** section offered a declared scan (CR-117).
 ///
-/// The three cases `rows_of` used to answer with the same empty `Vec`. Two of
-/// them are ordinary and one is the 3,514-id defect, and nothing downstream
-/// could tell them apart.
+/// Two of the three cases `rows_of` used to answer with the same empty `Vec`.
+/// The third — no section by that name at all, the 3,514-id defect — is not a
+/// variant here since CR-118: with several names to try, "not found" is a fact
+/// about the whole declaration rather than about one section, and
+/// [`tables_of`] says it by returning nothing.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum ScannedTable {
-    /// No section by that name. Carries the headings the document DOES have,
-    /// because the actionable half of the finding is the near miss.
-    NoSection { headings: Vec<String> },
     /// The section is there and holds no table.
     NoTable,
     /// The table, with its headers kept alongside its rows — a zero-row table
@@ -465,25 +483,55 @@ pub(crate) enum ScannedTable {
     },
 }
 
-/// The rows of the table under `heading` in one document.
+/// The rows of every declared section's table in one document.
 ///
-/// The lossy view of [`table_of`], kept for the callers that only ever wanted
+/// The lossy view of [`tables_of`], kept for the callers that only ever wanted
 /// rows (`crate::obligation`'s per-document harvest).
-pub(crate) fn rows_of(doc: &QuireDocument, path: &Path, heading: &str) -> Vec<ScannedRow> {
-    match table_of(doc, path, heading) {
-        ScannedTable::Table { rows, .. } => rows,
-        ScannedTable::NoSection { .. } | ScannedTable::NoTable => Vec::new(),
-    }
+pub(crate) fn rows_of(
+    doc: &QuireDocument,
+    path: &Path,
+    sections: &SectionNames,
+) -> Vec<ScannedRow> {
+    tables_of(doc, path, sections)
+        .into_iter()
+        .flat_map(|(_, table)| match table {
+            ScannedTable::Table { rows, .. } => rows,
+            ScannedTable::NoTable => Vec::new(),
+        })
+        .collect()
 }
 
-/// The table under `heading` in one document, saying which of the three ways it
-/// could produce no rows actually happened.
-pub(crate) fn table_of(doc: &QuireDocument, path: &Path, heading: &str) -> ScannedTable {
-    let Some(sec) = section(doc, heading) else {
-        return ScannedTable::NoSection {
-            headings: document_headings(doc),
-        };
-    };
+/// Every section of `doc` a declaration names, in document order, paired with
+/// what it held (CR-118).
+///
+/// An empty result is the one shape that means **no declared section is in this
+/// document at all** — the `section-matches-nothing` defect, whose near-miss
+/// list the caller derives once from [`document_headings`]. A section that is
+/// present and holds no table is an entry whose value is
+/// [`ScannedTable::NoTable`], which is an empty matrix rather than a
+/// declaration fault.
+pub(crate) fn tables_of(
+    doc: &QuireDocument,
+    path: &Path,
+    sections: &SectionNames,
+) -> Vec<(String, ScannedTable)> {
+    // Document order, over EVERY matching section rather than the first: since
+    // #272 the whole point is a matrix whose rows are spread across several
+    // headings. `crate::query::section` returns the first match, which is what
+    // `table_of` still does for a single heading.
+    //
+    // **[RAN]** over the 393 `type: TestMatrix` documents in `~/dev`: not one
+    // repeats the ecosystem's declared heading, so for a single-name
+    // declaration this reads exactly the section `section()` used to.
+    crate::query::sections(doc, None)
+        .into_iter()
+        .filter(|sec| sections.matches(&sec.heading))
+        .map(|sec| (sec.heading.trim().to_string(), table_in(doc, path, sec)))
+        .collect()
+}
+
+/// The table one already-selected section holds.
+fn table_in(doc: &QuireDocument, path: &Path, sec: &crate::ast::QuireSection) -> ScannedTable {
     let Some((table, row_lines)) = crate::query::parse_table_with_lines(&sec.content) else {
         return ScannedTable::NoTable;
     };
@@ -693,19 +741,23 @@ pub(crate) fn scan_finding(
         ScanDiagnostic::SectionMatchesNothing {
             document,
             archetype,
-            section,
+            sections,
             headings,
             id_column,
         } => (
             root.join(document),
             format!(
                 "declaration '{declaration}' selected {document} by archetype \
-                 '{archetype}' and found no section '{section}' in it — the headings the \
+                 '{archetype}' and found no section matching {} in it — the headings the \
                  document has are {}. The declared table is never reached, so every id \
                  under it is stranded and the document mints nothing. The declared id \
                  column '{id_column}' could NOT be checked either: fix the heading first, \
                  then confirm that column exists, or the same rows come back unminted \
                  for the second reason",
+                // EVERY declared name (CR-118). A declaration naming three
+                // headings and a message naming one leaves its reader to guess
+                // which of the three to spell like the document.
+                quoted_list(sections),
                 quoted_list(headings)
             ),
         ),
@@ -783,7 +835,8 @@ mod cr110_scanned_table {
 
     use ix_trace_rs::trace;
 
-    use super::{table_of, ScannedTable};
+    use super::{document_headings, tables_of, ScannedTable};
+    use crate::traceability::SectionNames;
 
     fn parse(body: &str) -> crate::ast::QuireDocument {
         crate::parser::parse_document(body)
@@ -801,31 +854,36 @@ mod cr110_scanned_table {
 
         // A heading the document does not have — and the near misses named,
         // because the actionable half of the finding is the list to compare
-        // against.
+        // against. Since CR-118 "no such section" is an empty result rather
+        // than a variant: with several declared names, not-found is a fact
+        // about the declaration and not about one of them.
         let doc = parse(
             "---\nid: TM-001\ntype: TestMatrix\n---\n\n## Overview\n\nProse.\n\n\
              ## Test Cases\n\n| Test ID |\n|---|\n| TC-001 |\n",
         );
-        let ScannedTable::NoSection { headings } = table_of(&doc, path, "Test Case Summary") else {
-            panic!("a missing section must not read as a missing table");
-        };
-        assert_eq!(headings, vec!["Overview", "Test Cases"]);
+        assert!(
+            tables_of(&doc, path, &SectionNames::from("Test Case Summary")).is_empty(),
+            "a missing section must not read as a missing table"
+        );
+        assert_eq!(document_headings(&doc), vec!["Overview", "Test Cases"]);
 
         // The section is there and holds no table: an empty matrix, which is a
         // repository with no tests yet rather than a declaration defect.
         assert_eq!(
-            table_of(&doc, path, "Overview"),
-            ScannedTable::NoTable,
+            tables_of(&doc, path, &SectionNames::from("Overview")),
+            vec![("Overview".to_string(), ScannedTable::NoTable)],
             "prose under the declared heading is not a missing heading"
         );
 
         // The table, with its HEADERS alongside its rows. A zero-row table has
         // no `ScannedRow` to read a header off, so a caller checking an
         // `id_column` against the rows alone cannot see the column at all.
-        let ScannedTable::Table { headers, rows } = table_of(&doc, path, "Test Cases") else {
-            panic!("the declared table must be read");
+        let found = tables_of(&doc, path, &SectionNames::from("Test Cases"));
+        let [(heading, ScannedTable::Table { headers, rows })] = found.as_slice() else {
+            panic!("the declared table must be read: {found:?}");
         };
-        assert_eq!(headers, vec!["Test ID"]);
+        assert_eq!(heading, "Test Cases");
+        assert_eq!(headers, &vec!["Test ID".to_string()]);
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0].cell("test id"), Some("TC-001"));
 
@@ -833,10 +891,11 @@ mod cr110_scanned_table {
             "---\nid: TM-001\ntype: TestMatrix\n---\n\n## Test Cases\n\n\
              | Test ID | Status |\n|---|---|\n",
         );
-        let ScannedTable::Table { headers, rows } = table_of(&empty, path, "Test Cases") else {
-            panic!("a header row with no data rows is still a table");
+        let found = tables_of(&empty, path, &SectionNames::from("Test Cases"));
+        let [(_, ScannedTable::Table { headers, rows })] = found.as_slice() else {
+            panic!("a header row with no data rows is still a table: {found:?}");
         };
-        assert_eq!(headers, vec!["Test ID", "Status"]);
+        assert_eq!(headers, &vec!["Test ID".to_string(), "Status".to_string()]);
         assert!(rows.is_empty());
     }
 
@@ -850,11 +909,45 @@ mod cr110_scanned_table {
             "---\nid: TM-001\ntype: TestMatrix\n---\n\n## Alpha\n\n### Notes\n\n\
              ## Beta\n\n### Notes\n\n## Alpha\n",
         );
-        let ScannedTable::NoSection { headings } = table_of(&doc, Path::new("x.md"), "Missing")
-        else {
-            panic!("no such section");
-        };
-        assert_eq!(headings, vec!["Alpha", "Notes", "Beta"]);
+        assert!(tables_of(&doc, Path::new("x.md"), &SectionNames::from("Missing")).is_empty());
+        assert_eq!(document_headings(&doc), vec!["Alpha", "Notes", "Beta"]);
+    }
+
+    #[trace("TC-1037", "FR-050-AC-34")]
+    // every section a declaration names contributes its (CR-118)
+    // own table, in DOCUMENT order rather than in the order the module happened
+    // to list its headings — the row order in a payload is a property of the
+    // document (NFR-006).
+    #[test]
+    fn tc1037_every_named_section_contributes_in_document_order() {
+        let doc = parse(
+            "---\nid: TM-001\ntype: TestMatrix\n---\n\n\
+             ## Test Case Summary\n\n| Test ID |\n|---|\n| TC-001 |\n\n\
+             ## Edge Cases\n\n| Test ID |\n|---|\n| TC-002 |\n\n\
+             ## Test Case Summary (plugin scope)\n\n| Test ID |\n|---|\n| TC-003 |\n",
+        );
+        let path = Path::new("spec/tests.md");
+        // Declared LAST-first, and matched by a pattern and by a name.
+        let declared = SectionNames::new(vec!["Edge Cases".to_string(), "*Summary*".to_string()]);
+        let rows = super::rows_of(&doc, path, &declared);
+        assert_eq!(
+            rows.iter()
+                .filter_map(|r| r.cell("Test ID"))
+                .collect::<Vec<_>>(),
+            vec!["TC-001", "TC-002", "TC-003"],
+            "document order, not declaration order"
+        );
+        assert_eq!(
+            tables_of(&doc, path, &declared)
+                .iter()
+                .map(|(h, _)| h.as_str())
+                .collect::<Vec<_>>(),
+            vec![
+                "Test Case Summary",
+                "Edge Cases",
+                "Test Case Summary (plugin scope)"
+            ]
+        );
     }
 }
 

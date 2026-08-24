@@ -475,7 +475,7 @@ pub fn derive(
 /// What a source resolved to: where its rows live and how they are identified.
 struct Resolved<'a> {
     archetype: &'a str,
-    section: &'a str,
+    section: &'a crate::traceability::SectionNames,
     /// `Some` when rows carry their own id in this column; `None` when ids are
     /// rendered from the template instead.
     id_column: Option<&'a str>,
@@ -495,7 +495,7 @@ fn resolve<'a>(source: &'a ObligationSource, model: &'a TraceabilityModel) -> Op
         }
         (None, Some(archetype)) => Some(Resolved {
             archetype,
-            section: source.section.as_deref()?,
+            section: source.section.as_ref()?,
             id_column: None,
             id_format: Some(source.id_format.as_deref()?),
         }),
