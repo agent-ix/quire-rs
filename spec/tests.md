@@ -716,6 +716,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-1038 | `section:` reads a scalar or a sequence on the ONE key, a one-name declaration round-trips back out as a scalar, an empty list or a blank entry fails module load, and a name carrying no `*` matches exactly what `query::section` has always matched — asserted over generated headings against the engine's own lookup, so prose punctuation (`[`, `{`, `?`) stays literal (CR-118, #272) | Unit | P0 | FR-050-AC-34 | ✅ |
 | TC-1039 | A `describe(…)` / `suite(…)` registration mints a CONTAINER named by its title, spanning its block and the leading comment the tag sits in, and parents the registrations inside it WITHOUT renaming them — a nested suite, a sibling outside every suite and a class inside one all keep their true container. `context` is outside the grammar, and the lookalikes it would admit (`context.setTransform(`, `await context.client.putSettings(`) register nothing (CR-119, #273) | Unit | P0 | FR-051-AC-21 | ✅ |
 | TC-1040 | A trace tag on a suite HEADER mints no `verifies` relation and the suite is not a `binding_census` candidate — it is counted as an `implements` candidate instead, which is the double-count #312 must settle. The tag on the `it` one line lower binds normally, so the pair separates "the suite is not evidence" from "the binder read nothing" (CR-119, #273, #312) | Unit | P0 | FR-051-AC-21 | ✅ |
+| TC-1041 | A document whose every matched section holds no table reports `section-holds-no-table`, and a document where only SOME matched section is table-less reports nothing — the first mints nothing while both sibling diagnostics stand down, the second is a parent heading with sub-headings and is ordinary. Landed because #272's widening made three repositories match a table-less heading and LOSE their `section-matches-nothing` while still minting zero, one of them reporting a perfect 33/33 `minting.section_hit_rate` (CR-120) | Integration | P0 | FR-050-AC-35 | ✅ |
 | TC-861 | A built-in ambiguity term fires `quality:ambiguous-term` naming the term, and a quantified statement fires nothing (FR-056) | Integration | P0 | FR-056-AC-1 | ✅ |
 | TC-862 | `as appropriate` is reported as itself, not as the `appropriate` inside it — the report names what the author wrote (FR-056) | Integration | P1 | FR-056-AC-2 | ✅ |
 | TC-863 | A module's declared terms fire **and** every built-in still fires — the registry layers over the built-ins rather than replacing them (FR-056, CON-2) | Integration | P0 | FR-056-AC-3 | ✅ |
@@ -1171,6 +1172,7 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-050-AC-29 | TC-992, TC-993, TC-994, TC-995, TC-996 |
 | FR-050-AC-33 | TC-1033, TC-1034, TC-1035 |
 | FR-050-AC-34 | TC-1037, TC-1038 |
+| FR-050-AC-35 | TC-1041 |
 | FR-064-AC-1 | TC-997, TC-998, TC-1002 |
 | FR-064-AC-2 | TC-999 |
 | FR-064-AC-3 | TC-1000 |

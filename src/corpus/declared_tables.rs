@@ -228,6 +228,29 @@ pub(crate) enum ScanDiagnostic {
     /// coverage summary. Told only that *something* matched nothing, a reader of
     /// `agent-ix/identity` edits the heading, which is already correct, and
     /// leaves all 606 ids stranded.
+    /// Every declared section the document has holds **no table**, so it mints
+    /// nothing and no other diagnostic fires.
+    ///
+    /// A single section holding no table is ordinary — a parent heading whose
+    /// rows live under its sub-headings — and reporting it would be noise on
+    /// every nested matrix. It is a minting defect only when it is true of
+    /// EVERY section the declaration matched, because then the document mints
+    /// nothing and the two diagnostics that would have said so both stand
+    /// down: `section-matches-nothing` needs no section to match, and
+    /// `id-column-matches-nothing` needs a table to read headers from.
+    ///
+    /// Measured, and the reason this exists: widening the declared section in
+    /// #272 made three repositories match a heading whose own content holds no
+    /// table, so they LOST their `section-matches-nothing` while still minting
+    /// zero — `filament-editor-app` went to a perfect 33/33
+    /// `minting.section_hit_rate` with no minting diagnostic at all. That is
+    /// the silent zero CR-117 landed one hour earlier to end, reintroduced by
+    /// the fix after it.
+    SectionHoldsNoTable {
+        document: String,
+        sections: Vec<String>,
+        matched: Vec<String>,
+    },
     IdColumnMatchesNothing {
         document: String,
         /// The heading of the section the table was actually found under —
@@ -252,6 +275,7 @@ impl ScanDiagnostic {
         match self {
             Self::ArchetypeMatchesNothing { .. } => None,
             Self::SectionMatchesNothing { document, .. }
+            | Self::SectionHoldsNoTable { document, .. }
             | Self::IdColumnMatchesNothing { document, .. } => Some(document),
         }
     }
@@ -405,9 +429,30 @@ pub(crate) fn scan(
             }
             continue;
         }
+        // Every matched section holding NO table is a silent zero: the
+        // document mints nothing and neither existing diagnostic can fire.
+        // One such section among others is ordinary (a parent heading whose
+        // rows live under its sub-headings), so this is a property of the
+        // document, not of a section.
+        if scope.mints.is_some()
+            && !scanned.is_empty()
+            && !scanned
+                .iter()
+                .any(|(_, t)| matches!(t, ScannedTable::Table { .. }))
+        {
+            ctx.note(
+                scope.name,
+                ScanDiagnostic::SectionHoldsNoTable {
+                    document: relative_path(root, &doc.path),
+                    sections: sections.names().to_vec(),
+                    matched: scanned.iter().map(|(h, _)| h.clone()).collect(),
+                },
+            );
+        }
         for (heading, table) in scanned {
             let ScannedTable::Table { headers, rows } = table else {
-                continue; // the section is there and holds no table
+                continue; // this section holds none; the check above covers
+                          // the case where NONE of them does
             };
             // The id column is read off the CALLER's `TraceTarget`
             // (`coverage.rs` does `row.cell(&target.id_column)`), so the
@@ -687,6 +732,7 @@ pub(crate) fn scan_reason(diagnostic: &ScanDiagnostic) -> &'static str {
     match diagnostic {
         ScanDiagnostic::ArchetypeMatchesNothing { .. } => "archetype-matches-nothing",
         ScanDiagnostic::SectionMatchesNothing { .. } => "section-matches-nothing",
+        ScanDiagnostic::SectionHoldsNoTable { .. } => "section-holds-no-table",
         ScanDiagnostic::IdColumnMatchesNothing { .. } => "id-column-matches-nothing",
     }
 }
@@ -759,6 +805,18 @@ pub(crate) fn scan_finding(
                 // which of the three to spell like the document.
                 quoted_list(sections),
                 quoted_list(headings)
+            ),
+        ),
+        ScanDiagnostic::SectionHoldsNoTable {
+            document,
+            sections,
+            matched,
+        } => (
+            root.join(document),
+            format!(
+                "declaration '{declaration}' found {} in {document} — every section it                  declares that this document has — and not one of them holds a table.                  The declared sections are {}. So the document mints nothing, and the two                  diagnostics that would say so both stand down: the section WAS found,                  and there is no table to read an id column from. A heading whose rows                  live under its sub-headings is the usual cause — declare those                  sub-headings, or the pattern that reaches them",
+                quoted_list(matched),
+                quoted_list(sections)
             ),
         ),
         ScanDiagnostic::IdColumnMatchesNothing {
@@ -840,6 +898,71 @@ mod cr110_scanned_table {
 
     fn parse(body: &str) -> crate::ast::QuireDocument {
         crate::parser::parse_document(body)
+    }
+
+    #[trace("TC-1041", "FR-050-AC-35")]
+    // every matched section holding NO table is a silent
+    // zero, and one among others is not (CR-120). #272's widening made three
+    // repositories match a table-less heading and LOSE their
+    // `section-matches-nothing` while still minting zero — one of them
+    // reporting a perfect 33/33 `minting.section_hit_rate` with no minting
+    // diagnostic at all, which is the shape CR-117 landed one hour earlier to
+    // end.
+    #[test]
+    fn tc1041_a_matched_heading_with_no_table_is_not_silence() {
+        let path = Path::new("spec/tests.md");
+
+        // The regressed shape, taken from `agent-duncan/spec/tests.md`: the
+        // declared heading is THERE and its own content holds no table,
+        // because its rows live under a sub-heading the declaration does not
+        // name.
+        let doc = parse(
+            "---\nid: TM-001\ntype: TestMatrix\n---\n\n\
+             ## Integration Test Matrix\n\n### External Service Integrations\n\n\
+             | Test ID |\n|---|\n| TC-001 |\n",
+        );
+        let found = tables_of(&doc, path, &SectionNames::from("Integration Test Matrix"));
+        assert_eq!(
+            found,
+            vec![("Integration Test Matrix".to_string(), ScannedTable::NoTable)],
+            "the section is found and holds no table — neither sibling \
+             diagnostic can fire on this, which is why it needs its own"
+        );
+        // NOT empty: `section-matches-nothing` is therefore unreachable here.
+        assert!(
+            !found.is_empty(),
+            "a matched-but-table-less section must not read as a missing one, \
+             or the silent zero comes back"
+        );
+        // And no table means no headers, so `id-column-matches-nothing` has
+        // nothing to read either. Both siblings stand down; the document mints
+        // nothing. That is the whole of the defect.
+        assert!(
+            !found
+                .iter()
+                .any(|(_, t)| matches!(t, ScannedTable::Table { .. })),
+            "no table means no headers to check an id column against"
+        );
+
+        // One table-less section AMONG OTHERS is ordinary — a parent heading
+        // whose rows live below it — and must stay unreported, or every nested
+        // matrix in the ecosystem grows a finding.
+        let nested = parse(
+            "---\nid: TM-001\ntype: TestMatrix\n---\n\n\
+             ## Suites\n\nProse.\n\n## Test Case Summary\n\n\
+             | Test ID |\n|---|\n| TC-001 |\n",
+        );
+        let both = tables_of(
+            &nested,
+            path,
+            &SectionNames::new(vec!["Suites".to_string(), "Test Case Summary".to_string()]),
+        );
+        assert!(
+            both.iter()
+                .any(|(_, t)| matches!(t, ScannedTable::Table { .. })),
+            "a document that mints from ANY matched section is not a silent \
+             zero, whatever its other headings hold"
+        );
     }
 
     #[trace("TC-1033", "FR-050-AC-33")]
