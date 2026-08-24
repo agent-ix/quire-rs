@@ -112,8 +112,17 @@ pub struct CaseMeta {
     pub language: String,
     pub module: String,
     pub kind: String,
+    /// The failure cases this control is the healthy counterpart of.
+    ///
+    /// A LIST, always. One control can legitimately serve several failure
+    /// cases — the healthy repair of two single-cell defects in one document
+    /// is the same document — and measured, `section-name-mismatch-control`
+    /// and `id-column-mismatch-control` were byte-identical expectations over
+    /// input trees differing by one blank line. Swapping their `control_for`
+    /// left every gate green, because neither asserted anything the other did
+    /// not.
     #[serde(default)]
-    pub control_for: Option<String>,
+    pub control_for: Option<Vec<String>>,
     /// The ticket that will make this case pass. Present means the case
     /// asserts behaviour the engine does not have yet, and is EXPECTED to fail.
     ///
@@ -185,13 +194,37 @@ pub struct CaseExpect {
     /// and "it named a place" is the whole claim being made.
     #[serde(default)]
     pub diagnostic_paths: BTreeMap<String, String>,
-    /// L3. A substring each diagnostic's message must carry, `reason` -> text.
+    /// L3. Substrings each diagnostic's message must carry, `reason` -> texts.
     ///
     /// A finding can carry a correct path while its prose names nothing a
     /// reader can act on. Measured: removing the example criterion from
     /// `catch-all-universal`'s message left every path assertion passing.
+    ///
+    /// A LIST, because L3 for a mismatch is two facts — what was found and
+    /// what was declared — and one substring is satisfied by naming either.
     #[serde(default)]
-    pub diagnostic_message_contains: BTreeMap<String, String>,
+    pub diagnostic_message_contains: BTreeMap<String, Vec<String>>,
+    /// L2. Rows the declaration minted that no symbol backs, EXACTLY.
+    ///
+    /// This is the field that tells two minting defects apart. A wrong
+    /// section name strands the whole table — nothing mints, so the list is
+    /// empty. A wrong id column still reads the table and mints a row with a
+    /// **null identity**. The `totals`, `groups`, `diagnostics` and
+    /// `binding_census` of the two cases are byte-identical; only this
+    /// differs, and until it was asserted the corpus could not distinguish
+    /// them (reviewed, #297).
+    ///
+    /// An empty list is an assertion, not an omission: it says the
+    /// declaration minted nothing at all.
+    #[serde(default)]
+    pub unbacked_rows: Option<Vec<ExpectUnbackedRow>>,
+    /// L1. Per-document mint counts by target kind, EXACTLY.
+    ///
+    /// A control's real job is proving the row it is about MINTS — `test-case
+    /// 1/1` present. `total` alone cannot say that: it is satisfied by any two
+    /// backed ids from anywhere.
+    #[serde(default)]
+    pub groups: Option<Vec<ExpectGroup>>,
     /// L1. Row ids explained as verified by a method that mints no source
     /// symbol (#259). Asserted by id, not by count: a count is satisfied by
     /// exempting the wrong row.
@@ -214,6 +247,30 @@ pub struct CaseExpect {
     /// without absence would restate what all of them produce.
     #[serde(default)]
     pub validate_absent: Vec<String>,
+}
+
+/// One row the declaration minted that no symbol backs.
+///
+/// Every field is REQUIRED. `row_id` in particular: `row_id: null` is the
+/// whole claim the id-column fixture makes — the row minted, and its identity
+/// did not — and an optional field would let an author omit exactly that.
+#[derive(Debug, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct ExpectUnbackedRow {
+    pub document: String,
+    pub row_id: Option<String>,
+    pub target_ids: Vec<String>,
+}
+
+/// One document's mint count for one declared target kind. All fields
+/// required: a partial group is satisfied by the wrong target minting.
+#[derive(Debug, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct ExpectGroup {
+    pub document: String,
+    pub target: String,
+    pub backed: usize,
+    pub total: usize,
 }
 
 #[derive(Debug, Deserialize)]
@@ -249,7 +306,21 @@ pub struct ExpectMetric {
 pub struct Case {
     pub dir: PathBuf,
     pub meta: CaseMeta,
+    /// What must hold NOW. Graded like any case's, pending or not.
     pub expect: CaseExpect,
+    /// What the ticket in `pending:` will make hold, and must NOT hold yet.
+    ///
+    /// Split out because a single block made `pending:` swallow live
+    /// assertions: every expectation in a pending case is graded, and any
+    /// failure reads as "expected to fail, and did". So the rule became
+    /// "a pending fixture asserts ONLY what is pending", and the facts that
+    /// were true today went unasserted — including `unbacked_rows`, the one
+    /// field that tells the section-name defect from the id-column one. Both
+    /// fixtures could have regressed to minting nothing at all and stayed
+    /// green (reviewed, #297).
+    ///
+    /// Now `expect.yaml` is the live contract and this is the forward one.
+    pub expect_pending: Option<CaseExpect>,
 }
 
 impl Case {
@@ -303,6 +374,21 @@ fn read_expect(dir: &Path) -> CaseExpect {
     .unwrap_or_else(|e| panic!("{}: expect.yaml: {e}", dir.display()))
 }
 
+/// A case's FORWARD expectations, if it declares any.
+fn read_expect_pending(dir: &Path) -> Option<CaseExpect> {
+    let path = dir.join("expect-pending.yaml");
+    if !path.is_file() {
+        return None;
+    }
+    Some(
+        serde_yaml::from_str(
+            &std::fs::read_to_string(&path)
+                .unwrap_or_else(|e| panic!("{}: expect-pending.yaml: {e}", dir.display())),
+        )
+        .unwrap_or_else(|e| panic!("{}: expect-pending.yaml: {e}", dir.display())),
+    )
+}
+
 /// The pinned corpus submodule.
 pub fn corpus_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("corpus")
@@ -354,8 +440,26 @@ pub fn load_cases() -> Vec<Case> {
             // sixteen modes across three languages, and three sibling
             // directories with unrelated ids is not a set.
             if dir.join("input").is_dir() {
+                // A directory in BOTH layouts is an error, not a silent read
+                // as one of them. Only the Python loader rejected it, so this
+                // reader would have taken the `input/` branch and dropped a
+                // half-migrated case's language variants without a word.
+                let strays: Vec<String> = std::fs::read_dir(&dir)
+                    .expect("read case dir")
+                    .filter_map(|e| e.ok().map(|e| e.path()))
+                    .filter(|p| p.join("input").is_dir())
+                    .filter_map(|p| p.file_name().and_then(|n| n.to_str()).map(String::from))
+                    .collect();
+                assert!(
+                    strays.is_empty(),
+                    "{}: carries both an `input/` and {strays:?} — a case is one \
+                     layout or the other, and reading it as one silently drops \
+                     the other",
+                    dir.display(),
+                );
                 cases.push(Case {
                     expect: read_expect(&dir),
+                    expect_pending: read_expect_pending(&dir),
                     meta: parse_meta(&shared, &dir),
                     dir,
                 });
@@ -410,6 +514,7 @@ pub fn load_cases() -> Vec<Case> {
 
                 cases.push(Case {
                     expect: read_expect(&variant),
+                    expect_pending: read_expect_pending(&variant),
                     meta: parse_meta(&merged, &variant),
                     dir: variant,
                 });
@@ -505,7 +610,45 @@ fn validate_report(case: &Case) -> String {
 /// L2 and L3 too, and the useful report is the FIRST level lost, which cannot
 /// be computed from a panic on the first failed assertion.
 pub fn grade(case: &Case, report: &quire_rs::CoverageReport) -> Outcome {
-    let e = &case.expect;
+    grade_with(case, report, &case.expect)
+}
+
+/// Grade one payload against an ARBITRARY expectation block, so the live
+/// contract (`expect.yaml`) and the forward one (`expect-pending.yaml`) are
+/// graded by the same code rather than by two that can drift.
+pub fn grade_with(case: &Case, report: &quire_rs::CoverageReport, e: &CaseExpect) -> Outcome {
+    grade_against(case, report, e, ValidateSource::OwnTree)
+}
+
+/// Whose spec tree the `validate_*` assertions are graded over.
+///
+/// `quire validate` runs over a spec TREE, not over a coverage payload, so it
+/// cannot be read off the `report` argument. Grading a case against its own
+/// run, that distinction does not matter. Grading it against ANOTHER case's —
+/// which is what the differential check does — it decides the answer.
+///
+/// `wrong-type-cell` is why. Its coverage payload is byte-identical to its
+/// control's BY DESIGN: an undeclared `Type` cell is a STRUCTURAL defect, so
+/// the family is visible only to `validate`, and `validate_contains` is its
+/// entire discriminating claim. Recomputed from the case's own tree those keys
+/// contribute nothing and the fixture reads as blind; skipped, it asserts
+/// nothing at all and reads as blind again. Only validating the OTHER tree
+/// asks the question the differential means to ask — and it answers it
+/// correctly, because the control's tree has no `Telepathy` cell.
+#[derive(Clone, Copy)]
+pub enum ValidateSource<'a> {
+    /// Validate the tree of the case being graded.
+    OwnTree,
+    /// Validate another case's tree — the control, in the differential.
+    Tree(&'a Case),
+}
+
+pub fn grade_against(
+    case: &Case,
+    report: &quire_rs::CoverageReport,
+    e: &CaseExpect,
+    validate: ValidateSource<'_>,
+) -> Outcome {
     let mut m: Vec<Mismatch> = Vec::new();
     let mut fail = |level: Level, detail: String| m.push(Mismatch { level, detail });
 
@@ -622,18 +765,60 @@ pub fn grade(case: &Case, report: &quire_rs::CoverageReport) -> Outcome {
         }
     }
 
-    for (reason, fragment) in &e.diagnostic_message_contains {
+    for (reason, fragments) in &e.diagnostic_message_contains {
         let message = report
             .diagnostics
             .iter()
             .find(|d| &d.reason == reason)
             .map(|d| d.message.clone());
-        match message {
-            Some(text) if text.contains(fragment.as_str()) => {}
-            other => fail(
-                Level::L3Actionable,
-                format!("{reason} message lacks {fragment:?}; got {other:?}"),
-            ),
+        for fragment in fragments {
+            match &message {
+                Some(text) if text.contains(fragment.as_str()) => {}
+                other => fail(
+                    Level::L3Actionable,
+                    format!("{reason} message lacks {fragment:?}; got {other:?}"),
+                ),
+            }
+        }
+    }
+
+    // EXACT, both directions. A subset match would let the id-column case pass
+    // on a payload that minted nothing — which is the section case, and telling
+    // those two apart is the only thing this field exists for.
+    if let Some(want) = &e.unbacked_rows {
+        let got: Vec<ExpectUnbackedRow> = report
+            .unbacked_rows
+            .iter()
+            .map(|r| ExpectUnbackedRow {
+                document: r.document.clone(),
+                row_id: r.row_id.clone(),
+                target_ids: r.target_ids.clone(),
+            })
+            .collect();
+        if &got != want {
+            fail(
+                Level::L2Localised,
+                format!("unbacked_rows: expected {want:?}, got {got:?}"),
+            );
+        }
+    }
+
+    if let Some(want) = &e.groups {
+        let got: Vec<ExpectGroup> = report
+            .groups
+            .iter()
+            .map(|g| ExpectGroup {
+                document: g.document.clone(),
+                target: g.target.clone(),
+                backed: g.backed,
+                total: g.total,
+            })
+            .collect();
+        if &got != want {
+            fail(
+                Level::L1Detected,
+                format!("groups: expected {want:?}, got {got:?}"),
+            );
         }
     }
 
@@ -717,7 +902,10 @@ pub fn grade(case: &Case, report: &quire_rs::CoverageReport) -> Outcome {
     }
 
     if !e.validate_contains.is_empty() || !e.validate_absent.is_empty() {
-        let report = validate_report(case);
+        let report = validate_report(match validate {
+            ValidateSource::OwnTree => case,
+            ValidateSource::Tree(other) => other,
+        });
         for want in &e.validate_contains {
             if !report.contains(want.as_str()) {
                 fail(Level::L1Detected, format!("validate output lacks {want:?}"));
@@ -737,5 +925,27 @@ pub fn grade(case: &Case, report: &quire_rs::CoverageReport) -> Outcome {
         case: case.meta.id.clone(),
         issue_ref: case.meta.issue_ref.clone(),
         mismatches: m,
+    }
+}
+
+impl CaseExpect {
+    /// Whether this block asserts anything at all.
+    ///
+    /// A block that grades zero assertions trivially "passes", which for a
+    /// forward block means every runner reports that its ticket has landed.
+    pub fn asserts_something(&self) -> bool {
+        self.backed.is_some()
+            || self.total.is_some()
+            || !self.diagnostic_reasons.is_empty()
+            || !self.absent_diagnostic_reasons.is_empty()
+            || !self.binding_census.is_empty()
+            || !self.diagnostic_paths.is_empty()
+            || !self.diagnostic_message_contains.is_empty()
+            || self.no_symbol_rows.is_some()
+            || !self.metrics.is_empty()
+            || !self.validate_contains.is_empty()
+            || !self.validate_absent.is_empty()
+            || self.unbacked_rows.is_some()
+            || self.groups.is_some()
     }
 }
