@@ -289,6 +289,28 @@ failure case's `expect.yaml` to zero bytes left every gate green with its cell s
 `covered` — a case asserting nothing about its own payload, counted as covering the mode
 it is named for.
 
+A case MAY declare `kind: regression`. Such a case has no control, is not `findable`, and
+asserts behaviour a LANDED ticket established rather than a defect that still reproduces.
+
+This kind was added when the first Wave 3 fix landed, because the corpus had no way to say
+*"this used to break and must not again"*. `agent-ix/quire-rs#274` is the reason: its
+fixture's control was the same content written the way the broken parser could handle, so
+once the parser was fixed **both spellings parsed identically** and the pair had nothing
+left to separate — AC-42 rejected it, correctly. The input is still the shape that used to
+break, and asserting it parses correctly is worth keeping; it is simply no longer a defect.
+
+A `regression` case SHALL credit its inventory cell. The mode is exercised whether or not
+the behaviour is currently broken, and a cell that reverted to GAP when its defect was
+fixed would make `gap_count` count *unfixed* defects rather than *unmeasured* modes.
+
+A `regression` case SHALL name the ticket whose fix it pins, in `issue_ref`, so a reader
+can tell a pin from a fixture nobody finished.
+
+Not every fix produces one. Where a fix makes a diagnostic fire, the control stays silent
+and the pair keeps discriminating — those fixtures fold their forward block into their live
+block and remain `failure` cases. Only a fix that makes the case and its control
+*equivalent* leaves a regression pin behind.
+
 A failure case that has a control SHALL **discriminate**: its `expect.yaml`, graded
 against its control's payload, SHALL produce at least one mismatch.
 
@@ -438,6 +460,8 @@ than an agreement between two codebases nobody can verify from one of them.
 | FR-065-AC-40 | A case declaring `findable` and requiring no finding in any block is rejected unless declared in `known_gaps`. | Test (TC-1027) |
 | FR-065-AC-41 | A `known_gaps` entry naming no ticket, or naming no case, is rejected. | Test (TC-1027) |
 | FR-065-AC-42 | A failure case with a control whose `expect.yaml` holds against that control's payload is rejected, with `validate_*` graded over the control's tree. | Test (TC-1028) |
+| FR-065-AC-43 | A case of kind `regression` is accepted with no control and is not held to AC-42; one declaring `findable` or `control_for` is rejected. | Test (TC-1029) |
+| FR-065-AC-44 | A `regression` case credits its inventory cell, so a cell does not revert to GAP when its defect is fixed. | Test (TC-1029) |
 
 ## Dependencies
 

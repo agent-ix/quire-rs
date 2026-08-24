@@ -125,6 +125,63 @@ byte-identical JSON ordering and stable record ids.
 | FR-051-AC-17 | A Rust benchmark — an attribute-marked one, or a function a `criterion_group!` registers in either invocation form, whether or not the registration line carries a trailing comment — classifies as a benchmark symbol, and a `fuzz_target!` invocation mints one fuzz-target symbol per file whose span is its whole file. Both bind trace ids; a container and a plain function still bind none. Each kind's stable label (`benchmark`, `fuzz_target`) is part of the symbol identity and of the FR-045 record's `kind` field. | Test (TC-827, TC-828) |
 | FR-051-AC-18 | A `test`/`it` registration whose modifier chain is curried (`it.skipIf(cond)(…)`, `it.each([…])(…)`), or whose title literal begins on a later line, registers a test symbol named by that title, with the span and leading block any other registration gets. The scan is bounded and stops at the first non-blank text: a title held in a variable, an identifier merely beginning with `it`, and a literal beyond the window each register nothing rather than something wrong. A title inside a multi-line template literal is out of scope and registers nothing (CR-084). | Test (TC-943, TC-948, TC-958, TC-960, TC-961) |
 | FR-051-AC-19 | Binding reports a per-language census of what it examined: `candidates` counts the evidence symbols whose kind admits a trace tag, `bound` counts those that minted at least one `verifies` relation, and `forms` names every declared form consulted for that language, markers before legacy. `bound` counts symbols, not relations, so a test carrying five ids counts once. A container or a production function is never a candidate. The census is ordered by language label, is present for every language the walk saw an evidence symbol in, and its `candidates` count does not depend on the declared patterns — the same tree bound against a grammar that matches nothing reports the same candidates and zero bound (CR-093). | Test (TC-982) |
+| FR-051-AC-20 | The Python adapter tracks a triple-quoted string by where its delimiter *is*, not by where the line starts: an opener anywhere on a line (`FIXTURE = """`) enters string state, the body is never read as code, and the closing delimiter closes rather than re-opens. A string opened and closed on one line leaves the state unchanged; both delimiter kinds and every string prefix (`f`, `r`, `b`, `rb`, `u`) are recognised; a triple delimiter inside a single-quoted string, escaped, or after a `#` comment marker toggles nothing, and a `#` inside a triple-quoted string does not end it. A declaration following an embedded string therefore keeps its true container rather than resuming a stale scope (CR-115). | Test (TC-1029, TC-1030, TC-1031) |
+
+> **CR-115 note (2026-08-24):** AC-20 is new. `agent-ix/quire-rs#274`, epic
+> `agent-ix/quire-rs#264`.
+>
+> The Python adapter entered string state only when a triple-quote **started**
+> the trimmed line. Two failures then compounded on the same literal, in
+> opposite directions. `FIXTURE = """` does not start its line, so the scanner
+> never entered string state and read the literal's **body** as code, inventing
+> declarations the program does not contain. The **closing** `"""`, which does
+> start its line, was then read as an **opener** — and everything after it
+> swallowed into a string that never ended, losing every real declaration in the
+> rest of the file. Because the state oscillated, the scope stack resumed stale,
+> so declarations after a desync were attributed to whichever class was open
+> when it began.
+>
+> **What the number counts.** Declarations — `class`, `def`, `async def` — that
+> the shipped adapter's own symbol table holds, diffed against `ast.parse` over
+> every `.py` under `~/dev` (excluding `worktrees/`, `.venv*`, `site-packages/`,
+> `node_modules/`), 3,652 files parsed, 18 unreadable by `ast` and skipped,
+> 30,569 declarations of ground truth. Comparison is by multiset, and both
+> namings are reported because the engine mints the qualified one: `bare` is the
+> declaration's own name, `qualified` its dotted path through enclosing classes.
+>
+> | | files | declarations |
+> |---|---|---|
+> | lost, bare, before | 42 | 300 |
+> | lost, bare, after | 0 | 0 |
+> | lost, qualified, before | 43 | 404 |
+> | lost, qualified, after | 1 | 1 |
+> | invented, qualified, before | 19 | 111 |
+> | invented, qualified, after | 1 | 1 |
+>
+> The gap between the two axes is the misattribution mode: 104 declarations were
+> present under the wrong container, which a bare-name comparison cannot see.
+> Named example from the ticket, verified: `test_update_simple_version`
+> (`py-project/tests/test_deps.py:464`) really lives in `TestTomlModification`
+> and was reported under `TestTomlParsing`.
+>
+> **Measured against the engine, not a reimplementation.** #274's own figures
+> moved three times because each was produced by a port of the state machine,
+> and the ports disagree exactly where the original is wrong (#309). These
+> numbers come from `quire_rs::symbols::extract_file` itself, run twice over one
+> file list — once on the parent commit, once on this one.
+>
+> **What did not change.** Scope is popped by indentation alone, so a `def`
+> indented under a block statement that itself dedents out of a class body still
+> reads as that class's method (`if not TYPE_CHECKING:` at column 0 holding
+> `def` at column 4). That is a distinct defect, it predates this one, and it is
+> the whole of the residual row above — one declaration in one first-party file.
+> It is not folded in here, because a fix that widened this one until the
+> residue vanished would stop being a statement about triple quotes.
+>
+> **Not a tokenizer.** The adapter is line-oriented by design (FR-051's
+> indentation-structural model) and stays so: one left-to-right byte pass per
+> line, no allocation, no lookbehind, carrying a single `Quoting` value across
+> the line boundary. `scripts/check_perf_regression.sh` is the gate.
 
 > **CR-093 note (2026-08-22):** AC-19 is new — the binder says what it looked
 > at. `agent-ix/quire-rs#227`, epic `agent-ix/quoin#197`.

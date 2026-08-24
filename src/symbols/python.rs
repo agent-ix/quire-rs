@@ -25,28 +25,20 @@ pub(crate) fn parse(path: &str, source: &str) -> Result<Vec<RawSymbol>, String> 
 
     // Scope stack of (qualified name, indent column of the declaration).
     let mut scopes: Vec<(String, usize, bool)> = Vec::new();
-    let mut in_docstring: Option<&str> = None;
+    let mut quoting = Quoting::Code;
 
     for (idx, raw_line) in lines.iter().enumerate() {
-        let trimmed = raw_line.trim();
-        // Skip docstring/triple-quoted bodies so `def` inside them is not a
-        // declaration.
-        if let Some(delim) = in_docstring {
-            if trimmed.contains(delim) {
-                in_docstring = None;
-            }
-            continue;
-        }
-        for delim in ["\"\"\"", "'''"] {
-            if trimmed.starts_with(delim) && trimmed[delim.len()..].matches(delim).count() == 0 {
-                in_docstring = Some(delim);
-                break;
-            }
-        }
-        if in_docstring.is_some() {
+        // A line that *starts* inside a triple-quoted string is string body, not
+        // code: whatever `class`/`def` it holds belongs to the literal. Advance
+        // the state across the whole line first — the closer may sit anywhere on
+        // it, and a further opener may follow the closer (CR-115).
+        let was_string = quoting.is_string();
+        quoting = scan_line(raw_line, quoting);
+        if was_string {
             continue;
         }
 
+        let trimmed = raw_line.trim();
         let Some((name, is_class)) = declaration(trimmed) else {
             continue;
         };
@@ -86,6 +78,96 @@ pub(crate) fn parse(path: &str, source: &str) -> Result<Vec<RawSymbol>, String> 
         }
     }
     Ok(out)
+}
+
+/// Whether a physical line boundary falls inside a triple-quoted string, and if
+/// so which delimiter closes it.
+///
+/// Only the *triple* forms carry across lines, which is why a single-quoted span
+/// is not a variant: it is consumed within [`scan_line`] and never observed at a
+/// line boundary. An unterminated single-quoted string is a syntax error in the
+/// program, so ending the line in [`Quoting::Code`] is the honest recovery.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum Quoting {
+    Code,
+    /// Inside `"""…"""` (`b'"'`) or `'''…'''` (`b'\''`).
+    Triple(u8),
+}
+
+impl Quoting {
+    const fn is_string(self) -> bool {
+        matches!(self, Self::Triple(_))
+    }
+}
+
+/// Advance the quoting state across one physical line, returning the state that
+/// leaves it.
+///
+/// One left-to-right pass, no allocation, no lookbehind — this runs on every
+/// line of every Python file in the walk, so it stays in the same complexity
+/// class as the `starts_with` test it replaces (NFR-001/NFR-015).
+///
+/// Byte indexing is safe for the same reason it is fast: every marker consulted
+/// (`"`, `'`, `#`, `\`) is ASCII, and a UTF-8 continuation byte is never < 0x80,
+/// so a multi-byte character can neither match a marker nor be split — the scan
+/// only ever reports a state, it never slices.
+fn scan_line(line: &str, entering: Quoting) -> Quoting {
+    let bytes = line.as_bytes();
+    let mut state = entering;
+    let mut i = 0usize;
+    while i < bytes.len() {
+        let c = bytes[i];
+        match state {
+            Quoting::Triple(delim) => {
+                // A backslash escapes the next byte even in a raw string: `r"\""`
+                // is a two-character value, not a terminated one. Skipping the
+                // pair is therefore right for both prefixes.
+                if c == b'\\' {
+                    i += 2;
+                } else if c == delim && is_triple(bytes, i) {
+                    state = Quoting::Code;
+                    i += 3;
+                } else {
+                    i += 1;
+                }
+            }
+            Quoting::Code => match c {
+                // A `#` outside a string starts a comment: nothing after it on
+                // this line can open or close anything.
+                b'#' => return Quoting::Code,
+                b'"' | b'\'' if is_triple(bytes, i) => {
+                    state = Quoting::Triple(c);
+                    i += 3;
+                }
+                // A prefix (`f`, `r`, `rb`, `u`, …) needs no special case: it is
+                // ordinary identifier text the scan walks straight past, and the
+                // quote that follows is what opens the string.
+                b'"' | b'\'' => i = single_quoted_end(bytes, i),
+                _ => i += 1,
+            },
+        }
+    }
+    state
+}
+
+/// Whether three identical quote bytes start at `i`.
+fn is_triple(bytes: &[u8], i: usize) -> bool {
+    bytes.len() - i >= 3 && bytes[i + 1] == bytes[i] && bytes[i + 2] == bytes[i]
+}
+
+/// The index just past a single-quoted string opening at `i`, or the end of the
+/// line if it is not closed on it.
+fn single_quoted_end(bytes: &[u8], i: usize) -> usize {
+    let delim = bytes[i];
+    let mut j = i + 1;
+    while j < bytes.len() {
+        match bytes[j] {
+            b'\\' => j += 2,
+            c if c == delim => return j + 1,
+            _ => j += 1,
+        }
+    }
+    bytes.len()
 }
 
 /// A `def`/`async def`/`class` declaration and whether it is a class.
@@ -174,7 +256,206 @@ fn module_name(path: &str) -> String {
 
 #[cfg(test)]
 mod tests {
+    use ix_trace_rs::trace;
+
     use super::*;
+
+    /// Every declaration the adapter minted, qualified name first.
+    fn names(symbols: &[RawSymbol]) -> Vec<&str> {
+        symbols
+            .iter()
+            .map(|s| s.qualified_name.as_str())
+            .collect::<Vec<_>>()
+    }
+
+    /// The one symbol with this qualified name, or a panic naming what was
+    /// minted instead — an absent symbol is the failure this module is about.
+    fn symbol<'s>(symbols: &'s [RawSymbol], qualified: &str) -> &'s RawSymbol {
+        symbols
+            .iter()
+            .find(|s| s.qualified_name == qualified)
+            .unwrap_or_else(|| panic!("no symbol {qualified}; minted {:?}", names(symbols)))
+    }
+
+    #[trace("TC-1029", "FR-051-AC-20")]
+    // a triple-quoted string is tracked wherever it opens,
+    // in either delimiter, under any prefix, and open-and-closed on one line.
+    //
+    // The adapter entered string state only when the delimiter STARTED the
+    // trimmed line, so `FIXTURE = """` never entered it and the string body was
+    // read as code — and then the CLOSING `"""`, which does start its line, was
+    // read as an OPENER, swallowing the rest of the file (#274).
+    #[test]
+    fn tc1029_a_triple_quote_is_tracked_wherever_it_opens() {
+        let source = concat!(
+            "FIXTURE = \"\"\"\n",
+            "class Phantom:\n",
+            "    def method(self):\n",
+            "        pass\n",
+            "\"\"\"\n",
+            "\n",
+            "RAW = r'''\n",
+            "def raw_phantom():\n",
+            "    pass\n",
+            "'''\n",
+            "\n",
+            "TEMPLATE = f\"\"\"\n",
+            "def f_phantom():\n",
+            "    pass\n",
+            "\"\"\"\n",
+            "\n",
+            "BYTES = rb\"\"\"\n",
+            "def rb_phantom():\n",
+            "    pass\n",
+            "\"\"\"\n",
+            "\n",
+            "ONE_LINE = \"\"\"def inline_phantom(): pass\"\"\"\n",
+            "\n",
+            "def test_after_every_string():\n",
+            "    assert True\n",
+        );
+        let symbols = parse("t_test.py", source).expect("parses");
+
+        // Nothing inside a literal is a declaration.
+        for phantom in [
+            "Phantom",
+            "Phantom.method",
+            "raw_phantom",
+            "f_phantom",
+            "rb_phantom",
+            "inline_phantom",
+        ] {
+            assert!(
+                !names(&symbols).contains(&phantom),
+                "{phantom} is string content, not a declaration: {:?}",
+                names(&symbols)
+            );
+        }
+
+        // And every closer closed rather than re-opened, so the real test after
+        // them all is still seen. `ONE_LINE` is the same-line open-and-close: had
+        // it toggled the state, this declaration would have been swallowed.
+        assert_eq!(
+            symbol(&symbols, "test_after_every_string").kind,
+            SymbolKind::TestFunction
+        );
+    }
+
+    #[trace("TC-1030", "FR-051-AC-20")]
+    // a triple delimiter inside a single-quoted string, after
+    // a `#`, or escaped, toggles nothing — and a `#` inside a triple-quoted
+    // string does not end it.
+    //
+    // The discriminator is the declaration at the end: any spurious toggle
+    // leaves an unterminated string that swallows it.
+    #[test]
+    fn tc1030_a_delimiter_in_a_string_or_a_comment_does_not_toggle() {
+        let source = concat!(
+            "SINGLE = \"a ''' inside a double-quoted string\"\n",
+            "OTHER = 'a \"\"\" inside a single-quoted string'\n",
+            "ESCAPED = \"she said \\\"\\\"\\\" loudly\"\n",
+            "# a bare \"\"\" in a comment\n",
+            "TRAILING = 1  # and ''' after code\n",
+            "DOC = \"\"\"\n",
+            "# a comment marker inside the literal does not end it\n",
+            "def phantom_in_doc():\n",
+            "    pass\n",
+            "\"\"\"\n",
+            "\n",
+            "def test_state_never_toggled():\n",
+            "    assert True\n",
+        );
+        let symbols = parse("t_test.py", source).expect("parses");
+
+        assert!(
+            !names(&symbols).contains(&"phantom_in_doc"),
+            "the literal's body is not code: {:?}",
+            names(&symbols)
+        );
+        assert_eq!(
+            symbol(&symbols, "test_state_never_toggled").kind,
+            SymbolKind::TestFunction
+        );
+
+        // The state machine itself, so a passing assertion above cannot be an
+        // accident of two errors cancelling.
+        for line in [
+            "SINGLE = \"a ''' inside a double-quoted string\"",
+            "OTHER = 'a \"\"\" inside a single-quoted string'",
+            "ESCAPED = \"she said \\\"\\\"\\\" loudly\"",
+            "# a bare \"\"\" in a comment",
+            "TRAILING = 1  # and ''' after code",
+            "INLINE = \"\"\"opened and closed\"\"\"",
+        ] {
+            assert_eq!(scan_line(line, Quoting::Code), Quoting::Code, "{line}");
+        }
+        assert_eq!(
+            scan_line("DOC = \"\"\"", Quoting::Code),
+            Quoting::Triple(b'"')
+        );
+        assert_eq!(
+            scan_line("RAW = r'''", Quoting::Code),
+            Quoting::Triple(b'\'')
+        );
+        // A mismatched delimiter never closes, and the closer may sit anywhere.
+        assert_eq!(
+            scan_line("'''", Quoting::Triple(b'"')),
+            Quoting::Triple(b'"')
+        );
+        assert_eq!(
+            scan_line("end\"\"\" + x", Quoting::Triple(b'"')),
+            Quoting::Code
+        );
+    }
+
+    #[trace("TC-1031", "FR-051-AC-20")]
+    // a declaration after an embedded string keeps its true
+    // container: the scope stack does not resume stale.
+    //
+    // This is the dominant mode by count and the one a partial fix would miss.
+    // Measured on `py-project/tests/test_deps.py`, the adapter reported
+    // `test_update_simple_version` — which really lives in
+    // `TestTomlModification` — under `TestTomlParsing`, and saw 10 of that
+    // file's 21 classes (#274).
+    #[test]
+    fn tc1031_the_scope_stack_survives_an_embedded_string() {
+        let source = concat!(
+            "class TestParsing:\n",
+            "    def test_reads_a_fixture(self):\n",
+            "        source = \"\"\"\n",
+            "class Injected:\n",
+            "    pass\n",
+            "\"\"\"\n",
+            "        assert source\n",
+            "\n",
+            "\n",
+            "class TestModification:\n",
+            "    def test_writes_a_fixture(self):\n",
+            "        assert True\n",
+        );
+        let symbols = parse("t_test.py", source).expect("parses");
+
+        assert!(
+            !names(&symbols).contains(&"Injected"),
+            "the embedded class is string content: {:?}",
+            names(&symbols)
+        );
+
+        // The second class is seen at all — the closing quote did not swallow it.
+        assert_eq!(
+            symbol(&symbols, "TestModification").kind,
+            SymbolKind::Container
+        );
+
+        // And it owns its own method, rather than the method resuming under the
+        // class that was open when the string started.
+        let method = symbol(&symbols, "TestModification.test_writes_a_fixture");
+        assert_eq!(method.kind, SymbolKind::TestFunction);
+        assert_eq!(method.container.as_deref(), Some("TestModification"));
+
+        let first = symbol(&symbols, "TestParsing.test_reads_a_fixture");
+        assert_eq!(first.container.as_deref(), Some("TestParsing"));
+    }
 
     /// TC-800, FR-051-AC-13 (CR-037): a signature black wrapped still reaches
     /// its docstring.

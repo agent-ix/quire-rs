@@ -1311,3 +1311,87 @@ fn tc1028_a_failure_case_discriminates_from_its_control() {
         "a fixture's assertions must tell its own input from its control's:\n{blind}"
     );
 }
+
+/// A `regression` case: no control, not findable, pinning a LANDED ticket.
+///
+/// Added when the first Wave 3 fix landed. `agent-ix/quire-rs#274`'s fixture
+/// had a control that was the same content written the way the BROKEN parser
+/// could handle — so once the parser was fixed, both spellings parsed
+/// identically and the pair had nothing left to separate. AC-42 rejected it,
+/// correctly. The input is still the shape that used to break, and asserting it
+/// parses is worth keeping; it is simply no longer a defect.
+///
+/// Not every fix leaves one behind. Where a fix makes a diagnostic FIRE, the
+/// control stays silent and the pair keeps discriminating — those fixtures fold
+/// their forward block in and stay `failure` cases.
+#[trace("TC-1032", "FR-065-AC-43")]
+// accepted with no control; findable/control_for/pending rejected.
+#[trace("TC-1032", "FR-065-AC-44")]
+// credits its cell, so a fixed defect does not revert to GAP.
+#[test]
+fn tc1032_a_regression_case_pins_a_landed_fix() {
+    let cases = load_cases();
+    let pins: Vec<_> = cases
+        .iter()
+        .filter(|c| c.meta.kind == "regression")
+        .collect();
+    assert!(
+        !pins.is_empty(),
+        "no regression case in the corpus, so this asserts nothing"
+    );
+
+    for case in &pins {
+        assert!(
+            !case.meta.findable,
+            "{}: a regression case pins behaviour that WORKS — `findable` says a \
+             finding is expected on this input, and none is",
+            case.meta.id,
+        );
+        assert!(
+            case.meta.control_for.is_none(),
+            "{}: a regression case has no partner to be the control of",
+            case.meta.id,
+        );
+        assert!(
+            case.meta.pending.is_none() && case.expect_pending.is_none(),
+            "{}: a regression case pins a LANDED ticket; `pending:` says the opposite",
+            case.meta.id,
+        );
+        assert!(
+            case.expect.asserts_something(),
+            "{}: a regression case that asserts nothing pins nothing",
+            case.meta.id,
+        );
+    }
+
+    // AC-44: the cell is credited. Read the DERIVED matrix rather than
+    // re-deriving it here, so this asserts what `bounds.py` actually publishes.
+    let run = std::process::Command::new("python3")
+        .arg(corpus_case::corpus_root().join("bounds.py"))
+        .arg("--json")
+        .output()
+        .expect("run bounds.py --json");
+    assert!(run.status.success(), "bounds.py --json must succeed");
+    let derived: serde_json::Value =
+        serde_json::from_slice(&run.stdout).expect("bounds --json parses");
+    for case in &pins {
+        let row = case
+            .meta
+            .case
+            .clone()
+            .unwrap_or_else(|| case.meta.id.clone());
+        let covered = derived["bounds"]["matrix"]
+            .as_array()
+            .expect("matrix")
+            .iter()
+            .filter(|r| r["case"].as_str() == Some(row.as_str()))
+            .any(|r| r["cells"][&case.meta.language]["state"].as_str() == Some("covered"));
+        assert!(
+            covered,
+            "{}: a regression case must credit its cell — otherwise a cell reverts to \
+             GAP the moment its defect is fixed, and `gap_count` counts unfixed defects \
+             rather than unmeasured modes",
+            case.meta.id,
+        );
+    }
+}
