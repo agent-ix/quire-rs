@@ -712,6 +712,8 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-1034 | A declared `id_column` absent from the found table is its OWN token, `id-column-matches-nothing`, naming the column FOUND and the column DECLARED — and the section token does not fire alongside it; the same tree with the heading wrong instead reports only the section token, while both report `backed: 0`, which is the measured argument for two tokens rather than one (CR-117, #270) | Integration | P0 | FR-050-AC-33 | ✅ |
 | TC-1035 | Neither minting token is gated on whether another declaration minted: a bundle whose FR criteria mint normally still reports its stranded matrix, the section message names the id column it could not check, and fixing only the heading exposes the second fault that was there all along — the loop that sentence exists to shorten (CR-117, #270, #304) | Integration | P0 | FR-050-AC-33 | ✅ |
 | TC-1036 | `minting.section_hit_rate` is a RATIO over the documents a trace target's archetype selected: both sections found is 2/2 and not hollow, one found is 1/2 and still not hollow, none found is hollow and reported by name under `hollow-denominator`, and a model declaring no `trace_targets` reports it not computed rather than zero (CR-117, #270) | Integration | P0 | FR-063-AC-7 | ✅ |
+| TC-1037 | A declaration naming SEVERAL sections mints from every one of them, in document order, and its reference declaration reads the same rows — a status lie under a qualified heading is reported. The control is the SAME tree read by a declaration naming ONE section: it mints that one row and no other, and a row under a heading neither names stays in `untracked_symbols` (CR-118, #272) | Integration | P0 | FR-050-AC-34 | ✅ |
+| TC-1038 | `section:` reads a scalar or a sequence on the ONE key, a one-name declaration round-trips back out as a scalar, an empty list or a blank entry fails module load, and a name carrying no `*` matches exactly what `query::section` has always matched — asserted over generated headings against the engine's own lookup, so prose punctuation (`[`, `{`, `?`) stays literal (CR-118, #272) | Unit | P0 | FR-050-AC-34 | ✅ |
 | TC-861 | A built-in ambiguity term fires `quality:ambiguous-term` naming the term, and a quantified statement fires nothing (FR-056) | Integration | P0 | FR-056-AC-1 | ✅ |
 | TC-862 | `as appropriate` is reported as itself, not as the `appropriate` inside it — the report names what the author wrote (FR-056) | Integration | P1 | FR-056-AC-2 | ✅ |
 | TC-863 | A module's declared terms fire **and** every built-in still fires — the registry layers over the built-ins rather than replacing them (FR-056, CON-2) | Integration | P0 | FR-056-AC-3 | ✅ |
@@ -1166,6 +1168,7 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-050-AC-28 | TC-989, TC-1009 |
 | FR-050-AC-29 | TC-992, TC-993, TC-994, TC-995, TC-996 |
 | FR-050-AC-33 | TC-1033, TC-1034, TC-1035 |
+| FR-050-AC-34 | TC-1037, TC-1038 |
 | FR-064-AC-1 | TC-997, TC-998, TC-1002 |
 | FR-064-AC-2 | TC-999 |
 | FR-064-AC-3 | TC-1000 |

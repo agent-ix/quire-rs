@@ -250,33 +250,40 @@ fn tests_for(
             continue;
         };
         for doc in spec.by_type(&declaration.archetype) {
-            let Some(table) = quire_rs::table_from_section(doc.body(), &declaration.section) else {
-                continue;
-            };
-            let column = |row: &BTreeMap<String, String>, name: &str| -> Option<String> {
-                row.iter()
-                    .find(|(header, _)| header.eq_ignore_ascii_case(name))
-                    .map(|(_, v)| v.clone())
-            };
-            for row in &table.rows {
-                let cells: BTreeMap<String, String> = table
-                    .headers
-                    .iter()
-                    .cloned()
-                    .zip(row.iter().cloned())
-                    .collect();
-                let Some(referenced) = column(&cells, &declaration.column) else {
-                    continue;
-                };
-                let hit = pattern
-                    .captures_iter(&referenced)
-                    .filter_map(|c| c.get(1).map(|m| m.as_str().trim().to_string()))
-                    .any(|id| owned(&id));
-                if !hit {
+            // Every section the declaration names, not the first (CR-118): a
+            // matrix may spread its rows across several headings.
+            for section in quire_rs::query::sections(doc.body(), None) {
+                if !declaration.section.matches(&section.heading) {
                     continue;
                 }
-                if let Some(row_id) = column(&cells, row_id_column) {
-                    out.insert(row_id.trim().to_string());
+                let Some(table) = quire_rs::query::parse_table(&section.content) else {
+                    continue;
+                };
+                let column = |row: &BTreeMap<String, String>, name: &str| -> Option<String> {
+                    row.iter()
+                        .find(|(header, _)| header.eq_ignore_ascii_case(name))
+                        .map(|(_, v)| v.clone())
+                };
+                for row in &table.rows {
+                    let cells: BTreeMap<String, String> = table
+                        .headers
+                        .iter()
+                        .cloned()
+                        .zip(row.iter().cloned())
+                        .collect();
+                    let Some(referenced) = column(&cells, &declaration.column) else {
+                        continue;
+                    };
+                    let hit = pattern
+                        .captures_iter(&referenced)
+                        .filter_map(|c| c.get(1).map(|m| m.as_str().trim().to_string()))
+                        .any(|id| owned(&id));
+                    if !hit {
+                        continue;
+                    }
+                    if let Some(row_id) = column(&cells, row_id_column) {
+                        out.insert(row_id.trim().to_string());
+                    }
                 }
             }
         }

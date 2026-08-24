@@ -156,6 +156,7 @@ model; the engine knows nothing of "AC" or "TC" as concepts.
 | FR-050-AC-31 | A cross-corpus sweep snapshots per-repository numbers across the enumerated ecosystem and compares two snapshots as a **distribution**: improved / regressed / unchanged counts, the net gain, and the fraction of that gain contributed by a single repository. A repository the engine cannot read is recorded as unreadable rather than scored zero; a population that moved between snapshots is reported, and the comparison is over the intersection. Gains and regressions are counted separately and never netted into one number. | Test (`scripts/tests/test_overfit_check.py`) |
 | FR-050-AC-32 | The benchmark corpus spans **every language the binder binds**, and a corpus entry may declare which metrics it is scored on so it can be carried for language coverage without its content churn thrashing a ratchet. `skeptic.suspicion_rate` — suspicions over evidence symbols examined — is scored per entry: a rate near 100% is a rule misreading a language, not a corpus full of vacuous tests. | Test (`scripts/tests/test_bench.py`) |
 | FR-050-AC-33 | A **trace target** that selects a document by archetype and then reads nothing out of it is reported per document, never in silence, under two distinct machine tokens: `section-matches-nothing` when the declared `section:` heading is absent, and `id-column-matches-nothing` when the section is found and the declared `id_column` is not among the table's headers. Each record names the document in `path` and names, in its message, both the value **found** and the value **declared**; the section record additionally names the `id_column` it could **not** check, because the absent heading strands the table before the column is read. Neither is gated on whether any other declaration minted, so a model minting its criteria normally still reports a stranded matrix. A reference declaration — whose section is legitimately optional — and a document carrying the declared heading and column both report neither (CR-117). | Test (TC-1033, TC-1034, TC-1035) |
+| FR-050-AC-34 | A declaration's `section:` accepts **one heading name or several**, on that one key: a scalar as before, or a sequence. Every named section of a document contributes its own table, in **document order**, and each is checked for the declared `id_column` separately. An entry containing `*` matches any run of characters, including none; an entry containing none is the heading exactly, matched as `query::section` has always matched it — so a declaration naming one section selects exactly what it selected before, and no other metacharacter is introduced. An empty sequence, or a blank entry, fails module load naming the declaration. When no named section is present the `section-matches-nothing` record names **every** section the declaration tried, and a one-name declaration round-trips back out as the scalar it was authored as (CR-118). | Test (TC-1037, TC-1038) |
 
 
 
@@ -211,6 +212,65 @@ model; the engine knows nothing of "AC" or "TC" as concepts.
 > about the heading fixes it, re-runs, and meets a second fault that was there
 > all along. Naming the unchecked column is what makes that one pass instead of
 > two.
+
+> **CR-118 note (2026-08-24):** AC-34 is new — one heading name reached one
+> heading. `agent-ix/quire-rs#272`; epic `agent-ix/quire-rs#264`.
+>
+> `TraceTarget.section` was `String`. A matrix that groups its rows under
+> several headings minted only the group under the one declared name, so the
+> denominator silently became *the rows under one heading* rather than *the
+> rows this document declares* — and a repository in that state reports
+> flawless minting health over the fraction it can see.
+>
+> **A pattern, not a list of names, and the reason is measured.** **[RAN]**
+> over the 393 `type: TestMatrix` documents in `~/dev`: 434 test-case ids sit
+> in a `Test ID` table the ecosystem's `test-case` target cannot reach, and
+> **306 of them are under a heading that CONTAINS `Test Case Summary`** —
+> `Test Case Summary (plugin scope)`, `Phase 4 Test Case Summary`,
+> `Test Case Summary — packages/elements`. Those qualifiers are per-repository
+> and per-phase, so the enumeration `#272` sketched
+> (`["Test Case Summary", "Test Cases", "Integration Test Matrix"]`) reaches 14
+> of the 434 and goes stale the day somebody writes `Phase 5`. The sequence
+> form is kept because a differently-named table is a different claim and reads
+> better as a name.
+>
+> **One key, and `*` is the only metacharacter.** A second `sections:` key
+> would be two spellings of one thing under `deny_unknown_fields`, and every
+> reader would have to handle both. A *glob* would make `?`, `[`, `]`, `{` and
+> `}` special, and headings are prose — `Edge Cases [deferred]` and
+> ``FR-045 — `ix local auth kubeconfig rotate` `` are real ecosystem headings —
+> so an existing declaration's meaning would change silently. A name carrying
+> no `*` is the heading exactly, which is what makes "a target declaring one
+> section does not start matching others" a property of the design rather than
+> a test.
+>
+> **The reference declaration widens with the target.** `traces-to` reads
+> `Traces To` off the rows `test-case` mints. A section the target reaches and
+> the reference does not is a row whose id exists and whose stated coverage
+> nothing reads, so the criteria it answers for report unreferenced while the
+> matrix looks healthy. Both take `SectionNames`; so does an obligation
+> source's, which scans the same declared tables.
+>
+> **The realised delta is 42× smaller than the estimate, and the reason is the
+> id column.** `#272` predicted Δtotal ≈ +3,514 rows and Δbacked ≈ +455, from
+> CR-117's census of ids stranded by an absent section. **[RAN]** over the 241
+> repositories `scripts/corpus.py` enumerates, before and after, with the same
+> binary and only the declaration changed: **total 19,938 → 20,021 (+83)** and
+> **backed 5,036 → 5,037 (+1)**, moving row backing 25.26% → 25.16%. Two
+> repositories moved; a third, `filament-ide`, holds 221 more but is
+> `SUPERSEDED` and correctly outside the population.
+>
+> The estimate counted ids whose section is absent. Minting one needs the
+> declared `id_column` too, and the ecosystem's stranded rows overwhelmingly
+> fail on **both**: 5,732 ids across 120 repositories sit under a non-declared
+> heading in a table whose id column is `Test Case ID`, `Test Case` or `ID`.
+> `agent-ix/identity` — the ticket's own 606-id example — was measured with
+> `section: "*"`, matching every heading in the document: it mints **zero**
+> test-case ids and reports 33 `id-column-matches-nothing` findings instead.
+> Not one of its ~30 headings carries a `Test ID` column, so no widening of
+> `section:` can reach a single one of those ids. That is precisely the second
+> pass CR-117's message was written to warn about, now walked and counted; the
+> remaining population is an `id_column` ticket, not this one.
 
 > **CR-101 note (2026-08-22):** AC-31 is new — the overfit check.
 > `agent-ix/quire-rs#237`; epic `agent-ix/quoin#197`.
