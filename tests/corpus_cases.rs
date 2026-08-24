@@ -776,27 +776,37 @@ fn tc1025_the_loader_refuses_a_block_that_asserts_the_wrong_thing() {
     // rejection must carry).
     let mutations: &[(&str, &str, &str)] = &[
         // AC-30 — a token in neither list.
+        //
+        // Every mutation below that needs a PENDING case names
+        // `tag-on-non-test-function/rust`, whose ticket is
+        // `agent-ix/quire-rs#312`. It used to name `section-name-mismatch`,
+        // and #270 landing retired that case's forward block — a mutation
+        // writing `expect-pending.yaml` into a case with no `pending:` is
+        // rejected for THAT, not for the rule under test, and the assertion
+        // silently stopped measuring what it names. A mutation test needs a
+        // live pending case, and the set of those changes every time a ticket
+        // ships.
         (
-            "cases/minting/section-name-mismatch/rust/expect-pending.yaml",
+            "cases/attachment/tag-on-non-test-function/rust/expect-pending.yaml",
             "diagnostic_reasons: [totally-bogus-token]\n",
             "neither emitted nor forward",
         ),
         // AC-31 — a LIVE block requiring what no engine emits yet.
         (
-            "cases/minting/section-name-mismatch/rust/expect.yaml",
-            "diagnostic_reasons: [section-matches-nothing]\n",
+            "cases/attachment/tag-on-non-test-function/rust/expect.yaml",
+            "diagnostic_reasons: [tag-on-non-binding-symbol]\n",
             "belongs in expect-pending.yaml",
         ),
         // AC-32 — a FAILURE case asserting its own pending token absent. That
         // block is guaranteed to fail the day the ticket lands.
         (
-            "cases/minting/section-name-mismatch/rust/expect.yaml",
-            "total: 1\nabsent_diagnostic_reasons: [section-matches-nothing]\n",
+            "cases/attachment/tag-on-non-test-function/rust/expect.yaml",
+            "total: 4\nabsent_diagnostic_reasons: [tag-on-non-binding-symbol]\n",
             "a live block must survive the fix it waits for",
         ),
         // AC-33 — non-empty as YAML, zero assertions when graded.
         (
-            "cases/minting/section-name-mismatch/rust/expect-pending.yaml",
+            "cases/attachment/tag-on-non-test-function/rust/expect-pending.yaml",
             "diagnostic_reasons: []\n",
             "asserts nothing",
         ),
@@ -804,9 +814,9 @@ fn tc1025_the_loader_refuses_a_block_that_asserts_the_wrong_thing() {
         // survived two rounds of review: false today, false after the fix, and
         // the case sits pending forever with no gate saying so.
         (
-            "cases/minting/section-name-mismatch/rust/expect-pending.yaml",
+            "cases/attachment/tag-on-non-test-function/rust/expect-pending.yaml",
             "backed: 99\n",
-            "requires no token that agent-ix/quire-rs#270 introduces",
+            "requires no token that agent-ix/quire-rs#312 introduces",
         ),
         // A BEHAVIOUR-CHANGE forward block silent on a key its live block
         // asserts. The rule is "the same measurement, after", so a block that
@@ -846,20 +856,20 @@ fn tc1025_the_loader_refuses_a_block_that_asserts_the_wrong_thing() {
         // The shape a partial landing takes: the token fires, the message is
         // not actionable, and the fixture reads as "not landed yet" forever.
         (
-            "cases/minting/section-name-mismatch/rust/expect-pending.yaml",
+            "cases/attachment/tag-on-non-test-function/rust/expect-pending.yaml",
             "diagnostic_reasons: [catch-all-universal]\n",
             "which the engine already emits",
         ),
         // A typo'd key in a forward block was GRADED, so the fixture's own
         // schema error read as evidence about the engine.
         (
-            "cases/minting/section-name-mismatch/rust/expect-pending.yaml",
-            "diagnostic_reason: [section-matches-nothing]\n",
+            "cases/attachment/tag-on-non-test-function/rust/expect-pending.yaml",
+            "diagnostic_reason: [tag-on-non-binding-symbol]\n",
             "unhandled key",
         ),
         // The pairing, both directions (AC-26).
         (
-            "cases/minting/section-name-mismatch/rust/expect-pending.yaml",
+            "cases/attachment/tag-on-non-test-function/rust/expect-pending.yaml",
             "",
             "asserts nothing",
         ),
@@ -867,7 +877,7 @@ fn tc1025_the_loader_refuses_a_block_that_asserts_the_wrong_thing() {
         // is round one's defect reached by truncating the file: every gate
         // stayed green with the cell still `covered`.
         (
-            "cases/minting/section-name-mismatch/rust/expect.yaml",
+            "cases/attachment/tag-on-non-test-function/rust/expect.yaml",
             "",
             "expect.yaml asserts nothing",
         ),
@@ -933,15 +943,17 @@ fn copy_tree(from: &std::path::Path, to: &std::path::Path) {
 /// gate stayed green. A second hand-written list drifts exactly the way the
 /// first one did.
 ///
-/// The `forward` direction is the forcing function. The day `#270` lands,
-/// `"section-matches-nothing"` becomes a literal in `src/`, this test FAILS,
-/// and it stays failing until the token is moved to `emitted` — which is the
-/// same edit that makes every fixture waiting on it go green. Nobody can land
-/// the fix and leave the corpus describing a world where it has not landed.
+/// The `forward` direction is the forcing function, and it has now fired once
+/// in anger. The day `#270` landed, `"section-matches-nothing"` became a
+/// literal in `src/`, this test FAILED, and it stayed failing until both of
+/// that ticket's tokens moved to `emitted` — which is the same edit that made
+/// the nine fixtures waiting on them go green. Nobody can land the fix and
+/// leave the corpus describing a world where it has not landed. The same
+/// applies next to `"tag-on-non-binding-symbol"` (`#312`).
 ///
 /// A source scan, not a registry read. Both directions are exact TODAY —
-/// verified token by token, all eight `emitted` resolve to a literal and both
-/// `forward` resolve to none — but it is a proxy: a reason assembled at
+/// verified token by token, every `emitted` resolves to a literal and every
+/// `forward` resolves to none — but it is a proxy: a reason assembled at
 /// runtime rather than written as a literal would read as absent. The engine
 /// should publish its reason registry, which is `agent-ix/quire-rs#300`.
 #[trace("TC-1026", "FR-065-AC-34")]

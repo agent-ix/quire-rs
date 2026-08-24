@@ -259,6 +259,17 @@
       "shape": "count",
       "state": "not_computed",
       "because": "the module declares no `trace_tags.implements` forms, so the requirement-to-code relation was never derived — this is unasked, not none"
+    },
+    {
+      "name": "minting.section_hit_rate",
+      "unit": "declared minting document",
+      "method": "documents whose declared `section:` heading was found, over the documents a trace target's `archetype:` selected and its `exclude:` kept; counted per (trace target, document) pair. A miss reads the archetype right and the heading wrong, so the whole table is stranded and its ids never enter `coverage.backed`'s denominator at all",
+      "shape": "ratio",
+      "state": "measured",
+      "value": 3,
+      "population": 3,
+      "examined": 3,
+      "matched": 3
     }
   ],
   "totals": {

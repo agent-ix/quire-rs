@@ -516,7 +516,7 @@ pub fn compute(
     let model = registry
         .traceability()
         .ok_or(CoverageError::ModelUndeclared)?;
-    let mut report = reconcile(spec, model, graph, root);
+    let (mut report, minting_census) = reconcile(spec, model, graph, root);
     // CR-028: the criteria counts are computed here rather than inside
     // `reconcile`, which reconciles against the declared model alone and takes
     // no `Registry`. The vocabularies the classifier reads hang off the same
@@ -546,7 +546,7 @@ pub fn compute(
     // FR-063: last, because a metric describes a number the steps above
     // finished computing — `criteria` in particular is set here rather than in
     // `reconcile`.
-    report.metrics = coverage_metrics(&report, model, graph);
+    report.metrics = coverage_metrics(&report, model, graph, minting_census);
     report
         .diagnostics
         .extend(hollow_denominators(&report.metrics));
@@ -568,6 +568,7 @@ fn coverage_metrics(
     report: &CoverageReport,
     model: &TraceabilityModel,
     graph: &SymbolGraph,
+    minting: declared_tables::MintingCensus,
 ) -> Vec<Metric> {
     // The premise under `backed/total`: source symbols that bound a trace id.
     // Summed across languages, because the ratio is bundle-wide and a per
@@ -685,6 +686,51 @@ fn coverage_metrics(
             graph.implements_bound,
             graph.implements_candidates,
             graph.implements_candidates,
+        )
+    });
+
+    // FR-063-AC-7 (CR-117, #270): the premise under every minting number.
+    //
+    // `coverage.backed` answers "how many declared rows are backed by a test".
+    // It cannot answer "were the rows found at all", and that is the question
+    // 88 of 239 repositories fail: the archetype matches, the declared section
+    // does not, and 3,514 TC ids never reach the denominator. A repository in
+    // that state reports a *smaller* `total` and a plausible percentage, so
+    // nothing in the payload distinguished it from a repository with fewer
+    // tests.
+    //
+    // A RATIO, and the shape matters (CR-102). `matched` and `examined` are
+    // the same pair of counts as `value` and `population` here, because the
+    // measurement's input IS its population — one document offered to one
+    // minting declaration. That makes `is_hollow` fire exactly when no
+    // declaration found any of its sections, which is a ratio published over a
+    // corpus none of whose minting tables were read. It stays quiet on the
+    // honest zeroes: a bundle with no documents of any minting archetype
+    // examines nothing, and one whose sections are all found matches
+    // everything.
+    metrics.push(if model.trace_targets.is_empty() {
+        Metric::not_computed(
+            "minting.section_hit_rate",
+            "declared minting document",
+            "documents whose declared minting section was found, over the documents \
+             the declaration's archetype selected",
+            MetricShape::Ratio,
+            "the model declares no `trace_targets`, so no document was selected for \
+             minting and there is no section to look for",
+        )
+    } else {
+        Metric::measured(
+            "minting.section_hit_rate",
+            "declared minting document",
+            "documents whose declared `section:` heading was found, over the documents \
+             a trace target's `archetype:` selected and its `exclude:` kept; counted per \
+             (trace target, document) pair. A miss reads the archetype right and the \
+             heading wrong, so the whole table is stranded and its ids never enter \
+             `coverage.backed`'s denominator at all",
+            minting.section_found,
+            minting.selected,
+            minting.selected,
+            minting.section_found,
         )
     });
 
@@ -970,7 +1016,7 @@ fn reconcile(
     model: &TraceabilityModel,
     graph: &SymbolGraph,
     root: &Path,
-) -> CoverageReport {
+) -> (CoverageReport, declared_tables::MintingCensus) {
     let backed: BTreeSet<&str> = graph.backed_trace_ids();
     // CR-060: compiled once for the whole reconciliation — every declaration
     // is scoped by it.
@@ -989,6 +1035,9 @@ fn reconcile(
                 archetype: &target.archetype,
                 exclude: &exclude,
                 model_exclude: &model_exclude,
+                // The minting half of the model: CR-117's two diagnostics are
+                // scoped to it, and the id column they name comes from here.
+                mints: Some(&target.id_column),
             },
             &target.section,
             &mut ctx,
@@ -1044,6 +1093,11 @@ fn reconcile(
                 archetype: &declaration.archetype,
                 exclude: &exclude,
                 model_exclude: &model_exclude,
+                // A reference declaration mints nothing, and its section is
+                // legitimately optional — `functional-coverage` reads a heading
+                // the matrix template emits only when it has content, so
+                // diagnosing its absence would fire on every healthy matrix.
+                mints: None,
             },
             &declaration.section,
             &mut ctx,
@@ -1260,6 +1314,10 @@ fn reconcile(
         .sort_by(|a, b| (&a.path, &a.symbol, &a.trace_id).cmp(&(&b.path, &b.symbol, &b.trace_id)));
     untracked_symbols.dedup();
 
+    // FR-063-AC-7: read before `into_diagnostics` consumes the context. The
+    // metric is built in `compute`, where every other one is.
+    let minting_census = ctx.census();
+
     // CR-054: declarations that selected nothing, rendered from the one
     // shared vocabulary `quire validate` also reports them under. Already
     // sorted by `into_diagnostics`, so the order is a property of the model.
@@ -1268,15 +1326,16 @@ fn reconcile(
         .into_iter()
         .map(|(declaration, diagnostic)| {
             let (_, message) = declared_tables::scan_finding(&declaration, &diagnostic, root);
+            // CR-117 made good on the note this field carried since CR-062:
+            // `archetype-matches-nothing` is declaration-level and still has no
+            // document to point at, while the two minting faults name the one
+            // file whose heading or header row is wrong.
+            let path = diagnostic.document().map(str::to_string);
             CoverageDiagnostic {
                 declaration,
                 reason: declared_tables::scan_reason(&diagnostic).to_string(),
                 message,
-                // Since CR-062 the only scan diagnostic is declaration-level,
-                // and a declaration-level fault has no document to point at.
-                // The field stays on the report shape: a future diagnostic that
-                // does name a document must not require a payload change.
-                path: None,
+                path,
                 value: None,
             }
         })
@@ -1364,7 +1423,7 @@ fn reconcile(
         })
         .collect();
 
-    CoverageReport {
+    let report = CoverageReport {
         unbacked_rows,
         status_lies,
         no_symbol_rows,
@@ -1407,7 +1466,8 @@ fn reconcile(
         // extraction and the symbol kinds are both in hand.
         suspicions: graph.suspicions.clone(),
         totals,
-    }
+    };
+    (report, minting_census)
 }
 
 /// The fraction of a language's candidates that must bind before the census

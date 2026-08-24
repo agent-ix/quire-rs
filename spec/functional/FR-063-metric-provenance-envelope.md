@@ -94,6 +94,30 @@ of their own — which is what makes it a schema invariant rather than another s
 | FR-063-AC-3 | The coverage payload carries one enveloped metric for every headline number it emits, each with its unit, method, population, `examined` and `matched` counts. | Test (TC-988) |
 | FR-063-AC-4 | `coverage.implements` draws its population from the production symbols examined, so the relation count is never a bare number; a module declaring no `implements` forms reports it as not computed with the condition named. | Test (TC-988) |
 | FR-063-AC-5 | A metric whose measurement was offered input and read none of it is reported in `CoverageReport.diagnostics` under `hollow-denominator`, naming the metric; the same corpus read cleanly, and a corpus offering no input at all, each report nothing. | Test (TC-988) |
+| FR-063-AC-7 | The payload carries `minting.section_hit_rate` — the documents whose declared minting section was found, over the documents a trace target's `archetype:` selected and its `exclude:` kept — as a **ratio**, so a corpus none of whose minting sections were read is hollow and reported by name, while a partial read is not. A model declaring no `trace_targets` reports it as not computed with the condition named, never as zero. | Test (TC-1036) |
+
+> **CR-117 note (2026-08-24):** AC-7 is new — `minting.section_hit_rate`.
+> `agent-ix/quire-rs#270`; the metric half of the FR-050-AC-33 note.
+>
+> Every existing metric describes what happened to the rows the engine
+> **found**. None of them describes whether the rows were found at all, and
+> that is the premise 88 of 239 repositories fail: the archetype matches, the
+> declared heading does not, and 3,514 TC ids never enter `coverage.backed`'s
+> denominator. The repository reports a smaller `total` and a plausible
+> percentage — the exact shape the binding census (FR-050-AC-27) was built for
+> one layer down.
+>
+> **A ratio, and the shape is the decision.** `examined` and `matched` are the
+> same pair of counts as `population` and `value` here, because the
+> measurement's input **is** its population: one document offered to one
+> minting declaration. That makes `is_hollow` fire exactly when no declaration
+> found any of its sections — a ratio published over a corpus none of whose
+> minting tables were read — and stay quiet on both honest zeroes: a bundle
+> with no documents of any minting archetype examines nothing, and a partial
+> read is a judgement this metric does not make (it is reported per document,
+> by name, under `section-matches-nothing`). Carrying it as a `Count` would
+> have made the hollow case unreportable, which is the CR-102 mistake with the
+> sign flipped.
 
 > **CR-102 note (2026-08-22):** `agent-ix/quire-rs#229`, reopened. The
 > hollowness rule shipped in `v0.44.0` fires on an **honest zero** (SR-054).
