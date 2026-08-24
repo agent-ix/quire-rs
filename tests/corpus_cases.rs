@@ -312,3 +312,80 @@ fn tc1021_the_vocabularies_come_from_the_corpus_not_from_this_file() {
         }
     }
 }
+
+/// A case's declared module and its documented invocation name the same thing.
+///
+/// The review of #290 found nothing cross-checked them: `verify.py` never read
+/// `module:`, and this harness never read `reproduce:`. So
+/// `module: ecosystem` beside `--module modules/variants/bench-legacy` was
+/// accepted by both runners — each testing a *different* module, with
+/// `bounds.py` crediting the cell as ecosystem-covered. That is #266's defect
+/// ("the field named one thing and the file loaded another") relocated rather
+/// than removed.
+#[trace("TC-1018", "FR-065-AC-15")]
+// a variant binding names its relaxation ticket.
+#[trace("TC-1020", "FR-065-AC-18")]
+// the documented invocation names the module that loads.
+#[test]
+fn tc1020_the_documented_invocation_names_the_module_that_loads() {
+    for case in &load_cases() {
+        let reproduce = case
+            .meta
+            .reproduce
+            .as_deref()
+            .unwrap_or_else(|| panic!("{}: no `reproduce` invocation", case.meta.id));
+
+        // FR-065-AC-18: the invocation names a module. Without one no model
+        // loads, the run reports 0/0, and the case cannot exhibit the
+        // declaration defect it exists for.
+        let declared = format!("--module modules/{}", case.meta.module);
+        assert!(
+            reproduce.contains(&declared),
+            "{}: declares `module: {}` but its invocation says `{reproduce}`. \
+             Two runners would test different modules and neither would notice.",
+            case.meta.id,
+            case.meta.module,
+        );
+        assert!(
+            reproduce.contains(&format!(
+                "--scope {}",
+                case.dir
+                    .strip_prefix(corpus_case::corpus_root())
+                    .unwrap()
+                    .display()
+            )),
+            "{}: its invocation does not scope to its own directory: {reproduce}",
+            case.meta.id,
+        );
+
+        // FR-065-CON-3 / AC-15: a variant binding names the ticket sizing it.
+        if case.meta.module != "ecosystem" {
+            assert!(
+                case.meta.relaxation_ticket.is_some(),
+                "{}: binds variant `{}` and names no `relaxation_ticket`",
+                case.meta.id,
+                case.meta.module,
+            );
+        }
+
+        // A `pending:` marker with no stated reason is one nobody can decide
+        // whether to remove, which is how stale markers accumulate.
+        if case.meta.pending.is_some() {
+            let reason = case.meta.pending_reason.as_deref().unwrap_or("");
+            assert!(
+                !reason.trim().is_empty(),
+                "{}: is pending with no `pending_reason`",
+                case.meta.id,
+            );
+        }
+
+        // The same argument as `issue_ref`: a fixture nobody explained is a
+        // fixture nobody dares change.
+        let comment = case.meta.comment.as_deref().unwrap_or("");
+        assert!(
+            !comment.trim().is_empty(),
+            "{}: carries no `comment` saying what it is about",
+            case.meta.id,
+        );
+    }
+}

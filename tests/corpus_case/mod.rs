@@ -100,7 +100,8 @@ impl Outcome {
 }
 
 /// One case's declaration, from `case.yaml`.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct CaseMeta {
     pub id: String,
     /// The filing this case is the regression for. Required, and the reason
@@ -131,6 +132,27 @@ pub struct CaseMeta {
     pub findable: bool,
     #[serde(default)]
     pub tags: Vec<String>,
+    /// The inventory row this fixture claims, when its `id` differs — a
+    /// control's id is `<case>-control`, and it covers nothing on its own.
+    #[serde(default)]
+    pub case: Option<String>,
+    /// The ticket a variant binding is sizing (FR-065-CON-3). Required
+    /// whenever `module` is not `ecosystem`; `bounds.py` rejects its absence.
+    #[serde(default)]
+    pub relaxation_ticket: Option<String>,
+    /// The invocation that reproduces this case by hand (FR-065-AC-18).
+    /// Modelled rather than ignored: `deny_unknown_fields` is only a gate if
+    /// every legitimate field is declared, and an ignored one is a field
+    /// nothing checks.
+    #[serde(default)]
+    pub reproduce: Option<String>,
+    #[serde(default)]
+    pub comment: Option<String>,
+    /// Why the case is pending — what the engine does not do yet. Prose, but
+    /// required-by-convention beside `pending`: a marker with no reason is one
+    /// nobody can decide whether to remove.
+    #[serde(default)]
+    pub pending_reason: Option<String>,
 }
 
 /// What the emitted envelope must say.
@@ -138,7 +160,12 @@ pub struct CaseMeta {
 /// Every field is optional: a case asserts the facts it is about and stays
 /// silent on the rest, so an unrelated engine change does not fail forty cases
 /// that were never about it (FR-065-AC-5).
+/// `deny_unknown_fields`: a typo'd expectation (`diagnostic_reason`,
+/// `no_symbol_row`) was silently dropped, so the CI gate graded a case on
+/// fewer assertions than its author wrote. `verify.py` caught it and this
+/// did not — the stricter checker was not the gate.
 #[derive(Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct CaseExpect {
     pub backed: Option<usize>,
     pub total: Option<usize>,
@@ -176,6 +203,7 @@ pub struct CaseExpect {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ExpectCensus {
     pub language: String,
     pub candidates: Option<usize>,
@@ -189,6 +217,7 @@ pub struct ExpectCensus {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ExpectMetric {
     pub name: String,
     /// `measured` or `not_computed`.
@@ -213,6 +242,15 @@ impl Case {
     pub fn input(&self) -> PathBuf {
         self.dir.join("input")
     }
+}
+
+/// A case's expectations, from the directory holding its `input/`.
+fn read_expect(dir: &Path) -> CaseExpect {
+    serde_yaml::from_str(
+        &std::fs::read_to_string(dir.join("expect.yaml"))
+            .unwrap_or_else(|e| panic!("{}: expect.yaml: {e}", dir.display())),
+    )
+    .unwrap_or_else(|e| panic!("{}: expect.yaml: {e}", dir.display()))
 }
 
 /// The pinned corpus submodule.
@@ -253,11 +291,55 @@ pub fn load_cases() -> Vec<Case> {
                 &std::fs::read_to_string(dir.join("case.yaml")).expect("read case.yaml"),
             )
             .unwrap_or_else(|e| panic!("{}: case.yaml: {e}", dir.display()));
-            let expect: CaseExpect = serde_yaml::from_str(
-                &std::fs::read_to_string(dir.join("expect.yaml")).expect("read expect.yaml"),
-            )
-            .unwrap_or_else(|e| panic!("{}: expect.yaml: {e}", dir.display()));
-            cases.push(Case { dir, meta, expect });
+
+            // Two layouts. A single-language case carries `input/` beside its
+            // `case.yaml`; a LANGUAGE SET carries one `<language>/` directory
+            // per language, sharing the case-level declaration. #268 authors
+            // sixteen modes across three languages, and three sibling
+            // directories with unrelated ids is not a set.
+            if dir.join("input").is_dir() {
+                cases.push(Case {
+                    expect: read_expect(&dir),
+                    dir,
+                    meta,
+                });
+                continue;
+            }
+
+            let mut variants: Vec<PathBuf> = std::fs::read_dir(&dir)
+                .expect("read case dir")
+                .filter_map(|e| e.ok().map(|e| e.path()))
+                .filter(|p| p.join("input").is_dir())
+                .collect();
+            variants.sort();
+            assert!(
+                !variants.is_empty(),
+                "{}: neither an `input/` nor any `<language>/input/`. A                  half-authored fixture read as an absent one would make                  `gap_count` mean something else, so this is an error rather                  than a skip.",
+                dir.display()
+            );
+            for variant in variants {
+                let language = variant
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .expect("language directory name")
+                    .to_string();
+                let mut meta = CaseMeta {
+                    id: format!("{}-{language}", meta.id),
+                    language,
+                    ..meta.clone()
+                };
+                meta.case.get_or_insert_with(|| {
+                    dir.file_name()
+                        .and_then(|n| n.to_str())
+                        .unwrap_or_default()
+                        .to_string()
+                });
+                cases.push(Case {
+                    expect: read_expect(&variant),
+                    dir: variant,
+                    meta,
+                });
+            }
         }
     }
     cases
@@ -266,10 +348,11 @@ pub fn load_cases() -> Vec<Case> {
 /// Run the real coverage path over a case's `input/`, **in place**.
 ///
 /// No tempdir, no copy, no materialisation: the directory the harness reads is
-/// the directory an operator reproduces with. The module is the case's own
-/// `input/module`, and the code walk excludes `spec/` exactly as the CLI does
-/// — which is what makes a `tests/` topology expressible, since the input tree
-/// is now real rather than three hardcoded directories.
+/// the directory an operator reproduces with. The module is the SHARED one the
+/// case names under `corpus/modules/`, and the code walk excludes `spec/`
+/// exactly as the CLI does — which is what makes a `tests/` topology
+/// expressible, since the input tree is now real rather than three hardcoded
+/// directories.
 pub fn run(case: &Case) -> quire_rs::CoverageReport {
     let input = case.input();
     // The SHARED module the case names, not a per-case copy. Eleven copies of
@@ -289,7 +372,9 @@ pub fn run(case: &Case) -> quire_rs::CoverageReport {
     let model = registry.traceability().cloned().unwrap_or_default();
     let extraction = quire_rs::symbols::extract_tree_scoped(
         &input,
-        &[Path::new("spec"), Path::new("module")],
+        // `module/` is not excluded: the per-case copies are gone, and the
+        // CLI invocation a case documents has no such exclusion either.
+        &[Path::new("spec")],
         &model.source_exclude,
     );
     let graph = quire_rs::symbols::trace::bind(&extraction, &model);
