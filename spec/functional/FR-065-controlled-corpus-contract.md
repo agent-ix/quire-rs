@@ -290,11 +290,30 @@ failure case's `expect.yaml` to zero bytes left every gate green with its cell s
 it is named for.
 
 A failure case that has a control SHALL **discriminate**: its `expect.yaml`, graded
-against its control's payload, SHALL produce at least one mismatch, and so SHALL its
-`expect-pending.yaml` where it has one.
+against its control's payload, SHALL produce at least one mismatch.
 
-This is the rule the rest of this section is a weaker approximation of. Every other gate
-here is a predicate on the SHAPE of a declaration — a block is non-empty, a token is
+The rule is *"assert at least one fact that differs between the two trees"*, which is
+weaker than *"assert a fact about the defect"*. Measured on this corpus: ten of eleven
+controlled fixtures are satisfiable by one incidental scalar — `total: 1` passes for a
+case whose control totals 2 — and only `no-symbol-method-in-the-verification-column`,
+whose control matches it on every count, is forced onto a defect-specific field. So this
+raises the floor rather than closing the question, and it is stated that way because an
+earlier draft of this clause claimed more.
+
+The `validate_*` assertions SHALL be graded over the OTHER case's tree when a case is
+graded differentially. `quire validate` reads a spec TREE rather than a coverage payload,
+so recomputing it from the case's own tree makes those keys contribute no discrimination
+— and `wrong-type-cell`, whose coverage payload is byte-identical to its control's by
+design and whose entire claim is structural, would be rejected as blind the moment it
+gained a control.
+
+A pending case's `expect-pending.yaml` is NOT held to this rule. AC-36 requires it to
+require a `forward` token and AC-35 guarantees no engine emits one, so it cannot hold
+against any payload — grading it differentially is a theorem restated as a test, and
+TC-1023 already makes the claim that has content.
+
+It is still different in kind from everything else here. Every other gate is a predicate
+on the SHAPE of a declaration — a block is non-empty, a token is
 declared, a ticket is named, a control exists — and shape has an unbounded supply of
 forms that are non-empty and mean nothing. Five review rounds each removed one such form
 and the next round found another: an excused block, then a block naming any token, then
@@ -418,7 +437,7 @@ than an agreement between two codebases nobody can verify from one of them.
 | FR-065-AC-39 | An `expect.yaml` grading zero assertions is rejected, for every case. | Test (TC-1025) |
 | FR-065-AC-40 | A case declaring `findable` and requiring no finding in any block is rejected unless declared in `known_gaps`. | Test (TC-1027) |
 | FR-065-AC-41 | A `known_gaps` entry naming no ticket, or naming no case, is rejected. | Test (TC-1027) |
-| FR-065-AC-42 | A failure case with a control whose `expect.yaml` holds against that control's payload is rejected; the same applies to its `expect-pending.yaml`. | Test (TC-1028) |
+| FR-065-AC-42 | A failure case with a control whose `expect.yaml` holds against that control's payload is rejected, with `validate_*` graded over the control's tree. | Test (TC-1028) |
 
 ## Dependencies
 

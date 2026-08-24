@@ -1127,9 +1127,17 @@ fn tc1028_a_failure_case_discriminates_from_its_control() {
             .case
             .clone()
             .unwrap_or_else(|| case.meta.id.clone());
+        // ID FIRST, alias second — matching `bounds.py`, which was made
+        // id-first in this same commit while this twin was not. One case's
+        // `case:` alias can equal another case's `id`, and measured, the
+        // alias-first order graded `catch-all-properties` against
+        // `catch-all-headline-control` instead of its declared `clean-control`,
+        // and handed `marker-mismatch` — a DECLARED uncontrolled gap — a
+        // stranger's control, bypassing the branch below and inflating the
+        // controlled count from 10 to 11.
         let control = controls
-            .get(&(row.clone(), case.meta.language.clone()))
-            .or_else(|| controls.get(&(case.meta.id.clone(), case.meta.language.clone())));
+            .get(&(case.meta.id.clone(), case.meta.language.clone()))
+            .or_else(|| controls.get(&(row.clone(), case.meta.language.clone())));
         let Some(control) = control else {
             // No control, so there is nothing to discriminate AGAINST. That is
             // exactly why an uncontrolled failure case is a declared gap and
@@ -1145,12 +1153,21 @@ fn tc1028_a_failure_case_discriminates_from_its_control() {
         };
 
         let healthy = run(control);
-        for (block, which) in [
-            (Some(&case.expect), "expect.yaml"),
-            (case.expect_pending.as_ref(), "expect-pending.yaml"),
-        ] {
+        // The LIVE block only. Grading the forward block here was a theorem
+        // dressed as a test: AC-36 requires every `expect-pending.yaml` to
+        // require a `forward` token and AC-35 guarantees no engine emits one on
+        // any input, so a conformant forward block cannot hold against ANY
+        // payload. Six of seventeen graded blocks asserted nothing, and
+        // TC-1023 already makes the real claim.
+        for (block, which) in [(Some(&case.expect), "expect.yaml")] {
             let Some(block) = block else { continue };
-            if grade_with(case, &healthy, block).passed() {
+            let verdict = corpus_case::grade_against(
+                case,
+                &healthy,
+                block,
+                corpus_case::ValidateSource::Tree(control),
+            );
+            if verdict.passed() {
                 blind.push_str(&format!(
                     "  {} — its {which} holds against {}'s payload, so it does not \
                      separate its own input from healthy input\n",

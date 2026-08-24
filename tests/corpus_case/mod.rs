@@ -617,6 +617,38 @@ pub fn grade(case: &Case, report: &quire_rs::CoverageReport) -> Outcome {
 /// contract (`expect.yaml`) and the forward one (`expect-pending.yaml`) are
 /// graded by the same code rather than by two that can drift.
 pub fn grade_with(case: &Case, report: &quire_rs::CoverageReport, e: &CaseExpect) -> Outcome {
+    grade_against(case, report, e, ValidateSource::OwnTree)
+}
+
+/// Whose spec tree the `validate_*` assertions are graded over.
+///
+/// `quire validate` runs over a spec TREE, not over a coverage payload, so it
+/// cannot be read off the `report` argument. Grading a case against its own
+/// run, that distinction does not matter. Grading it against ANOTHER case's —
+/// which is what the differential check does — it decides the answer.
+///
+/// `wrong-type-cell` is why. Its coverage payload is byte-identical to its
+/// control's BY DESIGN: an undeclared `Type` cell is a STRUCTURAL defect, so
+/// the family is visible only to `validate`, and `validate_contains` is its
+/// entire discriminating claim. Recomputed from the case's own tree those keys
+/// contribute nothing and the fixture reads as blind; skipped, it asserts
+/// nothing at all and reads as blind again. Only validating the OTHER tree
+/// asks the question the differential means to ask — and it answers it
+/// correctly, because the control's tree has no `Telepathy` cell.
+#[derive(Clone, Copy)]
+pub enum ValidateSource<'a> {
+    /// Validate the tree of the case being graded.
+    OwnTree,
+    /// Validate another case's tree — the control, in the differential.
+    Tree(&'a Case),
+}
+
+pub fn grade_against(
+    case: &Case,
+    report: &quire_rs::CoverageReport,
+    e: &CaseExpect,
+    validate: ValidateSource<'_>,
+) -> Outcome {
     let mut m: Vec<Mismatch> = Vec::new();
     let mut fail = |level: Level, detail: String| m.push(Mismatch { level, detail });
 
@@ -870,7 +902,10 @@ pub fn grade_with(case: &Case, report: &quire_rs::CoverageReport, e: &CaseExpect
     }
 
     if !e.validate_contains.is_empty() || !e.validate_absent.is_empty() {
-        let report = validate_report(case);
+        let report = validate_report(match validate {
+            ValidateSource::OwnTree => case,
+            ValidateSource::Tree(other) => other,
+        });
         for want in &e.validate_contains {
             if !report.contains(want.as_str()) {
                 fail(Level::L1Detected, format!("validate output lacks {want:?}"));
