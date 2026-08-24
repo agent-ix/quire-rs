@@ -44,7 +44,21 @@ pub(crate) fn parse(path: &str, source: &str) -> Result<Vec<RawSymbol>, String> 
     for (idx, lexed_line) in lexed.iter().enumerate() {
         let trimmed = lexed_line.code.trim();
 
-        if let Some(title) = registration(&lexed, idx, TEST_NAMES) {
+        // A registration whose name chain NAMES A SUITE is a suite, wherever in
+        // the chain the suite word sits. `test.describe(…)` is Playwright's
+        // suite and it matched `TEST_NAMES` first, because the `.modifier`
+        // window AC-18 opens for `it.each([…])(…)` swallows `.describe` as an
+        // ordinary modifier — so one construct had two spellings with opposite
+        // classifications. `describe(…)` minted a `Container` binding nothing;
+        // `test.describe(…)` minted a `TestFunction` that bound its header tag
+        // and entered the census, which is the negative AC-21 asserts.
+        //
+        // 120 such headers exist across two corpus repositories and 79 carry an
+        // id in their title, so `spec-artifacts-process#68` declaring a
+        // TypeScript test-name form would have bound all 79 as evidence on the
+        // spelling the spec calls grouping (#322).
+        let suite_chain = chain_names_a_suite(trimmed);
+        if let Some(title) = registration(&lexed, idx, TEST_NAMES).filter(|_| !suite_chain) {
             push(
                 &mut out,
                 &lines,
@@ -54,7 +68,9 @@ pub(crate) fn parse(path: &str, source: &str) -> Result<Vec<RawSymbol>, String> 
                 SymbolKind::TestFunction,
                 scope_container(&scopes, &module),
             );
-        } else if let Some(title) = registration(&lexed, idx, SUITE_NAMES) {
+        } else if let Some(title) = registration(&lexed, idx, SUITE_NAMES)
+            .or_else(|| registration(&lexed, idx, TEST_NAMES).filter(|_| suite_chain))
+        {
             push(
                 &mut out,
                 &lines,
@@ -210,6 +226,25 @@ const SUITE_NAMES: &[&str] = &["describe", "suite"];
 /// tag: with no symbol, a legacy comment id and a canonical `trace(…)` call
 /// inside the body have nothing to attach to, so the test runs, passes and binds
 /// nothing, silently and always in the direction that loses coverage.
+/// Whether a registration's name chain names a suite anywhere along it.
+///
+/// `describe(`, `suite(`, and equally `test.describe(`, `it.describe(`,
+/// `test.describe.only(` — the suite word may sit at any position, because a
+/// harness spells its suite as a member of its test namespace. Reading only
+/// the FIRST identifier is what gave one construct two classifications (#322).
+///
+/// Deliberately textual and cheap: this runs on every line of every TypeScript
+/// file in the walk, beside a matcher that is already textual.
+fn chain_names_a_suite(line: &str) -> bool {
+    let head = line.strip_prefix("await ").unwrap_or(line).trim_start();
+    let Some(open) = head.find('(') else {
+        return false;
+    };
+    head[..open]
+        .split('.')
+        .any(|seg| SUITE_NAMES.contains(&seg.trim()))
+}
+
 fn registration(lexed: &[LexedLine], idx: usize, names: &[&str]) -> Option<String> {
     let first = lexed.get(idx)?.code.trim_start();
     let open = registration_open(first, names)?;
