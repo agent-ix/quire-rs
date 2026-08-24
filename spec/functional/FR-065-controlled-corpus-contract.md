@@ -165,9 +165,31 @@ by running it.
 ## Behavior
 
 The corpus loader SHALL require each case directory to declare, in `case.yaml`: `id`,
-`issue_ref`, `mode`, `language`, `module`, `findable`, and `kind` — one of `failure` or
-`control`. The corpus loader SHALL additionally require `control_for` on a case of kind
-`control`, naming the failure case's `id`.
+`issue_ref`, `mode`, `language`, `module`, `findable`, `reproduce`, and `kind` — one of
+`failure` or `control`. The corpus loader SHALL additionally require `control_for` on a
+case of kind `control`, naming the failure case's `id`; `relaxation_ticket` on a case
+binding a variant module; and `pending_reason` on a case declaring `pending`.
+
+A case MAY declare `pending`, naming the ticket that will make it pass.
+
+The runner SHALL treat a case declaring `pending` as **expected to fail**.
+
+The runner SHALL count and report every pending case.
+
+The runner SHALL fail the run when a case declaring `pending` passes.
+
+This is what makes *case red before fix* workable: a defect
+gets its regression the day it is found, the fixture fails honestly, and the suite still
+goes green. A pending case SHALL assert only the behaviour that is pending — anything
+already true belongs in its control, or the marker hides a live assertion.
+
+The corpus loader SHALL **derive** `bounds.gap_count` and the per-cell states from the
+inventory and the fixtures present, and SHALL NOT read them from a stored value. A stored count is a number that can go stale; a
+derived one cannot disagree with the tree it describes, and adding a fixture then moves
+the count with no edit to any central file.
+
+Only a case of kind `failure` SHALL mark a cell `covered`. A control asserts that
+healthy input stays silent and measures nothing about the mode.
 
 The corpus loader SHALL reject a case omitting any required field, naming the case and
 the field.
