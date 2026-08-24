@@ -460,8 +460,8 @@ than an agreement between two codebases nobody can verify from one of them.
 | FR-065-AC-40 | A case declaring `findable` and requiring no finding in any block is rejected unless declared in `known_gaps`. | Test (TC-1027) |
 | FR-065-AC-41 | A `known_gaps` entry naming no ticket, or naming no case, is rejected. | Test (TC-1027) |
 | FR-065-AC-42 | A failure case with a control whose `expect.yaml` holds against that control's payload is rejected, with `validate_*` graded over the control's tree. | Test (TC-1028) |
-| FR-065-AC-43 | A case of kind `regression` is accepted with no control and is not held to AC-42; one declaring `findable` or `control_for` is rejected. | Test (TC-1029) |
-| FR-065-AC-44 | A `regression` case credits its inventory cell, so a cell does not revert to GAP when its defect is fixed. | Test (TC-1029) |
+| FR-065-AC-43 | A case of kind `regression` is accepted with no control and is not held to AC-42; one declaring `findable`, `control_for` or `pending` is rejected. | Test (TC-1032) |
+| FR-065-AC-44 | A `regression` case credits its inventory cell, so a cell does not revert to GAP when its defect is fixed. | Test (TC-1032) |
 
 ## Dependencies
 

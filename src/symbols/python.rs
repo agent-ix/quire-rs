@@ -85,8 +85,15 @@ pub(crate) fn parse(path: &str, source: &str) -> Result<Vec<RawSymbol>, String> 
 ///
 /// Only the *triple* forms carry across lines, which is why a single-quoted span
 /// is not a variant: it is consumed within [`scan_line`] and never observed at a
-/// line boundary. An unterminated single-quoted string is a syntax error in the
-/// program, so ending the line in [`Quoting::Code`] is the honest recovery.
+/// line boundary.
+///
+/// A single-quoted string continued with a trailing backslash is legal Python
+/// and IS observed at a line boundary — `x = 'abc\` … `'`. The scan drops back
+/// to [`Quoting::Code`] there and reads the continuation as code, which can
+/// mint a declaration from string body. That is a known residual, not a claim
+/// that the case cannot arise: measured with `tokenize` over 3,689 real `.py`
+/// files, **zero** carry a multi-line non-triple string. The old scanner had
+/// the identical behaviour, so this is neither introduced nor fixed here.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum Quoting {
     Code,

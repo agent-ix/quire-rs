@@ -170,18 +170,36 @@ byte-identical JSON ordering and stable record ids.
 > numbers come from `quire_rs::symbols::extract_file` itself, run twice over one
 > file list — once on the parent commit, once on this one.
 >
-> **What did not change.** Scope is popped by indentation alone, so a `def`
-> indented under a block statement that itself dedents out of a class body still
-> reads as that class's method (`if not TYPE_CHECKING:` at column 0 holding
-> `def` at column 4). That is a distinct defect, it predates this one, and it is
-> the whole of the residual row above — one declaration in one first-party file.
+> **What did not change.** Scope is popped by indentation alone, so a
+> declaration nested inside a block that is itself nested keeps the wrong
+> qualifier. The residual row above is exactly one instance:
+> `workflow-plugin-sdk/tests/test_schema.py:69-75`, a function-local
+> `class EmptyModel` at column 8 inside a test method, capturing a nested
+> `async def handler` at column 12 — reported as
+> `TestSchemaGeneration.EmptyModel.handler` where `ast` says
+> `TestSchemaGeneration.handler`.
+>
+> An earlier draft of this note named `if not TYPE_CHECKING:` at column 0 as
+> the instance. That is the same defect CLASS and a real one, but it is not
+> what the residual row counts. Both old and new scanners produce it
+> identically, so it predates this change.
 > It is not folded in here, because a fix that widened this one until the
 > residue vanished would stop being a statement about triple quotes.
 >
 > **Not a tokenizer.** The adapter is line-oriented by design (FR-051's
 > indentation-structural model) and stays so: one left-to-right byte pass per
 > line, no allocation, no lookbehind, carrying a single `Quoting` value across
-> the line boundary. `scripts/check_perf_regression.sh` is the gate.
+> the line boundary.
+>
+> **No gate measures it**, and an earlier draft of this note claimed
+> `scripts/check_perf_regression.sh` does. It does not: that script is not in
+> `make ci`, and the CI `perf` job runs `--bench parse --bench load`, neither of
+> which touches `src/symbols/`. No bench exercises the adapter at all.
+>
+> Measured by hand instead — 199,800 lines through `extract_file`, twenty
+> passes: 0.85/0.90/0.93s before, 0.94/0.94/0.97s after, **about +6%**. Inside
+> the 10% band the retired claim invoked, but stated as a measurement rather
+> than as a gate that would catch a regression, because none would.
 
 > **CR-093 note (2026-08-22):** AC-19 is new — the binder says what it looked
 > at. `agent-ix/quire-rs#227`, epic `agent-ix/quoin#197`.
