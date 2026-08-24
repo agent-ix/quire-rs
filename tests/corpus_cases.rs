@@ -772,114 +772,156 @@ fn tc1024_every_l3_fragment_is_asserted() {
 // a forward block must be ABOUT its ticket.
 #[test]
 fn tc1025_the_loader_refuses_a_block_that_asserts_the_wrong_thing() {
+    // The case under mutation is CHOSEN AT RUNTIME, not named here.
+    //
+    // These mutations need a live PENDING case, and the set of those changes
+    // every time a ticket ships. This test named `section-name-mismatch` until
+    // #270 landed and retired its forward block; a mutation writing
+    // `expect-pending.yaml` into a case with no `pending:` is then rejected for
+    // THAT, not for the rule under test, and five assertions silently stopped
+    // measuring what they name. Retargeting by hand just moves the expiry date.
+    //
+    // Two kinds are needed and they are picked separately: a TOKEN case (its
+    // ticket introduces a diagnostic) and a BEHAVIOUR-CHANGE case (its ticket
+    // changes what the payload says). The rules differ, so both must be
+    // exercised, and neither can be a literal.
+    let cases = load_cases();
+    let corpus: serde_yaml::Value = serde_yaml::from_str(
+        &std::fs::read_to_string(corpus_case::corpus_root().join("corpus.yaml"))
+            .expect("read corpus.yaml"),
+    )
+    .expect("corpus.yaml parses");
+    let behaviour_change: BTreeSet<&str> = corpus
+        .get("behaviour_change_tickets")
+        .and_then(|v| v.as_sequence())
+        .map(|s| s.iter().filter_map(|v| v.as_str()).collect())
+        .unwrap_or_default();
+    let forward_tokens: std::collections::BTreeMap<&str, &str> = corpus
+        .get("diagnostic_reasons")
+        .and_then(|v| v.get("forward"))
+        .and_then(|v| v.as_mapping())
+        .map(|m| {
+            m.iter()
+                .filter_map(|(k, v)| Some((v.as_str()?, k.as_str()?)))
+                .collect()
+        })
+        .unwrap_or_default();
+
+    // A token case: pending on a ticket that is NOT a behaviour change, and
+    // whose ticket has a reserved forward token to name.
+    let token_case = cases
+        .iter()
+        .filter(|c| c.meta.pending.is_some())
+        .find(|c| {
+            let t = c.meta.pending.as_deref().unwrap_or("");
+            !behaviour_change.contains(t) && forward_tokens.contains_key(t)
+        })
+        .expect("a pending case on a token ticket — none left, so this measures nothing");
+    let token_ticket = token_case.meta.pending.clone().expect("ticket");
+    let token = forward_tokens[token_ticket.as_str()].to_string();
+    let token_dir = token_case
+        .dir
+        .strip_prefix(corpus_case::corpus_root())
+        .expect("under the corpus root")
+        .to_string_lossy()
+        .into_owned();
+
+    // A behaviour-change case, and its OWN live block — so "identical to its
+    // live block" stays identical when that block is re-measured.
+    let change_case = cases
+        .iter()
+        .filter(|c| c.meta.pending.is_some())
+        .find(|c| behaviour_change.contains(c.meta.pending.as_deref().unwrap_or("")))
+        .expect("a pending case on a behaviour-change ticket");
+    let change_dir = change_case
+        .dir
+        .strip_prefix(corpus_case::corpus_root())
+        .expect("under the corpus root")
+        .to_string_lossy()
+        .into_owned();
+    let change_live = std::fs::read_to_string(change_case.dir.join("expect.yaml"))
+        .expect("read the behaviour-change case's live block");
+
+    let pend = format!("{token_dir}/expect-pending.yaml");
+    let live = format!("{token_dir}/expect.yaml");
+    let change_pend = format!("{change_dir}/expect-pending.yaml");
+
     // Each: (file under the corpus root, its new contents, a fragment the
     // rejection must carry).
-    let mutations: &[(&str, &str, &str)] = &[
+    let mutations: Vec<(String, String, String)> = vec![
         // AC-30 — a token in neither list.
-        //
-        // Every mutation below that needs a PENDING case names
-        // `tag-on-non-test-function/rust`, whose ticket is
-        // `agent-ix/quire-rs#312`. It used to name `section-name-mismatch`,
-        // and #270 landing retired that case's forward block — a mutation
-        // writing `expect-pending.yaml` into a case with no `pending:` is
-        // rejected for THAT, not for the rule under test, and the assertion
-        // silently stopped measuring what it names. A mutation test needs a
-        // live pending case, and the set of those changes every time a ticket
-        // ships.
         (
-            "cases/attachment/tag-on-non-test-function/rust/expect-pending.yaml",
-            "diagnostic_reasons: [totally-bogus-token]\n",
-            "neither emitted nor forward",
+            pend.clone(),
+            "diagnostic_reasons: [totally-bogus-token]\n".to_string(),
+            "neither emitted nor forward".to_string(),
         ),
         // AC-31 — a LIVE block requiring what no engine emits yet.
         (
-            "cases/attachment/tag-on-non-test-function/rust/expect.yaml",
-            "diagnostic_reasons: [tag-on-non-binding-symbol]\n",
-            "belongs in expect-pending.yaml",
+            live.clone(),
+            format!("diagnostic_reasons: [{token}]\n"),
+            "belongs in expect-pending.yaml".to_string(),
         ),
         // AC-32 — a FAILURE case asserting its own pending token absent. That
         // block is guaranteed to fail the day the ticket lands.
         (
-            "cases/attachment/tag-on-non-test-function/rust/expect.yaml",
-            "total: 4\nabsent_diagnostic_reasons: [tag-on-non-binding-symbol]\n",
-            "a live block must survive the fix it waits for",
+            live.clone(),
+            format!("total: 4\nabsent_diagnostic_reasons: [{token}]\n"),
+            "a live block must survive the fix it waits for".to_string(),
         ),
         // AC-33 — non-empty as YAML, zero assertions when graded.
         (
-            "cases/attachment/tag-on-non-test-function/rust/expect-pending.yaml",
-            "diagnostic_reasons: []\n",
-            "asserts nothing",
+            pend.clone(),
+            "diagnostic_reasons: []\n".to_string(),
+            "asserts nothing".to_string(),
         ),
         // AC-36 — merely FALSE, not ABOUT the ticket. This is the one that
         // survived two rounds of review: false today, false after the fix, and
         // the case sits pending forever with no gate saying so.
         (
-            "cases/attachment/tag-on-non-test-function/rust/expect-pending.yaml",
-            "backed: 99\n",
-            "requires no token that agent-ix/quire-rs#312 introduces",
+            pend.clone(),
+            "backed: 99\n".to_string(),
+            format!("requires no token that {token_ticket} introduces"),
         ),
         // A BEHAVIOUR-CHANGE forward block silent on a key its live block
         // asserts. The rule is "the same measurement, after", so a block that
-        // drops `untracked_symbols` — the only field this row's defect moves —
-        // is not that measurement.
+        // drops keys the live block pins is not that measurement.
         (
-            "cases/minting/rows-across-many-headings/rust/expect-pending.yaml",
-            "total: 4\nbacked: 3\nunbacked_rows: []\n",
-            "silent on ['groups', 'untracked_symbols']",
+            change_pend.clone(),
+            "total: 4\nbacked: 3\nunbacked_rows: []\n".to_string(),
+            "silent on".to_string(),
         ),
-        // And one identical to its live block: the ticket landing would change
-        // nothing the fixture can see.
+        // And one IDENTICAL to its live block: the ticket landing would change
+        // nothing the fixture can see. Read from that block rather than
+        // transcribed, so it stays identical when the block is re-measured.
         (
-            "cases/minting/rows-across-many-headings/rust/expect-pending.yaml",
-            concat!(
-                "total: 2\nbacked: 1\nunbacked_rows: []\n",
-                "untracked_symbols:\n",
-                "  - symbol: \"tests::covers_the_second_criterion\"\n",
-                "    trace_id: TC-002\n",
-                "    path: src/lib.rs\n",
-                "  - symbol: \"tests::covers_the_third_criterion\"\n",
-                "    trace_id: TC-003\n",
-                "    path: src/lib.rs\n",
-                "groups:\n",
-                "  - document: spec/FR-001.md\n",
-                "    target: acceptance-criterion\n",
-                "    backed: 0\n",
-                "    total: 1\n",
-                "  - document: spec/tests.md\n",
-                "    target: test-case\n",
-                "    backed: 1\n",
-                "    total: 1\n",
-            ),
-            "landing would change nothing",
+            change_pend.clone(),
+            change_live.clone(),
+            "landing would change nothing".to_string(),
         ),
         // AC-36, the other half — an ALREADY-EMITTED token in a forward block.
         // The shape a partial landing takes: the token fires, the message is
         // not actionable, and the fixture reads as "not landed yet" forever.
         (
-            "cases/attachment/tag-on-non-test-function/rust/expect-pending.yaml",
-            "diagnostic_reasons: [catch-all-universal]\n",
-            "which the engine already emits",
+            pend.clone(),
+            "diagnostic_reasons: [catch-all-universal]\n".to_string(),
+            "which the engine already emits".to_string(),
         ),
         // A typo'd key in a forward block was GRADED, so the fixture's own
         // schema error read as evidence about the engine.
         (
-            "cases/attachment/tag-on-non-test-function/rust/expect-pending.yaml",
-            "diagnostic_reason: [tag-on-non-binding-symbol]\n",
-            "unhandled key",
+            pend.clone(),
+            format!("diagnostic_reason: [{token}]\n"),
+            "unhandled key".to_string(),
         ),
         // The pairing, both directions (AC-26).
-        (
-            "cases/attachment/tag-on-non-test-function/rust/expect-pending.yaml",
-            "",
-            "asserts nothing",
-        ),
+        (pend.clone(), String::new(), "asserts nothing".to_string()),
         // AC-39 — the LIVE block, which was checked by neither reader. This
         // is round one's defect reached by truncating the file: every gate
         // stayed green with the cell still `covered`.
         (
-            "cases/attachment/tag-on-non-test-function/rust/expect.yaml",
-            "",
-            "expect.yaml asserts nothing",
+            live.clone(),
+            String::new(),
+            "expect.yaml asserts nothing".to_string(),
         ),
     ];
 
