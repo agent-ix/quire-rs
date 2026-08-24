@@ -42,12 +42,38 @@ fn corpus_cases_hold() {
     assert!(!cases.is_empty(), "the corpus is not empty");
 
     let mut failures = String::new();
+    let mut pending_now_passing = String::new();
+    let mut pending = 0usize;
+
     for case in &cases {
         let outcome = grade(case, &run(case));
-        if !outcome.passed() {
-            failures.push_str(&outcome.report());
+        match (&case.meta.pending, outcome.passed()) {
+            // Expected to fail, and does. The corpus records a defect the
+            // engine has not fixed — which is the state EPIC #264 rule 3 wants
+            // a fixture to be in BEFORE its fix lands.
+            (Some(_), false) => pending += 1,
+            // Expected to fail and passes: the fix landed, and the marker is
+            // now lying about the engine. Failing here is what stops a corpus
+            // filling up with stale `pending:` markers nobody revisits.
+            (Some(ticket), true) => pending_now_passing.push_str(&format!(
+                "  {} now PASSES — {ticket} appears to have landed. Remove \
+                 `pending:` from its case.yaml.\n",
+                case.meta.id
+            )),
+            (None, false) => failures.push_str(&outcome.report()),
+            (None, true) => {}
         }
     }
+
+    if pending > 0 {
+        // Printed, not hidden. A count of known-failing cases is a measurement
+        // of what the engine cannot yet do, and it belongs beside every run.
+        println!("{pending} case(s) pending a fix — expected to fail, and did.");
+    }
+    assert!(
+        pending_now_passing.is_empty(),
+        "a pending case started passing:\n{pending_now_passing}"
+    );
     assert!(
         failures.is_empty(),
         "corpus cases lost a detection level:\n{failures}"
