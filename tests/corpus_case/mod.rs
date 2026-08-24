@@ -113,6 +113,20 @@ pub struct CaseMeta {
     pub kind: String,
     #[serde(default)]
     pub control_for: Option<String>,
+    /// The ticket that will make this case pass. Present means the case
+    /// asserts behaviour the engine does not have yet, and is EXPECTED to fail.
+    ///
+    /// This is what makes "corpus case red before fix" (EPIC #264 rule 3)
+    /// workable: a defect gets its fixture the day it is found, the fixture
+    /// fails honestly, and the suite still goes green. Without it the only
+    /// options are a red build nobody can merge past, or writing the fixture
+    /// after the fix — at which point the "before" was never captured and the
+    /// regression is untested.
+    ///
+    /// A pending case that PASSES is itself a failure: the fix landed and the
+    /// marker is now lying about the state of the engine.
+    #[serde(default)]
+    pub pending: Option<String>,
     #[serde(default)]
     pub findable: bool,
     #[serde(default)]
@@ -258,9 +272,19 @@ pub fn load_cases() -> Vec<Case> {
 /// is now real rather than three hardcoded directories.
 pub fn run(case: &Case) -> quire_rs::CoverageReport {
     let input = case.input();
-    let module = input.join("module");
-    let registry = quire_rs::Registry::load_module(&module)
-        .unwrap_or_else(|e| panic!("{}: module load failed: {e}", case.meta.id));
+    // The SHARED module the case names, not a per-case copy. Eleven copies of
+    // one manifest is how `module:` came to be false for two cases in #266's
+    // review: the field named one thing and the file loaded another, because
+    // the file was the copy. Resolving through the field makes it load-bearing.
+    let module = corpus_root().join("modules").join(&case.meta.module);
+    let registry = quire_rs::Registry::load_module(&module).unwrap_or_else(|e| {
+        panic!(
+            "{}: module `{}` failed to load from {}: {e}",
+            case.meta.id,
+            case.meta.module,
+            module.display()
+        )
+    });
     let spec = quire_rs::Spec::from_path(&input.join("spec"));
     let model = registry.traceability().cloned().unwrap_or_default();
     let extraction = quire_rs::symbols::extract_tree_scoped(
