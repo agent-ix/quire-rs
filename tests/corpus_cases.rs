@@ -992,6 +992,30 @@ fn tc1026_the_declared_vocabulary_matches_the_engine() {
         );
     }
 
+    // A SUPPRESSED token is the inverse of a forward one: its literal IS in
+    // the engine — the finding is computed — and what the ticket changes is
+    // that it reaches the payload. Asserting it is absent from `src/` would be
+    // exactly backwards, so it is asserted PRESENT, like an emitted token.
+    let suppressed: Vec<(&str, &str)> = vocabulary
+        .get("suppressed")
+        .and_then(|v| v.as_mapping())
+        .map(|m| {
+            m.iter()
+                .filter_map(|(k, v)| Some((k.as_str()?, v.as_str()?)))
+                .collect()
+        })
+        .unwrap_or_default();
+    assert!(!suppressed.is_empty(), "`suppressed` is read");
+    for (token, ticket) in &suppressed {
+        assert!(
+            sources.contains(&format!("\"{token}\"")),
+            "corpus.yaml declares `{token}` suppressed, waiting on {ticket}, but no \
+             literal by that name appears in src/. A suppressed token is one the \
+             engine COMPUTES and discards — if the engine no longer has it, the \
+             fixtures waiting on it are waiting for something that cannot arrive.",
+        );
+    }
+
     let forward = vocabulary
         .get("forward")
         .and_then(|v| v.as_mapping())
