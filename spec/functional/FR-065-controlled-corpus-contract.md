@@ -126,13 +126,20 @@ A case reproduces with the invocation recorded in its own `case.yaml`, with no h
 and no generator. It runs **from the corpus root**:
 
 ```
-quire coverage --scope cases/<mode>/<case>/input --module modules/ecosystem --json
+IX_FILAMENT_MODULES_PATH=modules/ecosystem \
+  quire coverage --scope cases/<mode>/<case>/input --json
 ```
 
-The `--module` argument is not optional decoration: without it no traceability model
-loads, the run reports `0/0 rows backed`, and the case cannot exhibit the declaration
-defect it exists for. If the only way to see a case fail is to run the runner, the
-corpus is code again and the contract has bought nothing.
+Naming the module is not optional decoration: without it no traceability model loads,
+the run reports `0/0 rows backed`, and the case cannot exhibit the declaration defect it
+exists for. If the only way to see a case fail is to run the runner, the corpus is code
+again and the contract has bought nothing.
+
+**The ecosystem declaration is a module PATH, not one module** (CR-108). It is
+`spec-artifacts-process` *and* `spec-artifacts-iso`: the first carries the traceability
+model, the second declares `FR`, `NFR` and `TestMatrix`. `--module` takes a single
+directory, so a path is selected with `IX_FILAMENT_MODULES_PATH`. A case binding one
+module still uses `--module`, and the runner reads whichever shape the case declares.
 
 **Why from the root and not from inside `input/`.** The first draft of this requirement
 documented `cd input && … --module ../../../../modules/ecosystem`, which **the CLI
@@ -149,8 +156,10 @@ by running it.
   bounds matrix.
 - A case directory `cases/<mode>/<case>/[<language>/]`: `case.yaml`, an `input/` tree of
   static files, `expect.yaml`.
-- `modules/ecosystem/`: the real declaration, vendored from `spec-artifacts-process` and
-  pinned by SHA. `modules/variants/<id>/`: relaxation variants.
+- `modules/ecosystem/`: the real declaration, vendored **whole** — both
+  `spec-artifacts-process` and `spec-artifacts-iso`, each with its own pinned SHA.
+  Whole directories rather than manifests, because archetypes reference their schema
+  files relative to the module root. `modules/variants/<id>/`: relaxation variants.
 - `labels/`, `config/metrics.json`, `baselines/{quire-rs,quoin}.json`: ground truth,
   the metric dictionary, and per-runner baselines, versioned with the corpus.
 
@@ -222,7 +231,7 @@ than an agreement between two codebases nobody can verify from one of them.
 | FR-065-CON-1 | Case data SHALL NOT be embedded in runner code or generated at runtime. A case that cannot be read without executing something is not data. The one exception is stated in the Behavior section: a mutating case operates on a copy and never writes the checked-in tree. | Architecture | Test |
 | FR-065-CON-2 | Every surface reporting `bounds.gap_count` SHALL render it as an absolute count, never normalised into a ratio or a percentage. This is FR-063-AC-6 applied to this metric, not a second rule. | Architecture | Test |
 | FR-065-CON-3 | A case SHALL bind the vendored ecosystem module unless it names a relaxation ticket. A corpus whose manifest always matches cannot exhibit a declaration defect. | Architecture | Test |
-| FR-065-CON-4 | The vendored `modules/ecosystem/` SHALL be refreshed from `spec-artifacts-process` by a recorded ritual that moves a pinned SHA, so the declaration a case binds is a reviewable event rather than a silent copy. | Process | Inspection |
+| FR-065-CON-4 | The vendored `modules/ecosystem/` SHALL be refreshed from every declaring module by a recorded ritual that copies whole module directories and moves each pinned SHA, so the declaration a case binds is a reviewable event rather than a silent copy. | Process | Inspection |
 
 ## Acceptance Criteria
 
