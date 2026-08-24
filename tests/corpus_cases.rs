@@ -22,7 +22,7 @@ use std::collections::BTreeSet;
 
 use ix_trace_rs::trace;
 
-use corpus_case::{grade, load_cases, run, Level};
+use corpus_case::{grade, grade_with, load_cases, run, Level};
 
 #[trace("TC-992", "FR-050-AC-29")]
 // marker-form mismatch, and its control. (CR-098)
@@ -46,22 +46,50 @@ fn corpus_cases_hold() {
     let mut pending = 0usize;
 
     for case in &cases {
-        let outcome = grade(case, &run(case));
-        match (&case.meta.pending, outcome.passed()) {
-            // Expected to fail, and does. The corpus records a defect the
-            // engine has not fixed — which is the state EPIC #264 rule 3 wants
-            // a fixture to be in BEFORE its fix lands.
-            (Some(_), false) => pending += 1,
-            // Expected to fail and passes: the fix landed, and the marker is
-            // now lying about the engine. Failing here is what stops a corpus
-            // filling up with stale `pending:` markers nobody revisits.
-            (Some(ticket), true) => pending_now_passing.push_str(&format!(
-                "  {} now PASSES — {ticket} appears to have landed. Remove \
-                 `pending:` from its case.yaml.\n",
+        let report = run(case);
+
+        // `expect.yaml` is the LIVE contract and is graded the same way for
+        // every case, pending or not. Previously a pending case's whole
+        // expectation block was allowed to fail, so the rule became "a pending
+        // fixture asserts only what is pending" and every fact that held today
+        // went unasserted — `unbacked_rows` among them, which is the only
+        // field distinguishing the two minting fixtures from each other.
+        let outcome = grade(case, &report);
+        if !outcome.passed() {
+            failures.push_str(&outcome.report());
+        }
+
+        // `expect-pending.yaml` is the FORWARD contract: what the named ticket
+        // will make true, and what must not be true yet.
+        match (&case.meta.pending, &case.expect_pending) {
+            (Some(ticket), Some(forward)) => {
+                let ahead = grade_with(case, &report, forward);
+                if ahead.passed() {
+                    // The fix landed and the marker is now lying about the
+                    // engine. Failing here is what stops a corpus filling up
+                    // with stale `pending:` markers nobody revisits.
+                    pending_now_passing.push_str(&format!(
+                        "  {} now satisfies expect-pending.yaml — {ticket} appears to \
+                         have landed. Fold it into expect.yaml and drop `pending:`.\n",
+                        case.meta.id
+                    ));
+                } else {
+                    pending += 1;
+                }
+            }
+            // Both halves of the pairing, because either alone is a fixture
+            // whose forward claim nothing grades.
+            (Some(_), None) => failures.push_str(&format!(
+                "{}: declares `pending:` and ships no expect-pending.yaml — the \
+                 behaviour it is waiting on is asserted nowhere.\n",
                 case.meta.id
             )),
-            (None, false) => failures.push_str(&outcome.report()),
-            (None, true) => {}
+            (None, Some(_)) => failures.push_str(&format!(
+                "{}: ships expect-pending.yaml and declares no `pending:` — a \
+                 forward claim naming no ticket.\n",
+                case.meta.id
+            )),
+            (None, None) => {}
         }
     }
 
@@ -112,9 +140,10 @@ fn tc1016_a_lost_level_is_named_and_graded() {
         .next()
         .expect("a reason")
         .clone();
-    case.expect
-        .diagnostic_message_contains
-        .insert(reason, "a phrase no diagnostic will ever carry".to_string());
+    case.expect.diagnostic_message_contains.insert(
+        reason,
+        vec!["a phrase no diagnostic will ever carry".to_string()],
+    );
 
     let outcome = grade(case, &report);
     assert!(!outcome.passed());
@@ -458,12 +487,7 @@ fn tc1022_a_variant_varies_expectations_not_identity() {
             case.meta.id,
         );
         // AC-22: the identity fields come from the SHARED file, so a variant
-        // that re-declared one differently would be two claims about one fact.
-        let shared: serde_yaml::Value = serde_yaml::from_str(
-            &std::fs::read_to_string(case.dir.parent().expect("set root").join("case.yaml"))
-                .expect("read shared case.yaml"),
-        )
-        .expect("shared case.yaml parses");
+        // that declared one would be a second claim about one fact.
         let variant: serde_yaml::Value = if case.dir.join("case.yaml").is_file() {
             serde_yaml::from_str(
                 &std::fs::read_to_string(case.dir.join("case.yaml")).expect("read case.yaml"),
@@ -472,16 +496,188 @@ fn tc1022_a_variant_varies_expectations_not_identity() {
         } else {
             serde_yaml::Value::Null
         };
+        // PRESENCE, not disagreement. The first version compared the two only
+        // when BOTH files carried the field, so a variant could INJECT one the
+        // shared file omitted and nothing fired. Measured: adding `pending:`
+        // to one control variant and then breaking that control left
+        // `32/32, 0 mismatches, rc 0` and the bounds matrix unmoved — the
+        // control that exists to prove a check stays silent on healthy input
+        // had been converted into an expected failure by one line.
         for field in ["case", "mode", "module", "kind", "pending"] {
-            if let (Some(v), Some(sh)) = (variant.get(field), shared.get(field)) {
-                assert_eq!(
-                    v, sh,
-                    "{}: a variant may not override `{field}` — it declares WHICH \
-                     case this is, and varying it re-points the cell the fixture \
-                     credits while `gap_count` stays put",
-                    case.meta.id,
-                );
-            }
+            assert!(
+                variant.get(field).is_none(),
+                "{}: a variant may not declare `{field}` at all — it declares \
+                 WHICH case this is, and the shared `case.yaml` is where that \
+                 claim lives (FR-065-AC-22)",
+                case.meta.id,
+            );
         }
     }
+}
+
+/// The two expectation blocks, and the pairing between them.
+///
+/// `pending:` used to excuse a case's WHOLE expectation block, so the working
+/// rule was "a pending fixture asserts only what is pending" and every fact
+/// true today went unasserted. Measured on the two minting rows: both fixtures
+/// could have regressed to minting nothing at all, in three languages, and
+/// stayed green.
+#[trace("TC-1023", "FR-065-AC-25")]
+// the live block holds for a pending case too.
+#[trace("TC-1023", "FR-065-AC-26")]
+// `pending:` and `expect-pending.yaml` imply each other.
+#[trace("TC-1023", "FR-065-AC-27")]
+// a forward block that starts holding fails the run.
+#[test]
+fn tc1023_a_pending_case_still_asserts_what_is_true_today() {
+    let cases = load_cases();
+
+    // AC-26, over the real corpus, both directions.
+    for case in &cases {
+        assert_eq!(
+            case.meta.pending.is_some(),
+            case.expect_pending.is_some(),
+            "{}: `pending:` and `expect-pending.yaml` imply each other — one \
+             without the other is either a forward claim nothing grades or a \
+             forward claim naming no ticket",
+            case.meta.id,
+        );
+    }
+
+    let pending: Vec<_> = cases.iter().filter(|c| c.meta.pending.is_some()).collect();
+    assert!(
+        !pending.is_empty(),
+        "no pending case, so this asserts nothing"
+    );
+
+    for case in pending {
+        let report = run(case);
+        // AC-25. The live block is graded like any other case's.
+        let live = grade(case, &report);
+        assert!(live.passed(), "{}", live.report());
+        // AC-27's precondition: the forward block does NOT hold yet. When it
+        // does, `corpus_cases_hold` fails naming the ticket — asserted here so
+        // a forward block that was vacuous from the start cannot hide as
+        // "pending, failed as expected".
+        let ahead = grade_with(
+            case,
+            &report,
+            case.expect_pending.as_ref().expect("forward"),
+        );
+        assert!(
+            !ahead.passed(),
+            "{}: expect-pending.yaml already holds — {} appears to have landed",
+            case.meta.id,
+            case.meta.pending.as_deref().unwrap_or(""),
+        );
+    }
+}
+
+/// `unbacked_rows` and `groups` are exact in BOTH directions.
+///
+/// This is the pair that tells the two minting defects apart. A wrong section
+/// name strands the whole table so nothing mints; a wrong id column still reads
+/// it and mints a row whose identity is null. Every other key of those two
+/// payloads is byte-identical, and a subset match would let either case pass on
+/// the other's payload.
+#[trace("TC-1024", "FR-065-AC-28")]
+// exact, both directions; `[]` is an assertion.
+#[test]
+fn tc1024_unbacked_rows_and_groups_are_exact() {
+    let mut cases = load_cases();
+
+    // A case asserting a NON-empty `unbacked_rows`: emptying it must fail.
+    let case = cases
+        .iter_mut()
+        .find(|c| {
+            c.expect
+                .unbacked_rows
+                .as_ref()
+                .is_some_and(|r| !r.is_empty())
+        })
+        .expect("a case asserting unbacked rows");
+    let report = run(case);
+    assert!(
+        grade(case, &report).passed(),
+        "{}",
+        grade(case, &report).report()
+    );
+    case.expect.unbacked_rows = Some(Vec::new());
+    let outcome = grade(case, &report);
+    assert!(
+        !outcome.passed(),
+        "an empty list must be an assertion, not an omission"
+    );
+    assert_eq!(outcome.level_lost(), Some(corpus_case::Level::L2Localised));
+
+    // And a case asserting an EMPTY one: it must reject a payload that mints.
+    let mut cases = load_cases();
+    let empty = cases
+        .iter_mut()
+        .find(|c| {
+            c.expect
+                .unbacked_rows
+                .as_ref()
+                .is_some_and(|r| r.is_empty())
+        })
+        .expect("a case asserting no unbacked rows");
+    let report = run(empty);
+    assert!(grade(empty, &report).passed());
+
+    // `groups` names WHAT minted, which `total` cannot: `total: 2` is satisfied
+    // by any two backed ids from anywhere, so a control asserting it could not
+    // say that the TC row mints at all.
+    let mut cases = load_cases();
+    let grouped = cases
+        .iter_mut()
+        .find(|c| c.expect.groups.as_ref().is_some_and(|g| g.len() > 1))
+        .expect("a case asserting more than one group");
+    let report = run(grouped);
+    assert!(grade(grouped, &report).passed());
+    grouped.expect.groups.as_mut().expect("groups").pop();
+    let outcome = grade(grouped, &report);
+    assert!(
+        !outcome.passed(),
+        "a dropped group must fail: the count is the claim"
+    );
+    assert_eq!(outcome.level_lost(), Some(corpus_case::Level::L1Detected));
+}
+
+/// Every substring in an L3 list is asserted, not just the first.
+///
+/// For a mismatch, L3 is TWO facts — what was found and what was declared — and
+/// a message naming either one satisfies a single-substring assertion while
+/// leaving its reader unable to act. `agent-ix/identity` has 606 ids stranded
+/// on exactly this: told only "the declared id column was not found", its
+/// reader edits the heading, which is already correct.
+#[trace("TC-1024", "FR-065-AC-29")]
+// each fragment in the list must be present.
+#[test]
+fn tc1024_every_l3_fragment_is_asserted() {
+    let mut cases = load_cases();
+    let case = cases
+        .iter_mut()
+        .find(|c| !c.expect.diagnostic_message_contains.is_empty())
+        .expect("a case asserting an L3 message");
+    let report = run(case);
+    assert!(grade(case, &report).passed());
+
+    // Append a SECOND fragment that no message carries. A grader checking only
+    // the first would still pass.
+    let reason = case
+        .expect
+        .diagnostic_message_contains
+        .keys()
+        .next()
+        .expect("a reason")
+        .clone();
+    case.expect
+        .diagnostic_message_contains
+        .get_mut(&reason)
+        .expect("fragments")
+        .push("a phrase no diagnostic will ever carry".to_string());
+
+    let outcome = grade(case, &report);
+    assert!(!outcome.passed(), "every fragment in the list is asserted");
+    assert_eq!(outcome.level_lost(), Some(corpus_case::Level::L3Actionable));
 }
