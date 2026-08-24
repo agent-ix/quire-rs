@@ -218,6 +218,13 @@ pub struct CaseExpect {
     /// declaration minted nothing at all.
     #[serde(default)]
     pub unbacked_rows: Option<Vec<ExpectUnbackedRow>>,
+    /// L2. Symbols binding a trace id that no minted row answers for.
+    ///
+    /// The field that already makes #272's defect observable: rows spread
+    /// across headings the declaration cannot reach mint nothing, so the tests
+    /// answering for them land here instead — with a path and a line, today.
+    #[serde(default)]
+    pub untracked_symbols: Option<Vec<ExpectUntracked>>,
     /// L1. Per-document mint counts by target kind, EXACTLY.
     ///
     /// A control's real job is proving the row it is about MINTS — `test-case
@@ -260,6 +267,15 @@ pub struct ExpectUnbackedRow {
     pub document: String,
     pub row_id: Option<String>,
     pub target_ids: Vec<String>,
+}
+
+/// One symbol binding a trace id no minted row answers for.
+#[derive(Debug, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct ExpectUntracked {
+    pub symbol: String,
+    pub trace_id: String,
+    pub path: String,
 }
 
 /// One document's mint count for one declared target kind. All fields
@@ -803,6 +819,24 @@ pub fn grade_against(
         }
     }
 
+    if let Some(want) = &e.untracked_symbols {
+        let got: Vec<ExpectUntracked> = report
+            .untracked_symbols
+            .iter()
+            .map(|u| ExpectUntracked {
+                symbol: u.symbol.clone(),
+                trace_id: u.trace_id.clone(),
+                path: u.path.clone(),
+            })
+            .collect();
+        if &got != want {
+            fail(
+                Level::L2Localised,
+                format!("untracked_symbols: expected {want:?}, got {got:?}"),
+            );
+        }
+    }
+
     if let Some(want) = &e.groups {
         let got: Vec<ExpectGroup> = report
             .groups
@@ -947,5 +981,6 @@ impl CaseExpect {
             || !self.validate_absent.is_empty()
             || self.unbacked_rows.is_some()
             || self.groups.is_some()
+            || self.untracked_symbols.is_some()
     }
 }
