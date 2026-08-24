@@ -244,6 +244,27 @@ impl Case {
     }
 }
 
+/// Load every module under a module PATH.
+///
+/// `Registry::from_env` is the only public surface that reads a search path, so
+/// the path is handed to it through `IX_FILAMENT_MODULES_PATH`. Every corpus
+/// case that needs a path wants the SAME one — the vendored `modules/ecosystem`
+/// — so setting it once is deterministic rather than a race between tests, and
+/// the `Once` makes that explicit instead of accidental.
+fn load_module_path(path: &Path, case_id: &str) -> quire_rs::Registry {
+    static SET: std::sync::Once = std::sync::Once::new();
+    SET.call_once(|| std::env::set_var("IX_FILAMENT_MODULES_PATH", path));
+    let configured = std::env::var("IX_FILAMENT_MODULES_PATH").unwrap_or_default();
+    assert_eq!(
+        configured,
+        path.to_string_lossy(),
+        "{case_id}: two different module paths in one run — the search path is \
+         process-wide, so a second one would silently re-use the first",
+    );
+    quire_rs::Registry::from_env()
+        .unwrap_or_else(|e| panic!("{case_id}: module path {} failed: {e}", path.display()))
+}
+
 /// A case's expectations, from the directory holding its `input/`.
 fn read_expect(dir: &Path) -> CaseExpect {
     serde_yaml::from_str(
@@ -360,14 +381,24 @@ pub fn run(case: &Case) -> quire_rs::CoverageReport {
     // review: the field named one thing and the file loaded another, because
     // the file was the copy. Resolving through the field makes it load-bearing.
     let module = corpus_root().join("modules").join(&case.meta.module);
-    let registry = quire_rs::Registry::load_module(&module).unwrap_or_else(|e| {
-        panic!(
-            "{}: module `{}` failed to load from {}: {e}",
-            case.meta.id,
-            case.meta.module,
-            module.display()
-        )
-    });
+    // A module id names either ONE module (`manifest.yaml` directly) or a
+    // module PATH — a directory of module directories. `ecosystem` is the
+    // second: the real declaration is `spec-artifacts-process` AND
+    // `spec-artifacts-iso`, and loading only the first left criteria
+    // classification silently producing nothing while totals looked identical
+    // (agent-ix/quire-rs#292).
+    let registry = if module.join("manifest.yaml").is_file() {
+        quire_rs::Registry::load_module(&module).unwrap_or_else(|e| {
+            panic!(
+                "{}: module `{}` failed to load from {}: {e}",
+                case.meta.id,
+                case.meta.module,
+                module.display()
+            )
+        })
+    } else {
+        load_module_path(&module, &case.meta.id)
+    };
     let spec = quire_rs::Spec::from_path(&input.join("spec"));
     let model = registry.traceability().cloned().unwrap_or_default();
     let extraction = quire_rs::symbols::extract_tree_scoped(
