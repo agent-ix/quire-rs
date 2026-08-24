@@ -667,6 +667,29 @@ fn tc1024_unbacked_rows_and_groups_are_exact() {
     );
     assert_eq!(outcome.level_lost(), Some(corpus_case::Level::L2Localised));
 
+    // `untracked_symbols` — the only field row 4's defect moves, and the field
+    // #272's own body names as where the evidence already lives.
+    let mut cases = load_cases();
+    let untracked = cases
+        .iter_mut()
+        .find(|c| {
+            c.expect
+                .untracked_symbols
+                .as_ref()
+                .is_some_and(|u| !u.is_empty())
+        })
+        .expect("a case asserting untracked symbols");
+    let report = run(untracked);
+    assert!(grade(untracked, &report).passed());
+    untracked.expect.untracked_symbols = Some(Vec::new());
+    let outcome = grade(untracked, &report);
+    assert!(
+        !outcome.passed(),
+        "an empty list must be an assertion: a defect whose only trace is \
+         `untracked_symbols` disappears if `[]` is read as `unasserted`"
+    );
+    assert_eq!(outcome.level_lost(), Some(corpus_case::Level::L2Localised));
+
     // `groups` names WHAT minted, which `total` cannot: `total: 2` is satisfied
     // by any two backed ids from anywhere, so a control asserting it could not
     // say that the TC row mints at all.
@@ -784,6 +807,40 @@ fn tc1025_the_loader_refuses_a_block_that_asserts_the_wrong_thing() {
             "cases/minting/section-name-mismatch/rust/expect-pending.yaml",
             "backed: 99\n",
             "requires no token that agent-ix/quire-rs#270 introduces",
+        ),
+        // A BEHAVIOUR-CHANGE forward block silent on a key its live block
+        // asserts. The rule is "the same measurement, after", so a block that
+        // drops `untracked_symbols` — the only field this row's defect moves —
+        // is not that measurement.
+        (
+            "cases/minting/rows-across-many-headings/rust/expect-pending.yaml",
+            "total: 4\nbacked: 3\nunbacked_rows: []\n",
+            "silent on ['groups', 'untracked_symbols']",
+        ),
+        // And one identical to its live block: the ticket landing would change
+        // nothing the fixture can see.
+        (
+            "cases/minting/rows-across-many-headings/rust/expect-pending.yaml",
+            concat!(
+                "total: 2\nbacked: 1\nunbacked_rows: []\n",
+                "untracked_symbols:\n",
+                "  - symbol: \"tests::covers_the_second_criterion\"\n",
+                "    trace_id: TC-002\n",
+                "    path: src/lib.rs\n",
+                "  - symbol: \"tests::covers_the_third_criterion\"\n",
+                "    trace_id: TC-003\n",
+                "    path: src/lib.rs\n",
+                "groups:\n",
+                "  - document: spec/FR-001.md\n",
+                "    target: acceptance-criterion\n",
+                "    backed: 0\n",
+                "    total: 1\n",
+                "  - document: spec/tests.md\n",
+                "    target: test-case\n",
+                "    backed: 1\n",
+                "    total: 1\n",
+            ),
+            "landing would change nothing",
         ),
         // AC-36, the other half — an ALREADY-EMITTED token in a forward block.
         // The shape a partial landing takes: the token fires, the message is
@@ -1116,6 +1173,12 @@ fn tc1028_a_failure_case_discriminates_from_its_control() {
         .map(|s| s.iter().filter_map(|v| v.as_str()).collect())
         .unwrap_or_default();
 
+    let behaviour_change: BTreeSet<&str> = declaration
+        .get("behaviour_change_tickets")
+        .and_then(|v| v.as_sequence())
+        .map(|s| s.iter().filter_map(|v| v.as_str()).collect())
+        .unwrap_or_default();
+
     let mut checked = 0usize;
     let mut blind = String::new();
     for case in &cases {
@@ -1153,12 +1216,49 @@ fn tc1028_a_failure_case_discriminates_from_its_control() {
         };
 
         let healthy = run(control);
-        // The LIVE block only. Grading the forward block here was a theorem
-        // dressed as a test: AC-36 requires every `expect-pending.yaml` to
-        // require a `forward` token and AC-35 guarantees no engine emits one on
-        // any input, so a conformant forward block cannot hold against ANY
-        // payload. Six of seventeen graded blocks asserted nothing, and
-        // TC-1023 already makes the real claim.
+        // A BEHAVIOUR-CHANGE forward block is held to the OPPOSITE rule, and
+        // it is the strongest check available to one. The control is the
+        // healthy repair of its partner — for a fix that changes what MINTS,
+        // that repaired tree is exactly what the engine should produce once
+        // the fix lands. So the forward block must HOLD against the control's
+        // payload.
+        //
+        // Without it the shape rule ("re-state the live block's graded keys
+        // with one different value") is satisfied by `total: 999` — different
+        // from today, and wrong after the fix too. Measured: accepted by the
+        // loader. Against the control it fails immediately.
+        //
+        // A token-ticket forward block is NOT held to this. AC-36 requires it
+        // to name a token AC-35 guarantees no engine emits, so it cannot hold
+        // against any payload and grading it here would be a theorem restated
+        // as a test.
+        if let Some(forward) = &case.expect_pending {
+            if behaviour_change.contains(case.meta.pending.as_deref().unwrap_or("")) {
+                let ahead = corpus_case::grade_against(
+                    case,
+                    &healthy,
+                    forward,
+                    corpus_case::ValidateSource::Tree(control),
+                );
+                if !ahead.passed() {
+                    blind.push_str(&format!(
+                        "  {} — its expect-pending.yaml does NOT hold against {}'s \
+                         payload. That control is the repaired tree, which is what \
+                         the engine should produce once {} lands, so a forward block \
+                         that fails against it describes no reachable state:\n{}",
+                        case.meta.id,
+                        control.meta.id,
+                        case.meta.pending.as_deref().unwrap_or(""),
+                        ahead.report(),
+                    ));
+                }
+            }
+        }
+
+        // The LIVE block. Grading a TOKEN forward block here was a theorem
+        // dressed as a test: AC-36 requires it to name a token AC-35 guarantees
+        // no engine emits, so it cannot hold against any payload. TC-1023
+        // already makes the claim that has content.
         for (block, which) in [(Some(&case.expect), "expect.yaml")] {
             let Some(block) = block else { continue };
             let verdict = corpus_case::grade_against(
