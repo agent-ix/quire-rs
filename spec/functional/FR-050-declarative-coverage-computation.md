@@ -155,9 +155,62 @@ model; the engine knows nothing of "AC" or "TC" as concepts.
 | FR-050-AC-30 | A corpus benchmark scores declared metrics against checked-in baselines with **ratchet** semantics: better rewrites the baseline, equal holds, worse fails naming the metric and both values. Every metric declares unit / population / method / direction, and a number outside the dictionary is refused. A `gate-zero` metric never ratchets — it is a gate with no tolerance. A corpus entry that cannot be read is **skipped loudly**, and a metric the payload cannot supply is **omitted with its reason**, never scored zero. A tier-2 entry declares a pinned SHA and a run against a different tree is refused. Reports are deterministic. | Test (`scripts/tests/test_bench.py`) |
 | FR-050-AC-31 | A cross-corpus sweep snapshots per-repository numbers across the enumerated ecosystem and compares two snapshots as a **distribution**: improved / regressed / unchanged counts, the net gain, and the fraction of that gain contributed by a single repository. A repository the engine cannot read is recorded as unreadable rather than scored zero; a population that moved between snapshots is reported, and the comparison is over the intersection. Gains and regressions are counted separately and never netted into one number. | Test (`scripts/tests/test_overfit_check.py`) |
 | FR-050-AC-32 | The benchmark corpus spans **every language the binder binds**, and a corpus entry may declare which metrics it is scored on so it can be carried for language coverage without its content churn thrashing a ratchet. `skeptic.suspicion_rate` — suspicions over evidence symbols examined — is scored per entry: a rate near 100% is a rule misreading a language, not a corpus full of vacuous tests. | Test (`scripts/tests/test_bench.py`) |
+| FR-050-AC-33 | A **trace target** that selects a document by archetype and then reads nothing out of it is reported per document, never in silence, under two distinct machine tokens: `section-matches-nothing` when the declared `section:` heading is absent, and `id-column-matches-nothing` when the section is found and the declared `id_column` is not among the table's headers. Each record names the document in `path` and names, in its message, both the value **found** and the value **declared**; the section record additionally names the `id_column` it could **not** check, because the absent heading strands the table before the column is read. Neither is gated on whether any other declaration minted, so a model minting its criteria normally still reports a stranded matrix. A reference declaration — whose section is legitimately optional — and a document carrying the declared heading and column both report neither (CR-117). | Test (TC-1033, TC-1034, TC-1035) |
 
 
 
+
+> **CR-117 note (2026-08-24):** AC-33 is new — the archetype matched and the
+> declared table did not. `agent-ix/quire-rs#270`; epic
+> `agent-ix/quire-rs#264`.
+>
+> **The dominant ecosystem failure had no token at all.** `ScanDiagnostic`
+> carried exactly one reason, `archetype-matches-nothing`, for the case where a
+> declaration names an archetype no document has. The far more common case —
+> the archetype matches, the document is selected, and the declared `section:`
+> is one word off — went through `rows_of`'s `let Some(sec) = … else { return
+> Vec::new() }` and produced **nothing**: no finding, no path, no message. The
+> only symptom was a smaller denominator, which reads as a repository with
+> fewer tests.
+>
+> **[RAN]** across 239 repositories: **3,514 TC ids in 88 repositories** mint
+> nothing for this reason. Those repositories report **6.77%** of rows backed
+> against **32.55%** for repositories whose heading matches — so the defect
+> does not merely hide ids, it makes the repositories carrying it look like the
+> repositories doing the least testing.
+>
+> **Two tokens, not one, and the reason is measured.** The two faults were
+> first reported as producing indistinguishable payloads. Diffed key by key,
+> they differ in exactly one field: a wrong **section** strands the whole table
+> and `unbacked_rows` is empty, while a wrong **id column** reads the table and
+> mints a row whose `row_id` is `null`. `totals`, `groups`, `diagnostics`,
+> `binding_census`, `metrics` and `criteria` are byte-identical. The one field
+> that differs is not on any coverage summary. So a single "something matched
+> nothing" sends a reader of `agent-ix/identity` — where both faults sit on one
+> document — to edit the heading, and leaves all 606 ids stranded.
+>
+> **Scoped to trace targets, and that is load-bearing.** A *reference*
+> declaration's section is legitimately optional: the ecosystem's
+> `functional-coverage` reads `## Functional Requirement Coverage`, which the
+> matrix template emits only when it has content. Diagnosing its absence would
+> fire on every well-formed Test Matrix in the corpus — the failure mode that
+> killed two diagnostics during CR-094. A trace target's section is not
+> optional: it is the whole of what the declaration selects the document for.
+>
+> **Not gated on `minted_anything`.** `archetype-matches-nothing` is suppressed
+> when the model minted something, because a model legitimately declares
+> archetypes an individual repository has no instance of. These two are
+> per-document facts, and a model-wide gate suppresses one declaration's
+> finding because a different declaration succeeded — which is exactly
+> `agent-ix/identity`: its FR criteria mint normally while 606 TC ids strand.
+> Filed as `agent-ix/quire-rs#304` for the variant that is still gated.
+>
+> **The section message names the column it could not check.** The wrong
+> heading strands the table before the `id_column` is read, so on a document
+> carrying both faults the column fault is *unobservable*. A reader told only
+> about the heading fixes it, re-runs, and meets a second fault that was there
+> all along. Naming the unchecked column is what makes that one pass instead of
+> two.
 
 > **CR-101 note (2026-08-22):** AC-31 is new — the overfit check.
 > `agent-ix/quire-rs#237`; epic `agent-ix/quoin#197`.

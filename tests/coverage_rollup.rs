@@ -2045,3 +2045,341 @@ fn tc1001_suspicions_reach_the_report_and_move_nothing() {
         "no suspicions means no key, not an empty list: {payload:#}"
     );
 }
+
+// ─── CR-117 / #270: the two minting faults the payload could not name ───────
+
+/// Rewrite the bundle's matrix with `heading` as its section and `id_column` as
+/// its first column, keeping the rows [`iso_bundle`] writes.
+///
+/// The two single-cell edits that strand 3,514 TC ids across the ecosystem. The
+/// `iso` fixture module declares `section: Test Cases` and `id_column: ID`, so
+/// passing anything else here is the defect and passing those two is the
+/// control.
+fn rewrite_matrix(bundle: &Bundle, heading: &str, id_column: &str, rows: &[(&str, &str, &str)]) {
+    let mut md = format!(
+        "---\nid: TM-001\ntype: TestMatrix\ntitle: Test Matrix\n---\n\n\
+         # Test Matrix\n\n## Overview\n\nProse.\n\n## {heading}\n\n\
+         | {id_column} | Traces To | Status |\n|----|-----------|--------|\n"
+    );
+    for (tc, traces_to, status) in rows {
+        md.push_str(&format!("| {tc} | {traces_to} | {status} |\n"));
+    }
+    write(&bundle.scope, "tests.md", &md);
+}
+
+fn diagnostic_for<'r>(
+    report: &'r CoverageReport,
+    reason: &str,
+) -> &'r quire_rs::coverage::CoverageDiagnostic {
+    report
+        .diagnostics
+        .iter()
+        .find(|d| d.reason == reason)
+        .unwrap_or_else(|| panic!("no `{reason}` diagnostic in {:?}", report.diagnostics))
+}
+
+#[trace("TC-1033", "FR-050-AC-33")]
+// a declared section the archetype-matching document (CR-117)
+// does not have is reported per document, naming the file, the heading it
+// FOUND and the heading it DECLARED — and a document carrying the declared
+// heading reports nothing.
+#[test]
+fn tc1033_a_declared_section_the_document_lacks_is_reported_with_both_names() {
+    let bundle = iso_bundle("1033", &[("TC-001", "FR-001-AC-1", "✅")], &["TC-001"]);
+    // The archetype still matches; only the heading is wrong. This is what 88
+    // of 239 ecosystem repositories look like.
+    rewrite_matrix(
+        &bundle,
+        "Test Case Summary",
+        "ID",
+        &[("TC-001", "FR-001-AC-1", "✅")],
+    );
+    let report = report_for(&bundle, "iso").expect("model declared");
+
+    // The silence this closes: the matrix mints nothing at all, and before
+    // CR-117 that produced a smaller denominator and no finding.
+    assert!(
+        !report
+            .groups
+            .iter()
+            .any(|g| g.target == "test-case" && g.total > 0),
+        "the whole point of the fixture is that the matrix mints nothing: {:?}",
+        report.groups
+    );
+
+    let finding = diagnostic_for(&report, "section-matches-nothing");
+    assert_eq!(finding.declaration, "test-case");
+    // L2: the one file whose one word is wrong.
+    assert_eq!(
+        finding.path.as_deref(),
+        Some("tests.md"),
+        "the finding names the document to open: {finding:?}"
+    );
+    // L3: both values, so the message IS the diff. "the declared section was
+    // not found" satisfies neither half.
+    assert!(
+        finding.message.contains("'Test Case Summary'"),
+        "names what was DECLARED: {}",
+        finding.message
+    );
+    assert!(
+        finding.message.contains("'Test Cases'"),
+        "names what was FOUND: {}",
+        finding.message
+    );
+    assert!(
+        finding.message.contains("'Overview'"),
+        "every heading the document has, so a near miss is visible: {}",
+        finding.message
+    );
+
+    // The control: the same tree with the declared heading. Neither token
+    // fires — a check that cannot stay silent on healthy input is a constant.
+    rewrite_matrix(
+        &bundle,
+        "Test Cases",
+        "ID",
+        &[("TC-001", "FR-001-AC-1", "✅")],
+    );
+    let healthy = report_for(&bundle, "iso").expect("model declared");
+    assert!(
+        !healthy
+            .diagnostics
+            .iter()
+            .any(|d| d.reason == "section-matches-nothing"
+                || d.reason == "id-column-matches-nothing"),
+        "a healthy matrix fires neither: {:?}",
+        healthy.diagnostics
+    );
+    assert_eq!(
+        healthy.totals.backed, 1,
+        "and the row it strands is backed once the heading is right"
+    );
+}
+
+#[trace("TC-1034", "FR-050-AC-33")]
+// the section found and the declared id column (CR-117)
+// absent is its OWN token: the two faults produce payloads agreeing in every
+// key a reader looks at, so one shared "matched nothing" sends a reader of
+// `agent-ix/identity` to the heading that is already correct.
+#[test]
+fn tc1034_a_declared_id_column_the_table_lacks_is_its_own_token() {
+    let bundle = iso_bundle("1034", &[("TC-001", "FR-001-AC-1", "✅")], &["TC-001"]);
+    // The heading is RIGHT. Only the id column is wrong, so the table IS read
+    // and mints a row whose identity is null.
+    rewrite_matrix(
+        &bundle,
+        "Test Cases",
+        "Test Case ID",
+        &[("TC-001", "FR-001-AC-1", "✅")],
+    );
+    let report = report_for(&bundle, "iso").expect("model declared");
+
+    let finding = diagnostic_for(&report, "id-column-matches-nothing");
+    assert_eq!(finding.declaration, "test-case");
+    assert_eq!(finding.path.as_deref(), Some("tests.md"));
+    assert!(
+        finding.message.contains("'ID'"),
+        "names what was DECLARED: {}",
+        finding.message
+    );
+    assert!(
+        finding.message.contains("'Test Case ID'"),
+        "names what was FOUND: {}",
+        finding.message
+    );
+    // The section is fine, so the section token must not fire alongside it —
+    // otherwise the reader is back to two indistinguishable findings.
+    assert!(
+        !report
+            .diagnostics
+            .iter()
+            .any(|d| d.reason == "section-matches-nothing"),
+        "a heading that matched is not a heading that did not: {:?}",
+        report.diagnostics
+    );
+
+    // The discrimination claim, asserted rather than argued: the SAME tree
+    // with the heading wrong instead reports the other token. Both mint zero.
+    rewrite_matrix(
+        &bundle,
+        "Test Case Summary",
+        "ID",
+        &[("TC-001", "FR-001-AC-1", "✅")],
+    );
+    let section = report_for(&bundle, "iso").expect("model declared");
+    assert_eq!(
+        (report.totals.backed, section.totals.backed),
+        (0, 0),
+        "the two defects agree on the number everybody reads"
+    );
+    assert!(
+        !section
+            .diagnostics
+            .iter()
+            .any(|d| d.reason == "id-column-matches-nothing"),
+        "and disagree on the token, which is the whole ticket: {:?}",
+        section.diagnostics
+    );
+}
+
+#[trace("TC-1035", "FR-050-AC-33")]
+// neither token is gated on whether the model (CR-117)
+// minted anything ELSE, and the section message names the id column it could
+// not check — so a document carrying both faults is fixed in one pass.
+#[test]
+fn tc1035_the_minting_diagnostics_are_not_gated_on_another_declaration_minting() {
+    let bundle = iso_bundle("1035", &[("TC-001", "FR-001-AC-1", "✅")], &["TC-001"]);
+    // BOTH faults on one document — the `agent-ix/identity` shape. The FR is
+    // untouched and mints its two criteria normally.
+    rewrite_matrix(
+        &bundle,
+        "Test Case Summary",
+        "Test Case ID",
+        &[("TC-001", "FR-001-AC-1", "✅")],
+    );
+    let report = report_for(&bundle, "iso").expect("model declared");
+
+    // The model minted: `archetype-matches-nothing` is suppressed for exactly
+    // this reason, and these two must not be. A gate shared across
+    // declarations lets one healthy declaration hide another's failure
+    // (`agent-ix/quire-rs#304`).
+    assert!(
+        report.totals.total > 0,
+        "the FR criteria still mint, which is what makes this the gated case: {:?}",
+        report.groups
+    );
+    let finding = diagnostic_for(&report, "section-matches-nothing");
+    assert_eq!(finding.path.as_deref(), Some("tests.md"));
+
+    // The row's thesis: the wrong heading strands the table before the column
+    // is read, so the column fault is UNREACHABLE here. A message naming only
+    // the heading sends its reader round the loop a second time.
+    assert!(
+        finding.message.contains("'ID'"),
+        "the section finding names the id column it could NOT check: {}",
+        finding.message
+    );
+
+    // Fixing only the heading exposes the second fault, which is the loop the
+    // sentence above is there to shorten.
+    rewrite_matrix(
+        &bundle,
+        "Test Cases",
+        "Test Case ID",
+        &[("TC-001", "FR-001-AC-1", "✅")],
+    );
+    let half_fixed = report_for(&bundle, "iso").expect("model declared");
+    assert!(
+        half_fixed
+            .diagnostics
+            .iter()
+            .any(|d| d.reason == "id-column-matches-nothing"),
+        "the second fault was there all along: {:?}",
+        half_fixed.diagnostics
+    );
+
+    // Order is a property of the model, not of the walk (NFR-006).
+    let again = report_for(&bundle, "iso").expect("model declared");
+    assert_eq!(half_fixed.diagnostics, again.diagnostics);
+}
+
+#[trace("TC-1036", "FR-063-AC-7")]
+// `minting.section_hit_rate` is the premise under (CR-117)
+// every minting number: the documents whose declared section was found over
+// the documents the archetype selected. A RATIO, so reading none of them is
+// hollow; a model declaring no trace targets never computes it.
+#[test]
+fn tc1036_the_section_hit_rate_is_a_ratio_over_the_documents_the_archetype_selected() {
+    let bundle = iso_bundle("1036", &[("TC-001", "FR-001-AC-1", "✅")], &["TC-001"]);
+
+    // Healthy: two minting declarations select one document each — the FR and
+    // the matrix — and both find their section. (`test-case-document` selects
+    // nothing, so it contributes to neither count.)
+    let healthy = report_for(&bundle, "iso").expect("model declared");
+    let metric = metric_for(&healthy, "minting.section_hit_rate");
+    assert_eq!(metric.unit, "declared minting document");
+    assert_eq!(metric.shape, quire_rs::metric::MetricShape::Ratio);
+    assert_eq!(
+        metric.measurement,
+        Measurement::Measured {
+            value: 2,
+            population: 2,
+            examined: 2,
+            matched: 2,
+        },
+        "both declared sections were found"
+    );
+    assert!(!metric.is_hollow(), "everything was read");
+
+    // One of the two headings wrong: 1 of 2, and NOT hollow — something was
+    // read, and a judgement about a tail is not this metric's to make.
+    rewrite_matrix(
+        &bundle,
+        "Test Case Summary",
+        "ID",
+        &[("TC-001", "FR-001-AC-1", "✅")],
+    );
+    let partial = report_for(&bundle, "iso").expect("model declared");
+    let metric = metric_for(&partial, "minting.section_hit_rate");
+    assert_eq!(metric.value(), Some(1));
+    assert!(!metric.is_hollow());
+    assert!(
+        !partial
+            .diagnostics
+            .iter()
+            .any(|d| d.reason == "hollow-denominator"
+                && d.value.as_deref() == Some("minting.section_hit_rate")),
+        "a partial read is reported per document, not as a hollow ratio: {:?}",
+        partial.diagnostics
+    );
+
+    // BOTH headings wrong: nothing minting was read at all, and the ratio is
+    // arithmetic over nothing — which is precisely what FR-063-AC-5 exists to
+    // surface, and what a bare `0/0 rows backed` never said.
+    write(
+        &bundle.scope,
+        "FR-001.md",
+        "---\nid: FR-001\ntype: FR\ntitle: A requirement\n---\n\n\
+         ## Criteria\n\n| ID | Criteria | Verification |\n|----|----------|--------------|\n\
+         | FR-001-AC-1 | The system shall do it. | Test (TC-001) |\n",
+    );
+    let blind = report_for(&bundle, "iso").expect("model declared");
+    let metric = metric_for(&blind, "minting.section_hit_rate");
+    assert_eq!(
+        metric.measurement,
+        Measurement::Measured {
+            value: 0,
+            population: 2,
+            examined: 2,
+            matched: 0,
+        }
+    );
+    assert!(
+        metric.is_hollow(),
+        "input was offered, none of it was read, and a ratio was published"
+    );
+    assert!(
+        blind
+            .diagnostics
+            .iter()
+            .any(|d| d.reason == "hollow-denominator"
+                && d.value.as_deref() == Some("minting.section_hit_rate")),
+        "and the schema invariant reports it by name: {:?}",
+        blind.diagnostics
+    );
+
+    // A model with no trace targets never looked, and "not computed" is a
+    // value rather than a zero dressed as an answer (FR-063-AC-2).
+    let unminting = report_for(&bundle, "required-relations").expect("model declared");
+    let metric = metric_for(&unminting, "minting.section_hit_rate");
+    assert_eq!(
+        metric.value(),
+        None,
+        "nothing selected anything, so there was no section to look for"
+    );
+    assert!(
+        !metric.is_hollow(),
+        "a measurement that never ran has no denominator to be hollow"
+    );
+}

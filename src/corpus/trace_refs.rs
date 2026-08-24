@@ -152,6 +152,10 @@ fn minted_ids(
         archetype: &target.archetype,
         exclude: &exclude,
         model_exclude,
+        // A trace target: the CR-117 minting diagnostics apply, and `validate`
+        // reports them under the same machine tokens `coverage` does — one
+        // vocabulary, two surfaces (CR-054).
+        mints: Some(&target.id_column),
     };
     let mut ids: BTreeSet<String> = BTreeSet::new();
     // A document of the target archetype mints its own id, too — an authored
@@ -194,6 +198,7 @@ fn referencing_rows(
             archetype: &declaration.archetype,
             exclude: &exclude,
             model_exclude,
+            mints: None,
         },
         &declaration.section,
         ctx,

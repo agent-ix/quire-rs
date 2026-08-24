@@ -427,6 +427,10 @@ pub fn derive(
             archetype: resolved.archetype,
             exclude: &exclude,
             model_exclude: &model_exclude,
+            // An obligation source READS a declared table that a trace target
+            // already mints from; diagnosing its section here would double
+            // every CR-117 finding the coverage scan already reports.
+            mints: None,
         };
         let rows = declared_tables::scan(spec, root, scope, resolved.section, &mut ctx);
         // FR-061: a combinatorial source states ONE obligation per document
