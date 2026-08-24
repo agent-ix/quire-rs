@@ -36,6 +36,15 @@ jobs:
       - name: Lint
         run: cargo clippy --all-targets -- -D warnings
 
+      # TC-1025/TC-1027 drive the corpus LOADER (`corpus/bounds.py`) over a
+      # mutated copy — the only way to prove those gates refuse what they claim
+      # to refuse rather than merely reading a corpus that already conforms.
+      # That makes `python3` + PyYAML a test dependency of this crate, which it
+      # was not before. PyYAML is not guaranteed on the runner image, and
+      # without it both tests fail on an ImportError.
+      - name: Corpus runner dependencies
+        run: python3 -m pip install --upgrade pyyaml
+
       - name: Test
         run: cargo test
 

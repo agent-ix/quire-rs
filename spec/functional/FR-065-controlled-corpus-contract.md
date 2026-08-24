@@ -278,7 +278,22 @@ one.
 `corpus.yaml` MAY declare `known_gaps`, and every reader SHALL enforce it in both
 directions: a departure listed there is permitted, one not listed fails the run, and an
 entry naming no case in the corpus fails it too. A declaration nobody reads is how a
-block came to list three uncontrolled failure cases where eleven were true.
+block came to list three uncontrolled failure cases where eleven were true. Every `known_gaps`
+entry SHALL name a ticket and at least one case: `pending` requires a `pending_reason`
+and a variant `module` requires a `relaxation_ticket`, but an exemption from the contract
+itself required neither, so one appended line was permanent by default.
+
+EVERY expectation block SHALL assert something, live and forward alike. This was enforced
+on the forward block by both readers and on `expect.yaml` by neither, so truncating any
+failure case's `expect.yaml` to zero bytes left every gate green with its cell still
+`covered` — a case asserting nothing about its own payload, counted as covering the mode
+it is named for.
+
+A case declaring `findable` SHALL require at least one finding, in one of its blocks. The
+flag tells a recall-scoring consumer to expect a finding on that input, and a case that
+names nothing which finds it counts its cell covered for a mode nothing measures.
+Measured: three fixtures shipped byte-identical live blocks true of any healthy corpus,
+and swapping one's whole `input/` tree for another's left every gate green.
 
 A case of kind `control` MAY assert a `forward` token ABSENT in its `expect.yaml`: that
 claim is vacuous today and load-bearing the day the ticket lands, which is what a control
@@ -383,6 +398,9 @@ than an agreement between two codebases nobody can verify from one of them.
 | FR-065-AC-36 | An `expect-pending.yaml` requiring no token its own `pending` ticket introduces is rejected, and one requiring an already-emitted token is rejected. | Test (TC-1025) |
 | FR-065-AC-37 | A control whose `mode` or `module` differs from a partner's is rejected unless declared in `known_gaps`; an entry in `known_gaps` naming no case is rejected. | Test (TC-1027) |
 | FR-065-AC-38 | A failure case named by no control is rejected unless declared in `known_gaps`. | Test (TC-1027) |
+| FR-065-AC-39 | An `expect.yaml` grading zero assertions is rejected, for every case. | Test (TC-1025) |
+| FR-065-AC-40 | A case declaring `findable` and requiring no finding in any block is rejected unless declared in `known_gaps`. | Test (TC-1027) |
+| FR-065-AC-41 | A `known_gaps` entry naming no ticket, or naming no case, is rejected. | Test (TC-1027) |
 
 ## Dependencies
 

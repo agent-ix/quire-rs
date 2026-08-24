@@ -67,6 +67,12 @@ fn corpus_cases_hold() {
                 // two. A block grading zero assertions trivially holds, and
                 // this loop would then report the ticket as landed.
                 assert!(
+                    case.expect.asserts_something(),
+                    "{}: expect.yaml asserts nothing — a case that asserts \
+                     nothing about its own payload still counts its cell covered",
+                    case.meta.id,
+                );
+                assert!(
                     forward.asserts_something(),
                     "{}: expect-pending.yaml asserts nothing. An empty forward \
                      block always holds, which reads as `{ticket} landed`",
@@ -794,11 +800,18 @@ fn tc1025_the_loader_refuses_a_block_that_asserts_the_wrong_thing() {
             "",
             "asserts nothing",
         ),
+        // AC-39 — the LIVE block, which was checked by neither reader. This
+        // is round one's defect reached by truncating the file: every gate
+        // stayed green with the cell still `covered`.
+        (
+            "cases/minting/section-name-mismatch/rust/expect.yaml",
+            "",
+            "expect.yaml asserts nothing",
+        ),
     ];
 
     for (index, (target, contents, fragment)) in mutations.iter().enumerate() {
-        let scratch = std::env::temp_dir().join(format!("qa-corpus-tc1025-{index}"));
-        let _ = std::fs::remove_dir_all(&scratch);
+        let scratch = scratch_dir("tc1025", index);
         copy_tree(&corpus_case::corpus_root(), &scratch);
         std::fs::write(scratch.join(target), contents).expect("write mutation");
 
@@ -818,7 +831,6 @@ fn tc1025_the_loader_refuses_a_block_that_asserts_the_wrong_thing() {
             "mutation {index} was rejected, but not for the stated reason. \
              Expected a message carrying {fragment:?}, got:\n{stderr}",
         );
-        std::fs::remove_dir_all(&scratch).expect("clean up");
     }
 
     // And the unmutated corpus is accepted, so the assertions above are about
@@ -969,17 +981,21 @@ fn tc1027_a_control_binds_its_partners_declaration() {
              '    - gate-that-gates-nothing\\n    - a-case-that-does-not-exist\\n', 1)",
             "outlived its fixture",
         ),
-        // AC-37 — a control claiming a partner on another module. Removing the
-        // declared exemption must expose the three that already do.
+        // AC-40 — a `findable` case that names nothing which finds it. Nine
+        // do; removing one from the allowlist must surface it.
         (
-            "s = s.replace('    - catch-all-headline-control\\n', '', 1)",
-            "A control is the healthy version of its partner",
+            "s = s.replace('    - oracle-copy\\n', '', 1)",
+            "requires no finding",
+        ),
+        // AC-41 — an exemption with no ticket is permanent by default.
+        (
+            "s = s.replace('agent-ix/quire-rs#301', 'because I said so', 1)",
+            "names no ticket",
         ),
     ];
 
     for (index, (edit, fragment)) in mutations.iter().enumerate() {
-        let scratch = std::env::temp_dir().join(format!("qa-corpus-tc1027-{index}"));
-        let _ = std::fs::remove_dir_all(&scratch);
+        let scratch = scratch_dir("tc1027", index);
         copy_tree(&corpus_case::corpus_root(), &scratch);
 
         let script = format!(
@@ -1007,6 +1023,33 @@ fn tc1027_a_control_binds_its_partners_declaration() {
             "mutation {index} ({edit}) was ACCEPTED, or refused for another \
              reason. Expected a message carrying {fragment:?}, got:\n{text}",
         );
-        std::fs::remove_dir_all(&scratch).expect("clean up");
     }
+}
+
+/// A scratch directory unique to this process, cleaned up whether or not the
+/// test asserts its way out.
+///
+/// The first version used a fixed `temp_dir()/qa-corpus-<test>-<n>` and removed
+/// it only after the asserts, so two concurrent `cargo test` runs — two
+/// worktrees, one shared runner — collided, and a failure left 5 MB behind.
+struct Scratch(std::path::PathBuf);
+
+impl Drop for Scratch {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
+}
+
+impl std::ops::Deref for Scratch {
+    type Target = std::path::Path;
+    fn deref(&self) -> &std::path::Path {
+        &self.0
+    }
+}
+
+fn scratch_dir(test: &str, index: usize) -> Scratch {
+    let path =
+        std::env::temp_dir().join(format!("qa-corpus-{test}-{}-{index}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&path);
+    Scratch(path)
 }
