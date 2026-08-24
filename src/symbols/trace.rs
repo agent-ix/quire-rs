@@ -1073,6 +1073,70 @@ mod tests {
         );
     }
 
+    #[trace("TC-1042", "FR-051-AC-21")]
+    // a name chain that NAMES a suite is a suite,
+    // wherever the suite word sits in it (CR-121).
+    //
+    // `test.describe(` matched `TEST_NAMES` first, because the `.modifier`
+    // window AC-18 opens for `it.each([…])(…)` swallows `.describe` as an
+    // ordinary modifier — so one construct had two spellings with OPPOSITE
+    // classifications. The bare spelling minted a `Container` binding nothing;
+    // the Playwright spelling minted a `TestFunction` that bound its header tag
+    // and entered the census, which is the negative AC-21 asserts.
+    //
+    // 120 such headers exist across two corpus repositories and 79 carry an id
+    // in their title, so `spec-artifacts-process#68` declaring a TypeScript
+    // test-name form would have bound all 79 as evidence on the spelling the
+    // spec calls grouping. That is why this landed BEFORE sap#68 rather than
+    // after it (#322).
+    #[test]
+    fn tc1042_a_chain_that_names_a_suite_is_a_suite() {
+        let extraction = crate::symbols::extract_file(
+            "src/coverage.test.ts",
+            SourceLanguage::Typescript,
+            concat!(
+                "// TC-001: FR-001-AC-1 — Playwright spelling, on the SUITE header.\n",
+                "test.describe(\"warning default\", () => {\n",
+                "  test(\"defaults every finding to warning\", () => {});\n",
+                "});\n",
+                "\n",
+                "// TC-002: FR-001-AC-2 — bare spelling, on the SUITE header.\n",
+                "describe(\"plain suite\", () => {\n",
+                "  it(\"names the declaration on every finding\", () => {});\n",
+                "});\n",
+            ),
+        );
+
+        let kind = |name: &str| {
+            extraction
+                .symbols
+                .iter()
+                .find(|s| s.qualified_name == name)
+                .unwrap_or_else(|| panic!("{name} registers"))
+                .kind
+        };
+        // One construct, two spellings, ONE classification.
+        assert_eq!(
+            kind("warning default"),
+            crate::symbols::SymbolKind::Container
+        );
+        assert_eq!(kind("plain suite"), crate::symbols::SymbolKind::Container);
+        // And the tests inside both still register as tests.
+        assert_eq!(
+            kind("defaults every finding to warning"),
+            crate::symbols::SymbolKind::TestFunction
+        );
+
+        // Neither header tag binds, which is what AC-21 asserts and what the
+        // Playwright spelling used to contradict.
+        let graph = bind(&extraction, &iso_model());
+        let bound: Vec<&str> = graph.verifies.iter().map(|v| v.trace_id.as_str()).collect();
+        assert!(
+            !bound.contains(&"TC-001") && !bound.contains(&"TC-002"),
+            "a tag on a suite header binds nothing, in EITHER spelling: {bound:?}"
+        );
+    }
+
     #[trace("TC-1040", "FR-051-AC-21")]
     // a trace tag on a SUITE HEADER binds nothing, (CR-119)
     // and the suite is not a binding candidate.
