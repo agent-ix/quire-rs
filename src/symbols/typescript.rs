@@ -8,6 +8,11 @@
 //! `it(...)` registration is a test symbol, and **its registered title is the
 //! qualified name** (FR-051) — that is the identity a report or a trace marker
 //! refers to, not an anonymous arrow function.
+//!
+//! A `describe(...)` / `suite(...)` registration is a **container** symbol
+//! (CR-119): it groups tests rather than being one, so it is a scope the
+//! registrations inside it are parented to — never a `TestFunction`, which
+//! would make the suite evidence in its own right.
 
 use std::sync::OnceLock;
 
@@ -33,13 +38,13 @@ pub(crate) fn parse(path: &str, source: &str) -> Result<Vec<RawSymbol>, String> 
         container: None,
     }];
 
-    let mut scopes: Vec<(String, i64)> = Vec::new();
+    let mut scopes: Vec<Scope> = Vec::new();
     let mut depth: i64 = 0;
 
     for (idx, lexed_line) in lexed.iter().enumerate() {
         let trimmed = lexed_line.code.trim();
 
-        if let Some(title) = registration(&lexed, idx) {
+        if let Some(title) = registration(&lexed, idx, TEST_NAMES) {
             push(
                 &mut out,
                 &lines,
@@ -49,6 +54,23 @@ pub(crate) fn parse(path: &str, source: &str) -> Result<Vec<RawSymbol>, String> 
                 SymbolKind::TestFunction,
                 scope_container(&scopes, &module),
             );
+        } else if let Some(title) = registration(&lexed, idx, SUITE_NAMES) {
+            push(
+                &mut out,
+                &lines,
+                &lexed,
+                idx,
+                title.clone(),
+                SymbolKind::Container,
+                scope_container(&scopes, &module),
+            );
+            if trimmed.contains('{') {
+                scopes.push(Scope {
+                    name: title,
+                    depth,
+                    qualifies: false,
+                });
+            }
         } else if let Some(name) = class_declaration(trimmed) {
             let qualified = qualify(&scopes, &name);
             push(
@@ -61,7 +83,11 @@ pub(crate) fn parse(path: &str, source: &str) -> Result<Vec<RawSymbol>, String> 
                 scope_container(&scopes, &module),
             );
             if trimmed.contains('{') {
-                scopes.push((qualified, depth));
+                scopes.push(Scope {
+                    name: qualified,
+                    depth,
+                    qualifies: true,
+                });
             }
         } else if let Some(name) = function_declaration(trimmed) {
             push(
@@ -76,8 +102,8 @@ pub(crate) fn parse(path: &str, source: &str) -> Result<Vec<RawSymbol>, String> 
         }
 
         depth += lexed_line.delta;
-        while let Some((_, opened_at)) = scopes.last() {
-            if depth <= *opened_at {
+        while let Some(scope) = scopes.last() {
+            if depth <= scope.depth {
                 scopes.pop();
             } else {
                 break;
@@ -106,17 +132,38 @@ fn push(
     });
 }
 
-fn qualify(scopes: &[(String, i64)], name: &str) -> String {
-    match scopes.last() {
-        Some((prefix, _)) => format!("{prefix}.{name}"),
+/// One open lexical scope: what it is called, the brace depth it opened at,
+/// and whether declarations inside it are *named through* it.
+///
+/// The two axes are separate because a suite is a scope that does not rename
+/// its members (CR-119). A class qualifies — `Harness.ready` — but a
+/// registration's qualified name **is its registered title** (FR-051), so
+/// prefixing it with the enclosing `describe(…)` title would change the
+/// identity of every test in the ecosystem that sits inside one.
+struct Scope {
+    name: String,
+    depth: i64,
+    qualifies: bool,
+}
+
+/// The nearest enclosing scope that names its members — a class, never a
+/// suite.
+fn qualify(scopes: &[Scope], name: &str) -> String {
+    match scopes.iter().rev().find(|s| s.qualifies) {
+        Some(scope) => format!("{}.{name}", scope.name),
         None => name.to_string(),
     }
 }
 
-fn scope_container(scopes: &[(String, i64)], module: &str) -> Option<String> {
+/// The nearest enclosing scope of **any** kind, or the file's own module.
+///
+/// A suite counts here even though it does not qualify: `contains` is what
+/// records that a `describe(…)` groups the registrations written inside it,
+/// and a container that contains nothing is not a grouping (FR-051-AC-8).
+fn scope_container(scopes: &[Scope], module: &str) -> Option<String> {
     scopes
         .last()
-        .map(|(prefix, _)| prefix.clone())
+        .map(|scope| scope.name.clone())
         .or_else(|| Some(module.to_string()))
 }
 
@@ -126,8 +173,29 @@ fn scope_container(scopes: &[(String, i64)], module: &str) -> Option<String> {
 /// several statements away become a test name.
 const TITLE_LOOKAHEAD_LINES: usize = 3;
 
-/// A `test('title', …)` / `it("title", …)` registration — the title is the
-/// symbol name. `describe(…)` blocks group tests but register none themselves.
+/// The callees that open a **test** registration. Its title is the test
+/// symbol's qualified name (FR-051).
+const TEST_NAMES: &[&str] = &["test", "it"];
+
+/// The callees that open a **suite** registration — a container, not evidence
+/// (CR-119).
+///
+/// `context` is deliberately absent, and the reason is measured rather than
+/// stylistic. It is mocha's TDD-interface alias, which nothing in this
+/// ecosystem uses: across `~/dev` there are **1,699** `describe(` registrations
+/// with a quoted title in 103 repository roots, **zero** `suite(`, and **zero**
+/// `context(` — while five lines do begin `context.` (`context.setTransform(`,
+/// `context.client.putSettings(`), method calls on an object that happens to
+/// be named `context`. Admitting the name would put a grammar that reads a
+/// `.modifier` chain in front of exactly one shape it cannot tell from a suite,
+/// for no occurrence it would recover. `suite` is admitted despite measuring
+/// zero because it is the same construct under another harness's spelling and
+/// carries no such collision.
+const SUITE_NAMES: &[&str] = &["describe", "suite"];
+
+/// A registration by one of `names`, with its quoted title — a
+/// `test('title', …)` / `it("title", …)` test, or a `describe("title", …)`
+/// suite. The title is the symbol name.
 ///
 /// Reads the whole-file lex rather than one line (CR-084), which buys the two
 /// shapes the single-line regex could not see:
@@ -142,15 +210,15 @@ const TITLE_LOOKAHEAD_LINES: usize = 3;
 /// tag: with no symbol, a legacy comment id and a canonical `trace(…)` call
 /// inside the body have nothing to attach to, so the test runs, passes and binds
 /// nothing, silently and always in the direction that loses coverage.
-fn registration(lexed: &[LexedLine], idx: usize) -> Option<String> {
+fn registration(lexed: &[LexedLine], idx: usize, names: &[&str]) -> Option<String> {
     let first = lexed.get(idx)?.code.trim_start();
-    let open = registration_open(first)?;
+    let open = registration_open(first, names)?;
     read_title(lexed, idx, first, open)
 }
 
 /// Byte offset just past the `(` that opens the registration call, or `None`
 /// when the line does not open one.
-fn registration_open(line: &str) -> Option<usize> {
+fn registration_open(line: &str, names: &[&str]) -> Option<usize> {
     let bytes = line.as_bytes();
     let ident = |c: &u8| c.is_ascii_alphanumeric() || *c == b'_' || *c == b'$';
     let mut i = 0;
@@ -162,10 +230,8 @@ fn registration_open(line: &str) -> Option<usize> {
         }
     }
 
-    // `test` or `it`, and nothing longer — `iterate(` registers nothing.
-    let name = ["test", "it"]
-        .into_iter()
-        .find(|n| line[i..].starts_with(n))?;
+    // One of `names`, and nothing longer — `iterate(` registers nothing.
+    let name = names.iter().find(|n| line[i..].starts_with(**n))?;
     i += name.len();
     if bytes.get(i).is_some_and(ident) {
         return None;
@@ -892,5 +958,126 @@ mod tests {
         assert!(!registers("test2('not a registration', () => {});"));
         // Outside: `await` glued to the callee is one identifier, not a form.
         assert!(!registers("awaitit('not awaited', () => {});"));
+    }
+
+    #[trace("TC-1039", "FR-051-AC-21")]
+    // a suite registration is a CONTAINER that (CR-119)
+    // parents its tests without renaming them.
+    //
+    // `describe(…)` registered nothing at all, so a trace tag on a suite header
+    // had no symbol to attach to and the nearest enclosing symbol was the
+    // file's own module — a container spanning line 1 to EOF, which names no
+    // locus a reader can act on.
+    #[test]
+    fn tc1039_a_suite_is_a_container_that_parents_its_tests() {
+        let source = concat!(
+            "// TC-001: FR-001-AC-1 — the tag is on the BLOCK header.\n",
+            "describe(\"warning default\", () => {\n",
+            "  it(\"defaults every finding to warning\", () => {\n",
+            "    expect(1 + 1).toBe(2);\n",
+            "  });\n",
+            "\n",
+            "  suite(\"a nested suite under another harness's spelling\", () => {\n",
+            "    test(\"still named by its own title\", () => {});\n",
+            "  });\n",
+            "\n",
+            "  class Helper {\n",
+            "    ready(): boolean { return true; }\n",
+            "  }\n",
+            "});\n",
+            "\n",
+            "it(\"a sibling outside every suite\", () => {});\n",
+        );
+        let symbols = parse("src/coverage.test.ts", source).expect("a valid file must parse");
+        let by_name = |name: &str| {
+            symbols
+                .iter()
+                .find(|s| s.qualified_name == name)
+                .unwrap_or_else(|| panic!("`{name}` must be a symbol: {symbols:#?}"))
+        };
+
+        // The suite is a container, not evidence. `TestFunction` would make the
+        // suite verify things in its own right, which is what CR-061 refused.
+        let suite = by_name("warning default");
+        assert_eq!(suite.kind, SymbolKind::Container);
+        assert_eq!(suite.container.as_deref(), Some("src/coverage.test"));
+
+        // Its span reaches back over the leading comment — that is the whole
+        // point of registering it, since the tag sits there.
+        assert_eq!(suite.leading_line, 1);
+        assert_eq!(suite.line, 2);
+        assert_eq!(suite.end_line, 14);
+
+        // Members are PARENTED to the suite and NOT renamed by it: a
+        // registration's qualified name is its own registered title (FR-051),
+        // so `warning default.defaults every finding to warning` would change
+        // the identity of every test in the ecosystem that sits in a suite.
+        let inner = by_name("defaults every finding to warning");
+        assert_eq!(inner.kind, SymbolKind::TestFunction);
+        assert_eq!(inner.container.as_deref(), Some("warning default"));
+
+        // Nesting composes, in both directions.
+        let nested = by_name("a nested suite under another harness's spelling");
+        assert_eq!(nested.kind, SymbolKind::Container);
+        assert_eq!(nested.container.as_deref(), Some("warning default"));
+        assert_eq!(
+            by_name("still named by its own title").container.as_deref(),
+            Some("a nested suite under another harness's spelling"),
+        );
+
+        // A class inside a suite still qualifies its own members, because a
+        // class names them and a suite does not.
+        assert_eq!(by_name("Helper").kind, SymbolKind::Container);
+        assert_eq!(by_name("Helper.ready").kind, SymbolKind::Function);
+
+        // And the scope closes with its braces.
+        assert_eq!(
+            by_name("a sibling outside every suite")
+                .container
+                .as_deref(),
+            Some("src/coverage.test"),
+        );
+    }
+
+    #[trace("TC-1039", "FR-051-AC-21")]
+    // `context` is outside the suite grammar, and (CR-119)
+    // the reason is measured rather than stylistic: across `~/dev` there are
+    // 1,699 `describe(` registrations with a quoted title in 103 repository
+    // roots, ZERO `suite(` and ZERO `context(` — while five lines begin
+    // `context.`, method calls on an object that happens to carry the name.
+    // Admitting it would put a grammar that reads a `.modifier` chain in front
+    // of the one shape it cannot tell from a suite, for no occurrence it would
+    // recover.
+    #[test]
+    fn tc1039_context_is_not_a_suite_and_a_lookalike_registers_nothing() {
+        let containers = |source: &str| -> Vec<String> {
+            parse("a.test.ts", source)
+                .expect("parses")
+                .into_iter()
+                .filter(|s| s.kind == SymbolKind::Container && s.qualified_name != "a.test")
+                .map(|s| s.qualified_name)
+                .collect()
+        };
+
+        assert!(
+            containers("context(\"mocha's tdd alias\", () => {});\n").is_empty(),
+            "`context(` is not a declared suite name",
+        );
+        // Verbatim shapes from `~/dev`. Neither is a registration, and the
+        // second would be admitted by the `.modifier` chain if `context` were.
+        assert!(containers("context.setTransform(dpr, 0, 0, dpr, 0, 0);\n").is_empty());
+        assert!(containers("await context.client.putSettings(key, newData);\n").is_empty());
+
+        // An identifier continuing past a suite name is not one, and a title
+        // held in a variable registers nothing rather than something wrong —
+        // the same boundary TC-948 pins for `it`/`test`.
+        assert!(containers("describeAll(\"not a registration\", () => {});\n").is_empty());
+        assert!(containers("describe(title, () => {});\n").is_empty());
+
+        // What IS admitted, so the negative cases above are not vacuous.
+        assert_eq!(
+            containers("describe.each([1, 2])(\"a parametrised suite %i\", () => {});\n"),
+            vec!["a parametrised suite %i".to_string()],
+        );
     }
 }

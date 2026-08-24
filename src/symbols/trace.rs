@@ -1073,6 +1073,92 @@ mod tests {
         );
     }
 
+    #[trace("TC-1040", "FR-051-AC-21")]
+    // a trace tag on a SUITE HEADER binds nothing, (CR-119)
+    // and the suite is not a binding candidate.
+    //
+    // This is the semantics `agent-ix/quire-rs#273` had to declare rather than
+    // let fall out of a kind change, and it is declared as **unchanged**: a
+    // suite groups evidence and is not evidence, so widening `verifies` to
+    // reach it would widen it to every `SymbolKind::Container` — including the
+    // file's own module, whose span is line 1 to EOF. Every column-0 comment id
+    // in every TypeScript and Python test file would then back a row, which is
+    // the CR-061 prohibition arrived at from the other side.
+    //
+    // What #273 changed is that the tag now lands on the SUITE rather than on
+    // the module: a locus a reader can act on. Where the tag then goes — today,
+    // nowhere at all — is `agent-ix/quire-rs#312`, and this test pins the
+    // "nowhere" so that ticket cannot land without moving it.
+    #[test]
+    fn tc1040_a_tag_on_a_suite_header_binds_nothing_and_is_not_a_candidate() {
+        let extraction = crate::symbols::extract_file(
+            "src/coverage.test.ts",
+            SourceLanguage::Typescript,
+            concat!(
+                "// TC-001: FR-001-AC-1 — on the BLOCK header.\n",
+                "describe(\"warning default\", () => {\n",
+                "  it(\"defaults every finding to warning\", () => {\n",
+                "    expect(1 + 1).toBe(2);\n",
+                "  });\n",
+                "});\n",
+                "\n",
+                "// TC-002: FR-001-AC-2 — the same form, on the `it`.\n",
+                "it(\"names the declaration on every finding\", () => {\n",
+                "  expect(2 + 2).toBe(4);\n",
+                "});\n",
+            ),
+        );
+        let suite = extraction
+            .symbols
+            .iter()
+            .find(|s| s.qualified_name == "warning default")
+            .expect("the suite is a symbol at all — that is what #273 landed");
+        assert_eq!(suite.kind, crate::symbols::SymbolKind::Container);
+
+        let graph = bind(&extraction, &iso_model());
+
+        // The tag on the header reaches NEITHER channel. `verifies` refuses it
+        // by kind; `untracked_symbols` is built one layer up from
+        // `graph.verifies`, so a tag that never bound cannot appear there
+        // either.
+        assert!(
+            relations_for(&graph, "warning default").is_empty(),
+            "a suite is not evidence: {:?}",
+            graph.verifies,
+        );
+        let ids: Vec<&str> = graph.verifies.iter().map(|v| v.trace_id.as_str()).collect();
+        assert_eq!(
+            ids,
+            vec!["TC-002"],
+            "only the tag on the `it` binds — TC-001 is nowhere",
+        );
+
+        // And the suite is missing from the DENOMINATOR rather than counted as
+        // an unbound candidate, which is why the census reads healthy while
+        // TC-001 comes back unbacked. Asserted here so #312 has a pinned
+        // "before" to move.
+        let census = graph
+            .binding_census
+            .iter()
+            .find(|c| c.language == "typescript")
+            .expect("a census for the language the walk saw");
+        assert_eq!(
+            (census.candidates, census.bound),
+            (2, 1),
+            "two `it` registrations are the candidates; the suite is not one",
+        );
+
+        // It is counted as a production symbol instead — the branch a
+        // `Container` actually takes at `carries_implements()`. That is the
+        // double-count #312 has to settle before a suite could enter both.
+        assert_eq!(
+            graph.implements_candidates, 2,
+            "the file's module container and the suite container — it read 1 \
+             before #273, and the suite is the one that was added",
+        );
+        assert_eq!(graph.implements_bound, 0);
+    }
+
     #[trace("TC-753", "FR-051-AC-11")]
     // legacy textual forms still bind, carry `legacy`
     // provenance, and yield a mechanical rewrite suggestion where derivable.

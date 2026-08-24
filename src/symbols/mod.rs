@@ -838,10 +838,20 @@ mod tests {
         );
         for symbol in &tests {
             assert_eq!(symbol.language, SourceLanguage::Typescript);
+            // A registration's container is its enclosing SUITE where it has
+            // one, and the module otherwise (CR-119). It was the module in
+            // every case until `describe(…)` registered a symbol to be
+            // enclosed by; the titles are unchanged, because a suite parents
+            // its members without naming them.
+            let expected = if symbol.qualified_name == "an awaited registration registers" {
+                "typescript/registration.test"
+            } else {
+                "registration forms"
+            };
             assert_eq!(
                 symbol.container.as_deref(),
-                Some("typescript/registration.test"),
-                "a registration's container is the module: {symbol:?}",
+                Some(expected),
+                "a registration's container is its suite, or the module: {symbol:?}",
             );
             assert!(
                 symbol.leading_line <= symbol.line && symbol.line <= symbol.end_line,

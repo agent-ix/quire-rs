@@ -41,8 +41,11 @@ resolution, no dependency installation. Adapters SHALL classify test functions
 by each language's convention: Rust functions under a `#[test]`-family
 attribute, Python `test_`-prefixed functions and test-class methods, and
 TypeScript `test(...)`/`it(...)` registrations (the registered title is the
-symbol's qualified name). If an adapter cannot parse a file, then the extractor
-SHALL emit a per-file diagnostic, skip the file, and continue.
+symbol's qualified name). A TypeScript `describe(...)`/`suite(...)` registration
+is a **container**, not a test: it groups tests rather than being one, and it is
+the scope the registrations inside it are parented to. If an adapter cannot
+parse a file, then the extractor SHALL emit a per-file diagnostic, skip the
+file, and continue.
 
 ## Trace-tag grammar
 
@@ -126,6 +129,66 @@ byte-identical JSON ordering and stable record ids.
 | FR-051-AC-18 | A `test`/`it` registration whose modifier chain is curried (`it.skipIf(cond)(…)`, `it.each([…])(…)`), or whose title literal begins on a later line, registers a test symbol named by that title, with the span and leading block any other registration gets. The scan is bounded and stops at the first non-blank text: a title held in a variable, an identifier merely beginning with `it`, and a literal beyond the window each register nothing rather than something wrong. A title inside a multi-line template literal is out of scope and registers nothing (CR-084). | Test (TC-943, TC-948, TC-958, TC-960, TC-961) |
 | FR-051-AC-19 | Binding reports a per-language census of what it examined: `candidates` counts the evidence symbols whose kind admits a trace tag, `bound` counts those that minted at least one `verifies` relation, and `forms` names every declared form consulted for that language, markers before legacy. `bound` counts symbols, not relations, so a test carrying five ids counts once. A container or a production function is never a candidate. The census is ordered by language label, is present for every language the walk saw an evidence symbol in, and its `candidates` count does not depend on the declared patterns — the same tree bound against a grammar that matches nothing reports the same candidates and zero bound (CR-093). | Test (TC-982) |
 | FR-051-AC-20 | The Python adapter tracks a triple-quoted string by where its delimiter *is*, not by where the line starts: an opener anywhere on a line (`FIXTURE = """`) enters string state, the body is never read as code, and the closing delimiter closes rather than re-opens. A string opened and closed on one line leaves the state unchanged; both delimiter kinds and every string prefix (`f`, `r`, `b`, `rb`, `u`) are recognised; a triple delimiter inside a single-quoted string, escaped, or after a `#` comment marker toggles nothing, and a `#` inside a triple-quoted string does not end it. A declaration following an embedded string therefore keeps its true container rather than resuming a stale scope (CR-115). | Test (TC-1029, TC-1030, TC-1031) |
+| FR-051-AC-21 | A TypeScript `describe(...)` / `suite(...)` registration mints one **container** symbol named by its registered title, spanning its block and its leading annotation block, and the registrations written inside it carry it as their container rather than the file's module. A suite does not *name* its members: a registration's qualified name is its own registered title whether or not a suite encloses it, while a class inside a suite still qualifies its own. A suite is a grouping and not evidence, so a trace tag on a suite header mints **no** `verifies` relation and the suite is **not** a `binding_census` candidate. `context` is not a suite name. | Test (TC-1039, TC-1040) |
+
+> **CR-119 note (2026-08-24):** AC-21 is new. `agent-ix/quire-rs#273`, epic
+> `agent-ix/quire-rs#264`.
+>
+> `describe(…)` blocks group tests and registered **no symbol themselves**, so a
+> trace tag on a suite header had nothing to attach to. The nearest enclosing
+> symbol was the file's own module container — a container spanning line 1 to
+> EOF, which localises nothing. The header now mints a `Container` named by its
+> registered title, and the registrations inside it are parented to it.
+>
+> **A suite parents without naming.** A registration's qualified name is its
+> registered title (AC-3), and qualifying it through the enclosing suite would
+> change the identity of every test in the ecosystem that sits inside a
+> `describe(`. The scope stack therefore carries two axes — what a scope is
+> *called*, and whether members are named *through* it — and a class still
+> qualifies its own members inside a suite.
+>
+> **`context` is refused on measurement.** Across `~/dev`: 1,699 `describe(`
+> registrations with a quoted title in 103 repository roots, **zero** `suite(`,
+> **zero** `context(`, and five lines beginning `context.` that are method calls
+> on an object of that name. Mocha's alias would put the `.modifier` chain in
+> front of the one shape it cannot distinguish from a suite, for no occurrence
+> it would recover. `suite` is admitted at zero occurrences because it collides
+> with nothing.
+>
+> **The bind semantics are declared as UNCHANGED, and that is the load-bearing
+> half.** A suite is a grouping, not evidence, so a tag on a suite header mints
+> no `verifies` relation and the suite is not a `binding_census` candidate.
+> #273 recommended the opposite — that a suite-level tag bind on behalf of its
+> contained tests — so the recommendation was **run**. **[RAN]** over the 241
+> repositories `scripts/corpus.py` enumerates, with `Container` moved into
+> `binds_trace_ids()`: rows backed 5,039 → 5,526 (+487), `untracked_symbols`
+> 1,085 → **3,961** (+2,876), census candidates 25,358 → 43,260, the rust
+> binding ratio 44.41% → **28.05%**, and `low-symbol-binding` firing on 13 more
+> repositories that did nothing wrong. Six ids bound to nothing per row
+> recovered. The widening cannot reach a suite without reaching **every**
+> container, the file's module included — CR-061's "manufacture backing out of
+> prose", measured. A suite-level tag that binds needs a kind that is neither
+> `Container` nor `TestFunction`, which is a change to the
+> `binds_trace_ids`/`carries_implements` complement, and that belongs to
+> `agent-ix/quire-rs#312` along with its census question.
+>
+> **What this change moves, ecosystem-wide, is one ratio and it moves the wrong
+> way.** **[RAN]** same 241 repositories, same binary but for this change: rows
+> minted 20,023 → 20,023, rows backed 5,039 → 5,039, every diagnostic count and
+> every `binding_census` identical — and `coverage.implements examined`
+> 49,855 → **51,340** (+1,485 suite containers across 93 repositories), a
+> denominator growing while its value does not.
+>
+> **#273's two worked examples are not both this defect, and one is not this
+> defect at all.** `agent-ix/agent-cli-daemon` reads **0 backed of 119** here,
+> under this change, and under the `Container`-binds experiment as well: its
+> census is 127 candidates / 0 bound and it fires `no-symbol-bound` plus six
+> `section-matches-nothing`, so its matrix does not mint the ids its tags name
+> and no attachment fix can reach it. Under the experiment it gains 24 bound
+> symbols and **29 `untracked_symbols`** — every recovered tag names a row the
+> declaration never minted. `agent-ix/ix-ui` does move under the experiment
+> (0 → 57 of 181, with 20 untracked) and not under this change. Recorded because
+> the ticket cites both as the same defect.
 
 > **CR-115 note (2026-08-24):** AC-20 is new. `agent-ix/quire-rs#274`, epic
 > `agent-ix/quire-rs#264`.
