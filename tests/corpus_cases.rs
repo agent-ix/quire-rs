@@ -94,9 +94,11 @@ fn corpus_cases_hold() {
     }
 
     if pending > 0 {
-        // Printed, not hidden. A count of known-failing cases is a measurement
-        // of what the engine cannot yet do, and it belongs beside every run.
-        println!("{pending} case(s) pending a fix — expected to fail, and did.");
+        // Reported, not hidden — and on STDERR, which libtest does not capture
+        // on a passing run. As a `println!` this line never reached anyone on a
+        // green run, so the Rust runner satisfied FR-065's "count and report
+        // every pending case" only when it was already failing.
+        eprintln!("{pending} case(s) pending a fix — expected to fail, and did.");
     }
     assert!(
         pending_now_passing.is_empty(),
@@ -231,17 +233,24 @@ fn tc1017_every_control_names_a_case_that_exists() {
     }
 
     for case in cases.iter().filter(|c| c.meta.kind == "control") {
-        let partner = case
+        let partners = case
             .meta
             .control_for
             .as_deref()
             .unwrap_or_else(|| panic!("{}: a control declares control_for", case.meta.id));
         assert!(
-            pairs.contains(&(partner.to_string(), case.meta.language.as_str())),
-            "{}: control_for names `{partner}`, which is no case in {}",
-            case.meta.id,
-            case.meta.language
+            !partners.is_empty(),
+            "{}: control_for is empty — a control pairs with something",
+            case.meta.id
         );
+        for partner in partners {
+            assert!(
+                pairs.contains(&(partner.to_string(), case.meta.language.as_str())),
+                "{}: control_for names `{partner}`, which is no case in {}",
+                case.meta.id,
+                case.meta.language
+            );
+        }
         // A control is input on which nothing may be found. `findable: true`
         // on one tells a recall-scoring consumer to expect a finding there.
         assert!(
@@ -623,6 +632,21 @@ fn tc1024_unbacked_rows_and_groups_are_exact() {
         .expect("a case asserting no unbacked rows");
     let report = run(empty);
     assert!(grade(empty, &report).passed());
+    // The mutation is the point. The first version stopped at the line above —
+    // "it passes as authored" — which `corpus_cases_hold` already guarantees
+    // for every case, so no change to the grader could have failed it. This
+    // feeds it the row its partner fixture really produces.
+    empty.expect.unbacked_rows = Some(vec![corpus_case::ExpectUnbackedRow {
+        document: "spec/tests.md".to_string(),
+        row_id: None,
+        target_ids: vec!["FR-001-AC-1".to_string()],
+    }]);
+    let outcome = grade(empty, &report);
+    assert!(
+        !outcome.passed(),
+        "a case asserting `unbacked_rows: []` must reject a payload that mints"
+    );
+    assert_eq!(outcome.level_lost(), Some(corpus_case::Level::L2Localised));
 
     // `groups` names WHAT minted, which `total` cannot: `total: 2` is satisfied
     // by any two backed ids from anywhere, so a control asserting it could not
@@ -680,4 +704,138 @@ fn tc1024_every_l3_fragment_is_asserted() {
     let outcome = grade(case, &report);
     assert!(!outcome.passed(), "every fragment in the list is asserted");
     assert_eq!(outcome.level_lost(), Some(corpus_case::Level::L3Actionable));
+}
+
+/// Every reason token a fixture names is DECLARED in `corpus.yaml`, and
+/// declared for the case that names it.
+///
+/// Without this the forward half of a pending case asserted nothing checkable.
+/// Measured: replacing a forward block with
+/// `diagnostic_reasons: [totally-bogus-token-unrelated-to-270]` left 12/12
+/// tests, 32/32 in the Python runner and the bounds matrix all green, with the
+/// case still printing "PENDING — expected to fail, and did". A typo'd token
+/// would have sat pending forever, after its ticket shipped, with no gate ever
+/// saying the fixture had stopped meaning anything.
+#[trace("TC-1025", "FR-065-AC-30")]
+// a token in neither list is rejected.
+#[trace("TC-1025", "FR-065-AC-31")]
+// a live block may not require what no engine emits.
+#[test]
+fn tc1025_every_reason_token_is_declared_and_belongs_to_this_case() {
+    let declaration: serde_yaml::Value = serde_yaml::from_str(
+        &std::fs::read_to_string(corpus_case::corpus_root().join("corpus.yaml"))
+            .expect("read corpus.yaml"),
+    )
+    .expect("corpus.yaml parses");
+    let vocabulary = declaration
+        .get("diagnostic_reasons")
+        .expect("corpus.yaml declares `diagnostic_reasons`");
+    let emitted: BTreeSet<&str> = vocabulary
+        .get("emitted")
+        .and_then(|v| v.as_sequence())
+        .expect("`emitted`")
+        .iter()
+        .filter_map(|v| v.as_str())
+        .collect();
+    let forward: std::collections::BTreeMap<&str, &str> = vocabulary
+        .get("forward")
+        .and_then(|v| v.as_mapping())
+        .expect("`forward`")
+        .iter()
+        .filter_map(|(k, v)| Some((k.as_str()?, v.as_str()?)))
+        .collect();
+    assert!(
+        !emitted.is_empty() && !forward.is_empty(),
+        "both lists are read"
+    );
+
+    let cases = load_cases();
+    let mut checked = 0usize;
+    for case in &cases {
+        for (block, where_) in [
+            (Some(&case.expect), "expect.yaml"),
+            (case.expect_pending.as_ref(), "expect-pending.yaml"),
+        ] {
+            let Some(block) = block else { continue };
+            let required: Vec<&String> = block
+                .diagnostic_reasons
+                .iter()
+                .chain(block.diagnostic_paths.keys())
+                .chain(block.diagnostic_message_contains.keys())
+                .collect();
+            for reason in required
+                .iter()
+                .copied()
+                .chain(&block.absent_diagnostic_reasons)
+            {
+                assert!(
+                    emitted.contains(reason.as_str()) || forward.contains_key(reason.as_str()),
+                    "{}: {where_} names `{reason}`, which corpus.yaml declares neither \
+                     emitted nor forward — a token in neither list is a typo nothing \
+                     can ever satisfy",
+                    case.meta.id,
+                );
+                checked += 1;
+            }
+            // A live block must hold TODAY, so it may not REQUIRE a token no
+            // engine emits yet.
+            for reason in &required {
+                if let Some(ticket) = forward.get(reason.as_str()) {
+                    assert_ne!(
+                        where_, "expect.yaml",
+                        "{}: expect.yaml requires `{reason}`, which no engine emits yet \
+                         ({ticket}) — that belongs in expect-pending.yaml",
+                        case.meta.id,
+                    );
+                    assert_eq!(
+                        Some(*ticket),
+                        case.meta.pending.as_deref(),
+                        "{}: is pending on {:?} and asserts `{reason}`, which {ticket} \
+                         introduces — a fixture cannot wait on one ticket while \
+                         asserting another's behaviour",
+                        case.meta.id,
+                        case.meta.pending,
+                    );
+                }
+            }
+            // And a live block must SURVIVE the fix it waits for. A failure
+            // case asserting the absence of its own pending token fails the
+            // day that ticket lands — reporting a lost detection level instead
+            // of "the ticket appears to have landed".
+            for reason in &block.absent_diagnostic_reasons {
+                if forward.contains_key(reason.as_str()) {
+                    assert_eq!(
+                        case.meta.kind, "control",
+                        "{}: {where_} asserts `{reason}` is ABSENT, but a forward ticket \
+                         adds it and this case is not a control — the day it lands this \
+                         block fails",
+                        case.meta.id,
+                    );
+                    assert_eq!(
+                        where_, "expect.yaml",
+                        "{}: a control's forward absence claim belongs in expect.yaml; \
+                         a forward block must FAIL today, and this cannot",
+                        case.meta.id,
+                    );
+                }
+            }
+        }
+        // An EMPTY forward block grades zero assertions, so it trivially holds
+        // — and every runner then reports that the ticket has landed. Measured
+        // with a 0-byte file and with `{}`: the engine untouched, and a reader
+        // told to delete the marker, which turns the regression fixture into a
+        // green case asserting nothing.
+        if let Some(forward_block) = &case.expect_pending {
+            assert!(
+                forward_block.asserts_something(),
+                "{}: expect-pending.yaml asserts nothing. An empty forward block \
+                 always holds, which every runner reads as `the ticket landed`",
+                case.meta.id,
+            );
+        }
+    }
+    assert!(
+        checked > 0,
+        "no reason token was checked, so this asserts nothing"
+    );
 }

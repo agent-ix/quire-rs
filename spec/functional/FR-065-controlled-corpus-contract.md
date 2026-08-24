@@ -155,7 +155,8 @@ by running it.
 - `corpus.yaml`: schema version, the case index, the declared mode families, and the
   bounds matrix.
 - A case directory `cases/<mode>/<case>/[<language>/]`: `case.yaml`, an `input/` tree of
-  static files, `expect.yaml`.
+  static files, `expect.yaml`, and — for a case declaring `pending` —
+  `expect-pending.yaml`.
 - `modules/ecosystem/`: the real declaration, vendored **whole** — both
   `spec-artifacts-process` and `spec-artifacts-iso`, each with its own pinned SHA.
   Whole directories rather than manifests, because archetypes reference their schema
@@ -208,7 +209,11 @@ itself and the check becomes self-satisfying. The corpus loader SHALL additional
 `control_for` on a case of kind `control`; `relaxation_ticket` on a case binding a
 variant module; and `pending_reason` on a case declaring `pending`.
 
-`control_for` names the partner's `case`, never its `id` (CR-110). An earlier
+`control_for` names a LIST of partners' `case` values, never an `id` (CR-110). A list
+because one control can legitimately serve several failure cases — the healthy repair of
+two single-cell defects in one document is the same document — and measured, two controls
+authored separately for two such cases were byte-identical expectations over input trees
+differing by one blank line, with swapping their `control_for` leaving every gate green. An earlier
 wording said `id` two paragraphs after saying `case`, and for a language set those
 are different strings — a set's variant `id` is `<shared id>-<language>`, which a
 *shared* field cannot name. An author following the `id` sentence would have written
@@ -244,6 +249,29 @@ and the suite would have stayed green — including the one field that distingui
 from each other. A control cannot hold a failure case's live facts, because it does not
 have them: its input is healthy.
 
+`corpus.yaml` SHALL declare every diagnostic reason a fixture may name, in two parts:
+`emitted`, the tokens the engine produces today, and `forward`, a map from a token to
+the ticket that will introduce it. Both runners SHALL reject a token declared in
+neither.
+
+A live `expect.yaml` SHALL NOT REQUIRE a `forward` token — it must hold today. A forward
+`expect-pending.yaml` SHALL require only `forward` tokens whose ticket is the case's own
+`pending`, so a fixture cannot wait on one ticket while asserting another's behaviour.
+
+A case of kind `control` MAY assert a `forward` token ABSENT in its `expect.yaml`: that
+claim is vacuous today and load-bearing the day the ticket lands, which is what a control
+is for. A case of kind `failure` SHALL NOT — its live block would assert the absence of
+the very behaviour it waits for, and would therefore FAIL on the fix rather than pass it.
+
+When a ticket lands, its token MOVES from `forward` to `emitted`. That single edit is
+what makes every fixture in its group go green at once.
+
+An `expect-pending.yaml` asserting nothing SHALL be rejected. A block grading zero
+assertions trivially holds, and every runner then reports its ticket as landed — measured
+with a 0-byte file and with `{}`, both runners announced a fix that had not happened, and
+a reader following that instruction would delete the marker and turn the regression
+fixture into a green case asserting nothing.
+
 The corpus loader SHALL **derive** `bounds.gap_count` and the per-cell states from the
 inventory and the fixtures present, and SHALL NOT read them from a stored value. A stored count is a number that can go stale; a
 derived one cannot disagree with the tree it describes, and adding a fixture then moves
@@ -260,12 +288,18 @@ copying nothing. Where a case is **mutating** — exercising a command that writ
 `quire fix` — the runner SHALL operate on a copy, leaving the checked-in input
 unmodified. This is the only case in which the runner copies anything.
 
-The runner SHALL assert against `expect.yaml` as data. The runner SHALL accept a newly
-added case directory without being edited.
+The runner SHALL assert against both expectation blocks as data. The runner SHALL accept
+a newly added case directory without being edited.
 
-The runner SHALL treat every `expect` field as optional. A corpus where each case pins
-the whole envelope fails forty cases on one unrelated change and is then relaxed
-wholesale — which is the failure mode that ends a corpus.
+The runner SHALL treat every `expect` field as optional, and an OMITTED field is
+asserted on by nothing. A corpus where each case pins the whole envelope fails forty
+cases on one unrelated change and is then relaxed wholesale — which is the failure mode
+that ends a corpus.
+
+An omitted field and an EMPTY one are different claims. `unbacked_rows: []` says the
+declaration minted nothing; omitting the key says this case is not about what minted.
+The distinction is what lets one fixture assert the absence of a row another asserts
+the presence of, which is the only thing separating the two minting cases.
 
 A case SHALL bind to the vendored ecosystem module by default. Where a case binds a
 variant module, `case.yaml` SHALL name the relaxation ticket that variant sizes.
@@ -316,8 +350,12 @@ than an agreement between two codebases nobody can verify from one of them.
 | FR-065-AC-25 | Every case's `expect.yaml` is graded and MUST hold, whether or not the case declares `pending`. | Test (TC-1023) |
 | FR-065-AC-26 | A case declaring `pending` and shipping no `expect-pending.yaml` is rejected, and so is one shipping `expect-pending.yaml` and declaring no `pending`. | Test (TC-1023) |
 | FR-065-AC-27 | A case whose `expect-pending.yaml` holds fails the run, naming the ticket in its `pending`. | Test (TC-1023) |
-| FR-065-AC-28 | `unbacked_rows` and `groups` are assertable exactly, in both directions; an empty list is an assertion that the payload carries none. | Test (TC-1024) |
-| FR-065-AC-29 | `diagnostic_message_contains` takes a list of substrings per reason, each of which the message must carry. | Test (TC-1024) |
+| FR-065-AC-28 | A case asserting `unbacked_rows` or `groups` fails on a payload carrying an extra entry, a missing entry, a changed field or a different order; a case asserting an empty list fails on a payload carrying any entry. | Test (TC-1024) |
+| FR-065-AC-29 | A case naming several substrings for one reason fails when the message carries any proper subset of them. | Test (TC-1024) |
+| FR-065-AC-30 | A block naming a reason token that `corpus.yaml` declares neither emitted nor forward is rejected, naming the token. | Test (TC-1025) |
+| FR-065-AC-31 | A live block requiring a `forward` token is rejected; a forward block requiring a token whose ticket is not the case's own `pending` is rejected. | Test (TC-1025) |
+| FR-065-AC-32 | A failure case asserting a `forward` token ABSENT is rejected; a control asserting one in its live block is accepted. | Test (TC-1025) |
+| FR-065-AC-33 | An `expect-pending.yaml` grading zero assertions is rejected rather than read as its ticket having landed. | Test (TC-1025) |
 
 ## Dependencies
 

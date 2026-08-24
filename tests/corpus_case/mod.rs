@@ -112,8 +112,17 @@ pub struct CaseMeta {
     pub language: String,
     pub module: String,
     pub kind: String,
+    /// The failure cases this control is the healthy counterpart of.
+    ///
+    /// A LIST, always. One control can legitimately serve several failure
+    /// cases — the healthy repair of two single-cell defects in one document
+    /// is the same document — and measured, `section-name-mismatch-control`
+    /// and `id-column-mismatch-control` were byte-identical expectations over
+    /// input trees differing by one blank line. Swapping their `control_for`
+    /// left every gate green, because neither asserted anything the other did
+    /// not.
     #[serde(default)]
-    pub control_for: Option<String>,
+    pub control_for: Option<Vec<String>>,
     /// The ticket that will make this case pass. Present means the case
     /// asserts behaviour the engine does not have yet, and is EXPECTED to fail.
     ///
@@ -864,5 +873,27 @@ pub fn grade_with(case: &Case, report: &quire_rs::CoverageReport, e: &CaseExpect
         case: case.meta.id.clone(),
         issue_ref: case.meta.issue_ref.clone(),
         mismatches: m,
+    }
+}
+
+impl CaseExpect {
+    /// Whether this block asserts anything at all.
+    ///
+    /// A block that grades zero assertions trivially "passes", which for a
+    /// forward block means every runner reports that its ticket has landed.
+    pub fn asserts_something(&self) -> bool {
+        self.backed.is_some()
+            || self.total.is_some()
+            || !self.diagnostic_reasons.is_empty()
+            || !self.absent_diagnostic_reasons.is_empty()
+            || !self.binding_census.is_empty()
+            || !self.diagnostic_paths.is_empty()
+            || !self.diagnostic_message_contains.is_empty()
+            || self.no_symbol_rows.is_some()
+            || !self.metrics.is_empty()
+            || !self.validate_contains.is_empty()
+            || !self.validate_absent.is_empty()
+            || self.unbacked_rows.is_some()
+            || self.groups.is_some()
     }
 }
