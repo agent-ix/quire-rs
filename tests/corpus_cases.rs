@@ -187,8 +187,14 @@ fn tc1017_every_control_names_a_case_that_exists() {
     // Resolved against a case's `id` OR its `case`. A single-language fixture
     // is named by its id; a set is named by the inventory row it claims, and a
     // fixture that reclaimed a row (#268) has an id that is neither.
+    // FAILURE cases only. Building this from every case put each control's own
+    // `case` into the set, so `control_for` resolved against ITSELF and the
+    // check became self-satisfying: deleting the flagship failure fixture —
+    // the only ecosystem-bound minting case, the 3,514-id defect — left all
+    // eight tests green. `bounds.py` already skips non-failure kinds for
+    // exactly this reason and carries a comment saying so; this did not.
     let mut pairs: BTreeSet<(String, &str)> = BTreeSet::new();
-    for c in &cases {
+    for c in cases.iter().filter(|c| c.meta.kind == "failure") {
         pairs.insert((c.meta.id.clone(), c.meta.language.as_str()));
         if let Some(case) = &c.meta.case {
             pairs.insert((case.clone(), c.meta.language.as_str()));
@@ -413,5 +419,69 @@ fn tc1020_the_documented_invocation_names_the_module_that_loads() {
             "{}: carries no `comment` saying what it is about",
             case.meta.id,
         );
+    }
+}
+
+/// A language set's variant declares only what varies, and every reader derives
+/// one identity for it.
+///
+/// Both properties were violated at once and neither gate noticed: a variant
+/// could override `case` — silently re-pointing the cell the fixture credits,
+/// with `gap_count` unmoved — and `bounds.py` honoured a variant-declared `id`
+/// verbatim while this harness overwrote it, so one fixture had two identities
+/// and nothing keyed on `id` could be joined across runners.
+#[trace("TC-1022", "FR-065-AC-22")]
+// a variant may not re-point its own case.
+#[trace("TC-1022", "FR-065-AC-23")]
+// one variant, one id, in every reader.
+#[test]
+fn tc1022_a_variant_varies_expectations_not_identity() {
+    let cases = load_cases();
+    let sets: Vec<_> = cases
+        .iter()
+        .filter(|c| {
+            c.dir
+                .parent()
+                .is_some_and(|p| p.join("case.yaml").is_file())
+        })
+        .collect();
+    assert!(
+        !sets.is_empty(),
+        "no language set in the corpus, so this asserts nothing",
+    );
+
+    for case in &sets {
+        // AC-23: `<shared id>-<language>`, derived the same way by every reader.
+        assert!(
+            case.meta.id.ends_with(&format!("-{}", case.meta.language)),
+            "{}: a variant's id must be `<shared id>-<language>`",
+            case.meta.id,
+        );
+        // AC-22: the identity fields come from the SHARED file, so a variant
+        // that re-declared one differently would be two claims about one fact.
+        let shared: serde_yaml::Value = serde_yaml::from_str(
+            &std::fs::read_to_string(case.dir.parent().expect("set root").join("case.yaml"))
+                .expect("read shared case.yaml"),
+        )
+        .expect("shared case.yaml parses");
+        let variant: serde_yaml::Value = if case.dir.join("case.yaml").is_file() {
+            serde_yaml::from_str(
+                &std::fs::read_to_string(case.dir.join("case.yaml")).expect("read case.yaml"),
+            )
+            .expect("variant case.yaml parses")
+        } else {
+            serde_yaml::Value::Null
+        };
+        for field in ["case", "mode", "module", "kind", "pending"] {
+            if let (Some(v), Some(sh)) = (variant.get(field), shared.get(field)) {
+                assert_eq!(
+                    v, sh,
+                    "{}: a variant may not override `{field}` — it declares WHICH \
+                     case this is, and varying it re-points the cell the fixture \
+                     credits while `gap_count` stays put",
+                    case.meta.id,
+                );
+            }
+        }
     }
 }
