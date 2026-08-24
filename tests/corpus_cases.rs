@@ -1134,8 +1134,7 @@ fn tc1027_a_control_binds_its_partners_declaration() {
         ),
         // AC-41 — an exemption with no ticket is permanent by default.
         (
-            "s = s.replace('agent-ix/quire-rs#301', 'because I said so')\
-             .replace('agent-ix/quire-rs#286', 'because I said so')",
+            "import re; s = re.sub(r'agent-ix/[a-z-]+#\\d+', 'because I said so', s)",
             "names no ticket",
         ),
     ];
@@ -1434,6 +1433,16 @@ fn tc1032_a_regression_case_pins_a_landed_fix() {
             .case
             .clone()
             .unwrap_or_else(|| case.meta.id.clone());
+        // A case binding a RELAXATION VARIANT credits no cell whatever its
+        // kind — CON-3, because a corpus whose manifest always matches cannot
+        // exhibit an ecosystem defect. That is orthogonal to `regression`,
+        // which is about whether the behaviour is broken. `bounds.py` marks
+        // such a cell GAP with a reason naming its relaxation ticket, and
+        // AC-44 is about a cell reverting to GAP when its defect is FIXED —
+        // a different thing from one that never credited.
+        if case.meta.module != "ecosystem" {
+            continue;
+        }
         let covered = derived["bounds"]["matrix"]
             .as_array()
             .expect("matrix")
