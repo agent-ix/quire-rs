@@ -278,6 +278,22 @@ fn load_module_path(path: &Path, case_id: &str) -> quire_rs::Registry {
         .unwrap_or_else(|e| panic!("{case_id}: module path {} failed: {e}", path.display()))
 }
 
+/// Deserialize a merged declaration, naming the directory on failure.
+fn parse_meta(value: &serde_yaml::Value, dir: &Path) -> CaseMeta {
+    serde_yaml::from_value(value.clone())
+        .unwrap_or_else(|e| panic!("{}: case.yaml: {e}", dir.display()))
+}
+
+/// Set a string key on a mapping, for the fields a set derives per variant.
+fn set_str(value: &mut serde_yaml::Value, key: &str, text: &str) {
+    if let serde_yaml::Value::Mapping(map) = value {
+        map.insert(
+            serde_yaml::Value::String(key.to_string()),
+            serde_yaml::Value::String(text.to_string()),
+        );
+    }
+}
+
 /// A case's expectations, from the directory holding its `input/`.
 fn read_expect(dir: &Path) -> CaseExpect {
     serde_yaml::from_str(
@@ -321,7 +337,13 @@ pub fn load_cases() -> Vec<Case> {
             .collect();
         dirs.sort();
         for dir in dirs {
-            let meta: CaseMeta = serde_yaml::from_str(
+            // Parsed as a VALUE first, then merged, then deserialized. A
+            // language SET splits its declaration across two files — the shared
+            // `case.yaml` carries no `language`, because that is what varies —
+            // so deserializing the shared file alone fails on a required field.
+            // `bounds.py` merges the same way; two readers of one corpus
+            // disagreeing about what a case IS is the drift FR-065 prevents.
+            let shared: serde_yaml::Value = serde_yaml::from_str(
                 &std::fs::read_to_string(dir.join("case.yaml")).expect("read case.yaml"),
             )
             .unwrap_or_else(|e| panic!("{}: case.yaml: {e}", dir.display()));
@@ -334,8 +356,8 @@ pub fn load_cases() -> Vec<Case> {
             if dir.join("input").is_dir() {
                 cases.push(Case {
                     expect: read_expect(&dir),
+                    meta: parse_meta(&shared, &dir),
                     dir,
-                    meta,
                 });
                 continue;
             }
@@ -357,21 +379,39 @@ pub fn load_cases() -> Vec<Case> {
                     .and_then(|n| n.to_str())
                     .expect("language directory name")
                     .to_string();
-                let mut meta = CaseMeta {
-                    id: format!("{}-{language}", meta.id),
-                    language,
-                    ..meta.clone()
-                };
-                meta.case.get_or_insert_with(|| {
-                    dir.file_name()
-                        .and_then(|n| n.to_str())
-                        .unwrap_or_default()
-                        .to_string()
-                });
+                let mut merged = shared.clone();
+                if variant.join("case.yaml").is_file() {
+                    let per: serde_yaml::Value = serde_yaml::from_str(
+                        &std::fs::read_to_string(variant.join("case.yaml"))
+                            .expect("read case.yaml"),
+                    )
+                    .unwrap_or_else(|e| panic!("{}: case.yaml: {e}", variant.display()));
+                    if let (serde_yaml::Value::Mapping(b), serde_yaml::Value::Mapping(o)) =
+                        (&mut merged, &per)
+                    {
+                        for (k, v) in o {
+                            b.insert(k.clone(), v.clone());
+                        }
+                    }
+                }
+                let base = merged
+                    .get("id")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or_else(|| dir.file_name().and_then(|n| n.to_str()).unwrap_or(""))
+                    .to_string();
+                if merged.get("case").is_none() {
+                    set_str(&mut merged, "case", &base);
+                }
+                // The variant's id is its OWN. One id across three variants is
+                // indistinguishable in a pending list, and a duplicate-id check
+                // would call them one case.
+                set_str(&mut merged, "id", &format!("{base}-{language}"));
+                set_str(&mut merged, "language", &language);
+
                 cases.push(Case {
                     expect: read_expect(&variant),
+                    meta: parse_meta(&merged, &variant),
                     dir: variant,
-                    meta,
                 });
             }
         }
