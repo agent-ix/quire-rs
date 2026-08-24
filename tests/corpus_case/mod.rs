@@ -625,6 +625,35 @@ fn validate_report(case: &Case) -> String {
 /// Collects rather than asserting eagerly: a case that loses L1 usually loses
 /// L2 and L3 too, and the useful report is the FIRST level lost, which cannot
 /// be computed from a panic on the first failed assertion.
+/// The diagnostic a key names, honouring the DECLARATION when one is given.
+///
+/// Every diagnostic carries the declaration that raised it, and neither reader
+/// read it — both took the first entry with a matching `reason`. Two
+/// declarations can raise the same reason on one payload, and then the wrong
+/// finding is graded: measured, declaring a `constraint` target made
+/// `constraint`'s `section-matches-nothing` displace `test-case`'s in six
+/// fixtures, including the #270 pair, and the diagnosis was that the token was
+/// "not scoped to its declaration" — an engine defect that does not exist. The
+/// engine had always published `declaration`; the readers ignored it.
+///
+/// A key is either `reason` (any declaration — what every fixture writes
+/// today) or `declaration/reason` (that declaration only). Scoping is opt-in,
+/// so no existing assertion changes meaning and adopting it RAISES an
+/// assertion rather than lowering one.
+fn find_diagnostic<'a>(
+    report: &'a quire_rs::CoverageReport,
+    key: &str,
+) -> Option<&'a quire_rs::coverage::CoverageDiagnostic> {
+    let (declaration, reason) = match key.rsplit_once('/') {
+        Some((d, r)) => (Some(d), r),
+        None => (None, key),
+    };
+    report
+        .diagnostics
+        .iter()
+        .find(|d| d.reason == reason && declaration.is_none_or(|want| d.declaration == want))
+}
+
 pub fn grade(case: &Case, report: &quire_rs::CoverageReport) -> Outcome {
     grade_with(case, report, &case.expect)
 }
@@ -685,13 +714,21 @@ pub fn grade_against(
         }
     }
 
-    let reasons: Vec<&str> = report
+    // Both spellings: the bare reason, and `declaration/reason` for a fixture
+    // that scopes its claim to one declaration. See `find_diagnostic`.
+    let mut reasons: Vec<String> = report
         .diagnostics
         .iter()
-        .map(|d| d.reason.as_str())
+        .map(|d| d.reason.clone())
         .collect();
+    reasons.extend(
+        report
+            .diagnostics
+            .iter()
+            .map(|d| format!("{}/{}", d.declaration, d.reason)),
+    );
     for want in &e.diagnostic_reasons {
-        if !reasons.contains(&want.as_str()) {
+        if !reasons.contains(want) {
             fail(
                 Level::L1Detected,
                 format!("expected diagnostic `{want}`, got {reasons:?}"),
@@ -699,7 +736,7 @@ pub fn grade_against(
         }
     }
     for unwanted in &e.absent_diagnostic_reasons {
-        if reasons.contains(&unwanted.as_str()) {
+        if reasons.contains(unwanted) {
             fail(
                 Level::L1Detected,
                 format!("`{unwanted}` fired on a case that is not about it: {reasons:?}"),
@@ -768,11 +805,7 @@ pub fn grade_against(
     }
 
     for (reason, want) in &e.diagnostic_paths {
-        let actual = report
-            .diagnostics
-            .iter()
-            .find(|d| &d.reason == reason)
-            .and_then(|d| d.path.clone());
+        let actual = find_diagnostic(report, reason).and_then(|d| d.path.clone());
         if actual.as_deref() != Some(want.as_str()) {
             fail(
                 Level::L2Localised,
@@ -782,11 +815,7 @@ pub fn grade_against(
     }
 
     for (reason, fragments) in &e.diagnostic_message_contains {
-        let message = report
-            .diagnostics
-            .iter()
-            .find(|d| &d.reason == reason)
-            .map(|d| d.message.clone());
+        let message = find_diagnostic(report, reason).map(|d| d.message.clone());
         for fragment in fragments {
             match &message {
                 Some(text) if text.contains(fragment.as_str()) => {}
