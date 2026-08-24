@@ -63,6 +63,15 @@ fn corpus_cases_hold() {
         // will make true, and what must not be true yet.
         match (&case.meta.pending, &case.expect_pending) {
             (Some(ticket), Some(forward)) => {
+                // Both readers enforce this, which is the point of there being
+                // two. A block grading zero assertions trivially holds, and
+                // this loop would then report the ticket as landed.
+                assert!(
+                    forward.asserts_something(),
+                    "{}: expect-pending.yaml asserts nothing. An empty forward \
+                     block always holds, which reads as `{ticket} landed`",
+                    case.meta.id,
+                );
                 let ahead = grade_with(case, &report, forward);
                 if ahead.passed() {
                     // The fix landed and the marker is now lying about the
@@ -706,22 +715,166 @@ fn tc1024_every_l3_fragment_is_asserted() {
     assert_eq!(outcome.level_lost(), Some(corpus_case::Level::L3Actionable));
 }
 
-/// Every reason token a fixture names is DECLARED in `corpus.yaml`, and
-/// declared for the case that names it.
+/// The loader's conformance checks, MUTATED.
 ///
-/// Without this the forward half of a pending case asserted nothing checkable.
-/// Measured: replacing a forward block with
-/// `diagnostic_reasons: [totally-bogus-token-unrelated-to-270]` left 12/12
-/// tests, 32/32 in the Python runner and the bounds matrix all green, with the
-/// case still printing "PENDING — expected to fail, and did". A typo'd token
-/// would have sat pending forever, after its ticket shipped, with no gate ever
-/// saying the fixture had stopped meaning anything.
+/// The first version of this scanned an already-conformant corpus and asserted
+/// it conforms — which is what `bounds.py` guarantees before any case is
+/// returned, so deleting three of its four criteria left it reporting `ok`.
+/// That is the identical defect this branch had just repaired in TC-1024.
+///
+/// Every case below drives the real loader, `bounds.py`, over a COPY of the
+/// corpus with one file changed, and asserts it refuses — naming the case and
+/// the thing that is wrong.
 #[trace("TC-1025", "FR-065-AC-30")]
 // a token in neither list is rejected.
 #[trace("TC-1025", "FR-065-AC-31")]
 // a live block may not require what no engine emits.
+#[trace("TC-1025", "FR-065-AC-32")]
+// a failure case may not assert its pending token absent.
+#[trace("TC-1025", "FR-065-AC-33")]
+// a forward block that asserts nothing is rejected.
+#[trace("TC-1025", "FR-065-AC-36")]
+// a forward block must be ABOUT its ticket.
 #[test]
-fn tc1025_every_reason_token_is_declared_and_belongs_to_this_case() {
+fn tc1025_the_loader_refuses_a_block_that_asserts_the_wrong_thing() {
+    // Each: (file under the corpus root, its new contents, a fragment the
+    // rejection must carry).
+    let mutations: &[(&str, &str, &str)] = &[
+        // AC-30 — a token in neither list.
+        (
+            "cases/minting/section-name-mismatch/rust/expect-pending.yaml",
+            "diagnostic_reasons: [totally-bogus-token]\n",
+            "neither emitted nor forward",
+        ),
+        // AC-31 — a LIVE block requiring what no engine emits yet.
+        (
+            "cases/minting/section-name-mismatch/rust/expect.yaml",
+            "diagnostic_reasons: [section-matches-nothing]\n",
+            "belongs in expect-pending.yaml",
+        ),
+        // AC-32 — a FAILURE case asserting its own pending token absent. That
+        // block is guaranteed to fail the day the ticket lands.
+        (
+            "cases/minting/section-name-mismatch/rust/expect.yaml",
+            "total: 1\nabsent_diagnostic_reasons: [section-matches-nothing]\n",
+            "a live block must survive the fix it waits for",
+        ),
+        // AC-33 — non-empty as YAML, zero assertions when graded.
+        (
+            "cases/minting/section-name-mismatch/rust/expect-pending.yaml",
+            "diagnostic_reasons: []\n",
+            "asserts nothing",
+        ),
+        // AC-36 — merely FALSE, not ABOUT the ticket. This is the one that
+        // survived two rounds of review: false today, false after the fix, and
+        // the case sits pending forever with no gate saying so.
+        (
+            "cases/minting/section-name-mismatch/rust/expect-pending.yaml",
+            "backed: 99\n",
+            "requires no token that agent-ix/quire-rs#270 introduces",
+        ),
+        // AC-36, the other half — an ALREADY-EMITTED token in a forward block.
+        // The shape a partial landing takes: the token fires, the message is
+        // not actionable, and the fixture reads as "not landed yet" forever.
+        (
+            "cases/minting/section-name-mismatch/rust/expect-pending.yaml",
+            "diagnostic_reasons: [catch-all-universal]\n",
+            "which the engine already emits",
+        ),
+        // A typo'd key in a forward block was GRADED, so the fixture's own
+        // schema error read as evidence about the engine.
+        (
+            "cases/minting/section-name-mismatch/rust/expect-pending.yaml",
+            "diagnostic_reason: [section-matches-nothing]\n",
+            "unhandled key",
+        ),
+        // The pairing, both directions (AC-26).
+        (
+            "cases/minting/section-name-mismatch/rust/expect-pending.yaml",
+            "",
+            "asserts nothing",
+        ),
+    ];
+
+    for (index, (target, contents, fragment)) in mutations.iter().enumerate() {
+        let scratch = std::env::temp_dir().join(format!("qa-corpus-tc1025-{index}"));
+        let _ = std::fs::remove_dir_all(&scratch);
+        copy_tree(&corpus_case::corpus_root(), &scratch);
+        std::fs::write(scratch.join(target), contents).expect("write mutation");
+
+        let run = std::process::Command::new("python3")
+            .arg(scratch.join("bounds.py"))
+            .output()
+            .expect("run bounds.py");
+        let stderr = String::from_utf8_lossy(&run.stderr).to_string();
+        assert!(
+            !run.status.success(),
+            "mutation {index} ({target} <- {contents:?}) was ACCEPTED by the \
+             loader. stdout:\n{}",
+            String::from_utf8_lossy(&run.stdout),
+        );
+        assert!(
+            stderr.contains(fragment),
+            "mutation {index} was rejected, but not for the stated reason. \
+             Expected a message carrying {fragment:?}, got:\n{stderr}",
+        );
+        std::fs::remove_dir_all(&scratch).expect("clean up");
+    }
+
+    // And the unmutated corpus is accepted, so the assertions above are about
+    // the mutations rather than about a loader that refuses everything.
+    let baseline = std::process::Command::new("python3")
+        .arg(corpus_case::corpus_root().join("bounds.py"))
+        .output()
+        .expect("run bounds.py");
+    assert!(
+        baseline.status.success(),
+        "the corpus as committed must load:\n{}",
+        String::from_utf8_lossy(&baseline.stderr),
+    );
+}
+
+/// Copy a directory tree, skipping `.git`.
+fn copy_tree(from: &std::path::Path, to: &std::path::Path) {
+    std::fs::create_dir_all(to).expect("create scratch");
+    for entry in std::fs::read_dir(from).expect("read tree").flatten() {
+        let (source, target) = (entry.path(), to.join(entry.file_name()));
+        if entry.file_name() == ".git" {
+            continue;
+        }
+        if source.is_dir() {
+            copy_tree(&source, &target);
+        } else {
+            std::fs::copy(&source, &target).expect("copy file");
+        }
+    }
+}
+
+/// The declared vocabulary is checked against the ENGINE, not hand-maintained.
+///
+/// Round three of this review found the defect had moved from the fixtures to
+/// `corpus.yaml`: a token could be added to `emitted` that no engine emits, or
+/// a token the engine already emits could be parked in `forward`, and every
+/// gate stayed green. A second hand-written list drifts exactly the way the
+/// first one did.
+///
+/// The `forward` direction is the forcing function. The day `#270` lands,
+/// `"section-matches-nothing"` becomes a literal in `src/`, this test FAILS,
+/// and it stays failing until the token is moved to `emitted` — which is the
+/// same edit that makes every fixture waiting on it go green. Nobody can land
+/// the fix and leave the corpus describing a world where it has not landed.
+///
+/// A source scan, not a registry read. Both directions are exact TODAY —
+/// verified token by token, all eight `emitted` resolve to a literal and both
+/// `forward` resolve to none — but it is a proxy: a reason assembled at
+/// runtime rather than written as a literal would read as absent. The engine
+/// should publish its reason registry, which is `agent-ix/quire-rs#300`.
+#[trace("TC-1026", "FR-065-AC-34")]
+// `emitted` names only what the engine emits.
+#[trace("TC-1026", "FR-065-AC-35")]
+// `forward` names only what it does not.
+#[test]
+fn tc1026_the_declared_vocabulary_matches_the_engine() {
     let declaration: serde_yaml::Value = serde_yaml::from_str(
         &std::fs::read_to_string(corpus_case::corpus_root().join("corpus.yaml"))
             .expect("read corpus.yaml"),
@@ -730,112 +883,130 @@ fn tc1025_every_reason_token_is_declared_and_belongs_to_this_case() {
     let vocabulary = declaration
         .get("diagnostic_reasons")
         .expect("corpus.yaml declares `diagnostic_reasons`");
-    let emitted: BTreeSet<&str> = vocabulary
+
+    // Every `.rs` under `src/`, concatenated once.
+    let mut sources = String::new();
+    let mut stack = vec![std::path::PathBuf::from("src")];
+    while let Some(dir) = stack.pop() {
+        for entry in std::fs::read_dir(&dir).expect("read src").flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                stack.push(path);
+            } else if path.extension().is_some_and(|e| e == "rs") {
+                sources.push_str(&std::fs::read_to_string(&path).expect("read source"));
+            }
+        }
+    }
+    assert!(sources.len() > 10_000, "the source scan read something");
+
+    let emitted: Vec<&str> = vocabulary
         .get("emitted")
         .and_then(|v| v.as_sequence())
         .expect("`emitted`")
         .iter()
         .filter_map(|v| v.as_str())
         .collect();
-    let forward: std::collections::BTreeMap<&str, &str> = vocabulary
+    assert!(!emitted.is_empty(), "`emitted` is not empty");
+    for token in &emitted {
+        assert!(
+            sources.contains(&format!("\"{token}\"")),
+            "corpus.yaml declares `{token}` emitted, but no literal by that name \
+             appears in src/. Either the engine stopped emitting it — in which \
+             case every fixture asserting it is now vacuous — or it belongs in \
+             `forward` with the ticket that will add it.",
+        );
+    }
+
+    let forward = vocabulary
         .get("forward")
         .and_then(|v| v.as_mapping())
-        .expect("`forward`")
-        .iter()
-        .filter_map(|(k, v)| Some((k.as_str()?, v.as_str()?)))
-        .collect();
-    assert!(
-        !emitted.is_empty() && !forward.is_empty(),
-        "both lists are read"
-    );
-
-    let cases = load_cases();
-    let mut checked = 0usize;
-    for case in &cases {
-        for (block, where_) in [
-            (Some(&case.expect), "expect.yaml"),
-            (case.expect_pending.as_ref(), "expect-pending.yaml"),
-        ] {
-            let Some(block) = block else { continue };
-            let required: Vec<&String> = block
-                .diagnostic_reasons
-                .iter()
-                .chain(block.diagnostic_paths.keys())
-                .chain(block.diagnostic_message_contains.keys())
-                .collect();
-            for reason in required
-                .iter()
-                .copied()
-                .chain(&block.absent_diagnostic_reasons)
-            {
-                assert!(
-                    emitted.contains(reason.as_str()) || forward.contains_key(reason.as_str()),
-                    "{}: {where_} names `{reason}`, which corpus.yaml declares neither \
-                     emitted nor forward — a token in neither list is a typo nothing \
-                     can ever satisfy",
-                    case.meta.id,
-                );
-                checked += 1;
-            }
-            // A live block must hold TODAY, so it may not REQUIRE a token no
-            // engine emits yet.
-            for reason in &required {
-                if let Some(ticket) = forward.get(reason.as_str()) {
-                    assert_ne!(
-                        where_, "expect.yaml",
-                        "{}: expect.yaml requires `{reason}`, which no engine emits yet \
-                         ({ticket}) — that belongs in expect-pending.yaml",
-                        case.meta.id,
-                    );
-                    assert_eq!(
-                        Some(*ticket),
-                        case.meta.pending.as_deref(),
-                        "{}: is pending on {:?} and asserts `{reason}`, which {ticket} \
-                         introduces — a fixture cannot wait on one ticket while \
-                         asserting another's behaviour",
-                        case.meta.id,
-                        case.meta.pending,
-                    );
-                }
-            }
-            // And a live block must SURVIVE the fix it waits for. A failure
-            // case asserting the absence of its own pending token fails the
-            // day that ticket lands — reporting a lost detection level instead
-            // of "the ticket appears to have landed".
-            for reason in &block.absent_diagnostic_reasons {
-                if forward.contains_key(reason.as_str()) {
-                    assert_eq!(
-                        case.meta.kind, "control",
-                        "{}: {where_} asserts `{reason}` is ABSENT, but a forward ticket \
-                         adds it and this case is not a control — the day it lands this \
-                         block fails",
-                        case.meta.id,
-                    );
-                    assert_eq!(
-                        where_, "expect.yaml",
-                        "{}: a control's forward absence claim belongs in expect.yaml; \
-                         a forward block must FAIL today, and this cannot",
-                        case.meta.id,
-                    );
-                }
-            }
-        }
-        // An EMPTY forward block grades zero assertions, so it trivially holds
-        // — and every runner then reports that the ticket has landed. Measured
-        // with a 0-byte file and with `{}`: the engine untouched, and a reader
-        // told to delete the marker, which turns the regression fixture into a
-        // green case asserting nothing.
-        if let Some(forward_block) = &case.expect_pending {
-            assert!(
-                forward_block.asserts_something(),
-                "{}: expect-pending.yaml asserts nothing. An empty forward block \
-                 always holds, which every runner reads as `the ticket landed`",
-                case.meta.id,
-            );
-        }
+        .expect("`forward`");
+    assert!(!forward.is_empty(), "`forward` is not empty");
+    for (token, ticket) in forward {
+        let (token, ticket) = (
+            token.as_str().expect("token"),
+            ticket.as_str().expect("ticket"),
+        );
+        assert!(
+            !sources.contains(&format!("\"{token}\"")),
+            "corpus.yaml declares `{token}` forward, waiting on {ticket}, but the \
+             engine already carries a literal by that name. {ticket} appears to \
+             have landed: move the token to `emitted` and fold every forward \
+             block waiting on it into its expect.yaml.",
+        );
     }
-    assert!(
-        checked > 0,
-        "no reason token was checked, so this asserts nothing"
-    );
+}
+
+/// A control binds its partner's declaration, every failure case has one, and
+/// `known_gaps` is enforced in both directions.
+///
+/// `known_gaps` was read by no code. It listed three uncontrolled failure
+/// cases where eleven were true — a declaration nobody checked, describing a
+/// corpus it had drifted from, which is the shape this corpus exists to end.
+///
+/// Mutated, like TC-1025: scanning a conformant corpus and asserting it
+/// conforms proves nothing about the checker.
+#[trace("TC-1027", "FR-065-AC-37")]
+// a control binds its partner's mode and module.
+#[trace("TC-1027", "FR-065-AC-38")]
+// every failure case is named by some control.
+#[test]
+fn tc1027_a_control_binds_its_partners_declaration() {
+    // (a python edit applied to the copy's corpus.yaml, a fragment the refusal
+    // must carry). `bounds.py`, not `verify.py`: these are corpus conformance
+    // and need no engine, which is what makes them testable this way at all.
+    let mutations: &[(&str, &str)] = &[
+        // AC-38 — drop an allowlisted case and the violation it was covering
+        // must surface.
+        (
+            "s = s.replace('    - wrong-type-cell\\n', '', 1)",
+            "no control names it",
+        ),
+        // AC-37, the other direction — an entry naming no case is a declared
+        // gap that has outlived its fixture.
+        (
+            "s = s.replace('    - gate-that-gates-nothing\\n', \
+             '    - gate-that-gates-nothing\\n    - a-case-that-does-not-exist\\n', 1)",
+            "outlived its fixture",
+        ),
+        // AC-37 — a control claiming a partner on another module. Removing the
+        // declared exemption must expose the three that already do.
+        (
+            "s = s.replace('    - catch-all-headline-control\\n', '', 1)",
+            "A control is the healthy version of its partner",
+        ),
+    ];
+
+    for (index, (edit, fragment)) in mutations.iter().enumerate() {
+        let scratch = std::env::temp_dir().join(format!("qa-corpus-tc1027-{index}"));
+        let _ = std::fs::remove_dir_all(&scratch);
+        copy_tree(&corpus_case::corpus_root(), &scratch);
+
+        let script = format!(
+            "import pathlib\np = pathlib.Path({:?})\ns = p.read_text()\n{edit}\np.write_text(s)\n",
+            scratch.join("corpus.yaml").to_string_lossy(),
+        );
+        let applied = std::process::Command::new("python3")
+            .arg("-c")
+            .arg(&script)
+            .output()
+            .expect("apply mutation");
+        assert!(
+            applied.status.success(),
+            "mutation {index} did not apply: {}",
+            String::from_utf8_lossy(&applied.stderr),
+        );
+
+        let run = std::process::Command::new("python3")
+            .arg(scratch.join("bounds.py"))
+            .output()
+            .expect("run bounds.py");
+        let text = String::from_utf8_lossy(&run.stderr).to_string();
+        assert!(
+            !run.status.success() && text.contains(fragment),
+            "mutation {index} ({edit}) was ACCEPTED, or refused for another \
+             reason. Expected a message carrying {fragment:?}, got:\n{text}",
+        );
+        std::fs::remove_dir_all(&scratch).expect("clean up");
+    }
 }

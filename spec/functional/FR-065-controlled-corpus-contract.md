@@ -258,6 +258,28 @@ A live `expect.yaml` SHALL NOT REQUIRE a `forward` token — it must hold today.
 `expect-pending.yaml` SHALL require only `forward` tokens whose ticket is the case's own
 `pending`, so a fixture cannot wait on one ticket while asserting another's behaviour.
 
+A forward `expect-pending.yaml` SHALL require **at least one** `forward` token whose
+ticket is the case's own `pending`. Being merely FALSE is not enough: a block asserting
+`backed: 99` is false today and false after the fix, so the case stays pending forever
+and no gate ever says the fixture went stale. A forward block has to be ABOUT its ticket.
+
+`corpus.yaml`'s `emitted` and `forward` lists SHALL be checked against the engine rather
+than maintained by hand: a token declared `emitted` that the engine does not produce, or
+a token declared `forward` that it already does, SHALL fail. Two hand-written lists drift
+from each other the same way one list drifts from the code.
+
+A case of kind `control` SHALL bind the same `mode` and `module` as each partner it names.
+A control is the healthy version of ITS partner, not any case that happens to resolve.
+
+A case of kind `control` SHALL NOT declare `case`. A control credits no cell, and one
+control may serve several inventory rows through its partners while `case` can name only
+one.
+
+`corpus.yaml` MAY declare `known_gaps`, and every reader SHALL enforce it in both
+directions: a departure listed there is permitted, one not listed fails the run, and an
+entry naming no case in the corpus fails it too. A declaration nobody reads is how a
+block came to list three uncontrolled failure cases where eleven were true.
+
 A case of kind `control` MAY assert a `forward` token ABSENT in its `expect.yaml`: that
 claim is vacuous today and load-bearing the day the ticket lands, which is what a control
 is for. A case of kind `failure` SHALL NOT — its live block would assert the absence of
@@ -356,6 +378,11 @@ than an agreement between two codebases nobody can verify from one of them.
 | FR-065-AC-31 | A live block requiring a `forward` token is rejected; a forward block requiring a token whose ticket is not the case's own `pending` is rejected. | Test (TC-1025) |
 | FR-065-AC-32 | A failure case asserting a `forward` token ABSENT is rejected; a control asserting one in its live block is accepted. | Test (TC-1025) |
 | FR-065-AC-33 | An `expect-pending.yaml` grading zero assertions is rejected rather than read as its ticket having landed. | Test (TC-1025) |
+| FR-065-AC-34 | A token declared `emitted` that the engine does not produce is rejected. | Test (TC-1026) |
+| FR-065-AC-35 | A token declared `forward` that the engine already produces is rejected, naming the ticket that appears to have landed. | Test (TC-1026) |
+| FR-065-AC-36 | An `expect-pending.yaml` requiring no token its own `pending` ticket introduces is rejected, and one requiring an already-emitted token is rejected. | Test (TC-1025) |
+| FR-065-AC-37 | A control whose `mode` or `module` differs from a partner's is rejected unless declared in `known_gaps`; an entry in `known_gaps` naming no case is rejected. | Test (TC-1027) |
+| FR-065-AC-38 | A failure case named by no control is rejected unless declared in `known_gaps`. | Test (TC-1027) |
 
 ## Dependencies
 
