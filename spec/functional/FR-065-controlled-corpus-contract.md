@@ -173,9 +173,38 @@ by running it.
 
 ## Behavior
 
-The corpus loader SHALL require each case directory to declare, in `case.yaml`: `id`,
-`issue_ref`, `mode`, `language`, `module`, `findable`, `reproduce`, and `kind` — one of
-`failure` or `control`. The corpus loader SHALL additionally require `control_for` on a
+The corpus loader SHALL require each case to declare `id`, `issue_ref`, `mode`,
+`language`, `module`, `findable`, `reproduce`, `kind` — one of `failure` or `control` —
+and `case`, naming the inventory row it claims.
+
+### Where a language set declares each field (CR-109)
+
+A **language set** splits that declaration across two files, and the split is a contract
+rather than a convention two readers happen to agree on:
+
+| file | carries |
+|---|---|
+| `<case>/case.yaml` | everything shared: `id`, `case`, `issue_ref`, `mode`, `module`, `kind`, `findable`, `control_for` |
+| `<case>/<language>/case.yaml` | only what varies: `reproduce`, and any per-language `expect` override |
+
+The runner SHALL take `language` from the **directory name**, never from a declared
+field — a shared `language:` is dead config, and a variant declaring one that disagrees
+with its directory would be two claims about one fact.
+
+The runner SHALL derive a variant's `id` as `<shared id>-<language>`, so one fixture has
+one identity in every reader. A variant SHALL NOT override `case`, `mode`, `module`,
+`kind` or `pending`: those declare *which case this is*, and varying them re-points the
+cell the fixture credits — measured, a one-line override moved a covered cell to a
+different inventory row while `gap_count` did not change.
+
+A case directory carrying both an `input/` and a `<language>/` SHALL be rejected rather
+than silently read as one or the other.
+
+`control_for` names the partner's **`case`**, and resolution is per language: a control
+pairs with the failure case in its own language, which is the only pairing that means
+anything. The runner SHALL resolve it against **failure cases only** — including
+controls puts a control's own `case` in the namespace, so `control_for` resolves against
+itself and the check becomes self-satisfying. The corpus loader SHALL additionally require `control_for` on a
 case of kind `control`, naming the failure case's `id`; `relaxation_ticket` on a case
 binding a variant module; and `pending_reason` on a case declaring `pending`.
 
@@ -258,6 +287,9 @@ than an agreement between two codebases nobody can verify from one of them.
 | FR-065-AC-19 | The runner reads the bounds enum from `corpus.yaml` rather than a compiled-in list, so an enum value added there is accepted without a code change. | Test (TC-1021) |
 | FR-065-AC-20 | The runner reads the grading-ladder level names from `corpus.yaml` rather than a compiled-in list. | Test (TC-1021) |
 | FR-065-AC-21 | The runner reads the mode families from `corpus.yaml`, and a case naming an undeclared family is rejected. | Test (TC-1021) |
+| FR-065-AC-22 | A language set's variant declares only what varies; a variant overriding `case`, `mode`, `module`, `kind` or `pending` is rejected naming the field. | Test (TC-1022) |
+| FR-065-AC-23 | Every reader derives the same `id` for one variant, `<shared id>-<language>`, so a record keyed on `id` joins across runners. | Test (TC-1022) |
+| FR-065-AC-24 | `control_for` resolves against failure cases only, in the control's own language; a control whose partner is absent is rejected. | Test (TC-1017) |
 
 ## Dependencies
 
