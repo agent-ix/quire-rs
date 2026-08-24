@@ -18,7 +18,7 @@
 
 mod corpus_case;
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use ix_trace_rs::trace;
 
@@ -46,6 +46,16 @@ fn corpus_cases_hold() {
     let mut pending = 0usize;
 
     for case in &cases {
+        // EVERY case, not the pending ones. The first version of this assert
+        // sat inside the `(Some(ticket), Some(forward))` arm below, so it ran
+        // for six of twenty-nine while its message stated a universal rule —
+        // the same mis-scope the round before had just found twice.
+        assert!(
+            case.expect.asserts_something(),
+            "{}: expect.yaml asserts nothing — a case that asserts nothing \
+             about its own payload still counts its cell covered",
+            case.meta.id,
+        );
         let report = run(case);
 
         // `expect.yaml` is the LIVE contract and is graded the same way for
@@ -66,12 +76,6 @@ fn corpus_cases_hold() {
                 // Both readers enforce this, which is the point of there being
                 // two. A block grading zero assertions trivially holds, and
                 // this loop would then report the ticket as landed.
-                assert!(
-                    case.expect.asserts_something(),
-                    "{}: expect.yaml asserts nothing — a case that asserts \
-                     nothing about its own payload still counts its cell covered",
-                    case.meta.id,
-                );
                 assert!(
                     forward.asserts_something(),
                     "{}: expect-pending.yaml asserts nothing. An empty forward \
@@ -739,6 +743,8 @@ fn tc1024_every_l3_fragment_is_asserted() {
 // a failure case may not assert its pending token absent.
 #[trace("TC-1025", "FR-065-AC-33")]
 // a forward block that asserts nothing is rejected.
+#[trace("TC-1025", "FR-065-AC-39")]
+// a live block that asserts nothing is rejected.
 #[trace("TC-1025", "FR-065-AC-36")]
 // a forward block must be ABOUT its ticket.
 #[test]
@@ -962,6 +968,10 @@ fn tc1026_the_declared_vocabulary_matches_the_engine() {
 // a control binds its partner's mode and module.
 #[trace("TC-1027", "FR-065-AC-38")]
 // every failure case is named by some control.
+#[trace("TC-1027", "FR-065-AC-40")]
+// a findable case names what finds it.
+#[trace("TC-1027", "FR-065-AC-41")]
+// an exemption names a ticket and a case.
 #[test]
 fn tc1027_a_control_binds_its_partners_declaration() {
     // (a python edit applied to the copy's corpus.yaml, a fragment the refusal
@@ -989,7 +999,8 @@ fn tc1027_a_control_binds_its_partners_declaration() {
         ),
         // AC-41 — an exemption with no ticket is permanent by default.
         (
-            "s = s.replace('agent-ix/quire-rs#301', 'because I said so', 1)",
+            "s = s.replace('agent-ix/quire-rs#301', 'because I said so')\
+             .replace('agent-ix/quire-rs#286', 'because I said so')",
             "names no ticket",
         ),
     ];
@@ -1052,4 +1063,110 @@ fn scratch_dir(test: &str, index: usize) -> Scratch {
         std::env::temp_dir().join(format!("qa-corpus-{test}-{}-{index}", std::process::id()));
     let _ = std::fs::remove_dir_all(&path);
     Scratch(path)
+}
+
+/// THE DIFFERENTIAL CHECK — a fixture's assertions must SEPARATE its own input
+/// from its control's.
+///
+/// Five review rounds each found the vacuity in a new place: an excused expect
+/// block, a forward block naming any token, one naming a real token with a
+/// false companion, a truncated file, a live block asserting only a row count.
+/// Every gate written to catch those is a predicate on the SHAPE of a
+/// declaration — non-empty, token declared, ticket named, control exists — and
+/// shape has an unbounded supply of forms that are non-empty and mean nothing.
+/// That is the structural reason the sequence kept producing another round.
+///
+/// This is a predicate on DISCRIMINATION instead. Grade each failure case's
+/// `expect.yaml` against its CONTROL's payload — healthy input, same tree, the
+/// defect repaired — and require at least one mismatch. A block that cannot
+/// tell the two apart is not about its defect, whatever its shape.
+///
+/// It subsumes every earlier hole at once: an empty block cannot mismatch, a
+/// row count true of the corpus is true of the control too, and a fixture
+/// whose `input/` was swapped for a sibling's stops separating anything.
+///
+/// A pending case's FORWARD block is held to the same rule, so the behaviour
+/// its ticket adds must also be behaviour the control does not exhibit.
+#[trace("TC-1028", "FR-065-AC-42")]
+// a failure case separates itself from its control.
+#[test]
+fn tc1028_a_failure_case_discriminates_from_its_control() {
+    let cases = load_cases();
+
+    let mut controls: BTreeMap<(String, String), &corpus_case::Case> = BTreeMap::new();
+    for case in &cases {
+        if case.meta.kind != "control" {
+            continue;
+        }
+        for partner in case.meta.control_for.as_deref().unwrap_or(&[]) {
+            controls.insert((partner.clone(), case.meta.language.clone()), case);
+        }
+    }
+
+    let declaration: serde_yaml::Value = serde_yaml::from_str(
+        &std::fs::read_to_string(corpus_case::corpus_root().join("corpus.yaml"))
+            .expect("read corpus.yaml"),
+    )
+    .expect("corpus.yaml parses");
+    let uncontrolled: BTreeSet<&str> = declaration
+        .get("known_gaps")
+        .and_then(|g| g.get("uncontrolled_failure_cases"))
+        .and_then(|e| e.get("cases"))
+        .and_then(|c| c.as_sequence())
+        .map(|s| s.iter().filter_map(|v| v.as_str()).collect())
+        .unwrap_or_default();
+
+    let mut checked = 0usize;
+    let mut blind = String::new();
+    for case in &cases {
+        if case.meta.kind != "failure" {
+            continue;
+        }
+        let row = case
+            .meta
+            .case
+            .clone()
+            .unwrap_or_else(|| case.meta.id.clone());
+        let control = controls
+            .get(&(row.clone(), case.meta.language.clone()))
+            .or_else(|| controls.get(&(case.meta.id.clone(), case.meta.language.clone())));
+        let Some(control) = control else {
+            // No control, so there is nothing to discriminate AGAINST. That is
+            // exactly why an uncontrolled failure case is a declared gap and
+            // not a matter of taste: it is a fixture no rule of this kind can
+            // reach. Burning `known_gaps.uncontrolled_failure_cases` down is
+            // what brings these under the check (agent-ix/quire-rs#286).
+            assert!(
+                uncontrolled.contains(row.as_str()) || uncontrolled.contains(case.meta.id.as_str()),
+                "{}: has no control and is not a declared gap",
+                case.meta.id,
+            );
+            continue;
+        };
+
+        let healthy = run(control);
+        for (block, which) in [
+            (Some(&case.expect), "expect.yaml"),
+            (case.expect_pending.as_ref(), "expect-pending.yaml"),
+        ] {
+            let Some(block) = block else { continue };
+            if grade_with(case, &healthy, block).passed() {
+                blind.push_str(&format!(
+                    "  {} — its {which} holds against {}'s payload, so it does not \
+                     separate its own input from healthy input\n",
+                    case.meta.id, control.meta.id,
+                ));
+            }
+            checked += 1;
+        }
+    }
+
+    assert!(
+        checked > 0,
+        "no controlled failure case, so this asserts nothing"
+    );
+    assert!(
+        blind.is_empty(),
+        "a fixture's assertions must tell its own input from its control's:\n{blind}"
+    );
 }

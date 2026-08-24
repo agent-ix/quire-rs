@@ -42,8 +42,17 @@ jobs:
       # That makes `python3` + PyYAML a test dependency of this crate, which it
       # was not before. PyYAML is not guaranteed on the runner image, and
       # without it both tests fail on an ImportError.
+      # `actions/setup-python` first, matching this repo's `python.yml`.
+      # `python3 -m pip install` against the system interpreter fails on
+      # ubuntu-24.04, which is PEP-668 externally-managed — and it would fail
+      # the whole Rust gate, not just these two tests.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
       - name: Corpus runner dependencies
-        run: python3 -m pip install --upgrade pyyaml
+        run: |
+          python3 -m pip install --upgrade pyyaml
+          python3 -c "import yaml"   # a partial install must fail HERE
 
       - name: Test
         run: cargo test

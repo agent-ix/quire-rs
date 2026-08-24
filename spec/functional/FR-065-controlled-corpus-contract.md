@@ -289,6 +289,23 @@ failure case's `expect.yaml` to zero bytes left every gate green with its cell s
 `covered` — a case asserting nothing about its own payload, counted as covering the mode
 it is named for.
 
+A failure case that has a control SHALL **discriminate**: its `expect.yaml`, graded
+against its control's payload, SHALL produce at least one mismatch, and so SHALL its
+`expect-pending.yaml` where it has one.
+
+This is the rule the rest of this section is a weaker approximation of. Every other gate
+here is a predicate on the SHAPE of a declaration — a block is non-empty, a token is
+declared, a ticket is named, a control exists — and shape has an unbounded supply of
+forms that are non-empty and mean nothing. Five review rounds each removed one such form
+and the next round found another: an excused block, then a block naming any token, then
+one naming a real token with a false companion, then a truncated file, then a block
+asserting only a true row count. Discrimination is a predicate on MEANING, and it closes
+the class rather than an instance.
+
+A failure case with no control cannot be held to it — there is nothing to discriminate
+against — which is what makes an uncontrolled failure case a declared gap rather than a
+matter of taste.
+
 A case declaring `findable` SHALL require at least one finding, in one of its blocks. The
 flag tells a recall-scoring consumer to expect a finding on that input, and a case that
 names nothing which finds it counts its cell covered for a mode nothing measures.
@@ -401,6 +418,7 @@ than an agreement between two codebases nobody can verify from one of them.
 | FR-065-AC-39 | An `expect.yaml` grading zero assertions is rejected, for every case. | Test (TC-1025) |
 | FR-065-AC-40 | A case declaring `findable` and requiring no finding in any block is rejected unless declared in `known_gaps`. | Test (TC-1027) |
 | FR-065-AC-41 | A `known_gaps` entry naming no ticket, or naming no case, is rejected. | Test (TC-1027) |
+| FR-065-AC-42 | A failure case with a control whose `expect.yaml` holds against that control's payload is rejected; the same applies to its `expect-pending.yaml`. | Test (TC-1028) |
 
 ## Dependencies
 

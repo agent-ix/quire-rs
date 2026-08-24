@@ -440,6 +440,23 @@ pub fn load_cases() -> Vec<Case> {
             // sixteen modes across three languages, and three sibling
             // directories with unrelated ids is not a set.
             if dir.join("input").is_dir() {
+                // A directory in BOTH layouts is an error, not a silent read
+                // as one of them. Only the Python loader rejected it, so this
+                // reader would have taken the `input/` branch and dropped a
+                // half-migrated case's language variants without a word.
+                let strays: Vec<String> = std::fs::read_dir(&dir)
+                    .expect("read case dir")
+                    .filter_map(|e| e.ok().map(|e| e.path()))
+                    .filter(|p| p.join("input").is_dir())
+                    .filter_map(|p| p.file_name().and_then(|n| n.to_str()).map(String::from))
+                    .collect();
+                assert!(
+                    strays.is_empty(),
+                    "{}: carries both an `input/` and {strays:?} — a case is one \
+                     layout or the other, and reading it as one silently drops \
+                     the other",
+                    dir.display(),
+                );
                 cases.push(Case {
                     expect: read_expect(&dir),
                     expect_pending: read_expect_pending(&dir),
