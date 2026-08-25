@@ -493,10 +493,29 @@ A case SHALL bind to the vendored ecosystem module by default. Where a case bind
 variant module, `case.yaml` SHALL name the relaxation ticket that variant sizes.
 
 `corpus.yaml` SHALL be the single declaration of the bounds enum (`covered`,
-`out-of-scope`, `GAP`), of the grading-ladder level names, and of the mode families. Each
-runner SHALL read all three from `corpus.yaml` rather than carrying its own copy — which
-is what makes single-definition a property a test in either repository can check, rather
-than an agreement between two codebases nobody can verify from one of them.
+`out-of-scope`, `GAP`), of the grading-ladder level names, and of the mode families —
+which is what makes single-definition a property a test in either repository can check,
+rather than an agreement between two codebases nobody can verify from one of them.
+
+**What each runner does with those three is not the same, and this section claimed it
+was** (CR-129).
+
+The **mode families** and the **bounds enum** are vocabularies: a runner SHALL read them
+and SHALL NOT carry its own copy. `bounds.py` derives its per-state counters, its sum
+invariant and its rejection of an undeclared state from `bounds_states`, so a state added
+to the declaration is counted and reported with no code edit. Assignment of a cell to a
+state is the derivation rule and remains code.
+
+The **grading ladder** is not a vocabulary. `Level`'s variants and the assignment of each
+mismatch to one of them ARE the grading rule; a fourth declared level would have no
+variant to carry it and no mismatch would ever be filed under it. So the runner SHALL NOT
+be required to accept a ladder change without a code edit — a claim this requirement made
+and no implementation ever satisfied. What it SHALL do is **agree**: the compiled ladder
+and the declared ladder SHALL match in name and in order, and a gate SHALL fail on
+disagreement. Order is normative because the first level lost is a MINIMUM over the
+ladder. TC-1021 asserted the declaration equalled a literal `["L1","L2","L3"]` written in
+the test — a third copy checked against the second while the enum that grades was checked
+against neither; it now renders `Level::ALL` and compares that.
 
 ## Constraints
 
@@ -529,8 +548,8 @@ than an agreement between two codebases nobody can verify from one of them.
 | FR-065-AC-16 | A case binding the vendored ecosystem module loads without naming a ticket. | Test (TC-1018) |
 | FR-065-AC-17 | Two runs of one case over unchanged input produce a byte-identical engine report. | Test (TC-1019) |
 | FR-065-AC-18 | Each case's `case.yaml` carries the invocation that reproduces it, and that invocation names a module. | Test (TC-1020) |
-| FR-065-AC-19 | The runner reads the bounds enum from `corpus.yaml` rather than a compiled-in list, so an enum value added there is accepted without a code change. | Test (TC-1021) |
-| FR-065-AC-20 | The runner reads the grading-ladder level names from `corpus.yaml` rather than a compiled-in list. | Test (TC-1021) |
+| FR-065-AC-19 | `bounds.py` derives its per-state counters and its sum invariant from `corpus.yaml`'s `bounds_states`, and rejects a cell graded into a state the declaration does not name. | Test (TC-1021, `bounds.py`) |
+| FR-065-AC-20 | The compiled grading ladder and `corpus.yaml`'s `grading_levels` agree in name and in order, and a gate fails on disagreement. The runner is not required to accept a ladder change without a code edit: the ladder is the grading rule, not a vocabulary (CR-129). | Test (TC-1021) |
 | FR-065-AC-21 | The runner reads the mode families from `corpus.yaml`, and a case naming an undeclared family is rejected. | Test (TC-1021) |
 | FR-065-AC-22 | A language set's variant declares only what varies; a variant DECLARING `case`, `mode`, `module`, `kind` or `pending` is rejected naming the field, whether or not the shared file also declares it. | Test (TC-1022) |
 | FR-065-AC-23 | Every reader derives the same `id` for one variant, `<shared id>-<language>`, so a record keyed on `id` joins across runners. | Test (TC-1022) |

@@ -299,8 +299,29 @@ fn corpus_cases_are_deterministic() {
 /// This is what makes FR-065's single-definition claim checkable from ONE
 /// repository. A runner carrying its own copy of the mode families agrees with
 /// the corpus only by coincidence, and nothing detects the day it stops.
+///
+/// **The grading ladder is a different claim, and this test used to overstate
+/// it.** AC-20 said the runner reads the level NAMES from `corpus.yaml` rather
+/// than from a compiled-in list, "so a level added there is accepted without a
+/// code edit". That is not achievable and was never implemented: `Level`'s three
+/// variants and the assignment of each mismatch to one of them are the grading
+/// rule itself, not a vocabulary — a fourth declared level would have no variant
+/// to carry it and no mismatch would ever be filed under it. What this test
+/// actually did was assert the declaration equalled a literal `["L1","L2","L3"]`
+/// written here, which is a THIRD copy of the ladder checked against the second
+/// while the first — the enum that grades — was checked against neither.
+///
+/// So CR-129 narrowed AC-20 to what is true and worth having: **code and
+/// declaration must agree**. The comparison below is now `Level::ALL` rendered
+/// through `Level::token`, in ladder order, against `grading_levels` in
+/// declaration order — the enum that grades, against the file that declares.
+/// Order is asserted because `Outcome::level_lost` is a MINIMUM over the ladder;
+/// a declaration that reordered it would mean something different.
 #[trace("TC-1021", "FR-065-AC-19")]
 // the bounds enum comes from corpus.yaml.
+#[trace("TC-1021", "FR-065-AC-20")]
+// the compiled ladder and the declared ladder agree,
+// in name and in order.
 #[trace("TC-1021", "FR-065-AC-21")]
 // so do the mode families, and a case naming an
 // undeclared one is rejected.
@@ -320,21 +341,41 @@ fn tc1021_the_vocabularies_come_from_the_corpus_not_from_this_file() {
             .map(|v| v.as_str().expect("a string").to_string())
             .collect()
     };
+    // ORDERED, because the ladder's order is load-bearing.
+    let ordered = |key: &str| -> Vec<String> {
+        declared[key]
+            .as_sequence()
+            .unwrap_or_else(|| panic!("corpus.yaml declares `{key}`"))
+            .iter()
+            .map(|v| v.as_str().expect("a string").to_string())
+            .collect()
+    };
     let families = list("mode_families");
     let kinds = list("case_kinds");
     let states = list("bounds_states");
-    let levels = list("grading_levels");
+    let levels = ordered("grading_levels");
 
     // Non-vacuous: an empty declaration would make every assertion below pass.
-    assert!(!families.is_empty() && !kinds.is_empty());
-    // The ladder this file implements is the one the corpus declares. If the
-    // corpus renamed a level, this file's `Level` enum would be a second
-    // spelling — the exact thing FR-065-AC-20 forbids.
+    assert!(!families.is_empty() && !kinds.is_empty() && !states.is_empty());
+    // FR-065-AC-20 as narrowed by CR-127: the ladder this file GRADES with and
+    // the ladder the corpus DECLARES must agree, in name and in order. Derived
+    // from `Level::ALL` rather than from a literal, so this compares the enum to
+    // the declaration instead of comparing two literals to each other.
+    let compiled: Vec<String> = corpus_case::Level::ALL
+        .iter()
+        .map(|level| level.token().to_string())
+        .collect();
     assert_eq!(
-        levels,
-        ["L1", "L2", "L3"].iter().map(|s| s.to_string()).collect(),
-        "the harness ladder and the declared ladder have diverged",
+        levels, compiled,
+        "the ladder `Level` grades with and the ladder `corpus.yaml` declares \
+         have diverged. They are not derived from one another — AC-20 is an \
+         agreement between a compiled enum and a declaration, and this is where \
+         the disagreement surfaces.",
     );
+    // The bounds enum is read by `bounds.py`, which derives its counters, its
+    // sum invariant and its rejection of an undeclared state from this list
+    // (FR-065-AC-19). Asserted here only as far as this reader can: the two
+    // states the matrix vocabulary cannot be missing.
     assert!(states.contains("GAP") && states.contains("covered"));
 
     for case in &load_cases() {

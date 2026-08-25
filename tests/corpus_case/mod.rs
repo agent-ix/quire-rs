@@ -33,12 +33,32 @@ pub enum Level {
 }
 
 impl Level {
+    /// Every level, in LADDER ORDER. Adding a variant without adding it here is
+    /// a compile error at the exhaustive `match` in [`Level::as_str`] and a
+    /// length error here, which is the point: TC-1021 compares this to
+    /// `corpus.yaml`'s `grading_levels`, and a list that could silently omit a
+    /// variant would make that comparison meaningless.
+    pub const ALL: [Level; 3] = [Self::L1Detected, Self::L2Localised, Self::L3Actionable];
+
     pub fn as_str(self) -> &'static str {
         match self {
             Self::L1Detected => "L1 detected",
             Self::L2Localised => "L2 localised",
             Self::L3Actionable => "L3 actionable",
         }
+    }
+
+    /// The name `corpus.yaml` declares — the first word of the rendered label.
+    ///
+    /// DERIVED from `as_str`, not written a second time. The ladder had two
+    /// spellings in this file and a third in TC-1021, which asserted the
+    /// declaration equalled a literal `["L1","L2","L3"]` written in the test:
+    /// three copies, none of them checked against the code that grades. Now the
+    /// test compares CODE to DECLARATION, which is what FR-065-AC-20 says after
+    /// CR-129 narrowed it to the claim that is true.
+    pub fn token(self) -> &'static str {
+        let label = self.as_str();
+        label.split(' ').next().unwrap_or(label)
     }
 }
 
