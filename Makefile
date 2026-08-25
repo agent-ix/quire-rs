@@ -119,6 +119,13 @@ audit-static:
 	bash scripts/audits/check_hashmap_audit.sh
 	bash scripts/audits/check_no_shared_mutable.sh
 	bash scripts/audits/verify_cookiecutter_inheritance.sh
+	# CR-124 said this was already here "because `audit-static` runs every
+	# scripts/audits/*.sh". This target ENUMERATES; it has never globbed. So the
+	# gate answering the outside review's [P1] — committed conflict markers and
+	# an index missing FR-065 — sat in the tree unrun from the commit that added
+	# it until #353. A gate not wired into the target that runs it is the same
+	# fact as a gate that cannot fail.
+	bash scripts/audits/check_spec_structure.sh
 
 # =============================================================================
 # Hardening (scheduled-only in CI; available locally on demand)

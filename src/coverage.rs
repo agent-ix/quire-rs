@@ -694,7 +694,10 @@ fn coverage_metrics(
     // `coverage.backed` answers "how many declared rows are backed by a test".
     // It cannot answer "were the rows found at all", and that is the question
     // 88 of 239 repositories fail: the archetype matches, the declared section
-    // does not, and those TC ids never reach the denominator (a candidate census counted 3,514 across 88 repositories; that is NOT the causal size of the section defect — CR-118 measured the fix at +83 rows, the population being confounded with id-column mismatch). A repository in
+    // does not, and those TC ids never reach the denominator. A CANDIDATE
+    // census counted 3,514 across 88 repositories, and that is not the causal
+    // size of the section defect: CR-118 measured the fix at +83 rows, the
+    // population being confounded with id-column mismatch (#318). A repository in
     // that state reports a *smaller* `total` and a plausible percentage, so
     // nothing in the payload distinguished it from a repository with fewer
     // tests.
