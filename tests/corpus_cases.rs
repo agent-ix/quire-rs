@@ -1419,19 +1419,66 @@ fn scratch_dir(test: &str, index: usize) -> Scratch {
 ///
 /// A pending case's FORWARD block is held to the same rule, so the behaviour
 /// its ticket adds must also be behaviour the control does not exhibit.
+///
+/// **AND IT EXISTED ONLY HERE.** An outside review checked whether the corpus's
+/// two readers are actually independent and found that they stop immediately
+/// before this rule: `verify.py` ran each case once against its own payload and
+/// never cross-graded anything, and the Python loader checked only that a
+/// control was NAMED — a predicate on shape, which is the class of defect this
+/// check exists to close. It is implemented in both readers as of #337, and the
+/// two resolutions of "which control is this case's" are now one rule, asserted
+/// against each other at the end of this test rather than assumed to agree.
 #[trace("TC-1028", "FR-065-AC-42")]
 // a failure case separates itself from its control.
 #[test]
 fn tc1028_a_failure_case_discriminates_from_its_control() {
     let cases = load_cases();
 
-    let mut controls: BTreeMap<(String, String), &corpus_case::Case> = BTreeMap::new();
-    for case in &cases {
-        if case.meta.kind != "control" {
-            continue;
+    // WHAT A `control_for` NAME RESOLVES TO, and it is `bounds.py`'s
+    // `failure_partners` — ID first, `case:` alias second, an alias never
+    // displacing a real id.
+    let mut partners: BTreeMap<(&str, &str), &corpus_case::Case> = BTreeMap::new();
+    for case in cases.iter().filter(|c| c.meta.kind == "failure") {
+        if let Some(alias) = case.meta.case.as_deref() {
+            partners
+                .entry((alias, case.meta.language.as_str()))
+                .or_insert(case);
         }
+    }
+    for case in cases.iter().filter(|c| c.meta.kind == "failure") {
+        partners.insert((case.meta.id.as_str(), case.meta.language.as_str()), case);
+    }
+
+    // `(failure id, language) -> EVERY control that names it`, resolved through
+    // that map. Rewritten in #337 for two reasons, both of which made this
+    // reader disagree with `bounds.py` about one corpus.
+    //
+    // ONE. It used to key on the raw `control_for` string and, failing to find
+    // the failure case's id, fall back to the failure case's `case:` alias.
+    // That handed `marker-mismatch` — which this corpus DECLARES under
+    // `known_gaps.uncontrolled_failure_cases` — the control belonging to
+    // `marker-form-mismatch`, whose id is that alias. So it never reached the
+    // declared-gap branch below and was counted as controlled. FR-065 cites
+    // "35 controlled failure cases at `3ff72c0`" from this count; `bounds.py`
+    // counted **34** at the same revision, and 34 is right.
+    //
+    // TWO. A VEC, not one control. Two controls legitimately name
+    // `marker-form-mismatch` — `marker-form-declared` and
+    // `marker-form-mismatch-control` — and `insert` kept whichever came last in
+    // load order while `bounds.py` would have kept the first. Grading against
+    // EVERY control that names the case is both stronger and free of the
+    // ordering question.
+    let mut controls: BTreeMap<(&str, &str), Vec<&corpus_case::Case>> = BTreeMap::new();
+    for case in cases.iter().filter(|c| c.meta.kind == "control") {
         for partner in case.meta.control_for.as_deref().unwrap_or(&[]) {
-            controls.insert((partner.clone(), case.meta.language.clone()), case);
+            let Some(failure) = partners.get(&(partner.as_str(), case.meta.language.as_str()))
+            else {
+                continue;
+            };
+            controls
+                .entry((failure.meta.id.as_str(), failure.meta.language.as_str()))
+                .or_default()
+                .push(case);
         }
     }
 
@@ -1465,18 +1512,11 @@ fn tc1028_a_failure_case_discriminates_from_its_control() {
             .case
             .clone()
             .unwrap_or_else(|| case.meta.id.clone());
-        // ID FIRST, alias second — matching `bounds.py`, which was made
-        // id-first in this same commit while this twin was not. One case's
-        // `case:` alias can equal another case's `id`, and measured, the
-        // alias-first order graded `catch-all-properties` against
-        // `catch-all-headline-control` instead of its declared `clean-control`,
-        // and handed `marker-mismatch` — a DECLARED uncontrolled gap — a
-        // stranger's control, bypassing the branch below and inflating the
-        // controlled count from 10 to 11.
-        let control = controls
-            .get(&(case.meta.id.clone(), case.meta.language.clone()))
-            .or_else(|| controls.get(&(row.clone(), case.meta.language.clone())));
-        let Some(control) = control else {
+        let mine = controls
+            .get(&(case.meta.id.as_str(), case.meta.language.as_str()))
+            .map(Vec::as_slice)
+            .unwrap_or_default();
+        if mine.is_empty() {
             // No control, so there is nothing to discriminate AGAINST. That is
             // exactly why an uncontrolled failure case is a declared gap and
             // not a matter of taste: it is a fixture no rule of this kind can
@@ -1488,74 +1528,105 @@ fn tc1028_a_failure_case_discriminates_from_its_control() {
                 case.meta.id,
             );
             continue;
-        };
+        }
 
-        let healthy = run(control);
-        // A BEHAVIOUR-CHANGE forward block is held to the OPPOSITE rule, and
-        // it is the strongest check available to one. The control is the
-        // healthy repair of its partner — for a fix that changes what MINTS,
-        // that repaired tree is exactly what the engine should produce once
-        // the fix lands. So the forward block must HOLD against the control's
-        // payload.
-        //
-        // Without it the shape rule ("re-state the live block's graded keys
-        // with one different value") is satisfied by `total: 999` — different
-        // from today, and wrong after the fix too. Measured: accepted by the
-        // loader. Against the control it fails immediately.
-        //
-        // A token-ticket forward block is NOT held to this. AC-36 requires it
-        // to name a token AC-35 guarantees no engine emits, so it cannot hold
-        // against any payload and grading it here would be a theorem restated
-        // as a test.
-        if let Some(forward) = &case.expect_pending {
-            if behaviour_change.contains(case.meta.pending.as_deref().unwrap_or("")) {
-                let ahead = corpus_case::grade_against(
-                    case,
-                    &healthy,
-                    forward,
-                    corpus_case::ValidateSource::Tree(control),
-                );
-                if !ahead.passed() {
-                    blind.push_str(&format!(
-                        "  {} — its expect-pending.yaml does NOT hold against {}'s \
+        for control in mine {
+            let healthy = run(control);
+            // A BEHAVIOUR-CHANGE forward block is held to the OPPOSITE rule, and
+            // it is the strongest check available to one. The control is the
+            // healthy repair of its partner — for a fix that changes what MINTS,
+            // that repaired tree is exactly what the engine should produce once
+            // the fix lands. So the forward block must HOLD against the control's
+            // payload.
+            //
+            // Without it the shape rule ("re-state the live block's graded keys
+            // with one different value") is satisfied by `total: 999` — different
+            // from today, and wrong after the fix too. Measured: accepted by the
+            // loader. Against the control it fails immediately.
+            //
+            // A token-ticket forward block is NOT held to this. AC-36 requires it
+            // to name a token AC-35 guarantees no engine emits, so it cannot hold
+            // against any payload and grading it here would be a theorem restated
+            // as a test.
+            if let Some(forward) = &case.expect_pending {
+                if behaviour_change.contains(case.meta.pending.as_deref().unwrap_or("")) {
+                    let ahead = corpus_case::grade_against(
+                        case,
+                        &healthy,
+                        forward,
+                        corpus_case::ValidateSource::Tree(control),
+                    );
+                    if !ahead.passed() {
+                        blind.push_str(&format!(
+                            "  {} — its expect-pending.yaml does NOT hold against {}'s \
                          payload. That control is the repaired tree, which is what \
                          the engine should produce once {} lands, so a forward block \
                          that fails against it describes no reachable state:\n{}",
-                        case.meta.id,
-                        control.meta.id,
-                        case.meta.pending.as_deref().unwrap_or(""),
-                        ahead.report(),
-                    ));
+                            case.meta.id,
+                            control.meta.id,
+                            case.meta.pending.as_deref().unwrap_or(""),
+                            ahead.report(),
+                        ));
+                    }
                 }
             }
-        }
 
-        // The LIVE block. Grading a TOKEN forward block here was a theorem
-        // dressed as a test: AC-36 requires it to name a token AC-35 guarantees
-        // no engine emits, so it cannot hold against any payload. TC-1023
-        // already makes the claim that has content.
-        for (block, which) in [(Some(&case.expect), "expect.yaml")] {
-            let Some(block) = block else { continue };
-            let verdict = corpus_case::grade_against(
-                case,
-                &healthy,
-                block,
-                corpus_case::ValidateSource::Tree(control),
-            );
-            if verdict.passed() {
-                blind.push_str(&format!(
-                    "  {} — its {which} holds against {}'s payload, so it does not \
+            // The LIVE block. Grading a TOKEN forward block here was a theorem
+            // dressed as a test: AC-36 requires it to name a token AC-35 guarantees
+            // no engine emits, so it cannot hold against any payload. TC-1023
+            // already makes the claim that has content.
+            for (block, which) in [(Some(&case.expect), "expect.yaml")] {
+                let Some(block) = block else { continue };
+                let verdict = corpus_case::grade_against(
+                    case,
+                    &healthy,
+                    block,
+                    corpus_case::ValidateSource::Tree(control),
+                );
+                if verdict.passed() {
+                    blind.push_str(&format!(
+                        "  {} — its {which} holds against {}'s payload, so it does not \
                      separate its own input from healthy input\n",
-                    case.meta.id, control.meta.id,
-                ));
+                        case.meta.id, control.meta.id,
+                    ));
+                }
+                checked += 1;
             }
-            checked += 1;
         }
     }
 
     assert!(
         checked > 0,
         "no controlled failure case, so this asserts nothing"
+    );
+
+    // THE OTHER READER RESOLVES THE SAME PAIRS. `verify.py` implements this
+    // same differential (#337), and both now resolve `control_for` through one
+    // rule — but "both implement it" is what was claimed before the review
+    // found it implemented once. So the claim is a behaviour: ask `bounds.py`
+    // for its pair count and require it to equal the number graded here.
+    //
+    // This is what the earlier divergence would have caught. `bounds.py`
+    // resolved 34 controlled failure cases where this file counted 35, the
+    // extra being `marker-mismatch` reached through its `case:` alias, and
+    // nothing compared the two numbers.
+    let probe = std::process::Command::new("python3")
+        .arg("-c")
+        .arg(
+            "import bounds; print(sum(len(v) for v in \
+             bounds.controls_by_case(bounds.discover()).values()))",
+        )
+        .current_dir(corpus_case::corpus_root())
+        .output()
+        .expect("run bounds.py's resolution");
+    let theirs = String::from_utf8_lossy(&probe.stdout).trim().to_string();
+    assert_eq!(
+        theirs,
+        checked.to_string(),
+        "the two readers resolve different (case, control) pairs: bounds.py \
+         {theirs}, this harness {checked}. One corpus, two answers, which is \
+         the drift the duplicated implementation exists to expose. stderr:\n{}",
+        String::from_utf8_lossy(&probe.stderr),
     );
     assert!(
         blind.is_empty(),
