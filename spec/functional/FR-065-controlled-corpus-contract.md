@@ -178,10 +178,12 @@ by running it.
 
 ## Behavior
 
-The corpus SHALL declare its case-metadata schema in `corpus.yaml` as `case_schema` —
-the required field set, the fields a case MAY carry, the per-`kind` required, forbidden
-and constrained-value rules, the conditionally-required fields, the fields a language-set
-variant may not declare, and the fields that SHALL be unique across the corpus.
+The corpus SHALL declare its case-metadata schema in `corpus.yaml` as `case_schema`.
+
+That declaration SHALL carry the required field set, the optional field set, each field's
+type, the per-`kind` required, forbidden and constrained-value rules, the
+conditionally-required fields, the fields a language-set variant is forbidden to declare,
+and the fields that are unique across the corpus.
 
 Every corpus reader SHALL be held to that declaration rather than to a list of its own.
 This requirement used to name the fields here, which made this paragraph a second
