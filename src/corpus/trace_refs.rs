@@ -109,9 +109,12 @@ pub(crate) fn validate_trace_references(
     // typo or an unreadable declared document produced an empty resolution
     // set in silence — and since CR-049 made selection load-bearing, the same
     // silence also stopped the engine parsing the bodies it would have read.
-    let minted_anything = resolution.values().any(|ids| !ids.is_empty());
+    //
+    // The `minted_anything` argument is gone with the model-wide gate it fed
+    // (CR-135, #304): one declaration succeeding is not a reason to withhold a
+    // different declaration's finding.
     let severity = registry.grammar_severity();
-    for (declaration, diagnostic) in ctx.into_diagnostics(minted_anything) {
+    for (declaration, diagnostic) in ctx.into_diagnostics() {
         let (path, message) = declared_tables::scan_finding(&declaration, &diagnostic, root);
         // Warn tier in both postures (CR-054), now tunable (FR-057).
         report.route(

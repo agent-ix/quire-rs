@@ -938,9 +938,16 @@ fn tc788_no_criteria_corpus_is_unchanged() {
     let keys: Vec<&str> = object.keys().map(String::as_str).collect();
     // `serde_json::Value` holds its object as a map, so the comparison is over
     // the key *set*, not the (separately asserted) emitted order.
+    // `diagnostics` is in the set since CR-135 (#304): this fixture's model
+    // declares a trace target over an archetype the corpus has no document of,
+    // and the model-wide gate that used to hide that as soon as anything else
+    // minted is gone. The key this AC is about is `criteria`, asserted absent
+    // above; the rest of the set is listed so an unnoticed new key fails here
+    // rather than in a consumer.
     assert_eq!(
         keys,
         vec![
+            "diagnostics",
             "groups",
             "metrics",
             "status_lies",
@@ -1544,14 +1551,16 @@ fn tc822_declarations_that_select_nothing_are_reported() {
     // and a minting document that cannot be *read* is now the walk's
     // `DocumentUnreadable`, which is strictly better than the silent `None` the
     // off-corpus reader returned.
+    // TWO, not three, since CR-135. Every declaration in this fixture selects
+    // nothing, but only a TRACE TARGET is reported: a reference declaration
+    // reads an existing column rather than minting ids, and having no document
+    // of its archetype is ordinary rather than a finding — the same `mints`
+    // distinction that keeps `section-matches-nothing` off healthy
+    // repositories (#304, FR-050-AC-36).
     assert_eq!(
         reasons,
-        vec![
-            "archetype-matches-nothing",
-            "archetype-matches-nothing",
-            "archetype-matches-nothing"
-        ],
-        "every declaration selects nothing, each for the same reason: {:?}",
+        vec!["archetype-matches-nothing", "archetype-matches-nothing"],
+        "every declared TARGET selects nothing, each for the same reason: {:?}",
         report.diagnostics
     );
 
@@ -1590,6 +1599,15 @@ fn tc822_declarations_that_select_nothing_are_reported() {
 // and a model whose declarations all select (CR-054)
 // something reports no diagnostics at all — the key is absent from the JSON,
 // so FR-050-AC-7 byte-identity holds for every repo without the defect.
+//
+// AMENDED BY CR-135 (#304). "All select something" is a stronger condition
+// than it used to be: the model-wide gate that hid `archetype-matches-nothing`
+// as soon as ANY declaration minted is gone, so a declared trace target with no
+// document of its archetype is now reported even in an otherwise healthy
+// bundle. This fixture declares `test-case-document` over archetype `TC` and
+// has no TC document, which is precisely that case — and precisely the fact
+// the gate used to hide. The byte-identity claim is unchanged and is asserted
+// on a bundle where every declared target really does select.
 #[test]
 fn tc822_a_healthy_model_reports_no_diagnostics_and_no_key() {
     let bundle = iso_bundle(
@@ -1599,13 +1617,36 @@ fn tc822_a_healthy_model_reports_no_diagnostics_and_no_key() {
     );
     let report = report_for(&bundle, "iso").expect("model declared");
 
+    let unexpected: Vec<&quire_rs::coverage::CoverageDiagnostic> = report
+        .diagnostics
+        .iter()
+        .filter(|d| d.declaration != "test-case-document")
+        .collect();
     assert!(
-        report.diagnostics.is_empty(),
-        "a model selecting normally must report nothing: {:?}",
-        report.diagnostics
+        unexpected.is_empty(),
+        "a model selecting normally reports nothing beyond the declared target \
+         this bundle has no document for: {unexpected:?}"
     );
     assert!(
-        !report.to_json().contains("diagnostics"),
+        report
+            .diagnostics
+            .iter()
+            .all(|d| d.reason == "archetype-matches-nothing"),
+        "and the one it does report is that, not something else: {:?}",
+        report.diagnostics
+    );
+    // THE OMIT-WHEN-EMPTY CONTRACT, asserted as a contract rather than through
+    // whichever fixture happens to produce an empty list. Since CR-135 the
+    // `iso` model reports on `test-case-document` — archetype `TC`, which this
+    // bundle has no document of — so this report is legitimately non-empty, and
+    // reaching for a different model to get an empty one only trades this
+    // diagnostic for `no-symbol-bound` and `hollow-denominator` from a model
+    // that declares no trace tags. The serialization rule is what FR-050-AC-7
+    // byte-identity rests on, so it is asserted on the serializer directly.
+    let mut empty = report.clone();
+    empty.diagnostics.clear();
+    assert!(
+        !empty.to_json().contains("diagnostics"),
         "an empty diagnostics list must leave the JSON byte-identical"
     );
 }

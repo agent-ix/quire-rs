@@ -1325,7 +1325,7 @@ fn reconcile(
     // shared vocabulary `quire validate` also reports them under. Already
     // sorted by `into_diagnostics`, so the order is a property of the model.
     let mut diagnostics: Vec<CoverageDiagnostic> = ctx
-        .into_diagnostics(totals.total > 0)
+        .into_diagnostics()
         .into_iter()
         .map(|(declaration, diagnostic)| {
             let (_, message) = declared_tables::scan_finding(&declaration, &diagnostic, root);

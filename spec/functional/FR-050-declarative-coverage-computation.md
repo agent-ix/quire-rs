@@ -157,6 +157,7 @@ model; the engine knows nothing of "AC" or "TC" as concepts.
 | FR-050-AC-32 | The benchmark corpus spans **every language the binder binds**, and a corpus entry may declare which metrics it is scored on so it can be carried for language coverage without its content churn thrashing a ratchet. `skeptic.suspicion_rate` — suspicions over evidence symbols examined — is scored per entry: a rate near 100% is a rule misreading a language, not a corpus full of vacuous tests. | Test (`scripts/tests/test_bench.py`) |
 | FR-050-AC-33 | A **trace target** that selects a document by archetype and then reads nothing out of it is reported per document, never in silence, under two distinct machine tokens: `section-matches-nothing` when the declared `section:` heading is absent, and `id-column-matches-nothing` when the section is found and the declared `id_column` is not among the table's headers. Each record names the document in `path` and names, in its message, both the value **found** and the value **declared**; the section record additionally names the `id_column` it could **not** check, because the absent heading strands the table before the column is read. Neither is gated on whether any other declaration minted, so a model minting its criteria normally still reports a stranded matrix. A reference declaration — whose section is legitimately optional — and a document carrying the declared heading and column both report neither (CR-117). | Test (TC-1033, TC-1034, TC-1035) |
 | FR-050-AC-34 | A declaration's `section:` accepts **one heading name or several**, on that one key: a scalar as before, or a sequence. Every named section of a document contributes its own table, in **document order**, and each is checked for the declared `id_column` separately. An entry containing `*` matches any run of characters, including none; an entry containing none is the heading exactly, matched as `query::section` has always matched it — and no other metacharacter is introduced. A one-name declaration selects the same headings it always did, with one measured exception: where a document repeats that heading, every occurrence now contributes where the first alone used to — `tables_of` walks all matching sections while `query::section` returned the first. Measured: **0 of 393** TestMatrix documents repeat the ecosystem declared heading, so the ecosystem is unaffected, but it is a behaviour change and is stated as one rather than as an identity. An empty sequence, or a blank entry, fails module load naming the declaration. When no named section is present the `section-matches-nothing` record names **every** section the declaration tried, and a one-name declaration round-trips back out as the scalar it was authored as (CR-118). | Test (TC-1037, TC-1038) |
+| FR-050-AC-36 | A declared **trace target** whose archetype names no document in the corpus is reported as `archetype-matches-nothing`, naming the declaration and the archetype, **whenever it happens** — never suppressed because a different declaration minted. The record names no document, because there is no file to open. A **reference** declaration is not reported: its section is legitimately optional, the same distinction that keeps `section-matches-nothing` off healthy repositories. The payload shape is otherwise unchanged — a target that matched nothing is still absent from `groups` rather than present with a zero total. | Test (TC-1048, TC-1049) |
 | FR-050-AC-35 | Where every declared section a document **has** holds no table, the declaration reports `section-holds-no-table` naming the document, the sections it matched and the sections it declares. One table-less section among others is not reported — a parent heading whose rows live under its sub-headings is ordinary. The record exists because that shape mints nothing while both sibling diagnostics stand down: the section **was** found, so `section-matches-nothing` cannot fire, and there is no table, so `id-column-matches-nothing` has no headers to read (CR-120). | Test (TC-1041) |
 
 
@@ -199,13 +200,15 @@ model; the engine knows nothing of "AC" or "TC" as concepts.
 > killed two diagnostics during CR-094. A trace target's section is not
 > optional: it is the whole of what the declaration selects the document for.
 >
-> **Not gated on `minted_anything`.** `archetype-matches-nothing` is suppressed
-> when the model minted something, because a model legitimately declares
-> archetypes an individual repository has no instance of. These two are
-> per-document facts, and a model-wide gate suppresses one declaration's
-> finding because a different declaration succeeded — which is exactly
+> **Not gated on `minted_anything` — and since CR-135 neither is
+> `archetype-matches-nothing`.** A model-wide gate suppresses one declaration's
+> finding because a *different* declaration succeeded, which is exactly
 > `agent-ix/identity`: its FR criteria mint normally while 606 TC ids strand.
-> Filed as `agent-ix/quire-rs#304` for the variant that is still gated.
+> The gate was written because a model legitimately declares archetypes an
+> individual repository has no instance of; measured across 245 repositories,
+> that reasoning cost the `test-case` signal in 57 of them to spare noise in
+> the rest, and the noise is itself a declaration-side fact
+> (`agent-ix/spec-artifacts-process#75`) rather than an engine one.
 >
 > **The section message names the column it could not check.** The wrong
 > heading strands the table before the `id_column` is read, so on a document

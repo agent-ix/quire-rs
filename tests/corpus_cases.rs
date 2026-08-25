@@ -1298,7 +1298,28 @@ fn tc1026_the_declared_vocabulary_matches_the_engine() {
                 .collect()
         })
         .unwrap_or_default();
-    assert!(!suppressed.is_empty(), "`suppressed` is read");
+    // THE KEY MUST BE DECLARED; ITS MEMBERSHIP MAY BE ZERO. This asserted
+    // `!suppressed.is_empty()` so the block could not be silently ignored —
+    // right in spirit, wrong as written: `agent-ix/quire-rs#304` landed and its
+    // one member graduated to `emitted`, and an empty class is not the same as
+    // an unread one. Requiring a member would have made the corpus keep a
+    // suppressed token it no longer has, purely to satisfy a gate.
+    //
+    // What the guard is actually for is proven directly instead: the predicate
+    // below is shown to REJECT a token the engine does not carry, so an empty
+    // list is an empty list rather than a check that cannot fail.
+    assert!(
+        vocabulary.get("suppressed").is_some(),
+        "corpus.yaml declares no `suppressed` key. The class is real even when \
+         empty — a token the engine computes and discards is neither `emitted` \
+         nor `forward` — and deleting it leaves the next ticket of that shape \
+         nowhere to be declared."
+    );
+    assert!(
+        !sources.contains("\"zzz-no-such-suppressed-token\""),
+        "the suppressed-token check cannot fail: a token absent from src/ must \
+         not satisfy the containment this loop asserts"
+    );
     for (token, ticket) in &suppressed {
         assert!(
             sources.contains(&format!("\"{token}\"")),

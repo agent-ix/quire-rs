@@ -169,13 +169,13 @@ impl ExcludeSet {
 pub(crate) enum ScanDiagnostic {
     /// The declared archetype names no document in the corpus.
     ///
-    /// Reported **only when the model minted nothing at all** — see
-    /// [`ScanContext::into_diagnostics`]. On its own this is ordinary: a model
-    /// legitimately declares archetypes an individual repo has no instance of
-    /// (the ISO model's "a TC authored as its own document" is one), and
-    /// reporting each would be noise on every healthy repo. It is the cause
-    /// worth naming only when nothing minted, which is the shape a typo in the
-    /// one archetype that mattered produces.
+    /// Reported **whenever it happens** (`agent-ix/quire-rs#304`, CR-135). It
+    /// used to be suppressed as soon as any *other* declaration minted, on the
+    /// reasoning that a model legitimately declares archetypes an individual
+    /// repository has no instance of and reporting each would be noise. That
+    /// reasoning is what made a repository with no TestMatrix indistinguishable
+    /// from one whose TestMatrix is perfect: the target went missing from
+    /// `groups` rather than appearing as zero, and no diagnostic mentioned it.
     ///
     /// Counted before `exclude` applies, so excluding every match is not
     /// reported as a missing archetype.
@@ -334,27 +334,36 @@ impl ScanContext {
     /// The declaration's diagnostics, sorted so the order is a property of the
     /// model rather than of the walk (NFR-006).
     ///
-    /// `minted_anything` says whether the model produced any id at all. A
-    /// declared archetype no document has is reported only when it did not: a
-    /// model that mints normally while one optional declaration selects nothing
-    /// is healthy, and saying so on every repo would be noise nobody reads.
+    /// **THE MODEL-WIDE GATE IS GONE** (`agent-ix/quire-rs#304`, CR-135). Until
+    /// now this took a `minted_anything: bool` and, when the model had minted
+    /// any id at all, dropped every [`ScanDiagnostic::ArchetypeMatchesNothing`]
+    /// before returning. Its own doc comment already named the consequence: a
+    /// model-wide *"did anything mint?"* switch suppresses one declaration's
+    /// finding because a **different** declaration succeeded.
     ///
-    /// **The gate is scoped to that one variant, deliberately** (CR-117). The
-    /// two minting diagnostics below it are per-document facts, and a
-    /// model-wide "did anything mint?" switch suppresses one declaration's
-    /// finding because another declaration succeeded — which is the defect
-    /// `agent-ix/quire-rs#304` is filed for. `agent-ix/identity` mints its FR
-    /// criteria normally and strands 606 TC ids; under a shared gate it would
-    /// report neither.
+    /// So a repository with no TestMatrix at all reported `groups` containing
+    /// only `acceptance-criterion` — the whole `test-case` target **missing
+    /// from the payload rather than present and zero** — and said nothing about
+    /// it, because the criteria declaration had minted. 47 repositories are in
+    /// that state, and `agent-ix/identity` mints its FR criteria normally while
+    /// stranding 606 TC ids.
+    ///
+    /// A missing denominator is not a low score, it is **no score**, and the two
+    /// were indistinguishable on every surface this engine emits: a repository
+    /// that never wrote a TestMatrix and one whose TestMatrix is perfect both
+    /// reported nothing about `test-case`.
+    ///
+    /// The suppressed case the old gate was written for — a model declaring an
+    /// archetype an individual repository has no instance of — is not noise
+    /// either. It is the same fact, and it belongs in the payload where
+    /// `agent-ix/quire-rs#277`'s gap census can size it. The census cannot size
+    /// what the payload does not carry.
     ///
     /// A minting document that cannot be *read* is reported by the walk, as
     /// `DocumentUnreadable` / `MissingUuid` — an improvement over the
     /// `document:` form, whose reader returned `None` and said nothing.
-    pub(crate) fn into_diagnostics(self, minted_anything: bool) -> Vec<(String, ScanDiagnostic)> {
+    pub(crate) fn into_diagnostics(self) -> Vec<(String, ScanDiagnostic)> {
         let mut out = self.diagnostics;
-        if minted_anything {
-            out.retain(|(_, d)| !matches!(d, ScanDiagnostic::ArchetypeMatchesNothing { .. }));
-        }
         out.sort();
         out
     }
@@ -487,7 +496,7 @@ pub(crate) fn scan(
     }
     // Counted before `exclude`: a declaration that deliberately excludes
     // all of its matches is not a missing archetype (CR-054).
-    if of_archetype == 0 {
+    if of_archetype == 0 && scope.mints.is_some() {
         ctx.note(
             scope.name,
             ScanDiagnostic::ArchetypeMatchesNothing {
@@ -1099,6 +1108,106 @@ mod cr069_regressions {
             super::normalize_reference_cell(&once, true, false),
             once,
             "whatever it leaves behind must be stable"
+        );
+    }
+}
+
+#[cfg(test)]
+mod cr135_archetype_matches_nothing {
+    use ix_trace_rs::trace;
+
+    use super::{scan, DeclaredScope, ExcludeSet, ScanContext, ScanDiagnostic};
+    use crate::corpus::spec::Spec;
+    use crate::traceability::SectionNames;
+
+    #[trace("TC-1048", "FR-050-AC-36")]
+    // a declared archetype no document has survives
+    // `into_diagnostics`: there is no model-wide gate left to drop it.
+    #[test]
+    fn tc1048_a_missing_archetype_is_not_suppressed_by_another_declarations_success() {
+        // THE DEFECT, stated as a unit: this took `minted_anything: bool` and,
+        // when anything in the model had minted, dropped every one of these
+        // before returning. So a repository with no TestMatrix reported
+        // `groups` holding only `acceptance-criterion` — the whole `test-case`
+        // target missing from the payload rather than present and zero — and
+        // said nothing, because the criteria declaration had minted.
+        //
+        // A missing denominator is not a low score, it is NO score, and the two
+        // were indistinguishable on every surface the engine emits.
+        let mut ctx = ScanContext::default();
+        ctx.note(
+            "test-case",
+            ScanDiagnostic::ArchetypeMatchesNothing {
+                archetype: "TestMatrix".to_string(),
+            },
+        );
+        let out = ctx.into_diagnostics();
+        assert_eq!(out.len(), 1, "the finding survives: {out:?}");
+        assert!(matches!(
+            out[0].1,
+            ScanDiagnostic::ArchetypeMatchesNothing { .. }
+        ));
+        assert_eq!(out[0].0, "test-case", "it names the declaration");
+    }
+
+    #[trace("TC-1049", "FR-050-AC-36")]
+    // only a TRACE TARGET reports a missing archetype; a
+    // reference declaration, whose section is legitimately optional, does not.
+    #[test]
+    fn tc1049_a_reference_declaration_absence_is_not_a_finding() {
+        // Without this the rule fires on every repository for every archetype
+        // it has no document of. Measured across 245 of them, ungated and
+        // unnarrowed: 741 findings, of which `inspection` and `suite` are 484 —
+        // they fire on 242 repositories each because almost nobody writes
+        // `suites.md` or `inspections.md`. That is a declaration-side fact
+        // (`agent-ix/spec-artifacts-process#75`), and the narrowing here is the
+        // SAME `mints` distinction that keeps `section-matches-nothing` off
+        // healthy repositories rather than a second rule invented for it.
+        let dir = tempfile::tempdir().expect("tempdir");
+        let root = dir.path();
+        std::fs::create_dir_all(root.join("spec")).expect("spec dir");
+        let spec = Spec::from_path(root);
+        let empty = ExcludeSet::default();
+        let sections = SectionNames::from("Test Case Summary");
+
+        let mut target = ScanContext::default();
+        scan(
+            &spec,
+            root,
+            DeclaredScope {
+                name: "test-case",
+                archetype: "TestMatrix",
+                exclude: &empty,
+                model_exclude: &empty,
+                mints: Some("Test ID"),
+            },
+            &sections,
+            &mut target,
+        );
+        assert_eq!(
+            target.into_diagnostics().len(),
+            1,
+            "a trace target that selected no document is reported"
+        );
+
+        let mut reference = ScanContext::default();
+        scan(
+            &spec,
+            root,
+            DeclaredScope {
+                name: "nfr-verification",
+                archetype: "NFR",
+                exclude: &empty,
+                model_exclude: &empty,
+                mints: None,
+            },
+            &sections,
+            &mut reference,
+        );
+        assert!(
+            reference.into_diagnostics().is_empty(),
+            "a reference declaration reads an existing column; having no \
+             document of that archetype is ordinary, not a finding"
         );
     }
 }
