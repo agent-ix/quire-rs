@@ -312,7 +312,33 @@ pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolG
                 // `Implements: FR-001-AC-1`. A detector written as "any
                 // declared trace-id form inside a symbol that does not bind
                 // trace ids" fires on that healthy input and is wrong.
-                for (trace_id, form, _) in verifies_form_ids(symbol, source, model) {
+                //
+                // LEGACY FORMS ONLY, and the reason is about what each form
+                // GUARANTEES rather than about how many findings it removes.
+                //
+                // A canonical marker is SYNTAX: the language attaches it to the
+                // declaration that follows it. So a canonical marker inside a
+                // non-binding symbol's span that bound to nothing is one of two
+                // things — the declaration it decorates bound, and the filter
+                // below already drops it; or that declaration does not exist,
+                // which means the marker text is data rather than code.
+                // Reporting the second is guessing.
+                //
+                // MEASURED: `cases/parser/triple-quote-scope-desync` carries
+                // `@pytest.mark.trace("TC-999")` inside a `"""…"""` literal, as
+                // fixture data for the defect it pins. The detector reported it,
+                // and the fixture is right — that id is not a tag. String
+                // masking exists for Rust legacy forms only and is #323 for the
+                // other two languages; this narrowing does not depend on it.
+                //
+                // A legacy comment-id form carries no adjacency guarantee at
+                // all, and that is exactly what #312 is about: a human wrote a
+                // comment naming a row, next to the wrong thing. All five
+                // seeded fixtures are that shape, in three languages.
+                for (trace_id, form, provenance) in verifies_form_ids(symbol, source, model) {
+                    if provenance != TraceProvenance::Legacy {
+                        continue;
+                    }
                     graph.non_binding_tags.push(NonBindingTag {
                         path: symbol.path.clone(),
                         symbol: symbol.qualified_name.clone(),
@@ -1740,6 +1766,36 @@ mod tests {
         assert_eq!(graph.non_binding_tags.len(), 1, "one tag, one report");
         assert_eq!(graph.non_binding_tags[0].symbol, "normalize_severity");
         assert_eq!(graph.non_binding_tags[0].kind, "function");
+    }
+
+    #[trace("TC-1047", "FR-051-AC-22")]
+    // a CANONICAL marker on a non-binding symbol is not
+    // reported: it is syntax, so if it bound nothing its declaration is data.
+    #[test]
+    fn tc1047_a_canonical_marker_inside_a_string_is_not_a_stray_tag() {
+        // `cases/parser/triple-quote-scope-desync` carries exactly this shape as
+        // FIXTURE DATA for the defect it pins, and the detector reported it —
+        // measured, one false positive out of six findings. The fixture is
+        // right: an id inside a `"""…"""` literal is not a tag. String masking
+        // covers Rust legacy forms only; Python and TypeScript are #323, and
+        // this narrowing does not wait on it.
+        let graph = bind(
+            &py("SRC = \"\"\"\n@pytest.mark.trace(\"TC-999\")\ndef test_phantom():\n    pass\n\"\"\"\n"),
+            &iso_model(),
+        );
+        assert!(
+            graph.non_binding_tags.is_empty(),
+            "a canonical marker that bound nothing decorates no declaration: {:?}",
+            graph.non_binding_tags
+        );
+
+        // And the legacy form in the same position IS reported, so the
+        // narrowing is about the form's guarantee rather than about position.
+        let legacy = bind(
+            &py("# TC-001: warning default.\ndef normalize_severity(f):\n    return 1\n"),
+            &iso_model(),
+        );
+        assert_eq!(legacy.non_binding_tags.len(), 1);
     }
 
     #[trace("TC-982", "FR-051-AC-19")]
