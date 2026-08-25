@@ -299,9 +299,31 @@ once the parser was fixed **both spellings parsed identically** and the pair had
 left to separate — AC-42 rejected it, correctly. The input is still the shape that used to
 break, and asserting it parses correctly is worth keeping; it is simply no longer a defect.
 
-A `regression` case SHALL credit its inventory cell. The mode is exercised whether or not
-the behaviour is currently broken, and a cell that reverted to GAP when its defect was
-fixed would make `gap_count` count *unfixed* defects rather than *unmeasured* modes.
+An **ecosystem-bound** `regression` case SHALL credit its inventory cell. The mode is
+exercised whether or not the behaviour is currently broken, and a cell that reverted to
+GAP when its defect was fixed would make `gap_count` count *unfixed* defects rather than
+*unmeasured* modes.
+
+A case binding a **relaxation variant** SHALL credit no cell, whatever its `kind`, and the
+loader SHALL mark that cell `GAP` with a reason naming the case's `relaxation_ticket`.
+CON-3 outranks the paragraph above and the two rules are about different things: `kind`
+answers *is this behaviour currently broken*, and the binding answers *can this fixture
+exhibit an ecosystem defect at all*. A corpus whose manifest always matches cannot, so
+crediting it would restate the defect this corpus exists to end. AC-44 exists so a cell
+does not revert to GAP the moment its defect is **fixed**; a variant-bound cell never
+credited in the first place, which is a different thing from one that lost its credit.
+
+This is not hypothetical and it is what `agent-ix/quire-rs#285` left behind. Eleven
+fixtures bound a relaxation variant — nine `modules/variants/bench-legacy/` and two
+`modules/variants/bench-no-symbol-vocab/`, counted from `bounds.py --json` at corpus
+`db55b05`. **Ten** migrated onto the vendored declaration and both variants were deleted.
+The eleventh, `cases/provenance/implements-never-asked`, asserts `coverage.implements` is
+`state: not_computed` — the `#226` distinction between *computed and found none* and
+*never asked* — which the engine reaches only when the loaded module declares no
+`implements` forms, and the vendored ecosystem declares three. It is a `regression` pin
+(`#226` landed, nothing reproduces) bound to a variant relaxing exactly that one axis, so
+it is a `regression` case whose cell reads `GAP`. Under the unqualified rule it was a
+counterexample to this document.
 
 A `regression` case SHALL name the ticket whose fix it pins, in `issue_ref`, so a reader
 can tell a pin from a fixture nobody finished.
@@ -315,12 +337,22 @@ A failure case that has a control SHALL **discriminate**: its `expect.yaml`, gra
 against its control's payload, SHALL produce at least one mismatch.
 
 The rule is *"assert at least one fact that differs between the two trees"*, which is
-weaker than *"assert a fact about the defect"*. Measured on this corpus: ten of eleven
-controlled fixtures are satisfiable by one incidental scalar — `total: 1` passes for a
-case whose control totals 2 — and only `no-symbol-method-in-the-verification-column`,
+weaker than *"assert a fact about the defect"*. Measured on this corpus at `776a6b3`: ten
+of eleven controlled fixtures are satisfiable by one incidental scalar — `total: 1` passes
+for a case whose control totals 2 — and only `no-symbol-method-in-the-verification-column`,
 whose control matches it on every count, is forced onto a defect-specific field. So this
 raises the floor rather than closing the question, and it is stated that way because an
 earlier draft of this clause claimed more.
+
+**That audit has not been repeated and its denominator has moved** (CR-123). Counted with
+`bounds.py --json`, controlled failure cases were 11 at `776a6b3`, 33 at `db55b05` and 35
+at `3ff72c0` — #285 alone added two by authoring the controls #286 asked for. "Ten of
+eleven" therefore describes eleven of the thirty-five that exist, and the twenty-four
+authored since were never assessed against it. Re-running it is
+`agent-ix/quire-rs#301`. The figure is left in place rather than deleted because it was
+true when measured and deleting it would lose the finding; it is annotated rather than
+extrapolated because a fraction restated over a population it was not measured on is the
+fabrication this bundle keeps catching.
 
 The `validate_*` assertions SHALL be graded over the OTHER case's tree when a case is
 graded differentially. `quire validate` reads a spec TREE rather than a coverage payload,
@@ -372,8 +404,12 @@ inventory and the fixtures present, and SHALL NOT read them from a stored value.
 derived one cannot disagree with the tree it describes, and adding a fixture then moves
 the count with no edit to any central file.
 
-Only a case of kind `failure` SHALL mark a cell `covered`. A control asserts that
-healthy input stays silent and measures nothing about the mode.
+Only a case of kind `failure` or `regression`, bound to the vendored ecosystem module,
+SHALL mark a cell `covered`. A control asserts that healthy input stays silent and
+measures nothing about the mode; a variant-bound case exercises no ecosystem mode at all.
+This sentence read "only a case of kind `failure`" until CR-123 and had been false since
+`regression` was added — `bounds.py` credited both kinds from the commit that introduced
+the second one, and AC-44 said so while this paragraph still said otherwise.
 
 The corpus loader SHALL reject a case omitting any required field, naming the case and
 the field.
@@ -461,7 +497,8 @@ than an agreement between two codebases nobody can verify from one of them.
 | FR-065-AC-41 | A `known_gaps` entry naming no ticket, or naming no case, is rejected. | Test (TC-1027) |
 | FR-065-AC-42 | A failure case with a control whose `expect.yaml` holds against that control's payload is rejected, with `validate_*` graded over the control's tree. | Test (TC-1028) |
 | FR-065-AC-43 | A case of kind `regression` is accepted with no control and is not held to AC-42; one declaring `findable`, `control_for` or `pending` is rejected. | Test (TC-1032) |
-| FR-065-AC-44 | A `regression` case credits its inventory cell, so a cell does not revert to GAP when its defect is fixed. | Test (TC-1032) |
+| FR-065-AC-44 | An ecosystem-bound `regression` case credits its inventory cell, so a cell does not revert to GAP when its defect is fixed. | Test (TC-1032) |
+| FR-065-AC-45 | A case binding a relaxation variant credits no cell whatever its `kind`, and that cell reads `GAP` with a reason naming its `relaxation_ticket`. | Test (TC-1032) |
 
 ## Dependencies
 
