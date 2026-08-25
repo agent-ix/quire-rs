@@ -811,10 +811,22 @@ fn tc1023_a_pending_case_still_asserts_what_is_true_today() {
         );
     }
 
+    // A PENDING CASE IS A BACKLOG ITEM, NOT A PRECONDITION FOR THIS GATE.
+    //
+    // This asserted `!pending.is_empty()` with the message "no pending case, so
+    // this asserts nothing", and on 2026-08-25 the corpus reached zero pending
+    // for the first time — #312, #304, #307 landed and #273 was answered by
+    // #312 rather than implemented. Requiring a specimen would mean the reward
+    // for fixing every known defect is a red gate, and would push the next
+    // author to keep one fixture broken to satisfy it.
+    //
+    // What the assertion protected is the AC-26 pairing above, which runs over
+    // EVERY case and is what makes a `pending:` without a forward block — or a
+    // forward block without a `pending:` — fail. That loop needs no specimen.
     let pending: Vec<_> = cases.iter().filter(|c| c.meta.pending.is_some()).collect();
     assert!(
-        !pending.is_empty(),
-        "no pending case, so this asserts nothing"
+        !cases.is_empty(),
+        "the corpus loaded no cases at all, so the pairing above ran over nothing"
     );
 
     for case in pending {
@@ -1030,11 +1042,15 @@ fn tc1025_the_loader_refuses_a_block_that_asserts_the_wrong_thing() {
             .expect("read corpus.yaml"),
     )
     .expect("corpus.yaml parses");
-    let behaviour_change: BTreeSet<&str> = corpus
-        .get("behaviour_change_tickets")
-        .and_then(|v| v.as_sequence())
-        .map(|s| s.iter().filter_map(|v| v.as_str()).collect())
-        .unwrap_or_default();
+    // The declared class is READ, so a corpus that deletes the key fails here
+    // rather than silently changing what this gate exercises — the subjects
+    // below are synthesized, but the class they stand in for is still declared.
+    assert!(
+        corpus.get("behaviour_change_tickets").is_some(),
+        "corpus.yaml declares no `behaviour_change_tickets`. The class is real \
+         even when empty — a ticket that changes what MINTS names no token — \
+         and deleting it leaves the next such fixture nowhere to be declared."
+    );
     // THE TOKEN SUBJECT IS SYNTHESIZED, NOT BORROWED FROM THE CORPUS.
     //
     // This used to pick a real case pending on a ticket with a reserved forward
@@ -1083,11 +1099,26 @@ fn tc1025_the_loader_refuses_a_block_that_asserts_the_wrong_thing() {
 
     // A behaviour-change case, and its OWN live block — so "identical to its
     // live block" stays identical when that block is re-measured.
+    //
+    // SYNTHESIZED, for the reason the token subject above is:
+    // `behaviour_change_tickets` reached empty when #273 was answered by #312,
+    // and a gate that only works while the backlog holds a specimen is disabled
+    // by fixing everything.
+    //
+    // A SECOND case and a SECOND ticket, deliberately: one ticket cannot be both
+    // a token ticket and a behaviour change, because the loader takes a
+    // different path for each and the mutations below exercise both.
+    let change_ticket = "agent-ix/quire-rs#999998";
     let change_case = cases
         .iter()
-        .filter(|c| c.meta.pending.is_some())
-        .find(|c| behaviour_change.contains(c.meta.pending.as_deref().unwrap_or("")))
-        .expect("a pending case on a behaviour-change ticket");
+        .find(|c| {
+            c.meta.pending.is_none()
+                && c.meta.kind == "failure"
+                && c.meta.id != token_case.meta.id
+                && std::fs::read_to_string(c.dir.join("expect.yaml"))
+                    .is_ok_and(|t| t.contains("\nbacked: "))
+        })
+        .expect("a second non-pending failure case whose live block asserts `backed`");
     let change_dir = change_case
         .dir
         .strip_prefix(corpus_case::corpus_root())
@@ -1096,6 +1127,64 @@ fn tc1025_the_loader_refuses_a_block_that_asserts_the_wrong_thing() {
         .into_owned();
     let change_live = std::fs::read_to_string(change_case.dir.join("expect.yaml"))
         .expect("read the behaviour-change case's live block");
+    let change_case_yaml = if change_case.dir.join("case.yaml").is_file() {
+        format!("{change_dir}/case.yaml")
+    } else {
+        let parent = change_case
+            .dir
+            .parent()
+            .expect("a variant has a parent")
+            .strip_prefix(corpus_case::corpus_root())
+            .expect("under the corpus root")
+            .to_string_lossy()
+            .into_owned();
+        format!("{parent}/case.yaml")
+    };
+    // A CORRECT behaviour-change forward block: the same keys the live block
+    // asserts, with one value moved. Identical would be rejected — "landing
+    // would change nothing it can see" — which is mutation 6 below.
+    // The live block reduced to its graded measurements: comments gone, and
+    // diagnostic keys gone because a behaviour-change ticket adds no token and
+    // a forward block naming one the engine already emits is refused by a
+    // different rule — correct, and not the rule these mutations are about.
+    let change_graded = {
+        let mut out = String::new();
+        let mut skipping = false;
+        for line in change_live.lines() {
+            let is_key = !line.starts_with([' ', '\t', '-', '#']) && line.contains(':');
+            if is_key {
+                skipping =
+                    line.starts_with("diagnostic_") || line.starts_with("absent_diagnostic_");
+            }
+            if skipping || line.starts_with('#') {
+                continue;
+            }
+            out.push_str(line);
+            out.push('\n');
+        }
+        out
+    };
+    let change_forward = {
+        let mut out = String::new();
+        let mut moved = false;
+        for line in change_graded.lines() {
+            match line
+                .strip_prefix("backed: ")
+                .and_then(|n| n.parse::<usize>().ok())
+            {
+                Some(n) if !moved => {
+                    moved = true;
+                    out.push_str(&format!("backed: {}\n", n + 1));
+                }
+                _ => {
+                    out.push_str(line);
+                    out.push('\n');
+                }
+            }
+        }
+        assert!(moved, "the change case's live block asserts `backed`");
+        out
+    };
 
     let pend = format!("{token_dir}/expect-pending.yaml");
     let live = format!("{token_dir}/expect.yaml");
@@ -1142,7 +1231,16 @@ fn tc1025_the_loader_refuses_a_block_that_asserts_the_wrong_thing() {
         // drops keys the live block pins is not that measurement.
         (
             change_pend.clone(),
-            "total: 4\nbacked: 3\nunbacked_rows: []\n".to_string(),
+            // DERIVED from the case's own live block by dropping the one key
+            // the forward block moves, rather than transcribed. The literal
+            // this used to carry was shaped for whichever case happened to be
+            // pending, and went vacuous the moment the subject changed — it was
+            // "silent on" nothing, and the mutation was accepted.
+            change_forward
+                .lines()
+                .filter(|l| !l.starts_with("backed: "))
+                .map(|l| format!("{l}\n"))
+                .collect::<String>(),
             "silent on".to_string(),
         ),
         // And one IDENTICAL to its live block: the ticket landing would change
@@ -1150,7 +1248,7 @@ fn tc1025_the_loader_refuses_a_block_that_asserts_the_wrong_thing() {
         // transcribed, so it stays identical when the block is re-measured.
         (
             change_pend.clone(),
-            change_live.clone(),
+            change_graded.clone(),
             "landing would change nothing".to_string(),
         ),
         // AC-36, the other half — an ALREADY-EMITTED token in a forward block.
@@ -1212,6 +1310,32 @@ fn tc1025_the_loader_refuses_a_block_that_asserts_the_wrong_thing() {
             format!("diagnostic_reasons: [{token}]\n"),
         )
         .expect("write a correct forward block");
+
+        // And the behaviour-change subject: a second ticket, declared as one,
+        // with a forward block that restates its live block with one value
+        // moved.
+        let decl2 = scratch.join("corpus.yaml");
+        let text2 = std::fs::read_to_string(&decl2).expect("read corpus.yaml");
+        std::fs::write(
+            &decl2,
+            text2.replace(
+                "behaviour_change_tickets: []",
+                &format!("behaviour_change_tickets:\n- {change_ticket}"),
+            ),
+        )
+        .expect("declare the synthetic behaviour-change ticket");
+        let change_path = scratch.join(&change_case_yaml);
+        let change_text = std::fs::read_to_string(&change_path).expect("read case.yaml");
+        std::fs::write(
+            &change_path,
+            format!(
+                "{change_text}pending: {change_ticket}\npending_reason: >-\n                   A subject synthesized by TC-1025 so the gate does not depend on \
+                 the corpus holding one.\n"
+            ),
+        )
+        .expect("make the change case pending");
+        std::fs::write(scratch.join(&change_pend), &change_forward)
+            .expect("write a correct behaviour-change forward block");
 
         std::fs::write(scratch.join(target), contents).expect("write mutation");
 
