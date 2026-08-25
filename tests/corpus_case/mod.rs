@@ -855,14 +855,34 @@ pub fn grade_with(case: &Case, report: &quire_rs::CoverageReport, e: &CaseExpect
 /// run, that distinction does not matter. Grading it against ANOTHER case's —
 /// which is what the differential check does — it decides the answer.
 ///
-/// `wrong-type-cell` is why. Its coverage payload is byte-identical to its
-/// control's BY DESIGN: an undeclared `Type` cell is a STRUCTURAL defect, so
-/// the family is visible only to `validate`, and `validate_contains` is its
-/// entire discriminating claim. Recomputed from the case's own tree those keys
-/// contribute nothing and the fixture reads as blind; skipped, it asserts
-/// nothing at all and reads as blind again. Only validating the OTHER tree
-/// asks the question the differential means to ask — and it answers it
-/// correctly, because the control's tree has no `Telepathy` cell.
+/// `wrong-type-cell` is why — WHEN IT GAINS A CONTROL, which it has not.
+/// Its coverage payload is byte-identical to a healthy tree's BY DESIGN: an
+/// undeclared `Type` cell is a STRUCTURAL defect, so the family is visible only
+/// to `validate`, and `validate_contains` is its entire discriminating claim.
+/// Recomputed from the case's own tree those keys would contribute nothing and
+/// the fixture would read as blind; skipped, it would assert nothing at all and
+/// read as blind again. Only validating the OTHER tree asks the question the
+/// differential means to ask.
+///
+/// **RETRACTION (CR-132), stated rather than quietly edited.** This paragraph
+/// ended "and it answers it correctly, **because the control's tree has no
+/// `Telepathy` cell**". There is no control's tree. **[RAN]** at corpus
+/// `2bc486d`: `wrong-type-cell` is a `failure` declared under
+/// `known_gaps.uncontrolled_failure_cases`, no control names it, and
+/// `git log -S 'wrong-type-cell' -- cases/` returns one commit — the fixture's
+/// own introduction — so none ever has. Exactly two of the 77 fixtures declare
+/// a `validate_*` key (`wrong-type-cell` and `clean-control`, a control the
+/// differential does not iterate) and **zero of the 35 graded pairs carry one**,
+/// in either reader. The rule's reach over this corpus is 0.
+///
+/// **IT STAYS.** It is a correct rule with no current subject, which is not the
+/// same as a wrong rule: the moment `agent-ix/quire-rs#286` gives that fixture
+/// the control it owes it, validating its own tree is what would reject it.
+/// FR-065's requirement text is the hedged form — "would be rejected as blind
+/// **the moment it gained a control**" — and this comment now agrees with it.
+/// `qa-corpus`'s `scripts/parity_selftest.py` case 4 manufactures a
+/// `validate_absent` for exactly this reason: a rule with no subject still has
+/// to be shown capable of failing.
 #[derive(Clone, Copy)]
 pub enum ValidateSource<'a> {
     /// Validate the tree of the case being graded.
