@@ -106,6 +106,38 @@ figure (15 of 496 findings carrying a row id) that motivates splitting L2 from L
 quoin's, computed under quoin's merged definition; it is cited as the observation that
 prompted the split and SHALL NOT be reported as this ladder's L3 rate.
 
+### The witness channel: which output constitutes detection
+
+A failure case's live block, graded against its control's payload, must produce a
+mismatch (AC-42). That closes empty blocks and assertions true of every input, and it is
+a **floor rather than closure**: it proves an assertion distinguishes *these two
+payloads*, not that the assertion concerns *the seeded defect*. Measured over the 34
+controlled failure cases, **14 pairs differ in `total`** — an incidental global row count
+satisfying the whole rule while saying nothing about the family the case is named for.
+
+`corpus.yaml` SHALL therefore declare, per mode, the **witness channels**: the output
+this family's detection is *observable in*. A block SHALL be graded twice — once whole,
+and once **restricted** to its mode's channels — and the restriction SHALL still
+mismatch.
+
+Restriction rather than mismatch inspection, because the two claims differ. A list of
+which mismatches fired says something fired somewhere, which is what AC-42 already
+asserts. Dropping every non-witness key and re-grading says **the witness channel itself
+discriminates**, which is the claim with content.
+
+`total` is a witness for `minting` and for nothing else: a minted-row count *is* the
+minting channel, and everywhere else it is the incidental scalar. `backed` is barred from
+`minting` for the mirror reason — a row's minting and its backing are different facts.
+
+A channel a reader cannot restrict on SHALL be rejected rather than dropped, or the rule
+weakens silently for exactly the mode that declared it (AC-47).
+
+**One weakening is stated rather than left to be discovered.** `validate_contains` /
+`validate_absent` are a witness in every mode, because `quire validate` is a second
+*oracle* rather than a coverage channel: a defect visible only to it produces a coverage
+payload byte-identical to a healthy tree's. So within one mode a case can satisfy AC-46
+through the validate oracle alone.
+
 ### Every failure case ships its control
 
 A detector that fires on everything scores perfect recall. That is not hypothetical
@@ -575,6 +607,8 @@ against neither; it now renders `Level::ALL` and compares that.
 | FR-065-AC-43 | A case of kind `regression` is accepted with no control and is not held to AC-42; one declaring `findable`, `control_for` or `pending` is rejected. | Test (TC-1032) |
 | FR-065-AC-44 | An ecosystem-bound `regression` case credits its inventory cell, so a cell does not revert to GAP when its defect is fixed. | Test (TC-1032) |
 | FR-065-AC-45 | A case binding a relaxation variant credits no cell whatever its `kind`, and that cell reads `GAP` with a reason naming its `relaxation_ticket`. | Test (TC-1032) |
+| FR-065-AC-46 | A failure case whose `expect.yaml`, restricted to the `witness_channels` its mode declares, holds against its control's payload is rejected — as is one naming no witness channel at all. | Test (TC-1028) |
+| FR-065-AC-47 | A `witness_channels` entry naming a channel a reader cannot restrict on is rejected, rather than dropped. | Test (TC-1028) |
 
 ## Dependencies
 
