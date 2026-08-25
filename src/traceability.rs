@@ -121,10 +121,25 @@ impl SectionMatcher {
 ///
 /// Deliberately **not** `globset`, although this crate already depends on it
 /// for `exclude:`. A glob makes `?`, `[`, `]`, `{` and `}` special too, and a
-/// heading is prose: `Edge Cases [deferred]` and `FR-045 — \`ix local auth\``
-/// are real ecosystem headings. Making four more characters special would
-/// silently change what an existing declaration means, which is the one thing
-/// this change may not do.
+/// heading is prose. Making four more characters special could change what an
+/// existing declaration means.
+///
+/// **Measured, because an earlier version of this comment cited an invented
+/// example.** It named ``Edge Cases [deferred]`` as "a real ecosystem
+/// heading"; that heading exists nowhere in the ecosystem and was written to
+/// support the conclusion. FR-050 retracted it and this comment did not — the
+/// retraction was applied to two documents by hand and did not find this copy,
+/// which is why the rule is now a repository-wide search for the exact claim.
+///
+/// The census that does hold: 21 distinct `section:` values are declared
+/// across every `manifest.yaml` under the dev root and **none carries a glob
+/// metacharacter**; of the 2,802 headings in 417 `type: TestMatrix`
+/// documents, exactly **one** carries `[`/`]` (a markdown link) and none
+/// carries `?`, `{`, `}` or `*`. So globset would not change any declaration
+/// that exists today — this forecloses a hazard rather than fixing an observed
+/// one, and claims no more than that. The bracketed string in this module's
+/// tests is a synthetic input, which is fine; calling it observed evidence was
+/// not.
 ///
 /// Byte-wise on UTF-8 is safe: `*` is ASCII, and a UTF-8 substring search
 /// cannot match across a character boundary.

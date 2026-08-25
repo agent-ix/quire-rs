@@ -22,6 +22,9 @@ description: "Index of artifacts in this directory."
 * [FR-013: Archetype Loader: Filesystem-First, Sync-Agnostic](./FR-013-archetype-loader.md)
 * [FR-014: Module Activation: Multiple Archetype Modules, Namespaced Coexistence](./FR-014-module-activation.md)
 * [FR-016: Secondary / Fallback Locators for Author-Variant Tolerance](./FR-016-secondary-locators.md)
+* [FR-019: Stable block ids](./FR-019-stable-block-ids.md)
+* [FR-020: Block addressing](./FR-020-block-addressing.md)
+* [FR-022: Writeback primitives](./FR-022-writeback-primitives.md)
 * [FR-023: Python Binding Surface (Feature-Gated PyO3)](./FR-023-python-binding-surface.md)
 * [FR-024: Parallel Repository Walk + Parse (load_repo)](./FR-024-parallel-repo-walk.md)
 * [FR-025: Spec Corpus Model: Bounded In-Memory Document Set](./FR-025-spec-corpus-model.md)
@@ -60,10 +63,8 @@ description: "Index of artifacts in this directory."
 * [FR-058: Upward-Trace Completeness](./FR-058-upward-trace-completeness.md)
 * [FR-059: Declared-Vocabulary Coverage](./FR-059-declared-vocabulary-coverage.md)
 * [FR-060: Vocabulary References in Body-Extraction Asserts](./FR-060-vocabulary-references.md)
-<<<<<<< HEAD
 * [FR-061: Combinatorial Obligations from Declared Configuration Dimensions](./FR-061-combinatorial-obligations.md)
-=======
->>>>>>> origin/main
 * [FR-062: The requirement-to-production-code relation](./FR-062-implements-relation.md)
 * [FR-063: The metric provenance envelope](./FR-063-metric-provenance-envelope.md)
 * [FR-064: The skeptic layer](./FR-064-skeptic-layer.md)
+* [FR-065: The controlled-corpus contract](./FR-065-controlled-corpus-contract.md)
