@@ -1469,11 +1469,55 @@ fn scratch_dir(test: &str, index: usize) -> Scratch {
 /// check exists to close. It is implemented in both readers as of #337, and the
 /// two resolutions of "which control is this case's" are now one rule, asserted
 /// against each other at the end of this test rather than assumed to agree.
-#[trace("TC-1028", "FR-065-AC-42")]
-// a failure case separates itself from its control.
+#[trace("TC-1028", "FR-065-AC-42", "FR-065-AC-46", "FR-065-AC-47")]
+// a failure case separates itself from its control, THROUGH its mode's witness
+// channel. CR-130 added AC-46 and AC-47 and pointed both at this TC in the
+// spec/tests.md index, but left the marker naming AC-42 alone — so the two new
+// criteria read as verified while the only machine-readable link back to a test
+// did not mention them. The index and the marker are the two halves of the same
+// claim; a criterion covered by one and not the other is covered by neither.
 #[test]
 fn tc1028_a_failure_case_discriminates_from_its_control() {
     let cases = load_cases();
+
+    // FR-065-AC-46's channels come from `corpus.yaml`, not from this file — the
+    // same single-definition rule the ladder and the mode families are under.
+    let declared: serde_yaml::Value = serde_yaml::from_str(
+        &std::fs::read_to_string(corpus_case::corpus_root().join("corpus.yaml")).unwrap(),
+    )
+    .expect("corpus.yaml parses");
+    let witness: BTreeMap<String, BTreeSet<String>> = declared["witness_channels"]
+        .as_mapping()
+        .expect("corpus.yaml declares `witness_channels`")
+        .iter()
+        .map(|(mode, keys)| {
+            (
+                mode.as_str().expect("a mode name").to_string(),
+                keys.as_sequence()
+                    .expect("a list of channel names")
+                    .iter()
+                    .map(|k| k.as_str().expect("a channel name").to_string())
+                    .collect(),
+            )
+        })
+        .collect();
+    assert!(!witness.is_empty(), "an empty declaration asserts nothing");
+
+    // EVERY DECLARED CHANNEL MUST BE ONE THIS HARNESS CAN RESTRICT ON.
+    // `restricted_to` matches on key names; a name it does not know would be
+    // silently dropped from the restricted block, which makes AC-46 quietly
+    // WEAKER for precisely the mode that declared the channel. Failing loudly
+    // is the difference between a rule and a rule-shaped hole.
+    let known = corpus_case::CaseExpect::channel_names();
+    for (mode, channels) in &witness {
+        let unknown: Vec<_> = channels.difference(&known).cloned().collect();
+        assert!(
+            unknown.is_empty(),
+            "`witness_channels.{mode}` names {unknown:?}, which `CaseExpect` \
+             cannot restrict on — it would be dropped and the rule would silently \
+             weaken for this mode",
+        );
+    }
 
     // WHAT A `control_for` NAME RESOLVES TO, and it is `bounds.py`'s
     // `failure_partners` — ID first, `case:` alias second, an alias never
@@ -1632,6 +1676,46 @@ fn tc1028_a_failure_case_discriminates_from_its_control() {
                     ));
                 }
                 checked += 1;
+
+                // FR-065-AC-46 — THE MODE-SPECIFIC WITNESS. The check above
+                // proves the block tells these two payloads apart; this proves
+                // it does so THROUGH THE CHANNEL THIS MODE IS ABOUT. Measured
+                // over the 34 controlled failure cases, 14 pairs differ in
+                // `total`, so without this an incidental global row count
+                // satisfies AC-42 for them while saying nothing about the
+                // family the case is named for.
+                //
+                // Restriction, not mismatch inspection: dropping every
+                // non-witness key and re-grading makes the claim exactly "the
+                // witness channel itself discriminates".
+                let channels = witness
+                    .get(&case.meta.mode)
+                    .unwrap_or_else(|| panic!("no witness channels for `{}`", case.meta.mode));
+                let restricted = block.restricted_to(channels);
+                if restricted.is_empty() {
+                    blind.push_str(&format!(
+                        "  {} — its {which} names no `{}` witness channel {channels:?}, so \
+                     nothing it asserts constitutes detection of this defect family \
+                     (FR-065-AC-46)\n",
+                        case.meta.id, case.meta.mode,
+                    ));
+                    continue;
+                }
+                let witnessed = corpus_case::grade_against(
+                    case,
+                    &healthy,
+                    &restricted,
+                    corpus_case::ValidateSource::Tree(control),
+                );
+                if witnessed.passed() {
+                    blind.push_str(&format!(
+                        "  {} — separates itself from {} only OUTSIDE its `{}` witness \
+                     channels {channels:?}; restricted to them its {which} holds against \
+                     healthy input, so what it detects is not this defect family \
+                     (FR-065-AC-46)\n",
+                        case.meta.id, control.meta.id, case.meta.mode,
+                    ));
+                }
             }
         }
     }
