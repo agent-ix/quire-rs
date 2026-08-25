@@ -1469,8 +1469,13 @@ fn scratch_dir(test: &str, index: usize) -> Scratch {
 /// check exists to close. It is implemented in both readers as of #337, and the
 /// two resolutions of "which control is this case's" are now one rule, asserted
 /// against each other at the end of this test rather than assumed to agree.
-#[trace("TC-1028", "FR-065-AC-42")]
-// a failure case separates itself from its control.
+#[trace("TC-1028", "FR-065-AC-42", "FR-065-AC-46", "FR-065-AC-47")]
+// a failure case separates itself from its control, THROUGH its mode's witness
+// channel. CR-130 added AC-46 and AC-47 and pointed both at this TC in the
+// spec/tests.md index, but left the marker naming AC-42 alone — so the two new
+// criteria read as verified while the only machine-readable link back to a test
+// did not mention them. The index and the marker are the two halves of the same
+// claim; a criterion covered by one and not the other is covered by neither.
 #[test]
 fn tc1028_a_failure_case_discriminates_from_its_control() {
     let cases = load_cases();
