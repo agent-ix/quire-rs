@@ -2051,7 +2051,9 @@ fn tc1001_suspicions_reach_the_report_and_move_nothing() {
 /// Rewrite the bundle's matrix with `heading` as its section and `id_column` as
 /// its first column, keeping the rows [`iso_bundle`] writes.
 ///
-/// The two single-cell edits that strand 3,514 TC ids across the ecosystem. The
+/// The two single-cell edits behind the ecosystem's unreached-declaration census
+/// (a candidate 3,514 TC ids; CR-118 measured the section fix at +83 rows, the
+/// population being confounded with id-column mismatch — #318). The
 /// `iso` fixture module declares `section: Test Cases` and `id_column: ID`, so
 /// passing anything else here is the defect and passing those two is the
 /// control.

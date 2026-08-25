@@ -27,9 +27,12 @@ tmpdir and returning `labels.json` as the value of a function.
 Neither corpus can be read without running it, and one of them declares its own
 manifest. That last fact is the load-bearing one: the generator declares
 `section: Test Cases` where the ecosystem declares `Test Case Summary`, so **a corpus
-whose manifest heading always matches cannot exhibit the defect accounting for 3,514
-unminted TC ids across 88 repositories**. Tier 1 has never caught the dominant failure
-mode because tier 1 was built where that mode cannot occur.
+whose manifest heading always matches cannot exhibit the section defect at all** — the
+one whose candidate census is 3,514 unminted TC ids across 88 repositories. (That census
+is a candidate population, not the defect's causal size: CR-118 measured the section fix
+at +83 rows, because the population is confounded with id-column mismatch —
+`agent-ix/quire-rs#318`.) Tier 1 has never caught this failure mode because tier 1 was
+built where the mode cannot occur.
 
 `quire-rs` SHALL define the contract for a **controlled corpus**: static case data on
 disk, language-neutral, read in place, with declared bounds and a graded detection
@@ -166,10 +169,11 @@ by running it.
 
 ## Outputs
 
-- A per-case **result record** carrying the case id, the highest grading level reached,
-  the first level lost where the case failed, and the reasons and loci compared. Its
-  field set and ordering are declared in `corpus.yaml`'s schema, so AC-15's byte-identity
-  has a defined shape to be identical about.
+- Per failing case, the highest grading level reached and the first level lost, with the
+  reasons and loci compared (AC-11, AC-12). This is what a runner **prints**; it is
+  deliberately not a declared wire record — see CR-124.
+- The engine report each case's `reproduce` invocation produces, byte-identical across
+  two runs over unchanged input (AC-17).
 - `bounds.gap_count`, published beside every score derived from the corpus.
 
 ## Behavior
@@ -470,7 +474,7 @@ than an agreement between two codebases nobody can verify from one of them.
 | FR-065-AC-14 | A control case over healthy input produces no finding for the mode its partner asserts. | Test (TC-1017) |
 | FR-065-AC-15 | A case binding a variant module without naming a relaxation ticket is rejected. | Test (TC-1018) |
 | FR-065-AC-16 | A case binding the vendored ecosystem module loads without naming a ticket. | Test (TC-1018) |
-| FR-065-AC-17 | Two runs of one case over unchanged input produce byte-identical result records. | Test (TC-1019) |
+| FR-065-AC-17 | Two runs of one case over unchanged input produce a byte-identical engine report. | Test (TC-1019) |
 | FR-065-AC-18 | Each case's `case.yaml` carries the invocation that reproduces it, and that invocation names a module. | Test (TC-1020) |
 | FR-065-AC-19 | The runner reads the bounds enum from `corpus.yaml` rather than a compiled-in list, so an enum value added there is accepted without a code change. | Test (TC-1021) |
 | FR-065-AC-20 | The runner reads the grading-ladder level names from `corpus.yaml` rather than a compiled-in list. | Test (TC-1021) |
