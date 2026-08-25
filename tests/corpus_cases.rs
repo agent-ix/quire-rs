@@ -357,7 +357,7 @@ fn tc1021_the_vocabularies_come_from_the_corpus_not_from_this_file() {
 
     // Non-vacuous: an empty declaration would make every assertion below pass.
     assert!(!families.is_empty() && !kinds.is_empty() && !states.is_empty());
-    // FR-065-AC-20 as narrowed by CR-127: the ladder this file GRADES with and
+    // FR-065-AC-20 as narrowed by CR-129: the ladder this file GRADES with and
     // the ladder the corpus DECLARES must agree, in name and in order. Derived
     // from `Level::ALL` rather than from a literal, so this compares the enum to
     // the declaration instead of comparing two literals to each other.
@@ -1686,10 +1686,12 @@ fn tc1028_a_failure_case_discriminates_from_its_control() {
                 // FR-065-AC-46 — THE MODE-SPECIFIC WITNESS. The check above
                 // proves the block tells these two payloads apart; this proves
                 // it does so THROUGH THE CHANNEL THIS MODE IS ABOUT. Measured
-                // over the 34 controlled failure cases, 14 pairs differ in
-                // `total`, so without this an incidental global row count
-                // satisfies AC-42 for them while saying nothing about the
-                // family the case is named for.
+                // by running every failure case and every control and comparing
+                // `totals.total`, over the whole controlled population: 14 of
+                // the 35 (case, control) pairs differ in `total` — equivalently
+                // 14 of the 34 controlled cases. Without this, an incidental
+                // global row count satisfies AC-42 for those while saying
+                // nothing about the family the case is named for.
                 //
                 // Restriction, not mismatch inspection: dropping every
                 // non-witness key and re-grading makes the claim exactly "the
