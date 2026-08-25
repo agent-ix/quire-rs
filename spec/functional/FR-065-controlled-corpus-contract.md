@@ -111,9 +111,11 @@ prompted the split and SHALL NOT be reported as this ladder's L3 rate.
 A failure case's live block, graded against its control's payload, must produce a
 mismatch (AC-42). That closes empty blocks and assertions true of every input, and it is
 a **floor rather than closure**: it proves an assertion distinguishes *these two
-payloads*, not that the assertion concerns *the seeded defect*. Measured over the 34
-controlled failure cases, **14 pairs differ in `total`** — an incidental global row count
-satisfying the whole rule while saying nothing about the family the case is named for.
+payloads*, not that the assertion concerns *the seeded defect*. Measured by running every
+failure case and every control and comparing `totals.total`, over the whole controlled
+population and no sample, **14 of the 35 (case, control) pairs differ in `total`** —
+equivalently 14 of the 34 controlled cases — an incidental global row count satisfying
+the whole rule while saying nothing about the family the case is named for.
 
 `corpus.yaml` SHALL therefore declare, per mode, the **witness channels**: the output
 this family's detection is *observable in*. A block SHALL be graded twice — once whole,
@@ -130,7 +132,18 @@ minting channel, and everywhere else it is the incidental scalar. `backed` is ba
 `minting` for the mirror reason — a row's minting and its backing are different facts.
 
 A channel a reader cannot restrict on SHALL be rejected rather than dropped, or the rule
-weakens silently for exactly the mode that declared it (AC-47).
+weakens silently for exactly the mode that declared it (AC-47). **By EVERY reader**, and
+that clause is here because the rule shipped in one of them. CR-130 wrote AC-42's row with
+"by every reader" and AC-46's and AC-47's without it, and AC-47 then landed in the Rust
+harness alone — reproduced by changing `witness_channels.disposition`'s `unbacked_rows` to
+`unbacked_rowz`, one character, whereupon `verify.py` reported 77/77 over 35 pairs with 0
+mismatches and exit 0 while `cargo test tc1028` panicked. `bounds.py` does not read
+`witness_channels`, `schema_selftest` does not cover it and `parity_selftest` still passed
+6/6, so the corpus's whole `make ci` was green on a corpus where AC-46 had been weakened
+for a mode. The asymmetry in the criteria table was the drafting error underneath it and
+is corrected with the code (CR-132). A `witness_channels` value that is not a LIST, and a
+declared `mode_family` with no entry at all, are rejected under the same criterion for the
+same reason: both make the restriction quietly empty rather than loudly wrong.
 
 **One weakening is stated rather than left to be discovered.** `validate_contains` /
 `validate_absent` are a witness in every mode, because `quire validate` is a second
@@ -436,19 +449,41 @@ count of a defect, cited to the other reader's tool. Both now return 34 cases, o
 **35 (case, control) pairs** are graded, because two controls name
 `marker-form-mismatch`.
 
-A separate measurement of how low the floor is, taken at corpus `801afd5` with CLI 0.30.2
-/ engine 0.33.0 over all 34 controlled cases by running each case and its control and
-comparing `totals.total`: **20 pairs share an identical `total`**, so for those the
-incidental scalar is not available as an evasion and for the other 14 it is. This
-supersedes nothing above — it counts a different thing over a different population than
-the `776a6b3` audit, which is why it is stated separately rather than as an update.
+A separate measurement of how low the floor is. Method: run every failure case and every
+control and compare `totals.total`. Population: the whole controlled set, no sample, at
+corpus `801afd5` (fixtures byte-identical at `2bc486d`) with CLI 0.30.2 / engine 0.33.0.
+
+| unit | share an identical `total` | differ | n |
+|---|---|---|---|
+| per **case** (34 controlled failure cases) | **20** | **14** | 34 |
+| per **(case, control) pair** | **21** | **14** | 35 |
+
+Where they share it the incidental scalar is not available as an evasion; for the 14 that
+differ it is. **This paragraph published "20 pairs" until CR-132**, which is 20 CASES —
+over pairs it is 21. The 14 is right under both units, so only the noun was wrong, and it
+was wrong in permanent requirement text. This supersedes nothing above: it counts a
+different thing over a different population than the `776a6b3` audit, which is why it is
+stated separately rather than as an update.
 
 The `validate_*` assertions SHALL be graded over the OTHER case's tree when a case is
 graded differentially. `quire validate` reads a spec TREE rather than a coverage payload,
 so recomputing it from the case's own tree makes those keys contribute no discrimination
-— and `wrong-type-cell`, whose coverage payload is byte-identical to its control's by
+— and `wrong-type-cell`, whose coverage payload is byte-identical to a healthy tree's by
 design and whose entire claim is structural, would be rejected as blind the moment it
 gained a control.
+
+**THAT RULE HAS REACH 0 OVER THE CORPUS TODAY, AND IT IS KEPT ANYWAY** (CR-132). Measured
+at corpus `2bc486d` over all 77 discovered fixtures: exactly **two** declare a `validate_*`
+key — `wrong-type-cell`, a `failure` declared under
+`known_gaps.uncontrolled_failure_cases`, which no control names and both readers skip,
+and `clean-control`, a `control`, which the differential does not iterate — so **zero of
+the 35 graded (case, control) pairs carry one**, in either reader. `git log -S
+'wrong-type-cell' -- cases/` returns one commit, the fixture's own introduction, so no
+`control_for` has ever named it. The rule is correct and has no current subject; those
+are different things, and the commentary around this requirement conflated them until
+CR-132 (`verify.py`, `scripts/parity_selftest.py`, `tests/corpus_case/mod.rs`,
+`spec/log.md`, all corrected). `agent-ix/quire-rs#286` giving `wrong-type-cell` its
+control is what raises the reach above zero.
 
 A pending case's `expect-pending.yaml` is NOT held to this rule. AC-36 requires it to
 require a `forward` token and AC-35 guarantees no engine emits one, so it cannot hold
@@ -607,8 +642,8 @@ against neither; it now renders `Level::ALL` and compares that.
 | FR-065-AC-43 | A case of kind `regression` is accepted with no control and is not held to AC-42; one declaring `findable`, `control_for` or `pending` is rejected. | Test (TC-1032) |
 | FR-065-AC-44 | An ecosystem-bound `regression` case credits its inventory cell, so a cell does not revert to GAP when its defect is fixed. | Test (TC-1032) |
 | FR-065-AC-45 | A case binding a relaxation variant credits no cell whatever its `kind`, and that cell reads `GAP` with a reason naming its `relaxation_ticket`. | Test (TC-1032) |
-| FR-065-AC-46 | A failure case whose `expect.yaml`, restricted to the `witness_channels` its mode declares, holds against its control's payload is rejected — as is one naming no witness channel at all. | Test (TC-1028) |
-| FR-065-AC-47 | A `witness_channels` entry naming a channel a reader cannot restrict on is rejected, rather than dropped. | Test (TC-1028) |
+| FR-065-AC-46 | A failure case whose `expect.yaml`, restricted to the `witness_channels` its mode declares, holds against its control's payload is rejected **by every reader** — as is one naming no witness channel at all. | Test (TC-1028; `qa-corpus` `scripts/parity_selftest.py`) |
+| FR-065-AC-47 | A `witness_channels` entry naming a channel a reader cannot restrict on is rejected **by every reader**, rather than dropped; so is one that is not a list, and a declared `mode_family` with no entry at all. | Test (TC-1028; `qa-corpus` `verify.py check_witness_channels`) |
 
 ## Dependencies
 

@@ -357,7 +357,7 @@ fn tc1021_the_vocabularies_come_from_the_corpus_not_from_this_file() {
 
     // Non-vacuous: an empty declaration would make every assertion below pass.
     assert!(!families.is_empty() && !kinds.is_empty() && !states.is_empty());
-    // FR-065-AC-20 as narrowed by CR-127: the ladder this file GRADES with and
+    // FR-065-AC-20 as narrowed by CR-129: the ladder this file GRADES with and
     // the ladder the corpus DECLARES must agree, in name and in order. Derived
     // from `Level::ALL` rather than from a literal, so this compares the enum to
     // the declaration instead of comparing two literals to each other.
@@ -1586,7 +1586,10 @@ fn tc1028_a_failure_case_discriminates_from_its_control() {
         .map(|s| s.iter().filter_map(|v| v.as_str()).collect())
         .unwrap_or_default();
 
-    let mut checked = 0usize;
+    // EVERY (case, control) PAIR THIS HARNESS GRADED, as `id|language|control`.
+    // The SET, not its cardinality — see the assertion at the end of this test
+    // for why the count was not enough.
+    let mut graded_pairs: Vec<String> = Vec::new();
     let mut blind = String::new();
     for case in &cases {
         if case.meta.kind != "failure" {
@@ -1675,15 +1678,20 @@ fn tc1028_a_failure_case_discriminates_from_its_control() {
                         case.meta.id, control.meta.id,
                     ));
                 }
-                checked += 1;
+                graded_pairs.push(format!(
+                    "{}|{}|{}",
+                    case.meta.id, case.meta.language, control.meta.id
+                ));
 
                 // FR-065-AC-46 — THE MODE-SPECIFIC WITNESS. The check above
                 // proves the block tells these two payloads apart; this proves
                 // it does so THROUGH THE CHANNEL THIS MODE IS ABOUT. Measured
-                // over the 34 controlled failure cases, 14 pairs differ in
-                // `total`, so without this an incidental global row count
-                // satisfies AC-42 for them while saying nothing about the
-                // family the case is named for.
+                // by running every failure case and every control and comparing
+                // `totals.total`, over the whole controlled population: 14 of
+                // the 35 (case, control) pairs differ in `total` — equivalently
+                // 14 of the 34 controlled cases. Without this, an incidental
+                // global row count satisfies AC-42 for those while saying
+                // nothing about the family the case is named for.
                 //
                 // Restriction, not mismatch inspection: dropping every
                 // non-witness key and re-grading makes the claim exactly "the
@@ -1721,37 +1729,73 @@ fn tc1028_a_failure_case_discriminates_from_its_control() {
     }
 
     assert!(
-        checked > 0,
+        !graded_pairs.is_empty(),
         "no controlled failure case, so this asserts nothing"
     );
 
-    // THE OTHER READER RESOLVES THE SAME PAIRS. `verify.py` implements this
-    // same differential (#337), and both now resolve `control_for` through one
-    // rule — but "both implement it" is what was claimed before the review
-    // found it implemented once. So the claim is a behaviour: ask `bounds.py`
-    // for its pair count and require it to equal the number graded here.
+    // THE OTHER READER RESOLVES THE SAME PAIRS — THE SET, NOT HOW MANY.
+    // `verify.py` implements this same differential (#337), and both resolve
+    // `control_for` through one rule; "both implement it" is what was claimed
+    // before the review found it implemented once, so the claim is a behaviour.
     //
-    // This is what the earlier divergence would have caught. `bounds.py`
-    // resolved 34 controlled failure cases where this file counted 35, the
-    // extra being `marker-mismatch` reached through its `case:` alias, and
-    // nothing compared the two numbers.
+    // IT COMPARED TWO INTEGERS UNTIL CR-132, UNDER THIS MESSAGE, and the
+    // outside review reproduced the hole: reverting this test's resolution to
+    // the exact pre-#337 form — `controls` keyed on the raw `control_for`
+    // string, one control per key, the `case:` alias fallback restored at the
+    // lookup — left `cargo test tc1028` GREEN. Both resolutions yield 35 pairs
+    // at this corpus while the SETS differ by one each way:
+    //
+    //     new - old   ("marker-form-mismatch", "marker-form-declared")
+    //     old - new   ("marker-mismatch", "marker-form-mismatch-control")
+    //
+    // The reverted harness grades `marker-mismatch` — a case DECLARED under
+    // `known_gaps.uncontrolled_failure_cases` — against a stranger's control,
+    // bypassing the declared-gap assertion above, and never grades
+    // `marker-form-mismatch` against `marker-form-declared`. `bounds.py` does
+    // the opposite. A cardinality check saw nothing.
+    //
+    // The gate caught the original defect at `3ff72c0` only because the counts
+    // happened to differ there (34 vs 35). The defect class it exists for — an
+    // alias colliding with an id — is CARDINALITY-PRESERVING whenever the
+    // displaced case also has a control, which is the case here. So the count
+    // was the one statistic this check could not use.
     let probe = std::process::Command::new("python3")
         .arg("-c")
         .arg(
-            "import bounds; print(sum(len(v) for v in \
-             bounds.controls_by_case(bounds.discover()).values()))",
+            "import bounds; print('\\n'.join(sorted(\
+             f\"{k[0]}|{k[1]}|{c['id']}\" for k, v in \
+             bounds.controls_by_case(bounds.discover()).items() for c in v)))",
         )
         .current_dir(corpus_case::corpus_root())
         .output()
         .expect("run bounds.py's resolution");
-    let theirs = String::from_utf8_lossy(&probe.stdout).trim().to_string();
-    assert_eq!(
-        theirs,
-        checked.to_string(),
-        "the two readers resolve different (case, control) pairs: bounds.py \
-         {theirs}, this harness {checked}. One corpus, two answers, which is \
-         the drift the duplicated implementation exists to expose. stderr:\n{}",
-        String::from_utf8_lossy(&probe.stderr),
+    let stderr = String::from_utf8_lossy(&probe.stderr);
+    let theirs: Vec<String> = String::from_utf8_lossy(&probe.stdout)
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .map(str::to_string)
+        .collect();
+    assert!(
+        !theirs.is_empty(),
+        "bounds.py resolved no (case, control) pair, so comparing the two \
+         readers asserts nothing. stderr:\n{stderr}"
+    );
+    graded_pairs.sort();
+    let mine: BTreeSet<&str> = graded_pairs.iter().map(String::as_str).collect();
+    let theirs_set: BTreeSet<&str> = theirs.iter().map(String::as_str).collect();
+    let only_here: Vec<&&str> = mine.difference(&theirs_set).collect();
+    let only_there: Vec<&&str> = theirs_set.difference(&mine).collect();
+    assert!(
+        only_here.is_empty() && only_there.is_empty() && graded_pairs == theirs,
+        "the two readers resolve different (case, control) PAIRS. One corpus, \
+         two answers, which is the drift the duplicated implementation exists \
+         to expose.\n  graded only by this harness: {only_here:?}\n  resolved \
+         only by bounds.py: {only_there:?}\n  counts: this harness {}, \
+         bounds.py {} — EQUAL COUNTS DO NOT MEAN EQUAL SETS, which is why this \
+         compares the sorted list (CR-132).\nstderr:\n{stderr}",
+        graded_pairs.len(),
+        theirs.len(),
     );
     assert!(
         blind.is_empty(),

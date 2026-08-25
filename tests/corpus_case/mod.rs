@@ -33,11 +33,35 @@ pub enum Level {
 }
 
 impl Level {
-    /// Every level, in LADDER ORDER. Adding a variant without adding it here is
-    /// a compile error at the exhaustive `match` in [`Level::as_str`] and a
-    /// length error here, which is the point: TC-1021 compares this to
-    /// `corpus.yaml`'s `grading_levels`, and a list that could silently omit a
-    /// variant would make that comparison meaningless.
+    /// Every level, in LADDER ORDER. TC-1021 compares this to `corpus.yaml`'s
+    /// `grading_levels`, so a list that silently omitted a variant would make
+    /// that comparison meaningless.
+    ///
+    /// **THIS ARRAY IS NOT COMPILE-ENFORCED, and this doc said it was**
+    /// (retracted, CR-132). It used to claim that adding a variant without
+    /// adding it here is "a compile error at the exhaustive `match` in
+    /// [`Level::as_str`] **and a length error here**". The first half is true.
+    /// The second is not: `[Level; 3]` carries a hand-written length and
+    /// nothing in the type system ties it to the variant set. The outside
+    /// review reproduced it — a fourth variant `L4Proven`, its arms added to
+    /// both exhaustive matches (`as_str`, [`Outcome::level_reached`]) and
+    /// constructed at a real grading call site, `ALL` left at three elements:
+    /// `cargo clippy --test corpus_cases -- -D warnings` finished clean and
+    /// `cargo test tc1021` reported `ok`.
+    ///
+    /// Compile-enforcing it needs `std::mem::variant_count` (nightly) or a
+    /// derive macro; neither is available here on MSRV 1.75 with no new
+    /// dependency, so the claim is corrected rather than made true, and the
+    /// hole it left open is closed at RUNTIME instead — see the membership
+    /// assertion in [`grade_against`], which every recorded [`Mismatch`] passes
+    /// through. A level that grades but is absent from `ALL` now panics the
+    /// first time it grades anything, which is the state CR-129 said would make
+    /// TC-1021's comparison meaningless.
+    ///
+    /// AC-20 as narrowed says "the compiled grading ladder and `corpus.yaml`'s
+    /// `grading_levels` agree". The compiled ladder is `Level`'s variant set;
+    /// this is a second hand-maintained copy of it. One copy fewer than before
+    /// CR-129, not zero.
     pub const ALL: [Level; 3] = [Self::L1Detected, Self::L2Localised, Self::L3Actionable];
 
     pub fn as_str(self) -> &'static str {
@@ -831,14 +855,34 @@ pub fn grade_with(case: &Case, report: &quire_rs::CoverageReport, e: &CaseExpect
 /// run, that distinction does not matter. Grading it against ANOTHER case's —
 /// which is what the differential check does — it decides the answer.
 ///
-/// `wrong-type-cell` is why. Its coverage payload is byte-identical to its
-/// control's BY DESIGN: an undeclared `Type` cell is a STRUCTURAL defect, so
-/// the family is visible only to `validate`, and `validate_contains` is its
-/// entire discriminating claim. Recomputed from the case's own tree those keys
-/// contribute nothing and the fixture reads as blind; skipped, it asserts
-/// nothing at all and reads as blind again. Only validating the OTHER tree
-/// asks the question the differential means to ask — and it answers it
-/// correctly, because the control's tree has no `Telepathy` cell.
+/// `wrong-type-cell` is why — WHEN IT GAINS A CONTROL, which it has not.
+/// Its coverage payload is byte-identical to a healthy tree's BY DESIGN: an
+/// undeclared `Type` cell is a STRUCTURAL defect, so the family is visible only
+/// to `validate`, and `validate_contains` is its entire discriminating claim.
+/// Recomputed from the case's own tree those keys would contribute nothing and
+/// the fixture would read as blind; skipped, it would assert nothing at all and
+/// read as blind again. Only validating the OTHER tree asks the question the
+/// differential means to ask.
+///
+/// **RETRACTION (CR-132), stated rather than quietly edited.** This paragraph
+/// ended "and it answers it correctly, **because the control's tree has no
+/// `Telepathy` cell**". There is no control's tree. **[RAN]** at corpus
+/// `2bc486d`: `wrong-type-cell` is a `failure` declared under
+/// `known_gaps.uncontrolled_failure_cases`, no control names it, and
+/// `git log -S 'wrong-type-cell' -- cases/` returns one commit — the fixture's
+/// own introduction — so none ever has. Exactly two of the 77 fixtures declare
+/// a `validate_*` key (`wrong-type-cell` and `clean-control`, a control the
+/// differential does not iterate) and **zero of the 35 graded pairs carry one**,
+/// in either reader. The rule's reach over this corpus is 0.
+///
+/// **IT STAYS.** It is a correct rule with no current subject, which is not the
+/// same as a wrong rule: the moment `agent-ix/quire-rs#286` gives that fixture
+/// the control it owes it, validating its own tree is what would reject it.
+/// FR-065's requirement text is the hedged form — "would be rejected as blind
+/// **the moment it gained a control**" — and this comment now agrees with it.
+/// `qa-corpus`'s `scripts/parity_selftest.py` case 4 manufactures a
+/// `validate_absent` for exactly this reason: a rule with no subject still has
+/// to be shown capable of failing.
 #[derive(Clone, Copy)]
 pub enum ValidateSource<'a> {
     /// Validate the tree of the case being graded.
@@ -854,7 +898,29 @@ pub fn grade_against(
     validate: ValidateSource<'_>,
 ) -> Outcome {
     let mut m: Vec<Mismatch> = Vec::new();
-    let mut fail = |level: Level, detail: String| m.push(Mismatch { level, detail });
+    // EVERY LEVEL THAT GRADES IS IN `Level::ALL`, checked here because the type
+    // system does not check it (CR-132, and see [`Level::ALL`]'s retracted doc).
+    // `ALL` carries a hand-written length, so a fourth variant can be added,
+    // given arms in both exhaustive matches, and constructed at a grading call
+    // site while `ALL` stays at three — the outside review did exactly that and
+    // clippy `-D warnings` and TC-1021 both passed. TC-1021 compares `ALL` to
+    // `corpus.yaml`'s `grading_levels`, so such a level would grade real
+    // fixtures, be declared nowhere, and be invisible to the gate that exists to
+    // notice.
+    //
+    // This is the narrowest place that sees it: every `Mismatch` in this harness
+    // is born here, so the reach is every graded assertion of every block rather
+    // than the three variants `ALL` happens to list.
+    let mut fail = |level: Level, detail: String| {
+        assert!(
+            Level::ALL.contains(&level),
+            "`{}` grades a mismatch but is absent from `Level::ALL`, so it is \
+             declared in no `grading_levels` and TC-1021 cannot see it \
+             (FR-065-AC-20)",
+            level.as_str(),
+        );
+        m.push(Mismatch { level, detail })
+    };
 
     if let Some(backed) = e.backed {
         if report.totals.backed != backed {
