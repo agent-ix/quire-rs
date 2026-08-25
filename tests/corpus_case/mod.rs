@@ -137,9 +137,17 @@ pub struct CaseMeta {
     /// marker is now lying about the state of the engine.
     #[serde(default)]
     pub pending: Option<String>,
-    #[serde(default)]
+    /// Whether anything is expected to fire on this case's input.
+    ///
+    /// **Not** `#[serde(default)]`, and the corpus declares it in
+    /// `case_schema.required`. It was defaulted, and one case had simply
+    /// omitted it — `false` arrived from the derive rather than from an author,
+    /// and nothing could tell the two apart. A default is how a required field
+    /// stops being one (`agent-ix/quire-rs#336`).
     pub findable: bool,
-    #[serde(default)]
+    /// At least one `TC-` id, asserted by TC-1021 since the ladder landed —
+    /// which made this required by a gate while every declaration called it
+    /// optional. Required here too, so the two agree.
     pub tags: Vec<String>,
     /// The inventory row this fixture claims, when its `id` differs — a
     /// control's id is `<case>-control`, and it covers nothing on its own.
@@ -153,8 +161,13 @@ pub struct CaseMeta {
     /// Modelled rather than ignored: `deny_unknown_fields` is only a gate if
     /// every legitimate field is declared, and an ignored one is a field
     /// nothing checks.
-    #[serde(default)]
-    pub reproduce: Option<String>,
+    ///
+    /// Required, not defaulted. AC-18 says every case carries one; defaulting
+    /// it to `None` meant a case with no reproduction was a case the reader
+    /// accepted, and `verify.py` — which reads it — would have died on a
+    /// `KeyError` where this one shrugged. Two readers, two behaviours, one
+    /// declaration (`case_schema.required`, `agent-ix/quire-rs#336`).
+    pub reproduce: String,
     #[serde(default)]
     pub comment: Option<String>,
     /// Why the case is pending — what the engine does not do yet. Prose, but

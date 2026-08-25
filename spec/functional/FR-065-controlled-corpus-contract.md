@@ -178,9 +178,24 @@ by running it.
 
 ## Behavior
 
-The corpus loader SHALL require each case to declare `id`, `issue_ref`, `mode`,
-`language`, `module`, `findable`, `reproduce`, `kind` — one of `failure` or `control` —
-and `case`, naming the inventory row it claims.
+The corpus SHALL declare its case-metadata schema in `corpus.yaml` as `case_schema` —
+the required field set, the fields a case MAY carry, the per-`kind` required, forbidden
+and constrained-value rules, the conditionally-required fields, the fields a language-set
+variant may not declare, and the fields that SHALL be unique across the corpus.
+
+Every corpus reader SHALL be held to that declaration rather than to a list of its own.
+This requirement used to name the fields here, which made this paragraph a second
+declaration free to disagree with both readers — and it did: it named `case` as required
+where no control declares one, and omitted `tags`, which TC-1021 has always required to
+carry a `TC-` id. **The prose is not the schema. `corpus.yaml` is** (CR-126).
+
+A reader SHALL reject a case that omits a required field, carries one empty, carries a
+field the schema declares neither required nor optional, violates a per-`kind` rule, or
+whose derived `id` collides with another case's. A reader finding no `case_schema` SHALL
+fail rather than skip: a reader that quietly does nothing when its rules are absent is
+indistinguishable from one that checked and found nothing.
+
+`kind` is one of `failure`, `control` or `regression` (CR-116), from `case_kinds`.
 
 ### Where a language set declares each field (CR-109)
 
@@ -460,7 +475,7 @@ than an agreement between two codebases nobody can verify from one of them.
 |----|----------|--------------|
 | FR-065-AC-1 | A case is read from disk in place: no file under `input/` is generated, copied or materialised during a non-mutating run. | Test (TC-1011) |
 | FR-065-AC-2 | A mutating case operates on a copy, leaving its checked-in `input/` tree byte-unchanged. | Test (TC-1011) |
-| FR-065-AC-3 | A case omitting any required `case.yaml` field is rejected, and the rejection names the case and the field. | Test (TC-1012) |
+| FR-065-AC-3 | A case omitting any field `case_schema.required` names is rejected by every reader, and the rejection names the case and the field. | Test (TC-1012, TC-1043) |
 | FR-065-AC-4 | A control case declaring no `control_for` is rejected. | Test (TC-1012) |
 | FR-065-AC-5 | An `expect` field a case omits is asserted on by nothing; the omitted field is not defaulted. | Test (TC-1013) |
 | FR-065-AC-6 | Every declared cell in `corpus.yaml` reads as exactly one of `covered`, `out-of-scope` or `GAP`. | Test (TC-1014) |
