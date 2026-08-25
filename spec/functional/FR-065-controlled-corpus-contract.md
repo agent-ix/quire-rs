@@ -178,9 +178,26 @@ by running it.
 
 ## Behavior
 
-The corpus loader SHALL require each case to declare `id`, `issue_ref`, `mode`,
-`language`, `module`, `findable`, `reproduce`, `kind` — one of `failure` or `control` —
-and `case`, naming the inventory row it claims.
+The corpus SHALL declare its case-metadata schema in `corpus.yaml` as `case_schema`.
+
+That declaration SHALL carry the required field set, the optional field set, each field's
+type, the per-`kind` required, forbidden and constrained-value rules, the
+conditionally-required fields, the fields a language-set variant is forbidden to declare,
+and the fields that are unique across the corpus.
+
+Every corpus reader SHALL be held to that declaration rather than to a list of its own.
+This requirement used to name the fields here, which made this paragraph a second
+declaration free to disagree with both readers — and it did: it named `case` as required
+where no control declares one, and omitted `tags`, which TC-1021 has always required to
+carry a `TC-` id. **The prose is not the schema. `corpus.yaml` is** (CR-126).
+
+A reader SHALL reject a case that omits a required field, carries one empty, carries a
+field the schema declares neither required nor optional, violates a per-`kind` rule, or
+whose derived `id` collides with another case's. A reader finding no `case_schema` SHALL
+fail rather than skip: a reader that quietly does nothing when its rules are absent is
+indistinguishable from one that checked and found nothing.
+
+`kind` is one of `failure`, `control` or `regression` (CR-116), from `case_kinds`.
 
 ### Where a language set declares each field (CR-109)
 
@@ -340,6 +357,25 @@ block and remain `failure` cases. Only a fix that makes the case and its control
 A failure case that has a control SHALL **discriminate**: its `expect.yaml`, graded
 against its control's payload, SHALL produce at least one mismatch.
 
+**EVERY corpus reader SHALL implement this** (CR-128). It is the strongest rule in this
+requirement and it existed in one of the two readers: the Rust harness graded it from the
+commit TC-1028 landed, while `verify.py` ran each case once against its own payload and
+never cross-graded anything, and the Python loader checked only that a control was
+*named* — a predicate on shape, which is the class of defect this rule exists to close.
+So the two-reader independence this contract rests on stopped immediately before the
+check that carries it. Proved by construction: a fixture blinded to `total: 4` — an
+assertion true of the defective tree and of the repaired one — was accepted by
+`verify.py` at `mismatches: 0`, exit 0, and rejected by `cargo test --test corpus_cases`
+at the same corpus revision.
+
+Every reader SHALL resolve `control_for` by ONE rule: a name resolves to the failure case
+whose **`id`** it is, and only failing that to the case whose **`case:` alias** it is; an
+alias SHALL NOT displace a real id. A failure case SHALL be graded against **every**
+control that names it, not one of them — two controls legitimately name one case, and any
+rule selecting one selects it by iteration order. The two readers disagreed on both
+points, and the resolutions are now asserted against each other rather than assumed to
+agree.
+
 The rule is *"assert at least one fact that differs between the two trees"*, which is
 weaker than *"assert a fact about the defect"*. Measured on this corpus at `776a6b3`: ten
 of eleven controlled fixtures are satisfiable by one incidental scalar — `total: 1` passes
@@ -348,15 +384,32 @@ whose control matches it on every count, is forced onto a defect-specific field.
 raises the floor rather than closing the question, and it is stated that way because an
 earlier draft of this clause claimed more.
 
-**That audit has not been repeated and its denominator has moved** (CR-123). Counted with
-`bounds.py --json`, controlled failure cases were 11 at `776a6b3`, 33 at `db55b05` and 35
-at `3ff72c0` — #285 alone added two by authoring the controls #286 asked for. "Ten of
-eleven" therefore describes eleven of the thirty-five that exist, and the twenty-four
+**That audit has not been repeated and its denominator has moved** (CR-123). Controlled
+failure cases were 11 at `776a6b3`, 33 at `db55b05` and **34** at `3ff72c0`. "Ten of
+eleven" therefore describes eleven of the thirty-four that exist, and the twenty-three
 authored since were never assessed against it. Re-running it is
 `agent-ix/quire-rs#301`. The figure is left in place rather than deleted because it was
 true when measured and deleting it would lose the finding; it is annotated rather than
 extrapolated because a fraction restated over a population it was not measured on is the
 fabrication this bundle keeps catching.
+
+**THE `3ff72c0` FIGURE READ 35 UNTIL CR-128, AND ITS STATED METHOD WAS WRONG TWICE.** It
+was attributed to `bounds.py --json`, which emits `bounds` and `cases` and no count of
+controlled failure cases at all — the number came from the Rust harness. Re-measured at
+`3ff72c0` by calling each reader's own resolution: `bounds.controlled_cases()` returns
+**34**, the harness's returned **35**, and the extra was `marker-mismatch`, which this
+corpus DECLARES under `known_gaps.uncontrolled_failure_cases` and which the harness
+reached through another case's `case:` alias. So a published figure was one reader's
+count of a defect, cited to the other reader's tool. Both now return 34 cases, over which
+**35 (case, control) pairs** are graded, because two controls name
+`marker-form-mismatch`.
+
+A separate measurement of how low the floor is, taken at corpus `801afd5` with CLI 0.30.2
+/ engine 0.33.0 over all 34 controlled cases by running each case and its control and
+comparing `totals.total`: **20 pairs share an identical `total`**, so for those the
+incidental scalar is not available as an evasion and for the other 14 it is. This
+supersedes nothing above — it counts a different thing over a different population than
+the `776a6b3` audit, which is why it is stated separately rather than as an update.
 
 The `validate_*` assertions SHALL be graded over the OTHER case's tree when a case is
 graded differentially. `quire validate` reads a spec TREE rather than a coverage payload,
@@ -440,10 +493,29 @@ A case SHALL bind to the vendored ecosystem module by default. Where a case bind
 variant module, `case.yaml` SHALL name the relaxation ticket that variant sizes.
 
 `corpus.yaml` SHALL be the single declaration of the bounds enum (`covered`,
-`out-of-scope`, `GAP`), of the grading-ladder level names, and of the mode families. Each
-runner SHALL read all three from `corpus.yaml` rather than carrying its own copy — which
-is what makes single-definition a property a test in either repository can check, rather
-than an agreement between two codebases nobody can verify from one of them.
+`out-of-scope`, `GAP`), of the grading-ladder level names, and of the mode families —
+which is what makes single-definition a property a test in either repository can check,
+rather than an agreement between two codebases nobody can verify from one of them.
+
+**What each runner does with those three is not the same, and this section claimed it
+was** (CR-129).
+
+The **mode families** and the **bounds enum** are vocabularies: a runner SHALL read them
+and SHALL NOT carry its own copy. `bounds.py` derives its per-state counters, its sum
+invariant and its rejection of an undeclared state from `bounds_states`, so a state added
+to the declaration is counted and reported with no code edit. Assignment of a cell to a
+state is the derivation rule and remains code.
+
+The **grading ladder** is not a vocabulary. `Level`'s variants and the assignment of each
+mismatch to one of them ARE the grading rule; a fourth declared level would have no
+variant to carry it and no mismatch would ever be filed under it. So the runner SHALL NOT
+be required to accept a ladder change without a code edit — a claim this requirement made
+and no implementation ever satisfied. What it SHALL do is **agree**: the compiled ladder
+and the declared ladder SHALL match in name and in order, and a gate SHALL fail on
+disagreement. Order is normative because the first level lost is a MINIMUM over the
+ladder. TC-1021 asserted the declaration equalled a literal `["L1","L2","L3"]` written in
+the test — a third copy checked against the second while the enum that grades was checked
+against neither; it now renders `Level::ALL` and compares that.
 
 ## Constraints
 
@@ -460,7 +532,7 @@ than an agreement between two codebases nobody can verify from one of them.
 |----|----------|--------------|
 | FR-065-AC-1 | A case is read from disk in place: no file under `input/` is generated, copied or materialised during a non-mutating run. | Test (TC-1011) |
 | FR-065-AC-2 | A mutating case operates on a copy, leaving its checked-in `input/` tree byte-unchanged. | Test (TC-1011) |
-| FR-065-AC-3 | A case omitting any required `case.yaml` field is rejected, and the rejection names the case and the field. | Test (TC-1012) |
+| FR-065-AC-3 | A case omitting any field `case_schema.required` names is rejected by every reader, and the rejection names the case and the field. | Test (TC-1012, TC-1043) |
 | FR-065-AC-4 | A control case declaring no `control_for` is rejected. | Test (TC-1012) |
 | FR-065-AC-5 | An `expect` field a case omits is asserted on by nothing; the omitted field is not defaulted. | Test (TC-1013) |
 | FR-065-AC-6 | Every declared cell in `corpus.yaml` reads as exactly one of `covered`, `out-of-scope` or `GAP`. | Test (TC-1014) |
@@ -476,8 +548,8 @@ than an agreement between two codebases nobody can verify from one of them.
 | FR-065-AC-16 | A case binding the vendored ecosystem module loads without naming a ticket. | Test (TC-1018) |
 | FR-065-AC-17 | Two runs of one case over unchanged input produce a byte-identical engine report. | Test (TC-1019) |
 | FR-065-AC-18 | Each case's `case.yaml` carries the invocation that reproduces it, and that invocation names a module. | Test (TC-1020) |
-| FR-065-AC-19 | The runner reads the bounds enum from `corpus.yaml` rather than a compiled-in list, so an enum value added there is accepted without a code change. | Test (TC-1021) |
-| FR-065-AC-20 | The runner reads the grading-ladder level names from `corpus.yaml` rather than a compiled-in list. | Test (TC-1021) |
+| FR-065-AC-19 | `bounds.py` derives its per-state counters and its sum invariant from `corpus.yaml`'s `bounds_states`, and rejects a cell graded into a state the declaration does not name. | Test (TC-1021, `bounds.py`) |
+| FR-065-AC-20 | The compiled grading ladder and `corpus.yaml`'s `grading_levels` agree in name and in order, and a gate fails on disagreement. The runner is not required to accept a ladder change without a code edit: the ladder is the grading rule, not a vocabulary (CR-129). | Test (TC-1021) |
 | FR-065-AC-21 | The runner reads the mode families from `corpus.yaml`, and a case naming an undeclared family is rejected. | Test (TC-1021) |
 | FR-065-AC-22 | A language set's variant declares only what varies; a variant DECLARING `case`, `mode`, `module`, `kind` or `pending` is rejected naming the field, whether or not the shared file also declares it. | Test (TC-1022) |
 | FR-065-AC-23 | Every reader derives the same `id` for one variant, `<shared id>-<language>`, so a record keyed on `id` joins across runners. | Test (TC-1022) |
@@ -499,7 +571,7 @@ than an agreement between two codebases nobody can verify from one of them.
 | FR-065-AC-39 | An `expect.yaml` grading zero assertions is rejected, for every case. | Test (TC-1025) |
 | FR-065-AC-40 | A case declaring `findable` and requiring no finding in any block is rejected unless declared in `known_gaps`. | Test (TC-1027) |
 | FR-065-AC-41 | A `known_gaps` entry naming no ticket, or naming no case, is rejected. | Test (TC-1027) |
-| FR-065-AC-42 | A failure case with a control whose `expect.yaml` holds against that control's payload is rejected, with `validate_*` graded over the control's tree. | Test (TC-1028) |
+| FR-065-AC-42 | A failure case with a control whose `expect.yaml` holds against that control's payload is rejected **by every reader**, with `validate_*` graded over the control's tree, against every control that names the case. | Test (TC-1028; `qa-corpus` `scripts/parity_selftest.py`) |
 | FR-065-AC-43 | A case of kind `regression` is accepted with no control and is not held to AC-42; one declaring `findable`, `control_for` or `pending` is rejected. | Test (TC-1032) |
 | FR-065-AC-44 | An ecosystem-bound `regression` case credits its inventory cell, so a cell does not revert to GAP when its defect is fixed. | Test (TC-1032) |
 | FR-065-AC-45 | A case binding a relaxation variant credits no cell whatever its `kind`, and that cell reads `GAP` with a reason naming its `relaxation_ticket`. | Test (TC-1032) |

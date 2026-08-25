@@ -33,12 +33,32 @@ pub enum Level {
 }
 
 impl Level {
+    /// Every level, in LADDER ORDER. Adding a variant without adding it here is
+    /// a compile error at the exhaustive `match` in [`Level::as_str`] and a
+    /// length error here, which is the point: TC-1021 compares this to
+    /// `corpus.yaml`'s `grading_levels`, and a list that could silently omit a
+    /// variant would make that comparison meaningless.
+    pub const ALL: [Level; 3] = [Self::L1Detected, Self::L2Localised, Self::L3Actionable];
+
     pub fn as_str(self) -> &'static str {
         match self {
             Self::L1Detected => "L1 detected",
             Self::L2Localised => "L2 localised",
             Self::L3Actionable => "L3 actionable",
         }
+    }
+
+    /// The name `corpus.yaml` declares — the first word of the rendered label.
+    ///
+    /// DERIVED from `as_str`, not written a second time. The ladder had two
+    /// spellings in this file and a third in TC-1021, which asserted the
+    /// declaration equalled a literal `["L1","L2","L3"]` written in the test:
+    /// three copies, none of them checked against the code that grades. Now the
+    /// test compares CODE to DECLARATION, which is what FR-065-AC-20 says after
+    /// CR-129 narrowed it to the claim that is true.
+    pub fn token(self) -> &'static str {
+        let label = self.as_str();
+        label.split(' ').next().unwrap_or(label)
     }
 }
 
@@ -137,9 +157,17 @@ pub struct CaseMeta {
     /// marker is now lying about the state of the engine.
     #[serde(default)]
     pub pending: Option<String>,
-    #[serde(default)]
+    /// Whether anything is expected to fire on this case's input.
+    ///
+    /// **Not** `#[serde(default)]`, and the corpus declares it in
+    /// `case_schema.required`. It was defaulted, and one case had simply
+    /// omitted it — `false` arrived from the derive rather than from an author,
+    /// and nothing could tell the two apart. A default is how a required field
+    /// stops being one (`agent-ix/quire-rs#336`).
     pub findable: bool,
-    #[serde(default)]
+    /// At least one `TC-` id, asserted by TC-1021 since the ladder landed —
+    /// which made this required by a gate while every declaration called it
+    /// optional. Required here too, so the two agree.
     pub tags: Vec<String>,
     /// The inventory row this fixture claims, when its `id` differs — a
     /// control's id is `<case>-control`, and it covers nothing on its own.
@@ -153,8 +181,13 @@ pub struct CaseMeta {
     /// Modelled rather than ignored: `deny_unknown_fields` is only a gate if
     /// every legitimate field is declared, and an ignored one is a field
     /// nothing checks.
-    #[serde(default)]
-    pub reproduce: Option<String>,
+    ///
+    /// Required, not defaulted. AC-18 says every case carries one; defaulting
+    /// it to `None` meant a case with no reproduction was a case the reader
+    /// accepted, and `verify.py` — which reads it — would have died on a
+    /// `KeyError` where this one shrugged. Two readers, two behaviours, one
+    /// declaration (`case_schema.required`, `agent-ix/quire-rs#336`).
+    pub reproduce: String,
     #[serde(default)]
     pub comment: Option<String>,
     /// Why the case is pending — what the engine does not do yet. Prose, but
