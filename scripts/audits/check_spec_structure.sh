@@ -18,7 +18,11 @@ fi
 # 2. Index completeness, BOTH directions.
 for dir in spec/functional spec/non-functional spec/stakeholder; do
   [ -f "$dir/index.md" ] || continue
-  prefix=$(basename "$dir" | tr '[:lower:]' '[:upper:]' | cut -c1-3)
+  # NOTE: this loop is two of the five gates Wave 1.2 specified. Duplicate
+  # artifact ids, unresolved local links and frontmatter schema validation are
+  # not here — #348, filed so the narrowing is a decision on the record rather
+  # than a plan file nobody reads. A `prefix=` computed for the duplicate-id
+  # gate and never read has been removed with it (SR-055 FND-009).
   for f in "$dir"/*.md; do
     base=$(basename "$f")
     [ "$base" = "index.md" ] && continue
