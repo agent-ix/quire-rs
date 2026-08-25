@@ -15,7 +15,7 @@
 //! belongs to a level, and a failure names the level lost — "the case failed"
 //! and "the message stopped naming the row" are different repairs.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
@@ -206,7 +206,10 @@ pub struct CaseMeta {
 /// `no_symbol_row`) was silently dropped, so the CI gate graded a case on
 /// fewer assertions than its author wrote. `verify.py` caught it and this
 /// did not — the stricter checker was not the gate.
-#[derive(Debug, Default, Deserialize)]
+///
+/// `Clone` because FR-065-AC-46 grades a RESTRICTED copy of a block — see
+/// [`CaseExpect::restricted_to`].
+#[derive(Debug, Default, Deserialize, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct CaseExpect {
     pub backed: Option<usize>,
@@ -289,12 +292,129 @@ pub struct CaseExpect {
     pub validate_absent: Vec<String>,
 }
 
+impl CaseExpect {
+    /// This block with every key outside `channels` dropped (FR-065-AC-46).
+    ///
+    /// The mode-specific witness is graded by RESTRICTION rather than by
+    /// inspecting which mismatch fired. Restriction makes the claim exactly
+    /// *the witness channel itself discriminates*; a mismatch list would only
+    /// say that something fired somewhere, which is the weaker thing AC-42
+    /// already asserts.
+    ///
+    /// The key names are the corpus's, not this file's — they come from
+    /// `witness_channels` in `corpus.yaml`, and TC-1043's sibling assertion
+    /// requires every name used there to be one this function knows. A channel
+    /// this match arm did not list would otherwise be silently dropped from the
+    /// restricted block, which would make the rule quietly weaker for exactly
+    /// the mode that declared it.
+    pub fn restricted_to(&self, channels: &BTreeSet<String>) -> Self {
+        let on = |key: &str| channels.contains(key);
+        Self {
+            backed: on("backed").then_some(self.backed).flatten(),
+            total: on("total").then_some(self.total).flatten(),
+            diagnostic_reasons: if on("diagnostic_reasons") {
+                self.diagnostic_reasons.clone()
+            } else {
+                Vec::new()
+            },
+            absent_diagnostic_reasons: if on("absent_diagnostic_reasons") {
+                self.absent_diagnostic_reasons.clone()
+            } else {
+                Vec::new()
+            },
+            binding_census: if on("binding_census") {
+                self.binding_census.clone()
+            } else {
+                Vec::new()
+            },
+            diagnostic_paths: if on("diagnostic_paths") {
+                self.diagnostic_paths.clone()
+            } else {
+                BTreeMap::new()
+            },
+            diagnostic_message_contains: if on("diagnostic_message_contains") {
+                self.diagnostic_message_contains.clone()
+            } else {
+                BTreeMap::new()
+            },
+            unbacked_rows: on("unbacked_rows")
+                .then(|| self.unbacked_rows.clone())
+                .flatten(),
+            untracked_symbols: on("untracked_symbols")
+                .then(|| self.untracked_symbols.clone())
+                .flatten(),
+            groups: on("groups").then(|| self.groups.clone()).flatten(),
+            no_symbol_rows: on("no_symbol_rows")
+                .then(|| self.no_symbol_rows.clone())
+                .flatten(),
+            metrics: if on("metrics") {
+                self.metrics.clone()
+            } else {
+                Vec::new()
+            },
+            validate_contains: if on("validate_contains") {
+                self.validate_contains.clone()
+            } else {
+                Vec::new()
+            },
+            validate_absent: if on("validate_absent") {
+                self.validate_absent.clone()
+            } else {
+                Vec::new()
+            },
+        }
+    }
+
+    /// Every key `restricted_to` can carry. The set TC-1043's sibling holds
+    /// `witness_channels` to, so a declared channel this file cannot restrict
+    /// on is a hard failure rather than a silent drop.
+    pub fn channel_names() -> BTreeSet<String> {
+        [
+            "backed",
+            "total",
+            "diagnostic_reasons",
+            "absent_diagnostic_reasons",
+            "binding_census",
+            "diagnostic_paths",
+            "diagnostic_message_contains",
+            "unbacked_rows",
+            "untracked_symbols",
+            "groups",
+            "no_symbol_rows",
+            "metrics",
+            "validate_contains",
+            "validate_absent",
+        ]
+        .iter()
+        .map(|s| s.to_string())
+        .collect()
+    }
+
+    /// Whether this block asserts anything at all after restriction.
+    pub fn is_empty(&self) -> bool {
+        self.backed.is_none()
+            && self.total.is_none()
+            && self.diagnostic_reasons.is_empty()
+            && self.absent_diagnostic_reasons.is_empty()
+            && self.binding_census.is_empty()
+            && self.diagnostic_paths.is_empty()
+            && self.diagnostic_message_contains.is_empty()
+            && self.unbacked_rows.is_none()
+            && self.untracked_symbols.is_none()
+            && self.groups.is_none()
+            && self.no_symbol_rows.is_none()
+            && self.metrics.is_empty()
+            && self.validate_contains.is_empty()
+            && self.validate_absent.is_empty()
+    }
+}
+
 /// One row the declaration minted that no symbol backs.
 ///
 /// Every field is REQUIRED. `row_id` in particular: `row_id: null` is the
 /// whole claim the id-column fixture makes — the row minted, and its identity
 /// did not — and an optional field would let an author omit exactly that.
-#[derive(Debug, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Deserialize, PartialEq, Eq, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct ExpectUnbackedRow {
     pub document: String,
@@ -303,7 +423,7 @@ pub struct ExpectUnbackedRow {
 }
 
 /// One symbol binding a trace id no minted row answers for.
-#[derive(Debug, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Deserialize, PartialEq, Eq, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct ExpectUntracked {
     pub symbol: String,
@@ -313,7 +433,7 @@ pub struct ExpectUntracked {
 
 /// One document's mint count for one declared target kind. All fields
 /// required: a partial group is satisfied by the wrong target minting.
-#[derive(Debug, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Deserialize, PartialEq, Eq, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct ExpectGroup {
     pub document: String,
@@ -322,7 +442,7 @@ pub struct ExpectGroup {
     pub total: usize,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct ExpectCensus {
     pub language: String,
@@ -336,7 +456,7 @@ pub struct ExpectCensus {
     pub unbound_example: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct ExpectMetric {
     pub name: String,
