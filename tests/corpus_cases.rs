@@ -1562,8 +1562,18 @@ fn tc1027_a_control_binds_its_partners_declaration() {
     let mutations: &[(&str, &str)] = &[
         // AC-38 — drop an allowlisted case and the violation it was covering
         // must surface.
+        //
+        // DERIVED, not transcribed. This named `wrong-type-cell` as a literal,
+        // and #286 gave that case a control — so the entry left the list, the
+        // `replace` matched nothing, and the mutation was a silent no-op. A
+        // mutation pinned to a specimen stops testing the moment the specimen
+        // is fixed, which is the reward-for-fixing-things trap this suite has
+        // now hit four times in one day.
         (
-            "s = s.replace('    - wrong-type-cell\\n', '', 1)",
+            "i = s.index('uncontrolled_failure_cases:'); \
+             j = s.index('\\n    - ', i) + 1; \
+             k = s.index('\\n', j) + 1; \
+             s = s[:j] + s[k:]",
             "no control names it",
         ),
         // AC-37, the other direction — an entry naming no case is a declared
@@ -1580,8 +1590,14 @@ fn tc1027_a_control_binds_its_partners_declaration() {
             "requires no finding",
         ),
         // AC-41 — an exemption with no ticket is permanent by default.
+        //
+        // The mutation matches the RULE's pattern (`#\\d+`), not the spelling the
+        // corpus happens to use. It matched `agent-ix/<repo>#<n>` only, so a
+        // reason carrying a BARE `#286` kept satisfying the check while the
+        // mutation reported nothing to remove — a mutation that tests a
+        // convention rather than the rule underneath it.
         (
-            "import re; s = re.sub(r'agent-ix/[a-z-]+#\\d+', 'because I said so', s)",
+            "import re; s = re.sub(r'(agent-ix/[a-z-]+)?#\\d+', 'because I said so', s)",
             "names no ticket",
         ),
     ];
