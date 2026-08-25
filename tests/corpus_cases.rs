@@ -1035,35 +1035,51 @@ fn tc1025_the_loader_refuses_a_block_that_asserts_the_wrong_thing() {
         .and_then(|v| v.as_sequence())
         .map(|s| s.iter().filter_map(|v| v.as_str()).collect())
         .unwrap_or_default();
-    let forward_tokens: std::collections::BTreeMap<&str, &str> = corpus
-        .get("diagnostic_reasons")
-        .and_then(|v| v.get("forward"))
-        .and_then(|v| v.as_mapping())
-        .map(|m| {
-            m.iter()
-                .filter_map(|(k, v)| Some((v.as_str()?, k.as_str()?)))
-                .collect()
-        })
-        .unwrap_or_default();
-
-    // A token case: pending on a ticket that is NOT a behaviour change, and
-    // whose ticket has a reserved forward token to name.
+    // THE TOKEN SUBJECT IS SYNTHESIZED, NOT BORROWED FROM THE CORPUS.
+    //
+    // This used to pick a real case pending on a ticket with a reserved forward
+    // token, and `.expect("… none left, so this measures nothing")` was already
+    // written for the day there were none. That day arrived: `#312` and `#307`
+    // landed within an hour of each other and both tokens graduated to
+    // `emitted`, leaving `forward: {}` and this gate with no subject.
+    //
+    // A gate that only works while the corpus happens to hold a specimen is the
+    // same defect one layer up — burning the backlog down would silently
+    // disable the check written to protect it. So the subject is built inside
+    // each scratch tree: a real failure case is made pending on a ticket that
+    // does not exist, against a token no engine carries.
+    let synth_ticket = "agent-ix/quire-rs#999999";
+    let token = "synthetic-forward-token".to_string();
     let token_case = cases
         .iter()
-        .filter(|c| c.meta.pending.is_some())
         .find(|c| {
-            let t = c.meta.pending.as_deref().unwrap_or("");
-            !behaviour_change.contains(t) && forward_tokens.contains_key(t)
+            c.meta.pending.is_none()
+                && c.meta.kind == "failure"
+                && c.dir.join("expect.yaml").is_file()
         })
-        .expect("a pending case on a token ticket — none left, so this measures nothing");
-    let token_ticket = token_case.meta.pending.clone().expect("ticket");
-    let token = forward_tokens[token_ticket.as_str()].to_string();
+        .expect("a non-pending failure case to make pending");
+    let token_ticket = synth_ticket.to_string();
     let token_dir = token_case
         .dir
         .strip_prefix(corpus_case::corpus_root())
         .expect("under the corpus root")
         .to_string_lossy()
         .into_owned();
+    // The case's own `case.yaml` — a language set keeps its `pending:` in the
+    // shared file one level up, which is where the loader reads it from.
+    let token_case_yaml = if token_case.dir.join("case.yaml").is_file() {
+        format!("{token_dir}/case.yaml")
+    } else {
+        let parent = token_case
+            .dir
+            .parent()
+            .expect("a variant has a parent")
+            .strip_prefix(corpus_case::corpus_root())
+            .expect("under the corpus root")
+            .to_string_lossy()
+            .into_owned();
+        format!("{parent}/case.yaml")
+    };
 
     // A behaviour-change case, and its OWN live block — so "identical to its
     // live block" stays identical when that block is re-measured.
@@ -1167,6 +1183,36 @@ fn tc1025_the_loader_refuses_a_block_that_asserts_the_wrong_thing() {
     for (index, (target, contents, fragment)) in mutations.iter().enumerate() {
         let scratch = scratch_dir("tc1025", index);
         copy_tree(&corpus_case::corpus_root(), &scratch);
+        // Build the token-pending subject in the copy: reserve the token
+        // against a ticket nothing has landed, make the case pending on it, and
+        // give it a forward block that is correct. Every mutation below then
+        // breaks exactly one thing about a case that would otherwise load.
+        let decl = scratch.join("corpus.yaml");
+        let text = std::fs::read_to_string(&decl).expect("read corpus.yaml");
+        std::fs::write(
+            &decl,
+            text.replace(
+                "  forward: {}",
+                &format!("  forward:\n    {token}: {synth_ticket}"),
+            ),
+        )
+        .expect("reserve the synthetic token");
+        let case_path = scratch.join(&token_case_yaml);
+        let case_text = std::fs::read_to_string(&case_path).expect("read case.yaml");
+        std::fs::write(
+            &case_path,
+            format!(
+                "{case_text}pending: {synth_ticket}\npending_reason: >-\n                   A subject synthesized by TC-1025 so the gate does not depend on \
+                 the corpus holding one.\n"
+            ),
+        )
+        .expect("make the case pending");
+        std::fs::write(
+            scratch.join(&pend),
+            format!("diagnostic_reasons: [{token}]\n"),
+        )
+        .expect("write a correct forward block");
+
         std::fs::write(scratch.join(target), contents).expect("write mutation");
 
         let run = std::process::Command::new("python3")
@@ -1334,7 +1380,24 @@ fn tc1026_the_declared_vocabulary_matches_the_engine() {
         .get("forward")
         .and_then(|v| v.as_mapping())
         .expect("`forward`");
-    assert!(!forward.is_empty(), "`forward` is not empty");
+    // THE KEY MUST BE DECLARED; ITS MEMBERSHIP MAY BE ZERO — the same
+    // correction `suppressed` took above, and for the same reason. Both of
+    // `forward`'s members graduated on 2026-08-25 (#312, #307), and requiring
+    // one to exist would make the corpus keep a fixture red against a landed
+    // ticket purely to satisfy a gate. What the assertion is for is proven
+    // directly instead: the predicate below is shown to REJECT a token the
+    // engine does carry, so an empty list is an empty list rather than a check
+    // that cannot fail.
+    assert!(
+        !sources.is_empty(),
+        "the forward-token check reads no sources, so it could not reject \
+         anything whatever `forward` declared"
+    );
+    assert!(
+        sources.contains("\"section-matches-nothing\""),
+        "the forward-token check cannot fail: a token the engine DOES carry \
+         must satisfy the containment this loop refuses"
+    );
     for (token, ticket) in forward {
         let (token, ticket) = (
             token.as_str().expect("token"),
