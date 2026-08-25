@@ -206,6 +206,39 @@ pub struct SymbolGraph {
     /// rollup — which sees only this graph — can report it (FR-050-AC-24,
     /// #215).
     pub excluded_source_files: usize,
+    /// Trace tags written on a symbol whose kind cannot bind them (#312).
+    ///
+    /// The tag reaches NO channel: [`SymbolKind::binds_trace_ids`] refuses it,
+    /// `implements` wants the literal keyword the comment does not carry, and
+    /// [`Self::binding_census`] never counts it because a non-binding symbol is
+    /// missing from the denominator rather than counted as unbound. So the two
+    /// diagnostics built for "the tests are there and the rows are unbacked"
+    /// read a census the defect has been removed from, and a repository whose
+    /// tags are all in the wrong place reports a flawless 100%.
+    pub non_binding_tags: Vec<NonBindingTag>,
+}
+
+/// A trace id written where it cannot bind (#312).
+///
+/// Not a defect in the tag's *content* — the id may name a real row. The
+/// defect is that nothing in the report says the tag was seen and dropped, so
+/// it is indistinguishable from a test nobody wrote, which is the disposition
+/// this programme exists to tell apart.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NonBindingTag {
+    pub path: String,
+    /// The symbol the tag attached to — the INNERMOST one, so a tag beside a
+    /// production function is reported against that function rather than
+    /// against the module container whose span also covers it.
+    pub symbol: String,
+    /// `function` or `container`: the whole actionable part of the message.
+    /// "This row is unbacked" is already in the report and is not a fix.
+    pub kind: &'static str,
+    pub trace_id: String,
+    /// The declared form that matched, so a reader can tell an authored tag
+    /// from a coincidence of prose.
+    pub form: String,
+    pub line: usize,
 }
 
 impl SymbolGraph {
@@ -267,6 +300,28 @@ pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolG
             graph.implements_candidates += 1;
             if graph.implements.len() > before {
                 graph.implements_bound += 1;
+            } else {
+                // THE IMPLEMENTS CHANNEL TOOK NOTHING, so if a declared
+                // VERIFIES form matched here a tag was written and dropped in
+                // silence (#312).
+                //
+                // Gating on "implements bound nothing" is what makes this safe,
+                // and the corpus controls for the naive version: the control
+                // for `tag-on-non-test-function` leaves the id-shaped
+                // annotation exactly where it is and only rewrites it as
+                // `Implements: FR-001-AC-1`. A detector written as "any
+                // declared trace-id form inside a symbol that does not bind
+                // trace ids" fires on that healthy input and is wrong.
+                for (trace_id, form, _) in verifies_form_ids(symbol, source, model) {
+                    graph.non_binding_tags.push(NonBindingTag {
+                        path: symbol.path.clone(),
+                        symbol: symbol.qualified_name.clone(),
+                        kind: symbol.kind.as_str(),
+                        trace_id,
+                        form,
+                        line: symbol.leading_line,
+                    });
+                }
             }
             continue;
         }
@@ -301,6 +356,35 @@ pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolG
             }
         }
     }
+
+    // TWO FILTERS, and both are load-bearing — the corpus controls prove it.
+    //
+    // 1. AN ID THAT BOUND SOMEWHERE ELSE IS NOT AN ORPHAN. A container's
+    //    attached span runs to the end of the file, so the module symbol of any
+    //    tagged test file "carries" every id in it. `tag-at-module-scope`'s
+    //    control is the whole file with the banner tag moved onto the test it
+    //    names, and without this filter the module container still reports both
+    //    ids and the control goes red on healthy input.
+    // 2. THE INNERMOST SYMBOL WINS. In `tag-on-non-test-function` the module
+    //    container and `normalize_severity` both span the tag, and the fix a
+    //    reader needs names the function — the module is where the tag is not.
+    //    Greatest `leading_line` is innermost: the container starts at the top
+    //    of the file and the function starts at its own doc comment. AT EQUAL
+    //    LINES A CONTAINER LOSES, because a tag on line 1 of a file whose first
+    //    symbol starts there gives the module and the function the same
+    //    `leading_line`, and the stable sort would then hand it to whichever
+    //    the extractor happened to emit first — which is the module.
+    let bound: BTreeSet<String> = graph.verifies.iter().map(|v| v.trace_id.clone()).collect();
+    graph
+        .non_binding_tags
+        .retain(|t| !bound.contains(&t.trace_id));
+    graph.non_binding_tags.sort_by(|a, b| {
+        let rank = |t: &NonBindingTag| usize::from(t.kind == "container");
+        (&a.path, &a.trace_id, b.line, rank(a)).cmp(&(&b.path, &b.trace_id, a.line, rank(b)))
+    });
+    graph
+        .non_binding_tags
+        .dedup_by(|a, b| (&a.path, &a.trace_id) == (&b.path, &b.trace_id));
 
     graph.suspicions = crate::skeptic::vacuous_property_suites(extraction);
     graph.binding_census = census
@@ -541,18 +625,26 @@ fn prev_is_ident(chars: &[char], i: usize) -> bool {
     i > 0 && (chars[i - 1].is_alphanumeric() || chars[i - 1] == '_')
 }
 
-fn bind_symbol(symbol: &Symbol, source: &str, model: &TraceabilityModel, graph: &mut SymbolGraph) {
+/// Every trace id a declared **verifies** form attaches to this symbol's span,
+/// with the form that attached it and where it came from.
+///
+/// SHARED by [`bind_symbol`] and by the non-binding-tag detector in [`bind`],
+/// so the two cannot disagree about what counts as a tag (#312). A detector
+/// carrying its own notion of "looks like a trace tag" would fire on forms the
+/// binder ignores and stay silent on forms it reads — a second reader of one
+/// declaration, which is the drift this engine keeps finding one declaration at
+/// a time.
+///
+/// Returns every match, including duplicates: deduplication is a *binding*
+/// decision (FR-051-AC-6, canonical wins over legacy) and belongs to the caller
+/// that binds.
+fn verifies_form_ids(
+    symbol: &Symbol,
+    source: &str,
+    model: &TraceabilityModel,
+) -> Vec<(String, String, TraceProvenance)> {
     let span = symbol.attached_source(source);
-    // Every attachment of a trace id to this symbol, in discovery order
-    // (canonical markers first, then legacy forms). The id is bound once no
-    // matter how many forms attached it (FR-051-AC-6).
-    let mut attachments: BTreeMap<String, Vec<VerifiesRelation>> = BTreeMap::new();
-    let mut record = |relation: VerifiesRelation| {
-        attachments
-            .entry(relation.trace_id.clone())
-            .or_default()
-            .push(relation);
-    };
+    let mut out = Vec::new();
 
     // ── Canonical markers ──
     for marker in &model.trace_tags.markers {
@@ -565,15 +657,7 @@ fn bind_symbol(symbol: &Symbol, source: &str, model: &TraceabilityModel, graph: 
         for caps in re.captures_iter(&span) {
             let Some(args) = caps.get(1) else { continue };
             for trace_id in marker_ids(args.as_str()) {
-                record(VerifiesRelation {
-                    symbol_id: symbol.id.clone(),
-                    symbol: symbol.qualified_name.clone(),
-                    path: symbol.path.clone(),
-                    trace_id,
-                    provenance: TraceProvenance::Canonical,
-                    form: marker.name.clone(),
-                    line: symbol.line,
-                });
+                out.push((trace_id, marker.name.clone(), TraceProvenance::Canonical));
             }
         }
     }
@@ -583,8 +667,53 @@ fn bind_symbol(symbol: &Symbol, source: &str, model: &TraceabilityModel, graph: 
     // Matched against a span whose Rust string *contents* are blanked. A
     // legacy tag is comment text; trace-shaped characters inside a string
     // literal are data the file happens to carry, and binding them invents
-    // coverage nobody authored. Byte length and line breaks are preserved, so
-    // the rewrite-suggestion offset arithmetic below is unaffected.
+    // coverage nobody authored.
+    let legacy_span = match symbol.language {
+        SourceLanguage::Rust => mask_rust_string_contents(&span),
+        _ => span.clone(),
+    };
+    for legacy in &model.trace_tags.legacy {
+        if legacy.language.is_some_and(|l| l != symbol.language) {
+            continue;
+        }
+        let Some(re) = compile(&legacy.pattern) else {
+            continue;
+        };
+        for caps in re.captures_iter(&legacy_span) {
+            for trace_id in legacy_ids(&caps, legacy.id_format.as_deref()) {
+                out.push((trace_id, legacy.name.clone(), TraceProvenance::Legacy));
+            }
+        }
+    }
+    out
+}
+
+fn bind_symbol(symbol: &Symbol, source: &str, model: &TraceabilityModel, graph: &mut SymbolGraph) {
+    let span = symbol.attached_source(source);
+    // Every attachment of a trace id to this symbol, in discovery order
+    // (canonical markers first, then legacy forms). The id is bound once no
+    // matter how many forms attached it (FR-051-AC-6).
+    let mut attachments: BTreeMap<String, Vec<VerifiesRelation>> = BTreeMap::new();
+    for (trace_id, form, provenance) in verifies_form_ids(symbol, source, model) {
+        attachments
+            .entry(trace_id.clone())
+            .or_default()
+            .push(VerifiesRelation {
+                symbol_id: symbol.id.clone(),
+                symbol: symbol.qualified_name.clone(),
+                path: symbol.path.clone(),
+                trace_id,
+                provenance,
+                form,
+                line: symbol.line,
+            });
+    }
+
+    // ── Rewrite suggestions ──
+    //
+    // A second pass over the legacy forms, because a suggestion needs the match
+    // POSITION and the ids do not. Byte length and line breaks are preserved by
+    // the mask, so the offset arithmetic below is unaffected.
     let legacy_span = match symbol.language {
         SourceLanguage::Rust => mask_rust_string_contents(&span),
         _ => span.clone(),
@@ -600,17 +729,6 @@ fn bind_symbol(symbol: &Symbol, source: &str, model: &TraceabilityModel, graph: 
             let trace_ids = legacy_ids(&caps, legacy.id_format.as_deref());
             if trace_ids.is_empty() {
                 continue;
-            }
-            for trace_id in &trace_ids {
-                record(VerifiesRelation {
-                    symbol_id: symbol.id.clone(),
-                    symbol: symbol.qualified_name.clone(),
-                    path: symbol.path.clone(),
-                    trace_id: trace_id.clone(),
-                    provenance: TraceProvenance::Legacy,
-                    form: legacy.name.clone(),
-                    line: symbol.line,
-                });
             }
             // A rewrite suggestion is emitted only when the target marker
             // declares an authoring template — FR-051's "where derivable".
@@ -869,6 +987,7 @@ pub fn language_of(symbol: &Symbol) -> SourceLanguage {
 mod tests {
     use super::*;
     use crate::symbols::extract_tree;
+    use crate::traceability::TraceMarkerForm;
     use crate::Registry;
     use ix_trace_rs::trace;
 
@@ -1514,6 +1633,113 @@ mod tests {
             legacy.pattern = "ZZZ_NO_SUCH_LEGACY_FORM".to_string();
         }
         model
+    }
+
+    /// A one-file Python extraction, so a test about WHERE a tag sits does not
+    /// depend on a fixture tree that other tests also assert against.
+    fn py(source: &str) -> SymbolExtraction {
+        crate::symbols::extract_file("src/m.py", SourceLanguage::Python, source)
+    }
+
+    #[trace("TC-1044", "FR-051-AC-22")]
+    // a tag on a symbol whose kind cannot bind it is reported,
+    // naming the id, the symbol, the kind and the channel that kind can carry.
+    #[test]
+    fn tc1044_a_tag_that_binds_nothing_is_reported() {
+        // `normalize_severity` is a plain `Function`, so `binds_trace_ids()` is
+        // false and `carries_implements()` is true — the tag reaches NEITHER
+        // channel and, before #312, nothing in the payload said so. The census
+        // cannot: a non-binding symbol is missing from `candidates` rather than
+        // counted as unbound, so a file like this one reported no candidates at
+        // all rather than one unbound.
+        let graph = bind(
+            &py("# TC-001: warning default.\ndef normalize_severity(f):\n    return 1\n"),
+            &iso_model(),
+        );
+        assert_eq!(graph.non_binding_tags.len(), 1, "one tag, one report");
+        let tag = &graph.non_binding_tags[0];
+        assert_eq!(tag.trace_id, "TC-001");
+        assert_eq!(tag.symbol, "normalize_severity");
+        assert_eq!(tag.kind, "function");
+        assert_eq!(tag.path, "src/m.py");
+        assert!(!tag.form.is_empty(), "the form that matched is named");
+
+        // AND THE PAYLOAD IS OTHERWISE UNMOVED. #312 is a diagnostic ticket:
+        // the tag still does not bind and it should not (CR-061). Asserting
+        // this here is what makes the corpus fixtures' live blocks safe.
+        assert!(graph.verifies.is_empty(), "the tag still binds nothing");
+        assert!(
+            graph.binding_census.is_empty(),
+            "a non-binding symbol does not become a census candidate"
+        );
+    }
+
+    #[trace("TC-1045", "FR-051-AC-22")]
+    // an id that bound somewhere else is not reported, and a
+    // symbol carrying a proper `implements` marker is not reported either.
+    #[test]
+    fn tc1045_a_bound_id_and_an_implements_marker_are_not_orphans() {
+        // A container's attached span runs to end of file, so the module symbol
+        // of ANY tagged test file "carries" every id in it. Without the
+        // bound-elsewhere filter this fires on a perfectly healthy tree — which
+        // is what the corpus's `tag-at-module-scope` control is, and it goes red
+        // on the mutation that removes this rule.
+        let healthy = bind(
+            &py("# TC-001: on the test.\ndef test_one():\n    assert True\n"),
+            &iso_model(),
+        );
+        assert!(
+            healthy.verifies.iter().any(|v| v.trace_id == "TC-001"),
+            "the id bound on the test"
+        );
+        assert!(
+            healthy.non_binding_tags.is_empty(),
+            "an id that bound is not an orphan, even though the module container spans it"
+        );
+
+        // The harder control: the id-shaped annotation stays exactly where it
+        // is on production code, and only the RELATION changes to the one that
+        // kind can carry. A detector written as "any declared trace-id form
+        // inside a symbol that does not bind trace ids" fires here and is wrong.
+        // The iso test fixture declares no `implements` forms, so one is added
+        // here rather than in a fixture a dozen other tests assert against.
+        let mut model = iso_model();
+        model.trace_tags.implements.push(TraceMarkerForm {
+            name: "python-implements-line".to_string(),
+            language: SourceLanguage::Python,
+            pattern: r"(?m)^\s*#\s*Implements:\s*(.+)$".to_string(),
+            template: None,
+        });
+        let annotated = bind(
+            &py("# Implements: FR-001-AC-1\ndef normalize_severity(f):\n    return 1\n"),
+            &model,
+        );
+        assert!(
+            !annotated.implements.is_empty(),
+            "the production channel took it"
+        );
+        assert!(
+            annotated.non_binding_tags.is_empty(),
+            "a symbol whose implements marker bound is not carrying an orphan tag"
+        );
+    }
+
+    #[trace("TC-1046", "FR-051-AC-22")]
+    // where several symbols span one tag the INNERMOST is
+    // named, because the module is where the tag is not.
+    #[test]
+    fn tc1046_the_innermost_symbol_spanning_a_tag_is_the_one_named() {
+        // Both the file's module container and `normalize_severity` span this
+        // tag, and both are `carries_implements()` kinds, so both see it. The
+        // fix a reader needs names the function; "your tag is on the module"
+        // sends them to the top of the file.
+        let graph = bind(
+            &py("import os\n\n\n# TC-001: warning default.\ndef normalize_severity(f):\n    return 1\n"),
+            &iso_model(),
+        );
+        assert_eq!(graph.non_binding_tags.len(), 1, "one tag, one report");
+        assert_eq!(graph.non_binding_tags[0].symbol, "normalize_severity");
+        assert_eq!(graph.non_binding_tags[0].kind, "function");
     }
 
     #[trace("TC-982", "FR-051-AC-19")]

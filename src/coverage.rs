@@ -27,7 +27,7 @@ use crate::grammar::{AcPropertyCounts, GrammarVocabularies, GroundingCounts};
 use crate::metric::{Metric, MetricShape};
 use crate::obligation::Obligation;
 use crate::registry::Registry;
-use crate::symbols::trace::{BindingCensus, SymbolGraph};
+use crate::symbols::trace::{BindingCensus, NonBindingTag, SymbolGraph};
 use crate::traceability::{StatusClass, TraceabilityModel};
 
 /// Why a coverage run produced no report.
@@ -1370,6 +1370,13 @@ fn reconcile(
     // declaration selects.
     diagnostics.extend(binding_diagnostics(&graph.binding_census));
 
+    // #312: a tag that was written and reached no channel at all. Ordered
+    // immediately after the census diagnostics because it is the case they
+    // cannot see: `no-symbol-bound` and `low-symbol-binding` both read a
+    // denominator this defect is missing from, so a repository whose tags are
+    // all on the wrong symbols reports a flawless 100% and says nothing.
+    diagnostics.extend(non_binding_tag_diagnostics(&graph.non_binding_tags));
+
     // FR-053: derived here rather than in `compute` because obligations read
     // the same declared tables this reconciliation already walks, and need no
     // `Registry`.
@@ -1492,6 +1499,41 @@ const BINDING_FLOOR: f64 = 0.05;
 /// while `low-symbol-binding` reports both counts and lets the reader judge,
 /// because at 3% the tail of untagged tests and a near-miss pattern look alike
 /// from here.
+/// Diagnostics for a trace tag written where it cannot bind (#312).
+///
+/// ONE PER TAG, named. The census diagnostics report a language and a count;
+/// this one reports the id, the symbol it landed on, that symbol's kind, and
+/// the channel that would have accepted an annotation there. The kind is the
+/// actionable part and the reason the message is not "this row is unbacked":
+/// the report already says that, and it is not a fix.
+///
+/// Deliberately NOT a payload change. The tag still does not bind and it should
+/// not — CR-061 is right that production code is not evidence and that a
+/// container would let `mod tests` inherit every marker nested inside it. What
+/// changes is that the engine stops dropping the tag in silence. The corpus
+/// fixtures assert every count in their live block survives this unchanged,
+/// which is what settles the open question on #312 about whether a non-binding
+/// symbol should enter `binding_census.candidates`: it should not.
+fn non_binding_tag_diagnostics(tags: &[NonBindingTag]) -> Vec<CoverageDiagnostic> {
+    tags.iter()
+        .map(|tag| CoverageDiagnostic {
+            declaration: "traceability.trace_tags".to_string(),
+            reason: "tag-on-non-binding-symbol".to_string(),
+            message: format!(
+                "trace id `{}` is written on `{}` at {}:{}, a {} — a kind that does not bind \
+                 trace ids (CR-061), so the tag reached no channel and the row it names is \
+                 reported unbacked, indistinguishable from a test nobody wrote. The form `{}` \
+                 matched, so this is an authored tag rather than prose. A production symbol \
+                 records what it is about with `Implements:`; a trace id binds on an evidence \
+                 symbol — a test, a benchmark or a fuzz target",
+                tag.trace_id, tag.symbol, tag.path, tag.line, tag.kind, tag.form
+            ),
+            path: Some(tag.path.clone()),
+            value: Some(tag.trace_id.clone()),
+        })
+        .collect()
+}
+
 fn binding_diagnostics(census: &[BindingCensus]) -> Vec<CoverageDiagnostic> {
     census
         .iter()
