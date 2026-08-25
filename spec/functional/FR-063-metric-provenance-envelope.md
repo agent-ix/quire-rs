@@ -102,8 +102,12 @@ of their own — which is what makes it a schema invariant rather than another s
 > Every existing metric describes what happened to the rows the engine
 > **found**. None of them describes whether the rows were found at all, and
 > that is the premise 88 of 239 repositories fail: the archetype matches, the
-> declared heading does not, and 3,514 TC ids never enter `coverage.backed`'s
-> denominator. The repository reports a smaller `total` and a plausible
+> declared heading does not, and those TC ids never enter `coverage.backed`'s
+> denominator — a **candidate census** of 3,514, which CR-118 later showed is
+> not the causal size of the section defect (the section fix realised +83 rows;
+> the population is confounded with id-column mismatch, `agent-ix/quire-rs#318`).
+> Either way the premise fails silently, which is what this envelope is for.
+> The repository reports a smaller `total` and a plausible
 > percentage — the exact shape the binding census (FR-050-AC-27) was built for
 > one layer down.
 >

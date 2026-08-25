@@ -240,7 +240,7 @@ fn tc1017_every_control_names_a_case_that_exists() {
     // FAILURE cases only. Building this from every case put each control's own
     // `case` into the set, so `control_for` resolved against ITSELF and the
     // check became self-satisfying: deleting the flagship failure fixture —
-    // the only ecosystem-bound minting case, the 3,514-id defect — left all
+    // the only ecosystem-bound minting case, the section defect — left all
     // eight tests green. `bounds.py` already skips non-failure kinds for
     // exactly this reason and carries a comment saying so; this did not.
     let mut pairs: BTreeSet<(String, &str)> = BTreeSet::new();

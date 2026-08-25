@@ -187,7 +187,7 @@ pub(crate) enum ScanDiagnostic {
     /// The dominant ecosystem failure, and until now the silent one: `rows_of`
     /// returned an empty `Vec` for a section it could not find, so a Test
     /// Matrix heading one word off produced the same payload as a matrix with
-    /// no rows. Measured over 239 repositories, **3,514 TC ids across 88
+    /// no rows. A candidate census over 239 repositories counted **3,514 TC ids across 88
     /// repositories** mint nothing for this reason alone, and those repositories
     /// report 6.77% of rows backed against 32.55% for repositories whose
     /// heading matches.
@@ -512,7 +512,7 @@ pub(crate) fn relative_path(root: &Path, path: &Path) -> String {
 /// What one **matched** section offered a declared scan (CR-117).
 ///
 /// Two of the three cases `rows_of` used to answer with the same empty `Vec`.
-/// The third — no section by that name at all, the 3,514-id defect — is not a
+/// The third — no section by that name at all — is not a
 /// variant here since CR-118: with several names to try, "not found" is a fact
 /// about the whole declaration rather than about one section, and
 /// [`tables_of`] says it by returning nothing.
@@ -969,7 +969,7 @@ mod cr110_scanned_table {
     // the three ways a scan produces no rows are three
     // ANSWERS, not one empty `Vec` (CR-117). `rows_of` collapsed them, so a
     // heading one word off and a matrix with no rows were the same fact
-    // downstream — which is why 3,514 stranded ids reported as a smaller
+    // downstream — which is why stranded ids reported as a smaller
     // denominator and nothing else.
     #[test]
     fn tc1033_the_scan_says_which_way_it_found_nothing() {
