@@ -648,10 +648,16 @@ fn find_diagnostic<'a>(
         Some((d, r)) => (Some(d), r),
         None => (None, key),
     };
+    // `map_or(true, …)` rather than `Option::is_none_or`, which is stable since
+    // 1.82 while `clippy.toml` pins MSRV to 1.75 — `-D clippy::incompatible_msrv`
+    // rejects it, so `make lint` was red on `epic/264` from the commit that
+    // added this reader (#331) until CR-123 noticed. `rust-toolchain.toml`
+    // floats on `stable`, so whether it fires depends on the clippy the author
+    // happened to run; it fires on 0.1.94.
     report
         .diagnostics
         .iter()
-        .find(|d| d.reason == reason && declaration.is_none_or(|want| d.declaration == want))
+        .find(|d| d.reason == reason && declaration.map_or(true, |want| d.declaration == want))
 }
 
 pub fn grade(case: &Case, report: &quire_rs::CoverageReport) -> Outcome {

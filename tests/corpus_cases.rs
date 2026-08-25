@@ -1380,7 +1380,9 @@ fn tc1028_a_failure_case_discriminates_from_its_control() {
 #[trace("TC-1032", "FR-065-AC-43")]
 // accepted with no control; findable/control_for/pending rejected.
 #[trace("TC-1032", "FR-065-AC-44")]
-// credits its cell, so a fixed defect does not revert to GAP.
+// an ecosystem-bound one credits its cell, so a fixed defect does not revert.
+#[trace("TC-1032", "FR-065-AC-45")]
+// a variant-bound one credits none, and its GAP reason names the ticket.
 #[test]
 fn tc1032_a_regression_case_pins_a_landed_fix() {
     let cases = load_cases();
@@ -1433,24 +1435,66 @@ fn tc1032_a_regression_case_pins_a_landed_fix() {
             .case
             .clone()
             .unwrap_or_else(|| case.meta.id.clone());
-        // A case binding a RELAXATION VARIANT credits no cell whatever its
-        // kind — CON-3, because a corpus whose manifest always matches cannot
-        // exhibit an ecosystem defect. That is orthogonal to `regression`,
-        // which is about whether the behaviour is broken. `bounds.py` marks
-        // such a cell GAP with a reason naming its relaxation ticket, and
-        // AC-44 is about a cell reverting to GAP when its defect is FIXED —
-        // a different thing from one that never credited.
-        if case.meta.module != "ecosystem" {
-            continue;
-        }
-        let covered = derived["bounds"]["matrix"]
+        let cells: Vec<&serde_json::Value> = derived["bounds"]["matrix"]
             .as_array()
             .expect("matrix")
             .iter()
             .filter(|r| r["case"].as_str() == Some(row.as_str()))
-            .any(|r| r["cells"][&case.meta.language]["state"].as_str() == Some("covered"));
+            .map(|r| &r["cells"][&case.meta.language])
+            .collect();
+        // An empty `cells` makes every claim below vacuous — the variant arm
+        // would assert nothing at all over zero cells.
         assert!(
-            covered,
+            !cells.is_empty(),
+            "{}: claims inventory row `{row}` in `{}`, which the derived matrix has no \
+             cell for",
+            case.meta.id,
+            case.meta.language,
+        );
+
+        // A case binding a RELAXATION VARIANT credits no cell whatever its
+        // kind — CON-3 / AC-45, because a corpus whose manifest always matches
+        // cannot exhibit an ecosystem defect. That is orthogonal to
+        // `regression`, which is about whether the behaviour is broken. AC-44
+        // is about a cell reverting to GAP when its defect is FIXED — a
+        // different thing from one that never credited.
+        //
+        // ASSERTED, not skipped. Until CR-123 this branch was `continue`, so
+        // the narrower of the two rules was the one nothing checked: a
+        // `bounds.py` that started crediting variant-bound cases would have
+        // moved `gap_count` down by one with every gate green, which is the
+        // "credited itself for a manifest that cannot fail" failure that
+        // `agent-ix/qa-corpus` was created to end.
+        if case.meta.module != "ecosystem" {
+            let ticket =
+                case.meta.relaxation_ticket.as_deref().unwrap_or_else(|| {
+                    panic!("{}: binds a variant and names no ticket", case.meta.id)
+                });
+            for cell in &cells {
+                assert_eq!(
+                    cell["state"].as_str(),
+                    Some("GAP"),
+                    "{}: binds `{}` and must credit NO cell — CON-3 outranks AC-44, \
+                     because a fixture on a manifest that always matches exhibits no \
+                     ecosystem mode",
+                    case.meta.id,
+                    case.meta.module,
+                );
+                let reason = cell["reason"].as_str().unwrap_or_default();
+                assert!(
+                    reason.contains(ticket),
+                    "{}: its GAP reason must name the relaxation ticket `{ticket}` that \
+                     would remove the variant, so a reader of the matrix can act on it; \
+                     got {reason:?}",
+                    case.meta.id,
+                );
+            }
+            continue;
+        }
+        assert!(
+            cells
+                .iter()
+                .any(|cell| cell["state"].as_str() == Some("covered")),
             "{}: a regression case must credit its cell — otherwise a cell reverts to \
              GAP the moment its defect is fixed, and `gap_count` counts unfixed defects \
              rather than unmeasured modes",
