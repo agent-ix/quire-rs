@@ -397,6 +397,205 @@ fn tc1021_the_vocabularies_come_from_the_corpus_not_from_this_file() {
     }
 }
 
+/// `CaseMeta` requires what `case_schema` says is required, and models every
+/// field it declares — checked by behaviour, not by comparing two lists.
+///
+/// **Why not two lists.** The corpus has two readers on purpose, so that drift
+/// between them is visible. An outside review checked whether it is and found
+/// it was not: `bounds.py` had no required-field schema and no duplicate-id
+/// check, so removing `issue_ref` from a `case.yaml` left it exiting 0 over all
+/// 77 fixtures while serde refused the same tree (`agent-ix/quire-rs#336`). The
+/// obvious repair — a second hand-written list of required fields in Python —
+/// is the same defect one level up: two lists, free to disagree, with nothing
+/// comparing them. So the list lives in `corpus.yaml` and BOTH readers are held
+/// to it. `bounds.py` validates against it directly; this test proves serde
+/// does the same thing, by deleting each declared-required field from a real
+/// declaration and requiring the parse to fail.
+///
+/// It found two fields immediately. `findable` and `reproduce` carried
+/// `#[serde(default)]`, so `case_schema` said required and this reader accepted
+/// their absence — and one case had in fact omitted `findable`, arriving at
+/// `false` from the derive rather than from an author, with nothing able to
+/// tell the two apart. `tags` was the mirror image: TC-1021 has always required
+/// a `TC-` id in it, so a gate required it and no declaration did.
+///
+/// The reverse direction inserts, for each declared field, a value wrong for
+/// its declared **type**, and requires serde to refuse it. That catches a field
+/// the corpus declares and this reader does not model — which
+/// `deny_unknown_fields` would otherwise turn into a field no case could ever
+/// carry — and a field whose Rust type disagrees with `case_schema.types`.
+///
+/// **What is and is not mutation-verified here.** Adding a field to
+/// `case_schema` that `CaseMeta` does not model fails this test by name;
+/// verified by adding one and reverting. Restoring `#[serde(default)]` on
+/// `findable` fails it by name; verified the same way. The *type* half could
+/// not be falsified by mutation: changing `control_for` to `Option<String>` or
+/// `comment` to `Option<Vec<String>>` fails to **compile**, because every
+/// declared field has a consumer that constrains it. So that assertion is a
+/// backstop for a field with no such consumer, not a gate observed to fire —
+/// said plainly rather than counted as verification it did not earn.
+#[trace("TC-1043", "FR-065-AC-3")]
+// every field `case_schema` requires is refused by the Rust reader when absent,
+// and every field it declares is one `CaseMeta` models.
+#[test]
+fn tc1043_the_rust_reader_requires_what_the_corpus_declares_required() {
+    let root = corpus_case::corpus_root();
+    let declared: serde_yaml::Value =
+        serde_yaml::from_str(&std::fs::read_to_string(root.join("corpus.yaml")).unwrap())
+            .expect("corpus.yaml parses");
+    let schema = &declared["case_schema"];
+    let names = |key: &str| -> Vec<String> {
+        schema[key]
+            .as_sequence()
+            .unwrap_or_else(|| panic!("case_schema declares `{key}`"))
+            .iter()
+            .map(|v| v.as_str().expect("a string").to_string())
+            .collect()
+    };
+    let required = names("required");
+    let optional = names("optional");
+    assert!(
+        !required.is_empty() && !optional.is_empty(),
+        "an empty schema would make every assertion below pass",
+    );
+
+    // A REAL declaration, not a synthetic one: a hand-built mapping would only
+    // prove things about the mapping. The first single-layout case that carries
+    // every required field is the subject — a language set splits its
+    // declaration across two files and no single file is complete.
+    let mut subject: Option<(std::path::PathBuf, serde_yaml::Mapping)> = None;
+    let mut case_files: Vec<_> = glob_case_files(&root.join("cases"));
+    case_files.sort();
+    for path in case_files {
+        let value: serde_yaml::Value =
+            serde_yaml::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+        let Some(map) = value.as_mapping() else {
+            continue;
+        };
+        if required
+            .iter()
+            .all(|f| map.contains_key(serde_yaml::Value::String(f.clone())))
+        {
+            subject = Some((path, map.clone()));
+            break;
+        }
+    }
+    let (path, complete) = subject.expect(
+        "no single-layout case declares every required field — the subject of \
+         this test does not exist, so it would pass vacuously",
+    );
+
+    // Control. Without it every deletion below could be failing for an
+    // unrelated reason and the test would still be green.
+    serde_yaml::from_value::<corpus_case::CaseMeta>(serde_yaml::Value::Mapping(complete.clone()))
+        .unwrap_or_else(|e| {
+            panic!(
+                "{}: the unmutated subject does not parse: {e}",
+                path.display()
+            )
+        });
+
+    for field in &required {
+        let mut mutated = complete.clone();
+        mutated.remove(serde_yaml::Value::String(field.clone()));
+        let result =
+            serde_yaml::from_value::<corpus_case::CaseMeta>(serde_yaml::Value::Mapping(mutated));
+        let error = match result {
+            Ok(_) => panic!(
+                "`case_schema.required` names `{field}`, and `CaseMeta` parses a \
+                 declaration without it. One reader requires it and the other \
+                 does not — which is the drift two readers exist to expose \
+                 (agent-ix/quire-rs#336).",
+            ),
+            Err(e) => e.to_string(),
+        };
+        assert!(
+            error.contains(field),
+            "removing `{field}` was refused, but the error does not name it: {error}",
+        );
+    }
+
+    // Reverse direction, twice over. For each declared field, insert a value
+    // that is wrong FOR ITS DECLARED TYPE and require serde to refuse it.
+    //
+    // That catches both failures at once. A field the corpus declares and this
+    // reader does not model reports `unknown field`, because
+    // `deny_unknown_fields` would drop any case carrying it. A field whose
+    // Rust type disagrees with `case_schema.types` ACCEPTS the wrong value —
+    // measured, that is not hypothetical: `control_for` was written as a bare
+    // string by the scaffolder, `bounds.py` (presence only) allowed it, and
+    // `Option<Vec<String>>` refused it. The declared type is what the two
+    // readers are held to; nothing here restates it.
+    let types = &schema["types"];
+    for field in required.iter().chain(optional.iter()) {
+        let declared_type = &types[field.as_str()];
+        // A value no reading of the declared type accepts.
+        let wrong = match declared_type.as_str() {
+            Some("str") | Some("bool") => serde_yaml::Value::Sequence(vec![]),
+            None if declared_type.as_sequence().is_some() => {
+                serde_yaml::Value::String("not-a-list".into())
+            }
+            other => panic!(
+                "`case_schema.types` declares `{field}: {other:?}`, a type this \
+                 test does not know how to write a wrong value for"
+            ),
+        };
+        let mut mutated = complete.clone();
+        mutated.insert(serde_yaml::Value::String(field.clone()), wrong);
+        let error =
+            serde_yaml::from_value::<corpus_case::CaseMeta>(serde_yaml::Value::Mapping(mutated))
+                .err()
+                .map(|e| e.to_string())
+                .unwrap_or_default();
+        assert!(
+            !error.contains("unknown field"),
+            "`case_schema` declares `{field}` and `CaseMeta` does not model it, \
+             so `deny_unknown_fields` would refuse any case carrying it: {error}",
+        );
+        assert!(
+            !error.is_empty(),
+            "`case_schema.types` declares `{field}` as {declared_type:?}, and \
+             `CaseMeta` accepted a value of the wrong shape. The two readers \
+             disagree about this field's type (agent-ix/quire-rs#336).",
+        );
+    }
+
+    // Every declared field carries a declared type. Without this a field could
+    // be added to `required`/`optional` and silently skip the loop above.
+    let typed: BTreeSet<String> = types
+        .as_mapping()
+        .expect("case_schema declares `types`")
+        .keys()
+        .map(|k| k.as_str().expect("a string").to_string())
+        .collect();
+    let named: BTreeSet<String> = required.iter().chain(optional.iter()).cloned().collect();
+    assert_eq!(
+        named, typed,
+        "every field `case_schema` declares needs a type, and every typed field \
+         needs to be declared",
+    );
+}
+
+/// Every `case.yaml` under `cases/`, in either layout.
+fn glob_case_files(cases: &std::path::Path) -> Vec<std::path::PathBuf> {
+    let mut out = Vec::new();
+    let Ok(modes) = std::fs::read_dir(cases) else {
+        return out;
+    };
+    for mode in modes.filter_map(Result::ok) {
+        let Ok(dirs) = std::fs::read_dir(mode.path()) else {
+            continue;
+        };
+        for dir in dirs.filter_map(Result::ok) {
+            let file = dir.path().join("case.yaml");
+            if file.is_file() {
+                out.push(file);
+            }
+        }
+    }
+    out
+}
+
 /// A case's declared module and its documented invocation name the same thing.
 ///
 /// The review of #290 found nothing cross-checked them: `verify.py` never read
@@ -413,11 +612,10 @@ fn tc1021_the_vocabularies_come_from_the_corpus_not_from_this_file() {
 #[test]
 fn tc1020_the_documented_invocation_names_the_module_that_loads() {
     for case in &load_cases() {
-        let reproduce = case
-            .meta
-            .reproduce
-            .as_deref()
-            .unwrap_or_else(|| panic!("{}: no `reproduce` invocation", case.meta.id));
+        // No `unwrap_or_else(panic)` here any more: `reproduce` is required by
+        // `case_schema` and by `CaseMeta`, so a case without one is refused at
+        // deserialization, naming the file rather than reaching this loop.
+        let reproduce = case.meta.reproduce.as_str();
 
         // FR-065-AC-18: the invocation names a module. Without one no model
         // loads, the run reports 0/0, and the case cannot exhibit the
