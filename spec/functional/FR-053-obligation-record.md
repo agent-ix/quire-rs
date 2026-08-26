@@ -153,7 +153,7 @@ Records SHALL travel on the existing interfaces, adding no command:
   > exists to prevent.
 
 Neither payload SHALL gain a version key
-([FR-008](./FR-008-cli-boundary.md)-AC-5 stands); contract versioning lives in
+([FR-008](./FR-008-byte-exact-slicing.md)-AC-5 stands); contract versioning lives in
 the published schema artifacts.
 
 ## Inputs

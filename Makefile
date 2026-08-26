@@ -32,7 +32,7 @@ help:
 	@echo "  make cargo-audit      - cargo audit (RUSTSEC advisories)"
 	@echo "  make mutants          - cargo mutants -p quire-rs --in-place --check"
 	@echo "  make fuzz             - 60s smoke run of each cargo-fuzz target"
-	@echo "  make audit-static     - Run all scripts/audits/*.sh"
+	@echo "  make audit-static     - Run all scripts/audits/*.sh (globbed, #353)"
 	@echo "  make hardening        - Full pre-tag set: audit-static + cargo-audit + mutants + fuzz + loom"
 
 # =============================================================================
@@ -111,21 +111,29 @@ audit-property:
 	bash scripts/check_property_purity.sh
 
 .PHONY: audit-static
+# GLOBS, and the help text has said so since before it was true.
+#
+# This target ENUMERATED seven scripts. CR-124 asserted it "runs every
+# scripts/audits/*.sh"; it never did, so the gate answering the outside
+# review's [P1] sat in the tree unrun from the commit that added it until #353
+# added an eighth line by hand. `check_status_agreement.sh` was then silently
+# skipped the same way, in the same session that closed #353 — the eighth line
+# fixed one instance of a rule that had none.
+#
+# So the list is gone. A new `scripts/audits/*.sh` now runs because it exists,
+# not because somebody remembered. An EMPTY glob is a hard failure: a loop over
+# no scripts exits 0 and looks exactly like every audit passing, which is the
+# defect one level up from the one this replaces.
 audit-static:
-	bash scripts/audits/check_no_net_deps.sh
-	bash scripts/audits/check_no_schemars.sh
-	bash scripts/audits/check_no_shellout.sh
-	bash scripts/audits/check_dep_pins.sh
-	bash scripts/audits/check_hashmap_audit.sh
-	bash scripts/audits/check_no_shared_mutable.sh
-	bash scripts/audits/verify_cookiecutter_inheritance.sh
-	# CR-124 said this was already here "because `audit-static` runs every
-	# scripts/audits/*.sh". This target ENUMERATES; it has never globbed. So the
-	# gate answering the outside review's [P1] — committed conflict markers and
-	# an index missing FR-065 — sat in the tree unrun from the commit that added
-	# it until #353. A gate not wired into the target that runs it is the same
-	# fact as a gate that cannot fail.
-	bash scripts/audits/check_spec_structure.sh
+	@scripts=$$(ls scripts/audits/*.sh 2>/dev/null); \
+	if [ -z "$$scripts" ]; then \
+	  echo "audit-static: no scripts/audits/*.sh found — refusing to pass on an empty set" >&2; \
+	  exit 1; \
+	fi; \
+	for s in $$scripts; do \
+	  echo "bash $$s"; \
+	  bash "$$s" || exit 1; \
+	done
 
 # =============================================================================
 # Hardening (scheduled-only in CI; available locally on demand)

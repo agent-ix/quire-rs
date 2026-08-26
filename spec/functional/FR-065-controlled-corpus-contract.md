@@ -192,7 +192,7 @@ module still uses `--module`, and the runner reads whichever shape the case decl
 **Why from the root and not from inside `input/`.** The first draft of this requirement
 documented `cd input && … --module ../../../../modules/ecosystem`, which **the CLI
 rejects**: `--module` refuses a path containing `..` under
-[FR-005](./FR-005-path-safety.md) path safety, and the refusal is correct — a module
+[FR-005](./FR-005-parse-document-api.md) path safety, and the refusal is correct — a module
 argument that can climb out of the tree it was given is the traversal that guard exists
 for. Written that way, no case could bind a shared module at all, AC-16 was unreachable
 by construction rather than deferred, and the vendored declaration was decorative. Found

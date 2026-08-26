@@ -99,5 +99,5 @@ Two sources for one constraint is the duplication this FR removes; unioning them
 
 ## Dependencies
 
-- **Upstream**: [FR-033](./FR-033-body-extraction-asserts.md) (the assert facet), [FR-054](./FR-054-verification-method-catalog.md) (the named lookup this generalizes)
+- **Upstream**: [FR-033](./FR-033-locator-assert-facet.md) (the assert facet), [FR-054](./FR-054-verification-method-catalog.md) (the named lookup this generalizes)
 - **Downstream**: `spec-artifacts-process` can drop its duplicate list and the test that holds the two in agreement

@@ -34,7 +34,7 @@ reference to a sibling in the same bundle.
 ## Decision
 
 1. **Internal references are relative file-path Markdown links** —
-   `[FR-002](./FR-002-graph-edges.md)`. They render and navigate in GitHub and
+   `[FR-002](./FR-002-schema-validation-pipeline.md)`. They render and navigate in GitHub and
    editors today, and quire-rs resolves them to the target artifact via a
    path→id map over the loaded corpus.
 

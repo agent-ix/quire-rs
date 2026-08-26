@@ -24,7 +24,7 @@ space**, minting one obligation over the interaction of every row.
 
 ### A new source kind, not a new mechanism
 
-[FR-053](./FR-053-obligation-sources.md)'s `ObligationSource` is already a declaration-driven minter
+[FR-053](./FR-053-obligation-record.md)'s `ObligationSource` is already a declaration-driven minter
 carrying a `parameters` map whose own documentation names *"a t-way strength"*. The statement hash,
 the suspect link and the parameter carriage are inherited unchanged.
 
@@ -118,5 +118,5 @@ rollup reports. TC-934 asserts that identity rather than just the count.
 
 ## Dependencies
 
-- **Upstream**: [FR-053](./FR-053-obligation-sources.md) (the minter this extends), [FR-055](./FR-055-published-json-contract.md) (how quoin reads it)
+- **Upstream**: [FR-053](./FR-053-obligation-record.md) (the minter this extends), [FR-055](./FR-055-published-output-contract.md) (how quoin reads it)
 - **Downstream**: `agent-ix/quoin#90` (the coverage view and gap list)
