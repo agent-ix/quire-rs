@@ -295,6 +295,10 @@ check-engine:
 		echo "check_engine: SKIP — no consumer workspace at $(QUIRE_CLI)"; \
 	fi
 
+.PHONY: corpus-recall-update
+corpus-recall-update:
+	UPDATE_CORPUS_RECALL=1 CARGO_TARGET_DIR=target cargo test --test corpus_recall
+
 .PHONY: ci
 ci: fmt-check lint check-python check-scripts test deny audit-unsafe audit-property audit-static validate check-engine
 
