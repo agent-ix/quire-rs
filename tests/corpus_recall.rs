@@ -130,8 +130,8 @@ fn score(gap_count: usize) -> Vec<RecallRow> {
             .entry((case.meta.mode.clone(), case.meta.language.clone()))
             .or_default();
         group.population += 1;
-        for index in 0..3 {
-            if achieved[index] {
+        for (index, reached) in achieved.iter().enumerate() {
+            if *reached {
                 group.reached[index] += 1;
             } else {
                 group.misses[index].push(case.meta.id.clone());
