@@ -651,6 +651,231 @@ fn prev_is_ident(chars: &[char], i: usize) -> bool {
     i > 0 && (chars[i - 1].is_alphanumeric() || chars[i - 1] == '_')
 }
 
+/// Blank the *contents* of TypeScript and Python string literals, preserving
+/// byte length and line structure exactly as [`mask_rust_string_contents`] does.
+///
+/// **This did not exist, and Rust had it (`agent-ix/quire-rs#323`).** A trace
+/// marker written inside a TypeScript or Python string literal bound as though
+/// it were a tag, so any file carrying tag-shaped text as DATA invented
+/// coverage nobody authored. The corpus carries a measured instance:
+/// `cases/parser/triple-quote-scope-desync` holds a trace marker inside a
+/// triple-quoted literal as fixture data for the parser defect it pins, and the
+/// non-binding-tag detector reported it — 1 false positive of 6 findings,
+/// tier-1 precision 83% (TC-1047).
+///
+/// A SEPARATE FUNCTION rather than a generalisation of the Rust one. Rust's
+/// raw-string form has no analogue in either language and its handling is the
+/// delicate part of that lexer; folding three languages into one loop would put
+/// the two at risk of each other for no gain. This engine already keeps a
+/// symbol extractor per language for the same reason.
+///
+/// Comments are left INTACT — that is where legacy tags live, and masking them
+/// would suppress the very form being matched. `//` and block comments for
+/// TypeScript, `#` for Python.
+///
+/// Applied to the LEGACY textual forms only, exactly as the Rust mask is:
+/// canonical markers put their ids inside string literals by design, so masking
+/// before matching them would suppress the form the grammar prefers.
+fn mask_script_string_contents(span: &str, language: SourceLanguage) -> String {
+    let python = matches!(language, SourceLanguage::Python);
+    let mut out = String::with_capacity(span.len());
+    // The delimiter that opened the string we are inside, if any. A triple
+    // quote is held as all three characters so a lone quote inside it does not
+    // close it — the shape #274 was about, one layer down.
+    let mut open: Option<Vec<char>> = None;
+    let mut block_comment = false;
+    // Whether the literal currently open is a DOCSTRING — Python's doc channel,
+    // preserved like a comment. See the opener below for why.
+    let mut doc_string = false;
+
+    for line in span.split_inclusive('\n') {
+        let chars: Vec<char> = line.chars().collect();
+        let mut i = 0;
+        let blank = |c: char, out: &mut String| {
+            if c == '\n' || c == '\r' || !c.is_ascii() {
+                out.push(c);
+            } else {
+                out.push(' ');
+            }
+        };
+
+        while i < chars.len() {
+            let c = chars[i];
+            // Whether everything before this position on the line is
+            // whitespace — the declaration's own `^\s*` anchor for the
+            // docstring form.
+            let opens_line = chars[..i].iter().all(|x| x.is_whitespace());
+
+            if block_comment {
+                if c == '*' && chars.get(i + 1) == Some(&'/') {
+                    block_comment = false;
+                    out.push_str("*/");
+                    i += 2;
+                    continue;
+                }
+                out.push(c);
+                i += 1;
+                continue;
+            }
+
+            if let Some(delim) = open.clone() {
+                // An escape consumes the next character, so an escaped quote
+                // never closes the literal.
+                if c == '\\' && !doc_string {
+                    blank(c, &mut out);
+                    if let Some(n) = chars.get(i + 1) {
+                        blank(*n, &mut out);
+                    }
+                    i += 2;
+                    continue;
+                }
+                if chars[i..].starts_with(&delim) {
+                    for k in &delim {
+                        out.push(*k);
+                    }
+                    i += delim.len();
+                    open = None;
+                    doc_string = false;
+                    continue;
+                }
+                if doc_string {
+                    out.push(c);
+                } else {
+                    blank(c, &mut out);
+                }
+                i += 1;
+                continue;
+            }
+
+            // Line comments run to end of line and are kept verbatim.
+            if (python && c == '#') || (!python && c == '/' && chars.get(i + 1) == Some(&'/')) {
+                for rest in &chars[i..] {
+                    out.push(*rest);
+                }
+                break;
+            }
+            if !python && c == '/' && chars.get(i + 1) == Some(&'*') {
+                block_comment = true;
+                out.push_str("/*");
+                i += 2;
+                continue;
+            }
+
+            // TRIPLE QUOTES FIRST, or the single form opens and immediately
+            // closes on its own second character and the body stays unmasked.
+            if python
+                && (chars[i..].starts_with(&['"', '"', '"'])
+                    || chars[i..].starts_with(&['\'', '\'', '\'']))
+            {
+                let delim: Vec<char> = chars[i..i + 3].to_vec();
+                for k in &delim {
+                    out.push(*k);
+                }
+                // A DOCSTRING IS PYTHON'S COMMENT, and masking it suppresses a
+                // form the declaration deliberately declares.
+                //
+                // `python-docstring-id` is a declared legacy form whose pattern
+                // is `^\s*(?:[rbfu]{1,2})?"""\s*(<id>)` — Python has no
+                // doc-comment syntax, so its doc channel IS a string literal,
+                // where Rust's is `///` and TypeScript's is a block comment.
+                // Both of those are preserved by their masks as comments; this
+                // is the same rule, wearing the only syntax the language has.
+                //
+                // Measured: masking every Python string took four corpus
+                // fixtures from bound to unbound — `tag-names-undeclared-section`
+                // in both directions among them — because their tags are
+                // docstrings. The corpus caught it before it shipped.
+                //
+                // The test is POSITIONAL, and it is the declaration's own: the
+                // form is `^`-anchored to an opener preceded by whitespace
+                // alone. A triple-quoted literal opened mid-line — `x = """`
+                // — is an assigned value, not documentation, and is masked like
+                // any other string.
+                if opens_line {
+                    doc_string = true;
+                }
+                open = Some(delim);
+                i += 3;
+                continue;
+            }
+            if c == '"' || c == '\'' || (!python && c == '`') {
+                out.push(c);
+                // A REGISTRATION TITLE IS TYPESCRIPT'S TAG CHANNEL, and masking
+                // it suppresses a form the declaration deliberately declares.
+                //
+                // `typescript-test-name-id` is a declared legacy form that
+                // reads the id out of the CALL TITLE — `it("TC-001 …", …)` —
+                // which is a string literal. Rust has no such form (its
+                // `rust-test-name-id` reads an identifier, `fn tc_001_…`),
+                // which is why a blanket string mask is right there and wrong
+                // here.
+                //
+                // Measured: masking every TypeScript string took
+                // `cases/detection/test-name-id-in-call-title` from `backed 1`
+                // to `backed 0` and lit `no-symbol-bound` on a fixture whose
+                // whole subject is that the title binds. The corpus caught it.
+                //
+                // The test is the declared pattern's OWN anchor: `^\s*(await
+                // )?(it|test|describe|suite)`. A string opened anywhere else on
+                // the line is an ordinary value and is masked.
+                if !python && opens_registration(&chars[..i]) {
+                    doc_string = true;
+                }
+                open = Some(vec![c]);
+                i += 1;
+                continue;
+            }
+            out.push(c);
+            i += 1;
+        }
+    }
+    out
+}
+
+/// Whether the text before a quote on its line opens a test REGISTRATION —
+/// `it(`, `test(`, `describe(`, `suite(`, with the modifiers the declared
+/// pattern allows.
+///
+/// Kept deliberately close to `typescript-test-name-id`'s own `^\s*(?:await
+/// \s+)?(?:it|test)(?:\.…)*\s*\(` anchor rather than generalised: this
+/// exists to preserve exactly the channel the declaration reads from, and a
+/// looser rule would start preserving ordinary strings again.
+fn opens_registration(before: &[char]) -> bool {
+    let text: String = before.iter().collect();
+    let text = text.trim_start();
+    let text = text.strip_prefix("await ").unwrap_or(text).trim_start();
+    for name in ["describe", "suite", "test", "it"] {
+        let Some(rest) = text.strip_prefix(name) else {
+            continue;
+        };
+        // Modifiers (`.each`, `.only`, …) and whitespace may sit between the
+        // name and its parenthesis; nothing else may.
+        let rest = rest.trim_start();
+        let rest = rest.trim_start_matches(|c: char| c == '.' || c.is_alphanumeric());
+        let rest = rest.trim_start();
+        if let Some(args) = rest.strip_prefix('(') {
+            if args.trim().is_empty() {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+/// The span a LEGACY form is matched against: string contents blanked, comments
+/// intact, for every language rather than for Rust alone.
+///
+/// ONE dispatch point rather than the two this file carried, which is how
+/// TypeScript and Python came to be unmasked in both of them (#323).
+fn legacy_match_span(span: &str, language: SourceLanguage) -> String {
+    match language {
+        SourceLanguage::Rust => mask_rust_string_contents(span),
+        SourceLanguage::Typescript | SourceLanguage::Python => {
+            mask_script_string_contents(span, language)
+        }
+    }
+}
+
 /// Every trace id a declared **verifies** form attaches to this symbol's span,
 /// with the form that attached it and where it came from.
 ///
@@ -694,10 +919,7 @@ fn verifies_form_ids(
     // legacy tag is comment text; trace-shaped characters inside a string
     // literal are data the file happens to carry, and binding them invents
     // coverage nobody authored.
-    let legacy_span = match symbol.language {
-        SourceLanguage::Rust => mask_rust_string_contents(&span),
-        _ => span.clone(),
-    };
+    let legacy_span = legacy_match_span(&span, symbol.language);
     for legacy in &model.trace_tags.legacy {
         if legacy.language.is_some_and(|l| l != symbol.language) {
             continue;
@@ -740,10 +962,7 @@ fn bind_symbol(symbol: &Symbol, source: &str, model: &TraceabilityModel, graph: 
     // A second pass over the legacy forms, because a suggestion needs the match
     // POSITION and the ids do not. Byte length and line breaks are preserved by
     // the mask, so the offset arithmetic below is unaffected.
-    let legacy_span = match symbol.language {
-        SourceLanguage::Rust => mask_rust_string_contents(&span),
-        _ => span.clone(),
-    };
+    let legacy_span = legacy_match_span(&span, symbol.language);
     for legacy in &model.trace_tags.legacy {
         if legacy.language.is_some_and(|l| l != symbol.language) {
             continue;
@@ -1893,5 +2112,102 @@ mod tests {
             assert_eq!(after.bound, 0, "{}: nothing binds", after.language);
         }
         assert!(blind.verifies.is_empty());
+    }
+}
+
+#[cfg(test)]
+mod mask_tests {
+    use super::*;
+
+    /// The masked span, for a language whose strings hide tag-shaped data.
+    fn masked(src: &str, language: SourceLanguage) -> String {
+        legacy_match_span(src, language)
+    }
+
+    #[test]
+    fn tc1055_a_legacy_form_inside_a_string_is_masked_in_every_language() {
+        // TC-1055
+        // `agent-ix/quire-rs#323`. The mask was gated on `SourceLanguage::Rust`
+        // and every other language fell through to the RAW span, so a Python or
+        // TypeScript test carrying tag-shaped text as DATA bound it. Measured on
+        // the corpus fixture pre-fix: `backed 2/3` with nothing unbacked —
+        // coverage nobody authored.
+        let python = masked(
+            "x = \"\"\"\n    Trace: TC-002\n\"\"\"\n",
+            SourceLanguage::Python,
+        );
+        assert!(
+            !python.contains("TC-002"),
+            "an assigned literal is data, not a tag: {python:?}"
+        );
+        let ts = masked(
+            "const x = `\n  Trace: TC-002\n`;\n",
+            SourceLanguage::Typescript,
+        );
+        assert!(
+            !ts.contains("TC-002"),
+            "a template literal is data, not a tag: {ts:?}"
+        );
+    }
+
+    #[test]
+    fn tc1056_each_language_keeps_its_own_declared_tag_channel() {
+        // TC-1056
+        // THE TWO EXEMPTIONS, AND WHY THEY ARE NOT AD HOC. A blanket mask is
+        // right for Rust — its legacy forms all read comments, and
+        // `rust-test-name-id` reads an identifier — and WRONG for the other two,
+        // each of which has a declared form that reads an id out of a string:
+        //
+        //   `python-docstring-id`      `^\s*(?:[rbfu]{1,2})?"""\s*(<id>)`
+        //   `typescript-test-name-id`  `^\s*(?:await\s+)?(?:it|test)…\(`
+        //
+        // Both were caught by the corpus, not by review: masking every string
+        // took four fixtures from bound to unbound and one from `backed 1` to
+        // `backed 0`.
+        let doc = masked(
+            "def test_x():\n    \"\"\"TC-001: the declared severity.\"\"\"\n    pass\n",
+            SourceLanguage::Python,
+        );
+        assert!(
+            doc.contains("TC-001"),
+            "a docstring is Python's comment: {doc:?}"
+        );
+        let title = masked(
+            "it(\"TC-001 binds\", () => {});\n",
+            SourceLanguage::Typescript,
+        );
+        assert!(
+            title.contains("TC-001"),
+            "a registration title is TypeScript's tag channel: {title:?}"
+        );
+        // And the exemptions are POSITIONAL, not "any string near a keyword":
+        // the same text assigned mid-line is masked in both languages.
+        let assigned = masked(
+            "    x = \"\"\"TC-001: not documentation.\"\"\"\n",
+            SourceLanguage::Python,
+        );
+        assert!(
+            !assigned.contains("TC-001"),
+            "opened mid-line, so it is a value: {assigned:?}"
+        );
+    }
+
+    #[test]
+    fn tc1057_comments_survive_and_offsets_do_not_shift() {
+        // TC-1057
+        // Comments are where legacy tags live, so masking them would suppress
+        // the very form being matched. And byte length is preserved, because
+        // the rewrite-suggestion pass matches against this span and reports
+        // POSITIONS into the original.
+        let src = "def test_x():\n    # Trace: TC-001\n    y = \"Trace: TC-002\"\n";
+        let out = masked(src, SourceLanguage::Python);
+        assert!(out.contains("TC-001"), "comment preserved: {out:?}");
+        assert!(!out.contains("TC-002"), "string masked: {out:?}");
+        assert_eq!(
+            out.len(),
+            src.len(),
+            "byte length must be preserved for the rewrite pass's offsets"
+        );
+        assert_eq!(out.lines().count(), src.lines().count());
     }
 }
