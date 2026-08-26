@@ -148,7 +148,7 @@ model; the engine knows nothing of "AC" or "TC" as concepts.
 | FR-050-AC-25 | A `source_exclude` list containing a pattern that does not compile never partially filters: module load rejects it with an error naming `source_exclude` as the key at fault, and an extraction invoked with globs that bypassed model validation applies **no** glob at all and surfaces a diagnostic naming the offending pattern (CR-088). | Test (TC-954, TC-945) |
 | FR-050-AC-26 | Every row-shaped coverage record — `unbacked_rows`, `status_lies`, `no_symbol_rows`, `undeclared_statuses` — carries the 1-based document line (frontmatter included, the numbering `validate` findings use) of the matrix row it came from, with two unbacked rows in one document reporting different lines; `untracked_symbols` carries the tagged symbol's declaration line. The contract's `line` keys are optional and omitted — never `null` — when unrecovered, so a payload from an engine predating them still conforms and a conformant reader of the prior schema is unbroken (CR-089). | Test (TC-955, TC-956, TC-957) |
 
-| FR-050-AC-27 | The coverage report carries the FR-051-AC-19 binding census as `binding_census`, **unconditionally** — present whenever the code walk found at least one evidence symbol, whether or not anything bound, so a reader can tell a healthy premise from a hollow one without waiting for a failure. A language with candidates and zero bound is additionally reported in `diagnostics` under `no-symbol-bound`; a language binding a smaller fraction of its candidates than the declared floor is reported under `low-symbol-binding` with both counts rather than a verdict. Both records name the language in `value`, declare `traceability.trace_tags`, and name every form that was consulted. A language at or above the floor is reported in the census and in no diagnostic. Neither record affects `totals`, and `--strict` does not gate on them (CR-093). | Test (TC-983, TC-984) |
+| FR-050-AC-27 | The coverage report carries the FR-051-AC-19 binding census as `binding_census`, **unconditionally** — present whenever the code walk found at least one evidence symbol, whether or not anything bound, so a reader can tell a healthy premise from a hollow one without waiting for a failure. A language with candidates and zero bound is additionally reported in `diagnostics` under `no-symbol-bound`; a language binding a smaller fraction of its candidates than MP-201's observation boundary is reported under `low-symbol-binding` with both counts and explicit uncertainty rather than a diagnosis. Both records name the language in `value`, declare `traceability.trace_tags`, and name every form that was consulted. A language at or above the boundary is reported in the census and in no diagnostic. Neither record affects `totals`, and `--strict` does not gate on them (CR-093, CR-135). | Test (TC-983, TC-984) |
 
 | FR-050-AC-28 | The criteria rollup carries the FR-052-AC-18 split: `totals.specific_shaped` alongside `criteria` and `property_shaped` as an all-or-nothing triple, a per-document `specific_shaped` count absent when zero, and a per-document `grounding` map giving, per shape label, how many of its records carry `domain` / `precondition` / `oracle` and how many carry all three. `coverage.specific_shaped` is emitted as its own FR-063 metric over the same denominator as `coverage.property_shaped`, so the two are comparable and the honest figure is findable by name (CR-095). | Test (TC-989) |
 | FR-050-AC-29 | A declarative corpus case is data: `{name, issue_ref, tags, input, expect}`, where `input` is a whole miniature repository (module manifest, spec documents, source files) and `expect` names only the facts the case is about. One parameterized test runs every case; each case is uniquely named, carries at least one tracking id, and carries an `issue_ref` naming the filing it regresses. Two runs of a case produce byte-identical reports. `expect` can assert diagnostics that must be **absent** as well as present. | Test (TC-992..TC-996) |
@@ -461,16 +461,23 @@ model; the engine knows nothing of "AC" or "TC" as concepts.
 > FR-050-AC-7 is untouched: the guarantee there is that repeated runs agree, and
 > they do.
 >
+> **CR-135 note (2026-08-26):** MP-201 now owns the 5% observation definition
+> (`coverage.binding-read-v1`). FND-201 found that the old message crossed from
+> observation into diagnosis by calling a marker-form mismatch the likeliest
+> explanation without comparative evidence. The engine retains the factual
+> boundary and both counts, but now says it cannot distinguish sparse tagging
+> from a marker-form mismatch and tells the reader what to inspect. The plan is
+> at `observe`; the boundary is neither a target nor a gate (`quire-rs#275`).
+>
 > **Two reasons, not one threshold.** `no-symbol-bound` is unambiguous — every
 > candidate walked, every declared pattern missed — and needs no judgement.
 > `low-symbol-binding` exists because at 3% a tail of genuinely untagged tests
 > and a near-miss pattern look identical from inside the engine, so it reports
-> both counts and names the forms rather than asserting which. The floor is
+> both counts and names the forms rather than asserting which. The observation boundary is
 > **5%**, and it is deliberately not a coverage target: an unbound candidate is
 > usually a real untagged test, and a repository mid-migration sits well under
-> any number worth calling healthy. It is the point below which the likeliest
-> explanation stops being "tests are untagged" and starts being "the binder
-> cannot read this convention" — a different finding with a different fix.
+> any number worth calling healthy. Below it, the two explanations require
+> inspection outside the engine.
 >
 > **Why the existing channel did not cover it.** `diagnostics` was already
 > populated and read — 33 records on that corpus, all

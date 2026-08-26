@@ -1486,16 +1486,10 @@ fn reconcile(
     (report, minting_census)
 }
 
-/// The fraction of a language's candidates that must bind before the census
-/// stops being a finding (FR-050-AC-27, CR-093).
-///
-/// Deliberately low. This is not a coverage target — an unbound candidate is
-/// usually a real untagged test, and a repository mid-migration will sit well
-/// under any number worth calling healthy. It is the floor below which the most
-/// likely explanation stops being "tests are untagged" and starts being "the
-/// binder cannot read this repository's convention", which is a different
-/// finding with a different fix.
-const BINDING_FLOOR: f64 = 0.05;
+/// Observation boundary declared by MP-201 (`coverage.binding-read-v1`).
+/// It selects an uncertainty-shaped diagnostic; it is not a coverage target
+/// and does not choose between sparse tagging and an unreadable convention.
+const LOW_BINDING_OBSERVATION_FLOOR: f64 = 0.05;
 
 /// Diagnostics for a language the binder examined and could not read
 /// (FR-050-AC-27, CR-093).
@@ -1674,17 +1668,20 @@ fn binding_diagnostics(census: &[BindingCensus]) -> Vec<CoverageDiagnostic> {
                         entry.candidates, entry.language
                     ),
                 )
-            } else if (entry.bound as f64) < (entry.candidates as f64) * BINDING_FLOOR {
+            } else if (entry.bound as f64)
+                < (entry.candidates as f64) * LOW_BINDING_OBSERVATION_FLOOR
+            {
                 (
                     "low-symbol-binding",
                     format!(
                         "{} of {} {} evidence symbols bound a trace id (forms: {forms}){at}; \
-                         below {}% the likeliest reading is a marker-form mismatch rather \
-                         than untagged tests",
+                         below {}% this observation cannot distinguish sparse tagging \
+                         from a marker-form mismatch; inspect the unbound examples and \
+                         declared forms",
                         entry.bound,
                         entry.candidates,
                         entry.language,
-                        (BINDING_FLOOR * 100.0) as usize
+                        (LOW_BINDING_OBSERVATION_FLOOR * 100.0) as usize
                     ),
                 )
             } else {

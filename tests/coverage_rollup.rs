@@ -1768,9 +1768,8 @@ fn tc983_a_language_that_binds_nothing_is_a_diagnostic() {
 }
 
 #[trace("TC-984", "FR-050-AC-27")]
-// below the binding floor the likeliest reading (CR-093)
-// is a marker-form mismatch rather than untagged tests, and the diagnostic
-// reports both counts rather than asserting which.
+// Below the observation boundary (MP-201), the engine reports both counts and
+// the ambiguity rather than diagnosing sparse tagging or a pattern mismatch.
 #[test]
 fn tc984_binding_below_the_floor_is_reported_with_both_counts() {
     let bundle = iso_bundle("984", &[("TC-001", "FR-001-AC-1", "✅")], &[]);
@@ -1790,6 +1789,13 @@ fn tc984_binding_below_the_floor_is_reported_with_both_counts() {
     assert!(
         finding.message.contains("1 of 21"),
         "both counts, so the reader judges rather than the engine: {}",
+        finding.message
+    );
+    assert!(
+        finding
+            .message
+            .contains("cannot distinguish sparse tagging"),
+        "the observation must retain uncertainty: {}",
         finding.message
     );
     assert!(

@@ -2,42 +2,49 @@
   "$comment": "The engine benchmark's pinned inputs (FR-050-AC-30, CR-099; agent-ix/quire-rs#231). Metric dictionary first, corpora second — a metric that does not declare unit/population/method is not one this benchmark emits (agent-ix/quoin FR-043-AC-1).",
   "metrics": {
     "coverage.backed_pct": {
+      "measurement_plan": "spec/assurance/MP-202-backed-trace.md",
       "unit": "percent of matrix rows",
       "population": "reference rows the declared model reconciles in the corpus entry",
       "method": "quire coverage --scope <entry>; backed / total. A partial read shows up as `matched` far below `examined` in the same payload (FR-063), which is why this is scored alongside binding_read_pct rather than alone",
       "direction": "higher-is-better"
     },
     "coverage.binding_read_pct": {
+      "measurement_plan": "spec/assurance/MP-201-binding-read.md",
       "unit": "percent of evidence symbols",
       "population": "evidence symbols the code walk examined",
       "method": "sum(binding_census.bound) / sum(binding_census.candidates). THE PREMISE metric: 0% here made `555/2389 (23%)` arithmetic over nothing, and no coverage figure means anything while it is low",
       "direction": "higher-is-better"
     },
     "coverage.dead_tags": {
+      "measurement_plan": "spec/assurance/MP-203-dead-tags.md",
       "unit": "trace tag",
       "population": "trace markers written in source across the corpus entry",
       "method": "count of untracked_symbols — a marker whose id no trace target ever minted. #72 measured 1,014 of these; the point of tracking it is that the number stops being silence",
       "direction": "lower-is-better"
     },
     "coverage.minting_repos": {
+      "measurement_plan": "spec/assurance/MP-204-minting-repositories.md",
       "unit": "repository",
       "population": "repositories walked in the corpus entry",
       "method": "repositories whose declared matrix paths carry a `## Test Case Summary` — the section the `test-case` target reads. #72 measured 153 of 237 minting ZERO; that zero becomes a tracked number rather than an absence nobody looks at",
       "direction": "higher-is-better"
     },
     "properties.specific_shaped_pct": {
+      "measurement_plan": "spec/assurance/MP-205-specific-properties.md",
       "unit": "percent of acceptance criteria",
       "population": "binding acceptance criteria in the corpus entry",
       "method": "totals.specific_shaped / totals.criteria — the honest half of the extractable headline (CR-095). Scored INSTEAD of the bare extractable figure, which reads as 54% where the specific figure is 8%",
       "direction": "higher-is-better"
     },
     "sentinel.silent_zero": {
+      "measurement_plan": "spec/assurance/MP-206-silent-zero.md",
       "unit": "metric",
       "population": "metrics emitted across every corpus entry",
       "method": "metrics with matched = 0 over a non-zero population and NO accompanying diagnostic. This is a GATE, not a score: expected exactly 0, no tolerance, no ratchet. It is the shape of the defect that made three published SpecReviews wrong",
       "direction": "gate-zero"
     },
     "skeptic.suspicion_rate": {
+      "measurement_plan": "spec/assurance/MP-207-skeptic-suspicion.md",
       "unit": "percent of evidence symbols",
       "population": "evidence symbols the code walk examined in the corpus entry",
       "method": "len(suspicions) / sum(binding_census.candidates). THE LANGUAGE-COVERAGE guard (CR-103): v0.44.0 shipped a vacuity detector whose Rust guard list read `=> {` as a match arm, which is an arrow function in TypeScript — 549 suspicions over 551 candidates on agent-ix/quoin, against 2 of 883 here. A rate near 100% is a rule misreading a language, not a corpus full of vacuous tests",
