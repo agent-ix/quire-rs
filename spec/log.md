@@ -7,6 +7,8 @@ description: "Chronological log of structural changes to this bundle."
 
 ## History
 
+* **2026-08-26** — **CR-142**: **the binding census separates unread authored tags from absent authoring** (`agent-ix/quire-rs#271`, TC-1060). `BindingCensus` adds `tagged` and `unmatched_example` under the enforced invariant `bound <= tagged <= candidates`; generic tag recognition is independent of the declared grammar and limited to the attached annotation block. `authoring.tag_rate` is emitted and governed by MP-208, with zero tags represented as a measured zero rather than a hollow denominator.
+
 * **2026-08-26** — **CR-141**: **`audit-static` globs, and two of `check_spec_structure.sh`'s missing gates ship** (`agent-ix/quire-rs#348`, `#347`, `#353` follow-on, Wave 4 `agent-ix/quire-rs#357`). No requirement changes; no engine code moves.
 
   **THE EIGHTH LINE FIXED ONE INSTANCE OF A RULE THAT HAD NONE.** `make audit-static`'s help has said *"Run all `scripts/audits/*.sh`"* since it was written, and the target ENUMERATED — CR-124 asserted the glob, #353 found there was none, and the fix was to add an eighth line by hand. In this same session `check_status_agreement.sh` was then silently skipped by exactly that mechanism. The list is now gone: a new audit runs because it EXISTS. An empty glob is a hard failure, because a loop over no scripts exits 0 and looks identical to every audit passing — the defect one level up from the one it replaces.

@@ -126,6 +126,11 @@ pub struct BindingCensus {
     /// candidate and never was, so counting it here would make every repository
     /// look half-unbound.
     pub candidates: usize,
+    /// Candidates whose annotation block carries an id-shaped token, whether
+    /// or not the declared grammar can read it. A bound candidate always
+    /// counts as tagged, including declared forms such as `tc_503` that are
+    /// intentionally outside the generic near-miss pattern.
+    pub tagged: usize,
     /// Candidates that minted at least one `verifies` relation.
     pub bound: usize,
     /// Every declared form consulted for this language, marker names first,
@@ -147,6 +152,11 @@ pub struct BindingCensus {
     /// a later engine learned to name one.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub unbound_example: Option<UnboundSymbol>,
+    /// One candidate that carries an id-shaped token but bound nothing.
+    /// This is the actionable split between an unread tag and a test that was
+    /// never tagged at all (agent-ix/quire-rs#271).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub unmatched_example: Option<UnboundSymbol>,
 }
 
 /// Where one unbound evidence symbol is (#256).
@@ -161,6 +171,61 @@ pub struct UnboundSymbol {
     /// Qualified name, so the reader can confirm they are looking at the same
     /// symbol after the file moves.
     pub symbol: String,
+}
+
+#[derive(Default)]
+struct CensusAccumulator {
+    candidates: usize,
+    tagged: usize,
+    bound: usize,
+    unbound_example: Option<UnboundSymbol>,
+    unmatched_example: Option<UnboundSymbol>,
+}
+
+impl CensusAccumulator {
+    fn keep_lowest(slot: &mut Option<UnboundSymbol>, candidate: UnboundSymbol) {
+        let better = match slot {
+            None => true,
+            Some(current) => (&candidate.path, candidate.line) < (&current.path, current.line),
+        };
+        if better {
+            *slot = Some(candidate);
+        }
+    }
+
+    fn observe(&mut self, bound: bool, generic_tag: Option<UnboundSymbol>, unbound: UnboundSymbol) {
+        self.candidates += 1;
+        if bound {
+            self.bound += 1;
+            self.tagged += 1;
+            return;
+        }
+
+        Self::keep_lowest(&mut self.unbound_example, unbound);
+        if let Some(example) = generic_tag {
+            self.tagged += 1;
+            Self::keep_lowest(&mut self.unmatched_example, example);
+        }
+    }
+
+    fn finish(self, language: &str, model: &TraceabilityModel) -> BindingCensus {
+        assert!(
+            self.bound <= self.tagged && self.tagged <= self.candidates,
+            "binding census invariant violated for {language}: bound {} <= tagged {} <= candidates {}",
+            self.bound,
+            self.tagged,
+            self.candidates
+        );
+        BindingCensus {
+            language: language.to_string(),
+            candidates: self.candidates,
+            tagged: self.tagged,
+            bound: self.bound,
+            forms: declared_forms(model, language),
+            unbound_example: self.unbound_example,
+            unmatched_example: self.unmatched_example,
+        }
+    }
 }
 
 /// The symbol graph the coverage rollup and knowledge-graph ingestion consume.
@@ -268,8 +333,7 @@ pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolG
     // FR-051-AC-19: what was looked at, per language, and what bound. Keyed by
     // the stable language label so the census order is a property of the data
     // rather than of the walk (NFR-006).
-    // candidates, bound, and the lowest-positioned unbound candidate (#256).
-    let mut census: BTreeMap<&'static str, (usize, usize, Option<UnboundSymbol>)> = BTreeMap::new();
+    let mut census: BTreeMap<&'static str, CensusAccumulator> = BTreeMap::new();
 
     for symbol in &extraction.symbols {
         graph.defined_in.push((
@@ -361,26 +425,15 @@ pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolG
         let before = graph.verifies.len();
         bind_symbol(symbol, source, model, &mut graph);
         let entry = census.entry(symbol.language.as_str()).or_default();
-        entry.0 += 1;
-        if graph.verifies.len() > before {
-            entry.1 += 1;
-        } else {
-            // Keep the LOWEST (path, line), not the first walked: the walk
-            // order is the scan's and a report that changes when a file is
-            // renamed is a report nobody can diff (NFR-006).
-            let candidate = UnboundSymbol {
+        entry.observe(
+            graph.verifies.len() > before,
+            generic_tag_locus(symbol, source),
+            UnboundSymbol {
                 path: symbol.path.clone(),
                 line: symbol.leading_line,
                 symbol: symbol.qualified_name.clone(),
-            };
-            let better = match &entry.2 {
-                None => true,
-                Some(current) => (&candidate.path, candidate.line) < (&current.path, current.line),
-            };
-            if better {
-                entry.2 = Some(candidate);
-            }
-        }
+            },
+        );
     }
 
     // TWO FILTERS, and both are load-bearing — the corpus controls prove it.
@@ -415,15 +468,7 @@ pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolG
     graph.suspicions = crate::skeptic::vacuous_property_suites(extraction);
     graph.binding_census = census
         .into_iter()
-        .map(
-            |(language, (candidates, bound, unbound_example))| BindingCensus {
-                language: language.to_string(),
-                candidates,
-                bound,
-                forms: declared_forms(model, language),
-                unbound_example,
-            },
-        )
+        .map(|(language, entry)| entry.finish(language, model))
         .collect();
 
     graph.implements.sort_by(|a, b| {
@@ -439,6 +484,33 @@ pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolG
         .diagnostics
         .sort_by(|a, b| (&a.path, &a.symbol, &a.trace_id).cmp(&(&b.path, &b.symbol, &b.trace_id)));
     graph
+}
+
+/// Find one generic id-shaped token in the symbol's attached annotation block.
+///
+/// This deliberately does not reuse the declared trace grammar: that would
+/// reproduce the blindness being measured. It also stops at the declaration
+/// line, so an id mentioned in a test body is data used by the test rather than
+/// evidence that the test itself was tagged.
+fn generic_tag_locus(symbol: &Symbol, source: &str) -> Option<UnboundSymbol> {
+    static GENERIC_ID: OnceLock<Regex> = OnceLock::new();
+    let pattern = GENERIC_ID.get_or_init(|| {
+        Regex::new(r"(?i)\b[A-Z]{2,4}-[0-9]+(?:-[A-Z]+-[0-9]+)?\b")
+            .expect("generic trace-id pattern compiles")
+    });
+    let start = symbol.leading_line.saturating_sub(1);
+    let count = symbol.line.saturating_sub(start).max(1);
+    source
+        .lines()
+        .enumerate()
+        .skip(start)
+        .take(count)
+        .find(|(_, line)| pattern.is_match(line))
+        .map(|(line, _)| UnboundSymbol {
+            path: symbol.path.clone(),
+            line: line + 1,
+            symbol: symbol.qualified_name.clone(),
+        })
 }
 
 /// Every declared form the binder consults for `language`, markers before
@@ -2056,7 +2128,11 @@ mod tests {
                 "{} candidates count evidence symbols",
                 entry.language
             );
-            assert!(entry.bound <= entry.candidates);
+            assert!(
+                entry.bound <= entry.tagged && entry.tagged <= entry.candidates,
+                "{} preserves bound <= tagged <= candidates",
+                entry.language
+            );
             assert!(
                 !entry.forms.is_empty(),
                 "{} names the forms that had a chance",

@@ -218,6 +218,7 @@
     {
       "language": "rust",
       "candidates": 2,
+      "tagged": 2,
       "bound": 2,
       "forms": [
         "rust-trace-attribute"
@@ -233,6 +234,17 @@
       "state": "measured",
       "value": 1,
       "population": 9,
+      "examined": 2,
+      "matched": 2
+    },
+    {
+      "name": "authoring.tag_rate",
+      "unit": "evidence symbol",
+      "method": "evidence symbols whose attached annotation block carries an id-shaped token, whether or not the declared trace grammar can read it; `value` counts tagged symbols, while `matched` counts candidates classified as tagged or untagged so an honest zero is not mistaken for an unread population",
+      "shape": "ratio",
+      "state": "measured",
+      "value": 2,
+      "population": 2,
       "examined": 2,
       "matched": 2
     },

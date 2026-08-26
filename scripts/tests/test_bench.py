@@ -111,6 +111,7 @@ def test_metrics_are_omitted_rather_than_zeroed_when_unreadable(capsys):
     out = metrics_from(payload)
     assert out["coverage.backed_pct"] == 50.0
     assert "coverage.binding_read_pct" not in out
+    assert "authoring.tag_rate" not in out
     assert "properties.specific_shaped_pct" not in out
     # …and it says why, rather than omitting silently.
     err = capsys.readouterr().err
@@ -121,12 +122,13 @@ def test_the_binding_rate_reads_the_census_when_it_is_there():
     payload = {
         "totals": {"backed": 5, "total": 10, "criteria": 4, "specific_shaped": 1},
         "binding_census": [
-            {"language": "rust", "candidates": 8, "bound": 6},
-            {"language": "python", "candidates": 2, "bound": 0},
+            {"language": "rust", "candidates": 8, "tagged": 7, "bound": 6},
+            {"language": "python", "candidates": 2, "tagged": 1, "bound": 0},
         ],
     }
     out = metrics_from(payload)
     assert out["coverage.binding_read_pct"] == pct(6, 10)
+    assert out["authoring.tag_rate"] == pct(8, 10)
     assert out["properties.specific_shaped_pct"] == 25.0
 
 

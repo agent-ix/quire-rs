@@ -510,6 +510,7 @@ pub struct ExpectGroup {
 pub struct ExpectCensus {
     pub language: String,
     pub candidates: Option<usize>,
+    pub tagged: Option<usize>,
     pub bound: Option<usize>,
     /// Where the census says one unbound candidate is, `path:line` (#256).
     ///
@@ -517,6 +518,8 @@ pub struct ExpectCensus {
     /// nothing else. The exact locus is asserted rather than its presence:
     /// "carries an example" is satisfied by an example pointing anywhere.
     pub unbound_example: Option<String>,
+    /// One authored id-shaped token the declared grammar did not bind.
+    pub unmatched_example: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Clone)]

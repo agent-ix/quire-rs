@@ -285,6 +285,7 @@
       "required": [
         "language",
         "candidates",
+        "tagged",
         "bound",
         "forms"
       ],
@@ -303,6 +304,11 @@
           "minimum": 0,
           "description": "Evidence symbols examined \u2014 those whose kind admits a trace tag (test function, benchmark, fuzz target). A container or a production function is never a candidate (CR-061), so this is not a count of all symbols."
         },
+        "tagged": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Candidates whose attached annotation block carries a generic id-shaped token, whether or not the declared grammar can read it. Bound candidates always count as tagged, preserving bound <= tagged <= candidates."
+        },
         "bound": {
           "type": "integer",
           "minimum": 0,
@@ -318,6 +324,10 @@
         "unbound_example": {
           "$ref": "#/$defs/UnboundSymbol",
           "description": "ABSENT when every candidate bound \u2014 which is also when no binding diagnostic fires \u2014 so a report over a fully-bound corpus keeps the shape an engine predating this field emitted (FR-050-AC-7). Additive under FR-055-CON-3."
+        },
+        "unmatched_example": {
+          "$ref": "#/$defs/UnboundSymbol",
+          "description": "One deterministic path and line whose evidence symbol carries an id-shaped token but minted no verifies relation. Absent when no authored tag was missed."
         }
       }
     },

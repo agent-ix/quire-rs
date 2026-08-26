@@ -1704,6 +1704,50 @@ fn census_for<'r>(report: &'r CoverageReport, language: &str) -> &'r BindingCens
         .unwrap_or_else(|| panic!("no {language} census in {:?}", report.binding_census))
 }
 
+#[trace("TC-1060", "FR-051-AC-19", "FR-063-AC-8")]
+#[test]
+fn tc1060_tagged_separates_authoring_absence_from_an_unread_tag() {
+    let bundle = iso_bundle("1060", &[("TC-001", "FR-001-AC-1", "✅")], &[]);
+
+    fs::write(
+        bundle.source.join("lib.rs"),
+        "#[cfg(test)]\nmod tests {\n    #[test]\n    fn untagged_one() {\n        let _fixture_data = \"TC-999\";\n    }\n\n    #[test]\n    fn untagged_two() {}\n}\n",
+    )
+    .expect("write untagged source");
+    let absent = report_for(&bundle, "iso").expect("model declared");
+    let census = census_for(&absent, "rust");
+    assert_eq!((census.bound, census.tagged, census.candidates), (0, 0, 2));
+    assert!(census.unmatched_example.is_none());
+    let metric = metric_for(&absent, "authoring.tag_rate");
+    assert_eq!(
+        metric.measurement,
+        Measurement::Measured {
+            value: 0,
+            population: 2,
+            examined: 2,
+            matched: 2,
+        },
+        "zero tags is an observed authoring state, not an unread denominator"
+    );
+    assert!(!metric.is_hollow());
+
+    rewrite_source(&bundle, 3, 0);
+    let unread = report_for(&bundle, "iso").expect("model declared");
+    let census = census_for(&unread, "rust");
+    assert_eq!((census.bound, census.tagged, census.candidates), (0, 3, 3));
+    let example = census
+        .unmatched_example
+        .as_ref()
+        .expect("an unread authored tag has a locus");
+    assert_eq!((example.path.as_str(), example.line), ("lib.rs", 5));
+
+    rewrite_source(&bundle, 3, 1);
+    let mixed = report_for(&bundle, "iso").expect("model declared");
+    let census = census_for(&mixed, "rust");
+    assert_eq!((census.bound, census.tagged, census.candidates), (1, 3, 3));
+    assert!(census.bound <= census.tagged && census.tagged <= census.candidates);
+}
+
 #[trace("TC-983", "FR-050-AC-27")]
 // a language whose evidence symbols all fail to (CR-093)
 // bind is reported as a diagnostic naming the counts and the declared forms,

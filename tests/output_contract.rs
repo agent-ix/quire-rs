@@ -223,12 +223,18 @@ fn tc856_payload_carrying_every_optional_key_conforms() {
         "binding_census": [{
             "language": "rust",
             "candidates": 2,
+            "tagged": 1,
             "bound": 1,
             "forms": ["rust-trace-attribute"],
             "unbound_example": {
                 "path": "src/lib.rs",
                 "line": 41,
                 "symbol": "tests::untagged"
+            },
+            "unmatched_example": {
+                "path": "src/lib.rs",
+                "line": 42,
+                "symbol": "tests::misspelled_tag"
             }
         }],
         "metrics": [

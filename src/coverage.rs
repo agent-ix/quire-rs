@@ -609,6 +609,7 @@ fn coverage_metrics(
     // Summed across languages, because the ratio is bundle-wide and a per
     // language split already exists in `binding_census`.
     let bound_symbols: usize = report.binding_census.iter().map(|c| c.bound).sum();
+    let tagged_symbols: usize = report.binding_census.iter().map(|c| c.tagged).sum();
     let walked_symbols: usize = report.binding_census.iter().map(|c| c.candidates).sum();
 
     let mut metrics = vec![Metric::measured(
@@ -624,6 +625,19 @@ fn coverage_metrics(
         walked_symbols,
         bound_symbols,
     )];
+
+    metrics.push(Metric::measured(
+        "authoring.tag_rate",
+        "evidence symbol",
+        "evidence symbols whose attached annotation block carries an id-shaped token, \
+         whether or not the declared trace grammar can read it; `value` counts tagged \
+         symbols, while `matched` counts candidates classified as tagged or untagged so \
+         an honest zero is not mistaken for an unread population",
+        tagged_symbols,
+        walked_symbols,
+        walked_symbols,
+        walked_symbols,
+    ));
 
     metrics.push(
         match (report.totals.property_shaped, report.totals.criteria) {

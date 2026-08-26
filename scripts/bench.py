@@ -274,6 +274,14 @@ def metrics_from(payload: dict) -> dict[str, Any]:
     else:
         skip("coverage.binding_read_pct", "no evidence symbols examined")
 
+    if census and any("tagged" not in row for row in census):
+        skip("authoring.tag_rate", "binding_census carries no tagged count "
+             "(engine predates agent-ix/quire-rs#271)")
+    elif candidates:
+        out["authoring.tag_rate"] = pct(sum(c["tagged"] for c in census), candidates)
+    else:
+        skip("authoring.tag_rate", "no evidence symbols examined")
+
     if specific is None:
         skip("properties.specific_shaped_pct", "totals carry no specific_shaped "
              "(engine predates FR-050-AC-28 — needs quire-rs >= v0.43.0)")

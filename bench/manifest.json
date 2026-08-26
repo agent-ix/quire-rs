@@ -1,6 +1,13 @@
 {
   "$comment": "The engine benchmark's pinned inputs (FR-050-AC-30, CR-099; agent-ix/quire-rs#231). Metric dictionary first, corpora second — a metric that does not declare unit/population/method is not one this benchmark emits (agent-ix/quoin FR-043-AC-1).",
   "metrics": {
+    "authoring.tag_rate": {
+      "measurement_plan": "spec/assurance/MP-208-authoring-tag-rate.md",
+      "unit": "percent of evidence symbols",
+      "population": "evidence symbols the code walk examined",
+      "method": "sum(binding_census.tagged) / sum(binding_census.candidates). Generic id-shaped tokens are counted independently of the declared grammar, so the metric separates authoring absence from unread authored tags",
+      "direction": "higher-is-better"
+    },
     "coverage.backed_pct": {
       "measurement_plan": "spec/assurance/MP-202-backed-trace.md",
       "unit": "percent of matrix rows",

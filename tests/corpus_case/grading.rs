@@ -219,6 +219,17 @@ pub fn grade_against(
                 );
             }
         }
+        if let Some(tagged) = want.tagged {
+            if got.tagged != tagged {
+                fail(
+                    Level::L1Detected,
+                    format!(
+                        "{} tagged: expected {tagged}, got {}",
+                        got.language, got.tagged
+                    ),
+                );
+            }
+        }
         // L2: the census names WHERE, and that is the level being claimed.
         if let Some(at) = &want.unbound_example {
             match &got.unbound_example {
@@ -233,6 +244,26 @@ pub fn grade_against(
                             Level::L2Localised,
                             format!(
                                 "{} unbound example: expected {at}, got {actual}",
+                                got.language
+                            ),
+                        );
+                    }
+                }
+            }
+        }
+        if let Some(at) = &want.unmatched_example {
+            match &got.unmatched_example {
+                None => fail(
+                    Level::L2Localised,
+                    format!("{} census carries no unmatched example", got.language),
+                ),
+                Some(example) => {
+                    let actual = format!("{}:{}", example.path, example.line);
+                    if actual != *at {
+                        fail(
+                            Level::L2Localised,
+                            format!(
+                                "{} unmatched example: expected {at}, got {actual}",
                                 got.language
                             ),
                         );
