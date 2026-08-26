@@ -1108,8 +1108,12 @@ fn tc1025_the_loader_refuses_a_block_that_asserts_the_wrong_thing() {
             c.meta.pending.is_none()
                 && c.meta.kind == "failure"
                 && c.dir.join("expect.yaml").is_file()
+                && !c
+                    .dir
+                    .parent()
+                    .is_some_and(|parent| parent.join("case.yaml").is_file())
         })
-        .expect("a non-pending failure case to make pending");
+        .expect("a flat non-pending failure case to make pending");
     let token_ticket = synth_ticket.to_string();
     let token_dir = token_case
         .dir
@@ -1117,21 +1121,7 @@ fn tc1025_the_loader_refuses_a_block_that_asserts_the_wrong_thing() {
         .expect("under the corpus root")
         .to_string_lossy()
         .into_owned();
-    // The case's own `case.yaml` — a language set keeps its `pending:` in the
-    // shared file one level up, which is where the loader reads it from.
-    let token_case_yaml = if token_case.dir.join("case.yaml").is_file() {
-        format!("{token_dir}/case.yaml")
-    } else {
-        let parent = token_case
-            .dir
-            .parent()
-            .expect("a variant has a parent")
-            .strip_prefix(corpus_case::corpus_root())
-            .expect("under the corpus root")
-            .to_string_lossy()
-            .into_owned();
-        format!("{parent}/case.yaml")
-    };
+    let token_case_yaml = format!("{token_dir}/case.yaml");
 
     // A behaviour-change case, and its OWN live block — so "identical to its
     // live block" stays identical when that block is re-measured.
@@ -1151,10 +1141,14 @@ fn tc1025_the_loader_refuses_a_block_that_asserts_the_wrong_thing() {
             c.meta.pending.is_none()
                 && c.meta.kind == "failure"
                 && c.meta.id != token_case.meta.id
+                && !c
+                    .dir
+                    .parent()
+                    .is_some_and(|parent| parent.join("case.yaml").is_file())
                 && std::fs::read_to_string(c.dir.join("expect.yaml"))
                     .is_ok_and(|t| t.contains("\nbacked: "))
         })
-        .expect("a second non-pending failure case whose live block asserts `backed`");
+        .expect("a second flat non-pending failure case whose live block asserts `backed`");
     let change_dir = change_case
         .dir
         .strip_prefix(corpus_case::corpus_root())
@@ -1163,19 +1157,7 @@ fn tc1025_the_loader_refuses_a_block_that_asserts_the_wrong_thing() {
         .into_owned();
     let change_live = std::fs::read_to_string(change_case.dir.join("expect.yaml"))
         .expect("read the behaviour-change case's live block");
-    let change_case_yaml = if change_case.dir.join("case.yaml").is_file() {
-        format!("{change_dir}/case.yaml")
-    } else {
-        let parent = change_case
-            .dir
-            .parent()
-            .expect("a variant has a parent")
-            .strip_prefix(corpus_case::corpus_root())
-            .expect("under the corpus root")
-            .to_string_lossy()
-            .into_owned();
-        format!("{parent}/case.yaml")
-    };
+    let change_case_yaml = format!("{change_dir}/case.yaml");
     // A CORRECT behaviour-change forward block: the same keys the live block
     // asserts, with one value moved. Identical would be rejected — "landing
     // would change nothing it can see" — which is mutation 6 below.
