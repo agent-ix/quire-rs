@@ -418,16 +418,21 @@ fn tc1021_the_vocabularies_come_from_the_corpus_not_from_this_file() {
             case.meta.id,
             case.meta.tags,
         );
-        // The declared language is one the walker knows, and it agrees with
-        // what the case's own census expects. A case labelled `python` whose
-        // expectation names the `rust` census is a bounds-matrix entry filed
-        // under a column it does not measure.
+        // Source fixtures name a walker language. Declaration-only fixtures
+        // use `n/a` and cannot make symbol-census claims.
         assert!(
-            ["rust", "python", "typescript"].contains(&case.meta.language.as_str()),
-            "{}: language `{}` is not one the symbol walker reads",
+            ["rust", "python", "typescript", "n/a"].contains(&case.meta.language.as_str()),
+            "{}: language `{}` is not a corpus language",
             case.meta.id,
             case.meta.language,
         );
+        if case.meta.language == "n/a" {
+            assert!(
+                case.expect.binding_census.is_empty(),
+                "{}: a language-neutral case cannot assert a symbol census",
+                case.meta.id,
+            );
+        }
         for census in &case.expect.binding_census {
             assert_eq!(
                 census.language, case.meta.language,
@@ -1400,6 +1405,8 @@ fn copy_tree(from: &std::path::Path, to: &std::path::Path) {
 // `emitted` names only what the engine emits.
 #[trace("TC-1026", "FR-065-AC-35")]
 // `forward` names only what it does not.
+#[trace("TC-1026", "FR-065-AC-48")]
+// Every emitted reason is exercised in both failure and healthy input.
 #[test]
 fn tc1026_the_declared_vocabulary_matches_the_engine() {
     let declaration: serde_yaml::Value = serde_yaml::from_str(
@@ -1434,6 +1441,44 @@ fn tc1026_the_declared_vocabulary_matches_the_engine() {
         .map(String::as_str)
         .collect();
     assert_eq!(payload_registry, emitted);
+
+    let mut asserted_present = BTreeSet::new();
+    let mut asserted_absent = BTreeSet::new();
+    for case in &cases {
+        asserted_present.extend(
+            case.expect
+                .diagnostic_reasons
+                .iter()
+                .map(|reason| reason.rsplit('/').next().expect("a reason")),
+        );
+        asserted_present.extend(
+            case.expect
+                .diagnostic_paths
+                .keys()
+                .map(|reason| reason.rsplit('/').next().expect("a reason")),
+        );
+        asserted_present.extend(
+            case.expect
+                .diagnostic_message_contains
+                .keys()
+                .map(|reason| reason.rsplit('/').next().expect("a reason")),
+        );
+        asserted_absent.extend(
+            case.expect
+                .absent_diagnostic_reasons
+                .iter()
+                .map(|reason| reason.rsplit('/').next().expect("a reason")),
+        );
+    }
+    let emitted_set: BTreeSet<&str> = emitted.iter().copied().collect();
+    let missing_present: Vec<&str> = emitted_set.difference(&asserted_present).copied().collect();
+    let missing_absent: Vec<&str> = emitted_set.difference(&asserted_absent).copied().collect();
+    assert!(
+        missing_present.is_empty() && missing_absent.is_empty(),
+        "every emitted diagnostic needs a failure assertion and a healthy-input \
+         absence assertion; missing present {missing_present:?}; missing absent \
+         {missing_absent:?}",
+    );
 
     let suppressed: Vec<(&str, &str)> = vocabulary
         .get("suppressed")

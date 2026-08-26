@@ -651,6 +651,7 @@ against neither; it now renders `Level::ALL` and compares that.
 | FR-065-AC-45 | A relaxation variant credits no cell and reads `GAP` naming its ticket; a declaration-under-test variant credits no ecosystem cell and reads `out-of-scope` with its authored reason. | Test (TC-1032) |
 | FR-065-AC-46 | A failure case whose `expect.yaml`, restricted to the `witness_channels` its mode declares, holds against its control's payload is rejected **by every reader** — as is one naming no witness channel at all. | Test (TC-1028; `qa-corpus` `scripts/parity_selftest.py`) |
 | FR-065-AC-47 | A `witness_channels` entry naming a channel a reader cannot restrict on is rejected **by every reader**, rather than dropped; so is one that is not a list, and a declared `mode_family` with no entry at all. | Test (TC-1028; `qa-corpus` `verify.py check_witness_channels`) |
+| FR-065-AC-48 | Every emitted diagnostic reason has at least one live expectation requiring it and at least one healthy-input expectation requiring its absence, enforced by both corpus readers. | Test (TC-1026; `qa-corpus` `bounds.py`) |
 
 ## Dependencies
 
