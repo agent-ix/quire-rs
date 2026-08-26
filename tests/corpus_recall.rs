@@ -169,6 +169,10 @@ fn claimed_levels(case: &Case) -> [bool; 3] {
             .any(|item| !item.message_contains.is_empty());
     let l2 = !expect.diagnostic_paths.is_empty()
         || expect
+            .untracked_symbols
+            .as_ref()
+            .is_some_and(|symbols| !symbols.is_empty())
+        || expect
             .binding_census
             .iter()
             .any(|item| item.unbound_example.is_some() || item.unmatched_example.is_some())
