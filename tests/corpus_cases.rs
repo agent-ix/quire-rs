@@ -294,6 +294,29 @@ fn corpus_cases_are_deterministic() {
     }
 }
 
+/// Characterize the public behavior that the #360 harness decomposition must
+/// preserve: one representative case produces identical JSON on repeated
+/// execution and its successful grade renders the same actionable summary.
+#[trace("TC-1058", "FR-050-AC-7")]
+#[test]
+fn tc1058_corpus_execution_grading_and_rendering_are_stable() {
+    let case = load_cases()
+        .into_iter()
+        .find(|case| case.meta.id == "clean-control")
+        .expect("clean-control corpus case");
+
+    let first = run(&case);
+    let second = run(&case);
+    assert_eq!(first.to_json(), second.to_json());
+
+    let outcome = grade(&case, &first);
+    assert!(outcome.passed());
+    assert_eq!(
+        outcome.report(),
+        "clean-control (agent-ix/quoin#227) — reached L3 actionable, LOST nothing\n"
+    );
+}
+
 /// The vocabularies are read from `corpus.yaml`, not compiled in here.
 ///
 /// This is what makes FR-065's single-definition claim checkable from ONE

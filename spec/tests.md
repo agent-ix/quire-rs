@@ -725,6 +725,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-1055 | A legacy textual form inside a string literal is masked in EVERY language, not Rust alone: a trace id a file carries as DATA is not a tag, and binding it invents coverage nobody authored — measured on the corpus fixture pre-fix at `backed 2/3` with nothing unbacked (#323) | Unit | P0 | FR-051-AC-24 | ✅ |
 | TC-1056 | Each language keeps its own declared tag channel: a Python DOCSTRING and a TypeScript registration TITLE survive the mask, because `python-docstring-id` and `typescript-test-name-id` read an id out of a string by design — and both exemptions are POSITIONAL, so the same text assigned mid-line is masked. Rust needs no exemption; its `rust-test-name-id` reads an identifier (#323) | Unit | P0 | FR-051-AC-24 | ✅ |
 | TC-1057 | Comments survive the mask — that is where legacy tags live — and byte length and line count are preserved, because the rewrite-suggestion pass matches this span and reports positions into the original (#323) | Unit | P0 | FR-051-AC-24 | ✅ |
+| TC-1058 | The corpus harness runs the representative `clean-control` case twice to byte-identical coverage JSON, grades it successfully, and renders the exact L3 outcome text; this characterizes the execution/grading/rendering boundary before #360 moves it into separate modules | Integration | P0 | FR-050-AC-7 | ✅ |
 | TC-1052 | The symbol table reports the QUALIFIED NAME the engine built, with its container — the field three ports of `symbols/python.rs` disagreed on, giving 386, 490 and 5,263 lost declarations over one tree. A defect in the scanner cannot be sized by a reimplementation of the scanner (#309) | Unit | P0 | FR-051-AC-23 | ✅ |
 | TC-1053 | Each record carries whether its KIND can bind a trace id and whether it can carry `implements`, and the two are complements for every symbol — the first thing to check when a row will not bind, previously only inferable from a coverage rollup two layers away (#309, #312, CR-061) | Unit | P0 | FR-051-AC-23 | ✅ |
 | TC-1054 | With no module the report says binding was NOT ASKED rather than reporting zero: an unbound run and a repository nobody tagged produce the same empty `trace_ids`, and the per-language census keeps `binding_kinds` separate from `bound` so a rate is never drawn over the wrong denominator (#309) | Unit | P0 | FR-051-AC-23 | ✅ |
@@ -1423,7 +1424,7 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-050-AC-4 | TC-735 |
 | FR-050-AC-5 | TC-736 |
 | FR-050-AC-6 | TC-737 |
-| FR-050-AC-7 | TC-738 |
+| FR-050-AC-7 | TC-738, TC-824, TC-1058 |
 | FR-050-AC-8 | TC-739 |
 | FR-050-AC-9 | TC-740 |
 | FR-050-AC-10 | TC-758 |
