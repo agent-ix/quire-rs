@@ -1,0 +1,263 @@
+//! Diagnostics derived from trace binding rather than declaration scanning.
+
+use std::collections::{BTreeMap, BTreeSet};
+
+use crate::symbols::trace::{BindingCensus, NonBindingTag};
+
+use super::{CoverageDiagnostic, UnbackedRow, UntrackedSymbol};
+
+/// Observation boundary declared by MP-201 (`coverage.binding-read-v1`).
+/// It selects an uncertainty-shaped diagnostic; it is not a coverage target
+/// and does not choose between sparse tagging and an unreadable convention.
+const LOW_BINDING_OBSERVATION_FLOOR: f64 = 0.05;
+
+/// A trace id normalised so two spellings of one id compare equal (#307).
+///
+/// Upper-cased, separators dropped, and each run of digits stripped of leading
+/// zeros. `TC-1`, `TC-001`, `tc_001` and `tc001` all become `TC1` (CR-136).
+fn normalized_id(id: &str) -> String {
+    let mut out = String::with_capacity(id.len());
+    let mut digits = String::new();
+    let flush = |digits: &mut String, out: &mut String| {
+        let trimmed = digits.trim_start_matches('0');
+        out.push_str(if trimmed.is_empty() && !digits.is_empty() {
+            "0"
+        } else {
+            trimmed
+        });
+        digits.clear();
+    };
+    for ch in id.chars() {
+        if ch.is_ascii_digit() {
+            digits.push(ch);
+        } else {
+            flush(&mut digits, &mut out);
+            if ch.is_alphanumeric() {
+                out.extend(ch.to_uppercase());
+            }
+        }
+    }
+    flush(&mut digits, &mut out);
+    out
+}
+
+/// Diagnostics for an id that binds to nothing and a row backed by nothing,
+/// one spelling apart, both already in the payload (#307).
+///
+/// Emit once per pair and name both spellings and loci; an exact match belongs
+/// to a different defect class (FR-050-AC-37, CR-136).
+pub(super) fn near_miss_diagnostics(
+    untracked: &[UntrackedSymbol],
+    unbacked: &[UnbackedRow],
+) -> Vec<CoverageDiagnostic> {
+    // Every unbacked target id, by normalised key, with the document it sits in.
+    let mut rows: BTreeMap<String, (&str, &str)> = BTreeMap::new();
+    for row in unbacked {
+        for id in &row.target_ids {
+            rows.entry(normalized_id(id))
+                .or_insert((id.as_str(), row.document.as_str()));
+        }
+    }
+    let mut out = Vec::new();
+    let mut seen: BTreeSet<(String, String)> = BTreeSet::new();
+    for symbol in untracked {
+        let key = normalized_id(&symbol.trace_id);
+        let Some((row_id, document)) = rows.get(&key) else {
+            continue;
+        };
+        // An EXACT match is not a near miss. It is a different defect — the id
+        // bound and the row still went unbacked — and reporting it here would
+        // name two identical strings and call them a discrepancy.
+        if *row_id == symbol.trace_id {
+            continue;
+        }
+        if !seen.insert((symbol.trace_id.clone(), (*row_id).to_string())) {
+            continue;
+        }
+        out.push(CoverageDiagnostic {
+            declaration: "traceability.trace_tags".to_string(),
+            reason: "untracked-id-near-miss".to_string(),
+            message: format!(
+                "`{}` is written on `{}` at {} and matches no minted row, while `{}` in {} is \
+                 reported unbacked — the two differ only in zero-padding, case or separator, \
+                 so they are the same id written twice. Both halves were already in this \
+                 payload and nothing joined them; the census reads healthy because the tag \
+                 bound fine, to the wrong id",
+                symbol.trace_id, symbol.symbol, symbol.path, row_id, document
+            ),
+            path: Some(symbol.path.clone()),
+            line: symbol.line,
+            value: Some(symbol.trace_id.clone()),
+        });
+    }
+    out
+}
+
+/// Diagnostics for a trace tag written where it cannot bind (#312).
+///
+/// Report the exact tag and symbol kind without changing binding or census
+/// semantics: production symbols are not evidence (FR-051-AC-22, CR-061).
+pub(super) fn non_binding_tag_diagnostics(tags: &[NonBindingTag]) -> Vec<CoverageDiagnostic> {
+    tags.iter()
+        .map(|tag| CoverageDiagnostic {
+            declaration: "traceability.trace_tags".to_string(),
+            reason: "tag-on-non-binding-symbol".to_string(),
+            message: format!(
+                "trace id `{}` is written on `{}` at {}:{}, a {} — a kind that does not bind \
+                 trace ids (CR-061), so the tag reached no channel and the row it names is \
+                 reported unbacked, indistinguishable from a test nobody wrote. The form `{}` \
+                 matched, so this is an authored tag rather than prose. A production symbol \
+                 records what it is about with `Implements:`; a trace id binds on an evidence \
+                 symbol — a test, a benchmark or a fuzz target",
+                tag.trace_id, tag.symbol, tag.path, tag.line, tag.kind, tag.form
+            ),
+            path: Some(tag.path.clone()),
+            line: Some(tag.line),
+            value: Some(tag.trace_id.clone()),
+        })
+        .collect()
+}
+
+pub(super) fn binding_diagnostics(census: &[BindingCensus]) -> Vec<CoverageDiagnostic> {
+    census
+        .iter()
+        .filter(|entry| entry.candidates > 0)
+        .filter_map(|entry| {
+            let forms = if entry.forms.is_empty() {
+                "none declared".to_string()
+            } else {
+                entry.forms.join(", ")
+            };
+            // One unbound symbol, named. A census is a count and a count
+            // cannot be opened: this diagnostic named the LANGUAGE and nothing
+            // else, so a reader holding 1,292 unbound Rust symbols was told to
+            // search Rust (#256). `at` is the sentence a reader can act on;
+            // `path` is the same fact as a field, so `path:line` output and the
+            // benchmark's positional scoring both work.
+            let at = entry.unbound_example.as_ref().map(|e| {
+                format!(
+                    " — for example `{}` at {}:{}, whose annotation carries no \
+                     matching form",
+                    e.symbol, e.path, e.line
+                )
+            });
+            let at = at.unwrap_or_default();
+            let (reason, message) = if entry.bound == 0 {
+                (
+                    "no-symbol-bound",
+                    format!(
+                        "{} {} evidence symbols were examined and none carried a tag any \
+                         declared form matched (forms: {forms}){at}; every row those symbols \
+                         verify is reported unbacked, which is indistinguishable from a \
+                         missing test",
+                        entry.candidates, entry.language
+                    ),
+                )
+            } else if (entry.bound as f64)
+                < (entry.candidates as f64) * LOW_BINDING_OBSERVATION_FLOOR
+            {
+                (
+                    "low-symbol-binding",
+                    format!(
+                        "{} of {} {} evidence symbols bound a trace id (forms: {forms}){at}; \
+                         below {}% this observation cannot distinguish sparse tagging \
+                         from a marker-form mismatch; inspect the unbound examples and \
+                         declared forms",
+                        entry.bound,
+                        entry.candidates,
+                        entry.language,
+                        (LOW_BINDING_OBSERVATION_FLOOR * 100.0) as usize
+                    ),
+                )
+            } else {
+                return None;
+            };
+            Some(CoverageDiagnostic {
+                declaration: "traceability.trace_tags".to_string(),
+                reason: reason.to_string(),
+                message,
+                path: entry.unbound_example.as_ref().map(|e| e.path.clone()),
+                line: entry.unbound_example.as_ref().map(|e| e.line),
+                value: Some(entry.language.clone()),
+            })
+        })
+        .collect()
+}
+
+#[cfg(test)]
+mod cr136_near_miss {
+    use ix_trace_rs::trace;
+
+    use super::{near_miss_diagnostics, normalized_id, UnbackedRow, UntrackedSymbol};
+
+    fn symbol(trace_id: &str) -> UntrackedSymbol {
+        UntrackedSymbol {
+            path: "src/lib.rs".to_string(),
+            symbol: "tests::tc_1_every_finding_defaults_to_warning".to_string(),
+            trace_id: trace_id.to_string(),
+            line: Some(5),
+        }
+    }
+
+    fn row(target: &str) -> UnbackedRow {
+        UnbackedRow {
+            reference: "test-case".to_string(),
+            document: "spec/tests.md".to_string(),
+            row_id: Some(target.to_string()),
+            target_ids: vec![target.to_string()],
+            line: None,
+        }
+    }
+
+    #[trace("TC-1050", "FR-050-AC-37")]
+    // zero-padding, case and separator are one class, and
+    // the normalisation collapses all three onto one key.
+    #[test]
+    fn tc1050_one_id_written_four_ways_normalises_to_one_key() {
+        let key = normalized_id("TC-001");
+        for spelling in ["TC-1", "tc_001", "tc001", "Tc-0001", "TC-1"] {
+            assert_eq!(
+                normalized_id(spelling),
+                key,
+                "`{spelling}` is `TC-001` written differently"
+            );
+        }
+        // And ids that genuinely differ do NOT collide, or the join would
+        // manufacture pairs out of unrelated rows.
+        assert_ne!(normalized_id("TC-001"), normalized_id("TC-010"));
+        assert_ne!(normalized_id("TC-001"), normalized_id("FR-001"));
+        // A run of zeros is a zero, not an empty string — otherwise `TC-000`
+        // and `TC-` would be the same id.
+        assert_ne!(normalized_id("TC-000"), normalized_id("TC-"));
+    }
+
+    #[trace("TC-1051", "FR-050-AC-37")]
+    // a near miss is reported naming BOTH spellings, and an
+    // EXACT match is not reported at all.
+    #[test]
+    fn tc1051_a_near_miss_is_reported_and_an_exact_match_is_not() {
+        // The defect: `fn tc_1_…` mints `TC-1` while the row declares `TC-001`.
+        // Both halves are in the payload and nothing joined them.
+        let out = near_miss_diagnostics(&[symbol("TC-1")], &[row("TC-001")]);
+        assert_eq!(out.len(), 1, "one pair, one diagnostic: {out:?}");
+        assert_eq!(out[0].reason, "untracked-id-near-miss");
+        // BOTH strings. "An id did not match" is useless here — the whole
+        // defect is that the two look identical until you count zeros, so a
+        // message naming one of them sends its reader to the wrong file.
+        assert!(out[0].message.contains("TC-1"), "{}", out[0].message);
+        assert!(out[0].message.contains("TC-001"), "{}", out[0].message);
+        assert_eq!(out[0].path.as_deref(), Some("src/lib.rs"));
+
+        // AN EXACT MATCH IS A DIFFERENT DEFECT. The id bound and the row still
+        // went unbacked; reporting it here would print two identical strings
+        // and call them a discrepancy.
+        assert!(
+            near_miss_diagnostics(&[symbol("TC-001")], &[row("TC-001")]).is_empty(),
+            "an id that matches its row exactly is not a near miss"
+        );
+
+        // And an id matching no row at all is left alone — that is
+        // `untracked_symbols` doing its job, not a near miss.
+        assert!(near_miss_diagnostics(&[symbol("TC-1")], &[row("FR-002")]).is_empty());
+    }
+}
