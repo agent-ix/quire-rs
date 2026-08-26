@@ -466,6 +466,12 @@ pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolG
         .dedup_by(|a, b| (&a.path, &a.trace_id) == (&b.path, &b.trace_id));
 
     graph.suspicions = crate::skeptic::vacuous_property_suites(extraction);
+    graph
+        .suspicions
+        .extend(crate::skeptic::oracle_copies_in(extraction));
+    graph
+        .suspicions
+        .sort_by(|a, b| (&a.path, a.line, &a.symbol).cmp(&(&b.path, b.line, &b.symbol)));
     graph.binding_census = census
         .into_iter()
         .map(|(language, entry)| entry.finish(language, model))
@@ -748,7 +754,11 @@ fn prev_is_ident(chars: &[char], i: usize) -> bool {
 /// Applied to the LEGACY textual forms only, exactly as the Rust mask is:
 /// canonical markers put their ids inside string literals by design, so masking
 /// before matching them would suppress the form the grammar prefers.
-fn mask_script_string_contents(span: &str, language: SourceLanguage) -> String {
+fn mask_script_string_contents(
+    span: &str,
+    language: SourceLanguage,
+    preserve_tag_channels: bool,
+) -> String {
     let python = matches!(language, SourceLanguage::Python);
     let mut out = String::with_capacity(span.len());
     // The delimiter that opened the string we are inside, if any. A triple
@@ -863,7 +873,7 @@ fn mask_script_string_contents(span: &str, language: SourceLanguage) -> String {
                 // alone. A triple-quoted literal opened mid-line — `x = """`
                 // — is an assigned value, not documentation, and is masked like
                 // any other string.
-                if opens_line {
+                if preserve_tag_channels && opens_line {
                     doc_string = true;
                 }
                 open = Some(delim);
@@ -890,7 +900,7 @@ fn mask_script_string_contents(span: &str, language: SourceLanguage) -> String {
                 // The test is the declared pattern's OWN anchor: `^\s*(await
                 // )?(it|test|describe|suite)`. A string opened anywhere else on
                 // the line is an ordinary value and is masked.
-                if !python && opens_registration(&chars[..i]) {
+                if preserve_tag_channels && !python && opens_registration(&chars[..i]) {
                     doc_string = true;
                 }
                 open = Some(vec![c]);
@@ -943,7 +953,20 @@ fn legacy_match_span(span: &str, language: SourceLanguage) -> String {
     match language {
         SourceLanguage::Rust => mask_rust_string_contents(span),
         SourceLanguage::Typescript | SourceLanguage::Python => {
-            mask_script_string_contents(span, language)
+            mask_script_string_contents(span, language, true)
+        }
+    }
+}
+
+/// Blank every string's contents for a static check that reads code rather
+/// than a declared tag channel. Unlike [`legacy_match_span`], this preserves
+/// neither Python docstrings nor TypeScript registration titles: those are
+/// strings with special meaning to the tag grammar, not executable code.
+pub(crate) fn mask_source_string_contents(span: &str, language: SourceLanguage) -> String {
+    match language {
+        SourceLanguage::Rust => mask_rust_string_contents(span),
+        SourceLanguage::Typescript | SourceLanguage::Python => {
+            mask_script_string_contents(span, language, false)
         }
     }
 }

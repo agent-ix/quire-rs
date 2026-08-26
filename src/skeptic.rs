@@ -22,9 +22,12 @@
 //! one: these fire on *test* code, and a check that can fail somebody's build
 //! over a heuristic about their assertions will be turned off within a week.
 
+use std::sync::OnceLock;
+
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 
-use crate::symbols::{Symbol, SymbolExtraction};
+use crate::symbols::{Symbol, SymbolExtraction, SymbolKind};
 use crate::traceability::SourceLanguage;
 
 /// What kind of doubt this is.
@@ -293,6 +296,242 @@ pub fn oracle_copies(pairs: &[(OracleUnderTest, &str)]) -> Vec<Suspicion> {
     }
     out.sort_by(|a, b| (&a.path, a.line, &a.symbol).cmp(&(&b.path, b.line, &b.symbol)));
     out
+}
+
+/// Find copied test oracles in the extracted source tree (FR-064-AC-6).
+///
+/// This is intentionally a narrow, static join rather than a guess about every
+/// expression in a test. A candidate must have all three parts:
+///
+/// - an explicit binding named `expected` or `oracle`;
+/// - an assertion comparing a direct production-function call with that
+///   binding; and
+/// - a uniquely resolved production function with a directly extractable
+///   return (or Rust tail) expression.
+///
+/// Those constraints make the two compared fragments expression-to-expression,
+/// which is the population the similarity floor was measured on. Ambiguous or
+/// compound shapes stand down instead of manufacturing a plausible pair.
+pub fn oracle_copies_in(extraction: &SymbolExtraction) -> Vec<Suspicion> {
+    let mut out = Vec::new();
+    for test in &extraction.symbols {
+        if !test.kind.binds_trace_ids() {
+            continue;
+        }
+        let Some(source) = extraction.source_of(&test.path) else {
+            continue;
+        };
+        let span = test.attached_source(source);
+        let masked = crate::symbols::trace::mask_source_string_contents(&span, test.language);
+        let code = strip_source_comments(&masked, test.language);
+        let Some(candidate) = oracle_candidate(&code, test.language) else {
+            continue;
+        };
+        let implementations: Vec<(&Symbol, String)> = extraction
+            .symbols
+            .iter()
+            .filter(|symbol| {
+                symbol.language == test.language
+                    && symbol.kind == SymbolKind::Function
+                    && simple_name(&symbol.qualified_name) == candidate.function
+            })
+            .filter_map(|symbol| {
+                let source = extraction.source_of(&symbol.path)?;
+                let span = symbol.attached_source(source);
+                let masked =
+                    crate::symbols::trace::mask_source_string_contents(&span, symbol.language);
+                let code = strip_source_comments(&masked, symbol.language);
+                implementation_expression(&code, symbol.language)
+                    .map(|expression| (symbol, expression))
+            })
+            .collect();
+
+        // A textual call name is not enough to disambiguate overloads or two
+        // modules exporting the same function. Prefer the same file, but stand
+        // down unless that produces exactly one subject.
+        let same_file: Vec<_> = implementations
+            .iter()
+            .filter(|(symbol, _)| symbol.path == test.path)
+            .collect();
+        let resolved = if same_file.len() == 1 {
+            Some((same_file[0].0, same_file[0].1.clone()))
+        } else if same_file.is_empty() && implementations.len() == 1 {
+            Some((implementations[0].0, implementations[0].1.clone()))
+        } else {
+            None
+        };
+        let Some((implementation, expression)) = resolved else {
+            continue;
+        };
+
+        let score = token_similarity(&candidate.expression, &expression);
+        if score < ORACLE_SIMILARITY_FLOOR {
+            continue;
+        }
+        out.push(Suspicion {
+            kind: SuspicionKind::OracleResemblesImplementation
+                .as_str()
+                .to_string(),
+            path: test.path.clone(),
+            symbol: test.qualified_name.clone(),
+            line: test.leading_line + candidate.line_offset,
+            message: format!(
+                "the `{}` oracle closely resembles `{}` in {}; replace the copied calculation with an independent expectation",
+                candidate.binding, implementation.qualified_name, implementation.path
+            ),
+            evidence: format!(
+                "token similarity {score:.2} (floor {ORACLE_SIMILARITY_FLOOR:.2}); compared `{}` with `{}::{}`",
+                candidate.binding, implementation.path, implementation.qualified_name
+            ),
+        });
+    }
+    out.sort_by(|a, b| (&a.path, a.line, &a.symbol).cmp(&(&b.path, b.line, &b.symbol)));
+    out
+}
+
+#[derive(Debug)]
+struct OracleCandidate {
+    binding: String,
+    expression: String,
+    function: String,
+    line_offset: usize,
+}
+
+fn oracle_candidate(span: &str, language: SourceLanguage) -> Option<OracleCandidate> {
+    static RUST_BINDING: OnceLock<Regex> = OnceLock::new();
+    static TS_BINDING: OnceLock<Regex> = OnceLock::new();
+    static PYTHON_BINDING: OnceLock<Regex> = OnceLock::new();
+    static RUST_ASSERTION: OnceLock<Regex> = OnceLock::new();
+    static TS_ASSERTION: OnceLock<Regex> = OnceLock::new();
+    static PYTHON_ASSERTION: OnceLock<Regex> = OnceLock::new();
+
+    let binding_re = match language {
+        SourceLanguage::Rust => RUST_BINDING.get_or_init(|| {
+            Regex::new(r"(?s)\blet\s+(expected|oracle)(?:\s*:[^=;]+)?\s*=\s*(.+?);")
+                .expect("Rust oracle-binding pattern compiles")
+        }),
+        SourceLanguage::Typescript => TS_BINDING.get_or_init(|| {
+            Regex::new(r"(?s)\b(?:const|let)\s+(expected|oracle)(?:\s*:[^=;]+)?\s*=\s*(.+?);")
+                .expect("TypeScript oracle-binding pattern compiles")
+        }),
+        SourceLanguage::Python => PYTHON_BINDING.get_or_init(|| {
+            Regex::new(r"(?m)^\s*(expected|oracle)(?:\s*:[^=\n]+)?\s*=\s*(.+?)\s*$")
+                .expect("Python oracle-binding pattern compiles")
+        }),
+    };
+    let assertion_re = match language {
+        SourceLanguage::Rust => RUST_ASSERTION.get_or_init(|| {
+            Regex::new(
+                r"(?s)\bassert_eq!\s*\(\s*([A-Za-z_][A-Za-z0-9_:]*)\s*\([^;]*?\)\s*,\s*(expected|oracle)\s*\)",
+            )
+            .expect("Rust oracle-assertion pattern compiles")
+        }),
+        SourceLanguage::Typescript => TS_ASSERTION.get_or_init(|| {
+            Regex::new(
+                r"(?s)\bexpect\s*\(\s*([A-Za-z_$][A-Za-z0-9_$]*)\s*\([^;]*?\)\s*\)\s*\.\s*(?:toBe|toEqual)\s*\(\s*(expected|oracle)\s*\)",
+            )
+            .expect("TypeScript oracle-assertion pattern compiles")
+        }),
+        SourceLanguage::Python => PYTHON_ASSERTION.get_or_init(|| {
+            Regex::new(
+                r"(?m)^\s*assert\s+([A-Za-z_][A-Za-z0-9_]*)\s*\([^\n]*?\)\s*==\s*(expected|oracle)\b",
+            )
+            .expect("Python oracle-assertion pattern compiles")
+        }),
+    };
+
+    for assignment in binding_re.captures_iter(span) {
+        let binding = assignment.get(1)?.as_str();
+        let Some(assertion) = assertion_re.captures_iter(span).find(|capture| {
+            capture
+                .get(2)
+                .is_some_and(|found| found.as_str() == binding)
+        }) else {
+            continue;
+        };
+        return Some(OracleCandidate {
+            binding: binding.to_string(),
+            expression: assignment.get(2)?.as_str().trim().to_string(),
+            function: assertion.get(1)?.as_str().rsplit("::").next()?.to_string(),
+            line_offset: span[..assignment.get(0)?.start()].matches('\n').count(),
+        });
+    }
+    None
+}
+
+/// Remove comments after strings have been masked, preserving line structure
+/// so a candidate's offset still maps to its source line.
+fn strip_source_comments(span: &str, language: SourceLanguage) -> String {
+    let chars: Vec<char> = span.chars().collect();
+    let mut out = String::with_capacity(span.len());
+    let mut i = 0usize;
+    let mut block = false;
+    while i < chars.len() {
+        let c = chars[i];
+        if block {
+            if c == '*' && chars.get(i + 1) == Some(&'/') {
+                out.push_str("  ");
+                i += 2;
+                block = false;
+            } else {
+                out.push(if c == '\n' { '\n' } else { ' ' });
+                i += 1;
+            }
+            continue;
+        }
+        if language != SourceLanguage::Python && c == '/' && chars.get(i + 1) == Some(&'*') {
+            out.push_str("  ");
+            i += 2;
+            block = true;
+            continue;
+        }
+        let line_comment = (language == SourceLanguage::Python && c == '#')
+            || (language != SourceLanguage::Python && c == '/' && chars.get(i + 1) == Some(&'/'));
+        if line_comment {
+            while i < chars.len() && chars[i] != '\n' {
+                out.push(' ');
+                i += 1;
+            }
+            continue;
+        }
+        out.push(c);
+        i += 1;
+    }
+    out
+}
+
+fn simple_name(qualified_name: &str) -> &str {
+    qualified_name
+        .rsplit([':', '.'])
+        .find(|part| !part.is_empty())
+        .unwrap_or(qualified_name)
+}
+
+fn implementation_expression(span: &str, language: SourceLanguage) -> Option<String> {
+    match language {
+        SourceLanguage::Rust => {
+            let body = span.split_once('{')?.1.rsplit_once('}')?.0.trim();
+            if let Some(returned) = body.strip_prefix("return ") {
+                return Some(returned.trim_end_matches(';').trim().to_string());
+            }
+            if body.contains(';') {
+                return None;
+            }
+            Some(body.to_string())
+        }
+        SourceLanguage::Python | SourceLanguage::Typescript => {
+            let body = match language {
+                SourceLanguage::Python => span.split_once('\n')?.1,
+                SourceLanguage::Typescript => span.split_once('{')?.1.rsplit_once('}')?.0,
+                SourceLanguage::Rust => unreachable!(),
+            };
+            let returns: Vec<&str> = body
+                .lines()
+                .filter_map(|line| line.trim().strip_prefix("return "))
+                .collect();
+            (returns.len() == 1).then(|| returns[0].trim_end_matches(';').trim().to_string())
+        }
+    }
 }
 
 /// An oracle to judge, and where it came from.
@@ -591,6 +830,143 @@ mod tests {
         assert!(
             oracle_copies(&[(real, implementation)]).is_empty(),
             "an independent oracle is not a copy"
+        );
+    }
+
+    #[trace("TC-1061", "FR-064-AC-6")]
+    #[test]
+    fn tc1061_explicit_oracle_bindings_join_to_production_expressions() {
+        let cases = [
+            (
+                SourceLanguage::Rust,
+                "src/lib.rs",
+                r#"pub fn is_contained(path: &str) -> bool {
+    !path.starts_with('/') && !path.contains("..") && !path.contains('\0')
+}
+
+#[test]
+fn covers() {
+    let path = "a/b";
+    let expected = !path.starts_with('/') && !path.contains("..") && !path.contains('\0');
+    assert_eq!(is_contained(path), expected);
+}
+"#,
+                r#"pub fn is_contained(path: &str) -> bool {
+    !path.starts_with('/') && !path.contains("..") && !path.contains('\0')
+}
+
+#[test]
+fn covers() {
+    let path = "a/b";
+    let expected = true;
+    assert_eq!(is_contained(path), expected);
+}
+"#,
+            ),
+            (
+                SourceLanguage::Python,
+                "src/lib.py",
+                r#"def is_contained(path: str) -> bool:
+    return not path.startswith("/") and ".." not in path and "\0" not in path
+
+def test_covers():
+    path = "a/b"
+    expected = not path.startswith("/") and ".." not in path and "\0" not in path
+    assert is_contained(path) == expected
+"#,
+                r#"def is_contained(path: str) -> bool:
+    return not path.startswith("/") and ".." not in path and "\0" not in path
+
+def test_covers():
+    path = "a/b"
+    expected = True
+    assert is_contained(path) == expected
+"#,
+            ),
+            (
+                SourceLanguage::Typescript,
+                "src/lib.test.ts",
+                r#"export function isContained(path: string): boolean {
+  return !path.startsWith("/") && !path.includes("..") && !path.includes("\0");
+}
+
+test("covers", () => {
+  const path = "a/b";
+  const expected = !path.startsWith("/") && !path.includes("..") && !path.includes("\0");
+  expect(isContained(path)).toBe(expected);
+});
+"#,
+                r#"export function isContained(path: string): boolean {
+  return !path.startsWith("/") && !path.includes("..") && !path.includes("\0");
+}
+
+test("covers", () => {
+  const path = "a/b";
+  const expected = true;
+  expect(isContained(path)).toBe(expected);
+});
+"#,
+            ),
+        ];
+
+        for (language, path, copied, independent) in cases {
+            let copied = extract_file(path, language, copied);
+            let found = oracle_copies_in(&copied);
+            assert_eq!(found.len(), 1, "{language:?}: {found:#?}");
+            assert_eq!(found[0].kind, "oracle-resembles-implementation");
+            assert!(found[0].evidence.contains("similarity 1.00"));
+            assert!(found[0].evidence.contains(path));
+            assert!(
+                found[0].message.contains("independent expectation"),
+                "{}",
+                found[0].message
+            );
+
+            let independent = extract_file(path, language, independent);
+            assert_eq!(
+                oracle_copies_in(&independent),
+                vec![],
+                "an independently stated expectation is not a copy in {language:?}"
+            );
+        }
+
+        let ambiguous = extract(
+            r#"mod left {
+    pub fn normalize(value: &str) -> bool { value.starts_with("ok") }
+}
+mod right {
+    pub fn normalize(value: &str) -> bool { value.starts_with("ok") }
+}
+#[test]
+fn covers() {
+    let value = "okay";
+    let expected = value.starts_with("ok");
+    assert_eq!(normalize(value), expected);
+}
+"#,
+        );
+        assert_eq!(
+            oracle_copies_in(&ambiguous),
+            vec![],
+            "a textual call name that resolves to two functions is not a pair"
+        );
+
+        let quoted = extract(
+            r##"pub fn normalize(value: &str) -> bool { value.starts_with("ok") }
+#[test]
+fn documents_the_bad_shape() {
+    let fixture = r#"let expected = value.starts_with("ok");
+assert_eq!(normalize(value), expected);"#;
+    // let expected = value.starts_with("ok");
+    // assert_eq!(normalize(value), expected);
+    assert!(!fixture.is_empty());
+}
+"##,
+        );
+        assert_eq!(
+            oracle_copies_in(&quoted),
+            vec![],
+            "quoted fixture text and comments are not executable oracle code"
         );
     }
 

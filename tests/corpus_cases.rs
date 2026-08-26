@@ -1574,10 +1574,10 @@ fn tc1027_a_control_binds_its_partners_declaration() {
              '    - gate-that-gates-nothing\\n    - a-case-that-does-not-exist\\n', 1)",
             "outlived its fixture",
         ),
-        // AC-40 — a `findable` case that names nothing which finds it. Nine
-        // do; removing one from the allowlist must surface it.
+        // AC-40 — a `findable` case that names nothing which finds it. Remove
+        // one current specimen from the allowlist and the rule must surface it.
         (
-            "s = s.replace('    - oracle-copy\\n', '', 1)",
+            "s = s.replace('    - mocked-confirmation\\n', '', 1)",
             "requires no finding",
         ),
         // AC-41 — an exemption with no ticket is permanent by default.

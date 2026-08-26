@@ -7,6 +7,12 @@ description: "Chronological log of structural changes to this bundle."
 
 ## History
 
+* **2026-08-26** — **CR-143**: **the oracle-copy comparison gets a production caller** (FR-064-AC-6/CON-4, TC-1061, `agent-ix/quire-rs#236`, epic `agent-ix/quoin#264`). `oracle_copies` existed only behind its unit tests, so `quire coverage` could not emit the suspicion and the seeded corpus scored no detection. The earlier call-based attempt correctly refused to ship: a literal copy scored **0.214** whole-test-to-implementation-body and **0.429** isolated-oracle-to-body against a **0.75** floor calibrated for expression-to-expression comparison.
+
+  The production join now recognizes one reviewable convention in Rust, Python and TypeScript: an explicit `expected`/`oracle` expression directly compared with a production call, resolved to one function with one extractable return or Rust tail expression. It keeps the floor and fixes the extraction units. Ambiguous calls, independent expectations, comments and string fixtures stand down; findings name the test path/assignment line, implementation path/symbol, score, floor and repair.
+
+  **[RAN]** the real CLI over all **241 repositories** from `scripts/corpus.py`: **241 readable, 0 unreadable; 17 skeptic suspicions total — 4 oracle-copy and 13 pre-existing vacuity**. All four oracle findings were inspected: **4 correct, 0 rule**, and all four were deliberate corpus seeds (three language variants in `quire-rs`, one older Rust pin in `quoin`); **zero project-code oracle findings**. The three new controls stayed silent. This is narrow demonstrated reach, not evidence that project tests have no other copied-oracle shapes.
+
 * **2026-08-26** — **CR-142**: **the binding census separates unread authored tags from absent authoring** (`agent-ix/quire-rs#271`, TC-1060). `BindingCensus` adds `tagged` and `unmatched_example` under the enforced invariant `bound <= tagged <= candidates`; generic tag recognition is independent of the declared grammar and limited to the attached annotation block. `authoring.tag_rate` is emitted and governed by MP-208, with zero tags represented as a measured zero rather than a hollow denominator.
 
 * **2026-08-26** — **CR-141**: **`audit-static` globs, and two of `check_spec_structure.sh`'s missing gates ship** (`agent-ix/quire-rs#348`, `#347`, `#353` follow-on, Wave 4 `agent-ix/quire-rs#357`). No requirement changes; no engine code moves.
