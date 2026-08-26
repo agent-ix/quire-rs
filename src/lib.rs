@@ -32,6 +32,7 @@ pub mod python;
 pub mod query;
 pub mod registry;
 pub mod skeptic;
+pub mod symbol_table;
 pub mod symbols;
 pub mod traceability;
 pub mod validate;
@@ -102,6 +103,7 @@ pub use validate_document::classify_document_criteria;
 pub use writeback::{update_block, update_section};
 // Declarative coverage computation (FR-050) + source-symbol extraction (FR-051).
 pub use coverage::{compute as compute_coverage, CoverageError, CoverageReport};
+pub use symbol_table::{build as build_symbol_table, SymbolTableReport};
 // Corpus: parallel repo walk (FR-024) + Spec corpus (FR-025); resolution/query in FR-026..027.
 pub use corpus::walk::{load_repo, load_repo_with, LoadedDocument, RepoLoad, WalkOptions};
 pub use corpus::{glossary_terms, glossary_terms_from_path, harvest_edges, Spec};

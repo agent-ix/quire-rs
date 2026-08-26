@@ -314,6 +314,28 @@ pub struct CaseExpect {
     /// without absence would restate what all of them produce.
     #[serde(default)]
     pub validate_absent: Vec<String>,
+    /// L1–L3. Suspicions the payload MUST carry (#358).
+    ///
+    /// `coverage` emits findings on two channels and this corpus could assert
+    /// one of them. `suspicions[]` — `vacuous-under-guard`,
+    /// `oracle-resembles-implementation` — had no key in either reader, so the
+    /// `skeptic` mode family, whose entire subject IS suspicions, could not
+    /// name its own subject.
+    ///
+    /// Measured cost: `cases/skeptic/vacuous-property-suite` is DETECTED, at
+    /// `src/lib.rs:7` with a symbol and an evidence string, and its whole
+    /// `expect.yaml` was `backed`/`total`/`binding_census` — true of any
+    /// healthy three-row tree. That is why it was byte-identical to two other
+    /// fixtures and why swapping their input trees left the gate green.
+    #[serde(default)]
+    pub suspicions: Vec<ExpectSuspicion>,
+    /// The control half: `kind` tokens the payload must NOT carry.
+    ///
+    /// Kinds only, not loci. A control's claim is that the detector stayed
+    /// silent, and a locus on an absence names a place nothing was found —
+    /// which is not a stronger assertion, only a longer one.
+    #[serde(default)]
+    pub absent_suspicions: Vec<String>,
 }
 
 impl CaseExpect {
@@ -386,6 +408,16 @@ impl CaseExpect {
             } else {
                 Vec::new()
             },
+            suspicions: if on("suspicions") {
+                self.suspicions.clone()
+            } else {
+                Vec::new()
+            },
+            absent_suspicions: if on("absent_suspicions") {
+                self.absent_suspicions.clone()
+            } else {
+                Vec::new()
+            },
         }
     }
 
@@ -408,6 +440,8 @@ impl CaseExpect {
             "metrics",
             "validate_contains",
             "validate_absent",
+            "suspicions",
+            "absent_suspicions",
         ]
         .iter()
         .map(|s| s.to_string())
@@ -430,6 +464,8 @@ impl CaseExpect {
             && self.metrics.is_empty()
             && self.validate_contains.is_empty()
             && self.validate_absent.is_empty()
+            && self.suspicions.is_empty()
+            && self.absent_suspicions.is_empty()
     }
 }
 
@@ -453,6 +489,29 @@ pub struct ExpectUntracked {
     pub symbol: String,
     pub trace_id: String,
     pub path: String,
+}
+
+/// One suspicion the payload must carry (#358).
+///
+/// `kind` is required and the locus fields are not, which is the same rule
+/// `diagnostic_reasons` and `diagnostic_paths` split between two keys: naming
+/// the kind is L1, and adding `path`/`line`/`symbol` is the fixture author
+/// electing to claim L2 as well. Requiring all four would force every skeptic
+/// fixture to pin a line number that moves when its input gains a comment.
+#[derive(Debug, Deserialize, PartialEq, Eq, Clone)]
+#[serde(deny_unknown_fields)]
+pub struct ExpectSuspicion {
+    pub kind: String,
+    #[serde(default)]
+    pub path: Option<String>,
+    #[serde(default)]
+    pub line: Option<usize>,
+    #[serde(default)]
+    pub symbol: Option<String>,
+    /// Substrings the message must carry — L3, and the reason a suspicion that
+    /// names the right place can still be one no reader can act on.
+    #[serde(default)]
+    pub message_contains: Vec<String>,
 }
 
 /// One document's mint count for one declared target kind. All fields
@@ -969,6 +1028,86 @@ pub fn grade_against(
         }
     }
 
+    // SUSPICIONS — the second finding channel, which this corpus could not
+    // assert at all until #358. `vacuous-under-guard` and
+    // `oracle-resembles-implementation` land here rather than in `diagnostics`,
+    // so the `skeptic` mode family, whose entire subject is suspicions, could
+    // not name its own subject. Measured cost: `vacuous-property-suite` is
+    // DETECTED, at `src/lib.rs:7` with a symbol and an evidence string, and its
+    // whole block was `backed`/`total`/`binding_census` — true of any healthy
+    // three-row tree, and byte-identical to two other fixtures.
+    //
+    // GRADED ON THE LADDER, like a diagnostic: the kind is L1, the locus is L2,
+    // the message is L3. A fixture electing to pin only the kind is making the
+    // L1 claim and no more, which is the same choice `diagnostic_reasons` and
+    // `diagnostic_paths` already offer.
+    let kinds: Vec<&str> = report.suspicions.iter().map(|s| s.kind.as_str()).collect();
+    for want in &e.suspicions {
+        let Some(got) = report.suspicions.iter().find(|s| s.kind == want.kind) else {
+            fail(
+                Level::L1Detected,
+                format!("expected suspicion `{}`, got {kinds:?}", want.kind),
+            );
+            continue;
+        };
+        if let Some(path) = &want.path {
+            if &got.path != path {
+                fail(
+                    Level::L2Localised,
+                    format!(
+                        "suspicion `{}`: expected path `{path}`, got `{}`",
+                        want.kind, got.path
+                    ),
+                );
+            }
+        }
+        if let Some(line) = want.line {
+            if got.line != line {
+                fail(
+                    Level::L2Localised,
+                    format!(
+                        "suspicion `{}`: expected line {line}, got {}",
+                        want.kind, got.line
+                    ),
+                );
+            }
+        }
+        if let Some(symbol) = &want.symbol {
+            if &got.symbol != symbol {
+                fail(
+                    Level::L2Localised,
+                    format!(
+                        "suspicion `{}`: expected symbol `{symbol}`, got `{}`",
+                        want.kind, got.symbol
+                    ),
+                );
+            }
+        }
+        for fragment in &want.message_contains {
+            // The EVIDENCE counts as message for this purpose. `Suspicion`
+            // splits the prose from the numbers behind it, and a fixture
+            // asserting "it told me 1 of 1 assertions were guarded" is making
+            // an L3 claim about the same rendered output a reader sees.
+            if !got.message.contains(fragment) && !got.evidence.contains(fragment) {
+                fail(
+                    Level::L3Actionable,
+                    format!(
+                        "suspicion `{}`: message and evidence name neither `{fragment}` — got `{}` / `{}`",
+                        want.kind, got.message, got.evidence
+                    ),
+                );
+            }
+        }
+    }
+    for unwanted in &e.absent_suspicions {
+        if kinds.contains(&unwanted.as_str()) {
+            fail(
+                Level::L1Detected,
+                format!("suspicion `{unwanted}` fired on a case that is not about it: {kinds:?}"),
+            );
+        }
+    }
+
     for want in &e.binding_census {
         let Some(got) = report
             .binding_census
@@ -1236,5 +1375,7 @@ impl CaseExpect {
             || self.unbacked_rows.is_some()
             || self.groups.is_some()
             || self.untracked_symbols.is_some()
+            || !self.suspicions.is_empty()
+            || !self.absent_suspicions.is_empty()
     }
 }
