@@ -66,7 +66,7 @@ SUMMARY = re.compile(r"^##\s+Test Case Summary\s*$", re.MULTILINE)
 # every backed/total figure it prints — without it the sweep cannot say whether
 # the binder read a single test in a repo, and a coverage percentage over an
 # unread corpus is the exact shape that produced four passes of wrong answers.
-REQUIRED_CAPABILITIES = ("binding_census",)
+REQUIRED_CAPABILITIES = ("binding_census", "binding_census.tagged")
 
 
 def mints_test_cases(repo: pathlib.Path) -> bool:

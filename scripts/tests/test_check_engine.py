@@ -528,7 +528,7 @@ def test_the_sweep_takes_provenance_from_the_payload_and_aborts_on_a_missing_tok
             "engine": {
                 "cli": "0.30.2",
                 "engine": "84740d4",
-                "capabilities": ["binding_census"],
+                "capabilities": ["binding_census", "binding_census.tagged"],
             },
         },
     )
@@ -555,7 +555,7 @@ def test_the_sweep_refuses_a_binary_that_changes_mid_run(tmp_path, monkeypatch):
             "engine": {
                 "cli": "0.30.2",
                 "engine": next(versions),
-                "capabilities": ["binding_census"],
+                "capabilities": ["binding_census", "binding_census.tagged"],
             },
         }
 
