@@ -184,6 +184,10 @@ fn tc856_payload_carrying_every_optional_key_conforms() {
             "path": null,
             "value": "CI Gate"
         }],
+        "diagnostic_reason_registry": [
+            "archetype-matches-nothing",
+            "no-symbol-bound"
+        ],
         "vocabulary_coverage": [{
             "vocabulary": "quality-characteristics",
             "archetype": "NFR",
@@ -422,6 +426,7 @@ fn tc859_optional_and_required_split_matches_the_engine() {
         "shared_trace_ids",
         "criteria",
         "diagnostics",
+        "diagnostic_reason_registry",
         "obligations",
         "implements",
         "excluded_source_files",

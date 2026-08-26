@@ -1386,27 +1386,8 @@ fn copy_tree(from: &std::path::Path, to: &std::path::Path) {
     }
 }
 
-/// The declared vocabulary is checked against the ENGINE, not hand-maintained.
-///
-/// Round three of this review found the defect had moved from the fixtures to
-/// `corpus.yaml`: a token could be added to `emitted` that no engine emits, or
-/// a token the engine already emits could be parked in `forward`, and every
-/// gate stayed green. A second hand-written list drifts exactly the way the
-/// first one did.
-///
-/// The `forward` direction is the forcing function, and it has now fired once
-/// in anger. The day `#270` landed, `"section-matches-nothing"` became a
-/// literal in `src/`, this test FAILED, and it stayed failing until both of
-/// that ticket's tokens moved to `emitted` — which is the same edit that made
-/// the nine fixtures waiting on them go green. Nobody can land the fix and
-/// leave the corpus describing a world where it has not landed. The same
-/// applies next to `"tag-on-non-binding-symbol"` (`#312`).
-///
-/// A source scan, not a registry read. Both directions are exact TODAY —
-/// verified token by token, every `emitted` resolves to a literal and every
-/// `forward` resolves to none — but it is a proxy: a reason assembled at
-/// runtime rather than written as a literal would read as absent. The engine
-/// should publish its reason registry, which is `agent-ix/quire-rs#300`.
+/// The corpus vocabulary equals the engine's published registry (#300).
+/// Forward tokens must stay outside it until their implementation lands.
 #[trace("TC-1026", "FR-065-AC-34")]
 // `emitted` names only what the engine emits.
 #[trace("TC-1026", "FR-065-AC-35")]
@@ -1422,21 +1403,6 @@ fn tc1026_the_declared_vocabulary_matches_the_engine() {
         .get("diagnostic_reasons")
         .expect("corpus.yaml declares `diagnostic_reasons`");
 
-    // Every `.rs` under `src/`, concatenated once.
-    let mut sources = String::new();
-    let mut stack = vec![std::path::PathBuf::from("src")];
-    while let Some(dir) = stack.pop() {
-        for entry in std::fs::read_dir(&dir).expect("read src").flatten() {
-            let path = entry.path();
-            if path.is_dir() {
-                stack.push(path);
-            } else if path.extension().is_some_and(|e| e == "rs") {
-                sources.push_str(&std::fs::read_to_string(&path).expect("read source"));
-            }
-        }
-    }
-    assert!(sources.len() > 10_000, "the source scan read something");
-
     let emitted: Vec<&str> = vocabulary
         .get("emitted")
         .and_then(|v| v.as_sequence())
@@ -1444,21 +1410,23 @@ fn tc1026_the_declared_vocabulary_matches_the_engine() {
         .iter()
         .filter_map(|v| v.as_str())
         .collect();
-    assert!(!emitted.is_empty(), "`emitted` is not empty");
-    for token in &emitted {
-        assert!(
-            sources.contains(&format!("\"{token}\"")),
-            "corpus.yaml declares `{token}` emitted, but no literal by that name \
-             appears in src/. Either the engine stopped emitting it — in which \
-             case every fixture asserting it is now vacuous — or it belongs in \
-             `forward` with the ticket that will add it.",
-        );
-    }
+    assert_eq!(
+        emitted,
+        quire_rs::coverage::COVERAGE_DIAGNOSTIC_REASONS,
+        "corpus.yaml `emitted` must equal the engine registry",
+    );
 
-    // A SUPPRESSED token is the inverse of a forward one: its literal IS in
-    // the engine — the finding is computed — and what the ticket changes is
-    // that it reaches the payload. Asserting it is absent from `src/` would be
-    // exactly backwards, so it is asserted PRESENT, like an emitted token.
+    // The same registry is present in an ordinary report, which makes the
+    // contract reachable through `quire coverage --json`, not Rust-only.
+    let cases = load_cases();
+    let report = run(cases.first().expect("the corpus has a case"));
+    let payload_registry: Vec<&str> = report
+        .diagnostic_reason_registry
+        .iter()
+        .map(String::as_str)
+        .collect();
+    assert_eq!(payload_registry, emitted);
+
     let suppressed: Vec<(&str, &str)> = vocabulary
         .get("suppressed")
         .and_then(|v| v.as_mapping())
@@ -1468,16 +1436,6 @@ fn tc1026_the_declared_vocabulary_matches_the_engine() {
                 .collect()
         })
         .unwrap_or_default();
-    // THE KEY MUST BE DECLARED; ITS MEMBERSHIP MAY BE ZERO. This asserted
-    // `!suppressed.is_empty()` so the block could not be silently ignored —
-    // right in spirit, wrong as written: `agent-ix/quire-rs#304` landed and its
-    // one member graduated to `emitted`, and an empty class is not the same as
-    // an unread one. Requiring a member would have made the corpus keep a
-    // suppressed token it no longer has, purely to satisfy a gate.
-    //
-    // What the guard is actually for is proven directly instead: the predicate
-    // below is shown to REJECT a token the engine does not carry, so an empty
-    // list is an empty list rather than a check that cannot fail.
     assert!(
         vocabulary.get("suppressed").is_some(),
         "corpus.yaml declares no `suppressed` key. The class is real even when \
@@ -1485,18 +1443,11 @@ fn tc1026_the_declared_vocabulary_matches_the_engine() {
          nor `forward` — and deleting it leaves the next ticket of that shape \
          nowhere to be declared."
     );
-    assert!(
-        !sources.contains("\"zzz-no-such-suppressed-token\""),
-        "the suppressed-token check cannot fail: a token absent from src/ must \
-         not satisfy the containment this loop asserts"
-    );
     for (token, ticket) in &suppressed {
         assert!(
-            sources.contains(&format!("\"{token}\"")),
-            "corpus.yaml declares `{token}` suppressed, waiting on {ticket}, but no \
-             literal by that name appears in src/. A suppressed token is one the \
-             engine COMPUTES and discards — if the engine no longer has it, the \
-             fixtures waiting on it are waiting for something that cannot arrive.",
+            !emitted.contains(token),
+            "corpus.yaml declares `{token}` both emitted and suppressed while waiting on \
+             {ticket}",
         );
     }
 
@@ -1504,33 +1455,15 @@ fn tc1026_the_declared_vocabulary_matches_the_engine() {
         .get("forward")
         .and_then(|v| v.as_mapping())
         .expect("`forward`");
-    // THE KEY MUST BE DECLARED; ITS MEMBERSHIP MAY BE ZERO — the same
-    // correction `suppressed` took above, and for the same reason. Both of
-    // `forward`'s members graduated on 2026-08-25 (#312, #307), and requiring
-    // one to exist would make the corpus keep a fixture red against a landed
-    // ticket purely to satisfy a gate. What the assertion is for is proven
-    // directly instead: the predicate below is shown to REJECT a token the
-    // engine does carry, so an empty list is an empty list rather than a check
-    // that cannot fail.
-    assert!(
-        !sources.is_empty(),
-        "the forward-token check reads no sources, so it could not reject \
-         anything whatever `forward` declared"
-    );
-    assert!(
-        sources.contains("\"section-matches-nothing\""),
-        "the forward-token check cannot fail: a token the engine DOES carry \
-         must satisfy the containment this loop refuses"
-    );
     for (token, ticket) in forward {
         let (token, ticket) = (
             token.as_str().expect("token"),
             ticket.as_str().expect("ticket"),
         );
         assert!(
-            !sources.contains(&format!("\"{token}\"")),
+            !emitted.contains(&token),
             "corpus.yaml declares `{token}` forward, waiting on {ticket}, but the \
-             engine already carries a literal by that name. {ticket} appears to \
+             engine registry already carries it. {ticket} appears to \
              have landed: move the token to `emitted` and fold every forward \
              block waiting on it into its expect.yaml.",
         );

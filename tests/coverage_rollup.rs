@@ -947,6 +947,7 @@ fn tc788_no_criteria_corpus_is_unchanged() {
     assert_eq!(
         keys,
         vec![
+            "diagnostic_reason_registry",
             "diagnostics",
             "groups",
             "metrics",
@@ -1742,6 +1743,8 @@ fn tc983_a_language_that_binds_nothing_is_a_diagnostic() {
         .unwrap_or_else(|| panic!("no binding diagnostic in {:?}", report.diagnostics));
     assert_eq!(finding.declaration, "traceability.trace_tags");
     assert_eq!(finding.value.as_deref(), Some("rust"));
+    assert_eq!(finding.path.as_deref(), Some("lib.rs"));
+    assert_eq!(finding.line, Some(5));
     assert!(
         finding.message.contains('3') && finding.message.contains("rust-trace-attribute"),
         "the message carries the count and the forms to check: {}",
@@ -1786,6 +1789,8 @@ fn tc984_binding_below_the_floor_is_reported_with_both_counts() {
         .find(|d| d.reason == "low-symbol-binding")
         .unwrap_or_else(|| panic!("no floor diagnostic in {:?}", report.diagnostics));
     assert_eq!(finding.value.as_deref(), Some("rust"));
+    assert_eq!(finding.path.as_deref(), Some("lib.rs"));
+    assert_eq!(finding.line, Some(10));
     assert!(
         finding.message.contains("1 of 21"),
         "both counts, so the reader judges rather than the engine: {}",

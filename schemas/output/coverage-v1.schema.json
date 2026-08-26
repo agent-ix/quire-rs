@@ -76,6 +76,15 @@
         "$ref": "#/$defs/CoverageDiagnostic"
       }
     },
+    "diagnostic_reason_registry": {
+      "type": "array",
+      "description": "agent-ix/quire-rs#300: every stable reason token this engine can emit in diagnostics, in deterministic registry order. Always emitted by current engines; optional in v1 so payloads from older engines remain readable under FR-055-CON-3.",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
     "obligations": {
       "type": "array",
       "description": "FR-053: derived obligation records, ordered by source then document then row. Absent for a model declaring no `obligations:` sources.",
@@ -631,6 +640,11 @@
             "string",
             "null"
           ]
+        },
+        "line": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "agent-ix/quoin#239: one-based source line at the smallest repair locus, when the engine computed one. Absent when the diagnostic is genuinely document- or model-scoped."
         },
         "value": {
           "type": "string",

@@ -327,6 +327,7 @@ pub(crate) fn coverage_records(
                 reason: "undeclared-coverage-vocabulary".to_string(),
                 message: dead_declaration_message(coverage),
                 path: None,
+                line: None,
                 value: None,
             });
             continue;

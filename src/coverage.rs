@@ -337,6 +337,11 @@ pub struct CoverageReport {
     /// something, which keeps FR-050-AC-7 byte-identity.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub diagnostics: Vec<CoverageDiagnostic>,
+    /// Every stable reason token this engine can emit in [`Self::diagnostics`].
+    /// Published with the payload so fixture inventories can compare against
+    /// the engine contract instead of scanning Rust source (#300).
+    #[serde(default)]
+    pub diagnostic_reason_registry: Vec<String>,
     /// Derived obligation records (FR-053), ordered by source then document
     /// then row. Empty — and so absent from the JSON — for a model declaring no
     /// `obligations:` sources, which keeps FR-050-AC-7 byte-identity for every
@@ -430,6 +435,9 @@ pub struct CoverageDiagnostic {
     /// The unreadable document, when the diagnostic is about one.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub path: Option<String>,
+    /// One-based source line at the smallest repair locus, when known.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub line: Option<usize>,
     /// The vocabulary or catalog value the diagnostic is about, verbatim, when
     /// it is about exactly one (FR-054-AC-12, CR-091).
     /// `uncatalogued-verification-method` carries the authored method here —
@@ -440,6 +448,27 @@ pub struct CoverageDiagnostic {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub value: Option<String>,
 }
+
+/// Stable reason tokens emitted by coverage diagnostics.
+///
+/// This is the engine-side registry. Keep reason construction behind these
+/// values so consumers can validate fixture vocabularies by equality.
+pub const COVERAGE_DIAGNOSTIC_REASONS: &[&str] = &[
+    "archetype-matches-nothing",
+    "catch-all-universal",
+    "hollow-denominator",
+    "id-column-matches-nothing",
+    "low-symbol-binding",
+    "model-mints-nothing",
+    "no-symbol-bound",
+    "obligation-row-states-nothing",
+    "section-holds-no-table",
+    "section-matches-nothing",
+    "tag-on-non-binding-symbol",
+    "untracked-id-near-miss",
+    "uncatalogued-verification-method",
+    "undeclared-coverage-vocabulary",
+];
 
 /// How one declared vocabulary value stands in the bundle (FR-059-AC-9,
 /// CR-091).
@@ -795,6 +824,10 @@ fn catch_all_documents(criteria: &[CriteriaCounts]) -> Vec<CoverageDiagnostic> {
             binding.len()
         ),
         path: Some(first.document.clone()),
+        line: first
+            .catch_all_example
+            .as_ref()
+            .and_then(|example| example.line),
         value: Some("coverage.specific_shaped".to_string()),
     }]
 }
@@ -837,6 +870,7 @@ fn hollow_denominators(metrics: &[Metric]) -> Vec<CoverageDiagnostic> {
                     metric.method
                 ),
                 path: None,
+                line: None,
                 value: Some(metric.name.clone()),
             })
         })
@@ -905,6 +939,7 @@ fn uncatalogued_methods(
                  declared method in the cell"
             ),
             path: Some(document.to_string()),
+            line: None,
             // Verbatim — the same string the obligation records carry in
             // `method` — so the join is equality, not prose parsing
             // (FR-054-AC-12).
@@ -1339,6 +1374,7 @@ fn reconcile(
                 reason: declared_tables::scan_reason(&diagnostic).to_string(),
                 message,
                 path,
+                line: None,
                 value: None,
             }
         })
@@ -1358,6 +1394,7 @@ fn reconcile(
                           mints no ids and every count is over an empty denominator"
                     .to_string(),
                 path: None,
+                line: None,
                 value: None,
             },
         );
@@ -1403,6 +1440,7 @@ fn reconcile(
             row.row, row.document
         ),
         path: Some(row.document.clone()),
+        line: None,
         value: None,
     }));
 
@@ -1455,6 +1493,10 @@ fn reconcile(
         // `Registry` can read.
         vocabulary_coverage: Vec::new(),
         diagnostics,
+        diagnostic_reason_registry: COVERAGE_DIAGNOSTIC_REASONS
+            .iter()
+            .map(|reason| (*reason).to_string())
+            .collect(),
         obligations,
         // FR-062. Carried through to the JSON so a consumer can scope work by
         // requirement; deliberately NOT folded into `totals`, `backed` or
@@ -1592,6 +1634,7 @@ fn near_miss_diagnostics(
                 symbol.trace_id, symbol.symbol, symbol.path, row_id, document
             ),
             path: Some(symbol.path.clone()),
+            line: symbol.line,
             value: Some(symbol.trace_id.clone()),
         });
     }
@@ -1628,6 +1671,7 @@ fn non_binding_tag_diagnostics(tags: &[NonBindingTag]) -> Vec<CoverageDiagnostic
                 tag.trace_id, tag.symbol, tag.path, tag.line, tag.kind, tag.form
             ),
             path: Some(tag.path.clone()),
+            line: Some(tag.line),
             value: Some(tag.trace_id.clone()),
         })
         .collect()
@@ -1692,6 +1736,7 @@ fn binding_diagnostics(census: &[BindingCensus]) -> Vec<CoverageDiagnostic> {
                 reason: reason.to_string(),
                 message,
                 path: entry.unbound_example.as_ref().map(|e| e.path.clone()),
+                line: entry.unbound_example.as_ref().map(|e| e.line),
                 value: Some(entry.language.clone()),
             })
         })
