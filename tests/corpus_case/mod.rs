@@ -201,6 +201,10 @@ pub struct CaseMeta {
     /// whenever `module` is not `ecosystem`; `bounds.py` rejects its absence.
     #[serde(default)]
     pub relaxation_ticket: Option<String>,
+    /// Why a variant declaration is itself the case's subject (#330).
+    /// Mutually exclusive with `relaxation_ticket`.
+    #[serde(default)]
+    pub declaration_under_test: Option<String>,
     /// The invocation that reproduces this case by hand (FR-065-AC-18).
     /// Modelled rather than ignored: `deny_unknown_fields` is only a gate if
     /// every legitimate field is declared, and an ignored one is a field

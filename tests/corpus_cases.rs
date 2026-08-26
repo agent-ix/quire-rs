@@ -686,13 +686,21 @@ fn tc1020_the_documented_invocation_names_the_module_that_loads() {
             case.meta.id,
         );
 
-        // FR-065-CON-3 / AC-15: a variant binding names the ticket sizing it.
+        // FR-065-CON-3 / AC-15: a variant says whether it is temporary or is
+        // itself the subject. Exactly one classification is allowed.
         if case.meta.module != "ecosystem" {
             assert!(
-                case.meta.relaxation_ticket.is_some(),
-                "{}: binds variant `{}` and names no `relaxation_ticket`",
+                case.meta.relaxation_ticket.is_some() ^ case.meta.declaration_under_test.is_some(),
+                "{}: binds variant `{}` and must declare exactly one of \
+                 `relaxation_ticket` or `declaration_under_test`",
                 case.meta.id,
                 case.meta.module,
+            );
+        } else {
+            assert!(
+                case.meta.relaxation_ticket.is_none() && case.meta.declaration_under_test.is_none(),
+                "{}: ecosystem-bound case carries variant metadata",
+                case.meta.id,
             );
         }
 
@@ -2061,10 +2069,25 @@ fn tc1032_a_regression_case_pins_a_landed_fix() {
         // "credited itself for a manifest that cannot fail" failure that
         // `agent-ix/qa-corpus` was created to end.
         if case.meta.module != "ecosystem" {
-            let ticket =
-                case.meta.relaxation_ticket.as_deref().unwrap_or_else(|| {
-                    panic!("{}: binds a variant and names no ticket", case.meta.id)
-                });
+            if let Some(subject) = case.meta.declaration_under_test.as_deref() {
+                for cell in &cells {
+                    assert_eq!(cell["state"].as_str(), Some("out-of-scope"));
+                    assert!(
+                        cell["reason"]
+                            .as_str()
+                            .unwrap_or_default()
+                            .contains(subject),
+                        "{}: out-of-scope reason must carry its declaration-under-test reason",
+                        case.meta.id,
+                    );
+                }
+                continue;
+            }
+            let ticket = case
+                .meta
+                .relaxation_ticket
+                .as_deref()
+                .unwrap_or_else(|| panic!("{}: binds an unclassified variant", case.meta.id));
             for cell in &cells {
                 assert_eq!(
                     cell["state"].as_str(),

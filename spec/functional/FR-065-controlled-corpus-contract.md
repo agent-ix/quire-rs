@@ -208,7 +208,7 @@ by running it.
 - `modules/ecosystem/`: the real declaration, vendored **whole** — both
   `spec-artifacts-process` and `spec-artifacts-iso`, each with its own pinned SHA.
   Whole directories rather than manifests, because archetypes reference their schema
-  files relative to the module root. `modules/variants/<id>/`: relaxation variants.
+  files relative to the module root. `modules/variants/<id>/`: intentionally varied declarations.
 - `labels/`, `config/metrics.json`, `baselines/{quire-rs,quoin}.json`: ground truth,
   the metric dictionary, and per-runner baselines, versioned with the corpus.
 
@@ -272,8 +272,9 @@ pairs with the failure case in its own language, which is the only pairing that 
 anything. The runner SHALL resolve it against **failure cases only** — including
 controls puts a control's own `case` in the namespace, so `control_for` resolves against
 itself and the check becomes self-satisfying. The corpus loader SHALL additionally require
-`control_for` on a case of kind `control`; `relaxation_ticket` on a case binding a
-variant module; and `pending_reason` on a case declaring `pending`.
+`control_for` on a case of kind `control`; exactly one of `relaxation_ticket` or
+`declaration_under_test` on a case binding a variant module; and `pending_reason`
+on a case declaring `pending`.
 
 `control_for` names a LIST of partners' `case` values, never an `id` (CR-110). A list
 because one control can legitimately serve several failure cases — the healthy repair of
@@ -390,6 +391,12 @@ The eleventh, `cases/provenance/implements-never-asked`, asserts `coverage.imple
 (`#226` landed, nothing reproduces) bound to a variant relaxing exactly that one axis, so
 it is a `regression` case whose cell reads `GAP`. Under the unqualified rule it was a
 counterexample to this document.
+
+A case whose variant declaration is itself the measured condition SHALL declare
+`declaration_under_test` with a non-empty reason instead of inventing a permanent
+relaxation ticket. It SHALL credit no ecosystem cell, and the loader SHALL mark that cell
+`out-of-scope` with the authored reason. The two variant classifications are mutually
+exclusive (#330).
 
 A `regression` case SHALL name the ticket whose fix it pins, in `issue_ref`, so a reader
 can tell a pin from a fixture nobody finished.
@@ -590,7 +597,7 @@ against neither; it now renders `Level::ALL` and compares that.
 |----|------------|------|------------|
 | FR-065-CON-1 | Case data SHALL NOT be embedded in runner code or generated at runtime. A case that cannot be read without executing something is not data. The one exception is stated in the Behavior section: a mutating case operates on a copy and never writes the checked-in tree. | Architecture | Test |
 | FR-065-CON-2 | Every surface reporting `bounds.gap_count` SHALL render it as an absolute count, never normalised into a ratio or a percentage. This is FR-063-AC-6 applied to this metric, not a second rule. | Architecture | Test |
-| FR-065-CON-3 | A case SHALL bind the vendored ecosystem module unless it names a relaxation ticket. A corpus whose manifest always matches cannot exhibit a declaration defect. | Architecture | Test |
+| FR-065-CON-3 | A case SHALL bind the vendored ecosystem module unless it declares exactly one variant class: `relaxation_ticket` for a temporary departure, or `declaration_under_test` when the declaration is the measured condition. A corpus whose manifest always matches cannot exhibit a declaration defect. | Architecture | Test |
 | FR-065-CON-4 | The vendored `modules/ecosystem/` SHALL be refreshed from every declaring module by a recorded ritual that copies whole module directories and moves each pinned SHA, so the declaration a case binds is a reviewable event rather than a silent copy. | Process | Inspection |
 
 ## Acceptance Criteria
@@ -611,7 +618,7 @@ against neither; it now renders `Level::ALL` and compares that.
 | FR-065-AC-12 | A failing case reports the first level it lost. | Test (TC-1016) |
 | FR-065-AC-13 | A failure case whose `control_for` partner is absent is rejected, naming the missing control. | Test (TC-1017) |
 | FR-065-AC-14 | A control case over healthy input produces no finding for the mode its partner asserts. | Test (TC-1017) |
-| FR-065-AC-15 | A case binding a variant module without naming a relaxation ticket is rejected. | Test (TC-1018) |
+| FR-065-AC-15 | A variant-bound case is rejected unless it declares exactly one of `relaxation_ticket` or `declaration_under_test`; an ecosystem-bound case declaring either is rejected. | Test (TC-1018) |
 | FR-065-AC-16 | A case binding the vendored ecosystem module loads without naming a ticket. | Test (TC-1018) |
 | FR-065-AC-17 | Two runs of one case over unchanged input produce a byte-identical engine report. | Test (TC-1019) |
 | FR-065-AC-18 | Each case's `case.yaml` carries the invocation that reproduces it, and that invocation names a module. | Test (TC-1020) |
@@ -641,7 +648,7 @@ against neither; it now renders `Level::ALL` and compares that.
 | FR-065-AC-42 | A failure case with a control whose `expect.yaml` holds against that control's payload is rejected **by every reader**, with `validate_*` graded over the control's tree, against every control that names the case. | Test (TC-1028; `qa-corpus` `scripts/parity_selftest.py`) |
 | FR-065-AC-43 | A case of kind `regression` is accepted with no control and is not held to AC-42; one declaring `findable`, `control_for` or `pending` is rejected. | Test (TC-1032) |
 | FR-065-AC-44 | An ecosystem-bound `regression` case credits its inventory cell, so a cell does not revert to GAP when its defect is fixed. | Test (TC-1032) |
-| FR-065-AC-45 | A case binding a relaxation variant credits no cell whatever its `kind`, and that cell reads `GAP` with a reason naming its `relaxation_ticket`. | Test (TC-1032) |
+| FR-065-AC-45 | A relaxation variant credits no cell and reads `GAP` naming its ticket; a declaration-under-test variant credits no ecosystem cell and reads `out-of-scope` with its authored reason. | Test (TC-1032) |
 | FR-065-AC-46 | A failure case whose `expect.yaml`, restricted to the `witness_channels` its mode declares, holds against its control's payload is rejected **by every reader** — as is one naming no witness channel at all. | Test (TC-1028; `qa-corpus` `scripts/parity_selftest.py`) |
 | FR-065-AC-47 | A `witness_channels` entry naming a channel a reader cannot restrict on is rejected **by every reader**, rather than dropped; so is one that is not a list, and a declared `mode_family` with no entry at all. | Test (TC-1028; `qa-corpus` `verify.py check_witness_channels`) |
 
