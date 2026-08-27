@@ -7,6 +7,17 @@ description: "Chronological log of structural changes to this bundle."
 
 ## History
 
+* **2026-08-27** — **CR-145**: property spans now obey the boundary contract
+  from `agent-ix/quire-rs#241` (epic `agent-ix/quoin#261`). Weak predicate
+  markers cannot begin or end inside a hyphenated compound, a `when`/`that`
+  filter found after the first predicate cannot retroactively swallow that
+  predicate into the domain, and partitive frames such as `Each of the 6` are
+  excluded from the generated subject. The controlled exact, truncation,
+  over-broad, wrong-subject, and refusal cases retain statement-relative
+  coordinates; unsupported weak-only boundaries still emit no spans and keep
+  the machine-readable `span:refused-weak-boundary` reason. FR-052-AC-20;
+  TC-1078.
+
 * **2026-08-26** — **CR-144**: trace targets can declare `required: false` (#327), so an optional minting section is absent without producing a false `section-matches-nothing` or lowering `minting.section_hit_rate`; the default stays required and a present optional section still mints and validates (FR-050-AC-41, TC-1076). The same pass joins an untracked coarse id to exact descendants the active model really mints (#328): `untracked-id-has-minted-children` names the source locus and candidate child ids without treating the parent tag as evidence for every child (FR-050-AC-42, TC-1077). Quoin's first consumer run measured the initial form at 3 TP / 3 FP: nested `INV` ids were told to substitute an `AC` sibling. Direct parents now recommend an exact child, while nested classes explicitly forbid substitution and direct the author to correct the id or declare its class. Both shapes landed red in qa-corpus before the engine change.
 
 * **2026-08-26** — **CR-143**: **the oracle-copy comparison gets a production caller** (FR-064-AC-6/CON-4, TC-1061, `agent-ix/quire-rs#236`, epic `agent-ix/quoin#264`). `oracle_copies` existed only behind its unit tests, so `quire coverage` could not emit the suspicion and the seeded corpus scored no detection. The earlier call-based attempt correctly refused to ship: a literal copy scored **0.214** whole-test-to-implementation-body and **0.429** isolated-oracle-to-body against a **0.75** floor calibrated for expression-to-expression comparison.
