@@ -134,6 +134,71 @@
       "total": 6
     }
   ],
+  "minted_targets": [
+    {
+      "id": "FR-001-AC-1",
+      "target": "acceptance-criterion",
+      "document": "spec/FR-001.md",
+      "line": 15,
+      "backed": false
+    },
+    {
+      "id": "FR-001-AC-2",
+      "target": "acceptance-criterion",
+      "document": "spec/FR-001.md",
+      "line": 16,
+      "backed": false
+    },
+    {
+      "id": "FR-002-AC-1",
+      "target": "acceptance-criterion",
+      "document": "spec/FR-002.md",
+      "line": 15,
+      "backed": false
+    },
+    {
+      "id": "TC-001",
+      "target": "test-case",
+      "document": "spec/tests.md",
+      "line": 13,
+      "backed": true
+    },
+    {
+      "id": "TC-002",
+      "target": "test-case",
+      "document": "spec/tests.md",
+      "line": 14,
+      "backed": false
+    },
+    {
+      "id": "TC-003",
+      "target": "test-case",
+      "document": "spec/tests.md",
+      "line": 15,
+      "backed": false
+    },
+    {
+      "id": "TC-004",
+      "target": "test-case",
+      "document": "spec/tests.md",
+      "line": 16,
+      "backed": false
+    },
+    {
+      "id": "TC-005",
+      "target": "test-case",
+      "document": "spec/tests.md",
+      "line": 17,
+      "backed": false
+    },
+    {
+      "id": "TC-006",
+      "target": "test-case",
+      "document": "spec/tests.md",
+      "line": 18,
+      "backed": false
+    }
+  ],
   "criteria": [
     {
       "document": "spec/FR-001.md",

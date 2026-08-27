@@ -728,6 +728,18 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-1058 | The corpus harness runs the representative `clean-control` case twice to byte-identical coverage JSON, grades it successfully, and renders the exact L3 outcome text; this characterizes the execution/grading/rendering boundary before #360 moves it into separate modules | Integration | P0 | FR-050-AC-7 | ✅ |
 | TC-1059 | Static source boundaries keep declaration classification, diagnostic construction, binding diagnostics, reconciliation, corpus metadata loading, execution and grading in separate modules; dependency drift fails the test (#360) | Unit | P0 | FR-050-CON-1, FR-050-CON-2 | ✅ |
 | TC-1060 | The binding census separates zero authored tags from authored tags the grammar missed: `bound <= tagged <= candidates`, an unread tag names its exact `unmatched_example`, ids inside a test body do not count as annotations, and `authoring.tag_rate` reports an honest measured zero without a hollow denominator (#271, CR-142) | Integration | P0 | FR-051-AC-19, FR-063-AC-8 | ✅ |
+| TC-1062 | The census records P1 evidence symbols, P2 authored tag tokens, P3 authored rows and P4 minted rows as four named populations with distinct units | Unit | P0 | FR-066-AC-1 | ✅ |
+| TC-1063 | The authored-row scan is engine-independent and deduplicated, and rows a declaration failed to mint remain in P3 while P4 moves separately | Integration | P0 | FR-066-AC-2 | ✅ |
+| TC-1064 | Six dispositions apply in strict first-match order, each routes to its declared owner, and precedence prevents double classification | Unit | P0 | FR-066-AC-3 | ✅ |
+| TC-1065 | The partition sum holds per repository and in aggregate; an unclassified row or mismatched sum fails with no residual bucket | Unit | P0 | FR-066-AC-4 | ✅ |
+| TC-1066 | A status lie is an overlay on one classified row and does not change any disposition or the partition sum | Unit | P0 | FR-066-AC-5 | ✅ |
+| TC-1067 | A readable repository with tests and zero authored tags routes to `authoring-absent`, while unread binder input routes to `instrument-unread`; the measured 82-repository set never crosses the boundary | Integration | P0 | FR-066-AC-6 | ✅ |
+| TC-1068 | Missing provenance, a changed engine or each missing required capability aborts the census naming the missing token | Unit | P0 | FR-066-AC-7 | ✅ |
+| TC-1069 | JSON and Markdown artifacts carry measured provenance and population/exclusion facts, and rerender byte-identically | Integration | P0 | FR-066-AC-8 | ✅ |
+| TC-1070 | `make census` is reachable from schedule and workflow dispatch only and is absent from push and pull-request gates | Inspection | P0 | FR-066-AC-9 | ✅ |
+| TC-1071 | Every disposition renders a measured locus, owner, reason and next action in the human report | Unit | P0 | FR-066-AC-10 | ✅ |
+| TC-1072 | The structural-coverage relationship is documented and no owning enum is widened | Inspection | P1 | FR-066-AC-11 | ✅ |
+| TC-1073 | Every minted target record carries id, target, document, line and backed state in deterministic order; record and backed counts equal both totals, the empty case omits the field, and quire-cli advertises the capability (#361) | Integration | P0 | FR-050-AC-38, FR-066-AC-2 | ✅ |
 | TC-1052 | The symbol table reports the QUALIFIED NAME the engine built, with its container — the field three ports of `symbols/python.rs` disagreed on, giving 386, 490 and 5,263 lost declarations over one tree. A defect in the scanner cannot be sized by a reimplementation of the scanner (#309) | Unit | P0 | FR-051-AC-23 | ✅ |
 | TC-1053 | Each record carries whether its KIND can bind a trace id and whether it can carry `implements`, and the two are complements for every symbol — the first thing to check when a row will not bind, previously only inferable from a coverage rollup two layers away (#309, #312, CR-061) | Unit | P0 | FR-051-AC-23 | ✅ |
 | TC-1054 | With no module the report says binding was NOT ASKED rather than reporting zero: an unbound run and a repository nobody tagged produce the same empty `trace_ids`, and the per-language census keeps `binding_kinds` separate from `bound` so a rate is never drawn over the wrong denominator (#309) | Unit | P0 | FR-051-AC-23 | ✅ |
@@ -1195,6 +1207,7 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-050-AC-35 | TC-1041 |
 | FR-050-AC-36 | TC-1048, TC-1049 |
 | FR-050-AC-37 | TC-1050, TC-1051 |
+| FR-050-AC-38 | TC-1073 |
 | FR-064-AC-1 | TC-997, TC-998, TC-1002 |
 | FR-064-AC-2 | TC-999 |
 | FR-064-AC-3 | TC-1000 |
@@ -1214,6 +1227,17 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-063-AC-5 | TC-988 |
 | FR-063-AC-7 | TC-1036 |
 | FR-063-AC-8 | TC-1060 |
+| FR-066-AC-1 | TC-1062 |
+| FR-066-AC-2 | TC-1063 |
+| FR-066-AC-3 | TC-1064 |
+| FR-066-AC-4 | TC-1065 |
+| FR-066-AC-5 | TC-1066 |
+| FR-066-AC-6 | TC-1067 |
+| FR-066-AC-7 | TC-1068 |
+| FR-066-AC-8 | TC-1069 |
+| FR-066-AC-9 | TC-1070 |
+| FR-066-AC-10 | TC-1071 |
+| FR-066-AC-11 | TC-1072 |
 | FR-058-AC-2 | TC-899 |
 | FR-058-AC-2 | TC-909 |
 | FR-058-AC-3 | TC-900 |

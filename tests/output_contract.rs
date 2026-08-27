@@ -170,6 +170,13 @@ fn tc856_payload_carrying_every_optional_key_conforms() {
             ]
         }],
         "groups": [{"document": "tests.md", "target": "test-case", "backed": 1, "total": 2}],
+        "minted_targets": [{
+            "id": "TC-001",
+            "target": "test-case",
+            "document": "tests.md",
+            "line": 11,
+            "backed": true
+        }],
         "criteria": [{
             "document": "FR-001.md",
             "archetype": "FR",

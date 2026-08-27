@@ -62,6 +62,13 @@
         "$ref": "#/$defs/GroupCounts"
       }
     },
+    "minted_targets": {
+      "type": "array",
+      "description": "FR-050-AC-38 (#361): row-level identity and backed state behind groups and totals. ABSENT only when the model minted no rows; additive under FR-055-CON-3.",
+      "items": {
+        "$ref": "#/$defs/MintedTargetRecord"
+      }
+    },
     "criteria": {
       "type": "array",
       "description": "FR-050-AC-13 (CR-028): per-document property-shape counts. Absent for a corpus binding no criteria.",
@@ -572,6 +579,18 @@
           "type": "integer",
           "minimum": 0
         }
+      }
+    },
+    "MintedTargetRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "target", "document", "line", "backed"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "target": {"type": "string", "minLength": 1},
+        "document": {"type": "string", "minLength": 1},
+        "line": {"type": "integer", "minimum": 1},
+        "backed": {"type": "boolean"}
       }
     },
     "CriteriaCounts": {

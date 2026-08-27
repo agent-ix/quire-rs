@@ -84,6 +84,11 @@ name the declared forms to check, and a finding that says what to look at beats 
 is wrong. This one is the backstop for every metric, including ones added later with no bespoke check
 of their own — which is what makes it a schema invariant rather than another special case.
 
+[FR-066](./FR-066-gap-disposition-census.md) consumes this envelope as a hard
+premise: a cross-repository census refuses a missing capability or changing
+engine instead of publishing a partial partition. Per-report omission can be
+honest; a census silently omitting the fact it partitions cannot be.
+
 ## Acceptance Criteria
 
 | ID | Criteria | Verification |

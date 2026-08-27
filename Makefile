@@ -26,6 +26,7 @@ help:
 	@echo "  make audit-unsafe     - Enforce // SAFETY: comments on unsafe blocks"
 	@echo "  make audit-property   - Enforce FR-052-CON-1: no GrammarFinding in the property classifier"
 	@echo "  make validate         - Validate spec/ with the working-tree engine (#212 gate)"
+	@echo "  make census           - Scheduled/manual ecosystem gap disposition census"
 	@echo "  make ci               - Per-PR CI gates (fmt-check + lint + test + deny + audit-unsafe + audit-property + audit-static + validate)"
 	@echo ""
 	@echo "Hardening (scheduled / pre-tag):"
@@ -294,6 +295,16 @@ check-engine:
 	else \
 		echo "check_engine: SKIP — no consumer workspace at $(QUIRE_CLI)"; \
 	fi
+
+# FR-066 / #277: minutes-long ecosystem census, never a per-change gate.
+CENSUS_ROOT ?= $(HOME)/dev
+CENSUS_MODULE ?= $(HOME)/dev/spec-artifacts-process/spec_artifacts_process
+CENSUS_CONSUMER ?= ../quire-cli
+
+.PHONY: census
+census:
+	python3 scripts/gap_census.py --root "$(CENSUS_ROOT)" \
+		--consumer "$(CENSUS_CONSUMER)" --module "$(CENSUS_MODULE)"
 
 .PHONY: corpus-recall-update
 corpus-recall-update:

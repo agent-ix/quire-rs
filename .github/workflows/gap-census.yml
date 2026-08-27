@@ -1,0 +1,37 @@
+name: gap-census
+
+# FR-066: this 239-repository measurement is a census, not the corpus gate.
+# It runs on the self-hosted ecosystem checkout by schedule or explicit request;
+# there is deliberately no push or pull_request trigger.
+on:
+  schedule:
+    - cron: "17 7 * * 1"
+  workflow_dispatch:
+    inputs:
+      root:
+        description: "Path containing the ecosystem repositories"
+        required: false
+        default: "/srv/agent-ix/dev"
+      module:
+        description: "Current spec-artifacts-process module checkout"
+        required: false
+        default: "/srv/agent-ix/dev/spec-artifacts-process/spec_artifacts_process"
+
+permissions:
+  contents: read
+
+jobs:
+  census:
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run disposition census
+        env:
+          CENSUS_ROOT: ${{ inputs.root || '/srv/agent-ix/dev' }}
+          CENSUS_MODULE: ${{ inputs.module || '/srv/agent-ix/dev/spec-artifacts-process/spec_artifacts_process' }}
+          CENSUS_CONSUMER: /srv/agent-ix/dev/quire-cli
+        run: make census
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gap-census
+          path: reports/*-gap-census.*

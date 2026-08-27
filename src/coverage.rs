@@ -205,6 +205,17 @@ pub struct GroupCounts {
     pub total: usize,
 }
 
+/// One target row the active model minted, with the state needed to open and
+/// partition it (FR-050-AC-38, #361).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MintedTargetRecord {
+    pub id: String,
+    pub target: String,
+    pub document: String,
+    pub line: usize,
+    pub backed: bool,
+}
+
 /// Property-shape counts for one document's binding criteria (FR-050-AC-13,
 /// CR-028), summarizing what [`crate::grammar::property`] classified.
 ///
@@ -333,6 +344,10 @@ pub struct CoverageReport {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub shared_trace_ids: Vec<SharedTraceId>,
     pub groups: Vec<GroupCounts>,
+    /// Row-level identity behind `groups` and `totals` (#361). Omitted only
+    /// when the model minted no rows, preserving the additive v1 contract.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub minted_targets: Vec<MintedTargetRecord>,
     /// Per-document property-shape counts (CR-028). Empty for a corpus whose
     /// documents bind no criteria, so such a report serializes exactly as it
     /// did before the field existed.
@@ -528,13 +543,6 @@ impl CoverageReport {
     pub fn to_json(&self) -> String {
         serde_json::to_string_pretty(self).expect("coverage report serializes")
     }
-}
-
-/// One minted trace id and where it came from.
-struct MintedTarget {
-    id: String,
-    target: String,
-    document: String,
 }
 
 /// Reconcile declared targets, declared reference rows, and scanned source

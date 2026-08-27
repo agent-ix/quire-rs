@@ -13,7 +13,7 @@ use super::binding_diagnostics::{
 };
 use super::{
     relative, CoverageDiagnostic, CoverageReport, CoverageTotals, GroupCounts, ImplementsRecord,
-    MintedTarget, NoSymbolRow, SharedTraceId, SharedTraceSymbol, StatusLie, UnbackedRow,
+    MintedTargetRecord, NoSymbolRow, SharedTraceId, SharedTraceSymbol, StatusLie, UnbackedRow,
     UndeclaredStatus, UntrackedSymbol, COVERAGE_DIAGNOSTIC_REASONS,
 };
 
@@ -30,7 +30,7 @@ pub(super) fn reconcile(
 
     // ── Minted targets, grouped by their minting document ──
     let mut ctx = declared_tables::ScanContext::default();
-    let mut minted: Vec<MintedTarget> = Vec::new();
+    let mut minted: Vec<MintedTargetRecord> = Vec::new();
     for target in &model.trace_targets {
         let exclude = declared_tables::ExcludeSet::compile_validated(&target.exclude);
         for row in declared_tables::scan(
@@ -51,13 +51,18 @@ pub(super) fn reconcile(
             let Some(id) = row.cell(&target.id_column) else {
                 continue;
             };
-            minted.push(MintedTarget {
+            minted.push(MintedTargetRecord {
                 id: id.to_string(),
                 target: target.name.clone(),
                 document: relative(root, &row.path),
+                line: row.line,
+                backed: backed.contains(id),
             });
         }
     }
+    minted.sort_by(|a, b| {
+        (&a.target, &a.document, &a.id, a.line).cmp(&(&b.target, &b.document, &b.id, b.line))
+    });
 
     let mut counts: BTreeMap<(String, String), (usize, usize)> = BTreeMap::new();
     let mut declared_ids: BTreeSet<String> = BTreeSet::new();
@@ -67,7 +72,7 @@ pub(super) fn reconcile(
             .entry((entry.document.clone(), entry.target.clone()))
             .or_insert((0, 0));
         slot.1 += 1;
-        if backed.contains(entry.id.as_str()) {
+        if entry.backed {
             slot.0 += 1;
         }
     }
@@ -433,6 +438,7 @@ pub(super) fn reconcile(
         untracked_symbols,
         shared_trace_ids,
         groups,
+        minted_targets: minted,
         // CR-028: filled by `compute`, which holds the `Registry` this
         // reconciliation deliberately does not take.
         criteria: Vec::new(),

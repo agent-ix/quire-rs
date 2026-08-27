@@ -621,6 +621,52 @@ fn tc737_per_group_counts_sum_to_totals() {
     assert_eq!(report.totals.backed, 2);
 }
 
+#[trace("TC-1073", "FR-050-AC-38", "FR-066-AC-2")]
+#[test]
+fn tc1073_minted_targets_are_the_row_level_totals() {
+    let bundle = iso_bundle(
+        "1073",
+        &[
+            ("TC-002", "FR-001-AC-2", "🚧"),
+            ("TC-001", "FR-001-AC-1", "✅"),
+        ],
+        &["TC-001", "FR-001-AC-1"],
+    );
+    let report = report_for(&bundle, "iso").expect("model declared");
+
+    assert_eq!(report.minted_targets.len(), report.totals.total);
+    assert_eq!(
+        report
+            .minted_targets
+            .iter()
+            .filter(|row| row.backed)
+            .count(),
+        report.totals.backed
+    );
+    assert!(report.minted_targets.iter().all(|row| {
+        !row.id.is_empty() && !row.target.is_empty() && !row.document.is_empty() && row.line > 0
+    }));
+    assert!(report.minted_targets.windows(2).all(|rows| {
+        (
+            &rows[0].target,
+            &rows[0].document,
+            &rows[0].id,
+            rows[0].line,
+        ) <= (
+            &rows[1].target,
+            &rows[1].document,
+            &rows[1].id,
+            rows[1].line,
+        )
+    }));
+
+    let empty_bundle = iso_bundle("1073-empty", &[], &[]);
+    let empty = report_for(&empty_bundle, "fails-open").expect("model declared");
+    assert!(empty.minted_targets.is_empty());
+    let value: serde_json::Value = serde_json::from_str(&empty.to_json()).expect("JSON");
+    assert!(value.get("minted_targets").is_none());
+}
+
 #[trace("TC-738", "FR-050-AC-7")]
 // repeated runs over identical inputs emit (Property)
 // byte-identical JSON.
@@ -951,6 +997,7 @@ fn tc788_no_criteria_corpus_is_unchanged() {
             "diagnostics",
             "groups",
             "metrics",
+            "minted_targets",
             "status_lies",
             "totals",
             "unbacked_rows",
