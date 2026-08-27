@@ -1551,44 +1551,39 @@ fn tc1027_a_control_binds_its_partners_declaration() {
     // must carry). `bounds.py`, not `verify.py`: these are corpus conformance
     // and need no engine, which is what makes them testable this way at all.
     let mutations: &[(&str, &str)] = &[
-        // AC-38 — drop an allowlisted case and the violation it was covering
-        // must surface.
-        //
-        // DERIVED, not transcribed. This named `wrong-type-cell` as a literal,
-        // and #286 gave that case a control — so the entry left the list, the
-        // `replace` matched nothing, and the mutation was a silent no-op. A
-        // mutation pinned to a specimen stops testing the moment the specimen
-        // is fixed, which is the reward-for-fixing-things trap this suite has
-        // now hit four times in one day.
+        // Break one real control's partnership. The mutation creates the
+        // defect so the healthy corpus need not retain a permanent specimen.
         (
-            "i = s.index('uncontrolled_failure_cases:'); \
-             j = s.index('\\n    - ', i) + 1; \
-             k = s.index('\\n', j) + 1; \
-             s = s[:j] + s[k:]",
+            "q = p.parent / 'cases/skeptic/gate-that-gates-nothing-control/case.yaml'; \
+             t = q.read_text(); \
+             q.write_text(t.replace('- gate-that-gates-nothing', '- mocked-confirmation'))",
             "no control names it",
         ),
-        // AC-37, the other direction — an entry naming no case is a declared
-        // gap that has outlived its fixture.
+        // The opposite defect is a declared gap that names no live case.
         (
-            "s = s.replace('    - gate-that-gates-nothing\\n', \
-             '    - gate-that-gates-nothing\\n    - a-case-that-does-not-exist\\n', 1)",
+            "s = s.replace('known_gaps:\\n', \
+             'known_gaps:\\n  synthetic_stale_gap:\\n    reason: agent-ix/quoin#224\\n    cases:\\n    - a-case-that-does-not-exist\\n', 1)",
             "outlived its fixture",
         ),
-        // AC-40 — a `findable` case that names nothing which finds it. Remove
-        // one current specimen from the allowlist and the rule must surface it.
+        // Synthesize an uncontrolled failure whose live block names no
+        // finding, without retaining an undetected production fixture.
         (
-            "s = s.replace('    - mocked-confirmation\\n', '', 1)",
+            "s = s.replace('known_gaps:\\n', \
+             'known_gaps:\\n  uncontrolled_failure_cases:\\n    reason: agent-ix/quoin#224\\n    cases:\\n    - mocked-confirmation\\n', 1); \
+             q = p.parent / 'cases/skeptic/mocked-confirmation-control/case.yaml'; \
+             t = q.read_text(); \
+             q.write_text(t.replace('- mocked-confirmation', '- oracle-copy')); \
+             q = p.parent / 'cases/skeptic/mocked-confirmation/python/expect.yaml'; \
+             t = q.read_text(); \
+             q.write_text(t[:t.index('external_observations:')] + \
+                          'external_observations: []\\n')",
             "requires no finding",
         ),
-        // AC-41 — an exemption with no ticket is permanent by default.
-        //
-        // The mutation matches the RULE's pattern (`#\\d+`), not the spelling the
-        // corpus happens to use. It matched `agent-ix/<repo>#<n>` only, so a
-        // reason carrying a BARE `#286` kept satisfying the check while the
-        // mutation reported nothing to remove — a mutation that tests a
-        // convention rather than the rule underneath it.
+        // An exemption without an accountable issue reference is permanent by
+        // default; create one synthetically so the guard remains verifiable.
         (
-            "import re; s = re.sub(r'(agent-ix/[a-z-]+)?#\\d+', 'because I said so', s)",
+            "s = s.replace('known_gaps:\\n', \
+             'known_gaps:\\n  synthetic_ticketless_gap:\\n    reason: because I said so\\n    cases:\\n    - mocked-confirmation\\n', 1)",
             "names no ticket",
         ),
     ];
@@ -1880,6 +1875,22 @@ fn tc1028_a_failure_case_discriminates_from_its_control() {
             // already makes the claim that has content.
             for (block, which) in [(Some(&case.expect), "expect.yaml")] {
                 let Some(block) = block else { continue };
+                if !block.external_observations.is_empty() {
+                    // The corpus verifier executes the external producer.
+                    // Quire delegates this channel explicitly and only checks
+                    // that the paired control expects it to stay silent.
+                    assert!(
+                        control.expect.external_observations.is_empty(),
+                        "{} and its control {} both expect an external observation",
+                        case.meta.id,
+                        control.meta.id,
+                    );
+                    graded_pairs.push(format!(
+                        "{}|{}|{}",
+                        case.meta.id, case.meta.language, control.meta.id
+                    ));
+                    continue;
+                }
                 let verdict = corpus_case::grade_against(
                     case,
                     &healthy,

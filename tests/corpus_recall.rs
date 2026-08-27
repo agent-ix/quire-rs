@@ -4,7 +4,7 @@
 
 mod corpus_case;
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::process::Command;
 
 use corpus_case::{grade, load_cases, run, Case, Level};
@@ -117,10 +117,16 @@ fn score(gap_count: usize) -> Vec<RecallRow> {
         if case.meta.kind != "failure" || !case.meta.findable {
             continue;
         }
+        let claimed = claimed_levels(&case);
+        // A shared case may be witnessed exclusively by another validator.
+        // Its producer's runner scores it; counting it as a Quire miss would
+        // make this runner's denominator include work it did not evaluate.
+        if !evaluated_by_quire(&case) {
+            continue;
+        }
         let report = run(&case);
         let outcome = grade(&case, &report);
         let lost = outcome.level_lost();
-        let claimed = claimed_levels(&case);
         let achieved = [
             claimed[0] && lost != Some(Level::L1Detected),
             claimed[1] && !matches!(lost, Some(Level::L1Detected | Level::L2Localised)),
@@ -160,6 +166,48 @@ fn score(gap_count: usize) -> Vec<RecallRow> {
         .collect()
 }
 
+#[test]
+fn externally_witnessed_cases_are_outside_the_quire_population() {
+    let cases = load_cases();
+    let external: BTreeSet<String> = cases
+        .iter()
+        .filter(|case| {
+            case.meta.kind == "failure"
+                && case.meta.findable
+                && !case.expect.external_observations.is_empty()
+                && !claimed_levels(case)[0]
+        })
+        .map(|case| case.meta.id.clone())
+        .collect();
+    assert!(
+        !external.is_empty(),
+        "the corpus has no external-only witness"
+    );
+
+    let rows = score(current_gap_count());
+    let misses: BTreeSet<&str> = rows
+        .iter()
+        .flat_map(|row| row.misses.iter().map(String::as_str))
+        .collect();
+    assert!(
+        external.iter().all(|id| !misses.contains(id.as_str())),
+        "external-only cases were reported as Quire misses"
+    );
+
+    let expected_population = cases
+        .iter()
+        .filter(|case| {
+            case.meta.kind == "failure" && case.meta.findable && evaluated_by_quire(case)
+        })
+        .count();
+    let observed_population: usize = rows
+        .iter()
+        .filter(|row| row.level == "L1")
+        .map(|row| row.population)
+        .sum();
+    assert_eq!(observed_population, expected_population);
+}
+
 fn claimed_levels(case: &Case) -> [bool; 3] {
     let expect = &case.expect;
     let l3 = !expect.diagnostic_message_contains.is_empty()
@@ -186,6 +234,10 @@ fn claimed_levels(case: &Case) -> [bool; 3] {
         || l2
         || l3;
     [l1, l1 && l2, l1 && l2 && l3]
+}
+
+fn evaluated_by_quire(case: &Case) -> bool {
+    case.expect.external_observations.is_empty() || claimed_levels(case)[0]
 }
 
 fn current_gap_count() -> usize {

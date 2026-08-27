@@ -316,6 +316,13 @@ pub struct CaseExpect {
     /// which is not a stronger assertion, only a longer one.
     #[serde(default)]
     pub absent_suspicions: Vec<String>,
+    /// Witnesses produced by validators outside Quire.
+    ///
+    /// The producing validator owns each observation's shape. Quire requires
+    /// mapping-shaped entries and otherwise preserves them opaquely so this
+    /// reader cannot drift from another tool's contract.
+    #[serde(default)]
+    pub external_observations: Vec<BTreeMap<String, serde_yaml::Value>>,
 }
 
 impl CaseExpect {
@@ -398,6 +405,11 @@ impl CaseExpect {
             } else {
                 Vec::new()
             },
+            external_observations: if on("external_observations") {
+                self.external_observations.clone()
+            } else {
+                Vec::new()
+            },
         }
     }
 
@@ -422,6 +434,7 @@ impl CaseExpect {
             "validate_absent",
             "suspicions",
             "absent_suspicions",
+            "external_observations",
         ]
         .iter()
         .map(|s| s.to_string())
@@ -446,6 +459,7 @@ impl CaseExpect {
             && self.validate_absent.is_empty()
             && self.suspicions.is_empty()
             && self.absent_suspicions.is_empty()
+            && self.external_observations.is_empty()
     }
 }
 
@@ -580,5 +594,6 @@ impl CaseExpect {
             || self.untracked_symbols.is_some()
             || !self.suspicions.is_empty()
             || !self.absent_suspicions.is_empty()
+            || !self.external_observations.is_empty()
     }
 }
