@@ -113,6 +113,7 @@ def test_metrics_are_omitted_rather_than_zeroed_when_unreadable(capsys):
     assert "coverage.binding_read_pct" not in out
     assert "authoring.tag_rate" not in out
     assert "properties.specific_shaped_pct" not in out
+    assert "coverage.minting_repos" not in out
     # …and it says why, rather than omitting silently.
     err = capsys.readouterr().err
     assert "binding_census" in err and "specific_shaped" in err
@@ -125,11 +126,20 @@ def test_the_binding_rate_reads_the_census_when_it_is_there():
             {"language": "rust", "candidates": 8, "tagged": 7, "bound": 6},
             {"language": "python", "candidates": 2, "tagged": 1, "bound": 0},
         ],
+        "metrics": [
+            {
+                "name": "minting.section_hit_rate",
+                "state": "measured",
+                "value": 3,
+                "population": 3,
+            }
+        ],
     }
     out = metrics_from(payload)
     assert out["coverage.binding_read_pct"] == pct(6, 10)
     assert out["authoring.tag_rate"] == pct(8, 10)
     assert out["properties.specific_shaped_pct"] == 25.0
+    assert out["coverage.minting_repos"] == 1
 
 
 def test_silent_zero_counts_only_what_the_engine_did_not_already_report():

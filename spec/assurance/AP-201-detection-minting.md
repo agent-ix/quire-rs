@@ -59,6 +59,13 @@ digest, raw payload, measurement-plan version, population counts, gap count,
 and exact gate output. A zero without evidence that the population was read is
 not a pass.
 
+## Measurement Ownership
+
+Quire owns MP-201 through MP-208 and the engine benchmark producer that records
+them under `spec/evidence/measurements`. Corpus inventory and Quoin
+finding-quality measurements remain in their owning repositories; the
+portfolio reads those stores without moving or retyping their observations.
+
 ## Tool Reliance and Independence
 
 Quire's tests show implementation conformance but are not independent of the

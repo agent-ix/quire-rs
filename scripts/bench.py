@@ -247,6 +247,21 @@ def metrics_from(payload: dict) -> dict[str, Any]:
         "coverage.backed_pct": pct(backed, total),
         "coverage.dead_tags": len(payload.get("untracked_symbols", [])),
     }
+    minting = next(
+        (
+            metric
+            for metric in payload.get("metrics", [])
+            if metric.get("name") == "minting.section_hit_rate"
+        ),
+        None,
+    )
+    if minting and minting.get("state") == "measured":
+        out["coverage.minting_repos"] = 1 if minting.get("value", 0) > 0 else 0
+    else:
+        skip(
+            "coverage.minting_repos",
+            "payload carries no measured minting.section_hit_rate",
+        )
     # A metric is omitted when it CANNOT be read, and the reason is printed.
     # Reporting 0% for either of these would be the silent zero this benchmark
     # exists to catch, produced by the benchmark itself.
@@ -363,7 +378,12 @@ def silent_zeros(payload: dict) -> int:
     return silent
 
 
-def collect(manifest: dict, quire: str, module: str | None) -> dict:
+def collect(
+    manifest: dict,
+    quire: str,
+    module: str | None,
+    raw_evidence: dict[str, Any] | None = None,
+) -> dict:
     """Run the corpus. Skips an absent entry loudly rather than scoring 0.
 
     A missing corpus scored as zero is the silent-zero defect this benchmark
@@ -379,6 +399,11 @@ def collect(manifest: dict, quire: str, module: str | None) -> dict:
             continue
         print(f"…{entry['name']} @ {identity}", file=sys.stderr)
         observed[entry["name"]] = selected(entry, metrics_from(payload))
+        if raw_evidence is not None:
+            raw_evidence[entry["name"]] = {
+                "identity": identity,
+                "payload": payload,
+            }
     if not observed:
         raise BenchError(
             "no corpus entry could be scored — refusing to report a pass over "

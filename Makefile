@@ -246,6 +246,11 @@ bench:
 bench-update:
 	python3 scripts/bench.py --update --module $(BENCH_MODULE)
 
+.PHONY: measurement-collection
+measurement-collection:
+	test -n "$(OUTPUT)" || { echo "OUTPUT= is required"; exit 1; }
+	python3 scripts/export_measurements.py --consumer "$(QUIRE_CLI)" --module "$(BENCH_MODULE)" --output "$(OUTPUT)"
+
 .PHONY: coverage-baseline-update
 coverage-baseline-update:
 	@echo "Regenerating the FR-050-AC-7 coverage baseline (CR-057)."
