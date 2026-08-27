@@ -7,6 +7,30 @@ description: "Chronological log of structural changes to this bundle."
 
 ## History
 
+* **2026-08-27** — **CR-148**: `tag-on-non-binding-symbol` now has the
+  precision calibration `agent-ix/quire-rs#355` required before any masking
+  change. The retained frame is the **emitted diagnostic population**, not
+  #312's earlier raw-occurrence estimate: **1,541 findings** over **242
+  repositories**, partitioned into 565 production-symbol and 976 module-scope
+  rows. Every candidate retains engine/module identity, repository revision or
+  source-tree digest, dirty state, diagnostic locus, and every exact source
+  occurrence of its id. The deterministic stratified sample rules **106/110 as
+  authored tags**, **4 as prose citations**, and zero as other, ambiguous, or
+  unresolved. Population-weighted precision is **98.2%**; the conservative
+  stratified 95% interval is **88.4%–99.3%**.
+
+  **No matcher change ships.** The four prose rows do not justify splitting the
+  detector from the binder or masking a legacy form in only one caller. The
+  finding stays advisory, with a quoted-prose positive and redacted-id negative
+  pinned by TC-1081. Controlled recall remains 6/6 at L1, L2 and L3. The sample
+  also makes the existing locality tradeoff explicit: only **4/110** emitted
+  lines equal an exact id-occurrence line because the diagnostic deliberately
+  names the symbol's leading line; no locality is claimed to have improved.
+  The [frame](../reports/2026-08-27-tag-non-binding-frame.json),
+  [row rulings](../reports/2026-08-27-tag-non-binding-rulings.yaml), and
+  [rendered result](../reports/2026-08-27-tag-non-binding-precision.md) are the
+  re-derivable record. FR-051-AC-22; TC-1081.
+
 * **2026-08-27** — **CR-147**: the oracle-copy producer now reaches the actual
   TC-1598 wild shape from `filament-ide-rs@59a180a7`
   (`agent-ix/quire-rs#236`, epic `agent-ix/quoin#261`). That assertion calls a

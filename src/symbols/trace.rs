@@ -2166,6 +2166,27 @@ mod tests {
         assert_eq!(legacy.non_binding_tags.len(), 1);
     }
 
+    #[trace("TC-1081", "FR-051-AC-22")]
+    // A quoted legacy id remains visible to the shared matcher. The #355
+    // calibration found a small prose-citation class but did not justify a
+    // binder/detector split or a masking rule; the redacted control proves the
+    // check still depends on an id rather than merely on quoted text.
+    #[test]
+    fn tc1081_quoted_legacy_prose_remains_an_advisory_candidate() {
+        let quoted = bind(
+            &py("# The banner quotes `# FR-001-AC-1: Model Resolution`.\ndef normalize_severity(f):\n    return 1\n"),
+            &iso_model(),
+        );
+        assert_eq!(quoted.non_binding_tags.len(), 1);
+        assert_eq!(quoted.non_binding_tags[0].trace_id, "FR-001-AC-1");
+
+        let redacted = bind(
+            &py("# The banner quotes `# FR-NNN: Model Resolution`.\ndef normalize_severity(f):\n    return 1\n"),
+            &iso_model(),
+        );
+        assert!(redacted.non_binding_tags.is_empty());
+    }
+
     #[trace("TC-982", "FR-051-AC-19")]
     // the binder reports what it looked at and what
     // bound, per language, so a corpus whose convention matches no declared
