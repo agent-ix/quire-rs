@@ -1988,9 +1988,10 @@ fn tc1028_a_failure_case_discriminates_from_its_control() {
     let probe = std::process::Command::new("python3")
         .arg("-c")
         .arg(
-            "import bounds; print('\\n'.join(sorted(\
+            "import bounds; cases = [c for c in bounds.discover() if \
+             c.get('mode') != 'reporting']; print('\\n'.join(sorted(\
              f\"{k[0]}|{k[1]}|{c['id']}\" for k, v in \
-             bounds.controls_by_case(bounds.discover()).items() for c in v)))",
+             bounds.controls_by_case(cases).items() for c in v)))",
         )
         .current_dir(corpus_case::corpus_root())
         .output()

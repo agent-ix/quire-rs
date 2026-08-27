@@ -84,6 +84,12 @@ pub fn load_cases() -> Vec<Case> {
     // than of the filesystem (NFR-006).
     modes.sort();
     for mode in modes {
+        // Reporting fixtures exercise Quoin over static MeasurementRecords.
+        // They share the corpus ratchet, but are not Quire coverage inputs and
+        // therefore do not belong in this runner's recall population.
+        if mode.file_name().and_then(|name| name.to_str()) == Some("reporting") {
+            continue;
+        }
         let mut dirs: Vec<PathBuf> = std::fs::read_dir(&mode)
             .expect("read mode dir")
             .filter_map(|e| e.ok().map(|e| e.path()))
