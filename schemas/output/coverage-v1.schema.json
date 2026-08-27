@@ -125,6 +125,13 @@
         "$ref": "#/$defs/BindingCensus"
       }
     },
+    "unmatched_tags": {
+      "type": "array",
+      "description": "FR-050-AC-39 (#362): generic trace-id tokens in evidence-symbol annotation blocks that no declared form bound on that symbol. Each record is row-addressable and engine-parsed, so consumers do not duplicate adapter boundaries or mistake id-shaped test-body data for a tag. ABSENT when empty; additive under FR-055-CON-3.",
+      "items": {
+        "$ref": "#/$defs/UnmatchedTag"
+      }
+    },
     "metrics": {
       "type": "array",
       "description": "FR-063 (CR-094, #229): every headline number this payload emits, with its unit, population, method and match count. The generalization of `binding_census` \u2014 that field names the one premise `backed/total` happens to rest on; this makes stating the premise a property of every ratio, so a percentage cannot be emitted without the counts that say whether it measured anything. Always emitted by the engine; OPTIONAL here so a payload from an engine predating the field still conforms (FR-055-CON-3).",
@@ -336,6 +343,21 @@
           "$ref": "#/$defs/UnboundSymbol",
           "description": "One deterministic path and line whose evidence symbol carries an id-shaped token but minted no verifies relation. Absent when no authored tag was missed."
         }
+      }
+    },
+    "UnmatchedTag": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["trace_id", "language", "path", "line", "symbol"],
+      "properties": {
+        "trace_id": {"type": "string", "minLength": 1},
+        "language": {
+          "type": "string",
+          "enum": ["rust", "python", "typescript"]
+        },
+        "path": {"type": "string", "minLength": 1},
+        "line": {"type": "integer", "minimum": 1},
+        "symbol": {"type": "string", "minLength": 1}
       }
     },
     "UnbackedRow": {

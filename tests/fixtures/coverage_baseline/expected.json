@@ -111,7 +111,7 @@
       "path": "src/lib.rs",
       "symbol": "tests::covers_nothing_declared",
       "trace_id": "TC-999",
-      "line": 13
+      "line": 14
     }
   ],
   "groups": [
@@ -288,6 +288,15 @@
       "forms": [
         "rust-trace-attribute"
       ]
+    }
+  ],
+  "unmatched_tags": [
+    {
+      "trace_id": "TC-404",
+      "language": "rust",
+      "path": "src/lib.rs",
+      "line": 6,
+      "symbol": "tests::covers_the_round_trip"
     }
   ],
   "metrics": [

@@ -244,6 +244,13 @@ fn tc856_payload_carrying_every_optional_key_conforms() {
                 "symbol": "tests::misspelled_tag"
             }
         }],
+        "unmatched_tags": [{
+            "trace_id": "TC-404",
+            "language": "rust",
+            "path": "src/lib.rs",
+            "line": 42,
+            "symbol": "tests::misspelled_tag"
+        }],
         "metrics": [
             {
                 "name": "coverage.backed",
@@ -447,6 +454,9 @@ fn tc859_optional_and_required_split_matches_the_engine() {
         // CR-093: present whenever the walk found an evidence symbol, so a
         // corpus with no source tree at all omits it.
         "binding_census",
+        // FR-050-AC-39: absent when every annotation id bound or no generic
+        // annotation id was authored.
+        "unmatched_tags",
         // CR-094: the engine always emits it, but the contract stays additive
         // so a payload from an engine predating the field still conforms
         // (FR-055-CON-3).

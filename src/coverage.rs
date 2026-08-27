@@ -27,7 +27,7 @@ use crate::grammar::GroundingCounts;
 use crate::metric::{Metric, MetricShape};
 use crate::obligation::Obligation;
 use crate::registry::Registry;
-use crate::symbols::trace::{BindingCensus, SymbolGraph};
+use crate::symbols::trace::{BindingCensus, SymbolGraph, UnmatchedTag};
 use crate::traceability::TraceabilityModel;
 
 mod binding_diagnostics;
@@ -408,6 +408,11 @@ pub struct CoverageReport {
     /// to report.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub binding_census: Vec<BindingCensus>,
+    /// Row-addressable generic trace ids in evidence-symbol annotation blocks
+    /// that no declared form bound on that symbol (FR-050-AC-39, #362).
+    /// Omitted when every authored annotation id bound or no such id exists.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub unmatched_tags: Vec<UnmatchedTag>,
     /// Every headline number this report emits, with its unit, population,
     /// method and match count (FR-063-AC-3).
     ///

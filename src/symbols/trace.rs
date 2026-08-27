@@ -173,6 +173,26 @@ pub struct UnboundSymbol {
     pub symbol: String,
 }
 
+/// One id-shaped token authored on an evidence symbol that no declared form
+/// bound on that symbol (FR-050-AC-39, #362).
+///
+/// This is the row-addressable form of [`BindingCensus::unmatched_example`].
+/// The engine owns the annotation boundary, so a downstream census can join
+/// these records to authored rows without copying the language adapters or
+/// mistaking id-shaped fixture data in a test body for a tag.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct UnmatchedTag {
+    pub trace_id: String,
+    /// Stable machine label — `rust`, `python`, `typescript`.
+    pub language: String,
+    /// Repo-relative, `/`-separated.
+    pub path: String,
+    /// 1-based line in the attached annotation block.
+    pub line: usize,
+    /// Qualified evidence-symbol name.
+    pub symbol: String,
+}
+
 #[derive(Default)]
 struct CensusAccumulator {
     candidates: usize,
@@ -248,6 +268,9 @@ pub struct SymbolGraph {
     /// language label, and present for every language the walk saw at least one
     /// evidence symbol in.
     pub binding_census: Vec<BindingCensus>,
+    /// Generic id-shaped tokens on evidence-symbol annotation blocks that no
+    /// declared form bound on that same symbol (FR-050-AC-39, #362).
+    pub unmatched_tags: Vec<UnmatchedTag>,
     /// Production symbols examined for an `implements` marker — the complement
     /// of [`BindingCensus::candidates`] (FR-063-AC-4, CR-094).
     ///
@@ -422,12 +445,29 @@ pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolG
         // ever appends to `verifies`, so the length delta is exactly "did this
         // candidate bind" — and the count stays correct if the binder grows
         // another form.
+        let generic_tags = generic_tags(symbol, source);
+        let generic_tag_locus = generic_tags.first().map(|tag| UnboundSymbol {
+            path: tag.path.clone(),
+            line: tag.line,
+            symbol: tag.symbol.clone(),
+        });
         let before = graph.verifies.len();
         bind_symbol(symbol, source, model, &mut graph);
+        let bound_on_symbol: BTreeSet<String> = graph
+            .verifies
+            .iter()
+            .filter(|relation| relation.symbol_id == symbol.id)
+            .map(|relation| relation.trace_id.clone())
+            .collect();
+        graph.unmatched_tags.extend(
+            generic_tags
+                .into_iter()
+                .filter(|tag| !bound_on_symbol.contains(tag.trace_id.as_str())),
+        );
         let entry = census.entry(symbol.language.as_str()).or_default();
         entry.observe(
             graph.verifies.len() > before,
-            generic_tag_locus(symbol, source),
+            generic_tag_locus,
             UnboundSymbol {
                 path: symbol.path.clone(),
                 line: symbol.leading_line,
@@ -476,6 +516,15 @@ pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolG
         .into_iter()
         .map(|(language, entry)| entry.finish(language, model))
         .collect();
+    graph.unmatched_tags.sort_by(|a, b| {
+        (&a.language, &a.path, a.line, &a.symbol, &a.trace_id).cmp(&(
+            &b.language,
+            &b.path,
+            b.line,
+            &b.symbol,
+            &b.trace_id,
+        ))
+    });
 
     graph.implements.sort_by(|a, b| {
         (&a.path, &a.symbol, &a.trace_id, &a.form).cmp(&(&b.path, &b.symbol, &b.trace_id, &b.form))
@@ -492,13 +541,14 @@ pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolG
     graph
 }
 
-/// Find one generic id-shaped token in the symbol's attached annotation block.
+/// Find every generic id-shaped token in the symbol's attached annotation
+/// block.
 ///
 /// This deliberately does not reuse the declared trace grammar: that would
 /// reproduce the blindness being measured. It also stops at the declaration
 /// line, so an id mentioned in a test body is data used by the test rather than
 /// evidence that the test itself was tagged.
-fn generic_tag_locus(symbol: &Symbol, source: &str) -> Option<UnboundSymbol> {
+fn generic_tags(symbol: &Symbol, source: &str) -> Vec<UnmatchedTag> {
     static GENERIC_ID: OnceLock<Regex> = OnceLock::new();
     let pattern = GENERIC_ID.get_or_init(|| {
         Regex::new(r"(?i)\b[A-Z]{2,4}-[0-9]+(?:-[A-Z]+-[0-9]+)?\b")
@@ -511,12 +561,16 @@ fn generic_tag_locus(symbol: &Symbol, source: &str) -> Option<UnboundSymbol> {
         .enumerate()
         .skip(start)
         .take(count)
-        .find(|(_, line)| pattern.is_match(line))
-        .map(|(line, _)| UnboundSymbol {
-            path: symbol.path.clone(),
-            line: line + 1,
-            symbol: symbol.qualified_name.clone(),
+        .flat_map(|(line, text)| {
+            pattern.find_iter(text).map(move |matched| UnmatchedTag {
+                trace_id: matched.as_str().to_string(),
+                language: symbol.language.as_str().to_string(),
+                path: symbol.path.clone(),
+                line: line + 1,
+                symbol: symbol.qualified_name.clone(),
+            })
         })
+        .collect()
 }
 
 /// Every declared form the binder consults for `language`, markers before
@@ -2211,6 +2265,55 @@ mod tests {
             assert_eq!(after.bound, 0, "{}: nothing binds", after.language);
         }
         assert!(blind.verifies.is_empty());
+    }
+
+    #[trace("TC-1074", "FR-050-AC-39", "FR-066-AC-3", "FR-066-AC-6")]
+    // every unread authored id is row-addressable without widening the
+    // declared binder or scanning test bodies (#362).
+    #[test]
+    fn tc1074_unmatched_annotation_ids_are_exposed_per_symbol() {
+        let graph = bind(
+            &py(concat!(
+                "@pytest.mark.trace(\"TC-741\")\n",
+                "# malformed marker names TC-404\n",
+                "def test_mixed_annotation():\n",
+                "    fixture_data = \"TC-999\"\n",
+            )),
+            &iso_model(),
+        );
+
+        assert!(
+            graph.verifies.iter().any(|relation| {
+                relation.symbol == "test_mixed_annotation" && relation.trace_id == "TC-741"
+            }),
+            "the declared sibling proves the symbol can otherwise bind"
+        );
+        assert_eq!(
+            graph.unmatched_tags,
+            vec![UnmatchedTag {
+                trace_id: "TC-404".to_string(),
+                language: "python".to_string(),
+                path: "src/m.py".to_string(),
+                line: 2,
+                symbol: "test_mixed_annotation".to_string(),
+            }],
+            "the bound sibling and body-only fixture id are both absent"
+        );
+        assert!(graph.unmatched_tags.windows(2).all(|records| {
+            (
+                &records[0].language,
+                &records[0].path,
+                records[0].line,
+                &records[0].symbol,
+                &records[0].trace_id,
+            ) <= (
+                &records[1].language,
+                &records[1].path,
+                records[1].line,
+                &records[1].symbol,
+                &records[1].trace_id,
+            )
+        }));
     }
 }
 

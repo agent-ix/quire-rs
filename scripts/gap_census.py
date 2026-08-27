@@ -22,7 +22,7 @@ from typing import Iterable
 import yaml
 
 from check_engine import Drift, assert_capabilities, build_engine, reported_engine
-from corpus import repos, source_files
+from corpus import repos
 from sweep_coverage import coverage
 
 REQUIRED_CAPABILITIES = (
@@ -30,6 +30,7 @@ REQUIRED_CAPABILITIES = (
     "binding_census.tagged",
     "metrics_envelope",
     "minted_targets",
+    "unmatched_tags",
 )
 BINDING_FLOOR = 0.10
 DISPOSITIONS = (
@@ -59,12 +60,9 @@ NEXT_ACTIONS = {
     "authoring-absent": "add an applicable trace tag and its controlled corpus case",
 }
 
-ID_TOKEN = re.compile(
-    r"\b[A-Za-z][A-Za-z0-9]*(?:[-_][A-Za-z0-9]+){1,6}\b"
-)
+ID_TOKEN = re.compile(r"\b[A-Za-z][A-Za-z0-9]*(?:[-_][A-Za-z0-9]+){1,6}\b")
 HEADING = re.compile(r"^(#{1,6})\s+(.+?)\s*$")
 SEPARATOR = re.compile(r"^:?-{3,}:?$")
-LANGUAGE = {".rs": "rust", ".py": "python", ".ts": "typescript", ".tsx": "typescript"}
 
 
 class CensusError(RuntimeError):
@@ -110,7 +108,24 @@ def split_cells(line: str) -> list[str]:
     stripped = line.strip()
     if not stripped.startswith("|"):
         return []
-    return [cell.strip() for cell in stripped.strip("|").split("|")]
+    body = stripped[1:-1] if stripped.endswith("|") else stripped[1:]
+    cells = []
+    current = []
+    escaped = False
+    for char in body:
+        if escaped:
+            current.append(char)
+            escaped = False
+        elif char == "\\":
+            current.append(char)
+            escaped = True
+        elif char == "|":
+            cells.append("".join(current).strip())
+            current = []
+        else:
+            current.append(char)
+    cells.append("".join(current).strip())
+    return cells
 
 
 def tables(text: str) -> Iterable[tuple[str, list[str], list[str], int]]:
@@ -125,12 +140,15 @@ def tables(text: str) -> Iterable[tuple[str, list[str], list[str], int]]:
         header = split_cells(lines[index])
         if header and index + 1 < len(lines):
             separator = split_cells(lines[index + 1])
-            if len(separator) == len(header) and all(SEPARATOR.match(cell) for cell in separator):
+            if len(separator) == len(header) and all(
+                SEPARATOR.match(cell) for cell in separator
+            ):
                 cursor = index + 2
                 while cursor < len(lines):
                     cells = split_cells(lines[cursor])
-                    if not cells or len(cells) != len(header):
+                    if not cells:
                         break
+                    cells = (cells + [""] * len(header))[: len(header)]
                     yield heading, header, cells, cursor + 1
                     cursor += 1
                 index = cursor
@@ -150,7 +168,9 @@ def frontmatter_type(text: str) -> str | None:
 
 def id_signature(value: str) -> str:
     parts = re.split(r"[-_]", value.upper())
-    return ":".join("#" if part.isdigit() else re.sub(r"\d+", "#", part) for part in parts)
+    return ":".join(
+        "#" if part.isdigit() else re.sub(r"\d+", "#", part) for part in parts
+    )
 
 
 def section_matches(patterns: tuple[str, ...], heading: str) -> bool:
@@ -161,7 +181,7 @@ def excluded(rel: str, patterns: tuple[str, ...]) -> bool:
     return any(fnmatch.fnmatchcase(rel, pattern) for pattern in patterns)
 
 
-def read_targets(module: pathlib.Path) -> tuple[list[Target], tuple[str, ...]]:
+def read_targets(module: pathlib.Path) -> list[Target]:
     manifest = yaml.safe_load((module / "manifest.yaml").read_text(encoding="utf-8"))
     traceability = manifest.get("traceability", {})
     out = []
@@ -179,7 +199,7 @@ def read_targets(module: pathlib.Path) -> tuple[list[Target], tuple[str, ...]]:
                 exclude=tuple(raw.get("exclude", [])),
             )
         )
-    return out, tuple(traceability.get("source_exclude", []))
+    return out
 
 
 def scan_rows(repo: pathlib.Path, targets: list[Target]) -> tuple[dict, dict]:
@@ -210,7 +230,10 @@ def scan_rows(repo: pathlib.Path, targets: list[Target]) -> tuple[dict, dict]:
             if archetype != target.archetype or excluded(rel, target.exclude):
                 continue
             for heading, header, cells, line in parsed:
-                if not section_matches(target.sections, heading) or target.id_column not in header:
+                if (
+                    not section_matches(target.sections, heading)
+                    or target.id_column not in header
+                ):
                     continue
                 values = dict(zip(header, cells))
                 row_id = values[target.id_column]
@@ -229,27 +252,12 @@ def scan_rows(repo: pathlib.Path, targets: list[Target]) -> tuple[dict, dict]:
     return authored, minted
 
 
-def scan_source_tags(repo: pathlib.Path, patterns: tuple[str, ...]) -> dict[str, list[str]]:
-    found: dict[str, list[str]] = {}
-    for path in source_files(repo):
-        rel = path.relative_to(repo).as_posix()
-        if excluded(rel, patterns):
-            continue
-        language = LANGUAGE.get(path.suffix)
-        if not language:
-            continue
-        text = path.read_text(encoding="utf-8", errors="replace")
-        for line_no, line in enumerate(text.splitlines(), 1):
-            for token in ID_TOKEN.findall(line):
-                found.setdefault(token, []).append(f"{language}:{rel}:{line_no}")
-    return found
-
-
 def unread_languages(report: dict) -> set[str]:
     unread = {
         str(row.get("value"))
         for row in report.get("diagnostics", [])
-        if row.get("reason") in {"no-symbol-bound", "low-symbol-binding"} and row.get("value")
+        if row.get("reason") in {"no-symbol-bound", "low-symbol-binding"}
+        and row.get("value")
     }
     for row in report.get("binding_census", []):
         candidates = row.get("candidates", 0)
@@ -258,7 +266,7 @@ def unread_languages(report: dict) -> set[str]:
     return unread
 
 
-def classify_repo(repo: pathlib.Path, report: dict, targets: list[Target], source_excludes: tuple[str, ...]) -> dict:
+def classify_repo(repo: pathlib.Path, report: dict, targets: list[Target]) -> dict:
     authored, _independent_minted = scan_rows(repo, targets)
     minted: dict[tuple[str, str, str, int], Row] = {}
     for record in report.get("minted_targets", []):
@@ -305,11 +313,27 @@ def classify_repo(repo: pathlib.Path, report: dict, targets: list[Target], sourc
         for row in report.get("status_lies", [])
         for target_id in row.get("target_ids", [])
     }
-    tags = scan_source_tags(repo, source_excludes)
+    tags: dict[str, list[str]] = {}
+    for record in report.get("unmatched_tags", []):
+        missing = [
+            key
+            for key in ("trace_id", "language", "path", "line", "symbol")
+            if key not in record
+        ]
+        if missing:
+            raise CensusError(
+                f"{repo.name}: unmatched tag record lacks {', '.join(missing)}"
+            )
+        locus = f"{record['language']}:{record['path']}:{record['line']}"
+        tags.setdefault(str(record["trace_id"]), []).append(locus)
+    for loci in tags.values():
+        loci.sort()
     unread = unread_languages(report)
     signature_targets: dict[str, set[str]] = {}
     for row in minted.values():
-        signature_targets.setdefault(id_signature(row.row_id), set()).add(row.target or "")
+        signature_targets.setdefault(id_signature(row.row_id), set()).add(
+            row.target or ""
+        )
 
     classified: list[Classified] = []
     for row in sorted(authored.values()):
@@ -324,10 +348,14 @@ def classify_repo(repo: pathlib.Path, report: dict, targets: list[Target], sourc
                 reason = "no active trace target mints this authored id class"
         else:
             loci = tags.get(row.row_id, [])
-            tagged_unread = [locus for locus in loci if locus.split(":", 1)[0] in unread]
+            tagged_unread = [
+                locus for locus in loci if locus.split(":", 1)[0] in unread
+            ]
             if tagged_unread:
                 outcome = "instrument-unread"
-                reason = "the row has a tag on a language surface below the binding floor"
+                reason = (
+                    "the row has a tag on a language surface below the binding floor"
+                )
             elif loci:
                 outcome = "marker-form-mismatch"
                 reason = "the minted unbacked row has an authored id token no declared form bound"
@@ -336,7 +364,9 @@ def classify_repo(repo: pathlib.Path, report: dict, targets: list[Target], sourc
                 reason = "the declared verification method mints no source symbol"
             else:
                 outcome = "authoring-absent"
-                reason = "the row is minted and unbacked, with no authored source tag found"
+                reason = (
+                    "the row is minted and unbacked, with no authored source tag found"
+                )
         loci = tags.get(row.row_id, [])
         classified.append(
             Classified(
@@ -365,7 +395,13 @@ def classify_repo(repo: pathlib.Path, report: dict, targets: list[Target], sourc
         "P3_authored_rows": len(authored),
         "P4_minted_rows": len(minted),
     }
-    zero_tag_readable = populations["P1_evidence_symbols"] > 0 and populations["P2_tagged_symbols"] == 0
+    zero_tag_readable = (
+        populations["P1_evidence_symbols"] > 0 and populations["P2_tagged_symbols"] == 0
+    )
+    if populations["P2_tagged_symbols"] == 0 and tags:
+        raise CensusError(
+            f"{repo.name}: unmatched tag records disagree with a zero tagged-symbol population"
+        )
     if zero_tag_readable and counts["instrument-unread"]:
         raise CensusError(
             f"{repo.name}: a zero-tag repository entered instrument-unread; "
@@ -413,11 +449,15 @@ def module_sha(module: pathlib.Path) -> str:
         ["git", "-C", str(module), "rev-parse", "HEAD"], capture_output=True, text=True
     )
     if done.returncode:
-        raise CensusError(f"cannot resolve module commit for {module}: {done.stderr.strip()}")
+        raise CensusError(
+            f"cannot resolve module commit for {module}: {done.stderr.strip()}"
+        )
     return done.stdout.strip()
 
 
-def engine_identity(report: dict, prior: tuple | None = None) -> tuple[str, str, tuple[str, ...]]:
+def engine_identity(
+    report: dict, prior: tuple | None = None
+) -> tuple[str, str, tuple[str, ...]]:
     try:
         engine, capabilities = reported_engine(report)
         assert_capabilities(capabilities, list(REQUIRED_CAPABILITIES))
@@ -430,9 +470,15 @@ def engine_identity(report: dict, prior: tuple | None = None) -> tuple[str, str,
 
 
 def aggregate(repo_rows: list[dict]) -> dict:
-    populations = {name: 0 for name in (
-        "P1_evidence_symbols", "P2_tagged_symbols", "P3_authored_rows", "P4_minted_rows"
-    )}
+    populations = {
+        name: 0
+        for name in (
+            "P1_evidence_symbols",
+            "P2_tagged_symbols",
+            "P3_authored_rows",
+            "P4_minted_rows",
+        )
+    }
     counts = {name: 0 for name in ("backed", *DISPOSITIONS)}
     examples = []
     for row in repo_rows:
@@ -498,7 +544,9 @@ def render_markdown(payload: dict) -> str:
     return "\n".join(lines) + "\n"
 
 
-def write_reports(payload: dict, output_dir: pathlib.Path) -> tuple[pathlib.Path, pathlib.Path]:
+def write_reports(
+    payload: dict, output_dir: pathlib.Path
+) -> tuple[pathlib.Path, pathlib.Path]:
     output_dir.mkdir(parents=True, exist_ok=True)
     stem = f"{payload['date']}-gap-census"
     json_path = output_dir / f"{stem}.json"
@@ -513,11 +561,13 @@ def write_reports(payload: dict, output_dir: pathlib.Path) -> tuple[pathlib.Path
 def run(args: argparse.Namespace) -> dict:
     root = pathlib.Path(args.root).expanduser().resolve()
     module = pathlib.Path(args.module).expanduser().resolve()
-    targets, source_excludes = read_targets(module)
+    targets = read_targets(module)
     if not targets:
         raise CensusError("module declares no usable trace targets")
     try:
-        quire = build_engine(pathlib.Path(args.consumer).expanduser().resolve(), release=True)
+        quire = build_engine(
+            pathlib.Path(args.consumer).expanduser().resolve(), release=True
+        )
     except Drift as error:
         raise CensusError(str(error)) from error
 
@@ -529,11 +579,13 @@ def run(args: argparse.Namespace) -> dict:
     for repo in selected:
         report = coverage(quire, repo, str(module))
         if not report or "error" in report:
-            raise CensusError(f"{repo.name}: coverage failed: {(report or {}).get('error', 'no payload')}")
+            raise CensusError(
+                f"{repo.name}: coverage failed: {(report or {}).get('error', 'no payload')}"
+            )
         current = engine_identity(report, identity)
         if identity is None:
             identity = current
-        repo_rows.append(classify_repo(repo, report, targets, source_excludes))
+        repo_rows.append(classify_repo(repo, report, targets))
         print(f"census: {repo.name}", file=sys.stderr)
     if identity is None:
         raise CensusError("no repository produced a payload; nothing was measured")

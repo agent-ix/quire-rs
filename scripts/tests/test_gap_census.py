@@ -55,6 +55,12 @@ type: TestMatrix
 | ID | Constraint |
 |---|---|
 | FR-001-CON-1 | unknown class |
+
+## Malformed Width But Authored
+
+| ID | Criteria |
+|---|---|
+| FR-002-AC-1 | criterion | extra cell |
 """,
         encoding="utf-8",
     )
@@ -89,7 +95,27 @@ def report(*, zero_tags: bool = False) -> dict:
         "unbacked_rows": [{"target_ids": [row]} for row in unbacked],
         "no_symbol_rows": [{"target_ids": ["TC-005"]}],
         "status_lies": [{"target_ids": ["TC-006"]}],
-        "diagnostics": [] if zero_tags else [{"reason": "low-symbol-binding", "value": "rust"}],
+        "diagnostics": []
+        if zero_tags
+        else [{"reason": "low-symbol-binding", "value": "rust"}],
+        "unmatched_tags": []
+        if zero_tags
+        else [
+            {
+                "trace_id": "TC-003",
+                "language": "rust",
+                "path": "src/lib.rs",
+                "line": 1,
+                "symbol": "tests::unread",
+            },
+            {
+                "trace_id": "TC-004",
+                "language": "python",
+                "path": "src/checks.py",
+                "line": 1,
+                "symbol": "test_mismatch",
+            },
+        ],
         "binding_census": [
             {
                 "language": "rust",
@@ -103,7 +129,7 @@ def report(*, zero_tags: bool = False) -> dict:
 
 
 def classified_fixture(tmp_path: pathlib.Path) -> dict:
-    return classify_repo(repo_fixture(tmp_path), report(), [target()], ())
+    return classify_repo(repo_fixture(tmp_path), report(), [target()])
 
 
 def test_tc1062_four_populations_keep_their_units(tmp_path):
@@ -112,7 +138,7 @@ def test_tc1062_four_populations_keep_their_units(tmp_path):
     assert result["populations"] == {
         "P1_evidence_symbols": 10,
         "P2_tagged_symbols": 1,
-        "P3_authored_rows": 7,
+        "P3_authored_rows": 8,
         "P4_minted_rows": 5,
     }
 
@@ -121,10 +147,21 @@ def test_tc1063_authored_scan_is_independent_of_minting(tmp_path):
     """TC-1063"""
     authored, minted = scan_rows(repo_fixture(tmp_path), [target()])
     assert {row.row_id for row in authored.values()} == {
-        "TC-001", "TC-002", "TC-003", "TC-004", "TC-005", "TC-006", "FR-001-CON-1"
+        "TC-001",
+        "TC-002",
+        "TC-003",
+        "TC-004",
+        "TC-005",
+        "TC-006",
+        "FR-001-CON-1",
+        "FR-002-AC-1",
     }
     assert {row.row_id for row in minted.values()} == {
-        "TC-001", "TC-003", "TC-004", "TC-005", "TC-006"
+        "TC-001",
+        "TC-003",
+        "TC-004",
+        "TC-005",
+        "TC-006",
     }
 
 
@@ -136,7 +173,7 @@ def test_tc1064_strict_precedence_reaches_all_six_dispositions(tmp_path):
         "instrument-unread": 1,
         "declaration-unreached": 1,
         "marker-form-mismatch": 1,
-        "id-class-unminted": 1,
+        "id-class-unminted": 2,
         "method-exempt": 1,
         "authoring-absent": 1,
     }
@@ -147,10 +184,12 @@ def test_tc1065_invariant_refuses_a_false_p4_population(tmp_path):
     broken = report()
     broken["totals"]["total"] = 6
     with pytest.raises(CensusError, match="disagreeing engine facts"):
-        classify_repo(repo_fixture(tmp_path), broken, [target()], ())
+        classify_repo(repo_fixture(tmp_path), broken, [target()])
     result = classified_fixture(tmp_path)
     combined = aggregate([result])
-    assert sum(combined["counts"].values()) == combined["populations"]["P3_authored_rows"]
+    assert (
+        sum(combined["counts"].values()) == combined["populations"]["P3_authored_rows"]
+    )
     assert "residual" not in combined["counts"]
 
 
@@ -164,7 +203,9 @@ def test_tc1066_status_lie_is_only_an_overlay(tmp_path):
 
 def test_tc1067_zero_authored_tags_are_not_instrument_failure(tmp_path):
     """TC-1067"""
-    result = classify_repo(repo_fixture(tmp_path, tags=False), report(zero_tags=True), [target()], ())
+    result = classify_repo(
+        repo_fixture(tmp_path, tags=False), report(zero_tags=True), [target()]
+    )
     assert result["zero_tag_readable"] is True
     assert result["counts"]["instrument-unread"] == 0
     assert result["counts"]["authoring-absent"] == 3
@@ -175,8 +216,13 @@ def engine_payload(capabilities=None):
         "engine": {
             "cli": "0.30.2",
             "engine": "a14dcb2",
-            "capabilities": capabilities or [
-                "binding_census", "binding_census.tagged", "metrics_envelope", "minted_targets"
+            "capabilities": capabilities
+            or [
+                "binding_census",
+                "binding_census.tagged",
+                "metrics_envelope",
+                "minted_targets",
+                "unmatched_tags",
             ],
         }
     }
@@ -186,7 +232,16 @@ def test_tc1068_engine_provenance_and_capabilities_are_refusals():
     """TC-1068"""
     identity = engine_identity(engine_payload())
     with pytest.raises(CensusError, match="binding_census.tagged"):
-        engine_identity(engine_payload(["binding_census", "metrics_envelope", "minted_targets"]))
+        engine_identity(
+            engine_payload(
+                [
+                    "binding_census",
+                    "metrics_envelope",
+                    "minted_targets",
+                    "unmatched_tags",
+                ]
+            )
+        )
     changed = engine_payload()
     changed["engine"]["engine"] = "different"
     with pytest.raises(CensusError, match="changed"):
@@ -201,7 +256,11 @@ def payload(tmp_path):
             "cli": "0.30.2",
             "engine": "a14dcb2",
             "capabilities": [
-                "binding_census", "binding_census.tagged", "metrics_envelope", "minted_targets"
+                "binding_census",
+                "binding_census.tagged",
+                "metrics_envelope",
+                "minted_targets",
+                "unmatched_tags",
             ],
             "module_sha": "abc123",
             "repos_enumerated": 1,
@@ -231,7 +290,9 @@ def test_tc1070_census_workflow_is_never_a_change_gate():
     assert "schedule:" in workflow and "workflow_dispatch:" in workflow
     assert "pull_request:" not in workflow and "push:" not in workflow
     makefile = (root / "Makefile").read_text()
-    ci_prerequisites = next(line for line in makefile.splitlines() if line.startswith("ci:"))
+    ci_prerequisites = next(
+        line for line in makefile.splitlines() if line.startswith("ci:")
+    )
     assert "census" not in ci_prerequisites
 
 
@@ -239,8 +300,12 @@ def test_tc1071_human_report_names_locus_owner_reason_and_action(tmp_path):
     """TC-1071"""
     rendered = render_markdown(payload(tmp_path))
     for token in (
-        "instrument-unread", "declaration-unreached", "marker-form-mismatch",
-        "id-class-unminted", "method-exempt", "authoring-absent",
+        "instrument-unread",
+        "declaration-unreached",
+        "marker-form-mismatch",
+        "id-class-unminted",
+        "method-exempt",
+        "authoring-absent",
     ):
         assert token in rendered
     assert "sample/spec/tests.md" in rendered and "next action" in rendered.lower()
@@ -249,6 +314,8 @@ def test_tc1071_human_report_names_locus_owner_reason_and_action(tmp_path):
 def test_tc1072_structural_vocabulary_is_related_not_widened():
     """TC-1072"""
     root = pathlib.Path(__file__).resolve().parents[2]
-    requirement = (root / "spec/functional/FR-066-gap-disposition-census.md").read_text()
+    requirement = (
+        root / "spec/functional/FR-066-gap-disposition-census.md"
+    ).read_text()
     assert "engineering-assurance/docs/structural-coverage.md" in requirement
     assert "does not\nchange that module's enum" in requirement
