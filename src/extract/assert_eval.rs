@@ -188,7 +188,7 @@ fn locate_table(
     primitive: &LocatorPrimitive,
 ) -> Option<(crate::query::TableResult, Option<usize>, Vec<usize>)> {
     let with_lines = |content: &str, start: usize| {
-        parse_table_with_lines(content).map(|(t, rows)| {
+        parse_table_with_lines(content).map(|(t, rows, _)| {
             let rows = rows.into_iter().map(|r| r + start + 1).collect::<Vec<_>>();
             (t, Some(start), rows)
         })

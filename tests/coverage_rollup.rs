@@ -2263,15 +2263,98 @@ fn tc1001_suspicions_reach_the_report_and_move_nothing() {
 /// passing anything else here is the defect and passing those two is the
 /// control.
 fn rewrite_matrix(bundle: &Bundle, heading: &str, id_column: &str, rows: &[(&str, &str, &str)]) {
+    rewrite_matrix_with_status(bundle, heading, id_column, "Status", rows);
+}
+
+fn rewrite_matrix_with_status(
+    bundle: &Bundle,
+    heading: &str,
+    id_column: &str,
+    status_column: &str,
+    rows: &[(&str, &str, &str)],
+) {
     let mut md = format!(
         "---\nid: TM-001\ntype: TestMatrix\ntitle: Test Matrix\n---\n\n\
          # Test Matrix\n\n## Overview\n\nProse.\n\n## {heading}\n\n\
-         | {id_column} | Traces To | Status |\n|----|-----------|--------|\n"
+         | {id_column} | Traces To | {status_column} |\n|----|-----------|--------|\n"
     );
     for (tc, traces_to, status) in rows {
         md.push_str(&format!("| {tc} | {traces_to} | {status} |\n"));
     }
     write(&bundle.scope, "tests.md", &md);
+}
+
+#[trace("TC-1079", "FR-050-AC-43")]
+// A status-shaped near miss used to make status classification silently skip
+// every row. The diagnostic names the configured and observed columns at the
+// table header; restoring the configured header restores the status lie and
+// leaves a valid matrix quiet (#341).
+#[test]
+fn tc1079_a_status_column_near_miss_is_actionable_and_the_control_is_quiet() {
+    let bundle = iso_bundle(
+        "1079",
+        &[("TC-002", "FR-001-AC-2", "✅")],
+        // Deliberately unbound: with a readable status this is a status lie.
+        &[],
+    );
+    rewrite_matrix_with_status(
+        &bundle,
+        "Test Cases",
+        "ID",
+        "Coverage Status",
+        &[("TC-002", "FR-001-AC-2", "✅")],
+    );
+
+    let skipped = report_for(&bundle, "iso").expect("model declared");
+    assert!(
+        skipped.status_lies.is_empty(),
+        "the fixture pins the former silent skip: {:?}",
+        skipped.status_lies
+    );
+    let finding = diagnostic_for(&skipped, "status-column-matches-nothing");
+    assert_eq!(finding.declaration, "traces-to");
+    assert_eq!(finding.path.as_deref(), Some("tests.md"));
+    assert_eq!(finding.line, Some(15), "the repair locus is the header");
+    for detail in [
+        "'Status'",
+        "'Coverage Status'",
+        "'Test Cases'",
+        "tests.md",
+        "traceability.status.column",
+        "rename the document column",
+        "will not guess",
+    ] {
+        assert!(
+            finding.message.contains(detail),
+            "message names `{detail}`: {}",
+            finding.message
+        );
+    }
+
+    rewrite_matrix(
+        &bundle,
+        "Test Cases",
+        "ID",
+        &[("TC-002", "FR-001-AC-2", "✅")],
+    );
+    let healthy = report_for(&bundle, "iso").expect("model declared");
+    assert!(
+        !healthy
+            .diagnostics
+            .iter()
+            .any(|d| d.reason == "status-column-matches-nothing"),
+        "the configured column remains quiet: {:?}",
+        healthy.diagnostics
+    );
+    assert_eq!(
+        healthy
+            .status_lies
+            .iter()
+            .filter_map(|lie| lie.row_id.as_deref())
+            .collect::<Vec<_>>(),
+        vec!["TC-002"],
+        "the control proves status classification resumed"
+    );
 }
 
 fn diagnostic_for<'r>(

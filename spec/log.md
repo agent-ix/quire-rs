@@ -7,6 +7,15 @@ description: "Chronological log of structural changes to this bundle."
 
 ## History
 
+* **2026-08-27** — **CR-146**: a status-shaped table header that does not
+  match configured `traceability.status.column` no longer silently disables
+  status classification (`agent-ix/quire-rs#341`, epic `agent-ix/quoin#261`).
+  `status-column-matches-nothing` points to the table header, names the
+  configured and observed columns, and offers the two safe change targets
+  without guessing author intent. The exact-header control remains quiet and
+  resumes status-lie detection; tables with no status axis remain out of
+  scope. FR-050-AC-43; TC-1079.
+
 * **2026-08-27** — **CR-145**: property spans now obey the boundary contract
   from `agent-ix/quire-rs#241` (epic `agent-ix/quoin#261`). Weak predicate
   markers cannot begin or end inside a hyphenated compound, a `when`/`that`

@@ -71,6 +71,10 @@ pub(crate) struct DeclaredScope<'a> {
     /// declaration selects the document for, and an archetype-matching
     /// document without it mints nothing.
     pub mints: Option<&'a str>,
+    /// Model-wide status column checked on a reference table when that table
+    /// exposes a status-shaped header. Tables with no status axis remain out of
+    /// scope; a near-miss such as `Coverage Status` is no longer silent (#341).
+    pub status_column: Option<&'a str>,
     /// Whether absence of a minting section is itself a finding. This is
     /// independent of `mints`: an optional target still checks a present table
     /// and mints its rows (#327).
@@ -267,6 +271,15 @@ pub(crate) enum ScanDiagnostic {
         /// The headers the table actually has, as authored.
         columns: Vec<String>,
     },
+    /// A reference table exposes a status-shaped column, but not the column
+    /// configured by the model-wide status vocabulary (#341).
+    StatusColumnMatchesNothing {
+        document: String,
+        section: String,
+        status_column: String,
+        columns: Vec<String>,
+        line: usize,
+    },
 }
 
 impl ScanDiagnostic {
@@ -280,7 +293,16 @@ impl ScanDiagnostic {
             Self::ArchetypeMatchesNothing { .. } => None,
             Self::SectionMatchesNothing { document, .. }
             | Self::SectionHoldsNoTable { document, .. }
-            | Self::IdColumnMatchesNothing { document, .. } => Some(document),
+            | Self::IdColumnMatchesNothing { document, .. }
+            | Self::StatusColumnMatchesNothing { document, .. } => Some(document),
+        }
+    }
+
+    /// The smallest authored repair locus known for this selector failure.
+    pub(crate) fn line(&self) -> Option<usize> {
+        match self {
+            Self::StatusColumnMatchesNothing { line, .. } => Some(*line),
+            _ => None,
         }
     }
 }
@@ -466,7 +488,12 @@ pub(crate) fn scan(
             );
         }
         for (heading, table) in scanned {
-            let ScannedTable::Table { headers, rows } = table else {
+            let ScannedTable::Table {
+                headers,
+                rows,
+                line,
+            } = table
+            else {
                 continue; // this section holds none; the check above covers
                           // the case where NONE of them does
             };
@@ -491,9 +518,29 @@ pub(crate) fn scan(
                         scope.name,
                         ScanDiagnostic::IdColumnMatchesNothing {
                             document: relative_path(root, &doc.path),
-                            section: heading,
+                            section: heading.clone(),
                             id_column: id_column.to_string(),
-                            columns: headers,
+                            columns: headers.clone(),
+                        },
+                    );
+                }
+            }
+            if let Some(status_column) = scope.status_column {
+                let exact = headers
+                    .iter()
+                    .any(|header| header.eq_ignore_ascii_case(status_column));
+                let status_shaped = headers
+                    .iter()
+                    .any(|header| header.to_ascii_lowercase().contains("status"));
+                if !exact && status_shaped {
+                    ctx.note(
+                        scope.name,
+                        ScanDiagnostic::StatusColumnMatchesNothing {
+                            document: relative_path(root, &doc.path),
+                            section: heading.clone(),
+                            status_column: status_column.to_string(),
+                            columns: headers.clone(),
+                            line,
                         },
                     );
                 }
@@ -541,6 +588,8 @@ pub(crate) enum ScannedTable {
     Table {
         headers: Vec<String>,
         rows: Vec<ScannedRow>,
+        /// 1-based document line of the authored table header.
+        line: usize,
     },
 }
 
@@ -593,7 +642,8 @@ pub(crate) fn tables_of(
 
 /// The table one already-selected section holds.
 fn table_in(doc: &QuireDocument, path: &Path, sec: &crate::ast::QuireSection) -> ScannedTable {
-    let Some((table, row_lines)) = crate::query::parse_table_with_lines(&sec.content) else {
+    let Some((table, row_lines, header_line)) = crate::query::parse_table_with_lines(&sec.content)
+    else {
         return ScannedTable::NoTable;
     };
     // The frontmatter's line count, so a section's body-relative `start_line`
@@ -629,7 +679,11 @@ fn table_in(doc: &QuireDocument, path: &Path, sec: &crate::ast::QuireSection) ->
             }
         })
         .collect();
-    ScannedTable::Table { headers, rows }
+    ScannedTable::Table {
+        headers,
+        rows,
+        line: line_offset + sec.start_line + header_line + 2,
+    }
 }
 
 /// Every heading the document carries, in document order, deduped.
@@ -750,6 +804,7 @@ pub(crate) fn scan_reason(diagnostic: &ScanDiagnostic) -> &'static str {
         ScanDiagnostic::SectionMatchesNothing { .. } => "section-matches-nothing",
         ScanDiagnostic::SectionHoldsNoTable { .. } => "section-holds-no-table",
         ScanDiagnostic::IdColumnMatchesNothing { .. } => "id-column-matches-nothing",
+        ScanDiagnostic::StatusColumnMatchesNothing { .. } => "status-column-matches-nothing",
     }
 }
 
@@ -848,6 +903,25 @@ pub(crate) fn scan_finding(
                  are {}. The rows are read and none of them yields an id, so the document \
                  mints nothing and every row it should have minted reports with no \
                  identity",
+                quoted_list(columns)
+            ),
+        ),
+        ScanDiagnostic::StatusColumnMatchesNothing {
+            document,
+            section,
+            status_column,
+            columns,
+            ..
+        } => (
+            root.join(document),
+            format!(
+                "declaration '{declaration}' uses configured status column \
+                 '{status_column}', which the table under '{section}' in {document} \
+                 does not have — the columns it has are {}. Status classification \
+                 was skipped, so complete-but-unbacked rows could not be checked. \
+                 Align `traceability.status.column` with the authored header or \
+                 rename the document column; the engine will not guess between \
+                 those change targets",
                 quoted_list(columns)
             ),
         ),
@@ -1018,7 +1092,7 @@ mod cr110_scanned_table {
         // no `ScannedRow` to read a header off, so a caller checking an
         // `id_column` against the rows alone cannot see the column at all.
         let found = tables_of(&doc, path, &SectionNames::from("Test Cases"));
-        let [(heading, ScannedTable::Table { headers, rows })] = found.as_slice() else {
+        let [(heading, ScannedTable::Table { headers, rows, .. })] = found.as_slice() else {
             panic!("the declared table must be read: {found:?}");
         };
         assert_eq!(heading, "Test Cases");
@@ -1031,7 +1105,7 @@ mod cr110_scanned_table {
              | Test ID | Status |\n|---|---|\n",
         );
         let found = tables_of(&empty, path, &SectionNames::from("Test Cases"));
-        let [(_, ScannedTable::Table { headers, rows })] = found.as_slice() else {
+        let [(_, ScannedTable::Table { headers, rows, .. })] = found.as_slice() else {
             panic!("a header row with no data rows is still a table: {found:?}");
         };
         assert_eq!(headers, &vec!["Test ID".to_string(), "Status".to_string()]);
@@ -1187,6 +1261,7 @@ mod cr135_archetype_matches_nothing {
                 exclude: &empty,
                 model_exclude: &empty,
                 mints: Some("Test ID"),
+                status_column: None,
                 section_required: true,
             },
             &sections,
@@ -1208,6 +1283,7 @@ mod cr135_archetype_matches_nothing {
                 exclude: &empty,
                 model_exclude: &empty,
                 mints: None,
+                status_column: None,
                 section_required: false,
             },
             &sections,

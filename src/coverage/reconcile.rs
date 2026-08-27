@@ -55,6 +55,7 @@ pub(super) fn reconcile(
                 // The minting half of the model: CR-117's two diagnostics are
                 // scoped to it, and the id column they name comes from here.
                 mints: Some(&target.id_column),
+                status_column: None,
                 section_required: target.required,
             },
             &target.section,
@@ -123,6 +124,7 @@ pub(super) fn reconcile(
                 // the matrix template emits only when it has content, so
                 // diagnosing its absence would fire on every healthy matrix.
                 mints: None,
+                status_column: model.status.as_ref().map(|status| status.column.as_str()),
                 section_required: false,
             },
             &declaration.section,
@@ -342,7 +344,7 @@ pub(super) fn reconcile(
                 reason: declared_tables::scan_reason(&diagnostic).to_string(),
                 message,
                 path,
-                line: None,
+                line: diagnostic.line(),
                 value: None,
             }
         })

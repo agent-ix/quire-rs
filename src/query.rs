@@ -285,11 +285,11 @@ fn parse_cells(line: &str, header_count: Option<usize>) -> Vec<String> {
 /// Parse the first pipe-delimited markdown table at or near the top of
 /// `content`. Returns `None` if no header+separator pair is found.
 pub fn parse_table(content: &str) -> Option<TableResult> {
-    parse_table_with_lines(content).map(|(table, _)| table)
+    parse_table_with_lines(content).map(|(table, _, _)| table)
 }
 
-/// Like [`parse_table`], but also returns each row's 0-based line index within
-/// `content` — one entry per row, in row order (#210).
+/// Like [`parse_table`], but also returns each row's and the header's 0-based
+/// line index within `content` (#210, #341).
 ///
 /// A separate seam rather than a field on [`TableResult`]: the public shape is
 /// mirrored by downstream consumers, and the one caller that needs positions —
@@ -297,7 +297,7 @@ pub fn parse_table(content: &str) -> Option<TableResult> {
 /// is about — is in-crate. The index is against the same `content.split('\n')`
 /// numbering `ears::locate_line` uses, so both convert to a document line by
 /// the same arithmetic.
-pub(crate) fn parse_table_with_lines(content: &str) -> Option<(TableResult, Vec<usize>)> {
+pub(crate) fn parse_table_with_lines(content: &str) -> Option<(TableResult, Vec<usize>, usize)> {
     let lines: Vec<&str> = content.split('\n').collect();
     let header_line: usize = lines
         .windows(2)
@@ -314,7 +314,7 @@ pub(crate) fn parse_table_with_lines(content: &str) -> Option<(TableResult, Vec<
         rows.push(parse_cells(line, Some(header_count)));
         row_lines.push(idx);
     }
-    Some((TableResult { headers, rows }, row_lines))
+    Some((TableResult { headers, rows }, row_lines, header_line))
 }
 
 /// Parse every pipe-delimited table in `content`.

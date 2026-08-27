@@ -490,6 +490,7 @@ pub const COVERAGE_DIAGNOSTIC_REASONS: &[&str] = &[
     "obligation-row-states-nothing",
     "section-holds-no-table",
     "section-matches-nothing",
+    "status-column-matches-nothing",
     "tag-on-non-binding-symbol",
     "untracked-id-near-miss",
     "untracked-id-has-minted-children",

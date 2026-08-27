@@ -165,6 +165,7 @@ fn minted_ids(
         // reports them under the same machine tokens `coverage` does — one
         // vocabulary, two surfaces (CR-054).
         mints: Some(&target.id_column),
+        status_column: None,
         section_required: target.required,
     };
     let mut ids: BTreeSet<String> = BTreeSet::new();
@@ -209,6 +210,7 @@ fn referencing_rows(
             exclude: &exclude,
             model_exclude,
             mints: None,
+            status_column: None,
             section_required: false,
         },
         &declaration.section,
