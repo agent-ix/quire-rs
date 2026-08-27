@@ -142,6 +142,28 @@ def test_the_binding_rate_reads_the_census_when_it_is_there():
     assert out["coverage.minting_repos"] == 1
 
 
+def test_specific_shape_reads_the_current_metrics_envelope():
+    payload = {
+        "totals": {"backed": 1, "total": 2},
+        "binding_census": [],
+        "metrics": [
+            {
+                "name": "coverage.specific_shaped",
+                "state": "measured",
+                "value": 3,
+                "population": 12,
+            },
+            {
+                "name": "minting.section_hit_rate",
+                "state": "measured",
+                "value": 1,
+                "population": 1,
+            },
+        ],
+    }
+    assert metrics_from(payload)["properties.specific_shaped_pct"] == 25.0
+
+
 def test_silent_zero_counts_only_what_the_engine_did_not_already_report():
     """The sentinel must not depend on the code path it is checking. A hollow
     metric the engine already flagged is covered; one it did not is the leak."""

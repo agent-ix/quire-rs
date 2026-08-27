@@ -242,6 +242,14 @@ def metrics_from(payload: dict) -> dict[str, Any]:
     bound = sum(c["bound"] for c in census)
     criteria = totals.get("criteria")
     specific = totals.get("specific_shaped")
+    specific_metric = next(
+        (
+            metric
+            for metric in payload.get("metrics", [])
+            if metric.get("name") == "coverage.specific_shaped"
+        ),
+        None,
+    )
 
     out: dict[str, Any] = {
         "coverage.backed_pct": pct(backed, total),
@@ -297,9 +305,20 @@ def metrics_from(payload: dict) -> dict[str, Any]:
     else:
         skip("authoring.tag_rate", "no evidence symbols examined")
 
-    if specific is None:
-        skip("properties.specific_shaped_pct", "totals carry no specific_shaped "
-             "(engine predates FR-050-AC-28 — needs quire-rs >= v0.43.0)")
+    if specific_metric and specific_metric.get("state") == "measured":
+        population = specific_metric.get("population", 0)
+        if population:
+            out["properties.specific_shaped_pct"] = pct(
+                specific_metric.get("value", 0), population
+            )
+        else:
+            skip("properties.specific_shaped_pct", "no binding criteria")
+    elif specific is None:
+        skip(
+            "properties.specific_shaped_pct",
+            "payload carries neither a measured coverage.specific_shaped metric "
+            "nor the legacy totals.specific_shaped field",
+        )
     elif criteria:
         out["properties.specific_shaped_pct"] = pct(specific, criteria)
     else:
