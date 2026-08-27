@@ -412,7 +412,14 @@ def collect(
     for entry in manifest["corpora"]:
         try:
             identity = resolve_identity(entry)
-            payload = coverage_payload(quire, (ROOT / entry["path"]).resolve(), module)
+            entry_module = entry.get("module", module)
+            if entry_module:
+                entry_module_path = Path(entry_module).expanduser()
+                if not entry_module_path.is_absolute():
+                    entry_module = str((ROOT / entry_module_path).resolve())
+            payload = coverage_payload(
+                quire, (ROOT / entry["path"]).resolve(), entry_module
+            )
         except (BenchError, subprocess.TimeoutExpired, json.JSONDecodeError) as exc:
             print(f"skip {entry['name']}: {exc}", file=sys.stderr)
             continue
@@ -421,6 +428,7 @@ def collect(
         if raw_evidence is not None:
             raw_evidence[entry["name"]] = {
                 "identity": identity,
+                "module": entry_module,
                 "payload": payload,
             }
     if not observed:

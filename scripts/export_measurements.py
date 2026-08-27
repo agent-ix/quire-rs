@@ -133,7 +133,7 @@ def build_collection(
         "corpusRevision": digest(identities)[7:],
         "environment": {
             "consumer": str(consumer),
-            "module": module or "default",
+            "module": f"per-manifest with default {module or 'default'}",
         },
         "observations": observations,
         "rawEvidence": raw_evidence,

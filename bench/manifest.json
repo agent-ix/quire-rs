@@ -60,6 +60,17 @@
   },
   "corpora": [
     {
+      "name": "specific-shape-control",
+      "tier": 1,
+      "path": "tests/fixtures/coverage_baseline/scope",
+      "module": "tests/fixtures/coverage_baseline/module",
+      "identity": "working-tree",
+      "metrics": [
+        "properties.specific_shaped_pct"
+      ],
+      "$comment": "The production coverage-envelope control for MP-205. The repository-scale entries may carry no binding criteria; this fixture guarantees the active plan is measured from a non-empty population rather than left permanently not_computed."
+    },
+    {
       "name": "self",
       "tier": 1,
       "path": ".",
