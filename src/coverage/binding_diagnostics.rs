@@ -11,6 +11,69 @@ use super::{CoverageDiagnostic, UnbackedRow, UntrackedSymbol};
 /// and does not choose between sparse tagging and an unreadable convention.
 const LOW_BINDING_OBSERVATION_FLOOR: f64 = 0.05;
 
+/// A bound id that is not itself minted, beside exact descendant targets the
+/// active model does mint (#328).
+///
+/// The engine must not join a coarse tag to every descendant—that would let
+/// one `FR-006` tag back every `FR-006-AC-n` criterion. It can still name the
+/// repair from facts it already holds. The nearest ancestor with minted
+/// descendants wins, so `FR-043-INV-1` can point to `FR-043-AC-n` without
+/// hard-coding either id class.
+pub(super) fn minted_child_diagnostics(
+    untracked: &[UntrackedSymbol],
+    minted_ids: &BTreeSet<String>,
+) -> Vec<CoverageDiagnostic> {
+    const SHOWN: usize = 5;
+    let mut out = Vec::new();
+    for symbol in untracked {
+        let parts: Vec<&str> = symbol.trace_id.split('-').collect();
+        let mut match_set: Vec<&str> = Vec::new();
+        let mut parent = String::new();
+        for length in (2..=parts.len()).rev() {
+            let candidate_parent = parts[..length].join("-");
+            let prefix = format!("{candidate_parent}-");
+            match_set = minted_ids
+                .iter()
+                .map(String::as_str)
+                .filter(|id| id.starts_with(&prefix))
+                .collect();
+            if !match_set.is_empty() {
+                parent = candidate_parent;
+                break;
+            }
+        }
+        if match_set.is_empty() {
+            continue;
+        }
+        let shown = match_set
+            .iter()
+            .take(SHOWN)
+            .map(|id| format!("`{id}`"))
+            .collect::<Vec<_>>()
+            .join(", ");
+        let remainder = match_set.len().saturating_sub(SHOWN);
+        let more = if remainder == 0 {
+            String::new()
+        } else {
+            format!(" and {remainder} more")
+        };
+        out.push(CoverageDiagnostic {
+            declaration: "traceability.trace_tags".to_string(),
+            reason: "untracked-id-has-minted-children".to_string(),
+            message: format!(
+                "`{}` on `{}` is not a minted trace target. Under `{parent}`, the active \
+                 model mints {shown}{more}; tag one of those exact ids. The parent tag is \
+                 not joined automatically because one coarse tag cannot back every child",
+                symbol.trace_id, symbol.symbol
+            ),
+            path: Some(symbol.path.clone()),
+            line: symbol.line,
+            value: Some(symbol.trace_id.clone()),
+        });
+    }
+    out
+}
+
 /// A trace id normalised so two spellings of one id compare equal (#307).
 ///
 /// Upper-cased, separators dropped, and each run of digits stripped of leading
@@ -182,6 +245,53 @@ pub(super) fn binding_diagnostics(census: &[BindingCensus]) -> Vec<CoverageDiagn
             })
         })
         .collect()
+}
+
+#[cfg(test)]
+mod cr137_minted_children {
+    use std::collections::BTreeSet;
+
+    use ix_trace_rs::trace;
+
+    use super::{minted_child_diagnostics, UntrackedSymbol};
+
+    fn symbol(trace_id: &str) -> UntrackedSymbol {
+        UntrackedSymbol {
+            path: "src/lib.rs".to_string(),
+            symbol: "tests::criterion_evidence".to_string(),
+            trace_id: trace_id.to_string(),
+            line: Some(12),
+        }
+    }
+
+    #[trace("TC-1077", "FR-050-AC-42")]
+    #[test]
+    fn tc1077_an_unminted_parent_names_real_children_without_backing_them() {
+        let minted = BTreeSet::from([
+            "FR-001-AC-1".to_string(),
+            "FR-001-AC-2".to_string(),
+            "TC-001".to_string(),
+        ]);
+        let finding = minted_child_diagnostics(&[symbol("FR-001")], &minted)
+            .into_iter()
+            .next()
+            .expect("the model can name the exact children it mints");
+        assert_eq!(finding.reason, "untracked-id-has-minted-children");
+        assert_eq!(finding.path.as_deref(), Some("src/lib.rs"));
+        assert_eq!(finding.line, Some(12));
+        assert!(finding.message.contains("FR-001-AC-1"));
+        assert!(finding.message.contains("FR-001-AC-2"));
+        assert!(finding.message.contains("cannot back every child"));
+
+        assert!(
+            minted_child_diagnostics(&[symbol("TC-999")], &minted).is_empty(),
+            "an unrelated typo has no model-grounded repair to invent"
+        );
+
+        let nested = minted_child_diagnostics(&[symbol("FR-001-INV-1")], &minted);
+        assert_eq!(nested.len(), 1, "the nearest useful ancestor is FR-001");
+        assert!(nested[0].message.contains("Under `FR-001`"));
+    }
 }
 
 #[cfg(test)]

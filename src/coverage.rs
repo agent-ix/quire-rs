@@ -492,6 +492,7 @@ pub const COVERAGE_DIAGNOSTIC_REASONS: &[&str] = &[
     "section-matches-nothing",
     "tag-on-non-binding-symbol",
     "untracked-id-near-miss",
+    "untracked-id-has-minted-children",
     "uncatalogued-verification-method",
     "undeclared-coverage-vocabulary",
 ];
@@ -788,10 +789,12 @@ fn coverage_metrics(
             "minting.section_hit_rate",
             "declared minting document",
             "documents whose declared `section:` heading was found, over the documents \
-             a trace target's `archetype:` selected and its `exclude:` kept; counted per \
-             (trace target, document) pair. A miss reads the archetype right and the \
-             heading wrong, so the whole table is stranded and its ids never enter \
-             `coverage.backed`'s denominator at all",
+             a required trace target's `archetype:` selected and its `exclude:` kept, \
+             plus documents where an optional target's section was present; counted per \
+             (trace target, document) pair. An optional absent section is outside the \
+             population. A required miss reads the archetype right and the heading wrong, \
+             so the whole table is stranded and its ids never enter `coverage.backed`'s \
+             denominator at all",
             minting.section_found,
             minting.selected,
             minting.selected,

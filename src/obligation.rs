@@ -431,6 +431,7 @@ pub fn derive(
             // already mints from; diagnosing its section here would double
             // every CR-117 finding the coverage scan already reports.
             mints: None,
+            section_required: false,
         };
         let rows = declared_tables::scan(spec, root, scope, resolved.section, &mut ctx);
         // FR-061: a combinatorial source states ONE obligation per document

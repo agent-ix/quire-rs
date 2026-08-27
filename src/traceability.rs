@@ -595,6 +595,14 @@ impl TraceTargetEvidence {
     }
 }
 
+fn default_true() -> bool {
+    true
+}
+
+fn is_true(value: &bool) -> bool {
+    *value
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct TraceTarget {
@@ -617,6 +625,12 @@ pub struct TraceTarget {
     pub section: SectionNames,
     /// Table column holding the minted id.
     pub id_column: String,
+    /// Whether every selected document must carry the minting section.
+    /// Omitted preserves the historical required posture. Optional targets
+    /// still mint and validate a section when it is present; only its absence
+    /// is healthy (FR-050-AC-41, #327).
+    #[serde(default = "default_true", skip_serializing_if = "is_true")]
+    pub required: bool,
     /// Whether rows require source-symbol evidence. Omitted is the historical
     /// `source` posture; reference-only targets register identifiers without
     /// entering coverage (FR-050-AC-40, #363).
@@ -1694,6 +1708,34 @@ document_references:
             )
             .is_err(),
             "an unknown posture must fail at the module boundary"
+        );
+    }
+
+    #[trace("TC-1076", "FR-050-AC-41")]
+    #[test]
+    fn tc1076_trace_target_required_defaults_true_and_false_round_trips() {
+        let defaulted =
+            model("trace_targets:\n- name: t\n  archetype: FR\n  section: S\n  id_column: ID\n");
+        assert!(defaulted.trace_targets[0].required);
+        let serialized = serde_yaml::to_string(&defaulted).expect("serialize default");
+        assert!(
+            !serialized.contains("required:"),
+            "existing manifests retain their serialized shape: {serialized}"
+        );
+
+        let optional = model(
+            "trace_targets:\n- name: t\n  archetype: FR\n  section: S\n  id_column: ID\n  required: false\n",
+        );
+        assert!(!optional.trace_targets[0].required);
+        assert!(serde_yaml::to_string(&optional)
+            .expect("serialize optional")
+            .contains("required: false"));
+        assert!(
+            serde_yaml::from_str::<TraceabilityModel>(
+                "trace_targets:\n- name: t\n  archetype: FR\n  section: S\n  id_column: ID\n  required: sometimes\n",
+            )
+            .is_err(),
+            "the posture is a boolean, not a truthy string"
         );
     }
 

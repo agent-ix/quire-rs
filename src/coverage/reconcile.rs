@@ -9,7 +9,8 @@ use crate::symbols::trace::SymbolGraph;
 use crate::traceability::{StatusClass, TraceTargetEvidence, TraceabilityModel};
 
 use super::binding_diagnostics::{
-    binding_diagnostics, near_miss_diagnostics, non_binding_tag_diagnostics,
+    binding_diagnostics, minted_child_diagnostics, near_miss_diagnostics,
+    non_binding_tag_diagnostics,
 };
 use super::{
     relative, CoverageDiagnostic, CoverageReport, CoverageTotals, GroupCounts, ImplementsRecord,
@@ -54,6 +55,7 @@ pub(super) fn reconcile(
                 // The minting half of the model: CR-117's two diagnostics are
                 // scoped to it, and the id column they name comes from here.
                 mints: Some(&target.id_column),
+                section_required: target.required,
             },
             &target.section,
             target_ctx,
@@ -121,6 +123,7 @@ pub(super) fn reconcile(
                 // the matrix template emits only when it has content, so
                 // diagnosing its absence would fire on every healthy matrix.
                 mints: None,
+                section_required: false,
             },
             &declaration.section,
             &mut ctx,
@@ -384,6 +387,15 @@ pub(super) fn reconcile(
     // this is the case they cannot see, because from their vantage point the
     // binding worked.
     diagnostics.extend(near_miss_diagnostics(&untracked_symbols, &unbacked_rows));
+
+    // #328: a bound coarse id and the exact child ids the model really mints
+    // were already in this reconciliation. Join them into an actionable
+    // finding without treating the parent as evidence for every child.
+    let source_target_ids: BTreeSet<String> = minted.iter().map(|row| row.id.clone()).collect();
+    diagnostics.extend(minted_child_diagnostics(
+        &untracked_symbols,
+        &source_target_ids,
+    ));
 
     // FR-053: derived here rather than in `compute` because obligations read
     // the same declared tables this reconciliation already walks, and need no

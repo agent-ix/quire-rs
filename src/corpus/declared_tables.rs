@@ -71,6 +71,10 @@ pub(crate) struct DeclaredScope<'a> {
     /// declaration selects the document for, and an archetype-matching
     /// document without it mints nothing.
     pub mints: Option<&'a str>,
+    /// Whether absence of a minting section is itself a finding. This is
+    /// independent of `mints`: an optional target still checks a present table
+    /// and mints its rows (#327).
+    pub section_required: bool,
 }
 
 /// Compiled exclusion globs.
@@ -417,14 +421,17 @@ pub(crate) fn scan(
         // a minting defect; the second is an empty matrix, which is a
         // repository with no tests yet.
         let scanned = tables_of(doc.body(), &doc.path, sections);
-        if scope.mints.is_some() {
+        if scope.mints.is_some() && (scope.section_required || !scanned.is_empty()) {
             ctx.census.selected += 1;
             if !scanned.is_empty() {
                 ctx.census.section_found += 1;
             }
         }
         if scanned.is_empty() {
-            if let Some(id_column) = scope.mints {
+            if scope.section_required {
+                let id_column = scope
+                    .mints
+                    .expect("only a minting declaration can require its section");
                 ctx.note(
                     scope.name,
                     ScanDiagnostic::SectionMatchesNothing {
@@ -1180,6 +1187,7 @@ mod cr135_archetype_matches_nothing {
                 exclude: &empty,
                 model_exclude: &empty,
                 mints: Some("Test ID"),
+                section_required: true,
             },
             &sections,
             &mut target,
@@ -1200,6 +1208,7 @@ mod cr135_archetype_matches_nothing {
                 exclude: &empty,
                 model_exclude: &empty,
                 mints: None,
+                section_required: false,
             },
             &sections,
             &mut reference,

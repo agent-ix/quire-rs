@@ -29,7 +29,10 @@ spec-semantics-as-module-data pattern as `body_extraction`, `lint_rules`, and
 - **Trace targets** — which archetype + section + table + id column mints
   trace ids (e.g. the FR `Acceptance Criteria` `ID` column via its existing
   `id_pattern`), including targets minted by an auxiliary trace source outside
-  the corpus walk (e.g. Test Matrix rows in `spec/tests.md`).
+  the corpus walk (e.g. Test Matrix rows in `spec/tests.md`). A target MAY set
+  `required: false` when the section is optional per selected document; absence
+  then emits no section finding, while a present section is still scanned and
+  validated. Omission means `required: true`.
 - **Document references** — which columns or annotations reference which
   target kinds (e.g. the `Verification` cell annotation `Test (TC-nnn)` → TC
   targets; the matrix `Traces To` column → requirement/AC targets). These
@@ -95,9 +98,9 @@ target, document reference, or grammar binding names has its body left
 unmaterialised ([FR-025](./FR-025-spec-corpus-model.md) lazy tier). Selection
 is decided on the header tier (frontmatter `type`), **never by filename**
 (CR-044), and `exclude:` globs apply *after* archetype selection, not
-instead of it. A declared archetype whose document lacks the declared
-section (e.g. a root index-of-matrices `TestMatrix` with no
-`## Test Case Summary`) is legal and simply mints nothing. A caller that
+instead of it. A selected document lacking a required target section is a
+minting finding; one lacking a target explicitly declared `required: false` is
+healthy and simply mints nothing. A caller that
 needs every body — `quire validate`'s structural pass — asks for every
 body; the point is that it *asks*.
 
@@ -167,6 +170,8 @@ that failed to mint cannot erase its own gap from the population.
 | FR-050-AC-38 | The report carries one `minted_targets` record per minted row with its id, target declaration, document, 1-based row line and backed state, deterministically ordered by target, document, id and line. The record count equals `totals.total` and the records whose state is backed equal `totals.backed`. An empty minted population omits the additive field under FR-055-CON-3 rather than inventing rows; a current CLI advertises the `minted_targets` capability so a census can refuse an older payload instead of inferring row state from `unbacked_rows`, which contains only document-reference rows (#361). | Test (TC-1073) |
 | FR-050-AC-39 | The report carries one `unmatched_tags` record for every generic trace-id token in an evidence symbol's attached annotation block that no declared form bound **on that symbol**. Each record names the trace id, language, repo-relative path, 1-based annotation line and qualified symbol, ordered deterministically by language, path, line, symbol and id. A bound id is absent while an unmatched sibling id on the same otherwise-bound symbol remains; id-shaped text appearing only inside the symbol body is absent. An empty population omits the additive field, and a current CLI advertises the `unmatched_tags` capability so a consumer can join authored-but-unread ids to matrix rows without reimplementing the engine's annotation parser (#362). | Test (TC-1074) |
 | FR-050-AC-40 | A trace target MAY declare `evidence: reference-only`; omission is exactly the existing `source` posture. A reference-only target still scans and registers every id for declared-reference resolution and dangling-reference checks, but its rows enter no coverage group, total or `minted_targets` record, a source tag naming one cannot manufacture backed coverage, and an absent optional registry emits no minting diagnostic. The posture is module data rather than an engine-known archetype or id prefix, an unknown value fails module load, and the default serializes as it did before the field existed (#363). | Test (TC-1075) |
+| FR-050-AC-41 | A trace target MAY declare `required: false`; omission is exactly the existing required posture. An archetype-matching document that omits an optional target section emits neither `section-matches-nothing` nor `section-holds-no-table` and does not enter the section-hit denominator. If the section is present, its table still mints rows and its id column is checked. An unknown/non-boolean posture fails module load, and the default serializes as it did before the field existed (#327). | Test (TC-1076) |
+| FR-050-AC-42 | When an `untracked_symbols` id is not itself minted but the active source-evidence model mints exact descendants under that id or its nearest ancestor, the report emits `untracked-id-has-minted-children` at the authored source locus and names real child ids to tag. It does not back any child, does not hard-code an id class, and emits nothing for an unrelated typo (#328). | Test (TC-1077) |
 | FR-050-AC-35 | Where every declared section a document **has** holds no table, the declaration reports `section-holds-no-table` naming the document, the sections it matched and the sections it declares. One table-less section among others is not reported — a parent heading whose rows live under its sub-headings is ordinary. The record exists because that shape mints nothing while both sibling diagnostics stand down: the section **was** found, so `section-matches-nothing` cannot fire, and there is no table, so `id-column-matches-nothing` has no headers to read (CR-120). | Test (TC-1041) |
 
 
