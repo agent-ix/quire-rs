@@ -285,7 +285,7 @@ validate:
 # capability tokens are what make distance a verdict: a pinned engine that
 # cannot emit `binding_census` fails here, by name, whatever its version says.
 QUIRE_CLI ?= ../quire-cli
-ENGINE_CAPABILITIES ?= binding_census binding_census.tagged metrics_envelope minted_targets unmatched_tags
+ENGINE_CAPABILITIES ?= binding_census binding_census.tagged metrics_envelope minted_targets reference_only_targets unmatched_tags
 
 .PHONY: check-engine
 check-engine:

@@ -30,6 +30,7 @@ REQUIRED_CAPABILITIES = (
     "binding_census.tagged",
     "metrics_envelope",
     "minted_targets",
+    "reference_only_targets",
     "unmatched_tags",
 )
 BINDING_FLOOR = 0.10
@@ -91,6 +92,7 @@ class Target:
     sections: tuple[str, ...]
     id_column: str
     exclude: tuple[str, ...]
+    evidence: str = "source"
 
 
 @dataclass(frozen=True)
@@ -140,8 +142,8 @@ def tables(text: str) -> Iterable[tuple[str, list[str], list[str], int]]:
         header = split_cells(lines[index])
         if header and index + 1 < len(lines):
             separator = split_cells(lines[index + 1])
-            if len(separator) == len(header) and all(
-                SEPARATOR.match(cell) for cell in separator
+            if len(separator) >= len(header) and all(
+                SEPARATOR.match(cell) for cell in separator[: len(header)]
             ):
                 cursor = index + 2
                 while cursor < len(lines):
@@ -190,6 +192,12 @@ def read_targets(module: pathlib.Path) -> list[Target]:
         sections = tuple(section if isinstance(section, list) else [section])
         if not raw.get("archetype") or not raw.get("id_column") or not all(sections):
             continue
+        evidence = raw.get("evidence", "source")
+        if evidence not in {"source", "reference-only"}:
+            raise CensusError(
+                f"{module}: trace target {raw.get('name', '<unnamed>')} has unknown "
+                f"evidence posture {evidence!r}"
+            )
         out.append(
             Target(
                 name=raw["name"],
@@ -197,6 +205,7 @@ def read_targets(module: pathlib.Path) -> list[Target]:
                 sections=sections,
                 id_column=raw["id_column"],
                 exclude=tuple(raw.get("exclude", [])),
+                evidence=evidence,
             )
         )
     return out
@@ -205,6 +214,8 @@ def read_targets(module: pathlib.Path) -> list[Target]:
 def scan_rows(repo: pathlib.Path, targets: list[Target]) -> tuple[dict, dict]:
     authored: dict[tuple[str, str, str, int], Row] = {}
     minted: dict[tuple[str, str, str, int], Row] = {}
+    source_target_rows: set[tuple[str, str, str, int]] = set()
+    reference_only_rows: set[tuple[str, str, str, int]] = set()
     for path in sorted((repo / "spec").rglob("*.md")):
         rel = path.relative_to(repo).as_posix()
         text = path.read_text(encoding="utf-8", errors="replace")
@@ -248,7 +259,13 @@ def scan_rows(repo: pathlib.Path, targets: list[Target]) -> tuple[dict, dict]:
                     values.get("Type") or values.get("Verification Method"),
                     values.get("Status") or values.get("Coverage Status"),
                 )
-                minted.setdefault(row.key, row)
+                if target.evidence == "reference-only":
+                    reference_only_rows.add(row.key)
+                else:
+                    source_target_rows.add(row.key)
+                    minted.setdefault(row.key, row)
+    for key in reference_only_rows - source_target_rows:
+        authored.pop(key, None)
     return authored, minted
 
 
@@ -437,6 +454,9 @@ def classified_json(item: Classified) -> dict:
         "document": item.row.document,
         "row_id": item.row.row_id,
         "line": item.row.line,
+        **({"target": item.row.target} if item.row.target else {}),
+        **({"method": item.row.method} if item.row.method else {}),
+        **({"status": item.row.status} if item.row.status else {}),
         "reason": item.reason,
         "next_action": item.next_action,
         "status_lie": item.status_lie,
@@ -539,8 +559,44 @@ def render_markdown(payload: dict) -> str:
     ]
     for row in aggregate_row["examples"]:
         where = f"`{row['repo']}/{row['document']}:{row['line']}` `{row['row_id']}`"
+        if row.get("source_locus"):
+            where += f"; source `{row['source_locus']}`"
         action = f"{row['owner']} — {row['next_action']}"
         lines.append(f"| `{row['outcome']}` | {where} | {row['reason']} | {action} |")
+    lines += [
+        "",
+        "## Highest owned backlogs",
+        "",
+        "Rows owned by the engine, a module declaration, or a repository; correctly "
+        "exempt rows are excluded. The JSON report carries the same routing for every "
+        "repository.",
+        "",
+        "| Repository | Owned rows | Dominant disposition | First repair locus |",
+        "|---|---:|---|---|",
+    ]
+    owned_dispositions = tuple(
+        name for name in DISPOSITIONS if OWNERS[name] != "nobody"
+    )
+    hotspots = []
+    for repository in payload["repositories"]:
+        owned = sum(repository["counts"][name] for name in owned_dispositions)
+        if not owned:
+            continue
+        dominant = max(
+            owned_dispositions,
+            key=lambda name: (repository["counts"][name], -DISPOSITIONS.index(name)),
+        )
+        example = next(
+            row for row in repository["examples"] if row["outcome"] == dominant
+        )
+        hotspots.append((owned, repository["repo"], dominant, example))
+    for owned, repo, dominant, example in sorted(
+        hotspots, key=lambda row: (-row[0], row[1])
+    )[:20]:
+        locus = f"`{example['document']}:{example['line']}` `{example['row_id']}`"
+        if example.get("source_locus"):
+            locus += f"; source `{example['source_locus']}`"
+        lines.append(f"| `{repo}` | {owned} | `{dominant}` | {locus} |")
     return "\n".join(lines) + "\n"
 
 

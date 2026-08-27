@@ -6,7 +6,7 @@ use std::path::Path;
 use crate::corpus::declared_tables;
 use crate::corpus::spec::Spec;
 use crate::symbols::trace::SymbolGraph;
-use crate::traceability::{StatusClass, TraceabilityModel};
+use crate::traceability::{StatusClass, TraceTargetEvidence, TraceabilityModel};
 
 use super::binding_diagnostics::{
     binding_diagnostics, near_miss_diagnostics, non_binding_tag_diagnostics,
@@ -31,6 +31,10 @@ pub(super) fn reconcile(
     // ── Minted targets, grouped by their minting document ──
     let mut ctx = declared_tables::ScanContext::default();
     let mut minted: Vec<MintedTargetRecord> = Vec::new();
+    // Reference integrity and source-evidence coverage deliberately have
+    // different populations. Every declared target id resolves references,
+    // while only source targets enter the coverage denominator (#363).
+    let mut declared_ids: BTreeSet<String> = BTreeSet::new();
     for target in &model.trace_targets {
         let exclude = declared_tables::ExcludeSet::compile_validated(&target.exclude);
         for row in declared_tables::scan(
@@ -51,6 +55,10 @@ pub(super) fn reconcile(
             let Some(id) = row.cell(&target.id_column) else {
                 continue;
             };
+            declared_ids.insert(id.to_string());
+            if target.evidence == TraceTargetEvidence::ReferenceOnly {
+                continue;
+            }
             minted.push(MintedTargetRecord {
                 id: id.to_string(),
                 target: target.name.clone(),
@@ -65,9 +73,7 @@ pub(super) fn reconcile(
     });
 
     let mut counts: BTreeMap<(String, String), (usize, usize)> = BTreeMap::new();
-    let mut declared_ids: BTreeSet<String> = BTreeSet::new();
     for entry in &minted {
-        declared_ids.insert(entry.id.clone());
         let slot = counts
             .entry((entry.document.clone(), entry.target.clone()))
             .or_insert((0, 0));

@@ -59,7 +59,7 @@ type: TestMatrix
 ## Malformed Width But Authored
 
 | ID | Criteria |
-|---|---|
+|---|---|---|---|
 | FR-002-AC-1 | criterion | extra cell |
 """,
         encoding="utf-8",
@@ -165,6 +165,30 @@ def test_tc1063_authored_scan_is_independent_of_minting(tmp_path):
     }
 
 
+def test_tc1075_reference_only_rows_are_not_authored_obligations(tmp_path):
+    """TC-1075"""
+    repo = repo_fixture(tmp_path)
+    reference_only = Target(
+        "reference-id",
+        "TestMatrix",
+        ("Test Case Summary",),
+        "Test ID",
+        (),
+        "reference-only",
+    )
+    authored, minted = scan_rows(repo, [reference_only])
+    ids = {row.row_id for row in authored.values()}
+    assert ids.isdisjoint({"TC-001", "TC-003", "TC-004", "TC-005", "TC-006"})
+    assert ids == {"TC-002", "FR-001-CON-1", "FR-002-AC-1"}
+    assert minted == {}
+
+    # If another declaration selects the same rows as source evidence, source
+    # posture wins and the obligations remain independently visible.
+    authored, minted = scan_rows(repo, [reference_only, target()])
+    assert "TC-001" in {row.row_id for row in authored.values()}
+    assert "TC-001" in {row.row_id for row in minted.values()}
+
+
 def test_tc1064_strict_precedence_reaches_all_six_dispositions(tmp_path):
     """TC-1064"""
     result = classified_fixture(tmp_path)
@@ -222,6 +246,7 @@ def engine_payload(capabilities=None):
                 "binding_census.tagged",
                 "metrics_envelope",
                 "minted_targets",
+                "reference_only_targets",
                 "unmatched_tags",
             ],
         }
@@ -238,6 +263,7 @@ def test_tc1068_engine_provenance_and_capabilities_are_refusals():
                     "binding_census",
                     "metrics_envelope",
                     "minted_targets",
+                    "reference_only_targets",
                     "unmatched_tags",
                 ]
             )
@@ -260,6 +286,7 @@ def payload(tmp_path):
                 "binding_census.tagged",
                 "metrics_envelope",
                 "minted_targets",
+                "reference_only_targets",
                 "unmatched_tags",
             ],
             "module_sha": "abc123",
@@ -309,6 +336,8 @@ def test_tc1071_human_report_names_locus_owner_reason_and_action(tmp_path):
     ):
         assert token in rendered
     assert "sample/spec/tests.md" in rendered and "next action" in rendered.lower()
+    assert "source `rust:src/lib.rs:1`" in rendered
+    assert "Highest owned backlogs" in rendered
 
 
 def test_tc1072_structural_vocabulary_is_related_not_widened():

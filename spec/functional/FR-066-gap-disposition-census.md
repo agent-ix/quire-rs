@@ -26,7 +26,7 @@ ratio by treating any two as interchangeable:
 |---|---|---|
 | P1 | evidence symbol | A symbol whose kind can carry a trace binding. |
 | P2 | tag-shaped token | An authored id-shaped annotation, independent of whether the declared grammar binds it. |
-| P3 | authored obligation row | A deduplicated row found by the engine-independent Markdown scan. |
+| P3 | authored obligation row | A deduplicated row found by the engine-independent Markdown scan, excluding rows selected only by a target whose module-declared evidence posture is `reference-only`. |
 | P4 | minted row | A row the active traceability declarations reached and minted. |
 
 The disposition denominator SHALL be P3, not P4. P4 is instrument output; using
@@ -110,7 +110,7 @@ compatibility change in its owning repository.
 | ID | Criteria | Verification |
 |---|---|---|
 | FR-066-AC-1 | The report states P1, P2, P3 and P4 with distinct units and never substitutes one population for another. | Test (TC-1062) |
-| FR-066-AC-2 | P3 authored rows are the denominator, scanned independently of engine minting and deduplicated by the shared corpus rules; P4 and each row's backed state come from FR-050's `minted_targets` records and are cross-checked against the totals rather than inferred from `unbacked_rows`. | Test (TC-1063, TC-1073) |
+| FR-066-AC-2 | P3 authored rows are the denominator, scanned independently of engine minting and deduplicated by the shared corpus rules; rows selected only by a module-declared `reference-only` target are excluded because referenceability is not a source-evidence obligation. P4 and each row's backed state come from FR-050's `minted_targets` records and are cross-checked against the totals rather than inferred from `unbacked_rows`. | Test (TC-1063, TC-1073, TC-1075) |
 | FR-066-AC-3 | Every row is assigned by strict first-match precedence to exactly one of the six named dispositions, and every disposition carries its declared owner. | Test (TC-1064) |
 | FR-066-AC-4 | `backed + Σ dispositions == authored_rows` holds per repository and in aggregate; an unclassified row or sum mismatch exits non-zero and no residual bucket is emitted. | Test (TC-1065) |
 | FR-066-AC-5 | `status-lie` is emitted only as an orthogonal overlay and never changes the partition sum. | Test (TC-1066) |

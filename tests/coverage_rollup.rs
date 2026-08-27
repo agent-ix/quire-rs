@@ -9,7 +9,7 @@ use quire_rs::coverage::{compute, CoverageError, CoverageReport};
 use quire_rs::metric::{Measurement, Metric};
 use quire_rs::symbols::trace::BindingCensus;
 use quire_rs::symbols::{extract_tree, trace};
-use quire_rs::{Registry, Spec};
+use quire_rs::{validate_bundle_at, BundlePosture, Registry, Spec};
 
 fn fixture_module(name: &str) -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -665,6 +665,56 @@ fn tc1073_minted_targets_are_the_row_level_totals() {
     assert!(empty.minted_targets.is_empty());
     let value: serde_json::Value = serde_json::from_str(&empty.to_json()).expect("JSON");
     assert!(value.get("minted_targets").is_none());
+}
+
+#[trace("TC-1075", "FR-050-AC-40", "FR-066-AC-2")]
+#[test]
+fn tc1075_reference_only_targets_resolve_without_entering_coverage() {
+    let bundle = iso_bundle(
+        "1075",
+        &[
+            ("TC-001", "FR-001-AC-1", "✅"),
+            ("TC-002", "FR-001-AC-2", "✅"),
+        ],
+        &["TC-001", "FR-001-AC-1"],
+    );
+    let report = report_for(&bundle, "reference-only").expect("model declared");
+
+    assert_eq!(report.totals.total, 2, "only the two source AC rows count");
+    assert_eq!(report.totals.backed, 1, "the source AC tag still binds");
+    assert!(report
+        .groups
+        .iter()
+        .all(|group| group.target != "test-case"));
+    assert!(report
+        .minted_targets
+        .iter()
+        .all(|row| row.id != "TC-001" && row.target != "test-case"));
+
+    let registry = Registry::load_module(&fixture_module("reference-only")).expect("load module");
+    let resolved = validate_bundle_at(&bundle.scope, &registry, BundlePosture::Strict);
+    assert!(
+        resolved
+            .errors
+            .iter()
+            .all(|finding| finding.reason != "dangling-trace-reference"),
+        "the reference-only id must remain resolvable: {:?}",
+        resolved.errors
+    );
+
+    write(
+        &bundle.scope,
+        "FR-001.md",
+        "---\nid: FR-001\ntype: FR\ntitle: A requirement\n---\n\n\
+         ## Acceptance Criteria\n\n\
+         | ID | Criteria | Verification |\n|----|----------|--------------|\n\
+         | FR-001-AC-1 | The system shall do it. | Test (TC-404) |\n",
+    );
+    let dangling = validate_bundle_at(&bundle.scope, &registry, BundlePosture::Strict);
+    assert!(dangling
+        .errors
+        .iter()
+        .any(|finding| finding.reason == "dangling-trace-reference"));
 }
 
 #[trace("TC-738", "FR-050-AC-7")]

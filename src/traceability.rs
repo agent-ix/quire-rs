@@ -579,6 +579,22 @@ impl ColumnVocabularies {
 /// `spec/evals.md`, one declaration each) and reached nothing nested, so a
 /// matrix at `spec/<module>/matrix/tests.md` minted no ids however correctly it
 /// was authored.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum TraceTargetEvidence {
+    /// The existing posture: rows belong to the source-evidence denominator.
+    #[default]
+    Source,
+    /// IDs exist for reference integrity, not for source-symbol coverage.
+    ReferenceOnly,
+}
+
+impl TraceTargetEvidence {
+    fn is_source(&self) -> bool {
+        *self == Self::Source
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct TraceTarget {
@@ -601,6 +617,11 @@ pub struct TraceTarget {
     pub section: SectionNames,
     /// Table column holding the minted id.
     pub id_column: String,
+    /// Whether rows require source-symbol evidence. Omitted is the historical
+    /// `source` posture; reference-only targets register identifiers without
+    /// entering coverage (FR-050-AC-40, #363).
+    #[serde(default, skip_serializing_if = "TraceTargetEvidence::is_source")]
+    pub evidence: TraceTargetEvidence,
 }
 
 /// One kind of reference from a document cell to minted trace ids. `pattern`
@@ -1643,6 +1664,37 @@ document_references:
     fn unknown_field_is_a_parse_error() {
         let bad = "trace_targets:\n- name: t\n  archetype: FR\n  section: S\n  id_column: ID\n  typo: x\n";
         assert!(serde_yaml::from_str::<TraceabilityModel>(bad).is_err());
+    }
+
+    #[trace("TC-1075", "FR-050-AC-40", "FR-066-AC-2")]
+    #[test]
+    fn tc1075_trace_target_evidence_posture_is_typed_and_defaults_to_source() {
+        let defaulted =
+            model("trace_targets:\n- name: t\n  archetype: FR\n  section: S\n  id_column: ID\n");
+        assert_eq!(
+            defaulted.trace_targets[0].evidence,
+            TraceTargetEvidence::Source
+        );
+        let serialized = serde_yaml::to_string(&defaulted).expect("serialize default posture");
+        assert!(
+            !serialized.contains("evidence:"),
+            "the historical declaration stays byte-shaped: {serialized}"
+        );
+
+        let reference_only = model(
+            "trace_targets:\n- name: t\n  archetype: FR\n  section: S\n  id_column: ID\n  evidence: reference-only\n",
+        );
+        assert_eq!(
+            reference_only.trace_targets[0].evidence,
+            TraceTargetEvidence::ReferenceOnly
+        );
+        assert!(
+            serde_yaml::from_str::<TraceabilityModel>(
+                "trace_targets:\n- name: t\n  archetype: FR\n  section: S\n  id_column: ID\n  evidence: guessed\n",
+            )
+            .is_err(),
+            "an unknown posture must fail at the module boundary"
+        );
     }
 
     #[trace("TC-1038", "FR-050-AC-34")]
