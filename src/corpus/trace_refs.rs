@@ -22,7 +22,7 @@ use super::spec::Spec;
 use super::validate::{pack, posture_tier, BundleFinding, BundlePosture, BundleReport};
 use crate::grammar::GrammarSeverity;
 use crate::registry::Registry;
-use crate::traceability::{DocumentReference, TraceTarget};
+use crate::traceability::{DocumentReference, TraceTarget, TraceTargetEvidence};
 
 /// One referencing row found in a declared reference column.
 struct ReferencingRow {
@@ -59,9 +59,15 @@ pub(crate) fn validate_trace_references(
     let mut ctx = declared_tables::ScanContext::default();
     let mut resolution: BTreeMap<&str, BTreeSet<String>> = BTreeMap::new();
     for target in &model.trace_targets {
+        let mut reference_only_ctx = declared_tables::ScanContext::default();
+        let target_ctx = if target.evidence == TraceTargetEvidence::ReferenceOnly {
+            &mut reference_only_ctx
+        } else {
+            &mut ctx
+        };
         resolution.insert(
             target.name.as_str(),
-            minted_ids(spec, root, target, &model_exclude, &mut ctx),
+            minted_ids(spec, root, target, &model_exclude, target_ctx),
         );
     }
 

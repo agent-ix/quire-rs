@@ -691,6 +691,18 @@ fn tc1075_reference_only_targets_resolve_without_entering_coverage() {
         .iter()
         .all(|row| row.id != "TC-001" && row.target != "test-case"));
 
+    let absent = iso_bundle("1075-absent", &[], &[]);
+    fs::remove_file(absent.scope.join("tests.md")).expect("remove optional registry");
+    let absent_report = report_for(&absent, "reference-only").expect("model declared");
+    assert!(
+        absent_report
+            .diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.declaration != "test-case"),
+        "an optional reference registry must be silent when absent: {:?}",
+        absent_report.diagnostics
+    );
+
     let registry = Registry::load_module(&fixture_module("reference-only")).expect("load module");
     let resolved = validate_bundle_at(&bundle.scope, &registry, BundlePosture::Strict);
     assert!(

@@ -37,6 +37,12 @@ pub(super) fn reconcile(
     let mut declared_ids: BTreeSet<String> = BTreeSet::new();
     for target in &model.trace_targets {
         let exclude = declared_tables::ExcludeSet::compile_validated(&target.exclude);
+        let mut reference_only_ctx = declared_tables::ScanContext::default();
+        let target_ctx = if target.evidence == TraceTargetEvidence::ReferenceOnly {
+            &mut reference_only_ctx
+        } else {
+            &mut ctx
+        };
         for row in declared_tables::scan(
             spec,
             root,
@@ -50,7 +56,7 @@ pub(super) fn reconcile(
                 mints: Some(&target.id_column),
             },
             &target.section,
-            &mut ctx,
+            target_ctx,
         ) {
             let Some(id) = row.cell(&target.id_column) else {
                 continue;
