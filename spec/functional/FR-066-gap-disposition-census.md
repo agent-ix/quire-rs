@@ -31,8 +31,8 @@ ratio by treating any two as interchangeable:
 
 The disposition denominator SHALL be P3, not P4. P4 is instrument output; using
 it as the denominator hides declaration failures inside the denominator. The
-measured corpus made that error visible as roughly 26,357 authored rows against
-20,148 minted rows: the difference is evidence to classify, not input to omit.
+The 2026-08-26 census makes that error visible as 26,726 authored rows against
+20,097 minted rows: the difference is evidence to classify, not input to omit.
 
 ### Dispositions
 
@@ -98,7 +98,7 @@ workflow. It SHALL NOT be a push or pull-request prerequisite.
 | `marker-form-mismatch` | Legacy comma-list forms dropped 205 ids across 17 repositories while the rows were minted. | Module trace-tag grammar. |
 | `id-class-unminted` | The #69 sweep found 572 untracked entries in id classes the model did not mint. | Module trace-target declaration. |
 | `method-exempt` | Quoin's review found 40 of 55 apparent status lies were Eval/Manual/Inspection/Analysis rows whose method cannot mint a source symbol. | Nobody; report as explained absence. |
-| `authoring-absent` | The measured corpus contained 82 repositories with 4,248 real tests and no authored trace-tag line. | Repository authoring backlog, never an instrument bucket. |
+| `authoring-absent` | The current report contains 90 readable repositories with 3,077 evidence symbols and no authored trace-tag line. | Repository authoring backlog, never an instrument bucket. |
 
 The vocabulary parallels the project-owned disposition shape in
 `engineering-assurance/docs/structural-coverage.md`. This requirement does not
@@ -114,7 +114,7 @@ compatibility change in its owning repository.
 | FR-066-AC-3 | Every row is assigned by strict first-match precedence to exactly one of the six named dispositions, and every disposition carries its declared owner. | Test (TC-1064) |
 | FR-066-AC-4 | `backed + Σ dispositions == authored_rows` holds per repository and in aggregate; an unclassified row or sum mismatch exits non-zero and no residual bucket is emitted. | Test (TC-1065) |
 | FR-066-AC-5 | `status-lie` is emitted only as an orthogonal overlay and never changes the partition sum. | Test (TC-1066) |
-| FR-066-AC-6 | A repository with evidence symbols but no authored tags is classified as `authoring-absent` when binder readability is above the floor; the measured 82-repository class never enters `instrument-unread`. | Test (TC-1067) |
+| FR-066-AC-6 | A repository with evidence symbols but no authored tags is classified as `authoring-absent` when binder readability is above the floor; the current measured zero-tag class never enters `instrument-unread`. | Test (TC-1067) |
 | FR-066-AC-7 | Missing provenance, an engine change during the run, or a missing required capability aborts the census; the error names the missing token. | Test (TC-1068) |
 | FR-066-AC-8 | JSON and Markdown reports carry measured CLI/engine versions, capabilities, module commit, enumerated/scanned populations, and exclusions, and identical inputs produce byte-identical bytes. | Test (TC-1069) |
 | FR-066-AC-9 | `make census` is exposed as a scheduled/manual operation and no push or pull-request workflow requires it. | Test (TC-1070) |
