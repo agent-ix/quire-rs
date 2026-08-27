@@ -16,9 +16,9 @@ const LOW_BINDING_OBSERVATION_FLOOR: f64 = 0.05;
 ///
 /// The engine must not join a coarse tag to every descendant—that would let
 /// one `FR-006` tag back every `FR-006-AC-n` criterion. It can still name the
-/// repair from facts it already holds. The nearest ancestor with minted
-/// descendants wins, so `FR-043-INV-1` can point to `FR-043-AC-n` without
-/// hard-coding either id class.
+/// useful context from facts it already holds. A direct parent can safely name
+/// exact children as the authored form. A nested unminted class must not tell
+/// the author to substitute a sibling obligation merely to clear coverage.
 pub(super) fn minted_child_diagnostics(
     untracked: &[UntrackedSymbol],
     minted_ids: &BTreeSet<String>,
@@ -57,13 +57,22 @@ pub(super) fn minted_child_diagnostics(
         } else {
             format!(" and {remainder} more")
         };
+        let remedy = if parent == symbol.trace_id {
+            "tag the exact child id that states the obligation this evidence verifies".to_string()
+        } else {
+            format!(
+                "`{}` is not their parent, so do not substitute one merely to clear coverage; \
+                 correct the authored id or declare a trace target for its class",
+                symbol.trace_id
+            )
+        };
         out.push(CoverageDiagnostic {
             declaration: "traceability.trace_tags".to_string(),
             reason: "untracked-id-has-minted-children".to_string(),
             message: format!(
                 "`{}` on `{}` is not a minted trace target. Under `{parent}`, the active \
-                 model mints {shown}{more}; tag one of those exact ids. The parent tag is \
-                 not joined automatically because one coarse tag cannot back every child",
+                 model mints {shown}{more}; {remedy}. Nothing is joined automatically because \
+                 one coarse or unrelated tag cannot back every child",
                 symbol.trace_id, symbol.symbol
             ),
             path: Some(symbol.path.clone()),
@@ -291,6 +300,10 @@ mod cr137_minted_children {
         let nested = minted_child_diagnostics(&[symbol("FR-001-INV-1")], &minted);
         assert_eq!(nested.len(), 1, "the nearest useful ancestor is FR-001");
         assert!(nested[0].message.contains("Under `FR-001`"));
+        assert!(nested[0]
+            .message
+            .contains("declare a trace target for its class"));
+        assert!(!nested[0].message.contains("tag the exact child id"));
     }
 }
 
