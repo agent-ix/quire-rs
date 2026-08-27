@@ -7,6 +7,17 @@ description: "Chronological log of structural changes to this bundle."
 
 ## History
 
+* **2026-08-27** — **CR-147**: the oracle-copy producer now reaches the actual
+  TC-1598 wild shape from `filament-ide-rs@59a180a7`
+  (`agent-ix/quire-rs#236`, epic `agent-ix/quoin#261`). That assertion calls a
+  same-file oracle helper whose decision copies a private cross-file production
+  predicate; it has no `expected` binding, which is why CR-143's family fixture
+  did not imply wild detection. The exact wild run reports
+  `property_suite.rs:154`, `validate_artifact_path`, and similarity 1.00. The
+  answer-key pin `fc5d644` predates TC-1598 and remains recorded separately.
+  Independent, unused and ambiguously matched helpers stand down; the 0.75
+  floor is unchanged. FR-064-AC-7/CON-6; TC-1080.
+
 * **2026-08-27** — **CR-146**: a status-shaped table header that does not
   match configured `traceability.status.column` no longer silently disables
   status classification (`agent-ix/quire-rs#341`, epic `agent-ix/quoin#261`).

@@ -102,6 +102,11 @@ file; an ambiguous name yields no suspicion. This compares expressions with expr
 population on which the similarity floor was calibrated — rather than lowering the floor until a
 whole test body resembles a whole implementation body.
 
+The retained TC-1598 wild shape has no binding: a Rust equality assertion calls a same-file oracle
+helper, and that helper copies a private production predicate in another file. For this shape only,
+the join compares the uniquely resolved helper decision with uniquely similar cross-file production
+decisions. Multiple helper or production matches stand down.
+
 ## Acceptance Criteria
 
 | ID | Criteria | Verification |
@@ -112,6 +117,7 @@ whole test body resembles a whole implementation body.
 | FR-064-AC-3 | Similarity is computed over identifier tokens, so reformatting scores identical and shared keywords alone do not make two unrelated fragments similar; an empty side scores 0 rather than dividing by zero. | Test (TC-1000) |
 | FR-064-AC-4 | Suspicions reach `CoverageReport.suspicions`, ordered deterministically by `(path, line, symbol)`, each carrying `kind`, `path`, `symbol`, `line`, `message` and a non-empty `evidence`. They affect no total, no diagnostic count and no exit code. The list is empty — and the key absent — for a corpus with none. | Test (TC-1001) |
 | FR-064-AC-6 | In Rust, Python and TypeScript, an evidence symbol that explicitly binds `expected` or `oracle` and directly compares a production-function call with it is joined to that function's directly extractable return expression. A copied expression yields a located `oracle-resembles-implementation` suspicion naming the implementation and score; the same assertion with an independent expectation yields none. An ambiguous function name stands down, and the pattern inside a string or comment is not code. | Test (TC-1061; controlled corpus `skeptic/oracle-copy`) |
+| FR-064-AC-7 | In Rust, when the expected side of `assert_eq!` or `prop_assert_eq!` directly calls a uniquely resolved same-file helper, that helper's decision expression is compared with cross-file production decision expressions. Exactly one match at the existing floor yields a located `oracle-resembles-implementation` suspicion naming helper, implementation, score and independent-oracle repair. An independent helper, an unused helper, or more than one matching production subject yields none. The retained `agent-ix/filament-ide-rs@59a180a7` TC-1598 input is detected; the answer-key pin `fc5d644` is recorded separately because it predates that test (#236). | Test (TC-1080; controlled corpus `skeptic/oracle-helper-copy`) |
 
 ## Dependencies
 
@@ -127,6 +133,19 @@ whole test body resembles a whole implementation body.
 | FR-064-CON-3 | The assertion vocabulary is a closed list. An open heuristic (`any call containing "assert"`) binds helpers that may themselves assert nothing. | Design | Inspection of `ASSERTIONS` |
 | FR-064-CON-4 | The oracle producer SHALL compare expression to expression without lowering `ORACLE_SIMILARITY_FLOOR` to compensate for a broader extraction unit. | Design | Test (TC-1061) |
 | FR-064-CON-5 | The oracle producer SHALL yield no pair for a call that cannot be resolved to exactly one production function. | Design | Test (TC-1061) |
+| FR-064-CON-6 | Helper-oracle comparison SHALL remain Rust-only and cross-file until another language or same-file shape is independently measured. A similar helper not used as the expected side of an equality assertion is not an oracle, and similarity to more than one production function authorizes no subject guess. | Design | Test (TC-1080) |
+
+> **CR-147 note (2026-08-27):** the reopened `agent-ix/quire-rs#236`
+> wild-instance condition is now exercised against its actual immutable input.
+> The answer key pins `filament-ide-rs@fc5d644`, but TC-1598 was introduced
+> later at `59a180a7`; the earlier battletest miss therefore established that
+> the locus was absent from the pin, not that the family fixture implied wild
+> detection. The retained `59a180a7` source reports at
+> `crates/filament-shell/tests/property_suite.rs:154`, naming
+> `validate_artifact_path` with similarity 1.00. The semantic difference from
+> AC-6 is a called oracle helper rather than an `expected` binding. AC-7 adds
+> only that Rust cross-file shape and refuses unused, independent, or ambiguous
+> helpers; `ORACLE_SIMILARITY_FLOOR` remains 0.75.
 
 > **CR-143 note (2026-08-26):** `agent-ix/quire-rs#236`, epic
 > `agent-ix/quoin#264`. The oracle comparison now has a production caller. The

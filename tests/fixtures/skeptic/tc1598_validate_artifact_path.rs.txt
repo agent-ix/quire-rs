@@ -1,0 +1,20 @@
+// Retained wild input: agent-ix/filament-ide-rs@59a180a7,
+// crates/filament-shell/src/open.rs. The answer-key pin fc5d644 predates this
+// function's copied-oracle test; 59a180a7 is the immutable pre-fix subject.
+fn validate_artifact_path(artifact: String) -> Result<String, ShellOpenError> {
+    let normalized = artifact.replace('\\', "/");
+    if normalized.is_empty()
+        || normalized.starts_with('/')
+        || normalized.contains('\0')
+        || normalized
+            .split('/')
+            .any(|segment| segment.is_empty() || segment == "." || segment == "..")
+    {
+        return Err(ShellOpenError::root_refused(
+            "artifact path must stay inside the project root",
+        )
+        .with_context("field", "artifact")
+        .with_context("rejected_value", normalized));
+    }
+    Ok(normalized)
+}

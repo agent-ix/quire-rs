@@ -746,6 +746,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-1077 | A bound bare requirement id remains untracked and backs no criterion, while `untracked-id-has-minted-children` names its exact source locus and real minted `-AC-` children in Rust, Python and TypeScript. Direct parents recommend the exact applicable child; a nested unminted class forbids substituting a sibling obligation and directs declaration/correction instead. The exact-id control and an unrelated typo remain silent (#328) | Integration | P0 | FR-050-AC-42 | ✅ |
 | TC-1078 | Exact, mid-word truncation, over-broad domain, wrong-subject and justified safe-refusal controls pin the span boundary contract; emitted spans retain exact statement-relative coordinates and a refusal retains `span:refused-weak-boundary` (#241) | Unit | P0 | FR-052-AC-20 | ✅ |
 | TC-1079 | A `Coverage Status` header against configured `Status` preserves the former skipped-classification state but emits `status-column-matches-nothing` at the header, naming configured and observed columns plus both safe change targets; restoring `Status` is quiet and restores status-lie detection (#341) | Integration | P0 | FR-050-AC-43 | ✅ |
+| TC-1080 | The retained `filament-ide-rs@59a180a7` TC-1598 helper oracle is detected at its assertion and names the copied `validate_artifact_path` decision with score and repair; a reduced corpus pair reproduces it, while an independent helper, an unused copied helper, and two matching production subjects stay silent (#236) | Integration | P0 | FR-064-AC-7, FR-064-CON-6 | ✅ |
 | TC-1052 | The symbol table reports the QUALIFIED NAME the engine built, with its container — the field three ports of `symbols/python.rs` disagreed on, giving 386, 490 and 5,263 lost declarations over one tree. A defect in the scanner cannot be sized by a reimplementation of the scanner (#309) | Unit | P0 | FR-051-AC-23 | ✅ |
 | TC-1053 | Each record carries whether its KIND can bind a trace id and whether it can carry `implements`, and the two are complements for every symbol — the first thing to check when a row will not bind, previously only inferable from a coverage rollup two layers away (#309, #312, CR-061) | Unit | P0 | FR-051-AC-23 | ✅ |
 | TC-1054 | With no module the report says binding was NOT ASKED rather than reporting zero: an unbound run and a repository nobody tagged produce the same empty `trace_ids`, and the per-language census keeps `binding_kinds` separate from `bound` so a rate is never drawn over the wrong denominator (#309) | Unit | P0 | FR-051-AC-23 | ✅ |
@@ -1225,6 +1226,7 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-064-AC-4 | TC-1001 |
 | FR-064-AC-5 | TC-1003, TC-1004 |
 | FR-064-AC-6 | TC-1061 |
+| FR-064-AC-7 | TC-1080 |
 | FR-050-AC-31 | `scripts/tests/test_overfit_check.py` (Inspection — python-side sweep, mints no Rust symbol) |
 | FR-050-AC-32 | `scripts/tests/test_bench.py` (Inspection — python-side gate, mints no Rust symbol) |
 | FR-050-AC-30 | `scripts/tests/test_bench.py` (Inspection — python-side gate, mints no Rust symbol) |

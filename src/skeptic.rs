@@ -324,69 +324,185 @@ pub fn oracle_copies_in(extraction: &SymbolExtraction) -> Vec<Suspicion> {
         let span = test.attached_source(source);
         let masked = crate::symbols::trace::mask_source_string_contents(&span, test.language);
         let code = strip_source_comments(&masked, test.language);
-        let Some(candidate) = oracle_candidate(&code, test.language) else {
-            continue;
-        };
-        let implementations: Vec<(&Symbol, String)> = extraction
-            .symbols
-            .iter()
-            .filter(|symbol| {
-                symbol.language == test.language
-                    && symbol.kind == SymbolKind::Function
-                    && simple_name(&symbol.qualified_name) == candidate.function
-            })
-            .filter_map(|symbol| {
-                let source = extraction.source_of(&symbol.path)?;
-                let span = symbol.attached_source(source);
-                let masked =
-                    crate::symbols::trace::mask_source_string_contents(&span, symbol.language);
-                let code = strip_source_comments(&masked, symbol.language);
-                implementation_expression(&code, symbol.language)
-                    .map(|expression| (symbol, expression))
-            })
-            .collect();
-
-        // A textual call name is not enough to disambiguate overloads or two
-        // modules exporting the same function. Prefer the same file, but stand
-        // down unless that produces exactly one subject.
-        let same_file: Vec<_> = implementations
-            .iter()
-            .filter(|(symbol, _)| symbol.path == test.path)
-            .collect();
-        let resolved = if same_file.len() == 1 {
-            Some((same_file[0].0, same_file[0].1.clone()))
-        } else if same_file.is_empty() && implementations.len() == 1 {
-            Some((implementations[0].0, implementations[0].1.clone()))
-        } else {
-            None
-        };
-        let Some((implementation, expression)) = resolved else {
-            continue;
-        };
-
-        let score = token_similarity(&candidate.expression, &expression);
-        if score < ORACLE_SIMILARITY_FLOOR {
-            continue;
+        if let Some(candidate) = oracle_candidate(&code, test.language) {
+            if let Some((implementation, expression)) =
+                resolve_named_implementation(extraction, test, &candidate.function)
+            {
+                let score = token_similarity(&candidate.expression, &expression);
+                if score >= ORACLE_SIMILARITY_FLOOR {
+                    out.push(Suspicion {
+                        kind: SuspicionKind::OracleResemblesImplementation
+                            .as_str()
+                            .to_string(),
+                        path: test.path.clone(),
+                        symbol: test.qualified_name.clone(),
+                        line: test.leading_line + candidate.line_offset,
+                        message: format!(
+                            "the `{}` oracle closely resembles `{}` in {}; replace the copied calculation with an independent expectation",
+                            candidate.binding, implementation.qualified_name, implementation.path
+                        ),
+                        evidence: format!(
+                            "token similarity {score:.2} (floor {ORACLE_SIMILARITY_FLOOR:.2}); compared `{}` with `{}::{}`",
+                            candidate.binding, implementation.path, implementation.qualified_name
+                        ),
+                    });
+                }
+            }
         }
-        out.push(Suspicion {
-            kind: SuspicionKind::OracleResemblesImplementation
-                .as_str()
-                .to_string(),
-            path: test.path.clone(),
-            symbol: test.qualified_name.clone(),
-            line: test.leading_line + candidate.line_offset,
-            message: format!(
-                "the `{}` oracle closely resembles `{}` in {}; replace the copied calculation with an independent expectation",
-                candidate.binding, implementation.qualified_name, implementation.path
-            ),
-            evidence: format!(
-                "token similarity {score:.2} (floor {ORACLE_SIMILARITY_FLOOR:.2}); compared `{}` with `{}::{}`",
-                candidate.binding, implementation.path, implementation.qualified_name
-            ),
-        });
+
+        // The pinned wild shape behind #236 uses a named helper as the oracle:
+        // `prop_assert_eq!(production_call(), !oracle_helper())`. The helper
+        // copied a private production predicate in another file, so neither an
+        // `expected` binding nor direct call-name resolution can reach it.
+        if test.language == SourceLanguage::Rust {
+            if let Some(candidate) = helper_oracle_candidate(&code) {
+                if let Some((helper, oracle_expression)) =
+                    resolve_same_file_helper(extraction, test, &candidate.function)
+                {
+                    let matches: Vec<(&Symbol, String, f64)> = extraction
+                        .symbols
+                        .iter()
+                        .filter(|symbol| {
+                            symbol.language == SourceLanguage::Rust
+                                && symbol.kind == SymbolKind::Function
+                                && symbol.path != helper.path
+                        })
+                        .filter_map(|symbol| {
+                            let expression = comparable_expression(extraction, symbol)?;
+                            let score = token_similarity(&oracle_expression, &expression);
+                            (score >= ORACLE_SIMILARITY_FLOOR)
+                                .then_some((symbol, expression, score))
+                        })
+                        .collect();
+
+                    // Similarity is evidence, not name resolution. More than
+                    // one matching production predicate leaves the subject
+                    // ambiguous, so stand down instead of guessing.
+                    if let [(implementation, _, score)] = matches.as_slice() {
+                        out.push(Suspicion {
+                            kind: SuspicionKind::OracleResemblesImplementation
+                                .as_str()
+                                .to_string(),
+                            path: test.path.clone(),
+                            symbol: test.qualified_name.clone(),
+                            line: test.leading_line + candidate.line_offset,
+                            message: format!(
+                                "the `{}` oracle helper closely resembles `{}` in {}; replace the copied helper with an independent expectation",
+                                helper.qualified_name,
+                                implementation.qualified_name,
+                                implementation.path
+                            ),
+                            evidence: format!(
+                                "token similarity {score:.2} (floor {ORACLE_SIMILARITY_FLOOR:.2}); compared helper `{}::{}` with `{}::{}`",
+                                helper.path,
+                                helper.qualified_name,
+                                implementation.path,
+                                implementation.qualified_name
+                            ),
+                        });
+                    }
+                }
+            }
+        }
     }
     out.sort_by(|a, b| (&a.path, a.line, &a.symbol).cmp(&(&b.path, b.line, &b.symbol)));
     out
+}
+
+fn resolve_named_implementation<'a>(
+    extraction: &'a SymbolExtraction,
+    test: &Symbol,
+    function: &str,
+) -> Option<(&'a Symbol, String)> {
+    let implementations: Vec<(&Symbol, String)> = extraction
+        .symbols
+        .iter()
+        .filter(|symbol| {
+            symbol.language == test.language
+                && symbol.kind == SymbolKind::Function
+                && simple_name(&symbol.qualified_name) == function
+        })
+        .filter_map(|symbol| {
+            implementation_expression_for(extraction, symbol).map(|expression| (symbol, expression))
+        })
+        .collect();
+
+    // A textual call name is not enough to disambiguate overloads or two
+    // modules exporting the same function. Prefer the same file, but stand
+    // down unless that produces exactly one subject.
+    let same_file: Vec<_> = implementations
+        .iter()
+        .filter(|(symbol, _)| symbol.path == test.path)
+        .collect();
+    if same_file.len() == 1 {
+        Some((same_file[0].0, same_file[0].1.clone()))
+    } else if same_file.is_empty() && implementations.len() == 1 {
+        Some((implementations[0].0, implementations[0].1.clone()))
+    } else {
+        None
+    }
+}
+
+fn resolve_same_file_helper<'a>(
+    extraction: &'a SymbolExtraction,
+    test: &Symbol,
+    function: &str,
+) -> Option<(&'a Symbol, String)> {
+    let helpers: Vec<_> = extraction
+        .symbols
+        .iter()
+        .filter(|symbol| {
+            symbol.language == test.language
+                && symbol.kind == SymbolKind::Function
+                && symbol.path == test.path
+                && simple_name(&symbol.qualified_name) == function
+        })
+        .filter_map(|symbol| comparable_expression(extraction, symbol).map(|body| (symbol, body)))
+        .collect();
+    let [(helper, expression)] = helpers.as_slice() else {
+        return None;
+    };
+    Some((*helper, expression.clone()))
+}
+
+fn implementation_expression_for(extraction: &SymbolExtraction, symbol: &Symbol) -> Option<String> {
+    let source = extraction.source_of(&symbol.path)?;
+    let span = symbol.attached_source(source);
+    let masked = crate::symbols::trace::mask_source_string_contents(&span, symbol.language);
+    let code = strip_source_comments(&masked, symbol.language);
+    implementation_expression(&code, symbol.language)
+}
+
+fn comparable_expression(extraction: &SymbolExtraction, symbol: &Symbol) -> Option<String> {
+    if let Some(expression) = implementation_expression_for(extraction, symbol) {
+        return Some(expression);
+    }
+    if symbol.language != SourceLanguage::Rust {
+        return None;
+    }
+    let source = extraction.source_of(&symbol.path)?;
+    let span = symbol.attached_source(source);
+    let masked = crate::symbols::trace::mask_source_string_contents(&span, symbol.language);
+    let code = strip_source_comments(&masked, symbol.language);
+    let body = code.split_once('{')?.1.rsplit_once('}')?.0.trim();
+
+    static DECISION_IF: OnceLock<Regex> = OnceLock::new();
+    let decision_if = DECISION_IF.get_or_init(|| {
+        Regex::new(r"(?s)\bif\s+(.+?)\s*\{").expect("Rust decision-if pattern compiles")
+    });
+    if let Some(found) = decision_if.captures(body) {
+        let whole = found.get(0)?;
+        let condition = found.get(1)?.as_str();
+        let prefix = &body[..whole.start()];
+        return Some(format!("{prefix} {condition}"));
+    }
+
+    // A helper oracle may bind an intermediate and return a tail predicate.
+    // Keep both: the wild copy duplicated the normalization assignment as well
+    // as every branch of the predicate, which is the causal evidence.
+    body.rsplit_once(';')
+        .is_some_and(|(_, tail)| !tail.trim().is_empty())
+        .then(|| body.to_string())
 }
 
 #[derive(Debug)]
@@ -395,6 +511,28 @@ struct OracleCandidate {
     expression: String,
     function: String,
     line_offset: usize,
+}
+
+#[derive(Debug)]
+struct HelperOracleCandidate {
+    function: String,
+    line_offset: usize,
+}
+
+fn helper_oracle_candidate(span: &str) -> Option<HelperOracleCandidate> {
+    static RUST_HELPER_ASSERTION: OnceLock<Regex> = OnceLock::new();
+    let assertion = RUST_HELPER_ASSERTION.get_or_init(|| {
+        Regex::new(
+            r"(?s)\b(?:assert_eq|prop_assert_eq)!\s*\([^;]*?,\s*!?\s*([A-Za-z_][A-Za-z0-9_:]*)\s*\(",
+        )
+        .expect("Rust helper-oracle assertion pattern compiles")
+    });
+    let found = assertion.captures(span)?;
+    let whole = found.get(0)?;
+    Some(HelperOracleCandidate {
+        function: found.get(1)?.as_str().rsplit("::").next()?.to_string(),
+        line_offset: span[..whole.start()].matches('\n').count(),
+    })
 }
 
 fn oracle_candidate(span: &str, language: SourceLanguage) -> Option<OracleCandidate> {
@@ -595,6 +733,17 @@ mod tests {
 
     fn extract_ts(body: &str) -> SymbolExtraction {
         extract_file("tests/thing.test.ts", SourceLanguage::Typescript, body)
+    }
+
+    fn merge(mut left: SymbolExtraction, right: SymbolExtraction) -> SymbolExtraction {
+        left.symbols.extend(right.symbols);
+        left.files.extend(right.files);
+        left.diagnostics.extend(right.diagnostics);
+        left.symbols.sort_by(|a, b| {
+            (&a.path, a.line, &a.qualified_name).cmp(&(&b.path, b.line, &b.qualified_name))
+        });
+        left.files.sort_by(|a, b| a.path.cmp(&b.path));
+        left
     }
 
     #[trace("TC-1002", "FR-064-AC-1")]
@@ -967,6 +1116,112 @@ assert_eq!(normalize(value), expected);"#;
             oracle_copies_in(&quoted),
             vec![],
             "quoted fixture text and comments are not executable oracle code"
+        );
+    }
+
+    #[trace("TC-1080", "FR-064-AC-7")]
+    #[test]
+    fn tc1080_the_pinned_helper_oracle_copy_is_detected_without_guessing() {
+        const IMPLEMENTATION: &str =
+            include_str!("../tests/fixtures/skeptic/tc1598_validate_artifact_path.rs.txt");
+        const WILD_COPY: &str =
+            include_str!("../tests/fixtures/skeptic/tc1598_copied_oracle.rs.txt");
+        let extraction = merge(
+            extract_file(
+                "crates/filament-shell/src/open.rs",
+                SourceLanguage::Rust,
+                IMPLEMENTATION,
+            ),
+            extract_file(
+                "crates/filament-shell/tests/property_suite.rs",
+                SourceLanguage::Rust,
+                WILD_COPY,
+            ),
+        );
+
+        let found = oracle_copies_in(&extraction);
+        assert_eq!(found.len(), 1, "wild 59a180a7 slice: {found:#?}");
+        let finding = &found[0];
+        assert_eq!(finding.kind, "oracle-resembles-implementation");
+        assert_eq!(
+            finding.path,
+            "crates/filament-shell/tests/property_suite.rs"
+        );
+        assert_eq!(
+            finding.symbol,
+            "tc1598_artifact_acceptance_matches_the_containment_rule"
+        );
+        assert_eq!(
+            finding.line, 17,
+            "assertion locus is recovered: {finding:#?}"
+        );
+        for detail in [
+            "escapes_the_root",
+            "validate_artifact_path",
+            "crates/filament-shell/src/open.rs",
+            "independent expectation",
+        ] {
+            assert!(
+                finding.message.contains(detail),
+                "message names `{detail}`: {}",
+                finding.message
+            );
+        }
+        assert!(
+            finding.evidence.contains("similarity 1.00"),
+            "{}",
+            finding.evidence
+        );
+
+        // The post-review oracle asks the containment question independently.
+        let independent = WILD_COPY.replacen(
+            r#"let normalized = artifact.replace('\\', "/");
+    normalized.is_empty()
+        || normalized.starts_with('/')
+        || normalized.contains('\0')
+        || normalized
+            .split('/')
+            .any(|segment| segment.is_empty() || segment == "." || segment == "..")"#,
+            r#"let mut depth = 0isize;
+    for segment in artifact.replace('\\', "/").split('/') {
+        depth += if segment == ".." { -1 } else { 1 };
+        if depth < 0 { return true; }
+    }
+    false"#,
+            1,
+        );
+        let control = merge(
+            extract_file("src/open.rs", SourceLanguage::Rust, IMPLEMENTATION),
+            extract_file(
+                "tests/property_suite.rs",
+                SourceLanguage::Rust,
+                &independent,
+            ),
+        );
+        assert_eq!(
+            oracle_copies_in(&control),
+            vec![],
+            "an independently implemented helper is not a copy"
+        );
+
+        // A similar helper is not an oracle merely because it exists in a test
+        // file; it must be used as the expected side of an equality assertion.
+        let unused = WILD_COPY.replace("!escapes_the_root(&artifact)", "true");
+        let unused = merge(
+            extract_file("src/open.rs", SourceLanguage::Rust, IMPLEMENTATION),
+            extract_file("tests/property_suite.rs", SourceLanguage::Rust, &unused),
+        );
+        assert_eq!(oracle_copies_in(&unused), vec![]);
+
+        // Two equally similar production predicates leave no safe subject.
+        let ambiguous = merge(
+            extraction,
+            extract_file("src/other.rs", SourceLanguage::Rust, IMPLEMENTATION),
+        );
+        assert_eq!(
+            oracle_copies_in(&ambiguous),
+            vec![],
+            "similarity does not authorize guessing between two subjects"
         );
     }
 
