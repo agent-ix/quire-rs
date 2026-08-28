@@ -31,6 +31,261 @@ use serde_json::{Map, Value};
 
 use crate::vocab::{EdgeTypeDef, RoleDef};
 
+/// Authored source location of a declaration retained through manifest loading
+/// and first-wins registry merging.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DeclarationOrigin {
+    pub path: PathBuf,
+    /// One-based line of the smallest declaration key retained by the loader.
+    pub line: usize,
+}
+
+/// Sidecar origins for declarations whose public value types intentionally
+/// remain pure, serializable module data. Keeping source metadata here avoids
+/// changing their YAML/JSON representation or forcing callers that construct a
+/// `TraceabilityModel` in memory to invent a source file.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub(crate) struct ManifestOrigins {
+    pub traceability: Option<DeclarationOrigin>,
+    pub trace_targets: BTreeMap<String, DeclarationOrigin>,
+    pub vocabulary_coverage: BTreeMap<String, DeclarationOrigin>,
+    pub archetypes: BTreeMap<String, DeclarationOrigin>,
+    pub selectors: BTreeMap<(String, String), DeclarationOrigin>,
+    pub vocabularies: BTreeMap<String, DeclarationOrigin>,
+}
+
+impl ManifestOrigins {
+    pub(crate) fn from_source(manifest: &Manifest, path: PathBuf, bytes: &[u8]) -> Self {
+        let text = String::from_utf8_lossy(bytes);
+        let lines = source_lines(&text);
+        let traceability = key_line(&lines, None, "traceability").map(|line| DeclarationOrigin {
+            path: path.clone(),
+            line,
+        });
+        let trace_targets = named_origins(
+            &lines,
+            Some("traceability"),
+            "trace_targets",
+            manifest
+                .traceability
+                .trace_targets
+                .iter()
+                .map(|item| item.name.as_str()),
+            &path,
+        );
+        let vocabulary_coverage = named_origins(
+            &lines,
+            Some("traceability"),
+            "vocabulary_coverage",
+            manifest
+                .traceability
+                .vocabulary_coverage
+                .iter()
+                .map(|item| item.name.as_str()),
+            &path,
+        );
+        let mut origins = Self {
+            traceability,
+            trace_targets,
+            vocabulary_coverage,
+            ..Self::default()
+        };
+
+        for (section, entries) in [
+            ("artifact_types", &manifest.artifact_types),
+            ("object_types", &manifest.object_types),
+            ("archetypes", &manifest.archetypes),
+        ] {
+            for (name, origin) in named_origins(
+                &lines,
+                None,
+                section,
+                entries.iter().map(|item| item.name.as_str()),
+                &path,
+            ) {
+                origins.archetypes.entry(name).or_insert(origin);
+            }
+        }
+
+        if let Some((start, end, indent)) =
+            section_range(&lines, Some("traceability"), "trace_targets")
+        {
+            let names = named_source_lines(&lines[start..end], indent);
+            for (index, (name, name_line, item_indent)) in names.iter().enumerate() {
+                let item_end = names
+                    .get(index + 1)
+                    .map(|(_, line, _)| line.saturating_sub(1))
+                    .unwrap_or_else(|| lines[end - 1].number);
+                for field in ["archetype", "section", "id_column"] {
+                    if let Some(line) = lines.iter().find(|line| {
+                        line.number > *name_line
+                            && line.number <= item_end
+                            && line.indent > *item_indent
+                            && is_key(line.text, field)
+                    }) {
+                        origins.selectors.insert(
+                            (name.clone(), field.to_string()),
+                            DeclarationOrigin {
+                                path: path.clone(),
+                                line: line.number,
+                            },
+                        );
+                    }
+                }
+            }
+        }
+
+        if let Some((start, end, indent)) =
+            section_range(&lines, Some("traceability"), "vocabularies")
+        {
+            for line in &lines[start + 1..end] {
+                if line.indent > indent {
+                    if let Some(key) = mapping_key(line.text) {
+                        origins
+                            .vocabularies
+                            .entry(key.to_string())
+                            .or_insert_with(|| DeclarationOrigin {
+                                path: path.clone(),
+                                line: line.number,
+                            });
+                    }
+                }
+            }
+        }
+        origins
+    }
+}
+
+#[derive(Debug)]
+struct SourceLine<'a> {
+    number: usize,
+    indent: usize,
+    text: &'a str,
+}
+
+fn source_lines(text: &str) -> Vec<SourceLine<'_>> {
+    text.lines()
+        .enumerate()
+        .filter_map(|(index, raw)| {
+            let text = raw.trim_start();
+            (!text.is_empty() && !text.starts_with('#')).then_some(SourceLine {
+                number: index + 1,
+                indent: raw.len() - text.len(),
+                text,
+            })
+        })
+        .collect()
+}
+
+fn mapping_key(text: &str) -> Option<&str> {
+    let text = text.strip_prefix("- ").unwrap_or(text);
+    let (key, _) = text.split_once(':')?;
+    (!key.is_empty() && !key.chars().any(char::is_whitespace)).then_some(key)
+}
+
+fn is_key(text: &str, key: &str) -> bool {
+    mapping_key(text) == Some(key)
+}
+
+fn top_level_range(lines: &[SourceLine<'_>], key: &str) -> Option<(usize, usize, usize)> {
+    let start = lines
+        .iter()
+        .position(|line| line.indent == 0 && is_key(line.text, key))?;
+    let end = lines[start + 1..]
+        .iter()
+        .position(|line| line.indent == 0 && !line.text.starts_with('-'))
+        .map(|offset| start + 1 + offset)
+        .unwrap_or(lines.len());
+    Some((start, end, lines[start].indent))
+}
+
+fn section_range(
+    lines: &[SourceLine<'_>],
+    parent: Option<&str>,
+    key: &str,
+) -> Option<(usize, usize, usize)> {
+    let (outer_start, outer_end) = match parent {
+        Some(parent) => {
+            let (start, end, _) = top_level_range(lines, parent)?;
+            (start + 1, end)
+        }
+        None => (0, lines.len()),
+    };
+    let relative = lines[outer_start..outer_end]
+        .iter()
+        .position(|line| is_key(line.text, key))?;
+    let start = outer_start + relative;
+    let indent = lines[start].indent;
+    let end = lines[start + 1..outer_end]
+        .iter()
+        .position(|line| line.indent <= indent && !line.text.starts_with('-'))
+        .map(|offset| start + 1 + offset)
+        .unwrap_or(outer_end);
+    Some((start, end, indent))
+}
+
+fn key_line(lines: &[SourceLine<'_>], parent: Option<&str>, key: &str) -> Option<usize> {
+    section_range(lines, parent, key).map(|(start, _, _)| lines[start].number)
+}
+
+fn named_source_lines(
+    lines: &[SourceLine<'_>],
+    section_indent: usize,
+) -> Vec<(String, usize, usize)> {
+    let candidates: Vec<&SourceLine<'_>> = lines
+        .iter()
+        .skip(1)
+        .filter(|line| line.indent >= section_indent && is_key(line.text, "name"))
+        .collect();
+    let Some(item_indent) = candidates.iter().map(|line| line.indent).min() else {
+        return Vec::new();
+    };
+    candidates
+        .into_iter()
+        .filter(|line| line.indent == item_indent)
+        .filter_map(|line| {
+            let text = line.text.strip_prefix("- ").unwrap_or(line.text);
+            let (_, value) = text.split_once(':')?;
+            let name = value
+                .trim()
+                .trim_matches(|ch| ch == '\'' || ch == '"')
+                .to_string();
+            (!name.is_empty()).then_some((name, line.number, line.indent))
+        })
+        .collect()
+}
+
+fn named_origins<'a>(
+    lines: &[SourceLine<'_>],
+    parent: Option<&str>,
+    key: &str,
+    expected: impl Iterator<Item = &'a str>,
+    path: &Path,
+) -> BTreeMap<String, DeclarationOrigin> {
+    let expected: Vec<&str> = expected.collect();
+    let Some((start, end, indent)) = section_range(lines, parent, key) else {
+        return BTreeMap::new();
+    };
+    let found = named_source_lines(&lines[start..end], indent);
+    expected
+        .into_iter()
+        .enumerate()
+        .filter_map(|(index, expected_name)| {
+            let (_, line, _) = found
+                .iter()
+                .find(|(name, _, _)| name == expected_name)
+                .or_else(|| found.get(index))?;
+            Some((
+                expected_name.to_string(),
+                DeclarationOrigin {
+                    path: path.to_path_buf(),
+                    line: *line,
+                },
+            ))
+        })
+        .collect()
+}
+
 /// Top-level `manifest.yaml` shape.
 ///
 /// `name` is optional at the YAML layer — when absent, the loader
@@ -254,10 +509,20 @@ fn check_grammar_severity_keys(manifest: &Manifest) -> Result<(), String> {
 
 /// Read + parse `manifest.yaml` from `module_root`.
 pub fn load_manifest(module_root: &Path) -> Result<Manifest, String> {
+    load_manifest_with_origins(module_root).map(|(manifest, _)| manifest)
+}
+
+/// Read a manifest together with the authored declaration origins used by
+/// configuration diagnostics.
+pub(crate) fn load_manifest_with_origins(
+    module_root: &Path,
+) -> Result<(Manifest, ManifestOrigins), String> {
     let manifest_path = module_root.join("manifest.yaml");
     let bytes = std::fs::read(&manifest_path)
         .map_err(|e| format!("could not read {}: {e}", manifest_path.display()))?;
-    parse_manifest(&bytes)
+    let manifest = parse_manifest(&bytes)?;
+    let origins = ManifestOrigins::from_source(&manifest, manifest_path, &bytes);
+    Ok((manifest, origins))
 }
 
 #[cfg(test)]
@@ -369,5 +634,58 @@ artifact_types:
         .unwrap();
         let m = load_manifest(&root).expect("load");
         assert_eq!(m.name.as_deref(), Some("disk-mod"));
+    }
+
+    #[test]
+    fn declaration_origins_retain_model_entries_and_selector_lines() {
+        let yaml = br#"name: located
+archetypes:
+- name: FR
+traceability:
+  trace_targets:
+  - name: acceptance-criterion
+    archetype: FR
+    section: Acceptance Criteria
+    id_column: ID
+  vocabularies:
+    test_type: [Unit]
+  vocabulary_coverage:
+  - name: quality
+    from: FR
+    field: quality
+    check: unowned-quality
+"#;
+        let manifest = parse_manifest(yaml).expect("parse");
+        let path = PathBuf::from("/modules/located/manifest.yaml");
+        let origins = ManifestOrigins::from_source(&manifest, path.clone(), yaml);
+
+        assert_eq!(origins.traceability.as_ref().map(|o| o.line), Some(4));
+        assert_eq!(
+            origins
+                .trace_targets
+                .get("acceptance-criterion")
+                .unwrap_or_else(|| panic!("missing target origin: {origins:#?}"))
+                .line,
+            6
+        );
+        assert_eq!(origins.vocabulary_coverage["quality"].line, 13);
+        assert_eq!(origins.archetypes["FR"].line, 3);
+        assert_eq!(
+            origins.selectors[&("acceptance-criterion".into(), "archetype".into())].line,
+            7
+        );
+        assert_eq!(
+            origins.selectors[&("acceptance-criterion".into(), "section".into())].line,
+            8
+        );
+        assert_eq!(
+            origins.selectors[&("acceptance-criterion".into(), "id_column".into())].line,
+            9
+        );
+        assert_eq!(origins.vocabularies["test_type"].line, 11);
+        assert!(origins
+            .trace_targets
+            .values()
+            .all(|origin| origin.path == path));
     }
 }

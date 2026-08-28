@@ -34,7 +34,7 @@ struct Baseline {
 
 #[derive(Default)]
 struct Group {
-    population: usize,
+    population: [usize; 3],
     reached: [usize; 3],
     misses: [Vec<String>; 3],
 }
@@ -124,6 +124,9 @@ fn score(gap_count: usize) -> Vec<RecallRow> {
         if !evaluated_by_quire(&case) {
             continue;
         }
+        if !claimed.iter().any(|level| *level) {
+            continue;
+        }
         let report = run(&case);
         let outcome = grade(&case, &report);
         let lost = outcome.level_lost();
@@ -135,8 +138,11 @@ fn score(gap_count: usize) -> Vec<RecallRow> {
         let group = groups
             .entry((case.meta.mode.clone(), case.meta.language.clone()))
             .or_default();
-        group.population += 1;
         for (index, reached) in achieved.iter().enumerate() {
+            if !claimed[index] {
+                continue;
+            }
+            group.population[index] += 1;
             if *reached {
                 group.reached[index] += 1;
             } else {
@@ -149,19 +155,25 @@ fn score(gap_count: usize) -> Vec<RecallRow> {
     groups
         .into_iter()
         .flat_map(|((mode, language), group)| {
-            levels.into_iter().enumerate().map(move |(index, level)| {
-                let mut misses = group.misses[index].clone();
-                misses.sort();
-                RecallRow {
-                    mode: mode.clone(),
-                    language: language.clone(),
-                    level: level.to_string(),
-                    reached: group.reached[index],
-                    population: group.population,
-                    gap_count,
-                    misses,
-                }
-            })
+            levels
+                .into_iter()
+                .enumerate()
+                .filter_map(move |(index, level)| {
+                    if group.population[index] == 0 {
+                        return None;
+                    }
+                    let mut misses = group.misses[index].clone();
+                    misses.sort();
+                    Some(RecallRow {
+                        mode: mode.clone(),
+                        language: language.clone(),
+                        level: level.to_string(),
+                        reached: group.reached[index],
+                        population: group.population[index],
+                        gap_count,
+                        misses,
+                    })
+                })
         })
         .collect()
 }
@@ -175,7 +187,7 @@ fn externally_witnessed_cases_are_outside_the_quire_population() {
             case.meta.kind == "failure"
                 && case.meta.findable
                 && !case.expect.external_observations.is_empty()
-                && !claimed_levels(case)[0]
+                && !evaluated_by_quire(case)
         })
         .map(|case| case.meta.id.clone())
         .collect();
@@ -197,7 +209,10 @@ fn externally_witnessed_cases_are_outside_the_quire_population() {
     let expected_population = cases
         .iter()
         .filter(|case| {
-            case.meta.kind == "failure" && case.meta.findable && evaluated_by_quire(case)
+            case.meta.kind == "failure"
+                && case.meta.findable
+                && evaluated_by_quire(case)
+                && claimed_levels(case)[0]
         })
         .count();
     let observed_population: usize = rows
@@ -209,35 +224,15 @@ fn externally_witnessed_cases_are_outside_the_quire_population() {
 }
 
 fn claimed_levels(case: &Case) -> [bool; 3] {
-    let expect = &case.expect;
-    let l3 = !expect.diagnostic_message_contains.is_empty()
-        || expect
-            .suspicions
-            .iter()
-            .any(|item| !item.message_contains.is_empty());
-    let l2 = !expect.diagnostic_paths.is_empty()
-        || expect
-            .untracked_symbols
-            .as_ref()
-            .is_some_and(|symbols| !symbols.is_empty())
-        || expect
-            .binding_census
-            .iter()
-            .any(|item| item.unbound_example.is_some() || item.unmatched_example.is_some())
-        || expect
-            .suspicions
-            .iter()
-            .any(|item| item.path.is_some() || item.line.is_some() || item.symbol.is_some());
-    let l1 = !expect.diagnostic_reasons.is_empty()
-        || !expect.validate_contains.is_empty()
-        || !expect.suspicions.is_empty()
-        || l2
-        || l3;
-    [l1, l1 && l2, l1 && l2 && l3]
+    case.meta
+        .grading_contract
+        .as_ref()
+        .expect("findable failures declare grading_contract")
+        .required_levels()
 }
 
 fn evaluated_by_quire(case: &Case) -> bool {
-    case.expect.external_observations.is_empty() || claimed_levels(case)[0]
+    case.expect.external_observations.is_empty()
 }
 
 fn current_gap_count() -> usize {

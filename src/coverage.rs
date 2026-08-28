@@ -571,7 +571,7 @@ pub fn compute(
     let model = registry
         .traceability()
         .ok_or(CoverageError::ModelUndeclared)?;
-    let (mut report, minting_census) = reconcile(spec, model, graph, root);
+    let (mut report, minting_census) = reconcile(spec, model, graph, root, registry);
     // CR-028: the criteria counts are computed here rather than inside
     // `reconcile`, which reconciles against the declared model alone and takes
     // no `Registry`. The vocabularies the classifier reads hang off the same

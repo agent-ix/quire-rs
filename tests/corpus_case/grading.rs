@@ -23,6 +23,31 @@ fn find_diagnostic<'a>(
         .find(|d| d.reason == reason && declaration.map_or(true, |want| d.declaration == want))
 }
 
+fn diagnostic_path_matches(actual: &str, expected: &str) -> bool {
+    actual == expected
+        || (!std::path::Path::new(expected).is_absolute()
+            && std::path::Path::new(actual).ends_with(expected))
+}
+
+fn diagnostic_text(diagnostic: &quire_rs::coverage::CoverageDiagnostic) -> String {
+    let mut fields = vec![diagnostic.message.as_str()];
+    if let Some(guidance) = &diagnostic.guidance {
+        fields.push(guidance.subject.as_str());
+        fields.push(guidance.change_target.as_str());
+        match &guidance.next_move {
+            quire_rs::finding::FindingNextMove::Remedy { remedy } => {
+                fields.push(remedy.as_str());
+            }
+            quire_rs::finding::FindingNextMove::NextDiagnosticStep {
+                next_diagnostic_step,
+            } => {
+                fields.push(next_diagnostic_step.as_str());
+            }
+        }
+    }
+    fields.join(" ")
+}
+
 pub fn grade(case: &Case, report: &quire_rs::CoverageReport) -> Outcome {
     grade_with(case, report, &case.expect)
 }
@@ -275,7 +300,10 @@ pub fn grade_against(
 
     for (reason, want) in &e.diagnostic_paths {
         let actual = find_diagnostic(report, reason).and_then(|d| d.path.clone());
-        if actual.as_deref() != Some(want.as_str()) {
+        if !actual
+            .as_deref()
+            .is_some_and(|path| diagnostic_path_matches(path, want))
+        {
             fail(
                 Level::L2Localised,
                 format!("{reason} path: expected {want:?}, got {actual:?}"),
@@ -283,8 +311,18 @@ pub fn grade_against(
         }
     }
 
+    for (reason, want) in &e.diagnostic_lines {
+        let actual = find_diagnostic(report, reason).and_then(|d| d.line);
+        if actual != Some(*want) {
+            fail(
+                Level::L2Localised,
+                format!("{reason} line: expected {want:?}, got {actual:?}"),
+            );
+        }
+    }
+
     for (reason, fragments) in &e.diagnostic_message_contains {
-        let message = find_diagnostic(report, reason).map(|d| d.message.clone());
+        let message = find_diagnostic(report, reason).map(diagnostic_text);
         for fragment in fragments {
             match &message {
                 Some(text) if text.contains(fragment.as_str()) => {}

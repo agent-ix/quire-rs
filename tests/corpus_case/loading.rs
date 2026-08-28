@@ -19,8 +19,11 @@ pub(super) fn load_module_path(path: &Path, case_id: &str) -> quire_rs::Registry
 
 /// Deserialize a merged declaration, naming the directory on failure.
 fn parse_meta(value: &serde_yaml::Value, dir: &Path) -> CaseMeta {
-    serde_yaml::from_value(value.clone())
-        .unwrap_or_else(|e| panic!("{}: case.yaml: {e}", dir.display()))
+    let meta: CaseMeta = serde_yaml::from_value(value.clone())
+        .unwrap_or_else(|e| panic!("{}: case.yaml: {e}", dir.display()));
+    meta.validate_grading_contract()
+        .unwrap_or_else(|e| panic!("{}: case.yaml: {e}", dir.display()));
+    meta
 }
 
 /// Set a string key on a mapping, for the fields a set derives per variant.

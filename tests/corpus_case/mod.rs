@@ -120,6 +120,95 @@ impl Outcome {
 }
 
 /// One case's declaration, from `case.yaml`.
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum GradingChannel {
+    Finding,
+    DirectObservation,
+    Behavior,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum GradingState {
+    Required,
+    NotApplicable,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct GradingLevelContract {
+    pub state: GradingState,
+    #[serde(default)]
+    pub reason: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct GradingLevels {
+    #[serde(rename = "L1")]
+    pub l1: GradingLevelContract,
+    #[serde(rename = "L2")]
+    pub l2: GradingLevelContract,
+    #[serde(rename = "L3")]
+    pub l3: GradingLevelContract,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct GradingContract {
+    pub channel: GradingChannel,
+    pub levels: GradingLevels,
+}
+
+impl GradingContract {
+    pub fn required_levels(&self) -> [bool; 3] {
+        [
+            self.levels.l1.state == GradingState::Required,
+            self.levels.l2.state == GradingState::Required,
+            self.levels.l3.state == GradingState::Required,
+        ]
+    }
+
+    fn validate(&self) -> Result<(), String> {
+        let levels = [
+            ("L1", &self.levels.l1),
+            ("L2", &self.levels.l2),
+            ("L3", &self.levels.l3),
+        ];
+        for (name, level) in levels {
+            match level.state {
+                GradingState::Required if level.reason.is_some() => {
+                    return Err(format!(
+                        "grading_contract.levels.{name} is required and may not carry a reason"
+                    ));
+                }
+                GradingState::NotApplicable
+                    if !level
+                        .reason
+                        .as_deref()
+                        .is_some_and(|reason| !reason.trim().is_empty()) =>
+                {
+                    return Err(format!(
+                        "grading_contract.levels.{name} excludes the level without a reason"
+                    ));
+                }
+                _ => {}
+            }
+        }
+        let required = self.required_levels();
+        if self.channel == GradingChannel::Behavior && required.iter().any(|state| *state) {
+            return Err("a behavior grading contract must exclude L1, L2, and L3".into());
+        }
+        if self.channel == GradingChannel::DirectObservation && required != [true, true, false] {
+            return Err(
+                "a direct-observation grading contract requires L1/L2 and excludes L3".into(),
+            );
+        }
+        Ok(())
+    }
+}
+
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CaseMeta {
@@ -199,6 +288,22 @@ pub struct CaseMeta {
     /// nobody can decide whether to remove.
     #[serde(default)]
     pub pending_reason: Option<String>,
+    /// Explicit finding-recall applicability. Required by the corpus for every
+    /// findable failure; absent on controls and non-findable regressions.
+    #[serde(default)]
+    pub grading_contract: Option<GradingContract>,
+}
+
+impl CaseMeta {
+    pub fn validate_grading_contract(&self) -> Result<(), String> {
+        if self.kind == "failure" && self.findable && self.grading_contract.is_none() {
+            return Err("a findable failure must declare grading_contract".into());
+        }
+        if let Some(contract) = &self.grading_contract {
+            contract.validate()?;
+        }
+        Ok(())
+    }
 }
 
 /// What the emitted envelope must say.
@@ -234,6 +339,13 @@ pub struct CaseExpect {
     /// and "it named a place" is the whole claim being made.
     #[serde(default)]
     pub diagnostic_paths: BTreeMap<String, String>,
+    /// L2. Exact authored source line, `reason` -> `line` (#365).
+    ///
+    /// Kept separate from `diagnostic_paths` because the public diagnostic
+    /// payload carries typed `path` and `line` fields. A path alone is not the
+    /// exact declaration locus this expectation claims.
+    #[serde(default)]
+    pub diagnostic_lines: BTreeMap<String, usize>,
     /// L3. Substrings each diagnostic's message must carry, `reason` -> texts.
     ///
     /// A finding can carry a correct path while its prose names nothing a
@@ -365,6 +477,11 @@ impl CaseExpect {
             } else {
                 BTreeMap::new()
             },
+            diagnostic_lines: if on("diagnostic_lines") {
+                self.diagnostic_lines.clone()
+            } else {
+                BTreeMap::new()
+            },
             diagnostic_message_contains: if on("diagnostic_message_contains") {
                 self.diagnostic_message_contains.clone()
             } else {
@@ -424,6 +541,7 @@ impl CaseExpect {
             "absent_diagnostic_reasons",
             "binding_census",
             "diagnostic_paths",
+            "diagnostic_lines",
             "diagnostic_message_contains",
             "unbacked_rows",
             "untracked_symbols",
@@ -449,6 +567,7 @@ impl CaseExpect {
             && self.absent_diagnostic_reasons.is_empty()
             && self.binding_census.is_empty()
             && self.diagnostic_paths.is_empty()
+            && self.diagnostic_lines.is_empty()
             && self.diagnostic_message_contains.is_empty()
             && self.unbacked_rows.is_none()
             && self.untracked_symbols.is_none()
@@ -584,6 +703,7 @@ impl CaseExpect {
             || !self.absent_diagnostic_reasons.is_empty()
             || !self.binding_census.is_empty()
             || !self.diagnostic_paths.is_empty()
+            || !self.diagnostic_lines.is_empty()
             || !self.diagnostic_message_contains.is_empty()
             || self.no_symbol_rows.is_some()
             || !self.metrics.is_empty()

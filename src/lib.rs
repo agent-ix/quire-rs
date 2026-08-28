@@ -59,6 +59,7 @@ pub use error::{format_violation, ArchetypeLoadFailure, QuireError, VIOLATION_PR
 pub use diagnostic::{Diagnostic, PathTraversalReason};
 // Loader + registry (FR-013 + FR-014).
 pub use loader::compile::CompiledArchetype;
+pub use loader::manifest::DeclarationOrigin;
 pub use obligation::{normalize_statement, statement_hash, Obligation};
 pub use registry::Registry;
 // Schema validation (FR-002).

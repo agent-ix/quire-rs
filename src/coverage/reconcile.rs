@@ -5,6 +5,7 @@ use std::path::Path;
 
 use crate::corpus::declared_tables;
 use crate::corpus::spec::Spec;
+use crate::registry::Registry;
 use crate::symbols::trace::SymbolGraph;
 use crate::traceability::{StatusClass, TraceTargetEvidence, TraceabilityModel};
 
@@ -23,6 +24,7 @@ pub(super) fn reconcile(
     model: &TraceabilityModel,
     graph: &SymbolGraph,
     root: &Path,
+    registry: &Registry,
 ) -> (CoverageReport, declared_tables::MintingCensus) {
     let backed: BTreeSet<&str> = graph.backed_trace_ids();
     // CR-060: compiled once for the whole reconciliation — every declaration
@@ -338,13 +340,23 @@ pub(super) fn reconcile(
             // `archetype-matches-nothing` is declaration-level and still has no
             // document to point at, while the two minting faults name the one
             // file whose heading or header row is wrong.
-            let path = diagnostic.document().map(str::to_string);
+            let origin = diagnostic
+                .document()
+                .is_none()
+                .then(|| registry.trace_target_origin(&declaration))
+                .flatten();
+            let path = diagnostic
+                .document()
+                .map(str::to_string)
+                .or_else(|| origin.map(|origin| origin.path.display().to_string()));
             CoverageDiagnostic {
                 declaration,
                 reason: declared_tables::scan_reason(&diagnostic).to_string(),
                 message,
                 path,
-                line: diagnostic.line(),
+                line: diagnostic
+                    .line()
+                    .or_else(|| origin.map(|origin| origin.line)),
                 value: None,
                 guidance: None,
             }
@@ -356,6 +368,7 @@ pub(super) fn reconcile(
     // it as *declared* (status or trace-tag entries alone are enough), which
     // is why `ModelUndeclared` never fires for it (CR-054).
     if model.trace_targets.is_empty() {
+        let origin = registry.traceability_origin();
         diagnostics.insert(
             0,
             CoverageDiagnostic {
@@ -364,8 +377,8 @@ pub(super) fn reconcile(
                 message: "the declared traceability model has no trace_targets, so it \
                           mints no ids and every count is over an empty denominator"
                     .to_string(),
-                path: None,
-                line: None,
+                path: origin.map(|origin| origin.path.display().to_string()),
+                line: origin.map(|origin| origin.line),
                 value: None,
                 guidance: None,
             },

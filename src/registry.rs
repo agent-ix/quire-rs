@@ -15,6 +15,7 @@ use std::sync::Arc;
 use crate::diagnostic::Diagnostic;
 use crate::error::{ArchetypeLoadFailure, QuireError};
 use crate::loader::compile::CompiledArchetype;
+use crate::loader::manifest::{DeclarationOrigin, ManifestOrigins};
 use crate::loader::paths::PathDiagnostic;
 use crate::loader::{
     flatten_into_registry, flatten_into_registry_strict, load_modules, RegistryShape,
@@ -71,6 +72,7 @@ struct Inner {
     ambiguity_terms_matcher: crate::grammar::quality::AmbiguityTerms,
     /// Merged declarative traceability model (FR-050).
     traceability: crate::traceability::TraceabilityModel,
+    declaration_origins: ManifestOrigins,
     failures: Vec<ArchetypeLoadFailure>,
     diagnostics: Vec<Diagnostic>,
     path_diagnostics: Vec<PathDiagnostic>,
@@ -225,6 +227,7 @@ impl Registry {
             verification_catalog,
             ambiguity_terms,
             traceability,
+            declaration_origins,
             failures,
             diagnostics,
             path_diagnostics,
@@ -309,6 +312,7 @@ impl Registry {
                 ambiguity_terms,
                 ambiguity_terms_matcher,
                 traceability,
+                declaration_origins,
                 failures,
                 diagnostics,
                 path_diagnostics,
@@ -484,6 +488,45 @@ impl Registry {
     /// rather than computing an empty rollup (FR-050-AC-2/AC-9).
     pub fn traceability(&self) -> Option<&crate::traceability::TraceabilityModel> {
         (!self.inner.traceability.is_empty()).then_some(&self.inner.traceability)
+    }
+
+    /// Source of the merged `traceability:` model declaration, when loaded
+    /// from authored manifest text.
+    pub fn traceability_origin(&self) -> Option<&DeclarationOrigin> {
+        self.inner.declaration_origins.traceability.as_ref()
+    }
+
+    /// Source of a first-wins trace-target declaration.
+    pub fn trace_target_origin(&self, name: &str) -> Option<&DeclarationOrigin> {
+        self.inner.declaration_origins.trace_targets.get(name)
+    }
+
+    /// Source of a first-wins vocabulary-coverage declaration.
+    pub fn vocabulary_coverage_origin(&self, name: &str) -> Option<&DeclarationOrigin> {
+        self.inner.declaration_origins.vocabulary_coverage.get(name)
+    }
+
+    /// Source of a first-wins archetype declaration.
+    pub fn archetype_origin(&self, name: &str) -> Option<&DeclarationOrigin> {
+        self.inner.declaration_origins.archetypes.get(name)
+    }
+
+    /// Source of one trace-target selector field (`archetype`, `section`, or
+    /// `id_column`).
+    pub fn trace_target_selector_origin(
+        &self,
+        name: &str,
+        field: &str,
+    ) -> Option<&DeclarationOrigin> {
+        self.inner
+            .declaration_origins
+            .selectors
+            .get(&(name.to_string(), field.to_string()))
+    }
+
+    /// Source of a first-wins `traceability.vocabularies` declaration.
+    pub fn traceability_vocabulary_origin(&self, name: &str) -> Option<&DeclarationOrigin> {
+        self.inner.declaration_origins.vocabularies.get(name)
     }
 
     /// The merged `ambiguity_terms` registry (FR-056).

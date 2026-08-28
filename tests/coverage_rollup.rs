@@ -1695,14 +1695,49 @@ fn tc822_declarations_that_select_nothing_are_reported() {
         "a misspelled matrix archetype is reported the same way: {}",
         target.message
     );
-    assert_eq!(
-        target.path, None,
-        "a declaration-level fault has no document to point at"
+    assert!(
+        target
+            .path
+            .as_deref()
+            .is_some_and(|path| path.ends_with("fails-open/manifest.yaml")),
+        "a declaration-level fault points to its manifest declaration: {target:?}"
     );
+    assert_eq!(target.line, Some(36));
 
     // Order is a property of the model, not of the walk (NFR-006).
     let again = report_for(&bundle, "fails-open").expect("model declared");
     assert_eq!(report.diagnostics, again.diagnostics);
+}
+
+#[test]
+fn tc822_model_that_mints_nothing_points_to_traceability_declaration() {
+    let module = tmpdir("822-model-origin-module");
+    fs::write(
+        module.join("manifest.yaml"),
+        "name: no-targets\narchetypes:\n- name: FR\ntraceability:\n  status:\n    column: Status\n    complete: [done]\n    pending: [pending]\n    failed: [failed]\n",
+    )
+    .expect("write manifest");
+    let bundle = iso_bundle("822-model-origin", &[], &[]);
+    let registry = Registry::load_module(&module).expect("load module");
+    let spec = Spec::from_path(&bundle.scope);
+    let extraction = extract_tree(&bundle.source);
+    let model = registry.traceability().cloned().expect("declared model");
+    let graph = trace::bind(&extraction, &model);
+    let report = compute(&spec, &registry, &graph, &bundle.scope).expect("report");
+
+    let finding = report
+        .diagnostics
+        .iter()
+        .find(|diagnostic| diagnostic.reason == "model-mints-nothing")
+        .expect("model diagnostic");
+    assert!(finding
+        .path
+        .as_deref()
+        .is_some_and(|path| path.ends_with("manifest.yaml")));
+    assert_eq!(finding.line, Some(4));
+
+    fs::remove_dir_all(module).ok();
+    fs::remove_dir_all(bundle.scope.parent().expect("bundle root")).ok();
 }
 
 #[trace("TC-822", "FR-050-AC-19")]

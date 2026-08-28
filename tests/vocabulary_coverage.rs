@@ -557,6 +557,15 @@ fn tc966_a_dead_declaration_is_a_coverage_diagnostic() {
     assert_eq!(dead.len(), 1, "{:#?}", report.diagnostics);
     assert_eq!(dead[0].declaration, "quality-characteristics");
     assert!(
+        dead[0]
+            .path
+            .as_deref()
+            .is_some_and(|path| path.ends_with("manifest.yaml")),
+        "the dead declaration points to its manifest: {:?}",
+        dead[0]
+    );
+    assert_eq!(dead[0].line, Some(18));
+    assert!(
         dead[0].message.contains("not_a_field") && dead[0].message.contains("NFR"),
         "names the field and the archetype: {}",
         dead[0].message

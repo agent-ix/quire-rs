@@ -601,6 +601,7 @@ fn tc1043_the_rust_reader_requires_what_the_corpus_declares_required() {
         // A value no reading of the declared type accepts.
         let wrong = match declared_type.as_str() {
             Some("str") | Some("bool") => serde_yaml::Value::Sequence(vec![]),
+            Some("grading_contract") => serde_yaml::Value::String("not-a-contract".into()),
             None if declared_type.as_sequence().is_some() => {
                 serde_yaml::Value::String("not-a-list".into())
             }
