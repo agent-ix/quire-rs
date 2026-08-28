@@ -64,6 +64,33 @@ pub struct Suspicion {
     pub message: String,
     /// The numbers behind the claim, rendered.
     pub evidence: String,
+    /// Stable structured repair guidance, additive to the human message.
+    #[serde(default, flatten)]
+    pub guidance: Option<crate::finding::FindingGuidance>,
+}
+
+impl Suspicion {
+    pub(crate) fn structured_guidance(&self) -> crate::finding::FindingGuidance {
+        let subject = format!("test symbol `{}`", self.symbol);
+        let target = format!("{}:{} in `{}`", self.path, self.line, self.symbol);
+        match self.kind.as_str() {
+            "oracle-resembles-implementation" => crate::finding::FindingGuidance::remedy(
+                subject,
+                target,
+                "replace the copied calculation or helper with an independent expectation",
+            ),
+            "vacuous-under-guard" => crate::finding::FindingGuidance::diagnostic(
+                subject,
+                target,
+                "inspect inputs that bypass the narrowing guard; add an unconditional oracle or constrain the generator when those inputs are invalid",
+            ),
+            _ => crate::finding::FindingGuidance::diagnostic(
+                subject,
+                target,
+                "inspect the reported evidence before changing the test",
+            ),
+        }
+    }
 }
 
 /// Assertion macros this recognizes. Deliberately a closed list: an open
@@ -291,6 +318,7 @@ pub fn oracle_copies(pairs: &[(OracleUnderTest, &str)]) -> Vec<Suspicion> {
                 evidence: format!(
                     "token similarity {score:.2} (floor {ORACLE_SIMILARITY_FLOOR:.2})"
                 ),
+                guidance: None,
             });
         }
     }
@@ -345,6 +373,7 @@ pub fn oracle_copies_in(extraction: &SymbolExtraction) -> Vec<Suspicion> {
                             "token similarity {score:.2} (floor {ORACLE_SIMILARITY_FLOOR:.2}); compared `{}` with `{}::{}`",
                             candidate.binding, implementation.path, implementation.qualified_name
                         ),
+                        guidance: None,
                     });
                 }
             }
@@ -399,6 +428,7 @@ pub fn oracle_copies_in(extraction: &SymbolExtraction) -> Vec<Suspicion> {
                                 implementation.path,
                                 implementation.qualified_name
                             ),
+                            guidance: None,
                         });
                     }
                 }
@@ -717,6 +747,7 @@ fn suspicion(symbol: &Symbol, kind: SuspicionKind, message: &str, evidence: Stri
         line: symbol.line,
         message: message.to_string(),
         evidence,
+        guidance: None,
     }
 }
 
@@ -744,6 +775,33 @@ mod tests {
         });
         left.files.sort_by(|a, b| a.path.cmp(&b.path));
         left
+    }
+
+    #[test]
+    fn suspicion_kinds_emit_complete_exclusive_guidance() {
+        for kind in ["oracle-resembles-implementation", "vacuous-under-guard"] {
+            let suspicion = Suspicion {
+                kind: kind.to_string(),
+                symbol: "property_holds".to_string(),
+                path: "tests/property.rs".to_string(),
+                line: 17,
+                message: "causal claim".to_string(),
+                evidence: "measured evidence".to_string(),
+                guidance: None,
+            };
+            let guidance = suspicion.structured_guidance();
+            assert!(!guidance.subject.trim().is_empty(), "{kind}: subject");
+            assert!(
+                !guidance.change_target.trim().is_empty(),
+                "{kind}: change target"
+            );
+            let wire = serde_json::to_value(guidance).expect("guidance serializes");
+            let actions = ["remedy", "next_diagnostic_step"]
+                .iter()
+                .filter(|key| wire.get(**key).is_some())
+                .count();
+            assert_eq!(actions, 1, "{kind}: exactly one action: {wire}");
+        }
     }
 
     #[trace("TC-1002", "FR-064-AC-1")]

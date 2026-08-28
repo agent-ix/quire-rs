@@ -20,6 +20,7 @@ pub mod diagnostic;
 pub mod error;
 pub mod extract;
 pub mod filament;
+pub mod finding;
 pub mod grammar;
 pub mod lint;
 pub mod loader;
@@ -80,6 +81,7 @@ pub use contract::{
 pub use extract::dsl::{ExtractionDsl, IterateKind, IterateOver, YieldPattern};
 pub use extract::locator::{Locator, LocatorAssert, LocatorKind, LocatorPrimitive};
 pub use extract::{extract, ExtractionResult};
+pub use finding::{FindingGuidance, FindingNextMove};
 // Canonical Filament core-data extraction (FR-045 / FR-046).
 pub use filament::{
     extract_filament_core, CoreExtractionDiagnostic, CoreExtractionResult, CoreGraphEdgeRef,

@@ -78,6 +78,7 @@ pub(super) fn minted_child_diagnostics(
             path: Some(symbol.path.clone()),
             line: symbol.line,
             value: Some(symbol.trace_id.clone()),
+            guidance: None,
         });
     }
     out
@@ -160,6 +161,7 @@ pub(super) fn near_miss_diagnostics(
             path: Some(symbol.path.clone()),
             line: symbol.line,
             value: Some(symbol.trace_id.clone()),
+            guidance: None,
         });
     }
     out
@@ -186,6 +188,7 @@ pub(super) fn non_binding_tag_diagnostics(tags: &[NonBindingTag]) -> Vec<Coverag
             path: Some(tag.path.clone()),
             line: Some(tag.line),
             value: Some(tag.trace_id.clone()),
+            guidance: None,
         })
         .collect()
 }
@@ -251,6 +254,7 @@ pub(super) fn binding_diagnostics(census: &[BindingCensus]) -> Vec<CoverageDiagn
                 path: entry.unbound_example.as_ref().map(|e| e.path.clone()),
                 line: entry.unbound_example.as_ref().map(|e| e.line),
                 value: Some(entry.language.clone()),
+                guidance: None,
             })
         })
         .collect()

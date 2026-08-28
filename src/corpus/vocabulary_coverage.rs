@@ -329,6 +329,7 @@ pub(crate) fn coverage_records(
                 path: None,
                 line: None,
                 value: None,
+                guidance: None,
             });
             continue;
         };

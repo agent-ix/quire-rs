@@ -473,6 +473,11 @@ pub struct CoverageDiagnostic {
     /// mismatch/uncatalogued split is the filed reader).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub value: Option<String>,
+    /// Stable structured repair guidance. Optional on input so retained
+    /// pre-#364 payloads still deserialize; every current producer populates
+    /// it before serialization.
+    #[serde(default, flatten)]
+    pub guidance: Option<crate::finding::FindingGuidance>,
 }
 
 /// Stable reason tokens emitted by coverage diagnostics.
@@ -606,6 +611,12 @@ pub fn compute(
     report
         .diagnostics
         .extend(catch_all_documents(&report.criteria));
+    for diagnostic in &mut report.diagnostics {
+        diagnostic.guidance = Some(diagnostics::guidance_for(diagnostic));
+    }
+    for suspicion in &mut report.suspicions {
+        suspicion.guidance = Some(suspicion.structured_guidance());
+    }
     Ok(report)
 }
 

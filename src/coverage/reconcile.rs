@@ -346,6 +346,7 @@ pub(super) fn reconcile(
                 path,
                 line: diagnostic.line(),
                 value: None,
+                guidance: None,
             }
         })
         .collect();
@@ -366,6 +367,7 @@ pub(super) fn reconcile(
                 path: None,
                 line: None,
                 value: None,
+                guidance: None,
             },
         );
     }
@@ -421,6 +423,7 @@ pub(super) fn reconcile(
         path: Some(row.document.clone()),
         line: None,
         value: None,
+        guidance: None,
     }));
 
     // ── Shared trace ids: one id bound by several distinct symbols ──

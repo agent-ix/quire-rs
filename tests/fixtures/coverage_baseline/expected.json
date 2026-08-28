@@ -260,7 +260,10 @@
       "message": "2 of 2 documents binding extractable criteria named a specific property shape for none of them — for example `FR-001-AC-1` at spec/FR-001.md:15; the extractable headline counts what a generator could quantify over, and this is the part it could not tell you what to write",
       "path": "spec/FR-001.md",
       "line": 15,
-      "value": "coverage.specific_shaped"
+      "value": "coverage.specific_shaped",
+      "subject": "criterion represented by `coverage.specific_shaped` at spec/FR-001.md:15",
+      "change_target": "spec/FR-001.md:15",
+      "next_diagnostic_step": "review whether the criterion is intentionally universal; otherwise name a concrete supported property shape"
     }
   ],
   "diagnostic_reason_registry": [

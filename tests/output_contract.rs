@@ -118,6 +118,41 @@ fn tc855_coverage_baseline_conforms() {
     );
 }
 
+#[trace("TC-1082", "FR-055-AC-3")]
+#[test]
+fn tc1082_guidance_is_complete_exclusive_and_additive() {
+    let schema = compile("coverage-v1.schema.json");
+
+    let mut both = baseline();
+    both["diagnostics"][0]["remedy"] = json!("change the criterion");
+    assert!(
+        !errors(&schema, &both).is_empty(),
+        "a producer must not prescribe a remedy and a diagnostic step together",
+    );
+
+    let mut partial = baseline();
+    partial["diagnostics"][0]
+        .as_object_mut()
+        .expect("diagnostic object")
+        .remove("next_diagnostic_step");
+    assert!(
+        !errors(&schema, &partial).is_empty(),
+        "a structured guidance group without an action must be rejected",
+    );
+
+    let mut legacy = baseline();
+    let legacy_diagnostic = legacy["diagnostics"][0]
+        .as_object_mut()
+        .expect("diagnostic object");
+    for key in ["subject", "change_target", "remedy", "next_diagnostic_step"] {
+        legacy_diagnostic.remove(key);
+    }
+    assert!(
+        errors(&schema, &legacy).is_empty(),
+        "a complete pre-guidance v1 payload must remain readable",
+    );
+}
+
 #[trace("TC-856", "FR-055-AC-3")]
 // the optional keys are covered by a payload that
 // actually carries them, not only by one that omits them — the way an optional
@@ -189,7 +224,10 @@ fn tc856_payload_carrying_every_optional_key_conforms() {
             "reason": "archetype-matches-nothing",
             "message": "no document of archetype TestMatrix",
             "path": null,
-            "value": "CI Gate"
+            "value": "CI Gate",
+            "subject": "declaration `test-case`",
+            "change_target": "traceability.trace_targets",
+            "remedy": "correct the declared archetype"
         }],
         "diagnostic_reason_registry": [
             "archetype-matches-nothing",
@@ -280,7 +318,10 @@ fn tc856_payload_carrying_every_optional_key_conforms() {
             "symbol": "tests::guarded",
             "line": 12,
             "message": "every assertion sits behind a narrowing guard",
-            "evidence": "1 of 44 samples reached an assertion"
+            "evidence": "1 of 44 samples reached an assertion",
+            "subject": "test symbol `tests::guarded`",
+            "change_target": "src/lib.rs:12",
+            "next_diagnostic_step": "inspect inputs that bypass the guard"
         }],
         // Assembled by quire-cli, never by this crate — but declared here, so
         // the payload that exercises every optional key must carry it.

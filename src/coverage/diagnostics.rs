@@ -7,6 +7,115 @@ use crate::registry::Registry;
 
 use super::{CoverageDiagnostic, CriteriaCounts};
 
+/// Structured action contract for every registered coverage diagnostic.
+///
+/// The producer already owns the typed reason/value/locus facts. Keeping the
+/// mapping here prevents downstream consumers from reverse-engineering them
+/// from `message`, while the fallback makes an unknown future reason explicit
+/// and uncertainty-shaped instead of inventing a repair.
+pub(super) fn guidance_for(diagnostic: &CoverageDiagnostic) -> crate::finding::FindingGuidance {
+    use crate::finding::FindingGuidance;
+
+    let declaration = format!("declaration `{}`", diagnostic.declaration);
+    let locus = match (&diagnostic.path, diagnostic.line) {
+        (Some(path), Some(line)) => format!("{path}:{line}"),
+        (Some(path), None) => path.clone(),
+        (None, _) => declaration.clone(),
+    };
+    let value = diagnostic
+        .value
+        .as_deref()
+        .unwrap_or(&diagnostic.declaration);
+
+    match diagnostic.reason.as_str() {
+        "archetype-matches-nothing" => FindingGuidance::diagnostic(
+            declaration,
+            "the trace-target archetype in the module manifest",
+            "confirm whether the missing document is intentional; otherwise add the document or correct the declared archetype",
+        ),
+        "catch-all-universal" => FindingGuidance::diagnostic(
+            format!("criterion represented by `{value}` at {locus}"),
+            locus,
+            "review whether the criterion is intentionally universal; otherwise name a concrete supported property shape",
+        ),
+        "hollow-denominator" => FindingGuidance::diagnostic(
+            format!("metric `{value}`"),
+            "the source binding census or declared trace-tag forms",
+            "inspect the binding census, its unbound example, and the declared trace-tag forms before trusting or repairing the ratio",
+        ),
+        "id-column-matches-nothing" => FindingGuidance::remedy(
+            declaration,
+            locus,
+            "align the declared id_column with the table's actual identifier header",
+        ),
+        "low-symbol-binding" => FindingGuidance::diagnostic(
+            format!("{value} evidence-symbol binding"),
+            locus,
+            "inspect the unbound example and declared trace-tag forms to distinguish sparse tagging from a marker-form mismatch",
+        ),
+        "model-mints-nothing" => FindingGuidance::remedy(
+            "the traceability model",
+            "traceability.trace_targets in the module manifest",
+            "declare at least one trace target, or remove the misleading traceability model if no ids should be minted",
+        ),
+        "no-symbol-bound" => FindingGuidance::diagnostic(
+            format!("{value} evidence-symbol binding"),
+            locus,
+            "compare the example annotation with the declared trace-tag forms; correct the annotation or the declaration according to authored intent",
+        ),
+        "obligation-row-states-nothing" => FindingGuidance::remedy(
+            declaration,
+            locus,
+            "fill the declared statement cell or remove the row if it states no obligation",
+        ),
+        "section-holds-no-table" => FindingGuidance::remedy(
+            declaration,
+            locus,
+            "add the expected table under the matched section or correct the declaration's section selector",
+        ),
+        "section-matches-nothing" => FindingGuidance::remedy(
+            declaration,
+            locus,
+            "align the document heading with the declared section selector",
+        ),
+        "status-column-matches-nothing" => FindingGuidance::diagnostic(
+            declaration,
+            locus,
+            "compare the configured status column with the observed table headers; rename the document column or change the configuration, and do not guess when both are plausible",
+        ),
+        "tag-on-non-binding-symbol" => FindingGuidance::remedy(
+            format!("trace id `{value}`"),
+            locus,
+            "move the trace id to an evidence symbol, or use an Implements marker when the production symbol is the intended subject",
+        ),
+        "untracked-id-near-miss" => FindingGuidance::remedy(
+            format!("trace id `{value}`"),
+            locus,
+            "change the annotation to the exact minted row id",
+        ),
+        "untracked-id-has-minted-children" => FindingGuidance::diagnostic(
+            format!("trace id `{value}`"),
+            locus,
+            "choose the exact minted child that this evidence verifies, or correct the authored id/declaration; do not substitute a sibling merely to clear coverage",
+        ),
+        "uncatalogued-verification-method" => FindingGuidance::remedy(
+            format!("verification method `{value}`"),
+            locus,
+            "add the method to the verification catalog or write an already declared method in the cell",
+        ),
+        "undeclared-coverage-vocabulary" => FindingGuidance::remedy(
+            declaration,
+            "the vocabulary_coverage field/archetype declaration in the module manifest",
+            "correct the declared field/archetype or declare the referenced schema enum",
+        ),
+        _ => FindingGuidance::diagnostic(
+            declaration,
+            locus,
+            "inspect the causal evidence and producer declaration before changing the source",
+        ),
+    }
+}
+
 /// Documents whose every extractable criterion is the `universal` catch-all
 /// (FR-050-AC-28, #261).
 ///
@@ -50,6 +159,7 @@ pub(super) fn catch_all_documents(criteria: &[CriteriaCounts]) -> Vec<CoverageDi
             .as_ref()
             .and_then(|example| example.line),
         value: Some("coverage.specific_shaped".to_string()),
+        guidance: None,
     }]
 }
 
@@ -93,6 +203,7 @@ pub(super) fn hollow_denominators(metrics: &[Metric]) -> Vec<CoverageDiagnostic>
                 path: None,
                 line: None,
                 value: Some(metric.name.clone()),
+                guidance: None,
             })
         })
         .collect()
@@ -151,6 +262,41 @@ pub(super) fn uncatalogued_methods(
             // `method` — so the join is equality, not prose parsing
             // (FR-054-AC-12).
             value: Some(method.to_string()),
+            guidance: None,
         })
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::coverage::COVERAGE_DIAGNOSTIC_REASONS;
+
+    #[test]
+    fn every_registered_reason_has_complete_exclusive_guidance() {
+        for reason in COVERAGE_DIAGNOSTIC_REASONS {
+            let diagnostic = CoverageDiagnostic {
+                declaration: "acceptance-criterion".to_string(),
+                reason: (*reason).to_string(),
+                message: "causal evidence".to_string(),
+                path: Some("spec/requirements.md".to_string()),
+                line: Some(12),
+                value: Some("authored-value".to_string()),
+                guidance: None,
+            };
+            let guidance = guidance_for(&diagnostic);
+            assert!(!guidance.subject.trim().is_empty(), "{reason}: subject");
+            assert!(
+                !guidance.change_target.trim().is_empty(),
+                "{reason}: change target"
+            );
+
+            let wire = serde_json::to_value(guidance).expect("guidance serializes");
+            let actions = ["remedy", "next_diagnostic_step"]
+                .iter()
+                .filter(|key| wire.get(**key).is_some())
+                .count();
+            assert_eq!(actions, 1, "{reason}: exactly one action: {wire}");
+        }
+    }
 }
