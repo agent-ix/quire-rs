@@ -490,6 +490,7 @@ pub const COVERAGE_DIAGNOSTIC_REASONS: &[&str] = &[
     "hollow-denominator",
     "id-column-matches-nothing",
     "low-symbol-binding",
+    "marker-form-mismatch",
     "model-mints-nothing",
     "no-symbol-bound",
     "obligation-row-states-nothing",
@@ -664,6 +665,26 @@ fn coverage_metrics(
         walked_symbols,
         walked_symbols,
     ));
+
+    // #367: a language-level binder can look healthy because comments or
+    // attributes bind while the repository's dominant test-name convention
+    // binds nothing. Retain that subpopulation as its own ratio; a zero match
+    // over non-zero examined input is then caught by the existing generic
+    // hollow-denominator invariant.
+    for census in &report.binding_census {
+        if census.self_named == 0 {
+            continue;
+        }
+        metrics.push(Metric::measured(
+            &format!("coverage.self_named_binding.{}", census.language),
+            "self-named evidence symbol",
+            "evidence symbols carrying a separator-delimited id in their own declaration name whose id was read by a declared name form; comment and attribute bindings do not satisfy this premise",
+            census.self_named_bound,
+            census.self_named,
+            census.self_named,
+            census.self_named_bound,
+        ));
+    }
 
     metrics.push(
         match (report.totals.property_shaped, report.totals.criteria) {

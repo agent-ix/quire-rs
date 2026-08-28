@@ -255,6 +255,28 @@ pub fn grade_against(
                 );
             }
         }
+        if let Some(self_named) = want.self_named {
+            if got.self_named != self_named {
+                fail(
+                    Level::L1Detected,
+                    format!(
+                        "{} self_named: expected {self_named}, got {}",
+                        got.language, got.self_named
+                    ),
+                );
+            }
+        }
+        if let Some(self_named_bound) = want.self_named_bound {
+            if got.self_named_bound != self_named_bound {
+                fail(
+                    Level::L1Detected,
+                    format!(
+                        "{} self_named_bound: expected {self_named_bound}, got {}",
+                        got.language, got.self_named_bound
+                    ),
+                );
+            }
+        }
         // L2: the census names WHERE, and that is the level being claimed.
         if let Some(at) = &want.unbound_example {
             match &got.unbound_example {
@@ -289,6 +311,29 @@ pub fn grade_against(
                             Level::L2Localised,
                             format!(
                                 "{} unmatched example: expected {at}, got {actual}",
+                                got.language
+                            ),
+                        );
+                    }
+                }
+            }
+        }
+        if let Some(at) = &want.self_named_unbound_example {
+            match &got.self_named_unbound_example {
+                None => fail(
+                    Level::L2Localised,
+                    format!(
+                        "{} census carries no self-named unbound example",
+                        got.language
+                    ),
+                ),
+                Some(example) => {
+                    let actual = format!("{}:{}", example.path, example.line);
+                    if actual != *at {
+                        fail(
+                            Level::L2Localised,
+                            format!(
+                                "{} self-named unbound example: expected {at}, got {actual}",
                                 got.language
                             ),
                         );

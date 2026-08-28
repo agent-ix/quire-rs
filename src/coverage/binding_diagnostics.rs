@@ -194,7 +194,7 @@ pub(super) fn non_binding_tag_diagnostics(tags: &[NonBindingTag]) -> Vec<Coverag
 }
 
 pub(super) fn binding_diagnostics(census: &[BindingCensus]) -> Vec<CoverageDiagnostic> {
-    census
+    let mut diagnostics: Vec<CoverageDiagnostic> = census
         .iter()
         .filter(|entry| entry.candidates > 0)
         .filter_map(|entry| {
@@ -257,7 +257,31 @@ pub(super) fn binding_diagnostics(census: &[BindingCensus]) -> Vec<CoverageDiagn
                 guidance: None,
             })
         })
-        .collect()
+        .collect();
+    diagnostics.extend(census.iter().filter_map(|entry| {
+        if entry.self_named == 0 || entry.self_named_bound > 0 {
+            return None;
+        }
+        let example = entry.self_named_unbound_example.as_ref()?;
+        Some(CoverageDiagnostic {
+            declaration: "traceability.trace_tags".to_string(),
+            reason: "marker-form-mismatch".to_string(),
+            message: format!(
+                "{} {} evidence symbols carry an id in their own name and no declared name form read one; for example `{}` at {}:{} (declared forms: {}). Other tag forms may bind in the same language, so the aggregate binding census cannot clear this subpopulation",
+                entry.self_named,
+                entry.language,
+                example.symbol,
+                example.path,
+                example.line,
+                entry.forms.join(", ")
+            ),
+            path: Some(example.path.clone()),
+            line: Some(example.line),
+            value: Some(entry.language.clone()),
+            guidance: None,
+        })
+    }));
+    diagnostics
 }
 
 #[cfg(test)]

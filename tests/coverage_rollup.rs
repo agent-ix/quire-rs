@@ -1840,6 +1840,21 @@ fn rewrite_source(bundle: &Bundle, total: usize, readable: usize) {
     fs::write(path, lib).expect("write");
 }
 
+fn rewrite_mixed_self_named_source(bundle: &Bundle) {
+    let path = bundle.source.join("lib.rs");
+    fs::write(
+        path,
+        concat!(
+            "//! Fixture source tree.\n\n#[cfg(test)]\nmod tests {\n",
+            "    // TC-001\n    #[test]\n    fn tc_001_first() {}\n\n",
+            "    // TC-002\n    #[test]\n    fn tc_002_second() {}\n\n",
+            "    // TC-003\n    #[test]\n    fn tc_003_third() {}\n",
+            "}\n",
+        ),
+    )
+    .expect("write mixed self-name source");
+}
+
 fn census_for<'r>(report: &'r CoverageReport, language: &str) -> &'r BindingCensus {
     report
         .binding_census
@@ -1956,6 +1971,42 @@ fn tc983_a_language_that_binds_nothing_is_a_diagnostic() {
     // Reported whether or not it holds — that is what makes it a premise
     // rather than a defect list.
     assert!(healthy.to_json().contains("binding_census"));
+}
+
+#[trace("TC-1083", "FR-050-AC-44")]
+#[test]
+fn tc1083_mixed_comment_bindings_do_not_mask_a_broken_name_form() {
+    let bundle = iso_bundle(
+        "1080",
+        &[
+            ("TC-001", "FR-001-AC-1", "✅"),
+            ("TC-002", "FR-001-AC-2", "✅"),
+            ("TC-003", "FR-001-AC-3", "✅"),
+        ],
+        &[],
+    );
+    rewrite_mixed_self_named_source(&bundle);
+    let report = report_for(&bundle, "iso").expect("model declared");
+    let census = census_for(&report, "rust");
+    assert_eq!((census.candidates, census.bound), (3, 3));
+    assert_eq!((census.self_named, census.self_named_bound), (3, 0));
+    assert!(census.self_named_unbound_example.is_some());
+    assert!(report
+        .diagnostics
+        .iter()
+        .any(|diagnostic| diagnostic.reason == "marker-form-mismatch"));
+    let hollow = report
+        .diagnostics
+        .iter()
+        .find(|diagnostic| {
+            diagnostic.reason == "hollow-denominator"
+                && diagnostic.value.as_deref() == Some("coverage.self_named_binding.rust")
+        })
+        .expect("self-name subpopulation is a named hollow ratio");
+    assert!(
+        hollow.path.is_none(),
+        "aggregate metric has no invented locus"
+    );
 }
 
 #[trace("TC-984", "FR-050-AC-27")]

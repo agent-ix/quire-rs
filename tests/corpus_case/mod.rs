@@ -645,6 +645,10 @@ pub struct ExpectCensus {
     pub candidates: Option<usize>,
     pub tagged: Option<usize>,
     pub bound: Option<usize>,
+    /// Evidence symbols carrying a separator-delimited id in their own name.
+    pub self_named: Option<usize>,
+    /// Self-named symbols whose declaration line a name form read.
+    pub self_named_bound: Option<usize>,
     /// Where the census says one unbound candidate is, `path:line` (#256).
     ///
     /// A count cannot be opened, and `no-symbol-bound` named the language and
@@ -653,6 +657,8 @@ pub struct ExpectCensus {
     pub unbound_example: Option<String>,
     /// One authored id-shaped token the declared grammar did not bind.
     pub unmatched_example: Option<String>,
+    /// One self-named symbol no declared name form read, at its declaration.
+    pub self_named_unbound_example: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Clone)]

@@ -7,6 +7,15 @@ description: "Chronological log of structural changes to this bundle."
 
 ## History
 
+* **2026-08-28** — **CR-149**: mixed binding channels can no longer make a
+  broken evidence-symbol name form look healthy. The language census retains
+  a separate self-named population, requires a declared name form to read the
+  id on the declaration line, and emits `marker-form-mismatch` plus a named
+  hollow metric when comments or attributes are the only successful channel.
+  This is additive and deterministic; empty fields remain absent. It closes
+  the exact wild `tc_NNN` shape found by Quoin epic #261 without weakening or
+  reimplementing any binder. FR-050-AC-44; TC-1083; #367.
+
 * **2026-08-27** — **CR-148**: `tag-on-non-binding-symbol` now has the
   precision calibration `agent-ix/quire-rs#355` required before any masking
   change. The retained frame is the **emitted diagnostic population**, not

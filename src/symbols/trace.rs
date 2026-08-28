@@ -133,6 +133,17 @@ pub struct BindingCensus {
     pub tagged: usize,
     /// Candidates that minted at least one `verifies` relation.
     pub bound: usize,
+    /// Evidence symbols whose own declared name carries an id-shaped token
+    /// using a separator (`tc_391`, `tc-391`). This is a subpopulation of
+    /// `candidates`, retained separately because bindings through comments or
+    /// attributes must not mask a broken test-name form (#367).
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub self_named: usize,
+    /// Self-named evidence symbols whose declaration line was actually read by
+    /// one declared legacy name form. A comment binding the same id does not
+    /// increment this count.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub self_named_bound: usize,
     /// Every declared form consulted for this language, marker names first,
     /// then legacy — the list to check when `bound` is 0 and `candidates` is
     /// not.
@@ -157,6 +168,13 @@ pub struct BindingCensus {
     /// never tagged at all (agent-ix/quire-rs#271).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub unmatched_example: Option<UnboundSymbol>,
+    /// One self-named evidence symbol no declared name form read.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub self_named_unbound_example: Option<UnboundSymbol>,
+}
+
+fn is_zero(value: &usize) -> bool {
+    *value == 0
 }
 
 /// Where one unbound evidence symbol is (#256).
@@ -198,8 +216,11 @@ struct CensusAccumulator {
     candidates: usize,
     tagged: usize,
     bound: usize,
+    self_named: usize,
+    self_named_bound: usize,
     unbound_example: Option<UnboundSymbol>,
     unmatched_example: Option<UnboundSymbol>,
+    self_named_unbound_example: Option<UnboundSymbol>,
 }
 
 impl CensusAccumulator {
@@ -213,8 +234,23 @@ impl CensusAccumulator {
         }
     }
 
-    fn observe(&mut self, bound: bool, generic_tag: Option<UnboundSymbol>, unbound: UnboundSymbol) {
+    fn observe(
+        &mut self,
+        bound: bool,
+        generic_tag: Option<UnboundSymbol>,
+        self_name_bound: Option<bool>,
+        self_name_locus: UnboundSymbol,
+        unbound: UnboundSymbol,
+    ) {
         self.candidates += 1;
+        if let Some(name_bound) = self_name_bound {
+            self.self_named += 1;
+            if name_bound {
+                self.self_named_bound += 1;
+            } else {
+                Self::keep_lowest(&mut self.self_named_unbound_example, self_name_locus);
+            }
+        }
         if bound {
             self.bound += 1;
             self.tagged += 1;
@@ -241,9 +277,12 @@ impl CensusAccumulator {
             candidates: self.candidates,
             tagged: self.tagged,
             bound: self.bound,
+            self_named: self.self_named,
+            self_named_bound: self.self_named_bound,
             forms: declared_forms(model, language),
             unbound_example: self.unbound_example,
             unmatched_example: self.unmatched_example,
+            self_named_unbound_example: self.self_named_unbound_example,
         }
     }
 }
@@ -453,6 +492,11 @@ pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolG
         });
         let before = graph.verifies.len();
         bind_symbol(symbol, source, model, &mut graph);
+        let self_name_bound = self_named_trace_id(symbol).map(|trace_id| {
+            declared_name_form_ids(symbol, source, model)
+                .iter()
+                .any(|bound| normalized_trace_id(bound) == normalized_trace_id(&trace_id))
+        });
         let bound_on_symbol: BTreeSet<String> = graph
             .verifies
             .iter()
@@ -468,6 +512,12 @@ pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolG
         entry.observe(
             graph.verifies.len() > before,
             generic_tag_locus,
+            self_name_bound,
+            UnboundSymbol {
+                path: symbol.path.clone(),
+                line: symbol.line,
+                symbol: symbol.qualified_name.clone(),
+            },
             UnboundSymbol {
                 path: symbol.path.clone(),
                 line: symbol.leading_line,
@@ -539,6 +589,68 @@ pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolG
         .diagnostics
         .sort_by(|a, b| (&a.path, &a.symbol, &a.trace_id).cmp(&(&b.path, &b.symbol, &b.trace_id)));
     graph
+}
+
+/// One generic trace id carried by an evidence symbol's own name.
+///
+/// A separator is required. That admits the observed `tc_391` / `tc-391`
+/// conventions without treating ordinary suffixed names such as `sha256` as
+/// trace ids. The candidate is observational only: a declared form still has
+/// to read the declaration line before it counts as bound.
+fn self_named_trace_id(symbol: &Symbol) -> Option<String> {
+    static SELF_NAME_ID: OnceLock<Regex> = OnceLock::new();
+    let pattern = SELF_NAME_ID.get_or_init(|| {
+        Regex::new(
+            r"(?i)(?:^|[^A-Z0-9])([A-Z]{2,4})[-_](\d+)(?:[-_]([A-Z]+)[-_](\d+))?(?:[^A-Z0-9]|$)",
+        )
+        .expect("self-name trace-id pattern compiles")
+    });
+    let captures = pattern.captures(&symbol.qualified_name)?;
+    let mut id = format!(
+        "{}-{}",
+        captures.get(1)?.as_str().to_uppercase(),
+        captures.get(2)?.as_str()
+    );
+    if let (Some(kind), Some(number)) = (captures.get(3), captures.get(4)) {
+        id.push('-');
+        id.push_str(&kind.as_str().to_uppercase());
+        id.push('-');
+        id.push_str(number.as_str());
+    }
+    Some(id)
+}
+
+/// Ids a declared legacy form reads from the symbol's declaration line.
+/// Annotation/comment forms elsewhere in the attached span are intentionally
+/// excluded: they may bind the same id, but do not prove the name form works.
+fn declared_name_form_ids(symbol: &Symbol, source: &str, model: &TraceabilityModel) -> Vec<String> {
+    let Some(line) = source.lines().nth(symbol.line.saturating_sub(1)) else {
+        return Vec::new();
+    };
+    let mut ids = Vec::new();
+    for legacy in &model.trace_tags.legacy {
+        if legacy
+            .language
+            .is_some_and(|language| language != symbol.language)
+        {
+            continue;
+        }
+        let Some(pattern) = compile(&legacy.pattern) else {
+            continue;
+        };
+        for captures in pattern.captures_iter(line) {
+            ids.extend(legacy_ids(&captures, legacy.id_format.as_deref()));
+        }
+    }
+    ids
+}
+
+fn normalized_trace_id(value: &str) -> String {
+    value
+        .chars()
+        .filter(|ch| ch.is_ascii_alphanumeric())
+        .flat_map(char::to_uppercase)
+        .collect()
 }
 
 /// Find every generic id-shaped token in the symbol's attached annotation

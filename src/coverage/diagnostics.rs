@@ -53,6 +53,11 @@ pub(super) fn guidance_for(diagnostic: &CoverageDiagnostic) -> crate::finding::F
             locus,
             "inspect the unbound example and declared trace-tag forms to distinguish sparse tagging from a marker-form mismatch",
         ),
+        "marker-form-mismatch" => FindingGuidance::remedy(
+            format!("{value} self-named evidence-symbol binding"),
+            locus,
+            "align the declared test-name form with the authored symbol-name convention, without widening unrelated annotation channels",
+        ),
         "model-mints-nothing" => FindingGuidance::remedy(
             "the traceability model",
             "traceability.trace_targets in the module manifest",

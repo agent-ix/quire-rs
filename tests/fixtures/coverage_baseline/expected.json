@@ -272,6 +272,7 @@
     "hollow-denominator",
     "id-column-matches-nothing",
     "low-symbol-binding",
+    "marker-form-mismatch",
     "model-mints-nothing",
     "no-symbol-bound",
     "obligation-row-states-nothing",
