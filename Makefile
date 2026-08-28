@@ -249,7 +249,8 @@ bench-update:
 .PHONY: measurement-collection
 measurement-collection:
 	test -n "$(OUTPUT)" || { echo "OUTPUT= is required"; exit 1; }
-	python3 scripts/export_measurements.py --consumer "$(QUIRE_CLI)" --module "$(BENCH_MODULE)" --output "$(OUTPUT)"
+	test -n "$(VERIFICATION_STACK)" || { echo "VERIFICATION_STACK= is required"; exit 1; }
+	python3 scripts/export_measurements.py --consumer "$(QUIRE_CLI)" --module "$(BENCH_MODULE)" --output "$(OUTPUT)" --verification-stack "$(VERIFICATION_STACK)"
 
 .PHONY: coverage-baseline-update
 coverage-baseline-update:

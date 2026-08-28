@@ -7,6 +7,14 @@ description: "Chronological log of structural changes to this bundle."
 
 ## History
 
+* **2026-08-28** — **CR-150**: the benchmark measurement producer now emits
+  Quoin schema-v2 collections bound to the canonical
+  `verification-stack-attestation-v1`. It refuses dirty source and any
+  mismatch in its own full source SHA or normalized origin, and validates the
+  stack digests, clean sources, sorted unique capabilities, and artifact
+  digests before benchmark execution can become governed evidence. Mutation
+  tests pin each drift class. #379; agent-ix/quoin#263.
+
 * **2026-08-28** — **CR-149**: mixed binding channels can no longer make a
   broken evidence-symbol name form look healthy. The language census retains
   a separate self-named population, requires a declared name form to read the

@@ -7,6 +7,15 @@ bumps; once 1.0 ships, semver is strict.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Governed benchmark exports now remain acceptable to Quoin (#379).** New
+  collections use schema v2 and require a validated
+  `verification-stack-attestation-v1`. The exporter refuses dirty source,
+  mismatched full SHAs/remotes, malformed digests, and ambiguous capability
+  sets before producing evidence; retained schema-v1 collections remain
+  historical and read-only.
+
 ### Added
 
 - **The published output contract admits instrument provenance (CR-104,
