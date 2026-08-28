@@ -18,13 +18,14 @@ jobs:
     name: TSAN + ASAN (rayon walk)
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install nightly + rust-src
-        uses: dtolnay/rust-toolchain@nightly
+        uses: dtolnay/rust-toolchain@7c8d7d138f5c09cef361f8214cf96882cd029cdb # nightly action
         with:
+          toolchain: nightly-2026-08-27
           components: rust-src
       - name: Cache cargo artifacts
-        uses: Swatinem/rust-cache@v2
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
       - name: ThreadSanitizer
         run: |
           RUSTFLAGS="-Zsanitizer=thread" cargo +nightly test \

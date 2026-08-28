@@ -24,14 +24,14 @@ jobs:
   census:
     runs-on: self-hosted
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Run disposition census
         env:
           CENSUS_ROOT: ${{ inputs.root || '/srv/agent-ix/dev' }}
           CENSUS_MODULE: ${{ inputs.module || '/srv/agent-ix/dev/spec-artifacts-process/spec_artifacts_process' }}
           CENSUS_CONSUMER: /srv/agent-ix/dev/quire-cli
         run: make census
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: gap-census
           path: reports/*-gap-census.*

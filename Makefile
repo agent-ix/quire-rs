@@ -50,7 +50,7 @@ fmt-check:
 
 .PHONY: lint
 lint:
-	$(CARGO) clippy --all-targets -- -D warnings
+	$(CARGO) clippy --locked --all-targets -- -D warnings
 
 # The `python` feature is gated off in every target above, so nothing in `ci`
 # ever compiles `src/python/`. FR-056 added a field to `GrammarVocabularies`,
@@ -70,7 +70,7 @@ lint:
 # "trait Serialize is not implemented" errors on types that plainly derive it.
 .PHONY: check-python
 check-python:
-	CARGO_TARGET_DIR=target/python-check $(CARGO) check --features python --quiet
+	CARGO_TARGET_DIR=target/python-check $(CARGO) check --locked --features python --quiet
 
 # The scripts/ tooling test suite (#217, #219). `check-python` is a cargo
 # type-check of the PyO3 binding and collects no Python tests, so the sweep
@@ -81,11 +81,11 @@ check-scripts:
 
 .PHONY: test
 test:
-	$(CARGO) test
+	$(CARGO) test --locked
 
 .PHONY: build
 build:
-	$(CARGO) build --release
+	$(CARGO) build --locked --release
 
 .PHONY: clean
 clean:
@@ -160,10 +160,10 @@ mutants:
 .PHONY: mutants-fr
 mutants-fr:
 	@test -n "$(FR)" || { echo "usage: make mutants-fr FR=FR-026" >&2; exit 2; }
-	@files=$$($(CARGO) run --release --quiet --example mutants_scope -- $(FR) --files-only); \
+	@files=$$($(CARGO) run --locked --release --quiet --example mutants_scope -- $(FR) --files-only); \
 	if [ -z "$$files" ]; then \
 	  echo "$(FR): no mutable file in the traced set — nothing to mutate." >&2; \
-	  $(CARGO) run --release --quiet --example mutants_scope -- $(FR) >&2; \
+	  $(CARGO) run --locked --release --quiet --example mutants_scope -- $(FR) >&2; \
 	  exit 1; \
 	fi; \
 	echo "$(FR) mutation scope:"; echo "$$files" | sed 's/^/  /'; \
@@ -173,7 +173,7 @@ mutants-fr:
 .PHONY: mutants-scope
 mutants-scope:
 	@test -n "$(FR)" || { echo "usage: make mutants-scope FR=FR-026" >&2; exit 2; }
-	@$(CARGO) run --release --quiet --example mutants_scope -- $(FR)
+	@$(CARGO) run --locked --release --quiet --example mutants_scope -- $(FR)
 
 # =============================================================================
 # Perf gates (Task 014, NFR-001/002/007)
@@ -269,7 +269,7 @@ coverage-baseline-update:
 # ~/.ix/filament/modules). Local gate only: CI workflows stay tag/dispatch.
 .PHONY: validate
 validate:
-	$(CARGO) run --quiet --example spec_validate
+	$(CARGO) run --locked --quiet --example spec_validate
 
 # The #265 gate: the engine a consumer LINKS is the engine in this tree.
 #
@@ -313,7 +313,7 @@ census:
 
 .PHONY: corpus-recall-update
 corpus-recall-update:
-	UPDATE_CORPUS_RECALL=1 CARGO_TARGET_DIR=target cargo test --test corpus_recall
+	UPDATE_CORPUS_RECALL=1 CARGO_TARGET_DIR=target cargo test --locked --test corpus_recall
 
 .PHONY: ci
 ci: fmt-check lint check-python check-scripts test deny audit-unsafe audit-property audit-static validate check-engine
