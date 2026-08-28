@@ -424,18 +424,27 @@ pub fn classify_property(statement: &str, idioms: &PropertyIdioms) -> Classified
     // statement, the determiner end and the predicate markers, none of which are
     // Universal-specific. A statement that is not quantified still has
     // `quantified == None` and still carries no spans, so a shape that genuinely
-    // states no domain gains nothing invented. And the registry still cannot
-    // reach this: `quantified` is structural, so FR-052-CON-4 holds unchanged.
-    let spans = quantified.and_then(|q| {
-        decompose(
+    // states no domain gains nothing invented. It does retain an explicit
+    // refusal when the final property is specific: downstream evaluation must
+    // be able to distinguish "no input domain was stated" from a silently
+    // missing payload. The registry can sharpen the label and make that refusal
+    // applicable, but it still cannot invent a domain or change `extractable`;
+    // FR-052-CON-4 holds unchanged.
+    let spans = match quantified {
+        Some(q) => decompose(
             statement,
             &masked,
             q.domain_start,
             q.partitive,
             &markers,
             &mut signals,
-        )
-    });
+        ),
+        None if property.is_specific() => {
+            signals.push("span:refused-no-explicit-domain");
+            None
+        }
+        None => None,
+    };
 
     // Derived last, from the final label and the structural boolean. It reads
     // both and writes neither, which is what keeps CON-4 intact while letting a
@@ -1137,6 +1146,7 @@ mod tests {
         let c = classify_property(unquantified, &idioms());
         assert_eq!(c.property, PropertyShape::Idempotence);
         assert!(c.spans.is_none());
+        assert!(c.signals.contains(&"span:refused-no-explicit-domain"));
 
         // CON-4 is untouched: `quantification` is structural, so a declared
         // idiom can neither add spans nor remove them. Asserted as span
@@ -1845,19 +1855,19 @@ mod tests {
             ),
             (
                 "Serializing a document then parsing it yields the input",
-                "round-trip|true|round-trip:composition,round-trip:identity-back-reference",
+                "round-trip|true|round-trip:composition,round-trip:identity-back-reference,span:refused-no-explicit-domain",
             ),
             (
                 "Applying the migration twice yields the same result",
-                "idempotence|true|idempotence:repetition,idempotence:equality",
+                "idempotence|true|idempotence:repetition,idempotence:equality,span:refused-no-explicit-domain",
             ),
             (
                 "Findings are emitted in declaration order",
-                "ordering|true|ordering:lexicon",
+                "ordering|true|ordering:lexicon,span:refused-no-explicit-domain",
             ),
             (
                 "The loader never mutates the source file",
-                "invariant|true|invariant:absolute",
+                "invariant|true|invariant:absolute,span:refused-no-explicit-domain",
             ),
             (
                 "Each cached entry expires after the configured interval",
@@ -1869,7 +1879,7 @@ mod tests {
             ),
             (
                 "Two writers append to the log in parallel",
-                "concurrency|false|unclassified:no-signal,idiom:concurrency",
+                "concurrency|false|unclassified:no-signal,idiom:concurrency,span:refused-no-explicit-domain",
             ),
         ];
         for (statement, expected) in pinned {
