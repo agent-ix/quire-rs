@@ -18,3 +18,4 @@ description: "Index of artifacts in this directory."
 * [0009 Concrete Vocabulary Is Module Data](./0009-concrete-vocabulary-is-module-data.md)
 * [0010 SMT Consistency Analysis](./0010-smt-consistency-analysis.md)
 * [0011 Role Boundaries Validation Levels](./0011-role-boundaries-validation-levels.md)
+* [0012 Standard Targets Generalization](./0012-standard-targets-generalization.md)
