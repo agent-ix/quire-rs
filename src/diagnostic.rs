@@ -18,6 +18,13 @@ pub enum Diagnostic {
         name: String,
         modules: Vec<String>,
     },
+    /// The same authority/id/version clause-set key was contributed with
+    /// different content. First-wins in tolerant loading; strict loading
+    /// rejects the collision.
+    DuplicateClauseSet {
+        key: String,
+        modules: Vec<String>,
+    },
     ManifestMissingName {
         path: PathBuf,
         derived_name: String,
@@ -215,6 +222,11 @@ impl std::fmt::Display for Diagnostic {
                 "DuplicateArchetype: '{}' contributed by modules {:?}; first-wins",
                 name, modules
             ),
+            Self::DuplicateClauseSet { key, modules } => write!(
+                f,
+                "DuplicateClauseSet: '{}' contributed by modules {:?}; first-wins",
+                key, modules
+            ),
             Self::ManifestMissingName { path, derived_name } => write!(
                 f,
                 "ManifestMissingName at {}: using parent-dir name '{}'",
@@ -352,6 +364,11 @@ impl Diagnostic {
             Self::DuplicateArchetype { name, modules } => json!({
                 "kind": "DuplicateArchetype",
                 "name": name,
+                "modules": modules,
+            }),
+            Self::DuplicateClauseSet { key, modules } => json!({
+                "kind": "DuplicateClauseSet",
+                "key": key,
                 "modules": modules,
             }),
             Self::ManifestMissingName { path, derived_name } => json!({

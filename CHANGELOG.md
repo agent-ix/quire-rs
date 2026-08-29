@@ -22,6 +22,14 @@ bumps; once 1.0 ships, semver is strict.
 
 ### Added
 
+- **Generic, rights-aware clause sets.** Modules can reference original or
+  explicitly cleared clause-set data without placing any domain's rules in the
+  engine. Quire verifies content digests, rights posture, classification and
+  output references; evaluates `all`/`any`/`not`/`eq`/`in`/`at_least`
+  applicability into `binding`, `not_binding`, or `unresolved`; and compares
+  versions without manufacturing a quality score. The crate publishes the
+  hand-authored `clause-binding-v1` and `clause-diff-v1` JSON contracts.
+
 - **The published output contract admits instrument provenance (CR-104,
   `agent-ix/quire-cli#68`).** Both `coverage-v1.schema.json` and
   `properties-v1.schema.json` gain an **optional** `engine` object requiring

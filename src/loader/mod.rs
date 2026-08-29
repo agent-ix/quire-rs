@@ -40,6 +40,8 @@ pub struct LoadedModule {
     pub root: PathBuf,
     pub version: Option<String>,
     pub archetypes: Vec<Arc<CompiledArchetype>>,
+    /// Validated, immutable clause sets contributed by this module.
+    pub clause_sets: Vec<Arc<crate::clauses::ClauseSet>>,
     /// Advisory lint rules declared by the module (FR-036).
     pub lint_rules: Vec<crate::lint::LintRule>,
     /// Edge-type registry contributed by this module (FR-040).
@@ -365,11 +367,20 @@ pub fn load_inline_module(manifest_yaml: &[u8], schemas: &BTreeMap<String, Strin
         )));
     }
 
+    if !manifest.clause_sets.is_empty() {
+        failures.push(failure(
+            &module_name,
+            "<clause-set>",
+            inline_root.clone(),
+            "inline module loading cannot resolve clause_sets file references".into(),
+        ));
+    }
     modules.push(LoadedModule {
         name: module_name,
         root: inline_root,
         version: manifest.version.clone(),
         archetypes,
+        clause_sets: Vec::new(),
         lint_rules: manifest.lint_rules.clone(),
         edge_types: manifest.edge_types.clone(),
         roles: manifest.roles.clone(),
@@ -522,12 +533,26 @@ fn load_one_module(
         }
     }
 
+    let mut clause_sets = Vec::new();
+    for relative in &manifest.clause_sets {
+        match crate::clauses::load_clause_set(module_root, relative) {
+            Ok(set) => clause_sets.push(Arc::new(set)),
+            Err(error) => failures.push(failure(
+                &module_name,
+                "<clause-set>",
+                module_root.join(relative),
+                error.to_string(),
+            )),
+        }
+    }
+
     Ok((
         LoadedModule {
             name: module_name,
             root: module_root.to_path_buf(),
             version: manifest.version.clone(),
             archetypes,
+            clause_sets,
             lint_rules: manifest.lint_rules.clone(),
             edge_types: manifest.edge_types.clone(),
             roles: manifest.roles.clone(),
@@ -717,6 +742,29 @@ pub fn flatten_into_registry(mut outcome: LoadOutcome) -> RegistryShape {
         .flat_map(|m| m.lint_rules.iter().cloned())
         .collect();
 
+    let mut clause_sets: BTreeMap<crate::clauses::ClauseSetKey, Arc<crate::clauses::ClauseSet>> =
+        BTreeMap::new();
+    let mut clause_set_origins: BTreeMap<crate::clauses::ClauseSetKey, String> = BTreeMap::new();
+    for module in &outcome.modules {
+        for set in &module.clause_sets {
+            let key = set.key();
+            match clause_sets.get(&key) {
+                None => {
+                    clause_sets.insert(key.clone(), Arc::clone(set));
+                    clause_set_origins.insert(key, module.name.clone());
+                }
+                Some(existing) if existing.as_ref() == set.as_ref() => {}
+                Some(_) => outcome.diagnostics.push(Diagnostic::DuplicateClauseSet {
+                    key: format!("{}/{}/{}", key.authority, key.id, key.version),
+                    modules: vec![
+                        clause_set_origins.get(&key).cloned().unwrap_or_default(),
+                        module.name.clone(),
+                    ],
+                }),
+            }
+        }
+    }
+
     // ── FR-040: merge the edge_types + roles registries (first-wins,
     // mirroring archetype merge). A name re-declared with a *differing*
     // body emits a Duplicate{EdgeType,Role} diagnostic; identical
@@ -863,6 +911,7 @@ pub fn flatten_into_registry(mut outcome: LoadOutcome) -> RegistryShape {
     RegistryShape {
         archetypes: active_archetypes,
         by_module_and_name,
+        clause_sets,
         module_paths,
         module_versions,
         lint_rules,
@@ -1137,6 +1186,12 @@ pub fn flatten_into_registry_strict(outcome: LoadOutcome) -> Result<RegistryShap
                     second_module,
                 });
             }
+            Diagnostic::DuplicateClauseSet { key, .. } => {
+                return Err(QuireError::EdgeVocabularyViolation {
+                    kind: "DuplicateClauseSet".to_string(),
+                    name: key.clone(),
+                });
+            }
             // FR-040-AC-3: load_strict escalates edge-vocabulary
             // diagnostics (conflicts + unknown verb/role) to errors.
             Diagnostic::DuplicateEdgeType { name, .. } => {
@@ -1192,6 +1247,8 @@ pub struct RegistryShape {
     /// Every (module, archetype) pair — includes shadowed copies for
     /// inspection via `Registry::archetype_in_module`.
     pub by_module_and_name: BTreeMap<(String, String), Arc<CompiledArchetype>>,
+    /// Active clause sets keyed by authority/id/version.
+    pub clause_sets: BTreeMap<crate::clauses::ClauseSetKey, Arc<crate::clauses::ClauseSet>>,
     pub module_paths: BTreeMap<String, PathBuf>,
     pub module_versions: BTreeMap<String, Option<String>>,
     /// Advisory lint rules aggregated across modules in load order

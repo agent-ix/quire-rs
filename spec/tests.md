@@ -742,6 +742,10 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-1073 | Every minted target record carries id, target, document, line and backed state in deterministic order; record and backed counts equal both totals, the empty case omits the field, and quire-cli advertises the capability (#361) | Integration | P0 | FR-050-AC-38, FR-066-AC-2 | ✅ |
 | TC-1074 | Unmatched authored tag records carry id, language, path, annotation line and symbol in deterministic order; ids bound on that symbol and id-shaped text found only in a test body are absent, while an unmatched sibling on an otherwise-bound symbol remains; the empty field is omitted and quire-cli advertises the capability (#362) | Integration | P0 | FR-050-AC-39, FR-066-AC-3, FR-066-AC-6 | ✅ |
 | TC-1075 | A reference-only target still resolves declared references and detects dangling ones, while its own rows enter no coverage group, total, minted-target record or authored-obligation population and its optional absence emits no minting diagnostic; a tag cannot back it, the omitted posture retains source behavior, and an unknown posture is rejected (#363) | Integration | P0 | FR-050-AC-40, FR-066-AC-2 | ✅ |
+| TC-1084 | A synthetic clause set preserves the generic clause shape and evaluates binding, not-binding, missing context, and incomparable ordered values without a boolean collapse | Unit | P0 | FR-067-AC-2, FR-067-AC-3 | ✅ |
+| TC-1085 | Clause-set digest and text-rights violations fail closed | Unit | P0 | FR-067-AC-1, FR-067-AC-6 | ✅ |
+| TC-1086 | Clause-set diff reports added, removed, and changed clauses by stable id | Unit | P0 | FR-067-AC-4 | ✅ |
+| TC-1087 | A module loads a referenced synthetic clause set and both output reports conform to their hand-authored schemas | Integration | P0 | FR-067-AC-1, FR-067-AC-5 | ✅ |
 | TC-1076 | `required` defaults true and is omitted on serialization; `required: false` round-trips, suppresses only an absent target section and its section-hit denominator entry, while a present section still mints and validates; a non-boolean value fails load (#327) | Integration | P0 | FR-050-AC-41 | ✅ |
 | TC-1077 | A bound bare requirement id remains untracked and backs no criterion, while `untracked-id-has-minted-children` names its exact source locus and real minted `-AC-` children in Rust, Python and TypeScript. Direct parents recommend the exact applicable child; a nested unminted class forbids substituting a sibling obligation and directs declaration/correction instead. The exact-id control and an unrelated typo remain silent (#328) | Integration | P0 | FR-050-AC-42 | ✅ |
 | TC-1078 | Exact, mid-word truncation, over-broad domain, wrong-subject and justified safe-refusal controls pin the span boundary contract; emitted spans retain exact statement-relative coordinates and a refusal retains `span:refused-weak-boundary` (#241) | Unit | P0 | FR-052-AC-20 | ✅ |
@@ -1255,6 +1259,12 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-066-AC-9 | TC-1070 |
 | FR-066-AC-10 | TC-1071 |
 | FR-066-AC-11 | TC-1072 |
+| FR-067-AC-1 | TC-1085, TC-1087 |
+| FR-067-AC-2 | TC-1084 |
+| FR-067-AC-3 | TC-1084 |
+| FR-067-AC-4 | TC-1086 |
+| FR-067-AC-5 | TC-1087 |
+| FR-067-AC-6 | TC-1085 |
 | FR-058-AC-2 | TC-899 |
 | FR-058-AC-2 | TC-909 |
 | FR-058-AC-3 | TC-900 |

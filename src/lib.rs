@@ -11,6 +11,7 @@
 #![cfg_attr(not(feature = "python"), forbid(unsafe_code))]
 
 pub mod ast;
+pub mod clauses;
 pub mod combinatorial;
 pub mod concept;
 pub mod contract;
@@ -43,6 +44,11 @@ pub mod writeback;
 
 // Parser surface (FR-005..009).
 pub use ast::{QuireDocument, QuireSection};
+pub use clauses::{
+    diff_clause_sets, ApplicabilityExpr, BindingOutcome, Clause, ClauseBinding,
+    ClauseBindingReport, ClauseForce, ClauseRef, ClauseSet, ClauseSetDiff, ClauseSetError,
+    ClauseSetKey, Crosswalk, CrosswalkRelation,
+};
 pub use parser::{
     extract_frontmatter, parse_body, parse_document, parse_header, FrontmatterResult,
     FrontmatterStatus, Header, Heading,
