@@ -240,7 +240,10 @@ impl ClauseSet {
 
         for (name, dimension) in &self.classification_dimensions {
             let values: BTreeSet<&str> = dimension.values.iter().map(String::as_str).collect();
-            if name.trim().is_empty() || values.len() != dimension.values.len() || values.is_empty()
+            if name.trim().is_empty()
+                || values.len() != dimension.values.len()
+                || values.is_empty()
+                || dimension.values.iter().any(|value| value.trim().is_empty())
             {
                 return Err(ClauseSetError::Invalid(format!(
                     "classification dimension {name:?} has empty or duplicate values"
@@ -263,17 +266,41 @@ impl ClauseSet {
             }
         }
 
+        for (name, output) in &self.output_catalog {
+            if name.trim().is_empty()
+                || output.kind.trim().is_empty()
+                || output.description.trim().is_empty()
+            {
+                return Err(ClauseSetError::Invalid(
+                    "expected-output names, kinds, and descriptions must not be empty".into(),
+                ));
+            }
+        }
+
         let ids: BTreeSet<&str> = self
             .clauses
             .iter()
             .map(|clause| clause.id.as_str())
             .collect();
-        if ids.len() != self.clauses.len() || ids.contains("") {
+        if ids.len() != self.clauses.len()
+            || self
+                .clauses
+                .iter()
+                .any(|clause| clause.id.trim().is_empty())
+        {
             return Err(ClauseSetError::Invalid(
                 "clause ids must be non-empty and unique".into(),
             ));
         }
         for clause in &self.clauses {
+            for (name, values) in [
+                ("subjects", &clause.subjects),
+                ("obligated actors", &clause.obligated_actors),
+                ("approval roles", &clause.approval_roles),
+                ("expected outputs", &clause.expected_outputs),
+            ] {
+                validate_non_empty_unique(name, &clause.id, values)?;
+            }
             for output in &clause.expected_outputs {
                 if !self.output_catalog.contains_key(output) {
                     return Err(ClauseSetError::Invalid(format!(
@@ -330,6 +357,20 @@ impl ClauseSet {
             clauses,
         }
     }
+}
+
+fn validate_non_empty_unique(
+    name: &str,
+    clause_id: &str,
+    values: &[String],
+) -> Result<(), ClauseSetError> {
+    let unique: BTreeSet<&str> = values.iter().map(String::as_str).collect();
+    if unique.len() != values.len() || values.iter().any(|value| value.trim().is_empty()) {
+        return Err(ClauseSetError::Invalid(format!(
+            "clause {clause_id:?} {name} must be non-empty strings without duplicates"
+        )));
+    }
+    Ok(())
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -776,6 +817,32 @@ mod tests {
             .unwrap_err()
             .to_string()
             .contains("digest"));
+
+        let mut duplicate_output = set("1.0.0");
+        duplicate_output.clauses[0]
+            .expected_outputs
+            .push("test-result".into());
+        duplicate_output.digest = duplicate_output.computed_digest();
+        assert!(duplicate_output
+            .validate()
+            .unwrap_err()
+            .to_string()
+            .contains("without duplicates"));
+
+        let mut empty_output = set("1.0.0");
+        empty_output.output_catalog.insert(
+            String::new(),
+            ExpectedOutput {
+                kind: "record".into(),
+                description: "Synthetic".into(),
+            },
+        );
+        empty_output.digest = empty_output.computed_digest();
+        assert!(empty_output
+            .validate()
+            .unwrap_err()
+            .to_string()
+            .contains("must not be empty"));
     }
 
     #[test]
