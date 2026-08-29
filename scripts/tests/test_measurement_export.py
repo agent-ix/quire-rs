@@ -6,7 +6,12 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 
 import pytest
 
-from export_measurements import ExportError, build_collection, load_verification_stack
+from export_measurements import (
+    ExportError,
+    build_collection,
+    load_verification_stack,
+    validate_manifest_attestation,
+)
 
 
 def attestation(revision: str = "a" * 40) -> dict:
@@ -19,7 +24,12 @@ def attestation(revision: str = "a" * 40) -> dict:
                 "revision": revision,
                 "sourceState": "clean",
                 "remote": "https://github.com/agent-ix/quire-rs",
-            }
+            },
+            "filament-ide-rs": {
+                "revision": "b" * 40,
+                "sourceState": "clean",
+                "remote": "https://github.com/agent-ix/filament-ide-rs",
+            },
         },
         "capabilities": ["fixture.capability"],
         "artifacts": {"fixture": "sha256:" + "3" * 64},
@@ -140,3 +150,35 @@ def test_attestation_remote_must_match_exporter_origin(tmp_path: pathlib.Path):
             source_revision="a" * 40,
             source_remote="https://github.com/other/quire-rs",
         )
+
+
+def test_manifest_pins_must_match_attested_clean_sources():
+    manifest = {
+        "corpora": [
+            {
+                "name": "filament-ide-rs",
+                "identity": "sha",
+                "pinned_sha": "b" * 40,
+            },
+            {"name": "self", "identity": "working-tree"},
+        ]
+    }
+    validate_manifest_attestation(manifest, attestation())
+
+    manifest["corpora"][0]["pinned_sha"] = "c" * 40
+    with pytest.raises(ExportError, match="benchmark pin does not match"):
+        validate_manifest_attestation(manifest, attestation())
+
+
+def test_manifest_rejects_abbreviated_pins_even_when_the_prefix_matches():
+    manifest = {
+        "corpora": [
+            {
+                "name": "filament-ide-rs",
+                "identity": "sha",
+                "pinned_sha": "b" * 7,
+            }
+        ]
+    }
+    with pytest.raises(ExportError, match="not a full Git SHA"):
+        validate_manifest_attestation(manifest, attestation())

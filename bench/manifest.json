@@ -82,8 +82,8 @@
       "tier": 2,
       "path": "../filament-ide-rs",
       "identity": "sha",
-      "pinned_sha": "fc5d644",
-      "$comment": "The battletest pass-2 corpus. PINNED: a run against a different SHA is refused rather than scored, because a score that moves on an unpinned corpus says nothing about which change moved it (agent-ix/quoin FR-043-AC-8)."
+      "pinned_sha": "546e7943ee5a8fe552242cbb19d12aa902536652",
+      "$comment": "The Phase 3 immutable filament corpus. PINNED with a full SHA: a run against a different revision is refused rather than scored, because a score that moves on an unpinned corpus says nothing about which change moved it (agent-ix/quoin FR-043-AC-8). The older answer-key snapshot remains recorded separately in the answer-key evidence."
     },
     {
       "name": "quoin",

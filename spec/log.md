@@ -7,6 +7,16 @@ description: "Chronological log of structural changes to this bundle."
 
 ## History
 
+* **2026-08-28** — **CR-151**: governed benchmark export can no longer turn a
+  corpus revision mismatch into a smaller successful population. Every
+  SHA-bound manifest entry now carries a full 40-character revision, matches a
+  clean source in the verification-stack attestation, and must execute; a
+  missing, moved, unreadable, timed-out, or malformed corpus aborts export.
+  Interactive benchmark runs keep their loud-skip behavior. The filament
+  benchmark pin moves deliberately from the historical `fc5d644…` snapshot to
+  the Phase 3 immutable `546e794…` cohort; the older answer-key snapshot stays
+  recorded separately. #379; agent-ix/quoin#260.
+
 * **2026-08-28** — **CR-150**: the benchmark measurement producer now emits
   Quoin schema-v2 collections bound to the canonical
   `verification-stack-attestation-v1`. It refuses dirty source and any

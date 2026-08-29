@@ -254,6 +254,28 @@ def cli_version(quire: str) -> str:
     return done.stdout.strip()
 
 
+def validate_manifest_attestation(
+    manifest: dict[str, Any], verification_stack: dict[str, Any]
+) -> None:
+    sources = verification_stack["sources"]
+    for entry in manifest.get("corpora", []):
+        if entry.get("identity") != "sha":
+            continue
+        name = entry.get("name")
+        pinned = entry.get("pinned_sha")
+        source = sources.get(name)
+        if not FULL_SHA.fullmatch(pinned or ""):
+            raise ExportError(f"{name}: pinned_sha is not a full Git SHA")
+        if (
+            not isinstance(source, dict)
+            or source.get("revision") != pinned
+            or source.get("sourceState") != "clean"
+        ):
+            raise ExportError(
+                f"{name}: benchmark pin does not match the clean verification stack source"
+            )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--consumer", default="../quire-cli")
@@ -279,8 +301,9 @@ def main() -> int:
             source_revision=source_revision,
             source_remote=git_remote(ROOT),
         )
+        validate_manifest_attestation(manifest, verification_stack)
         quire = build_engine(consumer, release=True)
-        observed = collect(manifest, quire, args.module, raw_evidence)
+        observed = collect(manifest, quire, args.module, raw_evidence, strict=True)
         timestamp = (
             datetime.now(timezone.utc)
             .isoformat(timespec="milliseconds")

@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -32,6 +33,9 @@ BASELINES = ROOT / "bench" / "baselines.json"
 
 class BenchError(RuntimeError):
     """A benchmark run that must not be scored."""
+
+
+FULL_SHA = re.compile(r"^[0-9a-f]{40}$")
 
 
 # ── the ratchet ──────────────────────────────────────────────────────────────
@@ -138,11 +142,15 @@ def resolve_identity(entry: dict) -> str:
     if not path.exists():
         raise BenchError(f"{entry['name']}: corpus absent at {path}")
     head = subprocess.run(
-        ["git", "-C", str(path), "rev-parse", "--short", "HEAD"],
+        ["git", "-C", str(path), "rev-parse", "HEAD"],
         capture_output=True, text=True, check=False,
     ).stdout.strip()
     pinned = entry["pinned_sha"]
-    if not head.startswith(pinned) and not pinned.startswith(head):
+    if not FULL_SHA.fullmatch(pinned):
+        raise BenchError(
+            f"{entry['name']}: pinned_sha must be a full lowercase Git SHA"
+        )
+    if head != pinned:
         raise BenchError(
             f"{entry['name']}: pinned at {pinned} but the tree is at {head}. "
             "Refusing to score — the answer key was adjudicated against the "
@@ -402,11 +410,15 @@ def collect(
     quire: str,
     module: str | None,
     raw_evidence: dict[str, Any] | None = None,
+    *,
+    strict: bool = False,
 ) -> dict:
-    """Run the corpus. Skips an absent entry loudly rather than scoring 0.
+    """Run the corpus, optionally refusing every incomplete population.
 
     A missing corpus scored as zero is the silent-zero defect this benchmark
-    exists to catch, reproduced inside the thing catching it.
+    exists to catch, reproduced inside the thing catching it. Interactive
+    benchmark runs retain the loud-skip behavior; governed exports use strict
+    mode because an omitted corpus would silently change their scope.
     """
     observed: dict[str, dict[str, Any]] = {}
     for entry in manifest["corpora"]:
@@ -421,6 +433,8 @@ def collect(
                 quire, (ROOT / entry["path"]).resolve(), entry_module
             )
         except (BenchError, subprocess.TimeoutExpired, json.JSONDecodeError) as exc:
+            if strict:
+                raise BenchError(f"{entry['name']}: {exc}") from exc
             print(f"skip {entry['name']}: {exc}", file=sys.stderr)
             continue
         print(f"…{entry['name']} @ {identity}", file=sys.stderr)

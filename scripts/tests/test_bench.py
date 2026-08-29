@@ -16,6 +16,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 from bench import (  # noqa: E402
     BenchError,
+    collect,
     compare,
     metrics_from,
     pct,
@@ -70,6 +71,25 @@ def test_an_undeclared_metric_is_refused():
     is a number it does not emit — the same rule FR-063 applies to the engine."""
     with pytest.raises(BenchError, match="not in the dictionary"):
         score(MANIFEST, {"self": {"coverage.invented": 1}}, {})
+
+
+def test_governed_collection_refuses_a_skipped_corpus(monkeypatch):
+    def moved(_entry):
+        raise BenchError("revision moved")
+
+    monkeypatch.setattr("bench.resolve_identity", moved)
+    manifest = {
+        "corpora": [
+            {
+                "name": "pinned",
+                "path": ".",
+                "identity": "sha",
+                "pinned_sha": "a" * 40,
+            }
+        ]
+    }
+    with pytest.raises(BenchError, match="pinned: revision moved"):
+        collect(manifest, "quire", None, strict=True)
 
 
 def test_the_report_carries_no_time_varying_field_and_states_its_provenance():
