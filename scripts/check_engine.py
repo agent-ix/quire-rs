@@ -67,7 +67,7 @@ INLINE_PIN = re.compile(
 # writes this whenever the entry grows past one line, and the first version
 # rejected it as "declares no rev/tag" — a false failure accusing a correctly
 # pinned consumer of being unpinned.
-TABLE_HEADER = re.compile(r'^\s*\[(?P<section>[^\]]+)\.quire-rs\]\s*$')
+TABLE_HEADER = re.compile(r"^\s*\[(?P<section>[^\]]+)\.quire-rs\]\s*$")
 TABLE_PIN = re.compile(r'^\s*(?P<kind>rev|tag)\s*=\s*"(?P<value>[^"]+)"\s*$')
 SECTION = re.compile(r"^\s*\[")
 
@@ -133,7 +133,9 @@ def read_pin(manifest: pathlib.Path) -> tuple[str, str]:
     text = strip_comments(manifest.read_text(encoding="utf-8"))
 
     match = INLINE_PIN.search(text)
-    found = (match.group("kind"), match.group("value")) if match else find_table_pin(text)
+    found = (
+        (match.group("kind"), match.group("value")) if match else find_table_pin(text)
+    )
     if not found:
         raise Drift(
             f"{manifest} declares no `rev`/`tag` for quire-rs. An unpinned git "
@@ -277,7 +279,15 @@ def build_engine(consumer: pathlib.Path, release: bool = False) -> str:
     if not manifest.is_file():
         raise Drift(f"no consumer workspace at {consumer}")
     print(f"building the engine from {consumer} …", file=sys.stderr)
-    command = ["cargo", "build", "--manifest-path", str(manifest), "--message-format", "json"]
+    command = [
+        "cargo",
+        "build",
+        "--locked",
+        "--manifest-path",
+        str(manifest),
+        "--message-format",
+        "json",
+    ]
     if release:
         command.insert(2, "--release")
     try:
@@ -285,7 +295,9 @@ def build_engine(consumer: pathlib.Path, release: bool = False) -> str:
         # CARGO_TARGET_DIR shared across repositories this call sat blocked on
         # the build-directory lock behind an unrelated build for ten minutes and
         # would have waited forever, the sweep showing one line and no progress.
-        done = subprocess.run(command, capture_output=True, text=True, timeout=1800, check=False)
+        done = subprocess.run(
+            command, capture_output=True, text=True, timeout=1800, check=False
+        )
     except subprocess.TimeoutExpired as error:
         raise Drift(
             f"building {consumer} exceeded 30 minutes. A shared CARGO_TARGET_DIR "
@@ -372,7 +384,7 @@ def manifest_staleness(repo: pathlib.Path) -> str | None:
     if latest.lstrip("v") == declared:
         return None
     return (
-        f"advisory: Cargo.toml says version = \"{declared}\" while the latest tag "
+        f'advisory: Cargo.toml says version = "{declared}" while the latest tag '
         f"is {latest}. This crate derives its released version from the tag, so "
         f"the manifest value is not the version anybody runs — never read it as "
         f"one (agent-ix/quire-rs#282)."
@@ -420,7 +432,10 @@ def main() -> int:
     if not consumer.is_absolute():
         consumer = (repo / consumer).resolve()
     if not consumer.is_dir():
-        print(f"check_engine: FAIL\n  no consumer workspace at {consumer}", file=sys.stderr)
+        print(
+            f"check_engine: FAIL\n  no consumer workspace at {consumer}",
+            file=sys.stderr,
+        )
         return 1
 
     try:
@@ -434,7 +449,9 @@ def main() -> int:
         payload = None
         if args.payload:
             try:
-                payload = json.loads(pathlib.Path(args.payload).read_text(encoding="utf-8"))
+                payload = json.loads(
+                    pathlib.Path(args.payload).read_text(encoding="utf-8")
+                )
             except (OSError, json.JSONDecodeError) as error:
                 # Caught and re-raised as Drift so a bad --payload prints the
                 # same `check_engine: FAIL` line every other refusal does,

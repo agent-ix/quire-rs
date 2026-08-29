@@ -16,12 +16,39 @@ from check_engine import (
     Drift,
     assert_agrees,
     assert_capabilities,
+    build_engine,
     manifest_staleness,
     read_pin,
     reported_engine,
 )
 
 SHA = "84740d48f0e1a2b3c4d5e6f708192a3b4c5d6e7f"
+
+
+def test_programmatic_build_is_locked_and_preserves_release_profile(
+    tmp_path, monkeypatch
+):
+    (tmp_path / "Cargo.toml").write_text('[package]\nname = "consumer"\n')
+    observed = []
+
+    def fake_run(command, **kwargs):
+        observed.append(command)
+        return subprocess.CompletedProcess(
+            command,
+            0,
+            stdout=json.dumps(
+                {
+                    "reason": "compiler-artifact",
+                    "target": {"name": "quire"},
+                    "executable": "/exact/quire",
+                }
+            ),
+            stderr="",
+        )
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    assert build_engine(tmp_path, release=True) == "/exact/quire"
+    assert observed[0][:4] == ["cargo", "build", "--release", "--locked"]
 
 
 # --- read_pin -------------------------------------------------------------
@@ -88,12 +115,20 @@ def test_a_malformed_engine_block_is_refused():
     with pytest.raises(Drift, match="not a version"):
         reported_engine({"engine": {"cli": "0.30.2", "capabilities": []}})
     with pytest.raises(Drift, match="not a list"):
-        reported_engine({"engine": {"cli": "0.1", "engine": "0.45.0", "capabilities": "all"}})
+        reported_engine(
+            {"engine": {"cli": "0.1", "engine": "0.45.0", "capabilities": "all"}}
+        )
 
 
 def test_a_well_formed_block_yields_its_version_and_tokens():
     version, tokens = reported_engine(
-        {"engine": {"cli": "0.30.2", "engine": "0.45.0", "capabilities": ["binding_census"]}}
+        {
+            "engine": {
+                "cli": "0.30.2",
+                "engine": "0.45.0",
+                "capabilities": ["binding_census"],
+            }
+        }
     )
     assert version == "0.45.0"
     assert tokens == ["binding_census"]
@@ -169,11 +204,23 @@ def test_manifest_staleness_is_advisory_and_names_the_two_numbers(tmp_path):
     long before the tags it ships under, so promoting this would make `ci` red
     on every correct configuration and the gate would be switched off."""
     subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
-    (tmp_path / "Cargo.toml").write_text('[package]\nversion = "0.33.0"\n', encoding="utf-8")
+    (tmp_path / "Cargo.toml").write_text(
+        '[package]\nversion = "0.33.0"\n', encoding="utf-8"
+    )
     subprocess.run(["git", "-C", str(tmp_path), "add", "-A"], check=True)
     subprocess.run(
-        ["git", "-C", str(tmp_path), "-c", "user.email=t@t", "-c", "user.name=t",
-         "commit", "-qm", "x"],
+        [
+            "git",
+            "-C",
+            str(tmp_path),
+            "-c",
+            "user.email=t@t",
+            "-c",
+            "user.name=t",
+            "commit",
+            "-qm",
+            "x",
+        ],
         check=True,
     )
     subprocess.run(["git", "-C", str(tmp_path), "tag", "v0.45.0"], check=True)
@@ -183,7 +230,9 @@ def test_manifest_staleness_is_advisory_and_names_the_two_numbers(tmp_path):
     assert "0.33.0" in advisory and "v0.45.0" in advisory
 
     # The control: a manifest that agrees with its tag says nothing.
-    (tmp_path / "Cargo.toml").write_text('[package]\nversion = "0.45.0"\n', encoding="utf-8")
+    (tmp_path / "Cargo.toml").write_text(
+        '[package]\nversion = "0.45.0"\n', encoding="utf-8"
+    )
     assert manifest_staleness(tmp_path) is None
 
 
@@ -204,8 +253,14 @@ def test_the_gate_fails_on_a_deliberately_mismatched_pin(tmp_path):
         encoding="utf-8",
     )
     done = subprocess.run(
-        ["python3", str(repo / "scripts" / "check_engine.py"),
-         "--repo", str(repo), "--consumer", str(consumer)],
+        [
+            "python3",
+            str(repo / "scripts" / "check_engine.py"),
+            "--repo",
+            str(repo),
+            "--consumer",
+            str(consumer),
+        ],
         capture_output=True,
         text=True,
         check=False,
@@ -225,8 +280,14 @@ def test_the_gate_passes_on_the_real_pin(tmp_path):
         pytest.skip("no quire-cli workspace beside this repository")
 
     done = subprocess.run(
-        ["python3", str(repo / "scripts" / "check_engine.py"),
-         "--repo", str(repo), "--consumer", str(consumer)],
+        [
+            "python3",
+            str(repo / "scripts" / "check_engine.py"),
+            "--repo",
+            str(repo),
+            "--consumer",
+            str(consumer),
+        ],
         capture_output=True,
         text=True,
         check=False,
@@ -253,13 +314,30 @@ def test_a_payload_missing_a_required_capability_exits_non_zero(tmp_path):
     pin = read_pin(consumer / "Cargo.toml")[1]
     payload = tmp_path / "payload.json"
     payload.write_text(
-        json.dumps({"engine": {"cli": "0.30.2", "engine": pin, "capabilities": ["metrics_envelope"]}}),
+        json.dumps(
+            {
+                "engine": {
+                    "cli": "0.30.2",
+                    "engine": pin,
+                    "capabilities": ["metrics_envelope"],
+                }
+            }
+        ),
         encoding="utf-8",
     )
     done = subprocess.run(
-        ["python3", str(repo / "scripts" / "check_engine.py"),
-         "--repo", str(repo), "--consumer", str(consumer),
-         "--payload", str(payload), "--require", "binding_census"],
+        [
+            "python3",
+            str(repo / "scripts" / "check_engine.py"),
+            "--repo",
+            str(repo),
+            "--consumer",
+            str(consumer),
+            "--payload",
+            str(payload),
+            "--require",
+            "binding_census",
+        ],
         capture_output=True,
         text=True,
         check=False,
@@ -277,7 +355,7 @@ def test_a_commented_out_pin_is_not_a_pin(tmp_path):
     file gets edited, and it made the gate validate the dead line."""
     manifest = write_manifest(
         tmp_path,
-        '[dependencies]\n'
+        "[dependencies]\n"
         '# quire-rs = { git = "https://x", rev = "deadbee" }\n'
         'quire-rs = { git = "https://x", rev = "84740d4" }\n',
     )
@@ -288,7 +366,8 @@ def test_a_differently_named_crate_does_not_supply_our_pin(tmp_path):
     """Found by review: no left word boundary, so `my-quire-rs` was read as
     ours. The existing sibling test only covered a PRECEDING entry."""
     manifest = write_manifest(
-        tmp_path, '[dependencies]\nmy-quire-rs = { git = "https://y", rev = "ddddddd" }\n'
+        tmp_path,
+        '[dependencies]\nmy-quire-rs = { git = "https://y", rev = "ddddddd" }\n',
     )
     with pytest.raises(Drift, match="declares no `rev`/`tag`"):
         read_pin(manifest)
@@ -344,9 +423,17 @@ def test_a_relative_consumer_path_is_not_reduced_to_its_basename(tmp_path):
         encoding="utf-8",
     )
     done = subprocess.run(
-        ["python3", str(repo / "scripts" / "check_engine.py"),
-         "--repo", str(repo), "--consumer", str(nested)],
-        capture_output=True, text=True, check=False,
+        [
+            "python3",
+            str(repo / "scripts" / "check_engine.py"),
+            "--repo",
+            str(repo),
+            "--consumer",
+            str(nested),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
     )
     assert done.returncode == 1, done.stdout
     assert "does not exist in this repository" in done.stderr
@@ -364,7 +451,8 @@ def test_an_unreachable_pin_is_refused(tmp_path):
     repo.mkdir()
     run = lambda *a: subprocess.run(
         ["git", "-C", str(repo), "-c", "user.email=t@t", "-c", "user.name=t", *a],
-        check=True, capture_output=True,
+        check=True,
+        capture_output=True,
     )
     subprocess.run(["git", "init", "-q", "-b", "main", str(repo)], check=True)
     (repo / "f").write_text("1")
@@ -378,7 +466,9 @@ def test_an_unreachable_pin_is_refused(tmp_path):
     run("commit", "-qm", "abandoned")
     orphan = subprocess.run(
         ["git", "-C", str(repo), "rev-parse", "HEAD"],
-        capture_output=True, text=True, check=True,
+        capture_output=True,
+        text=True,
+        check=True,
     ).stdout.strip()
     run("checkout", "-q", "main")
 
@@ -388,7 +478,9 @@ def test_an_unreachable_pin_is_refused(tmp_path):
     # The control: HEAD itself is reachable from HEAD.
     head = subprocess.run(
         ["git", "-C", str(repo), "rev-parse", "HEAD"],
-        capture_output=True, text=True, check=True,
+        capture_output=True,
+        text=True,
+        check=True,
     ).stdout.strip()
     assert_reachable(repo, head, "main")
 
@@ -415,9 +507,19 @@ def test_a_malformed_payload_file_prints_the_refusal_line_not_a_traceback(tmp_pa
     bad = tmp_path / "bad.json"
     bad.write_text("{not json", encoding="utf-8")
     done = subprocess.run(
-        ["python3", str(repo / "scripts" / "check_engine.py"),
-         "--repo", str(repo), "--consumer", str(consumer), "--payload", str(bad)],
-        capture_output=True, text=True, check=False,
+        [
+            "python3",
+            str(repo / "scripts" / "check_engine.py"),
+            "--repo",
+            str(repo),
+            "--consumer",
+            str(consumer),
+            "--payload",
+            str(bad),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
     )
     assert done.returncode == 1
     assert "check_engine: FAIL" in done.stderr
@@ -437,7 +539,9 @@ def test_the_ac4_capability_abort_is_independent_of_the_pin_form(tmp_path):
     repo = pathlib.Path(__file__).resolve().parent.parent.parent
     head = subprocess.run(
         ["git", "-C", str(repo), "rev-parse", "HEAD"],
-        capture_output=True, text=True, check=True,
+        capture_output=True,
+        text=True,
+        check=True,
     ).stdout.strip()
 
     consumer = tmp_path / "consumer"
@@ -448,15 +552,33 @@ def test_the_ac4_capability_abort_is_independent_of_the_pin_form(tmp_path):
     )
     payload = tmp_path / "payload.json"
     payload.write_text(
-        json.dumps({"engine": {"cli": "0.30.2", "engine": head,
-                               "capabilities": ["metrics_envelope"]}}),
+        json.dumps(
+            {
+                "engine": {
+                    "cli": "0.30.2",
+                    "engine": head,
+                    "capabilities": ["metrics_envelope"],
+                }
+            }
+        ),
         encoding="utf-8",
     )
     done = subprocess.run(
-        ["python3", str(repo / "scripts" / "check_engine.py"),
-         "--repo", str(repo), "--consumer", str(consumer),
-         "--payload", str(payload), "--require", "binding_census"],
-        capture_output=True, text=True, check=False,
+        [
+            "python3",
+            str(repo / "scripts" / "check_engine.py"),
+            "--repo",
+            str(repo),
+            "--consumer",
+            str(consumer),
+            "--payload",
+            str(payload),
+            "--require",
+            "binding_census",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
     )
     assert done.returncode == 1, done.stdout
     assert "binding_census" in done.stderr
@@ -465,7 +587,9 @@ def test_the_ac4_capability_abort_is_independent_of_the_pin_form(tmp_path):
 # --- sweep_coverage: the deliverable script had no tests at all ------------
 
 
-def test_the_sweep_refuses_to_print_a_zero_over_an_unmeasured_corpus(tmp_path, monkeypatch):
+def test_the_sweep_refuses_to_print_a_zero_over_an_unmeasured_corpus(
+    tmp_path, monkeypatch
+):
     """Found by review: when NO repository produced a readable payload, the
     sweep printed `"engine": null` and exited 0 — a zero headline over a corpus
     nothing measured, which is the silent-zero defect arrived at by a different
@@ -479,7 +603,9 @@ def test_the_sweep_refuses_to_print_a_zero_over_an_unmeasured_corpus(tmp_path, m
     (root / "repo-a" / "spec").mkdir(parents=True)
     (root / "repo-a" / "spec" / "tests.md").write_text("# x\n", encoding="utf-8")
 
-    monkeypatch.setattr(sweep_coverage, "build_engine", lambda *a, **k: "/nonexistent/quire")
+    monkeypatch.setattr(
+        sweep_coverage, "build_engine", lambda *a, **k: "/nonexistent/quire"
+    )
     monkeypatch.setattr(sweep_coverage, "repos", lambda _root: [root / "repo-a"])
     monkeypatch.setattr(
         sweep_coverage, "coverage", lambda *a, **k: {"error": "engine absent"}
@@ -512,7 +638,11 @@ def test_the_sweep_takes_provenance_from_the_payload_and_aborts_on_a_missing_tok
             "totals": {"backed": 0, "total": 0},
             "groups": [],
             "untracked_symbols": [],
-            "engine": {"cli": "0.29.0", "engine": "0.42.0", "capabilities": ["suspicions"]},
+            "engine": {
+                "cli": "0.29.0",
+                "engine": "0.42.0",
+                "capabilities": ["suspicions"],
+            },
         },
     )
     assert sweep_coverage.main() == 1

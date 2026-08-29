@@ -6,7 +6,6 @@ import subprocess
 
 import pytest
 
-
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 
 
@@ -17,6 +16,8 @@ def fixture(tmp_path: pathlib.Path) -> pathlib.Path:
     (root / ".github/workflows").mkdir(parents=True)
     (root / "requirements").mkdir()
     shutil.copy(ROOT / "scripts/audits/check_tool_drift.sh", root / "scripts/audits")
+    shutil.copy(ROOT / "scripts/check_engine.py", root / "scripts")
+    shutil.copy(ROOT / "scripts/export_measurements.py", root / "scripts")
     shutil.copy(ROOT / "bench/manifest.json", root / "bench")
     (root / "rust-toolchain.toml").write_text('[toolchain]\nchannel = "1.94.1"\n')
     (root / "Cargo.toml").write_text('[package]\nversion = "0.46.0"\n')
@@ -62,6 +63,24 @@ def test_valid_exact_stack_passes(tmp_path: pathlib.Path) -> None:
         ("Makefile", "test --locked", "test", "--locked"),
         ("requirements/ci.txt", " --hash=sha256:" + "a" * 64, "", "hash-locked"),
         ("Cargo.toml", "0.46.0", "0.33.0", "0.46.0"),
+        (
+            "scripts/check_engine.py",
+            '        "--locked",\n',
+            "",
+            "programmatic Cargo build is not --locked",
+        ),
+        (
+            "scripts/export_measurements.py",
+            "build_engine(consumer, release=True)",
+            "build_engine(consumer, release=False)",
+            "canonical release profile",
+        ),
+        (
+            "scripts/export_measurements.py",
+            'value.get("buildProfile") != "release"',
+            'value.get("ignoredProfile") != "release"',
+            "attested release profile",
+        ),
         (
             "bench/manifest.json",
             '"source_name": "quoin-benchmark-corpus"',

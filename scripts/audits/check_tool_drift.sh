@@ -98,6 +98,16 @@ for line_no, line in enumerate(makefile.splitlines(), 1):
     if re.search(r"(?:^|\s)cargo(?:\s+\+\S+)?\s+(?:bench|build|check|clippy|run|test)\b", line) and "--locked" not in line and not line.lstrip().startswith(("#", "@echo")):
         errors.append(f"Makefile:{line_no}: direct Cargo resolution is not --locked")
 
+check_engine = (root / "scripts/check_engine.py").read_text(encoding="utf-8")
+if not re.search(r'"cargo",\s*"build",\s*"--locked"', check_engine):
+    errors.append("scripts/check_engine.py programmatic Cargo build is not --locked")
+
+exporter = (root / "scripts/export_measurements.py").read_text(encoding="utf-8")
+if 'build_engine(consumer, release=True)' not in exporter:
+    errors.append("measurement exporter must build the canonical release profile")
+if 'value.get("buildProfile") != "release"' not in exporter:
+    errors.append("measurement exporter must require the attested release profile")
+
 if errors:
     print("tool-drift audit failed:", file=sys.stderr)
     for error in errors:

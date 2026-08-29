@@ -20,6 +20,7 @@ def attestation(revision: str = "a" * 40) -> dict:
         "schemaVersion": "verification-stack-attestation-v1",
         "lockDigest": "sha256:" + "1" * 64,
         "executableDigest": "sha256:" + "2" * 64,
+        "buildProfile": "release",
         "sources": {
             "quire": {
                 "revision": revision,
@@ -136,6 +137,7 @@ def test_attestation_must_match_clean_exact_exporter_source(tmp_path: pathlib.Pa
             lambda value: value.update(executableDigest="sha256:short"),
             "executableDigest",
         ),
+        (lambda value: value.update(buildProfile="debug"), "buildProfile"),
         (
             lambda value: value["sources"]["quire"].update(sourceState="dirty"),
             "not clean and immutable",

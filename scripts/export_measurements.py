@@ -103,6 +103,8 @@ def load_verification_stack(
     for key in ("lockDigest", "executableDigest"):
         if not SHA256.fullmatch(str(value.get(key, ""))):
             raise ExportError(f"verification-stack {key} is not a full sha256 digest")
+    if value.get("buildProfile") != "release":
+        raise ExportError("verification-stack buildProfile must be release")
     sources = value.get("sources")
     if not isinstance(sources, dict) or not sources:
         raise ExportError("verification-stack sources must be a non-empty object")
