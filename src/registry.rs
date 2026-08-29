@@ -37,6 +37,8 @@ pub struct Registry {
 struct Inner {
     archetypes: std::collections::BTreeMap<String, Arc<CompiledArchetype>>,
     by_module_and_name: std::collections::BTreeMap<(String, String), Arc<CompiledArchetype>>,
+    clause_sets:
+        std::collections::BTreeMap<crate::clauses::ClauseSetKey, Arc<crate::clauses::ClauseSet>>,
     module_paths: std::collections::BTreeMap<String, PathBuf>,
     module_versions: std::collections::BTreeMap<String, Option<String>>,
     lint_rules: Vec<crate::lint::LintRule>,
@@ -213,6 +215,7 @@ impl Registry {
         let RegistryShape {
             archetypes,
             by_module_and_name,
+            clause_sets,
             module_paths,
             module_versions,
             lint_rules,
@@ -291,6 +294,7 @@ impl Registry {
             inner: Arc::new(Inner {
                 archetypes,
                 by_module_and_name,
+                clause_sets,
                 module_paths,
                 module_versions,
                 lint_rules,
@@ -354,6 +358,28 @@ impl Registry {
     /// Iterate over every loaded module name.
     pub fn module_names(&self) -> impl Iterator<Item = &str> {
         self.inner.module_paths.keys().map(|s| s.as_str())
+    }
+
+    /// Iterate all loaded clause sets in authority/id/version order.
+    pub fn clause_sets(&self) -> impl Iterator<Item = &crate::clauses::ClauseSet> {
+        self.inner.clause_sets.values().map(Arc::as_ref)
+    }
+
+    /// Resolve one exact immutable clause-set version.
+    pub fn clause_set(
+        &self,
+        authority: &str,
+        id: &str,
+        version: &str,
+    ) -> Option<&crate::clauses::ClauseSet> {
+        self.inner
+            .clause_sets
+            .get(&crate::clauses::ClauseSetKey {
+                authority: authority.into(),
+                id: id.into(),
+                version: version.into(),
+            })
+            .map(Arc::as_ref)
     }
 
     /// Resolve a specific (module, archetype) pair — used to inspect
