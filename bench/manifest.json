@@ -58,6 +58,14 @@
       "direction": "lower-is-better"
     }
   },
+  "module_source": {
+    "name": "spec-artifacts-process",
+    "path": "../spec-artifacts-process",
+    "module": "spec_artifacts_process",
+    "identity": "sha",
+    "pinned_sha": "61a20e010d5e758f52864ad3152ccdb304a39d27",
+    "$comment": "The default declaration module is executable measurement input. Its checkout must be clean and at this full SHA; otherwise the same engine/corpus pair can produce a different result under an unchanged benchmark identity."
+  },
   "corpora": [
     {
       "name": "specific-shape-control",
@@ -89,23 +97,25 @@
       "name": "quoin",
       "tier": 1,
       "path": "../quoin",
-      "identity": "working-tree",
+      "identity": "sha",
+      "pinned_sha": "090f731ceb21f88a48136a363444b1a6a2bb62cf",
       "metrics": [
         "sentinel.silent_zero",
         "skeptic.suspicion_rate"
       ],
-      "$comment": "TYPESCRIPT. Carried for language coverage, not for its coverage figures: this is the corpus that exposed CR-102's 549-of-551 misread, and no TypeScript tree was scored before it. Scored on the two gates only — its backed_pct moves whenever somebody writes a spec row, and ratcheting a tree this repository does not control would train everyone to run bench-update reflexively."
+      "$comment": "TYPESCRIPT. Carried for language coverage, not for its coverage figures: this is the corpus that exposed CR-102's 549-of-551 misread, and no TypeScript tree was scored before it. Scored on the two gates only and pinned to the campaign's immutable Quoin source revision; a sibling checkout at any other revision or with local edits is refused."
     },
     {
       "name": "spec-artifacts-process",
       "tier": 1,
       "path": "../spec-artifacts-process",
-      "identity": "working-tree",
+      "identity": "sha",
+      "pinned_sha": "61a20e010d5e758f52864ad3152ccdb304a39d27",
       "metrics": [
         "sentinel.silent_zero",
         "skeptic.suspicion_rate"
       ],
-      "$comment": "PYTHON. The corpus that exposed CR-102's hollow-denominator false positive: coverage.implements reads an honest 0 of 42 here and was reported as arithmetic over nothing, while this repository reads 15 of 1412 and could never have shown it. Same gate-only scoping as quoin."
+      "$comment": "PYTHON. The corpus that exposed CR-102's hollow-denominator false positive: coverage.implements reads an honest 0 of 42 here and was reported as arithmetic over nothing, while this repository reads 15 of 1412 and could never have shown it. Same gate-only scoping as quoin, with the corpus and module source fixed to the campaign SHA."
     }
   ]
 }

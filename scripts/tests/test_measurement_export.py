@@ -10,6 +10,7 @@ from export_measurements import (
     ExportError,
     build_collection,
     load_verification_stack,
+    validate_executable_digest,
     validate_manifest_attestation,
 )
 
@@ -30,9 +31,25 @@ def attestation(revision: str = "a" * 40) -> dict:
                 "sourceState": "clean",
                 "remote": "https://github.com/agent-ix/filament-ide-rs",
             },
+            "quoin": {
+                "revision": "c" * 40,
+                "sourceState": "clean",
+                "remote": "https://github.com/agent-ix/quoin",
+            },
+            "spec-artifacts-process": {
+                "revision": "d" * 40,
+                "sourceState": "clean",
+                "remote": "https://github.com/agent-ix/spec-artifacts-process",
+            },
+            "quire-cli": {
+                "revision": "e" * 40,
+                "sourceState": "clean",
+                "remote": "https://github.com/agent-ix/quire-cli",
+            },
         },
         "capabilities": ["fixture.capability"],
         "artifacts": {"fixture": "sha256:" + "3" * 64},
+        "toolchains": {"node": "22.15.0", "rust": "1.94.1", "python": "3.10.12"},
     }
 
 
@@ -124,6 +141,7 @@ def test_attestation_must_match_clean_exact_exporter_source(tmp_path: pathlib.Pa
             "capabilities",
         ),
         (lambda value: value.update(artifacts={"fixture": "moving"}), "artifact"),
+        (lambda value: value.update(toolchains={}), "toolchains"),
     ],
 )
 def test_attestation_drift_fails_closed(tmp_path: pathlib.Path, mutate, reason: str):
@@ -182,3 +200,40 @@ def test_manifest_rejects_abbreviated_pins_even_when_the_prefix_matches():
     }
     with pytest.raises(ExportError, match="not a full Git SHA"):
         validate_manifest_attestation(manifest, attestation())
+
+
+def test_manifest_rejects_external_working_tree_inputs():
+    manifest = {
+        "corpora": [{"name": "quoin", "path": "../quoin", "identity": "working-tree"}]
+    }
+    with pytest.raises(ExportError, match="external benchmark input must use sha"):
+        validate_manifest_attestation(manifest, attestation())
+
+
+def test_manifest_module_pin_must_match_attestation():
+    manifest = {
+        "corpora": [],
+        "module_source": {
+            "name": "spec-artifacts-process",
+            "path": "../spec-artifacts-process",
+            "identity": "sha",
+            "pinned_sha": "d" * 40,
+        },
+    }
+    validate_manifest_attestation(manifest, attestation())
+    manifest["module_source"]["pinned_sha"] = "f" * 40
+    with pytest.raises(ExportError, match="benchmark pin does not match"):
+        validate_manifest_attestation(manifest, attestation())
+
+
+def test_built_executable_must_match_attested_digest(tmp_path: pathlib.Path):
+    executable = tmp_path / "quire"
+    executable.write_bytes(b"exact binary")
+    value = attestation()
+    import hashlib
+
+    value["executableDigest"] = "sha256:" + hashlib.sha256(b"exact binary").hexdigest()
+    validate_executable_digest(str(executable), value)
+    executable.write_bytes(b"drifted binary")
+    with pytest.raises(ExportError, match="digest does not match"):
+        validate_executable_digest(str(executable), value)

@@ -61,7 +61,9 @@ def compare(metric: str, direction: str, observed: float, baseline: float | None
     if baseline is None:
         return "new", observed
 
-    better = observed > baseline if direction == "higher-is-better" else observed < baseline
+    better = (
+        observed > baseline if direction == "higher-is-better" else observed < baseline
+    )
     if better:
         return "improved", observed
     if observed == baseline:
@@ -112,7 +114,9 @@ def render(report: dict) -> tuple[str, bool]:
     lines = []
     failed = False
     for row in report["rows"]:
-        mark = {"improved": "++", "held": "ok", "new": "**", "regressed": "!!"}[row["verdict"]]
+        mark = {"improved": "++", "held": "ok", "new": "**", "regressed": "!!"}[
+            row["verdict"]
+        ]
         base = "—" if row["baseline"] is None else row["baseline"]
         lines.append(
             f"{mark} {row['corpus']}/{row['metric']}: {row['value']} "
@@ -143,7 +147,9 @@ def resolve_identity(entry: dict) -> str:
         raise BenchError(f"{entry['name']}: corpus absent at {path}")
     head = subprocess.run(
         ["git", "-C", str(path), "rev-parse", "HEAD"],
-        capture_output=True, text=True, check=False,
+        capture_output=True,
+        text=True,
+        check=False,
     ).stdout.strip()
     pinned = entry["pinned_sha"]
     if not FULL_SHA.fullmatch(pinned):
@@ -158,24 +164,73 @@ def resolve_identity(entry: dict) -> str:
             "to it. Check the corpus out at the pin, or move the pin "
             "deliberately."
         )
+    dirty = subprocess.run(
+        ["git", "-C", str(path), "status", "--porcelain=v1", "--untracked-files=all"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if dirty.returncode != 0 or dirty.stdout.strip():
+        raise BenchError(
+            f"{entry['name']}: pinned corpus tree is dirty. Refusing to score "
+            "an input whose bytes are not identified by its revision."
+        )
     return head
+
+
+def resolve_default_module(manifest: dict, module: str | None) -> str:
+    """Return the one attested module path, refusing path or revision drift."""
+    source = manifest.get("module_source")
+    if not isinstance(source, dict):
+        raise BenchError("benchmark manifest declares no pinned module_source")
+    for field in ("name", "path", "module", "identity", "pinned_sha"):
+        if not source.get(field):
+            raise BenchError(f"benchmark module_source declares no {field}")
+    if source["identity"] != "sha":
+        raise BenchError("benchmark module_source must use sha identity")
+    resolve_identity(source)
+    expected = (ROOT / source["path"] / source["module"]).resolve()
+    requested = Path(module).expanduser() if module else expected
+    if not requested.is_absolute():
+        requested = (ROOT / requested).resolve()
+    else:
+        requested = requested.resolve()
+    if requested != expected:
+        raise BenchError(
+            f"module path {requested} does not equal pinned module {expected}"
+        )
+    if not requested.is_dir():
+        raise BenchError(f"pinned module is absent at {requested}")
+    return str(requested)
 
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--update", action="store_true",
-                    help="rewrite baselines from this run (deliberate regen)")
-    ap.add_argument("--observed", type=Path,
-                    help="score a pre-collected observation file instead of sweeping")
+    ap.add_argument(
+        "--update",
+        action="store_true",
+        help="rewrite baselines from this run (deliberate regen)",
+    )
+    ap.add_argument(
+        "--observed",
+        type=Path,
+        help="score a pre-collected observation file instead of sweeping",
+    )
     # #265: no PATH lookup. `--quire` defaulted to whatever was installed, so
     # the checked-in ratchet baseline was produced by a binary nobody chose —
     # measured on this machine, the installed `quire 0.30.2` emits no `engine`
     # block at all. The binary is built from the consuming workspace at its
     # pinned rev instead, exactly as `sweep_coverage.py` now does.
-    ap.add_argument("--consumer", default="../quire-cli",
-                    help="workspace to build the engine from (default: ../quire-cli)")
-    ap.add_argument("--module", default=None,
-                    help="module directory supplying the traceability model")
+    ap.add_argument(
+        "--consumer",
+        default="../quire-cli",
+        help="workspace to build the engine from (default: ../quire-cli)",
+    )
+    ap.add_argument(
+        "--module",
+        default=None,
+        help="module directory supplying the traceability model",
+    )
     args = ap.parse_args()
 
     manifest = json.loads(MANIFEST.read_text())
@@ -298,16 +353,22 @@ def metrics_from(payload: dict) -> dict[str, Any]:
     # it. Building from the pinned workspace, above, is what #265 actually owes
     # this script.
     if "binding_census" not in payload:
-        skip("coverage.binding_read_pct", "payload carries no binding_census "
-             "(engine predates FR-050-AC-27 — needs quire-rs >= v0.43.0)")
+        skip(
+            "coverage.binding_read_pct",
+            "payload carries no binding_census "
+            "(engine predates FR-050-AC-27 — needs quire-rs >= v0.43.0)",
+        )
     elif candidates:
         out["coverage.binding_read_pct"] = pct(bound, candidates)
     else:
         skip("coverage.binding_read_pct", "no evidence symbols examined")
 
     if census and any("tagged" not in row for row in census):
-        skip("authoring.tag_rate", "binding_census carries no tagged count "
-             "(engine predates agent-ix/quire-rs#271)")
+        skip(
+            "authoring.tag_rate",
+            "binding_census carries no tagged count "
+            "(engine predates agent-ix/quire-rs#271)",
+        )
     elif candidates:
         out["authoring.tag_rate"] = pct(sum(c["tagged"] for c in census), candidates)
     else:
@@ -337,7 +398,9 @@ def metrics_from(payload: dict) -> dict[str, Any]:
     # shipped to all of them is what put 549 suspicions on 551 TypeScript
     # candidates in v0.44.0; this is the number that would have said so.
     if candidates:
-        out["skeptic.suspicion_rate"] = pct(len(payload.get("suspicions", [])), candidates)
+        out["skeptic.suspicion_rate"] = pct(
+            len(payload.get("suspicions", [])), candidates
+        )
     else:
         skip("skeptic.suspicion_rate", "no evidence symbols examined")
     return out
@@ -360,7 +423,10 @@ def selected(entry: dict, measured: dict[str, Any]) -> dict[str, Any]:
         return measured
     missing = [m for m in declared if m not in measured]
     for name in missing:
-        skip(name, f"declared by corpus {entry['name']!r} but not measurable in its payload")
+        skip(
+            name,
+            f"declared by corpus {entry['name']!r} but not measurable in its payload",
+        )
     return {k: v for k, v in measured.items() if k in declared}
 
 
@@ -399,8 +465,12 @@ def silent_zeros(payload: dict) -> int:
         # that silently passes it.
         if metric.get("shape", "ratio") != "ratio":
             continue
-        if metric.get("population", 0) > 0 and metric.get("examined", 0) > 0 \
-                and metric.get("matched", 0) == 0 and not covered:
+        if (
+            metric.get("population", 0) > 0
+            and metric.get("examined", 0) > 0
+            and metric.get("matched", 0) == 0
+            and not covered
+        ):
             silent += 1
     return silent
 
@@ -421,10 +491,15 @@ def collect(
     mode because an omitted corpus would silently change their scope.
     """
     observed: dict[str, dict[str, Any]] = {}
+    default_module = (
+        resolve_default_module(manifest, module)
+        if any("module" not in entry for entry in manifest["corpora"])
+        else None
+    )
     for entry in manifest["corpora"]:
         try:
             identity = resolve_identity(entry)
-            entry_module = entry.get("module", module)
+            entry_module = entry.get("module", default_module)
             if entry_module:
                 entry_module_path = Path(entry_module).expanduser()
                 if not entry_module_path.is_absolute():

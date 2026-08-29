@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import json
 import pathlib
+import platform
 import re
 import subprocess
 import sys
@@ -145,6 +146,14 @@ def load_verification_stack(
             raise ExportError(
                 f"verification-stack artifact {name} is not a full sha256 digest"
             )
+    toolchains = value.get("toolchains")
+    if not isinstance(toolchains, dict) or any(
+        not isinstance(toolchains.get(name), str) or not toolchains[name]
+        for name in ("node", "rust", "python")
+    ):
+        raise ExportError(
+            "verification-stack toolchains must pin node, rust, and python"
+        )
     return value
 
 
@@ -258,8 +267,18 @@ def validate_manifest_attestation(
     manifest: dict[str, Any], verification_stack: dict[str, Any]
 ) -> None:
     sources = verification_stack["sources"]
-    for entry in manifest.get("corpora", []):
+    entries = [*manifest.get("corpora", [])]
+    if manifest.get("module_source") is not None:
+        entries.append(manifest["module_source"])
+    for entry in entries:
         if entry.get("identity") != "sha":
+            path = (ROOT / str(entry.get("path", ""))).resolve()
+            try:
+                path.relative_to(ROOT)
+            except ValueError as error:
+                raise ExportError(
+                    f"{entry.get('name', '<unnamed>')}: external benchmark input must use sha identity"
+                ) from error
             continue
         name = entry.get("name")
         pinned = entry.get("pinned_sha")
@@ -274,6 +293,70 @@ def validate_manifest_attestation(
             raise ExportError(
                 f"{name}: benchmark pin does not match the clean verification stack source"
             )
+
+
+def validate_repository_against_stack(
+    root: pathlib.Path, verification_stack: dict[str, Any], source_name: str
+) -> None:
+    source = verification_stack["sources"].get(source_name)
+    if not isinstance(source, dict):
+        raise ExportError(f"verification-stack has no {source_name} source")
+    revision = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if revision.returncode != 0 or revision.stdout.strip() != source["revision"]:
+        raise ExportError(
+            f"{source_name} checkout does not equal the attested revision"
+        )
+    status = subprocess.run(
+        ["git", "status", "--porcelain=v1", "--untracked-files=all"],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if status.returncode != 0 or status.stdout.strip():
+        raise ExportError(f"{source_name} checkout is dirty")
+    if normalized_remote(git_remote(root)) != normalized_remote(source["remote"]):
+        raise ExportError(
+            f"{source_name} checkout remote does not match the attestation"
+        )
+
+
+def validate_toolchains(verification_stack: dict[str, Any]) -> None:
+    expected = verification_stack["toolchains"]
+    if platform.python_version() != expected["python"]:
+        raise ExportError(
+            f"Python drift: expected {expected['python']}, observed {platform.python_version()}"
+        )
+    done = subprocess.run(
+        ["rustc", "--version"], capture_output=True, text=True, check=False
+    )
+    parts = done.stdout.strip().split()
+    observed_rust = (
+        parts[1] if done.returncode == 0 and len(parts) > 1 else "unavailable"
+    )
+    if observed_rust != expected["rust"]:
+        raise ExportError(
+            f"Rust drift: expected {expected['rust']}, observed {observed_rust}"
+        )
+
+
+def validate_executable_digest(
+    executable: str, verification_stack: dict[str, Any]
+) -> None:
+    observed = (
+        f"sha256:{hashlib.sha256(pathlib.Path(executable).read_bytes()).hexdigest()}"
+    )
+    expected = verification_stack["executableDigest"]
+    if observed != expected:
+        raise ExportError(
+            f"built executable digest does not match attestation: expected {expected}, observed {observed}"
+        )
 
 
 def main() -> int:
@@ -302,7 +385,22 @@ def main() -> int:
             source_remote=git_remote(ROOT),
         )
         validate_manifest_attestation(manifest, verification_stack)
+        validate_toolchains(verification_stack)
+        validate_repository_against_stack(consumer, verification_stack, "quire-cli")
+        attested_inputs = [
+            *manifest.get("corpora", []),
+            manifest.get("module_source"),
+        ]
+        for entry in attested_inputs:
+            if not isinstance(entry, dict) or entry.get("identity") != "sha":
+                continue
+            validate_repository_against_stack(
+                (ROOT / entry["path"]).resolve(),
+                verification_stack,
+                entry["name"],
+            )
         quire = build_engine(consumer, release=True)
+        validate_executable_digest(quire, verification_stack)
         observed = collect(manifest, quire, args.module, raw_evidence, strict=True)
         timestamp = (
             datetime.now(timezone.utc)

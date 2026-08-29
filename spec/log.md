@@ -7,6 +7,18 @@ description: "Chronological log of structural changes to this bundle."
 
 ## History
 
+* **2026-08-29** — **CR-154**: governed benchmark inputs can no longer drift
+  behind a generic `working-tree` identity. The external Quoin and
+  spec-artifacts-process corpora, and the declaration module that changes how
+  every corpus is read, are fixed to the full clean SHAs in the canonical
+  verification stack. A different checkout, local edit, alternate module path,
+  or un-attested origin aborts before scoring. Schema-v2 export additionally
+  requires the exact attested CLI checkout, Python and Rust versions, and the
+  byte digest of the executable actually built; an equal-looking `--version`
+  string is no longer sufficient evidence that the measured binary is the
+  selected one. Mutation tests cover each refusal. #379;
+  agent-ix/quoin#260.
+
 * **2026-08-29** — **CR-153**: canonical CI now treats its own tool and
   credential surfaces as governed inputs. Every Cargo resolver invocation in
   the primary workflow is locked; `cargo-audit` is installed as exact version

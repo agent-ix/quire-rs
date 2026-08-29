@@ -236,15 +236,15 @@ sanitize:
 # Needs `quire` on PATH and a module; a corpus entry that cannot be read is
 # SKIPPED loudly, never scored 0 — a missing corpus scored as zero is the
 # silent-zero defect this benchmark exists to catch.
-BENCH_MODULE ?= $(HOME)/dev/spec-artifacts-process/spec_artifacts_process
+BENCH_MODULE ?= ../spec-artifacts-process/spec_artifacts_process
 .PHONY: bench
 bench:
-	python3 scripts/bench.py --module $(BENCH_MODULE)
+	python3 scripts/bench.py --module "$(BENCH_MODULE)"
 
 # Deliberate regeneration. The diff belongs in the pull request.
 .PHONY: bench-update
 bench-update:
-	python3 scripts/bench.py --update --module $(BENCH_MODULE)
+	python3 scripts/bench.py --update --module "$(BENCH_MODULE)"
 
 .PHONY: measurement-collection
 measurement-collection:

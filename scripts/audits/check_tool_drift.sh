@@ -6,6 +6,7 @@ ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 python3 - "$ROOT" <<'PY'
 from __future__ import annotations
 
+import json
 import pathlib
 import re
 import sys
@@ -22,6 +23,26 @@ manifest = (root / "Cargo.toml").read_text(encoding="utf-8")
 version = re.search(r'^version\s*=\s*"([^"]+)"', manifest, re.MULTILINE)
 if not version or version.group(1) != "0.46.0":
     errors.append("Cargo.toml must declare the guarded post-v0.45 version 0.46.0")
+
+benchmark = json.loads((root / "bench/manifest.json").read_text(encoding="utf-8"))
+benchmark_inputs = [*benchmark.get("corpora", []), benchmark.get("module_source")]
+for entry in benchmark_inputs:
+    if not isinstance(entry, dict):
+        errors.append("bench/manifest.json must declare module_source")
+        continue
+    path = (root / str(entry.get("path", ""))).resolve()
+    try:
+        path.relative_to(root)
+        external = False
+    except ValueError:
+        external = True
+    if (external or entry is benchmark.get("module_source")) and (
+        entry.get("identity") != "sha"
+        or not re.fullmatch(r"[0-9a-f]{40}", str(entry.get("pinned_sha", "")))
+    ):
+        errors.append(
+            f"bench/manifest.json input {entry.get('name', '<unnamed>')} must use a full immutable SHA"
+        )
 
 for workflow in sorted((root / ".github/workflows").glob("*.yml")):
     text = workflow.read_text(encoding="utf-8")
@@ -59,6 +80,8 @@ for line_no, line in enumerate(requirements.splitlines(), 1):
         errors.append(f"requirements/ci.txt:{line_no}: dependency is not exact and hash-locked")
 
 makefile = (root / "Makefile").read_text(encoding="utf-8")
+if "BENCH_MODULE ?= ../spec-artifacts-process/spec_artifacts_process" not in makefile:
+    errors.append("Makefile BENCH_MODULE must select the manifest-pinned module path")
 for line_no, line in enumerate(makefile.splitlines(), 1):
     if re.search(r"\$\(CARGO\)\s+(?:build|check|clippy|run|test)\b", line) and "--locked" not in line:
         errors.append(f"Makefile:{line_no}: canonical Cargo resolution is not --locked")
