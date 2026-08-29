@@ -2,6 +2,10 @@ name: CI
 
 on:
   workflow_dispatch:
+
+env:
+  CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+
 jobs:
   rust:
     name: Rust Checks
@@ -19,8 +23,15 @@ jobs:
           # loudly, which is the right failure: a green run over a corpus that
           # was never checked out is the silent-zero this programme exists to
           # end.
-          submodules: recursive
-          token: ${{ secrets.CORPUS_TOKEN || secrets.GITHUB_TOKEN }}
+          submodules: false
+      - name: Require private dependency token
+        env:
+          CORPUS_TOKEN: ${{ secrets.CORPUS_TOKEN }}
+        run: test -n "$CORPUS_TOKEN" || { echo "::error::CORPUS_TOKEN must read agent-ix/qa-corpus and private Cargo dependencies"; exit 1; }
+      - name: Authenticate private repositories
+        run: git config --global url."https://x-access-token:${{ secrets.CORPUS_TOKEN }}@github.com/".insteadOf "https://github.com/"
+      - name: Checkout locked corpus
+        run: git submodule update --init --recursive --depth 1
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c # stable action
@@ -35,7 +46,7 @@ jobs:
         run: cargo fmt --all -- --check
 
       - name: Lint
-        run: cargo clippy --all-targets -- -D warnings
+        run: cargo clippy --locked --all-targets -- -D warnings
 
       # TC-1025/TC-1027 drive the corpus LOADER (`corpus/bounds.py`) over a
       # mutated copy — the only way to prove those gates refuse what they claim
@@ -56,7 +67,7 @@ jobs:
           python3 -c "import yaml"   # a partial install must fail HERE
 
       - name: Test
-        run: cargo test
+        run: cargo test --locked
 
       - name: Unsafe audit
         run: bash scripts/check_unsafe_comments.sh
@@ -69,6 +80,12 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Require private dependency token
+        env:
+          CORPUS_TOKEN: ${{ secrets.CORPUS_TOKEN }}
+        run: test -n "$CORPUS_TOKEN" || { echo "::error::CORPUS_TOKEN must read private Cargo dependencies"; exit 1; }
+      - name: Authenticate private repositories
+        run: git config --global url."https://x-access-token:${{ secrets.CORPUS_TOKEN }}@github.com/".insteadOf "https://github.com/"
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c # stable action
         with:
@@ -80,18 +97,11 @@ jobs:
         with:
           tool: cargo-deny@0.19.8
       - name: cargo deny check licenses
-        run: cargo deny check licenses
+        run: cargo deny --locked check licenses
 
   audit:
     name: Cargo Audit (RUSTSEC)
     runs-on: ubuntu-24.04
-    # rustsec/audit-check posts a check-run and files an issue for any
-    # advisory; without these the default (restricted) GITHUB_TOKEN fails
-    # with "Resource not accessible by integration".
-    permissions:
-      contents: read
-      checks: write
-      issues: write
     # Run on PR, push to main, and the daily 06:00 UTC schedule.
     if: >-
       github.event_name == 'pull_request' ||
@@ -100,10 +110,19 @@ jobs:
       (github.event_name == 'schedule' && github.event.schedule == '0 6 * * *')
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - name: cargo-audit
-        uses: rustsec/audit-check@e9159ac5f7d7d873ce074ca134da2f445c0a4a61 # v1.3.2
+      # rustsec/audit-check v1.3.2 runs `cargo install cargo-audit` without
+      # `--locked`. On 2026-08-29 that resolved kstring 2.0.4, which requires
+      # Rust 1.96, and broke this Rust-1.94.1 job without any repository
+      # change. Install the exact prebuilt tool instead: both installer and
+      # installed version are reviewable inputs.
+      - name: Install cargo-audit
+        uses: taiki-e/install-action@37f7c5781271959fb65b6b35224e28652ff2b63d # v2
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          tool: cargo-audit@0.22.2
+      - name: Report cargo-audit identity
+        run: cargo audit --version
+      - name: Audit locked dependency graph
+        run: cargo audit
 
   # Miri (UB detection) job retired — ADR 0006. First-party UB is compile-impossible
   # via `#![forbid(unsafe_code)]` (NFR-003-AC-5); dependency advisories are covered by
@@ -120,6 +139,12 @@ jobs:
       (github.event_name == 'schedule' && github.event.schedule == '0 7 * * 1')
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Require private dependency token
+        env:
+          CORPUS_TOKEN: ${{ secrets.CORPUS_TOKEN }}
+        run: test -n "$CORPUS_TOKEN" || { echo "::error::CORPUS_TOKEN must read private Cargo dependencies"; exit 1; }
+      - name: Authenticate private repositories
+        run: git config --global url."https://x-access-token:${{ secrets.CORPUS_TOKEN }}@github.com/".insteadOf "https://github.com/"
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c # stable action
         with:
@@ -131,7 +156,7 @@ jobs:
         with:
           tool: cargo-mutants@27.1.0
       - name: cargo mutants
-        run: cargo mutants -p quire-rs --in-place --check --json > mutants.json || true
+        run: cargo mutants -p quire-rs --in-place --check --cargo-arg=--locked --json > mutants.json || true
       - name: Upload mutants.json
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -148,6 +173,12 @@ jobs:
       github.event_name == 'workflow_dispatch'
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Require private dependency token
+        env:
+          CORPUS_TOKEN: ${{ secrets.CORPUS_TOKEN }}
+        run: test -n "$CORPUS_TOKEN" || { echo "::error::CORPUS_TOKEN must read private Cargo dependencies"; exit 1; }
+      - name: Authenticate private repositories
+        run: git config --global url."https://x-access-token:${{ secrets.CORPUS_TOKEN }}@github.com/".insteadOf "https://github.com/"
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c # stable action
         with:
@@ -168,9 +199,9 @@ jobs:
       - name: Run benches against stored baseline
         run: |
           if [[ -d target/criterion/parse/demo-item/main ]]; then
-            cargo bench --bench parse --bench load -- --baseline main
+            cargo bench --locked --bench parse --bench load -- --baseline main
           else
-            cargo bench --bench parse --bench load -- --save-baseline main
+            cargo bench --locked --bench parse --bench load -- --save-baseline main
           fi
       # The canonical perf gate is the Apple Silicon baseline (10% band,
       # enforced locally / on the canonical runner). The shared Ubuntu CI

@@ -9,6 +9,13 @@ bumps; once 1.0 ships, semver is strict.
 
 ### Fixed
 
+- **Canonical CI no longer installs or resolves drifting tools/dependencies.**
+  Cargo resolver invocations assert the committed lock, `cargo-audit` is an
+  exact version installed by a commit-pinned binary installer, and private
+  corpus/dependency jobs fail early with a named `CORPUS_TOKEN` requirement.
+  This closes the observed failure where an unchanged workflow pulled a newer
+  `kstring` that required Rust 1.96 while CI deliberately pins Rust 1.94.1.
+
 - **Governed benchmark exports now remain acceptable to Quoin (#379).** New
   collections use schema v2 and require a validated
   `verification-stack-attestation-v1`. The exporter refuses dirty source,

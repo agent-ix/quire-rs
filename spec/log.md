@@ -7,6 +7,18 @@ description: "Chronological log of structural changes to this bundle."
 
 ## History
 
+* **2026-08-29** — **CR-153**: canonical CI now treats its own tool and
+  credential surfaces as governed inputs. Every Cargo resolver invocation in
+  the primary workflow is locked; `cargo-audit` is installed as exact version
+  0.22.2 by a commit-pinned binary installer after the formerly pinned
+  `rustsec/audit-check` action resolved an unlocked `kstring` release requiring
+  a newer compiler than the pinned Rust 1.94.1. Jobs that read private
+  `qa-corpus` or `ix-trace-rs` inputs now require `CORPUS_TOKEN` by name before
+  doing work and configure Cargo's Git transport explicitly, instead of
+  failing later as an ambiguous missing revision or silently exercising less
+  scope. The Makefile license gate also asserts that `Cargo.lock` cannot move.
+  #379; agent-ix/quoin#260.
+
 * **2026-08-28** — **CR-152**: the benchmark ratchets are recalibrated over the
   complete five-corpus Phase 3 cohort after CR-151 restored Filament to the
   governed population. The new Filament and specific-shape rows are initial

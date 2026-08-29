@@ -97,7 +97,7 @@ clean:
 
 .PHONY: deny
 deny:
-	$(CARGO) deny check licenses
+	$(CARGO) deny --locked check licenses
 
 .PHONY: cargo-audit
 cargo-audit:
