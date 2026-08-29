@@ -7,6 +7,16 @@ description: "Chronological log of structural changes to this bundle."
 
 ## History
 
+* **2026-08-29** — **CR-155**: the frozen Quoin benchmark subject now has an
+  attestation identity distinct from the current Quoin producer. Using the
+  corpus display name as the verification-stack source key coupled Quire's
+  historical language-coverage input to every new Quoin implementation commit:
+  repinning either repository required repinning the other forever. The
+  manifest now maps that input explicitly to `quoin-benchmark-corpus`; export
+  validates both the manifest pin and the sibling checkout against that clean,
+  remotely reachable source. A static audit and mutation test prevent the two
+  identities from being collapsed again. #379; agent-ix/quoin#260.
+
 * **2026-08-29** — **CR-154**: governed benchmark inputs can no longer drift
   behind a generic `working-tree` identity. The external Quoin and
   spec-artifacts-process corpora, and the declaration module that changes how

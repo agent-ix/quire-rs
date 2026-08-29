@@ -13,12 +13,17 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 def fixture(tmp_path: pathlib.Path) -> pathlib.Path:
     root = tmp_path / "repo"
     (root / "scripts/audits").mkdir(parents=True)
+    (root / "bench").mkdir()
     (root / ".github/workflows").mkdir(parents=True)
     (root / "requirements").mkdir()
     shutil.copy(ROOT / "scripts/audits/check_tool_drift.sh", root / "scripts/audits")
+    shutil.copy(ROOT / "bench/manifest.json", root / "bench")
     (root / "rust-toolchain.toml").write_text('[toolchain]\nchannel = "1.94.1"\n')
     (root / "Cargo.toml").write_text('[package]\nversion = "0.46.0"\n')
-    (root / "Makefile").write_text('test:\n\t$(CARGO) test --locked\n')
+    (root / "Makefile").write_text(
+        "BENCH_MODULE ?= ../spec-artifacts-process/spec_artifacts_process\n"
+        "test:\n\t$(CARGO) test --locked\n"
+    )
     (root / "requirements/ci.txt").write_text(
         "helper==1.2.3 --hash=sha256:" + "a" * 64 + "\n"
     )
@@ -57,6 +62,18 @@ def test_valid_exact_stack_passes(tmp_path: pathlib.Path) -> None:
         ("Makefile", "test --locked", "test", "--locked"),
         ("requirements/ci.txt", " --hash=sha256:" + "a" * 64, "", "hash-locked"),
         ("Cargo.toml", "0.46.0", "0.33.0", "0.46.0"),
+        (
+            "bench/manifest.json",
+            '"source_name": "quoin-benchmark-corpus"',
+            '"source_name": "quoin"',
+            "separate the Quoin benchmark corpus",
+        ),
+        (
+            "Makefile",
+            "../spec-artifacts-process/spec_artifacts_process",
+            "../moving-module/spec_artifacts_process",
+            "manifest-pinned module path",
+        ),
     ],
 )
 def test_each_drift_class_fails_closed(

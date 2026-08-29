@@ -95,6 +95,7 @@
     },
     {
       "name": "quoin",
+      "source_name": "quoin-benchmark-corpus",
       "tier": 1,
       "path": "../quoin",
       "identity": "sha",
@@ -103,7 +104,7 @@
         "sentinel.silent_zero",
         "skeptic.suspicion_rate"
       ],
-      "$comment": "TYPESCRIPT. Carried for language coverage, not for its coverage figures: this is the corpus that exposed CR-102's 549-of-551 misread, and no TypeScript tree was scored before it. Scored on the two gates only and pinned to the campaign's immutable Quoin source revision; a sibling checkout at any other revision or with local edits is refused."
+      "$comment": "TYPESCRIPT. Carried for language coverage, not for its coverage figures: this is the corpus that exposed CR-102's 549-of-551 misread, and no TypeScript tree was scored before it. Scored on the two gates only and pinned as the campaign's immutable Quoin benchmark corpus, independently of the current Quoin producer revision; a sibling checkout at any other revision or with local edits is refused."
     },
     {
       "name": "spec-artifacts-process",

@@ -43,6 +43,14 @@ for entry in benchmark_inputs:
         errors.append(
             f"bench/manifest.json input {entry.get('name', '<unnamed>')} must use a full immutable SHA"
         )
+quoin_input = next(
+    (entry for entry in benchmark.get("corpora", []) if entry.get("name") == "quoin"),
+    None,
+)
+if quoin_input is None or quoin_input.get("source_name") != "quoin-benchmark-corpus":
+    errors.append(
+        "bench/manifest.json must separate the Quoin benchmark corpus from the Quoin producer source"
+    )
 
 for workflow in sorted((root / ".github/workflows").glob("*.yml")):
     text = workflow.read_text(encoding="utf-8")

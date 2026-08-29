@@ -36,6 +36,11 @@ def attestation(revision: str = "a" * 40) -> dict:
                 "sourceState": "clean",
                 "remote": "https://github.com/agent-ix/quoin",
             },
+            "quoin-benchmark-corpus": {
+                "revision": "f" * 40,
+                "sourceState": "clean",
+                "remote": "https://github.com/agent-ix/quoin",
+            },
             "spec-artifacts-process": {
                 "revision": "d" * 40,
                 "sourceState": "clean",
@@ -222,6 +227,23 @@ def test_manifest_module_pin_must_match_attestation():
     }
     validate_manifest_attestation(manifest, attestation())
     manifest["module_source"]["pinned_sha"] = "f" * 40
+    with pytest.raises(ExportError, match="benchmark pin does not match"):
+        validate_manifest_attestation(manifest, attestation())
+
+
+def test_manifest_source_name_separates_benchmark_subject_from_producer():
+    manifest = {
+        "corpora": [
+            {
+                "name": "quoin",
+                "source_name": "quoin-benchmark-corpus",
+                "identity": "sha",
+                "pinned_sha": "f" * 40,
+            }
+        ]
+    }
+    validate_manifest_attestation(manifest, attestation())
+    manifest["corpora"][0]["source_name"] = "quoin"
     with pytest.raises(ExportError, match="benchmark pin does not match"):
         validate_manifest_attestation(manifest, attestation())
 

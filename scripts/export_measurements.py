@@ -281,8 +281,9 @@ def validate_manifest_attestation(
                 ) from error
             continue
         name = entry.get("name")
+        source_name = entry.get("source_name", name)
         pinned = entry.get("pinned_sha")
-        source = sources.get(name)
+        source = sources.get(source_name)
         if not FULL_SHA.fullmatch(pinned or ""):
             raise ExportError(f"{name}: pinned_sha is not a full Git SHA")
         if (
@@ -291,7 +292,7 @@ def validate_manifest_attestation(
             or source.get("sourceState") != "clean"
         ):
             raise ExportError(
-                f"{name}: benchmark pin does not match the clean verification stack source"
+                f"{name}: benchmark pin does not match clean verification stack source {source_name}"
             )
 
 
@@ -397,7 +398,7 @@ def main() -> int:
             validate_repository_against_stack(
                 (ROOT / entry["path"]).resolve(),
                 verification_stack,
-                entry["name"],
+                entry.get("source_name", entry["name"]),
             )
         quire = build_engine(consumer, release=True)
         validate_executable_digest(quire, verification_stack)
