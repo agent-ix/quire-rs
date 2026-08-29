@@ -102,7 +102,11 @@ fn rewrite_criteria(bundle: &Bundle, cells: &[&str]) {
 }
 
 fn report_for(bundle: &Bundle, module: &str) -> Result<CoverageReport, CoverageError> {
-    let registry = Registry::load_module(&fixture_module(module)).expect("load module");
+    report_for_module(bundle, &fixture_module(module))
+}
+
+fn report_for_module(bundle: &Bundle, module: &Path) -> Result<CoverageReport, CoverageError> {
+    let registry = Registry::load_module(module).expect("load module");
     let spec = Spec::from_path(&bundle.scope);
     let extraction = extract_tree(&bundle.source);
     let model = registry.traceability().cloned().unwrap_or_default();
@@ -2441,6 +2445,71 @@ fn tc1079_a_status_column_near_miss_is_actionable_and_the_control_is_quiet() {
         vec!["TC-002"],
         "the control proves status classification resumed"
     );
+
+    // A module may keep a different model-wide status header for sibling
+    // tables while naming the schema-required header on this reference. This
+    // is an explicit declaration, not the engine guessing from a near match.
+    rewrite_matrix_with_status(
+        &bundle,
+        "Test Cases",
+        "ID",
+        "Coverage Status",
+        &[("TC-002", "FR-001-AC-2", "✅")],
+    );
+    let module = tmpdir("1079-status-override");
+    let manifest = fs::read_to_string(fixture_module("iso").join("manifest.yaml"))
+        .expect("read fixture module")
+        .replace(
+            "    row_id_column: ID\n    pattern: '((?:StR|US|FR|NFR)-",
+            "    row_id_column: ID\n    status_column: Coverage Status\n    pattern: '((?:StR|US|FR|NFR)-",
+        );
+    assert!(
+        manifest.contains("status_column: Coverage Status"),
+        "the fixture override was inserted"
+    );
+    fs::write(module.join("manifest.yaml"), &manifest).expect("write override module");
+    let overridden = report_for_module(&bundle, &module).expect("model declared");
+    assert!(
+        !overridden
+            .diagnostics
+            .iter()
+            .any(|d| d.reason == "status-column-matches-nothing"),
+        "an explicitly configured reference header is quiet: {:?}",
+        overridden.diagnostics
+    );
+    assert_eq!(
+        overridden
+            .status_lies
+            .iter()
+            .filter_map(|lie| lie.row_id.as_deref())
+            .collect::<Vec<_>>(),
+        vec!["TC-002"],
+        "the per-reference header restores classification without changing the global vocabulary"
+    );
+
+    // An override selects a column; the model-wide vocabulary still supplies
+    // the values and classes. Without that vocabulary the declaration would
+    // be accepted but have no runtime effect, so module loading rejects it.
+    let invalid_module = tmpdir("1079-status-override-without-vocabulary");
+    let without_vocabulary = manifest.replace(
+        "  status:\n    column: Status\n    complete: [\"✅\"]\n    pending: [\"🚧\", \"⚠️\"]\n    failed: [\"❌\"]\n",
+        "",
+    );
+    assert!(
+        !without_vocabulary.contains("\n  status:\n"),
+        "the invalid control removed the model-wide vocabulary"
+    );
+    fs::write(invalid_module.join("manifest.yaml"), without_vocabulary)
+        .expect("write invalid override module");
+    let invalid = Registry::load_module(&invalid_module).expect("load registry");
+    assert_eq!(
+        invalid.failures().len(),
+        1,
+        "the invalid declaration must be recorded as a module-load failure"
+    );
+    let error = &invalid.failures()[0].reason;
+    assert!(error.contains("status_column"), "{error}");
+    assert!(error.contains("no `status` vocabulary"), "{error}");
 }
 
 fn diagnostic_for<'r>(

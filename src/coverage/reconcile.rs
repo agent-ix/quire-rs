@@ -112,6 +112,10 @@ pub(super) fn reconcile(
         let Ok(pattern) = regex::Regex::new(&declaration.pattern) else {
             continue; // patterns are validated at module load
         };
+        let status_column = declaration
+            .status_column
+            .as_deref()
+            .or_else(|| model.status.as_ref().map(|status| status.column.as_str()));
         let exclude = declared_tables::ExcludeSet::compile_validated(&declaration.exclude);
         for row in declared_tables::scan(
             spec,
@@ -126,7 +130,7 @@ pub(super) fn reconcile(
                 // the matrix template emits only when it has content, so
                 // diagnosing its absence would fire on every healthy matrix.
                 mints: None,
-                status_column: model.status.as_ref().map(|status| status.column.as_str()),
+                status_column,
                 section_required: false,
             },
             &declaration.section,
@@ -177,8 +181,8 @@ pub(super) fn reconcile(
             // a backstop that only ever sees unbacked rows is a by-product, not
             // a backstop. `class_of` has always returned `Unknown` here; until
             // now nothing asked.
-            if let Some(status) = &model.status {
-                if let Some(value) = row.cell(&status.column) {
+            if let (Some(status), Some(column)) = (&model.status, status_column) {
+                if let Some(value) = row.cell(column) {
                     if let Some(id) = &row_id {
                         status_row_ids.insert(id.clone());
                     }
@@ -237,8 +241,8 @@ pub(super) fn reconcile(
             }
 
             // A status that classes `complete` over an unbacked row is a lie.
-            if let Some(status) = &model.status {
-                if let Some(value) = row.cell(&status.column) {
+            if let (Some(status), Some(column)) = (&model.status, status_column) {
+                if let Some(value) = row.cell(column) {
                     if status.class_of(value) == StatusClass::Complete {
                         status_lies.push(StatusLie {
                             reference: declaration.name.clone(),

@@ -666,6 +666,12 @@ pub struct DocumentReference {
     /// Column identifying the referencing row (the row id in report entries).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub row_id_column: Option<String>,
+    /// Status column for this reference table. When omitted, the model-wide
+    /// [`StatusVocabulary::column`] remains the default. A per-reference
+    /// column is necessary when one archetype contract contains several table
+    /// kinds with deliberately different status headers.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub status_column: Option<String>,
     /// Regex over the cell; capture group 1 is the referenced trace id.
     pub pattern: String,
     /// Names of the [`TraceTarget`]s these references resolve against.
@@ -932,6 +938,22 @@ impl TraceabilityModel {
                 "column",
                 &reference.column,
             )?;
+            if let Some(status_column) = &reference.status_column {
+                check_field(
+                    "document_references",
+                    &reference.name,
+                    "status_column",
+                    status_column,
+                )?;
+                if self.status.is_none() {
+                    return Err(format!(
+                        "traceability: document_references entry '{}' declares `status_column` \
+                         but the model has no `status` vocabulary, so the override would \
+                         classify nothing",
+                        reference.name
+                    ));
+                }
+            }
             check_capturing_pattern("document_references", &reference.name, &reference.pattern)?;
             if reference.targets.is_empty() {
                 return Err(format!(
@@ -1483,6 +1505,7 @@ document_references:
   section: Acceptance Criteria
   column: Verification
   row_id_column: ID
+  status_column: Coverage Status
   pattern: '\((TC-\d+)\)'
   targets: [test-case]
 status:
@@ -1510,6 +1533,10 @@ trace_tags:
         assert_eq!(m.trace_targets.len(), 2);
         assert_eq!(m.target("test-case").unwrap().archetype, "TestMatrix");
         assert_eq!(m.document_references[0].targets, vec!["test-case"]);
+        assert_eq!(
+            m.document_references[0].status_column.as_deref(),
+            Some("Coverage Status")
+        );
         assert_eq!(
             m.status.as_ref().unwrap().class_of(" done "),
             StatusClass::Complete
@@ -1579,6 +1606,11 @@ document_references:
             (
                 "status:\n  column: Status\n  complete: [\"x\"]\n  pending: [\"x\"]\n",
                 "more than one class",
+            ),
+            // an explicit per-reference status column must name a real column
+            (
+                "trace_targets:\n- name: t\n  archetype: FR\n  section: S\n  id_column: ID\ndocument_references:\n- name: r\n  archetype: TestMatrix\n  section: S\n  column: C\n  status_column: '  '\n  pattern: '(TC-\\d+)'\n  targets: [t]\n",
+                "empty `status_column`",
             ),
         ];
         for (yaml, expected) in cases {
