@@ -7,6 +7,20 @@ description: "Chronological log of structural changes to this bundle."
 
 ## History
 
+* **2026-08-28** — **CR-152**: the benchmark ratchets are recalibrated over the
+  complete five-corpus Phase 3 cohort after CR-151 restored Filament to the
+  governed population. The new Filament and specific-shape rows are initial
+  baselines, while four existing bounds move deliberately: Quoin skeptic
+  suspicion `0.00 → 0.43`, and self backed coverage `72.91 → 70.22`, dead tags
+  `0 → 11`, and skeptic suspicion `0.21 → 0.75`. Inspection attributes the
+  new Quoin suspicions entirely to the adversarial skeptic corpus; eight of the
+  eleven self dead tags and four of its ten suspicions are likewise deliberate
+  negative/control fixtures. The remaining self signals and denominator change
+  are retained visibly instead of being hidden by the previously skipped
+  corpus. These values are new ratchet floors, not waivers: any further
+  regression fails `make bench`, and `sentinel.silent_zero` remains an exact
+  zero gate for every corpus. #379; agent-ix/quoin#260.
+
 * **2026-08-28** — **CR-151**: governed benchmark export can no longer turn a
   corpus revision mismatch into a smaller successful population. Every
   SHA-bound manifest entry now carries a full 40-character revision, matches a

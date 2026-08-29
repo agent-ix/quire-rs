@@ -15,7 +15,9 @@ bumps; once 1.0 ships, semver is strict.
   mismatched full SHAs/remotes, malformed digests, and ambiguous capability
   sets before producing evidence. Every SHA-pinned benchmark corpus must also
   use a full revision equal to a clean attested source, and any skipped corpus
-  aborts governed export instead of silently shrinking the population.
+  aborts governed export instead of silently shrinking the population. The
+  five-corpus ratchets are recalibrated explicitly against that restored scope;
+  future regressions still fail and every silent-zero sentinel remains exact.
   Retained schema-v1 collections remain historical and read-only.
 
 ### Added
