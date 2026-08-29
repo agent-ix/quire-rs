@@ -26,6 +26,8 @@ if not version or version.group(1) != "0.46.0":
 for workflow in sorted((root / ".github/workflows").glob("*.yml")):
     text = workflow.read_text(encoding="utf-8")
     for line_no, line in enumerate(text.splitlines(), 1):
+        if line.lstrip().startswith("#") or re.match(r"\s*-\s+name:", line):
+            continue
         use = re.search(r"\buses:\s*[^\s@]+@([^\s#]+)", line)
         if use and not re.fullmatch(r"[0-9a-f]{40}", use.group(1)):
             errors.append(f"{workflow.relative_to(root)}:{line_no}: action is not pinned by full SHA")
@@ -44,6 +46,12 @@ for workflow in sorted((root / ".github/workflows").glob("*.yml")):
             exact_direct = re.search(r"pip install\s+[A-Za-z0-9_.-]+==[A-Za-z0-9_.+-]+\s*$", line)
             if not noncanonical or not exact_direct:
                 errors.append(f"{workflow.relative_to(root)}:{line_no}: Python helper install is not hash-locked")
+        if re.search(r"cargo(?:\s+\+\S+)?\s+(?:bench|build|check|clippy|test)\b", line) and "--locked" not in line:
+            errors.append(f"{workflow.relative_to(root)}:{line_no}: Cargo resolution is not --locked")
+        if re.search(r"cargo\s+deny\b", line) and "--locked" not in line:
+            errors.append(f"{workflow.relative_to(root)}:{line_no}: cargo-deny resolution is not --locked")
+        if re.search(r"cargo\s+mutants\b", line) and "--cargo-arg=--locked" not in line:
+            errors.append(f"{workflow.relative_to(root)}:{line_no}: cargo-mutants does not pass --locked to Cargo")
 
 requirements = (root / "requirements/ci.txt").read_text(encoding="utf-8")
 for line_no, line in enumerate(requirements.splitlines(), 1):
@@ -54,6 +62,10 @@ makefile = (root / "Makefile").read_text(encoding="utf-8")
 for line_no, line in enumerate(makefile.splitlines(), 1):
     if re.search(r"\$\(CARGO\)\s+(?:build|check|clippy|run|test)\b", line) and "--locked" not in line:
         errors.append(f"Makefile:{line_no}: canonical Cargo resolution is not --locked")
+    if re.search(r"\$\(CARGO\)\s+deny\b", line) and "--locked" not in line:
+        errors.append(f"Makefile:{line_no}: cargo-deny resolution is not --locked")
+    if re.search(r"(?:^|\s)cargo(?:\s+\+\S+)?\s+(?:bench|build|check|clippy|run|test)\b", line) and "--locked" not in line and not line.lstrip().startswith(("#", "@echo")):
+        errors.append(f"Makefile:{line_no}: direct Cargo resolution is not --locked")
 
 if errors:
     print("tool-drift audit failed:", file=sys.stderr)

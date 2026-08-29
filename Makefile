@@ -209,7 +209,7 @@ fuzz:
 
 .PHONY: loom
 loom:
-	RUSTFLAGS="--cfg loom" cargo test --test concurrency
+	RUSTFLAGS="--cfg loom" cargo test --locked --test concurrency
 
 .PHONY: sanitize
 sanitize:
@@ -217,10 +217,10 @@ sanitize:
 	@# Pin RUSTC to nightly: a stable rustc on PATH (e.g. homebrew) would
 	@# reject the -Zsanitizer probe otherwise.
 	NRUSTC=$$(rustup which --toolchain nightly rustc); TGT=$$(rustc -vV | sed -n 's/host: //p'); \
-	RUSTC=$$NRUSTC RUSTFLAGS="-Zsanitizer=thread" rustup run nightly cargo test \
+	RUSTC=$$NRUSTC RUSTFLAGS="-Zsanitizer=thread" rustup run nightly cargo test --locked \
 		-Z build-std --target $$TGT --test corpus_concurrency
 	NRUSTC=$$(rustup which --toolchain nightly rustc); TGT=$$(rustc -vV | sed -n 's/host: //p'); \
-	RUSTC=$$NRUSTC RUSTFLAGS="-Zsanitizer=address" rustup run nightly cargo test \
+	RUSTC=$$NRUSTC RUSTFLAGS="-Zsanitizer=address" rustup run nightly cargo test --locked \
 		-Z build-std --target $$TGT --test corpus_concurrency
 	@echo "NOTE: TSAN/ASAN of the GIL window + Python object handoff needs a"
 	@echo "sanitizer-instrumented CPython and runs on the scheduled CI lane."
@@ -257,7 +257,7 @@ coverage-baseline-update:
 	@echo "Regenerating the FR-050-AC-7 coverage baseline (CR-057)."
 	@echo "The resulting diff belongs in the pull request — a change to what"
 	@echo "coverage reconciles is reviewable, not absorbable."
-	QUIRE_UPDATE_COVERAGE_BASELINE=1 cargo test --test coverage_baseline \
+	QUIRE_UPDATE_COVERAGE_BASELINE=1 cargo test --locked --test coverage_baseline \
 		tc824_coverage_report_matches_the_checked_in_baseline
 	@git --no-pager diff --stat -- tests/fixtures/coverage_baseline/expected.json
 

@@ -22,4 +22,4 @@ jobs:
       - name: Cache cargo artifacts
         uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
       - name: cargo test under loom
-        run: RUSTFLAGS="--cfg loom" cargo test --test concurrency
+        run: RUSTFLAGS="--cfg loom" cargo test --locked --test concurrency
