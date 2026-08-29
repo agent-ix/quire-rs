@@ -75,3 +75,4 @@ description: "Index of artifacts in this directory."
 * [FR-070: Typed Properties extraction to FieldDecl[]](./FR-070-typed-properties-extraction.md)
 * [FR-071: Clause and operation extraction](./FR-071-clause-and-operation-extraction.md)
 * [FR-072: Semantic extraction surface](./FR-072-semantic-extraction-surface.md)
+* [FR-073: Generic rights-aware clause sets](./FR-073-generic-clause-sets.md)

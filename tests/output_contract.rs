@@ -86,7 +86,12 @@ fn baseline() -> Value {
 // the artifacts are themselves valid, and self-identify.
 #[test]
 fn tc854_published_schemas_are_valid_and_versioned() {
-    for name in ["coverage-v1.schema.json", "properties-v1.schema.json"] {
+    for name in [
+        "coverage-v1.schema.json",
+        "properties-v1.schema.json",
+        "clause-binding-v1.schema.json",
+        "clause-diff-v1.schema.json",
+    ] {
         let value = schema_value(name);
         // Compiling under the 2020-12 draft is the meta-validation: a schema
         // with a malformed keyword fails here rather than silently accepting
