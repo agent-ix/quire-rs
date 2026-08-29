@@ -52,6 +52,55 @@ if quoin_input is None or quoin_input.get("source_name") != "quoin-benchmark-cor
         "bench/manifest.json must separate the Quoin benchmark corpus from the Quoin producer source"
     )
 
+validation_lock = json.loads(
+    (root / "quality/validation-stack-lock.json").read_text(encoding="utf-8")
+)
+expected_validation_stack = {
+    "schemaVersion": "quire-validation-stack-v1",
+    "repositories": {
+        "spec-artifacts-iso": {
+            "modulePath": "spec_artifacts_iso",
+            "remote": "https://github.com/agent-ix/spec-artifacts-iso",
+            "remoteRef": "refs/remotes/origin/epic/264-reference-only-targets",
+            "revision": "a6b1c70be8c22e9f7cb432e4410b7a3a280d0217",
+        },
+        "spec-artifacts-process": {
+            "modulePath": "spec_artifacts_process",
+            "remote": "https://github.com/agent-ix/spec-artifacts-process",
+            "remoteRef": "refs/remotes/origin/epic/264-assurance-integration",
+            "revision": "61a20e010d5e758f52864ad3152ccdb304a39d27",
+        },
+    },
+}
+if validation_lock != expected_validation_stack:
+    errors.append("quality/validation-stack-lock.json must retain the reviewed exact schema-provider stack")
+
+exclusions = json.loads(
+    (root / "quality/spec-validation-exclusions.json").read_text(encoding="utf-8")
+)
+expected_exclusion_paths = {
+    "spec/assurance/AP-201-detection-minting.md",
+    "spec/assurance/MP-201-binding-read.md",
+    "spec/assurance/MP-202-backed-trace.md",
+    "spec/assurance/MP-203-dead-tags.md",
+    "spec/assurance/MP-204-minting-repositories.md",
+    "spec/assurance/MP-205-specific-properties.md",
+    "spec/assurance/MP-206-silent-zero.md",
+    "spec/assurance/MP-207-skeptic-suspicion.md",
+    "spec/assurance/MP-208-authoring-tag-rate.md",
+}
+entries = exclusions.get("entries") if isinstance(exclusions, dict) else None
+if (
+    not isinstance(exclusions, dict)
+    or set(exclusions) != {"schemaVersion", "entries"}
+    or exclusions.get("schemaVersion") != "quire-spec-validation-exclusions-v1"
+    or not isinstance(entries, list)
+    or any(not isinstance(entry, dict) or set(entry) != {"path", "reason"} for entry in entries)
+    or {entry.get("path") for entry in entries} != expected_exclusion_paths
+    or any("Phase-7 engineering-assurance artifact" not in str(entry.get("reason")) for entry in entries)
+):
+    errors.append("quality/spec-validation-exclusions.json must name exactly the deferred Phase-7 artifacts")
+
 for workflow in sorted((root / ".github/workflows").glob("*.yml")):
     text = workflow.read_text(encoding="utf-8")
     for line_no, line in enumerate(text.splitlines(), 1):
@@ -90,6 +139,15 @@ for line_no, line in enumerate(requirements.splitlines(), 1):
 makefile = (root / "Makefile").read_text(encoding="utf-8")
 if "BENCH_MODULE ?= ../spec-artifacts-process/spec_artifacts_process" not in makefile:
     errors.append("Makefile BENCH_MODULE must select the manifest-pinned module path")
+for required in (
+    "VALIDATION_PROCESS_ROOT ?= ../spec-artifacts-process",
+    "VALIDATION_ISO_ROOT ?= ../spec-artifacts-iso",
+    "python3 scripts/validate_spec.py",
+    '--process-root "$(VALIDATION_PROCESS_ROOT)"',
+    '--iso-root "$(VALIDATION_ISO_ROOT)"',
+):
+    if required not in makefile:
+        errors.append(f"Makefile locked validation wiring is missing {required!r}")
 for line_no, line in enumerate(makefile.splitlines(), 1):
     if re.search(r"\$\(CARGO\)\s+(?:build|check|clippy|run|test)\b", line) and "--locked" not in line:
         errors.append(f"Makefile:{line_no}: canonical Cargo resolution is not --locked")
@@ -101,6 +159,42 @@ for line_no, line in enumerate(makefile.splitlines(), 1):
 check_engine = (root / "scripts/check_engine.py").read_text(encoding="utf-8")
 if not re.search(r'"cargo",\s*"build",\s*"--locked"', check_engine):
     errors.append("scripts/check_engine.py programmatic Cargo build is not --locked")
+
+validator = (root / "scripts/validate_spec.py").read_text(encoding="utf-8")
+for required, message in (
+    ('"status", "--porcelain=v1", "--untracked-files=all"', "dirty provider rejection"),
+    ('"remote", "get-url", "origin"', "provider-origin verification"),
+    ('"merge-base", "--is-ancestor"', "provider remote-reachability verification"),
+    ('["cargo", "run", "--locked", "--quiet", "--example", "spec_validate"]', "locked validator build"),
+    ('env["IX_FILAMENT_MODULES_PATH"] = str(module_root)', "isolated preferred module path"),
+    ('env["IX_SCHEMA_PATH"] = ""', "cleared legacy module path"),
+):
+    if required not in validator:
+        errors.append(f"scripts/validate_spec.py lacks {message}")
+
+validator_example = (root / "examples/spec_validate.rs").read_text(encoding="utf-8")
+for required, message in (
+    ('root.join("quality/spec-validation-exclusions.json")', "governed exclusion file"),
+    ("exclusions.remove(relative)", "exact-path exclusion consumption"),
+    ('"AssuranceProfile" | "MeasurementPlan"', "Phase-7 type boundary"),
+    ("governed validation exclusion does not name a loaded document", "stale exclusion rejection"),
+):
+    if required not in validator_example:
+        errors.append(f"examples/spec_validate.rs lacks {message}")
+
+ci = (root / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+for name, entry in expected_validation_stack["repositories"].items():
+    if f"repository: agent-ix/{name}" not in ci:
+        errors.append(f"CI does not checkout locked schema provider {name}")
+    if f"ref: {entry['revision']}" not in ci:
+        errors.append(f"CI schema-provider ref for {name} does not equal the lock")
+for required in (
+    "python3 scripts/validate_spec.py",
+    "--process-root .ci/spec-artifacts-process",
+    "--iso-root .ci/spec-artifacts-iso",
+):
+    if required not in ci:
+        errors.append(f"CI locked validation wiring is missing {required!r}")
 
 exporter = (root / "scripts/export_measurements.py").read_text(encoding="utf-8")
 if 'build_engine(consumer, release=True)' not in exporter:
@@ -117,5 +211,5 @@ if errors:
     for error in errors:
         print(f"- {error}", file=sys.stderr)
     raise SystemExit(1)
-print("tool-drift audit: exact toolchain, action, runner, manifest, and Cargo locks verified")
+print("tool-drift audit: exact toolchain, action, runner, manifest, validation-stack, and Cargo locks verified")
 PY

@@ -15,14 +15,25 @@ def fixture(tmp_path: pathlib.Path) -> pathlib.Path:
     (root / "bench").mkdir()
     (root / ".github/workflows").mkdir(parents=True)
     (root / "requirements").mkdir()
+    (root / "quality").mkdir()
     shutil.copy(ROOT / "scripts/audits/check_tool_drift.sh", root / "scripts/audits")
     shutil.copy(ROOT / "scripts/check_engine.py", root / "scripts")
     shutil.copy(ROOT / "scripts/export_measurements.py", root / "scripts")
+    shutil.copy(ROOT / "scripts/validate_spec.py", root / "scripts")
     shutil.copy(ROOT / "bench/manifest.json", root / "bench")
+    shutil.copy(ROOT / "quality/validation-stack-lock.json", root / "quality")
+    shutil.copy(ROOT / "quality/spec-validation-exclusions.json", root / "quality")
+    (root / "examples").mkdir()
+    shutil.copy(ROOT / "examples/spec_validate.rs", root / "examples")
     (root / "rust-toolchain.toml").write_text('[toolchain]\nchannel = "1.94.1"\n')
     (root / "Cargo.toml").write_text('[package]\nversion = "0.46.0"\n')
     (root / "Makefile").write_text(
         "BENCH_MODULE ?= ../spec-artifacts-process/spec_artifacts_process\n"
+        "VALIDATION_PROCESS_ROOT ?= ../spec-artifacts-process\n"
+        "VALIDATION_ISO_ROOT ?= ../spec-artifacts-iso\n"
+        "validate:\n\tpython3 scripts/validate_spec.py \\\n"
+        '\t\t--process-root "$(VALIDATION_PROCESS_ROOT)" \\\n'
+        '\t\t--iso-root "$(VALIDATION_ISO_ROOT)"\n'
         "test:\n\t$(CARGO) test --locked\n"
     )
     (root / "requirements/ci.txt").write_text(
@@ -31,6 +42,18 @@ def fixture(tmp_path: pathlib.Path) -> pathlib.Path:
     (root / ".github/workflows/ci.yml").write_text(
         "jobs:\n  test:\n    runs-on: ubuntu-24.04\n    steps:\n"
         "      - uses: actions/checkout@" + "b" * 40 + " # v4\n"
+        "      - uses: actions/checkout@" + "b" * 40 + " # v4\n"
+        "        with:\n"
+        "          repository: agent-ix/spec-artifacts-process\n"
+        "          ref: 61a20e010d5e758f52864ad3152ccdb304a39d27\n"
+        "      - uses: actions/checkout@" + "b" * 40 + " # v4\n"
+        "        with:\n"
+        "          repository: agent-ix/spec-artifacts-iso\n"
+        "          ref: a6b1c70be8c22e9f7cb432e4410b7a3a280d0217\n"
+        "      - run: >-\n"
+        "          python3 scripts/validate_spec.py\n"
+        "          --process-root .ci/spec-artifacts-process\n"
+        "          --iso-root .ci/spec-artifacts-iso\n"
     )
     return root
 
@@ -104,6 +127,30 @@ def test_valid_exact_stack_passes(tmp_path: pathlib.Path) -> None:
             "../spec-artifacts-process/spec_artifacts_process",
             "../moving-module/spec_artifacts_process",
             "manifest-pinned module path",
+        ),
+        (
+            "quality/validation-stack-lock.json",
+            "61a20e010d5e758f52864ad3152ccdb304a39d27",
+            "a" * 40,
+            "reviewed exact schema-provider stack",
+        ),
+        (
+            "quality/spec-validation-exclusions.json",
+            "spec/assurance/MP-208-authoring-tag-rate.md",
+            "spec/assurance/MP-999-unreviewed.md",
+            "exactly the deferred Phase-7 artifacts",
+        ),
+        (
+            ".github/workflows/ci.yml",
+            "ref: 61a20e010d5e758f52864ad3152ccdb304a39d27",
+            "ref: " + "a" * 40,
+            "does not equal the lock",
+        ),
+        (
+            "scripts/validate_spec.py",
+            'env["IX_SCHEMA_PATH"] = ""',
+            'env["IX_SCHEMA_PATH"] = os.environ.get("IX_SCHEMA_PATH", "")',
+            "cleared legacy module path",
         ),
     ],
 )

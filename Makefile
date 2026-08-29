@@ -25,7 +25,7 @@ help:
 	@echo "  make deny             - cargo deny check licenses"
 	@echo "  make audit-unsafe     - Enforce // SAFETY: comments on unsafe blocks"
 	@echo "  make audit-property   - Enforce FR-052-CON-1: no GrammarFinding in the property classifier"
-	@echo "  make validate         - Validate spec/ with the working-tree engine (#212 gate)"
+	@echo "  make validate         - Validate spec/ with the locked engine + schema stack (#212 gate)"
 	@echo "  make census           - Scheduled/manual ecosystem gap disposition census"
 	@echo "  make ci               - Per-PR CI gates (fmt-check + lint + test + deny + audit-unsafe + audit-property + audit-static + validate)"
 	@echo ""
@@ -266,11 +266,20 @@ coverage-baseline-update:
 # corruption shipped inside v0.41.0 — nothing here ever ran structural
 # validation against this repo's own matrix. Runs the working-tree engine
 # (cargo run --example), never an installed `quire` CLI, which lags the branch
-# under test. Module resolution follows the CLI (IX_FILAMENT_MODULES_PATH /
-# ~/.ix/filament/modules). Local gate only: CI workflows stay tag/dispatch.
+# under test. The two schema-provider repositories are independent executable
+# inputs: accepting their ambient installed versions made this gate change
+# meaning without a Quire commit. scripts/validate_spec.py now verifies their
+# exact clean Git identities against quality/validation-stack-lock.json and
+# exposes only those modules to the engine. CI checks out the same full SHAs.
+# The Phase-7 assurance documents are named one-by-one in the governed
+# exclusion file; no new or renamed document can disappear from validation.
+VALIDATION_PROCESS_ROOT ?= ../spec-artifacts-process
+VALIDATION_ISO_ROOT ?= ../spec-artifacts-iso
 .PHONY: validate
 validate:
-	$(CARGO) run --locked --quiet --example spec_validate
+	python3 scripts/validate_spec.py \
+		--process-root "$(VALIDATION_PROCESS_ROOT)" \
+		--iso-root "$(VALIDATION_ISO_ROOT)"
 
 # The #265 gate: the engine a consumer LINKS is the engine in this tree.
 #
