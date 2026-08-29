@@ -1,17 +1,31 @@
 {
+  "filament-ide-rs": {
+    "authoring.tag_rate": 90.37,
+    "coverage.backed_pct": 56.57,
+    "coverage.binding_read_pct": 88.86,
+    "coverage.dead_tags": 25,
+    "coverage.minting_repos": 1,
+    "sentinel.silent_zero": 0,
+    "skeptic.suspicion_rate": 0.36
+  },
   "quoin": {
     "sentinel.silent_zero": 0,
-    "skeptic.suspicion_rate": 0.0
+    "skeptic.suspicion_rate": 0.43
   },
   "self": {
-    "coverage.backed_pct": 72.91,
-    "coverage.binding_read_pct": 63.55,
-    "coverage.dead_tags": 0,
+    "authoring.tag_rate": 65.99,
+    "coverage.backed_pct": 70.22,
+    "coverage.binding_read_pct": 64.49,
+    "coverage.dead_tags": 11,
+    "coverage.minting_repos": 1,
     "sentinel.silent_zero": 0,
-    "skeptic.suspicion_rate": 0.21
+    "skeptic.suspicion_rate": 0.75
   },
   "spec-artifacts-process": {
     "sentinel.silent_zero": 0,
     "skeptic.suspicion_rate": 0.0
+  },
+  "specific-shape-control": {
+    "properties.specific_shaped_pct": 0.0
   }
 }

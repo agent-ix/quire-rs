@@ -62,6 +62,13 @@
         "$ref": "#/$defs/GroupCounts"
       }
     },
+    "minted_targets": {
+      "type": "array",
+      "description": "FR-050-AC-38 (#361): row-level identity and backed state behind groups and totals. ABSENT only when the model minted no rows; additive under FR-055-CON-3.",
+      "items": {
+        "$ref": "#/$defs/MintedTargetRecord"
+      }
+    },
     "criteria": {
       "type": "array",
       "description": "FR-050-AC-13 (CR-028): per-document property-shape counts. Absent for a corpus binding no criteria.",
@@ -75,6 +82,15 @@
       "items": {
         "$ref": "#/$defs/CoverageDiagnostic"
       }
+    },
+    "diagnostic_reason_registry": {
+      "type": "array",
+      "description": "agent-ix/quire-rs#300: every stable reason token this engine can emit in diagnostics, in deterministic registry order. Always emitted by current engines; optional in v1 so payloads from older engines remain readable under FR-055-CON-3.",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
     },
     "obligations": {
       "type": "array",
@@ -109,6 +125,13 @@
         "$ref": "#/$defs/BindingCensus"
       }
     },
+    "unmatched_tags": {
+      "type": "array",
+      "description": "FR-050-AC-39 (#362): generic trace-id tokens in evidence-symbol annotation blocks that no declared form bound on that symbol. Each record is row-addressable and engine-parsed, so consumers do not duplicate adapter boundaries or mistake id-shaped test-body data for a tag. ABSENT when empty; additive under FR-055-CON-3.",
+      "items": {
+        "$ref": "#/$defs/UnmatchedTag"
+      }
+    },
     "metrics": {
       "type": "array",
       "description": "FR-063 (CR-094, #229): every headline number this payload emits, with its unit, population, method and match count. The generalization of `binding_census` \u2014 that field names the one premise `backed/total` happens to rest on; this makes stating the premise a property of every ratio, so a percentage cannot be emitted without the counts that say whether it measured anything. Always emitted by the engine; OPTIONAL here so a payload from an engine predating the field still conforms (FR-055-CON-3).",
@@ -125,9 +148,36 @@
       "items": {
         "$ref": "#/$defs/Suspicion"
       }
+    },
+    "engine": {
+      "$ref": "#/$defs/EngineProvenance"
     }
   },
   "$defs": {
+    "EngineProvenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cli", "engine", "capabilities"],
+      "description": "Which instrument produced this payload (agent-ix/quire-cli#68, CR-104). Assembled by `quire-cli`, which is the only layer that knows both versions; ABSENT from a payload built by calling `CoverageReport::to_json` in-process, and absent from any CLI predating the field. NOT the contract version \u2014 that stays in the `$id` and the filename, and FR-055-CON-2 still forbids a payload key naming it. This is provenance of the MEASUREMENT: a current CLI can link a stale engine, and every number in this payload is only as trustworthy as the engine that computed it.",
+      "properties": {
+        "cli": {
+          "type": "string",
+          "description": "The `quire-cli` crate version."
+        },
+        "engine": {
+          "type": "string",
+          "description": "The resolved `quire-rs` version actually linked, read from the consuming crate's lockfile entry \u2014 specifically the `?tag=` / `?rev=` / `?branch=` locator in that entry's `source` field, or the commit sha where the locator is absent. NOT the entry's `version` field: for a git dependency that field is the dependency's own manifest constant, and this crate's manifest has read `0.33.0` at every tag from v0.42.0 through v0.45.0, so reading it would restate the defect one layer down. A `-<n>-g<sha>` suffix, a bare rev, or a branch name is carried VERBATIM and never rounded to the nearest tag: the whole defect is a binary claiming a version it does not have."
+        },
+        "capabilities": {
+          "type": "array",
+          "uniqueItems": true,
+          "description": "What this build can emit, as tokens. DELIBERATELY OPEN, and deliberately not version arithmetic: a consumer asserts it needs `binding_census`, not that the engine is `>= 0.43.0`, because a version comparison in a consumer is a second place the contract lives. A newer CLI adding a token must not break a consumer written against an older one.",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
     "Metric": {
       "type": "object",
       "description": "One emitted number and its provenance. `state` discriminates: a measurement that RAN carries value/population/matched; one that did not carries `because` and no numbers at all, so 'not computed' can never be read as a zero (#226).",
@@ -249,6 +299,7 @@
       "required": [
         "language",
         "candidates",
+        "tagged",
         "bound",
         "forms"
       ],
@@ -267,10 +318,25 @@
           "minimum": 0,
           "description": "Evidence symbols examined \u2014 those whose kind admits a trace tag (test function, benchmark, fuzz target). A container or a production function is never a candidate (CR-061), so this is not a count of all symbols."
         },
+        "tagged": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Candidates whose attached annotation block carries a generic id-shaped token, whether or not the declared grammar can read it. Bound candidates always count as tagged, preserving bound <= tagged <= candidates."
+        },
         "bound": {
           "type": "integer",
           "minimum": 0,
           "description": "Candidates that minted at least one `verifies` relation. Counts SYMBOLS, not relations: a test carrying five ids counts once, so a handful of heavily-tagged tests cannot hide a thousand unreadable ones."
+        },
+        "self_named": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Evidence symbols whose own declaration name carries a separator-delimited id such as tc_391 or tc-391. ABSENT when zero. This subpopulation prevents bindings through comments or attributes from masking a broken test-name form (#367)."
+        },
+        "self_named_bound": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Self-named evidence symbols whose declaration line was read by a declared legacy name form. ABSENT when zero; comment and attribute bindings do not increment it."
         },
         "forms": {
           "type": "array",
@@ -282,7 +348,30 @@
         "unbound_example": {
           "$ref": "#/$defs/UnboundSymbol",
           "description": "ABSENT when every candidate bound \u2014 which is also when no binding diagnostic fires \u2014 so a report over a fully-bound corpus keeps the shape an engine predating this field emitted (FR-050-AC-7). Additive under FR-055-CON-3."
+        },
+        "unmatched_example": {
+          "$ref": "#/$defs/UnboundSymbol",
+          "description": "One deterministic path and line whose evidence symbol carries an id-shaped token but minted no verifies relation. Absent when no authored tag was missed."
+        },
+        "self_named_unbound_example": {
+          "$ref": "#/$defs/UnboundSymbol",
+          "description": "One deterministic self-named evidence symbol no declared name form read. Absent when every self-named symbol bound or no such symbol exists."
         }
+      }
+    },
+    "UnmatchedTag": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["trace_id", "language", "path", "line", "symbol"],
+      "properties": {
+        "trace_id": {"type": "string", "minLength": 1},
+        "language": {
+          "type": "string",
+          "enum": ["rust", "python", "typescript"]
+        },
+        "path": {"type": "string", "minLength": 1},
+        "line": {"type": "integer", "minimum": 1},
+        "symbol": {"type": "string", "minLength": 1}
       }
     },
     "UnbackedRow": {
@@ -528,6 +617,18 @@
         }
       }
     },
+    "MintedTargetRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "target", "document", "line", "backed"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "target": {"type": "string", "minLength": 1},
+        "document": {"type": "string", "minLength": 1},
+        "line": {"type": "integer", "minimum": 1},
+        "backed": {"type": "boolean"}
+      }
+    },
     "CriteriaCounts": {
       "type": "object",
       "additionalProperties": false,
@@ -605,11 +706,61 @@
             "null"
           ]
         },
+        "line": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "agent-ix/quoin#239: one-based source line at the smallest repair locus, when the engine computed one. Absent when the diagnostic is genuinely document- or model-scoped."
+        },
         "value": {
           "type": "string",
           "description": "FR-054-AC-12 (CR-091, #179): the vocabulary or catalog value the diagnostic is about, verbatim, when it is about exactly one. `uncatalogued-verification-method` carries the authored method here \u2014 the identical string the Obligation records carry in `method` \u2014 so a consumer distinguishes an uncatalogued value from a genuine method disagreement by an equality join instead of parsing the message (quoin#168). Absent when the diagnostic is not about one value. Additive under FR-055-CON-3."
+        },
+        "subject": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The affected row, declaration, metric, criterion, or symbol. Additive under FR-055-CON-3; current producers emit the complete guidance group."
+        },
+        "change_target": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The source or configuration surface an operator should inspect or change."
+        },
+        "remedy": {
+          "type": "string",
+          "minLength": 1,
+          "description": "A prescribed repair when the producer has enough evidence to recommend one safely. Mutually exclusive with next_diagnostic_step."
+        },
+        "next_diagnostic_step": {
+          "type": "string",
+          "minLength": 1,
+          "description": "A safe investigation step when the producer cannot choose a trustworthy repair. Mutually exclusive with remedy."
         }
-      }
+      },
+      "oneOf": [
+        {
+          "not": {
+            "anyOf": [
+              { "required": ["subject"] },
+              { "required": ["change_target"] },
+              { "required": ["remedy"] },
+              { "required": ["next_diagnostic_step"] }
+            ]
+          }
+        },
+        {
+          "required": ["subject", "change_target"],
+          "oneOf": [
+            {
+              "required": ["remedy"],
+              "not": { "required": ["next_diagnostic_step"] }
+            },
+            {
+              "required": ["next_diagnostic_step"],
+              "not": { "required": ["remedy"] }
+            }
+          ]
+        }
+      ]
     },
     "VocabularyValueRecord": {
       "type": "object",
@@ -871,8 +1022,49 @@
           "type": "string",
           "minLength": 1,
           "description": "The numbers behind the claim, rendered. Not decoration: a suspicion a reader cannot check in one look is one they learn to scroll past, which is how an advisory check becomes noise rather than a skeptic."
+        },
+        "subject": {
+          "type": "string",
+          "minLength": 1
+        },
+        "change_target": {
+          "type": "string",
+          "minLength": 1
+        },
+        "remedy": {
+          "type": "string",
+          "minLength": 1
+        },
+        "next_diagnostic_step": {
+          "type": "string",
+          "minLength": 1
         }
-      }
+      },
+      "oneOf": [
+        {
+          "not": {
+            "anyOf": [
+              { "required": ["subject"] },
+              { "required": ["change_target"] },
+              { "required": ["remedy"] },
+              { "required": ["next_diagnostic_step"] }
+            ]
+          }
+        },
+        {
+          "required": ["subject", "change_target"],
+          "oneOf": [
+            {
+              "required": ["remedy"],
+              "not": { "required": ["next_diagnostic_step"] }
+            },
+            {
+              "required": ["next_diagnostic_step"],
+              "not": { "required": ["remedy"] }
+            }
+          ]
+        }
+      ]
     },
     "UnboundSymbol": {
       "type": "object",

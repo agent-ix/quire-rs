@@ -22,7 +22,7 @@ use super::spec::Spec;
 use super::validate::{pack, posture_tier, BundleFinding, BundlePosture, BundleReport};
 use crate::grammar::GrammarSeverity;
 use crate::registry::Registry;
-use crate::traceability::{DocumentReference, TraceTarget};
+use crate::traceability::{DocumentReference, TraceTarget, TraceTargetEvidence};
 
 /// One referencing row found in a declared reference column.
 struct ReferencingRow {
@@ -59,9 +59,15 @@ pub(crate) fn validate_trace_references(
     let mut ctx = declared_tables::ScanContext::default();
     let mut resolution: BTreeMap<&str, BTreeSet<String>> = BTreeMap::new();
     for target in &model.trace_targets {
+        let mut reference_only_ctx = declared_tables::ScanContext::default();
+        let target_ctx = if target.evidence == TraceTargetEvidence::ReferenceOnly {
+            &mut reference_only_ctx
+        } else {
+            &mut ctx
+        };
         resolution.insert(
             target.name.as_str(),
-            minted_ids(spec, root, target, &model_exclude, &mut ctx),
+            minted_ids(spec, root, target, &model_exclude, target_ctx),
         );
     }
 
@@ -109,9 +115,12 @@ pub(crate) fn validate_trace_references(
     // typo or an unreadable declared document produced an empty resolution
     // set in silence — and since CR-049 made selection load-bearing, the same
     // silence also stopped the engine parsing the bodies it would have read.
-    let minted_anything = resolution.values().any(|ids| !ids.is_empty());
+    //
+    // The `minted_anything` argument is gone with the model-wide gate it fed
+    // (CR-135, #304): one declaration succeeding is not a reason to withhold a
+    // different declaration's finding.
     let severity = registry.grammar_severity();
-    for (declaration, diagnostic) in ctx.into_diagnostics(minted_anything) {
+    for (declaration, diagnostic) in ctx.into_diagnostics() {
         let (path, message) = declared_tables::scan_finding(&declaration, &diagnostic, root);
         // Warn tier in both postures (CR-054), now tunable (FR-057).
         report.route(
@@ -152,6 +161,12 @@ fn minted_ids(
         archetype: &target.archetype,
         exclude: &exclude,
         model_exclude,
+        // A trace target: the CR-117 minting diagnostics apply, and `validate`
+        // reports them under the same machine tokens `coverage` does — one
+        // vocabulary, two surfaces (CR-054).
+        mints: Some(&target.id_column),
+        status_column: None,
+        section_required: target.required,
     };
     let mut ids: BTreeSet<String> = BTreeSet::new();
     // A document of the target archetype mints its own id, too — an authored
@@ -194,6 +209,9 @@ fn referencing_rows(
             archetype: &declaration.archetype,
             exclude: &exclude,
             model_exclude,
+            mints: None,
+            status_column: None,
+            section_required: false,
         },
         &declaration.section,
         ctx,

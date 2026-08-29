@@ -29,7 +29,10 @@ spec-semantics-as-module-data pattern as `body_extraction`, `lint_rules`, and
 - **Trace targets** — which archetype + section + table + id column mints
   trace ids (e.g. the FR `Acceptance Criteria` `ID` column via its existing
   `id_pattern`), including targets minted by an auxiliary trace source outside
-  the corpus walk (e.g. Test Matrix rows in `spec/tests.md`).
+  the corpus walk (e.g. Test Matrix rows in `spec/tests.md`). A target MAY set
+  `required: false` when the section is optional per selected document; absence
+  then emits no section finding, while a present section is still scanned and
+  validated. Omission means `required: true`.
 - **Document references** — which columns or annotations reference which
   target kinds (e.g. the `Verification` cell annotation `Test (TC-nnn)` → TC
   targets; the matrix `Traces To` column → requirement/AC targets). These
@@ -95,9 +98,9 @@ target, document reference, or grammar binding names has its body left
 unmaterialised ([FR-025](./FR-025-spec-corpus-model.md) lazy tier). Selection
 is decided on the header tier (frontmatter `type`), **never by filename**
 (CR-044), and `exclude:` globs apply *after* archetype selection, not
-instead of it. A declared archetype whose document lacks the declared
-section (e.g. a root index-of-matrices `TestMatrix` with no
-`## Test Case Summary`) is legal and simply mints nothing. A caller that
+instead of it. A selected document lacking a required target section is a
+minting finding; one lacking a target explicitly declared `required: false` is
+healthy and simply mints nothing. A caller that
 needs every body — `quire validate`'s structural pass — asks for every
 body; the point is that it *asks*.
 
@@ -109,6 +112,11 @@ diagnostic instead of an empty report.
 
 A module other than `spec-artifacts-iso` obtains coverage by declaring its own
 model; the engine knows nothing of "AC" or "TC" as concepts.
+
+The coverage report is an input to the ecosystem partition specified by
+[FR-066](./FR-066-gap-disposition-census.md). That census deliberately uses
+authored rows rather than `totals.total` as its denominator, so a declaration
+that failed to mint cannot erase its own gap from the population.
 
 ## Constraints
 
@@ -148,16 +156,153 @@ model; the engine knows nothing of "AC" or "TC" as concepts.
 | FR-050-AC-25 | A `source_exclude` list containing a pattern that does not compile never partially filters: module load rejects it with an error naming `source_exclude` as the key at fault, and an extraction invoked with globs that bypassed model validation applies **no** glob at all and surfaces a diagnostic naming the offending pattern (CR-088). | Test (TC-954, TC-945) |
 | FR-050-AC-26 | Every row-shaped coverage record — `unbacked_rows`, `status_lies`, `no_symbol_rows`, `undeclared_statuses` — carries the 1-based document line (frontmatter included, the numbering `validate` findings use) of the matrix row it came from, with two unbacked rows in one document reporting different lines; `untracked_symbols` carries the tagged symbol's declaration line. The contract's `line` keys are optional and omitted — never `null` — when unrecovered, so a payload from an engine predating them still conforms and a conformant reader of the prior schema is unbroken (CR-089). | Test (TC-955, TC-956, TC-957) |
 
-| FR-050-AC-27 | The coverage report carries the FR-051-AC-19 binding census as `binding_census`, **unconditionally** — present whenever the code walk found at least one evidence symbol, whether or not anything bound, so a reader can tell a healthy premise from a hollow one without waiting for a failure. A language with candidates and zero bound is additionally reported in `diagnostics` under `no-symbol-bound`; a language binding a smaller fraction of its candidates than the declared floor is reported under `low-symbol-binding` with both counts rather than a verdict. Both records name the language in `value`, declare `traceability.trace_tags`, and name every form that was consulted. A language at or above the floor is reported in the census and in no diagnostic. Neither record affects `totals`, and `--strict` does not gate on them (CR-093). | Test (TC-983, TC-984) |
+| FR-050-AC-27 | The coverage report carries the FR-051-AC-19 binding census as `binding_census`, **unconditionally** — present whenever the code walk found at least one evidence symbol, whether or not anything bound, so a reader can tell a healthy premise from a hollow one without waiting for a failure. A language with candidates and zero bound is additionally reported in `diagnostics` under `no-symbol-bound`; a language binding a smaller fraction of its candidates than MP-201's observation boundary is reported under `low-symbol-binding` with both counts and explicit uncertainty rather than a diagnosis. Both records name the language in `value`, declare `traceability.trace_tags`, and name every form that was consulted. A language at or above the boundary is reported in the census and in no diagnostic. Neither record affects `totals`, and `--strict` does not gate on them (CR-093, CR-135). | Test (TC-983, TC-984) |
 
 | FR-050-AC-28 | The criteria rollup carries the FR-052-AC-18 split: `totals.specific_shaped` alongside `criteria` and `property_shaped` as an all-or-nothing triple, a per-document `specific_shaped` count absent when zero, and a per-document `grounding` map giving, per shape label, how many of its records carry `domain` / `precondition` / `oracle` and how many carry all three. `coverage.specific_shaped` is emitted as its own FR-063 metric over the same denominator as `coverage.property_shaped`, so the two are comparable and the honest figure is findable by name (CR-095). | Test (TC-989) |
 | FR-050-AC-29 | A declarative corpus case is data: `{name, issue_ref, tags, input, expect}`, where `input` is a whole miniature repository (module manifest, spec documents, source files) and `expect` names only the facts the case is about. One parameterized test runs every case; each case is uniquely named, carries at least one tracking id, and carries an `issue_ref` naming the filing it regresses. Two runs of a case produce byte-identical reports. `expect` can assert diagnostics that must be **absent** as well as present. | Test (TC-992..TC-996) |
 | FR-050-AC-30 | A corpus benchmark scores declared metrics against checked-in baselines with **ratchet** semantics: better rewrites the baseline, equal holds, worse fails naming the metric and both values. Every metric declares unit / population / method / direction, and a number outside the dictionary is refused. A `gate-zero` metric never ratchets — it is a gate with no tolerance. A corpus entry that cannot be read is **skipped loudly**, and a metric the payload cannot supply is **omitted with its reason**, never scored zero. A tier-2 entry declares a pinned SHA and a run against a different tree is refused. Reports are deterministic. | Test (`scripts/tests/test_bench.py`) |
 | FR-050-AC-31 | A cross-corpus sweep snapshots per-repository numbers across the enumerated ecosystem and compares two snapshots as a **distribution**: improved / regressed / unchanged counts, the net gain, and the fraction of that gain contributed by a single repository. A repository the engine cannot read is recorded as unreadable rather than scored zero; a population that moved between snapshots is reported, and the comparison is over the intersection. Gains and regressions are counted separately and never netted into one number. | Test (`scripts/tests/test_overfit_check.py`) |
 | FR-050-AC-32 | The benchmark corpus spans **every language the binder binds**, and a corpus entry may declare which metrics it is scored on so it can be carried for language coverage without its content churn thrashing a ratchet. `skeptic.suspicion_rate` — suspicions over evidence symbols examined — is scored per entry: a rate near 100% is a rule misreading a language, not a corpus full of vacuous tests. | Test (`scripts/tests/test_bench.py`) |
+| FR-050-AC-33 | A **trace target** that selects a document by archetype and then reads nothing out of it is reported per document, never in silence, under two distinct machine tokens: `section-matches-nothing` when the declared `section:` heading is absent, and `id-column-matches-nothing` when the section is found and the declared `id_column` is not among the table's headers. Each record names the document in `path` and names, in its message, both the value **found** and the value **declared**; the section record additionally names the `id_column` it could **not** check, because the absent heading strands the table before the column is read. Neither is gated on whether any other declaration minted, so a model minting its criteria normally still reports a stranded matrix. A reference declaration — whose section is legitimately optional — and a document carrying the declared heading and column both report neither (CR-117). | Test (TC-1033, TC-1034, TC-1035) |
+| FR-050-AC-34 | A declaration's `section:` accepts **one heading name or several**, on that one key: a scalar as before, or a sequence. Every named section of a document contributes its own table, in **document order**, and each is checked for the declared `id_column` separately. An entry containing `*` matches any run of characters, including none; an entry containing none is the heading exactly, matched as `query::section` has always matched it — and no other metacharacter is introduced. A one-name declaration selects the same headings it always did, with one measured exception: where a document repeats that heading, every occurrence now contributes where the first alone used to — `tables_of` walks all matching sections while `query::section` returned the first. Measured: **0 of 393** TestMatrix documents repeat the ecosystem declared heading, so the ecosystem is unaffected, but it is a behaviour change and is stated as one rather than as an identity. An empty sequence, or a blank entry, fails module load naming the declaration. When no named section is present the `section-matches-nothing` record names **every** section the declaration tried, and a one-name declaration round-trips back out as the scalar it was authored as (CR-118). | Test (TC-1037, TC-1038) |
+| FR-050-AC-36 | A declared **trace target** whose archetype names no document in the corpus is reported as `archetype-matches-nothing`, naming the declaration and the archetype, **whenever it happens** — never suppressed because a different declaration minted. The record names no document, because there is no file to open. A **reference** declaration is not reported: its section is legitimately optional, the same distinction that keeps `section-matches-nothing` off healthy repositories. The payload shape is otherwise unchanged — a target that matched nothing is still absent from `groups` rather than present with a zero total. | Test (TC-1048, TC-1049) |
+| FR-050-AC-37 | An id in `untracked_symbols` and an id in `unbacked_rows` that differ only in **zero-padding, letter case or separator** are reported as one `untracked-id-near-miss`, naming **both** spellings and both loci. Zero-padding, case and separator are one class and collapse onto one key, so `TC-1`, `tc_001` and `TC-001` compare equal while `TC-001` and `TC-010` do not. An **exact** match is not reported — the id bound and its row went unbacked for some other reason — and an id matching no row at all is not reported either. No count moves: the two halves were already in the payload, and what is new is the join. | Test (TC-1050, TC-1051) |
+| FR-050-AC-38 | The report carries one `minted_targets` record per minted row with its id, target declaration, document, 1-based row line and backed state, deterministically ordered by target, document, id and line. The record count equals `totals.total` and the records whose state is backed equal `totals.backed`. An empty minted population omits the additive field under FR-055-CON-3 rather than inventing rows; a current CLI advertises the `minted_targets` capability so a census can refuse an older payload instead of inferring row state from `unbacked_rows`, which contains only document-reference rows (#361). | Test (TC-1073) |
+| FR-050-AC-39 | The report carries one `unmatched_tags` record for every generic trace-id token in an evidence symbol's attached annotation block that no declared form bound **on that symbol**. Each record names the trace id, language, repo-relative path, 1-based annotation line and qualified symbol, ordered deterministically by language, path, line, symbol and id. A bound id is absent while an unmatched sibling id on the same otherwise-bound symbol remains; id-shaped text appearing only inside the symbol body is absent. An empty population omits the additive field, and a current CLI advertises the `unmatched_tags` capability so a consumer can join authored-but-unread ids to matrix rows without reimplementing the engine's annotation parser (#362). | Test (TC-1074) |
+| FR-050-AC-40 | A trace target MAY declare `evidence: reference-only`; omission is exactly the existing `source` posture. A reference-only target still scans and registers every id for declared-reference resolution and dangling-reference checks, but its rows enter no coverage group, total or `minted_targets` record, a source tag naming one cannot manufacture backed coverage, and an absent optional registry emits no minting diagnostic. The posture is module data rather than an engine-known archetype or id prefix, an unknown value fails module load, and the default serializes as it did before the field existed (#363). | Test (TC-1075) |
+| FR-050-AC-41 | A trace target MAY declare `required: false`; omission is exactly the existing required posture. An archetype-matching document that omits an optional target section emits neither `section-matches-nothing` nor `section-holds-no-table` and does not enter the section-hit denominator. If the section is present, its table still mints rows and its id column is checked. An unknown/non-boolean posture fails module load, and the default serializes as it did before the field existed (#327). | Test (TC-1076) |
+| FR-050-AC-42 | When an `untracked_symbols` id is not itself minted but the active source-evidence model mints exact descendants under that id or its nearest ancestor, the report emits `untracked-id-has-minted-children` at the authored source locus and names the real child ids. For a direct parent it tells the author to tag the exact child that states the verified obligation. For a nested unminted class it explicitly forbids substituting an ancestor's child merely to clear coverage and instead says to correct the authored id or declare a target for its class. It does not back any child, does not hard-code an id class, and emits nothing for an unrelated typo (#328). | Test (TC-1077) |
+| FR-050-AC-43 | When a reference table has a status-shaped header but not the model's configured `traceability.status.column`, coverage emits `status-column-matches-nothing` at the 1-based table-header line. The record names the reference declaration, document, section, configured column and observed headers, states that status classification was skipped, and directs the author to align the configuration or rename the header without guessing which is intended. A table with the configured column remains quiet and status classification proceeds; a table with no status axis remains outside this check (#341). | Test (TC-1079) |
+| FR-050-AC-44 | For each language, the binding census separately counts evidence symbols whose own declaration name carries a separator-delimited trace id and how many of those names a declared legacy form reads on the declaration line. Bindings through comments or attributes do not satisfy that subpopulation. A non-zero self-named population with zero name-form bindings emits located `marker-form-mismatch` and the corresponding named metric emits `hollow-denominator`; a corrected declared form silences both. The additive counts and deterministic unbound example are omitted when empty (#367). | Test (TC-1083) |
+| FR-050-AC-35 | Where every declared section a document **has** holds no table, the declaration reports `section-holds-no-table` naming the document, the sections it matched and the sections it declares. One table-less section among others is not reported — a parent heading whose rows live under its sub-headings is ordinary. The record exists because that shape mints nothing while both sibling diagnostics stand down: the section **was** found, so `section-matches-nothing` cannot fire, and there is no table, so `id-column-matches-nothing` has no headers to read (CR-120). | Test (TC-1041) |
 
 
 
+
+> **CR-117 note (2026-08-24):** AC-33 is new — the archetype matched and the
+> declared table did not. `agent-ix/quire-rs#270`; epic
+> `agent-ix/quire-rs#264`.
+>
+> **The dominant ecosystem failure had no token at all.** `ScanDiagnostic`
+> carried exactly one reason, `archetype-matches-nothing`, for the case where a
+> declaration names an archetype no document has. The far more common case —
+> the archetype matches, the document is selected, and the declared `section:`
+> is one word off — went through `rows_of`'s `let Some(sec) = … else { return
+> Vec::new() }` and produced **nothing**: no finding, no path, no message. The
+> only symptom was a smaller denominator, which reads as a repository with
+> fewer tests.
+>
+> **[RAN]** across 239 repositories: **3,514 TC ids in 88 repositories** mint
+> nothing for this reason. Those repositories report **6.77%** of rows backed
+> against **32.55%** for repositories whose heading matches — so the defect
+> does not merely hide ids, it makes the repositories carrying it look like the
+> repositories doing the least testing.
+>
+> **Two tokens, not one, and the reason is measured.** The two faults were
+> first reported as producing indistinguishable payloads. Diffed key by key,
+> they differ in exactly one field: a wrong **section** strands the whole table
+> and `unbacked_rows` is empty, while a wrong **id column** reads the table and
+> mints a row whose `row_id` is `null`. `totals`, `groups`, `diagnostics`,
+> `binding_census`, `metrics` and `criteria` are byte-identical. The one field
+> that differs is not on any coverage summary. So a single "something matched
+> nothing" sends a reader of `agent-ix/identity` — where both faults sit on one
+> document — to edit the heading, and leaves all 606 ids stranded.
+>
+> **Scoped to trace targets, and that is load-bearing.** A *reference*
+> declaration's section is legitimately optional: the ecosystem's
+> `functional-coverage` reads `## Functional Requirement Coverage`, which the
+> matrix template emits only when it has content. Diagnosing its absence would
+> fire on every well-formed Test Matrix in the corpus — the failure mode that
+> killed two diagnostics during CR-094. A trace target's section is not
+> optional: it is the whole of what the declaration selects the document for.
+>
+> **Not gated on `minted_anything` — and since CR-135 neither is
+> `archetype-matches-nothing`.** A model-wide gate suppresses one declaration's
+> finding because a *different* declaration succeeded, which is exactly
+> `agent-ix/identity`: its FR criteria mint normally while 606 TC ids strand.
+> The gate was written because a model legitimately declares archetypes an
+> individual repository has no instance of; measured across 245 repositories,
+> that reasoning cost the `test-case` signal in 57 of them to spare noise in
+> the rest, and the noise is itself a declaration-side fact
+> (`agent-ix/spec-artifacts-process#75`) rather than an engine one.
+>
+> **The section message names the column it could not check.** The wrong
+> heading strands the table before the `id_column` is read, so on a document
+> carrying both faults the column fault is *unobservable*. A reader told only
+> about the heading fixes it, re-runs, and meets a second fault that was there
+> all along. Naming the unchecked column is what makes that one pass instead of
+> two.
+
+> **CR-118 note (2026-08-24):** AC-34 is new — one heading name reached one
+> heading. `agent-ix/quire-rs#272`; epic `agent-ix/quire-rs#264`.
+>
+> `TraceTarget.section` was `String`. A matrix that groups its rows under
+> several headings minted only the group under the one declared name, so the
+> denominator silently became *the rows under one heading* rather than *the
+> rows this document declares* — and a repository in that state reports
+> flawless minting health over the fraction it can see.
+>
+> **A pattern, not a list of names, and the reason is measured.** **[RAN]**
+> over the 393 `type: TestMatrix` documents in `~/dev`: 434 test-case ids sit
+> in a `Test ID` table the ecosystem's `test-case` target cannot reach, and
+> **306 of them are under a heading that CONTAINS `Test Case Summary`** —
+> `Test Case Summary (plugin scope)`, `Phase 4 Test Case Summary`,
+> `Test Case Summary — packages/elements`. Those qualifiers are per-repository
+> and per-phase, so the enumeration `#272` sketched
+> (`["Test Case Summary", "Test Cases", "Integration Test Matrix"]`) reaches 14
+> of the 434 and goes stale the day somebody writes `Phase 5`. The sequence
+> form is kept because a differently-named table is a different claim and reads
+> better as a name.
+>
+> **One key, and `*` is the only metacharacter.** A second `sections:` key
+> would be two spellings of one thing under `deny_unknown_fields`, and every
+> reader would have to handle both.
+>
+> A *glob* would make `?`, `[`, `]`, `{` and `}` special. Measured: **21**
+> distinct `section:` values are declared across every `manifest.yaml` under
+> `~/dev` and **none carries a glob metacharacter**, and of the 2,802 headings
+> in 417 `type: TestMatrix` documents exactly **one** carries `[`/`]` (a
+> markdown link) while `?`, `{`, `}` and `*` appear in none. So globset would
+> not change the meaning of any declaration that exists today — this is a
+> hazard the design forecloses, not one it was observed to hit, and it is
+> claimed as no more than that.
+>
+> An earlier draft of this note cited `Edge Cases [deferred]` as a real
+> ecosystem heading. **It is not.** It appears nowhere in `~/dev` and was
+> invented to support the conclusion. The conclusion survives on the census
+> above; the example did not exist.
+>
+> A name carrying no `*` is the heading exactly, which is what makes "a target
+> declaring one section does not start matching others" a property of the
+> design rather than a test.
+>
+> **The reference declaration widens with the target.** `traces-to` reads
+> `Traces To` off the rows `test-case` mints. A section the target reaches and
+> the reference does not is a row whose id exists and whose stated coverage
+> nothing reads, so the criteria it answers for report unreferenced while the
+> matrix looks healthy. Both take `SectionNames`; so does an obligation
+> source's, which scans the same declared tables.
+>
+> **The realised delta is 42× smaller than the estimate, and the reason is the
+> id column.** `#272` predicted Δtotal ≈ +3,514 rows and Δbacked ≈ +455, from
+> CR-117's census of ids stranded by an absent section. **[RAN]** over the 241
+> repositories `scripts/corpus.py` enumerates, before and after, with the same
+> binary and only the declaration changed: **total 19,938 → 20,021 (+83)** and
+> **backed 5,036 → 5,037 (+1)**, moving row backing 25.26% → 25.16%. Two
+> repositories moved; a third, `filament-ide`, holds 221 more but is
+> `SUPERSEDED` and correctly outside the population.
+>
+> The estimate counted ids whose section is absent. Minting one needs the
+> declared `id_column` too, and the ecosystem's stranded rows overwhelmingly
+> fail on **both**: 5,732 ids across 120 repositories sit under a non-declared
+> heading in a table whose id column is `Test Case ID`, `Test Case` or `ID`.
+> `agent-ix/identity` — the ticket's own 606-id example — was measured with
+> `section: "*"`, matching every heading in the document: it mints **zero**
+> test-case ids and reports 33 `id-column-matches-nothing` findings instead.
+> Not one of its ~30 headings carries a `Test ID` column, so no widening of
+> `section:` can reach a single one of those ids. That is precisely the second
+> pass CR-117's message was written to warn about, now walked and counted; the
+> remaining population is an `id_column` ticket, not this one.
 
 > **CR-101 note (2026-08-22):** AC-31 is new — the overfit check.
 > `agent-ix/quire-rs#237`; epic `agent-ix/quoin#197`.
@@ -331,16 +476,23 @@ model; the engine knows nothing of "AC" or "TC" as concepts.
 > FR-050-AC-7 is untouched: the guarantee there is that repeated runs agree, and
 > they do.
 >
+> **CR-135 note (2026-08-26):** MP-201 now owns the 5% observation definition
+> (`coverage.binding-read-v1`). FND-201 found that the old message crossed from
+> observation into diagnosis by calling a marker-form mismatch the likeliest
+> explanation without comparative evidence. The engine retains the factual
+> boundary and both counts, but now says it cannot distinguish sparse tagging
+> from a marker-form mismatch and tells the reader what to inspect. The plan is
+> at `observe`; the boundary is neither a target nor a gate (`quire-rs#275`).
+>
 > **Two reasons, not one threshold.** `no-symbol-bound` is unambiguous — every
 > candidate walked, every declared pattern missed — and needs no judgement.
 > `low-symbol-binding` exists because at 3% a tail of genuinely untagged tests
 > and a near-miss pattern look identical from inside the engine, so it reports
-> both counts and names the forms rather than asserting which. The floor is
+> both counts and names the forms rather than asserting which. The observation boundary is
 > **5%**, and it is deliberately not a coverage target: an unbound candidate is
 > usually a real untagged test, and a repository mid-migration sits well under
-> any number worth calling healthy. It is the point below which the likeliest
-> explanation stops being "tests are untagged" and starts being "the binder
-> cannot read this convention" — a different finding with a different fix.
+> any number worth calling healthy. Below it, the two explanations require
+> inspection outside the engine.
 >
 > **Why the existing channel did not cover it.** `diagnostics` was already
 > populated and read — 33 records on that corpus, all
@@ -780,7 +932,7 @@ model; the engine knows nothing of "AC" or "TC" as concepts.
 
 - **Upstream**: [FR-051](./FR-051-source-symbol-extraction.md) (the symbol graph and trace tags), [FR-027](./FR-027-whole-spec-query-api.md) (corpus queries), [FR-014](./FR-014-module-activation.md) (manifest loading), [FR-010](./FR-010-query-api.md) (table extraction)
 - **Upstream (added CR-028)**: [FR-052](./FR-052-acceptance-criteria-property-classification.md) (the per-criterion property classification the `criteria` counts summarize)
-- **Downstream**: [FR-049](./FR-049-verification-reference-integrity.md) (reference declarations reused by bundle validation); `spec-artifacts-iso` declares the ISO model (follow-up change in that module); the `gap-analysis` workflow replaces its grep step with `quire coverage`
+- **Downstream**: [FR-049](./FR-049-verification-reference-integrity.md) (reference declarations reused by bundle validation); `spec-artifacts-iso` declares the ISO model (follow-up change in that module); the `gap-analysis` workflow replaces its grep step with `quire coverage`; [FR-065](./FR-065-controlled-corpus-contract.md) (the controlled corpus whose cases assert against this payload — a case's `expect` is written against the shape published by FR-055)
 
 > **CR-103 note (2026-08-22):** `agent-ix/quire-rs#237`, reopened.
 > SR-054 FND-005 — **the ratchet's corpus was one language.**

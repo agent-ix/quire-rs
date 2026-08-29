@@ -24,27 +24,32 @@ jobs:
     name: build wheel + pytest
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c # stable action
+        with:
+          toolchain: 1.94.1
 
       - name: Cache cargo artifacts
-        uses: Swatinem/rust-cache@v2
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.12"
 
       - name: Install build + test deps
-        run: pip install maturin pytest pyyaml
+        run: python3 -m pip install --require-hashes -r requirements/ci.txt
 
       - name: Build abi3 wheel
-        run: maturin build --release --features python --out dist
+        uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1
+        with:
+          command: build
+          args: --locked --release --features python --out dist
 
       - name: Install the wheel
-        run: pip install --no-index --find-links dist quire
+        run: python3 -m pip install --no-index --find-links dist quire
 
       - name: Run binding tests
         run: pytest tests/python/ -v

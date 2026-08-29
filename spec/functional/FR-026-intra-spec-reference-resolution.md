@@ -31,7 +31,7 @@ relationships:
 
 > **CR note (internal relative-path links, ADR 0007, 2026-06-17):** intra-bundle
 > references are authored as **relative-path Markdown links**
-> (`[FR-002](./FR-002-graph-edges.md)`), with `ix://` retained for external /
+> (`[FR-002](./FR-002-schema-validation-pipeline.md)`), with `ix://` retained for external /
 > cross-repo references only. This FR gains a **third edge-stub source** —
 > relative-path body links resolved via a path→id index over the loaded corpus —
 > and new ACs (FR-026-AC-9..11). This also makes good [FR-038](./FR-038-okf-bundle-validation.md)'s existing Okf prose

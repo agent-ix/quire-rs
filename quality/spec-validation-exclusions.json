@@ -1,0 +1,41 @@
+{
+  "schemaVersion": "quire-spec-validation-exclusions-v1",
+  "entries": [
+    {
+      "path": "spec/assurance/AP-201-detection-minting.md",
+      "reason": "Phase-7 engineering-assurance artifact; migration is intentionally outside the Quire/Quoin stabilization scope."
+    },
+    {
+      "path": "spec/assurance/MP-201-binding-read.md",
+      "reason": "Phase-7 engineering-assurance artifact; migration is intentionally outside the Quire/Quoin stabilization scope."
+    },
+    {
+      "path": "spec/assurance/MP-202-backed-trace.md",
+      "reason": "Phase-7 engineering-assurance artifact; migration is intentionally outside the Quire/Quoin stabilization scope."
+    },
+    {
+      "path": "spec/assurance/MP-203-dead-tags.md",
+      "reason": "Phase-7 engineering-assurance artifact; migration is intentionally outside the Quire/Quoin stabilization scope."
+    },
+    {
+      "path": "spec/assurance/MP-204-minting-repositories.md",
+      "reason": "Phase-7 engineering-assurance artifact; migration is intentionally outside the Quire/Quoin stabilization scope."
+    },
+    {
+      "path": "spec/assurance/MP-205-specific-properties.md",
+      "reason": "Phase-7 engineering-assurance artifact; migration is intentionally outside the Quire/Quoin stabilization scope."
+    },
+    {
+      "path": "spec/assurance/MP-206-silent-zero.md",
+      "reason": "Phase-7 engineering-assurance artifact; migration is intentionally outside the Quire/Quoin stabilization scope."
+    },
+    {
+      "path": "spec/assurance/MP-207-skeptic-suspicion.md",
+      "reason": "Phase-7 engineering-assurance artifact; migration is intentionally outside the Quire/Quoin stabilization scope."
+    },
+    {
+      "path": "spec/assurance/MP-208-authoring-tag-rate.md",
+      "reason": "Phase-7 engineering-assurance artifact; migration is intentionally outside the Quire/Quoin stabilization scope."
+    }
+  ]
+}

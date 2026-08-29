@@ -116,6 +116,11 @@ fn tc824_the_baseline_corpus_still_exercises_the_surface() {
     );
     assert!(!report.groups.is_empty(), "per-document group counts");
     assert!(!report.criteria.is_empty(), "criteria classification");
+    assert_eq!(
+        report.unmatched_tags.len(),
+        1,
+        "the baseline must gate the row-addressable unmatched-tag surface"
+    );
     // "Healthy MODEL", not healthy corpus: this fixture deliberately carries
     // unbacked rows, status lies and untracked symbols, and the assertion is
     // that its module DECLARATION is sound — no unread marker form, no dead

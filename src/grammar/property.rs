@@ -424,10 +424,27 @@ pub fn classify_property(statement: &str, idioms: &PropertyIdioms) -> Classified
     // statement, the determiner end and the predicate markers, none of which are
     // Universal-specific. A statement that is not quantified still has
     // `quantified == None` and still carries no spans, so a shape that genuinely
-    // states no domain gains nothing invented. And the registry still cannot
-    // reach this: `quantified` is structural, so FR-052-CON-4 holds unchanged.
-    let spans = quantified
-        .and_then(|q| decompose(statement, &masked, q.domain_start, &markers, &mut signals));
+    // states no domain gains nothing invented. It does retain an explicit
+    // refusal when the final property is specific: downstream evaluation must
+    // be able to distinguish "no input domain was stated" from a silently
+    // missing payload. The registry can sharpen the label and make that refusal
+    // applicable, but it still cannot invent a domain or change `extractable`;
+    // FR-052-CON-4 holds unchanged.
+    let spans = match quantified {
+        Some(q) => decompose(
+            statement,
+            &masked,
+            q.domain_start,
+            q.partitive,
+            &markers,
+            &mut signals,
+        ),
+        None if property.is_specific() => {
+            signals.push("span:refused-no-explicit-domain");
+            None
+        }
+        None => None,
+    };
 
     // Derived last, from the final label and the structural boolean. It reads
     // both and writes neither, which is what keeps CON-4 intact while letting a
@@ -536,6 +553,9 @@ struct Quantification {
     /// Byte offset into the masked statement at which the quantified domain
     /// starts. Byte-equal in the original — the mask is length-preserving.
     domain_start: usize,
+    /// Partitive forms (`Each of the …`) carry a plural noun that the weak
+    /// inflection regex cannot distinguish from a verb.
+    partitive: bool,
     /// The stable signal id recorded on the classification record.
     signal: &'static str,
 }
@@ -548,12 +568,25 @@ struct Quantification {
 /// classification without re-running the engine.
 fn quantification(masked: &str) -> Option<Quantification> {
     if let Some(m) = re_universal_determiner().find(masked) {
+        let domain_start = partitive_domain_start(masked, m.end());
         return Some(Quantification {
-            domain_start: m.end(),
+            domain_start,
+            partitive: domain_start != m.end(),
             signal: "universal:determiner",
         });
     }
     recall_subject_determiner(masked)
+}
+
+/// Skip the grammatical frame in a partitive quantifier (`Each of the 6
+/// Locator primitives`) so the domain names the generated subject rather than
+/// the words that count it. This is intentionally anchored immediately after
+/// the already-proven determiner; it cannot consume an `of` elsewhere in the
+/// statement.
+fn partitive_domain_start(masked: &str, start: usize) -> usize {
+    re_partitive_prefix()
+        .find(&masked[start..])
+        .map_or(start, |m| start + m.end())
 }
 
 /// The determiner at the **subject**, not at offset 0.
@@ -585,12 +618,14 @@ fn recall_subject_determiner(masked: &str) -> Option<Quantification> {
     if let Some(m) = re_fronted_subject_determiner().find(masked) {
         return Some(Quantification {
             domain_start: m.end(),
+            partitive: false,
             signal: "recall:subject-determiner:fronted-subject",
         });
     }
     let m = re_main_subject_determiner().find(masked)?;
     Some(Quantification {
         domain_start: m.end(),
+        partitive: false,
         signal: "recall:subject-determiner:main-subject",
     })
 }
@@ -668,6 +703,14 @@ fn predicate_markers(masked: &str) -> Vec<Marker> {
         if re_modifier_context().is_match(&masked[..m.start()]) {
             continue;
         }
+        // A word boundary also exists after `-`, but the suffix of a compound
+        // (`frontmatter-less`, `merged-validated`) is not a predicate. Let the
+        // next whole-word marker decide the clause boundary instead.
+        if masked.as_bytes().get(m.start().saturating_sub(1)) == Some(&b'-')
+            || masked.as_bytes().get(m.end()) == Some(&b'-')
+        {
+            continue;
+        }
         out.push((m.start(), m.end(), Strength::Weak));
     }
     out.sort_by_key(|(start, _, _)| *start);
@@ -697,6 +740,7 @@ fn decompose(
     statement: &str,
     masked: &str,
     determiner_end: usize,
+    partitive: bool,
     markers: &[Marker],
     signals: &mut Vec<&'static str>,
 ) -> Option<Spans> {
@@ -709,17 +753,32 @@ fn decompose(
     }
 
     // The restrictive filter clause, when there is one, opens the precondition.
-    let filter = re_filter_marker()
-        .find_iter(masked)
-        .find(|m| m.start() >= determiner_end);
+    // In a partitive domain (`Each of the 6 Locator primitives`), a plural
+    // head is indistinguishable from an inflected verb to the weak regex. A
+    // strong marker is therefore the first boundary we can defend.
+    let clause_marker = |from| {
+        if partitive {
+            markers
+                .iter()
+                .copied()
+                .find(|(start, _, strength)| *start >= from && *strength == Strength::Strong)
+        } else {
+            next_predicate_marker(markers, from)
+        }
+    };
+    let first_predicate = clause_marker(determiner_end);
+    let filter = re_filter_marker().find_iter(masked).find(|m| {
+        m.start() >= determiner_end
+            && first_predicate.map_or(true, |(start, _, _)| m.start() < start)
+    });
     // The oracle opens at the first predicate marker outside the precondition:
     // past the relative clause's own verb when a filter clause is present, and
     // past the determiner otherwise.
     let search_from = match filter {
-        Some(f) => next_predicate_marker(markers, f.end()).map_or(f.end(), |(_, end, _)| end),
+        Some(f) => clause_marker(f.end()).map_or(f.end(), |(_, end, _)| end),
         None => determiner_end,
     };
-    let (oracle_start, _, _) = next_predicate_marker(markers, search_from)?;
+    let (oracle_start, _, _) = clause_marker(search_from)?;
 
     let domain_end = filter.map_or(oracle_start, |f| f.start());
     let domain = span_of(statement, determiner_end, domain_end)?;
@@ -942,6 +1001,15 @@ fn re_universal_determiner() -> &'static Regex {
     })
 }
 
+/// The non-domain frame after a partitive quantifier: `Each of the records`,
+/// `All of 3 documents`. The generated subject starts after this prefix.
+fn re_partitive_prefix() -> &'static Regex {
+    static R: OnceLock<Regex> = OnceLock::new();
+    R.get_or_init(|| {
+        Regex::new(r"(?i)^of\s+(?:the\s+)?(?:\d+\s+)?").expect("partitive-prefix regex")
+    })
+}
+
 /// The head of a restrictive filter clause: a finite relative pronoun or a
 /// reduced relative.
 fn re_filter_marker() -> &'static Regex {
@@ -1078,6 +1146,7 @@ mod tests {
         let c = classify_property(unquantified, &idioms());
         assert_eq!(c.property, PropertyShape::Idempotence);
         assert!(c.spans.is_none());
+        assert!(c.signals.contains(&"span:refused-no-explicit-domain"));
 
         // CON-4 is untouched: `quantification` is structural, so a declared
         // idiom can neither add spans nor remove them. Asserted as span
@@ -1214,6 +1283,62 @@ mod tests {
         // decompose — the refusal is about the evidence, not the sentence.
         let anchored = "Each cached entry that is stale expires after the interval";
         assert!(classify_property(anchored, &idioms()).spans.is_some());
+    }
+
+    #[trace("TC-1078", "FR-052-AC-20")]
+    #[test]
+    fn tc1078_clause_boundaries_are_whole_word_and_subject_grounded() {
+        // Exact control: the established short form remains exact.
+        let exact = classify_property(ISSUE_CELL, &idioms())
+            .spans
+            .expect("the short control decomposes");
+        assert_eq!(exact.domain.text, "finding");
+        assert_eq!(exact.oracle.text, "defaults to warning");
+
+        // Boundary-error controls from #241: neither `less` nor `validated`
+        // may be read as a verb merely because a hyphen creates a regex word
+        // boundary before it.
+        let frontmatter = "A draft that is frontmatter-less loads exactly one warning";
+        let spans = classify_property(frontmatter, &idioms())
+            .spans
+            .expect("the whole-word predicate supplies a usable boundary");
+        assert_eq!(spans.oracle.text, "loads exactly one warning");
+        assert!(!spans.oracle.text.starts_with("less"));
+
+        let merged = "A call that is merged-validated returns SchemaViolation";
+        let spans = classify_property(merged, &idioms())
+            .spans
+            .expect("the compound suffix cannot open the oracle");
+        assert_eq!(spans.oracle.text, "returns SchemaViolation");
+
+        // Over-broad control: a later `when` belongs to the predicate's own
+        // outcome. It cannot retroactively turn everything before it into the
+        // domain.
+        let clause_heavy = "A section body pattern rule produces no finding when the \
+            named section matches, and exactly one finding when it is present";
+        let spans = classify_property(clause_heavy, &idioms())
+            .spans
+            .expect("the first predicate bounds the subject");
+        assert_eq!(spans.domain.text, "section body pattern rule");
+        assert!(spans.oracle.text.starts_with("produces no finding"));
+
+        // Wrong-subject control: the partitive grammar counts the domain but
+        // is not itself the thing a generator should produce.
+        let partitive = "Each of the 6 Locator primitives is exercised by a unit test";
+        let spans = classify_property(partitive, &idioms())
+            .spans
+            .expect("the partitive subject has a strong boundary");
+        assert_eq!(spans.domain.text, "Locator primitives");
+        assert_eq!(spans.oracle.text, "is exercised by a unit test");
+
+        // Safe-refusal control: unsupported weak-only syntax stays absent and
+        // keeps the stable machine reason used by downstream evaluation.
+        let refusal = classify_property(
+            "Each cached entry expires after the configured interval",
+            &idioms(),
+        );
+        assert!(refusal.spans.is_none());
+        assert!(refusal.signals.contains(&"span:refused-weak-boundary"));
     }
 
     #[trace("TC-783", "FR-052-AC-5")]
@@ -1730,19 +1855,19 @@ mod tests {
             ),
             (
                 "Serializing a document then parsing it yields the input",
-                "round-trip|true|round-trip:composition,round-trip:identity-back-reference",
+                "round-trip|true|round-trip:composition,round-trip:identity-back-reference,span:refused-no-explicit-domain",
             ),
             (
                 "Applying the migration twice yields the same result",
-                "idempotence|true|idempotence:repetition,idempotence:equality",
+                "idempotence|true|idempotence:repetition,idempotence:equality,span:refused-no-explicit-domain",
             ),
             (
                 "Findings are emitted in declaration order",
-                "ordering|true|ordering:lexicon",
+                "ordering|true|ordering:lexicon,span:refused-no-explicit-domain",
             ),
             (
                 "The loader never mutates the source file",
-                "invariant|true|invariant:absolute",
+                "invariant|true|invariant:absolute,span:refused-no-explicit-domain",
             ),
             (
                 "Each cached entry expires after the configured interval",
@@ -1754,7 +1879,7 @@ mod tests {
             ),
             (
                 "Two writers append to the log in parallel",
-                "concurrency|false|unclassified:no-signal,idiom:concurrency",
+                "concurrency|false|unclassified:no-signal,idiom:concurrency,span:refused-no-explicit-domain",
             ),
         ];
         for (statement, expected) in pinned {

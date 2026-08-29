@@ -18,10 +18,13 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
 from typing import Any
+
+from check_engine import Drift, build_engine
 
 ROOT = Path(__file__).resolve().parent.parent
 MANIFEST = ROOT / "bench" / "manifest.json"
@@ -30,6 +33,9 @@ BASELINES = ROOT / "bench" / "baselines.json"
 
 class BenchError(RuntimeError):
     """A benchmark run that must not be scored."""
+
+
+FULL_SHA = re.compile(r"^[0-9a-f]{40}$")
 
 
 # ── the ratchet ──────────────────────────────────────────────────────────────
@@ -55,7 +61,9 @@ def compare(metric: str, direction: str, observed: float, baseline: float | None
     if baseline is None:
         return "new", observed
 
-    better = observed > baseline if direction == "higher-is-better" else observed < baseline
+    better = (
+        observed > baseline if direction == "higher-is-better" else observed < baseline
+    )
     if better:
         return "improved", observed
     if observed == baseline:
@@ -106,7 +114,9 @@ def render(report: dict) -> tuple[str, bool]:
     lines = []
     failed = False
     for row in report["rows"]:
-        mark = {"improved": "++", "held": "ok", "new": "**", "regressed": "!!"}[row["verdict"]]
+        mark = {"improved": "++", "held": "ok", "new": "**", "regressed": "!!"}[
+            row["verdict"]
+        ]
         base = "—" if row["baseline"] is None else row["baseline"]
         lines.append(
             f"{mark} {row['corpus']}/{row['metric']}: {row['value']} "
@@ -136,11 +146,17 @@ def resolve_identity(entry: dict) -> str:
     if not path.exists():
         raise BenchError(f"{entry['name']}: corpus absent at {path}")
     head = subprocess.run(
-        ["git", "-C", str(path), "rev-parse", "--short", "HEAD"],
-        capture_output=True, text=True, check=False,
+        ["git", "-C", str(path), "rev-parse", "HEAD"],
+        capture_output=True,
+        text=True,
+        check=False,
     ).stdout.strip()
     pinned = entry["pinned_sha"]
-    if not head.startswith(pinned) and not pinned.startswith(head):
+    if not FULL_SHA.fullmatch(pinned):
+        raise BenchError(
+            f"{entry['name']}: pinned_sha must be a full lowercase Git SHA"
+        )
+    if head != pinned:
         raise BenchError(
             f"{entry['name']}: pinned at {pinned} but the tree is at {head}. "
             "Refusing to score — the answer key was adjudicated against the "
@@ -148,18 +164,73 @@ def resolve_identity(entry: dict) -> str:
             "to it. Check the corpus out at the pin, or move the pin "
             "deliberately."
         )
+    dirty = subprocess.run(
+        ["git", "-C", str(path), "status", "--porcelain=v1", "--untracked-files=all"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if dirty.returncode != 0 or dirty.stdout.strip():
+        raise BenchError(
+            f"{entry['name']}: pinned corpus tree is dirty. Refusing to score "
+            "an input whose bytes are not identified by its revision."
+        )
     return head
+
+
+def resolve_default_module(manifest: dict, module: str | None) -> str:
+    """Return the one attested module path, refusing path or revision drift."""
+    source = manifest.get("module_source")
+    if not isinstance(source, dict):
+        raise BenchError("benchmark manifest declares no pinned module_source")
+    for field in ("name", "path", "module", "identity", "pinned_sha"):
+        if not source.get(field):
+            raise BenchError(f"benchmark module_source declares no {field}")
+    if source["identity"] != "sha":
+        raise BenchError("benchmark module_source must use sha identity")
+    resolve_identity(source)
+    expected = (ROOT / source["path"] / source["module"]).resolve()
+    requested = Path(module).expanduser() if module else expected
+    if not requested.is_absolute():
+        requested = (ROOT / requested).resolve()
+    else:
+        requested = requested.resolve()
+    if requested != expected:
+        raise BenchError(
+            f"module path {requested} does not equal pinned module {expected}"
+        )
+    if not requested.is_dir():
+        raise BenchError(f"pinned module is absent at {requested}")
+    return str(requested)
 
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--update", action="store_true",
-                    help="rewrite baselines from this run (deliberate regen)")
-    ap.add_argument("--observed", type=Path,
-                    help="score a pre-collected observation file instead of sweeping")
-    ap.add_argument("--quire", default="quire", help="quire binary to sweep with")
-    ap.add_argument("--module", default=None,
-                    help="module directory supplying the traceability model")
+    ap.add_argument(
+        "--update",
+        action="store_true",
+        help="rewrite baselines from this run (deliberate regen)",
+    )
+    ap.add_argument(
+        "--observed",
+        type=Path,
+        help="score a pre-collected observation file instead of sweeping",
+    )
+    # #265: no PATH lookup. `--quire` defaulted to whatever was installed, so
+    # the checked-in ratchet baseline was produced by a binary nobody chose —
+    # measured on this machine, the installed `quire 0.30.2` emits no `engine`
+    # block at all. The binary is built from the consuming workspace at its
+    # pinned rev instead, exactly as `sweep_coverage.py` now does.
+    ap.add_argument(
+        "--consumer",
+        default="../quire-cli",
+        help="workspace to build the engine from (default: ../quire-cli)",
+    )
+    ap.add_argument(
+        "--module",
+        default=None,
+        help="module directory supplying the traceability model",
+    )
     args = ap.parse_args()
 
     manifest = json.loads(MANIFEST.read_text())
@@ -169,7 +240,14 @@ def main() -> int:
         if args.observed:
             observed = json.loads(args.observed.read_text())
         else:
-            observed = collect(manifest, args.quire, args.module)
+            consumer = Path(args.consumer).expanduser()
+            if not consumer.is_absolute():
+                consumer = (ROOT / consumer).resolve()
+            try:
+                quire = build_engine(consumer, release=True)
+            except Drift as error:
+                raise BenchError(str(error)) from error
+            observed = collect(manifest, quire, args.module)
     except BenchError as exc:
         print(f"bench: {exc}", file=sys.stderr)
         return 2
@@ -227,11 +305,34 @@ def metrics_from(payload: dict) -> dict[str, Any]:
     bound = sum(c["bound"] for c in census)
     criteria = totals.get("criteria")
     specific = totals.get("specific_shaped")
+    specific_metric = next(
+        (
+            metric
+            for metric in payload.get("metrics", [])
+            if metric.get("name") == "coverage.specific_shaped"
+        ),
+        None,
+    )
 
     out: dict[str, Any] = {
         "coverage.backed_pct": pct(backed, total),
         "coverage.dead_tags": len(payload.get("untracked_symbols", [])),
     }
+    minting = next(
+        (
+            metric
+            for metric in payload.get("metrics", [])
+            if metric.get("name") == "minting.section_hit_rate"
+        ),
+        None,
+    )
+    if minting and minting.get("state") == "measured":
+        out["coverage.minting_repos"] = 1 if minting.get("value", 0) > 0 else 0
+    else:
+        skip(
+            "coverage.minting_repos",
+            "payload carries no measured minting.section_hit_rate",
+        )
     # A metric is omitted when it CANNOT be read, and the reason is printed.
     # Reporting 0% for either of these would be the silent zero this benchmark
     # exists to catch, produced by the benchmark itself.
@@ -240,17 +341,53 @@ def metrics_from(payload: dict) -> dict[str, Any]:
     #   - the key is missing entirely  → the engine predates the field, and the
     #     score would be measuring the toolchain's version, not its quality;
     #   - the key is present and empty → the corpus genuinely has none.
+    # #265 AC-4 says a sweep lacking a required capability must abort rather
+    # than "omit the metric and continue". This skip STAYS, because it is not
+    # that failure mode: `skip()` records the metric as not-computed WITH its
+    # reason (the FR-063 posture — a measurement that did not run carries
+    # `because` and no numbers, so it can never be read as a zero), which is
+    # already the honest answer. What AC-4 forbids is printing a figure over a
+    # missing premise, and this prints no figure. The behaviour is quoin#197's
+    # dictionary — a sibling programme, explicitly not this EPIC's to redefine
+    # — and `test_metrics_are_omitted_rather_than_zeroed_when_unreadable` pins
+    # it. Building from the pinned workspace, above, is what #265 actually owes
+    # this script.
     if "binding_census" not in payload:
-        skip("coverage.binding_read_pct", "payload carries no binding_census "
-             "(engine predates FR-050-AC-27 — needs quire-rs >= v0.43.0)")
+        skip(
+            "coverage.binding_read_pct",
+            "payload carries no binding_census "
+            "(engine predates FR-050-AC-27 — needs quire-rs >= v0.43.0)",
+        )
     elif candidates:
         out["coverage.binding_read_pct"] = pct(bound, candidates)
     else:
         skip("coverage.binding_read_pct", "no evidence symbols examined")
 
-    if specific is None:
-        skip("properties.specific_shaped_pct", "totals carry no specific_shaped "
-             "(engine predates FR-050-AC-28 — needs quire-rs >= v0.43.0)")
+    if census and any("tagged" not in row for row in census):
+        skip(
+            "authoring.tag_rate",
+            "binding_census carries no tagged count "
+            "(engine predates agent-ix/quire-rs#271)",
+        )
+    elif candidates:
+        out["authoring.tag_rate"] = pct(sum(c["tagged"] for c in census), candidates)
+    else:
+        skip("authoring.tag_rate", "no evidence symbols examined")
+
+    if specific_metric and specific_metric.get("state") == "measured":
+        population = specific_metric.get("population", 0)
+        if population:
+            out["properties.specific_shaped_pct"] = pct(
+                specific_metric.get("value", 0), population
+            )
+        else:
+            skip("properties.specific_shaped_pct", "no binding criteria")
+    elif specific is None:
+        skip(
+            "properties.specific_shaped_pct",
+            "payload carries neither a measured coverage.specific_shaped metric "
+            "nor the legacy totals.specific_shaped field",
+        )
     elif criteria:
         out["properties.specific_shaped_pct"] = pct(specific, criteria)
     else:
@@ -261,7 +398,9 @@ def metrics_from(payload: dict) -> dict[str, Any]:
     # shipped to all of them is what put 549 suspicions on 551 TypeScript
     # candidates in v0.44.0; this is the number that would have said so.
     if candidates:
-        out["skeptic.suspicion_rate"] = pct(len(payload.get("suspicions", [])), candidates)
+        out["skeptic.suspicion_rate"] = pct(
+            len(payload.get("suspicions", [])), candidates
+        )
     else:
         skip("skeptic.suspicion_rate", "no evidence symbols examined")
     return out
@@ -284,7 +423,10 @@ def selected(entry: dict, measured: dict[str, Any]) -> dict[str, Any]:
         return measured
     missing = [m for m in declared if m not in measured]
     for name in missing:
-        skip(name, f"declared by corpus {entry['name']!r} but not measurable in its payload")
+        skip(
+            name,
+            f"declared by corpus {entry['name']!r} but not measurable in its payload",
+        )
     return {k: v for k, v in measured.items() if k in declared}
 
 
@@ -323,28 +465,61 @@ def silent_zeros(payload: dict) -> int:
         # that silently passes it.
         if metric.get("shape", "ratio") != "ratio":
             continue
-        if metric.get("population", 0) > 0 and metric.get("examined", 0) > 0 \
-                and metric.get("matched", 0) == 0 and not covered:
+        if (
+            metric.get("population", 0) > 0
+            and metric.get("examined", 0) > 0
+            and metric.get("matched", 0) == 0
+            and not covered
+        ):
             silent += 1
     return silent
 
 
-def collect(manifest: dict, quire: str, module: str | None) -> dict:
-    """Run the corpus. Skips an absent entry loudly rather than scoring 0.
+def collect(
+    manifest: dict,
+    quire: str,
+    module: str | None,
+    raw_evidence: dict[str, Any] | None = None,
+    *,
+    strict: bool = False,
+) -> dict:
+    """Run the corpus, optionally refusing every incomplete population.
 
     A missing corpus scored as zero is the silent-zero defect this benchmark
-    exists to catch, reproduced inside the thing catching it.
+    exists to catch, reproduced inside the thing catching it. Interactive
+    benchmark runs retain the loud-skip behavior; governed exports use strict
+    mode because an omitted corpus would silently change their scope.
     """
     observed: dict[str, dict[str, Any]] = {}
+    default_module = (
+        resolve_default_module(manifest, module)
+        if any("module" not in entry for entry in manifest["corpora"])
+        else None
+    )
     for entry in manifest["corpora"]:
         try:
             identity = resolve_identity(entry)
-            payload = coverage_payload(quire, (ROOT / entry["path"]).resolve(), module)
+            entry_module = entry.get("module", default_module)
+            if entry_module:
+                entry_module_path = Path(entry_module).expanduser()
+                if not entry_module_path.is_absolute():
+                    entry_module = str((ROOT / entry_module_path).resolve())
+            payload = coverage_payload(
+                quire, (ROOT / entry["path"]).resolve(), entry_module
+            )
         except (BenchError, subprocess.TimeoutExpired, json.JSONDecodeError) as exc:
+            if strict:
+                raise BenchError(f"{entry['name']}: {exc}") from exc
             print(f"skip {entry['name']}: {exc}", file=sys.stderr)
             continue
         print(f"…{entry['name']} @ {identity}", file=sys.stderr)
         observed[entry["name"]] = selected(entry, metrics_from(payload))
+        if raw_evidence is not None:
+            raw_evidence[entry["name"]] = {
+                "identity": identity,
+                "module": entry_module,
+                "payload": payload,
+            }
     if not observed:
         raise BenchError(
             "no corpus entry could be scored — refusing to report a pass over "

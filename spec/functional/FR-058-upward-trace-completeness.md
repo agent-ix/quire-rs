@@ -117,7 +117,7 @@ registry and the walked bundle are both in hand only at validation.
 **Verbs are deliberately excluded from this rule.** A first attempt checked `edges` against the
 module's `edge_types` and immediately fired on the fixture's own working declaration, because a
 single-module fixture declares no vocabulary of its own while still using `satisfies` correctly —
-and [FR-041](./FR-041-edge-vocabulary-validation.md)-AC-2 already permits verbs absent from
+and [FR-041](./FR-041-authorable-inverse-edges.md)-AC-2 already permits verbs absent from
 `edge_types`. That is a bad rule, not a bad fixture. A misspelt verb also fails loudly, which is the
 case that needs no help.
 

@@ -5,6 +5,56 @@ All notable changes to `quire-rs` are documented here. Format follows
 numbers follow semver — pre-1.0, breaking changes may land in minor
 bumps; once 1.0 ships, semver is strict.
 
+## [Unreleased]
+
+### Fixed
+
+- **Canonical CI no longer installs or resolves drifting tools/dependencies.**
+  Cargo resolver invocations assert the committed lock, `cargo-audit` is an
+  exact version installed by a commit-pinned binary installer, and private
+  corpus/dependency jobs fail early with a named `CORPUS_TOKEN` requirement.
+  This closes the observed failure where an unchanged workflow pulled a newer
+  `kstring` that required Rust 1.96 while CI deliberately pins Rust 1.94.1.
+
+- **Governed benchmark exports now remain acceptable to Quoin (#379).** New
+  collections use schema v2 and require a validated
+  `verification-stack-attestation-v1`. The exporter refuses dirty source,
+  mismatched full SHAs/remotes, malformed digests, and ambiguous capability
+  sets before producing evidence. Every SHA-pinned benchmark corpus must also
+  use a full revision equal to a clean attested source, and any skipped corpus
+  aborts governed export instead of silently shrinking the population. The
+  five-corpus ratchets are recalibrated explicitly against that restored scope;
+  future regressions still fail and every silent-zero sentinel remains exact.
+  Retained schema-v1 collections remain historical and read-only.
+
+### Added
+
+- **The published output contract admits instrument provenance (CR-104,
+  `agent-ix/quire-cli#68`).** Both `coverage-v1.schema.json` and
+  `properties-v1.schema.json` gain an **optional** `engine` object requiring
+  `{cli, engine, capabilities}`.
+
+  FR-055-CON-2 previously banned "any other field for the benefit of this
+  contract", which read as a ban on this one. It is narrowed to what it was
+  arguing for: a payload must not assert its own **contract** version — that
+  stays in the `$id`. Which **build** computed the numbers is a different fact,
+  and its absence is measured: `quire --version` reports the CLI crate version
+  while the engine is a git dependency pinned by tag that no surface reports.
+  The installed CLI 0.29.0 pins engine v0.42.0; `binding_census` landed in
+  v0.43.0, so every recent ecosystem figure came from a binary that could not
+  emit the one signal saying whether the binder read a test — silently.
+
+  `capabilities` is a token list, not version arithmetic: a consumer asserts it
+  needs `binding_census`, never that the engine is `>= 0.43.0`. The vocabulary
+  is open; the envelope around it is closed. The engine string is verbatim, so a
+  `-<n>-g<sha>` suffix is never rounded to the nearest tag.
+
+  **This crate ships the schema only** — it cannot know a CLI version. The
+  emitter, the `--version` surface and the envelope conformance test live in
+  `quire-cli`, as the `properties` envelope already does. Additive under
+  FR-055-CON-3: no existing key changes meaning and no required key is added, so
+  every payload valid before this release is valid after it.
+
 ## [0.45.0] — 2026-08-23
 
 Localisation. Every fix here changes **where** a finding says to look, never

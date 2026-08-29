@@ -427,6 +427,12 @@ pub fn derive(
             archetype: resolved.archetype,
             exclude: &exclude,
             model_exclude: &model_exclude,
+            // An obligation source READS a declared table that a trace target
+            // already mints from; diagnosing its section here would double
+            // every CR-117 finding the coverage scan already reports.
+            mints: None,
+            status_column: None,
+            section_required: false,
         };
         let rows = declared_tables::scan(spec, root, scope, resolved.section, &mut ctx);
         // FR-061: a combinatorial source states ONE obligation per document
@@ -471,7 +477,7 @@ pub fn derive(
 /// What a source resolved to: where its rows live and how they are identified.
 struct Resolved<'a> {
     archetype: &'a str,
-    section: &'a str,
+    section: &'a crate::traceability::SectionNames,
     /// `Some` when rows carry their own id in this column; `None` when ids are
     /// rendered from the template instead.
     id_column: Option<&'a str>,
@@ -491,7 +497,7 @@ fn resolve<'a>(source: &'a ObligationSource, model: &'a TraceabilityModel) -> Op
         }
         (None, Some(archetype)) => Some(Resolved {
             archetype,
-            section: source.section.as_deref()?,
+            section: source.section.as_ref()?,
             id_column: None,
             id_format: Some(source.id_format.as_deref()?),
         }),

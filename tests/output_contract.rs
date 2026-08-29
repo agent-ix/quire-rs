@@ -39,6 +39,39 @@ fn errors(schema: &JSONSchema, instance: &Value) -> Vec<String> {
     }
 }
 
+/// Keys that would let a payload assert its own contract revision
+/// (FR-055-CON-2). Banned in the payload AND in the schemas that declare it.
+const BANNED_VERSION_KEYS: [&str; 3] = ["version", "$schema", "schema_version"];
+
+/// Every property name a schema declares, at every depth.
+///
+/// Walks only `properties` maps — the names a payload may carry — and not
+/// arbitrary object keys, so the schema's own `$schema` keyword at the root
+/// (which is required, and is a statement about the schema rather than about
+/// any payload) is correctly not collected.
+fn collect_declared_properties(node: &Value, out: &mut Vec<String>) {
+    match node {
+        Value::Object(map) => {
+            if let Some(Value::Object(properties)) = map.get("properties") {
+                out.extend(properties.keys().cloned());
+            }
+            for (key, child) in map {
+                // `properties` is descended into as well: a property whose own
+                // value declares `properties` is a nested object, and its
+                // member names are equally payload keys.
+                let _ = key;
+                collect_declared_properties(child, out);
+            }
+        }
+        Value::Array(items) => {
+            for item in items {
+                collect_declared_properties(item, out);
+            }
+        }
+        _ => {}
+    }
+}
+
 fn baseline() -> Value {
     let path = repo()
         .join("tests")
@@ -82,6 +115,41 @@ fn tc855_coverage_baseline_conforms() {
     assert!(
         errs.is_empty(),
         "the checked-in baseline violates the published contract:\n{errs:#?}"
+    );
+}
+
+#[trace("TC-1082", "FR-055-AC-3")]
+#[test]
+fn tc1082_guidance_is_complete_exclusive_and_additive() {
+    let schema = compile("coverage-v1.schema.json");
+
+    let mut both = baseline();
+    both["diagnostics"][0]["remedy"] = json!("change the criterion");
+    assert!(
+        !errors(&schema, &both).is_empty(),
+        "a producer must not prescribe a remedy and a diagnostic step together",
+    );
+
+    let mut partial = baseline();
+    partial["diagnostics"][0]
+        .as_object_mut()
+        .expect("diagnostic object")
+        .remove("next_diagnostic_step");
+    assert!(
+        !errors(&schema, &partial).is_empty(),
+        "a structured guidance group without an action must be rejected",
+    );
+
+    let mut legacy = baseline();
+    let legacy_diagnostic = legacy["diagnostics"][0]
+        .as_object_mut()
+        .expect("diagnostic object");
+    for key in ["subject", "change_target", "remedy", "next_diagnostic_step"] {
+        legacy_diagnostic.remove(key);
+    }
+    assert!(
+        errors(&schema, &legacy).is_empty(),
+        "a complete pre-guidance v1 payload must remain readable",
     );
 }
 
@@ -137,6 +205,13 @@ fn tc856_payload_carrying_every_optional_key_conforms() {
             ]
         }],
         "groups": [{"document": "tests.md", "target": "test-case", "backed": 1, "total": 2}],
+        "minted_targets": [{
+            "id": "TC-001",
+            "target": "test-case",
+            "document": "tests.md",
+            "line": 11,
+            "backed": true
+        }],
         "criteria": [{
             "document": "FR-001.md",
             "archetype": "FR",
@@ -149,8 +224,15 @@ fn tc856_payload_carrying_every_optional_key_conforms() {
             "reason": "archetype-matches-nothing",
             "message": "no document of archetype TestMatrix",
             "path": null,
-            "value": "CI Gate"
+            "value": "CI Gate",
+            "subject": "declaration `test-case`",
+            "change_target": "traceability.trace_targets",
+            "remedy": "correct the declared archetype"
         }],
+        "diagnostic_reason_registry": [
+            "archetype-matches-nothing",
+            "no-symbol-bound"
+        ],
         "vocabulary_coverage": [{
             "vocabulary": "quality-characteristics",
             "archetype": "NFR",
@@ -171,10 +253,110 @@ fn tc856_payload_carrying_every_optional_key_conforms() {
             "criticality": "P1"
         }],
         "excluded_source_files": 3,
+        // CR-104 review: five optional keys had drifted out of this payload —
+        // `implements` (CR-080), `binding_census` (CR-093), `metrics` (CR-094),
+        // `suspicions` (CR-100) and `engine` (CR-104) — so the test whose whole
+        // purpose is "the optional keys are covered by a payload that CARRIES
+        // them, not only by one that omits them" (AC-3) was guarding 8 of 13.
+        // Each arrived additively, each landed green, and none was added here.
+        "implements": [{
+            "path": "src/lib.rs",
+            "symbol": "resolve_scope",
+            "trace_id": "FR-001",
+            "form": "rust-implements-attribute"
+        }],
+        "binding_census": [{
+            "language": "rust",
+            "candidates": 2,
+            "tagged": 1,
+            "bound": 1,
+            "forms": ["rust-trace-attribute"],
+            "unbound_example": {
+                "path": "src/lib.rs",
+                "line": 41,
+                "symbol": "tests::untagged"
+            },
+            "unmatched_example": {
+                "path": "src/lib.rs",
+                "line": 42,
+                "symbol": "tests::misspelled_tag"
+            }
+        }],
+        "unmatched_tags": [{
+            "trace_id": "TC-404",
+            "language": "rust",
+            "path": "src/lib.rs",
+            "line": 42,
+            "symbol": "tests::misspelled_tag"
+        }],
+        "metrics": [
+            {
+                "name": "coverage.backed",
+                "unit": "matrix row",
+                "method": "m",
+                "shape": "ratio",
+                "state": "measured",
+                "value": 1,
+                "population": 2,
+                "examined": 2,
+                "matched": 1
+            },
+            // Both arms of the `oneOf`, so the discriminator is exercised
+            // rather than only its measured branch.
+            {
+                "name": "coverage.implements",
+                "unit": "production symbol",
+                "method": "m",
+                "shape": "count",
+                "state": "not_computed",
+                "because": "the module declares no implements forms"
+            }
+        ],
+        "suspicions": [{
+            "kind": "vacuous-under-guard",
+            "path": "src/lib.rs",
+            "symbol": "tests::guarded",
+            "line": 12,
+            "message": "every assertion sits behind a narrowing guard",
+            "evidence": "1 of 44 samples reached an assertion",
+            "subject": "test symbol `tests::guarded`",
+            "change_target": "src/lib.rs:12",
+            "next_diagnostic_step": "inspect inputs that bypass the guard"
+        }],
+        // Assembled by quire-cli, never by this crate — but declared here, so
+        // the payload that exercises every optional key must carry it.
+        "engine": {
+            "cli": "0.30.2",
+            "engine": "0.45.0",
+            "capabilities": ["binding_census", "metrics_envelope"]
+        },
         "totals": {"backed": 1, "total": 2, "criteria": 2, "property_shaped": 1}
     });
     let errs = errors(&schema, &full);
     assert!(errs.is_empty(), "{errs:#?}");
+
+    // Non-vacuous, and the guard against this test drifting again: every
+    // optional root key the schema declares must appear above. Five had gone
+    // missing before anybody counted, because nothing counted.
+    let schema_doc = schema_value("coverage-v1.schema.json");
+    let required: Vec<&str> = schema_doc["required"]
+        .as_array()
+        .expect("required")
+        .iter()
+        .filter_map(|v| v.as_str())
+        .collect();
+    let carried = full.as_object().expect("object");
+    let missing: Vec<&String> = schema_doc["properties"]
+        .as_object()
+        .expect("properties")
+        .keys()
+        .filter(|k| !required.contains(&k.as_str()) && !carried.contains_key(*k))
+        .collect();
+    assert!(
+        missing.is_empty(),
+        "FR-055-AC-3: optional keys declared by the schema but absent from the \
+         payload that exists to carry every optional key: {missing:?}",
+    );
 }
 
 #[trace("TC-857", "FR-055-AC-4")]
@@ -305,6 +487,7 @@ fn tc859_optional_and_required_split_matches_the_engine() {
         "shared_trace_ids",
         "criteria",
         "diagnostics",
+        "diagnostic_reason_registry",
         "obligations",
         "implements",
         "excluded_source_files",
@@ -312,6 +495,9 @@ fn tc859_optional_and_required_split_matches_the_engine() {
         // CR-093: present whenever the walk found an evidence symbol, so a
         // corpus with no source tree at all omits it.
         "binding_census",
+        // FR-050-AC-39: absent when every annotation id bound or no generic
+        // annotation id was authored.
+        "unmatched_tags",
         // CR-094: the engine always emits it, but the contract stays additive
         // so a payload from an engine predating the field still conforms
         // (FR-055-CON-3).
@@ -449,11 +635,35 @@ fn tc957_line_keys_are_optional_in_both_directions() {
 fn tc860_no_version_key_in_the_payload_and_no_schemars() {
     let payload = baseline();
     let object = payload.as_object().expect("object");
-    for banned in ["version", "$schema", "schema_version"] {
+    for banned in BANNED_VERSION_KEYS {
         assert!(
             !object.contains_key(banned),
             "FR-008-AC-5: the payload must carry no `{banned}` key; versioning lives in the schema artifact",
         );
+    }
+
+    // CON-2 is a claim about the CONTRACT, and until CR-104 this test only
+    // checked one payload INSTANCE for root-level keys. That is a weaker gate
+    // than the constraint: a nested `engine.schema_version` could be declared
+    // in both schemas and every assertion above would still pass, because the
+    // baseline corpus simply never produces one. CR-104 is the change that
+    // created nesting to hide in, so the gate moves to where the constraint
+    // actually lives — the declared property names, at every depth.
+    for name in ["coverage-v1.schema.json", "properties-v1.schema.json"] {
+        let mut declared = Vec::new();
+        collect_declared_properties(&schema_value(name), &mut declared);
+        assert!(
+            !declared.is_empty(),
+            "{name}: the walk found no declared properties, so this gate is vacuous",
+        );
+        for banned in BANNED_VERSION_KEYS {
+            assert!(
+                !declared.iter().any(|k| k == banned),
+                "{name} declares a `{banned}` property: a payload must never name the \
+                 contract revision it claims to conform to (FR-055-CON-2). Contract \
+                 versioning lives in the `$id` and the filename.",
+            );
+        }
     }
 
     // CON-1: the schemas are authored, so the generator must stay out of the
@@ -465,4 +675,165 @@ fn tc860_no_version_key_in_the_payload_and_no_schemars() {
         "`schemars` entered the dependency graph; the output contract is authored, not derived",
     );
     assert!(Path::new(&repo().join("schemas/output")).is_dir());
+}
+
+#[trace("TC-1010", "FR-055-AC-8")]
+// CR-104 / agent-ix/quire-cli#68: instrument provenance is
+// admitted, and its shape is closed. Both payloads, both directions, because a
+// definition that only one schema carries is the drift this FR exists to stop.
+#[test]
+fn tc1010_engine_provenance_is_optional_and_its_shape_is_closed() {
+    // A minimal conforming instance of each payload, so the assertions below
+    // are about `engine` and nothing else.
+    let cases: [(&str, Value); 2] = [
+        (
+            "coverage-v1.schema.json",
+            json!({
+                "unbacked_rows": [],
+                "status_lies": [],
+                "untracked_symbols": [],
+                "groups": [],
+                "totals": {"backed": 0, "total": 0},
+            }),
+        ),
+        ("properties-v1.schema.json", json!({ "documents": [] })),
+    ];
+
+    for (name, base) in cases {
+        let schema = compile(name);
+
+        // Optional: the in-process `to_json` caller cannot know a CLI version,
+        // and a payload from a CLI predating the field must still read.
+        assert!(
+            errors(&schema, &base).is_empty(),
+            "{name}: omitting `engine` must conform — {:#?}",
+            errors(&schema, &base),
+        );
+
+        let with_engine = |engine: Value| {
+            let mut v = base.clone();
+            v.as_object_mut()
+                .expect("object")
+                .insert("engine".into(), engine);
+            v
+        };
+
+        let full = with_engine(json!({
+            "cli": "0.30.2",
+            "engine": "0.45.0",
+            "capabilities": ["binding_census", "metrics_envelope", "suspicions"],
+        }));
+        assert!(
+            errors(&schema, &full).is_empty(),
+            "{name}: a payload carrying provenance must conform — {:#?}",
+            errors(&schema, &full),
+        );
+
+        // The `-<n>-g<sha>` form is carried verbatim, never rounded to the
+        // nearest tag. A schema that only ever saw `0.45.0` would happily
+        // acquire a `pattern` that rejects the one string this field exists to
+        // preserve — the CLI built off a tag it does not sit on.
+        let described = with_engine(json!({
+            "cli": "0.30.2",
+            "engine": "0.45.0-3-g99e97f0",
+            "capabilities": [],
+        }));
+        assert!(
+            errors(&schema, &described).is_empty(),
+            "{name}: a git-describe suffix must survive verbatim — {:#?}",
+            errors(&schema, &described),
+        );
+
+        // Each member is required. Dropping one is the shape a half-wired
+        // emitter produces, and it must not pass as provenance.
+        for missing in ["cli", "engine", "capabilities"] {
+            let mut engine = json!({
+                "cli": "0.30.2",
+                "engine": "0.45.0",
+                "capabilities": [],
+            });
+            engine.as_object_mut().expect("object").remove(missing);
+            let payload = with_engine(engine);
+            assert!(
+                !errors(&schema, &payload).is_empty(),
+                "{name}: `engine` missing `{missing}` must be rejected",
+            );
+        }
+
+        // Closed, like every other definition here (AC-5). `capabilities` is
+        // the open vocabulary; the envelope around it is not.
+        let extra = with_engine(json!({
+            "cli": "0.30.2",
+            "engine": "0.45.0",
+            "capabilities": [],
+            "build": "release",
+        }));
+        assert!(
+            !errors(&schema, &extra).is_empty(),
+            "{name}: an undeclared member of `engine` must be rejected",
+        );
+
+        // ...but the token vocabulary itself is NOT enumerated: a newer CLI
+        // adding a token must not break a consumer pinned to this schema.
+        let unknown_token = with_engine(json!({
+            "cli": "0.30.2",
+            "engine": "0.45.0",
+            "capabilities": ["a_capability_this_schema_has_never_heard_of"],
+        }));
+        assert!(
+            errors(&schema, &unknown_token).is_empty(),
+            "{name}: the capability vocabulary must stay open — {:#?}",
+            errors(&schema, &unknown_token),
+        );
+
+        // Open is not the same as unconstrained. A duplicated token is a
+        // half-wired emitter, not a second capability, and `uniqueItems` is
+        // what says so — un-gated, it can be dropped in a refactor and the
+        // contract silently stops rejecting it.
+        let duplicated = with_engine(json!({
+            "cli": "0.30.2",
+            "engine": "0.45.0",
+            "capabilities": ["binding_census", "binding_census"],
+        }));
+        assert!(
+            !errors(&schema, &duplicated).is_empty(),
+            "{name}: a duplicated capability token must be rejected",
+        );
+    }
+
+    // The definition is hand-authored twice (FR-055-CON-1 bans deriving it), so
+    // the two copies can drift on any keyword the assertions above do not
+    // probe — `maxItems` added to one schema only would reject a payload the
+    // other accepts, and every test here would stay green. Compared with
+    // descriptions stripped: the prose is deliberately per-schema, the
+    // structure is not.
+    let mut coverage = schema_value("coverage-v1.schema.json")["$defs"]["EngineProvenance"].clone();
+    let mut properties =
+        schema_value("properties-v1.schema.json")["$defs"]["EngineProvenance"].clone();
+    strip_descriptions(&mut coverage);
+    strip_descriptions(&mut properties);
+    assert_eq!(
+        coverage, properties,
+        "the two hand-authored `EngineProvenance` definitions have drifted; one \
+         contract, stated twice, must stay structurally identical",
+    );
+}
+
+/// Remove every `description` so two hand-authored definitions can be compared
+/// on structure alone.
+fn strip_descriptions(node: &mut Value) {
+    match node {
+        Value::Object(map) => {
+            map.remove("description");
+            for (_, child) in map.iter_mut() {
+                strip_descriptions(child);
+            }
+        }
+        Value::Array(items) => {
+            for item in items {
+                strip_descriptions(item);
+            }
+        }
+        _ => {}
+    }
 }

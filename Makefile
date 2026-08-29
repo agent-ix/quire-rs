@@ -25,14 +25,15 @@ help:
 	@echo "  make deny             - cargo deny check licenses"
 	@echo "  make audit-unsafe     - Enforce // SAFETY: comments on unsafe blocks"
 	@echo "  make audit-property   - Enforce FR-052-CON-1: no GrammarFinding in the property classifier"
-	@echo "  make validate         - Validate spec/ with the working-tree engine (#212 gate)"
+	@echo "  make validate         - Validate spec/ with the locked engine + schema stack (#212 gate)"
+	@echo "  make census           - Scheduled/manual ecosystem gap disposition census"
 	@echo "  make ci               - Per-PR CI gates (fmt-check + lint + test + deny + audit-unsafe + audit-property + audit-static + validate)"
 	@echo ""
 	@echo "Hardening (scheduled / pre-tag):"
 	@echo "  make cargo-audit      - cargo audit (RUSTSEC advisories)"
 	@echo "  make mutants          - cargo mutants -p quire-rs --in-place --check"
 	@echo "  make fuzz             - 60s smoke run of each cargo-fuzz target"
-	@echo "  make audit-static     - Run all scripts/audits/*.sh"
+	@echo "  make audit-static     - Run all scripts/audits/*.sh (globbed, #353)"
 	@echo "  make hardening        - Full pre-tag set: audit-static + cargo-audit + mutants + fuzz + loom"
 
 # =============================================================================
@@ -49,7 +50,7 @@ fmt-check:
 
 .PHONY: lint
 lint:
-	$(CARGO) clippy --all-targets -- -D warnings
+	$(CARGO) clippy --locked --all-targets -- -D warnings
 
 # The `python` feature is gated off in every target above, so nothing in `ci`
 # ever compiles `src/python/`. FR-056 added a field to `GrammarVocabularies`,
@@ -69,7 +70,7 @@ lint:
 # "trait Serialize is not implemented" errors on types that plainly derive it.
 .PHONY: check-python
 check-python:
-	CARGO_TARGET_DIR=target/python-check $(CARGO) check --features python --quiet
+	CARGO_TARGET_DIR=target/python-check $(CARGO) check --locked --features python --quiet
 
 # The scripts/ tooling test suite (#217, #219). `check-python` is a cargo
 # type-check of the PyO3 binding and collects no Python tests, so the sweep
@@ -80,11 +81,11 @@ check-scripts:
 
 .PHONY: test
 test:
-	$(CARGO) test
+	$(CARGO) test --locked
 
 .PHONY: build
 build:
-	$(CARGO) build --release
+	$(CARGO) build --locked --release
 
 .PHONY: clean
 clean:
@@ -96,7 +97,7 @@ clean:
 
 .PHONY: deny
 deny:
-	$(CARGO) deny check licenses
+	$(CARGO) deny --locked check licenses
 
 .PHONY: cargo-audit
 cargo-audit:
@@ -111,14 +112,29 @@ audit-property:
 	bash scripts/check_property_purity.sh
 
 .PHONY: audit-static
+# GLOBS, and the help text has said so since before it was true.
+#
+# This target ENUMERATED seven scripts. CR-124 asserted it "runs every
+# scripts/audits/*.sh"; it never did, so the gate answering the outside
+# review's [P1] sat in the tree unrun from the commit that added it until #353
+# added an eighth line by hand. `check_status_agreement.sh` was then silently
+# skipped the same way, in the same session that closed #353 — the eighth line
+# fixed one instance of a rule that had none.
+#
+# So the list is gone. A new `scripts/audits/*.sh` now runs because it exists,
+# not because somebody remembered. An EMPTY glob is a hard failure: a loop over
+# no scripts exits 0 and looks exactly like every audit passing, which is the
+# defect one level up from the one this replaces.
 audit-static:
-	bash scripts/audits/check_no_net_deps.sh
-	bash scripts/audits/check_no_schemars.sh
-	bash scripts/audits/check_no_shellout.sh
-	bash scripts/audits/check_dep_pins.sh
-	bash scripts/audits/check_hashmap_audit.sh
-	bash scripts/audits/check_no_shared_mutable.sh
-	bash scripts/audits/verify_cookiecutter_inheritance.sh
+	@scripts=$$(ls scripts/audits/*.sh 2>/dev/null); \
+	if [ -z "$$scripts" ]; then \
+	  echo "audit-static: no scripts/audits/*.sh found — refusing to pass on an empty set" >&2; \
+	  exit 1; \
+	fi; \
+	for s in $$scripts; do \
+	  echo "bash $$s"; \
+	  bash "$$s" || exit 1; \
+	done
 
 # =============================================================================
 # Hardening (scheduled-only in CI; available locally on demand)
@@ -144,10 +160,10 @@ mutants:
 .PHONY: mutants-fr
 mutants-fr:
 	@test -n "$(FR)" || { echo "usage: make mutants-fr FR=FR-026" >&2; exit 2; }
-	@files=$$($(CARGO) run --release --quiet --example mutants_scope -- $(FR) --files-only); \
+	@files=$$($(CARGO) run --locked --release --quiet --example mutants_scope -- $(FR) --files-only); \
 	if [ -z "$$files" ]; then \
 	  echo "$(FR): no mutable file in the traced set — nothing to mutate." >&2; \
-	  $(CARGO) run --release --quiet --example mutants_scope -- $(FR) >&2; \
+	  $(CARGO) run --locked --release --quiet --example mutants_scope -- $(FR) >&2; \
 	  exit 1; \
 	fi; \
 	echo "$(FR) mutation scope:"; echo "$$files" | sed 's/^/  /'; \
@@ -157,7 +173,7 @@ mutants-fr:
 .PHONY: mutants-scope
 mutants-scope:
 	@test -n "$(FR)" || { echo "usage: make mutants-scope FR=FR-026" >&2; exit 2; }
-	@$(CARGO) run --release --quiet --example mutants_scope -- $(FR)
+	@$(CARGO) run --locked --release --quiet --example mutants_scope -- $(FR)
 
 # =============================================================================
 # Perf gates (Task 014, NFR-001/002/007)
@@ -193,7 +209,7 @@ fuzz:
 
 .PHONY: loom
 loom:
-	RUSTFLAGS="--cfg loom" cargo test --test concurrency
+	RUSTFLAGS="--cfg loom" cargo test --locked --test concurrency
 
 .PHONY: sanitize
 sanitize:
@@ -201,10 +217,10 @@ sanitize:
 	@# Pin RUSTC to nightly: a stable rustc on PATH (e.g. homebrew) would
 	@# reject the -Zsanitizer probe otherwise.
 	NRUSTC=$$(rustup which --toolchain nightly rustc); TGT=$$(rustc -vV | sed -n 's/host: //p'); \
-	RUSTC=$$NRUSTC RUSTFLAGS="-Zsanitizer=thread" rustup run nightly cargo test \
+	RUSTC=$$NRUSTC RUSTFLAGS="-Zsanitizer=thread" rustup run nightly cargo test --locked \
 		-Z build-std --target $$TGT --test corpus_concurrency
 	NRUSTC=$$(rustup which --toolchain nightly rustc); TGT=$$(rustc -vV | sed -n 's/host: //p'); \
-	RUSTC=$$NRUSTC RUSTFLAGS="-Zsanitizer=address" rustup run nightly cargo test \
+	RUSTC=$$NRUSTC RUSTFLAGS="-Zsanitizer=address" rustup run nightly cargo test --locked \
 		-Z build-std --target $$TGT --test corpus_concurrency
 	@echo "NOTE: TSAN/ASAN of the GIL window + Python object handoff needs a"
 	@echo "sanitizer-instrumented CPython and runs on the scheduled CI lane."
@@ -220,22 +236,28 @@ sanitize:
 # Needs `quire` on PATH and a module; a corpus entry that cannot be read is
 # SKIPPED loudly, never scored 0 — a missing corpus scored as zero is the
 # silent-zero defect this benchmark exists to catch.
-BENCH_MODULE ?= $(HOME)/dev/spec-artifacts-process/spec_artifacts_process
+BENCH_MODULE ?= ../spec-artifacts-process/spec_artifacts_process
 .PHONY: bench
 bench:
-	python3 scripts/bench.py --module $(BENCH_MODULE)
+	python3 scripts/bench.py --module "$(BENCH_MODULE)"
 
 # Deliberate regeneration. The diff belongs in the pull request.
 .PHONY: bench-update
 bench-update:
-	python3 scripts/bench.py --update --module $(BENCH_MODULE)
+	python3 scripts/bench.py --update --module "$(BENCH_MODULE)"
+
+.PHONY: measurement-collection
+measurement-collection:
+	test -n "$(OUTPUT)" || { echo "OUTPUT= is required"; exit 1; }
+	test -n "$(VERIFICATION_STACK)" || { echo "VERIFICATION_STACK= is required"; exit 1; }
+	python3 scripts/export_measurements.py --consumer "$(QUIRE_CLI)" --module "$(BENCH_MODULE)" --output "$(OUTPUT)" --verification-stack "$(VERIFICATION_STACK)"
 
 .PHONY: coverage-baseline-update
 coverage-baseline-update:
 	@echo "Regenerating the FR-050-AC-7 coverage baseline (CR-057)."
 	@echo "The resulting diff belongs in the pull request — a change to what"
 	@echo "coverage reconciles is reviewable, not absorbable."
-	QUIRE_UPDATE_COVERAGE_BASELINE=1 cargo test --test coverage_baseline \
+	QUIRE_UPDATE_COVERAGE_BASELINE=1 cargo test --locked --test coverage_baseline \
 		tc824_coverage_report_matches_the_checked_in_baseline
 	@git --no-pager diff --stat -- tests/fixtures/coverage_baseline/expected.json
 
@@ -244,14 +266,67 @@ coverage-baseline-update:
 # corruption shipped inside v0.41.0 — nothing here ever ran structural
 # validation against this repo's own matrix. Runs the working-tree engine
 # (cargo run --example), never an installed `quire` CLI, which lags the branch
-# under test. Module resolution follows the CLI (IX_FILAMENT_MODULES_PATH /
-# ~/.ix/filament/modules). Local gate only: CI workflows stay tag/dispatch.
+# under test. The two schema-provider repositories are independent executable
+# inputs: accepting their ambient installed versions made this gate change
+# meaning without a Quire commit. scripts/validate_spec.py now verifies their
+# exact clean Git identities against quality/validation-stack-lock.json and
+# exposes only those modules to the engine. CI checks out the same full SHAs.
+# The Phase-7 assurance documents are named one-by-one in the governed
+# exclusion file; no new or renamed document can disappear from validation.
+VALIDATION_PROCESS_ROOT ?= ../spec-artifacts-process
+VALIDATION_ISO_ROOT ?= ../spec-artifacts-iso
 .PHONY: validate
 validate:
-	$(CARGO) run --quiet --example spec_validate
+	python3 scripts/validate_spec.py \
+		--process-root "$(VALIDATION_PROCESS_ROOT)" \
+		--iso-root "$(VALIDATION_ISO_ROOT)"
+
+# The #265 gate: the engine a consumer LINKS is the engine in this tree.
+#
+# `quire-cli/Cargo.toml` pins this crate independently of this crate's identity
+# and nothing compared the two. Measured: the installed CLI 0.29.0 pinned engine
+# v0.42.0 while `binding_census` landed in v0.43.0, so four battletest passes
+# reported figures from a binary that could not emit the one signal saying
+# whether the binder read a test. Direct analogue of
+# `quoin/scripts/check-version-agreement.mjs`, applied to the seam that one
+# never covered.
+#
+# Skipped, loudly, when the consumer is not checked out beside this repo: a
+# missing sibling is an environment fact, not drift, and failing on it would
+# make `ci` unrunnable for anyone who cloned one repository.
+# `--build --require` is the WHOLE GATE, not an option. Without them the check
+# compares a manifest to a tree and nothing more — and a pin to v0.42.0, which
+# is exactly the incident above, is an ancestor of HEAD and passes. The
+# capability tokens are what make distance a verdict: a pinned engine that
+# cannot emit `binding_census` fails here, by name, whatever its version says.
+QUIRE_CLI ?= ../quire-cli
+ENGINE_CAPABILITIES ?= binding_census binding_census.tagged metrics_envelope minted_targets reference_only_targets unmatched_tags
+
+.PHONY: check-engine
+check-engine:
+	@if [ -f "$(QUIRE_CLI)/Cargo.toml" ]; then \
+		python3 scripts/check_engine.py --consumer "$(QUIRE_CLI)" --build \
+			$(foreach token,$(ENGINE_CAPABILITIES),--require $(token)); \
+	else \
+		echo "check_engine: SKIP — no consumer workspace at $(QUIRE_CLI)"; \
+	fi
+
+# FR-066 / #277: minutes-long ecosystem census, never a per-change gate.
+CENSUS_ROOT ?= $(HOME)/dev
+CENSUS_MODULE ?= $(HOME)/dev/spec-artifacts-process/spec_artifacts_process
+CENSUS_CONSUMER ?= ../quire-cli
+
+.PHONY: census
+census:
+	python3 scripts/gap_census.py --root "$(CENSUS_ROOT)" \
+		--consumer "$(CENSUS_CONSUMER)" --module "$(CENSUS_MODULE)"
+
+.PHONY: corpus-recall-update
+corpus-recall-update:
+	UPDATE_CORPUS_RECALL=1 CARGO_TARGET_DIR=target cargo test --locked --test corpus_recall
 
 .PHONY: ci
-ci: fmt-check lint check-python check-scripts test deny audit-unsafe audit-property audit-static validate
+ci: fmt-check lint check-python check-scripts test deny audit-unsafe audit-property audit-static validate check-engine
 
 # =============================================================================
 # Python wheel / sdist + local-publish (pypi.ix)

@@ -25,3 +25,5 @@ description: "Index of artifacts in this directory."
 * [NFR-017: Concurrency Permutation for the Parallel Walk (loom)](./NFR-017-concurrency-permutation.md)
 * [NFR-018: FFI Sanitizer Lanes (TSAN + ASAN on the Python Extension)](./NFR-018-ffi-sanitizer-lanes.md)
 * [NFR-019: Input Robustness: No Panic on Arbitrary Input](./NFR-019-input-robustness.md)
+
+* [NFR-020: Filament extraction boundary](./NFR-020-filament-extraction-boundary.md)

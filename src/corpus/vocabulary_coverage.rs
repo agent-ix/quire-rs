@@ -322,12 +322,15 @@ pub(crate) fn coverage_records(
     let mut diagnostics = Vec::new();
     for coverage in &model.vocabulary_coverage {
         let Some(classification) = classify(spec, registry, coverage, root, &model_exclude) else {
+            let origin = registry.vocabulary_coverage_origin(&coverage.name);
             diagnostics.push(CoverageDiagnostic {
                 declaration: coverage.name.clone(),
                 reason: "undeclared-coverage-vocabulary".to_string(),
                 message: dead_declaration_message(coverage),
-                path: None,
+                path: origin.map(|origin| origin.path.display().to_string()),
+                line: origin.map(|origin| origin.line),
                 value: None,
+                guidance: None,
             });
             continue;
         };

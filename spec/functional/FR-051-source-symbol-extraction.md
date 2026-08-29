@@ -41,8 +41,11 @@ resolution, no dependency installation. Adapters SHALL classify test functions
 by each language's convention: Rust functions under a `#[test]`-family
 attribute, Python `test_`-prefixed functions and test-class methods, and
 TypeScript `test(...)`/`it(...)` registrations (the registered title is the
-symbol's qualified name). If an adapter cannot parse a file, then the extractor
-SHALL emit a per-file diagnostic, skip the file, and continue.
+symbol's qualified name). A TypeScript `describe(...)`/`suite(...)` registration
+is a **container**, not a test: it groups tests rather than being one, and it is
+the scope the registrations inside it are parented to. If an adapter cannot
+parse a file, then the extractor SHALL emit a per-file diagnostic, skip the
+file, and continue.
 
 ## Trace-tag grammar
 
@@ -124,7 +127,146 @@ byte-identical JSON ordering and stable record ids.
 | FR-051-AC-16 | A legacy textual form mints one `verifies` relation per trace id its match carries, so a comma-separated list binds every id rather than only the first, and one authored line yields one rewrite suggestion naming all of them; a form declaring `id_format` renders a single id and is not split. | Test (TC-806) |
 | FR-051-AC-17 | A Rust benchmark — an attribute-marked one, or a function a `criterion_group!` registers in either invocation form, whether or not the registration line carries a trailing comment — classifies as a benchmark symbol, and a `fuzz_target!` invocation mints one fuzz-target symbol per file whose span is its whole file. Both bind trace ids; a container and a plain function still bind none. Each kind's stable label (`benchmark`, `fuzz_target`) is part of the symbol identity and of the FR-045 record's `kind` field. | Test (TC-827, TC-828) |
 | FR-051-AC-18 | A `test`/`it` registration whose modifier chain is curried (`it.skipIf(cond)(…)`, `it.each([…])(…)`), or whose title literal begins on a later line, registers a test symbol named by that title, with the span and leading block any other registration gets. The scan is bounded and stops at the first non-blank text: a title held in a variable, an identifier merely beginning with `it`, and a literal beyond the window each register nothing rather than something wrong. A title inside a multi-line template literal is out of scope and registers nothing (CR-084). | Test (TC-943, TC-948, TC-958, TC-960, TC-961) |
-| FR-051-AC-19 | Binding reports a per-language census of what it examined: `candidates` counts the evidence symbols whose kind admits a trace tag, `bound` counts those that minted at least one `verifies` relation, and `forms` names every declared form consulted for that language, markers before legacy. `bound` counts symbols, not relations, so a test carrying five ids counts once. A container or a production function is never a candidate. The census is ordered by language label, is present for every language the walk saw an evidence symbol in, and its `candidates` count does not depend on the declared patterns — the same tree bound against a grammar that matches nothing reports the same candidates and zero bound (CR-093). | Test (TC-982) |
+| FR-051-AC-19 | Binding reports a per-language census of what it examined: `candidates` counts evidence symbols whose kind admits a trace tag; `tagged` counts candidates whose attached annotation block carries a generic id-shaped token or whose declared form bound; `bound` counts candidates that minted at least one `verifies` relation; and `forms` names every declared form consulted, markers before legacy. The hard invariant is `bound <= tagged <= candidates`. An unbound candidate carries `unbound_example`; a tagged-but-unbound candidate additionally carries `unmatched_example`, each the deterministic lowest `path:line`. Generic tag detection is independent of the declared grammar and does not inspect the test body. Counts are symbols rather than relations, containers and production functions are not candidates, rows are language-ordered, and the candidate population does not depend on declared patterns (CR-093, CR-142). | Test (TC-982, TC-1060) |
+| FR-051-AC-20 | The Python adapter tracks a triple-quoted string by where its delimiter *is*, not by where the line starts: an opener anywhere on a line (`FIXTURE = """`) enters string state, the body is never read as code, and the closing delimiter closes rather than re-opens. A string opened and closed on one line leaves the state unchanged; both delimiter kinds and every string prefix (`f`, `r`, `b`, `rb`, `u`) are recognised; a triple delimiter inside a single-quoted string, escaped, or after a `#` comment marker toggles nothing, and a `#` inside a triple-quoted string does not end it. A declaration following an embedded string therefore keeps its true container rather than resuming a stale scope (CR-115). | Test (TC-1029, TC-1030, TC-1031) |
+| FR-051-AC-22 | A trace id a declared **verifies** form attaches to a symbol whose kind cannot bind it is reported, naming the id, the symbol, that symbol's kind, the form that matched, and the channel a symbol of that kind can carry. The tag still binds nothing — the kinds stay as CR-061 set them and no count in the payload moves, so the census `candidates` denominator is unchanged. Two rules bound the report and both are load-bearing: an id that **bound anywhere else** is not reported, because a container's span runs to end of file and would otherwise re-report every id in it; and where several symbols span one tag the **innermost** is named, because the fix a reader needs is the symbol the tag sits on and not the module that contains it. The forms consulted are the same ones the binder consults, from the same declaration, so a tag the binder would read and a tag this reports cannot diverge. Only the **legacy textual forms** are reported: a canonical marker is syntax the language attaches to the declaration that follows it, so one that bound nothing either decorates a symbol that bound — already excluded — or decorates no declaration at all, which means the text is data. Quoted legacy prose remains visible to that shared matcher and is calibrated as an advisory rather than masked in only one caller. | Test (TC-1044, TC-1045, TC-1046, TC-1047, TC-1081) |
+| FR-051-AC-23 | The extracted symbol table is reported on its own surface, as the engine built it: per symbol its path, qualified name, kind, language, declaration line, annotation-block line, end line, container, identity digest, whether that **kind** can bind a trace id, whether it can carry an `implements` marker, and — when a module is supplied — the ids it bound. A scanner defect must be sizeable **without reimplementing the scanner**: three ports of `symbols/python.rs` gave 386, 490 and 5,263 lost declarations over one tree, disagreeing precisely where the original is wrong. Binding is reported as **not asked** rather than as zero when no module is supplied, because an unbound run and a repository nobody tagged produce the same empty list. Per-language totals carry both denominators — symbols examined and symbols of a **binding kind** — since a rate over the wrong one reads a tree of containers as untagged. | Test (TC-1052, TC-1053, TC-1054) |
+| FR-051-AC-24 | String-literal contents are masked before a **legacy** textual form is matched, in **every** language rather than in Rust alone — a trace id a file carries as data is not a tag, and binding it invents coverage nobody authored. The mask preserves each language's declared **tag channel**: comments everywhere, and additionally a Python **docstring** and a TypeScript test **registration title**, because `python-docstring-id` and `typescript-test-name-id` are declared forms that read an id out of a string literal by design. Rust needs no such exemption — its `rust-test-name-id` reads an identifier — which is why a blanket mask is correct there and wrong in the other two. Canonical markers are never masked against: they put ids inside string literals by design. | Test (TC-1055, TC-1056, TC-1057) |
+| FR-051-AC-21 | A TypeScript `describe(...)` / `suite(...)` registration mints one **container** symbol named by its registered title, spanning its block and its leading annotation block, and the registrations written inside it carry it as their container rather than the file's module, where the header line opens its block — a `describe(` whose `{` falls on a later line mints the container and parents nothing, the same window bound AC-18 states for its own scan. A suite does not *name* its members: a registration's qualified name is its own registered title whether or not a suite encloses it, while a class inside a suite still qualifies its own. A suite is a grouping and not evidence, so a trace tag on a suite header mints **no** `verifies` relation and the suite is **not** a `binding_census` candidate — and since `agent-ix/quire-rs#312` that tag is **reported** rather than dropped, under AC-22. The tag naming a test is the declarative form; a tag on the group would make coverage an inference about which test inside is meant, and the report says where the tag is instead of guessing. A registration whose name chain names a suite **anywhere along it** is a suite: `test.describe(...)` and `it.describe.only(...)` classify exactly as `describe(...)` does, because a harness spells its suite as a member of its test namespace and reading only the first identifier gave one construct two classifications (CR-121). `context` is not a suite name. | Test (TC-1039, TC-1040, TC-1042) |
+
+> **CR-119 note (2026-08-24):** AC-21 is new. `agent-ix/quire-rs#273`, epic
+> `agent-ix/quire-rs#264`.
+>
+> `describe(…)` blocks group tests and registered **no symbol themselves**, so a
+> trace tag on a suite header had nothing to attach to. The nearest enclosing
+> symbol was the file's own module container — a container spanning line 1 to
+> EOF, which localises nothing. The header now mints a `Container` named by its
+> registered title, and the registrations inside it are parented to it.
+>
+> **A suite parents without naming.** A registration's qualified name is its
+> registered title — stated in this FR's body, not in AC-3, which is about
+> classification — and qualifying it through the enclosing suite would
+> change the identity of every test in the ecosystem that sits inside a
+> `describe(`. The scope stack therefore carries two axes — what a scope is
+> *called*, and whether members are named *through* it — and a class still
+> qualifies its own members inside a suite.
+>
+> **`context` is refused on measurement.** Across `~/dev`: 1,699 `describe(`
+> registrations with a quoted title in 103 repository roots, **zero** `suite(`,
+> **zero** `context(`, and five lines beginning `context.` that are method calls
+> on an object of that name. Mocha's alias would put the `.modifier` chain in
+> front of the one shape it cannot distinguish from a suite, for no occurrence
+> it would recover. `suite` is admitted at zero occurrences because it collides
+> with nothing.
+>
+> **The bind semantics are declared as UNCHANGED, and that is the load-bearing
+> half.** A suite is a grouping, not evidence, so a tag on a suite header mints
+> no `verifies` relation and the suite is not a `binding_census` candidate.
+> #273 recommended the opposite — that a suite-level tag bind on behalf of its
+> contained tests — so the recommendation was **run**. **[RAN]** over the 241
+> repositories `scripts/corpus.py` enumerates, with `Container` moved into
+> `binds_trace_ids()`: rows backed 5,039 → 5,526 (+487), `untracked_symbols`
+> 1,085 → **3,961** (+2,876), census candidates 25,358 → 43,260, the rust
+> binding ratio 44.41% → **28.05%**, and `low-symbol-binding` firing on 13 more
+> repositories that did nothing wrong. Six ids bound to nothing per row
+> recovered. The widening cannot reach a suite without reaching **every**
+> container, the file's module included — CR-061's "manufacture backing out of
+> prose", measured. A suite-level tag that binds needs a kind that is neither
+> `Container` nor `TestFunction`, which is a change to the
+> `binds_trace_ids`/`carries_implements` complement, and that belongs to
+> `agent-ix/quire-rs#312` along with its census question.
+>
+> **What this change moves, ecosystem-wide, is one ratio and it moves the wrong
+> way.** **[RAN]** same 241 repositories, same binary but for this change: rows
+> minted 20,023 → 20,023, rows backed 5,039 → 5,039, every diagnostic count and
+> every `binding_census` identical — and `coverage.implements examined`
+> 49,855 → **51,340** (+1,485 suite containers across 93 repositories), a
+> denominator growing while its value does not.
+>
+> **#273's two worked examples are not both this defect, and one is not this
+> defect at all.** `agent-ix/agent-cli-daemon` reads **0 backed of 119** here,
+> under this change, and under the `Container`-binds experiment as well: its
+> census is 127 candidates / 0 bound and it fires `no-symbol-bound` plus six
+> `section-matches-nothing`, so its matrix does not mint the ids its tags name
+> and no attachment fix can reach it. Under the experiment it gains 24 bound
+> symbols and **29 `untracked_symbols`** — every recovered tag names a row the
+> declaration never minted. `agent-ix/ix-ui` does move under the experiment
+> (0 → 57 of 181, with 20 untracked) and not under this change. Recorded because
+> the ticket cites both as the same defect.
+
+> **CR-115 note (2026-08-24):** AC-20 is new. `agent-ix/quire-rs#274`, epic
+> `agent-ix/quire-rs#264`.
+>
+> The Python adapter entered string state only when a triple-quote **started**
+> the trimmed line. Two failures then compounded on the same literal, in
+> opposite directions. `FIXTURE = """` does not start its line, so the scanner
+> never entered string state and read the literal's **body** as code, inventing
+> declarations the program does not contain. The **closing** `"""`, which does
+> start its line, was then read as an **opener** — and everything after it
+> swallowed into a string that never ended, losing every real declaration in the
+> rest of the file. Because the state oscillated, the scope stack resumed stale,
+> so declarations after a desync were attributed to whichever class was open
+> when it began.
+>
+> **What the number counts.** Declarations — `class`, `def`, `async def` — that
+> the shipped adapter's own symbol table holds, diffed against `ast.parse` over
+> every `.py` under `~/dev` (excluding `worktrees/`, `.venv*`, `site-packages/`,
+> `node_modules/`), 3,652 files parsed, 18 unreadable by `ast` and skipped,
+> 30,569 declarations of ground truth. Comparison is by multiset, and both
+> namings are reported because the engine mints the qualified one: `bare` is the
+> declaration's own name, `qualified` its dotted path through enclosing classes.
+>
+> | | files | declarations |
+> |---|---|---|
+> | lost, bare, before | 42 | 300 |
+> | lost, bare, after | 0 | 0 |
+> | lost, qualified, before | 43 | 404 |
+> | lost, qualified, after | 1 | 1 |
+> | invented, qualified, before | 19 | 111 |
+> | invented, qualified, after | 1 | 1 |
+>
+> The gap between the two axes is the misattribution mode: 104 declarations were
+> present under the wrong container, which a bare-name comparison cannot see.
+> Named example from the ticket, verified: `test_update_simple_version`
+> (`py-project/tests/test_deps.py:464`) really lives in `TestTomlModification`
+> and was reported under `TestTomlParsing`.
+>
+> **Measured against the engine, not a reimplementation.** #274's own figures
+> moved three times because each was produced by a port of the state machine,
+> and the ports disagree exactly where the original is wrong (#309). These
+> numbers come from `quire_rs::symbols::extract_file` itself, run twice over one
+> file list — once on the parent commit, once on this one.
+>
+> **What did not change.** Scope is popped by indentation alone, so a
+> declaration nested inside a block that is itself nested keeps the wrong
+> qualifier. The residual row above is exactly one instance:
+> `workflow-plugin-sdk/tests/test_schema.py:69-75`, a function-local
+> `class EmptyModel` at column 8 inside a test method, capturing a nested
+> `async def handler` at column 12 — reported as
+> `TestSchemaGeneration.EmptyModel.handler` where `ast` says
+> `TestSchemaGeneration.handler`.
+>
+> An earlier draft of this note named `if not TYPE_CHECKING:` at column 0 as
+> the instance. That is the same defect CLASS and a real one, but it is not
+> what the residual row counts. Both old and new scanners produce it
+> identically, so it predates this change.
+> It is not folded in here, because a fix that widened this one until the
+> residue vanished would stop being a statement about triple quotes.
+>
+> **Not a tokenizer.** The adapter is line-oriented by design (FR-051's
+> indentation-structural model) and stays so: one left-to-right byte pass per
+> line, no allocation, no lookbehind, carrying a single `Quoting` value across
+> the line boundary.
+>
+> **No gate measures it**, and an earlier draft of this note claimed
+> `scripts/check_perf_regression.sh` does. It does not: that script is not in
+> `make ci`, and the CI `perf` job runs `--bench parse --bench load`, neither of
+> which touches `src/symbols/`. No bench exercises the adapter at all.
+>
+> Measured by hand instead — 199,800 lines through `extract_file`, twenty
+> passes: 0.85/0.90/0.93s before, 0.94/0.94/0.97s after, **about +6%**. Inside
+> the 10% band the retired claim invoked, but stated as a measurement rather
+> than as a gate that would catch a regression, because none would.
 
 > **CR-093 note (2026-08-22):** AC-19 is new — the binder says what it looked
 > at. `agent-ix/quire-rs#227`, epic `agent-ix/quoin#197`.
@@ -393,5 +535,5 @@ byte-identical JSON ordering and stable record ids.
 ## Dependencies
 
 - **Upstream**: [FR-050](./FR-050-declarative-coverage-computation.md) (the declared trace-tag grammar), [FR-045](./FR-045-filament-core-extraction-engine.md) (record shapes, id and dedup conventions), [NFR-006](../non-functional/NFR-006-determinism.md) (determinism discipline)
-- **Downstream**: the coverage rollup ([FR-050](./FR-050-declarative-coverage-computation.md)), the `gap-analysis` semantic review, and filament-core knowledge-graph ingestion consume the symbol graph
+- **Downstream**: the coverage rollup ([FR-050](./FR-050-declarative-coverage-computation.md)), the `gap-analysis` semantic review, and filament-core knowledge-graph ingestion consume the symbol graph; [FR-065](./FR-065-controlled-corpus-contract.md) (the corpus's L2 localisation level reads `binding_census.unbound_example` from this extraction)
 - **Companion deliverables (outside quire-rs core)**: the canonical markers imply per-language support packages — a pytest plugin registering the `trace` marker, a lightweight Rust no-op proc-macro crate, and an npm helper for vitest/jest — separate deliverables following the separate-workspace-crate pattern (ADR 0010 placement precedent); this FR specifies only the static parsing contract the extractor holds them to

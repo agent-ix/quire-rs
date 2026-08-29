@@ -40,6 +40,207 @@ impl SourceLanguage {
     }
 }
 
+/// The heading, or headings, a declared table may live under (CR-118, #272).
+///
+/// Authored as a scalar or as a sequence under the **same** `section:` key:
+///
+/// ```yaml
+/// section: Test Case Summary                 # one heading, exactly
+/// section: ["Test Case Summary", "Suites"]   # any of these headings
+/// section: "*Test Case Summary*"             # the whole family of them
+/// ```
+///
+/// **One key, not a second `sections:` key.** `deny_unknown_fields` means a new
+/// key is a new load-time shape, and two keys meaning one thing is a rule that
+/// enforces nothing: every reader, every module and every diagnostic would have
+/// to handle both, and a module declaring both would need a fourth rule saying
+/// which wins. Scalar-or-sequence on one key is the shape YAML consumers
+/// already read everywhere else, and the single-string form is unchanged down
+/// to the byte — it round-trips back out as a scalar.
+///
+/// **`*` is the only metacharacter, and it is opt-in.** An entry without one is
+/// the heading exactly, matched the way [`crate::query::section`] has always
+/// matched it: case-insensitively, with a decorative section number
+/// (`## 2.1 Test Case Summary`) normalized away. So a target declaring one
+/// section does not start matching others — the widening happens only where a
+/// module writes a `*`.
+///
+/// **[RAN]** before choosing `*` over a literal list of names: of the 434
+/// test-case ids across `~/dev` that sit in a `Test ID` table the ecosystem's
+/// `test-case` target cannot reach, **306 are under a heading that contains
+/// `Test Case Summary`** and is qualified locally — `Test Case Summary (plugin
+/// scope)`, `Phase 4 Test Case Summary`, `Test Case Summary —
+/// packages/elements`. Those qualifiers are per-repository and per-phase; a
+/// literal list would have to enumerate one repository's phase numbers and
+/// would go stale the day somebody wrote `Phase 5`. The list form is kept
+/// because a genuinely differently-named section (`Integration Test Matrix`) is
+/// a different claim and reads better as one.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SectionNames {
+    /// As authored: what a diagnostic names and what serializes back out.
+    names: Vec<String>,
+    /// One matcher per name, normalized once at load rather than per document.
+    matchers: Vec<SectionMatcher>,
+}
+
+/// One declared heading, compiled (CR-118).
+///
+/// Normalization is applied to the pattern at construction and to the heading
+/// at comparison, so both sides are in the one form [`matches_heading`] has
+/// compared since FR-010.
+///
+/// [`matches_heading`]: crate::query
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum SectionMatcher {
+    /// A name with no `*`: today's exact, normalized, case-insensitive compare.
+    Exact(String),
+    /// A name with at least one `*`, matched by [`wildcard_match`].
+    Wildcard(String),
+}
+
+impl SectionMatcher {
+    fn new(name: &str) -> Self {
+        let normalized = crate::query::normalize_heading(name).to_lowercase();
+        if normalized.contains('*') {
+            Self::Wildcard(normalized)
+        } else {
+            Self::Exact(normalized)
+        }
+    }
+
+    fn matches(&self, normalized_heading: &str) -> bool {
+        match self {
+            Self::Exact(name) => name == normalized_heading,
+            Self::Wildcard(pattern) => wildcard_match(pattern, normalized_heading),
+        }
+    }
+}
+
+/// `*` matches any run of characters, including none. Greedy left-to-right,
+/// which is exact for a pattern whose only metacharacter is `*`.
+///
+/// Deliberately **not** `globset`, although this crate already depends on it
+/// for `exclude:`. A glob makes `?`, `[`, `]`, `{` and `}` special too, and a
+/// heading is prose. Making four more characters special could change what an
+/// existing declaration means.
+///
+/// **Measured, because an earlier version of this comment cited an invented
+/// example.** It named ``Edge Cases [deferred]`` as "a real ecosystem
+/// heading"; that heading exists nowhere in the ecosystem and was written to
+/// support the conclusion. FR-050 retracted it and this comment did not — the
+/// retraction was applied to two documents by hand and did not find this copy,
+/// which is why the rule is now a repository-wide search for the exact claim.
+///
+/// The census that does hold: 21 distinct `section:` values are declared
+/// across every `manifest.yaml` under the dev root and **none carries a glob
+/// metacharacter**; of the 2,802 headings in 417 `type: TestMatrix`
+/// documents, exactly **one** carries `[`/`]` (a markdown link) and none
+/// carries `?`, `{`, `}` or `*`. So globset would not change any declaration
+/// that exists today — this forecloses a hazard rather than fixing an observed
+/// one, and claims no more than that. The bracketed string in this module's
+/// tests is a synthetic input, which is fine; calling it observed evidence was
+/// not.
+///
+/// Byte-wise on UTF-8 is safe: `*` is ASCII, and a UTF-8 substring search
+/// cannot match across a character boundary.
+fn wildcard_match(pattern: &str, text: &str) -> bool {
+    let mut segments = pattern.split('*');
+    let first = segments.next().unwrap_or_default();
+    let Some(mut rest) = text.strip_prefix(first) else {
+        return false;
+    };
+    let segments: Vec<&str> = segments.collect();
+    let Some((last, middle)) = segments.split_last() else {
+        // No `*` at all: the pattern is one literal and must be the whole text.
+        return rest.is_empty();
+    };
+    for segment in middle {
+        let Some(at) = rest.find(segment) else {
+            return false;
+        };
+        rest = &rest[at + segment.len()..];
+    }
+    // The final segment anchors at the end, and may not overlap what the
+    // middle segments already consumed.
+    rest.len() >= last.len() && rest.ends_with(last)
+}
+
+impl SectionNames {
+    /// Build from authored names. Empty names are kept as authored so
+    /// [`TraceabilityModel::validate`] can report them against the declaration
+    /// they came from rather than silently dropping them here.
+    pub fn new(names: Vec<String>) -> Self {
+        let matchers = names.iter().map(|n| SectionMatcher::new(n)).collect();
+        Self { names, matchers }
+    }
+
+    /// The declared headings, as authored — the list a diagnostic names.
+    pub fn names(&self) -> &[String] {
+        &self.names
+    }
+
+    /// True when a document heading is one of the declared sections.
+    pub fn matches(&self, heading: &str) -> bool {
+        let normalized = crate::query::normalize_heading(heading).to_lowercase();
+        self.matchers.iter().any(|m| m.matches(&normalized))
+    }
+
+    /// True when nothing at all was declared — an empty sequence, which
+    /// selects no section and is rejected at load.
+    pub fn is_empty(&self) -> bool {
+        self.names.is_empty()
+    }
+}
+
+impl From<&str> for SectionNames {
+    fn from(name: &str) -> Self {
+        Self::new(vec![name.to_string()])
+    }
+}
+
+impl Serialize for SectionNames {
+    /// One name serializes as the scalar it was authored as. A model that
+    /// round-trips through JSON — every published payload does — must not
+    /// rewrite every module's `section:` into a one-element list.
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        match self.names.as_slice() {
+            [one] => serializer.serialize_str(one),
+            many => serializer.collect_seq(many),
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for SectionNames {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        struct ScalarOrSequence;
+
+        impl<'de> serde::de::Visitor<'de> for ScalarOrSequence {
+            type Value = SectionNames;
+
+            fn expecting(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                f.write_str("a section heading, or a sequence of them")
+            }
+
+            fn visit_str<E: serde::de::Error>(self, value: &str) -> Result<Self::Value, E> {
+                Ok(SectionNames::new(vec![value.to_string()]))
+            }
+
+            fn visit_seq<A: serde::de::SeqAccess<'de>>(
+                self,
+                mut seq: A,
+            ) -> Result<Self::Value, A::Error> {
+                let mut names = Vec::new();
+                while let Some(name) = seq.next_element::<String>()? {
+                    names.push(name);
+                }
+                Ok(SectionNames::new(names))
+            }
+        }
+
+        deserializer.deserialize_any(ScalarOrSequence)
+    }
+}
+
 /// The whole declared model. Every field is optional at the YAML layer so a
 /// module can declare only the parts it needs (e.g. reference integrity
 /// without a status vocabulary), but what it does declare must be coherent —
@@ -263,10 +464,11 @@ pub struct ObligationSource {
     /// `target`; requires `section` and `id_format`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub archetype: Option<String>,
-    /// Heading of the section carrying the table. Required with `archetype`,
-    /// ignored with `target` (which supplies its own).
+    /// Heading — or headings (CR-118) — of the section carrying the table.
+    /// Required with `archetype`, ignored with `target` (which supplies its
+    /// own).
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub section: Option<String>,
+    pub section: Option<SectionNames>,
     /// Template rendering an id for a row that has none: `{document}` is the
     /// owning document's id, `{row}` the 1-based row ordinal. Required with
     /// `archetype`, ignored with `target`.
@@ -377,6 +579,30 @@ impl ColumnVocabularies {
 /// `spec/evals.md`, one declaration each) and reached nothing nested, so a
 /// matrix at `spec/<module>/matrix/tests.md` minted no ids however correctly it
 /// was authored.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum TraceTargetEvidence {
+    /// The existing posture: rows belong to the source-evidence denominator.
+    #[default]
+    Source,
+    /// IDs exist for reference integrity, not for source-symbol coverage.
+    ReferenceOnly,
+}
+
+impl TraceTargetEvidence {
+    fn is_source(&self) -> bool {
+        *self == Self::Source
+    }
+}
+
+fn default_true() -> bool {
+    true
+}
+
+fn is_true(value: &bool) -> bool {
+    *value
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct TraceTarget {
@@ -392,10 +618,24 @@ pub struct TraceTarget {
     /// `TestMatrix` contract legitimately *is* `type: TestMatrix`.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub exclude: Vec<String>,
-    /// Heading of the section carrying the minting table.
-    pub section: String,
+    /// Heading of the section carrying the minting table, or several headings
+    /// (CR-118): a matrix whose rows are grouped under `Test Case Summary
+    /// (plugin scope)` and `Test Case Summary (discovery scope)` mints from
+    /// both, and one heading name minted from neither.
+    pub section: SectionNames,
     /// Table column holding the minted id.
     pub id_column: String,
+    /// Whether every selected document must carry the minting section.
+    /// Omitted preserves the historical required posture. Optional targets
+    /// still mint and validate a section when it is present; only its absence
+    /// is healthy (FR-050-AC-41, #327).
+    #[serde(default = "default_true", skip_serializing_if = "is_true")]
+    pub required: bool,
+    /// Whether rows require source-symbol evidence. Omitted is the historical
+    /// `source` posture; reference-only targets register identifiers without
+    /// entering coverage (FR-050-AC-40, #363).
+    #[serde(default, skip_serializing_if = "TraceTargetEvidence::is_source")]
+    pub evidence: TraceTargetEvidence,
 }
 
 /// One kind of reference from a document cell to minted trace ids. `pattern`
@@ -414,8 +654,13 @@ pub struct DocumentReference {
     /// rows (CR-038).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub exclude: Vec<String>,
-    /// Heading of the section carrying the referencing table.
-    pub section: String,
+    /// Heading of the section carrying the referencing table, or several
+    /// (CR-118). A reference reads the SAME table a trace target mints from —
+    /// `traces-to` reads `Traces To` off the rows `test-case` mints — so the
+    /// two declarations take the same shape here. Widening only the target
+    /// would mint ids out of a section whose cells nothing then reads, and the
+    /// criteria those rows answer for would report unbacked.
+    pub section: SectionNames,
     /// Column whose cells carry the references.
     pub column: String,
     /// Column identifying the referencing row (the row id in report entries).
@@ -651,7 +896,7 @@ impl TraceabilityModel {
                 "exclude",
                 &target.exclude,
             )?;
-            check_field("trace_targets", &target.name, "section", &target.section)?;
+            check_sections("trace_targets", &target.name, &target.section)?;
             check_field(
                 "trace_targets",
                 &target.name,
@@ -680,12 +925,7 @@ impl TraceabilityModel {
                 "exclude",
                 &reference.exclude,
             )?;
-            check_field(
-                "document_references",
-                &reference.name,
-                "section",
-                &reference.section,
-            )?;
+            check_sections("document_references", &reference.name, &reference.section)?;
             check_field(
                 "document_references",
                 &reference.name,
@@ -757,7 +997,7 @@ impl TraceabilityModel {
                             source.name
                         ));
                     };
-                    check_field("obligations", &source.name, "section", section)?;
+                    check_sections("obligations", &source.name, section)?;
                     let Some(id_format) = &source.id_format else {
                         return Err(format!(
                             "traceability: obligations entry '{}' declares 'archetype' without \
@@ -1061,6 +1301,28 @@ fn check_field(section: &str, name: &str, field: &str, value: &str) -> Result<()
     Ok(())
 }
 
+/// A declared `section:` must name at least one heading, and no blank one
+/// (CR-118).
+///
+/// Both halves are load-time failures for the same reason the empty scalar
+/// always was: `section: []` selects no section in any document, and
+/// `section: ["Test Case Summary", ""]` selects every section whose normalized
+/// heading is empty — which is none, but silently, leaving a reader to wonder
+/// which of the two entries did nothing. A declaration that reads nothing is
+/// reported against the declaration, not as an empty report.
+fn check_sections(location: &str, name: &str, sections: &SectionNames) -> Result<(), String> {
+    if sections.is_empty() {
+        return Err(format!(
+            "traceability: {location} entry '{name}' declares an empty `section` list, so it \
+             selects no section in any document"
+        ));
+    }
+    for value in sections.names() {
+        check_field(location, name, "section", value)?;
+    }
+    Ok(())
+}
+
 /// Exclusion globs must compile; a typo that silently matched nothing would
 /// quietly readmit the documents the module meant to keep out (CR-038).
 ///
@@ -1096,6 +1358,66 @@ fn check_capturing_pattern(section: &str, name: &str, pattern: &str) -> Result<(
         ));
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod cr118_props {
+    use proptest::prelude::*;
+
+    use super::SectionNames;
+
+    /// Heading-ish text: the punctuation real ecosystem headings carry, plus a
+    /// leading section number, and never a `*` — the claim under test is about
+    /// names that declare no wildcard.
+    fn headingish() -> impl Strategy<Value = String> {
+        let token = prop_oneof![
+            Just(" ".to_string()),
+            Just(" — ".to_string()),
+            Just("(".to_string()),
+            Just(")".to_string()),
+            Just("[".to_string()),
+            Just("]".to_string()),
+            Just("?".to_string()),
+            Just("/".to_string()),
+            Just("2.1 ".to_string()),
+            "[A-Za-z]{1,6}".prop_map(|s| s),
+            "[0-9]{1,3}".prop_map(|s| s),
+        ];
+        proptest::collection::vec(token, 1..8).prop_map(|v| v.concat())
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(2000))]
+
+        /// TC-1038 (FR-050-AC-34, CR-118, Property): a declared name carrying no
+        /// `*` selects a section exactly when [`crate::query::section`] — the
+        /// lookup every `section:` has gone through since FR-010 — finds it.
+        ///
+        /// The claim `#272` may not break: the single-string form is unchanged.
+        /// Asserted against the real parser and the real query rather than
+        /// against a restatement of the matcher.
+        #[test]
+        fn tc1038_a_star_free_name_agrees_with_the_engines_own_section_lookup(
+            declared in headingish(),
+            authored in headingish(),
+        ) {
+            let doc = crate::parser::parse_document(&format!("## {authored}\n\nProse.\n"));
+            // The heading as the PARSER read it. Comparing against the
+            // generated string instead would fail on inputs the parser does not
+            // make a section of at all (`## ` alone), which is a fact about the
+            // parser and not about this matcher.
+            let sections = crate::query::sections(&doc, None);
+            let Some(section) = sections.first() else {
+                return Ok(());
+            };
+            let found = crate::query::section(&doc, &declared).is_some();
+            prop_assert_eq!(
+                SectionNames::from(declared.as_str()).matches(&section.heading),
+                found,
+                "declared={:?} authored={:?} parsed={:?}", declared, authored, section.heading
+            );
+        }
+    }
 }
 
 #[cfg(test)]
@@ -1356,5 +1678,176 @@ document_references:
     fn unknown_field_is_a_parse_error() {
         let bad = "trace_targets:\n- name: t\n  archetype: FR\n  section: S\n  id_column: ID\n  typo: x\n";
         assert!(serde_yaml::from_str::<TraceabilityModel>(bad).is_err());
+    }
+
+    #[trace("TC-1075", "FR-050-AC-40", "FR-066-AC-2")]
+    #[test]
+    fn tc1075_trace_target_evidence_posture_is_typed_and_defaults_to_source() {
+        let defaulted =
+            model("trace_targets:\n- name: t\n  archetype: FR\n  section: S\n  id_column: ID\n");
+        assert_eq!(
+            defaulted.trace_targets[0].evidence,
+            TraceTargetEvidence::Source
+        );
+        let serialized = serde_yaml::to_string(&defaulted).expect("serialize default posture");
+        assert!(
+            !serialized.contains("evidence:"),
+            "the historical declaration stays byte-shaped: {serialized}"
+        );
+
+        let reference_only = model(
+            "trace_targets:\n- name: t\n  archetype: FR\n  section: S\n  id_column: ID\n  evidence: reference-only\n",
+        );
+        assert_eq!(
+            reference_only.trace_targets[0].evidence,
+            TraceTargetEvidence::ReferenceOnly
+        );
+        assert!(
+            serde_yaml::from_str::<TraceabilityModel>(
+                "trace_targets:\n- name: t\n  archetype: FR\n  section: S\n  id_column: ID\n  evidence: guessed\n",
+            )
+            .is_err(),
+            "an unknown posture must fail at the module boundary"
+        );
+    }
+
+    #[trace("TC-1076", "FR-050-AC-41")]
+    #[test]
+    fn tc1076_trace_target_required_defaults_true_and_false_round_trips() {
+        let defaulted =
+            model("trace_targets:\n- name: t\n  archetype: FR\n  section: S\n  id_column: ID\n");
+        assert!(defaulted.trace_targets[0].required);
+        let serialized = serde_yaml::to_string(&defaulted).expect("serialize default");
+        assert!(
+            !serialized.contains("required:"),
+            "existing manifests retain their serialized shape: {serialized}"
+        );
+
+        let optional = model(
+            "trace_targets:\n- name: t\n  archetype: FR\n  section: S\n  id_column: ID\n  required: false\n",
+        );
+        assert!(!optional.trace_targets[0].required);
+        assert!(serde_yaml::to_string(&optional)
+            .expect("serialize optional")
+            .contains("required: false"));
+        assert!(
+            serde_yaml::from_str::<TraceabilityModel>(
+                "trace_targets:\n- name: t\n  archetype: FR\n  section: S\n  id_column: ID\n  required: sometimes\n",
+            )
+            .is_err(),
+            "the posture is a boolean, not a truthy string"
+        );
+    }
+
+    #[trace("TC-1038", "FR-050-AC-34")]
+    // `section:` reads a scalar or a sequence under the ONE (CR-118)
+    // key, a one-name declaration round-trips back out as the scalar it was
+    // authored as, and a declaration that selects nothing is a load failure
+    // rather than an empty report.
+    #[test]
+    fn tc1038_section_takes_a_scalar_or_a_sequence_on_one_key() {
+        let scalar = model(
+            "trace_targets:\n- name: t\n  archetype: TestMatrix\n  \
+             section: Test Case Summary\n  id_column: Test ID\n",
+        );
+        scalar.validate().expect("the single-string form is valid");
+        let section = &scalar.trace_targets[0].section;
+        assert_eq!(section.names(), ["Test Case Summary"]);
+
+        // Unchanged down to the byte: a model that round-trips — every
+        // published payload does — must not rewrite every module's `section:`
+        // into a one-element list.
+        let json = serde_json::to_value(section).expect("serialize");
+        assert_eq!(json, serde_json::json!("Test Case Summary"));
+
+        let sequence = model(
+            "trace_targets:\n- name: t\n  archetype: TestMatrix\n  \
+             section: ['Test Case Summary', 'Integration Test Matrix']\n  id_column: Test ID\n",
+        );
+        sequence.validate().expect("the sequence form is valid");
+        let section = &sequence.trace_targets[0].section;
+        assert_eq!(
+            section.names(),
+            ["Test Case Summary", "Integration Test Matrix"]
+        );
+        assert_eq!(
+            serde_json::to_value(section).expect("serialize"),
+            serde_json::json!(["Test Case Summary", "Integration Test Matrix"]),
+            "and a sequence stays a sequence"
+        );
+
+        // A declaration that names nothing selects nothing in any document,
+        // and says so at load rather than reporting an empty rollup.
+        let err = model(
+            "trace_targets:\n- name: t\n  archetype: TestMatrix\n  section: []\n  \
+             id_column: Test ID\n",
+        )
+        .validate()
+        .expect_err("an empty list must be rejected");
+        assert!(err.contains("empty `section` list"), "{err}");
+
+        let err = model(
+            "trace_targets:\n- name: t\n  archetype: TestMatrix\n  \
+             section: ['Test Case Summary', '  ']\n  id_column: Test ID\n",
+        )
+        .validate()
+        .expect_err("a blank entry must be rejected");
+        assert!(err.contains("empty `section`"), "{err}");
+    }
+
+    #[trace("TC-1038", "FR-050-AC-34")]
+    // matching is unchanged for a name without `*`: (CR-118)
+    // case-insensitive, decorative section numbering normalized away, and
+    // nothing else. `*` is the only metacharacter, and it is opt-in.
+    #[test]
+    fn tc1038_a_name_without_a_star_matches_exactly_what_it_always_did() {
+        let exact = SectionNames::from("Test Case Summary");
+        assert!(exact.matches("Test Case Summary"));
+        assert!(exact.matches("test case summary"), "case-insensitive");
+        assert!(
+            exact.matches("2.1 Test Case Summary"),
+            "a decorative section number is normalized away, as FR-010 does"
+        );
+        // The widening a module did not ask for, which the control fixture in
+        // TC-1037 asserts end to end.
+        assert!(!exact.matches("Test Case Summary (plugin scope)"));
+        assert!(!exact.matches("Phase 4 Test Case Summary"));
+        assert!(!exact.matches("Test Cases"));
+
+        // Prose punctuation stays literal. A glob would make four more
+        // characters special and silently change what these declarations mean.
+        let bracketed = SectionNames::from("Edge Cases [deferred]");
+        assert!(bracketed.matches("Edge Cases [deferred]"));
+        assert!(!bracketed.matches("Edge Cases d"));
+        let brace = SectionNames::from("Coverage {2026}");
+        assert!(brace.matches("Coverage {2026}"));
+        let question = SectionNames::from("Open Questions?");
+        assert!(question.matches("Open Questions?"));
+        assert!(!question.matches("Open Questionsx"));
+
+        // `*` runs anywhere, matches any run including none, and anchors at
+        // both ends of the heading.
+        let prefix = SectionNames::from("Test Case Summary*");
+        assert!(prefix.matches("Test Case Summary"), "including none");
+        assert!(prefix.matches("Test Case Summary (plugin scope)"));
+        assert!(!prefix.matches("Phase 4 Test Case Summary"), "anchored");
+
+        let family = SectionNames::from("*Test Case Summary*");
+        assert!(family.matches("Phase 4 Test Case Summary"));
+        assert!(family.matches("Test Case Summary — packages/elements"));
+        assert!(!family.matches("Test Cases"));
+
+        let inner = SectionNames::from("Test*Summary");
+        assert!(inner.matches("Test Case Summary"));
+        assert!(!inner.matches("Test Case Summary (plugin scope)"));
+
+        // Several names: any of them.
+        let several = SectionNames::new(vec![
+            "Test Cases".to_string(),
+            "Integration Test Matrix".to_string(),
+        ]);
+        assert!(several.matches("Test Cases"));
+        assert!(several.matches("Integration Test Matrix"));
+        assert!(!several.matches("Edge Cases"));
     }
 }

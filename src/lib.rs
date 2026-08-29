@@ -20,6 +20,7 @@ pub mod diagnostic;
 pub mod error;
 pub mod extract;
 pub mod filament;
+pub mod finding;
 pub mod grammar;
 pub mod lint;
 pub mod loader;
@@ -32,6 +33,7 @@ pub mod python;
 pub mod query;
 pub mod registry;
 pub mod skeptic;
+pub mod symbol_table;
 pub mod symbols;
 pub mod traceability;
 pub mod validate;
@@ -57,6 +59,7 @@ pub use error::{format_violation, ArchetypeLoadFailure, QuireError, VIOLATION_PR
 pub use diagnostic::{Diagnostic, PathTraversalReason};
 // Loader + registry (FR-013 + FR-014).
 pub use loader::compile::CompiledArchetype;
+pub use loader::manifest::DeclarationOrigin;
 pub use obligation::{normalize_statement, statement_hash, Obligation};
 pub use registry::Registry;
 // Schema validation (FR-002).
@@ -79,6 +82,7 @@ pub use contract::{
 pub use extract::dsl::{ExtractionDsl, IterateKind, IterateOver, YieldPattern};
 pub use extract::locator::{Locator, LocatorAssert, LocatorKind, LocatorPrimitive};
 pub use extract::{extract, ExtractionResult};
+pub use finding::{FindingGuidance, FindingNextMove};
 // Canonical Filament core-data extraction (FR-045 / FR-046).
 pub use filament::{
     extract_filament_core, CoreExtractionDiagnostic, CoreExtractionResult, CoreGraphEdgeRef,
@@ -102,6 +106,7 @@ pub use validate_document::classify_document_criteria;
 pub use writeback::{update_block, update_section};
 // Declarative coverage computation (FR-050) + source-symbol extraction (FR-051).
 pub use coverage::{compute as compute_coverage, CoverageError, CoverageReport};
+pub use symbol_table::{build as build_symbol_table, SymbolTableReport};
 // Corpus: parallel repo walk (FR-024) + Spec corpus (FR-025); resolution/query in FR-026..027.
 pub use corpus::walk::{load_repo, load_repo_with, LoadedDocument, RepoLoad, WalkOptions};
 pub use corpus::{glossary_terms, glossary_terms_from_path, harvest_edges, Spec};

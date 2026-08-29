@@ -1,0 +1,448 @@
+schema: tag-non-binding-precision-rulings-v1
+frame_sha256: 2dcd54aa25eff18e4f161bf61090b59ad6a1a6e512e3483bb255a143e47acbd8
+decision: retain-current-rule
+recall_effect: 'No matcher change: controlled tag-on-non-binding-symbol recall remains
+  6/6 at L1, L2, and L3.'
+locality_effect: 'No matcher change: controlled locality is unchanged; emitted lines
+  remain symbol-leading loci and exact-occurrence locality is reported separately.'
+rulings:
+- id: 0868c42702e363abcda3
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: 08d1cd5d8fc3ca606dd1
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: 09d0de101952c459849f
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: 0a540180c8ea11f65d97
+  ruling: prose-citation
+  rationale: Both stored occurrences are parenthetical citations in explanatory Rustdoc;
+    neither is an authored tag.
+- id: 0ae3a351a6df0a2333cd
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: 0c0b136d1d6ed48be6a1
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: 0c59aa1a25534aa8f2ab
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: 0ca4ad8558cc3145f9a1
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: 10a6794450ff505ad2f7
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: 124caef55285e03054c2
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: 1aa084ab6f9321ec6c06
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: 1e088ac91b4a34855f8d
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: 20a1829d4912bcd870e9
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: 21d5751e5ed8600a0e2c
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: 25506b29025dbbb7672d
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: 2ed88afa8641aaf265c8
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: 2faedc73f9b3f1cc303e
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: 30c210cd610e3c0ebb19
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: 35ef60a490af7b5fcec7
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: 394e4ed39758b2643189
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: 3b1d2ba56c32e78054aa
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: 3d298aed2b5fb27f3b38
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: 3e42473ef5dedbe35b1c
+  ruling: prose-citation
+  rationale: The line is a wrapped parenthetical list continuation (TC-215/223/227).,
+    not an authored tag.
+- id: 3e86b01e56243c7a6b29
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: 42f725be593ca7b78e8a
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: 458152cbd25de597ae97
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: 4a244b46e16c5460b2a4
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: 4a9017f5f9bb7a6a9704
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: 4d6ab7ca453f9ff73aeb
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: 4d91dcfe5809b43a710e
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: 51d65b1095636008f947
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: 536746915a55d4239144
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: 5392e129185c2d564a39
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: 557e3e3630aed679e4cc
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: 58eb173e6c86d75c7418
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: 59c103e63524b83acdfd
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: 5cb5b523af4f2ecb30a5
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: 5d5a9c3c11792634ab0f
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: 60d19529fd4d238e7ec2
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: 61b0dff0a041d1cc73c5
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: 639fe0ac2e31e8601be1
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: 683bc7d691f098e8c2c7
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: 6f16b3137c2c92cf39ea
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: 72343f7b8d4e5943e021
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: 73152eb8faf94b8c57f1
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: 7347cd15b791e1a18ed0
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: 73b4bd39450c03eb22d0
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: 7421b458e55e99f6d576
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: 751f9e60f304668cc08b
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: 78c1fbae05c16ae9f17e
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: 79a755c8731b534d943a
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: 7cda78f8f8e32dac9c2a
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: 80a437867e0702f51ee9
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: 8252cb8e459f2b0a683f
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: 83a145f9718859904fb9
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: 83ee08eda4b05a5e9f71
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: 85692afc49c09b759c0d
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: 861d120de68fa66f7dcd
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: 862d03be22f5fe176c43
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: 8b100908382980a7b98e
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: 8d09388a34696782173d
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: 8f501fad8004cdc1e5ea
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: 91df5fcba3fbf2d10f9e
+  ruling: prose-citation
+  rationale: The only occurrence is inside a Rustdoc code example describing list
+    grammar, not a tag on legacy_ids.
+- id: 93f17fc00cfca6f2df68
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: 943c78b3007db5d55384
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: 94e68805cb15a774ae9f
+  ruling: prose-citation
+  rationale: Both stored occurrences are parenthetical citations in explanatory Rustdoc;
+    neither is an authored tag.
+- id: 9811132da77dd8d28ae0
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: 9ad6d40b711693c3a949
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: 9bef65e5e880d3e4e6d7
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: 9ece23053f962bfb5292
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: a1b919381c656cd2f6a1
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: a4e216e58af538028123
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: a88d733a939d884cf4f4
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: a9f373fa07bb5993ddef
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: abf70838ba7ca5809a97
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: b094bff7e65fb8f326b0
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: b0f2410b14f68ec00ac3
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: b38b82213f95de46f9e8
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: b4e5bb044e6dd44e597d
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: b4f98415c8504332ab04
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: b9315725e297a0fe5613
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: ba5c310648c90b4db2c8
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: bab19a854d88326d7748
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: bda1b017f6a915a89ab8
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: be071c21a0aefdae858a
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: c0fd8d5c2e5bcdd67cbd
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: c6520011c92b02135d55
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: cbb52aa285d104752650
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: d12650748cf7bab87102
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: d2d4c250fab99d73edc4
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: d596327e880024b4eac3
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: d5f0fef838288b11aa50
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: da33755ea6831e85930b
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: da84c461c7bc1a32c113
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: defff72bb7c61bccc27b
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: e0901138f9b27e35ad6f
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: e124605eb49caf6c7a92
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: e386c6324b13a69d7475
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: e435e32e874f9a7d7b42
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: e5085d6167b85a27e1d3
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: e9561ea47c9c696a30a9
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: e9e2862c60578ec7eeba
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: eb14c667d104a4413609
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: ec5ca3e7c9b0bedd1efc
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: f7fdd8c4df399391125b
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: f99542988fbc595dbadd
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: f9cab11b857ec7511eef
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: fe4edd563a5004ddcf98
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: feb4de0b535c931905cd
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.
+- id: ff01053ee9144d8cb0dc
+  ruling: authored-tag
+  rationale: The stored occurrence uses the id as an explicit requirement or trace
+    label on code or a non-binding test/container surface.

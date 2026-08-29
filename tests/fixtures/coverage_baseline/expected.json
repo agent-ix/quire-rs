@@ -111,7 +111,7 @@
       "path": "src/lib.rs",
       "symbol": "tests::covers_nothing_declared",
       "trace_id": "TC-999",
-      "line": 13
+      "line": 14
     }
   ],
   "groups": [
@@ -132,6 +132,71 @@
       "target": "test-case",
       "backed": 1,
       "total": 6
+    }
+  ],
+  "minted_targets": [
+    {
+      "id": "FR-001-AC-1",
+      "target": "acceptance-criterion",
+      "document": "spec/FR-001.md",
+      "line": 15,
+      "backed": false
+    },
+    {
+      "id": "FR-001-AC-2",
+      "target": "acceptance-criterion",
+      "document": "spec/FR-001.md",
+      "line": 16,
+      "backed": false
+    },
+    {
+      "id": "FR-002-AC-1",
+      "target": "acceptance-criterion",
+      "document": "spec/FR-002.md",
+      "line": 15,
+      "backed": false
+    },
+    {
+      "id": "TC-001",
+      "target": "test-case",
+      "document": "spec/tests.md",
+      "line": 13,
+      "backed": true
+    },
+    {
+      "id": "TC-002",
+      "target": "test-case",
+      "document": "spec/tests.md",
+      "line": 14,
+      "backed": false
+    },
+    {
+      "id": "TC-003",
+      "target": "test-case",
+      "document": "spec/tests.md",
+      "line": 15,
+      "backed": false
+    },
+    {
+      "id": "TC-004",
+      "target": "test-case",
+      "document": "spec/tests.md",
+      "line": 16,
+      "backed": false
+    },
+    {
+      "id": "TC-005",
+      "target": "test-case",
+      "document": "spec/tests.md",
+      "line": 17,
+      "backed": false
+    },
+    {
+      "id": "TC-006",
+      "target": "test-case",
+      "document": "spec/tests.md",
+      "line": 18,
+      "backed": false
     }
   ],
   "criteria": [
@@ -194,17 +259,50 @@
       "reason": "catch-all-universal",
       "message": "2 of 2 documents binding extractable criteria named a specific property shape for none of them — for example `FR-001-AC-1` at spec/FR-001.md:15; the extractable headline counts what a generator could quantify over, and this is the part it could not tell you what to write",
       "path": "spec/FR-001.md",
-      "value": "coverage.specific_shaped"
+      "line": 15,
+      "value": "coverage.specific_shaped",
+      "subject": "criterion represented by `coverage.specific_shaped` at spec/FR-001.md:15",
+      "change_target": "spec/FR-001.md:15",
+      "next_diagnostic_step": "review whether the criterion is intentionally universal; otherwise name a concrete supported property shape"
     }
+  ],
+  "diagnostic_reason_registry": [
+    "archetype-matches-nothing",
+    "catch-all-universal",
+    "hollow-denominator",
+    "id-column-matches-nothing",
+    "low-symbol-binding",
+    "marker-form-mismatch",
+    "model-mints-nothing",
+    "no-symbol-bound",
+    "obligation-row-states-nothing",
+    "section-holds-no-table",
+    "section-matches-nothing",
+    "status-column-matches-nothing",
+    "tag-on-non-binding-symbol",
+    "untracked-id-near-miss",
+    "untracked-id-has-minted-children",
+    "uncatalogued-verification-method",
+    "undeclared-coverage-vocabulary"
   ],
   "binding_census": [
     {
       "language": "rust",
       "candidates": 2,
+      "tagged": 2,
       "bound": 2,
       "forms": [
         "rust-trace-attribute"
       ]
+    }
+  ],
+  "unmatched_tags": [
+    {
+      "trace_id": "TC-404",
+      "language": "rust",
+      "path": "src/lib.rs",
+      "line": 6,
+      "symbol": "tests::covers_the_round_trip"
     }
   ],
   "metrics": [
@@ -216,6 +314,17 @@
       "state": "measured",
       "value": 1,
       "population": 9,
+      "examined": 2,
+      "matched": 2
+    },
+    {
+      "name": "authoring.tag_rate",
+      "unit": "evidence symbol",
+      "method": "evidence symbols whose attached annotation block carries an id-shaped token, whether or not the declared trace grammar can read it; `value` counts tagged symbols, while `matched` counts candidates classified as tagged or untagged so an honest zero is not mistaken for an unread population",
+      "shape": "ratio",
+      "state": "measured",
+      "value": 2,
+      "population": 2,
       "examined": 2,
       "matched": 2
     },
@@ -259,6 +368,17 @@
       "shape": "count",
       "state": "not_computed",
       "because": "the module declares no `trace_tags.implements` forms, so the requirement-to-code relation was never derived — this is unasked, not none"
+    },
+    {
+      "name": "minting.section_hit_rate",
+      "unit": "declared minting document",
+      "method": "documents whose declared `section:` heading was found, over the documents a required trace target's `archetype:` selected and its `exclude:` kept, plus documents where an optional target's section was present; counted per (trace target, document) pair. An optional absent section is outside the population. A required miss reads the archetype right and the heading wrong, so the whole table is stranded and its ids never enter `coverage.backed`'s denominator at all",
+      "shape": "ratio",
+      "state": "measured",
+      "value": 3,
+      "population": 3,
+      "examined": 3,
+      "matched": 3
     }
   ],
   "totals": {

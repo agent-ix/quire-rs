@@ -126,8 +126,24 @@ pub struct BindingCensus {
     /// candidate and never was, so counting it here would make every repository
     /// look half-unbound.
     pub candidates: usize,
+    /// Candidates whose annotation block carries an id-shaped token, whether
+    /// or not the declared grammar can read it. A bound candidate always
+    /// counts as tagged, including declared forms such as `tc_503` that are
+    /// intentionally outside the generic near-miss pattern.
+    pub tagged: usize,
     /// Candidates that minted at least one `verifies` relation.
     pub bound: usize,
+    /// Evidence symbols whose own declared name carries an id-shaped token
+    /// using a separator (`tc_391`, `tc-391`). This is a subpopulation of
+    /// `candidates`, retained separately because bindings through comments or
+    /// attributes must not mask a broken test-name form (#367).
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub self_named: usize,
+    /// Self-named evidence symbols whose declaration line was actually read by
+    /// one declared legacy name form. A comment binding the same id does not
+    /// increment this count.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub self_named_bound: usize,
     /// Every declared form consulted for this language, marker names first,
     /// then legacy — the list to check when `bound` is 0 and `candidates` is
     /// not.
@@ -147,6 +163,18 @@ pub struct BindingCensus {
     /// a later engine learned to name one.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub unbound_example: Option<UnboundSymbol>,
+    /// One candidate that carries an id-shaped token but bound nothing.
+    /// This is the actionable split between an unread tag and a test that was
+    /// never tagged at all (agent-ix/quire-rs#271).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub unmatched_example: Option<UnboundSymbol>,
+    /// One self-named evidence symbol no declared name form read.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub self_named_unbound_example: Option<UnboundSymbol>,
+}
+
+fn is_zero(value: &usize) -> bool {
+    *value == 0
 }
 
 /// Where one unbound evidence symbol is (#256).
@@ -161,6 +189,102 @@ pub struct UnboundSymbol {
     /// Qualified name, so the reader can confirm they are looking at the same
     /// symbol after the file moves.
     pub symbol: String,
+}
+
+/// One id-shaped token authored on an evidence symbol that no declared form
+/// bound on that symbol (FR-050-AC-39, #362).
+///
+/// This is the row-addressable form of [`BindingCensus::unmatched_example`].
+/// The engine owns the annotation boundary, so a downstream census can join
+/// these records to authored rows without copying the language adapters or
+/// mistaking id-shaped fixture data in a test body for a tag.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct UnmatchedTag {
+    pub trace_id: String,
+    /// Stable machine label — `rust`, `python`, `typescript`.
+    pub language: String,
+    /// Repo-relative, `/`-separated.
+    pub path: String,
+    /// 1-based line in the attached annotation block.
+    pub line: usize,
+    /// Qualified evidence-symbol name.
+    pub symbol: String,
+}
+
+#[derive(Default)]
+struct CensusAccumulator {
+    candidates: usize,
+    tagged: usize,
+    bound: usize,
+    self_named: usize,
+    self_named_bound: usize,
+    unbound_example: Option<UnboundSymbol>,
+    unmatched_example: Option<UnboundSymbol>,
+    self_named_unbound_example: Option<UnboundSymbol>,
+}
+
+impl CensusAccumulator {
+    fn keep_lowest(slot: &mut Option<UnboundSymbol>, candidate: UnboundSymbol) {
+        let better = match slot {
+            None => true,
+            Some(current) => (&candidate.path, candidate.line) < (&current.path, current.line),
+        };
+        if better {
+            *slot = Some(candidate);
+        }
+    }
+
+    fn observe(
+        &mut self,
+        bound: bool,
+        generic_tag: Option<UnboundSymbol>,
+        self_name_bound: Option<bool>,
+        self_name_locus: UnboundSymbol,
+        unbound: UnboundSymbol,
+    ) {
+        self.candidates += 1;
+        if let Some(name_bound) = self_name_bound {
+            self.self_named += 1;
+            if name_bound {
+                self.self_named_bound += 1;
+            } else {
+                Self::keep_lowest(&mut self.self_named_unbound_example, self_name_locus);
+            }
+        }
+        if bound {
+            self.bound += 1;
+            self.tagged += 1;
+            return;
+        }
+
+        Self::keep_lowest(&mut self.unbound_example, unbound);
+        if let Some(example) = generic_tag {
+            self.tagged += 1;
+            Self::keep_lowest(&mut self.unmatched_example, example);
+        }
+    }
+
+    fn finish(self, language: &str, model: &TraceabilityModel) -> BindingCensus {
+        assert!(
+            self.bound <= self.tagged && self.tagged <= self.candidates,
+            "binding census invariant violated for {language}: bound {} <= tagged {} <= candidates {}",
+            self.bound,
+            self.tagged,
+            self.candidates
+        );
+        BindingCensus {
+            language: language.to_string(),
+            candidates: self.candidates,
+            tagged: self.tagged,
+            bound: self.bound,
+            self_named: self.self_named,
+            self_named_bound: self.self_named_bound,
+            forms: declared_forms(model, language),
+            unbound_example: self.unbound_example,
+            unmatched_example: self.unmatched_example,
+            self_named_unbound_example: self.self_named_unbound_example,
+        }
+    }
 }
 
 /// The symbol graph the coverage rollup and knowledge-graph ingestion consume.
@@ -183,6 +307,9 @@ pub struct SymbolGraph {
     /// language label, and present for every language the walk saw at least one
     /// evidence symbol in.
     pub binding_census: Vec<BindingCensus>,
+    /// Generic id-shaped tokens on evidence-symbol annotation blocks that no
+    /// declared form bound on that same symbol (FR-050-AC-39, #362).
+    pub unmatched_tags: Vec<UnmatchedTag>,
     /// Production symbols examined for an `implements` marker — the complement
     /// of [`BindingCensus::candidates`] (FR-063-AC-4, CR-094).
     ///
@@ -206,6 +333,39 @@ pub struct SymbolGraph {
     /// rollup — which sees only this graph — can report it (FR-050-AC-24,
     /// #215).
     pub excluded_source_files: usize,
+    /// Trace tags written on a symbol whose kind cannot bind them (#312).
+    ///
+    /// The tag reaches NO channel: [`SymbolKind::binds_trace_ids`] refuses it,
+    /// `implements` wants the literal keyword the comment does not carry, and
+    /// [`Self::binding_census`] never counts it because a non-binding symbol is
+    /// missing from the denominator rather than counted as unbound. So the two
+    /// diagnostics built for "the tests are there and the rows are unbacked"
+    /// read a census the defect has been removed from, and a repository whose
+    /// tags are all in the wrong place reports a flawless 100%.
+    pub non_binding_tags: Vec<NonBindingTag>,
+}
+
+/// A trace id written where it cannot bind (#312).
+///
+/// Not a defect in the tag's *content* — the id may name a real row. The
+/// defect is that nothing in the report says the tag was seen and dropped, so
+/// it is indistinguishable from a test nobody wrote, which is the disposition
+/// this programme exists to tell apart.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NonBindingTag {
+    pub path: String,
+    /// The symbol the tag attached to — the INNERMOST one, so a tag beside a
+    /// production function is reported against that function rather than
+    /// against the module container whose span also covers it.
+    pub symbol: String,
+    /// `function` or `container`: the whole actionable part of the message.
+    /// "This row is unbacked" is already in the report and is not a fix.
+    pub kind: &'static str,
+    pub trace_id: String,
+    /// The declared form that matched, so a reader can tell an authored tag
+    /// from a coincidence of prose.
+    pub form: String,
+    pub line: usize,
 }
 
 impl SymbolGraph {
@@ -235,8 +395,7 @@ pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolG
     // FR-051-AC-19: what was looked at, per language, and what bound. Keyed by
     // the stable language label so the census order is a property of the data
     // rather than of the walk (NFR-006).
-    // candidates, bound, and the lowest-positioned unbound candidate (#256).
-    let mut census: BTreeMap<&'static str, (usize, usize, Option<UnboundSymbol>)> = BTreeMap::new();
+    let mut census: BTreeMap<&'static str, CensusAccumulator> = BTreeMap::new();
 
     for symbol in &extraction.symbols {
         graph.defined_in.push((
@@ -267,6 +426,54 @@ pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolG
             graph.implements_candidates += 1;
             if graph.implements.len() > before {
                 graph.implements_bound += 1;
+            } else {
+                // THE IMPLEMENTS CHANNEL TOOK NOTHING, so if a declared
+                // VERIFIES form matched here a tag was written and dropped in
+                // silence (#312).
+                //
+                // Gating on "implements bound nothing" is what makes this safe,
+                // and the corpus controls for the naive version: the control
+                // for `tag-on-non-test-function` leaves the id-shaped
+                // annotation exactly where it is and only rewrites it as
+                // `Implements: FR-001-AC-1`. A detector written as "any
+                // declared trace-id form inside a symbol that does not bind
+                // trace ids" fires on that healthy input and is wrong.
+                //
+                // LEGACY FORMS ONLY, and the reason is about what each form
+                // GUARANTEES rather than about how many findings it removes.
+                //
+                // A canonical marker is SYNTAX: the language attaches it to the
+                // declaration that follows it. So a canonical marker inside a
+                // non-binding symbol's span that bound to nothing is one of two
+                // things — the declaration it decorates bound, and the filter
+                // below already drops it; or that declaration does not exist,
+                // which means the marker text is data rather than code.
+                // Reporting the second is guessing.
+                //
+                // MEASURED: `cases/parser/triple-quote-scope-desync` carries
+                // `@pytest.mark.trace("TC-999")` inside a `"""…"""` literal, as
+                // fixture data for the defect it pins. The detector reported it,
+                // and the fixture is right — that id is not a tag. String
+                // masking exists for Rust legacy forms only and is #323 for the
+                // other two languages; this narrowing does not depend on it.
+                //
+                // A legacy comment-id form carries no adjacency guarantee at
+                // all, and that is exactly what #312 is about: a human wrote a
+                // comment naming a row, next to the wrong thing. All five
+                // seeded fixtures are that shape, in three languages.
+                for (trace_id, form, provenance) in verifies_form_ids(symbol, source, model) {
+                    if provenance != TraceProvenance::Legacy {
+                        continue;
+                    }
+                    graph.non_binding_tags.push(NonBindingTag {
+                        path: symbol.path.clone(),
+                        symbol: symbol.qualified_name.clone(),
+                        kind: symbol.kind.as_str(),
+                        trace_id,
+                        form,
+                        line: symbol.leading_line,
+                    });
+                }
             }
             continue;
         }
@@ -277,44 +484,97 @@ pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolG
         // ever appends to `verifies`, so the length delta is exactly "did this
         // candidate bind" — and the count stays correct if the binder grows
         // another form.
+        let generic_tags = generic_tags(symbol, source);
+        let generic_tag_locus = generic_tags.first().map(|tag| UnboundSymbol {
+            path: tag.path.clone(),
+            line: tag.line,
+            symbol: tag.symbol.clone(),
+        });
         let before = graph.verifies.len();
         bind_symbol(symbol, source, model, &mut graph);
+        let self_name_bound = self_named_trace_id(symbol).map(|trace_id| {
+            declared_name_form_ids(symbol, source, model)
+                .iter()
+                .any(|bound| normalized_trace_id(bound) == normalized_trace_id(&trace_id))
+        });
+        let bound_on_symbol: BTreeSet<String> = graph
+            .verifies
+            .iter()
+            .filter(|relation| relation.symbol_id == symbol.id)
+            .map(|relation| relation.trace_id.clone())
+            .collect();
+        graph.unmatched_tags.extend(
+            generic_tags
+                .into_iter()
+                .filter(|tag| !bound_on_symbol.contains(tag.trace_id.as_str())),
+        );
         let entry = census.entry(symbol.language.as_str()).or_default();
-        entry.0 += 1;
-        if graph.verifies.len() > before {
-            entry.1 += 1;
-        } else {
-            // Keep the LOWEST (path, line), not the first walked: the walk
-            // order is the scan's and a report that changes when a file is
-            // renamed is a report nobody can diff (NFR-006).
-            let candidate = UnboundSymbol {
+        entry.observe(
+            graph.verifies.len() > before,
+            generic_tag_locus,
+            self_name_bound,
+            UnboundSymbol {
+                path: symbol.path.clone(),
+                line: symbol.line,
+                symbol: symbol.qualified_name.clone(),
+            },
+            UnboundSymbol {
                 path: symbol.path.clone(),
                 line: symbol.leading_line,
                 symbol: symbol.qualified_name.clone(),
-            };
-            let better = match &entry.2 {
-                None => true,
-                Some(current) => (&candidate.path, candidate.line) < (&current.path, current.line),
-            };
-            if better {
-                entry.2 = Some(candidate);
-            }
-        }
+            },
+        );
     }
 
+    // TWO FILTERS, and both are load-bearing — the corpus controls prove it.
+    //
+    // 1. AN ID THAT BOUND SOMEWHERE ELSE IS NOT AN ORPHAN. A container's
+    //    attached span runs to the end of the file, so the module symbol of any
+    //    tagged test file "carries" every id in it. `tag-at-module-scope`'s
+    //    control is the whole file with the banner tag moved onto the test it
+    //    names, and without this filter the module container still reports both
+    //    ids and the control goes red on healthy input.
+    // 2. THE INNERMOST SYMBOL WINS. In `tag-on-non-test-function` the module
+    //    container and `normalize_severity` both span the tag, and the fix a
+    //    reader needs names the function — the module is where the tag is not.
+    //    Greatest `leading_line` is innermost: the container starts at the top
+    //    of the file and the function starts at its own doc comment. AT EQUAL
+    //    LINES A CONTAINER LOSES, because a tag on line 1 of a file whose first
+    //    symbol starts there gives the module and the function the same
+    //    `leading_line`, and the stable sort would then hand it to whichever
+    //    the extractor happened to emit first — which is the module.
+    let bound: BTreeSet<String> = graph.verifies.iter().map(|v| v.trace_id.clone()).collect();
+    graph
+        .non_binding_tags
+        .retain(|t| !bound.contains(&t.trace_id));
+    graph.non_binding_tags.sort_by(|a, b| {
+        let rank = |t: &NonBindingTag| usize::from(t.kind == "container");
+        (&a.path, &a.trace_id, b.line, rank(a)).cmp(&(&b.path, &b.trace_id, a.line, rank(b)))
+    });
+    graph
+        .non_binding_tags
+        .dedup_by(|a, b| (&a.path, &a.trace_id) == (&b.path, &b.trace_id));
+
     graph.suspicions = crate::skeptic::vacuous_property_suites(extraction);
+    graph
+        .suspicions
+        .extend(crate::skeptic::oracle_copies_in(extraction));
+    graph
+        .suspicions
+        .sort_by(|a, b| (&a.path, a.line, &a.symbol).cmp(&(&b.path, b.line, &b.symbol)));
     graph.binding_census = census
         .into_iter()
-        .map(
-            |(language, (candidates, bound, unbound_example))| BindingCensus {
-                language: language.to_string(),
-                candidates,
-                bound,
-                forms: declared_forms(model, language),
-                unbound_example,
-            },
-        )
+        .map(|(language, entry)| entry.finish(language, model))
         .collect();
+    graph.unmatched_tags.sort_by(|a, b| {
+        (&a.language, &a.path, a.line, &a.symbol, &a.trace_id).cmp(&(
+            &b.language,
+            &b.path,
+            b.line,
+            &b.symbol,
+            &b.trace_id,
+        ))
+    });
 
     graph.implements.sort_by(|a, b| {
         (&a.path, &a.symbol, &a.trace_id, &a.form).cmp(&(&b.path, &b.symbol, &b.trace_id, &b.form))
@@ -329,6 +589,100 @@ pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolG
         .diagnostics
         .sort_by(|a, b| (&a.path, &a.symbol, &a.trace_id).cmp(&(&b.path, &b.symbol, &b.trace_id)));
     graph
+}
+
+/// One generic trace id carried by an evidence symbol's own name.
+///
+/// A separator is required. That admits the observed `tc_391` / `tc-391`
+/// conventions without treating ordinary suffixed names such as `sha256` as
+/// trace ids. The candidate is observational only: a declared form still has
+/// to read the declaration line before it counts as bound.
+fn self_named_trace_id(symbol: &Symbol) -> Option<String> {
+    static SELF_NAME_ID: OnceLock<Regex> = OnceLock::new();
+    let pattern = SELF_NAME_ID.get_or_init(|| {
+        Regex::new(
+            r"(?i)(?:^|[^A-Z0-9])([A-Z]{2,4})[-_](\d+)(?:[-_]([A-Z]+)[-_](\d+))?(?:[^A-Z0-9]|$)",
+        )
+        .expect("self-name trace-id pattern compiles")
+    });
+    let captures = pattern.captures(&symbol.qualified_name)?;
+    let mut id = format!(
+        "{}-{}",
+        captures.get(1)?.as_str().to_uppercase(),
+        captures.get(2)?.as_str()
+    );
+    if let (Some(kind), Some(number)) = (captures.get(3), captures.get(4)) {
+        id.push('-');
+        id.push_str(&kind.as_str().to_uppercase());
+        id.push('-');
+        id.push_str(number.as_str());
+    }
+    Some(id)
+}
+
+/// Ids a declared legacy form reads from the symbol's declaration line.
+/// Annotation/comment forms elsewhere in the attached span are intentionally
+/// excluded: they may bind the same id, but do not prove the name form works.
+fn declared_name_form_ids(symbol: &Symbol, source: &str, model: &TraceabilityModel) -> Vec<String> {
+    let Some(line) = source.lines().nth(symbol.line.saturating_sub(1)) else {
+        return Vec::new();
+    };
+    let mut ids = Vec::new();
+    for legacy in &model.trace_tags.legacy {
+        if legacy
+            .language
+            .is_some_and(|language| language != symbol.language)
+        {
+            continue;
+        }
+        let Some(pattern) = compile(&legacy.pattern) else {
+            continue;
+        };
+        for captures in pattern.captures_iter(line) {
+            ids.extend(legacy_ids(&captures, legacy.id_format.as_deref()));
+        }
+    }
+    ids
+}
+
+fn normalized_trace_id(value: &str) -> String {
+    value
+        .chars()
+        .filter(|ch| ch.is_ascii_alphanumeric())
+        .flat_map(char::to_uppercase)
+        .collect()
+}
+
+/// Find every generic id-shaped token in the symbol's attached annotation
+/// block.
+///
+/// This deliberately does not reuse the declared trace grammar: that would
+/// reproduce the blindness being measured. It also stops at the declaration
+/// line, so an id mentioned in a test body is data used by the test rather than
+/// evidence that the test itself was tagged.
+fn generic_tags(symbol: &Symbol, source: &str) -> Vec<UnmatchedTag> {
+    static GENERIC_ID: OnceLock<Regex> = OnceLock::new();
+    let pattern = GENERIC_ID.get_or_init(|| {
+        Regex::new(r"(?i)\b[A-Z]{2,4}-[0-9]+(?:-[A-Z]+-[0-9]+)?\b")
+            .expect("generic trace-id pattern compiles")
+    });
+    let start = symbol.leading_line.saturating_sub(1);
+    let count = symbol.line.saturating_sub(start).max(1);
+    source
+        .lines()
+        .enumerate()
+        .skip(start)
+        .take(count)
+        .flat_map(|(line, text)| {
+            pattern.find_iter(text).map(move |matched| UnmatchedTag {
+                trace_id: matched.as_str().to_string(),
+                language: symbol.language.as_str().to_string(),
+                path: symbol.path.clone(),
+                line: line + 1,
+                symbol: symbol.qualified_name.clone(),
+            })
+        })
+        .collect()
 }
 
 /// Every declared form the binder consults for `language`, markers before
@@ -541,18 +895,268 @@ fn prev_is_ident(chars: &[char], i: usize) -> bool {
     i > 0 && (chars[i - 1].is_alphanumeric() || chars[i - 1] == '_')
 }
 
-fn bind_symbol(symbol: &Symbol, source: &str, model: &TraceabilityModel, graph: &mut SymbolGraph) {
+/// Blank the *contents* of TypeScript and Python string literals, preserving
+/// byte length and line structure exactly as [`mask_rust_string_contents`] does.
+///
+/// **This did not exist, and Rust had it (`agent-ix/quire-rs#323`).** A trace
+/// marker written inside a TypeScript or Python string literal bound as though
+/// it were a tag, so any file carrying tag-shaped text as DATA invented
+/// coverage nobody authored. The corpus carries a measured instance:
+/// `cases/parser/triple-quote-scope-desync` holds a trace marker inside a
+/// triple-quoted literal as fixture data for the parser defect it pins, and the
+/// non-binding-tag detector reported it — 1 false positive of 6 findings,
+/// tier-1 precision 83% (TC-1047).
+///
+/// A SEPARATE FUNCTION rather than a generalisation of the Rust one. Rust's
+/// raw-string form has no analogue in either language and its handling is the
+/// delicate part of that lexer; folding three languages into one loop would put
+/// the two at risk of each other for no gain. This engine already keeps a
+/// symbol extractor per language for the same reason.
+///
+/// Comments are left INTACT — that is where legacy tags live, and masking them
+/// would suppress the very form being matched. `//` and block comments for
+/// TypeScript, `#` for Python.
+///
+/// Applied to the LEGACY textual forms only, exactly as the Rust mask is:
+/// canonical markers put their ids inside string literals by design, so masking
+/// before matching them would suppress the form the grammar prefers.
+fn mask_script_string_contents(
+    span: &str,
+    language: SourceLanguage,
+    preserve_tag_channels: bool,
+) -> String {
+    let python = matches!(language, SourceLanguage::Python);
+    let mut out = String::with_capacity(span.len());
+    // The delimiter that opened the string we are inside, if any. A triple
+    // quote is held as all three characters so a lone quote inside it does not
+    // close it — the shape #274 was about, one layer down.
+    let mut open: Option<Vec<char>> = None;
+    let mut block_comment = false;
+    // Whether the literal currently open is a DOCSTRING — Python's doc channel,
+    // preserved like a comment. See the opener below for why.
+    let mut doc_string = false;
+
+    for line in span.split_inclusive('\n') {
+        let chars: Vec<char> = line.chars().collect();
+        let mut i = 0;
+        let blank = |c: char, out: &mut String| {
+            if c == '\n' || c == '\r' || !c.is_ascii() {
+                out.push(c);
+            } else {
+                out.push(' ');
+            }
+        };
+
+        while i < chars.len() {
+            let c = chars[i];
+            // Whether everything before this position on the line is
+            // whitespace — the declaration's own `^\s*` anchor for the
+            // docstring form.
+            let opens_line = chars[..i].iter().all(|x| x.is_whitespace());
+
+            if block_comment {
+                if c == '*' && chars.get(i + 1) == Some(&'/') {
+                    block_comment = false;
+                    out.push_str("*/");
+                    i += 2;
+                    continue;
+                }
+                out.push(c);
+                i += 1;
+                continue;
+            }
+
+            if let Some(delim) = open.clone() {
+                // An escape consumes the next character, so an escaped quote
+                // never closes the literal.
+                if c == '\\' && !doc_string {
+                    blank(c, &mut out);
+                    if let Some(n) = chars.get(i + 1) {
+                        blank(*n, &mut out);
+                    }
+                    i += 2;
+                    continue;
+                }
+                if chars[i..].starts_with(&delim) {
+                    for k in &delim {
+                        out.push(*k);
+                    }
+                    i += delim.len();
+                    open = None;
+                    doc_string = false;
+                    continue;
+                }
+                if doc_string {
+                    out.push(c);
+                } else {
+                    blank(c, &mut out);
+                }
+                i += 1;
+                continue;
+            }
+
+            // Line comments run to end of line and are kept verbatim.
+            if (python && c == '#') || (!python && c == '/' && chars.get(i + 1) == Some(&'/')) {
+                for rest in &chars[i..] {
+                    out.push(*rest);
+                }
+                break;
+            }
+            if !python && c == '/' && chars.get(i + 1) == Some(&'*') {
+                block_comment = true;
+                out.push_str("/*");
+                i += 2;
+                continue;
+            }
+
+            // TRIPLE QUOTES FIRST, or the single form opens and immediately
+            // closes on its own second character and the body stays unmasked.
+            if python
+                && (chars[i..].starts_with(&['"', '"', '"'])
+                    || chars[i..].starts_with(&['\'', '\'', '\'']))
+            {
+                let delim: Vec<char> = chars[i..i + 3].to_vec();
+                for k in &delim {
+                    out.push(*k);
+                }
+                // A DOCSTRING IS PYTHON'S COMMENT, and masking it suppresses a
+                // form the declaration deliberately declares.
+                //
+                // `python-docstring-id` is a declared legacy form whose pattern
+                // is `^\s*(?:[rbfu]{1,2})?"""\s*(<id>)` — Python has no
+                // doc-comment syntax, so its doc channel IS a string literal,
+                // where Rust's is `///` and TypeScript's is a block comment.
+                // Both of those are preserved by their masks as comments; this
+                // is the same rule, wearing the only syntax the language has.
+                //
+                // Measured: masking every Python string took four corpus
+                // fixtures from bound to unbound — `tag-names-undeclared-section`
+                // in both directions among them — because their tags are
+                // docstrings. The corpus caught it before it shipped.
+                //
+                // The test is POSITIONAL, and it is the declaration's own: the
+                // form is `^`-anchored to an opener preceded by whitespace
+                // alone. A triple-quoted literal opened mid-line — `x = """`
+                // — is an assigned value, not documentation, and is masked like
+                // any other string.
+                if preserve_tag_channels && opens_line {
+                    doc_string = true;
+                }
+                open = Some(delim);
+                i += 3;
+                continue;
+            }
+            if c == '"' || c == '\'' || (!python && c == '`') {
+                out.push(c);
+                // A REGISTRATION TITLE IS TYPESCRIPT'S TAG CHANNEL, and masking
+                // it suppresses a form the declaration deliberately declares.
+                //
+                // `typescript-test-name-id` is a declared legacy form that
+                // reads the id out of the CALL TITLE — `it("TC-001 …", …)` —
+                // which is a string literal. Rust has no such form (its
+                // `rust-test-name-id` reads an identifier, `fn tc_001_…`),
+                // which is why a blanket string mask is right there and wrong
+                // here.
+                //
+                // Measured: masking every TypeScript string took
+                // `cases/detection/test-name-id-in-call-title` from `backed 1`
+                // to `backed 0` and lit `no-symbol-bound` on a fixture whose
+                // whole subject is that the title binds. The corpus caught it.
+                //
+                // The test is the declared pattern's OWN anchor: `^\s*(await
+                // )?(it|test|describe|suite)`. A string opened anywhere else on
+                // the line is an ordinary value and is masked.
+                if preserve_tag_channels && !python && opens_registration(&chars[..i]) {
+                    doc_string = true;
+                }
+                open = Some(vec![c]);
+                i += 1;
+                continue;
+            }
+            out.push(c);
+            i += 1;
+        }
+    }
+    out
+}
+
+/// Whether the text before a quote on its line opens a test REGISTRATION —
+/// `it(`, `test(`, `describe(`, `suite(`, with the modifiers the declared
+/// pattern allows.
+///
+/// Kept deliberately close to `typescript-test-name-id`'s own `^\s*(?:await
+/// \s+)?(?:it|test)(?:\.…)*\s*\(` anchor rather than generalised: this
+/// exists to preserve exactly the channel the declaration reads from, and a
+/// looser rule would start preserving ordinary strings again.
+fn opens_registration(before: &[char]) -> bool {
+    let text: String = before.iter().collect();
+    let text = text.trim_start();
+    let text = text.strip_prefix("await ").unwrap_or(text).trim_start();
+    for name in ["describe", "suite", "test", "it"] {
+        let Some(rest) = text.strip_prefix(name) else {
+            continue;
+        };
+        // Modifiers (`.each`, `.only`, …) and whitespace may sit between the
+        // name and its parenthesis; nothing else may.
+        let rest = rest.trim_start();
+        let rest = rest.trim_start_matches(|c: char| c == '.' || c.is_alphanumeric());
+        let rest = rest.trim_start();
+        if let Some(args) = rest.strip_prefix('(') {
+            if args.trim().is_empty() {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+/// The span a LEGACY form is matched against: string contents blanked, comments
+/// intact, for every language rather than for Rust alone.
+///
+/// ONE dispatch point rather than the two this file carried, which is how
+/// TypeScript and Python came to be unmasked in both of them (#323).
+fn legacy_match_span(span: &str, language: SourceLanguage) -> String {
+    match language {
+        SourceLanguage::Rust => mask_rust_string_contents(span),
+        SourceLanguage::Typescript | SourceLanguage::Python => {
+            mask_script_string_contents(span, language, true)
+        }
+    }
+}
+
+/// Blank every string's contents for a static check that reads code rather
+/// than a declared tag channel. Unlike [`legacy_match_span`], this preserves
+/// neither Python docstrings nor TypeScript registration titles: those are
+/// strings with special meaning to the tag grammar, not executable code.
+pub(crate) fn mask_source_string_contents(span: &str, language: SourceLanguage) -> String {
+    match language {
+        SourceLanguage::Rust => mask_rust_string_contents(span),
+        SourceLanguage::Typescript | SourceLanguage::Python => {
+            mask_script_string_contents(span, language, false)
+        }
+    }
+}
+
+/// Every trace id a declared **verifies** form attaches to this symbol's span,
+/// with the form that attached it and where it came from.
+///
+/// SHARED by [`bind_symbol`] and by the non-binding-tag detector in [`bind`],
+/// so the two cannot disagree about what counts as a tag (#312). A detector
+/// carrying its own notion of "looks like a trace tag" would fire on forms the
+/// binder ignores and stay silent on forms it reads — a second reader of one
+/// declaration, which is the drift this engine keeps finding one declaration at
+/// a time.
+///
+/// Returns every match, including duplicates: deduplication is a *binding*
+/// decision (FR-051-AC-6, canonical wins over legacy) and belongs to the caller
+/// that binds.
+fn verifies_form_ids(
+    symbol: &Symbol,
+    source: &str,
+    model: &TraceabilityModel,
+) -> Vec<(String, String, TraceProvenance)> {
     let span = symbol.attached_source(source);
-    // Every attachment of a trace id to this symbol, in discovery order
-    // (canonical markers first, then legacy forms). The id is bound once no
-    // matter how many forms attached it (FR-051-AC-6).
-    let mut attachments: BTreeMap<String, Vec<VerifiesRelation>> = BTreeMap::new();
-    let mut record = |relation: VerifiesRelation| {
-        attachments
-            .entry(relation.trace_id.clone())
-            .or_default()
-            .push(relation);
-    };
+    let mut out = Vec::new();
 
     // ── Canonical markers ──
     for marker in &model.trace_tags.markers {
@@ -565,15 +1169,7 @@ fn bind_symbol(symbol: &Symbol, source: &str, model: &TraceabilityModel, graph: 
         for caps in re.captures_iter(&span) {
             let Some(args) = caps.get(1) else { continue };
             for trace_id in marker_ids(args.as_str()) {
-                record(VerifiesRelation {
-                    symbol_id: symbol.id.clone(),
-                    symbol: symbol.qualified_name.clone(),
-                    path: symbol.path.clone(),
-                    trace_id,
-                    provenance: TraceProvenance::Canonical,
-                    form: marker.name.clone(),
-                    line: symbol.line,
-                });
+                out.push((trace_id, marker.name.clone(), TraceProvenance::Canonical));
             }
         }
     }
@@ -583,12 +1179,51 @@ fn bind_symbol(symbol: &Symbol, source: &str, model: &TraceabilityModel, graph: 
     // Matched against a span whose Rust string *contents* are blanked. A
     // legacy tag is comment text; trace-shaped characters inside a string
     // literal are data the file happens to carry, and binding them invents
-    // coverage nobody authored. Byte length and line breaks are preserved, so
-    // the rewrite-suggestion offset arithmetic below is unaffected.
-    let legacy_span = match symbol.language {
-        SourceLanguage::Rust => mask_rust_string_contents(&span),
-        _ => span.clone(),
-    };
+    // coverage nobody authored.
+    let legacy_span = legacy_match_span(&span, symbol.language);
+    for legacy in &model.trace_tags.legacy {
+        if legacy.language.is_some_and(|l| l != symbol.language) {
+            continue;
+        }
+        let Some(re) = compile(&legacy.pattern) else {
+            continue;
+        };
+        for caps in re.captures_iter(&legacy_span) {
+            for trace_id in legacy_ids(&caps, legacy.id_format.as_deref()) {
+                out.push((trace_id, legacy.name.clone(), TraceProvenance::Legacy));
+            }
+        }
+    }
+    out
+}
+
+fn bind_symbol(symbol: &Symbol, source: &str, model: &TraceabilityModel, graph: &mut SymbolGraph) {
+    let span = symbol.attached_source(source);
+    // Every attachment of a trace id to this symbol, in discovery order
+    // (canonical markers first, then legacy forms). The id is bound once no
+    // matter how many forms attached it (FR-051-AC-6).
+    let mut attachments: BTreeMap<String, Vec<VerifiesRelation>> = BTreeMap::new();
+    for (trace_id, form, provenance) in verifies_form_ids(symbol, source, model) {
+        attachments
+            .entry(trace_id.clone())
+            .or_default()
+            .push(VerifiesRelation {
+                symbol_id: symbol.id.clone(),
+                symbol: symbol.qualified_name.clone(),
+                path: symbol.path.clone(),
+                trace_id,
+                provenance,
+                form,
+                line: symbol.line,
+            });
+    }
+
+    // ── Rewrite suggestions ──
+    //
+    // A second pass over the legacy forms, because a suggestion needs the match
+    // POSITION and the ids do not. Byte length and line breaks are preserved by
+    // the mask, so the offset arithmetic below is unaffected.
+    let legacy_span = legacy_match_span(&span, symbol.language);
     for legacy in &model.trace_tags.legacy {
         if legacy.language.is_some_and(|l| l != symbol.language) {
             continue;
@@ -600,17 +1235,6 @@ fn bind_symbol(symbol: &Symbol, source: &str, model: &TraceabilityModel, graph: 
             let trace_ids = legacy_ids(&caps, legacy.id_format.as_deref());
             if trace_ids.is_empty() {
                 continue;
-            }
-            for trace_id in &trace_ids {
-                record(VerifiesRelation {
-                    symbol_id: symbol.id.clone(),
-                    symbol: symbol.qualified_name.clone(),
-                    path: symbol.path.clone(),
-                    trace_id: trace_id.clone(),
-                    provenance: TraceProvenance::Legacy,
-                    form: legacy.name.clone(),
-                    line: symbol.line,
-                });
             }
             // A rewrite suggestion is emitted only when the target marker
             // declares an authoring template — FR-051's "where derivable".
@@ -869,6 +1493,7 @@ pub fn language_of(symbol: &Symbol) -> SourceLanguage {
 mod tests {
     use super::*;
     use crate::symbols::extract_tree;
+    use crate::traceability::TraceMarkerForm;
     use crate::Registry;
     use ix_trace_rs::trace;
 
@@ -1071,6 +1696,156 @@ mod tests {
             bind(&production, &iso_model()).verifies.is_empty(),
             "prose in production code is not evidence"
         );
+    }
+
+    #[trace("TC-1042", "FR-051-AC-21")]
+    // a name chain that NAMES a suite is a suite,
+    // wherever the suite word sits in it (CR-121).
+    //
+    // `test.describe(` matched `TEST_NAMES` first, because the `.modifier`
+    // window AC-18 opens for `it.each([…])(…)` swallows `.describe` as an
+    // ordinary modifier — so one construct had two spellings with OPPOSITE
+    // classifications. The bare spelling minted a `Container` binding nothing;
+    // the Playwright spelling minted a `TestFunction` that bound its header tag
+    // and entered the census, which is the negative AC-21 asserts.
+    //
+    // 120 such headers exist across two corpus repositories and 79 carry an id
+    // in their title, so `spec-artifacts-process#68` declaring a TypeScript
+    // test-name form would have bound all 79 as evidence on the spelling the
+    // spec calls grouping. That is why this landed BEFORE sap#68 rather than
+    // after it (#322).
+    #[test]
+    fn tc1042_a_chain_that_names_a_suite_is_a_suite() {
+        let extraction = crate::symbols::extract_file(
+            "src/coverage.test.ts",
+            SourceLanguage::Typescript,
+            concat!(
+                "// TC-001: FR-001-AC-1 — Playwright spelling, on the SUITE header.\n",
+                "test.describe(\"warning default\", () => {\n",
+                "  test(\"defaults every finding to warning\", () => {});\n",
+                "});\n",
+                "\n",
+                "// TC-002: FR-001-AC-2 — bare spelling, on the SUITE header.\n",
+                "describe(\"plain suite\", () => {\n",
+                "  it(\"names the declaration on every finding\", () => {});\n",
+                "});\n",
+            ),
+        );
+
+        let kind = |name: &str| {
+            extraction
+                .symbols
+                .iter()
+                .find(|s| s.qualified_name == name)
+                .unwrap_or_else(|| panic!("{name} registers"))
+                .kind
+        };
+        // One construct, two spellings, ONE classification.
+        assert_eq!(
+            kind("warning default"),
+            crate::symbols::SymbolKind::Container
+        );
+        assert_eq!(kind("plain suite"), crate::symbols::SymbolKind::Container);
+        // And the tests inside both still register as tests.
+        assert_eq!(
+            kind("defaults every finding to warning"),
+            crate::symbols::SymbolKind::TestFunction
+        );
+
+        // Neither header tag binds, which is what AC-21 asserts and what the
+        // Playwright spelling used to contradict.
+        let graph = bind(&extraction, &iso_model());
+        let bound: Vec<&str> = graph.verifies.iter().map(|v| v.trace_id.as_str()).collect();
+        assert!(
+            !bound.contains(&"TC-001") && !bound.contains(&"TC-002"),
+            "a tag on a suite header binds nothing, in EITHER spelling: {bound:?}"
+        );
+    }
+
+    #[trace("TC-1040", "FR-051-AC-21")]
+    // a trace tag on a SUITE HEADER binds nothing, (CR-119)
+    // and the suite is not a binding candidate.
+    //
+    // This is the semantics `agent-ix/quire-rs#273` had to declare rather than
+    // let fall out of a kind change, and it is declared as **unchanged**: a
+    // suite groups evidence and is not evidence, so widening `verifies` to
+    // reach it would widen it to every `SymbolKind::Container` — including the
+    // file's own module, whose span is line 1 to EOF. Every column-0 comment id
+    // in every TypeScript and Python test file would then back a row, which is
+    // the CR-061 prohibition arrived at from the other side.
+    //
+    // What #273 changed is that the tag now lands on the SUITE rather than on
+    // the module: a locus a reader can act on. Where the tag then goes — today,
+    // nowhere at all — is `agent-ix/quire-rs#312`, and this test pins the
+    // "nowhere" so that ticket cannot land without moving it.
+    #[test]
+    fn tc1040_a_tag_on_a_suite_header_binds_nothing_and_is_not_a_candidate() {
+        let extraction = crate::symbols::extract_file(
+            "src/coverage.test.ts",
+            SourceLanguage::Typescript,
+            concat!(
+                "// TC-001: FR-001-AC-1 — on the BLOCK header.\n",
+                "describe(\"warning default\", () => {\n",
+                "  it(\"defaults every finding to warning\", () => {\n",
+                "    expect(1 + 1).toBe(2);\n",
+                "  });\n",
+                "});\n",
+                "\n",
+                "// TC-002: FR-001-AC-2 — the same form, on the `it`.\n",
+                "it(\"names the declaration on every finding\", () => {\n",
+                "  expect(2 + 2).toBe(4);\n",
+                "});\n",
+            ),
+        );
+        let suite = extraction
+            .symbols
+            .iter()
+            .find(|s| s.qualified_name == "warning default")
+            .expect("the suite is a symbol at all — that is what #273 landed");
+        assert_eq!(suite.kind, crate::symbols::SymbolKind::Container);
+
+        let graph = bind(&extraction, &iso_model());
+
+        // The tag on the header reaches NEITHER channel. `verifies` refuses it
+        // by kind; `untracked_symbols` is built one layer up from
+        // `graph.verifies`, so a tag that never bound cannot appear there
+        // either.
+        assert!(
+            relations_for(&graph, "warning default").is_empty(),
+            "a suite is not evidence: {:?}",
+            graph.verifies,
+        );
+        let ids: Vec<&str> = graph.verifies.iter().map(|v| v.trace_id.as_str()).collect();
+        assert_eq!(
+            ids,
+            vec!["TC-002"],
+            "only the tag on the `it` binds — TC-001 is nowhere",
+        );
+
+        // And the suite is missing from the DENOMINATOR rather than counted as
+        // an unbound candidate, which is why the census reads healthy while
+        // TC-001 comes back unbacked. Asserted here so #312 has a pinned
+        // "before" to move.
+        let census = graph
+            .binding_census
+            .iter()
+            .find(|c| c.language == "typescript")
+            .expect("a census for the language the walk saw");
+        assert_eq!(
+            (census.candidates, census.bound),
+            (2, 1),
+            "two `it` registrations are the candidates; the suite is not one",
+        );
+
+        // It is counted as a production symbol instead — the branch a
+        // `Container` actually takes at `carries_implements()`. That is the
+        // double-count #312 has to settle before a suite could enter both.
+        assert_eq!(
+            graph.implements_candidates, 2,
+            "the file's module container and the suite container — it read 1 \
+             before #273, and the suite is the one that was added",
+        );
+        assert_eq!(graph.implements_bound, 0);
     }
 
     #[trace("TC-753", "FR-051-AC-11")]
@@ -1366,6 +2141,164 @@ mod tests {
         model
     }
 
+    /// A one-file Python extraction, so a test about WHERE a tag sits does not
+    /// depend on a fixture tree that other tests also assert against.
+    fn py(source: &str) -> SymbolExtraction {
+        crate::symbols::extract_file("src/m.py", SourceLanguage::Python, source)
+    }
+
+    #[trace("TC-1044", "FR-051-AC-22")]
+    // a tag on a symbol whose kind cannot bind it is reported,
+    // naming the id, the symbol, the kind and the channel that kind can carry.
+    #[test]
+    fn tc1044_a_tag_that_binds_nothing_is_reported() {
+        // `normalize_severity` is a plain `Function`, so `binds_trace_ids()` is
+        // false and `carries_implements()` is true — the tag reaches NEITHER
+        // channel and, before #312, nothing in the payload said so. The census
+        // cannot: a non-binding symbol is missing from `candidates` rather than
+        // counted as unbound, so a file like this one reported no candidates at
+        // all rather than one unbound.
+        let graph = bind(
+            &py("# TC-001: warning default.\ndef normalize_severity(f):\n    return 1\n"),
+            &iso_model(),
+        );
+        assert_eq!(graph.non_binding_tags.len(), 1, "one tag, one report");
+        let tag = &graph.non_binding_tags[0];
+        assert_eq!(tag.trace_id, "TC-001");
+        assert_eq!(tag.symbol, "normalize_severity");
+        assert_eq!(tag.kind, "function");
+        assert_eq!(tag.path, "src/m.py");
+        assert!(!tag.form.is_empty(), "the form that matched is named");
+
+        // AND THE PAYLOAD IS OTHERWISE UNMOVED. #312 is a diagnostic ticket:
+        // the tag still does not bind and it should not (CR-061). Asserting
+        // this here is what makes the corpus fixtures' live blocks safe.
+        assert!(graph.verifies.is_empty(), "the tag still binds nothing");
+        assert!(
+            graph.binding_census.is_empty(),
+            "a non-binding symbol does not become a census candidate"
+        );
+    }
+
+    #[trace("TC-1045", "FR-051-AC-22")]
+    // an id that bound somewhere else is not reported, and a
+    // symbol carrying a proper `implements` marker is not reported either.
+    #[test]
+    fn tc1045_a_bound_id_and_an_implements_marker_are_not_orphans() {
+        // A container's attached span runs to end of file, so the module symbol
+        // of ANY tagged test file "carries" every id in it. Without the
+        // bound-elsewhere filter this fires on a perfectly healthy tree — which
+        // is what the corpus's `tag-at-module-scope` control is, and it goes red
+        // on the mutation that removes this rule.
+        let healthy = bind(
+            &py("# TC-001: on the test.\ndef test_one():\n    assert True\n"),
+            &iso_model(),
+        );
+        assert!(
+            healthy.verifies.iter().any(|v| v.trace_id == "TC-001"),
+            "the id bound on the test"
+        );
+        assert!(
+            healthy.non_binding_tags.is_empty(),
+            "an id that bound is not an orphan, even though the module container spans it"
+        );
+
+        // The harder control: the id-shaped annotation stays exactly where it
+        // is on production code, and only the RELATION changes to the one that
+        // kind can carry. A detector written as "any declared trace-id form
+        // inside a symbol that does not bind trace ids" fires here and is wrong.
+        // The iso test fixture declares no `implements` forms, so one is added
+        // here rather than in a fixture a dozen other tests assert against.
+        let mut model = iso_model();
+        model.trace_tags.implements.push(TraceMarkerForm {
+            name: "python-implements-line".to_string(),
+            language: SourceLanguage::Python,
+            pattern: r"(?m)^\s*#\s*Implements:\s*(.+)$".to_string(),
+            template: None,
+        });
+        let annotated = bind(
+            &py("# Implements: FR-001-AC-1\ndef normalize_severity(f):\n    return 1\n"),
+            &model,
+        );
+        assert!(
+            !annotated.implements.is_empty(),
+            "the production channel took it"
+        );
+        assert!(
+            annotated.non_binding_tags.is_empty(),
+            "a symbol whose implements marker bound is not carrying an orphan tag"
+        );
+    }
+
+    #[trace("TC-1046", "FR-051-AC-22")]
+    // where several symbols span one tag the INNERMOST is
+    // named, because the module is where the tag is not.
+    #[test]
+    fn tc1046_the_innermost_symbol_spanning_a_tag_is_the_one_named() {
+        // Both the file's module container and `normalize_severity` span this
+        // tag, and both are `carries_implements()` kinds, so both see it. The
+        // fix a reader needs names the function; "your tag is on the module"
+        // sends them to the top of the file.
+        let graph = bind(
+            &py("import os\n\n\n# TC-001: warning default.\ndef normalize_severity(f):\n    return 1\n"),
+            &iso_model(),
+        );
+        assert_eq!(graph.non_binding_tags.len(), 1, "one tag, one report");
+        assert_eq!(graph.non_binding_tags[0].symbol, "normalize_severity");
+        assert_eq!(graph.non_binding_tags[0].kind, "function");
+    }
+
+    #[trace("TC-1047", "FR-051-AC-22")]
+    // a CANONICAL marker on a non-binding symbol is not
+    // reported: it is syntax, so if it bound nothing its declaration is data.
+    #[test]
+    fn tc1047_a_canonical_marker_inside_a_string_is_not_a_stray_tag() {
+        // `cases/parser/triple-quote-scope-desync` carries exactly this shape as
+        // FIXTURE DATA for the defect it pins, and the detector reported it —
+        // measured, one false positive out of six findings. The fixture is
+        // right: an id inside a `"""…"""` literal is not a tag. String masking
+        // covers Rust legacy forms only; Python and TypeScript are #323, and
+        // this narrowing does not wait on it.
+        let graph = bind(
+            &py("SRC = \"\"\"\n@pytest.mark.trace(\"TC-999\")\ndef test_phantom():\n    pass\n\"\"\"\n"),
+            &iso_model(),
+        );
+        assert!(
+            graph.non_binding_tags.is_empty(),
+            "a canonical marker that bound nothing decorates no declaration: {:?}",
+            graph.non_binding_tags
+        );
+
+        // And the legacy form in the same position IS reported, so the
+        // narrowing is about the form's guarantee rather than about position.
+        let legacy = bind(
+            &py("# TC-001: warning default.\ndef normalize_severity(f):\n    return 1\n"),
+            &iso_model(),
+        );
+        assert_eq!(legacy.non_binding_tags.len(), 1);
+    }
+
+    #[trace("TC-1081", "FR-051-AC-22")]
+    // A quoted legacy id remains visible to the shared matcher. The #355
+    // calibration found a small prose-citation class but did not justify a
+    // binder/detector split or a masking rule; the redacted control proves the
+    // check still depends on an id rather than merely on quoted text.
+    #[test]
+    fn tc1081_quoted_legacy_prose_remains_an_advisory_candidate() {
+        let quoted = bind(
+            &py("# The banner quotes `# FR-001-AC-1: Model Resolution`.\ndef normalize_severity(f):\n    return 1\n"),
+            &iso_model(),
+        );
+        assert_eq!(quoted.non_binding_tags.len(), 1);
+        assert_eq!(quoted.non_binding_tags[0].trace_id, "FR-001-AC-1");
+
+        let redacted = bind(
+            &py("# The banner quotes `# FR-NNN: Model Resolution`.\ndef normalize_severity(f):\n    return 1\n"),
+            &iso_model(),
+        );
+        assert!(redacted.non_binding_tags.is_empty());
+    }
+
     #[trace("TC-982", "FR-051-AC-19")]
     // the binder reports what it looked at and what
     // bound, per language, so a corpus whose convention matches no declared
@@ -1405,7 +2338,11 @@ mod tests {
                 "{} candidates count evidence symbols",
                 entry.language
             );
-            assert!(entry.bound <= entry.candidates);
+            assert!(
+                entry.bound <= entry.tagged && entry.tagged <= entry.candidates,
+                "{} preserves bound <= tagged <= candidates",
+                entry.language
+            );
             assert!(
                 !entry.forms.is_empty(),
                 "{} names the forms that had a chance",
@@ -1461,5 +2398,151 @@ mod tests {
             assert_eq!(after.bound, 0, "{}: nothing binds", after.language);
         }
         assert!(blind.verifies.is_empty());
+    }
+
+    #[trace("TC-1074", "FR-050-AC-39", "FR-066-AC-3", "FR-066-AC-6")]
+    // every unread authored id is row-addressable without widening the
+    // declared binder or scanning test bodies (#362).
+    #[test]
+    fn tc1074_unmatched_annotation_ids_are_exposed_per_symbol() {
+        let graph = bind(
+            &py(concat!(
+                "@pytest.mark.trace(\"TC-741\")\n",
+                "# malformed marker names TC-404\n",
+                "def test_mixed_annotation():\n",
+                "    fixture_data = \"TC-999\"\n",
+            )),
+            &iso_model(),
+        );
+
+        assert!(
+            graph.verifies.iter().any(|relation| {
+                relation.symbol == "test_mixed_annotation" && relation.trace_id == "TC-741"
+            }),
+            "the declared sibling proves the symbol can otherwise bind"
+        );
+        assert_eq!(
+            graph.unmatched_tags,
+            vec![UnmatchedTag {
+                trace_id: "TC-404".to_string(),
+                language: "python".to_string(),
+                path: "src/m.py".to_string(),
+                line: 2,
+                symbol: "test_mixed_annotation".to_string(),
+            }],
+            "the bound sibling and body-only fixture id are both absent"
+        );
+        assert!(graph.unmatched_tags.windows(2).all(|records| {
+            (
+                &records[0].language,
+                &records[0].path,
+                records[0].line,
+                &records[0].symbol,
+                &records[0].trace_id,
+            ) <= (
+                &records[1].language,
+                &records[1].path,
+                records[1].line,
+                &records[1].symbol,
+                &records[1].trace_id,
+            )
+        }));
+    }
+}
+
+#[cfg(test)]
+mod mask_tests {
+    use super::*;
+
+    /// The masked span, for a language whose strings hide tag-shaped data.
+    fn masked(src: &str, language: SourceLanguage) -> String {
+        legacy_match_span(src, language)
+    }
+
+    #[test]
+    fn tc1055_a_legacy_form_inside_a_string_is_masked_in_every_language() {
+        // TC-1055
+        // `agent-ix/quire-rs#323`. The mask was gated on `SourceLanguage::Rust`
+        // and every other language fell through to the RAW span, so a Python or
+        // TypeScript test carrying tag-shaped text as DATA bound it. Measured on
+        // the corpus fixture pre-fix: `backed 2/3` with nothing unbacked —
+        // coverage nobody authored.
+        let python = masked(
+            "x = \"\"\"\n    Trace: TC-002\n\"\"\"\n",
+            SourceLanguage::Python,
+        );
+        assert!(
+            !python.contains("TC-002"),
+            "an assigned literal is data, not a tag: {python:?}"
+        );
+        let ts = masked(
+            "const x = `\n  Trace: TC-002\n`;\n",
+            SourceLanguage::Typescript,
+        );
+        assert!(
+            !ts.contains("TC-002"),
+            "a template literal is data, not a tag: {ts:?}"
+        );
+    }
+
+    #[test]
+    fn tc1056_each_language_keeps_its_own_declared_tag_channel() {
+        // TC-1056
+        // THE TWO EXEMPTIONS, AND WHY THEY ARE NOT AD HOC. A blanket mask is
+        // right for Rust — its legacy forms all read comments, and
+        // `rust-test-name-id` reads an identifier — and WRONG for the other two,
+        // each of which has a declared form that reads an id out of a string:
+        //
+        //   `python-docstring-id`      `^\s*(?:[rbfu]{1,2})?"""\s*(<id>)`
+        //   `typescript-test-name-id`  `^\s*(?:await\s+)?(?:it|test)…\(`
+        //
+        // Both were caught by the corpus, not by review: masking every string
+        // took four fixtures from bound to unbound and one from `backed 1` to
+        // `backed 0`.
+        let doc = masked(
+            "def test_x():\n    \"\"\"TC-001: the declared severity.\"\"\"\n    pass\n",
+            SourceLanguage::Python,
+        );
+        assert!(
+            doc.contains("TC-001"),
+            "a docstring is Python's comment: {doc:?}"
+        );
+        let title = masked(
+            "it(\"TC-001 binds\", () => {});\n",
+            SourceLanguage::Typescript,
+        );
+        assert!(
+            title.contains("TC-001"),
+            "a registration title is TypeScript's tag channel: {title:?}"
+        );
+        // And the exemptions are POSITIONAL, not "any string near a keyword":
+        // the same text assigned mid-line is masked in both languages.
+        let assigned = masked(
+            "    x = \"\"\"TC-001: not documentation.\"\"\"\n",
+            SourceLanguage::Python,
+        );
+        assert!(
+            !assigned.contains("TC-001"),
+            "opened mid-line, so it is a value: {assigned:?}"
+        );
+    }
+
+    #[test]
+    fn tc1057_comments_survive_and_offsets_do_not_shift() {
+        // TC-1057
+        // Comments are where legacy tags live, so masking them would suppress
+        // the very form being matched. And byte length is preserved, because
+        // the rewrite-suggestion pass matches against this span and reports
+        // POSITIONS into the original.
+        let src = "def test_x():\n    # Trace: TC-001\n    y = \"Trace: TC-002\"\n";
+        let out = masked(src, SourceLanguage::Python);
+        assert!(out.contains("TC-001"), "comment preserved: {out:?}");
+        assert!(!out.contains("TC-002"), "string masked: {out:?}");
+        assert_eq!(
+            out.len(),
+            src.len(),
+            "byte length must be preserved for the rewrite pass's offsets"
+        );
+        assert_eq!(out.lines().count(), src.lines().count());
     }
 }

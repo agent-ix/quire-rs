@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import pathlib
 import sys
+from types import SimpleNamespace
 
 import pytest
 
@@ -16,16 +17,21 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 from bench import (  # noqa: E402
     BenchError,
+    collect,
     compare,
     metrics_from,
     pct,
+    resolve_default_module,
+    resolve_identity,
     score,
     selected,
     silent_zeros,
 )
 
 MANIFEST = json.loads(
-    (pathlib.Path(__file__).resolve().parents[2] / "bench" / "manifest.json").read_text()
+    (
+        pathlib.Path(__file__).resolve().parents[2] / "bench" / "manifest.json"
+    ).read_text()
 )
 
 
@@ -72,6 +78,66 @@ def test_an_undeclared_metric_is_refused():
         score(MANIFEST, {"self": {"coverage.invented": 1}}, {})
 
 
+def test_governed_collection_refuses_a_skipped_corpus(monkeypatch):
+    def moved(_entry):
+        raise BenchError("revision moved")
+
+    monkeypatch.setattr("bench.resolve_identity", moved)
+    manifest = {
+        "corpora": [
+            {
+                "name": "pinned",
+                "path": ".",
+                "module": ".",
+                "identity": "sha",
+                "pinned_sha": "a" * 40,
+            }
+        ]
+    }
+    with pytest.raises(BenchError, match="pinned: revision moved"):
+        collect(manifest, "quire", None, strict=True)
+
+
+def test_pinned_corpus_refuses_uncommitted_bytes(monkeypatch):
+    def fake_run(args, **_kwargs):
+        if "rev-parse" in args:
+            return SimpleNamespace(returncode=0, stdout="a" * 40 + "\n")
+        return SimpleNamespace(returncode=0, stdout=" M drifted-file\n")
+
+    monkeypatch.setattr("bench.subprocess.run", fake_run)
+    with pytest.raises(BenchError, match="tree is dirty"):
+        resolve_identity(
+            {
+                "name": "pinned",
+                "path": ".",
+                "identity": "sha",
+                "pinned_sha": "a" * 40,
+            }
+        )
+
+
+def test_default_module_path_and_revision_are_not_operator_selectable(
+    monkeypatch, tmp_path: pathlib.Path
+):
+    source = tmp_path / "spec-artifacts-process"
+    module = source / "spec_artifacts_process"
+    module.mkdir(parents=True)
+    manifest = {
+        "module_source": {
+            "name": "spec-artifacts-process",
+            "path": "spec-artifacts-process",
+            "module": "spec_artifacts_process",
+            "identity": "sha",
+            "pinned_sha": "a" * 40,
+        }
+    }
+    monkeypatch.setattr("bench.ROOT", tmp_path)
+    monkeypatch.setattr("bench.resolve_identity", lambda _source: "a" * 40)
+    assert resolve_default_module(manifest, None) == str(module.resolve())
+    with pytest.raises(BenchError, match="does not equal pinned module"):
+        resolve_default_module(manifest, str(tmp_path / "other"))
+
+
 def test_the_report_carries_no_time_varying_field_and_states_its_provenance():
     """The report is byte-stable across runs (quoin FR-043-AC-9), and every row
     carries the unit/population/method its metric declares — so a reader can
@@ -92,8 +158,12 @@ def test_the_report_carries_no_time_varying_field_and_states_its_provenance():
     for row in report["rows"]:
         assert row["unit"] and row["population"] and row["method"]
         stamped = sorted(
-            k for k in row
-            if any(t in k.lower() for t in ("time", "date", "stamp", "now", "generated", "ran_at"))
+            k
+            for k in row
+            if any(
+                t in k.lower()
+                for t in ("time", "date", "stamp", "now", "generated", "ran_at")
+            )
         )
         assert not stamped, f"time-varying field(s) in a scored row: {stamped}"
 
@@ -111,7 +181,9 @@ def test_metrics_are_omitted_rather_than_zeroed_when_unreadable(capsys):
     out = metrics_from(payload)
     assert out["coverage.backed_pct"] == 50.0
     assert "coverage.binding_read_pct" not in out
+    assert "authoring.tag_rate" not in out
     assert "properties.specific_shaped_pct" not in out
+    assert "coverage.minting_repos" not in out
     # …and it says why, rather than omitting silently.
     err = capsys.readouterr().err
     assert "binding_census" in err and "specific_shaped" in err
@@ -121,27 +193,68 @@ def test_the_binding_rate_reads_the_census_when_it_is_there():
     payload = {
         "totals": {"backed": 5, "total": 10, "criteria": 4, "specific_shaped": 1},
         "binding_census": [
-            {"language": "rust", "candidates": 8, "bound": 6},
-            {"language": "python", "candidates": 2, "bound": 0},
+            {"language": "rust", "candidates": 8, "tagged": 7, "bound": 6},
+            {"language": "python", "candidates": 2, "tagged": 1, "bound": 0},
+        ],
+        "metrics": [
+            {
+                "name": "minting.section_hit_rate",
+                "state": "measured",
+                "value": 3,
+                "population": 3,
+            }
         ],
     }
     out = metrics_from(payload)
     assert out["coverage.binding_read_pct"] == pct(6, 10)
+    assert out["authoring.tag_rate"] == pct(8, 10)
     assert out["properties.specific_shaped_pct"] == 25.0
+    assert out["coverage.minting_repos"] == 1
+
+
+def test_specific_shape_reads_the_current_metrics_envelope():
+    payload = {
+        "totals": {"backed": 1, "total": 2},
+        "binding_census": [],
+        "metrics": [
+            {
+                "name": "coverage.specific_shaped",
+                "state": "measured",
+                "value": 3,
+                "population": 12,
+            },
+            {
+                "name": "minting.section_hit_rate",
+                "state": "measured",
+                "value": 1,
+                "population": 1,
+            },
+        ],
+    }
+    assert metrics_from(payload)["properties.specific_shaped_pct"] == 25.0
 
 
 def test_silent_zero_counts_only_what_the_engine_did_not_already_report():
     """The sentinel must not depend on the code path it is checking. A hollow
     metric the engine already flagged is covered; one it did not is the leak."""
     hollow = {
-        "name": "coverage.backed", "state": "measured",
-        "value": 0, "population": 100, "examined": 50, "matched": 0,
+        "name": "coverage.backed",
+        "state": "measured",
+        "value": 0,
+        "population": 100,
+        "examined": 50,
+        "matched": 0,
     }
     assert silent_zeros({"metrics": [hollow], "diagnostics": []}) == 1
-    assert silent_zeros({
-        "metrics": [hollow],
-        "diagnostics": [{"reason": "hollow-denominator"}],
-    }) == 0
+    assert (
+        silent_zeros(
+            {
+                "metrics": [hollow],
+                "diagnostics": [{"reason": "hollow-denominator"}],
+            }
+        )
+        == 0
+    )
     # Nothing offered is not a silent zero — it is an honest zero.
     honest = {**hollow, "examined": 0}
     assert silent_zeros({"metrics": [honest], "diagnostics": []}) == 0
@@ -155,21 +268,37 @@ def test_silent_zero_counts_only_what_the_engine_did_not_already_report():
     # read 0 only because the engine's own false-positive hollow-denominator
     # satisfied the `covered` clause -- two defects cancelling.
     counted = {
-        "name": "coverage.implements", "state": "measured", "shape": "count",
-        "value": 0, "population": 42, "examined": 42, "matched": 0,
+        "name": "coverage.implements",
+        "state": "measured",
+        "shape": "count",
+        "value": 0,
+        "population": 42,
+        "examined": 42,
+        "matched": 0,
     }
     assert silent_zeros({"metrics": [counted], "diagnostics": []}) == 0
     # The identical numbers as a ratio still fail, so this measures the shape
     # rather than the arithmetic.
-    assert silent_zeros({
-        "metrics": [{**counted, "shape": "ratio"}], "diagnostics": [],
-    }) == 1
+    assert (
+        silent_zeros(
+            {
+                "metrics": [{**counted, "shape": "ratio"}],
+                "diagnostics": [],
+            }
+        )
+        == 1
+    )
     # An engine predating CR-102 emits no shape; read it as a ratio, the
     # reading that can still fail the gate rather than silently pass it.
-    assert silent_zeros({
-        "metrics": [{k: v for k, v in counted.items() if k != "shape"}],
-        "diagnostics": [],
-    }) == 1
+    assert (
+        silent_zeros(
+            {
+                "metrics": [{k: v for k, v in counted.items() if k != "shape"}],
+                "diagnostics": [],
+            }
+        )
+        == 1
+    )
 
 
 def test_a_corpus_can_scope_which_metrics_it_is_scored_on(capsys):
@@ -197,7 +326,9 @@ def test_a_corpus_can_scope_which_metrics_it_is_scored_on(capsys):
 
     # A declared metric the payload could not supply is named, not silently
     # dropped — the same rule `metrics_from` follows for an unreadable field.
-    out = selected({"name": "quoin", "metrics": gates + ["coverage.implements_pct"]}, measured)
+    out = selected(
+        {"name": "quoin", "metrics": gates + ["coverage.implements_pct"]}, measured
+    )
     assert "coverage.implements_pct" not in out
     assert "coverage.implements_pct" in capsys.readouterr().err
 
@@ -221,7 +352,10 @@ def test_suspicion_rate_is_the_language_coverage_guard():
     honest = {
         "totals": {"backed": 1, "total": 2},
         "binding_census": [{"language": "rust", "candidates": 883, "bound": 591}],
-        "suspicions": [{"kind": "vacuous-under-guard"}, {"kind": "vacuous-under-guard"}],
+        "suspicions": [
+            {"kind": "vacuous-under-guard"},
+            {"kind": "vacuous-under-guard"},
+        ],
     }
     assert metrics_from(honest)["skeptic.suspicion_rate"] == 0.23
 

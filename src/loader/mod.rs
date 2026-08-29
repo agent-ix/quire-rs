@@ -27,7 +27,7 @@ use serde_json::Value;
 use crate::diagnostic::Diagnostic;
 use crate::error::{ArchetypeLoadFailure, QuireError};
 use crate::loader::compile::{compile_schema, failure, read_schema, CompiledArchetype};
-use crate::loader::manifest::{load_manifest, Archetype, Manifest};
+use crate::loader::manifest::{load_manifest_with_origins, Archetype, Manifest, ManifestOrigins};
 use crate::loader::paths::{
     default_module_root, module_path_env, resolve_search_paths, PathDiagnostic,
 };
@@ -63,6 +63,9 @@ pub struct LoadedModule {
     pub ambiguity_terms: BTreeMap<String, crate::vocab::AmbiguityTermDef>,
     /// Traceability model contributed by this module (FR-050).
     pub traceability: crate::traceability::TraceabilityModel,
+    /// Source origins retained separately from the serializable declaration
+    /// values.
+    pub(crate) origins: ManifestOrigins,
 }
 
 /// Outcome of a full load pass.
@@ -232,7 +235,7 @@ pub fn load_single_module(module_root: &Path) -> LoadOutcome {
 /// (mirroring FR-014-AC-7's path-derived behavior).
 pub fn load_inline_module(manifest_yaml: &[u8], schemas: &BTreeMap<String, String>) -> LoadOutcome {
     use crate::loader::compile::{compile_schema, failure, CompiledArchetype};
-    use crate::loader::manifest::parse_manifest;
+    use crate::loader::manifest::{parse_manifest, ManifestOrigins};
 
     let mut modules: Vec<LoadedModule> = Vec::new();
     let mut failures: Vec<ArchetypeLoadFailure> = Vec::new();
@@ -257,6 +260,8 @@ pub fn load_inline_module(manifest_yaml: &[u8], schemas: &BTreeMap<String, Strin
             };
         }
     };
+    let origins =
+        ManifestOrigins::from_source(&manifest, inline_root.join("manifest.yaml"), manifest_yaml);
 
     let module_name = manifest.name.clone().unwrap_or_else(|| {
         diagnostics.push(Diagnostic::ManifestMissingName {
@@ -376,6 +381,7 @@ pub fn load_inline_module(manifest_yaml: &[u8], schemas: &BTreeMap<String, Strin
         verification_catalog: manifest.verification_catalog.clone(),
         ambiguity_terms: manifest.ambiguity_terms.clone(),
         traceability: manifest.traceability.clone(),
+        origins,
     });
 
     LoadOutcome {
@@ -481,16 +487,17 @@ fn load_one_module(
     module_root: &Path,
     diagnostics: &mut Vec<Diagnostic>,
 ) -> Result<(LoadedModule, Vec<ArchetypeLoadFailure>), ArchetypeLoadFailure> {
-    let manifest: Manifest = load_manifest(module_root).map_err(|reason| ArchetypeLoadFailure {
-        module: module_root
-            .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or("<unknown>")
-            .to_string(),
-        archetype: "<manifest>".to_string(),
-        path: module_root.join("manifest.yaml"),
-        reason,
-    })?;
+    let (manifest, origins): (Manifest, ManifestOrigins) = load_manifest_with_origins(module_root)
+        .map_err(|reason| ArchetypeLoadFailure {
+            module: module_root
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("<unknown>")
+                .to_string(),
+            archetype: "<manifest>".to_string(),
+            path: module_root.join("manifest.yaml"),
+            reason,
+        })?;
 
     let module_name: String = manifest.name.clone().unwrap_or_else(|| {
         let derived = module_root
@@ -532,6 +539,7 @@ fn load_one_module(
             verification_catalog: manifest.verification_catalog.clone(),
             ambiguity_terms: manifest.ambiguity_terms.clone(),
             traceability: manifest.traceability.clone(),
+            origins,
         },
         failures,
     ))
@@ -774,6 +782,7 @@ pub fn flatten_into_registry(mut outcome: LoadOutcome) -> RegistryShape {
     // A module that declares nothing contributes nothing, so the merged model
     // stays undeclared until some module declares one.
     let traceability = merge_traceability(&outcome.modules);
+    let declaration_origins = merge_declaration_origins(&outcome.modules);
 
     // ── FR-041: derive the inverse-label → forward-verb index from the
     // merged edge_types. A declared `inverse:` label becomes an authorable
@@ -868,6 +877,7 @@ pub fn flatten_into_registry(mut outcome: LoadOutcome) -> RegistryShape {
         verification_catalog,
         ambiguity_terms,
         traceability,
+        declaration_origins,
         failures: outcome.failures,
         diagnostics: outcome.diagnostics,
         path_diagnostics: outcome.path_diagnostics,
@@ -1051,6 +1061,58 @@ fn merge_traceability(modules: &[LoadedModule]) -> crate::traceability::Traceabi
     merged
 }
 
+/// Merge source origins with the same first-wins rules as the declarations
+/// they describe. The sidecar must never select an origin from a declaration
+/// that lost the value merge.
+fn merge_declaration_origins(modules: &[LoadedModule]) -> ManifestOrigins {
+    let mut merged = ManifestOrigins::default();
+    for module in modules {
+        if merged.traceability.is_none() && !module.traceability.is_empty() {
+            merged.traceability.clone_from(&module.origins.traceability);
+        }
+        for target in &module.traceability.trace_targets {
+            if let Some(origin) = module.origins.trace_targets.get(&target.name) {
+                merged
+                    .trace_targets
+                    .entry(target.name.clone())
+                    .or_insert_with(|| origin.clone());
+            }
+            for field in ["archetype", "section", "id_column"] {
+                let key = (target.name.clone(), field.to_string());
+                if let Some(origin) = module.origins.selectors.get(&key) {
+                    merged
+                        .selectors
+                        .entry(key)
+                        .or_insert_with(|| origin.clone());
+                }
+            }
+        }
+        for coverage in &module.traceability.vocabulary_coverage {
+            if let Some(origin) = module.origins.vocabulary_coverage.get(&coverage.name) {
+                merged
+                    .vocabulary_coverage
+                    .entry(coverage.name.clone())
+                    .or_insert_with(|| origin.clone());
+            }
+        }
+        for archetype in &module.archetypes {
+            if let Some(origin) = module.origins.archetypes.get(&archetype.name) {
+                merged
+                    .archetypes
+                    .entry(archetype.name.clone())
+                    .or_insert_with(|| origin.clone());
+            }
+        }
+        for (name, origin) in &module.origins.vocabularies {
+            merged
+                .vocabularies
+                .entry(name.clone())
+                .or_insert_with(|| origin.clone());
+        }
+    }
+    merged
+}
+
 /// Strict counterpart of [`flatten_into_registry`]: promotes the first
 /// collision diagnostic to a fatal `QuireError`.
 pub fn flatten_into_registry_strict(outcome: LoadOutcome) -> Result<RegistryShape, QuireError> {
@@ -1161,6 +1223,7 @@ pub struct RegistryShape {
     pub ambiguity_terms: BTreeMap<String, crate::vocab::AmbiguityTermDef>,
     /// Merged traceability model, first-wins across modules (FR-050).
     pub traceability: crate::traceability::TraceabilityModel,
+    pub(crate) declaration_origins: ManifestOrigins,
     pub failures: Vec<ArchetypeLoadFailure>,
     pub diagnostics: Vec<Diagnostic>,
     pub path_diagnostics: Vec<PathDiagnostic>,

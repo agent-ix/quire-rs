@@ -1,0 +1,22 @@
+// Retained wild input: agent-ix/filament-ide-rs@59a180a7,
+// crates/filament-shell/tests/property_suite.rs:59-69, 136-146.
+fn escapes_the_root(artifact: &str) -> bool {
+    let normalized = artifact.replace('\\', "/");
+    normalized.is_empty()
+        || normalized.starts_with('/')
+        || normalized.contains('\0')
+        || normalized
+            .split('/')
+            .any(|segment| segment.is_empty() || segment == "." || segment == "..")
+}
+
+#[test]
+fn tc1598_artifact_acceptance_matches_the_containment_rule() {
+    let artifact = "C:\\Windows";
+    let accepted = OpenRequest::new("/tmp/project", artifact.clone()).is_ok();
+    prop_assert_eq!(
+        accepted,
+        !escapes_the_root(&artifact),
+        "acceptance disagreed with the containment rule for {:?}", artifact
+    );
+}
