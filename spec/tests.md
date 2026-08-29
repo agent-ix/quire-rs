@@ -110,6 +110,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | FR-070 Typed Properties extraction to FieldDecl[] | AC-1..10; CON-1..3 | TC-1610..TC-1621, TC-1647 | ✅ Implemented |
 | FR-071 Clause and operation extraction | AC-1..7; CON-1..2 | TC-1622..TC-1629, TC-1648 | ✅ Implemented |
 | FR-072 Semantic extraction surface | AC-1..9; CON-1..3 | TC-1630..TC-1640, TC-1650 (TC-1636 external: quire-wasm#3) | ✅ Implemented; WASM leg external |
+| FR-073 Generic rights-aware clause sets | AC-1..6 | TC-1806..TC-1809 | ✅ Implemented |
 
 ### Integration Requirement Coverage
 
@@ -1354,12 +1355,12 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-066-AC-9 | TC-1070 |
 | FR-066-AC-10 | TC-1071 |
 | FR-066-AC-11 | TC-1072 |
-| FR-067-AC-1 | TC-1085, TC-1087 |
-| FR-067-AC-2 | TC-1084 |
-| FR-067-AC-3 | TC-1084 |
-| FR-067-AC-4 | TC-1086 |
-| FR-067-AC-5 | TC-1087 |
-| FR-067-AC-6 | TC-1085 |
+| FR-073-AC-1 | TC-1807, TC-1809 |
+| FR-073-AC-2 | TC-1806 |
+| FR-073-AC-3 | TC-1806 |
+| FR-073-AC-4 | TC-1808 |
+| FR-073-AC-5 | TC-1809 |
+| FR-073-AC-6 | TC-1807 |
 | FR-058-AC-2 | TC-899 |
 | FR-058-AC-2 | TC-909 |
 | FR-058-AC-3 | TC-900 |
