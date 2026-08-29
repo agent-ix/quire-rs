@@ -107,6 +107,10 @@ if 'build_engine(consumer, release=True)' not in exporter:
     errors.append("measurement exporter must build the canonical release profile")
 if 'value.get("buildProfile") != "release"' not in exporter:
     errors.append("measurement exporter must require the attested release profile")
+if 'allowed_overlay_paths=("spec/evidence/measurements",)' not in exporter:
+    errors.append("measurement exporter must limit source overlays to governed evidence")
+if 'evidence overlay is not a linear, merge-free chain' not in exporter:
+    errors.append("measurement exporter must reject nonlinear evidence overlays")
 
 if errors:
     print("tool-drift audit failed:", file=sys.stderr)

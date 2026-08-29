@@ -82,6 +82,18 @@ def test_valid_exact_stack_passes(tmp_path: pathlib.Path) -> None:
             "attested release profile",
         ),
         (
+            "scripts/export_measurements.py",
+            'allowed_overlay_paths=("spec/evidence/measurements",)',
+            'allowed_overlay_paths=("",)',
+            "limit source overlays",
+        ),
+        (
+            "scripts/export_measurements.py",
+            "evidence overlay is not a linear, merge-free chain",
+            "evidence overlay is accepted",
+            "reject nonlinear evidence overlays",
+        ),
+        (
             "bench/manifest.json",
             '"source_name": "quoin-benchmark-corpus"',
             '"source_name": "quoin"',

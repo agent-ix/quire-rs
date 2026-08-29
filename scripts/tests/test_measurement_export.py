@@ -1,5 +1,6 @@
 import json
 import pathlib
+import subprocess
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
@@ -12,6 +13,7 @@ from export_measurements import (
     load_verification_stack,
     validate_executable_digest,
     validate_manifest_attestation,
+    validate_repository_against_stack,
 )
 
 
@@ -57,6 +59,25 @@ def attestation(revision: str = "a" * 40) -> dict:
         "artifacts": {"fixture": "sha256:" + "3" * 64},
         "toolchains": {"node": "22.15.0", "rust": "1.94.1", "python": "3.10.12"},
     }
+
+
+def git(root: pathlib.Path, *args: str) -> str:
+    return subprocess.run(
+        ["git", *args], cwd=root, check=True, capture_output=True, text=True
+    ).stdout.strip()
+
+
+def exporter_repository(tmp_path: pathlib.Path) -> tuple[pathlib.Path, str]:
+    root = tmp_path / "quire-rs"
+    root.mkdir()
+    git(root, "init")
+    git(root, "config", "user.email", "test@example.invalid")
+    git(root, "config", "user.name", "Test")
+    git(root, "remote", "add", "origin", "https://github.com/agent-ix/quire-rs")
+    (root / "source.py").write_text("locked\n")
+    git(root, "add", "source.py")
+    git(root, "commit", "-m", "locked source")
+    return root, git(root, "rev-parse", "HEAD")
 
 
 def test_collection_is_plan_derived_and_keeps_corpus_boundaries():
@@ -174,6 +195,50 @@ def test_attestation_remote_must_match_exporter_origin(tmp_path: pathlib.Path):
             source_name="quire",
             source_revision="a" * 40,
             source_remote="https://github.com/other/quire-rs",
+        )
+
+
+def test_exporter_accepts_only_linear_evidence_overlay(tmp_path: pathlib.Path):
+    root, locked = exporter_repository(tmp_path)
+    value = attestation(locked)
+    evidence = root / "spec" / "evidence" / "measurements" / "run.json"
+    evidence.parent.mkdir(parents=True)
+    evidence.write_text("{}\n")
+    git(root, "add", "spec/evidence/measurements/run.json")
+    git(root, "commit", "-m", "record evidence")
+
+    assert (
+        validate_repository_against_stack(
+            root,
+            value,
+            "quire",
+            allowed_overlay_paths=("spec/evidence/measurements",),
+        )
+        == locked
+    )
+
+
+def test_exporter_rejects_code_or_dirty_evidence_overlay(tmp_path: pathlib.Path):
+    root, locked = exporter_repository(tmp_path)
+    value = attestation(locked)
+    (root / "source.py").write_text("drifted\n")
+    git(root, "add", "source.py")
+    git(root, "commit", "-m", "code drift")
+    with pytest.raises(ExportError, match="non-evidence paths"):
+        validate_repository_against_stack(
+            root,
+            value,
+            "quire",
+            allowed_overlay_paths=("spec/evidence/measurements",),
+        )
+
+    (root / "dirty.txt").write_text("uncommitted\n")
+    with pytest.raises(ExportError, match="checkout is dirty"):
+        validate_repository_against_stack(
+            root,
+            value,
+            "quire",
+            allowed_overlay_paths=("spec/evidence/measurements",),
         )
 
 

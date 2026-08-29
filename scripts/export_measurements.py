@@ -85,7 +85,7 @@ def load_verification_stack(
     path: pathlib.Path,
     *,
     source_name: str,
-    source_revision: str,
+    source_revision: str | None = None,
     source_remote: str,
 ) -> dict[str, Any]:
     try:
@@ -122,7 +122,7 @@ def load_verification_stack(
     own_source = sources.get(source_name)
     if not isinstance(own_source, dict):
         raise ExportError(f"verification-stack has no {source_name} source")
-    if own_source["revision"] != source_revision:
+    if source_revision is not None and own_source["revision"] != source_revision:
         raise ExportError(
             f"verification-stack {source_name} revision does not match exporter source"
         )
@@ -299,8 +299,12 @@ def validate_manifest_attestation(
 
 
 def validate_repository_against_stack(
-    root: pathlib.Path, verification_stack: dict[str, Any], source_name: str
-) -> None:
+    root: pathlib.Path,
+    verification_stack: dict[str, Any],
+    source_name: str,
+    *,
+    allowed_overlay_paths: tuple[str, ...] = (),
+) -> str:
     source = verification_stack["sources"].get(source_name)
     if not isinstance(source, dict):
         raise ExportError(f"verification-stack has no {source_name} source")
@@ -311,10 +315,10 @@ def validate_repository_against_stack(
         text=True,
         check=False,
     )
-    if revision.returncode != 0 or revision.stdout.strip() != source["revision"]:
-        raise ExportError(
-            f"{source_name} checkout does not equal the attested revision"
-        )
+    head = revision.stdout.strip()
+    locked = source["revision"]
+    if revision.returncode != 0 or not FULL_SHA.fullmatch(head):
+        raise ExportError(f"{source_name} checkout revision is unavailable")
     status = subprocess.run(
         ["git", "status", "--porcelain=v1", "--untracked-files=all"],
         cwd=root,
@@ -328,6 +332,61 @@ def validate_repository_against_stack(
         raise ExportError(
             f"{source_name} checkout remote does not match the attestation"
         )
+    if head == locked:
+        return locked
+    if not allowed_overlay_paths:
+        raise ExportError(
+            f"{source_name} checkout does not equal the attested revision"
+        )
+
+    ancestor = subprocess.run(
+        ["git", "merge-base", locked, head],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if ancestor.returncode != 0 or ancestor.stdout.strip() != locked:
+        raise ExportError(
+            f"{source_name} evidence overlay does not descend from the attested revision"
+        )
+    commits = subprocess.run(
+        ["git", "rev-list", "--parents", f"{locked}..{head}"],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if commits.returncode != 0 or any(
+        len(line.split()) != 2 for line in commits.stdout.splitlines() if line.strip()
+    ):
+        raise ExportError(
+            f"{source_name} evidence overlay is not a linear, merge-free chain"
+        )
+    changed = subprocess.run(
+        ["git", "diff", "--name-only", locked, head],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if changed.returncode != 0:
+        raise ExportError(f"{source_name} evidence overlay diff is unavailable")
+    unexpected = [
+        path
+        for path in changed.stdout.splitlines()
+        if path
+        and not any(
+            path == prefix or path.startswith(f"{prefix}/")
+            for prefix in allowed_overlay_paths
+        )
+    ]
+    if unexpected:
+        raise ExportError(
+            f"{source_name} evidence overlay changes non-evidence paths: "
+            + ", ".join(unexpected)
+        )
+    return locked
 
 
 def validate_toolchains(verification_stack: dict[str, Any]) -> None:
@@ -380,12 +439,16 @@ def main() -> int:
     manifest = json.loads(MANIFEST.read_text())
     raw_evidence: dict[str, Any] = {}
     try:
-        source_revision = git_revision(ROOT)
         verification_stack = load_verification_stack(
             args.verification_stack,
             source_name="quire",
-            source_revision=source_revision,
             source_remote=git_remote(ROOT),
+        )
+        source_revision = validate_repository_against_stack(
+            ROOT,
+            verification_stack,
+            "quire",
+            allowed_overlay_paths=("spec/evidence/measurements",),
         )
         validate_manifest_attestation(manifest, verification_stack)
         validate_toolchains(verification_stack)
