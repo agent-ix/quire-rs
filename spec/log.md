@@ -7,6 +7,13 @@ description: "Chronological log of structural changes to this bundle."
 
 ## History
 
+* **2026-08-29** — **CR-156**: a per-reference `status_column` now fails
+  module load when the model has no `status` vocabulary. The override selects
+  a table header; it does not define the values or their classes, so accepting
+  it without the model-wide vocabulary silently configured no behavior. The
+  existing override/control integration case now includes this invalid shape.
+  FR-050-AC-43; TC-1079; #341.
+
 * **2026-08-29** — **CR-155**: an optional trace target (`required: false`)
   whose archetype is absent no longer emits `archetype-matches-nothing`. The
   previous check distinguished only minting targets from document references,

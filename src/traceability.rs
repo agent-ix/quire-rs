@@ -945,6 +945,14 @@ impl TraceabilityModel {
                     "status_column",
                     status_column,
                 )?;
+                if self.status.is_none() {
+                    return Err(format!(
+                        "traceability: document_references entry '{}' declares `status_column` \
+                         but the model has no `status` vocabulary, so the override would \
+                         classify nothing",
+                        reference.name
+                    ));
+                }
             }
             check_capturing_pattern("document_references", &reference.name, &reference.pattern)?;
             if reference.targets.is_empty() {
