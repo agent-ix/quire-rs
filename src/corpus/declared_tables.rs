@@ -550,7 +550,7 @@ pub(crate) fn scan(
     }
     // Counted before `exclude`: a declaration that deliberately excludes
     // all of its matches is not a missing archetype (CR-054).
-    if of_archetype == 0 && scope.mints.is_some() {
+    if of_archetype == 0 && scope.mints.is_some() && scope.section_required {
         ctx.note(
             scope.name,
             ScanDiagnostic::ArchetypeMatchesNothing {
@@ -1231,9 +1231,9 @@ mod cr135_archetype_matches_nothing {
         assert_eq!(out[0].0, "test-case", "it names the declaration");
     }
 
-    #[trace("TC-1049", "FR-050-AC-36")]
-    // only a TRACE TARGET reports a missing archetype; a
-    // reference declaration, whose section is legitimately optional, does not.
+    #[trace("TC-1049", "FR-050-AC-36", "FR-050-AC-41")]
+    // Only a REQUIRED trace target reports a missing archetype. A reference
+    // declaration and an optional target both state that absence is healthy.
     #[test]
     fn tc1049_a_reference_declaration_absence_is_not_a_finding() {
         // Without this the rule fires on every repository for every archetype
@@ -1270,7 +1270,28 @@ mod cr135_archetype_matches_nothing {
         assert_eq!(
             target.into_diagnostics().len(),
             1,
-            "a trace target that selected no document is reported"
+            "a required trace target that selected no document is reported"
+        );
+
+        let mut optional_target = ScanContext::default();
+        scan(
+            &spec,
+            root,
+            DeclaredScope {
+                name: "suite",
+                archetype: "SuiteRegistry",
+                exclude: &empty,
+                model_exclude: &empty,
+                mints: Some("ID"),
+                status_column: None,
+                section_required: false,
+            },
+            &SectionNames::from("Suites"),
+            &mut optional_target,
+        );
+        assert!(
+            optional_target.into_diagnostics().is_empty(),
+            "an optional target that selected no document is healthy"
         );
 
         let mut reference = ScanContext::default();

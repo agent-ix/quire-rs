@@ -7,6 +7,22 @@ description: "Chronological log of structural changes to this bundle."
 
 ## History
 
+* **2026-08-29** — **CR-155**: an optional trace target (`required: false`)
+  whose archetype is absent no longer emits `archetype-matches-nothing`. The
+  previous check distinguished only minting targets from document references,
+  so optional `suite` and `inspection` registries still produced findings in
+  every non-adopting repository. Required targets retain the diagnostic, and a
+  present optional target still mints and validates. FR-050-AC-41; TC-1076.
+
+* **2026-08-29** — **CR-154**: a document reference can now declare its own
+  `status_column`, with omission preserving the model-wide status header. This
+  closes the configuration half of #341 for archetypes such as `TestMatrix`
+  whose table contracts intentionally use both `Status` and `Coverage Status`:
+  the reference selects the header, while the one model vocabulary continues
+  to classify its values. The extended red/control case proves that an explicit
+  override restores status-lie detection and suppresses the mismatch diagnostic
+  without guessing from observed headers. FR-050-AC-43; TC-1079.
+
 * **2026-08-29** — **CR-153**: canonical CI now treats its own tool and
   credential surfaces as governed inputs. Every Cargo resolver invocation in
   the primary workflow is locked; `cargo-audit` is installed as exact version
