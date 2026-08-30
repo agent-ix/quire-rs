@@ -102,6 +102,7 @@ This specification governs a **generic, archetype-agnostic engine** that process
 **Repository + corpus side:**
 - `load_repo(path)` — parallel (rayon), ignore-file-aware directory walk that parses every `.md` into a `QuireDocument`, returning the collection + per-file diagnostics ([FR-024](./functional/FR-024-parallel-repo-walk.md)). Per-file parse failures are non-fatal.
 - `Spec` corpus — a bounded, in-memory, immutable set of loaded documents indexed by stable artifact id ([FR-025](./functional/FR-025-spec-corpus-model.md)), with its **intra-spec** references resolved ([FR-026](./functional/FR-026-intra-spec-reference-resolution.md)) and read-only whole-spec queries (`by_id`, `by_type`, `referencing`, `outgoing`, `orphans`, `dangling`) over the resolved structure ([FR-027](./functional/FR-027-whole-spec-query-api.md)). Lifecycle is *load → examine → discard*; the corpus is a data structure, not a stateful engine.
+- Assurance export — a versioned, source-grounded serialization of the bounded corpus, obligations, and source-symbol bindings ([FR-067](./functional/FR-067-versioned-assurance-export.md), [FR-068](./functional/FR-068-source-grounded-assurance-projection.md)). It projects the authoritative in-memory records and persists no graph state.
 
 **Python binding side:**
 - Feature-gated (`--features python`) PyO3 + maturin bindings exposing parse / extract / validate / `load_repo` / corpus to Python as the `quire` wheel ([FR-023](./functional/FR-023-python-binding-surface.md)). With the feature off, the crate is unchanged and interpreter-free ([StR-001](./stakeholder/StR-001-single-rust-engine.md) boundary). Bindings invert the call direction (Python calls *into* Rust); the engine never shells *out*. This is the path by which `filament-parser-lib` consumes the engine at native speed ([StR-005](./stakeholder/StR-005-native-python-bindings.md)), superseding its Python hot paths.
@@ -128,7 +129,7 @@ This specification does not govern:
 - **Internationalized slug normalization.** [FR-009](./functional/FR-009-slug-line-id.md) implements ASCII-only slug normalization to match the TS/Py reference. Non-ASCII heading authoring works (the section parses correctly), but the slug collapses non-ASCII characters to `-`. Full Unicode slug support is deferred to a future version.
 - **Windows path semantics.** `v1` supports macOS and Linux only. Filesystem-loader behavior on Windows (drive letters, `\` separator, symlink permissions) is undefined.
 - **React UI bindings.** `agent-ix/quire` ships React components for browser-side rendering; those are TypeScript-only. `quire-rs` does not provide a UI layer.
-- **Cross-document graph queries — *general/stateful*.** `agent-ix/quire` ships a React provider that indexes multiple parsed documents and exposes hooks for cross-doc queries. The *general, stateful* graph engine remains out of scope: no persistence of a resolved graph, no query/traversal DSL, no caching across calls, no incremental reparse on change, and no resolution of references that point into a **different** spec. These are service-layer concerns (see ADR-0002). **Carve-out:** the bounded, in-memory, ephemeral **per-spec corpus** ([FR-025](./functional/FR-025-spec-corpus-model.md)/026/027) *is* in scope — it loads one spec, resolves the references *within that loaded set*, and answers whole-spec read-only queries, then is discarded. The rule is: intra-spec resolution = `quire-rs`; inter-spec or stateful = service layer ([StR-006](./stakeholder/StR-006-whole-spec-corpus.md)).
+- **Cross-document graph queries — *general/stateful*.** `agent-ix/quire` ships a React provider that indexes multiple parsed documents and exposes hooks for cross-doc queries. The *general, stateful* graph engine remains out of scope: no persistence of a resolved graph, no query/traversal DSL, no caching across calls, no incremental reparse on change, and no resolution of references that point into a **different** spec. These are service-layer concerns (see ADR-0002). **Carve-out:** the bounded, in-memory, ephemeral **per-spec corpus** ([FR-025](./functional/FR-025-spec-corpus-model.md)/026/027) and its immutable assurance projection ([FR-067](./functional/FR-067-versioned-assurance-export.md)/068) are in scope. The projection serializes the already-resolved structure; it does not persist, extend, or reinterpret it. The rule is: intra-spec resolution = `quire-rs`; inter-spec or stateful = service layer ([StR-006](./stakeholder/StR-006-whole-spec-corpus.md)).
 - CRDT or OT live-editing semantics.
 - **Rendering markdown from typed data, in any form.** Retired in v0.4 (§2bis.C): no MiniJinja environment, no templates, no whole-artifact or per-block render, no render-parity suite. Markdown is authored directly.
 - Heavy hardening tooling (kani formal verification, shuttle concurrency permutation, sim-spire) — opt-in via future cookiecutter variant. (Standard Rust safety hygiene — `forbid(unsafe_code)`, fuzz, mutants, advisory — is required and in scope. Scheduled Miri was retired per ADR 0006; loom ([NFR-017](./non-functional/NFR-017-concurrency-permutation.md)) is adopted for the concurrency surface.)
@@ -295,13 +296,14 @@ validate/extract/query never panic on arbitrary input).
 
 ### 3.1 System Description
 
-`quire-rs` is a single Rust crate that exposes three complementary APIs in one dependency:
+`quire-rs` is a single Rust crate that exposes four complementary APIs in one dependency:
 
 1. A **parser** that takes raw markdown and produces a `QuireDocument` heading tree with O(1)-lookup query helpers.
 2. A **validator** that checks a parsed document against the shape its module declares — required sections, locator asserts, placeholder sentinels — and checks data against a compiled JSON Schema.
 3. An **extractor** that, given a parsed `QuireDocument` and a `body_extraction` DSL, returns typed extraction records + harvested relationship edges, and over a whole spec computes coverage and traceability.
+4. An **assurance exporter** that serializes the bounded corpus, obligations, and source-symbol bindings with pinned source and module premises, without deriving a second graph or an assurance verdict.
 
-The three share a domain (the agent-ix knowledge ecosystem) and a substrate: every one of them reads the canonical markdown, and none of them writes it. Writeback is a byte splice of caller-supplied bytes, not a fourth API that generates content.
+The four share a domain (the agent-ix knowledge ecosystem) and a substrate: every one of them reads the canonical markdown, and none of them writes it. Writeback is a byte splice of caller-supplied bytes, not a fifth API that generates content.
 
 **The engine knows nothing about specific archetypes.** `FR`, `NFR`, `ADR`, `Plan`, `domain`, `entity`, etc. are not Rust types compiled into `quire-rs` — they are data, authored as `(manifest.yaml, schemas/*.json)` pairs, stored in Filament (or any other source-of-record), synced to the local filesystem by an external tool (`ix-cli` is the canonical syncer), and loaded into a `Registry` at engine startup. This decoupling means: (a) adding a new archetype requires no code change to `quire-rs`; (b) the engine has zero runtime dependency on Filament or any network service; (c) hand-authored or test-fixture archetype sets are first-class.
 
@@ -332,6 +334,7 @@ The crate is the Rust home for these responsibilities so that downstream consume
        └──> parse_document(md) → QuireDocument
        └──> validate_document(doc, archetype) → findings
        └──> extract(doc, dsl) → ExtractionResult
+       └──> assurance_export(spec, registry, symbols, source) → AssuranceExport
        └──> update_section / update_block → String (byte splice)
 ```
 
@@ -383,6 +386,7 @@ Each layer has one job and a narrow interface to the next. The parser does not v
 - **`spec-analysis-*` / `spec-matrix` tooling and LLM agents auditing a spec** — load a `spec/` tree into a `Spec` corpus ([FR-025](./functional/FR-025-spec-corpus-model.md)) and run whole-spec traceability/coverage/reference queries ([FR-027](./functional/FR-027-whole-spec-query-api.md)) instead of re-walking + re-greps ([US-012](./usecase/US-012-agent-audits-whole-spec.md), [US-013](./usecase/US-013-agent-resolves-intra-spec-refs.md))
 - **`spec-objects-business` extractors** — evaluate `body_extraction` DSL via the parser's Query API
 - **CLI tools** — `quire-cli` exposes parse, validate, extract, `properties` and `coverage` over a spec tree
+- **Assurance consumers** — Quoin and compatible auditors validate the assurance export, resolve facts at its pinned source revision, and apply their own evidence-freshness and sufficiency policy
 - **LLM agents** — receive the on-disk JSON Schemas (surfaced unchanged via `schema_for`) as tool-call input contracts, and emit patches the schema layer accepts and writeback splices in
 
 ---
@@ -398,6 +402,7 @@ spec/
 ├── usecase/               # User intent and usage scenarios (US-XXX)
 ├── functional/            # System / functional requirements (FR-XXX)
 ├── non-functional/        # Non-functional requirements (NFR-XXX)
+├── integration/           # Cross-system verification artifacts (IT-XXX)
 ├── tests.md               # Bidirectional requirements ↔ tests mapping
 ├── test_cases/            # Verification artifacts (TC-XXX)
 └── assets/
@@ -642,6 +647,12 @@ Edge stubs are harvested from two already-parsed sources and unified into one re
 ### 10bis.4 Consumers
 
 The corpus is the substrate the `spec-analysis-*` and `spec-matrix` skills need: traceability gaps (FRs with no `implements` edge to a StR), coverage gaps (user stories with no test), and reference navigation (everything that references a given artifact). These run today by re-walking and re-greps; against a corpus they query an already-resolved structure ([US-012](./usecase/US-012-agent-audits-whole-spec.md), [US-013](./usecase/US-013-agent-resolves-intra-spec-refs.md)).
+
+Assurance consumers receive the same structure through the immutable export in
+[FR-067](./functional/FR-067-versioned-assurance-export.md) and
+[FR-068](./functional/FR-068-source-grounded-assurance-projection.md). The
+export preserves corpus edge direction and source-binding semantics; the
+consumer remains responsible for audit verdicts.
 
 ---
 

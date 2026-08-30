@@ -10,6 +10,7 @@ okf_version: "0.1"
 
 * [Assets](./assets/index.md) - Assets artifacts.
 * [Functional](./functional/index.md) - Functional artifacts.
+* [Integration](./integration/index.md) - Integration artifacts.
 * [Non Functional](./non-functional/index.md) - Non Functional artifacts.
 * [Stakeholder](./stakeholder/index.md) - Stakeholder artifacts.
 * [Usecase](./usecase/index.md) - Usecase artifacts.

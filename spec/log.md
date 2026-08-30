@@ -7,6 +7,18 @@ description: "Chronological log of structural changes to this bundle."
 
 ## History
 
+* **2026-08-29** — **StR-007, US-018, FR-067, FR-068 and IT-001** specify the
+  source-grounded assurance export requested by `agent-ix/quire-rs#386`.
+  Quire projects its existing `Spec::edges`, FR-053 obligations, and FR-051
+  symbol bindings into a hand-authored, versioned JSON contract carrying a
+  pinned repository revision and module/schema premises. It does not build a
+  second graph or make freshness verdicts: evidence freshness is exported as
+  unknown until Quoin compares the statement hash, binding hash, and run
+  revision in its own auditor. Missing, not-applicable, and unread relation
+  states stay distinct. CR-156 narrows FR-055's no-version-key rule to the two
+  existing payloads it defines, whose byte contracts remain unchanged. Matrix:
+  TC-1084..TC-1099 pending.
+
 * **2026-08-29** — **CR-155**: the frozen Quoin benchmark subject now has an
   attestation identity distinct from the current Quoin producer. Using the
   corpus display name as the verification-stack source key coupled Quire's
