@@ -2,6 +2,12 @@
 id: FR-068
 title: "Source-grounded assurance projection"
 type: FR
+verification_method: test
+evidence:
+  - kind: test_case
+    ref: tests/assurance_export.rs
+  - kind: inspection_checklist
+    ref: tests/assurance_boundary.rs
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/usecase/US-018"
     type: "implements"
@@ -47,6 +53,14 @@ obligation locators carry FR-053's normalized statement hash in addition to a
 digest of the verbatim row statement; symbol locators retain the FR-051 symbol
 identity digest.
 
+An artifact locator points to line 1 of its document. An obligation locator
+points to the first source line containing the exact FR-053 statement in the
+declaring document. A symbol or binding locator uses the declaration line
+already carried by FR-051. A corpus-relation locator uses the source document
+and the first line containing its target id. The exporter SHALL fail rather
+than emit an absolute path, a parent traversal, a zero line, or a locator whose
+source bytes are unavailable.
+
 ## Behavior
 
 The projection SHALL preserve these meanings:
@@ -71,6 +85,19 @@ The projection SHALL preserve these meanings:
   that do not represent evidence.
 - Quire SHALL NOT emit freshness `current` or `suspect`; those are Quoin auditor
   verdicts over the exported operands and its store.
+
+The observation identity is `(declaration, subject)`, where `subject` is the
+applicable artifact id. A declaration with zero applicable subjects emits one
+`not_applicable` observation with no subject. A document the corpus walker
+could not read emits one `unknown` observation with its path as the subject and
+the loader diagnostic as its non-empty reason; the exporter SHALL NOT infer a
+missing relationship for content it could not inspect. Declaration exclusions
+apply exactly as they do in bundle validation.
+
+> **CR-157** (`agent-ix/quire-rs#386`, 2026-08-31) makes previously implicit
+> identity and failure semantics testable: it fixes locator lines and digests,
+> defines observation identity and zero-subject behavior, and preserves unread
+> input as `unknown` rather than manufacturing a `missing` result.
 
 ## Constraints
 

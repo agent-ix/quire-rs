@@ -2,6 +2,12 @@
 id: FR-067
 title: "Versioned assurance export contract"
 type: FR
+verification_method: test
+evidence:
+  - kind: test_case
+    ref: tests/assurance_export.rs
+  - kind: test_case
+    ref: tests/output_contract.rs
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/usecase/US-018"
     type: "implements"
@@ -31,6 +37,8 @@ may serialize the library value without becoming the owner of its shape.
 - Source-symbol extraction and binding results produced under that registry.
 - A caller-supplied source identity containing a non-empty repository identity
   and an immutable revision.
+- The corpus root used to load the `Spec`; all exported document paths SHALL
+  resolve beneath this root.
 
 ## Outputs
 
@@ -61,6 +69,25 @@ The envelope SHALL carry:
 - When an export names a tuple outside the accepted set,
   `read_assurance_export` SHALL fail closed.
 
+For this contract, an **active archetype** is the first-wins archetype exposed
+by `Registry::archetype`; a shadowed `(module, archetype)` declaration is not a
+second active premise. Export construction SHALL fail when the tolerant loader
+recorded a missing module name, a missing module version, or an archetype load
+failure, because any of those conditions makes the version premise incomplete.
+
+The v1 reader selects the checked-in v1 schema from `format` and
+`format_version`, validates the complete JSON value before deserialization,
+then compares every exported module/version/schema-digest tuple with the
+caller's accepted set. It SHALL reject an unknown module as well as a known
+module with an unaccepted version or digest. The reader SHALL return no typed
+records until both stages succeed.
+
+> **CR-157** (`agent-ix/quire-rs#386`, 2026-08-31) closes the full-review
+> boundary findings before implementation: it defines active-archetype
+> first-wins semantics, makes the corpus root an explicit input, treats
+> tolerant-loader premise loss as fatal to export construction, and orders
+> schema validation before accepted-premise comparison on import.
+
 The exporter SHALL compute each schema digest over canonical JSON with object keys
 sorted recursively, no insignificant whitespace, and arrays retained in
 authored order. A formatting-only change therefore preserves the premise while
@@ -81,7 +108,7 @@ a semantic schema change invalidates it.
 | ID | Criteria | Verification |
 |----|----------|--------------|
 | FR-067-AC-1 | The published assurance-v1 schema is valid JSON Schema draft 2020-12, its `$id` ends in `assurance-v1.schema.json`, and a complete fixture export validates with zero errors. | Test (TC-1084) |
-| FR-067-AC-2 | Export construction refuses an empty repository identity, a non-immutable revision, an unnamed module, a module with no declared version, or an active archetype whose schema digest cannot be computed; no partial payload is returned. | Test (TC-1085) |
+| FR-067-AC-2 | Export construction refuses an empty repository identity, a non-immutable revision, an unnamed module, a module with no declared version, an archetype load failure, or a document path outside the supplied corpus root; no partial payload is returned. | Test (TC-1085) |
 | FR-067-AC-3 | The envelope lists every loaded module exactly once with its declared version and every active `(module, archetype, schema_digest)` tuple exactly once, in deterministic order. | Test (TC-1086) |
 | FR-067-AC-4 | Import refuses an unknown `format_version`, an unaccepted module version, or an unaccepted module-schema digest before returning any artifact, relation, or evidence record, naming the rejected premise. | Test (TC-1087) |
 | FR-067-AC-5 | Two exports over identical inputs are byte-identical; changing only the caller-supplied source revision changes the source premise and no projected identity or relation. | Test (TC-1088) |
