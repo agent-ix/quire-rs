@@ -35,7 +35,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | StR-004 Safety scaffolding | NFR-003, NFR-004 | TC-050, TC-051 | ✅ Complete |
 | StR-005 Native Python bindings | US-011, FR-023, FR-024, NFR-016 | TC-460, TC-461, TC-456, TC-466, TC-465 | ✅ Complete |
 | StR-006 Whole-spec corpus | US-012, US-013, FR-025, FR-026, FR-027 | TC-485, TC-493, TC-488, TC-484, TC-483 | ✅ Complete |
-| StR-007 Source-grounded assurance data | US-018, FR-067, FR-068 | TC-1091, TC-1087, TC-1096, TC-1089 | 🚧 Pending implementation |
+| StR-007 Source-grounded assurance data | US-018, FR-067, FR-068 | TC-1091, TC-1087, TC-1096, TC-1089 | ✅ Producer complete |
 
 ### User Story Coverage
 
@@ -56,7 +56,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | US-013 Agent resolves intra-spec refs | AC-1..5 + PC-1..3 | TC-486, TC-487, TC-488, TC-489, TC-490 (correctness) + TC-459, TC-492 (perf) | ✅ Functional / 🚧 Perf bench pending |
 | US-014 Author validates markdown | AC-1..4 | TC-518, TC-519, TC-520, TC-521 | 🚧 Pending implementation |
 | US-015 Object edge vocabulary | AC-1..4 | TC-646, TC-647, TC-648, TC-649 (exercised by FR-040 TC-641/642/645/650) | ✅ Exercised via FR-040 engine TCs |
-| US-018 Consume assurance export | Illustrative examples | TC-1084..TC-1099 (via FR-067/068 and IT-001) | 🚧 Pending implementation |
+| US-018 Consume assurance export | Illustrative examples | TC-1084..TC-1099 (via FR-067/068 and IT-001) | ✅ Producer complete; Quoin consumption downstream |
 
 ### Functional Requirement Coverage
 
@@ -103,14 +103,14 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | FR-042 Requirement-grammar check (EARS) | AC-1..10 | TC-657 (6 patterns + unclassifiable), TC-658 (non-singular + enumerated-stem exemption), TC-659 (missing-subject + StR relaxed subject), TC-660 (vague-response + passive exemption), TC-661 (non-canonical-trigger + NFR no-trigger), TC-662 (archetype/section binding), TC-663 (warning vs error severity routing), TC-664 (finding fields), TC-665 (fence/quote/reference skip), TC-666 (PyO3 parity) | 🚧 Pending implementation |
 | FR-043 Module-supplied concrete lexicon | AC-1..7 | TC-667 (lexicon registry load + accessor), TC-668 (first-wins merge + DuplicateLexiconTerm), TC-669 (lexicon term suppresses vague-response; removed re-flags), TC-670 (no hardcoded noun list under empty lexicon), TC-671 (backtick/mechanism/bound hold under empty lexicon), TC-672 (registry vs type-only lexicon paths), TC-673 (PyO3 check_grammar module_root) | 🚧 Pending implementation |
 | FR-044 Project Ubiquitous-Language lexicon | AC-1..7 | TC-674 (harvest Term column from Glossary `## Terms` table), TC-675 (harvest bold term from `## Ubiquitous Language` bullets), TC-676 (combined lexicon = registry keys ∪ project terms), TC-677 (validate_document_in_registry_with_lexicon injects lexicon), TC-678 (validate_bundle harvests Spec + applies combined lexicon), TC-679 (advisory: project suppression never changes is_valid), TC-680 (no glossary → empty terms → module-only path) | 🚧 Pending implementation |
-| FR-067 Versioned assurance export | AC-1..7; CON-1..5 | TC-1084..TC-1090 | 🚧 Pending implementation |
-| FR-068 Source-grounded assurance projection | AC-1..9; CON-1..4 | TC-1091..TC-1099 | 🚧 Pending implementation |
+| FR-067 Versioned assurance export | AC-1..7; CON-1..5 | TC-1084..TC-1090 | ✅ Implemented |
+| FR-068 Source-grounded assurance projection | AC-1..9; CON-1..4 | TC-1091..TC-1099 | ✅ Implemented |
 
 ### Integration Requirement Coverage
 
 | Integration Req | Target Boundary | Test Cases | Coverage Status |
 |-----------------|-----------------|------------|-----------------|
-| IT-001 Quoin consumes pinned Quire export | Quire producer → versioned JSON/schema → Quoin consumer | TC-1084, TC-1087, TC-1088, TC-1091..TC-1099 | 🚧 Pending cross-repository implementation |
+| IT-001 Quoin consumes pinned Quire export | Quire producer → versioned JSON/schema → Quoin consumer | TC-1084, TC-1087, TC-1088, TC-1091..TC-1099 | ⚠️ Producer schema/fixture complete; Quoin consumer downstream |
 
 ### Non-Functional Requirement Coverage
 
@@ -759,22 +759,22 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-1080 | The retained `filament-ide-rs@59a180a7` TC-1598 helper oracle is detected at its assertion and names the copied `validate_artifact_path` decision with score and repair; a reduced corpus pair reproduces it, while an independent helper, an unused copied helper, and two matching production subjects stay silent (#236) | Integration | P0 | FR-064-AC-7, FR-064-CON-6 | ✅ |
 | TC-1081 | A trace id quoted inside legacy prose remains visible to the shared binder/detector matcher, while the same prose with a redacted non-id stays silent. The retained #355 calibration treats this as an advisory precision cost and does not introduce a caller-specific mask. | Unit | P0 | FR-051-AC-22 | ✅ |
 | TC-1083 | Three Rust tests whose comments bind while their `tc_NNN` names match no declared name form retain aggregate 3/3 binding but report the self-named subpopulation as 0/3, with located `marker-form-mismatch` and named `hollow-denominator`; the census retains one deterministic example (#367) | Integration | P0 | FR-050-AC-44 | ✅ |
-| TC-1084 | The hand-authored assurance-v1 schema compiles under JSON Schema 2020-12, carries the versioned `$id`, and accepts the complete compatibility fixture | Unit | P0 | FR-067-AC-1 | 🚧 |
-| TC-1085 | Export construction refuses each incomplete provenance premise independently — empty repository, moving or abbreviated revision, unnamed/unversioned module, archetype load failure, and a document outside the supplied corpus root — returning no partial value | Unit | P0 | FR-067-AC-2 | 🚧 |
-| TC-1086 | Two loaded modules with several archetypes export a sorted, duplicate-free module/version/schema-digest inventory whose canonical schema digest ignores object-key order and insignificant whitespace but changes with schema meaning | Unit | P0 | FR-067-AC-3 | 🚧 |
-| TC-1087 | Import rejects an unknown format version, module version, and module-schema digest one at a time before exposing records, naming the exact failed premise | Unit | P0 | FR-067-AC-4, StR-007-VC-2 | 🚧 |
-| TC-1088 | Identical inputs produce byte-identical exports; changing only the full source revision changes only that premise | Property | P0 | FR-067-AC-5 | 🚧 |
-| TC-1089 | The checked-in assurance-v1 golden fixture round-trips under additive readers, while deleting, renaming, retyping, or reinterpreting every pinned v1 field is rejected | Snapshot | P0 | FR-067-AC-6, StR-007-VC-4 | 🚧 |
-| TC-1090 | Enabling assurance export leaves the coverage-v1 and properties-v1 byte goldens unchanged and adds no assurance version key to either payload | Integration | P0 | FR-067-AC-7, FR-067-CON-4, FR-055-AC-7 | 🚧 |
-| TC-1091 | Every exported artifact id/type/UUID and source locator equals the loaded document; resolving its path at the pinned Git object reproduces the exact-byte SHA-256 digest | Integration | P0 | FR-068-AC-1, StR-007-VC-1 | 🚧 |
-| TC-1092 | Obligation projection is field-for-field equal to FR-053 and its row locator selects the verbatim statement whose normalized and exact hashes reproduce the export | Integration | P0 | FR-068-AC-2 | 🚧 |
-| TC-1093 | Symbol projection preserves FR-051 identity, qualified name, language, kind, path, line and capabilities; same-named symbols in different paths or containers remain distinct | Integration | P0 | FR-068-AC-3 | 🚧 |
-| TC-1094 | Exported corpus relations form a bijection with `Spec::edges()` including resolution state, and a module-declared novel edge verb survives unchanged | Property | P0 | FR-068-AC-4 | 🚧 |
-| TC-1095 | A verifies binding retains evidence provenance while an implements binding remains production scope with no invented provenance or evidence count | Unit | P0 | FR-068-AC-5 | 🚧 |
-| TC-1096 | Required-relation fixtures produce four distinct availability states — available, missing, not_applicable, unknown — and unknown alone requires a reason | Integration | P0 | FR-068-AC-6, StR-007-VC-3 | 🚧 |
-| TC-1097 | Quire emits freshness unknown for evidence and not_applicable for non-evidence, never current or suspect; Quoin's auditor verdict remains a separate input | Unit | P0 | FR-068-AC-7 | 🚧 |
-| TC-1098 | Repeated projections are byte-identical and editing one unrelated document changes no other projected identity or relation | Property | P0 | FR-068-AC-8 | 🚧 |
-| TC-1099 | A static dependency boundary permits only the existing corpus, obligation and symbol-record accessors and rejects direct frontmatter, markdown-query or source-tag harvesting from the exporter | Static | P0 | FR-068-AC-9, FR-068-CON-1 | 🚧 |
+| TC-1084 | The hand-authored assurance-v1 schema compiles under JSON Schema 2020-12, carries the versioned `$id`, and accepts the complete compatibility fixture | Unit | P0 | FR-067-AC-1 | ✅ |
+| TC-1085 | Export construction refuses each incomplete provenance premise independently — empty repository, moving or abbreviated revision, unnamed/unversioned module, archetype load failure, and a document outside the supplied corpus root — returning no partial value | Unit | P0 | FR-067-AC-2 | ✅ |
+| TC-1086 | Two loaded modules with several archetypes export a sorted, duplicate-free module/version/schema-digest inventory whose canonical schema digest ignores object-key order and insignificant whitespace but changes with schema meaning | Unit | P0 | FR-067-AC-3 | ✅ |
+| TC-1087 | Import rejects an unknown format version, module version, and module-schema digest one at a time before exposing records, naming the exact failed premise | Unit | P0 | FR-067-AC-4, StR-007-VC-2 | ✅ |
+| TC-1088 | Identical inputs produce byte-identical exports; changing only the full source revision changes only that premise | Property | P0 | FR-067-AC-5 | ✅ |
+| TC-1089 | The checked-in assurance-v1 golden fixture round-trips under additive readers, while deleting, renaming, retyping, or reinterpreting every pinned v1 field is rejected | Snapshot | P0 | FR-067-AC-6, StR-007-VC-4 | ✅ |
+| TC-1090 | Enabling assurance export leaves the coverage-v1 and properties-v1 byte goldens unchanged and adds no assurance version key to either payload | Integration | P0 | FR-067-AC-7, FR-067-CON-4, FR-055-AC-7 | ✅ |
+| TC-1091 | Every exported artifact id/type/UUID and source locator equals the loaded document; resolving its path at the pinned Git object reproduces the exact-byte SHA-256 digest | Integration | P0 | FR-068-AC-1, StR-007-VC-1 | ✅ |
+| TC-1092 | Obligation projection is field-for-field equal to FR-053 and its row locator selects the verbatim statement whose normalized and exact hashes reproduce the export | Integration | P0 | FR-068-AC-2 | ✅ |
+| TC-1093 | Symbol projection preserves FR-051 identity, qualified name, language, kind, path, line and capabilities; same-named symbols in different paths or containers remain distinct | Integration | P0 | FR-068-AC-3 | ✅ |
+| TC-1094 | Exported corpus relations form a bijection with `Spec::edges()` including resolution state; the relation-kind catalog retains every module-declared, trace-binding and observed kind, including a supported kind with zero observed edges | Property | P0 | FR-068-AC-4 | ✅ |
+| TC-1095 | A verifies binding retains evidence provenance while an implements binding remains production scope with no invented provenance or evidence count | Unit | P0 | FR-068-AC-5 | ✅ |
+| TC-1096 | Required-relation fixtures produce four distinct availability states — available, missing, not_applicable, unknown — and unknown alone requires a reason | Integration | P0 | FR-068-AC-6, StR-007-VC-3 | ✅ |
+| TC-1097 | Quire emits freshness unknown for evidence and not_applicable for non-evidence, never current or suspect; Quoin's auditor verdict remains a separate input | Unit | P0 | FR-068-AC-7 | ✅ |
+| TC-1098 | Repeated projections are byte-identical and editing one unrelated document changes no other projected identity or relation | Property | P0 | FR-068-AC-8 | ✅ |
+| TC-1099 | A static dependency boundary permits only the existing corpus, obligation and symbol-record accessors and rejects direct frontmatter, markdown-query or source-tag harvesting from the exporter | Static | P0 | FR-068-AC-9, FR-068-CON-1 | ✅ |
 | TC-1052 | The symbol table reports the QUALIFIED NAME the engine built, with its container — the field three ports of `symbols/python.rs` disagreed on, giving 386, 490 and 5,263 lost declarations over one tree. A defect in the scanner cannot be sized by a reimplementation of the scanner (#309) | Unit | P0 | FR-051-AC-23 | ✅ |
 | TC-1053 | Each record carries whether its KIND can bind a trace id and whether it can carry `implements`, and the two are complements for every symbol — the first thing to check when a row will not bind, previously only inferable from a coverage rollup two layers away (#309, #312, CR-061) | Unit | P0 | FR-051-AC-23 | ✅ |
 | TC-1054 | With no module the report says binding was NOT ASKED rather than reporting zero: an unbound run and a repository nobody tagged produce the same empty `trace_ids`, and the per-language census keeps `binding_kinds` separate from `bound` so a rate is never drawn over the wrong denominator (#309) | Unit | P0 | FR-051-AC-23 | ✅ |

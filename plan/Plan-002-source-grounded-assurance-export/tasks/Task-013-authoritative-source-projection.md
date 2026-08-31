@@ -2,7 +2,7 @@
 id: Task-013
 title: "FR-068 — authoritative source projection"
 type: Task
-status: not_started
+status: completed
 track: A
 priority: P0
 relationships:
@@ -37,10 +37,10 @@ Project the existing corpus, obligations, source symbols, bindings, and module-d
 
 ## Subtasks
 
-- [ ] Write failing record, locator, relation-bijection, state, and isolation tests.
-- [ ] Add minimal read-only corpus/registry accessors where the public contract already names them.
-- [ ] Preserve authoritative record values and stable identity tuples.
-- [ ] Emit explicit availability/freshness states without assurance verdicts.
+- [x] Write failing record, locator, relation-bijection, state, and isolation tests.
+- [x] Add minimal read-only corpus/registry accessors where the public contract already names them.
+- [x] Preserve authoritative record values and stable identity tuples.
+- [x] Emit explicit availability/freshness states without assurance verdicts.
 
 ## Deliverables
 

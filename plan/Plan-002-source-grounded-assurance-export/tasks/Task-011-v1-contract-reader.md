@@ -2,7 +2,7 @@
 id: Task-011
 title: "FR-067 — v1 assurance contract and reader"
 type: Task
-status: not_started
+status: completed
 track: A
 priority: P0
 relationships:
@@ -23,10 +23,10 @@ Define the public v1 types, hand-authored schema, deterministic serialization en
 
 ## Subtasks
 
-- [ ] Write failing schema, reader-rejection, and compatibility-fixture tests.
-- [ ] Add strict v1 record types and the hand-authored draft-2020-12 schema.
-- [ ] Validate before deserializing and before exposing any typed record.
-- [ ] Pin the complete fixture and mutation behavior.
+- [x] Write failing schema, reader-rejection, and compatibility-fixture tests.
+- [x] Add strict v1 record types and the hand-authored draft-2020-12 schema.
+- [x] Validate before deserializing and before exposing any typed record.
+- [x] Pin the complete fixture and mutation behavior.
 
 ## Deliverables
 

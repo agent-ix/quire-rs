@@ -43,6 +43,9 @@ deciding whether evidence is fresh, sufficient, or persuasive.
   types, and source locators.
 - `obligations`: FR-053 records with their declaring row locator.
 - `symbols`: FR-051 stable symbol identities and declaration locators.
+- `relation_kinds`: every module-declared, trace-binding, or observed relation
+  kind the bounded export can represent, with explicit availability and the
+  sources that made the capability available.
 - `relations`: corpus, `verifies`, and `implements` relations.
 - `relation_observations`: module-declared relation checks with explicit
   availability and freshness states.
@@ -57,9 +60,11 @@ An artifact locator points to line 1 of its document. An obligation locator
 points to the first source line containing the exact FR-053 statement in the
 declaring document. A symbol or binding locator uses the declaration line
 already carried by FR-051. A corpus-relation locator uses the source document
-and the first line containing its target id. The exporter SHALL fail rather
-than emit an absolute path, a parent traversal, a zero line, or a locator whose
-source bytes are unavailable.
+and the first line containing its target id when the target identity is directly
+authored; a normalized relative-path relation whose authored spelling is not
+retained uses document line 1. The exporter SHALL fail rather than emit an
+absolute path, a parent traversal, a zero line, or a locator whose source bytes
+are unavailable.
 
 ## Behavior
 
@@ -71,6 +76,10 @@ The projection SHALL preserve these meanings:
   its symbol identity, trace id, form, provenance, path, and declaration line.
 - Production scope copies `ImplementsRelation` as relation kind `implements`.
   It SHALL NOT be counted or labelled as test evidence.
+- The relation-kind catalog SHALL include declared kinds even when their
+  observed relation count is zero. A consumer therefore distinguishes a
+  supported kind with no edges from a kind absent from the capability catalog;
+  it SHALL NOT infer capability from the observed `relations` array.
 - The projection SHALL copy obligation identity and statement hash from FR-053
   exactly, without recomputing either under a different normalization.
 - A required-relation observation uses the module declaration that owns its
@@ -97,7 +106,9 @@ apply exactly as they do in bundle validation.
 > **CR-157** (`agent-ix/quire-rs#386`, 2026-08-31) makes previously implicit
 > identity and failure semantics testable: it fixes locator lines and digests,
 > defines observation identity and zero-subject behavior, and preserves unread
-> input as `unknown` rather than manufacturing a `missing` result.
+> input as `unknown` rather than manufacturing a `missing` result. The full
+> review's downstream fit check also adds `relation_kinds`, preventing an empty
+> observed edge set from masquerading as an unavailable engine capability.
 
 ## Constraints
 
@@ -115,7 +126,7 @@ apply exactly as they do in bundle validation.
 | FR-068-AC-1 | Every artifact record carries its authored id, authored type, optional UUID without substitution, and a source locator whose path exists at the pinned revision and whose digest matches the exact document bytes. | Test (TC-1091) |
 | FR-068-AC-2 | Every obligation record preserves FR-053's id, document, statement, statement hash, method, parameters, criticality, and target ids exactly, and its row locator selects the source statement that reproduces the exported hashes. | Test (TC-1092) |
 | FR-068-AC-3 | Every symbol preserves FR-051's stable identity, language, kind, qualified name, path, declaration line, and binding capabilities; duplicate names in different containers or paths remain distinct. | Test (TC-1093) |
-| FR-068-AC-4 | The corpus-relation projection is a bijection with `Spec::edges()` over `(source, target, edge_type, resolution)`, including dangling edges, and a relation kind absent from the engine's built-ins survives verbatim when its module declares it. | Test (TC-1094) |
+| FR-068-AC-4 | The corpus-relation projection is a bijection with `Spec::edges()` over `(source, target, edge_type, resolution)`, including dangling edges, and the relation-kind catalog retains every module-declared, trace-binding, and observed kind even when its observed count is zero. | Test (TC-1094) |
 | FR-068-AC-5 | `verifies` and `implements` remain separate relation record variants: a test binding carries provenance and counts as evidence, while a production binding carries no invented provenance and never counts as evidence. | Test (TC-1095) |
 | FR-068-AC-6 | For module-declared required relations, fixtures exercise `available`, `missing`, `not_applicable`, and `unknown`; each state remains distinct in JSON, and `unknown` carries a non-empty reason rather than defaulting to another state. | Test (TC-1096) |
 | FR-068-AC-7 | Evidence relations export freshness `unknown`, non-evidence relations export `not_applicable`, and no Quire-produced export claims `current` or `suspect`. | Test (TC-1097) |

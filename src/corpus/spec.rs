@@ -126,6 +126,15 @@ impl Spec {
         self.inner.documents.is_empty()
     }
 
+    /// Every loaded document in stable path order.
+    ///
+    /// This is a read-only view over the corpus header tier. Consumers such as
+    /// the assurance exporter can project authoritative identities and exact
+    /// source bytes without re-walking or re-parsing the repository.
+    pub fn documents(&self) -> &[LoadedDocument] {
+        &self.inner.documents
+    }
+
     /// Look up a document by its artifact key (human `id`, else uuid,
     /// else path). `None` if absent. O(1).
     /// Every loaded document, in the stable path order `load_repo` produced.
@@ -135,7 +144,7 @@ impl Spec {
     /// absence, which is recorded on the spec document rather than on a
     /// requirement) needs the whole set rather than one archetype's.
     pub(crate) fn all(&self) -> &[LoadedDocument] {
-        &self.inner.documents
+        self.documents()
     }
 
     pub fn by_id(&self, id: &str) -> Option<&LoadedDocument> {

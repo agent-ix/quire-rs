@@ -2,7 +2,7 @@
 id: Plan-002
 title: "quire-rs — source-grounded assurance export"
 type: Plan
-status: active
+status: completed
 relationships:
   - target: ix://agent-ix/quire-rs/StR-007
     type: references
@@ -25,21 +25,21 @@ TDD plan for the stable, offline quire-rs assurance export requested by #386. Th
 
 ### Stakeholder Requirements
 
-- [ ] **StR-007**: Assurance decisions use source-grounded, interpretable data.
+- [x] **StR-007**: Assurance decisions use source-grounded, interpretable data.
 
 ### User Stories
 
-- [ ] **US-018**: A reviewer consumes one validated export without reconstructing Quire semantics.
+- [x] **US-018**: A reviewer consumes one validated export without reconstructing Quire semantics.
 
 ### Functional Requirements
 
-- [ ] **FR-067**: Versioned assurance export envelope, schema, premise validation, and compatible reader.
-- [ ] **FR-068**: Source-grounded artifacts, obligations, symbols, relations, and relation observations.
+- [x] **FR-067**: Versioned assurance export envelope, schema, premise validation, and compatible reader.
+- [x] **FR-068**: Source-grounded artifacts, obligations, symbols, relations, and relation observations.
 
 ### Integration and Cross-cutting Requirements
 
-- [ ] **IT-001**: Quoin consumes the pinned offline contract (producer fixture supplied here; consumer implementation downstream).
-- [ ] **NFR-006**: Every observable collection and serialized byte stream is deterministic.
+- [x] **IT-001**: Quire supplies the pinned offline producer contract and fixture (Quoin consumer implementation remains downstream).
+- [x] **NFR-006**: Every observable collection and serialized byte stream is deterministic.
 
 ## Dependency Graph
 
@@ -58,28 +58,28 @@ The seams are `Registry` for module/schema premises, `Spec` for documents and ed
 
 ### Contract and Unit Tests
 
-- [ ] **TC-1084**: compile the hand-authored draft-2020-12 schema and validate the complete v1 fixture.
-- [ ] **TC-1085**: reject each incomplete source/module/root premise without a partial export.
-- [ ] **TC-1086**: inventory active schemas once, in canonical order, with semantic SHA-256 digests.
-- [ ] **TC-1087**: reject unsupported format, module version, and schema digest before returning records.
-- [ ] **TC-1088**: prove byte identity and source-revision isolation.
-- [ ] **TC-1089**: round-trip and mutation-check the checked-in v1 compatibility fixture.
-- [ ] **TC-1090**: prove existing coverage/properties contracts remain unchanged.
-- [ ] **TC-1095**: keep verifies evidence distinct from implements scope.
-- [ ] **TC-1097**: restrict Quire-produced freshness to unknown/not_applicable.
+- [x] **TC-1084**: compile the hand-authored draft-2020-12 schema and validate the complete v1 fixture.
+- [x] **TC-1085**: reject each incomplete source/module/root premise without a partial export.
+- [x] **TC-1086**: inventory active schemas once, in canonical order, with semantic SHA-256 digests.
+- [x] **TC-1087**: reject unsupported format, module version, and schema digest before returning records.
+- [x] **TC-1088**: prove byte identity and source-revision isolation.
+- [x] **TC-1089**: round-trip and mutation-check the checked-in v1 compatibility fixture.
+- [x] **TC-1090**: prove existing coverage/properties contracts remain unchanged.
+- [x] **TC-1095**: keep verifies evidence distinct from implements scope.
+- [x] **TC-1097**: restrict Quire-produced freshness to unknown/not_applicable.
 
 ### Integration and Property Tests
 
-- [ ] **TC-1091**: reproduce artifact identities and exact-byte locators.
-- [ ] **TC-1092**: reproduce obligation records and both statement hashes.
-- [ ] **TC-1093**: preserve stable symbol identities and capabilities.
-- [ ] **TC-1094**: prove corpus-relation projection is a bijection, including novel verbs and dangling edges.
-- [ ] **TC-1096**: exercise available, missing, not_applicable, and unknown relation observations.
-- [ ] **TC-1098**: prove projection determinism and unrelated-document isolation.
+- [x] **TC-1091**: reproduce artifact identities and exact-byte locators.
+- [x] **TC-1092**: reproduce obligation records and both statement hashes.
+- [x] **TC-1093**: preserve stable symbol identities and capabilities.
+- [x] **TC-1094**: prove corpus-relation projection is a bijection, including declared zero-edge kinds and dangling edges.
+- [x] **TC-1096**: exercise available, missing, not_applicable, and unknown relation observations.
+- [x] **TC-1098**: prove projection determinism and unrelated-document isolation.
 
 ### Static Verification
 
-- [ ] **TC-1099**: reject forbidden frontmatter, Markdown-query, source-tag, Git, network, and persistence dependencies in the exporter.
+- [x] **TC-1099**: reject forbidden frontmatter, Markdown-query, source-tag, Git, network, and persistence dependencies in the exporter.
 
 ## Remaining Work
 
@@ -105,10 +105,10 @@ Final:                           full CI + review gates
 
 | Task | Track | Owns (references) | Verified by (verifies) | Status |
 | --- | --- | --- | --- | --- |
-| Task-011 | A | FR-067 | TC-1084, TC-1087, TC-1089 | not_started |
-| Task-012 | A | FR-067, NFR-006 | TC-1085, TC-1086, TC-1088 | not_started |
-| Task-013 | A | FR-068, StR-007 | TC-1091..TC-1098 | not_started |
-| Task-014 | B | FR-067, FR-068, IT-001 | TC-1090, TC-1099 | not_started |
+| Task-011 | A | FR-067 | TC-1084, TC-1087, TC-1089 | completed |
+| Task-012 | A | FR-067, NFR-006 | TC-1085, TC-1086, TC-1088 | completed |
+| Task-013 | A | FR-068, StR-007 | TC-1091..TC-1098 | completed |
+| Task-014 | B | FR-067, FR-068, IT-001 | TC-1090, TC-1099 | completed |
 
 ## Coordination Rules
 

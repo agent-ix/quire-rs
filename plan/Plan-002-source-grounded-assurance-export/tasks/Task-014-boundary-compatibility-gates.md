@@ -2,7 +2,7 @@
 id: Task-014
 title: "FR-067/FR-068 — boundary and compatibility gates"
 type: Task
-status: not_started
+status: completed
 track: B
 priority: P0
 relationships:
@@ -27,9 +27,9 @@ Protect the architectural boundary and prove the new export does not mutate exis
 
 ## Subtasks
 
-- [ ] Add a static source-dependency audit for forbidden parse, command, network, and persistence calls.
-- [ ] Extend output-contract tests to keep coverage-v1/properties-v1 version-free.
-- [ ] Run formatting, lint, full tests, supply-chain, static audits, and spec validation.
+- [x] Add a static source-dependency audit for forbidden parse, command, network, and persistence calls.
+- [x] Extend output-contract tests to keep coverage-v1/properties-v1 version-free.
+- [x] Run formatting, lint, full tests, supply-chain, static audits, and spec validation; record the pre-existing platform-specific full-suite failure separately.
 
 ## Deliverables
 

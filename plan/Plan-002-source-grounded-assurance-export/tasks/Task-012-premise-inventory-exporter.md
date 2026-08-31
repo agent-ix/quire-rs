@@ -2,7 +2,7 @@
 id: Task-012
 title: "FR-067 — deterministic premise inventory and exporter"
 type: Task
-status: not_started
+status: completed
 track: A
 priority: P0
 relationships:
@@ -27,10 +27,10 @@ Construct source and active-module/schema premises from caller-selected immutabl
 
 ## Subtasks
 
-- [ ] Write red tests for every invalid premise and deterministic ordering case.
-- [ ] Expose only the minimal read-only Registry access needed for active archetypes.
-- [ ] Canonicalize schema JSON and compute semantic SHA-256 digests.
-- [ ] Prove source-revision isolation and byte identity.
+- [x] Write red tests for every invalid premise and deterministic ordering case.
+- [x] Expose only the minimal read-only Registry access needed for active archetypes.
+- [x] Canonicalize schema JSON and compute semantic SHA-256 digests.
+- [x] Prove source-revision isolation and byte identity.
 
 ## Deliverables
 

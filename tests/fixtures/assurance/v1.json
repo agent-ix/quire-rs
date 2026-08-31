@@ -1,0 +1,148 @@
+{
+  "format": "quire-assurance",
+  "format_version": 1,
+  "source": {
+    "repository": "agent-ix/fixture",
+    "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "modules": [
+    {
+      "name": "fixture-module",
+      "version": "1.2.3",
+      "schemas": [
+        {
+          "archetype": "FR",
+          "schema_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        }
+      ]
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "FR-001",
+      "uuid": "018f7777-7777-7777-8777-777777777777",
+      "artifact_type": "FR",
+      "locator": {
+        "path": "spec/functional/FR-001.md",
+        "line": 1,
+        "digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+      }
+    }
+  ],
+  "obligations": [
+    {
+      "source": "acceptance-criterion",
+      "id": "FR-001-AC-1",
+      "document": "spec/functional/FR-001.md",
+      "statement": "The export contains one artifact.",
+      "statement_hash": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "method": "Test",
+      "parameters": { "threshold": "1" },
+      "criticality": "P0",
+      "target_ids": ["TC-001"],
+      "locator": {
+        "path": "spec/functional/FR-001.md",
+        "line": 20,
+        "digest": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+      }
+    }
+  ],
+  "symbols": [
+    {
+      "id": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "language": "rust",
+      "kind": "test_function",
+      "qualified_name": "tests::exports_artifact",
+      "container": "tests",
+      "capabilities": ["verifies"],
+      "locator": {
+        "path": "tests/assurance.rs",
+        "line": 9,
+        "digest": "1111111111111111111111111111111111111111111111111111111111111111"
+      }
+    }
+  ],
+  "relation_kinds": [
+    {
+      "kind": "implements",
+      "availability": "available",
+      "sources": ["trace_binding", "observed"]
+    },
+    {
+      "kind": "satisfies",
+      "availability": "available",
+      "sources": ["required_relation", "observed"]
+    },
+    {
+      "kind": "verifies",
+      "availability": "available",
+      "sources": ["trace_binding", "observed"]
+    }
+  ],
+  "relations": [
+    {
+      "kind": "corpus",
+      "source": "FR-001",
+      "target": "StR-001",
+      "edge_type": "satisfies",
+      "resolution": "resolved",
+      "locator": {
+        "path": "spec/functional/FR-001.md",
+        "line": 7,
+        "digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+      },
+      "freshness": "not_applicable"
+    },
+    {
+      "kind": "verifies",
+      "source": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "target": "TC-001",
+      "form": "rust-trace",
+      "provenance": "canonical",
+      "locator": {
+        "path": "tests/assurance.rs",
+        "line": 9,
+        "digest": "1111111111111111111111111111111111111111111111111111111111111111"
+      },
+      "freshness": "unknown"
+    },
+    {
+      "kind": "implements",
+      "source": "2222222222222222222222222222222222222222222222222222222222222222",
+      "target": "FR-001",
+      "form": "rust-implements",
+      "locator": {
+        "path": "src/lib.rs",
+        "line": 3,
+        "digest": "3333333333333333333333333333333333333333333333333333333333333333"
+      },
+      "freshness": "not_applicable"
+    }
+  ],
+  "relation_observations": [
+    {
+      "declaration": "fr-has-need",
+      "subject": "FR-001",
+      "availability": "available",
+      "freshness": "not_applicable"
+    },
+    {
+      "declaration": "fr-has-need",
+      "subject": "FR-002",
+      "availability": "missing",
+      "freshness": "not_applicable"
+    },
+    {
+      "declaration": "nfr-has-owner",
+      "availability": "not_applicable",
+      "freshness": "not_applicable"
+    },
+    {
+      "declaration": "fr-has-need",
+      "subject": "spec/unread.md",
+      "availability": "unknown",
+      "freshness": "unknown",
+      "reason": "permission denied"
+    }
+  ]
+}

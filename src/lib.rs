@@ -10,6 +10,7 @@
 // non-python build; first-party `src/python` is itself `unsafe`-free (NFR-003).
 #![cfg_attr(not(feature = "python"), forbid(unsafe_code))]
 
+pub mod assurance;
 pub mod ast;
 pub mod combinatorial;
 pub mod concept;
@@ -42,6 +43,10 @@ pub mod vocab;
 pub mod writeback;
 
 // Parser surface (FR-005..009).
+pub use assurance::{
+    build_assurance_export, read_assurance_export, AcceptedAssurancePremises, AssuranceError,
+    AssuranceExport, AssuranceInput, AssuranceSource,
+};
 pub use ast::{QuireDocument, QuireSection};
 pub use parser::{
     extract_frontmatter, parse_body, parse_document, parse_header, FrontmatterResult,
