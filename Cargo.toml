@@ -40,7 +40,7 @@ regex = "^1"
 # by default) so the `wasm` feature can opt out — `jsonschema 0.18`'s
 # resolve-file path calls `url::Url::to_file_path`, which is unavailable on
 # `wasm32-unknown-unknown`. See the `wasm` feature below + spec FR-013.
-jsonschema = { version = "~0.18", default-features = false }
+jsonschema = { version = "~0.18", default-features = false, features = ["draft202012"] }
 # v0.3 corpus: parallel walk + parse (FR-024). Caret-pinned ecosystem helpers.
 # `ignore` = ripgrep's gitignore-aware walker; `rayon` = data-parallel parse fan-out.
 ignore = "^0.4"
@@ -73,13 +73,6 @@ ix-trace-rs = { git = "https://github.com/agent-ix/ix-trace-rs", tag = "v0.1.1" 
 tempfile = "^3"
 proptest = "^1"
 criterion = "^0.5"
-# FR-055: the published output schemas declare draft 2020-12, and `jsonschema`
-# gates that draft behind a non-default feature. Enabled for tests only, so the
-# contract is validated as the draft it claims rather than silently falling back
-# to an older one. No runtime effect — the crate's own dependency is unchanged,
-# and no new crate enters the graph.
-jsonschema = { version = "~0.18", default-features = false, features = ["draft202012"] }
-
 # Concurrency-permutation harness (NFR-017). Only compiled under
 # `--cfg loom`; the scheduled `make loom` lane sets that flag. Models the
 # FR-024 data-parallel collect abstractly (loom cannot model rayon).

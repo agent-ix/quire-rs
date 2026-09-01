@@ -351,6 +351,14 @@ impl Registry {
         self.inner.archetypes.keys().map(|s| s.as_str())
     }
 
+    /// Iterate over the first-wins active archetypes in deterministic name
+    /// order. Consumers that publish registry premises need both the owning
+    /// module and the authoritative schema; exposing the immutable compiled
+    /// values avoids rebuilding that association from manifest files.
+    pub fn active_archetypes(&self) -> impl Iterator<Item = &CompiledArchetype> {
+        self.inner.archetypes.values().map(Arc::as_ref)
+    }
+
     /// Iterate over every loaded module name.
     pub fn module_names(&self) -> impl Iterator<Item = &str> {
         self.inner.module_paths.keys().map(|s| s.as_str())

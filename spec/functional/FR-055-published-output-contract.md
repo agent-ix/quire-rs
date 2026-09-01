@@ -46,11 +46,18 @@ said consumers supply pre-built schemas, and this is the crate supplying them.
 
 ### The CONTRACT version lives in the artifact, not the payload
 
-There is no `"version"` key naming which revision of this contract a payload
-conforms to, and SHALL NOT be one. Versioning lives in the schema's `$id` and
-filename — `coverage-v1.schema.json`. A breaking payload change mints `-v2`
-beside it rather than editing `-v1` in place, so a consumer pinned to v1 keeps a
-schema that describes what it was written against.
+There is no `"version"` key naming which revision of this contract a coverage
+or properties payload conforms to, and SHALL NOT be one. Versioning lives in
+the schema's `$id` and filename — `coverage-v1.schema.json`. A breaking payload
+change mints `-v2` beside it rather than editing `-v1` in place, so a consumer
+pinned to v1 keeps a schema that describes what it was written against.
+
+> **CR-156** (`agent-ix/quire-rs#386`, 2026-08-29) narrows "a payload" to the
+> two payloads this requirement defines. The new offline assurance interchange
+> contract in [FR-067](./FR-067-versioned-assurance-export.md) is
+> self-identifying so an importer can refuse an unknown format before reading
+> records. That does not add a key to either existing payload or change either
+> published v1 schema.
 
 > **CR-104** (agent-ix/quire-cli#68, agent-ix/quire-rs#264 Wave 0) — *the
 > contract version and the instrument version are different facts, and CON-2
@@ -136,8 +143,8 @@ different facts on these payloads, and the byte-identity property depends on the
 difference.
 
 A key **no** engine surface emits — one assembled by a consuming CLI, which is
-the only layer holding the fact — SHALL likewise be optional, and SHALL be
-admitted only where its absence is a defect the payload alone can be read to
+the only layer holding the fact — SHALL likewise be optional and be admitted
+only where its absence is a defect the payload alone can be read to
 diagnose. `engine` (CR-104) is the first: `CoverageReport` has no such member
 and never will, because this crate cannot know which binary is calling it. The
 optionality is not a courtesy to older consumers here; it is what keeps an
@@ -155,8 +162,8 @@ value outside them is a defect a consumer should hear about.
 
 | ID | Constraint | Type | Validation |
 |----|------------|------|------------|
-| FR-055-CON-1 | The schemas SHALL be authored, never generated. A derived contract changes silently with the type it derives from, which is the failure this FR closes. `schemars` stays out of the dependency graph. | Architecture | Test |
-| FR-055-CON-2 | No payload SHALL gain a key naming which revision of this contract it conforms to — no version key, no schema reference, no `$schema` (CR-104). The contract is carried by the published artifact alone. A payload SHALL NOT assert its own conformance. This does not reach instrument provenance, which is a different fact and is admitted by AC-8. | Architecture | Test |
+| FR-055-CON-1 | Maintainers SHALL author the schemas by hand, never generate them. A derived contract changes silently with the type it derives from, which is the failure this FR closes. `schemars` stays out of the dependency graph. | Architecture | Test |
+| FR-055-CON-2 | Neither coverage-v1 nor properties-v1 SHALL gain a key naming which revision of this contract it conforms to — no version key, no schema reference, no `$schema` (CR-104, CR-156). Their contract is carried by the published artifact alone. This does not reach instrument provenance or a separately defined interchange format. | Architecture | Test |
 | FR-055-CON-3 | A breaking payload change SHALL mint a new versioned schema file rather than editing an existing one in place, so a consumer pinned to a version keeps a schema describing what it pinned. | Process | Inspection |
 
 ## Acceptance Criteria
@@ -169,7 +176,7 @@ value outside them is a defect a consumer should hear about.
 | FR-055-AC-4 | Every criterion record emitted for a fixture document validates against the `Criterion` definition in `properties-v1.schema.json`. | Test (TC-857) |
 | FR-055-AC-5 | A payload with an added field is rejected by its schema, confirming `additionalProperties: false` holds everywhere rather than only at the root. | Test (TC-858) |
 | FR-055-AC-6 | Removing an optional key from a valid payload leaves it valid, and removing a required one makes it invalid, so the optional/required split matches the engine's skip-when-empty behaviour. | Test (TC-859) |
-| FR-055-AC-7 | Neither payload contains a `version`, `$schema` or `schema_version` key, and `schemars` is absent from the dependency graph (CON-1, CON-2). | Test (TC-860) |
+| FR-055-AC-7 | Neither coverage-v1 nor properties-v1 contains a `version`, `$schema` or `schema_version` key, and `schemars` is absent from the dependency graph (CON-1, CON-2). | Test (TC-860) |
 | FR-055-AC-8 | Both schemas define an optional `engine` object requiring `cli`, `engine` and `capabilities` (CR-104). A payload carrying one conforms; a payload omitting it conforms; a payload whose `engine` is missing a required member, or carries an undeclared member, is rejected. | Test (TC-1010) |
 
 ## Dependencies

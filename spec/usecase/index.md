@@ -24,3 +24,4 @@ description: "Index of artifacts in this directory."
 * [US-015: Author Declares an Object's Typed Relationship Vocabulary](./US-015-object-edge-vocabulary.md)
 * [US-016: Consume canonical Filament extraction from one engine](./US-016-canonical-filament-extraction.md)
 * [US-017: Agent Verifies Requirement Coverage Deterministically](./US-017-agent-verifies-coverage.md)
+* [US-018: Consume a source-grounded assurance export](./US-018-consume-assurance-export.md)

@@ -69,3 +69,5 @@ description: "Index of artifacts in this directory."
 * [FR-064: The skeptic layer](./FR-064-skeptic-layer.md)
 * [FR-065: The controlled-corpus contract](./FR-065-controlled-corpus-contract.md)
 * [FR-066: Gap disposition census](./FR-066-gap-disposition-census.md)
+* [FR-067: Versioned assurance export contract](./FR-067-versioned-assurance-export.md)
+* [FR-068: Source-grounded assurance projection](./FR-068-source-grounded-assurance-projection.md)
