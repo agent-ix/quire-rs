@@ -1,0 +1,4 @@
+{
+  "$comment": "Declarative semantic extraction cases (FR-072-AC-1). Every case carries issue_ref; tests/semantic_fixtures.rs enforces attribution and unique names. Filled by Plan-003 Task-020.",
+  "cases": []
+}

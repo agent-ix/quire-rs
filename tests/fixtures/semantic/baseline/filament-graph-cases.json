@@ -1,0 +1,720 @@
+{
+  "body-ix-markdown-links": {
+    "artifactId": "artifact-body-links",
+    "diagnostics": [],
+    "documentId": "doc-body-links",
+    "edges": [
+      {
+        "dataJson": "{\"display\":\"User story\",\"original_uri\":\"ix://agent-ix/example/US-001\",\"source\":\"body.ix_link[0]\",\"unresolved\":true}",
+        "edgeType": "references",
+        "id": "ea9ef714a5547eeb6f867083efbc03bf2e1d10147ad208c88bfd1d6848a92026",
+        "projectId": "project",
+        "sourceRef": "ix://agent-ix/example/FR-030",
+        "targetRef": "ix://agent-ix/example/US-001",
+        "updatedAt": null
+      }
+    ],
+    "errors": [],
+    "nodes": [
+      {
+        "artifactId": "artifact-body-links",
+        "dataJson": "{\"code\":\"FR-030\"}",
+        "documentId": "doc-body-links",
+        "id": "80160372adb3d6f636b2dbfa0d17d6b8f846655f323c88f9143bf3b03cc184cf",
+        "name": "FR-030",
+        "objectType": "capability",
+        "projectId": "project",
+        "ref": "ix://agent-ix/example/FR-030",
+        "updatedAt": null
+      }
+    ],
+    "objectTypes": [
+      {
+        "allowedLinksJson": "{}",
+        "bodyExtractionJson": null,
+        "hasPlugin": false,
+        "id": "67bd0096bc9a486fcd37cf5cfc5c3e03e01ec1cfb38f7341030a5829462c653b",
+        "moduleId": "test-module",
+        "name": "capability",
+        "projectId": "project",
+        "schemaJson": "{\"additionalProperties\":true,\"type\":\"object\"}",
+        "updatedAt": null
+      }
+    ]
+  },
+  "duplicate-edges-dedupe-first-wins": {
+    "artifactId": "artifact-dedupe",
+    "diagnostics": [
+      {
+        "code": "duplicate_edge",
+        "message": "duplicate edge \"references\" -> \"ix://agent-ix/example/FR-046\": dropped body.ix_link[0]",
+        "objectType": null,
+        "severity": "warning"
+      }
+    ],
+    "documentId": "doc-dedupe",
+    "edges": [
+      {
+        "dataJson": "{\"original_target\":\"ix://agent-ix/example/FR-046\",\"source\":\"frontmatter.relationships[0]\"}",
+        "edgeType": "references",
+        "id": "82560feefe2723d79d72e6da7ebc6f364d002921796de5b8038dd037055b8ea4",
+        "projectId": "project",
+        "sourceRef": "ix://agent-ix/example/FR-045",
+        "targetRef": "ix://agent-ix/example/FR-046",
+        "updatedAt": null
+      }
+    ],
+    "errors": [],
+    "nodes": [
+      {
+        "artifactId": "artifact-dedupe",
+        "dataJson": "{\"code\":\"FR-045\"}",
+        "documentId": "doc-dedupe",
+        "id": "6eb7c4d890fbdcbff2e120bbe918391369a7e01bd57a3777e3fb9d244576fcc3",
+        "name": "FR-045",
+        "objectType": "capability",
+        "projectId": "project",
+        "ref": "ix://agent-ix/example/FR-045",
+        "updatedAt": null
+      }
+    ],
+    "objectTypes": [
+      {
+        "allowedLinksJson": "{}",
+        "bodyExtractionJson": null,
+        "hasPlugin": false,
+        "id": "67bd0096bc9a486fcd37cf5cfc5c3e03e01ec1cfb38f7341030a5829462c653b",
+        "moduleId": "test-module",
+        "name": "capability",
+        "projectId": "project",
+        "schemaJson": "{\"additionalProperties\":true,\"type\":\"object\"}",
+        "updatedAt": null
+      }
+    ]
+  },
+  "explicit-frontmatter-edges": {
+    "artifactId": "artifact-explicit",
+    "diagnostics": [],
+    "documentId": "doc-explicit",
+    "edges": [
+      {
+        "dataJson": "{}",
+        "edgeType": "requires",
+        "id": "53a973d10b95f1b821bff3ab4356af5f2ee75d95da5675f3a57cec24717f7866",
+        "projectId": "project",
+        "sourceRef": "ix://agent-ix/example/CAP-001",
+        "targetRef": "ix://agent-ix/example/FR-014",
+        "updatedAt": null
+      },
+      {
+        "dataJson": "{\"since\":\"v0.2\"}",
+        "edgeType": "realizes",
+        "id": "632b4b013a7a67397dfb1c42b649886b18b1a72b581bbb39ed7d42feb573480d",
+        "projectId": "project",
+        "sourceRef": "ix://agent-ix/example/CAP-001",
+        "targetRef": "ix://agent-ix/example/CAP-PAY",
+        "updatedAt": null
+      }
+    ],
+    "errors": [],
+    "nodes": [
+      {
+        "artifactId": "artifact-explicit",
+        "dataJson": "{\"code\":\"CAP-001\"}",
+        "documentId": "doc-explicit",
+        "id": "4e64248d91ee548328fa902645f46941d8d7c5535a33ec74c49ecbf6afff7ade",
+        "name": "CAP-001",
+        "objectType": "capability",
+        "projectId": "project",
+        "ref": "ix://agent-ix/example/CAP-001",
+        "updatedAt": null
+      }
+    ],
+    "objectTypes": [
+      {
+        "allowedLinksJson": "{}",
+        "bodyExtractionJson": null,
+        "hasPlugin": false,
+        "id": "67bd0096bc9a486fcd37cf5cfc5c3e03e01ec1cfb38f7341030a5829462c653b",
+        "moduleId": "test-module",
+        "name": "capability",
+        "projectId": "project",
+        "schemaJson": "{\"additionalProperties\":true,\"type\":\"object\"}",
+        "updatedAt": null
+      }
+    ]
+  },
+  "frontmatter-unparsable-error": {
+    "artifactId": "artifact-unparsable-frontmatter",
+    "diagnostics": [
+      {
+        "code": "frontmatter_unparsable",
+        "message": "Frontmatter block present but could not be parsed as a YAML mapping",
+        "objectType": null,
+        "severity": "error"
+      }
+    ],
+    "documentId": "doc-unparsable-frontmatter",
+    "edges": [],
+    "errors": [
+      "parse_failed: frontmatter block present but could not be parsed as a YAML mapping"
+    ],
+    "nodes": [],
+    "objectTypes": []
+  },
+  "ix-pass-through-and-bare-normalization": {
+    "artifactId": "artifact-normalize",
+    "diagnostics": [],
+    "documentId": "doc-normalize",
+    "edges": [
+      {
+        "dataJson": "{\"original_target\":\"ix://other-org/other-repo/FR-777\",\"source\":\"frontmatter.relationships[0]\"}",
+        "edgeType": "cross_repo",
+        "id": "600d5c5dd223d8b700c7452baf5f2c73cbc8788029b0b3ca9abc68b41b8ad131",
+        "projectId": "project",
+        "sourceRef": "ix://agent-ix/example/FR-020",
+        "targetRef": "ix://other-org/other-repo/FR-777",
+        "updatedAt": null
+      },
+      {
+        "dataJson": "{\"original_target\":\"FR-021\",\"source\":\"frontmatter.relationships[1]\"}",
+        "edgeType": "local_ref",
+        "id": "f4d450e41aa719cce69b07608c4fcc03911d026b9ae45cd1ee071e8a03e1be60",
+        "projectId": "project",
+        "sourceRef": "ix://agent-ix/example/FR-020",
+        "targetRef": "ix://agent-ix/example/FR-021",
+        "updatedAt": null
+      }
+    ],
+    "errors": [],
+    "nodes": [
+      {
+        "artifactId": "artifact-normalize",
+        "dataJson": "{\"code\":\"FR-020\"}",
+        "documentId": "doc-normalize",
+        "id": "bfc1f9f4174efc412647bc8eea257a0faefba904f57d2db1576ab97d208c95b7",
+        "name": "FR-020",
+        "objectType": "capability",
+        "projectId": "project",
+        "ref": "ix://agent-ix/example/FR-020",
+        "updatedAt": null
+      }
+    ],
+    "objectTypes": [
+      {
+        "allowedLinksJson": "{}",
+        "bodyExtractionJson": null,
+        "hasPlugin": false,
+        "id": "67bd0096bc9a486fcd37cf5cfc5c3e03e01ec1cfb38f7341030a5829462c653b",
+        "moduleId": "test-module",
+        "name": "capability",
+        "projectId": "project",
+        "schemaJson": "{\"additionalProperties\":true,\"type\":\"object\"}",
+        "updatedAt": null
+      }
+    ]
+  },
+  "malformed-body-ix-link-diagnostic": {
+    "artifactId": "artifact-bad-body-link",
+    "diagnostics": [
+      {
+        "code": "ix_uri_malformed",
+        "message": "Skipping malformed ix:// markdown link \"ix://agent-ix\"",
+        "objectType": null,
+        "severity": "warning"
+      }
+    ],
+    "documentId": "doc-bad-body-link",
+    "edges": [],
+    "errors": [],
+    "nodes": [
+      {
+        "artifactId": "artifact-bad-body-link",
+        "dataJson": "{\"code\":\"FR-090\"}",
+        "documentId": "doc-bad-body-link",
+        "id": "e5e3aa834e141fa0dbf01f01f6703f4be1456e30caa1b8c03f3649d0ae9f7121",
+        "name": "FR-090",
+        "objectType": "capability",
+        "projectId": "project",
+        "ref": "ix://agent-ix/example/FR-090",
+        "updatedAt": null
+      }
+    ],
+    "objectTypes": [
+      {
+        "allowedLinksJson": "{}",
+        "bodyExtractionJson": null,
+        "hasPlugin": false,
+        "id": "67bd0096bc9a486fcd37cf5cfc5c3e03e01ec1cfb38f7341030a5829462c653b",
+        "moduleId": "test-module",
+        "name": "capability",
+        "projectId": "project",
+        "schemaJson": "{\"additionalProperties\":true,\"type\":\"object\"}",
+        "updatedAt": null
+      }
+    ]
+  },
+  "malformed-explicit-edges": {
+    "artifactId": "artifact-edge-missing-target",
+    "diagnostics": [],
+    "documentId": "doc-edge-missing-target",
+    "edges": [],
+    "errors": [
+      "malformed_edge: edges[0] missing required `target`"
+    ],
+    "nodes": [
+      {
+        "artifactId": "artifact-edge-missing-target",
+        "dataJson": "{\"code\":\"FR-060\"}",
+        "documentId": "doc-edge-missing-target",
+        "id": "ea95be0449116f5d6ca7cf51ee87d3693a837e6725abdeb06f89062ef020e5d2",
+        "name": "FR-060",
+        "objectType": "capability",
+        "projectId": "project",
+        "ref": "ix://agent-ix/example/FR-060",
+        "updatedAt": null
+      }
+    ],
+    "objectTypes": [
+      {
+        "allowedLinksJson": "{}",
+        "bodyExtractionJson": null,
+        "hasPlugin": false,
+        "id": "67bd0096bc9a486fcd37cf5cfc5c3e03e01ec1cfb38f7341030a5829462c653b",
+        "moduleId": "test-module",
+        "name": "capability",
+        "projectId": "project",
+        "schemaJson": "{\"additionalProperties\":true,\"type\":\"object\"}",
+        "updatedAt": null
+      }
+    ]
+  },
+  "malformed-relationships-missing-target": {
+    "artifactId": "artifact-rel-missing-target",
+    "diagnostics": [],
+    "documentId": "doc-rel-missing-target",
+    "edges": [],
+    "errors": [
+      "malformed_relationship: relationships[0] missing or empty `target`"
+    ],
+    "nodes": [
+      {
+        "artifactId": "artifact-rel-missing-target",
+        "dataJson": "{\"code\":\"FR-051\"}",
+        "documentId": "doc-rel-missing-target",
+        "id": "4c7a7e4cf166b209f8a22bdd7f9dd09993c8b90bcec3f7b18b6672668c891185",
+        "name": "FR-051",
+        "objectType": "capability",
+        "projectId": "project",
+        "ref": "ix://agent-ix/example/FR-051",
+        "updatedAt": null
+      }
+    ],
+    "objectTypes": [
+      {
+        "allowedLinksJson": "{}",
+        "bodyExtractionJson": null,
+        "hasPlugin": false,
+        "id": "67bd0096bc9a486fcd37cf5cfc5c3e03e01ec1cfb38f7341030a5829462c653b",
+        "moduleId": "test-module",
+        "name": "capability",
+        "projectId": "project",
+        "schemaJson": "{\"additionalProperties\":true,\"type\":\"object\"}",
+        "updatedAt": null
+      }
+    ]
+  },
+  "malformed-relationships-missing-type": {
+    "artifactId": "artifact-rel-missing-type",
+    "diagnostics": [],
+    "documentId": "doc-rel-missing-type",
+    "edges": [],
+    "errors": [
+      "malformed_relationship: relationships[0] missing or empty `type`"
+    ],
+    "nodes": [
+      {
+        "artifactId": "artifact-rel-missing-type",
+        "dataJson": "{\"code\":\"FR-052\"}",
+        "documentId": "doc-rel-missing-type",
+        "id": "526260ec65a881650909d0e06d428aae58a2543fa40c6d0dd1564f75bdd61d30",
+        "name": "FR-052",
+        "objectType": "capability",
+        "projectId": "project",
+        "ref": "ix://agent-ix/example/FR-052",
+        "updatedAt": null
+      }
+    ],
+    "objectTypes": [
+      {
+        "allowedLinksJson": "{}",
+        "bodyExtractionJson": null,
+        "hasPlugin": false,
+        "id": "67bd0096bc9a486fcd37cf5cfc5c3e03e01ec1cfb38f7341030a5829462c653b",
+        "moduleId": "test-module",
+        "name": "capability",
+        "projectId": "project",
+        "schemaJson": "{\"additionalProperties\":true,\"type\":\"object\"}",
+        "updatedAt": null
+      }
+    ]
+  },
+  "malformed-relationships-non-map": {
+    "artifactId": "artifact-rel-non-map",
+    "diagnostics": [],
+    "documentId": "doc-rel-non-map",
+    "edges": [],
+    "errors": [
+      "malformed_relationship: relationships[0] must be a mapping"
+    ],
+    "nodes": [
+      {
+        "artifactId": "artifact-rel-non-map",
+        "dataJson": "{\"code\":\"FR-050\"}",
+        "documentId": "doc-rel-non-map",
+        "id": "568b5b2a4a2c0257c48b89dc268321ded39cddc74a1bd2ed379c94d19055ee00",
+        "name": "FR-050",
+        "objectType": "capability",
+        "projectId": "project",
+        "ref": "ix://agent-ix/example/FR-050",
+        "updatedAt": null
+      }
+    ],
+    "objectTypes": [
+      {
+        "allowedLinksJson": "{}",
+        "bodyExtractionJson": null,
+        "hasPlugin": false,
+        "id": "67bd0096bc9a486fcd37cf5cfc5c3e03e01ec1cfb38f7341030a5829462c653b",
+        "moduleId": "test-module",
+        "name": "capability",
+        "projectId": "project",
+        "schemaJson": "{\"additionalProperties\":true,\"type\":\"object\"}",
+        "updatedAt": null
+      }
+    ]
+  },
+  "negative-scope-no-non-ix-links": {
+    "artifactId": "artifact-negative",
+    "diagnostics": [],
+    "documentId": "doc-negative",
+    "edges": [],
+    "errors": [],
+    "nodes": [
+      {
+        "artifactId": "artifact-negative",
+        "dataJson": "{\"code\":\"FR-080\"}",
+        "documentId": "doc-negative",
+        "id": "ed820959825aa0cdfd8ff5b1457f595d05b13748d6da65010ad3d8798bb1b802",
+        "name": "FR-080",
+        "objectType": "capability",
+        "projectId": "project",
+        "ref": "ix://agent-ix/example/FR-080",
+        "updatedAt": null
+      }
+    ],
+    "objectTypes": [
+      {
+        "allowedLinksJson": "{}",
+        "bodyExtractionJson": null,
+        "hasPlugin": false,
+        "id": "67bd0096bc9a486fcd37cf5cfc5c3e03e01ec1cfb38f7341030a5829462c653b",
+        "moduleId": "test-module",
+        "name": "capability",
+        "projectId": "project",
+        "schemaJson": "{\"additionalProperties\":true,\"type\":\"object\"}",
+        "updatedAt": null
+      }
+    ]
+  },
+  "no-frontmatter-diagnostic": {
+    "artifactId": "artifact-no-frontmatter",
+    "diagnostics": [
+      {
+        "code": "no_frontmatter",
+        "message": "Shared parser skipped markdown without parsable frontmatter",
+        "objectType": null,
+        "severity": "info"
+      }
+    ],
+    "documentId": "doc-no-frontmatter",
+    "edges": [],
+    "errors": [],
+    "nodes": [],
+    "objectTypes": []
+  },
+  "plugin-unsupported-error": {
+    "artifactId": "artifact-plugin",
+    "diagnostics": [],
+    "documentId": "doc-plugin",
+    "edges": [],
+    "errors": [
+      "missing_plugin: object type plugin declares has_plugin=true; quire-rs core extraction does not execute Python plugins"
+    ],
+    "nodes": [
+      {
+        "artifactId": "artifact-plugin",
+        "dataJson": "{\"code\":\"PLUG-001\"}",
+        "documentId": "doc-plugin",
+        "id": "6b9f7f89415ebe89027737e98baa50e94c426aace656c703a661ff18154649fe",
+        "name": "PLUG-001",
+        "objectType": "artifact",
+        "projectId": "project",
+        "ref": "ix://agent-ix/example/PLUG-001",
+        "updatedAt": null
+      }
+    ],
+    "objectTypes": [
+      {
+        "allowedLinksJson": "{}",
+        "bodyExtractionJson": null,
+        "hasPlugin": true,
+        "id": "164c001888a9f6aa3f1efa645cc7a4fdca36a2ba1db04e855dd2c023e09bb41f",
+        "moduleId": "test-module",
+        "name": "plugin",
+        "projectId": "project",
+        "schemaJson": "{\"additionalProperties\":true,\"type\":\"object\"}",
+        "updatedAt": null
+      }
+    ]
+  },
+  "relationship-sugar-all-fields": {
+    "artifactId": "artifact-sugar",
+    "diagnostics": [],
+    "documentId": "doc-sugar",
+    "edges": [
+      {
+        "dataJson": "{\"original_target\":\"FR-001\",\"source\":\"frontmatter.depends_on[0]\"}",
+        "edgeType": "depends_on",
+        "id": "145b58b6306e8d7c2a8c786e58ce7d8a7c79bb85905d8fa82905b361c6e091c8",
+        "projectId": "project",
+        "sourceRef": "ix://agent-ix/example/FR-010",
+        "targetRef": "ix://agent-ix/example/FR-001",
+        "updatedAt": null
+      },
+      {
+        "dataJson": "{\"original_target\":\"PROC-001\",\"source\":\"frontmatter.parent\"}",
+        "edgeType": "parent",
+        "id": "63d6a3f31dc582ea4a1153c3d930c6905e82550ea5c8794cc6174fe9b02565e6",
+        "projectId": "project",
+        "sourceRef": "ix://agent-ix/example/FR-010",
+        "targetRef": "ix://agent-ix/example/PROC-001",
+        "updatedAt": null
+      },
+      {
+        "dataJson": "{\"original_target\":\"PROC-ROOT\",\"source\":\"frontmatter.parent_process\"}",
+        "edgeType": "parent",
+        "id": "e9a30d9cb08c9b1ff85446cb01db0003db1eada3d1461688707398a9a15158df",
+        "projectId": "project",
+        "sourceRef": "ix://agent-ix/example/FR-010",
+        "targetRef": "ix://agent-ix/example/PROC-ROOT",
+        "updatedAt": null
+      },
+      {
+        "dataJson": "{\"original_target\":\"spec-X\",\"source\":\"frontmatter.template_for[0]\"}",
+        "edgeType": "template_for",
+        "id": "a2d300ce7017c90551b3a03b8623a473c893bd21c59034617a909bb816b18ecb",
+        "projectId": "project",
+        "sourceRef": "ix://agent-ix/example/FR-010",
+        "targetRef": "ix://agent-ix/example/spec-X",
+        "updatedAt": null
+      },
+      {
+        "dataJson": "{\"original_target\":\"arche-Y\",\"source\":\"frontmatter.archetype_for[0]\"}",
+        "edgeType": "archetype_for",
+        "id": "3b9072813f560f9d58e2ccbc01ebf5236ab35f18044fe94657c1cb441efa5bc4",
+        "projectId": "project",
+        "sourceRef": "ix://agent-ix/example/FR-010",
+        "targetRef": "ix://agent-ix/example/arche-Y",
+        "updatedAt": null
+      },
+      {
+        "dataJson": "{\"original_target\":\"FR-999\",\"source\":\"frontmatter.replaced_by\"}",
+        "edgeType": "replaced_by",
+        "id": "6bb35c8489880821157b7d68b5cc9d44618be023e2c2eac590d3bfdfe095e34a",
+        "projectId": "project",
+        "sourceRef": "ix://agent-ix/example/FR-010",
+        "targetRef": "ix://agent-ix/example/FR-999",
+        "updatedAt": null
+      }
+    ],
+    "errors": [],
+    "nodes": [
+      {
+        "artifactId": "artifact-sugar",
+        "dataJson": "{\"archetype_for\":[\"arche-Y\"],\"code\":\"FR-010\",\"depends_on\":[\"FR-001\"],\"parent_process\":\"PROC-ROOT\",\"replaced_by\":\"FR-999\",\"template_for\":\"spec-X\"}",
+        "documentId": "doc-sugar",
+        "id": "bf482102fa7573298ca6b0b1689c09887f33bda85e6bc89e4403743285d2dbef",
+        "name": "FR-010",
+        "objectType": "capability",
+        "projectId": "project",
+        "ref": "ix://agent-ix/example/FR-010",
+        "updatedAt": null
+      }
+    ],
+    "objectTypes": [
+      {
+        "allowedLinksJson": "{}",
+        "bodyExtractionJson": null,
+        "hasPlugin": false,
+        "id": "67bd0096bc9a486fcd37cf5cfc5c3e03e01ec1cfb38f7341030a5829462c653b",
+        "moduleId": "test-module",
+        "name": "capability",
+        "projectId": "project",
+        "schemaJson": "{\"additionalProperties\":true,\"type\":\"object\"}",
+        "updatedAt": null
+      }
+    ]
+  },
+  "schema-validation-required-field": {
+    "artifactId": "artifact-schema",
+    "diagnostics": [],
+    "documentId": "doc-schema",
+    "edges": [],
+    "errors": [
+      "tier1 extraction failed: domain: schema validation failed at description: \"description\" is a required property"
+    ],
+    "nodes": [
+      {
+        "artifactId": "artifact-schema",
+        "dataJson": "{\"code\":\"DOM-001\"}",
+        "documentId": "doc-schema",
+        "id": "b6395b9011cc906796f13436740aa8c9bb7439ffe93927f2aa7e5cbd1e8f136b",
+        "name": "DOM-001",
+        "objectType": "artifact",
+        "projectId": "project",
+        "ref": "ix://agent-ix/example/DOM-001",
+        "updatedAt": null
+      }
+    ],
+    "objectTypes": [
+      {
+        "allowedLinksJson": "{}",
+        "bodyExtractionJson": null,
+        "hasPlugin": false,
+        "id": "37686f51db2ae6e431f3c723e143af7eb253072632e9bf7ddd97ffa56c8b7d78",
+        "moduleId": "test-module",
+        "name": "domain",
+        "projectId": "project",
+        "schemaJson": "{\"properties\":{\"description\":{\"type\":\"string\"}},\"required\":[\"description\"],\"type\":\"object\"}",
+        "updatedAt": null
+      }
+    ]
+  },
+  "tier1-frontmatter-node": {
+    "artifactId": "artifact-tier1",
+    "diagnostics": [],
+    "documentId": "doc-tier1",
+    "edges": [],
+    "errors": [],
+    "nodes": [
+      {
+        "artifactId": "artifact-tier1",
+        "dataJson": "{\"code\":\"FR-001\",\"priority\":\"P0\",\"title\":\"Pay vendors\"}",
+        "documentId": "doc-tier1",
+        "id": "023d4b9482984db580dcb480740c64cff700d20b4995fe4f35369081d2c7689a",
+        "name": "FR-001",
+        "objectType": "capability",
+        "projectId": "project",
+        "ref": "ix://agent-ix/example/FR-001",
+        "updatedAt": null
+      }
+    ],
+    "objectTypes": [
+      {
+        "allowedLinksJson": "{}",
+        "bodyExtractionJson": null,
+        "hasPlugin": false,
+        "id": "67bd0096bc9a486fcd37cf5cfc5c3e03e01ec1cfb38f7341030a5829462c653b",
+        "moduleId": "test-module",
+        "name": "capability",
+        "projectId": "project",
+        "schemaJson": "{\"additionalProperties\":true,\"type\":\"object\"}",
+        "updatedAt": null
+      }
+    ]
+  },
+  "tier2-dsl-record-and-edge": {
+    "artifactId": "artifact-tier2",
+    "diagnostics": [],
+    "documentId": "doc-tier2",
+    "edges": [
+      {
+        "dataJson": "{\"source\":\"body_extraction.emit_edges[0]\"}",
+        "edgeType": "serves",
+        "id": "4782d26c467f50dcc52cdb190600a43eb37138ad19ac34312e4a25dedcb30dd6",
+        "projectId": "project",
+        "sourceRef": "ix://agent-ix/example/API-001",
+        "targetRef": "ix://agent-ix/example/API",
+        "updatedAt": null
+      }
+    ],
+    "errors": [],
+    "nodes": [
+      {
+        "artifactId": "artifact-tier2",
+        "dataJson": "{\"code\":\"API-001\",\"method\":\"GET\",\"target\":\"/payments\",\"title\":\"Payments API\"}",
+        "documentId": "doc-tier2",
+        "id": "4953f6e3d9fabffd912db4b287ad8a4c1431ceb8914aed97cd7e07088c98cff6",
+        "name": "API-001",
+        "objectType": "endpoint",
+        "projectId": "project",
+        "ref": "ix://agent-ix/example/API-001",
+        "updatedAt": null
+      }
+    ],
+    "objectTypes": [
+      {
+        "allowedLinksJson": "{}",
+        "bodyExtractionJson": "{\"emit_edges\":[{\"target\":\"ix://agent-ix/example/API\",\"type\":\"serves\"}],\"yield_pattern\":{\"match\":{\"method\":{\"after_heading\":\"Endpoint\",\"from\":\"section_body\",\"regex\":\"^(GET)\",\"required\":true},\"target\":{\"after_heading\":\"Endpoint\",\"from\":\"section_body\",\"regex\":\"(/payments)\",\"required\":true}}}}",
+        "hasPlugin": false,
+        "id": "003e943db6c057112df56565cbf1820e60ac5803941d0eb7f52e6f9436c0b792",
+        "moduleId": "test-module",
+        "name": "endpoint",
+        "projectId": "project",
+        "schemaJson": "{\"properties\":{\"method\":{\"type\":\"string\"},\"target\":{\"type\":\"string\"}},\"required\":[\"method\",\"target\"],\"type\":\"object\"}",
+        "updatedAt": null
+      }
+    ]
+  },
+  "unknown-object-diagnostic": {
+    "artifactId": "artifact-unknown",
+    "diagnostics": [
+      {
+        "code": "unknown_object_type",
+        "message": "frontmatter object=\"missing\" not in supplied object_types",
+        "objectType": "missing",
+        "severity": "warning"
+      }
+    ],
+    "documentId": "doc-unknown",
+    "edges": [],
+    "errors": [],
+    "nodes": [
+      {
+        "artifactId": "artifact-unknown",
+        "dataJson": "{\"code\":\"FR-070\"}",
+        "documentId": "doc-unknown",
+        "id": "c9c8c7b1a643e5886a62b48fbe33c0f10dd237cdeac8d81d3b63833fa1975b03",
+        "name": "FR-070",
+        "objectType": "artifact",
+        "projectId": "project",
+        "ref": "ix://agent-ix/example/FR-070",
+        "updatedAt": null
+      }
+    ],
+    "objectTypes": [
+      {
+        "allowedLinksJson": "{}",
+        "bodyExtractionJson": null,
+        "hasPlugin": false,
+        "id": "67bd0096bc9a486fcd37cf5cfc5c3e03e01ec1cfb38f7341030a5829462c653b",
+        "moduleId": "test-module",
+        "name": "capability",
+        "projectId": "project",
+        "schemaJson": "{\"additionalProperties\":true,\"type\":\"object\"}",
+        "updatedAt": null
+      }
+    ]
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "$comment": "BundleIndex under which the quoin golden cases run (FR-070 Inputs). Corpus-mode index construction for real modules is a module-authoring question (spec-objects-business#4).",
+  "package": "agent-ix/config-service",
+  "objects": [
+    {
+      "id": "FR-006",
+      "names": [
+        "ConfigVersion"
+      ]
+    },
+    {
+      "id": "FR-005",
+      "names": [
+        "ConfigOverlay"
+      ]
+    }
+  ],
+  "enumerations": [
+    {
+      "id": "Status",
+      "names": [
+        "Status Values"
+      ]
+    }
+  ],
+  "imports": {
+    "agent-ix/spec-artifacts-iso": [
+      "Requirement"
+    ]
+  }
+}

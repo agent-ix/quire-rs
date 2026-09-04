@@ -1,0 +1,95 @@
+{
+  "$comment": "Read-only golden fixtures vendored from agent-ix/quoin (FR-070/FR-071 Inputs); never edited here \u2014 changes go upstream and are re-vendored.",
+  "files": {
+    "corpus/config-service/FR-006-config-version-entity.md": {
+      "repository": "agent-ix/quoin",
+      "revision": "3e842ce78271a0b876a90471957f57c8ddcad6da",
+      "path": "tests/fixtures/semantic-module/corpus/config-service/FR-006-config-version-entity.md",
+      "sha256": "sha256:b395b2c001744672a2a5f50e5ca9d975b90f764cb199e64e3ac5a77b7b62ca8a"
+    },
+    "corpus/config-service/PROVENANCE.json": {
+      "repository": "agent-ix/quoin",
+      "revision": "3e842ce78271a0b876a90471957f57c8ddcad6da",
+      "path": "tests/fixtures/semantic-module/corpus/config-service/PROVENANCE.json",
+      "sha256": "sha256:413829bdb5d50efe5495d652797f11e0f83c38d3d1b35c4d734d890d26bf801b"
+    },
+    "mapping/README.md": {
+      "repository": "agent-ix/quoin",
+      "revision": "3e842ce78271a0b876a90471957f57c8ddcad6da",
+      "path": "tests/fixtures/semantic-module/mapping/README.md",
+      "sha256": "sha256:2dda2b78ae172731b66dc84123508497c12982bbb171d3ac088e13cd54260a1b"
+    },
+    "mapping/both-forms.expected.json": {
+      "repository": "agent-ix/quoin",
+      "revision": "3e842ce78271a0b876a90471957f57c8ddcad6da",
+      "path": "tests/fixtures/semantic-module/mapping/both-forms.expected.json",
+      "sha256": "sha256:fd77766281e12a6058d8184b1b404978498861f45edde1f0af770000e1318205"
+    },
+    "mapping/both-forms.md": {
+      "repository": "agent-ix/quoin",
+      "revision": "3e842ce78271a0b876a90471957f57c8ddcad6da",
+      "path": "tests/fixtures/semantic-module/mapping/both-forms.md",
+      "sha256": "sha256:fd17c7110a9ad4bedb021e63e475d3c33577d28cd0b4564759429eb89c1950a5"
+    },
+    "mapping/cell-cases.json": {
+      "repository": "agent-ix/quoin",
+      "revision": "3e842ce78271a0b876a90471957f57c8ddcad6da",
+      "path": "tests/fixtures/semantic-module/mapping/cell-cases.json",
+      "sha256": "sha256:1bcfafb34b56b33cbb6423d03d218ac479ff5505d052b90c609eea7ebbb5ab37"
+    },
+    "mapping/config-version.expected.json": {
+      "repository": "agent-ix/quoin",
+      "revision": "3e842ce78271a0b876a90471957f57c8ddcad6da",
+      "path": "tests/fixtures/semantic-module/mapping/config-version.expected.json",
+      "sha256": "sha256:1a3e4e581738996f3c45d562244e62003e94ffa77c6fa7ea68e50bd114e0f302"
+    },
+    "mapping/config-version.fence.md": {
+      "repository": "agent-ix/quoin",
+      "revision": "3e842ce78271a0b876a90471957f57c8ddcad6da",
+      "path": "tests/fixtures/semantic-module/mapping/config-version.fence.md",
+      "sha256": "sha256:b113f11c76cdd550c507e1b1af755f6a0927687efd4b4a7f1390b14566bb49cb"
+    },
+    "mapping/config-version.table.md": {
+      "repository": "agent-ix/quoin",
+      "revision": "3e842ce78271a0b876a90471957f57c8ddcad6da",
+      "path": "tests/fixtures/semantic-module/mapping/config-version.table.md",
+      "sha256": "sha256:b4c9f2f7db2b909a87bbbaf15b65407bd3cd8a190d81fef2e8e5eff5604405fe"
+    },
+    "mapping/legacy-bullets.md": {
+      "repository": "agent-ix/quoin",
+      "revision": "3e842ce78271a0b876a90471957f57c8ddcad6da",
+      "path": "tests/fixtures/semantic-module/mapping/legacy-bullets.md",
+      "sha256": "sha256:bd44ced749b0c219c4d5bcdcc86851aeedf46f954897c39d9f64673c83797d71"
+    },
+    "mapping/legacy-mixed.md": {
+      "repository": "agent-ix/quoin",
+      "revision": "3e842ce78271a0b876a90471957f57c8ddcad6da",
+      "path": "tests/fixtures/semantic-module/mapping/legacy-mixed.md",
+      "sha256": "sha256:6294312f9904a69bc8ba1145a0a7b6aa2faddb9f2449d870f3acf7cf9fc8726b"
+    },
+    "mapping/legacy.expected.json": {
+      "repository": "agent-ix/quoin",
+      "revision": "3e842ce78271a0b876a90471957f57c8ddcad6da",
+      "path": "tests/fixtures/semantic-module/mapping/legacy.expected.json",
+      "sha256": "sha256:02e333cf4a79a9b80e3a1da968ba3a5eb96218d7c93332f324ab4d39723d5768"
+    },
+    "mapping/operations-cases.json": {
+      "repository": "agent-ix/quoin",
+      "revision": "3e842ce78271a0b876a90471957f57c8ddcad6da",
+      "path": "tests/fixtures/semantic-module/mapping/operations-cases.json",
+      "sha256": "sha256:32220d398446cf5fbe21b3a29d03c24f90a9cdc1eba0fe02750255095d1054a2"
+    },
+    "mapping/operations.expected.json": {
+      "repository": "agent-ix/quoin",
+      "revision": "3e842ce78271a0b876a90471957f57c8ddcad6da",
+      "path": "tests/fixtures/semantic-module/mapping/operations.expected.json",
+      "sha256": "sha256:65acf688acd3c3b423029c66a545818763bba77f8532145c36dcfb990b531351"
+    },
+    "mapping/operations.md": {
+      "repository": "agent-ix/quoin",
+      "revision": "3e842ce78271a0b876a90471957f57c8ddcad6da",
+      "path": "tests/fixtures/semantic-module/mapping/operations.md",
+      "sha256": "sha256:7456cae980d8f5ac996f8df03ea3c462ba1c43fbf126c5608f1e94a1e656e015"
+    }
+  }
+}

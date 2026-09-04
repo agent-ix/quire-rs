@@ -2,7 +2,7 @@
 id: Task-017
 title: "Vendored golden fixtures and case-suite skeleton"
 type: Task
-status: todo
+status: completed
 track: B
 priority: P1
 relationships:
@@ -23,9 +23,9 @@ Pin the quoin mapping fixtures read-only and lay out the declarative semantic ca
 
 ## Subtasks
 
-- [ ] Copy `tests/fixtures/semantic-module/mapping/` and `corpus/config-service/` from agent-ix/quoin @ 3e842ce into `tests/fixtures/semantic/quoin/` with a `PROVENANCE.json` (repository, revision, per-file sha256) and a test that recomputes it.
-- [ ] Author `config-version.bundle.json` (FR-006 → `ConfigVersion`, FR-005 → `ConfigOverlay`).
-- [ ] Create `tests/fixtures/semantic/cases.json` skeleton (`name`, `issue_ref`, `tags`, `input`, `expect`) and extend the attribution test to cover it.
+- [x] Copy `tests/fixtures/semantic-module/mapping/` and `corpus/config-service/` from agent-ix/quoin @ 3e842ce into `tests/fixtures/semantic/quoin/` with a `PROVENANCE.json` (repository, revision, per-file sha256) and a test that recomputes it.
+- [x] Author `config-version.bundle.json` (FR-006 → `ConfigVersion`, FR-005 → `ConfigOverlay`).
+- [x] Create `tests/fixtures/semantic/cases.json` skeleton (`name`, `issue_ref`, `tags`, `input`, `expect`) and extend the attribution test to cover it.
 
 ## Deliverables
 
