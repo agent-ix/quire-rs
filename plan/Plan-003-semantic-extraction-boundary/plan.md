@@ -115,7 +115,7 @@ Track B:            Task-017 ---------------------------> Task-021 --+-> Task-02
 | Task-015 | A | FR-069, NFR-021 | TC-1606, TC-1607, TC-1639, TC-1643 | completed |
 | Task-016 | A | FR-069 | TC-1599..TC-1605, TC-1608, TC-1609, TC-1633, TC-1645, TC-1646 | completed |
 | Task-017 | B | FR-070, FR-071, FR-072 | — | completed |
-| Task-018 | A | FR-070 | TC-1610..TC-1618, TC-1621, TC-1647 | todo |
+| Task-018 | A | FR-070 | TC-1610..TC-1618, TC-1621, TC-1647 | completed |
 | Task-019 | A | FR-071 | TC-1622..TC-1626, TC-1629, TC-1648 | todo |
 | Task-020 | A | FR-072 | TC-1630..TC-1632, TC-1634, TC-1635, TC-1637, TC-1638, TC-1644, TC-1650 | todo |
 | Task-021 | B | NFR-021, FR-070, FR-071, FR-072 | TC-1619, TC-1620, TC-1627, TC-1628, TC-1636, TC-1640..TC-1642, TC-1649 | todo |

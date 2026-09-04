@@ -2,7 +2,7 @@
 id: Task-018
 title: "FR-070 — typed Properties extraction"
 type: Task
-status: todo
+status: completed
 track: A
 priority: P0
 relationships:
@@ -43,10 +43,10 @@ Extract the typed table or `sysml` fence into normalized `FieldDecl[]` under the
 
 ## Subtasks
 
-- [ ] `src/semantic/properties.rs`: form recognition (typed header, fence, legacy, both-forms, duplicate section, empty table), cell grammars (Type precedence, Multiplicity, Constraints incl. `nullable`, reader rules), fence line subset, normalization, FieldDecl validation gate.
-- [ ] `SemanticContext` + `BundleIndex` types; corpus-mode index builder from `Spec` (id, title, frontmatter `name`; imports from loaded modules).
-- [ ] Legacy-form diagnostics with `legacy_forms` policy; `properties` string untouched (TC-1618 vs baseline).
-- [ ] Property test generators for cells (TC-1621).
+- [x] `src/semantic/properties.rs`: form recognition (typed header, fence, legacy, both-forms, duplicate section, empty table), cell grammars (Type precedence, Multiplicity, Constraints incl. `nullable`, reader rules), fence line subset, normalization, FieldDecl validation gate.
+- [x] `SemanticContext` + `BundleIndex` types; corpus-mode index builder from `Spec` (id, title, frontmatter `name`; imports from loaded modules).
+- [x] Legacy-form diagnostics with `legacy_forms` policy; `properties` string untouched (TC-1618 vs baseline).
+- [x] Property test generators for cells (TC-1621).
 
 ## Deliverables
 
