@@ -1,4 +1,1015 @@
 {
-  "$comment": "Declarative semantic extraction cases (FR-072-AC-1). Every case carries issue_ref; tests/semantic_fixtures.rs enforces attribution and unique names. Filled by Plan-003 Task-020.",
-  "cases": []
+  "$comment": "Declarative semantic extraction cases (FR-072-AC-1/AC-2). Every case carries issue_ref; tests/semantic_fixtures.rs enforces attribution and unique names; tests/semantic_surface.rs runs them and tests/python/test_semantic.py checks binding parity against cases.expected.json.",
+  "cases": [
+    {
+      "name": "golden-table-available",
+      "issue_ref": "agent-ix/quire-rs#388",
+      "tags": [
+        "TC-1630",
+        "TC-1631",
+        "available"
+      ],
+      "input": {
+        "markdown": "---\nid: FR-006\ntitle: ConfigVersion Entity\nobject: entity\ntype: FR\n---\n\n# FR-006: ConfigVersion Entity\n\n## Description\n\nThe service SHALL persist configuration versions as immutable `ConfigVersion` entities.\n\n## Properties\n\n| Field | Type | Multiplicity | Constraints |\n|-------|------|--------------|-------------|\n| id | UUID | 1 | identity |\n| versionNumber | Integer | 1 | min: 1 |\n| data | JsonObject | 1 | |\n| hash | String | 1 | nonEmpty |\n| parent | ConfigVersion | 0..1 | |\n| createdAt | Timestamp | 1 | |\n| createdBy | String | 1 | maxLength: 64 |\n\n## Relationships\n\n- `overlay`: belongs_to \u2192 ConfigOverlay (FR-005)\n\n## Invariants\n\n### immutable\n\n```ocl\ncontext ConfigVersion inv immutable: self.versionNumber = self.versionNumber@pre and self.data = self.data@pre and self.hash = self.hash@pre\n```\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "semanticCore": "0.1.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "entity"
+          ],
+          "imports": {}
+        },
+        "path": "spec/functional/FR-006.md",
+        "sourceIdentity": "ix://agent-ix/config-service/spec",
+        "bundle": {
+          "$comment": "BundleIndex under which the quoin golden cases run (FR-070 Inputs). Corpus-mode index construction for real modules is a module-authoring question (spec-objects-business#4).",
+          "package": "agent-ix/config-service",
+          "objects": [
+            {
+              "id": "FR-006",
+              "names": [
+                "ConfigVersion"
+              ]
+            },
+            {
+              "id": "FR-005",
+              "names": [
+                "ConfigOverlay"
+              ]
+            }
+          ],
+          "enumerations": [
+            {
+              "id": "Status",
+              "names": [
+                "Status Values"
+              ]
+            }
+          ],
+          "imports": {
+            "agent-ix/spec-artifacts-iso": [
+              "Requirement"
+            ]
+          }
+        },
+        "schemaDigest": "sha256:8692992e186f40a73b78fd1b0915f0fe78e05a2b00782fb1df58c951a37c91d5"
+      },
+      "expect": {
+        "availability": {
+          "fields": {
+            "state": "available",
+            "lossy": false
+          },
+          "clauses": {
+            "state": "available",
+            "lossy": false
+          },
+          "operations": {
+            "state": "not_applicable",
+            "lossy": false
+          }
+        },
+        "fieldsForm": "table",
+        "fieldCount": 7,
+        "clauseIds": [
+          "immutable"
+        ],
+        "diagnosticCodes": []
+      }
+    },
+    {
+      "name": "golden-fence-available",
+      "issue_ref": "agent-ix/quire-rs#388",
+      "tags": [
+        "TC-1630",
+        "available"
+      ],
+      "input": {
+        "markdown": "---\nid: FR-006\ntitle: ConfigVersion Entity\nobject: entity\ntype: FR\n---\n\n# FR-006: ConfigVersion Entity\n\n## Description\n\nThe service SHALL persist configuration versions as immutable `ConfigVersion` entities.\n\n## Properties\n\n```sysml\nattribute id : UUID[1] { identity }\nattribute versionNumber : Integer[1] { min: 1 }\nattribute data : JsonObject[1]\nattribute hash : String[1] { nonEmpty }\nref item parent : ConfigVersion[0..1]\nattribute createdAt : Timestamp[1]\nattribute createdBy : String[1] { maxLength: 64 }\n```\n\n## Relationships\n\n- `overlay`: belongs_to \u2192 ConfigOverlay (FR-005)\n\n## Invariants\n\n### immutable\n\n```ocl\ncontext ConfigVersion inv immutable: self.versionNumber = self.versionNumber@pre and self.data = self.data@pre and self.hash = self.hash@pre\n```\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "semanticCore": "0.1.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "entity"
+          ],
+          "imports": {}
+        },
+        "path": "spec/functional/FR-006.md",
+        "sourceIdentity": "ix://agent-ix/config-service/spec",
+        "bundle": {
+          "$comment": "BundleIndex under which the quoin golden cases run (FR-070 Inputs). Corpus-mode index construction for real modules is a module-authoring question (spec-objects-business#4).",
+          "package": "agent-ix/config-service",
+          "objects": [
+            {
+              "id": "FR-006",
+              "names": [
+                "ConfigVersion"
+              ]
+            },
+            {
+              "id": "FR-005",
+              "names": [
+                "ConfigOverlay"
+              ]
+            }
+          ],
+          "enumerations": [
+            {
+              "id": "Status",
+              "names": [
+                "Status Values"
+              ]
+            }
+          ],
+          "imports": {
+            "agent-ix/spec-artifacts-iso": [
+              "Requirement"
+            ]
+          }
+        }
+      },
+      "expect": {
+        "availability": {
+          "fields": {
+            "state": "available",
+            "lossy": false
+          }
+        },
+        "fieldsForm": "fence",
+        "fieldCount": 7,
+        "diagnosticCodes": []
+      }
+    },
+    {
+      "name": "operations-available",
+      "issue_ref": "agent-ix/quire-rs#388",
+      "tags": [
+        "TC-1630",
+        "available"
+      ],
+      "input": {
+        "markdown": "---\nid: FR-901\ntitle: Operations\nobject: entity\ntype: FR\n---\n\n# FR-901: Operations\n\n## Properties\n\n| Field | Type | Multiplicity | Constraints |\n|-------|------|--------------|-------------|\n| id | UUID | 1 | identity |\n\n## Invariants\n\n### notArchived\n\n```ocl\ncontext Artifact inv notArchived: self.summary <> 'archived'\n```\n\n### archived\n\n```ocl\ncontext Artifact::archive() post: result.summary = 'archived'\n```\n\n## Operations\n\n### archive\n\n| Param | Type | Multiplicity | Constraints |\n|-------|------|--------------|-------------|\n| reason | String | 1 | nonEmpty |\n| delay | Duration [ms] | 0..1 | |\n\nReturns: ConfigVersion[1]\nPre: notArchived\nPost: archived\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "semanticCore": "0.1.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "entity"
+          ],
+          "imports": {}
+        },
+        "path": "spec/functional/FR-006.md",
+        "sourceIdentity": "ix://agent-ix/config-service/spec",
+        "bundle": {
+          "$comment": "BundleIndex under which the quoin golden cases run (FR-070 Inputs). Corpus-mode index construction for real modules is a module-authoring question (spec-objects-business#4).",
+          "package": "agent-ix/config-service",
+          "objects": [
+            {
+              "id": "FR-006",
+              "names": [
+                "ConfigVersion"
+              ]
+            },
+            {
+              "id": "FR-005",
+              "names": [
+                "ConfigOverlay"
+              ]
+            }
+          ],
+          "enumerations": [
+            {
+              "id": "Status",
+              "names": [
+                "Status Values"
+              ]
+            }
+          ],
+          "imports": {
+            "agent-ix/spec-artifacts-iso": [
+              "Requirement"
+            ]
+          }
+        },
+        "schemaDigest": "sha256:8692992e186f40a73b78fd1b0915f0fe78e05a2b00782fb1df58c951a37c91d5"
+      },
+      "expect": {
+        "availability": {
+          "clauses": {
+            "state": "available",
+            "lossy": false
+          },
+          "operations": {
+            "state": "available",
+            "lossy": false
+          }
+        },
+        "operationNames": [
+          "archive"
+        ],
+        "clauseIds": [
+          "notArchived",
+          "archived"
+        ],
+        "diagnosticCodes": []
+      }
+    },
+    {
+      "name": "no-sections-not-applicable",
+      "issue_ref": "agent-ix/quire-rs#388",
+      "tags": [
+        "TC-1631",
+        "not_applicable"
+      ],
+      "input": {
+        "markdown": "---\nid: FR-900\ntitle: Bare\nobject: entity\n---\n# FR-900\n\nprose only\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "semanticCore": "0.1.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "entity"
+          ],
+          "imports": {}
+        },
+        "path": "spec/functional/FR-006.md",
+        "sourceIdentity": "ix://agent-ix/config-service/spec",
+        "bundle": {
+          "$comment": "BundleIndex under which the quoin golden cases run (FR-070 Inputs). Corpus-mode index construction for real modules is a module-authoring question (spec-objects-business#4).",
+          "package": "agent-ix/config-service",
+          "objects": [
+            {
+              "id": "FR-006",
+              "names": [
+                "ConfigVersion"
+              ]
+            },
+            {
+              "id": "FR-005",
+              "names": [
+                "ConfigOverlay"
+              ]
+            }
+          ],
+          "enumerations": [
+            {
+              "id": "Status",
+              "names": [
+                "Status Values"
+              ]
+            }
+          ],
+          "imports": {
+            "agent-ix/spec-artifacts-iso": [
+              "Requirement"
+            ]
+          }
+        }
+      },
+      "expect": {
+        "availability": {
+          "fields": {
+            "state": "not_applicable",
+            "lossy": false
+          },
+          "clauses": {
+            "state": "not_applicable",
+            "lossy": false
+          },
+          "operations": {
+            "state": "not_applicable",
+            "lossy": false
+          }
+        },
+        "diagnosticCodes": []
+      }
+    },
+    {
+      "name": "required-section-missing",
+      "issue_ref": "agent-ix/quire-rs#388",
+      "tags": [
+        "TC-1631",
+        "missing"
+      ],
+      "input": {
+        "markdown": "---\nid: FR-900\ntitle: Bare\nobject: entity\n---\n# FR-900\n\nprose only\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "semanticCore": "0.1.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "entity"
+          ],
+          "imports": {}
+        },
+        "path": "spec/functional/FR-006.md",
+        "sourceIdentity": "ix://agent-ix/config-service/spec",
+        "bundle": {
+          "$comment": "BundleIndex under which the quoin golden cases run (FR-070 Inputs). Corpus-mode index construction for real modules is a module-authoring question (spec-objects-business#4).",
+          "package": "agent-ix/config-service",
+          "objects": [
+            {
+              "id": "FR-006",
+              "names": [
+                "ConfigVersion"
+              ]
+            },
+            {
+              "id": "FR-005",
+              "names": [
+                "ConfigOverlay"
+              ]
+            }
+          ],
+          "enumerations": [
+            {
+              "id": "Status",
+              "names": [
+                "Status Values"
+              ]
+            }
+          ],
+          "imports": {
+            "agent-ix/spec-artifacts-iso": [
+              "Requirement"
+            ]
+          }
+        },
+        "required": {
+          "properties": true
+        }
+      },
+      "expect": {
+        "availability": {
+          "fields": {
+            "state": "missing",
+            "lossy": false
+          },
+          "clauses": {
+            "state": "not_applicable",
+            "lossy": false
+          }
+        },
+        "diagnosticCodes": []
+      }
+    },
+    {
+      "name": "legacy-bullets-unavailable",
+      "issue_ref": "agent-ix/quire-rs#388",
+      "tags": [
+        "TC-1631",
+        "unavailable"
+      ],
+      "input": {
+        "markdown": "---\nid: FR-902\ntitle: Legacy bullets\nobject: entity\ntype: FR\n---\n\n# FR-902: Legacy bullets\n\n## Properties\n\n- id: UUID \u2014 primary key\n- name: str \u2014 display name\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "semanticCore": "0.1.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "entity"
+          ],
+          "imports": {}
+        },
+        "path": "spec/functional/FR-006.md",
+        "sourceIdentity": "ix://agent-ix/config-service/spec",
+        "bundle": {
+          "$comment": "BundleIndex under which the quoin golden cases run (FR-070 Inputs). Corpus-mode index construction for real modules is a module-authoring question (spec-objects-business#4).",
+          "package": "agent-ix/config-service",
+          "objects": [
+            {
+              "id": "FR-006",
+              "names": [
+                "ConfigVersion"
+              ]
+            },
+            {
+              "id": "FR-005",
+              "names": [
+                "ConfigOverlay"
+              ]
+            }
+          ],
+          "enumerations": [
+            {
+              "id": "Status",
+              "names": [
+                "Status Values"
+              ]
+            }
+          ],
+          "imports": {
+            "agent-ix/spec-artifacts-iso": [
+              "Requirement"
+            ]
+          }
+        }
+      },
+      "expect": {
+        "availability": {
+          "fields": {
+            "state": "unavailable",
+            "reason": "legacy-form",
+            "lossy": false
+          }
+        },
+        "diagnostics": [
+          {
+            "code": "semantic.legacy-properties-form",
+            "severity": "warning",
+            "line": 12
+          }
+        ]
+      }
+    },
+    {
+      "name": "legacy-bullets-promoted",
+      "issue_ref": "agent-ix/quire-rs#388",
+      "tags": [
+        "TC-1631",
+        "unavailable"
+      ],
+      "input": {
+        "markdown": "---\nid: FR-902\ntitle: Legacy bullets\nobject: entity\ntype: FR\n---\n\n# FR-902: Legacy bullets\n\n## Properties\n\n- id: UUID \u2014 primary key\n- name: str \u2014 display name\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "semanticCore": "0.1.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "entity"
+          ],
+          "imports": {},
+          "legacyForms": "error"
+        },
+        "path": "spec/functional/FR-006.md",
+        "sourceIdentity": "ix://agent-ix/config-service/spec",
+        "bundle": {
+          "$comment": "BundleIndex under which the quoin golden cases run (FR-070 Inputs). Corpus-mode index construction for real modules is a module-authoring question (spec-objects-business#4).",
+          "package": "agent-ix/config-service",
+          "objects": [
+            {
+              "id": "FR-006",
+              "names": [
+                "ConfigVersion"
+              ]
+            },
+            {
+              "id": "FR-005",
+              "names": [
+                "ConfigOverlay"
+              ]
+            }
+          ],
+          "enumerations": [
+            {
+              "id": "Status",
+              "names": [
+                "Status Values"
+              ]
+            }
+          ],
+          "imports": {
+            "agent-ix/spec-artifacts-iso": [
+              "Requirement"
+            ]
+          }
+        }
+      },
+      "expect": {
+        "availability": {
+          "fields": {
+            "state": "unavailable",
+            "reason": "legacy-form",
+            "lossy": false
+          }
+        },
+        "diagnostics": [
+          {
+            "code": "semantic.legacy-properties-form",
+            "severity": "error",
+            "line": 12
+          }
+        ]
+      }
+    },
+    {
+      "name": "both-forms-unavailable",
+      "issue_ref": "agent-ix/quire-rs#388",
+      "tags": [
+        "TC-1631",
+        "unavailable"
+      ],
+      "input": {
+        "markdown": "---\nid: FR-900\ntitle: Both forms\nobject: entity\ntype: FR\n---\n\n# FR-900: Both forms\n\n## Properties\n\n| Field | Type | Multiplicity | Constraints |\n|-------|------|--------------|-------------|\n| id | UUID | 1 | identity |\n\n```sysml\nattribute id : UUID[1] { identity }\n```\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "semanticCore": "0.1.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "entity"
+          ],
+          "imports": {}
+        },
+        "path": "spec/functional/FR-006.md",
+        "sourceIdentity": "ix://agent-ix/config-service/spec",
+        "bundle": {
+          "$comment": "BundleIndex under which the quoin golden cases run (FR-070 Inputs). Corpus-mode index construction for real modules is a module-authoring question (spec-objects-business#4).",
+          "package": "agent-ix/config-service",
+          "objects": [
+            {
+              "id": "FR-006",
+              "names": [
+                "ConfigVersion"
+              ]
+            },
+            {
+              "id": "FR-005",
+              "names": [
+                "ConfigOverlay"
+              ]
+            }
+          ],
+          "enumerations": [
+            {
+              "id": "Status",
+              "names": [
+                "Status Values"
+              ]
+            }
+          ],
+          "imports": {
+            "agent-ix/spec-artifacts-iso": [
+              "Requirement"
+            ]
+          }
+        }
+      },
+      "expect": {
+        "availability": {
+          "fields": {
+            "state": "unavailable",
+            "reason": "both-forms",
+            "lossy": false
+          }
+        },
+        "diagnostics": [
+          {
+            "code": "semantic.properties-both-forms",
+            "severity": "error",
+            "line": 16
+          }
+        ]
+      }
+    },
+    {
+      "name": "unresolved-type-lossy",
+      "issue_ref": "agent-ix/quire-rs#388",
+      "tags": [
+        "TC-1631",
+        "lossy"
+      ],
+      "input": {
+        "markdown": "---\nid: FR-900\ntitle: Thing\nobject: entity\n---\n# FR-900\n\n## Properties\n\n| Field | Type | Multiplicity | Constraints |\n|---|---|---|---|\n| owner | Mystery | 1 | |\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "semanticCore": "0.1.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "entity"
+          ],
+          "imports": {}
+        },
+        "path": "spec/functional/FR-006.md",
+        "sourceIdentity": "ix://agent-ix/config-service/spec",
+        "bundle": {
+          "$comment": "BundleIndex under which the quoin golden cases run (FR-070 Inputs). Corpus-mode index construction for real modules is a module-authoring question (spec-objects-business#4).",
+          "package": "agent-ix/config-service",
+          "objects": [
+            {
+              "id": "FR-006",
+              "names": [
+                "ConfigVersion"
+              ]
+            },
+            {
+              "id": "FR-005",
+              "names": [
+                "ConfigOverlay"
+              ]
+            }
+          ],
+          "enumerations": [
+            {
+              "id": "Status",
+              "names": [
+                "Status Values"
+              ]
+            }
+          ],
+          "imports": {
+            "agent-ix/spec-artifacts-iso": [
+              "Requirement"
+            ]
+          }
+        }
+      },
+      "expect": {
+        "availability": {
+          "fields": {
+            "state": "available",
+            "lossy": true
+          }
+        },
+        "fieldCount": 1,
+        "diagnostics": [
+          {
+            "code": "semantic.unresolved-type",
+            "severity": "advisory",
+            "line": 12,
+            "reason": "unknown-token"
+          }
+        ]
+      }
+    },
+    {
+      "name": "empty-bundle-index",
+      "issue_ref": "agent-ix/quire-rs#388",
+      "tags": [
+        "TC-1631",
+        "lossy"
+      ],
+      "input": {
+        "markdown": "---\nid: FR-900\ntitle: Thing\nobject: entity\n---\n# FR-900\n\n## Properties\n\n| Field | Type | Multiplicity | Constraints |\n|---|---|---|---|\n| parent | ConfigVersion | 0..1 | |\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "semanticCore": "0.1.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "entity"
+          ],
+          "imports": {}
+        },
+        "path": "spec/functional/FR-006.md",
+        "sourceIdentity": "ix://agent-ix/config-service/spec",
+        "bundle": {}
+      },
+      "expect": {
+        "availability": {
+          "fields": {
+            "state": "available",
+            "lossy": true
+          }
+        },
+        "diagnostics": [
+          {
+            "code": "semantic.unresolved-type",
+            "severity": "advisory",
+            "line": 12,
+            "reason": "no-bundle-index"
+          }
+        ]
+      }
+    },
+    {
+      "name": "declared-lossy-posture",
+      "issue_ref": "agent-ix/quire-rs#388",
+      "tags": [
+        "TC-1631",
+        "lossy"
+      ],
+      "input": {
+        "markdown": "---\nid: FR-006\ntitle: ConfigVersion Entity\nobject: entity\ntype: FR\n---\n\n# FR-006: ConfigVersion Entity\n\n## Description\n\nThe service SHALL persist configuration versions as immutable `ConfigVersion` entities.\n\n## Properties\n\n| Field | Type | Multiplicity | Constraints |\n|-------|------|--------------|-------------|\n| id | UUID | 1 | identity |\n| versionNumber | Integer | 1 | min: 1 |\n| data | JsonObject | 1 | |\n| hash | String | 1 | nonEmpty |\n| parent | ConfigVersion | 0..1 | |\n| createdAt | Timestamp | 1 | |\n| createdBy | String | 1 | maxLength: 64 |\n\n## Relationships\n\n- `overlay`: belongs_to \u2192 ConfigOverlay (FR-005)\n\n## Invariants\n\n### immutable\n\n```ocl\ncontext ConfigVersion inv immutable: self.versionNumber = self.versionNumber@pre and self.data = self.data@pre and self.hash = self.hash@pre\n```\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "semanticCore": "0.1.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "entity"
+          ],
+          "imports": {},
+          "compatibilityPosture": "declared-lossy"
+        },
+        "path": "spec/functional/FR-006.md",
+        "sourceIdentity": "ix://agent-ix/config-service/spec",
+        "bundle": {
+          "$comment": "BundleIndex under which the quoin golden cases run (FR-070 Inputs). Corpus-mode index construction for real modules is a module-authoring question (spec-objects-business#4).",
+          "package": "agent-ix/config-service",
+          "objects": [
+            {
+              "id": "FR-006",
+              "names": [
+                "ConfigVersion"
+              ]
+            },
+            {
+              "id": "FR-005",
+              "names": [
+                "ConfigOverlay"
+              ]
+            }
+          ],
+          "enumerations": [
+            {
+              "id": "Status",
+              "names": [
+                "Status Values"
+              ]
+            }
+          ],
+          "imports": {
+            "agent-ix/spec-artifacts-iso": [
+              "Requirement"
+            ]
+          }
+        }
+      },
+      "expect": {
+        "availability": {
+          "fields": {
+            "state": "available",
+            "lossy": true
+          },
+          "clauses": {
+            "state": "available",
+            "lossy": true
+          },
+          "operations": {
+            "state": "not_applicable",
+            "lossy": true
+          }
+        }
+      }
+    },
+    {
+      "name": "unchecked-clause-language",
+      "issue_ref": "agent-ix/quire-rs#388",
+      "tags": [
+        "TC-1631",
+        "lossy"
+      ],
+      "input": {
+        "markdown": "---\nid: FR-900\ntitle: Thing\nobject: entity\n---\n# FR-900\n\n## Invariants\n\n### live\n\n```fretish\nthe thing shall live\n```\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "semanticCore": "0.1.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "entity"
+          ],
+          "imports": {}
+        },
+        "path": "spec/functional/FR-006.md",
+        "sourceIdentity": "ix://agent-ix/config-service/spec",
+        "bundle": {
+          "$comment": "BundleIndex under which the quoin golden cases run (FR-070 Inputs). Corpus-mode index construction for real modules is a module-authoring question (spec-objects-business#4).",
+          "package": "agent-ix/config-service",
+          "objects": [
+            {
+              "id": "FR-006",
+              "names": [
+                "ConfigVersion"
+              ]
+            },
+            {
+              "id": "FR-005",
+              "names": [
+                "ConfigOverlay"
+              ]
+            }
+          ],
+          "enumerations": [
+            {
+              "id": "Status",
+              "names": [
+                "Status Values"
+              ]
+            }
+          ],
+          "imports": {
+            "agent-ix/spec-artifacts-iso": [
+              "Requirement"
+            ]
+          }
+        }
+      },
+      "expect": {
+        "availability": {
+          "clauses": {
+            "state": "available",
+            "lossy": true
+          }
+        },
+        "clauseIds": [
+          "live"
+        ],
+        "diagnostics": [
+          {
+            "code": "semantic.clause-language-unchecked",
+            "severity": "advisory",
+            "line": 12
+          }
+        ]
+      }
+    },
+    {
+      "name": "row-errors-unavailable",
+      "issue_ref": "agent-ix/quire-rs#388",
+      "tags": [
+        "TC-1631",
+        "unavailable"
+      ],
+      "input": {
+        "markdown": "---\nid: FR-900\ntitle: Thing\nobject: entity\n---\n# FR-900\n\n## Properties\n\n| Field | Type | Multiplicity | Constraints |\n|---|---|---|---|\n| id | UUID | 1 | identity |\n| n | Integer | 5..2 | |\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "semanticCore": "0.1.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "entity"
+          ],
+          "imports": {}
+        },
+        "path": "spec/functional/FR-006.md",
+        "sourceIdentity": "ix://agent-ix/config-service/spec",
+        "bundle": {
+          "$comment": "BundleIndex under which the quoin golden cases run (FR-070 Inputs). Corpus-mode index construction for real modules is a module-authoring question (spec-objects-business#4).",
+          "package": "agent-ix/config-service",
+          "objects": [
+            {
+              "id": "FR-006",
+              "names": [
+                "ConfigVersion"
+              ]
+            },
+            {
+              "id": "FR-005",
+              "names": [
+                "ConfigOverlay"
+              ]
+            }
+          ],
+          "enumerations": [
+            {
+              "id": "Status",
+              "names": [
+                "Status Values"
+              ]
+            }
+          ],
+          "imports": {
+            "agent-ix/spec-artifacts-iso": [
+              "Requirement"
+            ]
+          }
+        }
+      },
+      "expect": {
+        "availability": {
+          "fields": {
+            "state": "unavailable",
+            "lossy": false
+          }
+        },
+        "diagnostics": [
+          {
+            "code": "semantic.invalid-multiplicity",
+            "severity": "error",
+            "line": 13
+          }
+        ]
+      }
+    },
+    {
+      "name": "entry-errors-unavailable",
+      "issue_ref": "agent-ix/quire-rs#388",
+      "tags": [
+        "TC-1631",
+        "unavailable"
+      ],
+      "input": {
+        "markdown": "---\nid: FR-900\ntitle: Thing\nobject: entity\n---\n# FR-900\n\n## Invariants\n\n### ok\n\n```ocl\nx\n```\n\n### bad\n\n```tla\ny\n```\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "semanticCore": "0.1.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "entity"
+          ],
+          "imports": {}
+        },
+        "path": "spec/functional/FR-006.md",
+        "sourceIdentity": "ix://agent-ix/config-service/spec",
+        "bundle": {
+          "$comment": "BundleIndex under which the quoin golden cases run (FR-070 Inputs). Corpus-mode index construction for real modules is a module-authoring question (spec-objects-business#4).",
+          "package": "agent-ix/config-service",
+          "objects": [
+            {
+              "id": "FR-006",
+              "names": [
+                "ConfigVersion"
+              ]
+            },
+            {
+              "id": "FR-005",
+              "names": [
+                "ConfigOverlay"
+              ]
+            }
+          ],
+          "enumerations": [
+            {
+              "id": "Status",
+              "names": [
+                "Status Values"
+              ]
+            }
+          ],
+          "imports": {
+            "agent-ix/spec-artifacts-iso": [
+              "Requirement"
+            ]
+          }
+        }
+      },
+      "expect": {
+        "availability": {
+          "clauses": {
+            "state": "unavailable",
+            "lossy": false
+          }
+        },
+        "diagnostics": [
+          {
+            "code": "semantic.clause-language-invalid",
+            "severity": "error",
+            "line": 18
+          }
+        ]
+      }
+    },
+    {
+      "name": "defaulted-source-identity",
+      "issue_ref": "agent-ix/quire-rs#388",
+      "tags": [
+        "TC-1630",
+        "TC-1648"
+      ],
+      "input": {
+        "markdown": "---\nid: FR-901\ntitle: Operations\nobject: entity\ntype: FR\n---\n\n# FR-901: Operations\n\n## Properties\n\n| Field | Type | Multiplicity | Constraints |\n|-------|------|--------------|-------------|\n| id | UUID | 1 | identity |\n\n## Invariants\n\n### notArchived\n\n```ocl\ncontext Artifact inv notArchived: self.summary <> 'archived'\n```\n\n### archived\n\n```ocl\ncontext Artifact::archive() post: result.summary = 'archived'\n```\n\n## Operations\n\n### archive\n\n| Param | Type | Multiplicity | Constraints |\n|-------|------|--------------|-------------|\n| reason | String | 1 | nonEmpty |\n| delay | Duration [ms] | 0..1 | |\n\nReturns: ConfigVersion[1]\nPre: notArchived\nPost: archived\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "semanticCore": "0.1.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "entity"
+          ],
+          "imports": {}
+        },
+        "path": "spec/functional/FR-006.md",
+        "bundle": {
+          "$comment": "BundleIndex under which the quoin golden cases run (FR-070 Inputs). Corpus-mode index construction for real modules is a module-authoring question (spec-objects-business#4).",
+          "package": "agent-ix/config-service",
+          "objects": [
+            {
+              "id": "FR-006",
+              "names": [
+                "ConfigVersion"
+              ]
+            },
+            {
+              "id": "FR-005",
+              "names": [
+                "ConfigOverlay"
+              ]
+            }
+          ],
+          "enumerations": [
+            {
+              "id": "Status",
+              "names": [
+                "Status Values"
+              ]
+            }
+          ],
+          "imports": {
+            "agent-ix/spec-artifacts-iso": [
+              "Requirement"
+            ]
+          }
+        },
+        "scope": "config-service"
+      },
+      "expect": {
+        "diagnostics": [
+          {
+            "code": "semantic.source-identity-defaulted",
+            "severity": "advisory"
+          }
+        ],
+        "sourceIdentity": "ix://local/config-service/spec"
+      }
+    }
+  ]
 }

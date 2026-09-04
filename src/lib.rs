@@ -63,6 +63,10 @@ pub use query::{
 pub use error::{format_violation, ArchetypeLoadFailure, QuireError, VIOLATION_PREVIEW_MAX};
 // Load-time diagnostics (internal Diagnostic enum, used in error paths).
 pub use diagnostic::{Diagnostic, PathTraversalReason};
+// Semantic extraction boundary (FR-069..FR-072).
+pub use semantic::{
+    extract_semantic, BundleIndex, SemanticContext, SemanticExtraction, SemanticModule,
+};
 // Loader + registry (FR-013 + FR-014).
 pub use loader::compile::CompiledArchetype;
 pub use loader::manifest::DeclarationOrigin;

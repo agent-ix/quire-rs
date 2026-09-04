@@ -38,6 +38,17 @@ pub struct FilamentExtractionInput {
     pub org: String,
     #[serde(rename = "object_types", alias = "objectTypes", default)]
     pub object_types: Vec<FilamentObjectType>,
+    /// The bundle-wide name index for FR-070 type resolution, supplied by
+    /// the caller (FR-072 Inputs). Absent means an empty index: every
+    /// non-kernel, non-import token resolves as `unresolved` with reason
+    /// `no-bundle-index`.
+    #[serde(
+        rename = "semantic_bundle",
+        alias = "semanticBundle",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub semantic_bundle: Option<crate::semantic::BundleIndex>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -163,6 +174,17 @@ pub struct CoreExtractionDiagnostic {
     pub severity: String,
     #[serde(rename = "objectType")]
     pub object_type: Option<String>,
+    /// Source locus of a semantic diagnostic (FR-072); absent for every
+    /// pre-existing diagnostic, so their bytes are unchanged.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub locus: Option<DiagnosticLocus>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DiagnosticLocus {
+    pub path: String,
+    pub line: usize,
+    pub column: usize,
 }
 
 #[derive(Debug, Clone)]
@@ -271,6 +293,23 @@ pub fn extract_filament_core(input: FilamentExtractionInput) -> CoreExtractionRe
     // `id: FR-020` spec docs). Mint its primary node here so every edge
     // harvested below gets a resolvable `ix://` source ref instead of the
     // `document:` fallback, which downstream stores cannot bind to a node.
+    // FR-072: the additive `semantic` record on nodes of a snapshot that
+    // carries a semantic context.
+    if let Some(object_name) = frontmatter.get("object").and_then(Value::as_str) {
+        if let Some(object_type) = compiled.get(object_name) {
+            if let Some(snapshot) = &object_type.snapshot.semantic {
+                attach_semantic(
+                    &input,
+                    object_name,
+                    object_type,
+                    snapshot,
+                    &mut nodes,
+                    &mut diagnostics,
+                );
+            }
+        }
+    }
+
     if nodes.is_empty() {
         if let Some(node) = primary_artifact_node(&frontmatter) {
             nodes.push(node);
@@ -615,6 +654,12 @@ fn extract_tier2(
 }
 
 fn validate_against_schema(object_type: &CompiledObjectType, data: &Value) -> Result<(), String> {
+    // Under a semantic context the data schema describes the declaration
+    // record (FR-069), validated by `attach_semantic`; the DSL record is
+    // emitted as before.
+    if object_type.snapshot.semantic.is_some() {
+        return Ok(());
+    }
     let archetype = object_type.snapshot.name.as_str();
     let owned;
     let validator: &jsonschema::JSONSchema = match &object_type.validator {
@@ -1082,6 +1127,7 @@ fn diagnostic(
         message: message.into(),
         severity: severity.into(),
         object_type,
+        locus: None,
     }
 }
 
@@ -1094,6 +1140,87 @@ fn stable_id(parts: &[&str]) -> String {
         hasher.update(part.as_bytes());
     }
     format!("{:x}", hasher.finalize())
+}
+
+/// Build the FR-072 record for one document and put it on every node of
+/// `object_name` under `dataJson.semantic`; mirror its diagnostics into the
+/// core result with a locus and the existing severity set.
+fn attach_semantic(
+    input: &FilamentExtractionInput,
+    object_name: &str,
+    object_type: &CompiledObjectType,
+    snapshot: &SemanticSnapshot,
+    nodes: &mut [GraphNode],
+    diagnostics: &mut Vec<CoreExtractionDiagnostic>,
+) {
+    use crate::semantic::{RequiredSections, SemanticContext, SemanticModule};
+    let module = SemanticModule {
+        contract_version: snapshot.contract_version.clone(),
+        semantic_core: snapshot.semantic_core.clone(),
+        package: snapshot.package.clone(),
+        exports: snapshot.exports.clone(),
+        imports: snapshot.imports.clone(),
+        targets: Vec::new(),
+        compatibility_posture: "additive".to_string(),
+        legacy_forms: "warning".to_string(),
+    };
+    let ctx = SemanticContext::new(
+        module,
+        input.rel_path.clone(),
+        input.semantic_bundle.clone().unwrap_or_default(),
+    )
+    .with_source_identity(format!("ix://{}/{}/spec", input.org, input.repo_name));
+    let required = object_type
+        .body_extraction
+        .as_ref()
+        .and_then(|dsl| serde_json::to_value(dsl).ok())
+        .map(|v| RequiredSections::from_dsl(&v))
+        .unwrap_or_default();
+    let digest = format!(
+        "sha256:{:x}",
+        sha2::Sha256::digest(json_string(&object_type.schema).as_bytes())
+    );
+    let record = crate::semantic::extract_semantic(&input.markdown, &ctx, Some(&digest), &required);
+    // The resolved data schema validates the declaration record (FR-069-AC-1).
+    if let Some(validator) = &object_type.validator {
+        let declaration = record.declaration_record();
+        let first: Option<(String, String)> = match validator.validate(&declaration) {
+            Ok(()) => None,
+            Err(mut errors) => errors.next().map(|err| {
+                let detail = crate::validate::schema_validation_detail(&err);
+                (detail.path.to_string(), detail.message.to_string())
+            }),
+        };
+        if let Some((path, message)) = first {
+            diagnostics.push(diagnostic(
+                "semantic.record-invalid",
+                format!("{object_name}: declaration record fails the resolved data schema at {path}: {message}"),
+                "error",
+                Some(object_name.to_string()),
+            ));
+        }
+    }
+    for d in &record.diagnostics {
+        let severity = match d.severity {
+            crate::semantic::SemanticSeverity::Error => "error",
+            _ => "warning",
+        };
+        diagnostics.push(CoreExtractionDiagnostic {
+            code: d.code.clone(),
+            message: d.message.clone(),
+            severity: severity.to_string(),
+            object_type: Some(object_name.to_string()),
+            locus: d.line.map(|line| DiagnosticLocus {
+                path: input.rel_path.clone(),
+                line,
+                column: d.column.unwrap_or(1),
+            }),
+        });
+    }
+    let value = serde_json::to_value(&record).unwrap_or(Value::Null);
+    for node in nodes.iter_mut().filter(|n| n.object_type == object_name) {
+        node.data.insert("semantic".to_string(), value.clone());
+    }
 }
 
 #[cfg(test)]
@@ -1119,6 +1246,7 @@ mod tests {
                 module_id: None,
                 semantic: None,
             }],
+            semantic_bundle: None,
         }
     }
 

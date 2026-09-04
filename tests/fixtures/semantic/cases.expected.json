@@ -1,0 +1,961 @@
+{
+  "both-forms-unavailable": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "reason": "both-forms",
+        "state": "unavailable"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "not_applicable"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [
+      {
+        "code": "semantic.properties-both-forms",
+        "column": 1,
+        "line": 16,
+        "message": "a second Properties form; an artifact carries one typed table or one `sysml` fence",
+        "severity": "error"
+      }
+    ],
+    "formatVersion": 1,
+    "package": "agent-ix/spec-objects-fixture",
+    "semanticCore": "0.1.0"
+  },
+  "declared-lossy-posture": {
+    "availability": {
+      "clauses": {
+        "lossy": true,
+        "state": "available"
+      },
+      "fields": {
+        "lossy": true,
+        "state": "available"
+      },
+      "operations": {
+        "lossy": true,
+        "state": "not_applicable"
+      }
+    },
+    "clauseText": {
+      "immutable": "context ConfigVersion inv immutable: self.versionNumber = self.versionNumber@pre and self.data = self.data@pre and self.hash = self.hash@pre"
+    },
+    "clauses": [
+      {
+        "clauseId": "immutable",
+        "language": "ocl",
+        "sourceSpan": {
+          "endColumn": 4,
+          "endLine": 36,
+          "path": "spec/functional/FR-006.md",
+          "sourceIdentity": "ix://agent-ix/config-service/spec",
+          "startColumn": 1,
+          "startLine": 34
+        }
+      }
+    ],
+    "contractVersion": "1.0.0",
+    "diagnostics": [],
+    "fields": [
+      {
+        "identity": true,
+        "name": "id",
+        "type": {
+          "multiplicity": {
+            "lower": 1,
+            "upper": 1
+          },
+          "target": "UUID"
+        }
+      },
+      {
+        "constraints": [
+          {
+            "keyword": "min",
+            "value": 1
+          }
+        ],
+        "name": "versionNumber",
+        "type": {
+          "multiplicity": {
+            "lower": 1,
+            "upper": 1
+          },
+          "target": "Integer"
+        }
+      },
+      {
+        "name": "data",
+        "type": {
+          "multiplicity": {
+            "lower": 1,
+            "upper": 1
+          },
+          "target": "JsonObject"
+        }
+      },
+      {
+        "constraints": [
+          {
+            "keyword": "nonEmpty"
+          }
+        ],
+        "name": "hash",
+        "type": {
+          "multiplicity": {
+            "lower": 1,
+            "upper": 1
+          },
+          "target": "String"
+        }
+      },
+      {
+        "name": "parent",
+        "type": {
+          "multiplicity": {
+            "lower": 0,
+            "upper": 1
+          },
+          "target": "ix://agent-ix/config-service/type/ConfigVersion"
+        }
+      },
+      {
+        "name": "createdAt",
+        "type": {
+          "multiplicity": {
+            "lower": 1,
+            "upper": 1
+          },
+          "target": "Timestamp"
+        }
+      },
+      {
+        "constraints": [
+          {
+            "keyword": "maxLength",
+            "value": 64
+          }
+        ],
+        "name": "createdBy",
+        "type": {
+          "multiplicity": {
+            "lower": 1,
+            "upper": 1
+          },
+          "target": "String"
+        }
+      }
+    ],
+    "fieldsForm": "table",
+    "formatVersion": 1,
+    "package": "agent-ix/spec-objects-fixture",
+    "semanticCore": "0.1.0"
+  },
+  "defaulted-source-identity": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "available"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "available"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "available"
+      }
+    },
+    "clauseText": {
+      "archived": "context Artifact::archive() post: result.summary = 'archived'",
+      "notArchived": "context Artifact inv notArchived: self.summary <> 'archived'"
+    },
+    "clauses": [
+      {
+        "clauseId": "notArchived",
+        "language": "ocl",
+        "sourceSpan": {
+          "endColumn": 4,
+          "endLine": 22,
+          "path": "spec/functional/FR-006.md",
+          "sourceIdentity": "ix://local/config-service/spec",
+          "startColumn": 1,
+          "startLine": 20
+        }
+      },
+      {
+        "clauseId": "archived",
+        "language": "ocl",
+        "sourceSpan": {
+          "endColumn": 4,
+          "endLine": 28,
+          "path": "spec/functional/FR-006.md",
+          "sourceIdentity": "ix://local/config-service/spec",
+          "startColumn": 1,
+          "startLine": 26
+        }
+      }
+    ],
+    "contractVersion": "1.0.0",
+    "diagnostics": [
+      {
+        "code": "semantic.source-identity-defaulted",
+        "column": 1,
+        "line": 16,
+        "message": "no source identity supplied; spans carry ix://local/config-service/spec",
+        "severity": "advisory"
+      }
+    ],
+    "fields": [
+      {
+        "identity": true,
+        "name": "id",
+        "type": {
+          "multiplicity": {
+            "lower": 1,
+            "upper": 1
+          },
+          "target": "UUID"
+        }
+      }
+    ],
+    "fieldsForm": "table",
+    "formatVersion": 1,
+    "operations": [
+      {
+        "name": "archive",
+        "params": [
+          {
+            "constraints": [
+              {
+                "keyword": "nonEmpty"
+              }
+            ],
+            "name": "reason",
+            "type": {
+              "multiplicity": {
+                "lower": 1,
+                "upper": 1
+              },
+              "target": "String"
+            }
+          },
+          {
+            "name": "delay",
+            "type": {
+              "multiplicity": {
+                "lower": 0,
+                "upper": 1
+              },
+              "target": "Duration",
+              "unit": "ms"
+            }
+          }
+        ],
+        "post": [
+          {
+            "clauseId": "archived",
+            "language": "ocl"
+          }
+        ],
+        "pre": [
+          {
+            "clauseId": "notArchived",
+            "language": "ocl"
+          }
+        ],
+        "returns": {
+          "multiplicity": {
+            "lower": 1,
+            "upper": 1
+          },
+          "target": "ix://agent-ix/config-service/type/ConfigVersion"
+        }
+      }
+    ],
+    "package": "agent-ix/spec-objects-fixture",
+    "semanticCore": "0.1.0"
+  },
+  "empty-bundle-index": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": true,
+        "state": "available"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "not_applicable"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [
+      {
+        "code": "semantic.unresolved-type",
+        "column": 1,
+        "line": 12,
+        "message": "type \"ConfigVersion\" resolves to no kernel scalar, bundle declaration, or import (no-bundle-index)",
+        "reason": "no-bundle-index",
+        "severity": "advisory"
+      }
+    ],
+    "fields": [
+      {
+        "name": "parent",
+        "type": {
+          "multiplicity": {
+            "lower": 0,
+            "upper": 1
+          },
+          "target": "ix://agent-ix/spec-objects-fixture/unresolved/ConfigVersion"
+        }
+      }
+    ],
+    "fieldsForm": "table",
+    "formatVersion": 1,
+    "package": "agent-ix/spec-objects-fixture",
+    "semanticCore": "0.1.0"
+  },
+  "entry-errors-unavailable": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "reason": "entry-errors: lines 18",
+        "state": "unavailable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "not_applicable"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [
+      {
+        "code": "semantic.clause-language-invalid",
+        "column": 1,
+        "line": 18,
+        "message": "clause bad: language \"tla\" is outside the ClauseLanguage pattern",
+        "severity": "error"
+      }
+    ],
+    "formatVersion": 1,
+    "package": "agent-ix/spec-objects-fixture",
+    "semanticCore": "0.1.0"
+  },
+  "golden-fence-available": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "available"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "available"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "not_applicable"
+      }
+    },
+    "clauseText": {
+      "immutable": "context ConfigVersion inv immutable: self.versionNumber = self.versionNumber@pre and self.data = self.data@pre and self.hash = self.hash@pre"
+    },
+    "clauses": [
+      {
+        "clauseId": "immutable",
+        "language": "ocl",
+        "sourceSpan": {
+          "endColumn": 4,
+          "endLine": 36,
+          "path": "spec/functional/FR-006.md",
+          "sourceIdentity": "ix://agent-ix/config-service/spec",
+          "startColumn": 1,
+          "startLine": 34
+        }
+      }
+    ],
+    "contractVersion": "1.0.0",
+    "diagnostics": [],
+    "fields": [
+      {
+        "identity": true,
+        "name": "id",
+        "type": {
+          "multiplicity": {
+            "lower": 1,
+            "upper": 1
+          },
+          "target": "UUID"
+        }
+      },
+      {
+        "constraints": [
+          {
+            "keyword": "min",
+            "value": 1
+          }
+        ],
+        "name": "versionNumber",
+        "type": {
+          "multiplicity": {
+            "lower": 1,
+            "upper": 1
+          },
+          "target": "Integer"
+        }
+      },
+      {
+        "name": "data",
+        "type": {
+          "multiplicity": {
+            "lower": 1,
+            "upper": 1
+          },
+          "target": "JsonObject"
+        }
+      },
+      {
+        "constraints": [
+          {
+            "keyword": "nonEmpty"
+          }
+        ],
+        "name": "hash",
+        "type": {
+          "multiplicity": {
+            "lower": 1,
+            "upper": 1
+          },
+          "target": "String"
+        }
+      },
+      {
+        "name": "parent",
+        "type": {
+          "multiplicity": {
+            "lower": 0,
+            "upper": 1
+          },
+          "target": "ix://agent-ix/config-service/type/ConfigVersion"
+        }
+      },
+      {
+        "name": "createdAt",
+        "type": {
+          "multiplicity": {
+            "lower": 1,
+            "upper": 1
+          },
+          "target": "Timestamp"
+        }
+      },
+      {
+        "constraints": [
+          {
+            "keyword": "maxLength",
+            "value": 64
+          }
+        ],
+        "name": "createdBy",
+        "type": {
+          "multiplicity": {
+            "lower": 1,
+            "upper": 1
+          },
+          "target": "String"
+        }
+      }
+    ],
+    "fieldsForm": "fence",
+    "formatVersion": 1,
+    "package": "agent-ix/spec-objects-fixture",
+    "semanticCore": "0.1.0"
+  },
+  "golden-table-available": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "available"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "available"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "not_applicable"
+      }
+    },
+    "clauseText": {
+      "immutable": "context ConfigVersion inv immutable: self.versionNumber = self.versionNumber@pre and self.data = self.data@pre and self.hash = self.hash@pre"
+    },
+    "clauses": [
+      {
+        "clauseId": "immutable",
+        "language": "ocl",
+        "sourceSpan": {
+          "endColumn": 4,
+          "endLine": 36,
+          "path": "spec/functional/FR-006.md",
+          "sourceIdentity": "ix://agent-ix/config-service/spec",
+          "startColumn": 1,
+          "startLine": 34
+        }
+      }
+    ],
+    "contractVersion": "1.0.0",
+    "diagnostics": [],
+    "fields": [
+      {
+        "identity": true,
+        "name": "id",
+        "type": {
+          "multiplicity": {
+            "lower": 1,
+            "upper": 1
+          },
+          "target": "UUID"
+        }
+      },
+      {
+        "constraints": [
+          {
+            "keyword": "min",
+            "value": 1
+          }
+        ],
+        "name": "versionNumber",
+        "type": {
+          "multiplicity": {
+            "lower": 1,
+            "upper": 1
+          },
+          "target": "Integer"
+        }
+      },
+      {
+        "name": "data",
+        "type": {
+          "multiplicity": {
+            "lower": 1,
+            "upper": 1
+          },
+          "target": "JsonObject"
+        }
+      },
+      {
+        "constraints": [
+          {
+            "keyword": "nonEmpty"
+          }
+        ],
+        "name": "hash",
+        "type": {
+          "multiplicity": {
+            "lower": 1,
+            "upper": 1
+          },
+          "target": "String"
+        }
+      },
+      {
+        "name": "parent",
+        "type": {
+          "multiplicity": {
+            "lower": 0,
+            "upper": 1
+          },
+          "target": "ix://agent-ix/config-service/type/ConfigVersion"
+        }
+      },
+      {
+        "name": "createdAt",
+        "type": {
+          "multiplicity": {
+            "lower": 1,
+            "upper": 1
+          },
+          "target": "Timestamp"
+        }
+      },
+      {
+        "constraints": [
+          {
+            "keyword": "maxLength",
+            "value": 64
+          }
+        ],
+        "name": "createdBy",
+        "type": {
+          "multiplicity": {
+            "lower": 1,
+            "upper": 1
+          },
+          "target": "String"
+        }
+      }
+    ],
+    "fieldsForm": "table",
+    "formatVersion": 1,
+    "package": "agent-ix/spec-objects-fixture",
+    "schemaDigest": "sha256:8692992e186f40a73b78fd1b0915f0fe78e05a2b00782fb1df58c951a37c91d5",
+    "semanticCore": "0.1.0"
+  },
+  "legacy-bullets-promoted": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "reason": "legacy-form",
+        "state": "unavailable"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "not_applicable"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [
+      {
+        "code": "semantic.legacy-properties-form",
+        "column": 1,
+        "line": 12,
+        "message": "Properties authored as bullet-list; migrate to the typed table (migration: typed-table)",
+        "reason": "bullet-list",
+        "severity": "error"
+      }
+    ],
+    "formatVersion": 1,
+    "package": "agent-ix/spec-objects-fixture",
+    "semanticCore": "0.1.0"
+  },
+  "legacy-bullets-unavailable": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "reason": "legacy-form",
+        "state": "unavailable"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "not_applicable"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [
+      {
+        "code": "semantic.legacy-properties-form",
+        "column": 1,
+        "line": 12,
+        "message": "Properties authored as bullet-list; migrate to the typed table (migration: typed-table)",
+        "reason": "bullet-list",
+        "severity": "warning"
+      }
+    ],
+    "formatVersion": 1,
+    "package": "agent-ix/spec-objects-fixture",
+    "semanticCore": "0.1.0"
+  },
+  "no-sections-not-applicable": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "not_applicable"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [],
+    "formatVersion": 1,
+    "package": "agent-ix/spec-objects-fixture",
+    "semanticCore": "0.1.0"
+  },
+  "operations-available": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "available"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "available"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "available"
+      }
+    },
+    "clauseText": {
+      "archived": "context Artifact::archive() post: result.summary = 'archived'",
+      "notArchived": "context Artifact inv notArchived: self.summary <> 'archived'"
+    },
+    "clauses": [
+      {
+        "clauseId": "notArchived",
+        "language": "ocl",
+        "sourceSpan": {
+          "endColumn": 4,
+          "endLine": 22,
+          "path": "spec/functional/FR-006.md",
+          "sourceIdentity": "ix://agent-ix/config-service/spec",
+          "startColumn": 1,
+          "startLine": 20
+        }
+      },
+      {
+        "clauseId": "archived",
+        "language": "ocl",
+        "sourceSpan": {
+          "endColumn": 4,
+          "endLine": 28,
+          "path": "spec/functional/FR-006.md",
+          "sourceIdentity": "ix://agent-ix/config-service/spec",
+          "startColumn": 1,
+          "startLine": 26
+        }
+      }
+    ],
+    "contractVersion": "1.0.0",
+    "diagnostics": [],
+    "fields": [
+      {
+        "identity": true,
+        "name": "id",
+        "type": {
+          "multiplicity": {
+            "lower": 1,
+            "upper": 1
+          },
+          "target": "UUID"
+        }
+      }
+    ],
+    "fieldsForm": "table",
+    "formatVersion": 1,
+    "operations": [
+      {
+        "name": "archive",
+        "params": [
+          {
+            "constraints": [
+              {
+                "keyword": "nonEmpty"
+              }
+            ],
+            "name": "reason",
+            "type": {
+              "multiplicity": {
+                "lower": 1,
+                "upper": 1
+              },
+              "target": "String"
+            }
+          },
+          {
+            "name": "delay",
+            "type": {
+              "multiplicity": {
+                "lower": 0,
+                "upper": 1
+              },
+              "target": "Duration",
+              "unit": "ms"
+            }
+          }
+        ],
+        "post": [
+          {
+            "clauseId": "archived",
+            "language": "ocl"
+          }
+        ],
+        "pre": [
+          {
+            "clauseId": "notArchived",
+            "language": "ocl"
+          }
+        ],
+        "returns": {
+          "multiplicity": {
+            "lower": 1,
+            "upper": 1
+          },
+          "target": "ix://agent-ix/config-service/type/ConfigVersion"
+        }
+      }
+    ],
+    "package": "agent-ix/spec-objects-fixture",
+    "schemaDigest": "sha256:8692992e186f40a73b78fd1b0915f0fe78e05a2b00782fb1df58c951a37c91d5",
+    "semanticCore": "0.1.0"
+  },
+  "required-section-missing": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "reason": "`## Properties` is required by the module's body_extraction and absent",
+        "state": "missing"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "not_applicable"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [],
+    "formatVersion": 1,
+    "package": "agent-ix/spec-objects-fixture",
+    "semanticCore": "0.1.0"
+  },
+  "row-errors-unavailable": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "reason": "row-errors: lines 13",
+        "state": "unavailable"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "not_applicable"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [
+      {
+        "code": "semantic.invalid-multiplicity",
+        "column": 1,
+        "line": 13,
+        "message": "multiplicity \"5..2\": lower bound exceeds upper bound",
+        "severity": "error"
+      }
+    ],
+    "fieldsForm": "table",
+    "formatVersion": 1,
+    "package": "agent-ix/spec-objects-fixture",
+    "semanticCore": "0.1.0"
+  },
+  "unchecked-clause-language": {
+    "availability": {
+      "clauses": {
+        "lossy": true,
+        "state": "available"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "not_applicable"
+      }
+    },
+    "clauseText": {
+      "live": "the thing shall live"
+    },
+    "clauses": [
+      {
+        "clauseId": "live",
+        "language": "fretish",
+        "sourceSpan": {
+          "endColumn": 4,
+          "endLine": 14,
+          "path": "spec/functional/FR-006.md",
+          "sourceIdentity": "ix://agent-ix/config-service/spec",
+          "startColumn": 1,
+          "startLine": 12
+        }
+      }
+    ],
+    "contractVersion": "1.0.0",
+    "diagnostics": [
+      {
+        "code": "semantic.clause-language-unchecked",
+        "column": 1,
+        "line": 12,
+        "message": "clause live: language fretish is carried unchecked",
+        "severity": "advisory"
+      }
+    ],
+    "formatVersion": 1,
+    "package": "agent-ix/spec-objects-fixture",
+    "semanticCore": "0.1.0"
+  },
+  "unresolved-type-lossy": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": true,
+        "state": "available"
+      },
+      "operations": {
+        "lossy": false,
+        "state": "not_applicable"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [
+      {
+        "code": "semantic.unresolved-type",
+        "column": 1,
+        "line": 12,
+        "message": "type \"Mystery\" resolves to no kernel scalar, bundle declaration, or import (unknown-token)",
+        "reason": "unknown-token",
+        "severity": "advisory"
+      }
+    ],
+    "fields": [
+      {
+        "name": "owner",
+        "type": {
+          "multiplicity": {
+            "lower": 1,
+            "upper": 1
+          },
+          "target": "ix://agent-ix/config-service/unresolved/Mystery"
+        }
+      }
+    ],
+    "fieldsForm": "table",
+    "formatVersion": 1,
+    "package": "agent-ix/spec-objects-fixture",
+    "semanticCore": "0.1.0"
+  }
+}

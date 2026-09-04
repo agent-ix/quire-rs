@@ -11,8 +11,10 @@ pub mod context;
 pub mod contract;
 pub mod decl;
 pub mod properties;
+pub mod python_entry;
 pub mod resolver;
 pub mod scan;
+pub mod surface;
 pub mod vendored;
 
 pub use clauses::{
@@ -27,6 +29,10 @@ pub use contract::{
 pub use decl::{Constraint, DecimalPolicy, FieldDecl, Multiplicity, TypeRef};
 pub use properties::{extract_fields, FieldsForm, FieldsOutcome};
 pub use resolver::{compile_module_schema, ResolvedSchema, SchemaSource};
+pub use surface::{
+    extract_semantic, Availability, RequiredSections, SemanticExtraction, SEMANTIC_FORMAT_VERSION,
+    SEMANTIC_V1_SCHEMA,
+};
 
 use serde::{Deserialize, Serialize};
 

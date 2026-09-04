@@ -25,18 +25,18 @@ TDD plan for `agent-ix/quire-rs#388`, Track A step 4 after `agent-ix/quoin#293`.
 
 ### User Stories
 
-- [ ] **US-019**: A compiler frontend extracts an object artifact's declarations from one validated Quire record.
+- [x] **US-019**: A compiler frontend extracts an object artifact's declarations from one validated Quire record.
 
 ### Functional Requirements
 
-- [ ] **FR-069**: `semantic` block and reference-form `data_schema` at load; offline `$ref` resolution; explicit refusal codes; cross-module checks; Filament snapshot context.
-- [ ] **FR-070**: Typed table or `sysml` fence to normalized `FieldDecl[]`; cell grammars; `BundleIndex` resolution with precedence; legacy forms; no partial arrays.
-- [ ] **FR-071**: `## Invariants` to `ClauseRef[]` with spans and verbatim `clauseText`; `## Operations` to `OperationDecl[]`; fence scanner reuse.
-- [ ] **FR-072**: One `SemanticExtraction` record with per-kind availability and `lossy`; Filament API, `validate_document`, Python binding; hand-authored `semantic-v1` schema; fixture suite.
+- [x] **FR-069**: `semantic` block and reference-form `data_schema` at load; offline `$ref` resolution; explicit refusal codes; cross-module checks; Filament snapshot context.
+- [x] **FR-070**: Typed table or `sysml` fence to normalized `FieldDecl[]`; cell grammars; `BundleIndex` resolution with precedence; legacy forms; no partial arrays.
+- [x] **FR-071**: `## Invariants` to `ClauseRef[]` with spans and verbatim `clauseText`; `## Operations` to `OperationDecl[]`; fence scanner reuse.
+- [x] **FR-072**: One `SemanticExtraction` record with per-kind availability and `lossy`; Filament API, `validate_document`, Python binding; hand-authored `semantic-v1` schema; fixture suite.
 
 ### Cross-cutting Requirements
 
-- [ ] **NFR-021**: No clause parsing, no network/git/persistence, wasm-safe, byte-identical existing contracts, Rust/Python parity.
+- [x] **NFR-021**: No clause parsing, no network/git/persistence, wasm-safe, byte-identical existing contracts, Rust/Python parity.
 
 ## Dependency Graph
 
@@ -65,22 +65,22 @@ Seams: `loader::{manifest, compile, mod}` for the block and schema; `extract::lo
 
 ### Contract and Unit Tests
 
-- [ ] **TC-1599..TC-1609, TC-1645, TC-1646**: semantic block, reference `data_schema`, `$ref` rules, provenance, cross-module checks, inline parts.
-- [ ] **TC-1610..TC-1618, TC-1647**: golden table/fence, both forms, cell grammars, legacy forms, no-block baseline, row-error state.
-- [ ] **TC-1622..TC-1626, TC-1648**: golden clauses/operations, language cases, structural cases, dangling refs, `sourceIdentity` default.
-- [ ] **TC-1630..TC-1635, TC-1637, TC-1638, TC-1650**: fixture suite, availability states, Filament integration, refusal, `validate_document`, Python parity, determinism, schema + compatibility fixture, generator audit.
+- [x] **TC-1599..TC-1609, TC-1645, TC-1646**: semantic block, reference `data_schema`, `$ref` rules, provenance, cross-module checks, inline parts.
+- [x] **TC-1610..TC-1618, TC-1647**: golden table/fence, both forms, cell grammars, legacy forms, no-block baseline, row-error state.
+- [x] **TC-1622..TC-1626, TC-1648**: golden clauses/operations, language cases, structural cases, dangling refs, `sourceIdentity` default.
+- [x] **TC-1630..TC-1635, TC-1637, TC-1638, TC-1650**: fixture suite, availability states, Filament integration, refusal, `validate_document`, Python parity, determinism, schema + compatibility fixture, generator audit.
 
 ### Property Tests
 
-- [ ] **TC-1621**: generated cells always yield a valid `FieldDecl` or a diagnosed row; never a partial array.
-- [ ] **TC-1629**: generated fence bodies round-trip byte-for-byte with correct spans.
+- [x] **TC-1621**: generated cells always yield a valid `FieldDecl` or a diagnosed row; never a partial array.
+- [x] **TC-1629**: generated fence bodies round-trip byte-for-byte with correct spans.
 
 ### Static, Compile, and Snapshot Gates
 
-- [ ] **TC-1606, TC-1607, TC-1639, TC-1643**: provenance and byte-identity baselines.
-- [ ] **TC-1619, TC-1620, TC-1627, TC-1628, TC-1640, TC-1641, TC-1642**: boundary audits.
-- [ ] **TC-1649**: wasm32 check in `make ci`.
-- [ ] **TC-1636, TC-1644 (WASM leg)**: external, `agent-ix/quire-wasm#3`.
+- [x] **TC-1606, TC-1607, TC-1639, TC-1643**: provenance and byte-identity baselines.
+- [x] **TC-1619, TC-1620, TC-1627, TC-1628, TC-1640, TC-1641, TC-1642**: boundary audits.
+- [x] **TC-1649**: wasm32 check in `make ci`.
+- [x] **TC-1636, TC-1644 (WASM leg)**: external, `agent-ix/quire-wasm#3`.
 
 ## Remaining Work
 
@@ -117,8 +117,8 @@ Track B:            Task-017 ---------------------------> Task-021 --+-> Task-02
 | Task-017 | B | FR-070, FR-071, FR-072 | — | completed |
 | Task-018 | A | FR-070 | TC-1610..TC-1618, TC-1621, TC-1647 | completed |
 | Task-019 | A | FR-071 | TC-1622..TC-1626, TC-1629, TC-1648 | completed |
-| Task-020 | A | FR-072 | TC-1630..TC-1632, TC-1634, TC-1635, TC-1637, TC-1638, TC-1644, TC-1650 | todo |
-| Task-021 | B | NFR-021, FR-070, FR-071, FR-072 | TC-1619, TC-1620, TC-1627, TC-1628, TC-1636, TC-1640..TC-1642, TC-1649 | todo |
+| Task-020 | A | FR-072 | TC-1630..TC-1632, TC-1634, TC-1635, TC-1637, TC-1638, TC-1644, TC-1650 | completed |
+| Task-021 | B | NFR-021, FR-070, FR-071, FR-072 | TC-1619, TC-1620, TC-1627, TC-1628, TC-1636, TC-1640..TC-1642, TC-1649 | completed |
 | Task-022 | Gate | US-019 | — | todo |
 
 ## Coordination Rules

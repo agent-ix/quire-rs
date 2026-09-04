@@ -2,7 +2,7 @@
 id: Task-020
 title: "FR-072 — surface, semantic-v1 schema, bindings"
 type: Task
-status: todo
+status: completed
 track: A
 priority: P0
 relationships:
@@ -37,12 +37,12 @@ Publish one `SemanticExtraction` record with availability and `lossy`, attach it
 
 ## Subtasks
 
-- [ ] `src/semantic/surface.rs`: `extract_semantic`, availability/`lossy` computation, diagnostic ordering, `formatVersion: 1`.
-- [ ] `schemas/output/semantic-v1.schema.json` (hand-authored, `additionalProperties: false`) + `tests/fixtures/semantic/semantic-v1.json` compatibility fixture; extend `check_no_schemars.sh`.
-- [ ] Filament API: `dataJson.semantic`, mirrored diagnostics with `locus` and mapped severity; no-context path byte-identical to baseline.
-- [ ] `validate_document`: semantic findings with locus; error fails validation.
-- [ ] Python: `extract_semantic` + additive payload in `extract_filament_core`; parity test over `cases.json` under `make ci-python`.
-- [ ] Fill `cases.json` for every state token and both `lossy` values; run the harness in `tests/semantic_surface.rs`.
+- [x] `src/semantic/surface.rs`: `extract_semantic`, availability/`lossy` computation, diagnostic ordering, `formatVersion: 1`.
+- [x] `schemas/output/semantic-v1.schema.json` (hand-authored, `additionalProperties: false`) + `tests/fixtures/semantic/semantic-v1.json` compatibility fixture; extend `check_no_schemars.sh`.
+- [x] Filament API: `dataJson.semantic`, mirrored diagnostics with `locus` and mapped severity; no-context path byte-identical to baseline.
+- [x] `validate_document`: semantic findings with locus; error fails validation.
+- [x] Python: `extract_semantic` + additive payload in `extract_filament_core`; parity test over `cases.json` under `make ci-python`.
+- [x] Fill `cases.json` for every state token and both `lossy` values; run the harness in `tests/semantic_surface.rs`.
 
 ## Deliverables
 

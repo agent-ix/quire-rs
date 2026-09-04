@@ -2,7 +2,7 @@
 id: Task-021
 title: "NFR-021 — boundary and compatibility gates"
 type: Task
-status: todo
+status: completed
 track: B
 priority: P0
 relationships:
@@ -43,10 +43,10 @@ Prove the boundary: no clause parsing, no network/git/persistence, wasm-safe bui
 
 ## Subtasks
 
-- [ ] Static audits over `cargo metadata` and `src/semantic/` (denylist, forbidden symbols, net/process/fs-write, brace/pattern parsers, rendering/codegen) as `tests/semantic_boundary.rs` + `scripts/audits/`.
-- [ ] `make ci`: add `cargo check --target wasm32-unknown-unknown --no-default-features --features wasm` (TC-1649); install the target in CI.
-- [ ] Parser golden comparison for TC-1628 and span agreement with the `code_block` scanner on every fixture.
-- [ ] Record TC-1636 as external with the quire-wasm#3 link in the matrix row.
+- [x] Static audits over `cargo metadata` and `src/semantic/` (denylist, forbidden symbols, net/process/fs-write, brace/pattern parsers, rendering/codegen) as `tests/semantic_boundary.rs` + `scripts/audits/`.
+- [x] `make ci`: add `cargo check --target wasm32-unknown-unknown --no-default-features --features wasm` (TC-1649); install the target in CI.
+- [x] Parser golden comparison for TC-1628 and span agreement with the `code_block` scanner on every fixture.
+- [x] Record TC-1636 as external with the quire-wasm#3 link in the matrix row.
 
 ## Deliverables
 

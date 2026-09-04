@@ -619,11 +619,28 @@ fn filament_snapshot_reference_form_is_refused() {
         "{:?}",
         result.diagnostics
     );
-    // A bundle-referencing schema compiles through the vendored bundle.
+    // A bundle-referencing schema compiles through the vendored bundle and
+    // validates the declaration record: the golden table passes, a bare
+    // document fails it with `semantic.record-invalid`.
+    let mut input = snapshot_input(vec![entity_snapshot(inline.clone(), Some(context.clone()))]);
+    input.markdown = fs::read_to_string(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures/semantic/quoin/mapping/config-version.table.md"),
+    )
+    .unwrap();
+    let result = extract_filament_core(input);
+    assert!(
+        !result.diagnostics.iter().any(|d| d.severity == "error"),
+        "{:?}",
+        result.diagnostics
+    );
     let result =
         extract_filament_core(snapshot_input(vec![entity_snapshot(inline, Some(context))]));
     assert!(
-        !result.diagnostics.iter().any(|d| d.severity == "error"),
+        result
+            .diagnostics
+            .iter()
+            .any(|d| d.code == "semantic.record-invalid"),
         "{:?}",
         result.diagnostics
     );
