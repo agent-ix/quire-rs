@@ -42,7 +42,7 @@ later (`agent-ix/quire-contract-ir#55`) must find the clause text untouched.
 |--------|--------|-----------|--------|
 | Clause-language parser or evaluator dependencies in the crate graph | 0 | 0 | inspection (static) |
 | Network, git, or persistence calls on the semantic extraction path | 0 | 0 | inspection (static) |
-| Changed bytes in pre-existing contract fixtures (Filament graph cases, coverage-v1, properties-v1, assurance-v1) | 0 | 0 | unit-testing |
+| Changed bytes versus the checked-in baselines (Filament graph cases, coverage-v1, properties-v1, assurance-v1) | 0 | 0 | unit-testing |
 | Output mismatches across repeated runs and across Rust, Python, and WASM for the semantic fixture suite | 0 | 0 | integration-testing |
 
 ## Verification
@@ -56,10 +56,10 @@ values.
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
-| NFR-021-AC-1 | Static inspection finds no OCL, SysML, or FRETish parser, no expression evaluator over clause text, and no template or rendering dependency in the crate graph or the semantic module; clause text leaves the engine byte-identical to the fence body. | Inspection |
-| NFR-021-AC-2 | The semantic extraction path performs no network, git, or persistence call; schema resolution reads only the module bundle and the vendored semantic-core bundle, and the `wasm` feature build (no file resolution) passes with the bundle embedded. | Test |
-| NFR-021-AC-3 | Every pre-existing Filament graph case, coverage-v1, properties-v1, and assurance-v1 fixture output is byte-identical before and after this change, and no existing contract gains a required key. | Test |
-| NFR-021-AC-4 | The semantic fixture suite yields identical JSON values across repeated runs and across the Rust, Python, and WASM surfaces, including diagnostic order and loci. | Test |
+| NFR-021-AC-1 | A static audit of `cargo metadata` and the semantic module sources finds none of the denylisted crates (`ocl`, `sysml`, `fret`, `tera`, `handlebars`, `minijinja`, `askama`, `reqwest`, `ureq`, `hyper`, `git2`, `rusqlite`, `sled`) and no `eval`/`parse_expr`/`typecheck` symbol over clause text; clause text leaves the engine byte-identical to the fence body. | Test |
+| NFR-021-AC-2 | A static audit finds no `std::net`, `std::process`, or filesystem write on the semantic path, and `cargo check --target wasm32-unknown-unknown --no-default-features --features wasm` passes under `make ci` with the vendored bundle embedded. | Test |
+| NFR-021-AC-3 | Every Filament graph case output equals `tests/fixtures/semantic/baseline/filament-graph-cases.json`, and coverage-v1, properties-v1, and assurance-v1 outputs equal their checked-in fixtures byte-for-byte; no existing contract schema gains a required key. | Test |
+| NFR-021-AC-4 | The semantic fixture suite yields identical JSON values across repeated runs and between the Rust and Python surfaces under `make ci-python`, including diagnostic order and loci; the WASM leg is verified by `agent-ix/quire-wasm#3`. | Test |
 
 ## Dependencies
 

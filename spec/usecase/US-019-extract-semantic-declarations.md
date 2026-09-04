@@ -52,6 +52,11 @@ parsed, and nothing is rendered.
 - **When** the module loads
 - **Then** loading fails naming both versions and no declaration is extracted
 
+## Options (Exploratory)
+
+- **US-019-OPT-A — declaration-level extraction in Quire (chosen):** one engine produces `FieldDecl[]`/`ClauseRef[]` for every surface; the compiler consumes values. Cost: the mapping grammar lives in Rust.
+- **US-019-OPT-B — string extraction in Quire, mapping in the compiler:** Quire keeps yielding the `properties` string; `agent-ix/filament-core-data#36` parses it. Rejected: two parsers of one grammar, and the IDE surface would carry no declarations.
+
 ## Constraints (Contextual)
 
 Extraction only. Fence content is opaque bytes with a span; type checking of
@@ -69,5 +74,5 @@ v1.1 constraint vocabulary), `agent-ix/filament-core-service#22`
 
 ## Priority and Risk (Informative)
 
-P1. The risk is scope creep into parsing clause bodies or rendering; both are
+Priority: P1 (Track A step 4; blocks `agent-ix/filament-core-data#36` and the first modules). The risk is scope creep into parsing clause bodies or rendering; both are
 excluded by requirement and guarded by a static boundary test.
