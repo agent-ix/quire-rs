@@ -45,7 +45,7 @@ pub struct FilamentObjectType {
     pub name: String,
     #[serde(default)]
     pub schema: Option<Value>,
-    #[serde(default)]
+    #[serde(alias = "dataSchema", default)]
     pub data_schema: Option<Value>,
     #[serde(rename = "allowed_links", alias = "allowedLinks", default)]
     pub allowed_links: Option<Value>,
@@ -55,6 +55,25 @@ pub struct FilamentObjectType {
     pub has_plugin: bool,
     #[serde(rename = "module_id", alias = "moduleId", default)]
     pub module_id: Option<String>,
+    /// The module's semantic context (FR-069 Inputs), supplied by the
+    /// registry owner (`agent-ix/filament-core-service#23`) with the data
+    /// schema already inline. Absent for modules without a `semantic` block.
+    #[serde(default)]
+    pub semantic: Option<SemanticSnapshot>,
+}
+
+/// The `semantic` context carried on a Filament ObjectType snapshot.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SemanticSnapshot {
+    #[serde(rename = "contractVersion", alias = "contract_version")]
+    pub contract_version: String,
+    #[serde(rename = "semanticCore", alias = "semantic_core")]
+    pub semantic_core: String,
+    pub package: String,
+    #[serde(default)]
+    pub exports: Vec<String>,
+    #[serde(default)]
+    pub imports: BTreeMap<String, String>,
 }
 
 impl FilamentObjectType {
@@ -146,10 +165,13 @@ pub struct CoreExtractionDiagnostic {
     pub object_type: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 struct CompiledObjectType {
     snapshot: FilamentObjectType,
     schema: Value,
+    /// Pre-compiled validator when the schema resolves through the vendored
+    /// semantic-core bundle (FR-069); otherwise compiled on use.
+    validator: Option<std::sync::Arc<jsonschema::JSONSchema>>,
     body_extraction: Option<ExtractionDsl>,
 }
 
@@ -191,7 +213,7 @@ pub fn extract_filament_core(input: FilamentExtractionInput) -> CoreExtractionRe
         };
     };
 
-    let compiled = compile_object_type_snapshots(&input.object_types, &mut diagnostics);
+    let (compiled, refused) = compile_object_type_snapshots(&input.object_types, &mut diagnostics);
     let object_type_records = object_type_records(&input.project_id, &input.object_types);
     let object_name = frontmatter
         .get("object")
@@ -203,6 +225,8 @@ pub fn extract_filament_core(input: FilamentExtractionInput) -> CoreExtractionRe
 
     if let Some(object_name) = object_name {
         match compiled.get(&object_name) {
+            // FR-069: a refused snapshot was diagnosed at compile; no node.
+            None if refused.contains(&object_name) => {}
             None => diagnostics.push(diagnostic(
                 "unknown_object_type",
                 format!("frontmatter object={object_name:?} not in supplied object_types"),
@@ -337,9 +361,91 @@ fn malformed_frontmatter_result(input: FilamentExtractionInput) -> CoreExtractio
 fn compile_object_type_snapshots(
     object_types: &[FilamentObjectType],
     diagnostics: &mut Vec<CoreExtractionDiagnostic>,
-) -> BTreeMap<String, CompiledObjectType> {
+) -> (
+    BTreeMap<String, CompiledObjectType>,
+    std::collections::BTreeSet<String>,
+) {
+    use crate::semantic::contract::DataSchemaForm;
     let mut out = BTreeMap::new();
+    let mut refused = std::collections::BTreeSet::new();
     for snapshot in object_types {
+        // FR-069 Filament path: the reference form must be resolved by the
+        // registry owner; an unsupported semantic context is refused before
+        // any node is produced.
+        if let Some(schema) = &snapshot.data_schema {
+            if !matches!(
+                crate::semantic::reference_form(schema),
+                DataSchemaForm::Inline
+            ) {
+                diagnostics.push(diagnostic(
+                    "semantic.data-schema-unresolved-reference",
+                    format!(
+                        "{}: data_schema is the {{ schema, digest }} reference form; the registry owner resolves it before the snapshot is served",
+                        snapshot.name
+                    ),
+                    "error",
+                    Some(snapshot.name.clone()),
+                ));
+                refused.insert(snapshot.name.clone());
+                continue;
+            }
+        }
+        let mut validator = None;
+        if let Some(semantic) = &snapshot.semantic {
+            if semantic.contract_version != crate::semantic::vendored::CONTRACT_VERSION {
+                diagnostics.push(diagnostic(
+                    "semantic.unsupported-contract-version",
+                    format!(
+                        "{}: semantic.contractVersion {:?} is not {}",
+                        snapshot.name,
+                        semantic.contract_version,
+                        crate::semantic::vendored::CONTRACT_VERSION
+                    ),
+                    "error",
+                    Some(snapshot.name.clone()),
+                ));
+                refused.insert(snapshot.name.clone());
+                continue;
+            }
+            if crate::semantic::vendored::semantic_core_bundle(&semantic.semantic_core).is_none() {
+                diagnostics.push(diagnostic(
+                    "semantic.unsupported-semantic-core",
+                    format!(
+                        "{}: semantic.semanticCore {:?} has no vendored bundle (vendored: {})",
+                        snapshot.name,
+                        semantic.semantic_core,
+                        crate::semantic::vendored::SEMANTIC_CORE_VERSIONS.join(", ")
+                    ),
+                    "error",
+                    Some(snapshot.name.clone()),
+                ));
+                refused.insert(snapshot.name.clone());
+                continue;
+            }
+            let module_base = format!(
+                "{}{}/",
+                crate::semantic::vendored::MODULE_SCHEMA_BASE,
+                semantic.package
+            );
+            match crate::semantic::compile_module_schema(
+                &snapshot.data_schema(),
+                &|_| None,
+                &semantic.semantic_core,
+                &module_base,
+            ) {
+                Ok(v) => validator = Some(std::sync::Arc::new(v)),
+                Err(f) => {
+                    diagnostics.push(diagnostic(
+                        &f.code,
+                        format!("{}: {}", snapshot.name, f.message),
+                        "error",
+                        Some(snapshot.name.clone()),
+                    ));
+                    refused.insert(snapshot.name.clone());
+                    continue;
+                }
+            }
+        }
         if out.contains_key(&snapshot.name) {
             diagnostics.push(diagnostic(
                 "duplicate_object_type",
@@ -383,11 +489,12 @@ fn compile_object_type_snapshots(
             CompiledObjectType {
                 snapshot: snapshot.clone(),
                 schema: snapshot.data_schema(),
+                validator,
                 body_extraction,
             },
         );
     }
-    out
+    (out, refused)
 }
 
 fn object_type_records(
@@ -441,11 +548,7 @@ fn extract_tier1(
             data.insert(key.clone(), value.clone());
         }
     }
-    validate_against_schema(
-        &object_type.snapshot.name,
-        &object_type.schema,
-        &Value::Object(data.clone()),
-    )?;
+    validate_against_schema(object_type, &Value::Object(data.clone()))?;
     apply_frontmatter_title_code(&mut data, frontmatter);
     Ok(GraphNode {
         object_type: object_type.snapshot.name.clone(),
@@ -471,11 +574,7 @@ fn extract_tier2(
     let extraction = crate::extract(doc, dsl).map_err(quire_error_message)?;
     let mut nodes = Vec::new();
     for record in &extraction.records {
-        validate_against_schema(
-            &object_type.snapshot.name,
-            &object_type.schema,
-            &Value::Object(record.clone()),
-        )?;
+        validate_against_schema(object_type, &Value::Object(record.clone()))?;
         let mut data = record.clone();
         apply_frontmatter_title_code(&mut data, frontmatter);
         nodes.push(GraphNode {
@@ -515,9 +614,17 @@ fn extract_tier2(
     Ok((nodes, edges, diagnostics))
 }
 
-fn validate_against_schema(archetype: &str, schema: &Value, data: &Value) -> Result<(), String> {
-    let validator = compile_schema(schema)
-        .map_err(|err| format!("{archetype}: schema compile failed: {err}"))?;
+fn validate_against_schema(object_type: &CompiledObjectType, data: &Value) -> Result<(), String> {
+    let archetype = object_type.snapshot.name.as_str();
+    let owned;
+    let validator: &jsonschema::JSONSchema = match &object_type.validator {
+        Some(v) => v,
+        None => {
+            owned = compile_schema(&object_type.schema)
+                .map_err(|err| format!("{archetype}: schema compile failed: {err}"))?;
+            &owned
+        }
+    };
     if let Err(mut errors) = validator.validate(data) {
         if let Some(err) = errors.next() {
             let detail = crate::validate::schema_validation_detail(&err);
@@ -1010,6 +1117,7 @@ mod tests {
                 body_extraction: None,
                 has_plugin: false,
                 module_id: None,
+                semantic: None,
             }],
         }
     }
@@ -1099,6 +1207,7 @@ mod tests {
             })),
             has_plugin: false,
             module_id: None,
+            semantic: None,
         };
         let result = extract_filament_core(input);
         assert_eq!(result.errors, Vec::<String>::new());

@@ -73,3 +73,16 @@ sha() { sha256sum "$1" | cut -d' ' -f1; }
 echo "vendored $(find "$OUT" -type f -name '*.json' ! -name PROVENANCE.json | wc -l) files into $OUT"
 grep -o '"bundleDigest": "[^"]*"' "$OUT/PROVENANCE.json"
 grep -o '"digest": *"[^"]*"' "$OUT/semantic-core/$CORE_VERSION/toolchain.json"
+
+# Regenerate the embedded bundle module so the crate and schemas/vendored/
+# cannot drift (FR-069-AC-5: the resolver runs from memory under `wasm`).
+python3 - <<'PY'
+import pathlib
+base=pathlib.Path('schemas/vendored')
+core=sorted(p.name for p in (base/'semantic-core/0.1.0').glob('*.json') if p.name!='toolchain.json')
+src=pathlib.Path('src/semantic/vendored.rs').read_text()
+head, _, _ = src.partition('pub const SEMANTIC_CORE_0_1_0')
+body='pub const SEMANTIC_CORE_0_1_0: &[(&str, &str)] = &[\n' + ''.join(f'    ("{n}", include_str!("../../schemas/vendored/semantic-core/0.1.0/{n}")),\n' for n in core) + '];\n\n/// The embedded bundle for `version`, if any.\npub fn semantic_core_bundle(version: &str) -> Option<&\'static [(&\'static str, &\'static str)]> {\n    match version {\n        "0.1.0" => Some(SEMANTIC_CORE_0_1_0),\n        _ => None,\n    }\n}\n'
+pathlib.Path('src/semantic/vendored.rs').write_text(head+body)
+PY
+echo "regenerated src/semantic/vendored.rs"

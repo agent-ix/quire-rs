@@ -35,6 +35,7 @@ pub struct Registry {
 }
 
 struct Inner {
+    semantic_modules: std::collections::BTreeMap<String, crate::semantic::SemanticModule>,
     archetypes: std::collections::BTreeMap<String, Arc<CompiledArchetype>>,
     by_module_and_name: std::collections::BTreeMap<(String, String), Arc<CompiledArchetype>>,
     module_paths: std::collections::BTreeMap<String, PathBuf>,
@@ -211,6 +212,7 @@ impl Registry {
 
     fn from_shape(shape: RegistryShape) -> Self {
         let RegistryShape {
+            semantic_modules,
             archetypes,
             by_module_and_name,
             module_paths,
@@ -289,6 +291,7 @@ impl Registry {
             crate::loader::vocabulary_refs::resolve_vocabularies(by_module_and_name, &lookup);
         Self {
             inner: Arc::new(Inner {
+                semantic_modules,
                 archetypes,
                 by_module_and_name,
                 module_paths,
@@ -374,6 +377,18 @@ impl Registry {
     }
 
     /// Manifest version declared by `module`, if any (FR-014-AC-4).
+    /// The loaded `semantic` block of `module`, if it carries one (FR-069).
+    pub fn semantic_module(&self, module: &str) -> Option<&crate::semantic::SemanticModule> {
+        self.inner.semantic_modules.get(module)
+    }
+
+    /// Every loaded `semantic` block, keyed by module name, in name order.
+    pub fn semantic_modules(
+        &self,
+    ) -> impl Iterator<Item = (&String, &crate::semantic::SemanticModule)> {
+        self.inner.semantic_modules.iter()
+    }
+
     pub fn module_version(&self, module: &str) -> Option<&str> {
         self.inner
             .module_versions

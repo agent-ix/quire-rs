@@ -72,6 +72,10 @@ pub struct CompiledArchetype {
     /// Parsed `body_extraction` DSL (FR-011), `None` when absent.
     /// Drives both `extract()` and `validate_document()` (FR-032).
     pub body_extraction: Option<ExtractionDsl>,
+    /// `sha256:<hex>` over the shipped bytes of a reference-form
+    /// `data_schema` (FR-069); `None` for inline or absent schemas. This is
+    /// the digest the assurance export lists (FR-067-AC-3).
+    pub semantic_schema_digest: Option<String>,
     /// Carry-over fields with no DSL representation (FR-031-AC-3).
     pub carry_over: ArchetypeCarryOver,
 }

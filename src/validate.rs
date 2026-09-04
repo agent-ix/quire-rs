@@ -247,6 +247,7 @@ mod tests {
             data_schema: None,
             data_validator: None,
             body_extraction: None,
+            semantic_schema_digest: None,
             carry_over: Default::default(),
         }
     }

@@ -939,6 +939,7 @@ mod tests {
             data_schema: None,
             data_validator: None,
             body_extraction,
+            semantic_schema_digest: None,
             carry_over: ArchetypeCarryOver::default(),
         }
     }

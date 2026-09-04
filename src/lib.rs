@@ -33,6 +33,7 @@ pub mod parser;
 pub mod python;
 pub mod query;
 pub mod registry;
+pub mod semantic;
 pub mod skeptic;
 pub mod symbol_table;
 pub mod symbols;

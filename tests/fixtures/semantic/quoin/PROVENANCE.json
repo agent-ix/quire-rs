@@ -90,6 +90,24 @@
       "revision": "3e842ce78271a0b876a90471957f57c8ddcad6da",
       "path": "tests/fixtures/semantic-module/mapping/operations.md",
       "sha256": "sha256:7456cae980d8f5ac996f8df03ea3c462ba1c43fbf126c5608f1e94a1e656e015"
+    },
+    "module-ok/manifest.yaml": {
+      "repository": "agent-ix/quoin",
+      "revision": "3e842ce78271a0b876a90471957f57c8ddcad6da",
+      "path": "tests/fixtures/semantic-module/module-ok/manifest.yaml",
+      "sha256": "sha256:17c4d8b747502b4bfcfa5983dd4a53358c34f0be722bad3ae1a91a7ac3e2de93"
+    },
+    "module-ok/schemas/Entity.json": {
+      "repository": "agent-ix/quoin",
+      "revision": "3e842ce78271a0b876a90471957f57c8ddcad6da",
+      "path": "tests/fixtures/semantic-module/module-ok/schemas/Entity.json",
+      "sha256": "sha256:8692992e186f40a73b78fd1b0915f0fe78e05a2b00782fb1df58c951a37c91d5"
+    },
+    "module-ok/skeletons/.gitkeep": {
+      "repository": "agent-ix/quoin",
+      "revision": "3e842ce78271a0b876a90471957f57c8ddcad6da",
+      "path": "tests/fixtures/semantic-module/module-ok/skeletons/.gitkeep",
+      "sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     }
   }
 }
