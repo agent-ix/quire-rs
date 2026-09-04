@@ -93,6 +93,9 @@ pub struct SemanticContext {
     /// `ix://<org>/<repo>/spec` of the document's repository; `None` lets
     /// FR-071 default it with an advisory.
     pub source_identity: Option<String>,
+    /// Scope directory name, used for the defaulted identity
+    /// `ix://local/<scope>/spec` when `source_identity` is absent.
+    pub scope: Option<String>,
     pub bundle: BundleIndex,
 }
 
@@ -102,7 +105,27 @@ impl SemanticContext {
             module,
             path: path.into(),
             source_identity: None,
+            scope: None,
             bundle,
+        }
+    }
+
+    pub fn with_scope(mut self, scope: impl Into<String>) -> Self {
+        self.scope = Some(scope.into());
+        self
+    }
+
+    /// The span identity: the caller's, or the documented default.
+    pub fn resolved_source_identity(&self) -> (String, bool) {
+        match &self.source_identity {
+            Some(id) => (id.clone(), false),
+            None => (
+                format!(
+                    "ix://local/{}/spec",
+                    self.scope.as_deref().unwrap_or("scope")
+                ),
+                true,
+            ),
         }
     }
 

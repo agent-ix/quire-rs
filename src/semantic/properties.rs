@@ -385,7 +385,7 @@ pub fn map_row(
 }
 
 /// Type cell → `TypeRef` (without multiplicity). Precedence per FR-070.
-fn map_type(
+pub(crate) fn map_type(
     cell: &str,
     row: &RowInput,
     ctx: &SemanticContext,
@@ -600,7 +600,7 @@ fn map_type(
     )
 }
 
-fn map_multiplicity(
+pub(crate) fn map_multiplicity(
     cell: &str,
     line: usize,
     diagnostics: &mut Vec<SemanticDiagnostic>,

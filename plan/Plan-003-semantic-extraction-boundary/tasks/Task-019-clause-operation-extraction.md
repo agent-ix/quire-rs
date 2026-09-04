@@ -2,7 +2,7 @@
 id: Task-019
 title: "FR-071 — clause and operation extraction"
 type: Task
-status: todo
+status: completed
 track: A
 priority: P0
 relationships:
@@ -33,10 +33,10 @@ Extract `## Invariants` and `## Operations` into `ClauseRef[]`, `clauseText`, an
 
 ## Subtasks
 
-- [ ] Factor the `code_block` locator's fence recognition into a shared scanner returning (open line, close line, close length, body bytes) without changing `parse_document`.
-- [ ] `src/semantic/clauses.rs`: heading ownership, language rules, duplicate/authority/external cases, unterminated fences, spans and `clauseText`, `sourceIdentity` default advisory.
-- [ ] Operations: heading, param table via FR-070 cells, `Returns`, `Pre`/`Post` lists, dangling and duplicate diagnostics; whole-kind unavailability on entry errors.
-- [ ] Property test for fence bodies (TC-1629).
+- [x] Factor the `code_block` locator's fence recognition into a shared scanner returning (open line, close line, close length, body bytes) without changing `parse_document`.
+- [x] `src/semantic/clauses.rs`: heading ownership, language rules, duplicate/authority/external cases, unterminated fences, spans and `clauseText`, `sourceIdentity` default advisory.
+- [x] Operations: heading, param table via FR-070 cells, `Returns`, `Pre`/`Post` lists, dangling and duplicate diagnostics; whole-kind unavailability on entry errors.
+- [x] Property test for fence bodies (TC-1629).
 
 ## Deliverables
 

@@ -6,6 +6,7 @@
 //! or the network; `vendored` is the embedded bundle itself. Extraction
 //! (FR-070..FR-072) lands in the sibling modules of Plan-003.
 
+pub mod clauses;
 pub mod context;
 pub mod contract;
 pub mod decl;
@@ -14,6 +15,10 @@ pub mod resolver;
 pub mod scan;
 pub mod vendored;
 
+pub use clauses::{
+    extract_clauses, extract_operations, ClauseRef, ClausesOutcome, OperationDecl,
+    OperationsOutcome, SourceLocus,
+};
 pub use context::{BundleEntry, BundleIndex, SemanticContext};
 pub use contract::{
     read_semantic_block, reference_form, DataSchemaRef, SemanticFailure, SemanticModule,
