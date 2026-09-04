@@ -117,14 +117,14 @@ pub fn extract_fields(raw: &str, ctx: &SemanticContext) -> FieldsOutcome {
         }
     }
     let Some((block, typed)) = first else {
-        // A heading with no block at all: nothing declared.
-        return FieldsOutcome {
-            availability: KindAvailability::available(false),
-            fields: Some(Vec::new()),
-            form: Some(FieldsForm::Table),
-            block_line: None,
-            diagnostics,
-        };
+        // A heading with prose only: no declaration block to read.
+        diagnostics.push(SemanticDiagnostic::new(
+            "semantic.properties-no-block",
+            SemanticSeverity::Warning,
+            start,
+            "`## Properties` holds no typed table, `sysml` fence, or legacy block",
+        ));
+        return FieldsOutcome::unavailable("no-block", diagnostics);
     };
     let block_line = Some(match block {
         Block::Table(t) => t.line,
@@ -160,14 +160,16 @@ pub fn extract_fields(raw: &str, ctx: &SemanticContext) -> FieldsOutcome {
         Block::List { .. } => unreachable!(),
     };
     let mut fields: Vec<FieldDecl> = Vec::new();
+    let mut field_lines: Vec<usize> = Vec::new();
     let mut lossy = false;
     for row in rows {
         if let Some((field, row_lossy)) = map_row(&row, ctx, &mut diagnostics) {
             lossy |= row_lossy;
             fields.push(field);
+            field_lines.push(row.line);
         }
     }
-    reader_rules(&fields, &rows_lines(block), &mut diagnostics);
+    reader_rules(&fields, &field_lines, &mut diagnostics);
     validate_decls(&fields, ctx, &mut diagnostics);
     if diagnostics.iter().any(SemanticDiagnostic::is_error) {
         let loci: Vec<String> = diagnostics
@@ -221,14 +223,6 @@ pub struct RowInput {
     pub constraints_cell: String,
     /// `ref item` in the fence form: the target must be an object or import.
     pub reference_only: bool,
-}
-
-fn rows_lines(block: &Block) -> Vec<usize> {
-    match block {
-        Block::Table(t) => t.rows.iter().map(|(l, _)| *l).collect(),
-        Block::Fence(f) => (f.open_line + 1..f.close_line.unwrap_or(f.open_line + 1)).collect(),
-        Block::List { .. } => Vec::new(),
-    }
 }
 
 pub fn table_rows(table: &Table) -> Vec<RowInput> {
@@ -399,9 +393,16 @@ pub(crate) fn map_type(
         if let Some(open) = text.rfind('[') {
             let candidate = text[open + 1..text.len() - 1].trim().to_string();
             let head = text[..open].trim().to_string();
-            if !candidate.is_empty() && !head.is_empty() && !head.contains('(')
-                || (head.contains('(') && head.ends_with(')'))
-            {
+            let head_ok = !head.is_empty() && (!head.contains('(') || head.ends_with(')'));
+            if candidate.is_empty() {
+                diagnostics.push(err(
+                    "semantic.invalid-type-token",
+                    line,
+                    format!("type {cell:?}: empty unit brackets"),
+                ));
+                return (None, false);
+            }
+            if head_ok {
                 unit = Some(candidate);
                 text = head;
             }
@@ -701,14 +702,19 @@ fn split_constraints(cell: &str) -> Vec<String> {
     items
 }
 
-fn number_or_string(text: &str) -> Value {
+/// A numeric literal or a string; `NaN`/`inf` are neither (they cannot be
+/// carried as JSON numbers) and empty text has no value.
+fn number_or_string(text: &str) -> Option<Value> {
     if let Ok(i) = text.parse::<i64>() {
-        json!(i)
-    } else if let Ok(f) = text.parse::<f64>() {
-        json!(f)
-    } else {
-        json!(text)
+        return Some(json!(i));
     }
+    if let Ok(f) = text.parse::<f64>() {
+        return if f.is_finite() { Some(json!(f)) } else { None };
+    }
+    if text.is_empty() {
+        return None;
+    }
+    Some(json!(text))
 }
 
 fn map_constraints(
@@ -731,23 +737,29 @@ fn map_constraints(
                 format!("constraint {item:?} uses a keyword outside the closed set"),
             ));
         };
+        let bad_value = |diagnostics: &mut Vec<SemanticDiagnostic>| {
+            diagnostics.push(err(
+                "semantic.invalid-constraint-value",
+                line,
+                format!("constraint {item:?} has no usable value"),
+            ));
+        };
         match (keyword, value) {
             ("identity", None) => identity = true,
             ("nullable", None) => nullable = true,
             ("nonEmpty", None) => out.push(Constraint::NonEmpty),
             ("unique", None) => out.push(Constraint::Unique),
-            ("min", Some(v)) => out.push(Constraint::Min {
-                value: number_or_string(v),
-            }),
-            ("max", Some(v)) => out.push(Constraint::Max {
-                value: number_or_string(v),
-            }),
-            ("exclusiveMin", Some(v)) => out.push(Constraint::ExclusiveMin {
-                value: number_or_string(v),
-            }),
-            ("exclusiveMax", Some(v)) => out.push(Constraint::ExclusiveMax {
-                value: number_or_string(v),
-            }),
+            ("min" | "max" | "exclusiveMin" | "exclusiveMax", Some(v)) => {
+                match number_or_string(v) {
+                    Some(value) => out.push(match keyword {
+                        "min" => Constraint::Min { value },
+                        "max" => Constraint::Max { value },
+                        "exclusiveMin" => Constraint::ExclusiveMin { value },
+                        _ => Constraint::ExclusiveMax { value },
+                    }),
+                    None => bad_value(diagnostics),
+                }
+            }
             ("minLength", Some(v)) => match v.parse::<u64>() {
                 Ok(n) => out.push(Constraint::MinLength { value: n }),
                 Err(_) => unknown(diagnostics),
@@ -767,11 +779,14 @@ fn map_constraints(
                 }
             }
             ("enumValues", Some(v)) => {
-                let values: Vec<Value> = v.split('|').map(|s| number_or_string(s.trim())).collect();
-                if values.is_empty() || v.contains(' ') {
-                    unknown(diagnostics);
+                let values: Vec<Option<Value>> =
+                    v.split('|').map(|s| number_or_string(s.trim())).collect();
+                if v.trim().is_empty() || v.contains(' ') || values.iter().any(Option::is_none) {
+                    bad_value(diagnostics);
                 } else {
-                    out.push(Constraint::EnumValues { values });
+                    out.push(Constraint::EnumValues {
+                        values: values.into_iter().flatten().collect(),
+                    });
                 }
             }
             ("format", Some(v)) => {
@@ -791,14 +806,8 @@ fn map_constraints(
 
 /// Semantic-core reader rules carried into extraction (FR-070 Behavior).
 fn reader_rules(fields: &[FieldDecl], lines: &[usize], diagnostics: &mut Vec<SemanticDiagnostic>) {
-    // Row lines align with produced fields only when no row failed; use the
-    // field's position as a best effort, falling back to the first line.
-    let line_of = |i: usize| {
-        lines
-            .get(i)
-            .copied()
-            .unwrap_or_else(|| lines.first().copied().unwrap_or(0))
-    };
+    // `lines[i]` is the source line of `fields[i]`.
+    let line_of = |i: usize| lines.get(i).copied().unwrap_or(0);
     let mut seen: Vec<&str> = Vec::new();
     for (i, field) in fields.iter().enumerate() {
         if seen.contains(&field.name.as_str()) {
@@ -840,6 +849,14 @@ fn validate_decls(
         return;
     }
     let Some(validator) = field_decl_validator(&ctx.module.semantic_core) else {
+        diagnostics.push(err(
+            "semantic.unsupported-semantic-core",
+            0,
+            format!(
+                "no vendored semantic-core {} bundle to validate FieldDecl against",
+                ctx.module.semantic_core
+            ),
+        ));
         return;
     };
     for field in fields {

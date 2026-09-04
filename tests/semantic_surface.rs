@@ -195,7 +195,7 @@ fn availability_states_are_exercised_and_distinct() {
     }
     for kind in ["fields", "clauses", "operations"] {
         let seen = &states[kind];
-        for want in ["available", "not_applicable"] {
+        for want in ["available", "not_applicable", "missing", "unavailable"] {
             assert!(seen.contains(&want), "{kind} never {want}");
         }
     }
@@ -209,6 +209,11 @@ fn availability_states_are_exercised_and_distinct() {
         json!("not_applicable")
     );
 }
+
+/// The digest the registry owner recorded over Entity.json (FR-069: Quire
+/// passes it through, never minting a second one).
+const SNAPSHOT_DIGEST: &str =
+    "sha256:8692992e186f40a73b78fd1b0915f0fe78e05a2b00782fb1df58c951a37c91d5";
 
 fn fixture_snapshot(with_context: bool) -> FilamentExtractionInput {
     let entity: Value = read_json("tests/fixtures/semantic/quoin/module-ok/schemas/Entity.json");
@@ -228,7 +233,7 @@ fn fixture_snapshot(with_context: bool) -> FilamentExtractionInput {
         "moduleId": "spec-objects-fixture"
     });
     if with_context {
-        object_type["semantic"] = json!({ "contractVersion": "1.0.0", "semanticCore": "0.1.0", "package": "agent-ix/spec-objects-fixture", "exports": ["entity"], "imports": {} });
+        object_type["semantic"] = json!({ "contractVersion": "1.0.0", "semanticCore": "0.1.0", "package": "agent-ix/spec-objects-fixture", "exports": ["entity"], "imports": {}, "schemaDigest": SNAPSHOT_DIGEST });
     }
     let mut input = json!({
         "projectId": "p", "documentId": "d", "artifactId": "a", "relPath": "spec/functional/FR-006.md",
@@ -267,10 +272,14 @@ fn filament_surface_with_and_without_context() {
         semantic["clauses"][0]["sourceSpan"]["path"],
         "spec/functional/FR-006.md"
     );
-    assert!(semantic["schemaDigest"]
-        .as_str()
-        .unwrap()
-        .starts_with("sha256:"));
+    assert_eq!(
+        semantic["schemaDigest"], SNAPSHOT_DIGEST,
+        "passed through, not re-minted"
+    );
+    // The Filament record equals the library record for the same inputs
+    // (golden-table-available carries the same digest, identity, and path).
+    let expected = read_json("tests/fixtures/semantic/cases.expected.json");
+    assert_eq!(semantic, &expected["golden-table-available"]);
     assert!(schema().is_valid(semantic));
     assert!(
         !result.diagnostics.iter().any(|d| d.severity == "error"),
@@ -359,6 +368,18 @@ fn validate_document_surface() {
     .unwrap();
     let result = quire_rs::validate_document_in_registry(&registry, entity, &table);
     assert!(result.is_valid, "{:?}", result.errors);
+    // A document with no Properties fails the resolved schema (`fields` required).
+    let bare = "---\nid: FR-900\ntitle: Bare\nobject: entity\n---\n# FR-900\n\nprose\n";
+    let result = quire_rs::validate_document_in_registry(&registry, entity, bare);
+    assert!(!result.is_valid);
+    assert!(
+        result
+            .errors
+            .iter()
+            .any(|e| e.message.starts_with("semantic.record-invalid")),
+        "{:?}",
+        result.errors
+    );
 }
 
 #[trace("TC-1637", "FR-072-AC-7")]

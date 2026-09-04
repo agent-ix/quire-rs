@@ -276,7 +276,7 @@ pub fn load_inline_module(manifest_yaml: &[u8], schemas: &BTreeMap<String, Strin
     let mut archetypes: Vec<Arc<CompiledArchetype>> = Vec::new();
 
     let inline_source = crate::semantic::SchemaSource::Inline { files: schemas };
-    let inline_semantic = match read_module_semantic(&manifest, &module_name, &inline_source) {
+    let inline_semantic = match read_module_semantic(&manifest) {
         Ok(s) => s,
         Err(semantic_failures) => {
             for at in manifest.all_archetypes() {
@@ -567,7 +567,7 @@ fn load_one_module(
     let mut failures: Vec<ArchetypeLoadFailure> = Vec::new();
 
     let source = crate::semantic::SchemaSource::Filesystem { module_root };
-    let semantic = match read_module_semantic(&manifest, &module_name, &source) {
+    let semantic = match read_module_semantic(&manifest) {
         Ok(s) => s,
         Err(semantic_failures) => {
             // FR-069: a manifest outside the contract fails every object
@@ -722,13 +722,10 @@ fn compile_archetype(
 /// when the manifest carries none.
 fn read_module_semantic(
     manifest: &Manifest,
-    module: &str,
-    source: &crate::semantic::SchemaSource<'_>,
 ) -> Result<Option<crate::semantic::SemanticModule>, Vec<crate::semantic::SemanticFailure>> {
     let Some(block) = &manifest.semantic else {
         return Ok(None);
     };
-    let _ = (module, source);
     let names: Vec<String> = manifest.all_archetypes().map(|a| a.name.clone()).collect();
     let has_reference = |name: &str| -> bool {
         manifest.all_archetypes().any(|a| {

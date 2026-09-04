@@ -28,6 +28,12 @@ pub enum FenceChar {
 /// `(kind, run length, language tag)` when `line` opens a fence.
 pub fn fence_open(line: &str) -> Option<(FenceChar, usize, String)> {
     let trimmed = line.trim_end_matches('\r');
+    // Up to three leading spaces, as the parser's `fence_kind` allows.
+    let indent = trimmed.len() - trimmed.trim_start_matches(' ').len();
+    if indent > 3 {
+        return None;
+    }
+    let trimmed = &trimmed[indent..];
     let first = trimmed.chars().next()?;
     let kind = match first {
         '`' => FenceChar::Backtick,
@@ -44,6 +50,11 @@ pub fn fence_open(line: &str) -> Option<(FenceChar, usize, String)> {
 
 fn fence_close(line: &str, kind: &FenceChar, open_len: usize) -> bool {
     let trimmed = line.trim_end_matches('\r').trim_end();
+    let indent = trimmed.len() - trimmed.trim_start_matches(' ').len();
+    if indent > 3 {
+        return false;
+    }
+    let trimmed = &trimmed[indent..];
     let ch = match kind {
         FenceChar::Backtick => '`',
         FenceChar::Tilde => '~',
@@ -253,4 +264,18 @@ pub fn blocks_in(lines: &[&str], from: usize, to: usize) -> Vec<Block> {
         i += 1;
     }
     out
+}
+
+/// Line numbers in `[from, to)` that are not inside a fenced block (the
+/// fence lines themselves excluded): where `Clause:`, `Returns:`, `Pre:`,
+/// and `Post:` lines may be read (FR-071-CON-1: fence interiors are opaque).
+pub fn lines_outside_fences(lines: &[&str], from: usize, to: usize) -> Vec<usize> {
+    let fences = fences_in(lines, from, to);
+    (from..to.min(lines.len() + 1))
+        .filter(|&l| {
+            !fences
+                .iter()
+                .any(|f| l >= f.open_line && f.close_line.map_or(true, |c| l <= c))
+        })
+        .collect()
 }

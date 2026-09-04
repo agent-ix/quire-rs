@@ -332,6 +332,7 @@ corpus-recall-update:
 .PHONY: check-wasm
 check-wasm:
 	CARGO_TARGET_DIR=target/wasm-check $(CARGO) check --locked --target wasm32-unknown-unknown --no-default-features --features wasm --quiet
+	$(CARGO) test --locked --no-default-features --features wasm --quiet --test semantic_contract --test semantic_properties --test semantic_clauses --test semantic_surface
 
 ci: fmt-check lint check-python check-wasm check-scripts test deny audit-unsafe audit-property audit-static validate check-engine
 

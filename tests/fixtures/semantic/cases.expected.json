@@ -283,6 +283,36 @@
     "package": "agent-ix/spec-objects-fixture",
     "semanticCore": "0.1.0"
   },
+  "duplicate-operation-unavailable": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "operations": {
+        "lossy": false,
+        "reason": "entry-errors: lines 14",
+        "state": "unavailable"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [
+      {
+        "code": "semantic.duplicate-operation",
+        "column": 1,
+        "line": 14,
+        "message": "operation archive is declared twice",
+        "severity": "error"
+      }
+    ],
+    "formatVersion": 1,
+    "package": "agent-ix/spec-objects-fixture",
+    "semanticCore": "0.1.0"
+  },
   "empty-bundle-index": {
     "availability": {
       "clauses": {
@@ -349,6 +379,53 @@
         "column": 1,
         "line": 18,
         "message": "clause bad: language \"tla\" is outside the ClauseLanguage pattern",
+        "severity": "error"
+      }
+    ],
+    "formatVersion": 1,
+    "package": "agent-ix/spec-objects-fixture",
+    "semanticCore": "0.1.0"
+  },
+  "fence-interior-is-opaque": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "state": "available"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "operations": {
+        "lossy": false,
+        "reason": "entry-errors: lines 22",
+        "state": "unavailable"
+      }
+    },
+    "clauseText": {
+      "inv": "Clause: ./x.md#inv\nPre: nothing"
+    },
+    "clauses": [
+      {
+        "clauseId": "inv",
+        "language": "ocl",
+        "sourceSpan": {
+          "endColumn": 4,
+          "endLine": 15,
+          "path": "spec/functional/FR-006.md",
+          "sourceIdentity": "ix://agent-ix/config-service/spec",
+          "startColumn": 1,
+          "startLine": 12
+        }
+      }
+    ],
+    "contractVersion": "1.0.0",
+    "diagnostics": [
+      {
+        "code": "semantic.duplicate-operation-line",
+        "column": 1,
+        "line": 22,
+        "message": "operation op: a second `Pre:` line",
         "severity": "error"
       }
     ],
@@ -814,6 +891,29 @@
     ],
     "package": "agent-ix/spec-objects-fixture",
     "schemaDigest": "sha256:8692992e186f40a73b78fd1b0915f0fe78e05a2b00782fb1df58c951a37c91d5",
+    "semanticCore": "0.1.0"
+  },
+  "required-invariants-missing": {
+    "availability": {
+      "clauses": {
+        "lossy": false,
+        "reason": "`## Invariants` is required by the module's body_extraction and absent",
+        "state": "missing"
+      },
+      "fields": {
+        "lossy": false,
+        "state": "not_applicable"
+      },
+      "operations": {
+        "lossy": false,
+        "reason": "`## Operations` is required by the module's body_extraction and absent",
+        "state": "missing"
+      }
+    },
+    "contractVersion": "1.0.0",
+    "diagnostics": [],
+    "formatVersion": 1,
+    "package": "agent-ix/spec-objects-fixture",
     "semanticCore": "0.1.0"
   },
   "required-section-missing": {

@@ -88,7 +88,8 @@ Form recognition:
   emit `semantic.duplicate-section` at the second heading and set `fields`
   `unavailable` with reason `duplicate-section`.
 - A typed table with a header and no rows SHALL yield `fields` `available`
-  and empty.
+  and empty; a section with prose and no block yields `unavailable` with
+  reason `no-block` and the warning `semantic.properties-no-block`.
 - If any row or fence line carries an `error`, then the engine SHALL set
   `fields` `unavailable` with reason `row-errors` listing the loci and SHALL
   NOT emit a partial array; a consumer never receives a type missing a field.
@@ -130,14 +131,17 @@ Constraints cells: entries separated by commas outside a `/…/` pattern;
 opaque with `dialect: ecma-262`, never compiled), `enumValues a|b`
 (`|`-separated, no spaces), `nonEmpty`, `unique`, `format ns:name`, and the
 field flags `identity` and `nullable`; an unknown keyword is the error
-`semantic.unknown-constraint-keyword` at the row.
+`semantic.unknown-constraint-keyword` at the row; a value that is empty or
+not a finite number where one is required is
+`semantic.invalid-constraint-value`.
 
 Reader rules carried from semantic-core: a duplicate field name is
 `agent-ix.semantic-core.DUPLICATE_NAME` at the second row; `identity` on a
 field whose multiplicity is not `1..1` is `IDENTITY_NOT_SINGLE`; `identity`
 on `JsonObject` is `IDENTITY_ON_JSON_OBJECT`; `decimal` on a non-`Decimal`
-target is `DECIMAL_ON_NON_DECIMAL`; flags on a non-collection are
-`FLAGS_ON_NON_COLLECTION`.
+target is `DECIMAL_ON_NON_DECIMAL`; flags on a non-collection are reported
+as `semantic.invalid-multiplicity` (the multiplicity grammar refuses them
+before the reader rule would).
 
 Fence form: the engine SHALL read the fence line by line;
 `attribute <name> : <Type>[<mult>]` and `ref item <name> : <Type>[<mult>]`,

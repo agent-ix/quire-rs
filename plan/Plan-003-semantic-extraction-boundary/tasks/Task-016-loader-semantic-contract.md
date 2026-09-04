@@ -52,7 +52,7 @@ Read the `semantic` block and reference-form `data_schema` in the loader and the
 ## Deliverables
 
 - `src/semantic/{contract,resolver}.rs`, loader and `filament.rs` changes
-- `tests/semantic_contract.rs`, fixture modules under `tests/fixtures/semantic/modules/`
+- `tests/semantic_contract.rs` (mutated copies of the vendored `module-ok` fixture in temp dirs)
 
 ## Notes
 

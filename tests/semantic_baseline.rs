@@ -220,12 +220,35 @@ struct GraphCase {
     input: FilamentExtractionInput,
 }
 
-#[trace("TC-1643", "NFR-021-AC-3")]
-// every Filament graph case output equals the baseline minted on main.
 #[trace("TC-1639", "FR-072-AC-9", "FR-072-CON-1")]
-// the Filament API result carries no `semantic` key and no new severity for
-// snapshots without a semantic context; coverage-v1 / properties-v1 /
-// assurance-v1 stay pinned by TC-1090 and TC-1089.
+// coverage-v1, properties-v1, and assurance-v1 schemas are byte-identical to
+// the baseline minted on main: no existing contract gains a required key.
+#[test]
+fn published_schemas_match_baseline() {
+    let mut digests: BTreeMap<String, String> = BTreeMap::new();
+    for name in [
+        "coverage-v1.schema.json",
+        "properties-v1.schema.json",
+        "assurance-v1.schema.json",
+    ] {
+        let bytes = fs::read(root().join("schemas/output").join(name)).unwrap();
+        digests.insert(name.to_string(), sha256_hex(&bytes));
+        let schema: Value = serde_json::from_slice(&bytes).unwrap();
+        assert!(
+            schema["required"].is_array(),
+            "{name}: required array present"
+        );
+    }
+    let actual = format!("{}\n", serde_json::to_string_pretty(&digests).unwrap());
+    write_or_compare(
+        &root().join("tests/fixtures/semantic/baseline/published-schemas.json"),
+        &actual,
+    );
+}
+
+#[trace("TC-1643", "NFR-021-AC-3")]
+// every Filament graph case output equals the baseline minted on main, and
+// no diagnostic severity leaves the FR-045 set.
 #[test]
 fn filament_graph_cases_match_baseline() {
     let cases: Vec<GraphCase> =

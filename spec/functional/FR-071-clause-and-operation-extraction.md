@@ -118,10 +118,15 @@ General:
   `semantic.internal-invalid-decl`, never be dropped.
 - An artifact without `## Invariants` or `## Operations` SHALL report that
   kind `not_applicable`.
-- The engine SHALL compute spans with the same fence scanner the
-  `code_block` locator uses, over the section's byte-exact content offset by
-  the section start line; it SHALL NOT change the [FR-005](./FR-005-parse-document-api.md)
-  document shape.
+- The engine SHALL compute spans with fence recognition equivalent to the
+  `code_block` locator's (a run of three or more backticks or tildes, up to
+  three leading spaces, closed by a run of the same character at least as
+  long), proven by agreement on every fixture, leaving the
+  [FR-005](./FR-005-parse-document-api.md) document shape unchanged.
+- The engine SHALL read `Clause:`, `Returns:`, `Pre:`, and `Post:` lines
+  outside fences only; a second `Returns:`, `Pre:`, or `Post:` line, or a
+  second parameter table under one operation, is
+  `semantic.duplicate-operation-line`.
 
 ## Constraints
 

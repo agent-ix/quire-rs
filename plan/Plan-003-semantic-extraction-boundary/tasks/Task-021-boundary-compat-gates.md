@@ -24,8 +24,6 @@ relationships:
     type: verifies
   - target: ix://agent-ix/quire-rs/TC-1628
     type: verifies
-  - target: ix://agent-ix/quire-rs/TC-1636
-    type: verifies
   - target: ix://agent-ix/quire-rs/TC-1640
     type: verifies
   - target: ix://agent-ix/quire-rs/TC-1641

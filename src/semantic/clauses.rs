@@ -15,7 +15,7 @@ use super::properties::{
     is_param_header, map_multiplicity, map_row, map_type, table_rows, RowInput,
 };
 use super::resolver::compile_module_schema;
-use super::scan::{blocks_in, level2_sections, lines, Block, Fence};
+use super::scan::{blocks_in, level2_sections, lines, lines_outside_fences, Block, Fence};
 use super::{KindAvailability, SemanticDiagnostic};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -213,14 +213,16 @@ pub fn extract_clauses(raw: &str, ctx: &SemanticContext) -> ClausesOutcome {
             continue;
         }
         let fences = super::scan::fences_in(&lines, section.heading_line + 1, section.end);
-        let external: Vec<usize> = (section.heading_line + 1..section.end.min(lines.len() + 1))
-            .filter(|&l| {
-                lines[l - 1]
-                    .trim_end_matches('\r')
-                    .trim_start()
-                    .starts_with("Clause:")
-            })
-            .collect();
+        let external: Vec<usize> =
+            lines_outside_fences(&lines, section.heading_line + 1, section.end)
+                .into_iter()
+                .filter(|&l| {
+                    lines[l - 1]
+                        .trim_end_matches('\r')
+                        .trim_start()
+                        .starts_with("Clause:")
+                })
+                .collect();
         if seen.contains(id) {
             diagnostics.push(err(
                 "semantic.duplicate-clause-id",
@@ -398,10 +400,20 @@ pub fn extract_operations(
         }
         seen.push(name.clone());
         let before = diagnostics.len();
-        // Parameter table.
+        // Parameter table (one at most).
         let mut params: Vec<FieldDecl> = Vec::new();
+        let mut tables = 0;
         for block in blocks_in(&lines, section.heading_line + 1, section.end) {
             if let Block::Table(table) = block {
+                tables += 1;
+                if tables > 1 {
+                    diagnostics.push(err(
+                        "semantic.duplicate-operation-line",
+                        table.line,
+                        format!("operation {name}: a second parameter table"),
+                    ));
+                    continue;
+                }
                 if !is_param_header(&table.headers) {
                     diagnostics.push(err("semantic.invalid-operation-table", table.line, format!("operation {name}: a table under an operation carries the header `Param | Type | Multiplicity | Constraints`")));
                     continue;
@@ -418,14 +430,28 @@ pub fn extract_operations(
         let mut returns = None;
         let mut pre = Vec::new();
         let mut post = Vec::new();
-        for l in section.heading_line + 1..section.end.min(lines.len() + 1) {
+        let mut seen_lines: Vec<&str> = Vec::new();
+        for l in lines_outside_fences(&lines, section.heading_line + 1, section.end) {
             let text = lines[l - 1].trim_end_matches('\r').trim();
-            if let Some(rest) = text.strip_prefix("Returns:") {
-                returns = parse_returns(rest.trim(), l, &name, ctx, &mut diagnostics);
-            } else if let Some(rest) = text.strip_prefix("Pre:") {
-                pre = resolve_refs(rest, l, clauses, &mut diagnostics);
-            } else if let Some(rest) = text.strip_prefix("Post:") {
-                post = resolve_refs(rest, l, clauses, &mut diagnostics);
+            let Some((key, rest)) = ["Returns:", "Pre:", "Post:"]
+                .iter()
+                .find_map(|k| text.strip_prefix(k).map(|r| (*k, r)))
+            else {
+                continue;
+            };
+            if seen_lines.contains(&key) {
+                diagnostics.push(err(
+                    "semantic.duplicate-operation-line",
+                    l,
+                    format!("operation {name}: a second `{key}` line"),
+                ));
+                continue;
+            }
+            seen_lines.push(key);
+            match key {
+                "Returns:" => returns = parse_returns(rest.trim(), l, &name, ctx, &mut diagnostics),
+                "Pre:" => pre = resolve_refs(rest, l, clauses, &mut diagnostics),
+                _ => post = resolve_refs(rest, l, clauses, &mut diagnostics),
             }
         }
         if diagnostics[before..]
@@ -552,6 +578,11 @@ fn validate_decls<T: Serialize>(
         return;
     }
     let Some(validator) = model_validator(model, semantic_core) else {
+        diagnostics.push(err(
+            "semantic.unsupported-semantic-core",
+            0,
+            format!("no vendored semantic-core {semantic_core} bundle to validate {model} against"),
+        ));
         return;
     };
     for item in items {

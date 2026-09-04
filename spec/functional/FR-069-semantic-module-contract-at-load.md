@@ -110,7 +110,8 @@ Refusals, in evaluation order:
   `https://schemas.agent-ix.org/<package>/<module version>/<file>`
   (`semantic.data-schema-id`). Each refusal SHALL name the path and the
   reason. The mixed form `{ schema, digest, type }` is
-  `semantic.data-schema-ambiguous`.
+  `semantic.data-schema-ambiguous`; the reference form on a manifest without
+  a `semantic` block is `semantic.data-schema-reference-without-block`.
 - The loader SHALL resolve every `$ref` of a referenced schema offline against
   an in-memory map of `$id` to document built from the module bundle's
   sibling files and the vendored semantic-core bundle at the manifest's

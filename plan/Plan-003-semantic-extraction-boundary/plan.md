@@ -2,7 +2,7 @@
 id: Plan-003
 title: "quire-rs — semantic extraction boundary"
 type: Plan
-status: active
+status: completed
 relationships:
   - target: ix://agent-ix/quire-rs/US-019
     type: references
@@ -119,7 +119,7 @@ Track B:            Task-017 ---------------------------> Task-021 --+-> Task-02
 | Task-019 | A | FR-071 | TC-1622..TC-1626, TC-1629, TC-1648 | completed |
 | Task-020 | A | FR-072 | TC-1630..TC-1632, TC-1634, TC-1635, TC-1637, TC-1638, TC-1644, TC-1650 | completed |
 | Task-021 | B | NFR-021, FR-070, FR-071, FR-072 | TC-1619, TC-1620, TC-1627, TC-1628, TC-1636, TC-1640..TC-1642, TC-1649 | completed |
-| Task-022 | Gate | US-019 | — | todo |
+| Task-022 | Gate | US-019 | — | completed |
 
 ## Coordination Rules
 

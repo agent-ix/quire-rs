@@ -9,7 +9,6 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use ix_trace_rs::trace;
 use serde::Deserialize;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
@@ -42,10 +41,8 @@ fn walk(dir: &Path, out: &mut Vec<PathBuf>) {
     }
 }
 
-#[trace("TC-1610", "FR-070-AC-1")]
-// the golden inputs are the quoin fixtures, byte-for-byte, at the pinned
-// revision; the extraction assertions themselves live in
-// tests/semantic_properties.rs and tests/semantic_clauses.rs (Tasks 018/019).
+// The golden inputs are the quoin fixtures, byte-for-byte, at the pinned
+// revision; TC-1610's extraction assertions live in tests/semantic_properties.rs.
 #[test]
 fn quoin_fixtures_match_provenance() {
     let dir = root().join("tests/fixtures/semantic/quoin");
@@ -104,9 +101,8 @@ struct Case {
     expect: Value,
 }
 
-#[trace("TC-1630", "FR-072-AC-1")]
-// attribution and unique names, as corpus_cases enforces for its own suite;
-// the per-case expectations run in tests/semantic_surface.rs (Task-020).
+// Attribution and unique names, as corpus_cases enforces for its own suite;
+// TC-1630's per-case expectations run in tests/semantic_surface.rs.
 #[test]
 fn semantic_cases_are_attributed_and_uniquely_named() {
     let file: CaseFile = serde_json::from_slice(

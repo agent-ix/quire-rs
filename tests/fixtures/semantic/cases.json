@@ -1010,6 +1010,217 @@
         ],
         "sourceIdentity": "ix://local/config-service/spec"
       }
+    },
+    {
+      "name": "required-invariants-missing",
+      "issue_ref": "agent-ix/quire-rs#388",
+      "tags": [
+        "TC-1631",
+        "missing"
+      ],
+      "input": {
+        "markdown": "---\nid: FR-900\ntitle: Bare\nobject: entity\n---\n# FR-900\n\nprose only\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "semanticCore": "0.1.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "entity"
+          ],
+          "imports": {}
+        },
+        "path": "spec/functional/FR-006.md",
+        "sourceIdentity": "ix://agent-ix/config-service/spec",
+        "bundle": {
+          "$comment": "BundleIndex under which the quoin golden cases run (FR-070 Inputs). Corpus-mode index construction for real modules is a module-authoring question (spec-objects-business#4).",
+          "package": "agent-ix/config-service",
+          "objects": [
+            {
+              "id": "FR-006",
+              "names": [
+                "ConfigVersion"
+              ]
+            },
+            {
+              "id": "FR-005",
+              "names": [
+                "ConfigOverlay"
+              ]
+            }
+          ],
+          "enumerations": [
+            {
+              "id": "Status",
+              "names": [
+                "Status Values"
+              ]
+            }
+          ],
+          "imports": {
+            "agent-ix/spec-artifacts-iso": [
+              "Requirement"
+            ]
+          }
+        },
+        "required": {
+          "invariants": true,
+          "operations": true
+        }
+      },
+      "expect": {
+        "availability": {
+          "clauses": {
+            "state": "missing",
+            "lossy": false
+          },
+          "operations": {
+            "state": "missing",
+            "lossy": false
+          }
+        }
+      }
+    },
+    {
+      "name": "duplicate-operation-unavailable",
+      "issue_ref": "agent-ix/quire-rs#388",
+      "tags": [
+        "TC-1631",
+        "unavailable"
+      ],
+      "input": {
+        "markdown": "---\nid: FR-900\ntitle: Thing\nobject: entity\n---\n# FR-900\n\n## Operations\n\n### archive\n\nReturns: String[1]\n\n### archive\n\nReturns: String[1]\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "semanticCore": "0.1.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "entity"
+          ],
+          "imports": {}
+        },
+        "path": "spec/functional/FR-006.md",
+        "sourceIdentity": "ix://agent-ix/config-service/spec",
+        "bundle": {
+          "$comment": "BundleIndex under which the quoin golden cases run (FR-070 Inputs). Corpus-mode index construction for real modules is a module-authoring question (spec-objects-business#4).",
+          "package": "agent-ix/config-service",
+          "objects": [
+            {
+              "id": "FR-006",
+              "names": [
+                "ConfigVersion"
+              ]
+            },
+            {
+              "id": "FR-005",
+              "names": [
+                "ConfigOverlay"
+              ]
+            }
+          ],
+          "enumerations": [
+            {
+              "id": "Status",
+              "names": [
+                "Status Values"
+              ]
+            }
+          ],
+          "imports": {
+            "agent-ix/spec-artifacts-iso": [
+              "Requirement"
+            ]
+          }
+        }
+      },
+      "expect": {
+        "availability": {
+          "operations": {
+            "state": "unavailable",
+            "lossy": false
+          }
+        },
+        "diagnostics": [
+          {
+            "code": "semantic.duplicate-operation",
+            "severity": "error",
+            "line": 14
+          }
+        ]
+      }
+    },
+    {
+      "name": "fence-interior-is-opaque",
+      "issue_ref": "agent-ix/quire-rs#388",
+      "tags": [
+        "TC-1630"
+      ],
+      "input": {
+        "markdown": "---\nid: FR-900\ntitle: Thing\nobject: entity\n---\n# FR-900\n\n## Invariants\n\n### inv\n\n```ocl\nClause: ./x.md#inv\nPre: nothing\n```\n\n## Operations\n\n### op\n\nPre: inv\nPre: inv\n",
+        "module": {
+          "contractVersion": "1.0.0",
+          "semanticCore": "0.1.0",
+          "package": "agent-ix/spec-objects-fixture",
+          "exports": [
+            "entity"
+          ],
+          "imports": {}
+        },
+        "path": "spec/functional/FR-006.md",
+        "sourceIdentity": "ix://agent-ix/config-service/spec",
+        "bundle": {
+          "$comment": "BundleIndex under which the quoin golden cases run (FR-070 Inputs). Corpus-mode index construction for real modules is a module-authoring question (spec-objects-business#4).",
+          "package": "agent-ix/config-service",
+          "objects": [
+            {
+              "id": "FR-006",
+              "names": [
+                "ConfigVersion"
+              ]
+            },
+            {
+              "id": "FR-005",
+              "names": [
+                "ConfigOverlay"
+              ]
+            }
+          ],
+          "enumerations": [
+            {
+              "id": "Status",
+              "names": [
+                "Status Values"
+              ]
+            }
+          ],
+          "imports": {
+            "agent-ix/spec-artifacts-iso": [
+              "Requirement"
+            ]
+          }
+        }
+      },
+      "expect": {
+        "availability": {
+          "clauses": {
+            "state": "available",
+            "lossy": false
+          },
+          "operations": {
+            "state": "unavailable",
+            "lossy": false
+          }
+        },
+        "clauseIds": [
+          "inv"
+        ],
+        "diagnostics": [
+          {
+            "code": "semantic.duplicate-operation-line",
+            "severity": "error",
+            "line": 22
+          }
+        ]
+      }
     }
   ]
 }

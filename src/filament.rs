@@ -85,6 +85,15 @@ pub struct SemanticSnapshot {
     pub exports: Vec<String>,
     #[serde(default)]
     pub imports: BTreeMap<String, String>,
+    /// The `sha256:<hex>` the registry owner recorded over the shipped
+    /// schema bytes (FR-069); Quire never mints a second digest.
+    #[serde(
+        rename = "schemaDigest",
+        alias = "schema_digest",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub schema_digest: Option<String>,
 }
 
 impl FilamentObjectType {
@@ -1176,11 +1185,12 @@ fn attach_semantic(
         .and_then(|dsl| serde_json::to_value(dsl).ok())
         .map(|v| RequiredSections::from_dsl(&v))
         .unwrap_or_default();
-    let digest = format!(
-        "sha256:{:x}",
-        sha2::Sha256::digest(json_string(&object_type.schema).as_bytes())
+    let record = crate::semantic::extract_semantic(
+        &input.markdown,
+        &ctx,
+        snapshot.schema_digest.as_deref(),
+        &required,
     );
-    let record = crate::semantic::extract_semantic(&input.markdown, &ctx, Some(&digest), &required);
     // The resolved data schema validates the declaration record (FR-069-AC-1).
     if let Some(validator) = &object_type.validator {
         let declaration = record.declaration_record();

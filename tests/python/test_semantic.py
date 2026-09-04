@@ -76,6 +76,7 @@ def test_extract_filament_core_carries_the_semantic_record():
                         "package": "agent-ix/spec-objects-fixture",
                         "exports": ["entity"],
                         "imports": {},
+                        "schemaDigest": _expected()["golden-table-available"]["schemaDigest"],
                     },
                 }
             ],
@@ -83,10 +84,21 @@ def test_extract_filament_core_carries_the_semantic_record():
     )
     node = next(n for n in result["nodes"] if n["objectType"] == "entity")
     data = json.loads(node["dataJson"])
+    assert data["semantic"] == _expected()["golden-table-available"]
     assert data["semantic"]["formatVersion"] == 1
     assert len(data["semantic"]["fields"]) == 7
     assert data["semantic"]["availability"]["fields"]["state"] == "available"
     assert all(d["severity"] in {"info", "warning", "error"} for d in result["diagnostics"])
+
+
+def test_extract_semantic_refuses_unsupported_versions():
+    """FR-069 through the binding entry: refused before any record."""
+    import pytest
+
+    case = _cases()[0]["input"]
+    bad = dict(case, module=dict(case["module"], semanticCore="9.9.9"))
+    with pytest.raises(TypeError, match="semantic.unsupported-semantic-core"):
+        quire.extract_semantic(bad)
 
 
 def test_unsupported_contract_version_is_refused():
