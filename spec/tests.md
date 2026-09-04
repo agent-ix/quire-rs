@@ -57,6 +57,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | US-014 Author validates markdown | AC-1..4 | TC-518, TC-519, TC-520, TC-521 | 🚧 Pending implementation |
 | US-015 Object edge vocabulary | AC-1..4 | TC-646, TC-647, TC-648, TC-649 (exercised by FR-040 TC-641/642/645/650) | ✅ Exercised via FR-040 engine TCs |
 | US-018 Consume assurance export | Illustrative examples | TC-1084..TC-1099 (via FR-067/068 and IT-001) | ✅ Producer complete; Quoin consumption downstream |
+| US-019 Extract semantic declarations | Illustrative examples EX-1..4 | TC-1610 (EX-1), TC-1612 (EX-2), TC-1613 (EX-3), TC-1600 (EX-4) via FR-069/070 | 🚧 issue #388 |
 
 ### Functional Requirement Coverage
 
@@ -105,6 +106,10 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | FR-044 Project Ubiquitous-Language lexicon | AC-1..7 | TC-674 (harvest Term column from Glossary `## Terms` table), TC-675 (harvest bold term from `## Ubiquitous Language` bullets), TC-676 (combined lexicon = registry keys ∪ project terms), TC-677 (validate_document_in_registry_with_lexicon injects lexicon), TC-678 (validate_bundle harvests Spec + applies combined lexicon), TC-679 (advisory: project suppression never changes is_valid), TC-680 (no glossary → empty terms → module-only path) | 🚧 Pending implementation |
 | FR-067 Versioned assurance export | AC-1..7; CON-1..5 | TC-1084..TC-1090 | ✅ Implemented |
 | FR-068 Source-grounded assurance projection | AC-1..9; CON-1..4 | TC-1091..TC-1099 | ✅ Implemented |
+| FR-069 Semantic module contract at load | AC-1..9; CON-1..4 | TC-1599..TC-1609 | 🚧 issue #388 |
+| FR-070 Typed Properties extraction to FieldDecl[] | AC-1..9; CON-1..3 | TC-1610..TC-1621 | 🚧 issue #388 |
+| FR-071 Clause and operation extraction | AC-1..6; CON-1..2 | TC-1622..TC-1629 | 🚧 issue #388 |
+| FR-072 Semantic extraction surface | AC-1..8; CON-1..3 | TC-1630..TC-1640 | 🚧 issue #388 |
 
 ### Integration Requirement Coverage
 
@@ -150,6 +155,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | FR-057 Per-check corpus severity | AC-1..10; CON-1..2 | TC-883 (promote/demote/off), TC-884 (unconfigured tier per check), TC-885 (`--severity`-shaped layering reaches corpus checks), TC-886 (severity carried, reason stable, key well-formed), TC-887 (order unperturbed), TC-888 (CON-1 bridged results not registrable), TC-889 (sibling packs independent) | ✅ Implemented |
 | FR-056 Requirement-quality lints | AC-1..13; CON-1..5 | TC-861 (built-in term fires), TC-862 (longest term names the finding), TC-863 (CON-2 module terms layer over built-ins), TC-864 (allocation, not voice), TC-865 (two modals), TC-866 (CR-017 mention parity), TC-867 (CON-1 advisory + per-check `off`), TC-868 (CON-4 ears/ac streams unchanged), TC-869 (checks independent), TC-876 (row-level line attribution), TC-877 (all four modals collected), TC-878 (a deadline or a sort key is not an agent), TC-879 (unknown ambiguity_terms key fails load) | ✅ Implemented |
 | NFR-020 Filament extraction boundary pure/deterministic | static inspection + parity tests | TC-704, TC-767, TC-690 | ✅ Complete |
+| NFR-021 Semantic extraction offline/non-parsing/additive | static audits + byte-identity + parity | TC-1641, TC-1642, TC-1643, TC-1644 | 🚧 issue #388 |
 
 ---
 
@@ -775,6 +781,52 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-1097 | Quire emits freshness unknown for evidence and not_applicable for non-evidence, never current or suspect; Quoin's auditor verdict remains a separate input | Unit | P0 | FR-068-AC-7 | ✅ |
 | TC-1098 | Repeated projections are byte-identical and editing one unrelated document changes no other projected identity or relation | Property | P0 | FR-068-AC-8 | ✅ |
 | TC-1099 | A static dependency boundary permits only the existing corpus, obligation and symbol-record accessors and rejects direct frontmatter, markdown-query or source-tag harvesting from the exporter | Static | P0 | FR-068-AC-9, FR-068-CON-1 | ✅ |
+| TC-1599 | A module with a valid `semantic` block and a digest-matching reference `data_schema` loads a `SemanticModule` record and resolved schema; `quire validate` validates the extracted record against it | Integration | P0 | FR-069-AC-1 | 🚧 issue #388 |
+| TC-1600 | `contract_version: 2.0.0` fails with `semantic.unsupported-contract-version` and no other semantic diagnostic; `semantic_core: 0.9.0` fails naming `0.9.0` and `0.1.0` | Unit | P0 | FR-069-AC-2 | 🚧 issue #388 |
+| TC-1601 | An unknown block key, an export of an undeclared object type, `package: ix://agent-ix/x`, and `targets: [go]` each fail the module naming the key or value | Unit | P0 | FR-069-AC-3 | 🚧 issue #388 |
+| TC-1602 | Digest mismatch, missing file, non-JSON, no `$schema`, wrong `$id`, `..` and symlink escapes each fail naming path and reason; `{ schema, digest, type }` fails as ambiguous | Unit | P0 | FR-069-AC-4 | 🚧 issue #388 |
+| TC-1603 | `$ref` to semantic-core `0.2.0`, an unshipped sibling, and a two-file cycle each fail naming the `$ref`; a `$ref` to the schema's own `$id` fragment loads cleanly | Unit | P0 | FR-069-AC-5 | 🚧 issue #388 |
+| TC-1604 | Inline `data_schema` under a `semantic` block warns `semantic.inline-data-schema`; the same manifest without the block is silent | Unit | P1 | FR-069-AC-6 | 🚧 issue #388 |
+| TC-1605 | A Filament snapshot with a reference-form `data_schema` is refused with `semantic.data-schema-unresolved-reference`; inline schema plus `semantic` context extracts | Unit | P0 | FR-069-AC-7 | 🚧 issue #388 |
+| TC-1606 | Vendored module-manifest schema and semantic-core bundle hash to their recorded provenance; the bundle digest equals filament-core-data `toolchain.json` at the recorded revision | Static | P0 | FR-069-AC-8, FR-069-CON-2 | 🚧 issue #388 |
+| TC-1607 | Every default and fixture module without a `semantic` block loads to a `Registry` whose serialized archetype set is byte-identical to the pre-change baseline | Snapshot | P0 | FR-069-AC-9, FR-069-CON-3 | 🚧 issue #388 |
+| TC-1608 | Schema resolution performs no network fetch and no read outside the module root: an `https://` `$ref` outside the vendored bundle fails as unshipped and a static audit finds no fetch path | Static | P0 | FR-069-CON-1 | 🚧 issue #388 |
+| TC-1609 | The resolved schema bytes equal the shipped file and the recorded digest is over those bytes; no normalization precedes validation | Unit | P1 | FR-069-CON-4 | 🚧 issue #388 |
+| TC-1610 | Vendored `config-version.table.md` extracts to the normalized `fields` of `config-version.expected.json`, every entry validating against `FieldDecl.json` | Unit | P0 | FR-070-AC-1 | 🚧 issue #388 |
+| TC-1611 | Vendored `config-version.fence.md` extracts to the identical normalized array with `fieldsForm: fence` | Unit | P0 | FR-070-AC-2 | 🚧 issue #388 |
+| TC-1612 | `both-forms.md` yields no `fields` and one `semantic.properties-both-forms` error at the fence start line recorded in `both-forms.expected.json` | Unit | P0 | FR-070-AC-3 | 🚧 issue #388 |
+| TC-1613 | Every `Type` case in `cell-cases.json` yields the expected target, `decimal`, `unit`, placeholder identity, or diagnostic at the row locus | Unit | P0 | FR-070-AC-4 | 🚧 issue #388 |
+| TC-1614 | Every `Multiplicity` case in `cell-cases.json` yields the expected `Multiplicity` or `semantic.invalid-multiplicity` at the row | Unit | P0 | FR-070-AC-5 | 🚧 issue #388 |
+| TC-1615 | Every `Constraints` case in `cell-cases.json` yields the expected constraints, `identity` flag, or `semantic.unknown-constraint-keyword` at the row | Unit | P0 | FR-070-AC-6 | 🚧 issue #388 |
+| TC-1616 | Every fence-line case in `cell-cases.json` yields `semantic.sysml-outside-subset` at the fence line | Unit | P0 | FR-070-AC-7 | 🚧 issue #388 |
+| TC-1617 | The pinned FR-006 copy, `legacy-bullets.md`, and `legacy-mixed.md` yield the form, line, and warning of `legacy.expected.json` with `properties` unchanged and `fields` `unavailable`; under `legacy_forms: error` the finding is an error | Unit | P0 | FR-070-AC-8 | 🚧 issue #388 |
+| TC-1618 | An artifact of a module without a `semantic` block yields no `fields` key, no semantic diagnostic, and a record byte-identical to the pre-change extraction | Snapshot | P0 | FR-070-AC-9, FR-070-CON-3 | 🚧 issue #388 |
+| TC-1619 | Fence recognition is line-level: brace content with arbitrary bytes is carried opaque, and a static audit finds no brace-content parser | Static | P0 | FR-070-CON-1 | 🚧 issue #388 |
+| TC-1620 | Type resolution reads only the bundle index and loaded modules; a static audit finds no filesystem walk or network call on the path | Static | P1 | FR-070-CON-2 | 🚧 issue #388 |
+| TC-1621 | For generated `Type`, `Multiplicity`, and `Constraints` cells, every produced `FieldDecl` validates against the vendored `FieldDecl.json` or the row carries a diagnostic; no entry is silently dropped | Property | P1 | FR-070-AC-4, FR-070-AC-5, FR-070-AC-6 | 🚧 issue #388 |
+| TC-1622 | Vendored `operations.md` extracts to the `clauses`, `operations`, and `clauseText` of `operations.expected.json`; `config-version.table.md` yields its `immutable` clause with the recorded span; each `clauseText` equals the fence body byte-for-byte | Unit | P0 | FR-071-AC-1 | 🚧 issue #388 |
+| TC-1623 | The five language cases of `operations-cases.json` yield the recorded code, severity, and fence locus; `ocl` yields no advisory | Unit | P0 | FR-071-AC-2 | 🚧 issue #388 |
+| TC-1624 | `duplicate-clause-id` fails at the second heading, `clause-id-not-identifier` at the heading, `inline-and-external` at the second occurrence | Unit | P0 | FR-071-AC-3 | 🚧 issue #388 |
+| TC-1625 | `dangling-post` fails at the `Post:` line with `semantic.dangling-clause-ref`; `duplicate-operation` fails at the second heading | Unit | P0 | FR-071-AC-4 | 🚧 issue #388 |
+| TC-1626 | Every produced `ClauseRef` and `OperationDecl` validates against the vendored schemas; an artifact without the sections reports both as `not_applicable` | Unit | P0 | FR-071-AC-5 | 🚧 issue #388 |
+| TC-1627 | A static boundary audit finds no clause tokenizer, parser, or evaluator reachable from the semantic module; a fence body of arbitrary bytes round-trips unchanged into `clauseText` | Static | P0 | FR-071-AC-6, FR-071-CON-1 | 🚧 issue #388 |
+| TC-1628 | Clause spans are derived from the parser's fence offsets: a static audit finds no second Markdown scan, and spans agree with the parser's block offsets on every fixture | Static | P1 | FR-071-CON-2 | 🚧 issue #388 |
+| TC-1629 | For generated fence bodies (backticks, nested fences, non-UTF-8-safe escapes, CRLF), `clauseText` equals the body bytes and the span covers exactly the fence | Property | P1 | FR-071-AC-6 | 🚧 issue #388 |
+| TC-1630 | Every case in `tests/fixtures/semantic/cases.json` yields the expected `fields`, `clauses`, `operations`, `availability`, and diagnostics through the library, and the record validates against `semantic-v1.schema.json` | Integration | P0 | FR-072-AC-1 | 🚧 issue #388 |
+| TC-1631 | Fixtures exercise `available`, `not_applicable`, `missing`, and `unavailable` per declaration kind; each is a distinct JSON token and `unavailable` carries a non-empty `reason` | Unit | P0 | FR-072-AC-2 | 🚧 issue #388 |
+| TC-1632 | A Filament snapshot with a `semantic` context yields `dataJson.semantic` and diagnostics with `locus`; the same document without the context yields a byte-identical pre-change result | Snapshot | P0 | FR-072-AC-3, FR-072-CON-1 | 🚧 issue #388 |
+| TC-1633 | A snapshot naming `contractVersion: 2.0.0` or `semanticCore: 0.9.0` is refused with the FR-069 code before any node is produced | Unit | P0 | FR-072-AC-4 | 🚧 issue #388 |
+| TC-1634 | `quire validate` over the vendored corpus copy reports the legacy-form warning at its line and over `both-forms.md` the both-forms error at the fence line, with the library's codes | E2E | P0 | FR-072-AC-5 | 🚧 issue #388 |
+| TC-1635 | The Python binding's `extract_filament_core` and `extract_semantic` return JSON values equal to the Rust output for every semantic fixture case | Integration | P0 | FR-072-AC-6 | 🚧 issue #388 |
+| TC-1636 | The WASM `extractFilamentCore` and `extractSemantic` return JSON values equal to the Rust output for every semantic fixture case | Integration | P0 | FR-072-AC-6 | 🚧 issue #388 |
+| TC-1637 | Two extractions over identical input serialize byte-identically; editing an unrelated section changes no declaration, span, or diagnostic | Property | P0 | FR-072-AC-7 | 🚧 issue #388 |
+| TC-1638 | `semantic-v1.schema.json` is valid 2020-12 with `additionalProperties: false` everywhere; the checked-in compatibility fixture pins every field and state token and fails on removal or rename | Unit | P0 | FR-072-AC-8, FR-072-CON-3 | 🚧 issue #388 |
+| TC-1639 | Coverage-v1, properties-v1, and assurance-v1 outputs are byte-identical to their baselines and no existing contract gains a required key | Snapshot | P0 | FR-072-CON-1 | 🚧 issue #388 |
+| TC-1640 | A static audit finds no rendering, code generation, or file write on the semantic surface | Static | P0 | FR-072-CON-2 | 🚧 issue #388 |
+| TC-1641 | The crate graph and semantic module contain no OCL, SysML, or FRETish parser, no expression evaluator over clause text, and no template dependency | Static | P0 | NFR-021-AC-1 | 🚧 issue #388 |
+| TC-1642 | The semantic path performs no network, git, or persistence call, and the `wasm` feature build passes with the semantic-core bundle embedded | Compile | P0 | NFR-021-AC-2 | 🚧 issue #388 |
+| TC-1643 | Every pre-existing Filament graph case, coverage-v1, properties-v1, and assurance-v1 fixture output is byte-identical before and after the change | Snapshot | P0 | NFR-021-AC-3 | 🚧 issue #388 |
+| TC-1644 | The semantic fixture suite yields identical JSON values across repeated runs and across Rust, Python, and WASM, including diagnostic order and loci | Integration | P0 | NFR-021-AC-4 | 🚧 issue #388 |
 | TC-1052 | The symbol table reports the QUALIFIED NAME the engine built, with its container — the field three ports of `symbols/python.rs` disagreed on, giving 386, 490 and 5,263 lost declarations over one tree. A defect in the scanner cannot be sized by a reimplementation of the scanner (#309) | Unit | P0 | FR-051-AC-23 | ✅ |
 | TC-1053 | Each record carries whether its KIND can bind a trace id and whether it can carry `implements`, and the two are complements for every symbol — the first thing to check when a row will not bind, previously only inferable from a coverage rollup two layers away (#309, #312, CR-061) | Unit | P0 | FR-051-AC-23 | ✅ |
 | TC-1054 | With no module the report says binding was NOT ASKED rather than reporting zero: an unbound run and a repository nobody tagged produce the same empty `trace_ids`, and the per-language census keeps `binding_kinds` separate from `bound` so a rate is never drawn over the wrong denominator (#309) | Unit | P0 | FR-051-AC-23 | ✅ |

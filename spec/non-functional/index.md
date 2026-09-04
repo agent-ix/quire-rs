@@ -27,3 +27,4 @@ description: "Index of artifacts in this directory."
 * [NFR-019: Input Robustness: No Panic on Arbitrary Input](./NFR-019-input-robustness.md)
 
 * [NFR-020: Filament extraction boundary](./NFR-020-filament-extraction-boundary.md)
+* [NFR-021: Semantic extraction boundary](./NFR-021-semantic-extraction-boundary.md)
