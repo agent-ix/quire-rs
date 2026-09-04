@@ -59,6 +59,9 @@ pub enum ValidationReason {
     /// advisory `warning` by default, promotable to `error`. Carried for both
     /// the warning and error routing of grammar findings.
     Grammar,
+    /// A semantic extraction diagnostic (FR-072): the message carries the
+    /// `semantic.*` code.
+    Semantic,
 }
 
 impl ValidationReason {
@@ -75,6 +78,7 @@ impl ValidationReason {
             Self::UnknownObjectType => "unknown-object-type",
             Self::DisallowedEdgeType => "disallowed-edge-type",
             Self::Grammar => "grammar",
+            Self::Semantic => "semantic",
         }
     }
 }
@@ -334,6 +338,73 @@ pub fn validate_document_in_registry_with_lexicon(
     validate_in_registry_core(registry, archetype, doc_text, lexicon)
 }
 
+/// Semantic extraction findings (FR-072 `validate_document` surface): every
+/// diagnostic becomes a finding with its line; `error` fails validation,
+/// `advisory` and `warning` are warnings. The bundle index and source
+/// identity are not available on this surface, so type tokens outside the
+/// kernel and imports resolve as `unresolved` (`no-bundle-index`) and spans
+/// carry the defaulted identity with its advisory.
+fn semantic_findings(
+    registry: &crate::Registry,
+    arch: &CompiledArchetype,
+    module: &crate::semantic::SemanticModule,
+    doc_text: &str,
+    errors: &mut Vec<ValidationError>,
+    warnings: &mut Vec<ValidationWarning>,
+) {
+    use crate::semantic::{BundleIndex, RequiredSections, SemanticContext, SemanticSeverity};
+    let mut bundle = BundleIndex::default();
+    for (_, m) in registry.semantic_modules() {
+        bundle.imports.insert(m.package.clone(), m.exports.clone());
+    }
+    let ctx = SemanticContext::new(module.clone(), "<document>", bundle);
+    let required = arch
+        .body_extraction()
+        .and_then(|dsl| serde_json::to_value(dsl).ok())
+        .map(|v| RequiredSections::from_dsl(&v))
+        .unwrap_or_default();
+    let record = crate::semantic::extract_semantic(
+        doc_text,
+        &ctx,
+        arch.semantic_schema_digest.as_deref(),
+        &required,
+    );
+    for d in &record.diagnostics {
+        let message = format!("{}: {}", d.code, d.message);
+        match d.severity {
+            SemanticSeverity::Error => errors.push(ValidationError {
+                message,
+                line: d.line,
+                reason: ValidationReason::Semantic,
+            }),
+            _ => warnings.push(ValidationWarning {
+                message,
+                line: d.line,
+                reason: ValidationReason::Semantic,
+            }),
+        }
+    }
+    if let Some(validator) = arch.data_validator() {
+        let declaration = record.declaration_record();
+        let first: Option<(String, String)> = match validator.validate(&declaration) {
+            Ok(()) => None,
+            Err(mut violations) => violations.next().map(|err| {
+                let detail = crate::validate::schema_validation_detail(&err);
+                (detail.path.to_string(), detail.message.to_string())
+            }),
+        };
+        if let Some((path, message)) = first {
+            errors.push(ValidationError {
+                message: format!(
+                    "semantic.record-invalid: declaration record fails the resolved data schema at {path}: {message}"
+                ),
+                line: None,
+                reason: ValidationReason::Semantic,
+            });
+        }
+    }
+}
+
 /// Shared body of the two registry-backed validation entry points. The only
 /// difference is the `GrammarLexicon` the grammar check consumes.
 fn validate_in_registry_core(
@@ -387,6 +458,15 @@ fn validate_in_registry_core(
     // any frontmatter `relationships` edge whose `type` is outside it.
     // When `object:` is unknown, `object_archetype` is None and the
     // vocabulary falls back to the artifact axis alone. Advisory only.
+    // FR-072: semantic findings for an object artifact of a module with a
+    // `semantic` block; the declaration record validates against the
+    // resolved data schema (FR-069-AC-1).
+    if let Some(arch) = object_archetype {
+        if let Some(module) = registry.semantic_module(&arch.module) {
+            semantic_findings(registry, arch, module, doc_text, &mut errors, &mut warnings);
+        }
+    }
+
     let resolved_links = registry.resolve_allowed_links(archetype, object_archetype);
     // Skip the check entirely when neither axis declares any vocabulary —
     // an undeclared archetype must not flag every edge (open vocabulary).
@@ -939,6 +1019,7 @@ mod tests {
             data_schema: None,
             data_validator: None,
             body_extraction,
+            semantic_schema_digest: None,
             carry_over: ArchetypeCarryOver::default(),
         }
     }

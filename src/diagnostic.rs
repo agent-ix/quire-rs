@@ -10,6 +10,14 @@ use std::path::PathBuf;
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum Diagnostic {
+    /// A warning-level semantic module diagnostic (FR-069): the module
+    /// loaded, and `code` says what was advisory about it.
+    Semantic {
+        module: String,
+        path: String,
+        code: String,
+        message: String,
+    },
     DuplicateModuleName {
         name: String,
         paths: Vec<PathBuf>,
@@ -204,6 +212,12 @@ impl std::fmt::Display for PathTraversalReason {
 impl std::fmt::Display for Diagnostic {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::Semantic {
+                module,
+                path,
+                code,
+                message,
+            } => write!(f, "{code}: {message} (module {module}, {path})"),
             Self::DuplicateModuleName { name, paths } => write!(
                 f,
                 "DuplicateModuleName: '{}' declared at {} path(s); first-wins",
@@ -344,6 +358,18 @@ impl Diagnostic {
     pub fn to_json(&self) -> serde_json::Value {
         use serde_json::json;
         match self {
+            Self::Semantic {
+                module,
+                path,
+                code,
+                message,
+            } => json!({
+                "kind": "Semantic",
+                "module": module,
+                "path": path,
+                "code": code,
+                "message": message,
+            }),
             Self::DuplicateModuleName { name, paths } => json!({
                 "kind": "DuplicateModuleName",
                 "name": name,

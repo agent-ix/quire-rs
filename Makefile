@@ -326,7 +326,15 @@ corpus-recall-update:
 	UPDATE_CORPUS_RECALL=1 CARGO_TARGET_DIR=target cargo test --locked --test corpus_recall
 
 .PHONY: ci
-ci: fmt-check lint check-python check-scripts test deny audit-unsafe audit-property audit-static validate check-engine
+# NFR-021-AC-2 (TC-1649): the semantic resolver runs from the embedded bundle,
+# so the wasm feature build (no filesystem `$ref` resolution) must keep
+# compiling. Needs `rustup target add wasm32-unknown-unknown`.
+.PHONY: check-wasm
+check-wasm:
+	CARGO_TARGET_DIR=target/wasm-check $(CARGO) check --locked --target wasm32-unknown-unknown --no-default-features --features wasm --quiet
+	$(CARGO) test --locked --no-default-features --features wasm --quiet --test semantic_contract --test semantic_properties --test semantic_clauses --test semantic_surface
+
+ci: fmt-check lint check-python check-wasm check-scripts test deny audit-unsafe audit-property audit-static validate check-engine
 
 # =============================================================================
 # Python wheel / sdist + local-publish (pypi.ix)

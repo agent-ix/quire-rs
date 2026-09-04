@@ -1,0 +1,134 @@
+{
+  "bundle": [
+    {
+      "module": "bundle-test",
+      "name": "index",
+      "raw_schema_sha256": "0a3d18b4c66954dc11bc48be6a37f7e209de940f3acba66a384a59ab455bfdef",
+      "frontmatter_schema_sha256": "0a3d18b4c66954dc11bc48be6a37f7e209de940f3acba66a384a59ab455bfdef",
+      "data_schema_sha256": null,
+      "body_extraction": null,
+      "carry_over": "ArchetypeCarryOver { id_pattern: None, allowed_links: {}, roles: [], has_plugin: false, grammar_ref: Some(\"bundle-core\") }"
+    },
+    {
+      "module": "bundle-test",
+      "name": "log",
+      "raw_schema_sha256": "b34689a23c8ad05d93d870cf940cf78471d8a7b21844c41556ce47ddcb4dd5ab",
+      "frontmatter_schema_sha256": "b34689a23c8ad05d93d870cf940cf78471d8a7b21844c41556ce47ddcb4dd5ab",
+      "data_schema_sha256": null,
+      "body_extraction": null,
+      "carry_over": "ArchetypeCarryOver { id_pattern: None, allowed_links: {}, roles: [], has_plugin: false, grammar_ref: Some(\"bundle-core\") }"
+    },
+    {
+      "module": "bundle-test",
+      "name": "note",
+      "raw_schema_sha256": "bdebeee1f58d51229cc1436f4485bf77ddd8f59350120c54b8d64721c9e337ad",
+      "frontmatter_schema_sha256": "bdebeee1f58d51229cc1436f4485bf77ddd8f59350120c54b8d64721c9e337ad",
+      "data_schema_sha256": null,
+      "body_extraction": null,
+      "carry_over": "ArchetypeCarryOver { id_pattern: None, allowed_links: {\"references\": [\"*\"]}, roles: [], has_plugin: false, grammar_ref: Some(\"bundle-core\") }"
+    }
+  ],
+  "demo": [
+    {
+      "module": "demo",
+      "name": "demo-item",
+      "raw_schema_sha256": "af3eb007439592160ca3fcb66a5a275a5544ffba010546b9559daae2f76ab6d9",
+      "frontmatter_schema_sha256": "af3eb007439592160ca3fcb66a5a275a5544ffba010546b9559daae2f76ab6d9",
+      "data_schema_sha256": null,
+      "body_extraction": null,
+      "carry_over": "ArchetypeCarryOver { id_pattern: None, allowed_links: {}, roles: [], has_plugin: false, grammar_ref: None }"
+    }
+  ],
+  "iso": [
+    {
+      "module": "spec-artifacts-iso",
+      "name": "AC",
+      "raw_schema_sha256": "3e2561b2385c237d8097a7b04d42a3635d7cc72e9a6e80e569fd2424530258a3",
+      "frontmatter_schema_sha256": "3e2561b2385c237d8097a7b04d42a3635d7cc72e9a6e80e569fd2424530258a3",
+      "data_schema_sha256": null,
+      "body_extraction": "ExtractionDsl { yield_pattern: YieldPattern { match: Some({\"description\": Primitive(SectionBody { after_heading: \"Description\", required: true, multiple: false, regex: None, assert: None }), \"dependencies\": Primitive(SectionBody { after_heading: \"Dependencies\", required: true, multiple: false, regex: None, assert: None })}), iterate_over: None, per_match: None }, emit_edges: None }",
+      "carry_over": "ArchetypeCarryOver { id_pattern: Some(\"AC-{next:03d}\"), allowed_links: {\"verifies\": [\"*\"]}, roles: [], has_plugin: false, grammar_ref: Some(\"iso-spec-core\") }"
+    },
+    {
+      "module": "spec-artifacts-iso",
+      "name": "CON",
+      "raw_schema_sha256": "95bb2dcab8584d0778b4d818ba2e8fa8c3f570b7772a2a4efb2760921721e09d",
+      "frontmatter_schema_sha256": "95bb2dcab8584d0778b4d818ba2e8fa8c3f570b7772a2a4efb2760921721e09d",
+      "data_schema_sha256": null,
+      "body_extraction": "ExtractionDsl { yield_pattern: YieldPattern { match: Some({\"description\": Primitive(SectionBody { after_heading: \"Description\", required: true, multiple: false, regex: None, assert: None }), \"dependencies\": Primitive(SectionBody { after_heading: \"Dependencies\", required: true, multiple: false, regex: None, assert: None })}), iterate_over: None, per_match: None }, emit_edges: None }",
+      "carry_over": "ArchetypeCarryOver { id_pattern: Some(\"CON-{next:03d}\"), allowed_links: {\"constrains\": [\"*\"], \"references\": [\"*\"]}, roles: [], has_plugin: false, grammar_ref: Some(\"iso-spec-core\") }"
+    },
+    {
+      "module": "spec-artifacts-iso",
+      "name": "FR",
+      "raw_schema_sha256": "62af787d278fb326683f27a70dd7ce47911b0e6548232a8a67b204519fb3eec8",
+      "frontmatter_schema_sha256": "62af787d278fb326683f27a70dd7ce47911b0e6548232a8a67b204519fb3eec8",
+      "data_schema_sha256": null,
+      "body_extraction": "ExtractionDsl { yield_pattern: YieldPattern { match: Some({\"description\": Primitive(SectionBody { after_heading: \"Description\", required: true, multiple: false, regex: None, assert: None }), \"specification\": Primitive(SectionBody { after_heading: \"Specification\", required: true, multiple: false, regex: None, assert: None }), \"acceptance_criteria\": Primitive(SectionBody { after_heading: \"Acceptance Criteria\", required: true, multiple: false, regex: None, assert: None }), \"dependencies\": Primitive(SectionBody { after_heading: \"Dependencies\", required: true, multiple: false, regex: None, assert: None })}), iterate_over: None, per_match: None }, emit_edges: None }",
+      "carry_over": "ArchetypeCarryOver { id_pattern: Some(\"FR-{next:03d}\"), allowed_links: {\"calls\": [\"*\"], \"constrains\": [\"*\"], \"consumes\": [\"*\"], \"contains\": [\"*\"], \"depends_on\": [\"*\"], \"implements\": [\"*\"], \"publishes\": [\"*\"], \"reads\": [\"*\"], \"references\": [\"*\"], \"requires\": [\"*\"], \"supersedes\": [\"*\"], \"transitions_to\": [\"*\"], \"triggers\": [\"*\"], \"writes\": [\"*\"]}, roles: [], has_plugin: false, grammar_ref: Some(\"iso-spec-core\") }"
+    },
+    {
+      "module": "spec-artifacts-iso",
+      "name": "IT",
+      "raw_schema_sha256": "04737bd9cff8f007b773e84756b5a8e93225a4824bb6894fc9514dddaa562609",
+      "frontmatter_schema_sha256": "04737bd9cff8f007b773e84756b5a8e93225a4824bb6894fc9514dddaa562609",
+      "data_schema_sha256": null,
+      "body_extraction": "ExtractionDsl { yield_pattern: YieldPattern { match: Some({\"description\": Primitive(SectionBody { after_heading: \"Description\", required: true, multiple: false, regex: None, assert: None }), \"dependencies\": Primitive(SectionBody { after_heading: \"Dependencies\", required: true, multiple: false, regex: None, assert: None })}), iterate_over: None, per_match: None }, emit_edges: None }",
+      "carry_over": "ArchetypeCarryOver { id_pattern: Some(\"IT-{next:03d}\"), allowed_links: {\"depends_on\": [\"*\"], \"references\": [\"*\"], \"verifies\": [\"*\"]}, roles: [], has_plugin: false, grammar_ref: Some(\"iso-spec-core\") }"
+    },
+    {
+      "module": "spec-artifacts-iso",
+      "name": "NFR",
+      "raw_schema_sha256": "cdefc3e35cbf0ac69b70703e20bbb918ba5245ada32ec66cdeb4af34d32af67d",
+      "frontmatter_schema_sha256": "cdefc3e35cbf0ac69b70703e20bbb918ba5245ada32ec66cdeb4af34d32af67d",
+      "data_schema_sha256": null,
+      "body_extraction": "ExtractionDsl { yield_pattern: YieldPattern { match: Some({\"quality_attribute\": Primitive(SectionBody { after_heading: \"Quality Attribute\", required: true, multiple: false, regex: None, assert: None }), \"statement\": Primitive(SectionBody { after_heading: \"Statement\", required: true, multiple: false, regex: None, assert: None }), \"scope\": Primitive(SectionBody { after_heading: \"Scope\", required: true, multiple: false, regex: None, assert: None }), \"measurement_and_evaluation\": Primitive(SectionBody { after_heading: \"Measurement and Evaluation\", required: true, multiple: false, regex: None, assert: None }), \"verification\": Primitive(SectionBody { after_heading: \"Verification\", required: true, multiple: false, regex: None, assert: None }), \"dependencies\": Primitive(SectionBody { after_heading: \"Dependencies\", required: true, multiple: false, regex: None, assert: None })}), iterate_over: None, per_match: None }, emit_edges: None }",
+      "carry_over": "ArchetypeCarryOver { id_pattern: Some(\"NFR-{next:03d}\"), allowed_links: {\"constrains\": [\"*\"], \"depends_on\": [\"*\"], \"references\": [\"*\"]}, roles: [], has_plugin: false, grammar_ref: Some(\"iso-spec-core\") }"
+    },
+    {
+      "module": "spec-artifacts-iso",
+      "name": "Spec",
+      "raw_schema_sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "frontmatter_schema_sha256": null,
+      "data_schema_sha256": null,
+      "body_extraction": null,
+      "carry_over": "ArchetypeCarryOver { id_pattern: None, allowed_links: {}, roles: [], has_plugin: false, grammar_ref: None }"
+    },
+    {
+      "module": "spec-artifacts-iso",
+      "name": "StR",
+      "raw_schema_sha256": "8fe811e7cf5090e17e5e11577dcb64a79205be301559354c08bf06dd28b05043",
+      "frontmatter_schema_sha256": "8fe811e7cf5090e17e5e11577dcb64a79205be301559354c08bf06dd28b05043",
+      "data_schema_sha256": null,
+      "body_extraction": "ExtractionDsl { yield_pattern: YieldPattern { match: Some({\"description\": Primitive(SectionBody { after_heading: \"Description\", required: true, multiple: false, regex: None, assert: None }), \"dependencies\": Primitive(SectionBody { after_heading: \"Dependencies\", required: true, multiple: false, regex: None, assert: None })}), iterate_over: None, per_match: None }, emit_edges: None }",
+      "carry_over": "ArchetypeCarryOver { id_pattern: Some(\"StR-{next:03d}\"), allowed_links: {\"depends_on\": [\"*\"], \"references\": [\"*\"], \"satisfied_by\": [\"*\"]}, roles: [], has_plugin: false, grammar_ref: Some(\"iso-spec-core\") }"
+    },
+    {
+      "module": "spec-artifacts-iso",
+      "name": "TC",
+      "raw_schema_sha256": "2b52149d0102021e6adbbe3767850492c27cd25f60e339380509103cb58704d7",
+      "frontmatter_schema_sha256": "2b52149d0102021e6adbbe3767850492c27cd25f60e339380509103cb58704d7",
+      "data_schema_sha256": null,
+      "body_extraction": "ExtractionDsl { yield_pattern: YieldPattern { match: Some({\"description\": Primitive(SectionBody { after_heading: \"Description\", required: true, multiple: false, regex: None, assert: None }), \"dependencies\": Primitive(SectionBody { after_heading: \"Dependencies\", required: true, multiple: false, regex: None, assert: None })}), iterate_over: None, per_match: None }, emit_edges: None }",
+      "carry_over": "ArchetypeCarryOver { id_pattern: Some(\"TC-{next:03d}\"), allowed_links: {\"references\": [\"*\"], \"verifies\": [\"*\"]}, roles: [], has_plugin: false, grammar_ref: Some(\"iso-spec-core\") }"
+    },
+    {
+      "module": "spec-artifacts-iso",
+      "name": "US",
+      "raw_schema_sha256": "b9c15e7eb428a9e94e290afb6c781425e6ccb5ad6e1c55ca0fb7b093ae4abfa7",
+      "frontmatter_schema_sha256": "b9c15e7eb428a9e94e290afb6c781425e6ccb5ad6e1c55ca0fb7b093ae4abfa7",
+      "data_schema_sha256": null,
+      "body_extraction": "ExtractionDsl { yield_pattern: YieldPattern { match: Some({\"description\": Primitive(SectionBody { after_heading: \"Description\", required: true, multiple: false, regex: None, assert: None }), \"dependencies\": Primitive(SectionBody { after_heading: \"Dependencies\", required: true, multiple: false, regex: None, assert: None })}), iterate_over: None, per_match: None }, emit_edges: None }",
+      "carry_over": "ArchetypeCarryOver { id_pattern: Some(\"US-{next:03d}\"), allowed_links: {\"references\": [\"*\"], \"satisfied_by\": [\"*\"], \"traces_to\": [\"*\"]}, roles: [], has_plugin: false, grammar_ref: Some(\"iso-spec-core\") }"
+    },
+    {
+      "module": "spec-artifacts-iso",
+      "name": "master-requirements",
+      "raw_schema_sha256": "43a77799c817fb059d184afef66c9f8ec95ea811b21a1b26ca03914d12743bf3",
+      "frontmatter_schema_sha256": "43a77799c817fb059d184afef66c9f8ec95ea811b21a1b26ca03914d12743bf3",
+      "data_schema_sha256": null,
+      "body_extraction": "ExtractionDsl { yield_pattern: YieldPattern { match: Some({\"title\": Primitive(Heading { level: Some(1), path: None, required: true, multiple: false, regex: Some(\"^Master Requirements Specification$\"), assert: Some(LocatorAssert { level: Some(1), columns: None, optional_columns: None, min_rows: None, min_items: None, id_column: None, id_pattern: None, matches: None, choices: None, column_choices: None, column_patterns: None, from_vocabulary: None, column_vocabularies: None }) }), \"purpose\": Primitive(SectionBody { after_heading: \"Purpose\", required: true, multiple: false, regex: None, assert: Some(LocatorAssert { level: Some(2), columns: None, optional_columns: None, min_rows: None, min_items: None, id_column: None, id_pattern: None, matches: None, choices: None, column_choices: None, column_patterns: None, from_vocabulary: None, column_vocabularies: None }) }), \"scope\": Primitive(Heading { level: Some(2), path: None, required: true, multiple: false, regex: Some(\"^Scope$\"), assert: Some(LocatorAssert { level: Some(2), columns: None, optional_columns: None, min_rows: None, min_items: None, id_column: None, id_pattern: None, matches: None, choices: None, column_choices: None, column_patterns: None, from_vocabulary: None, column_vocabularies: None }) }), \"system_overview\": Primitive(Heading { level: Some(2), path: None, required: true, multiple: false, regex: Some(\"^System Overview$\"), assert: Some(LocatorAssert { level: Some(2), columns: None, optional_columns: None, min_rows: None, min_items: None, id_column: None, id_pattern: None, matches: None, choices: None, column_choices: None, column_patterns: None, from_vocabulary: None, column_vocabularies: None }) }), \"requirements_architecture\": Primitive(Heading { level: Some(2), path: None, required: true, multiple: false, regex: Some(\"^Requirements Architecture$\"), assert: Some(LocatorAssert { level: Some(2), columns: None, optional_columns: None, min_rows: None, min_items: None, id_column: None, id_pattern: None, matches: None, choices: None, column_choices: None, column_patterns: None, from_vocabulary: None, column_vocabularies: None }) }), \"references\": Primitive(SectionBody { after_heading: \"References\", required: true, multiple: false, regex: None, assert: Some(LocatorAssert { level: Some(2), columns: None, optional_columns: None, min_rows: None, min_items: None, id_column: None, id_pattern: None, matches: None, choices: None, column_choices: None, column_patterns: None, from_vocabulary: None, column_vocabularies: None }) })}), iterate_over: None, per_match: None }, emit_edges: None }",
+      "carry_over": "ArchetypeCarryOver { id_pattern: None, allowed_links: {\"depends_on\": [\"*\"], \"references\": [\"*\"]}, roles: [], has_plugin: false, grammar_ref: Some(\"iso-spec-core\") }"
+    }
+  ]
+}

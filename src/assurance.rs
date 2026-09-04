@@ -419,7 +419,12 @@ fn module_premises(registry: &Registry) -> Result<Vec<AssuranceModulePremise>, A
         };
         module.schemas.push(AssuranceSchemaPremise {
             archetype: archetype.name.clone(),
-            schema_digest: digest_json(&archetype.raw_schema)?,
+            schema_digest: match &archetype.semantic_schema_digest {
+                // FR-069: the digest over the shipped schema bytes is the one
+                // tuple; no second digest is computed.
+                Some(d) => d.trim_start_matches("sha256:").to_string(),
+                None => digest_json(&archetype.raw_schema)?,
+            },
         });
     }
     for module in modules.values_mut() {

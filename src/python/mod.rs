@@ -52,6 +52,7 @@ fn quire(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(validate_manifest, m)?)?;
     m.add_function(wrap_pyfunction!(extract, m)?)?;
     m.add_function(wrap_pyfunction!(extract_filament_core, m)?)?;
+    m.add_function(wrap_pyfunction!(extract_semantic, m)?)?;
     m.add_function(wrap_pyfunction!(extract_core_data, m)?)?;
     m.add_function(wrap_pyfunction!(extract_frontmatter, m)?)?;
     m.add_function(wrap_pyfunction!(harvest_edges, m)?)?;
@@ -538,6 +539,25 @@ fn extract_filament_core<'py>(
     json_to_py(py, &value)
 }
 
+/// FR-072 semantic extraction for one document. `request` is a mapping:
+/// `markdown`, `module` (contractVersion, semanticCore, package, exports,
+/// imports, compatibilityPosture, legacyForms), optional `path`,
+/// `sourceIdentity`, `scope`, `bundle` (BundleIndex), `schemaDigest`, and
+/// `required` ({properties, invariants, operations}). Returns the
+/// `semantic-v1` record as native values.
+#[pyfunction]
+fn extract_semantic<'py>(
+    py: Python<'py>,
+    request: &Bound<'_, PyAny>,
+) -> PyResult<Bound<'py, PyAny>> {
+    let value = py_to_json(request)?;
+    let record = crate::semantic::python_entry::extract_semantic_json(&value)
+        .map_err(PyTypeError::new_err)?;
+    let value =
+        serde_json::to_value(record).map_err(|err| QuireParseError::new_err(err.to_string()))?;
+    json_to_py(py, &value)
+}
+
 /// Extract frontmatter and body from `text` using the Rust FR-006 parser.
 /// Returns `{frontmatter: dict | None, body: str}`.
 #[pyfunction]
@@ -997,6 +1017,7 @@ fn compile_object_types(value: Value) -> PyResult<BTreeMap<String, Arc<CompiledA
                 data_schema: Some(Arc::clone(&raw)),
                 data_validator: Some(Arc::clone(&v)),
                 body_extraction,
+                semantic_schema_digest: None,
                 carry_over: Default::default(),
             }),
         );

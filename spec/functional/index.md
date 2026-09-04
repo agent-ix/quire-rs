@@ -71,3 +71,7 @@ description: "Index of artifacts in this directory."
 * [FR-066: Gap disposition census](./FR-066-gap-disposition-census.md)
 * [FR-067: Versioned assurance export contract](./FR-067-versioned-assurance-export.md)
 * [FR-068: Source-grounded assurance projection](./FR-068-source-grounded-assurance-projection.md)
+* [FR-069: Semantic module contract at load](./FR-069-semantic-module-contract-at-load.md)
+* [FR-070: Typed Properties extraction to FieldDecl[]](./FR-070-typed-properties-extraction.md)
+* [FR-071: Clause and operation extraction](./FR-071-clause-and-operation-extraction.md)
+* [FR-072: Semantic extraction surface](./FR-072-semantic-extraction-surface.md)

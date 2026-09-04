@@ -40,6 +40,8 @@ pub struct LoadedModule {
     pub root: PathBuf,
     pub version: Option<String>,
     pub archetypes: Vec<Arc<CompiledArchetype>>,
+    /// The loaded `semantic` block, when the manifest carries one (FR-069).
+    pub semantic: Option<crate::semantic::SemanticModule>,
     /// Advisory lint rules declared by the module (FR-036).
     pub lint_rules: Vec<crate::lint::LintRule>,
     /// Edge-type registry contributed by this module (FR-040).
@@ -273,6 +275,47 @@ pub fn load_inline_module(manifest_yaml: &[u8], schemas: &BTreeMap<String, Strin
 
     let mut archetypes: Vec<Arc<CompiledArchetype>> = Vec::new();
 
+    let inline_source = crate::semantic::SchemaSource::Inline { files: schemas };
+    let inline_semantic = match read_module_semantic(&manifest) {
+        Ok(s) => s,
+        Err(semantic_failures) => {
+            for at in manifest.all_archetypes() {
+                for f in &semantic_failures {
+                    failures.push(failure(
+                        &module_name,
+                        &at.name,
+                        inline_root.clone(),
+                        f.reason(),
+                    ));
+                }
+            }
+            return LoadOutcome {
+                modules: vec![LoadedModule {
+                    name: module_name,
+                    root: inline_root,
+                    version: manifest.version.clone(),
+                    archetypes,
+                    semantic: None,
+                    lint_rules: manifest.lint_rules.clone(),
+                    edge_types: manifest.edge_types.clone(),
+                    roles: manifest.roles.clone(),
+                    lexicon: manifest.lexicon.clone(),
+                    grammar_severity: manifest.grammar_severity.clone(),
+                    observable_verbs: manifest.observable_verbs.clone(),
+                    vacuous_predicates: manifest.vacuous_predicates.clone(),
+                    property_idioms: manifest.property_idioms.clone(),
+                    verification_catalog: manifest.verification_catalog.clone(),
+                    ambiguity_terms: manifest.ambiguity_terms.clone(),
+                    traceability: manifest.traceability.clone(),
+                    origins,
+                }],
+                failures,
+                diagnostics,
+                path_diagnostics: Vec::new(),
+            };
+        }
+    };
+
     'next_archetype: for a in manifest.all_archetypes() {
         // No-compat rule (ADR 0003): retired fields are a hard failure.
         if let Some(field) = a.retired_field() {
@@ -330,16 +373,22 @@ pub fn load_inline_module(manifest_yaml: &[u8], schemas: &BTreeMap<String, Strin
             }
         };
 
-        // Data schema (optional, inline in the manifest).
-        let (data_schema, data_validator) = match &a.data_schema {
-            None => (None, None),
-            Some(schema) => match compile_schema(schema) {
-                Ok(v) => (Some(Arc::new(schema.clone())), Some(Arc::new(v))),
-                Err(r) => {
-                    failures.push(failure(&module_name, &a.name, inline_root.clone(), r));
-                    continue;
-                }
-            },
+        // Data schema (optional): inline, or the FR-069 reference form served
+        // from the `schemas` map.
+        let (data_schema, data_validator, semantic_schema_digest) = match resolve_data_schema(
+            &module_name,
+            inline_root.clone(),
+            a,
+            inline_semantic.as_ref(),
+            &manifest,
+            &inline_source,
+            &mut diagnostics,
+        ) {
+            Ok(parts) => parts,
+            Err(f) => {
+                failures.push(f);
+                continue;
+            }
         };
 
         // body_extraction DSL validated at load time.
@@ -362,6 +411,7 @@ pub fn load_inline_module(manifest_yaml: &[u8], schemas: &BTreeMap<String, Strin
             frontmatter_validator,
             data_schema,
             data_validator,
+            semantic_schema_digest,
         )));
     }
 
@@ -370,6 +420,7 @@ pub fn load_inline_module(manifest_yaml: &[u8], schemas: &BTreeMap<String, Strin
         root: inline_root,
         version: manifest.version.clone(),
         archetypes,
+        semantic: inline_semantic,
         lint_rules: manifest.lint_rules.clone(),
         edge_types: manifest.edge_types.clone(),
         roles: manifest.roles.clone(),
@@ -515,8 +566,57 @@ fn load_one_module(
     let mut archetypes: Vec<Arc<CompiledArchetype>> = Vec::new();
     let mut failures: Vec<ArchetypeLoadFailure> = Vec::new();
 
+    let source = crate::semantic::SchemaSource::Filesystem { module_root };
+    let semantic = match read_module_semantic(&manifest) {
+        Ok(s) => s,
+        Err(semantic_failures) => {
+            // FR-069: a manifest outside the contract fails every object
+            // type of the module; nothing loads as an empty model.
+            for at in manifest.all_archetypes() {
+                for f in &semantic_failures {
+                    failures.push(failure(
+                        &module_name,
+                        &at.name,
+                        module_root.join("manifest.yaml"),
+                        f.reason(),
+                    ));
+                }
+            }
+            return Ok((
+                LoadedModule {
+                    name: module_name,
+                    root: module_root.to_path_buf(),
+                    version: manifest.version.clone(),
+                    archetypes,
+                    semantic: None,
+                    lint_rules: manifest.lint_rules.clone(),
+                    edge_types: manifest.edge_types.clone(),
+                    roles: manifest.roles.clone(),
+                    lexicon: manifest.lexicon.clone(),
+                    grammar_severity: manifest.grammar_severity.clone(),
+                    observable_verbs: manifest.observable_verbs.clone(),
+                    vacuous_predicates: manifest.vacuous_predicates.clone(),
+                    property_idioms: manifest.property_idioms.clone(),
+                    verification_catalog: manifest.verification_catalog.clone(),
+                    ambiguity_terms: manifest.ambiguity_terms.clone(),
+                    traceability: manifest.traceability.clone(),
+                    origins,
+                },
+                failures,
+            ));
+        }
+    };
+
     for at in manifest.all_archetypes() {
-        match compile_archetype(&module_name, module_root, at) {
+        match compile_archetype(
+            &module_name,
+            module_root,
+            at,
+            semantic.as_ref(),
+            &manifest,
+            &source,
+            diagnostics,
+        ) {
             Ok(c) => archetypes.push(Arc::new(c)),
             Err(f) => failures.push(f),
         }
@@ -528,6 +628,7 @@ fn load_one_module(
             root: module_root.to_path_buf(),
             version: manifest.version.clone(),
             archetypes,
+            semantic,
             lint_rules: manifest.lint_rules.clone(),
             edge_types: manifest.edge_types.clone(),
             roles: manifest.roles.clone(),
@@ -554,6 +655,10 @@ fn compile_archetype(
     module: &str,
     module_root: &Path,
     a: &Archetype,
+    semantic: Option<&crate::semantic::SemanticModule>,
+    manifest: &Manifest,
+    source: &crate::semantic::SchemaSource<'_>,
+    diagnostics: &mut Vec<Diagnostic>,
 ) -> Result<CompiledArchetype, ArchetypeLoadFailure> {
     // No-compat rule (ADR 0003): retired fields are a hard failure.
     if let Some(field) = a.retired_field() {
@@ -578,15 +683,16 @@ fn compile_archetype(
         None => (None, None),
     };
 
-    // Data schema (optional).
-    let (data_schema, data_validator) = match &a.data_schema {
-        Some(schema) => {
-            let validator = compile_schema(schema)
-                .map_err(|r| failure(module, &a.name, module_root.join("manifest.yaml"), r))?;
-            (Some(Arc::new(schema.clone())), Some(Arc::new(validator)))
-        }
-        None => (None, None),
-    };
+    // Data schema (optional): inline JSON Schema, or the FR-069 reference form.
+    let (data_schema, data_validator, semantic_schema_digest) = resolve_data_schema(
+        module,
+        module_root.join("manifest.yaml"),
+        a,
+        semantic,
+        manifest,
+        source,
+        diagnostics,
+    )?;
 
     // body_extraction DSL + assert facets validated at load time
     // (FR-011-AC-6/7/8, FR-033-AC-5).
@@ -608,7 +714,115 @@ fn compile_archetype(
         frontmatter_validator,
         data_schema,
         data_validator,
+        semantic_schema_digest,
     ))
+}
+
+/// Read a manifest's `semantic` block under the FR-069 contract. `Ok(None)`
+/// when the manifest carries none.
+fn read_module_semantic(
+    manifest: &Manifest,
+) -> Result<Option<crate::semantic::SemanticModule>, Vec<crate::semantic::SemanticFailure>> {
+    let Some(block) = &manifest.semantic else {
+        return Ok(None);
+    };
+    let names: Vec<String> = manifest.all_archetypes().map(|a| a.name.clone()).collect();
+    let has_reference = |name: &str| -> bool {
+        manifest.all_archetypes().any(|a| {
+            a.name == name
+                && a.data_schema.as_ref().is_some_and(|v| {
+                    // Ambiguous counts here so the ambiguity is refused at
+                    // its own locus instead of as a missing export schema.
+                    !matches!(
+                        crate::semantic::reference_form(v),
+                        crate::semantic::contract::DataSchemaForm::Inline
+                    )
+                })
+        })
+    };
+    crate::semantic::read_semantic_block(block, &names, &has_reference).map(Some)
+}
+
+type DataSchemaParts = (
+    Option<Arc<Value>>,
+    Option<Arc<jsonschema::JSONSchema>>,
+    Option<String>,
+);
+
+/// Resolve an archetype's `data_schema` (FR-069 Behavior): the reference
+/// form is digest-checked and compiled offline; an inline schema under a
+/// `semantic` block warns `semantic.inline-data-schema`.
+fn resolve_data_schema(
+    module: &str,
+    manifest_path: PathBuf,
+    a: &Archetype,
+    semantic: Option<&crate::semantic::SemanticModule>,
+    manifest: &Manifest,
+    source: &crate::semantic::SchemaSource<'_>,
+    diagnostics: &mut Vec<Diagnostic>,
+) -> Result<DataSchemaParts, ArchetypeLoadFailure> {
+    use crate::semantic::contract::DataSchemaForm;
+    let Some(schema) = &a.data_schema else {
+        return Ok((None, None, None));
+    };
+    match crate::semantic::reference_form(schema) {
+        DataSchemaForm::Ambiguous => Err(failure(
+            module,
+            &a.name,
+            manifest_path,
+            crate::semantic::SemanticFailure::error(
+                "semantic.data-schema-ambiguous",
+                format!("object_types[{}].data_schema", a.name),
+                "data_schema carries both the { schema, digest } reference and schema keywords",
+            )
+            .reason(),
+        )),
+        DataSchemaForm::Reference(reference) => {
+            let Some(semantic) = semantic else {
+                return Err(failure(
+                    module,
+                    &a.name,
+                    manifest_path,
+                    crate::semantic::SemanticFailure::error(
+                        "semantic.data-schema-reference-without-block",
+                        format!("object_types[{}].data_schema", a.name),
+                        "the { schema, digest } reference form requires a semantic block",
+                    )
+                    .reason(),
+                ));
+            };
+            let version = manifest.version.clone().unwrap_or_default();
+            let resolved = crate::semantic::resolver::resolve_reference(
+                source, &reference, semantic, &version, &a.name,
+            )
+            .map_err(|f| failure(module, &a.name, manifest_path.clone(), f.reason()))?;
+            Ok((
+                Some(Arc::new(resolved.schema)),
+                Some(Arc::new(resolved.validator)),
+                Some(resolved.digest),
+            ))
+        }
+        DataSchemaForm::Inline => {
+            if semantic.is_some() {
+                diagnostics.push(Diagnostic::Semantic {
+                    module: module.to_string(),
+                    path: format!("object_types[{}].data_schema", a.name),
+                    code: "semantic.inline-data-schema".to_string(),
+                    message: format!(
+                        "{}: inline data_schema under a semantic block; prefer the {{ schema, digest }} reference form",
+                        a.name
+                    ),
+                });
+            }
+            let validator =
+                compile_schema(schema).map_err(|r| failure(module, &a.name, manifest_path, r))?;
+            Ok((
+                Some(Arc::new(schema.clone())),
+                Some(Arc::new(validator)),
+                None,
+            ))
+        }
+    }
 }
 
 /// Assemble a `CompiledArchetype` from resolved parts, picking the
@@ -622,6 +836,7 @@ fn finish_compiled(
     frontmatter_validator: Option<Arc<jsonschema::JSONSchema>>,
     data_schema: Option<Arc<Value>>,
     data_validator: Option<Arc<jsonschema::JSONSchema>>,
+    semantic_schema_digest: Option<String>,
 ) -> CompiledArchetype {
     let (raw_schema, validator) = match (&frontmatter_schema, &frontmatter_validator) {
         (Some(s), Some(v)) => (Arc::clone(s), Arc::clone(v)),
@@ -640,6 +855,7 @@ fn finish_compiled(
         data_schema,
         data_validator,
         body_extraction: a.body_extraction.clone(),
+        semantic_schema_digest,
         carry_over: a.carry_over(),
     }
 }
@@ -657,6 +873,12 @@ fn empty_schema_and_validator() -> (Arc<Value>, Arc<jsonschema::JSONSchema>) {
 /// surfacing collisions as a fatal `ArchetypeCollision` error
 /// (FR-014).
 pub fn flatten_into_registry(mut outcome: LoadOutcome) -> RegistryShape {
+    semantic_cross_module_checks(&mut outcome);
+    let semantic_modules: BTreeMap<String, crate::semantic::SemanticModule> = outcome
+        .modules
+        .iter()
+        .filter_map(|m| m.semantic.clone().map(|s| (m.name.clone(), s)))
+        .collect();
     let mut module_paths: BTreeMap<String, PathBuf> = BTreeMap::new();
     let mut module_versions: BTreeMap<String, Option<String>> = BTreeMap::new();
     let mut module_collisions: BTreeMap<String, Vec<PathBuf>> = BTreeMap::new();
@@ -881,6 +1103,7 @@ pub fn flatten_into_registry(mut outcome: LoadOutcome) -> RegistryShape {
         failures: outcome.failures,
         diagnostics: outcome.diagnostics,
         path_diagnostics: outcome.path_diagnostics,
+        semantic_modules,
     }
 }
 
@@ -1187,6 +1410,8 @@ pub fn flatten_into_registry_strict(outcome: LoadOutcome) -> Result<RegistryShap
 /// `Registry` constructor wraps this in `Arc<Inner>` for cheap cloning.
 #[derive(Debug)]
 pub struct RegistryShape {
+    /// Loaded `semantic` blocks keyed by module name (FR-069).
+    pub semantic_modules: BTreeMap<String, crate::semantic::SemanticModule>,
     /// First-wins active archetype set keyed by bare archetype name.
     pub archetypes: BTreeMap<String, Arc<CompiledArchetype>>,
     /// Every (module, archetype) pair — includes shadowed copies for
@@ -1227,6 +1452,165 @@ pub struct RegistryShape {
     pub failures: Vec<ArchetypeLoadFailure>,
     pub diagnostics: Vec<Diagnostic>,
     pub path_diagnostics: Vec<PathDiagnostic>,
+}
+
+/// FR-069 cross-module checks, after every module of a load has been read,
+/// in sorted module-root order: a duplicated `semantic.package` refuses the
+/// later module, an unprovided import warns, an import cycle refuses every
+/// module on it. A refused module keeps its vocabulary and loses its
+/// archetypes, each recorded as a failure.
+fn semantic_cross_module_checks(outcome: &mut LoadOutcome) {
+    use crate::semantic::SemanticFailure;
+    let mut order: Vec<usize> = (0..outcome.modules.len())
+        .filter(|i| outcome.modules[*i].semantic.is_some())
+        .collect();
+    order.sort_by(|a, b| outcome.modules[*a].root.cmp(&outcome.modules[*b].root));
+    if order.is_empty() {
+        return;
+    }
+    let mut refusals: BTreeMap<usize, Vec<SemanticFailure>> = BTreeMap::new();
+    let mut seen: BTreeMap<String, usize> = BTreeMap::new();
+    for &i in &order {
+        let package = outcome.modules[i]
+            .semantic
+            .as_ref()
+            .unwrap()
+            .package
+            .clone();
+        if let Some(&first) = seen.get(&package) {
+            refusals.entry(i).or_default().push(SemanticFailure::error(
+                "semantic.duplicate-package",
+                "semantic.package",
+                format!(
+                    "package {package} is also declared by module {} ({}); later sorted root refused",
+                    outcome.modules[first].name,
+                    outcome.modules[first].root.display()
+                ),
+            ));
+        } else {
+            seen.insert(package, i);
+        }
+    }
+    // Imports: provided at exactly that version by a non-refused module?
+    let providers: BTreeMap<String, Vec<(usize, String)>> = {
+        let mut map: BTreeMap<String, Vec<(usize, String)>> = BTreeMap::new();
+        for &i in &order {
+            if refusals.contains_key(&i) {
+                continue;
+            }
+            let m = &outcome.modules[i];
+            map.entry(m.semantic.as_ref().unwrap().package.clone())
+                .or_default()
+                .push((i, m.version.clone().unwrap_or_default()));
+        }
+        map
+    };
+    let mut edges: BTreeMap<usize, Vec<usize>> = BTreeMap::new();
+    for &i in &order {
+        let m = &outcome.modules[i];
+        let sem = m.semantic.as_ref().unwrap();
+        for (package, version) in &sem.imports {
+            let found = providers
+                .get(package)
+                .and_then(|list| list.iter().find(|(_, v)| v == version).map(|(j, _)| *j));
+            match found {
+                Some(j) => edges.entry(i).or_default().push(j),
+                None => {
+                    let loaded: Vec<String> = providers
+                        .get(package)
+                        .map(|l| l.iter().map(|(_, v)| v.clone()).collect())
+                        .unwrap_or_default();
+                    outcome.diagnostics.push(Diagnostic::Semantic {
+                        module: m.name.clone(),
+                        path: format!("semantic.imports.{package}"),
+                        code: "semantic.import-unresolved".to_string(),
+                        message: format!(
+                            "import {package}@{version} is provided by no loaded module (loaded: {})",
+                            if loaded.is_empty() { "none".to_string() } else { loaded.join(", ") }
+                        ),
+                    });
+                }
+            }
+        }
+    }
+    // Cycles over the import graph (Tarjan-free: DFS with colors).
+    let mut color: BTreeMap<usize, u8> = BTreeMap::new();
+    let mut stack: Vec<usize> = Vec::new();
+    let mut on_cycle: BTreeMap<usize, String> = BTreeMap::new();
+    fn visit(
+        n: usize,
+        edges: &BTreeMap<usize, Vec<usize>>,
+        color: &mut BTreeMap<usize, u8>,
+        stack: &mut Vec<usize>,
+        on_cycle: &mut BTreeMap<usize, String>,
+        names: &dyn Fn(usize) -> String,
+    ) {
+        match color.get(&n) {
+            Some(1) => {
+                let start = stack.iter().position(|&s| s == n).unwrap_or(0);
+                let cycle: Vec<usize> = stack[start..].to_vec();
+                let text = cycle
+                    .iter()
+                    .chain(std::iter::once(&n))
+                    .map(|&i| names(i))
+                    .collect::<Vec<_>>()
+                    .join(" -> ");
+                for i in cycle {
+                    on_cycle.insert(i, text.clone());
+                }
+                return;
+            }
+            Some(2) => return,
+            _ => {}
+        }
+        color.insert(n, 1);
+        stack.push(n);
+        for &next in edges.get(&n).map(|v| v.as_slice()).unwrap_or(&[]) {
+            visit(next, edges, color, stack, on_cycle, names);
+        }
+        stack.pop();
+        color.insert(n, 2);
+    }
+    let packages: BTreeMap<usize, String> = order
+        .iter()
+        .map(|&i| {
+            (
+                i,
+                outcome.modules[i]
+                    .semantic
+                    .as_ref()
+                    .unwrap()
+                    .package
+                    .clone(),
+            )
+        })
+        .collect();
+    for &i in &order {
+        visit(i, &edges, &mut color, &mut stack, &mut on_cycle, &|i| {
+            packages[&i].clone()
+        });
+    }
+    for (i, text) in on_cycle {
+        refusals.entry(i).or_default().push(SemanticFailure::error(
+            "semantic.import-cycle",
+            "semantic.imports",
+            format!("import cycle: {text}"),
+        ));
+    }
+    for (i, fails) in refusals {
+        let module = &mut outcome.modules[i];
+        for arch in module.archetypes.drain(..) {
+            for f in &fails {
+                outcome.failures.push(ArchetypeLoadFailure {
+                    module: module.name.clone(),
+                    archetype: arch.name.clone(),
+                    path: module.root.join("manifest.yaml"),
+                    reason: f.reason(),
+                });
+            }
+        }
+        module.semantic = None;
+    }
 }
 
 #[cfg(test)]

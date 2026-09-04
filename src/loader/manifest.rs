@@ -374,6 +374,10 @@ pub struct Manifest {
     /// drives their advice exactly as this ecosystem's drives ours.
     #[serde(default)]
     pub verification_catalog: BTreeMap<String, crate::vocab::VerificationMethodDef>,
+    /// The optional semantic module block (FR-069), kept raw: the semantic
+    /// contract reads it in its own refusal order.
+    #[serde(default)]
+    pub semantic: Option<Value>,
 }
 
 impl Manifest {
