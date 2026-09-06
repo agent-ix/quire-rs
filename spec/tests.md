@@ -226,6 +226,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-083 | Bench: Registry::load_from baseline corpus < 100 ms median | Benchmark | P0 | FR-013-AC-4, NFR-007-AC-1 | 🚧 |
 | TC-084 | After load, render does no disk I/O (verified via strace / tracing audit) | Static | P0 | FR-013-AC-5 | 🚧 |
 | TC-085 | Cargo.lock has no HTTP/RPC client crates | Static | P0 | FR-013-AC-6, StR-001-AC-3 | 🚧 |
+| TC-1803 | Native unittest.TestCase methods and supported imported aliases bind independently of class name; helper and unrelated-base controls remain non-evidence | Integration | P0 | FR-051-AC-3 | ✅ |
 | TC-090 | Two paths each with a module: both modules present in module_names() | Integration | P0 | FR-014-AC-1 | 🚧 |
 | TC-091 | Duplicate archetype across modules → DuplicateArchetype diagnostic + first-wins | Integration | P0 | FR-014-AC-2 | 🚧 |
 | TC-092 | load_strict on duplicate-archetype input returns ArchetypeCollision | Integration | P0 | FR-014-AC-3 | 🚧 |
