@@ -71,10 +71,10 @@ pub(crate) struct DeclaredScope<'a> {
     /// declaration selects the document for, and an archetype-matching
     /// document without it mints nothing.
     pub mints: Option<&'a str>,
-    /// Model-wide status column checked on a reference table when that table
-    /// exposes a status-shaped header. Tables with no status axis remain out of
+    /// Explicit or model-default status column checked on a reference table
+    /// exposing a status-shaped header. Tables with no status axis remain out of
     /// scope; a near-miss such as `Coverage Status` is no longer silent (#341).
-    pub status_column: Option<&'a str>,
+    pub status_column: Option<crate::traceability::SelectedStatusColumn<'a>>,
     /// Whether absence of a minting section is itself a finding. This is
     /// independent of `mints`: an optional target still checks a present table
     /// and mints its rows (#327).
@@ -277,6 +277,7 @@ pub(crate) enum ScanDiagnostic {
         document: String,
         section: String,
         status_column: String,
+        configuration_path: &'static str,
         columns: Vec<String>,
         line: usize,
     },
@@ -525,7 +526,8 @@ pub(crate) fn scan(
                     );
                 }
             }
-            if let Some(status_column) = scope.status_column {
+            if let Some(selected) = scope.status_column {
+                let status_column = selected.column();
                 let exact = headers
                     .iter()
                     .any(|header| header.eq_ignore_ascii_case(status_column));
@@ -539,6 +541,7 @@ pub(crate) fn scan(
                             document: relative_path(root, &doc.path),
                             section: heading.clone(),
                             status_column: status_column.to_string(),
+                            configuration_path: selected.configuration_path(),
                             columns: headers.clone(),
                             line,
                         },
@@ -910,6 +913,7 @@ pub(crate) fn scan_finding(
             document,
             section,
             status_column,
+            configuration_path,
             columns,
             ..
         } => (
@@ -919,7 +923,7 @@ pub(crate) fn scan_finding(
                  '{status_column}', which the table under '{section}' in {document} \
                  does not have — the columns it has are {}. Status classification \
                  was skipped, so complete-but-unbacked rows could not be checked. \
-                 Align `traceability.status.column` with the authored header or \
+                 Align `{configuration_path}` with the authored header or \
                  rename the document column; the engine will not guess between \
                  those change targets",
                 quoted_list(columns)
