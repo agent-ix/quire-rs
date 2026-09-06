@@ -41,11 +41,16 @@ attribute. Record ids SHALL be stable SHA-256 digests of the identity, per the
 > referencing a preceding module-level `import unittest` (with optional alias),
 > or `from unittest import TestCase` (with optional alias). Comma-separated
 > imports and bases retain those same exact identities. Unrelated imports,
-> similarly named bases, helper methods, nested helper functions, and ordinary classes do not gain
+> including dotted imports that rebind their first component, invalidate a
+> previous identity. An unaliased `import unittest.mock` retains the unittest
+> root; an alias for that submodule does not become an alias for unittest.
+> Similarly named bases, helper methods, nested helper functions, and ordinary classes do not gain
 > evidence status. A simple single-name top-level assignment, deletion, import,
 > or class/function declaration replacing a binding removes its imported identity.
 > Dynamic factories, wildcard imports, local imports, multi-line import/base
 > declarations, and transitive inheritance resolution are not inferred.
+> Base matching stops at the class suite's colon or a comment: a TestCase
+> spelling in comment text or class-body data never establishes inheritance.
 > Existing pytest naming rules are unchanged. This repairs an under-reading
 > rule, not the authored tests: native unittest runs four controlled methods
 > that the old adapter reports as zero candidates. The corpus banks both
