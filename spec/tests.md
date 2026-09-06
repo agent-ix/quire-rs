@@ -76,6 +76,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | FR-011 DSL (6 locators + yields + asserts) | AC-1..8, 13..21 | TC-018, TC-019, TC-040, TC-070, TC-072, TC-073, TC-563, TC-564, TC-565 (regex), TC-566 (under_section:None), TC-567 ({{…}}), TC-568 (unclosed fence), TC-569 (emit_edges), TC-583 (multiple:true) | ✅ |
 | ~~FR-012 Corpus parity suite~~ | — | — | ⛔ RETIRED (render removal) |
 | FR-013 Archetype loader | AC-1..6 | TC-080 (empty env), TC-081 (load iso), TC-082 (bad schema_ref), TC-083 (bench), TC-084 (no IO post-load), TC-085 (no net deps) | ✅ Complete |
+| FR-013 Exact module sets | AC-16..18 | TC-1800 (closed set and removal), TC-1801 (canonical dedup and collisions), TC-1802 (missing modules) | ✅ |
 | FR-014 Module activation | AC-1..5 | TC-090 (multi-module), TC-091 (collision), TC-092 (strict), TC-093 (version), TC-094 (17-baseline union) | ✅ Complete |
 | FR-016 Fallback locators | AC-1..4 | TC-110 (legacy path), TC-111 (canonical path), TC-112 (optional miss), TC-113 (domain parity) | ✅ Complete |
 | FR-019 Stable block identifiers | AC-1..3; CON-1 | TC-400 (block_id parsed; no attribute → None), TC-402 (attribute stripped from heading text), TC-443 (id survives write-back + reparse), TC-403 (negative) | ✅ Complete (document authored, CR-042) |
@@ -226,6 +227,9 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-083 | Bench: Registry::load_from baseline corpus < 100 ms median | Benchmark | P0 | FR-013-AC-4, NFR-007-AC-1 | 🚧 |
 | TC-084 | After load, render does no disk I/O (verified via strace / tracing audit) | Static | P0 | FR-013-AC-5 | 🚧 |
 | TC-085 | Cargo.lock has no HTTP/RPC client crates | Static | P0 | FR-013-AC-6, StR-001-AC-3 | 🚧 |
+| TC-1800 | Exact module sets load only selected directories; removal and the empty set never fall back to ambient modules | Unit | P0 | FR-013-AC-16 | ✅ |
+| TC-1801 | Canonical aliases load once; distinct colliding modules retain existing diagnostics | Unit | P0 | FR-013-AC-17 | ✅ |
+| TC-1802 | Missing and manifest-less members remain explicit failures without ambient substitution | Unit | P0 | FR-013-AC-18 | ✅ |
 | TC-090 | Two paths each with a module: both modules present in module_names() | Integration | P0 | FR-014-AC-1 | 🚧 |
 | TC-091 | Duplicate archetype across modules → DuplicateArchetype diagnostic + first-wins | Integration | P0 | FR-014-AC-2 | 🚧 |
 | TC-092 | load_strict on duplicate-archetype input returns ArchetypeCollision | Integration | P0 | FR-014-AC-3 | 🚧 |

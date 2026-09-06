@@ -32,6 +32,10 @@ relationships:
 
 ## Description
 
+> **CR note (exact module sets, agent-ix/quire-rs#405, 2026-09-06):** Add
+> `Registry::load_modules_exact` for callers that already resolved multiple module
+> directories. The existing search-root and environment behavior is unchanged.
+
 `quire-rs` SHALL load archetypes from the **local filesystem**. The engine has no network calls, no Filament API client, and no required runtime services. Whatever populates the local directory tree (Filament sync, hand-authoring, git checkout, an unzipped distribution tarball) is outside the engine's concern.
 
 ### Search path
@@ -65,6 +69,7 @@ pub struct Registry { /* ... */ }
 impl Registry {
     pub fn load_from(paths: &[&Path]) -> Result<Registry, QuireError>;
     pub fn load_module(module_root: &Path) -> Result<Registry, QuireError>;
+    pub fn load_modules_exact(module_roots: &[&Path]) -> Result<Registry, QuireError>;
     pub fn from_env() -> Result<Registry, QuireError>;        // IX_FILAMENT_MODULES_PATH / IX_SCHEMA_PATH then default
     pub fn from_default() -> Result<Registry, QuireError>;    // ~/.ix/filament/modules/ only
 
@@ -79,6 +84,14 @@ impl Registry {
 `Registry::load_from(paths)` treats each entry in `paths` as a **search root** whose direct children are candidate module directories (one level deep). `Registry::load_module(module_root)` treats its single argument as a **module directory** — `manifest.yaml` MUST live directly under it, and no siblings are inspected.
 
 Callers that have already resolved a specific module path (e.g. a CLI receiving `--module <path>`) SHALL use `load_module` rather than promoting to the parent and calling `load_from`. Promoting to the parent silently exposes every sibling directory as a candidate module, which is both surprising and a path-safety concern when the argument is user-controlled.
+
+For an exact set, `Registry::load_modules_exact` SHALL load only the supplied
+module directories, in caller order, deduplicating canonical directory identities
+before loading. Each directory SHALL contain `manifest.yaml` directly. An empty
+set SHALL return an empty registry; no supplied set consults environment paths,
+default roots, siblings, or children. Missing or malformed modules SHALL retain
+the same failure diagnostics as `load_module`; cross-module collisions SHALL
+retain the existing tolerant diagnostic and first-wins behavior.
 
 ### Compiled archetype surface
 
@@ -175,6 +188,9 @@ unreachable, and an unreachable target is one nobody acts on.
 | FR-013-AC-12 | `Registry::load_module(module_root)` loads exactly the named module (the directory containing `manifest.yaml`) and does NOT walk siblings under `module_root.parent()`. A test places a real module sibling alongside the target and asserts the sibling is not loaded. | Test |
 | FR-013-AC-13 | `Registry::load_module(module_root)` against a directory with no `manifest.yaml` returns a registry with zero modules and a single `ArchetypeLoadFailure` describing the absent manifest; sibling directories are not promoted. | Test |
 | FR-013-AC-14 | `Diagnostic::PathTraversal { argument, path, reason }` is a defined variant of the (internal) `Diagnostic` enum. A unit test constructs the variant and asserts both human (`Display`) and JSON (`to_json`) renderings carry the variant name, argument, path, and reason discriminator, covering all three `PathTraversalReason` values. | Test |
+| FR-013-AC-16 | An exact set loads two declared module directories without consulting an undeclared sibling; removing either directory removes its declarations, and an empty set stays empty. | Test (TC-1800) |
+| FR-013-AC-17 | Repeated canonical paths load once without duplicate-module or duplicate-archetype diagnostics; distinct colliding module directories retain existing collision diagnostics. | Test (TC-1801) |
+| FR-013-AC-18 | A missing or manifest-less directory in an exact set reports its failure without replacing it with ambient or sibling modules. | Test (TC-1802) |
 
 ## Dependencies
 

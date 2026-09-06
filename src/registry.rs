@@ -137,6 +137,37 @@ impl Registry {
         Ok(Self::finish_tolerant(outcome))
     }
 
+    /// Load a closed set of exact module directories in caller order.
+    ///
+    /// Every directory must contain `manifest.yaml` directly. Canonical path
+    /// aliases load once; siblings, children, environment paths, and defaults
+    /// are never discovered, even for an empty set. Missing modules and real
+    /// cross-module collisions retain the ordinary tolerant load diagnostics.
+    pub fn load_modules_exact(module_roots: &[&Path]) -> Result<Self, QuireError> {
+        let mut outcome = crate::loader::LoadOutcome {
+            modules: Vec::new(),
+            failures: Vec::new(),
+            diagnostics: Vec::new(),
+            path_diagnostics: Vec::new(),
+        };
+        let mut seen = std::collections::BTreeSet::new();
+        for root in module_roots {
+            if let Ok(canonical) = std::fs::canonicalize(root) {
+                if !seen.insert(canonical) {
+                    continue;
+                }
+            }
+            let mut member = crate::loader::load_single_module(root);
+            outcome.modules.append(&mut member.modules);
+            outcome.failures.append(&mut member.failures);
+            outcome.diagnostics.append(&mut member.diagnostics);
+            outcome
+                .path_diagnostics
+                .append(&mut member.path_diagnostics);
+        }
+        Ok(Self::finish_tolerant(outcome))
+    }
+
     /// Strict counterpart of [`load_module`](Registry::load_module):
     /// the first collision diagnostic is promoted to a fatal
     /// `QuireError`.
@@ -876,6 +907,87 @@ object_types:
         assert_eq!(r.module_names().count(), 0);
         assert_eq!(r.failures().len(), 1);
         assert!(r.failures()[0].reason.contains("manifest.yaml"));
+    }
+
+    #[trace("FR-013-AC-16")]
+    #[test]
+    fn tc1800_exact_modules_exclude_siblings_and_empty_set_never_discovers() {
+        // agent-ix/quire-rs#405: filesystem topology is the input under test.
+        let parent = tempfile::tempdir().unwrap();
+        let first = parent.path().join("first");
+        let second = parent.path().join("second");
+        write_minimal_module(&first, "first");
+        write_minimal_module(&second, "second");
+        write_minimal_module(&parent.path().join("ambient"), "ambient");
+        let both = Registry::load_modules_exact(&[&first, &second]).unwrap();
+        assert_eq!(both.module_names().collect::<Vec<_>>(), ["first", "second"]);
+        let one = Registry::load_modules_exact(&[&first]).unwrap();
+        assert_eq!(one.module_names().collect::<Vec<_>>(), ["first"]);
+        assert!(one.archetype_in_module("second", "foo").is_none());
+        assert!(both.archetype_in_module("second", "foo").is_some());
+        let empty = Registry::load_modules_exact(&[]).unwrap();
+        assert_eq!(empty.module_names().count(), 0);
+        assert!(empty.path_diagnostics().is_empty());
+        assert!(empty.diagnostics().is_empty());
+    }
+
+    #[trace("FR-013-AC-17")]
+    #[test]
+    fn tc1801_exact_modules_deduplicate_paths_but_report_real_collisions() {
+        let parent = tempfile::tempdir().unwrap();
+        let first = parent.path().join("first");
+        let second = parent.path().join("second");
+        write_minimal_module(&first, "same");
+        write_minimal_module(&second, "same");
+        let alias = first.join(".");
+        let dedup = Registry::load_modules_exact(&[&first, &alias]).unwrap();
+        assert_eq!(dedup.module_names().collect::<Vec<_>>(), ["same"]);
+        assert!(!dedup.diagnostics().iter().any(|d| matches!(
+            d,
+            Diagnostic::DuplicateModuleName { .. } | Diagnostic::DuplicateArchetype { .. }
+        )));
+        let collision = Registry::load_modules_exact(&[&first, &second]).unwrap();
+        assert!(collision
+            .diagnostics()
+            .iter()
+            .any(|d| matches!(d, Diagnostic::DuplicateModuleName { .. })));
+
+        // Conflict policy observes caller order, not lexical path order.
+        write_vocab_module(
+            &first,
+            "first",
+            "grammar_severity:\n  \"ac:unclassifiable\": error\n",
+        );
+        write_vocab_module(
+            &second,
+            "second",
+            "grammar_severity:\n  \"ac:unclassifiable\": off\n",
+        );
+        let forward = Registry::load_modules_exact(&[&first, &second]).unwrap();
+        let reverse = Registry::load_modules_exact(&[&second, &first]).unwrap();
+        assert_eq!(
+            forward.grammar_severity()["ac:unclassifiable"],
+            crate::grammar::GrammarSeverityLevel::Error
+        );
+        assert_eq!(
+            reverse.grammar_severity()["ac:unclassifiable"],
+            crate::grammar::GrammarSeverityLevel::Off
+        );
+    }
+
+    #[trace("FR-013-AC-18")]
+    #[test]
+    fn tc1802_exact_modules_retain_missing_member_failures() {
+        let parent = tempfile::tempdir().unwrap();
+        let missing = parent.path().join("missing");
+        let empty = parent.path().join("empty");
+        fs::create_dir_all(&empty).unwrap();
+        write_minimal_module(&parent.path().join("ambient"), "ambient");
+        let result = Registry::load_modules_exact(&[&missing, &empty]).unwrap();
+        assert_eq!(result.module_names().count(), 0);
+        assert_eq!(result.failures().len(), 2);
+        assert!(result.failures()[0].reason.contains("canonicalize"));
+        assert!(result.failures()[1].reason.contains("manifest.yaml"));
     }
 
     #[trace("FR-036-AC-1")]

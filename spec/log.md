@@ -7,6 +7,11 @@ description: "Chronological log of structural changes to this bundle."
 
 ## History
 
+* **2026-09-06** — CR note for `agent-ix/quire-rs#405`: FR-013 adds an
+  exact module-directory-set API, with canonical deduplication, empty-set
+  closure, and preserved failure/collision diagnostics. TC-1800..TC-1802 precede
+  implementation; existing search-root/environment resolution is unchanged.
+
 * **2026-08-29** — **StR-007, US-018, FR-067, FR-068 and IT-001** specify the
   source-grounded assurance export requested by `agent-ix/quire-rs#386`.
   Quire projects its existing `Spec::edges`, FR-053 obligations, and FR-051
