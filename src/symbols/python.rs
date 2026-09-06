@@ -166,9 +166,17 @@ impl UnittestImports {
         };
         for import in imports.split(',') {
             let words: Vec<&str> = import.split_whitespace().collect();
-            let (source, binding) = match words.as_slice() {
-                [source] => (*source, *source),
-                [source, "as", binding] => (*source, *binding),
+            let (source, binding, module_identity) = match words.as_slice() {
+                [source] => {
+                    // `import helpers.sub` replaces `helpers`, not a binding
+                    // called `helpers.sub`. Likewise `import unittest.mock`
+                    // binds the genuine unittest root, not its submodule.
+                    let root = source.split('.').next().unwrap_or(source);
+                    (*source, root, root)
+                }
+                // An alias binds the full imported module: aliasing
+                // unittest.mock does not authorize alias.TestCase.
+                [source, "as", binding] => (*source, *binding, *source),
                 _ => continue,
             };
             self.forget(binding);
@@ -176,7 +184,7 @@ impl UnittestImports {
                 ImportKind::UnittestNames if source == "TestCase" => {
                     self.test_cases.insert(binding.to_string());
                 }
-                ImportKind::Modules if source == "unittest" => {
+                ImportKind::Modules if module_identity == "unittest" => {
                     self.modules.insert(binding.to_string());
                 }
                 _ => {}
@@ -185,7 +193,10 @@ impl UnittestImports {
     }
 
     fn is_test_case(&self, declaration: &str) -> bool {
-        let Some((_, after_open)) = declaration.split_once('(') else {
+        // The base list belongs to the header, not to a comment or a
+        // same-line class suite. Those can mention TestCase as ordinary data.
+        let header = declaration.split(['#', ':']).next().unwrap_or_default();
+        let Some((_, after_open)) = header.split_once('(') else {
             return false;
         };
         let Some((bases, _)) = after_open.split_once(')') else {
