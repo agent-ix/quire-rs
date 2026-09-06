@@ -45,11 +45,11 @@ def fixture(tmp_path: pathlib.Path) -> pathlib.Path:
         "      - uses: actions/checkout@" + "b" * 40 + " # v4\n"
         "        with:\n"
         "          repository: agent-ix/spec-artifacts-process\n"
-        "          ref: 61a20e010d5e758f52864ad3152ccdb304a39d27\n"
+        "          ref: e6ea5151b59a55d7ce0d43f1581cbe276f750e04\n"
         "      - uses: actions/checkout@" + "b" * 40 + " # v4\n"
         "        with:\n"
         "          repository: agent-ix/spec-artifacts-iso\n"
-        "          ref: a6b1c70be8c22e9f7cb432e4410b7a3a280d0217\n"
+        "          ref: a60ee12d735976081849f60a38d603fb5494b015\n"
         "      - run: >-\n"
         "          python3 scripts/validate_spec.py\n"
         "          --process-root .ci/spec-artifacts-process\n"
@@ -130,7 +130,7 @@ def test_valid_exact_stack_passes(tmp_path: pathlib.Path) -> None:
         ),
         (
             "quality/validation-stack-lock.json",
-            "61a20e010d5e758f52864ad3152ccdb304a39d27",
+            "e6ea5151b59a55d7ce0d43f1581cbe276f750e04",
             "a" * 40,
             "reviewed exact schema-provider stack",
         ),
@@ -142,7 +142,7 @@ def test_valid_exact_stack_passes(tmp_path: pathlib.Path) -> None:
         ),
         (
             ".github/workflows/ci.yml",
-            "ref: 61a20e010d5e758f52864ad3152ccdb304a39d27",
+            "ref: e6ea5151b59a55d7ce0d43f1581cbe276f750e04",
             "ref: " + "a" * 40,
             "does not equal the lock",
         ),
