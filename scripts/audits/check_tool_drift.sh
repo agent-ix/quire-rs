@@ -61,14 +61,14 @@ expected_validation_stack = {
         "spec-artifacts-iso": {
             "modulePath": "spec_artifacts_iso",
             "remote": "https://github.com/agent-ix/spec-artifacts-iso",
-            "remoteRef": "refs/remotes/origin/epic/264-reference-only-targets",
-            "revision": "a6b1c70be8c22e9f7cb432e4410b7a3a280d0217",
+            "remoteRef": "refs/remotes/origin/contract-agent-core/409-status-column",
+            "revision": "a60ee12d735976081849f60a38d603fb5494b015",
         },
         "spec-artifacts-process": {
             "modulePath": "spec_artifacts_process",
             "remote": "https://github.com/agent-ix/spec-artifacts-process",
-            "remoteRef": "refs/remotes/origin/epic/264-assurance-integration",
-            "revision": "61a20e010d5e758f52864ad3152ccdb304a39d27",
+            "remoteRef": "refs/remotes/origin/contract-agent-core/409-status-column",
+            "revision": "e6ea5151b59a55d7ce0d43f1581cbe276f750e04",
         },
     },
 }
