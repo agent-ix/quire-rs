@@ -2454,6 +2454,111 @@ fn diagnostic_for<'r>(
         .unwrap_or_else(|| panic!("no `{reason}` diagnostic in {:?}", report.diagnostics))
 }
 
+#[trace("TC-1805", "FR-050-AC-46")]
+#[test]
+fn explicit_reference_status_selection_drives_all_classification_channels() {
+    // The shared corpus grades located diagnostics but has no exact status-lie
+    // or unknown-status channel. Keep these additional scenarios declarative,
+    // and exercise the same real module as its three language-matched pairs.
+    let fixture: serde_json::Value =
+        serde_json::from_str(include_str!("fixtures/reference_status_selection.json")).unwrap();
+    assert_eq!(fixture["issue_ref"], "agent-ix/quire-rs#409");
+    let module = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("corpus/modules/variants/reference-status-column-explicit");
+    let registry = Registry::load_module(&module).expect("explicit selector module");
+    for case in fixture["cases"].as_array().unwrap() {
+        let text = |key: &str| case[key].as_str().unwrap();
+        let root = tempfile::tempdir().unwrap();
+        let spec_root = root.path().join("spec");
+        let sources = root.path().join("tests");
+        write(
+            &spec_root,
+            "tests.md",
+            &format!(
+                "---\nid: TM-409\ntype: Matrix409\n---\n\n## Default\n\n\
+             | ID | Tests | {} |\n|---|---|---|\n| TC-001 | TC-001 | {} |\n\n\
+             ## Alternate\n\n| ID | Tests | {} |\n|---|---|---|\n| TC-002 | TC-002 | {} |\n",
+                text("default_header"),
+                text("default_status"),
+                text("alternate_header"),
+                text("alternate_status"),
+            ),
+        );
+        let source = case["backed"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .enumerate()
+            .map(|(i, id)| {
+                format!(
+                    "// Trace: {}\n#[test]\nfn check_{i}() {{ assert_eq!(1 + 1, 2); }}\n",
+                    id.as_str().unwrap()
+                )
+            })
+            .collect::<String>();
+        write(&sources, "selector.rs", &source);
+        let model = registry.traceability().unwrap();
+        let graph = trace::bind(&extract_tree(&sources), model);
+        let report = compute(&Spec::from_path(&spec_root), &registry, &graph, &spec_root).unwrap();
+        let ids = |key: &str| {
+            case[key]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|id| id.as_str().unwrap())
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(
+            report.totals.backed,
+            ids("backed").len(),
+            "{}",
+            text("name")
+        );
+        assert_eq!(report.totals.total, 2, "{}", text("name"));
+        assert_eq!(
+            report
+                .status_lies
+                .iter()
+                .filter_map(|r| r.row_id.as_deref())
+                .collect::<Vec<_>>(),
+            ids("lies"),
+            "{}",
+            text("name")
+        );
+        assert_eq!(
+            report
+                .undeclared_statuses
+                .iter()
+                .filter_map(|r| r.row_id.as_deref())
+                .collect::<Vec<_>>(),
+            ids("unknown"),
+            "{}",
+            text("name")
+        );
+        let missing = report
+            .diagnostics
+            .iter()
+            .filter(|d| d.reason == "status-column-matches-nothing")
+            .collect::<Vec<_>>();
+        if let Some(declaration) = case["missing"].as_str() {
+            assert_eq!(missing.len(), 1, "{}", text("name"));
+            assert_eq!(missing[0].declaration, declaration);
+            let setting = if declaration == "alternate-status" {
+                "traceability.document_references[].status_column"
+            } else {
+                "traceability.status.column"
+            };
+            assert!(
+                missing[0].message.contains(setting),
+                "{}",
+                missing[0].message
+            );
+        } else {
+            assert!(missing.is_empty(), "{}: {missing:?}", text("name"));
+        }
+    }
+}
+
 #[trace("TC-1033", "FR-050-AC-33")]
 // a declared section the archetype-matching document (CR-117)
 // does not have is reported per document, naming the file, the heading it
