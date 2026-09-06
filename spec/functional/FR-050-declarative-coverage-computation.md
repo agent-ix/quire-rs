@@ -127,7 +127,16 @@ that failed to mint cannot erase its own gap from the population.
 
 ## Acceptance Criteria
 
+> **CR-409 (2026-09-06, agent-ix/quire-rs#409):** the process module's owning
+> schema requires `Coverage Status` for functional coverage while its global
+> selector is `Status`. This is missing declaration expressiveness, not a false
+> #341 diagnostic. A reference may explicitly select a different column using
+> the same global value vocabulary. No authored-header migration, guessing,
+> status alias, severity relaxation, or verdict change is authorized here.
+
 | ID | Criteria | Verification |
+| FR-050-AC-45 | A document reference MAY declare a nonblank `status_column`; omission uses the existing global `traceability.status.column` and serializes identically. An override requires a declared global status vocabulary. Blank, non-string, or vocabulary-less overrides fail module loading and name the declaration. | Test (TC-1804) |
+| FR-050-AC-46 | Each reference's explicit or default selected column drives missing-column diagnostics, unknown-status census (including backed rows), and complete-but-unbacked classification consistently using the unchanged global vocabulary. An absent explicit selection never falls back to the global column; the existing status-shaped-header diagnostic names the effective selection and its actual configuration key. Default-only behavior remains unchanged. | Test (TC-1805) |
 |----|----------|--------------|
 | FR-050-AC-1 | A manifest `traceability:` section declaring trace targets, document references, a status vocabulary, and a trace-tag grammar loads, and the `Registry` exposes the declared model. | Test (TC-732) |
 | FR-050-AC-2 | A malformed `traceability:` section fails module load like any other manifest shape error; an absent section loads and marks the model undeclared. | Test (TC-733) |
