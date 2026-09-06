@@ -109,6 +109,7 @@ pub(super) fn reconcile(
     let mut status_row_ids: BTreeSet<String> = BTreeSet::new();
 
     for declaration in &model.document_references {
+        let selected_status = declaration.selected_status_column(model.status.as_ref());
         let Ok(pattern) = regex::Regex::new(&declaration.pattern) else {
             continue; // patterns are validated at module load
         };
@@ -126,7 +127,7 @@ pub(super) fn reconcile(
                 // the matrix template emits only when it has content, so
                 // diagnosing its absence would fire on every healthy matrix.
                 mints: None,
-                status_column: model.status.as_ref().map(|status| status.column.as_str()),
+                status_column: selected_status,
                 section_required: false,
             },
             &declaration.section,
@@ -177,8 +178,8 @@ pub(super) fn reconcile(
             // a backstop that only ever sees unbacked rows is a by-product, not
             // a backstop. `class_of` has always returned `Unknown` here; until
             // now nothing asked.
-            if let Some(status) = &model.status {
-                if let Some(value) = row.cell(&status.column) {
+            if let (Some(status), Some(selected)) = (&model.status, selected_status) {
+                if let Some(value) = row.cell(selected.column()) {
                     if let Some(id) = &row_id {
                         status_row_ids.insert(id.clone());
                     }
@@ -237,8 +238,8 @@ pub(super) fn reconcile(
             }
 
             // A status that classes `complete` over an unbacked row is a lie.
-            if let Some(status) = &model.status {
-                if let Some(value) = row.cell(&status.column) {
+            if let (Some(status), Some(selected)) = (&model.status, selected_status) {
+                if let Some(value) = row.cell(selected.column()) {
                     if status.class_of(value) == StatusClass::Complete {
                         status_lies.push(StatusLie {
                             reference: declaration.name.clone(),

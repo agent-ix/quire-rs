@@ -231,6 +231,8 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-1801 | Canonical aliases load once; distinct colliding modules retain existing diagnostics | Unit | P0 | FR-013-AC-17 | ✅ |
 | TC-1802 | Missing and manifest-less members remain explicit failures without ambient substitution | Unit | P0 | FR-013-AC-18 | ✅ |
 | TC-1803 | Native unittest.TestCase methods and supported imported aliases bind independently of class name; helper and unrelated-base controls remain non-evidence | Integration | P0 | FR-051-AC-3 | ✅ |
+| TC-1804 | Explicit reference status column validates and defaults without serialization drift; blank, wrong-type and vocabulary-less overrides refuse | Unit | P0 | FR-050-AC-45 | ✅ |
+| TC-1805 | Mixed default/explicit status columns classify unknown and complete-unbacked rows; absent selected columns never fall back and name the correct configuration | Integration | P0 | FR-050-AC-46 | ✅ |
 | TC-090 | Two paths each with a module: both modules present in module_names() | Integration | P0 | FR-014-AC-1 | 🚧 |
 | TC-091 | Duplicate archetype across modules → DuplicateArchetype diagnostic + first-wins | Integration | P0 | FR-014-AC-2 | 🚧 |
 | TC-092 | load_strict on duplicate-archetype input returns ArchetypeCollision | Integration | P0 | FR-014-AC-3 | 🚧 |
@@ -1312,6 +1314,8 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-050-AC-42 | TC-1077 |
 | FR-050-AC-43 | TC-1079 |
 | FR-050-AC-44 | TC-1083 |
+| FR-050-AC-45 | TC-1804 |
+| FR-050-AC-46 | TC-1805 |
 | FR-064-AC-1 | TC-997, TC-998, TC-1002 |
 | FR-064-AC-2 | TC-999 |
 | FR-064-AC-3 | TC-1000 |

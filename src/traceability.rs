@@ -666,6 +666,14 @@ pub struct DocumentReference {
     /// Column identifying the referencing row (the row id in report entries).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub row_id_column: Option<String>,
+    /// Explicit status column for this reference; the values still come from
+    /// the model-wide status vocabulary. Omission preserves its default.
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "deserialize_status_column"
+    )]
+    pub status_column: Option<String>,
     /// Regex over the cell; capture group 1 is the referenced trace id.
     pub pattern: String,
     /// Names of the [`TraceTarget`]s these references resolve against.
@@ -680,6 +688,61 @@ pub struct DocumentReference {
     /// than two (CR-015). Off unless declared.
     #[serde(default)]
     pub strip_annotations: bool,
+}
+
+fn deserialize_status_column<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Option<String>, D::Error> {
+    struct Column;
+    impl serde::de::Visitor<'_> for Column {
+        type Value = Option<String>;
+        fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            formatter.write_str("a string status_column (omit the field for the default)")
+        }
+        fn visit_str<E: serde::de::Error>(self, value: &str) -> Result<Self::Value, E> {
+            Ok(Some(value.to_owned()))
+        }
+    }
+    // deserialize_any preserves YAML scalars' types; deserialize_string would
+    // coerce a numeric or boolean YAML scalar into a seemingly valid header.
+    deserializer.deserialize_any(Column)
+}
+
+/// The selected header and its declaration locus must travel together so a
+/// missing-column diagnostic points at the setting actually used (CR-409).
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum SelectedStatusColumn<'a> {
+    Model(&'a str),
+    Reference(&'a str),
+}
+
+impl<'a> SelectedStatusColumn<'a> {
+    pub(crate) fn column(self) -> &'a str {
+        match self {
+            Self::Model(column) | Self::Reference(column) => column,
+        }
+    }
+
+    pub(crate) fn configuration_path(self) -> &'static str {
+        match self {
+            Self::Model(_) => "traceability.status.column",
+            Self::Reference(_) => "traceability.document_references[].status_column",
+        }
+    }
+}
+
+impl DocumentReference {
+    pub(crate) fn selected_status_column<'a>(
+        &'a self,
+        status: Option<&'a StatusVocabulary>,
+    ) -> Option<SelectedStatusColumn<'a>> {
+        // An override without a vocabulary is rejected by model validation;
+        // never manufacture a vocabulary when called on an unvalidated model.
+        status.map(|status| match self.status_column.as_deref() {
+            Some(column) => SelectedStatusColumn::Reference(column),
+            None => SelectedStatusColumn::Model(&status.column),
+        })
+    }
 }
 
 /// The status column and the values that class as complete / pending / failed.
@@ -933,6 +996,21 @@ impl TraceabilityModel {
                 &reference.column,
             )?;
             check_capturing_pattern("document_references", &reference.name, &reference.pattern)?;
+            if let Some(column) = &reference.status_column {
+                check_field(
+                    "document_references",
+                    &reference.name,
+                    "status_column",
+                    column,
+                )?;
+                if self.status.is_none() {
+                    return Err(format!(
+                        "traceability: document_references entry '{}' declares status_column \
+                         without a traceability.status vocabulary",
+                        reference.name
+                    ));
+                }
+            }
             if reference.targets.is_empty() {
                 return Err(format!(
                     "traceability: document_references entry '{}' declares no targets",
@@ -1519,6 +1597,68 @@ trace_tags:
             StatusClass::Unknown
         );
         assert_eq!(m.trace_tags.markers[0].language, SourceLanguage::Rust);
+    }
+
+    #[trace("TC-1804", "FR-050-AC-45")]
+    #[test]
+    fn reference_status_selection_defaults_and_validates() {
+        let mut m = model(FULL);
+        let original = serde_json::to_value(&m).expect("serialize");
+        assert!(original["document_references"][0]
+            .get("status_column")
+            .is_none());
+        let reference = &m.document_references[0];
+        let selected = reference.selected_status_column(m.status.as_ref()).unwrap();
+        assert_eq!(selected.column(), "Status");
+        assert_eq!(selected.configuration_path(), "traceability.status.column");
+        m.document_references[0].status_column = Some("Coverage Status".into());
+        m.validate().expect("explicit selector");
+        let selected = m.document_references[0]
+            .selected_status_column(m.status.as_ref())
+            .unwrap();
+        assert_eq!(selected.column(), "Coverage Status");
+        assert_eq!(
+            selected.configuration_path(),
+            "traceability.document_references[].status_column"
+        );
+        let encoded = serde_json::to_string(&m).expect("serialize");
+        assert_eq!(
+            serde_json::from_str::<TraceabilityModel>(&encoded).unwrap(),
+            m
+        );
+        for invalid in ["", "   ", "\t\n"] {
+            m.document_references[0].status_column = Some(invalid.into());
+            let error = m.validate().expect_err("blank selector");
+            assert!(
+                error.contains("verification") && error.contains("status_column"),
+                "{error}"
+            );
+        }
+        m.document_references[0].status_column = Some("Coverage Status".into());
+        m.status = None;
+        let error = m.validate().expect_err("override needs vocabulary");
+        assert!(
+            error.contains("verification") && error.contains("traceability.status"),
+            "{error}"
+        );
+        let mut invalid = original.clone();
+        invalid["document_references"][0]["status_column"] = serde_json::json!(42);
+        assert!(serde_json::from_value::<TraceabilityModel>(invalid).is_err());
+        for scalar in ["42", "null", "false", "[]", "{}"] {
+            let yaml = FULL.replace(
+                "  row_id_column: ID",
+                &format!("  row_id_column: ID\n  status_column: {scalar}"),
+            );
+            assert!(
+                serde_yaml::from_str::<TraceabilityModel>(&yaml).is_err(),
+                "{scalar}"
+            );
+        }
+        let mut null = original.clone();
+        null["document_references"][0]["status_column"] = serde_json::Value::Null;
+        assert!(serde_json::from_value::<TraceabilityModel>(null).is_err());
+        let legacy: TraceabilityModel = serde_json::from_value(original.clone()).unwrap();
+        assert_eq!(serde_json::to_value(legacy).unwrap(), original);
     }
 
     #[test]

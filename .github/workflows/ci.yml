@@ -42,7 +42,7 @@ jobs:
         with:
           repository: agent-ix/spec-artifacts-process
           token: ${{ secrets.CORPUS_TOKEN }}
-          ref: 61a20e010d5e758f52864ad3152ccdb304a39d27
+          ref: e6ea5151b59a55d7ce0d43f1581cbe276f750e04
           fetch-depth: 0
           path: .ci/spec-artifacts-process
       - name: Checkout locked ISO schema provider
@@ -50,7 +50,7 @@ jobs:
         with:
           repository: agent-ix/spec-artifacts-iso
           token: ${{ secrets.CORPUS_TOKEN }}
-          ref: a6b1c70be8c22e9f7cb432e4410b7a3a280d0217
+          ref: a60ee12d735976081849f60a38d603fb5494b015
           fetch-depth: 0
           path: .ci/spec-artifacts-iso
 
