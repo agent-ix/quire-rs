@@ -35,6 +35,28 @@ attribute. Record ids SHALL be stable SHA-256 digests of the identity, per the
 
 ## Language adapters
 
+> **CR note (agent-ix/quire-rs#407, 2026-09-06):** Python `test_` methods
+> on a class with a direct `unittest.TestCase` base are evidence regardless
+> of the class name. The bounded static forms are a single-line top-level class header
+> referencing a preceding module-level `import unittest` (with optional alias),
+> or `from unittest import TestCase` (with optional alias). Comma-separated
+> imports and bases retain those same exact identities. Unrelated imports,
+> including dotted imports that rebind their first component, invalidate a
+> previous identity. An unaliased `import unittest.mock` retains the unittest
+> root; an alias for that submodule does not become an alias for unittest.
+> Similarly named bases, helper methods, nested helper functions, and ordinary classes do not gain
+> evidence status. A simple single-name top-level assignment, deletion, import,
+> or class/function declaration replacing a binding removes its imported identity.
+> Dynamic factories, wildcard imports, local imports, multi-line import/base
+> declarations, and transitive inheritance resolution are not inferred.
+> Base matching stops at the class suite's colon or a comment: a TestCase
+> spelling in comment text or class-body data never establishes inheritance.
+> Existing pytest naming rules are unchanged. This repairs an under-reading
+> rule, not the authored tests: native unittest runs four controlled methods
+> that the old adapter reports as zero candidates. The corpus banks both
+> spellings and sibling non-test controls (TC-1803).
+> Authority: [Python unittest loading](https://docs.python.org/3/library/unittest.html#unittest.TestLoader.loadTestsFromTestCase).
+
 The extractor SHALL ship per-language adapters for Rust, Python, and
 TypeScript. Adapters SHALL operate at syntax level: no build, no type
 resolution, no dependency installation. Adapters SHALL classify test functions
@@ -111,7 +133,7 @@ byte-identical JSON ordering and stable record ids.
 |----|----------|--------------|
 | FR-051-AC-1 | Each adapter extracts functions, test functions, and containers from a fixture tree, and each symbol carries language, repo-relative path, qualified path, kind, and a line attribute. | Test (TC-741) |
 | FR-051-AC-2 | Reformatting a fixture file (whitespace and line-number changes only) leaves every symbol id unchanged; renaming a symbol changes only that symbol's id. | Test (TC-742) |
-| FR-051-AC-3 | Rust `#[test]`-family functions, Python `test_` functions, and TypeScript `test`/`it` registrations classify as test symbols; sibling non-test symbols do not. | Test (TC-743) |
+| FR-051-AC-3 | Rust `#[test]`-family functions, Python `test_` functions and direct imported unittest.TestCase methods in the bounded forms above, and TypeScript `test`/`it` registrations classify as test symbols; sibling non-test symbols do not. | Test (TC-743, TC-1803) |
 | FR-051-AC-4 | Each canonical marker form binds statically: a Python `@pytest.mark.trace(...)` decorator, a Rust `#[trace(...)]` attribute, and a TypeScript `trace(...)` helper each mint one `verifies` relation per attached trace id, with no code executed. | Test (TC-744) |
 | FR-051-AC-5 | Marker and tag forms are module data: a fixture model declaring different marker names/patterns binds by its own declaration, and with no declared forms the extractor mints zero `verifies` relations. | Test (TC-745) |
 | FR-051-AC-6 | A trace id attached more than once to one symbol (repeated marker, or marker plus legacy tag) mints one `verifies` relation and one diagnostic. | Test (TC-746) |

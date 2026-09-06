@@ -7,6 +7,10 @@ description: "Chronological log of structural changes to this bundle."
 
 ## History
 
+* **2026-09-06** — #407 CR note extends FR-051-AC-3 to bounded direct
+  unittest.TestCase imports and aliases. TC-1803 banks the real classifier
+  under-reading before code, with native execution and Python healthy controls.
+
 * **2026-09-06** — CR note for `agent-ix/quire-rs#405`: FR-013 adds an
   exact module-directory-set API, with canonical deduplication, empty-set
   closure, and preserved failure/collision diagnostics. TC-1800..TC-1802 precede

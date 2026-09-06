@@ -7,6 +7,10 @@
 //!
 //! Test classification is the pytest convention: a `test_`-prefixed function,
 //! or a method of a `Test`-prefixed class whose own name is `test_`-prefixed.
+//! Direct imported unittest.TestCase bases additionally identify test classes
+//! without a naming convention (FR-051-AC-3, #407).
+
+use std::collections::BTreeSet;
 
 use super::{leading_block, RawSymbol, SymbolKind};
 
@@ -24,8 +28,9 @@ pub(crate) fn parse(path: &str, source: &str) -> Result<Vec<RawSymbol>, String> 
     }];
 
     // Scope stack of (qualified name, indent column of the declaration).
-    let mut scopes: Vec<(String, usize, bool)> = Vec::new();
+    let mut scopes: Vec<(String, usize, TestClass)> = Vec::new();
     let mut quoting = Quoting::Code;
+    let mut unittest = UnittestImports::default();
 
     for (idx, raw_line) in lines.iter().enumerate() {
         // A line that *starts* inside a triple-quoted string is string body, not
@@ -39,10 +44,15 @@ pub(crate) fn parse(path: &str, source: &str) -> Result<Vec<RawSymbol>, String> 
         }
 
         let trimmed = raw_line.trim();
+        let indent = raw_line.len() - raw_line.trim_start().len();
+        let is_unittest_class =
+            indent == 0 && trimmed.starts_with("class ") && unittest.is_test_case(trimmed);
+        if indent == 0 {
+            unittest.observe_binding(trimmed);
+        }
         let Some((name, is_class)) = declaration(trimmed) else {
             continue;
         };
-        let indent = raw_line.len() - raw_line.trim_start().len();
         while scopes.last().is_some_and(|(_, col, _)| indent <= *col) {
             scopes.pop();
         }
@@ -54,7 +64,11 @@ pub(crate) fn parse(path: &str, source: &str) -> Result<Vec<RawSymbol>, String> 
             Some((prefix, _, _)) => format!("{prefix}.{name}"),
             None => name.clone(),
         };
-        let in_test_class = scopes.last().is_some_and(|(_, _, is_test)| *is_test);
+        let in_test_class = scopes.last().is_some_and(|(_, _, class)| match class {
+            TestClass::Pytest => true,
+            TestClass::Unittest(body_indent) => *body_indent == Some(indent),
+            TestClass::None => false,
+        });
         let kind = if is_class {
             SymbolKind::Container
         } else if name.starts_with("test_") && (scopes.is_empty() || in_test_class) {
@@ -74,10 +88,127 @@ pub(crate) fn parse(path: &str, source: &str) -> Result<Vec<RawSymbol>, String> 
             container,
         });
         if is_class {
-            scopes.push((qualified_name, indent, name.starts_with("Test")));
+            let class = if is_unittest_class {
+                // Only direct methods are unittest evidence, never a local
+                // test_-named helper nested inside a method's body.
+                let body_indent = lines[idx + 1..]
+                    .iter()
+                    .find(|line| !line.trim().is_empty() && !line.trim_start().starts_with('#'))
+                    .map(|line| line.len() - line.trim_start().len());
+                TestClass::Unittest(body_indent)
+            } else if name.starts_with("Test") {
+                TestClass::Pytest
+            } else {
+                TestClass::None
+            };
+            scopes.push((qualified_name, indent, class));
         }
     }
     Ok(out)
+}
+
+enum TestClass {
+    None,
+    Pytest,
+    Unittest(Option<usize>),
+}
+
+/// Bounded lexical identities, not dependency/type resolution. Only preceding
+/// module-level imports authorize a unittest base; a lookalike spelling or an
+/// explicitly rebound import must not create evidence (#407).
+#[derive(Default)]
+struct UnittestImports {
+    modules: BTreeSet<String>,
+    test_cases: BTreeSet<String>,
+}
+
+enum ImportKind {
+    Modules,
+    UnittestNames,
+    OtherNames,
+}
+
+impl UnittestImports {
+    fn forget(&mut self, name: &str) {
+        self.modules.remove(name);
+        self.test_cases.remove(name);
+    }
+
+    fn observe_binding(&mut self, line: &str) {
+        let line = line.split('#').next().unwrap_or_default().trim();
+        let from_import = line
+            .strip_prefix("from ")
+            .and_then(|rest| rest.split_once(" import "));
+        let (imports, kind) = if let Some(imports) = line.strip_prefix("import ") {
+            (imports, ImportKind::Modules)
+        } else if let Some((module, imports)) = from_import {
+            (
+                imports,
+                if module == "unittest" {
+                    ImportKind::UnittestNames
+                } else {
+                    ImportKind::OtherNames
+                },
+            )
+        } else {
+            // An explicit assignment or a same-name declaration removes the
+            // identity. More elaborate runtime rebinding is outside this
+            // syntax-only adapter's declared import forms.
+            if let Some((name, _)) = declaration(line) {
+                self.forget(&name);
+            } else if let Some((left, _)) = line.split_once('=') {
+                let name = left.split(':').next().unwrap_or_default().trim();
+                self.forget(name);
+            } else if let Some(name) = line.strip_prefix("del ") {
+                self.forget(name.trim());
+            }
+            return;
+        };
+        for import in imports.split(',') {
+            let words: Vec<&str> = import.split_whitespace().collect();
+            let (source, binding, module_identity) = match words.as_slice() {
+                [source] => {
+                    // `import helpers.sub` replaces `helpers`, not a binding
+                    // called `helpers.sub`. Likewise `import unittest.mock`
+                    // binds the genuine unittest root, not its submodule.
+                    let root = source.split('.').next().unwrap_or(source);
+                    (*source, root, root)
+                }
+                // An alias binds the full imported module: aliasing
+                // unittest.mock does not authorize alias.TestCase.
+                [source, "as", binding] => (*source, *binding, *source),
+                _ => continue,
+            };
+            self.forget(binding);
+            match kind {
+                ImportKind::UnittestNames if source == "TestCase" => {
+                    self.test_cases.insert(binding.to_string());
+                }
+                ImportKind::Modules if module_identity == "unittest" => {
+                    self.modules.insert(binding.to_string());
+                }
+                _ => {}
+            }
+        }
+    }
+
+    fn is_test_case(&self, declaration: &str) -> bool {
+        // The base list belongs to the header, not to a comment or a
+        // same-line class suite. Those can mention TestCase as ordinary data.
+        let header = declaration.split(['#', ':']).next().unwrap_or_default();
+        let Some((_, after_open)) = header.split_once('(') else {
+            return false;
+        };
+        let Some((bases, _)) = after_open.split_once(')') else {
+            return false;
+        };
+        bases.split(',').map(str::trim).any(|base| {
+            self.test_cases.contains(base)
+                || base
+                    .strip_suffix(".TestCase")
+                    .is_some_and(|module| self.modules.contains(module))
+        })
+    }
 }
 
 /// Whether a physical line boundary falls inside a triple-quoted string, and if

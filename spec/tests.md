@@ -230,6 +230,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-1800 | Exact module sets load only selected directories; removal and the empty set never fall back to ambient modules | Unit | P0 | FR-013-AC-16 | ✅ |
 | TC-1801 | Canonical aliases load once; distinct colliding modules retain existing diagnostics | Unit | P0 | FR-013-AC-17 | ✅ |
 | TC-1802 | Missing and manifest-less members remain explicit failures without ambient substitution | Unit | P0 | FR-013-AC-18 | ✅ |
+| TC-1803 | Native unittest.TestCase methods and supported imported aliases bind independently of class name; helper and unrelated-base controls remain non-evidence | Integration | P0 | FR-051-AC-3 | ✅ |
 | TC-090 | Two paths each with a module: both modules present in module_names() | Integration | P0 | FR-014-AC-1 | 🚧 |
 | TC-091 | Duplicate archetype across modules → DuplicateArchetype diagnostic + first-wins | Integration | P0 | FR-014-AC-2 | 🚧 |
 | TC-092 | load_strict on duplicate-archetype input returns ArchetypeCollision | Integration | P0 | FR-014-AC-3 | 🚧 |
