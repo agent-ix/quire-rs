@@ -305,6 +305,10 @@ pub struct Manifest {
     pub object_types: Vec<Archetype>,
     #[serde(default)]
     pub archetypes: Vec<Archetype>,
+    /// Rights-aware clause-set files, resolved relative to the module root.
+    /// The files are data; no domain vocabulary is compiled into the engine.
+    #[serde(default)]
+    pub clause_sets: Vec<PathBuf>,
     /// Declarative advisory lint rules (FR-036). Previously this key
     /// was inert; it is now typed — a malformed rule fails manifest
     /// parse like any other shape error.
