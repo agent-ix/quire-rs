@@ -30,6 +30,20 @@ relationships:
 > `IX_SCHEMA_PATH` keeps working. The Search-path section and AC-1 below are
 > updated; no new AC is added (the alias is exercised by AC-2/AC-8).
 
+> **CR note (closed module set — 2026-09-06, agent-ix/quire-rs#405):** The
+> search path above is **additive at every level**: `IX_FILAMENT_MODULES_PATH`
+> adds roots, and the default `~/.ix/filament/modules/` remains reachable, so a
+> module materialized at a pinned revision AND installed in the ambient root is
+> loaded twice. Resolution is first-wins, so which copy answered a given
+> document is not decided by the pin, and the ~90 `DuplicateModuleName` /
+> `DuplicateArchetype` lines that say so are indistinguishable from noise. A
+> measurement made this way produces a verdict it cannot attribute to a
+> contract revision. This CR adds a **closed** entry point,
+> `Registry::load_module_set(module_roots)`, which consults neither the
+> environment nor the default root; the Search-path section gains a
+> "Closed module set" subsection and AC-15..AC-17. Additive and non-breaking:
+> `load_from`, `load_module`, `from_env` and `from_default` are unchanged.
+
 ## Description
 
 `quire-rs` SHALL load archetypes from the **local filesystem**. The engine has no network calls, no Filament API client, and no required runtime services. Whatever populates the local directory tree (Filament sync, hand-authoring, git checkout, an unzipped distribution tarball) is outside the engine's concern.
@@ -65,6 +79,7 @@ pub struct Registry { /* ... */ }
 impl Registry {
     pub fn load_from(paths: &[&Path]) -> Result<Registry, QuireError>;
     pub fn load_module(module_root: &Path) -> Result<Registry, QuireError>;
+    pub fn load_module_set(module_roots: &[&Path]) -> Result<Registry, QuireError>;  // closed: no env, no default
     pub fn from_env() -> Result<Registry, QuireError>;        // IX_FILAMENT_MODULES_PATH / IX_SCHEMA_PATH then default
     pub fn from_default() -> Result<Registry, QuireError>;    // ~/.ix/filament/modules/ only
 
@@ -79,6 +94,34 @@ impl Registry {
 `Registry::load_from(paths)` treats each entry in `paths` as a **search root** whose direct children are candidate module directories (one level deep). `Registry::load_module(module_root)` treats its single argument as a **module directory** — `manifest.yaml` MUST live directly under it, and no siblings are inspected.
 
 Callers that have already resolved a specific module path (e.g. a CLI receiving `--module <path>`) SHALL use `load_module` rather than promoting to the parent and calling `load_from`. Promoting to the parent silently exposes every sibling directory as a candidate module, which is both surprising and a path-safety concern when the argument is user-controlled.
+
+### Closed module set
+
+`Registry::load_module_set(module_roots: &[&Path])` SHALL load **exactly** the
+module directories named, in the order given. Each entry is a module directory
+in the `load_module` sense — `manifest.yaml` MUST live directly under it, and no
+sibling under its parent is inspected.
+
+What distinguishes it from the constructors above is what it does NOT consult:
+neither `IX_FILAMENT_MODULES_PATH` / `IX_SCHEMA_PATH` nor the default
+`~/.ix/filament/modules/`. Those are **additive** everywhere else in this
+requirement, which is correct for a machine that installs modules once and reads
+them everywhere, and wrong for a caller whose answer must be attributable to the
+revisions it pinned: a module present both at its pinned path and in the ambient
+root is loaded twice, and first-wins decides which copy answers. An empty
+`module_roots` therefore yields an **empty registry**, not the ambient one — a
+fallback here would reintroduce the ambiguity the entry point exists to remove.
+
+Naming the same module directory twice is the caller repeating itself, not an
+ambiguity: repeats are skipped by canonical path and emit no diagnostic. Two
+**different** directories declaring the same module name still collide and still
+diagnose — that is a real ambiguity in the declared set, and the caller is the
+only party who can resolve it.
+
+A consumer that resolves user-controlled path strings (e.g. a CLI receiving a
+repeatable `--module <PATH>`) SHALL state its resolution order in `--help`, so a
+caller can tell whether a declared set adds to or replaces the ambient one
+without running an experiment.
 
 ### Compiled archetype surface
 
@@ -175,6 +218,9 @@ unreachable, and an unreachable target is one nobody acts on.
 | FR-013-AC-12 | `Registry::load_module(module_root)` loads exactly the named module (the directory containing `manifest.yaml`) and does NOT walk siblings under `module_root.parent()`. A test places a real module sibling alongside the target and asserts the sibling is not loaded. | Test |
 | FR-013-AC-13 | `Registry::load_module(module_root)` against a directory with no `manifest.yaml` returns a registry with zero modules and a single `ArchetypeLoadFailure` describing the absent manifest; sibling directories are not promoted. | Test |
 | FR-013-AC-14 | `Diagnostic::PathTraversal { argument, path, reason }` is a defined variant of the (internal) `Diagnostic` enum. A unit test constructs the variant and asserts both human (`Display`) and JSON (`to_json`) renderings carry the variant name, argument, path, and reason discriminator, covering all three `PathTraversalReason` values. | Test |
+| FR-013-AC-15 | A `Registry::load_module_set` run over an exact set of module directories, each declared once, emits no `DuplicateModuleName` and no `DuplicateArchetype` diagnostic — including when a directory holding a second copy of those same modules by name exists alongside. Naming one module directory twice in the same set loads it once and emits no collision diagnostic. | Test |
+| FR-013-AC-16 | The declared set is closed, not preferred: with modules `{base, extra}` declared, the archetype `extra` contributes resolves and a document declaring it validates; with `{base}` declared, that archetype does not resolve. | Test |
+| FR-013-AC-17 | `Registry::load_module_set` consults neither `IX_FILAMENT_MODULES_PATH` / `IX_SCHEMA_PATH` nor `~/.ix/filament/modules/`: a module present only outside the declared set is not loaded, and an empty declared set produces an empty registry with no path diagnostics rather than the ambient module set. | Test |
 
 ## Dependencies
 

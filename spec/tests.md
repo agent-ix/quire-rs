@@ -75,7 +75,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | FR-010 Query API | AC-1..4 | TC-027, TC-028, TC-029, TC-589 (CR-007 escaped pipes + separator/bullet characterization) | ✅ Complete |
 | FR-011 DSL (6 locators + yields + asserts) | AC-1..8, 13..21 | TC-018, TC-019, TC-040, TC-070, TC-072, TC-073, TC-563, TC-564, TC-565 (regex), TC-566 (under_section:None), TC-567 ({{…}}), TC-568 (unclosed fence), TC-569 (emit_edges), TC-583 (multiple:true) | ✅ |
 | ~~FR-012 Corpus parity suite~~ | — | — | ⛔ RETIRED (render removal) |
-| FR-013 Archetype loader | AC-1..6 | TC-080 (empty env), TC-081 (load iso), TC-082 (bad schema_ref), TC-083 (bench), TC-084 (no IO post-load), TC-085 (no net deps) | ✅ Complete |
+| FR-013 Archetype loader | AC-1..6; AC-15..17 (closed module set) | TC-080 (empty env), TC-081 (load iso), TC-082 (bad schema_ref), TC-083 (bench), TC-084 (no IO post-load), TC-085 (no net deps), TC-1651..TC-1653 (closed set) | ✅ Complete |
 | FR-014 Module activation | AC-1..5 | TC-090 (multi-module), TC-091 (collision), TC-092 (strict), TC-093 (version), TC-094 (17-baseline union) | ✅ Complete |
 | FR-016 Fallback locators | AC-1..4 | TC-110 (legacy path), TC-111 (canonical path), TC-112 (optional miss), TC-113 (domain parity) | ✅ Complete |
 | FR-019 Stable block identifiers | AC-1..3; CON-1 | TC-400 (block_id parsed; no attribute → None), TC-402 (attribute stripped from heading text), TC-443 (id survives write-back + reparse), TC-403 (negative) | ✅ Complete (document authored, CR-042) |
@@ -833,6 +833,9 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-1648 | Without a caller `sourceIdentity`, spans carry `ix://local/<scope>/spec` and one `semantic.source-identity-defaulted` advisory per document; with one, spans carry it and no advisory | Unit | P0 | FR-071-AC-7 | ✅ |
 | TC-1649 | `make check-wasm` (in `make ci`): `cargo check` for wasm32 plus the four semantic suites under `--no-default-features --features wasm` — a Make gate, no test symbol | Compile | P0 | NFR-021-AC-2 | ✅ |
 | TC-1650 | `scripts/audits/check_no_schemars.sh` covers `schemas/output/semantic-v1.schema.json`; introducing a generator-derived schema fails the audit | Static | P0 | FR-072-CON-3 | ✅ |
+| TC-1651 | `Registry::load_module_set` over an exact set (each module declared once) emits no `DuplicateModuleName`/`DuplicateArchetype` even with a same-named second copy alongside; the same directory named twice loads once | Unit | P0 | FR-013-AC-15 | ✅ |
+| TC-1652 | Closed, not preferred: `{base, extra}` resolves the archetype `extra` declares and validates a document using it; `{base}` does not resolve it | Unit | P0 | FR-013-AC-16 | ✅ |
+| TC-1653 | `load_module_set` consults neither the search-path env vars nor `~/.ix/filament/modules/`: a module outside the declared set is not loaded, and an empty set yields an empty registry with no path diagnostics | Unit | P0 | FR-013-AC-17 | ✅ |
 | TC-1052 | The symbol table reports the QUALIFIED NAME the engine built, with its container — the field three ports of `symbols/python.rs` disagreed on, giving 386, 490 and 5,263 lost declarations over one tree. A defect in the scanner cannot be sized by a reimplementation of the scanner (#309) | Unit | P0 | FR-051-AC-23 | ✅ |
 | TC-1053 | Each record carries whether its KIND can bind a trace id and whether it can carry `implements`, and the two are complements for every symbol — the first thing to check when a row will not bind, previously only inferable from a coverage rollup two layers away (#309, #312, CR-061) | Unit | P0 | FR-051-AC-23 | ✅ |
 | TC-1054 | With no module the report says binding was NOT ASKED rather than reporting zero: an unbound run and a repository nobody tagged produce the same empty `trace_ids`, and the per-language census keeps `binding_kinds` separate from `bound` so a rate is never drawn over the wrong denominator (#309) | Unit | P0 | FR-051-AC-23 | ✅ |
@@ -1200,6 +1203,9 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-013-AC-12 | TC-555 |
 | FR-013-AC-13 | TC-556 |
 | FR-013-AC-14 | TC-557 |
+| FR-013-AC-15 | TC-1651 |
+| FR-013-AC-16 | TC-1652 |
+| FR-013-AC-17 | TC-1653 |
 | FR-014-AC-1 | TC-090 |
 | FR-014-AC-2 | TC-091 |
 | FR-014-AC-3 | TC-092 |

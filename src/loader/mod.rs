@@ -222,6 +222,57 @@ pub fn load_single_module(module_root: &Path) -> LoadOutcome {
     }
 }
 
+/// Load an exact, **closed** set of module directories (FR-013 closed
+/// module set, agent-ix/quire-rs#405).
+///
+/// Each entry is a **module directory** resolved exactly as
+/// [`load_single_module`] resolves its argument: `manifest.yaml` MUST live
+/// directly under it, no sibling is inspected, and no entry is promoted to a
+/// search root.
+///
+/// The difference from [`load_modules`] is what is NOT consulted.
+/// `load_modules` falls back to `IX_FILAMENT_MODULES_PATH` /
+/// `IX_SCHEMA_PATH` and then to `~/.ix/filament/modules/`, and those
+/// fallbacks **add** roots rather than replacing them — so a module
+/// materialized at its pinned revision and ALSO present in the ambient
+/// install root is loaded twice, and which copy answers a given document is
+/// decided by first-wins rather than by the pin. This entry point consults
+/// neither, so the loaded set is the declared set: an empty `module_roots`
+/// loads nothing rather than falling back to the environment.
+///
+/// Roots load in the order given. A root naming a module already loaded (same
+/// canonical path) is skipped rather than loaded a second time, so naming a
+/// module twice is not a collision — the duplicate would otherwise surface as
+/// a `DuplicateModuleName` diagnostic about the caller's own declaration.
+/// Two DIFFERENT directories declaring the same module name still collide and
+/// still diagnose: that is a real ambiguity in the declared set.
+pub fn load_module_set(module_roots: &[&Path]) -> LoadOutcome {
+    let mut modules: Vec<LoadedModule> = Vec::new();
+    let mut failures: Vec<ArchetypeLoadFailure> = Vec::new();
+    let mut diagnostics: Vec<Diagnostic> = Vec::new();
+    let mut visited: Vec<PathBuf> = Vec::new();
+
+    for root in module_roots {
+        if let Ok(canonical) = std::fs::canonicalize(root) {
+            if visited.contains(&canonical) {
+                continue;
+            }
+            visited.push(canonical);
+        }
+        let mut outcome = load_single_module(root);
+        modules.append(&mut outcome.modules);
+        failures.append(&mut outcome.failures);
+        diagnostics.append(&mut outcome.diagnostics);
+    }
+
+    LoadOutcome {
+        modules,
+        failures,
+        diagnostics,
+        path_diagnostics: Vec::new(),
+    }
+}
+
 /// Build a `LoadOutcome` from an in-memory module blob — no filesystem
 /// access (FR-013 wasm amendment).
 ///
@@ -1646,6 +1697,26 @@ mod tests {
         .unwrap();
     }
 
+    /// `write_minimal_module` with the archetype name chosen by the caller.
+    /// Every module it writes declares `foo`, so a set of them collides on
+    /// the archetype name alone — which is a real ambiguity, not the
+    /// double-load this closed-set work is about.
+    fn write_module_with_archetype(root: &Path, name: &str, archetype: &str) {
+        fs::create_dir_all(root.join("schemas")).unwrap();
+        fs::write(
+            root.join("manifest.yaml"),
+            format!(
+                "name: {name}\nartifact_types:\n- name: {archetype}\n  frontmatter_schema_ref: schemas/{archetype}.schema.json\n"
+            ),
+        )
+        .unwrap();
+        fs::write(
+            root.join(format!("schemas/{archetype}.schema.json")),
+            r#"{"type":"object","required":["id"],"properties":{"id":{"type":"string"}}}"#,
+        )
+        .unwrap();
+    }
+
     #[trace("TC-826")]
     // the model-level exclusion is the one traceability key (CR-060)
     // that merges as a **union**. Every other key is first-wins by name, which
@@ -2114,5 +2185,122 @@ object_types:
         let outcome = load_modules(&[&parent]);
         // We finish at all — the visited set breaks the loop.
         assert!(outcome.modules.len() >= 2);
+    }
+
+    // ---- FR-013 closed module set (agent-ix/quire-rs#405) ----
+
+    #[trace("TC-1651")]
+    // FR-013-AC-15: an exact set emits no duplicate-module or
+    // duplicate-archetype diagnostic for a module declared once. The failing
+    // case this replaces is not exotic: a module materialized at its pinned
+    // revision AND installed in the ambient root was loaded from both, and
+    // ~90 `DuplicateModuleName` / `DuplicateArchetype` lines preceded every
+    // batch. Here the same three modules are named once each and the set is
+    // closed, so there is nothing to collide with.
+    #[test]
+    fn tc1651_a_closed_set_of_distinct_modules_collides_with_nothing() {
+        let parent = tmpdir("closed-set-distinct");
+        // The ambient root shape the defect loaded a second copy from: a
+        // sibling directory holding the very same modules by name.
+        let ambient = parent.join("ambient");
+        for (name, archetype) in [("mod-a", "a"), ("mod-b", "b"), ("mod-c", "c")] {
+            let root = parent.join(name);
+            fs::create_dir_all(&root).unwrap();
+            write_module_with_archetype(&root, name, archetype);
+            let shadow = ambient.join(name);
+            fs::create_dir_all(&shadow).unwrap();
+            write_module_with_archetype(&shadow, name, archetype);
+        }
+
+        let roots: Vec<PathBuf> = ["mod-a", "mod-b", "mod-c"]
+            .iter()
+            .map(|n| parent.join(n))
+            .collect();
+        let refs: Vec<&Path> = roots.iter().map(|p| p.as_path()).collect();
+        let outcome = load_module_set(&refs);
+
+        assert!(outcome.failures.is_empty(), "{:?}", outcome.failures);
+        assert_eq!(outcome.modules.len(), 3, "each declared module loads once");
+        let registry = crate::Registry::load_module_set(&refs).expect("load set");
+        let collisions: Vec<_> = registry
+            .diagnostics()
+            .iter()
+            .filter(|d| {
+                matches!(
+                    d,
+                    Diagnostic::DuplicateModuleName { .. } | Diagnostic::DuplicateArchetype { .. }
+                )
+            })
+            .collect();
+        assert!(collisions.is_empty(), "{collisions:?}");
+
+        // Naming the same module twice is the caller repeating itself, not an
+        // ambiguity: it is skipped by canonical path rather than diagnosed.
+        let repeated = [refs[0], refs[1], refs[0]];
+        let twice = load_module_set(&repeated);
+        assert_eq!(twice.modules.len(), 2);
+    }
+
+    #[trace("TC-1652")]
+    // FR-013-AC-16: the set is CLOSED, not merely preferred. Removing a
+    // module changes the outcome of a document that depends on it — the
+    // archetype it contributed stops resolving, rather than being answered
+    // from somewhere the caller did not name.
+    #[test]
+    fn tc1652_removing_a_module_from_the_set_changes_a_dependent_document() {
+        let parent = tmpdir("closed-set-removal");
+        let base = parent.join("base");
+        let extra = parent.join("extra");
+        fs::create_dir_all(&base).unwrap();
+        fs::create_dir_all(&extra).unwrap();
+        write_module_with_archetype(&base, "base", "foo");
+        // `extra` contributes the only archetype the document below declares.
+        write_module_with_archetype(&extra, "extra", "bar");
+
+        let both = crate::Registry::load_module_set(&[&base, &extra]).expect("load both");
+        assert!(both.failures().is_empty(), "{:?}", both.failures());
+        let bar = both.archetype("bar").expect("declared by `extra`");
+        let doc = "---\nid: BAR-001\ntype: bar\n---\n\n# BAR-001: Title\n";
+        assert!(
+            crate::validate_document::validate_document(bar, doc)
+                .errors
+                .is_empty(),
+            "the document validates while its module is in the set"
+        );
+
+        let reduced = crate::Registry::load_module_set(&[&base]).expect("load base only");
+        assert!(
+            reduced.archetype("bar").is_none(),
+            "dropping `extra` drops what it contributed; nothing else answers for it"
+        );
+    }
+
+    #[trace("TC-1653")]
+    // FR-013-AC-17: a module reachable only from the ambient install root is
+    // not consulted when an exact set is declared, and an empty declared set
+    // loads nothing rather than falling back. `load_module_set` never calls
+    // `resolve_search_paths`, which is where the env var and the default root
+    // enter; the assertions below are that absence observed from outside.
+    #[test]
+    fn tc1653_an_exact_set_consults_neither_the_env_nor_the_default_root() {
+        let parent = tmpdir("closed-set-ambient");
+        let named = parent.join("named");
+        let ambient = parent.join("ambient-only");
+        fs::create_dir_all(&named).unwrap();
+        fs::create_dir_all(&ambient).unwrap();
+        write_minimal_module(&named, "named");
+        write_minimal_module(&ambient, "ambient-only");
+
+        let outcome = load_module_set(&[&named]);
+        let loaded: Vec<&str> = outcome.modules.iter().map(|m| m.name.as_str()).collect();
+        assert_eq!(loaded, vec!["named"]);
+
+        // An empty declared set is an empty registry. `load_modules(&[])`
+        // falls back here to `IX_FILAMENT_MODULES_PATH` and then to
+        // `~/.ix/filament/modules/` — on a machine where `quoin` has
+        // materialized the default module set, that fallback is the ambient
+        // copy the pin was meant to exclude.
+        assert!(load_module_set(&[]).modules.is_empty());
+        assert!(load_module_set(&[]).path_diagnostics.is_empty());
     }
 }
