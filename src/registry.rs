@@ -145,6 +145,41 @@ impl Registry {
         Self::finish_strict(outcome)
     }
 
+    /// Load an exact, **closed** set of module directories
+    /// (agent-ix/quire-rs#405).
+    ///
+    /// Each entry is a module directory in the [`load_module`] sense — it
+    /// MUST contain `manifest.yaml` directly, and no sibling under its parent
+    /// is inspected. Modules load in the order given.
+    ///
+    /// This is the constructor for a caller that needs the answer to be
+    /// attributable to the modules it pinned. [`load_from`](Registry::load_from)
+    /// and [`from_env`](Registry::from_env) fall back to
+    /// `IX_FILAMENT_MODULES_PATH` and then to `~/.ix/filament/modules/`, and
+    /// those roots **add** to what the caller named rather than replacing it:
+    /// a module present both at its pinned revision and in the ambient
+    /// install root is loaded twice, resolution is first-wins, and nothing in
+    /// the output says which copy answered. Here neither the environment nor
+    /// the default root is consulted, so a module reachable only from the
+    /// ambient install root is not consulted at all, and an empty
+    /// `module_roots` yields an empty registry rather than an ambient one.
+    ///
+    /// Naming the same module directory twice is not a collision — the
+    /// repeat is skipped by canonical path. Two different directories
+    /// declaring the same module name still collide and still diagnose.
+    pub fn load_module_set(module_roots: &[&Path]) -> Result<Self, QuireError> {
+        let outcome = crate::loader::load_module_set(module_roots);
+        Ok(Self::finish_tolerant(outcome))
+    }
+
+    /// Strict counterpart of
+    /// [`load_module_set`](Registry::load_module_set): the first collision
+    /// diagnostic is promoted to a fatal `QuireError`.
+    pub fn load_module_set_strict(module_roots: &[&Path]) -> Result<Self, QuireError> {
+        let outcome = crate::loader::load_module_set(module_roots);
+        Self::finish_strict(outcome)
+    }
+
     /// Load from `IX_FILAMENT_MODULES_PATH` / `IX_SCHEMA_PATH` (then the
     /// default `~/.ix/filament/modules/`).
     pub fn from_env() -> Result<Self, QuireError> {
