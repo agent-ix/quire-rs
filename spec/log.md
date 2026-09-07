@@ -7,6 +7,10 @@ description: "Chronological log of structural changes to this bundle."
 
 ## History
 
+* **2026-09-06** — #407 CR note extends FR-051-AC-3 to bounded direct
+  unittest.TestCase imports and aliases. TC-1803 banks the real classifier
+  under-reading before code, with native execution and Python healthy controls.
+
 * **2026-08-29** — **StR-007, US-018, FR-067, FR-068 and IT-001** specify the
   source-grounded assurance export requested by `agent-ix/quire-rs#386`.
   Quire projects its existing `Spec::edges`, FR-053 obligations, and FR-051
