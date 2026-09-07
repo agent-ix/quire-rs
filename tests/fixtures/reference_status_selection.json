@@ -1,0 +1,12 @@
+{
+  "issue_ref": "agent-ix/quire-rs#409",
+  "cases": [
+    {"name":"both-complete","default_header":"Status","alternate_header":"Coverage Status","default_status":"done","alternate_status":"done","backed":[],"lies":["TC-002","TC-001"],"unknown":[],"missing":null},
+    {"name":"backed-unknown","default_header":"Status","alternate_header":"Coverage Status","default_status":"planned","alternate_status":"mystery","backed":["TC-002"],"lies":[],"unknown":["TC-002"],"missing":null},
+    {"name":"unbacked-unknown","default_header":"Status","alternate_header":"Coverage Status","default_status":"planned","alternate_status":"mystery","backed":[],"lies":[],"unknown":["TC-002"],"missing":null},
+    {"name":"no-explicit-fallback","default_header":"Status","alternate_header":"Status","default_status":"planned","alternate_status":"done","backed":[],"lies":[],"unknown":[],"missing":"alternate-status"},
+    {"name":"default-still-strict","default_header":"Coverage Status","alternate_header":"Coverage Status","default_status":"done","alternate_status":"planned","backed":[],"lies":[],"unknown":[],"missing":"default-status"},
+    {"name":"backed-complete","default_header":"Status","alternate_header":"Coverage Status","default_status":"done","alternate_status":"done","backed":["TC-001","TC-002"],"lies":[],"unknown":[],"missing":null},
+    {"name":"pending-and-failed","default_header":"Status","alternate_header":"Coverage Status","default_status":"planned","alternate_status":"failed","backed":[],"lies":[],"unknown":[],"missing":null}
+  ]
+}
