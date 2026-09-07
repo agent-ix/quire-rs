@@ -382,6 +382,10 @@ pub struct Manifest {
     /// contract reads it in its own refusal order.
     #[serde(default)]
     pub semantic: Option<Value>,
+    /// Named, versioned advisory language profiles (FR-074). The map key is
+    /// the profile id; thresholds and vocabulary live in the typed body.
+    #[serde(default)]
+    pub plain_language_profiles: BTreeMap<String, crate::plain_language::PlainLanguageProfile>,
 }
 
 impl Manifest {
@@ -495,6 +499,9 @@ pub fn parse_manifest(bytes: &[u8]) -> Result<Manifest, String> {
                 "verification_catalog entry '{id}' has an empty `{field}`"
             ));
         }
+    }
+    for (id, profile) in &manifest.plain_language_profiles {
+        profile.validate(id)?;
     }
     Ok(manifest)
 }

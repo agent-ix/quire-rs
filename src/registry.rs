@@ -71,6 +71,9 @@ struct Inner {
     verification_classes: Vec<String>,
     /// Merged ambiguity lexicon (FR-056).
     ambiguity_terms: std::collections::BTreeMap<String, crate::vocab::AmbiguityTermDef>,
+    /// Merged named advisory language profiles (FR-074).
+    plain_language_profiles:
+        std::collections::BTreeMap<String, crate::plain_language::PlainLanguageProfile>,
     /// Precompiled matcher, module terms layered over the engine built-ins.
     ambiguity_terms_matcher: crate::grammar::quality::AmbiguityTerms,
     /// Merged declarative traceability model (FR-050).
@@ -266,6 +269,7 @@ impl Registry {
             property_idioms,
             verification_catalog,
             ambiguity_terms,
+            plain_language_profiles,
             traceability,
             declaration_origins,
             failures,
@@ -353,6 +357,7 @@ impl Registry {
                 verification_classes,
                 ambiguity_terms,
                 ambiguity_terms_matcher,
+                plain_language_profiles,
                 traceability,
                 declaration_origins,
                 failures,
@@ -474,6 +479,15 @@ impl Registry {
     /// order (FR-036). Evaluate via [`crate::lint::lint_document`].
     pub fn lint_rules(&self) -> &[crate::lint::LintRule] {
         &self.inner.lint_rules
+    }
+
+    /// A named module profile. There is intentionally no default profile:
+    /// absence means no plain-language policy was selected (FR-074-CON-2).
+    pub fn plain_language_profile(
+        &self,
+        id: &str,
+    ) -> Option<&crate::plain_language::PlainLanguageProfile> {
+        self.inner.plain_language_profiles.get(id)
     }
 
     /// Merged edge-type registry (FR-040), first-wins across modules.
