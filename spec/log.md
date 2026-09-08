@@ -17,6 +17,15 @@ description: "Chronological log of structural changes to this bundle."
   preference for an older compiler are not incompatibilities. This policy is
   independent of the YAML engine decision in #414.
 
+* **2026-09-08** — **CR-158 correction**: rejected the initial ADR-0012
+  selection of `yaml_serde 0.10.2`. It was chosen only to preserve inherited
+  Rust 1.75 metadata, while this repository already selected 1.94.1 and current
+  stable is Rust 1.98.1. Existing configuration is not compatibility evidence.
+  The candidate now selects `yaml_serde 0.10.7` with `libyaml-rs 0.3.0`, moves
+  all Rust declarations to 1.98.1, and permits an older hold only for a
+  reproduced required-tool incompatibility under an attributed 30-day limit.
+  Rustfmt drift and repairable lint findings are explicitly insufficient.
+
 * **2026-09-07** — **CR-158**: proposed
   [ADR-0012](./assets/adr/0012-yaml-engine-maintenance-and-parity.md) for
   `agent-ix/quire-rs#414`. The decision selects an exact, Rust-1.75-compatible
