@@ -99,3 +99,15 @@ flowchart LR
 The Rust package migration and its audits remain owned by `quire-rs`; upstream
 projects supply dependencies and reference behavior but do not accept or retain
 Quire's compatibility evidence.
+
+## Dispositions after specification amendment
+
+| ID | Disposition |
+| --- | --- |
+| FND-433 | Fixed in the candidate specification: ADR-0012 and NFR-009 now include traceability-model and lint-rule parse/serialization behavior in the production compatibility surface. |
+| FND-434 | Fixed in the candidate specification: ADR-0012 now separates upstream maintenance assumptions from package/backend/MSRV/advisory/license/parity guarantees owned by quire-rs. |
+| FND-435 | Fixed in the candidate specification: test/corpus-loader adaptation is explicitly excluded as a substitute for production evidence and may not narrow the governed corpus. |
+
+Every requirement and dependency in this bounded decision slice now has one
+owner and a declared assumed-or-guaranteed posture. Owner acceptance and the
+repository-wide validation gate remain separate.
