@@ -158,6 +158,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | FR-074 Plain-language profiles | AC-1..12; CON-1..5 | TC-970..TC-981 (reader blocks, three advisory checks, typed profiles, batch accountability, configuration identity and non-interference) | ✅ Implemented |
 | NFR-020 Filament extraction boundary pure/deterministic | static inspection + parity tests | TC-704, TC-767, TC-690 | ✅ Complete |
 | NFR-021 Semantic extraction offline/non-parsing/additive | static audits + compile + byte-identity + parity | TC-1641, TC-1642, TC-1649, TC-1643, TC-1644 | ✅ Complete; WASM leg external |
+| NFR-022 Skeptic oracle candidate scan work | operation-count test + static complexity audit + differential property | TC-1810..TC-1812 | 🚧 Spec review; implementation checkpoint predates review |
 
 ---
 
@@ -767,6 +768,9 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-1807 | Clause-set digest and text-rights violations fail closed | Unit | P0 | FR-073-AC-1, FR-073-AC-6 | ✅ |
 | TC-1808 | Clause-set diff reports added, removed, and changed clauses by stable id | Unit | P0 | FR-073-AC-4 | ✅ |
 | TC-1809 | A module loads a referenced synthetic clause set and both output reports conform to their hand-authored schemas | Integration | P0 | FR-073-AC-1, FR-073-AC-5 | ✅ |
+| TC-1810 | Instrumented zero-, one-, and many-binding spans count at most one complete binding traversal, one complete assertion traversal, and `a + b` join operations; doubling candidates without changing span passes does not add a traversal | Unit | P0 | NFR-022-AC-1 | 🚧 |
+| TC-1811 | A static complexity audit rejects a candidate-specific newline prefix scan, a regex capture traversal nested under a same-span match loop, a second line-index construction, join state that grows beyond the two admitted binding names, or output derived from join-container iteration | Static | P0 | NFR-022-AC-2, NFR-022-AC-4 | ❌ no automated audit |
+| TC-1812 | A generated differential comparison over Rust, Python and TypeScript spans varies repeated/unmatched binding names, assertion order, UTF-8, CRLF, and Rust helper calls; every selected candidate field and line offset equals the frozen FR-064 reference result | Property | P0 | NFR-022-AC-3 | 🚧 existing example fixture covers only part of the domain |
 | TC-1076 | `required` defaults true and is omitted on serialization; `required: false` round-trips, suppresses only an absent target section and its section-hit denominator entry, while a present section still mints and validates; a non-boolean value fails load (#327) | Integration | P0 | FR-050-AC-41 | ✅ |
 | TC-1077 | A bound bare requirement id remains untracked and backs no criterion, while `untracked-id-has-minted-children` names its exact source locus and real minted `-AC-` children in Rust, Python and TypeScript. Direct parents recommend the exact applicable child; a nested unminted class forbids substituting a sibling obligation and directs declaration/correction instead. The exact-id control and an unrelated typo remain silent (#328) | Integration | P0 | FR-050-AC-42 | ✅ |
 | TC-1078 | Exact, mid-word truncation, over-broad domain, wrong-subject and justified safe-refusal controls pin the span boundary contract; emitted spans retain exact statement-relative coordinates and a refusal retains `span:refused-weak-boundary` (#241) | Unit | P0 | FR-052-AC-20 | ✅ |
@@ -1065,6 +1069,7 @@ Schema constraints come from the on-disk JSON Schema files. Boundary tests sit i
 | EC-032 | GIL released during `load_repo` while Python thread touches the runtime | FR-023, NFR-018 | TC-504 | Data race between Rust thread and CPython runtime |
 | EC-033 | Python object handed from Rust then dropped (refcount/lifetime) | FR-023, NFR-018 | TC-505 | Use-after-free or leak across the FFI boundary |
 | EC-034 | First-party `unsafe` sneaks in via the `python` feature | NFR-003 | TC-506 | Zero-unsafe guarantee silently weakened by FFI code |
+| EC-035 | Many repeated or unmatched oracle bindings in one non-ASCII/CRLF span | NFR-022 | TC-1810, TC-1812 | Candidate extraction regresses toward quadratic work or reports a shifted line |
 
 ---
 
@@ -1374,6 +1379,10 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-073-AC-4 | TC-1808 |
 | FR-073-AC-5 | TC-1809 |
 | FR-073-AC-6 | TC-1807 |
+| NFR-022-AC-1 | TC-1810 |
+| NFR-022-AC-2 | TC-1811 |
+| NFR-022-AC-3 | TC-1812 |
+| NFR-022-AC-4 | TC-1811 |
 | FR-058-AC-2 | TC-899 |
 | FR-058-AC-2 | TC-909 |
 | FR-058-AC-3 | TC-900 |

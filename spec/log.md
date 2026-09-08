@@ -7,6 +7,17 @@ description: "Chronological log of structural changes to this bundle."
 
 ## History
 
+* **2026-09-07** — **CR-157**: [NFR-022](./non-functional/NFR-022-skeptic-oracle-scan-complexity.md)
+  specifies the missing performance contract for `agent-ix/quire-rs#412`:
+  oracle candidate extraction performs at most one binding-pattern traversal,
+  one assertion-pattern traversal, and one line-index construction per inspected
+  span, with no candidate-specific prefix newline rescan and no FR-064 output
+  change. This specification is retrospective remediation: implementation
+  commit `13c07eb` already existed when the mandatory `/specify` and
+  `/spec-review` gate was applied. That code is preserved, PR #415 is returned
+  to draft, and neither this entry nor subsequent review may be represented as
+  pre-implementation review.
+
 * **2026-09-06** — #407 CR note extends FR-051-AC-3 to bounded direct
   unittest.TestCase imports and aliases. TC-1803 banks the real classifier
   under-reading before code, with native execution and Python healthy controls.
