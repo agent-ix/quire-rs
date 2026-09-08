@@ -3,7 +3,7 @@ id: SR-077
 title: "Evidence review of the YAML engine maintenance decision (#414)"
 type: SpecReview
 analysis: evidence
-scope: "ADR-0012, NFR-009, TC-330..TC-332; AP-201 required review"
+scope: "ADR-0012, NFR-009, TC-330..TC-332; AP-201 consulted but invalid"
 review_set: subset
 ---
 
@@ -14,7 +14,8 @@ is not yet reproducible decision evidence and the implementation gates are not
 minted as obligations. The deterministic advisor reports eight NFR-009 method
 mismatches; judgement confirms that the existing generic method labels should
 be replaced by named static and integration methods rather than copied from the
-advisor mechanically.
+advisor mechanically. This evidence analysis is reusable review input, but the
+invalid AP-201 did not validly select it and no owner-selected set is recorded.
 
 ## Findings
 
@@ -56,4 +57,6 @@ the review does not treat the exploratory spike as their discharge.
 
 The deterministic advisor was rerun after the amendment. No advisor mismatch
 is hidden; the residue and the reason for the recommended human disposition are
-recorded above.
+recorded above. FND-437 in SR-076 governs the invalid review-selection intake;
+this document cannot independently satisfy `/spec-review` until a fresh owner
+selection includes the evidence analysis.

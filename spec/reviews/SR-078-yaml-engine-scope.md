@@ -3,7 +3,7 @@ id: SR-078
 title: "Scope and boundary review of the YAML engine maintenance decision (#414)"
 type: SpecReview
 analysis: scope-boundary
-scope: "ADR-0012, NFR-009; AP-201 required review"
+scope: "ADR-0012, NFR-009; AP-201 consulted but invalid"
 review_set: subset
 ---
 
@@ -13,6 +13,8 @@ The decision correctly keeps the migration inside `quire-rs` and preserves the
 public import surface, but its enumerated parse surface is incomplete and its
 external dependency guarantees are implicit. The missing production consumers
 must be included in parity evidence before the package boundary can change.
+This scope analysis is reusable review input, but the invalid AP-201 did not
+validly select it and no owner-selected set is recorded.
 
 ## Findings
 
@@ -110,4 +112,6 @@ Quire's compatibility evidence.
 
 Every requirement and dependency in this bounded decision slice now has one
 owner and a declared assumed-or-guaranteed posture. Owner acceptance and the
-repository-wide validation gate remain separate.
+repository-wide validation gate remain separate. FND-437 in SR-076 governs the
+invalid review-selection intake; this document cannot independently satisfy
+`/spec-review` until a fresh owner selection includes scope-boundary analysis.
