@@ -7,6 +7,14 @@ description: "Chronological log of structural changes to this bundle."
 
 ## History
 
+* **2026-09-07** — **CR-158**: proposed
+  [ADR-0012](./assets/adr/0012-yaml-engine-maintenance-and-parity.md) for
+  `agent-ix/quire-rs#414`. The decision selects an exact, Rust-1.75-compatible
+  `yaml_serde` package pin subject to zero-difference frontmatter and typed-YAML
+  evidence. This is specification only: no dependency or production code has
+  changed, the ADR is not accepted, and implementation remains gated on
+  `/spec-review`, owner acceptance, and the required NFR-009 amendment.
+
 * **2026-09-06** — #407 CR note extends FR-051-AC-3 to bounded direct
   unittest.TestCase imports and aliases. TC-1803 banks the real classifier
   under-reading before code, with native execution and Python healthy controls.
