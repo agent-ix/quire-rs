@@ -117,7 +117,12 @@ serde_yaml = { package = "yaml_serde", version = "=0.10.2" }
 The exact pin is deliberate. It is the newest `yaml_serde` release compatible
 with Rust 1.75, satisfies NFR-009's load-bearing dependency policy, and prevents
 a resolver running on a newer compiler from silently selecting a release that
-raises the crate's MSRV.
+raises the crate's MSRV. The pin adopts a maintained project name but freezes
+Quire on that project's last `unsafe-libyaml` release: while `=0.10.2` holds,
+upstream fixes released only on `0.10.3` or later are unavailable to this build.
+The MSRV and advisory triggers below therefore govern how long this selection
+may remain accepted; the package-name change is not evidence of an open
+maintenance channel for the pinned parser bytes.
 
 The import alias is repository-wide. Production compatibility evidence covers
 frontmatter, module manifests, clause sets, extraction DSL data, traceability
@@ -148,9 +153,19 @@ Before the dependency change may leave draft:
 3. Run typed module-manifest, clause-set, extraction-DSL, traceability-model,
    and lint-rule tests unchanged.
 4. Compile the default crate with Rust 1.75 and run the repository's full CI,
-   license, advisory, unsafe-surface, and static-audit gates.
+   license, advisory, unsafe-surface, and static-audit gates. Refresh the
+   advisory database at the implementation revision and retain its observed
+   index revision or timestamp with the result.
 5. Prove from `Cargo.lock`/`cargo tree` that `serde_yaml 0.9.34+deprecated` is no
    longer present and `yaml_serde 0.10.2` is the selected package.
+6. Run NFR-002's existing 5 MB parse, typical-artifact validation, and
+   same-runner regression gates without changing their baselines or thresholds.
+7. Retain a repository-wide import/call-site census that classifies every YAML
+   use as a production consumer or test/corpus loader and proves every production
+   class is represented in the differential or typed-consumer suites.
+8. Bind every new Rust test to its TC and NFR-009 criterion with
+   `use ix_trace_rs::trace;` and a bare `#[trace("TC-...", "NFR-009-AC-...")]`
+   attribute, then run Quire reconciliation and the static macro-form audit.
 
 ## Dependency boundary
 
@@ -175,6 +190,12 @@ Before the dependency change may leave draft:
 - Newer `yaml_serde` fixes cannot be absorbed until quire-rs raises its MSRV or
   the upstream publishes a compatible maintenance release. A security fix that
   is unavailable on the selected line reopens this ADR immediately.
+- While this ADR is reopened by an advisory against the selected package or
+  backend, releases containing the affected parser remain blocked. Recovery
+  requires a newly reviewed zero-difference selection: raise the MSRV and move
+  to the fixed upstream line, select another maintained Rust-1.75-compatible
+  engine, or remove the affected release surface. A time-bounded security waiver
+  is a separate owner decision with an expiry; reopening alone is not a waiver.
 - NFR-009 and its audit must be amended before implementation because their
   current crate names and executable policy do not describe this decision.
 
