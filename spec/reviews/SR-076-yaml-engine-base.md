@@ -46,3 +46,16 @@ trace the decision-specific compatibility and dependency controls.
 - Validation gate: the two target specifications and all three review documents
   validate individually; the required repository-wide scoped command fails on
   the pre-existing assurance/assets set described by FND-436.
+
+## Dispositions after specification amendment
+
+| ID | Disposition |
+| --- | --- |
+| FND-427 | Fixed in the candidate specification: NFR-009 now names the `yaml_serde` package, exact 0.10.2 pin, complete production YAML surface, and ADR-0012 reopen rule. |
+| FND-428 | Fixed in the candidate specification: NFR-009-AC-4..10 and TC-1820..TC-1825 now mint and map the decision-specific qualification obligations. All remain pending implementation. |
+| FND-429 | Specification and matrix mismatch fixed; implementation remains deliberately open. The audit and manifest are unchanged until the repeated review is validated and owner-accepted. |
+| FND-436 | Open. The repository-wide validation and governing assurance-schema compatibility must be repaired or explicitly pinned by their owner before this workflow advances to `validated`. |
+
+The amended ADR, NFR, and matrix are 3/3 grammar-clean. This disposition is a
+repeat review of specification changes, not owner acceptance or permission to
+implement.
