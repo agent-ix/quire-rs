@@ -267,9 +267,9 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-204 | CI workflow includes render_parity job (not just test job) ((RETIRED); (RETIRED)) | Static | P0 | US-005-AC-2, US-005-AC-3, StR-002-AC-3 | 🚧 |
 | TC-205 | A patch making merged value invalid (title="") returns SchemaViolation, not a render error | Unit | P0 | US-004-AC-2 | 🚧 |
 | TC-206 | Bench: bench_patch_render_fr median < 1ms for typical FR | Benchmark | P1 | US-004-AC-3 | 🚧 |
-| TC-330 | Cargo.toml uses tilde/equals pins for load-bearing deps | Static | P0 | NFR-009-AC-1 | 🚧 |
+| TC-330 | Cargo.toml satisfies every load-bearing pin, including the exact YAML alias/package/version | Static | P0 | NFR-009-AC-1 | 🚧 |
 | TC-331 | spec/assets/adr/0001-validator-crate.md exists with chosen crate + bench numbers | Static | P0 | NFR-009-AC-2 | 🚧 |
-| TC-332 | Static: no load-bearing dep has unbounded version | Static | P0 | NFR-009-AC-3 | 🚧 |
+| TC-332 | Dependency audit rejects wildcard/unbounded/weak pins and wrong YAML package or version | Static | P0 | NFR-009-AC-3 | 🚧 |
 | TC-340 | Public enums are #[non_exhaustive] | Compile | P0 | NFR-010-AC-2 | 🚧 |
 | TC-341 | CHANGELOG.md exists with release entries | Static | P1 | NFR-010-AC-3 | 🚧 |
 | TC-342 | cargo-semver-checks against previous tag reports no unexpected breaks | Static | P1 | NFR-010-AC-4 | 🚧 |
@@ -846,6 +846,12 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-1651 | `Registry::load_module_set` over an exact set (each module declared once) emits no `DuplicateModuleName`/`DuplicateArchetype` even with a same-named second copy alongside; the same directory named twice loads once | Unit | P0 | FR-013-AC-15 | ✅ |
 | TC-1652 | Closed, not preferred: `{base, extra}` resolves the archetype `extra` declares and validates a document using it; `{base}` does not resolve it | Unit | P0 | FR-013-AC-16 | ✅ |
 | TC-1653 | `load_module_set` consults neither the search-path env vars nor `~/.ix/filament/modules/`: a module outside the declared set is not loaded, and an empty set yields an empty registry with no path diagnostics | Unit | P0 | FR-013-AC-17 | ✅ |
+| TC-1820 | Cargo.lock and cargo tree select yaml_serde 0.10.2 and exclude serde_yaml 0.9.34+deprecated | Static | P0 | NFR-009-AC-5 | 🚧 pending implementation |
+| TC-1821 | Old and selected YAML engines agree over every governed frontmatter input and focused semantic-risk case | Property | P0 | NFR-009-AC-6 | 🚧 pending implementation |
+| TC-1822 | Cross-language frontmatter and all production typed-YAML consumer suites remain unchanged | Integration | P0 | NFR-009-AC-7 | 🚧 pending implementation |
+| TC-1823 | Locked default and changed targets compile with Rust 1.75 | Compile | P0 | NFR-009-AC-8 | 🚧 pending implementation |
+| TC-1824 | License, advisory, unsafe-surface, and static dependency gates accept the locked graph | Static | P0 | NFR-009-AC-9, NFR-009-AC-10 | 🚧 pending implementation |
+| TC-1825 | A cross-pin load-bearing dependency bump records every affected qualification gate | Integration | P0 | NFR-009-AC-4 | 🚧 pending implementation |
 | TC-1832 | Cargo MSRV, selected toolchain, Clippy assumptions, workflows, and stable build scripts each name exact Rust 1.98.1 for their documented role; no stable 1.94.1 or floating `stable` selection remains | Static | P0 | NFR-022-AC-1 | ✅ `scripts/audits/check_tool_drift.sh`; mutation-covered by `scripts/tests/test_tool_drift.py` |
 | TC-1833 | Locked default, all-target/all-feature, Python, WASM, test, documentation, advisory, license, unsafe-audit, benchmark-build, and release gate classes run on Rust 1.98.1 without weakened flags, exclusions, or thresholds | Integration | P0 | NFR-022-AC-2 | ✅ Full command/result matrix in SR-106; Rust review SR-107 |
 | TC-1834 | Inspection of a simulated newer-stable event requires a recorded compatibility result within seven days and admits a hold only with reproduced failure/control evidence, owner, upstream issue, 30-day expiry, and rerun trigger | Inspection | P0 | NFR-022-AC-3, NFR-022-AC-4 | 🚧 SR-106 records the hypothetical transition shape; pending a detector that notices a newer stable release and starts the seven-day result / 30-day hold clocks |
@@ -1803,7 +1809,13 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | NFR-009-AC-1 | TC-330 |
 | NFR-009-AC-2 | TC-331 |
 | NFR-009-AC-3 | TC-332 |
-| NFR-009-AC-4 | (process AC; covered by PR-review policy, not a TC) |
+| NFR-009-AC-4 | TC-1825 |
+| NFR-009-AC-5 | TC-1820 |
+| NFR-009-AC-6 | TC-1821 |
+| NFR-009-AC-7 | TC-1822 |
+| NFR-009-AC-8 | TC-1823 |
+| NFR-009-AC-9 | TC-1824 |
+| NFR-009-AC-10 | TC-1824 |
 | NFR-022-AC-1 | TC-1832 |
 | NFR-022-AC-2 | TC-1833 |
 | NFR-022-AC-3 | TC-1834 |

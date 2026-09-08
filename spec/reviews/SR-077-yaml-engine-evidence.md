@@ -45,3 +45,15 @@ the judgements in FND-431 were made.
 
 The requirement and matrix must name these obligations before implementation;
 the review does not treat the exploratory spike as their discharge.
+
+## Dispositions after specification amendment
+
+| ID | Disposition |
+| --- | --- |
+| FND-430 | Fixed in the candidate specification: NFR-009-AC-5..10 and TC-1820..TC-1825 name the exact resolution, differential, cross-language and typed-consumer parity, MSRV, license/advisory, unsafe, and static gates. Evidence remains pending by design. |
+| FND-431 | Method vocabulary fixed: every authored method is catalogued, including `compile-time-check` and `sca-sbom`. The rerun produced 17 NFR-009 records, 16 mismatches, 0 inconclusive, and 0 uncatalogued. AC-9 matches `sca-sbom`; review judgement recommends retaining the static/integration methods on the other rows because the alternatives matched only generic `example`, `universal`, or numeric-threshold shapes. Owner acceptance of that judgement remains pending. |
+| FND-432 | Open as evidence, resolved as a specification omission. ADR-0012 and NFR-009 now require exact source/corpus/module revisions, input digests, comparator/producer versions, raw output, counts, exclusions, and differences; the implementation revision must produce them. |
+
+The deterministic advisor was rerun after the amendment. No advisor mismatch
+is hidden; the residue and the reason for the recommended human disposition are
+recorded above.

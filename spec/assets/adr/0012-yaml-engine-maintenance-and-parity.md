@@ -32,6 +32,12 @@ YAML engine as load-bearing, requires a tilde or exact pin, and says to replace
 wildcards. The written requirement, manifest, and executable gate therefore do
 not agree.
 
+The production call surface is wider than frontmatter and module discovery.
+Clause sets, extraction DSL data, traceability models, and lint rules also pass
+through the same dependency, including serialization in the traceability path.
+A repository-wide import alias changes all of them at once, so a frontmatter-only
+differential cannot establish migration parity.
+
 A replacement cannot be selected from API similarity alone. Duplicate keys,
 merge keys, aliases, implicit scalars, timestamp interpretation, and non-string
 mapping keys can change the `serde_json::Value` returned for the same document,
@@ -69,11 +75,11 @@ Primary maintenance sources:
 
 ## Differential decision evidence
 
-On 2026-09-07, a read-only spike parsed complete frontmatter blocks with both
+On 2026-09-07, an exploratory read-only spike parsed complete frontmatter blocks with both
 `serde_yaml = 0.9.34` and `yaml_serde = 0.10.2` into `serde_json::Value` and
 compared success/failure and the complete value. The inputs were the
 `quire-rs` specification at `8b8020e`, its checked-out controlled corpus, and
-the current TypeScript `quire` repository, excluding `.git`, `.worktrees`,
+the then-current TypeScript `quire` worktree, excluding `.git`, `.worktrees`,
 `node_modules`, `target`, and `dist`.
 
 | Measure | Result |
@@ -92,9 +98,12 @@ The focused cases pin the decision-sensitive behavior observed in the spike:
 - a sequence used as a mapping key: both fail conversion to
   `serde_json::Value`.
 
-This spike supports the proposal; it is not implementation evidence. The
-committed migration must repeat the differential at its reviewed revision and
-record the result on the delivery pull request.
+This spike supports the proposal; it is not implementation evidence. Its exact
+TypeScript revision, complete input manifest, comparator, module identities,
+and raw payload were not retained, so the zero is not independently
+reproducible. The committed migration must repeat the differential at its
+reviewed revision and retain the complete AP-201 provenance record rather than
+copy this exploratory count into the delivery pull request.
 
 ## Decision
 
@@ -110,29 +119,51 @@ with Rust 1.75, satisfies NFR-009's load-bearing dependency policy, and prevents
 a resolver running on a newer compiler from silently selecting a release that
 raises the crate's MSRV.
 
+The import alias is repository-wide. Production compatibility evidence covers
+frontmatter, module manifests, clause sets, extraction DSL data, traceability
+models, and lint rules. Test and corpus loaders may be adapted to the aliased
+package, but their successful compilation or parsing is not a substitute for
+those production-path assertions and must not narrow the governed corpus.
+
 Implementation must also strengthen `scripts/audits/check_dep_pins.sh` so it
 verifies the selected package and exact version, rejects the deprecated
 `serde_yaml` package, and fails if the YAML dependency returns to a caret or
 wildcard range. `Cargo.toml` must link this ADR beside the dependency.
 
-No frontmatter behavior change is accepted as part of the migration. Any
-corpus difference, TypeScript/Python parity failure, typed manifest/clause/DSL
-failure, Rust 1.75 build failure, license denial, or dependency advisory blocks
-the change and reopens this decision.
+No production YAML behavior change is accepted as part of the migration. Any
+corpus difference, TypeScript/Python parity failure, typed manifest, clause,
+DSL, traceability, or lint failure, Rust 1.75 build failure, license denial, or
+dependency advisory blocks the change and reopens this decision.
 
 ## Required implementation evidence
 
 Before the dependency change may leave draft:
 
 1. Repeat the two-engine differential over the same corpus classes at the
-   implementation revision and report input revisions, counts, and every
-   difference; the accepted difference count is zero.
+   implementation revision and retain exact source/corpus/module revisions,
+   input paths and digests, comparator and producer versions, raw result,
+   population counts, exclusions, and every difference; the accepted difference
+   count is zero.
 2. Run the existing Rust/TypeScript/Python frontmatter parity suite unchanged.
-3. Run typed module-manifest, clause-set, and extraction-DSL tests unchanged.
+3. Run typed module-manifest, clause-set, extraction-DSL, traceability-model,
+   and lint-rule tests unchanged.
 4. Compile the default crate with Rust 1.75 and run the repository's full CI,
    license, advisory, unsafe-surface, and static-audit gates.
 5. Prove from `Cargo.lock`/`cargo tree` that `serde_yaml 0.9.34+deprecated` is no
    longer present and `yaml_serde 0.10.2` is the selected package.
+
+## Dependency boundary
+
+- Upstream maintenance and the future availability of a Rust-1.75-compatible
+  security fix are assumptions monitored by the revisit triggers.
+- The selected package bytes/version, resolved backend, license/advisory
+  posture, Rust 1.75 compatibility, and observed parser equivalence are
+  guarantees owned and verified by `quire-rs`.
+- TypeScript and Python are reference implementations only for the governed
+  frontmatter compatibility surface; Rust-only typed YAML consumers are
+  verified by their own suites.
+- The governed corpora are versioned test inputs. Population completeness and
+  exclusions are part of the retained result, not ambient workspace state.
 
 ## Consequences
 
