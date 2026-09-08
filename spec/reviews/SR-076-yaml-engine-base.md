@@ -1,0 +1,48 @@
+---
+id: SR-076
+title: "Base review of the YAML engine maintenance decision (#414)"
+type: SpecReview
+analysis: base
+scope: "ADR-0012, NFR-009, TC-330..TC-332"
+review_set: subset
+---
+
+## Summary
+
+ADR-0012 and NFR-009 are structurally valid and their identifiers are well
+formed, but the proposed decision is not ready for acceptance. The normative
+dependency requirement still names the obsolete package choices, its current
+executable audit does not enforce its pinning rule, and the matrix does not yet
+trace the decision-specific compatibility and dependency controls.
+
+## Findings
+
+| ID | Severity | Summary | Refs | Escape Cause |
+| --- | --- | --- | --- | --- |
+| FND-427 | high | ADR-0012 selects the `yaml_serde` package under the existing `serde_yaml` import name, while NFR-009 still defines the load-bearing dependency as `serde_yaml` or `serde_yml`, directs an inactive-upstream swap to `serde_yml`, and repeats those names in AC-1 and M-1. The ADR cannot become accepted while its owning normative requirement contradicts the decision. | ADR-0012 (Decision); NFR-009 (Load-bearing dependencies, AC-1, M-1) | wrong-requirement |
+| FND-428 | high | The matrix maps NFR-009-AC-1..3 to TC-330..TC-332 but explicitly leaves AC-4 as an untested process criterion; all four criteria are currently unbacked. No criterion or TC covers the selected-package identity, rejection of the deprecated package, two-engine corpus differential, typed YAML consumers, Rust 1.75 build, advisory/license gates, or lock/tree resolution required by ADR-0012. | NFR-009-AC-1..4; spec/tests.md TC-330..TC-332; ADR-0012 (Required implementation evidence) | missing-requirement |
+| FND-429 | high | `scripts/audits/check_dep_pins.sh` rejects wildcard forms only and says caret is permitted, while NFR-009 requires tilde or exact pins for every load-bearing dependency; `Cargo.toml` currently declares `serde_yaml = \"^0.9\"`. TC-330 and TC-332 therefore name controls that the executable audit does not perform. | NFR-009-AC-1, NFR-009-AC-3; TC-330, TC-332; scripts/audits/check_dep_pins.sh; Cargo.toml | implementation-bug-despite-evidence |
+| FND-436 | high | The mandatory full-scope validation fails 11 existing documents. The governing AP-201 is itself invalid against the installed AssuranceProfile schema: `review_selection`, `impact`, and `lifecycle` are rejected, its impact-assessment shape is obsolete, and four required body sections are absent. Eight MP-201..MP-208 documents also miss the current MeasurementPlan sections, and two untyped assets fail. The enforced review cannot advance to `validated` until the owning assurance artifacts or pinned schema contract are reconciled. | AP-201; MP-201..MP-208; spec/assets/external-blockers.md; spec/assets/render-parity-notes.md | wrong-requirement |
+
+## Coverage
+
+- ID and link integrity: ADR-0012, NFR-009, NFR-009-AC-1..4 and TC-330..332
+  use valid, non-duplicate identifiers; both reviewed documents are
+  grammar-clean under Quire 0.31.0.
+- Coverage: AC-1..3 have matrix rows but no bound implementation evidence;
+  AC-4 has no TC. Decision-specific obligations are absent (FND-428).
+- Option permutation: the ADR compares six dependency strategies, but the
+  accepted option needs only positive selected-package and negative deprecated,
+  wrong-version, caret and wildcard cases.
+- Constraint boundaries: exact, tilde, caret, wildcard, wrong package, wrong
+  patch and incompatible-MSRV cases are not all named by TC-330/332.
+- Error paths: the ADR lists parity, typed-parse, MSRV, license and advisory
+  blockers, but they are prose rather than matrix obligations.
+- State transitions: proposed to accepted and accepted to reopened are governed
+  by the ADR; no implementation may start from the proposed state.
+- Edge cases: duplicate keys, merge keys, implicit scalars, aliases and
+  non-string mapping keys are present in the spike, but not yet retained as
+  versioned test inputs.
+- Validation gate: the two target specifications and all three review documents
+  validate individually; the required repository-wide scoped command fails on
+  the pre-existing assurance/assets set described by FND-436.
