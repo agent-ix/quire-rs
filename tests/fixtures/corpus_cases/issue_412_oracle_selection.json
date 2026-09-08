@@ -1,0 +1,36 @@
+{
+  "name": "multiple-oracle-bindings-output-equivalence",
+  "issue_ref": "agent-ix/quire-rs#412",
+  "tags": ["TC-1061", "regression", "skeptic"],
+  "candidates": [
+    {
+      "language": "rust",
+      "span": "// prefix\nlet expected = first_expression();\nlet oracle = second_expression();\nassert_eq!(second_subject(), oracle);\nassert_eq!(module::first_subject(), expected);\n",
+      "binding": "expected",
+      "expression": "first_expression()",
+      "function": "first_subject",
+      "line_offset": 1
+    },
+    {
+      "language": "typescript",
+      "span": "// prefix\nconst expected = firstExpression();\nlet oracle = secondExpression();\nexpect(secondSubject()).toEqual(oracle);\nexpect(firstSubject()).toBe(expected);\n",
+      "binding": "expected",
+      "expression": "firstExpression()",
+      "function": "firstSubject",
+      "line_offset": 1
+    },
+    {
+      "language": "python",
+      "span": "# prefix\nexpected = first_expression()\noracle = second_expression()\nassert second_subject() == oracle\nassert first_subject() == expected\n",
+      "binding": "expected",
+      "expression": "first_expression()",
+      "function": "first_subject",
+      "line_offset": 1
+    }
+  ],
+  "helper": {
+    "span": "// prefix\nlet input = sample();\n\nprop_assert_eq!(subject(input), !module::oracle_helper(input));\n",
+    "function": "oracle_helper",
+    "line_offset": 3
+  }
+}

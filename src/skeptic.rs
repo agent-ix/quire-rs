@@ -22,7 +22,7 @@
 //! one: these fire on *test* code, and a check that can fail somebody's build
 //! over a heuristic about their assertions will be turned off within a week.
 
-use std::sync::OnceLock;
+use std::{collections::BTreeMap, sync::OnceLock};
 
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -352,7 +352,8 @@ pub fn oracle_copies_in(extraction: &SymbolExtraction) -> Vec<Suspicion> {
         let span = test.attached_source(source);
         let masked = crate::symbols::trace::mask_source_string_contents(&span, test.language);
         let code = strip_source_comments(&masked, test.language);
-        if let Some(candidate) = oracle_candidate(&code, test.language) {
+        let line_offsets = crate::parser::line_offsets(&code);
+        if let Some(candidate) = oracle_candidate(&code, test.language, &line_offsets) {
             if let Some((implementation, expression)) =
                 resolve_named_implementation(extraction, test, &candidate.function)
             {
@@ -384,7 +385,7 @@ pub fn oracle_copies_in(extraction: &SymbolExtraction) -> Vec<Suspicion> {
         // copied a private production predicate in another file, so neither an
         // `expected` binding nor direct call-name resolution can reach it.
         if test.language == SourceLanguage::Rust {
-            if let Some(candidate) = helper_oracle_candidate(&code) {
+            if let Some(candidate) = helper_oracle_candidate(&code, &line_offsets) {
                 if let Some((helper, oracle_expression)) =
                     resolve_same_file_helper(extraction, test, &candidate.function)
                 {
@@ -549,7 +550,7 @@ struct HelperOracleCandidate {
     line_offset: usize,
 }
 
-fn helper_oracle_candidate(span: &str) -> Option<HelperOracleCandidate> {
+fn helper_oracle_candidate(span: &str, line_offsets: &[usize]) -> Option<HelperOracleCandidate> {
     static RUST_HELPER_ASSERTION: OnceLock<Regex> = OnceLock::new();
     let assertion = RUST_HELPER_ASSERTION.get_or_init(|| {
         Regex::new(
@@ -561,11 +562,15 @@ fn helper_oracle_candidate(span: &str) -> Option<HelperOracleCandidate> {
     let whole = found.get(0)?;
     Some(HelperOracleCandidate {
         function: found.get(1)?.as_str().rsplit("::").next()?.to_string(),
-        line_offset: span[..whole.start()].matches('\n').count(),
+        line_offset: line_offset_at(line_offsets, whole.start()),
     })
 }
 
-fn oracle_candidate(span: &str, language: SourceLanguage) -> Option<OracleCandidate> {
+fn oracle_candidate(
+    span: &str,
+    language: SourceLanguage,
+    line_offsets: &[usize],
+) -> Option<OracleCandidate> {
     static RUST_BINDING: OnceLock<Regex> = OnceLock::new();
     static TS_BINDING: OnceLock<Regex> = OnceLock::new();
     static PYTHON_BINDING: OnceLock<Regex> = OnceLock::new();
@@ -608,23 +613,41 @@ fn oracle_candidate(span: &str, language: SourceLanguage) -> Option<OracleCandid
         }),
     };
 
+    // Keep the first assertion for each binding name. The former nested scan
+    // selected that same assertion, but restarted at byte zero for every
+    // assignment. One indexed pass preserves the selection rule in linear
+    // time, including when bindings are repeated or assertions are reordered.
+    let assertions: BTreeMap<&str, &str> =
+        assertion_re
+            .captures_iter(span)
+            .fold(BTreeMap::new(), |mut by_binding, capture| {
+                if let (Some(function), Some(binding)) = (capture.get(1), capture.get(2)) {
+                    by_binding
+                        .entry(binding.as_str())
+                        .or_insert_with(|| function.as_str());
+                }
+                by_binding
+            });
+
     for assignment in binding_re.captures_iter(span) {
         let binding = assignment.get(1)?.as_str();
-        let Some(assertion) = assertion_re.captures_iter(span).find(|capture| {
-            capture
-                .get(2)
-                .is_some_and(|found| found.as_str() == binding)
-        }) else {
+        let Some(function) = assertions.get(binding) else {
             continue;
         };
         return Some(OracleCandidate {
             binding: binding.to_string(),
             expression: assignment.get(2)?.as_str().trim().to_string(),
-            function: assertion.get(1)?.as_str().rsplit("::").next()?.to_string(),
-            line_offset: span[..assignment.get(0)?.start()].matches('\n').count(),
+            function: function.rsplit("::").next()?.to_string(),
+            line_offset: line_offset_at(line_offsets, assignment.get(0)?.start()),
         });
     }
     None
+}
+
+fn line_offset_at(line_offsets: &[usize], byte_offset: usize) -> usize {
+    line_offsets
+        .partition_point(|&line_start| line_start <= byte_offset)
+        .saturating_sub(1)
 }
 
 /// Remove comments after strings have been masked, preserving line structure
@@ -1175,6 +1198,61 @@ assert_eq!(normalize(value), expected);"#;
             vec![],
             "quoted fixture text and comments are not executable oracle code"
         );
+    }
+
+    #[test]
+    fn issue_412_multiple_bindings_preserve_candidate_selection_and_line_offsets() {
+        #[derive(Deserialize)]
+        struct CandidateFixture {
+            name: String,
+            issue_ref: String,
+            tags: Vec<String>,
+            candidates: Vec<CandidateCase>,
+            helper: HelperCase,
+        }
+        #[derive(Deserialize)]
+        struct CandidateCase {
+            language: SourceLanguage,
+            span: String,
+            binding: String,
+            expression: String,
+            function: String,
+            line_offset: usize,
+        }
+        #[derive(Deserialize)]
+        struct HelperCase {
+            span: String,
+            function: String,
+            line_offset: usize,
+        }
+
+        let fixture: CandidateFixture = serde_json::from_str(include_str!(
+            "../tests/fixtures/corpus_cases/issue_412_oracle_selection.json"
+        ))
+        .expect("issue #412 fixture is valid");
+        assert_eq!(fixture.issue_ref, "agent-ix/quire-rs#412");
+        assert!(!fixture.name.trim().is_empty());
+        assert!(fixture.tags.iter().any(|tag| tag.starts_with("TC-")));
+
+        for case in fixture.candidates {
+            let line_offsets = crate::parser::line_offsets(&case.span);
+            let candidate = oracle_candidate(&case.span, case.language, &line_offsets)
+                .unwrap_or_else(|| panic!("{:?}: expected an oracle candidate", case.language));
+            assert_eq!(candidate.binding, case.binding, "{:?}", case.language);
+            assert_eq!(candidate.expression, case.expression, "{:?}", case.language);
+            assert_eq!(candidate.function, case.function, "{:?}", case.language);
+            assert_eq!(
+                candidate.line_offset, case.line_offset,
+                "{:?}",
+                case.language
+            );
+        }
+
+        let line_offsets = crate::parser::line_offsets(&fixture.helper.span);
+        let candidate = helper_oracle_candidate(&fixture.helper.span, &line_offsets)
+            .expect("expected a helper-oracle candidate");
+        assert_eq!(candidate.function, fixture.helper.function);
+        assert_eq!(candidate.line_offset, fixture.helper.line_offset);
     }
 
     #[trace("TC-1080", "FR-064-AC-7")]
