@@ -10,7 +10,7 @@ relationships:
     type: "traces_to"
     cardinality: "1:1"
   - target: "ix://agent-ix/quire-rs/spec/assets/adr/0012-yaml-engine-maintenance-and-parity"
-    type: "references"
+    type: "depends_on"
 ---
 
 ## Statement
@@ -63,10 +63,15 @@ outside the exact pin and reopens ADR-0012.
 | NFR-009-AC-4 | A load-bearing dependency bump across its pin records a passing rerun of every affected behavioral, differential, compatibility, MSRV, license, and advisory gate before merge. | integration-testing |
 | NFR-009-AC-5 | `Cargo.lock` and `cargo tree` contain `yaml_serde 0.10.2` and its reviewed backend, and contain no `serde_yaml 0.9.34+deprecated` package. | static-quality |
 | NFR-009-AC-6 | The old and selected YAML engines produce identical success/failure outcomes and identical JSON-compatible values for every governed frontmatter input and every focused semantic-risk fixture. | integration-testing |
-| NFR-009-AC-7 | The unchanged TypeScript/Python frontmatter parity suite and the Rust manifest, clause-set, extraction-DSL, traceability-model, and lint-rule suites all pass at the migration revision. | integration-testing |
+| NFR-009-AC-7 | The unchanged TypeScript/Python frontmatter parity suite passes at the migration revision with no changed expected value or outcome. | integration-testing |
 | NFR-009-AC-8 | The default crate and all targets changed by the migration compile with Rust 1.75 from the locked dependency graph. | compile-time-check |
-| NFR-009-AC-9 | The license and advisory gates accept the selected locked graph with zero unwaived finding. | sca-sbom |
+| NFR-009-AC-9 | The license and advisory gates accept the selected locked graph with zero unwaived finding, using an advisory index refreshed at the migration revision whose revision or timestamp is retained. | sca-sbom |
 | NFR-009-AC-10 | The unsafe-surface and static dependency gates accept the selected locked graph with zero finding. | static-quality |
+| NFR-009-AC-11 | The Rust module-manifest, clause-set, extraction-DSL, traceability-model, and lint-rule suites each pass unchanged at the migration revision. | integration-testing |
+| NFR-009-AC-12 | The retained differential result binds exact source, corpus, module, comparator, producer, manifest, input-digest, population, exclusion, and raw-result identities so another reviewer can reproduce the zero-difference claim. | inspection |
+| NFR-009-AC-13 | The existing NFR-002 5 MB parse, typical-artifact validation, and same-runner regression gates pass unchanged at the migration revision. | performance-benchmarking |
+| NFR-009-AC-14 | A repository-wide YAML call-site census classifies every `serde_yaml` import and call as a production consumer or test/corpus loader, and the production set equals the classes exercised by AC-6, AC-7, and AC-11. | static-quality |
+| NFR-009-AC-15 | Every Rust test added to discharge this migration imports `ix_trace_rs::trace` and carries a bare `#[trace("TC-...", "NFR-009-AC-...")]` marker that Quire reconciles to this matrix; path-qualified trace attributes are rejected by the static gate. | static-quality |
 
 ## Measurement and Evaluation
 
@@ -79,6 +84,7 @@ outside the exact pin and reopens ADR-0012.
 | YAML differential outcome or value differences | 0 | 0 | integration-testing |
 | Production YAML consumer classes omitted from the migration suite | 0 | 0 | static-quality |
 | Unwaived license, advisory, unsafe-surface, or dependency-policy findings | 0 | 0 | static-quality |
+| NFR-002 parse/validation regression at the migration revision | none | existing NFR-002 thresholds | performance-benchmarking |
 
 ## Verification
 
@@ -88,9 +94,17 @@ outside the exact pin and reopens ADR-0012.
   population counts, focused cases, producer versions, raw output, and every
   difference.
 - `tests/parser_parity.rs` provides the TypeScript/Python frontmatter reference
-  comparison. Rust suites cover module manifests, clause sets, extraction DSL,
-  traceability models, and lint rules without treating test-loader adaptation as
-  production evidence.
+  comparison. Separately retained Rust-suite results cover module manifests,
+  clause sets, extraction DSL, traceability models, and lint rules without
+  treating test-loader adaptation as production evidence.
+- A static import/call-site census proves the production classes are complete at
+  the implementation revision; the census and retained input manifest are
+  compared so a loader cannot disappear from the population silently.
+- The existing NFR-002 Criterion benchmarks run on the same runner and baseline
+  policy used before the dependency change.
+- Rust migration tests use the imported bare `ix_trace_rs` marker form and the
+  existing Quire coverage/static trace-form gates; compilation alone is not
+  accepted as proof that a path-qualified marker binds.
 - The locked Rust 1.75 build, full CI, cargo-deny, cargo-audit, unsafe-surface,
   and static-audit gates provide the remaining compile and dependency evidence.
 
