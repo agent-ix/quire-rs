@@ -9,6 +9,9 @@ review_set: all
 
 ## Summary
 
+> **Superseded by SR-087.** This review evaluates the withdrawn 0.10.2
+> candidate and remains only as decision history.
+
 The alias keeps implementation complexity small, but it changes every YAML
 consumer and remains on the legacy backend. Semantic parity alone does not guard
 the existing parse/validation latency contract.

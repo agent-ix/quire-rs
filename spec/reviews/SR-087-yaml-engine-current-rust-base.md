@@ -17,6 +17,9 @@ relationships:
 
 ## Summary
 
+> **Superseded by SR-095.** This review evaluated the intermediate state that
+> still bundled NFR-022 into #414; SR-095 reviews the independent YAML scope.
+
 The owner selected the `base` review subset. The corrected candidate separates
 the repository-wide compiler policy from the YAML dependency decision, selects
 current `yaml_serde 0.10.7` on exact Rust 1.98.1, and rejects the prior 0.10.2

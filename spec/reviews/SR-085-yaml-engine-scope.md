@@ -9,6 +9,9 @@ review_set: all
 
 ## Summary
 
+> **Superseded by SR-087.** This review evaluates the withdrawn 0.10.2
+> candidate and remains only as decision history.
+
 The decision correctly keeps parser semantics, TypeScript/Python references,
 and all Rust typed consumers in scope while excluding parser redesign and MSRV
 increase. It lacks a mapped call-site census proving that the enumerated classes

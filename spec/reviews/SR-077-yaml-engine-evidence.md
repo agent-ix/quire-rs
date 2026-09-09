@@ -9,6 +9,9 @@ review_set: subset
 
 ## Summary
 
+> **Superseded by SR-087.** This review evaluates the withdrawn 0.10.2
+> candidate and remains only as decision history.
+
 The read-only differential supports `yaml_serde` 0.10.2 as a candidate, but it
 is not yet reproducible decision evidence and the implementation gates are not
 minted as obligations. The deterministic advisor reports eight NFR-009 method

@@ -9,6 +9,9 @@ review_set: subset
 
 ## Summary
 
+> **Superseded by SR-087.** This review evaluates the withdrawn 0.10.2
+> candidate and remains only as decision history.
+
 ADR-0012 and NFR-009 are structurally valid and their identifiers are well
 formed, but the proposed decision is not ready for acceptance. The normative
 dependency requirement still names the obsolete package choices, its current
