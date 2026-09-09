@@ -1558,6 +1558,7 @@ assert_eq!(normalize(value), expected);"#;
             .expect("binding join remains explicit");
 
         assert_eq!(span_scan.matches("observed_line_offsets(span").count(), 1);
+        assert_eq!(production.matches(".captures_iter(").count(), 1);
         assert_eq!(
             production
                 .matches("crate::parser::line_offsets(span)")
