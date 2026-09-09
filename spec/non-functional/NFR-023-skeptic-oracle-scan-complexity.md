@@ -41,27 +41,30 @@ span in a corpus run while contributing no additional evidence or behavior.
 | Metric | Target | Threshold | Method |
 |--------|--------|-----------|--------|
 | Full-span binding capture traversals per direct candidate extraction | one | at most one | unit-testing |
-| Full-span assertion capture traversals per direct candidate extraction | one | at most one | unit-testing |
-| Line-start index constructions per inspected evidence-symbol span | one | at most one | unit-testing |
+| Full-span assertion capture traversals per direct candidate extraction | zero without a binding; otherwise one | at most one | unit-testing |
+| Line-start index constructions per inspected evidence-symbol span | zero without a selected direct/helper candidate; otherwise one | at most one | unit-testing |
 | Candidate-specific prefix newline rescans | zero | zero | static-quality |
 | Candidate and line-offset differences from the FR-064 baseline over Rust, Python, TypeScript, repeated bindings, reordered assertions, and the Rust helper path | zero | zero | property-based-testing |
 
 ## Verification
 
-A deterministic operation-count harness varies span length and the numbers of
-bindings and assertions independently, then proves that capture traversals and
-line-index construction do not grow with the number of candidates. A separate
+A deterministic operation-count harness wraps the actual regex capture
+traversal entry point, varies span length and the numbers of bindings and
+assertions independently, and proves that capture traversals and line-index
+construction do not grow with the number of candidates. It also proves that a
+span without a binding performs no assertion traversal and that a span without
+a selected direct/helper candidate builds no line index. A separate
 differential fixture compares the complete selected candidate and line offset
-against the pre-change FR-064 behavior. A static source audit rejects a regex
-capture traversal nested under a match loop and any candidate-specific newline
-prefix count.
+against the pre-change FR-064 behavior. A static source audit rejects every
+direct capture traversal outside that measured entry point, any traversal
+nested under a match loop, and any candidate-specific newline prefix count.
 
 ## Acceptance Criteria
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
-| NFR-023-AC-1 | Operation counts show at most one complete binding-pattern traversal, one complete assertion-pattern traversal, and at most `a + b` join operations for direct candidate extraction, regardless of the number or ordering of bindings and assertions. | Test |
-| NFR-023-AC-2 | Exactly one line-start index is built per inspected evidence-symbol span, both the direct and Rust helper paths reuse it, and no candidate-specific prefix newline count remains. | Analysis |
+| NFR-023-AC-1 | Counters wrapped around the actual capture-traversal entry point show at most one complete binding-pattern traversal, at most one complete assertion-pattern traversal, and at most `a + b` join operations for direct candidate extraction, regardless of the number or ordering of bindings and assertions; when no binding exists, the assertion traversal count is zero. | Test |
+| NFR-023-AC-2 | At most one line-start index is built per inspected evidence-symbol span, both the direct and Rust helper paths reuse it, no index is built when neither selects a candidate, and no candidate-specific prefix newline count remains. | Analysis |
 | NFR-023-AC-3 | For Rust, Python, TypeScript, repeated binding names, assertions before or after bindings, unmatched bindings, UTF-8, CRLF, and the Rust helper path, the selected candidate fields and line offsets equal the FR-064 baseline. | Test |
 | NFR-023-AC-4 | The binding-to-assertion join keeps lookup state bounded independently of `a` and `b` (the grammar admits only `expected` and `oracle`), and no output depends on lookup-container iteration order. | Analysis |
 

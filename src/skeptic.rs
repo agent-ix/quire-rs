@@ -1365,6 +1365,7 @@ assert_eq!(normalize(value), expected);"#;
         }
 
         let zero = "// café\r\nlet unrelated = value();\r\n";
+        let assertion_without_binding = "assert_eq!(subject(), expected);\n";
         let one = "let expected = baseline();\nassert_eq!(subject(), expected);\n";
         let mut many = String::from("// café 雪\r\n");
         for index in 0..128 {
@@ -1372,16 +1373,25 @@ assert_eq!(normalize(value), expected);"#;
         }
         many.push_str("let oracle = matched();\r\nassert_eq!(subject(), oracle);\r\n");
 
-        for span in [zero, one, many.as_str()] {
+        for span in [zero, assertion_without_binding, one, many.as_str()] {
             let (candidates, counts) = measured(span);
             let (binding_re, assertion_re) = oracle_patterns(SourceLanguage::Rust);
             let matches =
                 binding_re.captures_iter(span).count() + assertion_re.captures_iter(span).count();
-            assert_eq!(counts.line_indexes, 1, "{span}");
+            let has_direct_candidate = span == one || span == many;
+            assert_eq!(
+                counts.line_indexes,
+                usize::from(has_direct_candidate),
+                "{span}"
+            );
             assert_eq!(counts.binding_passes, 1, "{span}");
-            assert_eq!(counts.assertion_passes, 1, "{span}");
+            assert_eq!(
+                counts.assertion_passes,
+                usize::from(has_direct_candidate),
+                "{span}"
+            );
             assert!(counts.joins <= matches, "{span}");
-            if span == zero {
+            if !has_direct_candidate {
                 assert_eq!(candidates, SpanOracleCandidates::default());
             }
         }
@@ -1415,33 +1425,33 @@ assert_eq!(normalize(value), expected);"#;
             .nth(1)
             .and_then(|tail| tail.split("fn line_offset_at").next())
             .expect("direct scan source is delimited");
+        let traversal_wrapper = production
+            .split("fn observed_captures_iter")
+            .nth(1)
+            .and_then(|tail| tail.split("fn span_oracle_candidates").next())
+            .expect("measured traversal wrapper source is delimited");
+        let assertion_pass = direct_scan
+            .find("OracleScanEvent::AssertionPass")
+            .expect("assertion traversal remains measured");
         let binding_loop = direct_scan
-            .find("for assignment in binding_re.captures_iter(span)")
-            .expect("binding traversal remains explicit");
+            .find("for assignment in assignments")
+            .expect("binding join remains explicit");
 
-        assert_eq!(
-            span_scan
-                .matches("crate::parser::line_offsets(span)")
-                .count(),
-            1,
-            "one line index is built for both candidate paths"
-        );
-        assert!(span_scan.contains("helper_oracle_candidate(span, &line_offsets)"));
+        assert_eq!(span_scan.matches("observed_line_offsets(span").count(), 1);
         assert!(!production.contains(".matches('\\n').count()"));
-        assert_eq!(direct_scan.matches(".captures_iter(span)").count(), 2);
         assert!(
-            !direct_scan[binding_loop..].contains("assertion_re.captures_iter(span)"),
-            "assertion traversal must not be nested below the binding loop"
+            !direct_scan.contains(".captures_iter("),
+            "raw direct-candidate traversals must go through the measured wrapper"
         );
-        assert!(direct_scan.contains("BTreeMap<&str, &str>"));
+        assert_eq!(traversal_wrapper.matches(".captures_iter(span)").count(), 1);
+        assert_eq!(direct_scan.matches("observed_captures_iter(").count(), 2);
+        assert!(
+            assertion_pass < binding_loop,
+            "assertions are indexed before the binding join"
+        );
+        assert!(direct_scan.contains("OracleAssertions"));
         assert!(direct_scan.contains("assertions.get(binding)"));
-        assert!(!direct_scan.contains("assertions.iter()"));
-        assert!(!direct_scan.contains("assertions.into_iter()"));
-        assert_eq!(
-            production.matches(r"(expected|oracle)").count(),
-            6,
-            "all six language patterns restrict join keys to two admitted names"
-        );
+        assert!(!direct_scan.contains("BTreeMap"));
     }
 
     #[trace("TC-1812", "NFR-023-AC-3")]
