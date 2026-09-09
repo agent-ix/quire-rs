@@ -7,8 +7,6 @@ relationships:
     type: "relates_to"
   - target: "ix://agent-ix/quire-rs/spec/functional/FR-006"
     type: "relates_to"
-  - target: "ix://agent-ix/quire-rs/spec/non-functional/NFR-022"
-    type: "relates_to"
 ---
 
 # ADR 0012: YAML engine maintenance and parity
@@ -51,13 +49,10 @@ which would silently change behavior across languages and repositories.
    for every existing frontmatter block.
 2. Use a maintained crate with reviewable provenance and no active advisory
    against the selected version.
-3. Satisfy [NFR-022](../../non-functional/NFR-022-current-stable-rust.md):
-   qualify the repository on current stable Rust 1.98.1, with an older compiler
-   permitted only by its bounded required-tool incompatibility process.
-4. Preserve the existing `serde_yaml::from_str`, `from_slice`, and `to_string`
+3. Preserve the existing `serde_yaml::from_str`, `from_slice`, and `to_string`
    call surface so this change does not mix dependency migration with parser
    redesign.
-5. Make the selected package and pin mechanically visible in the repository.
+4. Make the selected package and pin mechanically visible in the repository.
 
 ## Options considered
 
@@ -68,7 +63,7 @@ which would silently change behavior across languages and repositories.
 | `serde_yaml_ng = 0.10.0` | Drop-in fork, MIT, Rust 1.64 MSRV, and compatible in principle. It is maintained by an individual project rather than the YAML organization. | Viable fallback, not selected. |
 | `serde_norway = 0.9.42` | Drop-in fork, MIT/Apache-2.0, Rust 1.71.1 MSRV. | Viable fallback, not selected. |
 | `yaml_serde = 0.10.2` | The active fork under the YAML Organization and API-compatible, but selected only because the inherited Rust 1.75 declaration prevented Cargo from choosing the current line. It retains the deprecated implementation's `unsafe-libyaml` backend. | Rejected: an old repository declaration is not an independent reason to freeze new work. |
-| `yaml_serde = 0.10.7` | Current crates.io release as observed 2026-09-08; maintained by the YAML Organization, MIT/Apache-2.0, Rust 1.82 minimum, and backed by `libyaml-rs 0.3.0`. Rust 1.98.1 satisfies its tool requirement. | Selected, subject to the zero-difference and toolchain gates below. |
+| `yaml_serde = 0.10.7` | Current crates.io release as observed 2026-09-08; maintained by the YAML Organization, MIT/Apache-2.0, Rust 1.82 minimum, and backed by `libyaml-rs 0.3.0`. The backend shares the former backend's C2Rust-transpiled libyaml lineage, so this is a maintenance choice rather than a comparative-safety claim. Rust 1.98.1 satisfies its tool requirement. | Selected, subject to the zero-difference and toolchain gates below. |
 | A pure-Rust parser or custom adapter | Could remove the inherited backend, but is not a drop-in Serde surface and widens the semantic and implementation change. | Deferred to a separate ADR if the backend itself must change. |
 
 Primary maintenance sources:
@@ -122,16 +117,12 @@ serde_yaml = { package = "yaml_serde", version = "=0.10.7" }
 
 The exact pin is deliberate because YAML behavior is identity-bearing. It is
 the current `yaml_serde` release observed on 2026-09-08 and uses the maintained
-`libyaml-rs 0.3.0` backend rather than `unsafe-libyaml`. The repository's
-`Cargo.toml`, `rust-toolchain.toml`, and Clippy MSRV declaration move together to
-Rust 1.98.1. This is the current stable compiler released 2026-09-01, not a
-claim that the old 1.75 or existing 1.94.1 files were correct.
-
-A newer stable compiler triggers a compatibility run within seven days. A hold
-on 1.98.1 is permitted only when a required build, binding, audit, or packaging
-tool has a reproduced incompatibility on the newer release, with an owner,
-upstream reference, expiry no later than 30 days, and a rerun trigger. Formatting
-changes and repairable lint findings are not tool incompatibilities.
+`libyaml-rs 0.3.0` backend rather than the former `unsafe-libyaml` package.
+Both packages descend from a C2Rust translation of libyaml; replacing the
+package identity establishes active maintenance ownership, not a reduction in
+transitive unsafe code. Issue #417 independently governs the repository's
+exact Rust 1.98.1 support and qualification policy. This ADR consumes 1.98.1 as
+the implementation-run compiler and does not own the compiler lifecycle.
 
 The import alias is repository-wide. Production compatibility evidence covers
 frontmatter, module manifests, clause sets, extraction DSL data, traceability
@@ -162,13 +153,14 @@ Before the dependency change may leave draft:
 3. Run typed module-manifest, clause-set, extraction-DSL, traceability-model,
    and lint-rule tests unchanged.
 4. Compile the default crate and all affected targets with Rust 1.98.1 and run
-   the repository's full CI, license, advisory, unsafe-surface, and static-audit
-   gates. Refresh the
+   the repository's full CI, license, advisory, first-party unsafe-surface, and
+   static-audit gates. Refresh the
    advisory database at the implementation revision and retain its observed
    index revision or timestamp with the result.
 5. Prove from `Cargo.lock`/`cargo tree` that `serde_yaml 0.9.34+deprecated` and
-   `unsafe-libyaml` are no longer present, while `yaml_serde 0.10.7` and
-   `libyaml-rs 0.3.0` are selected.
+   its former `unsafe-libyaml` backend are no longer present, while
+   `yaml_serde 0.10.7` and `libyaml-rs 0.3.0` are selected. This is package
+   resolution and maintenance-line evidence, not comparative unsafe evidence.
 6. Run NFR-002's existing 5 MB parse, typical-artifact validation, and
    same-runner regression gates without changing their baselines or thresholds.
 7. Retain a repository-wide import/call-site census that classifies every YAML
@@ -195,9 +187,11 @@ Before the dependency change may leave draft:
 
 - The maintained wrapper has organizational ownership and an active release
   line while the observable YAML behavior and call surface stay fixed.
-- The selected version replaces the inherited `unsafe-libyaml` backend with
-  `libyaml-rs`. That backend change expands the differential obligation; API
-  compatibility alone is not evidence of semantic compatibility.
+- The selected version replaces the inherited `unsafe-libyaml` package with
+  `libyaml-rs` while retaining the same C2Rust-transpiled libyaml lineage. The
+  package change improves maintenance ownership, not demonstrated transitive
+  safety. It expands the differential obligation; API compatibility alone is
+  not evidence of semantic compatibility.
 - A newer `yaml_serde` fix is not absorbed implicitly: the exact pin moves only
   after the same differential, toolchain, advisory, and performance gates pass.
   A security fix unavailable on the selected line reopens this ADR immediately.
@@ -216,7 +210,6 @@ Reopen this decision when any of the following occurs:
 
 - an advisory affects `yaml_serde 0.10.7` or `libyaml-rs 0.3.0`;
 - the selected release line is archived or has no viable security-fix path;
-- a stable Rust release newer than 1.98.1 becomes available;
 - a maintained pure-Rust Serde engine demonstrates zero differential over the
   same corpus and typed inputs;
 - TypeScript or Python reference semantics intentionally change.

@@ -9,6 +9,9 @@ review_set: all
 
 ## Summary
 
+> **Superseded by SR-087.** This review evaluates the withdrawn 0.10.2
+> candidate and remains only as decision history.
+
 The body correctly orders decision acceptance before implementation. The typed
 graph does not encode that prerequisite, and full validation depends on the
 Engineering Assurance contract repair being handled under #59.

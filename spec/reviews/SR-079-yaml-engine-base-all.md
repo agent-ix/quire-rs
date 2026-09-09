@@ -9,6 +9,9 @@ review_set: all
 
 ## Summary
 
+> **Superseded by SR-087.** This review evaluates the withdrawn 0.10.2
+> candidate and remains only as decision history.
+
 The amended candidate is structurally and grammatically valid, identifies the
 complete YAML surface, and maps NFR-009-AC-1..AC-10. It remains conditional: the
 mandatory repository-wide validation fails pre-existing assurance/assets, and

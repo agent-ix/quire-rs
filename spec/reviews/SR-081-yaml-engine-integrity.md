@@ -9,6 +9,9 @@ review_set: all
 
 ## Summary
 
+> **Superseded by SR-087.** This review evaluates the withdrawn 0.10.2
+> candidate and remains only as decision history.
+
 The exact package alias, locked graph, corpus equality, and immutable provenance
 form the right integrity chain. Two independent NFR obligations are collapsed
 into one TC, weakening attribution when only one gate runs or fails.

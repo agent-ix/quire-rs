@@ -9,6 +9,9 @@ review_set: subset
 
 ## Summary
 
+> **Superseded by SR-087.** This review evaluates the withdrawn 0.10.2
+> candidate and remains only as decision history.
+
 The decision correctly keeps the migration inside `quire-rs` and preserves the
 public import surface, but its enumerated parse surface is incomplete and its
 external dependency guarantees are implicit. The missing production consumers
