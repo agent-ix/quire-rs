@@ -11,9 +11,9 @@ relationships:
 
 # ADR 0012: YAML engine maintenance and parity
 
-**Status**: Proposed
+**Status**: Accepted and implemented
 **Date**: 2026-09-07
-**Decision authority**: kreneskyp (acceptance pending)
+**Decision authority**: kreneskyp (accepted 2026-09-08)
 
 ## Context
 
