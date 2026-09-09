@@ -9,6 +9,9 @@ review_set: all
 
 ## Summary
 
+> **Superseded by SR-087.** This review evaluates the withdrawn 0.10.2
+> candidate and remains only as decision history.
+
 Parity, MSRV, license, advisory, unsafe, and wrong-resolution failures block the
 change. The exact legacy-backend pin nevertheless lacks a declared operational
 state if a new advisory arrives before a Rust-1.82 migration is available.

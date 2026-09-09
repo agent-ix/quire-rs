@@ -61,12 +61,12 @@ outside the exact pin and reopens ADR-0012.
 | NFR-009-AC-2 | `spec/assets/adr/0001-validator-crate.md` exists and records the validator choice and benchmark results. | inspection |
 | NFR-009-AC-3 | The dependency audit rejects wildcards, unbounded ranges, a wrong YAML package, a non-exact YAML version, and every load-bearing pin that is weaker than its policy-table entry. | static-quality |
 | NFR-009-AC-4 | A load-bearing dependency bump across its pin records a passing rerun of every affected behavioral, differential, compatibility, MSRV, license, and advisory gate before merge. | integration-testing |
-| NFR-009-AC-5 | `Cargo.lock` and `cargo tree` contain `yaml_serde 0.10.7` and `libyaml-rs 0.3.0`, and contain neither `serde_yaml 0.9.34+deprecated` nor `unsafe-libyaml`. | static-quality |
+| NFR-009-AC-5 | `Cargo.lock` and `cargo tree` contain `yaml_serde 0.10.7` and `libyaml-rs 0.3.0`, and contain neither `serde_yaml 0.9.34+deprecated` nor its former `unsafe-libyaml` backend; this verifies the selected maintenance line and package identity, not a reduction in transitive unsafe code. | static-quality |
 | NFR-009-AC-6 | The old and selected YAML engines produce identical success/failure outcomes and identical JSON-compatible values for every governed frontmatter input and every focused semantic-risk fixture. | integration-testing |
 | NFR-009-AC-7 | The unchanged TypeScript/Python frontmatter parity suite passes at the migration revision with no changed expected value or outcome. | integration-testing |
 | NFR-009-AC-8 | The default crate and all targets changed by the migration compile with exact Rust 1.98.1 from the locked dependency graph. | compile-time-check |
 | NFR-009-AC-9 | The license and advisory gates accept the selected locked graph with zero unwaived finding, using an advisory index refreshed at the migration revision whose revision or timestamp is retained. | sca-sbom |
-| NFR-009-AC-10 | The unsafe-surface and static dependency gates accept the selected locked graph with zero finding. | static-quality |
+| NFR-009-AC-10 | The existing first-party unsafe-surface gate and static dependency gates pass unchanged. They make no claim about transitive backend unsafe reduction; AC-5 records that backend only as package-resolution and maintenance-line evidence. | static-quality |
 | NFR-009-AC-11 | The Rust module-manifest, clause-set, extraction-DSL, traceability-model, and lint-rule suites each pass unchanged at the migration revision. | integration-testing |
 | NFR-009-AC-12 | The retained differential result binds exact source, corpus, module, comparator, producer, manifest, input-digest, population, exclusion, and raw-result identities so another reviewer can reproduce the zero-difference claim. | inspection |
 | NFR-009-AC-13 | The existing NFR-002 5 MB parse, typical-artifact validation, and same-runner regression gates pass unchanged at the migration revision. | performance-benchmarking |
@@ -83,7 +83,7 @@ outside the exact pin and reopens ADR-0012.
 | Affected behavior/compatibility gates rerun on cross-pin bump | Pass | Pass | integration-testing |
 | YAML differential outcome or value differences | 0 | 0 | integration-testing |
 | Production YAML consumer classes omitted from the migration suite | 0 | 0 | static-quality |
-| Unwaived license, advisory, unsafe-surface, or dependency-policy findings | 0 | 0 | static-quality |
+| Unwaived license, advisory, first-party unsafe-surface, or dependency-policy findings | 0 | 0 | static-quality |
 | NFR-002 parse/validation regression at the migration revision | none | existing NFR-002 thresholds | performance-benchmarking |
 
 ## Verification
@@ -105,17 +105,14 @@ outside the exact pin and reopens ADR-0012.
 - Rust migration tests use the imported bare `ix_trace_rs` marker form and the
   existing Quire coverage/static trace-form gates; compilation alone is not
   accepted as proof that a path-qualified marker binds.
-- The locked Rust 1.98.1 build, full CI, cargo-deny, cargo-audit, unsafe-surface,
-  and static-audit gates provide the remaining compile and dependency evidence.
-- [NFR-022](./NFR-022-current-stable-rust.md) governs the compiler baseline and
-  its only permitted bounded hold independently of this dependency policy.
+- The locked Rust 1.98.1 build, full CI, cargo-deny, cargo-audit, first-party
+  unsafe-surface, and static-audit gates provide the remaining compile and
+  dependency evidence. Issue #417 independently governs the compiler baseline.
 
 ## Dependencies
 
 - **Upstream**: [ADR-0012](../assets/adr/0012-yaml-engine-maintenance-and-parity.md)
   selects the exact YAML package and defines its compatibility boundary.
-- **Upstream**: [NFR-022](./NFR-022-current-stable-rust.md) selects the current
-  Rust compiler and governs future stable-release transitions.
 - **Downstream**: dependency changes and release qualification consume this
   policy; no package migration may begin from a Proposed ADR or an unvalidated
   review.

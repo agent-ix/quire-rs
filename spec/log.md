@@ -11,10 +11,11 @@ description: "Chronological log of structural changes to this bundle."
   selection of `yaml_serde 0.10.2`. It was chosen only to preserve inherited
   Rust 1.75 metadata, while this repository already selected 1.94.1 and current
   stable is Rust 1.98.1. Existing configuration is not compatibility evidence.
-  The candidate now selects `yaml_serde 0.10.7` with `libyaml-rs 0.3.0`, moves
-  all Rust declarations to 1.98.1, and permits an older hold only for a
-  reproduced required-tool incompatibility under an attributed 30-day limit.
-  Rustfmt drift and repairable lint findings are explicitly insufficient.
+  The candidate now selects `yaml_serde 0.10.7` with `libyaml-rs 0.3.0` because
+  current Rust 1.98.1 satisfies its Rust 1.82 floor. Repository-wide compiler
+  lifecycle and downstream consequences are independently owned by #417, not
+  by this YAML ADR. Rustfmt drift and repairable lint findings are not reasons
+  to select the older YAML release.
 
 * **2026-09-07** — **CR-158**: proposed
   [ADR-0012](./assets/adr/0012-yaml-engine-maintenance-and-parity.md) for
