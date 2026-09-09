@@ -34,7 +34,7 @@ impl Multiplicity {
 
     /// Upper absent or greater than one: where `ordered`/`unique` apply.
     pub fn is_collection(&self) -> bool {
-        self.upper.map_or(true, |u| u > 1)
+        self.upper.is_none_or(|u| u > 1)
     }
 }
 

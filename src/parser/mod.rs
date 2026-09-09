@@ -99,7 +99,7 @@ pub(crate) fn parse_header_status(markdown: &str) -> (Option<Header>, Frontmatte
 /// Parse the body of `markdown` under an already-parsed [`Header`]
 /// (FR-005 body tier). `markdown` should be the same input the header came
 /// from; a mismatched pair is defined rather than a panic (FR-005-AC-7, see
-/// [`body_offset_in`]). Composing the two tiers is exactly [`parse_document`].
+/// `body_offset_in`). Composing the two tiers is exactly [`parse_document`].
 pub fn parse_body(markdown: &str, header: &Header) -> QuireDocument {
     parse_body_at(
         markdown,

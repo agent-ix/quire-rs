@@ -1,6 +1,6 @@
 //! `Spec` — a bounded, in-memory, immutable spec corpus (FR-025).
 //!
-//! Built from a [`RepoLoad`](crate::corpus::walk::RepoLoad), indexed by
+//! Built from a [`RepoLoad`], indexed by
 //! artifact id. Mirrors the [`Registry`](crate::registry::Registry)
 //! lifecycle exactly: `Arc<Inner>`, `Send + Sync`, frozen after
 //! construction — to reflect on-disk changes, build a new `Spec`.

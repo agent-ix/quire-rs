@@ -2,7 +2,7 @@
 //!
 //! Validates an authored **markdown document** against a unified
 //! archetype (FR-031). This is distinct from the context/data path
-//! ([`crate::validate`], FR-002), which validates a JSON object against
+//! ([`crate::validate()`], FR-002), which validates a JSON object against
 //! the archetype schema and never parses markdown.
 //!
 //! Pipeline (ADR 0004):
@@ -217,7 +217,7 @@ fn run_grammar(
 
 /// Classify the binding acceptance criteria of `doc_text` by **property
 /// shape** (FR-052), using `registry`'s merged vocabularies — the same
-/// assembly [`run_grammar`] performs, in the one place that assembly already
+/// assembly `run_grammar` performs, in the one place that assembly already
 /// lives.
 ///
 /// Returns the classification records directly. Nothing here touches
@@ -974,7 +974,7 @@ fn collect<'a>(sections: &'a [QuireSection], out: &mut Vec<&'a QuireSection>) {
 /// path — it validates a JSON object and does **not** parse markdown,
 /// distinct from [`validate_document`] (FR-032-AC-5). Provided here as a
 /// thin alias so the two entry points sit side by side; callers may also
-/// use [`crate::validate`] directly.
+/// use [`crate::validate()`] directly.
 pub fn validate_context(
     archetype: &CompiledArchetype,
     value: &Map<String, Value>,

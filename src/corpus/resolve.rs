@@ -136,10 +136,10 @@ pub(crate) fn resolve(
 
 /// Harvest *all* edge stubs (frontmatter + body `ix://` links) for a
 /// single document, dedup'd. Returns `(target_id, edge_type)` pairs
-/// where `target_id` is already reduced via [`extract_target_id`].
+/// where `target_id` is already reduced via `extract_target_id`.
 /// This is the public single-doc shape used by the Python binding
 /// (`quire.harvest_edges`) — corpus-level resolution still goes
-/// through [`resolve`].
+/// through `resolve`.
 pub fn harvest_edges(doc: &LoadedDocument) -> Vec<(String, String)> {
     let ix_link = ix_link_regex();
     let mut out: BTreeSet<(String, String)> = BTreeSet::new();

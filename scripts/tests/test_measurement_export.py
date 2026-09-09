@@ -57,7 +57,7 @@ def attestation(revision: str = "a" * 40) -> dict:
         },
         "capabilities": ["fixture.capability"],
         "artifacts": {"fixture": "sha256:" + "3" * 64},
-        "toolchains": {"node": "22.15.0", "rust": "1.94.1", "python": "3.10.12"},
+        "toolchains": {"node": "22.15.0", "rust": "1.98.1", "python": "3.10.12"},
     }
 
 

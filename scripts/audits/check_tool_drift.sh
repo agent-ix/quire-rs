@@ -13,16 +13,29 @@ import sys
 
 root = pathlib.Path(sys.argv[1])
 errors: list[str] = []
+accepted_stable_rust = "1.98.1"
 
 toolchain = (root / "rust-toolchain.toml").read_text(encoding="utf-8")
 match = re.search(r'^channel\s*=\s*"([^"]+)"', toolchain, re.MULTILINE)
-if not match or not re.fullmatch(r"\d+\.\d+\.\d+", match.group(1)):
-    errors.append("rust-toolchain.toml must pin an exact x.y.z toolchain")
+if not match or match.group(1) != accepted_stable_rust:
+    errors.append(
+        f"rust-toolchain.toml must select exact Rust {accepted_stable_rust}"
+    )
 
 manifest = (root / "Cargo.toml").read_text(encoding="utf-8")
 version = re.search(r'^version\s*=\s*"([^"]+)"', manifest, re.MULTILINE)
 if not version or version.group(1) != "0.46.0":
     errors.append("Cargo.toml must declare the guarded post-v0.45 version 0.46.0")
+rust_version = re.search(r'^rust-version\s*=\s*"([^"]+)"', manifest, re.MULTILINE)
+if not rust_version or rust_version.group(1) != accepted_stable_rust:
+    errors.append(
+        f"Cargo.toml must declare minimum supported Rust {accepted_stable_rust}"
+    )
+
+clippy = (root / "clippy.toml").read_text(encoding="utf-8")
+clippy_msrv = re.search(r'^msrv\s*=\s*"([^"]+)"', clippy, re.MULTILINE)
+if not clippy_msrv or clippy_msrv.group(1) != accepted_stable_rust:
+    errors.append(f"clippy.toml must declare Clippy MSRV {accepted_stable_rust}")
 
 benchmark = json.loads((root / "bench/manifest.json").read_text(encoding="utf-8"))
 benchmark_inputs = [*benchmark.get("corpora", []), benchmark.get("module_source")]
@@ -115,8 +128,18 @@ for workflow in sorted((root / ".github/workflows").glob("*.yml")):
             # The action implementation and the installed compiler are separate
             # drift surfaces. The following `with.toolchain` must name the latter.
             window = "\n".join(text.splitlines()[line_no:line_no + 5])
-            if not re.search(r"toolchain:\s*(?:\d+\.\d+\.\d+|nightly-\d{4}-\d{2}-\d{2})", window):
+            installed = re.search(r"toolchain:\s*([^\s#]+)", window)
+            if not installed:
                 errors.append(f"{workflow.relative_to(root)}:{line_no}: Rust action lacks exact toolchain")
+            elif installed.group(1).startswith("nightly-"):
+                if not re.fullmatch(r"nightly-\d{4}-\d{2}-\d{2}", installed.group(1)):
+                    errors.append(
+                        f"{workflow.relative_to(root)}:{line_no}: nightly Rust action lacks exact date"
+                    )
+            elif installed.group(1) != accepted_stable_rust:
+                errors.append(
+                    f"{workflow.relative_to(root)}:{line_no}: stable Rust {accepted_stable_rust} is required"
+                )
         if "tool:" in line and re.search(r"cargo-(?:deny|mutants|fuzz)\s*$", line):
             errors.append(f"{workflow.relative_to(root)}:{line_no}: installed Cargo utility lacks exact version")
         if "pip install" in line and not line.lstrip().startswith("#") and "--require-hashes" not in line and "--no-index" not in line:
@@ -155,6 +178,33 @@ for line_no, line in enumerate(makefile.splitlines(), 1):
         errors.append(f"Makefile:{line_no}: cargo-deny resolution is not --locked")
     if re.search(r"(?:^|\s)cargo(?:\s+\+\S+)?\s+(?:bench|build|check|clippy|run|test)\b", line) and "--locked" not in line and not line.lstrip().startswith(("#", "@echo")):
         errors.append(f"Makefile:{line_no}: direct Cargo resolution is not --locked")
+
+stable_selections = (
+    re.compile(r"cargo\s+\+(stable|\d+\.\d+\.\d+)\b"),
+    re.compile(
+        r"rustup\s+(?:run|default|override\s+set|toolchain\s+install)\s+(stable|\d+\.\d+\.\d+)\b"
+    ),
+    re.compile(r"RUSTUP_TOOLCHAIN=(stable|\d+\.\d+\.\d+)\b"),
+)
+build_scripts = [root / "Makefile"]
+build_scripts.extend(
+    path
+    for path in (root / "scripts").rglob("*")
+    if path.is_file()
+    and path.suffix in {".py", ".sh"}
+    and path.name != "check_tool_drift.sh"
+    and "tests" not in path.relative_to(root / "scripts").parts
+)
+for path in build_scripts:
+    for line_no, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+        if line.lstrip().startswith("#"):
+            continue
+        for selection in stable_selections:
+            match = selection.search(line)
+            if match and match.group(1) != accepted_stable_rust:
+                errors.append(
+                    f"{path.relative_to(root)}:{line_no}: stable Rust build selection must be {accepted_stable_rust}"
+                )
 
 check_engine = (root / "scripts/check_engine.py").read_text(encoding="utf-8")
 if not re.search(r'"cargo",\s*"build",\s*"--locked"', check_engine):
@@ -211,5 +261,5 @@ if errors:
     for error in errors:
         print(f"- {error}", file=sys.stderr)
     raise SystemExit(1)
-print("tool-drift audit: exact toolchain, action, runner, manifest, validation-stack, and Cargo locks verified")
+print("tool-drift audit: Rust 1.98.1 policy, action, runner, manifest, validation-stack, and Cargo locks verified")
 PY

@@ -16,11 +16,10 @@ fn find_diagnostic<'a>(
         Some((d, r)) => (Some(d), r),
         None => (None, key),
     };
-    // Keep this MSRV 1.75 compatible; `Option::is_none_or` is newer.
     report
         .diagnostics
         .iter()
-        .find(|d| d.reason == reason && declaration.map_or(true, |want| d.declaration == want))
+        .find(|d| d.reason == reason && declaration.is_none_or(|want| d.declaration == want))
 }
 
 fn diagnostic_path_matches(actual: &str, expected: &str) -> bool {

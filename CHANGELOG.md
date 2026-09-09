@@ -14,7 +14,7 @@ bumps; once 1.0 ships, semver is strict.
   exact version installed by a commit-pinned binary installer, and private
   corpus/dependency jobs fail early with a named `CORPUS_TOKEN` requirement.
   This closes the observed failure where an unchanged workflow pulled a newer
-  `kstring` that required Rust 1.96 while CI deliberately pins Rust 1.94.1.
+  `kstring` that required Rust 1.96 while CI still selected an older compiler.
 
 - **Governed benchmark exports now remain acceptable to Quoin (#379).** New
   collections use schema v2 and require a validated

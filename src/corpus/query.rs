@@ -90,8 +90,7 @@ impl Spec {
                             let e = &self.inner.edges[i];
                             e.resolution == Resolution::Resolved
                                 && e.edge_type == missing_edge_type
-                                && toward_type
-                                    .map_or(true, |tt| self.target_has_type(&e.target, tt))
+                                && toward_type.is_none_or(|tt| self.target_has_type(&e.target, tt))
                         })
                     })
                     .unwrap_or(false);

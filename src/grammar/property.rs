@@ -1,5 +1,5 @@
 //! Acceptance-criteria **property-shape classification** (FR-052) — a second,
-//! orthogonal axis over the same criteria the [`ac`](super::ac) grammar binds
+//! orthogonal axis over the same criteria the [`ac`] grammar binds
 //! to.
 //!
 //! Where `ac` asks *is this criterion well-formed* and answers with findings,
@@ -20,7 +20,7 @@
 //!
 //! Detection reads the CR-017 masked copy of the statement — a backticked
 //! phrase is a *mention*, not a use — while spans are emitted against the
-//! unmasked original. [`mask_code_spans`](super::ac::mask_code_spans) is
+//! unmasked original. `mask_code_spans` is
 //! byte-length preserving, the same trick `outcome_clause` relies on.
 //!
 //! # Quantification is read at two positions (agent-ix/quire-rs#45, CR-030)
@@ -45,7 +45,7 @@
 //! | `recall-shape-axis` | 1,006 | 21/30 = 70.0% | deleted |
 //! | `recall-generic-subject` | 4,139 | 17/30 = 56.7% | deleted |
 //!
-//! [`recall_subject_determiner`] keeps the shipped rule's closed determiner set
+//! `recall_subject_determiner` keeps the shipped rule's closed determiner set
 //! and widens only the *position*, to the two subject heads a fronted clause
 //! creates. It retains its `recall:subject-determiner:` signal ids: attribution
 //! stays useful after adoption, because a corpus census can still separate the
@@ -461,7 +461,7 @@ pub fn classify_property(statement: &str, idioms: &PropertyIdioms) -> Classified
 }
 
 /// Classify every binding criterion of `doc` (FR-052-AC-9). The criteria are
-/// exactly the ones [`ac::check`] reads — both call [`ac::statements`] — so a
+/// exactly the ones [`ac::check`] reads — both call `ac::statements` — so a
 /// `US` or `IT` document yields no records, as it yields no findings.
 pub fn classify_document(
     archetype: &str,
@@ -768,8 +768,7 @@ fn decompose(
     };
     let first_predicate = clause_marker(determiner_end);
     let filter = re_filter_marker().find_iter(masked).find(|m| {
-        m.start() >= determiner_end
-            && first_predicate.map_or(true, |(start, _, _)| m.start() < start)
+        m.start() >= determiner_end && first_predicate.is_none_or(|(start, _, _)| m.start() < start)
     });
     // The oracle opens at the first predicate marker outside the precondition:
     // past the relative clause's own verb when a filter clause is present, and

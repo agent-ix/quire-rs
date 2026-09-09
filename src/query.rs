@@ -221,7 +221,7 @@ fn collect_sections<'d>(
     out: &mut Vec<&'d QuireSection>,
 ) {
     for s in sections {
-        if level.map_or(true, |l| s.level == l) {
+        if level.is_none_or(|l| s.level == l) {
             out.push(s);
         }
         collect_sections(&s.children, level, out);

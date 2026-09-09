@@ -43,7 +43,7 @@ pub fn glossary_terms(spec: &Spec) -> Vec<String> {
 /// far too much work when a repo's glossary lives in a handful of documents.
 /// This enumerates `*.md` files, reads each file's raw text, and parses only
 /// the ones whose text contains a `## Terms` or `## Ubiquitous Language`
-/// heading (a cheap line scan — [`has_glossary_heading`]). Deduplicated and
+/// heading (a cheap line scan — `has_glossary_heading`). Deduplicated and
 /// sorted; a repo with no glossary yields an empty vec.
 pub fn glossary_terms_from_path(root: &Path) -> Vec<String> {
     glossary_terms_from_path_with_diagnostics(root).0

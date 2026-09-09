@@ -71,7 +71,7 @@ impl RequiredSections {
                         .and_then(Value::as_str);
                     let required = map
                         .get("required")
-                        .map_or(true, |r| r.as_bool().unwrap_or(true));
+                        .is_none_or(|r| r.as_bool().unwrap_or(true));
                     if let (Some(h), true) = (heading, required) {
                         match h {
                             "Properties" => out.properties = true,
