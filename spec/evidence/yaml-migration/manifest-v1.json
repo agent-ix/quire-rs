@@ -1,0 +1,84 @@
+{
+  "schema": "quire-yaml-migration-evidence/v1",
+  "issue": "agent-ix/quire-rs#414",
+  "implementation_revision": "397ed175bf5518a5d3f16befea7636b447cc4d97",
+  "compiler": "rustc 1.98.1 (48a229cea 2026-09-01)",
+  "dependency_graph": {
+    "selected": ["yaml_serde 0.10.7", "libyaml-rs 0.3.0"],
+    "excluded_from_root_lock": ["serde_yaml 0.9.34+deprecated", "unsafe-libyaml 0.2.11"]
+  },
+  "differential": {
+    "result": "differential-v1.json",
+    "sha256": "1196afdf7d39655042db8fae2584dc4a988676775b91c1d2c013f6d7e05c0502",
+    "input_manifest_sha256": "6201f5aebf5d34f7ac85b6216e99d803837542ea9fea725ac450ef7c6a65a381",
+    "compared_inputs": 781,
+    "differences": 0,
+    "negative_control": "negative-control-v1.json",
+    "negative_control_sha256": "bab44fe29444e338167a12b7c4e3324d98418c81c0cb08da675addcb0966e9a9",
+    "negative_control_exit": 1,
+    "negative_control_differences": 1
+  },
+  "callsite_census": {
+    "result": "callsite-census-v1.json",
+    "sha256": "44d8214dc0f462fcb9725506d8e4372b549799c15772c46544324f9fa12552cc",
+    "calls": 95,
+    "production_calls": 3,
+    "production_classes": 6,
+    "errors": 0
+  },
+  "performance": {
+    "baseline_revision": "05e0e4d821888929c4a46d4b24ed95907e10e4f1",
+    "selected_revision": "397ed175bf5518a5d3f16befea7636b447cc4d97",
+    "runner": "same local runner and isolated Cargo target; Criterion 0.5.1; Rust 1.98.1",
+    "allowed_regression": 0.10,
+    "changes": {
+      "parse-small": -0.0036036978733603453,
+      "parse-medium-64kb": 0.01377303581450895,
+      "parse-one-megabyte": 0.003893551458008959,
+      "validate-document-fr-artifact": 0.014372834497504483
+    },
+    "raw_results": {
+      "parse-small": {
+        "baseline_sha256": "5bc438d1a793b81bda38dded71c200ee147cbbc0b173a0237b8bfc5c0d445b19",
+        "selected_sha256": "2e632e3e852cb73ad5c2d15d9543b561ac8aa0f5f06eddcf7f573d3c6cbaa101",
+        "change_sha256": "53ecb939240e2a7361a4670a5332a262a771748127632b2706bf127b0c645651"
+      },
+      "parse-medium-64kb": {
+        "baseline_sha256": "412d7db519a3d801bc9e41ad6f57f1e3df8896d93f70b656820e47495bf4e067",
+        "selected_sha256": "22268435ef9937d86bf3f7b5cebfe604480e73fac5e4caab6d0db553b643aa43",
+        "change_sha256": "637532974dda4bfb103587c1b3a90031ba0fad09e4469cd4cab08bcb1df5bce2"
+      },
+      "parse-one-megabyte": {
+        "baseline_sha256": "5c950d4e66f98966cf2425d4e29da583d2cb9d913fd5204730635f0837bc936c",
+        "selected_sha256": "25b7dfe4971051269e3efd8ed4d272987541e093b4a0530181faa8f3e7667a49",
+        "change_sha256": "cdae8581afb45dfac6024834d3cfa9593f1ad68798ba79b7341858fc976f67a6"
+      },
+      "validate-document-fr-artifact": {
+        "baseline_sha256": "e740654fc9c1a3d0c817635bdfa8db67e6cb99a9e3f688f5b301df259ca328e2",
+        "selected_sha256": "2af23c00d8cbae87cf79b5dda22dbefb78e3096ad5f846c5818aec27ae77010c",
+        "change_sha256": "357e12e8809af71041ab1bb99ce170398b9423bf1f411b536bdfcfe9d302e62b"
+      }
+    }
+  },
+  "supply_chain": {
+    "cargo_deny_licenses": "pass with pre-existing unused allow/exception warnings",
+    "cargo_audit": "pass; zero advisories",
+    "rustsec_index_revision": "b50980aad8b8f14f77e25a97b32dd94bf008b0af",
+    "rustsec_index_commit_time": "2026-09-09T12:49:52+02:00"
+  },
+  "test_results": {
+    "root_locked_suite": "609 library tests and every integration/doc suite passed",
+    "parser_parity": "89 passed unchanged",
+    "script_suite": "154 passed, 3 intentional missing-sibling skips",
+    "wasm_semantic_suites": "7 + 12 + 11 + 7 passed",
+    "fuzz_workspace_compile": "all bins passed on Rust 1.98.1",
+    "strict_docs": "pass",
+    "all_feature_release": "pass",
+    "static_audits": "pass; status agreement emitted 52 pre-existing advisories",
+    "spec_validation": "182 documents, 0 failed, 41 warnings, 9 governed Phase-7 exclusions"
+  },
+  "trace_marker_applicability": {
+    "new_rust_tests": 0,
+    "result": "not applicable; no Rust test was added for the migration"
+  }
+}
