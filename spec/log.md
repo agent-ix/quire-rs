@@ -7,7 +7,16 @@ description: "Chronological log of structural changes to this bundle."
 
 ## History
 
-* **2026-09-07** — **CR-157**: [NFR-022](./non-functional/NFR-022-skeptic-oracle-scan-complexity.md)
+* **2026-09-08** — **CR-159** completes the retrospective #412 remediation.
+  TC-1810 counts one line-index construction and at most one traversal per
+  direct pattern, TC-1811 statically rejects the former nested/prefix-rescan
+  shapes, and TC-1812 compares the optimized result with the frozen FR-064
+  algorithm across all specified languages and edge cases. SR-091 applies the
+  required Rust review after the original review-order breach and finds no
+  remaining code defect. All repository gates pass on Rust 1.98.1; this does
+  not accept or justify the stale Rust 1.75 declarations owned by #414.
+
+* **2026-09-07** — **CR-157**: [NFR-023](./non-functional/NFR-023-skeptic-oracle-scan-complexity.md)
   specifies the missing performance contract for `agent-ix/quire-rs#412`:
   oracle candidate extraction performs at most one binding-pattern traversal,
   one assertion-pattern traversal, and one line-index construction per inspected

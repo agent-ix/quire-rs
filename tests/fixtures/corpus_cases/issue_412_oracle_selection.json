@@ -1,7 +1,7 @@
 {
   "name": "multiple-oracle-bindings-output-equivalence",
   "issue_ref": "agent-ix/quire-rs#412",
-  "tags": ["TC-1061", "regression", "skeptic"],
+  "tags": ["TC-1812", "regression", "skeptic"],
   "candidates": [
     {
       "language": "rust",

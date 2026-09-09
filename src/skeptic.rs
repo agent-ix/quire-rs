@@ -352,8 +352,8 @@ pub fn oracle_copies_in(extraction: &SymbolExtraction) -> Vec<Suspicion> {
         let span = test.attached_source(source);
         let masked = crate::symbols::trace::mask_source_string_contents(&span, test.language);
         let code = strip_source_comments(&masked, test.language);
-        let line_offsets = crate::parser::line_offsets(&code);
-        if let Some(candidate) = oracle_candidate(&code, test.language, &line_offsets) {
+        let SpanOracleCandidates { direct, helper } = span_oracle_candidates(&code, test.language);
+        if let Some(candidate) = direct {
             if let Some((implementation, expression)) =
                 resolve_named_implementation(extraction, test, &candidate.function)
             {
@@ -385,7 +385,7 @@ pub fn oracle_copies_in(extraction: &SymbolExtraction) -> Vec<Suspicion> {
         // copied a private production predicate in another file, so neither an
         // `expected` binding nor direct call-name resolution can reach it.
         if test.language == SourceLanguage::Rust {
-            if let Some(candidate) = helper_oracle_candidate(&code, &line_offsets) {
+            if let Some(candidate) = helper {
                 if let Some((helper, oracle_expression)) =
                     resolve_same_file_helper(extraction, test, &candidate.function)
                 {
@@ -536,7 +536,7 @@ fn comparable_expression(extraction: &SymbolExtraction, symbol: &Symbol) -> Opti
         .then(|| body.to_string())
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 struct OracleCandidate {
     binding: String,
     expression: String,
@@ -544,21 +544,58 @@ struct OracleCandidate {
     line_offset: usize,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 struct HelperOracleCandidate {
     function: String,
     line_offset: usize,
 }
 
-fn helper_oracle_candidate(span: &str, line_offsets: &[usize]) -> Option<HelperOracleCandidate> {
+#[derive(Debug, Default, Eq, PartialEq)]
+struct SpanOracleCandidates {
+    direct: Option<OracleCandidate>,
+    helper: Option<HelperOracleCandidate>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum OracleScanEvent {
+    LineIndex,
+    BindingPass,
+    AssertionPass,
+    Join,
+}
+
+fn span_oracle_candidates(span: &str, language: SourceLanguage) -> SpanOracleCandidates {
+    span_oracle_candidates_observed(span, language, |_| {})
+}
+
+fn span_oracle_candidates_observed(
+    span: &str,
+    language: SourceLanguage,
+    mut observe: impl FnMut(OracleScanEvent),
+) -> SpanOracleCandidates {
+    observe(OracleScanEvent::LineIndex);
+    let line_offsets = crate::parser::line_offsets(span);
+    let direct = oracle_candidate_observed(span, language, &line_offsets, &mut observe);
+    let helper = if language == SourceLanguage::Rust {
+        helper_oracle_candidate(span, &line_offsets)
+    } else {
+        None
+    };
+    SpanOracleCandidates { direct, helper }
+}
+
+fn rust_helper_assertion_pattern() -> &'static Regex {
     static RUST_HELPER_ASSERTION: OnceLock<Regex> = OnceLock::new();
-    let assertion = RUST_HELPER_ASSERTION.get_or_init(|| {
+    RUST_HELPER_ASSERTION.get_or_init(|| {
         Regex::new(
             r"(?s)\b(?:assert_eq|prop_assert_eq)!\s*\([^;]*?,\s*!?\s*([A-Za-z_][A-Za-z0-9_:]*)\s*\(",
         )
         .expect("Rust helper-oracle assertion pattern compiles")
-    });
-    let found = assertion.captures(span)?;
+    })
+}
+
+fn helper_oracle_candidate(span: &str, line_offsets: &[usize]) -> Option<HelperOracleCandidate> {
+    let found = rust_helper_assertion_pattern().captures(span)?;
     let whole = found.get(0)?;
     Some(HelperOracleCandidate {
         function: found.get(1)?.as_str().rsplit("::").next()?.to_string(),
@@ -566,11 +603,16 @@ fn helper_oracle_candidate(span: &str, line_offsets: &[usize]) -> Option<HelperO
     })
 }
 
+#[cfg(test)]
 fn oracle_candidate(
     span: &str,
     language: SourceLanguage,
     line_offsets: &[usize],
 ) -> Option<OracleCandidate> {
+    oracle_candidate_observed(span, language, line_offsets, &mut |_| {})
+}
+
+fn oracle_patterns(language: SourceLanguage) -> (&'static Regex, &'static Regex) {
     static RUST_BINDING: OnceLock<Regex> = OnceLock::new();
     static TS_BINDING: OnceLock<Regex> = OnceLock::new();
     static PYTHON_BINDING: OnceLock<Regex> = OnceLock::new();
@@ -578,49 +620,64 @@ fn oracle_candidate(
     static TS_ASSERTION: OnceLock<Regex> = OnceLock::new();
     static PYTHON_ASSERTION: OnceLock<Regex> = OnceLock::new();
 
-    let binding_re = match language {
-        SourceLanguage::Rust => RUST_BINDING.get_or_init(|| {
-            Regex::new(r"(?s)\blet\s+(expected|oracle)(?:\s*:[^=;]+)?\s*=\s*(.+?);")
-                .expect("Rust oracle-binding pattern compiles")
-        }),
-        SourceLanguage::Typescript => TS_BINDING.get_or_init(|| {
-            Regex::new(r"(?s)\b(?:const|let)\s+(expected|oracle)(?:\s*:[^=;]+)?\s*=\s*(.+?);")
-                .expect("TypeScript oracle-binding pattern compiles")
-        }),
-        SourceLanguage::Python => PYTHON_BINDING.get_or_init(|| {
-            Regex::new(r"(?m)^\s*(expected|oracle)(?:\s*:[^=\n]+)?\s*=\s*(.+?)\s*$")
-                .expect("Python oracle-binding pattern compiles")
-        }),
-    };
-    let assertion_re = match language {
-        SourceLanguage::Rust => RUST_ASSERTION.get_or_init(|| {
-            Regex::new(
-                r"(?s)\bassert_eq!\s*\(\s*([A-Za-z_][A-Za-z0-9_:]*)\s*\([^;]*?\)\s*,\s*(expected|oracle)\s*\)",
-            )
-            .expect("Rust oracle-assertion pattern compiles")
-        }),
-        SourceLanguage::Typescript => TS_ASSERTION.get_or_init(|| {
-            Regex::new(
-                r"(?s)\bexpect\s*\(\s*([A-Za-z_$][A-Za-z0-9_$]*)\s*\([^;]*?\)\s*\)\s*\.\s*(?:toBe|toEqual)\s*\(\s*(expected|oracle)\s*\)",
-            )
-            .expect("TypeScript oracle-assertion pattern compiles")
-        }),
-        SourceLanguage::Python => PYTHON_ASSERTION.get_or_init(|| {
-            Regex::new(
-                r"(?m)^\s*assert\s+([A-Za-z_][A-Za-z0-9_]*)\s*\([^\n]*?\)\s*==\s*(expected|oracle)\b",
-            )
-            .expect("Python oracle-assertion pattern compiles")
-        }),
-    };
+    match language {
+        SourceLanguage::Rust => (
+            RUST_BINDING.get_or_init(|| {
+                Regex::new(r"(?s)\blet\s+(expected|oracle)(?:\s*:[^=;]+)?\s*=\s*(.+?);")
+                    .expect("Rust oracle-binding pattern compiles")
+            }),
+            RUST_ASSERTION.get_or_init(|| {
+                Regex::new(
+                    r"(?s)\bassert_eq!\s*\(\s*([A-Za-z_][A-Za-z0-9_:]*)\s*\([^;]*?\)\s*,\s*(expected|oracle)\s*\)",
+                )
+                .expect("Rust oracle-assertion pattern compiles")
+            }),
+        ),
+        SourceLanguage::Typescript => (
+            TS_BINDING.get_or_init(|| {
+                Regex::new(r"(?s)\b(?:const|let)\s+(expected|oracle)(?:\s*:[^=;]+)?\s*=\s*(.+?);")
+                    .expect("TypeScript oracle-binding pattern compiles")
+            }),
+            TS_ASSERTION.get_or_init(|| {
+                Regex::new(
+                    r"(?s)\bexpect\s*\(\s*([A-Za-z_$][A-Za-z0-9_$]*)\s*\([^;]*?\)\s*\)\s*\.\s*(?:toBe|toEqual)\s*\(\s*(expected|oracle)\s*\)",
+                )
+                .expect("TypeScript oracle-assertion pattern compiles")
+            }),
+        ),
+        SourceLanguage::Python => (
+            PYTHON_BINDING.get_or_init(|| {
+                Regex::new(r"(?m)^\s*(expected|oracle)(?:\s*:[^=\n]+)?\s*=\s*(.+?)\s*$")
+                    .expect("Python oracle-binding pattern compiles")
+            }),
+            PYTHON_ASSERTION.get_or_init(|| {
+                Regex::new(
+                    r"(?m)^\s*assert\s+([A-Za-z_][A-Za-z0-9_]*)\s*\([^\n]*?\)\s*==\s*(expected|oracle)\b",
+                )
+                .expect("Python oracle-assertion pattern compiles")
+            }),
+        ),
+    }
+}
+
+fn oracle_candidate_observed(
+    span: &str,
+    language: SourceLanguage,
+    line_offsets: &[usize],
+    observe: &mut impl FnMut(OracleScanEvent),
+) -> Option<OracleCandidate> {
+    let (binding_re, assertion_re) = oracle_patterns(language);
 
     // Keep the first assertion for each binding name. The former nested scan
     // selected that same assertion, but restarted at byte zero for every
     // assignment. One indexed pass preserves the selection rule in linear
     // time, including when bindings are repeated or assertions are reordered.
+    observe(OracleScanEvent::AssertionPass);
     let assertions: BTreeMap<&str, &str> =
         assertion_re
             .captures_iter(span)
             .fold(BTreeMap::new(), |mut by_binding, capture| {
+                observe(OracleScanEvent::Join);
                 if let (Some(function), Some(binding)) = (capture.get(1), capture.get(2)) {
                     by_binding
                         .entry(binding.as_str())
@@ -629,7 +686,9 @@ fn oracle_candidate(
                 by_binding
             });
 
+    observe(OracleScanEvent::BindingPass);
     for assignment in binding_re.captures_iter(span) {
+        observe(OracleScanEvent::Join);
         let binding = assignment.get(1)?.as_str();
         let Some(function) = assertions.get(binding) else {
             continue;
@@ -798,6 +857,88 @@ mod tests {
         });
         left.files.sort_by(|a, b| a.path.cmp(&b.path));
         left
+    }
+
+    /// Frozen pre-#412 direct-candidate algorithm used only for differential
+    /// evidence. Keep the nested scan here: a regression test must preserve
+    /// the old selection semantics without putting its complexity back on the
+    /// production path.
+    fn reference_oracle_candidate(span: &str, language: SourceLanguage) -> Option<OracleCandidate> {
+        let (binding_re, assertion_re) = oracle_patterns(language);
+        for assignment in binding_re.captures_iter(span) {
+            let binding = assignment.get(1)?.as_str();
+            let Some(assertion) = assertion_re.captures_iter(span).find(|capture| {
+                capture
+                    .get(2)
+                    .is_some_and(|found| found.as_str() == binding)
+            }) else {
+                continue;
+            };
+            return Some(OracleCandidate {
+                binding: binding.to_string(),
+                expression: assignment.get(2)?.as_str().trim().to_string(),
+                function: assertion.get(1)?.as_str().rsplit("::").next()?.to_string(),
+                line_offset: span[..assignment.get(0)?.start()].matches('\n').count(),
+            });
+        }
+        None
+    }
+
+    fn reference_helper_oracle_candidate(span: &str) -> Option<HelperOracleCandidate> {
+        let found = rust_helper_assertion_pattern().captures(span)?;
+        let whole = found.get(0)?;
+        Some(HelperOracleCandidate {
+            function: found.get(1)?.as_str().rsplit("::").next()?.to_string(),
+            line_offset: span[..whole.start()].matches('\n').count(),
+        })
+    }
+
+    fn generated_direct_span(language: SourceLanguage, newline: &str, scenario: usize) -> String {
+        let prefix = match language {
+            SourceLanguage::Rust | SourceLanguage::Typescript => "// café 雪",
+            SourceLanguage::Python => "# café 雪",
+        };
+        let binding = |name: &str, expression: &str| match language {
+            SourceLanguage::Rust => format!("let {name} = {expression};"),
+            SourceLanguage::Typescript => format!("const {name} = {expression};"),
+            SourceLanguage::Python => format!("{name} = {expression}"),
+        };
+        let assertion = |function: &str, name: &str| match language {
+            SourceLanguage::Rust => format!("assert_eq!({function}(input), {name})"),
+            SourceLanguage::Typescript => {
+                format!("expect({function}(input)).toEqual({name})")
+            }
+            SourceLanguage::Python => format!("assert {function}(input) == {name}"),
+        };
+
+        let lines = match scenario {
+            // Repeated binding name with assertions in the opposite order.
+            0 => vec![
+                prefix.to_string(),
+                binding("expected", "first_expression()"),
+                binding("expected", "repeated_expression()"),
+                binding("oracle", "oracle_expression()"),
+                assertion("oracle_subject", "oracle"),
+                assertion("expected_subject", "expected"),
+            ],
+            // The first binding is unmatched, so selection must advance to
+            // the first binding for which an assertion exists.
+            1 => vec![
+                prefix.to_string(),
+                binding("expected", "unmatched_expression()"),
+                binding("oracle", "matched_expression()"),
+                assertion("oracle_subject", "oracle"),
+            ],
+            // The regex grammar permits an assertion before its binding; the
+            // optimized join must retain the global first-match behavior.
+            2 => vec![
+                prefix.to_string(),
+                assertion("expected_subject", "expected"),
+                binding("expected", "later_expression()"),
+            ],
+            _ => unreachable!("generated scenario is bounded by the test"),
+        };
+        format!("{}{newline}", lines.join(newline))
     }
 
     #[test]
@@ -1200,8 +1341,112 @@ assert_eq!(normalize(value), expected);"#;
         );
     }
 
+    #[trace("TC-1810", "NFR-023-AC-1")]
     #[test]
-    fn issue_412_multiple_bindings_preserve_candidate_selection_and_line_offsets() {
+    fn tc1810_oracle_candidate_scan_counts_are_bounded_by_matches_not_nesting() {
+        #[derive(Default)]
+        struct Counts {
+            line_indexes: usize,
+            binding_passes: usize,
+            assertion_passes: usize,
+            joins: usize,
+        }
+
+        fn measured(span: &str) -> (SpanOracleCandidates, Counts) {
+            let mut counts = Counts::default();
+            let candidates =
+                span_oracle_candidates_observed(span, SourceLanguage::Rust, |event| match event {
+                    OracleScanEvent::LineIndex => counts.line_indexes += 1,
+                    OracleScanEvent::BindingPass => counts.binding_passes += 1,
+                    OracleScanEvent::AssertionPass => counts.assertion_passes += 1,
+                    OracleScanEvent::Join => counts.joins += 1,
+                });
+            (candidates, counts)
+        }
+
+        let zero = "// café\r\nlet unrelated = value();\r\n";
+        let one = "let expected = baseline();\nassert_eq!(subject(), expected);\n";
+        let mut many = String::from("// café 雪\r\n");
+        for index in 0..128 {
+            many.push_str(&format!("let expected = candidate_{index}();\r\n"));
+        }
+        many.push_str("let oracle = matched();\r\nassert_eq!(subject(), oracle);\r\n");
+
+        for span in [zero, one, many.as_str()] {
+            let (candidates, counts) = measured(span);
+            let (binding_re, assertion_re) = oracle_patterns(SourceLanguage::Rust);
+            let matches =
+                binding_re.captures_iter(span).count() + assertion_re.captures_iter(span).count();
+            assert_eq!(counts.line_indexes, 1, "{span}");
+            assert_eq!(counts.binding_passes, 1, "{span}");
+            assert_eq!(counts.assertion_passes, 1, "{span}");
+            assert!(counts.joins <= matches, "{span}");
+            if span == zero {
+                assert_eq!(candidates, SpanOracleCandidates::default());
+            }
+        }
+
+        let (_, one_counts) = measured(one);
+        let (many_candidates, many_counts) = measured(&many);
+        assert_eq!(one_counts.binding_passes, many_counts.binding_passes);
+        assert_eq!(one_counts.assertion_passes, many_counts.assertion_passes);
+        assert_eq!(one_counts.line_indexes, many_counts.line_indexes);
+        assert_eq!(
+            many_candidates.direct.expect("many-span candidate").binding,
+            "oracle"
+        );
+    }
+
+    #[trace("TC-1811", "NFR-023-AC-2", "NFR-023-AC-4")]
+    #[test]
+    fn tc1811_oracle_scan_source_shape_prevents_rescans_and_unbounded_join_state() {
+        let source = include_str!("skeptic.rs");
+        let production = source
+            .split("#[cfg(test)]\nmod tests")
+            .next()
+            .expect("production source precedes tests");
+        let span_scan = production
+            .split("fn span_oracle_candidates_observed")
+            .nth(1)
+            .and_then(|tail| tail.split("fn rust_helper_assertion_pattern").next())
+            .expect("span scan source is delimited");
+        let direct_scan = production
+            .split("fn oracle_candidate_observed")
+            .nth(1)
+            .and_then(|tail| tail.split("fn line_offset_at").next())
+            .expect("direct scan source is delimited");
+        let binding_loop = direct_scan
+            .find("for assignment in binding_re.captures_iter(span)")
+            .expect("binding traversal remains explicit");
+
+        assert_eq!(
+            span_scan
+                .matches("crate::parser::line_offsets(span)")
+                .count(),
+            1,
+            "one line index is built for both candidate paths"
+        );
+        assert!(span_scan.contains("helper_oracle_candidate(span, &line_offsets)"));
+        assert!(!production.contains(".matches('\\n').count()"));
+        assert_eq!(direct_scan.matches(".captures_iter(span)").count(), 2);
+        assert!(
+            !direct_scan[binding_loop..].contains("assertion_re.captures_iter(span)"),
+            "assertion traversal must not be nested below the binding loop"
+        );
+        assert!(direct_scan.contains("BTreeMap<&str, &str>"));
+        assert!(direct_scan.contains("assertions.get(binding)"));
+        assert!(!direct_scan.contains("assertions.iter()"));
+        assert!(!direct_scan.contains("assertions.into_iter()"));
+        assert_eq!(
+            production.matches(r"(expected|oracle)").count(),
+            6,
+            "all six language patterns restrict join keys to two admitted names"
+        );
+    }
+
+    #[trace("TC-1812", "NFR-023-AC-3")]
+    #[test]
+    fn tc1812_oracle_candidates_match_the_frozen_reference_across_edge_cases() {
         #[derive(Deserialize)]
         struct CandidateFixture {
             name: String,
@@ -1232,7 +1477,7 @@ assert_eq!(normalize(value), expected);"#;
         .expect("issue #412 fixture is valid");
         assert_eq!(fixture.issue_ref, "agent-ix/quire-rs#412");
         assert!(!fixture.name.trim().is_empty());
-        assert!(fixture.tags.iter().any(|tag| tag.starts_with("TC-")));
+        assert!(fixture.tags.iter().any(|tag| tag == "TC-1812"));
 
         for case in fixture.candidates {
             let line_offsets = crate::parser::line_offsets(&case.span);
@@ -1253,6 +1498,39 @@ assert_eq!(normalize(value), expected);"#;
             .expect("expected a helper-oracle candidate");
         assert_eq!(candidate.function, fixture.helper.function);
         assert_eq!(candidate.line_offset, fixture.helper.line_offset);
+
+        for language in [
+            SourceLanguage::Rust,
+            SourceLanguage::Python,
+            SourceLanguage::Typescript,
+        ] {
+            for newline in ["\n", "\r\n"] {
+                for scenario in 0..3 {
+                    let span = generated_direct_span(language, newline, scenario);
+                    let expected = reference_oracle_candidate(&span, language);
+                    let line_offsets = crate::parser::line_offsets(&span);
+                    let actual = oracle_candidate(&span, language, &line_offsets);
+                    assert_eq!(
+                        actual, expected,
+                        "{language:?}, newline={newline:?}, scenario={scenario}"
+                    );
+                }
+            }
+        }
+
+        for newline in ["\n", "\r\n"] {
+            let span = [
+                "// café 雪",
+                "let input = sample();",
+                "",
+                "prop_assert_eq!(subject(input), !module::oracle_helper(input));",
+            ]
+            .join(newline);
+            let expected = reference_helper_oracle_candidate(&span);
+            let line_offsets = crate::parser::line_offsets(&span);
+            let actual = helper_oracle_candidate(&span, &line_offsets);
+            assert_eq!(actual, expected, "helper newline={newline:?}");
+        }
     }
 
     #[trace("TC-1080", "FR-064-AC-7")]

@@ -1,5 +1,5 @@
 ---
-id: NFR-022
+id: NFR-023
 title: "Skeptic oracle candidate extraction has linear scan work"
 type: NFR
 quality_attribute: performance_efficiency
@@ -7,7 +7,7 @@ relationships:
   - target: "ix://agent-ix/quire-rs/FR-064"
     type: "constrains"
 ---
-# NFR-022: Skeptic oracle candidate extraction has linear scan work
+# NFR-023: Skeptic oracle candidate extraction has linear scan work
 
 ## Statement
 
@@ -60,10 +60,10 @@ prefix count.
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
-| NFR-022-AC-1 | Operation counts show at most one complete binding-pattern traversal, one complete assertion-pattern traversal, and `a + b` join operations for direct candidate extraction, regardless of the number or ordering of bindings and assertions. | Test |
-| NFR-022-AC-2 | Exactly one line-start index is built per inspected evidence-symbol span, both the direct and Rust helper paths reuse it, and no candidate-specific prefix newline count remains. | Analysis |
-| NFR-022-AC-3 | For Rust, Python, TypeScript, repeated binding names, assertions before or after bindings, unmatched bindings, UTF-8, CRLF, and the Rust helper path, the selected candidate fields and line offsets equal the FR-064 baseline. | Test |
-| NFR-022-AC-4 | The binding-to-assertion join keeps lookup state bounded independently of `a` and `b` (the grammar admits only `expected` and `oracle`), and no output depends on lookup-container iteration order. | Analysis |
+| NFR-023-AC-1 | Operation counts show at most one complete binding-pattern traversal, one complete assertion-pattern traversal, and at most `a + b` join operations for direct candidate extraction, regardless of the number or ordering of bindings and assertions. | Test |
+| NFR-023-AC-2 | Exactly one line-start index is built per inspected evidence-symbol span, both the direct and Rust helper paths reuse it, and no candidate-specific prefix newline count remains. | Analysis |
+| NFR-023-AC-3 | For Rust, Python, TypeScript, repeated binding names, assertions before or after bindings, unmatched bindings, UTF-8, CRLF, and the Rust helper path, the selected candidate fields and line offsets equal the FR-064 baseline. | Test |
+| NFR-023-AC-4 | The binding-to-assertion join keeps lookup state bounded independently of `a` and `b` (the grammar admits only `expected` and `oracle`), and no output depends on lookup-container iteration order. | Analysis |
 
 ## Dependencies
 
