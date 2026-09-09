@@ -28,3 +28,4 @@ description: "Index of artifacts in this directory."
 
 * [NFR-020: Filament extraction boundary](./NFR-020-filament-extraction-boundary.md)
 * [NFR-021: Semantic extraction boundary](./NFR-021-semantic-extraction-boundary.md)
+* [NFR-022: Current stable Rust qualification](./NFR-022-current-stable-rust.md)

@@ -9,6 +9,14 @@ bumps; once 1.0 ships, semver is strict.
 
 ### Fixed
 
+- **YAML parsing now uses the maintained YAML Organization engine (#414).**
+  The established `serde_yaml` import name now resolves to exact
+  `yaml_serde 0.10.7` and `libyaml-rs 0.3.0`; the deprecated
+  `serde_yaml`/`unsafe-libyaml` pair is absent from the product lockfile. A
+  retained two-engine corpus differential, exact dependency audit, and
+  repository-wide call-site census guard the identity-bearing frontmatter and
+  typed manifest/DSL/traceability/lint/clauses behavior.
+
 - **Canonical CI no longer installs or resolves drifting tools/dependencies.**
   Cargo resolver invocations assert the committed lock, `cargo-audit` is an
   exact version installed by a commit-pinned binary installer, and private
