@@ -9,6 +9,9 @@ review_set: all
 
 ## Summary
 
+> **Superseded by SR-087.** This review evaluates the withdrawn 0.10.2
+> candidate and remains only as decision history.
+
 Quire 0.31.0 reports ADR-0012 and NFR-009 2/2 grammar-clean with zero target
 findings. Human review finds one compound criterion that joins independent
 language and typed-consumer outcomes under a single result.

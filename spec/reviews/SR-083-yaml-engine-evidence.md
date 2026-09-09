@@ -9,6 +9,9 @@ review_set: all
 
 ## Summary
 
+> **Superseded by SR-087.** This review evaluates the withdrawn 0.10.2
+> candidate and remains only as decision history.
+
 The human review independently confirmed the MSRV, current manifest mismatch,
 and advisory status. The exploratory 575-document zero-difference run remains
 properly labelled non-reproducible; deterministic advisor evidence is unavailable
