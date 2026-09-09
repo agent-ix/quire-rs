@@ -190,7 +190,7 @@ The v0.1 implementation drifted from `INPUT.md`. The v0.2 spec restores discover
 - [FR-003](./functional/FR-003-archetype-schema-surface.md) schema_for, [FR-004](./functional/FR-004-minijinja-strict-environment.md) strict MiniJinja env
 - [FR-011](./functional/FR-011-body-extraction-dsl.md)/016 body-extraction DSL (reworked around block-level scope)
 - [FR-013](./functional/FR-013-archetype-loader.md) archetype loader (reworked: `blocks/<type>/...` layout)
-- [NFR-001](./non-functional/NFR-001-render-latency.md)..007, [NFR-009](./non-functional/NFR-009-dependency-pinning.md)..010, [NFR-011](./non-functional/NFR-011-fuzz-testing.md)/013/014 (perf, safety, error shape, determinism, dep pinning, API stability, fuzz, mutants, audit). [NFR-012](./non-functional/NFR-012-miri-ub-check.md) (Miri) retired — ADR 0006.
+- [NFR-001](./non-functional/NFR-001-render-latency.md)..007, [NFR-009](./non-functional/NFR-009-dependency-pinning.md)..010, [NFR-011](./non-functional/NFR-011-fuzz-testing.md)/013/014, and [NFR-022](./non-functional/NFR-022-current-stable-rust.md) (perf, safety, error shape, determinism, dep pinning, API stability, fuzz, mutants, audit, current-stable Rust). [NFR-012](./non-functional/NFR-012-miri-ub-check.md) (Miri) retired — ADR 0006.
 - HTML / comrak references: already purged in `08f5b00` (never asked for in discovery)
 
 ### B. quire-TS (`agent-ix/quire`) ↔ quire-rs
