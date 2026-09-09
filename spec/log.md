@@ -10,12 +10,12 @@ description: "Chronological log of structural changes to this bundle."
 * **2026-09-09** — **CR-160**: accepted and implemented ADR-0012 after the
   owner approved the maintained-engine architecture. The product and fuzz
   manifests now alias exact `yaml_serde 0.10.7`; the root lock selects
-  `libyaml-rs 0.3.0` and excludes the deprecated package pair. SR-108 and
-  SR-109 record zero differences across 781 revision-bound inputs, unchanged
-  typed/parity suites, a fail-closed 95-call census, fresh supply-chain gates,
-  and same-runner performance within the existing 10% bound. TC-1820 through
-  TC-1831 are complete; no Rust test was added, so the imported bare
-  ix-trace-rs rule is explicitly not applicable rather than silently skipped.
+  `libyaml-rs 0.3.0` and excludes the deprecated package pair. SR-108 retains
+  the one-time zero-difference result across 781 revision-bound inputs and the
+  unchanged typed/parity, supply-chain, and performance results. The temporary
+  comparator, per-input payload, and exact call-site census were removed after
+  review because they are not ongoing product capabilities or useful permanent
+  gates.
 
 * **2026-09-08** — **CR-159**: NFR-022 independently selects exact Rust
   1.98.1 as both the supported minimum and qualification compiler for #417.

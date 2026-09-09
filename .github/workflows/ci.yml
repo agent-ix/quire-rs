@@ -260,8 +260,6 @@ jobs:
         run: bash scripts/audits/check_no_shellout.sh
       - name: check_dep_pins
         run: bash scripts/audits/check_dep_pins.sh
-      - name: check_yaml_callsites
-        run: bash scripts/audits/check_yaml_callsites.sh
       - name: check_hashmap_audit
         run: bash scripts/audits/check_hashmap_audit.sh
       - name: check_no_shared_mutable
