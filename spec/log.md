@@ -7,6 +7,20 @@ description: "Chronological log of structural changes to this bundle."
 
 ## History
 
+* **2026-09-08** — **CR-160** corrects CR-159 after independent review
+  disproved its complexity evidence. [NFR-023](./non-functional/NFR-023-skeptic-oracle-scan-complexity.md)
+  now requires counters around the actual regex traversal, zero assertion work
+  when no binding exists, and zero line-index construction when neither direct
+  nor helper selection produces a candidate. TC-1810 first reproduced the
+  eager common-path work; TC-1811 first reproduced the absent measured wrapper.
+  The implementation now peeks one measured binding iterator, uses fixed
+  `expected`/`oracle` state, defers the shared line index until a selected
+  candidate needs it, and contains every raw direct capture traversal in one
+  measured wrapper. Reintroducing an extra assertion traversal fails both
+  TC-1810 and TC-1811 while TC-1812 continues to prove semantic parity. SR-091
+  is superseded; SR-092 retains the failed independent review, SR-096 records
+  the QUOIN base remediation, and SR-097 applies the required Rust review.
+
 * **2026-09-08** — **CR-159** completes the retrospective #412 remediation.
   TC-1810 counts one line-index construction and at most one traversal per
   direct pattern, TC-1811 statically rejects the former nested/prefix-rescan

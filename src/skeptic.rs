@@ -22,7 +22,7 @@
 //! one: these fire on *test* code, and a check that can fail somebody's build
 //! over a heuristic about their assertions will be turned off within a week.
 
-use std::{collections::BTreeMap, sync::OnceLock};
+use std::sync::OnceLock;
 
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -556,12 +556,110 @@ struct SpanOracleCandidates {
     helper: Option<HelperOracleCandidate>,
 }
 
+#[derive(Debug)]
+struct OracleCandidateAtByte {
+    binding: String,
+    expression: String,
+    function: String,
+    byte_offset: usize,
+}
+
+impl OracleCandidateAtByte {
+    fn with_line_offset(self, line_offsets: &[usize]) -> OracleCandidate {
+        OracleCandidate {
+            binding: self.binding,
+            expression: self.expression,
+            function: self.function,
+            line_offset: line_offset_at(line_offsets, self.byte_offset),
+        }
+    }
+}
+
+#[derive(Debug)]
+struct HelperOracleCandidateAtByte {
+    function: String,
+    byte_offset: usize,
+}
+
+impl HelperOracleCandidateAtByte {
+    fn with_line_offset(self, line_offsets: &[usize]) -> HelperOracleCandidate {
+        HelperOracleCandidate {
+            function: self.function,
+            line_offset: line_offset_at(line_offsets, self.byte_offset),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum OracleBinding {
+    Expected,
+    Oracle,
+}
+
+impl OracleBinding {
+    const fn as_str(self) -> &'static str {
+        match self {
+            Self::Expected => "expected",
+            Self::Oracle => "oracle",
+        }
+    }
+}
+
+impl TryFrom<&str> for OracleBinding {
+    type Error = ();
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value {
+            "expected" => Ok(Self::Expected),
+            "oracle" => Ok(Self::Oracle),
+            _ => Err(()),
+        }
+    }
+}
+
+#[derive(Default)]
+struct OracleAssertions<'a> {
+    expected: Option<&'a str>,
+    oracle: Option<&'a str>,
+}
+
+impl<'a> OracleAssertions<'a> {
+    fn insert_first(&mut self, binding: OracleBinding, function: &'a str) {
+        match binding {
+            OracleBinding::Expected => self.expected.get_or_insert(function),
+            OracleBinding::Oracle => self.oracle.get_or_insert(function),
+        };
+    }
+
+    const fn get(&self, binding: OracleBinding) -> Option<&'a str> {
+        match binding {
+            OracleBinding::Expected => self.expected,
+            OracleBinding::Oracle => self.oracle,
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum OracleScanEvent {
     LineIndex,
     BindingPass,
     AssertionPass,
     Join,
+}
+
+fn observed_captures_iter<'r, 'h>(
+    pattern: &'r Regex,
+    span: &'h str,
+    event: OracleScanEvent,
+    observe: &mut impl FnMut(OracleScanEvent),
+) -> regex::CaptureMatches<'r, 'h> {
+    observe(event);
+    pattern.captures_iter(span)
+}
+
+fn observed_line_offsets(span: &str, observe: &mut impl FnMut(OracleScanEvent)) -> Vec<usize> {
+    observe(OracleScanEvent::LineIndex);
+    crate::parser::line_offsets(span)
 }
 
 fn span_oracle_candidates(span: &str, language: SourceLanguage) -> SpanOracleCandidates {
@@ -573,15 +671,21 @@ fn span_oracle_candidates_observed(
     language: SourceLanguage,
     mut observe: impl FnMut(OracleScanEvent),
 ) -> SpanOracleCandidates {
-    observe(OracleScanEvent::LineIndex);
-    let line_offsets = crate::parser::line_offsets(span);
-    let direct = oracle_candidate_observed(span, language, &line_offsets, &mut observe);
+    let direct = oracle_candidate_observed(span, language, &mut observe);
     let helper = if language == SourceLanguage::Rust {
-        helper_oracle_candidate(span, &line_offsets)
+        helper_oracle_candidate_at_byte(span)
     } else {
         None
     };
-    SpanOracleCandidates { direct, helper }
+    if direct.is_none() && helper.is_none() {
+        return SpanOracleCandidates::default();
+    }
+
+    let line_offsets = observed_line_offsets(span, &mut observe);
+    SpanOracleCandidates {
+        direct: direct.map(|candidate| candidate.with_line_offset(&line_offsets)),
+        helper: helper.map(|candidate| candidate.with_line_offset(&line_offsets)),
+    }
 }
 
 fn rust_helper_assertion_pattern() -> &'static Regex {
@@ -594,13 +698,18 @@ fn rust_helper_assertion_pattern() -> &'static Regex {
     })
 }
 
-fn helper_oracle_candidate(span: &str, line_offsets: &[usize]) -> Option<HelperOracleCandidate> {
+fn helper_oracle_candidate_at_byte(span: &str) -> Option<HelperOracleCandidateAtByte> {
     let found = rust_helper_assertion_pattern().captures(span)?;
     let whole = found.get(0)?;
-    Some(HelperOracleCandidate {
+    Some(HelperOracleCandidateAtByte {
         function: found.get(1)?.as_str().rsplit("::").next()?.to_string(),
-        line_offset: line_offset_at(line_offsets, whole.start()),
+        byte_offset: whole.start(),
     })
+}
+
+#[cfg(test)]
+fn helper_oracle_candidate(span: &str, line_offsets: &[usize]) -> Option<HelperOracleCandidate> {
+    helper_oracle_candidate_at_byte(span).map(|candidate| candidate.with_line_offset(line_offsets))
 }
 
 #[cfg(test)]
@@ -609,7 +718,8 @@ fn oracle_candidate(
     language: SourceLanguage,
     line_offsets: &[usize],
 ) -> Option<OracleCandidate> {
-    oracle_candidate_observed(span, language, line_offsets, &mut |_| {})
+    oracle_candidate_observed(span, language, &mut |_| {})
+        .map(|candidate| candidate.with_line_offset(line_offsets))
 }
 
 fn oracle_patterns(language: SourceLanguage) -> (&'static Regex, &'static Regex) {
@@ -663,41 +773,41 @@ fn oracle_patterns(language: SourceLanguage) -> (&'static Regex, &'static Regex)
 fn oracle_candidate_observed(
     span: &str,
     language: SourceLanguage,
-    line_offsets: &[usize],
     observe: &mut impl FnMut(OracleScanEvent),
-) -> Option<OracleCandidate> {
+) -> Option<OracleCandidateAtByte> {
     let (binding_re, assertion_re) = oracle_patterns(language);
+
+    let mut assignments =
+        observed_captures_iter(binding_re, span, OracleScanEvent::BindingPass, observe).peekable();
+    assignments.peek()?;
 
     // Keep the first assertion for each binding name. The former nested scan
     // selected that same assertion, but restarted at byte zero for every
     // assignment. One indexed pass preserves the selection rule in linear
     // time, including when bindings are repeated or assertions are reordered.
-    observe(OracleScanEvent::AssertionPass);
-    let assertions: BTreeMap<&str, &str> =
-        assertion_re
-            .captures_iter(span)
-            .fold(BTreeMap::new(), |mut by_binding, capture| {
-                observe(OracleScanEvent::Join);
-                if let (Some(function), Some(binding)) = (capture.get(1), capture.get(2)) {
-                    by_binding
-                        .entry(binding.as_str())
-                        .or_insert_with(|| function.as_str());
-                }
-                by_binding
-            });
-
-    observe(OracleScanEvent::BindingPass);
-    for assignment in binding_re.captures_iter(span) {
+    let mut assertions = OracleAssertions::default();
+    for capture in
+        observed_captures_iter(assertion_re, span, OracleScanEvent::AssertionPass, observe)
+    {
         observe(OracleScanEvent::Join);
-        let binding = assignment.get(1)?.as_str();
+        if let (Some(function), Some(binding)) = (capture.get(1), capture.get(2)) {
+            if let Ok(binding) = OracleBinding::try_from(binding.as_str()) {
+                assertions.insert_first(binding, function.as_str());
+            }
+        }
+    }
+
+    for assignment in assignments {
+        observe(OracleScanEvent::Join);
+        let binding = OracleBinding::try_from(assignment.get(1)?.as_str()).ok()?;
         let Some(function) = assertions.get(binding) else {
             continue;
         };
-        return Some(OracleCandidate {
-            binding: binding.to_string(),
+        return Some(OracleCandidateAtByte {
+            binding: binding.as_str().to_string(),
             expression: assignment.get(2)?.as_str().trim().to_string(),
             function: function.rsplit("::").next()?.to_string(),
-            line_offset: line_offset_at(line_offsets, assignment.get(0)?.start()),
+            byte_offset: assignment.get(0)?.start(),
         });
     }
     None
@@ -1366,6 +1476,8 @@ assert_eq!(normalize(value), expected);"#;
 
         let zero = "// café\r\nlet unrelated = value();\r\n";
         let assertion_without_binding = "assert_eq!(subject(), expected);\n";
+        let helper_only = "prop_assert_eq!(subject(), oracle_helper());\n";
+        let direct_and_helper = "let expected = baseline();\nassert_eq!(subject(), expected);\nprop_assert_eq!(subject(), oracle_helper());\n";
         let one = "let expected = baseline();\nassert_eq!(subject(), expected);\n";
         let mut many = String::from("// café 雪\r\n");
         for index in 0..128 {
@@ -1373,15 +1485,21 @@ assert_eq!(normalize(value), expected);"#;
         }
         many.push_str("let oracle = matched();\r\nassert_eq!(subject(), oracle);\r\n");
 
-        for span in [zero, assertion_without_binding, one, many.as_str()] {
+        for (span, has_direct_candidate, has_helper_candidate) in [
+            (zero, false, false),
+            (assertion_without_binding, false, false),
+            (helper_only, false, true),
+            (direct_and_helper, true, true),
+            (one, true, false),
+            (many.as_str(), true, false),
+        ] {
             let (candidates, counts) = measured(span);
             let (binding_re, assertion_re) = oracle_patterns(SourceLanguage::Rust);
             let matches =
                 binding_re.captures_iter(span).count() + assertion_re.captures_iter(span).count();
-            let has_direct_candidate = span == one || span == many;
             assert_eq!(
                 counts.line_indexes,
-                usize::from(has_direct_candidate),
+                usize::from(has_direct_candidate || has_helper_candidate),
                 "{span}"
             );
             assert_eq!(counts.binding_passes, 1, "{span}");
@@ -1391,7 +1509,9 @@ assert_eq!(normalize(value), expected);"#;
                 "{span}"
             );
             assert!(counts.joins <= matches, "{span}");
-            if !has_direct_candidate {
+            assert_eq!(candidates.direct.is_some(), has_direct_candidate, "{span}");
+            assert_eq!(candidates.helper.is_some(), has_helper_candidate, "{span}");
+            if !has_direct_candidate && !has_helper_candidate {
                 assert_eq!(candidates, SpanOracleCandidates::default());
             }
         }
@@ -1411,10 +1531,10 @@ assert_eq!(normalize(value), expected);"#;
     #[test]
     fn tc1811_oracle_scan_source_shape_prevents_rescans_and_unbounded_join_state() {
         let source = include_str!("skeptic.rs");
-        let production = source
-            .split("#[cfg(test)]\nmod tests")
-            .next()
-            .expect("production source precedes tests");
+        let tests_start = source
+            .rfind("\nmod tests {")
+            .expect("test module follows production source");
+        let production = &source[..tests_start];
         let span_scan = production
             .split("fn span_oracle_candidates_observed")
             .nth(1)
@@ -1438,6 +1558,13 @@ assert_eq!(normalize(value), expected);"#;
             .expect("binding join remains explicit");
 
         assert_eq!(span_scan.matches("observed_line_offsets(span").count(), 1);
+        assert_eq!(
+            production
+                .matches("crate::parser::line_offsets(span)")
+                .count(),
+            1,
+            "raw line-index construction is confined to its measured wrapper"
+        );
         assert!(!production.contains(".matches('\\n').count()"));
         assert!(
             !direct_scan.contains(".captures_iter("),

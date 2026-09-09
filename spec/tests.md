@@ -158,7 +158,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | FR-074 Plain-language profiles | AC-1..12; CON-1..5 | TC-970..TC-981 (reader blocks, three advisory checks, typed profiles, batch accountability, configuration identity and non-interference) | ✅ Implemented |
 | NFR-020 Filament extraction boundary pure/deterministic | static inspection + parity tests | TC-704, TC-767, TC-690 | ✅ Complete |
 | NFR-021 Semantic extraction offline/non-parsing/additive | static audits + compile + byte-identity + parity | TC-1641, TC-1642, TC-1649, TC-1643, TC-1644 | ✅ Complete; WASM leg external |
-| NFR-023 Skeptic oracle candidate scan work | operation-count test + static complexity audit + differential property | TC-1810..TC-1812 | 🚧 SR-092 remediation pending |
+| NFR-023 Skeptic oracle candidate scan work | operation-count test + static complexity audit + differential property | TC-1810..TC-1812 | ✅ SR-092 findings remediated in SR-096/SR-097 |
 
 ---
 
@@ -768,8 +768,8 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-1807 | Clause-set digest and text-rights violations fail closed | Unit | P0 | FR-073-AC-1, FR-073-AC-6 | ✅ |
 | TC-1808 | Clause-set diff reports added, removed, and changed clauses by stable id | Unit | P0 | FR-073-AC-4 | ✅ |
 | TC-1809 | A module loads a referenced synthetic clause set and both output reports conform to their hand-authored schemas | Integration | P0 | FR-073-AC-1, FR-073-AC-5 | ✅ |
-| TC-1810 | Counters around the actual regex traversal prove at most one binding pass, at most one assertion pass, at most one line index, and at most `a + b` joins for zero, one, and 129-binding spans; no-binding/no-candidate spans pay no assertion/index work | Unit | P0 | NFR-023-AC-1 | 🚧 remediation pending |
-| TC-1811 | A static audit confines raw capture traversal to the measured wrapper and rejects traversal below the binding loop, candidate prefix newline scans, duplicate/eager line indexes, unbounded join state, and iteration-derived output | Static | P0 | NFR-023-AC-2, NFR-023-AC-4 | 🚧 remediation pending |
+| TC-1810 | Counters around the actual regex traversal prove at most one binding pass, at most one assertion pass, at most one line index, and at most `a + b` joins for zero, one, and 129-binding spans; no-binding/no-candidate spans pay no assertion/index work | Unit | P0 | NFR-023-AC-1 | ✅ |
+| TC-1811 | A static audit confines raw capture traversal to the measured wrapper and rejects traversal below the binding loop, candidate prefix newline scans, duplicate/eager line indexes, unbounded join state, and iteration-derived output | Static | P0 | NFR-023-AC-2, NFR-023-AC-4 | ✅ |
 | TC-1812 | A generated differential comparison over Rust, Python and TypeScript spans varies repeated/unmatched binding names, assertion order, UTF-8, CRLF, and Rust helper calls; every selected candidate field and line offset equals the frozen FR-064 reference result | Property | P0 | NFR-023-AC-3 | ✅ |
 | TC-1076 | `required` defaults true and is omitted on serialization; `required: false` round-trips, suppresses only an absent target section and its section-hit denominator entry, while a present section still mints and validates; a non-boolean value fails load (#327) | Integration | P0 | FR-050-AC-41 | ✅ |
 | TC-1077 | A bound bare requirement id remains untracked and backs no criterion, while `untracked-id-has-minted-children` names its exact source locus and real minted `-AC-` children in Rust, Python and TypeScript. Direct parents recommend the exact applicable child; a nested unminted class forbids substituting a sibling obligation and directs declaration/correction instead. The exact-id control and an unrelated typo remain silent (#328) | Integration | P0 | FR-050-AC-42 | ✅ |

@@ -7,6 +7,11 @@ scope: "src/skeptic.rs; issue_412_oracle_selection.json; NFR-023; TC-1810..TC-18
 review_set: subset
 ---
 
+> **Superseded by SR-092 and SR-097.** SR-092 demonstrated that this review's
+> TC-1810 mutation claim did not reproduce and that its Rust 1.98.1 gate report
+> did not name the repository-selected 1.94.1 toolchain. This artifact is
+> retained as failed review history; SR-097 is the corrected Rust review.
+
 ## Summary
 
 The mandated `agent-skills/rust-review` checklist was applied after the
