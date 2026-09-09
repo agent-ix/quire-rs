@@ -7,6 +7,16 @@ description: "Chronological log of structural changes to this bundle."
 
 ## History
 
+* **2026-09-08** — **CR-159**: NFR-022 independently selects exact Rust
+  1.98.1 as both the supported minimum and qualification compiler for #417.
+  It distinguishes the manifest MSRV, toolchain selection, and Clippy lint
+  assumptions; explicitly accepts the downstream break below 1.98.1; keeps
+  nightly-only lanes independent; and permits an older hold only for a
+  reproduced required-tool incompatibility with an owner and 30-day limit.
+  Rustfmt drift, repairable lints, inherited pins, speculation, and downstream
+  preference for an older compiler are not incompatibilities. This policy is
+  independent of the YAML engine decision in #414.
+
 * **2026-09-06** — #407 CR note extends FR-051-AC-3 to bounded direct
   unittest.TestCase imports and aliases. TC-1803 banks the real classifier
   under-reading before code, with native execution and Python healthy controls.

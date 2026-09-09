@@ -158,6 +158,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | FR-074 Plain-language profiles | AC-1..12; CON-1..5 | TC-970..TC-981 (reader blocks, three advisory checks, typed profiles, batch accountability, configuration identity and non-interference) | ✅ Implemented |
 | NFR-020 Filament extraction boundary pure/deterministic | static inspection + parity tests | TC-704, TC-767, TC-690 | ✅ Complete |
 | NFR-021 Semantic extraction offline/non-parsing/additive | static audits + compile + byte-identity + parity | TC-1641, TC-1642, TC-1649, TC-1643, TC-1644 | ✅ Complete; WASM leg external |
+| NFR-022 Current stable Rust qualification | declaration audit + real stable gate matrix + governed inspection | TC-1832..TC-1835 | 🚧 Pending implementation |
 
 ---
 
@@ -845,6 +846,10 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-1651 | `Registry::load_module_set` over an exact set (each module declared once) emits no `DuplicateModuleName`/`DuplicateArchetype` even with a same-named second copy alongside; the same directory named twice loads once | Unit | P0 | FR-013-AC-15 | ✅ |
 | TC-1652 | Closed, not preferred: `{base, extra}` resolves the archetype `extra` declares and validates a document using it; `{base}` does not resolve it | Unit | P0 | FR-013-AC-16 | ✅ |
 | TC-1653 | `load_module_set` consults neither the search-path env vars nor `~/.ix/filament/modules/`: a module outside the declared set is not loaded, and an empty set yields an empty registry with no path diagnostics | Unit | P0 | FR-013-AC-17 | ✅ |
+| TC-1832 | Cargo MSRV, selected toolchain, Clippy assumptions, workflows, and stable build scripts each name exact Rust 1.98.1 for their documented role; no stable 1.94.1 or floating `stable` selection remains | Static | P0 | NFR-022-AC-1 | 🚧 pending implementation |
+| TC-1833 | Locked default, all-target/all-feature, Python, WASM, test, documentation, advisory, license, unsafe-audit, benchmark-build, and release gate classes run on Rust 1.98.1 without weakened flags, exclusions, or thresholds | Integration | P0 | NFR-022-AC-2 | 🚧 pending implementation |
+| TC-1834 | Inspection of a simulated newer-stable event requires a recorded compatibility result within seven days and admits a hold only with reproduced failure/control evidence, owner, upstream issue, 30-day expiry, and rerun trigger | Inspection | P0 | NFR-022-AC-3, NFR-022-AC-4 | 🚧 pending implementation |
+| TC-1835 | Inspection rejects formatting-only, repairable-lint-only, inherited-pin-only, speculative, and old-consumer-only compiler holds | Inspection | P0 | NFR-022-AC-5 | 🚧 pending implementation |
 | TC-1052 | The symbol table reports the QUALIFIED NAME the engine built, with its container — the field three ports of `symbols/python.rs` disagreed on, giving 386, 490 and 5,263 lost declarations over one tree. A defect in the scanner cannot be sized by a reimplementation of the scanner (#309) | Unit | P0 | FR-051-AC-23 | ✅ |
 | TC-1053 | Each record carries whether its KIND can bind a trace id and whether it can carry `implements`, and the two are complements for every symbol — the first thing to check when a row will not bind, previously only inferable from a coverage rollup two layers away (#309, #312, CR-061) | Unit | P0 | FR-051-AC-23 | ✅ |
 | TC-1054 | With no module the report says binding was NOT ASKED rather than reporting zero: an unbound run and a repository nobody tagged produce the same empty `trace_ids`, and the per-language census keeps `binding_kinds` separate from `bound` so a rate is never drawn over the wrong denominator (#309) | Unit | P0 | FR-051-AC-23 | ✅ |
@@ -1799,6 +1804,11 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | NFR-009-AC-2 | TC-331 |
 | NFR-009-AC-3 | TC-332 |
 | NFR-009-AC-4 | (process AC; covered by PR-review policy, not a TC) |
+| NFR-022-AC-1 | TC-1832 |
+| NFR-022-AC-2 | TC-1833 |
+| NFR-022-AC-3 | TC-1834 |
+| NFR-022-AC-4 | TC-1834 |
+| NFR-022-AC-5 | TC-1835 |
 | NFR-010-AC-1 | (process AC; covered by CHANGELOG.md presence in TC-341) |
 | NFR-010-AC-2 | TC-340 |
 | NFR-010-AC-3 | TC-341 |
