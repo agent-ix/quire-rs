@@ -64,7 +64,7 @@ outside the exact pin and reopens ADR-0012.
 | NFR-009-AC-5 | `Cargo.lock` and `cargo tree` contain `yaml_serde 0.10.7` and `libyaml-rs 0.3.0`, and contain neither `serde_yaml 0.9.34+deprecated` nor its former `unsafe-libyaml` backend; this verifies the selected maintenance line and package identity, not a reduction in transitive unsafe code. | static-quality |
 | NFR-009-AC-6 | The old and selected YAML engines produce identical success/failure outcomes and identical JSON-compatible values for every governed frontmatter input and every focused semantic-risk fixture. | integration-testing |
 | NFR-009-AC-7 | The unchanged TypeScript/Python frontmatter parity suite passes at the migration revision with no changed expected value or outcome. | integration-testing |
-| NFR-009-AC-8 | The default crate and all targets changed by the migration compile with exact Rust 1.98.1 from the locked dependency graph. | compile-time-check |
+| NFR-009-AC-8 | Although `yaml_serde 0.10.7` requires only Rust 1.82, the migration deliberately waits for #417's independently governed exact Rust 1.98.1 repository baseline and then compiles the default crate and all affected targets with 1.98.1 from the locked dependency graph; no interim 1.82 baseline is introduced or qualified. | compile-time-check |
 | NFR-009-AC-9 | The license and advisory gates accept the selected locked graph with zero unwaived finding, using an advisory index refreshed at the migration revision whose revision or timestamp is retained. | sca-sbom |
 | NFR-009-AC-10 | The existing first-party unsafe-surface gate and static dependency gates pass unchanged. They make no claim about transitive backend unsafe reduction; AC-5 records that backend only as package-resolution and maintenance-line evidence. | static-quality |
 | NFR-009-AC-11 | The Rust module-manifest, clause-set, extraction-DSL, traceability-model, and lint-rule suites each pass unchanged at the migration revision. | integration-testing |
@@ -107,7 +107,10 @@ outside the exact pin and reopens ADR-0012.
   accepted as proof that a path-qualified marker binds.
 - The locked Rust 1.98.1 build, full CI, cargo-deny, cargo-audit, first-party
   unsafe-surface, and static-audit gates provide the remaining compile and
-  dependency evidence. Issue #417 independently governs the compiler baseline.
+  dependency evidence. Issue #417 independently governs the compiler baseline;
+  AC-8 deliberately sequences this migration after that baseline to avoid an
+  immediately retired interim 1.82 qualification, rather than claiming that
+  the selected YAML engine itself requires Rust 1.98.1.
 
 ## Dependencies
 

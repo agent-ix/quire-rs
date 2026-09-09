@@ -122,7 +122,13 @@ Both packages descend from a C2Rust translation of libyaml; replacing the
 package identity establishes active maintenance ownership, not a reduction in
 transitive unsafe code. Issue #417 independently governs the repository's
 exact Rust 1.98.1 support and qualification policy. This ADR consumes 1.98.1 as
-the implementation-run compiler and does not own the compiler lifecycle.
+the implementation-run compiler and does not own the compiler lifecycle. The
+implementation order is nevertheless deliberate: `yaml_serde 0.10.7` itself
+requires only Rust 1.82, but this migration waits for #417 to land the separately
+accepted 1.98.1 repository baseline rather than introducing and qualifying an
+interim 1.82 baseline that the ecosystem would immediately retire. NFR-022 owns
+the choice and compatibility consequences of 1.98.1; this ADR owns only the
+decision to begin the YAML implementation after that baseline is available.
 
 The import alias is repository-wide. Production compatibility evidence covers
 frontmatter, module manifests, clause sets, extraction DSL data, traceability
@@ -152,9 +158,11 @@ Before the dependency change may leave draft:
 2. Run the existing Rust/TypeScript/Python frontmatter parity suite unchanged.
 3. Run typed module-manifest, clause-set, extraction-DSL, traceability-model,
    and lint-rule tests unchanged.
-4. Compile the default crate and all affected targets with Rust 1.98.1 and run
-   the repository's full CI, license, advisory, first-party unsafe-surface, and
-   static-audit gates. Refresh the
+4. After #417 lands the independently governed compiler baseline, compile the
+   default crate and all affected targets with Rust 1.98.1 and run the
+   repository's full CI, license, advisory, first-party unsafe-surface, and
+   static-audit gates. This deliberate sequencing is not a claim that the YAML
+   engine requires more than Rust 1.82. Refresh the
    advisory database at the implementation revision and retain its observed
    index revision or timestamp with the result.
 5. Prove from `Cargo.lock`/`cargo tree` that `serde_yaml 0.9.34+deprecated` and
