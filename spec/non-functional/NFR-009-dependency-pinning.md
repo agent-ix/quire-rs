@@ -15,107 +15,76 @@ relationships:
 
 ## Statement
 
-`Cargo.toml` SHALL pin dependencies to versions whose behavior the spec relies on. Pinning policy:
+`Cargo.toml` SHALL pin dependencies to versions whose behavior the
+specification relies on:
 
-1. **Caret versions** (`^x.y.z` — Cargo default) for non-load-bearing crates (`serde`, `serde_json`, `thiserror`, etc.).
-2. **Tilde versions** (`~x.y`) for crates whose minor releases historically introduce API or behavior change (`minijinja`, `jsonschema`).
-3. **Equals versions** (`=x.y.z`) only when a specific patch is required for a known bug fix or perf characteristic.
+1. Caret versions are acceptable for non-load-bearing crates.
+2. Tilde versions are used where minor releases may alter relied-on behavior.
+3. Exact versions are used where a particular release is required by a known
+   defect, performance result, or accepted compatibility decision.
 
 ### Load-bearing dependencies
 
 | Crate | Role | Pinning | Why |
 |---|---|---|---|
-| `minijinja` | template rendering ([FR-004](../functional/FR-004-minijinja-strict-environment.md)) | `~2.x` (or current major) | byte-parity with Python Jinja2 depends on whitespace/filter behavior; minor releases could shift |
-| `jsonschema` (or alternative) | JSON Schema validation ([FR-002](../functional/FR-002-schema-validation-pipeline.md)) | TBD at Task 005 bench | load-bearing for [NFR-001](./NFR-001-render-latency.md); choice is an ADR (see notes) |
-| `serde_yaml` import backed by package `yaml_serde` | frontmatter, manifest, clause-set, extraction-DSL, traceability-model, and lint-rule YAML ([FR-006](../functional/FR-006-frontmatter-with-fallback.md), [FR-013](../functional/FR-013-archetype-loader.md), [ADR-0012](../assets/adr/0012-yaml-engine-maintenance-and-parity.md)) | `=0.10.7` | exact current package/version on Rust 1.98.1; any replacement or version change reopens ADR-0012 and its differential gate |
-| `serde_json` | core data type | `^1` | stable |
-| `indexmap` | iteration-order-preserved maps ([NFR-006](./NFR-006-determinism.md)) | `^2` | stable |
-
-### ADR for validator choice ([NFR-001](./NFR-001-render-latency.md) load-bearing)
-
-Task 005 (archetype loader) SHALL include a bench-driven ADR comparing candidate validator crates:
-
-- `jsonschema` (most popular; mature)
-- `boon` (newer; claimed faster)
-- Custom subset (last resort if neither hits [NFR-001](./NFR-001-render-latency.md))
-
-The choice is recorded in `spec/assets/adr/0001-validator-crate.md` with bench numbers.
+| `minijinja` | template rendering ([FR-004](../functional/FR-004-minijinja-strict-environment.md)) | `~2.x` (or current major) | byte parity depends on whitespace and filter behavior |
+| `jsonschema` | JSON Schema validation ([FR-002](../functional/FR-002-schema-validation-pipeline.md)) | `~0.18` | selected by ADR-0001 as a behavior-bearing validation boundary |
+| `serde_yaml` import backed by `yaml_serde` | frontmatter, manifests, clause sets, extraction DSL, traceability, and lint YAML | `=0.10.7` | selected by [ADR-0012](../assets/adr/0012-yaml-engine-maintenance-and-parity.md) after a zero-difference compatibility run |
+| `serde_json` | core data type | `^1` | stable public data model |
+| `indexmap` | observable deterministic iteration | `^2` | stable public ordering behavior |
 
 ### Version-update policy
 
-Dependency bumps within the pinned range are allowed without a CR. Bumps that
-cross a load-bearing dependency's pinned range require a CR and a repeat of the
-behavioral, differential, compatibility, MSRV, license, and advisory gates that
-protect that dependency. For the YAML engine, any package or version change is
-outside the exact pin and reopens ADR-0012.
+A load-bearing dependency change outside its accepted range requires a reviewed
+decision and reruns of the behavior, compatibility, supported-Rust, license,
+and advisory gates affected by that dependency. Any YAML package or version
+change reopens ADR-0012 and requires a fresh differential run.
 
 ## Rationale
 
-[NFR-001](./NFR-001-render-latency.md) byte-parity and perf targets implicitly depend on specific crate behavior. Without pins, an unattended `cargo update` could silently break the parity suite or regress perf. Pinning makes the dependency a first-class spec artifact.
+Dependency releases can change behavior that Quire treats as part of its
+contract. Governed pins make those choices visible and prevent unattended
+updates from silently changing parsing, validation, or rendering semantics.
 
 ## Acceptance Criteria
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
-| NFR-009-AC-1 | `Cargo.toml` conforms to every load-bearing pin in the policy table, including `serde_yaml = { package = "yaml_serde", version = "=0.10.7" }`. | static-quality |
-| NFR-009-AC-2 | `spec/assets/adr/0001-validator-crate.md` exists and records the validator choice and benchmark results. | inspection |
-| NFR-009-AC-3 | The dependency audit rejects wildcards, unbounded ranges, a wrong YAML package, a non-exact YAML version, and every load-bearing pin that is weaker than its policy-table entry. | static-quality |
-| NFR-009-AC-4 | A load-bearing dependency bump across its pin records a passing rerun of every affected behavioral, differential, compatibility, MSRV, license, and advisory gate before merge. | integration-testing |
-| NFR-009-AC-5 | `Cargo.lock` and `cargo tree` contain `yaml_serde 0.10.7` and `libyaml-rs 0.3.0`, and contain neither `serde_yaml 0.9.34+deprecated` nor its former `unsafe-libyaml` backend; this verifies the selected maintenance line and package identity, not a reduction in transitive unsafe code. | static-quality |
-| NFR-009-AC-6 | The old and selected YAML engines produce identical success/failure outcomes and identical JSON-compatible values for every governed frontmatter input and every focused semantic-risk fixture. | integration-testing |
-| NFR-009-AC-7 | The unchanged TypeScript/Python frontmatter parity suite passes at the migration revision with no changed expected value or outcome. | integration-testing |
-| NFR-009-AC-8 | Although `yaml_serde 0.10.7` requires only Rust 1.82, the migration deliberately waits for #417's independently governed exact Rust 1.98.1 repository baseline and then compiles the default crate and all affected targets with 1.98.1 from the locked dependency graph; no interim 1.82 baseline is introduced or qualified. | compile-time-check |
-| NFR-009-AC-9 | The license and advisory gates accept the selected locked graph with zero unwaived finding, using an advisory index refreshed at the migration revision whose revision or timestamp is retained. | sca-sbom |
-| NFR-009-AC-10 | The existing first-party unsafe-surface gate and static dependency gates pass unchanged. They make no claim about transitive backend unsafe reduction; AC-5 records that backend only as package-resolution and maintenance-line evidence. | static-quality |
-| NFR-009-AC-11 | The Rust module-manifest, clause-set, extraction-DSL, traceability-model, and lint-rule suites each pass unchanged at the migration revision. | integration-testing |
-| NFR-009-AC-12 | The retained differential result binds exact source, corpus, module, comparator, producer, manifest, input-digest, population, exclusion, and raw-result identities so another reviewer can reproduce the zero-difference claim. | inspection |
-| NFR-009-AC-13 | The existing NFR-002 5 MB parse, typical-artifact validation, and same-runner regression gates pass unchanged at the migration revision. | performance-benchmarking |
-| NFR-009-AC-14 | A repository-wide YAML call-site census classifies every `serde_yaml` import and call as a production consumer or test/corpus loader, and the production set equals the classes exercised by AC-6, AC-7, and AC-11. | static-quality |
-| NFR-009-AC-15 | Every Rust test added to discharge this migration imports `ix_trace_rs::trace` and carries a bare `#[trace("TC-...", "NFR-009-AC-...")]` marker that Quire reconciles to this matrix; path-qualified trace attributes are rejected by the static gate. | static-quality |
+| NFR-009-AC-1 | `Cargo.toml` conforms to every load-bearing pin in the policy table, including the exact `serde_yaml` alias to `yaml_serde 0.10.7`. | static-quality |
+| NFR-009-AC-2 | ADR-0001 records the validator choice and ADR-0012 records the YAML engine choice and compatibility boundary. | inspection |
+| NFR-009-AC-3 | The dependency audit rejects wildcards, a wrong YAML package, a non-exact YAML version, and reintroduction of the deprecated YAML package or backend. | static-quality |
+| NFR-009-AC-4 | A load-bearing dependency change outside its pin records passing results for every affected qualification gate before merge. | integration-testing |
+| NFR-009-AC-5 | The locked graph contains `yaml_serde 0.10.7` and `libyaml-rs 0.3.0` and contains neither `serde_yaml 0.9.34+deprecated` nor `unsafe-libyaml`. | static-quality |
+| NFR-009-AC-6 | Before the YAML engine change is accepted, the old and selected engines produce identical outcomes and JSON-compatible values over the governed frontmatter population and focused semantic-risk cases; an injected difference proves the comparison fails closed. | integration-testing |
+| NFR-009-AC-7 | Existing frontmatter parity and typed YAML consumer suites pass unchanged with the selected engine. | integration-testing |
+| NFR-009-AC-8 | The selected locked graph passes on the repository's supported Rust version and passes license and advisory gates without a new waiver. | compile-time-check |
+| NFR-009-AC-9 | Existing NFR-002 parse and validation performance gates remain within their unchanged thresholds. | performance-benchmarking |
 
 ## Measurement and Evaluation
 
 | Metric | Target | Threshold | Method |
 |--------|--------|-----------|--------|
-| Load-bearing dependencies conforming to their policy-table pins | all | all | static-quality (`check_dep_pins.sh`) |
-| Load-bearing deps with unbounded version (`*` / `>=` no upper bound) | 0 | 0 | static-quality |
-| `spec/assets/adr/0001-validator-crate.md` exists with bench numbers | Pass | Pass | Inspection |
-| Affected behavior/compatibility gates rerun on cross-pin bump | Pass | Pass | integration-testing |
-| YAML differential outcome or value differences | 0 | 0 | integration-testing |
-| Production YAML consumer classes omitted from the migration suite | 0 | 0 | static-quality |
-| Unwaived license, advisory, first-party unsafe-surface, or dependency-policy findings | 0 | 0 | static-quality |
-| NFR-002 parse/validation regression at the migration revision | none | existing NFR-002 thresholds | performance-benchmarking |
+| Load-bearing dependencies conforming to policy | all | all | `scripts/audits/check_dep_pins.sh` |
+| Deprecated YAML packages in the root lock | 0 | 0 | dependency audit |
+| YAML differential outcome or value differences | 0 | 0 | one-time differential recorded in ADR-0012/SR-108 |
+| Existing parity and typed-consumer suites | pass | unchanged expectations | integration tests |
+| Parse and validation regression | none | existing NFR-002 limits | performance benchmarks |
 
 ## Verification
 
-- `scripts/audits/check_dep_pins.sh` parses `Cargo.toml` and asserts the complete
-  load-bearing pinning policy, including ADR-0012's exact package and version.
-- A versioned two-engine differential records exact input revisions, manifests,
-  population counts, focused cases, producer versions, raw output, and every
-  difference.
-- `tests/parser_parity.rs` provides the TypeScript/Python frontmatter reference
-  comparison. Separately retained Rust-suite results cover module manifests,
-  clause sets, extraction DSL, traceability models, and lint rules without
-  treating test-loader adaptation as production evidence.
-- A static import/call-site census proves the production classes are complete at
-  the implementation revision; the census and retained input manifest are
-  compared so a loader cannot disappear from the population silently.
-- The existing NFR-002 Criterion benchmarks run on the same runner and baseline
-  policy used before the dependency change.
-- Rust migration tests use the imported bare `ix_trace_rs` marker form and the
-  existing Quire coverage/static trace-form gates; compilation alone is not
-  accepted as proof that a path-qualified marker binds.
-- The locked Rust 1.98.1 build, full CI, cargo-deny, cargo-audit, first-party
-  unsafe-surface, and static-audit gates provide the remaining compile and
-  dependency evidence. Issue #417 independently governs the compiler baseline;
-  AC-8 deliberately sequences this migration after that baseline to avoid an
-  immediately retired interim 1.82 qualification, rather than claiming that
-  the selected YAML engine itself requires Rust 1.98.1.
+- `scripts/audits/check_dep_pins.sh` enforces the manifest pins and selected or
+  forbidden locked package identities.
+- ADR-0012 and SR-108 retain the aggregate, revision-bound one-time YAML
+  differential result. The comparator itself is not permanent product tooling.
+- Existing parser-parity and typed-consumer suites exercise the behavior-bearing
+  YAML paths without maintaining a brittle call-site registry.
+- NFR-022 independently governs the supported Rust version; standard local
+  build, test, license, advisory, and performance gates qualify the dependency
+  change.
 
 ## Dependencies
 
-- **Upstream**: [ADR-0012](../assets/adr/0012-yaml-engine-maintenance-and-parity.md)
-  selects the exact YAML package and defines its compatibility boundary.
-- **Downstream**: dependency changes and release qualification consume this
-  policy; no package migration may begin from a Proposed ADR or an unvalidated
-  review.
+- **Upstream**: ADR-0001 selects the validator; ADR-0012 selects the YAML engine;
+  NFR-022 selects the supported Rust version.
+- **Downstream**: dependency updates and release qualification consume this
+  policy.

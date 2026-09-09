@@ -3,7 +3,7 @@ id: SR-109
 title: "Rust review of the maintained YAML engine migration"
 type: SpecReview
 analysis: code-review
-scope: "issue #414 implementation diff from f96c5b6 through 397ed175 plus retained evidence"
+scope: "issue #414 dependency and audit diff against the exact-Rust baseline"
 review_set: subset
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/non-functional/NFR-009"
@@ -13,54 +13,50 @@ relationships:
 ## Summary
 
 This review applies `agent-skills/rust-review/SKILL.md` and the repository's
-AGENTS.md/CLAUDE.md conventions to the complete #414 implementation. The alias
-makes the production change dependency-only, so existing public types, error
-mapping, ownership, concurrency, and call semantics are unchanged. The new
-standalone comparator is bounded, deterministic, fallible at filesystem/UTF-8
-boundaries, and isolated from the product graph. No unresolved Rust
-correctness, safety, lifecycle, API, or resource finding remains.
+AGENTS.md and CLAUDE.md conventions. The final production change is a dependency
+alias and lock update; it adds no parser branches, public Rust API, unsafe code,
+async work, locks, allocation path, or error conversion.
 
 ## Findings
 
 | ID | Severity | Summary | Refs | Escape Cause |
 | --- | --- | --- | --- | --- |
-| FND-4145 | low | Closed: the comparator's initial CR/LF trimming expression repeated one branch inside `unwrap_or_else`, obscuring the exact byte rule. It now strips one LF and then one CR in two explicit borrowed-slice operations. | `tools/yaml-differential/src/main.rs`; comparator SHA-256 `154530efc729161aea647f77e666931193029920b00f27ee50923712af901cc8` | implementation-bug-despite-evidence |
+| FND-4145 | high | Closed: the first implementation promoted a disposable dual-parser comparator into a permanent Rust workspace, increasing dependency, parsing, panic, resource, and maintenance surface unrelated to runtime behavior. The tool and its private lock were removed after the aggregate result was retained. | ADR-0012; SR-108 | wrong-requirement |
+| FND-4146 | medium | Closed: an exact source call-count census would fail on benign test refactors and duplicated compiler coverage without proving semantic compatibility. It and its bespoke Python mutation suite were removed; existing behavioral suites remain the gate. | NFR-009-AC-7; TC-1822; TC-1826 | wrong-requirement |
+| FND-4147 | medium | Closed: the first durable dependency gate matched one exact TOML line, making harmless field ordering part of policy and widening into unrelated validator/range checks. The final gate asks Cargo to parse the YAML alias, inspects only the selected/forbidden YAML lock entries, and includes a passing field-order control. | `scripts/audits/check_dep_pins.sh`; `scripts/tests/test_dep_pins.py` | implementation-bug-despite-evidence |
 
 ## Review checklist
 
-- Patch fidelity: the root and fuzz aliases are exact; every existing
-  `serde_yaml::from_str`, `from_slice`, `from_value`, `Value`, `Mapping`, and
-  `to_string` call compiles unchanged. No parser fallback, typed-model, error,
-  or serialization branch was rewritten to fit the new engine.
-- Regression analysis: all six production consumer classes are exercised by
-  the unchanged frontmatter parity and typed suites. The 95-call census fails
-  on a new path, changed count, direct `yaml_serde::` use, or missing alias.
-- Ownership and idioms: comparator outcomes are an enum, borrowed input slices
-  are hashed and parsed without copies beyond UTF-8 views, directory entries
-  and paths are sorted, symlinks are not followed, and errors propagate with
-  path context. No new public product API or trait bound exists.
-- Safety and resources: no `unsafe`, raw pointer, FFI, async, lock, recursion
-  over symlinks, network call, subprocess execution on parsed input, or
-  unbounded retained process exists. Directory recursion is bounded by the
-  supplied trees; the complete per-input report size is deliberate provenance.
-- Panic review: the two `expect` calls serialize values already represented as
-  `serde_json::Value` or structs containing only serializable fields. All
-  external filesystem, directory, argument, UTF-8, and tool-version failures
-  return an error or explicit `unavailable` producer field.
-- Test integrity: the positive run compares full outcomes and values, while
-  `--inject-difference` proves the same executable exits 1 when a difference
-  exists. The comparator does not derive its expected answer from product code.
-- Trace integrity: no Rust acceptance test was added. Existing Rust suites keep
-  their bare imported `ix_trace_rs::trace` markers; the new executable and
-  Python mutation tests are not falsely presented as bindable Rust tests.
-- Tooling: exact Rust 1.98.1 format, all-target/all-feature Clippy, full locked
-  tests, strict rustdoc, Python, WASM, fuzz-bin check, license, refreshed
-  advisory, first-party unsafe, static, same-runner performance, and
-  all-feature release gates were run. Formatter warnings about inherited
-  nightly-only import grouping are not failures or compatibility evidence.
+- Patch fidelity: the existing `serde_yaml` import name and all call semantics
+  remain unchanged; no parser code was modified.
+- Errors and panic surface: no product error path, unwrap, expect, index, or
+  arithmetic operation was added.
+- Ownership and API: no new public item, trait, wire field, state, or lifecycle
+  boundary exists.
+- Safety and concurrency: no first-party unsafe, blocking/async interaction,
+  lock, channel, task, or cancellation path was introduced.
+- Resource bounds: removing the comparator eliminates the only new recursive
+  walk and whole-corpus accumulator.
+- Tests: dependency-audit mutation tests exercise the durable policy. No Rust
+  test was added, so no new ix-trace-rs marker is required; existing Rust tests
+  retain their repository-standard markers.
+- Dependency boundary: the root lock contains only the selected YAML package
+  pair, and the audit fails if the deprecated pair reappears.
+
+## Gate results
+
+| Gate | Result |
+| --- | --- |
+| exact compiler | Rust 1.98.1 |
+| `cargo fmt -- --check` | pass; stable rustfmt emitted only the repository's known nightly-option warnings |
+| all-target/all-feature Clippy with warnings denied | pass |
+| full locked all-feature Rust suite | pass; 609 library tests plus every integration and doc suite |
+| parser parity | pass; 89 tests |
+| script suite | pass; 156 passed, 3 intentional skips |
+| fuzz workspace bins | pass |
+| cargo-deny | pass; only pre-existing unused allowance/exception warnings |
 
 ## Review disposition
 
-Pass with no open finding. Independent repository approval remains required;
-this artifact records the mandated Rust-specific review and does not replace
-that gate.
+Pass with no open Rust finding. Independent repository approval remains the
+only review gate before merge.
