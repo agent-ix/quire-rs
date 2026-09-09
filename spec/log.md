@@ -7,6 +7,8 @@ description: "Chronological log of structural changes to this bundle."
 
 ## History
 
+* **2026-09-09** — **CR-161**: [FR-051](./functional/FR-051-source-symbol-extraction.md) gains AC-25..28 for `agent-ix/quire-rs#403`. The TypeScript single-pass lexer now has a specified regex-literal boundary: regex contents, character classes, escapes, comment-shaped bytes and flags cannot move brace depth, while division and `/=` remain code. A refused brace-balance check must name the brace construct and exact line instead of returning only a count. The controlled corpus banks the real unmatched-escaped-brace mechanism and a one-token TypeScript control before implementation; the real-file gate is bound to `filament-core-data@3b75e01c652ba00bb07c352ff5467419401e792b:test/compiler.test.ts` and its SHA-256 `54c96129e59dab60b37f8ee3107ecd703aa8cf0f864279ff8f49b5be6402074a`. Python and Rust are explicitly out of scope because their regex APIs consume strings rather than slash-delimited language tokens. Matrix: TC-1836..TC-1839. This also repairs the pre-existing AC→TC audit omission for FR-051-AC-23/24 and includes TC-1042 under AC-21; those tests already existed and were implemented.
+
 * **2026-09-06** — #407 CR note extends FR-051-AC-3 to bounded direct
   unittest.TestCase imports and aliases. TC-1803 banks the real classifier
   under-reading before code, with native execution and Python healthy controls.

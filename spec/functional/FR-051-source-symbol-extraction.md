@@ -35,6 +35,20 @@ attribute. Record ids SHALL be stable SHA-256 digests of the identity, per the
 
 ## Language adapters
 
+> **CR-161 note (agent-ix/quire-rs#403, 2026-09-09):** The TypeScript
+> adapter's single lexer pass did not model JavaScript regex literals. It
+> therefore counted braces inside `/.../` as code. One escaped `\{` in
+> `filament-core-data@3b75e01c652ba00bb07c352ff5467419401e792b`
+> `test/compiler.test.ts:1291` left the synthetic block depth
+> open and caused the adapter to reject the entire otherwise valid file,
+> silently removing its test symbols and trace bindings. The controlled corpus
+> banks that exact failure mechanism and a one-token TypeScript control before
+> implementation. [FR-051-AC-25](#acceptance-criteria) through
+> [FR-051-AC-28](#acceptance-criteria) define the bounded regex-token surface,
+> observable refusal diagnostic, and real-corpus/mutation gates. Python and
+> Rust regex APIs take string literals and do not share this source-token
+> class.
+
 > **CR note (agent-ix/quire-rs#407, 2026-09-06):** Python `test_` methods
 > on a class with a direct `unittest.TestCase` base are evidence regardless
 > of the class name. The bounded static forms are a single-line top-level class header
@@ -154,7 +168,33 @@ byte-identical JSON ordering and stable record ids.
 | FR-051-AC-22 | A trace id a declared **verifies** form attaches to a symbol whose kind cannot bind it is reported, naming the id, the symbol, that symbol's kind, the form that matched, and the channel a symbol of that kind can carry. The tag still binds nothing — the kinds stay as CR-061 set them and no count in the payload moves, so the census `candidates` denominator is unchanged. Two rules bound the report and both are load-bearing: an id that **bound anywhere else** is not reported, because a container's span runs to end of file and would otherwise re-report every id in it; and where several symbols span one tag the **innermost** is named, because the fix a reader needs is the symbol the tag sits on and not the module that contains it. The forms consulted are the same ones the binder consults, from the same declaration, so a tag the binder would read and a tag this reports cannot diverge. Only the **legacy textual forms** are reported: a canonical marker is syntax the language attaches to the declaration that follows it, so one that bound nothing either decorates a symbol that bound — already excluded — or decorates no declaration at all, which means the text is data. Quoted legacy prose remains visible to that shared matcher and is calibrated as an advisory rather than masked in only one caller. | Test (TC-1044, TC-1045, TC-1046, TC-1047, TC-1081) |
 | FR-051-AC-23 | The extracted symbol table is reported on its own surface, as the engine built it: per symbol its path, qualified name, kind, language, declaration line, annotation-block line, end line, container, identity digest, whether that **kind** can bind a trace id, whether it can carry an `implements` marker, and — when a module is supplied — the ids it bound. A scanner defect must be sizeable **without reimplementing the scanner**: three ports of `symbols/python.rs` gave 386, 490 and 5,263 lost declarations over one tree, disagreeing precisely where the original is wrong. Binding is reported as **not asked** rather than as zero when no module is supplied, because an unbound run and a repository nobody tagged produce the same empty list. Per-language totals carry both denominators — symbols examined and symbols of a **binding kind** — since a rate over the wrong one reads a tree of containers as untagged. | Test (TC-1052, TC-1053, TC-1054) |
 | FR-051-AC-24 | String-literal contents are masked before a **legacy** textual form is matched, in **every** language rather than in Rust alone — a trace id a file carries as data is not a tag, and binding it invents coverage nobody authored. The mask preserves each language's declared **tag channel**: comments everywhere, and additionally a Python **docstring** and a TypeScript test **registration title**, because `python-docstring-id` and `typescript-test-name-id` are declared forms that read an id out of a string literal by design. Rust needs no such exemption — its `rust-test-name-id` reads an identifier — which is why a blanket mask is correct there and wrong in the other two. Canonical markers are never masked against: they put ids inside string literals by design. | Test (TC-1055, TC-1056, TC-1057) |
+| FR-051-AC-25 | The TypeScript adapter's single lexer pass treats the interior of a slash-delimited regex literal as literal content when deriving comment state, template state, code text, and brace depth. Escaped opening and closing braces, paired braces, braces in a character class (including `[^}]`), escaped `/`, comment-shaped text, flags, and regex-shaped text inside a template literal each leave code depth unchanged. The bounded classifier still treats `/` and `/=` following an expression-ending token as division operators, while a slash following an expression-start delimiter, assignment/operator, or the `return`/`throw`/`case` expression keywords may open a regex; real code braces following division remain visible. | Test (TC-1836) |
+| FR-051-AC-26 | When the TypeScript lexical pass encounters an unterminated regex literal, or its brace-balance check refuses a file, its `SymbolDiagnostic` names the unterminated regex or unmatched brace construct and the 1-based line where that construct opened or closed. The extractor emits no symbols for that file, retains the file path on the diagnostic, and continues extracting a readable sibling file. | Test (TC-1837) |
+| FR-051-AC-27 | The pending qa-corpus `typescript-regex-brace` case recovers exactly one TypeScript evidence symbol and binding while its one-token control remains unchanged. Reverting regex-literal masking makes the corpus case and delimiter test fail, and classifying division as regex makes the operator controls fail. | Test (TC-1838) |
+| FR-051-AC-28 | The unchanged `filament-core-data@3b75e01c652ba00bb07c352ff5467419401e792b` `test/compiler.test.ts` blob (SHA-256 `54c96129e59dab60b37f8ee3107ecd703aa8cf0f864279ff8f49b5be6402074a`) is readable to the TypeScript adapter and contains the test symbols around its brace-bearing regex literal. | Demonstration (TC-1839) |
 | FR-051-AC-21 | A TypeScript `describe(...)` / `suite(...)` registration mints one **container** symbol named by its registered title, spanning its block and its leading annotation block, and the registrations written inside it carry it as their container rather than the file's module, where the header line opens its block — a `describe(` whose `{` falls on a later line mints the container and parents nothing, the same window bound AC-18 states for its own scan. A suite does not *name* its members: a registration's qualified name is its own registered title whether or not a suite encloses it, while a class inside a suite still qualifies its own. A suite is a grouping and not evidence, so a trace tag on a suite header mints **no** `verifies` relation and the suite is **not** a `binding_census` candidate — and since `agent-ix/quire-rs#312` that tag is **reported** rather than dropped, under AC-22. The tag naming a test is the declarative form; a tag on the group would make coverage an inference about which test inside is meant, and the report says where the tag is instead of guessing. A registration whose name chain names a suite **anywhere along it** is a suite: `test.describe(...)` and `it.describe.only(...)` classify exactly as `describe(...)` does, because a harness spells its suite as a member of its test namespace and reading only the first identifier gave one construct two classifications (CR-121). `context` is not a suite name. | Test (TC-1039, TC-1040, TC-1042) |
+
+### FR-051-AC-25 Slash classification boundary
+
+The TypeScript adapter resolves `//` and `/*` comment openers before slash
+classification. For the bounded syntax-level adapter, an identifier, numeric
+literal, quoted/template/regex literal, `true`, `false`, `null`, `this`, `)`,
+`]`, `}`, `++`, or `--` is an expression-ending token; a following `/` or `/=`
+is an operator. At file or statement start, or after an opening delimiter,
+comma, semicolon, colon, assignment, arrow, unary/binary/ternary operator, or
+the `return`, `throw`, `case`, `delete`, `void`, `typeof`, `instanceof`, `in`,
+`of`, `yield`, `await`, `else`, or `do` keyword, `/` may open a regex literal.
+
+Once opened, the regex scanner closes only on an unescaped `/` outside a
+character class. An escaped character is one literal unit, and `[` through its
+unescaped `]` is a character class. ASCII identifier characters following the
+closer are flags. A line ending before the closer is an unterminated-regex
+refusal under [FR-051-AC-26](#acceptance-criteria).
+
+This is the adapter's declared lexical boundary, not a promise to parse the
+whole ECMAScript grammar. Ambiguous code that depends on automatic semicolon
+insertion after an expression-ending token is outside the syntax-level
+classifier; an explicit semicolon puts the following slash at statement start.
 
 > **CR-119 note (2026-08-24):** AC-21 is new. `agent-ix/quire-rs#273`, epic
 > `agent-ix/quire-rs#264`.
