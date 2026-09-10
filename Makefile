@@ -194,13 +194,13 @@ perf-gate:
 
 .PHONY: fuzz
 fuzz:
-	@if ! rustup toolchain list | grep -q nightly; then \
-		echo "fuzz: nightly toolchain not installed. Run: rustup toolchain install nightly && cargo install cargo-fuzz"; \
+	@if ! rustup toolchain list | grep -q nightly-2026-08-27; then \
+		echo "fuzz: nightly toolchain not installed. Run: rustup toolchain install nightly-2026-08-27 && cargo install cargo-fuzz"; \
 		exit 1; \
 	fi
 	@for t in $(FUZZ_TARGETS); do \
 		echo "==> fuzzing $$t for 60s"; \
-		$(CARGO) +nightly fuzz run $$t -- -max_total_time=60 || exit $$?; \
+		$(CARGO) +nightly-2026-08-27 fuzz run $$t -- -max_total_time=60 || exit $$?; \
 	done
 
 # =============================================================================
@@ -216,11 +216,11 @@ sanitize:
 	@echo "TSAN + ASAN on the rayon walk (NFR-018). Needs nightly + build-std."
 	@# Pin RUSTC to nightly: a stable rustc on PATH (e.g. homebrew) would
 	@# reject the -Zsanitizer probe otherwise.
-	NRUSTC=$$(rustup which --toolchain nightly rustc); TGT=$$(rustc -vV | sed -n 's/host: //p'); \
-	RUSTC=$$NRUSTC RUSTFLAGS="-Zsanitizer=thread" rustup run nightly cargo test --locked \
+	NRUSTC=$$(rustup which --toolchain nightly-2026-08-27 rustc); TGT=$$(rustc -vV | sed -n 's/host: //p'); \
+	RUSTC=$$NRUSTC RUSTFLAGS="-Zsanitizer=thread" rustup run nightly-2026-08-27 cargo test --locked \
 		-Z build-std --target $$TGT --test corpus_concurrency
-	NRUSTC=$$(rustup which --toolchain nightly rustc); TGT=$$(rustc -vV | sed -n 's/host: //p'); \
-	RUSTC=$$NRUSTC RUSTFLAGS="-Zsanitizer=address" rustup run nightly cargo test --locked \
+	NRUSTC=$$(rustup which --toolchain nightly-2026-08-27 rustc); TGT=$$(rustc -vV | sed -n 's/host: //p'); \
+	RUSTC=$$NRUSTC RUSTFLAGS="-Zsanitizer=address" rustup run nightly-2026-08-27 cargo test --locked \
 		-Z build-std --target $$TGT --test corpus_concurrency
 	@echo "NOTE: TSAN/ASAN of the GIL window + Python object handoff needs a"
 	@echo "sanitizer-instrumented CPython and runs on the scheduled CI lane."

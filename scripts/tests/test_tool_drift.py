@@ -25,8 +25,11 @@ def fixture(tmp_path: pathlib.Path) -> pathlib.Path:
     shutil.copy(ROOT / "quality/spec-validation-exclusions.json", root / "quality")
     (root / "examples").mkdir()
     shutil.copy(ROOT / "examples/spec_validate.rs", root / "examples")
-    (root / "rust-toolchain.toml").write_text('[toolchain]\nchannel = "1.94.1"\n')
-    (root / "Cargo.toml").write_text('[package]\nversion = "0.46.0"\n')
+    (root / "rust-toolchain.toml").write_text('[toolchain]\nchannel = "1.98.1"\n')
+    (root / "Cargo.toml").write_text(
+        '[package]\nversion = "0.46.0"\nrust-version = "1.98.1"\n'
+    )
+    (root / "clippy.toml").write_text('msrv = "1.98.1"\n')
     (root / "Makefile").write_text(
         "BENCH_MODULE ?= ../spec-artifacts-process/spec_artifacts_process\n"
         "VALIDATION_PROCESS_ROOT ?= ../spec-artifacts-process\n"
@@ -35,6 +38,7 @@ def fixture(tmp_path: pathlib.Path) -> pathlib.Path:
         '\t\t--process-root "$(VALIDATION_PROCESS_ROOT)" \\\n'
         '\t\t--iso-root "$(VALIDATION_ISO_ROOT)"\n'
         "test:\n\t$(CARGO) test --locked\n"
+        "pin:\n\tcargo +1.98.1 test --locked\n"
     )
     (root / "requirements/ci.txt").write_text(
         "helper==1.2.3 --hash=sha256:" + "a" * 64 + "\n"
@@ -42,6 +46,9 @@ def fixture(tmp_path: pathlib.Path) -> pathlib.Path:
     (root / ".github/workflows/ci.yml").write_text(
         "jobs:\n  test:\n    runs-on: ubuntu-24.04\n    steps:\n"
         "      - uses: actions/checkout@" + "b" * 40 + " # v4\n"
+        "      - uses: dtolnay/rust-toolchain@" + "c" * 40 + " # stable action\n"
+        "        with:\n"
+        "          toolchain: 1.98.1\n"
         "      - uses: actions/checkout@" + "b" * 40 + " # v4\n"
         "        with:\n"
         "          repository: agent-ix/spec-artifacts-process\n"
@@ -77,10 +84,58 @@ def test_valid_exact_stack_passes(tmp_path: pathlib.Path) -> None:
     assert run(fixture(tmp_path)).returncode == 0
 
 
+def test_yaml_workflow_extension_is_audited(tmp_path: pathlib.Path) -> None:
+    root = fixture(tmp_path)
+    (root / ".github/workflows/secondary.yaml").write_text(
+        "jobs:\n  test:\n    steps:\n      - run: cargo +stable test --locked\n"
+    )
+    result = run(root)
+    assert result.returncode != 0
+    assert "stable Rust build selection must be 1.98.1" in result.stderr
+
+
 @pytest.mark.parametrize(
     ("relative", "old", "new", "reason"),
     [
-        ("rust-toolchain.toml", "1.94.1", "stable", "exact x.y.z"),
+        ("rust-toolchain.toml", "1.98.1", "stable", "exact Rust 1.98.1"),
+        ("rust-toolchain.toml", "1.98.1", "1.94.1", "exact Rust 1.98.1"),
+        (
+            "Cargo.toml",
+            'rust-version = "1.98.1"',
+            'rust-version = "1.75"',
+            "minimum supported Rust 1.98.1",
+        ),
+        ("clippy.toml", 'msrv = "1.98.1"', 'msrv = "1.75"', "Clippy MSRV 1.98.1"),
+        (
+            ".github/workflows/ci.yml",
+            "toolchain: 1.98.1",
+            "toolchain: 1.94.1",
+            "stable Rust 1.98.1",
+        ),
+        (
+            "Makefile",
+            "+1.98.1",
+            "+stable",
+            "stable Rust build selection must be 1.98.1",
+        ),
+        (
+            "Makefile",
+            "+1.98.1",
+            "+1.94.1",
+            "stable Rust build selection must be 1.98.1",
+        ),
+        (
+            ".github/workflows/ci.yml",
+            "      - run: >-\n",
+            "      - run: cargo +stable test --locked\n      - run: >-\n",
+            "stable Rust build selection must be 1.98.1",
+        ),
+        (
+            "Makefile",
+            "pin:\n\tcargo +1.98.1 test --locked",
+            "pin:\n\trustup default nightly",
+            "nightly Rust build selection must use an exact date",
+        ),
         (".github/workflows/ci.yml", "b" * 40, "v4", "full SHA"),
         (".github/workflows/ci.yml", "ubuntu-24.04", "ubuntu-latest", "latest"),
         ("Makefile", "test --locked", "test", "--locked"),

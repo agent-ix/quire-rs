@@ -335,7 +335,7 @@ pub struct SymbolGraph {
     pub excluded_source_files: usize,
     /// Trace tags written on a symbol whose kind cannot bind them (#312).
     ///
-    /// The tag reaches NO channel: [`SymbolKind::binds_trace_ids`] refuses it,
+    /// The tag reaches NO channel: [`crate::symbols::SymbolKind::binds_trace_ids`] refuses it,
     /// `implements` wants the literal keyword the comment does not carry, and
     /// [`Self::binding_census`] never counts it because a non-binding symbol is
     /// missing from the denominator rather than counted as unbound. So the two

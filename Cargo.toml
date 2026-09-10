@@ -2,7 +2,7 @@
 name = "quire-rs"
 version = "0.46.0"
 edition = "2021"
-rust-version = "1.75"
+rust-version = "1.98.1"
 description = "High-performance Rust templating + parsing engine for the Filament/Quire ecosystem."
 authors = ["Peter Krenesky <kreneskyp@gmail.com>"]
 license = "AGPL-3.0-or-later"

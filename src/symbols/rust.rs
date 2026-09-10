@@ -169,11 +169,10 @@ fn split_targets_clause(args: &str) -> Option<String> {
     while let Some(at) = rest.find("targets") {
         let (before, from) = rest.split_at(at);
         let after = &from["targets".len()..];
-        // `.is_none_or` is stable since 1.82; the crate's MSRV is 1.75.
-        let boundary_before = match before.chars().next_back() {
-            Some(c) => !c.is_alphanumeric() && c != '_',
-            None => true,
-        };
+        let boundary_before = before
+            .chars()
+            .next_back()
+            .is_none_or(|c| !c.is_alphanumeric() && c != '_');
         if boundary_before && after.trim_start().starts_with('=') {
             return Some(after.trim_start()[1..].to_string());
         }

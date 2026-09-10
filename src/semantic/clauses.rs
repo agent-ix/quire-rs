@@ -127,7 +127,7 @@ fn level3_headings(lines: &[&str], from: usize, to: usize) -> Vec<ClauseSection>
     let inside_fence = |l: usize| {
         fences
             .iter()
-            .any(|f| l > f.open_line && f.close_line.map_or(true, |c| l < c))
+            .any(|f| l > f.open_line && f.close_line.is_none_or(|c| l < c))
     };
     let mut out: Vec<ClauseSection> = Vec::new();
     for i in from..to.min(lines.len() + 1) {

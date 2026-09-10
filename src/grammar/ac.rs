@@ -5,7 +5,7 @@
 //! requirement, `ac` checks its **binding criteria**: the `Criteria` column of
 //! the table each archetype's module contract declares, plus any
 //! `### <doc-id>-<kind>-N` supplement section whose body elaborates one row.
-//! Which section and which sub-id kind is per-archetype — see [`BINDINGS`].
+//! Which section and which sub-id kind is per-archetype — see `BINDINGS`.
 //!
 //! Two things differ from the EARS grammar by design:
 //!
@@ -171,7 +171,7 @@ pub(super) fn statements(archetype: &str, doc: &QuireDocument, line_offset: usiz
 
 /// Check `doc` against the `ac` grammar. The grammar binds to the `Criteria`
 /// column of the archetype's own binding-criteria section and to its
-/// `### <doc-id>-<kind>-N` supplement sections ([`BINDINGS`]); every other
+/// `### <doc-id>-<kind>-N` supplement sections (`BINDINGS`); every other
 /// archetype and section yields nothing (FR-047-AC-6).
 pub fn check(
     archetype: &str,

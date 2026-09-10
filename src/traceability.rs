@@ -65,7 +65,7 @@ impl SourceLanguage {
 /// section does not start matching others — the widening happens only where a
 /// module writes a `*`.
 ///
-/// **[RAN]** before choosing `*` over a literal list of names: of the 434
+/// **\[RAN\]** before choosing `*` over a literal list of names: of the 434
 /// test-case ids across `~/dev` that sit in a `Test ID` table the ecosystem's
 /// `test-case` target cannot reach, **306 are under a heading that contains
 /// `Test Case Summary`** and is qualified locally — `Test Case Summary (plugin
@@ -268,7 +268,7 @@ pub struct TraceabilityModel {
     /// Path globs under the **code** root holding no traceable source (CR-085):
     /// fixture trees whose whole purpose is to contain a tag nothing declares.
     ///
-    /// Deliberately a separate key from [`exclude`], which is about **documents**
+    /// Deliberately a separate key from `exclude`, which is about **documents**
     /// and has never been applied to a source file. The two vocabularies must
     /// not merge, and the reason is measurable: FR-004-AC-9 in
     /// `spec-artifacts-process` *requires* every trace target to exclude
@@ -796,7 +796,7 @@ impl StatusVocabulary {
                     && v[s.len()..]
                         .chars()
                         .next()
-                        .map_or(true, |c| !c.is_alphanumeric())
+                        .is_none_or(|c| !c.is_alphanumeric())
             })
         };
         for (set, class) in [

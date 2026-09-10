@@ -3,7 +3,7 @@
 //! A *grammar* evaluates the natural-language requirement statements inside
 //! requirement-bearing artifacts. This is a posture distinct from declarative
 //! lint ([`crate::lint`], FR-036) and structural validation
-//! ([`crate::validate_document`], FR-032): a grammar classifies and checks the
+//! ([`crate::validate_document()`], FR-032): a grammar classifies and checks the
 //! *prose of individual normative statements*, and its findings carry a
 //! [`GrammarSeverity`] that routes them into the validation result.
 //!

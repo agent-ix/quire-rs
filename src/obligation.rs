@@ -111,7 +111,7 @@ pub struct CriterionObligation {
 /// `ac` grammar binds no such row, so none can ever appear here.
 ///
 /// `path` is the document's location as the caller named it, and **is matched
-/// against the same `exclude:` globs [`derive`] applies** (FR-053-AC-14). Two
+/// against the same `exclude:` globs [`derive()`] applies** (FR-053-AC-14). Two
 /// surfaces of one contract must not disagree about whether a row states an
 /// obligation: a criterion in an excluded fixture that mints nothing in
 /// `coverage --json` and *does* carry an obligation in `properties --json` is

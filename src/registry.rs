@@ -153,7 +153,7 @@ impl Registry {
     /// Load an exact, **closed** set of module directories
     /// (agent-ix/quire-rs#405).
     ///
-    /// Each entry is a module directory in the [`load_module`] sense — it
+    /// Each entry is a module directory in the [`Self::load_module`] sense — it
     /// MUST contain `manifest.yaml` directly, and no sibling under its parent
     /// is inspected. Modules load in the order given.
     ///

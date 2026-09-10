@@ -38,7 +38,7 @@ jobs:
 
       - name: Run fuzz target (5 minutes)
         # -max_total_time=300 caps wall-clock at 5 minutes per NFR-011.
-        run: cargo +nightly fuzz run ${{ matrix.target }} -- -max_total_time=300
+        run: cargo +nightly-2026-08-27 fuzz run ${{ matrix.target }} -- -max_total_time=300
 
       - name: Upload corpus artifact
         if: always()

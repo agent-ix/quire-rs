@@ -275,7 +275,7 @@ pub fn lines_outside_fences(lines: &[&str], from: usize, to: usize) -> Vec<usize
         .filter(|&l| {
             !fences
                 .iter()
-                .any(|f| l >= f.open_line && f.close_line.map_or(true, |c| l <= c))
+                .any(|f| l >= f.open_line && f.close_line.is_none_or(|c| l <= c))
         })
         .collect()
 }
