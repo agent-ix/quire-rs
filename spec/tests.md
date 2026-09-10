@@ -267,9 +267,9 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-204 | CI workflow includes render_parity job (not just test job) ((RETIRED); (RETIRED)) | Static | P0 | US-005-AC-2, US-005-AC-3, StR-002-AC-3 | 🚧 |
 | TC-205 | A patch making merged value invalid (title="") returns SchemaViolation, not a render error | Unit | P0 | US-004-AC-2 | 🚧 |
 | TC-206 | Bench: bench_patch_render_fr median < 1ms for typical FR | Benchmark | P1 | US-004-AC-3 | 🚧 |
-| TC-330 | Cargo.toml uses tilde/equals pins for load-bearing deps | Static | P0 | NFR-009-AC-1 | 🚧 |
-| TC-331 | spec/assets/adr/0001-validator-crate.md exists with chosen crate + bench numbers | Static | P0 | NFR-009-AC-2 | 🚧 |
-| TC-332 | Static: no load-bearing dep has unbounded version | Static | P0 | NFR-009-AC-3 | 🚧 |
+| TC-330 | Cargo.toml satisfies every load-bearing pin, including the exact YAML alias/package/version | Static | P0 | NFR-009-AC-1 | ✅ `check_dep_pins.sh`; SR-108 |
+| TC-331 | spec/assets/adr/0001-validator-crate.md exists with chosen crate + bench numbers | Static | P0 | NFR-009-AC-2 | ✅ ADR-0001; SR-108 |
+| TC-332 | Dependency audit rejects wildcard/unbounded/weak pins and wrong YAML package or version | Static | P0 | NFR-009-AC-3 | ✅ eight mutation cases; SR-108 |
 | TC-340 | Public enums are #[non_exhaustive] | Compile | P0 | NFR-010-AC-2 | 🚧 |
 | TC-341 | CHANGELOG.md exists with release entries | Static | P1 | NFR-010-AC-3 | 🚧 |
 | TC-342 | cargo-semver-checks against previous tag reports no unexpected breaks | Static | P1 | NFR-010-AC-4 | 🚧 |
@@ -846,10 +846,18 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-1651 | `Registry::load_module_set` over an exact set (each module declared once) emits no `DuplicateModuleName`/`DuplicateArchetype` even with a same-named second copy alongside; the same directory named twice loads once | Unit | P0 | FR-013-AC-15 | ✅ |
 | TC-1652 | Closed, not preferred: `{base, extra}` resolves the archetype `extra` declares and validates a document using it; `{base}` does not resolve it | Unit | P0 | FR-013-AC-16 | ✅ |
 | TC-1653 | `load_module_set` consults neither the search-path env vars nor `~/.ix/filament/modules/`: a module outside the declared set is not loaded, and an empty set yields an empty registry with no path diagnostics | Unit | P0 | FR-013-AC-17 | ✅ |
+| TC-1820 | Cargo.lock and cargo tree select yaml_serde 0.10.7 with libyaml-rs 0.3.0 and exclude the deprecated serde_yaml/unsafe-libyaml pair as a package-resolution identity check, not as comparative unsafe evidence | Static | P0 | NFR-009-AC-5 | ✅ root lock/tree and dependency audit; SR-108 |
+| TC-1821 | Old and selected YAML engines agree over every governed frontmatter input and focused semantic-risk case | Property | P0 | NFR-009-AC-6 | ✅ 781/781 equal; injected difference exits 1; SR-108 |
+| TC-1822 | The unchanged TypeScript/Python frontmatter parity suite passes with no changed expected outcome or value | Integration | P0 | NFR-009-AC-7 | ✅ 89 parser-parity tests; SR-108 |
+| TC-1823 | Locked default and changed targets compile with exact Rust 1.98.1 | Compile | P0 | NFR-009-AC-8 | ✅ default, all-feature, Python, WASM, fuzz, docs, release; SR-108 |
+| TC-1824 | License and refreshed-advisory gates accept the locked graph | Static | P0 | NFR-009-AC-8 | ✅ zero advisories; licenses pass; SR-108 |
+| TC-1825 | A cross-pin load-bearing dependency bump records every affected qualification gate | Integration | P0 | NFR-009-AC-4 | ✅ evidence manifest and SR-108 qualification matrix |
 | TC-1832 | Cargo MSRV, selected toolchain, Clippy assumptions, workflows, and stable build scripts each name exact Rust 1.98.1 for their documented role; no stable 1.94.1 or floating `stable` selection remains | Static | P0 | NFR-022-AC-1 | ✅ `scripts/audits/check_tool_drift.sh`; mutation-covered by `scripts/tests/test_tool_drift.py` |
 | TC-1833 | Locked default, all-target/all-feature, Python, WASM, test, documentation, advisory, license, unsafe-audit, benchmark-build, and release gate classes run on Rust 1.98.1 without weakened flags, exclusions, or thresholds | Integration | P0 | NFR-022-AC-2 | ✅ Full command/result matrix in SR-106; Rust review SR-107 |
 | TC-1834 | Inspection of a simulated newer-stable event requires a recorded compatibility result within seven days and admits a hold only with reproduced failure/control evidence, owner, upstream issue, 30-day expiry, and rerun trigger | Inspection | P0 | NFR-022-AC-3, NFR-022-AC-4 | 🚧 SR-106 records the hypothetical transition shape; pending a detector that notices a newer stable release and starts the seven-day result / 30-day hold clocks |
 | TC-1835 | Inspection rejects formatting-only, repairable-lint-only, inherited-pin-only, speculative, and old-consumer-only compiler holds | Inspection | P0 | NFR-022-AC-5 | ✅ Five invalid hold bases rejected in SR-106 |
+| TC-1826 | Module-manifest, clause-set, extraction-DSL, traceability-model, and lint-rule suites each pass unchanged | Integration | P0 | NFR-009-AC-7 | ✅ full locked suite; SR-108 |
+| TC-1828 | NFR-002 parse, validation, and same-runner regression benchmarks pass unchanged | Benchmark | P0 | NFR-009-AC-9 | ✅ −0.4%, +1.4%, +0.4%, +1.4%; SR-108 |
 | TC-1052 | The symbol table reports the QUALIFIED NAME the engine built, with its container — the field three ports of `symbols/python.rs` disagreed on, giving 386, 490 and 5,263 lost declarations over one tree. A defect in the scanner cannot be sized by a reimplementation of the scanner (#309) | Unit | P0 | FR-051-AC-23 | ✅ |
 | TC-1053 | Each record carries whether its KIND can bind a trace id and whether it can carry `implements`, and the two are complements for every symbol — the first thing to check when a row will not bind, previously only inferable from a coverage rollup two layers away (#309, #312, CR-061) | Unit | P0 | FR-051-AC-23 | ✅ |
 | TC-1054 | With no module the report says binding was NOT ASKED rather than reporting zero: an unbound run and a repository nobody tagged produce the same empty `trace_ids`, and the per-language census keeps `binding_kinds` separate from `bound` so a rate is never drawn over the wrong denominator (#309) | Unit | P0 | FR-051-AC-23 | ✅ |
@@ -1017,6 +1025,16 @@ The render dispatch is generic over `(CompiledArchetype, data)`. The corpus pari
 | TC-006 | fr | missing required | SchemaViolation(field path) |
 | TC-091 | duplicate across modules | (any) | DuplicateArchetype diagnostic + first-wins |
 
+### YAML engine migration permutations
+
+| Test Case | Selected package state | Input population | Expected |
+|---|---|---|---|
+| TC-330, TC-1820 | `yaml_serde =0.10.7`; `libyaml-rs =0.3.0`; deprecated wrapper and backend absent | locked graph | accepted resolution |
+| TC-332 | deprecated package, wrong package, caret/wildcard, or wrong patch | manifest and lock fixtures | rejected before parity is claimed |
+| TC-1821 | old and selected engines | governed corpus plus duplicate-key, merge-key, implicit-scalar, alias, timestamp, and non-string-key fixtures | identical outcome and JSON-compatible value |
+| TC-1822 | Rust, TypeScript, and Python frontmatter readers | unchanged reference fixtures | identical outcome and value |
+| TC-1826 | selected Rust engine | each production typed-YAML consumer class | every unchanged suite passes |
+
 ---
 
 ## Constraint Boundary Tests
@@ -1031,6 +1049,9 @@ Schema constraints come from the on-disk JSON Schema files. Boundary tests sit i
 | `required` array | TC-006, TC-073 (DSL side) |
 | `additionalProperties: false` | TC-007b |
 | `enum` | Per-archetype fixtures |
+| YAML differential count | zero differences (TC-1821); one injected outcome/value difference blocks (TC-1821 negative control) |
+| YAML package pin | exact `=0.10.7` passes; `^0.10.7`, `~0.10`, `=0.10.2`, deprecated package, and absent alias fail (TC-330, TC-332) |
+| Same-runner performance | existing baseline passes; an injected slowdown beyond NFR-002's 10% threshold fails (TC-1828) |
 
 ---
 
@@ -1062,6 +1083,8 @@ Schema constraints come from the on-disk JSON Schema files. Boundary tests sit i
 | EC-024 | Round-trip: patch → reparse → patch again preserves block_id stability | FR-019, FR-022 | TC-443 | Block IDs drift across edits |
 | EC-025 | `load_repo` over tree with one malformed `.md` among many | FR-024 | TC-471 | One bad file aborts the whole repo load |
 | EC-026 | Two artifacts in one spec sharing an id | FR-025 | TC-482 | Silent overwrite in id index; lost document |
+| EC-202 | Advisory index predates the implementation revision | NFR-009 | TC-1824 | A stale database reports a false zero-advisory result |
+| EC-203 | One semantic fixture differs while aggregate corpus counts remain equal | NFR-009 | TC-1821 | A behavior change is hidden by population-only evidence |
 | EC-027 | Reference whose target id is absent from the loaded set | FR-026 | TC-488 | Resolution errors instead of recording dangling |
 | EC-028 | Reference whose target id exists only in a *different* spec | FR-026 | TC-489 | Corpus reaches outside the loaded set (scope violation) |
 | EC-029 | Multi-threaded Python caller issuing concurrent binding calls | FR-023, NFR-016 | TC-464 | GIL not released → calls serialized, no speedup |
@@ -1803,12 +1826,12 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | NFR-009-AC-1 | TC-330 |
 | NFR-009-AC-2 | TC-331 |
 | NFR-009-AC-3 | TC-332 |
-| NFR-009-AC-4 | (process AC; covered by PR-review policy, not a TC) |
-| NFR-022-AC-1 | TC-1832 |
-| NFR-022-AC-2 | TC-1833 |
-| NFR-022-AC-3 | TC-1834 |
-| NFR-022-AC-4 | TC-1834 |
-| NFR-022-AC-5 | TC-1835 |
+| NFR-009-AC-4 | TC-1825 |
+| NFR-009-AC-5 | TC-1820 |
+| NFR-009-AC-6 | TC-1821 |
+| NFR-009-AC-7 | TC-1822, TC-1826 |
+| NFR-009-AC-8 | TC-1823, TC-1824 |
+| NFR-009-AC-9 | TC-1828 |
 | NFR-010-AC-1 | (process AC; covered by CHANGELOG.md presence in TC-341) |
 | NFR-010-AC-2 | TC-340 |
 | NFR-010-AC-3 | TC-341 |

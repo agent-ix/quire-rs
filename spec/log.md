@@ -7,6 +7,16 @@ description: "Chronological log of structural changes to this bundle."
 
 ## History
 
+* **2026-09-09** — **CR-160**: accepted and implemented ADR-0012 after the
+  owner approved the maintained-engine architecture. The product and fuzz
+  manifests now alias exact `yaml_serde 0.10.7`; the root lock selects
+  `libyaml-rs 0.3.0` and excludes the deprecated package pair. SR-108 retains
+  the one-time zero-difference result across 781 revision-bound inputs and the
+  unchanged typed/parity, supply-chain, and performance results. The temporary
+  comparator, per-input payload, and exact call-site census were removed after
+  review because they are not ongoing product capabilities or useful permanent
+  gates.
+
 * **2026-09-08** — **CR-159**: NFR-022 independently selects exact Rust
   1.98.1 as both the supported minimum and qualification compiler for #417.
   It distinguishes the manifest MSRV, toolchain selection, and Clippy lint
@@ -16,6 +26,24 @@ description: "Chronological log of structural changes to this bundle."
   Rustfmt drift, repairable lints, inherited pins, speculation, and downstream
   preference for an older compiler are not incompatibilities. This policy is
   independent of the YAML engine decision in #414.
+
+* **2026-09-08** — **CR-158 correction**: rejected the initial ADR-0012
+  selection of `yaml_serde 0.10.2`. It was chosen only to preserve inherited
+  Rust 1.75 metadata, while this repository already selected 1.94.1 and current
+  stable is Rust 1.98.1. Existing configuration is not compatibility evidence.
+  The candidate now selects `yaml_serde 0.10.7` with `libyaml-rs 0.3.0` because
+  current Rust 1.98.1 satisfies its Rust 1.82 floor. Repository-wide compiler
+  lifecycle and downstream consequences are independently owned by #417, not
+  by this YAML ADR. Rustfmt drift and repairable lint findings are not reasons
+  to select the older YAML release.
+
+* **2026-09-07** — **CR-158**: proposed
+  [ADR-0012](./assets/adr/0012-yaml-engine-maintenance-and-parity.md) for
+  `agent-ix/quire-rs#414`. The decision selects an exact, Rust-1.75-compatible
+  `yaml_serde` package pin subject to zero-difference frontmatter and typed-YAML
+  evidence. This is specification only: no dependency or production code has
+  changed, the ADR is not accepted, and implementation remains gated on
+  `/spec-review`, owner acceptance, and the required NFR-009 amendment.
 
 * **2026-09-06** — #407 CR note extends FR-051-AC-3 to bounded direct
   unittest.TestCase imports and aliases. TC-1803 banks the real classifier

@@ -1,0 +1,52 @@
+{
+  "schema": "quire-yaml-migration-evidence/v1",
+  "issue": "agent-ix/quire-rs#414",
+  "observed_revision": "397ed175bf5518a5d3f16befea7636b447cc4d97",
+  "compiler": "rustc 1.98.1 (48a229cea 2026-09-01)",
+  "dependency_graph": {
+    "selected": ["yaml_serde 0.10.7", "libyaml-rs 0.3.0"],
+    "excluded": ["serde_yaml 0.9.34+deprecated", "unsafe-libyaml 0.2.11"]
+  },
+  "differential": {
+    "engines": ["serde_yaml 0.9.34", "yaml_serde 0.10.7"],
+    "source_revisions": {
+      "quire-rs": "397ed175bf5518a5d3f16befea7636b447cc4d97",
+      "qa-corpus": "7442f2770880a4ade303fb23d725804bdef454db",
+      "quire-typescript": "9446b283c0d0f882710670dca3bfd987a447d857",
+      "spec-artifacts-process": "61a20e010d5e758f52864ad3152ccdb304a39d27",
+      "spec-artifacts-iso": "6686f112f2c38602c9d39c88e8134a945c34bbd6"
+    },
+    "markdown_documents": 804,
+    "frontmatter_blocks": 775,
+    "focused_semantic_cases": 6,
+    "compared_inputs": 781,
+    "differences": 0,
+    "negative_control": {
+      "injected_case": "duplicate-key outcome difference",
+      "differences": 1,
+      "exit_status": 1
+    },
+    "retention": "aggregate counts and pinned source revisions only; no digest is claimed for the removed per-input manifest"
+  },
+  "performance": {
+    "baseline_revision": "05e0e4d821888929c4a46d4b24ed95907e10e4f1",
+    "allowed_regression": 0.10,
+    "observed_changes": {
+      "parse-small": -0.0036036978733603453,
+      "parse-medium-64kb": 0.01377303581450895,
+      "parse-one-megabyte": 0.003893551458008959,
+      "validate-document-fr-artifact": 0.014372834497504483
+    }
+  },
+  "verification": {
+    "root_locked_suite": "609 library tests and every integration/doc suite passed",
+    "parser_parity": "89 passed unchanged",
+    "script_suite": "156 passed, 3 intentional missing-sibling skips",
+    "wasm_semantic_suites": "7 + 12 + 11 + 7 passed",
+    "fuzz_workspace_compile": "pass",
+    "strict_docs": "pass",
+    "all_feature_release": "pass",
+    "cargo_deny_licenses": "pass with pre-existing unused allow/exception warnings",
+    "cargo_audit": "pass; zero advisories"
+  }
+}
