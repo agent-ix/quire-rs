@@ -180,11 +180,11 @@ for line_no, line in enumerate(makefile.splitlines(), 1):
         errors.append(f"Makefile:{line_no}: direct Cargo resolution is not --locked")
 
 stable_selections = (
-    re.compile(r"cargo\s+\+(stable|\d+\.\d+\.\d+)\b"),
+    re.compile(r"(?:cargo|\$\(CARGO\))\s+\+([A-Za-z0-9_.-]+)\b"),
     re.compile(
-        r"rustup\s+(?:run|default|override\s+set|toolchain\s+install)\s+(stable|\d+\.\d+\.\d+)\b"
+        r"rustup\s+(?:run|default|override\s+set|toolchain\s+install)\s+([A-Za-z0-9_.-]+)\b"
     ),
-    re.compile(r"RUSTUP_TOOLCHAIN=(stable|\d+\.\d+\.\d+)\b"),
+    re.compile(r"RUSTUP_TOOLCHAIN=([A-Za-z0-9_.-]+)\b"),
 )
 build_scripts = [root / "Makefile"]
 build_scripts.extend(
@@ -195,13 +195,19 @@ build_scripts.extend(
     and path.name != "check_tool_drift.sh"
     and "tests" not in path.relative_to(root / "scripts").parts
 )
+build_scripts.extend(sorted((root / ".github/workflows").glob("*.yml")))
 for path in build_scripts:
     for line_no, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
         if line.lstrip().startswith("#"):
             continue
         for selection in stable_selections:
             match = selection.search(line)
-            if match and match.group(1) != accepted_stable_rust:
+            if match and match.group(1).startswith("nightly"):
+                if not re.fullmatch(r"nightly-\d{4}-\d{2}-\d{2}", match.group(1)):
+                    errors.append(
+                        f"{path.relative_to(root)}:{line_no}: nightly Rust build selection must use an exact date"
+                    )
+            elif match and match.group(1) != accepted_stable_rust:
                 errors.append(
                     f"{path.relative_to(root)}:{line_no}: stable Rust build selection must be {accepted_stable_rust}"
                 )

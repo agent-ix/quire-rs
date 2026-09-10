@@ -252,17 +252,5 @@ jobs:
       github.event_name == 'workflow_dispatch'
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - name: check_no_net_deps
-        run: bash scripts/audits/check_no_net_deps.sh
-      - name: check_no_schemars
-        run: bash scripts/audits/check_no_schemars.sh
-      - name: check_no_shellout
-        run: bash scripts/audits/check_no_shellout.sh
-      - name: check_dep_pins
-        run: bash scripts/audits/check_dep_pins.sh
-      - name: check_hashmap_audit
-        run: bash scripts/audits/check_hashmap_audit.sh
-      - name: check_no_shared_mutable
-        run: bash scripts/audits/check_no_shared_mutable.sh
-      - name: verify_cookiecutter_inheritance
-        run: bash scripts/audits/verify_cookiecutter_inheritance.sh
+      - name: Run every static audit
+        run: make audit-static

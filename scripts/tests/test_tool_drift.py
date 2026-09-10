@@ -114,6 +114,18 @@ def test_valid_exact_stack_passes(tmp_path: pathlib.Path) -> None:
             "+1.94.1",
             "stable Rust build selection must be 1.98.1",
         ),
+        (
+            ".github/workflows/ci.yml",
+            "      - run: >-\n",
+            "      - run: cargo +stable test --locked\n      - run: >-\n",
+            "stable Rust build selection must be 1.98.1",
+        ),
+        (
+            "Makefile",
+            "pin:\n\tcargo +1.98.1 test --locked",
+            "pin:\n\trustup default nightly",
+            "nightly Rust build selection must use an exact date",
+        ),
         (".github/workflows/ci.yml", "b" * 40, "v4", "full SHA"),
         (".github/workflows/ci.yml", "ubuntu-24.04", "ubuntu-latest", "latest"),
         ("Makefile", "test --locked", "test", "--locked"),

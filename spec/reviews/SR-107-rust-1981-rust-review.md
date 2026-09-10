@@ -21,14 +21,18 @@ safety, lifecycle, resource-bound, API, or test-integrity finding remains.
 
 | ID | Severity | Summary | Refs | Escape Cause |
 | --- | --- | --- | --- | --- |
+| FND-4176 | medium | Closed: the compiler-drift audit checked workflow toolchain action keys but not workflow command bodies. The same selector audit now scans every workflow and mutation-tests a `cargo +stable` command. | `scripts/audits/check_tool_drift.sh`; `scripts/tests/test_tool_drift.py`; NFR-022-AC-1 | correct-requirement-no-evidence |
+| FND-4177 | medium | Closed: the manual-dispatch static-audit job repeated a partial list and omitted the tool-drift gate. It now invokes the repository's single `make audit-static` aggregate, which discovers every standing audit. No hosted workflow was dispatched. | `.github/workflows/ci.yml`; `Makefile` | correct-requirement-no-evidence |
 | FND-4174 | medium | Closed: nine `Option::map_or(true, predicate)` sites blocked 1.98.1 under `-D warnings`; each now uses the equivalent `Option::is_none_or` form, so `None` remains accepting and `Some` still evaluates the same predicate. | `src/corpus/query.rs:93`; `src/semantic/decl.rs:37`; `src/traceability.rs:799`; `tests/corpus_case/grading.rs:22` | correct-requirement-no-evidence |
 | FND-4175 | medium | Closed: strict rustdoc found private, broken, ambiguous, and redundant intra-doc links that could make generated API documentation misleading or fail its build; the corrected links pass with warnings denied. | `src/corpus/glossary.rs:46`; `src/registry.rs:156`; `src/validate_document.rs:5`; TC-1833 | correct-requirement-no-evidence |
+| FND-4178 | low | Closed: floating `nightly` selectors in the Makefile and manual-dispatch fuzz/sanitizer commands bypassed the exact dated nightly already installed by those lanes. Commands and operator guidance now select `nightly-2026-08-27`, and an undated-nightly mutant fails. | `Makefile`; `.github/workflows/fuzz.yml`; `.github/workflows/sanitize.yml`; `scripts/audits/check_tool_drift.sh` | correct-requirement-no-evidence |
 
 ## Review checklist
 
 - The source-inspection audit is appropriate for compiler declarations and is
-  mutation-tested against the old numeric pins and floating `stable`; it does
-  not replace a reachable runtime behavior test.
+  mutation-tested against old numeric pins, floating `stable` in Make and
+  workflow commands, and an undated nightly selection; it does not replace a
+  reachable runtime behavior test.
 - The `is_none_or` rewrites are ownership-neutral, allocate nothing, preserve
   short-circuiting, and introduce no new trait or visibility surface.
 - The dependency change is one locked transitive patch release tied to a named
