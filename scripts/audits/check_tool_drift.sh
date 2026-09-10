@@ -114,7 +114,11 @@ if (
 ):
     errors.append("quality/spec-validation-exclusions.json must name exactly the deferred Phase-7 artifacts")
 
-for workflow in sorted((root / ".github/workflows").glob("*.yml")):
+workflow_directory = root / ".github/workflows"
+workflow_paths = sorted(
+    (*workflow_directory.glob("*.yml"), *workflow_directory.glob("*.yaml"))
+)
+for workflow in workflow_paths:
     text = workflow.read_text(encoding="utf-8")
     for line_no, line in enumerate(text.splitlines(), 1):
         if line.lstrip().startswith("#") or re.match(r"\s*-\s+name:", line):
@@ -195,7 +199,7 @@ build_scripts.extend(
     and path.name != "check_tool_drift.sh"
     and "tests" not in path.relative_to(root / "scripts").parts
 )
-build_scripts.extend(sorted((root / ".github/workflows").glob("*.yml")))
+build_scripts.extend(workflow_paths)
 for path in build_scripts:
     for line_no, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
         if line.lstrip().startswith("#"):

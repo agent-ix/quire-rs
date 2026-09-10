@@ -84,6 +84,16 @@ def test_valid_exact_stack_passes(tmp_path: pathlib.Path) -> None:
     assert run(fixture(tmp_path)).returncode == 0
 
 
+def test_yaml_workflow_extension_is_audited(tmp_path: pathlib.Path) -> None:
+    root = fixture(tmp_path)
+    (root / ".github/workflows/secondary.yaml").write_text(
+        "jobs:\n  test:\n    steps:\n      - run: cargo +stable test --locked\n"
+    )
+    result = run(root)
+    assert result.returncode != 0
+    assert "stable Rust build selection must be 1.98.1" in result.stderr
+
+
 @pytest.mark.parametrize(
     ("relative", "old", "new", "reason"),
     [
