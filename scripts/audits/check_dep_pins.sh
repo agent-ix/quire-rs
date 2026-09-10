@@ -8,6 +8,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 MANIFEST="$ROOT/Cargo.toml"
+FUZZ_MANIFEST="$ROOT/fuzz/Cargo.toml"
 LOCKFILE="$ROOT/Cargo.lock"
 
 if [[ ! -f "$MANIFEST" ]]; then
@@ -22,33 +23,43 @@ FAILED=0
 # whitespace. Cargo.lock is machine-generated, so its package blocks have a
 # stable representation that can be inspected without another TOML library.
 METADATA_FILE="$(mktemp)"
-trap 'rm -f -- "$METADATA_FILE"' EXIT
+FUZZ_METADATA_FILE="$(mktemp)"
+trap 'rm -f -- "$METADATA_FILE" "$FUZZ_METADATA_FILE"' EXIT
 if ! cargo metadata --locked --no-deps --format-version 1 \
   --manifest-path "$MANIFEST" >"$METADATA_FILE"; then
   echo "check_dep_pins: FAIL — Cargo could not read the locked manifest" >&2
   FAILED=1
-elif ! python3 - "$METADATA_FILE" "$LOCKFILE" <<'PY'
+elif [[ ! -f "$FUZZ_MANIFEST" ]]; then
+  echo "check_dep_pins: FAIL — fuzz/Cargo.toml is required for YAML package verification" >&2
+  FAILED=1
+elif ! cargo metadata --no-deps --format-version 1 \
+  --manifest-path "$FUZZ_MANIFEST" >"$FUZZ_METADATA_FILE"; then
+  echo "check_dep_pins: FAIL — Cargo could not read the fuzz manifest" >&2
+  FAILED=1
+elif ! python3 - "$METADATA_FILE" "$FUZZ_METADATA_FILE" "$LOCKFILE" <<'PY'
 import json
 import pathlib
 import re
 import sys
 
-metadata_path = pathlib.Path(sys.argv[1])
-lock_path = pathlib.Path(sys.argv[2])
-metadata = json.loads(metadata_path.read_text())
-dependencies = [
-    dependency
-    for package in metadata.get("packages", [])
-    for dependency in package.get("dependencies", [])
-    if dependency.get("rename") == "serde_yaml"
-]
-
 errors = []
-if len(dependencies) != 1 or dependencies[0].get("name") != "yaml_serde":
-    errors.append("serde_yaml must alias the yaml_serde package")
-elif dependencies[0].get("req") != "=0.10.7":
-    errors.append("serde_yaml must use exact version =0.10.7")
+for label, metadata_path in (
+    ("root", pathlib.Path(sys.argv[1])),
+    ("fuzz", pathlib.Path(sys.argv[2])),
+):
+    metadata = json.loads(metadata_path.read_text())
+    dependencies = [
+        dependency
+        for package in metadata.get("packages", [])
+        for dependency in package.get("dependencies", [])
+        if dependency.get("rename") == "serde_yaml"
+    ]
+    if len(dependencies) != 1 or dependencies[0].get("name") != "yaml_serde":
+        errors.append(f"{label} serde_yaml must alias the yaml_serde package")
+    elif dependencies[0].get("req") != "=0.10.7":
+        errors.append(f"{label} serde_yaml must use exact version =0.10.7")
 
+lock_path = pathlib.Path(sys.argv[3])
 if not lock_path.is_file():
     errors.append("Cargo.lock is required for YAML package verification")
 else:
@@ -73,18 +84,21 @@ then
   FAILED=1
 fi
 
-# Flag wildcard pins like `foo = "*"` or `foo = { version = "*" }`.
-if grep -REn '^[[:space:]]*[A-Za-z0-9_-]+[[:space:]]*=[[:space:]]*"\*"' "$MANIFEST" >/dev/null 2>&1; then
-  echo "check_dep_pins: FAIL — wildcard '*' version pin in Cargo.toml (NFR-009-AC-1):" >&2
-  grep -REn '^[[:space:]]*[A-Za-z0-9_-]+[[:space:]]*=[[:space:]]*"\*"' "$MANIFEST" >&2 || true
-  FAILED=1
-fi
+# Flag wildcard pins like `foo = "*"` or `foo = { version = "*" }` in both
+# independently resolved manifests.
+for candidate_manifest in "$MANIFEST" "$FUZZ_MANIFEST"; do
+  if grep -REn '^[[:space:]]*[A-Za-z0-9_-]+[[:space:]]*=[[:space:]]*"\*"' "$candidate_manifest" >/dev/null 2>&1; then
+    echo "check_dep_pins: FAIL — wildcard '*' version pin in ${candidate_manifest#"$ROOT/"} (NFR-009-AC-1):" >&2
+    grep -REn '^[[:space:]]*[A-Za-z0-9_-]+[[:space:]]*=[[:space:]]*"\*"' "$candidate_manifest" >&2 || true
+    FAILED=1
+  fi
 
-if grep -REn 'version[[:space:]]*=[[:space:]]*"\*"' "$MANIFEST" >/dev/null 2>&1; then
-  echo "check_dep_pins: FAIL — wildcard version field in Cargo.toml (NFR-009-AC-1):" >&2
-  grep -REn 'version[[:space:]]*=[[:space:]]*"\*"' "$MANIFEST" >&2 || true
-  FAILED=1
-fi
+  if grep -REn 'version[[:space:]]*=[[:space:]]*"\*"' "$candidate_manifest" >/dev/null 2>&1; then
+    echo "check_dep_pins: FAIL — wildcard version field in ${candidate_manifest#"$ROOT/"} (NFR-009-AC-1):" >&2
+    grep -REn 'version[[:space:]]*=[[:space:]]*"\*"' "$candidate_manifest" >&2 || true
+    FAILED=1
+  fi
+done
 
 if [[ "$FAILED" -ne 0 ]]; then
   exit 1

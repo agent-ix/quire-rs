@@ -21,13 +21,12 @@
     "focused_semantic_cases": 6,
     "compared_inputs": 781,
     "differences": 0,
-    "input_manifest_sha256": "6201f5aebf5d34f7ac85b6216e99d803837542ea9fea725ac450ef7c6a65a381",
     "negative_control": {
       "injected_case": "duplicate-key outcome difference",
       "differences": 1,
       "exit_status": 1
     },
-    "retention": "aggregate result only; the one-use comparator and per-input payload were removed after review"
+    "retention": "aggregate counts and pinned source revisions only; no digest is claimed for the removed per-input manifest"
   },
   "performance": {
     "baseline_revision": "05e0e4d821888929c4a46d4b24ed95907e10e4f1",

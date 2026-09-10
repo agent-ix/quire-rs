@@ -12,8 +12,10 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 def fixture(tmp_path: pathlib.Path) -> pathlib.Path:
     root = tmp_path / "repo"
     (root / "scripts/audits").mkdir(parents=True)
+    (root / "fuzz/src").mkdir(parents=True)
     (root / "src").mkdir()
     (root / "src/lib.rs").write_text("")
+    (root / "fuzz/src/lib.rs").write_text("")
     shutil.copy(ROOT / "scripts/audits/check_dep_pins.sh", root / "scripts/audits")
     (root / "Cargo.toml").write_text(
         "[package]\nname = \"fixture\"\nversion = \"0.1.0\"\n"
@@ -26,6 +28,13 @@ def fixture(tmp_path: pathlib.Path) -> pathlib.Path:
     (root / "Cargo.lock").write_text(
         'version = 4\n\n[[package]]\nname = "yaml_serde"\nversion = "0.10.7"\n'
         '\n[[package]]\nname = "libyaml-rs"\nversion = "0.3.0"\n'
+    )
+    (root / "fuzz/Cargo.toml").write_text(
+        "[package]\nname = \"fixture-fuzz\"\nversion = \"0.0.0\"\n"
+        "edition = \"2021\"\n"
+        "[dependencies]\n"
+        "serde_yaml = { package = \"yaml_serde\", version = \"=0.10.7\" }\n"
+        "[workspace]\nmembers = []\n"
     )
     return root
 
@@ -59,6 +68,26 @@ def test_yaml_policy_is_independent_of_toml_field_order(tmp_path: pathlib.Path) 
     )
     result = run(root)
     assert result.returncode == 0, result.stderr
+
+
+@pytest.mark.parametrize(
+    ("old", "new", "reason"),
+    [
+        ('package = "yaml_serde"', 'package = "serde_yaml"', "fuzz serde_yaml must alias"),
+        ('package = "yaml_serde", ', "", "fuzz serde_yaml must alias"),
+        ('version = "=0.10.7"', 'version = "^0.10.7"', "fuzz serde_yaml must use exact"),
+        ('version = "=0.10.7"', 'version = "=0.10.6"', "fuzz serde_yaml must use exact"),
+        ('version = "=0.10.7"', 'version = "*"', "fuzz serde_yaml must use exact"),
+    ],
+)
+def test_each_fuzz_yaml_pin_mutation_fails_closed(
+    tmp_path: pathlib.Path, old: str, new: str, reason: str
+) -> None:
+    root = fixture(tmp_path)
+    mutate(root / "fuzz/Cargo.toml", old, new)
+    result = run(root)
+    assert result.returncode != 0
+    assert reason in result.stderr
 
 
 @pytest.mark.parametrize(
