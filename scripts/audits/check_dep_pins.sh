@@ -32,7 +32,7 @@ if ! cargo metadata --locked --no-deps --format-version 1 \
 elif [[ ! -f "$FUZZ_MANIFEST" ]]; then
   echo "check_dep_pins: FAIL — fuzz/Cargo.toml is required for YAML package verification" >&2
   FAILED=1
-elif ! cargo metadata --no-deps --format-version 1 \
+elif ! cargo metadata --offline --format-version 1 \
   --manifest-path "$FUZZ_MANIFEST" >"$FUZZ_METADATA_FILE"; then
   echo "check_dep_pins: FAIL — Cargo could not read the fuzz manifest" >&2
   FAILED=1
@@ -48,9 +48,11 @@ for label, metadata_path in (
     ("fuzz", pathlib.Path(sys.argv[2])),
 ):
     metadata = json.loads(metadata_path.read_text())
+    workspace_members = set(metadata.get("workspace_members", []))
     dependencies = [
         dependency
         for package in metadata.get("packages", [])
+        if package.get("id") in workspace_members
         for dependency in package.get("dependencies", [])
         if dependency.get("rename") == "serde_yaml"
     ]
@@ -58,6 +60,18 @@ for label, metadata_path in (
         errors.append(f"{label} serde_yaml must alias the yaml_serde package")
     elif dependencies[0].get("req") != "=0.10.7":
         errors.append(f"{label} serde_yaml must use exact version =0.10.7")
+
+    if label == "fuzz":
+        packages = {
+            (package.get("name"), package.get("version"))
+            for package in metadata.get("packages", [])
+        }
+        for package in (("yaml_serde", "0.10.7"), ("libyaml-rs", "0.3.0")):
+            if package not in packages:
+                errors.append(f"fuzz resolved package {package[0]} {package[1]} is required")
+        for name in ("serde_yaml", "unsafe-libyaml"):
+            if any(package_name == name for package_name, _ in packages):
+                errors.append(f"deprecated fuzz resolved package {name} is forbidden")
 
 lock_path = pathlib.Path(sys.argv[3])
 if not lock_path.is_file():

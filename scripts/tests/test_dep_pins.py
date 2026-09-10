@@ -73,8 +73,16 @@ def test_yaml_policy_is_independent_of_toml_field_order(tmp_path: pathlib.Path) 
 @pytest.mark.parametrize(
     ("old", "new", "reason"),
     [
-        ('package = "yaml_serde"', 'package = "serde_yaml"', "fuzz serde_yaml must alias"),
-        ('package = "yaml_serde", ', "", "fuzz serde_yaml must alias"),
+        (
+            'serde_yaml = { package = "yaml_serde", version = "=0.10.7" }',
+            'serde_yaml = { package = "serde_yaml", version = "=0.9.34" }',
+            "fuzz serde_yaml must alias",
+        ),
+        (
+            'serde_yaml = { package = "yaml_serde", version = "=0.10.7" }',
+            'serde_yaml = "=0.9.34"',
+            "fuzz serde_yaml must alias",
+        ),
         ('version = "=0.10.7"', 'version = "^0.10.7"', "fuzz serde_yaml must use exact"),
         ('version = "=0.10.7"', 'version = "=0.10.6"', "fuzz serde_yaml must use exact"),
         ('version = "=0.10.7"', 'version = "*"', "fuzz serde_yaml must use exact"),
@@ -88,6 +96,24 @@ def test_each_fuzz_yaml_pin_mutation_fails_closed(
     result = run(root)
     assert result.returncode != 0
     assert reason in result.stderr
+
+
+@pytest.mark.parametrize(
+    ("package", "version"), [("serde_yaml", "0.9"), ("unsafe-libyaml", "0.2")]
+)
+def test_deprecated_yaml_packages_in_fuzz_graph_fail_closed(
+    tmp_path: pathlib.Path, package: str, version: str
+) -> None:
+    root = fixture(tmp_path)
+    mutate(
+        root / "fuzz/Cargo.toml",
+        "[workspace]\n",
+        f'legacy-{package} = {{ package = "{package}", version = "{version}" }}\n'
+        "[workspace]\n",
+    )
+    result = run(root)
+    assert result.returncode != 0
+    assert f"deprecated fuzz resolved package {package}" in result.stderr
 
 
 @pytest.mark.parametrize(
