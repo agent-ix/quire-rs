@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use super::contract::SemanticModule;
 use super::model::DeclaredTables;
+use super::relations::RelationVocabulary;
 
 /// One resolvable declaration in the bundle: its artifact `id` and every
 /// name a `Type` cell may use for it (id, title, frontmatter `name`).
@@ -15,6 +16,15 @@ pub struct BundleEntry {
     pub id: String,
     #[serde(default)]
     pub names: Vec<String>,
+}
+
+/// One artifact of the bundle with its frontmatter `object` type, if any:
+/// what a relationship `Target` resolves against (FR-076 Inputs).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct BundleArtifact {
+    pub id: String,
+    #[serde(default)]
+    pub object: Option<String>,
 }
 
 /// The bundle-wide name index type resolution reads (FR-070). An empty
@@ -31,6 +41,9 @@ pub struct BundleIndex {
     /// Imported package → exported type names, from the loaded modules.
     #[serde(default)]
     pub imports: BTreeMap<String, Vec<String>>,
+    /// Every artifact `id` of the bundle, typed or not (FR-076).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub artifacts: Vec<BundleArtifact>,
 }
 
 impl BundleIndex {
@@ -39,6 +52,7 @@ impl BundleIndex {
     }
 
     /// Build the corpus-mode index from loaded documents (FR-070 Inputs):
+    /// every document with an `id` is an artifact with its `object` type;
     /// every document with a frontmatter `object` is an object whose names
     /// are its `id`, `title`, and `name` when present; documents whose
     /// `object` is `enumeration` are also enumerations. `imports` come from
@@ -53,10 +67,15 @@ impl BundleIndex {
             ..Self::default()
         };
         for fm in documents {
-            let Some(object) = fm.get("object").and_then(|v| v.as_str()) else {
+            let Some(id) = fm.get("id").and_then(|v| v.as_str()) else {
                 continue;
             };
-            let Some(id) = fm.get("id").and_then(|v| v.as_str()) else {
+            let object = fm.get("object").and_then(|v| v.as_str());
+            index.artifacts.push(BundleArtifact {
+                id: id.to_string(),
+                object: object.map(str::to_string),
+            });
+            let Some(object) = object else {
                 continue;
             };
             let mut names = vec![id.to_string()];
@@ -100,6 +119,9 @@ pub struct SemanticContext {
     pub bundle: BundleIndex,
     /// The object type's `table_row` locators (FR-075 table gating).
     pub(crate) declared_tables: DeclaredTables,
+    /// The edge registry and object-type facts relationship rows are
+    /// checked against (FR-076 Inputs).
+    pub relation_vocabulary: RelationVocabulary,
 }
 
 impl SemanticContext {
@@ -111,7 +133,14 @@ impl SemanticContext {
             scope: None,
             bundle,
             declared_tables: DeclaredTables::default(),
+            relation_vocabulary: RelationVocabulary::default(),
         }
+    }
+
+    /// Check relationship rows against `vocabulary` (FR-076).
+    pub fn with_relation_vocabulary(mut self, vocabulary: RelationVocabulary) -> Self {
+        self.relation_vocabulary = vocabulary;
+        self
     }
 
     /// Gate FR-075 tables on the object type's `body_extraction` locators.

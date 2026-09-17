@@ -112,6 +112,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | FR-072 Semantic extraction surface | AC-1..9; CON-1..3 | TC-1630..TC-1640, TC-1650 (TC-1636 external: quire-wasm#3) | ✅ Implemented; WASM leg external |
 | FR-073 Generic rights-aware clause sets | AC-1..6 | TC-1806..TC-1809 | ✅ Implemented |
 | FR-075 Model feature extraction | AC-1..9; CON-1 | TC-1840..TC-1847, TC-1849 | ✅ Implemented |
+| FR-076 Relationships extraction to RelationDecl[] | AC-1..9; CON-1..2 | TC-1852..TC-1860 | ✅ Implemented |
 
 ### Integration Requirement Coverage
 
@@ -844,6 +845,15 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-1847 | A record carrying `model` carries `identity` (frontmatter `id`) and `displayName` (frontmatter `title`) with frontmatter-line spans | Unit | P0 | FR-075-AC-8 | ✅ |
 | TC-1848 | A module's `semantic.mappings` are recorded on its `SemanticModule` in order; a block without them records an empty list | Unit | P0 | FR-069-AC-12 | ✅ |
 | TC-1849 | `validate_document` and Filament extraction read a manifest-declared abstract flag and `Values` table and refuse both when undeclared, naming `<document>` and the artifact path respectively | Integration | P0 | FR-075-AC-9 | ✅ |
+| TC-1852 | The vendored quoin `relationships.md` extracts to the `relations`, `relationSources`, and `availability.relations` of `relationships.expected.json` under its recorded context; each relation validates against semantic-core `0.2.0` `RelationDecl.json`; the vendored fixtures match their sha256 pins | Unit | P0 | FR-076-AC-1 | ✅ |
+| TC-1853 | `verb-unknown`, `verb-inverse-label`, `verb-not-allowed`, `verb-specializes` yield their code, line, `section`, `reason`, and `messageContains` | Unit | P0 | FR-076-AC-2 | ✅ |
+| TC-1854 | The seven `target-*` cases yield `target-not-id`, `target-not-allowed`, or the verbatim imported identity | Unit | P0 | FR-076-AC-3 | ✅ |
+| TC-1855 | `multiplicity-malformed`, `multiplicity-inverted`, `multiplicity-empty` yield `reason` `multiplicity` at the row | Unit | P0 | FR-076-AC-4 | ✅ |
+| TC-1856 | `name-not-identifier`, `duplicate-name`, `declared-in-frontmatter` yield their code, line, and `reason` | Unit | P0 | FR-076-AC-5 | ✅ |
+| TC-1857 | `column-missing`, `column-extra`, `bullet-list`, `second-table`, `second-section` yield their refusal with `availability.relations` `unavailable` | Unit | P0 | FR-076-AC-6 | ✅ |
+| TC-1858 | `mapping-not-declared`, `subset-header-unowned-section`, `preamble-table` are refused with their `section`; `prose-without-mapping` yields nothing | Unit | P0 | FR-076-AC-7 | ✅ |
+| TC-1859 | `good-and-bad-rows`, `two-error-lines`, `header-only`, `section-absent`, `first-failing-check-only` yield their availability; all 31 cases run, each emitting exactly `exactDiagnostics` diagnostics with a line `sourceSpan` | Unit | P0 | FR-076-AC-8 | ✅ |
+| TC-1860 | Every FR-076 record validates against `semantic-v1.schema.json`; an artifact without the token or a relationship table carries no relations keys; `declaration_record` carries `relations`; a renamed verb with the same registry entry changes only `verb` | Unit | P0 | FR-076-AC-9, FR-076-CON-1, FR-076-CON-2 | ✅ |
 | TC-1641 | A static audit of `cargo metadata` and the semantic module finds none of the NFR-021 denylisted crates and no `eval`/`parse_expr`/`typecheck` symbol over clause text | Static | P0 | NFR-021-AC-1 | ✅ |
 | TC-1642 | A static audit finds no `std::net`, `std::process`, or filesystem write on the semantic path | Static | P0 | NFR-021-AC-2 | ✅ |
 | TC-1643 | Every Filament graph case output equals the checked-in baseline and coverage-v1/properties-v1/assurance-v1 outputs equal their fixtures byte-for-byte; no existing contract schema gains a required key | Snapshot | P0 | NFR-021-AC-3 | ✅ |
@@ -1418,6 +1428,15 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-075-AC-7 | TC-1846 |
 | FR-075-AC-8 | TC-1847 |
 | FR-075-AC-9 | TC-1849 |
+| FR-076-AC-1 | TC-1852 |
+| FR-076-AC-2 | TC-1853 |
+| FR-076-AC-3 | TC-1854 |
+| FR-076-AC-4 | TC-1855 |
+| FR-076-AC-5 | TC-1856 |
+| FR-076-AC-6 | TC-1857 |
+| FR-076-AC-7 | TC-1858 |
+| FR-076-AC-8 | TC-1859 |
+| FR-076-AC-9 | TC-1860 |
 | FR-073-AC-1 | TC-1807, TC-1809 |
 | FR-073-AC-2 | TC-1806 |
 | FR-073-AC-3 | TC-1806 |

@@ -7,6 +7,7 @@ use serde_json::Value;
 use super::context::{BundleIndex, SemanticContext};
 use super::contract::SemanticModule;
 use super::model::DeclaredTables;
+use super::relations::RelationVocabulary;
 use super::surface::{extract_semantic, RequiredSections, SemanticExtraction};
 use crate::extract::dsl::ExtractionDsl;
 
@@ -58,6 +59,10 @@ struct Request {
     /// gate FR-075 tables.
     #[serde(default)]
     body_extraction: Option<Value>,
+    /// The edge registry and object-type facts relationship rows are
+    /// checked against (FR-076).
+    #[serde(default)]
+    relation_vocabulary: Option<RelationVocabulary>,
 }
 
 /// Run FR-072 for a JSON request; the error is a deserialization message.
@@ -100,6 +105,7 @@ pub fn extract_semantic_json(request: &Value) -> Result<SemanticExtraction, Stri
             .map_err(|e| format!("semantic.body-extraction-invalid: {e}"))?;
         ctx.declared_tables = DeclaredTables::from_dsl(&dsl);
     }
+    ctx.relation_vocabulary = req.relation_vocabulary.unwrap_or_default();
     let required = req
         .required
         .map(|v| RequiredSections {

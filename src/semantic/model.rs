@@ -249,7 +249,7 @@ pub(crate) enum Section<'a> {
 
 impl Section<'_> {
     /// The structured `section` value of a refusal.
-    fn label(self) -> String {
+    pub(crate) fn label(self) -> String {
         match self {
             Self::Frontmatter => "frontmatter".to_string(),
             Self::Preamble => "preamble".to_string(),
@@ -258,7 +258,8 @@ impl Section<'_> {
         }
     }
 
-    fn display(self) -> String {
+    /// The section as a refusal message names it.
+    pub(crate) fn display(self) -> String {
         match self {
             Self::Frontmatter => "frontmatter".to_string(),
             Self::Preamble => "the preamble before the first `##` heading".to_string(),
@@ -563,20 +564,26 @@ pub(crate) fn model_availability(sources: &[ModelSource<'_>]) -> Option<KindAvai
             declaring.iter().any(|s| s.lossy),
         ));
     }
-    let mut loci: Vec<usize> = declaring
+    let failed: Vec<SemanticDiagnostic> = declaring
         .iter()
         .filter(|s| s.failed)
-        .flat_map(|s| s.diagnostics.iter())
+        .flat_map(|s| s.diagnostics.iter().cloned())
+        .collect();
+    Some(entry_errors(&failed))
+}
+
+/// `unavailable` with reason `entry-errors: lines <lines>`: the error lines
+/// of `diagnostics`, ascending, deduplicated, joined with `, `.
+pub(crate) fn entry_errors(diagnostics: &[SemanticDiagnostic]) -> KindAvailability {
+    let mut loci: Vec<usize> = diagnostics
+        .iter()
         .filter(|d| d.is_error())
         .filter_map(|d| d.line)
         .collect();
     loci.sort_unstable();
     loci.dedup();
     let loci: Vec<String> = loci.iter().map(usize::to_string).collect();
-    Some(KindAvailability::unavailable(format!(
-        "entry-errors: lines {}",
-        loci.join(", ")
-    )))
+    KindAvailability::unavailable(format!("entry-errors: lines {}", loci.join(", ")))
 }
 
 impl ModelOutcome {

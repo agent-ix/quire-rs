@@ -7,6 +7,20 @@ description: "Chronological log of structural changes to this bundle."
 
 ## History
 
+* **2026-09-16** — **FR-076** (#418): relationships extraction. Under the
+  `relationships` mapping token, the `## Relationships`
+  `Name | Verb | Target | Multiplicity` table extracts to semantic-core
+  `RelationDecl[]` with `relationSources` (name and span per row, the
+  `0.2.0` carrier until `agent-ix/filament-core-data#155`) and
+  `availability.relations`, checked against the caller-supplied FR-040 edge
+  registry, object-type roles and `allowed_links`, and the bundle's
+  artifacts. The grammar and oracle are `agent-ix/quoin` FR-104; its
+  `relationships.*` fixtures and README are vendored at `31ca54d` (quoin
+  PR #553). **CR-166**: [FR-072](./functional/FR-072-semantic-extraction-surface.md)
+  Outputs and `semantic-v1` carry the optional `relations`,
+  `relationSources`, and `availability.relations` keys; `BundleIndex` gains
+  `artifacts`. TC-1852..TC-1860.
+
 * **2026-09-16** — **CR-165** (#431): `quire` is the only checked clause
   language. [FR-071](./functional/FR-071-clause-and-operation-extraction.md)
   carries `ocl`, `sysml`, `fretish`, and namespaced languages with

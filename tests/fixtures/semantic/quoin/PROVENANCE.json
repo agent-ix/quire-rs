@@ -15,9 +15,9 @@
     },
     "mapping/README.md": {
       "repository": "agent-ix/quoin",
-      "revision": "be01d6ef1478a7273144ee89d128b6201e7f8707",
+      "revision": "31ca54de024dc156fc827238caff9a7e4b7a0604",
       "path": "tests/fixtures/semantic-module/mapping/README.md",
-      "sha256": "sha256:d62686cd61908f51fa19a1dd766da7287216d266eface4c893a71f61fb8ee0e5"
+      "sha256": "sha256:f9984d50c0820fd30ff33f497dbfdf001fc4db591a89a9cca4334bbd4de203f4"
     },
     "mapping/both-forms.expected.json": {
       "repository": "agent-ix/quoin",
@@ -96,6 +96,24 @@
       "revision": "be01d6ef1478a7273144ee89d128b6201e7f8707",
       "path": "tests/fixtures/semantic-module/mapping/operations.md",
       "sha256": "sha256:a0bca519b8f86e2367affa2e977450ee921d49956bff831204c784537e065e8f"
+    },
+    "mapping/relationships-cases.json": {
+      "repository": "agent-ix/quoin",
+      "revision": "31ca54de024dc156fc827238caff9a7e4b7a0604",
+      "path": "tests/fixtures/semantic-module/mapping/relationships-cases.json",
+      "sha256": "sha256:d2e59c52b61d4159c2661890ef41e991164d29567092606dc0798ad7b046b2c9"
+    },
+    "mapping/relationships.expected.json": {
+      "repository": "agent-ix/quoin",
+      "revision": "31ca54de024dc156fc827238caff9a7e4b7a0604",
+      "path": "tests/fixtures/semantic-module/mapping/relationships.expected.json",
+      "sha256": "sha256:ca3c989dd9197e118e3fd20632cf71d86b1584161c65fe10b05200606afb86ce"
+    },
+    "mapping/relationships.md": {
+      "repository": "agent-ix/quoin",
+      "revision": "31ca54de024dc156fc827238caff9a7e4b7a0604",
+      "path": "tests/fixtures/semantic-module/mapping/relationships.md",
+      "sha256": "sha256:2b0426e3d743c8156e0cc0709f8381697a8e5a154679adc09c1e3090e33ffa44"
     },
     "module-ok/manifest.yaml": {
       "repository": "agent-ix/quoin",
