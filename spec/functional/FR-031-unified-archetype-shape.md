@@ -37,6 +37,7 @@ A compiled archetype MAY carry, all optional except `name`:
 - `body_extraction` — the locator DSL ([FR-011](./FR-011-body-extraction-dsl.md)), which drives **both** extraction and validation ([FR-032](./FR-032-validate-document.md)).
 - `data_schema` — JSON Schema validating the *extracted record* (a distinct validator from frontmatter).
 - carry-over fields with no DSL representation: `defaults.id_pattern`, `allowed_links`, `has_plugin`, `grammar_ref`.
+- `construct` — an object type's semantic IR construct declaration (`ObjectTypeEntry.construct` → `$defs/ConstructDeclaration` in the vendored filament-core-service `module-manifest.schema.json`), carried raw. filament-core-data owns its meaning; `quire-rs` neither interprets nor validates it.
 
 Validatability and extractability SHALL be **derived from which parts are present**
 (a `frontmatter_schema_ref` makes the archetype validatable; a `body_extraction`
@@ -64,6 +65,7 @@ and no dual-read** of the deprecated shape (no backward-compatibility layer).
 | FR-031-AC-4 | `frontmatter_schema_ref` and `data_schema` are both retained as distinct compiled validators (frontmatter vs extracted record); neither is collapsed into the other. | Test |
 | FR-031-AC-5 | A manifest archetype that still declares `required_sections`, `variants`, or `template_ref` is **rejected** with an `ArchetypeLoadFailure` naming the archetype and the deprecated field; it does NOT load (no tolerate/ignore path). | Test |
 | FR-031-AC-6 | `Registry::archetype(name)` resolves a unified archetype identically to the pre-unification path (same name keying, same first-wins semantics). | Test |
+| FR-031-AC-7 | An object type declaring `construct` loads and `CompiledArchetype::construct()` returns that declaration as raw structured data equal to the manifest's value; an object type without `construct` returns `None`, and its archetype projection is unchanged (FR-069-CON-3). | Test |
 
 ## Dependencies
 

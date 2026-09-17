@@ -2042,6 +2042,64 @@ artifact_types:
         );
     }
 
+    #[trace("TC-1871", "FR-031-AC-7")]
+    // an object type's `construct` declaration is carried raw and returned
+    // unchanged; an object type without one returns `None`.
+    #[test]
+    fn tc1871_construct_declaration_is_carried_raw() {
+        let parent = tmpdir("u-1871");
+        let root = parent.join("u-mod");
+        fs::create_dir_all(&root).unwrap();
+        fs::write(
+            root.join("manifest.yaml"),
+            r#"
+name: u-mod
+object_types:
+- name: entity
+  data_schema:
+    type: object
+  construct:
+    identity: identified
+    shape: record
+    members:
+      fields: required
+      operations: optional
+      variants: forbidden
+    references:
+      fields: [entity_like]
+    rules: [unique_field_names]
+    meaning: quire.meaning.entity
+- name: plain
+  data_schema:
+    type: object
+"#,
+        )
+        .unwrap();
+        let outcome = load_modules(&[&parent]);
+        assert!(outcome.failures.is_empty(), "{:?}", outcome.failures);
+        let by_name = |name: &str| {
+            outcome.modules[0]
+                .archetypes
+                .iter()
+                .find(|a| a.name == name)
+                .unwrap_or_else(|| panic!("archetype {name} loaded"))
+        };
+        let expected = serde_json::json!({
+            "identity": "identified",
+            "shape": "record",
+            "members": {
+                "fields": "required",
+                "operations": "optional",
+                "variants": "forbidden"
+            },
+            "references": { "fields": ["entity_like"] },
+            "rules": ["unique_field_names"],
+            "meaning": "quire.meaning.entity"
+        });
+        assert_eq!(by_name("entity").construct(), Some(&expected));
+        assert_eq!(by_name("plain").construct(), None);
+    }
+
     #[trace("TC-525", "FR-031-AC-4")]
     // frontmatter_schema_ref + data_schema are
     // two distinct compiled validators, neither collapsed.

@@ -86,7 +86,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | FR-028 Expanded Python surface | AC-1..8 | TC-510 (⛔ RETIRED — render removed), TC-511 (validate happy+sad), TC-512 (validate_manifest), TC-513 (extract envelope), TC-514 (extract_frontmatter), TC-515 (harvest_edges dict+str), TC-516 (exception hierarchy), TC-517 (GIL release multi-thread) | ✅ Complete |
 | FR-029 Archetype input contract (recast, ADR 0004) | AC-1..6 | TC-548 (FR/NFR contract), TC-549 (NFR sections), TC-550 (iso required_sections order), TC-551 (byte-stable JSON), TC-552 (unknown→err), TC-553 (unresolved-mapping diag) | 🚧 Pending implementation |
 | FR-030 Required-section validation (superseded by FR-032/FR-033, ADR 0004) | AC-1..6 | TC-529, TC-530, TC-536, TC-528, TC-533 (covered by FR-032/FR-033 TCs) | 🚧 Superseded — covered by FR-032/FR-033 |
-| FR-031 Unified archetype shape | AC-1..6 | TC-522 (validatable+extractable, no renderability), TC-523 (no body_extraction → extraction None), TC-524 (defaults retained), TC-525 (two validators), TC-526 (required_sections ignored+diag), TC-527 (resolve parity) | 🚧 Pending implementation |
+| FR-031 Unified archetype shape | AC-1..7 | TC-522 (validatable+extractable, no renderability), TC-523 (no body_extraction → extraction None), TC-524 (defaults retained), TC-525 (two validators), TC-526 (required_sections ignored+diag), TC-527 (resolve parity) | 🚧 Pending implementation |
 | FR-032 validate_document (markdown) | AC-1..13 | TC-528..533, TC-561 + TC-573 (placeholder set), TC-574 (none/n-a substantive), TC-575 (empty table/list reason), TC-576 (assert on resolved), TC-610 (composed object error), TC-611 (unknown object → warning), TC-612 (no object key), TC-613 (composed conformant) | ✅ |
 | FR-033 Locator assert facet | AC-1..16 | TC-991 (CR-097 row-scoped failures carry the row and its own line), TC-1005 (#254 that line is the row, not the separator), TC-534..539, TC-561/562 + TC-570 (legality matrix), TC-571 (id-column precedence), TC-572 (id_pattern non-table), TC-608 (CR-008 `matches` content assert), TC-633 (CR-010 `choices` scalar enum), TC-634 (`column_choices`), TC-635 (`column_patterns`) | ✅ |
 | FR-034 Assert field interpolation | AC-1..4 | TC-540 (id prefix), TC-541 (missing field diag), TC-542 (regex-escape), TC-543 (no-token static regex) | 🚧 Pending implementation |
@@ -864,6 +864,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-1868 | The Python `validate_document` `bundle_package` kwarg qualifies a bare row target so a frontmatter `ix://` duplicate is refused; without it the table reports `no-bundle-package` | Integration | P0 | FR-076-AC-15 | ✅ |
 | TC-1869 | A Rust caller gating model tables with `SemanticContext::with_body_extraction` extracts a declared `Values` table identically to `extract_semantic_json`, and the ungated context refuses it | Integration | P0 | FR-075-AC-10 | ✅ |
 | TC-1870 | `RequiredSections::from_extraction` marks exactly the headings of required locators declared in `match`, `per_match`, and `emit_edges` targets, including fallback-chain members, with each of `Properties`, `Invariants`, and `Operations` required in at least one case | Integration | P0 | FR-075-AC-11 | ✅ |
+| TC-1871 | A manifest object type declaring `construct` loads and `CompiledArchetype::construct()` returns exactly the declared value; a sibling object type without `construct` returns `None` (`loader::tests::tc1871_construct_declaration_is_carried_raw`); the no-`construct` registry projection stays on the TC-1607 baseline | Unit | P0 | FR-031-AC-7 | ✅ |
 | TC-1641 | A static audit of `cargo metadata` and the semantic module finds none of the NFR-021 denylisted crates and no `eval`/`parse_expr`/`typecheck` symbol over clause text | Static | P0 | NFR-021-AC-1 | ✅ |
 | TC-1642 | A static audit finds no `std::net`, `std::process`, or filesystem write on the semantic path | Static | P0 | NFR-021-AC-2 | ✅ |
 | TC-1643 | Every Filament graph case output equals the checked-in baseline and coverage-v1/properties-v1/assurance-v1 outputs equal their fixtures byte-for-byte; no existing contract schema gains a required key | Snapshot | P0 | NFR-021-AC-3 | ✅ |
@@ -1509,6 +1510,7 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-031-AC-4 | TC-525 |
 | FR-031-AC-5 | TC-526 |
 | FR-031-AC-6 | TC-527 |
+| FR-031-AC-7 | TC-1871 |
 | FR-032-AC-1 | TC-528 |
 | FR-032-AC-2 | TC-529, TC-561 |
 | FR-032-AC-3 | TC-530 |

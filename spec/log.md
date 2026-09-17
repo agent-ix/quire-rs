@@ -7,6 +7,17 @@ description: "Chronological log of structural changes to this bundle."
 
 ## History
 
+* **2026-09-17** — **CR-171** (#445): [FR-031](./functional/FR-031-unified-archetype-shape.md)
+  carries an object type's `construct` declaration raw. The vendored
+  `module-manifest.schema.json` is re-vendored from agent-ix/filament-core-service
+  at `e33070e`, which adds `ObjectTypeEntry.construct` →
+  `$defs/ConstructDeclaration`. `ArchetypeCarryOver` keeps the value and
+  `CompiledArchetype::construct()` returns it unchanged; filament-core-data owns
+  its meaning, so quire-rs does not interpret it. Object types are not
+  validated against the vendored schema at load, so no validation is added.
+  The no-`construct` registry projection is unchanged (FR-069-CON-3, TC-1607).
+  FR-031-AC-7, TC-1871.
+
 * **2026-09-17** — **CR-170** (#442): [FR-075](./functional/FR-075-model-feature-extraction.md)
   Inputs states that a Rust caller supplies the typed `body_extraction` with
   the public `SemanticContext::with_body_extraction`, and that

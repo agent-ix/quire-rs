@@ -22,7 +22,7 @@ use crate::extract::dsl::ExtractionDsl;
 /// Carry-over fields that the unified archetype shape (FR-031, ADR
 /// 0003) retains but which have no DSL representation. Defaults are all
 /// empty/absent so an archetype that declares none reads as `None`/`[]`.
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Clone, Default, PartialEq)]
 pub struct ArchetypeCarryOver {
     /// `defaults.id_pattern` — ID-allocation hint.
     pub id_pattern: Option<String>,
@@ -39,6 +39,27 @@ pub struct ArchetypeCarryOver {
     pub has_plugin: bool,
     /// `grammar_ref` — grammar this archetype's body conforms to.
     pub grammar_ref: Option<String>,
+    /// `construct` — the object type's semantic IR construct declaration,
+    /// kept raw (FR-031-AC-7). filament-core-data owns its meaning; quire-rs
+    /// does not interpret it.
+    pub construct: Option<Value>,
+}
+
+/// `construct` is printed only when declared, so the Debug projection of an
+/// archetype without one is the one FR-069-CON-3's baseline was minted from.
+impl std::fmt::Debug for ArchetypeCarryOver {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut s = f.debug_struct("ArchetypeCarryOver");
+        s.field("id_pattern", &self.id_pattern)
+            .field("allowed_links", &self.allowed_links)
+            .field("roles", &self.roles)
+            .field("has_plugin", &self.has_plugin)
+            .field("grammar_ref", &self.grammar_ref);
+        if let Some(construct) = &self.construct {
+            s.field("construct", construct);
+        }
+        s.finish()
+    }
 }
 
 /// A unified compiled archetype (FR-031, ADR 0003): one shape that may
@@ -131,6 +152,13 @@ impl CompiledArchetype {
     /// `grammar_ref`, if declared (FR-031-AC-3).
     pub fn grammar_ref(&self) -> Option<&str> {
         self.carry_over.grammar_ref.as_deref()
+    }
+
+    /// The object type's `construct` declaration exactly as the manifest
+    /// states it, if declared (FR-031-AC-7). Returned raw: its meaning is
+    /// owned by filament-core-data.
+    pub fn construct(&self) -> Option<&Value> {
+        self.carry_over.construct.as_ref()
     }
 }
 

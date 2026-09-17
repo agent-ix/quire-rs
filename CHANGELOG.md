@@ -9,6 +9,11 @@ bumps; once 1.0 ships, semver is strict.
 
 ### Added
 
+- **Object type `construct` declarations carried through loading (#445).**
+  `CompiledArchetype::construct()` returns an object type's `construct`
+  declaration as raw `serde_json::Value`, unchanged; `None` when undeclared.
+  The vendored `module-manifest.schema.json` is re-vendored from
+  filament-core-service `e33070e`, which adds `ConstructDeclaration`.
 - **Typed body-extraction context for Rust callers (#442).**
   `SemanticContext::with_body_extraction(&ExtractionDsl)` declares the
   object type's FR-075 model tables, and
