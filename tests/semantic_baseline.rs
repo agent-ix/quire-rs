@@ -200,7 +200,7 @@ fn registry_projection(registry: &Registry) -> Vec<ArchetypeProjection> {
         .collect()
 }
 
-#[trace("TC-1607", "FR-069-AC-9", "FR-069-CON-3")]
+#[trace("TC-1607", "FR-069-AC-9", "FR-069-CON-3", "FR-031-AC-7")]
 // fixture modules without a `semantic` block load to the archetype projection
 // minted on main.
 #[test]

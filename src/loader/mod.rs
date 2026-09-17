@@ -2043,8 +2043,8 @@ artifact_types:
     }
 
     #[trace("TC-1871", "FR-031-AC-7")]
-    // an object type's `construct` declaration is carried raw and returned
-    // unchanged; an object type without one returns `None`.
+    // an archetype's `construct` is carried as-is, `null` included; an
+    // archetype without one returns `None`.
     #[test]
     fn tc1871_construct_declaration_is_carried_raw() {
         let parent = tmpdir("u-1871");
@@ -2072,6 +2072,10 @@ object_types:
 - name: plain
   data_schema:
     type: object
+- name: nulled
+  data_schema:
+    type: object
+  construct: null
 "#,
         )
         .unwrap();
@@ -2098,6 +2102,7 @@ object_types:
         });
         assert_eq!(by_name("entity").construct(), Some(&expected));
         assert_eq!(by_name("plain").construct(), None);
+        assert_eq!(by_name("nulled").construct(), Some(&Value::Null));
     }
 
     #[trace("TC-525", "FR-031-AC-4")]
