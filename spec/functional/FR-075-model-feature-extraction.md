@@ -42,8 +42,8 @@ be refused with the artifact, the section, and the span. The engine SHALL
 NOT infer or approximate a feature from any other form.
 
 A declaration's identity is its artifact `id`; its class name is the
-declared name (the artifact `title`). Clauses are written in `quire`, the
-checked clause language of semantic-core `0.2.0`; the engine carries them by
+declared name (the artifact `title`). Clauses are written in `quire`, the only
+checked clause language; the engine carries them by
 clause id and never parses them
 ([FR-071](./FR-071-clause-and-operation-extraction.md)).
 

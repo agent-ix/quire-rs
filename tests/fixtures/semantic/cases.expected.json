@@ -62,7 +62,15 @@
       }
     ],
     "contractVersion": "1.0.0",
-    "diagnostics": [],
+    "diagnostics": [
+      {
+        "code": "semantic.clause-language-unchecked",
+        "column": 1,
+        "line": 34,
+        "message": "clause immutable: language ocl is carried unchecked",
+        "severity": "advisory"
+      }
+    ],
     "fields": [
       {
         "identity": true,
@@ -161,7 +169,7 @@
   "defaulted-source-identity": {
     "availability": {
       "clauses": {
-        "lossy": false,
+        "lossy": true,
         "state": "available"
       },
       "fields": {
@@ -210,6 +218,20 @@
         "column": 1,
         "line": 16,
         "message": "no source identity supplied; spans carry ix://local/config-service/spec",
+        "severity": "advisory"
+      },
+      {
+        "code": "semantic.clause-language-unchecked",
+        "column": 1,
+        "line": 20,
+        "message": "clause notArchived: language ocl is carried unchecked",
+        "severity": "advisory"
+      },
+      {
+        "code": "semantic.clause-language-unchecked",
+        "column": 1,
+        "line": 26,
+        "message": "clause archived: language ocl is carried unchecked",
         "severity": "advisory"
       }
     ],
@@ -375,6 +397,13 @@
     "contractVersion": "1.0.0",
     "diagnostics": [
       {
+        "code": "semantic.clause-language-unchecked",
+        "column": 1,
+        "line": 12,
+        "message": "clause ok: language ocl is carried unchecked",
+        "severity": "advisory"
+      },
+      {
         "code": "semantic.clause-language-invalid",
         "column": 1,
         "line": 18,
@@ -408,7 +437,7 @@
     "clauses": [
       {
         "clauseId": "inv",
-        "language": "ocl",
+        "language": "quire",
         "sourceSpan": {
           "endColumn": 4,
           "endLine": 15,
@@ -431,12 +460,12 @@
     ],
     "formatVersion": 1,
     "package": "agent-ix/spec-objects-fixture",
-    "semanticCore": "0.1.0"
+    "semanticCore": "0.2.0"
   },
   "golden-fence-available": {
     "availability": {
       "clauses": {
-        "lossy": false,
+        "lossy": true,
         "state": "available"
       },
       "fields": {
@@ -466,7 +495,15 @@
       }
     ],
     "contractVersion": "1.0.0",
-    "diagnostics": [],
+    "diagnostics": [
+      {
+        "code": "semantic.clause-language-unchecked",
+        "column": 1,
+        "line": 34,
+        "message": "clause immutable: language ocl is carried unchecked",
+        "severity": "advisory"
+      }
+    ],
     "fields": [
       {
         "identity": true,
@@ -565,7 +602,7 @@
   "golden-table-available": {
     "availability": {
       "clauses": {
-        "lossy": false,
+        "lossy": true,
         "state": "available"
       },
       "fields": {
@@ -595,7 +632,15 @@
       }
     ],
     "contractVersion": "1.0.0",
-    "diagnostics": [],
+    "diagnostics": [
+      {
+        "code": "semantic.clause-language-unchecked",
+        "column": 1,
+        "line": 34,
+        "message": "clause immutable: language ocl is carried unchecked",
+        "severity": "advisory"
+      }
+    ],
     "fields": [
       {
         "identity": true,
@@ -791,13 +836,13 @@
       }
     },
     "clauseText": {
-      "archived": "context Artifact::archive() post: result.summary = 'archived'",
-      "notArchived": "context Artifact inv notArchived: self.summary <> 'archived'"
+      "archived": "result.summary = \"archived\"",
+      "notArchived": "not (self.summary = \"archived\")"
     },
     "clauses": [
       {
         "clauseId": "notArchived",
-        "language": "ocl",
+        "language": "quire",
         "sourceSpan": {
           "endColumn": 4,
           "endLine": 22,
@@ -809,7 +854,7 @@
       },
       {
         "clauseId": "archived",
-        "language": "ocl",
+        "language": "quire",
         "sourceSpan": {
           "endColumn": 4,
           "endLine": 28,
@@ -871,13 +916,13 @@
         "post": [
           {
             "clauseId": "archived",
-            "language": "ocl"
+            "language": "quire"
           }
         ],
         "pre": [
           {
             "clauseId": "notArchived",
-            "language": "ocl"
+            "language": "quire"
           }
         ],
         "returns": {
@@ -891,7 +936,7 @@
     ],
     "package": "agent-ix/spec-objects-fixture",
     "schemaDigest": "sha256:8692992e186f40a73b78fd1b0915f0fe78e05a2b00782fb1df58c951a37c91d5",
-    "semanticCore": "0.1.0"
+    "semanticCore": "0.2.0"
   },
   "required-invariants-missing": {
     "availability": {

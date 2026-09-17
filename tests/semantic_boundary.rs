@@ -204,10 +204,11 @@ fn spans_agree_with_the_code_block_scanner() {
         .semantic_module("spec-objects-fixture")
         .unwrap()
         .clone();
-    for name in [
-        "config-version.table.md",
-        "config-version.fence.md",
-        "operations.md",
+    // (fixture, semantic-core version, clause language) per the quoin oracles.
+    for (name, core, language) in [
+        ("config-version.table.md", "0.1.0", "ocl"),
+        ("config-version.fence.md", "0.1.0", "ocl"),
+        ("operations.md", "0.2.0", "quire"),
     ] {
         let raw = fs::read_to_string(
             root()
@@ -215,13 +216,15 @@ fn spans_agree_with_the_code_block_scanner() {
                 .join(name),
         )
         .unwrap();
-        let ctx = SemanticContext::new(module.clone(), name, BundleIndex::default())
+        let mut module = module.clone();
+        module.semantic_core = core.to_string();
+        let ctx = SemanticContext::new(module, name, BundleIndex::default())
             .with_source_identity("ix://agent-ix/x/spec");
         let out = extract_clauses(&raw, &ctx);
         let doc = quire_rs::parse_document(&raw);
-        // The code_block locator's scanner, whole-document, ocl only: the
-        // fixtures carry ocl fences under `## Invariants` clauses only.
-        let blocks = quire_rs::extract_diagrams(&doc, Some("ocl"));
+        // The code_block locator's scanner, whole-document, one language:
+        // each fixture carries its fences under `## Invariants` clauses only.
+        let blocks = quire_rs::extract_diagrams(&doc, Some(language));
         let clauses = out.clauses.as_ref().unwrap();
         assert_eq!(blocks.len(), clauses.len(), "{name}: block count");
         for (block, clause) in blocks.iter().zip(clauses) {

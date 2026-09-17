@@ -84,19 +84,18 @@ fn advisory(code: &str, line: usize, message: impl Into<String>) -> SemanticDiag
 /// Is `tag` a `ClauseLanguage` of semantic-core `semantic_core`, and is it
 /// the checked language or a carried one?
 ///
-/// From semantic-core 0.2.0 `quire` is the checked language and `ocl`,
-/// `sysml`, `fretish`, and namespaced languages are carried. Semantic-core
-/// 0.1.0 admits no `quire`; its checked language is `ocl`.
+/// `quire` is the only checked language; `ocl`, `sysml`, `fretish`, and
+/// namespaced languages are always carried. Semantic-core 0.1.0 admits no
+/// `quire`, so a 0.1.0 module has no checked language.
 pub fn clause_language_class(tag: &str, semantic_core: &str) -> ClauseLanguageClass {
     if tag.is_empty() {
         return ClauseLanguageClass::Missing;
     }
-    let checked = match semantic_core {
-        "0.1.0" => "ocl",
-        _ => "quire",
-    };
-    if tag == checked {
-        return ClauseLanguageClass::Checked;
+    if tag == "quire" {
+        return match semantic_core {
+            "0.1.0" => ClauseLanguageClass::Invalid,
+            _ => ClauseLanguageClass::Checked,
+        };
     }
     if matches!(tag, "ocl" | "sysml" | "fretish") {
         return ClauseLanguageClass::Unchecked;
