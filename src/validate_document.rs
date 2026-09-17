@@ -321,7 +321,13 @@ pub fn validate_document_in_registry(
     archetype: &CompiledArchetype,
     doc_text: &str,
 ) -> ValidationResult {
-    validate_in_registry_core(registry, archetype, doc_text, registry.lexicon_matcher())
+    validate_in_registry_core(
+        registry,
+        archetype,
+        doc_text,
+        registry.lexicon_matcher(),
+        None,
+    )
 }
 
 /// As [`validate_document_in_registry`], but the EARS grammar check (FR-042)
@@ -335,7 +341,30 @@ pub fn validate_document_in_registry_with_lexicon(
     doc_text: &str,
     lexicon: &crate::grammar::GrammarLexicon,
 ) -> ValidationResult {
-    validate_in_registry_core(registry, archetype, doc_text, lexicon)
+    validate_in_registry_core(registry, archetype, doc_text, lexicon, None)
+}
+
+/// As [`validate_document_in_registry`] (or, with `lexicon`,
+/// [`validate_document_in_registry_with_lexicon`]) for a document of the
+/// bundle `bundle_package` (`<org>/<repo>`). Relationship targets qualify
+/// under that package (FR-076); the other entry points know no bundle
+/// package, so a `## Relationships` table is reported `unavailable` with
+/// reason `no-bundle-package` rather than qualified under the module's
+/// package.
+pub fn validate_document_in_bundle(
+    registry: &crate::Registry,
+    archetype: &CompiledArchetype,
+    doc_text: &str,
+    bundle_package: &str,
+    lexicon: Option<&crate::grammar::GrammarLexicon>,
+) -> ValidationResult {
+    validate_in_registry_core(
+        registry,
+        archetype,
+        doc_text,
+        lexicon.unwrap_or_else(|| registry.lexicon_matcher()),
+        Some(bundle_package),
+    )
 }
 
 /// Semantic extraction findings (FR-072 `validate_document` surface): every
@@ -343,27 +372,38 @@ pub fn validate_document_in_registry_with_lexicon(
 /// `advisory` and `warning` are warnings. The bundle index and source
 /// identity are not available on this surface, so type tokens outside the
 /// kernel and imports resolve as `unresolved` (`no-bundle-index`) and spans
-/// carry the defaulted identity with its advisory.
+/// carry the defaulted identity with its advisory. Relationship rows are
+/// checked against the registry's own vocabulary (FR-076): its `edge_types`
+/// and inverse index, and the `roles` and `allowed_links` of its active
+/// archetypes, and qualify under the caller's `bundle_package`.
 fn semantic_findings(
     registry: &crate::Registry,
     arch: &CompiledArchetype,
     module: &crate::semantic::SemanticModule,
     doc_text: &str,
+    bundle_package: Option<&str>,
     errors: &mut Vec<ValidationError>,
     warnings: &mut Vec<ValidationWarning>,
 ) {
     use crate::semantic::model::DeclaredTables;
-    use crate::semantic::{BundleIndex, RequiredSections, SemanticContext, SemanticSeverity};
-    let mut bundle = BundleIndex::default();
+    use crate::semantic::{
+        BundleIndex, RelationVocabulary, RequiredSections, SemanticContext, SemanticSeverity,
+    };
+    let mut bundle = BundleIndex {
+        package: bundle_package.unwrap_or_default().to_string(),
+        ..BundleIndex::default()
+    };
     for (_, m) in registry.semantic_modules() {
         bundle.imports.insert(m.package.clone(), m.exports.clone());
     }
     // This surface has no document path: spans and refusals name `<document>`.
-    let ctx = SemanticContext::new(module.clone(), "<document>", bundle).with_declared_tables(
-        arch.body_extraction()
-            .map(DeclaredTables::from_dsl)
-            .unwrap_or_default(),
-    );
+    let ctx = SemanticContext::new(module.clone(), "<document>", bundle)
+        .with_declared_tables(
+            arch.body_extraction()
+                .map(DeclaredTables::from_dsl)
+                .unwrap_or_default(),
+        )
+        .with_relation_vocabulary(RelationVocabulary::from_registry(registry, arch));
     let required = arch
         .body_extraction()
         .and_then(|dsl| serde_json::to_value(dsl).ok())
@@ -411,13 +451,15 @@ fn semantic_findings(
     }
 }
 
-/// Shared body of the two registry-backed validation entry points. The only
-/// difference is the `GrammarLexicon` the grammar check consumes.
+/// Shared body of the registry-backed validation entry points: they differ
+/// in the `GrammarLexicon` the grammar check consumes and in whether the
+/// caller knows the document's bundle package.
 fn validate_in_registry_core(
     registry: &crate::Registry,
     archetype: &CompiledArchetype,
     doc_text: &str,
     lexicon: &crate::grammar::GrammarLexicon,
+    bundle_package: Option<&str>,
 ) -> ValidationResult {
     let doc = crate::parse_document(doc_text);
     let line_offset = body_line_offset(doc_text);
@@ -469,7 +511,15 @@ fn validate_in_registry_core(
     // resolved data schema (FR-069-AC-1).
     if let Some(arch) = object_archetype {
         if let Some(module) = registry.semantic_module(&arch.module) {
-            semantic_findings(registry, arch, module, doc_text, &mut errors, &mut warnings);
+            semantic_findings(
+                registry,
+                arch,
+                module,
+                doc_text,
+                bundle_package,
+                &mut errors,
+                &mut warnings,
+            );
         }
     }
 

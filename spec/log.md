@@ -7,6 +7,42 @@ description: "Chronological log of structural changes to this bundle."
 
 ## History
 
+* **2026-09-16** — **CR-168** (#418, PR #436 re-review): [FR-076](./functional/FR-076-relationships-extraction.md)
+  drops `no-bundle-index` advisories when any row errs, and qualifies
+  targets under the bundle package or the source identity's package, never
+  the module's. With neither, relationships are `unavailable` with
+  `no-bundle-package` and one heading advisory. `validate_document_in_bundle`
+  takes the package from its caller. Both are raised with quoin as
+  `agent-ix/quoin#556`. The Python `validate_document` binding takes an
+  optional `bundle_package`; the remaining callers are tracked in
+  `agent-ix/quire-cli#91`, `agent-ix/quoin#557`, and #437.
+  AC-14..AC-15, TC-1865..TC-1868.
+
+* **2026-09-16** — **CR-167** (#418, PR #436 review): [FR-076](./functional/FR-076-relationships-extraction.md)
+  follows quoin FR-104 as amended by quoin PR #555 (fixtures re-vendored at
+  `2dad869`). A context without a `RelationVocabulary` extracts under
+  `no-relation-vocabulary`; a context without a bundle index lowers
+  id-shaped targets with the `no-bundle-index` advisory; under the token a
+  relationship table outside `## Relationships` is refused; a section with
+  no block warns `relationships-no-block`. `composite` is always present,
+  and the block-refusal rule covers every non-read block. `validate_document`
+  builds the vocabulary from the registry; Filament waits on
+  `agent-ix/filament-core-service#32`. AC-10..AC-13, TC-1861..TC-1864.
+
+* **2026-09-16** — **FR-076** (#418): relationships extraction. Under the
+  `relationships` mapping token, the `## Relationships`
+  `Name | Verb | Target | Multiplicity` table extracts to semantic-core
+  `RelationDecl[]` with `relationSources` (name and span per row, the
+  `0.2.0` carrier until `agent-ix/filament-core-data#155`) and
+  `availability.relations`, checked against the caller-supplied FR-040 edge
+  registry, object-type roles and `allowed_links`, and the bundle's
+  artifacts. The grammar and oracle are `agent-ix/quoin` FR-104; its
+  `relationships.*` fixtures and README are vendored at `31ca54d` (quoin
+  PR #553). **CR-166**: [FR-072](./functional/FR-072-semantic-extraction-surface.md)
+  Outputs and `semantic-v1` carry the optional `relations`,
+  `relationSources`, and `availability.relations` keys; `BundleIndex` gains
+  `artifacts`. TC-1852..TC-1860.
+
 * **2026-09-16** — **CR-165** (#431): `quire` is the only checked clause
   language. [FR-071](./functional/FR-071-clause-and-operation-extraction.md)
   carries `ocl`, `sysml`, `fretish`, and namespaced languages with

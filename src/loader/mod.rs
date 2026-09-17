@@ -1125,27 +1125,10 @@ pub fn flatten_into_registry(mut outcome: LoadOutcome) -> RegistryShape {
     // declaring the same inverse label are first-wins (edge_types is a
     // BTreeMap, so the lexicographically first forward wins
     // deterministically) and emit a non-fatal DuplicateInverseEdge. ──
-    let mut inverse_edges: BTreeMap<String, String> = BTreeMap::new();
-    let mut inverse_conflicts: BTreeMap<String, Vec<String>> = BTreeMap::new();
-    for (verb, def) in &edge_types {
-        let Some(label) = def.inverse.as_ref() else {
-            continue;
-        };
-        if edge_types.contains_key(label) {
-            continue; // forward registration governs the name
-        }
-        match inverse_edges.get(label) {
-            None => {
-                inverse_edges.insert(label.clone(), verb.clone());
-            }
-            Some(winner) => {
-                inverse_conflicts
-                    .entry(label.clone())
-                    .or_insert_with(|| vec![winner.clone()])
-                    .push(verb.clone());
-            }
-        }
-    }
+    let crate::vocab::InverseIndex {
+        forwards: inverse_edges,
+        conflicts: inverse_conflicts,
+    } = crate::vocab::InverseIndex::derive(&edge_types, |def| def.inverse.as_deref());
     for (name, forwards) in inverse_conflicts {
         outcome
             .diagnostics

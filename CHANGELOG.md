@@ -7,6 +7,15 @@ bumps; once 1.0 ships, semver is strict.
 
 ## [Unreleased]
 
+### Added
+
+- **Relationships extraction to semantic-core `RelationDecl[]` (#418).**
+  Under the `relationships` mapping token, the `## Relationships`
+  `Name | Verb | Target | Multiplicity` table extracts to `relations`,
+  `relationSources`, and `availability.relations`, checked against the
+  FR-040 edge registry (quoin FR-104). `validate_document_in_bundle`
+  qualifies targets under the caller's bundle package.
+
 ### Fixed
 
 - **YAML parsing now uses the maintained YAML Organization engine (#414).**

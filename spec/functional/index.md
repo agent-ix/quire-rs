@@ -78,3 +78,4 @@ description: "Index of artifacts in this directory."
 * [FR-073: Generic rights-aware clause sets](./FR-073-generic-clause-sets.md)
 * [FR-074: Plain-language profiles over reader-visible prose](./FR-074-plain-language-profiles.md)
 * [FR-075: Model feature extraction driven by the module manifest](./FR-075-model-feature-extraction.md)
+* [FR-076: Relationships extraction to RelationDecl[]](./FR-076-relationships-extraction.md)

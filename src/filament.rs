@@ -1102,15 +1102,7 @@ fn normalize_ref(org: &str, repo_name: &str, value: &str) -> String {
 }
 
 fn is_valid_ix_ref(value: &str) -> bool {
-    let Some(rest) = value.strip_prefix("ix://") else {
-        return false;
-    };
-    let mut parts = rest.split('/');
-    matches!(
-        (parts.next(), parts.next(), parts.next()),
-        (Some(org), Some(repo), Some(name))
-            if !org.is_empty() && !repo.is_empty() && !name.is_empty()
-    )
+    crate::ix_ref::IxRef::parse(value).is_some()
 }
 
 fn value_to_string(value: &Value) -> String {

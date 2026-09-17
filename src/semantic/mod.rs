@@ -5,7 +5,7 @@
 //! against the embedded semantic-core bundle without touching the filesystem
 //! or the network; `vendored` is the embedded bundle itself. Extraction
 //! (FR-070..FR-072) lands in the sibling modules of Plan-003; `model` holds the
-//! FR-075 model feature declarations.
+//! FR-075 model feature declarations; `relations` the FR-076 relationships.
 
 pub mod clauses;
 pub mod context;
@@ -14,6 +14,7 @@ pub mod decl;
 pub mod model;
 pub mod properties;
 pub mod python_entry;
+pub mod relations;
 pub mod resolver;
 pub mod scan;
 pub mod surface;
@@ -23,7 +24,7 @@ pub use clauses::{
     extract_clauses, extract_operations, ClauseRef, ClausesOutcome, OperationDecl,
     OperationsOutcome, SourceLocus,
 };
-pub use context::{BundleEntry, BundleIndex, SemanticContext};
+pub use context::{BundleArtifact, BundleEntry, BundleIndex, SemanticContext};
 pub use contract::{
     read_semantic_block, reference_form, DataSchemaRef, SemanticFailure, SemanticModule,
     SemanticSeverity,
@@ -35,6 +36,9 @@ pub use model::{
     SupertypeDecl, TermDecl, TransitionDecl, UnknownStepKind,
 };
 pub use properties::{extract_fields, FieldsForm, FieldsOutcome};
+pub use relations::{
+    EdgeVerb, RelationDecl, RelationSource, RelationVocabulary, RELATIONSHIPS_TOKEN,
+};
 pub use resolver::{compile_module_schema, ResolvedSchema, SchemaSource};
 pub use surface::{
     extract_semantic, Availability, RequiredSections, SemanticExtraction, SEMANTIC_FORMAT_VERSION,

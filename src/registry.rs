@@ -726,7 +726,7 @@ impl Registry {
     /// `token == "*"`, `token` equals the candidate's name, or `token` is
     /// a role the candidate carries (FR-040-AC-7).
     pub fn target_satisfies(&self, token: &str, candidate: &CompiledArchetype) -> bool {
-        token == "*" || token == candidate.name || candidate.roles().iter().any(|r| r == token)
+        crate::vocab::target_satisfies(token, &candidate.name, candidate.roles())
     }
 
     /// Path-resolution diagnostics (missing dirs, file-not-dir,

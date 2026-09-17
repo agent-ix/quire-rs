@@ -14,6 +14,7 @@ use super::model::{
     extract_model, failed, model_availability, ModelDeclarations, ModelRefs, ModelSource,
 };
 use super::properties::{extract_fields, FieldsForm};
+use super::relations::{extract_relations, ExtractedRelation, RelationDecl, RelationSource};
 use super::{AvailabilityState, KindAvailability, SemanticDiagnostic};
 
 pub const SEMANTIC_FORMAT_VERSION: u64 = 1;
@@ -27,6 +28,10 @@ pub struct Availability {
     /// FR-075 frontmatter and table features; present when any is declared.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub model: Option<KindAvailability>,
+    /// FR-076 relationships; present when the module names `relationships`
+    /// or the artifact holds a relationship-shaped table.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub relations: Option<KindAvailability>,
 }
 
 /// The FR-072 record. Optional keys are skipped when absent so the shape
@@ -52,6 +57,14 @@ pub struct SemanticExtraction {
     pub operations: Option<Vec<OperationDecl>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub model: Option<ModelDeclarations>,
+    /// FR-076 `RelationDecl[]`, present exactly when `availability.relations`
+    /// is `available`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub relations: Option<Vec<RelationDecl>>,
+    /// The `name` and `sourceSpan` of each `relations` element, at its index
+    /// (the semantic-core 0.2.0 carrier, `agent-ix/filament-core-data#155`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub relation_sources: Option<Vec<RelationSource>>,
     pub availability: Availability,
     pub diagnostics: Vec<SemanticDiagnostic>,
 }
@@ -99,7 +112,8 @@ impl RequiredSections {
     }
 }
 
-/// Run FR-070 and FR-071 over one document and assemble the record.
+/// Run FR-070, FR-071, FR-075, and FR-076 over one document and assemble
+/// the record.
 pub fn extract_semantic(
     raw: &str,
     ctx: &SemanticContext,
@@ -137,11 +151,14 @@ pub fn extract_semantic(
         },
     );
 
+    let relations = extract_relations(raw, ctx);
+
     let mut diagnostics: Vec<SemanticDiagnostic> = Vec::new();
     diagnostics.extend(fields.diagnostics.iter().cloned());
     diagnostics.extend(clauses.diagnostics.iter().cloned());
     diagnostics.extend(operations.diagnostics.iter().cloned());
     diagnostics.extend(model_outcome.diagnostics.iter().cloned());
+    diagnostics.extend(relations.diagnostics);
     diagnostics.sort_by(|a, b| {
         (a.line.unwrap_or(0), a.column.unwrap_or(0), a.code.as_str()).cmp(&(
             b.line.unwrap_or(0),
@@ -198,7 +215,15 @@ pub fn extract_semantic(
             }
             a
         }),
+        relations: relations.availability.map(|mut a| {
+            if declared_lossy {
+                a.lossy = true;
+            }
+            a
+        }),
     };
+    let (relation_decls, relation_sources) =
+        relations.relations.map(ExtractedRelation::split).unzip();
     // `model` is carried exactly when `availability.model` is available.
     let model = availability
         .model
@@ -229,6 +254,8 @@ pub fn extract_semantic(
         },
         operations: operations.operations,
         model,
+        relations: relation_decls,
+        relation_sources,
         availability,
         diagnostics,
     }
@@ -249,6 +276,12 @@ impl SemanticExtraction {
             map.insert(
                 "clauses".into(),
                 serde_json::to_value(c).unwrap_or(Value::Null),
+            );
+        }
+        if let Some(r) = &self.relations {
+            map.insert(
+                "relations".into(),
+                serde_json::to_value(r).unwrap_or(Value::Null),
             );
         }
         if let Some(o) = &self.operations {

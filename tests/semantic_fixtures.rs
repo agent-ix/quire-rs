@@ -9,6 +9,7 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use ix_trace_rs::trace;
 use serde::Deserialize;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
@@ -43,6 +44,7 @@ fn walk(dir: &Path, out: &mut Vec<PathBuf>) {
 
 // The golden inputs are the quoin fixtures, byte-for-byte, at the pinned
 // revision; TC-1610's extraction assertions live in tests/semantic_properties.rs.
+#[trace("TC-1852", "FR-076-AC-1")]
 #[test]
 fn quoin_fixtures_match_provenance() {
     let dir = root().join("tests/fixtures/semantic/quoin");
