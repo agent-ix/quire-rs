@@ -21,7 +21,17 @@ fn module_root() -> PathBuf {
     root().join("tests/fixtures/semantic/spec-objects-architecture")
 }
 
-/// The four systems locators as spec-objects-architecture declares them.
+/// A `table_row` locator under `section` asserting `columns`.
+fn locator(section: &str, columns: &[&str]) -> Value {
+    json!({
+        "from": "table_row",
+        "under_section": section,
+        "required": true,
+        "assert": { "columns": columns, "min_rows": 1 },
+    })
+}
+
+/// The systems locator of `kind` as spec-objects-architecture declares it.
 fn body_extraction(kind: &str) -> Value {
     let (section, columns): (&str, &[&str]) = match kind {
         "part" => ("Part", &["Owner", "Declared Type", "Multiplicity"]),
@@ -39,18 +49,17 @@ fn body_extraction(kind: &str) -> Value {
         "allocation" => ("Allocation", &["Source", "Target"]),
         other => panic!("{other}"),
     };
-    json!({ "yield_pattern": { "match": { kind: {
-        "from": "table_row",
-        "under_section": section,
-        "required": true,
-        "assert": { "columns": columns, "min_rows": 1 },
-    } } } })
+    json!({ "yield_pattern": { "match": { kind: locator(section, columns) } } })
 }
 
 /// Extract `md` under `body_extraction`, against a bundle holding
-/// `artifacts`; the record must validate against semantic-v1.
-fn extract(md: &str, body_extraction: Value, artifacts: &[&str]) -> Value {
-    let artifacts: Vec<Value> = artifacts.iter().map(|id| json!({ "id": id })).collect();
+/// `artifacts` as `(id, object)`; the record must validate against
+/// semantic-v1.
+fn extract(md: &str, body_extraction: Value, artifacts: &[(&str, &str)]) -> Value {
+    let artifacts: Vec<Value> = artifacts
+        .iter()
+        .map(|(id, object)| json!({ "id": id, "object": object }))
+        .collect();
     let request = json!({
         "markdown": md,
         "module": {
@@ -58,6 +67,7 @@ fn extract(md: &str, body_extraction: Value, artifacts: &[&str]) -> Value {
             "semanticCore": "0.1.0",
             "package": "agent-ix/spec-objects-architecture",
             "exports": ["part", "port", "connection", "allocation"],
+            "imports": { "agent-ix/fleet": "*" },
         },
         "path": PATH,
         "sourceIdentity": "ix://agent-ix/shop/spec",
@@ -100,6 +110,15 @@ fn refused(record: &Value, code: &str, line: u64) -> bool {
     at && record.get("model").is_none() && record["availability"]["model"]["state"] == "unavailable"
 }
 
+fn advisories(record: &Value) -> usize {
+    record["diagnostics"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|d| d["code"] == "semantic.unresolved-target")
+        .count()
+}
+
 fn doc(id: &str, kind: &str, section: &str, table: &str) -> String {
     format!("---\nid: {id}\ntitle: \"{id}\"\ntype: {kind}\nobject: {kind}\n---\n# [{id}] {id}\n\n## {section}\n\n{table}")
 }
@@ -110,18 +129,20 @@ const CONNECTION: &str = "| Source | Source Multiplicity | Target | Target Multi
 const ALLOCATION: &str =
     "| Source | Target |\n|---|---|\n| quant_codec/score_ip_batch | scoring_engine |\n";
 
-const BUNDLE: &[&str] = &[
-    "search_service",
-    "scoring_engine",
-    "planner_out",
-    "score_in",
-    "quant_codec",
+const BUNDLE: &[(&str, &str)] = &[
+    ("search_service", "part"),
+    ("scoring_engine", "part"),
+    ("planner_out", "port"),
+    ("score_in", "port"),
+    ("quant_codec", "interface"),
 ];
+
+const PKG: &str = "ix://agent-ix/shop";
 
 #[trace("TC-1872", "FR-075-AC-12")]
 #[test]
 fn systems_tables_lower_to_record_keys_and_refuse_bad_rows() {
-    let pkg = "ix://agent-ix/shop";
+    let pkg = PKG;
 
     let md = doc("engine", "part", "Part", PART);
     let record = extract(&md, body_extraction("part"), BUNDLE);
@@ -176,7 +197,7 @@ fn systems_tables_lower_to_record_keys_and_refuse_bad_rows() {
 
     // A name no bundle artifact carries.
     let md = doc("engine", "part", "Part", PART);
-    let record = extract(&md, body_extraction("part"), &["scoring_engine"]);
+    let record = extract(&md, body_extraction("part"), &[("scoring_engine", "part")]);
     assert!(
         refused(
             &record,
@@ -196,6 +217,11 @@ fn systems_tables_lower_to_record_keys_and_refuse_bad_rows() {
             && d["severity"] == "advisory"
             && d["reason"] == "no-bundle-index"
     }));
+    // ... but a row that fails carries no advisory.
+    let bad = doc("engine", "part", "Part", &PART.replace("0..*", "lots"));
+    let record = extract(&bad, body_extraction("part"), &[]);
+    assert!(record.get("model").is_none(), "{record:#}");
+    assert_eq!(advisories(&record), 0, "{record:#}");
 
     // An unknown port direction and an unknown connection direction.
     let md = doc(
@@ -229,7 +255,7 @@ fn systems_tables_lower_to_record_keys_and_refuse_bad_rows() {
         "{record:#}"
     );
 
-    // A second row.
+    // A second row, and a table with no row at all.
     let two = format!("{ALLOCATION}| scoring_engine | search_service |\n");
     let md = doc("alloc", "allocation", "Allocation", &two);
     let record = extract(&md, body_extraction("allocation"), BUNDLE);
@@ -241,8 +267,24 @@ fn systems_tables_lower_to_record_keys_and_refuse_bad_rows() {
         ),
         "{record:#}"
     );
+    let md = doc(
+        "alloc",
+        "allocation",
+        "Allocation",
+        "| Source | Target |\n|---|---|\n",
+    );
+    let record = extract(&md, body_extraction("allocation"), BUNDLE);
+    assert!(
+        refused(
+            &record,
+            "semantic.invalid-model-cell",
+            line_of(&md, "| Source | Target")
+        ),
+        "{record:#}"
+    );
 
-    // `<id>/<member>` names an allocation source only.
+    // `<id>/<member>` names an allocation source only: not an owner, not a
+    // connection end.
     let md = doc(
         "engine",
         "part",
@@ -258,9 +300,64 @@ fn systems_tables_lower_to_record_keys_and_refuse_bad_rows() {
         ),
         "{record:#}"
     );
+    for end in ["planner_out", "score_in"] {
+        let md = doc(
+            "wire",
+            "connection",
+            "Connection",
+            &CONNECTION.replace(end, &format!("{end}/flow")),
+        );
+        let record = extract(&md, body_extraction("connection"), BUNDLE);
+        assert!(
+            refused(
+                &record,
+                "semantic.invalid-model-cell",
+                line_of(&md, "/flow")
+            ),
+            "{end}: {record:#}"
+        );
+    }
 
-    // Undeclared: a `Source | Target` table is the allocation feature, not
-    // the connection feature.
+    // An id outside the object-id alphabet (a hyphen) is malformed.
+    let md = doc(
+        "engine",
+        "part",
+        "Part",
+        &PART.replace("search_service", "search-service"),
+    );
+    let bundle = [("search-service", "part")];
+    let record = extract(&md, body_extraction("part"), &bundle);
+    assert!(
+        refused(
+            &record,
+            "semantic.invalid-model-cell",
+            line_of(&md, "search-service")
+        ),
+        "{record:#}"
+    );
+
+    // Multiplicity columns the locator omits: the ends state none.
+    let locator = json!({ "yield_pattern": { "match": {
+        "connection": locator("Connection", &["Source", "Target", "Direction"]),
+    } } });
+    let md = doc(
+        "wire",
+        "connection",
+        "Connection",
+        "| Source | Target | Direction |\n|---|---|---|\n| planner_out | score_in | source-to-target |\n",
+    );
+    let record = extract(&md, locator, BUNDLE);
+    assert_eq!(
+        record["model"]["connection"]["sourceEnd"],
+        json!({ "type": format!("{pkg}/planner_out") }),
+        "{record:#}"
+    );
+    assert_eq!(
+        record["model"]["connection"]["targetEnd"],
+        json!({ "type": format!("{pkg}/score_in") })
+    );
+
+    // Undeclared: a `Source | Target` table is refused as `allocation`.
     let md = doc("alloc", "allocation", "Elsewhere", ALLOCATION);
     let record = extract(&md, body_extraction("allocation"), BUNDLE);
     let refusal = record["diagnostics"]
@@ -271,6 +368,201 @@ fn systems_tables_lower_to_record_keys_and_refuse_bad_rows() {
         .unwrap_or_else(|| panic!("{record:#}"));
     assert_eq!(refusal["reason"], "allocation");
     assert_eq!(refusal["section"], "Elsewhere");
+}
+
+#[trace("TC-1872", "FR-075-AC-12")]
+#[test]
+fn systems_references_resolve_qualified_and_imported_names_of_the_admitted_kind() {
+    let pkg = PKG;
+
+    // An own-package `ix://` identity and an imported one resolve.
+    let md = doc(
+        "engine",
+        "part",
+        "Part",
+        &PART.replace("search_service", &format!("{pkg}/search_service")),
+    );
+    let record = extract(&md, body_extraction("part"), BUNDLE);
+    assert_eq!(
+        record["model"]["part"]["owner"],
+        format!("{pkg}/search_service"),
+        "{record:#}"
+    );
+    let imported = "ix://agent-ix/fleet/dispatcher";
+    let md = doc(
+        "alloc",
+        "allocation",
+        "Allocation",
+        &ALLOCATION.replace("scoring_engine", imported),
+    );
+    let record = extract(&md, body_extraction("allocation"), BUNDLE);
+    assert_eq!(
+        record["model"]["allocation"]["targetElement"], imported,
+        "{record:#}"
+    );
+    // A qualified operation reference keeps its member.
+    let md = doc(
+        "alloc",
+        "allocation",
+        "Allocation",
+        &ALLOCATION.replace("quant_codec/", &format!("{pkg}/quant_codec/")),
+    );
+    let record = extract(&md, body_extraction("allocation"), BUNDLE);
+    assert_eq!(
+        record["model"]["allocation"]["sourceElement"],
+        format!("{pkg}/quant_codec/score_ip_batch"),
+        "{record:#}"
+    );
+    // A package the module does not import names nothing.
+    let md = doc(
+        "alloc",
+        "allocation",
+        "Allocation",
+        &ALLOCATION.replace("scoring_engine", "ix://agent-ix/elsewhere/dispatcher"),
+    );
+    let record = extract(&md, body_extraction("allocation"), BUNDLE);
+    assert!(
+        refused(
+            &record,
+            "semantic.unknown-reference",
+            line_of(&md, "elsewhere")
+        ),
+        "{record:#}"
+    );
+
+    // Each cell names only its admitted object types.
+    let wrong_kind: [(&str, &str, &str, &str, &str); 6] = [
+        ("part", "Part", PART, "search_service", "planner_out"),
+        ("port", "Port", PORT, "scoring_engine", "score_in"),
+        (
+            "connection",
+            "Connection",
+            CONNECTION,
+            "planner_out",
+            "search_service",
+        ),
+        (
+            "connection",
+            "Connection",
+            CONNECTION,
+            "score_in",
+            "scoring_engine",
+        ),
+        (
+            "allocation",
+            "Allocation",
+            ALLOCATION,
+            "scoring_engine",
+            "planner_out",
+        ),
+        (
+            "allocation",
+            "Allocation",
+            ALLOCATION,
+            "quant_codec/score_ip_batch",
+            "quant_codec",
+        ),
+    ];
+    for (kind, section, table, from, to) in wrong_kind {
+        let md = doc("subject", kind, section, &table.replace(from, to));
+        let record = extract(&md, body_extraction(kind), BUNDLE);
+        let row = md
+            .split('\n')
+            .position(|l| l.starts_with("| ") && l.contains(to))
+            .unwrap() as u64
+            + 1;
+        assert!(
+            refused(&record, "semantic.reference-kind-mismatch", row),
+            "{kind} {to}: {record:#}"
+        );
+    }
+    // An allocation source may name a port.
+    let md = doc(
+        "alloc",
+        "allocation",
+        "Allocation",
+        &ALLOCATION.replace("quant_codec/score_ip_batch", "planner_out"),
+    );
+    let record = extract(&md, body_extraction("allocation"), BUNDLE);
+    assert_eq!(
+        record["model"]["allocation"]["sourceElement"],
+        format!("{pkg}/planner_out"),
+        "{record:#}"
+    );
+}
+
+#[trace("TC-1872", "FR-075-AC-12")]
+#[test]
+fn systems_table_kind_comes_from_the_match_key() {
+    // A connection declared with `[Source, Target]` reads a `Source | Target`
+    // table as a connection, never as an allocation.
+    let dsl = |key: &str| {
+        json!({ "yield_pattern": { "match": {
+            key: locator("Wiring", &["Source", "Target"]),
+        } } })
+    };
+    let md = doc(
+        "wire",
+        "connection",
+        "Wiring",
+        "| Source | Target |\n|---|---|\n| planner_out | score_in |\n",
+    );
+    let record = extract(&md, dsl("connection"), BUNDLE);
+    assert!(
+        refused(
+            &record,
+            "semantic.invalid-model-cell",
+            line_of(&md, "| planner_out")
+        ),
+        "{record:#}"
+    );
+    assert!(
+        record["diagnostics"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|d| d["message"]
+                .as_str()
+                .is_some_and(|m| m.contains("connection direction"))),
+        "{record:#}"
+    );
+    // The same locator under `allocation` reads it as an allocation.
+    let md = md.replace(
+        "| planner_out | score_in |",
+        "| score_in | scoring_engine |",
+    );
+    let record = extract(&md, dsl("allocation"), BUNDLE);
+    assert_eq!(
+        record["model"]["allocation"]["targetElement"],
+        format!("{PKG}/scoring_engine"),
+        "{record:#}"
+    );
+    // A key that names no model table declares none.
+    let record = extract(&md, dsl("wiring"), BUNDLE);
+    assert!(
+        record["diagnostics"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|d| d["code"] == "semantic.feature-not-extractable"),
+        "{record:#}"
+    );
+
+    // One systems-model table per artifact.
+    let both = json!({ "yield_pattern": { "match": {
+        "part": locator("Part", &["Owner", "Declared Type", "Multiplicity"]),
+        "port": locator("Port", &["Owner", "Direction", "Interface", "Multiplicity"]),
+    } } });
+    let md = format!("{}\n## Port\n\n{PORT}", doc("engine", "part", "Part", PART));
+    let record = extract(&md, both, BUNDLE);
+    assert!(
+        refused(
+            &record,
+            "semantic.duplicate-section",
+            line_of(&md, "| Owner | Direction")
+        ),
+        "{record:#}"
+    );
 }
 
 #[trace("TC-1873", "FR-075-AC-13")]
@@ -309,7 +601,8 @@ fn spec_objects_architecture_systems_skeletons_validate_with_zero_errors() {
             None,
             &quire_rs::semantic::RequiredSections::default(),
         )
-        .declaration_record();
+        .declaration_record()
+        .unwrap();
         let mut found: Vec<&str> = record
             .as_object()
             .unwrap()

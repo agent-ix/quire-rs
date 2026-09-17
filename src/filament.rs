@@ -1192,13 +1192,18 @@ fn attach_semantic(
     );
     // The resolved data schema validates the declaration record (FR-069-AC-1).
     if let Some(validator) = &object_type.validator {
-        let declaration = record.declaration_record();
-        let first: Option<(String, String)> = match validator.validate(&declaration) {
-            Ok(()) => None,
-            Err(mut errors) => errors.next().map(|err| {
-                let detail = crate::validate::schema_validation_detail(&err);
-                (detail.path.to_string(), detail.message.to_string())
-            }),
+        let first: Option<(String, String)> = match record.declaration_record() {
+            Err(err) => Some((
+                String::new(),
+                format!("the record does not serialize: {err}"),
+            )),
+            Ok(declaration) => match validator.validate(&declaration) {
+                Ok(()) => None,
+                Err(mut errors) => errors.next().map(|err| {
+                    let detail = crate::validate::schema_validation_detail(&err);
+                    (detail.path.to_string(), detail.message.to_string())
+                }),
+            },
         };
         if let Some((path, message)) = first {
             diagnostics.push(diagnostic(

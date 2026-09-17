@@ -7,6 +7,16 @@ bumps; once 1.0 ships, semver is strict.
 
 ## [Unreleased]
 
+### Changed
+
+- **A model-table locator declares the table its match key names (#446).**
+  `yield_pattern.match: { values: … }` declares the `values` table; a key
+  that names no model table (e.g. `values_table`) declares none, and its
+  section's tables are refused as `semantic.feature-not-extractable`.
+- **`SemanticExtraction::declaration_record()` returns
+  `Result<Value, serde_json::Error>` (#446)**, serialized from the typed
+  `declaration()`.
+
 ### Added
 
 - **Operation and frame extraction with `Pre:` / `Post:` lines (#431).**
@@ -23,7 +33,8 @@ bumps; once 1.0 ships, semver is strict.
   `Connection.json`, and `Allocation.json`. New public types in
   `quire_rs::semantic`: `SystemsDecl`, `PartRecord`, `PortRecord`,
   `ConnectionRecord`, `ConnectionEnd`, `AllocationRecord`, `PortDirection`,
-  `ConnectionDirection`. New error code `semantic.unknown-reference`.
+  `ConnectionDirection`, `DeclarationRecord`, `SystemsRecord`. New error
+  codes `semantic.unknown-reference` and `semantic.reference-kind-mismatch`.
 - **Object type `construct` declarations carried through loading (#445).**
   `CompiledArchetype::construct()` returns an object type's `construct`
   declaration as raw `serde_json::Value`, unchanged; `None` when undeclared.

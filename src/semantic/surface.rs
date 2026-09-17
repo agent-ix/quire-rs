@@ -18,6 +18,7 @@ use super::model::{
 };
 use super::properties::{extract_fields, FieldsForm};
 use super::relations::{extract_relations, ExtractedRelation, RelationDecl, RelationSource};
+use super::systems::{AllocationRecord, ConnectionRecord, PartRecord, PortRecord};
 use super::{AvailabilityState, KindAvailability, SemanticDiagnostic};
 
 pub const SEMANTIC_FORMAT_VERSION: u64 = 1;
@@ -292,57 +293,101 @@ pub fn extract_semantic(
     }
 }
 
+/// The value a data schema validates: the declaration arrays and the one
+/// systems-model record's keys, flat.
+#[derive(Debug, Clone, Serialize)]
+pub struct DeclarationRecord<'a> {
+    /// FR-070 `fields`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fields: Option<&'a [FieldDecl]>,
+    /// FR-071 `clauses`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub clauses: Option<&'a [ClauseRef]>,
+    /// FR-076 `relations`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub relations: Option<&'a [RelationDecl]>,
+    /// FR-071 `operations`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub operations: Option<&'a [OperationDecl]>,
+    /// The systems-model record; FR-075 admits at most one per artifact.
+    #[serde(flatten, skip_serializing_if = "Option::is_none")]
+    pub systems: Option<SystemsRecord<'a>>,
+}
+
+/// One systems-model record, serialized as its own keys.
+#[derive(Debug, Clone, Copy, Serialize)]
+#[serde(untagged)]
+pub enum SystemsRecord<'a> {
+    /// `model.part`.
+    Part(&'a PartRecord),
+    /// `model.port`.
+    Port(&'a PortRecord),
+    /// `model.connection`.
+    Connection(&'a ConnectionRecord),
+    /// `model.allocation`.
+    Allocation(&'a AllocationRecord),
+}
+
 impl SemanticExtraction {
-    /// The record as the value a data schema validates: the declaration
-    /// arrays and the systems-model record keys of `model` (what
-    /// `Entity.json`, `Part.json`, and their kin describe).
-    pub fn declaration_record(&self) -> Value {
-        let mut map = serde_json::Map::new();
-        if let Some(f) = &self.fields {
-            map.insert(
-                "fields".into(),
-                serde_json::to_value(f).unwrap_or(Value::Null),
-            );
-        }
-        if let Some(c) = &self.clauses {
-            map.insert(
-                "clauses".into(),
-                serde_json::to_value(c).unwrap_or(Value::Null),
-            );
-        }
-        if let Some(r) = &self.relations {
-            map.insert(
-                "relations".into(),
-                serde_json::to_value(r).unwrap_or(Value::Null),
-            );
-        }
-        if let Some(o) = &self.operations {
-            map.insert(
-                "operations".into(),
-                serde_json::to_value(o).unwrap_or(Value::Null),
-            );
-        }
-        if let Some(model) = &self.model {
-            let systems = [
-                model.part.as_ref().map(|d| serde_json::to_value(&d.record)),
-                model.port.as_ref().map(|d| serde_json::to_value(&d.record)),
+    /// The typed declaration record (what `Entity.json`, `Part.json`, and
+    /// their kin describe).
+    pub fn declaration(&self) -> DeclarationRecord<'_> {
+        let systems = self.model.as_ref().and_then(|model| {
+            let records = [
+                model.part.as_ref().map(|d| SystemsRecord::Part(&d.record)),
+                model.port.as_ref().map(|d| SystemsRecord::Port(&d.record)),
                 model
                     .connection
                     .as_ref()
-                    .map(|d| serde_json::to_value(&d.record)),
+                    .map(|d| SystemsRecord::Connection(&d.record)),
                 model
                     .allocation
                     .as_ref()
-                    .map(|d| serde_json::to_value(&d.record)),
+                    .map(|d| SystemsRecord::Allocation(&d.record)),
             ];
-            // A systems record's keys are the declaration's own members.
-            for record in systems.into_iter().flatten() {
-                if let Ok(Value::Object(keys)) = record {
-                    map.extend(keys);
-                }
-            }
+            let mut present = records.into_iter().flatten();
+            let first = present.next();
+            debug_assert!(
+                present.next().is_none(),
+                "FR-075 extracts at most one systems-model table per artifact"
+            );
+            first
+        });
+        DeclarationRecord {
+            fields: self.fields.as_deref(),
+            clauses: self.clauses.as_deref(),
+            relations: self.relations.as_deref(),
+            operations: self.operations.as_deref(),
+            systems,
         }
-        Value::Object(map)
+    }
+
+    /// The declaration record as the JSON value a data schema validates.
+    pub fn declaration_record(&self) -> Result<Value, serde_json::Error> {
+        let declaration = self.declaration();
+        let value = serde_json::to_value(&declaration)?;
+        #[cfg(debug_assertions)]
+        {
+            let systems_keys = match declaration.systems.map(serde_json::to_value) {
+                Some(Ok(Value::Object(keys))) => keys.len(),
+                _ => 0,
+            };
+            let arrays = [
+                declaration.fields.is_some(),
+                declaration.clauses.is_some(),
+                declaration.relations.is_some(),
+                declaration.operations.is_some(),
+            ]
+            .into_iter()
+            .filter(|present| *present)
+            .count();
+            debug_assert_eq!(
+                value.as_object().map_or(0, serde_json::Map::len),
+                arrays + systems_keys,
+                "a systems-model record key collides with a declaration array"
+            );
+        }
+        Ok(value)
     }
 
     pub fn has_errors(&self) -> bool {

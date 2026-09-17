@@ -27,11 +27,14 @@ description: "Chronological log of structural changes to this bundle."
   the declaration record the data schema validates (`owner`, `declaredType`,
   `multiplicity`, `direction`, `interfaceType`, `sourceEnd`, `targetEnd`,
   `flowDirection`, `sourceElement`, `targetElement`). Reference cells lower
-  to `SemanticId`s and resolve against the bundle's artifacts
-  (`semantic.unknown-reference`); an allocation `Source` may name
-  `<id>/<member>`. Columns that fit two tables declare the one with the
-  fewest columns. `semantic-v1.schema.json` gains the four optional `model`
-  members. FR-075-AC-12, FR-075-AC-13, TC-1872, TC-1873.
+  to `SemanticId`s through the resolver FR-076 targets use (own-package,
+  `ix://`, and imported references; `semantic.unknown-reference`), restricted
+  to object ids, and must name an artifact of the admitted object type
+  (`semantic.reference-kind-mismatch`); an allocation `Source` may name
+  `<id>/<member>`. An artifact declares at most one systems-model table. A
+  model-table locator now declares the table its match key names, not the
+  table its columns look like. `semantic-v1.schema.json` gains the four
+  optional `model` members. FR-075-AC-12, FR-075-AC-13, TC-1872, TC-1873.
 
 * **2026-09-17** — **CR-171** (#445): [FR-031](./functional/FR-031-unified-archetype-shape.md)
   carries an archetype's `construct` (declared on object types) as-is. The
