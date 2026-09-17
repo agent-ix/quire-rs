@@ -500,7 +500,7 @@ fn record_compatibility_and_registry_authority() {
     let md = mapping_text("relationships.md");
     let typed = extract_semantic_json(&request(&expected, &md, "relationships.md", None)).unwrap();
     assert_eq!(
-        typed.declaration_record()["relations"],
+        typed.declaration_record().unwrap()["relations"],
         expected["relations"]
     );
 

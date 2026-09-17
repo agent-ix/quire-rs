@@ -19,6 +19,9 @@ use super::properties::{
     feature_columns, is_typed_prefix, map_multiplicity, map_type, strip_ticks, RowInput,
 };
 use super::scan::{blocks_in, comma_list, level2_headings, lines, Block, Table};
+use super::systems::{
+    self, AllocationRecord, ConnectionRecord, PartRecord, PortRecord, SystemsDecl,
+};
 use super::{AvailabilityState, KindAvailability, SemanticDiagnostic};
 use crate::extract::assert_eval::headers_conform;
 use crate::extract::dsl::ExtractionDsl;
@@ -40,6 +43,10 @@ pub(crate) enum ModelFeature {
     Steps,
     Members,
     Vocabulary,
+    Part,
+    Port,
+    Connection,
+    Allocation,
 }
 
 impl ModelFeature {
@@ -60,6 +67,10 @@ impl ModelFeature {
             Self::Steps => "steps",
             Self::Members => "members",
             Self::Vocabulary => "vocabulary",
+            Self::Part => "part",
+            Self::Port => "port",
+            Self::Connection => "connection",
+            Self::Allocation => "allocation",
         }
     }
 
@@ -79,9 +90,33 @@ impl ModelFeature {
             | Self::Transitions
             | Self::Steps
             | Self::Members
-            | Self::Vocabulary => false,
+            | Self::Vocabulary
+            | Self::Part
+            | Self::Port
+            | Self::Connection
+            | Self::Allocation => false,
         };
         is_mapping && ctx.module.mappings.iter().any(|m| m == self.name())
+    }
+    /// Is this one of the systems-model tables, of which an artifact
+    /// declares at most one?
+    pub(crate) fn is_systems(self) -> bool {
+        match self {
+            Self::Part | Self::Port | Self::Connection | Self::Allocation => true,
+            Self::Generalization
+            | Self::AbstractTypes
+            | Self::Presence
+            | Self::Subsetting
+            | Self::Redefinition
+            | Self::EffectFrames
+            | Self::Population
+            | Self::Values
+            | Self::States
+            | Self::Transitions
+            | Self::Steps
+            | Self::Members
+            | Self::Vocabulary => false,
+        }
     }
 }
 
@@ -96,7 +131,7 @@ struct TableSpec {
 }
 
 /// The single source of truth for the model tables (FR-075 Outputs).
-const TABLE_SPECS: [TableSpec; 7] = [
+const TABLE_SPECS: [TableSpec; 11] = [
     TableSpec {
         feature: ModelFeature::Population,
         columns: &["Type", "Extent"],
@@ -139,19 +174,63 @@ const TABLE_SPECS: [TableSpec; 7] = [
         required: &["Term"],
         read: read_vocabulary,
     },
+    TableSpec {
+        feature: ModelFeature::Part,
+        columns: &["Owner", "Declared Type", "Multiplicity"],
+        required: &["Owner", "Declared Type", "Multiplicity"],
+        read: systems::read_part,
+    },
+    TableSpec {
+        feature: ModelFeature::Port,
+        columns: &["Owner", "Direction", "Interface", "Multiplicity"],
+        required: &["Owner", "Direction", "Interface", "Multiplicity"],
+        read: systems::read_port,
+    },
+    TableSpec {
+        feature: ModelFeature::Connection,
+        columns: &[
+            "Source",
+            "Source Multiplicity",
+            "Target",
+            "Target Multiplicity",
+            "Direction",
+        ],
+        required: &["Source", "Target", "Direction"],
+        read: systems::read_connection,
+    },
+    TableSpec {
+        feature: ModelFeature::Allocation,
+        columns: &["Source", "Target"],
+        required: &["Source", "Target"],
+        read: systems::read_allocation,
+    },
 ];
 
 impl TableSpec {
-    /// The table a column list names: its first column is a table's key and
-    /// every column is one that table reads.
+    /// Whether a column list fits this table: its first column is the
+    /// table's key and every column is one the table reads.
+    fn reads<C: AsRef<str>>(&self, columns: &[C]) -> bool {
+        columns
+            .first()
+            .is_some_and(|first| strip_ticks(first.as_ref()) == self.columns[0])
+            && columns
+                .iter()
+                .all(|c| self.columns.contains(&strip_ticks(c.as_ref())))
+    }
+
+    /// The table an undeclared table's header looks like, for refusing it:
+    /// where tables share a key (`Source` names allocation and connection),
+    /// the one with the fewest columns that reads the header.
     fn for_columns<C: AsRef<str>>(columns: &[C]) -> Option<&'static TableSpec> {
-        let first = strip_ticks(columns.first()?.as_ref());
-        TABLE_SPECS.iter().find(|spec| {
-            spec.columns[0] == first
-                && columns
-                    .iter()
-                    .all(|c| spec.columns.contains(&strip_ticks(c.as_ref())))
-        })
+        TABLE_SPECS
+            .iter()
+            .filter(|spec| spec.reads(columns))
+            .min_by_key(|spec| spec.columns.len())
+    }
+
+    /// The table a `body_extraction` match key names.
+    fn named(key: &str) -> Option<&'static TableSpec> {
+        TABLE_SPECS.iter().find(|spec| spec.feature.name() == key)
     }
 
     fn of(feature: ModelFeature) -> Option<&'static TableSpec> {
@@ -182,22 +261,27 @@ pub(crate) struct DeclaredTables(Vec<DeclaredTable>);
 
 impl DeclaredTables {
     /// Read the `table_row` locators of a typed extraction DSL. A locator
-    /// declares a model table when its `under_section` is set and its
-    /// `assert.columns` name one table's key first, only columns that table
-    /// reads, and none of its required columns in `optional_columns`.
+    /// declares a model table when its match key names the table, its
+    /// `under_section` is set, and its `assert.columns` name the table's key
+    /// first, only columns that table reads, and none of its required
+    /// columns in `optional_columns`.
     pub(crate) fn from_dsl(dsl: &ExtractionDsl) -> Self {
         let locators = dsl
             .yield_pattern
             .r#match
             .iter()
             .chain(dsl.yield_pattern.per_match.iter())
-            .flat_map(|map| map.values())
-            .flat_map(|locator| match locator {
-                Locator::Primitive(p) => std::slice::from_ref(p),
-                Locator::Fallback(chain) => chain.as_slice(),
+            .flat_map(|map| map.iter())
+            .filter_map(|(key, locator)| Some((TableSpec::named(key)?, locator)))
+            .flat_map(|(spec, locator)| {
+                let chain = match locator {
+                    Locator::Primitive(p) => std::slice::from_ref(p),
+                    Locator::Fallback(chain) => chain.as_slice(),
+                };
+                chain.iter().map(move |p| (spec, p))
             });
         let mut out = Vec::new();
-        for primitive in locators {
+        for (spec, primitive) in locators {
             let LocatorPrimitive::TableRow {
                 under_section: Some(section),
                 assert: Some(assert),
@@ -210,9 +294,9 @@ impl DeclaredTables {
                 continue;
             };
             let optional = assert.optional_columns.clone().unwrap_or_default();
-            let Some(spec) = TableSpec::for_columns(columns) else {
+            if !spec.reads(columns) {
                 continue;
-            };
+            }
             if spec
                 .required
                 .iter()
@@ -511,6 +595,14 @@ pub struct ModelDeclarations {
     pub members: Option<Vec<MemberDecl>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub vocabulary: Option<Vec<TermDecl>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub part: Option<SystemsDecl<PartRecord>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub port: Option<SystemsDecl<PortRecord>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub connection: Option<SystemsDecl<ConnectionRecord>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub allocation: Option<SystemsDecl<AllocationRecord>>,
 }
 
 /// What the frontmatter and table extraction of one artifact produced.
@@ -520,6 +612,8 @@ pub(crate) struct ModelOutcome {
     pub(crate) model: ModelDeclarations,
     /// Whether the artifact declared any frontmatter or table feature.
     pub(crate) declared: bool,
+    /// The artifact's frontmatter `object`, for reference kind checks.
+    pub(crate) object: Option<String>,
     pub(crate) lossy: bool,
     pub(crate) diagnostics: Vec<SemanticDiagnostic>,
 }
@@ -659,6 +753,10 @@ fn frontmatter_features(
         })
     };
     out.model.identity = identity("id", at.id);
+    out.object = map
+        .get("object")
+        .and_then(serde_json::Value::as_str)
+        .map(str::to_string);
     out.model.display_name = identity("title", at.title);
 
     if let Some(value) = map.get("abstract") {
@@ -813,6 +911,24 @@ fn table_features(
                 failed.push(owner.feature);
                 continue;
             }
+            if let Some(other) = owner
+                .feature
+                .is_systems()
+                .then(|| read.iter().find(|f| f.is_systems()))
+                .flatten()
+            {
+                out.diagnostics.push(err(
+                    "semantic.duplicate-section",
+                    table.line,
+                    format!(
+                        "a {} table beside the {} table; one systems-model table per artifact",
+                        owner.feature.name(),
+                        other.name()
+                    ),
+                ));
+                failed.push(owner.feature);
+                continue;
+            }
             read.push(owner.feature);
             let Some(spec) = TableSpec::of(owner.feature) else {
                 continue;
@@ -835,12 +951,12 @@ fn table_features(
 }
 
 /// The reader state for one declared model table.
-struct TableRead<'a> {
-    feature: ModelFeature,
-    table: &'a Table,
+pub(super) struct TableRead<'a> {
+    pub(super) feature: ModelFeature,
+    pub(super) table: &'a Table,
     lines: &'a [&'a str],
-    ctx: &'a SemanticContext,
-    out: &'a mut ModelOutcome,
+    pub(super) ctx: &'a SemanticContext,
+    pub(super) out: &'a mut ModelOutcome,
     /// Row keys seen so far, for `semantic.duplicate-model-entry`.
     keys: Vec<String>,
 }
@@ -848,7 +964,7 @@ struct TableRead<'a> {
 impl TableRead<'_> {
     /// The cell under `column`, empty when the column is absent (declared
     /// optional) or the row is short.
-    fn cell<'c>(&self, cells: &'c [String], column: &str) -> &'c str {
+    pub(super) fn cell<'c>(&self, cells: &'c [String], column: &str) -> &'c str {
         self.table
             .headers
             .iter()
@@ -857,11 +973,11 @@ impl TableRead<'_> {
             .map_or("", |c| strip_ticks(c))
     }
 
-    fn span(&self, line: usize) -> SourceLocus {
+    pub(super) fn span(&self, line: usize) -> SourceLocus {
         line_span(self.ctx, self.lines, line)
     }
 
-    fn error(&mut self, code: &str, line: usize, message: impl Into<String>) {
+    pub(super) fn error(&mut self, code: &str, line: usize, message: impl Into<String>) {
         self.out.diagnostics.push(err(code, line, message));
     }
 

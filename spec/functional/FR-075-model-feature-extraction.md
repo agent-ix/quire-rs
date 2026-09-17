@@ -8,6 +8,8 @@ evidence:
     ref: tests/semantic_model.rs
   - kind: test_case
     ref: tests/semantic_contract.rs
+  - kind: test_case
+    ref: tests/semantic_systems.rs
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/usecase/US-019"
     type: "implements"
@@ -32,8 +34,8 @@ relationships:
 When the engine extracts an object artifact whose module carries a
 `semantic` block, the engine SHALL extract every model feature the artifact
 declares (generalization, abstract types, presence, subsetting,
-redefinition, effect frames, populations, and the
-object-type sections) into typed declarations with source spans, under the
+redefinition, effect frames, populations, the
+object-type sections, and the systems-model tables) into typed declarations with source spans, under the
 record key `model`.
 
 The engine SHALL extract a feature only when the module manifest declares
@@ -58,10 +60,12 @@ clause id and never parses them
   `redefinition`, and `effect-frames`.
 - The object type's typed `body_extraction` DSL. A `table_row` locator in
   `yield_pattern.match` or `yield_pattern.per_match` (a fallback chain
-  included) declares a model table when it sets `under_section`, its
-  `assert.columns` start with one table key of the Outputs table and name
-  only that table's columns, and its `assert.optional_columns` name none of
-  that table's required columns. A Rust caller supplies it with
+  included) declares a model table when its match key is that table's
+  Member name in the Outputs table (`values`, `connection`, …), it sets
+  `under_section`, its `assert.columns` start with that table's key column
+  and name only that table's columns, and its `assert.optional_columns` name
+  none of that table's required columns. A locator whose key names no table
+  declares none. A Rust caller supplies it with
   `SemanticContext::with_body_extraction`, the one path every surface uses;
   without it no model table is declared. The same typed DSL gives the
   sections a document must carry through `RequiredSections::from_extraction`,
@@ -94,6 +98,16 @@ past that line's byte length.
 | `steps` | table `Step \| Kind \| Consumes \| Emits \| Description` (`Step`, `Kind` required) | `{ name, kind, consumes?, emits?, doc?, sourceSpan }` |
 | `members` | table `Member \| Multiplicity` (both required) | `{ target, multiplicity, sourceSpan }` |
 | `vocabulary` | table `Term \| Description` (`Term` required) | `{ term, doc, sourceSpan }` |
+| `part` | table `Owner \| Declared Type \| Multiplicity` (all required), one row | `{ owner, declaredType, multiplicity, sourceSpan }` |
+| `port` | table `Owner \| Direction \| Interface \| Multiplicity` (all required), one row | `{ owner, direction, interfaceType, multiplicity, sourceSpan }` |
+| `connection` | table `Source \| Source Multiplicity \| Target \| Target Multiplicity \| Direction` (`Source`, `Target`, `Direction` required), one row | `{ sourceEnd, targetEnd, flowDirection, sourceSpan }`, each end `{ type, multiplicity? }` |
+| `allocation` | table `Source \| Target` (both required), one row | `{ sourceElement, targetElement, sourceSpan }` |
+
+`owner`, `sourceElement`, `targetElement`, and a connection end's `type` are
+semantic-core `SemanticId`s; `declaredType` and `interfaceType` are
+`TypeRef`s. The keys of `part`, `port`, `connection`, and `allocation` other
+than `sourceSpan` are also members of the declaration record the object
+type's data schema validates.
 
 `identity` and `displayName` are carried whenever `model` is present; they
 declare no feature on their own.
@@ -204,6 +218,54 @@ Tables:
 - A second declared table of the same feature in one artifact is
   `semantic.duplicate-section` at its header line and fails that feature.
 
+Systems-model tables:
+
+- An artifact SHALL declare at most one of the `part`, `port`,
+  `connection`, and `allocation` tables; a second is
+  `semantic.duplicate-section` at its header line.
+- A `part`, `port`, `connection`, or `allocation` table SHALL hold exactly
+  one row. A table with no row is `semantic.invalid-model-cell` at its header
+  line; each row after the first is `semantic.duplicate-model-entry` at that
+  row.
+- An `Owner`, `Source`, or `Target` cell SHALL name an object `id` (an
+  ASCII letter, then ASCII letters, digits, or `_`) or an
+  `ix://<org>/<repo>/<id>` identity; an allocation `Source` MAY instead name
+  `<id>/<member>` or `ix://<org>/<repo>/<id>/<member>`, `<member>` an
+  `Identifier`. Any other value, an empty cell or a hyphenated id included,
+  is `semantic.invalid-model-cell` at the row. A bare `id` lowers to
+  `ix://<package>/<id>`, `<package>` the bundle's package, else the
+  module's.
+- The cell resolves as an FR-076 relationship target does, through the one
+  shared resolver: an own-package `id` SHALL resolve to the artifact itself
+  or to a bundle artifact, and an identity in a package the module imports
+  resolves unchecked. An own-package `id` no bundle artifact carries, or an
+  identity in a package the module does not import, is
+  `semantic.unknown-reference` at the row. A bundle with no artifacts lowers
+  an own-package cell unchecked with the advisory
+  `semantic.unresolved-target`, reason `no-bundle-index`, emitted only when
+  the row lowers. The `<member>` of `<id>/<member>` is not checked.
+- A resolved bundle artifact SHALL have an object type the cell admits: a
+  part or port `Owner` and an allocation `Target` name a `part`; a
+  connection `Source` or `Target` names a `port`; an allocation `Source`
+  names a `part` or a `port`, or by `<id>/<member>` an operation of an
+  `interface`. Any other object type, or none, is
+  `semantic.reference-kind-mismatch` at the row. An imported or unchecked
+  identity's object type is not checked.
+- A part `Owner` SHALL NOT name the part itself; one that does is
+  `semantic.reference-kind-mismatch` at the row.
+- The declaration record SHALL carry at most one systems-model record; a
+  `SemanticExtraction` holding more than one (e.g. deserialized with both
+  `model.part` and `model.port`) makes `declaration()` and
+  `declaration_record()` return an error.
+- A `Declared Type` or `Interface` cell SHALL map as the FR-070 type cell,
+  and a `Multiplicity` cell as the FR-070 multiplicity cell. A `Source
+  Multiplicity` or `Target Multiplicity` cell maps as the FR-070 multiplicity
+  cell when non-empty; an empty one gives the end no `multiplicity`.
+- A port `Direction` cell SHALL be one of `in`, `out`, `inout`; a connection
+  `Direction` cell one of `source-to-target`, `target-to-source`,
+  `bidirectional`. Any other value is `semantic.invalid-model-cell` at the
+  row.
+
 General:
 
 - If any model feature carries an error or a refusal, then the engine SHALL
@@ -233,6 +295,8 @@ General:
 | FR-075-AC-9 | `validate_document` and Filament extraction read a feature their module manifest declares (a mapping token or a `table_row` locator) and refuse one it does not; `validate_document` refusals name `<document>`, Filament refusals name the artifact path. | Test |
 | FR-075-AC-10 | A Rust caller that builds `SemanticContext` with `with_body_extraction` and a typed `body_extraction` declaring a `Values` locator extracts the table, and the record equals the one `extract_semantic_json` returns for the same request; the same context without `with_body_extraction` refuses the table with `semantic.feature-not-extractable`. | Test |
 | FR-075-AC-11 | `RequiredSections::from_extraction` over a typed `body_extraction` marks exactly the `Properties`, `Invariants`, and `Operations` headings a required locator (any primitive, including a fallback-chain member, under `under_section` or `after_heading`) sits under, wherever the locator is declared (`yield_pattern.match`, `yield_pattern.per_match`, or an `emit_edges` target), for a DSL authored as JSON with the module key names. | Test |
+| FR-075-AC-12 | Under declared locators, a `part`, `port`, `connection`, and `allocation` table each extract to their typed entry with resolved `SemanticId`s, `TypeRef`s, multiplicities, direction, and row span; an empty end multiplicity cell, or end multiplicity columns the locator omits, give no end `multiplicity`; an allocation `Source` of `<id>/<member>` extracts; own-package `ix://` and imported identities resolve, and a non-imported package yields `semantic.unknown-reference`; a name no bundle artifact carries yields `semantic.unknown-reference`, a bundle with no artifacts lowers it with the advisory `semantic.unresolved-target`, and a failing row carries no advisory; a reference to an artifact of an object type the cell does not admit, an allocation `Source` `<id>/<member>` whose `<id>` is not an `interface`, and a part `Owner` naming the part itself each yield `semantic.reference-kind-mismatch`; a record holding more than one systems-model record makes `declaration_record()` return an error; an unknown port direction, an unknown connection direction, a hyphenated id, an empty table (at its header), and `<id>/<member>` in an `Owner` or a connection end each yield `semantic.invalid-model-cell`; a second row yields `semantic.duplicate-model-entry`; a second systems-model table yields `semantic.duplicate-section`; each error sets `availability.model` `unavailable` with no `model`; a locator's match key, not its columns, names the table it declares; an undeclared `Source \| Target` table is refused as `allocation`. | Test |
+| FR-075-AC-13 | Under the spec-objects-architecture module (agent-ix/spec-objects-architecture#11 at `4215aad`), `validate_document` of each of the `part`, `port`, `connection`, and `allocation` skeletons yields zero errors, and each declaration record carries exactly the keys its data schema requires. | Test |
 
 ## Dependencies
 

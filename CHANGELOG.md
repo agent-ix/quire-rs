@@ -7,6 +7,20 @@ bumps; once 1.0 ships, semver is strict.
 
 ## [Unreleased]
 
+### Changed
+
+- **A model-table locator declares the table its match key names (#446).**
+  `yield_pattern.match: { values: … }` declares the `values` table; a key
+  that names no model table (e.g. `values_table`) declares none, and its
+  section's tables are refused as `semantic.feature-not-extractable`.
+  spec-objects-business at or after its #13 release declares its values
+  table under the `values` key.
+- **`SemanticExtraction::declaration_record()` returns
+  `Result<Value, DeclarationError>` (#446)**, serialized from the typed
+  `declaration()`, which also returns a `Result`: `DeclarationError`
+  is `MultipleSystemsRecords` when the record holds more than one
+  systems-model record, or `Serialize` wrapping a `serde_json::Error`.
+
 ### Added
 
 - **Operation and frame extraction with `Pre:` / `Post:` lines (#431).**
@@ -14,6 +28,17 @@ bumps; once 1.0 ships, semver is strict.
   `post`; under the `effect-frames` mapping token, `Modifies:`, `Creates:`
   and `Deletes:` lines yield `operationFrames` entries carrying `pre` and
   `post` id lists.
+- **Systems-model tables extract to typed record keys (#446).** FR-075 reads
+  the `part`, `port`, `connection`, and `allocation` tables of
+  spec-objects-architecture into `model.part`, `model.port`,
+  `model.connection`, and `model.allocation`, and
+  `SemanticExtraction::declaration_record()` carries their record keys, so
+  those artifacts validate against `Part.json`, `Port.json`,
+  `Connection.json`, and `Allocation.json`. New public types in
+  `quire_rs::semantic`: `SystemsDecl`, `PartRecord`, `PortRecord`,
+  `ConnectionRecord`, `ConnectionEnd`, `AllocationRecord`, `PortDirection`,
+  `ConnectionDirection`, `DeclarationRecord`, `SystemsRecord`. New error
+  codes `semantic.unknown-reference` and `semantic.reference-kind-mismatch`.
 - **Object type `construct` declarations carried through loading (#445).**
   `CompiledArchetype::construct()` returns an object type's `construct`
   declaration as raw `serde_json::Value`, unchanged; `None` when undeclared.

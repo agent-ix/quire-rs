@@ -18,6 +18,24 @@ description: "Chronological log of structural changes to this bundle."
   re-vendored from `agent-ix/quoin` PR #560 (`dangling-post`, locus
   `post-line`). TC-1625, TC-1842.
 
+* **2026-09-17** — **CR-172** (#446): [FR-075](./functional/FR-075-model-feature-extraction.md)
+  extracts the QSpec FR-152 systems-model tables `part`
+  (`Owner | Declared Type | Multiplicity`), `port`
+  (`Owner | Direction | Interface | Multiplicity`), `connection`
+  (`Source | Source Multiplicity | Target | Target Multiplicity | Direction`),
+  and `allocation` (`Source | Target`), one row each, into `model` and into
+  the declaration record the data schema validates (`owner`, `declaredType`,
+  `multiplicity`, `direction`, `interfaceType`, `sourceEnd`, `targetEnd`,
+  `flowDirection`, `sourceElement`, `targetElement`). Reference cells lower
+  to `SemanticId`s through the resolver FR-076 targets use (own-package,
+  `ix://`, and imported references; `semantic.unknown-reference`), restricted
+  to object ids, and must name an artifact of the admitted object type
+  (`semantic.reference-kind-mismatch`); an allocation `Source` may name
+  `<id>/<member>`. An artifact declares at most one systems-model table. A
+  model-table locator now declares the table its match key names, not the
+  table its columns look like. `semantic-v1.schema.json` gains the four
+  optional `model` members. FR-075-AC-12, FR-075-AC-13, TC-1872, TC-1873.
+
 * **2026-09-17** — **CR-171** (#445): [FR-031](./functional/FR-031-unified-archetype-shape.md)
   carries an archetype's `construct` (declared on object types) as-is. The
   vendored `module-manifest.schema.json` is re-vendored from

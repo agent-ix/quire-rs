@@ -1,0 +1,275 @@
+{
+  "$comment": "Read-only module vendored from agent-ix/spec-objects-architecture#11 (FR-075-AC-13); never edited here \u2014 changes go upstream and are re-vendored.",
+  "files": {
+    "manifest.yaml": {
+      "repository": "agent-ix/spec-objects-architecture",
+      "revision": "4215aad4ce8d04a900942eaa397c88d83f86b8d4",
+      "path": "spec_objects_architecture/manifest.yaml",
+      "sha256": "sha256:430b4e6597443506d96dad2dcea052388a22e8387cd4da90f3671f63adf7e42f"
+    },
+    "schemas/Action.json": {
+      "repository": "agent-ix/spec-objects-architecture",
+      "revision": "4215aad4ce8d04a900942eaa397c88d83f86b8d4",
+      "path": "spec_objects_architecture/schemas/Action.json",
+      "sha256": "sha256:991db18bb82f1cda13c67a5a54d9b3e1dca7f82d924db0ef76caea99346f7f49"
+    },
+    "schemas/Allocation.json": {
+      "repository": "agent-ix/spec-objects-architecture",
+      "revision": "4215aad4ce8d04a900942eaa397c88d83f86b8d4",
+      "path": "spec_objects_architecture/schemas/Allocation.json",
+      "sha256": "sha256:69627d8fd777c3aab9ad57fbde85667250b9a9fa483506e32c0ffc8adddc626c"
+    },
+    "schemas/ApiEndpoint.json": {
+      "repository": "agent-ix/spec-objects-architecture",
+      "revision": "4215aad4ce8d04a900942eaa397c88d83f86b8d4",
+      "path": "spec_objects_architecture/schemas/ApiEndpoint.json",
+      "sha256": "sha256:1c2bd1a9191d6a75a3d07959214ddcc6fd8e499713e2b327652a40ef987c4cd3"
+    },
+    "schemas/BinaryFormat.json": {
+      "repository": "agent-ix/spec-objects-architecture",
+      "revision": "4215aad4ce8d04a900942eaa397c88d83f86b8d4",
+      "path": "spec_objects_architecture/schemas/BinaryFormat.json",
+      "sha256": "sha256:559cc4d199f86015d3ba56fa81502241c43b6f87b76ddbf9685b0a0ea489562a"
+    },
+    "schemas/CompatibilityWindow.json": {
+      "repository": "agent-ix/spec-objects-architecture",
+      "revision": "4215aad4ce8d04a900942eaa397c88d83f86b8d4",
+      "path": "spec_objects_architecture/schemas/CompatibilityWindow.json",
+      "sha256": "sha256:168c3e8841532428c26a24784aa26cf9f402eb8749b2389496d0d6bdfe80e3c5"
+    },
+    "schemas/ConflictPolicy.json": {
+      "repository": "agent-ix/spec-objects-architecture",
+      "revision": "4215aad4ce8d04a900942eaa397c88d83f86b8d4",
+      "path": "spec_objects_architecture/schemas/ConflictPolicy.json",
+      "sha256": "sha256:e675e4d646cd136d227fcb62eabe55c47cb91b2dd8cacd57308a89089cfa0599"
+    },
+    "schemas/Connection.json": {
+      "repository": "agent-ix/spec-objects-architecture",
+      "revision": "4215aad4ce8d04a900942eaa397c88d83f86b8d4",
+      "path": "spec_objects_architecture/schemas/Connection.json",
+      "sha256": "sha256:072acfc3afa7e48067b31febf390535b5c0c968fd3b9f0a8b038f4bfa514cd28"
+    },
+    "schemas/ConnectionDirection.json": {
+      "repository": "agent-ix/spec-objects-architecture",
+      "revision": "4215aad4ce8d04a900942eaa397c88d83f86b8d4",
+      "path": "spec_objects_architecture/schemas/ConnectionDirection.json",
+      "sha256": "sha256:d8035be297086bc09c7f09ea9717caafa2513263be5671e34c53112eeaf5e648"
+    },
+    "schemas/ConnectionEnd.json": {
+      "repository": "agent-ix/spec-objects-architecture",
+      "revision": "4215aad4ce8d04a900942eaa397c88d83f86b8d4",
+      "path": "spec_objects_architecture/schemas/ConnectionEnd.json",
+      "sha256": "sha256:4c9794f7a943def0c49464d381ca6ddd065710d4a4d8c4ef8e5accf6511e961d"
+    },
+    "schemas/DataSchema.json": {
+      "repository": "agent-ix/spec-objects-architecture",
+      "revision": "4215aad4ce8d04a900942eaa397c88d83f86b8d4",
+      "path": "spec_objects_architecture/schemas/DataSchema.json",
+      "sha256": "sha256:ef31619b12d13a10a9d4a56bab58c2eb5b4b6b72dcd0b45f180247071e5d6bc0"
+    },
+    "schemas/DeliveryPolicy.json": {
+      "repository": "agent-ix/spec-objects-architecture",
+      "revision": "4215aad4ce8d04a900942eaa397c88d83f86b8d4",
+      "path": "spec_objects_architecture/schemas/DeliveryPolicy.json",
+      "sha256": "sha256:3009d34ac20eafd27ac8131248818338a8702253879680b47de98fc5cb11ad00"
+    },
+    "schemas/DeliverySemantics.json": {
+      "repository": "agent-ix/spec-objects-architecture",
+      "revision": "4215aad4ce8d04a900942eaa397c88d83f86b8d4",
+      "path": "spec_objects_architecture/schemas/DeliverySemantics.json",
+      "sha256": "sha256:a898ce62d9b30da9b568034f63ca7005bb627e10c718a0b4a2184322bb73fe61"
+    },
+    "schemas/Endianness.json": {
+      "repository": "agent-ix/spec-objects-architecture",
+      "revision": "4215aad4ce8d04a900942eaa397c88d83f86b8d4",
+      "path": "spec_objects_architecture/schemas/Endianness.json",
+      "sha256": "sha256:2a1b4754322440195ca5e52dba37f4ec5c1cb1facbac1d02ab21b42bf14de325"
+    },
+    "schemas/ExceedResponse.json": {
+      "repository": "agent-ix/spec-objects-architecture",
+      "revision": "4215aad4ce8d04a900942eaa397c88d83f86b8d4",
+      "path": "spec_objects_architecture/schemas/ExceedResponse.json",
+      "sha256": "sha256:cfe228d0cb292fa64fbdbfa61e305217e091c88b3e02d917f2808cc27b0cf6a0"
+    },
+    "schemas/ExtensionPoint.json": {
+      "repository": "agent-ix/spec-objects-architecture",
+      "revision": "4215aad4ce8d04a900942eaa397c88d83f86b8d4",
+      "path": "spec_objects_architecture/schemas/ExtensionPoint.json",
+      "sha256": "sha256:a34c94f334fb5fa95bb9eeed9fb2ce82c65de15021a6494228c9cd48adaf6df5"
+    },
+    "schemas/ExternalContract.json": {
+      "repository": "agent-ix/spec-objects-architecture",
+      "revision": "4215aad4ce8d04a900942eaa397c88d83f86b8d4",
+      "path": "spec_objects_architecture/schemas/ExternalContract.json",
+      "sha256": "sha256:f811ba48510690d5b42258fcf671d8fe3b7f33080e75bf3a3ac4400ee8901927"
+    },
+    "schemas/GuaranteedOperation.json": {
+      "repository": "agent-ix/spec-objects-architecture",
+      "revision": "4215aad4ce8d04a900942eaa397c88d83f86b8d4",
+      "path": "spec_objects_architecture/schemas/GuaranteedOperation.json",
+      "sha256": "sha256:c9fa7b25b7af2a3454d1de9e5a6f6f2c7e6707ee9463eff76ddde68e19c046ad"
+    },
+    "schemas/HttpMethod.json": {
+      "repository": "agent-ix/spec-objects-architecture",
+      "revision": "4215aad4ce8d04a900942eaa397c88d83f86b8d4",
+      "path": "spec_objects_architecture/schemas/HttpMethod.json",
+      "sha256": "sha256:140083af57358c8ffe7f2b73cb00e4e7208446c96948666352c31a2239eb3cb9"
+    },
+    "schemas/IdentityField.json": {
+      "repository": "agent-ix/spec-objects-architecture",
+      "revision": "4215aad4ce8d04a900942eaa397c88d83f86b8d4",
+      "path": "spec_objects_architecture/schemas/IdentityField.json",
+      "sha256": "sha256:393e36e102ca257fcbed2fb9e9cd0d4deaf3a32b726d481ff480f071948b7178"
+    },
+    "schemas/Interface.json": {
+      "repository": "agent-ix/spec-objects-architecture",
+      "revision": "4215aad4ce8d04a900942eaa397c88d83f86b8d4",
+      "path": "spec_objects_architecture/schemas/Interface.json",
+      "sha256": "sha256:f9bb3844c23908de143c28035a9883795fe883e1bc4a0484e216ff6210f37c38"
+    },
+    "schemas/LayoutField.json": {
+      "repository": "agent-ix/spec-objects-architecture",
+      "revision": "4215aad4ce8d04a900942eaa397c88d83f86b8d4",
+      "path": "spec_objects_architecture/schemas/LayoutField.json",
+      "sha256": "sha256:83c2e5b81aaed0b0ddb15fc3cf35c699ccd1d5930d5336173625582f5f34b1a4"
+    },
+    "schemas/LayoutType.json": {
+      "repository": "agent-ix/spec-objects-architecture",
+      "revision": "4215aad4ce8d04a900942eaa397c88d83f86b8d4",
+      "path": "spec_objects_architecture/schemas/LayoutType.json",
+      "sha256": "sha256:91cf148d713da20f7ddb06563ec875d7d05a9a88acc46cb2ba14c4ccfeee955a"
+    },
+    "schemas/LimitScope.json": {
+      "repository": "agent-ix/spec-objects-architecture",
+      "revision": "4215aad4ce8d04a900942eaa397c88d83f86b8d4",
+      "path": "spec_objects_architecture/schemas/LimitScope.json",
+      "sha256": "sha256:2b79cb6a3a826594591cc3c5fe39210383b38e99a45b766ffcf9bd8f006982bb"
+    },
+    "schemas/OrderingScope.json": {
+      "repository": "agent-ix/spec-objects-architecture",
+      "revision": "4215aad4ce8d04a900942eaa397c88d83f86b8d4",
+      "path": "spec_objects_architecture/schemas/OrderingScope.json",
+      "sha256": "sha256:610f4326bd90b473bf7e9ebb29c14bc41fc2c2b93bed8e876f2a3bee54eb705f"
+    },
+    "schemas/Part.json": {
+      "repository": "agent-ix/spec-objects-architecture",
+      "revision": "4215aad4ce8d04a900942eaa397c88d83f86b8d4",
+      "path": "spec_objects_architecture/schemas/Part.json",
+      "sha256": "sha256:8b8403cff5472ac2a1a2df7b1a1e10f120eeda9c27dea6de23a99685d03d71aa"
+    },
+    "schemas/Port.json": {
+      "repository": "agent-ix/spec-objects-architecture",
+      "revision": "4215aad4ce8d04a900942eaa397c88d83f86b8d4",
+      "path": "spec_objects_architecture/schemas/Port.json",
+      "sha256": "sha256:7d3c4cd18acdf4858a9d891dc159fda08dca5e2f6b365decf1d5c8d90bb3de9e"
+    },
+    "schemas/PortDirection.json": {
+      "repository": "agent-ix/spec-objects-architecture",
+      "revision": "4215aad4ce8d04a900942eaa397c88d83f86b8d4",
+      "path": "spec_objects_architecture/schemas/PortDirection.json",
+      "sha256": "sha256:1ebdbb21866aed44e10c12e2bf148d9d4e38d7167d6c5863360487b77fd68acb"
+    },
+    "schemas/Queue.json": {
+      "repository": "agent-ix/spec-objects-architecture",
+      "revision": "4215aad4ce8d04a900942eaa397c88d83f86b8d4",
+      "path": "spec_objects_architecture/schemas/Queue.json",
+      "sha256": "sha256:2b6fc6c54d395a7f2823624a86177d0a582dccff57e06a0bde227603a05a93e8"
+    },
+    "schemas/RateLimit.json": {
+      "repository": "agent-ix/spec-objects-architecture",
+      "revision": "4215aad4ce8d04a900942eaa397c88d83f86b8d4",
+      "path": "spec_objects_architecture/schemas/RateLimit.json",
+      "sha256": "sha256:027e12eebd0648312704073c4b13764b4816318c2bb3bd210f59b0ef8faf4e6c"
+    },
+    "schemas/RecordLayout.json": {
+      "repository": "agent-ix/spec-objects-architecture",
+      "revision": "4215aad4ce8d04a900942eaa397c88d83f86b8d4",
+      "path": "spec_objects_architecture/schemas/RecordLayout.json",
+      "sha256": "sha256:82e39f63bf9233d430527a742526c0cb496204c3879226e3b6278496ccbfb216"
+    },
+    "schemas/RegistrationPolicy.json": {
+      "repository": "agent-ix/spec-objects-architecture",
+      "revision": "4215aad4ce8d04a900942eaa397c88d83f86b8d4",
+      "path": "spec_objects_architecture/schemas/RegistrationPolicy.json",
+      "sha256": "sha256:9d969106f8f63c41f6c0b76da9004565f16e16db476cfd71ea226087300bb03d"
+    },
+    "schemas/ReturningOperation.json": {
+      "repository": "agent-ix/spec-objects-architecture",
+      "revision": "4215aad4ce8d04a900942eaa397c88d83f86b8d4",
+      "path": "spec_objects_architecture/schemas/ReturningOperation.json",
+      "sha256": "sha256:21cb47465de381601b18366e073be44556dc7a8301e14f5b07f90913698cb600"
+    },
+    "schemas/RouteDecl.json": {
+      "repository": "agent-ix/spec-objects-architecture",
+      "revision": "4215aad4ce8d04a900942eaa397c88d83f86b8d4",
+      "path": "spec_objects_architecture/schemas/RouteDecl.json",
+      "sha256": "sha256:18c3db6c0d42055988ce326eb8e3b66fc3f5bbeee232f8ee4c69b3d5a3346961"
+    },
+    "schemas/StabilityPolicy.json": {
+      "repository": "agent-ix/spec-objects-architecture",
+      "revision": "4215aad4ce8d04a900942eaa397c88d83f86b8d4",
+      "path": "spec_objects_architecture/schemas/StabilityPolicy.json",
+      "sha256": "sha256:e5c6c733e00ac3e58ec80a4c7d54dc95adf7f91fb5d377d6791a5f79ec446c71"
+    },
+    "schemas/Threshold.json": {
+      "repository": "agent-ix/spec-objects-architecture",
+      "revision": "4215aad4ce8d04a900942eaa397c88d83f86b8d4",
+      "path": "spec_objects_architecture/schemas/Threshold.json",
+      "sha256": "sha256:4414ff20375b500a705fa30573fdbc2d5914328f52d6e569a25da0fbce86d262"
+    },
+    "schemas/UiComponent.json": {
+      "repository": "agent-ix/spec-objects-architecture",
+      "revision": "4215aad4ce8d04a900942eaa397c88d83f86b8d4",
+      "path": "spec_objects_architecture/schemas/UiComponent.json",
+      "sha256": "sha256:4aad931ce3828f4b238cfa258b085f7b574d0b4d1238adc16e105cbad7aded4c"
+    },
+    "schemas/VersioningPolicy.json": {
+      "repository": "agent-ix/spec-objects-architecture",
+      "revision": "4215aad4ce8d04a900942eaa397c88d83f86b8d4",
+      "path": "spec_objects_architecture/schemas/VersioningPolicy.json",
+      "sha256": "sha256:d56aa0de0aa7a763b4a14670ff912e126def89fb38ec9cc755783f617f3fbe79"
+    },
+    "schemas/VersioningScheme.json": {
+      "repository": "agent-ix/spec-objects-architecture",
+      "revision": "4215aad4ce8d04a900942eaa397c88d83f86b8d4",
+      "path": "spec_objects_architecture/schemas/VersioningScheme.json",
+      "sha256": "sha256:895a8ba5a760eaef8dcf4f3321a6ae4ae6ff3db55c9d0a398a2d18be984a09d0"
+    },
+    "schemas/toolchain.json": {
+      "repository": "agent-ix/spec-objects-architecture",
+      "revision": "4215aad4ce8d04a900942eaa397c88d83f86b8d4",
+      "path": "spec_objects_architecture/schemas/toolchain.json",
+      "sha256": "sha256:4f7e1fcde991f77c3d0493209126461ec2cc38482ced030b3dc905d4e8a03571"
+    },
+    "skeletons/allocation.md": {
+      "repository": "agent-ix/spec-objects-architecture",
+      "revision": "4215aad4ce8d04a900942eaa397c88d83f86b8d4",
+      "path": "spec_objects_architecture/skeletons/allocation.md",
+      "sha256": "sha256:fa232e207f4aae10eea89e72b8580a360e5a0e3e816ecf8e4d31a9f840b3ca63"
+    },
+    "skeletons/connection.md": {
+      "repository": "agent-ix/spec-objects-architecture",
+      "revision": "4215aad4ce8d04a900942eaa397c88d83f86b8d4",
+      "path": "spec_objects_architecture/skeletons/connection.md",
+      "sha256": "sha256:1187653bdc3409bddc9e3417702aed227e80adbb7feedb189bafaae356ba13b9"
+    },
+    "skeletons/interface.md": {
+      "repository": "agent-ix/spec-objects-architecture",
+      "revision": "4215aad4ce8d04a900942eaa397c88d83f86b8d4",
+      "path": "spec_objects_architecture/skeletons/interface.md",
+      "sha256": "sha256:75dba75451603995cd7b4d14d59df935ad5f3cf8b28c692039227f31df543092"
+    },
+    "skeletons/part.md": {
+      "repository": "agent-ix/spec-objects-architecture",
+      "revision": "4215aad4ce8d04a900942eaa397c88d83f86b8d4",
+      "path": "spec_objects_architecture/skeletons/part.md",
+      "sha256": "sha256:82788076902943119982bfbb72b4e5f978bd73c76dbe6b409ded7b332f6c6c55"
+    },
+    "skeletons/port.md": {
+      "repository": "agent-ix/spec-objects-architecture",
+      "revision": "4215aad4ce8d04a900942eaa397c88d83f86b8d4",
+      "path": "spec_objects_architecture/skeletons/port.md",
+      "sha256": "sha256:2404ffbef33ee3910db57c7bdbda07fd198418c1a928fb8a59d6a24f81876d3f"
+    }
+  }
+}
