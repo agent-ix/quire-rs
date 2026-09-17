@@ -94,17 +94,23 @@ fn validate(
 /// `errors`; an unknown `object:` is a `warnings` entry. Raises
 /// `QuireSchemaError` if the module / archetype fails to load, and the
 /// `UnknownArchetype`-style `QuireSchemaError` for an unknown archetype
-/// (parity with `validate`).
+/// (parity with `validate`). `bundle_package` (`<org>/<repo>`) is the
+/// document's bundle: relationship targets qualify under it (FR-076); when
+/// absent, a `## Relationships` table is `unavailable` with
+/// `no-bundle-package`.
 #[pyfunction]
+#[pyo3(signature = (archetype_name, module_root, document_text, bundle_package=None))]
 fn validate_document<'py>(
     py: Python<'py>,
     archetype_name: &str,
     module_root: &str,
     document_text: &str,
+    bundle_package: Option<&str>,
 ) -> PyResult<Bound<'py, PyDict>> {
     let module = module_root.to_string();
     let name = archetype_name.to_string();
     let text = document_text.to_string();
+    let bundle_package = bundle_package.map(str::to_string);
 
     let result = py.detach(|| -> PyResult<crate::validate_document::ValidationResult> {
         let registry = crate::Registry::load_module(Path::new(&module))
@@ -116,7 +122,12 @@ fn validate_document<'py>(
         // has the registry, so resolve the frontmatter `object:` archetype
         // too. Object errors merge into `errors`; an unknown `object:` is
         // surfaced as a `warnings` entry.
-        Ok(crate::validate_document_in_registry(&registry, arch, &text))
+        Ok(match bundle_package.as_deref() {
+            Some(package) => {
+                crate::validate_document_in_bundle(&registry, arch, &text, package, None)
+            }
+            None => crate::validate_document_in_registry(&registry, arch, &text),
+        })
     })?;
 
     let out = PyDict::new(py);

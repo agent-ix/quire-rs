@@ -112,7 +112,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | FR-072 Semantic extraction surface | AC-1..9; CON-1..3 | TC-1630..TC-1640, TC-1650 (TC-1636 external: quire-wasm#3) | ✅ Implemented; WASM leg external |
 | FR-073 Generic rights-aware clause sets | AC-1..6 | TC-1806..TC-1809 | ✅ Implemented |
 | FR-075 Model feature extraction | AC-1..9; CON-1 | TC-1840..TC-1847, TC-1849 | ✅ Implemented |
-| FR-076 Relationships extraction to RelationDecl[] | AC-1..15; CON-1..2 | TC-1852..TC-1867 | ✅ Implemented |
+| FR-076 Relationships extraction to RelationDecl[] | AC-1..15; CON-1..2 | TC-1852..TC-1868 | ✅ Implemented |
 
 ### Integration Requirement Coverage
 
@@ -861,6 +861,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-1865 | With no bundle index, a lowering row and a `many` multiplicity row yield only the `multiplicity` error at line 21 and `entry-errors: lines 21`; the advisory is dropped | Unit | P0 | FR-076-AC-14 | ✅ |
 | TC-1866 | `validate_document_in_bundle` lowers an own-package `ix://` target with the advisory and refuses a frontmatter duplicate across bare and `ix://` forms; `validate_document_in_registry` reports `no-bundle-package` | Integration | P0 | FR-076-AC-15 | ✅ |
 | TC-1867 | An empty bundle package qualifies targets under the source identity's package; with neither, `no-bundle-package` with one heading advisory | Unit | P0 | FR-076-AC-15 | ✅ |
+| TC-1868 | The Python `validate_document` `bundle_package` kwarg qualifies a bare row target so a frontmatter `ix://` duplicate is refused; without it the table reports `no-bundle-package` | Integration | P0 | FR-076-AC-15 | ✅ |
 | TC-1641 | A static audit of `cargo metadata` and the semantic module finds none of the NFR-021 denylisted crates and no `eval`/`parse_expr`/`typecheck` symbol over clause text | Static | P0 | NFR-021-AC-1 | ✅ |
 | TC-1642 | A static audit finds no `std::net`, `std::process`, or filesystem write on the semantic path | Static | P0 | NFR-021-AC-2 | ✅ |
 | TC-1643 | Every Filament graph case output equals the checked-in baseline and coverage-v1/properties-v1/assurance-v1 outputs equal their fixtures byte-for-byte; no existing contract schema gains a required key | Snapshot | P0 | NFR-021-AC-3 | ✅ |
@@ -1449,7 +1450,7 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-076-AC-12 | TC-1863 |
 | FR-076-AC-13 | TC-1864 |
 | FR-076-AC-14 | TC-1865 |
-| FR-076-AC-15 | TC-1866, TC-1867 |
+| FR-076-AC-15 | TC-1866, TC-1867, TC-1868 |
 | FR-073-AC-1 | TC-1807, TC-1809 |
 | FR-073-AC-2 | TC-1806 |
 | FR-073-AC-3 | TC-1806 |

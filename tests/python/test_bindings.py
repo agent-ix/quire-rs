@@ -7,6 +7,7 @@ boundary; this is the binding layer's verification method (spec.md §13).
 
 import concurrent.futures
 import pathlib
+import shutil
 
 import pytest
 
@@ -451,6 +452,57 @@ def test_validate_document_column_choices_enforced(tmp_path):
     assert res2["is_valid"] is False
     assert "assert" in {e["reason"] for e in res2["errors"]}
     assert any("huge" in e["message"] for e in res2["errors"])
+
+
+def test_validate_document_bundle_package_qualifies_relationship_targets(tmp_path):
+    """TC-1868 (FR-076-AC-15): the optional `bundle_package` kwarg routes to
+    `validate_document_in_bundle`: a bare row target qualifies under it, so a
+    frontmatter `ix://` duplicate is refused. Without it the relationships
+    table is `no-bundle-package`, one advisory warning and no row error."""
+    mod = tmp_path / "related"
+    shutil.copytree(REPO_ROOT / "tests" / "fixtures" / "semantic" / "quoin" / "module-ok", mod)
+    manifest = (mod / "manifest.yaml").read_text()
+    manifest = manifest.replace(
+        "- name: entity\n",
+        "- name: entity\n  roles: [domain-object]\n"
+        "  allowed_links: { references: [domain-object] }\n",
+        1,
+    )
+    manifest = manifest.replace(
+        "semantic:\n",
+        "edge_types:\n  references: { description: r, category: traceability }\n"
+        "roles:\n  domain-object: { description: d }\n"
+        "semantic:\n  mappings: [relationships]\n",
+        1,
+    )
+    (mod / "manifest.yaml").write_text(manifest)
+    doc = (
+        REPO_ROOT / "tests" / "fixtures" / "semantic" / "quoin" / "mapping" / "config-version.table.md"
+    ).read_text()
+    doc = doc.replace(
+        "- `overlay`: belongs_to \u2192 ConfigOverlay (FR-005)\n",
+        "| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n"
+        "| overlay | references | FR-005 | 1..1 |\n",
+    ).replace(
+        "type: FR\n",
+        "type: FR\nrelationships:\n"
+        '  - target: "ix://agent-ix/config-service/FR-005"\n    type: references\n',
+        1,
+    )
+
+    def relationship(entries):
+        return [e["message"] for e in entries if "relationships" in e["message"]]
+
+    res = quire.validate_document("entity", str(mod), doc, bundle_package="agent-ix/config-service")
+    errors = relationship(res["errors"])
+    assert len(errors) == 1, errors
+    assert errors[0].startswith("semantic.duplicate-model-entry"), errors
+
+    res = quire.validate_document("entity", str(mod), doc)
+    assert relationship(res["errors"]) == []
+    warnings = relationship(res["warnings"])
+    assert len(warnings) == 1, warnings
+    assert warnings[0].startswith("semantic.relationships-no-bundle-package"), warnings
 
 
 def test_validate_document_scalar_choices_enforced(tmp_path):

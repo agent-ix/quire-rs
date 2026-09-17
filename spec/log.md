@@ -13,7 +13,10 @@ description: "Chronological log of structural changes to this bundle."
   the module's. With neither, relationships are `unavailable` with
   `no-bundle-package` and one heading advisory. `validate_document_in_bundle`
   takes the package from its caller. Both are raised with quoin as
-  `agent-ix/quoin#556`. AC-14..AC-15, TC-1865..TC-1867.
+  `agent-ix/quoin#556`. The Python `validate_document` binding takes an
+  optional `bundle_package`; the remaining callers are tracked in
+  `agent-ix/quire-cli#91`, `agent-ix/quoin#557`, and #437.
+  AC-14..AC-15, TC-1865..TC-1868.
 
 * **2026-09-16** — **CR-167** (#418, PR #436 review): [FR-076](./functional/FR-076-relationships-extraction.md)
   follows quoin FR-104 as amended by quoin PR #555 (fixtures re-vendored at
