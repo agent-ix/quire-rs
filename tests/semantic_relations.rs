@@ -1,4 +1,4 @@
-//! FR-076 relationships extraction (TC-1852..TC-1860, TC-1861..TC-1864). Oracles: the quoin
+//! FR-076 relationships extraction (TC-1852..TC-1863, TC-1865). Oracles: the quoin
 //! FR-104 fixtures `relationships.md`, `relationships.expected.json`, and
 //! `relationships-cases.json` (vendored at `2dad869`). The extraction context
 //! is built from each fixture's recorded `context`, never from `module-ok`.
@@ -399,6 +399,70 @@ fn no_bundle_index_cases() {
 #[test]
 fn no_block_cases() {
     run(NO_BLOCK_CASES);
+}
+
+#[trace("TC-1865", "FR-076-AC-14")]
+// no bundle index and a row error: the lowering row's advisory is dropped;
+// only the error remains (the conformance case quire-rs asks quoin for).
+#[test]
+fn no_bundle_index_mixed_rows() {
+    let file = cases();
+    let case = json!({
+        "id": "no-bundle-index-mixed-rows",
+        "withoutBundleIndex": true,
+        "relationships": "| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| overlay | references | FR-005 | 1..1 |\n| predecessor | references | FR-006 | many |\n",
+        "diagnostics": [{
+            "code": "semantic.invalid-model-cell", "severity": "error", "locus": "row",
+            "line": 21, "section": "Relationships", "reason": "multiplicity"
+        }],
+        "exactDiagnostics": 1,
+        "relations": null,
+        "availability": { "relations": {
+            "state": "unavailable", "reason": "entry-errors: lines 21", "lossy": false
+        } }
+    });
+    assert_case(&file, &case);
+}
+
+#[trace("TC-1867", "FR-076-AC-15")]
+// with no bundle package, a source identity qualifies targets; with neither,
+// relationships are unavailable with `no-bundle-package`.
+#[test]
+fn bundle_package_from_source_identity_or_unavailable() {
+    let file = cases();
+    let core = file["semanticCore"].as_str().unwrap();
+    let md = format!(
+        "{}| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| overlay | references | FR-005 | 1..1 |\n",
+        file["artifactHead"].as_str().unwrap()
+    );
+    let mut req = request(&file, &md, "case.md", None);
+    req["bundle"]
+        .as_object_mut()
+        .unwrap()
+        .insert("package".to_string(), json!(""));
+    req["sourceIdentity"] = json!("ix://agent-ix/other-bundle/spec");
+    let record = extract(&req, core);
+    assert_eq!(
+        record["relations"][0]["target"], "ix://agent-ix/other-bundle/FR-005",
+        "{record:#}"
+    );
+
+    req.as_object_mut().unwrap().remove("sourceIdentity");
+    let record = extract(&req, core);
+    assert!(record.get("relations").is_none(), "{record:#}");
+    assert_eq!(
+        record["availability"]["relations"],
+        json!({ "state": "unavailable", "reason": "no-bundle-package", "lossy": false })
+    );
+    let diagnostics = record["diagnostics"].as_array().unwrap();
+    let advisories: Vec<&Value> = diagnostics
+        .iter()
+        .filter(|d| d["code"] == "semantic.relationships-no-bundle-package")
+        .collect();
+    assert_eq!(advisories.len(), 1, "{diagnostics:#?}");
+    assert_eq!(advisories[0]["severity"], "advisory");
+    assert_eq!(advisories[0]["reason"], "no-bundle-package");
+    assert_eq!(advisories[0]["line"], 16);
 }
 
 #[trace("TC-1860", "FR-076-AC-9")]

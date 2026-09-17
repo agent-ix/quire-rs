@@ -1,5 +1,5 @@
 //! FR-069 semantic module contract at load (TC-1599..TC-1609, TC-1633,
-//! TC-1645, TC-1646, TC-1848, TC-1849, TC-1864). Plan-003 Task-016.
+//! TC-1645, TC-1646, TC-1848, TC-1849, TC-1864, TC-1866). Plan-003 Task-016.
 //!
 //! Every case starts from the quoin `module-ok` fixture (pinned under
 //! `tests/fixtures/semantic/quoin/module-ok`), copied into a temp dir and
@@ -916,14 +916,10 @@ fn related_document(rows: &str) -> String {
     )
 }
 
-#[trace("TC-1864", "FR-076-AC-13")]
-// validate_document checks relationship rows against the loaded registry's
-// edge_types, roles, and allowed_links; Filament and the Python entry, which
-// carry no vocabulary, report `no-relation-vocabulary`.
-#[test]
-fn surfaces_supply_the_relation_vocabulary() {
-    let tmp = TempDir::new().unwrap();
-    let root = module(&tmp, "related", |m, _| {
+/// The fixture module with the `relationships` token, `references` and
+/// `contains` edge types, and an entity whose role satisfies `references`.
+fn related_registry(tmp: &TempDir) -> Registry {
+    let root = module(tmp, "related", |m, _| {
         semantic(m).insert("mappings".into(), vec!["relationships"].into());
         m["edge_types"] = serde_yaml::from_str(
             "references: { description: r, category: traceability }\n\
@@ -942,19 +938,42 @@ fn surfaces_supply_the_relation_vocabulary() {
                 .unwrap(),
         );
     });
-    let registry = load(&root);
+    load(&root)
+}
+
+/// The bundle the related documents belong to.
+const BUNDLE_PACKAGE: &str = "agent-ix/config-service";
+
+/// The `relationships` errors and warnings of `result`.
+fn relationship_findings(result: quire_rs::ValidationResult) -> (Vec<String>, Vec<String>) {
+    let messages = |m: Vec<String>| {
+        m.into_iter()
+            .filter(|m| m.contains("relationships"))
+            .collect::<Vec<_>>()
+    };
+    (
+        messages(result.errors.into_iter().map(|e| e.message).collect()),
+        messages(result.warnings.into_iter().map(|w| w.message).collect()),
+    )
+}
+
+#[trace("TC-1864", "FR-076-AC-13")]
+// validate_document checks relationship rows against the loaded registry's
+// edge_types, roles, and allowed_links; Filament and the Python entry, which
+// carry no vocabulary, report `no-relation-vocabulary`.
+#[test]
+fn surfaces_supply_the_relation_vocabulary() {
+    let tmp = TempDir::new().unwrap();
+    let registry = related_registry(&tmp);
     let entity = registry.archetype("entity").unwrap();
     let findings = |doc: &str| {
-        let result = quire_rs::validate_document_in_registry(&registry, entity, doc);
-        let messages = |m: Vec<String>| {
-            m.into_iter()
-                .filter(|m| m.contains("relationships"))
-                .collect::<Vec<_>>()
-        };
-        (
-            messages(result.errors.into_iter().map(|e| e.message).collect()),
-            messages(result.warnings.into_iter().map(|w| w.message).collect()),
-        )
+        relationship_findings(quire_rs::validate_document_in_bundle(
+            &registry,
+            entity,
+            doc,
+            BUNDLE_PACKAGE,
+            None,
+        ))
     };
 
     // The own id satisfies `references` through the entity's role, so the
@@ -1021,4 +1040,80 @@ fn surfaces_supply_the_relation_vocabulary() {
         "no-relation-vocabulary"
     );
     assert!(record.get("relations").is_none());
+}
+
+#[trace("TC-1866", "FR-076-AC-15")]
+// validate_document qualifies targets under the caller's bundle package,
+// never the module's; with no bundle package the feature is unavailable
+// with `no-bundle-package`.
+#[test]
+fn validate_document_qualifies_under_the_bundle_package() {
+    let tmp = TempDir::new().unwrap();
+    let registry = related_registry(&tmp);
+    let entity = registry.archetype("entity").unwrap();
+    let in_bundle = |doc: &str| {
+        relationship_findings(quire_rs::validate_document_in_bundle(
+            &registry,
+            entity,
+            doc,
+            BUNDLE_PACKAGE,
+            None,
+        ))
+    };
+    let with_frontmatter = |target: &str, row_target: &str| {
+        related_document(&format!("| overlay | references | {row_target} | 1..1 |\n")).replacen(
+            "type: FR\n",
+            &format!("type: FR\nrelationships:\n  - target: \"{target}\"\n    type: references\n"),
+            1,
+        )
+    };
+
+    // An own-package identity lowers with the no-bundle-index advisory.
+    let (errors, warnings) = in_bundle(&related_document(
+        "| overlay | references | ix://agent-ix/config-service/FR-005 | 1..1 |\n",
+    ));
+    assert_eq!(errors, Vec::<String>::new());
+    assert_eq!(warnings.len(), 1, "{warnings:?}");
+    assert!(
+        warnings[0].starts_with("semantic.unresolved-target"),
+        "{warnings:?}"
+    );
+
+    // A bare id qualifies under the bundle package: the frontmatter
+    // duplicate is caught across the bare and `ix://` forms, both ways.
+    for (frontmatter, row) in [
+        (
+            "ix://agent-ix/config-service/spec/functional/FR-005",
+            "FR-005",
+        ),
+        ("FR-005", "ix://agent-ix/config-service/FR-005"),
+    ] {
+        let (errors, _) = in_bundle(&with_frontmatter(frontmatter, row));
+        assert_eq!(errors.len(), 1, "{frontmatter} / {row}: {errors:?}");
+        assert!(
+            errors[0].starts_with("semantic.duplicate-model-entry"),
+            "{errors:?}"
+        );
+    }
+    // Under the module's package the bare row would not match the
+    // frontmatter identity; the bundle package is what makes it match.
+    let (errors, _) = in_bundle(&with_frontmatter(
+        "ix://agent-ix/spec-objects-fixture/FR-005",
+        "FR-005",
+    ));
+    assert_eq!(errors, Vec::<String>::new());
+
+    // No bundle package: one heading advisory, no row checked.
+    let result = quire_rs::validate_document_in_registry(
+        &registry,
+        entity,
+        &related_document("| overlay | holds | FR-005 | 1..1 |\n"),
+    );
+    let (errors, warnings) = relationship_findings(result);
+    assert_eq!(errors, Vec::<String>::new());
+    assert_eq!(warnings.len(), 1, "{warnings:?}");
+    assert!(
+        warnings[0].starts_with("semantic.relationships-no-bundle-package"),
+        "{warnings:?}"
+    );
 }

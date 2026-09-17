@@ -259,6 +259,9 @@ enum Finding {
     NoBlock,
     /// The surface supplies no relation vocabulary (advisory).
     NoVocabulary,
+    /// The surface supplies no bundle package to qualify targets under
+    /// (advisory).
+    NoBundlePackage,
     /// A row target lowered without a bundle index to check it (advisory).
     UnresolvedTarget,
 }
@@ -279,6 +282,7 @@ impl Finding {
             | Self::Multiplicity { .. } => "semantic.invalid-model-cell",
             Self::NoBlock => "semantic.relationships-no-block",
             Self::NoVocabulary => "semantic.relationships-no-vocabulary",
+            Self::NoBundlePackage => "semantic.relationships-no-bundle-package",
             Self::UnresolvedTarget => "semantic.unresolved-target",
         }
     }
@@ -286,7 +290,9 @@ impl Finding {
     fn severity(&self) -> SemanticSeverity {
         match self {
             Self::NoBlock => SemanticSeverity::Warning,
-            Self::NoVocabulary | Self::UnresolvedTarget => SemanticSeverity::Advisory,
+            Self::NoVocabulary | Self::NoBundlePackage | Self::UnresolvedTarget => {
+                SemanticSeverity::Advisory
+            }
             Self::NotExtractable
             | Self::SecondTable
             | Self::SecondSection
@@ -320,6 +326,7 @@ impl Finding {
             Self::DeclaredInFrontmatter => "declared-in-frontmatter",
             Self::NoBlock => "no-block",
             Self::NoVocabulary => NO_VOCABULARY,
+            Self::NoBundlePackage => NO_BUNDLE_PACKAGE,
             Self::UnresolvedTarget => "no-bundle-index",
         }
     }
@@ -379,6 +386,7 @@ impl Finding {
                 COLUMNS.join(" | ")
             ),
             Self::NoVocabulary => "this surface supplies no relation vocabulary (edge_types, roles, allowed_links); the rows are not checked or extracted".to_string(),
+            Self::NoBundlePackage => "this surface supplies no bundle package (`<org>/<repo>`) to qualify targets under; the rows are not checked or extracted".to_string(),
             Self::UnresolvedTarget => format!(
                 "target {target} is not checked against the bundle: this surface supplies no bundle index"
             ),
@@ -413,6 +421,22 @@ impl Finding {
 
 /// The `availability.relations` reason of a surface with no vocabulary.
 const NO_VOCABULARY: &str = "no-relation-vocabulary";
+
+/// The `availability.relations` reason of a surface with no bundle package.
+const NO_BUNDLE_PACKAGE: &str = "no-bundle-package";
+
+/// The `<org>/<repo>` targets qualify under: the bundle's package, else the
+/// package of an explicit `ix://<org>/<repo>/…` source identity. Never the
+/// module's package: that names the module, not the artifact's bundle.
+fn bundle_package(ctx: &SemanticContext) -> Option<&str> {
+    if !ctx.bundle.package.is_empty() {
+        return Some(&ctx.bundle.package);
+    }
+    ctx.source_identity
+        .as_deref()
+        .and_then(IxRef::parse)
+        .map(|identity| identity.package())
+}
 
 /// The stripped cells of one table row.
 struct Row<'a> {
@@ -489,10 +513,10 @@ fn semantic_identity(cell: &str) -> Option<IxRef<'_>> {
 
 fn resolve_target<'a>(
     ctx: &'a SemanticContext,
+    package: &str,
     own: &OwnArtifact<'a>,
     cell: &str,
 ) -> Option<Target<'a>> {
-    let package = ctx.identity_package();
     let (id, identity) =
         if cell.starts_with("ix://") {
             let parsed = semantic_identity(cell)?;
@@ -569,6 +593,7 @@ struct Lowered {
 struct RowCheck<'a> {
     ctx: &'a SemanticContext,
     vocabulary: &'a RelationVocabulary,
+    package: &'a str,
     own: OwnArtifact<'a>,
     names: Vec<String>,
     frontmatter: Vec<(String, String)>,
@@ -599,7 +624,8 @@ impl RowCheck<'_> {
         let Some(allowed) = vocabulary.allowed_targets(row.verb) else {
             return Err(Finding::VerbNotAllowed);
         };
-        let target = resolve_target(self.ctx, &self.own, row.target).ok_or(Finding::TargetNotId)?;
+        let target = resolve_target(self.ctx, self.package, &self.own, row.target)
+            .ok_or(Finding::TargetNotId)?;
         if let Target::Bundle { object, .. } = &target {
             if !allowed
                 .iter()
@@ -767,26 +793,40 @@ pub(crate) fn extract_relations(raw: &str, ctx: &SemanticContext) -> RelationsOu
         });
         return out;
     };
+    let Some(package) = bundle_package(ctx) else {
+        // As R1: a shape error wins over the missing package.
+        out.availability = Some(if has_errors {
+            entry_errors(&out.diagnostics)
+        } else {
+            out.diagnostics
+                .push(Finding::NoBundlePackage.diagnostic(ctx, &lines, section, *heading, None));
+            KindAvailability::unavailable(NO_BUNDLE_PACKAGE)
+        });
+        return out;
+    };
 
     let frontmatter = fm.frontmatter.as_ref();
     let own_str = |key: &str| frontmatter.and_then(|m| m.get(key)).and_then(Value::as_str);
     let mut check = RowCheck {
         ctx,
         vocabulary,
+        package,
         own: OwnArtifact {
             id: own_str("id"),
             object: own_str("object"),
         },
         names: Vec::new(),
-        frontmatter: frontmatter_edges(frontmatter, ctx.identity_package()),
+        frontmatter: frontmatter_edges(frontmatter, package),
     };
     let mut rows = Vec::new();
+    // `no-bundle-index` advisories land only when no row errs (FR-104).
+    let mut unresolved = Vec::new();
     for (line, cells) in &table.rows {
         let row = Row::new(*line, cells);
         match check.check(&row, &lines) {
             Ok(lowered) => {
                 if lowered.unchecked {
-                    out.diagnostics.push(Finding::UnresolvedTarget.diagnostic(
+                    unresolved.push(Finding::UnresolvedTarget.diagnostic(
                         ctx,
                         &lines,
                         section,
@@ -802,8 +842,11 @@ pub(crate) fn extract_relations(raw: &str, ctx: &SemanticContext) -> RelationsOu
             }
         }
     }
-    out.availability = Some(settle(&out.diagnostics, KindAvailability::available(false)));
-    if !out.diagnostics.iter().any(SemanticDiagnostic::is_error) {
+    if out.diagnostics.iter().any(SemanticDiagnostic::is_error) {
+        out.availability = Some(entry_errors(&out.diagnostics));
+    } else {
+        out.diagnostics.extend(unresolved);
+        out.availability = Some(KindAvailability::available(false));
         out.relations = Some(rows);
     }
     out
