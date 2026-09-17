@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-architecture/0.4.0/Part.json",
+  "type": "object",
+  "properties": {
+    "owner": {
+      "$ref": "https://schemas.agent-ix.org/semantic-core/0.1.0/SemanticId.json"
+    },
+    "declaredType": {
+      "$ref": "https://schemas.agent-ix.org/semantic-core/0.1.0/TypeRef.json"
+    },
+    "multiplicity": {
+      "$ref": "https://schemas.agent-ix.org/semantic-core/0.1.0/Multiplicity.json"
+    }
+  },
+  "required": [
+    "owner",
+    "declaredType",
+    "multiplicity"
+  ],
+  "unevaluatedProperties": {
+    "not": {}
+  },
+  "description": "A part: a typed, multiplicity-bearing member of its owning composite type.\n`fields` and `operations` are forbidden by the seal."
+}

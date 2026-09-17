@@ -294,7 +294,8 @@ pub fn extract_semantic(
 
 impl SemanticExtraction {
     /// The record as the value a data schema validates: the declaration
-    /// arrays only (what `Entity.json` and its kin describe).
+    /// arrays and the systems-model record keys of `model` (what
+    /// `Entity.json`, `Part.json`, and their kin describe).
     pub fn declaration_record(&self) -> Value {
         let mut map = serde_json::Map::new();
         if let Some(f) = &self.fields {
@@ -320,6 +321,26 @@ impl SemanticExtraction {
                 "operations".into(),
                 serde_json::to_value(o).unwrap_or(Value::Null),
             );
+        }
+        if let Some(model) = &self.model {
+            let systems = [
+                model.part.as_ref().map(|d| serde_json::to_value(&d.record)),
+                model.port.as_ref().map(|d| serde_json::to_value(&d.record)),
+                model
+                    .connection
+                    .as_ref()
+                    .map(|d| serde_json::to_value(&d.record)),
+                model
+                    .allocation
+                    .as_ref()
+                    .map(|d| serde_json::to_value(&d.record)),
+            ];
+            // A systems record's keys are the declaration's own members.
+            for record in systems.into_iter().flatten() {
+                if let Ok(Value::Object(keys)) = record {
+                    map.extend(keys);
+                }
+            }
         }
         Value::Object(map)
     }

@@ -14,6 +14,16 @@ bumps; once 1.0 ships, semver is strict.
   `post`; under the `effect-frames` mapping token, `Modifies:`, `Creates:`
   and `Deletes:` lines yield `operationFrames` entries carrying `pre` and
   `post` id lists.
+- **Systems-model tables extract to typed record keys (#446).** FR-075 reads
+  the `part`, `port`, `connection`, and `allocation` tables of
+  spec-objects-architecture into `model.part`, `model.port`,
+  `model.connection`, and `model.allocation`, and
+  `SemanticExtraction::declaration_record()` carries their record keys, so
+  those artifacts validate against `Part.json`, `Port.json`,
+  `Connection.json`, and `Allocation.json`. New public types in
+  `quire_rs::semantic`: `SystemsDecl`, `PartRecord`, `PortRecord`,
+  `ConnectionRecord`, `ConnectionEnd`, `AllocationRecord`, `PortDirection`,
+  `ConnectionDirection`. New error code `semantic.unknown-reference`.
 - **Object type `construct` declarations carried through loading (#445).**
   `CompiledArchetype::construct()` returns an object type's `construct`
   declaration as raw `serde_json::Value`, unchanged; `None` when undeclared.

@@ -5,7 +5,7 @@
 //! against the embedded semantic-core bundle without touching the filesystem
 //! or the network; `vendored` is the embedded bundle itself. Extraction
 //! (FR-070..FR-072) lands in the sibling modules of Plan-003; `model` holds the
-//! FR-075 model feature declarations; `relations` the FR-076 relationships.
+//! FR-075 model feature declarations and `systems` its systems-model tables; `relations` the FR-076 relationships.
 
 pub mod clauses;
 pub mod context;
@@ -18,6 +18,7 @@ pub mod relations;
 pub mod resolver;
 pub mod scan;
 pub mod surface;
+pub mod systems;
 pub mod vendored;
 
 pub use clauses::{
@@ -43,6 +44,10 @@ pub use resolver::{compile_module_schema, ResolvedSchema, SchemaSource};
 pub use surface::{
     extract_semantic, Availability, RequiredSections, SemanticExtraction, SEMANTIC_FORMAT_VERSION,
     SEMANTIC_V1_SCHEMA,
+};
+pub use systems::{
+    AllocationRecord, ConnectionDirection, ConnectionEnd, ConnectionRecord, PartRecord,
+    PortDirection, PortRecord, SystemsDecl, UnknownConnectionDirection, UnknownPortDirection,
 };
 
 use serde::{Deserialize, Serialize};

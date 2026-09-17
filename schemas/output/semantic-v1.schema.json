@@ -292,7 +292,60 @@
               "sourceSpan": { "$ref": "#/$defs/sourceLocus" }
             }
           }
+        },
+        "part": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["owner", "declaredType", "multiplicity", "sourceSpan"],
+          "properties": {
+            "owner": { "$ref": "#/$defs/semanticId" },
+            "declaredType": { "$ref": "#/$defs/typeRef" },
+            "multiplicity": { "$ref": "#/$defs/multiplicity" },
+            "sourceSpan": { "$ref": "#/$defs/sourceLocus" }
+          }
+        },
+        "port": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["owner", "direction", "interfaceType", "multiplicity", "sourceSpan"],
+          "properties": {
+            "owner": { "$ref": "#/$defs/semanticId" },
+            "direction": { "enum": ["in", "out", "inout"] },
+            "interfaceType": { "$ref": "#/$defs/typeRef" },
+            "multiplicity": { "$ref": "#/$defs/multiplicity" },
+            "sourceSpan": { "$ref": "#/$defs/sourceLocus" }
+          }
+        },
+        "connection": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["sourceEnd", "targetEnd", "flowDirection", "sourceSpan"],
+          "properties": {
+            "sourceEnd": { "$ref": "#/$defs/connectionEnd" },
+            "targetEnd": { "$ref": "#/$defs/connectionEnd" },
+            "flowDirection": { "enum": ["source-to-target", "target-to-source", "bidirectional"] },
+            "sourceSpan": { "$ref": "#/$defs/sourceLocus" }
+          }
+        },
+        "allocation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["sourceElement", "targetElement", "sourceSpan"],
+          "properties": {
+            "sourceElement": { "$ref": "#/$defs/semanticId" },
+            "targetElement": { "$ref": "#/$defs/semanticId" },
+            "sourceSpan": { "$ref": "#/$defs/sourceLocus" }
+          }
         }
+      }
+    },
+    "connectionEnd": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "type": { "$ref": "#/$defs/semanticId" },
+        "multiplicity": { "$ref": "#/$defs/multiplicity" }
       }
     },
     "relationDecl": {

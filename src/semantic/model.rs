@@ -19,6 +19,9 @@ use super::properties::{
     feature_columns, is_typed_prefix, map_multiplicity, map_type, strip_ticks, RowInput,
 };
 use super::scan::{blocks_in, comma_list, level2_headings, lines, Block, Table};
+use super::systems::{
+    self, AllocationRecord, ConnectionRecord, PartRecord, PortRecord, SystemsDecl,
+};
 use super::{AvailabilityState, KindAvailability, SemanticDiagnostic};
 use crate::extract::assert_eval::headers_conform;
 use crate::extract::dsl::ExtractionDsl;
@@ -40,6 +43,10 @@ pub(crate) enum ModelFeature {
     Steps,
     Members,
     Vocabulary,
+    Part,
+    Port,
+    Connection,
+    Allocation,
 }
 
 impl ModelFeature {
@@ -60,6 +67,10 @@ impl ModelFeature {
             Self::Steps => "steps",
             Self::Members => "members",
             Self::Vocabulary => "vocabulary",
+            Self::Part => "part",
+            Self::Port => "port",
+            Self::Connection => "connection",
+            Self::Allocation => "allocation",
         }
     }
 
@@ -79,7 +90,11 @@ impl ModelFeature {
             | Self::Transitions
             | Self::Steps
             | Self::Members
-            | Self::Vocabulary => false,
+            | Self::Vocabulary
+            | Self::Part
+            | Self::Port
+            | Self::Connection
+            | Self::Allocation => false,
         };
         is_mapping && ctx.module.mappings.iter().any(|m| m == self.name())
     }
@@ -96,7 +111,7 @@ struct TableSpec {
 }
 
 /// The single source of truth for the model tables (FR-075 Outputs).
-const TABLE_SPECS: [TableSpec; 7] = [
+const TABLE_SPECS: [TableSpec; 11] = [
     TableSpec {
         feature: ModelFeature::Population,
         columns: &["Type", "Extent"],
@@ -139,19 +154,54 @@ const TABLE_SPECS: [TableSpec; 7] = [
         required: &["Term"],
         read: read_vocabulary,
     },
+    TableSpec {
+        feature: ModelFeature::Part,
+        columns: &["Owner", "Declared Type", "Multiplicity"],
+        required: &["Owner", "Declared Type", "Multiplicity"],
+        read: systems::read_part,
+    },
+    TableSpec {
+        feature: ModelFeature::Port,
+        columns: &["Owner", "Direction", "Interface", "Multiplicity"],
+        required: &["Owner", "Direction", "Interface", "Multiplicity"],
+        read: systems::read_port,
+    },
+    TableSpec {
+        feature: ModelFeature::Connection,
+        columns: &[
+            "Source",
+            "Source Multiplicity",
+            "Target",
+            "Target Multiplicity",
+            "Direction",
+        ],
+        required: &["Source", "Target", "Direction"],
+        read: systems::read_connection,
+    },
+    TableSpec {
+        feature: ModelFeature::Allocation,
+        columns: &["Source", "Target"],
+        required: &["Source", "Target"],
+        read: systems::read_allocation,
+    },
 ];
 
 impl TableSpec {
     /// The table a column list names: its first column is a table's key and
-    /// every column is one that table reads.
+    /// every column is one that table reads. Where tables share a key
+    /// (`Source` names allocation and connection), the list names the one
+    /// with the fewest columns that reads it all.
     fn for_columns<C: AsRef<str>>(columns: &[C]) -> Option<&'static TableSpec> {
         let first = strip_ticks(columns.first()?.as_ref());
-        TABLE_SPECS.iter().find(|spec| {
-            spec.columns[0] == first
-                && columns
-                    .iter()
-                    .all(|c| spec.columns.contains(&strip_ticks(c.as_ref())))
-        })
+        TABLE_SPECS
+            .iter()
+            .filter(|spec| {
+                spec.columns[0] == first
+                    && columns
+                        .iter()
+                        .all(|c| spec.columns.contains(&strip_ticks(c.as_ref())))
+            })
+            .min_by_key(|spec| spec.columns.len())
     }
 
     fn of(feature: ModelFeature) -> Option<&'static TableSpec> {
@@ -511,6 +561,14 @@ pub struct ModelDeclarations {
     pub members: Option<Vec<MemberDecl>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub vocabulary: Option<Vec<TermDecl>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub part: Option<SystemsDecl<PartRecord>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub port: Option<SystemsDecl<PortRecord>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub connection: Option<SystemsDecl<ConnectionRecord>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub allocation: Option<SystemsDecl<AllocationRecord>>,
 }
 
 /// What the frontmatter and table extraction of one artifact produced.
@@ -835,12 +893,12 @@ fn table_features(
 }
 
 /// The reader state for one declared model table.
-struct TableRead<'a> {
-    feature: ModelFeature,
-    table: &'a Table,
+pub(super) struct TableRead<'a> {
+    pub(super) feature: ModelFeature,
+    pub(super) table: &'a Table,
     lines: &'a [&'a str],
-    ctx: &'a SemanticContext,
-    out: &'a mut ModelOutcome,
+    pub(super) ctx: &'a SemanticContext,
+    pub(super) out: &'a mut ModelOutcome,
     /// Row keys seen so far, for `semantic.duplicate-model-entry`.
     keys: Vec<String>,
 }
@@ -848,7 +906,7 @@ struct TableRead<'a> {
 impl TableRead<'_> {
     /// The cell under `column`, empty when the column is absent (declared
     /// optional) or the row is short.
-    fn cell<'c>(&self, cells: &'c [String], column: &str) -> &'c str {
+    pub(super) fn cell<'c>(&self, cells: &'c [String], column: &str) -> &'c str {
         self.table
             .headers
             .iter()
@@ -857,11 +915,11 @@ impl TableRead<'_> {
             .map_or("", |c| strip_ticks(c))
     }
 
-    fn span(&self, line: usize) -> SourceLocus {
+    pub(super) fn span(&self, line: usize) -> SourceLocus {
         line_span(self.ctx, self.lines, line)
     }
 
-    fn error(&mut self, code: &str, line: usize, message: impl Into<String>) {
+    pub(super) fn error(&mut self, code: &str, line: usize, message: impl Into<String>) {
         self.out.diagnostics.push(err(code, line, message));
     }
 

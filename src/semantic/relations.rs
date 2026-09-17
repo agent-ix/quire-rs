@@ -492,7 +492,7 @@ impl Target<'_> {
 
 /// An id in the semantic-core `SemanticId` id alphabet: an ASCII letter or
 /// digit, then ASCII letters, digits, `.`, `_`, `~`, `:`, or `-`.
-fn is_id_segment(id: &str) -> bool {
+pub(crate) fn is_id_segment(id: &str) -> bool {
     id.starts_with(|c: char| c.is_ascii_alphanumeric())
         && id
             .chars()
