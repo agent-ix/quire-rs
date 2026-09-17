@@ -62,7 +62,14 @@ label is refused in favour of its forward verb
   snapshot carries `edge_types` and `roles`
   (`agent-ix/filament-core-service#32`). The Python entry supplies one
   only when the request carries `relationVocabulary`.
-- The `BundleIndex` `package` and `artifacts`: every artifact `id` of the
+- The bundle package `<org>/<repo>` targets qualify under: the
+  `BundleIndex` `package`, else the package of an explicit
+  `ix://<org>/<repo>/…` source identity, never the semantic module's
+  package. `validate_document` takes it from its caller
+  (`validate_document_in_bundle`); its other entry points, and bundle
+  validation, which knows no repository identity, supply none. Filament
+  supplies its `ix://<org>/<repo>/spec` source identity.
+- The `BundleIndex` `artifacts`: every artifact `id` of the
   bundle with its frontmatter `object` type. Absent or empty `artifacts`
   is the no-bundle-index state. The artifact's own frontmatter `id` and
   `object` always count as a bundle artifact.
@@ -181,8 +188,19 @@ Availability:
   `no-relation-vocabulary`, unless a header, block, or section error
   already makes the feature unavailable, in which case that error alone is
   reported.
+- When the section's table was read, the context carries a
+  `RelationVocabulary`, and no bundle package is known, the engine SHALL
+  check no row, emit one advisory `semantic.relationships-no-bundle-package`
+  at the section heading with `reason` `no-bundle-package`, and report
+  `unavailable` with reason `no-bundle-package`, unless a header, block, or
+  section error already makes the feature unavailable, in which case that
+  error alone is reported. This state extends FR-104 on a surface quoin
+  does not cover (`agent-ix/quoin#556`).
 - A `no-bundle-index` advisory SHALL NOT make the feature lossy or
   unavailable.
+- If any row carries an error, then the engine SHALL emit no
+  `no-bundle-index` advisory for the rows that passed their checks
+  (`agent-ix/quoin#556`, case `no-bundle-index-mixed-rows`).
 - When the table has a header and no rows, the engine SHALL report
   `available`, not lossy, with empty `relations` and `relationSources`.
 - If any header, block, section, or row of the feature carries an error,
@@ -215,8 +233,10 @@ Availability:
 | FR-076-AC-11 | The cases `no-bundle-index`, `no-bundle-index-title-target`, `no-bundle-index-own-package-identity`, and `no-bundle-index-bad-multiplicity` yield their expected diagnostics, `relations`, `relationSources`, and `availability.relations`. | Test |
 | FR-076-AC-12 | The case `prose-only-section` yields the `semantic.relationships-no-block` warning at the heading and `availability.relations` `not_applicable`. | Test |
 | FR-076-AC-13 | `validate_document` over a loaded registry checks relationship rows against the registry's `edge_types`, `roles`, and `allowed_links`: a row whose own-id target satisfies a role lowers with no finding, and an unregistered verb, an inverse label, and a disallowed target are errors. Filament extraction and the Python entry without `relationVocabulary` report `no-relation-vocabulary`. | Test |
+| FR-076-AC-14 | With no bundle index, rows `references FR-005 1..1` and `references FR-006 many` yield exactly one diagnostic, the `multiplicity` error at line 21, and `availability.relations` `unavailable` with reason `entry-errors: lines 21`. | Test |
+| FR-076-AC-15 | Targets qualify under the bundle package, else the source identity's package: through `validate_document_in_bundle` an own-package `ix://` target lowers with the `no-bundle-index` advisory and a frontmatter duplicate is refused across the bare and `ix://` forms; with no bundle package, the Python entry and `validate_document_in_registry` report `no-bundle-package` with one heading advisory. | Test |
 
 ## Dependencies
 
 - **Upstream**: [FR-040](./FR-040-object-edge-vocabulary.md), [FR-041](./FR-041-authorable-inverse-edges.md), [FR-069](./FR-069-semantic-module-contract-at-load.md), [FR-070](./FR-070-typed-properties-extraction.md), [FR-072](./FR-072-semantic-extraction-surface.md), [FR-075](./FR-075-model-feature-extraction.md); `agent-ix/quoin` FR-104 and its mapping fixtures at `2dad869`
-- **Downstream**: `agent-ix/filament-core-data#155` (`RelationDecl` `name` and `sourceSpan`), `agent-ix/filament-core-data#156` (`RelationDecl` lowering from extraction), `agent-ix/filament-core-service#32` (`edge_types` and `roles` in the registry snapshot)
+- **Downstream**: `agent-ix/filament-core-data#155` (`RelationDecl` `name` and `sourceSpan`), `agent-ix/filament-core-data#156` (`RelationDecl` lowering from extraction), `agent-ix/filament-core-service#32` (`edge_types` and `roles` in the registry snapshot), `agent-ix/quoin#556` (FR-104 `no-bundle-index-mixed-rows` and `no-bundle-package`)
