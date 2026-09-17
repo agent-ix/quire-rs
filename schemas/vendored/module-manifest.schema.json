@@ -522,6 +522,10 @@
           "type": "string",
           "minLength": 1,
           "description": "Quire meaning id (e.g. quire.meaning.entity)."
+        },
+        "immutable": {
+          "type": "boolean",
+          "description": "When true, every target renders instances of this construct as immutable (read-only, frozen, no setters). Defaults to false when absent."
         }
       }
     },

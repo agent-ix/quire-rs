@@ -2105,6 +2105,70 @@ object_types:
         assert_eq!(by_name("nulled").construct(), Some(&Value::Null));
     }
 
+    #[trace("TC-1876", "FR-031-AC-8")]
+    // filament-core-service #38 (FR-035-AC-17) adds the optional boolean
+    // `immutable` to `$defs/ConstructDeclaration`; it is not a distinct
+    // carry-over field, it is carried as part of the raw `construct` value
+    // (FR-031-AC-7) and must survive to `CompiledArchetype::construct()`.
+    #[test]
+    fn tc1876_construct_immutable_survives_to_construct() {
+        let parent = tmpdir("u-1876");
+        let root = parent.join("u-mod");
+        fs::create_dir_all(&root).unwrap();
+        fs::write(
+            root.join("manifest.yaml"),
+            r#"
+name: u-mod
+object_types:
+- name: event
+  data_schema:
+    type: object
+  construct:
+    identity: identified
+    shape: record
+    members:
+      fields: required
+      operations: forbidden
+      variants: forbidden
+    rules: []
+    meaning: quire.meaning.event
+    immutable: true
+- name: entity
+  data_schema:
+    type: object
+  construct:
+    identity: identified
+    shape: record
+    members:
+      fields: required
+      operations: optional
+      variants: forbidden
+    rules: []
+    meaning: quire.meaning.entity
+"#,
+        )
+        .unwrap();
+        let outcome = load_modules(&[&parent]);
+        assert!(outcome.failures.is_empty(), "{:?}", outcome.failures);
+        let by_name = |name: &str| {
+            outcome.modules[0]
+                .archetypes
+                .iter()
+                .find(|a| a.name == name)
+                .unwrap_or_else(|| panic!("archetype {name} loaded"))
+        };
+        let event_construct = by_name("event")
+            .construct()
+            .unwrap_or_else(|| panic!("event archetype has a construct"));
+        assert_eq!(event_construct["immutable"], Value::Bool(true));
+        // absent means false (FR-035-AC-17): `entity` declares no `immutable`
+        // key at all, not a defaulted-in `false`.
+        let entity_construct = by_name("entity")
+            .construct()
+            .unwrap_or_else(|| panic!("entity archetype has a construct"));
+        assert!(entity_construct.get("immutable").is_none());
+    }
+
     #[trace("TC-525", "FR-031-AC-4")]
     // frontmatter_schema_ref + data_schema are
     // two distinct compiled validators, neither collapsed.

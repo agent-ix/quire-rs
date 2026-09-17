@@ -7,6 +7,16 @@ description: "Chronological log of structural changes to this bundle."
 
 ## History
 
+* **2026-09-17** — **CR-175** (#455): the vendored `module-manifest.schema.json`
+  is re-vendored from `agent-ix/filament-core-service` at `5b2af8b`, which adds
+  the optional boolean `immutable` to `$defs/ConstructDeclaration`
+  (filament-core-service FR-035-AC-17; absent means false). This is a schema
+  widening only: [FR-031](./functional/FR-031-unified-archetype-shape.md)
+  already carries `construct` as an opaque raw value (CR-171), so `immutable`
+  needed no loader change — it survives to `CompiledArchetype::construct()`
+  as part of that same raw value.
+  [FR-031-AC-8](./functional/FR-031-unified-archetype-shape.md), TC-1876.
+
 * **2026-09-17** — **CR-174** (#431): operation contract lines are `Pre:`
   and `Post:` (the OCL, VDM, Z and SysML terms), superseding the contract
   line keywords of CR-163.

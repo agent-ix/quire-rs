@@ -9,6 +9,14 @@ bumps; once 1.0 ships, semver is strict.
 
 ### Changed
 
+- **The vendored `module-manifest.schema.json` is re-vendored from
+  filament-core-service `5b2af8b` (#455).** `$defs/ConstructDeclaration`
+  gains the optional boolean `immutable` (filament-core-service FR-035-AC-17;
+  absent means false), so a manifest whose `construct` declares
+  `immutable: true` — such as spec-objects-business's `event` — now loads
+  instead of being refused by `additionalProperties: false`. `construct` is
+  already carried as an opaque raw value (#445), so no loader code changed:
+  `immutable` survives to `CompiledArchetype::construct()` unchanged.
 - **A model-table locator declares the table its match key names (#446).**
   `yield_pattern.match: { values: … }` declares the `values` table; a key
   that names no model table (e.g. `values_table`) declares none, and its
