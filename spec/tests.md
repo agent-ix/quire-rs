@@ -862,6 +862,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-1866 | `validate_document_in_bundle` lowers an own-package `ix://` target with the advisory and refuses a frontmatter duplicate across bare and `ix://` forms; `validate_document_in_registry` reports `no-bundle-package` | Integration | P0 | FR-076-AC-15 | ✅ |
 | TC-1867 | An empty bundle package qualifies targets under the source identity's package; with neither, `no-bundle-package` with one heading advisory; the vendored cases `no-bundle-package` and `no-bundle-package-second-table` run under `withoutBundlePackage` | Unit | P0 | FR-076-AC-15 | ✅ |
 | TC-1868 | The Python `validate_document` `bundle_package` kwarg qualifies a bare row target so a frontmatter `ix://` duplicate is refused; without it the table reports `no-bundle-package` | Integration | P0 | FR-076-AC-15 | ✅ |
+| TC-1869 | A Rust caller gating model tables with `SemanticContext::with_body_extraction` extracts a declared `Values` table identically to `extract_semantic_json`, and the ungated context refuses it | Integration | P0 | FR-075-AC-10 | ✅ |
 | TC-1641 | A static audit of `cargo metadata` and the semantic module finds none of the NFR-021 denylisted crates and no `eval`/`parse_expr`/`typecheck` symbol over clause text | Static | P0 | NFR-021-AC-1 | ✅ |
 | TC-1642 | A static audit finds no `std::net`, `std::process`, or filesystem write on the semantic path | Static | P0 | NFR-021-AC-2 | ✅ |
 | TC-1643 | Every Filament graph case output equals the checked-in baseline and coverage-v1/properties-v1/assurance-v1 outputs equal their fixtures byte-for-byte; no existing contract schema gains a required key | Snapshot | P0 | NFR-021-AC-3 | ✅ |
@@ -1436,6 +1437,7 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-075-AC-7 | TC-1846 |
 | FR-075-AC-8 | TC-1847 |
 | FR-075-AC-9 | TC-1849 |
+| FR-075-AC-10 | TC-1869 |
 | FR-076-AC-1 | TC-1852 |
 | FR-076-AC-2 | TC-1853 |
 | FR-076-AC-3 | TC-1854 |

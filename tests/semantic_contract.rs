@@ -904,6 +904,78 @@ fn surfaces_gate_model_features_on_the_manifest() {
 
 /// The golden table with its prose `## Relationships` replaced by a table of
 /// `rows`.
+#[trace("TC-1869", "FR-075-AC-10")]
+// A Rust caller gates model tables through the public context builder and
+// gets the record the JSON adapter returns for the same request.
+#[test]
+fn rust_callers_gate_model_tables_through_the_public_context() {
+    use quire_rs::extract::dsl::ExtractionDsl;
+    use quire_rs::semantic::python_entry::extract_semantic_json;
+    use quire_rs::semantic::{extract_semantic, BundleIndex, RequiredSections, SemanticContext};
+
+    let doc = featured_document().replace("abstract: true\n", "");
+    let dsl = json!({ "yield_pattern": { "match": { "values": values_locator() } } });
+    let typed: ExtractionDsl = serde_json::from_value(dsl.clone()).unwrap();
+    let module = SemanticModule {
+        contract_version: "1.0.0".into(),
+        semantic_core: "0.1.0".into(),
+        package: "agent-ix/spec-objects-fixture".into(),
+        exports: vec!["entity".into()],
+        imports: BTreeMap::new(),
+        targets: Vec::new(),
+        compatibility_posture: "additive".into(),
+        legacy_forms: "warning".into(),
+        mappings: Vec::new(),
+    };
+    let bare = SemanticContext::new(module, "spec/FR-006.md", BundleIndex::default())
+        .with_source_identity("ix://agent-ix/fixture/spec");
+    let gated = bare.clone().with_body_extraction(&typed);
+    let required = RequiredSections::default();
+
+    let record = extract_semantic(&doc, &gated, None, &required);
+    let model = record
+        .model
+        .as_ref()
+        .expect("the declared Values table extracts");
+    let values: Vec<&str> = model
+        .values
+        .iter()
+        .flatten()
+        .map(|v| v.value.as_str())
+        .collect();
+    assert_eq!(values, ["draft"]);
+    assert!(
+        !record
+            .diagnostics
+            .iter()
+            .any(|d| d.code == "semantic.feature-not-extractable"),
+        "{:?}",
+        record.diagnostics
+    );
+
+    let adapter = extract_semantic_json(&json!({
+        "markdown": doc,
+        "module": { "contractVersion": "1.0.0", "semanticCore": "0.1.0", "package": "agent-ix/spec-objects-fixture", "exports": ["entity"] },
+        "path": "spec/FR-006.md",
+        "sourceIdentity": "ix://agent-ix/fixture/spec",
+        "bodyExtraction": dsl,
+    }))
+    .unwrap();
+    assert_eq!(record, adapter, "the typed path and the adapter agree");
+
+    // The control: no `body_extraction`, so the table is refused.
+    let refused = extract_semantic(&doc, &bare, None, &required);
+    assert!(refused.model.is_none());
+    assert!(
+        refused
+            .diagnostics
+            .iter()
+            .any(|d| d.code == "semantic.feature-not-extractable"),
+        "{:?}",
+        refused.diagnostics
+    );
+}
+
 fn related_document(rows: &str) -> String {
     fs::read_to_string(
         PathBuf::from(env!("CARGO_MANIFEST_DIR"))

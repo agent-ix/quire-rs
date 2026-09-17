@@ -385,7 +385,6 @@ fn semantic_findings(
     errors: &mut Vec<ValidationError>,
     warnings: &mut Vec<ValidationWarning>,
 ) {
-    use crate::semantic::model::DeclaredTables;
     use crate::semantic::{
         BundleIndex, RelationVocabulary, RequiredSections, SemanticContext, SemanticSeverity,
     };
@@ -398,12 +397,11 @@ fn semantic_findings(
     }
     // This surface has no document path: spans and refusals name `<document>`.
     let ctx = SemanticContext::new(module.clone(), "<document>", bundle)
-        .with_declared_tables(
-            arch.body_extraction()
-                .map(DeclaredTables::from_dsl)
-                .unwrap_or_default(),
-        )
         .with_relation_vocabulary(RelationVocabulary::from_registry(registry, arch));
+    let ctx = match arch.body_extraction() {
+        Some(dsl) => ctx.with_body_extraction(dsl),
+        None => ctx,
+    };
     let required = arch
         .body_extraction()
         .and_then(|dsl| serde_json::to_value(dsl).ok())

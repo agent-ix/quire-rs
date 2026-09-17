@@ -61,7 +61,9 @@ clause id and never parses them
   included) declares a model table when it sets `under_section`, its
   `assert.columns` start with one table key of the Outputs table and name
   only that table's columns, and its `assert.optional_columns` name none of
-  that table's required columns.
+  that table's required columns. A Rust caller supplies it with
+  `SemanticContext::with_body_extraction`, the one path every surface uses;
+  without it no model table is declared.
 - The document path. The Filament and Python surfaces pass the artifact
   path; `validate_document` has no path, and its spans and messages name
   `<document>`.
@@ -226,6 +228,7 @@ General:
 | FR-075-AC-7 | An artifact declaring no model feature yields no `model` and no `availability.model`, every existing semantic case record is unchanged, and every record of AC-1..AC-6 validates against `semantic-v1.schema.json`. | Test |
 | FR-075-AC-8 | A record carrying `model` carries `identity` with the frontmatter `id` and `displayName` with the frontmatter `title`, each spanning its frontmatter line. | Test |
 | FR-075-AC-9 | `validate_document` and Filament extraction read a feature their module manifest declares (a mapping token or a `table_row` locator) and refuse one it does not; `validate_document` refusals name `<document>`, Filament refusals name the artifact path. | Test |
+| FR-075-AC-10 | A Rust caller that builds `SemanticContext` with `with_body_extraction` and a typed `body_extraction` declaring a `Values` locator extracts the table, and the record equals the one `extract_semantic_json` returns for the same request; the same context without `with_body_extraction` refuses the table with `semantic.feature-not-extractable`. | Test |
 
 ## Dependencies
 

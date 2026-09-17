@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use super::contract::SemanticModule;
 use super::model::DeclaredTables;
 use super::relations::RelationVocabulary;
+use crate::extract::dsl::ExtractionDsl;
 
 /// One resolvable declaration in the bundle: its artifact `id` and every
 /// name a `Type` cell may use for it (id, title, frontmatter `name`).
@@ -144,9 +145,11 @@ impl SemanticContext {
         self
     }
 
-    /// Gate FR-075 tables on the object type's `body_extraction` locators.
-    pub(crate) fn with_declared_tables(mut self, tables: DeclaredTables) -> Self {
-        self.declared_tables = tables;
+    /// Gate FR-075 model tables on the object type's typed `body_extraction`:
+    /// each `table_row` locator it declares admits one model table
+    /// (FR-075 Inputs). Without it no model table is extracted.
+    pub fn with_body_extraction(mut self, dsl: &ExtractionDsl) -> Self {
+        self.declared_tables = DeclaredTables::from_dsl(dsl);
         self
     }
 
