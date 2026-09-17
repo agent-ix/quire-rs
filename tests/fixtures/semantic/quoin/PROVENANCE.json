@@ -81,7 +81,7 @@
     },
     "mapping/operations-cases.json": {
       "repository": "agent-ix/quoin",
-      "revision": "c1faab318ad7f56efc916c4c7c542c23ad7b6e76",
+      "revision": "d523b615740b09cb0b5150321c4c90b812e366a8",
       "path": "tests/fixtures/semantic-module/mapping/operations-cases.json",
       "sha256": "sha256:9a98619f8c9d91d07ca8015e16e65f450f22ee0635dc0ba8c79b024112147cb8"
     },
@@ -93,7 +93,7 @@
     },
     "mapping/operations.md": {
       "repository": "agent-ix/quoin",
-      "revision": "c1faab318ad7f56efc916c4c7c542c23ad7b6e76",
+      "revision": "d523b615740b09cb0b5150321c4c90b812e366a8",
       "path": "tests/fixtures/semantic-module/mapping/operations.md",
       "sha256": "sha256:f142e750e3acf07d1fb04e21548961ca3dfb6bad4a59b4914770b49bd7da11e9"
     },
