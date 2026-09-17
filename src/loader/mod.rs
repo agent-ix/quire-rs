@@ -2157,16 +2157,35 @@ object_types:
                 .find(|a| a.name == name)
                 .unwrap_or_else(|| panic!("archetype {name} loaded"))
         };
-        let event_construct = by_name("event")
-            .construct()
-            .unwrap_or_else(|| panic!("event archetype has a construct"));
-        assert_eq!(event_construct["immutable"], Value::Bool(true));
+        let expected_event = serde_json::json!({
+            "identity": "identified",
+            "shape": "record",
+            "members": {
+                "fields": "required",
+                "operations": "forbidden",
+                "variants": "forbidden"
+            },
+            "rules": [],
+            "meaning": "quire.meaning.event",
+            "immutable": true
+        });
+        assert_eq!(by_name("event").construct(), Some(&expected_event));
         // absent means false (FR-035-AC-17): `entity` declares no `immutable`
-        // key at all, not a defaulted-in `false`.
-        let entity_construct = by_name("entity")
-            .construct()
-            .unwrap_or_else(|| panic!("entity archetype has a construct"));
-        assert!(entity_construct.get("immutable").is_none());
+        // key at all, not a defaulted-in `false` — the whole raw value, not
+        // just the presence/absence of one key, is what FR-031-AC-8 claims
+        // survives unchanged.
+        let expected_entity = serde_json::json!({
+            "identity": "identified",
+            "shape": "record",
+            "members": {
+                "fields": "required",
+                "operations": "optional",
+                "variants": "forbidden"
+            },
+            "rules": [],
+            "meaning": "quire.meaning.entity"
+        });
+        assert_eq!(by_name("entity").construct(), Some(&expected_entity));
     }
 
     #[trace("TC-525", "FR-031-AC-4")]
