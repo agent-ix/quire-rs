@@ -1,6 +1,6 @@
-//! FR-076 relationships extraction (TC-1852..TC-1863, TC-1865). Oracles: the quoin
+//! FR-076 relationships extraction (TC-1852..TC-1863, TC-1865, TC-1867). Oracles: the quoin
 //! FR-104 fixtures `relationships.md`, `relationships.expected.json`, and
-//! `relationships-cases.json` (vendored at `2dad869`). The extraction context
+//! `relationships-cases.json` (vendored at `99bd4f0`). The extraction context
 //! is built from each fixture's recorded `context`, never from `module-ok`.
 
 use std::collections::BTreeSet;
@@ -53,7 +53,7 @@ fn relation_decl_gate(core: &str) -> JSONSchema {
 
 /// The FR-076 request for `markdown` under a fixture's recorded `context`,
 /// with the case's `mappings`, `withoutRelationVocabulary`, and
-/// `withoutBundleIndex` applied when given.
+/// `withoutBundleIndex`, and `withoutBundlePackage` applied when given.
 fn request(fixture: &Value, markdown: &str, path: &str, case: Option<&Value>) -> Value {
     let context = &fixture["context"];
     let flag = |key: &str| case.is_some_and(|c| c[key] == json!(true));
@@ -86,6 +86,10 @@ fn request(fixture: &Value, markdown: &str, path: &str, case: Option<&Value>) ->
         },
     });
     let request_map = request.as_object_mut().unwrap();
+    if flag("withoutBundlePackage") {
+        request_map["bundle"]["package"] = json!("");
+        request_map.remove("sourceIdentity");
+    }
     if flag("withoutRelationVocabulary") {
         request_map.remove("relationVocabulary");
     }
@@ -279,6 +283,8 @@ const NO_VOCABULARY_CASES: &[&str] = &[
     "no-relation-vocabulary",
     "no-relation-vocabulary-second-table",
 ];
+const MIXED_ROWS_CASES: &[&str] = &["no-bundle-index-mixed-rows"];
+const NO_BUNDLE_PACKAGE_CASES: &[&str] = &["no-bundle-package", "no-bundle-package-second-table"];
 const NO_BUNDLE_INDEX_CASES: &[&str] = &[
     "no-bundle-index",
     "no-bundle-index-title-target",
@@ -298,6 +304,17 @@ const AVAILABILITY_CASES: &[&str] = &[
 // the golden `relationships.md` extracts to `relationships.expected.json`.
 #[test]
 fn golden_relationships() {
+    // quoin FR-104-CON-2 / TC-1726: both vendored fixtures pin the semantic
+    // core and record their sources.
+    for name in ["relationships.expected.json", "relationships-cases.json"] {
+        let fixture = mapping_json(name);
+        assert_eq!(fixture["semanticCore"], "0.2.0", "{name}");
+        let sources = fixture["context"]["sources"].as_object();
+        assert!(
+            sources.is_some_and(|s| !s.is_empty()),
+            "{name}: context.sources must be a non-empty object"
+        );
+    }
     let expected = mapping_json("relationships.expected.json");
     let md = mapping_text("relationships.md");
     let core = expected["semanticCore"].as_str().unwrap();
@@ -363,6 +380,8 @@ fn availability_cases_and_full_coverage() {
         NO_VOCABULARY_CASES,
         NO_BUNDLE_INDEX_CASES,
         NO_BLOCK_CASES,
+        MIXED_ROWS_CASES,
+        NO_BUNDLE_PACKAGE_CASES,
     ];
     let assigned: Vec<&str> = groups.iter().flat_map(|g| g.iter().copied()).collect();
     let unique: BTreeSet<&str> = assigned.iter().copied().collect();
@@ -374,7 +393,7 @@ fn availability_cases_and_full_coverage() {
         .iter()
         .map(|c| c["id"].as_str().unwrap())
         .collect();
-    assert_eq!(in_fixture.len(), 41);
+    assert_eq!(in_fixture.len(), 44);
     assert_eq!(unique, in_fixture);
 }
 
@@ -403,25 +422,10 @@ fn no_block_cases() {
 
 #[trace("TC-1865", "FR-076-AC-14")]
 // no bundle index and a row error: the lowering row's advisory is dropped;
-// only the error remains (the conformance case quire-rs asks quoin for).
+// only the error remains.
 #[test]
 fn no_bundle_index_mixed_rows() {
-    let file = cases();
-    let case = json!({
-        "id": "no-bundle-index-mixed-rows",
-        "withoutBundleIndex": true,
-        "relationships": "| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| overlay | references | FR-005 | 1..1 |\n| predecessor | references | FR-006 | many |\n",
-        "diagnostics": [{
-            "code": "semantic.invalid-model-cell", "severity": "error", "locus": "row",
-            "line": 21, "section": "Relationships", "reason": "multiplicity"
-        }],
-        "exactDiagnostics": 1,
-        "relations": null,
-        "availability": { "relations": {
-            "state": "unavailable", "reason": "entry-errors: lines 21", "lossy": false
-        } }
-    });
-    assert_case(&file, &case);
+    run(MIXED_ROWS_CASES);
 }
 
 #[trace("TC-1867", "FR-076-AC-15")]
@@ -463,6 +467,8 @@ fn bundle_package_from_source_identity_or_unavailable() {
     assert_eq!(advisories[0]["severity"], "advisory");
     assert_eq!(advisories[0]["reason"], "no-bundle-package");
     assert_eq!(advisories[0]["line"], 16);
+
+    run(NO_BUNDLE_PACKAGE_CASES);
 }
 
 #[trace("TC-1860", "FR-076-AC-9")]

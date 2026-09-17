@@ -37,7 +37,7 @@ columns `Name`, `Verb`, `Target`, and `Multiplicity`, to a semantic-core
 `RelationDecl[]` with a name and a source span per row, under the record
 keys `relations` and `relationSources`, with `availability.relations`.
 
-The grammar is `agent-ix/quoin` FR-104 (quoin PRs #553 and #555, `2dad869`); its golden
+The grammar is `agent-ix/quoin` FR-104 (quoin PRs #553, #555 and #558, `99bd4f0`); its golden
 fixtures `relationships.md`, `relationships.expected.json`, and
 `relationships-cases.json` are the oracle. A relationship's category and
 composition come only from the FR-040 `edge_types` registry entry of its
@@ -196,12 +196,13 @@ Availability:
   `unavailable` with reason `no-bundle-package`, unless a header, block, or
   section error already makes the feature unavailable, in which case that
   error alone is reported. This state extends FR-104 on a surface quoin
-  does not cover (`agent-ix/quoin#556`).
+  covers since quoin PR #558 (cases `no-bundle-package` and
+  `no-bundle-package-second-table`).
 - A `no-bundle-index` advisory SHALL NOT make the feature lossy or
   unavailable.
 - If any row carries an error, then the engine SHALL emit no
   `no-bundle-index` advisory for the rows that passed their checks
-  (`agent-ix/quoin#556`, case `no-bundle-index-mixed-rows`).
+  (quoin PR #558, case `no-bundle-index-mixed-rows`).
 - When the table has a header and no rows, the engine SHALL report
   `available`, not lossy, with empty `relations` and `relationSources`.
 - If any header, block, section, or row of the feature carries an error,
@@ -239,5 +240,5 @@ Availability:
 
 ## Dependencies
 
-- **Upstream**: [FR-040](./FR-040-object-edge-vocabulary.md), [FR-041](./FR-041-authorable-inverse-edges.md), [FR-069](./FR-069-semantic-module-contract-at-load.md), [FR-070](./FR-070-typed-properties-extraction.md), [FR-072](./FR-072-semantic-extraction-surface.md), [FR-075](./FR-075-model-feature-extraction.md); `agent-ix/quoin` FR-104 and its mapping fixtures at `2dad869`
-- **Downstream**: `agent-ix/filament-core-data#155` (`RelationDecl` `name` and `sourceSpan`), `agent-ix/filament-core-data#156` (`RelationDecl` lowering from extraction), `agent-ix/filament-core-service#32` (`edge_types` and `roles` in the registry snapshot), `agent-ix/quoin#556` (FR-104 `no-bundle-index-mixed-rows` and `no-bundle-package`), `agent-ix/quire-cli#91`, `agent-ix/quoin#557`, and `agent-ix/quire-rs#437` (callers pass the bundle package to `validate_document_in_bundle`)
+- **Upstream**: [FR-040](./FR-040-object-edge-vocabulary.md), [FR-041](./FR-041-authorable-inverse-edges.md), [FR-069](./FR-069-semantic-module-contract-at-load.md), [FR-070](./FR-070-typed-properties-extraction.md), [FR-072](./FR-072-semantic-extraction-surface.md), [FR-075](./FR-075-model-feature-extraction.md); `agent-ix/quoin` FR-104 and its mapping fixtures at `99bd4f0`
+- **Downstream**: `agent-ix/filament-core-data#155` (`RelationDecl` `name` and `sourceSpan`), `agent-ix/filament-core-data#156` (`RelationDecl` lowering from extraction), `agent-ix/filament-core-service#32` (`edge_types` and `roles` in the registry snapshot), `agent-ix/quire-cli#91`, `agent-ix/quoin#557`, and `agent-ix/quire-rs#437` (callers pass the bundle package to `validate_document_in_bundle`)
