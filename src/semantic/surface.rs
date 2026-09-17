@@ -7,6 +7,9 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+use crate::extract::dsl::{EdgeTarget, ExtractionDsl};
+use crate::extract::locator::{Locator, LocatorPrimitive};
+
 use super::clauses::{extract_clauses, extract_operations, ClauseRef, OperationDecl};
 use super::context::SemanticContext;
 use super::decl::FieldDecl;
@@ -79,36 +82,73 @@ pub struct RequiredSections {
 }
 
 impl RequiredSections {
-    /// Scan an extraction DSL (as JSON) for required locators under the
-    /// three headings.
-    pub fn from_dsl(dsl: &Value) -> Self {
+    /// Scan a typed extraction DSL for required locators under the three
+    /// headings: every primitive of every locator in `match`, `per_match`,
+    /// and `emit_edges`, including each member of a fallback chain.
+    pub fn from_extraction(dsl: &ExtractionDsl) -> Self {
+        let pattern = &dsl.yield_pattern;
+        let edge_locators = dsl
+            .emit_edges
+            .iter()
+            .flatten()
+            .filter_map(|edge| match &edge.target {
+                EdgeTarget::Locator(locator) => Some(locator),
+                EdgeTarget::Static(_) => None,
+            });
+        let primitives = pattern
+            .r#match
+            .iter()
+            .chain(pattern.per_match.iter())
+            .flat_map(|map| map.values())
+            .chain(edge_locators)
+            .flat_map(|locator| match locator {
+                Locator::Primitive(p) => std::slice::from_ref(p),
+                Locator::Fallback(chain) => chain.as_slice(),
+            });
         let mut out = Self::default();
-        fn walk(v: &Value, out: &mut RequiredSections) {
-            match v {
-                Value::Object(map) => {
-                    let heading = map
-                        .get("after_heading")
-                        .or_else(|| map.get("under_section"))
-                        .and_then(Value::as_str);
-                    let required = map
-                        .get("required")
-                        .is_none_or(|r| r.as_bool().unwrap_or(true));
-                    if let (Some(h), true) = (heading, required) {
-                        match h {
-                            "Properties" => out.properties = true,
-                            "Invariants" => out.invariants = true,
-                            "Operations" => out.operations = true,
-                            _ => {}
-                        }
-                    }
-                    map.values().for_each(|v| walk(v, out));
+        for primitive in primitives {
+            let (heading, required) = match primitive {
+                LocatorPrimitive::SectionBody {
+                    after_heading,
+                    required,
+                    ..
+                } => (Some(after_heading.as_str()), *required),
+                LocatorPrimitive::CodeBlock {
+                    under_section,
+                    required,
+                    ..
                 }
-                Value::Array(items) => items.iter().for_each(|v| walk(v, out)),
+                | LocatorPrimitive::TableRow {
+                    under_section,
+                    required,
+                    ..
+                }
+                | LocatorPrimitive::ListItem {
+                    under_section,
+                    required,
+                    ..
+                } => (under_section.as_deref(), *required),
+                LocatorPrimitive::FrontmatterField { .. } | LocatorPrimitive::Heading { .. } => {
+                    (None, false)
+                }
+            };
+            match (heading, required) {
+                (Some("Properties"), true) => out.properties = true,
+                (Some("Invariants"), true) => out.invariants = true,
+                (Some("Operations"), true) => out.operations = true,
                 _ => {}
             }
         }
-        walk(dsl, &mut out);
         out
+    }
+
+    /// [`RequiredSections::from_extraction`] over an extraction DSL given as
+    /// JSON. JSON that is not a valid extraction DSL marks no section
+    /// required.
+    pub fn from_dsl(dsl: &Value) -> Self {
+        serde_json::from_value::<ExtractionDsl>(dsl.clone())
+            .map(|dsl| Self::from_extraction(&dsl))
+            .unwrap_or_default()
     }
 }
 

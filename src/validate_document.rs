@@ -404,8 +404,7 @@ fn semantic_findings(
     };
     let required = arch
         .body_extraction()
-        .and_then(|dsl| serde_json::to_value(dsl).ok())
-        .map(|v| RequiredSections::from_dsl(&v))
+        .map(RequiredSections::from_extraction)
         .unwrap_or_default();
     let record = crate::semantic::extract_semantic(
         doc_text,

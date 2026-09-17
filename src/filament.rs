@@ -1182,8 +1182,7 @@ fn attach_semantic(
     let required = object_type
         .body_extraction
         .as_ref()
-        .and_then(|dsl| serde_json::to_value(dsl).ok())
-        .map(|v| RequiredSections::from_dsl(&v))
+        .map(RequiredSections::from_extraction)
         .unwrap_or_default();
     let record = crate::semantic::extract_semantic(
         &input.markdown,

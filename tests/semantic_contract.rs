@@ -902,11 +902,9 @@ fn surfaces_gate_model_features_on_the_manifest() {
     );
 }
 
-/// The golden table with its prose `## Relationships` replaced by a table of
-/// `rows`.
+/// A Rust caller gates model tables through the public context builder and
+/// gets the record the JSON adapter returns for the same request.
 #[trace("TC-1869", "FR-075-AC-10")]
-// A Rust caller gates model tables through the public context builder and
-// gets the record the JSON adapter returns for the same request.
 #[test]
 fn rust_callers_gate_model_tables_through_the_public_context() {
     use quire_rs::extract::dsl::ExtractionDsl;
@@ -976,6 +974,42 @@ fn rust_callers_gate_model_tables_through_the_public_context() {
     );
 }
 
+/// `RequiredSections` read from a typed `body_extraction` equals the one read
+/// from the same DSL as authored JSON and as the typed DSL serialized back to
+/// JSON, and names exactly the headings a required locator sits under.
+#[trace("TC-1870", "FR-075-AC-11")]
+#[test]
+fn required_sections_agree_across_the_typed_and_json_dsl() {
+    use quire_rs::extract::dsl::ExtractionDsl;
+    use quire_rs::semantic::RequiredSections;
+
+    let authored = json!({
+        "yield_pattern": { "match": {
+            "fields": { "from": "table_row", "under_section": "Properties" },
+            "rules": [
+                { "from": "list_item", "after_heading": "Invariants", "required": false },
+                { "from": "section_body", "after_heading": "Invariants" }
+            ],
+            "ops": { "from": "code_block", "under_section": "Operations", "required": false },
+            "id": { "from": "frontmatter_field", "path": ["id"] }
+        } }
+    });
+    let typed: ExtractionDsl = serde_json::from_value(authored.clone()).unwrap();
+    let expected = RequiredSections {
+        properties: true,
+        invariants: true,
+        operations: false,
+    };
+    assert_eq!(RequiredSections::from_extraction(&typed), expected);
+    assert_eq!(RequiredSections::from_dsl(&authored), expected);
+    assert_eq!(
+        RequiredSections::from_dsl(&serde_json::to_value(&typed).unwrap()),
+        expected
+    );
+}
+
+/// The golden table with its prose `## Relationships` replaced by a table of
+/// `rows`.
 fn related_document(rows: &str) -> String {
     fs::read_to_string(
         PathBuf::from(env!("CARGO_MANIFEST_DIR"))
