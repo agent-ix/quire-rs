@@ -433,7 +433,7 @@ fn semantic_findings(
                 "semantic.record-invalid: {err}; FR-075 admits at most one per artifact"
             )),
             Err(err @ crate::semantic::DeclarationError::Serialize(_)) => Some(format!(
-                "semantic.record-invalid: declaration record fails the resolved data schema at : {err}"
+                "semantic.record-invalid: {err}"
             )),
             Ok(declaration) => match validator.validate(&declaration) {
                 Ok(()) => None,

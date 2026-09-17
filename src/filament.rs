@@ -1197,7 +1197,7 @@ fn attach_semantic(
                 Some(format!("{object_name}: {err}; FR-075 admits at most one per artifact"))
             }
             Err(err @ crate::semantic::DeclarationError::Serialize(_)) => Some(format!(
-                "{object_name}: declaration record fails the resolved data schema at : {err}"
+                "{object_name}: {err}"
             )),
             Ok(declaration) => match validator.validate(&declaration) {
                 Ok(()) => None,
