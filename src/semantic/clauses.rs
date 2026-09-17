@@ -11,12 +11,14 @@ use serde_json::{json, Value};
 use super::context::SemanticContext;
 use super::contract::SemanticSeverity;
 use super::decl::{is_identifier, FieldDecl, TypeRef};
-use super::model::{line_span, not_extractable, ModelFeature, OperationFrameDecl};
+use super::model::{line_span, not_extractable, ModelFeature, OperationFrameDecl, Section};
 use super::properties::{
     is_param_header, map_multiplicity, map_row, map_type, table_rows, RowInput,
 };
 use super::resolver::compile_module_schema;
-use super::scan::{blocks_in, level2_sections, lines, lines_outside_fences, Block, Fence};
+use super::scan::{
+    blocks_in, comma_list, level2_sections, lines, lines_outside_fences, Block, Fence,
+};
 use super::{KindAvailability, SemanticDiagnostic};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -66,6 +68,8 @@ pub struct OperationsOutcome {
     /// FR-075 `operationFrames` entries; empty unless `operations` is
     /// available.
     pub frames: Vec<OperationFrameDecl>,
+    /// Whether any operation carries an FR-075 contract or frame line.
+    pub model_declared: bool,
     pub diagnostics: Vec<SemanticDiagnostic>,
 }
 
@@ -366,6 +370,7 @@ pub fn extract_operations(
             availability: KindAvailability::not_applicable(),
             operations: None,
             frames: Vec::new(),
+            model_declared: false,
             diagnostics: Vec::new(),
         };
     };
@@ -380,11 +385,13 @@ pub fn extract_operations(
             availability: KindAvailability::unavailable("duplicate-section"),
             operations: None,
             frames: Vec::new(),
+            model_declared: false,
             diagnostics,
         };
     }
     let mut operations: Vec<OperationDecl> = Vec::new();
     let mut frames: Vec<OperationFrameDecl> = Vec::new();
+    let mut model_declared = false;
     let mut seen: Vec<String> = Vec::new();
     let mut lossy = false;
     for section in level3_headings(&lines, start + 1, end) {
@@ -447,11 +454,13 @@ pub fn extract_operations(
             else {
                 continue;
             };
+            model_declared |= feature.is_some();
             if let Some(feature) = feature.filter(|f| !f.declared_by_mappings(ctx)) {
                 diagnostics.push(not_extractable(
                     ctx,
+                    &lines,
                     feature,
-                    &format!("`## Operations` / `### {name}`"),
+                    Section::Operation(&name),
                     l,
                 ));
                 continue;
@@ -465,13 +474,7 @@ pub fn extract_operations(
                 continue;
             }
             seen_slots.push(slot);
-            let ids = || -> Vec<String> {
-                rest.split(',')
-                    .map(str::trim)
-                    .filter(|s| !s.is_empty())
-                    .map(str::to_string)
-                    .collect()
-            };
+            let ids = || -> Vec<String> { comma_list(rest).map(str::to_string).collect() };
             match (slot, feature) {
                 (OpSlot::Returns, _) => {
                     returns = parse_returns(rest.trim(), l, &name, ctx, &mut diagnostics)
@@ -543,6 +546,7 @@ pub fn extract_operations(
             )),
             operations: None,
             frames: Vec::new(),
+            model_declared,
             diagnostics,
         };
     }
@@ -550,6 +554,7 @@ pub fn extract_operations(
         availability: KindAvailability::available(lossy),
         operations: Some(operations),
         frames,
+        model_declared,
         diagnostics,
     }
 }
@@ -617,7 +622,7 @@ fn frame_names(
     diagnostics: &mut Vec<SemanticDiagnostic>,
 ) -> Vec<String> {
     let mut out = Vec::new();
-    for name in text.split(',').map(str::trim).filter(|s| !s.is_empty()) {
+    for name in comma_list(text) {
         if name.split('.').all(is_identifier) {
             out.push(name.to_string());
         } else {
@@ -686,7 +691,7 @@ fn resolve_refs(
     diagnostics: &mut Vec<SemanticDiagnostic>,
 ) -> Vec<ClauseRef> {
     let mut out = Vec::new();
-    for id in text.split(',').map(str::trim).filter(|s| !s.is_empty()) {
+    for id in comma_list(text) {
         match clauses.iter().find(|c| c.clause_id == id) {
             Some(c) => out.push(ClauseRef {
                 language: c.language.clone(),

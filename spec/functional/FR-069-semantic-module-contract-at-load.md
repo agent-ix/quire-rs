@@ -59,7 +59,7 @@ as it does today.
     `representationFormat` values).
 - For the Filament extraction API ([FR-045](./FR-045-filament-core-extraction-engine.md)):
   an optional `semantic` context on each `FilamentObjectType` snapshot,
-  `{ contractVersion, semanticCore, package, exports, imports }`, with the
+  `{ contractVersion, semanticCore, package, exports, imports, mappings? }`, with the
   data schema already inline (producer: `agent-ix/filament-core-service#23`).
 
 ## Outputs
@@ -189,6 +189,7 @@ stricter of the two.
 | FR-069-AC-9 | Every default and fixture module without a `semantic` block loads to the archetype projection recorded in the checked-in baseline. | Test |
 | FR-069-AC-10 | Two loaded modules with one `semantic.package` fail the later sorted root with `semantic.duplicate-package` naming both; an import no loaded module provides warns `semantic.import-unresolved` and still loads; a two-module import cycle fails both with `semantic.import-cycle`. | Test |
 | FR-069-AC-11 | `Registry::from_inline_parts` with a reference-form `data_schema` resolves the file from the `schemas` map, applies the same digest, `$id`, escape, and `$ref` rules, and refuses a key with a `..` segment. | Test |
+| FR-069-AC-12 | A module whose `semantic` block lists `mappings` loads with those tokens recorded on its `SemanticModule`, in order; a block without `mappings` records an empty list. | Test |
 
 ## Dependencies
 

@@ -1165,7 +1165,8 @@ fn attach_semantic(
     nodes: &mut [GraphNode],
     diagnostics: &mut Vec<CoreExtractionDiagnostic>,
 ) {
-    use crate::semantic::{DeclaredTables, RequiredSections, SemanticContext, SemanticModule};
+    use crate::semantic::model::DeclaredTables;
+    use crate::semantic::{RequiredSections, SemanticContext, SemanticModule};
     let module = SemanticModule {
         contract_version: snapshot.contract_version.clone(),
         semantic_core: snapshot.semantic_core.clone(),
@@ -1177,10 +1178,6 @@ fn attach_semantic(
         legacy_forms: "warning".to_string(),
         mappings: snapshot.mappings.clone(),
     };
-    let dsl = object_type
-        .body_extraction
-        .as_ref()
-        .and_then(|dsl| serde_json::to_value(dsl).ok());
     let ctx = SemanticContext::new(
         module,
         input.rel_path.clone(),
@@ -1188,13 +1185,17 @@ fn attach_semantic(
     )
     .with_source_identity(format!("ix://{}/{}/spec", input.org, input.repo_name))
     .with_declared_tables(
-        dsl.as_ref()
+        object_type
+            .body_extraction
+            .as_ref()
             .map(DeclaredTables::from_dsl)
             .unwrap_or_default(),
     );
-    let required = dsl
+    let required = object_type
+        .body_extraction
         .as_ref()
-        .map(RequiredSections::from_dsl)
+        .and_then(|dsl| serde_json::to_value(dsl).ok())
+        .map(|v| RequiredSections::from_dsl(&v))
         .unwrap_or_default();
     let record = crate::semantic::extract_semantic(
         &input.markdown,

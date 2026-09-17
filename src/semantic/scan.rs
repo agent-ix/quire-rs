@@ -108,7 +108,7 @@ pub fn level2_sections(lines: &[&str], heading: &str) -> Vec<(usize, usize)> {
 
 /// Every `## <heading>` outside a fence as `(heading, line, end)`, with the
 /// same bounds as [`level2_sections`].
-pub fn level2_headings(lines: &[&str]) -> Vec<(String, usize, usize)> {
+pub(crate) fn level2_headings(lines: &[&str]) -> Vec<(String, usize, usize)> {
     let mut out: Vec<(String, usize, usize)> = Vec::new();
     let mut open: Option<(FenceChar, usize)> = None;
     for (i, line) in lines.iter().enumerate() {
@@ -136,6 +136,11 @@ pub fn level2_headings(lines: &[&str]) -> Vec<(String, usize, usize)> {
         last.2 = lines.len() + 1;
     }
     out
+}
+
+/// The trimmed, non-empty items of a comma-separated list cell or line.
+pub(crate) fn comma_list(text: &str) -> impl Iterator<Item = &str> {
+    text.split(',').map(str::trim).filter(|s| !s.is_empty())
 }
 
 /// Every fenced block whose opening fence lies in `[from, to)` (1-based).

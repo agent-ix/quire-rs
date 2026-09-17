@@ -1,5 +1,5 @@
 //! FR-069 semantic module contract at load (TC-1599..TC-1609, TC-1633,
-//! TC-1645, TC-1646). Plan-003 Task-016.
+//! TC-1645, TC-1646, TC-1848, TC-1849). Plan-003 Task-016.
 //!
 //! Every case starts from the quoin `module-ok` fixture (pinned under
 //! `tests/fixtures/semantic/quoin/module-ok`), copied into a temp dir and
@@ -784,5 +784,120 @@ fn inline_parts_resolve_the_reference_form() {
         codes(&registry).contains(&"semantic.data-schema-escape".to_string()),
         "{:?}",
         reasons(&registry)
+    );
+}
+
+/// The golden table with an `abstract` flag and a `## Values` table.
+fn featured_document() -> String {
+    fs::read_to_string(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures/semantic/quoin/mapping/config-version.table.md"),
+    )
+    .unwrap()
+    .replace("type: FR\n", "type: FR\nabstract: true\n")
+        + "\n## Values\n\n| Value | Description |\n|---|---|\n| draft | |\n"
+}
+
+fn values_locator() -> Value {
+    json!({ "from": "table_row", "under_section": "Values", "assert": { "columns": ["Value", "Description"] } })
+}
+
+#[trace("TC-1848", "FR-069-AC-12")]
+// `semantic.mappings` is recorded on the loaded module.
+#[test]
+fn mappings_are_recorded() {
+    let tmp = TempDir::new().unwrap();
+    let root = module(&tmp, "mapped", |m, _| {
+        semantic(m).insert("mappings".into(), vec!["abstract-types", "presence"].into());
+    });
+    let registry = load(&root);
+    let module = registry.semantic_module("mapped").unwrap();
+    assert_eq!(module.mappings, ["abstract-types", "presence"]);
+    let registry = load(&fixture());
+    assert!(registry
+        .semantic_module("spec-objects-fixture")
+        .unwrap()
+        .mappings
+        .is_empty());
+}
+
+#[trace("TC-1849", "FR-075-AC-9")]
+// validate_document and Filament extraction read a declared feature and
+// refuse an undeclared one, from the manifest alone.
+#[test]
+fn surfaces_gate_model_features_on_the_manifest() {
+    let doc = featured_document();
+    let tmp = TempDir::new().unwrap();
+    let refusals = |registry: &Registry| {
+        let entity = registry.archetype("entity").unwrap();
+        let result = quire_rs::validate_document_in_registry(registry, entity, &doc);
+        result
+            .errors
+            .into_iter()
+            .filter(|e| e.message.starts_with("semantic.feature-not-extractable"))
+            .map(|e| e.message)
+            .collect::<Vec<_>>()
+    };
+    let declared = module(&tmp, "declared", |m, _| {
+        semantic(m).insert("mappings".into(), vec!["abstract-types"].into());
+        let locator = serde_yaml::to_value(values_locator()).unwrap();
+        m["object_types"][0]["body_extraction"]["yield_pattern"]["match"]
+            .as_mapping_mut()
+            .unwrap()
+            .insert("values".into(), locator);
+    });
+    assert_eq!(refusals(&load(&declared)), Vec::<String>::new());
+    let bare = refusals(&load(&fixture()));
+    assert_eq!(bare.len(), 2, "{bare:?}");
+    assert!(bare.iter().all(|m| m.contains("<document>")), "{bare:?}");
+    assert!(
+        bare.iter().any(|m| m.contains("abstract-types")),
+        "{bare:?}"
+    );
+    assert!(bare.iter().any(|m| m.contains("values")), "{bare:?}");
+
+    let context = |mappings: &[&str]| json!({ "contractVersion": "1.0.0", "semanticCore": "0.1.0", "package": "agent-ix/spec-objects-fixture", "exports": ["entity"], "imports": {}, "mappings": mappings });
+    let run = |mappings: &[&str], body_extraction: Value| {
+        let mut object_type = entity_snapshot(json!({ "type": "object" }), Some(context(mappings)));
+        object_type["bodyExtraction"] = body_extraction;
+        let mut input = snapshot_input(vec![object_type]);
+        input.markdown = doc.clone();
+        let result = extract_filament_core(input);
+        let node = result
+            .nodes
+            .iter()
+            .find(|n| n.object_type == "entity")
+            .cloned();
+        (result, node)
+    };
+    let dsl = json!({ "yield_pattern": { "match": { "values": values_locator() } } });
+    let (result, node) = run(&["abstract-types"], dsl.clone());
+    assert!(
+        !result
+            .diagnostics
+            .iter()
+            .any(|d| d.code == "semantic.feature-not-extractable"),
+        "{:?}",
+        result.diagnostics
+    );
+    let data: Value = serde_json::from_str(&node.unwrap().data_json).unwrap();
+    let model = &data["semantic"]["model"];
+    assert_eq!(model["abstract"]["value"], true, "{data:#}");
+    assert_eq!(model["values"][0]["value"], "draft");
+
+    let (result, node) = run(&[], dsl);
+    let refused: Vec<&str> = result
+        .diagnostics
+        .iter()
+        .filter(|d| d.code == "semantic.feature-not-extractable")
+        .map(|d| d.message.as_str())
+        .collect();
+    assert_eq!(refused.len(), 1, "{refused:?}");
+    assert!(refused[0].contains("abstract-types") && refused[0].contains("spec/FR-006.md"));
+    let data: Value = serde_json::from_str(&node.unwrap().data_json).unwrap();
+    assert!(data["semantic"].get("model").is_none(), "{data:#}");
+    assert_eq!(
+        data["semantic"]["availability"]["model"]["state"],
+        "unavailable"
     );
 }

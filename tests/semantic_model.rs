@@ -1,4 +1,4 @@
-//! FR-075 model feature extraction (TC-1840..TC-1846).
+//! FR-075 model feature extraction (TC-1840..TC-1847).
 
 use std::fs;
 use std::path::PathBuf;
@@ -88,6 +88,24 @@ fn has(record: &Value, code: &str, line: u64) -> bool {
     codes(record).iter().any(|(c, l)| c == code && *l == line)
 }
 
+/// The one diagnostic with `code` and `reason`.
+fn diagnostic<'r>(record: &'r Value, code: &str, reason: &str) -> &'r Value {
+    record["diagnostics"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|d| d["code"] == code && d["reason"] == reason)
+        .unwrap_or_else(|| panic!("{code} {reason}: {record:#}"))
+}
+
+fn assert_model_unavailable(record: &Value) {
+    assert_eq!(
+        record["availability"]["model"]["state"], "unavailable",
+        "{record:#}"
+    );
+    assert!(record.get("model").is_none(), "{record:#}");
+}
+
 fn assert_span(entry: &Value, md: &str, line: u64) {
     let text = md.split('\n').nth(line as usize - 1).unwrap();
     assert_eq!(
@@ -104,17 +122,34 @@ fn assert_span(entry: &Value, md: &str, line: u64) {
     );
 }
 
+/// A `table_row` locator under `section` asserting `columns`.
+fn row(section: &str, columns: &[&str], optional: &[&str]) -> Value {
+    json!({
+        "from": "table_row",
+        "under_section": section,
+        "assert": { "columns": columns, "optional_columns": optional },
+    })
+}
+
+/// A typed extraction DSL whose `yield_pattern.match` holds `locators`.
+fn dsl(locators: Value) -> Value {
+    json!({ "yield_pattern": { "match": locators } })
+}
+
 fn tables() -> Value {
-    let row = |section: &str, columns: &[&str]| json!({ "from": "table_row", "under_section": section, "assert": { "columns": columns } });
-    json!({ "fields": {
-        "population": row("Members", &["Type", "Extent"]),
-        "values": row("Values", &["Value", "Description"]),
-        "states": row("States", &["State", "Description"]),
-        "transitions": row("Transitions", &["From", "To", "Trigger", "Guard", "Emits"]),
-        "steps": row("Steps", &["Step", "Kind", "Consumes", "Emits", "Description"]),
-        "members": row("Aggregate Members", &["Member", "Multiplicity"]),
-        "vocabulary": row("Ubiquitous Language", &["Term", "Description"]),
-    }})
+    dsl(json!({
+        "population": row("Members", &["Type", "Extent"], &[]),
+        "values": row("Values", &["Value", "Description"], &["Description"]),
+        "states": row("States", &["State", "Description"], &[]),
+        "transitions": row(
+            "Transitions",
+            &["From", "To", "Trigger", "Guard", "Emits"],
+            &["Guard", "Emits"],
+        ),
+        "steps": row("Steps", &["Step", "Kind", "Consumes", "Emits", "Description"], &[]),
+        "members": row("Aggregate Members", &["Member", "Multiplicity"], &[]),
+        "vocabulary": row("Ubiquitous Language", &["Term", "Description"], &[]),
+    }))
 }
 
 const FRONTMATTER: &str = "---\nid: FR-102\ntitle: PriorityOrder\nobject: entity\nabstract: true\nrelationships:\n  - target: \"ix://agent-ix/shop/spec/functional/FR-100\"\n    type: \"specializes\"\n  - target: \"ix://agent-ix/shop/spec/functional/FR-101\"\n    type: \"traces_to\"\n  - target: \"ix://agent-ix/shop/spec/functional/FR-103\"\n    type: \"specializes\"\n---\n# FR-102: PriorityOrder\n";
@@ -174,8 +209,43 @@ fn generalization_and_abstract_from_frontmatter() {
         ),
         "{record:#}"
     );
-    assert_eq!(record["availability"]["model"]["state"], "unavailable");
-    assert!(record.get("model").is_none());
+    assert_model_unavailable(&record);
+
+    // A second specializes of the same target, and a non-string target.
+    for (to, code) in [
+        (
+            "FR-100\"\n    type: \"specializes\"\n---",
+            "semantic.duplicate-model-entry",
+        ),
+        (
+            "x\"\n    type: \"specializes\"\n---",
+            "semantic.invalid-model-cell",
+        ),
+    ] {
+        let mut bad = FRONTMATTER.replace("FR-103\"\n    type: \"specializes\"\n---", to);
+        if code == "semantic.invalid-model-cell" {
+            bad = bad.replace(
+                "target: \"ix://agent-ix/shop/spec/functional/x\"",
+                "target: 7",
+            );
+        }
+        let record = extract(&bad, &["generalization", "abstract-types"], json!(null));
+        assert!(has(&record, code, item_lines[2]), "{code}: {record:#}");
+        assert_model_unavailable(&record);
+    }
+
+    // A refused operation line makes the whole model unavailable, even
+    // though the frontmatter features read cleanly.
+    let mixed = operations("Requires: placed")
+        .replace("object: entity\n", "object: entity\nabstract: true\n");
+    let record = extract(
+        &mixed,
+        &["abstract-types", "operation-contracts"],
+        json!(null),
+    );
+    let refusal = diagnostic(&record, "semantic.feature-not-extractable", "effect-frames");
+    assert_eq!(refusal["line"], line_of(&mixed, "Modifies:"));
+    assert_model_unavailable(&record);
 }
 
 #[trace("TC-1841", "FR-075-AC-2")]
@@ -200,6 +270,7 @@ fn presence_subsets_redefines_columns() {
     assert_span(&features[1], PROPERTIES, line_of(PROPERTIES, "| lines |"));
     assert_eq!(features[2]["presence"], "optional");
     assert_eq!(features[2]["redefines"], "name");
+    assert_eq!(record["availability"]["model"]["state"], "available");
 
     let bad = PROPERTIES.replace("| required |", "| maybe |");
     let record = extract(
@@ -216,7 +287,47 @@ fn presence_subsets_redefines_columns() {
         "{record:#}"
     );
     assert_eq!(record["availability"]["fields"]["state"], "unavailable");
-    assert!(record.get("model").is_none());
+    assert_model_unavailable(&record);
+
+    // An unrecognised or repeated feature column after the typed header is
+    // refused; the table is never read as a legacy form.
+    let header = line_of(PROPERTIES, "| Field |");
+    for column in ["| Colour |", "| Presence |"] {
+        let bad = PROPERTIES.replace("| Redefines |", column);
+        let record = extract(
+            &bad,
+            &["presence", "subsetting", "redefinition"],
+            json!(null),
+        );
+        let d = record["diagnostics"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|d| d["code"] == "semantic.invalid-model-cell")
+            .unwrap_or_else(|| panic!("{column}: {record:#}"));
+        assert_eq!(d["line"], header, "{column}");
+        assert_eq!(d["section"], "Properties", "{column}");
+        assert_span(d, &bad, header);
+        assert_eq!(
+            record["diagnostics"].as_array().unwrap().len(),
+            1,
+            "{record:#}"
+        );
+        assert_eq!(record["availability"]["fields"]["state"], "unavailable");
+        assert_model_unavailable(&record);
+    }
+
+    // A typed feature table in the preamble is refused.
+    let preamble = PROPERTIES.replace("## Properties\n\n", "");
+    let record = extract(
+        &preamble,
+        &["presence", "subsetting", "redefinition"],
+        json!(null),
+    );
+    let d = diagnostic(&record, "semantic.feature-not-extractable", "presence");
+    assert_eq!(d["section"], "preamble");
+    assert_eq!(d["line"], line_of(&preamble, "| Field |"));
+    assert_model_unavailable(&record);
 }
 
 #[trace("TC-1842", "FR-075-AC-3")]
@@ -235,6 +346,7 @@ fn operation_contract_and_frame_lines() {
     assert_eq!(frame["creates"], json!(["Shipment"]));
     assert_eq!(frame["deletes"], json!(["cart.items"]));
     assert_span(frame, &md, line_of(&md, "### ship\n"));
+    assert_eq!(record["availability"]["model"]["state"], "available");
 
     let md = operations("Pre: placed\nRequires: placed");
     let record = extract(&md, &["operation-contracts", "effect-frames"], json!(null));
@@ -258,7 +370,34 @@ fn operation_contract_and_frame_lines() {
         "{record:#}"
     );
     assert_eq!(record["availability"]["operations"]["state"], "unavailable");
-    assert!(record.get("model").is_none());
+    assert_model_unavailable(&record);
+
+    let md = operations("Requires: placed\nModifies: status");
+    let record = extract(&md, &["operation-contracts", "effect-frames"], json!(null));
+    let second = md
+        .split('\n')
+        .collect::<Vec<_>>()
+        .iter()
+        .rposition(|l| l.starts_with("Modifies:"))
+        .unwrap() as u64
+        + 1;
+    assert!(
+        has(&record, "semantic.duplicate-operation-line", second),
+        "{record:#}"
+    );
+    assert_model_unavailable(&record);
+
+    let md = operations("Requires: placed").replace("self.status", "self..status");
+    let record = extract(&md, &["operation-contracts", "effect-frames"], json!(null));
+    assert!(
+        has(
+            &record,
+            "semantic.invalid-model-cell",
+            line_of(&md, "Modifies:")
+        ),
+        "{record:#}"
+    );
+    assert_model_unavailable(&record);
 }
 
 #[trace("TC-1843", "FR-075-AC-4")]
@@ -308,7 +447,7 @@ fn object_type_sections() {
             &json!("shipped"),
             &json!("ship"),
             &json!("ready"),
-            &json!("OrderShipped")
+            &json!(["OrderShipped"])
         )
     );
     assert_span(t, md, line_of(md, "| open | shipped |"));
@@ -321,6 +460,16 @@ fn object_type_sections() {
     assert_span(&model["vocabulary"][0], md, line_of(md, "| Backorder |"));
 
     for (from, to, code) in [
+        (
+            "| ready | OrderShipped |",
+            "| nowhere | OrderShipped |",
+            "semantic.dangling-clause-ref",
+        ),
+        (
+            "| standard | |",
+            "| express | |",
+            "semantic.duplicate-model-entry",
+        ),
         (
             "| open | shipped |",
             "| open | closed |",
@@ -340,97 +489,199 @@ fn object_type_sections() {
         let bad = md.replace(from, to);
         let record = extract(&bad, &[], tables());
         assert!(has(&record, code, line_of(&bad, to)), "{code}: {record:#}");
-        assert_eq!(record["availability"]["model"]["state"], "unavailable");
-        assert!(record.get("model").is_none());
+        assert_model_unavailable(&record);
     }
+
+    // A second table under a declared section.
+    let twice = md.replace(
+        "| Backorder | A line awaiting stock |\n",
+        "| Backorder | A line awaiting stock |\n\n| Term | Description |\n|---|---|\n| Stockout | |\n",
+    );
+    let record = extract(&twice, &[], tables());
+    assert!(
+        has(
+            &record,
+            "semantic.duplicate-section",
+            line_of(&twice, "| Stockout |") - 2
+        ),
+        "{record:#}"
+    );
+    assert_model_unavailable(&record);
+
+    // A failed states table suppresses the unknown-state check.
+    let bad = md
+        .replace(
+            "| open | Accepting lines |",
+            "| open now | Accepting lines |",
+        )
+        .replace("| open | shipped | ship |", "| gone | shipped | ship |");
+    let record = extract(&bad, &[], tables());
+    assert!(
+        has(
+            &record,
+            "semantic.invalid-model-cell",
+            line_of(&bad, "| open now |")
+        ),
+        "{record:#}"
+    );
+    assert!(
+        !codes(&record)
+            .iter()
+            .any(|(c, _)| c == "semantic.unknown-state"),
+        "{record:#}"
+    );
+
+    // Optional columns may be omitted; a required column may not.
+    let slim = md.replace(
+        "| From | To | Trigger | Guard | Emits |\n|---|---|---|---|---|\n| open | shipped | ship | ready | OrderShipped |",
+        "| From | To | Trigger |\n|---|---|---|\n| open | shipped | ship |",
+    );
+    let record = extract(&slim, &[], tables());
+    let t = &record["model"]["transitions"][0];
+    assert_eq!(t["trigger"], "ship", "{record:#}");
+    assert!(
+        t.get("guard").is_none() && t.get("emits").is_none(),
+        "{t:#}"
+    );
+    let short = slim.replace(
+        "| From | To | Trigger |\n|---|---|---|\n| open | shipped | ship |",
+        "| From | To |\n|---|---|\n| open | shipped |",
+    );
+    let record = extract(&short, &[], tables());
+    let d = diagnostic(&record, "semantic.feature-not-extractable", "transitions");
+    assert_eq!(d["line"], line_of(&short, "| From | To |"));
+    assert_model_unavailable(&record);
+
+    // A declared section whose content is not the declared table is refused.
+    let prose = "---\nid: FR-105\ntitle: Cart\nobject: aggregate\n---\n# FR-105: Cart\n\n## States & Transitions\n\n```mermaid\nstateDiagram-v2\n  open --> shipped\n```\n\n## Members\n\n- OrderLine 1..*\n";
+    let locators = dsl(json!({
+        "states": row("States & Transitions", &["State", "Description"], &[]),
+        "transitions": row("States & Transitions", &["From", "To", "Trigger"], &[]),
+        "members": row("Members", &["Member", "Multiplicity"], &[]),
+    }));
+    let record = extract(prose, &[], locators);
+    for (reason, section, line) in [
+        (
+            "states",
+            "States & Transitions",
+            line_of(prose, "```mermaid"),
+        ),
+        ("members", "Members", line_of(prose, "- OrderLine")),
+    ] {
+        let d = diagnostic(&record, "semantic.feature-not-extractable", reason);
+        assert_eq!(d["section"], section, "{reason}");
+        assert_eq!(d["line"], line, "{reason}");
+        assert_span(d, prose, line);
+    }
+    assert_model_unavailable(&record);
 }
 
 #[trace("TC-1845", "FR-075-AC-6")]
 #[test]
 fn undeclared_features_are_refused() {
     let ops = operations("Requires: placed");
-    // (document, feature, declaring line, owning kind)
-    let cases: [(&str, &str, u64, &str); 13] = [
+    // (document, feature, declaring line, owning kind, section)
+    let cases: [(&str, &str, u64, &str, &str); 14] = [
         (
             FRONTMATTER,
             "abstract-types",
             line_of(FRONTMATTER, "abstract:"),
             "model",
+            "frontmatter",
         ),
         (
             FRONTMATTER,
             "generalization",
             line_of(FRONTMATTER, "  - target:"),
             "model",
+            "frontmatter",
         ),
         (
             PROPERTIES,
             "presence",
             line_of(PROPERTIES, "| Field |"),
             "fields",
+            "Properties",
         ),
         (
             PROPERTIES,
             "subsetting",
             line_of(PROPERTIES, "| Field |"),
             "fields",
+            "Properties",
         ),
         (
             PROPERTIES,
             "redefinition",
             line_of(PROPERTIES, "| Field |"),
             "fields",
+            "Properties",
         ),
         (
             &ops,
             "operation-contracts",
             line_of(&ops, "Requires:"),
             "operations",
+            "Operations / ship",
         ),
         (
             &ops,
             "effect-frames",
             line_of(&ops, "Modifies:"),
             "operations",
+            "Operations / ship",
         ),
         (
             POPULATION,
             "population",
             line_of(POPULATION, "| Type |"),
             "model",
+            "Members",
         ),
         (
             OBJECT_SECTIONS,
             "values",
             line_of(OBJECT_SECTIONS, "| Value |"),
             "model",
+            "Values",
         ),
         (
             OBJECT_SECTIONS,
             "states",
             line_of(OBJECT_SECTIONS, "| State |"),
             "model",
+            "States",
         ),
         (
             OBJECT_SECTIONS,
             "transitions",
             line_of(OBJECT_SECTIONS, "| From |"),
             "model",
+            "Transitions",
         ),
         (
             OBJECT_SECTIONS,
             "steps",
             line_of(OBJECT_SECTIONS, "| Step |"),
             "model",
+            "Steps",
         ),
         (
             OBJECT_SECTIONS,
             "vocabulary",
             line_of(OBJECT_SECTIONS, "| Term |"),
             "model",
+            "Ubiquitous Language",
+        ),
+        (
+            OBJECT_SECTIONS,
+            "members",
+            line_of(OBJECT_SECTIONS, "| Member |"),
+            "model",
+            "Aggregate Members",
         ),
     ];
-    for (md, feature, line, kind) in cases {
+    for (md, feature, line, kind, section) in cases {
         let record = extract(md, &[], json!(null));
         let refusal = record["diagnostics"]
             .as_array()
@@ -440,6 +691,8 @@ fn undeclared_features_are_refused() {
             .unwrap_or_else(|| panic!("{feature}: {record:#}"));
         assert_eq!(refusal["line"], line, "{feature}");
         assert_eq!(refusal["severity"], "error", "{feature}");
+        assert_eq!(refusal["section"], section, "{feature}");
+        assert_span(refusal, md, line);
         let message = refusal["message"].as_str().unwrap();
         assert!(message.contains(PATH), "{feature}: {message}");
         assert_eq!(
@@ -461,6 +714,38 @@ fn undeclared_features_are_refused() {
     assert_eq!(refusal["reason"], "members");
     assert_eq!(refusal["line"], line_of(&moved, "| Member |"));
     assert!(refusal["message"].as_str().unwrap().contains("`## Parts`"));
+    assert_eq!(refusal["section"], "Parts");
+
+    // So is a model table before the first `##` heading.
+    let preamble = "---\nid: FR-104\ntitle: Fulfilment\nobject: process\n---\n# FR-104: Fulfilment\n\n| Value | Description |\n|---|---|\n| express | |\n\n## Values\n\nNone.\n";
+    let record = extract(preamble, &[], tables());
+    let refusal = diagnostic(&record, "semantic.feature-not-extractable", "values");
+    assert_eq!(refusal["section"], "preamble");
+    assert_eq!(refusal["line"], line_of(preamble, "| Value |"));
+    assert_model_unavailable(&record);
+}
+
+#[trace("TC-1847", "FR-075-AC-8")]
+#[test]
+fn model_identity_and_display_name() {
+    let record = extract(
+        FRONTMATTER,
+        &["generalization", "abstract-types"],
+        json!(null),
+    );
+    let model = &record["model"];
+    assert_eq!(model["identity"]["value"], "FR-102", "{model:#}");
+    assert_span(
+        &model["identity"],
+        FRONTMATTER,
+        line_of(FRONTMATTER, "id: FR-102"),
+    );
+    assert_eq!(model["displayName"]["value"], "PriorityOrder");
+    assert_span(
+        &model["displayName"],
+        FRONTMATTER,
+        line_of(FRONTMATTER, "title:"),
+    );
 }
 
 #[trace("TC-1846", "FR-075-AC-7")]

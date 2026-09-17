@@ -1,11 +1,12 @@
-//! Model feature extraction (FR-075): generalization and abstract types from
-//! frontmatter, and the typed model tables (populations and the object-type
-//! sections), each gated by what the module manifest declares.
+//! Model feature extraction (FR-075): identity, generalization, and abstract
+//! types from frontmatter, and the model tables (populations and the
+//! object-type sections), each gated by what the module manifest declares.
 //!
 //! Field features (`Presence`, `Subsets`, `Redefines`) are read by the
 //! Properties extractor and operation frames by the Operations extractor;
-//! this module owns their declaration shapes, the feature vocabulary, and
-//! the one refusal every extractor emits for an undeclared feature.
+//! this module owns their declaration shapes, the feature vocabulary, the
+//! one refusal every extractor emits for an undeclared feature, and the
+//! availability of the feature set as a whole.
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -14,16 +15,18 @@ use super::clauses::SourceLocus;
 use super::context::SemanticContext;
 use super::contract::SemanticSeverity;
 use super::decl::{is_identifier, Multiplicity, TypeRef};
-use super::properties::{map_multiplicity, map_type, strip_ticks, RowInput};
-use super::scan::{blocks_in, level2_headings, lines, Block, Table};
-use super::{KindAvailability, SemanticDiagnostic};
+use super::properties::{
+    feature_columns, is_typed_prefix, map_multiplicity, map_type, strip_ticks, RowInput,
+};
+use super::scan::{blocks_in, comma_list, level2_headings, lines, Block, Table};
+use super::{AvailabilityState, KindAvailability, SemanticDiagnostic};
+use crate::extract::assert_eval::headers_conform;
+use crate::extract::dsl::ExtractionDsl;
+use crate::extract::locator::{Locator, LocatorPrimitive};
 
-/// Every model feature FR-075 extracts. The manifest declares a feature
-/// either by naming its [`ModelFeature::mapping`] token in
-/// `semantic.mappings` or, for a table feature, by a `table_row` locator
-/// whose columns equal [`ModelFeature::columns`].
+/// Every model feature FR-075 extracts.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ModelFeature {
+pub(crate) enum ModelFeature {
     Generalization,
     AbstractTypes,
     Presence,
@@ -41,19 +44,9 @@ pub enum ModelFeature {
 }
 
 impl ModelFeature {
-    /// The table features, in the order their tables are matched.
-    pub const TABLES: [ModelFeature; 7] = [
-        ModelFeature::Population,
-        ModelFeature::Values,
-        ModelFeature::States,
-        ModelFeature::Transitions,
-        ModelFeature::Steps,
-        ModelFeature::Members,
-        ModelFeature::Vocabulary,
-    ];
-
-    /// The feature name used as a diagnostic `reason`.
-    pub fn name(self) -> &'static str {
+    /// The feature name used as a diagnostic `reason`; for a mapping
+    /// feature it is also the `semantic.mappings` token that declares it.
+    pub(crate) fn name(self) -> &'static str {
         match self {
             Self::Generalization => "generalization",
             Self::AbstractTypes => "abstract-types",
@@ -72,130 +65,237 @@ impl ModelFeature {
         }
     }
 
-    /// The `semantic.mappings` token that declares a non-table feature.
-    pub fn mapping(self) -> Option<&'static str> {
-        match self {
+    /// Is this mapping feature named by the module's `semantic.mappings`?
+    /// A table feature is declared by a locator instead, never by a token.
+    pub(crate) fn declared_by_mappings(self, ctx: &SemanticContext) -> bool {
+        let is_mapping = match self {
             Self::Generalization
             | Self::AbstractTypes
             | Self::Presence
             | Self::Subsetting
             | Self::Redefinition
             | Self::OperationContracts
-            | Self::EffectFrames => Some(self.name()),
+            | Self::EffectFrames => true,
             Self::Population
             | Self::Values
             | Self::States
             | Self::Transitions
             | Self::Steps
             | Self::Members
-            | Self::Vocabulary => None,
-        }
-    }
-
-    /// The exact header of a table feature.
-    pub fn columns(self) -> Option<&'static [&'static str]> {
-        match self {
-            Self::Population => Some(&["Type", "Extent"]),
-            Self::Values => Some(&["Value", "Description"]),
-            Self::States => Some(&["State", "Description"]),
-            Self::Transitions => Some(&["From", "To", "Trigger", "Guard", "Emits"]),
-            Self::Steps => Some(&["Step", "Kind", "Consumes", "Emits", "Description"]),
-            Self::Members => Some(&["Member", "Multiplicity"]),
-            Self::Vocabulary => Some(&["Term", "Description"]),
-            Self::Generalization
-            | Self::AbstractTypes
-            | Self::Presence
-            | Self::Subsetting
-            | Self::Redefinition
-            | Self::OperationContracts
-            | Self::EffectFrames => None,
-        }
-    }
-
-    /// Is this non-table feature declared by the context's module?
-    pub fn declared_by_mappings(self, ctx: &SemanticContext) -> bool {
-        self.mapping()
-            .is_some_and(|token| ctx.module.mappings.iter().any(|m| m == token))
+            | Self::Vocabulary => false,
+        };
+        is_mapping && ctx.module.mappings.iter().any(|m| m == self.name())
     }
 }
 
-/// One `table_row` locator of the object type's `body_extraction`.
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub struct DeclaredTable {
-    pub section: String,
-    pub columns: Vec<String>,
+/// One model table the engine can read: the columns it reads and how.
+struct TableSpec {
+    feature: ModelFeature,
+    /// Every column the reader reads, in order; the first is the row key.
+    columns: &'static [&'static str],
+    /// Columns a declaring locator may not mark optional.
+    required: &'static [&'static str],
+    read: fn(&mut TableRead<'_>),
 }
 
-/// Every `table_row` locator with `under_section` and `assert.columns` the
-/// object type declares (FR-075 Inputs).
+/// The single source of truth for the model tables (FR-075 Outputs).
+const TABLE_SPECS: [TableSpec; 7] = [
+    TableSpec {
+        feature: ModelFeature::Population,
+        columns: &["Type", "Extent"],
+        required: &["Type", "Extent"],
+        read: read_population,
+    },
+    TableSpec {
+        feature: ModelFeature::Values,
+        columns: &["Value", "Description"],
+        required: &["Value"],
+        read: read_values,
+    },
+    TableSpec {
+        feature: ModelFeature::States,
+        columns: &["State", "Description"],
+        required: &["State"],
+        read: read_states,
+    },
+    TableSpec {
+        feature: ModelFeature::Transitions,
+        columns: &["From", "To", "Trigger", "Guard", "Emits"],
+        required: &["From", "To", "Trigger"],
+        read: read_transitions,
+    },
+    TableSpec {
+        feature: ModelFeature::Steps,
+        columns: &["Step", "Kind", "Consumes", "Emits", "Description"],
+        required: &["Step", "Kind"],
+        read: read_steps,
+    },
+    TableSpec {
+        feature: ModelFeature::Members,
+        columns: &["Member", "Multiplicity"],
+        required: &["Member", "Multiplicity"],
+        read: read_members,
+    },
+    TableSpec {
+        feature: ModelFeature::Vocabulary,
+        columns: &["Term", "Description"],
+        required: &["Term"],
+        read: read_vocabulary,
+    },
+];
+
+impl TableSpec {
+    /// The table a column list names: its first column is a table's key and
+    /// every column is one that table reads.
+    fn for_columns<C: AsRef<str>>(columns: &[C]) -> Option<&'static TableSpec> {
+        let first = strip_ticks(columns.first()?.as_ref());
+        TABLE_SPECS.iter().find(|spec| {
+            spec.columns[0] == first
+                && columns
+                    .iter()
+                    .all(|c| spec.columns.contains(&strip_ticks(c.as_ref())))
+        })
+    }
+
+    fn of(feature: ModelFeature) -> Option<&'static TableSpec> {
+        TABLE_SPECS.iter().find(|spec| spec.feature == feature)
+    }
+}
+
+/// One `table_row` locator of the object type's `body_extraction` that
+/// declares a model table (FR-075 Inputs).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct DeclaredTable {
+    section: String,
+    columns: Vec<String>,
+    optional: Vec<String>,
+    feature: ModelFeature,
+}
+
+impl DeclaredTable {
+    fn conforms(&self, table: &Table) -> bool {
+        let headers: Vec<&str> = table.headers.iter().map(|h| strip_ticks(h)).collect();
+        headers_conform(&headers, &self.columns, &self.optional)
+    }
+}
+
+/// Every model table the object type declares.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub struct DeclaredTables(pub Vec<DeclaredTable>);
+pub(crate) struct DeclaredTables(Vec<DeclaredTable>);
 
 impl DeclaredTables {
-    /// Read the locators from an extraction DSL as JSON.
-    pub fn from_dsl(dsl: &Value) -> Self {
-        fn walk(v: &Value, out: &mut Vec<DeclaredTable>) {
-            match v {
-                Value::Object(map) => {
-                    let is_table = map.get("from").and_then(Value::as_str) == Some("table_row");
-                    let section = map.get("under_section").and_then(Value::as_str);
-                    let columns = map
-                        .get("assert")
-                        .and_then(|a| a.get("columns"))
-                        .and_then(Value::as_array);
-                    if let (true, Some(section), Some(columns)) = (is_table, section, columns) {
-                        out.push(DeclaredTable {
-                            section: section.to_string(),
-                            columns: columns
-                                .iter()
-                                .filter_map(Value::as_str)
-                                .map(str::to_string)
-                                .collect(),
-                        });
-                    }
-                    map.values().for_each(|v| walk(v, out));
-                }
-                Value::Array(items) => items.iter().for_each(|v| walk(v, out)),
-                _ => {}
-            }
-        }
+    /// Read the `table_row` locators of a typed extraction DSL. A locator
+    /// declares a model table when its `under_section` is set and its
+    /// `assert.columns` name one table's key first, only columns that table
+    /// reads, and none of its required columns in `optional_columns`.
+    pub(crate) fn from_dsl(dsl: &ExtractionDsl) -> Self {
+        let locators = dsl
+            .yield_pattern
+            .r#match
+            .iter()
+            .chain(dsl.yield_pattern.per_match.iter())
+            .flat_map(|map| map.values())
+            .flat_map(|locator| match locator {
+                Locator::Primitive(p) => std::slice::from_ref(p),
+                Locator::Fallback(chain) => chain.as_slice(),
+            });
         let mut out = Vec::new();
-        walk(dsl, &mut out);
+        for primitive in locators {
+            let LocatorPrimitive::TableRow {
+                under_section: Some(section),
+                assert: Some(assert),
+                ..
+            } = primitive
+            else {
+                continue;
+            };
+            let Some(columns) = &assert.columns else {
+                continue;
+            };
+            let optional = assert.optional_columns.clone().unwrap_or_default();
+            let Some(spec) = TableSpec::for_columns(columns) else {
+                continue;
+            };
+            if spec
+                .required
+                .iter()
+                .any(|r| optional.iter().any(|o| o == r))
+            {
+                continue;
+            }
+            out.push(DeclaredTable {
+                section: section.clone(),
+                columns: columns.clone(),
+                optional,
+                feature: spec.feature,
+            });
+        }
         Self(out)
     }
 
-    /// Does the object type declare `columns` under `section`?
-    pub fn declares(&self, section: &str, columns: &[&str]) -> bool {
-        self.0.iter().any(|t| {
-            t.section == section
-                && t.columns
-                    .iter()
-                    .map(String::as_str)
-                    .eq(columns.iter().copied())
-        })
+    fn for_section<'a>(&'a self, heading: &'a str) -> impl Iterator<Item = &'a DeclaredTable> {
+        self.0.iter().filter(move |t| t.section == heading)
+    }
+}
+
+/// Where a model feature is declared.
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum Section<'a> {
+    Frontmatter,
+    /// Before the first `##` heading.
+    Preamble,
+    /// A `##` heading.
+    Heading(&'a str),
+    /// An operation under `## Operations`.
+    Operation(&'a str),
+}
+
+impl Section<'_> {
+    /// The structured `section` value of a refusal.
+    fn label(self) -> String {
+        match self {
+            Self::Frontmatter => "frontmatter".to_string(),
+            Self::Preamble => "preamble".to_string(),
+            Self::Heading(h) => h.to_string(),
+            Self::Operation(op) => format!("Operations / {op}"),
+        }
+    }
+
+    fn display(self) -> String {
+        match self {
+            Self::Frontmatter => "frontmatter".to_string(),
+            Self::Preamble => "the preamble before the first `##` heading".to_string(),
+            Self::Heading(h) => format!("`## {h}`"),
+            Self::Operation(op) => format!("`## Operations` / `### {op}`"),
+        }
     }
 }
 
 /// `semantic.feature-not-extractable` (FR-075 Behavior): the artifact
 /// declares `feature` in `section` at `line`, and its manifest does not.
-pub fn not_extractable(
+pub(crate) fn not_extractable(
     ctx: &SemanticContext,
+    lines: &[&str],
     feature: ModelFeature,
-    section: &str,
+    section: Section<'_>,
     line: usize,
 ) -> SemanticDiagnostic {
-    SemanticDiagnostic::new(
+    let mut d = SemanticDiagnostic::new(
         "semantic.feature-not-extractable",
         SemanticSeverity::Error,
         line,
         format!(
-            "artifact {} declares {} in {section} at line {line}; the module {} manifest does not declare it",
+            "artifact {} declares {} in {} at line {line}; the module {} manifest does not declare it",
             ctx.path,
             feature.name(),
+            section.display(),
             ctx.module.package
         ),
     )
-    .with_reason(feature.name())
+    .with_reason(feature.name());
+    d.source_span = Some(line_span(ctx, lines, line));
+    d.section = Some(section.label());
+    d
 }
 
 fn err(code: &str, line: usize, message: impl Into<String>) -> SemanticDiagnostic {
@@ -203,7 +303,7 @@ fn err(code: &str, line: usize, message: impl Into<String>) -> SemanticDiagnosti
 }
 
 /// `startLine`..`endLine` of one declaring line (FR-075 Outputs).
-pub fn line_span(ctx: &SemanticContext, lines: &[&str], line: usize) -> SourceLocus {
+pub(crate) fn line_span(ctx: &SemanticContext, lines: &[&str], line: usize) -> SourceLocus {
     let (identity, _) = ctx.resolved_source_identity();
     let len = line
         .checked_sub(1)
@@ -228,6 +328,16 @@ pub enum Presence {
     Optional,
 }
 
+/// The artifact `id` (the declaration's identity) or its `title` (the
+/// declared class name), at its frontmatter line.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IdentityDecl {
+    pub value: String,
+    pub source_span: SourceLocus,
+}
+
+/// A frontmatter `specializes` relationship.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SupertypeDecl {
@@ -235,6 +345,7 @@ pub struct SupertypeDecl {
     pub source_span: SourceLocus,
 }
 
+/// Frontmatter `abstract: <bool>`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AbstractDecl {
@@ -242,6 +353,7 @@ pub struct AbstractDecl {
     pub source_span: SourceLocus,
 }
 
+/// The `Presence`/`Subsets`/`Redefines` cells of one Properties row.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FieldFeatureDecl {
@@ -255,6 +367,7 @@ pub struct FieldFeatureDecl {
     pub source_span: SourceLocus,
 }
 
+/// The contract and frame lines of one operation.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OperationFrameDecl {
@@ -267,6 +380,7 @@ pub struct OperationFrameDecl {
     pub source_span: SourceLocus,
 }
 
+/// One `Type | Extent` row.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PopulationMemberDecl {
@@ -276,6 +390,7 @@ pub struct PopulationMemberDecl {
     pub source_span: SourceLocus,
 }
 
+/// A population's member types and extents.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PopulationDecl {
     pub members: Vec<PopulationMemberDecl>,
@@ -291,6 +406,7 @@ pub struct EnumValueDecl {
     pub source_span: SourceLocus,
 }
 
+/// A `From | To | Trigger | Guard | Emits` row.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TransitionDecl {
@@ -300,7 +416,7 @@ pub struct TransitionDecl {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub guard: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub emits: Option<String>,
+    pub emits: Option<Vec<String>>,
     pub source_span: SourceLocus,
 }
 
@@ -315,8 +431,13 @@ pub enum StepKind {
     Wait,
 }
 
+/// A `Kind` cell that names no [`StepKind`].
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[error("step kind {0:?} is not command, event, decision, compensation, or wait")]
+pub struct UnknownStepKind(pub String);
+
 impl std::str::FromStr for StepKind {
-    type Err = ();
+    type Err = UnknownStepKind;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "command" => Ok(Self::Command),
@@ -324,11 +445,12 @@ impl std::str::FromStr for StepKind {
             "decision" => Ok(Self::Decision),
             "compensation" => Ok(Self::Compensation),
             "wait" => Ok(Self::Wait),
-            _ => Err(()),
+            other => Err(UnknownStepKind(other.to_string())),
         }
     }
 }
 
+/// A `Step | Kind | Consumes | Emits | Description` row.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StepDecl {
@@ -343,6 +465,7 @@ pub struct StepDecl {
     pub source_span: SourceLocus,
 }
 
+/// A `Member | Multiplicity` row.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MemberDecl {
@@ -351,6 +474,7 @@ pub struct MemberDecl {
     pub source_span: SourceLocus,
 }
 
+/// A `Term | Description` row.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TermDecl {
@@ -363,6 +487,10 @@ pub struct TermDecl {
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ModelDeclarations {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub identity: Option<IdentityDecl>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub display_name: Option<IdentityDecl>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub supertypes: Option<Vec<SupertypeDecl>>,
     #[serde(rename = "abstract", skip_serializing_if = "Option::is_none")]
@@ -387,67 +515,114 @@ pub struct ModelDeclarations {
     pub vocabulary: Option<Vec<TermDecl>>,
 }
 
-impl ModelDeclarations {
-    /// True when no member is declared.
-    pub fn is_empty(&self) -> bool {
-        *self == Self::default()
-    }
-}
-
 /// What the frontmatter and table extraction of one artifact produced.
 #[derive(Debug, Clone, PartialEq, Default)]
-pub struct ModelOutcome {
-    pub model: ModelDeclarations,
+pub(crate) struct ModelOutcome {
+    /// Identity, frontmatter, and table declarations.
+    pub(crate) model: ModelDeclarations,
     /// Whether the artifact declared any frontmatter or table feature.
-    pub declared: bool,
-    pub lossy: bool,
-    pub diagnostics: Vec<SemanticDiagnostic>,
+    pub(crate) declared: bool,
+    pub(crate) lossy: bool,
+    pub(crate) diagnostics: Vec<SemanticDiagnostic>,
 }
 
-/// Names an operation or state reference is checked against; `None` skips
-/// the check because the referenced kind is already `unavailable`.
+/// Names a transition is checked against; `None` skips the check because
+/// the referenced kind is already `unavailable`.
 #[derive(Debug, Clone, Copy, Default)]
-pub struct ModelRefs<'a> {
-    pub clause_ids: Option<&'a [String]>,
-    pub operation_names: Option<&'a [String]>,
+pub(crate) struct ModelRefs<'a> {
+    pub(crate) clause_ids: Option<&'a [String]>,
+    pub(crate) operation_names: Option<&'a [String]>,
 }
 
-/// FR-075 frontmatter and table features of one document.
-pub fn extract_model(raw: &str, ctx: &SemanticContext, refs: ModelRefs<'_>) -> ModelOutcome {
+/// FR-075 identity, frontmatter, and table features of one document.
+pub(crate) fn extract_model(raw: &str, ctx: &SemanticContext, refs: ModelRefs<'_>) -> ModelOutcome {
     let lines = lines(raw);
     let mut out = ModelOutcome::default();
-    frontmatter_features(raw, &lines, ctx, &mut out);
-    table_features(&lines, ctx, refs, &mut out);
+    let body_start = frontmatter_features(raw, &lines, ctx, &mut out);
+    table_features(&lines, body_start, ctx, refs, &mut out);
     out
 }
 
-/// 1-based line of each top-level frontmatter key and of each item under
-/// `relationships:`.
+/// One model feature source for [`model_availability`].
+pub(crate) struct ModelSource<'a> {
+    /// The artifact declares a feature this source extracts.
+    pub(crate) declared: bool,
+    /// The source failed: its declarations are not carried.
+    pub(crate) failed: bool,
+    pub(crate) lossy: bool,
+    pub(crate) diagnostics: &'a [SemanticDiagnostic],
+}
+
+/// `availability.model` (FR-075 General): absent when no source declares a
+/// feature; `unavailable` with the error loci when any declaring source
+/// failed; otherwise `available`.
+pub(crate) fn model_availability(sources: &[ModelSource<'_>]) -> Option<KindAvailability> {
+    let declaring: Vec<&ModelSource<'_>> = sources.iter().filter(|s| s.declared).collect();
+    if declaring.is_empty() {
+        return None;
+    }
+    if !declaring.iter().any(|s| s.failed) {
+        return Some(KindAvailability::available(
+            declaring.iter().any(|s| s.lossy),
+        ));
+    }
+    let mut loci: Vec<usize> = declaring
+        .iter()
+        .filter(|s| s.failed)
+        .flat_map(|s| s.diagnostics.iter())
+        .filter(|d| d.is_error())
+        .filter_map(|d| d.line)
+        .collect();
+    loci.sort_unstable();
+    loci.dedup();
+    let loci: Vec<String> = loci.iter().map(usize::to_string).collect();
+    Some(KindAvailability::unavailable(format!(
+        "entry-errors: lines {}",
+        loci.join(", ")
+    )))
+}
+
+impl ModelOutcome {
+    /// The frontmatter and table source for [`model_availability`].
+    pub(crate) fn source(&self) -> ModelSource<'_> {
+        ModelSource {
+            declared: self.declared,
+            failed: self.diagnostics.iter().any(SemanticDiagnostic::is_error),
+            lossy: self.lossy,
+            diagnostics: &self.diagnostics,
+        }
+    }
+}
+
+/// 1-based lines of the top-level frontmatter keys this module reads and
+/// of each item under `relationships:`.
+#[derive(Default)]
 struct FrontmatterLines {
-    abstract_line: Option<usize>,
-    relationships_line: Option<usize>,
+    id: Option<usize>,
+    title: Option<usize>,
+    abstract_type: Option<usize>,
+    relationships: Option<usize>,
     items: Vec<usize>,
 }
 
 fn frontmatter_lines(lines: &[&str], header_lines: usize) -> FrontmatterLines {
-    let mut out = FrontmatterLines {
-        abstract_line: None,
-        relationships_line: None,
-        items: Vec::new(),
-    };
+    let mut out = FrontmatterLines::default();
     let mut in_relationships = false;
     for (i, raw) in lines.iter().enumerate().take(header_lines) {
         let line = i + 1;
         let text = raw.trim_end_matches('\r');
         let top_level = !text.starts_with(' ') && !text.starts_with('-') && !text.is_empty();
         if top_level {
-            in_relationships = text.starts_with("relationships:");
-            if in_relationships {
-                out.relationships_line = Some(line);
-            }
-            if text.starts_with("abstract:") {
-                out.abstract_line = Some(line);
-            }
+            let key = text.split(':').next().unwrap_or("");
+            in_relationships = key == "relationships";
+            let slot = match key {
+                "id" => &mut out.id,
+                "title" => &mut out.title,
+                "abstract" => &mut out.abstract_type,
+                "relationships" => &mut out.relationships,
+                _ => continue,
+            };
+            slot.get_or_insert(line);
             continue;
         }
         if in_relationships && text.trim_start().starts_with("- ") {
@@ -457,23 +632,40 @@ fn frontmatter_lines(lines: &[&str], header_lines: usize) -> FrontmatterLines {
     out
 }
 
-fn frontmatter_features(raw: &str, lines: &[&str], ctx: &SemanticContext, out: &mut ModelOutcome) {
+/// Read the frontmatter features; returns the first body line.
+fn frontmatter_features(
+    raw: &str,
+    lines: &[&str],
+    ctx: &SemanticContext,
+    out: &mut ModelOutcome,
+) -> usize {
     let fm = crate::parser::frontmatter::extract_frontmatter_ref(raw);
     let Some(map) = fm.frontmatter else {
-        return;
+        return 1;
     };
     let header = &raw[..raw.len().saturating_sub(fm.body.len())];
     let header_lines = header.split('\n').count();
     let at = frontmatter_lines(lines, header_lines);
+    let identity = |key: &str, line: Option<usize>| {
+        let value = map.get(key)?.as_str()?;
+        let line = line?;
+        Some(IdentityDecl {
+            value: value.to_string(),
+            source_span: line_span(ctx, lines, line),
+        })
+    };
+    out.model.identity = identity("id", at.id);
+    out.model.display_name = identity("title", at.title);
 
     if let Some(value) = map.get("abstract") {
         out.declared = true;
-        let line = at.abstract_line.unwrap_or(1);
+        let line = at.abstract_type.unwrap_or(1);
         if !ModelFeature::AbstractTypes.declared_by_mappings(ctx) {
             out.diagnostics.push(not_extractable(
                 ctx,
+                lines,
                 ModelFeature::AbstractTypes,
-                "frontmatter",
+                Section::Frontmatter,
                 line,
             ));
         } else if let Some(flag) = value.as_bool() {
@@ -490,69 +682,219 @@ fn frontmatter_features(raw: &str, lines: &[&str], ctx: &SemanticContext, out: &
         }
     }
 
-    let Some(relationships) = map.get("relationships").and_then(Value::as_array) else {
-        return;
-    };
-    let mut supertypes: Vec<SupertypeDecl> = Vec::new();
-    for (i, rel) in relationships.iter().enumerate() {
-        if rel.get("type").and_then(Value::as_str) != Some("specializes") {
-            continue;
+    if let Some(relationships) = map.get("relationships").and_then(Value::as_array) {
+        let mut supertypes: Vec<SupertypeDecl> = Vec::new();
+        for (i, rel) in relationships.iter().enumerate() {
+            if rel.get("type").and_then(Value::as_str) != Some("specializes") {
+                continue;
+            }
+            out.declared = true;
+            let line = match at.items.get(i) {
+                Some(line) if at.items.len() == relationships.len() => *line,
+                _ => at.relationships.unwrap_or(1),
+            };
+            if !ModelFeature::Generalization.declared_by_mappings(ctx) {
+                out.diagnostics.push(not_extractable(
+                    ctx,
+                    lines,
+                    ModelFeature::Generalization,
+                    Section::Frontmatter,
+                    line,
+                ));
+                continue;
+            }
+            let Some(target) = rel.get("target").and_then(Value::as_str) else {
+                out.diagnostics.push(err(
+                    "semantic.invalid-model-cell",
+                    line,
+                    "a specializes relationship carries no string target",
+                ));
+                continue;
+            };
+            if supertypes.iter().any(|s| s.target == target) {
+                out.diagnostics.push(err(
+                    "semantic.duplicate-model-entry",
+                    line,
+                    format!("specializes {target} is declared twice"),
+                ));
+                continue;
+            }
+            supertypes.push(SupertypeDecl {
+                target: target.to_string(),
+                source_span: line_span(ctx, lines, line),
+            });
         }
+        if !supertypes.is_empty() {
+            out.model.supertypes = Some(supertypes);
+        }
+    }
+    header_lines.max(1)
+}
+
+fn block_line(block: &Block) -> usize {
+    match block {
+        Block::Table(t) => t.line,
+        Block::Fence(f) => f.open_line,
+        Block::List { line } => *line,
+    }
+}
+
+fn table_features(
+    lines: &[&str],
+    body_start: usize,
+    ctx: &SemanticContext,
+    refs: ModelRefs<'_>,
+    out: &mut ModelOutcome,
+) {
+    let headings = level2_headings(lines);
+    let preamble_end = headings.first().map_or(lines.len() + 1, |h| h.1);
+    let refuse = |out: &mut ModelOutcome, feature, section, line| {
         out.declared = true;
-        let line = if at.items.len() == relationships.len() {
-            at.items[i]
-        } else {
-            at.relationships_line.unwrap_or(1)
-        };
-        if !ModelFeature::Generalization.declared_by_mappings(ctx) {
-            out.diagnostics.push(not_extractable(
-                ctx,
-                ModelFeature::Generalization,
-                "frontmatter",
-                line,
-            ));
-            continue;
+        out.diagnostics
+            .push(not_extractable(ctx, lines, feature, section, line));
+    };
+    let mut read: Vec<ModelFeature> = Vec::new();
+    let mut failed: Vec<ModelFeature> = Vec::new();
+    for block in blocks_in(lines, body_start, preamble_end) {
+        if let Block::Table(table) = &block {
+            if let Some(spec) = TableSpec::for_columns(&table.headers) {
+                refuse(out, spec.feature, Section::Preamble, table.line);
+                failed.push(spec.feature);
+            } else if is_typed_prefix(&table.headers) {
+                // A typed Properties table with feature columns outside
+                // `## Properties` declares features no extractor reads.
+                for column in feature_columns(&table.headers).unwrap_or_default() {
+                    refuse(out, column.feature(), Section::Preamble, table.line);
+                }
+            }
         }
-        let Some(target) = rel.get("target").and_then(Value::as_str) else {
-            out.diagnostics.push(err(
+    }
+
+    for (heading, start, end) in &headings {
+        let owners: Vec<&DeclaredTable> = ctx.declared_tables.for_section(heading).collect();
+        let blocks = blocks_in(lines, start + 1, *end);
+        let Some(first_owner) = owners.first() else {
+            for block in &blocks {
+                if let Block::Table(table) = block {
+                    if let Some(spec) = TableSpec::for_columns(&table.headers) {
+                        refuse(out, spec.feature, Section::Heading(heading), table.line);
+                        failed.push(spec.feature);
+                    }
+                }
+            }
+            continue;
+        };
+        out.declared |= !blocks.is_empty();
+        for block in &blocks {
+            let owner = match block {
+                Block::Table(table) => owners.iter().find(|o| o.conforms(table)),
+                Block::Fence(_) | Block::List { .. } => None,
+            };
+            let (Some(owner), Block::Table(table)) = (owner, block) else {
+                refuse(
+                    out,
+                    first_owner.feature,
+                    Section::Heading(heading),
+                    block_line(block),
+                );
+                failed.push(first_owner.feature);
+                continue;
+            };
+            if read.contains(&owner.feature) {
+                out.diagnostics.push(err(
+                    "semantic.duplicate-section",
+                    table.line,
+                    format!("a second {} table; one per artifact", owner.feature.name()),
+                ));
+                failed.push(owner.feature);
+                continue;
+            }
+            read.push(owner.feature);
+            let Some(spec) = TableSpec::of(owner.feature) else {
+                continue;
+            };
+            let before = out.diagnostics.len();
+            (spec.read)(&mut TableRead {
+                feature: spec.feature,
+                table,
+                lines,
+                ctx,
+                out,
+                keys: Vec::new(),
+            });
+            if out.diagnostics[before..].iter().any(|d| d.is_error()) {
+                failed.push(spec.feature);
+            }
+        }
+    }
+    check_transitions(refs, failed.contains(&ModelFeature::States), out);
+}
+
+/// The reader state for one declared model table.
+struct TableRead<'a> {
+    feature: ModelFeature,
+    table: &'a Table,
+    lines: &'a [&'a str],
+    ctx: &'a SemanticContext,
+    out: &'a mut ModelOutcome,
+    /// Row keys seen so far, for `semantic.duplicate-model-entry`.
+    keys: Vec<String>,
+}
+
+impl TableRead<'_> {
+    /// The cell under `column`, empty when the column is absent (declared
+    /// optional) or the row is short.
+    fn cell<'c>(&self, cells: &'c [String], column: &str) -> &'c str {
+        self.table
+            .headers
+            .iter()
+            .position(|h| strip_ticks(h) == column)
+            .and_then(|i| cells.get(i))
+            .map_or("", |c| strip_ticks(c))
+    }
+
+    fn span(&self, line: usize) -> SourceLocus {
+        line_span(self.ctx, self.lines, line)
+    }
+
+    fn error(&mut self, code: &str, line: usize, message: impl Into<String>) {
+        self.out.diagnostics.push(err(code, line, message));
+    }
+
+    fn identifier(&mut self, text: &str, what: &str, line: usize) -> bool {
+        let ok = is_identifier(text);
+        if !ok {
+            self.error(
                 "semantic.invalid-model-cell",
                 line,
-                "a specializes relationship carries no string target",
-            ));
-            continue;
-        };
-        if supertypes.iter().any(|s| s.target == target) {
-            out.diagnostics.push(err(
-                "semantic.duplicate-model-entry",
-                line,
-                format!("specializes {target} is declared twice"),
-            ));
-            continue;
+                format!("{what} {text:?} is not an Identifier"),
+            );
         }
-        supertypes.push(SupertypeDecl {
-            target: target.to_string(),
-            source_span: line_span(ctx, lines, line),
-        });
+        ok
     }
-    if !supertypes.is_empty() {
-        out.model.supertypes = Some(supertypes);
+
+    fn non_empty(&mut self, text: &str, what: &str, line: usize) -> bool {
+        let ok = !text.is_empty();
+        if !ok {
+            self.error(
+                "semantic.invalid-model-cell",
+                line,
+                format!("a {} row names no {what}", self.feature.name()),
+            );
+        }
+        ok
     }
-}
 
-fn table_feature(table: &Table) -> Option<ModelFeature> {
-    ModelFeature::TABLES.into_iter().find(|f| {
-        f.columns().is_some_and(|cols| {
-            table
-                .headers
-                .iter()
-                .map(|h| strip_ticks(h))
-                .eq(cols.iter().copied())
-        })
-    })
-}
-
-fn cell(cells: &[String], i: usize) -> &str {
-    strip_ticks(cells.get(i).map(String::as_str).unwrap_or(""))
+    /// Record `key`; false (with the diagnostic) when already seen.
+    fn fresh(&mut self, key: &str, line: usize) -> bool {
+        if self.keys.iter().any(|k| k == key) {
+            let message = format!("{} {key} is declared twice", self.feature.name());
+            self.error("semantic.duplicate-model-entry", line, message);
+            return false;
+        }
+        self.keys.push(key.to_string());
+        true
+    }
 }
 
 fn optional(text: &str) -> Option<String> {
@@ -560,261 +902,173 @@ fn optional(text: &str) -> Option<String> {
 }
 
 fn name_list(text: &str) -> Option<Vec<String>> {
-    let items: Vec<String> = text
-        .split(',')
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-        .map(str::to_string)
-        .collect();
+    let items: Vec<String> = comma_list(text).map(str::to_string).collect();
     (!items.is_empty()).then_some(items)
 }
 
-fn table_features(
-    lines: &[&str],
-    ctx: &SemanticContext,
-    refs: ModelRefs<'_>,
-    out: &mut ModelOutcome,
-) {
-    let mut seen: Vec<ModelFeature> = Vec::new();
-    for (heading, start, end) in level2_headings(lines) {
-        for block in blocks_in(lines, start + 1, end) {
-            let Block::Table(table) = block else {
-                continue;
-            };
-            let Some(feature) = table_feature(&table) else {
-                continue;
-            };
-            out.declared = true;
-            let columns = feature.columns().unwrap_or(&[]);
-            if !ctx.declared_tables.declares(&heading, columns) {
-                out.diagnostics.push(not_extractable(
-                    ctx,
-                    feature,
-                    &format!("`## {heading}`"),
-                    table.line,
-                ));
-                continue;
-            }
-            if seen.contains(&feature) {
-                out.diagnostics.push(err(
-                    "semantic.duplicate-section",
-                    table.line,
-                    format!("a second {} table", feature.name()),
-                ));
-                continue;
-            }
-            seen.push(feature);
-            read_table(feature, &table, lines, ctx, out);
+fn read_enum(r: &mut TableRead<'_>, key: &str) -> Vec<EnumValueDecl> {
+    let table = r.table;
+    let what = key.to_ascii_lowercase();
+    let mut entries = Vec::new();
+    for (line, cells) in &table.rows {
+        let value = r.cell(cells, key);
+        if !r.identifier(value, &what, *line) || !r.fresh(value, *line) {
+            continue;
         }
+        entries.push(EnumValueDecl {
+            value: value.to_string(),
+            doc: optional(r.cell(cells, "Description")),
+            source_span: r.span(*line),
+        });
     }
-    check_transitions(refs, out);
+    entries
 }
 
-fn read_table(
-    feature: ModelFeature,
-    table: &Table,
-    lines: &[&str],
-    ctx: &SemanticContext,
-    out: &mut ModelOutcome,
-) {
-    let diagnostics = &mut out.diagnostics;
-    let mut keys: Vec<String> = Vec::new();
-    let mut duplicate = |key: &str, line: usize, diagnostics: &mut Vec<SemanticDiagnostic>| {
-        if keys.iter().any(|k| k == key) {
-            diagnostics.push(err(
-                "semantic.duplicate-model-entry",
-                line,
-                format!("{} {key} is declared twice", feature.name()),
-            ));
-            return true;
+fn read_values(r: &mut TableRead<'_>) {
+    let entries = read_enum(r, "Value");
+    r.out.model.values = Some(entries);
+}
+
+fn read_states(r: &mut TableRead<'_>) {
+    let entries = read_enum(r, "State");
+    r.out.model.states = Some(entries);
+}
+
+fn read_transitions(r: &mut TableRead<'_>) {
+    let table = r.table;
+    let mut entries = Vec::new();
+    for (line, cells) in &table.rows {
+        let (from, to, trigger) = (
+            r.cell(cells, "From"),
+            r.cell(cells, "To"),
+            r.cell(cells, "Trigger"),
+        );
+        let ok = r.identifier(from, "from state", *line)
+            & r.identifier(to, "to state", *line)
+            & r.identifier(trigger, "trigger", *line);
+        if !ok {
+            continue;
         }
-        keys.push(key.to_string());
-        false
-    };
-    let identifier =
-        |text: &str, what: &str, line: usize, diagnostics: &mut Vec<SemanticDiagnostic>| {
-            if is_identifier(text) {
-                true
-            } else {
-                diagnostics.push(err(
-                    "semantic.invalid-model-cell",
-                    line,
-                    format!("{what} {text:?} is not an Identifier"),
-                ));
-                false
+        entries.push(TransitionDecl {
+            from: from.to_string(),
+            to: to.to_string(),
+            trigger: trigger.to_string(),
+            guard: optional(r.cell(cells, "Guard")),
+            emits: name_list(r.cell(cells, "Emits")),
+            source_span: r.span(*line),
+        });
+    }
+    r.out.model.transitions = Some(entries);
+}
+
+fn read_steps(r: &mut TableRead<'_>) {
+    let table = r.table;
+    let mut entries = Vec::new();
+    for (line, cells) in &table.rows {
+        let name = r.cell(cells, "Step");
+        let kind = match r.cell(cells, "Kind").parse::<StepKind>() {
+            Ok(kind) => Some(kind),
+            Err(unknown) => {
+                r.error("semantic.invalid-model-cell", *line, unknown.to_string());
+                None
             }
         };
-    match feature {
-        ModelFeature::Values | ModelFeature::States => {
-            let what = if feature == ModelFeature::Values {
-                "value"
-            } else {
-                "state"
-            };
-            let mut entries = Vec::new();
-            for (line, cells) in &table.rows {
-                let value = cell(cells, 0);
-                if !identifier(value, what, *line, diagnostics)
-                    || duplicate(value, *line, diagnostics)
-                {
-                    continue;
-                }
-                entries.push(EnumValueDecl {
-                    value: value.to_string(),
-                    doc: optional(cell(cells, 1)),
-                    source_span: line_span(ctx, lines, *line),
-                });
-            }
-            if feature == ModelFeature::Values {
-                out.model.values = Some(entries);
-            } else {
-                out.model.states = Some(entries);
-            }
+        let named = r.identifier(name, "step", *line);
+        let (Some(kind), true) = (kind, named) else {
+            continue;
+        };
+        if !r.fresh(name, *line) {
+            continue;
         }
-        ModelFeature::Transitions => {
-            let mut entries = Vec::new();
-            for (line, cells) in &table.rows {
-                let (from, to, trigger) = (cell(cells, 0), cell(cells, 1), cell(cells, 2));
-                let ok = identifier(from, "from state", *line, diagnostics)
-                    & identifier(to, "to state", *line, diagnostics)
-                    & identifier(trigger, "trigger", *line, diagnostics);
-                if !ok {
-                    continue;
-                }
-                entries.push(TransitionDecl {
-                    from: from.to_string(),
-                    to: to.to_string(),
-                    trigger: trigger.to_string(),
-                    guard: optional(cell(cells, 3)),
-                    emits: optional(cell(cells, 4)),
-                    source_span: line_span(ctx, lines, *line),
-                });
-            }
-            out.model.transitions = Some(entries);
-        }
-        ModelFeature::Steps => {
-            let mut entries = Vec::new();
-            for (line, cells) in &table.rows {
-                let name = cell(cells, 0);
-                let kind_text = cell(cells, 1);
-                let kind = kind_text.parse::<StepKind>().ok();
-                if kind.is_none() {
-                    diagnostics.push(err(
-                        "semantic.invalid-model-cell",
-                        *line,
-                        format!("step kind {kind_text:?} is not command, event, decision, compensation, or wait"),
-                    ));
-                }
-                let named = identifier(name, "step", *line, diagnostics);
-                let (Some(kind), true) = (kind, named) else {
-                    continue;
-                };
-                if duplicate(name, *line, diagnostics) {
-                    continue;
-                }
-                entries.push(StepDecl {
-                    name: name.to_string(),
-                    kind,
-                    consumes: name_list(cell(cells, 2)),
-                    emits: name_list(cell(cells, 3)),
-                    doc: optional(cell(cells, 4)),
-                    source_span: line_span(ctx, lines, *line),
-                });
-            }
-            out.model.steps = Some(entries);
-        }
-        ModelFeature::Members => {
-            let mut entries = Vec::new();
-            for (line, cells) in &table.rows {
-                let target = cell(cells, 0);
-                if target.is_empty() {
-                    diagnostics.push(err(
-                        "semantic.invalid-model-cell",
-                        *line,
-                        "a member row names no member",
-                    ));
-                    continue;
-                }
-                let Some(multiplicity) = map_multiplicity(cell(cells, 1), *line, diagnostics)
-                else {
-                    continue;
-                };
-                if duplicate(target, *line, diagnostics) {
-                    continue;
-                }
-                entries.push(MemberDecl {
-                    target: target.to_string(),
-                    multiplicity,
-                    source_span: line_span(ctx, lines, *line),
-                });
-            }
-            out.model.members = Some(entries);
-        }
-        ModelFeature::Vocabulary => {
-            let mut entries = Vec::new();
-            for (line, cells) in &table.rows {
-                let term = cell(cells, 0);
-                if term.is_empty() {
-                    diagnostics.push(err(
-                        "semantic.invalid-model-cell",
-                        *line,
-                        "a vocabulary row names no term",
-                    ));
-                    continue;
-                }
-                if duplicate(term, *line, diagnostics) {
-                    continue;
-                }
-                entries.push(TermDecl {
-                    term: term.to_string(),
-                    doc: cell(cells, 1).to_string(),
-                    source_span: line_span(ctx, lines, *line),
-                });
-            }
-            out.model.vocabulary = Some(entries);
-        }
-        ModelFeature::Population => {
-            let mut members = Vec::new();
-            for (line, cells) in &table.rows {
-                let type_cell = cell(cells, 0);
-                let row = RowInput {
-                    line: *line,
-                    name: type_cell.to_string(),
-                    type_cell: type_cell.to_string(),
-                    mult_cell: cell(cells, 1).to_string(),
-                    constraints_cell: String::new(),
-                    reference_only: false,
-                };
-                let (type_ref, lossy) = map_type(type_cell, &row, ctx, diagnostics);
-                let extent = map_multiplicity(&row.mult_cell, *line, diagnostics);
-                let (Some(type_ref), Some(extent)) = (type_ref, extent) else {
-                    continue;
-                };
-                if duplicate(type_cell, *line, diagnostics) {
-                    continue;
-                }
-                out.lossy |= lossy;
-                members.push(PopulationMemberDecl {
-                    type_ref,
-                    extent,
-                    source_span: line_span(ctx, lines, *line),
-                });
-            }
-            out.model.population = Some(PopulationDecl { members });
-        }
-        ModelFeature::Generalization
-        | ModelFeature::AbstractTypes
-        | ModelFeature::Presence
-        | ModelFeature::Subsetting
-        | ModelFeature::Redefinition
-        | ModelFeature::OperationContracts
-        | ModelFeature::EffectFrames => {}
+        entries.push(StepDecl {
+            name: name.to_string(),
+            kind,
+            consumes: name_list(r.cell(cells, "Consumes")),
+            emits: name_list(r.cell(cells, "Emits")),
+            doc: optional(r.cell(cells, "Description")),
+            source_span: r.span(*line),
+        });
     }
+    r.out.model.steps = Some(entries);
+}
+
+fn read_members(r: &mut TableRead<'_>) {
+    let table = r.table;
+    let mut entries = Vec::new();
+    for (line, cells) in &table.rows {
+        let target = r.cell(cells, "Member");
+        if !r.non_empty(target, "member", *line) {
+            continue;
+        }
+        let Some(multiplicity) =
+            map_multiplicity(r.cell(cells, "Multiplicity"), *line, &mut r.out.diagnostics)
+        else {
+            continue;
+        };
+        if !r.fresh(target, *line) {
+            continue;
+        }
+        entries.push(MemberDecl {
+            target: target.to_string(),
+            multiplicity,
+            source_span: r.span(*line),
+        });
+    }
+    r.out.model.members = Some(entries);
+}
+
+fn read_vocabulary(r: &mut TableRead<'_>) {
+    let table = r.table;
+    let mut entries = Vec::new();
+    for (line, cells) in &table.rows {
+        let term = r.cell(cells, "Term");
+        if !r.non_empty(term, "term", *line) || !r.fresh(term, *line) {
+            continue;
+        }
+        entries.push(TermDecl {
+            term: term.to_string(),
+            doc: r.cell(cells, "Description").to_string(),
+            source_span: r.span(*line),
+        });
+    }
+    r.out.model.vocabulary = Some(entries);
+}
+
+fn read_population(r: &mut TableRead<'_>) {
+    let table = r.table;
+    let mut members = Vec::new();
+    for (line, cells) in &table.rows {
+        let type_cell = r.cell(cells, "Type");
+        let row = RowInput {
+            line: *line,
+            name: type_cell.to_string(),
+            type_cell: type_cell.to_string(),
+            mult_cell: r.cell(cells, "Extent").to_string(),
+            constraints_cell: String::new(),
+            reference_only: false,
+        };
+        let (type_ref, lossy) = map_type(type_cell, &row, r.ctx, &mut r.out.diagnostics);
+        let extent = map_multiplicity(&row.mult_cell, *line, &mut r.out.diagnostics);
+        let (Some(type_ref), Some(extent)) = (type_ref, extent) else {
+            continue;
+        };
+        if !r.fresh(type_cell, *line) {
+            continue;
+        }
+        r.out.lossy |= lossy;
+        members.push(PopulationMemberDecl {
+            type_ref,
+            extent,
+            source_span: r.span(*line),
+        });
+    }
+    r.out.model.population = Some(PopulationDecl { members });
 }
 
 /// Transition reader rules: `from`/`to` name a state, `trigger` an
-/// operation, `guard` an invariant clause of the same artifact.
-fn check_transitions(refs: ModelRefs<'_>, out: &mut ModelOutcome) {
+/// operation, `guard` an invariant clause of the same artifact. The state
+/// check is skipped when the states table failed.
+fn check_transitions(refs: ModelRefs<'_>, states_failed: bool, out: &mut ModelOutcome) {
     let Some(transitions) = &out.model.transitions else {
         return;
     };
@@ -825,20 +1079,23 @@ fn check_transitions(refs: ModelRefs<'_>, out: &mut ModelOutcome) {
         .flatten()
         .map(|s| s.value.as_str())
         .collect();
+    let mut found = Vec::new();
     for t in transitions {
         let line = t.source_span.start_line;
-        for state in [&t.from, &t.to] {
-            if !states.contains(&state.as_str()) {
-                out.diagnostics.push(err(
-                    "semantic.unknown-state",
-                    line,
-                    format!("transition state {state} names no declared state"),
-                ));
+        if !states_failed {
+            for state in [&t.from, &t.to] {
+                if !states.contains(&state.as_str()) {
+                    found.push(err(
+                        "semantic.unknown-state",
+                        line,
+                        format!("transition state {state} names no declared state"),
+                    ));
+                }
             }
         }
         if let Some(ops) = refs.operation_names {
             if !ops.contains(&t.trigger) {
-                out.diagnostics.push(err(
+                found.push(err(
                     "semantic.unknown-trigger",
                     line,
                     format!("transition trigger {} names no operation", t.trigger),
@@ -847,7 +1104,7 @@ fn check_transitions(refs: ModelRefs<'_>, out: &mut ModelOutcome) {
         }
         if let (Some(guard), Some(clauses)) = (&t.guard, refs.clause_ids) {
             if !clauses.contains(guard) {
-                out.diagnostics.push(err(
+                found.push(err(
                     "semantic.dangling-clause-ref",
                     line,
                     format!("guard {guard} is declared by no invariant of this artifact"),
@@ -855,25 +1112,10 @@ fn check_transitions(refs: ModelRefs<'_>, out: &mut ModelOutcome) {
             }
         }
     }
+    out.diagnostics.extend(found);
 }
 
-/// The availability of the frontmatter and table features.
-pub fn model_availability(outcome: &ModelOutcome) -> Option<KindAvailability> {
-    if !outcome.declared {
-        return None;
-    }
-    let loci: Vec<String> = outcome
-        .diagnostics
-        .iter()
-        .filter(|d| d.is_error())
-        .filter_map(|d| d.line.map(|l| l.to_string()))
-        .collect();
-    if loci.is_empty() {
-        Some(KindAvailability::available(outcome.lossy))
-    } else {
-        Some(KindAvailability::unavailable(format!(
-            "entry-errors: lines {}",
-            loci.join(", ")
-        )))
-    }
+/// Whether `availability` makes the kind's declarations absent.
+pub(crate) fn failed(availability: &KindAvailability) -> bool {
+    availability.state == AvailabilityState::Unavailable
 }

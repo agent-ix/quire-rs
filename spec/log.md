@@ -7,6 +7,19 @@ description: "Chronological log of structural changes to this bundle."
 
 ## History
 
+* **2026-09-16** — **CR-162** (#431): [FR-069](./functional/FR-069-semantic-module-contract-at-load.md)
+  records `semantic.mappings` on `SemanticModule` (AC-12, TC-1848), and
+  [FR-072](./functional/FR-072-semantic-extraction-surface.md) carries the
+  optional `model` and `availability.model` keys and the diagnostic
+  `sourceSpan` and `section` keys in `semantic-v1`. FR-075 table extraction
+  follows the declared `table_row` locators (`optional_columns` honoured);
+  any block under a declared section that does not conform, and any model
+  table under an unowned section or before the first heading, is refused.
+  `model` is present exactly when `availability.model` is `available`, and
+  carries `identity` and `displayName` (AC-8, TC-1847). Both
+  `validate_document` and Filament extraction apply the manifest gating
+  (AC-9, TC-1849).
+
 * **2026-09-16** — **FR-075** (#431): model feature extraction. The FR-072
   record carries an optional `model` with generalization, abstract types,
   field presence/subsetting/redefinition, operation contracts and effect

@@ -6,6 +6,8 @@ verification_method: test
 evidence:
   - kind: test_case
     ref: tests/semantic_model.rs
+  - kind: test_case
+    ref: tests/semantic_contract.rs
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/usecase/US-019"
     type: "implements"
@@ -53,34 +55,55 @@ carries them by clause id and never parses them
   ([FR-069](./FR-069-semantic-module-contract-at-load.md)). The feature
   tokens are `generalization`, `abstract-types`, `presence`, `subsetting`,
   `redefinition`, `operation-contracts`, and `effect-frames`.
-- The object type's `body_extraction` DSL. Every `table_row` locator with
-  `under_section: <Section>` and `assert.columns` is a declared table.
+- The object type's typed `body_extraction` DSL. A `table_row` locator in
+  `yield_pattern.match` or `yield_pattern.per_match` (a fallback chain
+  included) declares a model table when it sets `under_section`, its
+  `assert.columns` start with one table key of the Outputs table and name
+  only that table's columns, and its `assert.optional_columns` name none of
+  that table's required columns.
+- The document path. The Filament and Python surfaces pass the artifact
+  path; `validate_document` has no path, and its spans and messages name
+  `<document>`.
 
 ## Outputs
 
-`model` on the FR-072 record, present only when the artifact declares at
-least one model feature, with these optional members. Every `sourceSpan` is a
+`model` on the FR-072 record, present exactly when `availability.model` is
+`available`, with these optional members. Every `sourceSpan` is a
 semantic-core `SourceLocus` built as FR-071 builds clause spans: `startLine`
 the declaring line, `startColumn` 1, `endLine` the same line, `endColumn` one
 past that line's byte length.
 
 | Member | Declared in the artifact | Entry |
 |---|---|---|
+| `identity` | frontmatter `id` | `{ value, sourceSpan }` |
+| `displayName` | frontmatter `title` | `{ value, sourceSpan }` |
 | `supertypes` | frontmatter `relationships` entry with `type: specializes` | `{ target, sourceSpan }`, `target` verbatim |
 | `abstract` | frontmatter `abstract: <bool>` | `{ value, sourceSpan }` |
 | `fieldFeatures` | `## Properties` typed table columns `Presence`, `Subsets`, `Redefines` | `{ field, presence?, subsets?, redefines?, sourceSpan }` |
 | `operationFrames` | `Requires:`, `Ensures:`, `Modifies:`, `Creates:`, `Deletes:` lines under an operation | `{ operation, requires, ensures, modifies, creates, deletes, sourceSpan }` |
-| `population` | table `Type \| Extent` | `{ members: [{ type, extent, sourceSpan }] }` |
-| `values` | table `Value \| Description` | `{ value, doc?, sourceSpan }` |
-| `states` | table `State \| Description` | `{ value, doc?, sourceSpan }` |
-| `transitions` | table `From \| To \| Trigger \| Guard \| Emits` | `{ from, to, trigger, guard?, emits?, sourceSpan }` |
-| `steps` | table `Step \| Kind \| Consumes \| Emits \| Description` | `{ name, kind, consumes?, emits?, doc?, sourceSpan }` |
-| `members` | table `Member \| Multiplicity` | `{ target, multiplicity, sourceSpan }` |
-| `vocabulary` | table `Term \| Description` | `{ term, doc, sourceSpan }` |
+| `population` | table `Type \| Extent` (both required) | `{ members: [{ type, extent, sourceSpan }] }` |
+| `values` | table `Value \| Description` (`Value` required) | `{ value, doc?, sourceSpan }` |
+| `states` | table `State \| Description` (`State` required) | `{ value, doc?, sourceSpan }` |
+| `transitions` | table `From \| To \| Trigger \| Guard \| Emits` (`From`, `To`, `Trigger` required) | `{ from, to, trigger, guard?, emits?, sourceSpan }`, `emits` a name list |
+| `steps` | table `Step \| Kind \| Consumes \| Emits \| Description` (`Step`, `Kind` required) | `{ name, kind, consumes?, emits?, doc?, sourceSpan }` |
+| `members` | table `Member \| Multiplicity` (both required) | `{ target, multiplicity, sourceSpan }` |
+| `vocabulary` | table `Term \| Description` (`Term` required) | `{ term, doc, sourceSpan }` |
 
-`availability.model` carries the FR-072 availability of the frontmatter and
-section features; it is present exactly when `model` is present or a model
-feature was refused.
+`identity` and `displayName` are carried whenever `model` is present; they
+declare no feature on their own.
+
+`availability.model` is present exactly when the artifact declares at least
+one model feature: a frontmatter feature, a Properties feature column, an
+operation frame or contract line, or any block under a section a declared
+table owns, or any refused feature. It is `available` when no declaring
+source failed, and `unavailable` with reason `entry-errors` listing the error
+lines when a frontmatter feature, a model table, the Properties feature
+columns, or an operation line carries an error or a refusal.
+
+Every `semantic.feature-not-extractable` diagnostic carries `sourceSpan`, the
+span of the declaring line, and `section`: `frontmatter`, `preamble` (the
+body before the first `##` heading), the `##` heading text, or
+`Operations / <operation>`.
 
 ## Behavior
 
@@ -92,15 +115,25 @@ Manifest gating:
   `presence`, `subsetting`, or `redefinition`, `Requires:`/`Ensures:` need
   `operation-contracts`, and `Modifies:`/`Creates:`/`Deletes:` need
   `effect-frames`.
-- The engine SHALL extract a model table only when the object type's
-  `body_extraction` declares a `table_row` locator whose `under_section`
-  equals the `##` section holding the table and whose `assert.columns` equal
-  the table header, in order.
+- The engine SHALL extract a model table only when a declared table locator
+  owns the `##` section holding it (`under_section` equals the heading) and
+  the table header conforms to the locator: the header is an ordered
+  subsequence of `assert.columns` that contains every column not named in
+  `assert.optional_columns`. Several locators may own one section.
 - If an artifact declares a feature its manifest does not declare, then the
   engine SHALL emit the error `semantic.feature-not-extractable` at the
-  declaring line with `reason` the feature name, and a message naming the
-  artifact path, the section (`frontmatter`, or the `##` heading), and the
-  feature; the owning kind SHALL be `unavailable` and carry no entry.
+  declaring line with `reason` the feature name, `sourceSpan`, `section`, and
+  a message naming the artifact path, the section, and the feature; the
+  owning kind SHALL be `unavailable` and carry no entry. An artifact declares
+  an undeclared table feature when:
+  - a table whose header starts with one table key of the Outputs table and
+    names only that table's columns sits under a section no declared locator
+    owns, or before the first `##` heading;
+  - a block (table, fence, or list) under a section a declared locator owns
+    does not conform to any owning locator; the refusal names the first
+    owning locator's feature at the block's first line;
+  - a typed Properties table with feature columns sits before the first `##`
+    heading.
 
 Frontmatter:
 
@@ -118,6 +151,11 @@ Properties columns:
   followed by one or more of `Presence`, `Subsets`, `Redefines` (each at
   most one time, in any order), the engine SHALL read it as the FR-070 typed
   table and map each row's first four cells as FR-070 maps them.
+- If a column after the typed four-column prefix is not `Presence`,
+  `Subsets`, or `Redefines`, or repeats one, then the engine SHALL emit
+  `semantic.invalid-model-cell` at the header line with `section`
+  `Properties` and `sourceSpan`, and set `fields` `unavailable` with reason
+  `invalid-feature-column`; the table is not read as any other form.
 - A `Presence` cell SHALL be `required` or `optional`; a `Subsets` cell a
   comma-separated list of `Identifier`s; a `Redefines` cell one `Identifier`.
   An empty cell declares nothing. Any other value is
@@ -145,10 +183,13 @@ Tables:
   `Identifier`; a `Description` cell is carried verbatim, and an empty one
   is absent.
 - A `Kind` cell SHALL be one of `command`, `event`, `decision`,
-  `compensation`, `wait`. `Consumes` and `Emits` cells SHALL list
-  comma-separated names, carried verbatim.
+  `compensation`, `wait`. `Consumes` and `Emits` cells (in `steps` and in
+  `transitions`) SHALL list comma-separated names, carried verbatim as a
+  name list; an empty cell is absent.
+- A cell of a column the header omits under `optional_columns` is absent.
 - A transition `From` or `To` that names no `states` entry of the artifact
-  is `semantic.unknown-state`; a `Trigger` that names no operation of the
+  is `semantic.unknown-state`, checked only when the `states` table carries
+  no error or refusal; a `Trigger` that names no operation of the
   artifact is `semantic.unknown-trigger`; a `Guard` that names no invariant
   clause is `semantic.dangling-clause-ref`.
 - A `Multiplicity` or `Extent` cell SHALL map as the FR-070 multiplicity
@@ -157,15 +198,15 @@ Tables:
   or `Type` in one table is `semantic.duplicate-model-entry`.
 - Any other cell error is `semantic.invalid-model-cell` at the row.
 - A second declared table of the same feature in one artifact is
-  `semantic.duplicate-section` at its header line.
+  `semantic.duplicate-section` at its header line and fails that feature.
 
 General:
 
-- If any model feature carries an error, then the engine SHALL set
-  `availability.model` to `unavailable` with reason `entry-errors` listing
-  the loci, and SHALL omit `model` from the record.
-- The engine SHALL NOT read a table whose header is not exactly one of the
-  column sets above as a model feature.
+- If any model feature carries an error or a refusal, then the engine SHALL
+  set `availability.model` to `unavailable` with reason `entry-errors`
+  listing the error lines, and SHALL omit the whole `model` from the record.
+- The engine SHALL NOT read a table as a model feature unless a declared
+  locator owns its section and its header conforms to that locator.
 
 ## Constraints
 
@@ -177,13 +218,15 @@ General:
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
-| FR-075-AC-1 | Under `mappings: [generalization, abstract-types]`, an artifact with two `specializes` relationships and `abstract: true` yields two `supertypes` entries with verbatim targets and entry-line spans, and `abstract` `{ value: true }` at its line; a non-boolean `abstract` yields `semantic.invalid-model-cell`. | Test |
-| FR-075-AC-2 | Under `mappings: [presence, subsetting, redefinition]`, a typed table with `Presence`, `Subsets`, `Redefines` columns yields the FR-070 `fields` plus one `fieldFeatures` entry per row declaring a feature, with row spans; a `Presence` of `maybe` yields `semantic.invalid-model-cell` and `fields` `unavailable`. | Test |
-| FR-075-AC-3 | Under `mappings: [operation-contracts, effect-frames]`, an operation with `Requires:`, `Ensures:`, `Modifies:`, `Creates:`, and `Deletes:` lines yields `pre`/`post` and one `operationFrames` entry at its heading; `Requires:` beside `Pre:` yields `semantic.duplicate-operation-line`; a dangling `Requires:` id yields `semantic.dangling-clause-ref`. | Test |
+| FR-075-AC-1 | Under `mappings: [generalization, abstract-types]`, an artifact with two `specializes` relationships and `abstract: true` yields two `supertypes` entries with verbatim targets and entry-line spans, `abstract` `{ value: true }` at its line, and `availability.model` `available`; a non-boolean `abstract`, a repeated `specializes` target (`semantic.duplicate-model-entry`), and a non-string target (`semantic.invalid-model-cell`) each set `availability.model` `unavailable` and omit `model`; clean frontmatter features beside a refused operation line also omit `model`. | Test |
+| FR-075-AC-2 | Under `mappings: [presence, subsetting, redefinition]`, a typed table with `Presence`, `Subsets`, `Redefines` columns yields the FR-070 `fields` plus one `fieldFeatures` entry per row declaring a feature, with row spans; `availability.model` is `available`; a `Presence` of `maybe` yields `semantic.invalid-model-cell`, `fields` `unavailable`, and no `model`; an unknown or repeated feature column yields only `semantic.invalid-model-cell` at the header with `section` `Properties`; a typed feature table before the first `##` heading is refused with `section` `preamble`. | Test |
+| FR-075-AC-3 | Under `mappings: [operation-contracts, effect-frames]`, an operation with `Requires:`, `Ensures:`, `Modifies:`, `Creates:`, and `Deletes:` lines yields `pre`/`post` and one `operationFrames` entry at its heading; `Requires:` beside `Pre:` yields `semantic.duplicate-operation-line`; a dangling `Requires:` id yields `semantic.dangling-clause-ref`; a second `Modifies:` line yields `semantic.duplicate-operation-line`; a frame name that is not an `Identifier` path yields `semantic.invalid-model-cell`; each error sets `availability.model` `unavailable` and omits `model`. | Test |
 | FR-075-AC-4 | A `population` artifact whose object type declares a `Type \| Extent` table extracts each member with its resolved `TypeRef`, its `extent` multiplicity, and its row span. | Test |
-| FR-075-AC-5 | Under declared table locators, `Values`, `States`, `Transitions`, `Steps`, `Members`, and `Ubiquitous Language` tables extract to their typed entries with row spans; a transition to an undeclared state yields `semantic.unknown-state`, an unknown trigger `semantic.unknown-trigger`, and an unknown step kind `semantic.invalid-model-cell`. | Test |
-| FR-075-AC-6 | Each feature of AC-1..AC-5 authored under a manifest that does not declare it yields the error `semantic.feature-not-extractable` at the declaring line, with the feature as `reason` and a message naming the artifact path and section, and the owning kind `unavailable` with no entry. | Test |
+| FR-075-AC-5 | Under declared table locators, `Values`, `States`, `Transitions`, `Steps`, `Members`, and `Ubiquitous Language` tables extract to their typed entries with row spans; a transition to an undeclared state yields `semantic.unknown-state`, an unknown trigger `semantic.unknown-trigger`, an unknown guard `semantic.dangling-clause-ref`, a repeated value `semantic.duplicate-model-entry`, an unknown step kind `semantic.invalid-model-cell`, and a second table under a declared section `semantic.duplicate-section`; `emits` is a name list; a failed `states` table suppresses `semantic.unknown-state`; a transitions table omitting its optional columns extracts, and one omitting a required column is refused; a mermaid fence and a bullet list under declared sections are refused with their section and line. | Test |
+| FR-075-AC-6 | Each feature of AC-1..AC-5 authored under a manifest that does not declare it yields the error `semantic.feature-not-extractable` at the declaring line, with the feature as `reason`, `sourceSpan` of that line, `section`, and a message naming the artifact path and section, and the owning kind `unavailable` with no entry; a model table under an unowned section or before the first `##` heading is refused the same way. | Test |
 | FR-075-AC-7 | An artifact declaring no model feature yields no `model` and no `availability.model`, every existing semantic case record is unchanged, and every record of AC-1..AC-6 validates against `semantic-v1.schema.json`. | Test |
+| FR-075-AC-8 | A record carrying `model` carries `identity` with the frontmatter `id` and `displayName` with the frontmatter `title`, each spanning its frontmatter line. | Test |
+| FR-075-AC-9 | `validate_document` and Filament extraction read a feature their module manifest declares (a mapping token or a `table_row` locator) and refuse one it does not; `validate_document` refusals name `<document>`, Filament refusals name the artifact path. | Test |
 
 ## Dependencies
 

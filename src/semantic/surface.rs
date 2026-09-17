@@ -10,7 +10,9 @@ use serde_json::Value;
 use super::clauses::{extract_clauses, extract_operations, ClauseRef, OperationDecl};
 use super::context::SemanticContext;
 use super::decl::FieldDecl;
-use super::model::{extract_model, model_availability, ModelDeclarations, ModelRefs};
+use super::model::{
+    extract_model, failed, model_availability, ModelDeclarations, ModelRefs, ModelSource,
+};
 use super::properties::{extract_fields, FieldsForm};
 use super::{AvailabilityState, KindAvailability, SemanticDiagnostic};
 
@@ -175,28 +177,40 @@ pub fn extract_semantic(
             required.operations,
             "Operations",
         ),
-        model: model_availability(&model_outcome).map(|mut a| {
+        model: model_availability(&[
+            model_outcome.source(),
+            ModelSource {
+                declared: fields.model_declared,
+                failed: failed(&fields.availability),
+                lossy: false,
+                diagnostics: &fields.diagnostics,
+            },
+            ModelSource {
+                declared: operations.model_declared,
+                failed: failed(&operations.availability),
+                lossy: false,
+                diagnostics: &operations.diagnostics,
+            },
+        ])
+        .map(|mut a| {
             if declared_lossy {
                 a.lossy = true;
             }
             a
         }),
     };
-    let mut model = if availability
+    // `model` is carried exactly when `availability.model` is available.
+    let model = availability
         .model
         .as_ref()
-        .is_some_and(|a| a.state == AvailabilityState::Unavailable)
-    {
-        ModelDeclarations::default()
-    } else {
-        model_outcome.model
-    };
-    if !fields.field_features.is_empty() {
-        model.field_features = Some(fields.field_features);
-    }
-    if !operations.frames.is_empty() {
-        model.operation_frames = Some(operations.frames);
-    }
+        .is_some_and(|a| a.state == AvailabilityState::Available)
+        .then(|| {
+            let mut model = model_outcome.model;
+            model.field_features =
+                (!fields.field_features.is_empty()).then_some(fields.field_features);
+            model.operation_frames = (!operations.frames.is_empty()).then_some(operations.frames);
+            model
+        });
     SemanticExtraction {
         format_version: SEMANTIC_FORMAT_VERSION,
         contract_version: ctx.module.contract_version.clone(),
@@ -214,7 +228,7 @@ pub fn extract_semantic(
             Some(clauses.clause_text)
         },
         operations: operations.operations,
-        model: (!model.is_empty()).then_some(model),
+        model,
         availability,
         diagnostics,
     }

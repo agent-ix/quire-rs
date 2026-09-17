@@ -8,6 +8,7 @@ use super::context::{BundleIndex, SemanticContext};
 use super::contract::SemanticModule;
 use super::model::DeclaredTables;
 use super::surface::{extract_semantic, RequiredSections, SemanticExtraction};
+use crate::extract::dsl::ExtractionDsl;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -94,8 +95,10 @@ pub fn extract_semantic_json(request: &Value) -> Result<SemanticExtraction, Stri
     );
     ctx.source_identity = req.source_identity;
     ctx.scope = req.scope;
-    if let Some(dsl) = &req.body_extraction {
-        ctx.declared_tables = DeclaredTables::from_dsl(dsl);
+    if let Some(dsl) = req.body_extraction {
+        let dsl: ExtractionDsl = serde_json::from_value(dsl)
+            .map_err(|e| format!("semantic.body-extraction-invalid: {e}"))?;
+        ctx.declared_tables = DeclaredTables::from_dsl(&dsl);
     }
     let required = req
         .required

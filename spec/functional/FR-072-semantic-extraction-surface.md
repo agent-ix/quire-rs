@@ -76,6 +76,9 @@ verbatim `clauseText` and the byte-identity constraints below.
   schemaDigest, fields?, fieldsForm?, clauses?, clauseText?, operations?,
   model?, availability, diagnostics }`, where `model` and `availability.model`
   are the model features of [FR-075](./FR-075-model-feature-extraction.md).
+  Each diagnostic is `{ code, severity, line, column?, message, reason?,
+  sourceSpan?, section? }`; an FR-075 refusal carries `sourceSpan` and
+  `section`.
 - Filament API: the same value under the key `semantic` inside each extracted
   node's `dataJson`, present only when the snapshot carries a `semantic`
   context; each semantic diagnostic also appended to
