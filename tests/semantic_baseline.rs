@@ -11,9 +11,10 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use ix_trace_rs::trace;
+use jsonschema::JSONSchema;
 use quire_rs::{extract_filament_core, FilamentExtractionInput, Registry};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 
 fn root() -> PathBuf {
@@ -152,6 +153,53 @@ fn vendored_schemas_match_provenance() {
     assert_eq!(
         versions,
         quire_rs::semantic::vendored::SEMANTIC_CORE_VERSIONS
+    );
+}
+
+#[trace("TC-1877", "FR-031-AC-8")]
+// quire-rs's own loader never validates `object_types[].construct` against
+// the vendored schema — only `properties.semantic` is compiled out of it
+// (`contract::block_validator`) — so TC-1876's loader test cannot, on its
+// own, prove the *schema* admits `immutable`. A manifest-validating consumer
+// (e.g. the Python `validate_manifest` binding, called with this vendored
+// file's path) is what actually checks a `construct` value against
+// `$defs/ConstructDeclaration`. Compile that $def directly out of the
+// embedded `MODULE_MANIFEST_SCHEMA` bytes and assert it admits
+// `immutable: true` and still refuses an unknown key, so a regression to
+// the pre-#455 vendored bytes fails here even though nothing in quire-rs's
+// own load path would notice.
+#[test]
+fn tc1877_construct_declaration_schema_admits_immutable() {
+    let schema: Value = serde_json::from_str(quire_rs::semantic::vendored::MODULE_MANIFEST_SCHEMA)
+        .expect("vendored module-manifest schema is JSON");
+    let construct_decl = schema["$defs"]["ConstructDeclaration"].clone();
+    assert!(
+        construct_decl.is_object(),
+        "vendored schema has no $defs/ConstructDeclaration"
+    );
+    let validator = JSONSchema::options()
+        .compile(&construct_decl)
+        .expect("$defs/ConstructDeclaration compiles standalone (no external $ref)");
+
+    let mut construct = json!({
+        "identity": "identified",
+        "shape": "record",
+        "members": { "fields": "required" },
+        "meaning": "quire.meaning.event",
+        "immutable": true
+    });
+    assert!(
+        validator.is_valid(&construct),
+        "a construct declaring immutable: true must validate against the \
+         re-vendored $defs/ConstructDeclaration (filament-core-service \
+         FR-035-AC-17, #455)"
+    );
+
+    // additionalProperties: false still holds — an unknown key is refused.
+    construct["bogus"] = Value::Bool(true);
+    assert!(
+        !validator.is_valid(&construct),
+        "$defs/ConstructDeclaration no longer refuses an unrecognized key"
     );
 }
 

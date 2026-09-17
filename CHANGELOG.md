@@ -9,6 +9,20 @@ bumps; once 1.0 ships, semver is strict.
 
 ### Changed
 
+- **The vendored `module-manifest.schema.json` is re-vendored from
+  filament-core-service `5b2af8b` (#455).** `$defs/ConstructDeclaration`
+  gains the optional boolean `immutable` (filament-core-service FR-035-AC-17;
+  absent means false). quire-rs's own loader never validated `construct`
+  against this schema — it carries `construct` opaquely (#445) and only
+  `properties.semantic` is compiled out of the vendored file — so this never
+  broke loading here. What it fixed: any consumer that validates a whole
+  manifest against **this vendored copy**, including the Python
+  `validate_manifest` binding, refused a manifest whose `construct` declares
+  `immutable: true` — such as spec-objects-business's `event` — under
+  `additionalProperties: false`, before this re-vendor. `immutable` needed no
+  loader code change: it already survives to
+  `CompiledArchetype::construct()` unchanged, as part of the same opaque raw
+  value.
 - **A model-table locator declares the table its match key names (#446).**
   `yield_pattern.match: { values: … }` declares the `values` table; a key
   that names no model table (e.g. `values_table`) declares none, and its
