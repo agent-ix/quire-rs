@@ -24,6 +24,7 @@ pub mod extract;
 pub mod filament;
 pub mod finding;
 pub mod grammar;
+pub(crate) mod ix_ref;
 pub mod lint;
 pub mod loader;
 pub mod merge;

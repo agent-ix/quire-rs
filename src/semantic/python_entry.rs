@@ -105,7 +105,7 @@ pub fn extract_semantic_json(request: &Value) -> Result<SemanticExtraction, Stri
             .map_err(|e| format!("semantic.body-extraction-invalid: {e}"))?;
         ctx.declared_tables = DeclaredTables::from_dsl(&dsl);
     }
-    ctx.relation_vocabulary = req.relation_vocabulary.unwrap_or_default();
+    ctx.relation_vocabulary = req.relation_vocabulary;
     let required = req
         .required
         .map(|v| RequiredSections {

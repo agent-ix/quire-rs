@@ -1,5 +1,5 @@
 //! FR-069 semantic module contract at load (TC-1599..TC-1609, TC-1633,
-//! TC-1645, TC-1646, TC-1848, TC-1849). Plan-003 Task-016.
+//! TC-1645, TC-1646, TC-1848, TC-1849, TC-1864). Plan-003 Task-016.
 //!
 //! Every case starts from the quoin `module-ok` fixture (pinned under
 //! `tests/fixtures/semantic/quoin/module-ok`), copied into a temp dir and
@@ -900,4 +900,125 @@ fn surfaces_gate_model_features_on_the_manifest() {
         data["semantic"]["availability"]["model"]["state"],
         "unavailable"
     );
+}
+
+/// The golden table with its prose `## Relationships` replaced by a table of
+/// `rows`.
+fn related_document(rows: &str) -> String {
+    fs::read_to_string(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures/semantic/quoin/mapping/config-version.table.md"),
+    )
+    .unwrap()
+    .replace(
+        "- `overlay`: belongs_to → ConfigOverlay (FR-005)\n",
+        &format!("| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n{rows}"),
+    )
+}
+
+#[trace("TC-1864", "FR-076-AC-13")]
+// validate_document checks relationship rows against the loaded registry's
+// edge_types, roles, and allowed_links; Filament and the Python entry, which
+// carry no vocabulary, report `no-relation-vocabulary`.
+#[test]
+fn surfaces_supply_the_relation_vocabulary() {
+    let tmp = TempDir::new().unwrap();
+    let root = module(&tmp, "related", |m, _| {
+        semantic(m).insert("mappings".into(), vec!["relationships"].into());
+        m["edge_types"] = serde_yaml::from_str(
+            "references: { description: r, category: traceability }\n\
+             contains: { description: c, category: structural, inverse: part_of }\n",
+        )
+        .unwrap();
+        m["roles"] = serde_yaml::from_str("domain-object: { description: d }\n").unwrap();
+        let entity = m["object_types"][0].as_mapping_mut().unwrap();
+        entity.insert(
+            "roles".into(),
+            serde_yaml::from_str("[domain-object]").unwrap(),
+        );
+        entity.insert(
+            "allowed_links".into(),
+            serde_yaml::from_str("{ references: [domain-object], contains: [enumeration] }")
+                .unwrap(),
+        );
+    });
+    let registry = load(&root);
+    let entity = registry.archetype("entity").unwrap();
+    let findings = |doc: &str| {
+        let result = quire_rs::validate_document_in_registry(&registry, entity, doc);
+        let messages = |m: Vec<String>| {
+            m.into_iter()
+                .filter(|m| m.contains("relationships"))
+                .collect::<Vec<_>>()
+        };
+        (
+            messages(result.errors.into_iter().map(|e| e.message).collect()),
+            messages(result.warnings.into_iter().map(|w| w.message).collect()),
+        )
+    };
+
+    // The own id satisfies `references` through the entity's role, so the
+    // row lowers with no finding; a bare id this surface cannot check lowers
+    // with the `no-bundle-index` advisory.
+    let (errors, warnings) = findings(&related_document(
+        "| predecessor | references | FR-006 | 0..1 |\n| overlay | references | FR-005 | 1..1 |\n",
+    ));
+    assert_eq!(errors, Vec::<String>::new());
+    assert_eq!(warnings.len(), 1, "{warnings:?}");
+    assert!(
+        warnings[0].starts_with("semantic.unresolved-target") && warnings[0].contains("FR-005"),
+        "{warnings:?}"
+    );
+
+    // The registry's vocabulary refuses: an unregistered verb, an inverse
+    // label, and an own-id target outside `contains`'s allowed_links.
+    let (errors, _) = findings(&related_document(
+        "| a | holds | FR-006 | 1 |\n| b | part_of | FR-006 | 1 |\n| c | contains | FR-006 | 1 |\n",
+    ));
+    assert_eq!(errors.len(), 3, "{errors:?}");
+    for (message, verb) in errors.iter().zip(["holds", "part_of", "contains"]) {
+        assert!(message.contains(verb), "{message}");
+    }
+    assert!(errors[1].contains("`contains`"), "{errors:?}");
+
+    // Filament: the snapshot carries no edge_types or roles.
+    let doc = related_document("| overlay | references | FR-005 | 1..1 |\n");
+    let context = json!({ "contractVersion": "1.0.0", "semanticCore": "0.1.0", "package": "agent-ix/spec-objects-fixture", "exports": ["entity"], "imports": {}, "mappings": ["relationships"] });
+    let mut input = snapshot_input(vec![entity_snapshot(
+        json!({ "type": "object" }),
+        Some(context.clone()),
+    )]);
+    input.markdown = doc.clone();
+    let result = extract_filament_core(input);
+    let advisory: Vec<_> = result
+        .diagnostics
+        .iter()
+        .filter(|d| d.code == "semantic.relationships-no-vocabulary")
+        .collect();
+    assert_eq!(advisory.len(), 1, "{:?}", result.diagnostics);
+    let node = result
+        .nodes
+        .iter()
+        .find(|n| n.object_type == "entity")
+        .unwrap();
+    let data: Value = serde_json::from_str(&node.data_json).unwrap();
+    assert_eq!(
+        data["semantic"]["availability"]["relations"],
+        json!({ "state": "unavailable", "reason": "no-relation-vocabulary", "lossy": false })
+    );
+    assert!(data["semantic"].get("relations").is_none(), "{data:#}");
+
+    // Python entry without `relationVocabulary`.
+    let record = quire_rs::semantic::python_entry::extract_semantic_json(&json!({
+        "markdown": doc,
+        "module": context,
+        "path": "spec/FR-006.md",
+    }))
+    .unwrap();
+    let record = serde_json::to_value(record).unwrap();
+    assert_eq!(
+        record["availability"]["relations"]["reason"],
+        "no-relation-vocabulary"
+    );
+    assert!(record.get("relations").is_none());
 }

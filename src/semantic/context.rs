@@ -120,8 +120,9 @@ pub struct SemanticContext {
     /// The object type's `table_row` locators (FR-075 table gating).
     pub(crate) declared_tables: DeclaredTables,
     /// The edge registry and object-type facts relationship rows are
-    /// checked against (FR-076 Inputs).
-    pub relation_vocabulary: RelationVocabulary,
+    /// checked against (FR-076 Inputs); `None` when the surface supplies
+    /// none, which extracts under `no-relation-vocabulary`.
+    pub relation_vocabulary: Option<RelationVocabulary>,
 }
 
 impl SemanticContext {
@@ -133,13 +134,13 @@ impl SemanticContext {
             scope: None,
             bundle,
             declared_tables: DeclaredTables::default(),
-            relation_vocabulary: RelationVocabulary::default(),
+            relation_vocabulary: None,
         }
     }
 
     /// Check relationship rows against `vocabulary` (FR-076).
     pub fn with_relation_vocabulary(mut self, vocabulary: RelationVocabulary) -> Self {
-        self.relation_vocabulary = vocabulary;
+        self.relation_vocabulary = Some(vocabulary);
         self
     }
 

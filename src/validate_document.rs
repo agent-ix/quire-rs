@@ -343,7 +343,10 @@ pub fn validate_document_in_registry_with_lexicon(
 /// `advisory` and `warning` are warnings. The bundle index and source
 /// identity are not available on this surface, so type tokens outside the
 /// kernel and imports resolve as `unresolved` (`no-bundle-index`) and spans
-/// carry the defaulted identity with its advisory.
+/// carry the defaulted identity with its advisory. Relationship rows are
+/// checked against the registry's own vocabulary (FR-076): its `edge_types`
+/// and inverse index, and the `roles` and `allowed_links` of its active
+/// archetypes.
 fn semantic_findings(
     registry: &crate::Registry,
     arch: &CompiledArchetype,
@@ -353,17 +356,21 @@ fn semantic_findings(
     warnings: &mut Vec<ValidationWarning>,
 ) {
     use crate::semantic::model::DeclaredTables;
-    use crate::semantic::{BundleIndex, RequiredSections, SemanticContext, SemanticSeverity};
+    use crate::semantic::{
+        BundleIndex, RelationVocabulary, RequiredSections, SemanticContext, SemanticSeverity,
+    };
     let mut bundle = BundleIndex::default();
     for (_, m) in registry.semantic_modules() {
         bundle.imports.insert(m.package.clone(), m.exports.clone());
     }
     // This surface has no document path: spans and refusals name `<document>`.
-    let ctx = SemanticContext::new(module.clone(), "<document>", bundle).with_declared_tables(
-        arch.body_extraction()
-            .map(DeclaredTables::from_dsl)
-            .unwrap_or_default(),
-    );
+    let ctx = SemanticContext::new(module.clone(), "<document>", bundle)
+        .with_declared_tables(
+            arch.body_extraction()
+                .map(DeclaredTables::from_dsl)
+                .unwrap_or_default(),
+        )
+        .with_relation_vocabulary(RelationVocabulary::from_registry(registry, arch));
     let required = arch
         .body_extraction()
         .and_then(|dsl| serde_json::to_value(dsl).ok())

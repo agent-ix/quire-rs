@@ -67,6 +67,56 @@ pub struct EdgeTypeDef {
     pub inverse: Option<String>,
 }
 
+/// The inverse index of a merged `edge_types` registry (FR-041): each
+/// declared `inverse:` label → the forward verb that declared it, plus the
+/// labels two or more forward verbs declare (first forward first).
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct InverseIndex {
+    /// Inverse label → forward verb.
+    pub forwards: BTreeMap<String, String>,
+    /// Inverse label → every forward verb declaring it, the winner first.
+    pub conflicts: BTreeMap<String, Vec<String>>,
+}
+
+impl InverseIndex {
+    /// Derive the index. Precedence: a label that is itself a forward
+    /// `edge_types` key is governed by that forward registration, never an
+    /// inverse; two forward verbs declaring one label are first-wins in the
+    /// registry's `BTreeMap` order.
+    pub fn derive<T>(
+        edge_types: &BTreeMap<String, T>,
+        inverse: impl Fn(&T) -> Option<&str>,
+    ) -> Self {
+        let mut index = Self::default();
+        for (verb, def) in edge_types {
+            let Some(label) = inverse(def) else {
+                continue;
+            };
+            if edge_types.contains_key(label) {
+                continue; // forward registration governs the name
+            }
+            match index.forwards.get(label) {
+                None => {
+                    index.forwards.insert(label.to_string(), verb.clone());
+                }
+                Some(winner) => index
+                    .conflicts
+                    .entry(label.to_string())
+                    .or_insert_with(|| vec![winner.clone()])
+                    .push(verb.clone()),
+            }
+        }
+        index
+    }
+}
+
+/// FR-040-AC-7 `target_satisfies`: `token` (from a verb's allowed list) is
+/// satisfied by a target of object type `name` carrying `roles` when it is
+/// `"*"`, the type's name, or one of its roles.
+pub fn target_satisfies(token: &str, name: &str, roles: &[String]) -> bool {
+    token == "*" || token == name || roles.iter().any(|r| r == token)
+}
+
 /// One `roles` registry entry.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RoleDef {

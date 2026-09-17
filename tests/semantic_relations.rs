@@ -1,6 +1,6 @@
-//! FR-076 relationships extraction (TC-1852..TC-1860). Oracles: the quoin
+//! FR-076 relationships extraction (TC-1852..TC-1860, TC-1861..TC-1864). Oracles: the quoin
 //! FR-104 fixtures `relationships.md`, `relationships.expected.json`, and
-//! `relationships-cases.json` (vendored at `31ca54d`). The extraction context
+//! `relationships-cases.json` (vendored at `2dad869`). The extraction context
 //! is built from each fixture's recorded `context`, never from `module-ok`.
 
 use std::collections::BTreeSet;
@@ -52,9 +52,12 @@ fn relation_decl_gate(core: &str) -> JSONSchema {
 }
 
 /// The FR-076 request for `markdown` under a fixture's recorded `context`,
-/// with `mappings` replacing the context's when given.
-fn request(fixture: &Value, markdown: &str, path: &str, mappings: Option<&Value>) -> Value {
+/// with the case's `mappings`, `withoutRelationVocabulary`, and
+/// `withoutBundleIndex` applied when given.
+fn request(fixture: &Value, markdown: &str, path: &str, case: Option<&Value>) -> Value {
     let context = &fixture["context"];
+    let flag = |key: &str| case.is_some_and(|c| c[key] == json!(true));
+    let mappings = case.and_then(|c| c.get("mappings"));
     let bundle = &context["bundle"];
     let imports: serde_json::Map<String, Value> = bundle["imports"]
         .as_array()
@@ -62,7 +65,7 @@ fn request(fixture: &Value, markdown: &str, path: &str, mappings: Option<&Value>
         .iter()
         .map(|p| (p.as_str().unwrap().to_string(), json!("*")))
         .collect();
-    json!({
+    let mut request = json!({
         "markdown": markdown,
         "module": {
             "contractVersion": "1.0.0",
@@ -81,7 +84,18 @@ fn request(fixture: &Value, markdown: &str, path: &str, mappings: Option<&Value>
             "roles": context["roles"],
             "allowedLinks": context["allowedLinks"],
         },
-    })
+    });
+    let request_map = request.as_object_mut().unwrap();
+    if flag("withoutRelationVocabulary") {
+        request_map.remove("relationVocabulary");
+    }
+    if flag("withoutBundleIndex") {
+        request_map["bundle"]
+            .as_object_mut()
+            .unwrap()
+            .remove("artifacts");
+    }
+    request
 }
 
 /// Extract; every record validates against semantic-v1 and every relation
@@ -126,7 +140,7 @@ fn locus_holds(md: &str, line: u64, locus: &str) -> bool {
         "header" | "second-header" => at(line).starts_with('|') && is_separator(at(line + 1)),
         "row" | "second-row" => at(line).starts_with('|') && !is_separator(at(line)),
         "list" => at(line).starts_with("- "),
-        "second-heading" => at(line) == "## Relationships",
+        "heading" | "second-heading" => at(line) == "## Relationships",
         other => panic!("unknown locus {other:?}"),
     }
 }
@@ -136,7 +150,7 @@ fn assert_case(file: &Value, case: &Value) {
     let id = case["id"].as_str().unwrap();
     let md = case_markdown(file, case);
     let core = file["semanticCore"].as_str().unwrap();
-    let record = extract(&request(file, &md, "case.md", case.get("mappings")), core);
+    let record = extract(&request(file, &md, "case.md", Some(case)), core);
     let actual = record["diagnostics"].as_array().unwrap();
     assert_eq!(
         actual.len() as u64,
@@ -251,13 +265,27 @@ const SHAPE_CASES: &[&str] = &[
     "bullet-list",
     "second-table",
     "second-section",
+    "list-after-table",
 ];
 const GATING_CASES: &[&str] = &[
     "mapping-not-declared",
     "subset-header-unowned-section",
     "preamble-table",
     "prose-without-mapping",
+    "token-table-other-section",
+    "token-preamble-table",
 ];
+const NO_VOCABULARY_CASES: &[&str] = &[
+    "no-relation-vocabulary",
+    "no-relation-vocabulary-second-table",
+];
+const NO_BUNDLE_INDEX_CASES: &[&str] = &[
+    "no-bundle-index",
+    "no-bundle-index-title-target",
+    "no-bundle-index-own-package-identity",
+    "no-bundle-index-bad-multiplicity",
+];
+const NO_BLOCK_CASES: &[&str] = &["prose-only-section"];
 const AVAILABILITY_CASES: &[&str] = &[
     "good-and-bad-rows",
     "two-error-lines",
@@ -332,6 +360,9 @@ fn availability_cases_and_full_coverage() {
         SHAPE_CASES,
         GATING_CASES,
         AVAILABILITY_CASES,
+        NO_VOCABULARY_CASES,
+        NO_BUNDLE_INDEX_CASES,
+        NO_BLOCK_CASES,
     ];
     let assigned: Vec<&str> = groups.iter().flat_map(|g| g.iter().copied()).collect();
     let unique: BTreeSet<&str> = assigned.iter().copied().collect();
@@ -343,8 +374,31 @@ fn availability_cases_and_full_coverage() {
         .iter()
         .map(|c| c["id"].as_str().unwrap())
         .collect();
-    assert_eq!(in_fixture.len(), 31);
+    assert_eq!(in_fixture.len(), 41);
     assert_eq!(unique, in_fixture);
+}
+
+#[trace("TC-1861", "FR-076-AC-10")]
+// no relation vocabulary: one heading advisory and `no-relation-vocabulary`,
+// unless a shape error already makes the feature unavailable.
+#[test]
+fn no_relation_vocabulary_cases() {
+    run(NO_VOCABULARY_CASES);
+}
+
+#[trace("TC-1862", "FR-076-AC-11")]
+// no bundle index: a lowering row's unchecked target carries the
+// `no-bundle-index` advisory; a title and a row error are still refused.
+#[test]
+fn no_bundle_index_cases() {
+    run(NO_BUNDLE_INDEX_CASES);
+}
+
+#[trace("TC-1863", "FR-076-AC-12")]
+// a section with prose and no block warns at the heading, not_applicable.
+#[test]
+fn no_block_cases() {
+    run(NO_BLOCK_CASES);
 }
 
 #[trace("TC-1860", "FR-076-AC-9")]
@@ -360,7 +414,12 @@ fn record_compatibility_and_registry_authority() {
         file["artifactHead"].as_str().unwrap()
     );
     let record = extract(
-        &request(&file, &prose, "case.md", Some(&json!(["typed-table"]))),
+        &request(
+            &file,
+            &prose,
+            "case.md",
+            Some(&json!({ "mappings": ["typed-table"] })),
+        ),
         core,
     );
     assert!(record.get("relations").is_none());
