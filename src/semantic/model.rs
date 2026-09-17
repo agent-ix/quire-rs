@@ -32,7 +32,6 @@ pub(crate) enum ModelFeature {
     Presence,
     Subsetting,
     Redefinition,
-    OperationContracts,
     EffectFrames,
     Population,
     Values,
@@ -53,7 +52,6 @@ impl ModelFeature {
             Self::Presence => "presence",
             Self::Subsetting => "subsetting",
             Self::Redefinition => "redefinition",
-            Self::OperationContracts => "operation-contracts",
             Self::EffectFrames => "effect-frames",
             Self::Population => "population",
             Self::Values => "values",
@@ -74,7 +72,6 @@ impl ModelFeature {
             | Self::Presence
             | Self::Subsetting
             | Self::Redefinition
-            | Self::OperationContracts
             | Self::EffectFrames => true,
             Self::Population
             | Self::Values

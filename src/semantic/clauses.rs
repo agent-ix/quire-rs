@@ -440,7 +440,7 @@ pub fn extract_operations(
                 }
             }
         }
-        // Returns / Pre / Post and the FR-075 contract and frame lines.
+        // Returns / Requires / Ensures and the FR-075 frame lines.
         let mut returns = None;
         let mut pre = Vec::new();
         let mut post = Vec::new();
@@ -479,17 +479,13 @@ pub fn extract_operations(
                 (OpSlot::Returns, _) => {
                     returns = parse_returns(rest.trim(), l, &name, ctx, &mut diagnostics)
                 }
-                (OpSlot::Pre, contract) => {
+                (OpSlot::Requires, _) => {
                     pre = resolve_refs(rest, l, clauses, &mut diagnostics);
-                    if contract.is_some() {
-                        frame.requires = ids();
-                    }
+                    frame.requires = ids();
                 }
-                (OpSlot::Post, contract) => {
+                (OpSlot::Ensures, _) => {
                     post = resolve_refs(rest, l, clauses, &mut diagnostics);
-                    if contract.is_some() {
-                        frame.ensures = ids();
-                    }
+                    frame.ensures = ids();
                 }
                 (OpSlot::Modifies | OpSlot::Creates | OpSlot::Deletes, _) => {
                     let names = frame_names(rest, l, &name, key, &mut diagnostics);
@@ -559,33 +555,22 @@ pub fn extract_operations(
     }
 }
 
-/// The slot an operation line fills; `Requires:` shares `Pre:`'s and
-/// `Ensures:` shares `Post:`'s.
+/// The slot an operation line fills.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum OpSlot {
     Returns,
-    Pre,
-    Post,
+    Requires,
+    Ensures,
     Modifies,
     Creates,
     Deletes,
 }
 
 /// Every operation line key, its slot, and the FR-075 feature that gates it.
-const OP_LINES: [(&str, OpSlot, Option<ModelFeature>); 8] = [
+const OP_LINES: [(&str, OpSlot, Option<ModelFeature>); 6] = [
     ("Returns:", OpSlot::Returns, None),
-    ("Pre:", OpSlot::Pre, None),
-    ("Post:", OpSlot::Post, None),
-    (
-        "Requires:",
-        OpSlot::Pre,
-        Some(ModelFeature::OperationContracts),
-    ),
-    (
-        "Ensures:",
-        OpSlot::Post,
-        Some(ModelFeature::OperationContracts),
-    ),
+    ("Requires:", OpSlot::Requires, None),
+    ("Ensures:", OpSlot::Ensures, None),
     (
         "Modifies:",
         OpSlot::Modifies,

@@ -238,11 +238,7 @@ fn generalization_and_abstract_from_frontmatter() {
     // though the frontmatter features read cleanly.
     let mixed = operations("Requires: placed")
         .replace("object: entity\n", "object: entity\nabstract: true\n");
-    let record = extract(
-        &mixed,
-        &["abstract-types", "operation-contracts"],
-        json!(null),
-    );
+    let record = extract(&mixed, &["abstract-types"], json!(null));
     let refusal = diagnostic(&record, "semantic.feature-not-extractable", "effect-frames");
     assert_eq!(refusal["line"], line_of(&mixed, "Modifies:"));
     assert_model_unavailable(&record);
@@ -334,7 +330,7 @@ fn presence_subsets_redefines_columns() {
 #[test]
 fn operation_contract_and_frame_lines() {
     let md = operations("Requires: placed");
-    let record = extract(&md, &["operation-contracts", "effect-frames"], json!(null));
+    let record = extract(&md, &["effect-frames"], json!(null));
     let op = &record["operations"][0];
     assert_eq!(op["pre"][0]["clauseId"], "placed", "{record:#}");
     assert_eq!(op["post"][0]["clauseId"], "shipped");
@@ -348,19 +344,28 @@ fn operation_contract_and_frame_lines() {
     assert_span(frame, &md, line_of(&md, "### ship\n"));
     assert_eq!(record["availability"]["model"]["state"], "available");
 
-    let md = operations("Pre: placed\nRequires: placed");
-    let record = extract(&md, &["operation-contracts", "effect-frames"], json!(null));
+    // `Requires:` and `Ensures:` are the contract lines; `Pre:` is prose.
+    let md = operations("Pre: placed");
+    let record = extract(&md, &["effect-frames"], json!(null));
+    assert_eq!(record["operations"][0]["pre"], json!([]), "{record:#}");
+    assert_eq!(record["model"]["operationFrames"][0]["requires"], json!([]));
+
+    let md = operations("Requires: placed\nRequires: placed");
+    let second = md
+        .split('\n')
+        .collect::<Vec<_>>()
+        .iter()
+        .rposition(|l| l.starts_with("Requires:"))
+        .unwrap() as u64
+        + 1;
+    let record = extract(&md, &["effect-frames"], json!(null));
     assert!(
-        has(
-            &record,
-            "semantic.duplicate-operation-line",
-            line_of(&md, "Requires:")
-        ),
+        has(&record, "semantic.duplicate-operation-line", second),
         "{record:#}"
     );
 
     let md = operations("Requires: nowhere");
-    let record = extract(&md, &["operation-contracts", "effect-frames"], json!(null));
+    let record = extract(&md, &["effect-frames"], json!(null));
     assert!(
         has(
             &record,
@@ -373,7 +378,7 @@ fn operation_contract_and_frame_lines() {
     assert_model_unavailable(&record);
 
     let md = operations("Requires: placed\nModifies: status");
-    let record = extract(&md, &["operation-contracts", "effect-frames"], json!(null));
+    let record = extract(&md, &["effect-frames"], json!(null));
     let second = md
         .split('\n')
         .collect::<Vec<_>>()
@@ -388,7 +393,7 @@ fn operation_contract_and_frame_lines() {
     assert_model_unavailable(&record);
 
     let md = operations("Requires: placed").replace("self.status", "self..status");
-    let record = extract(&md, &["operation-contracts", "effect-frames"], json!(null));
+    let record = extract(&md, &["effect-frames"], json!(null));
     assert!(
         has(
             &record,
@@ -581,7 +586,7 @@ fn object_type_sections() {
 fn undeclared_features_are_refused() {
     let ops = operations("Requires: placed");
     // (document, feature, declaring line, owning kind, section)
-    let cases: [(&str, &str, u64, &str, &str); 14] = [
+    let cases: [(&str, &str, u64, &str, &str); 13] = [
         (
             FRONTMATTER,
             "abstract-types",
@@ -616,13 +621,6 @@ fn undeclared_features_are_refused() {
             line_of(PROPERTIES, "| Field |"),
             "fields",
             "Properties",
-        ),
-        (
-            &ops,
-            "operation-contracts",
-            line_of(&ops, "Requires:"),
-            "operations",
-            "Operations / ship",
         ),
         (
             &ops,

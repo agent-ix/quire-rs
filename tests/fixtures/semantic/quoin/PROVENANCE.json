@@ -75,21 +75,21 @@
     },
     "mapping/operations-cases.json": {
       "repository": "agent-ix/quoin",
-      "revision": "3e842ce78271a0b876a90471957f57c8ddcad6da",
+      "revision": "195b35db7e724f43179cbec95eb29d9ad86c28a6",
       "path": "tests/fixtures/semantic-module/mapping/operations-cases.json",
-      "sha256": "sha256:32220d398446cf5fbe21b3a29d03c24f90a9cdc1eba0fe02750255095d1054a2"
+      "sha256": "sha256:ce459ee52f75b7ceebb91b40fc69215005d527c1ecd9c13cebe848b6d6a1bb54"
     },
     "mapping/operations.expected.json": {
       "repository": "agent-ix/quoin",
-      "revision": "3e842ce78271a0b876a90471957f57c8ddcad6da",
+      "revision": "195b35db7e724f43179cbec95eb29d9ad86c28a6",
       "path": "tests/fixtures/semantic-module/mapping/operations.expected.json",
       "sha256": "sha256:65acf688acd3c3b423029c66a545818763bba77f8532145c36dcfb990b531351"
     },
     "mapping/operations.md": {
       "repository": "agent-ix/quoin",
-      "revision": "3e842ce78271a0b876a90471957f57c8ddcad6da",
+      "revision": "195b35db7e724f43179cbec95eb29d9ad86c28a6",
       "path": "tests/fixtures/semantic-module/mapping/operations.md",
-      "sha256": "sha256:7456cae980d8f5ac996f8df03ea3c462ba1c43fbf126c5608f1e94a1e656e015"
+      "sha256": "sha256:da45fc58ee345f40dee0a0ce5612c95397b193161ae077f774fb7262b54a9d1f"
     },
     "module-ok/manifest.yaml": {
       "repository": "agent-ix/quoin",

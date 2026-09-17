@@ -7,6 +7,15 @@ description: "Chronological log of structural changes to this bundle."
 
 ## History
 
+* **2026-09-16** — **CR-163** (#431): operation contract lines are
+  `Requires:` and `Ensures:`, matching `agent-ix/quoin` FR-072 at `195b35d`
+  (quoin PR #546). [FR-071](./functional/FR-071-clause-and-operation-extraction.md)
+  reads them into `pre` and `post`; `Pre:` and `Post:` are prose.
+  [FR-075](./functional/FR-075-model-feature-extraction.md) gates frame lines
+  on `effect-frames` only. The quoin `operations.md` and
+  `operations-cases.json` fixtures are vendored at `195b35d`
+  (`dangling-ensures`, locus `ensures-line`).
+
 * **2026-09-16** — **CR-162** (#431): [FR-069](./functional/FR-069-semantic-module-contract-at-load.md)
   records `semantic.mappings` on `SemanticModule` (AC-12, TC-1848), and
   [FR-072](./functional/FR-072-semantic-extraction-surface.md) carries the
