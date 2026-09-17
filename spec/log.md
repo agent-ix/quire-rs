@@ -18,6 +18,16 @@ description: "Chronological log of structural changes to this bundle."
   re-vendored from `agent-ix/quoin` PR #560 (`dangling-post`, locus
   `post-line`). TC-1625, TC-1842.
 
+* **2026-09-17** — **CR-173** (#448): [FR-075](./functional/FR-075-model-feature-extraction.md)
+  extracts a `Features` table (`Feature | Kind`, `Kind` `field` or
+  `operation`) into `model.featureOrder` in row order; the declaration record
+  carries `featureOrder` as the ordered names (QSpec interface feature
+  order). Each row names one declared field or operation of its kind, and
+  each declared field and operation has one row:
+  `semantic.unknown-feature`, `semantic.feature-kind-mismatch`,
+  `semantic.duplicate-model-entry`, `semantic.missing-feature`.
+  FR-075-AC-14, FR-075-AC-15, TC-1874, TC-1875.
+
 * **2026-09-17** — **CR-172** (#446): [FR-075](./functional/FR-075-model-feature-extraction.md)
   extracts the QSpec FR-152 systems-model tables `part`
   (`Owner | Declared Type | Multiplicity`), `port`

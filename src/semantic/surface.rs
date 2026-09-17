@@ -174,12 +174,22 @@ pub fn extract_semantic(
                 .map(|o| o.name.clone())
                 .collect()
         });
+    let field_names: Option<Vec<String>> =
+        (fields.availability.state != AvailabilityState::Unavailable).then(|| {
+            fields
+                .fields
+                .iter()
+                .flatten()
+                .map(|f| f.name.clone())
+                .collect()
+        });
     let model_outcome = extract_model(
         raw,
         ctx,
         ModelRefs {
             clause_ids: clause_ids.as_deref(),
             operation_names: operation_names.as_deref(),
+            field_names: field_names.as_deref(),
         },
     );
 
@@ -309,6 +319,9 @@ pub struct DeclarationRecord<'a> {
     /// FR-071 `operations`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub operations: Option<&'a [OperationDecl]>,
+    /// FR-075 `featureOrder`: the `Features` table's names in row order.
+    #[serde(rename = "featureOrder", skip_serializing_if = "Option::is_none")]
+    pub feature_order: Option<Vec<&'a str>>,
     /// The systems-model record; FR-075 admits at most one per artifact.
     #[serde(flatten, skip_serializing_if = "Option::is_none")]
     pub systems: Option<SystemsRecord<'a>>,
@@ -340,8 +353,8 @@ pub enum DeclarationError {
 }
 
 impl SemanticExtraction {
-    /// The typed declaration record (what `Entity.json`, `Part.json`, and
-    /// their kin describe).
+    /// The typed declaration record (what `Entity.json`, `Part.json`,
+    /// `Interface.json`, and their kin describe).
     ///
     /// # Errors
     ///
@@ -374,6 +387,11 @@ impl SemanticExtraction {
             clauses: self.clauses.as_deref(),
             relations: self.relations.as_deref(),
             operations: self.operations.as_deref(),
+            feature_order: self
+                .model
+                .as_ref()
+                .and_then(|m| m.feature_order.as_ref())
+                .map(|order| order.iter().map(|e| e.name.as_str()).collect()),
             systems,
         })
     }
@@ -397,6 +415,7 @@ impl SemanticExtraction {
                 declaration.clauses.is_some(),
                 declaration.relations.is_some(),
                 declaration.operations.is_some(),
+                declaration.feature_order.is_some(),
             ]
             .into_iter()
             .filter(|present| *present)

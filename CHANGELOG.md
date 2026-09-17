@@ -28,6 +28,12 @@ bumps; once 1.0 ships, semver is strict.
   `post`; under the `effect-frames` mapping token, `Modifies:`, `Creates:`
   and `Deletes:` lines yield `operationFrames` entries carrying `pre` and
   `post` id lists.
+- **Ordered `Features` table for interface feature order (#448).** FR-075
+  reads a `Feature | Kind` table into `model.featureOrder`
+  (`FeatureOrderDecl { name, kind, source_span }`, `FeatureKind::{Field,
+  Operation}`), and `declaration_record()` carries `featureOrder` as the
+  ordered names. New error codes `semantic.unknown-feature`,
+  `semantic.feature-kind-mismatch`, `semantic.missing-feature`.
 - **Systems-model tables extract to typed record keys (#446).** FR-075 reads
   the `part`, `port`, `connection`, and `allocation` tables of
   spec-objects-architecture into `model.part`, `model.port`,
