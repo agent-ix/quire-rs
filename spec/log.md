@@ -7,6 +7,16 @@ description: "Chronological log of structural changes to this bundle."
 
 ## History
 
+* **2026-09-16** — **CR-169** (#438): [FR-076](./functional/FR-076-relationships-extraction.md)
+  re-vendors the quoin FR-104 mapping fixtures at `99bd4f0` (quoin PR #558),
+  which adds `no-bundle-index-mixed-rows`, `no-bundle-package`, and
+  `no-bundle-package-second-table`. The harness honours
+  `withoutBundlePackage` and runs all 44 cases; TC-1865 runs the vendored
+  case instead of an inline copy. TC-1852 asserts both relationships
+  fixtures record `semanticCore` `0.2.0` and a non-empty `context.sources`,
+  executing quoin FR-104-CON-2. No behaviour change. TC-1852, TC-1859,
+  TC-1865, TC-1867.
+
 * **2026-09-16** — **CR-168** (#418, PR #436 re-review): [FR-076](./functional/FR-076-relationships-extraction.md)
   drops `no-bundle-index` advisories when any row errs, and qualifies
   targets under the bundle package or the source identity's package, never
