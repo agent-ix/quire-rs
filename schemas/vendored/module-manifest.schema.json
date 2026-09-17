@@ -438,6 +438,90 @@
             },
             "uniqueItems": true
           }
+        },
+        "construct": {
+          "$ref": "#/$defs/ConstructDeclaration"
+        }
+      }
+    },
+    "ConstructDeclaration": {
+      "type": "object",
+      "description": "Optional semantic IR construct this object type declares, once (agent-ix/filament-core-service#33). Requires `identity`, `shape`, `members` and `meaning`. This schema checks structure only: `identity` and `shape` are closed enums, while member names and rule names are validated strings whose vocabulary filament-core-data owns and validates. `references` constraints name roles (FR-040), never object type names, and `\"*\"` is refused; role existence is checked by filament-core-data.",
+      "required": [
+        "identity",
+        "shape",
+        "members",
+        "meaning"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "identity": {
+          "type": "string",
+          "enum": [
+            "identified",
+            "value",
+            "none"
+          ],
+          "description": "How instances are told apart: by identity fields, by every field, or not at all."
+        },
+        "shape": {
+          "type": "string",
+          "enum": [
+            "record",
+            "enumeration",
+            "interface",
+            "state_machine",
+            "sequence",
+            "namespace"
+          ],
+          "description": "The construct shape backends dispatch on."
+        },
+        "members": {
+          "type": "object",
+          "description": "IR member name -> required | optional | forbidden. Member names are filament-core-data core vocabulary, checked there.",
+          "propertyNames": {
+            "pattern": "^[a-z][A-Za-z0-9]*$"
+          },
+          "additionalProperties": {
+            "type": "string",
+            "enum": [
+              "required",
+              "optional",
+              "forbidden"
+            ]
+          }
+        },
+        "references": {
+          "type": "object",
+          "description": "IR member name -> allowed target role names (FR-040 roles, never object type names or \"*\"). Role existence is checked by filament-core-data, not by this schema.",
+          "propertyNames": {
+            "pattern": "^[a-z][A-Za-z0-9]*$"
+          },
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "not": {
+                "const": "*"
+              }
+            },
+            "uniqueItems": true
+          }
+        },
+        "rules": {
+          "type": "array",
+          "description": "Names of rules from the filament-core-data IR core rule set, checked there.",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*$"
+          },
+          "uniqueItems": true
+        },
+        "meaning": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Quire meaning id (e.g. quire.meaning.entity)."
         }
       }
     },

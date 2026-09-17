@@ -13,7 +13,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUT="$ROOT/schemas/vendored"
 DEV="${IX_DEV:-$HOME/dev}"
 
-FCS_REV="a77f31efc757f3578ad80d8c7e619897aa3b2513"   # agent-ix/filament-core-service
+FCS_REV="e33070edf2c83e726f728adbe9a54a7f5bd9d331"   # agent-ix/filament-core-service
 FCD_REV="d48b8da7ae5e40b8b3d465d45b2bd3e24b994dbb"   # agent-ix/filament-core-data (common.schema.json)
 # Every embedded semantic-core version and the filament-core-data revision it
 # is generated at, ascending. A module manifest pins one by `semantic_core`.

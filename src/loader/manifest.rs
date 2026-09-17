@@ -14,7 +14,7 @@
 //! - `body_extraction` — the locator DSL (FR-011), driving both extract
 //!   and `validate_document` (FR-032).
 //! - carry-over fields: `defaults.id_pattern`, `allowed_links`,
-//!   `has_plugin`, `grammar_ref`.
+//!   `has_plugin`, `grammar_ref`, and the raw object-type `construct`.
 //!
 //! Both `artifact_types:` and `object_types:` manifest sections (plus a
 //! new `archetypes:` section) deserialize into the same [`Archetype`]
@@ -417,7 +417,7 @@ pub struct Archetype {
     #[serde(default)]
     pub body_extraction: Option<crate::extract::dsl::ExtractionDsl>,
     /// Free-form passthrough for carry-over fields (`grammar_ref`,
-    /// `allowed_links`, `has_plugin`, `defaults`) and the retired fields
+    /// `allowed_links`, `has_plugin`, `defaults`, `construct`) and the retired fields
     /// the loader rejects.
     #[serde(flatten)]
     pub extras: Map<String, Value>,
@@ -472,12 +472,15 @@ impl Archetype {
             .get("grammar_ref")
             .and_then(|v| v.as_str())
             .map(str::to_string);
+        // `construct` — kept raw; filament-core-data owns its meaning.
+        let construct = self.extras.get("construct").cloned();
         crate::loader::compile::ArchetypeCarryOver {
             id_pattern,
             allowed_links,
             roles,
             has_plugin,
             grammar_ref,
+            construct,
         }
     }
 }
