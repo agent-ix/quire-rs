@@ -61,8 +61,9 @@ struct BundleProvenance {
 }
 
 #[trace("TC-1606", "FR-069-AC-8", "FR-069-CON-2")]
-// every vendored file hashes to its provenance record; the 0.1.0 bundle
-// digest equals the filament-core-data toolchain.json constant.
+// every vendored file hashes to its provenance record; each semantic-core
+// bundle digest equals its filament-core-data toolchain.json constant, and
+// every vendored version is embedded.
 #[test]
 fn vendored_schemas_match_provenance() {
     let dir = root().join("schemas/vendored");
@@ -136,13 +137,22 @@ fn vendored_schemas_match_provenance() {
             Value::String(digest),
             "toolchain.json digest"
         );
-        if version == "0.1.0" {
-            assert_eq!(
-                bundle.bundle_digest,
-                "sha256:dd33c886f70e908b14507c35e078d163b76308c3d170d2b54ddf933d1a4ebb52"
-            );
-        }
+        let pinned = match version.as_str() {
+            "0.1.0" => "sha256:dd33c886f70e908b14507c35e078d163b76308c3d170d2b54ddf933d1a4ebb52",
+            "0.2.0" => "sha256:ef79c5dea98c19643b20daa8899951a4782d6248527a0647c114c6f76cca8aea",
+            other => panic!("semantic-core {other} has no pinned digest"),
+        };
+        assert_eq!(bundle.bundle_digest, pinned, "semantic-core {version}");
     }
+    let versions: Vec<&str> = provenance
+        .semantic_core
+        .keys()
+        .map(String::as_str)
+        .collect();
+    assert_eq!(
+        versions,
+        quire_rs::semantic::vendored::SEMANTIC_CORE_VERSIONS
+    );
 }
 
 fn walkdir(dir: &Path) -> Vec<PathBuf> {

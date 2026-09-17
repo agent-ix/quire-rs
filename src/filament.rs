@@ -85,6 +85,9 @@ pub struct SemanticSnapshot {
     pub exports: Vec<String>,
     #[serde(default)]
     pub imports: BTreeMap<String, String>,
+    /// The module `semantic.mappings`; FR-075 features are gated on it.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub mappings: Vec<String>,
     /// The `sha256:<hex>` the registry owner recorded over the shipped
     /// schema bytes (FR-069); Quire never mints a second digest.
     #[serde(
@@ -1162,6 +1165,7 @@ fn attach_semantic(
     nodes: &mut [GraphNode],
     diagnostics: &mut Vec<CoreExtractionDiagnostic>,
 ) {
+    use crate::semantic::model::DeclaredTables;
     use crate::semantic::{RequiredSections, SemanticContext, SemanticModule};
     let module = SemanticModule {
         contract_version: snapshot.contract_version.clone(),
@@ -1172,13 +1176,21 @@ fn attach_semantic(
         targets: Vec::new(),
         compatibility_posture: "additive".to_string(),
         legacy_forms: "warning".to_string(),
+        mappings: snapshot.mappings.clone(),
     };
     let ctx = SemanticContext::new(
         module,
         input.rel_path.clone(),
         input.semantic_bundle.clone().unwrap_or_default(),
     )
-    .with_source_identity(format!("ix://{}/{}/spec", input.org, input.repo_name));
+    .with_source_identity(format!("ix://{}/{}/spec", input.org, input.repo_name))
+    .with_declared_tables(
+        object_type
+            .body_extraction
+            .as_ref()
+            .map(DeclaredTables::from_dsl)
+            .unwrap_or_default(),
+    );
     let required = object_type
         .body_extraction
         .as_ref()

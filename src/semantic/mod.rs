@@ -4,12 +4,14 @@
 //! `data_schema` at load (FR-069); `resolver` compiles a module schema
 //! against the embedded semantic-core bundle without touching the filesystem
 //! or the network; `vendored` is the embedded bundle itself. Extraction
-//! (FR-070..FR-072) lands in the sibling modules of Plan-003.
+//! (FR-070..FR-072) lands in the sibling modules of Plan-003; `model` holds the
+//! FR-075 model feature declarations.
 
 pub mod clauses;
 pub mod context;
 pub mod contract;
 pub mod decl;
+pub mod model;
 pub mod properties;
 pub mod python_entry;
 pub mod resolver;
@@ -27,6 +29,11 @@ pub use contract::{
     SemanticSeverity,
 };
 pub use decl::{Constraint, DecimalPolicy, FieldDecl, Multiplicity, TypeRef};
+pub use model::{
+    AbstractDecl, EnumValueDecl, FieldFeatureDecl, IdentityDecl, MemberDecl, ModelDeclarations,
+    OperationFrameDecl, PopulationDecl, PopulationMemberDecl, Presence, StepDecl, StepKind,
+    SupertypeDecl, TermDecl, TransitionDecl, UnknownStepKind,
+};
 pub use properties::{extract_fields, FieldsForm, FieldsOutcome};
 pub use resolver::{compile_module_schema, ResolvedSchema, SchemaSource};
 pub use surface::{
@@ -102,6 +109,17 @@ pub struct SemanticDiagnostic {
     /// Machine-readable sub-reason (`unknown-token`, `no-bundle-index`, …).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reason: Option<String>,
+    /// The span of the declaring line, on FR-075 refusals.
+    #[serde(
+        rename = "sourceSpan",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub source_span: Option<clauses::SourceLocus>,
+    /// The section holding the declaration, on FR-075 refusals:
+    /// `frontmatter`, `preamble`, a `##` heading, or `Operations / <name>`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub section: Option<String>,
 }
 
 impl SemanticDiagnostic {
@@ -118,6 +136,8 @@ impl SemanticDiagnostic {
             line: Some(line),
             column: Some(1),
             reason: None,
+            source_span: None,
+            section: None,
         }
     }
     pub fn with_reason(mut self, reason: &str) -> Self {

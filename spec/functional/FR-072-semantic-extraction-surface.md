@@ -74,7 +74,11 @@ verbatim `clauseText` and the byte-identity constraints below.
 - Library: `extract_semantic(document, context) -> SemanticExtraction`, a
   `serde` value `{ formatVersion: 1, contractVersion, semanticCore, package,
   schemaDigest, fields?, fieldsForm?, clauses?, clauseText?, operations?,
-  availability, diagnostics }`.
+  model?, availability, diagnostics }`, where `model` and `availability.model`
+  are the model features of [FR-075](./FR-075-model-feature-extraction.md).
+  Each diagnostic is `{ code, severity, line, column?, message, reason?,
+  sourceSpan?, section? }`; an FR-075 refusal carries `sourceSpan` and
+  `section`.
 - Filament API: the same value under the key `semantic` inside each extracted
   node's `dataJson`, present only when the snapshot carries a `semantic`
   context; each semantic diagnostic also appended to

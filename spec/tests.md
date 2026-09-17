@@ -106,11 +106,12 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | FR-044 Project Ubiquitous-Language lexicon | AC-1..7 | TC-674 (harvest Term column from Glossary `## Terms` table), TC-675 (harvest bold term from `## Ubiquitous Language` bullets), TC-676 (combined lexicon = registry keys ∪ project terms), TC-677 (validate_document_in_registry_with_lexicon injects lexicon), TC-678 (validate_bundle harvests Spec + applies combined lexicon), TC-679 (advisory: project suppression never changes is_valid), TC-680 (no glossary → empty terms → module-only path) | 🚧 Pending implementation |
 | FR-067 Versioned assurance export | AC-1..7; CON-1..5 | TC-1084..TC-1090 | ✅ Implemented |
 | FR-068 Source-grounded assurance projection | AC-1..9; CON-1..4 | TC-1091..TC-1099 | ✅ Implemented |
-| FR-069 Semantic module contract at load | AC-1..11; CON-1..4 | TC-1599..TC-1609, TC-1645, TC-1646 | ✅ Implemented |
+| FR-069 Semantic module contract at load | AC-1..12; CON-1..4 | TC-1599..TC-1609, TC-1645, TC-1646, TC-1848 | ✅ Implemented |
 | FR-070 Typed Properties extraction to FieldDecl[] | AC-1..10; CON-1..3 | TC-1610..TC-1621, TC-1647 | ✅ Implemented |
-| FR-071 Clause and operation extraction | AC-1..7; CON-1..2 | TC-1622..TC-1629, TC-1648 | ✅ Implemented |
+| FR-071 Clause and operation extraction | AC-1..9; CON-1..2 | TC-1622..TC-1629, TC-1648, TC-1850, TC-1851 | ✅ Implemented |
 | FR-072 Semantic extraction surface | AC-1..9; CON-1..3 | TC-1630..TC-1640, TC-1650 (TC-1636 external: quire-wasm#3) | ✅ Implemented; WASM leg external |
 | FR-073 Generic rights-aware clause sets | AC-1..6 | TC-1806..TC-1809 | ✅ Implemented |
+| FR-075 Model feature extraction | AC-1..9; CON-1 | TC-1840..TC-1847, TC-1849 | ✅ Implemented |
 
 ### Integration Requirement Coverage
 
@@ -798,7 +799,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-1603 | `$ref` to semantic-core `0.2.0`, an unshipped sibling, an outside `https://` `$ref`, and a two-file cycle each fail naming the `$ref`; a self-`$id` fragment loads; identical results under `--no-default-features --features wasm` | Unit | P0 | FR-069-AC-5 | ✅ |
 | TC-1604 | Inline `data_schema` under a `semantic` block warns `semantic.inline-data-schema`; the same manifest without the block is silent | Unit | P1 | FR-069-AC-6 | ✅ |
 | TC-1605 | A Filament snapshot with a reference-form `data_schema` is refused with `semantic.data-schema-unresolved-reference`; inline schema plus `semantic` context extracts | Unit | P0 | FR-069-AC-7 | ✅ |
-| TC-1606 | Every vendored file under `schemas/vendored/` hashes to its recorded provenance SHA-256; the semantic-core `0.1.0` digest equals the recorded `toolchain.json` constant | Static | P0 | FR-069-AC-8, FR-069-CON-2 | ✅ |
+| TC-1606 | Every vendored file under `schemas/vendored/` hashes to its recorded provenance SHA-256; the semantic-core `0.1.0` and `0.2.0` digests equal their recorded `toolchain.json` constants, and every vendored version is embedded | Static | P0 | FR-069-AC-8, FR-069-CON-2 | ✅ |
 | TC-1607 | Every default and fixture module without a `semantic` block loads to the archetype projection in `tests/fixtures/semantic/baseline/registry-archetypes.json` | Snapshot | P0 | FR-069-AC-9, FR-069-CON-3 | ✅ |
 | TC-1608 | Schema resolution performs no network fetch and no read outside the module root: an `https://` `$ref` outside the vendored bundle fails as unshipped and a static audit finds no fetch path | Static | P0 | FR-069-CON-1 | ✅ |
 | TC-1609 | The resolved schema bytes equal the shipped file and the recorded digest is over those bytes; no normalization precedes validation | Unit | P1 | FR-069-CON-4 | ✅ |
@@ -814,10 +815,10 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-1619 | A static audit finds no brace-content or pattern parser on the fence path; brace and pattern text of arbitrary UTF-8 round-trips opaque | Static | P0 | FR-070-CON-1 | ✅ |
 | TC-1620 | A static audit finds no filesystem walk or network call on the type-resolution path; resolution reads only the `BundleIndex` and loaded modules | Static | P1 | FR-070-CON-2 | ✅ |
 | TC-1621 | For generated `Type`, `Multiplicity`, and `Constraints` cells, every produced `FieldDecl` validates against the vendored `FieldDecl.json`, and any row error yields `unavailable` (`row-errors`) with no partial array | Property | P1 | FR-070-AC-4, FR-070-AC-5, FR-070-AC-6, FR-070-AC-10 | ✅ |
-| TC-1622 | Vendored `operations.md` extracts to the `clauses`, `operations`, and `clauseText` of `operations.expected.json`; `config-version.table.md` yields its `immutable` clause with the recorded span; each `clauseText` equals the fence body byte-for-byte | Unit | P0 | FR-071-AC-1 | ✅ |
-| TC-1623 | The five language cases of `operations-cases.json` yield the recorded code, severity, and fence locus; `ocl` yields no advisory | Unit | P0 | FR-071-AC-2 | ✅ |
+| TC-1622 | Vendored `operations.md` (`quire` fences, semantic-core `0.2.0`) extracts to the `clauses`, `operations`, `clauseText`, availability, and empty diagnostics of `operations.expected.json`; `config-version.table.md` (`0.1.0`) yields its `immutable` `ocl` clause with the recorded span, the recorded `semantic.clause-language-unchecked` advisory, and lossy clause availability; each `clauseText` equals the fence body byte-for-byte | Unit | P0 | FR-071-AC-1 | ✅ |
+| TC-1623 | The six `fence-` cases of `operations-cases.json` yield the recorded diagnostics, `clauses`, `clauseText`, and clause availability; `quire` yields no advisory under `0.2.0` | Unit | P0 | FR-071-AC-2 | ✅ |
 | TC-1624 | `duplicate-clause-id` fails at the second heading, `clause-id-not-identifier` at the heading, `inline-and-external` at the second occurrence; ownerless fence, bodiless heading, two fences, unterminated fence, and external-only `Clause:` line each yield their named code and locus | Unit | P0 | FR-071-AC-3 | ✅ |
-| TC-1625 | `dangling-post` fails at the `Post:` line, `duplicate-operation` at the second heading, a non-`Identifier` operation heading with `semantic.operation-name-not-identifier`; `Pre: a, b` resolves both; no table yields `params: []` | Unit | P0 | FR-071-AC-4 | ✅ |
+| TC-1625 | `dangling-ensures` fails at the `Ensures:` line, `duplicate-operation` at the second heading, a non-`Identifier` operation heading with `semantic.operation-name-not-identifier`; `Requires: a, b` resolves both; no table yields `params: []` | Unit | P0 | FR-071-AC-4 | ✅ |
 | TC-1626 | Every produced `ClauseRef`/`OperationDecl` validates against the vendored schemas; absent sections report `not_applicable`; one erroring entry reports `unavailable` (`entry-errors`) with no partial array | Unit | P0 | FR-071-AC-5 | ✅ |
 | TC-1627 | A static audit finds no clause tokenizer, parser, or evaluator symbol reachable from the semantic module; a fence body of arbitrary UTF-8 text round-trips unchanged into `clauseText` | Static | P0 | FR-071-CON-1 | ✅ |
 | TC-1628 | Clause spans agree with the `code_block` locator's fence recognition on every fixture (`tests/semantic_boundary.rs`); `parse_document` byte identity is pinned by `tests/parser_golden.rs` | Snapshot | P0 | FR-071-CON-2 | ✅ |
@@ -833,6 +834,16 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-1638 | `semantic-v1.schema.json` is valid 2020-12 with `additionalProperties: false` everywhere; the compatibility fixture pins every field and state token and fails on removal or rename | Unit | P0 | FR-072-AC-8 | ✅ |
 | TC-1639 | The published coverage-v1, properties-v1, and assurance-v1 schemas equal the baseline minted on main byte-for-byte (no contract gains a required key); the outputs stay pinned by TC-1089/TC-1090 | Snapshot | P0 | FR-072-AC-9, FR-072-CON-1 | ✅ |
 | TC-1640 | A static audit finds no rendering, code generation, or file write on the semantic surface | Static | P0 | FR-072-CON-2 | ✅ |
+| TC-1840 | `specializes` relationships and `abstract: true` extract to `supertypes` and `abstract` with entry-line spans; a non-boolean `abstract`, a repeated target, a non-string target, and a refused operation line beside clean frontmatter each omit `model` with `availability.model` `unavailable` | Unit | P0 | FR-075-AC-1 | ✅ |
+| TC-1841 | `Presence`, `Subsets`, `Redefines` columns extract the FR-070 `fields` plus `fieldFeatures` with row spans; `Presence: maybe` is `semantic.invalid-model-cell` with `fields` `unavailable` and no `model`; an unknown or repeated feature column is `semantic.invalid-model-cell` in section `Properties`; a preamble feature table is refused | Unit | P0 | FR-075-AC-2 | ✅ |
+| TC-1842 | `Requires:`/`Ensures:`/`Modifies:`/`Creates:`/`Deletes:` fill `pre`/`post` and one `operationFrames` entry; a `Pre:` line fills no `pre`; a second `Requires:`, a dangling id, a second `Modifies:`, and an invalid frame path are refused and omit `model` | Unit | P0 | FR-075-AC-3 | ✅ |
+| TC-1843 | A population `Type \| Extent` table extracts members with resolved `TypeRef`, `extent`, and row spans | Unit | P0 | FR-075-AC-4 | ✅ |
+| TC-1844 | `Values`, `States`, `Transitions`, `Steps`, `Members`, `Ubiquitous Language` tables extract to typed entries; `emits` is a name list; unknown state, trigger, guard, step kind, repeated entries, and a second table are refused; a failed `states` table suppresses unknown-state; optional columns may be omitted; a mermaid fence and a bullet list under declared sections are refused | Unit | P0 | FR-075-AC-5 | ✅ |
+| TC-1845 | Every feature under a manifest that does not declare it yields `semantic.feature-not-extractable` at the declaring line with feature, artifact, `section`, and `sourceSpan`, and no entry, including a members table, a table under an unowned section, and a preamble table | Unit | P0 | FR-075-AC-6 | ✅ |
+| TC-1846 | An artifact without model features yields no `model` key; every model record validates against `semantic-v1.schema.json` | Unit | P0 | FR-075-AC-7, FR-075-CON-1 | ✅ |
+| TC-1847 | A record carrying `model` carries `identity` (frontmatter `id`) and `displayName` (frontmatter `title`) with frontmatter-line spans | Unit | P0 | FR-075-AC-8 | ✅ |
+| TC-1848 | A module's `semantic.mappings` are recorded on its `SemanticModule` in order; a block without them records an empty list | Unit | P0 | FR-069-AC-12 | ✅ |
+| TC-1849 | `validate_document` and Filament extraction read a manifest-declared abstract flag and `Values` table and refuse both when undeclared, naming `<document>` and the artifact path respectively | Integration | P0 | FR-075-AC-9 | ✅ |
 | TC-1641 | A static audit of `cargo metadata` and the semantic module finds none of the NFR-021 denylisted crates and no `eval`/`parse_expr`/`typecheck` symbol over clause text | Static | P0 | NFR-021-AC-1 | ✅ |
 | TC-1642 | A static audit finds no `std::net`, `std::process`, or filesystem write on the semantic path | Static | P0 | NFR-021-AC-2 | ✅ |
 | TC-1643 | Every Filament graph case output equals the checked-in baseline and coverage-v1/properties-v1/assurance-v1 outputs equal their fixtures byte-for-byte; no existing contract schema gains a required key | Snapshot | P0 | NFR-021-AC-3 | ✅ |
@@ -841,6 +852,8 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-1646 | `Registry::from_inline_parts` resolves a reference-form `data_schema` from the `schemas` map with the same digest, `$id`, escape, and `$ref` rules, and refuses a key with a `..` segment | Unit | P0 | FR-069-AC-11 | ✅ |
 | TC-1647 | A single row error yields `fields` `unavailable` (`row-errors`) naming every erroring locus and no partial array; a typed header with zero rows yields `available` and empty | Unit | P0 | FR-070-AC-10 | ✅ |
 | TC-1648 | Without a caller `sourceIdentity`, spans carry `ix://local/<scope>/spec` and one `semantic.source-identity-defaulted` advisory per document; with one, spans carry it and no advisory | Unit | P0 | FR-071-AC-7 | ✅ |
+| TC-1850 | A `quire` fence under `0.2.0` extracts cleanly; an `ocl` fence under `0.2.0` and `0.1.0` is carried with `semantic.clause-language-unchecked` and a lossy kind; `quire` under `0.1.0` is `semantic.clause-language-invalid` | Unit | P0 | FR-071-AC-8 | ✅ |
+| TC-1851 | `clause-language-0.1.0-cases.json` `fence-quire-invalid` yields the recorded diagnostic, empty `clauseText`, and unavailable clause kind under `0.1.0` | Unit | P0 | FR-071-AC-9 | ✅ |
 | TC-1649 | `make check-wasm` (in `make ci`): `cargo check` for wasm32 plus the four semantic suites under `--no-default-features --features wasm` — a Make gate, no test symbol | Compile | P0 | NFR-021-AC-2 | ✅ |
 | TC-1650 | `scripts/audits/check_no_schemars.sh` covers `schemas/output/semantic-v1.schema.json`; introducing a generator-derived schema fails the audit | Static | P0 | FR-072-CON-3 | ✅ |
 | TC-1651 | `Registry::load_module_set` over an exact set (each module declared once) emits no `DuplicateModuleName`/`DuplicateArchetype` even with a same-named second copy alongside; the same directory named twice loads once | Unit | P0 | FR-013-AC-15 | ✅ |
@@ -1396,6 +1409,15 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-066-AC-9 | TC-1070 |
 | FR-066-AC-10 | TC-1071 |
 | FR-066-AC-11 | TC-1072 |
+| FR-075-AC-1 | TC-1840 |
+| FR-075-AC-2 | TC-1841 |
+| FR-075-AC-3 | TC-1842 |
+| FR-075-AC-4 | TC-1843 |
+| FR-075-AC-5 | TC-1844 |
+| FR-075-AC-6 | TC-1845 |
+| FR-075-AC-7 | TC-1846 |
+| FR-075-AC-8 | TC-1847 |
+| FR-075-AC-9 | TC-1849 |
 | FR-073-AC-1 | TC-1807, TC-1809 |
 | FR-073-AC-2 | TC-1806 |
 | FR-073-AC-3 | TC-1806 |

@@ -7,6 +7,52 @@ description: "Chronological log of structural changes to this bundle."
 
 ## History
 
+* **2026-09-16** — **CR-165** (#431): `quire` is the only checked clause
+  language. [FR-071](./functional/FR-071-clause-and-operation-extraction.md)
+  carries `ocl`, `sysml`, `fretish`, and namespaced languages with
+  `semantic.clause-language-unchecked` and a lossy kind under every
+  semantic-core version; `quire` under `0.1.0` is
+  `semantic.clause-language-invalid` (AC-8, AC-9; TC-1850, TC-1851). The
+  quoin mapping fixtures are vendored from `agent-ix/quoin` at `be01d6e`
+  (quoin PR #548): `operations.md` is written in `quire` under `0.2.0`, and
+  `clause-language-0.1.0-cases.json` pins the `0.1.0` refusal.
+
+* **2026-09-16** — **CR-164** (#431): semantic-core `0.2.0` is vendored from
+  `agent-ix/filament-core-data` at `739b160` beside `0.1.0`
+  ([FR-069](./functional/FR-069-semantic-module-contract-at-load.md) AC-8).
+  `semantic-v1` admits `quire` as a clause `language`. FR-075 clauses are
+  written in `quire`.
+
+* **2026-09-16** — **CR-163** (#431): operation contract lines are
+  `Requires:` and `Ensures:`, matching `agent-ix/quoin` FR-072 at `195b35d`
+  (quoin PR #546). [FR-071](./functional/FR-071-clause-and-operation-extraction.md)
+  reads them into `pre` and `post`; `Pre:` and `Post:` are prose.
+  [FR-075](./functional/FR-075-model-feature-extraction.md) gates frame lines
+  on `effect-frames` only. The quoin `operations.md` and
+  `operations-cases.json` fixtures are vendored at `195b35d`
+  (`dangling-ensures`, locus `ensures-line`).
+
+* **2026-09-16** — **CR-162** (#431): [FR-069](./functional/FR-069-semantic-module-contract-at-load.md)
+  records `semantic.mappings` on `SemanticModule` (AC-12, TC-1848), and
+  [FR-072](./functional/FR-072-semantic-extraction-surface.md) carries the
+  optional `model` and `availability.model` keys and the diagnostic
+  `sourceSpan` and `section` keys in `semantic-v1`. FR-075 table extraction
+  follows the declared `table_row` locators (`optional_columns` honoured);
+  any block under a declared section that does not conform, and any model
+  table under an unowned section or before the first heading, is refused.
+  `model` is present exactly when `availability.model` is `available`, and
+  carries `identity` and `displayName` (AC-8, TC-1847). Both
+  `validate_document` and Filament extraction apply the manifest gating
+  (AC-9, TC-1849).
+
+* **2026-09-16** — **FR-075** (#431): model feature extraction. The FR-072
+  record carries an optional `model` with generalization, abstract types,
+  field presence/subsetting/redefinition, operation contracts and effect
+  frames, populations, and the object-type sections, each with a source span
+  and each gated by the module manifest (`semantic.mappings` tokens and
+  `table_row` locators). An undeclared feature is refused with
+  `semantic.feature-not-extractable`. TC-1840..TC-1846.
+
 * **2026-09-09** — **CR-160**: accepted and implemented ADR-0012 after the
   owner approved the maintained-engine architecture. The product and fuzz
   manifests now alias exact `yaml_serde 0.10.7`; the root lock selects

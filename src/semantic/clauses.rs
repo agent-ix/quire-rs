@@ -11,11 +11,14 @@ use serde_json::{json, Value};
 use super::context::SemanticContext;
 use super::contract::SemanticSeverity;
 use super::decl::{is_identifier, FieldDecl, TypeRef};
+use super::model::{line_span, not_extractable, ModelFeature, OperationFrameDecl, Section};
 use super::properties::{
     is_param_header, map_multiplicity, map_row, map_type, table_rows, RowInput,
 };
 use super::resolver::compile_module_schema;
-use super::scan::{blocks_in, level2_sections, lines, lines_outside_fences, Block, Fence};
+use super::scan::{
+    blocks_in, comma_list, level2_sections, lines, lines_outside_fences, Block, Fence,
+};
 use super::{KindAvailability, SemanticDiagnostic};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -62,6 +65,11 @@ pub struct ClausesOutcome {
 pub struct OperationsOutcome {
     pub availability: KindAvailability,
     pub operations: Option<Vec<OperationDecl>>,
+    /// FR-075 `operationFrames` entries; empty unless `operations` is
+    /// available.
+    pub frames: Vec<OperationFrameDecl>,
+    /// Whether any operation carries an FR-075 contract or frame line.
+    pub model_declared: bool,
     pub diagnostics: Vec<SemanticDiagnostic>,
 }
 
@@ -73,15 +81,23 @@ fn advisory(code: &str, line: usize, message: impl Into<String>) -> SemanticDiag
     SemanticDiagnostic::new(code, SemanticSeverity::Advisory, line, message)
 }
 
-/// Is `tag` a semantic-core `ClauseLanguage`?
-pub fn clause_language_class(tag: &str) -> ClauseLanguageClass {
+/// Is `tag` a `ClauseLanguage` of semantic-core `semantic_core`, and is it
+/// the checked language or a carried one?
+///
+/// `quire` is the only checked language; `ocl`, `sysml`, `fretish`, and
+/// namespaced languages are always carried. Semantic-core 0.1.0 admits no
+/// `quire`, so a 0.1.0 module has no checked language.
+pub fn clause_language_class(tag: &str, semantic_core: &str) -> ClauseLanguageClass {
     if tag.is_empty() {
         return ClauseLanguageClass::Missing;
     }
-    if tag == "ocl" {
-        return ClauseLanguageClass::Checked;
+    if tag == "quire" {
+        return match semantic_core {
+            "0.1.0" => ClauseLanguageClass::Invalid,
+            _ => ClauseLanguageClass::Checked,
+        };
     }
-    if tag == "sysml" || tag == "fretish" {
+    if matches!(tag, "ocl" | "sysml" | "fretish") {
         return ClauseLanguageClass::Unchecked;
     }
     // `<ns>:<name>` with ns `[a-z0-9][a-z0-9.-]*`, name `[A-Za-z0-9][A-Za-z0-9._-]*`
@@ -271,7 +287,7 @@ pub fn extract_clauses(raw: &str, ctx: &SemanticContext) -> ClausesOutcome {
             ));
             continue;
         }
-        match clause_language_class(&fence.language) {
+        match clause_language_class(&fence.language, &ctx.module.semantic_core) {
             ClauseLanguageClass::Missing => {
                 diagnostics.push(err(
                     "semantic.clause-language-missing",
@@ -361,6 +377,8 @@ pub fn extract_operations(
         return OperationsOutcome {
             availability: KindAvailability::not_applicable(),
             operations: None,
+            frames: Vec::new(),
+            model_declared: false,
             diagnostics: Vec::new(),
         };
     };
@@ -374,10 +392,14 @@ pub fn extract_operations(
         return OperationsOutcome {
             availability: KindAvailability::unavailable("duplicate-section"),
             operations: None,
+            frames: Vec::new(),
+            model_declared: false,
             diagnostics,
         };
     }
     let mut operations: Vec<OperationDecl> = Vec::new();
+    let mut frames: Vec<OperationFrameDecl> = Vec::new();
+    let mut model_declared = false;
     let mut seen: Vec<String> = Vec::new();
     let mut lossy = false;
     for section in level3_headings(&lines, start + 1, end) {
@@ -426,20 +448,32 @@ pub fn extract_operations(
                 }
             }
         }
-        // Returns / Pre / Post lines.
+        // Returns / Requires / Ensures and the FR-075 frame lines.
         let mut returns = None;
         let mut pre = Vec::new();
         let mut post = Vec::new();
-        let mut seen_lines: Vec<&str> = Vec::new();
+        let mut frame = FrameLines::default();
+        let mut seen_slots: Vec<OpSlot> = Vec::new();
         for l in lines_outside_fences(&lines, section.heading_line + 1, section.end) {
             let text = lines[l - 1].trim_end_matches('\r').trim();
-            let Some((key, rest)) = ["Returns:", "Pre:", "Post:"]
+            let Some((key, slot, feature, rest)) = OP_LINES
                 .iter()
-                .find_map(|k| text.strip_prefix(k).map(|r| (*k, r)))
+                .find_map(|(k, slot, f)| text.strip_prefix(k).map(|r| (*k, *slot, *f, r)))
             else {
                 continue;
             };
-            if seen_lines.contains(&key) {
+            model_declared |= feature.is_some();
+            if let Some(feature) = feature.filter(|f| !f.declared_by_mappings(ctx)) {
+                diagnostics.push(not_extractable(
+                    ctx,
+                    &lines,
+                    feature,
+                    Section::Operation(&name),
+                    l,
+                ));
+                continue;
+            }
+            if seen_slots.contains(&slot) {
                 diagnostics.push(err(
                     "semantic.duplicate-operation-line",
                     l,
@@ -447,18 +481,47 @@ pub fn extract_operations(
                 ));
                 continue;
             }
-            seen_lines.push(key);
-            match key {
-                "Returns:" => returns = parse_returns(rest.trim(), l, &name, ctx, &mut diagnostics),
-                "Pre:" => pre = resolve_refs(rest, l, clauses, &mut diagnostics),
-                _ => post = resolve_refs(rest, l, clauses, &mut diagnostics),
+            seen_slots.push(slot);
+            let ids = || -> Vec<String> { comma_list(rest).map(str::to_string).collect() };
+            match (slot, feature) {
+                (OpSlot::Returns, _) => {
+                    returns = parse_returns(rest.trim(), l, &name, ctx, &mut diagnostics)
+                }
+                (OpSlot::Requires, _) => {
+                    pre = resolve_refs(rest, l, clauses, &mut diagnostics);
+                    frame.requires = ids();
+                }
+                (OpSlot::Ensures, _) => {
+                    post = resolve_refs(rest, l, clauses, &mut diagnostics);
+                    frame.ensures = ids();
+                }
+                (OpSlot::Modifies | OpSlot::Creates | OpSlot::Deletes, _) => {
+                    let names = frame_names(rest, l, &name, key, &mut diagnostics);
+                    match slot {
+                        OpSlot::Modifies => frame.modifies = names,
+                        OpSlot::Creates => frame.creates = names,
+                        _ => frame.deletes = names,
+                    }
+                }
             }
+            frame.declared = frame.declared || feature.is_some();
         }
         if diagnostics[before..]
             .iter()
             .any(SemanticDiagnostic::is_error)
         {
             continue;
+        }
+        if frame.declared {
+            frames.push(OperationFrameDecl {
+                operation: name.clone(),
+                requires: frame.requires,
+                ensures: frame.ensures,
+                modifies: frame.modifies,
+                creates: frame.creates,
+                deletes: frame.deletes,
+                source_span: line_span(ctx, &lines, section.heading_line),
+            });
         }
         operations.push(OperationDecl {
             name,
@@ -486,14 +549,84 @@ pub fn extract_operations(
                 loci.join(", ")
             )),
             operations: None,
+            frames: Vec::new(),
+            model_declared,
             diagnostics,
         };
     }
     OperationsOutcome {
         availability: KindAvailability::available(lossy),
         operations: Some(operations),
+        frames,
+        model_declared,
         diagnostics,
     }
+}
+
+/// The slot an operation line fills.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum OpSlot {
+    Returns,
+    Requires,
+    Ensures,
+    Modifies,
+    Creates,
+    Deletes,
+}
+
+/// Every operation line key, its slot, and the FR-075 feature that gates it.
+const OP_LINES: [(&str, OpSlot, Option<ModelFeature>); 6] = [
+    ("Returns:", OpSlot::Returns, None),
+    ("Requires:", OpSlot::Requires, None),
+    ("Ensures:", OpSlot::Ensures, None),
+    (
+        "Modifies:",
+        OpSlot::Modifies,
+        Some(ModelFeature::EffectFrames),
+    ),
+    (
+        "Creates:",
+        OpSlot::Creates,
+        Some(ModelFeature::EffectFrames),
+    ),
+    (
+        "Deletes:",
+        OpSlot::Deletes,
+        Some(ModelFeature::EffectFrames),
+    ),
+];
+
+#[derive(Default)]
+struct FrameLines {
+    declared: bool,
+    requires: Vec<String>,
+    ensures: Vec<String>,
+    modifies: Vec<String>,
+    creates: Vec<String>,
+    deletes: Vec<String>,
+}
+
+/// A frame line's names: each an `Identifier` or a dotted path of them.
+fn frame_names(
+    text: &str,
+    line: usize,
+    op: &str,
+    key: &str,
+    diagnostics: &mut Vec<SemanticDiagnostic>,
+) -> Vec<String> {
+    let mut out = Vec::new();
+    for name in comma_list(text) {
+        if name.split('.').all(is_identifier) {
+            out.push(name.to_string());
+        } else {
+            diagnostics.push(err(
+                "semantic.invalid-model-cell",
+                line,
+                format!("operation {op}: `{key}` name {name:?} is not an Identifier path"),
+            ));
+        }
+    }
+    out
 }
 
 fn parse_returns(
@@ -551,7 +684,7 @@ fn resolve_refs(
     diagnostics: &mut Vec<SemanticDiagnostic>,
 ) -> Vec<ClauseRef> {
     let mut out = Vec::new();
-    for id in text.split(',').map(str::trim).filter(|s| !s.is_empty()) {
+    for id in comma_list(text) {
         match clauses.iter().find(|c| c.clause_id == id) {
             Some(c) => out.push(ClauseRef {
                 language: c.language.clone(),

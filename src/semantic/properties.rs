@@ -8,14 +8,16 @@ use jsonschema::JSONSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
+use super::clauses::SourceLocus;
 use super::context::SemanticContext;
 use super::contract::SemanticSeverity;
 use super::decl::{
     is_identifier, Constraint, DecimalPolicy, FieldDecl, Multiplicity, TypeRef, KERNEL_SCALARS,
     UNIT_TARGETS,
 };
+use super::model::{line_span, not_extractable, FieldFeatureDecl, ModelFeature, Presence, Section};
 use super::resolver::compile_module_schema;
-use super::scan::{blocks_in, level2_sections, lines, Block, Fence, Table};
+use super::scan::{blocks_in, comma_list, level2_sections, lines, Block, Fence, Table};
 use super::{KindAvailability, SemanticDiagnostic};
 
 pub const TYPED_HEADER: [&str; 4] = ["Field", "Type", "Multiplicity", "Constraints"];
@@ -37,6 +39,11 @@ pub struct FieldsOutcome {
     /// 1-based line of the first Properties block (table header, fence
     /// opening, or list start), for legacy-form reports.
     pub block_line: Option<usize>,
+    /// FR-075 `Presence`/`Subsets`/`Redefines` entries, in row order; empty
+    /// unless `fields` is available.
+    pub field_features: Vec<FieldFeatureDecl>,
+    /// Whether the typed table carries any FR-075 feature column.
+    pub model_declared: bool,
     pub diagnostics: Vec<SemanticDiagnostic>,
 }
 
@@ -47,6 +54,8 @@ impl FieldsOutcome {
             fields: None,
             form: None,
             block_line: None,
+            field_features: Vec::new(),
+            model_declared: false,
             diagnostics,
         }
     }
@@ -56,7 +65,7 @@ fn err(code: &str, line: usize, message: impl Into<String>) -> SemanticDiagnosti
     SemanticDiagnostic::new(code, SemanticSeverity::Error, line, message)
 }
 
-fn strip_ticks(cell: &str) -> &str {
+pub(crate) fn strip_ticks(cell: &str) -> &str {
     let t = cell.trim();
     t.strip_prefix('`')
         .and_then(|s| s.strip_suffix('`'))
@@ -74,6 +83,8 @@ pub fn extract_fields(raw: &str, ctx: &SemanticContext) -> FieldsOutcome {
             fields: None,
             form: None,
             block_line: None,
+            field_features: Vec::new(),
+            model_declared: false,
             diagnostics: Vec::new(),
         };
     };
@@ -95,7 +106,7 @@ pub fn extract_fields(raw: &str, ctx: &SemanticContext) -> FieldsOutcome {
     let mut first: Option<(&Block, bool)> = None; // (block, is typed form)
     for block in &blocks {
         let (typed, relevant, line) = match block {
-            Block::Table(t) => (is_typed_header(&t.headers), true, t.line),
+            Block::Table(t) => (is_typed_prefix(&t.headers), true, t.line),
             Block::Fence(f) if f.language == "sysml" => (true, true, f.open_line),
             Block::Fence(_) => (false, false, 0),
             Block::List { line } => (false, true, *line),
@@ -154,14 +165,71 @@ pub fn extract_fields(raw: &str, ctx: &SemanticContext) -> FieldsOutcome {
         out.block_line = block_line;
         return out;
     }
+    let mut row_features: Vec<(usize, FieldFeatureCells)> = Vec::new();
+    let mut model_declared = false;
     let (rows, form): (Vec<RowInput>, FieldsForm) = match block {
-        Block::Table(t) => (table_rows(t), FieldsForm::Table),
+        Block::Table(t) => {
+            let refuse = |diagnostics: Vec<SemanticDiagnostic>, reason: &str| {
+                let mut out = FieldsOutcome::unavailable(reason, diagnostics);
+                out.form = Some(FieldsForm::Table);
+                out.block_line = block_line;
+                out.model_declared = true;
+                out
+            };
+            let columns = match feature_columns(&t.headers) {
+                Ok(columns) => columns,
+                Err(header) => {
+                    let mut d = err(
+                        "semantic.invalid-model-cell",
+                        t.line,
+                        format!(
+                            "Properties column {header:?} after the typed header is not Presence, Subsets, or Redefines, or repeats one"
+                        ),
+                    );
+                    d.section = Some("Properties".to_string());
+                    d.source_span = Some(line_span(ctx, &lines, t.line));
+                    diagnostics.push(d);
+                    return refuse(diagnostics, "invalid-feature-column");
+                }
+            };
+            model_declared = !columns.is_empty();
+            let refused: Vec<SemanticDiagnostic> = columns
+                .iter()
+                .map(|c| c.feature())
+                .filter(|f| !f.declared_by_mappings(ctx))
+                .map(|f| not_extractable(ctx, &lines, f, Section::Heading("Properties"), t.line))
+                .collect();
+            if !refused.is_empty() {
+                diagnostics.extend(refused);
+                return refuse(diagnostics, "feature-not-extractable");
+            }
+            if model_declared {
+                row_features = t
+                    .rows
+                    .iter()
+                    .map(|(line, cells)| (*line, FieldFeatureCells::read(&columns, cells)))
+                    .collect();
+            }
+            (table_rows(t), FieldsForm::Table)
+        }
         Block::Fence(f) => (fence_rows(f, &mut diagnostics), FieldsForm::Fence),
         Block::List { .. } => unreachable!(),
     };
     let mut fields: Vec<FieldDecl> = Vec::new();
     let mut field_lines: Vec<usize> = Vec::new();
     let mut lossy = false;
+    let lines_ref = &lines;
+    let field_features: Vec<FieldFeatureDecl> = rows
+        .iter()
+        .zip(row_features.iter())
+        .filter_map(|(row, (line, cells))| {
+            cells.map(
+                &row.name,
+                line_span(ctx, lines_ref, *line),
+                &mut diagnostics,
+            )
+        })
+        .collect();
     for row in rows {
         if let Some((field, row_lossy)) = map_row(&row, ctx, &mut diagnostics) {
             lossy |= row_lossy;
@@ -185,6 +253,8 @@ pub fn extract_fields(raw: &str, ctx: &SemanticContext) -> FieldsOutcome {
             fields: None,
             form: Some(form),
             block_line,
+            field_features: Vec::new(),
+            model_declared,
             diagnostics,
         };
     }
@@ -193,16 +263,143 @@ pub fn extract_fields(raw: &str, ctx: &SemanticContext) -> FieldsOutcome {
         fields: Some(fields),
         form: Some(form),
         block_line,
+        field_features,
+        model_declared,
         diagnostics,
     }
 }
 
-fn is_typed_header(headers: &[String]) -> bool {
-    headers.len() == 4
+/// A column FR-075 appends to the typed header.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum FeatureColumn {
+    Presence,
+    Subsets,
+    Redefines,
+}
+
+impl FeatureColumn {
+    fn parse(header: &str) -> Option<Self> {
+        match header {
+            "Presence" => Some(Self::Presence),
+            "Subsets" => Some(Self::Subsets),
+            "Redefines" => Some(Self::Redefines),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn feature(self) -> ModelFeature {
+        match self {
+            Self::Presence => ModelFeature::Presence,
+            Self::Subsets => ModelFeature::Subsetting,
+            Self::Redefines => ModelFeature::Redefinition,
+        }
+    }
+}
+
+/// Whether `headers` begin with `Field | Type | Multiplicity | Constraints`
+/// (the FR-070 typed table, with or without FR-075 columns).
+pub(crate) fn is_typed_prefix(headers: &[String]) -> bool {
+    headers.len() >= TYPED_HEADER.len()
         && headers
             .iter()
             .zip(TYPED_HEADER.iter())
             .all(|(h, t)| strip_ticks(h) == *t)
+}
+
+/// The feature columns after the typed header; `Err` names the first
+/// column that is not a feature column or repeats one (FR-075).
+pub(crate) fn feature_columns(headers: &[String]) -> Result<Vec<FeatureColumn>, String> {
+    let mut columns: Vec<FeatureColumn> = Vec::new();
+    for header in headers.iter().skip(TYPED_HEADER.len()) {
+        let text = strip_ticks(header);
+        match FeatureColumn::parse(text) {
+            Some(column) if !columns.contains(&column) => columns.push(column),
+            _ => return Err(text.to_string()),
+        }
+    }
+    Ok(columns)
+}
+
+/// The raw feature cells of one row.
+#[derive(Debug, Clone, Default)]
+struct FieldFeatureCells {
+    presence: String,
+    subsets: String,
+    redefines: String,
+}
+
+impl FieldFeatureCells {
+    fn read(columns: &[FeatureColumn], cells: &[String]) -> Self {
+        let mut out = Self::default();
+        for (i, column) in columns.iter().enumerate() {
+            let text = strip_ticks(
+                cells
+                    .get(TYPED_HEADER.len() + i)
+                    .map(String::as_str)
+                    .unwrap_or(""),
+            )
+            .to_string();
+            match column {
+                FeatureColumn::Presence => out.presence = text,
+                FeatureColumn::Subsets => out.subsets = text,
+                FeatureColumn::Redefines => out.redefines = text,
+            }
+        }
+        out
+    }
+
+    /// The declaration for `field` at `span`; `None` when the row declares
+    /// no feature or a cell errs.
+    fn map(
+        &self,
+        field: &str,
+        span: SourceLocus,
+        diagnostics: &mut Vec<SemanticDiagnostic>,
+    ) -> Option<FieldFeatureDecl> {
+        let line = span.start_line;
+        let before = diagnostics.len();
+        let presence = match self.presence.as_str() {
+            "" => None,
+            "required" => Some(Presence::Required),
+            "optional" => Some(Presence::Optional),
+            other => {
+                diagnostics.push(err(
+                    "semantic.invalid-model-cell",
+                    line,
+                    format!("presence {other:?} is not required or optional"),
+                ));
+                None
+            }
+        };
+        let subsets: Vec<String> = comma_list(&self.subsets).map(str::to_string).collect();
+        for name in subsets.iter().filter(|n| !is_identifier(n)) {
+            diagnostics.push(err(
+                "semantic.invalid-model-cell",
+                line,
+                format!("subsetted field {name:?} is not an Identifier"),
+            ));
+        }
+        let redefines = (!self.redefines.is_empty()).then(|| self.redefines.clone());
+        if let Some(name) = redefines.as_ref().filter(|n| !is_identifier(n)) {
+            diagnostics.push(err(
+                "semantic.invalid-model-cell",
+                line,
+                format!("redefined field {name:?} is not an Identifier"),
+            ));
+        }
+        if diagnostics.len() > before
+            || (presence.is_none() && subsets.is_empty() && redefines.is_none())
+        {
+            return None;
+        }
+        Some(FieldFeatureDecl {
+            field: field.to_string(),
+            presence,
+            subsets: (!subsets.is_empty()).then_some(subsets),
+            redefines,
+            source_span: span,
+        })
+    }
 }
 
 pub fn is_param_header(headers: &[String]) -> bool {

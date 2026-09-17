@@ -1,0 +1,33 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://schemas.agent-ix.org/semantic-core/0.2.0/EnumValuesConstraint.json",
+	"type": "object",
+	"properties": {
+		"keyword": {
+			"type": "string",
+			"const": "enumValues"
+		},
+		"values": {
+			"type": "array",
+			"items": {
+				"anyOf": [
+					{
+						"type": "string"
+					},
+					{
+						"type": "number"
+					},
+					{
+						"type": "boolean"
+					}
+				]
+			},
+			"minItems": 1
+		}
+	},
+	"required": ["keyword", "values"],
+	"unevaluatedProperties": {
+		"not": {}
+	},
+	"x-agent-ix-semantic-id": "ix://agent-ix/semantic-core/type/EnumValuesConstraint"
+}

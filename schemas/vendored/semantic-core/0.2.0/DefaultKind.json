@@ -1,0 +1,8 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://schemas.agent-ix.org/semantic-core/0.2.0/DefaultKind.json",
+	"type": "string",
+	"enum": ["semantic", "representation", "migration"],
+	"description": "IR `defaultKind` minus `none` (an absent default lowers to `none`).",
+	"x-agent-ix-semantic-id": "ix://agent-ix/semantic-core/type/DefaultKind"
+}

@@ -1,0 +1,16 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://schemas.agent-ix.org/semantic-core/0.2.0/UniqueConstraint.json",
+	"type": "object",
+	"properties": {
+		"keyword": {
+			"type": "string",
+			"const": "unique"
+		}
+	},
+	"required": ["keyword"],
+	"unevaluatedProperties": {
+		"not": {}
+	},
+	"x-agent-ix-semantic-id": "ix://agent-ix/semantic-core/type/UniqueConstraint"
+}

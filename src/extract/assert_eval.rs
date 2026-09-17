@@ -249,52 +249,24 @@ fn check_table(
 
     if let Some(columns) = &assert.columns {
         let optional = assert.optional_columns.as_deref().unwrap_or(&[]);
-        if optional.is_empty() {
-            if &table.headers != columns {
-                failures.push(AssertFailure {
-                    reason: AssertReason::Assert,
-                    message: format!(
-                        "table columns {:?} do not match asserted columns {:?}",
-                        table.headers, columns
-                    ),
-                    line,
-                    row_id: None,
-                });
-            }
-        } else {
-            // CR-023: headers must be an ordered subsequence of `columns` that
-            // still contains every non-optional column. Order is preserved, so
-            // a reordered or unknown header fails exactly as before; only a
-            // declared-optional column may be absent.
-            let mut it = table.headers.iter();
-            let mut missing: Vec<&String> = Vec::new();
-            let mut consumed = 0usize;
-            for want in columns {
-                match it.clone().next() {
-                    Some(h) if h == want => {
-                        it.next();
-                        consumed += 1;
-                    }
-                    _ if optional.iter().any(|o| o == want) => missing.push(want),
-                    _ => missing.push(want),
-                }
-            }
-            let unknown = consumed != table.headers.len();
-            let required_missing: Vec<&&String> = missing
-                .iter()
-                .filter(|m| !optional.iter().any(|o| o == **m))
-                .collect();
-            if unknown || !required_missing.is_empty() {
-                failures.push(AssertFailure {
-                    reason: AssertReason::Assert,
-                    message: format!(
-                        "table columns {:?} do not match asserted columns {:?} (optional: {:?})",
-                        table.headers, columns, optional
-                    ),
-                    line,
-                    row_id: None,
-                });
-            }
+        if !headers_conform(&table.headers, columns, optional) {
+            let message = if optional.is_empty() {
+                format!(
+                    "table columns {:?} do not match asserted columns {:?}",
+                    table.headers, columns
+                )
+            } else {
+                format!(
+                    "table columns {:?} do not match asserted columns {:?} (optional: {:?})",
+                    table.headers, columns, optional
+                )
+            };
+            failures.push(AssertFailure {
+                reason: AssertReason::Assert,
+                message,
+                line,
+                row_id: None,
+            });
         }
     }
 
@@ -645,6 +617,26 @@ fn resolve_regex(
         line: None,
         row_id: None,
     })
+}
+
+/// Whether table `headers` satisfy a `table_row` assert's `columns` and
+/// `optional_columns` (CR-023): the headers are an ordered subsequence of
+/// `columns` containing every column not declared optional. With no optional
+/// columns this is exact equality.
+pub(crate) fn headers_conform<H: AsRef<str>>(
+    headers: &[H],
+    columns: &[String],
+    optional: &[String],
+) -> bool {
+    let mut remaining = headers.iter().map(AsRef::as_ref).peekable();
+    for want in columns {
+        if remaining.peek() == Some(&want.as_str()) {
+            remaining.next();
+        } else if !optional.iter().any(|o| o == want) {
+            return false;
+        }
+    }
+    remaining.next().is_none()
 }
 
 #[cfg(test)]

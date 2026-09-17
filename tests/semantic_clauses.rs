@@ -1,7 +1,7 @@
 //! FR-071 clause and operation extraction (TC-1622..TC-1626, TC-1629,
-//! TC-1648). Plan-003 Task-019. Oracles: quoin `operations.md`,
-//! `operations.expected.json`, `operations-cases.json`, and the
-//! `config-version` golden span.
+//! TC-1648, TC-1850, TC-1851). Plan-003 Task-019. Oracles: quoin
+//! `operations.md`, `operations.expected.json`, `operations-cases.json`,
+//! `clause-language-0.1.0-cases.json`, and the `config-version` golden.
 
 use std::fs;
 use std::path::PathBuf;
@@ -10,7 +10,7 @@ use ix_trace_rs::trace;
 use proptest::prelude::*;
 use quire_rs::semantic::{
     compile_module_schema, extract_clauses, extract_operations, AvailabilityState, BundleIndex,
-    SemanticContext, SemanticSeverity,
+    ClausesOutcome, SemanticContext, SemanticSeverity,
 };
 use quire_rs::Registry;
 use serde_json::{json, Value};
@@ -50,16 +50,23 @@ fn context(path: &str) -> SemanticContext {
         .with_source_identity("ix://agent-ix/config-service/spec")
 }
 
-fn gate(model: &str) -> jsonschema::JSONSchema {
+/// `context` pinned to the semantic-core version a quoin fixture records.
+fn context_at(path: &str, fixture: &Value) -> SemanticContext {
+    let mut ctx = context(path);
+    ctx.module.semantic_core = fixture["semanticCore"].as_str().unwrap().to_string();
+    ctx
+}
+
+fn gate(model: &str, core: &str) -> jsonschema::JSONSchema {
     let schema = json!({
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "$id": format!("https://schemas.agent-ix.org/agent-ix/quire-rs/0.1.0/{model}Gate.json"),
-        "$ref": format!("https://schemas.agent-ix.org/semantic-core/0.1.0/{model}.json")
+        "$ref": format!("https://schemas.agent-ix.org/semantic-core/{core}/{model}.json")
     });
     compile_module_schema(
         &schema,
         &|_| None,
-        "0.1.0",
+        core,
         "https://schemas.agent-ix.org/agent-ix/quire-rs/",
     )
     .unwrap()
@@ -70,7 +77,8 @@ fn gate(model: &str) -> jsonschema::JSONSchema {
 #[test]
 fn golden_operations_and_spans() {
     let raw = mapping("operations.md");
-    let ctx = context("operations.md");
+    let expected = mapping_json("operations.expected.json");
+    let ctx = context_at("operations.md", &expected);
     let clauses = extract_clauses(&raw, &ctx);
     assert_eq!(
         clauses.availability.state,
@@ -78,7 +86,6 @@ fn golden_operations_and_spans() {
         "{:?}",
         clauses.diagnostics
     );
-    let expected = mapping_json("operations.expected.json");
     assert_eq!(
         serde_json::to_value(clauses.clauses.as_ref().unwrap()).unwrap(),
         expected["clauses"]
@@ -95,7 +102,7 @@ fn golden_operations_and_spans() {
             lines[span.start_line], body,
             "clauseText equals the fence body byte-for-byte"
         );
-        assert!(lines[span.start_line - 1].starts_with("```ocl"));
+        assert!(lines[span.start_line - 1].starts_with("```quire"));
         assert_eq!(lines[span.end_line.unwrap() - 1], "```");
         assert_eq!(span.end_column, Some(4));
     }
@@ -110,12 +117,26 @@ fn golden_operations_and_spans() {
         serde_json::to_value(ops.operations.as_ref().unwrap()).unwrap(),
         expected["operations"]
     );
+    assert_eq!(
+        json!({
+            "clauses": clauses.availability,
+            "operations": ops.availability,
+        }),
+        expected["availability"]
+    );
+    let mut diagnostics = clauses.diagnostics.clone();
+    diagnostics.extend(ops.diagnostics.iter().cloned());
+    assert_eq!(
+        serde_json::to_value(&diagnostics).unwrap(),
+        expected["diagnostics"]
+    );
 
+    // config-version pins semantic-core 0.1.0: its `ocl` clause is carried.
+    let expected = mapping_json("config-version.expected.json");
     let cv = extract_clauses(
         &mapping("config-version.table.md"),
-        &context("config-version.table.md"),
+        &context_at("config-version.table.md", &expected),
     );
-    let expected = mapping_json("config-version.expected.json");
     assert_eq!(
         serde_json::to_value(cv.clauses.as_ref().unwrap()).unwrap(),
         expected["clauses"]
@@ -124,7 +145,14 @@ fn golden_operations_and_spans() {
         serde_json::to_value(&cv.clause_text).unwrap(),
         expected["clauseText"]
     );
-    assert!(cv.diagnostics.is_empty(), "{:?}", cv.diagnostics);
+    assert_eq!(
+        json!({ "clauses": cv.availability }),
+        expected["availability"]
+    );
+    assert_eq!(
+        serde_json::to_value(&cv.diagnostics).unwrap(),
+        expected["diagnostics"]
+    );
 }
 
 fn artifact(invariants: &str, operations: &str) -> String {
@@ -160,27 +188,36 @@ fn expected_line(md: &str, locus: &str) -> usize {
             .nth(1)
             .map(|(i, _)| i + 1)
             .unwrap(),
-        "post-line" => case_lines(md, "Post:"),
+        "ensures-line" => case_lines(md, "Ensures:"),
         "second-occurrence" => case_lines(md, "Clause:"),
         other => panic!("locus {other}"),
     }
 }
 
-fn run_case(case: &Value) -> (Vec<quire_rs::semantic::SemanticDiagnostic>, String) {
+fn run_case(
+    case: &Value,
+    ctx: &SemanticContext,
+) -> (
+    Vec<quire_rs::semantic::SemanticDiagnostic>,
+    String,
+    ClausesOutcome,
+) {
     let invariants = case["invariants"].as_str().unwrap_or("");
     let operations = case["operations"].as_str().unwrap_or("");
     let md = artifact(invariants, operations);
-    let ctx = context("case.md");
-    let clauses = extract_clauses(&md, &ctx);
+    let clauses = extract_clauses(&md, ctx);
     let mut diagnostics = clauses.diagnostics.clone();
-    let ops = extract_operations(&md, &ctx, clauses.clauses.as_deref().unwrap_or(&[]));
+    let ops = extract_operations(&md, ctx, clauses.clauses.as_deref().unwrap_or(&[]));
     diagnostics.extend(ops.diagnostics);
-    (diagnostics, md)
+    (diagnostics, md, clauses)
 }
 
-fn assert_case(case: &Value) {
+/// Assert one quoin case: every recorded diagnostic (code, severity, locus,
+/// and `column`/`message` when recorded), and the recorded `clauses`,
+/// `clauseText`, and clause availability when present.
+fn assert_case(case: &Value, file: &Value) {
     let id = case["id"].as_str().unwrap();
-    let (diagnostics, md) = run_case(case);
+    let (diagnostics, md, clauses) = run_case(case, &context_at("case.md", file));
     for d in case["diagnostics"].as_array().unwrap() {
         let code = d["code"].as_str().unwrap();
         let severity = match d["severity"].as_str().unwrap() {
@@ -190,10 +227,48 @@ fn assert_case(case: &Value) {
         };
         let line = expected_line(&md, d["locus"].as_str().unwrap());
         assert!(
-            diagnostics
-                .iter()
-                .any(|x| x.code == code && x.severity == severity && x.line == Some(line)),
-            "{id}: expected {code} {severity:?} at {line}; got {diagnostics:?}"
+            diagnostics.iter().any(|x| x.code == code
+                && x.severity == severity
+                && x.line == Some(line)
+                && d["column"]
+                    .as_u64()
+                    .is_none_or(|c| x.column == Some(c as usize))
+                && d["message"].as_str().is_none_or(|m| x.message == m)),
+            "{id}: expected {d} at {line}; got {diagnostics:?}"
+        );
+    }
+    if let Some(want) = case.get("clauses") {
+        let got: Vec<Value> = clauses
+            .clauses
+            .iter()
+            .flatten()
+            .map(|c| json!({ "language": c.language, "clauseId": c.clause_id }))
+            .collect();
+        assert_eq!(&Value::Array(got), want, "{id}");
+    }
+    if let Some(want) = case.get("clauseText") {
+        assert_eq!(
+            &serde_json::to_value(&clauses.clause_text).unwrap(),
+            want,
+            "{id}"
+        );
+    }
+    if let Some(want) = case["availability"].get("clauses") {
+        // An `entry-errors` reason names lines of quoin's case artifact;
+        // this harness's artifact puts the erroring fence at its own line.
+        let mut want = want.clone();
+        if let Some(reason) = want["reason"].as_str() {
+            if reason.starts_with("entry-errors: lines ") {
+                want["reason"] = json!(format!(
+                    "entry-errors: lines {}",
+                    expected_line(&md, "fence")
+                ));
+            }
+        }
+        assert_eq!(
+            serde_json::to_value(&clauses.availability).unwrap(),
+            want,
+            "{id}"
         );
     }
 }
@@ -208,23 +283,91 @@ fn cases(prefix: &str) -> Vec<Value> {
         .collect()
 }
 
+fn operations_cases() -> Value {
+    mapping_json("operations-cases.json")
+}
+
 #[trace("TC-1623", "FR-071-AC-2")]
-// language cases; ocl yields no advisory.
+// the six language cases, `fence-ocl-carried` included; `quire` yields no
+// advisory.
 #[test]
 fn language_cases() {
+    let file = operations_cases();
     let fence = cases("fence-");
-    assert_eq!(fence.len(), 5);
+    assert_eq!(fence.len(), 6);
     for case in &fence {
-        assert_case(case);
+        assert_case(case, &file);
     }
-    let (diagnostics, _) =
-        run_case(&json!({ "id": "ocl", "invariants": "### immutable\n\n```ocl\nx\n```\n" }));
+    let (diagnostics, _, _) = run_case(
+        &json!({ "id": "quire", "invariants": "### immutable\n\n```quire\nx\n```\n" }),
+        &context_at("case.md", &file),
+    );
     assert!(diagnostics.is_empty(), "{diagnostics:?}");
-    // unchecked languages are lossy but available
+    // carried languages are lossy but available
     let md = artifact("### immutable\n\n```fretish\nx\n```\n", "");
-    let out = extract_clauses(&md, &context("f.md"));
+    let out = extract_clauses(&md, &context_at("f.md", &file));
     assert_eq!(out.availability.state, AvailabilityState::Available);
     assert!(out.availability.lossy);
+}
+
+#[trace("TC-1851", "FR-071-AC-9")]
+// semantic-core 0.1.0 admits no `quire`: `clause-language-0.1.0-cases.json`.
+#[test]
+fn clause_language_0_1_0_cases() {
+    let file = mapping_json("clause-language-0.1.0-cases.json");
+    let cases = file["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 1);
+    for case in cases {
+        assert_case(case, &file);
+    }
+}
+
+#[trace("TC-1850", "FR-071-AC-8")]
+// `quire` is the only checked language; `ocl` is carried unchecked under
+// every semantic-core version; semantic-core 0.1.0 admits no `quire`.
+#[test]
+fn quire_is_checked_and_ocl_is_carried() {
+    let mut ctx = context("q.md");
+    ctx.module.semantic_core = "0.2.0".to_string();
+    let md = artifact("### placed\n\n```quire\nx\n```\n", "");
+    let out = extract_clauses(&md, &ctx);
+    assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
+    assert_eq!(out.availability.state, AvailabilityState::Available);
+    assert!(!out.availability.lossy);
+    assert_eq!(out.clauses.as_ref().unwrap()[0].language, "quire");
+
+    let md = artifact("### placed\n\n```ocl\nx\n```\n", "");
+    let out = extract_clauses(&md, &ctx);
+    let fence = case_lines(&md, "```ocl");
+    assert_eq!(
+        out.diagnostics
+            .iter()
+            .map(|d| (d.code.as_str(), d.severity, d.line))
+            .collect::<Vec<_>>(),
+        [(
+            "semantic.clause-language-unchecked",
+            SemanticSeverity::Advisory,
+            Some(fence)
+        )]
+    );
+    assert_eq!(out.availability.state, AvailabilityState::Available);
+    assert!(out.availability.lossy);
+    assert_eq!(out.clauses.as_ref().unwrap()[0].language, "ocl");
+    assert_eq!(out.clause_text["placed"], "x");
+
+    let carried = extract_clauses(&md, &context("q.md"));
+    assert_eq!(carried.diagnostics, out.diagnostics);
+    assert_eq!(carried.availability, out.availability);
+
+    let md = artifact("### placed\n\n```quire\nx\n```\n", "");
+    let out = extract_clauses(&md, &context("q.md"));
+    assert!(
+        out.diagnostics
+            .iter()
+            .any(|d| d.code == "semantic.clause-language-invalid"),
+        "{:?}",
+        out.diagnostics
+    );
 }
 
 #[trace("TC-1624", "FR-071-AC-3")]
@@ -241,7 +384,7 @@ fn structural_cases() {
             .into_iter()
             .next()
             .unwrap_or_else(|| panic!("{id}"));
-        assert_case(&case);
+        assert_case(&case, &operations_cases());
     }
     let ctx = context("s.md");
     let ownerless = artifact("```ocl\nx\n```\n", "");
@@ -317,21 +460,21 @@ fn structural_cases() {
 }
 
 #[trace("TC-1625", "FR-071-AC-4")]
-// operations: dangling post, duplicate operation, non-identifier heading,
-// Pre lists, no-table params.
+// operations: dangling ensures, duplicate operation, non-identifier heading,
+// Requires lists, no-table params.
 #[test]
 fn operation_cases() {
-    for id in ["dangling-post", "duplicate-operation"] {
+    for id in ["dangling-ensures", "duplicate-operation"] {
         let case = cases(id)
             .into_iter()
             .next()
             .unwrap_or_else(|| panic!("{id}"));
-        assert_case(&case);
+        assert_case(&case, &operations_cases());
     }
     let ctx = context("o.md");
     let md = artifact(
         "### a\n\n```ocl\nx\n```\n\n### b\n\n```ocl\ny\n```\n",
-        "### not-ok\n\nReturns: String[1]\n\n### fine\n\nPre: a, b\n",
+        "### not-ok\n\nReturns: String[1]\n\n### fine\n\nRequires: a, b\n",
     );
     let clauses = extract_clauses(&md, &ctx);
     let ops = extract_operations(&md, &ctx, clauses.clauses.as_ref().unwrap());
@@ -350,7 +493,7 @@ fn operation_cases() {
     );
     let md = artifact(
         "### a\n\n```ocl\nx\n```\n\n### b\n\n```ocl\ny\n```\n",
-        "### fine\n\nPre: a, b\nPost: b\n",
+        "### fine\n\nRequires: a, b\nEnsures: b\n",
     );
     let clauses = extract_clauses(&md, &ctx);
     let ops = extract_operations(&md, &ctx, clauses.clauses.as_ref().unwrap());
@@ -387,9 +530,9 @@ fn operation_cases() {
 #[test]
 fn validation_and_states() {
     let raw = mapping("operations.md");
-    let ctx = context("operations.md");
+    let ctx = context_at("operations.md", &mapping_json("operations.expected.json"));
     let clauses = extract_clauses(&raw, &ctx);
-    let clause_gate = gate("ClauseRef");
+    let clause_gate = gate("ClauseRef", &ctx.module.semantic_core);
     for c in clauses.clauses.as_ref().unwrap() {
         assert!(
             clause_gate.is_valid(&serde_json::to_value(c).unwrap()),
@@ -397,7 +540,7 @@ fn validation_and_states() {
         );
     }
     let ops = extract_operations(&raw, &ctx, clauses.clauses.as_ref().unwrap());
-    let op_gate = gate("OperationDecl");
+    let op_gate = gate("OperationDecl", &ctx.module.semantic_core);
     for o in ops.operations.as_ref().unwrap() {
         assert!(op_gate.is_valid(&serde_json::to_value(o).unwrap()), "{o:?}");
     }
@@ -433,10 +576,14 @@ fn source_identity_default() {
     let raw = mapping("operations.md");
     let registry =
         Registry::load_module(&root().join("tests/fixtures/semantic/quoin/module-ok")).unwrap();
-    let module = registry
+    let mut module = registry
         .semantic_module("spec-objects-fixture")
         .unwrap()
         .clone();
+    module.semantic_core = mapping_json("operations.expected.json")["semanticCore"]
+        .as_str()
+        .unwrap()
+        .to_string();
     let ctx = SemanticContext::new(module.clone(), "operations.md", bundle())
         .with_scope("config-service");
     let out = extract_clauses(&raw, &ctx);

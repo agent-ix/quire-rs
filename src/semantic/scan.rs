@@ -106,6 +106,43 @@ pub fn level2_sections(lines: &[&str], heading: &str) -> Vec<(usize, usize)> {
     out
 }
 
+/// Every `## <heading>` outside a fence as `(heading, line, end)`, with the
+/// same bounds as [`level2_sections`].
+pub(crate) fn level2_headings(lines: &[&str]) -> Vec<(String, usize, usize)> {
+    let mut out: Vec<(String, usize, usize)> = Vec::new();
+    let mut open: Option<(FenceChar, usize)> = None;
+    for (i, line) in lines.iter().enumerate() {
+        let text = line.trim_end_matches('\r');
+        if let Some((kind, len)) = &open {
+            if fence_close(text, kind, *len) {
+                open = None;
+            }
+            continue;
+        }
+        if let Some((kind, len, _)) = fence_open(text) {
+            open = Some((kind, len));
+            continue;
+        }
+        if (text.starts_with("# ") || text.starts_with("## ")) && !text.starts_with("###") {
+            if let Some(last) = out.last_mut().filter(|l| l.2 == 0) {
+                last.2 = i + 1;
+            }
+            if let Some(rest) = text.strip_prefix("## ") {
+                out.push((rest.trim().to_string(), i + 1, 0));
+            }
+        }
+    }
+    if let Some(last) = out.last_mut().filter(|l| l.2 == 0) {
+        last.2 = lines.len() + 1;
+    }
+    out
+}
+
+/// The trimmed, non-empty items of a comma-separated list cell or line.
+pub(crate) fn comma_list(text: &str) -> impl Iterator<Item = &str> {
+    text.split(',').map(str::trim).filter(|s| !s.is_empty())
+}
+
 /// Every fenced block whose opening fence lies in `[from, to)` (1-based).
 pub fn fences_in(lines: &[&str], from: usize, to: usize) -> Vec<Fence> {
     let mut out = Vec::new();
@@ -267,8 +304,8 @@ pub fn blocks_in(lines: &[&str], from: usize, to: usize) -> Vec<Block> {
 }
 
 /// Line numbers in `[from, to)` that are not inside a fenced block (the
-/// fence lines themselves excluded): where `Clause:`, `Returns:`, `Pre:`,
-/// and `Post:` lines may be read (FR-071-CON-1: fence interiors are opaque).
+/// fence lines themselves excluded): where `Clause:`, `Returns:`, `Requires:`,
+/// and `Ensures:` lines may be read (FR-071-CON-1: fence interiors are opaque).
 pub fn lines_outside_fences(lines: &[&str], from: usize, to: usize) -> Vec<usize> {
     let fences = fences_in(lines, from, to);
     (from..to.min(lines.len() + 1))

@@ -78,13 +78,22 @@ Invariants:
   more backticks or tildes at column 1, closed by a run of the same character
   at least as long; an unterminated fence is `semantic.clause-fence-unterminated`
   at the opening line.
-- The fence language tag SHALL be the clause `language`. If the tag is
-  missing, then the engine SHALL emit `semantic.clause-language-missing` at
-  the fence. If the tag is outside the `ClauseLanguage` pattern (`tla`),
-  then the engine SHALL emit `semantic.clause-language-invalid`. If the tag
-  is `sysml`, `fretish`, or namespaced (`acme:tla`), then the engine SHALL
-  extract the clause and emit the advisory `semantic.clause-language-unchecked`.
-  `ocl` extracts with no advisory.
+- The engine SHALL take the fence language tag as the clause `language`.
+- If the tag is missing, then the engine SHALL emit
+  `semantic.clause-language-missing` at the fence.
+- If the tag is outside the `ClauseLanguage` pattern of the pinned
+  semantic-core version, then the engine SHALL emit
+  `semantic.clause-language-invalid` at the fence.
+- When the tag is `quire` under a semantic-core version that admits it, the
+  engine SHALL extract the clause with no advisory.
+- When the tag is `ocl`, `sysml`, `fretish`, or namespaced such as
+  `acme:tla`, the engine SHALL extract the clause, emit the advisory
+  `semantic.clause-language-unchecked`, and mark the kind lossy, under every
+  semantic-core version.
+- `quire` is the only checked clause language. `tla` is outside every
+  version's `ClauseLanguage` pattern; `quire` is outside the `0.1.0` pattern,
+  so a `0.1.0` module has no checked language.
+- The engine SHALL NOT check clause text in any language (FR-071-CON-1).
 - If a second clause carries an id already declared under `## Invariants`,
   then the engine SHALL emit `semantic.duplicate-clause-id` at the second
   heading. If a clause is declared both by a fence and by a
@@ -101,10 +110,12 @@ Operations:
   heading) SHALL own an optional table with the header
   `Param | Type | Multiplicity | Constraints` (cells mapped by FR-070; a
   `unit` on `Returns` is `agent-ix.semantic-core.UNIT_ON_RETURNS`), an
-  optional `Returns: <Type>[<mult>]` line, and optional `Pre:` and `Post:`
-  lines each naming one or more comma-separated clause ids of the same
-  artifact's `## Invariants`.
-- If a `Pre:` or `Post:` id names no invariant clause, then the engine SHALL
+  optional `Returns: <Type>[<mult>]` line, and optional `Requires:` and
+  `Ensures:` lines each naming one or more comma-separated clause ids of the
+  same artifact's `## Invariants`. `Requires:` fills the operation's `pre`
+  and `Ensures:` its `post`. No other line key names a contract: a `Pre:` or
+  `Post:` line is prose and fills nothing.
+- If a `Requires:` or `Ensures:` id names no invariant clause, then the engine SHALL
   emit `semantic.dangling-clause-ref` at that line. If a second operation
   carries a name already declared, then the engine SHALL emit
   `semantic.duplicate-operation` at the second heading.
@@ -123,8 +134,9 @@ General:
   three leading spaces, closed by a run of the same character at least as
   long), proven by agreement on every fixture, leaving the
   [FR-005](./FR-005-parse-document-api.md) document shape unchanged.
-- The engine SHALL read `Clause:`, `Returns:`, `Pre:`, and `Post:` lines
-  outside fences only; a second `Returns:`, `Pre:`, or `Post:` line, or a
+- The engine SHALL read `Clause:`, `Returns:`, `Requires:`, and `Ensures:`
+  lines outside fences only; a second `Returns:`, `Requires:`, or `Ensures:`
+  line, or a
   second parameter table under one operation, is
   `semantic.duplicate-operation-line`.
 
@@ -140,12 +152,14 @@ General:
 | ID | Criteria | Verification |
 |----|----------|--------------|
 | FR-071-AC-1 | The vendored `operations.md` extracts to the `clauses`, `operations`, and `clauseText` of `operations.expected.json`, and `config-version.table.md` extracts its `immutable` clause with the span recorded in `config-version.expected.json`; every `clauseText` value equals the fence body byte-for-byte. | Test |
-| FR-071-AC-2 | The `fence-no-language`, `fence-bare-unknown`, `fence-sysml-advisory`, `fence-fretish-advisory`, and `fence-namespaced-advisory` cases of `operations-cases.json` yield the recorded code, severity, and fence locus; `ocl` yields no advisory. | Test |
+| FR-071-AC-2 | The six `fence-` cases of `operations-cases.json` (semantic-core `0.2.0`), `fence-ocl-carried` among them, yield the recorded code, severity, column, message, and fence locus, and the recorded `clauses`, `clauseText`, and clause availability where present; `quire` yields no advisory. | Test |
 | FR-071-AC-3 | `duplicate-clause-id` fails at the second heading, `clause-id-not-identifier` at the heading, `inline-and-external` at the second occurrence; an ownerless fence, a bodiless heading, a heading with two fences, an unterminated fence, and an external-only `Clause:` line each yield their named code at the named locus. | Test |
-| FR-071-AC-4 | `dangling-post` fails at the `Post:` line with `semantic.dangling-clause-ref`, `duplicate-operation` at the second heading, a non-`Identifier` operation heading with `semantic.operation-name-not-identifier`; `Pre: a, b` resolves both ids; an operation without a table yields `params: []`. | Test |
+| FR-071-AC-4 | `dangling-ensures` fails at the `Ensures:` line with `semantic.dangling-clause-ref`, `duplicate-operation` at the second heading, a non-`Identifier` operation heading with `semantic.operation-name-not-identifier`; `Requires: a, b` resolves both ids into `pre`; an operation without a table yields `params: []`. | Test |
 | FR-071-AC-5 | Every produced `ClauseRef` and `OperationDecl` validates against the vendored schemas; an artifact without the sections reports both kinds `not_applicable`; a section with one erroring entry reports that kind `unavailable` (`entry-errors`) with no partial array. | Test |
 | FR-071-AC-6 | For generated fence bodies of arbitrary UTF-8 text (backticks, tilde fences, longer closing runs, CRLF, nested shorter fences), `clauseText` equals the body bytes and the span's `startLine`, `endLine`, and `endColumn` match the fence lines. | Test |
 | FR-071-AC-7 | With no caller-supplied `sourceIdentity`, spans carry `ix://local/<scope>/spec` and one `semantic.source-identity-defaulted` advisory per document; with one supplied, spans carry it and no advisory. | Test |
+| FR-071-AC-8 | A `quire` fence under `0.2.0` extracts with no diagnostic and the kind available and not lossy; an `ocl` fence under `0.2.0` and under `0.1.0` extracts with only the advisory `semantic.clause-language-unchecked` at the fence, its body carried verbatim, and the kind lossy; a `quire` fence under `0.1.0` is `semantic.clause-language-invalid`. | Test |
+| FR-071-AC-9 | The `fence-quire-invalid` case of `clause-language-0.1.0-cases.json` (semantic-core `0.1.0`) yields `semantic.clause-language-invalid` at the fence, column 1, with the recorded message, empty `clauseText`, and the clause kind unavailable with reason `entry-errors` and not lossy. | Test |
 
 ## Dependencies
 
