@@ -9,6 +9,11 @@ bumps; once 1.0 ships, semver is strict.
 
 ### Added
 
+- **Operation and frame extraction with `Pre:` / `Post:` lines (#431).**
+  Under `## Operations`, `Pre:` fills an operation's `pre` and `Post:` its
+  `post`; under the `effect-frames` mapping token, `Modifies:`, `Creates:`
+  and `Deletes:` lines yield `operationFrames` entries carrying `pre` and
+  `post` id lists.
 - **Object type `construct` declarations carried through loading (#445).**
   `CompiledArchetype::construct()` returns an object type's `construct`
   declaration as raw `serde_json::Value`, unchanged; `None` when undeclared.

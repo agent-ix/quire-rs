@@ -432,7 +432,7 @@
       }
     },
     "clauseText": {
-      "inv": "Clause: ./x.md#inv\nRequires: nothing"
+      "inv": "Clause: ./x.md#inv\nPre: nothing"
     },
     "clauses": [
       {
@@ -454,7 +454,7 @@
         "code": "semantic.duplicate-operation-line",
         "column": 1,
         "line": 22,
-        "message": "operation op: a second `Requires:` line",
+        "message": "operation op: a second `Pre:` line",
         "severity": "error"
       }
     ],

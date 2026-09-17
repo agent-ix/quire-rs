@@ -154,7 +154,7 @@
         "available"
       ],
       "input": {
-        "markdown": "---\nid: FR-901\ntitle: Operations\nobject: entity\ntype: FR\n---\n\n# FR-901: Operations\n\n## Properties\n\n| Field | Type | Multiplicity | Constraints |\n|-------|------|--------------|-------------|\n| id | UUID | 1 | identity |\n\n## Invariants\n\n### notArchived\n\n```quire\nnot (self.summary = \"archived\")\n```\n\n### archived\n\n```quire\nresult.summary = \"archived\"\n```\n\n## Operations\n\n### archive\n\n| Param | Type | Multiplicity | Constraints |\n|-------|------|--------------|-------------|\n| reason | String | 1 | nonEmpty |\n| delay | Duration [ms] | 0..1 | |\n\nReturns: ConfigVersion[1]\nRequires: notArchived\nEnsures: archived\n",
+        "markdown": "---\nid: FR-901\ntitle: Operations\nobject: entity\ntype: FR\n---\n\n# FR-901: Operations\n\n## Properties\n\n| Field | Type | Multiplicity | Constraints |\n|-------|------|--------------|-------------|\n| id | UUID | 1 | identity |\n\n## Invariants\n\n### notArchived\n\n```quire\nnot (self.summary = \"archived\")\n```\n\n### archived\n\n```quire\nresult.summary = \"archived\"\n```\n\n## Operations\n\n### archive\n\n| Param | Type | Multiplicity | Constraints |\n|-------|------|--------------|-------------|\n| reason | String | 1 | nonEmpty |\n| delay | Duration [ms] | 0..1 | |\n\nReturns: ConfigVersion[1]\nPre: notArchived\nPost: archived\n",
         "module": {
           "contractVersion": "1.0.0",
           "semanticCore": "0.2.0",
@@ -961,7 +961,7 @@
         "TC-1648"
       ],
       "input": {
-        "markdown": "---\nid: FR-901\ntitle: Operations\nobject: entity\ntype: FR\n---\n\n# FR-901: Operations\n\n## Properties\n\n| Field | Type | Multiplicity | Constraints |\n|-------|------|--------------|-------------|\n| id | UUID | 1 | identity |\n\n## Invariants\n\n### notArchived\n\n```ocl\ncontext Artifact inv notArchived: self.summary <> 'archived'\n```\n\n### archived\n\n```ocl\ncontext Artifact::archive() post: result.summary = 'archived'\n```\n\n## Operations\n\n### archive\n\n| Param | Type | Multiplicity | Constraints |\n|-------|------|--------------|-------------|\n| reason | String | 1 | nonEmpty |\n| delay | Duration [ms] | 0..1 | |\n\nReturns: ConfigVersion[1]\nRequires: notArchived\nEnsures: archived\n",
+        "markdown": "---\nid: FR-901\ntitle: Operations\nobject: entity\ntype: FR\n---\n\n# FR-901: Operations\n\n## Properties\n\n| Field | Type | Multiplicity | Constraints |\n|-------|------|--------------|-------------|\n| id | UUID | 1 | identity |\n\n## Invariants\n\n### notArchived\n\n```ocl\ncontext Artifact inv notArchived: self.summary <> 'archived'\n```\n\n### archived\n\n```ocl\ncontext Artifact::archive() post: result.summary = 'archived'\n```\n\n## Operations\n\n### archive\n\n| Param | Type | Multiplicity | Constraints |\n|-------|------|--------------|-------------|\n| reason | String | 1 | nonEmpty |\n| delay | Duration [ms] | 0..1 | |\n\nReturns: ConfigVersion[1]\nPre: notArchived\nPost: archived\n",
         "module": {
           "contractVersion": "1.0.0",
           "semanticCore": "0.1.0",
@@ -1159,7 +1159,7 @@
         "TC-1630"
       ],
       "input": {
-        "markdown": "---\nid: FR-900\ntitle: Thing\nobject: entity\n---\n# FR-900\n\n## Invariants\n\n### inv\n\n```quire\nClause: ./x.md#inv\nRequires: nothing\n```\n\n## Operations\n\n### op\n\nRequires: inv\nRequires: inv\n",
+        "markdown": "---\nid: FR-900\ntitle: Thing\nobject: entity\n---\n# FR-900\n\n## Invariants\n\n### inv\n\n```quire\nClause: ./x.md#inv\nPre: nothing\n```\n\n## Operations\n\n### op\n\nPre: inv\nPre: inv\n",
         "module": {
           "contractVersion": "1.0.0",
           "semanticCore": "0.2.0",

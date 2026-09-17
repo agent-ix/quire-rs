@@ -370,8 +370,8 @@ pub struct FieldFeatureDecl {
 #[serde(rename_all = "camelCase")]
 pub struct OperationFrameDecl {
     pub operation: String,
-    pub requires: Vec<String>,
-    pub ensures: Vec<String>,
+    pub pre: Vec<String>,
+    pub post: Vec<String>,
     pub modifies: Vec<String>,
     pub creates: Vec<String>,
     pub deletes: Vec<String>,

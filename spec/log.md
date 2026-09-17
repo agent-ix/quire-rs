@@ -7,6 +7,17 @@ description: "Chronological log of structural changes to this bundle."
 
 ## History
 
+* **2026-09-17** — **CR-174** (#431): operation contract lines are `Pre:`
+  and `Post:` (the OCL, VDM, Z and SysML terms), superseding the contract
+  line keywords of CR-163.
+  [FR-071](./functional/FR-071-clause-and-operation-extraction.md) reads
+  `Pre:` into `pre` and `Post:` into `post`;
+  [FR-075](./functional/FR-075-model-feature-extraction.md) `operationFrames`
+  entries carry `pre` and `post` id lists (`semantic-v1` output schema).
+  The quoin `operations.md` and `operations-cases.json` fixtures are
+  re-vendored from `agent-ix/quoin` PR #560 (`dangling-post`, locus
+  `post-line`). TC-1625, TC-1842.
+
 * **2026-09-17** — **CR-171** (#445): [FR-031](./functional/FR-031-unified-archetype-shape.md)
   carries an archetype's `construct` (declared on object types) as-is. The
   vendored `module-manifest.schema.json` is re-vendored from
