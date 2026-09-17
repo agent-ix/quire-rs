@@ -280,9 +280,11 @@ Feature order:
   its `Kind`. A row naming a declaration of the other kind is
   `semantic.feature-kind-mismatch` at the row; a row naming neither is
   `semantic.unknown-feature` at the row.
-- Each declared field and operation SHALL have a row; one without is
-  `semantic.missing-feature` at the table's header line. A kind whose
-  availability is `unavailable` is not checked.
+- Each declared field and operation SHALL have a row; one with no row of
+  either `Kind` is `semantic.missing-feature` at the table's header line, so
+  a row of the wrong kind yields only `semantic.feature-kind-mismatch`.
+- A kind whose availability is `unavailable` is not checked: neither its
+  declarations nor any row whose `Kind`, or the other `Kind`, it is.
 
 General:
 
@@ -316,7 +318,7 @@ General:
 | FR-075-AC-12 | Under declared locators, a `part`, `port`, `connection`, and `allocation` table each extract to their typed entry with resolved `SemanticId`s, `TypeRef`s, multiplicities, direction, and row span; an empty end multiplicity cell, or end multiplicity columns the locator omits, give no end `multiplicity`; an allocation `Source` of `<id>/<member>` extracts; own-package `ix://` and imported identities resolve, and a non-imported package yields `semantic.unknown-reference`; a name no bundle artifact carries yields `semantic.unknown-reference`, a bundle with no artifacts lowers it with the advisory `semantic.unresolved-target`, and a failing row carries no advisory; a reference to an artifact of an object type the cell does not admit, an allocation `Source` `<id>/<member>` whose `<id>` is not an `interface`, and a part `Owner` naming the part itself each yield `semantic.reference-kind-mismatch`; a record holding more than one systems-model record makes `declaration_record()` return an error; an unknown port direction, an unknown connection direction, a hyphenated id, an empty table (at its header), and `<id>/<member>` in an `Owner` or a connection end each yield `semantic.invalid-model-cell`; a second row yields `semantic.duplicate-model-entry`; a second systems-model table yields `semantic.duplicate-section`; each error sets `availability.model` `unavailable` with no `model`; a locator's match key, not its columns, names the table it declares; an undeclared `Source \| Target` table is refused as `allocation`. | Test |
 | FR-075-AC-13 | Under the spec-objects-architecture module (agent-ix/spec-objects-architecture#11 at `4215aad`), `validate_document` of each of the `part`, `port`, `connection`, and `allocation` skeletons yields zero errors, and each declaration record carries exactly the keys its data schema requires. | Test |
 | FR-075-AC-14 | Under a declared `Feature \| Kind` locator, an artifact with one field and two operations whose `Features` table interleaves them yields `model.featureOrder` in row order with row spans; its declaration record carries `featureOrder` as the names in row order and satisfies spec-objects-architecture's `Interface.json`. | Test |
-| FR-075-AC-15 | A `Features` row naming no declared feature yields `semantic.unknown-feature`, a row whose `Kind` is not the declared kind `semantic.feature-kind-mismatch`, an unknown `Kind` `semantic.invalid-model-cell`, and a repeated `Feature` `semantic.duplicate-model-entry`, each at its row; a declared feature with no row yields `semantic.missing-feature` at the table header; each sets `availability.model` `unavailable` with no `model`. | Test |
+| FR-075-AC-15 | A `Features` row naming no declared feature yields `semantic.unknown-feature`, a row whose `Kind` is not the declared kind `semantic.feature-kind-mismatch`, an unknown `Kind` `semantic.invalid-model-cell`, and a repeated `Feature` `semantic.duplicate-model-entry`, each at its row; a declared feature with no row yields `semantic.missing-feature` at the table header, and a wrong-kind row yields no `semantic.missing-feature`; each sets `availability.model` `unavailable` with no `model`. When `operations` is `unavailable`, rows naming operations as either kind and operations without rows yield no feature diagnostic. | Test |
 
 ## Dependencies
 

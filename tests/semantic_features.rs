@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use ix_trace_rs::trace;
 use jsonschema::JSONSchema;
 use quire_rs::semantic::python_entry::extract_semantic_json;
-use quire_rs::semantic::{SemanticExtraction, SEMANTIC_V1_SCHEMA};
+use quire_rs::semantic::{FeatureKind, SemanticExtraction, SEMANTIC_V1_SCHEMA};
 use quire_rs::Registry;
 use serde_json::{json, Value};
 
@@ -196,4 +196,95 @@ fn features_table_refuses_rows_that_disagree_with_the_declarations() {
         ),
         "{value:#}"
     );
+
+    // A dropped row for a declared field, and a field row naming nothing.
+    let md = interface("| prepare_ip_query | operation |\n| score_ip_batch | operation |\n");
+    let (_, value) = extract(&md);
+    assert!(
+        refused(
+            &value,
+            "semantic.missing-feature",
+            line_of(&md, "| Feature | Kind")
+        ),
+        "{value:#}"
+    );
+    let md = interface(&format!("{ORDER}| x | field |\n"));
+    let (_, value) = extract(&md);
+    assert!(
+        refused(
+            &value,
+            "semantic.unknown-feature",
+            line_of(&md, "| x | field")
+        ),
+        "{value:#}"
+    );
+
+    // A Feature cell that is not an Identifier.
+    let md = interface(&format!("{ORDER}| 1bad | field |\n"));
+    let (_, value) = extract(&md);
+    assert!(
+        refused(
+            &value,
+            "semantic.invalid-model-cell",
+            line_of(&md, "| 1bad")
+        ),
+        "{value:#}"
+    );
+
+    // A kind mismatch is not also a missing feature.
+    let md = interface(&ORDER.replace("codec_kind | field", "codec_kind | operation"));
+    let (_, value) = extract(&md);
+    let codes = feature_codes(&value);
+    assert_eq!(codes, ["semantic.feature-kind-mismatch"], "{value:#}");
+}
+
+/// The Features-check diagnostic codes of `record`.
+fn feature_codes(record: &Value) -> Vec<&str> {
+    record["diagnostics"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|d| d["code"].as_str())
+        .filter(|c| {
+            matches!(
+                *c,
+                "semantic.unknown-feature"
+                    | "semantic.feature-kind-mismatch"
+                    | "semantic.missing-feature"
+            )
+        })
+        .collect()
+}
+
+#[trace("TC-1875", "FR-075-AC-15")]
+#[test]
+fn features_rows_of_an_unavailable_kind_are_not_checked() {
+    // A dangling `Requires:` makes `operations` unavailable. Rows naming
+    // operations, as either kind, and the operations without rows, are not
+    // checked; the field rows still are.
+    let md = interface(
+        "| codec_kind | field |\n| prepare_ip_query | field |\n| rescore | operation |\n",
+    )
+    .replace(
+        "### prepare_ip_query\n\n",
+        "### prepare_ip_query\n\nRequires: nowhere\n\n",
+    );
+    let (_, value) = extract(&md);
+    assert_eq!(
+        value["availability"]["operations"]["state"], "unavailable",
+        "{value:#}"
+    );
+    assert!(feature_codes(&value).is_empty(), "{value:#}");
+}
+
+#[trace("TC-1874", "FR-075-AC-14")]
+#[test]
+fn feature_kind_spelling_agrees_with_serde() {
+    for kind in [FeatureKind::Field, FeatureKind::Operation] {
+        assert_eq!(serde_json::to_value(kind).unwrap(), json!(kind.as_str()));
+        assert_eq!(kind.as_str().parse::<FeatureKind>().unwrap(), kind);
+        assert_eq!(kind.to_string(), kind.as_str());
+        assert_eq!(kind.other().other(), kind);
+        assert_ne!(kind.other(), kind);
+    }
 }

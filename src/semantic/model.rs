@@ -570,7 +570,9 @@ pub struct MemberDecl {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum FeatureKind {
+    /// A declared field (FR-070 `fields`).
     Field,
+    /// A declared operation (FR-071 `operations`).
     Operation,
 }
 
@@ -582,20 +584,34 @@ pub struct UnknownFeatureKind(pub String);
 impl std::str::FromStr for FeatureKind {
     type Err = UnknownFeatureKind;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "field" => Ok(Self::Field),
-            "operation" => Ok(Self::Operation),
-            other => Err(UnknownFeatureKind(other.to_string())),
-        }
+        [Self::Field, Self::Operation]
+            .into_iter()
+            .find(|kind| kind.as_str() == s)
+            .ok_or_else(|| UnknownFeatureKind(s.to_string()))
     }
 }
 
 impl FeatureKind {
-    fn name(self) -> &'static str {
+    /// The `Kind` cell spelling, which is also the serialized form.
+    pub fn as_str(self) -> &'static str {
         match self {
             Self::Field => "field",
             Self::Operation => "operation",
         }
+    }
+
+    /// The other kind.
+    pub fn other(self) -> Self {
+        match self {
+            Self::Field => Self::Operation,
+            Self::Operation => Self::Field,
+        }
+    }
+}
+
+impl std::fmt::Display for FeatureKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
     }
 }
 
@@ -603,8 +619,11 @@ impl FeatureKind {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FeatureOrderDecl {
+    /// The `Feature` cell: the field or operation name.
     pub name: String,
+    /// The `Kind` cell.
     pub kind: FeatureKind,
+    /// The span of the row.
     pub source_span: SourceLocus,
 }
 
@@ -1328,7 +1347,8 @@ fn check_transitions(refs: ModelRefs<'_>, states_failed: bool, out: &mut ModelOu
 
 /// `Features` reader rules: each row names a declared field or operation of
 /// the artifact, of its `Kind`, and each declared field and operation has a
-/// row. A kind whose declarations are unavailable is not checked. Runs only
+/// row. A row whose kind, or whose other kind, is unavailable is not checked,
+/// nor are the declarations of an unavailable kind. Runs only
 /// when the table itself read without error.
 fn check_features(refs: ModelRefs<'_>, out: &mut ModelOutcome) {
     let (Some(order), Some(header)) = (&out.model.feature_order, out.features_line) else {
@@ -1347,19 +1367,19 @@ fn check_features(refs: ModelRefs<'_>, out: &mut ModelOutcome) {
         if names.contains(&entry.name) {
             continue;
         }
-        let other = match entry.kind {
-            FeatureKind::Field => FeatureKind::Operation,
-            FeatureKind::Operation => FeatureKind::Field,
+        let other = entry.kind.other();
+        // The other kind is unavailable: the row cannot be told apart from a
+        // mismatch, so it is not checked.
+        let Some(other_names) = declared(other) else {
+            continue;
         };
-        if declared(other).is_some_and(|n| n.contains(&entry.name)) {
+        if other_names.contains(&entry.name) {
             found.push(err(
                 "semantic.feature-kind-mismatch",
                 line,
                 format!(
-                    "feature {} is declared as a {}, not a {}",
-                    entry.name,
-                    other.name(),
-                    entry.kind.name()
+                    "feature {} is declared as a {other}, not a {}",
+                    entry.name, entry.kind
                 ),
             ));
         } else {
@@ -1368,19 +1388,20 @@ fn check_features(refs: ModelRefs<'_>, out: &mut ModelOutcome) {
                 line,
                 format!(
                     "feature {} names no {} of this artifact",
-                    entry.name,
-                    entry.kind.name()
+                    entry.name, entry.kind
                 ),
             ));
         }
     }
+    // A declaration with a row of either kind is not missing: a row of the
+    // wrong kind is already `feature-kind-mismatch`.
     for kind in [FeatureKind::Field, FeatureKind::Operation] {
         for name in declared(kind).into_iter().flatten() {
-            if !order.iter().any(|e| e.kind == kind && &e.name == name) {
+            if !order.iter().any(|e| &e.name == name) {
                 found.push(err(
                     "semantic.missing-feature",
                     header,
-                    format!("{} {name} has no row in the Features table", kind.name()),
+                    format!("{kind} {name} has no row in the Features table"),
                 ));
             }
         }
