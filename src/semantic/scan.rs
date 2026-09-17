@@ -304,8 +304,8 @@ pub fn blocks_in(lines: &[&str], from: usize, to: usize) -> Vec<Block> {
 }
 
 /// Line numbers in `[from, to)` that are not inside a fenced block (the
-/// fence lines themselves excluded): where `Clause:`, `Returns:`, `Requires:`,
-/// and `Ensures:` lines may be read (FR-071-CON-1: fence interiors are opaque).
+/// fence lines themselves excluded): where `Clause:`, `Returns:`, `Pre:`,
+/// and `Post:` lines may be read (FR-071-CON-1: fence interiors are opaque).
 pub fn lines_outside_fences(lines: &[&str], from: usize, to: usize) -> Vec<usize> {
     let fences = fences_in(lines, from, to);
     (from..to.min(lines.len() + 1))

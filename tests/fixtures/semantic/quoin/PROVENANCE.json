@@ -81,9 +81,9 @@
     },
     "mapping/operations-cases.json": {
       "repository": "agent-ix/quoin",
-      "revision": "be01d6ef1478a7273144ee89d128b6201e7f8707",
+      "revision": "c1faab318ad7f56efc916c4c7c542c23ad7b6e76",
       "path": "tests/fixtures/semantic-module/mapping/operations-cases.json",
-      "sha256": "sha256:18edef1374a440aca485414f777c56af1b1b82fb68f48215a29c24bc74844405"
+      "sha256": "sha256:9a98619f8c9d91d07ca8015e16e65f450f22ee0635dc0ba8c79b024112147cb8"
     },
     "mapping/operations.expected.json": {
       "repository": "agent-ix/quoin",
@@ -93,9 +93,9 @@
     },
     "mapping/operations.md": {
       "repository": "agent-ix/quoin",
-      "revision": "be01d6ef1478a7273144ee89d128b6201e7f8707",
+      "revision": "c1faab318ad7f56efc916c4c7c542c23ad7b6e76",
       "path": "tests/fixtures/semantic-module/mapping/operations.md",
-      "sha256": "sha256:a0bca519b8f86e2367affa2e977450ee921d49956bff831204c784537e065e8f"
+      "sha256": "sha256:f142e750e3acf07d1fb04e21548961ca3dfb6bad4a59b4914770b49bd7da11e9"
     },
     "mapping/relationships-cases.json": {
       "repository": "agent-ix/quoin",

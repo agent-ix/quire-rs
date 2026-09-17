@@ -188,7 +188,7 @@ fn expected_line(md: &str, locus: &str) -> usize {
             .nth(1)
             .map(|(i, _)| i + 1)
             .unwrap(),
-        "ensures-line" => case_lines(md, "Ensures:"),
+        "post-line" => case_lines(md, "Post:"),
         "second-occurrence" => case_lines(md, "Clause:"),
         other => panic!("locus {other}"),
     }
@@ -460,11 +460,11 @@ fn structural_cases() {
 }
 
 #[trace("TC-1625", "FR-071-AC-4")]
-// operations: dangling ensures, duplicate operation, non-identifier heading,
-// Requires lists, no-table params.
+// operations: dangling post, duplicate operation, non-identifier heading,
+// Pre lists, no-table params.
 #[test]
 fn operation_cases() {
-    for id in ["dangling-ensures", "duplicate-operation"] {
+    for id in ["dangling-post", "duplicate-operation"] {
         let case = cases(id)
             .into_iter()
             .next()
@@ -474,7 +474,7 @@ fn operation_cases() {
     let ctx = context("o.md");
     let md = artifact(
         "### a\n\n```ocl\nx\n```\n\n### b\n\n```ocl\ny\n```\n",
-        "### not-ok\n\nReturns: String[1]\n\n### fine\n\nRequires: a, b\n",
+        "### not-ok\n\nReturns: String[1]\n\n### fine\n\nPre: a, b\n",
     );
     let clauses = extract_clauses(&md, &ctx);
     let ops = extract_operations(&md, &ctx, clauses.clauses.as_ref().unwrap());
@@ -493,7 +493,7 @@ fn operation_cases() {
     );
     let md = artifact(
         "### a\n\n```ocl\nx\n```\n\n### b\n\n```ocl\ny\n```\n",
-        "### fine\n\nRequires: a, b\nEnsures: b\n",
+        "### fine\n\nPre: a, b\nPost: b\n",
     );
     let clauses = extract_clauses(&md, &ctx);
     let ops = extract_operations(&md, &ctx, clauses.clauses.as_ref().unwrap());

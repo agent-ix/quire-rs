@@ -448,7 +448,7 @@ pub fn extract_operations(
                 }
             }
         }
-        // Returns / Requires / Ensures and the FR-075 frame lines.
+        // Returns / Pre / Post and the FR-075 frame lines.
         let mut returns = None;
         let mut pre = Vec::new();
         let mut post = Vec::new();
@@ -487,13 +487,13 @@ pub fn extract_operations(
                 (OpSlot::Returns, _) => {
                     returns = parse_returns(rest.trim(), l, &name, ctx, &mut diagnostics)
                 }
-                (OpSlot::Requires, _) => {
+                (OpSlot::Pre, _) => {
                     pre = resolve_refs(rest, l, clauses, &mut diagnostics);
-                    frame.requires = ids();
+                    frame.pre = ids();
                 }
-                (OpSlot::Ensures, _) => {
+                (OpSlot::Post, _) => {
                     post = resolve_refs(rest, l, clauses, &mut diagnostics);
-                    frame.ensures = ids();
+                    frame.post = ids();
                 }
                 (OpSlot::Modifies | OpSlot::Creates | OpSlot::Deletes, _) => {
                     let names = frame_names(rest, l, &name, key, &mut diagnostics);
@@ -515,8 +515,8 @@ pub fn extract_operations(
         if frame.declared {
             frames.push(OperationFrameDecl {
                 operation: name.clone(),
-                requires: frame.requires,
-                ensures: frame.ensures,
+                pre: frame.pre,
+                post: frame.post,
                 modifies: frame.modifies,
                 creates: frame.creates,
                 deletes: frame.deletes,
@@ -567,8 +567,8 @@ pub fn extract_operations(
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum OpSlot {
     Returns,
-    Requires,
-    Ensures,
+    Pre,
+    Post,
     Modifies,
     Creates,
     Deletes,
@@ -577,8 +577,8 @@ enum OpSlot {
 /// Every operation line key, its slot, and the FR-075 feature that gates it.
 const OP_LINES: [(&str, OpSlot, Option<ModelFeature>); 6] = [
     ("Returns:", OpSlot::Returns, None),
-    ("Requires:", OpSlot::Requires, None),
-    ("Ensures:", OpSlot::Ensures, None),
+    ("Pre:", OpSlot::Pre, None),
+    ("Post:", OpSlot::Post, None),
     (
         "Modifies:",
         OpSlot::Modifies,
@@ -599,8 +599,8 @@ const OP_LINES: [(&str, OpSlot, Option<ModelFeature>); 6] = [
 #[derive(Default)]
 struct FrameLines {
     declared: bool,
-    requires: Vec<String>,
-    ensures: Vec<String>,
+    pre: Vec<String>,
+    post: Vec<String>,
     modifies: Vec<String>,
     creates: Vec<String>,
     deletes: Vec<String>,

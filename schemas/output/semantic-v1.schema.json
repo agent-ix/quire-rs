@@ -201,11 +201,11 @@
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["operation", "requires", "ensures", "modifies", "creates", "deletes", "sourceSpan"],
+            "required": ["operation", "pre", "post", "modifies", "creates", "deletes", "sourceSpan"],
             "properties": {
               "operation": { "$ref": "#/$defs/identifier" },
-              "requires": { "type": "array", "items": { "type": "string" } },
-              "ensures": { "type": "array", "items": { "type": "string" } },
+              "pre": { "type": "array", "items": { "type": "string" } },
+              "post": { "type": "array", "items": { "type": "string" } },
               "modifies": { "type": "array", "items": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)*$" } },
               "creates": { "type": "array", "items": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)*$" } },
               "deletes": { "type": "array", "items": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)*$" } },

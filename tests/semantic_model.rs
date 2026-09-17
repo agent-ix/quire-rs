@@ -156,8 +156,8 @@ const FRONTMATTER: &str = "---\nid: FR-102\ntitle: PriorityOrder\nobject: entity
 
 const PROPERTIES: &str = "---\nid: FR-102\ntitle: PriorityOrder\nobject: entity\n---\n# FR-102: PriorityOrder\n\n## Properties\n\n| Field | Type | Multiplicity | Constraints | Presence | Subsets | Redefines |\n|---|---|---|---|---|---|---|\n| id | UUID | 1 | identity | required | | |\n| lines | String | 0..* | | | parts, items | |\n| parts | String | 0..* | | | | |\n| label | String | 0..1 | | optional | | name |\n";
 
-fn operations(requires: &str) -> String {
-    format!("---\nid: FR-102\ntitle: PriorityOrder\nobject: entity\n---\n# FR-102: PriorityOrder\n\n## Invariants\n\n### placed\n\n```quire\nx\n```\n\n### shipped\n\n```quire\ny\n```\n\n## Operations\n\n### ship\n\n{requires}\nEnsures: shipped\nModifies: self.status, total\nCreates: Shipment\nDeletes: cart.items\n")
+fn operations(pre: &str) -> String {
+    format!("---\nid: FR-102\ntitle: PriorityOrder\nobject: entity\n---\n# FR-102: PriorityOrder\n\n## Invariants\n\n### placed\n\n```quire\nx\n```\n\n### shipped\n\n```quire\ny\n```\n\n## Operations\n\n### ship\n\n{pre}\nPost: shipped\nModifies: self.status, total\nCreates: Shipment\nDeletes: cart.items\n")
 }
 
 const POPULATION: &str = "---\nid: POP-001\ntitle: Shop Population\nobject: population\n---\n# POP-001: Shop Population\n\n## Members\n\n| Type | Extent |\n|---|---|\n| Order | 0..* |\n| Customer | 1..* |\n";
@@ -236,7 +236,7 @@ fn generalization_and_abstract_from_frontmatter() {
 
     // A refused operation line makes the whole model unavailable, even
     // though the frontmatter features read cleanly.
-    let mixed = operations("Requires: placed")
+    let mixed = operations("Pre: placed")
         .replace("object: entity\n", "object: entity\nabstract: true\n");
     let record = extract(&mixed, &["abstract-types"], json!(null));
     let refusal = diagnostic(&record, "semantic.feature-not-extractable", "effect-frames");
@@ -329,33 +329,27 @@ fn presence_subsets_redefines_columns() {
 #[trace("TC-1842", "FR-075-AC-3")]
 #[test]
 fn operation_contract_and_frame_lines() {
-    let md = operations("Requires: placed");
+    let md = operations("Pre: placed");
     let record = extract(&md, &["effect-frames"], json!(null));
     let op = &record["operations"][0];
     assert_eq!(op["pre"][0]["clauseId"], "placed", "{record:#}");
     assert_eq!(op["post"][0]["clauseId"], "shipped");
     let frame = &record["model"]["operationFrames"][0];
     assert_eq!(frame["operation"], "ship");
-    assert_eq!(frame["requires"], json!(["placed"]));
-    assert_eq!(frame["ensures"], json!(["shipped"]));
+    assert_eq!(frame["pre"], json!(["placed"]));
+    assert_eq!(frame["post"], json!(["shipped"]));
     assert_eq!(frame["modifies"], json!(["self.status", "total"]));
     assert_eq!(frame["creates"], json!(["Shipment"]));
     assert_eq!(frame["deletes"], json!(["cart.items"]));
     assert_span(frame, &md, line_of(&md, "### ship\n"));
     assert_eq!(record["availability"]["model"]["state"], "available");
 
-    // `Requires:` and `Ensures:` are the contract lines; `Pre:` is prose.
-    let md = operations("Pre: placed");
-    let record = extract(&md, &["effect-frames"], json!(null));
-    assert_eq!(record["operations"][0]["pre"], json!([]), "{record:#}");
-    assert_eq!(record["model"]["operationFrames"][0]["requires"], json!([]));
-
-    let md = operations("Requires: placed\nRequires: placed");
+    let md = operations("Pre: placed\nPre: placed");
     let second = md
         .split('\n')
         .collect::<Vec<_>>()
         .iter()
-        .rposition(|l| l.starts_with("Requires:"))
+        .rposition(|l| l.starts_with("Pre:"))
         .unwrap() as u64
         + 1;
     let record = extract(&md, &["effect-frames"], json!(null));
@@ -364,20 +358,20 @@ fn operation_contract_and_frame_lines() {
         "{record:#}"
     );
 
-    let md = operations("Requires: nowhere");
+    let md = operations("Pre: nowhere");
     let record = extract(&md, &["effect-frames"], json!(null));
     assert!(
         has(
             &record,
             "semantic.dangling-clause-ref",
-            line_of(&md, "Requires:")
+            line_of(&md, "Pre:")
         ),
         "{record:#}"
     );
     assert_eq!(record["availability"]["operations"]["state"], "unavailable");
     assert_model_unavailable(&record);
 
-    let md = operations("Requires: placed\nModifies: status");
+    let md = operations("Pre: placed\nModifies: status");
     let record = extract(&md, &["effect-frames"], json!(null));
     let second = md
         .split('\n')
@@ -392,7 +386,7 @@ fn operation_contract_and_frame_lines() {
     );
     assert_model_unavailable(&record);
 
-    let md = operations("Requires: placed").replace("self.status", "self..status");
+    let md = operations("Pre: placed").replace("self.status", "self..status");
     let record = extract(&md, &["effect-frames"], json!(null));
     assert!(
         has(
@@ -584,7 +578,7 @@ fn object_type_sections() {
 #[trace("TC-1845", "FR-075-AC-6")]
 #[test]
 fn undeclared_features_are_refused() {
-    let ops = operations("Requires: placed");
+    let ops = operations("Pre: placed");
     // (document, feature, declaring line, owning kind, section)
     let cases: [(&str, &str, u64, &str, &str); 13] = [
         (

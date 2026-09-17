@@ -7,6 +7,12 @@ bumps; once 1.0 ships, semver is strict.
 
 ## [Unreleased]
 
+### Changed
+
+- **Operation contract lines are `Pre:` / `Post:` (#431).** `Pre:` fills an
+  operation's `pre` and `Post:` its `post`; `operationFrames` entries carry
+  `pre` and `post` id lists.
+
 ### Added
 
 - **Object type `construct` declarations carried through loading (#445).**
