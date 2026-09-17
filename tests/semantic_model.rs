@@ -236,8 +236,8 @@ fn generalization_and_abstract_from_frontmatter() {
 
     // A refused operation line makes the whole model unavailable, even
     // though the frontmatter features read cleanly.
-    let mixed = operations("Pre: placed")
-        .replace("object: entity\n", "object: entity\nabstract: true\n");
+    let mixed =
+        operations("Pre: placed").replace("object: entity\n", "object: entity\nabstract: true\n");
     let record = extract(&mixed, &["abstract-types"], json!(null));
     let refusal = diagnostic(&record, "semantic.feature-not-extractable", "effect-frames");
     assert_eq!(refusal["line"], line_of(&mixed, "Modifies:"));
