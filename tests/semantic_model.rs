@@ -358,6 +358,20 @@ fn operation_contract_and_frame_lines() {
         "{record:#}"
     );
 
+    let md = operations("Pre: placed\nPost: shipped");
+    let second = md
+        .split('\n')
+        .collect::<Vec<_>>()
+        .iter()
+        .rposition(|l| l.starts_with("Post:"))
+        .unwrap() as u64
+        + 1;
+    let record = extract(&md, &["effect-frames"], json!(null));
+    assert!(
+        has(&record, "semantic.duplicate-operation-line", second),
+        "{record:#}"
+    );
+
     let md = operations("Pre: nowhere");
     let record = extract(&md, &["effect-frames"], json!(null));
     assert!(

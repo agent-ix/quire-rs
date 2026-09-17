@@ -8,7 +8,8 @@ description: "Chronological log of structural changes to this bundle."
 ## History
 
 * **2026-09-17** — **CR-174** (#431): operation contract lines are `Pre:`
-  and `Post:` (the OCL, VDM, Z and SysML terms).
+  and `Post:` (the OCL, VDM, Z and SysML terms), superseding the contract
+  line keywords of CR-163.
   [FR-071](./functional/FR-071-clause-and-operation-extraction.md) reads
   `Pre:` into `pre` and `Post:` into `post`;
   [FR-075](./functional/FR-075-model-feature-extraction.md) `operationFrames`
@@ -101,11 +102,14 @@ description: "Chronological log of structural changes to this bundle."
   `semantic-v1` admits `quire` as a clause `language`. FR-075 clauses are
   written in `quire`.
 
-* **2026-09-16** — **CR-163** (#431): [FR-071](./functional/FR-071-clause-and-operation-extraction.md)
-  reads the operation contract lines into `pre` and `post`, matching
-  `agent-ix/quoin` FR-072 (contract lines per CR-174).
+* **2026-09-16** — **CR-163** (#431): operation contract lines are
+  `Requires:` and `Ensures:`, matching `agent-ix/quoin` FR-072 at `195b35d`
+  (quoin PR #546). [FR-071](./functional/FR-071-clause-and-operation-extraction.md)
+  reads them into `pre` and `post`; `Pre:` and `Post:` are prose.
   [FR-075](./functional/FR-075-model-feature-extraction.md) gates frame lines
-  on `effect-frames` only.
+  on `effect-frames` only. The quoin `operations.md` and
+  `operations-cases.json` fixtures are vendored at `195b35d`
+  (`dangling-ensures`, locus `ensures-line`).
 
 * **2026-09-16** — **CR-162** (#431): [FR-069](./functional/FR-069-semantic-module-contract-at-load.md)
   records `semantic.mappings` on `SemanticModule` (AC-12, TC-1848), and
