@@ -259,13 +259,12 @@ fn feature_codes(record: &Value) -> Vec<&str> {
 #[trace("TC-1875", "FR-075-AC-15")]
 #[test]
 fn features_rows_of_an_unavailable_kind_are_not_checked() {
-    // A dangling `Requires:` makes `operations` unavailable. Rows naming
-    // operations, as either kind, and the operations without rows, are not
-    // checked; the field rows still are.
-    let md = interface(
-        "| codec_kind | field |\n| prepare_ip_query | field |\n| rescore | operation |\n",
-    )
-    .replace(
+    // A dangling `Requires:` makes `operations` unavailable. Not checked: a
+    // row whose `Kind` is `operation`, a `field` row naming no declared field
+    // (it may be a mistyped operation), and operations without a row.
+    // Checked: each declared field has a row, so dropping `codec_kind`'s row
+    // is `missing-feature` at the header.
+    let md = interface("| prepare_ip_query | field |\n| rescore | operation |\n").replace(
         "### prepare_ip_query\n\n",
         "### prepare_ip_query\n\nRequires: nowhere\n\n",
     );
@@ -274,7 +273,22 @@ fn features_rows_of_an_unavailable_kind_are_not_checked() {
         value["availability"]["operations"]["state"], "unavailable",
         "{value:#}"
     );
-    assert!(feature_codes(&value).is_empty(), "{value:#}");
+    assert_eq!(
+        feature_codes(&value),
+        ["semantic.missing-feature"],
+        "{value:#}"
+    );
+    let missing = value["diagnostics"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|d| d["code"] == "semantic.missing-feature")
+        .unwrap();
+    assert_eq!(
+        missing["line"].as_u64(),
+        Some(line_of(&md, "| Feature | Kind")),
+        "{value:#}"
+    );
 }
 
 #[trace("TC-1874", "FR-075-AC-14")]
