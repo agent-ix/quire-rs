@@ -66,9 +66,11 @@ as it does today.
 
 - A `SemanticModule` record on the loaded module: `contract_version`,
   `semantic_core`, `package`, `exports`, `imports`, `targets`,
-  `compatibility_posture`, `legacy_forms`. The admitted keys `mappings` and
-  `sweep_report` are Quoin install-time keys; the loader accepts and ignores
-  them.
+  `compatibility_posture`, `legacy_forms`, and `mappings` (the named
+  representation mappings, whose model feature tokens gate
+  [FR-075](./FR-075-model-feature-extraction.md) extraction). The admitted key
+  `sweep_report` is a Quoin install-time key; the loader accepts and ignores
+  it.
 - Per object type: the resolved data schema, its lowercase SHA-256 digest
   over the shipped bytes, and a compiled validator over the extracted record.
   This `(module, archetype, schema_digest)` tuple is the one

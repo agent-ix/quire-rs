@@ -57,8 +57,9 @@ impl SemanticFailure {
     }
 }
 
-/// The loaded `semantic` block (FR-069 Outputs). `mappings` and
-/// `sweep_report` are Quoin install-time keys: accepted, not recorded.
+/// The loaded `semantic` block (FR-069 Outputs). `mappings` names the
+/// representation mappings and gates FR-075 features; `sweep_report` is a
+/// Quoin install-time key: accepted, not recorded.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SemanticModule {
     pub contract_version: String,
@@ -69,6 +70,8 @@ pub struct SemanticModule {
     pub targets: Vec<String>,
     pub compatibility_posture: String,
     pub legacy_forms: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub mappings: Vec<String>,
 }
 
 impl SemanticModule {
@@ -258,6 +261,7 @@ pub fn read_semantic_block(
     };
     let exports = string_list("exports");
     let targets = string_list("targets");
+    let mappings = string_list("mappings");
     let package = map["package"].as_str().unwrap_or_default().to_string();
     // 4. exports name declared object types.
     for name in &exports {
@@ -330,5 +334,6 @@ pub fn read_semantic_block(
             .and_then(Value::as_str)
             .unwrap_or("warning")
             .to_string(),
+        mappings,
     })
 }

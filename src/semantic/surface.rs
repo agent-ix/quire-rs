@@ -10,6 +10,7 @@ use serde_json::Value;
 use super::clauses::{extract_clauses, extract_operations, ClauseRef, OperationDecl};
 use super::context::SemanticContext;
 use super::decl::FieldDecl;
+use super::model::{extract_model, model_availability, ModelDeclarations, ModelRefs};
 use super::properties::{extract_fields, FieldsForm};
 use super::{AvailabilityState, KindAvailability, SemanticDiagnostic};
 
@@ -21,6 +22,9 @@ pub struct Availability {
     pub fields: KindAvailability,
     pub clauses: KindAvailability,
     pub operations: KindAvailability,
+    /// FR-075 frontmatter and table features; present when any is declared.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model: Option<KindAvailability>,
 }
 
 /// The FR-072 record. Optional keys are skipped when absent so the shape
@@ -44,6 +48,8 @@ pub struct SemanticExtraction {
     pub clause_text: Option<BTreeMap<String, String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub operations: Option<Vec<OperationDecl>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model: Option<ModelDeclarations>,
     pub availability: Availability,
     pub diagnostics: Vec<SemanticDiagnostic>,
 }
@@ -102,11 +108,38 @@ pub fn extract_semantic(
     let fields = extract_fields(raw, ctx);
     let clauses = extract_clauses(raw, ctx);
     let operations = extract_operations(raw, ctx, clauses.clauses.as_deref().unwrap_or(&[]));
+    let clause_ids: Option<Vec<String>> =
+        (clauses.availability.state != AvailabilityState::Unavailable).then(|| {
+            clauses
+                .clauses
+                .iter()
+                .flatten()
+                .map(|c| c.clause_id.clone())
+                .collect()
+        });
+    let operation_names: Option<Vec<String>> =
+        (operations.availability.state != AvailabilityState::Unavailable).then(|| {
+            operations
+                .operations
+                .iter()
+                .flatten()
+                .map(|o| o.name.clone())
+                .collect()
+        });
+    let model_outcome = extract_model(
+        raw,
+        ctx,
+        ModelRefs {
+            clause_ids: clause_ids.as_deref(),
+            operation_names: operation_names.as_deref(),
+        },
+    );
 
     let mut diagnostics: Vec<SemanticDiagnostic> = Vec::new();
     diagnostics.extend(fields.diagnostics.iter().cloned());
     diagnostics.extend(clauses.diagnostics.iter().cloned());
     diagnostics.extend(operations.diagnostics.iter().cloned());
+    diagnostics.extend(model_outcome.diagnostics.iter().cloned());
     diagnostics.sort_by(|a, b| {
         (a.line.unwrap_or(0), a.column.unwrap_or(0), a.code.as_str()).cmp(&(
             b.line.unwrap_or(0),
@@ -142,7 +175,28 @@ pub fn extract_semantic(
             required.operations,
             "Operations",
         ),
+        model: model_availability(&model_outcome).map(|mut a| {
+            if declared_lossy {
+                a.lossy = true;
+            }
+            a
+        }),
     };
+    let mut model = if availability
+        .model
+        .as_ref()
+        .is_some_and(|a| a.state == AvailabilityState::Unavailable)
+    {
+        ModelDeclarations::default()
+    } else {
+        model_outcome.model
+    };
+    if !fields.field_features.is_empty() {
+        model.field_features = Some(fields.field_features);
+    }
+    if !operations.frames.is_empty() {
+        model.operation_frames = Some(operations.frames);
+    }
     SemanticExtraction {
         format_version: SEMANTIC_FORMAT_VERSION,
         contract_version: ctx.module.contract_version.clone(),
@@ -160,6 +214,7 @@ pub fn extract_semantic(
             Some(clauses.clause_text)
         },
         operations: operations.operations,
+        model: (!model.is_empty()).then_some(model),
         availability,
         diagnostics,
     }

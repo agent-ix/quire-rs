@@ -7,6 +7,14 @@ description: "Chronological log of structural changes to this bundle."
 
 ## History
 
+* **2026-09-16** — **FR-075** (#431): model feature extraction. The FR-072
+  record carries an optional `model` with generalization, abstract types,
+  field presence/subsetting/redefinition, operation contracts and effect
+  frames, populations, and the object-type sections, each with a source span
+  and each gated by the module manifest (`semantic.mappings` tokens and
+  `table_row` locators). An undeclared feature is refused with
+  `semantic.feature-not-extractable`. TC-1840..TC-1846.
+
 * **2026-09-09** — **CR-160**: accepted and implemented ADR-0012 after the
   owner approved the maintained-engine architecture. The product and fuzz
   manifests now alias exact `yaml_serde 0.10.7`; the root lock selects

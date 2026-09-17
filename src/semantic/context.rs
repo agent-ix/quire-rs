@@ -6,6 +6,7 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 
 use super::contract::SemanticModule;
+use super::model::DeclaredTables;
 
 /// One resolvable declaration in the bundle: its artifact `id` and every
 /// name a `Type` cell may use for it (id, title, frontmatter `name`).
@@ -97,6 +98,8 @@ pub struct SemanticContext {
     /// `ix://local/<scope>/spec` when `source_identity` is absent.
     pub scope: Option<String>,
     pub bundle: BundleIndex,
+    /// The object type's `table_row` locators (FR-075 table gating).
+    pub declared_tables: DeclaredTables,
 }
 
 impl SemanticContext {
@@ -107,7 +110,14 @@ impl SemanticContext {
             source_identity: None,
             scope: None,
             bundle,
+            declared_tables: DeclaredTables::default(),
         }
+    }
+
+    /// Gate FR-075 tables on the object type's `body_extraction` locators.
+    pub fn with_declared_tables(mut self, tables: DeclaredTables) -> Self {
+        self.declared_tables = tables;
+        self
     }
 
     pub fn with_scope(mut self, scope: impl Into<String>) -> Self {

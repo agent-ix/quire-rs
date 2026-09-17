@@ -17,6 +17,7 @@
     "clauses": { "type": "array", "items": { "$ref": "#/$defs/clauseRef" } },
     "clauseText": { "type": "object", "additionalProperties": { "type": "string" } },
     "operations": { "type": "array", "items": { "$ref": "#/$defs/operationDecl" } },
+    "model": { "$ref": "#/$defs/model" },
     "availability": {
       "type": "object",
       "additionalProperties": false,
@@ -24,7 +25,8 @@
       "properties": {
         "fields": { "$ref": "#/$defs/kindAvailability" },
         "clauses": { "$ref": "#/$defs/kindAvailability" },
-        "operations": { "$ref": "#/$defs/kindAvailability" }
+        "operations": { "$ref": "#/$defs/kindAvailability" },
+        "model": { "$ref": "#/$defs/kindAvailability" }
       }
     },
     "diagnostics": { "type": "array", "items": { "$ref": "#/$defs/diagnostic" } }
@@ -131,6 +133,150 @@
         "language": { "type": "string", "pattern": "^(ocl|sysml|fretish|[a-z0-9][a-z0-9.-]*:[A-Za-z0-9][A-Za-z0-9._-]*)$" },
         "clauseId": { "$ref": "#/$defs/identifier" },
         "sourceSpan": { "$ref": "#/$defs/sourceLocus" }
+      }
+    },
+    "nameList": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+    "enumValueDecl": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value", "sourceSpan"],
+      "properties": {
+        "value": { "$ref": "#/$defs/identifier" },
+        "doc": { "type": "string", "minLength": 1 },
+        "sourceSpan": { "$ref": "#/$defs/sourceLocus" }
+      }
+    },
+    "model": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "supertypes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["target", "sourceSpan"],
+            "properties": { "target": { "type": "string", "minLength": 1 }, "sourceSpan": { "$ref": "#/$defs/sourceLocus" } }
+          }
+        },
+        "abstract": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["value", "sourceSpan"],
+          "properties": { "value": { "type": "boolean" }, "sourceSpan": { "$ref": "#/$defs/sourceLocus" } }
+        },
+        "fieldFeatures": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["field", "sourceSpan"],
+            "properties": {
+              "field": { "$ref": "#/$defs/identifier" },
+              "presence": { "enum": ["required", "optional"] },
+              "subsets": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/identifier" } },
+              "redefines": { "$ref": "#/$defs/identifier" },
+              "sourceSpan": { "$ref": "#/$defs/sourceLocus" }
+            }
+          }
+        },
+        "operationFrames": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["operation", "requires", "ensures", "modifies", "creates", "deletes", "sourceSpan"],
+            "properties": {
+              "operation": { "$ref": "#/$defs/identifier" },
+              "requires": { "type": "array", "items": { "type": "string" } },
+              "ensures": { "type": "array", "items": { "type": "string" } },
+              "modifies": { "type": "array", "items": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)*$" } },
+              "creates": { "type": "array", "items": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)*$" } },
+              "deletes": { "type": "array", "items": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)*$" } },
+              "sourceSpan": { "$ref": "#/$defs/sourceLocus" }
+            }
+          }
+        },
+        "population": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["members"],
+          "properties": {
+            "members": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["type", "extent", "sourceSpan"],
+                "properties": {
+                  "type": { "$ref": "#/$defs/typeRef" },
+                  "extent": { "$ref": "#/$defs/multiplicity" },
+                  "sourceSpan": { "$ref": "#/$defs/sourceLocus" }
+                }
+              }
+            }
+          }
+        },
+        "values": { "type": "array", "items": { "$ref": "#/$defs/enumValueDecl" } },
+        "states": { "type": "array", "items": { "$ref": "#/$defs/enumValueDecl" } },
+        "transitions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["from", "to", "trigger", "sourceSpan"],
+            "properties": {
+              "from": { "$ref": "#/$defs/identifier" },
+              "to": { "$ref": "#/$defs/identifier" },
+              "trigger": { "$ref": "#/$defs/identifier" },
+              "guard": { "type": "string", "minLength": 1 },
+              "emits": { "type": "string", "minLength": 1 },
+              "sourceSpan": { "$ref": "#/$defs/sourceLocus" }
+            }
+          }
+        },
+        "steps": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "kind", "sourceSpan"],
+            "properties": {
+              "name": { "$ref": "#/$defs/identifier" },
+              "kind": { "enum": ["command", "event", "decision", "compensation", "wait"] },
+              "consumes": { "$ref": "#/$defs/nameList" },
+              "emits": { "$ref": "#/$defs/nameList" },
+              "doc": { "type": "string", "minLength": 1 },
+              "sourceSpan": { "$ref": "#/$defs/sourceLocus" }
+            }
+          }
+        },
+        "members": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["target", "multiplicity", "sourceSpan"],
+            "properties": {
+              "target": { "type": "string", "minLength": 1 },
+              "multiplicity": { "$ref": "#/$defs/multiplicity" },
+              "sourceSpan": { "$ref": "#/$defs/sourceLocus" }
+            }
+          }
+        },
+        "vocabulary": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["term", "doc", "sourceSpan"],
+            "properties": {
+              "term": { "type": "string", "minLength": 1 },
+              "doc": { "type": "string" },
+              "sourceSpan": { "$ref": "#/$defs/sourceLocus" }
+            }
+          }
+        }
       }
     },
     "operationDecl": {

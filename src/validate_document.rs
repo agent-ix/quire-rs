@@ -352,16 +352,24 @@ fn semantic_findings(
     errors: &mut Vec<ValidationError>,
     warnings: &mut Vec<ValidationWarning>,
 ) {
-    use crate::semantic::{BundleIndex, RequiredSections, SemanticContext, SemanticSeverity};
+    use crate::semantic::{
+        BundleIndex, DeclaredTables, RequiredSections, SemanticContext, SemanticSeverity,
+    };
     let mut bundle = BundleIndex::default();
     for (_, m) in registry.semantic_modules() {
         bundle.imports.insert(m.package.clone(), m.exports.clone());
     }
-    let ctx = SemanticContext::new(module.clone(), "<document>", bundle);
-    let required = arch
+    let dsl = arch
         .body_extraction()
-        .and_then(|dsl| serde_json::to_value(dsl).ok())
-        .map(|v| RequiredSections::from_dsl(&v))
+        .and_then(|dsl| serde_json::to_value(dsl).ok());
+    let ctx = SemanticContext::new(module.clone(), "<document>", bundle).with_declared_tables(
+        dsl.as_ref()
+            .map(DeclaredTables::from_dsl)
+            .unwrap_or_default(),
+    );
+    let required = dsl
+        .as_ref()
+        .map(RequiredSections::from_dsl)
         .unwrap_or_default();
     let record = crate::semantic::extract_semantic(
         doc_text,

@@ -106,6 +106,38 @@ pub fn level2_sections(lines: &[&str], heading: &str) -> Vec<(usize, usize)> {
     out
 }
 
+/// Every `## <heading>` outside a fence as `(heading, line, end)`, with the
+/// same bounds as [`level2_sections`].
+pub fn level2_headings(lines: &[&str]) -> Vec<(String, usize, usize)> {
+    let mut out: Vec<(String, usize, usize)> = Vec::new();
+    let mut open: Option<(FenceChar, usize)> = None;
+    for (i, line) in lines.iter().enumerate() {
+        let text = line.trim_end_matches('\r');
+        if let Some((kind, len)) = &open {
+            if fence_close(text, kind, *len) {
+                open = None;
+            }
+            continue;
+        }
+        if let Some((kind, len, _)) = fence_open(text) {
+            open = Some((kind, len));
+            continue;
+        }
+        if (text.starts_with("# ") || text.starts_with("## ")) && !text.starts_with("###") {
+            if let Some(last) = out.last_mut().filter(|l| l.2 == 0) {
+                last.2 = i + 1;
+            }
+            if let Some(rest) = text.strip_prefix("## ") {
+                out.push((rest.trim().to_string(), i + 1, 0));
+            }
+        }
+    }
+    if let Some(last) = out.last_mut().filter(|l| l.2 == 0) {
+        last.2 = lines.len() + 1;
+    }
+    out
+}
+
 /// Every fenced block whose opening fence lies in `[from, to)` (1-based).
 pub fn fences_in(lines: &[&str], from: usize, to: usize) -> Vec<Fence> {
     let mut out = Vec::new();

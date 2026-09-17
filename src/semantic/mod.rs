@@ -4,12 +4,14 @@
 //! `data_schema` at load (FR-069); `resolver` compiles a module schema
 //! against the embedded semantic-core bundle without touching the filesystem
 //! or the network; `vendored` is the embedded bundle itself. Extraction
-//! (FR-070..FR-072) lands in the sibling modules of Plan-003.
+//! (FR-070..FR-072) lands in the sibling modules of Plan-003; `model` holds the
+//! FR-075 model feature declarations.
 
 pub mod clauses;
 pub mod context;
 pub mod contract;
 pub mod decl;
+pub mod model;
 pub mod properties;
 pub mod python_entry;
 pub mod resolver;
@@ -27,6 +29,12 @@ pub use contract::{
     SemanticSeverity,
 };
 pub use decl::{Constraint, DecimalPolicy, FieldDecl, Multiplicity, TypeRef};
+pub use model::{
+    extract_model, AbstractDecl, DeclaredTable, DeclaredTables, EnumValueDecl, FieldFeatureDecl,
+    MemberDecl, ModelDeclarations, ModelFeature, ModelOutcome, ModelRefs, OperationFrameDecl,
+    PopulationDecl, PopulationMemberDecl, Presence, StepDecl, StepKind, SupertypeDecl, TermDecl,
+    TransitionDecl,
+};
 pub use properties::{extract_fields, FieldsForm, FieldsOutcome};
 pub use resolver::{compile_module_schema, ResolvedSchema, SchemaSource};
 pub use surface::{

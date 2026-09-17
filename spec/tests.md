@@ -111,6 +111,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | FR-071 Clause and operation extraction | AC-1..7; CON-1..2 | TC-1622..TC-1629, TC-1648 | ✅ Implemented |
 | FR-072 Semantic extraction surface | AC-1..9; CON-1..3 | TC-1630..TC-1640, TC-1650 (TC-1636 external: quire-wasm#3) | ✅ Implemented; WASM leg external |
 | FR-073 Generic rights-aware clause sets | AC-1..6 | TC-1806..TC-1809 | ✅ Implemented |
+| FR-075 Model feature extraction | AC-1..7; CON-1 | TC-1840..TC-1846 | ✅ Implemented |
 
 ### Integration Requirement Coverage
 
@@ -833,6 +834,13 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-1638 | `semantic-v1.schema.json` is valid 2020-12 with `additionalProperties: false` everywhere; the compatibility fixture pins every field and state token and fails on removal or rename | Unit | P0 | FR-072-AC-8 | ✅ |
 | TC-1639 | The published coverage-v1, properties-v1, and assurance-v1 schemas equal the baseline minted on main byte-for-byte (no contract gains a required key); the outputs stay pinned by TC-1089/TC-1090 | Snapshot | P0 | FR-072-AC-9, FR-072-CON-1 | ✅ |
 | TC-1640 | A static audit finds no rendering, code generation, or file write on the semantic surface | Static | P0 | FR-072-CON-2 | ✅ |
+| TC-1840 | `specializes` relationships and `abstract: true` extract to `supertypes` and `abstract` with entry-line spans; a non-boolean `abstract` is `semantic.invalid-model-cell` | Unit | P0 | FR-075-AC-1 | ✅ |
+| TC-1841 | `Presence`, `Subsets`, `Redefines` columns extract the FR-070 `fields` plus `fieldFeatures` with row spans; `Presence: maybe` is `semantic.invalid-model-cell` with `fields` `unavailable` | Unit | P0 | FR-075-AC-2 | ✅ |
+| TC-1842 | `Requires:`/`Ensures:`/`Modifies:`/`Creates:`/`Deletes:` fill `pre`/`post` and one `operationFrames` entry; `Requires:` beside `Pre:` and a dangling id are refused | Unit | P0 | FR-075-AC-3 | ✅ |
+| TC-1843 | A population `Type \| Extent` table extracts members with resolved `TypeRef`, `extent`, and row spans | Unit | P0 | FR-075-AC-4 | ✅ |
+| TC-1844 | `Values`, `States`, `Transitions`, `Steps`, `Members`, `Ubiquitous Language` tables extract to typed entries; unknown state, trigger, and step kind are refused | Unit | P0 | FR-075-AC-5 | ✅ |
+| TC-1845 | Every feature under a manifest that does not declare it yields `semantic.feature-not-extractable` at the declaring line with feature, artifact, and section, and no entry | Unit | P0 | FR-075-AC-6 | ✅ |
+| TC-1846 | An artifact without model features yields no `model` key; every model record validates against `semantic-v1.schema.json` | Unit | P0 | FR-075-AC-7, FR-075-CON-1 | ✅ |
 | TC-1641 | A static audit of `cargo metadata` and the semantic module finds none of the NFR-021 denylisted crates and no `eval`/`parse_expr`/`typecheck` symbol over clause text | Static | P0 | NFR-021-AC-1 | ✅ |
 | TC-1642 | A static audit finds no `std::net`, `std::process`, or filesystem write on the semantic path | Static | P0 | NFR-021-AC-2 | ✅ |
 | TC-1643 | Every Filament graph case output equals the checked-in baseline and coverage-v1/properties-v1/assurance-v1 outputs equal their fixtures byte-for-byte; no existing contract schema gains a required key | Snapshot | P0 | NFR-021-AC-3 | ✅ |
@@ -1396,6 +1404,13 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-066-AC-9 | TC-1070 |
 | FR-066-AC-10 | TC-1071 |
 | FR-066-AC-11 | TC-1072 |
+| FR-075-AC-1 | TC-1840 |
+| FR-075-AC-2 | TC-1841 |
+| FR-075-AC-3 | TC-1842 |
+| FR-075-AC-4 | TC-1843 |
+| FR-075-AC-5 | TC-1844 |
+| FR-075-AC-6 | TC-1845 |
+| FR-075-AC-7 | TC-1846 |
 | FR-073-AC-1 | TC-1807, TC-1809 |
 | FR-073-AC-2 | TC-1806 |
 | FR-073-AC-3 | TC-1806 |

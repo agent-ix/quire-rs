@@ -6,6 +6,7 @@ use serde_json::Value;
 
 use super::context::{BundleIndex, SemanticContext};
 use super::contract::SemanticModule;
+use super::model::DeclaredTables;
 use super::surface::{extract_semantic, RequiredSections, SemanticExtraction};
 
 #[derive(Deserialize)]
@@ -24,6 +25,8 @@ struct ModuleRequest {
     compatibility_posture: String,
     #[serde(default = "warning")]
     legacy_forms: String,
+    #[serde(default)]
+    mappings: Vec<String>,
 }
 
 fn additive() -> String {
@@ -50,6 +53,10 @@ struct Request {
     schema_digest: Option<String>,
     #[serde(default)]
     required: Option<Value>,
+    /// The object type's `body_extraction` DSL; its `table_row` locators
+    /// gate FR-075 tables.
+    #[serde(default)]
+    body_extraction: Option<Value>,
 }
 
 /// Run FR-072 for a JSON request; the error is a deserialization message.
@@ -78,6 +85,7 @@ pub fn extract_semantic_json(request: &Value) -> Result<SemanticExtraction, Stri
         targets: req.module.targets,
         compatibility_posture: req.module.compatibility_posture,
         legacy_forms: req.module.legacy_forms,
+        mappings: req.module.mappings,
     };
     let mut ctx = SemanticContext::new(
         module,
@@ -86,6 +94,9 @@ pub fn extract_semantic_json(request: &Value) -> Result<SemanticExtraction, Stri
     );
     ctx.source_identity = req.source_identity;
     ctx.scope = req.scope;
+    if let Some(dsl) = &req.body_extraction {
+        ctx.declared_tables = DeclaredTables::from_dsl(dsl);
+    }
     let required = req
         .required
         .map(|v| RequiredSections {
