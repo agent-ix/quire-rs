@@ -13,9 +13,12 @@ bumps; once 1.0 ships, semver is strict.
   `yield_pattern.match: { values: … }` declares the `values` table; a key
   that names no model table (e.g. `values_table`) declares none, and its
   section's tables are refused as `semantic.feature-not-extractable`.
+  spec-objects-business at or after its #13 release declares its values
+  table under the `values` key.
 - **`SemanticExtraction::declaration_record()` returns
   `Result<Value, serde_json::Error>` (#446)**, serialized from the typed
-  `declaration()`.
+  `declaration()`, which now returns a `Result` and errors when the record
+  holds more than one systems-model record.
 
 ### Added
 

@@ -122,8 +122,11 @@ pub(crate) fn resolve_target<'a>(
 
 #[cfg(test)]
 mod tests {
+    use ix_trace_rs::trace;
+
     use super::{is_id_segment, is_object_id};
 
+    #[trace("TC-1872", "FR-075-AC-12")]
     #[test]
     fn object_ids_are_letters_digits_and_underscores() {
         assert!(is_object_id("quant_codec"));

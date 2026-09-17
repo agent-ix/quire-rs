@@ -331,8 +331,13 @@ pub enum SystemsRecord<'a> {
 impl SemanticExtraction {
     /// The typed declaration record (what `Entity.json`, `Part.json`, and
     /// their kin describe).
-    pub fn declaration(&self) -> DeclarationRecord<'_> {
-        let systems = self.model.as_ref().and_then(|model| {
+    ///
+    /// # Errors
+    ///
+    /// More than one systems-model record: FR-075 extracts at most one
+    /// systems-model table per artifact.
+    pub fn declaration(&self) -> Result<DeclarationRecord<'_>, serde_json::Error> {
+        let systems = self.model.as_ref().map(|model| {
             let records = [
                 model.part.as_ref().map(|d| SystemsRecord::Part(&d.record)),
                 model.port.as_ref().map(|d| SystemsRecord::Port(&d.record)),
@@ -347,24 +352,26 @@ impl SemanticExtraction {
             ];
             let mut present = records.into_iter().flatten();
             let first = present.next();
-            debug_assert!(
-                present.next().is_none(),
-                "FR-075 extracts at most one systems-model table per artifact"
-            );
-            first
+            (first, present.next().is_some())
         });
-        DeclarationRecord {
+        let (systems, extra_systems) = systems.unwrap_or((None, false));
+        if extra_systems {
+            return Err(serde::ser::Error::custom(
+                "FR-075: the declaration carries more than one systems-model record",
+            ));
+        }
+        Ok(DeclarationRecord {
             fields: self.fields.as_deref(),
             clauses: self.clauses.as_deref(),
             relations: self.relations.as_deref(),
             operations: self.operations.as_deref(),
             systems,
-        }
+        })
     }
 
     /// The declaration record as the JSON value a data schema validates.
     pub fn declaration_record(&self) -> Result<Value, serde_json::Error> {
-        let declaration = self.declaration();
+        let declaration = self.declaration()?;
         let value = serde_json::to_value(&declaration)?;
         #[cfg(debug_assertions)]
         {

@@ -431,7 +431,7 @@ fn systems_references_resolve_qualified_and_imported_names_of_the_admitted_kind(
     );
 
     // Each cell names only its admitted object types.
-    let wrong_kind: [(&str, &str, &str, &str, &str); 6] = [
+    let wrong_kind: [(&str, &str, &str, &str, &str); 7] = [
         ("part", "Part", PART, "search_service", "planner_out"),
         ("port", "Port", PORT, "scoring_engine", "score_in"),
         (
@@ -462,6 +462,14 @@ fn systems_references_resolve_qualified_and_imported_names_of_the_admitted_kind(
             "quant_codec/score_ip_batch",
             "quant_codec",
         ),
+        // `<id>/<member>` names an interface operation; a port has none.
+        (
+            "allocation",
+            "Allocation",
+            ALLOCATION,
+            "quant_codec/score_ip_batch",
+            "score_in/flow",
+        ),
     ];
     for (kind, section, table, from, to) in wrong_kind {
         let md = doc("subject", kind, section, &table.replace(from, to));
@@ -476,6 +484,17 @@ fn systems_references_resolve_qualified_and_imported_names_of_the_admitted_kind(
             "{kind} {to}: {record:#}"
         );
     }
+    // A part cannot own itself.
+    let md = doc("search_service", "part", "Part", PART);
+    let record = extract(&md, body_extraction("part"), BUNDLE);
+    assert!(
+        refused(
+            &record,
+            "semantic.reference-kind-mismatch",
+            line_of(&md, "| search_service |")
+        ),
+        "{record:#}"
+    );
     // An allocation source may name a port.
     let md = doc(
         "alloc",
@@ -614,4 +633,35 @@ fn spec_objects_architecture_systems_skeletons_validate_with_zero_errors() {
         expected.sort_unstable();
         assert_eq!(found, expected, "{kind}: {record:#}");
     }
+}
+
+#[trace("TC-1872", "FR-075-AC-12")]
+#[test]
+fn a_declaration_with_two_systems_records_is_an_error() {
+    let part = extract(
+        &doc("p", "part", "Part", PART),
+        body_extraction("part"),
+        BUNDLE,
+    );
+    let port = extract(
+        &doc("q", "port", "Port", PORT),
+        body_extraction("port"),
+        BUNDLE,
+    );
+    let mut both = part.clone();
+    both["model"]["port"] = port["model"]["port"].clone();
+    let typed: quire_rs::semantic::SemanticExtraction = serde_json::from_value(both).unwrap();
+    assert!(typed.model.as_ref().unwrap().part.is_some());
+    assert!(typed.model.as_ref().unwrap().port.is_some());
+    let err = typed.declaration_record().unwrap_err();
+    assert!(
+        err.to_string()
+            .contains("more than one systems-model record"),
+        "{err}"
+    );
+    let single: quire_rs::semantic::SemanticExtraction = serde_json::from_value(part).unwrap();
+    assert_eq!(
+        single.declaration_record().unwrap()["owner"],
+        format!("{PKG}/search_service")
+    );
 }

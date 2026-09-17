@@ -215,13 +215,13 @@ impl CellRole {
     }
 
     /// The object types the named artifact may have. A `<id>/<member>`
-    /// operation reference names its owner by any object type.
-    fn kinds(self, member: bool) -> Option<&'static [&'static str]> {
+    /// operation reference names an `interface` and its operation.
+    fn kinds(self, member: bool) -> &'static [&'static str] {
         match self {
-            Self::PartOwner | Self::PortOwner | Self::TargetElement => Some(&["part"]),
-            Self::SourcePort | Self::TargetPort => Some(&["port"]),
-            Self::SourceElement if member => None,
-            Self::SourceElement => Some(&["part", "port"]),
+            Self::PartOwner | Self::PortOwner | Self::TargetElement => &["part"],
+            Self::SourcePort | Self::TargetPort => &["port"],
+            Self::SourceElement if member => &["interface"],
+            Self::SourceElement => &["part", "port"],
         }
     }
 }
@@ -320,7 +320,20 @@ impl<'a> TableRead<'a> {
                 return None;
             }
         };
-        if let (Some(object), Some(kinds)) = (object, role.kinds(member.is_some())) {
+        if role == CellRole::PartOwner
+            && own
+                .id
+                .is_some_and(|id| identity == format!("ix://{}/{id}", ctx.identity_package()))
+        {
+            self.finding(
+                SystemsFinding::WrongKind,
+                line,
+                format!("{what} {base} is the part itself; a part cannot own itself"),
+            );
+            return None;
+        }
+        if let Some(object) = object {
+            let kinds = role.kinds(member.is_some());
             if !object.as_deref().is_some_and(|o| kinds.contains(&o)) {
                 let found = object.as_deref().unwrap_or("no object type");
                 self.finding(
