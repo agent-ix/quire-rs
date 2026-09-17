@@ -974,38 +974,73 @@ fn rust_callers_gate_model_tables_through_the_public_context() {
     );
 }
 
-/// `RequiredSections` read from a typed `body_extraction` equals the one read
-/// from the same DSL as authored JSON and as the typed DSL serialized back to
-/// JSON, and names exactly the headings a required locator sits under.
+/// `RequiredSections::from_extraction` marks exactly the headings a required
+/// locator sits under, wherever the locator is declared: `match`,
+/// `per_match`, an `emit_edges` target, or a fallback-chain member. Each DSL
+/// is authored JSON with the module key names, so a serde rename fails here.
 #[trace("TC-1870", "FR-075-AC-11")]
 #[test]
-fn required_sections_agree_across_the_typed_and_json_dsl() {
+fn required_sections_read_every_locator_of_the_typed_dsl() {
     use quire_rs::extract::dsl::ExtractionDsl;
     use quire_rs::semantic::RequiredSections;
 
-    let authored = json!({
-        "yield_pattern": { "match": {
-            "fields": { "from": "table_row", "under_section": "Properties" },
-            "rules": [
-                { "from": "list_item", "after_heading": "Invariants", "required": false },
-                { "from": "section_body", "after_heading": "Invariants" }
-            ],
-            "ops": { "from": "code_block", "under_section": "Operations", "required": false },
-            "id": { "from": "frontmatter_field", "path": ["id"] }
-        } }
-    });
-    let typed: ExtractionDsl = serde_json::from_value(authored.clone()).unwrap();
-    let expected = RequiredSections {
-        properties: true,
-        invariants: true,
-        operations: false,
+    let sections = |properties, invariants, operations| RequiredSections {
+        properties,
+        invariants,
+        operations,
     };
-    assert_eq!(RequiredSections::from_extraction(&typed), expected);
-    assert_eq!(RequiredSections::from_dsl(&authored), expected);
-    assert_eq!(
-        RequiredSections::from_dsl(&serde_json::to_value(&typed).unwrap()),
-        expected
-    );
+    let cases = [
+        (
+            "match: defaulted and explicit `required`, a fallback chain",
+            json!({ "yield_pattern": { "match": {
+                "fields": { "from": "table_row", "under_section": "Properties" },
+                "rules": [
+                    { "from": "list_item", "after_heading": "Invariants", "required": false },
+                    { "from": "section_body", "after_heading": "Invariants" }
+                ],
+                "ops": { "from": "code_block", "under_section": "Operations", "required": false },
+                "id": { "from": "frontmatter_field", "path": ["id"] }
+            } } }),
+            sections(true, true, false),
+        ),
+        (
+            "per_match: a required Operations locator",
+            json!({ "yield_pattern": {
+                "iterate_over": { "section_path": ["Operations"], "kind": "heading" },
+                "per_match": {
+                    "body": { "from": "code_block", "under_section": "Operations", "required": true },
+                    "fields": { "from": "table_row", "under_section": "Properties", "required": false }
+                }
+            } }),
+            sections(false, false, true),
+        ),
+        (
+            "emit_edges: a locator target, beside a static one",
+            json!({
+                "yield_pattern": { "match": {
+                    "id": { "from": "frontmatter_field", "path": ["id"] }
+                } },
+                "emit_edges": [
+                    { "type": "references", "target": { "from": "table_row", "under_section": "Properties" } },
+                    { "type": "references", "target": [
+                        { "from": "heading", "level": 1 },
+                        { "from": "list_item", "under_section": "Invariants" }
+                    ] },
+                    { "type": "references", "target": "FR-001" }
+                ]
+            }),
+            sections(true, true, false),
+        ),
+    ];
+    for (case, authored, expected) in cases {
+        let typed: ExtractionDsl = serde_json::from_value(authored)
+            .unwrap_or_else(|e| panic!("{case}: the authored DSL deserializes: {e}"));
+        assert_eq!(
+            RequiredSections::from_extraction(&typed),
+            expected,
+            "{case}"
+        );
+    }
 }
 
 /// The golden table with its prose `## Relationships` replaced by a table of

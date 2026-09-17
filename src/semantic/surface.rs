@@ -141,15 +141,6 @@ impl RequiredSections {
         }
         out
     }
-
-    /// [`RequiredSections::from_extraction`] over an extraction DSL given as
-    /// JSON. JSON that is not a valid extraction DSL marks no section
-    /// required.
-    pub fn from_dsl(dsl: &Value) -> Self {
-        serde_json::from_value::<ExtractionDsl>(dsl.clone())
-            .map(|dsl| Self::from_extraction(&dsl))
-            .unwrap_or_default()
-    }
 }
 
 /// Run FR-070, FR-071, FR-075, and FR-076 over one document and assemble

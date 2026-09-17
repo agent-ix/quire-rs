@@ -64,9 +64,9 @@ clause id and never parses them
   that table's required columns. A Rust caller supplies it with
   `SemanticContext::with_body_extraction`, the one path every surface uses;
   without it no model table is declared. The same typed DSL gives the
-  sections a document must carry through `RequiredSections::from_extraction`;
-  `RequiredSections::from_dsl` reads the DSL as JSON by deserializing it to
-  that typed form, so no surface scans DSL JSON keys of its own.
+  sections a document must carry through `RequiredSections::from_extraction`,
+  the one reader of required sections; no surface scans DSL JSON keys of its
+  own.
 - The document path. The Filament and Python surfaces pass the artifact
   path; `validate_document` has no path, and its spans and messages name
   `<document>`.
@@ -232,7 +232,7 @@ General:
 | FR-075-AC-8 | A record carrying `model` carries `identity` with the frontmatter `id` and `displayName` with the frontmatter `title`, each spanning its frontmatter line. | Test |
 | FR-075-AC-9 | `validate_document` and Filament extraction read a feature their module manifest declares (a mapping token or a `table_row` locator) and refuse one it does not; `validate_document` refusals name `<document>`, Filament refusals name the artifact path. | Test |
 | FR-075-AC-10 | A Rust caller that builds `SemanticContext` with `with_body_extraction` and a typed `body_extraction` declaring a `Values` locator extracts the table, and the record equals the one `extract_semantic_json` returns for the same request; the same context without `with_body_extraction` refuses the table with `semantic.feature-not-extractable`. | Test |
-| FR-075-AC-11 | `RequiredSections::from_extraction` over a typed `body_extraction` marks exactly the `Properties`, `Invariants`, and `Operations` headings a required locator (any primitive, including a fallback-chain member, under `under_section` or `after_heading`) sits under, and equals `RequiredSections::from_dsl` over the same DSL as authored JSON and as the typed DSL serialized to JSON. | Test |
+| FR-075-AC-11 | `RequiredSections::from_extraction` over a typed `body_extraction` marks exactly the `Properties`, `Invariants`, and `Operations` headings a required locator (any primitive, including a fallback-chain member, under `under_section` or `after_heading`) sits under, wherever the locator is declared (`yield_pattern.match`, `yield_pattern.per_match`, or an `emit_edges` target), for a DSL authored as JSON with the module key names. | Test |
 
 ## Dependencies
 
