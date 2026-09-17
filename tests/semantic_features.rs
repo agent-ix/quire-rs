@@ -259,14 +259,14 @@ fn feature_codes(record: &Value) -> Vec<&str> {
 #[trace("TC-1875", "FR-075-AC-15")]
 #[test]
 fn features_rows_of_an_unavailable_kind_are_not_checked() {
-    // A dangling `Requires:` makes `operations` unavailable. Not checked: a
+    // A dangling `Pre:` makes `operations` unavailable. Not checked: a
     // row whose `Kind` is `operation`, a `field` row naming no declared field
     // (it may be a mistyped operation), and operations without a row.
     // Checked: each declared field has a row, so dropping `codec_kind`'s row
     // is `missing-feature` at the header.
     let md = interface("| prepare_ip_query | field |\n| rescore | operation |\n").replace(
         "### prepare_ip_query\n\n",
-        "### prepare_ip_query\n\nRequires: nowhere\n\n",
+        "### prepare_ip_query\n\nPre: nowhere\n\n",
     );
     let (_, value) = extract(&md);
     assert_eq!(
