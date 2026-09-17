@@ -6,7 +6,6 @@ use serde_json::Value;
 
 use super::context::{BundleIndex, SemanticContext};
 use super::contract::SemanticModule;
-use super::model::DeclaredTables;
 use super::relations::RelationVocabulary;
 use super::surface::{extract_semantic, RequiredSections, SemanticExtraction};
 use crate::extract::dsl::ExtractionDsl;
@@ -103,7 +102,7 @@ pub fn extract_semantic_json(request: &Value) -> Result<SemanticExtraction, Stri
     if let Some(dsl) = req.body_extraction {
         let dsl: ExtractionDsl = serde_json::from_value(dsl)
             .map_err(|e| format!("semantic.body-extraction-invalid: {e}"))?;
-        ctx.declared_tables = DeclaredTables::from_dsl(&dsl);
+        ctx = ctx.with_body_extraction(&dsl);
     }
     ctx.relation_vocabulary = req.relation_vocabulary;
     let required = req

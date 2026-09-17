@@ -902,6 +902,147 @@ fn surfaces_gate_model_features_on_the_manifest() {
     );
 }
 
+/// A Rust caller gates model tables through the public context builder and
+/// gets the record the JSON adapter returns for the same request.
+#[trace("TC-1869", "FR-075-AC-10")]
+#[test]
+fn rust_callers_gate_model_tables_through_the_public_context() {
+    use quire_rs::extract::dsl::ExtractionDsl;
+    use quire_rs::semantic::python_entry::extract_semantic_json;
+    use quire_rs::semantic::{extract_semantic, BundleIndex, RequiredSections, SemanticContext};
+
+    let doc = featured_document().replace("abstract: true\n", "");
+    let dsl = json!({ "yield_pattern": { "match": { "values": values_locator() } } });
+    let typed: ExtractionDsl = serde_json::from_value(dsl.clone()).unwrap();
+    let module = SemanticModule {
+        contract_version: "1.0.0".into(),
+        semantic_core: "0.1.0".into(),
+        package: "agent-ix/spec-objects-fixture".into(),
+        exports: vec!["entity".into()],
+        imports: BTreeMap::new(),
+        targets: Vec::new(),
+        compatibility_posture: "additive".into(),
+        legacy_forms: "warning".into(),
+        mappings: Vec::new(),
+    };
+    let bare = SemanticContext::new(module, "spec/FR-006.md", BundleIndex::default())
+        .with_source_identity("ix://agent-ix/fixture/spec");
+    let gated = bare.clone().with_body_extraction(&typed);
+    let required = RequiredSections::default();
+
+    let record = extract_semantic(&doc, &gated, None, &required);
+    let model = record
+        .model
+        .as_ref()
+        .expect("the declared Values table extracts");
+    let values: Vec<&str> = model
+        .values
+        .iter()
+        .flatten()
+        .map(|v| v.value.as_str())
+        .collect();
+    assert_eq!(values, ["draft"]);
+    assert!(
+        !record
+            .diagnostics
+            .iter()
+            .any(|d| d.code == "semantic.feature-not-extractable"),
+        "{:?}",
+        record.diagnostics
+    );
+
+    let adapter = extract_semantic_json(&json!({
+        "markdown": doc,
+        "module": { "contractVersion": "1.0.0", "semanticCore": "0.1.0", "package": "agent-ix/spec-objects-fixture", "exports": ["entity"] },
+        "path": "spec/FR-006.md",
+        "sourceIdentity": "ix://agent-ix/fixture/spec",
+        "bodyExtraction": dsl,
+    }))
+    .unwrap();
+    assert_eq!(record, adapter, "the typed path and the adapter agree");
+
+    // The control: no `body_extraction`, so the table is refused.
+    let refused = extract_semantic(&doc, &bare, None, &required);
+    assert!(refused.model.is_none());
+    assert!(
+        refused
+            .diagnostics
+            .iter()
+            .any(|d| d.code == "semantic.feature-not-extractable"),
+        "{:?}",
+        refused.diagnostics
+    );
+}
+
+/// `RequiredSections::from_extraction` marks exactly the headings a required
+/// locator sits under, wherever the locator is declared: `match`,
+/// `per_match`, an `emit_edges` target, or a fallback-chain member. Each DSL
+/// is authored JSON with the module key names, so a serde rename fails here.
+#[trace("TC-1870", "FR-075-AC-11")]
+#[test]
+fn required_sections_read_every_locator_of_the_typed_dsl() {
+    use quire_rs::extract::dsl::ExtractionDsl;
+    use quire_rs::semantic::RequiredSections;
+
+    let sections = |properties, invariants, operations| RequiredSections {
+        properties,
+        invariants,
+        operations,
+    };
+    let cases = [
+        (
+            "match: defaulted and explicit `required`, a fallback chain",
+            json!({ "yield_pattern": { "match": {
+                "fields": { "from": "table_row", "under_section": "Properties" },
+                "rules": [
+                    { "from": "list_item", "after_heading": "Invariants", "required": false },
+                    { "from": "section_body", "after_heading": "Invariants" }
+                ],
+                "ops": { "from": "code_block", "under_section": "Operations", "required": false },
+                "id": { "from": "frontmatter_field", "path": ["id"] }
+            } } }),
+            sections(true, true, false),
+        ),
+        (
+            "per_match: a required Operations locator",
+            json!({ "yield_pattern": {
+                "iterate_over": { "section_path": ["Operations"], "kind": "heading" },
+                "per_match": {
+                    "body": { "from": "code_block", "under_section": "Operations", "required": true },
+                    "fields": { "from": "table_row", "under_section": "Properties", "required": false }
+                }
+            } }),
+            sections(false, false, true),
+        ),
+        (
+            "emit_edges: a locator target, beside a static one",
+            json!({
+                "yield_pattern": { "match": {
+                    "id": { "from": "frontmatter_field", "path": ["id"] }
+                } },
+                "emit_edges": [
+                    { "type": "references", "target": { "from": "table_row", "under_section": "Properties" } },
+                    { "type": "references", "target": [
+                        { "from": "heading", "level": 1 },
+                        { "from": "list_item", "under_section": "Invariants" }
+                    ] },
+                    { "type": "references", "target": "FR-001" }
+                ]
+            }),
+            sections(true, true, false),
+        ),
+    ];
+    for (case, authored, expected) in cases {
+        let typed: ExtractionDsl = serde_json::from_value(authored)
+            .unwrap_or_else(|e| panic!("{case}: the authored DSL deserializes: {e}"));
+        assert_eq!(
+            RequiredSections::from_extraction(&typed),
+            expected,
+            "{case}"
+        );
+    }
+}
+
 /// The golden table with its prose `## Relationships` replaced by a table of
 /// `rows`.
 fn related_document(rows: &str) -> String {

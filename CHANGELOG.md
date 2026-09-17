@@ -9,12 +9,24 @@ bumps; once 1.0 ships, semver is strict.
 
 ### Added
 
+- **Typed body-extraction context for Rust callers (#442).**
+  `SemanticContext::with_body_extraction(&ExtractionDsl)` declares the
+  object type's FR-075 model tables, and
+  `RequiredSections::from_extraction(&ExtractionDsl)` reads its required
+  sections, so a Rust caller no longer round-trips the DSL through JSON.
 - **Relationships extraction to semantic-core `RelationDecl[]` (#418).**
   Under the `relationships` mapping token, the `## Relationships`
   `Name | Verb | Target | Multiplicity` table extracts to `relations`,
   `relationSources`, and `availability.relations`, checked against the
   FR-040 edge registry (quoin FR-104). `validate_document_in_bundle`
   qualifies targets under the caller's bundle package.
+
+### Removed
+
+- **`RequiredSections::from_dsl(&Value)` (#442).** It read any JSON that was
+  not a valid extraction DSL as "no section required". Pre-1.0 and with no
+  compatibility shim: callers deserialize the DSL and use
+  `RequiredSections::from_extraction(&ExtractionDsl)`.
 
 ### Fixed
 

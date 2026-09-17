@@ -7,6 +7,17 @@ description: "Chronological log of structural changes to this bundle."
 
 ## History
 
+* **2026-09-17** — **CR-170** (#442): [FR-075](./functional/FR-075-model-feature-extraction.md)
+  Inputs states that a Rust caller supplies the typed `body_extraction` with
+  the public `SemanticContext::with_body_extraction`, and that
+  `RequiredSections::from_extraction` reads required sections from the same
+  typed DSL, the one reader; `RequiredSections::from_dsl` is removed.
+  FR-075-AC-10 (TC-1869) proves the typed path extracts a declared `Values`
+  table exactly as `extract_semantic_json` does; FR-075-AC-11 (TC-1870)
+  proves `from_extraction` reads required locators from `match`,
+  `per_match`, and `emit_edges`. `filament` and `validate_document` use the
+  typed readers. TC-1869, TC-1870.
+
 * **2026-09-16** — **CR-169** (#438): [FR-076](./functional/FR-076-relationships-extraction.md)
   re-vendors the quoin FR-104 mapping fixtures at `99bd4f0` (quoin PR #558),
   which adds `no-bundle-index-mixed-rows`, `no-bundle-package`, and
