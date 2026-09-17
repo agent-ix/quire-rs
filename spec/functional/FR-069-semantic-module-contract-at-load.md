@@ -49,11 +49,15 @@ as it does today.
     (source of the `semantic` block shape and the `legacy_forms` and
     `compatibility_posture` value sets).
   - The semantic-core JSON Schema bundle, one directory per supported
-    version, from `agent-ix/filament-core-data` at `d48b8da`, path
+    version, from `agent-ix/filament-core-data` path
     `packages/semantic-core/generated/json-schema/`, with its
-    `packages/semantic-core/generated/toolchain.json` digest
-    (`sha256:dd33c886f70e908b14507c35e078d163b76308c3d170d2b54ddf933d1a4ebb52`
-    for `0.1.0`) copied into the provenance record.
+    `packages/semantic-core/generated/toolchain.json` digest copied into the
+    provenance record: `0.1.0` at `d48b8da`
+    (`sha256:dd33c886f70e908b14507c35e078d163b76308c3d170d2b54ddf933d1a4ebb52`)
+    and `0.2.0` at `739b160`
+    (`sha256:ef79c5dea98c19643b20daa8899951a4782d6248527a0647c114c6f76cca8aea`).
+    `scripts/vendor-semantic-schemas.sh` writes every version and the
+    embedded bundle list.
   - The target registry `schema/semantic/v1/common.schema.json` from
     `agent-ix/filament-core-data` at `d48b8da` (`target` and
     `representationFormat` values).
@@ -185,7 +189,7 @@ stricter of the two.
 | FR-069-AC-5 | A `$ref` to semantic-core `0.2.0` under `semantic_core: 0.1.0`, a `$ref` to an unshipped sibling, an `https://` `$ref` outside both bundles, and a two-file `$ref` cycle each fail naming the `$ref`; a `$ref` to the schema's own `$id` fragment loads cleanly; the same cases pass under `--no-default-features --features wasm`. | Test |
 | FR-069-AC-6 | An inline `data_schema` on a non-exported type under a `semantic` block loads with the warning `semantic.inline-data-schema`; the same manifest without the block loads with no semantic diagnostic. | Test |
 | FR-069-AC-7 | A Filament snapshot whose `data_schema` is the reference form is refused with `semantic.data-schema-unresolved-reference` and yields no node; the same snapshot with the schema inline and a `semantic` context extracts. | Test |
-| FR-069-AC-8 | Every vendored file hashes to its recorded provenance SHA-256, and the semantic-core `0.1.0` provenance digest equals `sha256:dd33c886f70e908b14507c35e078d163b76308c3d170d2b54ddf933d1a4ebb52`. | Test |
+| FR-069-AC-8 | Every vendored file hashes to its recorded provenance SHA-256, the semantic-core `0.1.0` provenance digest equals `sha256:dd33c886f70e908b14507c35e078d163b76308c3d170d2b54ddf933d1a4ebb52`, the `0.2.0` digest equals `sha256:ef79c5dea98c19643b20daa8899951a4782d6248527a0647c114c6f76cca8aea`, and every vendored version is an embedded bundle. | Test |
 | FR-069-AC-9 | Every default and fixture module without a `semantic` block loads to the archetype projection recorded in the checked-in baseline. | Test |
 | FR-069-AC-10 | Two loaded modules with one `semantic.package` fail the later sorted root with `semantic.duplicate-package` naming both; an import no loaded module provides warns `semantic.import-unresolved` and still loads; a two-module import cycle fails both with `semantic.import-cycle`. | Test |
 | FR-069-AC-11 | `Registry::from_inline_parts` with a reference-form `data_schema` resolves the file from the `schemas` map, applies the same digest, `$id`, escape, and `$ref` rules, and refuses a key with a `..` segment. | Test |

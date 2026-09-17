@@ -81,15 +81,24 @@ fn advisory(code: &str, line: usize, message: impl Into<String>) -> SemanticDiag
     SemanticDiagnostic::new(code, SemanticSeverity::Advisory, line, message)
 }
 
-/// Is `tag` a semantic-core `ClauseLanguage`?
-pub fn clause_language_class(tag: &str) -> ClauseLanguageClass {
+/// Is `tag` a `ClauseLanguage` of semantic-core `semantic_core`, and is it
+/// the checked language or a carried one?
+///
+/// From semantic-core 0.2.0 `quire` is the checked language and `ocl`,
+/// `sysml`, `fretish`, and namespaced languages are carried. Semantic-core
+/// 0.1.0 admits no `quire`; its checked language is `ocl`.
+pub fn clause_language_class(tag: &str, semantic_core: &str) -> ClauseLanguageClass {
     if tag.is_empty() {
         return ClauseLanguageClass::Missing;
     }
-    if tag == "ocl" {
+    let checked = match semantic_core {
+        "0.1.0" => "ocl",
+        _ => "quire",
+    };
+    if tag == checked {
         return ClauseLanguageClass::Checked;
     }
-    if tag == "sysml" || tag == "fretish" {
+    if matches!(tag, "ocl" | "sysml" | "fretish") {
         return ClauseLanguageClass::Unchecked;
     }
     // `<ns>:<name>` with ns `[a-z0-9][a-z0-9.-]*`, name `[A-Za-z0-9][A-Za-z0-9._-]*`
@@ -279,7 +288,7 @@ pub fn extract_clauses(raw: &str, ctx: &SemanticContext) -> ClausesOutcome {
             ));
             continue;
         }
-        match clause_language_class(&fence.language) {
+        match clause_language_class(&fence.language, &ctx.module.semantic_core) {
             ClauseLanguageClass::Missing => {
                 diagnostics.push(err(
                     "semantic.clause-language-missing",

@@ -25,7 +25,7 @@ fn extract(md: &str, mappings: &[&str], body_extraction: Value) -> Value {
         "markdown": md,
         "module": {
             "contractVersion": "1.0.0",
-            "semanticCore": "0.1.0",
+            "semanticCore": "0.2.0",
             "package": "agent-ix/spec-objects-fixture",
             "exports": ["entity"],
             "mappings": mappings,
@@ -157,12 +157,12 @@ const FRONTMATTER: &str = "---\nid: FR-102\ntitle: PriorityOrder\nobject: entity
 const PROPERTIES: &str = "---\nid: FR-102\ntitle: PriorityOrder\nobject: entity\n---\n# FR-102: PriorityOrder\n\n## Properties\n\n| Field | Type | Multiplicity | Constraints | Presence | Subsets | Redefines |\n|---|---|---|---|---|---|---|\n| id | UUID | 1 | identity | required | | |\n| lines | String | 0..* | | | parts, items | |\n| parts | String | 0..* | | | | |\n| label | String | 0..1 | | optional | | name |\n";
 
 fn operations(requires: &str) -> String {
-    format!("---\nid: FR-102\ntitle: PriorityOrder\nobject: entity\n---\n# FR-102: PriorityOrder\n\n## Invariants\n\n### placed\n\n```ocl\nx\n```\n\n### shipped\n\n```ocl\ny\n```\n\n## Operations\n\n### ship\n\n{requires}\nEnsures: shipped\nModifies: self.status, total\nCreates: Shipment\nDeletes: cart.items\n")
+    format!("---\nid: FR-102\ntitle: PriorityOrder\nobject: entity\n---\n# FR-102: PriorityOrder\n\n## Invariants\n\n### placed\n\n```quire\nx\n```\n\n### shipped\n\n```quire\ny\n```\n\n## Operations\n\n### ship\n\n{requires}\nEnsures: shipped\nModifies: self.status, total\nCreates: Shipment\nDeletes: cart.items\n")
 }
 
 const POPULATION: &str = "---\nid: POP-001\ntitle: Shop Population\nobject: population\n---\n# POP-001: Shop Population\n\n## Members\n\n| Type | Extent |\n|---|---|\n| Order | 0..* |\n| Customer | 1..* |\n";
 
-const OBJECT_SECTIONS: &str = "---\nid: FR-104\ntitle: Fulfilment\nobject: process\n---\n# FR-104: Fulfilment\n\n## Values\n\n| Value | Description |\n|---|---|\n| express | Next day |\n| standard | |\n\n## States\n\n| State | Description |\n|---|---|\n| open | Accepting lines |\n| shipped | Left the warehouse |\n\n## Transitions\n\n| From | To | Trigger | Guard | Emits |\n|---|---|---|---|---|\n| open | shipped | ship | ready | OrderShipped |\n\n## Steps\n\n| Step | Kind | Consumes | Emits | Description |\n|---|---|---|---|---|\n| pick | command | OrderPlaced | Picked, Packed | Pick the lines |\n| await | wait | | | |\n\n## Aggregate Members\n\n| Member | Multiplicity |\n|---|---|\n| OrderLine | 1..* |\n\n## Ubiquitous Language\n\n| Term | Description |\n|---|---|\n| Backorder | A line awaiting stock |\n\n## Invariants\n\n### ready\n\n```ocl\nx\n```\n\n## Operations\n\n### ship\n\nReturns: String[1]\n";
+const OBJECT_SECTIONS: &str = "---\nid: FR-104\ntitle: Fulfilment\nobject: process\n---\n# FR-104: Fulfilment\n\n## Values\n\n| Value | Description |\n|---|---|\n| express | Next day |\n| standard | |\n\n## States\n\n| State | Description |\n|---|---|\n| open | Accepting lines |\n| shipped | Left the warehouse |\n\n## Transitions\n\n| From | To | Trigger | Guard | Emits |\n|---|---|---|---|---|\n| open | shipped | ship | ready | OrderShipped |\n\n## Steps\n\n| Step | Kind | Consumes | Emits | Description |\n|---|---|---|---|---|\n| pick | command | OrderPlaced | Picked, Packed | Pick the lines |\n| await | wait | | | |\n\n## Aggregate Members\n\n| Member | Multiplicity |\n|---|---|\n| OrderLine | 1..* |\n\n## Ubiquitous Language\n\n| Term | Description |\n|---|---|\n| Backorder | A line awaiting stock |\n\n## Invariants\n\n### ready\n\n```quire\nx\n```\n\n## Operations\n\n### ship\n\nReturns: String[1]\n";
 
 #[trace("TC-1840", "FR-075-AC-1")]
 #[test]

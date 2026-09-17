@@ -78,13 +78,20 @@ Invariants:
   more backticks or tildes at column 1, closed by a run of the same character
   at least as long; an unterminated fence is `semantic.clause-fence-unterminated`
   at the opening line.
-- The fence language tag SHALL be the clause `language`. If the tag is
-  missing, then the engine SHALL emit `semantic.clause-language-missing` at
-  the fence. If the tag is outside the `ClauseLanguage` pattern (`tla`),
-  then the engine SHALL emit `semantic.clause-language-invalid`. If the tag
-  is `sysml`, `fretish`, or namespaced (`acme:tla`), then the engine SHALL
-  extract the clause and emit the advisory `semantic.clause-language-unchecked`.
-  `ocl` extracts with no advisory.
+- The engine SHALL take the fence language tag as the clause `language`,
+  classified by the module's pinned `semantic_core`.
+- If the tag is missing, then the engine SHALL emit
+  `semantic.clause-language-missing` at the fence.
+- If the tag is outside that version's `ClauseLanguage` pattern (`tla`, or
+  `quire` under `0.1.0`), then the engine SHALL emit
+  `semantic.clause-language-invalid`.
+- When the tag is the checked language (`quire` from semantic-core `0.2.0`,
+  `ocl` under `0.1.0`), the engine SHALL extract the clause with no advisory.
+- When the tag is a carried language (from `0.2.0`: `ocl`, `sysml`,
+  `fretish`, and namespaced such as `acme:tla`; under `0.1.0`: `sysml`,
+  `fretish`, and namespaced), the engine SHALL extract the clause, emit the
+  advisory `semantic.clause-language-unchecked`, and mark the kind lossy.
+- The engine SHALL NOT check clause text in any language (FR-071-CON-1).
 - If a second clause carries an id already declared under `## Invariants`,
   then the engine SHALL emit `semantic.duplicate-clause-id` at the second
   heading. If a clause is declared both by a fence and by a
@@ -149,6 +156,7 @@ General:
 | FR-071-AC-5 | Every produced `ClauseRef` and `OperationDecl` validates against the vendored schemas; an artifact without the sections reports both kinds `not_applicable`; a section with one erroring entry reports that kind `unavailable` (`entry-errors`) with no partial array. | Test |
 | FR-071-AC-6 | For generated fence bodies of arbitrary UTF-8 text (backticks, tilde fences, longer closing runs, CRLF, nested shorter fences), `clauseText` equals the body bytes and the span's `startLine`, `endLine`, and `endColumn` match the fence lines. | Test |
 | FR-071-AC-7 | With no caller-supplied `sourceIdentity`, spans carry `ix://local/<scope>/spec` and one `semantic.source-identity-defaulted` advisory per document; with one supplied, spans carry it and no advisory. | Test |
+| FR-071-AC-8 | Under semantic-core `0.2.0`, a `quire` fence extracts with no diagnostic and the kind available and not lossy, and an `ocl` fence extracts with only the advisory `semantic.clause-language-unchecked` at the fence, its body carried verbatim, and the kind lossy; under `0.1.0` a `quire` fence is `semantic.clause-language-invalid`. | Test |
 
 ## Dependencies
 

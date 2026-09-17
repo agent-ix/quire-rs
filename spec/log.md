@@ -7,6 +7,16 @@ description: "Chronological log of structural changes to this bundle."
 
 ## History
 
+* **2026-09-16** — **CR-164** (#431): semantic-core `0.2.0` is vendored from
+  `agent-ix/filament-core-data` at `739b160` beside `0.1.0`
+  ([FR-069](./functional/FR-069-semantic-module-contract-at-load.md) AC-8).
+  [FR-071](./functional/FR-071-clause-and-operation-extraction.md) classifies
+  a clause language by the module's pinned `semantic_core`: from `0.2.0`
+  `quire` is the checked language and `ocl`, `sysml`, `fretish`, and
+  namespaced languages are carried (AC-8, TC-1850); `0.1.0` admits no `quire`.
+  `semantic-v1` admits `quire` as a clause `language`. FR-075 clauses are
+  written in `quire`.
+
 * **2026-09-16** — **CR-163** (#431): operation contract lines are
   `Requires:` and `Ensures:`, matching `agent-ix/quoin` FR-072 at `195b35d`
   (quoin PR #546). [FR-071](./functional/FR-071-clause-and-operation-extraction.md)

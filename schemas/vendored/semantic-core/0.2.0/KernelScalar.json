@@ -1,0 +1,18 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://schemas.agent-ix.org/semantic-core/0.2.0/KernelScalar.json",
+	"type": "string",
+	"enum": [
+		"UUID",
+		"Boolean",
+		"Integer",
+		"Decimal",
+		"String",
+		"Timestamp",
+		"Duration",
+		"Bytes",
+		"JsonObject"
+	],
+	"description": "Kernel scalar library (FR-032); representations in kernel-scalars.json.",
+	"x-agent-ix-semantic-id": "ix://agent-ix/semantic-core/type/KernelScalar"
+}

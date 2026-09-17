@@ -1,5 +1,5 @@
 //! FR-071 clause and operation extraction (TC-1622..TC-1626, TC-1629,
-//! TC-1648). Plan-003 Task-019. Oracles: quoin `operations.md`,
+//! TC-1648, TC-1850). Plan-003 Task-019. Oracles: quoin `operations.md`,
 //! `operations.expected.json`, `operations-cases.json`, and the
 //! `config-version` golden span.
 
@@ -225,6 +225,50 @@ fn language_cases() {
     let out = extract_clauses(&md, &context("f.md"));
     assert_eq!(out.availability.state, AvailabilityState::Available);
     assert!(out.availability.lossy);
+}
+
+#[trace("TC-1850", "FR-071-AC-8")]
+// Under semantic-core 0.2.0 a `quire` fence is the checked language and an
+// `ocl` fence is carried unchecked; semantic-core 0.1.0 admits no `quire`.
+#[test]
+fn quire_is_checked_and_ocl_is_carried() {
+    let mut ctx = context("q.md");
+    ctx.module.semantic_core = "0.2.0".to_string();
+    let md = artifact("### placed\n\n```quire\nx\n```\n", "");
+    let out = extract_clauses(&md, &ctx);
+    assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
+    assert_eq!(out.availability.state, AvailabilityState::Available);
+    assert!(!out.availability.lossy);
+    assert_eq!(out.clauses.as_ref().unwrap()[0].language, "quire");
+
+    let md = artifact("### placed\n\n```ocl\nx\n```\n", "");
+    let out = extract_clauses(&md, &ctx);
+    let fence = case_lines(&md, "```ocl");
+    assert_eq!(
+        out.diagnostics
+            .iter()
+            .map(|d| (d.code.as_str(), d.severity, d.line))
+            .collect::<Vec<_>>(),
+        [(
+            "semantic.clause-language-unchecked",
+            SemanticSeverity::Advisory,
+            Some(fence)
+        )]
+    );
+    assert_eq!(out.availability.state, AvailabilityState::Available);
+    assert!(out.availability.lossy);
+    assert_eq!(out.clauses.as_ref().unwrap()[0].language, "ocl");
+    assert_eq!(out.clause_text["placed"], "x");
+
+    let md = artifact("### placed\n\n```quire\nx\n```\n", "");
+    let out = extract_clauses(&md, &context("q.md"));
+    assert!(
+        out.diagnostics
+            .iter()
+            .any(|d| d.code == "semantic.clause-language-invalid"),
+        "{:?}",
+        out.diagnostics
+    );
 }
 
 #[trace("TC-1624", "FR-071-AC-3")]

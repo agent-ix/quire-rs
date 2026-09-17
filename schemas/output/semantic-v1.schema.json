@@ -132,7 +132,7 @@
       "additionalProperties": false,
       "required": ["language", "clauseId"],
       "properties": {
-        "language": { "type": "string", "pattern": "^(ocl|sysml|fretish|[a-z0-9][a-z0-9.-]*:[A-Za-z0-9][A-Za-z0-9._-]*)$" },
+        "language": { "type": "string", "pattern": "^(quire|ocl|sysml|fretish|[a-z0-9][a-z0-9.-]*:[A-Za-z0-9][A-Za-z0-9._-]*)$" },
         "clauseId": { "$ref": "#/$defs/identifier" },
         "sourceSpan": { "$ref": "#/$defs/sourceLocus" }
       }
