@@ -655,8 +655,10 @@ fn a_declaration_with_two_systems_records_is_an_error() {
     assert!(typed.model.as_ref().unwrap().port.is_some());
     let err = typed.declaration_record().unwrap_err();
     assert!(
-        err.to_string()
-            .contains("more than one systems-model record"),
+        matches!(
+            err,
+            quire_rs::semantic::DeclarationError::MultipleSystemsRecords
+        ),
         "{err}"
     );
     let single: quire_rs::semantic::SemanticExtraction = serde_json::from_value(part).unwrap();

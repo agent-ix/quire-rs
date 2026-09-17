@@ -328,6 +328,17 @@ pub enum SystemsRecord<'a> {
     Allocation(&'a AllocationRecord),
 }
 
+/// Why the declaration record could not be built.
+#[derive(Debug, thiserror::Error)]
+pub enum DeclarationError {
+    /// FR-075 extracts at most one systems-model table per artifact.
+    #[error("the declaration carries more than one systems-model record")]
+    MultipleSystemsRecords,
+    /// The typed record did not serialize to JSON.
+    #[error("the record does not serialize: {0}")]
+    Serialize(#[from] serde_json::Error),
+}
+
 impl SemanticExtraction {
     /// The typed declaration record (what `Entity.json`, `Part.json`, and
     /// their kin describe).
@@ -336,7 +347,7 @@ impl SemanticExtraction {
     ///
     /// More than one systems-model record: FR-075 extracts at most one
     /// systems-model table per artifact.
-    pub fn declaration(&self) -> Result<DeclarationRecord<'_>, serde_json::Error> {
+    pub fn declaration(&self) -> Result<DeclarationRecord<'_>, DeclarationError> {
         let systems = self.model.as_ref().map(|model| {
             let records = [
                 model.part.as_ref().map(|d| SystemsRecord::Part(&d.record)),
@@ -356,9 +367,7 @@ impl SemanticExtraction {
         });
         let (systems, extra_systems) = systems.unwrap_or((None, false));
         if extra_systems {
-            return Err(serde::ser::Error::custom(
-                "FR-075: the declaration carries more than one systems-model record",
-            ));
+            return Err(DeclarationError::MultipleSystemsRecords);
         }
         Ok(DeclarationRecord {
             fields: self.fields.as_deref(),
@@ -370,7 +379,11 @@ impl SemanticExtraction {
     }
 
     /// The declaration record as the JSON value a data schema validates.
-    pub fn declaration_record(&self) -> Result<Value, serde_json::Error> {
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::declaration`], or the record does not serialize.
+    pub fn declaration_record(&self) -> Result<Value, DeclarationError> {
         let declaration = self.declaration()?;
         let value = serde_json::to_value(&declaration)?;
         #[cfg(debug_assertions)]

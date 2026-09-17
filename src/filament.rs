@@ -1192,23 +1192,28 @@ fn attach_semantic(
     );
     // The resolved data schema validates the declaration record (FR-069-AC-1).
     if let Some(validator) = &object_type.validator {
-        let first: Option<(String, String)> = match record.declaration_record() {
-            Err(err) => Some((
-                String::new(),
-                format!("the record does not serialize: {err}"),
+        let first: Option<String> = match record.declaration_record() {
+            Err(err @ crate::semantic::DeclarationError::MultipleSystemsRecords) => {
+                Some(format!("{object_name}: {err}; FR-075 admits at most one per artifact"))
+            }
+            Err(err @ crate::semantic::DeclarationError::Serialize(_)) => Some(format!(
+                "{object_name}: declaration record fails the resolved data schema at : {err}"
             )),
             Ok(declaration) => match validator.validate(&declaration) {
                 Ok(()) => None,
                 Err(mut errors) => errors.next().map(|err| {
                     let detail = crate::validate::schema_validation_detail(&err);
-                    (detail.path.to_string(), detail.message.to_string())
+                    format!(
+                        "{object_name}: declaration record fails the resolved data schema at {}: {}",
+                        detail.path, detail.message
+                    )
                 }),
             },
         };
-        if let Some((path, message)) = first {
+        if let Some(message) = first {
             diagnostics.push(diagnostic(
                 "semantic.record-invalid",
-                format!("{object_name}: declaration record fails the resolved data schema at {path}: {message}"),
+                message,
                 "error",
                 Some(object_name.to_string()),
             ));

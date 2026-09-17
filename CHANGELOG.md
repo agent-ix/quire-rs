@@ -16,9 +16,10 @@ bumps; once 1.0 ships, semver is strict.
   spec-objects-business at or after its #13 release declares its values
   table under the `values` key.
 - **`SemanticExtraction::declaration_record()` returns
-  `Result<Value, serde_json::Error>` (#446)**, serialized from the typed
-  `declaration()`, which now returns a `Result` and errors when the record
-  holds more than one systems-model record.
+  `Result<Value, DeclarationError>` (#446)**, serialized from the typed
+  `declaration()`, which also returns a `Result`: `DeclarationError`
+  is `MultipleSystemsRecords` when the record holds more than one
+  systems-model record, or `Serialize` wrapping a `serde_json::Error`.
 
 ### Added
 

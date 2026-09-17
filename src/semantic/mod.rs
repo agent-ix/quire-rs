@@ -45,8 +45,8 @@ pub use relations::{
 };
 pub use resolver::{compile_module_schema, ResolvedSchema, SchemaSource};
 pub use surface::{
-    extract_semantic, Availability, DeclarationRecord, RequiredSections, SemanticExtraction,
-    SystemsRecord, SEMANTIC_FORMAT_VERSION, SEMANTIC_V1_SCHEMA,
+    extract_semantic, Availability, DeclarationError, DeclarationRecord, RequiredSections,
+    SemanticExtraction, SystemsRecord, SEMANTIC_FORMAT_VERSION, SEMANTIC_V1_SCHEMA,
 };
 pub use systems::{
     AllocationRecord, ConnectionDirection, ConnectionEnd, ConnectionRecord, PartRecord,

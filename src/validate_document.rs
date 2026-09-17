@@ -428,24 +428,27 @@ fn semantic_findings(
         }
     }
     if let Some(validator) = arch.data_validator() {
-        let first: Option<(String, String)> = match record.declaration_record() {
-            Err(err) => Some((
-                String::new(),
-                format!("the record does not serialize: {err}"),
+        let first: Option<String> = match record.declaration_record() {
+            Err(err @ crate::semantic::DeclarationError::MultipleSystemsRecords) => Some(format!(
+                "semantic.record-invalid: {err}; FR-075 admits at most one per artifact"
+            )),
+            Err(err @ crate::semantic::DeclarationError::Serialize(_)) => Some(format!(
+                "semantic.record-invalid: declaration record fails the resolved data schema at : {err}"
             )),
             Ok(declaration) => match validator.validate(&declaration) {
                 Ok(()) => None,
                 Err(mut violations) => violations.next().map(|err| {
                     let detail = crate::validate::schema_validation_detail(&err);
-                    (detail.path.to_string(), detail.message.to_string())
+                    format!(
+                        "semantic.record-invalid: declaration record fails the resolved data schema at {}: {}",
+                        detail.path, detail.message
+                    )
                 }),
             },
         };
-        if let Some((path, message)) = first {
+        if let Some(message) = first {
             errors.push(ValidationError {
-                message: format!(
-                    "semantic.record-invalid: declaration record fails the resolved data schema at {path}: {message}"
-                ),
+                message,
                 line: None,
                 reason: ValidationReason::Semantic,
             });
