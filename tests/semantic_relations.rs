@@ -1,4 +1,4 @@
-//! FR-076 relationships extraction (TC-1852..TC-1863, TC-1865). Oracles: the quoin
+//! FR-076 relationships extraction (TC-1852..TC-1863, TC-1865, TC-1867). Oracles: the quoin
 //! FR-104 fixtures `relationships.md`, `relationships.expected.json`, and
 //! `relationships-cases.json` (vendored at `99bd4f0`). The extraction context
 //! is built from each fixture's recorded `context`, never from `module-ok`.
