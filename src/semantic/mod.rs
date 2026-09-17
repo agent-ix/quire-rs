@@ -35,9 +35,10 @@ pub use contract::{
 };
 pub use decl::{Constraint, DecimalPolicy, FieldDecl, Multiplicity, TypeRef};
 pub use model::{
-    AbstractDecl, EnumValueDecl, FieldFeatureDecl, IdentityDecl, MemberDecl, ModelDeclarations,
-    OperationFrameDecl, PopulationDecl, PopulationMemberDecl, Presence, StepDecl, StepKind,
-    SupertypeDecl, TermDecl, TransitionDecl, UnknownStepKind,
+    AbstractDecl, EnumValueDecl, FeatureKind, FeatureOrderDecl, FieldFeatureDecl, IdentityDecl,
+    MemberDecl, ModelDeclarations, OperationFrameDecl, PopulationDecl, PopulationMemberDecl,
+    Presence, StepDecl, StepKind, SupertypeDecl, TermDecl, TransitionDecl, UnknownFeatureKind,
+    UnknownStepKind,
 };
 pub use properties::{extract_fields, FieldsForm, FieldsOutcome};
 pub use relations::{

@@ -47,6 +47,7 @@ pub(crate) enum ModelFeature {
     Port,
     Connection,
     Allocation,
+    Features,
 }
 
 impl ModelFeature {
@@ -71,6 +72,7 @@ impl ModelFeature {
             Self::Port => "port",
             Self::Connection => "connection",
             Self::Allocation => "allocation",
+            Self::Features => "features",
         }
     }
 
@@ -94,7 +96,8 @@ impl ModelFeature {
             | Self::Part
             | Self::Port
             | Self::Connection
-            | Self::Allocation => false,
+            | Self::Allocation
+            | Self::Features => false,
         };
         is_mapping && ctx.module.mappings.iter().any(|m| m == self.name())
     }
@@ -115,7 +118,8 @@ impl ModelFeature {
             | Self::Transitions
             | Self::Steps
             | Self::Members
-            | Self::Vocabulary => false,
+            | Self::Vocabulary
+            | Self::Features => false,
         }
     }
 }
@@ -131,7 +135,7 @@ struct TableSpec {
 }
 
 /// The single source of truth for the model tables (FR-075 Outputs).
-const TABLE_SPECS: [TableSpec; 11] = [
+const TABLE_SPECS: [TableSpec; 12] = [
     TableSpec {
         feature: ModelFeature::Population,
         columns: &["Type", "Extent"],
@@ -203,6 +207,12 @@ const TABLE_SPECS: [TableSpec; 11] = [
         columns: &["Source", "Target"],
         required: &["Source", "Target"],
         read: systems::read_allocation,
+    },
+    TableSpec {
+        feature: ModelFeature::Features,
+        columns: &["Feature", "Kind"],
+        required: &["Feature", "Kind"],
+        read: read_features,
     },
 ];
 
@@ -556,6 +566,48 @@ pub struct MemberDecl {
     pub source_span: SourceLocus,
 }
 
+/// What a `Features` row names.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum FeatureKind {
+    Field,
+    Operation,
+}
+
+/// A `Kind` cell of a `Features` row that names no [`FeatureKind`].
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[error("feature kind {0:?} is not field or operation")]
+pub struct UnknownFeatureKind(pub String);
+
+impl std::str::FromStr for FeatureKind {
+    type Err = UnknownFeatureKind;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "field" => Ok(Self::Field),
+            "operation" => Ok(Self::Operation),
+            other => Err(UnknownFeatureKind(other.to_string())),
+        }
+    }
+}
+
+impl FeatureKind {
+    fn name(self) -> &'static str {
+        match self {
+            Self::Field => "field",
+            Self::Operation => "operation",
+        }
+    }
+}
+
+/// A `Feature | Kind` row.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FeatureOrderDecl {
+    pub name: String,
+    pub kind: FeatureKind,
+    pub source_span: SourceLocus,
+}
+
 /// A `Term | Description` row.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -603,6 +655,10 @@ pub struct ModelDeclarations {
     pub connection: Option<SystemsDecl<ConnectionRecord>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub allocation: Option<SystemsDecl<AllocationRecord>>,
+    /// The `Features` table: the artifact's fields and operations as one
+    /// sequence, in row order.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub feature_order: Option<Vec<FeatureOrderDecl>>,
 }
 
 /// What the frontmatter and table extraction of one artifact produced.
@@ -614,16 +670,19 @@ pub(crate) struct ModelOutcome {
     pub(crate) declared: bool,
     /// The artifact's frontmatter `object`, for reference kind checks.
     pub(crate) object: Option<String>,
+    /// The header line of the `Features` table read into `feature_order`.
+    pub(crate) features_line: Option<usize>,
     pub(crate) lossy: bool,
     pub(crate) diagnostics: Vec<SemanticDiagnostic>,
 }
 
-/// Names a transition is checked against; `None` skips the check because
-/// the referenced kind is already `unavailable`.
+/// Names transitions and the `Features` table are checked against; `None`
+/// skips the check because the referenced kind is already `unavailable`.
 #[derive(Debug, Clone, Copy, Default)]
 pub(crate) struct ModelRefs<'a> {
     pub(crate) clause_ids: Option<&'a [String]>,
     pub(crate) operation_names: Option<&'a [String]>,
+    pub(crate) field_names: Option<&'a [String]>,
 }
 
 /// FR-075 identity, frontmatter, and table features of one document.
@@ -948,6 +1007,9 @@ fn table_features(
         }
     }
     check_transitions(refs, failed.contains(&ModelFeature::States), out);
+    if !failed.contains(&ModelFeature::Features) {
+        check_features(refs, out);
+    }
 }
 
 /// The reader state for one declared model table.
@@ -1154,6 +1216,35 @@ fn read_vocabulary(r: &mut TableRead<'_>) {
     r.out.model.vocabulary = Some(entries);
 }
 
+fn read_features(r: &mut TableRead<'_>) {
+    let table = r.table;
+    let mut entries = Vec::new();
+    for (line, cells) in &table.rows {
+        let name = r.cell(cells, "Feature");
+        let kind = match r.cell(cells, "Kind").parse::<FeatureKind>() {
+            Ok(kind) => Some(kind),
+            Err(unknown) => {
+                r.error("semantic.invalid-model-cell", *line, unknown.to_string());
+                None
+            }
+        };
+        let named = r.identifier(name, "feature", *line);
+        let (Some(kind), true) = (kind, named) else {
+            continue;
+        };
+        if !r.fresh(name, *line) {
+            continue;
+        }
+        entries.push(FeatureOrderDecl {
+            name: name.to_string(),
+            kind,
+            source_span: r.span(*line),
+        });
+    }
+    r.out.features_line = Some(table.line);
+    r.out.model.feature_order = Some(entries);
+}
+
 fn read_population(r: &mut TableRead<'_>) {
     let table = r.table;
     let mut members = Vec::new();
@@ -1228,6 +1319,68 @@ fn check_transitions(refs: ModelRefs<'_>, states_failed: bool, out: &mut ModelOu
                     "semantic.dangling-clause-ref",
                     line,
                     format!("guard {guard} is declared by no invariant of this artifact"),
+                ));
+            }
+        }
+    }
+    out.diagnostics.extend(found);
+}
+
+/// `Features` reader rules: each row names a declared field or operation of
+/// the artifact, of its `Kind`, and each declared field and operation has a
+/// row. A kind whose declarations are unavailable is not checked. Runs only
+/// when the table itself read without error.
+fn check_features(refs: ModelRefs<'_>, out: &mut ModelOutcome) {
+    let (Some(order), Some(header)) = (&out.model.feature_order, out.features_line) else {
+        return;
+    };
+    let declared = |kind: FeatureKind| match kind {
+        FeatureKind::Field => refs.field_names,
+        FeatureKind::Operation => refs.operation_names,
+    };
+    let mut found = Vec::new();
+    for entry in order {
+        let line = entry.source_span.start_line;
+        let Some(names) = declared(entry.kind) else {
+            continue;
+        };
+        if names.contains(&entry.name) {
+            continue;
+        }
+        let other = match entry.kind {
+            FeatureKind::Field => FeatureKind::Operation,
+            FeatureKind::Operation => FeatureKind::Field,
+        };
+        if declared(other).is_some_and(|n| n.contains(&entry.name)) {
+            found.push(err(
+                "semantic.feature-kind-mismatch",
+                line,
+                format!(
+                    "feature {} is declared as a {}, not a {}",
+                    entry.name,
+                    other.name(),
+                    entry.kind.name()
+                ),
+            ));
+        } else {
+            found.push(err(
+                "semantic.unknown-feature",
+                line,
+                format!(
+                    "feature {} names no {} of this artifact",
+                    entry.name,
+                    entry.kind.name()
+                ),
+            ));
+        }
+    }
+    for kind in [FeatureKind::Field, FeatureKind::Operation] {
+        for name in declared(kind).into_iter().flatten() {
+            if !order.iter().any(|e| e.kind == kind && &e.name == name) {
+                found.push(err(
+                    "semantic.missing-feature",
+                    header,
+                    format!("{} {name} has no row in the Features table", kind.name()),
                 ));
             }
         }

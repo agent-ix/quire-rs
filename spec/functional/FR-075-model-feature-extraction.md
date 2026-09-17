@@ -10,6 +10,8 @@ evidence:
     ref: tests/semantic_contract.rs
   - kind: test_case
     ref: tests/semantic_systems.rs
+  - kind: test_case
+    ref: tests/semantic_features.rs
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/usecase/US-019"
     type: "implements"
@@ -35,7 +37,7 @@ When the engine extracts an object artifact whose module carries a
 `semantic` block, the engine SHALL extract every model feature the artifact
 declares (generalization, abstract types, presence, subsetting,
 redefinition, effect frames, populations, the
-object-type sections, and the systems-model tables) into typed declarations with source spans, under the
+object-type sections, the systems-model tables, and the feature order) into typed declarations with source spans, under the
 record key `model`.
 
 The engine SHALL extract a feature only when the module manifest declares
@@ -102,12 +104,14 @@ past that line's byte length.
 | `port` | table `Owner \| Direction \| Interface \| Multiplicity` (all required), one row | `{ owner, direction, interfaceType, multiplicity, sourceSpan }` |
 | `connection` | table `Source \| Source Multiplicity \| Target \| Target Multiplicity \| Direction` (`Source`, `Target`, `Direction` required), one row | `{ sourceEnd, targetEnd, flowDirection, sourceSpan }`, each end `{ type, multiplicity? }` |
 | `allocation` | table `Source \| Target` (both required), one row | `{ sourceElement, targetElement, sourceSpan }` |
+| `featureOrder` | table `Feature \| Kind` (both required) | `{ name, kind, sourceSpan }`, in row order |
 
 `owner`, `sourceElement`, `targetElement`, and a connection end's `type` are
 semantic-core `SemanticId`s; `declaredType` and `interfaceType` are
 `TypeRef`s. The keys of `part`, `port`, `connection`, and `allocation` other
 than `sourceSpan` are also members of the declaration record the object
-type's data schema validates.
+type's data schema validates, and so is `featureOrder`, as the list of its
+entries' `name`s in row order.
 
 `identity` and `displayName` are carried whenever `model` is present; they
 declare no feature on their own.
@@ -266,6 +270,20 @@ Systems-model tables:
   `bidirectional`. Any other value is `semantic.invalid-model-cell` at the
   row.
 
+Feature order:
+
+- A `Feature` cell SHALL be an `Identifier` and a `Kind` cell one of `field`,
+  `operation`; any other value is `semantic.invalid-model-cell` at the row. A
+  second row with the same `Feature` is `semantic.duplicate-model-entry`.
+- When the table carries no error, each row SHALL name a declared field (the
+  FR-070 `fields`) or operation (the FR-071 `operations`) of the artifact, of
+  its `Kind`. A row naming a declaration of the other kind is
+  `semantic.feature-kind-mismatch` at the row; a row naming neither is
+  `semantic.unknown-feature` at the row.
+- Each declared field and operation SHALL have a row; one without is
+  `semantic.missing-feature` at the table's header line. A kind whose
+  availability is `unavailable` is not checked.
+
 General:
 
 - If any model feature carries an error or a refusal, then the engine SHALL
@@ -297,6 +315,8 @@ General:
 | FR-075-AC-11 | `RequiredSections::from_extraction` over a typed `body_extraction` marks exactly the `Properties`, `Invariants`, and `Operations` headings a required locator (any primitive, including a fallback-chain member, under `under_section` or `after_heading`) sits under, wherever the locator is declared (`yield_pattern.match`, `yield_pattern.per_match`, or an `emit_edges` target), for a DSL authored as JSON with the module key names. | Test |
 | FR-075-AC-12 | Under declared locators, a `part`, `port`, `connection`, and `allocation` table each extract to their typed entry with resolved `SemanticId`s, `TypeRef`s, multiplicities, direction, and row span; an empty end multiplicity cell, or end multiplicity columns the locator omits, give no end `multiplicity`; an allocation `Source` of `<id>/<member>` extracts; own-package `ix://` and imported identities resolve, and a non-imported package yields `semantic.unknown-reference`; a name no bundle artifact carries yields `semantic.unknown-reference`, a bundle with no artifacts lowers it with the advisory `semantic.unresolved-target`, and a failing row carries no advisory; a reference to an artifact of an object type the cell does not admit, an allocation `Source` `<id>/<member>` whose `<id>` is not an `interface`, and a part `Owner` naming the part itself each yield `semantic.reference-kind-mismatch`; a record holding more than one systems-model record makes `declaration_record()` return an error; an unknown port direction, an unknown connection direction, a hyphenated id, an empty table (at its header), and `<id>/<member>` in an `Owner` or a connection end each yield `semantic.invalid-model-cell`; a second row yields `semantic.duplicate-model-entry`; a second systems-model table yields `semantic.duplicate-section`; each error sets `availability.model` `unavailable` with no `model`; a locator's match key, not its columns, names the table it declares; an undeclared `Source \| Target` table is refused as `allocation`. | Test |
 | FR-075-AC-13 | Under the spec-objects-architecture module (agent-ix/spec-objects-architecture#11 at `4215aad`), `validate_document` of each of the `part`, `port`, `connection`, and `allocation` skeletons yields zero errors, and each declaration record carries exactly the keys its data schema requires. | Test |
+| FR-075-AC-14 | Under a declared `Feature \| Kind` locator, an artifact with one field and two operations whose `Features` table interleaves them yields `model.featureOrder` in row order with row spans; its declaration record carries `featureOrder` as the names in row order and satisfies spec-objects-architecture's `Interface.json`. | Test |
+| FR-075-AC-15 | A `Features` row naming no declared feature yields `semantic.unknown-feature`, a row whose `Kind` is not the declared kind `semantic.feature-kind-mismatch`, an unknown `Kind` `semantic.invalid-model-cell`, and a repeated `Feature` `semantic.duplicate-model-entry`, each at its row; a declared feature with no row yields `semantic.missing-feature` at the table header; each sets `availability.model` `unavailable` with no `model`. | Test |
 
 ## Dependencies
 

@@ -336,6 +336,19 @@
             "targetElement": { "$ref": "#/$defs/semanticId" },
             "sourceSpan": { "$ref": "#/$defs/sourceLocus" }
           }
+        },
+        "featureOrder": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "kind", "sourceSpan"],
+            "properties": {
+              "name": { "$ref": "#/$defs/identifier" },
+              "kind": { "enum": ["field", "operation"] },
+              "sourceSpan": { "$ref": "#/$defs/sourceLocus" }
+            }
+          }
         }
       }
     },
