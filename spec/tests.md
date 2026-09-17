@@ -112,7 +112,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | FR-072 Semantic extraction surface | AC-1..9; CON-1..3 | TC-1630..TC-1640, TC-1650 (TC-1636 external: quire-wasm#3) | ✅ Implemented; WASM leg external |
 | FR-073 Generic rights-aware clause sets | AC-1..6 | TC-1806..TC-1809 | ✅ Implemented |
 | FR-075 Model feature extraction | AC-1..9; CON-1 | TC-1840..TC-1847, TC-1849 | ✅ Implemented |
-| FR-076 Relationships extraction to RelationDecl[] | AC-1..9; CON-1..2 | TC-1852..TC-1860 | ✅ Implemented |
+| FR-076 Relationships extraction to RelationDecl[] | AC-1..13; CON-1..2 | TC-1852..TC-1864 | ✅ Implemented |
 
 ### Integration Requirement Coverage
 
@@ -850,10 +850,14 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-1854 | The seven `target-*` cases yield `target-not-id`, `target-not-allowed`, or the verbatim imported identity | Unit | P0 | FR-076-AC-3 | ✅ |
 | TC-1855 | `multiplicity-malformed`, `multiplicity-inverted`, `multiplicity-empty` yield `reason` `multiplicity` at the row | Unit | P0 | FR-076-AC-4 | ✅ |
 | TC-1856 | `name-not-identifier`, `duplicate-name`, `declared-in-frontmatter` yield their code, line, and `reason` | Unit | P0 | FR-076-AC-5 | ✅ |
-| TC-1857 | `column-missing`, `column-extra`, `bullet-list`, `second-table`, `second-section` yield their refusal with `availability.relations` `unavailable` | Unit | P0 | FR-076-AC-6 | ✅ |
-| TC-1858 | `mapping-not-declared`, `subset-header-unowned-section`, `preamble-table` are refused with their `section`; `prose-without-mapping` yields nothing | Unit | P0 | FR-076-AC-7 | ✅ |
-| TC-1859 | `good-and-bad-rows`, `two-error-lines`, `header-only`, `section-absent`, `first-failing-check-only` yield their availability; all 31 cases run, each emitting exactly `exactDiagnostics` diagnostics with a line `sourceSpan` | Unit | P0 | FR-076-AC-8 | ✅ |
+| TC-1857 | `column-missing`, `column-extra`, `bullet-list`, `second-table`, `second-section`, `list-after-table` yield their refusal with `availability.relations` `unavailable` | Unit | P0 | FR-076-AC-6 | ✅ |
+| TC-1858 | `mapping-not-declared`, `subset-header-unowned-section`, `preamble-table`, `token-table-other-section`, `token-preamble-table` are refused with their `section`; `prose-without-mapping` yields nothing | Unit | P0 | FR-076-AC-7 | ✅ |
+| TC-1859 | `good-and-bad-rows`, `two-error-lines`, `header-only`, `section-absent`, `first-failing-check-only` yield their availability; all 41 cases run, each emitting exactly `exactDiagnostics` diagnostics with a line `sourceSpan` | Unit | P0 | FR-076-AC-8 | ✅ |
 | TC-1860 | Every FR-076 record validates against `semantic-v1.schema.json`; an artifact without the token or a relationship table carries no relations keys; `declaration_record` carries `relations`; a renamed verb with the same registry entry changes only `verb` | Unit | P0 | FR-076-AC-9, FR-076-CON-1, FR-076-CON-2 | ✅ |
+| TC-1861 | `no-relation-vocabulary` yields the heading advisory and `unavailable` `no-relation-vocabulary`; `no-relation-vocabulary-second-table` yields only its `second-table` error | Unit | P0 | FR-076-AC-10 | ✅ |
+| TC-1862 | The four `no-bundle-index*` cases: lowering rows carry the `no-bundle-index` advisory naming the target; a title with spaces and a bad multiplicity are refused with no advisory | Unit | P0 | FR-076-AC-11 | ✅ |
+| TC-1863 | `prose-only-section` warns `semantic.relationships-no-block` at the heading with `not_applicable` | Unit | P0 | FR-076-AC-12 | ✅ |
+| TC-1864 | `validate_document` over a loaded registry lowers a role-satisfying row and refuses an unregistered verb, an inverse label, and a disallowed target; Filament and the Python entry without a vocabulary report `no-relation-vocabulary` | Integration | P0 | FR-076-AC-13 | ✅ |
 | TC-1641 | A static audit of `cargo metadata` and the semantic module finds none of the NFR-021 denylisted crates and no `eval`/`parse_expr`/`typecheck` symbol over clause text | Static | P0 | NFR-021-AC-1 | ✅ |
 | TC-1642 | A static audit finds no `std::net`, `std::process`, or filesystem write on the semantic path | Static | P0 | NFR-021-AC-2 | ✅ |
 | TC-1643 | Every Filament graph case output equals the checked-in baseline and coverage-v1/properties-v1/assurance-v1 outputs equal their fixtures byte-for-byte; no existing contract schema gains a required key | Snapshot | P0 | NFR-021-AC-3 | ✅ |
@@ -1437,6 +1441,10 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-076-AC-7 | TC-1858 |
 | FR-076-AC-8 | TC-1859 |
 | FR-076-AC-9 | TC-1860 |
+| FR-076-AC-10 | TC-1861 |
+| FR-076-AC-11 | TC-1862 |
+| FR-076-AC-12 | TC-1863 |
+| FR-076-AC-13 | TC-1864 |
 | FR-073-AC-1 | TC-1807, TC-1809 |
 | FR-073-AC-2 | TC-1806 |
 | FR-073-AC-3 | TC-1806 |

@@ -7,6 +7,17 @@ description: "Chronological log of structural changes to this bundle."
 
 ## History
 
+* **2026-09-16** — **CR-167** (#418, PR #436 review): [FR-076](./functional/FR-076-relationships-extraction.md)
+  follows quoin FR-104 as amended by quoin PR #555 (fixtures re-vendored at
+  `2dad869`). A context without a `RelationVocabulary` extracts under
+  `no-relation-vocabulary`; a context without a bundle index lowers
+  id-shaped targets with the `no-bundle-index` advisory; under the token a
+  relationship table outside `## Relationships` is refused; a section with
+  no block warns `relationships-no-block`. `composite` is always present,
+  and the block-refusal rule covers every non-read block. `validate_document`
+  builds the vocabulary from the registry; Filament waits on
+  `agent-ix/filament-core-service#32`. AC-10..AC-13, TC-1861..TC-1864.
+
 * **2026-09-16** — **FR-076** (#418): relationships extraction. Under the
   `relationships` mapping token, the `## Relationships`
   `Name | Verb | Target | Multiplicity` table extracts to semantic-core
