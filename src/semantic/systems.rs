@@ -214,15 +214,63 @@ impl CellRole {
         }
     }
 
-    /// The object types the named artifact may have. A `<id>/<member>`
-    /// operation reference names an `interface` and its operation.
-    fn kinds(self, member: bool) -> &'static [&'static str] {
+    /// The systems kinds with no owner effective type (FR-152): a part,
+    /// port, connection, or allocation is qualified into the FR-150
+    /// effective view as an effective *member*, never an owner effective
+    /// type — only an interface is one. A Part `Owner` may not name any of
+    /// them.
+    const SYSTEMS_RECORD_KINDS: [&'static str; 4] = ["part", "port", "connection", "allocation"];
+
+    /// Whether the named artifact's declared object type — `None` when it
+    /// declares none — is admitted for this role. `member` is set when the
+    /// cell names `<id>/<member>`.
+    fn admits(self, member: bool, kind: Option<&str>) -> bool {
         match self {
-            Self::PartOwner | Self::PortOwner | Self::TargetElement => &["part"],
-            Self::SourcePort | Self::TargetPort => &["port"],
-            Self::SourceElement if member => &["interface"],
-            Self::SourceElement => &["part", "port"],
+            // FR-152: a Part's `owner` names the owning composite type. A
+            // part, port, connection, or allocation has no owner effective
+            // type and is refused, as is a declarer with no declared type
+            // at all.
+            Self::PartOwner => kind.is_some_and(|k| !Self::SYSTEMS_RECORD_KINDS.contains(&k)),
+            Self::PortOwner | Self::TargetElement => kind == Some("part"),
+            Self::SourcePort | Self::TargetPort => kind == Some("port"),
+            // FR-152: an allocation's source element is a Part, a Port, or
+            // an operation `<id>/<member>` where `<id>` names a type — never
+            // a part, port, connection, or allocation, the same
+            // SYSTEMS_RECORD_KINDS a Part `Owner` refuses: FR-152's
+            // "effective view" ties an operation to its owning type, and a
+            // systems record structurally declares no `## Operations`
+            // section, so it never has a member to name. Whether `<id>`
+            // actually declares the operation `<member>` is checked
+            // separately, against its `operations` (`BundleArtifact` in
+            // src/semantic/context.rs, FR-075 Inputs).
+            Self::SourceElement if member => {
+                kind.is_some_and(|k| !Self::SYSTEMS_RECORD_KINDS.contains(&k))
+            }
+            Self::SourceElement => matches!(kind, Some("part") | Some("port")),
         }
+    }
+
+    /// What a `WrongKind` refusal names as required: the `{label}` in
+    /// `{what} {base} is a {found}, not {label}` when a declared type was
+    /// found, or `{what} {base} declares no object type, not {label}` when
+    /// none was.
+    fn expected_label(self, member: bool) -> &'static str {
+        match self {
+            Self::PartOwner => "a type",
+            Self::PortOwner | Self::TargetElement => "a part",
+            Self::SourcePort | Self::TargetPort => "a port",
+            Self::SourceElement if member => "a type",
+            Self::SourceElement => "a part or port",
+        }
+    }
+}
+
+/// "a" or "an", by whether `word` starts with a vowel.
+fn article(word: &str) -> &'static str {
+    if word.starts_with(['a', 'e', 'i', 'o', 'u']) {
+        "an"
+    } else {
+        "a"
     }
 }
 
@@ -290,12 +338,19 @@ impl<'a> TableRead<'a> {
         let own = OwnArtifact {
             id: self.out.model.identity.as_ref().map(|d| d.value.as_str()),
             object: own_object.as_deref(),
+            operations: self.own_operations(),
         };
         let resolved = resolve_target(ctx, ctx.identity_package(), &own, base, is_object_id);
-        let (identity, unchecked, object) = match resolved {
-            Ok(Target::Bundle { identity, object }) => {
-                (identity, false, Some(object.map(str::to_string)))
-            }
+        let (identity, unchecked, bundle) = match resolved {
+            Ok(Target::Bundle {
+                identity,
+                object,
+                operations,
+            }) => (
+                identity,
+                false,
+                Some((object.map(str::to_string), operations.to_vec())),
+            ),
             Ok(Target::Imported { identity }) => (identity, false, None),
             Ok(Target::Unchecked { identity }) => (identity, true, None),
             Err(Unresolved::Malformed) => {
@@ -332,16 +387,27 @@ impl<'a> TableRead<'a> {
             );
             return None;
         }
-        if let Some(object) = object {
-            let kinds = role.kinds(member.is_some());
-            if !object.as_deref().is_some_and(|o| kinds.contains(&o)) {
-                let found = object.as_deref().unwrap_or("no object type");
-                self.finding(
-                    SystemsFinding::WrongKind,
-                    line,
-                    format!("{what} {base} is a {found}, not a {}", kinds.join(" or ")),
-                );
+        if let Some((object, operations)) = bundle {
+            if !role.admits(member.is_some(), object.as_deref()) {
+                let label = role.expected_label(member.is_some());
+                let message = match object.as_deref() {
+                    Some(found) => {
+                        format!("{what} {base} is {} {found}, not {label}", article(found))
+                    }
+                    None => format!("{what} {base} declares no object type, not {label}"),
+                };
+                self.finding(SystemsFinding::WrongKind, line, message);
                 return None;
+            }
+            if let Some(member) = member {
+                if !operations.iter().any(|op| op == member) {
+                    self.finding(
+                        SystemsFinding::UnknownReference,
+                        line,
+                        format!("{base} declares no operation {member}"),
+                    );
+                    return None;
+                }
             }
         }
         let identity = match member {

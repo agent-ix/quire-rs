@@ -709,7 +709,14 @@ pub(crate) fn extract_model(raw: &str, ctx: &SemanticContext, refs: ModelRefs<'_
     let lines = lines(raw);
     let mut out = ModelOutcome::default();
     let body_start = frontmatter_features(raw, &lines, ctx, &mut out);
-    table_features(&lines, body_start, ctx, refs, &mut out);
+    // Fed from `declared_operation_names`, not `refs.operation_names`: a
+    // self-reference allocation `Source: <own-id>/<member>` must check
+    // `<member>` against this document's own `## Operations` headings even
+    // when a *different* operation's body has an error and makes
+    // `refs.operation_names` (from `extract_operations`, gated on the whole
+    // section parsing clean) `None`.
+    let own_operations = super::clauses::declared_operation_names(raw);
+    table_features(&lines, body_start, ctx, refs, &own_operations, &mut out);
     out
 }
 
@@ -924,6 +931,7 @@ fn table_features(
     body_start: usize,
     ctx: &SemanticContext,
     refs: ModelRefs<'_>,
+    own_operations: &[String],
     out: &mut ModelOutcome,
 ) {
     let headings = level2_headings(lines);
@@ -1019,6 +1027,7 @@ fn table_features(
                 ctx,
                 out,
                 keys: Vec::new(),
+                own_operations,
             });
             if out.diagnostics[before..].iter().any(|d| d.is_error()) {
                 failed.push(spec.feature);
@@ -1040,9 +1049,25 @@ pub(super) struct TableRead<'a> {
     pub(super) out: &'a mut ModelOutcome,
     /// Row keys seen so far, for `semantic.duplicate-model-entry`.
     keys: Vec<String>,
+    /// This artifact's own declared operation names, from
+    /// `clauses::declared_operation_names` — the `### <name>` headings under
+    /// `## Operations`, regardless of whether any operation's body parses
+    /// cleanly. **Not** `ModelRefs.operation_names` (`extract_operations`'s
+    /// filtered output, `None` whenever any operation anywhere in the
+    /// document has an error): a self-reference must not refuse `<member>`
+    /// because some *other* operation has a malformed body. What an
+    /// allocation `Source` self-reference `<own-id>/<member>` checks
+    /// `<member>` against (FR-075 Inputs).
+    own_operations: &'a [String],
 }
 
-impl TableRead<'_> {
+impl<'a> TableRead<'a> {
+    /// This artifact's own declared operation names, empty when it declared
+    /// no `## Operations` section.
+    pub(super) fn own_operations(&self) -> &'a [String] {
+        self.own_operations
+    }
+
     /// The cell under `column`, empty when the column is absent (declared
     /// optional) or the row is short.
     pub(super) fn cell<'c>(&self, cells: &'c [String], column: &str) -> &'c str {

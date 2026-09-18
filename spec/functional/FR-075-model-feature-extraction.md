@@ -76,6 +76,27 @@ clause id and never parses them
 - The document path. The Filament and Python surfaces pass the artifact
   path; `validate_document` has no path, and its spans and messages name
   `<document>`.
+- Each bundle artifact's declared operation names (`BundleArtifact.operations`
+  on the `SemanticContext`'s bundle index): what an allocation `Source` of
+  `<id>/<member>` checks `<member>` against. Every surface that supplies a
+  bundle — the Rust API, the Filament `semanticBundle` JSON request, and the
+  Python `bundle` argument — supplies `operations` for every artifact it
+  lists; the field is required, not defaulted (Outputs). Corpus mode
+  (`BundleIndex::from_documents`) derives it itself, from
+  `clauses::declared_operation_names`. When `<id>` names the artifact's own
+  document (a self-reference), `<member>` is checked the same way, against
+  that same `declared_operation_names` scan run on the artifact's own text,
+  not against the bundle at all.
+- `declared_operation_names`' name list contains one entry per `### <name>`
+  heading under a document's `## Operations` section: every heading whose
+  text is an `Identifier`, read from the heading itself, independent of
+  whether that operation's own body parses without error and independent of
+  whether any *other* operation's body has an error. `extract_operations`'s
+  own `operations` (FR-071 Outputs) is a separate list: the whole document's
+  operations parsed as full declarations, present only when every one of
+  them parses without error. A `<member>` check against a heading that
+  exists but whose body is malformed still lifts; only a `<member>` naming
+  no heading at all is refused.
 
 ## Outputs
 
@@ -247,14 +268,27 @@ Systems-model tables:
   `semantic.unknown-reference` at the row. A bundle with no artifacts lowers
   an own-package cell unchecked with the advisory
   `semantic.unresolved-target`, reason `no-bundle-index`, emitted only when
-  the row lowers. The `<member>` of `<id>/<member>` is not checked.
-- A resolved bundle artifact SHALL have an object type the cell admits: a
-  part or port `Owner` and an allocation `Target` name a `part`; a
+  the row lowers. The `<member>` of `<id>/<member>` is not checked when the
+  identity is imported or unchecked (no bundle index).
+- A resolved bundle artifact SHALL have an object type the cell admits. A
+  part `Owner` names any declared object type but a `part`, `port`,
+  `connection`, or `allocation` — those four have no owner effective type
+  (QSpec FR-152) — and a declarer with no object type at all is also
+  refused. A port `Owner` and an allocation `Target` name a `part`; a
   connection `Source` or `Target` names a `port`; an allocation `Source`
-  names a `part` or a `port`, or by `<id>/<member>` an operation of an
-  `interface`. Any other object type, or none, is
+  names a `part`, a `port`, or by `<id>/<member>` any declared object type
+  but the same four systems-record kinds a part `Owner` refuses — an
+  operation belongs to a type (QSpec FR-152's "effective view"), and a
+  systems record structurally declares no `## Operations` section, so it
+  never has a member to name. A declarer of no object type at all, or one
+  of those four kinds where the role refuses them, is
   `semantic.reference-kind-mismatch` at the row. An imported or unchecked
   identity's object type is not checked.
+- An allocation `Source` of `<id>/<member>` names an operation the `<id>`
+  bundle artifact declares: `<member>` SHALL be one of its
+  `BundleArtifact.operations`, checked only once `<id>`'s object type has
+  passed the kind check above. A `<member>` the artifact does not declare
+  is `semantic.unknown-reference` at the row.
 - A part `Owner` SHALL NOT name the part itself; one that does is
   `semantic.reference-kind-mismatch` at the row.
 - The declaration record SHALL carry at most one systems-model record; a
@@ -315,7 +349,7 @@ General:
 | FR-075-AC-9 | `validate_document` and Filament extraction read a feature their module manifest declares (a mapping token or a `table_row` locator) and refuse one it does not; `validate_document` refusals name `<document>`, Filament refusals name the artifact path. | Test |
 | FR-075-AC-10 | A Rust caller that builds `SemanticContext` with `with_body_extraction` and a typed `body_extraction` declaring a `Values` locator extracts the table, and the record equals the one `extract_semantic_json` returns for the same request; the same context without `with_body_extraction` refuses the table with `semantic.feature-not-extractable`. | Test |
 | FR-075-AC-11 | `RequiredSections::from_extraction` over a typed `body_extraction` marks exactly the `Properties`, `Invariants`, and `Operations` headings a required locator (any primitive, including a fallback-chain member, under `under_section` or `after_heading`) sits under, wherever the locator is declared (`yield_pattern.match`, `yield_pattern.per_match`, or an `emit_edges` target), for a DSL authored as JSON with the module key names. | Test |
-| FR-075-AC-12 | Under declared locators, a `part`, `port`, `connection`, and `allocation` table each extract to their typed entry with resolved `SemanticId`s, `TypeRef`s, multiplicities, direction, and row span; an empty end multiplicity cell, or end multiplicity columns the locator omits, give no end `multiplicity`; an allocation `Source` of `<id>/<member>` extracts; own-package `ix://` and imported identities resolve, and a non-imported package yields `semantic.unknown-reference`; a name no bundle artifact carries yields `semantic.unknown-reference`, a bundle with no artifacts lowers it with the advisory `semantic.unresolved-target`, and a failing row carries no advisory; a reference to an artifact of an object type the cell does not admit, an allocation `Source` `<id>/<member>` whose `<id>` is not an `interface`, and a part `Owner` naming the part itself each yield `semantic.reference-kind-mismatch`; a record holding more than one systems-model record makes `declaration_record()` return an error; an unknown port direction, an unknown connection direction, a hyphenated id, an empty table (at its header), and `<id>/<member>` in an `Owner` or a connection end each yield `semantic.invalid-model-cell`; a second row yields `semantic.duplicate-model-entry`; a second systems-model table yields `semantic.duplicate-section`; each error sets `availability.model` `unavailable` with no `model`; a locator's match key, not its columns, names the table it declares; an undeclared `Source \| Target` table is refused as `allocation`. | Test |
+| FR-075-AC-12 | Under declared locators, a `part`, `port`, `connection`, and `allocation` table each extract to their typed entry with resolved `SemanticId`s, `TypeRef`s, multiplicities, direction, and row span; an empty end multiplicity cell, or end multiplicity columns the locator omits, give no end `multiplicity`; an allocation `Source` of `<id>/<member>` extracts when `<id>` declares the operation `<member>`; own-package `ix://` and imported identities resolve, and a non-imported package yields `semantic.unknown-reference`; a name no bundle artifact carries, and an allocation `Source` `<id>/<member>` whose `<id>` artifact does not declare `<member>`, yield `semantic.unknown-reference`; a bundle with no artifacts lowers a name unchecked with the advisory `semantic.unresolved-target`, and a failing row carries no advisory; a part `Owner` naming a `part`, `port`, `connection`, `allocation`, or a declarer with no object type, a Port `Owner` or allocation `Target` naming a non-part, an allocation `Source` naming neither a part nor a port, and a part `Owner` naming the part itself each yield `semantic.reference-kind-mismatch`; a record holding more than one systems-model record makes `declaration_record()` return an error; an unknown port direction, an unknown connection direction, a hyphenated id, an empty table (at its header), and `<id>/<member>` in an `Owner` or a connection end each yield `semantic.invalid-model-cell`; a second row yields `semantic.duplicate-model-entry`; a second systems-model table yields `semantic.duplicate-section`; each error sets `availability.model` `unavailable` with no `model`; a locator's match key, not its columns, names the table it declares; an undeclared `Source \| Target` table is refused as `allocation`. | Test |
 | FR-075-AC-13 | Under the spec-objects-architecture module (agent-ix/spec-objects-architecture#11 at `4215aad`), `validate_document` of each of the `part`, `port`, `connection`, and `allocation` skeletons yields zero errors, and each declaration record carries exactly the keys its data schema requires. | Test |
 | FR-075-AC-14 | Under a declared `Feature \| Kind` locator, an artifact with one field and two operations whose `Features` table interleaves them yields `model.featureOrder` in row order with row spans; its declaration record carries `featureOrder` as the names in row order and satisfies spec-objects-architecture's `Interface.json`. | Test |
 | FR-075-AC-15 | A `Features` row naming no declared feature yields `semantic.unknown-feature`, a row whose `Kind` is not the declared kind `semantic.feature-kind-mismatch`, an unknown `Kind` `semantic.invalid-model-cell`, and a repeated `Feature` `semantic.duplicate-model-entry`, each at its row; a declared feature with no row yields `semantic.missing-feature` at the table header, and a wrong-kind row yields no `semantic.missing-feature`; each sets `availability.model` `unavailable` with no `model`. When `operations` is `unavailable`, rows naming operations as either kind and operations without rows yield no feature diagnostic. | Test |

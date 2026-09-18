@@ -365,6 +365,97 @@ pub fn extract_clauses(raw: &str, ctx: &SemanticContext) -> ClausesOutcome {
     }
 }
 
+/// The document's single `## Operations` section, shared by
+/// `declared_operation_names` and `extract_operations` so the two can never
+/// independently drift on which section the headings are read from: `None`
+/// when there is no `## Operations` section; `Some(Err(second_heading_line))`
+/// when there is more than one (the ambiguous case each caller reports its
+/// own way); `Some(Ok((start, end)))` — heading-search bounds — otherwise.
+fn operations_section(lines: &[&str]) -> Option<Result<(usize, usize), usize>> {
+    let sections = level2_sections(lines, "Operations");
+    match sections.len() {
+        0 => None,
+        1 => Some(Ok(sections[0])),
+        _ => Some(Err(sections[1].0)),
+    }
+}
+
+/// Why a `### <name>` heading under a document's `## Operations` section is
+/// not one of its declared operation names: the heading text is not an
+/// `Identifier`, or it repeats a name an earlier heading in the same section
+/// already claimed.
+enum RejectedHeading {
+    NotIdentifier,
+    Duplicate,
+}
+
+/// One `### <name>` heading under `operations_section`'s bounds: `heading_line`
+/// and `end` are its own line and body-end bounds, and `status` is `Ok(())`
+/// when it counts as a declared operation name — an `Identifier` not already
+/// seen earlier in the section — or `Err` with why not otherwise.
+struct OperationHeading {
+    name: String,
+    heading_line: usize,
+    end: usize,
+    status: Result<(), RejectedHeading>,
+}
+
+/// The `### <name>` headings under `operations_section`'s bounds, in heading
+/// order, each classified exactly once against every heading before it. ONE
+/// loop, shared by `declared_operation_names` (keeps only the `Ok` names) and
+/// `extract_operations` (turns every `Err` into its own diagnostic, in the
+/// same heading order, then parses each `Ok` heading's body) — a heading
+/// either function sees is a heading the other sees too, and the rule for
+/// keeping one lives in exactly one place.
+fn operation_headings(lines: &[&str], start: usize, end: usize) -> Vec<OperationHeading> {
+    let mut seen: Vec<String> = Vec::new();
+    level3_headings(lines, start, end)
+        .into_iter()
+        .map(|section| {
+            let status = if !is_identifier(&section.id) {
+                Err(RejectedHeading::NotIdentifier)
+            } else if seen.contains(&section.id) {
+                Err(RejectedHeading::Duplicate)
+            } else {
+                seen.push(section.id.clone());
+                Ok(())
+            };
+            OperationHeading {
+                name: section.id,
+                heading_line: section.heading_line,
+                end: section.end,
+                status,
+            }
+        })
+        .collect()
+}
+
+/// The `### <name>` headings directly under a document's `## Operations`
+/// section (FR-071 Operations), in heading order: every `Identifier` heading
+/// once, duplicates dropped, and empty when there is no `## Operations`
+/// section or more than one. A heading counts once it exists and is an
+/// `Identifier`, whether or not that operation's own body parses cleanly.
+/// `extract_operations`'s `operations` (and the `operation_names`
+/// `surface.rs` derives from it) is a different list: the whole document's
+/// operations parsed as full declarations, carrying no names at all once any
+/// one operation's body has an error. A caller checking "did this document
+/// declare an operation named X" needs the heading, not the parsed body.
+/// Two callers: `BundleIndex::from_documents` (corpus mode, FR-075 Inputs)
+/// and `extract_model`'s own self-reference operations feed (`model.rs`),
+/// both because an allocation `Source`'s `<id>/<member>` check must not
+/// refuse `<member>` just because some *other* operation in the document has
+/// an error.
+pub(crate) fn declared_operation_names(raw: &str) -> Vec<String> {
+    let lines = lines(raw);
+    match operations_section(&lines) {
+        Some(Ok((start, end))) => operation_headings(&lines, start + 1, end)
+            .into_iter()
+            .filter_map(|h| h.status.is_ok().then_some(h.name))
+            .collect(),
+        None | Some(Err(_)) => Vec::new(),
+    }
+}
+
 /// FR-071 Operations. `clauses` are the artifact's extracted invariants.
 pub fn extract_operations(
     raw: &str,
@@ -372,60 +463,62 @@ pub fn extract_operations(
     clauses: &[ClauseRef],
 ) -> OperationsOutcome {
     let lines = lines(raw);
-    let sections = level2_sections(&lines, "Operations");
-    let Some(&(start, end)) = sections.first() else {
-        return OperationsOutcome {
-            availability: KindAvailability::not_applicable(),
-            operations: None,
-            frames: Vec::new(),
-            model_declared: false,
-            diagnostics: Vec::new(),
-        };
+    let (start, end) = match operations_section(&lines) {
+        None => {
+            return OperationsOutcome {
+                availability: KindAvailability::not_applicable(),
+                operations: None,
+                frames: Vec::new(),
+                model_declared: false,
+                diagnostics: Vec::new(),
+            }
+        }
+        Some(Err(second_heading_line)) => {
+            return OperationsOutcome {
+                availability: KindAvailability::unavailable("duplicate-section"),
+                operations: None,
+                frames: Vec::new(),
+                model_declared: false,
+                diagnostics: vec![err(
+                    "semantic.duplicate-section",
+                    second_heading_line,
+                    "a second `## Operations` heading",
+                )],
+            }
+        }
+        Some(Ok(bounds)) => bounds,
     };
     let mut diagnostics = Vec::new();
-    if sections.len() > 1 {
-        diagnostics.push(err(
-            "semantic.duplicate-section",
-            sections[1].0,
-            "a second `## Operations` heading",
-        ));
-        return OperationsOutcome {
-            availability: KindAvailability::unavailable("duplicate-section"),
-            operations: None,
-            frames: Vec::new(),
-            model_declared: false,
-            diagnostics,
-        };
-    }
     let mut operations: Vec<OperationDecl> = Vec::new();
     let mut frames: Vec<OperationFrameDecl> = Vec::new();
     let mut model_declared = false;
-    let mut seen: Vec<String> = Vec::new();
     let mut lossy = false;
-    for section in level3_headings(&lines, start + 1, end) {
-        let name = section.id.clone();
-        if !is_identifier(&name) {
-            diagnostics.push(err(
-                "semantic.operation-name-not-identifier",
-                section.heading_line,
-                format!("operation heading {name:?} is not an Identifier"),
-            ));
-            continue;
+    for heading in operation_headings(&lines, start + 1, end) {
+        let name = heading.name;
+        match heading.status {
+            Err(RejectedHeading::NotIdentifier) => {
+                diagnostics.push(err(
+                    "semantic.operation-name-not-identifier",
+                    heading.heading_line,
+                    format!("operation heading {name:?} is not an Identifier"),
+                ));
+                continue;
+            }
+            Err(RejectedHeading::Duplicate) => {
+                diagnostics.push(err(
+                    "semantic.duplicate-operation",
+                    heading.heading_line,
+                    format!("operation {name} is declared twice"),
+                ));
+                continue;
+            }
+            Ok(()) => {}
         }
-        if seen.contains(&name) {
-            diagnostics.push(err(
-                "semantic.duplicate-operation",
-                section.heading_line,
-                format!("operation {name} is declared twice"),
-            ));
-            continue;
-        }
-        seen.push(name.clone());
         let before = diagnostics.len();
         // Parameter table (one at most).
         let mut params: Vec<FieldDecl> = Vec::new();
         let mut tables = 0;
-        for block in blocks_in(&lines, section.heading_line + 1, section.end) {
+        for block in blocks_in(&lines, heading.heading_line + 1, heading.end) {
             if let Block::Table(table) = block {
                 tables += 1;
                 if tables > 1 {
@@ -454,7 +547,7 @@ pub fn extract_operations(
         let mut post = Vec::new();
         let mut frame = FrameLines::default();
         let mut seen_slots: Vec<OpSlot> = Vec::new();
-        for l in lines_outside_fences(&lines, section.heading_line + 1, section.end) {
+        for l in lines_outside_fences(&lines, heading.heading_line + 1, heading.end) {
             let text = lines[l - 1].trim_end_matches('\r').trim();
             let Some((key, slot, feature, rest)) = OP_LINES
                 .iter()
@@ -520,7 +613,7 @@ pub fn extract_operations(
                 modifies: frame.modifies,
                 creates: frame.creates,
                 deletes: frame.deletes,
-                source_span: line_span(ctx, &lines, section.heading_line),
+                source_span: line_span(ctx, &lines, heading.heading_line),
             });
         }
         operations.push(OperationDecl {
