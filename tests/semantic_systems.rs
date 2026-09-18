@@ -53,13 +53,9 @@ fn body_extraction(kind: &str) -> Value {
 }
 
 /// Extract `md` under `body_extraction`, against a bundle holding
-/// `artifacts` as `(id, object)`; the record must validate against
-/// semantic-v1.
-fn extract(md: &str, body_extraction: Value, artifacts: &[(&str, &str)]) -> Value {
-    let artifacts: Vec<Value> = artifacts
-        .iter()
-        .map(|(id, object)| json!({ "id": id, "object": object }))
-        .collect();
+/// `artifacts` as already-built `BundleArtifact` JSON; the record must
+/// validate against semantic-v1.
+fn extract_with_bundle_artifacts(md: &str, body_extraction: Value, artifacts: Value) -> Value {
     let request = json!({
         "markdown": md,
         "module": {
@@ -92,6 +88,25 @@ fn extract(md: &str, body_extraction: Value, artifacts: &[(&str, &str)]) -> Valu
     };
     assert!(errors.is_empty(), "{errors:?}\n{value:#}");
     value
+}
+
+/// Extract `md` under `body_extraction`, against a bundle holding
+/// `artifacts` as `(id, object)`; `quant_codec` declares the operation
+/// `score_ip_batch` and `Pump` declares `run` (FR-075 Inputs), matching the
+/// operations `ALLOCATION` and the dedicated FR-152 test name.
+fn extract(md: &str, body_extraction: Value, artifacts: &[(&str, &str)]) -> Value {
+    let artifacts: Vec<Value> = artifacts
+        .iter()
+        .map(|(id, object)| {
+            let operations: &[&str] = match *id {
+                "quant_codec" => &["score_ip_batch"],
+                "Pump" => &["run"],
+                _ => &[],
+            };
+            json!({ "id": id, "object": object, "operations": operations })
+        })
+        .collect();
+    extract_with_bundle_artifacts(md, body_extraction, json!(artifacts))
 }
 
 fn line_of(md: &str, needle: &str) -> u64 {
@@ -129,8 +144,12 @@ const CONNECTION: &str = "| Source | Source Multiplicity | Target | Target Multi
 const ALLOCATION: &str =
     "| Source | Target |\n|---|---|\n| quant_codec/score_ip_batch | scoring_engine |\n";
 
+// `search_service` is an `entity`, not a `part`: FR-152 gives a part, port,
+// connection, or allocation no owner effective type, so a Part `Owner`
+// naming one is refused (see `wrong_kind`), and the baseline Part table
+// below needs an eligible owner.
 const BUNDLE: &[(&str, &str)] = &[
-    ("search_service", "part"),
+    ("search_service", "entity"),
     ("scoring_engine", "part"),
     ("planner_out", "port"),
     ("score_in", "port"),
@@ -430,10 +449,11 @@ fn systems_references_resolve_qualified_and_imported_names_of_the_admitted_kind(
         "{record:#}"
     );
 
-    // Each cell names only its admitted object types. A Part `Owner` is not
-    // in this list: FR-152 gives it no kind restriction (see
-    // `part_owner_and_allocation_operation_source_admit_any_declared_kind`).
+    // Each cell names only its admitted object types. A part, port,
+    // connection, or allocation has no owner effective type (FR-152), so a
+    // Part `Owner` refuses one too.
     let wrong_kind: [(&str, &str, &str, &str, &str); 6] = [
+        ("part", "Part", PART, "search_service", "planner_out"),
         ("port", "Port", PORT, "scoring_engine", "score_in"),
         (
             "connection",
@@ -462,14 +482,6 @@ fn systems_references_resolve_qualified_and_imported_names_of_the_admitted_kind(
             ALLOCATION,
             "quant_codec/score_ip_batch",
             "quant_codec",
-        ),
-        // `<id>/<member>` names an interface operation; a port has none.
-        (
-            "allocation",
-            "Allocation",
-            ALLOCATION,
-            "quant_codec/score_ip_batch",
-            "score_in/flow",
         ),
     ];
     for (kind, section, table, from, to) in wrong_kind {
@@ -509,13 +521,31 @@ fn systems_references_resolve_qualified_and_imported_names_of_the_admitted_kind(
         format!("{pkg}/planner_out"),
         "{record:#}"
     );
+    // `<id>/<member>` names an interface operation; a port declares no
+    // `flow`, so this refuses on the operation, not the kind.
+    let md = doc(
+        "alloc",
+        "allocation",
+        "Allocation",
+        &ALLOCATION.replace("quant_codec/score_ip_batch", "score_in/flow"),
+    );
+    let record = extract(&md, body_extraction("allocation"), BUNDLE);
+    assert!(
+        refused(
+            &record,
+            "semantic.unknown-reference",
+            line_of(&md, "score_in/flow")
+        ),
+        "{record:#}"
+    );
 }
 
 /// FR-152/#461 (TC-197 Y01, Sys/Pump/sys_pump/pump_alloc): a Part `Owner`
-/// names the owning composite type with no kind restriction, and an
-/// allocation `Source` `<id>/<member>` admits any declaring kind but the
-/// four systems-record kinds, which never declare operations. A Port
-/// `Owner` and an allocation `Target` still admit only a `part`.
+/// names the owning composite type, refusing only a `part`, `port`,
+/// `connection`, `allocation`, or a declarer with no declared type. An
+/// allocation `Source` `<id>/<member>` admits any declared kind, but only
+/// when `<id>` actually declares the operation `<member>`. A Port `Owner`
+/// and an allocation `Target` still admit only a `part`.
 #[trace("TC-1872", "FR-075-AC-12")]
 #[test]
 fn part_owner_and_allocation_operation_source_admit_any_declared_kind() {
@@ -538,8 +568,8 @@ fn part_owner_and_allocation_operation_source_admit_any_declared_kind() {
     );
 
     // An `entity` operation lifts as an allocation source (TC-197 Y01:
-    // `pump_alloc` sourced from `Pump/run`, `Pump` an entity with its own
-    // Operations).
+    // `pump_alloc` sourced from `Pump/run`, `Pump` an entity declaring
+    // `run` under its own Operations; see `extract`).
     let md = doc(
         "pump_alloc",
         "allocation",
@@ -555,9 +585,28 @@ fn part_owner_and_allocation_operation_source_admit_any_declared_kind() {
         "{record:#}"
     );
 
+    // `Pump/nonexistent` refuses: `Pump` declares `run`, not `nonexistent`.
+    let md = doc(
+        "pump_alloc",
+        "allocation",
+        "Allocation",
+        &ALLOCATION
+            .replace("quant_codec/score_ip_batch", "Pump/nonexistent")
+            .replace("scoring_engine", "sys_pump"),
+    );
+    let record = extract(&md, body_extraction("allocation"), bundle);
+    assert!(
+        refused(
+            &record,
+            "semantic.unknown-reference",
+            line_of(&md, "Pump/nonexistent")
+        ),
+        "{record:#}"
+    );
+
     // An allocation source `<id>/<member>` whose `<id>` is a systems-record
-    // kind (a `part`, here) still refuses: a part never declares
-    // operations, so the named operation is necessarily undeclared.
+    // kind (a `part`, here) still refuses: a part declares no operation
+    // (`extract` gives it none), so `run` is necessarily undeclared.
     let md = doc(
         "pump_alloc",
         "allocation",
@@ -570,8 +619,30 @@ fn part_owner_and_allocation_operation_source_admit_any_declared_kind() {
     assert!(
         refused(
             &record,
-            "semantic.reference-kind-mismatch",
+            "semantic.unknown-reference",
             line_of(&md, "sys_pump/run")
+        ),
+        "{record:#}"
+    );
+
+    // A Part `Owner` naming a declarer with no declared object type at all
+    // still refuses: only a declared type is admitted.
+    let md = doc(
+        "no_type_owner",
+        "part",
+        "Part",
+        &PART.replace("search_service", "untyped"),
+    );
+    let record = extract_with_bundle_artifacts(
+        &md,
+        body_extraction("part"),
+        json!([{ "id": "untyped", "operations": [] }]),
+    );
+    assert!(
+        refused(
+            &record,
+            "semantic.reference-kind-mismatch",
+            line_of(&md, "untyped")
         ),
         "{record:#}"
     );

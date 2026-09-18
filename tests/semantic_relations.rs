@@ -65,6 +65,21 @@ fn request(fixture: &Value, markdown: &str, path: &str, case: Option<&Value>) ->
         .iter()
         .map(|p| (p.as_str().unwrap().to_string(), json!("*")))
         .collect();
+    // The vendored fixture predates `BundleArtifact.operations` (FR-075
+    // Inputs) and is provenance-pinned (`quoin_fixtures_match_provenance`),
+    // so this backfills the now-required field here rather than editing the
+    // fixture; none of these fixture cases exercise systems-model
+    // operations, so every artifact declares none.
+    let artifacts: Vec<Value> = bundle["artifacts"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|a| {
+            let mut a = a.as_object().unwrap().clone();
+            a.insert("operations".to_string(), json!([]));
+            Value::Object(a)
+        })
+        .collect();
     let mut request = json!({
         "markdown": markdown,
         "module": {
@@ -77,7 +92,7 @@ fn request(fixture: &Value, markdown: &str, path: &str, case: Option<&Value>) ->
         },
         "path": path,
         "sourceIdentity": context["sourceIdentity"],
-        "bundle": { "package": bundle["package"], "artifacts": bundle["artifacts"] },
+        "bundle": { "package": bundle["package"], "artifacts": artifacts },
         "relationVocabulary": {
             "objectType": context["objectType"],
             "edgeTypes": context["edgeTypes"],

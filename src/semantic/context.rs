@@ -19,13 +19,23 @@ pub struct BundleEntry {
     pub names: Vec<String>,
 }
 
-/// One artifact of the bundle with its frontmatter `object` type, if any:
-/// what a relationship `Target` resolves against (FR-076 Inputs).
+/// One artifact of the bundle with its frontmatter `object` type, if any,
+/// and the operation names it declares under `## Operations`: what a
+/// relationship `Target` (FR-076 Inputs) and an allocation `<id>/<member>`
+/// source (FR-075 Inputs) resolve against.
+///
+/// `operations` is required, not `#[serde(default)]`: a caller that omits it
+/// fails to deserialize rather than silently supplying "no operations" for
+/// every artifact, which would make every allocation operation source
+/// refuse. Every quire-rs-owned construction site must supply it explicitly
+/// from the same `extract_operations` output the artifact's own extraction
+/// uses.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct BundleArtifact {
     pub id: String,
     #[serde(default)]
     pub object: Option<String>,
+    pub operations: Vec<String>,
 }
 
 /// The bundle-wide name index type resolution reads (FR-070). An empty
@@ -75,6 +85,11 @@ impl BundleIndex {
             index.artifacts.push(BundleArtifact {
                 id: id.to_string(),
                 object: object.map(str::to_string),
+                // This builder sees only frontmatter maps, never a document
+                // body, so it cannot compute the declared `## Operations`
+                // (FR-075 Inputs); a caller that needs them supplies its own
+                // `BundleArtifact`s built from `extract_operations`.
+                operations: Vec::new(),
             });
             let Some(object) = object else {
                 continue;

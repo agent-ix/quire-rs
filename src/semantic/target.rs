@@ -30,10 +30,12 @@ pub(crate) struct OwnArtifact<'a> {
 
 /// A resolved reference cell.
 pub(crate) enum Target<'a> {
-    /// An artifact of the bundle, with its object type.
+    /// An artifact of the bundle, with its object type and the operation
+    /// names it declares under `## Operations` (FR-075 Inputs).
     Bundle {
         identity: String,
         object: Option<&'a str>,
+        operations: &'a [String],
     },
     /// An identity in an imported package; its object type is unknown.
     Imported { identity: String },
@@ -104,17 +106,26 @@ pub(crate) fn resolve_target<'a>(
     } else {
         return Err(Unresolved::Malformed);
     };
-    let bundle_object = if own.id == Some(id) {
-        Some(own.object)
+    // The extracted artifact's own operations are not available here (this
+    // resolver sees only `OwnArtifact`'s id and object type), so a
+    // self-reference to `<own-id>/<member>` carries no operations and
+    // refuses any member: an own-package lookup against the bundle's
+    // artifacts is the path that carries them.
+    let bundle_match: Option<(Option<&str>, &[String])> = if own.id == Some(id) {
+        Some((own.object, &[]))
     } else {
         ctx.bundle
             .artifacts
             .iter()
             .find(|a| a.id == id)
-            .map(|a| a.object.as_deref())
+            .map(|a| (a.object.as_deref(), a.operations.as_slice()))
     };
-    match bundle_object {
-        Some(object) => Ok(Target::Bundle { identity, object }),
+    match bundle_match {
+        Some((object, operations)) => Ok(Target::Bundle {
+            identity,
+            object,
+            operations,
+        }),
         None if ctx.bundle.artifacts.is_empty() => Ok(Target::Unchecked { identity }),
         None => Err(Unresolved::UnknownId),
     }
