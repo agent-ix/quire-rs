@@ -430,9 +430,10 @@ fn systems_references_resolve_qualified_and_imported_names_of_the_admitted_kind(
         "{record:#}"
     );
 
-    // Each cell names only its admitted object types.
-    let wrong_kind: [(&str, &str, &str, &str, &str); 7] = [
-        ("part", "Part", PART, "search_service", "planner_out"),
+    // Each cell names only its admitted object types. A Part `Owner` is not
+    // in this list: FR-152 gives it no kind restriction (see
+    // `part_owner_and_allocation_operation_source_admit_any_declared_kind`).
+    let wrong_kind: [(&str, &str, &str, &str, &str); 6] = [
         ("port", "Port", PORT, "scoring_engine", "score_in"),
         (
             "connection",
@@ -506,6 +507,108 @@ fn systems_references_resolve_qualified_and_imported_names_of_the_admitted_kind(
     assert_eq!(
         record["model"]["allocation"]["sourceElement"],
         format!("{pkg}/planner_out"),
+        "{record:#}"
+    );
+}
+
+/// FR-152/#461 (TC-197 Y01, Sys/Pump/sys_pump/pump_alloc): a Part `Owner`
+/// names the owning composite type with no kind restriction, and an
+/// allocation `Source` `<id>/<member>` admits any declaring kind but the
+/// four systems-record kinds, which never declare operations. A Port
+/// `Owner` and an allocation `Target` still admit only a `part`.
+#[trace("TC-1872", "FR-075-AC-12")]
+#[test]
+fn part_owner_and_allocation_operation_source_admit_any_declared_kind() {
+    let pkg = PKG;
+    let bundle: &[(&str, &str)] = &[("Sys", "entity"), ("Pump", "entity"), ("sys_pump", "part")];
+
+    // An `entity` owner of a part lifts (TC-197 Y01: `sys_pump (owner:
+    // Sys)`, `Sys` an object type).
+    let md = doc(
+        "sys_pump",
+        "part",
+        "Part",
+        &PART.replace("search_service", "Sys"),
+    );
+    let record = extract(&md, body_extraction("part"), bundle);
+    assert_eq!(
+        record["model"]["part"]["owner"],
+        format!("{pkg}/Sys"),
+        "{record:#}"
+    );
+
+    // An `entity` operation lifts as an allocation source (TC-197 Y01:
+    // `pump_alloc` sourced from `Pump/run`, `Pump` an entity with its own
+    // Operations).
+    let md = doc(
+        "pump_alloc",
+        "allocation",
+        "Allocation",
+        &ALLOCATION
+            .replace("quant_codec/score_ip_batch", "Pump/run")
+            .replace("scoring_engine", "sys_pump"),
+    );
+    let record = extract(&md, body_extraction("allocation"), bundle);
+    assert_eq!(
+        record["model"]["allocation"]["sourceElement"],
+        format!("{pkg}/Pump/run"),
+        "{record:#}"
+    );
+
+    // An allocation source `<id>/<member>` whose `<id>` is a systems-record
+    // kind (a `part`, here) still refuses: a part never declares
+    // operations, so the named operation is necessarily undeclared.
+    let md = doc(
+        "pump_alloc",
+        "allocation",
+        "Allocation",
+        &ALLOCATION
+            .replace("quant_codec/score_ip_batch", "sys_pump/run")
+            .replace("scoring_engine", "sys_pump"),
+    );
+    let record = extract(&md, body_extraction("allocation"), bundle);
+    assert!(
+        refused(
+            &record,
+            "semantic.reference-kind-mismatch",
+            line_of(&md, "sys_pump/run")
+        ),
+        "{record:#}"
+    );
+
+    // A Port `Owner` naming a non-part (an entity) still refuses.
+    let md = doc(
+        "pump_out",
+        "port",
+        "Port",
+        &PORT.replace("scoring_engine", "Pump"),
+    );
+    let record = extract(&md, body_extraction("port"), bundle);
+    assert!(
+        refused(
+            &record,
+            "semantic.reference-kind-mismatch",
+            line_of(&md, "| Pump")
+        ),
+        "{record:#}"
+    );
+
+    // An allocation `Target` naming a non-part (an entity) still refuses.
+    let md = doc(
+        "pump_alloc",
+        "allocation",
+        "Allocation",
+        &ALLOCATION
+            .replace("quant_codec/score_ip_batch", "sys_pump")
+            .replace("scoring_engine", "Pump"),
+    );
+    let record = extract(&md, body_extraction("allocation"), bundle);
+    assert!(
+        refused(
+            &record,
+            "semantic.reference-kind-mismatch",
+            line_of(&md, "| Pump")
+        ),
         "{record:#}"
     );
 }

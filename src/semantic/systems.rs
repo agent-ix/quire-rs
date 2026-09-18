@@ -214,14 +214,47 @@ impl CellRole {
         }
     }
 
-    /// The object types the named artifact may have. A `<id>/<member>`
-    /// operation reference names an `interface` and its operation.
-    fn kinds(self, member: bool) -> &'static [&'static str] {
+    /// The systems kinds with a fixed FR-075 record shape: a part, port,
+    /// connection, or allocation. None of these declare `## Operations`, so
+    /// an allocation source naming `<id>/<member>` can never name one of
+    /// them as `<id>`.
+    const SYSTEMS_RECORD_KINDS: [&'static str; 4] = ["part", "port", "connection", "allocation"];
+
+    /// Whether the named artifact's declared object type — `None` when it
+    /// declares none — is admitted for this role. `member` is set when the
+    /// cell names `<id>/<member>`.
+    fn admits(self, member: bool, kind: Option<&str>) -> bool {
         match self {
-            Self::PartOwner | Self::PortOwner | Self::TargetElement => &["part"],
-            Self::SourcePort | Self::TargetPort => &["port"],
-            Self::SourceElement if member => &["interface"],
-            Self::SourceElement => &["part", "port"],
+            // FR-152: a Part's `owner` names the owning composite type,
+            // with no kind restriction; only a declarer with no declared
+            // object type at all is refused.
+            Self::PartOwner => kind.is_some(),
+            Self::PortOwner | Self::TargetElement => kind == Some("part"),
+            Self::SourcePort | Self::TargetPort => kind == Some("port"),
+            // FR-152: an allocation's source element is a Part, a Port, or
+            // an operation `<id>/<member>` where `<id>` declares that
+            // operation — any kind that carries operations. This extraction
+            // stage sees only `{id, object}` for another bundle artifact
+            // (`BundleArtifact` in src/semantic/context.rs), never its
+            // declared `## Operations`, so it cannot check the operation
+            // itself here; it admits every kind but the four systems-record
+            // kinds above, which provably declare no operations.
+            Self::SourceElement if member => {
+                kind.is_some_and(|k| !Self::SYSTEMS_RECORD_KINDS.contains(&k))
+            }
+            Self::SourceElement => matches!(kind, Some("part") | Some("port")),
+        }
+    }
+
+    /// What a `WrongKind` refusal names as required, for `{what} {base} is
+    /// a {found}, not {label}`.
+    fn expected_label(self, member: bool) -> &'static str {
+        match self {
+            Self::PartOwner => "a declared type",
+            Self::PortOwner | Self::TargetElement => "a part",
+            Self::SourcePort | Self::TargetPort => "a port",
+            Self::SourceElement if member => "an operation-declaring type",
+            Self::SourceElement => "a part or port",
         }
     }
 }
@@ -333,13 +366,15 @@ impl<'a> TableRead<'a> {
             return None;
         }
         if let Some(object) = object {
-            let kinds = role.kinds(member.is_some());
-            if !object.as_deref().is_some_and(|o| kinds.contains(&o)) {
+            if !role.admits(member.is_some(), object.as_deref()) {
                 let found = object.as_deref().unwrap_or("no object type");
                 self.finding(
                     SystemsFinding::WrongKind,
                     line,
-                    format!("{what} {base} is a {found}, not a {}", kinds.join(" or ")),
+                    format!(
+                        "{what} {base} is a {found}, not {}",
+                        role.expected_label(member.is_some())
+                    ),
                 );
                 return None;
             }
