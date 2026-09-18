@@ -3053,7 +3053,7 @@ fn tc1038_the_section_finding_names_every_declared_section() {
     );
 }
 
-#[trace("TC-1090", "FR-053-AC-1")]
+#[trace("TC-1878", "FR-053-AC-1")]
 // agent-ix/quire-rs#460: an "object" archetype whose own id joins KIND and
 // NUMBER with an underscore (`interface_004`) rather than the requirement
 // archetypes' hyphen (`FR-001`) registers as an obligation-bearing kind
@@ -3063,8 +3063,8 @@ fn tc1038_the_section_finding_names_every_declared_section() {
 // `minted_targets` rather than falling through to `untracked_symbols`, which
 // is the defect the issue reports ("neither backed nor unbacked_rows").
 #[test]
-fn tc1090_interface_acceptance_criteria_register_as_obligations() {
-    let root = tmpdir("1090");
+fn tc1878_interface_acceptance_criteria_register_as_obligations() {
+    let root = tmpdir("1878");
     let scope = root.join("spec");
     let source = root.join("src");
     fs::create_dir_all(&scope).expect("mkdir");
@@ -3073,11 +3073,11 @@ fn tc1090_interface_acceptance_criteria_register_as_obligations() {
     write(
         &scope,
         "interface_004-checked-package.md",
-        "---\nid: interface_004\ntype: Interface\ntitle: Checked package\n---\n\n\
+        "---\nid: interface_004\ntype: interface\ntitle: Checked package\n---\n\n\
          ## Acceptance Criteria\n\n\
-         | ID | Criteria | Verification | Priority |\n|----|----------|--------------|----------|\n\
-         | interface_004-AC-1 | The interface shall accept a checked package. | Test (TC-001) | P1 |\n\
-         | interface_004-AC-2 | The interface shall reject a package with no content hash. | Test (TC-002) | P1 |\n",
+         | ID | Criteria | Verification |\n| --- | --- | --- |\n\
+         | interface_004-AC-1 | The interface shall accept a checked package. | Test (TC-001) |\n\
+         | interface_004-AC-2 | The interface shall reject a package with no content hash. | Test (TC-002) |\n",
     );
     write(
         &source,

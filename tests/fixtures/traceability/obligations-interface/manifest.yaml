@@ -1,21 +1,24 @@
-# FR-053 / agent-ix/quire-rs#460 fixture: an "object" archetype whose own id
-# joins KIND and NUMBER with an underscore (`interface_004`), rather than the
-# requirement archetypes' hyphen (`FR-001`). Its Acceptance Criteria table
-# still mints `interface_004-AC-1` the ordinary way — the engine reads the ID
-# column verbatim and knows no archetype (FR-053-CON-1) — so registering the
-# kind is exactly this declaration, nothing more.
+# FR-053 / agent-ix/quire-rs#460 fixture: matches the real shape used by
+# spec-objects-architecture's `interface` object type (manifest.yaml:141) — a
+# lowercase `object_types` entry, not an `artifact_types` document archetype
+# — and the 3-column Acceptance Criteria table that
+# `agent-ix/quire-specification`'s real `interface_004-checked-package.md`
+# actually carries (`| ID | Criteria | Verification |`, no fourth column).
+# Its own id joins KIND and NUMBER with an underscore (`interface_004`)
+# rather than the requirement archetypes' hyphen (`FR-001`). The engine reads
+# the ID column verbatim and knows no archetype (FR-053-CON-1), so
+# registering the kind is exactly this declaration, nothing more.
 name: traceability-obligations-interface
 version: 0.1.0
-description: Obligation sources for an object-style archetype (FR-053 fixture, #460)
-artifact_types:
-- name: Interface
-  grammar_ref: iso-spec-core
-  defaults:
-    id_pattern: interface_{next:03d}
+description: Obligation sources for the lowercase `interface` object type (FR-053 fixture, #460)
+object_types:
+- name: interface
+  data_schema:
+    type: object
 traceability:
   trace_targets:
   - name: interface-acceptance-criterion
-    archetype: Interface
+    archetype: interface
     section: Acceptance Criteria
     id_column: ID
   obligations:
@@ -23,7 +26,6 @@ traceability:
     target: interface-acceptance-criterion
     statement_column: Criteria
     method_column: Verification
-    criticality_column: Priority
   trace_tags:
     markers:
     - name: rust-trace-attribute
