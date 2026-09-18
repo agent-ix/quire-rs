@@ -78,8 +78,12 @@ clause id and never parses them
   `<document>`.
 - Each bundle artifact's declared operation names (`BundleArtifact.operations`
   on the `SemanticContext`'s bundle index): what an allocation `Source` of
-  `<id>/<member>` checks `<member>` against. A Rust caller supplies this
-  field explicitly for every `BundleArtifact` it builds.
+  `<id>/<member>` checks `<member>` against. Every surface that supplies a
+  bundle — the Rust API, the Filament `semanticBundle` JSON request, and the
+  Python `bundle` argument — supplies `operations` for every artifact it
+  lists; the field is required, not defaulted (Outputs). Corpus mode
+  (`BundleIndex::from_documents`) derives it itself, from each document's
+  own `## Operations` section, via the same scan `extract_operations` runs.
 
 ## Outputs
 

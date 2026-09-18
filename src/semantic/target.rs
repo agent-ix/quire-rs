@@ -21,11 +21,16 @@ pub(crate) fn is_object_id(id: &str) -> bool {
         && id.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
 }
 
-/// The extracted artifact's own `id` and object type: always a bundle
-/// artifact (FR-104).
+/// The extracted artifact's own `id`, object type, and declared operation
+/// names: always a bundle artifact (FR-104). `operations` is the artifact's
+/// own `## Operations` names — empty where the caller's role never admits
+/// `<id>/<member>` (every relationship `Target`), so a self-reference
+/// `<own-id>/<member>` (an allocation `Source` naming the artifact itself)
+/// checks `<member>` against real operations rather than always refusing.
 pub(crate) struct OwnArtifact<'a> {
     pub(crate) id: Option<&'a str>,
     pub(crate) object: Option<&'a str>,
+    pub(crate) operations: &'a [String],
 }
 
 /// A resolved reference cell.
@@ -106,13 +111,8 @@ pub(crate) fn resolve_target<'a>(
     } else {
         return Err(Unresolved::Malformed);
     };
-    // The extracted artifact's own operations are not available here (this
-    // resolver sees only `OwnArtifact`'s id and object type), so a
-    // self-reference to `<own-id>/<member>` carries no operations and
-    // refuses any member: an own-package lookup against the bundle's
-    // artifacts is the path that carries them.
     let bundle_match: Option<(Option<&str>, &[String])> = if own.id == Some(id) {
-        Some((own.object, &[]))
+        Some((own.object, own.operations))
     } else {
         ctx.bundle
             .artifacts

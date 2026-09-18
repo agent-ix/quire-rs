@@ -1019,6 +1019,7 @@ fn table_features(
                 ctx,
                 out,
                 keys: Vec::new(),
+                own_operations: refs.operation_names,
             });
             if out.diagnostics[before..].iter().any(|d| d.is_error()) {
                 failed.push(spec.feature);
@@ -1040,9 +1041,20 @@ pub(super) struct TableRead<'a> {
     pub(super) out: &'a mut ModelOutcome,
     /// Row keys seen so far, for `semantic.duplicate-model-entry`.
     keys: Vec<String>,
+    /// This artifact's own declared operation names (`ModelRefs`,
+    /// `extract_operations`'s output), `None` only when Operations
+    /// extraction itself failed. What an allocation `Source` self-reference
+    /// `<own-id>/<member>` checks `<member>` against (FR-075 Inputs).
+    own_operations: Option<&'a [String]>,
 }
 
-impl TableRead<'_> {
+impl<'a> TableRead<'a> {
+    /// This artifact's own declared operation names, empty when Operations
+    /// extraction failed or declared none.
+    pub(super) fn own_operations(&self) -> &'a [String] {
+        self.own_operations.unwrap_or(&[])
+    }
+
     /// The cell under `column`, empty when the column is absent (declared
     /// optional) or the row is short.
     pub(super) fn cell<'c>(&self, cells: &'c [String], column: &str) -> &'c str {

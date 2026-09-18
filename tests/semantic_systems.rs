@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use ix_trace_rs::trace;
 use jsonschema::JSONSchema;
 use quire_rs::semantic::python_entry::extract_semantic_json;
-use quire_rs::semantic::SEMANTIC_V1_SCHEMA;
+use quire_rs::semantic::{BundleIndex, SemanticModule, SEMANTIC_V1_SCHEMA};
 use quire_rs::Registry;
 use serde_json::{json, Value};
 
@@ -680,6 +680,96 @@ fn part_owner_and_allocation_operation_source_admit_any_declared_kind() {
             "semantic.reference-kind-mismatch",
             line_of(&md, "| Pump")
         ),
+        "{record:#}"
+    );
+}
+
+/// An allocation `Source` naming the artifact's own id
+/// (`<own-id>/<member>`, self-reference) checks `<member>` against the
+/// artifact's own declared operations, not against the bundle's artifacts:
+/// `pump_alloc` here is not in the bundle at all, only `sys_pump` is, so
+/// this can only lift through the `own.id == id` path in
+/// `resolve_target` (`src/semantic/target.rs`).
+#[trace("TC-1872", "FR-075-AC-12")]
+#[test]
+fn allocation_source_self_reference_checks_its_own_declared_operations() {
+    let self_ref_doc = |source: &str| -> String {
+        format!(
+            "---\nid: pump_alloc\ntitle: \"pump_alloc\"\ntype: allocation\nobject: allocation\n---\n# [pump_alloc] pump_alloc\n\n## Operations\n\n### run\n\n## Allocation\n\n| Source | Target |\n|---|---|\n| {source} | sys_pump |\n"
+        )
+    };
+    let bundle = json!([{ "id": "sys_pump", "object": "part", "operations": [] }]);
+
+    // `pump_alloc/run` self-references the artifact's own declared `run`.
+    let md = self_ref_doc("pump_alloc/run");
+    let record = extract_with_bundle_artifacts(&md, body_extraction("allocation"), bundle.clone());
+    assert_eq!(
+        record["model"]["allocation"]["sourceElement"],
+        format!("{PKG}/pump_alloc/run"),
+        "{record:#}"
+    );
+
+    // `pump_alloc/nonexistent` self-references an operation it never
+    // declares, and refuses even though `pump_alloc` is not a bundle
+    // artifact at all (only `sys_pump` is).
+    let md = self_ref_doc("pump_alloc/nonexistent");
+    let record = extract_with_bundle_artifacts(&md, body_extraction("allocation"), bundle);
+    assert!(
+        refused(
+            &record,
+            "semantic.unknown-reference",
+            line_of(&md, "pump_alloc/nonexistent")
+        ),
+        "{record:#}"
+    );
+}
+
+/// Corpus mode (`BundleIndex::from_documents`, what FCD's extraction-frontend
+/// uses) has no per-artifact `operations` supplied to it and must derive
+/// them itself, from each document's own `## Operations` section, via the
+/// same scan `extract_operations` runs (FR-075 Inputs). `Pump` here is a
+/// real corpus document declaring `### run`; the index built from it names
+/// `run`, and an allocation `Source: Pump/run` lifts against that index end
+/// to end, exactly as it does when a caller supplies `operations` itself.
+#[trace("TC-1872", "FR-075-AC-12")]
+#[test]
+fn corpus_mode_derives_operations_from_each_documents_own_section() {
+    let pump_raw = "---\nid: Pump\ntitle: \"Pump\"\ntype: entity\nobject: entity\n---\n# [Pump] Pump\n\n## Operations\n\n### run\n";
+    let pump_fm = json!({ "id": "Pump", "object": "entity" });
+    let pump_fm = pump_fm.as_object().unwrap().clone();
+    let sys_pump_fm = json!({ "id": "sys_pump", "object": "part" });
+    let sys_pump_fm = sys_pump_fm.as_object().unwrap().clone();
+    let docs: Vec<(&serde_json::Map<String, Value>, &str)> =
+        vec![(&pump_fm, pump_raw), (&sys_pump_fm, "")];
+
+    let index = BundleIndex::from_documents(
+        "agent-ix/shop",
+        docs.into_iter(),
+        std::iter::empty::<&SemanticModule>(),
+    );
+    let pump = index
+        .artifacts
+        .iter()
+        .find(|a| a.id == "Pump")
+        .unwrap_or_else(|| panic!("{index:#?}"));
+    assert_eq!(pump.operations, vec!["run".to_string()], "{index:#?}");
+
+    let md = doc(
+        "pump_alloc",
+        "allocation",
+        "Allocation",
+        &ALLOCATION
+            .replace("quant_codec/score_ip_batch", "Pump/run")
+            .replace("scoring_engine", "sys_pump"),
+    );
+    let record = extract_with_bundle_artifacts(
+        &md,
+        body_extraction("allocation"),
+        serde_json::to_value(&index.artifacts).unwrap(),
+    );
+    assert_eq!(
+        record["model"]["allocation"]["sourceElement"],
+        format!("{PKG}/Pump/run"),
         "{record:#}"
     );
 }

@@ -365,6 +365,34 @@ pub fn extract_clauses(raw: &str, ctx: &SemanticContext) -> ClausesOutcome {
     }
 }
 
+/// The `### <name>` headings directly under a document's `## Operations`
+/// section (FR-071 Operations), in heading order, filtered to `Identifier`
+/// names with duplicates dropped, and empty when a second `## Operations`
+/// heading is present. This runs the same section-and-heading scan
+/// `extract_operations` runs below, without diagnostics or the full
+/// per-operation parse (params, `Returns`/`Pre`/`Post`, frames) — for a
+/// caller that needs only the declared name list, never a second parser.
+/// `BundleIndex::from_documents` (FR-075 Inputs) is the one caller: a
+/// corpus-mode bundle's `BundleArtifact.operations` must name the same
+/// operations `extract_operations` would report for that document.
+pub(crate) fn declared_operation_names(raw: &str) -> Vec<String> {
+    let lines = lines(raw);
+    let sections = level2_sections(&lines, "Operations");
+    if sections.len() > 1 {
+        return Vec::new();
+    }
+    let Some(&(start, end)) = sections.first() else {
+        return Vec::new();
+    };
+    let mut names = Vec::new();
+    for section in level3_headings(&lines, start + 1, end) {
+        if is_identifier(&section.id) && !names.contains(&section.id) {
+            names.push(section.id);
+        }
+    }
+    names
+}
+
 /// FR-071 Operations. `clauses` are the artifact's extracted invariants.
 pub fn extract_operations(
     raw: &str,

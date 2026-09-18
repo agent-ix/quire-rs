@@ -29,8 +29,11 @@ pub struct BundleEntry {
 /// every artifact, which would make every allocation operation source
 /// refuse. Every quire-rs-owned construction site must supply it explicitly
 /// from the same `extract_operations` output the artifact's own extraction
-/// uses.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+/// uses (`BundleIndex::from_documents` uses the shared
+/// `clauses::declared_operation_names` scan for the same reason). No
+/// `Default` derive: `..Default::default()` would silently skip
+/// `operations` the same way `#[serde(default)]` would.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BundleArtifact {
     pub id: String,
     #[serde(default)]
@@ -63,21 +66,24 @@ impl BundleIndex {
     }
 
     /// Build the corpus-mode index from loaded documents (FR-070 Inputs):
-    /// every document with an `id` is an artifact with its `object` type;
+    /// every document with an `id` is an artifact with its `object` type
+    /// and the operation names its `raw` text declares under
+    /// `## Operations` (FR-075 Inputs), via the same scan
+    /// `extract_operations` runs (`clauses::declared_operation_names`);
     /// every document with a frontmatter `object` is an object whose names
     /// are its `id`, `title`, and `name` when present; documents whose
     /// `object` is `enumeration` are also enumerations. `imports` come from
     /// the loaded modules' `exports`, keyed by package.
     pub fn from_documents<'a>(
         package: &str,
-        documents: impl Iterator<Item = &'a serde_json::Map<String, serde_json::Value>>,
+        documents: impl Iterator<Item = (&'a serde_json::Map<String, serde_json::Value>, &'a str)>,
         modules: impl Iterator<Item = &'a SemanticModule>,
     ) -> Self {
         let mut index = Self {
             package: package.to_string(),
             ..Self::default()
         };
-        for fm in documents {
+        for (fm, raw) in documents {
             let Some(id) = fm.get("id").and_then(|v| v.as_str()) else {
                 continue;
             };
@@ -85,11 +91,7 @@ impl BundleIndex {
             index.artifacts.push(BundleArtifact {
                 id: id.to_string(),
                 object: object.map(str::to_string),
-                // This builder sees only frontmatter maps, never a document
-                // body, so it cannot compute the declared `## Operations`
-                // (FR-075 Inputs); a caller that needs them supplies its own
-                // `BundleArtifact`s built from `extract_operations`.
-                operations: Vec::new(),
+                operations: super::clauses::declared_operation_names(raw),
             });
             let Some(object) = object else {
                 continue;

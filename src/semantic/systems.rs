@@ -332,6 +332,7 @@ impl<'a> TableRead<'a> {
         let own = OwnArtifact {
             id: self.out.model.identity.as_ref().map(|d| d.value.as_str()),
             object: own_object.as_deref(),
+            operations: self.own_operations(),
         };
         let resolved = resolve_target(ctx, ctx.identity_package(), &own, base, is_object_id);
         let (identity, unchecked, bundle) = match resolved {

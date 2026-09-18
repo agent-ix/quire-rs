@@ -726,6 +726,9 @@ pub(crate) fn extract_relations(raw: &str, ctx: &SemanticContext) -> RelationsOu
         own: OwnArtifact {
             id: own_str("id"),
             object: own_str("object"),
+            // A relationship `Target` never admits `<id>/<member>` (FR-076):
+            // this artifact's own operations are irrelevant here.
+            operations: &[],
         },
         names: Vec::new(),
         frontmatter: frontmatter_edges(frontmatter, package),
