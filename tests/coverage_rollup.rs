@@ -3052,3 +3052,82 @@ fn tc1038_the_section_finding_names_every_declared_section() {
         anchored.diagnostics
     );
 }
+
+#[trace("TC-1878", "FR-053-AC-1")]
+// agent-ix/quire-rs#460: an "object" archetype whose own id joins KIND and
+// NUMBER with an underscore (`interface_004`) rather than the requirement
+// archetypes' hyphen (`FR-001`) registers as an obligation-bearing kind
+// exactly like an FR does — one declared `trace_targets` entry plus one
+// `obligations` source, no engine change (FR-053-CON-1: the engine knows no
+// archetype). One AC backed, one not: both land in `coverage.totals` and
+// `minted_targets` rather than falling through to `untracked_symbols`, which
+// is the defect the issue reports ("neither backed nor unbacked_rows").
+#[test]
+fn tc1878_interface_acceptance_criteria_register_as_obligations() {
+    let root = tmpdir("1878");
+    let scope = root.join("spec");
+    let source = root.join("src");
+    fs::create_dir_all(&scope).expect("mkdir");
+    fs::create_dir_all(&source).expect("mkdir");
+
+    write(
+        &scope,
+        "interface_004-checked-package.md",
+        "---\nid: interface_004\ntype: interface\ntitle: Checked package\n---\n\n\
+         ## Acceptance Criteria\n\n\
+         | ID | Criteria | Verification |\n| --- | --- | --- |\n\
+         | interface_004-AC-1 | The interface shall accept a checked package. | Test (TC-001) |\n\
+         | interface_004-AC-2 | The interface shall reject a package with no content hash. | Test (TC-002) |\n",
+    );
+    write(
+        &source,
+        "lib.rs",
+        "//! Fixture source tree.\n\n#[cfg(test)]\nmod tests {\n    \
+         #[trace(\"interface_004-AC-1\")]\n    #[test]\n    fn covers_ac_1() {\n        let _ = 1;\n    }\n}\n",
+    );
+
+    let registry =
+        Registry::load_module(&fixture_module("obligations-interface")).expect("load module");
+    let spec = Spec::from_path(&scope);
+    let extraction = extract_tree(&source);
+    let model = registry.traceability().cloned().unwrap_or_default();
+    let graph = trace::bind(&extraction, &model);
+    let report = compute(&spec, &registry, &graph, &scope).expect("model declared");
+
+    // Both totals move: one backed, one not, over a denominator of two.
+    assert_eq!(report.totals.backed, 1, "{:#?}", report.totals);
+    assert_eq!(report.totals.total, 2, "{:#?}", report.totals);
+
+    let mut minted: Vec<(&str, bool)> = report
+        .minted_targets
+        .iter()
+        .map(|m| (m.id.as_str(), m.backed))
+        .collect();
+    minted.sort();
+    assert_eq!(
+        minted,
+        vec![("interface_004-AC-1", true), ("interface_004-AC-2", false)],
+        "{:#?}",
+        report.minted_targets
+    );
+
+    // The defect the issue reports: before registration, a correctly spelled
+    // tag still fell through to `untracked_symbols` because nothing declared
+    // `interface_004-AC-1` as a known target id.
+    assert!(
+        !report
+            .untracked_symbols
+            .iter()
+            .any(|u| u.trace_id.starts_with("interface_004")),
+        "an interface AC tag must not fall through to untracked_symbols: {:#?}",
+        report.untracked_symbols
+    );
+
+    // FR-053: the same registration mints obligation records for both rows.
+    let obligation_ids: Vec<&str> = report.obligations.iter().map(|o| o.id.as_str()).collect();
+    assert_eq!(
+        obligation_ids,
+        vec!["interface_004-AC-1", "interface_004-AC-2"],
+        "{obligation_ids:?}"
+    );
+}
