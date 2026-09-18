@@ -521,8 +521,9 @@ fn systems_references_resolve_qualified_and_imported_names_of_the_admitted_kind(
         format!("{pkg}/planner_out"),
         "{record:#}"
     );
-    // `<id>/<member>` names an interface operation; a port declares no
-    // `flow`, so this refuses on the operation, not the kind.
+    // `<id>/<member>` names a port (a systems-record kind, round 3 review):
+    // refused on the kind before the operation is even checked, since a port
+    // has no owner effective type and so declares no operation `flow`.
     let md = doc(
         "alloc",
         "allocation",
@@ -533,7 +534,7 @@ fn systems_references_resolve_qualified_and_imported_names_of_the_admitted_kind(
     assert!(
         refused(
             &record,
-            "semantic.unknown-reference",
+            "semantic.reference-kind-mismatch",
             line_of(&md, "score_in/flow")
         ),
         "{record:#}"
@@ -543,9 +544,10 @@ fn systems_references_resolve_qualified_and_imported_names_of_the_admitted_kind(
 /// FR-152/#461 (TC-197 Y01, Sys/Pump/sys_pump/pump_alloc): a Part `Owner`
 /// names the owning composite type, refusing only a `part`, `port`,
 /// `connection`, `allocation`, or a declarer with no declared type. An
-/// allocation `Source` `<id>/<member>` admits any declared kind, but only
-/// when `<id>` actually declares the operation `<member>`. A Port `Owner`
-/// and an allocation `Target` still admit only a `part`.
+/// allocation `Source` `<id>/<member>` admits any declared kind but a
+/// systems record (the same four, round 3 review), and only when `<id>`
+/// actually declares the operation `<member>`. A Port `Owner` and an
+/// allocation `Target` still admit only a `part`.
 #[trace("TC-1872", "FR-075-AC-12")]
 #[test]
 fn part_owner_and_allocation_operation_source_admit_any_declared_kind() {
@@ -605,8 +607,9 @@ fn part_owner_and_allocation_operation_source_admit_any_declared_kind() {
     );
 
     // An allocation source `<id>/<member>` whose `<id>` is a systems-record
-    // kind (a `part`, here) still refuses: a part declares no operation
-    // (`extract` gives it none), so `run` is necessarily undeclared.
+    // kind (a `part`, here) still refuses, on the kind, not the operation
+    // (round 3 review): FR-152 ties an operation to its owning type, and a
+    // part structurally declares no `## Operations` section at all.
     let md = doc(
         "pump_alloc",
         "allocation",
@@ -619,7 +622,7 @@ fn part_owner_and_allocation_operation_source_admit_any_declared_kind() {
     assert!(
         refused(
             &record,
-            "semantic.unknown-reference",
+            "semantic.reference-kind-mismatch",
             line_of(&md, "sys_pump/run")
         ),
         "{record:#}"
@@ -687,38 +690,59 @@ fn part_owner_and_allocation_operation_source_admit_any_declared_kind() {
 /// An allocation `Source` naming the artifact's own id
 /// (`<own-id>/<member>`, self-reference) checks `<member>` against the
 /// artifact's own declared operations, not against the bundle's artifacts:
-/// `pump_alloc` here is not in the bundle at all, only `sys_pump` is, so
-/// this can only lift through the `own.id == id` path in
-/// `resolve_target` (`src/semantic/target.rs`).
+/// `pump` here is not in the bundle at all, only `sys_pump` is, so this can
+/// only lift through the `own.id == id` path in `resolve_target`
+/// (`src/semantic/target.rs`). The self-referencing document is an `entity`
+/// (round 3 review): a systems-record kind (a `part`/`port`/`connection`/
+/// `allocation`) is refused on the kind itself before the operation is even
+/// checked (see the third case below and `SYSTEMS_RECORD_KINDS` in
+/// `src/semantic/systems.rs`), so the operation-check path this test targets
+/// needs a declarer kind that check admits.
 #[trace("TC-1872", "FR-075-AC-12")]
 #[test]
 fn allocation_source_self_reference_checks_its_own_declared_operations() {
-    let self_ref_doc = |source: &str| -> String {
+    let self_ref_doc = |kind: &str, source: &str| -> String {
         format!(
-            "---\nid: pump_alloc\ntitle: \"pump_alloc\"\ntype: allocation\nobject: allocation\n---\n# [pump_alloc] pump_alloc\n\n## Operations\n\n### run\n\n## Allocation\n\n| Source | Target |\n|---|---|\n| {source} | sys_pump |\n"
+            "---\nid: pump\ntitle: \"pump\"\ntype: {kind}\nobject: {kind}\n---\n# [pump] pump\n\n## Operations\n\n### run\n\n## Allocation\n\n| Source | Target |\n|---|---|\n| {source} | sys_pump |\n"
         )
     };
     let bundle = json!([{ "id": "sys_pump", "object": "part", "operations": [] }]);
 
-    // `pump_alloc/run` self-references the artifact's own declared `run`.
-    let md = self_ref_doc("pump_alloc/run");
+    // `pump/run` self-references the artifact's own declared `run`.
+    let md = self_ref_doc("entity", "pump/run");
     let record = extract_with_bundle_artifacts(&md, body_extraction("allocation"), bundle.clone());
     assert_eq!(
         record["model"]["allocation"]["sourceElement"],
-        format!("{PKG}/pump_alloc/run"),
+        format!("{PKG}/pump/run"),
         "{record:#}"
     );
 
-    // `pump_alloc/nonexistent` self-references an operation it never
-    // declares, and refuses even though `pump_alloc` is not a bundle
-    // artifact at all (only `sys_pump` is).
-    let md = self_ref_doc("pump_alloc/nonexistent");
-    let record = extract_with_bundle_artifacts(&md, body_extraction("allocation"), bundle);
+    // `pump/nonexistent` self-references an operation it never declares, and
+    // refuses even though `pump` is not a bundle artifact at all (only
+    // `sys_pump` is).
+    let md = self_ref_doc("entity", "pump/nonexistent");
+    let record = extract_with_bundle_artifacts(&md, body_extraction("allocation"), bundle.clone());
     assert!(
         refused(
             &record,
             "semantic.unknown-reference",
-            line_of(&md, "pump_alloc/nonexistent")
+            line_of(&md, "pump/nonexistent")
+        ),
+        "{record:#}"
+    );
+
+    // An `allocation` (a systems-record kind) self-referencing its own
+    // declared `run` refuses on the kind, not the operation: FR-152 ties an
+    // operation to its owning type, and a systems record has none, so
+    // `admits` refuses before `run` is even checked against `own_operations`
+    // (round 3 review).
+    let md = self_ref_doc("allocation", "pump/run");
+    let record = extract_with_bundle_artifacts(&md, body_extraction("allocation"), bundle);
+    assert!(
+        refused(
+            &record,
+            "semantic.reference-kind-mismatch",
+            line_of(&md, "pump/run")
         ),
         "{record:#}"
     );
@@ -764,6 +788,77 @@ fn corpus_mode_derives_operations_from_each_documents_own_section() {
     );
     let record = extract_with_bundle_artifacts(
         &md,
+        body_extraction("allocation"),
+        serde_json::to_value(&index.artifacts).unwrap(),
+    );
+    assert_eq!(
+        record["model"]["allocation"]["sourceElement"],
+        format!("{PKG}/Pump/run"),
+        "{record:#}"
+    );
+}
+
+/// Round 3 review: `declared_operation_names` and `extract_operations`
+/// disagree about a document's own operation names once one operation's
+/// body has an error — `extract_operations`'s `operations` (and the
+/// `operation_names` `surface.rs` derives from it) goes `None` for the
+/// **whole document** the moment any single operation entry has a
+/// diagnostic error, even one on a heading other than the one being
+/// checked. `Pump` here declares `### run` as a clean heading, but its body
+/// (`Returns: bad`, missing the `[<multiplicity>]` `parse_returns`
+/// requires) is malformed and produces a `semantic.invalid-returns` error.
+/// That must not stop `run` from counting as a declared operation name for
+/// either consumer of `declared_operation_names`: corpus mode
+/// (`BundleIndex::from_documents`, another artifact's `Pump/run`) and the
+/// self-reference path (`Pump`'s own `Pump/run`, via `model.rs`'s
+/// `own_operations`). Both lift, consistently.
+#[trace("TC-1872", "FR-075-AC-12")]
+#[test]
+fn declared_operation_names_survives_a_malformed_operation_body() {
+    let pump_raw = "---\nid: Pump\ntitle: \"Pump\"\ntype: entity\nobject: entity\n---\n# [Pump] Pump\n\n## Operations\n\n### run\n\nReturns: bad\n\n## Allocation\n\n| Source | Target |\n|---|---|\n| Pump/run | sys_pump |\n";
+    let bundle = json!([{ "id": "sys_pump", "object": "part", "operations": [] }]);
+
+    // Self-reference: `Pump`'s own `Pump/run` lifts despite `run`'s
+    // malformed `Returns:` line.
+    let record = extract_with_bundle_artifacts(pump_raw, body_extraction("allocation"), bundle);
+    assert_eq!(
+        record["model"]["allocation"]["sourceElement"],
+        format!("{PKG}/Pump/run"),
+        "{record:#}"
+    );
+
+    // Corpus mode: the `BundleIndex` derived from `Pump`'s raw markdown
+    // still names `run` despite the same malformed body...
+    let pump_fm = json!({ "id": "Pump", "object": "entity" });
+    let pump_fm = pump_fm.as_object().unwrap().clone();
+    let sys_pump_fm = json!({ "id": "sys_pump", "object": "part" });
+    let sys_pump_fm = sys_pump_fm.as_object().unwrap().clone();
+    let docs: Vec<(&serde_json::Map<String, Value>, &str)> =
+        vec![(&pump_fm, pump_raw), (&sys_pump_fm, "")];
+    let index = BundleIndex::from_documents(
+        "agent-ix/shop",
+        docs.into_iter(),
+        std::iter::empty::<&SemanticModule>(),
+    );
+    let pump = index
+        .artifacts
+        .iter()
+        .find(|a| a.id == "Pump")
+        .unwrap_or_else(|| panic!("{index:#?}"));
+    assert_eq!(pump.operations, vec!["run".to_string()], "{index:#?}");
+
+    // ...and another artifact's `Pump/run` lifts against that index end to
+    // end, the same as the self-reference above.
+    let other = doc(
+        "other_alloc",
+        "allocation",
+        "Allocation",
+        &ALLOCATION
+            .replace("quant_codec/score_ip_batch", "Pump/run")
+            .replace("scoring_engine", "sys_pump"),
+    );
+    let record = extract_with_bundle_artifacts(
+        &other,
         body_extraction("allocation"),
         serde_json::to_value(&index.artifacts).unwrap(),
     );

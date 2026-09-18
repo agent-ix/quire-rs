@@ -28,11 +28,16 @@ pub struct BundleEntry {
 /// fails to deserialize rather than silently supplying "no operations" for
 /// every artifact, which would make every allocation operation source
 /// refuse. Every quire-rs-owned construction site must supply it explicitly
-/// from the same `extract_operations` output the artifact's own extraction
-/// uses (`BundleIndex::from_documents` uses the shared
-/// `clauses::declared_operation_names` scan for the same reason). No
-/// `Default` derive: `..Default::default()` would silently skip
-/// `operations` the same way `#[serde(default)]` would.
+/// from `clauses::declared_operation_names` — the `### <name>` headings under
+/// `## Operations`, **not** `extract_operations`'s own filtered output
+/// (`OperationsOutcome.operations`, `None` for the whole document once any
+/// one operation's body has an error). `BundleIndex::from_documents` (corpus
+/// mode) and the self-reference path in `model.rs` both use
+/// `declared_operation_names` for the same reason: a heading elsewhere in
+/// the section having a malformed body must not make a well-formed
+/// operation's name disappear from this list (round 3 review). No `Default`
+/// derive: `..Default::default()` would silently skip `operations` the same
+/// way `#[serde(default)]` would.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BundleArtifact {
     pub id: String,
@@ -68,9 +73,10 @@ impl BundleIndex {
     /// Build the corpus-mode index from loaded documents (FR-070 Inputs):
     /// every document with an `id` is an artifact with its `object` type
     /// and the operation names its `raw` text declares under
-    /// `## Operations` (FR-075 Inputs), via the same scan
-    /// `extract_operations` runs (`clauses::declared_operation_names`);
-    /// every document with a frontmatter `object` is an object whose names
+    /// `## Operations` (FR-075 Inputs), via `clauses::declared_operation_names`
+    /// — every `### <name>` heading, regardless of whether that operation's
+    /// own body has an error; every document with a frontmatter `object` is
+    /// an object whose names
     /// are its `id`, `title`, and `name` when present; documents whose
     /// `object` is `enumeration` are also enumerations. `imports` come from
     /// the loaded modules' `exports`, keyed by package.

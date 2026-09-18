@@ -365,32 +365,57 @@ pub fn extract_clauses(raw: &str, ctx: &SemanticContext) -> ClausesOutcome {
     }
 }
 
-/// The `### <name>` headings directly under a document's `## Operations`
-/// section (FR-071 Operations), in heading order, filtered to `Identifier`
-/// names with duplicates dropped, and empty when a second `## Operations`
-/// heading is present. This runs the same section-and-heading scan
-/// `extract_operations` runs below, without diagnostics or the full
-/// per-operation parse (params, `Returns`/`Pre`/`Post`, frames) — for a
-/// caller that needs only the declared name list, never a second parser.
-/// `BundleIndex::from_documents` (FR-075 Inputs) is the one caller: a
-/// corpus-mode bundle's `BundleArtifact.operations` must name the same
-/// operations `extract_operations` would report for that document.
-pub(crate) fn declared_operation_names(raw: &str) -> Vec<String> {
-    let lines = lines(raw);
-    let sections = level2_sections(&lines, "Operations");
-    if sections.len() > 1 {
-        return Vec::new();
+/// The document's single `## Operations` section, shared by
+/// `declared_operation_names` and `extract_operations` so the two can never
+/// independently drift on which section the headings are read from: `None`
+/// when there is no `## Operations` section; `Some(Err(second_heading_line))`
+/// when there is more than one (the ambiguous case each caller reports its
+/// own way); `Some(Ok((start, end)))` — heading-search bounds — otherwise.
+fn operations_section(lines: &[&str]) -> Option<Result<(usize, usize), usize>> {
+    let sections = level2_sections(lines, "Operations");
+    match sections.len() {
+        0 => None,
+        1 => Some(Ok(sections[0])),
+        _ => Some(Err(sections[1].0)),
     }
-    let Some(&(start, end)) = sections.first() else {
-        return Vec::new();
-    };
+}
+
+/// The `### <name>` headings under `operations_section`'s bounds, in heading
+/// order, filtered to `Identifier` names with duplicates dropped. The one
+/// heading loop `declared_operation_names` and `extract_operations` both run
+/// — a heading either sees is a heading the other sees too, regardless of
+/// diagnostics or parse errors elsewhere in the section.
+fn operation_heading_names(lines: &[&str], start: usize, end: usize) -> Vec<String> {
     let mut names = Vec::new();
-    for section in level3_headings(&lines, start + 1, end) {
+    for section in level3_headings(lines, start, end) {
         if is_identifier(&section.id) && !names.contains(&section.id) {
             names.push(section.id);
         }
     }
     names
+}
+
+/// The `### <name>` headings directly under a document's `## Operations`
+/// section (FR-071 Operations), in heading order, filtered to `Identifier`
+/// names with duplicates dropped, and empty when there is no `## Operations`
+/// section or more than one. Unlike `extract_operations`'s `operations` (and
+/// the `operation_names` derived from it in `surface.rs`), this name list is
+/// **not** gated on whether any operation's own body parses cleanly: a
+/// heading counts as declared once it exists and is an `Identifier`, even
+/// when a different operation in the same section has a malformed body that
+/// makes the whole `extract_operations` result `unavailable` (FR-075
+/// Inputs) — a caller checking "did this document declare an operation
+/// named X" needs the heading, not the parsed body. Two callers: `BundleIndex
+/// ::from_documents` (corpus mode, FR-075 Inputs) and `extract_model`'s own
+/// self-reference operations feed (`model.rs`), both because an allocation
+/// `Source`'s `<id>/<member>` check must not refuse `<member>` just because
+/// some *other* operation in the document has an error.
+pub(crate) fn declared_operation_names(raw: &str) -> Vec<String> {
+    let lines = lines(raw);
+    match operations_section(&lines) {
+        Some(Ok((start, end))) => operation_heading_names(&lines, start + 1, end),
+        None | Some(Err(_)) => Vec::new(),
+    }
 }
 
 /// FR-071 Operations. `clauses` are the artifact's extracted invariants.
@@ -400,31 +425,32 @@ pub fn extract_operations(
     clauses: &[ClauseRef],
 ) -> OperationsOutcome {
     let lines = lines(raw);
-    let sections = level2_sections(&lines, "Operations");
-    let Some(&(start, end)) = sections.first() else {
-        return OperationsOutcome {
-            availability: KindAvailability::not_applicable(),
-            operations: None,
-            frames: Vec::new(),
-            model_declared: false,
-            diagnostics: Vec::new(),
-        };
+    let (start, end) = match operations_section(&lines) {
+        None => {
+            return OperationsOutcome {
+                availability: KindAvailability::not_applicable(),
+                operations: None,
+                frames: Vec::new(),
+                model_declared: false,
+                diagnostics: Vec::new(),
+            }
+        }
+        Some(Err(second_heading_line)) => {
+            return OperationsOutcome {
+                availability: KindAvailability::unavailable("duplicate-section"),
+                operations: None,
+                frames: Vec::new(),
+                model_declared: false,
+                diagnostics: vec![err(
+                    "semantic.duplicate-section",
+                    second_heading_line,
+                    "a second `## Operations` heading",
+                )],
+            }
+        }
+        Some(Ok(bounds)) => bounds,
     };
     let mut diagnostics = Vec::new();
-    if sections.len() > 1 {
-        diagnostics.push(err(
-            "semantic.duplicate-section",
-            sections[1].0,
-            "a second `## Operations` heading",
-        ));
-        return OperationsOutcome {
-            availability: KindAvailability::unavailable("duplicate-section"),
-            operations: None,
-            frames: Vec::new(),
-            model_declared: false,
-            diagnostics,
-        };
-    }
     let mut operations: Vec<OperationDecl> = Vec::new();
     let mut frames: Vec<OperationFrameDecl> = Vec::new();
     let mut model_declared = false;

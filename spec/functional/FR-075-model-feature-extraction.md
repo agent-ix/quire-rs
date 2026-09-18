@@ -82,8 +82,21 @@ clause id and never parses them
   bundle — the Rust API, the Filament `semanticBundle` JSON request, and the
   Python `bundle` argument — supplies `operations` for every artifact it
   lists; the field is required, not defaulted (Outputs). Corpus mode
-  (`BundleIndex::from_documents`) derives it itself, from each document's
-  own `## Operations` section, via the same scan `extract_operations` runs.
+  (`BundleIndex::from_documents`) derives it itself, from `clauses::
+  declared_operation_names`. When `<id>` names the artifact's own document
+  (a self-reference), `<member>` is checked the same way, against that same
+  `declared_operation_names` scan run on the artifact's own text, not against
+  the bundle at all.
+- `declared_operation_names`' name list is the document's `### <name>`
+  headings under `## Operations`, in current-state terms: every `Identifier`
+  heading, taken **regardless of whether that operation's own body parses
+  without error**, and regardless of any *other* operation's body having an
+  error. This is deliberately not the same list as `extract_operations`'s own
+  `operations` (FR-071 Outputs), which is the whole document's operations
+  parsed as full declarations and is `unavailable` — carrying no names at all
+  — the moment any one operation's body has an error. A `<member>` check
+  against a heading that exists but whose body is malformed still lifts; only
+  a `<member>` naming no heading at all is refused.
 
 ## Outputs
 
@@ -263,13 +276,18 @@ Systems-model tables:
   (QSpec FR-152) — and a declarer with no object type at all is also
   refused. A port `Owner` and an allocation `Target` name a `part`; a
   connection `Source` or `Target` names a `port`; an allocation `Source`
-  names a `part`, a `port`, or by `<id>/<member>` any declared object type.
-  A declarer of no object type at all, for any of these roles, is
+  names a `part`, a `port`, or by `<id>/<member>` any declared object type
+  but the same four systems-record kinds a part `Owner` refuses — an
+  operation belongs to a type (QSpec FR-152's "effective view"), and a
+  systems record structurally declares no `## Operations` section, so it
+  never has a member to name. A declarer of no object type at all, or one
+  of those four kinds where the role refuses them, is
   `semantic.reference-kind-mismatch` at the row. An imported or unchecked
   identity's object type is not checked.
 - An allocation `Source` of `<id>/<member>` names an operation the `<id>`
   bundle artifact declares: `<member>` SHALL be one of its
-  `BundleArtifact.operations`. A `<member>` the artifact does not declare
+  `BundleArtifact.operations`, checked only once `<id>`'s object type has
+  passed the kind check above. A `<member>` the artifact does not declare
   is `semantic.unknown-reference` at the row.
 - A part `Owner` SHALL NOT name the part itself; one that does is
   `semantic.reference-kind-mismatch` at the row.

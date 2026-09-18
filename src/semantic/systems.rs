@@ -234,12 +234,18 @@ impl CellRole {
             Self::PortOwner | Self::TargetElement => kind == Some("part"),
             Self::SourcePort | Self::TargetPort => kind == Some("port"),
             // FR-152: an allocation's source element is a Part, a Port, or
-            // an operation `<id>/<member>` naming any declared type.
-            // Whether `<id>` actually declares the operation `<member>` is
-            // checked separately, against its `operations` (`BundleArtifact`
-            // in src/semantic/context.rs, FR-075 Inputs); only a declarer
-            // with no declared type at all is refused here.
-            Self::SourceElement if member => kind.is_some(),
+            // an operation `<id>/<member>` where `<id>` names a type — never
+            // a part, port, connection, or allocation, the same
+            // SYSTEMS_RECORD_KINDS a Part `Owner` refuses: FR-152's
+            // "effective view" ties an operation to its owning type, and a
+            // systems record structurally declares no `## Operations`
+            // section, so it never has a member to name. Whether `<id>`
+            // actually declares the operation `<member>` is checked
+            // separately, against its `operations` (`BundleArtifact` in
+            // src/semantic/context.rs, FR-075 Inputs).
+            Self::SourceElement if member => {
+                kind.is_some_and(|k| !Self::SYSTEMS_RECORD_KINDS.contains(&k))
+            }
             Self::SourceElement => matches!(kind, Some("part") | Some("port")),
         }
     }
@@ -253,7 +259,7 @@ impl CellRole {
             Self::PartOwner => "a type",
             Self::PortOwner | Self::TargetElement => "a part",
             Self::SourcePort | Self::TargetPort => "a port",
-            Self::SourceElement if member => "a declared type",
+            Self::SourceElement if member => "a type",
             Self::SourceElement => "a part or port",
         }
     }
