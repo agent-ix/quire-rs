@@ -714,7 +714,7 @@ pub(crate) fn extract_model(raw: &str, ctx: &SemanticContext, refs: ModelRefs<'_
     // `<member>` against this document's own `## Operations` headings even
     // when a *different* operation's body has an error and makes
     // `refs.operation_names` (from `extract_operations`, gated on the whole
-    // section parsing clean) `None` (round 3 review).
+    // section parsing clean) `None`.
     let own_operations = super::clauses::declared_operation_names(raw);
     table_features(&lines, body_start, ctx, refs, &own_operations, &mut out);
     out

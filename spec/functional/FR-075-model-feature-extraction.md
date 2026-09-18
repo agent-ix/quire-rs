@@ -82,21 +82,21 @@ clause id and never parses them
   bundle — the Rust API, the Filament `semanticBundle` JSON request, and the
   Python `bundle` argument — supplies `operations` for every artifact it
   lists; the field is required, not defaulted (Outputs). Corpus mode
-  (`BundleIndex::from_documents`) derives it itself, from `clauses::
-  declared_operation_names`. When `<id>` names the artifact's own document
-  (a self-reference), `<member>` is checked the same way, against that same
-  `declared_operation_names` scan run on the artifact's own text, not against
-  the bundle at all.
+  (`BundleIndex::from_documents`) derives it itself, from
+  `clauses::declared_operation_names`. When `<id>` names the artifact's own
+  document (a self-reference), `<member>` is checked the same way, against
+  that same `declared_operation_names` scan run on the artifact's own text,
+  not against the bundle at all.
 - `declared_operation_names`' name list is the document's `### <name>`
-  headings under `## Operations`, in current-state terms: every `Identifier`
-  heading, taken **regardless of whether that operation's own body parses
-  without error**, and regardless of any *other* operation's body having an
-  error. This is deliberately not the same list as `extract_operations`'s own
-  `operations` (FR-071 Outputs), which is the whole document's operations
-  parsed as full declarations and is `unavailable` — carrying no names at all
-  — the moment any one operation's body has an error. A `<member>` check
-  against a heading that exists but whose body is malformed still lifts; only
-  a `<member>` naming no heading at all is refused.
+  headings under `## Operations`: every `Identifier` heading, taken
+  regardless of whether that operation's own body parses without error, and
+  regardless of any *other* operation's body having an error. It is not the
+  same list as `extract_operations`'s own `operations` (FR-071 Outputs),
+  which is the whole document's operations parsed as full declarations and
+  is `unavailable` — carrying no names at all — the moment any one
+  operation's body has an error. A `<member>` check against a heading that
+  exists but whose body is malformed still lifts; only a `<member>` naming
+  no heading at all is refused.
 
 ## Outputs
 

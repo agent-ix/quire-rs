@@ -35,9 +35,9 @@ pub struct BundleEntry {
 /// mode) and the self-reference path in `model.rs` both use
 /// `declared_operation_names` for the same reason: a heading elsewhere in
 /// the section having a malformed body must not make a well-formed
-/// operation's name disappear from this list (round 3 review). No `Default`
-/// derive: `..Default::default()` would silently skip `operations` the same
-/// way `#[serde(default)]` would.
+/// operation's name disappear from this list. No `Default` derive:
+/// `..Default::default()` would silently skip `operations` the same way
+/// `#[serde(default)]` would.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BundleArtifact {
     pub id: String,

@@ -521,9 +521,9 @@ fn systems_references_resolve_qualified_and_imported_names_of_the_admitted_kind(
         format!("{pkg}/planner_out"),
         "{record:#}"
     );
-    // `<id>/<member>` names a port (a systems-record kind, round 3 review):
-    // refused on the kind before the operation is even checked, since a port
-    // has no owner effective type and so declares no operation `flow`.
+    // `<id>/<member>` names a port (a systems-record kind): refused on the
+    // kind before the operation is even checked, since a port has no owner
+    // effective type and so declares no operation `flow`.
     let md = doc(
         "alloc",
         "allocation",
@@ -545,8 +545,8 @@ fn systems_references_resolve_qualified_and_imported_names_of_the_admitted_kind(
 /// names the owning composite type, refusing only a `part`, `port`,
 /// `connection`, `allocation`, or a declarer with no declared type. An
 /// allocation `Source` `<id>/<member>` admits any declared kind but a
-/// systems record (the same four, round 3 review), and only when `<id>`
-/// actually declares the operation `<member>`. A Port `Owner` and an
+/// systems record (the same four), and only when `<id>` actually declares
+/// the operation `<member>`. A Port `Owner` and an
 /// allocation `Target` still admit only a `part`.
 #[trace("TC-1872", "FR-075-AC-12")]
 #[test]
@@ -607,9 +607,9 @@ fn part_owner_and_allocation_operation_source_admit_any_declared_kind() {
     );
 
     // An allocation source `<id>/<member>` whose `<id>` is a systems-record
-    // kind (a `part`, here) still refuses, on the kind, not the operation
-    // (round 3 review): FR-152 ties an operation to its owning type, and a
-    // part structurally declares no `## Operations` section at all.
+    // kind (a `part`, here) still refuses, on the kind, not the operation:
+    // FR-152 ties an operation to its owning type, and a part structurally
+    // declares no `## Operations` section at all.
     let md = doc(
         "pump_alloc",
         "allocation",
@@ -692,9 +692,9 @@ fn part_owner_and_allocation_operation_source_admit_any_declared_kind() {
 /// artifact's own declared operations, not against the bundle's artifacts:
 /// `pump` here is not in the bundle at all, only `sys_pump` is, so this can
 /// only lift through the `own.id == id` path in `resolve_target`
-/// (`src/semantic/target.rs`). The self-referencing document is an `entity`
-/// (round 3 review): a systems-record kind (a `part`/`port`/`connection`/
-/// `allocation`) is refused on the kind itself before the operation is even
+/// (`src/semantic/target.rs`). The self-referencing document is an `entity`:
+/// a systems-record kind (a `part`/`port`/`connection`/`allocation`) is
+/// refused on the kind itself before the operation is even
 /// checked (see the third case below and `SYSTEMS_RECORD_KINDS` in
 /// `src/semantic/systems.rs`), so the operation-check path this test targets
 /// needs a declarer kind that check admits.
@@ -734,8 +734,7 @@ fn allocation_source_self_reference_checks_its_own_declared_operations() {
     // An `allocation` (a systems-record kind) self-referencing its own
     // declared `run` refuses on the kind, not the operation: FR-152 ties an
     // operation to its owning type, and a systems record has none, so
-    // `admits` refuses before `run` is even checked against `own_operations`
-    // (round 3 review).
+    // `admits` refuses before `run` is even checked against `own_operations`.
     let md = self_ref_doc("allocation", "pump/run");
     let record = extract_with_bundle_artifacts(&md, body_extraction("allocation"), bundle);
     assert!(
@@ -798,9 +797,9 @@ fn corpus_mode_derives_operations_from_each_documents_own_section() {
     );
 }
 
-/// Round 3 review: `declared_operation_names` and `extract_operations`
-/// disagree about a document's own operation names once one operation's
-/// body has an error — `extract_operations`'s `operations` (and the
+/// `declared_operation_names` and `extract_operations` disagree about a
+/// document's own operation names once one operation's body has an error —
+/// `extract_operations`'s `operations` (and the
 /// `operation_names` `surface.rs` derives from it) goes `None` for the
 /// **whole document** the moment any single operation entry has a
 /// diagnostic error, even one on a heading other than the one being
