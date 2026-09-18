@@ -87,14 +87,14 @@ clause id and never parses them
   document (a self-reference), `<member>` is checked the same way, against
   that same `declared_operation_names` scan run on the artifact's own text,
   not against the bundle at all.
-- `declared_operation_names`' name list is the document's `### <name>`
-  headings under `## Operations`: every `Identifier` heading, taken
-  regardless of whether that operation's own body parses without error, and
-  regardless of any *other* operation's body having an error. It is not the
-  same list as `extract_operations`'s own `operations` (FR-071 Outputs),
-  which is the whole document's operations parsed as full declarations and
-  is `unavailable` — carrying no names at all — the moment any one
-  operation's body has an error. A `<member>` check against a heading that
+- `declared_operation_names`' name list contains one entry per `### <name>`
+  heading under a document's `## Operations` section: every heading whose
+  text is an `Identifier`, read from the heading itself, independent of
+  whether that operation's own body parses without error and independent of
+  whether any *other* operation's body has an error. `extract_operations`'s
+  own `operations` (FR-071 Outputs) is a separate list: the whole document's
+  operations parsed as full declarations, present only when every one of
+  them parses without error. A `<member>` check against a heading that
   exists but whose body is malformed still lifts; only a `<member>` naming
   no heading at all is refused.
 
