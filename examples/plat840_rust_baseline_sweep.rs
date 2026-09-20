@@ -21,6 +21,13 @@
 //! than assumed: a repo whose registry does not resolve a model is reported as
 //! "cannot compute coverage", never silently skipped.
 //!
+//! **The module's declared `source_exclude` globs are applied**
+//! (`extract_tree_scoped`, not `extract_tree_excluding`) so the symbol and
+//! coverage figures here match what `quire coverage --scope <repo> --json`
+//! would report for the same repo — the ticket names that as the source for
+//! the per-repo number, and a harness that silently counted excluded fixture
+//! trees would not be measuring the same thing.
+//!
 //! The JSON this writes is deterministic byte-for-byte (no wall-clock, no
 //! random, `BTreeMap`/sorted-vec ordering throughout) so a second run over the
 //! same commits is a meaningful diff, not just a repeated assertion.
@@ -36,6 +43,23 @@
 //! and `all_repos_on_main` at the top, record whether this was done — a
 //! `false` there means that repo's numbers are not a `main` baseline and must
 //! not be compared against a post-PLAT-843 run.
+//!
+//! **Every declared target is recorded, whether or not it could be measured.**
+//! A target whose path is missing or has no `spec/` directory still gets a
+//! `repos[]` entry, with `measured: false` and a `skip_reason` — the exact
+//! "quietly skips a repo and reports a smaller total" failure this program
+//! exists to catch must not also be this program's own failure mode. The
+//! process exits non-zero unless every declared target was measured
+//! (`all_targets_measured` in the JSON), so a broken `PLAT840_PATH_*` override
+//! cannot silently produce a short, plausible-looking report — `println!` a
+//! shell command's exit code to see this: it is `$?` after this binary runs.
+//!
+//! **`quire-rs` itself is one of the six repos.** Merging this PR adds a new
+//! `.rs` file (this one) with the tracking tags used in its own doc comments,
+//! to the repo the baseline measures as `quire-rs`. Re-running this harness
+//! after merge over `main` (rather than pinning `08d39ea2c...`, the commit
+//! this artifact was measured at) will show a small delta for that reason
+//! alone — expected, not a regression to chase.
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
@@ -98,15 +122,6 @@ struct AbandonedFile {
     /// Which of PLAT-163's two named diagnostic shapes this is: a stray `}`
     /// with nothing open, or N blocks left open at EOF.
     reason_class: &'static str,
-    /// For a Rust file only: whether its raw text contains an `r#"` / `r##"`
-    /// raw-string prefix — TC-804 / CR-040's fixed case, read straight off
-    /// disk since a file that failed to parse is never added to
-    /// `SymbolExtraction::files`. `None` for a non-Rust file: raw strings are
-    /// a Rust lexical construct, so the check does not apply to TypeScript or
-    /// Python, and a naive text scan on those languages produces false
-    /// positives (e.g. any word ending in `r` immediately before a `"`).
-    #[serde(skip_serializing_if = "Option::is_none")]
-    rust_raw_string_prefix_present: Option<bool>,
 }
 
 #[derive(Serialize)]
@@ -114,6 +129,32 @@ struct UnboundPointer {
     path: String,
     line: usize,
     symbol: String,
+}
+
+/// The row-addressable form of a generic id-shaped token that no declared
+/// form bound (`SymbolGraph::unmatched_tags`, FR-050-AC-39, #362) — every
+/// record, not a count, per PLAT-840's "trace tags bound vs. unmatched"
+/// capture requirement.
+#[derive(Serialize)]
+struct UnmatchedTagRecord {
+    trace_id: String,
+    language: String,
+    path: String,
+    line: usize,
+    symbol: String,
+}
+
+/// A trace id written on a symbol whose *kind* cannot bind it — a container
+/// or a plain function, not the tagged-candidate population
+/// (`SymbolGraph::non_binding_tags`, #312). Every record, not a count.
+#[derive(Serialize)]
+struct NonBindingTagRecord {
+    path: String,
+    symbol: String,
+    kind: String,
+    trace_id: String,
+    form: String,
+    line: usize,
 }
 
 #[derive(Serialize, Default)]
@@ -126,11 +167,14 @@ struct BindingCensusRow {
     /// minted no `verifies` relation. This, not `abandoned_files`, is where
     /// PLAT-843's real Rust-loss signal lives.
     tagged_not_bound: usize,
-    /// One concrete `tagged_not_bound` symbol (the library retains one
-    /// example, not the whole population — `BindingCensus::unmatched_example`
-    /// doc comment explains why). Not exhaustive: characterising every
-    /// `tagged_not_bound` symbol by shape would need per-symbol tag
-    /// classification the public API does not expose in aggregate.
+    /// One concrete `tagged_not_bound` symbol (`BindingCensus::unmatched_example`).
+    /// Not the whole population: the library retains one example per
+    /// language, not a per-symbol classification of every `tagged_not_bound`
+    /// candidate — reconstructing that would mean re-implementing
+    /// `trace::bind`'s internal tag-detection logic outside the library. (The
+    /// **fully enumerable** populations this harness *does* dump in full are
+    /// `unmatched_tags` and `non_binding_tags` below, per repo — a different,
+    /// row-addressable slice of the same binding process.)
     #[serde(skip_serializing_if = "Option::is_none")]
     tagged_not_bound_example: Option<UnboundPointer>,
     /// One concrete example of a candidate that bound nothing at all
@@ -154,6 +198,11 @@ struct CoverageNumbers {
 struct RepoReport {
     name: String,
     path: String,
+    /// `false` means every other field below is a placeholder (empty/zero) —
+    /// read `skip_reason`, not the numbers, when this is `false`.
+    measured: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    skip_reason: Option<String>,
     head_sha: String,
     head_ref: String,
     on_main: bool,
@@ -162,10 +211,48 @@ struct RepoReport {
     abandoned_files: Vec<AbandonedFile>,
     abandoned_files_count: usize,
     other_diagnostics_count: usize,
+    /// Source files the module's declared `source_exclude` globs removed
+    /// from the walk before symbols were ever extracted from them
+    /// (`SymbolExtraction::excluded_source_files`, FR-050-AC-24, #215) — the
+    /// reason `abandoned_files`/`symbols_by_language_kind` here match `quire
+    /// coverage`'s figures rather than counting fixture trees the declared
+    /// model excludes.
+    excluded_source_files: usize,
     binding_census: Vec<BindingCensusRow>,
-    non_binding_tags: usize,
-    unmatched_tags: usize,
+    non_binding_tags: Vec<NonBindingTagRecord>,
+    unmatched_tags: Vec<UnmatchedTagRecord>,
     coverage: CoverageNumbers,
+}
+
+impl RepoReport {
+    fn unmeasured(name: &str, path: &str, reason: String) -> Self {
+        Self {
+            name: name.to_string(),
+            path: path.to_string(),
+            measured: false,
+            skip_reason: Some(reason),
+            head_sha: String::new(),
+            head_ref: String::new(),
+            on_main: false,
+            symbols_by_language_kind: BTreeMap::new(),
+            rust_symbols_total: 0,
+            abandoned_files: Vec::new(),
+            abandoned_files_count: 0,
+            other_diagnostics_count: 0,
+            excluded_source_files: 0,
+            binding_census: Vec::new(),
+            non_binding_tags: Vec::new(),
+            unmatched_tags: Vec::new(),
+            coverage: CoverageNumbers {
+                computed: false,
+                reason_not_computed: Some("repo not measured".to_string()),
+                unbacked_rows: 0,
+                status_lies: 0,
+                backed: 0,
+                total: 0,
+            },
+        }
+    }
 }
 
 #[derive(Serialize)]
@@ -173,12 +260,21 @@ struct Baseline {
     quire_rs_measuring_commit: String,
     module_path: String,
     module_commit: String,
+    /// The module's declared `traceability.source_exclude` globs, applied to
+    /// every repo's walk via `extract_tree_scoped` — recorded so the JSON is
+    /// self-describing about what was excluded and why.
+    source_exclude_globs: Vec<String>,
     /// `true` only if every repo below has `on_main == true`. `false` means
     /// at least one repo's figures are not a `main` baseline — read each
     /// repo's `on_main` field to see which, and do not compare that repo's
     /// numbers against a post-PLAT-843 run unless the rerun pins the same
     /// non-main commit.
     all_repos_on_main: bool,
+    /// `true` only if every declared `TARGETS` entry has `measured == true`.
+    /// `false` means at least one repo could not be measured — the process
+    /// also exits non-zero in that case, so this field is for a reader of the
+    /// JSON alone, without the exit code.
+    all_targets_measured: bool,
     repos: Vec<RepoReport>,
     rust_rollup_by_kind: BTreeMap<String, usize>,
     rust_symbols_total_all_repos: usize,
@@ -204,6 +300,10 @@ fn main() {
         .unwrap_or_else(|| PathBuf::from(&module_path));
     let (module_sha, _module_ref) = git_head(&module_repo_root);
 
+    let model = registry.traceability();
+    let source_exclude_globs: Vec<String> =
+        model.map(|m| m.source_exclude.clone()).unwrap_or_default();
+
     let mut repos = Vec::new();
     let mut rust_rollup: BTreeMap<String, usize> = BTreeMap::new();
     let mut abandoned_total = 0usize;
@@ -216,7 +316,9 @@ fn main() {
             std::env::var(target.path_env).unwrap_or_else(|_| target.default_path.to_string());
         let root = PathBuf::from(&path);
         if !root.join("spec").is_dir() {
-            eprintln!("SKIPPED {}: no spec/ directory at {}", target.name, path);
+            let reason = format!("no spec/ directory at {path}");
+            eprintln!("SKIPPED {}: {reason}", target.name);
+            repos.push(RepoReport::unmeasured(target.name, &path, reason));
             continue;
         }
         let (head_sha, head_ref) = git_head(&root);
@@ -231,7 +333,11 @@ fn main() {
         }
 
         let spec = Spec::from_path(&root.join("spec"));
-        let extraction = symbols::extract_tree_excluding(&root, &[Path::new("spec")]);
+        // `extract_tree_scoped`, not `extract_tree_excluding`: applies the
+        // module's declared `source_exclude` globs so these figures match
+        // what `quire coverage` reports for the same repo (F3).
+        let extraction =
+            symbols::extract_tree_scoped(&root, &[Path::new("spec")], &source_exclude_globs);
 
         let mut by_lang_kind: BTreeMap<String, BTreeMap<String, usize>> = BTreeMap::new();
         for sym in &extraction.symbols {
@@ -264,18 +370,11 @@ fn main() {
                 } else {
                     "blocks_left_open"
                 };
-                let rust_raw_string_prefix_present = if language == "rust" {
-                    let raw = std::fs::read_to_string(root.join(&d.path)).unwrap_or_default();
-                    Some(contains_raw_string_prefix(&raw))
-                } else {
-                    None
-                };
                 AbandonedFile {
                     path: d.path.clone(),
                     language,
                     reason: d.reason.clone(),
                     reason_class,
-                    rust_raw_string_prefix_present,
                 }
             })
             .collect();
@@ -289,79 +388,103 @@ fn main() {
         abandoned_rust_total += abandoned_rust_here;
         let other_diagnostics_count = extraction.diagnostics.len() - abandoned_files_count;
 
-        let (binding_census, non_binding_tags, unmatched_tags, coverage_numbers) =
-            match registry.traceability() {
-                None => (
-                    Vec::new(),
-                    0,
-                    0,
-                    CoverageNumbers {
+        let (binding_census, non_binding_tags, unmatched_tags, coverage_numbers) = match model {
+            None => (
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                CoverageNumbers {
+                    computed: false,
+                    reason_not_computed: Some(
+                        "registry.traceability() is None for this module".to_string(),
+                    ),
+                    unbacked_rows: 0,
+                    status_lies: 0,
+                    backed: 0,
+                    total: 0,
+                },
+            ),
+            Some(model) => {
+                let graph = trace::bind(&extraction, model);
+                let census = graph
+                    .binding_census
+                    .iter()
+                    .map(|c| BindingCensusRow {
+                        language: c.language.clone(),
+                        candidates: c.candidates,
+                        tagged: c.tagged,
+                        bound: c.bound,
+                        tagged_not_bound: c.tagged.saturating_sub(c.bound),
+                        tagged_not_bound_example: c.unmatched_example.as_ref().map(|e| {
+                            UnboundPointer {
+                                path: e.path.clone(),
+                                line: e.line,
+                                symbol: e.symbol.clone(),
+                            }
+                        }),
+                        unbound_example: c.unbound_example.as_ref().map(|e| UnboundPointer {
+                            path: e.path.clone(),
+                            line: e.line,
+                            symbol: e.symbol.clone(),
+                        }),
+                    })
+                    .collect();
+                let mut non_binding: Vec<NonBindingTagRecord> = graph
+                    .non_binding_tags
+                    .iter()
+                    .map(|t| NonBindingTagRecord {
+                        path: t.path.clone(),
+                        symbol: t.symbol.clone(),
+                        kind: t.kind.to_string(),
+                        trace_id: t.trace_id.clone(),
+                        form: t.form.clone(),
+                        line: t.line,
+                    })
+                    .collect();
+                non_binding.sort_by(|a, b| (&a.path, a.line).cmp(&(&b.path, b.line)));
+                let mut unmatched: Vec<UnmatchedTagRecord> = graph
+                    .unmatched_tags
+                    .iter()
+                    .map(|t| UnmatchedTagRecord {
+                        trace_id: t.trace_id.clone(),
+                        language: t.language.clone(),
+                        path: t.path.clone(),
+                        line: t.line,
+                        symbol: t.symbol.clone(),
+                    })
+                    .collect();
+                unmatched.sort_by(|a, b| (&a.path, a.line).cmp(&(&b.path, b.line)));
+                let cov = match coverage::compute(&spec, &registry, &graph, &root) {
+                    Ok(report) => {
+                        unbacked_total += report.unbacked_rows.len();
+                        lies_total += report.status_lies.len();
+                        CoverageNumbers {
+                            computed: true,
+                            reason_not_computed: None,
+                            unbacked_rows: report.unbacked_rows.len(),
+                            status_lies: report.status_lies.len(),
+                            backed: report.totals.backed,
+                            total: report.totals.total,
+                        }
+                    }
+                    Err(CoverageError::ModelUndeclared) => CoverageNumbers {
                         computed: false,
-                        reason_not_computed: Some(
-                            "registry.traceability() is None for this module".to_string(),
-                        ),
+                        reason_not_computed: Some(CoverageError::ModelUndeclared.to_string()),
                         unbacked_rows: 0,
                         status_lies: 0,
                         backed: 0,
                         total: 0,
                     },
-                ),
-                Some(model) => {
-                    let graph = trace::bind(&extraction, model);
-                    let census = graph
-                        .binding_census
-                        .iter()
-                        .map(|c| BindingCensusRow {
-                            language: c.language.clone(),
-                            candidates: c.candidates,
-                            tagged: c.tagged,
-                            bound: c.bound,
-                            tagged_not_bound: c.tagged.saturating_sub(c.bound),
-                            tagged_not_bound_example: c.unmatched_example.as_ref().map(|e| {
-                                UnboundPointer {
-                                    path: e.path.clone(),
-                                    line: e.line,
-                                    symbol: e.symbol.clone(),
-                                }
-                            }),
-                            unbound_example: c.unbound_example.as_ref().map(|e| UnboundPointer {
-                                path: e.path.clone(),
-                                line: e.line,
-                                symbol: e.symbol.clone(),
-                            }),
-                        })
-                        .collect();
-                    let non_binding = graph.non_binding_tags.len();
-                    let unmatched = graph.unmatched_tags.len();
-                    let cov = match coverage::compute(&spec, &registry, &graph, &root) {
-                        Ok(report) => {
-                            unbacked_total += report.unbacked_rows.len();
-                            lies_total += report.status_lies.len();
-                            CoverageNumbers {
-                                computed: true,
-                                reason_not_computed: None,
-                                unbacked_rows: report.unbacked_rows.len(),
-                                status_lies: report.status_lies.len(),
-                                backed: report.totals.backed,
-                                total: report.totals.total,
-                            }
-                        }
-                        Err(CoverageError::ModelUndeclared) => CoverageNumbers {
-                            computed: false,
-                            reason_not_computed: Some(CoverageError::ModelUndeclared.to_string()),
-                            unbacked_rows: 0,
-                            status_lies: 0,
-                            backed: 0,
-                            total: 0,
-                        },
-                    };
-                    (census, non_binding, unmatched, cov)
-                }
-            };
+                };
+                (census, non_binding, unmatched, cov)
+            }
+        };
 
         repos.push(RepoReport {
             name: target.name.to_string(),
             path: path.clone(),
+            measured: true,
+            skip_reason: None,
             head_sha,
             head_ref,
             on_main,
@@ -370,6 +493,7 @@ fn main() {
             abandoned_files,
             abandoned_files_count,
             other_diagnostics_count,
+            excluded_source_files: extraction.excluded_source_files,
             binding_census,
             non_binding_tags,
             unmatched_tags,
@@ -378,12 +502,15 @@ fn main() {
     }
 
     let (quire_rs_sha, _quire_rs_ref) = git_head(&quire_rs_root);
-    let all_repos_on_main = repos.iter().all(|r| r.on_main);
+    let all_repos_on_main = repos.iter().filter(|r| r.measured).all(|r| r.on_main);
+    let all_targets_measured = repos.len() == TARGETS.len() && repos.iter().all(|r| r.measured);
     let baseline = Baseline {
         quire_rs_measuring_commit: quire_rs_sha,
         module_path,
         module_commit: module_sha,
+        source_exclude_globs,
         all_repos_on_main,
+        all_targets_measured,
         rust_symbols_total_all_repos: rust_rollup.values().sum(),
         rust_rollup_by_kind: rust_rollup,
         abandoned_files_total_all_repos: abandoned_total,
@@ -401,26 +528,18 @@ fn main() {
         eprintln!("wrote {out_path}");
     }
     println!("{json}");
-}
 
-/// Whether `source` contains a Rust raw-string prefix (`r"`, `r#"`, `r##"`,
-/// ...) — TC-804 / CR-040's fixed case for PLAT-163-shaped brace desync.
-fn contains_raw_string_prefix(source: &str) -> bool {
-    let bytes = source.as_bytes();
-    let mut i = 0;
-    while i < bytes.len() {
-        if bytes[i] == b'r' {
-            let mut j = i + 1;
-            while j < bytes.len() && bytes[j] == b'#' {
-                j += 1;
-            }
-            if j < bytes.len() && bytes[j] == b'"' {
-                return true;
-            }
-        }
-        i += 1;
+    // F1: a partial sweep must never exit 0 — a rerun driven by a broken
+    // PLAT840_PATH_* override, or a repo that vanished, must be loud, not a
+    // smaller total that looks complete.
+    if !all_targets_measured {
+        eprintln!(
+            "FATAL: only {}/{} declared targets were measured — see `skip_reason` in the JSON",
+            baseline.repos.iter().filter(|r| r.measured).count(),
+            TARGETS.len()
+        );
+        std::process::exit(1);
     }
-    false
 }
 
 /// Read the current commit sha and symbolic ref (e.g. `refs/heads/main`)
