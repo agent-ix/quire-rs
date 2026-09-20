@@ -356,10 +356,20 @@ impl SymbolExtraction {
         let parsed = match language {
             #[cfg(feature = "rust-symbols")]
             SourceLanguage::Rust => rust::parse(&source),
+            // This reason string is deliberately not diagnostic-shaped (no
+            // "line N: ..." form): it must never be mistaken for a per-file
+            // parse failure this file's own content caused (FR-051-AC-9's
+            // channel). It names a whole-binary *build configuration* fact —
+            // every Rust file in the tree gets this same reason, regardless
+            // of content, because the feature that would parse any of them
+            // was never compiled in (review F4).
             #[cfg(not(feature = "rust-symbols"))]
             SourceLanguage::Rust => Err(
-                "Rust symbol extraction requires the `rust-symbols` feature \
-                 (off in this build, e.g. `wasm`)"
+                "BUILD CONFIGURATION (not a parse error): this binary was built without the \
+                 `rust-symbols` Cargo feature (on by default; off for `wasm`), so it contains no \
+                 Rust parser at all — every Rust file in this tree is skipped for that reason, \
+                 not because of anything in this file. Rebuild with `--features rust-symbols` to \
+                 extract Rust symbols."
                     .to_string(),
             ),
             SourceLanguage::Python => python::parse(path, &source),

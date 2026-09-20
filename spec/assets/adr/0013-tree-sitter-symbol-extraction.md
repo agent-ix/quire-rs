@@ -113,13 +113,6 @@ Rationale:
    and the pre-existing `ix-trace-rs` exception, stating both are deletable
    once registry publishing exists.
 
-### Rejected: extending the scanner, or a hand-rolled parser
-
-Both keep the class of defect this ADR exists to end (an enumerated fix list
-for one global mechanism, or a second grammar reimplementation this repo
-would then own and maintain). Neither offers per-node local recovery without
-essentially rebuilding what a real grammar library already provides.
-
 ## Consequences
 
 - `src/symbols/rust.rs`'s hand-written lexer subsystem (`LexedLine`,
@@ -134,22 +127,33 @@ essentially rebuilding what a real grammar library already provides.
   lexer mechanism — confirmed to fail against a deliberately broken
   stand-in before being trusted. `tc804_rust_lexing_is_string_and_lifetime_aware`
   needed no edit: it already asserted an outcome.
-- **Grammar-version determinism is a newly-relevant claim.** `FR-051-AC-10`'s
-  byte-identical-output guarantee is amended to name the grammar version as
-  part of the identity it claims (`CR-177`, same FR): an external grammar is
-  now an input to the output, and the pin is single-sourced through
-  `quire-code-parse`'s own `tree_sitter` re-export so no consumer of it,
-  including this one, can drift onto its own version.
-- **The `wasm` build cannot link this dependency.** `tree-sitter-rust`
-  compiles a C parser via a `cc`-crate build script, which cannot
-  cross-compile to `wasm32-unknown-unknown` without a wasm-targeting C
-  toolchain this workspace does not carry — the same shape `resolve-file`
-  is already gated off `wasm` for, one dependency over. The Rust symbol
-  adapter is gated behind a new `rust-symbols` feature (on by default, off
-  under `wasm`); `src/symbols/mod.rs` falls back to a per-file diagnostic for
-  `SourceLanguage::Rust` rather than failing to compile when the feature is
-  off. Python and TypeScript extraction are unaffected either way, and no
-  existing consumer of the default feature set observes any change.
+- **Grammar-version determinism is a newly-relevant claim, and cross-version
+  identity is deliberately not one of the claims made.** `FR-051-AC-10`'s
+  byte-identical-output guarantee is amended to name the grammar version and
+  the `rust-symbols` feature set as part of the identity it claims — *at* a
+  pinned grammar version, not *across* grammar versions (`CR-177`, same FR).
+  The pin `rev = "57b83ba"` on `quire-code-parse` pins that crate's own
+  *source*, not the registry-resolved `tree-sitter`/`tree-sitter-rust`
+  versions its own `Cargo.toml` declares as caret ranges — those live only in
+  each consumer's own `Cargo.lock`, so this workspace and another consumer of
+  the same pin are not guaranteed to resolve the identical grammar patch
+  version, and a bare `cargo update` here can move it with no manifest edit
+  (spec review F1). `crates/quire-rust-extraction/tests/dependency_boundary.rs`
+  asserts this repo's own locked version exactly, so that drift is a compiled
+  gate failure here, not a silent variable.
+- **The `wasm` build cannot link this dependency, and that fact is not a
+  parse error.** `tree-sitter-rust` compiles a C parser via a `cc`-crate
+  build script, which cannot cross-compile to `wasm32-unknown-unknown`
+  without a wasm-targeting C toolchain this workspace does not carry — the
+  same shape `resolve-file` is already gated off `wasm` for, one dependency
+  over. The Rust symbol adapter is gated behind a new `rust-symbols` feature
+  (on by default, off under `wasm`); `src/symbols/mod.rs` falls back to a
+  per-file **build-configuration** diagnostic for `SourceLanguage::Rust`,
+  worded so it cannot be mistaken for a parse failure this file's own
+  content caused (review F4), rather than failing to compile when the
+  feature is off. Python and TypeScript extraction are unaffected either
+  way, and no existing consumer of the default feature set observes any
+  change.
 - A future revision (a `quire-code-parse` grammar bump, or Phase 2 porting
   Python/TypeScript onto the same crate) requires: re-running the
   differential this ADR's own PR published against the pre-port baseline

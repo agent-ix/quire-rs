@@ -617,8 +617,15 @@ fn scan_token_tree_for_fns(
 /// of its leading annotation run, and whether that run holds a `#[test]`-
 /// family attribute — the same two questions `leading_span`/`has_attribute`
 /// answer for a real `function_item`, asked instead over `proptest!`'s flat
-/// token sequence, where an attribute is `#` followed by a `[...]`
-/// `token_tree` rather than a single `attribute_item` node.
+/// token sequence, where an outer attribute is `#` followed by a `[...]`
+/// `token_tree` rather than a single `attribute_item` node, and an **inner**
+/// attribute (`#![proptest_config(...)]`, scoping to the rest of the
+/// `proptest! { ... }` block rather than to one test) is `#`, `!`, then the
+/// same `[...]` `token_tree` — three flat tokens instead of two (review F6:
+/// the two-token match alone stopped the run at the first inner attribute
+/// above a `#[test] fn`, truncating `leading_line` there instead of reaching
+/// past it, the same class of defect PLAT-69/PLAT-846 fixed for a real
+/// `attribute_item`/`inner_attribute_item` node).
 fn flat_leading_span_and_test(children: &[Node], fn_idx: usize, source: &str) -> (usize, bool) {
     let mut boundary_row = children[fn_idx].start_position().row;
     let mut is_test = false;
@@ -636,21 +643,28 @@ fn flat_leading_span_and_test(children: &[Node], fn_idx: usize, source: &str) ->
                 boundary_row = prev.start_position().row;
                 j -= 1;
             }
+            // Inner attribute: `#`, `!`, `[...]` token_tree — checked before
+            // the outer-attribute arm below so a `#!` pair is never
+            // mistaken for `#`, `[...]` with the `!` mis-swallowed.
+            "token_tree"
+                if j >= 3 && children[j - 2].kind() == "!" && children[j - 3].kind() == "#" =>
+            {
+                if boundary_row.saturating_sub(prev.end_position().row) > 1 {
+                    break;
+                }
+                if attribute_path_is_test(prev, source) {
+                    is_test = true;
+                }
+                boundary_row = children[j - 3].start_position().row;
+                j -= 3;
+            }
+            // Outer attribute: `#`, `[...]` token_tree.
             "token_tree" if j >= 2 && children[j - 2].kind() == "#" => {
                 if boundary_row.saturating_sub(prev.end_position().row) > 1 {
                     break;
                 }
-                if let Ok(inner) = prev.utf8_text(source.as_bytes()) {
-                    let path = inner
-                        .trim_start_matches('[')
-                        .trim_end_matches(']')
-                        .split(['(', ','])
-                        .next()
-                        .unwrap_or("")
-                        .trim();
-                    if path.rsplit("::").next() == Some("test") {
-                        is_test = true;
-                    }
+                if attribute_path_is_test(prev, source) {
+                    is_test = true;
                 }
                 boundary_row = children[j - 2].start_position().row;
                 j -= 2;
@@ -659,6 +673,23 @@ fn flat_leading_span_and_test(children: &[Node], fn_idx: usize, source: &str) ->
         }
     }
     (boundary_row + 1, is_test)
+}
+
+/// Whether an attribute's `[...]` `token_tree` (either outer or inner form)
+/// names a `#[test]`-family path, read the same way for both shapes in
+/// [`flat_leading_span_and_test`].
+fn attribute_path_is_test(token_tree: Node, source: &str) -> bool {
+    let Ok(inner) = token_tree.utf8_text(source.as_bytes()) else {
+        return false;
+    };
+    let path = inner
+        .trim_start_matches('[')
+        .trim_end_matches(']')
+        .split(['(', ','])
+        .next()
+        .unwrap_or("")
+        .trim();
+    path.rsplit("::").next() == Some("test")
 }
 
 /// One symbol for a `fuzz_target!` invocation at the top level of the file,
@@ -1071,12 +1102,13 @@ mod tests {
         );
     }
 
-    /// PLAT-69: a rustfmt-split `#[cfg_attr(...)]` no longer truncates the
-    /// leading span at the continuation line. Asserts `leading_line`
-    /// directly, not only that the classification survives — a fixture
-    /// checking binding alone can pass for the wrong reason.
+    /// `TC-1885` (`FR-051-AC-25`), PLAT-69: a rustfmt-split `#[cfg_attr(...)]`
+    /// no longer truncates the leading span at the continuation line.
+    /// Asserts `leading_line` directly, not only that the classification
+    /// survives — a fixture checking binding alone can pass for the wrong
+    /// reason.
     #[test]
-    fn plat69_a_split_attribute_does_not_truncate_the_leading_span() {
+    fn tc1885_a_split_attribute_does_not_truncate_the_leading_span() {
         let source = concat!(
             "#[cfg_attr(\n",
             "    feature = \"x\",\n",
@@ -1092,10 +1124,11 @@ mod tests {
         assert_eq!(t.leading_line, 1, "the split attribute's own start line");
     }
 
-    /// PLAT-846: a block doc comment (`/** ... */`) joins the leading span,
-    /// the same defect class as PLAT-69. Asserts `leading_line`.
+    /// `TC-1886` (`FR-051-AC-25`), PLAT-846: a block doc comment (`/** ...
+    /// */`) joins the leading span, the same defect class as PLAT-69.
+    /// Asserts `leading_line`.
     #[test]
-    fn plat846_a_block_doc_comment_joins_the_leading_span() {
+    fn tc1886_a_block_doc_comment_joins_the_leading_span() {
         let source = "/** doc */\n#[test]\nfn documented() {\n}\n";
         let symbols = parse(source).expect("valid");
         let t = symbols
@@ -1105,11 +1138,11 @@ mod tests {
         assert_eq!(t.leading_line, 1, "the block doc comment's own start line");
     }
 
-    /// PLAT-305 regression pin (already passing on `main`, fixed by CR-061 —
-    /// not a demonstrated improvement of this port): `#[ignore]` before
-    /// `#[test]` is still found.
+    /// `TC-1879` (`FR-051-AC-25`), PLAT-305 regression pin (already passing
+    /// on `main`, fixed by CR-061 — not a demonstrated improvement of this
+    /// port): `#[ignore]` before `#[test]` is still found.
     #[test]
-    fn plat305_ignore_before_test_is_still_found() {
+    fn tc1879_ignore_before_test_is_still_found() {
         let source = "#[ignore]\n#[test]\nfn t() {\n}\n";
         let symbols = parse(source).expect("valid");
         assert_eq!(symbols[0].kind, SymbolKind::TestFunction);
@@ -1155,10 +1188,13 @@ mod tests {
     /// truncated.rs` is, and what `tc749_unparseable_file_degrades_per_file`
     /// (`src/symbols/mod.rs`) pins through the full `extract_tree` path.
     #[test]
-    fn a_truncated_file_fails_loudly_naming_a_line() {
+    fn tc1884_a_truncated_file_fails_loudly_naming_a_line() {
         let source = "pub fn truncated() {\n    if true {\n        let x = 1;\n";
         let err = parse(source).expect_err("a truly truncated file must fail");
-        assert!(err.contains("line 1"), "the reason must name a line: {err}");
+        // Exact, not `contains("line 1")` (review F5): that substring also
+        // matches "line 10".."line 19" — an assertion that cannot fail for
+        // the reason it claims to test, this repo's own tracked defect class.
+        assert_eq!(err, "line 1: unresolvable declaration structure (column 0)");
     }
 
     /// Regression pin, found by the PLAT-843 differential against quire-rs's
@@ -1217,5 +1253,36 @@ mod tests {
         assert!(symbols
             .iter()
             .all(|s| s.qualified_name != "proptest" && s.qualified_name != "tests::proptest"));
+    }
+
+    /// Review F6: an inner attribute (`#![proptest_config(...)]`) directly
+    /// above a `#[test] fn`, with no blank-line gap, must join the leading
+    /// run the same way a real `inner_attribute_item` does for a top-level
+    /// declaration (PLAT-69/PLAT-846) — `flat_leading_span_and_test`'s
+    /// token-shape match previously only recognised the two-token outer form
+    /// (`#`, `[...]`), so an inner attribute's three tokens (`#`, `!`,
+    /// `[...]`) stopped the run one token early and `leading_line` landed on
+    /// `#[test]` itself instead of the `#!...` line above it.
+    #[test]
+    fn proptest_inner_attribute_adjacent_to_test_joins_the_leading_span() {
+        let source = concat!(
+            "proptest! {\n",
+            "    #![proptest_config(ProptestConfig::with_cases(10))]\n",
+            "    #[test]\n",
+            "    fn never_panics(s in \".*\") {\n",
+            "        let _ = s;\n",
+            "    }\n",
+            "}\n",
+        );
+        let symbols = parse(source).expect("valid");
+        let never_panics = symbols
+            .iter()
+            .find(|s| s.qualified_name == "never_panics")
+            .expect("proptest test extracted");
+        assert_eq!(never_panics.kind, SymbolKind::TestFunction);
+        assert_eq!(
+            never_panics.leading_line, 2,
+            "the inner attribute, with no blank line before #[test], is part of the leading span"
+        );
     }
 }
