@@ -7,6 +7,40 @@ description: "Chronological log of structural changes to this bundle."
 
 ## History
 
+* **2026-09-20** — **CR-177** (`PLAT-843`): `src/symbols/rust.rs` is
+  rewritten onto `tree-sitter` (via the new dependency-boundary crate
+  `crates/quire-rust-extraction` → `quire-code-parse`, pinned by git rev at
+  `agent-ix/quire-code-rs@57b83ba`), the implementation `CR-176` named in
+  advance. Every byte-for-byte identity behaviour `FR-051` already commits to
+  is preserved (impl-block scoping, the `type`/`static`/`const`/`union`
+  exclusion, the duplicate-identity flattening a `fn` never breaking, the
+  hardcoded `FuzzTarget` span). Two deltas are taken as free consequences of
+  parsing correctly rather than as scope creep: the `check_balanced`
+  whole-file rejection (one global brace-depth counter) is gone, replaced by
+  tree-sitter's per-node local recovery; and a leading span (`leading_block`
+  →`leading_span`) now walks preceding **sibling nodes** instead of preceding
+  **lines**, which fixes both `PLAT-69` (a rustfmt-split attribute no longer
+  truncates the span) and `PLAT-846` (a block doc comment now joins it) as
+  the same mechanism, folded into this ticket per the ticket's own ruling.
+  **`FR-051-AC-10` is amended** (its own CR-177 note, same FR): the
+  byte-identity claim now names a pinned grammar version as part of the
+  identity, since an external grammar library became an input to the output
+  the moment `CR-176` landed — the pin is single-sourced through
+  `quire-code-parse`'s own `tree_sitter` re-export, never per-consumer.
+  `deny.toml` gains `quire-code-rs` beside the pre-existing `ix-trace-rs`
+  `allow-git`/license exception, both stated as deletable once registry
+  publishing exists. Two tests asserting the deleted lexer's own
+  intermediate state (`tc804_lexer_counts_only_code_braces`,
+  `tc804_string_state_carries_across_lines`) are retired, each replaced by a
+  successor asserting the same property against `parse`'s outcome instead —
+  `tc804_rust_lexing_is_string_and_lifetime_aware` needed no edit, since it
+  already asserted an outcome. Adds **ADR-0013** (tree-sitter adoption). The
+  Rust symbol adapter is gated behind a new `rust-symbols` feature (default
+  on, off under `wasm`, where `tree-sitter-rust`'s C build step cannot
+  cross-compile); Python and TypeScript extraction are unaffected. Phase 1 is
+  Rust only — Python and TypeScript keep their current line/indentation-
+  structural adapters, `PLAT-851`'s to port.
+
 * **2026-09-20** — **CR-176** (`PLAT-842`):
   [FR-051](./functional/FR-051-source-symbol-extraction.md)'s CON-1 now carries
   the method — the extractor classifies syntax from a syntax tree a

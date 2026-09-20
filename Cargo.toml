@@ -1,3 +1,14 @@
+[workspace]
+# The root package stays the workspace default-member (mirrors quire-code-rs's
+# own choice, PLAT-841): existing tooling that runs bare `cargo build`/`cargo
+# test` from the repo root keeps building exactly what it built before
+# `crates/quire-rust-extraction` existed. That crate is a member so
+# `cargo test --workspace` and the dependency-boundary gate exercise it too,
+# but it is never implicitly selected on its own.
+members = [".", "crates/quire-rust-extraction"]
+default-members = ["."]
+resolver = "2"
+
 [package]
 name = "quire-rs"
 version = "0.46.0"
@@ -62,6 +73,19 @@ pyo3 = { version = "0.29", features = ["extension-module", "abi3-py39"], optiona
 # wasm entropy source for `uuid` v7 under `wasm32-unknown-unknown` (see `wasm` feature).
 getrandom = { version = "^0.3", features = ["wasm_js"], optional = true }
 unicode-normalization = "0.1"
+# Dependency-boundary crate (PLAT-843): the one place in this workspace that
+# names `quire-code-parse`/`tree-sitter` — see
+# `crates/quire-rust-extraction/src/lib.rs` and its
+# `tests/dependency_boundary.rs`. `src/symbols/rust.rs` walks the tree this
+# re-exports; it never names `tree-sitter` itself.
+#
+# `optional = true`, gated by the `rust-symbols` feature below (on by
+# default): `quire-code-parse` pulls in `tree-sitter-rust`, which compiles a
+# C parser via a `cc`-crate build script, and that cannot cross-compile for
+# `wasm32-unknown-unknown` without a wasm-targeting C toolchain this
+# workspace does not carry — the same cross-compilation shape `resolve-file`
+# is already gated off `wasm` for, one dependency over.
+quire-rust-extraction = { path = "crates/quire-rust-extraction", optional = true }
 
 [dev-dependencies]
 # The canonical Rust trace marker (FR-051). Zero runtime dependencies and a
@@ -82,9 +106,16 @@ criterion = "^0.5"
 loom = "^0.7"
 
 [features]
-# Native default: include filesystem `$ref` resolution in jsonschema.
-default = ["resolve-file"]
+# Native default: include filesystem `$ref` resolution in jsonschema, and the
+# tree-sitter-backed Rust symbol adapter.
+default = ["resolve-file", "rust-symbols"]
 python = ["dep:pyo3"]
+# The Rust symbol adapter (FR-051, PLAT-843), gated so the `wasm` build can
+# opt out — see `quire-rust-extraction`'s own dependency comment above for
+# why. `src/symbols/mod.rs` falls back to a per-file diagnostic for
+# `SourceLanguage::Rust` when this feature is off, rather than failing to
+# compile; Python and TypeScript extraction are unaffected either way.
+rust-symbols = ["dep:quire-rust-extraction"]
 # Measurement-only. Re-enables the `ac:no-observable-outcome` check CR-014
 # retired, so it can be re-measured over the corpus with the mechanical fixes
 # CR-014/CR-017 applied (agent-ix/quire-rs#18). NEVER enabled in a shipping

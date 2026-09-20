@@ -151,7 +151,7 @@ byte-identical JSON ordering and stable record ids.
 | FR-051-AC-7 | The emitted records match the FR-045 graph-record shapes with normalized `ref` values, and filament-core ingestion fixtures accept them unchanged. | Test (TC-747) |
 | FR-051-AC-8 | `defined_in` edges link every symbol to its file and `contains` edges link containers to members, deterministically ordered. | Test (TC-748) |
 | FR-051-AC-9 | An unparseable fixture file yields a per-file diagnostic naming that file and the line the error sits at, while the rest of the tree extracts normally. | Test (TC-749, TC-1884) |
-| FR-051-AC-10 | Repeated extraction over an identical fixture tree emits byte-identical JSON and identical record ids. | Test (TC-750) |
+| FR-051-AC-10 | Repeated extraction over an identical fixture tree, at a pinned grammar version, emits byte-identical JSON and identical record ids. | Test (TC-750) |
 | FR-051-AC-11 | The legacy textual forms (docstring bare id, `Trace:` line, line-comment id, trace-embedding test name) still bind during migration, carry `legacy` provenance on the minted relation, and yield a mechanical marker-rewrite suggestion where derivable. | Test (TC-753) |
 | FR-051-AC-12 | Comment recognition is string-aware, and template-literal state carries across lines: a `//` or `/*` inside a string or template literal is content, not a comment opener, whether it sits on the literal's opening line or a continuation line. | Test (TC-798, TC-799) |
 | FR-051-AC-13 | A declaration whose signature spans lines binds tags in its docstring: a `def` wrapped by a formatter has the same span as the unwrapped form. | Test (TC-800) |
@@ -282,6 +282,42 @@ byte-identical JSON ordering and stable record ids.
 > The parser `PLAT-843` adopts is `tree-sitter`: one grammar per language,
 > source text in, tree out, no toolchain and no dependency resolution for the
 > analysed repository.
+
+> **CR-177 note (2026-09-20, `PLAT-843`):** AC-10's identity is amended, not
+> widened. Raised in `PLAT-842`'s review and deferred here deliberately — a
+> criterion written there would have pinned a dependency the repo did not yet
+> have.
+>
+> AC-10 pins **run-to-run** byte identity over an identical tree, and that is
+> unchanged. But CR-176 made an external grammar library an input to the
+> output, so stability **across grammar versions** is newly in scope, and
+> nothing held it before this note. A `tree-sitter-rust` bump that changes a
+> node kind, a field name, or error recovery moves every downstream number —
+> with no source change, no spec change, and nothing in the matrix recording
+> that it happened. That is the same failure class AC-10 exists to end, one
+> layer down: coverage numbers moving for a reason unrelated to the analysed
+> code.
+>
+> **AC-10's scope is amended to name the grammar as part of the identity it
+> already claims**: "over an identical tree, at a pinned grammar version."
+> Determinism is not reopened as a live question requiring its own test —
+> `TC-750` already demonstrates run-to-run identity, and a grammar bump is an
+> explicit, reviewed dependency change (this FR's parser dependency, per
+> `NFR-009`), not a silent variable. Stating the scope is what stops a future
+> grammar bump from being read as "AC-10 still holds" by construction rather
+> than by having actually been checked.
+>
+> **The pin is single-sourced, not per-consumer.** `quire-code-parse`
+> re-exports `tree_sitter` itself rather than wrapping it, precisely so the
+> version lives in one place — its own `Cargo.toml` — across every consumer
+> (`quire-code-rs`, `quire-rs`, `filament-ide-rs`, and later a daemon). This
+> repository reaches that pin through exactly one path,
+> `crates/quire-rust-extraction`'s `quire-code-parse` git-rev dependency
+> (`ADR-0013`), and `tests/dependency_boundary.rs` in that crate is what keeps
+> a second, independently-versioned grammar from reappearing anywhere else in
+> this workspace. A criterion permitting each consumer its own grammar version
+> would defeat the single-sourcing the dependency itself already promises, so
+> none is written here.
 
 > **CR-119 note (2026-08-24):** AC-21 is new. `agent-ix/quire-rs#273`, epic
 > `agent-ix/quire-rs#264`.

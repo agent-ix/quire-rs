@@ -18,6 +18,12 @@ exceptions = [
     # The trace marker is AGPL like the rest of the toolchain. A dev-dependency
     # only, and not transitive, so this admits nothing into a consumer's graph.
     { allow = ["AGPL-3.0-or-later"], crate = "ix-trace-rs" },
+    # The local dependency-boundary crate (PLAT-843): part of this repo, same
+    # license as `quire-rs` itself.
+    { allow = ["AGPL-3.0-or-later"], crate = "quire-rust-extraction" },
+    # The shared tree-sitter parse layer (PLAT-843), pinned by git rev in
+    # `crates/quire-rust-extraction/Cargo.toml`. Also AGPL-3.0-or-later.
+    { allow = ["AGPL-3.0-or-later"], crate = "quire-code-parse" },
 ]
 confidence-threshold = 0.9
 
@@ -31,6 +37,14 @@ version = 2
 [sources]
 unknown-registry = "deny"
 unknown-git = "deny"
-# The only git source: the trace-marker crate, which is not published to a
-# registry. Listed explicitly so `unknown-git = "deny"` keeps its teeth.
-allow-git = ["https://github.com/agent-ix/ix-trace-rs"]
+# Two git sources, neither published to a registry. Listed explicitly so
+# `unknown-git = "deny"` keeps its teeth rather than being silently widened.
+# `ix-trace-rs` is the trace-marker crate; `quire-code-rs` is pinned for its
+# `quire-code-parse` workspace member, the shared tree-sitter parse layer
+# `crates/quire-rust-extraction` wraps (PLAT-843). Both are public repos
+# (PLAT-848) but crates.io publishing is deferred deliberately — both
+# entries are deletable once that lands, not an architectural exception.
+allow-git = [
+    "https://github.com/agent-ix/ix-trace-rs",
+    "https://github.com/agent-ix/quire-code-rs",
+]

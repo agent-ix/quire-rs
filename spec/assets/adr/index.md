@@ -19,3 +19,4 @@ description: "Index of artifacts in this directory."
 * [0010 SMT Consistency Analysis](./0010-smt-consistency-analysis.md)
 * [0011 Role Boundaries Validation Levels](./0011-role-boundaries-validation-levels.md)
 * [0012 YAML Engine Maintenance And Parity](./0012-yaml-engine-maintenance-and-parity.md)
+* [0013 Tree Sitter Symbol Extraction](./0013-tree-sitter-symbol-extraction.md)
