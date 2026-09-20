@@ -14,19 +14,30 @@ description: "Chronological log of structural changes to this bundle."
   the parser the implementation adopts (`PLAT-843`). "Is this marker attached
   to a test declaration, and to which one" is a question about the shape of the
   declaration, so it is answered from a tree. `ix://agent-ix/quire-cli/FR-025`
-  already constrains the same job to a maintained parser, and `quire-qualify`
-  classifies from `syn`'s tree; this aligns the two. The class the old rule
-  produced was measured four ways: a repository reporting **zero** `.py`
-  entries in `criteria[].sources` while 509 Python tests passed (`PLAT-14`), a
+  holds the rule for the narrower case — no grep, regex-only classification or
+  hand-written lexer for that repository's own Rust-source gates, which
+  `quire-qualify` reads from `syn`'s tree — so it is precedent for the reading
+  rather than a rule already covering three languages in an arbitrary target
+  tree. The class the old rule produced was measured four ways: a repository
+  reporting **zero** `.py`
+  entries in `criteria[].sources` while 509 Python tests passed (`PLAT-14`,
+  `agent-ix/quire-rs#459`), a
   `{n,m}` regex quantifier manufacturing **6 of 9** reported status lies
-  against correct matrix rows (`PLAT-163`), `#[test]` above `#[ignore]` costing
-  4 backed rows and 4 lies with nothing else changed (`PLAT-305`), and `black`
+  against correct matrix rows (`PLAT-163`, `agent-ix/quire-rs#424`), `#[test]`
+  above `#[ignore]` costing
+  4 backed rows and 4 lies with nothing else changed (`PLAT-305`,
+  `agent-ix/quire-rs#387`), and `black`
   wrapping a `@pytest.mark.trace` at the repo's own column limit moving a
-  criterion to unbacked (`PLAT-234`). The three properties the constraint
+  criterion to unbacked (`PLAT-234`, `agent-ix/quire-rs#395`). The three
+  properties the constraint
   protects are each stated: determinism as AC-10 (byte-identical output over an
   identical tree), no build of the analysed tree as the new AC-26, and no type
-  resolution in CON-1. Adds FR-051-AC-25..26 + TC-1878..1879, and indexes
-  FR-051-AC-23/24, whose TC rows existed but were absent from the AC→TC index.
+  resolution in CON-1. AC-14 and AC-15 named the reader's machinery — brace
+  depth, the balance check, a lexer's state — rather than what a reader of the
+  file observes, and are reworded to the property TC-803 and TC-804 already
+  pin; both TCs are unchanged. Adds FR-051-AC-25..26 + TC-1878..1882, and
+  indexes FR-051-AC-23/24, whose TC rows existed but were absent from the
+  AC→TC index.
 * **2026-09-17** — **CR-175** (#455): the vendored `module-manifest.schema.json`
   is re-vendored from `agent-ix/filament-core-service` at `5b2af8b`, which adds
   the optional boolean `immutable` to `$defs/ConstructDeclaration`

@@ -148,8 +148,8 @@ byte-identical JSON ordering and stable record ids.
 | FR-051-AC-11 | The legacy textual forms (docstring bare id, `Trace:` line, line-comment id, trace-embedding test name) still bind during migration, carry `legacy` provenance on the minted relation, and yield a mechanical marker-rewrite suggestion where derivable. | Test (TC-753) |
 | FR-051-AC-12 | Comment recognition is string-aware, and template-literal state carries across lines: a `//` or `/*` inside a string or template literal is content, not a comment opener, whether it sits on the literal's opening line or a continuation line. | Test (TC-798, TC-799) |
 | FR-051-AC-13 | A declaration whose signature spans lines binds tags in its docstring: a `def` wrapped by a formatter has the same span as the unwrapped form. | Test (TC-800) |
-| FR-051-AC-14 | Comment, string and template state is derived once per file and read by every consumer — the balance check, brace depth, and block-end spans — rather than re-derived per consumer. | Test (TC-803) |
-| FR-051-AC-15 | The Rust adapter's lexer recognizes raw strings, lifetimes, character literals and nested block comments, so a brace inside any of them never moves the depth and never rejects the file. | Test (TC-804) |
+| FR-051-AC-14 | One reading of a file decides what is code in it, and every consumer reads that one answer — classification, containment, and the span a symbol ends at — so two consumers of the same file never disagree about whether a given byte is code, a comment, or the inside of a string. | Test (TC-803) |
+| FR-051-AC-15 | The Rust adapter reads raw strings, lifetimes, character literals and nested block comments as the language defines them, so a brace or a quote inside any of them is content: the file is accepted and yields its symbols. | Test (TC-804) |
 | FR-051-AC-16 | A legacy textual form mints one `verifies` relation per trace id its match carries, so a comma-separated list binds every id rather than only the first, and one authored line yields one rewrite suggestion naming all of them; a form declaring `id_format` renders a single id and is not split. | Test (TC-806) |
 | FR-051-AC-17 | A Rust benchmark — an attribute-marked one, or a function a `criterion_group!` registers in either invocation form, whether or not the registration line carries a trailing comment — classifies as a benchmark symbol, and a `fuzz_target!` invocation mints one fuzz-target symbol per file whose span is its whole file. Both bind trace ids; a container and a plain function still bind none. Each kind's stable label (`benchmark`, `fuzz_target`) is part of the symbol identity and of the FR-045 record's `kind` field. | Test (TC-827, TC-828) |
 | FR-051-AC-18 | A `test`/`it` registration whose modifier chain is curried (`it.skipIf(cond)(…)`, `it.each([…])(…)`), or whose title literal begins on a later line, registers a test symbol named by that title, with the span and leading block any other registration gets. The scan is bounded and stops at the first non-blank text: a title held in a variable, an identifier merely beginning with `it`, and a literal beyond the window each register nothing rather than something wrong. A title inside a multi-line template literal is out of scope and registers nothing (CR-084). | Test (TC-943, TC-948, TC-958, TC-960, TC-961) |
@@ -159,8 +159,8 @@ byte-identical JSON ordering and stable record ids.
 | FR-051-AC-23 | The extracted symbol table is reported on its own surface, as the engine built it: per symbol its path, qualified name, kind, language, declaration line, annotation-block line, end line, container, identity digest, whether that **kind** can bind a trace id, whether it can carry an `implements` marker, and — when a module is supplied — the ids it bound. A scanner defect must be sizeable **without reimplementing the scanner**: three ports of `symbols/python.rs` gave 386, 490 and 5,263 lost declarations over one tree, disagreeing precisely where the original is wrong. Binding is reported as **not asked** rather than as zero when no module is supplied, because an unbound run and a repository nobody tagged produce the same empty list. Per-language totals carry both denominators — symbols examined and symbols of a **binding kind** — since a rate over the wrong one reads a tree of containers as untagged. | Test (TC-1052, TC-1053, TC-1054) |
 | FR-051-AC-24 | String-literal contents are masked before a **legacy** textual form is matched, in **every** language rather than in Rust alone — a trace id a file carries as data is not a tag, and binding it invents coverage nobody authored. The mask preserves each language's declared **tag channel**: comments everywhere, and additionally a Python **docstring** and a TypeScript test **registration title**, because `python-docstring-id` and `typescript-test-name-id` are declared forms that read an id out of a string literal by design. Rust needs no such exemption — its `rust-test-name-id` reads an identifier — which is why a blanket mask is correct there and wrong in the other two. Canonical markers are never masked against: they put ids inside string literals by design. | Test (TC-1055, TC-1056, TC-1057) |
 | FR-051-AC-21 | A TypeScript `describe(...)` / `suite(...)` registration mints one **container** symbol named by its registered title, spanning its block and its leading annotation block, and the registrations written inside it carry it as their container rather than the file's module, where the header line opens its block — a `describe(` whose `{` falls on a later line mints the container and parents nothing, the same window bound AC-18 states for its own scan. A suite does not *name* its members: a registration's qualified name is its own registered title whether or not a suite encloses it, while a class inside a suite still qualifies its own. A suite is a grouping and not evidence, so a trace tag on a suite header mints **no** `verifies` relation and the suite is **not** a `binding_census` candidate — and since `agent-ix/quire-rs#312` that tag is **reported** rather than dropped, under AC-22. The tag naming a test is the declarative form; a tag on the group would make coverage an inference about which test inside is meant, and the report says where the tag is instead of guessing. A registration whose name chain names a suite **anywhere along it** is a suite: `test.describe(...)` and `it.describe.only(...)` classify exactly as `describe(...)` does, because a harness spells its suite as a member of its test namespace and reading only the first identifier gave one construct two classifications (CR-121). `context` is not a suite name. | Test (TC-1039, TC-1040, TC-1042) |
-| FR-051-AC-25 | A symbol and its trace ids are read from the declaration's own node in the syntax tree, so attachment rather than page position decides them: a Rust test whose attribute block carries `#[test]` in any position, a Python marker a formatter has wrapped across lines, a marker separated from its `def` by a second wrapped decorator, and a declaration whose signature or attribute block spans lines each classify and bind exactly as their single-line, adjacent spelling does (`agent-ix/quire-rs#387`, `agent-ix/quire-rs#395`, `agent-ix/quire-rs#459`). A brace, a delimiter or a trace id appearing inside a regular-expression literal, a string or a comment is content: the file still yields its symbols, and the id binds only through a declared tag channel (`agent-ix/quire-rs#424`). | Test (TC-1878) |
-| FR-051-AC-26 | Extraction over a fixture tree that has never been compiled and whose declared dependencies are not installed yields that tree's symbols and relations, invoking no compiler, package manager, or build artifact of the analysed tree, and resolving no type. | Test (TC-1879) |
+| FR-051-AC-25 | A symbol and its trace ids are read from the declaration's own node in the syntax tree, so attachment rather than page position decides them: a Rust test whose attribute block carries `#[test]` in any position, a Python marker a formatter has wrapped across lines, a marker separated from its `def` by a second wrapped decorator, and a declaration whose signature or attribute block spans lines each classify and bind exactly as their single-line, adjacent spelling does (`agent-ix/quire-rs#387`, `agent-ix/quire-rs#395`, `agent-ix/quire-rs#459`). A brace, a delimiter or a trace id appearing inside a regular-expression literal, a string or a comment is content: the file still yields its symbols, and the id binds only through a declared tag channel (`agent-ix/quire-rs#424`). | Test (TC-1878, TC-1879, TC-1880) |
+| FR-051-AC-26 | Extraction over a fixture tree that has never been compiled and whose declared dependencies are not installed yields that tree's symbols and relations, and the extraction path invokes no compiler, package manager, or build artifact of the analysed tree and resolves no type. | Test (TC-1881, TC-1882) |
 
 > **CR-176 note (2026-09-20):** CON-1 now states the method as well as the
 > boundary: the extractor classifies syntax from a syntax tree a grammar-driven
@@ -171,20 +171,29 @@ byte-identical JSON ordering and stable record ids.
 > attached to a test declaration, and to which one" is decided by the shape of
 > the declaration, not by the arrangement of its lines — so the answer must be
 > read from a tree, and a parser dependency is admitted to read one. The
-> ecosystem already holds this rule: `ix://agent-ix/quire-cli/FR-025`
-> constrains the Rust-source gates to a maintained parser for the same job, and
-> `quire-qualify` classifies imports and `unsafe` loci from `syn`'s tree. This
-> repairs an under-reading rule, not the authored tests.
+> ecosystem already holds the rule for a narrower case:
+> `ix://agent-ix/quire-cli/FR-025`'s CON-1 admits no grep, regex-only
+> classification or hand-written lexer for the Rust-source gates, and
+> `quire-qualify` accordingly classifies that repository's own imports and
+> `unsafe` loci from `syn`'s tree. That scope is one language in one
+> repository, against this FR's three languages in an arbitrary target tree —
+> so it is precedent for the reading, not a rule that already covers this
+> extraction. This repairs an under-reading rule, not the authored tests.
 >
-> **Four measurements, one class.** `PLAT-14`: a polyglot repository reported
+> **Four measurements, one class.** Each is tracked in Linear and mirrored on
+> GitHub, and AC-25 cites the GitHub half. `PLAT-14`
+> (`agent-ix/quire-rs#459`): a polyglot repository reported
 > **zero** `.py` entries in `criteria[].sources` while 509 Python tests passed,
 > so its headline `status_lies` and `unbacked_rows` described two of its three
-> languages. `PLAT-163`: a `{n,m}` quantifier in a regex literal moved brace
+> languages. `PLAT-163` (`agent-ix/quire-rs#424`): a `{n,m}` quantifier in a
+> regex literal moved brace
 > depth, the file was abandoned, and **6 of 9** reported status lies in that
-> audit were manufactured against correct matrix rows. `PLAT-305`: with
+> audit were manufactured against correct matrix rows. `PLAT-305`
+> (`agent-ix/quire-rs#387`): with
 > `#[test]` written above `#[ignore]` — the order rustfmt-formatted code writes
 > — a tagged test contributed no candidate at all: backed 83/198 with 4 lies
-> against 87/198 with 0, nothing else changed. `PLAT-234`: `black` wrapping a
+> against 87/198 with 0, nothing else changed. `PLAT-234`
+> (`agent-ix/quire-rs#395`): `black` wrapping a
 > `@pytest.mark.trace` at the repo's own 88-column limit moved a criterion to
 > unbacked, so the formatter changed the coverage number.
 >
@@ -199,8 +208,25 @@ byte-identical JSON ordering and stable record ids.
 > the tree; what it *means* is out of scope. Per-file degradation stays CON-2
 > and AC-9, and no execution of extracted code stays in CON-1.
 >
-> The parser is `tree-sitter`: one grammar per language, source text in, tree
-> out, no toolchain and no dependency resolution for the analysed repository.
+> **Four criteria named the reader rather than the reading, and two of them
+> are restated here.** AC-12 (a `//` inside a string or template literal is
+> content) and AC-20 (a triple-quoted body is never read as code, and a
+> declaration after it keeps its true container) state what a reader of the
+> file observes, so they are unchanged and their cases still discriminate.
+> AC-14 and AC-15 named the machinery instead — "the balance check, brace
+> depth, and block-end spans", "a brace … never moves the depth" — and a
+> criterion that names a mechanism stops being verifiable when the mechanism
+> changes. Each is reworded to the property its cases actually pin: AC-14 that
+> one reading decides what is code and every consumer reads that one answer,
+> AC-15 that a brace or quote inside a raw string, lifetime, character literal
+> or nested block comment is content and the file is accepted. TC-803 and
+> TC-804 are unchanged and still discharge them — CR-039 and CR-040 measured
+> 78 of 140 reported status lies against a single such reader disagreement, and
+> that measurement is what these two rows exist to keep from recurring.
+>
+> The parser `PLAT-843` adopts is `tree-sitter`: one grammar per language,
+> source text in, tree out, no toolchain and no dependency resolution for the
+> analysed repository.
 
 > **CR-119 note (2026-08-24):** AC-21 is new. `agent-ix/quire-rs#273`, epic
 > `agent-ix/quire-rs#264`.
