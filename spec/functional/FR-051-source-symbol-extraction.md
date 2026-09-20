@@ -60,8 +60,13 @@ attribute. Record ids SHALL be stable SHA-256 digests of the identity, per the
 The extractor SHALL ship per-language adapters for Rust, Python, and
 TypeScript. Each adapter SHALL parse its file to a syntax tree with that
 language's grammar and SHALL read every symbol, span and container relation
-from the tree's nodes. Adapters SHALL read the source text alone: no build, no
-type resolution, no dependency installation. Adapters SHALL classify test
+from the tree's nodes. Adapters SHALL read the source text of the analysed
+tree alone: no build of it, no type resolution, no installation of its
+dependencies. A file is **unparseable** where the tree the grammar yields
+carries an error over the file's declaration structure — the term CON-2 and
+AC-9 rest on, stated because a grammar returns a tree for every input, so the
+trigger is a property of the tree rather than the absence of one.
+Adapters SHALL classify test
 functions by each language's convention: Rust functions under a `#[test]`-family
 attribute, Python `test_`-prefixed functions and test-class methods, and
 TypeScript `test(...)`/`it(...)` registrations (the registered title is the
@@ -94,8 +99,8 @@ The extractor SHALL read markers **statically** from the syntax tree — the
 decorator, attribute and call-argument nodes the tree attaches to the test
 symbol's declaration — so a marker binds by its attachment rather than by its
 position on the page, and coverage never requires a runtime. Runtime
-queryability (running all tests for an FR, tagging JUnit
-reports) is a stated benefit of the marker form, not a requirement of this FR.
+queryability (running all tests for an FR, tagging JUnit reports) is a stated
+benefit of the marker form, not a requirement of this FR.
 Each trace id attached by a marker SHALL mint one `verifies` relation from the
 test symbol to that id; a trace id attached more than once to one symbol
 (repeated marker, or marker plus legacy tag) SHALL mint one relation and a
@@ -127,7 +132,7 @@ byte-identical JSON ordering and stable record ids.
 
 | ID | Constraint | Type | Validation |
 |----|------------|------|------------|
-| FR-051-CON-1 | The extractor SHALL classify syntax from a syntax tree produced by a grammar-driven parser library, reading the source text alone — without network I/O, service I/O, extracted-code execution, compilation of the analysed tree, dependency installation, or type resolution. | Architecture | Test |
+| FR-051-CON-1 | The extractor SHALL classify syntax from a syntax tree that a grammar-driven parser library produces over the source text, and performs no network I/O, no service I/O, no execution of extracted code, no compilation of the analysed tree, no dependency installation, and no type resolution. | Architecture | Test |
 | FR-051-CON-2 | Adapters SHALL degrade per file: one unparseable file never aborts the tree extraction. | Operational | Test |
 | FR-051-CON-3 | Legacy textual-tag recognition SHALL be removed once the marker-normalization sweep lands (sweep gated on explicit user sign-off) — no deprecated compat path is retained after it. | Operational | Inspection |
 
@@ -159,12 +164,17 @@ byte-identical JSON ordering and stable record ids.
 | FR-051-AC-23 | The extracted symbol table is reported on its own surface, as the engine built it: per symbol its path, qualified name, kind, language, declaration line, annotation-block line, end line, container, identity digest, whether that **kind** can bind a trace id, whether it can carry an `implements` marker, and — when a module is supplied — the ids it bound. A scanner defect must be sizeable **without reimplementing the scanner**: three ports of `symbols/python.rs` gave 386, 490 and 5,263 lost declarations over one tree, disagreeing precisely where the original is wrong. Binding is reported as **not asked** rather than as zero when no module is supplied, because an unbound run and a repository nobody tagged produce the same empty list. Per-language totals carry both denominators — symbols examined and symbols of a **binding kind** — since a rate over the wrong one reads a tree of containers as untagged. | Test (TC-1052, TC-1053, TC-1054) |
 | FR-051-AC-24 | String-literal contents are masked before a **legacy** textual form is matched, in **every** language rather than in Rust alone — a trace id a file carries as data is not a tag, and binding it invents coverage nobody authored. The mask preserves each language's declared **tag channel**: comments everywhere, and additionally a Python **docstring** and a TypeScript test **registration title**, because `python-docstring-id` and `typescript-test-name-id` are declared forms that read an id out of a string literal by design. Rust needs no such exemption — its `rust-test-name-id` reads an identifier — which is why a blanket mask is correct there and wrong in the other two. Canonical markers are never masked against: they put ids inside string literals by design. | Test (TC-1055, TC-1056, TC-1057) |
 | FR-051-AC-21 | A TypeScript `describe(...)` / `suite(...)` registration mints one **container** symbol named by its registered title, spanning its block and its leading annotation block, and the registrations written inside it carry it as their container rather than the file's module, where the header line opens its block — a `describe(` whose `{` falls on a later line mints the container and parents nothing, the same window bound AC-18 states for its own scan. A suite does not *name* its members: a registration's qualified name is its own registered title whether or not a suite encloses it, while a class inside a suite still qualifies its own. A suite is a grouping and not evidence, so a trace tag on a suite header mints **no** `verifies` relation and the suite is **not** a `binding_census` candidate — and since `agent-ix/quire-rs#312` that tag is **reported** rather than dropped, under AC-22. The tag naming a test is the declarative form; a tag on the group would make coverage an inference about which test inside is meant, and the report says where the tag is instead of guessing. A registration whose name chain names a suite **anywhere along it** is a suite: `test.describe(...)` and `it.describe.only(...)` classify exactly as `describe(...)` does, because a harness spells its suite as a member of its test namespace and reading only the first identifier gave one construct two classifications (CR-121). `context` is not a suite name. | Test (TC-1039, TC-1040, TC-1042) |
-| FR-051-AC-25 | A symbol and its trace ids are read from the declaration's own node in the syntax tree, so attachment rather than page position decides them: a Rust test whose attribute block carries `#[test]` in any position, a Python marker a formatter has wrapped across lines, a marker separated from its `def` by a second wrapped decorator, and a declaration whose signature or attribute block spans lines each classify and bind exactly as their single-line, adjacent spelling does (`agent-ix/quire-rs#387`, `agent-ix/quire-rs#395`, `agent-ix/quire-rs#459`). A brace, a delimiter or a trace id appearing inside a regular-expression literal, a string or a comment is content: the file still yields its symbols, and the id binds only through a declared tag channel (`agent-ix/quire-rs#424`). | Test (TC-1878, TC-1879, TC-1880) |
+| FR-051-AC-25 | A symbol and its trace ids are read from the declaration's own node in the syntax tree, so attachment rather than page position decides them: a Rust test whose attribute block carries `#[test]` in any position, a Python marker a formatter has wrapped across lines, a marker separated from its `def` by a second wrapped decorator, and a declaration whose signature or attribute block spans lines each classify and bind exactly as their single-line, adjacent spelling does (`agent-ix/quire-rs#387`, `agent-ix/quire-rs#395`, `agent-ix/quire-rs#459`). A brace inside a regular-expression literal is content — the ground AC-12 and AC-15 hold for the other literal forms — so a file carrying a `{n,m}` quantifier yields its symbols (`agent-ix/quire-rs#424`). | Test (TC-1878, TC-1879, TC-1880) |
 | FR-051-AC-26 | Extraction over a fixture tree that has never been compiled and whose declared dependencies are not installed yields that tree's symbols and relations, and the extraction path invokes no compiler, package manager, or build artifact of the analysed tree and resolves no type. | Test (TC-1881, TC-1882) |
 
-> **CR-176 note (2026-09-20):** CON-1 now states the method as well as the
-> boundary: the extractor classifies syntax from a syntax tree a grammar-driven
-> parser library produces. AC-25 and AC-26 are new. `PLAT-842`; the
+> **CR-176 note (2026-09-20):** CON-1 now carries the method as well as the
+> boundary — the extractor classifies syntax from a syntax tree a
+> grammar-driven parser library produces — and keeps every exclusion it
+> already held, adding three the parse makes worth stating. It stays one row
+> so TC-756 and the `FR-051-CON-1` tags in `src/coverage.rs`,
+> `src/symbols/trace.rs` and `tests/coverage_rollup.rs` keep binding what they
+> already bind; splitting the boundary onto its own id would have renamed a
+> constraint four live tags name. AC-25 and AC-26 are new. `PLAT-842`; the
 > implementation change is `PLAT-843`.
 >
 > **The question the extractor answers is a syntax question.** "Is this marker
@@ -197,16 +207,18 @@ byte-identical JSON ordering and stable record ids.
 > `@pytest.mark.trace` at the repo's own 88-column limit moved a criterion to
 > unbacked, so the formatter changed the coverage number.
 >
-> **The three properties CON-1 protects are unchanged and each is stated.**
-> Determinism stays AC-10, byte-identical output over an identical tree, which
-> a grammar satisfies more strongly than a per-line state machine — the four
-> measurements above are all cases where the same bytes read differently
-> depending on their neighbours. No build stays AC-26 and is why the parser is
-> a grammar library rather than a language's own front end: a grammar reads
-> source text, while `syn` would bind the extractor to one language's
-> toolchain. No type resolution stays in CON-1: what a symbol *is* comes from
-> the tree; what it *means* is out of scope. Per-file degradation stays CON-2
-> and AC-9, and no execution of extracted code stays in CON-1.
+> **The properties the old CON-1 protected are unchanged and each is stated.**
+> Determinism stays AC-10, byte-identical output over an identical tree: a
+> grammar decides the same bytes the same way wherever they sit, and all four
+> measurements above are cases where the same bytes read differently depending
+> on their neighbours. No build stays AC-26, and is why the parser is a grammar
+> library: a grammar takes source text and returns a tree, for every language
+> the FR names, with the analysed repository's toolchain absent. No type
+> resolution and no execution of extracted code stay in CON-1: what a symbol
+> *is* comes from the tree; what it *means* is out of scope. Per-file
+> degradation stays CON-2 and AC-9, and the **Language adapters** section now
+> states what makes a file unparseable, because a grammar returns a tree for
+> every input and the trigger is a property of that tree.
 >
 > **Four criteria named the reader rather than the reading, and two of them
 > are restated here.** AC-12 (a `//` inside a string or template literal is
@@ -223,6 +235,25 @@ byte-identical JSON ordering and stable record ids.
 > TC-804 are unchanged and still discharge them — CR-039 and CR-040 measured
 > 78 of 140 reported status lies against a single such reader disagreement, and
 > that measurement is what these two rows exist to keep from recurring.
+>
+> **Two criteria bound a scan to a window, and both stand as written.** AC-18
+> stops its title scan at the first non-blank text, so a literal beyond that
+> window registers nothing; AC-21 mints a container for a `describe(` whose
+> `{` falls on a later line and parents nothing to it. A tree answers both
+> questions without a window, so each of those carve-outs becomes a choice
+> rather than a limit — and widening either one **changes what a repository's
+> coverage number is**, for every repository, which is a measured decision of
+> the kind CR-119 recorded for the suite question rather than a consequence of
+> admitting the parser. They are therefore unchanged here and named so the next
+> reader finds them: `PLAT-843` implements this CON-1 against AC-18 and AC-21
+> as they stand, and any widening is its own change with its own **[RAN]**
+> numbers.
+>
+> **Where the old statement still lives.** `src/symbols/mod.rs` opens with
+> "They are line-structural rather than full parsers", which is the module
+> restating this constraint back when the constraint said that. `PLAT-843`
+> carries that line with the code it describes; this CR moves the requirement,
+> not the implementation.
 >
 > The parser `PLAT-843` adopts is `tree-sitter`: one grammar per language,
 > source text in, tree out, no toolchain and no dependency resolution for the

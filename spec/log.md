@@ -8,10 +8,13 @@ description: "Chronological log of structural changes to this bundle."
 ## History
 
 * **2026-09-20** — **CR-176** (`PLAT-842`):
-  [FR-051](./functional/FR-051-source-symbol-extraction.md)'s CON-1 now states
-  the method as well as the boundary — the extractor classifies syntax from a
-  syntax tree a grammar-driven parser library produces, and `tree-sitter` is
-  the parser the implementation adopts (`PLAT-843`). "Is this marker attached
+  [FR-051](./functional/FR-051-source-symbol-extraction.md)'s CON-1 now carries
+  the method — the extractor classifies syntax from a syntax tree a
+  grammar-driven parser library produces, and `tree-sitter` is
+  the parser the implementation adopts (`PLAT-843`) — while keeping every
+  exclusion it already held and adding three the parse makes worth stating.
+  It stays one row because `TC-756` and three `src/`-side tags name
+  `FR-051-CON-1` as it is. "Is this marker attached
   to a test declaration, and to which one" is a question about the shape of the
   declaration, so it is answered from a tree. `ix://agent-ix/quire-cli/FR-025`
   holds the rule for the narrower case — no grep, regex-only classification or
@@ -28,14 +31,24 @@ description: "Chronological log of structural changes to this bundle."
   4 backed rows and 4 lies with nothing else changed (`PLAT-305`,
   `agent-ix/quire-rs#387`), and `black`
   wrapping a `@pytest.mark.trace` at the repo's own column limit moving a
-  criterion to unbacked (`PLAT-234`, `agent-ix/quire-rs#395`). The three
-  properties the constraint
-  protects are each stated: determinism as AC-10 (byte-identical output over an
-  identical tree), no build of the analysed tree as the new AC-26, and no type
-  resolution in CON-1. AC-14 and AC-15 named the reader's machinery — brace
+  criterion to unbacked (`PLAT-234`, `agent-ix/quire-rs#395`). The properties
+  the old constraint
+  protected are each stated: determinism as AC-10 (byte-identical output over
+  an identical tree), no build of the analysed tree as the new AC-26, and no
+  type resolution and no execution of extracted code in CON-1. The
+  **Language adapters** section states the parse as the adapters' method, the
+  **Trace-tag grammar** section states that a marker is read from the nodes the
+  tree attaches to the declaration, and the same section now defines an
+  **unparseable** file — a grammar returns a tree for every input, so the
+  trigger CON-2 and AC-9 rest on is a property of that tree. AC-14 and AC-15
+  named the reader's machinery — brace
   depth, the balance check, a lexer's state — rather than what a reader of the
   file observes, and are reworded to the property TC-803 and TC-804 already
-  pin; both TCs are unchanged. Adds FR-051-AC-25..26 + TC-1878..1882, and
+  pin; both TCs keep their ids and their bindings, and their ledger statements
+  are reworded to match. AC-18's and AC-21's bounded scans stand as written and
+  are named in the CR note: widening either moves every repository's coverage
+  number and is its own measured change. Adds
+  FR-051-AC-25..26 + TC-1878..1882, and
   indexes FR-051-AC-23/24, whose TC rows existed but were absent from the
   AC→TC index.
 * **2026-09-17** — **CR-175** (#455): the vendored `module-manifest.schema.json`
