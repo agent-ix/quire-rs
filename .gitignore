@@ -1,4 +1,3 @@
-/target
 Cargo.lock.bak
 *.swp
 .DS_Store
@@ -33,3 +32,6 @@ fuzz/Cargo.lock
 __pycache__/
 .pytest_cache/
 *.so
+
+target/
+*-target/
