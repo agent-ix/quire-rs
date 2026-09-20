@@ -7,6 +7,64 @@ description: "Chronological log of structural changes to this bundle."
 
 ## History
 
+* **2026-09-20** — **CR-176** (`PLAT-842`):
+  [FR-051](./functional/FR-051-source-symbol-extraction.md)'s CON-1 now carries
+  the method — the extractor classifies syntax from a syntax tree a
+  grammar-driven parser library produces, and `tree-sitter` is
+  the parser the implementation adopts (`PLAT-843`) — while keeping every
+  exclusion it already held and adding three the parse makes worth stating.
+  It stays one row because `TC-756` and three `src/`-side tags name
+  `FR-051-CON-1` as it is. "Is this marker attached
+  to a test declaration, and to which one" is a question about the shape of the
+  declaration, so it is answered from a tree. `ix://agent-ix/quire-cli/FR-025`
+  holds the rule for the narrower case — no grep, regex-only classification or
+  hand-written lexer for that repository's own Rust-source gates, which
+  `quire-qualify` reads from `syn`'s tree — so it is precedent for the reading
+  rather than a rule already covering three languages in an arbitrary target
+  tree. The class the old rule produced was measured four ways: a repository
+  reporting **zero** `.py`
+  entries in `criteria[].sources` while 509 Python tests passed (`PLAT-14`,
+  `agent-ix/quire-rs#459`), a
+  `{n,m}` regex quantifier manufacturing **6 of 9** reported status lies
+  against correct matrix rows (`PLAT-163`, `agent-ix/quire-rs#424`), `#[test]`
+  above `#[ignore]` costing
+  4 backed rows and 4 lies with nothing else changed (`PLAT-305`,
+  `agent-ix/quire-rs#387`), and `black`
+  wrapping a `@pytest.mark.trace` at the repo's own column limit moving a
+  criterion to unbacked (`PLAT-234`, `agent-ix/quire-rs#395`). The properties
+  the old constraint
+  protected are each stated: determinism as AC-10 (byte-identical output over
+  an identical tree), no build of the analysed tree as the new AC-26, and no
+  type resolution and no execution of extracted code in CON-1. The
+  **Language adapters** section states the parse as the adapters' method and
+  now also defines an **unparseable** file — a grammar returns a tree for
+  every input, so the trigger CON-2 and AC-9 rest on is a property of that
+  tree — and requires the per-file diagnostic to name the file and the line
+  the error sits at (AC-9 amended, TC-1884). The **Trace-tag grammar**
+  section states that a marker is read from the nodes the tree attaches to
+  the declaration. AC-14, AC-15 and AC-20
+  named the reader's machinery — brace
+  depth, the balance check, a lexer's state — rather than what a reader of the
+  file observes, and are reworded to the property TC-803, TC-804, TC-1029,
+  TC-1030 and TC-1031 already
+  pin; every one of those TCs keeps its id and its bindings, and the ledger
+  statements of TC-803, TC-804 and TC-1030 are reworded to match. AC-12 is
+  unchanged: it states what a reader observes. AC-15 also **gains** the
+  carry property AC-12 already states for TypeScript — a string opened on one
+  line keeps its interior as content on the lines that follow, a raw string
+  closing only on its matching hash count. `tc804_string_state_carries_across_lines`
+  has asserted it all along and no criterion described it, and a multi-line
+  `r#"…"#` JSON fixture is the exact shape of the CR-040 incident those rows
+  exist for. It stays on TC-804 rather than taking a new id: a Rust test binds
+  by its name under `rust-test-name-id`, so a new id would bind to nothing
+  without a `src/` rename this change does not make. AC-18's and AC-21's bounded
+  scans stand as written and
+  are named in the CR note: both are TypeScript criteria, outside the Rust
+  scope `PLAT-843` implements, and widening either moves every repository's
+  coverage number and is its own measured change. Adds
+  FR-051-AC-25..26 + TC-1879..1884, and
+  indexes FR-051-AC-23/24, whose TC rows existed but were absent from the
+  AC→TC index.
 * **2026-09-17** — **CR-175** (#455): the vendored `module-manifest.schema.json`
   is re-vendored from `agent-ix/filament-core-service` at `5b2af8b`, which adds
   the optional boolean `immutable` to `$defs/ConstructDeclaration`
