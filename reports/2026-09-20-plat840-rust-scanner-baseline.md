@@ -45,7 +45,7 @@ Verified by re-running with `PLAT840_PATH_ECAZ` pointed at a nonexistent directo
 
 ## F3 (ruling): the module's declared `source_exclude` globs are now applied
 
-The harness previously walked every repo with `extract_tree_excluding` — no glob filtering — so its symbol and coverage figures were **not** what `quire coverage --scope <repo> --json` reports for the same repo, which is what the ticket names as the source for the per-repo number. `spec-artifacts-process/manifest.yaml:630` declares:
+The harness previously walked every repo with `extract_tree_excluding` — no glob filtering — so its symbol and coverage figures were **not** what `quire coverage --scope <repo> --json` reports for the same repo, which is what the ticket names as the source for the per-repo number. (This match holds at a fixed engine commit — the installed CLI ships an older engine and diverges from this harness by engine version, not by source-file scope; see the settled `quire-contract-ir` `backed` gap below.) `spec-artifacts-process/manifest.yaml:630` declares:
 
 ```
 source_exclude:
@@ -56,7 +56,17 @@ source_exclude:
 
 Fixed: the harness now calls `extract_tree_scoped(root, &[Path::new("spec")], &source_exclude_globs)`, where `source_exclude_globs` comes straight from `registry.traceability().source_exclude`, and captures `SymbolExtraction::excluded_source_files` into each repo's JSON row.
 
-**Verified against the reviewer's real-CLI numbers for `quire-contract-ir`.** Re-measured: Rust binding census is now `176 / 176 / 175` and `excluded_source_files: 2` — an exact match to the cited CLI output. (The CLI's cited `backed: 196` versus this artifact's `backed: 198` for the same repo is not fully reconciled — `quire-contract-ir` is a live, actively-developed repo, and "backed" is a whole-corpus row count sensitive to `spec/` authoring, not just to which source files are walked, so a few rows' difference between two measurements taken at different moments on `main` is plausible. The specific claim this fix targets — the Rust binding census and the excluded-file count — matches exactly.)
+**Verified against the reviewer's real-CLI numbers for `quire-contract-ir`, and the `backed: 198` vs `backed: 196` gap is now settled by construction, not argument.** Re-measured: Rust binding census is `176 / 176 / 175` and `excluded_source_files: 2` — an exact match to the cited CLI output. The residual gap on `backed` (198 here vs 196 from the installed `quire` CLI 0.32.0) is **not drift**: `quire-contract-ir`'s `origin/main` is still `dfd8bd7` and `spec-artifacts-process` still `61a20e0`, both unchanged since the previous measurement, tree clean. It is a difference in **which engine computed it**:
+
+| | `backed` | python census |
+|---|---:|---|
+| this harness, engine `08d39ea` | 198 | 29 / 29 / 29 |
+| installed `quire` CLI 0.32.0, engine `a874fb6` | 196 | 14 / 14 / 14 |
+| this harness's own source, rebuilt against engine `a874fb6` | 196 | 14 / 14 / 14 |
+
+The third row is the proof: the reviewer rebuilt this unmodified harness against the exact engine commit the installed CLI ships (`a874fb6`, 15 commits behind `08d39ea`, both self-reporting version `0.46.0`) and ran it on the same clone — it reproduces the CLI's numbers exactly. `coverage::compute` behaves identically whichever driver calls it; the two rows differ only by engine commit, never by measurement method. Two of those 15 commits are the named causes: `0df4206 fix(symbols): recognize bounded native unittest methods (#407)` moves the python census 14→29, and `616a7e9 Select status columns per reference without fallback (#409/#410)` is the +2 on `backed`. This is **characterised, not attributed** — the causing commits are identified by rebuild-and-diff, not inferred from behavior. **198 is the right number**: it comes from the newer engine including a deliberate correctness fix, and this artifact measures at `08d39ea`, the sha recorded for `quire-rs` above.
+
+This also settles, as a demonstrated fact rather than an assertion, this PR's own rationale for driving `coverage::compute` through the library API instead of the installed CLI: the installed CLI genuinely does drift against `main` — by 2 on `backed` and 15 on the python census, in this exact case — which is the strongest available justification for this harness existing at all.
 
 **This strengthens the headline finding rather than weakening it.** `tests/fixtures/symbols/broken/truncated.rs` — the one "abandoned file" the first version of this artifact reported — sits inside `tests/fixtures/**`, a declared-excluded path. Under the declared model, the file is never walked at all, so it cannot be abandoned by anything. **The abandoned Rust-file count is `0`, measured directly, not inferred from "it's just a fixture."** PLAT-163's Rust exposure is nil, full stop.
 
@@ -72,7 +82,7 @@ This also closes a related finding: the removed code's `std::fs::read_to_string(
 
 ## F4: `unmatched_tags` and `non_binding_tags` are now full record dumps, not counts
 
-The first version reported `graph.unmatched_tags.len()` and `graph.non_binding_tags.len()` and stated that "the public API exposes per-language aggregate counts plus one example each, not a per-symbol classification." **That claim was true for `tagged_not_bound` (still is — see below) but false for `unmatched_tags` and `non_binding_tags`: both are already `Vec<...>` of fully row-addressable records** (`SymbolGraph::unmatched_tags: Vec<UnmatchedTag>` — `{trace_id, language, path, line, symbol}`; `SymbolGraph::non_binding_tags: Vec<NonBindingTag>` — `{path, symbol, kind, trace_id, form, line}`), documented as the row-addressable form of the aggregate. The ticket's Capture list explicitly asks for "trace tags bound vs. unmatched," and dumping the records was nearly free.
+The first version reported `graph.unmatched_tags.len()` and `graph.non_binding_tags.len()` and stated that "the public API exposes per-language aggregate counts plus one example each, not a per-symbol classification." **That claim was true for `tagged_not_bound` (still is — see below) but false for `unmatched_tags` and `non_binding_tags`: both are already `Vec<...>` of fully row-addressable records** (`SymbolGraph::unmatched_tags: Vec<UnmatchedTag>` — `{trace_id, language, path, line, symbol}`; `SymbolGraph::non_binding_tags: Vec<NonBindingTag>` — `{path, symbol, kind, trace_id, form, line}`), documented as the row-addressable form of the aggregate. One field-semantics note the dump does not surface on its own: `unmatched_tags[].line` is the tag's own line, while `non_binding_tags[].line` is the *symbol's declaration line* — verified with a concrete pair (`lower.rs:157` `fn lower_one`, whose `FR-038` tag sits at line 280 inside the body); each dump is faithful to its own struct's field semantics, but a reader of the artifact alone cannot tell the two `line` columns apart without this note. The ticket's Capture list explicitly asks for "trace tags bound vs. unmatched," and dumping the records was nearly free.
 
 Fixed: both populations are now serialized in full per repo, sorted by `(path, line)` for determinism. Sizes: quire-rs 350 unmatched / 47 non-binding, quire-code-rs 31 / 0, quire-contract-ir 53 / 1, quire-protocol 66 / 0, filament-ide-rs 2,110 / 67, ecaz 132 / 30 — 2,742 unmatched-tag records and 145 non-binding-tag records total, every one with a `path:line` a human or a differential script can open directly. This is the per-symbol before-set PLAT-843's differential needs to explain symbol by symbol rather than by aggregate.
 
@@ -227,7 +237,7 @@ Merging this PR adds `examples/plat840_rust_baseline_sweep.rs` — a new `.rs` f
 | `rust_rollup_by_kind.container` | 5,565 | 5,559 | −6 | F3 |
 | `rust_rollup_by_kind.benchmark` / `fuzz_target` | 41 / 23 | 41 / 23 | 0 | No excluded fixture minted a benchmark or fuzz target |
 | Per-repo `tagged_not_bound` (Rust) | 20 / 0 / 1 / 0 / 24 / 116 | 20 / 0 / 1 / 0 / 24 / 116 | 0 | The gap size is unchanged in every repo — fewer candidates and fewer tagged on the quire-rs/quire-contract-ir side, but the same proportion stayed unbound |
-| `unmatched_tags` totals (sum of per-repo counts) | 2,742 | 2,742 | 0 | F4: same population, now a full `Vec` of `{path, line, symbol, trace_id, language}` records per repo instead of a bare `.len()` |
+| `unmatched_tags` totals (sum of per-repo counts) | 2,746 | 2,742 | **−4** | F3 + F4: `source_exclude` removed 4 unmatched-tag records along with the fixture files carrying them (quire-rs 351→350, quire-contract-ir 56→53); now a full `Vec` of `{path, line, symbol, trace_id, language}` records per repo instead of a bare `.len()`. Independently corroborated: the CLI reported 53 for `quire-contract-ir` even when the first version's harness reported 56 — exactly the excluded-fixture difference. |
 | `non_binding_tags` totals (sum of per-repo counts) | 145 | 145 | 0 | Same: now a full `Vec` of `{path, symbol, kind, trace_id, form, line}` records per repo |
 
 No repo's `on_main`, `head_sha`, or measured status changed. `quire-contract-ir`'s `excluded_source_files` is newly captured as `2` (was not tracked in the first version at all).
