@@ -156,7 +156,7 @@ byte-identical JSON ordering and stable record ids.
 | FR-051-AC-12 | Comment recognition is string-aware, and template-literal state carries across lines: a `//` or `/*` inside a string or template literal is content, not a comment opener, whether it sits on the literal's opening line or a continuation line. | Test (TC-798, TC-799) |
 | FR-051-AC-13 | A declaration whose signature spans lines binds tags in its docstring: a `def` wrapped by a formatter has the same span as the unwrapped form. | Test (TC-800) |
 | FR-051-AC-14 | One reading of a file decides what is code in it, and every consumer reads that one answer — whether the file is accepted at all, and the span a symbol ends at — so two consumers of the same file never disagree about whether a given byte is code, a comment, or the inside of a string. | Test (TC-803) |
-| FR-051-AC-15 | The Rust adapter reads raw strings, lifetimes, character literals and nested block comments as the language defines them, so a brace or a quote inside any of them is content: the file is accepted and yields its symbols. | Test (TC-804) |
+| FR-051-AC-15 | The Rust adapter reads raw strings, lifetimes, character literals and nested block comments as the language defines them, so a brace or a quote inside any of them is content: the file is accepted and yields its symbols. String state carries across lines: a raw string or an ordinary string opened on one line keeps its interior as content on the lines that follow, until its own closing delimiter — for a raw string, the matching hash count — so a `//`, a brace or a quote is content whether it sits on the literal's opening line or a continuation line, and code after the closer is code again. | Test (TC-804) |
 | FR-051-AC-16 | A legacy textual form mints one `verifies` relation per trace id its match carries, so a comma-separated list binds every id rather than only the first, and one authored line yields one rewrite suggestion naming all of them; a form declaring `id_format` renders a single id and is not split. | Test (TC-806) |
 | FR-051-AC-17 | A Rust benchmark — an attribute-marked one, or a function a `criterion_group!` registers in either invocation form, whether or not the registration line carries a trailing comment — classifies as a benchmark symbol, and a `fuzz_target!` invocation mints one fuzz-target symbol per file whose span is its whole file. Both bind trace ids; a container and a plain function still bind none. Each kind's stable label (`benchmark`, `fuzz_target`) is part of the symbol identity and of the FR-045 record's `kind` field. | Test (TC-827, TC-828) |
 | FR-051-AC-18 | A `test`/`it` registration whose modifier chain is curried (`it.skipIf(cond)(…)`, `it.each([…])(…)`), or whose title literal begins on a later line, registers a test symbol named by that title, with the span and leading block any other registration gets. The scan is bounded and stops at the first non-blank text: a title held in a variable, an identifier merely beginning with `it`, and a literal beyond the window each register nothing rather than something wrong. A title inside a multi-line template literal is out of scope and registers nothing (CR-084). | Test (TC-943, TC-948, TC-958, TC-960, TC-961) |
@@ -245,6 +245,18 @@ byte-identical JSON ordering and stable record ids.
 > bindings — CR-039 and CR-040 measured
 > 78 of 140 reported status lies against a single such reader disagreement, and
 > that measurement is what these rows exist to keep from recurring.
+>
+> **AC-15 also gains the property AC-12 already states for TypeScript.** A
+> string opened on one line carries its interior to the lines that follow, so
+> a `//`, a brace or a quote on a continuation line is content — asserted for
+> Rust by `tc804_string_state_carries_across_lines` and, until now, written
+> down nowhere. A multi-line `r#"…"#` is the exact shape of CR-040's incident:
+> the 33 files that yielded zero symbols each held a JSON fixture, and a JSON
+> fixture spans lines. The carry **is** what broke. It stays on TC-804 rather
+> than taking a new id, because a Rust test binds here by its name under
+> `rust-test-name-id` — a new id would need a renamed test function, which is
+> a `src/` edit this change does not make, and the row would otherwise bind to
+> nothing and read as a status lie.
 >
 > **Two criteria bound a scan to a window, and both stand as written.** AC-18
 > stops its title scan at the first non-blank text, so a literal beyond that

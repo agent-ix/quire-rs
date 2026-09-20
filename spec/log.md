@@ -49,7 +49,15 @@ description: "Chronological log of structural changes to this bundle."
   TC-1030 and TC-1031 already
   pin; every one of those TCs keeps its id and its bindings, and the ledger
   statements of TC-803, TC-804 and TC-1030 are reworded to match. AC-12 is
-  unchanged: it states what a reader observes. AC-18's and AC-21's bounded
+  unchanged: it states what a reader observes. AC-15 also **gains** the
+  carry property AC-12 already states for TypeScript — a string opened on one
+  line keeps its interior as content on the lines that follow, a raw string
+  closing only on its matching hash count. `tc804_string_state_carries_across_lines`
+  has asserted it all along and no criterion described it, and a multi-line
+  `r#"…"#` JSON fixture is the exact shape of the CR-040 incident those rows
+  exist for. It stays on TC-804 rather than taking a new id: a Rust test binds
+  by its name under `rust-test-name-id`, so a new id would bind to nothing
+  without a `src/` rename this change does not make. AC-18's and AC-21's bounded
   scans stand as written and
   are named in the CR note: both are TypeScript criteria, outside the Rust
   scope `PLAT-843` implements, and widening either moves every repository's
