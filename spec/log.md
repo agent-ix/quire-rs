@@ -7,6 +7,79 @@ description: "Chronological log of structural changes to this bundle."
 
 ## History
 
+* **2026-09-20** — **CR-177** (`PLAT-843`): `src/symbols/rust.rs` is
+  rewritten onto `tree-sitter` (via the new dependency-boundary crate
+  `crates/quire-rust-extraction` → `quire-code-parse`, pinned by git rev at
+  `agent-ix/quire-code-rs@57b83ba`), the implementation `CR-176` named in
+  advance. Every byte-for-byte identity behaviour `FR-051` already commits to
+  is preserved (impl-block scoping, the `type`/`static`/`const`/`union`
+  exclusion, the duplicate-identity flattening a `fn` never breaking, the
+  hardcoded `FuzzTarget` span). Two deltas are taken as free consequences of
+  parsing correctly rather than as scope creep: the `check_balanced`
+  whole-file rejection (one global brace-depth counter) is gone, replaced by
+  tree-sitter's per-node local recovery; and a leading span (`leading_block`
+  →`leading_span`) now walks preceding **sibling nodes** instead of preceding
+  **lines**, which fixes both `PLAT-69` (a rustfmt-split attribute no longer
+  truncates the span) and `PLAT-846` (a block doc comment now joins it) as
+  the same mechanism, folded into this ticket per the ticket's own ruling.
+  **`FR-051-AC-10` is amended** (its own CR-177 note, same FR): the
+  byte-identity claim now names a pinned grammar version and Cargo feature
+  set as part of the identity — *at* a pinned grammar version, not *across*
+  grammar versions, which stays deliberately unclaimed. A spec-review pass
+  found the note's first cut wrong on its own compensating control: `rev =
+  "57b83ba"` pins `quire-code-rs`'s own source, not the registry-resolved
+  `tree-sitter`/`tree-sitter-rust` versions its `Cargo.toml` declares as
+  caret ranges — those live only in this repo's own `Cargo.lock`, movable by
+  a bare `cargo update` with nothing to catch it, and citing `NFR-009` as the
+  control was false (that policy's table never names `tree-sitter*`). Fixed
+  by a compiled assertion instead of a sentence:
+  `crates/quire-rust-extraction/tests/dependency_boundary.rs` now asserts
+  the exact locked `tree-sitter`/`tree-sitter-rust` versions, observed red a
+  second time (a deliberately bumped grammar dependency, confirmed to fail,
+  reverted) after being strengthened. `deny.toml` gains `quire-code-rs`
+  beside the pre-existing `ix-trace-rs` `allow-git`/license exception, both
+  stated as deletable once registry publishing exists.
+
+  The same review found three defects in the port itself, all fixed here:
+  `fuzz_target()` inspected only the first top-level macro invocation, so an
+  unrelated macro before `fuzz_target!` silently dropped the whole symbol
+  with no diagnostic (this repo's own tracked "tagged, bound, passing, and
+  silently wrong" class) — fixed to scan every top-level invocation; a
+  `contains("line 1")` assertion also matched "line 10".."line 19" — made
+  exact; and `flat_leading_span_and_test` (the `proptest!` leading-span
+  walk) recognised only a two-token outer attribute (`#`, `[...]`), so a
+  three-token inner attribute (`#`, `!`, `[...]`) stopped the run one token
+  early — fixed to recognise both shapes. Each carries a new regression test,
+  confirmed to fail without its fix.
+
+  Two tests asserting the deleted lexer's own intermediate state
+  (`tc804_lexer_counts_only_code_braces`, `tc804_string_state_carries_across_lines`)
+  are retired, each replaced by a successor asserting the same property
+  against `parse`'s outcome instead — `tc804_rust_lexing_is_string_and_lifetime_aware`
+  needed no edit, since it already asserted an outcome. Four new tests are
+  bound to the matrix rather than left as unbound names: `TC-1884` (AC-9's
+  `file:line` diagnostic), `TC-1879` (PLAT-305 regression pin), and two new
+  rows, `TC-1885`/`TC-1886` (PLAT-69's split-attribute and PLAT-846's
+  block-doc-comment leading-span fixes), both added under `FR-051-AC-25`.
+  `spec/tests.md`'s `FR-051` summary row is corrected to state what actually
+  lands: `AC-25`'s Rust shapes and `AC-9`'s `file:line` clause, both now
+  bound; `CON-1`'s grammar-driven-parser clause for the **Rust adapter
+  only** — `python.rs`/`typescript.rs` remain line/indentation-structural.
+
+  When `rust-symbols` is off (the `wasm` build), the per-file diagnostic
+  every Rust file now gets is reworded so it cannot be mistaken for a parse
+  failure this file's own content caused — a whole-binary build-
+  configuration fact, not `AC-9`'s per-file channel repurposed. `ADR-0013`'s
+  redundant "Rejected: extending the scanner, or a hand-rolled parser"
+  subsection (restating its own options-surveyed table) is deleted; the
+  table itself stays, matching `ADR-0001`/`ADR-0012` convention. Adds
+  **ADR-0013** (tree-sitter adoption). The Rust symbol adapter is gated
+  behind a new `rust-symbols` feature (default on, off under `wasm`, where
+  `tree-sitter-rust`'s C build step cannot cross-compile); Python and
+  TypeScript extraction are unaffected. Phase 1 is Rust only — Python and
+  TypeScript keep their current line/indentation-structural adapters,
+  `PLAT-851`'s to port.
+
 * **2026-09-20** — **CR-176** (`PLAT-842`):
   [FR-051](./functional/FR-051-source-symbol-extraction.md)'s CON-1 now carries
   the method — the extractor classifies syntax from a syntax tree a

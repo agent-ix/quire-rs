@@ -1,0 +1,45 @@
+[package]
+name = "quire-rust-extraction"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.98.1"
+description = "Dependency-boundary crate: the only place in the quire-rs workspace that names quire-code-parse/tree-sitter (PLAT-843)."
+authors = ["Peter Krenesky <kreneskyp@gmail.com>"]
+license = "AGPL-3.0-or-later"
+repository = "https://github.com/agent-ix/quire-rs"
+publish = false
+
+[lib]
+name = "quire_rust_extraction"
+path = "src/lib.rs"
+
+# Purity boundary, copied from filament-ide-rs's `crates/filament-code-extraction`
+# (FR-072-AC-5 there): this crate names exactly one dependency, so it is the
+# only place in this workspace `cargo tree` shows a tree-sitter dependency
+# outside the `quire-code-parse` pin. `src/symbols/rust.rs`
+# (`quire-rs`, the root package) reaches tree-sitter's `Node`/`TreeCursor`
+# solely through this crate's re-export — see `src/lib.rs` — and never names
+# `tree-sitter` or `quire-code-parse` itself.
+#
+# Pinned by git rev, per org convention for unpublished crates (PLAT-848 is
+# resolved — `quire-code-rs` is now a public repo, but crates.io publishing is
+# deferred, so the pin stays git-rev rather than a registry version). `rev`
+# is `57b83ba`, the merge commit that adds the `quire-code-parse` workspace
+# member (agent-ix/quire-code-rs#22, PLAT-841): a shared, borrowed
+# tree-sitter parse layer with no fact model, type environment, fixpoint call
+# resolver or record emitter attached — exactly the subset `quire-rs` needs
+# and none of what it doesn't (PLAT-841 finding 5, PLAT-843 comment thread).
+#
+# `default-features = false, features = ["rust"]`: Phase 1 (PLAT-843) is Rust
+# only, and FR-013-CON-3 gates each grammar behind its own feature precisely
+# so a consumer that wants one grammar does not link the other two.
+[dependencies]
+quire-code-parse = { git = "https://github.com/agent-ix/quire-code-rs", rev = "57b83ba00431914060297bf94fcee31549c9b68b", default-features = false, features = [
+    "rust",
+] }
+
+[dev-dependencies]
+serde_json = "^1"
+
+[lints.rust]
+unsafe_code = "forbid"

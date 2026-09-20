@@ -151,7 +151,7 @@ byte-identical JSON ordering and stable record ids.
 | FR-051-AC-7 | The emitted records match the FR-045 graph-record shapes with normalized `ref` values, and filament-core ingestion fixtures accept them unchanged. | Test (TC-747) |
 | FR-051-AC-8 | `defined_in` edges link every symbol to its file and `contains` edges link containers to members, deterministically ordered. | Test (TC-748) |
 | FR-051-AC-9 | An unparseable fixture file yields a per-file diagnostic naming that file and the line the error sits at, while the rest of the tree extracts normally. | Test (TC-749, TC-1884) |
-| FR-051-AC-10 | Repeated extraction over an identical fixture tree emits byte-identical JSON and identical record ids. | Test (TC-750) |
+| FR-051-AC-10 | Repeated extraction over an identical fixture tree, at a pinned grammar version (`tree-sitter-rust`, locked in `Cargo.lock` and asserted by `crates/quire-rust-extraction/tests/dependency_boundary.rs`, not merely implied by `quire-code-rs`'s own source `rev`) and a fixed Cargo feature set (`rust-symbols`, which changes whether Rust extracts at all — see CR-177), emits byte-identical JSON and identical record ids. | Test (TC-750) |
 | FR-051-AC-11 | The legacy textual forms (docstring bare id, `Trace:` line, line-comment id, trace-embedding test name) still bind during migration, carry `legacy` provenance on the minted relation, and yield a mechanical marker-rewrite suggestion where derivable. | Test (TC-753) |
 | FR-051-AC-12 | Comment recognition is string-aware, and template-literal state carries across lines: a `//` or `/*` inside a string or template literal is content, not a comment opener, whether it sits on the literal's opening line or a continuation line. | Test (TC-798, TC-799) |
 | FR-051-AC-13 | A declaration whose signature spans lines binds tags in its docstring: a `def` wrapped by a formatter has the same span as the unwrapped form. | Test (TC-800) |
@@ -166,7 +166,7 @@ byte-identical JSON ordering and stable record ids.
 | FR-051-AC-23 | The extracted symbol table is reported on its own surface, as the engine built it: per symbol its path, qualified name, kind, language, declaration line, annotation-block line, end line, container, identity digest, whether that **kind** can bind a trace id, whether it can carry an `implements` marker, and — when a module is supplied — the ids it bound. A scanner defect must be sizeable **without reimplementing the scanner**: three ports of `symbols/python.rs` gave 386, 490 and 5,263 lost declarations over one tree, disagreeing precisely where the original is wrong. Binding is reported as **not asked** rather than as zero when no module is supplied, because an unbound run and a repository nobody tagged produce the same empty list. Per-language totals carry both denominators — symbols examined and symbols of a **binding kind** — since a rate over the wrong one reads a tree of containers as untagged. | Test (TC-1052, TC-1053, TC-1054) |
 | FR-051-AC-24 | String-literal contents are masked before a **legacy** textual form is matched, in **every** language rather than in Rust alone — a trace id a file carries as data is not a tag, and binding it invents coverage nobody authored. The mask preserves each language's declared **tag channel**: comments everywhere, and additionally a Python **docstring** and a TypeScript test **registration title**, because `python-docstring-id` and `typescript-test-name-id` are declared forms that read an id out of a string literal by design. Rust needs no such exemption — its `rust-test-name-id` reads an identifier — which is why a blanket mask is correct there and wrong in the other two. Canonical markers are never masked against: they put ids inside string literals by design. | Test (TC-1055, TC-1056, TC-1057) |
 | FR-051-AC-21 | A TypeScript `describe(...)` / `suite(...)` registration mints one **container** symbol named by its registered title, spanning its block and its leading annotation block, and the registrations written inside it carry it as their container rather than the file's module, where the header line opens its block — a `describe(` whose `{` falls on a later line mints the container and parents nothing, the same window bound AC-18 states for its own scan. A suite does not *name* its members: a registration's qualified name is its own registered title whether or not a suite encloses it, while a class inside a suite still qualifies its own. A suite is a grouping and not evidence, so a trace tag on a suite header mints **no** `verifies` relation and the suite is **not** a `binding_census` candidate — and since `agent-ix/quire-rs#312` that tag is **reported** rather than dropped, under AC-22. The tag naming a test is the declarative form; a tag on the group would make coverage an inference about which test inside is meant, and the report says where the tag is instead of guessing. A registration whose name chain names a suite **anywhere along it** is a suite: `test.describe(...)` and `it.describe.only(...)` classify exactly as `describe(...)` does, because a harness spells its suite as a member of its test namespace and reading only the first identifier gave one construct two classifications (CR-121). `context` is not a suite name. | Test (TC-1039, TC-1040, TC-1042) |
-| FR-051-AC-25 | A symbol and its trace ids are read from the declaration's own node in the syntax tree, so attachment rather than page position decides them: a Rust test whose attribute block carries `#[test]` in any position, a Python marker a formatter has wrapped across lines, a marker separated from its `def` by a second wrapped decorator, and a declaration whose signature or attribute block spans lines each classify and bind exactly as their single-line, adjacent spelling does (`agent-ix/quire-rs#387`, `agent-ix/quire-rs#395`, `agent-ix/quire-rs#459`). A brace inside a regular-expression literal is content — the ground AC-12 and AC-15 hold for the other literal forms — so a file carrying a `{n,m}` quantifier yields its symbols (`agent-ix/quire-rs#424`). | Test (TC-1879, TC-1880, TC-1881) |
+| FR-051-AC-25 | A symbol and its trace ids are read from the declaration's own node in the syntax tree, so attachment rather than page position decides them: a Rust test whose attribute block carries `#[test]` in any position, a Rust declaration whose attribute block a formatter has split across lines, a Rust declaration preceded by a block doc comment (`/** ... */`), a Python marker a formatter has wrapped across lines, a marker separated from its `def` by a second wrapped decorator, and a declaration whose signature spans lines each classify and bind exactly as their single-line, adjacent spelling does (`agent-ix/quire-rs#387`, `agent-ix/quire-rs#395`, `agent-ix/quire-rs#459`, `agent-ix/quire-rs#843`). A brace inside a regular-expression literal is content — the ground AC-12 and AC-15 hold for the other literal forms — so a file carrying a `{n,m}` quantifier yields its symbols (`agent-ix/quire-rs#424`). | Test (TC-1879, TC-1880, TC-1881, TC-1885, TC-1886) |
 | FR-051-AC-26 | Extraction over a fixture tree that has never been compiled and whose declared dependencies are not installed yields that tree's symbols and relations, and the extraction path invokes no compiler, package manager, or build artifact of the analysed tree and resolves no type. | Test (TC-1882, TC-1883) |
 
 > **CR-176 note (2026-09-20):** CON-1 now carries the method as well as the
@@ -282,6 +282,71 @@ byte-identical JSON ordering and stable record ids.
 > The parser `PLAT-843` adopts is `tree-sitter`: one grammar per language,
 > source text in, tree out, no toolchain and no dependency resolution for the
 > analysed repository.
+
+> **CR-177 note (2026-09-20, `PLAT-843`):** AC-10's identity is amended, not
+> widened. Raised in `PLAT-842`'s review and deferred here deliberately — a
+> criterion written there would have pinned a dependency the repo did not yet
+> have.
+>
+> AC-10 pins **run-to-run** byte identity over an identical tree, and that is
+> unchanged. **Cross-grammar-version identity is deliberately not claimed —
+> that scope stays closed.** CR-176 made an external grammar library an input
+> to the output; a `tree-sitter-rust` bump that changes a node kind, a field
+> name, or error recovery moves every downstream number, with no source
+> change and no spec change. AC-10's amendment does not promise output stays
+> the same across such a bump — it promises the opposite reads as a *tracked*
+> event rather than a silent one, by naming the grammar as part of the
+> identity byte-identity is claimed *at*: "over an identical tree, at a
+> pinned grammar version." The pin (below) is the control that makes this
+> honest rather than aspirational.
+>
+> **The pin AC-10 names must be real, not merely implied.** `rev =
+> "57b83ba0..."` on the `quire-code-parse` git dependency pins
+> `quire-code-rs`'s own *source* — but that repo's own `Cargo.toml` declares
+> `tree-sitter = "0.26"` and `tree-sitter-rust = "0.24.2"` as **caret
+> ranges**, not exact versions. The grammar version this workspace actually
+> compiles against therefore lives only in *this* repo's own `Cargo.lock`,
+> and a bare `cargo update` (no manifest edit, no `rev` bump) can move it
+> with no ADR and nothing in `make ci` to notice — `TC-750` repeats
+> extraction within one process and is grammar-version-insensitive by
+> construction, so it cannot catch this either (spec review F1). Citing
+> `NFR-009` as the compensating control was wrong: that policy's load-bearing
+> table (`scripts/audits/check_dep_pins.sh`) names `minijinja`, `jsonschema`,
+> `serde_yaml`, `serde_json`, `indexmap` — never `tree-sitter*` — so it
+> asserts coverage that does not exist. **The real control is a compiled
+> assertion**:
+> `crates/quire-rust-extraction/tests/dependency_boundary.rs`'s
+> `the_locked_grammar_version_is_asserted_not_only_pinned_by_source_rev`
+> reads `cargo metadata`'s *resolved* (locked, not manifest-range) version
+> and fails by name and number the moment `tree-sitter-rust` (currently
+> `0.24.2`) or `tree-sitter` (currently `0.26.13`) moves. A grammar bump is
+> now an explicit, reviewed, gate-visible diff to that assertion, not a
+> transitive dependency change nothing catches.
+>
+> **The dependency path is single-sourced, not per-consumer.**
+> `quire-code-parse` re-exports `tree_sitter` itself rather than wrapping it,
+> so every consumer (`quire-code-rs`, `quire-rs`, `filament-ide-rs`, and
+> later a daemon) reaches the grammar through the same crate rather than
+> vendoring their own. This repository reaches that path through exactly one
+> dependency, `crates/quire-rust-extraction`'s `quire-code-parse` git-rev
+> dependency (`ADR-0013`), and `tests/dependency_boundary.rs`'s first test is
+> what keeps a second, independently-versioned grammar from reappearing
+> anywhere else in this workspace. One path does not by itself mean one
+> *version* across every consumer — each consumer resolves the same caret
+> ranges against its own `Cargo.lock`, which is exactly why this repo asserts
+> its own resolved version rather than trusting the shared path alone. A
+> criterion requiring every consumer to resolve the identical grammar version
+> would need a cross-repo mechanism this ticket does not build; none is
+> written here.
+>
+> **The feature set is part of the identity too, not only the grammar.**
+> `rust-symbols` (on by default, off for `wasm`) decides whether Rust
+> extracts *at all* — off, every Rust file yields a build-configuration
+> diagnostic and zero symbols, a change of orders of magnitude larger than
+> any grammar bump. `AC-10`'s row now names this feature alongside the
+> grammar for the same reason: an identity claim silent about a variable that
+> moves the output this much is not stating its own scope honestly (spec
+> review F4).
 
 > **CR-119 note (2026-08-24):** AC-21 is new. `agent-ix/quire-rs#273`, epic
 > `agent-ix/quire-rs#264`.

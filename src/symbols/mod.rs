@@ -7,9 +7,13 @@
 //!
 //! Adapters work at **syntax level** — no build, no type resolution, no
 //! dependency installation, and never any execution of the extracted code
-//! (FR-051-CON-1). They are line-structural rather than full parsers: that is
-//! what "syntax level" buys, and it keeps the extractor dependency-free and
-//! deterministic.
+//! (FR-051-CON-1, amended by PLAT-842). The Rust adapter parses over a
+//! tree-sitter syntax tree (PLAT-843, `quire-rust-extraction` ->
+//! `quire-code-parse`); Python and TypeScript stay line/indentation-
+//! structural (Phase 2, PLAT-851). "Syntax level" is what the constraint
+//! actually buys either way: no build, no type resolution, no execution —
+//! not "no parser dependency," which the amended constraint no longer
+//! claims.
 //!
 //! Identity is `(language, repo-relative path, qualified name, kind)` — never
 //! line numbers, byte offsets, or formatting, so reformatting a file leaves
@@ -17,6 +21,11 @@
 //! non-identity attribute, alongside the span the trace-tag binder reads.
 
 pub mod python;
+// Gated by `rust-symbols` (on by default; off under `wasm` — see that
+// feature's own Cargo.toml comment): `quire-rust-extraction` pulls in a
+// tree-sitter grammar with a C build script that cannot cross-compile for
+// `wasm32-unknown-unknown` here (PLAT-843).
+#[cfg(feature = "rust-symbols")]
 pub mod rust;
 pub mod trace;
 pub mod typescript;
@@ -345,7 +354,24 @@ pub fn extract_file(path: &str, language: SourceLanguage, source: &str) -> Symbo
 impl SymbolExtraction {
     fn extend_with_file(&mut self, path: &str, language: SourceLanguage, source: String) {
         let parsed = match language {
+            #[cfg(feature = "rust-symbols")]
             SourceLanguage::Rust => rust::parse(&source),
+            // This reason string is deliberately not diagnostic-shaped (no
+            // "line N: ..." form): it must never be mistaken for a per-file
+            // parse failure this file's own content caused (FR-051-AC-9's
+            // channel). It names a whole-binary *build configuration* fact —
+            // every Rust file in the tree gets this same reason, regardless
+            // of content, because the feature that would parse any of them
+            // was never compiled in (review F4).
+            #[cfg(not(feature = "rust-symbols"))]
+            SourceLanguage::Rust => Err(
+                "BUILD CONFIGURATION (not a parse error): this binary was built without the \
+                 `rust-symbols` Cargo feature (on by default; off for `wasm`), so it contains no \
+                 Rust parser at all — every Rust file in this tree is skipped for that reason, \
+                 not because of anything in this file. Rebuild with `--features rust-symbols` to \
+                 extract Rust symbols."
+                    .to_string(),
+            ),
             SourceLanguage::Python => python::parse(path, &source),
             SourceLanguage::Typescript => typescript::parse(path, &source),
         };
