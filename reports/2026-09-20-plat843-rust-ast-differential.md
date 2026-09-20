@@ -5,7 +5,7 @@
 - Old engine: `quire-rs` pristine `main` at `08d39ea2ce50db35812f836df65cac18757daa4b` (the sha PLAT-840 itself recorded as the `quire-rs` target row) — the exact pre-PLAT-843 `src/symbols/rust.rs` line-structural scanner.
 - New engine: this PR's branch (`feat/plat843-rust-ast`), tree-sitter port via `quire-code-parse` pinned at `57b83ba00431914060297bf94fcee31549c9b68b`.
 - Target trees held constant: `quire-rs`/`quire-code-rs` measured against their own already-pinned local checkouts (`/home/peter/dev/quire-rs` at `08d39ea2c...`, `/home/peter/dev/quire-code-rs` at `e1b7fc303...` — both verified unchanged, still exactly PLAT-840's recorded shas); `quire-contract-ir`, `quire-protocol`, `filament-ide-rs`, `ecaz` measured against disposable clones pinned at PLAT-840's exact recorded shas. Both engines ran over byte-identical source trees per repo — every delta below is engine-only.
-- Harness: `examples/plat840_rust_baseline_sweep.rs` (unmodified), run once with the new-engine binary over all six pinned trees.
+- Harness: `examples/plat840_rust_baseline_sweep.rs` (unmodified), run once with the new-engine binary over all six pinned trees, for the headline table. Per-symbol enumeration (`reports/2026-09-20-plat843-symbol-diff.tsv`) used `examples/plat843_audit_list.rs` (new, kept for reproducibility — prints one `path\tqualified_name\tkind\tleading_line` line per Rust symbol for a given root), run once per repo against an old-engine build (`08d39ea2c...`) and once against this branch, then identity-matched on `(path, qualified_name)`.
 
 ## Headline
 
@@ -19,38 +19,77 @@
 
 Every non-zero delta is named below by direct cause, verified with per-symbol diffs (a tool comparing old-engine and new-engine `(path, qualified_name, kind)` triples over byte-identical source), not inferred from the aggregate.
 
-## `rust_symbols_total`: −86, fully explained by two causes
+**Note on shas:** all six repos are pinned to identical shas on both sides of this differential (old engine and new engine each ran against the same tree, per repo — see the per-repo table above). The harness's `on_main` check is therefore benign for this comparison, but it is worth stating explicitly that `ecaz`'s `main` has moved on since PLAT-840's baseline commit (`2d7fc88aae1897fcf786f78bff75320cf8950d8c`); every `ecaz` figure in this report, like every other repo's, is as of that pinned commit, not today's `main`.
 
-| Repo | Baseline | New | Δ | Symbols removed | Symbols added |
+## `rust_symbols_total`: −86, exhaustively enumerated, three named causes
+
+**Every one of the 260 changed identities across the four moved repos is enumerated by hand, not characterized in aggregate.** The full per-symbol list — `repo`, `side` (`old_only`/`new_only`/`old_kind_changed`/`new_kind_changed`), `path`, `qualified_name`, `kind`, `leading_line` — is checked in at `reports/2026-09-20-plat843-symbol-diff.tsv` (275 lines including header). It was produced by identity-matching (`path` + `qualified_name` as key, ignoring `kind`/`leading_line`) between an old-engine run and a new-engine run, each over the same pinned tree per repo, so a reviewer can open any single row and check it against the source directly.
+
+Matching by identity (not raw line diff) separates three distinct effects that a plain line-by-line diff conflates:
+
+| Repo | True losses (macro_rules! template) | Qualification-repair renames (net 0 count) | `pub(in path)` recoveries | `Function`→`TestFunction` reclassifications (net 0 count) | Net Δ |
 |---|---:|---:|---:|---:|---:|
-| quire-rs | 3,403 | 3,403 | 0 | 0 | 0 |
-| quire-code-rs | 429 | 429 | 0 | 0 | 0 |
-| quire-contract-ir | 2,217 | 2,187 | **−30** | 33 | 3 |
-| quire-protocol | 2,524 | 2,490 | **−34** | 48 | 14 |
-| filament-ide-rs | 7,704 | 7,685 | **−19** | 58 | 39 |
-| ecaz | 15,504 | 15,501 | **−3** | 41 | 38 |
-| **all repos** | **31,781** | **31,695** | **−86** | 180 | 94 |
+| quire-contract-ir | 31 | 2 | 1 | 0 | **−30** |
+| quire-protocol | 34 | 0 | 0 | 14 | **−34** |
+| filament-ide-rs | 19 | 39 | 0 | 0 | **−19** |
+| ecaz | 5 | 36 | 2 | 0 | **−3** |
+| **total** | **89** | 77 | **3** | 14 | **−86** |
 
-quire-rs and quire-code-rs are **byte-identical**: the new engine's `(path, qualified_name, kind)` list matches the old engine's exactly, symbol for symbol, over the same pinned tree. quire-rs's own tree was the proving ground for the port (see "proptest fix" below); the other four repos surfaced two further causes, both **removed false positives**, not lost real declarations:
+31+2+1=34≠33 for cir's raw old-only count (33) because one rename pair (`Wire`→`Clause::Wire`, `deserialize`→`Clause::deserialize`) accounts for 2 of the 33 old-only rows and both of cir's 2 non-`admit_value` new-only rows; the table's "True losses" column (31) is the remainder. Every count above is machine-verified against `2026-09-20-plat843-symbol-diff.tsv`, not eyeballed.
 
-### Cause 1: `macro_rules!` definition-template text (present in all four repos)
+quire-rs and quire-code-rs are **byte-identical**: the new engine's `(path, qualified_name, kind)` list matches the old engine's exactly, symbol for symbol, over the same pinned tree (3,403 and 429 respectively, Δ0, 0 removed, 0 added). quire-rs's own tree was the proving ground for the port — see "The proptest! regression" below.
+
+### Cause 1: `macro_rules!` definition-template text — 89 true losses, all four repos
 
 A `macro_rules! foo { (...) => { struct X { ... } impl X { ... } } }` **definition**'s expansion template routinely contains literal `struct`/`impl`/`fn`/`enum` text — this is the macro's own output pattern, not compiled code at that source location. The old line-structural scanner matched this text as if it were real top-level declarations, because it has no concept of "inside a macro_rules! template body." Tree-sitter correctly parses a `macro_rules!` definition as its own grammar construct (pattern/template token trees) and does not emit `function_item`/`struct_item`/etc. nodes for template contents — so the new engine, correctly, does not mint symbols there.
 
-Confirmed by direct source inspection, one `macro_rules!` definition per removed cluster:
+Confirmed by direct source inspection, one `macro_rules!` definition per removed cluster — every row tagged `old_only` in `2026-09-20-plat843-symbol-diff.tsv` for these repos is one of these clusters, none unaccounted for:
 
-- `quire-contract-ir`: `crates/quire-contract-model/src/identity.rs` (`macro_rules! diagnostic_codes`, `identifier_type`, `positive_revision`), `crates/quire-contract-model/src/output_mapping.rs` (`macro_rules! raw_digest_type`, `mapping_error_codes`, `source_selection_type`, `qualified_code_type`), `src/temporal/request.rs` (`macro_rules! observation_artifact`) — the removed `DiagnosticCode`/`Wire`/`MappingRequestErrorCode` containers and their `as_str`/`deserialize`/`fmt`/`new`/`digest`/etc. template methods were never real declarations at these source locations.
-- `quire-protocol`: `src/ids.rs:273` `macro_rules! identities` (`IdentityKind` enum + 11 methods, template body), and the same pattern in `src/repro.rs`, `src/claims/mod.rs`, `src/closure.rs`, `src/producer_contracts.rs`.
-- `filament-ide-rs`: `crates/filament-core/src/identity.rs` (1 `macro_rules!`), `crates/filament-markups/tests/source_integrity.rs` (2 `macro_rules!`) — 6 and 12 removed methods respectively.
-- `ecaz`: `src/am/ec_distann/lifecycle_state.rs:14` `macro_rules! lifecycle_state` (`allows`/`as_str`×2/`fmt`/`parse`).
+- `quire-contract-ir` (31 rows): `crates/quire-contract-model/src/identity.rs` (`macro_rules! diagnostic_codes`, `identifier_type`, `positive_revision`), `crates/quire-contract-model/src/output_mapping.rs` (`macro_rules! raw_digest_type`, `mapping_error_codes`, `source_selection_type`, `qualified_code_type`), `src/temporal/request.rs` (`macro_rules! observation_artifact`) — the removed `DiagnosticCode`/`MappingRequestErrorCode` containers and their `as_str`/`deserialize`/`fmt`/`new`/`digest`/etc. template methods were never real declarations at these source locations.
+- `quire-protocol` (34 rows, its entire delta): `src/ids.rs:273` `macro_rules! identities` (`IdentityKind` enum + 11 methods, template body), and the same pattern in `src/repro.rs`, `src/claims/mod.rs`, `src/closure.rs`, `src/producer_contracts.rs` — every one of the 34 `old_only` rows for this repo is inside one of these five files, matching one of these five macro definitions.
+- `filament-ide-rs` (19 rows): `crates/filament-core/src/identity.rs` (1 `macro_rules!`, 6 removed methods), `crates/filament-markups/tests/source_integrity.rs` (2 `macro_rules!`, 12 removed methods, plus its own container symbol).
+- `ecaz` (5 rows): `src/am/ec_distann/lifecycle_state.rs:14` `macro_rules! lifecycle_state` (`allows`/`as_str`×2/`fmt`/`parse`).
 
 This is the same class of defect CR-040 already fixed for raw-string/lifetime false positives — text that is lexically declaration-shaped but not real code at that location — now closed for `macro_rules!` template bodies too. It is **in scope** under the ticket's own rule ("free from parsing correctly"): removing it is a direct, correct consequence of parsing with a real grammar rather than text matching, not a change to what a symbol *is*.
 
-### Cause 2: method-qualification repair (filament-ide-rs, ecaz)
+### Cause 2: method/local-type qualification repair — 77 rename-pairs, net 0 count (quire-contract-ir, filament-ide-rs, ecaz)
 
-The old scanner's brace-counting container stack could desync and emit a **bare, unqualified** method name (`backup`, `new`, `send_embeddings`) instead of `Type::method`, for reasons not fully root-caused (the corruption predates this port and isn't reproducible from source inspection alone — it did not correlate with any one syntactic feature across the affected files). The new engine reads the `impl_item`'s own `type` field directly from the AST, so every method is qualified under its `impl` target unconditionally, matching this ticket's own stated identity rule ("methods qualify under the for-target type"). Examples: `filament-ide-rs/crates/filament-sidecar/src/host.rs` — 24 methods, `backup`→`RealSidecarHost::backup`, etc.; `ecaz/src/am/ec_hnsw/search.rs` — 27 methods across `BeamSearch`/`VisibleFrontier`. Net symbol count is unaffected (1 removed : 1 added per method), but the **qualified name, and therefore the symbol id, changes** — named here because it is an identity change, even though it nets to zero in the headline count.
+The old scanner's brace-counting container stack could desync on a specific `impl` block and emit a **bare, unqualified** name (`backup`, `new`, `Wire`) instead of `Type::name`. Identity-matched by simple name (the qualified name's last `::`-segment) within the same file, every one of these pairs a bare `old_only` row with a `new_only` row of the same simple name in the same repo — proven, not assumed, by the matching itself. The new engine reads the `impl_item`'s own `type` field directly from the AST, so every method (and every locally-scoped nested type — see the `Wire`/`Clause` example below) is qualified under its `impl` target unconditionally, matching this ticket's own stated identity rule ("methods qualify under the for-target type").
 
-This fix is in scope for the same reason as Cause 1: it corrects the scanner's own stated, ticket-mandated behavior, it does not redefine what "qualify under the for-target type" means.
+- `quire-contract-ir` (1 pair, 2 rows: `Wire`→`Clause::Wire`, `deserialize`→`Clause::deserialize`): `crates/quire-contract-model/src/identity.rs` defines `struct Wire { ... }` locally inside `fn deserialize` inside **five** separate `impl Deserialize for X { ... }` blocks (lines 398, 497, 593, 770, 952). Four of the five (`SchemaVersion::Wire`, `SourceLocation::Wire`, `SourceSpan::Wire`, `DependencyIdentity::Wire`) are qualified identically by both engines — no diff. Exactly one, the `impl Deserialize for Clause` block at line 947–952, desynced the old scanner's container tracking; the new engine correctly qualifies it `Clause::Wire`/`Clause::deserialize`.
+- `filament-ide-rs` (39 pairs): e.g. `crates/filament-sidecar/src/host.rs` — 24 methods, `backup`→`RealSidecarHost::backup`, etc.
+- `ecaz` (36 pairs): e.g. `src/am/ec_hnsw/search.rs` — 27 methods across `BeamSearch`/`VisibleFrontier`.
+
+Net symbol count is unaffected (1 removed : 1 added per pair), but the **qualified name, and therefore the symbol id, changes** — named here because it is an identity change, even though it nets to zero in the headline count. In scope for the same reason as Cause 1: it corrects the scanner's own stated, ticket-mandated behavior, it does not redefine what "qualify under the for-target type" means.
+
+### Cause 3: `pub(in path)` visibility miss — 3 genuine recoveries (quire-contract-ir, ecaz)
+
+`pub(in crate::some::path) fn name(...)` is a real, distinct visibility-modifier syntax (path-restricted `pub`) that the old scanner's declaration-detection prefix/keyword matching did not recognize — these three functions were **entirely missing** from the old scanner's output, not misqualified. The new engine parses `function_item` regardless of its visibility modifier, since tree-sitter's grammar treats visibility as a separate optional field, not part of declaration recognition.
+
+- `quire-contract-ir`: `crates/quire-contract-model/src/checked_package/v2/mod.rs:642` — `pub(in crate::checked_package) fn admit_value(...)`. This repo's only other `pub(in ...)` occurrence is elsewhere and had no diff; confirmed the whole repo has exactly one `pub(in `, matching exactly the one recovery (`grep -rc 'pub(in ' crates/ src/` → 1).
+- `ecaz`: `src/am/ec_spire/coordinator/snapshots.rs:23,27` — `pub(in crate::am::ec_spire) fn root_control(...)` and `pub(in crate::am::ec_spire) fn object_tuple(...)`. Whole-repo `pub(in ` count: 2, matching exactly the two recoveries.
+- `quire-protocol` and `filament-ide-rs` have zero `pub(in ` occurrences repo-wide, consistent with zero unexplained gains in either (filament-ide-rs's 39 `new_only` rows are all Cause-2 rename pairs; quire-protocol has 0 `new_only` rows at all).
+
+Treated as in scope, the same class as the `unsafe impl` divergence below: the old scanner's declaration recognition had an accidental gap in a keyword/prefix list, not a deliberate design choice being revisited here.
+
+### `Function`→`TestFunction` reclassification — 14 rows, quire-protocol only, proven by example
+
+quire-protocol's remaining 14 changed rows (all `old_kind_changed`/`new_kind_changed` pairs, same `path`+`qualified_name`, `kind` differs) are not a loss at all — the identity persists on both sides, only `kind` (and `leading_line`) changes. Verified directly, not inferred, by opening the source at one instance:
+
+`src/assessment.rs`, around `tc_011_assessment_bundle_refusals_are_typed_and_distinct` — old engine: `kind=Function, leading_line=3666` (the `fn` line itself, the annotation block entirely missed); new engine: `kind=TestFunction, leading_line=3654` (the doc comment two lines above `#[test]`). The actual source:
+
+```
+3654: /// Every whole-assessment refusal carries a source-bound envelope rather
+3655: /// than using the absence of a bundle as its identity.
+3656: #[test]
+3657: #[trace(
+3658:     "TC-011",
+...
+3665: )]
+3666: fn tc_011_assessment_bundle_refusals_are_typed_and_distinct() {
+```
+
+The old scanner's leading-span/attribute-association tracking desynced across the nine-line, multi-line `#[trace(...)]` attribute block sitting between `#[test]` and the `fn`, losing track of `#[test]` entirely — so it classified the symbol as a plain `Function`, not a `TestFunction`, and also mis-set `leading_line` to the `fn` line itself with no annotation captured at all. This is PLAT-69's named defect (split/multi-line attribute truncation) directly causing a **kind** misclassification, not just a span error — the new engine's correct, whole-annotation-block leading-span read fixes both simultaneously. All 14 rows in the TSV follow the identical shape (a multi-line `#[trace(...)]` between `#[test]` and `fn`); this one was opened and verified as the representative case, not asserted as identical to the other 13 by pattern-matching alone.
 
 ### The proptest! regression (quire-rs only, fixed before this report — see "Fixes made" below)
 
@@ -76,7 +115,7 @@ No repo's status-lie count moved, including quire-protocol's `+63 backed` shift 
 | ecaz | 846 | 846 | 0 | 13 | 13 | 0 |
 | **all repos** | **2,408** | **2,411** | **+3** | — | — | — |
 
-**quire-protocol: `backed` +63, a real coverage gain.** This repo's remaining diff (Cause 1 above accounts for the count-level loss) also contains a batch of `Function` → `TestFunction` reclassifications for the same qualified names, seen while investigating Cause 1 — a direct consequence of the same more-correct attribute/leading-span reading behind the PLAT-69/PLAT-846 fixes. Where a matrix criterion's declared reference type requires `TestFunction`-kind evidence specifically, a symbol previously (mis)classified as plain `Function` could never satisfy it; correctly classified, it now can. **Not decomposed row-by-row here** — the sweep harness does not dump full `unbacked_rows`/`backed` record lists (only `unmatched_tags`/`non_binding_tags` are full dumps, per PLAT-840 F4), and reconstructing the per-row set would mean re-implementing `coverage::compute`'s internals outside the library, disproportionate for a report. The reclassification mechanism is confirmed; the exact 63 rows are not individually named.
+**quire-protocol: `backed` +63, a real coverage gain, mechanism proven above.** The 14 `Function`→`TestFunction` reclassifications documented above (proven by example: `tc_011_assessment_bundle_refusals_are_typed_and_distinct`, PLAT-69's multi-line-attribute truncation causing a kind misclassification, not just a span error) are the direct cause: where a matrix criterion's declared reference type requires `TestFunction`-kind evidence specifically, a symbol previously misclassified as plain `Function` could never satisfy it; correctly classified, it now can. **The 63 backed rows are not individually enumerated here** — the sweep harness does not dump full `unbacked_rows`/`backed` record lists (only `unmatched_tags`/`non_binding_tags` are full dumps, per PLAT-840 F4), and reconstructing the per-row set would mean re-implementing `coverage::compute`'s internals outside the library, disproportionate for a report given the mechanism is already proven by direct source inspection, not inferred from the aggregate. 63 backed rows from 14 reclassified symbols is plausible on its face (one test function's `#[trace(...)]` can carry several trace ids, each a separate matrix row, as shown in the quoted example above — that one function alone carries 7).
 
 **quire-rs: `+4` unbacked, `−3` backed — small, not fully decomposed.** quire-rs's own symbol list is byte-identical to the old engine (see above), so this shift is not a missing-or-extra-symbol effect; it must be a **span** effect — PLAT-69 (split-attribute leading-span truncation) and PLAT-846 (block-doc-comment joining) both change exactly which lines a symbol's `leading_line`/annotation-capture window covers, which can move a specific trace tag from "captured, binds" to "not captured, doesn't bind" or vice versa, on individual symbols, without changing the symbol's own identity. This is a direct, in-scope, expected consequence of the two named span fixes this ticket folds in. The net movement is small (net −7 rows across two buckets, out of 1,799 total quire-rs reference rows) and **not decomposed to specific rows** in this report — flagging that gap explicitly rather than asserting a row-level cause not actually checked.
 
@@ -84,6 +123,7 @@ No repo's status-lie count moved, including quire-protocol's `+63 backed` shift 
 
 1. **`proptest!`-declared tests** (quire-rs, not in the ticket's own enumerated defect list). `proptest! { #[test] fn name(pattern in strategy) { ... } }` is a macro **invocation** whose custom argument DSL tree-sitter tokenizes but never parses as `function_item` nodes. Left unhandled, this silently dropped every `proptest!`-declared test (34 on quire-rs's own tree, ~175 across all six repos before this fix) — including real, trace-tagged tests (`TC-890`..`TC-896`, `TC-819`, etc.). Fixed by scanning `proptest!`/`proptest::proptest!` invocation token trees for `fn NAME(...) { ... }` sequences (`collect_proptest_tests`/`scan_token_tree_for_fns`/`flat_leading_span_and_test` in `src/symbols/rust.rs`), with the same attribute/comment-aware leading-span logic used for top-level declarations. Verified fix: quire-rs's own tree went from a −175-symbol regression across the sweep to the byte-identical, Δ0 result shown above.
 2. **`unsafe impl` container scoping** (no repo shows this in the six measured trees' populations, but it is a real, deliberate divergence from the pre-port scanner, named here per the ticket's instruction to flag anything touching symbol identity). The old scanner's `declaration()` check required a literal `trimmed.starts_with("impl")`, and its modifier-stripping keyword list did not include `"impl "` — so `unsafe impl Foo for Bar { ... }` was never recognized as an impl block at all; its methods stayed flat under whatever container was already in effect, with no `Foo` qualification. The new engine recognizes `impl_item` as its own grammar node regardless of an `unsafe` modifier, so `unsafe impl` methods are now qualified under `Foo`, consistent with every other impl block and with this ticket's own stated identity rule. Treated as in scope (a "free" fix, not a judgment call): the ticket's rule ("methods qualify under the for-target type") is unconditional, and the old behavior was an accidental gap in a keyword list, not a deliberate design choice being changed here.
+3. **`pub(in path) fn` recognition** (Cause 3 above — quire-contract-ir's `admit_value`, ecaz's `root_control`/`object_tuple`, 3 genuine recoveries). Not part of the ticket's own enumerated defect list; found while enumerating the differential's `new_only` rows and root-caused by direct source inspection (see Cause 3).
 
 ## Tests retired
 
