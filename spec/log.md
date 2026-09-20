@@ -40,7 +40,7 @@ description: "Chronological log of structural changes to this bundle."
   now also defines an **unparseable** file — a grammar returns a tree for
   every input, so the trigger CON-2 and AC-9 rest on is a property of that
   tree — and requires the per-file diagnostic to name the file and the line
-  the error sits at (AC-9 amended, TC-1883). The **Trace-tag grammar**
+  the error sits at (AC-9 amended, TC-1884). The **Trace-tag grammar**
   section states that a marker is read from the nodes the tree attaches to
   the declaration. AC-14, AC-15 and AC-20
   named the reader's machinery — brace
@@ -62,7 +62,7 @@ description: "Chronological log of structural changes to this bundle."
   are named in the CR note: both are TypeScript criteria, outside the Rust
   scope `PLAT-843` implements, and widening either moves every repository's
   coverage number and is its own measured change. Adds
-  FR-051-AC-25..26 + TC-1878..1883, and
+  FR-051-AC-25..26 + TC-1879..1884, and
   indexes FR-051-AC-23/24, whose TC rows existed but were absent from the
   AC→TC index.
 * **2026-09-17** — **CR-175** (#455): the vendored `module-manifest.schema.json`
