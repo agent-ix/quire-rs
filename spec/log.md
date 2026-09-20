@@ -36,19 +36,25 @@ description: "Chronological log of structural changes to this bundle."
   protected are each stated: determinism as AC-10 (byte-identical output over
   an identical tree), no build of the analysed tree as the new AC-26, and no
   type resolution and no execution of extracted code in CON-1. The
-  **Language adapters** section states the parse as the adapters' method, the
-  **Trace-tag grammar** section states that a marker is read from the nodes the
-  tree attaches to the declaration, and the same section now defines an
-  **unparseable** file — a grammar returns a tree for every input, so the
-  trigger CON-2 and AC-9 rest on is a property of that tree. AC-14 and AC-15
+  **Language adapters** section states the parse as the adapters' method and
+  now also defines an **unparseable** file — a grammar returns a tree for
+  every input, so the trigger CON-2 and AC-9 rest on is a property of that
+  tree — and requires the per-file diagnostic to name the file and the line
+  the error sits at (AC-9 amended, TC-1883). The **Trace-tag grammar**
+  section states that a marker is read from the nodes the tree attaches to
+  the declaration. AC-14, AC-15 and AC-20
   named the reader's machinery — brace
   depth, the balance check, a lexer's state — rather than what a reader of the
-  file observes, and are reworded to the property TC-803 and TC-804 already
-  pin; both TCs keep their ids and their bindings, and their ledger statements
-  are reworded to match. AC-18's and AC-21's bounded scans stand as written and
-  are named in the CR note: widening either moves every repository's coverage
-  number and is its own measured change. Adds
-  FR-051-AC-25..26 + TC-1878..1882, and
+  file observes, and are reworded to the property TC-803, TC-804, TC-1029,
+  TC-1030 and TC-1031 already
+  pin; every one of those TCs keeps its id and its bindings, and the ledger
+  statements of TC-803, TC-804 and TC-1030 are reworded to match. AC-12 is
+  unchanged: it states what a reader observes. AC-18's and AC-21's bounded
+  scans stand as written and
+  are named in the CR note: both are TypeScript criteria, outside the Rust
+  scope `PLAT-843` implements, and widening either moves every repository's
+  coverage number and is its own measured change. Adds
+  FR-051-AC-25..26 + TC-1878..1883, and
   indexes FR-051-AC-23/24, whose TC rows existed but were absent from the
   AC→TC index.
 * **2026-09-17** — **CR-175** (#455): the vendored `module-manifest.schema.json`

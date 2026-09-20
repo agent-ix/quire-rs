@@ -65,7 +65,9 @@ tree alone: no build of it, no type resolution, no installation of its
 dependencies. A file is **unparseable** where the tree the grammar yields
 carries an error over the file's declaration structure — the term CON-2 and
 AC-9 rest on, stated because a grammar returns a tree for every input, so the
-trigger is a property of the tree rather than the absence of one.
+trigger is a property of the tree rather than the absence of one. The
+per-file diagnostic SHALL name the file and the line the error sits at, so a
+reader is told where to look rather than that something somewhere failed.
 Adapters SHALL classify test
 functions by each language's convention: Rust functions under a `#[test]`-family
 attribute, Python `test_`-prefixed functions and test-class methods, and
@@ -148,18 +150,18 @@ byte-identical JSON ordering and stable record ids.
 | FR-051-AC-6 | A trace id attached more than once to one symbol (repeated marker, or marker plus legacy tag) mints one `verifies` relation and one diagnostic. | Test (TC-746) |
 | FR-051-AC-7 | The emitted records match the FR-045 graph-record shapes with normalized `ref` values, and filament-core ingestion fixtures accept them unchanged. | Test (TC-747) |
 | FR-051-AC-8 | `defined_in` edges link every symbol to its file and `contains` edges link containers to members, deterministically ordered. | Test (TC-748) |
-| FR-051-AC-9 | An unparseable fixture file yields a per-file diagnostic while the rest of the tree extracts normally. | Test (TC-749) |
+| FR-051-AC-9 | An unparseable fixture file yields a per-file diagnostic naming that file and the line the error sits at, while the rest of the tree extracts normally. | Test (TC-749, TC-1883) |
 | FR-051-AC-10 | Repeated extraction over an identical fixture tree emits byte-identical JSON and identical record ids. | Test (TC-750) |
 | FR-051-AC-11 | The legacy textual forms (docstring bare id, `Trace:` line, line-comment id, trace-embedding test name) still bind during migration, carry `legacy` provenance on the minted relation, and yield a mechanical marker-rewrite suggestion where derivable. | Test (TC-753) |
 | FR-051-AC-12 | Comment recognition is string-aware, and template-literal state carries across lines: a `//` or `/*` inside a string or template literal is content, not a comment opener, whether it sits on the literal's opening line or a continuation line. | Test (TC-798, TC-799) |
 | FR-051-AC-13 | A declaration whose signature spans lines binds tags in its docstring: a `def` wrapped by a formatter has the same span as the unwrapped form. | Test (TC-800) |
-| FR-051-AC-14 | One reading of a file decides what is code in it, and every consumer reads that one answer — classification, containment, and the span a symbol ends at — so two consumers of the same file never disagree about whether a given byte is code, a comment, or the inside of a string. | Test (TC-803) |
+| FR-051-AC-14 | One reading of a file decides what is code in it, and every consumer reads that one answer — whether the file is accepted at all, and the span a symbol ends at — so two consumers of the same file never disagree about whether a given byte is code, a comment, or the inside of a string. | Test (TC-803) |
 | FR-051-AC-15 | The Rust adapter reads raw strings, lifetimes, character literals and nested block comments as the language defines them, so a brace or a quote inside any of them is content: the file is accepted and yields its symbols. | Test (TC-804) |
 | FR-051-AC-16 | A legacy textual form mints one `verifies` relation per trace id its match carries, so a comma-separated list binds every id rather than only the first, and one authored line yields one rewrite suggestion naming all of them; a form declaring `id_format` renders a single id and is not split. | Test (TC-806) |
 | FR-051-AC-17 | A Rust benchmark — an attribute-marked one, or a function a `criterion_group!` registers in either invocation form, whether or not the registration line carries a trailing comment — classifies as a benchmark symbol, and a `fuzz_target!` invocation mints one fuzz-target symbol per file whose span is its whole file. Both bind trace ids; a container and a plain function still bind none. Each kind's stable label (`benchmark`, `fuzz_target`) is part of the symbol identity and of the FR-045 record's `kind` field. | Test (TC-827, TC-828) |
 | FR-051-AC-18 | A `test`/`it` registration whose modifier chain is curried (`it.skipIf(cond)(…)`, `it.each([…])(…)`), or whose title literal begins on a later line, registers a test symbol named by that title, with the span and leading block any other registration gets. The scan is bounded and stops at the first non-blank text: a title held in a variable, an identifier merely beginning with `it`, and a literal beyond the window each register nothing rather than something wrong. A title inside a multi-line template literal is out of scope and registers nothing (CR-084). | Test (TC-943, TC-948, TC-958, TC-960, TC-961) |
 | FR-051-AC-19 | Binding reports a per-language census of what it examined: `candidates` counts evidence symbols whose kind admits a trace tag; `tagged` counts candidates whose attached annotation block carries a generic id-shaped token or whose declared form bound; `bound` counts candidates that minted at least one `verifies` relation; and `forms` names every declared form consulted, markers before legacy. The hard invariant is `bound <= tagged <= candidates`. An unbound candidate carries `unbound_example`; a tagged-but-unbound candidate additionally carries `unmatched_example`, each the deterministic lowest `path:line`. Generic tag detection is independent of the declared grammar and does not inspect the test body. Counts are symbols rather than relations, containers and production functions are not candidates, rows are language-ordered, and the candidate population does not depend on declared patterns (CR-093, CR-142). | Test (TC-982, TC-1060) |
-| FR-051-AC-20 | The Python adapter tracks a triple-quoted string by where its delimiter *is*, not by where the line starts: an opener anywhere on a line (`FIXTURE = """`) enters string state, the body is never read as code, and the closing delimiter closes rather than re-opens. A string opened and closed on one line leaves the state unchanged; both delimiter kinds and every string prefix (`f`, `r`, `b`, `rb`, `u`) are recognised; a triple delimiter inside a single-quoted string, escaped, or after a `#` comment marker toggles nothing, and a `#` inside a triple-quoted string does not end it. A declaration following an embedded string therefore keeps its true container rather than resuming a stale scope (CR-115). | Test (TC-1029, TC-1030, TC-1031) |
+| FR-051-AC-20 | A Python triple-quoted string is content wherever its delimiter sits: a body opened mid-line (`FIXTURE = """`) is never read as code, and a declaration following an embedded string keeps its true container rather than resuming the scope that was open when the string began. Both delimiter kinds and every string prefix (`f`, `r`, `b`, `rb`, `u`) are recognised as openers; a triple delimiter written inside a single-quoted string, escaped, or after a `#` comment marker opens nothing, and a `#` inside a triple-quoted string ends nothing (CR-115). | Test (TC-1029, TC-1030, TC-1031) |
 | FR-051-AC-22 | A trace id a declared **verifies** form attaches to a symbol whose kind cannot bind it is reported, naming the id, the symbol, that symbol's kind, the form that matched, and the channel a symbol of that kind can carry. The tag still binds nothing — the kinds stay as CR-061 set them and no count in the payload moves, so the census `candidates` denominator is unchanged. Two rules bound the report and both are load-bearing: an id that **bound anywhere else** is not reported, because a container's span runs to end of file and would otherwise re-report every id in it; and where several symbols span one tag the **innermost** is named, because the fix a reader needs is the symbol the tag sits on and not the module that contains it. The forms consulted are the same ones the binder consults, from the same declaration, so a tag the binder would read and a tag this reports cannot diverge. Only the **legacy textual forms** are reported: a canonical marker is syntax the language attaches to the declaration that follows it, so one that bound nothing either decorates a symbol that bound — already excluded — or decorates no declaration at all, which means the text is data. Quoted legacy prose remains visible to that shared matcher and is calibrated as an advisory rather than masked in only one caller. | Test (TC-1044, TC-1045, TC-1046, TC-1047, TC-1081) |
 | FR-051-AC-23 | The extracted symbol table is reported on its own surface, as the engine built it: per symbol its path, qualified name, kind, language, declaration line, annotation-block line, end line, container, identity digest, whether that **kind** can bind a trace id, whether it can carry an `implements` marker, and — when a module is supplied — the ids it bound. A scanner defect must be sizeable **without reimplementing the scanner**: three ports of `symbols/python.rs` gave 386, 490 and 5,263 lost declarations over one tree, disagreeing precisely where the original is wrong. Binding is reported as **not asked** rather than as zero when no module is supplied, because an unbound run and a repository nobody tagged produce the same empty list. Per-language totals carry both denominators — symbols examined and symbols of a **binding kind** — since a rate over the wrong one reads a tree of containers as untagged. | Test (TC-1052, TC-1053, TC-1054) |
 | FR-051-AC-24 | String-literal contents are masked before a **legacy** textual form is matched, in **every** language rather than in Rust alone — a trace id a file carries as data is not a tag, and binding it invents coverage nobody authored. The mask preserves each language's declared **tag channel**: comments everywhere, and additionally a Python **docstring** and a TypeScript test **registration title**, because `python-docstring-id` and `typescript-test-name-id` are declared forms that read an id out of a string literal by design. Rust needs no such exemption — its `rust-test-name-id` reads an identifier — which is why a blanket mask is correct there and wrong in the other two. Canonical markers are never masked against: they put ids inside string literals by design. | Test (TC-1055, TC-1056, TC-1057) |
@@ -218,35 +220,45 @@ byte-identical JSON ordering and stable record ids.
 > *is* comes from the tree; what it *means* is out of scope. Per-file
 > degradation stays CON-2 and AC-9, and the **Language adapters** section now
 > states what makes a file unparseable, because a grammar returns a tree for
-> every input and the trigger is a property of that tree.
+> every input and the trigger is a property of that tree. The same sentence
+> requires the diagnostic to name the file and the line the error sits at, and
+> AC-9 says so: a criterion that asked only for "a diagnostic" would be
+> discharged by one that names nothing, which is the same hollowness as a
+> trigger that can never fire.
 >
-> **Four criteria named the reader rather than the reading, and two of them
-> are restated here.** AC-12 (a `//` inside a string or template literal is
-> content) and AC-20 (a triple-quoted body is never read as code, and a
-> declaration after it keeps its true container) state what a reader of the
-> file observes, so they are unchanged and their cases still discriminate.
-> AC-14 and AC-15 named the machinery instead — "the balance check, brace
-> depth, and block-end spans", "a brace … never moves the depth" — and a
-> criterion that names a mechanism stops being verifiable when the mechanism
-> changes. Each is reworded to the property its cases actually pin: AC-14 that
-> one reading decides what is code and every consumer reads that one answer,
-> AC-15 that a brace or quote inside a raw string, lifetime, character literal
-> or nested block comment is content and the file is accepted. TC-803 and
-> TC-804 are unchanged and still discharge them — CR-039 and CR-040 measured
+> **Four criteria named the reader rather than the reading, and three are
+> restated here.** AC-12 states what a reader of the file observes — a `//`
+> inside a string or template literal is content — so it is unchanged and its
+> cases still discriminate. AC-14, AC-15 and AC-20 named the machinery
+> instead: "the balance check, brace depth, and block-end spans", "a brace …
+> never moves the depth", and an opener that "enters string state" which a
+> closing delimiter "closes rather than re-opens". A criterion that names a
+> mechanism stops being verifiable when the mechanism changes, and TC-1030
+> says as much of AC-20 in its own row — it asserts "on the state machine
+> directly". Each is reworded to the property its cases actually pin: AC-14
+> that one reading decides what is code and every consumer reads that one
+> answer, AC-15 that a brace or quote inside a raw string, lifetime, character
+> literal or nested block comment is content and the file is accepted, AC-20
+> that a triple-quoted body is content wherever its delimiter sits and a
+> declaration after it keeps its true container — the half TC-1031 already
+> pins. TC-803, TC-804, TC-1029, TC-1030 and TC-1031 keep their ids and their
+> bindings — CR-039 and CR-040 measured
 > 78 of 140 reported status lies against a single such reader disagreement, and
-> that measurement is what these two rows exist to keep from recurring.
+> that measurement is what these rows exist to keep from recurring.
 >
 > **Two criteria bound a scan to a window, and both stand as written.** AC-18
 > stops its title scan at the first non-blank text, so a literal beyond that
 > window registers nothing; AC-21 mints a container for a `describe(` whose
-> `{` falls on a later line and parents nothing to it. A tree answers both
-> questions without a window, so each of those carve-outs becomes a choice
-> rather than a limit — and widening either one **changes what a repository's
-> coverage number is**, for every repository, which is a measured decision of
-> the kind CR-119 recorded for the suite question rather than a consequence of
-> admitting the parser. They are therefore unchanged here and named so the next
-> reader finds them: `PLAT-843` implements this CON-1 against AC-18 and AC-21
-> as they stand, and any widening is its own change with its own **[RAN]**
+> `{` falls on a later line and parents nothing to it. **Both are TypeScript
+> criteria** — a `test`/`it` registration and a `describe(...)`/`suite(...)`
+> one — so they belong to the TypeScript adapter and sit outside the Rust
+> scope `PLAT-843` implements. A tree answers both questions without a window,
+> so each carve-out becomes a choice rather than a limit — and widening either
+> one **changes what a repository's coverage number is**, for every
+> repository, which is a measured decision of the kind CR-119 recorded for the
+> suite question rather than a consequence of admitting the parser. They are
+> therefore unchanged here and named so the reader porting the TypeScript
+> adapter finds them: any widening is its own change with its own **[RAN]**
 > numbers.
 >
 > **Where the old statement still lives.** `src/symbols/mod.rs` opens with
