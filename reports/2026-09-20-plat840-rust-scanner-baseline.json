@@ -1,0 +1,418 @@
+{
+  "quire_rs_measuring_commit": "08d39ea2ce50db35812f836df65cac18757daa4b",
+  "module_path": "/home/peter/dev/spec-artifacts-process/spec_artifacts_process",
+  "module_commit": "61a20e010d5e758f52864ad3152ccdb304a39d27",
+  "all_repos_on_main": true,
+  "repos": [
+    {
+      "name": "quire-rs",
+      "path": "/home/peter/dev/quire-rs",
+      "head_sha": "08d39ea2ce50db35812f836df65cac18757daa4b",
+      "head_ref": "refs/heads/main",
+      "on_main": true,
+      "symbols_by_language_kind": {
+        "python": {
+          "container": 141,
+          "function": 281,
+          "test_function": 242
+        },
+        "rust": {
+          "benchmark": 6,
+          "container": 636,
+          "function": 1563,
+          "fuzz_target": 9,
+          "test_function": 1200
+        },
+        "typescript": {
+          "container": 86,
+          "function": 17,
+          "test_function": 83
+        }
+      },
+      "rust_symbols_total": 3414,
+      "abandoned_files": [
+        {
+          "path": "tests/fixtures/symbols/broken/truncated.rs",
+          "language": "rust",
+          "reason": "unbalanced braces: 2 block(s) left open",
+          "reason_class": "blocks_left_open",
+          "rust_raw_string_prefix_present": false
+        }
+      ],
+      "abandoned_files_count": 1,
+      "other_diagnostics_count": 0,
+      "binding_census": [
+        {
+          "language": "python",
+          "candidates": 242,
+          "tagged": 94,
+          "bound": 93,
+          "tagged_not_bound": 1,
+          "tagged_not_bound_example": {
+            "path": "corpus/cases/attachment/marker-form-mismatch/python/input/src/lib.py",
+            "line": 7,
+            "symbol": "TestCoverage.test_covers_the_criterion"
+          },
+          "unbound_example": {
+            "path": "corpus/cases/attachment/marker-form-mismatch/python/input/src/lib.py",
+            "line": 7,
+            "symbol": "TestCoverage.test_covers_the_criterion"
+          }
+        },
+        {
+          "language": "rust",
+          "candidates": 1215,
+          "tagged": 887,
+          "bound": 867,
+          "tagged_not_bound": 20,
+          "tagged_not_bound_example": {
+            "path": "corpus/cases/attachment/marker-form-mismatch/rust/input/src/lib.rs",
+            "line": 5,
+            "symbol": "tests::covers_0"
+          },
+          "unbound_example": {
+            "path": "benches/load.rs",
+            "line": 13,
+            "symbol": "bench_load_demo_module"
+          }
+        },
+        {
+          "language": "typescript",
+          "candidates": 83,
+          "tagged": 66,
+          "bound": 66,
+          "tagged_not_bound": 0,
+          "unbound_example": {
+            "path": "corpus/cases/attachment/marker-form-mismatch/typescript/input/src/lib.test.ts",
+            "line": 5,
+            "symbol": "defaults every finding to warning"
+          }
+        }
+      ],
+      "non_binding_tags": 47,
+      "unmatched_tags": 351,
+      "coverage": {
+        "computed": true,
+        "reason_not_computed": null,
+        "unbacked_rows": 400,
+        "status_lies": 19,
+        "backed": 1312,
+        "total": 1799
+      }
+    },
+    {
+      "name": "quire-code-rs",
+      "path": "/home/peter/dev/quire-code-rs",
+      "head_sha": "e1b7fc303f3df3c9e3673358ce990525b7ff321e",
+      "head_ref": "refs/heads/main",
+      "on_main": true,
+      "symbols_by_language_kind": {
+        "rust": {
+          "container": 71,
+          "function": 205,
+          "test_function": 153
+        }
+      },
+      "rust_symbols_total": 429,
+      "abandoned_files": [],
+      "abandoned_files_count": 0,
+      "other_diagnostics_count": 0,
+      "binding_census": [
+        {
+          "language": "rust",
+          "candidates": 153,
+          "tagged": 121,
+          "bound": 121,
+          "tagged_not_bound": 0,
+          "unbound_example": {
+            "path": "src/bin/measure_graph_quality.rs",
+            "line": 881,
+            "symbol": "tests::scorer_report_must_cover_every_declared_case"
+          }
+        }
+      ],
+      "non_binding_tags": 0,
+      "unmatched_tags": 31,
+      "coverage": {
+        "computed": true,
+        "reason_not_computed": null,
+        "unbacked_rows": 12,
+        "status_lies": 0,
+        "backed": 251,
+        "total": 284
+      }
+    },
+    {
+      "name": "quire-contract-ir",
+      "path": "/tmp/claude-1000/-home-peter-dev/c93e9c84-1a2b-4800-a4e1-1181d415403f/scratchpad/plat840-main-clones/quire-contract-ir",
+      "head_sha": "dfd8bd7812a571ba1f19505374460efef4a473bc",
+      "head_ref": "refs/heads/main",
+      "on_main": true,
+      "symbols_by_language_kind": {
+        "python": {
+          "container": 15,
+          "function": 78,
+          "test_function": 29
+        },
+        "rust": {
+          "container": 468,
+          "function": 1577,
+          "test_function": 178
+        }
+      },
+      "rust_symbols_total": 2223,
+      "abandoned_files": [],
+      "abandoned_files_count": 0,
+      "other_diagnostics_count": 0,
+      "binding_census": [
+        {
+          "language": "python",
+          "candidates": 29,
+          "tagged": 29,
+          "bound": 29,
+          "tagged_not_bound": 0
+        },
+        {
+          "language": "rust",
+          "candidates": 178,
+          "tagged": 178,
+          "bound": 177,
+          "tagged_not_bound": 1,
+          "tagged_not_bound_example": {
+            "path": "tests/kani_shared.rs",
+            "line": 203,
+            "symbol": "a_proved_run_with_zero_success_checks_settles_inconclusive_as_vacuous"
+          },
+          "unbound_example": {
+            "path": "tests/kani_shared.rs",
+            "line": 202,
+            "symbol": "a_proved_run_with_zero_success_checks_settles_inconclusive_as_vacuous"
+          }
+        }
+      ],
+      "non_binding_tags": 1,
+      "unmatched_tags": 56,
+      "coverage": {
+        "computed": true,
+        "reason_not_computed": null,
+        "unbacked_rows": 16,
+        "status_lies": 0,
+        "backed": 198,
+        "total": 219
+      }
+    },
+    {
+      "name": "quire-protocol",
+      "path": "/tmp/claude-1000/-home-peter-dev/c93e9c84-1a2b-4800-a4e1-1181d415403f/scratchpad/plat840-main-clones/quire-protocol",
+      "head_sha": "b31e819a2c76a45c5827ecc922342a3c20e85d9d",
+      "head_ref": "refs/heads/main",
+      "on_main": true,
+      "symbols_by_language_kind": {
+        "rust": {
+          "container": 549,
+          "function": 1705,
+          "test_function": 270
+        }
+      },
+      "rust_symbols_total": 2524,
+      "abandoned_files": [],
+      "abandoned_files_count": 0,
+      "other_diagnostics_count": 0,
+      "binding_census": [
+        {
+          "language": "rust",
+          "candidates": 270,
+          "tagged": 263,
+          "bound": 263,
+          "tagged_not_bound": 0,
+          "unbound_example": {
+            "path": "src/assessment.rs",
+            "line": 3546,
+            "symbol": "tests::assessment_request_requires_one_claim"
+          }
+        }
+      ],
+      "non_binding_tags": 0,
+      "unmatched_tags": 66,
+      "coverage": {
+        "computed": true,
+        "reason_not_computed": null,
+        "unbacked_rows": 61,
+        "status_lies": 1,
+        "backed": 175,
+        "total": 354
+      }
+    },
+    {
+      "name": "filament-ide-rs",
+      "path": "/tmp/claude-1000/-home-peter-dev/c93e9c84-1a2b-4800-a4e1-1181d415403f/scratchpad/plat840-main-clones/filament-ide-rs",
+      "head_sha": "20987c81a5f8719e6e2f38db2a6f1ec8574e2d01",
+      "head_ref": "refs/heads/main",
+      "on_main": true,
+      "symbols_by_language_kind": {
+        "python": {
+          "container": 1,
+          "function": 1
+        },
+        "rust": {
+          "container": 1568,
+          "function": 4567,
+          "fuzz_target": 2,
+          "test_function": 1567
+        },
+        "typescript": {
+          "container": 317,
+          "function": 697,
+          "test_function": 431
+        }
+      },
+      "rust_symbols_total": 7704,
+      "abandoned_files": [
+        {
+          "path": "ui/tests/e2e/tc-784-786-789-project-switcher.spec.ts",
+          "language": "typescript",
+          "reason": "unbalanced braces: a `}` closes no block",
+          "reason_class": "closes_no_block"
+        },
+        {
+          "path": "ui/tests/mocks/handlers.ts",
+          "language": "typescript",
+          "reason": "unbalanced braces: a `}` closes no block",
+          "reason_class": "closes_no_block"
+        },
+        {
+          "path": "ui/tests/native/it-019-sync-native.spec.ts",
+          "language": "typescript",
+          "reason": "unbalanced braces: a `}` closes no block",
+          "reason_class": "closes_no_block"
+        }
+      ],
+      "abandoned_files_count": 3,
+      "other_diagnostics_count": 0,
+      "binding_census": [
+        {
+          "language": "rust",
+          "candidates": 1569,
+          "tagged": 1411,
+          "bound": 1387,
+          "tagged_not_bound": 24,
+          "tagged_not_bound_example": {
+            "path": "crates/filament-backend/src/adapters/search.rs",
+            "line": 859,
+            "symbol": "tests::a_document_is_not_folded_into_its_requirement"
+          },
+          "unbound_example": {
+            "path": "crates/filament-app/src/agent_bridge.rs",
+            "line": 732,
+            "symbol": "tests::accepted_confirmation_reaches_the_runtime_kind_gate"
+          }
+        },
+        {
+          "language": "typescript",
+          "candidates": 431,
+          "tagged": 394,
+          "bound": 385,
+          "tagged_not_bound": 9,
+          "tagged_not_bound_example": {
+            "path": "ui/tests/e2e/graph-monitor.spec.ts",
+            "line": 83,
+            "symbol": "shows the debugging hint when no sync has run (TC-1038)"
+          },
+          "unbound_example": {
+            "path": "ui/tests/e2e/blast-radius-refetch.spec.ts",
+            "line": 55,
+            "symbol": "the renderer sends bare, un-prefixed target selectors"
+          }
+        }
+      ],
+      "non_binding_tags": 67,
+      "unmatched_tags": 2110,
+      "coverage": {
+        "computed": true,
+        "reason_not_computed": null,
+        "unbacked_rows": 1073,
+        "status_lies": 55,
+        "backed": 1609,
+        "total": 3701
+      }
+    },
+    {
+      "name": "ecaz",
+      "path": "/tmp/claude-1000/-home-peter-dev/c93e9c84-1a2b-4800-a4e1-1181d415403f/scratchpad/plat840-main-clones/ecaz",
+      "head_sha": "2d7fc88aae1897fcf786f78bff75320cf8950d8c",
+      "head_ref": "refs/heads/main",
+      "on_main": true,
+      "symbols_by_language_kind": {
+        "python": {
+          "container": 33,
+          "function": 155,
+          "test_function": 7
+        },
+        "rust": {
+          "benchmark": 35,
+          "container": 2273,
+          "function": 10467,
+          "fuzz_target": 12,
+          "test_function": 2717
+        }
+      },
+      "rust_symbols_total": 15504,
+      "abandoned_files": [],
+      "abandoned_files_count": 0,
+      "other_diagnostics_count": 0,
+      "binding_census": [
+        {
+          "language": "python",
+          "candidates": 7,
+          "tagged": 0,
+          "bound": 0,
+          "tagged_not_bound": 0,
+          "unbound_example": {
+            "path": "scripts/tests/test_pg17_scratch_psql_socket_resolution.py",
+            "line": 73,
+            "symbol": "Pg17ScratchPsqlSocketResolutionTests.test_wrapper_uses_resolved_preferred_socket_by_default"
+          }
+        },
+        {
+          "language": "rust",
+          "candidates": 2764,
+          "tagged": 137,
+          "bound": 21,
+          "tagged_not_bound": 116,
+          "tagged_not_bound_example": {
+            "path": "fuzz/fuzz_targets/parse_text_structured.rs",
+            "line": 6,
+            "symbol": "fuzz_target"
+          },
+          "unbound_example": {
+            "path": "benches/criterion/bitpack.rs",
+            "line": 24,
+            "symbol": "bench_pack_mse"
+          }
+        }
+      ],
+      "non_binding_tags": 30,
+      "unmatched_tags": 132,
+      "coverage": {
+        "computed": true,
+        "reason_not_computed": null,
+        "unbacked_rows": 846,
+        "status_lies": 30,
+        "backed": 13,
+        "total": 649
+      }
+    }
+  ],
+  "rust_rollup_by_kind": {
+    "benchmark": 41,
+    "container": 5565,
+    "function": 20084,
+    "fuzz_target": 23,
+    "test_function": 6085
+  },
+  "rust_symbols_total_all_repos": 31798,
+  "abandoned_files_total_all_repos": 4,
+  "abandoned_files_total_rust_only": 1,
+  "unbacked_rows_total_all_repos": 2408,
+  "status_lies_total_all_repos": 105
+}
