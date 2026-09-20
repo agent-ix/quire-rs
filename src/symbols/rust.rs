@@ -215,7 +215,6 @@ fn walk(
                     let qualified = qualify(&container, &name);
                     out.push(container_symbol(
                         child,
-                        source,
                         qualified.clone(),
                         container.clone(),
                     ));
@@ -227,12 +226,7 @@ fn walk(
             "struct_item" | "enum_item" => {
                 if let Some(name) = field_text(child, "name", source) {
                     let qualified = qualify(&container, &name);
-                    out.push(container_symbol(
-                        child,
-                        source,
-                        qualified,
-                        container.clone(),
-                    ));
+                    out.push(container_symbol(child, qualified, container.clone()));
                 }
                 // A struct/enum body is a field or variant list, never a
                 // declaration list: nothing recognised by this adapter can
@@ -244,7 +238,6 @@ fn walk(
                     let qualified = qualify(&container, &name);
                     out.push(container_symbol(
                         child,
-                        source,
                         qualified.clone(),
                         container.clone(),
                     ));
@@ -311,17 +304,12 @@ fn qualify(container: &Option<String>, name: &str) -> String {
 /// declaration was found in (not its own — a top-level declaration gets
 /// `None`), matching `RawSymbol::container`'s own meaning everywhere else in
 /// this adapter.
-fn container_symbol(
-    node: Node,
-    source: &str,
-    qualified_name: String,
-    container: Option<String>,
-) -> RawSymbol {
+fn container_symbol(node: Node, qualified_name: String, container: Option<String>) -> RawSymbol {
     RawSymbol {
         qualified_name,
         kind: SymbolKind::Container,
         line: node.start_position().row + 1,
-        leading_line: leading_span(node, source),
+        leading_line: leading_span(node),
         end_line: node.end_position().row + 1,
         container,
     }
@@ -346,7 +334,7 @@ fn function_symbol(node: Node, source: &str, container: Option<String>) -> Optio
         qualified_name,
         kind,
         line: node.start_position().row + 1,
-        leading_line: leading_span(node, source),
+        leading_line: leading_span(node),
         end_line: node.end_position().row + 1,
         container,
     })
@@ -382,8 +370,7 @@ fn ident(s: &str) -> Option<String> {
 /// sibling nodes instead of between lines, which is what fixes PLAT-69 and
 /// PLAT-846: a multi-line attribute or a block doc comment is one sibling
 /// node regardless of how many lines it spans.
-fn leading_span(node: Node, source: &str) -> usize {
-    let _ = source; // kept for symmetry with call sites that also need it
+fn leading_span(node: Node) -> usize {
     let mut boundary_row = node.start_position().row;
     let mut current = node;
     while let Some(prev) = current.prev_sibling() {
@@ -687,10 +674,16 @@ fn flat_leading_span_and_test(children: &[Node], fn_idx: usize, source: &str) ->
 /// statements.
 fn fuzz_target(root: Node, source: &str) -> Option<RawSymbol> {
     let mut cursor = root.walk();
+    // Every top-level macro invocation, not just the first one: an earlier
+    // unrelated invocation (`lazy_static!`, `include!`, ...) must not hide a
+    // `fuzz_target!` that comes after it. `find_map`+`filter` on the first
+    // match alone silently dropped the whole symbol in exactly that shape —
+    // a regression this rewrite introduced, not one the old line scanner
+    // (which read every line regardless of position) ever had.
     let invocation = root
         .named_children(&mut cursor)
-        .find_map(macro_invocation)
-        .filter(|invocation| {
+        .filter_map(macro_invocation)
+        .find(|invocation| {
             invocation
                 .child_by_field_name("macro")
                 .and_then(|n| n.utf8_text(source.as_bytes()).ok())
@@ -971,6 +964,38 @@ mod tests {
                 .kind,
             SymbolKind::Function
         );
+    }
+
+    /// PLAT-843 review finding F1: an unrelated top-level macro invocation
+    /// *before* `fuzz_target!` must not hide it. [`fuzz_target`] used to
+    /// inspect only the *first* top-level macro invocation and then check
+    /// whether it was `fuzz_target` — so a preceding `lazy_static!`,
+    /// `include!`, or (as here) any other macro silently dropped the whole
+    /// symbol, with no diagnostic. Reverting the `filter_map`+`find` fix back
+    /// to `find_map`+`filter` makes this fail.
+    #[test]
+    fn a_preceding_unrelated_macro_does_not_hide_the_fuzz_target() {
+        let source = concat!(
+            "#![no_main]\n",
+            "//! NFR-019 fuzz target.\n",
+            "\n",
+            "use libfuzzer_sys::fuzz_target;\n",
+            "\n",
+            "lazy_static::lazy_static! {\n",
+            "    static ref CONFIG: usize = 1;\n",
+            "}\n",
+            "\n",
+            "fuzz_target!(|data: &[u8]| {\n",
+            "    let _ = data;\n",
+            "});\n",
+        );
+
+        let symbols = parse(source).expect("valid file");
+        let target = symbols
+            .iter()
+            .find(|s| s.kind == SymbolKind::FuzzTarget)
+            .expect("the invocation mints a symbol despite the earlier macro");
+        assert_eq!(target.qualified_name, "fuzz_target");
     }
 
     /// FR-051-AC-1: `impl` blocks are scopes, not symbols — the highest-risk
