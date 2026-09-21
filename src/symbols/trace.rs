@@ -1882,8 +1882,8 @@ mod tests {
 
         // The tag sits at the top of the file, separated from the invocation by
         // `use` statements and a helper — so it binds only because the fuzz
-        // target's span is the whole file. `leading_block` cannot reach across
-        // non-comment lines.
+        // target's span is the whole file. A leading-annotation walk cannot
+        // reach across non-comment lines.
         let fuzz = crate::symbols::extract_file(
             "fuzz/fuzz_targets/f.rs",
             SourceLanguage::Rust,

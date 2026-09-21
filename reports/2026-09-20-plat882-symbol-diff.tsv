@@ -1,0 +1,156 @@
+repo	side	path	qualified_name	kind	leading_line
+filament-ide-rs	new_only_recovered_file	ui/tests/e2e/tc-784-786-789-project-switcher.spec.ts	emitProjectsChanged	Function	37
+filament-ide-rs	new_only_recovered_file	ui/tests/e2e/tc-784-786-789-project-switcher.spec.ts	stripComments	Function	196
+filament-ide-rs	new_only_recovered_file	ui/tests/e2e/tc-784-786-789-project-switcher.spec.ts	switcherList	Function	34
+filament-ide-rs	new_only_recovered_file	ui/tests/e2e/tc-784-786-789-project-switcher.spec.ts	tc-784 switcher list and live update	Container	46
+filament-ide-rs	new_only_recovered_file	ui/tests/e2e/tc-784-786-789-project-switcher.spec.ts	tc-784: a projects-changed event updates the list without a reload	TestFunction	72
+filament-ide-rs	new_only_recovered_file	ui/tests/e2e/tc-784-786-789-project-switcher.spec.ts	tc-784: loading and empty registry states are distinguished	TestFunction	132
+filament-ide-rs	new_only_recovered_file	ui/tests/e2e/tc-784-786-789-project-switcher.spec.ts	tc-784: manual refresh re-sources the list from the registry command	TestFunction	105
+filament-ide-rs	new_only_recovered_file	ui/tests/e2e/tc-784-786-789-project-switcher.spec.ts	tc-784: the switcher lists exactly the registry's projects	TestFunction	47
+filament-ide-rs	new_only_recovered_file	ui/tests/e2e/tc-784-786-789-project-switcher.spec.ts	tc-786 stale-entry open refusal	Container	153
+filament-ide-rs	new_only_recovered_file	ui/tests/e2e/tc-784-786-789-project-switcher.spec.ts	tc-786: opening an entry absent from the registry surfaces SHELL_ROOT_REFUSED and constructs no scope	TestFunction	154
+filament-ide-rs	new_only_recovered_file	ui/tests/e2e/tc-784-786-789-project-switcher.spec.ts	tc-789 switcher-open binding inspection	Container	193
+filament-ide-rs	new_only_recovered_file	ui/tests/e2e/tc-784-786-789-project-switcher.spec.ts	tc-789: discovered-project metadata payloads carry id and name only	TestFunction	213
+filament-ide-rs	new_only_recovered_file	ui/tests/e2e/tc-784-786-789-project-switcher.spec.ts	tc-789: the generated switcher-open binding carries a registry-entry reference only	TestFunction	199
+filament-ide-rs	new_only_recovered_file	ui/tests/e2e/tc-784-786-789-project-switcher.spec.ts	ui/tests/e2e/tc-784-786-789-project-switcher.spec	Container	1
+filament-ide-rs	new_only_recovered_file	ui/tests/mocks/handlers.ts	activeGraphFixture	Function	132
+filament-ide-rs	new_only_recovered_file	ui/tests/mocks/handlers.ts	assertBoundedLinks	Function	493
+filament-ide-rs	new_only_recovered_file	ui/tests/mocks/handlers.ts	datedPlanDetail	Function	608
+filament-ide-rs	new_only_recovered_file	ui/tests/mocks/handlers.ts	day	Function	614
+filament-ide-rs	new_only_recovered_file	ui/tests/mocks/handlers.ts	day	Function	682
+filament-ide-rs	new_only_recovered_file	ui/tests/mocks/handlers.ts	defaultPlanDetail	Function	574
+filament-ide-rs	new_only_recovered_file	ui/tests/mocks/handlers.ts	emitAgentOutput	Function	426
+filament-ide-rs	new_only_recovered_file	ui/tests/mocks/handlers.ts	isLoopbackEndpoint	Function	525
+filament-ide-rs	new_only_recovered_file	ui/tests/mocks/handlers.ts	mixedPlanDetail	Function	675
+filament-ide-rs	new_only_recovered_file	ui/tests/mocks/handlers.ts	node	Function	564
+filament-ide-rs	new_only_recovered_file	ui/tests/mocks/handlers.ts	referencePlanDetail	Function	707
+filament-ide-rs	new_only_recovered_file	ui/tests/mocks/handlers.ts	refuse	Function	486
+filament-ide-rs	new_only_recovered_file	ui/tests/mocks/handlers.ts	resetVerbRequestLog	Function	124
+filament-ide-rs	new_only_recovered_file	ui/tests/mocks/handlers.ts	retargetRegistryForWorkspaceChange	Function	466
+filament-ide-rs	new_only_recovered_file	ui/tests/mocks/handlers.ts	subtaskFor	Function	578
+filament-ide-rs	new_only_recovered_file	ui/tests/mocks/handlers.ts	taskId	Function	720
+filament-ide-rs	new_only_recovered_file	ui/tests/mocks/handlers.ts	tokenIsPresent	Function	765
+filament-ide-rs	new_only_recovered_file	ui/tests/mocks/handlers.ts	tracksPlanDetail	Function	642
+filament-ide-rs	new_only_recovered_file	ui/tests/mocks/handlers.ts	ui/tests/mocks/handlers	Container	1
+filament-ide-rs	new_only_recovered_file	ui/tests/mocks/handlers.ts	verbRequestLogSnapshot	Function	119
+filament-ide-rs	new_only_recovered_file	ui/tests/mocks/handlers.ts	watcherStatus	Function	481
+filament-ide-rs	new_only_recovered_file	ui/tests/mocks/handlers.ts	winFlag	Function	561
+filament-ide-rs	new_only_recovered_file	ui/tests/mocks/handlers.ts	withReindexAdditions	Function	172
+filament-ide-rs	new_only_recovered_file	ui/tests/native/it-019-sync-native.spec.ts	it-019 native sync + token custody (real shell, real IPC)	Container	72
+filament-ide-rs	new_only_recovered_file	ui/tests/native/it-019-sync-native.spec.ts	it-019-SC-10 (TC-770): the shell mounts with no mock bootstrap and no egress at launch	TestFunction	80
+filament-ide-rs	new_only_recovered_file	ui/tests/native/it-019-sync-native.spec.ts	it-019-SC-11 (TC-771): token save/status round trip returns presence + key reference only, with no token value leaking	TestFunction	88
+filament-ide-rs	new_only_recovered_file	ui/tests/native/it-019-sync-native.spec.ts	it-019-SC-12 (TC-772): pending-local → synced over the real bridge with a persisted base-snapshot row	TestFunction	143
+filament-ide-rs	new_only_recovered_file	ui/tests/native/it-019-sync-native.spec.ts	it-019-SC-13 (TC-773): generated bindings carry no renderer-suppliable token/host/endpoint fields	TestFunction	208
+filament-ide-rs	new_only_recovered_file	ui/tests/native/it-019-sync-native.spec.ts	it-019-SC-14 (TC-774): failure artifacts are retained under the native test-results directory	TestFunction	232
+filament-ide-rs	new_only_recovered_file	ui/tests/native/it-019-sync-native.spec.ts	ui/tests/native/it-019-sync-native.spec	Container	1
+filament-ide-rs	new_only_recovery	ui/src/ErrorBoundary.tsx	ErrorBoundary.getDerivedStateFromProps	Function	28
+filament-ide-rs	new_only_recovery	ui/src/graph/cosmos/adapter.ts	PointIndex.order	Function	113
+filament-ide-rs	new_only_recovery	ui/src/graph/cosmos/adapter.ts	PointIndex.size	Function	84
+filament-ide-rs	new_only_recovery	ui/src/graph/cosmos/scene.ts	CosmosScene.cameraFits	Function	959
+filament-ide-rs	new_only_recovery	ui/src/graph/cosmos/scene.ts	CosmosScene.cameraTaken	Function	968
+filament-ide-rs	new_only_recovery	ui/src/graph/cosmos/scene.ts	CosmosScene.frameCount	Function	594
+filament-ide-rs	new_only_recovery	ui/src/graph/cosmos/scene.ts	CosmosScene.pointCount	Function	599
+filament-ide-rs	new_only_recovery	ui/src/graph/cosmos/scene.ts	CosmosScene.ready	Function	589
+filament-ide-rs	new_only_recovery	ui/src/graph/model.ts	GraphAccumulator.edgesLoaded	Function	361
+filament-ide-rs	new_only_recovery	ui/src/graph/model.ts	GraphAccumulator.isLimitReached	Function	384
+filament-ide-rs	new_only_recovery	ui/src/graph/model.ts	GraphAccumulator.nodesLoaded	Function	356
+filament-ide-rs	new_only_recovery	ui/src/graph/model.ts	GraphAccumulator.progress	Function	366
+filament-ide-rs	new_only_recovery	ui/src/graph/presenter.ts	GraphPresenter.lastFrameCostMs	Function	698
+filament-ide-rs	new_only_recovery	ui/tests/mocks/graph-harness.ts	focus	Function	184
+filament-ide-rs	new_only_recovery	ui/tests/mocks/graph-harness.ts	loadProject	Function	162
+filament-ide-rs	new_only_recovery	ui/tests/mocks/graph-harness.ts	loadProjectWithCeiling	Function	171
+filament-ide-rs	old_only_false_positive_removed	ui/src/graph/GraphCanvas.tsx	camera	Function	268
+filament-ide-rs	old_only_false_positive_removed	ui/src/graph/GraphCanvas.tsx	collapseState	Function	395
+filament-ide-rs	old_only_false_positive_removed	ui/src/graph/GraphCanvas.tsx	filters	Function	247
+filament-ide-rs	old_only_false_positive_removed	ui/src/graph/GraphCanvas.tsx	groupBoxes	Function	387
+filament-ide-rs	old_only_false_positive_removed	ui/src/graph/GraphCanvas.tsx	highlight	Function	240
+filament-ide-rs	old_only_false_positive_removed	ui/src/graph/GraphCanvas.tsx	highlightState	Function	404
+filament-ide-rs	old_only_false_positive_removed	ui/src/graph/GraphCanvas.tsx	nodeBorder	Function	315
+filament-ide-rs	old_only_false_positive_removed	ui/src/graph/GraphCanvas.tsx	nodeDisplay	Function	270
+filament-ide-rs	old_only_false_positive_removed	ui/src/graph/GraphCanvas.tsx	nodeGeometry	Function	291
+filament-ide-rs	old_only_false_positive_removed	ui/src/graph/GraphCanvas.tsx	phase	Function	2605
+filament-ide-rs	old_only_false_positive_removed	ui/src/graph/GraphCanvas.tsx	presenter	Function	359
+filament-ide-rs	old_only_false_positive_removed	ui/src/graph/GraphCanvas.tsx	regionFrames	Function	383
+filament-ide-rs	old_only_false_positive_removed	ui/src/graph/GraphCanvas.tsx	regionLabelAnchors	Function	381
+filament-ide-rs	old_only_false_positive_removed	ui/src/graph/GraphCanvas.tsx	renderStyle	Function	330
+filament-ide-rs	old_only_false_positive_removed	ui/src/graph/GraphCanvas.tsx	screenGeometry	Function	300
+filament-ide-rs	old_only_false_positive_removed	ui/src/graph/GraphSearch.tsx	seq	Function	130
+filament-ide-rs	old_only_false_positive_removed	ui/src/graph/cosmos/adapter.ts	dy	Function	324
+filament-ide-rs	old_only_false_positive_removed	ui/src/graph/cosmos/adapter.ts	needed	Function	326
+filament-ide-rs	old_only_false_positive_removed	ui/src/graph/cosmos/adapter.ts	radius	Function	385
+filament-ide-rs	old_only_false_positive_removed	ui/src/graph/cosmos/scene.ts	CosmosScene.centerX	Function	1688
+filament-ide-rs	old_only_false_positive_removed	ui/src/graph/cosmos/scene.ts	CosmosScene.centerY	Function	1689
+filament-ide-rs	old_only_false_positive_removed	ui/src/graph/cosmos/scene.ts	CosmosScene.minExtentX	Function	1686
+filament-ide-rs	old_only_false_positive_removed	ui/src/graph/cosmos/scene.ts	CosmosScene.minExtentY	Function	1687
+filament-ide-rs	old_only_false_positive_removed	ui/src/graph/cosmos/separation.ts	angle	Function	274
+filament-ide-rs	old_only_false_positive_removed	ui/src/graph/cosmos/separation.ts	dy	Function	121
+filament-ide-rs	old_only_false_positive_removed	ui/src/graph/cosmos/separation.ts	needed	Function	123
+filament-ide-rs	old_only_false_positive_removed	ui/src/graph/cosmos/separation.ts	needed	Function	188
+filament-ide-rs	old_only_false_positive_removed	ui/src/graph/cosmos/separation.ts	needed	Function	263
+filament-ide-rs	old_only_false_positive_removed	ui/src/graph/model.ts	GraphAccumulator.next	Function	348
+filament-ide-rs	old_only_false_positive_removed	ui/src/graph/presenter.ts	scaleX	Function	182
+filament-ide-rs	old_only_false_positive_removed	ui/src/graph/presenter.ts	scaleY	Function	183
+filament-ide-rs	old_only_false_positive_removed	ui/src/inspector/InfoTab.tsx	statusLine	Function	193
+filament-ide-rs	old_only_false_positive_removed	ui/src/plansync/GanttChart.tsx	x1	Function	163
+filament-ide-rs	old_only_false_positive_removed	ui/src/plansync/PlanSyncView.tsx	value	Function	219
+filament-ide-rs	old_only_false_positive_removed	ui/src/plansync/layout.ts	e	Function	287
+filament-ide-rs	old_only_false_positive_removed	ui/src/plansync/layout.ts	e	Function	308
+filament-ide-rs	old_only_false_positive_removed	ui/src/plansync/layout.ts	s	Function	284
+filament-ide-rs	old_only_false_positive_removed	ui/src/plansync/layout.ts	s	Function	307
+filament-ide-rs	old_only_false_positive_removed	ui/src/plansync/layout.ts	s	Function	531
+filament-ide-rs	old_only_false_positive_removed	ui/src/plansync/markup.ts	block	Function	207
+filament-ide-rs	old_only_false_positive_removed	ui/src/plansync/markup.ts	markup	Function	195
+filament-ide-rs	old_only_false_positive_removed	ui/src/plansync/types.ts	normalized	Function	32
+filament-ide-rs	old_only_false_positive_removed	ui/src/preview/SpecPreview.tsx	anchor	Function	95
+filament-ide-rs	old_only_false_positive_removed	ui/tests/e2e/gantt-restyle.spec.ts	nums	Function	195
+filament-ide-rs	old_only_false_positive_removed	ui/tests/e2e/it-018-plan-ui-e2e.spec.ts	params	Function	185
+filament-ide-rs	old_only_false_positive_removed	ui/tests/e2e/tc-005-least-privilege.spec.ts	internals	Function	94
+filament-ide-rs	old_only_false_positive_removed	ui/tests/e2e/tc-005-least-privilege.spec.ts	internals	Function	224
+filament-ide-rs	old_only_false_positive_removed	ui/tests/e2e/tc-005-least-privilege.spec.ts	internals	Function	265
+filament-ide-rs	old_only_false_positive_removed	ui/tests/e2e/tc-006-secret-exposure.spec.ts	internals	Function	169
+filament-ide-rs	old_only_false_positive_removed	ui/tests/e2e/tc-006-secret-exposure.spec.ts	sessionId	Function	245
+filament-ide-rs	old_only_false_positive_removed	ui/tests/e2e/tc-1093-1094-artifact-impact.spec.ts	invoke	Function	138
+filament-ide-rs	old_only_false_positive_removed	ui/tests/e2e/tc-1185-graph-layer-regions.spec.ts	rect	Function	67
+filament-ide-rs	old_only_false_positive_removed	ui/tests/e2e/tc-125-gantt.spec.ts	derivedFlags	Function	194
+filament-ide-rs	old_only_false_positive_removed	ui/tests/e2e/tc-125-nfr-032-gantt-perf.spec.ts	r	Function	238
+filament-ide-rs	old_only_false_positive_removed	ui/tests/e2e/tc-126-task-markup.spec.ts	p	Function	192
+filament-ide-rs	old_only_false_positive_removed	ui/tests/e2e/tc-1593-graph-labels.spec.ts	rect	Function	97
+filament-ide-rs	old_only_false_positive_removed	ui/tests/e2e/tc-1593-graph-labels.spec.ts	rect	Function	157
+filament-ide-rs	old_only_false_positive_removed	ui/tests/e2e/tc-1593-graph-labels.spec.ts	text	Function	348
+filament-ide-rs	old_only_false_positive_removed	ui/tests/e2e/tc-1609-project-view-code-layer.spec.ts	layers	Function	116
+filament-ide-rs	old_only_false_positive_removed	ui/tests/e2e/tc-1632-graph-layout-cache.spec.ts	at	Function	214
+filament-ide-rs	old_only_false_positive_removed	ui/tests/e2e/tc-1655-graph-focus-history.spec.ts	chosen	Function	41
+filament-ide-rs	old_only_false_positive_removed	ui/tests/e2e/tc-453-mock-bootstrap.spec.ts	internals	Function	122
+filament-ide-rs	old_only_false_positive_removed	ui/tests/e2e/tc-919-922-graph-code-layer.spec.ts	layers	Function	147
+filament-ide-rs	old_only_false_positive_removed	ui/tests/e2e/tc-971-graph-filters.spec.ts	depths	Function	196
+filament-ide-rs	old_only_false_positive_removed	ui/tests/e2e/tc-978-graph-theme-density.spec.ts	darkText	Function	170
+filament-ide-rs	old_only_false_positive_removed	ui/tests/e2e/tc-979-graph-performance.spec.ts	snapshot	Function	46
+filament-ide-rs	old_only_false_positive_removed	ui/tests/mocks/graph-fixtures.ts	count	Function	422
+filament-ide-rs	old_only_false_positive_removed	ui/tests/mocks/install.ts	commandArgs	Function	172
+filament-ide-rs	old_only_false_positive_removed	ui/tests/mocks/install.ts	internals	Function	125
+filament-ide-rs	old_only_false_positive_removed	ui/tests/native/it-018-plan-ui-native.spec.ts	sub	Function	175
+filament-ide-rs	old_only_false_positive_removed	ui/tests/native/tc-1095-artifact-impact-native.spec.ts	before	Function	84
+filament-ide-rs	old_only_false_positive_removed	ui/tests/native/tc-1095-artifact-impact-native.spec.ts	invoke	Function	107
+filament-ide-rs	old_only_false_positive_removed	ui/tests/native/tc-1095-artifact-impact-native.spec.ts	raw	Function	131
+filament-ide-rs	old_only_false_positive_removed	ui/tests/native/tc-1485-embedding-search-native.spec.ts	before	Function	58
+filament-ide-rs	old_only_false_positive_removed	ui/tests/native/tc-1485-embedding-search-native.spec.ts	invoke	Function	100
+filament-ide-rs	old_only_false_positive_removed	ui/tests/native/tc-1485-embedding-search-native.spec.ts	raw	Function	113
+filament-ide-rs	old_only_false_positive_removed	ui/tests/native/tc-503-agent-session.spec.ts	attached	Function	50
+filament-ide-rs	old_only_false_positive_removed	ui/tests/native/tc-503-agent-session.spec.ts	invoke	Function	34
+filament-ide-rs	old_only_false_positive_removed	ui/tests/native/tc-503-agent-session.spec.ts	invoke	Function	100
+filament-ide-rs	old_only_false_positive_removed	ui/tests/native/tc-503-agent-session.spec.ts	launched	Function	41
+filament-ide-rs	old_only_false_positive_removed	ui/tests/native/tc-503-agent-session.spec.ts	pumped	Function	66
+filament-ide-rs	old_only_false_positive_removed	ui/tests/native/tc-503-agent-session.spec.ts	stopped	Function	107
+filament-ide-rs	old_only_false_positive_removed	ui/tests/native/tc-504-plugin-management.spec.ts	candidates	Function	43
+filament-ide-rs	old_only_false_positive_removed	ui/tests/native/tc-504-plugin-management.spec.ts	installed	Function	47
+filament-ide-rs	old_only_false_positive_removed	ui/tests/native/tc-504-plugin-management.spec.ts	invoke	Function	31
+filament-ide-rs	old_only_false_positive_removed	ui/tests/native/tc-504-plugin-management.spec.ts	key	Function	39
+filament-ide-rs	old_only_false_positive_removed	ui/tests/native/tc-890-graph-extraction-native.spec.ts	before	Function	231
+filament-ide-rs	old_only_false_positive_removed	ui/tests/native/tc-890-graph-extraction-native.spec.ts	invoke	Function	322
+filament-ide-rs	old_only_false_positive_removed	ui/tests/native/tc-890-graph-extraction-native.spec.ts	raw	Function	329
+filament-ide-rs	old_only_false_positive_removed	ui/tests/native/tc-966-cosmos-webview.spec.ts	factory	Function	54
+filament-ide-rs	old_only_false_positive_removed	ui/tests/native/tc-981-graph-export-smoke.spec.ts	before	Function	152
+filament-ide-rs	old_only_false_positive_removed	ui/tests/native/tc-981-graph-export-smoke.spec.ts	detail	Function	319
+filament-ide-rs	old_only_false_positive_removed	ui/tests/native/tc-981-graph-export-smoke.spec.ts	invoke	Function	189
+filament-ide-rs	old_only_false_positive_removed	ui/tests/native/tc-981-graph-export-smoke.spec.ts	raw	Function	215
+filament-ide-rs	old_only_false_positive_removed	ui/tests/native/tc-981-graph-export-smoke.spec.ts	snapshot	Function	295

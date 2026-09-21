@@ -89,6 +89,19 @@ check-python:
 check-python-symbols:
 	CARGO_TARGET_DIR=target/python-symbols-check $(CARGO) check --locked --no-default-features --features python-symbols --quiet
 
+# PLAT-882: `typescript.rs` now depends unconditionally on the
+# `typescript-symbols` feature (default on; off under `wasm`, see that
+# feature's own Cargo.toml comment). This checks the feature builds clean in
+# isolation — `--no-default-features` so it can never pass merely because
+# `default` happens to also carry the feature — the same minimal-build
+# discipline `check-python`/`check-wasm` already enforce for their own
+# features. Its own CARGO_TARGET_DIR for the same reason `check-python` has
+# one: a different feature set must not link against artifacts built for
+# another and surface as a bogus trait-not-implemented error.
+.PHONY: check-typescript-symbols
+check-typescript-symbols:
+	CARGO_TARGET_DIR=target/typescript-symbols-check $(CARGO) check --locked --no-default-features --features typescript-symbols --quiet
+
 # The scripts/ tooling test suite (#217, #219). `check-python` is a cargo
 # type-check of the PyO3 binding and collects no Python tests, so the sweep
 # harness and corpus rules are verified here.
@@ -376,7 +389,7 @@ check-wasm:
 	CARGO_TARGET_DIR=target/wasm-check $(CARGO) check --locked --target wasm32-unknown-unknown --no-default-features --features wasm --quiet
 	$(CARGO) test --locked --no-default-features --features wasm --quiet --test semantic_contract --test semantic_properties --test semantic_clauses --test semantic_surface --test semantic_relations
 
-ci: fmt-check lint check-python check-python-symbols check-wasm check-scripts test deny deny-grammars audit-unsafe audit-property audit-static validate check-engine
+ci: fmt-check lint check-python check-python-symbols check-typescript-symbols check-wasm check-scripts test deny deny-grammars audit-unsafe audit-property audit-static validate check-engine
 
 # =============================================================================
 # Python wheel / sdist + local-publish (pypi.ix)

@@ -117,10 +117,11 @@ loom = "^0.7"
 
 [features]
 # Native default: include filesystem `$ref` resolution in jsonschema, and the
-# tree-sitter-backed Rust and Python symbol adapters. `typescript-symbols`
-# is NOT default (see below) — no adapter code uses it yet; TypeScript's own
-# port is PLAT-869.
-default = ["resolve-file", "rust-symbols", "python-symbols"]
+# tree-sitter-backed Rust, Python, and TypeScript symbol adapters — all three
+# now use their grammar unconditionally (PLAT-843, PLAT-868, PLAT-882), so a
+# default `cargo build`/`cargo test` must keep extracting every language the
+# pre-port line-structural scanners always did.
+default = ["resolve-file", "rust-symbols", "python-symbols", "typescript-symbols"]
 python = ["dep:pyo3"]
 # The Rust symbol adapter (FR-051, PLAT-843), gated so the `wasm` build can
 # opt out — see `quire-rust-extraction`'s own dependency comment above for
@@ -133,22 +134,21 @@ rust-symbols = ["dep:quire-rust-extraction", "quire-rust-extraction/rust"]
 # carries the identical C-toolchain cross-compilation problem `rust-symbols`'s
 # own comment describes), and `src/symbols/mod.rs` falls back to a per-file
 # diagnostic for `SourceLanguage::Python` when this feature is off, rather
-# than failing to compile. Promoted to `default` by this port (PLAT-851 left
-# it off because no adapter used it yet) so that `cargo build`/`cargo test`
-# with no flags keeps extracting Python symbols exactly as the pre-port
-# line-structural scanner always did — turning it off here would silently
-# zero out Python coverage for every consumer that builds with defaults,
-# which is not a change this ticket is about. Rust and TypeScript extraction
-# are unaffected either way.
+# than failing to compile. Default: `python.rs` uses it unconditionally now
+# that PLAT-868 has landed, so a default build must keep extracting Python
+# the way the pre-port line-structural scanner always did. Named
+# `python-symbols`, not `python`, because `python` is already taken above
+# (the PyO3 bindings feature) and a bare `python` here would misleadingly
+# pair with it.
 python-symbols = ["dep:quire-rust-extraction", "quire-rust-extraction/python"]
-# PLAT-851: wiring only, for the TypeScript AST port (PLAT-869, its own,
-# independently landed ticket) to build on without touching this file
-# itself. No adapter code in this crate uses this feature yet —
-# `src/symbols/typescript.rs` is untouched by PLAT-851/PLAT-868 and still
-# uses its pre-tree-sitter scanner regardless of this feature's state. Not
-# default: turning it on today links a tree-sitter grammar nothing reads.
-# Named `typescript-symbols`, not `typescript`, so it doesn't misleadingly
-# pair with the unrelated `python` feature above (the PyO3 bindings feature).
+# The TypeScript symbol adapter (FR-051, PLAT-882), gated exactly like
+# `rust-symbols` so the `wasm` build can opt out — `tree-sitter-typescript`'s
+# `cc`-crate build script cannot cross-compile to `wasm32-unknown-unknown`
+# here either. `src/symbols/mod.rs` falls back to a per-file diagnostic for
+# `SourceLanguage::Typescript` when this feature is off, rather than failing
+# to compile. Default: `typescript.rs` uses it unconditionally now that
+# PLAT-882 has landed, so a default build must keep extracting TypeScript
+# the way it always did.
 typescript-symbols = ["dep:quire-rust-extraction", "quire-rust-extraction/typescript"]
 # Measurement-only. Re-enables the `ac:no-observable-outcome` check CR-014
 # retired, so it can be re-measured over the corpus with the mechanical fixes

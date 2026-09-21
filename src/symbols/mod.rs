@@ -7,13 +7,14 @@
 //!
 //! Adapters work at **syntax level** — no build, no type resolution, no
 //! dependency installation, and never any execution of the extracted code
-//! (FR-051-CON-1, amended by PLAT-842). The Rust (PLAT-843) and Python
-//! (PLAT-868) adapters parse over a tree-sitter syntax tree, through
-//! `quire-rust-extraction` -> `quire-code-parse`; TypeScript stays
-//! line/indentation-structural until its own port (PLAT-869). "Syntax
-//! level" is what the constraint actually buys either way: no build, no
-//! type resolution, no execution — not "no parser dependency," which the
-//! amended constraint no longer claims.
+//! (FR-051-CON-1, amended by PLAT-842). The Rust (PLAT-843), Python
+//! (PLAT-868), and TypeScript (PLAT-882) adapters all parse over a
+//! tree-sitter syntax tree, through `quire-rust-extraction` ->
+//! `quire-code-parse` — CON-1's grammar-driven-parser clause now covers
+//! every language the FR names. "Syntax level" is what the constraint
+//! actually buys either way: no build, no type resolution, no execution —
+//! not "no parser dependency," which the amended constraint no longer
+//! claims.
 //!
 //! Identity is `(language, repo-relative path, qualified name, kind)` — never
 //! line numbers, byte offsets, or formatting, so reformatting a file leaves
@@ -34,6 +35,11 @@ pub mod python;
 pub mod rust;
 pub mod trace;
 pub mod trace_search;
+// Gated by `typescript-symbols` (on by default; off under `wasm` — see that
+// feature's own Cargo.toml comment), the same shape as `rust-symbols` above:
+// `tree-sitter-typescript`'s C build script cannot cross-compile for
+// `wasm32-unknown-unknown` here either (PLAT-882).
+#[cfg(feature = "typescript-symbols")]
 pub mod typescript;
 
 use std::path::Path;
@@ -386,7 +392,17 @@ pub fn extract_file(path: &str, language: SourceLanguage, source: &str) -> Symbo
 
 impl SymbolExtraction {
     fn extend_with_file(&mut self, path: &str, language: SourceLanguage, source: String) {
-        let parsed = match language {
+        // Explicit type (PLAT-882): under `--features wasm`, every adapter's
+        // `Ok`-returning branch below is `#[cfg]`d out — `rust-symbols`,
+        // `python-symbols`, and `typescript-symbols` are all off, gated the
+        // same way for the identical C-toolchain cross-compilation reason —
+        // so nothing left in the match constrains `Vec<RawSymbol>`'s type.
+        // Before this port, `typescript::parse` ran unconditionally and gave
+        // the compiler a concrete `Ok(...)` arm to infer from even under
+        // `wasm`; gating TypeScript the same way removed that last
+        // unconditional arm, so the annotation is now load-bearing rather
+        // than redundant.
+        let parsed: Result<Vec<RawSymbol>, String> = match language {
             #[cfg(feature = "rust-symbols")]
             SourceLanguage::Rust => rust::parse(&source),
             // This reason string is deliberately not diagnostic-shaped (no
@@ -419,7 +435,20 @@ impl SymbolExtraction {
                  python-symbols` to extract Python symbols."
                     .to_string(),
             ),
+            #[cfg(feature = "typescript-symbols")]
             SourceLanguage::Typescript => typescript::parse(path, &source),
+            // Same shape as the `rust-symbols` fallback above, and for the
+            // same reason: a whole-binary build-configuration fact, never
+            // mistaken for a per-file parse failure (FR-051-AC-9's channel).
+            #[cfg(not(feature = "typescript-symbols"))]
+            SourceLanguage::Typescript => Err(
+                "BUILD CONFIGURATION (not a parse error): this binary was built without the \
+                 `typescript-symbols` Cargo feature (on by default; off for `wasm`), so it \
+                 contains no TypeScript parser at all — every TypeScript file in this tree is \
+                 skipped for that reason, not because of anything in this file. Rebuild with \
+                 `--features typescript-symbols` to extract TypeScript symbols."
+                    .to_string(),
+            ),
         };
         let raw = match parsed {
             Ok(raw) => raw,
@@ -475,25 +504,6 @@ pub(crate) fn stable_id(parts: &[&str]) -> String {
         hasher.update(part.as_bytes());
     }
     format!("{:x}", hasher.finalize())
-}
-
-/// Shared adapter helper: the 1-based first line of the annotation block
-/// attached to the declaration at `decl_idx` — the contiguous run of preceding
-/// comment/attribute/decorator lines, skipping nothing else.
-pub(crate) fn leading_block(
-    lines: &[&str],
-    decl_idx: usize,
-    is_annotation: fn(&str) -> bool,
-) -> usize {
-    let mut start = decl_idx;
-    while start > 0 {
-        let candidate = lines[start - 1].trim();
-        if candidate.is_empty() || !is_annotation(candidate) {
-            break;
-        }
-        start -= 1;
-    }
-    start + 1
 }
 
 #[cfg(test)]
@@ -904,6 +914,7 @@ mod tests {
                 "a plain call wrapped for width registers",
                 "whitespace before the argument list registers",
                 "whitespace between curried groups registers",
+                "whitespace before the dot registers too",
                 "an awaited registration registers",
             ],
             "every widened form must yield exactly one test symbol, in order",
@@ -944,10 +955,16 @@ mod tests {
 
     #[trace("TC-960", "FR-051-AC-18")]
     // the negative shapes in the same fixture register (CR-090)
-    // nothing through `extract_tree`: a variable title, a title past the
-    // lookahead window, an identifier merely starting with `it`, and a
-    // whitespace-split modifier chain. A wrong symbol name is worse than
-    // none, so absence — not some fallback — is the pinned outcome.
+    // nothing through `extract_tree`: a variable title, a registration with
+    // no callback argument, and an identifier merely starting with `it`. A
+    // wrong symbol name is worse than none, so absence — not some fallback
+    // — is the pinned outcome.
+    //
+    // PLAT-882: a whitespace-split modifier chain (`it .skip(...)`) is no
+    // longer one of these — it now registers, because real TypeScript reads
+    // it identically to `it.skip(...)` and the AST does too (see
+    // `tc958_widened_registrations_reach_extract_tree` and
+    // `src/symbols/typescript.rs`'s own docs).
     #[test]
     fn tc960_non_registrations_stay_out_of_extract_tree() {
         let out = extract_tree(&fixture_root());
@@ -960,9 +977,8 @@ mod tests {
         );
         for absent in [
             "a variable is never a title",
-            "a title past the lookahead window is not ours",
+            "no callback argument means no test body",
             "an identifier merely starting with it",
-            "whitespace before the modifier chain is outside the grammar",
             "iterate",
         ] {
             assert!(

@@ -102,6 +102,27 @@ jobs:
       - name: Python-symbols feature check
         run: cargo check --locked --no-default-features --features python-symbols
 
+      # PLAT-882: same shape as the python-symbols check above, one language
+      # over — typescript-symbols is default too, so the plain Test step
+      # already exercises src/symbols/typescript.rs, but only this isolated
+      # build can tell a break specific to the feature apart from one masked
+      # by rust-symbols/python-symbols/resolve-file also being on. Calls
+      # `make check-typescript-symbols` rather than reconstructing its cargo
+      # invocation, so the two cannot drift apart.
+      - name: TypeScript-symbols feature check
+        run: make check-typescript-symbols
+
+      # NFR-021-AC-2 (TC-1649): the toolchain step above installs
+      # wasm32-unknown-unknown for exactly this, but nothing ever ran it —
+      # this PR (PLAT-882) is the first change to actually break the wasm
+      # build (gating typescript-symbols off by default under wasm removed
+      # the last unconditional match arm `symbols::mod` needed to infer its
+      # own `Vec<RawSymbol>` type; see the differential report's Gates
+      # section). Calls `make check-wasm` rather than reconstructing its
+      # cargo invocations, so this and the local target cannot drift apart.
+      - name: Wasm feature check
+        run: make check-wasm
+
       - name: Validate spec against locked schema providers
         run: >-
           python3 scripts/validate_spec.py
