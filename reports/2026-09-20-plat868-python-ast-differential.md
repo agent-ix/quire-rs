@@ -49,13 +49,13 @@
 
   **The `corpus` submodule trap.** A fresh `git worktree add` (or a fresh
   clone) of `quire-rs` leaves the `corpus` submodule uninitialized —
-  `corpus/cases/**` is 195 of `quire-rs`'s own 656 Python symbols (30%,
-  §"What this ticket also fixed" cross-references PLAT-851's own
-  breakdown). The first six-field re-run of this differential silently
-  measured `quire-rs` at 380 symbols instead of 656 for exactly this reason
-  before `git -C <worktree> submodule update --init` was run — a
-  ~40%-smaller "quire-rs" that would have read as a real extraction delta
-  rather than as what it was, an empty submodule directory. Run
+  `corpus/**` is 276 of `quire-rs`'s own 656 Python symbols (42%), the
+  measured complement of the 380 below. The first six-field re-run of this
+  differential silently measured `quire-rs` at 380 symbols instead of 656
+  for exactly this reason before `git -C <worktree> submodule update --init`
+  was run — a ~40%-smaller "quire-rs" that would have read as a real
+  extraction delta rather than as what it was, an empty submodule
+  directory. Run
   `git submodule update --init` on every fresh `quire-rs` worktree/clone
   used for a measurement here, old-engine and new-engine and target-tree
   alike, and check the symbol count against PLAT-851's own recorded 656

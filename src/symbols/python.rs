@@ -1031,9 +1031,13 @@ mod tests {
     /// declaration's own level *is* that declaration's sibling, and does
     /// extend its span, the ordinary case every other `leading_span` test
     /// here already exercises. Documented because the review that raised
-    /// this (F4) suspected the indented case moved `leading_line`; measured
-    /// here, it does not — the indentation-sensitive grammar keeps it
-    /// contained in the block it visually belongs to either way.
+    /// this (F4) asked what the indented case does: it does not move
+    /// `leading_line` relative to `h`'s own line; against the pre-port
+    /// scanner it shifts 3→4, a favourable direction (the comment is `g`'s)
+    /// with zero corpus occurrences. The pre-port `leading_block` trimmed
+    /// each preceding line and accepted any that began with `#`, so it
+    /// walked this comment into `h`'s span; the indentation-sensitive
+    /// grammar keeps it contained in the block it visually belongs to.
     #[test]
     fn an_indented_trailing_comment_stays_inside_the_previous_body_not_the_next_span() {
         let indented_before_dedent = concat!(
