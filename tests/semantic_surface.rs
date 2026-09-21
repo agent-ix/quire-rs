@@ -12,6 +12,9 @@ use quire_rs::semantic::{AvailabilityState, SEMANTIC_V1_SCHEMA};
 use quire_rs::{extract_filament_core, FilamentExtractionInput, Registry};
 use serde_json::{json, Value};
 
+#[path = "support/mod.rs"]
+mod support;
+
 fn root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
 }
@@ -216,9 +219,12 @@ const SNAPSHOT_DIGEST: &str =
     "sha256:8692992e186f40a73b78fd1b0915f0fe78e05a2b00782fb1df58c951a37c91d5";
 
 fn fixture_snapshot(with_context: bool) -> FilamentExtractionInput {
-    let entity: Value = read_json("tests/fixtures/semantic/quoin/module-ok/schemas/Entity.json");
+    let entity: Value = serde_json::from_slice(
+        &fs::read(support::quoin_fixtures().join("module-ok/schemas/Entity.json")).unwrap(),
+    )
+    .unwrap();
     let markdown = fs::read_to_string(
-        root().join("tests/fixtures/semantic/quoin/mapping/config-version.table.md"),
+        support::quoin_fixtures().join("mapping/config-version.table.md"),
     )
     .unwrap();
     let mut object_type = json!({
@@ -292,7 +298,7 @@ fn filament_surface_with_and_without_context() {
     // A legacy-form document under the context: warning with a locus.
     let mut input = fixture_snapshot(true);
     input.markdown =
-        fs::read_to_string(root().join("tests/fixtures/semantic/quoin/mapping/legacy-bullets.md"))
+        fs::read_to_string(support::quoin_fixtures().join("mapping/legacy-bullets.md"))
             .unwrap();
     let result = extract_filament_core(input);
     let d = result
@@ -336,11 +342,11 @@ fn filament_surface_with_and_without_context() {
 #[test]
 fn validate_document_surface() {
     let registry =
-        Registry::load_module(&root().join("tests/fixtures/semantic/quoin/module-ok")).unwrap();
+        Registry::load_module(&support::quoin_fixtures().join("module-ok")).unwrap();
     let entity = registry.archetype("entity").unwrap();
-    let corpus = fs::read_to_string(root().join(
-        "tests/fixtures/semantic/quoin/corpus/config-service/FR-006-config-version-entity.md",
-    ))
+    let corpus = fs::read_to_string(
+        support::quoin_fixtures().join("corpus/config-service/FR-006-config-version-entity.md"),
+    )
     .unwrap();
     let result = quire_rs::validate_document_in_registry(&registry, entity, &corpus);
     let legacy = result
@@ -351,7 +357,7 @@ fn validate_document_surface() {
     assert_eq!(legacy.line, Some(17));
     assert_eq!(legacy.reason.as_str(), "semantic");
     let both =
-        fs::read_to_string(root().join("tests/fixtures/semantic/quoin/mapping/both-forms.md"))
+        fs::read_to_string(support::quoin_fixtures().join("mapping/both-forms.md"))
             .unwrap();
     let result = quire_rs::validate_document_in_registry(&registry, entity, &both);
     assert!(!result.is_valid);
@@ -363,7 +369,7 @@ fn validate_document_surface() {
     assert_eq!(e.line, Some(16));
     // The golden table validates cleanly against the resolved Entity.json.
     let table = fs::read_to_string(
-        root().join("tests/fixtures/semantic/quoin/mapping/config-version.table.md"),
+        support::quoin_fixtures().join("mapping/config-version.table.md"),
     )
     .unwrap();
     let result = quire_rs::validate_document_in_registry(&registry, entity, &table);

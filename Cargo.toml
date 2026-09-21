@@ -97,7 +97,29 @@ unicode-normalization = "0.1"
 # `Cargo.toml` for the full reasoning.
 quire-rust-extraction = { path = "crates/quire-rust-extraction", optional = true }
 
+[build-dependencies]
+# Resolves `common.schema.json` and the semantic-core 0.2.0 bundle through
+# filament-core-data instead of holding a committed copy (PLAT-906):
+# `build.rs` locates this dependency's checkout via `cargo metadata` and
+# copies the two source trees into `OUT_DIR`, where `src/semantic/vendored.rs`
+# `include_str!`s them. `agent-ix-semantic-ir` is the smallest crate fcd
+# publishes (it declares no dependency of its own, FR-059) — it is never
+# called; it exists only to give Cargo a package name to materialise the
+# repository checkout under. Pinned to the exact revision the embedded 0.2.0
+# bytes were last vendored from, so this swaps the resolution mechanism
+# without moving the bytes (see `build.rs` for the byte-identity note).
+agent-ix-semantic-ir = { git = "https://github.com/agent-ix/filament-core-data", rev = "739b160b89954c15652799a7620cc6d08f039b41" }
+serde_json = "^1"
+
 [dev-dependencies]
+# Materialises the quoin checkout so integration tests can read
+# `tests/fixtures/semantic-module/**` straight from it (PLAT-906) instead of
+# a second committed copy under `tests/fixtures/semantic/quoin/`.
+# `quoin-finding-types` is quoin's smallest published crate (one `serde`
+# dependency) — never called; it exists only to give Cargo a package name to
+# materialise the quoin repository checkout under. See
+# `tests/support/mod.rs`.
+quoin-finding-types = { git = "https://github.com/agent-ix/quoin", rev = "dd05c8273e6852d21c495ff603a08decba4d4082" }
 # The canonical Rust trace marker (FR-051). Zero runtime dependencies and a
 # pass-through expansion, so it adds one crate to the dev graph and nothing
 # to a consumer's: dev-dependencies are not transitive. Pinned to an exact

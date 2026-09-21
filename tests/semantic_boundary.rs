@@ -11,6 +11,9 @@ use ix_trace_rs::trace;
 use quire_rs::semantic::{extract_clauses, BundleIndex, SemanticContext};
 use quire_rs::Registry;
 
+#[path = "support/mod.rs"]
+mod support;
+
 fn root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
 }
@@ -178,7 +181,7 @@ fn clause_text_is_only_copied() {
         }
     }
     let registry =
-        Registry::load_module(&root().join("tests/fixtures/semantic/quoin/module-ok")).unwrap();
+        Registry::load_module(&support::quoin_fixtures().join("module-ok")).unwrap();
     let module = registry
         .semantic_module("spec-objects-fixture")
         .unwrap()
@@ -199,7 +202,7 @@ fn clause_text_is_only_copied() {
 #[test]
 fn spans_agree_with_the_code_block_scanner() {
     let registry =
-        Registry::load_module(&root().join("tests/fixtures/semantic/quoin/module-ok")).unwrap();
+        Registry::load_module(&support::quoin_fixtures().join("module-ok")).unwrap();
     let module = registry
         .semantic_module("spec-objects-fixture")
         .unwrap()
@@ -210,12 +213,7 @@ fn spans_agree_with_the_code_block_scanner() {
         ("config-version.fence.md", "0.1.0", "ocl"),
         ("operations.md", "0.2.0", "quire"),
     ] {
-        let raw = fs::read_to_string(
-            root()
-                .join("tests/fixtures/semantic/quoin/mapping")
-                .join(name),
-        )
-        .unwrap();
+        let raw = fs::read_to_string(support::quoin_fixtures().join("mapping").join(name)).unwrap();
         let mut module = module.clone();
         module.semantic_core = core.to_string();
         let ctx = SemanticContext::new(module, name, BundleIndex::default())
@@ -240,8 +238,7 @@ fn spans_agree_with_the_code_block_scanner() {
     // compares parse_document byte for byte; here, only that it still parses
     // the fixtures without a semantic-specific path.
     let raw =
-        fs::read_to_string(root().join("tests/fixtures/semantic/quoin/mapping/operations.md"))
-            .unwrap();
+        fs::read_to_string(support::quoin_fixtures().join("mapping/operations.md")).unwrap();
     let doc = quire_rs::parse_document(&raw);
     assert!(quire_rs::section(&doc, "Operations").is_some());
 }

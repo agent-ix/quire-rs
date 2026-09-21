@@ -5,7 +5,6 @@
 
 use std::collections::BTreeSet;
 use std::fs;
-use std::path::PathBuf;
 
 use ix_trace_rs::trace;
 use jsonschema::JSONSchema;
@@ -13,20 +12,16 @@ use quire_rs::semantic::python_entry::extract_semantic_json;
 use quire_rs::semantic::{compile_module_schema, SEMANTIC_V1_SCHEMA};
 use serde_json::{json, Value};
 
+#[path = "support/mod.rs"]
+mod support;
+
 fn mapping_json(name: &str) -> Value {
-    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("tests/fixtures/semantic/quoin/mapping")
-        .join(name);
+    let path = support::quoin_fixtures().join("mapping").join(name);
     serde_json::from_str(&fs::read_to_string(path).unwrap()).unwrap()
 }
 
 fn mapping_text(name: &str) -> String {
-    fs::read_to_string(
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("tests/fixtures/semantic/quoin/mapping")
-            .join(name),
-    )
-    .unwrap()
+    fs::read_to_string(support::quoin_fixtures().join("mapping").join(name)).unwrap()
 }
 
 fn semantic_v1() -> JSONSchema {

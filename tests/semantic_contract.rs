@@ -1,8 +1,8 @@
 //! FR-069 semantic module contract at load (TC-1599..TC-1609, TC-1633,
 //! TC-1645, TC-1646, TC-1848, TC-1849, TC-1864, TC-1866). Plan-003 Task-016.
 //!
-//! Every case starts from the quoin `module-ok` fixture (pinned under
-//! `tests/fixtures/semantic/quoin/module-ok`), copied into a temp dir and
+//! Every case starts from the quoin `module-ok` fixture (read from the
+//! pinned `quoin` dependency checkout, PLAT-906), copied into a temp dir and
 //! mutated in place; the fixture itself is never edited.
 
 use std::collections::BTreeMap;
@@ -16,17 +16,19 @@ use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use tempfile::TempDir;
 
+#[path = "support/mod.rs"]
+mod support;
+
 type Mutate = Box<dyn Fn(&mut serde_yaml::Value, &Path)>;
 
 fn fixture() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/semantic/quoin/module-ok")
+    support::quoin_fixtures().join("module-ok")
 }
 
 fn golden() -> Value {
     serde_json::from_slice(
         &fs::read(
-            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                .join("tests/fixtures/semantic/quoin/mapping/config-version.expected.json"),
+            support::quoin_fixtures().join("mapping/config-version.expected.json"),
         )
         .unwrap(),
     )
@@ -624,8 +626,7 @@ fn filament_snapshot_reference_form_is_refused() {
     // document fails it with `semantic.record-invalid`.
     let mut input = snapshot_input(vec![entity_snapshot(inline.clone(), Some(context.clone()))]);
     input.markdown = fs::read_to_string(
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("tests/fixtures/semantic/quoin/mapping/config-version.table.md"),
+        support::quoin_fixtures().join("mapping/config-version.table.md"),
     )
     .unwrap();
     let result = extract_filament_core(input);
@@ -790,8 +791,7 @@ fn inline_parts_resolve_the_reference_form() {
 /// The golden table with an `abstract` flag and a `## Values` table.
 fn featured_document() -> String {
     fs::read_to_string(
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("tests/fixtures/semantic/quoin/mapping/config-version.table.md"),
+        support::quoin_fixtures().join("mapping/config-version.table.md"),
     )
     .unwrap()
     .replace("type: FR\n", "type: FR\nabstract: true\n")
@@ -1047,8 +1047,7 @@ fn required_sections_read_every_locator_of_the_typed_dsl() {
 /// `rows`.
 fn related_document(rows: &str) -> String {
     fs::read_to_string(
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("tests/fixtures/semantic/quoin/mapping/config-version.table.md"),
+        support::quoin_fixtures().join("mapping/config-version.table.md"),
     )
     .unwrap()
     .replace(

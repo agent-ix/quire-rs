@@ -37,14 +37,21 @@ version = 2
 [sources]
 unknown-registry = "deny"
 unknown-git = "deny"
-# Two git sources, neither published to a registry. Listed explicitly so
+# Git sources, none published to a registry. Listed explicitly so
 # `unknown-git = "deny"` keeps its teeth rather than being silently widened.
 # `ix-trace-rs` is the trace-marker crate; `quire-code-rs` is pinned for its
 # `quire-code-parse` workspace member, the shared tree-sitter parse layer
 # `crates/quire-rust-extraction` wraps (PLAT-843). Both are public repos
 # (PLAT-848) but crates.io publishing is deferred deliberately — both
 # entries are deletable once that lands, not an architectural exception.
+# `filament-core-data` and `quoin` are pinned for PLAT-906: resolving
+# `common.schema.json`, the semantic-core 0.2.0 bundle, and quoin's
+# semantic-module test fixtures through their owning repositories instead of
+# holding committed copies. Neither dependency's own code is called — see the
+# `Cargo.toml` comments on those entries.
 allow-git = [
     "https://github.com/agent-ix/ix-trace-rs",
     "https://github.com/agent-ix/quire-code-rs",
+    "https://github.com/agent-ix/filament-core-data",
+    "https://github.com/agent-ix/quoin",
 ]

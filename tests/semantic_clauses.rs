@@ -15,17 +15,15 @@ use quire_rs::semantic::{
 use quire_rs::Registry;
 use serde_json::{json, Value};
 
+#[path = "support/mod.rs"]
+mod support;
+
 fn root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
 }
 
 fn mapping(name: &str) -> String {
-    fs::read_to_string(
-        root()
-            .join("tests/fixtures/semantic/quoin/mapping")
-            .join(name),
-    )
-    .unwrap()
+    fs::read_to_string(support::quoin_fixtures().join("mapping").join(name)).unwrap()
 }
 
 fn mapping_json(name: &str) -> Value {
@@ -40,8 +38,7 @@ fn bundle() -> BundleIndex {
 }
 
 fn context(path: &str) -> SemanticContext {
-    let registry =
-        Registry::load_module(&root().join("tests/fixtures/semantic/quoin/module-ok")).unwrap();
+    let registry = Registry::load_module(&support::quoin_fixtures().join("module-ok")).unwrap();
     let module = registry
         .semantic_module("spec-objects-fixture")
         .unwrap()
@@ -574,8 +571,7 @@ fn validation_and_states() {
 #[test]
 fn source_identity_default() {
     let raw = mapping("operations.md");
-    let registry =
-        Registry::load_module(&root().join("tests/fixtures/semantic/quoin/module-ok")).unwrap();
+    let registry = Registry::load_module(&support::quoin_fixtures().join("module-ok")).unwrap();
     let mut module = registry
         .semantic_module("spec-objects-fixture")
         .unwrap()

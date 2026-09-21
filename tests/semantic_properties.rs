@@ -1,6 +1,6 @@
 //! FR-070 typed Properties extraction (TC-1610..TC-1618, TC-1621, TC-1647).
 //! Plan-003 Task-018. Oracles: the quoin golden fixtures pinned under
-//! `tests/fixtures/semantic/quoin/mapping/` and `config-version.bundle.json`.
+//! the pinned `quoin` dependency checkout (PLAT-906) and `config-version.bundle.json`.
 
 use std::fs;
 use std::path::PathBuf;
@@ -14,17 +14,15 @@ use quire_rs::semantic::{
 use quire_rs::Registry;
 use serde_json::{json, Value};
 
+#[path = "support/mod.rs"]
+mod support;
+
 fn root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
 }
 
 fn mapping(name: &str) -> String {
-    fs::read_to_string(
-        root()
-            .join("tests/fixtures/semantic/quoin/mapping")
-            .join(name),
-    )
-    .unwrap()
+    fs::read_to_string(support::quoin_fixtures().join("mapping").join(name)).unwrap()
 }
 
 fn mapping_json(name: &str) -> Value {
@@ -40,7 +38,7 @@ fn bundle() -> BundleIndex {
 
 fn context(path: &str, bundle: BundleIndex) -> SemanticContext {
     let registry =
-        Registry::load_module(&root().join("tests/fixtures/semantic/quoin/module-ok")).unwrap();
+        Registry::load_module(&support::quoin_fixtures().join("module-ok")).unwrap();
     let module = registry
         .semantic_module("spec-objects-fixture")
         .unwrap()
@@ -496,9 +494,7 @@ fn legacy_forms() {
     let expected = mapping_json("legacy.expected.json");
     for case in expected["cases"].as_array().unwrap() {
         let file = case["file"].as_str().unwrap();
-        let path = root()
-            .join("tests/fixtures/semantic/quoin/mapping")
-            .join(file);
+        let path = support::quoin_fixtures().join("mapping").join(file);
         let markdown = fs::read_to_string(&path).unwrap();
         let outcome = extract_fields(&markdown, &context(file, bundle()));
         let form = case["form"].as_str().unwrap();
@@ -545,7 +541,7 @@ fn legacy_forms() {
     // The `properties` string yielded by section_body stays untouched: the
     // module-ok DSL extracts it exactly as before (FR-070-CON-3).
     let registry =
-        Registry::load_module(&root().join("tests/fixtures/semantic/quoin/module-ok")).unwrap();
+        Registry::load_module(&support::quoin_fixtures().join("module-ok")).unwrap();
     let dsl = registry
         .archetype("entity")
         .unwrap()
