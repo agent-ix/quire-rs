@@ -180,8 +180,7 @@ fn clause_text_is_only_copied() {
             assert!(!line.contains(sym), "`{line}`");
         }
     }
-    let registry =
-        Registry::load_module(&support::quoin_fixtures().join("module-ok")).unwrap();
+    let registry = Registry::load_module(&support::quoin_fixtures().join("module-ok")).unwrap();
     let module = registry
         .semantic_module("spec-objects-fixture")
         .unwrap()
@@ -201,8 +200,7 @@ fn clause_text_is_only_copied() {
 // golden is untouched (the parser_golden suite pins it).
 #[test]
 fn spans_agree_with_the_code_block_scanner() {
-    let registry =
-        Registry::load_module(&support::quoin_fixtures().join("module-ok")).unwrap();
+    let registry = Registry::load_module(&support::quoin_fixtures().join("module-ok")).unwrap();
     let module = registry
         .semantic_module("spec-objects-fixture")
         .unwrap()
@@ -237,8 +235,7 @@ fn spans_agree_with_the_code_block_scanner() {
     // Parser output is unaffected: the golden suite in tests/parser_golden.rs
     // compares parse_document byte for byte; here, only that it still parses
     // the fixtures without a semantic-specific path.
-    let raw =
-        fs::read_to_string(support::quoin_fixtures().join("mapping/operations.md")).unwrap();
+    let raw = fs::read_to_string(support::quoin_fixtures().join("mapping/operations.md")).unwrap();
     let doc = quire_rs::parse_document(&raw);
     assert!(quire_rs::section(&doc, "Operations").is_some());
 }

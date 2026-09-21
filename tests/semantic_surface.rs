@@ -223,10 +223,9 @@ fn fixture_snapshot(with_context: bool) -> FilamentExtractionInput {
         &fs::read(support::quoin_fixtures().join("module-ok/schemas/Entity.json")).unwrap(),
     )
     .unwrap();
-    let markdown = fs::read_to_string(
-        support::quoin_fixtures().join("mapping/config-version.table.md"),
-    )
-    .unwrap();
+    let markdown =
+        fs::read_to_string(support::quoin_fixtures().join("mapping/config-version.table.md"))
+            .unwrap();
     let mut object_type = json!({
         "name": "entity",
         "dataSchema": if with_context { entity } else { json!({ "type": "object" }) },
@@ -298,8 +297,7 @@ fn filament_surface_with_and_without_context() {
     // A legacy-form document under the context: warning with a locus.
     let mut input = fixture_snapshot(true);
     input.markdown =
-        fs::read_to_string(support::quoin_fixtures().join("mapping/legacy-bullets.md"))
-            .unwrap();
+        fs::read_to_string(support::quoin_fixtures().join("mapping/legacy-bullets.md")).unwrap();
     let result = extract_filament_core(input);
     let d = result
         .diagnostics
@@ -341,8 +339,7 @@ fn filament_surface_with_and_without_context() {
 // it errors at the fence line and fails validation.
 #[test]
 fn validate_document_surface() {
-    let registry =
-        Registry::load_module(&support::quoin_fixtures().join("module-ok")).unwrap();
+    let registry = Registry::load_module(&support::quoin_fixtures().join("module-ok")).unwrap();
     let entity = registry.archetype("entity").unwrap();
     let corpus = fs::read_to_string(
         support::quoin_fixtures().join("corpus/config-service/FR-006-config-version-entity.md"),
@@ -356,9 +353,7 @@ fn validate_document_surface() {
         .unwrap_or_else(|| panic!("{:?}", result.warnings));
     assert_eq!(legacy.line, Some(17));
     assert_eq!(legacy.reason.as_str(), "semantic");
-    let both =
-        fs::read_to_string(support::quoin_fixtures().join("mapping/both-forms.md"))
-            .unwrap();
+    let both = fs::read_to_string(support::quoin_fixtures().join("mapping/both-forms.md")).unwrap();
     let result = quire_rs::validate_document_in_registry(&registry, entity, &both);
     assert!(!result.is_valid);
     let e = result
@@ -368,10 +363,9 @@ fn validate_document_surface() {
         .unwrap();
     assert_eq!(e.line, Some(16));
     // The golden table validates cleanly against the resolved Entity.json.
-    let table = fs::read_to_string(
-        support::quoin_fixtures().join("mapping/config-version.table.md"),
-    )
-    .unwrap();
+    let table =
+        fs::read_to_string(support::quoin_fixtures().join("mapping/config-version.table.md"))
+            .unwrap();
     let result = quire_rs::validate_document_in_registry(&registry, entity, &table);
     assert!(result.is_valid, "{:?}", result.errors);
     // A document with no Properties fails the resolved schema (`fields` required).

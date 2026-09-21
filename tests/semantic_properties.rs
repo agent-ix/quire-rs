@@ -37,8 +37,7 @@ fn bundle() -> BundleIndex {
 }
 
 fn context(path: &str, bundle: BundleIndex) -> SemanticContext {
-    let registry =
-        Registry::load_module(&support::quoin_fixtures().join("module-ok")).unwrap();
+    let registry = Registry::load_module(&support::quoin_fixtures().join("module-ok")).unwrap();
     let module = registry
         .semantic_module("spec-objects-fixture")
         .unwrap()
@@ -540,8 +539,7 @@ fn legacy_forms() {
     }
     // The `properties` string yielded by section_body stays untouched: the
     // module-ok DSL extracts it exactly as before (FR-070-CON-3).
-    let registry =
-        Registry::load_module(&support::quoin_fixtures().join("module-ok")).unwrap();
+    let registry = Registry::load_module(&support::quoin_fixtures().join("module-ok")).unwrap();
     let dsl = registry
         .archetype("entity")
         .unwrap()

@@ -72,8 +72,9 @@ fn main() {
     let manifest_dir = PathBuf::from(
         env::var_os("CARGO_MANIFEST_DIR").expect("cargo always sets CARGO_MANIFEST_DIR"),
     );
-    let out_dir =
-        PathBuf::from(env::var_os("OUT_DIR").expect("cargo always sets OUT_DIR for a build script"));
+    let out_dir = PathBuf::from(
+        env::var_os("OUT_DIR").expect("cargo always sets OUT_DIR for a build script"),
+    );
     let cargo = env::var_os("CARGO").expect("cargo always sets CARGO");
 
     let checkout_root = fcd_checkout_root(&cargo, &manifest_dir);
@@ -122,7 +123,12 @@ fn fcd_checkout_root(cargo: &std::ffi::OsStr, manifest_dir: &Path) -> PathBuf {
         .parent()
         .and_then(Path::parent)
         .and_then(Path::parent)
-        .unwrap_or_else(|| panic!("unexpected manifest_path shape: {}", manifest_path.display()))
+        .unwrap_or_else(|| {
+            panic!(
+                "unexpected manifest_path shape: {}",
+                manifest_path.display()
+            )
+        })
         .to_path_buf()
 }
 

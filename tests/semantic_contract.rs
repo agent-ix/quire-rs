@@ -27,10 +27,7 @@ fn fixture() -> PathBuf {
 
 fn golden() -> Value {
     serde_json::from_slice(
-        &fs::read(
-            support::quoin_fixtures().join("mapping/config-version.expected.json"),
-        )
-        .unwrap(),
+        &fs::read(support::quoin_fixtures().join("mapping/config-version.expected.json")).unwrap(),
     )
     .unwrap()
 }
@@ -625,10 +622,9 @@ fn filament_snapshot_reference_form_is_refused() {
     // validates the declaration record: the golden table passes, a bare
     // document fails it with `semantic.record-invalid`.
     let mut input = snapshot_input(vec![entity_snapshot(inline.clone(), Some(context.clone()))]);
-    input.markdown = fs::read_to_string(
-        support::quoin_fixtures().join("mapping/config-version.table.md"),
-    )
-    .unwrap();
+    input.markdown =
+        fs::read_to_string(support::quoin_fixtures().join("mapping/config-version.table.md"))
+            .unwrap();
     let result = extract_filament_core(input);
     assert!(
         !result.diagnostics.iter().any(|d| d.severity == "error"),
@@ -790,11 +786,9 @@ fn inline_parts_resolve_the_reference_form() {
 
 /// The golden table with an `abstract` flag and a `## Values` table.
 fn featured_document() -> String {
-    fs::read_to_string(
-        support::quoin_fixtures().join("mapping/config-version.table.md"),
-    )
-    .unwrap()
-    .replace("type: FR\n", "type: FR\nabstract: true\n")
+    fs::read_to_string(support::quoin_fixtures().join("mapping/config-version.table.md"))
+        .unwrap()
+        .replace("type: FR\n", "type: FR\nabstract: true\n")
         + "\n## Values\n\n| Value | Description |\n|---|---|\n| draft | |\n"
 }
 
@@ -1046,14 +1040,12 @@ fn required_sections_read_every_locator_of_the_typed_dsl() {
 /// The golden table with its prose `## Relationships` replaced by a table of
 /// `rows`.
 fn related_document(rows: &str) -> String {
-    fs::read_to_string(
-        support::quoin_fixtures().join("mapping/config-version.table.md"),
-    )
-    .unwrap()
-    .replace(
-        "- `overlay`: belongs_to → ConfigOverlay (FR-005)\n",
-        &format!("| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n{rows}"),
-    )
+    fs::read_to_string(support::quoin_fixtures().join("mapping/config-version.table.md"))
+        .unwrap()
+        .replace(
+            "- `overlay`: belongs_to → ConfigOverlay (FR-005)\n",
+            &format!("| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n{rows}"),
+        )
 }
 
 /// The fixture module with the `relationships` token, `references` and

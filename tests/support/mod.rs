@@ -2,7 +2,10 @@
 //! support;` in each integration test file that needs one, rather than
 //! duplicating it per file — Cargo does not auto-discover this file as its
 //! own test binary because it lives under a subdirectory of `tests/`.
-#![allow(dead_code, reason = "not every integration test file uses every helper")]
+#![allow(
+    dead_code,
+    reason = "not every integration test file uses every helper"
+)]
 
 use std::path::PathBuf;
 use std::process::Command;
@@ -49,6 +52,11 @@ pub fn quoin_fixtures() -> PathBuf {
         .and_then(std::path::Path::parent)
         .and_then(std::path::Path::parent)
         .and_then(std::path::Path::parent)
-        .unwrap_or_else(|| panic!("unexpected manifest_path shape: {}", manifest_path.display()))
+        .unwrap_or_else(|| {
+            panic!(
+                "unexpected manifest_path shape: {}",
+                manifest_path.display()
+            )
+        })
         .join("tests/fixtures/semantic-module")
 }

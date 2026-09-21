@@ -24,6 +24,11 @@ exceptions = [
     # The shared tree-sitter parse layer (PLAT-843), pinned by git rev in
     # `crates/quire-rust-extraction/Cargo.toml`. Also AGPL-3.0-or-later.
     { allow = ["AGPL-3.0-or-later"], crate = "quire-code-parse" },
+    # The smallest fcd crate, pinned by git rev as a `[build-dependencies]`
+    # entry solely to materialise the filament-core-data checkout (PLAT-906,
+    # see `Cargo.toml`). Same AGPL-3.0-or-later license as the rest of the
+    # toolchain; never called.
+    { allow = ["AGPL-3.0-or-later"], crate = "agent-ix-semantic-ir" },
 ]
 confidence-threshold = 0.9
 

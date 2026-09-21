@@ -44,123 +44,213 @@ pub const SEMANTIC_CORE_VERSIONS: &[&str] = &["0.2.0"];
 pub const SEMANTIC_CORE_0_2_0: &[(&str, &str)] = &[
     (
         "ClauseLanguage.json",
-        include_str!(concat!(env!("OUT_DIR"), "/semantic-core-0.2.0/ClauseLanguage.json")),
+        include_str!(concat!(
+            env!("OUT_DIR"),
+            "/semantic-core-0.2.0/ClauseLanguage.json"
+        )),
     ),
     (
         "ClauseRef.json",
-        include_str!(concat!(env!("OUT_DIR"), "/semantic-core-0.2.0/ClauseRef.json")),
+        include_str!(concat!(
+            env!("OUT_DIR"),
+            "/semantic-core-0.2.0/ClauseRef.json"
+        )),
     ),
     (
         "ConstraintDecl.json",
-        include_str!(concat!(env!("OUT_DIR"), "/semantic-core-0.2.0/ConstraintDecl.json")),
+        include_str!(concat!(
+            env!("OUT_DIR"),
+            "/semantic-core-0.2.0/ConstraintDecl.json"
+        )),
     ),
     (
         "ConstraintKeyword.json",
-        include_str!(concat!(env!("OUT_DIR"), "/semantic-core-0.2.0/ConstraintKeyword.json")),
+        include_str!(concat!(
+            env!("OUT_DIR"),
+            "/semantic-core-0.2.0/ConstraintKeyword.json"
+        )),
     ),
     (
         "DecimalPolicy.json",
-        include_str!(concat!(env!("OUT_DIR"), "/semantic-core-0.2.0/DecimalPolicy.json")),
+        include_str!(concat!(
+            env!("OUT_DIR"),
+            "/semantic-core-0.2.0/DecimalPolicy.json"
+        )),
     ),
     (
         "DefaultDecl.json",
-        include_str!(concat!(env!("OUT_DIR"), "/semantic-core-0.2.0/DefaultDecl.json")),
+        include_str!(concat!(
+            env!("OUT_DIR"),
+            "/semantic-core-0.2.0/DefaultDecl.json"
+        )),
     ),
     (
         "DefaultKind.json",
-        include_str!(concat!(env!("OUT_DIR"), "/semantic-core-0.2.0/DefaultKind.json")),
+        include_str!(concat!(
+            env!("OUT_DIR"),
+            "/semantic-core-0.2.0/DefaultKind.json"
+        )),
     ),
     (
         "EdgeCategory.json",
-        include_str!(concat!(env!("OUT_DIR"), "/semantic-core-0.2.0/EdgeCategory.json")),
+        include_str!(concat!(
+            env!("OUT_DIR"),
+            "/semantic-core-0.2.0/EdgeCategory.json"
+        )),
     ),
     (
         "EnumValue.json",
-        include_str!(concat!(env!("OUT_DIR"), "/semantic-core-0.2.0/EnumValue.json")),
+        include_str!(concat!(
+            env!("OUT_DIR"),
+            "/semantic-core-0.2.0/EnumValue.json"
+        )),
     ),
     (
         "EnumValuesConstraint.json",
-        include_str!(concat!(env!("OUT_DIR"), "/semantic-core-0.2.0/EnumValuesConstraint.json")),
+        include_str!(concat!(
+            env!("OUT_DIR"),
+            "/semantic-core-0.2.0/EnumValuesConstraint.json"
+        )),
     ),
     (
         "ExclusiveMaxConstraint.json",
-        include_str!(concat!(env!("OUT_DIR"), "/semantic-core-0.2.0/ExclusiveMaxConstraint.json")),
+        include_str!(concat!(
+            env!("OUT_DIR"),
+            "/semantic-core-0.2.0/ExclusiveMaxConstraint.json"
+        )),
     ),
     (
         "ExclusiveMinConstraint.json",
-        include_str!(concat!(env!("OUT_DIR"), "/semantic-core-0.2.0/ExclusiveMinConstraint.json")),
+        include_str!(concat!(
+            env!("OUT_DIR"),
+            "/semantic-core-0.2.0/ExclusiveMinConstraint.json"
+        )),
     ),
     (
         "FieldDecl.json",
-        include_str!(concat!(env!("OUT_DIR"), "/semantic-core-0.2.0/FieldDecl.json")),
+        include_str!(concat!(
+            env!("OUT_DIR"),
+            "/semantic-core-0.2.0/FieldDecl.json"
+        )),
     ),
     (
         "FormatConstraint.json",
-        include_str!(concat!(env!("OUT_DIR"), "/semantic-core-0.2.0/FormatConstraint.json")),
+        include_str!(concat!(
+            env!("OUT_DIR"),
+            "/semantic-core-0.2.0/FormatConstraint.json"
+        )),
     ),
     (
         "Identifier.json",
-        include_str!(concat!(env!("OUT_DIR"), "/semantic-core-0.2.0/Identifier.json")),
+        include_str!(concat!(
+            env!("OUT_DIR"),
+            "/semantic-core-0.2.0/Identifier.json"
+        )),
     ),
     (
         "KernelScalar.json",
-        include_str!(concat!(env!("OUT_DIR"), "/semantic-core-0.2.0/KernelScalar.json")),
+        include_str!(concat!(
+            env!("OUT_DIR"),
+            "/semantic-core-0.2.0/KernelScalar.json"
+        )),
     ),
     (
         "MaxConstraint.json",
-        include_str!(concat!(env!("OUT_DIR"), "/semantic-core-0.2.0/MaxConstraint.json")),
+        include_str!(concat!(
+            env!("OUT_DIR"),
+            "/semantic-core-0.2.0/MaxConstraint.json"
+        )),
     ),
     (
         "MaxLengthConstraint.json",
-        include_str!(concat!(env!("OUT_DIR"), "/semantic-core-0.2.0/MaxLengthConstraint.json")),
+        include_str!(concat!(
+            env!("OUT_DIR"),
+            "/semantic-core-0.2.0/MaxLengthConstraint.json"
+        )),
     ),
     (
         "MinConstraint.json",
-        include_str!(concat!(env!("OUT_DIR"), "/semantic-core-0.2.0/MinConstraint.json")),
+        include_str!(concat!(
+            env!("OUT_DIR"),
+            "/semantic-core-0.2.0/MinConstraint.json"
+        )),
     ),
     (
         "MinLengthConstraint.json",
-        include_str!(concat!(env!("OUT_DIR"), "/semantic-core-0.2.0/MinLengthConstraint.json")),
+        include_str!(concat!(
+            env!("OUT_DIR"),
+            "/semantic-core-0.2.0/MinLengthConstraint.json"
+        )),
     ),
     (
         "Multiplicity.json",
-        include_str!(concat!(env!("OUT_DIR"), "/semantic-core-0.2.0/Multiplicity.json")),
+        include_str!(concat!(
+            env!("OUT_DIR"),
+            "/semantic-core-0.2.0/Multiplicity.json"
+        )),
     ),
     (
         "NonEmptyConstraint.json",
-        include_str!(concat!(env!("OUT_DIR"), "/semantic-core-0.2.0/NonEmptyConstraint.json")),
+        include_str!(concat!(
+            env!("OUT_DIR"),
+            "/semantic-core-0.2.0/NonEmptyConstraint.json"
+        )),
     ),
     (
         "OperationDecl.json",
-        include_str!(concat!(env!("OUT_DIR"), "/semantic-core-0.2.0/OperationDecl.json")),
+        include_str!(concat!(
+            env!("OUT_DIR"),
+            "/semantic-core-0.2.0/OperationDecl.json"
+        )),
     ),
     (
         "PatternConstraint.json",
-        include_str!(concat!(env!("OUT_DIR"), "/semantic-core-0.2.0/PatternConstraint.json")),
+        include_str!(concat!(
+            env!("OUT_DIR"),
+            "/semantic-core-0.2.0/PatternConstraint.json"
+        )),
     ),
     (
         "RelationDecl.json",
-        include_str!(concat!(env!("OUT_DIR"), "/semantic-core-0.2.0/RelationDecl.json")),
+        include_str!(concat!(
+            env!("OUT_DIR"),
+            "/semantic-core-0.2.0/RelationDecl.json"
+        )),
     ),
     (
         "SemanticId.json",
-        include_str!(concat!(env!("OUT_DIR"), "/semantic-core-0.2.0/SemanticId.json")),
+        include_str!(concat!(
+            env!("OUT_DIR"),
+            "/semantic-core-0.2.0/SemanticId.json"
+        )),
     ),
     (
         "SourceLocus.json",
-        include_str!(concat!(env!("OUT_DIR"), "/semantic-core-0.2.0/SourceLocus.json")),
+        include_str!(concat!(
+            env!("OUT_DIR"),
+            "/semantic-core-0.2.0/SourceLocus.json"
+        )),
     ),
     (
         "TypeRef.json",
-        include_str!(concat!(env!("OUT_DIR"), "/semantic-core-0.2.0/TypeRef.json")),
+        include_str!(concat!(
+            env!("OUT_DIR"),
+            "/semantic-core-0.2.0/TypeRef.json"
+        )),
     ),
     (
         "UniqueConstraint.json",
-        include_str!(concat!(env!("OUT_DIR"), "/semantic-core-0.2.0/UniqueConstraint.json")),
+        include_str!(concat!(
+            env!("OUT_DIR"),
+            "/semantic-core-0.2.0/UniqueConstraint.json"
+        )),
     ),
     (
         "UnitSymbol.json",
-        include_str!(concat!(env!("OUT_DIR"), "/semantic-core-0.2.0/UnitSymbol.json")),
+        include_str!(concat!(
+            env!("OUT_DIR"),
+            "/semantic-core-0.2.0/UnitSymbol.json"
+        )),
     ),
 ];
 
