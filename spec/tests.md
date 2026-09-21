@@ -874,6 +874,11 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-1881 | A brace inside a regular-expression literal is content: a file holding a `{n,m}` quantifier yields its symbols rather than being abandoned, with the same file minus the quantifier as the control (`agent-ix/quire-rs#424`) | Unit | P0 | FR-051-AC-25 | ✅ |
 | TC-1885 | A Rust declaration's attribute block, split by a formatter across lines (`#[cfg_attr(\n  ...\n)]`), does not truncate the leading span at the continuation line: `leading_line` reaches the attribute's own start line, asserted directly rather than only that classification survives (`PLAT-69`, `agent-ix/quire-rs#843`) | Unit | P0 | FR-051-AC-25 | ✅ |
 | TC-1886 | A block doc comment (`/** ... */`) joins a Rust declaration's leading span the same way a line doc comment does — the same defect class as TC-1885, same fix — asserted on `leading_line` directly (`PLAT-846`, folded into `agent-ix/quire-rs#843`) | Unit | P0 | FR-051-AC-25 | ✅ |
+| TC-1920 | A title held in a multi-line template literal registers nothing, and no `qualified_name` this adapter mints may contain a newline; a single-line template title is the control (CR-084, PLAT-882 PR #481 review finding F1) | Unit | P0 | FR-051-AC-18 | ✅ |
+| TC-1921 | A registration whose title argument starts more than three physical lines after the call, but which still carries a real callback argument, still registers — distinguishing "no title-lookahead window" from "a wider but still-bounded one" (PLAT-882 PR #481 review finding F2, mutation E4) | Unit | P0 | FR-051-AC-18 | ✅ |
+| TC-1922 | A `const`/`let`/`var` declarator whose value is a parenthesized *non-arrow* expression (`const sum = (a + b);`) mints no symbol — the 76-row false-positive class the PLAT-882 differential names (PLAT-882 PR #481 review finding F2, mutation E5) | Unit | P0 | FR-051-AC-1 | ✅ |
+| TC-1923 | An `interface`'s `method_signature` member mints no symbol — the 19-row false-positive class the PLAT-882 differential names (PLAT-882 PR #481 review finding F2/F5, mutation E6) | Unit | P0 | FR-051-AC-1 | ✅ |
+| TC-1924 | A comment trailing on the same line as the statement before a declaration does not join that declaration's own leading span — a `const re = /a/; // note` line's trailing comment must not become the leading annotation of the `test(...)` written below it, with the comment written as its own standalone leading line as the control (found authoring TC-803's restored span assertions, PLAT-882 PR #481 review finding F3) | Unit | P0 | FR-051-AC-14 | ✅ |
 | TC-1882 | Extraction over a fixture tree that has never been compiled, whose declared dependencies are not installed and for which no lockfile or build artifact exists, yields that tree's symbols and relations | Unit | P0 | FR-051-AC-26 | 🚧 |
 | TC-1883 | Static boundary audit (TC-756 pattern, a `scripts/audits/*.sh` check run by `make audit-static`): the symbol-extraction path invokes no compiler, package manager, or build of the analysed tree and resolves no type, and the symbols it reports come from a grammar-driven parser library's tree rather than from a reader this crate hand-rolls | Static | P0 | FR-051-AC-26, FR-051-CON-1 | 🚧 |
 | TC-1884 | The diagnostic an unparseable file yields names that file and the line its error sits at, so a reader is sent to the defect rather than to the tree; a file whose error sits on a different line names that line instead, and the tree's other files still extract (`PLAT-843` verification step 8) | Unit | P0 | FR-051-AC-9 | ✅ |
@@ -1728,7 +1733,7 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-050-AC-25 | TC-954, TC-945 |
 | FR-050-AC-26 | TC-955, TC-956, TC-957 |
 | FR-050-AC-27 | TC-983, TC-984 |
-| FR-051-AC-1 | TC-741 |
+| FR-051-AC-1 | TC-741, TC-1922, TC-1923 |
 | FR-051-AC-2 | TC-742 |
 | FR-051-AC-3 | TC-743 |
 | FR-051-AC-4 | TC-744 |
@@ -1741,11 +1746,11 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-051-AC-11 | TC-753 |
 | FR-051-AC-12 | TC-798, TC-799 |
 | FR-051-AC-13 | TC-800 |
-| FR-051-AC-14 | TC-803 |
+| FR-051-AC-14 | TC-803, TC-1924 |
 | FR-051-AC-15 | TC-804 |
 | FR-051-AC-16 | TC-806 |
 | FR-051-AC-17 | TC-827, TC-828 |
-| FR-051-AC-18 | TC-943, TC-948, TC-958, TC-960, TC-961 |
+| FR-051-AC-18 | TC-943, TC-948, TC-958, TC-960, TC-961, TC-1920, TC-1921 |
 | FR-051-AC-19 | TC-982, TC-1006, TC-1060 |
 | FR-051-AC-20 | TC-1029, TC-1030, TC-1031 |
 | FR-051-AC-21 | TC-1039, TC-1040 |

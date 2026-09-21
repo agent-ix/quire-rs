@@ -13,10 +13,18 @@
   — the exact pre-port `src/symbols/typescript.rs` line-structural scanner,
   the same sha PLAT-840/843/845/851 all pinned as the "old engine" checkout.
   Reproduced independently here: `examples/plat843_audit_list.rs` run against
-  this branch's own tree (TypeScript source is byte-identical between
-  `08d39ea2c` and this branch's base `bc31c2b` — checked with `git diff
-  08d39ea2c bc31c2b -- '*.ts' '*.tsx'`, zero output) gives `165`/`1,445`,
-  matching PLAT-851's published baseline exactly.
+  this branch's own tree gives `165`/`1,445`, matching PLAT-851's published
+  baseline exactly. `quire-rs`'s own 165 TypeScript symbols all come from the
+  `corpus` submodule (`agent-ix/qa-corpus`, pinned at
+  `7442f2770880a4ade303fb23d725804bdef454db` for every run in this report),
+  not from any `.ts`/`.tsx` file this repo itself tracks — a
+  `git diff 08d39ea2c bc31c2b -- '*.ts' '*.tsx'` pathspec diff (the check this
+  report originally cited) cannot see the submodule's contents at all and so
+  cannot fail regardless of what changed inside it, which makes it a vacuous
+  check (PLAT-882 PR #481 review finding F7). The real guarantee is the
+  gitlink: `git ls-tree 08d39ea2c corpus` and `git ls-tree bc31c2b corpus`
+  both name the same `7442f277…` commit, and that commit is what every
+  `quire-rs`-side count in this report was measured against.
 - New engine: this PR's branch (`feat/plat882-typescript-ast`), tree-sitter
   port via `quire-rust-extraction`/`quire-code-parse`, unchanged pin
   (`57b83ba00431914060297bf94fcee31549c9b68b`).
@@ -137,17 +145,28 @@ same class of fix as PLAT-843's Rust Cause 1 (`macro_rules!` template text
 lexically shaped like a declaration but not one): removing a symbol that was
 never a real declaration is in scope under the port's own cause-based rule.
 
-### Cause 2: interface/type-member false positives — 19 removed, `filament-ide-rs` only
+### Cause 2: `method_definition`-shaped false positives — 19 removed, `filament-ide-rs` only, split two ways
 
-The old scanner's `re_method` regex, matched against a **single line**, can
-satisfy its own `(?::\s*[^{]+)?` return-type group by consuming as little as
-one whitespace character before requiring a literal `{` — so
-`camera(): { x: number; y: number; ratio: number } | null;`, an **interface
-member signature** whose return type is an inline object type, matches the
-regex's own `NAME() { ` shape: the object type's own opening `{` is read as
-if it were a method body opener. Confirmed empirically (`re.match` in
-Python against the exact pattern and exact source line, not inferred):
-`camera(): {` is captured in full as `match.group(0)`.
+**Corrected attribution (PLAT-882 PR #481 review finding F4):** the original
+version of this report attributed all 19 rows to interface member signatures.
+4 of them are not — they are mocha `before(function () { ... })` hook calls,
+whose `before(` + the passed function expression's own opening `{` matches
+the old regex's `NAME(...) {` shape exactly the same way an interface member
+does, for the same underlying reason (the regex has no notion of "is this a
+declaration at all," only "does this line's shape match"), but the construct
+is a **call**, not a signature. The count (19) and the fact that every row is
+spurious were both already correct; only which of two false-positive shapes
+each row belongs to was wrong for 4 of them.
+
+**15 interface member signatures.** The old scanner's `re_method` regex,
+matched against a **single line**, can satisfy its own `(?::\s*[^{]+)?`
+return-type group by consuming as little as one whitespace character before
+requiring a literal `{` — so `camera(): { x: number; y: number; ratio:
+number } | null;`, an interface member signature whose return type is an
+inline object type, matches the regex's own `NAME() { ` shape: the object
+type's own opening `{` is read as if it were a method body opener. Confirmed
+empirically (`re.match` in Python against the exact pattern and exact source
+line, not inferred): `camera(): {` is captured in full as `match.group(0)`.
 
 Representative rows (`side=old_only_false_positive_removed`, `kind=Function`):
 
@@ -158,8 +177,26 @@ Representative rows (`side=old_only_false_positive_removed`, `kind=Function`):
 The new engine only recognises a `method_definition` node — which
 tree-sitter never emits for an `interface_body`'s `method_signature`
 members, a structurally distinct node kind — so an interface's own type-only
-declarations mint nothing, matching this adapter's own documented rule
-("interface/enum/type alias mint nothing") without a denylist.
+declarations mint nothing. This adapter's module docs now state that rule
+directly (`src/symbols/typescript.rs`'s "What survives byte-for-byte"
+section, added per review finding F5 — it was true of the old regex's shape
+by accident and is now a stated, tested rule:
+`tc1923_an_interface_method_signature_mints_no_symbol`).
+
+**4 `before(function () { ... })` mocha hook calls.**
+`ui/tests/native/tc-1095-artifact-impact-native.spec.ts:84`,
+`ui/tests/native/tc-1485-embedding-search-native.spec.ts:58`,
+`ui/tests/native/tc-890-graph-extraction-native.spec.ts:231`,
+`ui/tests/native/tc-981-graph-export-smoke.spec.ts:152` — each a
+`before(function () {` mocha lifecycle hook, matched by the same
+`NAME(...) {` shape with `before` read as the method name and the passed
+function expression's parameter list read as the method's own. The new
+engine mints nothing for a `call_expression` whose callee is not one of
+`test`/`it`/`describe`/`suite` (`registration()` returns `None`, and `walk`'s
+`call_expression` arm only recurses in that case) — `before` is not a
+registration name this adapter recognises at all, so this is the same
+"only a `method_definition` node mints" boundary, from the call side rather
+than the declaration side.
 
 ### Cause 3: `get`/`set` accessor methods now recognised — 12 added, `filament-ide-rs` only
 
@@ -198,10 +235,24 @@ literal, the same node kind a class body uses).
 ### The 308 identity-stable rows: a `leading_line`-only shift, not an identity change
 
 `308` rows share an identical `(path, qualified_name, kind)` on both engines
-and differ **only** in `leading_line`, always by exactly `−1` (new engine
-one line earlier). Sampled and confirmed directly against source (not
-inferred from the count): every sampled case is a single-line `/** ... */`
-JSDoc comment immediately preceding the declaration —
+and differ **only** in `leading_line`. **307 by exactly `−1`** (new engine one
+line earlier), checked exhaustively (not sampled) once this section's own
+claim was put under review — the original version of this report generalised
+"always `−1`" from a sample rather than checking every row, which was wrong
+for one of them: **one row is `−13`**,
+`ui/src/graph/GraphCanvas.tsx`'s `resolveCarriedLayout`, where **two**
+directly-adjacent `/** ... */` blocks (no blank line or code between them)
+precede the same declaration. The old scanner's per-line walk breaks
+immediately on hitting the *first* block's own `/**` opening line (see
+below) — which does not merely cost that one line the way it does for every
+single-block case, it also cuts the walk off from ever reaching the *second*
+(nearer) block's own opening line and the first block entirely, orphaning it
+from any declaration's span under the old engine. The new engine's sibling
+walk has no such cliff: two adjacent `comment` siblings with no gap between
+them join the same leading span exactly as one would, so it recovers both
+blocks whole. Confirmed directly against source (not inferred from the
+count): every sampled `−1` case is a single-line `/** ... */` JSDoc comment
+immediately preceding the declaration —
 e.g. `ui/src/graph/cosmos/scene.ts:481`, `/** The multiplier the current
 camera implies, clamped to the fixed bounds. */` directly above
 `fittedPointScale()`. The old scanner's `is_annotation()` recognised `//`,
@@ -216,6 +267,29 @@ fix as PLAT-846 (Rust block doc comments). This does not change any
 symbol's identity (`leading_line` is not part of `Symbol::compute_id`), only
 the span a trace tag's binding search reads — a strict widening (recovers a
 tag written on the JSDoc's own opening line; loses nothing).
+
+### A second span defect, found writing this review's own span assertions, fixed the same way
+
+Restoring `tc803_one_reading_decides_whether_delimiters_are_code`'s span
+assertions (PLAT-882 PR #481 review finding F3) surfaced a real bug the
+original version of this port shipped: a `comment` sibling **trailing** on
+the same line as the statement before a declaration (`const re = /a/; //
+note\ntest(...)`) was read as *the following declaration's own* leading
+annotation, because the sibling-walk only checked "is the nearest preceding
+sibling a comment," not "does that comment start its own line." The old
+line-structural scanner never had this failure mode — a line whose own
+trimmed text does not begin `//`/`/*`/`*` was never an annotation line at
+all, trailing or not. Fixed in [`leading_span`] (an added check: a comment
+sibling only joins the span when it does not itself start on the same row
+its own preceding sibling ends on), with `tc1924_a_trailing_comment_does_
+not_leak_into_the_next_declarations_span` (`FR-051-AC-14`) pinning both the
+defect and its standalone-comment control. Re-verified after the fix: this
+does not change any of the counts above — `quire-rs` is still byte-identical
+165/165 (no trailing-same-line-comment-then-declaration shape exists in its
+own tree), and `filament-ide-rs`'s 308 `leading_line`-only-shift rows are
+still 308 (no row in the real corpus exercises this specific pattern; see
+the previous section's own exhaustive re-check for the one row that pattern
+search did turn up, which was a different defect in the same function).
 
 ## Widened grammar edges: CR-176's own named carve-outs, resolved and measured at zero
 
@@ -241,17 +315,73 @@ edges (all are Cause 1–4 above or a file recovery); this is a structural
 consequence of the AST no longer needing a window, checked, not merely
 argued from the mechanism.
 
+**Two narrowings ride along with the same change** (PLAT-882 PR #481 review
+finding F8), not named in the original version of this report:
+`it.todo('x')`/`test.skip('name')`-shaped calls with no callback argument
+registered under the old regex and register nothing here (superseded by the
+same callback-argument requirement above); and a comma-separated
+`const a = () => {}, b = () => {}` statement now mints every arrow-valued
+declarator, where the old regex's single capture group matched only the
+first. Both measured at **zero** occurrences in this corpus — the no-callback
+shape by the same pattern search used for the widened edges above, across
+both repositories including `quire-rs`'s own fixtures; the multi-declarator
+shape by a narrower single-line-only search (see the `CR-179` note's own
+caveat on that one). See the spec's own `CR-179` note for the full record.
+
+## Binding numbers (PLAT-882 PR #481 review: "add the binding numbers")
+
+Every number above is a **symbol** count. None of it says whether coverage
+went up or down — that is a **binding** question, answered by `binding_census`
+(candidate symbols, how many carry a trace tag, how many of those bind) and
+`coverage::compute`'s `unbacked_rows`. Measured directly (old engine: this
+repo's `src/symbols/typescript.rs` swapped back to the pre-port file at
+`origin/main`, same tree otherwise; new engine: this branch), via
+`examples/plat840_rust_baseline_sweep` for `filament-ide-rs`
+(`PLAT840_PATH_FILAMENT_IDE_RS` pointed at a disposable clone pinned to the
+same `head_sha`, `37c44d907ad419472faca240bd02a0fae9add7c0`, this report
+already uses) and `examples/plat843_unbacked_rows` for `quire-rs`'s own spec:
+
+| Metric (`filament-ide-rs`, TypeScript `binding_census`) | Old engine | New engine | Δ |
+|---|---:|---:|---:|
+| `candidates` | 431 | 443 | **+12** |
+| `tagged` | 394 | 406 | **+12** |
+| `bound` | 385 | 392 | **+7** |
+| `tagged_not_bound` | 9 | 14 | +5 |
+
+| Metric (`quire-rs`'s own spec) | Old engine | New engine | Δ |
+|---|---:|---:|---:|
+| `plat843_unbacked_rows` (`examples/plat843_unbacked_rows`) | 404 | 402 | **−2** |
+
+Every number here moves in the favourable direction or is unchanged: more
+candidates, more tagged, more bound, fewer unbacked rows on `quire-rs`'s own
+spec. **Zero tags lost** — `tagged` only rises, `bound` only rises, and
+`tagged_not_bound` rising by 5 is candidates newly *seen* (symbols the old
+engine never extracted at all, so it could not report their tag as anything,
+bound or not) rather than any candidate moving from bound to unbound. The
+`−35` symbol-count headline above is a false-positive removal, not a
+coverage loss — this is what settles that question directly rather than by
+inference from the symbol count alone.
+
 ## Tests retired
 
 | Retired | Asserted (why it dies) | Successor | Successor asserts |
 |---|---|---|---|
-| `tc803_one_lex_serves_every_consumer` | Internal state of the deleted single-pass lexer (`lex`, `check_balanced`, `LexedLine.delta`) | `tc803_one_reading_decides_whether_delimiters_are_code` (same TC-803, same `FR-051-AC-14`) | Outcome: a brace inside a block comment, inside a carried template literal, and after an unterminated quote-shaped regex are content to `parse`, over three adversarial fixtures |
+| `tc803_one_lex_serves_every_consumer` | Internal state of the deleted single-pass lexer (`lex`, `check_balanced`, `LexedLine.delta`) | `tc803_one_reading_decides_whether_delimiters_are_code` (same TC-803, same `FR-051-AC-14`) | Outcome: a brace inside a block comment, inside a carried template literal, and after an unterminated quote-shaped regex are content to `parse`, over three adversarial fixtures — **and now also the span** (`leading_line`/`line`/`end_line`) of the registration that follows all three, restored per PLAT-882 PR #481 review finding F3 (the first version of this successor dropped the span half of `FR-051-AC-14`'s own claim) |
 
 Confirmed to fail first: reverting the adapter's parse path to a naive
 `source.matches('{').count() == source.matches('}').count()` text check
 rejects all three adversarial fixtures in the successor test (an imbalance
 is reported on every one), which is exactly the false rejection the
 property forbids.
+
+**New tests added in the PLAT-882 PR #481 review round** (none retire
+anything; each pins a property the original port shipped without a test
+for, or a genuine defect the review round's own test-writing surfaced):
+`tc1920` (F1, multi-line template title), `tc1921`/`tc1922`/`tc1923` (F2,
+the three mutation-killers above), `tc1924` (a real `leading_span` bug
+found writing F3's restored span assertions — see its own section above),
+`tc1039_a_late_brace_describe_still_parents_its_members` (F6, AC-21's own
+new clause had no test).
 
 `tc798_comment_stripping_is_string_aware`, `tc799_template_literal_state_carries_across_lines`
 and `tc799_braces_inside_a_multiline_literal_do_not_unbalance` keep their TC
@@ -280,10 +410,18 @@ with the reasoning inline.
 - `cargo fmt --check`: clean.
 - `cargo clippy --workspace --all-targets --features typescript-symbols -- -D warnings`: clean.
 - `cargo clippy --locked --all-targets -- -D warnings` (default features, which now include `typescript-symbols`): clean.
-- `cargo test --lib --features typescript-symbols` (`src/symbols::*`): 79 passed, 0 failed.
+- `cargo test --lib --features typescript-symbols symbols` (`src/symbols::*`): 85 passed, 0 failed (22 of them `symbols::typescript::tests::*`, up from the original port's 17 — the PLAT-882 PR #481 review round added 6: `tc1920`–`tc1924` and `tc1039_a_late_brace_describe_still_parents_its_members`).
+- `cargo test --locked --lib`: 641 passed, 0 failed.
 - `cargo test --locked` (default features, full workspace): all green.
 - `cargo test --locked --test spec_dogfood`: 6 passed — the AC→TC and dangling-reference integrity checks over this repo's own `spec/`.
-- `cargo check --no-default-features --features typescript-symbols` (new `make check-typescript-symbols` CI leg): clean; **confirmed to fail** when the feature is broken (renamed `Language::TypeScript` to a nonexistent variant, reran, got `E0599`; reverted).
+- `cargo check --no-default-features --features typescript-symbols` (new `make check-typescript-symbols` CI leg): clean; **confirmed to fail** when the feature is broken (`compile_error!` injected into `typescript.rs`, reran, 152 errors; reverted).
 - `cargo check` (default features) and `CARGO_TARGET_DIR=... cargo check --target wasm32-unknown-unknown --no-default-features --features wasm`: both clean — `typescript-symbols` joining `default` does not reach the wasm build (`check-wasm` passes `--no-default-features`, matching `rust-symbols`'s own exclusion).
 - `make check-typescript-symbols`: clean.
-- `scripts/validate_spec.py` and `check-engine`: see the PR description for the pinned-revision run (this repo's `audit-static` fails on the pre-existing unpinned CLA workflow action, PLAT-878, unrelated to this change, and truncates the `ci` chain before `validate`/`check-engine` run in the composite target).
+- `make ci`: fmt-check/lint/check-python/check-typescript-symbols/check-wasm/check-scripts/test/deny/audit-unsafe/audit-property all pass; `audit-static` fails on the pre-existing unpinned CLA workflow action (`PLAT-878`, `.github/workflows/cla.yml` — confirmed untouched by this branch, no diff against `origin/main`), truncating the composite before `validate`/`check-engine` run in it.
+- `scripts/validate_spec.py` at the locked revisions (`quality/validation-stack-lock.json`): `171` documents, `0` failed, `41` warnings — identical to a clean `origin/main` checkout run the same way (confirmed by temporarily reverting this branch's own `typescript.rs` and rerunning), so this is the repo's existing baseline, not something this PR moved.
+- `make check-engine QUIRE_CLI=/home/peter/dev/quire-cli`: `OK`, 14 capability tokens.
+- **Mutation verification (PLAT-882 PR #481 review finding F2), each applied alone to `src/symbols/typescript.rs` and reverted after confirming the result, run via `cargo test --lib symbols::typescript`:**
+  - **E4** (reintroduce a 3-line title-lookahead window in `registration()`): `tc1921_a_far_title_with_a_callback_still_registers` **fails** (the only failure); reverted, 22/22 pass again.
+  - **E5** (accept a non-arrow `parenthesized_expression` value too, in `mint_arrow_const_declarators`): `tc1922_a_parenthesized_non_arrow_value_mints_no_symbol` **fails** (the only failure); reverted, 22/22 pass again.
+  - **E6** (also match `"method_signature"` in `walk`'s `method_definition` arm): `tc1923_an_interface_method_signature_mints_no_symbol` **fails** (the only failure); reverted, 22/22 pass again.
+  - Each mutation was caught by exactly the test named for it, with no other test in the module affected — the three behavioural claims CR-179 makes are no longer pinned by nothing.

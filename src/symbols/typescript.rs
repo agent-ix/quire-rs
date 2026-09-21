@@ -92,6 +92,20 @@
 //!   name is computed (`[key]() {}`), a string literal, or a private field
 //!   (`#foo() {}`) mints nothing — the old regex's identifier-class match
 //!   never recognised any of these either.
+//! - **An `interface`, `enum`, or `type` alias mints no symbol at all** — not
+//!   the declaration itself and not its members (an interface's
+//!   `method_signature`/`property_signature` bodies are type-only, never
+//!   evidence of executable structure). `walk` names no node kind for any of
+//!   the three, so they fall through to the same default recursion every
+//!   other unrecognised node kind does — nothing mints, but a declaration
+//!   nested inside one (there is never one) would still be found. The old
+//!   regex's `NAME(...) {`/`const NAME = (...) =>` shapes never matched an
+//!   interface member or a `type X = {...}` alias either, so this is the
+//!   same behaviour carried forward, made explicit here because it was
+//!   previously true only by the old regex's own accident of shape
+//!   (PLAT-882 review finding F5) — see
+//!   `tc1923_an_interface_method_signature_mints_no_symbol` below for the
+//!   regression that pins it.
 //!
 //! ## What changed, and why each delta is free (PLAT-882, following
 //! PLAT-843's own cause-based rule: *free from parsing correctly → fix here
@@ -462,12 +476,24 @@ fn symbol_at(
 
 /// The 1-based first line of `node`'s leading annotation block: the
 /// contiguous run of preceding `comment`/`decorator` sibling nodes,
-/// stopping at the first sibling of another kind or the first blank-line
-/// gap — the same two stopping conditions the line-structural scanner
-/// used, now checked between sibling nodes instead of between lines, which
-/// is what lets a `/** ... */` JSDoc block or a multi-line `@Decorator(...)`
-/// join the span as one sibling regardless of how many lines it spans (the
-/// same class of fix PLAT-69/PLAT-846 made for the Rust adapter).
+/// stopping at the first sibling of another kind, the first blank-line
+/// gap, or a comment that is itself **trailing** on the line of whatever
+/// precedes it — the same stopping conditions the line-structural scanner
+/// used (a trailing `// ...` never started its own line, so the old scanner
+/// never read it as an annotation line at all), now checked between sibling
+/// nodes instead of between lines, which is what lets a `/** ... */` JSDoc
+/// block or a multi-line `@Decorator(...)` join the span as one sibling
+/// regardless of how many lines it spans (the same class of fix
+/// PLAT-69/PLAT-846 made for the Rust adapter).
+///
+/// The trailing-comment check exists because tree-sitter represents `const
+/// re = /../; // note` as two siblings, a declaration and a `comment`, and
+/// without it the comment — nearest-preceding, not itself preceded by a
+/// blank-line gap — would be read as *the next declaration's* leading
+/// annotation, silently pulling a trailing note on one statement into the
+/// span (and binding search) of an unrelated one below it (discovered
+/// authoring `tc803_one_reading_decides_whether_delimiters_are_code`'s span
+/// assertions, PLAT-882 PR #481 review).
 fn leading_span(node: Node) -> usize {
     let mut boundary_row = node.start_position().row;
     let mut current = node;
@@ -477,6 +503,14 @@ fn leading_span(node: Node) -> usize {
         }
         if boundary_row.saturating_sub(prev.end_position().row) > 1 {
             break;
+        }
+        if let Some(before) = prev.prev_sibling() {
+            if prev.start_position().row == before.end_position().row {
+                // `prev` starts on the same line `before` ends on — it is
+                // trailing on `before`'s statement, not a standalone leading
+                // comment for `node`.
+                break;
+            }
         }
         boundary_row = prev.start_position().row;
         current = prev;
@@ -540,18 +574,22 @@ fn registration(call: Node, source: &str) -> Option<Registration> {
     args.next()?;
     let title = title_of(first_arg, source)?;
 
-    if is_test_name && !names_a_suite {
-        Some(Registration {
-            title,
-            kind: RegistrationKind::Test,
-        })
-    } else if names_a_suite {
+    // `names_a_suite` and `is_test_name && !names_a_suite` are exhaustive
+    // over the two remaining cases: `is_test_name || is_suite_name` was
+    // already required above, so whichever of the two is false, the other
+    // is true — there is no third outcome to fall through to (PLAT-882
+    // review finding F10: the old trailing `else { None }` here was
+    // unreachable).
+    if names_a_suite {
         Some(Registration {
             title,
             kind: RegistrationKind::Suite,
         })
     } else {
-        None
+        Some(Registration {
+            title,
+            kind: RegistrationKind::Test,
+        })
     }
 }
 
@@ -593,15 +631,27 @@ fn callee_chain(function: Node, source: &str) -> Option<(String, Vec<String>)> {
 /// template with no quote to strip), so a title held in a variable
 /// registers nothing rather than something wrong, matching the pre-port
 /// scanner's own refusal.
+///
+/// A **multi-line** template literal also returns `None` (FR-051-AC-18,
+/// CR-084, preserved verbatim): the pre-port scanner read a title from a
+/// single physical line, so a title spanning lines was already out of its
+/// reach, and that exclusion is deliberate, not an accident of its
+/// implementation — carrying it forward matters because `qualified_name`
+/// feeds `Symbol::compute_id` and `plat843_audit_list` emits one row per
+/// source line, so a literal newline in a qualified name would silently
+/// split one symbol across two rows of a differential (PLAT-882 review
+/// finding F1).
 fn title_of(node: Node, source: &str) -> Option<String> {
     if !matches!(node.kind(), "string" | "template_string") {
         return None;
     }
-    let text = node.utf8_text(source.as_bytes()).ok()?;
-    if text.len() < 2 {
+    if node.kind() == "template_string" && node.start_position().row != node.end_position().row {
         return None;
     }
-    Some(text[1..text.len() - 1].to_string())
+    let text = node.utf8_text(source.as_bytes()).ok()?;
+    text.strip_prefix(['"', '\'', '`'])
+        .and_then(|t| t.strip_suffix(['"', '\'', '`']))
+        .map(str::to_string)
 }
 
 fn module_name(path: &str) -> String {
@@ -847,8 +897,41 @@ mod tests {
     /// `source.matches('{').count() == source.matches('}').count()` text
     /// check reports an imbalance on every fixture below and rejects the
     /// file — exactly the false rejection this property forbids.
+    ///
+    /// FR-051-AC-14 names **two** things every consumer of "one reading"
+    /// relies on: whether the file is accepted at all, **and the span a
+    /// symbol ends at**. The first version of this successor asserted only
+    /// acceptance and `kind`, dropping the span half the retired
+    /// `tc803_one_lex_serves_every_consumer` used to cover — restored here
+    /// (PLAT-882 review finding F3), with all three decoys placed in **one**
+    /// file immediately before the target registration, so a wrong span
+    /// contributed by any one decoy cannot hide behind the other two.
     #[test]
     fn tc803_one_reading_decides_whether_delimiters_are_code() {
+        let source = concat!(
+            "/* a comment holding a brace {\n   and closing here */\n", // 1-2
+            "const cfg = `\na { bare brace in a literal\n`;\n",         // 3-5
+            "const re = /['\"]/; // a comment after a quote-shaped regex {\n", // 6
+            "test(\"holds\", () => {\n",                                // 7
+            "  expect(1).toBe(1);\n",                                   // 8
+            "});\n",                                                    // 9
+        );
+        let symbols = parse("a.test.ts", source).expect("the file balances");
+        let test_symbol = symbols
+            .iter()
+            .find(|s| s.qualified_name == "holds")
+            .expect("the registration is a test symbol");
+        assert_eq!(test_symbol.kind, SymbolKind::TestFunction);
+        // No decoy above line 7 is `test`'s own leading comment (none is
+        // its immediate preceding sibling — line 6 is a statement), and the
+        // span ends at its own closing `});`, not swallowed into or
+        // truncated by anything above it.
+        assert_eq!(test_symbol.leading_line, 7, "{test_symbol:?}");
+        assert_eq!(test_symbol.line, 7, "{test_symbol:?}");
+        assert_eq!(test_symbol.end_line, 9, "{test_symbol:?}");
+
+        // Each adversarial shape confirmed independently too: none of the
+        // three may desync the file on its own.
         let adversarial = [
             // A brace inside a block comment.
             "/* a comment holding a brace {\n   and closing here */\ntest(\"holds\", () => {\n  expect(1).toBe(1);\n});\n",
@@ -1094,6 +1177,36 @@ mod tests {
         );
     }
 
+    #[trace("TC-1039", "FR-051-AC-21")]
+    // a `describe(...)` whose arrow body's `{` falls on a (CR-119)
+    // later line than the call still parents its members (PLAT-882 review
+    // finding F6). Every positive `tc1039` fixture until now put the `{` on
+    // the call's own opening line; this pins the tree-walk's structural
+    // parenting — reading `describe`'s own `arguments`/`body` fields — does
+    // not depend on that layout, unlike a line-structural scanner would.
+    #[test]
+    fn tc1039_a_late_brace_describe_still_parents_its_members() {
+        let source = concat!(
+            "describe(\n",
+            "  \"brace on a later line\",\n",
+            "  () =>\n",
+            "  {\n",
+            "    it(\"still parented\", () => {});\n",
+            "  }\n",
+            ");\n",
+        );
+        let symbols = parse("a.test.ts", source).expect("a valid file must parse");
+        let inner = symbols
+            .iter()
+            .find(|s| s.qualified_name == "still parented")
+            .expect("the nested registration is a symbol");
+        assert_eq!(
+            inner.container.as_deref(),
+            Some("brace on a later line"),
+            "{symbols:#?}"
+        );
+    }
+
     /// FR-051-AC-1 (PLAT-882 port audit item): `impl`-equivalent structure —
     /// a class's methods qualify under it, and the class itself mints a
     /// container, not two symbols for one declaration.
@@ -1256,6 +1369,162 @@ mod tests {
                 .iter()
                 .all(|s| s.qualified_name != "Foo.ready" && s.qualified_name != "ready"),
             "a class field's arrow value must not mint: {symbols:?}"
+        );
+    }
+
+    /// TC-1924, FR-051-AC-14: a comment **trailing** on the same line as the
+    /// statement before a declaration must not join that declaration's
+    /// leading span — discovered authoring
+    /// `tc803_one_reading_decides_whether_delimiters_are_code`'s restored
+    /// span assertions (PLAT-882 PR #481 review finding F3): tree-sitter
+    /// represents `const re = /../ ; // note` as two siblings (a
+    /// declaration, then a `comment`), and without the fix in
+    /// [`leading_span`], the nearest-preceding-sibling rule alone reads that
+    /// trailing comment as the *next* declaration's own leading annotation
+    /// — silently pulling a note that belongs to one statement into the
+    /// span, and tag-binding search, of an unrelated one below it. The old
+    /// line-structural scanner never had this failure mode: a line whose
+    /// own trimmed text does not begin `//`/`/*`/`*` was never an
+    /// annotation line at all, trailing or not.
+    #[trace("TC-1924", "FR-051-AC-14")]
+    #[test]
+    fn tc1924_a_trailing_comment_does_not_leak_into_the_next_declarations_span() {
+        let source = concat!(
+            "const re = /a/; // a trailing note about `re`, not about `holds`\n",
+            "test(\"holds\", () => {\n",
+            "  expect(1).toBe(1);\n",
+            "});\n",
+        );
+        let symbols = parse("a.test.ts", source).expect("a valid file must parse");
+        let test_symbol = symbols
+            .iter()
+            .find(|s| s.qualified_name == "holds")
+            .expect("the registration is a test symbol");
+        assert_eq!(
+            test_symbol.leading_line, 2,
+            "a trailing comment on the PREVIOUS statement's line must not \
+             become this declaration's own leading annotation: {test_symbol:?}"
+        );
+
+        // Control: the same comment written as its OWN standalone leading
+        // line (not trailing on `re`'s line) still joins the span normally.
+        let standalone = concat!(
+            "const re = /a/;\n",
+            "// a standalone leading comment, now genuinely `holds`'s own\n",
+            "test(\"holds\", () => {\n",
+            "  expect(1).toBe(1);\n",
+            "});\n",
+        );
+        let symbols = parse("a.test.ts", standalone).expect("a valid file must parse");
+        let test_symbol = symbols
+            .iter()
+            .find(|s| s.qualified_name == "holds")
+            .expect("the registration is a test symbol");
+        assert_eq!(test_symbol.leading_line, 2, "{test_symbol:?}");
+    }
+
+    /// TC-1920, FR-051-AC-18 (CR-084, PLAT-882 review finding F1): a title
+    /// held in a **multi-line** template literal registers nothing.
+    /// `qualified_name` feeds `Symbol::compute_id`, and `plat843_audit_list`
+    /// emits one row per source line, so an embedded newline would silently
+    /// split one symbol across two rows of a differential — the pre-port
+    /// scanner could never have produced one either, since it read a title
+    /// from a single physical line.
+    #[trace("TC-1920", "FR-051-AC-18")]
+    #[test]
+    fn tc1920_a_multiline_template_literal_title_registers_nothing() {
+        let source = "it(`a title\nspanning lines`, () => {});\n";
+        let symbols = parse("a.test.ts", source).expect("a valid file must parse");
+        assert!(
+            symbols.iter().all(|s| s.kind != SymbolKind::TestFunction),
+            "a multi-line template literal title must register nothing: {symbols:?}"
+        );
+        assert!(
+            symbols.iter().all(|s| !s.qualified_name.contains('\n')),
+            "no qualified_name may contain a newline: {symbols:?}"
+        );
+
+        // Control: the same title on one line registers normally — the
+        // exclusion is about the line span, not template literals in
+        // general.
+        let single_line = "it(`a single-line template title`, () => {});\n";
+        let symbols = parse("a.test.ts", single_line).expect("a valid file must parse");
+        assert!(symbols
+            .iter()
+            .any(|s| s.qualified_name == "a single-line template title"
+                && s.kind == SymbolKind::TestFunction));
+    }
+
+    /// TC-1921, FR-051-AC-18 (PLAT-882 review finding F2, mutation E4): a
+    /// registration whose title argument starts more than three physical
+    /// lines after the call, but which still carries a second (callback)
+    /// argument, must still register. This is the one shape that
+    /// distinguishes "no title-lookahead window" (CR-179's own claim) from
+    /// "a wider but still-bounded window" — a fixture with no callback
+    /// argument at all (the adjacent negative fixture in
+    /// `registration.test.ts`) cannot tell the two apart, because it fails
+    /// under both for the unrelated, separately-enforced callback-argument
+    /// reason.
+    #[trace("TC-1921", "FR-051-AC-18")]
+    #[test]
+    fn tc1921_a_far_title_with_a_callback_still_registers() {
+        let source = concat!(
+            "it(\n",
+            "\n",
+            "\n",
+            "\n",
+            "\n",
+            "  'a title four blank lines down, with a callback',\n",
+            "  () => {},\n",
+            ");\n",
+        );
+        let symbols = parse("a.test.ts", source).expect("a valid file must parse");
+        assert!(
+            symbols.iter().any(|s| s.qualified_name
+                == "a title four blank lines down, with a callback"
+                && s.kind == SymbolKind::TestFunction),
+            "a far title with a real callback argument must register: {symbols:?}"
+        );
+    }
+
+    /// TC-1922, FR-051-AC-1 (PLAT-882 review finding F2, mutation E5): a
+    /// `const`/`let`/`var` declarator whose value is a *parenthesized
+    /// non-arrow* expression — `const sum = (a + b);`, the actual 76-row
+    /// false-positive class the differential names — must mint no symbol.
+    /// `only_parenthesized_const_arrows_mint_function_symbols` above covers
+    /// the bare-arrow and class-field-arrow exclusions but never this shape.
+    #[trace("TC-1922", "FR-051-AC-1")]
+    #[test]
+    fn tc1922_a_parenthesized_non_arrow_value_mints_no_symbol() {
+        let source = "const sum = (a + b);\n";
+        let symbols = parse("a.ts", source).expect("valid");
+        assert!(
+            symbols.iter().all(|s| s.qualified_name != "sum"),
+            "a parenthesized non-arrow expression must not mint: {symbols:?}"
+        );
+    }
+
+    /// TC-1923, FR-051-AC-1 (PLAT-882 review finding F2/F5, mutation E6): an
+    /// `interface`'s `method_signature` member mints no symbol — the largest
+    /// structural exclusion this adapter makes (the differential's 19-row
+    /// interface-signature false-positive class), pinned here so it cannot
+    /// silently regress. See this module's own docs for the rule stated in
+    /// full.
+    #[trace("TC-1923", "FR-051-AC-1")]
+    #[test]
+    fn tc1923_an_interface_method_signature_mints_no_symbol() {
+        let source = concat!(
+            "interface Foo {\n",
+            "  bar(): void;\n",
+            "  readonly baz: number;\n",
+            "}\n",
+        );
+        let symbols = parse("a.ts", source).expect("valid");
+        assert!(
+            symbols
+                .iter()
+                .all(|s| s.qualified_name != "Foo.bar" && s.qualified_name != "bar"),
+            "an interface method signature must not mint: {symbols:?}"
         );
     }
 }

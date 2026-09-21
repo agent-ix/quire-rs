@@ -60,11 +60,25 @@ description: "Chronological log of structural changes to this bundle."
   Per-symbol differential (`reports/2026-09-20-plat882-typescript-ast-differential.md`):
   `quire-rs` byte-identical (165/165); `filament-ide-rs` 1,445 → 1,410,
   every non-recovery delta named — 76 `const NAME = (non-arrow expression)`
-  and 19 interface/type-member false positives removed (the old regex never
-  checked for `=>`, and could read an inline object return type's own `{` as
-  a method body), 12 `get`/`set` accessors and 4 multi-line method
-  signatures newly recognised, 44 symbols recovered from the three
-  previously-abandoned files.
+  false positives removed, and 19 method-shape false positives removed,
+  split 15 interface/type-member signatures (the old regex never checked
+  for `=>`, and could read an inline object return type's own `{` as a
+  method body) and 4 `before(function () { ... })` mocha hook calls the same
+  `NAME(...) {` shape misread as a method declaration (PLAT-882 PR #481
+  review finding F4 corrected the attribution of these 4 from the original
+  report), 12 `get`/`set` accessors and 4 multi-line method signatures newly
+  recognised, 44 symbols recovered from the three previously-abandoned
+  files. PR #481 review round (10 findings, all addressed in-PR): a real
+  `leading_span` defect fixed (a comment trailing on the previous
+  statement's own line no longer leaks into the following declaration's
+  leading annotation — `TC-1924`), a multi-line template-literal title now
+  correctly registers nothing (`TC-1920`, `FR-051-AC-18`'s own carve-out
+  honoured rather than silently widened), three new tests
+  (`TC-1921`/`TC-1922`/`TC-1923`) each confirmed to kill one of three
+  mutations that the pre-review test suite could not detect, and the
+  binding-level numbers added alongside the symbol-level ones (`candidates`
+  431→443, `tagged` 394→406, `bound` 385→392 on `filament-ide-rs`;
+  `quire-rs`'s own `plat843_unbacked_rows` 404→402) — zero tags lost.
 
 * **2026-09-20** — **CR-178** (`PLAT-845`): `src/symbols/rust.rs`'s
   duplicate-identity flattening — a `fn` was never a container for its own
