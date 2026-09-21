@@ -7,14 +7,49 @@ description: "Chronological log of structural changes to this bundle."
 
 ## History
 
+* **2026-09-20** — **CR-178** (`PLAT-845`): `src/symbols/rust.rs`'s
+  duplicate-identity flattening — a `fn` was never a container for its own
+  body, so two same-named functions nested inside two different enclosing
+  functions minted `qualified_name="helper", container=None` and collided on
+  one `Symbol::compute_id` (`FR-051-AC-2` violation) — is fixed. A `fn` is
+  now a container for its own body, threaded with plain `::`, the identical
+  mechanism `mod`/`struct`/`trait`/`impl` already use; the function's own
+  qualified name is unaffected, so every non-nested symbol's name stays
+  byte-identical. `scan_token_tree_for_fns` (the `proptest!` token-scanner)
+  carried the identical bug and is fixed the same way in this ticket, not a
+  follow-up, so the property holds in both extraction paths.
+  **This trades the original collision class for a narrower one, not a
+  collision-free scheme**: a `mod`/`fn` (or `struct`/`fn`) pair sharing a
+  literal name, each nesting a same-named helper, now collides where it did
+  not before this change (nothing marks which kind of scope contributed a
+  segment). A distinguishing marker was considered and declined in favour of
+  qualified names that read as real Rust paths, conditioned on measurement —
+  a corpus-wide `(path, qualified_name, kind)` sweep across six repos
+  (`reports/2026-09-20-plat845-symbol-diff.md`/`.tsv`) found **zero** real
+  occurrences of the new class against **207** identities changed and **15**
+  pre-existing collisions of the *old* class resolved (e.g. a 9-way collision
+  on `tests::Identity` in `ecaz/src/quant/rabitq.rs`). A separate,
+  orthogonal class — `#[cfg]`-gated dual declarations both parsed by
+  tree-sitter — was found during the same sweep, confirmed pre-existing and
+  unrelated (present identically before and after this change), and filed as
+  its own ticket, `PLAT-877`, rather than folded in here.
+  Amends `CR-177`'s own preserved-behaviours list (see that entry).
+  `nested_helpers_in_different_functions_share_one_identity` (which pinned
+  the flattening bug as correct behaviour) is rewritten in place; new tests
+  cover the fixed property via `Symbol::compute_id` directly, the accepted
+  residual, composition through three levels of `fn` nesting and through an
+  `impl` method, and the `proptest!` scanner path — each shown red against
+  the unfixed code before its fix landed.
+
 * **2026-09-20** — **CR-177** (`PLAT-843`): `src/symbols/rust.rs` is
   rewritten onto `tree-sitter` (via the new dependency-boundary crate
   `crates/quire-rust-extraction` → `quire-code-parse`, pinned by git rev at
   `agent-ix/quire-code-rs@57b83ba`), the implementation `CR-176` named in
   advance. Every byte-for-byte identity behaviour `FR-051` already commits to
   is preserved (impl-block scoping, the `type`/`static`/`const`/`union`
-  exclusion, the duplicate-identity flattening a `fn` never breaking, the
-  hardcoded `FuzzTarget` span). Two deltas are taken as free consequences of
+  exclusion, the duplicate-identity flattening a `fn` never breaking — later
+  fixed by `CR-178`/`PLAT-845`, see that entry — the hardcoded `FuzzTarget`
+  span). Two deltas are taken as free consequences of
   parsing correctly rather than as scope creep: the `check_balanced`
   whole-file rejection (one global brace-depth counter) is gone, replaced by
   tree-sitter's per-node local recovery; and a leading span (`leading_block`

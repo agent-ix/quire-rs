@@ -61,13 +61,17 @@
 //!   `container=Some("a")`. The function's *own* qualified name is
 //!   unaffected (only what nests inside it), so every non-nested symbol's
 //!   name is byte-identical to before this change. This is a deliberate,
-//!   plain-`::` scheme with one accepted residual: a `mod`/`fn` (or
-//!   `struct`/`fn`) pair sharing a literal name in the same file still
-//!   collides on a same-named nested helper, because nothing marks which
-//!   kind of scope contributed a segment — see
+//!   plain-`::` scheme that **trades the original collision class for a
+//!   narrower, rarer one**, not one that eliminates collisions outright: a
+//!   `mod`/`fn` (or `struct`/`fn`) pair sharing a literal name in the same
+//!   file, each nesting a same-named helper, now collides where it did not
+//!   before this change, because nothing marks which kind of scope
+//!   contributed a segment — see
 //!   `a_mod_and_a_function_sharing_a_name_can_still_collide_on_nested_helpers`
-//!   in this module's own tests, and the PR body for the corpus-wide
-//!   duplicate-id sweep that measured how often this occurs in practice.
+//!   in this module's own tests (its doc comment works the before/after
+//!   through explicitly), and the PR body for the corpus-wide duplicate-id
+//!   sweep that measured this new class at zero real occurrences against
+//!   the dozens of real collisions the original flattening bug caused.
 //! - **Brace-less declarations** (a unit struct, a trait method signature)
 //!   end at the tree-sitter node's own last line — which is exactly "the
 //!   first line ending in `;`, or file length" for the shapes this adapter
@@ -198,8 +202,8 @@ pub(crate) fn parse(source: &str) -> Result<Vec<RawSymbol>, String> {
 /// regardless of statement context.
 ///
 /// `container` is the qualified name of the innermost *container* scope —
-/// never a function's own name, which is the byte-for-byte-preserved
-/// flattening quirk (a `fn` is never a container; see this module's own
+/// including a function's own name when recursing into its own body, since
+/// a `fn` is a container for its own body (PLAT-845; see this module's own
 /// docs) — and `criterion_group!` registrations are collected into
 /// `registered_benches` wherever they occur.
 fn walk(
@@ -213,11 +217,7 @@ fn walk(
     for child in node.named_children(&mut cursor) {
         match child.kind() {
             "function_item" | "function_signature_item" => {
-                let own_qualified_name =
-                    field_text(child, "name", source).map(|name| qualify(&container, &name));
-                if let Some(symbol) = function_symbol(child, source, container.clone()) {
-                    out.push(symbol);
-                }
+                let symbol = function_symbol(child, source, container.clone());
                 // A `fn` IS a container for its own body (PLAT-845): recurse
                 // with the function's own qualified name, the same `::`
                 // threading `mod`/`struct`/`trait`/`impl` already use, so a
@@ -226,7 +226,21 @@ fn walk(
                 // in. The function's own qualified name is unchanged by
                 // this — only what nests *inside* it is affected — so a
                 // non-nested symbol's name is byte-identical to before.
-                let inner_container = own_qualified_name.or_else(|| container.clone());
+                //
+                // Derived from the pushed symbol's own `qualified_name`
+                // (review N3) rather than recomputed with a second
+                // `qualify(&container, &name)` call: a second computation
+                // that happens to agree with `function_symbol`'s today would
+                // silently diverge from it if that function's naming ever
+                // changed, and nothing would catch it — the same two-path
+                // divergence class the `proptest!` scanner fix above closes.
+                let inner_container = match &symbol {
+                    Some(s) => Some(s.qualified_name.clone()),
+                    None => container.clone(),
+                };
+                if let Some(symbol) = symbol {
+                    out.push(symbol);
+                }
                 walk(child, source, inner_container, out, registered_benches);
             }
             "mod_item" => {
@@ -1178,20 +1192,78 @@ mod tests {
         );
     }
 
-    /// PLAT-845 review: the plain-`::` scheme approved for this ticket
-    /// threads a function's own qualified name into its body exactly like
-    /// `mod`/`trait`/`impl` already do, deliberately choosing not to mark a
-    /// function-contributed segment differently. That means a **mod** and a
-    /// **function** sharing a literal name in the same file, each nesting a
-    /// same-named helper, still collide — `mod parse { fn helper() {} }` and
-    /// `fn parse() { fn helper() {} }` both qualify to `parse::helper`. This
-    /// is the documented residual of the approved scheme, not a bug this
-    /// ticket introduces: the corpus-wide duplicate-id sweep (see the PR
-    /// body) found zero real occurrences across the six measured repos, and
-    /// a distinguishing marker was explicitly declined in favour of
-    /// qualified names that keep reading as real Rust paths. Pinned here so
-    /// a future change to the scheme is a deliberate, visible decision, not
-    /// a silent behaviour shift.
+    /// PLAT-845 review (N4): composition is claimed in this module's own
+    /// docs but was untested — nothing caught a regression in either shape.
+    /// Two cases: a function nested three deep (`fn` inside `fn` inside
+    /// `fn`, threading `::` at every level), and a function nested inside an
+    /// `impl` method (crossing PLAT-843's impl-target-under-`for` rule,
+    /// which this ticket must not disturb — the highest-risk interaction,
+    /// since it is the one place two different container-threading rules
+    /// compose).
+    #[test]
+    fn nesting_composes_through_functions_and_through_impl_methods() {
+        let source = concat!(
+            "fn a() {\n",
+            "    fn mid() {\n",
+            "        fn helper() {}\n",
+            "    }\n",
+            "}\n",
+            "\n",
+            "struct Foo;\n",
+            "impl Foo {\n",
+            "    fn bar() {\n",
+            "        fn helper() {}\n",
+            "    }\n",
+            "}\n",
+        );
+        let symbols = parse(source).expect("valid");
+        let by_name = |name: &str| symbols.iter().find(|s| s.qualified_name == name);
+
+        let three_deep = by_name("a::mid::helper")
+            .unwrap_or_else(|| panic!("three levels of fn nesting compose: {symbols:?}"));
+        assert_eq!(three_deep.container.as_deref(), Some("a::mid"));
+        assert_eq!(three_deep.kind, SymbolKind::Function);
+
+        let impl_nested = by_name("Foo::bar::helper").unwrap_or_else(|| {
+            panic!(
+                "a fn nested inside an impl method qualifies under both the \
+                 impl target and the method: {symbols:?}"
+            )
+        });
+        assert_eq!(impl_nested.container.as_deref(), Some("Foo::bar"));
+        assert_eq!(impl_nested.kind, SymbolKind::Function);
+
+        // `Foo::bar` itself is unaffected by what nests inside it — still
+        // qualified under the impl target alone, matching PLAT-843's rule.
+        let bar = by_name("Foo::bar").unwrap_or_else(|| panic!("bar itself: {symbols:?}"));
+        assert_eq!(bar.container.as_deref(), Some("Foo"));
+    }
+
+    /// PLAT-845 review (B2): **this PR introduces this collision.** Before
+    /// this change, `mod parse { fn helper() {} }` and `fn parse() { fn
+    /// helper() {} }` had *distinct* ids — the `mod`'s `helper` was already
+    /// qualified `parse::helper` (containers were threaded through `mod`
+    /// before this ticket), while the `fn`'s `helper` flattened to bare
+    /// `helper` with `container=None` (PLAT-845's original bug). Fixing that
+    /// flattening by threading a function's own qualified name into its
+    /// body exactly like `mod`/`trait`/`impl` already do — plain `::`, no
+    /// function-contributed segment marked differently — makes the `fn`'s
+    /// `helper` qualify to `parse::helper` too, so it now collides with the
+    /// `mod`'s `helper` where before it did not.
+    ///
+    /// This is **not** a pre-existing limitation the docstring can call
+    /// "documented" as if it always existed — it is a new, narrower
+    /// collision class this change trades the original, broader one for.
+    /// The trade was approved conditioned on measurement, not assumed safe:
+    /// the corpus-wide duplicate-id sweep (see the PR body) found **zero**
+    /// real occurrences of this specific `mod`/`fn`-name-collision shape
+    /// across the six measured repos, while the flattening bug it replaces
+    /// was colliding dozens of real symbols in that same corpus (see the PR
+    /// body's `tests::Identity` example). A distinguishing marker was
+    /// explicitly declined in favour of qualified names that keep reading as
+    /// real Rust paths. Pinned here, with this reasoning stated plainly, so
+    /// a future change to the scheme is a deliberate, visible decision made
+    /// with the trade-off in view, not a silent behaviour shift.
     #[test]
     fn a_mod_and_a_function_sharing_a_name_can_still_collide_on_nested_helpers() {
         let source = concat!(
@@ -1231,8 +1303,9 @@ mod tests {
         assert_eq!(
             ids.len(),
             1,
-            "known, accepted residual collision of the plain-`::` scheme \
-             (approved for PLAT-845): {helpers:?}"
+            "this PR introduces this collision (see this test's own doc \
+             comment) — accepted, measured at zero occurrences in the \
+             six-repo corpus: {helpers:?}"
         );
     }
 
@@ -1459,14 +1532,38 @@ mod tests {
         assert!(
             helpers
                 .iter()
-                .any(|s| s.qualified_name == "test_one::helper"),
+                .any(|s| s.qualified_name == "test_one::helper"
+                    && s.container.as_deref() == Some("test_one")),
             "helper nested in test_one qualifies under it: {helpers:?}"
         );
         assert!(
             helpers
                 .iter()
-                .any(|s| s.qualified_name == "test_two::helper"),
+                .any(|s| s.qualified_name == "test_two::helper"
+                    && s.container.as_deref() == Some("test_two")),
             "helper nested in test_two qualifies under it: {helpers:?}"
+        );
+
+        // Same as this test's plain-AST sibling
+        // (`nested_functions_in_different_outer_functions_receive_distinct_identities`):
+        // the two paths exist to agree, so this pins the same compound
+        // identity assertion, not just the qualified name.
+        let ids: std::collections::BTreeSet<String> = helpers
+            .iter()
+            .map(|s| {
+                crate::symbols::Symbol::compute_id(
+                    crate::traceability::SourceLanguage::Rust,
+                    "src/example.rs",
+                    &s.qualified_name,
+                    s.kind,
+                )
+            })
+            .collect();
+        assert_eq!(
+            ids.len(),
+            2,
+            "two nested helpers in two different proptest!-declared tests \
+             must receive distinct symbol ids, the same as the plain-AST path"
         );
     }
 }
