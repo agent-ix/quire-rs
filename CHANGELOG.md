@@ -9,6 +9,17 @@ bumps; once 1.0 ships, semver is strict.
 
 ### Changed
 
+- **`python-symbols` joins the crate's `default` feature set (PLAT-868,
+  #479).** `src/symbols/python.rs` is ported to `tree-sitter` (see "Added"
+  below), and the resulting feature is promoted to `default` the same way
+  `rust-symbols` already was (PLAT-843) — still gated off for `wasm`, the
+  same tree-sitter C-toolchain cross-compilation reason. **This changes what
+  every default `cargo build`/`cargo test` links and extracts**: a build
+  with no `--features`/`--no-default-features` flag now always contains a
+  Python parser, where it previously did not. `--no-default-features
+  --features python-symbols` (`make check-python-symbols`, new in this PR)
+  is CI-gated to confirm the feature still compiles in isolation, without
+  `rust-symbols` also enabled.
 - **The vendored `module-manifest.schema.json` is re-vendored from
   filament-core-service `5b2af8b` (#455).** `$defs/ConstructDeclaration`
   gains the optional boolean `immutable` (filament-core-service FR-035-AC-17;
@@ -37,6 +48,19 @@ bumps; once 1.0 ships, semver is strict.
 
 ### Added
 
+- **`src/symbols/python.rs` ported to `tree-sitter`: FR-051-AC-25 (PLAT-868,
+  #479).** Same `quire-rust-extraction` → `quire-code-parse` boundary
+  PLAT-843 gave `rust.rs`. Qualified-name/container/kind identity is
+  preserved byte-for-byte against the pre-port line-structural scanner
+  (measured: 975/975 symbols identity-match across six repos, 0 identity
+  deltas — see `reports/2026-09-20-plat868-python-ast-differential.md`).
+  Closes PLAT-14 (structural parse to AST) and PLAT-234 (a `black`-wrapped,
+  multi-line `@pytest.mark.trace(...)` decorator no longer truncates
+  `leading_line`). The hand-written `Quoting`/`scan_line` triple-quote state
+  machine (three real defects, #274) is deleted outright — a string's
+  content is never a `class_definition`/`function_definition` node to
+  tree-sitter, so the whole defect class is structurally impossible rather
+  than patched.
 - **Structural trace search over the symbol graph: FR-077 (PLAT-844, #477).**
   `SymbolGraph` gains `mentions: Vec<Mention>`, a new additive pass
   (`find_mentions`) that classifies every id-shaped token not already part

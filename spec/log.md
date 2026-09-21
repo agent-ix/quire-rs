@@ -7,6 +7,43 @@ description: "Chronological log of structural changes to this bundle."
 
 ## History
 
+* **2026-09-20** — **CR-179** (`PLAT-868`): `src/symbols/python.rs` is
+  ported to `tree-sitter`, through the same `quire-rust-extraction` ->
+  `quire-code-parse` boundary `CR-176`/`CR-177` adopted for Rust (`ADR-0013`)
+  — Phase 2's Python leg `PLAT-851` deferred. `FR-051-AC-25`'s Python shape
+  (`TC-1880`) is now bound: a `black`-wrapped multi-line
+  `@pytest.mark.trace` decorator no longer truncates `leading_line`
+  (`PLAT-234`), because `decorated_definition`'s own tree-sitter span
+  already includes every decorator regardless of how any one wraps — the
+  same fix shape `PLAT-69`/`PLAT-846` gave Rust. `CON-1`'s
+  grammar-driven-parser clause now holds for two of the FR's three
+  languages; TypeScript's own port is `PLAT-869`, unaffected here.
+  The hand-written `Quoting`/`scan_line` triple-quote state machine (three
+  real defects, `#274`) is deleted outright, a consequence of parsing
+  correctly rather than a deliberate optimisation — a string's content is
+  never a `class_definition`/`function_definition` node to tree-sitter, so
+  the class of bug is now structurally impossible rather than patched.
+  `tc1029`/`tc1030`/`tc1031` keep their ids and `FR-051-AC-20` bindings
+  (`CR-176` already reworded that AC's text to the property, not the
+  mechanism); each test body is rewritten to prove the same property against
+  the tree, confirmed red first against a naive line-scanning stand-in that
+  does read a string's embedded content as a declaration.
+  **Qualified-name construction is preserved byte-for-byte** — a
+  compatibility surface, not a style choice: only a `class` is a scope (a
+  `def` is never a container for its own nested `def`s, unlike Rust's own
+  `PLAT-845`); a qualified name never carries the module prefix; and the
+  `#407` unittest-`TestCase`-base detection keeps its documented
+  single-line-top-level-header and module-top-level-only-import-tracking
+  bounds rather than being widened now that the tree could recognize more.
+  A per-symbol differential against the `PLAT-851` pre-port baseline (975
+  Python symbols, six repos) is published:
+  `reports/2026-09-20-plat868-python-ast-differential.md`.
+  `python-symbols` moves from wiring-only to the default Cargo feature set
+  (mirrors `rust-symbols`; still gated off for `wasm`, same C-toolchain
+  cross-compilation problem). Adds a `cargo check --no-default-features
+  --features python-symbols` CI leg and extends the license-check gate to
+  cover the grammar (`quire-code-rs` PLAT-851 review finding).
+
 * **2026-09-20** — **CR-178** (`PLAT-845`): `src/symbols/rust.rs`'s
   duplicate-identity flattening — a `fn` was never a container for its own
   body, so two same-named functions nested inside two different enclosing

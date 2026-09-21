@@ -72,6 +72,23 @@ lint:
 check-python:
 	CARGO_TARGET_DIR=target/python-check $(CARGO) check --locked --features python --quiet
 
+# PLAT-868 (found during PLAT-851's review, deferred to the ticket that first
+# makes the feature load-bearing): `python-symbols` is now `default`, so a
+# plain `cargo check`/`make ci` does exercise it — but that alone would not
+# have caught the gap PLAT-851 left, since a feature the whole default build
+# quietly carries is never proven to compile *in isolation* from the other
+# default features (`rust-symbols`, `resolve-file`). This leg is the minimal
+# build: no default features, `python-symbols` alone, so a break in
+# `src/symbols/python.rs` or its `quire-rust-extraction`/`python` dependency
+# edge fails here even if some other default feature happened to mask it.
+# Own `CARGO_TARGET_DIR`, same reason `check-python` above has one: a
+# `--no-default-features` resolve is a different feature set, and sharing the
+# default target dir makes the next `cargo test` link against artifacts built
+# for the other set.
+.PHONY: check-python-symbols
+check-python-symbols:
+	CARGO_TARGET_DIR=target/python-symbols-check $(CARGO) check --locked --no-default-features --features python-symbols --quiet
+
 # The scripts/ tooling test suite (#217, #219). `check-python` is a cargo
 # type-check of the PyO3 binding and collects no Python tests, so the sweep
 # harness and corpus rules are verified here.
@@ -98,6 +115,31 @@ clean:
 .PHONY: deny
 deny:
 	$(CARGO) deny --locked check licenses
+
+# PLAT-868 (found during PLAT-851's review): `deny` above runs under default
+# features. `python-symbols` is now default (this port), so `deny` alone
+# already covers `tree-sitter-python`; `tree-sitter-typescript` — a new
+# `Cargo.lock` entry since PLAT-851, locked regardless of which feature
+# activates it (every optional dependency is locked up front to keep the
+# lock stable across feature combinations) — is still never activated by any
+# gate, only present. `--features typescript-symbols` (added to the default
+# set, not replacing it) is what makes `cargo deny`'s own dependency
+# resolution see it as *activated*, which is what its license check reads
+# (mirrors `crates/quire-rust-extraction/tests/dependency_boundary.rs`'s own
+# `cargo_metadata()` reasoning for the equivalent problem).
+#
+# Deliberately NOT `--all-features`: that also activates this crate's
+# unrelated `python` (PyO3 bindings) feature, which pulls
+# `pyo3-build-config` -> `target-lexicon`, licensed `Apache-2.0 WITH
+# LLVM-exception` — a real, pre-existing gap unrelated to either grammar,
+# not something this ticket's own CI leg should surface as if it were.
+# Observed directly: `--all-features` fails on exactly that package;
+# `--features typescript-symbols` (default features + it) does not.
+# Additive: `deny` above is unchanged and still runs, so this never narrows
+# what was already checked.
+.PHONY: deny-grammars
+deny-grammars:
+	$(CARGO) deny --locked --features typescript-symbols check licenses
 
 .PHONY: cargo-audit
 cargo-audit:
@@ -334,7 +376,7 @@ check-wasm:
 	CARGO_TARGET_DIR=target/wasm-check $(CARGO) check --locked --target wasm32-unknown-unknown --no-default-features --features wasm --quiet
 	$(CARGO) test --locked --no-default-features --features wasm --quiet --test semantic_contract --test semantic_properties --test semantic_clauses --test semantic_surface --test semantic_relations
 
-ci: fmt-check lint check-python check-wasm check-scripts test deny audit-unsafe audit-property audit-static validate check-engine
+ci: fmt-check lint check-python check-python-symbols check-wasm check-scripts test deny deny-grammars audit-unsafe audit-property audit-static validate check-engine
 
 # =============================================================================
 # Python wheel / sdist + local-publish (pypi.ix)

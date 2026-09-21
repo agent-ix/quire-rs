@@ -50,9 +50,13 @@ dependency decision, landing with the code it describes (PLAT-843) rather
 than with the spec-only amendment PR — an ADR states current state, and at
 PLAT-842 time the dependency this ADR names did not exist yet.
 
-Phase 1 (`PLAT-843`) is Rust only. Python and TypeScript keep their current
-line/indentation-structural adapters; the same class of defect is expected
-there and is Phase 2's decision (`PLAT-851`), not retroactively decided here.
+Phase 1 (`PLAT-843`) was Rust only. Phase 2 (`PLAT-851`'s shared enabling
+slice) ports Python next (`PLAT-868`), onto this same decision and the same
+`quire-rust-extraction` crate — the same class of defect (`#274`) that
+motivated Phase 1 was found in `src/symbols/python.rs`'s own hand-written
+`Quoting` string-tracking state machine, and this ADR's decision is not
+revisited for it, only applied. TypeScript keeps its current
+line/indentation-structural adapter until its own port (`PLAT-869`).
 
 ## Options surveyed
 
@@ -154,8 +158,15 @@ Rationale:
   feature is off. Python and TypeScript extraction are unaffected either
   way, and no existing consumer of the default feature set observes any
   change.
-- A future revision (a `quire-code-parse` grammar bump, or Phase 2 porting
-  Python/TypeScript onto the same crate) requires: re-running the
+  **(PLAT-868 update, `CR-179`):** the Python adapter gets the identical
+  `python-symbols` feature and per-file fallback diagnostic, one language
+  over — and is promoted to `default` alongside `rust-symbols`, since Python
+  extracted with no special flag before this port and a default build must
+  keep doing so. `tree-sitter-python` carries the identical `wasm`
+  cross-compilation problem, so it stays out of the `wasm` feature the same
+  way `rust-symbols` does. TypeScript extraction is unaffected.
+- A future revision (a `quire-code-parse` grammar bump, or the TypeScript
+  port, `PLAT-869`, onto the same crate) requires: re-running the
   symbol differential against a freshly measured pre-change baseline, and
   — for a grammar bump specifically — treating it as the explicit, reviewed
   dependency change `CR-177` says it must be, never a silent variable.
