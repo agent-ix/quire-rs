@@ -1,5 +1,6 @@
 {
   "$comment": "Written by scripts/vendor-semantic-schemas.sh; never edit by hand (FR-069-CON-2).",
+  "$provenanceNote": "`revision` is informational provenance, not a liveness guarantee: it names the filament-core-data commit each entry was vendored from, and it may become unreachable if that history is rewritten (e.g. a purge). That alone is not a defect, and revision values here are never repointed to chase such a rewrite. `sha256` is the field that is actually checked: it is content-addressed, verified offline against the vendored bytes on every test run, and survives any upstream history change.",
   "files": {
     "common.schema.json": { "repository": "agent-ix/filament-core-data", "revision": "d48b8da7ae5e40b8b3d465d45b2bd3e24b994dbb", "path": "schema/semantic/v1/common.schema.json", "sha256": "sha256:1de370f344b099b511960c32ddc98d512218183c13b03350201627bdcba7710a" },
     "module-manifest.schema.json": { "repository": "agent-ix/filament-core-service", "revision": "5b2af8b18c9ed5ca919217dea17fdf440df95bae", "path": "filament_core_service/schemas/module-manifest.schema.json", "sha256": "sha256:d0cd01c92f123e77e8c8fd4b69a48cdeb7f91e154091716c1410168f410d6906" },

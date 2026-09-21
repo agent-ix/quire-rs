@@ -104,6 +104,11 @@ fn vendored_schemas_match_provenance() {
             record.revision,
             record.path
         );
+        // Shape check only: this deliberately does not resolve `revision` against
+        // filament-core-data or any other repo, so it is not a liveness guarantee.
+        // `revision` is informational provenance and may become unreachable if
+        // upstream rewrites history (see PROVENANCE.json's `$provenanceNote`); the
+        // sha256 check above is the one that is actually load-bearing.
         assert!(
             record.revision.len() == 40,
             "{rel}: revision is not a full commit id"
