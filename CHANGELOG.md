@@ -37,6 +37,23 @@ bumps; once 1.0 ships, semver is strict.
 
 ### Added
 
+- **Structural trace search over the symbol graph: FR-077 (PLAT-844, #477).**
+  `SymbolGraph` gains `mentions: Vec<Mention>`, a new additive pass
+  (`find_mentions`) that classifies every id-shaped token not already part
+  of a `verifies`/`implements` claim into `MentionBucket::EvidenceNearMiss`,
+  `ProductionOrphanTag`, or `Mention` — no token is silently dropped from
+  all three channels. A new `src/symbols/trace_search.rs` module (no
+  trace-tag regex of its own) answers forward queries by exact trace id and
+  inverse queries by file, exact `path#qualified_name`, or bare symbol name,
+  returning `SearchResult`'s three separate typed fields (`verifies`,
+  `implements`, `citations`) rather than one list with a flag; an
+  ambiguous bare-name match lists every candidate under
+  `ambiguous_matches` instead of picking one. New public types: `Mention`,
+  `MentionBucket`, `Query`, `SearchResult`, `Confidence`, and
+  `Symbol::bare_name()`. Matching is exact after `normalized_trace_id()`
+  normalization — no FR/AC/TC hierarchy expansion. A `quire-cli` `trace`
+  subcommand and agent skill are a deliberate follow-up, not part of this
+  change.
 - **Operation and frame extraction with `Pre:` / `Post:` lines (#431).**
   Under `## Operations`, `Pre:` fills an operation's `pre` and `Post:` its
   `post`; under the `effect-frames` mapping token, `Modifies:`, `Creates:`

@@ -28,6 +28,7 @@ pub mod python;
 #[cfg(feature = "rust-symbols")]
 pub mod rust;
 pub mod trace;
+pub mod trace_search;
 pub mod typescript;
 
 use std::path::Path;
@@ -154,10 +155,37 @@ impl Symbol {
             .collect::<Vec<&'s str>>()
             .join("\n")
     }
+
+    /// The bare, unqualified name: `qualified_name`'s segment after its last
+    /// separator, or the whole string when it carries none.
+    ///
+    /// The separator is language-specific — Rust nests with `::`
+    /// (`outer::inner::name`), Python and TypeScript with `.`
+    /// (`Class.method`) — so this reads `self.language` rather than trying
+    /// one separator and falling back to the other, which would silently
+    /// mis-split a Rust path containing a literal `.` in, say, a
+    /// `proptest!`-registered name. This is what a bare-name lookup
+    /// ([`crate::symbols::trace_search::Query::SymbolName`]) matches against
+    /// (FR-077-AC-4): the qualified name itself is a different, more
+    /// specific identity a caller must ask for explicitly.
+    pub fn bare_name(&self) -> &str {
+        let separator = match self.language {
+            SourceLanguage::Rust => "::",
+            SourceLanguage::Python | SourceLanguage::Typescript => ".",
+        };
+        match self.qualified_name.rsplit_once(separator) {
+            Some((_, tail)) => tail,
+            None => self.qualified_name.as_str(),
+        }
+    }
 }
 
 /// One source file the extractor read, retained so downstream trace binding
-/// can slice symbol spans without re-reading the tree.
+/// can slice symbol spans without re-reading the tree. Every file the
+/// extractor successfully parsed is recorded here, whether or not it
+/// yielded any symbols — `find_mentions` (FR-077) walks this list
+/// expecting exactly that, so a symbol-less file's citations are not
+/// silently skipped.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SourceFile {
     pub path: String,
