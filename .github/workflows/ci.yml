@@ -92,6 +92,16 @@ jobs:
       - name: Test
         run: cargo test --locked
 
+      # PLAT-868 (found during PLAT-851's review): `python-symbols` is
+      # default (this port promoted it), so the `Test` step above already
+      # exercises `src/symbols/python.rs` — but a default build can't tell
+      # a break isolated to this feature apart from one masked by
+      # `rust-symbols`/`resolve-file` also being on. This is the minimal
+      # build: no default features, `python-symbols` alone, mirroring
+      # `make check-python-symbols`.
+      - name: Python-symbols feature check
+        run: cargo check --locked --no-default-features --features python-symbols
+
       - name: Validate spec against locked schema providers
         run: >-
           python3 scripts/validate_spec.py
@@ -127,6 +137,20 @@ jobs:
           tool: cargo-deny@0.19.8
       - name: cargo deny check licenses
         run: cargo deny --locked check licenses
+
+      # PLAT-868 (found during PLAT-851's review): the step above runs under
+      # default features. `python-symbols` is now default (this port), so
+      # it already covers `tree-sitter-python`; `tree-sitter-typescript` is
+      # a locked `Cargo.lock` entry no gate activates yet. `--features
+      # typescript-symbols` (added to the default set) is what makes cargo
+      # deny's own resolution see it as active, which its license check
+      # reads. Deliberately not `--all-features`: that also activates the
+      # unrelated `python` (PyO3) feature, which pulls in a dependency
+      # (`target-lexicon`, `Apache-2.0 WITH LLVM-exception`) this repo's
+      # `deny.toml` doesn't cover — a real, pre-existing gap unrelated to
+      # either grammar (see `make deny-grammars`'s own comment).
+      - name: cargo deny check licenses (grammar features)
+        run: cargo deny --locked --features typescript-symbols check licenses
 
   audit:
     name: Cargo Audit (RUSTSEC)

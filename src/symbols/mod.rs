@@ -7,19 +7,24 @@
 //!
 //! Adapters work at **syntax level** — no build, no type resolution, no
 //! dependency installation, and never any execution of the extracted code
-//! (FR-051-CON-1, amended by PLAT-842). The Rust adapter parses over a
-//! tree-sitter syntax tree (PLAT-843, `quire-rust-extraction` ->
-//! `quire-code-parse`); Python and TypeScript stay line/indentation-
-//! structural (Phase 2, PLAT-851). "Syntax level" is what the constraint
-//! actually buys either way: no build, no type resolution, no execution —
-//! not "no parser dependency," which the amended constraint no longer
-//! claims.
+//! (FR-051-CON-1, amended by PLAT-842). The Rust (PLAT-843) and Python
+//! (PLAT-868) adapters parse over a tree-sitter syntax tree, through
+//! `quire-rust-extraction` -> `quire-code-parse`; TypeScript stays
+//! line/indentation-structural until its own port (PLAT-869). "Syntax
+//! level" is what the constraint actually buys either way: no build, no
+//! type resolution, no execution — not "no parser dependency," which the
+//! amended constraint no longer claims.
 //!
 //! Identity is `(language, repo-relative path, qualified name, kind)` — never
 //! line numbers, byte offsets, or formatting, so reformatting a file leaves
 //! every id unchanged (FR-051-AC-2). The current line is carried as a
 //! non-identity attribute, alongside the span the trace-tag binder reads.
 
+// Gated by `python-symbols` (on by default; off under `wasm` — see that
+// feature's own Cargo.toml comment): `quire-rust-extraction` pulls in a
+// tree-sitter grammar with a C build script that cannot cross-compile for
+// `wasm32-unknown-unknown` here (PLAT-843, widened to Python by PLAT-868).
+#[cfg(feature = "python-symbols")]
 pub mod python;
 // Gated by `rust-symbols` (on by default; off under `wasm` — see that
 // feature's own Cargo.toml comment): `quire-rust-extraction` pulls in a
@@ -400,7 +405,20 @@ impl SymbolExtraction {
                  extract Rust symbols."
                     .to_string(),
             ),
+            #[cfg(feature = "python-symbols")]
             SourceLanguage::Python => python::parse(path, &source),
+            // Mirrors the `rust-symbols` reason string above, one language
+            // over (PLAT-868): a whole-binary build-configuration fact, not
+            // a per-file parse failure this file's own content caused.
+            #[cfg(not(feature = "python-symbols"))]
+            SourceLanguage::Python => Err(
+                "BUILD CONFIGURATION (not a parse error): this binary was built without the \
+                 `python-symbols` Cargo feature (on by default; off for `wasm`), so it contains \
+                 no Python parser at all — every Python file in this tree is skipped for that \
+                 reason, not because of anything in this file. Rebuild with `--features \
+                 python-symbols` to extract Python symbols."
+                    .to_string(),
+            ),
             SourceLanguage::Typescript => typescript::parse(path, &source),
         };
         let raw = match parsed {

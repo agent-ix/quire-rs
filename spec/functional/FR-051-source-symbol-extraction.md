@@ -151,7 +151,7 @@ byte-identical JSON ordering and stable record ids.
 | FR-051-AC-7 | The emitted records match the FR-045 graph-record shapes with normalized `ref` values, and filament-core ingestion fixtures accept them unchanged. | Test (TC-747) |
 | FR-051-AC-8 | `defined_in` edges link every symbol to its file and `contains` edges link containers to members, deterministically ordered. | Test (TC-748) |
 | FR-051-AC-9 | An unparseable fixture file yields a per-file diagnostic naming that file and the line the error sits at, while the rest of the tree extracts normally. | Test (TC-749, TC-1884) |
-| FR-051-AC-10 | Repeated extraction over an identical fixture tree, at a pinned grammar version (`tree-sitter-rust`, locked in `Cargo.lock` and asserted by `crates/quire-rust-extraction/tests/dependency_boundary.rs`, not merely implied by `quire-code-rs`'s own source `rev`) and a fixed Cargo feature set (`rust-symbols`, which changes whether Rust extracts at all — see CR-177), emits byte-identical JSON and identical record ids. | Test (TC-750) |
+| FR-051-AC-10 | Repeated extraction over an identical fixture tree, at a pinned grammar version (`tree-sitter-rust`/`tree-sitter-python`, locked in `Cargo.lock` and asserted by `crates/quire-rust-extraction/tests/dependency_boundary.rs`, not merely implied by `quire-code-rs`'s own source `rev`) and a fixed Cargo feature set (`rust-symbols`/`python-symbols`, which change whether Rust/Python extract at all — see CR-177, CR-179), emits byte-identical JSON and identical record ids. | Test (TC-750) |
 | FR-051-AC-11 | The legacy textual forms (docstring bare id, `Trace:` line, line-comment id, trace-embedding test name) still bind during migration, carry `legacy` provenance on the minted relation, and yield a mechanical marker-rewrite suggestion where derivable. | Test (TC-753) |
 | FR-051-AC-12 | Comment recognition is string-aware, and template-literal state carries across lines: a `//` or `/*` inside a string or template literal is content, not a comment opener, whether it sits on the literal's opening line or a continuation line. | Test (TC-798, TC-799) |
 | FR-051-AC-13 | A declaration whose signature spans lines binds tags in its docstring: a `def` wrapped by a formatter has the same span as the unwrapped form. | Test (TC-800) |
@@ -347,6 +347,56 @@ byte-identical JSON ordering and stable record ids.
 > grammar for the same reason: an identity claim silent about a variable that
 > moves the output this much is not stating its own scope honestly (spec
 > review F4).
+
+> **CR-179 note (2026-09-20, `PLAT-868`):** Phase 2's Python leg of `PLAT-851`
+> lands — `src/symbols/python.rs` parses over the same `tree-sitter`/
+> `quire-code-parse` boundary CR-176/CR-177 adopted for Rust, through the
+> same `crates/quire-rust-extraction` crate. `CON-1`'s grammar-driven-parser
+> clause now holds for two of the FR's three languages; TypeScript's own
+> port (`PLAT-869`) is unaffected by this change and lands separately, under
+> serial merge windows to keep coverage movement attributable to one
+> language port at a time.
+>
+> **AC-25's Python shape is now bound.** `TC-1880` — a `black`-wrapped
+> multi-line `@pytest.mark.trace` decorator, one separated from its `def` by
+> a second wrapped decorator, and a wrapped signature — moves from `🚧` to
+> `✅`. `decorated_definition`'s own tree-sitter span already includes every
+> decorator regardless of how any one of them wraps, closing `PLAT-234`
+> (a `black`-wrapped decorator silently moved a criterion to unbacked) the
+> same way `PLAT-69`/`PLAT-846` closed the equivalent Rust span defects.
+>
+> **TC-1029, TC-1030 and TC-1031 keep their ids and bindings, as CR-176
+> already said they would** — AC-20's text was reworded there to the
+> property these rows pin ("a triple-quoted body is content wherever its
+> delimiter sits and a declaration after it keeps its true container"),
+> not to the hand-rolled `Quoting`/`scan_line` state machine that property
+> used to run through. That machine — the source of the three real defects
+> these rows were written against (#274) — is deleted outright by this port,
+> as a consequence of parsing correctly rather than a deliberate
+> optimisation; each row's own test body is rewritten to prove the same
+> property against the tree instead, confirmed red first against a naive
+> stand-in that does read a string's embedded content as a declaration (see
+> `src/symbols/python.rs`'s own test module).
+>
+> **Qualified-name construction is unchanged, byte-for-byte** — a
+> compatibility surface (`Symbol::compute_id` hashes `(language, path,
+> qualified_name, kind)`), not a style choice this port is free to clean up.
+> In particular: only a `class` is a scope (a `def` never becomes a
+> container for its own nested `def`s, unlike Rust's own `PLAT-845`); a
+> qualified name never carries the module prefix, only class nesting joins
+> with `.`; and the `#407` unittest-`TestCase`-base detection stays bounded
+> to a single-line, top-level class header with module-top-level-only import
+> tracking — widening either is an identity change reserved for its own
+> ticket, not a free byproduct of the tree-sitter port.
+>
+> `python-symbols` is promoted to the default Cargo feature set by this
+> change (it was wiring-only and off by default under `PLAT-851`, since no
+> adapter used it yet) — `cargo build`/`cargo test` with no flags keeps
+> extracting Python symbols exactly as the pre-port scanner always did,
+> mirroring `rust-symbols`. It stays gated (rather than unconditional) so the
+> `wasm` build can still opt out: `tree-sitter-python` carries the identical
+> C-toolchain cross-compilation problem `rust-symbols`'s own `ADR-0013`
+> documents.
 
 > **CR-119 note (2026-08-24):** AC-21 is new. `agent-ix/quire-rs#273`, epic
 > `agent-ix/quire-rs#264`.

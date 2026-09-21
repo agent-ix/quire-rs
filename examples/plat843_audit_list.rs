@@ -12,9 +12,21 @@
 //! added here (PLAT-851) for the pre-port baseline and for PLAT-868/869's
 //! own future differentials against it; `all` emits every language's symbols
 //! in one sorted list.
+//!
+//! **`source_exclude` is read from the declared module (PLAT-868)**, not
+//! hardcoded — a PLAT-851 review finding (`AUDIT_LIST_MODULE`, same default
+//! and env-var-override convention `examples/plat840_rust_baseline_sweep.rs`
+//! already uses). The three globs this file hardcoded until now happened to
+//! match `spec-artifacts-process/spec_artifacts_process/manifest.yaml`'s own
+//! declared list, but nothing enforced that agreement: if the module's own
+//! `source_exclude` ever changes, a hardcoded copy here would silently
+//! disagree with the baseline this binary is used to reproduce, and that
+//! disagreement would read as an extraction delta rather than as what it
+//! actually is — this binary's own exclusion list going stale.
 
 use std::path::Path;
 
+use quire_rs::registry::Registry;
 use quire_rs::traceability::SourceLanguage;
 
 fn main() {
@@ -33,14 +45,19 @@ fn main() {
         }
     };
 
+    let module_path = std::env::var("AUDIT_LIST_MODULE").unwrap_or_else(|_| {
+        "/home/peter/dev/spec-artifacts-process/spec_artifacts_process".to_string()
+    });
+    let source_exclude: Vec<String> = Registry::load_module(Path::new(&module_path))
+        .unwrap_or_else(|e| panic!("load module {module_path}: {e}"))
+        .traceability()
+        .map(|m| m.source_exclude.clone())
+        .unwrap_or_default();
+
     let out = quire_rs::symbols::extract_tree_scoped(
         Path::new(&root),
         &[Path::new("spec")],
-        &[
-            "tests/fixtures/**".to_string(),
-            "tests_integration/fixtures/**".to_string(),
-            "fixtures/**".to_string(),
-        ],
+        &source_exclude,
     );
     let mut lines: Vec<String> = out
         .symbols

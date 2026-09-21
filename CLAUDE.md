@@ -16,7 +16,9 @@ make audit-unsafe   # check that every unsafe block has a // SAFETY: comment
 make audit-property # FR-052-CON-1: no GrammarFinding in the property classifier
 make audit-static   # run every scripts/audits/*.sh
 make check-python   # type-check --features python (own CARGO_TARGET_DIR)
-make ci             # fmt-check + lint + check-python + test + deny + audit-unsafe + audit-property + audit-static
+make check-python-symbols # cargo check --no-default-features --features python-symbols (own CARGO_TARGET_DIR)
+make deny-grammars  # cargo deny --features typescript-symbols check licenses (covers the grammar dep not yet in default)
+make ci             # fmt-check + lint + check-python + check-python-symbols + test + deny + deny-grammars + audit-unsafe + audit-property + audit-static
 make ci-python      # build the wheel + run the PyO3 binding suite
 ```
 
