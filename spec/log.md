@@ -15,10 +15,17 @@ description: "Chronological log of structural changes to this bundle."
   FR-104 fixtures (and, for `corpus/`, quoin's own copy of
   `agent-ix/config-service`) — an engine-input fixture set copied from its
   own downstream consumer, and a dependency cycle since quoin already
-  depends on quire-rs as a crate. Replaced with first-party quire-rs
-  fixtures (a `config-service`-style module, reusing the domain vocabulary
-  `tests/fixtures/semantic/cases.json` already exercises) exercising the same
-  extraction paths and assertions. `PROVENANCE.json` (both the top-level one
+  depends on quire-rs as a crate. Ownership moved, not authorship: the exact
+  fixture bytes — same ids, same field names, same vocabulary — are
+  relocated unchanged into a new `quire-fixtures` workspace member crate
+  (PLAT-901), since quire-rs is the parser that defines the forms they
+  exercise, not the root crate's public API (a separate crate, mirroring the
+  existing `quire-rust-extraction` pattern). quire-rs's own tests resolve
+  them through `quire_fixtures::{mapping_fixture, mapping_json,
+  module_ok_dir, corpus_config_service_dir, corpus_config_service_fixture}`;
+  quoin, their original repo, is sequenced to repoint at the same crate
+  (pinned at this repo's git rev, as a dev-dependency) instead of holding a
+  second copy. `PROVENANCE.json` (both the top-level one
   and `corpus/config-service/PROVENANCE.json`) is deleted with no
   replacement: a manifest of copies has no subject once the copies are
   gone. `quoin_fixtures_match_provenance` (TC-1852's provenance half,
@@ -55,16 +62,31 @@ description: "Chronological log of structural changes to this bundle."
   (`quire`, `quire-cli`, `quire-wasm`, `quire-rs`) and absent from
   `brand-kit`, which has no Quire-specific asset to depend on instead
   (reported, not silently re-copied).
-  **Not fully de-vendored, blocked on two other repos, reported rather than
+  **Not fully de-vendored, blocked on one other repo, reported rather than
   worked around:** `schemas/vendored/module-manifest.schema.json` stays —
   `agent-ix/filament-core-service` never published it as an artifact, and
   `agent-ix/filament-core-data`'s replacement
   (`schema/semantic/v1/module-semantic-block.schema.json`) landed in that
-  repo today but is not yet republished to npm. `tests/fixtures/semantic/spec-objects-architecture/**`
-  also stays — the published `@agent-ix/spec-objects-architecture@0.6.0`
-  predates PR #11 (systems-model kinds): it has no `part`/`port`/
-  `connection`/`allocation`, no `schemas/`, and no `semantic` block, so it
-  cannot yet replace the fixture TC-1873/FR-075-AC-13 needs.
+  repo today but is not yet republished to npm.
+
+* **2026-09-21** — **CR-183** (`PLAT-901`): `tests/fixtures/semantic/spec-objects-architecture/**`
+  (46 files, vendored from `agent-ix/spec-objects-architecture#11` at
+  `4215aad`) de-vendored, now that `@agent-ix/spec-objects-architecture@0.7.0`
+  is published with the systems-model kinds (`part`/`port`/`connection`/
+  `allocation`) CR-181 found missing from `0.6.0`. Deleted outright, along
+  with its `PROVENANCE.json` — a manifest of a copy has no subject once
+  there is no copy. `TC-1873`/`FR-075-AC-13` (`tests/semantic_systems.rs`)
+  and the `Interface.json` check in `tests/semantic_features.rs` now assert
+  against the real, published module, resolved at build time by a new
+  `spec-objects-architecture-fixture` crate: its `build.rs` runs `npm pack
+  @agent-ix/spec-objects-architecture@0.7.0` and unpacks `manifest.yaml`,
+  `schemas/`, and `skeletons/` into `OUT_DIR/module`, with no schema or
+  skeleton bytes authored or committed here. This is deliberately not the
+  same vehicle as `quire-fixtures` (CR-182): that crate relocates content
+  quire-rs itself now owns, while this one resolves a third party's
+  published artifact quire-rs never owned and must not stand in for with an
+  authored-minimal schema, per FR-075-AC-13's own requirement that the
+  assertion be against a real module's schemas.
 
 * **2026-09-20** — **CR-179** (`PLAT-868`): `src/symbols/python.rs` is
   ported to `tree-sitter`, through the same `quire-rust-extraction` ->
