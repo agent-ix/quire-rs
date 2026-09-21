@@ -10,6 +10,7 @@ Collected static checks referenced by FR/NFR ACs. Each is a standalone bash scri
 | `check_dep_pins.sh` | Load-bearing deps use their governed pins; YAML retains the `serde_yaml` import alias, resolves exact `yaml_serde 0.10.7`, and excludes the deprecated package pair | NFR-009-AC-1, AC-3, AC-5 |
 | `check_hashmap_audit.sh` | No `std::collections::HashMap` in render/parse code paths | NFR-006-AC-3, TC-058 |
 | `verify_cookiecutter_inheritance.sh` | Safety scaffolding files match `rust-lib-cookiecutter` baseline | StR-004-AC-1, TC-203 |
+| `check_tree_sitter_boundary.sh` | No `Cargo.toml` other than `crates/quire-rust-extraction/Cargo.toml` names `quire-code-parse` or `tree-sitter`/`tree-sitter-<lang>` as a dependency | FR-051-CON-1, PLAT-843, PLAT-851, PLAT-911 |
 
 All scripts SHALL exit 0 on success and non-zero on violation, with descriptive stderr output.
 
