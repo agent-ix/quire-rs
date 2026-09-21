@@ -1,7 +1,8 @@
 //! FR-071 clause and operation extraction (TC-1622..TC-1626, TC-1629,
-//! TC-1648, TC-1850, TC-1851). Plan-003 Task-019. Oracles: the first-party
-//! `operations.md`, `operations.expected.json`, `operations-cases.json`,
-//! `clause-language-0.1.0-cases.json`, and the `overlay` fixture golden.
+//! TC-1648, TC-1850, TC-1851). Plan-003 Task-019. Oracles: the
+//! `quire-fixtures` crate's (PLAT-901) `operations.md`,
+//! `operations.expected.json`, `operations-cases.json`,
+//! `clause-language-0.1.0-cases.json`, and the `config-version` golden.
 
 use std::fs;
 use std::path::PathBuf;
@@ -20,7 +21,7 @@ fn root() -> PathBuf {
 }
 
 fn mapping(name: &str) -> String {
-    fs::read_to_string(root().join("tests/fixtures/semantic/mapping").join(name)).unwrap()
+    quire_fixtures::mapping_fixture(name)
 }
 
 fn mapping_json(name: &str) -> Value {
@@ -35,10 +36,9 @@ fn bundle() -> BundleIndex {
 }
 
 fn context(path: &str) -> SemanticContext {
-    let registry =
-        Registry::load_module(&root().join("tests/fixtures/semantic/module-ok")).unwrap();
+    let registry = Registry::load_module(&quire_fixtures::module_ok_dir()).unwrap();
     let module = registry
-        .semantic_module("config-service-fixture")
+        .semantic_module("spec-objects-fixture")
         .unwrap()
         .clone();
     SemanticContext::new(module, path, bundle())
@@ -68,7 +68,7 @@ fn gate(model: &str, core: &str) -> jsonschema::JSONSchema {
 }
 
 #[trace("TC-1622", "FR-071-AC-1")]
-// golden clauses, operations, clauseText, and the overlay span.
+// golden clauses, operations, clauseText, and the config-version span.
 #[test]
 fn golden_operations_and_spans() {
     let raw = mapping("operations.md");
@@ -126,11 +126,11 @@ fn golden_operations_and_spans() {
         expected["diagnostics"]
     );
 
-    // the overlay fixture pins semantic-core 0.1.0: its `ocl` clause is carried.
-    let expected = mapping_json("overlay.expected.json");
+    // config-version pins semantic-core 0.1.0: its `ocl` clause is carried.
+    let expected = mapping_json("config-version.expected.json");
     let cv = extract_clauses(
-        &mapping("overlay.table.md"),
-        &context_at("overlay.table.md", &expected),
+        &mapping("config-version.table.md"),
+        &context_at("config-version.table.md", &expected),
     );
     assert_eq!(
         serde_json::to_value(cv.clauses.as_ref().unwrap()).unwrap(),
@@ -249,7 +249,7 @@ fn assert_case(case: &Value, file: &Value) {
         );
     }
     if let Some(want) = case["availability"].get("clauses") {
-        // An `entry-errors` reason names lines of the case's own artifact;
+        // An `entry-errors` reason names lines of the case's artifact;
         // this harness's artifact puts the erroring fence at its own line.
         let mut want = want.clone();
         if let Some(reason) = want["reason"].as_str() {
@@ -569,10 +569,9 @@ fn validation_and_states() {
 #[test]
 fn source_identity_default() {
     let raw = mapping("operations.md");
-    let registry =
-        Registry::load_module(&root().join("tests/fixtures/semantic/module-ok")).unwrap();
+    let registry = Registry::load_module(&quire_fixtures::module_ok_dir()).unwrap();
     let mut module = registry
-        .semantic_module("config-service-fixture")
+        .semantic_module("spec-objects-fixture")
         .unwrap()
         .clone();
     module.semantic_core = mapping_json("operations.expected.json")["semanticCore"]

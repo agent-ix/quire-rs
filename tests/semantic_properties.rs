@@ -1,6 +1,6 @@
 //! FR-070 typed Properties extraction (TC-1610..TC-1618, TC-1621, TC-1647).
-//! Plan-003 Task-018. Oracles: the first-party golden fixtures under
-//! `tests/fixtures/semantic/mapping/` and `config-version.bundle.json`.
+//! Plan-003 Task-018. Oracles: the golden fixtures in the `quire-fixtures`
+//! crate (PLAT-901) and this repo's own `config-version.bundle.json`.
 
 use std::fs;
 use std::path::PathBuf;
@@ -19,7 +19,7 @@ fn root() -> PathBuf {
 }
 
 fn mapping(name: &str) -> String {
-    fs::read_to_string(root().join("tests/fixtures/semantic/mapping").join(name)).unwrap()
+    quire_fixtures::mapping_fixture(name)
 }
 
 fn mapping_json(name: &str) -> Value {
@@ -34,10 +34,9 @@ fn bundle() -> BundleIndex {
 }
 
 fn context(path: &str, bundle: BundleIndex) -> SemanticContext {
-    let registry =
-        Registry::load_module(&root().join("tests/fixtures/semantic/module-ok")).unwrap();
+    let registry = Registry::load_module(&quire_fixtures::module_ok_dir()).unwrap();
     let module = registry
-        .semantic_module("config-service-fixture")
+        .semantic_module("spec-objects-fixture")
         .unwrap()
         .clone();
     SemanticContext::new(module, path, bundle)
@@ -67,8 +66,8 @@ fn fields_json(outcome: &quire_rs::semantic::FieldsOutcome) -> Value {
 #[test]
 fn golden_table_extracts_to_expected_fields() {
     let outcome = extract_fields(
-        &mapping("overlay.table.md"),
-        &context("overlay.table.md", bundle()),
+        &mapping("config-version.table.md"),
+        &context("config-version.table.md", bundle()),
     );
     assert_eq!(
         outcome.availability.state,
@@ -79,7 +78,7 @@ fn golden_table_extracts_to_expected_fields() {
     assert_eq!(outcome.form, Some(FieldsForm::Table));
     assert_eq!(
         fields_json(&outcome),
-        mapping_json("overlay.expected.json")["fields"]
+        mapping_json("config-version.expected.json")["fields"]
     );
     let gate = field_decl_gate();
     for field in outcome.fields.as_ref().unwrap() {
@@ -97,12 +96,12 @@ fn golden_table_extracts_to_expected_fields() {
 #[test]
 fn golden_fence_extracts_to_identical_fields() {
     let table = extract_fields(
-        &mapping("overlay.table.md"),
-        &context("overlay.table.md", bundle()),
+        &mapping("config-version.table.md"),
+        &context("config-version.table.md", bundle()),
     );
     let fence = extract_fields(
-        &mapping("overlay.fence.md"),
-        &context("overlay.fence.md", bundle()),
+        &mapping("config-version.fence.md"),
+        &context("config-version.fence.md", bundle()),
     );
     assert_eq!(
         fence.availability.state,
@@ -128,13 +127,13 @@ fn artifact(properties_body: &str) -> String {
 #[test]
 fn both_forms_and_duplicate_sections_are_refused() {
     let both = extract_fields(
-        &mapping("overlay-both-forms.md"),
-        &context("overlay-both-forms.md", bundle()),
+        &mapping("both-forms.md"),
+        &context("both-forms.md", bundle()),
     );
     assert_eq!(both.availability.state, AvailabilityState::Unavailable);
     assert_eq!(both.availability.reason.as_deref(), Some("both-forms"));
     assert!(both.fields.is_none());
-    let expected = mapping_json("overlay-both-forms.expected.json");
+    let expected = mapping_json("both-forms.expected.json");
     let d = &both.diagnostics[0];
     assert_eq!(d.code, "semantic.properties-both-forms");
     assert_eq!(
@@ -294,14 +293,14 @@ fn type_cells() {
         Some("unknown-token")
     );
     // Empty index: explicit reason.
-    let out = extract_fields(&artifact("| Field | Type | Multiplicity | Constraints |\n|---|---|---|---|\n| f | PhantomType | 1 | |"), &context("e.md", BundleIndex::default()));
+    let out = extract_fields(&artifact("| Field | Type | Multiplicity | Constraints |\n|---|---|---|---|\n| f | ConfigVersion | 1 | |"), &context("e.md", BundleIndex::default()));
     assert_eq!(
         out.diagnostics[0].reason.as_deref(),
         Some("no-bundle-index")
     );
     assert_eq!(
         out.fields.as_ref().unwrap()[0].type_ref.target,
-        "ix://agent-ix/config-service-fixture/unresolved/PhantomType"
+        "ix://agent-ix/spec-objects-fixture/unresolved/ConfigVersion"
     );
     // Two names: ambiguous.
     let mut index = bundle();
@@ -444,7 +443,7 @@ fn fence_lines() {
         assert_case_diagnostics(id, &outcome, case["diagnostics"].as_array().unwrap(), 11);
         assert!(outcome.fields.is_none(), "{id}");
     }
-    let ok = artifact("```sysml\nattribute n : Integer[1] { min: 1, maxLength: 64 }\nref item p : ConfigVersion[0..1]\n```");
+    let ok = artifact("```sysml\nattribute n : Integer[1] { min: 1, maxLength: 64 }\nref item p : ConfigOverlay[0..1]\n```");
     let out = extract_fields(&ok, &context("f.md", bundle()));
     let f = serde_json::to_value(
         out.fields
@@ -458,7 +457,7 @@ fn fence_lines() {
     );
     assert_eq!(
         f[1]["type"]["target"],
-        "ix://agent-ix/config-service/type/ConfigVersion"
+        "ix://agent-ix/config-service/type/ConfigOverlay"
     );
     // Arbitrary UTF-8 brace text is the Constraints cell: the cell grammar
     // judges it, never a brace parser.
@@ -491,8 +490,7 @@ fn legacy_forms() {
     let expected = mapping_json("legacy.expected.json");
     for case in expected["cases"].as_array().unwrap() {
         let file = case["file"].as_str().unwrap();
-        let path = root().join("tests/fixtures/semantic/mapping").join(file);
-        let markdown = fs::read_to_string(&path).unwrap();
+        let markdown = quire_fixtures::mapping_fixture(file);
         let outcome = extract_fields(&markdown, &context(file, bundle()));
         let form = case["form"].as_str().unwrap();
         let line = case["line"].as_u64().map(|l| l as usize);
@@ -537,8 +535,7 @@ fn legacy_forms() {
     }
     // The `properties` string yielded by section_body stays untouched: the
     // module-ok DSL extracts it exactly as before (FR-070-CON-3).
-    let registry =
-        Registry::load_module(&root().join("tests/fixtures/semantic/module-ok")).unwrap();
+    let registry = Registry::load_module(&quire_fixtures::module_ok_dir()).unwrap();
     let dsl = registry
         .archetype("entity")
         .unwrap()
@@ -604,7 +601,7 @@ fn cell_strategy() -> impl Strategy<Value = (String, String, String)> {
         Just("Decimal".to_string()),
         Just("Duration [ms]".to_string()),
         Just("String [kg]".to_string()),
-        Just("PhantomType".to_string()),
+        Just("ConfigVersion".to_string()),
         Just("Mystery".to_string()),
         "[A-Za-z_][A-Za-z0-9_]{0,6}",
         "[^|\\n]{0,8}",

@@ -1,10 +1,11 @@
-//! Plan-003 Task-017: first-party golden fixtures and the semantic case suite.
+//! Plan-003 Task-017: the golden mapping fixtures and the semantic case suite.
 //!
-//! The mapping/corpus fixtures under `tests/fixtures/semantic/` are
-//! first-party quire-rs test data (CR-182), not a copy of another
-//! repository's fixtures; `cases.json` is the declarative suite FR-072-AC-1
-//! runs and, like `corpus_cases`, every case must name the filing it came
-//! from.
+//! The mapping/corpus fixtures TC-1610/TC-1852/etc. exercise live in the
+//! `quire-fixtures` workspace crate (PLAT-901) — moved there, not vendored,
+//! since quire-rs is the parser that defines the forms they exercise and
+//! quoin (their original home) already depends on quire-rs as a crate.
+//! `cases.json` is the declarative suite FR-072-AC-1 runs and, like
+//! `corpus_cases`, every case must name the filing it came from.
 
 use std::fs;
 use std::path::PathBuf;
