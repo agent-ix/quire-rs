@@ -480,13 +480,13 @@ def test_validate_document_bundle_package_qualifies_relationship_targets(tmp_pat
         REPO_ROOT / "tests" / "fixtures" / "semantic" / "mapping" / "overlay.table.md"
     ).read_text()
     doc = doc.replace(
-        "- `overlay`: belongs_to \u2192 LedgerBook (FR-005)\n",
+        "- `version`: references \u2192 ConfigVersion (FR-006)\n",
         "| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n"
-        "| overlay | references | FR-005 | 1..1 |\n",
+        "| version | references | FR-006 | 1..1 |\n",
     ).replace(
         "type: FR\n",
         "type: FR\nrelationships:\n"
-        '  - target: "ix://agent-ix/config-service/FR-005"\n    type: references\n',
+        '  - target: "ix://agent-ix/config-service/FR-006"\n    type: references\n',
         1,
     )
 
