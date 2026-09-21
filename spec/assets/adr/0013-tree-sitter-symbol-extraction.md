@@ -156,7 +156,6 @@ Rationale:
   change.
 - A future revision (a `quire-code-parse` grammar bump, or Phase 2 porting
   Python/TypeScript onto the same crate) requires: re-running the
-  differential this ADR's own PR published against the pre-port baseline
-  (`reports/2026-09-20-plat840-rust-scanner-baseline.md`), and — for a
-  grammar bump specifically — treating it as the explicit, reviewed
+  symbol differential against a freshly measured pre-change baseline, and
+  — for a grammar bump specifically — treating it as the explicit, reviewed
   dependency change `CR-177` says it must be, never a silent variable.
