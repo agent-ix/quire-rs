@@ -392,7 +392,17 @@ pub fn extract_file(path: &str, language: SourceLanguage, source: &str) -> Symbo
 
 impl SymbolExtraction {
     fn extend_with_file(&mut self, path: &str, language: SourceLanguage, source: String) {
-        let parsed = match language {
+        // Explicit type (PLAT-882): under `--features wasm`, every adapter's
+        // `Ok`-returning branch below is `#[cfg]`d out — `rust-symbols`,
+        // `python-symbols`, and `typescript-symbols` are all off, gated the
+        // same way for the identical C-toolchain cross-compilation reason —
+        // so nothing left in the match constrains `Vec<RawSymbol>`'s type.
+        // Before this port, `typescript::parse` ran unconditionally and gave
+        // the compiler a concrete `Ok(...)` arm to infer from even under
+        // `wasm`; gating TypeScript the same way removed that last
+        // unconditional arm, so the annotation is now load-bearing rather
+        // than redundant.
+        let parsed: Result<Vec<RawSymbol>, String> = match language {
             #[cfg(feature = "rust-symbols")]
             SourceLanguage::Rust => rust::parse(&source),
             // This reason string is deliberately not diagnostic-shaped (no
@@ -494,25 +504,6 @@ pub(crate) fn stable_id(parts: &[&str]) -> String {
         hasher.update(part.as_bytes());
     }
     format!("{:x}", hasher.finalize())
-}
-
-/// Shared adapter helper: the 1-based first line of the annotation block
-/// attached to the declaration at `decl_idx` — the contiguous run of preceding
-/// comment/attribute/decorator lines, skipping nothing else.
-pub(crate) fn leading_block(
-    lines: &[&str],
-    decl_idx: usize,
-    is_annotation: fn(&str) -> bool,
-) -> usize {
-    let mut start = decl_idx;
-    while start > 0 {
-        let candidate = lines[start - 1].trim();
-        if candidate.is_empty() || !is_annotation(candidate) {
-            break;
-        }
-        start -= 1;
-    }
-    start + 1
 }
 
 #[cfg(test)]

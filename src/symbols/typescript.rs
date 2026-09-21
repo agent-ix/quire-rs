@@ -965,6 +965,7 @@ mod tests {
     /// The control is the same file with the quantifier's braces removed —
     /// it must extract identically either way, proving the *symbols*, not
     /// merely "did it parse", are unaffected by the regex's own content.
+    #[trace("TC-1881", "FR-051-AC-25")]
     #[test]
     fn tc1881_a_brace_inside_a_regex_literal_is_content() {
         let with_regex = concat!(
@@ -1459,7 +1460,7 @@ mod tests {
     /// registration whose title argument starts more than three physical
     /// lines after the call, but which still carries a second (callback)
     /// argument, must still register. This is the one shape that
-    /// distinguishes "no title-lookahead window" (CR-179's own claim) from
+    /// distinguishes "no title-lookahead window" (CR-180's own claim) from
     /// "a wider but still-bounded window" — a fixture with no callback
     /// argument at all (the adjacent negative fixture in
     /// `registration.test.ts`) cannot tell the two apart, because it fails

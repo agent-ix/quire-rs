@@ -330,7 +330,7 @@ requirement — as decisions belonging to this port, "to be widened only as
 its own change with its own **[RAN]** numbers," not assumed safe. This port
 resolves both, plus a third edge that widens as a direct structural
 consequence (see `spec/functional/FR-051-source-symbol-extraction.md`'s new
-`CR-179` note for the full spec-level record):
+`CR-180` note for the full spec-level record):
 
 | Widened edge | Real occurrences recovered in this corpus |
 |---|---:|
@@ -356,8 +356,8 @@ declarator, where the old regex's single capture group matched only the
 first. Both measured at **zero** occurrences in this corpus — the no-callback
 shape by the same pattern search used for the widened edges above, across
 both repositories including `quire-rs`'s own fixtures; the multi-declarator
-shape by a narrower single-line-only search (see the `CR-179` note's own
-caveat on that one). See the spec's own `CR-179` note for the full record.
+shape by a narrower single-line-only search (see the `CR-180` note's own
+caveat on that one). See the spec's own `CR-180` note for the full record.
 
 ## Binding numbers (PLAT-882 PR #481 review: "add the binding numbers")
 
@@ -381,17 +381,39 @@ already uses) and `examples/plat843_unbacked_rows` for `quire-rs`'s own spec:
 
 | Metric (`quire-rs`'s own spec) | Old engine | New engine | Δ |
 |---|---:|---:|---:|
-| `plat843_unbacked_rows` (`examples/plat843_unbacked_rows`) | 404 | 402 | **−2** |
+| `plat843_unbacked_rows` (`examples/plat843_unbacked_rows`) | 404 | 404 | **0** |
+
+**Correction, re-measured after rebasing onto `daaafaf` (PLAT-868/#479
+merged):** this row originally read `404 → 402` (**−2**). Re-run from
+scratch on the rebased tree — same harness, same swap technique, old and
+new engine's row sets diffed directly (not just their counts) — the two
+`unbacked_rows` outputs are now **identical, row for row**, zero rows on
+either side of the diff. `404 → 402` does not reproduce, and in hindsight it
+was already in tension with this same report's own `165/165` byte-identical
+claim for `quire-rs`'s TypeScript symbols, `leading_line` included: if the
+symbols `coverage::compute` reads are identical either way, the coverage
+computed from them cannot differ. Whatever produced the original `−2` is
+not reproducible from the port itself; it most likely reflects a measurement
+taken against a different tree state at the time (this repo's own spec has
+moved under multiple merges since), not a defect in either number's
+arithmetic. Stated plainly rather than quietly overwritten, per the standing
+instruction to disclose a correction rather than silently fix it.
+
+The `filament-ide-rs` `binding_census` table above **did** re-verify
+unchanged, re-run against the same disposable pinned clone: `431/394/385/9`
+→ `443/406/392/14`, identical to the original figures. That repo is
+untouched by `quire-rs`'s own rebase, so its numbers were never expected to
+move, and they didn't.
 
 Every number here moves in the favourable direction or is unchanged: more
-candidates, more tagged, more bound, fewer unbacked rows on `quire-rs`'s own
-spec. **Zero tags lost** — `tagged` only rises, `bound` only rises, and
-`tagged_not_bound` rising by 5 is candidates newly *seen* (symbols the old
-engine never extracted at all, so it could not report their tag as anything,
-bound or not) rather than any candidate moving from bound to unbound. The
-`−35` symbol-count headline above is a false-positive removal, not a
-coverage loss — this is what settles that question directly rather than by
-inference from the symbol count alone.
+candidates, more tagged, more bound, and `quire-rs`'s own unbacked-row count
+does not regress. **Zero tags lost** — `tagged` only rises, `bound` only
+rises, and `tagged_not_bound` rising by 5 is candidates newly *seen* (symbols
+the old engine never extracted at all, so it could not report their tag as
+anything, bound or not) rather than any candidate moving from bound to
+unbound. The `−35` symbol-count headline above is a false-positive removal,
+not a coverage loss — this is what settles that question directly rather
+than by inference from the symbol count alone.
 
 ## Tests retired
 
@@ -432,27 +454,39 @@ No `tc943`/`tc948`/`tc1039` (FR-051-AC-18/21) tests were retired — all pass
 unchanged against the new engine, since they assert through `parse`'s public
 outcome, which this port preserves for every shape they cover. `tc961`
 (FR-051-AC-18's pinned edges) keeps its own id; one of its pinned edges
-(whitespace before `.`) moved from "outside" to "admitted" per the CR-179
+(whitespace before `.`) moved from "outside" to "admitted" per the CR-180
 note above, and the test's own assertion was updated to match, in place,
 with the reasoning inline.
 
 ## Gates
 
+Re-run in full after rebasing onto `main`'s tip `daaafaf` (PLAT-868/`#479`
+merged), under a dedicated `CARGO_TARGET_DIR` (`.worktrees/plat882-target`,
+not the machine-wide shared default) and the shared `/tmp/quire-heavy-check.lock`
+for every heavy build, batched into as few lock acquisitions as the work
+allowed rather than one per command.
+
 - `cargo fmt --check`: clean.
-- `cargo clippy --workspace --all-targets --features typescript-symbols -- -D warnings`: clean.
 - `cargo clippy --locked --all-targets -- -D warnings` (default features, which now include `typescript-symbols`): clean.
-- `cargo test --lib --features typescript-symbols symbols` (`src/symbols::*`): 85 passed, 0 failed (22 of them `symbols::typescript::tests::*`, up from the original port's 17 — the PLAT-882 PR #481 review round added 6: `tc1920`–`tc1924` and `tc1039_a_late_brace_describe_still_parents_its_members`).
-- `cargo test --locked --lib`: 641 passed, 0 failed.
-- `cargo test --locked` (default features, full workspace): all green.
-- `cargo test --locked --test spec_dogfood`: 6 passed — the AC→TC and dangling-reference integrity checks over this repo's own `spec/`.
-- `cargo check --no-default-features --features typescript-symbols` (new `make check-typescript-symbols` CI leg): clean; **confirmed to fail** when the feature is broken (`compile_error!` injected into `typescript.rs`, reran, 152 errors; reverted).
-- `cargo check` (default features) and `CARGO_TARGET_DIR=... cargo check --target wasm32-unknown-unknown --no-default-features --features wasm`: both clean — `typescript-symbols` joining `default` does not reach the wasm build (`check-wasm` passes `--no-default-features`, matching `rust-symbols`'s own exclusion).
-- `make check-typescript-symbols`: clean.
-- `make ci`: fmt-check/lint/check-python/check-typescript-symbols/check-wasm/check-scripts/test/deny/audit-unsafe/audit-property all pass; `audit-static` fails on the pre-existing unpinned CLA workflow action (`PLAT-878`, `.github/workflows/cla.yml` — confirmed untouched by this branch, no diff against `origin/main`), truncating the composite before `validate`/`check-engine` run in it.
-- `scripts/validate_spec.py` at the locked revisions (`quality/validation-stack-lock.json`): `171` documents, `0` failed, `41` warnings — identical to a clean `origin/main` checkout run the same way (confirmed by temporarily reverting this branch's own `typescript.rs` and rerunning), so this is the repo's existing baseline, not something this PR moved.
-- `make check-engine QUIRE_CLI=/home/peter/dev/quire-cli`: `OK`, 14 capability tokens.
-- **Mutation verification (PLAT-882 PR #481 review finding F2), each applied alone to `src/symbols/typescript.rs` and reverted after confirming the result, run via `cargo test --lib symbols::typescript`:**
-  - **E4** (reintroduce a 3-line title-lookahead window in `registration()`): `tc1921_a_far_title_with_a_callback_still_registers` **fails** (the only failure); reverted, 22/22 pass again.
-  - **E5** (accept a non-arrow `parenthesized_expression` value too, in `mint_arrow_const_declarators`): `tc1922_a_parenthesized_non_arrow_value_mints_no_symbol` **fails** (the only failure); reverted, 22/22 pass again.
-  - **E6** (also match `"method_signature"` in `walk`'s `method_definition` arm): `tc1923_an_interface_method_signature_mints_no_symbol` **fails** (the only failure); reverted, 22/22 pass again.
-  - Each mutation was caught by exactly the test named for it, with no other test in the module affected — the three behavioural claims CR-179 makes are no longer pinned by nothing.
+- `cargo clippy --locked --all-features --all-targets -- -D warnings`: clean — every feature combination compiles, including `python` + `wasm` + all three `*-symbols` together (see the `leading_block` note below, which this run is what settles it for).
+- `cargo test --locked --lib`: 657 passed, 0 failed (22 of them `symbols::typescript::tests::*`).
+- `cargo test --locked` (default features, full workspace, including `tests/trace_dogfood.rs`): all green.
+- `cargo check --no-default-features --features typescript-symbols` (`make check-typescript-symbols`): clean.
+- `cargo check --no-default-features --features python-symbols` (`make check-python-symbols`): clean.
+- `cargo check --features python` (`make check-python`): clean.
+- `cargo check --target wasm32-unknown-unknown --no-default-features --features wasm` (`make check-wasm`): clean — **only after a fix this round**, see below.
+- `make deny` / `make deny-grammars`: clean.
+- `make audit-unsafe` / `make audit-property` / `make audit-static`: clean.
+- `scripts/validate_spec.py`, run directly against disposable clones pinned to `quality/validation-stack-lock.json`'s exact locked revisions (`spec-artifacts-process@e6ea515`, `spec-artifacts-iso@a60ee12`) rather than through `make validate`: `172` documents, `0` failed, `41` warnings. `make validate`'s own default relative paths (`../spec-artifacts-process`, `../spec-artifacts-iso`) resolve from this worktree's own directory, one level too shallow (`.worktrees/plat882/../spec-artifacts-process` instead of the real sibling of `quire-rs` itself) — a worktree-layout artifact, not something this branch changed; the same workaround an earlier round of this same review used.
+- `make check-engine QUIRE_CLI=/home/peter/dev/quire-cli`: `OK`, 14 capability tokens (one advisory, pre-existing and unrelated: `Cargo.toml`'s `version` field trails the latest tag, `agent-ix/quire-rs#282`).
+
+**Two real findings this round, both fixed in-PR:**
+
+- **`leading_block` was dead code, now deleted.** `src/symbols/mod.rs`'s shared line-structural helper (the 1-based first line of a declaration's leading comment/attribute run) had no callers left once this port lands — `rust.rs` (PLAT-843) and `python.rs` (PLAT-868) had already stopped calling it, and this PR's own tree-sitter `leading_span` in `typescript.rs` replaces its last caller. Confirmed dead under **every** feature combination, not just the default build's clippy leg: a whole-tree `grep` (source, tests, benches, examples, `fuzz/`) found no caller anywhere, and `cargo clippy --all-features --all-targets` compiled clean with it removed. **What the deletion removes:** the pre-port `leading_block` computed a span by scanning raw text lines backward for a caller-supplied `is_annotation(&str) -> bool` predicate; each adapter's own tree-sitter port (`rust.rs`'s and `python.rs`'s span logic, and this PR's `leading_span` for TypeScript) now computes the equivalent span by walking `prev_sibling()` over the parsed tree instead, so the behaviour is not lost, only relocated to be per-adapter and grammar-driven rather than shared and text-driven. Nothing in this repo (or the `iso`/traceability fixtures) references it outside two now-stale prose comments, left as historical pointers (`python.rs:1037`, `trace.rs:1885`).
+- **Deleting `leading_block` broke `cargo check --features wasm`, fixed.** Under `--no-default-features --features wasm`, all three `*-symbols` features are off (same C-toolchain cross-compilation reason each one is gated for), so every match arm in `symbols::mod::extend_with_file`'s `parsed = match language { ... }` becomes its `#[cfg(not(feature = "..."))]` fallback — before this PR, `typescript::parse` still ran unconditionally there, giving the compiler a concrete `Ok(Vec<RawSymbol>)` arm to infer `parsed`'s type from even under `wasm`; gating TypeScript the same way `rust-symbols`/`python-symbols` already are removed that last unconditional arm, leaving nothing to infer `Vec<RawSymbol>` from (`E0282: type annotations needed`). Fixed with an explicit `let parsed: Result<Vec<RawSymbol>, String> = match language { ... }` annotation, with the reasoning recorded inline so a future all-`#[cfg]`-arms match doesn't rediscover this the same way.
+
+**Mutation verification (PLAT-882 PR #481 review finding F2), re-run from scratch on the rebased tree, each applied alone to `src/symbols/typescript.rs`, confirmed against a saved clean copy after reverting, run via `cargo test --locked --lib symbols::typescript`:**
+
+- **E4** (reintroduce a 3-line title-lookahead window in `registration()`): `tc1921_a_far_title_with_a_callback_still_registers` **fails** (the only failure, exit 101); reverted, 22/22 pass again (exit 0).
+- **E6** (also match `"method_signature"` in `walk`'s `method_definition` arm): `tc1923_an_interface_method_signature_mints_no_symbol` **fails** (the only failure, exit 101); reverted, 22/22 pass again.
+- **E5 does not reproduce as originally worded, and this is a finding, not a clean pass.** "Accept a non-arrow `parenthesized_expression` value too, in `mint_arrow_const_declarators`" — widening only the `value.kind() != "arrow_function"` check — leaves all 22 tests green (exit 0), `tc1922` included. Traced to source: the very next line, `if value.child_by_field_name("parameters").is_none() { continue; }`, is an **independent, already-existing guard** for a different reason (rejecting the bare unparenthesized single-parameter arrow form) — and `parenthesized_expression` never carries a `parameters` field regardless of what it wraps, so this second guard rejects `tc1922`'s `(a + b)` fixture on its own, whether or not the first guard also would. The two guards are redundant specifically for this input, so mutating only the first is invisible to `tc1922`. This does not indicate a bug in the port — the actual behaviour (no symbol for a non-arrow parenthesized value) is doubly enforced, not weakened — but the original PR round's claim that `tc1922` "fails (the only failure)" under this exact mutation does not hold up on re-verification and should not stand uncorrected. Flagging for explicit review rather than deciding unilaterally: either accept that this guard pair is legitimately double-covered and needs no dedicated mutation-kill test, or add a fixture that isolates the first guard alone (a `value.kind()` that is neither `arrow_function` nor `parenthesized_expression` but *does* carry a `parameters`-named field — no such TypeScript construct is obviously known to exist, which is itself part of why the two guards may simply always overlap in practice).
