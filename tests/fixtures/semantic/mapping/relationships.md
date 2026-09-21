@@ -1,11 +1,11 @@
 ---
-id: FR-006
-title: ConfigVersion
+id: FR-005
+title: ConfigOverlay
 object: entity
 type: FR
 ---
 
-# FR-006: ConfigVersion
+# FR-005: ConfigOverlay
 
 ## Properties
 
@@ -17,6 +17,6 @@ type: FR
 
 | Name | Verb | Target | Multiplicity |
 |------|------|--------|--------------|
-| overlay | references | FR-005 | 1..1 |
-| entries | contains | FR-007 | 0..* |
-| predecessor | references | FR-006 | 0..1 |
+| baseVersion | references | FR-006 | 1..1 |
+| lineItems | contains | FR-007 | 0..* |
+| priorOverlay | references | FR-005 | 0..1 |

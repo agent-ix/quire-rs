@@ -1,38 +1,38 @@
 {
-  "$comment": "FR-071 cell and fence-line grammar cases (AC-4..AC-8). Each case gives one cell (or fence line) and the expected TypeRef/constraint fragment or diagnostic; quire-rs#388 executes them, quoin asserts the expectations validate against the vendored semantic-core schemas.",
+  "$comment": "FR-071 cell and fence-line grammar cases (AC-4..AC-8): first-party, owned by quire-rs. Each case gives one cell (or fence line) and the expected TypeRef/constraint fragment or diagnostic.",
   "semanticCore": "0.1.0",
   "package": "agent-ix/config-service",
   "cases": [
     {
       "id": "type-kernel",
       "cell": {
-        "Type": "UUID"
+        "Type": "Timestamp"
       },
       "expected": {
-        "target": "UUID"
+        "target": "Timestamp"
       }
     },
     {
       "id": "type-decimal",
       "cell": {
-        "Type": "Decimal(10,2)"
+        "Type": "Decimal(12,3)"
       },
       "expected": {
         "target": "Decimal",
         "decimal": {
-          "precision": 10,
-          "scale": 2
+          "precision": 12,
+          "scale": 3
         }
       }
     },
     {
       "id": "type-unit",
       "cell": {
-        "Type": "Duration [ms]"
+        "Type": "Duration [s]"
       },
       "expected": {
         "target": "Duration",
-        "unit": "ms"
+        "unit": "s"
       }
     },
     {
@@ -55,43 +55,43 @@
     {
       "id": "type-enum-by-id",
       "cell": {
-        "Type": "Status"
+        "Type": "OverlayState"
       },
       "bundle": {
         "enumerations": [
           {
-            "id": "Status",
-            "title": "Status Values"
+            "id": "OverlayState",
+            "title": "Overlay State Values"
           }
         ]
       },
       "expected": {
-        "target": "ix://agent-ix/config-service/type/Status"
+        "target": "ix://agent-ix/config-service/type/OverlayState"
       }
     },
     {
       "id": "type-import",
       "cell": {
-        "Type": "Requirement"
+        "Type": "LexiconTerm"
       },
       "imports": {
-        "agent-ix/spec-artifacts-iso": {
+        "agent-ix/lexicon-core": {
           "exports": [
-            "Requirement"
+            "LexiconTerm"
           ]
         }
       },
       "expected": {
-        "target": "ix://agent-ix/spec-artifacts-iso/type/Requirement"
+        "target": "ix://agent-ix/lexicon-core/type/LexiconTerm"
       }
     },
     {
       "id": "type-unresolved",
       "cell": {
-        "Type": "Mystery"
+        "Type": "Enigma"
       },
       "expected": {
-        "target": "ix://agent-ix/config-service/unresolved/Mystery"
+        "target": "ix://agent-ix/config-service/unresolved/Enigma"
       },
       "diagnostics": [
         {
@@ -141,12 +141,12 @@
     {
       "id": "mult-range",
       "cell": {
-        "Multiplicity": "2..5"
+        "Multiplicity": "3..7"
       },
       "expected": {
         "multiplicity": {
-          "lower": 2,
-          "upper": 5
+          "lower": 3,
+          "upper": 7
         }
       }
     },
@@ -165,7 +165,7 @@
     {
       "id": "mult-inverted",
       "cell": {
-        "Multiplicity": "5..2"
+        "Multiplicity": "6..3"
       },
       "diagnostics": [
         {
@@ -178,7 +178,7 @@
     {
       "id": "mult-flag-on-single",
       "cell": {
-        "Multiplicity": "1 ordered"
+        "Multiplicity": "1 unique"
       },
       "diagnostics": [
         {
@@ -191,17 +191,17 @@
     {
       "id": "con-min-maxlen-identity",
       "cell": {
-        "Constraints": "min: 1, maxLength: 64, identity"
+        "Constraints": "min: 0, maxLength: 32, identity"
       },
       "expected": {
         "constraints": [
           {
             "keyword": "min",
-            "value": 1
+            "value": 0
           },
           {
             "keyword": "maxLength",
-            "value": 64
+            "value": 32
           }
         ],
         "identity": true
@@ -210,13 +210,13 @@
     {
       "id": "con-pattern",
       "cell": {
-        "Constraints": "pattern: /^[a-z]+$/"
+        "Constraints": "pattern: /^[A-Z0-9]+$/"
       },
       "expected": {
         "constraints": [
           {
             "keyword": "pattern",
-            "regex": "^[a-z]+$",
+            "regex": "^[A-Z0-9]+$",
             "dialect": "ecma-262"
           }
         ]
@@ -225,15 +225,16 @@
     {
       "id": "con-enum-values",
       "cell": {
-        "Constraints": "enumValues: draft|final"
+        "Constraints": "enumValues: pending|applied|superseded"
       },
       "expected": {
         "constraints": [
           {
             "keyword": "enumValues",
             "values": [
-              "draft",
-              "final"
+              "pending",
+              "applied",
+              "superseded"
             ]
           }
         ]
@@ -255,13 +256,13 @@
     {
       "id": "con-format",
       "cell": {
-        "Constraints": "format: agent-ix:email"
+        "Constraints": "format: agent-ix:actor-id"
       },
       "expected": {
         "constraints": [
           {
             "keyword": "format",
-            "name": "agent-ix:email"
+            "name": "agent-ix:actor-id"
           }
         ]
       }
@@ -269,7 +270,7 @@
     {
       "id": "con-unknown-keyword",
       "cell": {
-        "Constraints": "mnimum: 1"
+        "Constraints": "maximun: 1"
       },
       "diagnostics": [
         {

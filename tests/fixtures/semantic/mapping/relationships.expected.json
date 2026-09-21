@@ -1,21 +1,7 @@
 {
   "semanticCore": "0.2.0",
   "context": {
-    "$comment": "The loaded-module and bundle facts the extraction reads (FR-104 Inputs), pinned by `sources`.",
-    "sources": {
-      "edgeTypes": {
-        "repository": "agent-ix/spec-artifacts-iso",
-        "revision": "8a7d9ef84a650d286107b55d0dfde9b978107ac3",
-        "path": "spec_artifacts_iso/manifest.yaml",
-        "note": "contains, composes, depends_on, owns, references"
-      },
-      "objectTypes": {
-        "repository": "agent-ix/spec-objects-business",
-        "revision": "f7fdfda39293654424969ced57590b7a1a17c652",
-        "path": "spec_objects_business/manifest.yaml",
-        "note": "edge_types.specializes; entity and nested_entity roles and allowed_links"
-      }
-    },
+    "$comment": "The loaded-module and bundle facts the extraction reads (FR-104 Inputs): a fixed, published taxonomy (edgeTypes/roles/allowedLinks) this fixture supplies directly, and a bundle of first-party quire-rs test artifacts. No file here is vendored from another repository.",
     "mappings": [
       "typed-table",
       "relationships"
@@ -108,7 +94,7 @@
         }
       ],
       "imports": [
-        "agent-ix/spec-artifacts-iso"
+        "agent-ix/lexicon-core"
       ]
     },
     "sourceIdentity": "ix://agent-ix/config-service/spec"
@@ -118,7 +104,7 @@
       "verb": "references",
       "category": "traceability",
       "composite": false,
-      "target": "ix://agent-ix/config-service/FR-005",
+      "target": "ix://agent-ix/config-service/FR-006",
       "multiplicity": {
         "lower": 1,
         "upper": 1
@@ -137,7 +123,7 @@
       "verb": "references",
       "category": "traceability",
       "composite": false,
-      "target": "ix://agent-ix/config-service/FR-006",
+      "target": "ix://agent-ix/config-service/FR-005",
       "multiplicity": {
         "lower": 0,
         "upper": 1
@@ -146,36 +132,36 @@
   ],
   "relationSources": [
     {
-      "name": "overlay",
+      "name": "baseVersion",
       "sourceSpan": {
         "sourceIdentity": "ix://agent-ix/config-service/spec",
         "path": "relationships.md",
         "startLine": 20,
         "startColumn": 1,
         "endLine": 20,
-        "endColumn": 41
+        "endColumn": 45
       }
     },
     {
-      "name": "entries",
+      "name": "lineItems",
       "sourceSpan": {
         "sourceIdentity": "ix://agent-ix/config-service/spec",
         "path": "relationships.md",
         "startLine": 21,
         "startColumn": 1,
         "endLine": 21,
-        "endColumn": 39
+        "endColumn": 41
       }
     },
     {
-      "name": "predecessor",
+      "name": "priorOverlay",
       "sourceSpan": {
         "sourceIdentity": "ix://agent-ix/config-service/spec",
         "path": "relationships.md",
         "startLine": 22,
         "startColumn": 1,
         "endLine": 22,
-        "endColumn": 45
+        "endColumn": 46
       }
     }
   ],

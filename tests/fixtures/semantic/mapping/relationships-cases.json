@@ -1,22 +1,8 @@
 {
   "semanticCore": "0.2.0",
-  "$comment": "FR-104 cases. A case with `relationships` builds its artifact as artifactHead + that body (body line 1 is artifact line 18); a case with `artifact` uses it verbatim. Every `line` is exact in that artifact. A case `mappings` replaces context.mappings. `withoutRelationVocabulary: true` extracts with no edge registry, roles, or allowed_links; `withoutBundleIndex: true` extracts with no bundle artifacts (the package identity stays). `withoutBundlePackage: true` extracts with an empty bundle.package and no sourceIdentity, so no bundle package is known. `relations: null` means no relations and no relationSources are emitted. `messageContains` lists substrings the diagnostic message must contain. `availability: {}` means no availability.relations key. `exactDiagnostics` is the exact number of diagnostics the extraction emits for the case, so a row that fails several checks pins one diagnostic (FR-104 refusal order). The fields are documented in README.md.",
-  "artifactHead": "---\nid: FR-006\ntitle: ConfigVersion\nobject: entity\ntype: FR\n---\n\n# FR-006: ConfigVersion\n\n## Properties\n\n| Field | Type | Multiplicity | Constraints |\n|-------|------|--------------|-------------|\n| id | UUID | 1 | identity |\n\n## Relationships\n\n",
+  "$comment": "FR-076/FR-104 relationships grammar and validation cases, first-party and owned by quire-rs (AC-2..AC-15). Each case's relationships body is appended to artifactHead; body line 1 is artifact line 18.",
+  "artifactHead": "---\nid: FR-005\ntitle: ConfigOverlay\nobject: entity\ntype: FR\n---\n\n# FR-005: ConfigOverlay\n\n## Properties\n\n| Field | Type | Multiplicity | Constraints |\n|-------|------|--------------|-------------|\n| id | UUID | 1 | identity |\n\n## Relationships\n\n",
   "context": {
-    "sources": {
-      "edgeTypes": {
-        "repository": "agent-ix/spec-artifacts-iso",
-        "revision": "8a7d9ef84a650d286107b55d0dfde9b978107ac3",
-        "path": "spec_artifacts_iso/manifest.yaml",
-        "note": "contains, composes, depends_on, owns, references"
-      },
-      "objectTypes": {
-        "repository": "agent-ix/spec-objects-business",
-        "revision": "f7fdfda39293654424969ced57590b7a1a17c652",
-        "path": "spec_objects_business/manifest.yaml",
-        "note": "edge_types.specializes; entity and nested_entity roles and allowed_links"
-      }
-    },
     "mappings": [
       "typed-table",
       "relationships"
@@ -109,15 +95,16 @@
         }
       ],
       "imports": [
-        "agent-ix/spec-artifacts-iso"
+        "agent-ix/lexicon-core"
       ]
     },
-    "sourceIdentity": "ix://agent-ix/config-service/spec"
+    "sourceIdentity": "ix://agent-ix/config-service/spec",
+    "$comment": "A fixed, published taxonomy (edgeTypes/roles/allowedLinks) this fixture supplies directly, plus the first-party bundle also used by relationships.expected.json. No file here is vendored from another repository."
   },
   "cases": [
     {
       "id": "verb-unknown",
-      "relationships": "| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| overlay | belongs_to | FR-005 | 1..1 |\n",
+      "relationships": "| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| baseVersion | belongs_to | FR-006 | 1..1 |\n",
       "diagnostics": [
         {
           "code": "semantic.invalid-model-cell",
@@ -140,7 +127,7 @@
     },
     {
       "id": "verb-inverse-label",
-      "relationships": "| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| owner | composed_by | FR-005 | 1..1 |\n",
+      "relationships": "| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| supersededBy | composed_by | FR-006 | 1..1 |\n",
       "diagnostics": [
         {
           "code": "semantic.invalid-model-cell",
@@ -151,7 +138,7 @@
           "reason": "inverse-verb",
           "messageContains": [
             "composes",
-            "FR-005"
+            "FR-006"
           ]
         }
       ],
@@ -167,7 +154,7 @@
     },
     {
       "id": "verb-not-allowed",
-      "relationships": "| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| overlay | depends_on | FR-005 | 1..1 |\n",
+      "relationships": "| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| baseVersion | depends_on | FR-006 | 1..1 |\n",
       "diagnostics": [
         {
           "code": "semantic.invalid-model-cell",
@@ -190,7 +177,7 @@
     },
     {
       "id": "verb-specializes",
-      "relationships": "| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| parent | specializes | FR-005 | 1..1 |\n",
+      "relationships": "| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| priorOverlay | specializes | FR-006 | 1..1 |\n",
       "diagnostics": [
         {
           "code": "semantic.invalid-model-cell",
@@ -217,7 +204,7 @@
     },
     {
       "id": "target-title",
-      "relationships": "| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| overlay | references | ConfigOverlay | 1..1 |\n",
+      "relationships": "| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| baseVersion | references | ConfigVersion | 1..1 |\n",
       "diagnostics": [
         {
           "code": "semantic.invalid-model-cell",
@@ -240,7 +227,7 @@
     },
     {
       "id": "target-undeclared-id",
-      "relationships": "| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| overlay | references | FR-999 | 1..1 |\n",
+      "relationships": "| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| baseVersion | references | FR-999 | 1..1 |\n",
       "diagnostics": [
         {
           "code": "semantic.invalid-model-cell",
@@ -263,7 +250,7 @@
     },
     {
       "id": "target-own-package-undeclared-id",
-      "relationships": "| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| overlay | references | ix://agent-ix/config-service/FR-999 | 1..1 |\n",
+      "relationships": "| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| baseVersion | references | ix://agent-ix/config-service/FR-999 | 1..1 |\n",
       "diagnostics": [
         {
           "code": "semantic.invalid-model-cell",
@@ -286,7 +273,7 @@
     },
     {
       "id": "target-qualified-not-imported",
-      "relationships": "| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| requirement | references | ix://agent-ix/elsewhere/FR-001 | 0..* |\n",
+      "relationships": "| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| note | references | ix://agent-ix/elsewhere/FR-001 | 0..* |\n",
       "diagnostics": [
         {
           "code": "semantic.invalid-model-cell",
@@ -309,7 +296,7 @@
     },
     {
       "id": "target-not-allowed-object-type",
-      "relationships": "| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| detail | references | FR-007 | 0..1 |\n",
+      "relationships": "| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| item | references | FR-007 | 0..1 |\n",
       "diagnostics": [
         {
           "code": "semantic.invalid-model-cell",
@@ -332,7 +319,7 @@
     },
     {
       "id": "target-not-allowed-behavioral",
-      "relationships": "| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| archive | references | FR-010 | 0..1 |\n",
+      "relationships": "| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| seal | references | FR-010 | 0..1 |\n",
       "diagnostics": [
         {
           "code": "semantic.invalid-model-cell",
@@ -355,7 +342,7 @@
     },
     {
       "id": "target-qualified-import",
-      "relationships": "| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| requirement | references | ix://agent-ix/spec-artifacts-iso/FR-001 | 0..* |\n",
+      "relationships": "| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| note | references | ix://agent-ix/lexicon-core/FR-001 | 0..* |\n",
       "diagnostics": [],
       "exactDiagnostics": 0,
       "relations": [
@@ -363,7 +350,7 @@
           "verb": "references",
           "category": "traceability",
           "composite": false,
-          "target": "ix://agent-ix/spec-artifacts-iso/FR-001",
+          "target": "ix://agent-ix/lexicon-core/FR-001",
           "multiplicity": {
             "lower": 0
           }
@@ -371,14 +358,14 @@
       ],
       "relationSources": [
         {
-          "name": "requirement",
+          "name": "note",
           "sourceSpan": {
             "sourceIdentity": "ix://agent-ix/config-service/spec",
             "path": "case.md",
             "startLine": 20,
             "startColumn": 1,
             "endLine": 20,
-            "endColumn": 78
+            "endColumn": 65
           }
         }
       ],
@@ -391,7 +378,7 @@
     },
     {
       "id": "multiplicity-malformed",
-      "relationships": "| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| overlay | references | FR-005 | one |\n",
+      "relationships": "| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| baseVersion | references | FR-006 | one |\n",
       "diagnostics": [
         {
           "code": "semantic.invalid-model-cell",
@@ -414,7 +401,7 @@
     },
     {
       "id": "multiplicity-inverted",
-      "relationships": "| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| entries | contains | FR-007 | 5..2 |\n",
+      "relationships": "| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| lineItems | contains | FR-007 | 5..2 |\n",
       "diagnostics": [
         {
           "code": "semantic.invalid-model-cell",
@@ -437,7 +424,7 @@
     },
     {
       "id": "multiplicity-empty",
-      "relationships": "| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| overlay | references | FR-005 | |\n",
+      "relationships": "| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| baseVersion | references | FR-006 | |\n",
       "diagnostics": [
         {
           "code": "semantic.invalid-model-cell",
@@ -460,7 +447,7 @@
     },
     {
       "id": "name-not-identifier",
-      "relationships": "| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| config-overlay | references | FR-005 | 1..1 |\n",
+      "relationships": "| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| config-baseVersion | references | FR-006 | 1..1 |\n",
       "diagnostics": [
         {
           "code": "semantic.invalid-model-cell",
@@ -483,7 +470,7 @@
     },
     {
       "id": "duplicate-name",
-      "relationships": "| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| overlay | references | FR-005 | 1..1 |\n| overlay | references | FR-006 | 0..1 |\n",
+      "relationships": "| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| baseVersion | references | FR-006 | 1..1 |\n| baseVersion | references | FR-005 | 0..1 |\n",
       "diagnostics": [
         {
           "code": "semantic.duplicate-model-entry",
@@ -506,7 +493,7 @@
     },
     {
       "id": "declared-in-frontmatter",
-      "artifact": "---\nid: FR-006\ntitle: ConfigVersion\nobject: entity\ntype: FR\nrelationships:\n  - target: \"FR-005\"\n    type: \"references\"\n---\n\n# FR-006: ConfigVersion\n\n## Properties\n\n| Field | Type | Multiplicity | Constraints |\n|-------|------|--------------|-------------|\n| id | UUID | 1 | identity |\n\n## Relationships\n\n| Name | Verb | Target | Multiplicity |\n|------|------|--------|--------------|\n| overlay | references | FR-005 | 1..1 |\n| entries | contains | FR-007 | 0..* |\n| predecessor | references | FR-006 | 0..1 |\n",
+      "artifact": "---\nid: FR-005\ntitle: ConfigOverlay\nobject: entity\ntype: FR\nrelationships:\n  - target: \"FR-006\"\n    type: \"references\"\n---\n\n# FR-005: ConfigOverlay\n\n## Properties\n\n| Field | Type | Multiplicity | Constraints |\n|-------|------|--------------|-------------|\n| id | UUID | 1 | identity |\n\n## Relationships\n\n| Name | Verb | Target | Multiplicity |\n|------|------|--------|--------------|\n| baseVersion | references | FR-006 | 1..1 |\n| lineItems | contains | FR-007 | 0..* |\n| priorVersion | references | FR-005 | 0..1 |\n",
       "diagnostics": [
         {
           "code": "semantic.duplicate-model-entry",
@@ -529,7 +516,7 @@
     },
     {
       "id": "good-and-bad-rows",
-      "relationships": "| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| overlay | references | FR-005 | 1..1 |\n| entries | contains | FR-007 | many |\n",
+      "relationships": "| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| baseVersion | references | FR-006 | 1..1 |\n| lineItems | contains | FR-007 | many |\n",
       "diagnostics": [
         {
           "code": "semantic.invalid-model-cell",
@@ -552,7 +539,7 @@
     },
     {
       "id": "two-error-lines",
-      "relationships": "| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| overlay | belongs_to | FR-005 | 1..1 |\n| entries | contains | FR-007 | many |\n",
+      "relationships": "| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| baseVersion | belongs_to | FR-006 | 1..1 |\n| lineItems | contains | FR-007 | many |\n",
       "diagnostics": [
         {
           "code": "semantic.invalid-model-cell",
@@ -583,7 +570,7 @@
     },
     {
       "id": "first-failing-check-only",
-      "relationships": "| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| owner | composed_by | ConfigOverlay | one |\n",
+      "relationships": "| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| supersededBy | composed_by | ConfigVersion | one |\n",
       "diagnostics": [
         {
           "code": "semantic.invalid-model-cell",
@@ -606,7 +593,7 @@
     },
     {
       "id": "column-missing",
-      "relationships": "| Name | Verb | Target |\n|---|---|---|\n| overlay | references | FR-005 |\n",
+      "relationships": "| Name | Verb | Target |\n|---|---|---|\n| baseVersion | references | FR-006 |\n",
       "diagnostics": [
         {
           "code": "semantic.feature-not-extractable",
@@ -629,7 +616,7 @@
     },
     {
       "id": "column-extra",
-      "relationships": "| Name | Verb | Target | Multiplicity | Notes |\n|---|---|---|---|---|\n| overlay | references | FR-005 | 1..1 | x |\n",
+      "relationships": "| Name | Verb | Target | Multiplicity | Notes |\n|---|---|---|---|---|\n| baseVersion | references | FR-006 | 1..1 | x |\n",
       "diagnostics": [
         {
           "code": "semantic.feature-not-extractable",
@@ -666,7 +653,7 @@
     },
     {
       "id": "bullet-list",
-      "relationships": "- overlay: references FR-005 (1..1)\n- entries: contains FR-007 (0..*)\n",
+      "relationships": "- baseVersion: references FR-006 (1..1)\n- lineItems: contains FR-007 (0..*)\n",
       "diagnostics": [
         {
           "code": "semantic.feature-not-extractable",
@@ -689,7 +676,7 @@
     },
     {
       "id": "second-table",
-      "relationships": "| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| overlay | references | FR-005 | 1..1 |\n\n| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| entries | contains | FR-007 | 0..* |\n",
+      "relationships": "| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| baseVersion | references | FR-006 | 1..1 |\n\n| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| lineItems | contains | FR-007 | 0..* |\n",
       "diagnostics": [
         {
           "code": "semantic.duplicate-section",
@@ -712,7 +699,7 @@
     },
     {
       "id": "second-section",
-      "relationships": "| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| overlay | references | FR-005 | 1..1 |\n\n## Relationships\n\n| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| entries | contains | FR-007 | 0..* |\n",
+      "relationships": "| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| baseVersion | references | FR-006 | 1..1 |\n\n## Relationships\n\n| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| lineItems | contains | FR-007 | 0..* |\n",
       "diagnostics": [
         {
           "code": "semantic.duplicate-section",
@@ -735,7 +722,7 @@
     },
     {
       "id": "list-after-table",
-      "relationships": "| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| overlay | references | FR-005 | 1..1 |\n\n- entries: contains FR-007 (0..*)\n",
+      "relationships": "| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| baseVersion | references | FR-006 | 1..1 |\n\n- lineItems: contains FR-007 (0..*)\n",
       "diagnostics": [
         {
           "code": "semantic.feature-not-extractable",
@@ -758,7 +745,7 @@
     },
     {
       "id": "section-absent",
-      "artifact": "---\nid: FR-006\ntitle: ConfigVersion\nobject: entity\ntype: FR\n---\n\n# FR-006: ConfigVersion\n\n## Properties\n\n| Field | Type | Multiplicity | Constraints |\n|-------|------|--------------|-------------|\n| id | UUID | 1 | identity |\n\n",
+      "artifact": "---\nid: FR-005\ntitle: ConfigOverlay\nobject: entity\ntype: FR\n---\n\n# FR-005: ConfigOverlay\n\n## Properties\n\n| Field | Type | Multiplicity | Constraints |\n|-------|------|--------------|-------------|\n| id | UUID | 1 | identity |\n\n",
       "diagnostics": [],
       "exactDiagnostics": 0,
       "availability": {
@@ -773,7 +760,7 @@
       "mappings": [
         "typed-table"
       ],
-      "relationships": "| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| overlay | references | FR-005 | 1..1 |\n",
+      "relationships": "| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| baseVersion | references | FR-006 | 1..1 |\n",
       "diagnostics": [
         {
           "code": "semantic.feature-not-extractable",
@@ -799,7 +786,7 @@
       "mappings": [
         "typed-table"
       ],
-      "artifact": "---\nid: FR-006\ntitle: ConfigVersion\nobject: entity\ntype: FR\n---\n\n# FR-006: ConfigVersion\n\n## Properties\n\n| Field | Type | Multiplicity | Constraints |\n|-------|------|--------------|-------------|\n| id | UUID | 1 | identity |\n\n## Associations\n\n| Name | Target |\n|---|---|\n| overlay | FR-005 |\n",
+      "artifact": "---\nid: FR-005\ntitle: ConfigOverlay\nobject: entity\ntype: FR\n---\n\n# FR-005: ConfigOverlay\n\n## Properties\n\n| Field | Type | Multiplicity | Constraints |\n|-------|------|--------------|-------------|\n| id | UUID | 1 | identity |\n\n## Associations\n\n| Name | Target |\n|---|---|\n| baseVersion | FR-006 |\n",
       "diagnostics": [
         {
           "code": "semantic.feature-not-extractable",
@@ -825,7 +812,7 @@
       "mappings": [
         "typed-table"
       ],
-      "artifact": "---\nid: FR-006\ntitle: ConfigVersion\nobject: entity\ntype: FR\n---\n\n# FR-006: ConfigVersion\n\n| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| overlay | references | FR-005 | 1..1 |\n\n## Properties\n\n| Field | Type | Multiplicity | Constraints |\n|-------|------|--------------|-------------|\n| id | UUID | 1 | identity |\n\n",
+      "artifact": "---\nid: FR-005\ntitle: ConfigOverlay\nobject: entity\ntype: FR\n---\n\n# FR-005: ConfigOverlay\n\n| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| baseVersion | references | FR-006 | 1..1 |\n\n## Properties\n\n| Field | Type | Multiplicity | Constraints |\n|-------|------|--------------|-------------|\n| id | UUID | 1 | identity |\n\n",
       "diagnostics": [
         {
           "code": "semantic.feature-not-extractable",
@@ -851,14 +838,14 @@
       "mappings": [
         "typed-table"
       ],
-      "relationships": "- `overlay`: belongs_to → ConfigOverlay (FR-005)\n",
+      "relationships": "- `baseVersion`: belongs_to \u2192 ConfigVersion (FR-006)\n",
       "diagnostics": [],
       "exactDiagnostics": 0,
       "availability": {}
     },
     {
       "id": "token-table-other-section",
-      "artifact": "---\nid: FR-006\ntitle: ConfigVersion\nobject: entity\ntype: FR\n---\n\n# FR-006: ConfigVersion\n\n## Properties\n\n| Field | Type | Multiplicity | Constraints |\n|-------|------|--------------|-------------|\n| id | UUID | 1 | identity |\n\n## Associations\n\n| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| overlay | references | FR-005 | 1..1 |\n",
+      "artifact": "---\nid: FR-005\ntitle: ConfigOverlay\nobject: entity\ntype: FR\n---\n\n# FR-005: ConfigOverlay\n\n## Properties\n\n| Field | Type | Multiplicity | Constraints |\n|-------|------|--------------|-------------|\n| id | UUID | 1 | identity |\n\n## Associations\n\n| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| baseVersion | references | FR-006 | 1..1 |\n",
       "diagnostics": [
         {
           "code": "semantic.feature-not-extractable",
@@ -881,7 +868,7 @@
     },
     {
       "id": "token-preamble-table",
-      "artifact": "---\nid: FR-006\ntitle: ConfigVersion\nobject: entity\ntype: FR\n---\n\n# FR-006: ConfigVersion\n\n| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| overlay | references | FR-005 | 1..1 |\n\n## Properties\n\n| Field | Type | Multiplicity | Constraints |\n|-------|------|--------------|-------------|\n| id | UUID | 1 | identity |\n\n## Relationships\n\n| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| entries | contains | FR-007 | 0..* |\n",
+      "artifact": "---\nid: FR-005\ntitle: ConfigOverlay\nobject: entity\ntype: FR\n---\n\n# FR-005: ConfigOverlay\n\n| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| baseVersion | references | FR-006 | 1..1 |\n\n## Properties\n\n| Field | Type | Multiplicity | Constraints |\n|-------|------|--------------|-------------|\n| id | UUID | 1 | identity |\n\n## Relationships\n\n| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| lineItems | contains | FR-007 | 0..* |\n",
       "diagnostics": [
         {
           "code": "semantic.feature-not-extractable",
@@ -927,7 +914,7 @@
     {
       "id": "no-relation-vocabulary",
       "withoutRelationVocabulary": true,
-      "relationships": "| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| overlay | belongs_to | FR-005 | 1..1 |\n| entries | contains | FR-007 | many |\n",
+      "relationships": "| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| baseVersion | belongs_to | FR-006 | 1..1 |\n| lineItems | contains | FR-007 | many |\n",
       "diagnostics": [
         {
           "code": "semantic.relationships-no-vocabulary",
@@ -951,7 +938,7 @@
     {
       "id": "no-bundle-index",
       "withoutBundleIndex": true,
-      "relationships": "| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| overlay | references | FR-005 | 1..1 |\n| predecessor | references | FR-006 | 0..1 |\n",
+      "relationships": "| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| baseVersion | references | FR-006 | 1..1 |\n| priorVersion | references | FR-005 | 0..1 |\n",
       "diagnostics": [
         {
           "code": "semantic.unresolved-target",
@@ -961,7 +948,7 @@
           "section": "Relationships",
           "reason": "no-bundle-index",
           "messageContains": [
-            "FR-005"
+            "FR-006"
           ]
         }
       ],
@@ -971,7 +958,7 @@
           "verb": "references",
           "category": "traceability",
           "composite": false,
-          "target": "ix://agent-ix/config-service/FR-005",
+          "target": "ix://agent-ix/config-service/FR-006",
           "multiplicity": {
             "lower": 1,
             "upper": 1
@@ -981,7 +968,7 @@
           "verb": "references",
           "category": "traceability",
           "composite": false,
-          "target": "ix://agent-ix/config-service/FR-006",
+          "target": "ix://agent-ix/config-service/FR-005",
           "multiplicity": {
             "lower": 0,
             "upper": 1
@@ -990,25 +977,25 @@
       ],
       "relationSources": [
         {
-          "name": "overlay",
+          "name": "baseVersion",
           "sourceSpan": {
             "sourceIdentity": "ix://agent-ix/config-service/spec",
             "path": "case.md",
             "startLine": 20,
             "startColumn": 1,
             "endLine": 20,
-            "endColumn": 41
+            "endColumn": 45
           }
         },
         {
-          "name": "predecessor",
+          "name": "priorVersion",
           "sourceSpan": {
             "sourceIdentity": "ix://agent-ix/config-service/spec",
             "path": "case.md",
             "startLine": 21,
             "startColumn": 1,
             "endLine": 21,
-            "endColumn": 45
+            "endColumn": 46
           }
         }
       ],
@@ -1022,7 +1009,7 @@
     {
       "id": "no-bundle-index-title-target",
       "withoutBundleIndex": true,
-      "relationships": "| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| overlay | references | Config Overlay | 1..1 |\n",
+      "relationships": "| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| baseVersion | references | Config Version | 1..1 |\n",
       "diagnostics": [
         {
           "code": "semantic.invalid-model-cell",
@@ -1046,7 +1033,7 @@
     {
       "id": "no-bundle-index-own-package-identity",
       "withoutBundleIndex": true,
-      "relationships": "| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| overlay | references | ix://agent-ix/config-service/FR-005 | 1..1 |\n",
+      "relationships": "| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| baseVersion | references | ix://agent-ix/config-service/FR-006 | 1..1 |\n",
       "diagnostics": [
         {
           "code": "semantic.unresolved-target",
@@ -1056,7 +1043,7 @@
           "section": "Relationships",
           "reason": "no-bundle-index",
           "messageContains": [
-            "ix://agent-ix/config-service/FR-005"
+            "ix://agent-ix/config-service/FR-006"
           ]
         }
       ],
@@ -1066,7 +1053,7 @@
           "verb": "references",
           "category": "traceability",
           "composite": false,
-          "target": "ix://agent-ix/config-service/FR-005",
+          "target": "ix://agent-ix/config-service/FR-006",
           "multiplicity": {
             "lower": 1,
             "upper": 1
@@ -1075,14 +1062,14 @@
       ],
       "relationSources": [
         {
-          "name": "overlay",
+          "name": "baseVersion",
           "sourceSpan": {
             "sourceIdentity": "ix://agent-ix/config-service/spec",
             "path": "case.md",
             "startLine": 20,
             "startColumn": 1,
             "endLine": 20,
-            "endColumn": 70
+            "endColumn": 74
           }
         }
       ],
@@ -1096,7 +1083,7 @@
     {
       "id": "no-relation-vocabulary-second-table",
       "withoutRelationVocabulary": true,
-      "relationships": "| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| overlay | references | FR-005 | 1..1 |\n\n| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| entries | contains | FR-007 | 0..* |\n",
+      "relationships": "| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| baseVersion | references | FR-006 | 1..1 |\n\n| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| lineItems | contains | FR-007 | 0..* |\n",
       "diagnostics": [
         {
           "code": "semantic.duplicate-section",
@@ -1120,7 +1107,7 @@
     {
       "id": "no-bundle-index-bad-multiplicity",
       "withoutBundleIndex": true,
-      "relationships": "| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| overlay | references | FR-005 | many |\n",
+      "relationships": "| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| baseVersion | references | FR-006 | many |\n",
       "diagnostics": [
         {
           "code": "semantic.invalid-model-cell",
@@ -1144,7 +1131,7 @@
     {
       "id": "no-bundle-index-mixed-rows",
       "withoutBundleIndex": true,
-      "relationships": "| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| overlay | references | FR-005 | 1..1 |\n| predecessor | references | FR-006 | many |\n",
+      "relationships": "| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| baseVersion | references | FR-006 | 1..1 |\n| priorVersion | references | FR-005 | many |\n",
       "diagnostics": [
         {
           "code": "semantic.invalid-model-cell",
@@ -1168,7 +1155,7 @@
     {
       "id": "no-bundle-package",
       "withoutBundlePackage": true,
-      "relationships": "| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| overlay | belongs_to | FR-005 | 1..1 |\n| entries | contains | FR-007 | many |\n",
+      "relationships": "| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| baseVersion | belongs_to | FR-006 | 1..1 |\n| lineItems | contains | FR-007 | many |\n",
       "diagnostics": [
         {
           "code": "semantic.relationships-no-bundle-package",
@@ -1192,7 +1179,7 @@
     {
       "id": "no-bundle-package-second-table",
       "withoutBundlePackage": true,
-      "relationships": "| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| overlay | references | FR-005 | 1..1 |\n\n| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| entries | contains | FR-007 | 0..* |\n",
+      "relationships": "| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| baseVersion | references | FR-006 | 1..1 |\n\n| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| lineItems | contains | FR-007 | 0..* |\n",
       "diagnostics": [
         {
           "code": "semantic.duplicate-section",

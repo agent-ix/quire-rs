@@ -1,7 +1,7 @@
 {
-  "$comment": "FR-071-AC-3: a typed table and a sysml fence under one Properties heading; extraction fails at the second form's locus (quire-rs#388 golden).",
+  "$comment": "FR-071-AC-3: a typed table and a sysml fence under one Properties heading; extraction fails at the second form's locus.",
   "semanticCore": "0.1.0",
-  "artifact": "both-forms.md",
+  "artifact": "overlay-both-forms.md",
   "firstForm": {
     "form": "typed-table",
     "line": 12

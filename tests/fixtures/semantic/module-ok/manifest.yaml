@@ -1,13 +1,13 @@
 manifest_version: 1.0.0
-name: spec-objects-fixture
+name: config-service-fixture
 version: 0.1.0
-description: "Semantic-module contract fixture (quoin FR-070/FR-073)."
+description: "First-party semantic-module contract fixture (FR-070/FR-071/FR-072/FR-074/FR-076), owned by quire-rs. Exercises the extraction paths this crate implements; it is not a copy of any downstream consumer's module."
 archetypes: []
 object_types:
 - name: entity
   data_schema:
     schema: schemas/Entity.json
-    digest: sha256:8692992e186f40a73b78fd1b0915f0fe78e05a2b00782fb1df58c951a37c91d5
+    digest: sha256:1e81e1d8d81b8f265bb9954026aa440588cc1f9b25d25be848d37133706dc6d0
   body_extraction:
     yield_pattern:
       match:
@@ -19,6 +19,6 @@ object_types:
 semantic:
   contract_version: 1.0.0
   semantic_core: 0.1.0
-  package: agent-ix/spec-objects-fixture
+  package: agent-ix/config-service-fixture
   exports: [entity]
   targets: [json-schema, markdown]

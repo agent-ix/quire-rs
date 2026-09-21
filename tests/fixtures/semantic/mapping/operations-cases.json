@@ -3,7 +3,7 @@
   "cases": [
     {
       "id": "fence-no-language",
-      "invariants": "### immutable\n\n```\nx\n```\n",
+      "invariants": "### unlocked\n\n```\nx\n```\n",
       "diagnostics": [
         {
           "code": "semantic.clause-language-missing",
@@ -14,7 +14,7 @@
     },
     {
       "id": "fence-bare-unknown",
-      "invariants": "### immutable\n\n```tla\nx\n```\n",
+      "invariants": "### unlocked\n\n```tla\nx\n```\n",
       "diagnostics": [
         {
           "code": "semantic.clause-language-invalid",
@@ -25,7 +25,7 @@
     },
     {
       "id": "fence-sysml-advisory",
-      "invariants": "### immutable\n\n```sysml\nx\n```\n",
+      "invariants": "### unlocked\n\n```sysml\nx\n```\n",
       "diagnostics": [
         {
           "code": "semantic.clause-language-unchecked",
@@ -36,7 +36,7 @@
     },
     {
       "id": "fence-fretish-advisory",
-      "invariants": "### immutable\n\n```fretish\nx\n```\n",
+      "invariants": "### unlocked\n\n```fretish\nx\n```\n",
       "diagnostics": [
         {
           "code": "semantic.clause-language-unchecked",
@@ -47,7 +47,7 @@
     },
     {
       "id": "fence-namespaced-advisory",
-      "invariants": "### immutable\n\n```acme:tla\nx\n```\n",
+      "invariants": "### unlocked\n\n```acme:tla\nx\n```\n",
       "diagnostics": [
         {
           "code": "semantic.clause-language-unchecked",
@@ -58,24 +58,24 @@
     },
     {
       "id": "fence-ocl-carried",
-      "invariants": "### immutable\n\n```ocl\nx\n```\n",
+      "invariants": "### unlocked\n\n```ocl\nx\n```\n",
       "diagnostics": [
         {
           "code": "semantic.clause-language-unchecked",
           "severity": "advisory",
           "locus": "fence",
           "column": 1,
-          "message": "clause immutable: language ocl is carried unchecked"
+          "message": "clause unlocked: language ocl is carried unchecked"
         }
       ],
       "clauses": [
         {
           "language": "ocl",
-          "clauseId": "immutable"
+          "clauseId": "unlocked"
         }
       ],
       "clauseText": {
-        "immutable": "x"
+        "unlocked": "x"
       },
       "availability": {
         "clauses": {
@@ -86,7 +86,7 @@
     },
     {
       "id": "duplicate-clause-id",
-      "invariants": "### immutable\n\n```quire\na\n```\n\n### immutable\n\n```quire\nb\n```\n",
+      "invariants": "### unlocked\n\n```quire\na\n```\n\n### unlocked\n\n```quire\nb\n```\n",
       "diagnostics": [
         {
           "code": "semantic.duplicate-clause-id",
@@ -97,7 +97,7 @@
     },
     {
       "id": "clause-id-not-identifier",
-      "invariants": "### not-archived\n\n```quire\na\n```\n",
+      "invariants": "### not-sealed\n\n```quire\na\n```\n",
       "diagnostics": [
         {
           "code": "semantic.clause-id-not-identifier",
@@ -108,7 +108,7 @@
     },
     {
       "id": "dangling-post",
-      "operations": "### archive\n\nReturns: ConfigVersion[1]\nPost: missing\n",
+      "operations": "### seal\n\nReturns: ConfigOverlay[1]\nPost: missing\n",
       "diagnostics": [
         {
           "code": "semantic.dangling-clause-ref",
@@ -119,7 +119,7 @@
     },
     {
       "id": "duplicate-operation",
-      "operations": "### archive\n\nReturns: ConfigVersion[1]\n\n### archive\n\nReturns: ConfigVersion[1]\n",
+      "operations": "### seal\n\nReturns: ConfigOverlay[1]\n\n### seal\n\nReturns: ConfigOverlay[1]\n",
       "diagnostics": [
         {
           "code": "semantic.duplicate-operation",
@@ -130,7 +130,7 @@
     },
     {
       "id": "inline-and-external",
-      "invariants": "### immutable\n\n```quire\na\n```\n\nClause: ./clauses.md#immutable\n",
+      "invariants": "### unlocked\n\n```quire\na\n```\n\nClause: ./clauses.md#unlocked\n",
       "diagnostics": [
         {
           "code": "semantic.duplicate-clause-authority",

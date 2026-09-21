@@ -1,7 +1,7 @@
 {
-  "$comment": "Expected normalized FieldDecl[] for config-version.table.md and config-version.fence.md (FR-071-AC-1/AC-2). Normalized: canonical key order, optional properties omitted, authored form outside the array.",
+  "$comment": "Expected normalized FieldDecl[] for overlay.table.md and overlay.fence.md (FR-071-AC-1/AC-2). Normalized: canonical key order, optional properties omitted, authored form outside the array.",
   "semanticCore": "0.1.0",
-  "artifact": "FR-006",
+  "artifact": "FR-005",
   "fields": [
     {
       "name": "id",
@@ -15,7 +15,7 @@
       "identity": true
     },
     {
-      "name": "versionNumber",
+      "name": "priority",
       "type": {
         "target": "Integer",
         "multiplicity": {
@@ -26,22 +26,12 @@
       "constraints": [
         {
           "keyword": "min",
-          "value": 1
+          "value": 0
         }
       ]
     },
     {
-      "name": "data",
-      "type": {
-        "target": "JsonObject",
-        "multiplicity": {
-          "lower": 1,
-          "upper": 1
-        }
-      }
-    },
-    {
-      "name": "hash",
+      "name": "label",
       "type": {
         "target": "String",
         "multiplicity": {
@@ -56,7 +46,17 @@
       ]
     },
     {
-      "name": "parent",
+      "name": "settings",
+      "type": {
+        "target": "JsonObject",
+        "multiplicity": {
+          "lower": 1,
+          "upper": 1
+        }
+      }
+    },
+    {
+      "name": "baseVersion",
       "type": {
         "target": "ix://agent-ix/config-service/type/ConfigVersion",
         "multiplicity": {
@@ -66,7 +66,7 @@
       }
     },
     {
-      "name": "createdAt",
+      "name": "appliedAt",
       "type": {
         "target": "Timestamp",
         "multiplicity": {
@@ -76,7 +76,7 @@
       }
     },
     {
-      "name": "createdBy",
+      "name": "appliedBy",
       "type": {
         "target": "String",
         "multiplicity": {
@@ -87,7 +87,7 @@
       "constraints": [
         {
           "keyword": "maxLength",
-          "value": 64
+          "value": 32
         }
       ]
     }
@@ -95,10 +95,10 @@
   "clauses": [
     {
       "language": "ocl",
-      "clauseId": "immutable",
+      "clauseId": "sealed",
       "sourceSpan": {
         "sourceIdentity": "ix://agent-ix/config-service/spec",
-        "path": "config-version.table.md",
+        "path": "overlay.table.md",
         "startLine": 34,
         "startColumn": 1,
         "endLine": 36,
@@ -107,11 +107,11 @@
     }
   ],
   "authoredForm": {
-    "config-version.table.md": "table",
-    "config-version.fence.md": "fence"
+    "overlay.table.md": "table",
+    "overlay.fence.md": "fence"
   },
   "clauseText": {
-    "immutable": "context ConfigVersion inv immutable: self.versionNumber = self.versionNumber@pre and self.data = self.data@pre and self.hash = self.hash@pre"
+    "sealed": "context ConfigOverlay inv sealed: self.priority = self.priority@pre and self.settings = self.settings@pre and self.label = self.label@pre"
   },
   "availability": {
     "clauses": {
@@ -124,7 +124,7 @@
       "code": "semantic.clause-language-unchecked",
       "column": 1,
       "line": 34,
-      "message": "clause immutable: language ocl is carried unchecked",
+      "message": "clause sealed: language ocl is carried unchecked",
       "severity": "advisory"
     }
   ]

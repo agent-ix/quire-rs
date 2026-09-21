@@ -2,7 +2,7 @@
   "semanticCore": "0.1.0",
   "cases": [
     {
-      "file": "../corpus/config-service/FR-006-config-version-entity.md",
+      "file": "../corpus/config-service/FR-005-config-overlay-entity.md",
       "form": "free-column-table",
       "line": 17,
       "diagnostic": {
@@ -39,12 +39,12 @@
       }
     },
     {
-      "file": "config-version.table.md",
+      "file": "overlay.table.md",
       "form": "typed-table",
       "line": 16
     },
     {
-      "file": "config-version.fence.md",
+      "file": "overlay.fence.md",
       "form": "sysml-fence",
       "line": 16
     }

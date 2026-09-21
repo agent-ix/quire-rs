@@ -1,7 +1,7 @@
-//! FR-076 relationships extraction (TC-1852..TC-1863, TC-1865, TC-1867). Oracles: the quoin
-//! FR-104 fixtures `relationships.md`, `relationships.expected.json`, and
-//! `relationships-cases.json` (vendored at `99bd4f0`). The extraction context
-//! is built from each fixture's recorded `context`, never from `module-ok`.
+//! FR-076 relationships extraction (TC-1852..TC-1863, TC-1865, TC-1867). Oracles: the
+//! first-party fixtures `relationships.md`, `relationships.expected.json`, and
+//! `relationships-cases.json`. The extraction context is built from each
+//! fixture's recorded `context`, never from `module-ok`.
 
 use std::collections::BTreeSet;
 use std::fs;
@@ -15,7 +15,7 @@ use serde_json::{json, Value};
 
 fn mapping_json(name: &str) -> Value {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("tests/fixtures/semantic/quoin/mapping")
+        .join("tests/fixtures/semantic/mapping")
         .join(name);
     serde_json::from_str(&fs::read_to_string(path).unwrap()).unwrap()
 }
@@ -23,7 +23,7 @@ fn mapping_json(name: &str) -> Value {
 fn mapping_text(name: &str) -> String {
     fs::read_to_string(
         PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("tests/fixtures/semantic/quoin/mapping")
+            .join("tests/fixtures/semantic/mapping")
             .join(name),
     )
     .unwrap()
@@ -65,8 +65,7 @@ fn request(fixture: &Value, markdown: &str, path: &str, case: Option<&Value>) ->
         .iter()
         .map(|p| (p.as_str().unwrap().to_string(), json!("*")))
         .collect();
-    // The vendored fixture predates `BundleArtifact.operations` (FR-075
-    // Inputs) and is provenance-pinned (`quoin_fixtures_match_provenance`),
+    // The fixture predates `BundleArtifact.operations` (FR-075 Inputs),
     // so this backfills the now-required field here rather than editing the
     // fixture; none of these fixture cases exercise systems-model
     // operations, so every artifact declares none.
@@ -85,7 +84,7 @@ fn request(fixture: &Value, markdown: &str, path: &str, case: Option<&Value>) ->
         "module": {
             "contractVersion": "1.0.0",
             "semanticCore": fixture["semanticCore"],
-            "package": "agent-ix/spec-objects-business",
+            "package": "agent-ix/config-service-fixture",
             "exports": ["entity"],
             "imports": imports,
             "mappings": mappings.unwrap_or(&context["mappings"]),
@@ -319,16 +318,13 @@ const AVAILABILITY_CASES: &[&str] = &[
 // the golden `relationships.md` extracts to `relationships.expected.json`.
 #[test]
 fn golden_relationships() {
-    // quoin FR-104-CON-2 / TC-1726: both vendored fixtures pin the semantic
-    // core and record their sources.
+    // Both fixtures pin the semantic-core generation they were authored
+    // against. FR-076-AC-1's CR-182 note drops the vendored-sha256-pin
+    // clause with no replacement: first-party fixtures have no upstream
+    // copy for a `context.sources` provenance record to name.
     for name in ["relationships.expected.json", "relationships-cases.json"] {
         let fixture = mapping_json(name);
         assert_eq!(fixture["semanticCore"], "0.2.0", "{name}");
-        let sources = fixture["context"]["sources"].as_object();
-        assert!(
-            sources.is_some_and(|s| !s.is_empty()),
-            "{name}: context.sources must be a non-empty object"
-        );
     }
     let expected = mapping_json("relationships.expected.json");
     let md = mapping_text("relationships.md");

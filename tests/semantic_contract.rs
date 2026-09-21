@@ -1,8 +1,8 @@
 //! FR-069 semantic module contract at load (TC-1599..TC-1609, TC-1633,
 //! TC-1645, TC-1646, TC-1848, TC-1849, TC-1864, TC-1866). Plan-003 Task-016.
 //!
-//! Every case starts from the quoin `module-ok` fixture (pinned under
-//! `tests/fixtures/semantic/quoin/module-ok`), copied into a temp dir and
+//! Every case starts from the first-party `module-ok` fixture (under
+//! `tests/fixtures/semantic/module-ok`), copied into a temp dir and
 //! mutated in place; the fixture itself is never edited.
 
 use std::collections::BTreeMap;
@@ -19,14 +19,14 @@ use tempfile::TempDir;
 type Mutate = Box<dyn Fn(&mut serde_yaml::Value, &Path)>;
 
 fn fixture() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/semantic/quoin/module-ok")
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/semantic/module-ok")
 }
 
 fn golden() -> Value {
     serde_json::from_slice(
         &fs::read(
             PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                .join("tests/fixtures/semantic/quoin/mapping/config-version.expected.json"),
+                .join("tests/fixtures/semantic/mapping/overlay.expected.json"),
         )
         .unwrap(),
     )
@@ -136,13 +136,13 @@ fn semantic_diagnostics(registry: &Registry) -> Vec<(String, String)> {
 #[test]
 fn valid_block_and_reference_schema_load() {
     let tmp = tempfile::tempdir().unwrap();
-    let root = module(&tmp, "spec-objects-fixture", |_, _| {});
+    let root = module(&tmp, "config-service-fixture", |_, _| {});
     let registry = load(&root);
     assert!(registry.failures().is_empty(), "{:?}", reasons(&registry));
     let sem: &SemanticModule = registry
-        .semantic_module("spec-objects-fixture")
+        .semantic_module("config-service-fixture")
         .expect("block");
-    assert_eq!(sem.package, "agent-ix/spec-objects-fixture");
+    assert_eq!(sem.package, "agent-ix/config-service-fixture");
     assert_eq!(sem.semantic_core, "0.1.0");
     assert_eq!(sem.exports, vec!["entity".to_string()]);
     assert_eq!(sem.legacy_forms, "warning");
@@ -393,7 +393,7 @@ fn ref_rules() {
 
     let root = module(&tmp, "unshipped", |m, root| {
         edit_entity(m, root, |s| {
-            *fields_items(s) = json!({ "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-fixture/0.1.0/Missing.json" });
+            *fields_items(s) = json!({ "$ref": "https://schemas.agent-ix.org/agent-ix/config-service-fixture/0.1.0/Missing.json" });
         })
     });
     let r = reasons(&load(&root));
@@ -420,15 +420,15 @@ fn ref_rules() {
             root.join("schemas/Other.json"),
             serde_json::to_vec(&json!({
                 "$schema": "https://json-schema.org/draft/2020-12/schema",
-                "$id": "https://schemas.agent-ix.org/agent-ix/spec-objects-fixture/0.1.0/Other.json",
+                "$id": "https://schemas.agent-ix.org/agent-ix/config-service-fixture/0.1.0/Other.json",
                 "type": "object",
-                "properties": { "back": { "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-fixture/0.1.0/Entity.json" } }
+                "properties": { "back": { "$ref": "https://schemas.agent-ix.org/agent-ix/config-service-fixture/0.1.0/Entity.json" } }
             }))
             .unwrap(),
         )
         .unwrap();
         edit_entity(m, root, |s| {
-            s["properties"]["other"] = json!({ "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-fixture/0.1.0/Other.json" });
+            s["properties"]["other"] = json!({ "$ref": "https://schemas.agent-ix.org/agent-ix/config-service-fixture/0.1.0/Other.json" });
         });
     });
     let r = reasons(&load(&root));
@@ -441,7 +441,7 @@ fn ref_rules() {
     let root = module(&tmp, "self-fragment", |m, root| {
         edit_entity(m, root, |s| {
             s["$defs"] = json!({ "marker": { "type": "string" } });
-            s["properties"]["marker"] = json!({ "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-fixture/0.1.0/Entity.json#/$defs/marker" });
+            s["properties"]["marker"] = json!({ "$ref": "https://schemas.agent-ix.org/agent-ix/config-service-fixture/0.1.0/Entity.json#/$defs/marker" });
         })
     });
     let registry = load(&root);
@@ -574,7 +574,7 @@ fn snapshot_input(object_types: Vec<Value>) -> FilamentExtractionInput {
     serde_json::from_value(json!({
         "projectId": "p", "documentId": "d", "artifactId": "a", "relPath": "spec/FR-006.md",
         "repoName": "config-service", "org": "agent-ix",
-        "markdown": "---\nid: FR-006\ntitle: ConfigVersion\nobject: entity\n---\n# FR-006\n",
+        "markdown": "---\nid: FR-006\ntitle: PhantomType\nobject: entity\n---\n# FR-006\n",
         "objectTypes": object_types
     }))
     .unwrap()
@@ -609,7 +609,7 @@ fn filament_snapshot_reference_form_is_refused() {
 
     let inline: Value =
         serde_json::from_slice(&fs::read(fixture().join("schemas/Entity.json")).unwrap()).unwrap();
-    let context = json!({ "contractVersion": "1.0.0", "semanticCore": "0.1.0", "package": "agent-ix/spec-objects-fixture", "exports": ["entity"], "imports": {} });
+    let context = json!({ "contractVersion": "1.0.0", "semanticCore": "0.1.0", "package": "agent-ix/config-service-fixture", "exports": ["entity"], "imports": {} });
     let result = extract_filament_core(snapshot_input(vec![entity_snapshot(
         json!({ "type": "object" }),
         Some(context.clone()),
@@ -625,7 +625,7 @@ fn filament_snapshot_reference_form_is_refused() {
     let mut input = snapshot_input(vec![entity_snapshot(inline.clone(), Some(context.clone()))]);
     input.markdown = fs::read_to_string(
         PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("tests/fixtures/semantic/quoin/mapping/config-version.table.md"),
+            .join("tests/fixtures/semantic/mapping/overlay.table.md"),
     )
     .unwrap();
     let result = extract_filament_core(input);
@@ -791,7 +791,7 @@ fn inline_parts_resolve_the_reference_form() {
 fn featured_document() -> String {
     fs::read_to_string(
         PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("tests/fixtures/semantic/quoin/mapping/config-version.table.md"),
+            .join("tests/fixtures/semantic/mapping/overlay.table.md"),
     )
     .unwrap()
     .replace("type: FR\n", "type: FR\nabstract: true\n")
@@ -815,7 +815,7 @@ fn mappings_are_recorded() {
     assert_eq!(module.mappings, ["abstract-types", "presence"]);
     let registry = load(&fixture());
     assert!(registry
-        .semantic_module("spec-objects-fixture")
+        .semantic_module("config-service-fixture")
         .unwrap()
         .mappings
         .is_empty());
@@ -856,7 +856,7 @@ fn surfaces_gate_model_features_on_the_manifest() {
     );
     assert!(bare.iter().any(|m| m.contains("values")), "{bare:?}");
 
-    let context = |mappings: &[&str]| json!({ "contractVersion": "1.0.0", "semanticCore": "0.1.0", "package": "agent-ix/spec-objects-fixture", "exports": ["entity"], "imports": {}, "mappings": mappings });
+    let context = |mappings: &[&str]| json!({ "contractVersion": "1.0.0", "semanticCore": "0.1.0", "package": "agent-ix/config-service-fixture", "exports": ["entity"], "imports": {}, "mappings": mappings });
     let run = |mappings: &[&str], body_extraction: Value| {
         let mut object_type = entity_snapshot(json!({ "type": "object" }), Some(context(mappings)));
         object_type["bodyExtraction"] = body_extraction;
@@ -917,7 +917,7 @@ fn rust_callers_gate_model_tables_through_the_public_context() {
     let module = SemanticModule {
         contract_version: "1.0.0".into(),
         semantic_core: "0.1.0".into(),
-        package: "agent-ix/spec-objects-fixture".into(),
+        package: "agent-ix/config-service-fixture".into(),
         exports: vec!["entity".into()],
         imports: BTreeMap::new(),
         targets: Vec::new(),
@@ -953,7 +953,7 @@ fn rust_callers_gate_model_tables_through_the_public_context() {
 
     let adapter = extract_semantic_json(&json!({
         "markdown": doc,
-        "module": { "contractVersion": "1.0.0", "semanticCore": "0.1.0", "package": "agent-ix/spec-objects-fixture", "exports": ["entity"] },
+        "module": { "contractVersion": "1.0.0", "semanticCore": "0.1.0", "package": "agent-ix/config-service-fixture", "exports": ["entity"] },
         "path": "spec/FR-006.md",
         "sourceIdentity": "ix://agent-ix/fixture/spec",
         "bodyExtraction": dsl,
@@ -1048,11 +1048,11 @@ fn required_sections_read_every_locator_of_the_typed_dsl() {
 fn related_document(rows: &str) -> String {
     fs::read_to_string(
         PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("tests/fixtures/semantic/quoin/mapping/config-version.table.md"),
+            .join("tests/fixtures/semantic/mapping/overlay.table.md"),
     )
     .unwrap()
     .replace(
-        "- `overlay`: belongs_to → ConfigOverlay (FR-005)\n",
+        "- `version`: references → ConfigVersion (FR-006)\n",
         &format!("| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n{rows}"),
     )
 }
@@ -1121,19 +1121,19 @@ fn surfaces_supply_the_relation_vocabulary() {
     // row lowers with no finding; a bare id this surface cannot check lowers
     // with the `no-bundle-index` advisory.
     let (errors, warnings) = findings(&related_document(
-        "| predecessor | references | FR-006 | 0..1 |\n| overlay | references | FR-005 | 1..1 |\n",
+        "| predecessor | references | FR-005 | 0..1 |\n| overlay | references | FR-006 | 1..1 |\n",
     ));
     assert_eq!(errors, Vec::<String>::new());
     assert_eq!(warnings.len(), 1, "{warnings:?}");
     assert!(
-        warnings[0].starts_with("semantic.unresolved-target") && warnings[0].contains("FR-005"),
+        warnings[0].starts_with("semantic.unresolved-target") && warnings[0].contains("FR-006"),
         "{warnings:?}"
     );
 
     // The registry's vocabulary refuses: an unregistered verb, an inverse
     // label, and an own-id target outside `contains`'s allowed_links.
     let (errors, _) = findings(&related_document(
-        "| a | holds | FR-006 | 1 |\n| b | part_of | FR-006 | 1 |\n| c | contains | FR-006 | 1 |\n",
+        "| a | holds | FR-006 | 1 |\n| b | part_of | FR-006 | 1 |\n| c | contains | FR-005 | 1 |\n",
     ));
     assert_eq!(errors.len(), 3, "{errors:?}");
     for (message, verb) in errors.iter().zip(["holds", "part_of", "contains"]) {
@@ -1143,7 +1143,7 @@ fn surfaces_supply_the_relation_vocabulary() {
 
     // Filament: the snapshot carries no edge_types or roles.
     let doc = related_document("| overlay | references | FR-005 | 1..1 |\n");
-    let context = json!({ "contractVersion": "1.0.0", "semanticCore": "0.1.0", "package": "agent-ix/spec-objects-fixture", "exports": ["entity"], "imports": {}, "mappings": ["relationships"] });
+    let context = json!({ "contractVersion": "1.0.0", "semanticCore": "0.1.0", "package": "agent-ix/config-service-fixture", "exports": ["entity"], "imports": {}, "mappings": ["relationships"] });
     let mut input = snapshot_input(vec![entity_snapshot(
         json!({ "type": "object" }),
         Some(context.clone()),
@@ -1211,7 +1211,7 @@ fn validate_document_qualifies_under_the_bundle_package() {
 
     // An own-package identity lowers with the no-bundle-index advisory.
     let (errors, warnings) = in_bundle(&related_document(
-        "| overlay | references | ix://agent-ix/config-service/FR-005 | 1..1 |\n",
+        "| overlay | references | ix://agent-ix/config-service/FR-006 | 1..1 |\n",
     ));
     assert_eq!(errors, Vec::<String>::new());
     assert_eq!(warnings.len(), 1, "{warnings:?}");
@@ -1239,7 +1239,7 @@ fn validate_document_qualifies_under_the_bundle_package() {
     // Under the module's package the bare row would not match the
     // frontmatter identity; the bundle package is what makes it match.
     let (errors, _) = in_bundle(&with_frontmatter(
-        "ix://agent-ix/spec-objects-fixture/FR-005",
+        "ix://agent-ix/config-service-fixture/FR-005",
         "FR-005",
     ));
     assert_eq!(errors, Vec::<String>::new());

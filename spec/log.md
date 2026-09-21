@@ -7,6 +7,65 @@ description: "Chronological log of structural changes to this bundle."
 
 ## History
 
+* **2026-09-21** — **CR-182**: [FR-076](./functional/FR-076-relationships-extraction.md)
+  AC-1's `relationships.md`/`relationships.expected.json`/
+  `relationships-cases.json` fixtures, and the whole
+  `tests/fixtures/semantic/quoin/` mapping/module-ok/corpus tree they sit
+  beside, were byte-for-byte copies vendored from `agent-ix/quoin`'s own
+  FR-104 fixtures (and, for `corpus/`, quoin's own copy of
+  `agent-ix/config-service`) — an engine-input fixture set copied from its
+  own downstream consumer, and a dependency cycle since quoin already
+  depends on quire-rs as a crate. Replaced with first-party quire-rs
+  fixtures (a `config-service`-style module, reusing the domain vocabulary
+  `tests/fixtures/semantic/cases.json` already exercises) exercising the same
+  extraction paths and assertions. `PROVENANCE.json` (both the top-level one
+  and `corpus/config-service/PROVENANCE.json`) is deleted with no
+  replacement: a manifest of copies has no subject once the copies are
+  gone. `quoin_fixtures_match_provenance` (TC-1852's provenance half,
+  `tests/semantic_fixtures.rs`) is deleted for the same reason — not
+  stubbed — while TC-1852's extraction assertions
+  (`tests/semantic_relations.rs::golden_relationships`) continue to
+  evidence FR-076-AC-1, whose text drops the vendored-sha256-pin clause.
+  Matrix unchanged: TC-1852 keeps its FR-076-AC-1 binding.
+
+* **2026-09-21** — **CR-181**: [FR-069](./functional/FR-069-semantic-module-contract-at-load.md)
+  de-vendored. `schemas/vendored/common.schema.json` is deleted outright —
+  its only reader, `contract::target_registry()` and the former step 6 of
+  `read_semantic_block`, was dead code: step 3's schema validation already
+  runs the *same* 14-value target enum (inlined in the module-manifest
+  schema) and returns early on any failure, so step 6 could never find a
+  miss step 3 had not already caught. No const/enum/array of those 14
+  values replaces it. `schemas/vendored/semantic-core/{0.1.0,0.2.0}/**` and
+  `scripts/vendor-semantic-schemas.sh` are deleted; the bundle bytes are
+  genuinely load-bearing at build time (the internal `FieldDecl`/`ClauseRef`
+  gate in `properties.rs`/`clauses.rs` validates a record quire-rs itself
+  just produced, with no registry, module, or caller in scope to supply a
+  schema any other way) but now come from the published
+  `@agent-ix/semantic-core` npm package, fetched and embedded by a new
+  `build.rs` — never from a file committed to this repository.
+  `src/semantic/vendored.rs` is renamed `src/semantic/embedded.rs`, and its
+  doc comment's claim that embedding "is what lets the resolver run
+  unchanged under the `wasm` feature" is corrected: that was false — no
+  `wasm`-gated code path reads the filesystem, and the resolver never did.
+  `FR-069-CON-2` (the vendored-provenance-record constraint) is removed
+  with no replacement wording; `FR-069-AC-8` drops its hash-value
+  assertions in favor of "every supported semantic-core version is a
+  complete, valid embedded bundle" (`TC-1606`, rewritten, no longer traces
+  `CON-2`). `logo.png` is deleted — byte-identical across exactly 4 repos
+  (`quire`, `quire-cli`, `quire-wasm`, `quire-rs`) and absent from
+  `brand-kit`, which has no Quire-specific asset to depend on instead
+  (reported, not silently re-copied).
+  **Not fully de-vendored, blocked on two other repos, reported rather than
+  worked around:** `schemas/vendored/module-manifest.schema.json` stays —
+  `agent-ix/filament-core-service` never published it as an artifact, and
+  `agent-ix/filament-core-data`'s replacement
+  (`schema/semantic/v1/module-semantic-block.schema.json`) landed in that
+  repo today but is not yet republished to npm. `tests/fixtures/semantic/spec-objects-architecture/**`
+  also stays — the published `@agent-ix/spec-objects-architecture@0.6.0`
+  predates PR #11 (systems-model kinds): it has no `part`/`port`/
+  `connection`/`allocation`, no `schemas/`, and no `semantic` block, so it
+  cannot yet replace the fixture TC-1873/FR-075-AC-13 needs.
+
 * **2026-09-20** — **CR-179** (`PLAT-868`): `src/symbols/python.rs` is
   ported to `tree-sitter`, through the same `quire-rust-extraction` ->
   `quire-code-parse` boundary `CR-176`/`CR-177` adopted for Rust (`ADR-0013`)

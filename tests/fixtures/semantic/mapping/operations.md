@@ -1,11 +1,11 @@
 ---
-id: FR-901
-title: Operations
+id: FR-907
+title: Overlay Operations
 object: entity
 type: FR
 ---
 
-# FR-901: Operations
+# FR-907: Overlay Operations
 
 ## Properties
 
@@ -15,27 +15,27 @@ type: FR
 
 ## Invariants
 
-### notArchived
+### unlocked
 
 ```quire
-not (self.summary = "archived")
+not (self.state = "sealed")
 ```
 
-### archived
+### locked
 
 ```quire
-result.summary = "archived"
+result.state = "sealed"
 ```
 
 ## Operations
 
-### archive
+### seal
 
 | Param | Type | Multiplicity | Constraints |
 |-------|------|--------------|-------------|
-| reason | String | 1 | nonEmpty |
-| delay | Duration [ms] | 0..1 | |
+| note | String | 1 | nonEmpty |
+| grace | Duration [s] | 0..1 | |
 
-Returns: ConfigVersion[1]
-Pre: notArchived
-Post: archived
+Returns: ConfigOverlay[1]
+Pre: unlocked
+Post: locked

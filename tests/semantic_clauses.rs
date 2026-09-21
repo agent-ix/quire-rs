@@ -1,7 +1,7 @@
 //! FR-071 clause and operation extraction (TC-1622..TC-1626, TC-1629,
-//! TC-1648, TC-1850, TC-1851). Plan-003 Task-019. Oracles: quoin
+//! TC-1648, TC-1850, TC-1851). Plan-003 Task-019. Oracles: the first-party
 //! `operations.md`, `operations.expected.json`, `operations-cases.json`,
-//! `clause-language-0.1.0-cases.json`, and the `config-version` golden.
+//! `clause-language-0.1.0-cases.json`, and the `overlay` fixture golden.
 
 use std::fs;
 use std::path::PathBuf;
@@ -22,7 +22,7 @@ fn root() -> PathBuf {
 fn mapping(name: &str) -> String {
     fs::read_to_string(
         root()
-            .join("tests/fixtures/semantic/quoin/mapping")
+            .join("tests/fixtures/semantic/mapping")
             .join(name),
     )
     .unwrap()
@@ -41,16 +41,16 @@ fn bundle() -> BundleIndex {
 
 fn context(path: &str) -> SemanticContext {
     let registry =
-        Registry::load_module(&root().join("tests/fixtures/semantic/quoin/module-ok")).unwrap();
+        Registry::load_module(&root().join("tests/fixtures/semantic/module-ok")).unwrap();
     let module = registry
-        .semantic_module("spec-objects-fixture")
+        .semantic_module("config-service-fixture")
         .unwrap()
         .clone();
     SemanticContext::new(module, path, bundle())
         .with_source_identity("ix://agent-ix/config-service/spec")
 }
 
-/// `context` pinned to the semantic-core version a quoin fixture records.
+/// `context` pinned to the semantic-core version a fixture case records.
 fn context_at(path: &str, fixture: &Value) -> SemanticContext {
     let mut ctx = context(path);
     ctx.module.semantic_core = fixture["semanticCore"].as_str().unwrap().to_string();
@@ -73,7 +73,7 @@ fn gate(model: &str, core: &str) -> jsonschema::JSONSchema {
 }
 
 #[trace("TC-1622", "FR-071-AC-1")]
-// golden clauses, operations, clauseText, and the config-version span.
+// golden clauses, operations, clauseText, and the overlay span.
 #[test]
 fn golden_operations_and_spans() {
     let raw = mapping("operations.md");
@@ -131,11 +131,11 @@ fn golden_operations_and_spans() {
         expected["diagnostics"]
     );
 
-    // config-version pins semantic-core 0.1.0: its `ocl` clause is carried.
-    let expected = mapping_json("config-version.expected.json");
+    // the overlay fixture pins semantic-core 0.1.0: its `ocl` clause is carried.
+    let expected = mapping_json("overlay.expected.json");
     let cv = extract_clauses(
-        &mapping("config-version.table.md"),
-        &context_at("config-version.table.md", &expected),
+        &mapping("overlay.table.md"),
+        &context_at("overlay.table.md", &expected),
     );
     assert_eq!(
         serde_json::to_value(cv.clauses.as_ref().unwrap()).unwrap(),
@@ -212,7 +212,7 @@ fn run_case(
     (diagnostics, md, clauses)
 }
 
-/// Assert one quoin case: every recorded diagnostic (code, severity, locus,
+/// Assert one case: every recorded diagnostic (code, severity, locus,
 /// and `column`/`message` when recorded), and the recorded `clauses`,
 /// `clauseText`, and clause availability when present.
 fn assert_case(case: &Value, file: &Value) {
@@ -254,7 +254,7 @@ fn assert_case(case: &Value, file: &Value) {
         );
     }
     if let Some(want) = case["availability"].get("clauses") {
-        // An `entry-errors` reason names lines of quoin's case artifact;
+        // An `entry-errors` reason names lines of the case's own artifact;
         // this harness's artifact puts the erroring fence at its own line.
         let mut want = want.clone();
         if let Some(reason) = want["reason"].as_str() {
@@ -575,9 +575,9 @@ fn validation_and_states() {
 fn source_identity_default() {
     let raw = mapping("operations.md");
     let registry =
-        Registry::load_module(&root().join("tests/fixtures/semantic/quoin/module-ok")).unwrap();
+        Registry::load_module(&root().join("tests/fixtures/semantic/module-ok")).unwrap();
     let mut module = registry
-        .semantic_module("spec-objects-fixture")
+        .semantic_module("config-service-fixture")
         .unwrap()
         .clone();
     module.semantic_core = mapping_json("operations.expected.json")["semanticCore"]

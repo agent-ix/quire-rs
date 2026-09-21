@@ -1,11 +1,11 @@
 ---
-id: FR-900
-title: Both forms
+id: FR-901
+title: Overlay dual forms
 object: entity
 type: FR
 ---
 
-# FR-900: Both forms
+# FR-901: Overlay dual forms
 
 ## Properties
 

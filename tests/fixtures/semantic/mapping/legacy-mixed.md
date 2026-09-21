@@ -1,11 +1,11 @@
 ---
-id: FR-903
-title: Legacy mixed
+id: FR-906
+title: Overlay legacy mixed
 object: entity
 type: FR
 ---
 
-# FR-903: Legacy mixed
+# FR-906: Overlay legacy mixed
 
 ## Properties
 
@@ -13,4 +13,4 @@ type: FR
 
 | Column | Type | Constraints |
 |--------|------|-------------|
-| name | str | required |
+| priority | Integer | required |

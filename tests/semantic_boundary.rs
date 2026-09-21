@@ -178,9 +178,9 @@ fn clause_text_is_only_copied() {
         }
     }
     let registry =
-        Registry::load_module(&root().join("tests/fixtures/semantic/quoin/module-ok")).unwrap();
+        Registry::load_module(&root().join("tests/fixtures/semantic/module-ok")).unwrap();
     let module = registry
-        .semantic_module("spec-objects-fixture")
+        .semantic_module("config-service-fixture")
         .unwrap()
         .clone();
     let ctx = SemanticContext::new(module, "x.md", BundleIndex::default())
@@ -199,20 +199,20 @@ fn clause_text_is_only_copied() {
 #[test]
 fn spans_agree_with_the_code_block_scanner() {
     let registry =
-        Registry::load_module(&root().join("tests/fixtures/semantic/quoin/module-ok")).unwrap();
+        Registry::load_module(&root().join("tests/fixtures/semantic/module-ok")).unwrap();
     let module = registry
-        .semantic_module("spec-objects-fixture")
+        .semantic_module("config-service-fixture")
         .unwrap()
         .clone();
-    // (fixture, semantic-core version, clause language) per the quoin oracles.
+    // (fixture, semantic-core version, clause language) per the fixture oracles.
     for (name, core, language) in [
-        ("config-version.table.md", "0.1.0", "ocl"),
-        ("config-version.fence.md", "0.1.0", "ocl"),
+        ("overlay.table.md", "0.1.0", "ocl"),
+        ("overlay.fence.md", "0.1.0", "ocl"),
         ("operations.md", "0.2.0", "quire"),
     ] {
         let raw = fs::read_to_string(
             root()
-                .join("tests/fixtures/semantic/quoin/mapping")
+                .join("tests/fixtures/semantic/mapping")
                 .join(name),
         )
         .unwrap();
@@ -240,7 +240,7 @@ fn spans_agree_with_the_code_block_scanner() {
     // compares parse_document byte for byte; here, only that it still parses
     // the fixtures without a semantic-specific path.
     let raw =
-        fs::read_to_string(root().join("tests/fixtures/semantic/quoin/mapping/operations.md"))
+        fs::read_to_string(root().join("tests/fixtures/semantic/mapping/operations.md"))
             .unwrap();
     let doc = quire_rs::parse_document(&raw);
     assert!(quire_rs::section(&doc, "Operations").is_some());

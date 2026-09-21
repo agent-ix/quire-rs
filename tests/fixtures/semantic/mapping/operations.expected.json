@@ -3,7 +3,7 @@
   "clauses": [
     {
       "language": "quire",
-      "clauseId": "notArchived",
+      "clauseId": "unlocked",
       "sourceSpan": {
         "sourceIdentity": "ix://agent-ix/config-service/spec",
         "path": "operations.md",
@@ -15,7 +15,7 @@
     },
     {
       "language": "quire",
-      "clauseId": "archived",
+      "clauseId": "locked",
       "sourceSpan": {
         "sourceIdentity": "ix://agent-ix/config-service/spec",
         "path": "operations.md",
@@ -28,10 +28,10 @@
   ],
   "operations": [
     {
-      "name": "archive",
+      "name": "seal",
       "params": [
         {
-          "name": "reason",
+          "name": "note",
           "type": {
             "target": "String",
             "multiplicity": {
@@ -46,19 +46,19 @@
           ]
         },
         {
-          "name": "delay",
+          "name": "grace",
           "type": {
             "target": "Duration",
             "multiplicity": {
               "lower": 0,
               "upper": 1
             },
-            "unit": "ms"
+            "unit": "s"
           }
         }
       ],
       "returns": {
-        "target": "ix://agent-ix/config-service/type/ConfigVersion",
+        "target": "ix://agent-ix/config-service/type/ConfigOverlay",
         "multiplicity": {
           "lower": 1,
           "upper": 1
@@ -67,20 +67,20 @@
       "pre": [
         {
           "language": "quire",
-          "clauseId": "notArchived"
+          "clauseId": "unlocked"
         }
       ],
       "post": [
         {
           "language": "quire",
-          "clauseId": "archived"
+          "clauseId": "locked"
         }
       ]
     }
   ],
   "clauseText": {
-    "notArchived": "not (self.summary = \"archived\")",
-    "archived": "result.summary = \"archived\""
+    "unlocked": "not (self.state = \"sealed\")",
+    "locked": "result.state = \"sealed\""
   },
   "availability": {
     "clauses": {

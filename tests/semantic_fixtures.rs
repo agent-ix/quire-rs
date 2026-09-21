@@ -1,94 +1,19 @@
-//! Plan-003 Task-017: vendored golden fixtures and the semantic case suite.
+//! Plan-003 Task-017: first-party golden fixtures and the semantic case suite.
 //!
-//! The quoin mapping/corpus fixtures under `tests/fixtures/semantic/quoin/`
-//! are read-only copies pinned by `PROVENANCE.json`; `cases.json` is the
-//! declarative suite FR-072-AC-1 runs and, like `corpus_cases`, every case
-//! must name the filing it came from.
+//! The mapping/corpus fixtures under `tests/fixtures/semantic/` are
+//! first-party quire-rs test data (CR-182), not a copy of another
+//! repository's fixtures; `cases.json` is the declarative suite FR-072-AC-1
+//! runs and, like `corpus_cases`, every case must name the filing it came
+//! from.
 
-use std::collections::BTreeMap;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
-use ix_trace_rs::trace;
 use serde::Deserialize;
 use serde_json::Value;
-use sha2::{Digest, Sha256};
 
 fn root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-}
-
-#[derive(Deserialize)]
-struct Provenance {
-    files: BTreeMap<String, ProvenanceFile>,
-}
-
-#[derive(Deserialize)]
-struct ProvenanceFile {
-    repository: String,
-    revision: String,
-    path: String,
-    sha256: String,
-}
-
-fn walk(dir: &Path, out: &mut Vec<PathBuf>) {
-    for entry in fs::read_dir(dir).unwrap() {
-        let path = entry.unwrap().path();
-        if path.is_dir() {
-            walk(&path, out);
-        } else {
-            out.push(path);
-        }
-    }
-}
-
-// The golden inputs are the quoin fixtures, byte-for-byte, at the pinned
-// revision; TC-1610's extraction assertions live in tests/semantic_properties.rs.
-#[trace("TC-1852", "FR-076-AC-1")]
-#[test]
-fn quoin_fixtures_match_provenance() {
-    let dir = root().join("tests/fixtures/semantic/quoin");
-    let provenance: Provenance =
-        serde_json::from_slice(&fs::read(dir.join("PROVENANCE.json")).unwrap()).unwrap();
-    let mut on_disk = Vec::new();
-    walk(&dir, &mut on_disk);
-    let mut on_disk: Vec<String> = on_disk
-        .iter()
-        .map(|p| p.strip_prefix(&dir).unwrap().to_string_lossy().to_string())
-        .filter(|rel| rel != "PROVENANCE.json")
-        .collect();
-    on_disk.sort();
-    let recorded: Vec<String> = provenance.files.keys().cloned().collect();
-    assert_eq!(
-        on_disk, recorded,
-        "fixture files and PROVENANCE.json disagree"
-    );
-    for (rel, record) in &provenance.files {
-        assert_eq!(record.repository, "agent-ix/quoin");
-        // Shape check only: this deliberately does not resolve `revision` against
-        // agent-ix/quoin or any other repo, so it is not a liveness guarantee.
-        // `revision` is informational provenance and may become unreachable if
-        // upstream rewrites history; the sha256 check below is the one that is
-        // actually load-bearing.
-        assert_eq!(record.revision.len(), 40, "{rel}: full commit id required");
-        assert!(
-            record.path.starts_with("tests/fixtures/semantic-module/"),
-            "{rel}"
-        );
-        let digest = format!(
-            "sha256:{:x}",
-            Sha256::digest(fs::read(dir.join(rel)).unwrap())
-        );
-        assert_eq!(
-            digest, record.sha256,
-            "{rel}: edited locally; re-vendor instead"
-        );
-    }
-    // The mapping README is the upstream hand-off contract; keep it present.
-    assert!(provenance.files.contains_key("mapping/README.md"));
-    assert!(provenance
-        .files
-        .contains_key("corpus/config-service/FR-006-config-version-entity.md"));
 }
 
 #[derive(Deserialize)]

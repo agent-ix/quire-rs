@@ -22,6 +22,11 @@ def _expected():
     return json.loads((FIXTURES / "cases.expected.json").read_text())
 
 
+# The digest the registry owner recorded over Entity.json (FR-069: Quire
+# passes it through, never minting a second one).
+SNAPSHOT_DIGEST = "sha256:8692992e186f40a73b78fd1b0915f0fe78e05a2b00782fb1df58c951a37c91d5"
+
+
 def test_extract_semantic_matches_rust_for_every_case():
     """TC-1635: binding output equals the Rust oracle, case by case."""
     expected = _expected()
@@ -42,8 +47,8 @@ def test_extract_semantic_is_deterministic():
 
 def test_extract_filament_core_carries_the_semantic_record():
     """TC-1635: the Filament API payload is additive and equals the record."""
-    entity = json.loads((FIXTURES / "quoin" / "module-ok" / "schemas" / "Entity.json").read_text())
-    markdown = (FIXTURES / "quoin" / "mapping" / "config-version.table.md").read_text()
+    entity = json.loads((FIXTURES / "module-ok" / "schemas" / "Entity.json").read_text())
+    markdown = (FIXTURES / "mapping" / "overlay.table.md").read_text()
     bundle = json.loads((FIXTURES / "config-version.bundle.json").read_text())
     result = quire.extract_filament_core(
         {
@@ -69,14 +74,14 @@ def test_extract_filament_core_carries_the_semantic_record():
                         }
                     },
                     "hasPlugin": False,
-                    "moduleId": "spec-objects-fixture",
+                    "moduleId": "config-service-fixture",
                     "semantic": {
                         "contractVersion": "1.0.0",
                         "semanticCore": "0.1.0",
-                        "package": "agent-ix/spec-objects-fixture",
+                        "package": "agent-ix/config-service-fixture",
                         "exports": ["entity"],
                         "imports": {},
-                        "schemaDigest": _expected()["golden-table-available"]["schemaDigest"],
+                        "schemaDigest": SNAPSHOT_DIGEST,
                     },
                 }
             ],
@@ -84,7 +89,24 @@ def test_extract_filament_core_carries_the_semantic_record():
     )
     node = next(n for n in result["nodes"] if n["objectType"] == "entity")
     data = json.loads(node["dataJson"])
-    assert data["semantic"] == _expected()["golden-table-available"]
+    # The Filament record equals the library record for the same inputs.
+    expected = quire.extract_semantic(
+        {
+            "markdown": markdown,
+            "module": {
+                "contractVersion": "1.0.0",
+                "semanticCore": "0.1.0",
+                "package": "agent-ix/config-service-fixture",
+                "exports": ["entity"],
+                "imports": {},
+            },
+            "path": "spec/functional/FR-006.md",
+            "sourceIdentity": "ix://agent-ix/config-service/spec",
+            "bundle": bundle,
+            "schemaDigest": SNAPSHOT_DIGEST,
+        }
+    )
+    assert data["semantic"] == expected
     assert data["semantic"]["formatVersion"] == 1
     assert len(data["semantic"]["fields"]) == 7
     assert data["semantic"]["availability"]["fields"]["state"] == "available"
