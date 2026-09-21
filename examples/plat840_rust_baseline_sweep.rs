@@ -282,6 +282,24 @@ struct Baseline {
     abandoned_files_total_rust_only: usize,
     unbacked_rows_total_all_repos: usize,
     status_lies_total_all_repos: usize,
+    /// PLAT-851: the same rollup as `rust_rollup_by_kind` above, generalized
+    /// to every language `quire_rs::traceability::SourceLanguage` currently
+    /// recognizes, keyed by `SourceLanguage::as_str()` — this is what makes
+    /// the Python/TypeScript pre-port baseline (PLAT-851) a reporting change
+    /// rather than a new measurement: `extract_tree_scoped` already walks
+    /// every language, `rust_rollup_by_kind` was just the only rollup that
+    /// surfaced it. The `rust_*` fields above are kept as their own fields,
+    /// unchanged, rather than folded into this map, so PLAT-840's already
+    /// -published report's field names keep meaning exactly what they did
+    /// when it was written.
+    rollup_by_language_kind: BTreeMap<String, BTreeMap<String, usize>>,
+    symbols_total_all_repos_by_language: BTreeMap<String, usize>,
+    /// Abandoned-file counts (PLAT-163 brace-desync), by language, summed
+    /// across all repos. `abandoned_files_total_rust_only` above is the same
+    /// number for `"rust"` specifically, kept for back-compat with PLAT-840's
+    /// report; this map is the general form the Python/TypeScript baseline
+    /// reads its own headline numbers from.
+    abandoned_files_total_by_language: BTreeMap<String, usize>,
 }
 
 fn main() {
@@ -306,8 +324,12 @@ fn main() {
 
     let mut repos = Vec::new();
     let mut rust_rollup: BTreeMap<String, usize> = BTreeMap::new();
+    // PLAT-851: the same rollup as `rust_rollup` above, generalized to every
+    // language — see `rollup_by_language_kind`'s own doc comment on `Baseline`.
+    let mut language_rollup: BTreeMap<String, BTreeMap<String, usize>> = BTreeMap::new();
     let mut abandoned_total = 0usize;
     let mut abandoned_rust_total = 0usize;
+    let mut abandoned_by_language: BTreeMap<String, usize> = BTreeMap::new();
     let mut unbacked_total = 0usize;
     let mut lies_total = 0usize;
 
@@ -351,6 +373,11 @@ fn main() {
                     .entry(sym.kind.as_str().to_string())
                     .or_default() += 1;
             }
+            *language_rollup
+                .entry(sym.language.as_str().to_string())
+                .or_default()
+                .entry(sym.kind.as_str().to_string())
+                .or_default() += 1;
         }
         let rust_symbols_total = by_lang_kind
             .get("rust")
@@ -386,6 +413,11 @@ fn main() {
             .count();
         abandoned_total += abandoned_files_count;
         abandoned_rust_total += abandoned_rust_here;
+        for f in &abandoned_files {
+            *abandoned_by_language
+                .entry(f.language.to_string())
+                .or_default() += 1;
+        }
         let other_diagnostics_count = extraction.diagnostics.len() - abandoned_files_count;
 
         let (binding_census, non_binding_tags, unmatched_tags, coverage_numbers) = match model {
@@ -517,6 +549,12 @@ fn main() {
         abandoned_files_total_rust_only: abandoned_rust_total,
         unbacked_rows_total_all_repos: unbacked_total,
         status_lies_total_all_repos: lies_total,
+        symbols_total_all_repos_by_language: language_rollup
+            .iter()
+            .map(|(language, by_kind)| (language.clone(), by_kind.values().sum()))
+            .collect(),
+        rollup_by_language_kind: language_rollup,
+        abandoned_files_total_by_language: abandoned_by_language,
         repos,
     };
 

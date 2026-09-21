@@ -114,6 +114,29 @@ fn the_locked_grammar_version_is_asserted_not_only_pinned_by_source_rev() {
          identity depends on; review the node-kind/field-name surface this adapter reads \
          before updating this expected version, then update it deliberately"
     );
+    // PLAT-851: the boundary crate widened to carry python/typescript alongside
+    // rust — a gate widened to cover a new case and not extended to assert it
+    // has a blind spot for exactly the case it was widened for (the same
+    // defect class this campaign has repeatedly hit: a check that keeps
+    // passing for reasons unrelated to what it claims to verify). Neither
+    // grammar has an adapter yet (that's PLAT-868/869), but the lockfile
+    // already resolves both — `quire-code-parse`'s own optional dependencies
+    // are present in `Cargo.lock` regardless of which Cargo feature currently
+    // activates them, since cargo resolves versions for every declared
+    // optional dependency up front to keep the lock stable across feature
+    // combinations.
+    assert_eq!(
+        locked_version_of("tree-sitter-python"),
+        "0.25.0",
+        "the locked tree-sitter-python grammar moved; review before the Python AST port relies \
+         on it, then update this expected version deliberately"
+    );
+    assert_eq!(
+        locked_version_of("tree-sitter-typescript"),
+        "0.23.2",
+        "the locked tree-sitter-typescript grammar moved; review before the TypeScript AST port \
+         relies on it, then update this expected version deliberately"
+    );
     assert_eq!(
         locked_version_of("tree-sitter"),
         "0.26.13",
@@ -123,7 +146,27 @@ fn the_locked_grammar_version_is_asserted_not_only_pinned_by_source_rev() {
 
 fn cargo_metadata() -> serde_json::Value {
     // Run from the workspace root, not this crate's own manifest, so the
-    // graph includes the root `quire-rs` package too.
+    // graph includes the root `quire-rs` package too. `--all-features`
+    // (PLAT-851) makes this gate STRICTER, not weaker, despite reading like a
+    // relaxation: the boundary this file enforces ("no workspace member
+    // depends on tree-sitter directly") must hold regardless of which
+    // features a consumer enables, so checking it under every feature turned
+    // on is the correct scope for a violation check, not a convenience —
+    // a version of this gate that only checked the *default* feature set
+    // would miss a direct `tree-sitter` dependency added behind
+    // `python-symbols` or `typescript-symbols` specifically, which is exactly
+    // the newly-covered case PLAT-851 widened this crate for. Separately,
+    // it is also *necessary* for the second test below to even run: the root
+    // package's default features activate only `rust-symbols`, so plain
+    // `cargo metadata` here would resolve `tree-sitter-python`/
+    // `tree-sitter-typescript` into `Cargo.lock` (every optional dependency
+    // is locked regardless of activation — see that test's own doc comment)
+    // but leave them out of *this command's* `packages` array, which is
+    // filtered to the feature set requested. Without `--all-features`,
+    // `the_locked_grammar_version_is_asserted_...` below would panic "not in
+    // the resolved dependency graph" for both new grammars despite them
+    // being perfectly resolvable — exactly the kind of narrow gate this file
+    // warns against elsewhere.
     let manifest = concat!(env!("CARGO_MANIFEST_DIR"), "/../../Cargo.toml");
     let output = std::process::Command::new(env!("CARGO"))
         .args([
@@ -132,6 +175,7 @@ fn cargo_metadata() -> serde_json::Value {
             "1",
             "--manifest-path",
             manifest,
+            "--all-features",
         ])
         .output()
         .expect("cargo metadata must run");

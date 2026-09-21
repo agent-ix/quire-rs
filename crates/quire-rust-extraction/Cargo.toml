@@ -3,7 +3,15 @@ name = "quire-rust-extraction"
 version = "0.1.0"
 edition = "2021"
 rust-version = "1.98.1"
-description = "Dependency-boundary crate: the only place in the quire-rs workspace that names quire-code-parse/tree-sitter (PLAT-843)."
+# NOTE (PLAT-851): this crate now wraps all three `quire-code-parse` grammars
+# (rust/python/typescript), not just Rust — the name is stale. Renaming it is
+# deliberately deferred, tracked as PLAT-876: `src/symbols/rust.rs` names this
+# crate directly (`use quire_rust_extraction::...`), and that file was
+# plat845's live editing surface at the time, mid-flight proving that every
+# symbol-identity change it made was a nested-function case. A concurrent
+# rename touching the same file would have muddied exactly the evidence that
+# PR needed. Rename once rust.rs is quiet (PLAT-876's own condition).
+description = "Dependency-boundary crate: the only place in the quire-rs workspace that names quire-code-parse/tree-sitter (PLAT-843, widened PLAT-851)."
 authors = ["Peter Krenesky <kreneskyp@gmail.com>"]
 license = "AGPL-3.0-or-later"
 repository = "https://github.com/agent-ix/quire-rs"
@@ -30,16 +38,32 @@ path = "src/lib.rs"
 # resolver or record emitter attached — exactly the subset `quire-rs` needs
 # and none of what it doesn't (PLAT-841 finding 5, PLAT-843 comment thread).
 #
-# `default-features = false, features = ["rust"]`: Phase 1 (PLAT-843) is Rust
-# only, and FR-013-CON-3 gates each grammar behind its own feature precisely
-# so a consumer that wants one grammar does not link the other two.
+# `default-features = false` and no `features` listed here: which grammar(s)
+# actually compile is decided by *this* crate's own `[features]` below, one
+# per grammar, each forwarding to the matching `quire-code-parse` feature.
+# Pulling `features = ["rust", "python", "typescript"]` unconditionally here
+# would mean any one of `quire-rs`'s `rust-symbols`/`python-symbols`/
+# `typescript-symbols` features transitively compiled all three tree-sitter C
+# grammars — defeating the reason `rust-symbols` is excluded from the `wasm`
+# build today (`tree-sitter-rust`'s `cc`-crate build script cannot
+# cross-compile to `wasm32-unknown-unknown` in this toolchain) and directly
+# contradicting FR-013-CON-3's own stated principle: a consumer that wants one
+# grammar must not link the other two.
 [dependencies]
-quire-code-parse = { git = "https://github.com/agent-ix/quire-code-rs", rev = "57b83ba00431914060297bf94fcee31549c9b68b", default-features = false, features = [
-    "rust",
-] }
+quire-code-parse = { git = "https://github.com/agent-ix/quire-code-rs", rev = "57b83ba00431914060297bf94fcee31549c9b68b", default-features = false }
 
 [dev-dependencies]
 serde_json = "^1"
+
+# One feature per grammar, mirroring `quire-code-parse`'s own three
+# (default = none: this crate's own default-features stay off so a consumer
+# always chooses explicitly, the same discipline `quire-code-parse` documents
+# for itself). `quire-rs`'s `rust-symbols`/`python-symbols`/`typescript-symbols`
+# features (root `Cargo.toml`) each activate exactly one of these.
+[features]
+rust = ["quire-code-parse/rust"]
+python = ["quire-code-parse/python"]
+typescript = ["quire-code-parse/typescript"]
 
 [lints.rust]
 unsafe_code = "forbid"
