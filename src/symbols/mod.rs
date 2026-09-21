@@ -28,6 +28,7 @@ pub mod python;
 #[cfg(feature = "rust-symbols")]
 pub mod rust;
 pub mod trace;
+pub mod trace_search;
 pub mod typescript;
 
 use std::path::Path;

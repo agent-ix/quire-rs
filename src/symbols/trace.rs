@@ -343,6 +343,13 @@ pub struct SymbolGraph {
     /// read a census the defect has been removed from, and a repository whose
     /// tags are all in the wrong place reports a flawless 100%.
     pub non_binding_tags: Vec<NonBindingTag>,
+    /// Every generic id-shaped token found anywhere in the tree that is not
+    /// part of a `verifies`/`implements` claim (FR-077-AC-2). Additive: a
+    /// citation index over the same graph, computed after everything above
+    /// it, reported alongside it rather than folded into it. No id-shaped
+    /// token this engine finds is ever silently absent from all of
+    /// `verifies`, `implements` and `mentions` at once.
+    pub mentions: Vec<Mention>,
 }
 
 /// A trace id written where it cannot bind (#312).
@@ -366,6 +373,67 @@ pub struct NonBindingTag {
     /// from a coincidence of prose.
     pub form: String,
     pub line: usize,
+}
+
+/// Which of the three non-claim shapes a [`Mention`] is (FR-077-AC-2).
+///
+/// Every generic id-shaped token this engine finds that is not a
+/// `verifies`/`implements` claim lands in exactly one of these — the
+/// no-silent-drop invariant FR-077 exists to hold.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum MentionBucket {
+    /// The same shape [`BindingCensus::unmatched_example`] already names: an
+    /// id-shaped token on an evidence symbol's own annotation block that no
+    /// declared form bound.
+    EvidenceNearMiss,
+    /// The same shape [`NonBindingTag`] already names: a declared LEGACY
+    /// trace-tag form found somewhere in a production symbol's body that
+    /// bound nothing as `implements`.
+    ProductionOrphanTag,
+    /// A generic id-shaped token matching no declared form at all — a plain
+    /// comment, doc comment, or string-literal citation. The bucket that did
+    /// not exist before FR-077: nothing scanned production-symbol bodies or
+    /// file scope for form-agnostic text before this.
+    Mention,
+}
+
+impl MentionBucket {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::EvidenceNearMiss => "evidence_near_miss",
+            Self::ProductionOrphanTag => "production_orphan_tag",
+            Self::Mention => "mention",
+        }
+    }
+}
+
+/// One id-shaped token found in a scanned tree that is not part of a
+/// `verifies`/`implements` claim (FR-077-AC-2).
+///
+/// Additive and read-only: nothing here changes `verifies`, `implements`,
+/// `unmatched_tags`, `non_binding_tags` or any FR-050 coverage figure.
+/// `mentions` is a citation index, not a second binder.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Mention {
+    pub trace_id: String,
+    /// Stable machine label — `rust`, `python`, `typescript`.
+    pub language: String,
+    /// Repo-relative, `/`-separated.
+    pub path: String,
+    /// The innermost symbol whose span contains this token, or `None` when
+    /// no symbol does — file-scope prose (a header comment before the first
+    /// declaration) is reported rather than left unscanned.
+    pub symbol: Option<String>,
+    /// The owning symbol's kind label, mirroring `symbol`.
+    pub kind: Option<&'static str>,
+    pub bucket: MentionBucket,
+    /// 1-based line of the token itself — not a symbol's annotation line,
+    /// the line the match is actually on, so a reader can put a cursor on it
+    /// without a second tool call.
+    pub line: usize,
+    /// The trimmed source line the token was found on, for the same reason:
+    /// so seeing it never costs a second read.
+    pub excerpt: String,
 }
 
 impl SymbolGraph {
@@ -588,7 +656,162 @@ pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolG
     graph
         .diagnostics
         .sort_by(|a, b| (&a.path, &a.symbol, &a.trace_id).cmp(&(&b.path, &b.symbol, &b.trace_id)));
+
+    // Computed last and additively: `find_mentions` reads the graph this
+    // function already built (which symbols claimed which ids) to decide what
+    // is left to report as a citation (FR-077-AC-2).
+    graph.mentions = find_mentions(extraction, &graph);
+
     graph
+}
+
+/// Every generic id-shaped token in `extraction` that is not already part of
+/// a `verifies`/`implements` claim (FR-077-AC-2).
+///
+/// One pass per FILE over the whole source text, not per symbol: scanning
+/// per-symbol would re-read every line once per enclosing container
+/// (`SymbolGraph::non_binding_tags` accepts that cost because it only scans
+/// `Function`/`Container` symbols and dedups after; a citation pass that also
+/// wants file-scope, un-owned text does the attribution itself instead).
+/// Each match is attributed to the innermost symbol in that file whose span
+/// contains it, using the same "highest `leading_line` wins, a `Container`
+/// loses ties" rule already proven for [`NonBindingTag`] — or to no symbol at
+/// all, when the token sits outside every declared span (a file header, a
+/// trailing comment after the last item).
+///
+/// Deliberately reuses [`generic_id_pattern`] rather than declaring a second
+/// id-shaped pattern (FR-077-CON-1), and deliberately does **not** apply
+/// [`legacy_match_span`]'s Rust string-literal masking (FR-077-CON-3): that
+/// masking exists to stop a legacy form from being mis-bound as a *claim*
+/// inside fixture data, which is still correct and unaffected here. Hiding an
+/// id the caller asked about because it happens to sit inside a string
+/// literal is the failure mode this pass exists to avoid.
+fn find_mentions(extraction: &SymbolExtraction, graph: &SymbolGraph) -> Vec<Mention> {
+    // Claimed (symbol identity, normalized trace id) pairs — a match here is
+    // not a citation, it is the claim itself, and reporting it twice would
+    // make every bound test also read as citing itself.
+    let mut claimed: BTreeSet<(&str, String)> = BTreeSet::new();
+    for relation in &graph.verifies {
+        claimed.insert((
+            relation.symbol_id.as_str(),
+            normalized_trace_id(&relation.trace_id),
+        ));
+    }
+    for relation in &graph.implements {
+        claimed.insert((
+            relation.symbol_id.as_str(),
+            normalized_trace_id(&relation.trace_id),
+        ));
+    }
+
+    // (path, symbol qualified name, normalized trace id) already named by the
+    // narrower existing passes — consulted only to choose the more specific
+    // bucket label. A miss here still reports as `Mention`, never drops the
+    // token: at worst this assigns the coarser of two honest labels.
+    let evidence_near_miss: BTreeSet<(&str, &str, String)> = graph
+        .unmatched_tags
+        .iter()
+        .map(|t| {
+            (
+                t.path.as_str(),
+                t.symbol.as_str(),
+                normalized_trace_id(&t.trace_id),
+            )
+        })
+        .collect();
+    let production_orphan: BTreeSet<(&str, &str, String)> = graph
+        .non_binding_tags
+        .iter()
+        .map(|t| {
+            (
+                t.path.as_str(),
+                t.symbol.as_str(),
+                normalized_trace_id(&t.trace_id),
+            )
+        })
+        .collect();
+
+    let pattern = generic_id_pattern();
+    let mut mentions = Vec::new();
+
+    for file in &extraction.files {
+        let symbols_in_file: Vec<&Symbol> = extraction
+            .symbols
+            .iter()
+            .filter(|s| s.path == file.path)
+            .collect();
+
+        for (idx, text) in file.source.lines().enumerate() {
+            let line = idx + 1;
+            for matched in pattern.find_iter(text) {
+                let trace_id = matched.as_str().to_string();
+                let owner = innermost_symbol_at(&symbols_in_file, line);
+
+                if let Some(symbol) = owner {
+                    if claimed.contains(&(symbol.id.as_str(), normalized_trace_id(&trace_id))) {
+                        continue;
+                    }
+                }
+
+                let bucket = match owner {
+                    Some(symbol)
+                        if evidence_near_miss.contains(&(
+                            file.path.as_str(),
+                            symbol.qualified_name.as_str(),
+                            normalized_trace_id(&trace_id),
+                        )) =>
+                    {
+                        MentionBucket::EvidenceNearMiss
+                    }
+                    Some(symbol)
+                        if production_orphan.contains(&(
+                            file.path.as_str(),
+                            symbol.qualified_name.as_str(),
+                            normalized_trace_id(&trace_id),
+                        )) =>
+                    {
+                        MentionBucket::ProductionOrphanTag
+                    }
+                    _ => MentionBucket::Mention,
+                };
+
+                mentions.push(Mention {
+                    trace_id,
+                    language: file.language.as_str().to_string(),
+                    path: file.path.clone(),
+                    symbol: owner.map(|s| s.qualified_name.clone()),
+                    kind: owner.map(|s| s.kind.as_str()),
+                    bucket,
+                    line,
+                    excerpt: text.trim().to_string(),
+                });
+            }
+        }
+    }
+
+    mentions.sort_by(|a, b| {
+        (&a.path, a.line, &a.trace_id, &a.symbol).cmp(&(&b.path, b.line, &b.trace_id, &b.symbol))
+    });
+    mentions
+}
+
+/// The innermost symbol in `symbols` (already filtered to one file) whose
+/// span contains `line`, or `None` when no symbol's span does.
+///
+/// Same tie-break [`SymbolGraph::non_binding_tags`]'s own filter already
+/// uses: greatest `leading_line` wins (the more deeply nested declaration
+/// starts later), and at equal `leading_line` a [`SymbolKind::Container`]
+/// loses — a container's span starts at the top of the file, so ties there
+/// are ties against something that is never the more specific answer.
+fn innermost_symbol_at<'a>(symbols: &[&'a Symbol], line: usize) -> Option<&'a Symbol> {
+    symbols
+        .iter()
+        .filter(|s| s.leading_line <= line && line <= s.end_line)
+        .max_by_key(|s| {
+            let non_container = usize::from(!matches!(s.kind, super::SymbolKind::Container));
+            (s.leading_line, non_container)
+        })
+        .copied()
 }
 
 /// One generic trace id carried by an evidence symbol's own name.
@@ -645,12 +868,25 @@ fn declared_name_form_ids(symbol: &Symbol, source: &str, model: &TraceabilityMod
     ids
 }
 
-fn normalized_trace_id(value: &str) -> String {
+pub(crate) fn normalized_trace_id(value: &str) -> String {
     value
         .chars()
         .filter(|ch| ch.is_ascii_alphanumeric())
         .flat_map(char::to_uppercase)
         .collect()
+}
+
+/// The generic, form-agnostic id-shaped pattern: `AB-123` or
+/// `AB-123-CD-456`. Shared by [`generic_tags`] (evidence-symbol near-miss
+/// detection, FR-050) and [`find_mentions`] (whole-file citation detection,
+/// FR-077) so the two passes never drift onto two different notions of
+/// "id-shaped" — one compiled pattern, two call sites, per FR-077-CON-1.
+fn generic_id_pattern() -> &'static Regex {
+    static GENERIC_ID: OnceLock<Regex> = OnceLock::new();
+    GENERIC_ID.get_or_init(|| {
+        Regex::new(r"(?i)\b[A-Z]{2,4}-[0-9]+(?:-[A-Z]+-[0-9]+)?\b")
+            .expect("generic trace-id pattern compiles")
+    })
 }
 
 /// Find every generic id-shaped token in the symbol's attached annotation
@@ -661,11 +897,7 @@ fn normalized_trace_id(value: &str) -> String {
 /// line, so an id mentioned in a test body is data used by the test rather than
 /// evidence that the test itself was tagged.
 fn generic_tags(symbol: &Symbol, source: &str) -> Vec<UnmatchedTag> {
-    static GENERIC_ID: OnceLock<Regex> = OnceLock::new();
-    let pattern = GENERIC_ID.get_or_init(|| {
-        Regex::new(r"(?i)\b[A-Z]{2,4}-[0-9]+(?:-[A-Z]+-[0-9]+)?\b")
-            .expect("generic trace-id pattern compiles")
-    });
+    let pattern = generic_id_pattern();
     let start = symbol.leading_line.saturating_sub(1);
     let count = symbol.line.saturating_sub(start).max(1);
     source
@@ -2447,6 +2679,89 @@ mod tests {
                 &records[1].trace_id,
             )
         }));
+    }
+
+    /// A one-file Rust extraction, mirroring [`py`] above.
+    fn rs(source: &str) -> SymbolExtraction {
+        crate::symbols::extract_file("src/lib.rs", SourceLanguage::Rust, source)
+    }
+
+    #[trace("TC-1888", "FR-077-AC-2")]
+    #[test]
+    fn tc1888_every_id_shaped_token_lands_in_exactly_one_bucket() {
+        // The no-silent-drop invariant FR-077 exists to hold: over a fixture
+        // carrying one of each of the five shapes this engine can find, every
+        // id lands in exactly one of {verifies, implements, mentions} — never
+        // zero (dropped) and never more than one (double-counted).
+        let mut model = iso_model();
+        model.trace_tags.implements.push(TraceMarkerForm {
+            name: "rust-implements-line".to_string(),
+            language: SourceLanguage::Rust,
+            pattern: r"(?m)^\s*//\s*Implements:\s*(.+)$".to_string(),
+            template: None,
+        });
+
+        let source = "\
+#[trace(\"FR-901\")]\n\
+#[test]\n\
+fn tc_verifies() {\n\
+    assert!(true);\n\
+}\n\
+\n\
+// see FR-903, unrelated near-miss\n\
+#[test]\n\
+fn tc_near_miss() {\n\
+    assert!(true);\n\
+}\n\
+\n\
+// Implements: FR-902\n\
+fn fn_implements() {\n\
+}\n\
+\n\
+fn fn_orphan_tag() {\n\
+    // Trace: FR-904\n\
+}\n\
+\n\
+fn fn_plain_mention() {\n\
+    // See FR-905 for background.\n\
+}\n\
+";
+        let extraction = rs(source);
+        let graph = bind(&extraction, &model);
+
+        // Each id appears in exactly one of the three channels.
+        let ids = ["FR-901", "FR-902", "FR-903", "FR-904", "FR-905"];
+        for id in ids {
+            let in_verifies = graph.verifies.iter().any(|v| v.trace_id == id);
+            let in_implements = graph.implements.iter().any(|i| i.trace_id == id);
+            let in_mentions = graph.mentions.iter().any(|m| m.trace_id == id);
+            let hits = [in_verifies, in_implements, in_mentions]
+                .into_iter()
+                .filter(|hit| *hit)
+                .count();
+            assert_eq!(
+                hits, 1,
+                "{id} must land in exactly one of {{verifies, implements, mentions}}: \
+                 verifies={in_verifies} implements={in_implements} mentions={in_mentions}"
+            );
+        }
+
+        // And the specific buckets are the RIGHT ones, not just "some bucket":
+        assert!(graph.verifies.iter().any(|v| v.trace_id == "FR-901"));
+        assert!(graph.implements.iter().any(|i| i.trace_id == "FR-902"));
+        let bucket_of = |id: &str| {
+            graph
+                .mentions
+                .iter()
+                .find(|m| m.trace_id == id)
+                .map(|m| m.bucket)
+        };
+        assert_eq!(bucket_of("FR-903"), Some(MentionBucket::EvidenceNearMiss));
+        assert_eq!(
+            bucket_of("FR-904"),
+            Some(MentionBucket::ProductionOrphanTag)
+        );
+        assert_eq!(bucket_of("FR-905"), Some(MentionBucket::Mention));
     }
 }
 

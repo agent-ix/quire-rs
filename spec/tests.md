@@ -113,6 +113,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | FR-073 Generic rights-aware clause sets | AC-1..6 | TC-1806..TC-1809 | ✅ Implemented |
 | FR-075 Model feature extraction | AC-1..15; CON-1 | TC-1840..TC-1847, TC-1849, TC-1869, TC-1870, TC-1872..TC-1875 | ✅ Implemented |
 | FR-076 Relationships extraction to RelationDecl[] | AC-1..15; CON-1..2 | TC-1852..TC-1868 | ✅ Implemented |
+| FR-077 Trace search index (structural forward/inverse lookup) | AC-1..6; CON-1..3 | TC-1887..TC-1894 | 🚧 Pending implementation |
 
 ### Integration Requirement Coverage
 
@@ -1060,6 +1061,14 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-611 | Unknown object type: `type: FR` (conformant) + `object: totally-unknown` → exactly one **warning** (reason `unknown-object-type`, message names `totally-unknown`), zero errors, `is_valid==true` | Unit | P0 | FR-032-AC-12 | ✅ |
 | TC-612 | No `object:` key (registry-aware entry point): `type: FR` conformant doc → no object-layer diagnostics at all (errors + warnings unchanged from the type-only path) | Unit | P0 | FR-032-AC-11 | ✅ |
 | TC-613 | Composed conformant: `type: FR` + `object: process` WITH a valid `## Workflow` mermaid block → no object errors, no warnings, `is_valid==true` | Unit | P0 | FR-032-AC-13 | ✅ |
+| TC-1887 | A forward query by exact trace id returns `claims.verifies` and `claims.implements` as separate JSON subtrees from `citations`, never a boolean on one homogeneous list — `jq '.claims'` and `jq '.citations'` select disjoint record sets on a fixture carrying one of each (PLAT-844) | Unit | P0 | FR-077-AC-1 | 🚧 |
+| TC-1888 | The no-silent-drop invariant: over a fixture tree carrying one `verifies` claim, one `implements` claim, one evidence near-miss, one production orphan tag and one plain-prose mention of the same id-shaped token, every occurrence lands in exactly one of `{verifies, implements, mentions}` — shown red by a deliberately dropped bucket (the `mentions` pass disabled) before it is trusted green (PLAT-844) | Integration | P0 | FR-077-AC-2 | 🚧 |
+| TC-1889 | An id with zero matches across `verifies`/`implements`/`mentions` returns a fully-shaped result — `resolved: false`, empty arrays, exit 0 — never an empty or omitted payload (PLAT-844) | Unit | P0 | FR-077-AC-3 | 🚧 |
+| TC-1890 | An inverse query by a bare, unqualified symbol name matching more than one symbol returns every candidate under `ambiguous_matches` rather than silently selecting one (PLAT-844) | Unit | P0 | FR-077-AC-4 | 🚧 |
+| TC-1891 | An inverse query by the exact `path#qualified_name` ref (the same separator `graph_records`/`symbol_ref_name` already use) returns exactly that symbol's claims and citations, none from a same-named symbol elsewhere in the tree (PLAT-844) | Unit | P1 | FR-077-AC-4 | 🚧 |
+| TC-1892 | Every relation and citation record carries `language` and `confidence`: `structural` for Rust (AST-grounded, PLAT-843) and `line_heuristic` for Python/TypeScript (pre-PLAT-851 line scanners) over a mixed-language fixture tree — no result presents uniform confidence across languages (PLAT-844) | Unit | P0 | FR-077-AC-5 | 🚧 |
+| TC-1893 | Querying `FR-047` does not implicitly match a `FR-047-AC-2` relation — exact match only, post `normalized_trace_id` normalization, with no engine-side FR/AC/TC hierarchy knowledge (PLAT-844) | Unit | P0 | FR-077-AC-6 | 🚧 |
+| TC-1894 | The `mentions` pass does not mask Rust string-literal content: an id-shaped token inside a string literal is reported as a citation, not hidden — deliberately unlike the unchanged legacy-form masking on the `verifies`/`non_binding_tags` claim paths (PLAT-844) | Unit | P1 | FR-077-CON-3 | 🚧 |
 
 ---
 
@@ -1880,6 +1889,13 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-063-AC-10 | TC-979 |
 | FR-063-AC-11 | TC-980 |
 | FR-063-AC-12 | TC-981 |
+| FR-077-AC-1 | TC-1887 |
+| FR-077-AC-2 | TC-1888 |
+| FR-077-AC-3 | TC-1889 |
+| FR-077-AC-4 | TC-1890, TC-1891 |
+| FR-077-AC-5 | TC-1892 |
+| FR-077-AC-6 | TC-1893 |
+| FR-077-CON-3 | TC-1894 |
 
 ### Non-Functional Requirements
 
