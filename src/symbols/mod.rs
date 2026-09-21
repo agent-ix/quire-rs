@@ -506,6 +506,77 @@ pub(crate) fn stable_id(parts: &[&str]) -> String {
     format!("{:x}", hasher.finalize())
 }
 
+/// Shared adapter helper (PLAT-897): the 1-based first line of `node`'s
+/// leading annotation block — the contiguous run of preceding sibling nodes
+/// `is_annotation` accepts, stopping at the first sibling it rejects, the
+/// first blank-line gap, or a sibling that is itself **trailing** on the
+/// line its own preceding sibling ends on.
+///
+/// The trailing stop exists because of a property of tree-sitter, not of
+/// any one language: a *trailing* comment (`x = 1  // note`) is emitted as
+/// its own sibling node, indistinguishable by `.kind()` alone from a
+/// comment that starts its own line — so a walk that only checks
+/// `is_annotation` reaches a comment that belongs to the *previous*
+/// statement, silently pulling whatever it says into the span `trace.rs`'s
+/// binder reads from the *next* declaration. `rust.rs`, `python.rs` and
+/// `typescript.rs` each derived this same rule independently (`rust.rs`
+/// had not yet, until this ticket — see its own module docs); one
+/// implementation here, called by all three, so a fourth adapter inherits
+/// it instead of rediscovering it (PLAT-897, closing PLAT-868 PR #479
+/// review finding F4/F4(b) and PLAT-882 PR #481's own parallel finding).
+///
+/// Purely structural — `Node` positions and sibling links only, never
+/// source text or a trace form — matching this subsystem's own seam:
+/// language (and now cross-language) adapters answer structural questions;
+/// `trace.rs` alone knows what a trace form looks like.
+#[cfg(any(
+    feature = "rust-symbols",
+    feature = "python-symbols",
+    feature = "typescript-symbols"
+))]
+pub(crate) fn leading_span(
+    node: quire_rust_extraction::tree_sitter::Node,
+    is_annotation: fn(quire_rust_extraction::tree_sitter::Node) -> bool,
+) -> usize {
+    let mut boundary_row = node.start_position().row;
+    let mut current = node;
+    while let Some(prev) = current.prev_sibling() {
+        if !is_annotation(prev) {
+            break;
+        }
+        // A blank line between this annotation and the block already
+        // collected breaks the run.
+        if boundary_row.saturating_sub(prev.end_position().row) > 1 {
+            break;
+        }
+        // The trailing-on-the-same-line check only makes sense, and is only
+        // safe, against **real code** — a sibling `is_annotation` itself
+        // rejects. Applying it against another accepted annotation sibling
+        // (comparing two comments, or a comment and an attribute) is both
+        // unnecessary (two annotation-block members are never legitimately
+        // "trailing" on each other in valid syntax) and unsafe: at least one
+        // grammar (`tree-sitter-rust`'s `line_comment`) reports a single-line
+        // comment's `end_position().row` as *one past* its own row — the
+        // token's span includes its trailing newline, unlike a comment node
+        // in `tree-sitter-typescript`/`tree-sitter-python`. Comparing that
+        // offset end row against the *next* comment's start row makes every
+        // second line of an ordinary multi-line `///` doc block, with no
+        // blank line anywhere in it, misread as trailing on the line above
+        // it — silently truncating the span to its last line (measured
+        // directly authoring this guard: `fn f` preceded by two adjacent
+        // `///` lines came out `leading_line: 3`, the `fn`'s own line,
+        // instead of `1`, before this guard existed).
+        if let Some(before) = prev.prev_sibling() {
+            if !is_annotation(before) && prev.start_position().row == before.end_position().row {
+                break;
+            }
+        }
+        boundary_row = prev.start_position().row;
+        current = prev;
+    }
+    boundary_row + 1
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

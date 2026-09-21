@@ -120,7 +120,7 @@ use std::collections::BTreeSet;
 use quire_rust_extraction::tree_sitter::Node;
 use quire_rust_extraction::{parse_file, Language};
 
-use super::{RawSymbol, SymbolKind};
+use super::{leading_span, RawSymbol, SymbolKind};
 
 /// Parse `source` into raw symbols, or return a per-file reason to skip it.
 ///
@@ -328,7 +328,7 @@ impl<'a> Walk<'a> {
                     qualified_name: qualified_name.clone(),
                     kind: SymbolKind::Container,
                     line: def_node.start_position().row + 1,
-                    leading_line: leading_span(span_node, self.lines),
+                    leading_line: leading_span(span_node, is_annotation_node),
                     end_line: def_node.end_position().row + 1,
                     container: Some(container),
                 });
@@ -364,7 +364,7 @@ impl<'a> Walk<'a> {
                     qualified_name,
                     kind,
                     line: def_node.start_position().row + 1,
-                    leading_line: leading_span(span_node, self.lines),
+                    leading_line: leading_span(span_node, is_annotation_node),
                     end_line: def_node.end_position().row + 1,
                     container: Some(container),
                 });
@@ -417,14 +417,16 @@ fn field_text(node: Node, field: &str, source: &str) -> Option<String> {
         .map(str::to_string)
 }
 
-/// The 1-based first line of `node`'s leading annotation block: `node`
+/// Which sibling kind feeds [`leading_span`] (`super::leading_span`, shared
+/// with `rust.rs`/`typescript.rs` since PLAT-897): only `comment`. `node`
 /// itself already includes every decorator when it is a
 /// `decorated_definition` (decorators are its own children, never its
-/// siblings, in tree-sitter-python's grammar), so this only needs to walk
-/// further back through contiguous preceding `comment` siblings — the same
-/// two stopping conditions the pre-port scanner used (a non-annotation line,
-/// or a blank-line gap), now checked between sibling nodes instead of
-/// between lines, which is what fixes PLAT-234: a multi-line decorator
+/// siblings, in tree-sitter-python's grammar), so this adapter's own sibling
+/// walk only ever needs to recognise a preceding `comment` — the stopping
+/// conditions themselves (a non-annotation sibling, a blank-line gap, and a
+/// comment that is itself trailing on the line its own preceding sibling
+/// ends on) are the shared helper's, checked between sibling nodes instead
+/// of between lines, which is what fixes PLAT-234: a multi-line decorator
 /// argument list is part of one `decorated_definition` node regardless of
 /// how many lines it spans.
 ///
@@ -437,40 +439,23 @@ fn field_text(node: Node, field: &str, source: &str) -> Option<String> {
 /// have been walked into the *next* declaration's leading span, pulling
 /// whatever the comment says (a stray trace-shaped tag, a note about a
 /// different function) into a span `trace.rs` binds from — a review finding
-/// (PLAT-868 PR #479): a correct-looking span change that silently mints or
-/// moves a binding. `lines` is used only for this same-line check, never to
-/// re-derive what the tree already gives structurally.
+/// (PLAT-868 PR #479). `super::leading_span` makes this check by comparing
+/// sibling positions (does a candidate start on the row its own preceding
+/// sibling ends on) rather than re-deriving it from source text the way
+/// this adapter originally did; the two comparators agree on every case
+/// this module's own tests exercise (PLAT-897).
 ///
 /// A comment that stays indented at the *previous* declaration's own body
 /// level, before the dedent back out of it, is never even a candidate here:
-/// it is tree-sitter's own "extra"-token placement, not this function's own
-/// stopping conditions, that attaches it as a trailing child of the
+/// it is tree-sitter's own "extra"-token placement, not the shared helper's
+/// own stopping conditions, that attaches it as a trailing child of the
 /// previous `block` rather than as a sibling of the next declaration — so
 /// it cannot walk into the next span at all (measured directly; see
 /// `an_indented_trailing_comment_stays_inside_the_previous_body_not_the_next_span`
 /// in this module's own tests). Only a comment already dedented to the next
-/// declaration's own level is its sibling, and reaches the walk below.
-fn leading_span(node: Node, lines: &[&str]) -> usize {
-    let mut boundary_row = node.start_position().row;
-    let mut current = node;
-    while let Some(prev) = current.prev_sibling() {
-        if prev.kind() != "comment" {
-            break;
-        }
-        if boundary_row.saturating_sub(prev.end_position().row) > 1 {
-            break;
-        }
-        let starts_its_own_line = lines
-            .get(prev.start_position().row)
-            .and_then(|line| line.get(..prev.start_position().column))
-            .is_some_and(|prefix| prefix.trim().is_empty());
-        if !starts_its_own_line {
-            break;
-        }
-        boundary_row = prev.start_position().row;
-        current = prev;
-    }
-    boundary_row + 1
+/// declaration's own level is its sibling, and reaches the shared walk.
+fn is_annotation_node(node: Node) -> bool {
+    node.kind() == "comment"
 }
 
 /// A `def`/`async def`/`class` declaration and whether it is a class — a
