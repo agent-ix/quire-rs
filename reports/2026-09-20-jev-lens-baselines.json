@@ -1,0 +1,740 @@
+{
+ "report": "2026-09-20-jev-lens-baselines",
+ "date": "2026-09-20",
+ "corpus": {
+  "repo": "agent-ix/ix-trace-rs",
+  "commit": "2ce4ebf47f726b9d76388220545cd0abda8a5cfb",
+  "tree_digest_sha256_over_sha256sums": "a1d4fa2de1ab454968890cf134275145381c21369bd5e27ca462dbff474ab6c9",
+  "verified_byte_identical_after_all_runs": true,
+  "artifacts": {
+   "FR": 3,
+   "NFR": 1,
+   "StR": 1,
+   "US": 1,
+   "TestMatrix": 1,
+   "criteria_ac_and_vc": 21,
+   "requirement_bearing_statements": 23,
+   "matrix_test_case_rows": 11,
+   "spec_bytes": 32596,
+   "src_and_test_bytes": 18807
+  }
+ },
+ "engine": {
+  "cli": "quire 0.32.2",
+  "engine": "0.46.0@acd1be63",
+  "ears_findings": 2,
+  "ears_docs_clean": "6/8 (75%)",
+  "coverage_backed": "26/32"
+ },
+ "runner": {
+  "model": "claude-opus-5[1m]",
+  "harness": "one Claude Code subagent per run, identical prompt file, pinned read-only corpus"
+ },
+ "gap_analysis": {
+  "pass": "gap-analysis step 5 (semantic review) + Verdict",
+  "n_runs": 20,
+  "verdicts": {
+   "FAIL": 20
+  },
+  "verdict_change_rate_pct": 0.0,
+  "m1_presence_or_severity_pct": 43.5,
+  "m1_presence_only_pct": 37.1,
+  "findings_per_run": [
+   10,
+   9,
+   10,
+   10,
+   9,
+   11,
+   8,
+   7,
+   12,
+   11,
+   9,
+   8,
+   8,
+   10,
+   12,
+   14,
+   10,
+   9,
+   11,
+   12
+  ],
+  "defect_classes": [
+   {
+    "id": "D1",
+    "flagged": 20,
+    "n": 20,
+    "severities": {
+     "high": 20
+    }
+   },
+   {
+    "id": "D2",
+    "flagged": 20,
+    "n": 20,
+    "severities": {
+     "medium": 20
+    }
+   },
+   {
+    "id": "D3",
+    "flagged": 20,
+    "n": 20,
+    "severities": {
+     "medium": 20
+    }
+   },
+   {
+    "id": "D4",
+    "flagged": 9,
+    "n": 20,
+    "severities": {
+     "medium": 9
+    }
+   },
+   {
+    "id": "D5",
+    "flagged": 20,
+    "n": 20,
+    "severities": {
+     "medium": 18,
+     "low": 2
+    }
+   },
+   {
+    "id": "D6",
+    "flagged": 12,
+    "n": 20,
+    "severities": {
+     "medium": 12
+    }
+   },
+   {
+    "id": "D7",
+    "flagged": 20,
+    "n": 20,
+    "severities": {
+     "medium": 18,
+     "high": 2
+    }
+   },
+   {
+    "id": "D8",
+    "flagged": 16,
+    "n": 20,
+    "severities": {
+     "low": 15,
+     "medium": 1
+    }
+   },
+   {
+    "id": "D9",
+    "flagged": 12,
+    "n": 20,
+    "severities": {
+     "medium": 8,
+     "low": 4
+    }
+   },
+   {
+    "id": "D10",
+    "flagged": 16,
+    "n": 20,
+    "severities": {
+     "medium": 16
+    }
+   },
+   {
+    "id": "D11",
+    "flagged": 4,
+    "n": 20,
+    "severities": {
+     "low": 1,
+     "medium": 3
+    }
+   },
+   {
+    "id": "D12",
+    "flagged": 9,
+    "n": 20,
+    "severities": {
+     "low": 8,
+     "medium": 1
+    }
+   },
+   {
+    "id": "D13",
+    "flagged": 5,
+    "n": 20,
+    "severities": {
+     "low": 5
+    }
+   },
+   {
+    "id": "D14",
+    "flagged": 7,
+    "n": 20,
+    "severities": {
+     "low": 4,
+     "medium": 3
+    }
+   },
+   {
+    "id": "D15",
+    "flagged": 9,
+    "n": 20,
+    "severities": {
+     "medium": 8,
+     "low": 1
+    }
+   },
+   {
+    "id": "D16",
+    "flagged": 1,
+    "n": 20,
+    "severities": {
+     "low": 1
+    }
+   }
+  ]
+ },
+ "ears": {
+  "pass": "spec-ears-analysis step 2 (the semantic judgment)",
+  "n_runs": 20,
+  "m1_combined_pct": 28.7,
+  "m1_finding_pct": 20.1,
+  "m1_choice_label_pct": 16.7,
+  "statements": [
+   {
+    "st": "ST-01",
+    "flagged": 0,
+    "n": 20,
+    "severities": {},
+    "pattern_labels": {
+     "ubiquitous": 20
+    },
+    "engine_flagged": false
+   },
+   {
+    "st": "ST-02",
+    "flagged": 8,
+    "n": 20,
+    "severities": {
+     "low": 8
+    },
+    "pattern_labels": {
+     "state_driven": 15,
+     "event_driven": 5
+    },
+    "engine_flagged": false
+   },
+   {
+    "st": "ST-03",
+    "flagged": 5,
+    "n": 20,
+    "severities": {
+     "medium": 1,
+     "low": 4
+    },
+    "pattern_labels": {
+     "ubiquitous": 20
+    },
+    "engine_flagged": false
+   },
+   {
+    "st": "ST-04",
+    "flagged": 0,
+    "n": 20,
+    "severities": {},
+    "pattern_labels": {
+     "ubiquitous": 20
+    },
+    "engine_flagged": false
+   },
+   {
+    "st": "ST-05",
+    "flagged": 1,
+    "n": 20,
+    "severities": {
+     "medium": 1
+    },
+    "pattern_labels": {
+     "ubiquitous": 20
+    },
+    "engine_flagged": false
+   },
+   {
+    "st": "ST-06",
+    "flagged": 0,
+    "n": 20,
+    "severities": {},
+    "pattern_labels": {
+     "ubiquitous": 20
+    },
+    "engine_flagged": false
+   },
+   {
+    "st": "ST-07",
+    "flagged": 0,
+    "n": 20,
+    "severities": {},
+    "pattern_labels": {
+     "ubiquitous": 20
+    },
+    "engine_flagged": false
+   },
+   {
+    "st": "ST-08",
+    "flagged": 8,
+    "n": 20,
+    "severities": {
+     "low": 8
+    },
+    "pattern_labels": {
+     "state_driven": 15,
+     "event_driven": 5
+    },
+    "engine_flagged": false
+   },
+   {
+    "st": "ST-09",
+    "flagged": 0,
+    "n": 20,
+    "severities": {},
+    "pattern_labels": {
+     "ubiquitous": 20
+    },
+    "engine_flagged": false
+   },
+   {
+    "st": "ST-10",
+    "flagged": 18,
+    "n": 20,
+    "severities": {
+     "low": 18
+    },
+    "pattern_labels": {
+     "ubiquitous": 20
+    },
+    "engine_flagged": false
+   },
+   {
+    "st": "ST-11",
+    "flagged": 0,
+    "n": 20,
+    "severities": {},
+    "pattern_labels": {
+     "ubiquitous": 20
+    },
+    "engine_flagged": false
+   },
+   {
+    "st": "ST-12",
+    "flagged": 5,
+    "n": 20,
+    "severities": {
+     "low": 5
+    },
+    "pattern_labels": {
+     "ubiquitous": 9,
+     "unwanted_behaviour": 11
+    },
+    "engine_flagged": false
+   },
+   {
+    "st": "ST-13",
+    "flagged": 0,
+    "n": 20,
+    "severities": {},
+    "pattern_labels": {
+     "ubiquitous": 20
+    },
+    "engine_flagged": false
+   },
+   {
+    "st": "ST-14",
+    "flagged": 5,
+    "n": 20,
+    "severities": {
+     "low": 5
+    },
+    "pattern_labels": {
+     "ubiquitous": 8,
+     "unwanted_behaviour": 12
+    },
+    "engine_flagged": false
+   },
+   {
+    "st": "ST-15",
+    "flagged": 5,
+    "n": 20,
+    "severities": {
+     "low": 5
+    },
+    "pattern_labels": {
+     "ubiquitous": 8,
+     "unwanted_behaviour": 12
+    },
+    "engine_flagged": false
+   },
+   {
+    "st": "ST-16",
+    "flagged": 5,
+    "n": 20,
+    "severities": {
+     "low": 5
+    },
+    "pattern_labels": {
+     "ubiquitous": 8,
+     "unwanted_behaviour": 12
+    },
+    "engine_flagged": false
+   },
+   {
+    "st": "ST-17",
+    "flagged": 5,
+    "n": 20,
+    "severities": {
+     "low": 5
+    },
+    "pattern_labels": {
+     "ubiquitous": 8,
+     "unwanted_behaviour": 12
+    },
+    "engine_flagged": false
+   },
+   {
+    "st": "ST-18",
+    "flagged": 3,
+    "n": 20,
+    "severities": {
+     "low": 3
+    },
+    "pattern_labels": {
+     "unwanted_behaviour": 20
+    },
+    "engine_flagged": false
+   },
+   {
+    "st": "ST-19",
+    "flagged": 12,
+    "n": 20,
+    "severities": {
+     "low": 11,
+     "medium": 1
+    },
+    "pattern_labels": {
+     "ubiquitous": 8,
+     "unwanted_behaviour": 12
+    },
+    "engine_flagged": false
+   },
+   {
+    "st": "ST-20",
+    "flagged": 0,
+    "n": 20,
+    "severities": {},
+    "pattern_labels": {
+     "ubiquitous": 20
+    },
+    "engine_flagged": true
+   },
+   {
+    "st": "ST-21",
+    "flagged": 0,
+    "n": 20,
+    "severities": {},
+    "pattern_labels": {
+     "ubiquitous": 20
+    },
+    "engine_flagged": false
+   },
+   {
+    "st": "ST-22",
+    "flagged": 0,
+    "n": 20,
+    "severities": {},
+    "pattern_labels": {
+     "ubiquitous": 20
+    },
+    "engine_flagged": false
+   },
+   {
+    "st": "ST-23",
+    "flagged": 1,
+    "n": 20,
+    "severities": {
+     "low": 1
+    },
+    "pattern_labels": {
+     "ubiquitous": 20
+    },
+    "engine_flagged": true
+   }
+  ],
+  "m6_engine_semantic_delta": {
+   "engine_clean_denominator": 21,
+   "per_run_flagged": [
+    2,
+    2,
+    8,
+    2,
+    2,
+    4,
+    3,
+    3,
+    5,
+    6,
+    2,
+    2,
+    2,
+    5,
+    4,
+    6,
+    7,
+    9,
+    2,
+    4
+   ],
+   "mean_pct": 19.0,
+   "min_pct": 9.5,
+   "max_pct": 42.9,
+   "union": 12,
+   "union_pct": 57.1,
+   "flagged_by_every_run": 0,
+   "inverse_engine_flagged_also_flagged_semantically": {
+    "ST-20": 0,
+    "ST-23": 1
+   }
+  }
+ },
+ "spec_review": {
+  "pass": "spec-review-vague-criteria",
+  "n_runs": 12,
+  "m1_pct": 17.0,
+  "criteria": [
+   {
+    "criterion": "FR-001-AC-1",
+    "flagged": 0,
+    "n": 12,
+    "severities": {}
+   },
+   {
+    "criterion": "FR-001-AC-2",
+    "flagged": 0,
+    "n": 12,
+    "severities": {}
+   },
+   {
+    "criterion": "FR-001-AC-3",
+    "flagged": 0,
+    "n": 12,
+    "severities": {}
+   },
+   {
+    "criterion": "FR-001-AC-4",
+    "flagged": 0,
+    "n": 12,
+    "severities": {}
+   },
+   {
+    "criterion": "FR-001-AC-5",
+    "flagged": 0,
+    "n": 12,
+    "severities": {}
+   },
+   {
+    "criterion": "FR-002-AC-1",
+    "flagged": 4,
+    "n": 12,
+    "severities": {
+     "low": 4
+    }
+   },
+   {
+    "criterion": "FR-002-AC-2",
+    "flagged": 6,
+    "n": 12,
+    "severities": {
+     "low": 6
+    }
+   },
+   {
+    "criterion": "FR-002-AC-3",
+    "flagged": 0,
+    "n": 12,
+    "severities": {}
+   },
+   {
+    "criterion": "FR-003-AC-1",
+    "flagged": 4,
+    "n": 12,
+    "severities": {
+     "low": 3,
+     "medium": 1
+    }
+   },
+   {
+    "criterion": "FR-003-AC-2",
+    "flagged": 0,
+    "n": 12,
+    "severities": {}
+   },
+   {
+    "criterion": "FR-003-AC-3",
+    "flagged": 0,
+    "n": 12,
+    "severities": {}
+   },
+   {
+    "criterion": "FR-003-AC-4",
+    "flagged": 0,
+    "n": 12,
+    "severities": {}
+   },
+   {
+    "criterion": "FR-003-AC-5",
+    "flagged": 0,
+    "n": 12,
+    "severities": {}
+   },
+   {
+    "criterion": "FR-003-AC-6",
+    "flagged": 0,
+    "n": 12,
+    "severities": {}
+   },
+   {
+    "criterion": "FR-003-AC-7",
+    "flagged": 12,
+    "n": 12,
+    "severities": {
+     "low": 4,
+     "medium": 8
+    }
+   },
+   {
+    "criterion": "NFR-001-AC-1",
+    "flagged": 0,
+    "n": 12,
+    "severities": {}
+   },
+   {
+    "criterion": "NFR-001-AC-2",
+    "flagged": 6,
+    "n": 12,
+    "severities": {
+     "low": 6
+    }
+   },
+   {
+    "criterion": "NFR-001-AC-3",
+    "flagged": 8,
+    "n": 12,
+    "severities": {
+     "low": 8
+    }
+   },
+   {
+    "criterion": "StR-001-VC-1",
+    "flagged": 4,
+    "n": 12,
+    "severities": {
+     "low": 4
+    }
+   },
+   {
+    "criterion": "StR-001-VC-2",
+    "flagged": 0,
+    "n": 12,
+    "severities": {}
+   },
+   {
+    "criterion": "StR-001-VC-3",
+    "flagged": 0,
+    "n": 12,
+    "severities": {}
+   }
+  ],
+  "per_run_finding_counts": [
+   3,
+   3,
+   7,
+   4,
+   6,
+   4,
+   2,
+   5,
+   2,
+   3,
+   2,
+   3
+  ],
+  "union": 7,
+  "intersection": [
+   "FR-003-AC-7"
+  ]
+ },
+ "m5_cost_latency": {
+  "gap-analysis step 5": {
+   "n": 20,
+   "wall_s_median": 119.1,
+   "wall_s_min": 91.1,
+   "wall_s_max": 144.4,
+   "tokens_median": 73209,
+   "tokens_min": 70537,
+   "tokens_max": 77442,
+   "tokens_total": 1471906
+  },
+  "spec-ears step 2": {
+   "n": 20,
+   "wall_s_median": 80.7,
+   "wall_s_min": 59.6,
+   "wall_s_max": 97.5,
+   "tokens_median": 60587,
+   "tokens_min": 49311,
+   "tokens_max": 65157,
+   "tokens_total": 1218260
+  },
+  "spec-review vague-criteria": {
+   "n": 9,
+   "wall_s_median": 40.2,
+   "wall_s_min": 28.2,
+   "wall_s_max": 47.0,
+   "tokens_median": 53439,
+   "tokens_min": 52311,
+   "tokens_max": 54036,
+   "tokens_total": 480886
+  }
+ },
+ "m8_skip_rate": {
+  "population": "gap-analysis SpecReview documents under /home/peter/dev, deduplicated by content hash",
+  "classifier_primary": {
+   "n": 483,
+   "skipped": 151,
+   "ran": 42,
+   "ambiguous": 9,
+   "not_stated": 281,
+   "skip_rate_pct_over_docs_that_state_it": 78.2,
+   "same_excluding_filament_ide_rs": 78.4
+  },
+  "classifier_broader": {
+   "n": 469,
+   "skipped": 176,
+   "ran": 43,
+   "ambiguous": 8,
+   "not_stated": 242,
+   "skip_rate_pct_over_docs_that_state_it": 80.4,
+   "same_excluding_filament_ide_rs": 80.9
+  }
+ },
+ "not_measured": {
+  "M2_accuracy": "no human-labelled ground-truth fixture set exists; building one was out of scope",
+  "M3_calibration_error": "the current passes emit no probability, so ECE is undefined for the baseline",
+  "M4_abstention": "the current passes have no abstention mechanism",
+  "M7_assertion_vacuous_vs_mutation": "requires a mutation run, explicitly out of scope per PLAT-839",
+  "M5_dollar_cost": "the harness reports one total token figure per subagent and does not expose the input/output/cache split, so no rate can be applied"
+ }
+}
