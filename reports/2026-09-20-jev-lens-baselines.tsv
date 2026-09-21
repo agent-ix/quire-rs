@@ -1,913 +1,913 @@
-pass	run	unit	judgment	severity	label
-gap-analysis	A01	D1	flagged	high	FAIL
-gap-analysis	A01	D2	flagged	medium	FAIL
-gap-analysis	A01	D3	flagged	medium	FAIL
-gap-analysis	A01	D4	flagged	medium	FAIL
-gap-analysis	A01	D5	flagged	medium	FAIL
-gap-analysis	A01	D7	flagged	medium	FAIL
-gap-analysis	A01	D10	flagged	medium	FAIL
-gap-analysis	A01	D11	flagged	low	FAIL
-gap-analysis	A01	D12	flagged	low	FAIL
-gap-analysis	A01	D14	flagged	low	FAIL
-gap-analysis	A02	D1	flagged	high	FAIL
-gap-analysis	A02	D2	flagged	medium	FAIL
-gap-analysis	A02	D3	flagged	medium	FAIL
-gap-analysis	A02	D4	flagged	medium	FAIL
-gap-analysis	A02	D5	flagged	low	FAIL
-gap-analysis	A02	D6	flagged	medium	FAIL
-gap-analysis	A02	D7	flagged	medium	FAIL
-gap-analysis	A02	D8	flagged	low	FAIL
-gap-analysis	A02	D9	flagged	medium	FAIL
-gap-analysis	A03	D1	flagged	high	FAIL
-gap-analysis	A03	D2	flagged	medium	FAIL
-gap-analysis	A03	D3	flagged	medium	FAIL
-gap-analysis	A03	D4	flagged	medium	FAIL
-gap-analysis	A03	D5	flagged	medium	FAIL
-gap-analysis	A03	D7	flagged	high	FAIL
-gap-analysis	A03	D8	flagged	low	FAIL
-gap-analysis	A03	D10	flagged	medium	FAIL
-gap-analysis	A03	D11	flagged	medium	FAIL
-gap-analysis	A03	D12	flagged	low	FAIL
-gap-analysis	A04	D1	flagged	high	FAIL
-gap-analysis	A04	D2	flagged	medium	FAIL
-gap-analysis	A04	D3	flagged	medium	FAIL
-gap-analysis	A04	D4	flagged	medium	FAIL
-gap-analysis	A04	D5	flagged	medium	FAIL
-gap-analysis	A04	D6	flagged	medium	FAIL
-gap-analysis	A04	D7	flagged	medium	FAIL
-gap-analysis	A04	D8	flagged	low	FAIL
-gap-analysis	A04	D9	flagged	medium	FAIL
-gap-analysis	A04	D10	flagged	medium	FAIL
-gap-analysis	A05	D1	flagged	high	FAIL
-gap-analysis	A05	D2	flagged	medium	FAIL
-gap-analysis	A05	D3	flagged	medium	FAIL
-gap-analysis	A05	D4	flagged	medium	FAIL
-gap-analysis	A05	D5	flagged	medium	FAIL
-gap-analysis	A05	D7	flagged	medium	FAIL
-gap-analysis	A05	D9	flagged	medium	FAIL
-gap-analysis	A05	D10	flagged	medium	FAIL
-gap-analysis	A05	D14	flagged	medium	FAIL
-gap-analysis	A06	D1	flagged	high	FAIL
-gap-analysis	A06	D2	flagged	medium	FAIL
-gap-analysis	A06	D3	flagged	medium	FAIL
-gap-analysis	A06	D5	flagged	medium	FAIL
-gap-analysis	A06	D6	flagged	medium	FAIL
-gap-analysis	A06	D7	flagged	medium	FAIL
-gap-analysis	A06	D8	flagged	medium	FAIL
-gap-analysis	A06	D9	flagged	low	FAIL
-gap-analysis	A06	D10	flagged	medium	FAIL
-gap-analysis	A06	D12	flagged	low	FAIL
-gap-analysis	A06	D15	flagged	medium	FAIL
-gap-analysis	A07	D1	flagged	high	FAIL
-gap-analysis	A07	D2	flagged	medium	FAIL
-gap-analysis	A07	D3	flagged	medium	FAIL
-gap-analysis	A07	D5	flagged	medium	FAIL
-gap-analysis	A07	D6	flagged	medium	FAIL
-gap-analysis	A07	D7	flagged	medium	FAIL
-gap-analysis	A07	D8	flagged	low	FAIL
-gap-analysis	A07	D9	flagged	medium	FAIL
-gap-analysis	A08	D1	flagged	high	FAIL
-gap-analysis	A08	D2	flagged	medium	FAIL
-gap-analysis	A08	D3	flagged	medium	FAIL
-gap-analysis	A08	D4	flagged	medium	FAIL
-gap-analysis	A08	D5	flagged	medium	FAIL
-gap-analysis	A08	D7	flagged	medium	FAIL
-gap-analysis	A08	D8	flagged	low	FAIL
-gap-analysis	A09	D1	flagged	high	FAIL
-gap-analysis	A09	D2	flagged	medium	FAIL
-gap-analysis	A09	D3	flagged	medium	FAIL
-gap-analysis	A09	D5	flagged	medium	FAIL
-gap-analysis	A09	D6	flagged	medium	FAIL
-gap-analysis	A09	D7	flagged	medium	FAIL
-gap-analysis	A09	D8	flagged	low	FAIL
-gap-analysis	A09	D10	flagged	medium	FAIL
-gap-analysis	A09	D12	flagged	low	FAIL
-gap-analysis	A09	D13	flagged	low	FAIL
-gap-analysis	A09	D14	flagged	medium	FAIL
-gap-analysis	A09	D15	flagged	medium	FAIL
-gap-analysis	A10	D1	flagged	high	FAIL
-gap-analysis	A10	D2	flagged	medium	FAIL
-gap-analysis	A10	D3	flagged	medium	FAIL
-gap-analysis	A10	D5	flagged	medium	FAIL
-gap-analysis	A10	D6	flagged	medium	FAIL
-gap-analysis	A10	D7	flagged	medium	FAIL
-gap-analysis	A10	D8	flagged	low	FAIL
-gap-analysis	A10	D9	flagged	medium	FAIL
-gap-analysis	A10	D10	flagged	medium	FAIL
-gap-analysis	A10	D12	flagged	low	FAIL
-gap-analysis	A10	D15	flagged	medium	FAIL
-gap-analysis	A11	D1	flagged	high	FAIL
-gap-analysis	A11	D2	flagged	medium	FAIL
-gap-analysis	A11	D3	flagged	medium	FAIL
-gap-analysis	A11	D5	flagged	low	FAIL
-gap-analysis	A11	D7	flagged	medium	FAIL
-gap-analysis	A11	D9	flagged	low	FAIL
-gap-analysis	A11	D10	flagged	medium	FAIL
-gap-analysis	A11	D12	flagged	low	FAIL
-gap-analysis	A11	D14	flagged	low	FAIL
-gap-analysis	A12	D1	flagged	high	FAIL
-gap-analysis	A12	D2	flagged	medium	FAIL
-gap-analysis	A12	D3	flagged	medium	FAIL
-gap-analysis	A12	D5	flagged	medium	FAIL
-gap-analysis	A12	D7	flagged	medium	FAIL
-gap-analysis	A12	D8	flagged	low	FAIL
-gap-analysis	A12	D10	flagged	medium	FAIL
-gap-analysis	A12	D13	flagged	low	FAIL
-gap-analysis	A13	D1	flagged	high	FAIL
-gap-analysis	A13	D2	flagged	medium	FAIL
-gap-analysis	A13	D3	flagged	medium	FAIL
-gap-analysis	A13	D5	flagged	medium	FAIL
-gap-analysis	A13	D6	flagged	medium	FAIL
-gap-analysis	A13	D7	flagged	medium	FAIL
-gap-analysis	A13	D8	flagged	low	FAIL
-gap-analysis	A13	D14	flagged	low	FAIL
-gap-analysis	A14	D1	flagged	high	FAIL
-gap-analysis	A14	D2	flagged	medium	FAIL
-gap-analysis	A14	D3	flagged	medium	FAIL
-gap-analysis	A14	D5	flagged	medium	FAIL
-gap-analysis	A14	D6	flagged	medium	FAIL
-gap-analysis	A14	D7	flagged	medium	FAIL
-gap-analysis	A14	D8	flagged	low	FAIL
-gap-analysis	A14	D10	flagged	medium	FAIL
-gap-analysis	A14	D14	flagged	medium	FAIL
-gap-analysis	A14	D15	flagged	medium	FAIL
-gap-analysis	A15	D1	flagged	high	FAIL
-gap-analysis	A15	D2	flagged	medium	FAIL
-gap-analysis	A15	D3	flagged	medium	FAIL
-gap-analysis	A15	D4	flagged	medium	FAIL
-gap-analysis	A15	D5	flagged	medium	FAIL
-gap-analysis	A15	D6	flagged	medium	FAIL
-gap-analysis	A15	D7	flagged	medium	FAIL
-gap-analysis	A15	D8	flagged	low	FAIL
-gap-analysis	A15	D9	flagged	medium	FAIL
-gap-analysis	A15	D10	flagged	medium	FAIL
-gap-analysis	A15	D12	flagged	low	FAIL
-gap-analysis	A15	D15	flagged	medium	FAIL
-gap-analysis	A16	D1	flagged	high	FAIL
-gap-analysis	A16	D2	flagged	medium	FAIL
-gap-analysis	A16	D3	flagged	medium	FAIL
-gap-analysis	A16	D4	flagged	medium	FAIL
-gap-analysis	A16	D5	flagged	medium	FAIL
-gap-analysis	A16	D6	flagged	medium	FAIL
-gap-analysis	A16	D7	flagged	medium	FAIL
-gap-analysis	A16	D8	flagged	low	FAIL
-gap-analysis	A16	D9	flagged	low	FAIL
-gap-analysis	A16	D10	flagged	medium	FAIL
-gap-analysis	A16	D11	flagged	medium	FAIL
-gap-analysis	A16	D12	flagged	medium	FAIL
-gap-analysis	A16	D13	flagged	low	FAIL
-gap-analysis	A16	D15	flagged	medium	FAIL
-gap-analysis	A17	D1	flagged	high	FAIL
-gap-analysis	A17	D2	flagged	medium	FAIL
-gap-analysis	A17	D3	flagged	medium	FAIL
-gap-analysis	A17	D5	flagged	medium	FAIL
-gap-analysis	A17	D7	flagged	high	FAIL
-gap-analysis	A17	D8	flagged	low	FAIL
-gap-analysis	A17	D9	flagged	medium	FAIL
-gap-analysis	A17	D10	flagged	medium	FAIL
-gap-analysis	A17	D13	flagged	low	FAIL
-gap-analysis	A17	D15	flagged	medium	FAIL
-gap-analysis	A18	D1	flagged	high	FAIL
-gap-analysis	A18	D2	flagged	medium	FAIL
-gap-analysis	A18	D3	flagged	medium	FAIL
-gap-analysis	A18	D5	flagged	medium	FAIL
-gap-analysis	A18	D6	flagged	medium	FAIL
-gap-analysis	A18	D7	flagged	medium	FAIL
-gap-analysis	A18	D8	flagged	low	FAIL
-gap-analysis	A18	D9	flagged	low	FAIL
-gap-analysis	A18	D10	flagged	medium	FAIL
-gap-analysis	A19	D1	flagged	high	FAIL
-gap-analysis	A19	D2	flagged	medium	FAIL
-gap-analysis	A19	D3	flagged	medium	FAIL
-gap-analysis	A19	D4	flagged	medium	FAIL
-gap-analysis	A19	D5	flagged	medium	FAIL
-gap-analysis	A19	D7	flagged	medium	FAIL
-gap-analysis	A19	D8	flagged	low	FAIL
-gap-analysis	A19	D9	flagged	medium	FAIL
-gap-analysis	A19	D10	flagged	medium	FAIL
-gap-analysis	A19	D11	flagged	medium	FAIL
-gap-analysis	A19	D15	flagged	low	FAIL
-gap-analysis	A20	D1	flagged	high	FAIL
-gap-analysis	A20	D2	flagged	medium	FAIL
-gap-analysis	A20	D3	flagged	medium	FAIL
-gap-analysis	A20	D5	flagged	medium	FAIL
-gap-analysis	A20	D6	flagged	medium	FAIL
-gap-analysis	A20	D7	flagged	medium	FAIL
-gap-analysis	A20	D10	flagged	medium	FAIL
-gap-analysis	A20	D12	flagged	low	FAIL
-gap-analysis	A20	D13	flagged	low	FAIL
-gap-analysis	A20	D14	flagged	low	FAIL
-gap-analysis	A20	D15	flagged	medium	FAIL
-gap-analysis	A20	D16	flagged	low	FAIL
-spec-ears	B01	ST-01	clean		ubiquitous
-spec-ears	B01	ST-02	flagged	low	state_driven
-spec-ears	B01	ST-03	clean		ubiquitous
-spec-ears	B01	ST-04	clean		ubiquitous
-spec-ears	B01	ST-05	clean		ubiquitous
-spec-ears	B01	ST-06	clean		ubiquitous
-spec-ears	B01	ST-07	clean		ubiquitous
-spec-ears	B01	ST-08	flagged	low	state_driven
-spec-ears	B01	ST-09	clean		ubiquitous
-spec-ears	B01	ST-10	clean		ubiquitous
-spec-ears	B01	ST-11	clean		ubiquitous
-spec-ears	B01	ST-12	clean		ubiquitous
-spec-ears	B01	ST-13	clean		ubiquitous
-spec-ears	B01	ST-14	clean		ubiquitous
-spec-ears	B01	ST-15	clean		ubiquitous
-spec-ears	B01	ST-16	clean		ubiquitous
-spec-ears	B01	ST-17	clean		ubiquitous
-spec-ears	B01	ST-18	clean		unwanted_behaviour
-spec-ears	B01	ST-19	clean		ubiquitous
-spec-ears	B01	ST-20	clean		ubiquitous
-spec-ears	B01	ST-21	clean		ubiquitous
-spec-ears	B01	ST-22	clean		ubiquitous
-spec-ears	B01	ST-23	clean		ubiquitous
-spec-ears	B02	ST-01	clean		ubiquitous
-spec-ears	B02	ST-02	clean		state_driven
-spec-ears	B02	ST-03	clean		ubiquitous
-spec-ears	B02	ST-04	clean		ubiquitous
-spec-ears	B02	ST-05	clean		ubiquitous
-spec-ears	B02	ST-06	clean		ubiquitous
-spec-ears	B02	ST-07	clean		ubiquitous
-spec-ears	B02	ST-08	clean		state_driven
-spec-ears	B02	ST-09	clean		ubiquitous
-spec-ears	B02	ST-10	flagged	low	ubiquitous
-spec-ears	B02	ST-11	clean		ubiquitous
-spec-ears	B02	ST-12	clean		unwanted_behaviour
-spec-ears	B02	ST-13	clean		ubiquitous
-spec-ears	B02	ST-14	clean		unwanted_behaviour
-spec-ears	B02	ST-15	clean		unwanted_behaviour
-spec-ears	B02	ST-16	clean		unwanted_behaviour
-spec-ears	B02	ST-17	clean		unwanted_behaviour
-spec-ears	B02	ST-18	clean		unwanted_behaviour
-spec-ears	B02	ST-19	flagged	low	unwanted_behaviour
-spec-ears	B02	ST-20	clean		ubiquitous
-spec-ears	B02	ST-21	clean		ubiquitous
-spec-ears	B02	ST-22	clean		ubiquitous
-spec-ears	B02	ST-23	clean		ubiquitous
-spec-ears	B03	ST-01	clean		ubiquitous
-spec-ears	B03	ST-02	flagged	low	event_driven
-spec-ears	B03	ST-03	clean		ubiquitous
-spec-ears	B03	ST-04	clean		ubiquitous
-spec-ears	B03	ST-05	clean		ubiquitous
-spec-ears	B03	ST-06	clean		ubiquitous
-spec-ears	B03	ST-07	clean		ubiquitous
-spec-ears	B03	ST-08	flagged	low	event_driven
-spec-ears	B03	ST-09	clean		ubiquitous
-spec-ears	B03	ST-10	flagged	low	ubiquitous
-spec-ears	B03	ST-11	clean		ubiquitous
-spec-ears	B03	ST-12	clean		ubiquitous
-spec-ears	B03	ST-13	clean		ubiquitous
-spec-ears	B03	ST-14	flagged	low	unwanted_behaviour
-spec-ears	B03	ST-15	flagged	low	unwanted_behaviour
-spec-ears	B03	ST-16	flagged	low	unwanted_behaviour
-spec-ears	B03	ST-17	flagged	low	unwanted_behaviour
-spec-ears	B03	ST-18	clean		unwanted_behaviour
-spec-ears	B03	ST-19	flagged	low	unwanted_behaviour
-spec-ears	B03	ST-20	clean		ubiquitous
-spec-ears	B03	ST-21	clean		ubiquitous
-spec-ears	B03	ST-22	clean		ubiquitous
-spec-ears	B03	ST-23	clean		ubiquitous
-spec-ears	B04	ST-01	clean		ubiquitous
-spec-ears	B04	ST-02	clean		state_driven
-spec-ears	B04	ST-03	clean		ubiquitous
-spec-ears	B04	ST-04	clean		ubiquitous
-spec-ears	B04	ST-05	clean		ubiquitous
-spec-ears	B04	ST-06	clean		ubiquitous
-spec-ears	B04	ST-07	clean		ubiquitous
-spec-ears	B04	ST-08	clean		state_driven
-spec-ears	B04	ST-09	clean		ubiquitous
-spec-ears	B04	ST-10	flagged	low	ubiquitous
-spec-ears	B04	ST-11	clean		ubiquitous
-spec-ears	B04	ST-12	flagged	low	ubiquitous
-spec-ears	B04	ST-13	clean		ubiquitous
-spec-ears	B04	ST-14	clean		ubiquitous
-spec-ears	B04	ST-15	clean		ubiquitous
-spec-ears	B04	ST-16	clean		ubiquitous
-spec-ears	B04	ST-17	clean		ubiquitous
-spec-ears	B04	ST-18	clean		unwanted_behaviour
-spec-ears	B04	ST-19	clean		ubiquitous
-spec-ears	B04	ST-20	clean		ubiquitous
-spec-ears	B04	ST-21	clean		ubiquitous
-spec-ears	B04	ST-22	clean		ubiquitous
-spec-ears	B04	ST-23	flagged	low	ubiquitous
-spec-ears	B05	ST-01	clean		ubiquitous
-spec-ears	B05	ST-02	clean		state_driven
-spec-ears	B05	ST-03	clean		ubiquitous
-spec-ears	B05	ST-04	clean		ubiquitous
-spec-ears	B05	ST-05	clean		ubiquitous
-spec-ears	B05	ST-06	clean		ubiquitous
-spec-ears	B05	ST-07	clean		ubiquitous
-spec-ears	B05	ST-08	clean		state_driven
-spec-ears	B05	ST-09	clean		ubiquitous
-spec-ears	B05	ST-10	flagged	low	ubiquitous
-spec-ears	B05	ST-11	clean		ubiquitous
-spec-ears	B05	ST-12	flagged	low	ubiquitous
-spec-ears	B05	ST-13	clean		ubiquitous
-spec-ears	B05	ST-14	clean		ubiquitous
-spec-ears	B05	ST-15	clean		ubiquitous
-spec-ears	B05	ST-16	clean		ubiquitous
-spec-ears	B05	ST-17	clean		ubiquitous
-spec-ears	B05	ST-18	clean		unwanted_behaviour
-spec-ears	B05	ST-19	clean		ubiquitous
-spec-ears	B05	ST-20	clean		ubiquitous
-spec-ears	B05	ST-21	clean		ubiquitous
-spec-ears	B05	ST-22	clean		ubiquitous
-spec-ears	B05	ST-23	clean		ubiquitous
-spec-ears	B06	ST-01	clean		ubiquitous
-spec-ears	B06	ST-02	flagged	low	state_driven
-spec-ears	B06	ST-03	clean		ubiquitous
-spec-ears	B06	ST-04	clean		ubiquitous
-spec-ears	B06	ST-05	clean		ubiquitous
-spec-ears	B06	ST-06	clean		ubiquitous
-spec-ears	B06	ST-07	clean		ubiquitous
-spec-ears	B06	ST-08	flagged	low	state_driven
-spec-ears	B06	ST-09	clean		ubiquitous
-spec-ears	B06	ST-10	flagged	low	ubiquitous
-spec-ears	B06	ST-11	clean		ubiquitous
-spec-ears	B06	ST-12	clean		ubiquitous
-spec-ears	B06	ST-13	clean		ubiquitous
-spec-ears	B06	ST-14	clean		ubiquitous
-spec-ears	B06	ST-15	clean		ubiquitous
-spec-ears	B06	ST-16	clean		ubiquitous
-spec-ears	B06	ST-17	clean		ubiquitous
-spec-ears	B06	ST-18	flagged	low	unwanted_behaviour
-spec-ears	B06	ST-19	clean		ubiquitous
-spec-ears	B06	ST-20	clean		ubiquitous
-spec-ears	B06	ST-21	clean		ubiquitous
-spec-ears	B06	ST-22	clean		ubiquitous
-spec-ears	B06	ST-23	clean		ubiquitous
-spec-ears	B07	ST-01	clean		ubiquitous
-spec-ears	B07	ST-02	clean		state_driven
-spec-ears	B07	ST-03	flagged	medium	ubiquitous
-spec-ears	B07	ST-04	clean		ubiquitous
-spec-ears	B07	ST-05	clean		ubiquitous
-spec-ears	B07	ST-06	clean		ubiquitous
-spec-ears	B07	ST-07	clean		ubiquitous
-spec-ears	B07	ST-08	clean		state_driven
-spec-ears	B07	ST-09	clean		ubiquitous
-spec-ears	B07	ST-10	flagged	low	ubiquitous
-spec-ears	B07	ST-11	clean		ubiquitous
-spec-ears	B07	ST-12	flagged	low	unwanted_behaviour
-spec-ears	B07	ST-13	clean		ubiquitous
-spec-ears	B07	ST-14	clean		unwanted_behaviour
-spec-ears	B07	ST-15	clean		unwanted_behaviour
-spec-ears	B07	ST-16	clean		unwanted_behaviour
-spec-ears	B07	ST-17	clean		unwanted_behaviour
-spec-ears	B07	ST-18	clean		unwanted_behaviour
-spec-ears	B07	ST-19	clean		unwanted_behaviour
-spec-ears	B07	ST-20	clean		ubiquitous
-spec-ears	B07	ST-21	clean		ubiquitous
-spec-ears	B07	ST-22	clean		ubiquitous
-spec-ears	B07	ST-23	clean		ubiquitous
-spec-ears	B08	ST-01	clean		ubiquitous
-spec-ears	B08	ST-02	flagged	low	state_driven
-spec-ears	B08	ST-03	clean		ubiquitous
-spec-ears	B08	ST-04	clean		ubiquitous
-spec-ears	B08	ST-05	clean		ubiquitous
-spec-ears	B08	ST-06	clean		ubiquitous
-spec-ears	B08	ST-07	clean		ubiquitous
-spec-ears	B08	ST-08	flagged	low	state_driven
-spec-ears	B08	ST-09	clean		ubiquitous
-spec-ears	B08	ST-10	flagged	low	ubiquitous
-spec-ears	B08	ST-11	clean		ubiquitous
-spec-ears	B08	ST-12	clean		ubiquitous
-spec-ears	B08	ST-13	clean		ubiquitous
-spec-ears	B08	ST-14	clean		ubiquitous
-spec-ears	B08	ST-15	clean		ubiquitous
-spec-ears	B08	ST-16	clean		ubiquitous
-spec-ears	B08	ST-17	clean		ubiquitous
-spec-ears	B08	ST-18	clean		unwanted_behaviour
-spec-ears	B08	ST-19	clean		ubiquitous
-spec-ears	B08	ST-20	clean		ubiquitous
-spec-ears	B08	ST-21	clean		ubiquitous
-spec-ears	B08	ST-22	clean		ubiquitous
-spec-ears	B08	ST-23	clean		ubiquitous
-spec-ears	B09	ST-01	clean		ubiquitous
-spec-ears	B09	ST-02	flagged	low	event_driven
-spec-ears	B09	ST-03	flagged	low	ubiquitous
-spec-ears	B09	ST-04	clean		ubiquitous
-spec-ears	B09	ST-05	flagged	medium	ubiquitous
-spec-ears	B09	ST-06	clean		ubiquitous
-spec-ears	B09	ST-07	clean		ubiquitous
-spec-ears	B09	ST-08	flagged	low	event_driven
-spec-ears	B09	ST-09	clean		ubiquitous
-spec-ears	B09	ST-10	clean		ubiquitous
-spec-ears	B09	ST-11	clean		ubiquitous
-spec-ears	B09	ST-12	clean		unwanted_behaviour
-spec-ears	B09	ST-13	clean		ubiquitous
-spec-ears	B09	ST-14	clean		unwanted_behaviour
-spec-ears	B09	ST-15	clean		unwanted_behaviour
-spec-ears	B09	ST-16	clean		unwanted_behaviour
-spec-ears	B09	ST-17	clean		unwanted_behaviour
-spec-ears	B09	ST-18	clean		unwanted_behaviour
-spec-ears	B09	ST-19	flagged	low	unwanted_behaviour
-spec-ears	B09	ST-20	clean		ubiquitous
-spec-ears	B09	ST-21	clean		ubiquitous
-spec-ears	B09	ST-22	clean		ubiquitous
-spec-ears	B09	ST-23	clean		ubiquitous
-spec-ears	B10	ST-01	clean		ubiquitous
-spec-ears	B10	ST-02	clean		event_driven
-spec-ears	B10	ST-03	clean		ubiquitous
-spec-ears	B10	ST-04	clean		ubiquitous
-spec-ears	B10	ST-05	clean		ubiquitous
-spec-ears	B10	ST-06	clean		ubiquitous
-spec-ears	B10	ST-07	clean		ubiquitous
-spec-ears	B10	ST-08	clean		event_driven
-spec-ears	B10	ST-09	clean		ubiquitous
-spec-ears	B10	ST-10	flagged	low	ubiquitous
-spec-ears	B10	ST-11	clean		ubiquitous
-spec-ears	B10	ST-12	clean		unwanted_behaviour
-spec-ears	B10	ST-13	clean		ubiquitous
-spec-ears	B10	ST-14	flagged	low	unwanted_behaviour
-spec-ears	B10	ST-15	flagged	low	unwanted_behaviour
-spec-ears	B10	ST-16	flagged	low	unwanted_behaviour
-spec-ears	B10	ST-17	flagged	low	unwanted_behaviour
-spec-ears	B10	ST-18	clean		unwanted_behaviour
-spec-ears	B10	ST-19	flagged	low	unwanted_behaviour
-spec-ears	B10	ST-20	clean		ubiquitous
-spec-ears	B10	ST-21	clean		ubiquitous
-spec-ears	B10	ST-22	clean		ubiquitous
-spec-ears	B10	ST-23	clean		ubiquitous
-spec-ears	B11	ST-01	clean		ubiquitous
-spec-ears	B11	ST-02	clean		state_driven
-spec-ears	B11	ST-03	clean		ubiquitous
-spec-ears	B11	ST-04	clean		ubiquitous
-spec-ears	B11	ST-05	clean		ubiquitous
-spec-ears	B11	ST-06	clean		ubiquitous
-spec-ears	B11	ST-07	clean		ubiquitous
-spec-ears	B11	ST-08	clean		state_driven
-spec-ears	B11	ST-09	clean		ubiquitous
-spec-ears	B11	ST-10	flagged	low	ubiquitous
-spec-ears	B11	ST-11	clean		ubiquitous
-spec-ears	B11	ST-12	clean		ubiquitous
-spec-ears	B11	ST-13	clean		ubiquitous
-spec-ears	B11	ST-14	clean		ubiquitous
-spec-ears	B11	ST-15	clean		ubiquitous
-spec-ears	B11	ST-16	clean		ubiquitous
-spec-ears	B11	ST-17	clean		ubiquitous
-spec-ears	B11	ST-18	flagged	low	unwanted_behaviour
-spec-ears	B11	ST-19	clean		ubiquitous
-spec-ears	B11	ST-20	clean		ubiquitous
-spec-ears	B11	ST-21	clean		ubiquitous
-spec-ears	B11	ST-22	clean		ubiquitous
-spec-ears	B11	ST-23	clean		ubiquitous
-spec-ears	B12	ST-01	clean		ubiquitous
-spec-ears	B12	ST-02	clean		state_driven
-spec-ears	B12	ST-03	flagged	low	ubiquitous
-spec-ears	B12	ST-04	clean		ubiquitous
-spec-ears	B12	ST-05	clean		ubiquitous
-spec-ears	B12	ST-06	clean		ubiquitous
-spec-ears	B12	ST-07	clean		ubiquitous
-spec-ears	B12	ST-08	clean		state_driven
-spec-ears	B12	ST-09	clean		ubiquitous
-spec-ears	B12	ST-10	flagged	low	ubiquitous
-spec-ears	B12	ST-11	clean		ubiquitous
-spec-ears	B12	ST-12	clean		unwanted_behaviour
-spec-ears	B12	ST-13	clean		ubiquitous
-spec-ears	B12	ST-14	clean		unwanted_behaviour
-spec-ears	B12	ST-15	clean		unwanted_behaviour
-spec-ears	B12	ST-16	clean		unwanted_behaviour
-spec-ears	B12	ST-17	clean		unwanted_behaviour
-spec-ears	B12	ST-18	clean		unwanted_behaviour
-spec-ears	B12	ST-19	clean		unwanted_behaviour
-spec-ears	B12	ST-20	clean		ubiquitous
-spec-ears	B12	ST-21	clean		ubiquitous
-spec-ears	B12	ST-22	clean		ubiquitous
-spec-ears	B12	ST-23	clean		ubiquitous
-spec-ears	B13	ST-01	clean		ubiquitous
-spec-ears	B13	ST-02	clean		state_driven
-spec-ears	B13	ST-03	clean		ubiquitous
-spec-ears	B13	ST-04	clean		ubiquitous
-spec-ears	B13	ST-05	clean		ubiquitous
-spec-ears	B13	ST-06	clean		ubiquitous
-spec-ears	B13	ST-07	clean		ubiquitous
-spec-ears	B13	ST-08	clean		state_driven
-spec-ears	B13	ST-09	clean		ubiquitous
-spec-ears	B13	ST-10	flagged	low	ubiquitous
-spec-ears	B13	ST-11	clean		ubiquitous
-spec-ears	B13	ST-12	clean		unwanted_behaviour
-spec-ears	B13	ST-13	clean		ubiquitous
-spec-ears	B13	ST-14	clean		unwanted_behaviour
-spec-ears	B13	ST-15	clean		unwanted_behaviour
-spec-ears	B13	ST-16	clean		unwanted_behaviour
-spec-ears	B13	ST-17	clean		unwanted_behaviour
-spec-ears	B13	ST-18	clean		unwanted_behaviour
-spec-ears	B13	ST-19	flagged	low	unwanted_behaviour
-spec-ears	B13	ST-20	clean		ubiquitous
-spec-ears	B13	ST-21	clean		ubiquitous
-spec-ears	B13	ST-22	clean		ubiquitous
-spec-ears	B13	ST-23	clean		ubiquitous
-spec-ears	B14	ST-01	clean		ubiquitous
-spec-ears	B14	ST-02	flagged	low	event_driven
-spec-ears	B14	ST-03	flagged	low	ubiquitous
-spec-ears	B14	ST-04	clean		ubiquitous
-spec-ears	B14	ST-05	clean		ubiquitous
-spec-ears	B14	ST-06	clean		ubiquitous
-spec-ears	B14	ST-07	clean		ubiquitous
-spec-ears	B14	ST-08	flagged	low	event_driven
-spec-ears	B14	ST-09	clean		ubiquitous
-spec-ears	B14	ST-10	flagged	low	ubiquitous
-spec-ears	B14	ST-11	clean		ubiquitous
-spec-ears	B14	ST-12	clean		unwanted_behaviour
-spec-ears	B14	ST-13	clean		ubiquitous
-spec-ears	B14	ST-14	clean		unwanted_behaviour
-spec-ears	B14	ST-15	clean		unwanted_behaviour
-spec-ears	B14	ST-16	clean		unwanted_behaviour
-spec-ears	B14	ST-17	clean		unwanted_behaviour
-spec-ears	B14	ST-18	clean		unwanted_behaviour
-spec-ears	B14	ST-19	flagged	low	unwanted_behaviour
-spec-ears	B14	ST-20	clean		ubiquitous
-spec-ears	B14	ST-21	clean		ubiquitous
-spec-ears	B14	ST-22	clean		ubiquitous
-spec-ears	B14	ST-23	clean		ubiquitous
-spec-ears	B15	ST-01	clean		ubiquitous
-spec-ears	B15	ST-02	flagged	low	state_driven
-spec-ears	B15	ST-03	clean		ubiquitous
-spec-ears	B15	ST-04	clean		ubiquitous
-spec-ears	B15	ST-05	clean		ubiquitous
-spec-ears	B15	ST-06	clean		ubiquitous
-spec-ears	B15	ST-07	clean		ubiquitous
-spec-ears	B15	ST-08	flagged	low	state_driven
-spec-ears	B15	ST-09	clean		ubiquitous
-spec-ears	B15	ST-10	flagged	low	ubiquitous
-spec-ears	B15	ST-11	clean		ubiquitous
-spec-ears	B15	ST-12	clean		ubiquitous
-spec-ears	B15	ST-13	clean		ubiquitous
-spec-ears	B15	ST-14	clean		ubiquitous
-spec-ears	B15	ST-15	clean		ubiquitous
-spec-ears	B15	ST-16	clean		ubiquitous
-spec-ears	B15	ST-17	clean		ubiquitous
-spec-ears	B15	ST-18	clean		unwanted_behaviour
-spec-ears	B15	ST-19	flagged	medium	ubiquitous
-spec-ears	B15	ST-20	clean		ubiquitous
-spec-ears	B15	ST-21	clean		ubiquitous
-spec-ears	B15	ST-22	clean		ubiquitous
-spec-ears	B15	ST-23	clean		ubiquitous
-spec-ears	B16	ST-01	clean		ubiquitous
-spec-ears	B16	ST-02	clean		event_driven
-spec-ears	B16	ST-03	clean		ubiquitous
-spec-ears	B16	ST-04	clean		ubiquitous
-spec-ears	B16	ST-05	clean		ubiquitous
-spec-ears	B16	ST-06	clean		ubiquitous
-spec-ears	B16	ST-07	clean		ubiquitous
-spec-ears	B16	ST-08	clean		event_driven
-spec-ears	B16	ST-09	clean		ubiquitous
-spec-ears	B16	ST-10	flagged	low	ubiquitous
-spec-ears	B16	ST-11	clean		ubiquitous
-spec-ears	B16	ST-12	clean		unwanted_behaviour
-spec-ears	B16	ST-13	clean		ubiquitous
-spec-ears	B16	ST-14	flagged	low	unwanted_behaviour
-spec-ears	B16	ST-15	flagged	low	unwanted_behaviour
-spec-ears	B16	ST-16	flagged	low	unwanted_behaviour
-spec-ears	B16	ST-17	flagged	low	unwanted_behaviour
-spec-ears	B16	ST-18	clean		unwanted_behaviour
-spec-ears	B16	ST-19	flagged	low	unwanted_behaviour
-spec-ears	B16	ST-20	clean		ubiquitous
-spec-ears	B16	ST-21	clean		ubiquitous
-spec-ears	B16	ST-22	clean		ubiquitous
-spec-ears	B16	ST-23	clean		ubiquitous
-spec-ears	B17	ST-01	clean		ubiquitous
-spec-ears	B17	ST-02	clean		state_driven
-spec-ears	B17	ST-03	clean		ubiquitous
-spec-ears	B17	ST-04	clean		ubiquitous
-spec-ears	B17	ST-05	clean		ubiquitous
-spec-ears	B17	ST-06	clean		ubiquitous
-spec-ears	B17	ST-07	clean		ubiquitous
-spec-ears	B17	ST-08	clean		state_driven
-spec-ears	B17	ST-09	clean		ubiquitous
-spec-ears	B17	ST-10	flagged	low	ubiquitous
-spec-ears	B17	ST-11	clean		ubiquitous
-spec-ears	B17	ST-12	flagged	low	unwanted_behaviour
-spec-ears	B17	ST-13	clean		ubiquitous
-spec-ears	B17	ST-14	flagged	low	unwanted_behaviour
-spec-ears	B17	ST-15	flagged	low	unwanted_behaviour
-spec-ears	B17	ST-16	flagged	low	unwanted_behaviour
-spec-ears	B17	ST-17	flagged	low	unwanted_behaviour
-spec-ears	B17	ST-18	clean		unwanted_behaviour
-spec-ears	B17	ST-19	flagged	low	unwanted_behaviour
-spec-ears	B17	ST-20	clean		ubiquitous
-spec-ears	B17	ST-21	clean		ubiquitous
-spec-ears	B17	ST-22	clean		ubiquitous
-spec-ears	B17	ST-23	clean		ubiquitous
-spec-ears	B18	ST-01	clean		ubiquitous
-spec-ears	B18	ST-02	flagged	low	state_driven
-spec-ears	B18	ST-03	flagged	low	ubiquitous
-spec-ears	B18	ST-04	clean		ubiquitous
-spec-ears	B18	ST-05	clean		ubiquitous
-spec-ears	B18	ST-06	clean		ubiquitous
-spec-ears	B18	ST-07	clean		ubiquitous
-spec-ears	B18	ST-08	flagged	low	state_driven
-spec-ears	B18	ST-09	clean		ubiquitous
-spec-ears	B18	ST-10	flagged	low	ubiquitous
-spec-ears	B18	ST-11	clean		ubiquitous
-spec-ears	B18	ST-12	clean		unwanted_behaviour
-spec-ears	B18	ST-13	clean		ubiquitous
-spec-ears	B18	ST-14	flagged	low	unwanted_behaviour
-spec-ears	B18	ST-15	flagged	low	unwanted_behaviour
-spec-ears	B18	ST-16	flagged	low	unwanted_behaviour
-spec-ears	B18	ST-17	flagged	low	unwanted_behaviour
-spec-ears	B18	ST-18	clean		unwanted_behaviour
-spec-ears	B18	ST-19	flagged	low	unwanted_behaviour
-spec-ears	B18	ST-20	clean		ubiquitous
-spec-ears	B18	ST-21	clean		ubiquitous
-spec-ears	B18	ST-22	clean		ubiquitous
-spec-ears	B18	ST-23	clean		ubiquitous
-spec-ears	B19	ST-01	clean		ubiquitous
-spec-ears	B19	ST-02	clean		state_driven
-spec-ears	B19	ST-03	clean		ubiquitous
-spec-ears	B19	ST-04	clean		ubiquitous
-spec-ears	B19	ST-05	clean		ubiquitous
-spec-ears	B19	ST-06	clean		ubiquitous
-spec-ears	B19	ST-07	clean		ubiquitous
-spec-ears	B19	ST-08	clean		state_driven
-spec-ears	B19	ST-09	clean		ubiquitous
-spec-ears	B19	ST-10	flagged	low	ubiquitous
-spec-ears	B19	ST-11	clean		ubiquitous
-spec-ears	B19	ST-12	clean		unwanted_behaviour
-spec-ears	B19	ST-13	clean		ubiquitous
-spec-ears	B19	ST-14	clean		unwanted_behaviour
-spec-ears	B19	ST-15	clean		unwanted_behaviour
-spec-ears	B19	ST-16	clean		unwanted_behaviour
-spec-ears	B19	ST-17	clean		unwanted_behaviour
-spec-ears	B19	ST-18	clean		unwanted_behaviour
-spec-ears	B19	ST-19	flagged	low	unwanted_behaviour
-spec-ears	B19	ST-20	clean		ubiquitous
-spec-ears	B19	ST-21	clean		ubiquitous
-spec-ears	B19	ST-22	clean		ubiquitous
-spec-ears	B19	ST-23	clean		ubiquitous
-spec-ears	B20	ST-01	clean		ubiquitous
-spec-ears	B20	ST-02	clean		state_driven
-spec-ears	B20	ST-03	clean		ubiquitous
-spec-ears	B20	ST-04	clean		ubiquitous
-spec-ears	B20	ST-05	clean		ubiquitous
-spec-ears	B20	ST-06	clean		ubiquitous
-spec-ears	B20	ST-07	clean		ubiquitous
-spec-ears	B20	ST-08	clean		state_driven
-spec-ears	B20	ST-09	clean		ubiquitous
-spec-ears	B20	ST-10	flagged	low	ubiquitous
-spec-ears	B20	ST-11	clean		ubiquitous
-spec-ears	B20	ST-12	flagged	low	ubiquitous
-spec-ears	B20	ST-13	clean		ubiquitous
-spec-ears	B20	ST-14	clean		ubiquitous
-spec-ears	B20	ST-15	clean		ubiquitous
-spec-ears	B20	ST-16	clean		ubiquitous
-spec-ears	B20	ST-17	clean		ubiquitous
-spec-ears	B20	ST-18	flagged	low	unwanted_behaviour
-spec-ears	B20	ST-19	flagged	low	ubiquitous
-spec-ears	B20	ST-20	clean		ubiquitous
-spec-ears	B20	ST-21	clean		ubiquitous
-spec-ears	B20	ST-22	clean		ubiquitous
-spec-ears	B20	ST-23	clean		ubiquitous
-spec-review	C01	FR-001-AC-1	clean		
-spec-review	C01	FR-001-AC-2	clean		
-spec-review	C01	FR-001-AC-3	clean		
-spec-review	C01	FR-001-AC-4	clean		
-spec-review	C01	FR-001-AC-5	clean		
-spec-review	C01	FR-002-AC-1	clean		
-spec-review	C01	FR-002-AC-2	flagged	low	
-spec-review	C01	FR-002-AC-3	clean		
-spec-review	C01	FR-003-AC-1	flagged	low	
-spec-review	C01	FR-003-AC-2	clean		
-spec-review	C01	FR-003-AC-3	clean		
-spec-review	C01	FR-003-AC-4	clean		
-spec-review	C01	FR-003-AC-5	clean		
-spec-review	C01	FR-003-AC-6	clean		
-spec-review	C01	FR-003-AC-7	flagged	low	
-spec-review	C01	NFR-001-AC-1	clean		
-spec-review	C01	NFR-001-AC-2	clean		
-spec-review	C01	NFR-001-AC-3	clean		
-spec-review	C01	StR-001-VC-1	clean		
-spec-review	C01	StR-001-VC-2	clean		
-spec-review	C01	StR-001-VC-3	clean		
-spec-review	C02	FR-001-AC-1	clean		
-spec-review	C02	FR-001-AC-2	clean		
-spec-review	C02	FR-001-AC-3	clean		
-spec-review	C02	FR-001-AC-4	clean		
-spec-review	C02	FR-001-AC-5	clean		
-spec-review	C02	FR-002-AC-1	clean		
-spec-review	C02	FR-002-AC-2	clean		
-spec-review	C02	FR-002-AC-3	clean		
-spec-review	C02	FR-003-AC-1	clean		
-spec-review	C02	FR-003-AC-2	clean		
-spec-review	C02	FR-003-AC-3	clean		
-spec-review	C02	FR-003-AC-4	clean		
-spec-review	C02	FR-003-AC-5	clean		
-spec-review	C02	FR-003-AC-6	clean		
-spec-review	C02	FR-003-AC-7	flagged	medium	
-spec-review	C02	NFR-001-AC-1	clean		
-spec-review	C02	NFR-001-AC-2	flagged	low	
-spec-review	C02	NFR-001-AC-3	clean		
-spec-review	C02	StR-001-VC-1	flagged	low	
-spec-review	C02	StR-001-VC-2	clean		
-spec-review	C02	StR-001-VC-3	clean		
-spec-review	C03	FR-001-AC-1	clean		
-spec-review	C03	FR-001-AC-2	clean		
-spec-review	C03	FR-001-AC-3	clean		
-spec-review	C03	FR-001-AC-4	clean		
-spec-review	C03	FR-001-AC-5	clean		
-spec-review	C03	FR-002-AC-1	flagged	low	
-spec-review	C03	FR-002-AC-2	flagged	low	
-spec-review	C03	FR-002-AC-3	clean		
-spec-review	C03	FR-003-AC-1	flagged	low	
-spec-review	C03	FR-003-AC-2	clean		
-spec-review	C03	FR-003-AC-3	clean		
-spec-review	C03	FR-003-AC-4	clean		
-spec-review	C03	FR-003-AC-5	clean		
-spec-review	C03	FR-003-AC-6	clean		
-spec-review	C03	FR-003-AC-7	flagged	medium	
-spec-review	C03	NFR-001-AC-1	clean		
-spec-review	C03	NFR-001-AC-2	flagged	low	
-spec-review	C03	NFR-001-AC-3	flagged	low	
-spec-review	C03	StR-001-VC-1	flagged	low	
-spec-review	C03	StR-001-VC-2	clean		
-spec-review	C03	StR-001-VC-3	clean		
-spec-review	C04	FR-001-AC-1	clean		
-spec-review	C04	FR-001-AC-2	clean		
-spec-review	C04	FR-001-AC-3	clean		
-spec-review	C04	FR-001-AC-4	clean		
-spec-review	C04	FR-001-AC-5	clean		
-spec-review	C04	FR-002-AC-1	clean		
-spec-review	C04	FR-002-AC-2	clean		
-spec-review	C04	FR-002-AC-3	clean		
-spec-review	C04	FR-003-AC-1	flagged	medium	
-spec-review	C04	FR-003-AC-2	clean		
-spec-review	C04	FR-003-AC-3	clean		
-spec-review	C04	FR-003-AC-4	clean		
-spec-review	C04	FR-003-AC-5	clean		
-spec-review	C04	FR-003-AC-6	clean		
-spec-review	C04	FR-003-AC-7	flagged	medium	
-spec-review	C04	NFR-001-AC-1	clean		
-spec-review	C04	NFR-001-AC-2	flagged	low	
-spec-review	C04	NFR-001-AC-3	flagged	low	
-spec-review	C04	StR-001-VC-1	clean		
-spec-review	C04	StR-001-VC-2	clean		
-spec-review	C04	StR-001-VC-3	clean		
-spec-review	C05	FR-001-AC-1	clean		
-spec-review	C05	FR-001-AC-2	clean		
-spec-review	C05	FR-001-AC-3	clean		
-spec-review	C05	FR-001-AC-4	clean		
-spec-review	C05	FR-001-AC-5	clean		
-spec-review	C05	FR-002-AC-1	flagged	low	
-spec-review	C05	FR-002-AC-2	flagged	low	
-spec-review	C05	FR-002-AC-3	clean		
-spec-review	C05	FR-003-AC-1	clean		
-spec-review	C05	FR-003-AC-2	clean		
-spec-review	C05	FR-003-AC-3	clean		
-spec-review	C05	FR-003-AC-4	clean		
-spec-review	C05	FR-003-AC-5	clean		
-spec-review	C05	FR-003-AC-6	clean		
-spec-review	C05	FR-003-AC-7	flagged	medium	
-spec-review	C05	NFR-001-AC-1	clean		
-spec-review	C05	NFR-001-AC-2	flagged	low	
-spec-review	C05	NFR-001-AC-3	flagged	low	
-spec-review	C05	StR-001-VC-1	flagged	low	
-spec-review	C05	StR-001-VC-2	clean		
-spec-review	C05	StR-001-VC-3	clean		
-spec-review	C06	FR-001-AC-1	clean		
-spec-review	C06	FR-001-AC-2	clean		
-spec-review	C06	FR-001-AC-3	clean		
-spec-review	C06	FR-001-AC-4	clean		
-spec-review	C06	FR-001-AC-5	clean		
-spec-review	C06	FR-002-AC-1	clean		
-spec-review	C06	FR-002-AC-2	clean		
-spec-review	C06	FR-002-AC-3	clean		
-spec-review	C06	FR-003-AC-1	clean		
-spec-review	C06	FR-003-AC-2	clean		
-spec-review	C06	FR-003-AC-3	clean		
-spec-review	C06	FR-003-AC-4	clean		
-spec-review	C06	FR-003-AC-5	clean		
-spec-review	C06	FR-003-AC-6	clean		
-spec-review	C06	FR-003-AC-7	flagged	medium	
-spec-review	C06	NFR-001-AC-1	clean		
-spec-review	C06	NFR-001-AC-2	flagged	low	
-spec-review	C06	NFR-001-AC-3	flagged	low	
-spec-review	C06	StR-001-VC-1	flagged	low	
-spec-review	C06	StR-001-VC-2	clean		
-spec-review	C06	StR-001-VC-3	clean		
-spec-review	C07	FR-001-AC-1	clean		
-spec-review	C07	FR-001-AC-2	clean		
-spec-review	C07	FR-001-AC-3	clean		
-spec-review	C07	FR-001-AC-4	clean		
-spec-review	C07	FR-001-AC-5	clean		
-spec-review	C07	FR-002-AC-1	flagged	low	
-spec-review	C07	FR-002-AC-2	clean		
-spec-review	C07	FR-002-AC-3	clean		
-spec-review	C07	FR-003-AC-1	clean		
-spec-review	C07	FR-003-AC-2	clean		
-spec-review	C07	FR-003-AC-3	clean		
-spec-review	C07	FR-003-AC-4	clean		
-spec-review	C07	FR-003-AC-5	clean		
-spec-review	C07	FR-003-AC-6	clean		
-spec-review	C07	FR-003-AC-7	flagged	low	
-spec-review	C07	NFR-001-AC-1	clean		
-spec-review	C07	NFR-001-AC-2	clean		
-spec-review	C07	NFR-001-AC-3	clean		
-spec-review	C07	StR-001-VC-1	clean		
-spec-review	C07	StR-001-VC-2	clean		
-spec-review	C07	StR-001-VC-3	clean		
-spec-review	C08	FR-001-AC-1	clean		
-spec-review	C08	FR-001-AC-2	clean		
-spec-review	C08	FR-001-AC-3	clean		
-spec-review	C08	FR-001-AC-4	clean		
-spec-review	C08	FR-001-AC-5	clean		
-spec-review	C08	FR-002-AC-1	flagged	low	
-spec-review	C08	FR-002-AC-2	flagged	low	
-spec-review	C08	FR-002-AC-3	clean		
-spec-review	C08	FR-003-AC-1	flagged	low	
-spec-review	C08	FR-003-AC-2	clean		
-spec-review	C08	FR-003-AC-3	clean		
-spec-review	C08	FR-003-AC-4	clean		
-spec-review	C08	FR-003-AC-5	clean		
-spec-review	C08	FR-003-AC-6	clean		
-spec-review	C08	FR-003-AC-7	flagged	medium	
-spec-review	C08	NFR-001-AC-1	clean		
-spec-review	C08	NFR-001-AC-2	flagged	low	
-spec-review	C08	NFR-001-AC-3	clean		
-spec-review	C08	StR-001-VC-1	clean		
-spec-review	C08	StR-001-VC-2	clean		
-spec-review	C08	StR-001-VC-3	clean		
-spec-review	C09	FR-001-AC-1	clean		
-spec-review	C09	FR-001-AC-2	clean		
-spec-review	C09	FR-001-AC-3	clean		
-spec-review	C09	FR-001-AC-4	clean		
-spec-review	C09	FR-001-AC-5	clean		
-spec-review	C09	FR-002-AC-1	clean		
-spec-review	C09	FR-002-AC-2	clean		
-spec-review	C09	FR-002-AC-3	clean		
-spec-review	C09	FR-003-AC-1	clean		
-spec-review	C09	FR-003-AC-2	clean		
-spec-review	C09	FR-003-AC-3	clean		
-spec-review	C09	FR-003-AC-4	clean		
-spec-review	C09	FR-003-AC-5	clean		
-spec-review	C09	FR-003-AC-6	clean		
-spec-review	C09	FR-003-AC-7	flagged	low	
-spec-review	C09	NFR-001-AC-1	clean		
-spec-review	C09	NFR-001-AC-2	clean		
-spec-review	C09	NFR-001-AC-3	flagged	low	
-spec-review	C09	StR-001-VC-1	clean		
-spec-review	C09	StR-001-VC-2	clean		
-spec-review	C09	StR-001-VC-3	clean		
-spec-review	C10	FR-001-AC-1	clean		
-spec-review	C10	FR-001-AC-2	clean		
-spec-review	C10	FR-001-AC-3	clean		
-spec-review	C10	FR-001-AC-4	clean		
-spec-review	C10	FR-001-AC-5	clean		
-spec-review	C10	FR-002-AC-1	clean		
-spec-review	C10	FR-002-AC-2	flagged	low	
-spec-review	C10	FR-002-AC-3	clean		
-spec-review	C10	FR-003-AC-1	clean		
-spec-review	C10	FR-003-AC-2	clean		
-spec-review	C10	FR-003-AC-3	clean		
-spec-review	C10	FR-003-AC-4	clean		
-spec-review	C10	FR-003-AC-5	clean		
-spec-review	C10	FR-003-AC-6	clean		
-spec-review	C10	FR-003-AC-7	flagged	medium	
-spec-review	C10	NFR-001-AC-1	clean		
-spec-review	C10	NFR-001-AC-2	clean		
-spec-review	C10	NFR-001-AC-3	flagged	low	
-spec-review	C10	StR-001-VC-1	clean		
-spec-review	C10	StR-001-VC-2	clean		
-spec-review	C10	StR-001-VC-3	clean		
-spec-review	C11	FR-001-AC-1	clean		
-spec-review	C11	FR-001-AC-2	clean		
-spec-review	C11	FR-001-AC-3	clean		
-spec-review	C11	FR-001-AC-4	clean		
-spec-review	C11	FR-001-AC-5	clean		
-spec-review	C11	FR-002-AC-1	clean		
-spec-review	C11	FR-002-AC-2	clean		
-spec-review	C11	FR-002-AC-3	clean		
-spec-review	C11	FR-003-AC-1	clean		
-spec-review	C11	FR-003-AC-2	clean		
-spec-review	C11	FR-003-AC-3	clean		
-spec-review	C11	FR-003-AC-4	clean		
-spec-review	C11	FR-003-AC-5	clean		
-spec-review	C11	FR-003-AC-6	clean		
-spec-review	C11	FR-003-AC-7	flagged	low	
-spec-review	C11	NFR-001-AC-1	clean		
-spec-review	C11	NFR-001-AC-2	clean		
-spec-review	C11	NFR-001-AC-3	flagged	low	
-spec-review	C11	StR-001-VC-1	clean		
-spec-review	C11	StR-001-VC-2	clean		
-spec-review	C11	StR-001-VC-3	clean		
-spec-review	C12	FR-001-AC-1	clean		
-spec-review	C12	FR-001-AC-2	clean		
-spec-review	C12	FR-001-AC-3	clean		
-spec-review	C12	FR-001-AC-4	clean		
-spec-review	C12	FR-001-AC-5	clean		
-spec-review	C12	FR-002-AC-1	clean		
-spec-review	C12	FR-002-AC-2	flagged	low	
-spec-review	C12	FR-002-AC-3	clean		
-spec-review	C12	FR-003-AC-1	clean		
-spec-review	C12	FR-003-AC-2	clean		
-spec-review	C12	FR-003-AC-3	clean		
-spec-review	C12	FR-003-AC-4	clean		
-spec-review	C12	FR-003-AC-5	clean		
-spec-review	C12	FR-003-AC-6	clean		
-spec-review	C12	FR-003-AC-7	flagged	medium	
-spec-review	C12	NFR-001-AC-1	clean		
-spec-review	C12	NFR-001-AC-2	clean		
-spec-review	C12	NFR-001-AC-3	flagged	low	
-spec-review	C12	StR-001-VC-1	clean		
-spec-review	C12	StR-001-VC-2	clean		
-spec-review	C12	StR-001-VC-3	clean		
+pass	run	unit	judgment	severity	label	raw_key
+gap-analysis	A01	D1	flagged	high	FAIL	fr-001-ac-5-trailing-comma-never-exercised
+gap-analysis	A01	D2	flagged	medium	FAIL	tc-007-claims-fr-ac-1-is-rejected-but-it-is-accepted
+gap-analysis	A01	D3	flagged	medium	FAIL	fr-001-invisible-group-behavior-untested
+gap-analysis	A01	D4	flagged	medium	FAIL	fr-001-ac-4-below-test-ordering-unverified
+gap-analysis	A01	D5	flagged	medium	FAIL	nfr-001-ac-2-import-check-is-substring-only
+gap-analysis	A01	D7	flagged	medium	FAIL	tc-013-no-backing-tagged-test
+gap-analysis	A01	D10	flagged	medium	FAIL	fr-001-con-1-no-runtime-code-untested
+gap-analysis	A01	D11	flagged	low	FAIL	fr-002-con-1-separate-attribute-untested
+gap-analysis	A01	D12	flagged	low	FAIL	nfr-001-ac-3-inspection-only-no-evidence-artifact
+gap-analysis	A01	D14	flagged	low	FAIL	fr-003-invisible-group-bypasses-comma-sequencing
+gap-analysis	A02	D1	flagged	high	FAIL	fr-001-ac-5-trailing-comma-never-exercised
+gap-analysis	A02	D2	flagged	medium	FAIL	fr-003-ac-2-fr-ac-1-claimed-rejected-but-accepted
+gap-analysis	A02	D3	flagged	medium	FAIL	fr-001-invisible-group-argument-untested
+gap-analysis	A02	D4	flagged	medium	FAIL	fr-001-ac-4-attribute-below-test-ordering-untested
+gap-analysis	A02	D5	flagged	low	FAIL	nfr-001-ac-2-import-check-is-a-weak-substring-grep
+gap-analysis	A02	D6	flagged	medium	FAIL	fr-003-item-still-emitted-on-rejection-untested
+gap-analysis	A02	D7	flagged	medium	FAIL	fr-003-ac-7-no-automated-trace-tc-013-unbacked
+gap-analysis	A02	D8	flagged	low	FAIL	fr-003-is-id-shaped-doc-contradicts-the-declared-rule
+gap-analysis	A02	D9	flagged	medium	FAIL	tc-744-trace-id-bound-to-two-symbols
+gap-analysis	A03	D1	flagged	high	FAIL	fr-001-ac-5-trailing-comma-never-exercised
+gap-analysis	A03	D2	flagged	medium	FAIL	tc-007-fr-ac-1-claimed-rejected-but-accepted
+gap-analysis	A03	D3	flagged	medium	FAIL	fr-001-invisible-group-behavior-untested
+gap-analysis	A03	D4	flagged	medium	FAIL	fr-001-ac-4-below-test-ordering-unverified
+gap-analysis	A03	D5	flagged	medium	FAIL	nfr-001-ac-2-import-check-is-substring-only
+gap-analysis	A03	D7	flagged	high	FAIL	tc-013-fr-003-ac-7-no-automated-trace
+gap-analysis	A03	D8	flagged	low	FAIL	fr-003-is-id-shaped-doc-contradicts-the-rule
+gap-analysis	A03	D10	flagged	medium	FAIL	fr-001-con-1-and-fr-002-con-1-untraced
+gap-analysis	A03	D11	flagged	medium	FAIL	fr-001-con-1-and-fr-002-con-1-untraced
+gap-analysis	A03	D12	flagged	low	FAIL	nfr-001-ac-3-inspection-has-no-recorded-evidence
+gap-analysis	A04	D1	flagged	high	FAIL	fr-001-ac-5-trailing-comma-never-exercised
+gap-analysis	A04	D2	flagged	medium	FAIL	fr-003-ac-2-fr-ac-1-claimed-rejected-but-accepted
+gap-analysis	A04	D3	flagged	medium	FAIL	fr-001-invisible-group-acceptance-untested
+gap-analysis	A04	D4	flagged	medium	FAIL	fr-001-attribute-below-test-untested
+gap-analysis	A04	D5	flagged	medium	FAIL	nfr-001-ac-2-import-check-is-a-substring-scan
+gap-analysis	A04	D6	flagged	medium	FAIL	fr-003-item-still-emitted-on-rejection-untested
+gap-analysis	A04	D7	flagged	medium	FAIL	fr-003-ac-7-no-automated-trace
+gap-analysis	A04	D8	flagged	low	FAIL	fr-003-is-id-shaped-doc-contradicts-the-shape-rule
+gap-analysis	A04	D9	flagged	medium	FAIL	tm-001-rule-2-one-id-one-symbol-violated
+gap-analysis	A04	D10	flagged	medium	FAIL	fr-001-con-1-no-runtime-code-has-no-test
+gap-analysis	A05	D1	flagged	high	FAIL	fr-001-ac-5-trailing-comma-never-exercised
+gap-analysis	A05	D2	flagged	medium	FAIL	fr-003-ac-2-fr-ac-1-claimed-rejected-but-accepted
+gap-analysis	A05	D3	flagged	medium	FAIL	fr-001-invisible-group-behavior-untested
+gap-analysis	A05	D4	flagged	medium	FAIL	fr-001-ac-4-attribute-below-test-untested
+gap-analysis	A05	D5	flagged	medium	FAIL	nfr-001-ac-2-substring-assertion-is-weak
+gap-analysis	A05	D7	flagged	medium	FAIL	fr-003-ac-7-no-automated-trace
+gap-analysis	A05	D9	flagged	medium	FAIL	tc-744-duplicate-trace-id-on-two-symbols
+gap-analysis	A05	D10	flagged	medium	FAIL	fr-001-con-1-no-tagged-test
+gap-analysis	A05	D14	flagged	medium	FAIL	fr-003-empty-invisible-group-bypasses-grammar-checks
+gap-analysis	A06	D1	flagged	high	FAIL	fr-001-ac-5-trailing-comma-not-exercised
+gap-analysis	A06	D2	flagged	medium	FAIL	fr-003-ac-2-fr-ac-1-claimed-rejected-but-accepted
+gap-analysis	A06	D3	flagged	medium	FAIL	fr-001-invisible-group-acceptance-untested
+gap-analysis	A06	D5	flagged	medium	FAIL	nfr-001-ac-2-import-check-is-substring-only
+gap-analysis	A06	D6	flagged	medium	FAIL	fr-003-item-still-emitted-not-verified
+gap-analysis	A06	D7	flagged	medium	FAIL	fr-003-ac-7-no-automated-trace
+gap-analysis	A06	D8	flagged	medium	FAIL	fr-003-is-id-shaped-doc-contradicts-rule
+gap-analysis	A06	D9	flagged	low	FAIL	tc-744-id-reused-on-two-symbols
+gap-analysis	A06	D10	flagged	medium	FAIL	fr-001-con-1-no-code-emitted-not-asserted
+gap-analysis	A06	D12	flagged	low	FAIL	nfr-001-ac-3-inspection-only
+gap-analysis	A06	D15	flagged	medium	FAIL	nfr-001-ac-1-dependencies-check-misses-table-form
+gap-analysis	A07	D1	flagged	high	FAIL	fr-001-ac-5-trailing-comma-never-compiled
+gap-analysis	A07	D2	flagged	medium	FAIL	fr-003-ac-2-tc-007-claims-fr-ac-1-rejected
+gap-analysis	A07	D3	flagged	medium	FAIL	fr-001-invisible-group-acceptance-untested
+gap-analysis	A07	D5	flagged	medium	FAIL	nfr-001-ac-2-import-check-is-substring-only
+gap-analysis	A07	D6	flagged	medium	FAIL	fr-003-item-still-emitted-on-rejection-untested
+gap-analysis	A07	D7	flagged	medium	FAIL	fr-003-ac-7-no-automated-trace
+gap-analysis	A07	D8	flagged	low	FAIL	fr-003-is-id-shaped-doc-contradicts-code
+gap-analysis	A07	D9	flagged	medium	FAIL	fr-001-fixture-ids-reused-across-symbols
+gap-analysis	A08	D1	flagged	high	FAIL	fr-001-ac-5-trailing-comma-not-exercised
+gap-analysis	A08	D2	flagged	medium	FAIL	fr-003-ac-2-fr-ac-1-claimed-rejected-but-accepted
+gap-analysis	A08	D3	flagged	medium	FAIL	fr-001-invisible-group-behavior-untested
+gap-analysis	A08	D4	flagged	medium	FAIL	fr-001-attribute-below-test-untested
+gap-analysis	A08	D5	flagged	medium	FAIL	nfr-001-ac-2-substring-assertion-is-weak
+gap-analysis	A08	D7	flagged	medium	FAIL	fr-003-ac-7-no-automated-trace
+gap-analysis	A08	D8	flagged	low	FAIL	fr-003-is-id-shaped-doc-contradicts-the-rule
+gap-analysis	A09	D1	flagged	high	FAIL	fr-001-ac-5-trailing-comma-never-exercised
+gap-analysis	A09	D2	flagged	medium	FAIL	fr-003-ac-2-fr-ac-1-claimed-rejected-but-is-accepted
+gap-analysis	A09	D3	flagged	medium	FAIL	fr-001-invisible-group-behavior-has-no-test
+gap-analysis	A09	D5	flagged	medium	FAIL	nfr-001-ac-2-import-check-is-a-weak-substring-assertion
+gap-analysis	A09	D6	flagged	medium	FAIL	fr-003-item-emitted-alongside-compile-error-unverified
+gap-analysis	A09	D7	flagged	medium	FAIL	fr-003-ac-7-no-automated-trace
+gap-analysis	A09	D8	flagged	low	FAIL	fr-003-is-id-shaped-doc-contradicts-its-own-rule
+gap-analysis	A09	D10	flagged	medium	FAIL	fr-001-con-1-no-emitted-code-not-asserted
+gap-analysis	A09	D12	flagged	low	FAIL	nfr-001-ac-3-dev-dependency-non-transitivity-only-inspected
+gap-analysis	A09	D13	flagged	low	FAIL	tm-001-functional-coverage-column-header-mismatch
+gap-analysis	A09	D14	flagged	medium	FAIL	fr-003-invisible-group-bypasses-argument-grammar
+gap-analysis	A09	D15	flagged	medium	FAIL	nfr-001-ac-1-manifest-check-misses-non-inline-dependency-tables
+gap-analysis	A10	D1	flagged	high	FAIL	fr-001-ac-5-trailing-comma-never-exercised
+gap-analysis	A10	D2	flagged	medium	FAIL	fr-003-ac-2-fr-ac-1-claimed-rejected-but-accepted
+gap-analysis	A10	D3	flagged	medium	FAIL	fr-001-invisible-group-behavior-untested
+gap-analysis	A10	D5	flagged	medium	FAIL	nfr-001-ac-2-import-check-is-substring-only
+gap-analysis	A10	D6	flagged	medium	FAIL	fr-003-item-still-emitted-on-rejection-untested
+gap-analysis	A10	D7	flagged	medium	FAIL	fr-003-ac-7-no-automated-trace-tc-013
+gap-analysis	A10	D8	flagged	low	FAIL	fr-003-is-id-shaped-doc-contradicts-the-rule
+gap-analysis	A10	D9	flagged	medium	FAIL	tc-744-trace-id-bound-to-two-symbols
+gap-analysis	A10	D10	flagged	medium	FAIL	fr-001-con-1-no-test-asserts-empty-expansion
+gap-analysis	A10	D12	flagged	low	FAIL	nfr-001-ac-3-inspection-has-no-recorded-evidence
+gap-analysis	A10	D15	flagged	medium	FAIL	nfr-001-ac-1-dependencies-table-form-evades-check
+gap-analysis	A11	D1	flagged	high	FAIL	fr-001-ac-5-trailing-comma-never-exercised
+gap-analysis	A11	D2	flagged	medium	FAIL	fr-003-ac-2-tc-007-fr-ac-1-rejection-claim-contradicts-code
+gap-analysis	A11	D3	flagged	medium	FAIL	fr-001-invisible-group-behavior-has-no-criterion-or-test
+gap-analysis	A11	D5	flagged	low	FAIL	nfr-001-ac-2-import-check-is-substring-only
+gap-analysis	A11	D7	flagged	medium	FAIL	fr-003-ac-7-no-automated-non-vacuity-trace
+gap-analysis	A11	D9	flagged	low	FAIL	tc-744-trace-id-appears-on-two-symbols
+gap-analysis	A11	D10	flagged	medium	FAIL	fr-001-con-1-no-test-that-expansion-emits-no-code
+gap-analysis	A11	D12	flagged	low	FAIL	nfr-001-ac-3-dev-dependency-non-transitivity-unverified
+gap-analysis	A11	D14	flagged	low	FAIL	fr-003-invisible-group-accepted-without-separating-comma
+gap-analysis	A12	D1	flagged	high	FAIL	fr-001-ac-5-trailing-comma-never-exercised
+gap-analysis	A12	D2	flagged	medium	FAIL	fr-003-ac-2-fr-ac-1-claimed-rejected-but-accepted
+gap-analysis	A12	D3	flagged	medium	FAIL	fr-001-invisible-group-acceptance-untested
+gap-analysis	A12	D5	flagged	medium	FAIL	nfr-001-ac-2-import-check-is-a-weak-substring-scan
+gap-analysis	A12	D7	flagged	medium	FAIL	fr-003-ac-7-no-automated-trace
+gap-analysis	A12	D8	flagged	low	FAIL	fr-003-is-id-shaped-doc-contradicts-the-shape-rule
+gap-analysis	A12	D10	flagged	medium	FAIL	fr-001-con-1-no-test-asserts-absence-of-emitted-code
+gap-analysis	A12	D13	flagged	low	FAIL	tests-md-functional-coverage-column-mismatch
+gap-analysis	A13	D1	flagged	high	FAIL	fr-001-ac-5-trailing-comma-never-exercised
+gap-analysis	A13	D2	flagged	medium	FAIL	fr-003-ac-2-fr-ac-1-claimed-rejected-but-accepted
+gap-analysis	A13	D3	flagged	medium	FAIL	fr-001-invisible-group-behavior-untested
+gap-analysis	A13	D5	flagged	medium	FAIL	nfr-001-ac-2-import-check-is-substring-only
+gap-analysis	A13	D6	flagged	medium	FAIL	fr-003-item-still-emitted-on-rejection-unverified
+gap-analysis	A13	D7	flagged	medium	FAIL	fr-003-ac-7-no-automated-trace-tc-013-unbacked
+gap-analysis	A13	D8	flagged	low	FAIL	fr-003-is-id-shaped-doc-contradicts-digit-rule
+gap-analysis	A13	D14	flagged	low	FAIL	fr-003-grammar-accepts-group-without-separating-comma
+gap-analysis	A14	D1	flagged	high	FAIL	fr-001-ac-5-trailing-comma-not-exercised
+gap-analysis	A14	D2	flagged	medium	FAIL	fr-003-ac-2-tc-007-claims-fr-ac-1-rejected-but-it-is-accepted
+gap-analysis	A14	D3	flagged	medium	FAIL	fr-001-invisible-group-behavior-untested
+gap-analysis	A14	D5	flagged	medium	FAIL	nfr-001-ac-2-substring-assertion-is-weak
+gap-analysis	A14	D6	flagged	medium	FAIL	fr-003-item-still-emitted-on-rejection-unverified
+gap-analysis	A14	D7	flagged	medium	FAIL	fr-003-ac-7-no-automated-trace
+gap-analysis	A14	D8	flagged	low	FAIL	fr-003-is-id-shaped-doc-contradicts-implemented-rule
+gap-analysis	A14	D10	flagged	medium	FAIL	fr-001-con-1-no-test-asserts-empty-expansion
+gap-analysis	A14	D14	flagged	medium	FAIL	fr-003-invisible-group-bypasses-comma-separation
+gap-analysis	A14	D15	flagged	medium	FAIL	nfr-001-ac-2-substring-assertion-is-weak
+gap-analysis	A15	D1	flagged	high	FAIL	fr-001-ac-5-trailing-comma-never-exercised
+gap-analysis	A15	D2	flagged	medium	FAIL	fr-003-ac-2-tc-007-claims-fr-ac-1-rejected-but-it-is-accepted
+gap-analysis	A15	D3	flagged	medium	FAIL	fr-001-invisible-group-behavior-untested
+gap-analysis	A15	D4	flagged	medium	FAIL	fr-001-ac-4-attribute-below-test-unchecked
+gap-analysis	A15	D5	flagged	medium	FAIL	nfr-001-ac-2-import-check-is-substring-only
+gap-analysis	A15	D6	flagged	medium	FAIL	fr-003-item-emitted-alongside-compile-error-unverified
+gap-analysis	A15	D7	flagged	medium	FAIL	fr-003-ac-7-tc-013-has-no-automated-trace
+gap-analysis	A15	D8	flagged	low	FAIL	fr-003-is-id-shaped-doc-contradicts-its-own-rule
+gap-analysis	A15	D9	flagged	medium	FAIL	fr-051-foreign-ids-on-non-test-fixture-symbols
+gap-analysis	A15	D10	flagged	medium	FAIL	fr-001-con-1-declares-test-validation-with-no-test
+gap-analysis	A15	D12	flagged	low	FAIL	nfr-001-ac-3-dev-dependency-non-transitivity-unbacked
+gap-analysis	A15	D15	flagged	medium	FAIL	nfr-001-ac-1-manifest-check-is-textual-not-parsed
+gap-analysis	A16	D1	flagged	high	FAIL	fr-001-ac-5-trailing-comma-not-exercised
+gap-analysis	A16	D2	flagged	medium	FAIL	fr-003-ac-2-tc-007-claims-fr-ac-1-is-rejected
+gap-analysis	A16	D3	flagged	medium	FAIL	fr-001-invisible-group-acceptance-untested
+gap-analysis	A16	D4	flagged	medium	FAIL	fr-001-ac-4-attribute-below-test-untested
+gap-analysis	A16	D5	flagged	medium	FAIL	nfr-001-ac-1-dependency-assertion-bypassable
+gap-analysis	A16	D6	flagged	medium	FAIL	fr-003-item-still-emitted-on-rejection-untested
+gap-analysis	A16	D7	flagged	medium	FAIL	fr-003-ac-7-tc-013-no-automated-backing
+gap-analysis	A16	D8	flagged	low	FAIL	fr-003-is-id-shaped-doc-contradicts-the-rule
+gap-analysis	A16	D9	flagged	low	FAIL	tm-001-one-id-one-symbol-violated-by-fixture-ids
+gap-analysis	A16	D10	flagged	medium	FAIL	fr-001-con-1-declares-test-validation-with-no-test
+gap-analysis	A16	D11	flagged	medium	FAIL	fr-001-con-1-declares-test-validation-with-no-test
+gap-analysis	A16	D12	flagged	medium	FAIL	nfr-001-ac-3-no-recorded-inspection
+gap-analysis	A16	D13	flagged	low	FAIL	tm-001-functional-coverage-column-mismatch
+gap-analysis	A16	D15	flagged	medium	FAIL	nfr-001-ac-1-dependency-assertion-bypassable
+gap-analysis	A17	D1	flagged	high	FAIL	fr-001-ac-5-trailing-comma-not-exercised
+gap-analysis	A17	D2	flagged	medium	FAIL	tc-007-fr-ac-1-listed-as-rejected-but-accepted
+gap-analysis	A17	D3	flagged	medium	FAIL	fr-001-invisible-group-behavior-untested
+gap-analysis	A17	D5	flagged	medium	FAIL	nfr-001-ac-2-substring-check-is-a-weak-oracle
+gap-analysis	A17	D7	flagged	high	FAIL	tc-013-fr-003-ac-7-no-automated-backing-test
+gap-analysis	A17	D8	flagged	low	FAIL	fr-003-doc-comment-contradicts-implemented-shape-rule
+gap-analysis	A17	D9	flagged	medium	FAIL	tc-744-trace-id-bound-to-two-symbols
+gap-analysis	A17	D10	flagged	medium	FAIL	fr-001-con-1-no-emitted-code-not-asserted
+gap-analysis	A17	D13	flagged	low	FAIL	tests-md-functional-coverage-column-mismatch
+gap-analysis	A17	D15	flagged	medium	FAIL	nfr-001-ac-2-substring-check-is-a-weak-oracle
+gap-analysis	A18	D1	flagged	high	FAIL	fr-001-ac-5-trailing-comma-never-exercised
+gap-analysis	A18	D2	flagged	medium	FAIL	fr-003-ac-2-tc-007-claims-fr-ac-1-is-rejected
+gap-analysis	A18	D3	flagged	medium	FAIL	fr-001-invisible-group-behavior-untested
+gap-analysis	A18	D5	flagged	medium	FAIL	nfr-001-ac-2-substring-guard-is-evadable
+gap-analysis	A18	D6	flagged	medium	FAIL	fr-003-annotated-item-still-emitted-not-verified
+gap-analysis	A18	D7	flagged	medium	FAIL	fr-003-ac-7-no-automated-trace
+gap-analysis	A18	D8	flagged	low	FAIL	fr-003-is-id-shaped-doc-contradicts-the-rule
+gap-analysis	A18	D9	flagged	low	FAIL	tm-001-rule-2-trace-id-reused-across-symbols
+gap-analysis	A18	D10	flagged	medium	FAIL	fr-001-con-1-no-side-effect-untested
+gap-analysis	A19	D1	flagged	high	FAIL	fr-001-ac-5-trailing-comma-never-exercised
+gap-analysis	A19	D2	flagged	medium	FAIL	fr-003-ac-2-matrix-claims-a-rejection-the-code-does-not-make
+gap-analysis	A19	D3	flagged	medium	FAIL	fr-001-invisible-group-behavior-untested
+gap-analysis	A19	D4	flagged	medium	FAIL	fr-001-attribute-below-test-untested
+gap-analysis	A19	D5	flagged	medium	FAIL	nfr-001-ac-2-import-check-is-a-weak-substring-assertion
+gap-analysis	A19	D7	flagged	medium	FAIL	fr-003-ac-7-no-automated-trace-tc-013-unbacked
+gap-analysis	A19	D8	flagged	low	FAIL	fr-003-is-id-shaped-doc-contradicts-the-calibrated-rule
+gap-analysis	A19	D9	flagged	medium	FAIL	fr-003-trace-id-tc-744-appears-on-two-symbols
+gap-analysis	A19	D10	flagged	medium	FAIL	fr-001-con-1-no-test-asserts-empty-expansion
+gap-analysis	A19	D11	flagged	medium	FAIL	fr-002-con-1-no-tagged-test
+gap-analysis	A19	D15	flagged	low	FAIL	nfr-001-ac-1-manifest-check-misses-non-plain-dependency-sections
+gap-analysis	A20	D1	flagged	high	FAIL	fr-001-ac-5-trailing-comma-not-exercised
+gap-analysis	A20	D2	flagged	medium	FAIL	fr-003-ac-2-fr-ac-1-claimed-rejected-but-accepted
+gap-analysis	A20	D3	flagged	medium	FAIL	fr-001-invisible-group-argument-list-untested
+gap-analysis	A20	D5	flagged	medium	FAIL	nfr-001-ac-1-ac-2-substring-check-is-evadable
+gap-analysis	A20	D6	flagged	medium	FAIL	fr-003-item-still-emitted-on-rejection-untested
+gap-analysis	A20	D7	flagged	medium	FAIL	fr-003-ac-7-no-automated-trace
+gap-analysis	A20	D10	flagged	medium	FAIL	fr-001-con-1-no-side-effect-constraint-untested
+gap-analysis	A20	D12	flagged	low	FAIL	nfr-001-ac-3-inspection-only
+gap-analysis	A20	D13	flagged	low	FAIL	tests-md-functional-coverage-column-mismatch
+gap-analysis	A20	D14	flagged	low	FAIL	fr-003-comma-not-required-around-invisible-group
+gap-analysis	A20	D15	flagged	medium	FAIL	nfr-001-ac-1-ac-2-substring-check-is-evadable
+gap-analysis	A20	D16	flagged	low	FAIL	fr-003-raw-string-literal-rejected-as-non-literal
+spec-ears	B01	ST-01	clean		ubiquitous	
+spec-ears	B01	ST-02	flagged	low	state_driven	
+spec-ears	B01	ST-03	clean		ubiquitous	
+spec-ears	B01	ST-04	clean		ubiquitous	
+spec-ears	B01	ST-05	clean		ubiquitous	
+spec-ears	B01	ST-06	clean		ubiquitous	
+spec-ears	B01	ST-07	clean		ubiquitous	
+spec-ears	B01	ST-08	flagged	low	state_driven	
+spec-ears	B01	ST-09	clean		ubiquitous	
+spec-ears	B01	ST-10	clean		ubiquitous	
+spec-ears	B01	ST-11	clean		ubiquitous	
+spec-ears	B01	ST-12	clean		ubiquitous	
+spec-ears	B01	ST-13	clean		ubiquitous	
+spec-ears	B01	ST-14	clean		ubiquitous	
+spec-ears	B01	ST-15	clean		ubiquitous	
+spec-ears	B01	ST-16	clean		ubiquitous	
+spec-ears	B01	ST-17	clean		ubiquitous	
+spec-ears	B01	ST-18	clean		unwanted_behaviour	
+spec-ears	B01	ST-19	clean		ubiquitous	
+spec-ears	B01	ST-20	clean		ubiquitous	
+spec-ears	B01	ST-21	clean		ubiquitous	
+spec-ears	B01	ST-22	clean		ubiquitous	
+spec-ears	B01	ST-23	clean		ubiquitous	
+spec-ears	B02	ST-01	clean		ubiquitous	
+spec-ears	B02	ST-02	clean		state_driven	
+spec-ears	B02	ST-03	clean		ubiquitous	
+spec-ears	B02	ST-04	clean		ubiquitous	
+spec-ears	B02	ST-05	clean		ubiquitous	
+spec-ears	B02	ST-06	clean		ubiquitous	
+spec-ears	B02	ST-07	clean		ubiquitous	
+spec-ears	B02	ST-08	clean		state_driven	
+spec-ears	B02	ST-09	clean		ubiquitous	
+spec-ears	B02	ST-10	flagged	low	ubiquitous	
+spec-ears	B02	ST-11	clean		ubiquitous	
+spec-ears	B02	ST-12	clean		unwanted_behaviour	
+spec-ears	B02	ST-13	clean		ubiquitous	
+spec-ears	B02	ST-14	clean		unwanted_behaviour	
+spec-ears	B02	ST-15	clean		unwanted_behaviour	
+spec-ears	B02	ST-16	clean		unwanted_behaviour	
+spec-ears	B02	ST-17	clean		unwanted_behaviour	
+spec-ears	B02	ST-18	clean		unwanted_behaviour	
+spec-ears	B02	ST-19	flagged	low	unwanted_behaviour	
+spec-ears	B02	ST-20	clean		ubiquitous	
+spec-ears	B02	ST-21	clean		ubiquitous	
+spec-ears	B02	ST-22	clean		ubiquitous	
+spec-ears	B02	ST-23	clean		ubiquitous	
+spec-ears	B03	ST-01	clean		ubiquitous	
+spec-ears	B03	ST-02	flagged	low	event_driven	
+spec-ears	B03	ST-03	clean		ubiquitous	
+spec-ears	B03	ST-04	clean		ubiquitous	
+spec-ears	B03	ST-05	clean		ubiquitous	
+spec-ears	B03	ST-06	clean		ubiquitous	
+spec-ears	B03	ST-07	clean		ubiquitous	
+spec-ears	B03	ST-08	flagged	low	event_driven	
+spec-ears	B03	ST-09	clean		ubiquitous	
+spec-ears	B03	ST-10	flagged	low	ubiquitous	
+spec-ears	B03	ST-11	clean		ubiquitous	
+spec-ears	B03	ST-12	clean		ubiquitous	
+spec-ears	B03	ST-13	clean		ubiquitous	
+spec-ears	B03	ST-14	flagged	low	unwanted_behaviour	
+spec-ears	B03	ST-15	flagged	low	unwanted_behaviour	
+spec-ears	B03	ST-16	flagged	low	unwanted_behaviour	
+spec-ears	B03	ST-17	flagged	low	unwanted_behaviour	
+spec-ears	B03	ST-18	clean		unwanted_behaviour	
+spec-ears	B03	ST-19	flagged	low	unwanted_behaviour	
+spec-ears	B03	ST-20	clean		ubiquitous	
+spec-ears	B03	ST-21	clean		ubiquitous	
+spec-ears	B03	ST-22	clean		ubiquitous	
+spec-ears	B03	ST-23	clean		ubiquitous	
+spec-ears	B04	ST-01	clean		ubiquitous	
+spec-ears	B04	ST-02	clean		state_driven	
+spec-ears	B04	ST-03	clean		ubiquitous	
+spec-ears	B04	ST-04	clean		ubiquitous	
+spec-ears	B04	ST-05	clean		ubiquitous	
+spec-ears	B04	ST-06	clean		ubiquitous	
+spec-ears	B04	ST-07	clean		ubiquitous	
+spec-ears	B04	ST-08	clean		state_driven	
+spec-ears	B04	ST-09	clean		ubiquitous	
+spec-ears	B04	ST-10	flagged	low	ubiquitous	
+spec-ears	B04	ST-11	clean		ubiquitous	
+spec-ears	B04	ST-12	flagged	low	ubiquitous	
+spec-ears	B04	ST-13	clean		ubiquitous	
+spec-ears	B04	ST-14	clean		ubiquitous	
+spec-ears	B04	ST-15	clean		ubiquitous	
+spec-ears	B04	ST-16	clean		ubiquitous	
+spec-ears	B04	ST-17	clean		ubiquitous	
+spec-ears	B04	ST-18	clean		unwanted_behaviour	
+spec-ears	B04	ST-19	clean		ubiquitous	
+spec-ears	B04	ST-20	clean		ubiquitous	
+spec-ears	B04	ST-21	clean		ubiquitous	
+spec-ears	B04	ST-22	clean		ubiquitous	
+spec-ears	B04	ST-23	flagged	low	ubiquitous	
+spec-ears	B05	ST-01	clean		ubiquitous	
+spec-ears	B05	ST-02	clean		state_driven	
+spec-ears	B05	ST-03	clean		ubiquitous	
+spec-ears	B05	ST-04	clean		ubiquitous	
+spec-ears	B05	ST-05	clean		ubiquitous	
+spec-ears	B05	ST-06	clean		ubiquitous	
+spec-ears	B05	ST-07	clean		ubiquitous	
+spec-ears	B05	ST-08	clean		state_driven	
+spec-ears	B05	ST-09	clean		ubiquitous	
+spec-ears	B05	ST-10	flagged	low	ubiquitous	
+spec-ears	B05	ST-11	clean		ubiquitous	
+spec-ears	B05	ST-12	flagged	low	ubiquitous	
+spec-ears	B05	ST-13	clean		ubiquitous	
+spec-ears	B05	ST-14	clean		ubiquitous	
+spec-ears	B05	ST-15	clean		ubiquitous	
+spec-ears	B05	ST-16	clean		ubiquitous	
+spec-ears	B05	ST-17	clean		ubiquitous	
+spec-ears	B05	ST-18	clean		unwanted_behaviour	
+spec-ears	B05	ST-19	clean		ubiquitous	
+spec-ears	B05	ST-20	clean		ubiquitous	
+spec-ears	B05	ST-21	clean		ubiquitous	
+spec-ears	B05	ST-22	clean		ubiquitous	
+spec-ears	B05	ST-23	clean		ubiquitous	
+spec-ears	B06	ST-01	clean		ubiquitous	
+spec-ears	B06	ST-02	flagged	low	state_driven	
+spec-ears	B06	ST-03	clean		ubiquitous	
+spec-ears	B06	ST-04	clean		ubiquitous	
+spec-ears	B06	ST-05	clean		ubiquitous	
+spec-ears	B06	ST-06	clean		ubiquitous	
+spec-ears	B06	ST-07	clean		ubiquitous	
+spec-ears	B06	ST-08	flagged	low	state_driven	
+spec-ears	B06	ST-09	clean		ubiquitous	
+spec-ears	B06	ST-10	flagged	low	ubiquitous	
+spec-ears	B06	ST-11	clean		ubiquitous	
+spec-ears	B06	ST-12	clean		ubiquitous	
+spec-ears	B06	ST-13	clean		ubiquitous	
+spec-ears	B06	ST-14	clean		ubiquitous	
+spec-ears	B06	ST-15	clean		ubiquitous	
+spec-ears	B06	ST-16	clean		ubiquitous	
+spec-ears	B06	ST-17	clean		ubiquitous	
+spec-ears	B06	ST-18	flagged	low	unwanted_behaviour	
+spec-ears	B06	ST-19	clean		ubiquitous	
+spec-ears	B06	ST-20	clean		ubiquitous	
+spec-ears	B06	ST-21	clean		ubiquitous	
+spec-ears	B06	ST-22	clean		ubiquitous	
+spec-ears	B06	ST-23	clean		ubiquitous	
+spec-ears	B07	ST-01	clean		ubiquitous	
+spec-ears	B07	ST-02	clean		state_driven	
+spec-ears	B07	ST-03	flagged	medium	ubiquitous	
+spec-ears	B07	ST-04	clean		ubiquitous	
+spec-ears	B07	ST-05	clean		ubiquitous	
+spec-ears	B07	ST-06	clean		ubiquitous	
+spec-ears	B07	ST-07	clean		ubiquitous	
+spec-ears	B07	ST-08	clean		state_driven	
+spec-ears	B07	ST-09	clean		ubiquitous	
+spec-ears	B07	ST-10	flagged	low	ubiquitous	
+spec-ears	B07	ST-11	clean		ubiquitous	
+spec-ears	B07	ST-12	flagged	low	unwanted_behaviour	
+spec-ears	B07	ST-13	clean		ubiquitous	
+spec-ears	B07	ST-14	clean		unwanted_behaviour	
+spec-ears	B07	ST-15	clean		unwanted_behaviour	
+spec-ears	B07	ST-16	clean		unwanted_behaviour	
+spec-ears	B07	ST-17	clean		unwanted_behaviour	
+spec-ears	B07	ST-18	clean		unwanted_behaviour	
+spec-ears	B07	ST-19	clean		unwanted_behaviour	
+spec-ears	B07	ST-20	clean		ubiquitous	
+spec-ears	B07	ST-21	clean		ubiquitous	
+spec-ears	B07	ST-22	clean		ubiquitous	
+spec-ears	B07	ST-23	clean		ubiquitous	
+spec-ears	B08	ST-01	clean		ubiquitous	
+spec-ears	B08	ST-02	flagged	low	state_driven	
+spec-ears	B08	ST-03	clean		ubiquitous	
+spec-ears	B08	ST-04	clean		ubiquitous	
+spec-ears	B08	ST-05	clean		ubiquitous	
+spec-ears	B08	ST-06	clean		ubiquitous	
+spec-ears	B08	ST-07	clean		ubiquitous	
+spec-ears	B08	ST-08	flagged	low	state_driven	
+spec-ears	B08	ST-09	clean		ubiquitous	
+spec-ears	B08	ST-10	flagged	low	ubiquitous	
+spec-ears	B08	ST-11	clean		ubiquitous	
+spec-ears	B08	ST-12	clean		ubiquitous	
+spec-ears	B08	ST-13	clean		ubiquitous	
+spec-ears	B08	ST-14	clean		ubiquitous	
+spec-ears	B08	ST-15	clean		ubiquitous	
+spec-ears	B08	ST-16	clean		ubiquitous	
+spec-ears	B08	ST-17	clean		ubiquitous	
+spec-ears	B08	ST-18	clean		unwanted_behaviour	
+spec-ears	B08	ST-19	clean		ubiquitous	
+spec-ears	B08	ST-20	clean		ubiquitous	
+spec-ears	B08	ST-21	clean		ubiquitous	
+spec-ears	B08	ST-22	clean		ubiquitous	
+spec-ears	B08	ST-23	clean		ubiquitous	
+spec-ears	B09	ST-01	clean		ubiquitous	
+spec-ears	B09	ST-02	flagged	low	event_driven	
+spec-ears	B09	ST-03	flagged	low	ubiquitous	
+spec-ears	B09	ST-04	clean		ubiquitous	
+spec-ears	B09	ST-05	flagged	medium	ubiquitous	
+spec-ears	B09	ST-06	clean		ubiquitous	
+spec-ears	B09	ST-07	clean		ubiquitous	
+spec-ears	B09	ST-08	flagged	low	event_driven	
+spec-ears	B09	ST-09	clean		ubiquitous	
+spec-ears	B09	ST-10	clean		ubiquitous	
+spec-ears	B09	ST-11	clean		ubiquitous	
+spec-ears	B09	ST-12	clean		unwanted_behaviour	
+spec-ears	B09	ST-13	clean		ubiquitous	
+spec-ears	B09	ST-14	clean		unwanted_behaviour	
+spec-ears	B09	ST-15	clean		unwanted_behaviour	
+spec-ears	B09	ST-16	clean		unwanted_behaviour	
+spec-ears	B09	ST-17	clean		unwanted_behaviour	
+spec-ears	B09	ST-18	clean		unwanted_behaviour	
+spec-ears	B09	ST-19	flagged	low	unwanted_behaviour	
+spec-ears	B09	ST-20	clean		ubiquitous	
+spec-ears	B09	ST-21	clean		ubiquitous	
+spec-ears	B09	ST-22	clean		ubiquitous	
+spec-ears	B09	ST-23	clean		ubiquitous	
+spec-ears	B10	ST-01	clean		ubiquitous	
+spec-ears	B10	ST-02	clean		event_driven	
+spec-ears	B10	ST-03	clean		ubiquitous	
+spec-ears	B10	ST-04	clean		ubiquitous	
+spec-ears	B10	ST-05	clean		ubiquitous	
+spec-ears	B10	ST-06	clean		ubiquitous	
+spec-ears	B10	ST-07	clean		ubiquitous	
+spec-ears	B10	ST-08	clean		event_driven	
+spec-ears	B10	ST-09	clean		ubiquitous	
+spec-ears	B10	ST-10	flagged	low	ubiquitous	
+spec-ears	B10	ST-11	clean		ubiquitous	
+spec-ears	B10	ST-12	clean		unwanted_behaviour	
+spec-ears	B10	ST-13	clean		ubiquitous	
+spec-ears	B10	ST-14	flagged	low	unwanted_behaviour	
+spec-ears	B10	ST-15	flagged	low	unwanted_behaviour	
+spec-ears	B10	ST-16	flagged	low	unwanted_behaviour	
+spec-ears	B10	ST-17	flagged	low	unwanted_behaviour	
+spec-ears	B10	ST-18	clean		unwanted_behaviour	
+spec-ears	B10	ST-19	flagged	low	unwanted_behaviour	
+spec-ears	B10	ST-20	clean		ubiquitous	
+spec-ears	B10	ST-21	clean		ubiquitous	
+spec-ears	B10	ST-22	clean		ubiquitous	
+spec-ears	B10	ST-23	clean		ubiquitous	
+spec-ears	B11	ST-01	clean		ubiquitous	
+spec-ears	B11	ST-02	clean		state_driven	
+spec-ears	B11	ST-03	clean		ubiquitous	
+spec-ears	B11	ST-04	clean		ubiquitous	
+spec-ears	B11	ST-05	clean		ubiquitous	
+spec-ears	B11	ST-06	clean		ubiquitous	
+spec-ears	B11	ST-07	clean		ubiquitous	
+spec-ears	B11	ST-08	clean		state_driven	
+spec-ears	B11	ST-09	clean		ubiquitous	
+spec-ears	B11	ST-10	flagged	low	ubiquitous	
+spec-ears	B11	ST-11	clean		ubiquitous	
+spec-ears	B11	ST-12	clean		ubiquitous	
+spec-ears	B11	ST-13	clean		ubiquitous	
+spec-ears	B11	ST-14	clean		ubiquitous	
+spec-ears	B11	ST-15	clean		ubiquitous	
+spec-ears	B11	ST-16	clean		ubiquitous	
+spec-ears	B11	ST-17	clean		ubiquitous	
+spec-ears	B11	ST-18	flagged	low	unwanted_behaviour	
+spec-ears	B11	ST-19	clean		ubiquitous	
+spec-ears	B11	ST-20	clean		ubiquitous	
+spec-ears	B11	ST-21	clean		ubiquitous	
+spec-ears	B11	ST-22	clean		ubiquitous	
+spec-ears	B11	ST-23	clean		ubiquitous	
+spec-ears	B12	ST-01	clean		ubiquitous	
+spec-ears	B12	ST-02	clean		state_driven	
+spec-ears	B12	ST-03	flagged	low	ubiquitous	
+spec-ears	B12	ST-04	clean		ubiquitous	
+spec-ears	B12	ST-05	clean		ubiquitous	
+spec-ears	B12	ST-06	clean		ubiquitous	
+spec-ears	B12	ST-07	clean		ubiquitous	
+spec-ears	B12	ST-08	clean		state_driven	
+spec-ears	B12	ST-09	clean		ubiquitous	
+spec-ears	B12	ST-10	flagged	low	ubiquitous	
+spec-ears	B12	ST-11	clean		ubiquitous	
+spec-ears	B12	ST-12	clean		unwanted_behaviour	
+spec-ears	B12	ST-13	clean		ubiquitous	
+spec-ears	B12	ST-14	clean		unwanted_behaviour	
+spec-ears	B12	ST-15	clean		unwanted_behaviour	
+spec-ears	B12	ST-16	clean		unwanted_behaviour	
+spec-ears	B12	ST-17	clean		unwanted_behaviour	
+spec-ears	B12	ST-18	clean		unwanted_behaviour	
+spec-ears	B12	ST-19	clean		unwanted_behaviour	
+spec-ears	B12	ST-20	clean		ubiquitous	
+spec-ears	B12	ST-21	clean		ubiquitous	
+spec-ears	B12	ST-22	clean		ubiquitous	
+spec-ears	B12	ST-23	clean		ubiquitous	
+spec-ears	B13	ST-01	clean		ubiquitous	
+spec-ears	B13	ST-02	clean		state_driven	
+spec-ears	B13	ST-03	clean		ubiquitous	
+spec-ears	B13	ST-04	clean		ubiquitous	
+spec-ears	B13	ST-05	clean		ubiquitous	
+spec-ears	B13	ST-06	clean		ubiquitous	
+spec-ears	B13	ST-07	clean		ubiquitous	
+spec-ears	B13	ST-08	clean		state_driven	
+spec-ears	B13	ST-09	clean		ubiquitous	
+spec-ears	B13	ST-10	flagged	low	ubiquitous	
+spec-ears	B13	ST-11	clean		ubiquitous	
+spec-ears	B13	ST-12	clean		unwanted_behaviour	
+spec-ears	B13	ST-13	clean		ubiquitous	
+spec-ears	B13	ST-14	clean		unwanted_behaviour	
+spec-ears	B13	ST-15	clean		unwanted_behaviour	
+spec-ears	B13	ST-16	clean		unwanted_behaviour	
+spec-ears	B13	ST-17	clean		unwanted_behaviour	
+spec-ears	B13	ST-18	clean		unwanted_behaviour	
+spec-ears	B13	ST-19	flagged	low	unwanted_behaviour	
+spec-ears	B13	ST-20	clean		ubiquitous	
+spec-ears	B13	ST-21	clean		ubiquitous	
+spec-ears	B13	ST-22	clean		ubiquitous	
+spec-ears	B13	ST-23	clean		ubiquitous	
+spec-ears	B14	ST-01	clean		ubiquitous	
+spec-ears	B14	ST-02	flagged	low	event_driven	
+spec-ears	B14	ST-03	flagged	low	ubiquitous	
+spec-ears	B14	ST-04	clean		ubiquitous	
+spec-ears	B14	ST-05	clean		ubiquitous	
+spec-ears	B14	ST-06	clean		ubiquitous	
+spec-ears	B14	ST-07	clean		ubiquitous	
+spec-ears	B14	ST-08	flagged	low	event_driven	
+spec-ears	B14	ST-09	clean		ubiquitous	
+spec-ears	B14	ST-10	flagged	low	ubiquitous	
+spec-ears	B14	ST-11	clean		ubiquitous	
+spec-ears	B14	ST-12	clean		unwanted_behaviour	
+spec-ears	B14	ST-13	clean		ubiquitous	
+spec-ears	B14	ST-14	clean		unwanted_behaviour	
+spec-ears	B14	ST-15	clean		unwanted_behaviour	
+spec-ears	B14	ST-16	clean		unwanted_behaviour	
+spec-ears	B14	ST-17	clean		unwanted_behaviour	
+spec-ears	B14	ST-18	clean		unwanted_behaviour	
+spec-ears	B14	ST-19	flagged	low	unwanted_behaviour	
+spec-ears	B14	ST-20	clean		ubiquitous	
+spec-ears	B14	ST-21	clean		ubiquitous	
+spec-ears	B14	ST-22	clean		ubiquitous	
+spec-ears	B14	ST-23	clean		ubiquitous	
+spec-ears	B15	ST-01	clean		ubiquitous	
+spec-ears	B15	ST-02	flagged	low	state_driven	
+spec-ears	B15	ST-03	clean		ubiquitous	
+spec-ears	B15	ST-04	clean		ubiquitous	
+spec-ears	B15	ST-05	clean		ubiquitous	
+spec-ears	B15	ST-06	clean		ubiquitous	
+spec-ears	B15	ST-07	clean		ubiquitous	
+spec-ears	B15	ST-08	flagged	low	state_driven	
+spec-ears	B15	ST-09	clean		ubiquitous	
+spec-ears	B15	ST-10	flagged	low	ubiquitous	
+spec-ears	B15	ST-11	clean		ubiquitous	
+spec-ears	B15	ST-12	clean		ubiquitous	
+spec-ears	B15	ST-13	clean		ubiquitous	
+spec-ears	B15	ST-14	clean		ubiquitous	
+spec-ears	B15	ST-15	clean		ubiquitous	
+spec-ears	B15	ST-16	clean		ubiquitous	
+spec-ears	B15	ST-17	clean		ubiquitous	
+spec-ears	B15	ST-18	clean		unwanted_behaviour	
+spec-ears	B15	ST-19	flagged	medium	ubiquitous	
+spec-ears	B15	ST-20	clean		ubiquitous	
+spec-ears	B15	ST-21	clean		ubiquitous	
+spec-ears	B15	ST-22	clean		ubiquitous	
+spec-ears	B15	ST-23	clean		ubiquitous	
+spec-ears	B16	ST-01	clean		ubiquitous	
+spec-ears	B16	ST-02	clean		event_driven	
+spec-ears	B16	ST-03	clean		ubiquitous	
+spec-ears	B16	ST-04	clean		ubiquitous	
+spec-ears	B16	ST-05	clean		ubiquitous	
+spec-ears	B16	ST-06	clean		ubiquitous	
+spec-ears	B16	ST-07	clean		ubiquitous	
+spec-ears	B16	ST-08	clean		event_driven	
+spec-ears	B16	ST-09	clean		ubiquitous	
+spec-ears	B16	ST-10	flagged	low	ubiquitous	
+spec-ears	B16	ST-11	clean		ubiquitous	
+spec-ears	B16	ST-12	clean		unwanted_behaviour	
+spec-ears	B16	ST-13	clean		ubiquitous	
+spec-ears	B16	ST-14	flagged	low	unwanted_behaviour	
+spec-ears	B16	ST-15	flagged	low	unwanted_behaviour	
+spec-ears	B16	ST-16	flagged	low	unwanted_behaviour	
+spec-ears	B16	ST-17	flagged	low	unwanted_behaviour	
+spec-ears	B16	ST-18	clean		unwanted_behaviour	
+spec-ears	B16	ST-19	flagged	low	unwanted_behaviour	
+spec-ears	B16	ST-20	clean		ubiquitous	
+spec-ears	B16	ST-21	clean		ubiquitous	
+spec-ears	B16	ST-22	clean		ubiquitous	
+spec-ears	B16	ST-23	clean		ubiquitous	
+spec-ears	B17	ST-01	clean		ubiquitous	
+spec-ears	B17	ST-02	clean		state_driven	
+spec-ears	B17	ST-03	clean		ubiquitous	
+spec-ears	B17	ST-04	clean		ubiquitous	
+spec-ears	B17	ST-05	clean		ubiquitous	
+spec-ears	B17	ST-06	clean		ubiquitous	
+spec-ears	B17	ST-07	clean		ubiquitous	
+spec-ears	B17	ST-08	clean		state_driven	
+spec-ears	B17	ST-09	clean		ubiquitous	
+spec-ears	B17	ST-10	flagged	low	ubiquitous	
+spec-ears	B17	ST-11	clean		ubiquitous	
+spec-ears	B17	ST-12	flagged	low	unwanted_behaviour	
+spec-ears	B17	ST-13	clean		ubiquitous	
+spec-ears	B17	ST-14	flagged	low	unwanted_behaviour	
+spec-ears	B17	ST-15	flagged	low	unwanted_behaviour	
+spec-ears	B17	ST-16	flagged	low	unwanted_behaviour	
+spec-ears	B17	ST-17	flagged	low	unwanted_behaviour	
+spec-ears	B17	ST-18	clean		unwanted_behaviour	
+spec-ears	B17	ST-19	flagged	low	unwanted_behaviour	
+spec-ears	B17	ST-20	clean		ubiquitous	
+spec-ears	B17	ST-21	clean		ubiquitous	
+spec-ears	B17	ST-22	clean		ubiquitous	
+spec-ears	B17	ST-23	clean		ubiquitous	
+spec-ears	B18	ST-01	clean		ubiquitous	
+spec-ears	B18	ST-02	flagged	low	state_driven	
+spec-ears	B18	ST-03	flagged	low	ubiquitous	
+spec-ears	B18	ST-04	clean		ubiquitous	
+spec-ears	B18	ST-05	clean		ubiquitous	
+spec-ears	B18	ST-06	clean		ubiquitous	
+spec-ears	B18	ST-07	clean		ubiquitous	
+spec-ears	B18	ST-08	flagged	low	state_driven	
+spec-ears	B18	ST-09	clean		ubiquitous	
+spec-ears	B18	ST-10	flagged	low	ubiquitous	
+spec-ears	B18	ST-11	clean		ubiquitous	
+spec-ears	B18	ST-12	clean		unwanted_behaviour	
+spec-ears	B18	ST-13	clean		ubiquitous	
+spec-ears	B18	ST-14	flagged	low	unwanted_behaviour	
+spec-ears	B18	ST-15	flagged	low	unwanted_behaviour	
+spec-ears	B18	ST-16	flagged	low	unwanted_behaviour	
+spec-ears	B18	ST-17	flagged	low	unwanted_behaviour	
+spec-ears	B18	ST-18	clean		unwanted_behaviour	
+spec-ears	B18	ST-19	flagged	low	unwanted_behaviour	
+spec-ears	B18	ST-20	clean		ubiquitous	
+spec-ears	B18	ST-21	clean		ubiquitous	
+spec-ears	B18	ST-22	clean		ubiquitous	
+spec-ears	B18	ST-23	clean		ubiquitous	
+spec-ears	B19	ST-01	clean		ubiquitous	
+spec-ears	B19	ST-02	clean		state_driven	
+spec-ears	B19	ST-03	clean		ubiquitous	
+spec-ears	B19	ST-04	clean		ubiquitous	
+spec-ears	B19	ST-05	clean		ubiquitous	
+spec-ears	B19	ST-06	clean		ubiquitous	
+spec-ears	B19	ST-07	clean		ubiquitous	
+spec-ears	B19	ST-08	clean		state_driven	
+spec-ears	B19	ST-09	clean		ubiquitous	
+spec-ears	B19	ST-10	flagged	low	ubiquitous	
+spec-ears	B19	ST-11	clean		ubiquitous	
+spec-ears	B19	ST-12	clean		unwanted_behaviour	
+spec-ears	B19	ST-13	clean		ubiquitous	
+spec-ears	B19	ST-14	clean		unwanted_behaviour	
+spec-ears	B19	ST-15	clean		unwanted_behaviour	
+spec-ears	B19	ST-16	clean		unwanted_behaviour	
+spec-ears	B19	ST-17	clean		unwanted_behaviour	
+spec-ears	B19	ST-18	clean		unwanted_behaviour	
+spec-ears	B19	ST-19	flagged	low	unwanted_behaviour	
+spec-ears	B19	ST-20	clean		ubiquitous	
+spec-ears	B19	ST-21	clean		ubiquitous	
+spec-ears	B19	ST-22	clean		ubiquitous	
+spec-ears	B19	ST-23	clean		ubiquitous	
+spec-ears	B20	ST-01	clean		ubiquitous	
+spec-ears	B20	ST-02	clean		state_driven	
+spec-ears	B20	ST-03	clean		ubiquitous	
+spec-ears	B20	ST-04	clean		ubiquitous	
+spec-ears	B20	ST-05	clean		ubiquitous	
+spec-ears	B20	ST-06	clean		ubiquitous	
+spec-ears	B20	ST-07	clean		ubiquitous	
+spec-ears	B20	ST-08	clean		state_driven	
+spec-ears	B20	ST-09	clean		ubiquitous	
+spec-ears	B20	ST-10	flagged	low	ubiquitous	
+spec-ears	B20	ST-11	clean		ubiquitous	
+spec-ears	B20	ST-12	flagged	low	ubiquitous	
+spec-ears	B20	ST-13	clean		ubiquitous	
+spec-ears	B20	ST-14	clean		ubiquitous	
+spec-ears	B20	ST-15	clean		ubiquitous	
+spec-ears	B20	ST-16	clean		ubiquitous	
+spec-ears	B20	ST-17	clean		ubiquitous	
+spec-ears	B20	ST-18	flagged	low	unwanted_behaviour	
+spec-ears	B20	ST-19	flagged	low	ubiquitous	
+spec-ears	B20	ST-20	clean		ubiquitous	
+spec-ears	B20	ST-21	clean		ubiquitous	
+spec-ears	B20	ST-22	clean		ubiquitous	
+spec-ears	B20	ST-23	clean		ubiquitous	
+spec-review	C01	FR-001-AC-1	clean			
+spec-review	C01	FR-001-AC-2	clean			
+spec-review	C01	FR-001-AC-3	clean			
+spec-review	C01	FR-001-AC-4	clean			
+spec-review	C01	FR-001-AC-5	clean			
+spec-review	C01	FR-002-AC-1	clean			
+spec-review	C01	FR-002-AC-2	flagged	low		
+spec-review	C01	FR-002-AC-3	clean			
+spec-review	C01	FR-003-AC-1	flagged	low		
+spec-review	C01	FR-003-AC-2	clean			
+spec-review	C01	FR-003-AC-3	clean			
+spec-review	C01	FR-003-AC-4	clean			
+spec-review	C01	FR-003-AC-5	clean			
+spec-review	C01	FR-003-AC-6	clean			
+spec-review	C01	FR-003-AC-7	flagged	low		
+spec-review	C01	NFR-001-AC-1	clean			
+spec-review	C01	NFR-001-AC-2	clean			
+spec-review	C01	NFR-001-AC-3	clean			
+spec-review	C01	StR-001-VC-1	clean			
+spec-review	C01	StR-001-VC-2	clean			
+spec-review	C01	StR-001-VC-3	clean			
+spec-review	C02	FR-001-AC-1	clean			
+spec-review	C02	FR-001-AC-2	clean			
+spec-review	C02	FR-001-AC-3	clean			
+spec-review	C02	FR-001-AC-4	clean			
+spec-review	C02	FR-001-AC-5	clean			
+spec-review	C02	FR-002-AC-1	clean			
+spec-review	C02	FR-002-AC-2	clean			
+spec-review	C02	FR-002-AC-3	clean			
+spec-review	C02	FR-003-AC-1	clean			
+spec-review	C02	FR-003-AC-2	clean			
+spec-review	C02	FR-003-AC-3	clean			
+spec-review	C02	FR-003-AC-4	clean			
+spec-review	C02	FR-003-AC-5	clean			
+spec-review	C02	FR-003-AC-6	clean			
+spec-review	C02	FR-003-AC-7	flagged	medium		
+spec-review	C02	NFR-001-AC-1	clean			
+spec-review	C02	NFR-001-AC-2	flagged	low		
+spec-review	C02	NFR-001-AC-3	clean			
+spec-review	C02	StR-001-VC-1	flagged	low		
+spec-review	C02	StR-001-VC-2	clean			
+spec-review	C02	StR-001-VC-3	clean			
+spec-review	C03	FR-001-AC-1	clean			
+spec-review	C03	FR-001-AC-2	clean			
+spec-review	C03	FR-001-AC-3	clean			
+spec-review	C03	FR-001-AC-4	clean			
+spec-review	C03	FR-001-AC-5	clean			
+spec-review	C03	FR-002-AC-1	flagged	low		
+spec-review	C03	FR-002-AC-2	flagged	low		
+spec-review	C03	FR-002-AC-3	clean			
+spec-review	C03	FR-003-AC-1	flagged	low		
+spec-review	C03	FR-003-AC-2	clean			
+spec-review	C03	FR-003-AC-3	clean			
+spec-review	C03	FR-003-AC-4	clean			
+spec-review	C03	FR-003-AC-5	clean			
+spec-review	C03	FR-003-AC-6	clean			
+spec-review	C03	FR-003-AC-7	flagged	medium		
+spec-review	C03	NFR-001-AC-1	clean			
+spec-review	C03	NFR-001-AC-2	flagged	low		
+spec-review	C03	NFR-001-AC-3	flagged	low		
+spec-review	C03	StR-001-VC-1	flagged	low		
+spec-review	C03	StR-001-VC-2	clean			
+spec-review	C03	StR-001-VC-3	clean			
+spec-review	C04	FR-001-AC-1	clean			
+spec-review	C04	FR-001-AC-2	clean			
+spec-review	C04	FR-001-AC-3	clean			
+spec-review	C04	FR-001-AC-4	clean			
+spec-review	C04	FR-001-AC-5	clean			
+spec-review	C04	FR-002-AC-1	clean			
+spec-review	C04	FR-002-AC-2	clean			
+spec-review	C04	FR-002-AC-3	clean			
+spec-review	C04	FR-003-AC-1	flagged	medium		
+spec-review	C04	FR-003-AC-2	clean			
+spec-review	C04	FR-003-AC-3	clean			
+spec-review	C04	FR-003-AC-4	clean			
+spec-review	C04	FR-003-AC-5	clean			
+spec-review	C04	FR-003-AC-6	clean			
+spec-review	C04	FR-003-AC-7	flagged	medium		
+spec-review	C04	NFR-001-AC-1	clean			
+spec-review	C04	NFR-001-AC-2	flagged	low		
+spec-review	C04	NFR-001-AC-3	flagged	low		
+spec-review	C04	StR-001-VC-1	clean			
+spec-review	C04	StR-001-VC-2	clean			
+spec-review	C04	StR-001-VC-3	clean			
+spec-review	C05	FR-001-AC-1	clean			
+spec-review	C05	FR-001-AC-2	clean			
+spec-review	C05	FR-001-AC-3	clean			
+spec-review	C05	FR-001-AC-4	clean			
+spec-review	C05	FR-001-AC-5	clean			
+spec-review	C05	FR-002-AC-1	flagged	low		
+spec-review	C05	FR-002-AC-2	flagged	low		
+spec-review	C05	FR-002-AC-3	clean			
+spec-review	C05	FR-003-AC-1	clean			
+spec-review	C05	FR-003-AC-2	clean			
+spec-review	C05	FR-003-AC-3	clean			
+spec-review	C05	FR-003-AC-4	clean			
+spec-review	C05	FR-003-AC-5	clean			
+spec-review	C05	FR-003-AC-6	clean			
+spec-review	C05	FR-003-AC-7	flagged	medium		
+spec-review	C05	NFR-001-AC-1	clean			
+spec-review	C05	NFR-001-AC-2	flagged	low		
+spec-review	C05	NFR-001-AC-3	flagged	low		
+spec-review	C05	StR-001-VC-1	flagged	low		
+spec-review	C05	StR-001-VC-2	clean			
+spec-review	C05	StR-001-VC-3	clean			
+spec-review	C06	FR-001-AC-1	clean			
+spec-review	C06	FR-001-AC-2	clean			
+spec-review	C06	FR-001-AC-3	clean			
+spec-review	C06	FR-001-AC-4	clean			
+spec-review	C06	FR-001-AC-5	clean			
+spec-review	C06	FR-002-AC-1	clean			
+spec-review	C06	FR-002-AC-2	clean			
+spec-review	C06	FR-002-AC-3	clean			
+spec-review	C06	FR-003-AC-1	clean			
+spec-review	C06	FR-003-AC-2	clean			
+spec-review	C06	FR-003-AC-3	clean			
+spec-review	C06	FR-003-AC-4	clean			
+spec-review	C06	FR-003-AC-5	clean			
+spec-review	C06	FR-003-AC-6	clean			
+spec-review	C06	FR-003-AC-7	flagged	medium		
+spec-review	C06	NFR-001-AC-1	clean			
+spec-review	C06	NFR-001-AC-2	flagged	low		
+spec-review	C06	NFR-001-AC-3	flagged	low		
+spec-review	C06	StR-001-VC-1	flagged	low		
+spec-review	C06	StR-001-VC-2	clean			
+spec-review	C06	StR-001-VC-3	clean			
+spec-review	C07	FR-001-AC-1	clean			
+spec-review	C07	FR-001-AC-2	clean			
+spec-review	C07	FR-001-AC-3	clean			
+spec-review	C07	FR-001-AC-4	clean			
+spec-review	C07	FR-001-AC-5	clean			
+spec-review	C07	FR-002-AC-1	flagged	low		
+spec-review	C07	FR-002-AC-2	clean			
+spec-review	C07	FR-002-AC-3	clean			
+spec-review	C07	FR-003-AC-1	clean			
+spec-review	C07	FR-003-AC-2	clean			
+spec-review	C07	FR-003-AC-3	clean			
+spec-review	C07	FR-003-AC-4	clean			
+spec-review	C07	FR-003-AC-5	clean			
+spec-review	C07	FR-003-AC-6	clean			
+spec-review	C07	FR-003-AC-7	flagged	low		
+spec-review	C07	NFR-001-AC-1	clean			
+spec-review	C07	NFR-001-AC-2	clean			
+spec-review	C07	NFR-001-AC-3	clean			
+spec-review	C07	StR-001-VC-1	clean			
+spec-review	C07	StR-001-VC-2	clean			
+spec-review	C07	StR-001-VC-3	clean			
+spec-review	C08	FR-001-AC-1	clean			
+spec-review	C08	FR-001-AC-2	clean			
+spec-review	C08	FR-001-AC-3	clean			
+spec-review	C08	FR-001-AC-4	clean			
+spec-review	C08	FR-001-AC-5	clean			
+spec-review	C08	FR-002-AC-1	flagged	low		
+spec-review	C08	FR-002-AC-2	flagged	low		
+spec-review	C08	FR-002-AC-3	clean			
+spec-review	C08	FR-003-AC-1	flagged	low		
+spec-review	C08	FR-003-AC-2	clean			
+spec-review	C08	FR-003-AC-3	clean			
+spec-review	C08	FR-003-AC-4	clean			
+spec-review	C08	FR-003-AC-5	clean			
+spec-review	C08	FR-003-AC-6	clean			
+spec-review	C08	FR-003-AC-7	flagged	medium		
+spec-review	C08	NFR-001-AC-1	clean			
+spec-review	C08	NFR-001-AC-2	flagged	low		
+spec-review	C08	NFR-001-AC-3	clean			
+spec-review	C08	StR-001-VC-1	clean			
+spec-review	C08	StR-001-VC-2	clean			
+spec-review	C08	StR-001-VC-3	clean			
+spec-review	C09	FR-001-AC-1	clean			
+spec-review	C09	FR-001-AC-2	clean			
+spec-review	C09	FR-001-AC-3	clean			
+spec-review	C09	FR-001-AC-4	clean			
+spec-review	C09	FR-001-AC-5	clean			
+spec-review	C09	FR-002-AC-1	clean			
+spec-review	C09	FR-002-AC-2	clean			
+spec-review	C09	FR-002-AC-3	clean			
+spec-review	C09	FR-003-AC-1	clean			
+spec-review	C09	FR-003-AC-2	clean			
+spec-review	C09	FR-003-AC-3	clean			
+spec-review	C09	FR-003-AC-4	clean			
+spec-review	C09	FR-003-AC-5	clean			
+spec-review	C09	FR-003-AC-6	clean			
+spec-review	C09	FR-003-AC-7	flagged	low		
+spec-review	C09	NFR-001-AC-1	clean			
+spec-review	C09	NFR-001-AC-2	clean			
+spec-review	C09	NFR-001-AC-3	flagged	low		
+spec-review	C09	StR-001-VC-1	clean			
+spec-review	C09	StR-001-VC-2	clean			
+spec-review	C09	StR-001-VC-3	clean			
+spec-review	C10	FR-001-AC-1	clean			
+spec-review	C10	FR-001-AC-2	clean			
+spec-review	C10	FR-001-AC-3	clean			
+spec-review	C10	FR-001-AC-4	clean			
+spec-review	C10	FR-001-AC-5	clean			
+spec-review	C10	FR-002-AC-1	clean			
+spec-review	C10	FR-002-AC-2	flagged	low		
+spec-review	C10	FR-002-AC-3	clean			
+spec-review	C10	FR-003-AC-1	clean			
+spec-review	C10	FR-003-AC-2	clean			
+spec-review	C10	FR-003-AC-3	clean			
+spec-review	C10	FR-003-AC-4	clean			
+spec-review	C10	FR-003-AC-5	clean			
+spec-review	C10	FR-003-AC-6	clean			
+spec-review	C10	FR-003-AC-7	flagged	medium		
+spec-review	C10	NFR-001-AC-1	clean			
+spec-review	C10	NFR-001-AC-2	clean			
+spec-review	C10	NFR-001-AC-3	flagged	low		
+spec-review	C10	StR-001-VC-1	clean			
+spec-review	C10	StR-001-VC-2	clean			
+spec-review	C10	StR-001-VC-3	clean			
+spec-review	C11	FR-001-AC-1	clean			
+spec-review	C11	FR-001-AC-2	clean			
+spec-review	C11	FR-001-AC-3	clean			
+spec-review	C11	FR-001-AC-4	clean			
+spec-review	C11	FR-001-AC-5	clean			
+spec-review	C11	FR-002-AC-1	clean			
+spec-review	C11	FR-002-AC-2	clean			
+spec-review	C11	FR-002-AC-3	clean			
+spec-review	C11	FR-003-AC-1	clean			
+spec-review	C11	FR-003-AC-2	clean			
+spec-review	C11	FR-003-AC-3	clean			
+spec-review	C11	FR-003-AC-4	clean			
+spec-review	C11	FR-003-AC-5	clean			
+spec-review	C11	FR-003-AC-6	clean			
+spec-review	C11	FR-003-AC-7	flagged	low		
+spec-review	C11	NFR-001-AC-1	clean			
+spec-review	C11	NFR-001-AC-2	clean			
+spec-review	C11	NFR-001-AC-3	flagged	low		
+spec-review	C11	StR-001-VC-1	clean			
+spec-review	C11	StR-001-VC-2	clean			
+spec-review	C11	StR-001-VC-3	clean			
+spec-review	C12	FR-001-AC-1	clean			
+spec-review	C12	FR-001-AC-2	clean			
+spec-review	C12	FR-001-AC-3	clean			
+spec-review	C12	FR-001-AC-4	clean			
+spec-review	C12	FR-001-AC-5	clean			
+spec-review	C12	FR-002-AC-1	clean			
+spec-review	C12	FR-002-AC-2	flagged	low		
+spec-review	C12	FR-002-AC-3	clean			
+spec-review	C12	FR-003-AC-1	clean			
+spec-review	C12	FR-003-AC-2	clean			
+spec-review	C12	FR-003-AC-3	clean			
+spec-review	C12	FR-003-AC-4	clean			
+spec-review	C12	FR-003-AC-5	clean			
+spec-review	C12	FR-003-AC-6	clean			
+spec-review	C12	FR-003-AC-7	flagged	medium		
+spec-review	C12	NFR-001-AC-1	clean			
+spec-review	C12	NFR-001-AC-2	clean			
+spec-review	C12	NFR-001-AC-3	flagged	low		
+spec-review	C12	StR-001-VC-1	clean			
+spec-review	C12	StR-001-VC-2	clean			
+spec-review	C12	StR-001-VC-3	clean			

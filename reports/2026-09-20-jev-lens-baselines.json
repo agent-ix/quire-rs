@@ -1,11 +1,19 @@
 {
  "report": "2026-09-20-jev-lens-baselines",
  "date": "2026-09-20",
+ "revision": "post-review; every figure re-derived",
  "corpus": {
   "repo": "agent-ix/ix-trace-rs",
   "commit": "2ce4ebf47f726b9d76388220545cd0abda8a5cfb",
-  "tree_digest_sha256_over_sha256sums": "a1d4fa2de1ab454968890cf134275145381c21369bd5e27ca462dbff474ab6c9",
-  "verified_byte_identical_after_all_runs": true,
+  "digest": {
+   "value": "2beba8e8bbf691db0dabbd5f0bb320a27675b415a3127a46cbc559352233102c",
+   "command": "git archive <commit> | tar -x -C <dir>; cd <dir> && find . -type f | sort | xargs sha256sum | sha256sum",
+   "path_independent": true,
+   "superseded_value": "a1d4fa2de1ab454968890cf134275145381c21369bd5e27ca462dbff474ab6c9",
+   "superseded_reason": "the original recipe passed find an absolute path, so every hashed line carried the scratch directory path; the digest was reproducible only at that path and never externally checkable",
+   "scratch_tree_contents": "git archive output only - re-extracting to the same path reproduces the superseded digest bit-for-bit, which it could not do if the measured tree had held an extra file"
+  },
+  "drift_check": "same recipe, same tree, before the first run and after the last: identical; source repo HEAD and clean tree re-verified at the end",
   "artifacts": {
    "FR": 3,
    "NFR": 1,
@@ -15,8 +23,22 @@
    "criteria_ac_and_vc": 21,
    "requirement_bearing_statements": 23,
    "matrix_test_case_rows": 11,
-   "spec_bytes": 32596,
-   "src_and_test_bytes": 18807
+   "spec_bytes_all_8_files": 35343,
+   "spec_bytes_superseded": {
+    "value": 32596,
+    "reason": "wrong; matched no subset of the spec files"
+   },
+   "spec_file_bytes": {
+    "spec/spec.md": 5157,
+    "spec/tests.md": 6722,
+    "spec/functional/FR-001-trace-attribute.md": 2987,
+    "spec/functional/FR-002-implements-attribute.md": 2633,
+    "spec/functional/FR-003-argument-grammar.md": 7134,
+    "spec/non-functional/NFR-001-dependency-posture.md": 3053,
+    "spec/stakeholder/StR-001-compiler-checked-trace-markers.md": 4907,
+    "spec/usecase/US-001-tag-a-test-with-every-id-it-verifies.md": 2750
+   },
+   "source_and_test_bytes": 18807
   }
  },
  "engine": {
@@ -37,8 +59,27 @@
    "FAIL": 20
   },
   "verdict_change_rate_pct": 0.0,
-  "m1_presence_or_severity_pct": 43.5,
-  "m1_presence_only_pct": 37.1,
+  "verdict_caveats": [
+   "all 20 runs raised D1 at high; one high forces FAIL under the skill verdict rule",
+   "the deterministic input reports TC-013 unbacked, and the verdict rule fails on any matrix Test Case with no backing tagged test, with no severity qualifier; if that clause fires the Verdict was pinned deterministically"
+  ],
+  "m1_fixed_inventory_pct": 33.4,
+  "m1_union_denominator_pct": 43.5,
+  "m1_raw_free_text_key_pct": 90.6,
+  "denominator_note": "fixed = all 16 canonical classes counted in every pair; union = per-pair union of classes raised by either run. gap-analysis has an open finding set so the first version published the union figure; the fixed figure is the one comparable with the other two passes.",
+  "clustering": {
+   "raw_findings": 194,
+   "distinct_raw_keys": 105,
+   "canonical_classes": 16,
+   "many_to_one_collapses": 0,
+   "collapse_rule": "none exercised - the mapping is injective within every run; combined findings naming two defects were counted against both classes at that severity (one-to-many only)",
+   "monotonicity_claim": "clustering lowered disagreement in every case observed here; guaranteed only under a monotone severity collapse such as max-severity",
+   "raw_keys_published_in": "2026-09-20-jev-lens-baselines.tsv raw_key column",
+   "reconstruction_check": "the raw-key table reproduces the published class-and-severity table exactly",
+   "tsv_row_count": 200,
+   "tsv_counting_note": "the TSV carries one row per (run, class), so each of the 6 combined findings appears twice under the same raw_key; deduplicate on (run, raw_key) to recover the 194 raw findings. The raw-key disagreement figure is computed over the 194; the class figures over the 200 rows.",
+   "combined_findings": 6
+  },
   "findings_per_run": [
    10,
    9,
@@ -203,6 +244,7 @@
  "ears": {
   "pass": "spec-ears-analysis step 2 (the semantic judgment)",
   "n_runs": 20,
+  "denominator": "fixed 23-statement inventory",
   "m1_combined_pct": 28.7,
   "m1_finding_pct": 20.1,
   "m1_choice_label_pct": 16.7,
@@ -675,7 +717,8 @@
   "union": 7,
   "intersection": [
    "FR-003-AC-7"
-  ]
+  ],
+  "denominator": "fixed 21-criterion inventory"
  },
  "m5_cost_latency": {
   "gap-analysis step 5": {
@@ -688,7 +731,7 @@
    "tokens_max": 77442,
    "tokens_total": 1471906
   },
-  "spec-ears step 2": {
+  "spec-ears-analysis step 2": {
    "n": 20,
    "wall_s_median": 80.7,
    "wall_s_min": 59.6,
@@ -699,42 +742,74 @@
    "tokens_total": 1218260
   },
   "spec-review vague-criteria": {
-   "n": 9,
-   "wall_s_median": 40.2,
+   "n": 12,
+   "wall_s_median": 39.5,
    "wall_s_min": 28.2,
    "wall_s_max": 47.0,
-   "tokens_median": 53439,
+   "tokens_median": 53353,
    "tokens_min": 52311,
    "tokens_max": 54036,
-   "tokens_total": 480886
+   "tokens_total": 640066
   }
  },
  "m8_skip_rate": {
-  "population": "gap-analysis SpecReview documents under /home/peter/dev, deduplicated by content hash",
-  "classifier_primary": {
-   "n": 483,
-   "skipped": 151,
-   "ran": 42,
-   "ambiguous": 9,
-   "not_stated": 281,
-   "skip_rate_pct_over_docs_that_state_it": 78.2,
-   "same_excluding_filament_ide_rs": 78.4
+  "population": "Markdown documents in the local multi-repo checkout with frontmatter type: SpecReview and analysis: gap-analysis, deduplicated by content hash",
+  "raw_files": 3930,
+  "distinct_after_dedup": 483,
+  "dedup_ratio": 9.3,
+  "dedup_cause": "duplicate checkouts - worktrees and full mirror clones holding identical copies",
+  "dedup_safety": "no content group contains differing basenames, so deduplication cannot have merged genuinely distinct reviews",
+  "frozen_population": 469,
+  "frozen_note": "both classifiers run over one snapshot taken before either ran; the first version ran them over 483 and 469 documents respectively, conflating a broader regex with a changed corpus. 14 documents were lost to concurrent agent activity between the sweeps.",
+  "classifiers": {
+   "narrow": {
+    "n": 469,
+    "skipped": 142,
+    "ran": 42,
+    "ambiguous": 8,
+    "not-stated": 277,
+    "skip_rate_over_stating": 77.2,
+    "n_stating": 184,
+    "floor_explicit_skip_pct": 30.3,
+    "ceiling_explicit_ran_pct": 9.0,
+    "skip_rate_excl_filament_ide_rs": 77.1
+   },
+   "broad": {
+    "n": 469,
+    "skipped": 176,
+    "ran": 43,
+    "ambiguous": 8,
+    "not-stated": 242,
+    "skip_rate_over_stating": 80.4,
+    "n_stating": 219,
+    "floor_explicit_skip_pct": 37.5,
+    "ceiling_explicit_ran_pct": 9.2,
+    "skip_rate_excl_filament_ide_rs": 80.9
+   }
   },
-  "classifier_broader": {
-   "n": 469,
-   "skipped": 176,
-   "ran": 43,
-   "ambiguous": 8,
-   "not_stated": 242,
-   "skip_rate_pct_over_docs_that_state_it": 80.4,
-   "same_excluding_filament_ide_rs": 80.9
+  "classifier_effect_points_on_one_population": 3.2,
+  "headline": {
+   "metric": "floor - explicit skips as a share of all distinct audits",
+   "narrow_pct": 30.3,
+   "broad_pct": 37.5,
+   "explicit_ran_ceiling_pct": 9.0,
+   "why": "the skill requires recording the SKIP only (\"If no, note in the SpecReview Coverage section that semantic review was skipped\"); a run that performed the review need not say so, so the ratio over docs-that-state-it over-samples skips by an unbounded amount. The floor counts only explicit statements and is unaffected.",
+   "superseded_floor": {
+    "value": 31.3,
+    "reason": "computed over the pre-freeze population of 483"
+   }
   }
  },
  "not_measured": {
-  "M2_accuracy": "no human-labelled ground-truth fixture set exists; building one was out of scope",
-  "M3_calibration_error": "the current passes emit no probability, so ECE is undefined for the baseline",
-  "M4_abstention": "the current passes have no abstention mechanism",
-  "M7_assertion_vacuous_vs_mutation": "requires a mutation run, explicitly out of scope per PLAT-839",
-  "M5_dollar_cost": "the harness reports one total token figure per subagent and does not expose the input/output/cache split, so no rate can be applied"
+  "M2_accuracy_precision_recall_fp_rate": "no human-labelled ground-truth fixture set exists for these passes; building one was outside this task. PLAT-837 says this metric decides whether the lens ships at all.",
+  "M3_calibration_error": "not measurable for the baseline by construction - the current passes emit no probability, so ECE is undefined. M3 will have a post-change number with no before-number to compare against; say so when it is first published.",
+  "M4_abstention_rate_and_precision": "the current passes have no abstention mechanism; there is nothing to count.",
+  "M6_PLAT837_spec_defect_escape_rate": "not measured, and the feedback path does not exist - computing it requires recording which lens verdict preceded each weak AC found late. PLAT-837 puts building that path in its own scope.",
+  "M7_PLAT837_adverse_case_coverage_distribution": "the adverse_case_coverage rubric does not exist yet; nothing today produces the score.",
+  "M7_PLAT838_gate_readiness_threshold": "not applicable to a baseline; it is a pre-registration obligation. The FP-rate, ECE and disagreement bounds must be written into the MeasurementPlan before the post-change numbers are taken. This report supplies the disagreement figure they must be set against (28.7%).",
+  "M7_PLAT839_assertion_vacuous_vs_mutation": "requires a mutation run, explicitly out of scope per PLAT-839.",
+  "M5_dollar_cost_and_input_tokens": "the harness reports one total token figure per subagent and does not expose the input/output/cache split, which price differently; token totals are reported instead.",
+  "EARS_engine_false_positive_rate": "the runs were asked for additional semantic findings, not adjudication of the engine two findings; silence about them is not agreement with them.",
+  "verdict_stability_away_from_a_unanimous_high_finding": "needs a second corpus near the PASS/CONDITIONAL boundary; compounded by the TC-013 clause which may have pinned the Verdict deterministically."
  }
 }
