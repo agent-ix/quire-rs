@@ -1,8 +1,6 @@
 //! FR-075 `Features` table: an interface's fields and operations as one
 //! ordered sequence (TC-1874, TC-1875).
 
-use std::path::PathBuf;
-
 use ix_trace_rs::trace;
 use jsonschema::JSONSchema;
 use quire_rs::semantic::python_entry::extract_semantic_json;
@@ -115,9 +113,7 @@ fn features_table_yields_feature_order_in_row_order() {
         declaration["featureOrder"],
         json!(["prepare_ip_query", "codec_kind", "score_ip_batch"])
     );
-    let module = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("tests/fixtures/semantic/spec-objects-architecture");
-    let registry = Registry::load_module(&module).unwrap();
+    let registry = Registry::load_module(spec_objects_architecture_fixture::module_dir()).unwrap();
     let validator = registry
         .archetype("interface")
         .and_then(|a| a.data_validator())

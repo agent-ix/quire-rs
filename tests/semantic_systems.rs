@@ -2,7 +2,6 @@
 //! (TC-1872, TC-1873).
 
 use std::fs;
-use std::path::PathBuf;
 
 use ix_trace_rs::trace;
 use jsonschema::JSONSchema;
@@ -12,14 +11,6 @@ use quire_rs::Registry;
 use serde_json::{json, Value};
 
 const PATH: &str = "spec/architecture/part.md";
-
-fn root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-}
-
-fn module_root() -> PathBuf {
-    root().join("tests/fixtures/semantic/spec-objects-architecture")
-}
 
 /// A `table_row` locator under `section` asserting `columns`.
 fn locator(section: &str, columns: &[&str]) -> Value {
@@ -945,7 +936,7 @@ fn systems_table_kind_comes_from_the_match_key() {
 #[trace("TC-1873", "FR-075-AC-13")]
 #[test]
 fn spec_objects_architecture_systems_skeletons_validate_with_zero_errors() {
-    let registry = Registry::load_module(&module_root()).unwrap();
+    let registry = Registry::load_module(spec_objects_architecture_fixture::module_dir()).unwrap();
     let keys: [(&str, &[&str]); 4] = [
         ("part", &["owner", "declaredType", "multiplicity"]),
         (
@@ -956,7 +947,10 @@ fn spec_objects_architecture_systems_skeletons_validate_with_zero_errors() {
         ("allocation", &["sourceElement", "targetElement"]),
     ];
     for (kind, record_keys) in keys {
-        let text = fs::read_to_string(module_root().join(format!("skeletons/{kind}.md"))).unwrap();
+        let text = fs::read_to_string(
+            spec_objects_architecture_fixture::module_dir().join(format!("skeletons/{kind}.md")),
+        )
+        .unwrap();
         let arch = registry.archetype(kind).unwrap();
         let result = quire_rs::validate_document_in_registry(&registry, arch, &text);
         assert!(result.is_valid, "{kind}: {:?}", result.errors);
