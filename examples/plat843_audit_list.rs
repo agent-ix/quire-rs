@@ -37,7 +37,8 @@
 //! `source_exclude` ever changes, a hardcoded copy here would silently
 //! disagree with the baseline this binary is used to reproduce, and that
 //! disagreement would read as an extraction delta rather than as what it
-//! actually is — this binary's own exclusion list going stale.
+//! actually is — this binary's own exclusion list going stale (also relied
+//! on by PLAT-882's own TypeScript port for the identical reason).
 //!
 //! **`AUDIT_LIST_MODULE`'s default is an unpinned, live checkout (PLAT-868
 //! PR #479 review, F9).** `make validate` pins the same repo's revision via
@@ -52,8 +53,8 @@
 
 use std::path::Path;
 
-use quire_rs::registry::Registry;
 use quire_rs::traceability::SourceLanguage;
+use quire_rs::Registry;
 
 fn main() {
     let mut args = std::env::args().skip(1);

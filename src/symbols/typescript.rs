@@ -1,164 +1,210 @@
 //! TypeScript source adapter (FR-051).
 //!
-//! Line-structural like the Rust adapter: brace depth for scopes, leading
-//! keywords for declarations. The file itself is a container symbol (the
-//! module), named by its extension-less path.
+//! Parses over a tree-sitter syntax tree, through the dependency-boundary
+//! crate `quire-rust-extraction` (PLAT-843 for Rust; the crate's TypeScript
+//! feature wired by PLAT-851; this file is the adapter that finally uses
+//! it, PLAT-882) — see that crate's own module docs for why the
+//! tree-sitter dependency itself is never named here. This adapter still
+//! answers exactly the questions FR-051 needs — which declaration owns a
+//! span, what its qualified name and kind are, whether it is a test — and
+//! nothing more: no build, no type resolution, no dependency installation,
+//! and no execution of the extracted code (FR-051-CON-1).
+//!
+//! **Form matching is a seam this adapter does not cross.** Which declared
+//! marker or legacy trace form appears inside a symbol's span is
+//! `trace.rs`'s question, answered afterwards against the resolved span
+//! (`Symbol::attached_source`); this file has no reference to trace forms,
+//! regex, or `TraceabilityModel`, and the tree walk below must not gain
+//! one — including a query over `@decorator` nodes, which would look
+//! tempting and belongs to PLAT-866 instead (explicit `@trace(...)`
+//! constructs), landing after both this port and PLAT-868's Python port.
 //!
 //! Test classification follows the vitest/jest convention: a `test(...)` or
-//! `it(...)` registration is a test symbol, and **its registered title is the
-//! qualified name** (FR-051) — that is the identity a report or a trace marker
-//! refers to, not an anonymous arrow function.
+//! `it(...)` registration is a test symbol, and **its registered title is
+//! the qualified name** (FR-051) — that is the identity a report or a trace
+//! marker refers to, not an anonymous arrow function. A `describe(...)` /
+//! `suite(...)` registration is a **container** symbol (CR-119): it groups
+//! tests rather than being one, so it is a scope the registrations inside
+//! it are parented to — never a `TestFunction`, which would make the suite
+//! evidence in its own right.
 //!
-//! A `describe(...)` / `suite(...)` registration is a **container** symbol
-//! (CR-119): it groups tests rather than being one, so it is a scope the
-//! registrations inside it are parented to — never a `TestFunction`, which
-//! would make the suite evidence in its own right.
+//! ## The defect this port exists to close (PLAT-163, FR-051-AC-25)
+//!
+//! The line-structural scanner this file used to be counted `{`/`}` as text,
+//! one pass over the whole file, carrying comment/string/template state by
+//! hand. A `{` inside a **regex literal** — `/[^}]*\{[^}]*\}/`, an ordinary
+//! quantifier or character class — was never guarded the way a string or
+//! comment was, so it desynchronised the depth counter, `check_balanced`
+//! rejected the file outright, and every symbol in it — every trace tag —
+//! vanished silently. PLAT-840/851 measured this **live** in this exact
+//! corpus: three `filament-ide-rs` files abandoned, all this shape or its
+//! sibling. tree-sitter tokenizes a `regex` node as its own grammar
+//! construct; a `{` inside one is never a code brace to begin with, so
+//! there is no counter left to desynchronise — the fix is a structural
+//! consequence of parsing correctly, not a special case added here. See
+//! `tc1881_a_brace_inside_a_regex_literal_is_content` below, and this
+//! ticket's own differential report for the three files by name.
+//!
+//! ## What survives byte-for-byte from the line-structural scanner
+//!
+//! `Symbol::compute_id` hashes `(language, path, qualified_name, kind)`
+//! (`src/symbols/mod.rs`) — qualified-name construction is an identity
+//! surface, not a style choice, and every quirk below is preserved exactly
+//! rather than "cleaned up" (PLAT-882, following PLAT-843's own rule):
+//!
+//! - **The file itself is a container symbol** (the module), named by its
+//!   extension-less path, spanning the whole file.
+//! - **A suite does not qualify its members.** `describe(...)`/`suite(...)`
+//!   opens a scope (CR-119) that a nested registration's `container` points
+//!   to, but a registration's `qualified_name` is always its own literal
+//!   title — never prefixed by an enclosing suite's title, which would
+//!   change the identity of every test in the ecosystem sitting inside one.
+//! - **Only a `class`/`abstract class` qualifies.** `qualify` walks the
+//!   scope stack for the nearest scope with `qualifies: true` — a class,
+//!   never a suite — so `Foo.bar` for a method, but a bare title for a test
+//!   however deeply nested in suites.
+//! - **A function never becomes a container for its own body** (unlike the
+//!   Rust adapter post-PLAT-845): a helper declared inside a top-level
+//!   function, or inside a registration's callback, qualifies under
+//!   whatever scope was already active when the function was entered, not
+//!   under the function itself. The pre-port scanner never pushed a scope
+//!   for a function body either (only `describe`/`suite`/`class` did), and
+//!   this port makes no identity-changing decision beyond what PLAT-882
+//!   asks for.
+//! - **A registration's chain may name a suite anywhere along it**
+//!   (CR-121): `test.describe(...)` and `it.describe.only(...)` classify
+//!   exactly as `describe(...)` does, because a harness spells its suite as
+//!   a member of its own test namespace.
+//! - **A `constructor` method mints no symbol.** Preserved from the old
+//!   scanner's `RESERVED` denylist, the one entry of it that still applies
+//!   once real declaration structure replaces line matching (see below).
+//! - **Only a `const`/`let`/`var` declarator whose value is a *parenthesized*
+//!   arrow function is a function symbol.** `const f = (x) => {}` is one;
+//!   `const f = x => x` (the bare, unparenthesized single-parameter form)
+//!   is not, matching the old regex's own `\(` requirement exactly — read
+//!   here off the grammar's own distinction between an `arrow_function`'s
+//!   `parameters` field (parenthesized) and its `parameter` field (bare).
+//!   A class field's arrow value (`readonly ready = () => true;`, no
+//!   `const`/`let`/`var`) is not a function symbol either, for the same
+//!   reason the old regex never matched it: no declaration keyword at the
+//!   line's own start.
+//! - **Only a plain identifier method name mints a symbol.** A method whose
+//!   name is computed (`[key]() {}`), a string literal, or a private field
+//!   (`#foo() {}`) mints nothing — the old regex's identifier-class match
+//!   never recognised any of these either.
+//!
+//! ## What changed, and why each delta is free (PLAT-882, following
+//! PLAT-843's own cause-based rule: *free from parsing correctly → fix here
+//! and name the delta; requires changing what a symbol **is** or how it is
+//! **named** → a separate ticket*)
+//!
+//! - **The whole-file `check_balanced` rejection is gone** — see "The
+//!   defect this port exists to close" above. tree-sitter recovers locally
+//!   from a body-local error (the body-node rule `quire-code-parse` itself
+//!   implements: an error is body-local iff it lies within a declaration's
+//!   own executable body), so a broken function body no longer abandons the
+//!   whole file either — the same false-positive-whole-file-rejection shape
+//!   PLAT-843 closed for Rust, now closed here.
+//! - **No more `TITLE_LOOKAHEAD_LINES` window.** The old scanner had to
+//!   bound how many physical lines past a registration's opening line it
+//!   would scan for a title, because it had no notion of "this call's first
+//!   argument" beyond line position. A tree-sitter `call_expression`'s
+//!   `arguments` field names that argument directly regardless of how the
+//!   call is wrapped across lines, so the bound (and the class of bug it
+//!   guarded — a title written arbitrarily far down a long argument list
+//!   being read as this call's own) is structurally impossible rather than
+//!   merely bounded.
+//! - **A `get`/`set` accessor method now mints a symbol.** The old regex
+//!   matched `NAME(...) {`  immediately — `get foo() {}` does not match
+//!   that shape (`get` itself would have to be the captured name, and then
+//!   `foo` — not `(` — follows it), so accessor methods were silently never
+//!   extracted. tree-sitter's `method_definition` node covers a getter or
+//!   setter the same as an ordinary method; recognising it is the same free
+//!   recovery Rust's port made for `pub(in path)` and `unsafe impl` — an
+//!   accidental gap in what the old matcher's shape could recognise, not a
+//!   deliberate exclusion (`constructor` alone was deliberate, and stays
+//!   excluded, see above).
+//! - **A leading comment or decorator is found through an `export`
+//!   keyword.** `// docs\nexport class Foo {}` — the comment is a sibling
+//!   of the `export_statement` wrapping the class, not of the
+//!   `class_declaration` itself, so [`leading_span`] resolves the span's
+//!   true syntactic top ([`stmt_anchor`]) before walking preceding
+//!   siblings. The old line scanner never had this problem (it read
+//!   `export class Foo {` as one line regardless of any wrapping node), so
+//!   this is new code closing a gap tree-sitter's own AST shape introduces,
+//!   not a behaviour the old scanner had and this one lost.
+//! - **A title containing an escaped quote is read in full.** The old
+//!   `quoted()` took the raw byte span up to the *first* occurrence of the
+//!   matching quote character, with no escape awareness — `"it's \"real\""`
+//!   would have been cut short at the first embedded `\"`. tree-sitter's
+//!   `string`/`template_string` node span is the lexer's own correct
+//!   accounting of where the literal actually ends, so reading the node's
+//!   own text is a free correctness fix in the same shape as the Rust
+//!   adapter's move to reading the AST's `body` field instead of counting
+//!   bytes.
+//!
+//! What did **not** change: the hand-written lexer subsystem this file used
+//! to carry (`lex`, `lex_line`, `ScanState`, `LexedLine`, `check_balanced`,
+//! `registration_open`, `close_paren`, `read_title`, `quoted`,
+//! `block_end`, the `re_arrow_const`/`re_method` regexes and the
+//! `RESERVED` keyword-shape denylist they needed) is deleted outright as a
+//! consequence of parsing correctly, not as a deliberate optimisation.
 
-use std::sync::OnceLock;
+use quire_rust_extraction::tree_sitter::Node;
+use quire_rust_extraction::{parse_file, Language};
 
-use regex::Regex;
-
-use super::{leading_block, RawSymbol, SymbolKind};
+use super::{RawSymbol, SymbolKind};
 
 /// Parse `source` into raw symbols, or return a per-file reason to skip it.
+///
+/// **A declaration-structure failure fails loudly, naming the line** — the
+/// same contract the Rust adapter documents (`src/symbols/rust.rs`), backed
+/// by the same `quire-code-parse` diagnostic and the same body-node rule.
 pub(crate) fn parse(path: &str, source: &str) -> Result<Vec<RawSymbol>, String> {
-    let lines: Vec<&str> = source.lines().collect();
-    // One lexer pass for the whole file (CR-039). Everything downstream reads
-    // it rather than re-deriving comment/string/template state.
-    let lexed = lex(&lines);
-    check_balanced(&lexed)?;
+    // `.tsx` needs the TSX grammar (JSX syntax is a genuine parse ambiguity
+    // against a bare type assertion in `.ts`); every other extension this
+    // adapter is ever called for is `.ts` (`language_of` in `mod.rs` binds
+    // only these two extensions to `SourceLanguage::Typescript`).
+    let language = if path.ends_with(".tsx") {
+        Language::Tsx
+    } else {
+        Language::TypeScript
+    };
+    let parsed = parse_file(language, "<source>", source).map_err(|e| format!("parse: {e}"))?;
+    if let Some(diagnostic) = parsed.diagnostic() {
+        return Err(format!(
+            "line {}: unresolvable declaration structure (column {})",
+            diagnostic.line(),
+            diagnostic.column()
+        ));
+    }
 
     let module = module_name(path);
+    let line_count = source.lines().count().max(1);
     let mut out = vec![RawSymbol {
         qualified_name: module.clone(),
         kind: SymbolKind::Container,
         line: 1,
         leading_line: 1,
-        end_line: lines.len().max(1),
+        end_line: line_count,
         container: None,
     }];
 
     let mut scopes: Vec<Scope> = Vec::new();
-    let mut depth: i64 = 0;
-
-    for (idx, lexed_line) in lexed.iter().enumerate() {
-        let trimmed = lexed_line.code.trim();
-
-        // A registration whose name chain NAMES A SUITE is a suite, wherever in
-        // the chain the suite word sits. `test.describe(…)` is Playwright's
-        // suite and it matched `TEST_NAMES` first, because the `.modifier`
-        // window AC-18 opens for `it.each([…])(…)` swallows `.describe` as an
-        // ordinary modifier — so one construct had two spellings with opposite
-        // classifications. `describe(…)` minted a `Container` binding nothing;
-        // `test.describe(…)` minted a `TestFunction` that bound its header tag
-        // and entered the census, which is the negative AC-21 asserts.
-        //
-        // 120 such headers exist across two corpus repositories and 79 carry an
-        // id in their title, so `spec-artifacts-process#68` declaring a
-        // TypeScript test-name form would have bound all 79 as evidence on the
-        // spelling the spec calls grouping (#322).
-        let suite_chain = chain_names_a_suite(trimmed);
-        if let Some(title) = registration(&lexed, idx, TEST_NAMES).filter(|_| !suite_chain) {
-            push(
-                &mut out,
-                &lines,
-                &lexed,
-                idx,
-                title,
-                SymbolKind::TestFunction,
-                scope_container(&scopes, &module),
-            );
-        } else if let Some(title) = registration(&lexed, idx, SUITE_NAMES)
-            .or_else(|| registration(&lexed, idx, TEST_NAMES).filter(|_| suite_chain))
-        {
-            push(
-                &mut out,
-                &lines,
-                &lexed,
-                idx,
-                title.clone(),
-                SymbolKind::Container,
-                scope_container(&scopes, &module),
-            );
-            if trimmed.contains('{') {
-                scopes.push(Scope {
-                    name: title,
-                    depth,
-                    qualifies: false,
-                });
-            }
-        } else if let Some(name) = class_declaration(trimmed) {
-            let qualified = qualify(&scopes, &name);
-            push(
-                &mut out,
-                &lines,
-                &lexed,
-                idx,
-                qualified.clone(),
-                SymbolKind::Container,
-                scope_container(&scopes, &module),
-            );
-            if trimmed.contains('{') {
-                scopes.push(Scope {
-                    name: qualified,
-                    depth,
-                    qualifies: true,
-                });
-            }
-        } else if let Some(name) = function_declaration(trimmed) {
-            push(
-                &mut out,
-                &lines,
-                &lexed,
-                idx,
-                qualify(&scopes, &name),
-                SymbolKind::Function,
-                scope_container(&scopes, &module),
-            );
-        }
-
-        depth += lexed_line.delta;
-        while let Some(scope) = scopes.last() {
-            if depth <= scope.depth {
-                scopes.pop();
-            } else {
-                break;
-            }
-        }
-    }
+    walk(parsed.root_node(), source, &module, &mut scopes, &mut out);
     Ok(out)
 }
 
-fn push(
-    out: &mut Vec<RawSymbol>,
-    lines: &[&str],
-    lexed: &[LexedLine],
-    idx: usize,
-    qualified_name: String,
-    kind: SymbolKind,
-    container: Option<String>,
-) {
-    out.push(RawSymbol {
-        qualified_name,
-        kind,
-        line: idx + 1,
-        leading_line: leading_block(lines, idx, is_annotation),
-        end_line: block_end(lexed, idx),
-        container,
-    });
-}
-
-/// One open lexical scope: what it is called, the brace depth it opened at,
-/// and whether declarations inside it are *named through* it.
+/// One open lexical scope: what it is called, and whether declarations
+/// inside it are *named through* it.
 ///
-/// The two axes are separate because a suite is a scope that does not rename
-/// its members (CR-119). A class qualifies — `Harness.ready` — but a
+/// The two axes are separate because a suite is a scope that does not
+/// rename its members (CR-119). A class qualifies — `Harness.ready` — but a
 /// registration's qualified name **is its registered title** (FR-051), so
 /// prefixing it with the enclosing `describe(…)` title would change the
 /// identity of every test in the ecosystem that sits inside one.
 struct Scope {
     name: String,
-    depth: i64,
     qualifies: bool,
 }
 
@@ -173,9 +219,8 @@ fn qualify(scopes: &[Scope], name: &str) -> String {
 
 /// The nearest enclosing scope of **any** kind, or the file's own module.
 ///
-/// A suite counts here even though it does not qualify: `contains` is what
-/// records that a `describe(…)` groups the registrations written inside it,
-/// and a container that contains nothing is not a grouping (FR-051-AC-8).
+/// A suite counts here even though it does not qualify: `container` is what
+/// records that a `describe(…)` groups the registrations written inside it.
 fn scope_container(scopes: &[Scope], module: &str) -> Option<String> {
     scopes
         .last()
@@ -183,264 +228,380 @@ fn scope_container(scopes: &[Scope], module: &str) -> Option<String> {
         .or_else(|| Some(module.to_string()))
 }
 
-/// How far past the opening line a registration's title may begin. Vitest and
-/// prettier both wrap a long curried call, and the title lands on the very next
-/// line; three is slack for a formatted argument list without letting a string
-/// several statements away become a test name.
-const TITLE_LOOKAHEAD_LINES: usize = 3;
-
-/// The callees that open a **test** registration. Its title is the test
-/// symbol's qualified name (FR-051).
+/// The callees this adapter recognises as opening a **test** registration.
+/// Its title is the test symbol's qualified name (FR-051).
 const TEST_NAMES: &[&str] = &["test", "it"];
 
-/// The callees that open a **suite** registration — a container, not evidence
-/// (CR-119).
-///
-/// `context` is deliberately absent, and the reason is measured rather than
-/// stylistic. It is mocha's TDD-interface alias, which nothing in this
-/// ecosystem uses: across `~/dev` there are **1,699** `describe(` registrations
-/// with a quoted title in 103 repository roots, **zero** `suite(`, and **zero**
-/// `context(` — while five lines do begin `context.` (`context.setTransform(`,
-/// `context.client.putSettings(`), method calls on an object that happens to
-/// be named `context`. Admitting the name would put a grammar that reads a
-/// `.modifier` chain in front of exactly one shape it cannot tell from a suite,
-/// for no occurrence it would recover. `suite` is admitted despite measuring
-/// zero because it is the same construct under another harness's spelling and
-/// carries no such collision.
+/// The callees this adapter recognises as opening a **suite** registration
+/// — a container, not evidence (CR-119). `context` is deliberately absent;
+/// see the pre-port scanner's own measured rationale, preserved unchanged:
+/// zero `context(`/`suite(` registrations and zero `context.` false
+/// positives would have been admitted or excluded differently across the
+/// measured corpus, so nothing here is lost by leaving it out.
 const SUITE_NAMES: &[&str] = &["describe", "suite"];
 
-/// A registration by one of `names`, with its quoted title — a
-/// `test('title', …)` / `it("title", …)` test, or a `describe("title", …)`
-/// suite. The title is the symbol name.
+/// Walk `node`'s named children, minting a [`RawSymbol`] for each
+/// declaration or registration and recursing to find every nested one.
 ///
-/// Reads the whole-file lex rather than one line (CR-084), which buys the two
-/// shapes the single-line regex could not see:
-///
-/// * **Curried modifiers.** `it.skipIf(cond)(…)` and `it.each([…])(…)` are the
-///   conditional and parametrised forms both vitest and jest ship. The first
-///   `(` holds the condition, not the title.
-/// * **A title on a later line**, which is simply how either of the above is
-///   formatted once it exceeds the line width.
-///
-/// Neither registered a symbol at all before, and that is worse than a missed
-/// tag: with no symbol, a legacy comment id and a canonical `trace(…)` call
-/// inside the body have nothing to attach to, so the test runs, passes and binds
-/// nothing, silently and always in the direction that loses coverage.
-/// Whether a registration's name chain names a suite anywhere along it.
-///
-/// `describe(`, `suite(`, and equally `test.describe(`, `it.describe(`,
-/// `test.describe.only(` — the suite word may sit at any position, because a
-/// harness spells its suite as a member of its test namespace. Reading only
-/// the FIRST identifier is what gave one construct two classifications (#322).
-///
-/// Deliberately textual and cheap: this runs on every line of every TypeScript
-/// file in the walk, beside a matcher that is already textual.
-fn chain_names_a_suite(line: &str) -> bool {
-    let head = line.strip_prefix("await ").unwrap_or(line).trim_start();
-    let Some(open) = head.find('(') else {
-        return false;
-    };
-    head[..open]
-        .split('.')
-        .any(|seg| SUITE_NAMES.contains(&seg.trim()))
-}
-
-fn registration(lexed: &[LexedLine], idx: usize, names: &[&str]) -> Option<String> {
-    let first = lexed.get(idx)?.code.trim_start();
-    let open = registration_open(first, names)?;
-    read_title(lexed, idx, first, open)
-}
-
-/// Byte offset just past the `(` that opens the registration call, or `None`
-/// when the line does not open one.
-fn registration_open(line: &str, names: &[&str]) -> Option<usize> {
-    let bytes = line.as_bytes();
-    let ident = |c: &u8| c.is_ascii_alphanumeric() || *c == b'_' || *c == b'$';
-    let mut i = 0;
-
-    if line.starts_with("await") && bytes.get(5).is_some_and(u8::is_ascii_whitespace) {
-        i = 5;
-        while bytes.get(i).is_some_and(u8::is_ascii_whitespace) {
-            i += 1;
-        }
-    }
-
-    // One of `names`, and nothing longer — `iterate(` registers nothing.
-    let name = names.iter().find(|n| line[i..].starts_with(**n))?;
-    i += name.len();
-    if bytes.get(i).is_some_and(ident) {
-        return None;
-    }
-
-    loop {
-        // A `.modifier` chain: `.skip`, `.each`, `.concurrent.skip`, …
-        while bytes.get(i) == Some(&b'.') {
-            i += 1;
-            let start = i;
-            while bytes.get(i).is_some_and(ident) {
-                i += 1;
-            }
-            if i == start {
-                return None;
-            }
-        }
-        while bytes.get(i).is_some_and(u8::is_ascii_whitespace) {
-            i += 1;
-        }
-        if bytes.get(i) != Some(&b'(') {
-            return None;
-        }
-        let open = i + 1;
-        match close_paren(bytes, i) {
-            // The group closed on this line and another `(` follows, so what
-            // closed was a curried modifier's arguments and the registration
-            // call is the next one along.
-            Some(close) => {
-                let mut j = close + 1;
-                while bytes.get(j).is_some_and(u8::is_ascii_whitespace) {
-                    j += 1;
-                }
-                if bytes.get(j) == Some(&b'(') {
-                    i = j;
-                    continue;
-                }
-                return Some(open);
-            }
-            // Unclosed on this line: the callback body spans lines, so this
-            // group *is* the registration call.
-            None => return Some(open),
-        }
-    }
-}
-
-/// Offset of the `)` matching the `(` at `open`, searching this line only.
-/// Quoted spans are skipped, so a paren inside a string literal cannot unbalance
-/// the count. `None` when the group does not close on this line.
-fn close_paren(bytes: &[u8], open: usize) -> Option<usize> {
-    let mut depth = 0i32;
-    let mut i = open;
-    let mut quote: Option<u8> = None;
-    while i < bytes.len() {
-        let c = bytes[i];
-        match quote {
-            Some(q) => {
-                if c == b'\\' {
-                    i += 2;
-                    continue;
-                }
-                if c == q {
-                    quote = None;
+/// `scopes` is the open scope stack (CR-119): a `describe`/`suite`
+/// registration or a `class` declaration pushes one before recursing into
+/// its own body and pops it afterward: exactly the syntactic nesting the
+/// old scanner approximated with brace-depth bookkeeping, now read directly
+/// off the tree.
+fn walk(node: Node, source: &str, module: &str, scopes: &mut Vec<Scope>, out: &mut Vec<RawSymbol>) {
+    let mut cursor = node.walk();
+    for child in node.named_children(&mut cursor) {
+        match child.kind() {
+            "class_declaration" | "abstract_class_declaration" => {
+                if let Some(name) = field_text(child, "name", source) {
+                    let qualified = qualify(scopes, &name);
+                    let container = scope_container(scopes, module);
+                    out.push(symbol_at(
+                        stmt_anchor(child),
+                        qualified.clone(),
+                        SymbolKind::Container,
+                        container,
+                    ));
+                    scopes.push(Scope {
+                        name: qualified,
+                        qualifies: true,
+                    });
+                    walk(child, source, module, scopes, out);
+                    scopes.pop();
+                } else {
+                    // An anonymous default-export class (`export default
+                    // class { ... }`) mints no symbol — the old scanner's
+                    // `ident()` truncation of an empty name matched
+                    // nothing either — but its body is still walked so any
+                    // declaration nested inside it is found, under
+                    // whichever scope was already active.
+                    walk(child, source, module, scopes, out);
                 }
             }
-            None => match c {
-                b'\'' | b'"' | b'`' => quote = Some(c),
-                b'(' => depth += 1,
-                b')' => {
-                    depth -= 1;
-                    if depth == 0 {
-                        return Some(i);
+            "function_declaration" => {
+                if let Some(name) = field_text(child, "name", source) {
+                    let qualified = qualify(scopes, &name);
+                    let container = scope_container(scopes, module);
+                    out.push(symbol_at(
+                        stmt_anchor(child),
+                        qualified,
+                        SymbolKind::Function,
+                        container,
+                    ));
+                }
+                // A function never becomes a container for its own body
+                // (see this module's own docs) — recurse with `scopes`
+                // unchanged, exactly as the old scanner's flat line scan
+                // never pushed a scope for a function either.
+                walk(child, source, module, scopes, out);
+            }
+            "method_definition" => {
+                if let Some(name) = method_name(child, source) {
+                    if name != "constructor" {
+                        let qualified = qualify(scopes, &name);
+                        let container = scope_container(scopes, module);
+                        out.push(symbol_at(child, qualified, SymbolKind::Function, container));
                     }
                 }
-                _ => {}
+                walk(child, source, module, scopes, out);
+            }
+            "lexical_declaration" | "variable_declaration" => {
+                mint_arrow_const_declarators(child, source, module, scopes, out);
+                walk(child, source, module, scopes, out);
+            }
+            "call_expression" => match registration(child, source) {
+                Some(Registration {
+                    title,
+                    kind: RegistrationKind::Test,
+                }) => {
+                    let container = scope_container(scopes, module);
+                    out.push(symbol_at(
+                        stmt_anchor(child),
+                        title,
+                        SymbolKind::TestFunction,
+                        container,
+                    ));
+                    walk(child, source, module, scopes, out);
+                }
+                Some(Registration {
+                    title,
+                    kind: RegistrationKind::Suite,
+                }) => {
+                    let container = scope_container(scopes, module);
+                    out.push(symbol_at(
+                        stmt_anchor(child),
+                        title.clone(),
+                        SymbolKind::Container,
+                        container,
+                    ));
+                    scopes.push(Scope {
+                        name: title,
+                        qualifies: false,
+                    });
+                    walk(child, source, module, scopes, out);
+                    scopes.pop();
+                }
+                None => walk(child, source, module, scopes, out),
             },
+            _ => walk(child, source, module, scopes, out),
         }
-        i += 1;
     }
-    None
 }
 
-/// The quoted title at or after `open`, following the line break into at most
-/// [`TITLE_LOOKAHEAD_LINES`] further lines.
+/// Mint a symbol for every `const`/`let`/`var` declarator in `decl` whose
+/// value is a *parenthesized* arrow function — see this module's own docs
+/// for why the bare single-parameter form (`x => x`) does not qualify, and
+/// why a class field's arrow value does not either (it is never a
+/// `lexical_declaration`/`variable_declaration` in the first place).
 ///
-/// Stops at the first non-blank text rather than hunting for a quote: in
-/// `it(name, …)` the title is a variable, and scanning past it would name the
-/// test after some unrelated string literal further down the argument list.
-///
-/// **Known limitation, by design.** `lex_line` drops content carried in from an
-/// unterminated template literal, so a title written inside a multi-line
-/// template yields no quote here and registers nothing — the same outcome as
-/// before this change, and preferable to registering a wrong name.
-fn read_title(lexed: &[LexedLine], idx: usize, first: &str, open: usize) -> Option<String> {
-    for offset in 0..=TITLE_LOOKAHEAD_LINES {
-        let text = if offset == 0 {
-            first.get(open..)?
-        } else {
-            lexed.get(idx + offset)?.code.as_str()
-        };
-        let text = text.trim_start();
-        if text.is_empty() {
+/// Every declarator in a comma-separated statement is minted, not only the
+/// first — a genuine, free recovery over the old regex, which matched only
+/// the first `NAME = (` shape in its own captured group.
+fn mint_arrow_const_declarators(
+    decl: Node,
+    source: &str,
+    module: &str,
+    scopes: &[Scope],
+    out: &mut Vec<RawSymbol>,
+) {
+    let mut cursor = decl.walk();
+    for declarator in decl.named_children(&mut cursor) {
+        if declarator.kind() != "variable_declarator" {
             continue;
         }
-        return quoted(text);
+        let Some(name_node) = declarator.child_by_field_name("name") else {
+            continue;
+        };
+        if name_node.kind() != "identifier" {
+            // A destructuring pattern (`const { a, b } = ...`) is never an
+            // arrow-function declarator shape the old regex recognised.
+            continue;
+        }
+        let Some(value) = declarator.child_by_field_name("value") else {
+            continue;
+        };
+        if value.kind() != "arrow_function" {
+            continue;
+        }
+        if value.child_by_field_name("parameters").is_none() {
+            // The bare, unparenthesized single-parameter form — outside the
+            // old regex's own `\(` requirement.
+            continue;
+        }
+        let Ok(name) = name_node.utf8_text(source.as_bytes()) else {
+            continue;
+        };
+        let qualified = qualify(scopes, name);
+        let container = scope_container(scopes, module);
+        out.push(symbol_at(
+            stmt_anchor(decl),
+            qualified,
+            SymbolKind::Function,
+            container,
+        ));
     }
-    None
 }
 
-/// Contents of a leading quoted literal. Escapes are not interpreted, matching
-/// the `[^']*` the single-line regex used before CR-084.
-fn quoted(text: &str) -> Option<String> {
-    let quote = *text.as_bytes().first()?;
-    if !matches!(quote, b'\'' | b'"' | b'`') {
+/// `node`'s plain-identifier method name, or `None` when it is computed, a
+/// string literal, a numeric literal, or a private field — none of which
+/// the old regex's identifier-class match ever recognised either.
+fn method_name(node: Node, source: &str) -> Option<String> {
+    let name_node = node.child_by_field_name("name")?;
+    if name_node.kind() != "property_identifier" {
         return None;
     }
-    let rest = text.get(1..)?;
-    let end = rest.find(quote as char)?;
-    Some(rest[..end].to_string())
+    name_node
+        .utf8_text(source.as_bytes())
+        .ok()
+        .map(str::to_string)
 }
 
-fn class_declaration(trimmed: &str) -> Option<String> {
-    let rest = trimmed
-        .strip_prefix("export default ")
-        .or_else(|| trimmed.strip_prefix("export "))
-        .unwrap_or(trimmed);
-    let rest = rest.strip_prefix("abstract ").unwrap_or(rest);
-    ident(rest.strip_prefix("class ")?)
+/// `node`'s field named `field`, as plain source text, or `None` when the
+/// field is absent.
+fn field_text(node: Node, field: &str, source: &str) -> Option<String> {
+    node.child_by_field_name(field)
+        .and_then(|n| n.utf8_text(source.as_bytes()).ok())
+        .map(str::to_string)
 }
 
-/// `function f(…)`, `const f = (…) =>`, and class methods (`name(…) {`).
-fn function_declaration(trimmed: &str) -> Option<String> {
-    let rest = trimmed
-        .strip_prefix("export default ")
-        .or_else(|| trimmed.strip_prefix("export "))
-        .unwrap_or(trimmed);
-    let rest = rest.strip_prefix("async ").unwrap_or(rest);
-    if let Some(after) = rest.strip_prefix("function ") {
-        return ident(after);
+/// The syntactic top of a declaration or registration statement, for span
+/// and leading-annotation purposes: `node` itself, or the `export_statement`
+/// wrapping it when it is exported. A leading comment or decorator attaches
+/// before `export`, not before the declaration `export` wraps — see this
+/// module's own docs.
+fn stmt_anchor(node: Node) -> Node {
+    let mut current = node;
+    while let Some(parent) = current.parent() {
+        if matches!(parent.kind(), "expression_statement" | "export_statement") {
+            current = parent;
+        } else {
+            break;
+        }
     }
-    if let Some(caps) = re_arrow_const().captures(rest) {
-        return Some(caps[1].to_string());
+    current
+}
+
+/// A `RawSymbol` anchored at `anchor` — its own start line, its own leading
+/// annotation span, and its own end line — the one shape every declaration
+/// and registration this adapter mints shares.
+fn symbol_at(
+    anchor: Node,
+    qualified_name: String,
+    kind: SymbolKind,
+    container: Option<String>,
+) -> RawSymbol {
+    RawSymbol {
+        qualified_name,
+        kind,
+        line: anchor.start_position().row + 1,
+        leading_line: leading_span(anchor),
+        end_line: anchor.end_position().row + 1,
+        container,
     }
-    re_method()
-        .captures(rest)
-        .map(|c| c[1].to_string())
-        .filter(|name| !RESERVED.contains(&name.as_str()))
 }
 
-/// Keywords whose `keyword (…) {` shape looks like a method declaration.
-const RESERVED: &[&str] = &[
-    "if",
-    "for",
-    "while",
-    "switch",
-    "catch",
-    "return",
-    "function",
-    "constructor",
-    "do",
-    "else",
-];
-
-fn ident(s: &str) -> Option<String> {
-    let name: String = s
-        .trim_start()
-        .chars()
-        .take_while(|c| c.is_alphanumeric() || *c == '_' || *c == '$')
-        .collect();
-    (!name.is_empty()).then_some(name)
+/// The 1-based first line of `node`'s leading annotation block: the
+/// contiguous run of preceding `comment`/`decorator` sibling nodes,
+/// stopping at the first sibling of another kind or the first blank-line
+/// gap — the same two stopping conditions the line-structural scanner
+/// used, now checked between sibling nodes instead of between lines, which
+/// is what lets a `/** ... */` JSDoc block or a multi-line `@Decorator(...)`
+/// join the span as one sibling regardless of how many lines it spans (the
+/// same class of fix PLAT-69/PLAT-846 made for the Rust adapter).
+fn leading_span(node: Node) -> usize {
+    let mut boundary_row = node.start_position().row;
+    let mut current = node;
+    while let Some(prev) = current.prev_sibling() {
+        if !is_annotation_node(prev) {
+            break;
+        }
+        if boundary_row.saturating_sub(prev.end_position().row) > 1 {
+            break;
+        }
+        boundary_row = prev.start_position().row;
+        current = prev;
+    }
+    boundary_row + 1
 }
 
-fn is_annotation(line: &str) -> bool {
-    line.starts_with("//") || line.starts_with('@') || line.starts_with('*')
+/// Whether `node` is a sibling kind this adapter treats as part of a
+/// leading annotation block: a comment (`//`, `/* */`, `/** */` alike —
+/// tree-sitter's TypeScript/TSX grammar represents all three with the same
+/// `comment` node kind) or a decorator (`@Foo(...)`).
+fn is_annotation_node(node: Node) -> bool {
+    matches!(node.kind(), "comment" | "decorator")
+}
+
+/// What a matched registration call is, and its title.
+struct Registration {
+    title: String,
+    kind: RegistrationKind,
+}
+
+enum RegistrationKind {
+    Test,
+    Suite,
+}
+
+/// Whether `call` is a `test`/`it`/`describe`/`suite` registration, and if
+/// so its title and classification.
+///
+/// A registration whose chain names a suite **anywhere along it**
+/// (CR-121) — `test.describe(...)`, `it.describe.only(...)` — classifies as
+/// a suite exactly as `describe(...)` does, because a harness spells its
+/// suite as a member of its own test namespace.
+fn registration(call: Node, source: &str) -> Option<Registration> {
+    let function = call.child_by_field_name("function")?;
+    let (base, chain) = callee_chain(function, source)?;
+    let is_test_name = TEST_NAMES.contains(&base.as_str());
+    let is_suite_name = SUITE_NAMES.contains(&base.as_str());
+    if !is_test_name && !is_suite_name {
+        return None;
+    }
+    let names_a_suite =
+        is_suite_name || chain.iter().any(|seg| SUITE_NAMES.contains(&seg.as_str()));
+
+    let arguments = call.child_by_field_name("arguments")?;
+    let mut cursor = arguments.walk();
+    let mut args = arguments.named_children(&mut cursor);
+    let first_arg = args.next()?;
+    // A real registration always carries a callback as its second argument
+    // — every positive shape in this adapter's own fixtures does — so a
+    // bare `it('title')` with nothing else is not one. This is what the
+    // old scanner's `TITLE_LOOKAHEAD_LINES` bound accidentally also
+    // enforced for a title written far enough down the file (never
+    // reaching a title with no callback argument at all is exactly what a
+    // three-line lookahead cannot do on its own), and it is preserved here
+    // deliberately now that a lookahead window is no longer needed (see
+    // this module's own docs): dropping it would recognise `it('title')`
+    // alone as a registration, which FR-051-AC-18's negative fixture
+    // (`tests/fixtures/symbols/typescript/registration.test.ts`,
+    // `it(\n\n\n\n  'title',\n)`) pins as registering nothing.
+    args.next()?;
+    let title = title_of(first_arg, source)?;
+
+    if is_test_name && !names_a_suite {
+        Some(Registration {
+            title,
+            kind: RegistrationKind::Test,
+        })
+    } else if names_a_suite {
+        Some(Registration {
+            title,
+            kind: RegistrationKind::Suite,
+        })
+    } else {
+        None
+    }
+}
+
+/// Resolve a call's callee to its base identifier and the ordered list of
+/// `.member` segments between the base and this call — `it.skipIf(cond)`
+/// resolves to `("it", ["skipIf"])`; `it.concurrent.skip` resolves to
+/// `("it", ["concurrent", "skip"])`. `None` when the callee is not a plain
+/// identifier/member/curried-call chain (e.g. a subscript or computed
+/// callee), matching the pre-port scanner's own miss for such shapes.
+///
+/// A curried modifier call (`it.skipIf(cond)`, the inner `call_expression`)
+/// contributes only its own callee's chain; its own arguments (the
+/// modifier's own call args, `cond` here) are never inspected — the same
+/// discard the pre-port scanner applied to a curried group's contents.
+fn callee_chain(function: Node, source: &str) -> Option<(String, Vec<String>)> {
+    match function.kind() {
+        "identifier" => {
+            let name = function.utf8_text(source.as_bytes()).ok()?.to_string();
+            Some((name, Vec::new()))
+        }
+        "member_expression" => {
+            let object = function.child_by_field_name("object")?;
+            let property = function.child_by_field_name("property")?;
+            let (base, mut chain) = callee_chain(object, source)?;
+            chain.push(property.utf8_text(source.as_bytes()).ok()?.to_string());
+            Some((base, chain))
+        }
+        "call_expression" => {
+            let inner = function.child_by_field_name("function")?;
+            callee_chain(inner, source)
+        }
+        _ => None,
+    }
+}
+
+/// The literal content of a `string`/`template_string` node — its own text
+/// with the one leading and one trailing quote byte (`"`, `'` or `` ` ``)
+/// stripped. `None` for any other argument shape (a variable, a number, a
+/// template with no quote to strip), so a title held in a variable
+/// registers nothing rather than something wrong, matching the pre-port
+/// scanner's own refusal.
+fn title_of(node: Node, source: &str) -> Option<String> {
+    if !matches!(node.kind(), "string" | "template_string") {
+        return None;
+    }
+    let text = node.utf8_text(source.as_bytes()).ok()?;
+    if text.len() < 2 {
+        return None;
+    }
+    Some(text[1..text.len() - 1].to_string())
 }
 
 fn module_name(path: &str) -> String {
@@ -449,199 +610,6 @@ fn module_name(path: &str) -> String {
         .or_else(|| path.strip_suffix(".ts"))
         .unwrap_or(path);
     stem.to_string()
-}
-
-/// Where a declaration's block ends, read off the file-wide lex (CR-039).
-///
-/// It used to restart a `ScanState` at the declaration index, so a declaration
-/// following an unclosed block comment or template literal had its span
-/// computed as if the file began there. `lexed` already carries the state the
-/// declaration is actually in.
-fn block_end(lexed: &[LexedLine], decl_idx: usize) -> usize {
-    let mut depth = 0i64;
-    let mut seen_open = false;
-    for (offset, line) in lexed[decl_idx..].iter().enumerate() {
-        if line.code.contains('{') {
-            seen_open = true;
-        }
-        depth += line.delta;
-        if seen_open && depth <= 0 {
-            return decl_idx + offset + 1;
-        }
-        if !seen_open && line.code.trim_end().ends_with(';') {
-            return decl_idx + offset + 1;
-        }
-    }
-    lexed.len().max(decl_idx + 1)
-}
-
-/// Comment/literal state that must survive from one line to the next.
-///
-/// A block comment spans lines, and so does a **template literal** — the only
-/// string form in TS/JS that can. Both have to be carried, or the scanner
-/// re-enters each line believing it is in code.
-#[derive(Debug, Default, Clone, Copy)]
-struct ScanState {
-    in_block_comment: bool,
-    in_template: bool,
-}
-
-/// One lexed line: the code with comments and carried literal content removed,
-/// and the brace delta counted **in the same pass** (CR-039).
-///
-/// The delta used to be recomputed by a second function that re-derived quote
-/// state from the stripped text. The two agreed, but only incidentally — three
-/// functions each deriving "am I in a string?" by slightly different rules is
-/// how CR-036 and CR-037 both happened. There is now one derivation.
-#[derive(Debug, Default, Clone)]
-struct LexedLine {
-    code: String,
-    delta: i64,
-}
-
-/// Lex the file once, carrying comment and template state line to line.
-fn lex(lines: &[&str]) -> Vec<LexedLine> {
-    let mut state = ScanState::default();
-    lines
-        .iter()
-        .map(|line| lex_line(line, &mut state))
-        .collect()
-}
-
-/// Drop comments from one line, leaving string literals intact, and count the
-/// braces that are actually code.
-///
-/// String-aware by necessity (CR-036): a `/*` inside a literal is not a comment
-/// opener. A git refspec in a template literal —
-/// `` `fetch = +refs/heads/*:refs/remotes/origin/*` `` — used to open a block
-/// comment that never closed, so every following line was stripped, the braces
-/// could not balance, and [`check_balanced`] rejected the whole file. A file
-/// rejected that way yields **zero** symbols, so every trace tag in it binds to
-/// nothing — silently, since the file is otherwise perfectly valid TypeScript.
-///
-/// Template state is carried across lines for the same reason: the corpus form
-/// that triggered this writes the refspec on a *continuation* line, where a
-/// per-line scanner has already forgotten it is inside a literal.
-fn lex_line(line: &str, state: &mut ScanState) -> LexedLine {
-    let mut out = String::with_capacity(line.len());
-    let mut delta = 0i64;
-    let chars: Vec<char> = line.chars().collect();
-    // Only a template literal carries in; `'` and `"` cannot span a line.
-    //
-    // A carried-in literal's content is **dropped** rather than copied: a
-    // continuation line is never a declaration, and a `${…}` interpolation is
-    // balanced, so removing it leaves the depth intact. A literal that opens
-    // and closes on one line is still copied, since a backtick-quoted
-    // `test(`title`, …)` title has to survive for [`registration`] to read it.
-    let mut quote: Option<char> = None;
-    let mut i = 0;
-    if state.in_template {
-        let mut closed = false;
-        while i < chars.len() {
-            if chars[i] == '\\' {
-                i += 2;
-                continue;
-            }
-            if chars[i] == '`' {
-                closed = true;
-                i += 1;
-                break;
-            }
-            i += 1;
-        }
-        if !closed {
-            // The whole line is literal content and the literal continues, so
-            // the carried flag must survive the early return below.
-            return LexedLine { code: out, delta };
-        }
-        state.in_template = false;
-    }
-    while i < chars.len() {
-        if state.in_block_comment {
-            if chars[i] == '*' && chars.get(i + 1) == Some(&'/') {
-                state.in_block_comment = false;
-                i += 2;
-                continue;
-            }
-            i += 1;
-            continue;
-        }
-        // Inside a literal nothing is a comment; the escape is copied with the
-        // character it escapes so a trailing `\` cannot swallow the closer.
-        if let Some(q) = quote {
-            if chars[i] == '\\' {
-                out.push(chars[i]);
-                if let Some(&next) = chars.get(i + 1) {
-                    out.push(next);
-                }
-                i += 2;
-                continue;
-            }
-            if chars[i] == q {
-                quote = None;
-            }
-            out.push(chars[i]);
-            i += 1;
-            continue;
-        }
-        if matches!(chars[i], '"' | '\'' | '`') {
-            quote = Some(chars[i]);
-            out.push(chars[i]);
-            i += 1;
-            continue;
-        }
-        if chars[i] == '/' && chars.get(i + 1) == Some(&'/') {
-            break;
-        }
-        if chars[i] == '/' && chars.get(i + 1) == Some(&'*') {
-            state.in_block_comment = true;
-            i += 2;
-            continue;
-        }
-        // Only braces reached here are code: not in a comment, not in a
-        // literal, not in carried template content.
-        match chars[i] {
-            '{' => delta += 1,
-            '}' => delta -= 1,
-            _ => {}
-        }
-        out.push(chars[i]);
-        i += 1;
-    }
-    // A `'`/`"` left open at end of line is a malformed line, not a carried
-    // literal — only a backtick continues.
-    state.in_template = quote == Some('`');
-    LexedLine { code: out, delta }
-}
-
-fn check_balanced(lexed: &[LexedLine]) -> Result<(), String> {
-    let mut depth = 0i64;
-    for line in lexed {
-        depth += line.delta;
-        if depth < 0 {
-            return Err("unbalanced braces: a `}` closes no block".to_string());
-        }
-    }
-    if depth != 0 {
-        return Err(format!("unbalanced braces: {depth} block(s) left open"));
-    }
-    Ok(())
-}
-
-fn re_arrow_const() -> &'static Regex {
-    static R: OnceLock<Regex> = OnceLock::new();
-    R.get_or_init(|| {
-        Regex::new(r"^(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*(?::[^=]+)?=\s*(?:async\s+)?\(")
-            .expect("arrow-const regex")
-    })
-}
-
-fn re_method() -> &'static Regex {
-    static R: OnceLock<Regex> = OnceLock::new();
-    R.get_or_init(|| {
-        Regex::new(r"^(?:public\s+|private\s+|protected\s+|static\s+)*([A-Za-z_$][\w$]*)\s*\([^;]*\)\s*(?::\s*[^{]+)?\{")
-            .expect("method regex")
-    })
 }
 
 #[cfg(test)]
@@ -717,8 +685,8 @@ mod tests {
     // requirement instead of visibly binding nothing.
     #[test]
     fn tc948_the_forward_scan_refuses_what_is_not_a_title() {
-        // A variable title. The scan must stop at `name`, not walk on to the
-        // string two lines down.
+        // A variable title. Must not walk on to any string elsewhere in the
+        // call's arguments.
         let variable = concat!(
             "it(\n",
             "  name,\n",
@@ -742,24 +710,6 @@ mod tests {
                 .all(|s| s.kind != SymbolKind::TestFunction),
             "`iterate(` is not `it(`",
         );
-
-        // Beyond the lookahead window: a title four lines down is not this
-        // registration's.
-        let far = concat!(
-            "it(\n",
-            "\n",
-            "\n",
-            "\n",
-            "  \"TC-502 too far to be ours\",\n",
-            ");\n",
-        );
-        assert!(
-            parse("c.test.ts", far)
-                .expect("parses")
-                .iter()
-                .all(|s| s.kind != SymbolKind::TestFunction),
-            "the lookahead window is bounded",
-        );
     }
 
     #[trace("TC-798", "FR-051-AC-12")]
@@ -771,6 +721,9 @@ mod tests {
     // and a perfectly valid file yielded **zero** symbols. Nothing about that
     // is visible from the file — it parses, its tests pass, its trace tags are
     // present and greppable — so every tag in it bound to nothing in silence.
+    // Asserted at the `parse` outcome level; the old mechanism-level
+    // `lex_line`/`ScanState` assertions this test used to end with no longer
+    // apply — there is no per-line lexer left to inspect (PLAT-882).
     #[test]
     fn tc798_comment_stripping_is_string_aware() {
         let source = concat!(
@@ -808,24 +761,18 @@ mod tests {
             .collect::<Vec<_>>()
             .join("\n");
         assert!(span.contains("Trace: FR-025-AC-9"), "{span}");
-
-        // A real comment still strips: a `//` outside a literal hides its line.
-        let mut state = ScanState::default();
-        let lexed = lex_line("const a = 1; // { unbalanced", &mut state);
-        assert_eq!(lexed.code, "const a = 1; ");
-        // The `{` was inside the comment, so it is not a block open either.
-        assert_eq!(lexed.delta, 0);
-        assert!(!state.in_block_comment);
     }
 
     /// TC-799, FR-051-AC-12 (CR-036): the same `/*`, on a **continuation** line
     /// of a multi-line template literal.
     ///
-    /// A per-line scanner re-enters each line believing it is in code, so it
+    /// A per-line scanner re-entered each line believing it was in code, so it
     /// re-opened the block comment one line later and the file was rejected
-    /// exactly as before. The first fix handled only the single-line form; this
-    /// is the form the corpus actually writes, and it is why template state is
-    /// carried across lines rather than reset.
+    /// exactly as before. tree-sitter tokenizes the whole template literal as
+    /// one node regardless of line breaks, so there is no per-line state left
+    /// to lose. Asserted at the `parse` outcome level (PLAT-882) — the old
+    /// mechanism-level `lex_line`/`ScanState` carry-across-lines assertions no
+    /// longer apply.
     #[test]
     fn tc799_template_literal_state_carries_across_lines() {
         let source = concat!(
@@ -857,83 +804,14 @@ mod tests {
             .collect::<Vec<_>>()
             .join("\n");
         assert!(span.contains("Trace: FR-001-AC-1"), "{span}");
-
-        // The literal opens and does not close on its own line, and closes on a
-        // later one — the state has to say so at each boundary.
-        let mut state = ScanState::default();
-        lex_line("const cfg = `", &mut state);
-        assert!(
-            state.in_template,
-            "an unclosed backtick carries into the next line"
-        );
-        lex_line("fetch = +refs/heads/*:refs/remotes/origin/*", &mut state);
-        assert!(
-            !state.in_block_comment,
-            "`/*` inside the literal is content"
-        );
-        assert!(state.in_template);
-        lex_line("`;", &mut state);
-        assert!(!state.in_template, "the closing backtick ends it");
-    }
-
-    /// TC-803, FR-051-AC-14 (CR-039): every consumer reads one lex, so the
-    /// three derivations that used to disagree cannot.
-    ///
-    /// The file carries all three constructs that defeated a per-line scanner:
-    /// a block comment holding an unbalanced brace, a multi-line template
-    /// holding another, and an unterminated quote followed by what looks like a
-    /// comment. Under the old shape each of `check_balanced`, `brace_delta` and
-    /// `block_end` derived string/comment state its own way; they agreed here,
-    /// but incidentally. The assertion is now the agreement itself: the deltas
-    /// the balance check sums are the same deltas the spans are cut from.
-    #[test]
-    fn tc803_one_lex_serves_every_consumer() {
-        let source = concat!(
-            "/* a comment holding a brace {\n",
-            "   and closing here */\n",
-            "const cfg = `\n",
-            "a { bare brace in a literal\n",
-            "`;\n",
-            "const re = /['\"]/; // a comment after an unterminated quote {\n",
-            "test(\"holds\", () => {\n",
-            "  expect(1).toBe(1);\n",
-            "});\n",
-        );
-        let lines: Vec<&str> = source.lines().collect();
-        let lexed = lex(&lines);
-
-        // None of the three decoy braces is code, so the file balances on the
-        // one real block alone.
-        check_balanced(&lexed).expect("the file balances");
-        assert_eq!(lexed.iter().map(|l| l.delta).sum::<i64>(), 0);
-        assert_eq!(
-            lexed[0].delta, 0,
-            "a brace inside a block comment is not a block open"
-        );
-        assert_eq!(
-            lexed[3].delta, 0,
-            "a brace inside a carried template literal is not a block open"
-        );
-        assert_eq!(
-            lexed[5].delta, 0,
-            "a brace after an unterminated quote is not a block open"
-        );
-
-        // And the span cut from those same deltas is the declaration's own.
-        let symbols = parse("a.test.ts", source).expect("a valid file must parse");
-        let test_symbol = symbols
-            .iter()
-            .find(|s| s.qualified_name.ends_with("holds"))
-            .expect("the registration is a test symbol");
-        assert_eq!(test_symbol.line, 7);
-        assert_eq!(test_symbol.end_line, 9);
     }
 
     /// A bare `{` inside a multi-line template literal must not count as a
-    /// block open: the carried-in content is dropped rather than copied, and
-    /// since CR-039 the delta is counted in the same pass that drops it.
-    /// Otherwise the literal unbalances the file and `check_balanced` rejects
-    /// it, which is the same zero-symbol outcome by a different route.
+    /// block open and must not unbalance the file (PLAT-882: tree-sitter
+    /// tokenizes the whole template literal as one node, so there is no
+    /// brace-depth counter left to desync in the first place). Asserted at
+    /// the `parse` outcome level; the old mechanism-level `lex_line`
+    /// assertion this test used to end with no longer applies.
     #[test]
     fn tc799_braces_inside_a_multiline_literal_do_not_unbalance() {
         let source = concat!(
@@ -949,14 +827,103 @@ mod tests {
             symbols.iter().any(|s| s.qualified_name.ends_with("holds")),
             "the test after the literal must still be a symbol"
         );
+    }
 
-        // And a single-line backtick title still survives stripping, or the
-        // registration regex has nothing to read.
-        let mut state = ScanState::default();
-        let lexed = lex_line("test(`a title`, () => {", &mut state);
-        assert!(lexed.code.contains("a title"));
-        assert_eq!(lexed.delta, 1, "the trailing brace is code");
-        assert!(!state.in_template);
+    /// TC-803, FR-051-AC-14 (CR-039): **successor to the retired
+    /// `tc803_one_lex_serves_every_consumer`** (PLAT-882). That test asserted
+    /// the internal state of the deleted single-pass lexer (`lex`,
+    /// `check_balanced`, `LexedLine.delta`) — mechanism, not outcome, and
+    /// that mechanism no longer exists. This keeps TC-803's own claim (one
+    /// reading of a file decides what is code in it, for every consumer of
+    /// that reading) but asserts it the only way it can be asserted now: at
+    /// `parse`'s own outcome. `quire-code-parse` is the one reading here —
+    /// one tree, one diagnostic — so a brace inside a block comment, inside a
+    /// carried template literal, and after an unterminated quote are content
+    /// to `parse` exactly because they were never `{`/`}` tokens in the tree
+    /// to begin with, not because two different consumers happened to agree.
+    ///
+    /// Confirmed to fail first: reverting this file's `check_balanced` walk
+    /// away from tree-sitter to a naive
+    /// `source.matches('{').count() == source.matches('}').count()` text
+    /// check reports an imbalance on every fixture below and rejects the
+    /// file — exactly the false rejection this property forbids.
+    #[test]
+    fn tc803_one_reading_decides_whether_delimiters_are_code() {
+        let adversarial = [
+            // A brace inside a block comment.
+            "/* a comment holding a brace {\n   and closing here */\ntest(\"holds\", () => {\n  expect(1).toBe(1);\n});\n",
+            // A brace inside a carried (multi-line) template literal.
+            "const cfg = `\na { bare brace in a literal\n`;\ntest(\"holds\", () => {\n  expect(1).toBe(1);\n});\n",
+            // A brace after what looks like an unterminated quote followed by
+            // a trailing comment.
+            "const re = /['\"]/; // a comment after a quote-shaped regex {\ntest(\"holds\", () => {\n  expect(1).toBe(1);\n});\n",
+        ];
+        for source in adversarial {
+            let symbols = parse("a.test.ts", source).expect("the file balances");
+            let test_symbol = symbols
+                .iter()
+                .find(|s| s.qualified_name.ends_with("holds"))
+                .unwrap_or_else(|| panic!("the registration is a test symbol: {source:?}"));
+            assert_eq!(test_symbol.kind, SymbolKind::TestFunction);
+        }
+    }
+
+    /// TC-1881, FR-051-AC-25 (PLAT-163, PLAT-882): **the headline defect this
+    /// ticket exists to close.** A brace inside a *regex literal* — the shape
+    /// `agent-ix/filament-ide-rs` actually carries in
+    /// `ui/tests/e2e/tc-784-786-789-project-switcher.spec.ts` and
+    /// `ui/tests/native/it-019-sync-native.spec.ts` — desynchronised the old
+    /// line-structural scanner's brace counter exactly as a brace in a string
+    /// or comment did, and `check_balanced` abandoned the whole file: every
+    /// trace tag in it bound to nothing, silently, even though the file is
+    /// perfectly valid TypeScript. A regex literal was never guarded the way
+    /// strings, comments and templates were.
+    ///
+    /// The control is the same file with the quantifier's braces removed —
+    /// it must extract identically either way, proving the *symbols*, not
+    /// merely "did it parse", are unaffected by the regex's own content.
+    #[test]
+    fn tc1881_a_brace_inside_a_regex_literal_is_content() {
+        let with_regex = concat!(
+            "export type DiscoveredProjectPayload = {\n",
+            "  path: string;\n",
+            "};\n",
+            "\n",
+            "function parseInvoke(line: string) {\n",
+            "  const pattern = /openDiscoveredProject:\\s*\\(([^)]*)\\)\\s*=>[^\\n]*",
+            "__TAURI_INVOKE\\([^)]*\\{([^}]*)\\}/;\n",
+            "  return pattern.exec(line);\n",
+            "}\n",
+            "\n",
+            "describe(\"TC-1881 project switcher\", () => {\n",
+            "  test(\"parses the discovered-project invoke call\", () => {\n",
+            "    expect(parseInvoke(\"x\")).toBeNull();\n",
+            "  });\n",
+            "});\n",
+        );
+
+        let symbols = parse("project-switcher.spec.ts", with_regex)
+            .expect("a brace inside a regex literal must not abandon the file");
+        // `type X = {...}` mints no symbol either way (a type alias, like an
+        // interface, is outside what either the old or the new adapter
+        // recognises) — what matters is that the *file* is not abandoned,
+        // so the declarations around it still extract.
+        assert!(
+            symbols.iter().any(|s| s.qualified_name == "parseInvoke"),
+            "the function whose body holds the regex must still extract: {symbols:?}"
+        );
+        let test_symbol = symbols
+            .iter()
+            .find(|s| s.qualified_name == "parses the discovered-project invoke call")
+            .expect("the test after the regex must still extract");
+        assert_eq!(test_symbol.kind, SymbolKind::TestFunction);
+
+        // A quantifier's `{n,m}` form is the same shape (FR-051-AC-25's own
+        // wording) and must be equally inert.
+        let with_quantifier =
+            "const re = /a{1,3}b/;\ntest(\"holds\", () => {\n  expect(1).toBe(1);\n});\n";
+        let symbols = parse("a.test.ts", with_quantifier).expect("a quantifier is not a block");
+        assert!(symbols.iter().any(|s| s.qualified_name == "holds"));
     }
 
     #[trace("TC-961", "FR-051-AC-18")]
@@ -985,10 +952,27 @@ mod tests {
         // Admitted: an unbounded `.modifier` chain — the old regex took one.
         assert!(registers("it.a.b.c.d('a deep chain', () => {});"));
 
-        // Outside: whitespace before the `.` splits the chain off `it`.
-        assert!(!registers("it .skip('split chain', () => {});"));
-        // Outside: an empty modifier name.
-        assert!(!registers("it.('empty modifier', () => {});"));
+        // Admitted (PLAT-882, a delta from the pre-port scanner — see this
+        // module's own docs): whitespace before the `.` no longer splits the
+        // chain off `it`. Real TypeScript treats `it .skip(...)` and
+        // `it.skip(...)` identically — whitespace around a member-access `.`
+        // has no semantic meaning — and a `member_expression` node reads the
+        // same either way; the old regex's rejection here was a textual
+        // scanner artifact (it required the modifier-chain `.` to follow the
+        // callee identifier with no intervening whitespace check applied
+        // *before* the dot, only after it), not a deliberate exclusion.
+        // Every positive fixture in this adapter's own corpus is
+        // unspaced before its dots (prettier/eslint would reformat this
+        // shape on save), so this delta is expected to recover nothing real.
+        assert!(registers(
+            "it .skip('now admitted, not split off', () => {});"
+        ));
+        // Outside: an empty modifier name is not valid TypeScript at all —
+        // `it.(` has no property between the dot and the paren, which is a
+        // genuine syntax error (not merely a non-matching shape), and this
+        // adapter's own diagnostic contract (like the Rust adapter's) fails
+        // loudly on one rather than silently finding no registration.
+        assert!(parse("a.test.ts", "it.('empty modifier', () => {});\n").is_err());
         // Outside: an identifier continuing past `test`/`it`.
         assert!(!registers("test2('not a registration', () => {});"));
         // Outside: `await` glued to the callee is one identifier, not a form.
@@ -1098,21 +1082,180 @@ mod tests {
             containers("context(\"mocha's tdd alias\", () => {});\n").is_empty(),
             "`context(` is not a declared suite name",
         );
-        // Verbatim shapes from `~/dev`. Neither is a registration, and the
-        // second would be admitted by the `.modifier` chain if `context` were.
         assert!(containers("context.setTransform(dpr, 0, 0, dpr, 0, 0);\n").is_empty());
         assert!(containers("await context.client.putSettings(key, newData);\n").is_empty());
 
-        // An identifier continuing past a suite name is not one, and a title
-        // held in a variable registers nothing rather than something wrong —
-        // the same boundary TC-948 pins for `it`/`test`.
         assert!(containers("describeAll(\"not a registration\", () => {});\n").is_empty());
         assert!(containers("describe(title, () => {});\n").is_empty());
 
-        // What IS admitted, so the negative cases above are not vacuous.
         assert_eq!(
             containers("describe.each([1, 2])(\"a parametrised suite %i\", () => {});\n"),
             vec!["a parametrised suite %i".to_string()],
+        );
+    }
+
+    /// FR-051-AC-1 (PLAT-882 port audit item): `impl`-equivalent structure —
+    /// a class's methods qualify under it, and the class itself mints a
+    /// container, not two symbols for one declaration.
+    #[test]
+    fn a_class_qualifies_its_methods_and_a_suite_does_not() {
+        let source = concat!(
+            "class Foo {\n",
+            "  bar() { return 1; }\n",
+            "  static baz() {}\n",
+            "}\n",
+        );
+        let symbols = parse("a.ts", source).expect("valid");
+        assert!(symbols
+            .iter()
+            .any(|s| s.qualified_name == "Foo" && s.kind == SymbolKind::Container));
+        assert!(symbols
+            .iter()
+            .any(|s| s.qualified_name == "Foo.bar" && s.kind == SymbolKind::Function));
+        assert!(symbols
+            .iter()
+            .any(|s| s.qualified_name == "Foo.baz" && s.kind == SymbolKind::Function));
+    }
+
+    /// PLAT-882 port audit item: a `constructor` method mints no symbol,
+    /// preserved from the old scanner's `RESERVED` denylist — the one entry
+    /// of it that still applies once real declaration structure replaces
+    /// line matching (every other entry existed only to keep control-flow
+    /// keywords like `if`/`for`/`while` from being misread as method names,
+    /// which a real `method_definition` node cannot be confused with).
+    #[test]
+    fn a_constructor_mints_no_symbol() {
+        let source = concat!(
+            "class Foo {\n",
+            "  constructor(x: number) {\n",
+            "    this.x = x;\n",
+            "  }\n",
+            "  bar() { return 1; }\n",
+            "}\n",
+        );
+        let symbols = parse("a.ts", source).expect("valid");
+        assert!(
+            symbols
+                .iter()
+                .all(|s| s.qualified_name != "Foo.constructor"),
+            "a constructor must mint no symbol: {symbols:?}"
+        );
+        assert!(symbols.iter().any(|s| s.qualified_name == "Foo.bar"));
+    }
+
+    /// PLAT-882 port audit item ("free" recovery, see this module's own
+    /// docs): a `get`/`set` accessor method now mints a symbol, where the
+    /// old regex's `NAME(...) {` shape never matched `get NAME() {}`.
+    #[test]
+    fn accessor_methods_mint_symbols() {
+        let source = concat!(
+            "class Foo {\n",
+            "  get value(): number { return 1; }\n",
+            "  set value(v: number) { this.stored = v; }\n",
+            "}\n",
+        );
+        let symbols = parse("a.ts", source).expect("valid");
+        assert!(
+            symbols.iter().any(|s| s.qualified_name == "Foo.value"),
+            "an accessor method must mint a symbol: {symbols:?}"
+        );
+    }
+
+    /// PLAT-882 port audit item: a computed, string, numeric or private
+    /// method name mints no symbol — the old regex's identifier-class match
+    /// never recognised any of these shapes either.
+    #[test]
+    fn non_identifier_method_names_mint_no_symbol() {
+        let source = concat!(
+            "class Foo {\n",
+            "  [computedName]() { return 1; }\n",
+            "  \"a string name\"() { return 2; }\n",
+            "  123() { return 3; }\n",
+            "  #privateName() { return 4; }\n",
+            "  ok() { return 5; }\n",
+            "}\n",
+        );
+        let symbols = parse("a.ts", source).expect("valid");
+        let names: Vec<&str> = symbols
+            .iter()
+            .filter(|s| s.container.as_deref() == Some("Foo"))
+            .map(|s| s.qualified_name.as_str())
+            .collect();
+        assert_eq!(
+            names,
+            vec!["Foo.ok"],
+            "only the plain identifier name mints: {names:?}"
+        );
+    }
+
+    /// PLAT-882 port audit item: a leading comment or decorator is found
+    /// through the `export` keyword — the comment/decorator is a sibling of
+    /// the `export_statement` wrapping the declaration, not of the
+    /// declaration node itself (see [`stmt_anchor`]'s own docs).
+    #[test]
+    fn export_wrapped_declarations_still_find_their_leading_annotation() {
+        let class_source = concat!(
+            "// TC-1 a leading comment before an exported class\n",
+            "export class Foo {}\n",
+        );
+        let symbols = parse("a.ts", class_source).expect("valid");
+        let foo = symbols
+            .iter()
+            .find(|s| s.qualified_name == "Foo")
+            .expect("Foo is a symbol");
+        assert_eq!(
+            foo.leading_line, 1,
+            "the comment before `export` must be found"
+        );
+
+        let const_source = concat!(
+            "// TC-2 a leading comment before an exported const arrow\n",
+            "export const f = (x: number) => x;\n",
+        );
+        let symbols = parse("a.ts", const_source).expect("valid");
+        let f = symbols
+            .iter()
+            .find(|s| s.qualified_name == "f")
+            .expect("f is a symbol");
+        assert_eq!(f.leading_line, 1);
+
+        let decorator_source = concat!("@Component({})\n", "export class Bar {}\n",);
+        let symbols = parse("a.ts", decorator_source).expect("valid");
+        let bar = symbols
+            .iter()
+            .find(|s| s.qualified_name == "Bar")
+            .expect("Bar is a symbol");
+        assert_eq!(
+            bar.leading_line, 1,
+            "the decorator before `export` must be found"
+        );
+    }
+
+    /// PLAT-882 port audit item: only a *parenthesized* arrow function
+    /// assigned via `const`/`let`/`var` is a function symbol — the bare
+    /// single-parameter form is outside the old regex's own `\(`
+    /// requirement, and a class field's arrow value is outside its
+    /// `const`/`let`/`var`-at-line-start requirement.
+    #[test]
+    fn only_parenthesized_const_arrows_mint_function_symbols() {
+        let source = concat!(
+            "const paren = (x: number) => x;\n",
+            "const bare = x => x;\n",
+            "class Foo {\n",
+            "  readonly ready = () => true;\n",
+            "}\n",
+        );
+        let symbols = parse("a.ts", source).expect("valid");
+        assert!(symbols.iter().any(|s| s.qualified_name == "paren"));
+        assert!(
+            symbols.iter().all(|s| s.qualified_name != "bare"),
+            "the bare single-parameter form must not mint: {symbols:?}"
+        );
+        assert!(
+            symbols
+                .iter()
+                .all(|s| s.qualified_name != "Foo.ready" && s.qualified_name != "ready"),
+            "a class field's arrow value must not mint: {symbols:?}"
         );
     }
 }

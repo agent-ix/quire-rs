@@ -1,6 +1,6 @@
-// TypeScript curried-registration fixture (FR-051-AC-18, CR-090).
+// TypeScript curried-registration fixture (FR-051-AC-18, CR-090, PLAT-882).
 //
-// Every widened registration form the CR-084 scanner accepts — curried,
+// Every widened registration form the adapter accepts — curried,
 // parametrised, multi-modifier, wrapped, whitespace-separated, awaited —
 // and the shapes that must register nothing, in one file the adapter walks
 // through `extract_tree` (tc958/tc960). Titles are unique across the fixture
@@ -48,6 +48,13 @@ describe('registration forms', () => {
 
   it.skipIf(installed === null) ('whitespace between curried groups registers', () => {});
 
+  // Whitespace before the `.` registers too (PLAT-882): real TypeScript
+  // treats `it .skip(...)` and `it.skip(...)` identically, and a
+  // `member_expression` node reads the same either way — the pre-port
+  // scanner's rejection here was a textual-scanner artifact, not a
+  // deliberate exclusion (see `src/symbols/typescript.rs`'s own docs).
+  it .skip('whitespace before the dot registers too', () => {});
+
   // -- Negative shapes: none of the following may register a symbol. --
 
   it(
@@ -55,16 +62,20 @@ describe('registration forms', () => {
     () => {},
   );
 
+  // A registration with no callback argument at all registers nothing —
+  // there is no test body for it to be. This also subsumes the old
+  // scanner's own `TITLE_LOOKAHEAD_LINES` bound: a title written arbitrarily
+  // far down the file is still the call's genuine first argument, so a
+  // window is no longer needed to reject it (PLAT-882) — what makes this
+  // one negative is the missing second argument, not its distance.
   it(
 
 
 
-    'a title past the lookahead window is not ours',
+    'no callback argument means no test body',
   );
 
   iterate('an identifier merely starting with it', () => {});
-
-  it .skip('whitespace before the modifier chain is outside the grammar', () => {});
 });
 
 await it('an awaited registration registers', async () => {});

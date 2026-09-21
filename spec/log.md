@@ -44,6 +44,28 @@ description: "Chronological log of structural changes to this bundle."
   --features python-symbols` CI leg and extends the license-check gate to
   cover the grammar (`quire-code-rs` PLAT-851 review finding).
 
+* **2026-09-20** — **CR-180** (`PLAT-882`): `src/symbols/typescript.rs` is
+  ported to tree-sitter, closing PLAT-163's remaining live exposure — a `{`
+  inside a regex literal desynchronised the line-structural scanner's brace
+  counter exactly as one inside a string or comment did, and the whole file
+  was abandoned; all three previously-abandoned `filament-ide-rs` files
+  (`ui/tests/e2e/tc-784-786-789-project-switcher.spec.ts`,
+  `ui/tests/native/it-019-sync-native.spec.ts`,
+  `ui/tests/mocks/handlers.ts`) now extract cleanly (`FR-051-AC-25`,
+  `FR-051-CON-1` now covers the TypeScript adapter too). Also resolves
+  CR-176's own open carve-outs on `AC-18`/`AC-21` (see the `CR-180` note
+  under `AC-18`) and retires `tc803_one_lex_serves_every_consumer`, which
+  pinned the deleted single-pass lexer's own internal state, with a
+  same-numbered successor asserting the same outcome against `parse` instead.
+  Per-symbol differential (`reports/2026-09-20-plat882-typescript-ast-differential.md`):
+  `quire-rs` byte-identical (165/165); `filament-ide-rs` 1,445 → 1,410,
+  every non-recovery delta named — 76 `const NAME = (non-arrow expression)`
+  and 19 interface/type-member false positives removed (the old regex never
+  checked for `=>`, and could read an inline object return type's own `{` as
+  a method body), 12 `get`/`set` accessors and 4 multi-line method
+  signatures newly recognised, 44 symbols recovered from the three
+  previously-abandoned files.
+
 * **2026-09-20** — **CR-178** (`PLAT-845`): `src/symbols/rust.rs`'s
   duplicate-identity flattening — a `fn` was never a container for its own
   body, so two same-named functions nested inside two different enclosing
