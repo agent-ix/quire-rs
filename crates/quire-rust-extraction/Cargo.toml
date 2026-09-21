@@ -11,7 +11,7 @@ rust-version = "1.98.1"
 # symbol-identity change it made was a nested-function case. A concurrent
 # rename touching the same file would have muddied exactly the evidence that
 # PR needed. Rename once rust.rs is quiet (PLAT-876's own condition).
-description = "Dependency-boundary crate: the only place in the quire-rs workspace that names quire-code-parse/tree-sitter (PLAT-843, widened PLAT-851)."
+description = "Dependency-boundary crate: the only place in the quire-rs workspace that names quire-code-parse/tree-sitter (PLAT-843, widened PLAT-851), enforced by scripts/audits/check_tree_sitter_boundary.sh (PLAT-911)."
 authors = ["Peter Krenesky <kreneskyp@gmail.com>"]
 license = "AGPL-3.0-or-later"
 repository = "https://github.com/agent-ix/quire-rs"
@@ -27,7 +27,10 @@ path = "src/lib.rs"
 # outside the `quire-code-parse` pin. `src/symbols/rust.rs`
 # (`quire-rs`, the root package) reaches tree-sitter's `Node`/`TreeCursor`
 # solely through this crate's re-export — see `src/lib.rs` — and never names
-# `tree-sitter` or `quire-code-parse` itself.
+# `tree-sitter` or `quire-code-parse` itself. Enforced, not just asserted:
+# `scripts/audits/check_tree_sitter_boundary.sh` (run by `make audit-static`,
+# PLAT-911) fails, naming file and line, if any other Cargo.toml in this
+# workspace names `quire-code-parse` or `tree-sitter`/`tree-sitter-<lang>`.
 #
 # Pinned by git rev, per org convention for unpublished crates (PLAT-848 is
 # resolved — `quire-code-rs` is now a public repo, but crates.io publishing is

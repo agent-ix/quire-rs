@@ -48,6 +48,18 @@ bumps; once 1.0 ships, semver is strict.
 
 ### Added
 
+- **`check_tree_sitter_boundary.sh` enforces the tree-sitter dependency
+  boundary the `crates/quire-rust-extraction/Cargo.toml` comments were only
+  asserting in prose (PLAT-911).** Joins `make audit-static` (globbed,
+  `scripts/audits/*.sh`, #353) with no Makefile change. Fails, naming file
+  and line, when any `Cargo.toml` other than
+  `crates/quire-rust-extraction/Cargo.toml` declares `quire-code-parse` or
+  `tree-sitter`/`tree-sitter-<lang>` as a dependency (key form, dotted-table
+  header, or a `package = "..."` rename); ignores comments and the
+  boundary crate's own manifest. Verified red (a temporary
+  `tree-sitter-rust` dependency added to `fuzz/Cargo.toml` failed, naming
+  that file and line) and green (removed, passes) before landing — see the
+  PR body.
 - **`src/symbols/python.rs` ported to `tree-sitter`: FR-051-AC-25 (PLAT-868,
   #479).** Same `quire-rust-extraction` → `quire-code-parse` boundary
   PLAT-843 gave `rust.rs`. Qualified-name/container/kind identity is
