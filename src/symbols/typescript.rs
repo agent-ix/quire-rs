@@ -1505,6 +1505,46 @@ mod tests {
         );
     }
 
+    /// TC-1925, FR-051-AC-1 (PLAT-882 PR #481 review round 2, mutation
+    /// E5-corrected): `mint_arrow_const_declarators` has **two** guards in
+    /// sequence — `value.kind() != "arrow_function"`, then
+    /// `value.child_by_field_name("parameters").is_none()`. The review's
+    /// original mutation E5 (also accept a `parenthesized_expression` value
+    /// in the first guard) does not kill `tc1922` above: `(a + b)` parses to
+    /// `parenthesized_expression`, which carries no `parameters` field
+    /// regardless of what it wraps, so the *second* guard rejects it either
+    /// way — the two guards are redundant for that specific input, and
+    /// mutating only the first is invisible to it.
+    ///
+    /// That does **not** make the first guard dead code: `function_expression`
+    /// and `generator_function` values (`const f = function() {}`,
+    /// `const g = function*() {}`) *do* carry a `parameters` field (checked
+    /// directly, not assumed), so only the first guard's `arrow_function`
+    /// check rejects them. This is the isolating fixture the original E5
+    /// finding needed and did not have: a value.kind() that is non-arrow yet
+    /// still clears the second guard, so only the mutated line's own check
+    /// stands between it and minting. Confirmed as a real mutation kill
+    /// (widening the first guard to also accept `function_expression` makes
+    /// this test fail alone; `tc1922` stays green, since `parenthesized_expression`
+    /// is untouched by that particular widening).
+    #[trace("TC-1925", "FR-051-AC-1")]
+    #[test]
+    fn tc1925_a_non_arrow_function_expression_value_mints_no_symbol() {
+        for source in [
+            "const f = function() { return 1; };\n",
+            "const g = function*() { yield 1; };\n",
+        ] {
+            let symbols = parse("a.ts", source).expect("valid");
+            assert!(
+                symbols
+                    .iter()
+                    .all(|s| s.qualified_name != "f" && s.qualified_name != "g"),
+                "a non-arrow function-expression value must not mint, even though it carries \
+                 a `parameters` field like an arrow function does: {symbols:?}"
+            );
+        }
+    }
+
     /// TC-1923, FR-051-AC-1 (PLAT-882 review finding F2/F5, mutation E6): an
     /// `interface`'s `method_signature` member mints no symbol — the largest
     /// structural exclusion this adapter makes (the differential's 19-row
