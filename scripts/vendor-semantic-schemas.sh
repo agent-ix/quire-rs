@@ -62,6 +62,7 @@ sha() { sha256sum "$1" | cut -d' ' -f1; }
 {
   echo '{'
   echo '  "$comment": "Written by scripts/vendor-semantic-schemas.sh; never edit by hand (FR-069-CON-2).",'
+  echo '  "$provenanceNote": "`revision` is informational provenance, not a liveness guarantee: it names the filament-core-data commit each entry was vendored from, and it may become unreachable if that history is rewritten (e.g. a purge). That alone is not a defect, and revision values here are never repointed to chase such a rewrite. `sha256` is the field that is actually checked: it is content-addressed, verified offline against the vendored bytes on every test run, and survives any upstream history change.",'
   echo '  "files": {'
   first=1
   while IFS= read -r f; do
