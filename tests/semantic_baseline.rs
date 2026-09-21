@@ -1,5 +1,5 @@
-//! Plan-003 Task-015: vendored-schema provenance and pre-change baselines
-//! (FR-069-AC-8/CON-2, FR-069-AC-9/CON-3, FR-072-AC-9, NFR-021-AC-3).
+//! Plan-003 Task-015: embedded-schema completeness and pre-change baselines
+//! (FR-069-AC-8, FR-069-AC-9/CON-3, FR-072-AC-9, NFR-021-AC-3).
 //!
 //! The baselines under `tests/fixtures/semantic/baseline/` were minted from
 //! `main` (e3352a0) before any semantic extraction code landed. A later diff
@@ -40,125 +40,41 @@ fn write_or_compare(path: &Path, actual: &str) {
     );
 }
 
-#[derive(Deserialize)]
-struct Provenance {
-    files: BTreeMap<String, ProvenanceFile>,
-    #[serde(rename = "semanticCore")]
-    semantic_core: BTreeMap<String, BundleProvenance>,
-}
-
-#[derive(Deserialize)]
-struct ProvenanceFile {
-    repository: String,
-    revision: String,
-    path: String,
-    sha256: String,
-}
-
-#[derive(Deserialize)]
-struct BundleProvenance {
-    #[serde(rename = "bundleDigest")]
-    bundle_digest: String,
-}
-
-#[trace("TC-1606", "FR-069-AC-8", "FR-069-CON-2")]
-// every vendored file hashes to its provenance record; each semantic-core
-// bundle digest equals its filament-core-data toolchain.json constant, and
-// every vendored version is embedded.
+#[trace("TC-1606", "FR-069-AC-8")]
+// Every supported semantic-core version is a complete, valid embedded
+// bundle. CR-181: this used to also hash-check a committed copy of the
+// bundle bytes against `schemas/vendored/PROVENANCE.json`, and a committed
+// copy of filament-core-data's target enum (`common.schema.json`). Both
+// copies are gone: the bundle now comes from the published
+// `@agent-ix/semantic-core` package at build time (see `build.rs`), never
+// from a file in this repository, and the target enum was dead code (see
+// `contract.rs`'s step-3/step-6 note). There is nothing left in this
+// repository for a provenance-hash check to compare bytes against, so the
+// old check is deleted rather than pointed at a new copy — FR-069-CON-2
+// (the constraint that required it) is removed for the same reason.
 #[test]
-fn vendored_schemas_match_provenance() {
-    let dir = root().join("schemas/vendored");
-    let provenance: Provenance =
-        serde_json::from_slice(&fs::read(dir.join("PROVENANCE.json")).unwrap()).unwrap();
+fn embedded_semantic_core_versions_are_complete_bundles() {
     assert!(
-        !provenance.files.is_empty(),
-        "PROVENANCE.json lists no files"
+        !quire_rs::semantic::embedded::SEMANTIC_CORE_VERSIONS.is_empty(),
+        "no supported semantic-core version"
     );
-
-    let mut on_disk: Vec<String> = Vec::new();
-    for entry in walkdir(&dir) {
-        let rel = entry
-            .strip_prefix(&dir)
-            .unwrap()
-            .to_string_lossy()
-            .to_string();
-        if rel == "PROVENANCE.json" {
-            continue;
-        }
-        on_disk.push(rel);
-    }
-    on_disk.sort();
-    let recorded: Vec<String> = provenance.files.keys().cloned().collect();
-    assert_eq!(
-        on_disk, recorded,
-        "vendored files and PROVENANCE.json disagree"
-    );
-
-    for (rel, record) in &provenance.files {
-        let bytes = fs::read(dir.join(rel)).unwrap();
-        assert_eq!(
-            format!("sha256:{}", sha256_hex(&bytes)),
-            record.sha256,
-            "{rel}: bytes differ from provenance ({}@{} {})",
-            record.repository,
-            record.revision,
-            record.path
-        );
-        // Shape check only: this deliberately does not resolve `revision` against
-        // filament-core-data or any other repo, so it is not a liveness guarantee.
-        // `revision` is informational provenance and may become unreachable if
-        // upstream rewrites history (see PROVENANCE.json's `$provenanceNote`); the
-        // sha256 check above is the one that is actually load-bearing.
+    for version in quire_rs::semantic::embedded::SEMANTIC_CORE_VERSIONS {
+        let bundle = quire_rs::semantic::embedded::semantic_core_bundle(version)
+            .unwrap_or_else(|| panic!("semantic-core {version} has no embedded bundle"));
         assert!(
-            record.revision.len() == 40,
-            "{rel}: revision is not a full commit id"
+            !bundle.is_empty(),
+            "semantic-core {version} bundle is empty"
         );
-    }
-
-    // Bundle digest: "<name>\n<bytes>" over every schema file in sorted order,
-    // excluding toolchain.json — the filament-core-data rule.
-    for (version, bundle) in &provenance.semantic_core {
-        let bundle_dir = dir.join("semantic-core").join(version);
-        let mut names: Vec<String> = fs::read_dir(&bundle_dir)
-            .unwrap()
-            .map(|e| e.unwrap().file_name().to_string_lossy().to_string())
-            .filter(|n| n.ends_with(".json") && n != "toolchain.json")
-            .collect();
-        names.sort();
-        let mut hasher = Sha256::new();
-        for name in &names {
-            hasher.update(name.as_bytes());
-            hasher.update(b"\n");
-            hasher.update(fs::read(bundle_dir.join(name)).unwrap());
+        for (name, text) in bundle {
+            let schema: Value = serde_json::from_str(text)
+                .unwrap_or_else(|e| panic!("semantic-core {version}/{name}: not JSON: {e}"));
+            assert_eq!(
+                schema["$schema"],
+                Value::String("https://json-schema.org/draft/2020-12/schema".to_string()),
+                "semantic-core {version}/{name}: not a draft 2020-12 JSON Schema"
+            );
         }
-        let digest = format!("sha256:{:x}", hasher.finalize());
-        assert_eq!(
-            digest, bundle.bundle_digest,
-            "semantic-core {version} bundle digest"
-        );
-        let toolchain: Value =
-            serde_json::from_slice(&fs::read(bundle_dir.join("toolchain.json")).unwrap()).unwrap();
-        assert_eq!(
-            toolchain["digest"],
-            Value::String(digest),
-            "toolchain.json digest"
-        );
-        let pinned = match version.as_str() {
-            "0.1.0" => "sha256:dd33c886f70e908b14507c35e078d163b76308c3d170d2b54ddf933d1a4ebb52",
-            "0.2.0" => "sha256:ef79c5dea98c19643b20daa8899951a4782d6248527a0647c114c6f76cca8aea",
-            other => panic!("semantic-core {other} has no pinned digest"),
-        };
-        assert_eq!(bundle.bundle_digest, pinned, "semantic-core {version}");
     }
-    let versions: Vec<&str> = provenance
-        .semantic_core
-        .keys()
-        .map(String::as_str)
-        .collect();
-    assert_eq!(
-        versions,
-        quire_rs::semantic::vendored::SEMANTIC_CORE_VERSIONS
-    );
 }
 
 #[trace("TC-1877", "FR-031-AC-8")]
@@ -175,7 +91,7 @@ fn vendored_schemas_match_provenance() {
 // own load path would notice.
 #[test]
 fn tc1877_construct_declaration_schema_admits_immutable() {
-    let schema: Value = serde_json::from_str(quire_rs::semantic::vendored::MODULE_MANIFEST_SCHEMA)
+    let schema: Value = serde_json::from_str(quire_rs::semantic::embedded::MODULE_MANIFEST_SCHEMA)
         .expect("vendored module-manifest schema is JSON");
     let construct_decl = schema["$defs"]["ConstructDeclaration"].clone();
     assert!(
@@ -206,19 +122,6 @@ fn tc1877_construct_declaration_schema_admits_immutable() {
         !validator.is_valid(&construct),
         "$defs/ConstructDeclaration no longer refuses an unrecognized key"
     );
-}
-
-fn walkdir(dir: &Path) -> Vec<PathBuf> {
-    let mut out = Vec::new();
-    for entry in fs::read_dir(dir).unwrap() {
-        let path = entry.unwrap().path();
-        if path.is_dir() {
-            out.extend(walkdir(&path));
-        } else {
-            out.push(path);
-        }
-    }
-    out
 }
 
 #[derive(Serialize)]

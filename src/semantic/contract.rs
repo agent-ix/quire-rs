@@ -1,8 +1,10 @@
 //! The module `semantic` block and reference-form `data_schema` (FR-069).
 //!
 //! Refusals carry a `semantic.*` code and are evaluated in the order
-//! FR-069 fixes: contract version, semantic-core version, block shape,
-//! exports, package, targets, then each exported type's schema form.
+//! FR-069 fixes: contract version, semantic-core version, block shape
+//! (which includes an unknown `targets` value, via the module-manifest
+//! schema's own enum), exports, package, then each exported type's schema
+//! form.
 
 use std::collections::BTreeMap;
 
@@ -10,7 +12,7 @@ use jsonschema::{error::ValidationErrorKind, JSONSchema};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use super::vendored;
+use super::embedded;
 
 /// Severity of a semantic diagnostic. `Advisory` lives inside the semantic
 /// record only (FR-072); outside it maps onto the existing `warning` level.
@@ -85,7 +87,7 @@ impl SemanticModule {
     pub fn schema_base(&self, module_version: &str) -> String {
         format!(
             "{}{}/{}/",
-            vendored::MODULE_SCHEMA_BASE,
+            embedded::MODULE_SCHEMA_BASE,
             self.package,
             module_version
         )
@@ -129,22 +131,8 @@ pub fn reference_form(value: &Value) -> DataSchemaForm {
     DataSchemaForm::Ambiguous
 }
 
-/// The vendored target registry: `target` ∪ `representationFormat` values of
-/// filament-core-data `common.schema.json`.
-pub fn target_registry() -> Vec<String> {
-    let common: Value =
-        serde_json::from_str(vendored::COMMON_SCHEMA).expect("vendored common.schema.json is JSON");
-    let mut out = Vec::new();
-    for def in ["target", "representationFormat"] {
-        if let Some(values) = common["$defs"][def]["enum"].as_array() {
-            out.extend(values.iter().filter_map(Value::as_str).map(str::to_string));
-        }
-    }
-    out
-}
-
 fn block_validator() -> JSONSchema {
-    let schema: Value = serde_json::from_str(vendored::MODULE_MANIFEST_SCHEMA)
+    let schema: Value = serde_json::from_str(embedded::MODULE_MANIFEST_SCHEMA)
         .expect("vendored module-manifest schema is JSON");
     let block = schema["properties"]["semantic"].clone();
     JSONSchema::options()
@@ -170,7 +158,7 @@ pub fn read_semantic_block(
     };
     // 1. contract version, before any other key is read.
     let contract_version = map.get("contract_version").and_then(Value::as_str);
-    if contract_version != Some(vendored::CONTRACT_VERSION) {
+    if contract_version != Some(embedded::CONTRACT_VERSION) {
         return Err(vec![SemanticFailure::error(
             "semantic.unsupported-contract-version",
             "semantic.contract_version",
@@ -179,14 +167,14 @@ pub fn read_semantic_block(
                 contract_version
                     .map(|v| format!("{v:?}"))
                     .unwrap_or_else(|| "absent".to_string()),
-                vendored::CONTRACT_VERSION
+                embedded::CONTRACT_VERSION
             ),
         )]);
     }
     // 2. semantic-core version must have an embedded bundle.
     let semantic_core = map.get("semantic_core").and_then(Value::as_str);
     match semantic_core {
-        Some(v) if vendored::semantic_core_bundle(v).is_some() => {}
+        Some(v) if embedded::semantic_core_bundle(v).is_some() => {}
         other => {
             return Err(vec![SemanticFailure::error(
                 "semantic.unsupported-semantic-core",
@@ -196,7 +184,7 @@ pub fn read_semantic_block(
                     other
                         .map(|v| format!("{v:?}"))
                         .unwrap_or_else(|| "absent".to_string()),
-                    vendored::SEMANTIC_CORE_VERSIONS.join(", ")
+                    embedded::SEMANTIC_CORE_VERSIONS.join(", ")
                 ),
             )]);
         }
@@ -282,18 +270,13 @@ pub fn read_semantic_block(
             format!("package {package:?} is not <org>/<repo>"),
         ));
     }
-    // 6. targets against the vendored registry.
-    let registry = target_registry();
-    for (i, target) in targets.iter().enumerate() {
-        if !registry.iter().any(|t| t == target) {
-            failures.push(SemanticFailure::error(
-                "semantic.unknown-target",
-                format!("semantic.targets.{i}"),
-                format!("target {target:?} is outside the vendored target registry"),
-            ));
-        }
-    }
-    // 7. every export carries the reference-form data_schema.
+    // 6. every export carries the reference-form data_schema.
+    //
+    // (An unknown `targets` value is already caught above, at step 3, by the
+    // module-manifest schema's own `targets.items.enum` — the same 14 values
+    // this step used to re-check against a second, vendored copy of that
+    // enum. Step 3 returns early on any failure, so nothing ever reached a
+    // duplicate check here; it was dead code, not defense in depth.)
     for name in &exports {
         if object_types.iter().any(|t| t == name) && !has_reference_schema(name) {
             failures.push(SemanticFailure::error(
@@ -318,7 +301,7 @@ pub fn read_semantic_block(
         })
         .unwrap_or_default();
     Ok(SemanticModule {
-        contract_version: vendored::CONTRACT_VERSION.to_string(),
+        contract_version: embedded::CONTRACT_VERSION.to_string(),
         semantic_core: semantic_core.unwrap_or_default().to_string(),
         package,
         exports,

@@ -15,7 +15,7 @@ use serde_json::Value;
 use sha2::{Digest, Sha256};
 
 use super::contract::{DataSchemaRef, SemanticFailure, SemanticModule};
-use super::vendored;
+use super::embedded;
 
 /// Where a module's files come from.
 pub enum SchemaSource<'a> {
@@ -216,14 +216,14 @@ pub fn compile_module_schema(
     semantic_core: &str,
     module_base: &str,
 ) -> Result<JSONSchema, SemanticFailure> {
-    let bundle = vendored::semantic_core_bundle(semantic_core).ok_or_else(|| {
+    let bundle = embedded::semantic_core_bundle(semantic_core).ok_or_else(|| {
         SemanticFailure::error(
             "semantic.unsupported-semantic-core",
             "semantic.semantic_core",
             format!("no vendored bundle for {semantic_core}"),
         )
     })?;
-    let core_base = format!("{}{}/", vendored::SEMANTIC_CORE_BASE, semantic_core);
+    let core_base = format!("{}{}/", embedded::SEMANTIC_CORE_BASE, semantic_core);
     let mut documents: BTreeMap<String, Value> = BTreeMap::new();
     let mut stack: Vec<String> = Vec::new();
     let root_id = schema
@@ -307,7 +307,7 @@ fn walk(
                 documents,
                 stack,
             )?;
-        } else if let Some(rest) = url.strip_prefix(vendored::SEMANTIC_CORE_BASE) {
+        } else if let Some(rest) = url.strip_prefix(embedded::SEMANTIC_CORE_BASE) {
             let version = rest.split('/').next().unwrap_or("");
             return Err(SemanticFailure::error(
                 "semantic.schema-ref-version",
