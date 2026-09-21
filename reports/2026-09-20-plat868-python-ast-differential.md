@@ -22,8 +22,9 @@
   clones checked out to those exact shas. Both engines ran over byte-identical
   source trees per repo — every delta below is engine-only.
 - Harness: `examples/plat843_audit_list.rs`, run with `python` as the
-  language argument — one `path\tqualified_name\tkind\tleading_line` line per
-  Python symbol, sorted — once per repo against the old-engine binary and
+  language argument — one
+  `path\tqualified_name\tkind\tleading_line\tline\tend_line\tcontainer` line
+  per Python symbol, sorted — once per repo against the old-engine binary and
   once against this branch's binary, then diffed line-by-line (identity
   match on the full line, not a separate key). **`source_exclude` is read
   from the declared module** (`AUDIT_LIST_MODULE`, defaulting to
@@ -33,6 +34,33 @@
   baseline used. Cross-checked with `examples/plat840_rust_baseline_sweep.rs`
   (unmodified logic) run once against the new engine over all six pinned
   trees, for the aggregate rollup and the abandoned-file/diagnostic counts.
+
+  **The harness originally emitted only four fields**
+  (`path`/`qualified_name`/`kind`/`leading_line`) — enough to see identity
+  and one span attribute, but structurally blind to `line` and `end_line`.
+  A PR review (agent-ix/quire-rs#479) measured `end_line` directly and found
+  a delta this differential's first pass had not reported at all, because it
+  could not have: not a smaller number found by a bigger search, a class of
+  delta the tool had no column for. Extended to all six `RawSymbol` fields
+  before re-running (§"The 14 `end_line` deltas" below) — this is the
+  finding, not merely the fix: a differential is only as wide as the columns
+  it prints, and "no delta of any other shape was found" is a true statement
+  about four fields' worth of tree only, not the ones you didn't dump.
+
+  **The `corpus` submodule trap.** A fresh `git worktree add` (or a fresh
+  clone) of `quire-rs` leaves the `corpus` submodule uninitialized —
+  `corpus/cases/**` is 195 of `quire-rs`'s own 656 Python symbols (30%,
+  §"What this ticket also fixed" cross-references PLAT-851's own
+  breakdown). The first six-field re-run of this differential silently
+  measured `quire-rs` at 380 symbols instead of 656 for exactly this reason
+  before `git -C <worktree> submodule update --init` was run — a
+  ~40%-smaller "quire-rs" that would have read as a real extraction delta
+  rather than as what it was, an empty submodule directory. Run
+  `git submodule update --init` on every fresh `quire-rs` worktree/clone
+  used for a measurement here, old-engine and new-engine and target-tree
+  alike, and check the symbol count against PLAT-851's own recorded 656
+  before trusting anything downstream of it. (Independently hit by another
+  agent working a concurrent PR the same day — not a one-off.)
 
 ## Headline
 
@@ -46,7 +74,8 @@
 | `other_diagnostics_count` (all repos, all languages) | — | 0 | **0** |
 | `excluded_source_files` (all repos) | 6/2/0/0/0/0 | 6/2/0/0/0/0 | **0** |
 | Python symbol identities (`path`+`qualified_name`+`kind`) changed | — | **0 of 975** | **0** |
-| Python symbols with a `leading_line` delta | — | **5 of 975** | named below, one cause |
+| Python symbols with a `leading_line` delta | — | **6 of 975** | named below, one cause |
+| Python symbols with an `end_line` delta | — | **14 of 975** | named below, one shared cause |
 
 Every one of the 975 symbols the old engine reported is present in the new
 engine's output with an **identical `(path, qualified_name, kind)` triple**
@@ -54,26 +83,30 @@ engine's output with an **identical `(path, qualified_name, kind)` triple**
 This was verified by a full line-level diff of the two per-repo TSV dumps
 (not a set-difference on a subset of columns), per repo:
 
-| Repo | Python symbols (both sides) | `path`/`qualified_name`/`kind` deltas | `leading_line`-only deltas |
-|---|---:|---:|---:|
-| quire-rs | 656 | 0 | **5** |
-| quire-code-rs | 0 | 0 | 0 |
-| quire-contract-ir | 122 | 0 | 0 |
-| quire-protocol | 0 | 0 | 0 |
-| filament-ide-rs | 2 | 0 | 0 |
-| ecaz | 195 | 0 | 0 |
-| **total** | **975** | **0** | **5** |
+| Repo | Python symbols (both sides) | `path`/`qualified_name`/`kind` deltas | `leading_line`-only deltas | `end_line`-only deltas |
+|---|---:|---:|---:|---:|
+| quire-rs | 656 | 0 | **6** | **1** |
+| quire-code-rs | 0 | 0 | 0 | 0 |
+| quire-contract-ir | 122 | 0 | 0 | **13** |
+| quire-protocol | 0 | 0 | 0 | 0 |
+| filament-ide-rs | 2 | 0 | 0 | 0 |
+| ecaz | 195 | 0 | 0 | 0 |
+| **total** | **975** | **0** | **6** | **14** |
 
-`leading_line` is a non-identity attribute (`src/symbols/mod.rs`'s `Symbol`
-doc: "1-based first line of the attached annotation block … a non-identity
-attribute"), so these five rows change **no** `Symbol::compute_id` output —
+No symbol carries both a `leading_line` delta and an `end_line` delta — the
+two sets are disjoint (verified against the full seven-column diff, not
+assumed from the two counts happening not to overlap).
+
+`leading_line` and `end_line` are both non-identity attributes
+(`src/symbols/mod.rs`'s `Symbol` doc: "…a non-identity attribute" on each),
+so these twenty rows change **no** `Symbol::compute_id` output —
 `Symbol::compute_id` hashes only `(language, path, qualified_name, kind)`.
 The qualified-name/container/kind non-negotiable this ticket set is
 satisfied exactly: zero changes.
 
-## The 5 `leading_line` deltas: one cause, exhaustively enumerated
+## The 6 `leading_line` deltas: one cause, exhaustively enumerated
 
-All five are in `quire-rs`'s own `scripts/tests/*.py` (the local tooling test
+All six are in `quire-rs`'s own `scripts/tests/*.py` (the local tooling test
 suite already reflected in PLAT-851's own report, "scripts/tests/\*\* 166",
 25% of quire-rs's Python total):
 
@@ -86,7 +119,7 @@ suite already reflected in PLAT-851's own report, "scripts/tests/\*\* 166",
 | `scripts/tests/test_measurement_export.py` | `test_attestation_drift_fails_closed` | 175 | 152 |
 | `scripts/tests/test_tool_drift.py` | `test_each_drift_class_fails_closed` | 212 | 97 |
 
-Every one of these five is a `def` decorated by a multi-line
+Every one of these six is a `def` decorated by a multi-line
 `@pytest.mark.parametrize(\n    (...),\n    [\n        ...\n    ],\n)` whose
 argument list wraps across several physical lines — e.g.
 `test_dep_pins.py:101-104`:
@@ -99,11 +132,11 @@ def test_deprecated_yaml_packages_in_fuzz_graph_fail_closed(
 ```
 
 **Cause: PLAT-234's defect class, confirmed by direct source inspection at
-all five sites, not inferred from the pattern.** The old scanner's
+all six sites, not inferred from the pattern.** The old scanner's
 `leading_block` walks backward *physical line by physical line*, treating a
 line as part of the annotation block only if it `starts_with('@')` or
 `starts_with('#')` (`src/symbols/python.rs`'s pre-port `is_annotation`). The
-line immediately above each of these five `def`s is a continuation line
+line immediately above each of these six `def`s is a continuation line
 (`)`, or a tuple/list literal) that starts with neither, so the walk stops
 immediately and `leading_line` is left at the `def`'s own line — the
 decorator is entirely missed. The new engine's `leading_span` walks
@@ -124,26 +157,129 @@ non-identity span attribute only, in the direction of *more* of the true
 annotation block being captured, never less — no symbol's `qualified_name`,
 `kind`, or `container` moved.
 
-**No delta of any other shape was found.** Zero identity changes across
-975 symbols in six repos of varying size and style (from `ecaz`'s "poor
-linting hygiene" — Peter's own characterization, PLAT-851's report — through
-`quire-rs`'s own corpus fixtures deliberately engineered to exercise every
-form this extractor recognizes) is itself evidence the qualified-name
-construction rules in this module's own docs (only a `class` is a scope; a
-`def` is never a container for its own nested `def`s; the module is never a
-name prefix) were carried over correctly, not merely asserted to be.
+**Zero identity changes** across 975 symbols in six repos of varying size and
+style (from `ecaz`'s "poor linting hygiene" — Peter's own characterization,
+PLAT-851's report — through `quire-rs`'s own corpus fixtures deliberately
+engineered to exercise every form this extractor recognizes) is itself
+evidence the qualified-name construction rules in this module's own docs
+(only a `class` is a scope; a `def` is never a container for its own nested
+`def`s; the module is never a name prefix) were carried over correctly, not
+merely asserted to be. There is one more delta shape, enumerated next.
 
-## `unbacked_rows`/`status_lies`: exact match, whole-repo
+## The 14 `end_line` deltas: one shared cause, exhaustively enumerated
 
-Cross-checked via `plat840_rust_baseline_sweep`'s aggregate fields (these are
-whole-repo, all-language counts, not Python-decomposable — the same caveat
-PLAT-851's own report states): `unbacked_rows_total_all_repos` 2,407,
-`status_lies_total_all_repos` 105, both **identical** to PLAT-851's own
-recorded baseline values (2,407 / 105) — expected, since PLAT-851 measured
-these same six repos at these same shas with the pre-port Python scanner
-(and the pre-port Rust/TypeScript scanners, both untouched by this ticket),
-and this port changes zero Python symbol identities, so zero binding
-decisions can move.
+Invisible to this differential's first pass (four-field harness, no
+`end_line` column); found once the harness was widened to all six fields
+(see "Harness" above). One in `quire-rs`, thirteen in `quire-contract-ir`:
+
+| File | Symbol | Old `end_line` | New `end_line` |
+|---|---|---:|---:|
+| `scripts/tests/test_gap_census.py` | `repo_fixture` | 31 | 71 |
+| `tests/test_assurance_ordering.py` | `AssuranceOrderingTests` | 12 | 47 |
+| `tests/test_assurance_ordering.py` | `AssuranceOrderingTests.test_ordering_is_enforced_with_and_without_optimization` | 12 | 47 |
+| `tests/test_matrix_status.py` | `MatrixStatusTests` | 23 | 407 |
+| `tests/test_matrix_status.py` | `MatrixStatusTests.test_main_reads_a_real_tree_and_fails_closed` | 75 | 116 |
+| `tests/test_matrix_status.py` | `MatrixStatusTests.test_main_ties_the_coverage_verdict_to_the_exit_code` | 130 | 154 |
+| `tests/test_matrix_status.py` | `MatrixStatusTests.test_rejects_complete_rows_backed_by_planned_tests` | 23 | 43 |
+| `tests/test_matrix_status.py` | `MatrixStatusTests.test_rejects_functional_rows_that_cite_zero_criteria` | 241 | 272 |
+| `tests/test_matrix_status.py` | `MatrixStatusTests.test_rejects_non_functional_rows_that_cite_a_retired_criterion` | 284 | 297 |
+| `tests/test_matrix_status.py` | `MatrixStatusTests.test_rejects_policy_acceptance_citation_without_executable_test` | 47 | 64 |
+| `tests/test_matrix_status.py` | `MatrixStatusTests.test_rejects_rows_that_omit_a_live_acceptance_criterion` | 183 | 229 |
+| `tests/test_matrix_status.py` | `MatrixStatusTests.test_retired_heading_matches_case_and_trailing_text` | 336 | 362 |
+| `tests/test_matrix_status.py` | `MatrixStatusTests.test_retired_section_exclusion_is_position_independent` | 376 | 407 |
+| `tests/test_native_orchestration.py` | `exercise` | 51 | 82 |
+
+**Cause: the same `#274` defect family the retired `tc1029`/`tc1030`/`tc1031`
+already pin, confirmed by reading every site, not inferred from the shape.**
+Each of these fourteen symbols' body contains a triple-quoted (`"""` or
+`'''`) multi-line string literal — a markdown-table fixture
+(`test_matrix_status.py`), a rendered spec document
+(`test_gap_census.py::repo_fixture`), a Python-source-as-string fixture
+(`test_assurance_ordering.py`), a shell/JSON double fixture
+(`test_native_orchestration.py::exercise`). The pre-port scanner's
+hand-rolled `Quoting`/`block_end` string-state tracking misread content
+inside these literals as ending the enclosing suite early, truncating
+`end_line` well before the declaration's real close — `MatrixStatusTests`'s
+384-line understatement (23 vs. 407) is the same family of defect as the
+already-documented "10 of 21 classes" misattribution `tc1031`'s own retired
+predecessor was written against, just manifesting as a truncated span
+instead of a misattributed container. tree-sitter's grammar makes a string
+literal's content structurally un-mistakable for suite-ending syntax, so the
+new engine reports the declaration's true extent regardless of what any
+embedded string contains — the identical structural fix already documented
+above for the false-positive-symbol shape of `#274`, now shown to also fix
+its false-truncation shape, for free, by the same mechanism.
+
+**Directly measured: zero bindings were minted or moved by any of these
+fourteen span expansions.** A wider `end_line` is a wider `Symbol::attached_source`
+in `trace.rs`'s own binder — a real risk that a span correction could
+silently mint a `verifies`/`implements` relation nobody intended (the exact
+failure mode a 2026-09-20 review of this PR, agent-ix/quire-rs#479, raised).
+Measured directly rather than argued: a disposable harness (`extract_tree`
+over the real new-engine tree, clone the extraction, override each of the
+fourteen symbols' `end_line` back to its old, shorter value, run
+`trace::bind` — same `tests/fixtures/traceability/iso` model
+`tests/trace_dogfood.rs` already uses — on both the real and the
+span-truncated extraction, diff `verifies`/`implements` per symbol) found
+**`DELTA=false` for all fourteen**. The newly-included lines often do
+contain id-shaped substrings (`TC-021`, `FR-099-AC-1`, and similar, visible
+in the raw diff) — but none of them sit in a form the declared `trace_tags`
+grammar recognizes (a canonical marker, a `Trace:`/comment-id legacy line);
+they are ordinary prose mentioning ids, which is exactly the population
+`unmatched_tags`/`non_binding_tags` already exist to report on the ids that
+*do* have a recognized adjacency, not something this span-widening changed.
+Reproduce with:
+
+```bash
+# Extracted from the real new-engine tree, symbols' end_line overridden back
+# to the OLD (pre-port) value for a same-source-file A/B comparison:
+cargo run --release --example plat868_span_bind_probe -- \
+  <target-tree-root> tests/fixtures/traceability/iso \
+  <path> <qualified_name> <old_end_line> [...]
+```
+
+(the probe itself is a throwaway ~70-line example — build one from
+`tests/trace_dogfood.rs`'s own `graph_for` helper plus a clone-and-override
+loop over `SymbolExtraction.symbols`; not committed, since it exists to
+answer one question once, not to become a permanent tool.)
+
+## `unbacked_rows`/`status_lies`: not an isolated delta — see the dogfood test instead
+
+Cross-checked via `plat840_rust_baseline_sweep`'s aggregate fields, with
+`PLAT840_PATH_QUIRE_RS` pointed at this branch and the other five repos left
+at their current (moved-forward, **not** re-pinned to PLAT-851's shas)
+checkouts: `status_lies_total_all_repos` **105**, identical to PLAT-851's
+own recorded baseline (105). `unbacked_rows_total_all_repos` is **not**
+comparable the same way (1,536 vs. PLAT-851's 2,407) because the other five
+repos' own row populations moved between the two measurements — that
+difference is real repo drift elsewhere, not a Python signal, and reporting
+it as one would overclaim.
+
+**This is not, and must not be read as, an isolated before/after delta for
+this branch's own spec edits** — the other five repos were not held
+constant the way the six-field differential above holds all six target
+trees constant, so a status-lies count that happened to match does not by
+itself prove this branch introduced no new lie. It was originally going to
+be re-run in a controlled form (quire-rs alone swapped between its old pin
+and this branch, everything else identical) specifically to catch the one
+defect class this rollup cannot see by construction: a row this branch
+itself flips to ✅ (`TC-1880`, `FR-051-AC-25`) reads as one more correctly-
+green row to an aggregate count, whether or not it actually binds — the
+count cannot distinguish "backed" from "typo'd 🚧 to ✅ and nothing checks
+it," which is exactly what F1 (agent-ix/quire-rs#479 review) found had
+happened here.
+
+**That defect is independently, and more strongly, closed by
+`tests/trace_dogfood.rs::tc1880_the_python_decorator_wrap_tests_actually_bind`**,
+added in response to F1: it runs the real binder against this repo's own
+`src/symbols` tree and asserts `TC-1880` is present in `graph.verifies` for
+each of its three nominated tests, by `(symbol, trace_id)` — confirmed red
+first (stripped the `#[trace(...)]` markers, reran, `TC-1880` absent from
+`backed_trace_ids()`'s full output) before being trusted green, and it now
+runs on every `cargo test`. A per-symbol assertion that fails on exactly the
+condition it exists to catch is stronger evidence than a whole-repo rollup
+that happens to match — the controlled sweep was not rerun, because there is
+no remaining gap for it to close.
 
 ## Retired tests and their successors
 
@@ -176,12 +312,19 @@ reverted by hand, so the proof is reproducible from the test file alone,
   `assert!(naive_line_scan_finds_declaration(...))` premise assertions,
   which fail loudly if the fixture ever stops being adversarial. `parse`
   itself reports none of them, which is the property under test.
-- `tc1031`'s successor asserts against a **named** naive single-scope
-  stand-in (`let naive_single_scope = "TestParsing";
-  assert_ne!(method.container.as_deref(), Some(naive_single_scope), ...)`)
-  — the exact #274 defect shape (a stale scope resuming after the embedded
-  string) would report `TestParsing` for both methods; `parse` reports
-  `TestParsing`/`TestModification` respectively.
+- `tc1031`'s successor asserts against a naive single-scope stand-in
+  computed **from the fixture itself**, not hand-typed
+  (`naive_never_popped_scope(source)`, which reads the first `class NAME`
+  line out of `source`) — the exact #274 defect shape (a scope stack that
+  never pops, so it always reports whichever class came first) would report
+  the same first class for both methods; `parse` reports
+  `TestParsing`/`TestModification` respectively. This replaces an earlier
+  draft that asserted against a bare string literal
+  (`let naive_single_scope = "TestParsing";`): a bare literal stays in sync
+  with the fixture only by luck, so renaming the fixture's first class could
+  make the assertion vacuous while still passing. Computing the stand-in
+  from the fixture ties the two together structurally (PLAT-868 PR #479
+  review, F8).
 
 `tc800_wrapped_signature_span_reaches_the_docstring` (CR-037) needed no
 rewrite — it already asserted outcome, and passes unchanged against the new
@@ -210,7 +353,7 @@ of `1` — the pre-port scanner's physical-line walk resynced only once it hit
 a line starting with `@` or `def`, so a *second* wrapped decorator pushed
 `leading_line` all the way to the `def`, losing both decorators' lines. The
 new engine reports `leading_line == 1` for the same source. This is the same
-defect class this differential's 5 real-corpus deltas independently
+defect class this differential's 6 real-corpus leading_line deltas independently
 demonstrate, now also isolated in a unit test.
 
 ## What this ticket also fixed (per the linked PLAT-868 comment thread)
@@ -263,27 +406,61 @@ demonstrate, now also isolated in a unit test.
 
 ## Gates
 
-- `cargo test --locked --lib symbols::` (77 tests, Rust + Python + TypeScript
-  + trace.rs): pass, including the three retired-and-replaced tests, the new
-  PLAT-234/unittest-classifier tests, and every pre-existing Rust/TypeScript/
-  trace-seam test (unmodified, confirming the form-matching seam was not
-  breached).
-- `make ci`: see PR description for the full run; `check-python-symbols`
-  observed both green (this branch) and red (deliberately broken, above).
+Exact counts, not assumed (re-run after rebasing onto `origin/main`
+`bd5ce9a`, PR review agent-ix/quire-rs#479 F10/F11):
+
+- `cargo test --locked --lib symbols::`: **72** at `bc31c2b` (pre-port) →
+  **88** on this branch, post-rebase. Of that `+16`, **`+8` are this PR's
+  own** (`src/symbols/python.rs` alone: 5 pre-port tests → 13, net `+8`:
+  three retired and rewritten keeping their ids (`tc1029`/`tc1030`/`tc1031`,
+  net 0), `tc800` kept unchanged (net 0), `paren_depth_ignores_quotes_and_comments`
+  retired with no direct successor — it asserted the now-deleted `paren_delta`
+  helper's own internal return values, not an outcome, so nothing needed
+  porting; its outcome-level coverage (a signature's parens never move the
+  span) is `default_argument_parens_do_not_move_the_span`, one of the nine
+  new tests, net `-1`) and nine new (net `+9`, net total `-1+9=+8`) and
+  **`+8` are unrelated**, already on `main` before this branch rebased onto
+  it (PLAT-844/#477's `trace_search` module, `src/symbols/mod.rs`).
+  `tests/trace_dogfood.rs`: 2 → 3 (the `TC-1880` regression pin, F1).
+- `make ci`: **fully green, both times it was required** (before opening the
+  PR and again before merge, per this repo's own testing cadence) — the
+  first run (pre-rebase, `bc31c2b` fork point) passed through
+  `audit-property` and was expected to truncate at `audit-static`
+  (PLAT-878's unpinned-CLA-action gap, pre-existing, unrelated to this PR);
+  the second run, **after rebasing onto `bd5ce9a`** (which includes
+  PLAT-878's fix, #475), ran the full chain for the first time this PR has
+  ever reached it: `validate` (**172 documents, 0 failed, 41 warnings** —
+  identical warning count to `main`) and `check-engine` (**OK**; one
+  advisory, `quire-cli` pinned 27 commits behind `HEAD` — informational per
+  this repo's own "pins vs. ceremony" convention, not a gate failure) both
+  pass. `check-python-symbols` observed both green (this branch) and red
+  (deliberately broken, above).
 
 ## Reproducing this measurement
 
 ```bash
 cd quire-rs
+# Fresh worktree/clone of quire-rs itself (as an engine build, and as one of
+# the six *target* trees, `quire-rs` in the per-repo table above) MUST
+# initialize the corpus submodule — see the harness note above. Skipping
+# this silently undercounts quire-rs's own Python symbols by ~40% (380 vs.
+# the true 656) and reads as an extraction delta rather than as what it is.
+git submodule update --init
 CARGO_TARGET_DIR=<dir> cargo build --release --example plat843_audit_list
 
 # Old engine (a worktree checked out at bc31c2b, before this port):
 git worktree add /tmp/plat868-old bc31c2b408e58b281886ec44262dd98cf6058676
+git -C /tmp/plat868-old submodule update --init
+# bc31c2b's own copy of the audit tool still emits only four fields — copy
+# this branch's six-field version over it before building, so both sides
+# emit the same columns to diff:
+cp examples/plat843_audit_list.rs /tmp/plat868-old/examples/plat843_audit_list.rs
 CARGO_TARGET_DIR=/tmp/plat868-old-target cargo build --release --example plat843_audit_list \
   --manifest-path /tmp/plat868-old/Cargo.toml
 
 # Per repo (six pinned trees — see PLAT-851's own report for the four
-# disposable-clone shas), old and new:
+# disposable-clone shas; quire-contract-ir, quire-protocol, filament-ide-rs,
+# and ecaz need no submodule init, only quire-rs does), old and new:
 <old-binary> <repo-root> python | sort > old.tsv
 <new-binary> <repo-root> python | sort > new.tsv
 diff old.tsv new.tsv
