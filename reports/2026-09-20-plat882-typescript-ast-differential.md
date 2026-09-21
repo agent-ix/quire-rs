@@ -268,6 +268,20 @@ symbol's identity (`leading_line` is not part of `Symbol::compute_id`), only
 the span a trace tag's binding search reads — a strict widening (recovers a
 tag written on the JSDoc's own opening line; loses nothing).
 
+**Methodology audit, prompted by finding the above:** checked every other
+"sampled"/"representative" claim in this report for the same failure mode —
+stating a sampled check as a universal one. One other instance existed and
+was already corrected in this same review round: the original Cause 2
+picked 3 "representative rows" out of 19 and generalised "all 19 are
+interface member signatures" from them, which was wrong for 4 (mocha
+`before(function () {})` hook calls, not interface members — PLAT-882 PR
+#481 review finding F4, see Cause 2's own corrected section, which now
+names every one of the 19 rather than sampling). Every other exhaustive
+claim in this report (the 76 `const NAME = (...)` rows, the file-recovery
+counts, the widened-edge zero-occurrence claims) was independently
+re-derived over the full set by the PR #481 reviewer's own separate
+measurement and matched, so those are not re-audited here a third time.
+
 ### A second span defect, found writing this review's own span assertions, fixed the same way
 
 Restoring `tc803_one_reading_decides_whether_delimiters_are_code`'s span
@@ -290,6 +304,23 @@ own tree), and `filament-ide-rs`'s 308 `leading_line`-only-shift rows are
 still 308 (no row in the real corpus exercises this specific pattern; see
 the previous section's own exhaustive re-check for the one row that pattern
 search did turn up, which was a different defect in the same function).
+
+**Independently hit twice.** PLAT-868 (the Python port, landed in parallel)
+found the identical defect in `python.rs`: a trailing `x = 1  # note`
+comment read as the *following* declaration's own leading annotation, same
+root cause (tree-sitter gives a trailing comment its own sibling node) and
+the same fix (require the comment to start its own line). Two language
+adapters made the same mistake independently and each was caught
+independently by its own port's review, which is worth noting on its own —
+and it means the own-line check now exists as near-duplicate logic in two
+adapters rather than once in a shared place. That is a real follow-up
+(`leading_span`'s trailing-annotation rule belongs in whatever seam both
+adapters already share, if one exists, or a new shared helper otherwise),
+but it is **not done in this PR** — this port's own scope is `typescript.rs`
+only, per the ticket's own "do not touch `python.rs`" instruction, and two
+independently-landing PRs are the wrong place to restructure a shared seam
+neither can see the other's final shape of. Naming it here so the next
+person doesn't have to rediscover it.
 
 ## Widened grammar edges: CR-176's own named carve-outs, resolved and measured at zero
 
