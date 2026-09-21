@@ -1146,6 +1146,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "quire-fixtures"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
+]
+
+[[package]]
 name = "quire-rs"
 version = "0.46.0"
 dependencies = [
@@ -1159,6 +1166,7 @@ dependencies = [
  "loom",
  "proptest",
  "pyo3",
+ "quire-fixtures",
  "quire-rust-extraction",
  "rayon",
  "regex",
