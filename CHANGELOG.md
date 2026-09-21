@@ -15,24 +15,34 @@ bumps; once 1.0 ships, semver is strict.
   the previous line (`x = 1  // note`) must not be walked into the next
   declaration's own leading span — and two of them (PLAT-868, PLAT-882)
   independently shipped and caught the identical bug. `rust.rs` had not
-  caught it: this hoist gives it the fix for free. Measured zero real
-  occurrences of the defect in `quire-rs`'s own corpus, and byte-identical
-  raw extraction across `spec-artifacts-process` (Python) and
-  `filament-ide-rs` (TypeScript) before/after. **A second, more severe
-  defect was found and avoided while porting the check to Rust, not
-  shipped**: `tree-sitter-rust`'s `line_comment` node reports
-  `end_position().row` one row *past* its own text (the token's span
-  includes its trailing newline), unlike `tree-sitter-typescript`'s
-  `comment` node — a naive copy of `typescript.rs`'s own comparator would
-  have read every second line of an ordinary multi-line `///` doc block
-  (no blank line anywhere in it) as trailing on the line above it, silently
-  truncating the span to its last line. The shared helper guards the
-  trailing check to apply only when the sibling being compared against is
-  *not itself* an accepted annotation node, which both closes the real
-  defect and leaves ordinary multi-line doc comments untouched (regression
-  test: `two_adjacent_doc_comment_lines_with_no_gap_both_join_the_span`,
-  proven by mutation — the guard's removal turns 4 existing tests red
-  across all three adapters).
+  caught it: this hoist gives it the fix for free. The trailing check walks
+  back past every annotation-kind sibling to the nearest real code before
+  comparing rows, rather than only checking the one sibling immediately
+  before the candidate — two (or more) annotation-kind siblings can share
+  one physical line (`fn a() {}  /* x */ // y\nfn b() {}`), and a one-hop
+  check misses this (PR #485 review F1: measured through TypeScript's own
+  production pipeline, an earlier one-hop version of this fix regressed
+  `typescript.rs` — `const q = 1; /* x */ // y\nfunction b() {}` moved
+  `b.leading_line` from `2` on `main` to `1`). Walking back to real code
+  first also makes the comparison immune to whichever grammar's comment
+  node does or does not fold a trailing newline into `end_position()`
+  (`tree-sitter-rust`'s `doc_comment` child node — `///`/`//!` — does; a
+  plain `//` `line_comment` does not; PR #485 review F3). Measured, not
+  assumed: this repo's own audit-list differential shows 0 raw-extraction
+  deltas across `spec-artifacts-process` (Python) and `filament-ide-rs`
+  (TypeScript), and 0 unexplained deltas in `quire-rs`'s own Rust corpus
+  (PLAT-897 PR #485's own report); PR review independently re-measured the
+  fixed guard at wider scale — 0 deltas across 45,581 Rust symbols in 22
+  repos (with a positive control confirming the zero is non-vacuous — the
+  two-annotation-sibling shape does occur in the wild, but only before
+  `const`/`static`, which this extractor never mints, or after an
+  attribute, which the guard correctly declines), 0 deltas across 3,086
+  Python/TypeScript symbols, and the global `verifies`/`implements`
+  relation set unchanged across 24,110 edges. The blank-line-gap stop
+  itself (unchanged by this ticket, shared by all three adapters) is now
+  under test for the first time — mutating its threshold to disable it
+  left every pre-existing test green — via
+  `a_blank_line_before_a_comment_block_excludes_it`.
 - **`python-symbols` joins the crate's `default` feature set (PLAT-868,
   #479).** `src/symbols/python.rs` is ported to `tree-sitter` (see "Added"
   below), and the resulting feature is promoted to `default` the same way

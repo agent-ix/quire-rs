@@ -1416,6 +1416,38 @@ mod tests {
         assert_eq!(test_symbol.leading_line, 2, "{test_symbol:?}");
     }
 
+    /// FR-051-AC-14 (PLAT-897 PR #485 review F1): two annotation-kind
+    /// siblings sharing one physical line — a block comment then a line
+    /// comment, both trailing on the real code before them — must both be
+    /// excluded, not just the nearer one. `// y`'s own immediate
+    /// predecessor is `/* x */`, itself an accepted annotation sibling, so
+    /// a trailing check that only compares a candidate to its immediate
+    /// predecessor never reaches `const q = 1;` (the real code both
+    /// comments trail on) and wrongly accepts `// y` as the registration's
+    /// leading annotation. Measured through this adapter's own production
+    /// pipeline against a one-hop version of the shared helper's guard:
+    /// `test_symbol.leading_line` regressed from `2` (this repo's own
+    /// pre-#485 `main`) to `1`.
+    #[test]
+    fn two_trailing_annotation_siblings_on_one_line_are_both_excluded() {
+        let source = concat!(
+            "const q = 1; /* x */ // y\n",
+            "test(\"holds\", () => {\n",
+            "  expect(1).toBe(1);\n",
+            "});\n",
+        );
+        let symbols = parse("a.test.ts", source).expect("a valid file must parse");
+        let test_symbol = symbols
+            .iter()
+            .find(|s| s.qualified_name == "holds")
+            .expect("the registration is a test symbol");
+        assert_eq!(
+            test_symbol.leading_line, 2,
+            "a block comment then a line comment, both trailing on q's line, \
+             must not become the registration's leading annotation: {test_symbol:?}"
+        );
+    }
+
     /// TC-1926, FR-051-AC-14 (PLAT-882 review round 3, F4): a leading
     /// comment reaches an `await`-wrapped registration exactly as it
     /// reaches the non-awaited form — `stmt_anchor` used to climb only

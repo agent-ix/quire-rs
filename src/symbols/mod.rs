@@ -510,7 +510,7 @@ pub(crate) fn stable_id(parts: &[&str]) -> String {
 /// leading annotation block — the contiguous run of preceding sibling nodes
 /// `is_annotation` accepts, stopping at the first sibling it rejects, the
 /// first blank-line gap, or a sibling that is itself **trailing** on the
-/// line its own preceding sibling ends on.
+/// line real code (not another annotation sibling) ends on.
 ///
 /// The trailing stop exists because of a property of tree-sitter, not of
 /// any one language: a *trailing* comment (`x = 1  // note`) is emitted as
@@ -524,6 +524,27 @@ pub(crate) fn stable_id(parts: &[&str]) -> String {
 /// implementation here, called by all three, so a fourth adapter inherits
 /// it instead of rediscovering it (PLAT-897, closing PLAT-868 PR #479
 /// review finding F4/F4(b) and PLAT-882 PR #481's own parallel finding).
+///
+/// **The candidate being tested for trailing is walked back to the nearest
+/// *non*-annotation sibling before the row comparison, rather than only
+/// checking the one sibling immediately before it.** Two (or more)
+/// annotation-kind siblings can share one physical line — `fn a() {}  /* x
+/// */ // y\nfn b() {}` is valid in every one of these three languages — and
+/// checking only the immediate predecessor misses this: `// y`'s own
+/// predecessor is `/* x */`, an annotation, so a one-hop check would accept
+/// `// y` as `b`'s leading annotation without ever comparing it to `fn a()
+/// {}`, the real code both are trailing on (PLAT-897 PR #485 review F1,
+/// caught measuring TypeScript's own production pipeline: `const q = 1; /*
+/// x */ // y\nfunction b() {}` regressed `b.leading_line` from `2` on
+/// `main` to `1`). Walking back past every annotation sibling first makes
+/// the comparison correct regardless of how many annotation-kind siblings
+/// sit on the trailing line, and — unlike comparing to the *immediate*
+/// predecessor — never needs to special-case comparing two annotation
+/// siblings to each other, so it is immune to whichever grammar's comment
+/// node does or does not fold its trailing newline into `end_position()`
+/// (PLAT-897 PR #485 review F3: only `tree-sitter-rust`'s `doc_comment`
+/// child node — `///`/`//!` — does; a plain `//` `line_comment` does not,
+/// contrary to this function's own first-pass claim).
 ///
 /// Purely structural — `Node` positions and sibling links only, never
 /// source text or a trace form — matching this subsystem's own seam:
@@ -549,25 +570,20 @@ pub(crate) fn leading_span(
         if boundary_row.saturating_sub(prev.end_position().row) > 1 {
             break;
         }
-        // The trailing-on-the-same-line check only makes sense, and is only
-        // safe, against **real code** — a sibling `is_annotation` itself
-        // rejects. Applying it against another accepted annotation sibling
-        // (comparing two comments, or a comment and an attribute) is both
-        // unnecessary (two annotation-block members are never legitimately
-        // "trailing" on each other in valid syntax) and unsafe: at least one
-        // grammar (`tree-sitter-rust`'s `line_comment`) reports a single-line
-        // comment's `end_position().row` as *one past* its own row — the
-        // token's span includes its trailing newline, unlike a comment node
-        // in `tree-sitter-typescript`/`tree-sitter-python`. Comparing that
-        // offset end row against the *next* comment's start row makes every
-        // second line of an ordinary multi-line `///` doc block, with no
-        // blank line anywhere in it, misread as trailing on the line above
-        // it — silently truncating the span to its last line (measured
-        // directly authoring this guard: `fn f` preceded by two adjacent
-        // `///` lines came out `leading_line: 3`, the `fn`'s own line,
-        // instead of `1`, before this guard existed).
-        if let Some(before) = prev.prev_sibling() {
-            if !is_annotation(before) && prev.start_position().row == before.end_position().row {
+        // Walk back past every annotation-kind sibling to the nearest real
+        // code, then compare rows unconditionally — see this function's own
+        // doc for why a one-hop check against only `prev`'s immediate
+        // predecessor is wrong when two annotation siblings share one line.
+        let mut before = prev.prev_sibling();
+        while let Some(b) = before {
+            if is_annotation(b) {
+                before = b.prev_sibling();
+            } else {
+                break;
+            }
+        }
+        if let Some(before) = before {
+            if prev.start_position().row == before.end_position().row {
                 break;
             }
         }

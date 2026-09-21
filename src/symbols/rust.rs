@@ -777,17 +777,23 @@ mod tests {
 
     /// PLAT-897: two adjacent `///` lines with **no blank line** between
     /// them must both join the span — the control the trailing-comment
-    /// guard in `super::leading_span` needs, because `tree-sitter-rust`
-    /// reports a `line_comment`'s `end_position().row` as one past its own
-    /// row (the token's span includes its trailing newline). A naive port
-    /// of `typescript.rs`'s own comparator (compare `prev`'s start row to
-    /// its immediate predecessor's end row, unconditionally) reads that
-    /// offset as "line two starts on the row line one's content ends on"
-    /// and misclassifies every second doc-comment line as trailing on the
-    /// first — confirmed as a real regression writing this guard: before
-    /// the fix (only applying the row check against *non-annotation*
-    /// `before`), this returned `leading_line: 3` (`fn f`'s own line, both
-    /// doc lines dropped) instead of `1`.
+    /// guard in `super::leading_span` needs. Only `tree-sitter-rust`'s
+    /// `line_comment` node for the **doc-comment** forms (`///`/`//!`,
+    /// which carry an inner `doc_comment` child) reports
+    /// `end_position().row` one row past its own text; a plain `//`
+    /// `line_comment` does not (PLAT-897 PR #485 review F3 — an earlier
+    /// version of this doc named `line_comment` generally, which was
+    /// over-broad and propagated into a filed ticket before being
+    /// corrected). A one-hop trailing check that compared a candidate only
+    /// to its immediate predecessor would read that offset as "line two
+    /// starts on the row line one's content ends on" and misclassify every
+    /// second `///` line as trailing on the first — confirmed as a real
+    /// regression writing the guard's first version: before walking back to
+    /// real code (rather than the immediate predecessor) before comparing,
+    /// this returned `leading_line: 3` (`fn f`'s own line, both doc lines
+    /// dropped) instead of `1`. The current implementation is immune to
+    /// this regardless of which sibling kind carries the offset, because it
+    /// never compares two annotation-kind siblings to each other at all.
     #[test]
     fn two_adjacent_doc_comment_lines_with_no_gap_both_join_the_span() {
         let source = concat!("/// line one\n", "/// line two\n", "fn f() {}\n",);
@@ -796,6 +802,47 @@ mod tests {
         assert_eq!(
             f.leading_line, 1,
             "both adjacent doc lines must join the span: {symbols:?}"
+        );
+    }
+
+    /// PLAT-897 PR #485 review F1: two annotation-kind siblings sharing one
+    /// physical line, both trailing on the *real code* before them, must
+    /// both be excluded — not just the nearer one. `// y`'s own immediate
+    /// predecessor is `/* x */`, itself an accepted annotation sibling, so
+    /// a trailing check that only compares a candidate to its immediate
+    /// predecessor never reaches `fn a() {}` (the real code both comments
+    /// trail on) and wrongly accepts `// y` as `b`'s leading annotation.
+    /// Measured through the shared helper before this fix: `b.leading_line`
+    /// came out `1` (both comments absorbed) instead of `2`.
+    #[test]
+    fn two_trailing_annotation_siblings_on_one_line_are_both_excluded() {
+        let source = "fn a() {} /* x */ // y\nfn b() {}\n";
+        let symbols = parse(source).expect("valid");
+        let b = symbols.iter().find(|s| s.qualified_name == "b").unwrap();
+        assert_eq!(
+            b.leading_line, 2,
+            "a block comment then a line comment, both trailing on a's line, \
+             must not become b's leading annotation: {symbols:?}"
+        );
+    }
+
+    /// PLAT-897 PR #485 review F2: the blank-line-gap stop is not just
+    /// documented, it is tested. Plain `//` comments are offset-clean
+    /// (see `two_adjacent_doc_comment_lines_with_no_gap_both_join_the_span`'s
+    /// own doc), so this fixture isolates the gap check from the row-offset
+    /// question entirely: a blank line between the comment block and `f`
+    /// must exclude the comments, leaving `f`'s own line as its leading
+    /// line. Confirmed as a real gap in coverage, not a redundant test:
+    /// mutating the gap threshold (`mod.rs`'s `> 1` to `> 100`, disabling
+    /// the stop) left every existing test green before this one existed.
+    #[test]
+    fn a_blank_line_before_a_comment_block_excludes_it() {
+        let source = "// a\n// b\n\nfn f() {}\n";
+        let symbols = parse(source).expect("valid");
+        let f = symbols.iter().find(|s| s.qualified_name == "f").unwrap();
+        assert_eq!(
+            f.leading_line, 4,
+            "a blank line must stop the comment block from joining f's span: {symbols:?}"
         );
     }
 
