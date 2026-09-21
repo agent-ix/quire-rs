@@ -65,6 +65,11 @@ fn quoin_fixtures_match_provenance() {
     );
     for (rel, record) in &provenance.files {
         assert_eq!(record.repository, "agent-ix/quoin");
+        // Shape check only: this deliberately does not resolve `revision` against
+        // agent-ix/quoin or any other repo, so it is not a liveness guarantee.
+        // `revision` is informational provenance and may become unreachable if
+        // upstream rewrites history; the sha256 check below is the one that is
+        // actually load-bearing.
         assert_eq!(record.revision.len(), 40, "{rel}: full commit id required");
         assert!(
             record.path.starts_with("tests/fixtures/semantic-module/"),
