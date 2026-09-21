@@ -19,12 +19,7 @@ fn root() -> PathBuf {
 }
 
 fn mapping(name: &str) -> String {
-    fs::read_to_string(
-        root()
-            .join("tests/fixtures/semantic/mapping")
-            .join(name),
-    )
-    .unwrap()
+    fs::read_to_string(root().join("tests/fixtures/semantic/mapping").join(name)).unwrap()
 }
 
 fn mapping_json(name: &str) -> Value {
@@ -496,9 +491,7 @@ fn legacy_forms() {
     let expected = mapping_json("legacy.expected.json");
     for case in expected["cases"].as_array().unwrap() {
         let file = case["file"].as_str().unwrap();
-        let path = root()
-            .join("tests/fixtures/semantic/mapping")
-            .join(file);
+        let path = root().join("tests/fixtures/semantic/mapping").join(file);
         let markdown = fs::read_to_string(&path).unwrap();
         let outcome = extract_fields(&markdown, &context(file, bundle()));
         let form = case["form"].as_str().unwrap();

@@ -20,12 +20,7 @@ fn root() -> PathBuf {
 }
 
 fn mapping(name: &str) -> String {
-    fs::read_to_string(
-        root()
-            .join("tests/fixtures/semantic/mapping")
-            .join(name),
-    )
-    .unwrap()
+    fs::read_to_string(root().join("tests/fixtures/semantic/mapping").join(name)).unwrap()
 }
 
 fn mapping_json(name: &str) -> Value {

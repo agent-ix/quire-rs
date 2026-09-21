@@ -217,10 +217,9 @@ const SNAPSHOT_DIGEST: &str =
 
 fn fixture_snapshot(with_context: bool) -> FilamentExtractionInput {
     let entity: Value = read_json("tests/fixtures/semantic/module-ok/schemas/Entity.json");
-    let markdown = fs::read_to_string(
-        root().join("tests/fixtures/semantic/mapping/overlay.table.md"),
-    )
-    .unwrap();
+    let markdown =
+        fs::read_to_string(root().join("tests/fixtures/semantic/mapping/overlay.table.md"))
+            .unwrap();
     let mut object_type = json!({
         "name": "entity",
         "dataSchema": if with_context { entity } else { json!({ "type": "object" }) },
@@ -348,9 +347,10 @@ fn validate_document_surface() {
     let registry =
         Registry::load_module(&root().join("tests/fixtures/semantic/module-ok")).unwrap();
     let entity = registry.archetype("entity").unwrap();
-    let corpus = fs::read_to_string(root().join(
-        "tests/fixtures/semantic/corpus/config-service/FR-005-config-overlay-entity.md",
-    ))
+    let corpus = fs::read_to_string(
+        root()
+            .join("tests/fixtures/semantic/corpus/config-service/FR-005-config-overlay-entity.md"),
+    )
     .unwrap();
     let result = quire_rs::validate_document_in_registry(&registry, entity, &corpus);
     let legacy = result
@@ -372,10 +372,8 @@ fn validate_document_surface() {
         .unwrap();
     assert_eq!(e.line, Some(16));
     // The golden table validates cleanly against the resolved Entity.json.
-    let table = fs::read_to_string(
-        root().join("tests/fixtures/semantic/mapping/overlay.table.md"),
-    )
-    .unwrap();
+    let table = fs::read_to_string(root().join("tests/fixtures/semantic/mapping/overlay.table.md"))
+        .unwrap();
     let result = quire_rs::validate_document_in_registry(&registry, entity, &table);
     assert!(result.is_valid, "{:?}", result.errors);
     // A document with no Properties fails the resolved schema (`fields` required).
