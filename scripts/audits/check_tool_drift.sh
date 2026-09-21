@@ -123,9 +123,18 @@ for workflow in workflow_paths:
     for line_no, line in enumerate(text.splitlines(), 1):
         if line.lstrip().startswith("#") or re.match(r"\s*-\s+name:", line):
             continue
-        use = re.search(r"\buses:\s*[^\s@]+@([^\s#]+)", line)
-        if use and not re.fullmatch(r"[0-9a-f]{40}", use.group(1)):
-            errors.append(f"{workflow.relative_to(root)}:{line_no}: action is not pinned by full SHA")
+        use = re.search(r"\buses:\s*([^\s@]+)@([^\s#]+)", line)
+        if use:
+            action_path, revision = use.group(1), use.group(2)
+            # First-party agent-ix/* reusable workflows and actions are our own
+            # code under our own control, not a third-party supply-chain
+            # dependency -- closer to an internal function call than to
+            # something that can be silently changed underneath us. Pinning
+            # them by SHA would also defeat the reason reusable workflows
+            # exist: a fix landing in one place (PLAT-878).
+            is_first_party = action_path == "agent-ix" or action_path.startswith("agent-ix/")
+            if not is_first_party and not re.fullmatch(r"[0-9a-f]{40}", revision):
+                errors.append(f"{workflow.relative_to(root)}:{line_no}: action is not pinned by full SHA")
         if re.search(r"runs-on:\s*[^#\n]*latest", line):
             errors.append(f"{workflow.relative_to(root)}:{line_no}: mutable runner label `latest`")
         if re.search(r"dtolnay/rust-toolchain@", line):
