@@ -65,13 +65,23 @@
 | Abandoned TypeScript files (`filament-ide-rs`) | 3 | **0** | **−3** |
 | TypeScript diagnostics, either repo | — | **0** | — |
 
-**`quire-rs` is byte-identical**: the new engine's `(path, qualified_name,
-kind, leading_line)` list matches the old engine's exactly, symbol for
-symbol — 165/165, zero rows on either side of the multiset diff. `quire-rs`
-has no TypeScript that exercises any of the shapes this port changes (no
-regex literals with braces in its own `corpus/cases` TypeScript fixtures, no
-`get`/`set` accessors, no multi-line method signatures, no `const NAME = (`
-false positives in its own tree).
+**`quire-rs` is identical on identity and `leading_line`** — corrected wording
+(review round 3, F1): the new engine's `(path, qualified_name, kind,
+leading_line)` list matches the old engine's exactly, symbol for symbol —
+165/165, zero rows on either side of that multiset diff. This report
+previously called that "byte-identical", which overclaims: `(path,
+qualified_name, kind, leading_line)` is 4 of the 7 columns
+`plat843_audit_list` emits, and **`end_line` is not in that key**. Re-diffed
+on all three span fields, `quire-rs` carries **2** identity-stable rows whose
+`end_line` moved with everything else held constant — both
+`coverage.ts::severityOf` (the `tag-on-non-test-function` fixture pair),
+`11→12` and `15→16` — so "byte-identical" is false for the full record and
+true only for identity + `leading_line`. See "The `end_line` class" below for
+the full count and why these two, like the other 25 in `filament-ide-rs`, are
+recoveries rather than defects. `quire-rs` has no TypeScript that exercises
+any of the *identity-changing* shapes this port changes (no regex literals
+with braces in its own `corpus/cases` TypeScript fixtures beyond the two
+above, no `get`/`set` accessors, no `const NAME = (` false positives).
 
 ## The three previously-abandoned files, named, all recovered
 
@@ -298,12 +308,79 @@ sibling only joins the span when it does not itself start on the same row
 its own preceding sibling ends on), with `tc1924_a_trailing_comment_does_
 not_leak_into_the_next_declarations_span` (`FR-051-AC-14`) pinning both the
 defect and its standalone-comment control. Re-verified after the fix: this
-does not change any of the counts above — `quire-rs` is still byte-identical
-165/165 (no trailing-same-line-comment-then-declaration shape exists in its
-own tree), and `filament-ide-rs`'s 308 `leading_line`-only-shift rows are
-still 308 (no row in the real corpus exercises this specific pattern; see
-the previous section's own exhaustive re-check for the one row that pattern
-search did turn up, which was a different defect in the same function).
+does not change any of the counts above — `quire-rs` is still 165/165 on
+identity + `leading_line` (no trailing-same-line-comment-then-declaration
+shape exists in its own tree), and `filament-ide-rs`'s 308 `leading_line`-
+only-shift rows are still 308 (no row in the real corpus exercises this
+specific pattern; see the previous section's own exhaustive re-check for the
+one row that pattern search did turn up, which was a different defect in the
+same function).
+
+## The `end_line` class: 27 rows, unreported until review round 3
+
+**F1 (review round 3).** Every count and claim above keys the differential on
+`(path, qualified_name, kind, leading_line)` — 4 of the 7 columns
+`plat843_audit_list` emits, kept for continuity with PLAT-843's own
+reproduction instructions (see this report's own harness note). `end_line`
+is not in that key, so a symbol whose identity and `leading_line` are both
+unchanged but whose `end_line` moved was invisible to every diff in this
+report — exactly the shape PLAT-868's own review finding F2 widened this
+tool to expose, because a delta in a field the tool doesn't emit is
+structurally unmeasurable, and a delta in a field it emits but the diff
+doesn't key on is measurable but silently dropped. This report repeated the
+second failure mode, not the first.
+
+Re-diffed on all three span fields (`leading_line`, `line`, `end_line`)
+together: **27 identity-stable rows carry an `end_line` change — 2 in
+`quire-rs`, 25 in `filament-ide-rs`** (15 of the 25 also carry a
+`leading_line` shift and are already counted in the 308; the other 10 have
+`end_line` as their only span change). Every one was read. Every one is a
+strict recovery: the new engine reports the declaration's real closing
+brace; the old regex-based scanner truncated at some earlier line, almost
+always because the declaration's own signature or an intervening construct
+spanned multiple lines and the old scanner's own per-line matching lost
+track. None relocates a binding — the global `verifies` relation set
+(keyed `(path, symbol, trace_id, provenance)`) is identical in membership
+before and after accounting for these 27 rows.
+
+`quire-rs`'s own 2: both `coverage.ts::severityOf` (the
+`tag-on-non-test-function`/`-control` fixture pair), `end 11→12` and
+`15→16`.
+
+`filament-ide-rs`'s 25 (`path`, `qualified_name`, `end_line` old→new):
+
+| Path | Symbol | `end_line` |
+|---|---|---:|
+| `ui/src/graph/GraphCanvas.tsx` | `hasBothLayers` | 510 → 519 |
+| `ui/src/graph/clustering.ts` | `shouldRecomputeClusters` | 229 → 238 |
+| `ui/src/graph/cosmos/separation.ts` | `pushApart` | 243 → 311 |
+| `ui/src/graph/data.ts` | `collectGraphExport` | 447 → 468 |
+| `ui/src/graph/data.ts` | `fetchGraphExportPage` | 401 → 404 |
+| `ui/src/graph/data.ts` | `fetchLinks` | 410 → 413 |
+| `ui/src/graph/data.ts` | `graphExportRequest` | 304 → 324 |
+| `ui/src/graph/data.ts` | `linksRequest` | 335 → 362 |
+| `ui/src/graph/impact.ts` | `fetchArtifactImpact` | 198 → 208 |
+| `ui/src/graph/model.ts` | `GraphAccumulator.record` | 435 → 457 |
+| `ui/src/graph/model.ts` | `focusNeighborhood` | 523 → 528 |
+| `ui/src/graph/model.ts` | `loadProjectGraph` | 498 → 512 |
+| `ui/src/plansync/GanttChart.tsx` | `buildLanes` | 118 → 153 |
+| `ui/tests/e2e/tc-1176-graph-node-type-color.spec.ts` | `expectedFill` | 45 → 51 |
+| `ui/tests/e2e/tc-1185-graph-layer-regions.spec.ts` | `group` | 148 → 149 |
+| `ui/tests/e2e/tc-1185-graph-layer-regions.spec.ts` | `spread` | 154 → 156 |
+| `ui/tests/e2e/tc-125-nfr-032-gantt-perf.spec.ts` | `assertBudget` | 121 → 126 |
+| `ui/tests/e2e/tc-1661-graph-repo-filter.spec.ts` | `hiddenOfTarget` | 89 → 91 |
+| `ui/tests/e2e/tc-449-inner-loop-benchmark.spec.ts` | `TC-449: @perf @TC-449 @NFR-023 saved spec reruns against warm mock IPC` | 28 → 38 |
+| `ui/tests/e2e/tc-795-switcher-round-trip.spec.ts` | `emitProjectsChanged` | 33 → 38 |
+| `ui/tests/e2e/tc-967-graph-search.spec.ts` | `offset` | 199 → 208 |
+| `ui/tests/e2e/tc-979-graph-performance.spec.ts` | `assertBudget` | 129 → 136 |
+| `ui/tests/mocks/graph-fixtures.ts` | `hit` | 539 → 560 |
+| `ui/tests/native/tc-710-gantt-perf.spec.ts` | `clickTestId` | 89 → 92 |
+| `ui/tests/native/tc-710-gantt-perf.spec.ts` | `waitForTestId` | 72 → 75 |
+
+**This is a reporting gap, not a defect** — the change was real, correct,
+and always covered by `verifies`-set equality; it was simply never named as
+its own class. Named and counted here so it does not recur unmeasured a
+second time, per PLAT-868's own F2 precedent.
 
 **Independently hit twice.** PLAT-868 (the Python port, landed in parallel)
 found the identical defect in `python.rs`: a trailing `x = 1  # note`
@@ -389,10 +466,11 @@ scratch on the rebased tree — same harness, same swap technique, old and
 new engine's row sets diffed directly (not just their counts) — the two
 `unbacked_rows` outputs are now **identical, row for row**, zero rows on
 either side of the diff. `404 → 402` does not reproduce, and in hindsight it
-was already in tension with this same report's own `165/165` byte-identical
-claim for `quire-rs`'s TypeScript symbols, `leading_line` included: if the
-symbols `coverage::compute` reads are identical either way, the coverage
-computed from them cannot differ. Whatever produced the original `−2` is
+was already in tension with this same report's own `165/165` identity-and-
+`leading_line`-identical claim for `quire-rs`'s TypeScript symbols: if the
+symbols `coverage::compute` reads are identical on every field that
+computation reads (identity, `leading_line` — `end_line` is not one of
+them), the coverage computed from them cannot differ. Whatever produced the original `−2` is
 not reproducible from the port itself; it most likely reflects a measurement
 taken against a different tree state at the time (this repo's own spec has
 moved under multiple merges since), not a defect in either number's

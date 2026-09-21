@@ -78,7 +78,9 @@ description: "Chronological log of structural changes to this bundle."
   mutations that the pre-review test suite could not detect, and the
   binding-level numbers added alongside the symbol-level ones (`candidates`
   431→443, `tagged` 394→406, `bound` 385→392 on `filament-ide-rs`;
-  `quire-rs`'s own `plat843_unbacked_rows` 404→402) — zero tags lost.
+  `quire-rs`'s own `plat843_unbacked_rows` re-measured on the rebased tree
+  at `404→404`, delta 0, row sets identical — corrected from an earlier
+  `404→402` this same entry originally reported) — zero tags lost.
 
 * **2026-09-20** — **CR-178** (`PLAT-845`): `src/symbols/rust.rs`'s
   duplicate-identity flattening — a `fn` was never a container for its own

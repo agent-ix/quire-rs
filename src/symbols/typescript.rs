@@ -443,10 +443,22 @@ fn field_text(node: Node, field: &str, source: &str) -> Option<String> {
 /// wrapping it when it is exported. A leading comment or decorator attaches
 /// before `export`, not before the declaration `export` wraps — see this
 /// module's own docs.
+///
+/// Also climbs `await_expression` (review round 3, F4): `await it('x', …)`
+/// wraps the registration's `call_expression` in an `await_expression`
+/// before the enclosing `expression_statement`, so without this a leading
+/// comment attached to the statement was invisible through `await` — the
+/// span search started one node too low to see it. Zero real occurrences in
+/// either measured corpus, but the shape is legal TypeScript (an async
+/// registration helper) and there is no reason `await` alone should change
+/// where a leading annotation binds.
 fn stmt_anchor(node: Node) -> Node {
     let mut current = node;
     while let Some(parent) = current.parent() {
-        if matches!(parent.kind(), "expression_statement" | "export_statement") {
+        if matches!(
+            parent.kind(),
+            "expression_statement" | "export_statement" | "await_expression"
+        ) {
             current = parent;
         } else {
             break;
@@ -1424,6 +1436,43 @@ mod tests {
         assert_eq!(test_symbol.leading_line, 2, "{test_symbol:?}");
     }
 
+    /// TC-1926, FR-051-AC-14 (PLAT-882 review round 3, F4): a leading
+    /// comment reaches an `await`-wrapped registration exactly as it
+    /// reaches the non-awaited form — `stmt_anchor` used to climb only
+    /// `expression_statement`/`export_statement`, stopping one node too low
+    /// at the `await_expression` wrapping the call, so `leading_line`
+    /// differed by one between `await it(...)` and `it(...)` with an
+    /// identical leading comment. Zero real occurrences in either measured
+    /// corpus, but the shape is legal (an async registration helper).
+    #[trace("TC-1926", "FR-051-AC-14")]
+    #[test]
+    fn tc1926_a_leading_comment_reaches_an_awaited_registration() {
+        let awaited = concat!(
+            "// a tag\n",
+            "await it(\"holds\", () => {\n",
+            "  expect(1).toBe(1);\n",
+            "});\n",
+        );
+        let plain = concat!(
+            "// a tag\n",
+            "it(\"holds\", () => {\n",
+            "  expect(1).toBe(1);\n",
+            "});\n",
+        );
+        for source in [awaited, plain] {
+            let symbols = parse("a.test.ts", source).expect("a valid file must parse");
+            let test_symbol = symbols
+                .iter()
+                .find(|s| s.qualified_name == "holds")
+                .expect("the registration is a test symbol");
+            assert_eq!(
+                test_symbol.leading_line, 1,
+                "a leading comment must reach the registration whether or not it is \
+                 `await`-wrapped: {test_symbol:?}"
+            );
+        }
+    }
+
     /// TC-1920, FR-051-AC-18 (CR-084, PLAT-882 review finding F1): a title
     /// held in a **multi-line** template literal registers nothing.
     /// `qualified_name` feeds `Symbol::compute_id`, and `plat843_audit_list`
@@ -1566,6 +1615,19 @@ mod tests {
                 .iter()
                 .all(|s| s.qualified_name != "Foo.bar" && s.qualified_name != "bar"),
             "an interface method signature must not mint: {symbols:?}"
+        );
+        // Review round 3 (F5): the module doc claims an interface mints no
+        // symbol "not the declaration itself and not its members" — the
+        // assertion above covered only the member half. `walk`'s
+        // `_ => walk(child, ...)` catch-all is what currently gives
+        // `interface_declaration` this behaviour (it is not explicitly
+        // matched, so it neither mints nor is excluded on purpose); adding
+        // `"interface_declaration"` to the `class_declaration` arm, which
+        // would make every interface mint a `Container` named `Foo`, passed
+        // every other test in this module silently. This closes that gap.
+        assert!(
+            symbols.iter().all(|s| s.qualified_name != "Foo"),
+            "an interface declaration itself must not mint a symbol: {symbols:?}"
         );
     }
 }
