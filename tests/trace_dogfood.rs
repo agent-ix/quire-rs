@@ -24,7 +24,7 @@ fn repo(rel: &str) -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join(rel)
 }
 
-fn backed_in(dir: &str) -> Vec<String> {
+fn graph_for(dir: &str) -> trace::SymbolGraph {
     let module = repo("tests/fixtures/traceability/iso");
     let model = Registry::load_module(&module)
         .expect("load iso fixture module")
@@ -37,6 +37,10 @@ fn backed_in(dir: &str) -> Vec<String> {
         "{dir} yielded no symbols at all"
     );
     trace::bind(&extraction, &model)
+}
+
+fn backed_in(dir: &str) -> Vec<String> {
+    graph_for(dir)
         .backed_trace_ids()
         .into_iter()
         .map(str::to_string)
@@ -67,4 +71,51 @@ fn tc828_the_fuzz_target_backs_tc579() {
         backed.contains(&"TC-579".to_string()),
         "TC-579 is tagged in fuzz_validate_extract_query.rs and must bind: {backed:?}"
     );
+}
+
+/// PLAT-868 PR #479 review, F1: `TC-1880` (`FR-051-AC-25`) was marked ✅ in
+/// `spec/tests.md` with three nominated tests in `python.rs`, but none of
+/// them actually bound it — a doc-comment mention of an id-shaped token is
+/// not a declared trace form (this repo's own `trace_tags` grammar), so
+/// `TC-1880` bound nowhere while the matrix read green: exactly the defect
+/// class FR-051/TC-1044 exists to catch, caught here on this repo's own tree
+/// instead. Fixed by adding `#[trace("TC-1880", "FR-051-AC-25")]` to each of
+/// the three; this test is the regression pin so it cannot silently recur.
+///
+/// Checks `graph.verifies` directly, by `(symbol, trace_id)` — not
+/// `unmatched_tags`, which `src/symbols/python.rs`'s own test fixtures make
+/// noisy on their own account: several already-correct tests in that file
+/// embed id-shaped literals as fixture *payload* (e.g. `tc800`'s `"TC-028"`,
+/// `"TC-029"`), and every one of those payload literals that is not itself
+/// the symbol's own bound id lands in `unmatched_tags` too, regardless of
+/// whether that test's real tag bound. `unmatched_tags` is real signal for
+/// this repo's own health, just not a per-symbol pass/fail check.
+#[trace("TC-1880", "FR-051-AC-25")]
+#[test]
+fn tc1880_the_python_decorator_wrap_tests_actually_bind() {
+    let graph = graph_for("src/symbols");
+    let backed = graph.backed_trace_ids();
+    assert!(
+        backed.contains("TC-1880"),
+        "TC-1880 must bind from python.rs's own tests: {backed:?}"
+    );
+
+    for symbol in [
+        "tests::plat234_a_black_wrapped_multiline_decorator_reaches_leading_line",
+        "tests::a_second_wrapped_decorator_between_the_tag_and_def_does_not_move_leading_line",
+        "tests::tc800_wrapped_signature_span_reaches_the_docstring",
+    ] {
+        assert!(
+            graph
+                .verifies
+                .iter()
+                .any(|r| r.symbol.contains(symbol) && r.trace_id == "TC-1880"),
+            "{symbol} must carry a verifies relation to TC-1880: {:?}",
+            graph
+                .verifies
+                .iter()
+                .filter(|r| r.symbol.contains(symbol))
+                .collect::<Vec<_>>()
+        );
+    }
 }

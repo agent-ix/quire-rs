@@ -157,19 +157,13 @@ pub(crate) fn parse(path: &str, source: &str) -> Result<Vec<RawSymbol>, String> 
         container: None,
     }];
 
-    let mut class_stack: Vec<ClassScope> = Vec::new();
-    let mut unittest = UnittestImports::default();
-    walk(
+    let mut walker = Walk::new(&lines, source, &module);
+    walker.walk(
         parsed.root_node(),
-        &lines,
-        source,
-        &module,
-        true,
-        false,
-        &mut class_stack,
-        &mut unittest,
-        &mut out,
+        AtModuleLevel(true),
+        DirectInClassBody(false),
     );
+    out.extend(walker.out);
     Ok(out)
 }
 
@@ -195,89 +189,195 @@ enum TestClass {
     Unittest,
 }
 
-/// Walk `node`'s named children, minting a [`RawSymbol`] for each
-/// declaration and recursing to find every nested one — a `class`/`def`
-/// body, and anywhere else a declaration can legally appear (an `if`, a
-/// `try`, a `with`, a `for`), the same set the pre-port line-structural
-/// scanner saw regardless of statement context.
-///
-/// `at_module_level` is true only while iterating the module node's own
-/// direct children — never for anything found by recursing into a body —
-/// matching the pre-port scanner's `indent == 0` restriction exactly: it
-/// gates both the unittest import/rebinding tracking and top-level
-/// `TestCase`-base detection. `direct_in_class_body` is true only while
-/// iterating a class's own `body` block's direct children, and gates
-/// whether a member counts as *directly* declared for [`TestClass::Unittest`]
-/// purposes (see that variant's own docs) — the AST equivalent of the
-/// pre-port scanner's recorded body-indent comparison, exact because Python
-/// requires uniform indentation within one suite.
-#[allow(clippy::too_many_arguments)]
-fn walk(
-    node: Node,
-    lines: &[&str],
-    source: &str,
-    module: &str,
-    at_module_level: bool,
-    direct_in_class_body: bool,
-    class_stack: &mut Vec<ClassScope>,
-    unittest: &mut UnittestImports,
-    out: &mut Vec<RawSymbol>,
-) {
-    let mut cursor = node.walk();
-    for child in node.named_children(&mut cursor) {
-        match child.kind() {
-            "decorated_definition" => {
-                if at_module_level {
-                    for decorator in decorators_of(child) {
-                        observe_line(unittest, lines, decorator.start_position().row);
+/// Whether the walk is iterating the module node's own direct children —
+/// never true for anything found by recursing into a body. A newtype, not a
+/// bare `bool`: this sits in every call next to [`DirectInClassBody`], and
+/// two adjacent same-typed positional bools compile silently transposed. A
+/// transposition here would change which member reads as a container's
+/// *direct* one — feeding `TestClass::Unittest`'s classification, which
+/// feeds `kind`, which is an identity attribute (`Symbol::compute_id`), not
+/// a diagnostic — so the type system is asked to rule it out rather than a
+/// reviewer.
+#[derive(Clone, Copy, PartialEq, Eq)]
+struct AtModuleLevel(bool);
+
+/// Whether the walk is iterating a class's own `body` block's direct
+/// children — gates whether a member counts as *directly* declared for
+/// [`TestClass::Unittest`] purposes (see that variant's own docs). See
+/// [`AtModuleLevel`] for why this is a newtype rather than a second bare
+/// `bool`.
+#[derive(Clone, Copy, PartialEq, Eq)]
+struct DirectInClassBody(bool);
+
+/// The walk's threaded state for one file: the per-file inputs that never
+/// change (`lines`/`source`/`module`) and the accumulators that do
+/// (`class_stack`/`unittest`/`out`), held once on `self` instead of passed
+/// as up to eight loose parameters through every recursive call — which is
+/// what the two `#[allow(clippy::too_many_arguments)]` this replaces used to
+/// cover.
+struct Walk<'a> {
+    lines: &'a [&'a str],
+    source: &'a str,
+    module: &'a str,
+    class_stack: Vec<ClassScope>,
+    unittest: UnittestImports,
+    out: Vec<RawSymbol>,
+}
+
+impl<'a> Walk<'a> {
+    fn new(lines: &'a [&'a str], source: &'a str, module: &'a str) -> Self {
+        Walk {
+            lines,
+            source,
+            module,
+            class_stack: Vec::new(),
+            unittest: UnittestImports::default(),
+            out: Vec::new(),
+        }
+    }
+
+    /// Feed one physical line to [`UnittestImports::observe_binding`] — the
+    /// bounded, module-top-level-only rebinding tracking this adapter keeps
+    /// text-based (see that struct's own docs).
+    fn observe_line(&mut self, row: usize) {
+        if let Some(line) = self.lines.get(row) {
+            self.unittest.observe_binding(line);
+        }
+    }
+
+    /// Walk `node`'s named children, minting a [`RawSymbol`] for each
+    /// declaration and recursing to find every nested one — a `class`/`def`
+    /// body, and anywhere else a declaration can legally appear (an `if`, a
+    /// `try`, a `with`, a `for`), the same set the pre-port line-structural
+    /// scanner saw regardless of statement context.
+    ///
+    /// `at_module_level` is true only while iterating the module node's own
+    /// direct children — never for anything found by recursing into a body —
+    /// matching the pre-port scanner's `indent == 0` restriction exactly: it
+    /// gates both the unittest import/rebinding tracking and top-level
+    /// `TestCase`-base detection. `direct_in_class_body` is true only while
+    /// iterating a class's own `body` block's direct children — the AST
+    /// equivalent of the pre-port scanner's recorded body-indent comparison,
+    /// exact because Python requires uniform indentation within one suite.
+    fn walk(
+        &mut self,
+        node: Node,
+        at_module_level: AtModuleLevel,
+        direct_in_class_body: DirectInClassBody,
+    ) {
+        let mut cursor = node.walk();
+        for child in node.named_children(&mut cursor) {
+            match child.kind() {
+                "decorated_definition" => {
+                    if at_module_level.0 {
+                        for decorator in decorators_of(child) {
+                            self.observe_line(decorator.start_position().row);
+                        }
                     }
+                    let Some(inner) = child.child_by_field_name("definition") else {
+                        continue;
+                    };
+                    self.dispatch_definition(inner, child, at_module_level, direct_in_class_body);
                 }
-                let Some(inner) = child.child_by_field_name("definition") else {
-                    continue;
+                "class_definition" | "function_definition" => {
+                    self.dispatch_definition(child, child, at_module_level, direct_in_class_body);
+                }
+                _ => {
+                    if at_module_level.0 {
+                        self.observe_line(child.start_position().row);
+                    }
+                    self.walk(child, AtModuleLevel(false), DirectInClassBody(false));
+                }
+            }
+        }
+    }
+
+    /// Mint a [`RawSymbol`] for a `class_definition` or `function_definition`
+    /// (`def_node`), attributing its leading annotation span to `span_node` —
+    /// the surrounding `decorated_definition` when decorated, `def_node`
+    /// itself otherwise — and recurse into its body with the
+    /// container/scope rules this module's own docs pin.
+    fn dispatch_definition(
+        &mut self,
+        def_node: Node,
+        span_node: Node,
+        at_module_level: AtModuleLevel,
+        direct_in_class_body: DirectInClassBody,
+    ) {
+        let Some(name) = field_text(def_node, "name", self.source) else {
+            return;
+        };
+        let (container, qualified_name) = qualify(&self.class_stack, self.module, &name);
+
+        match def_node.kind() {
+            "class_definition" => {
+                let header_row = def_node.start_position().row;
+                let header_line = self.lines.get(header_row).copied().unwrap_or("").trim();
+                let is_unittest = at_module_level.0 && self.unittest.is_test_case(header_line);
+                if at_module_level.0 {
+                    self.observe_line(header_row);
+                }
+                let test_class = if is_unittest {
+                    TestClass::Unittest
+                } else if name.starts_with("Test") {
+                    TestClass::Pytest
+                } else {
+                    TestClass::None
                 };
-                dispatch_definition(
-                    inner,
-                    child,
-                    lines,
-                    source,
-                    module,
-                    at_module_level,
-                    direct_in_class_body,
-                    class_stack,
-                    unittest,
-                    out,
-                );
-            }
-            "class_definition" | "function_definition" => {
-                dispatch_definition(
-                    child,
-                    child,
-                    lines,
-                    source,
-                    module,
-                    at_module_level,
-                    direct_in_class_body,
-                    class_stack,
-                    unittest,
-                    out,
-                );
-            }
-            _ => {
-                if at_module_level {
-                    observe_line(unittest, lines, child.start_position().row);
+                self.out.push(RawSymbol {
+                    qualified_name: qualified_name.clone(),
+                    kind: SymbolKind::Container,
+                    line: def_node.start_position().row + 1,
+                    leading_line: leading_span(span_node, self.lines),
+                    end_line: def_node.end_position().row + 1,
+                    container: Some(container),
+                });
+                self.class_stack.push(ClassScope {
+                    qualified_name,
+                    test_class,
+                });
+                if let Some(body) = def_node.child_by_field_name("body") {
+                    self.walk(body, AtModuleLevel(false), DirectInClassBody(true));
                 }
-                walk(
-                    child,
-                    lines,
-                    source,
-                    module,
-                    false,
-                    false,
-                    class_stack,
-                    unittest,
-                    out,
-                );
+                self.class_stack.pop();
             }
+            "function_definition" => {
+                if at_module_level.0 {
+                    self.observe_line(def_node.start_position().row);
+                }
+                let in_test_class =
+                    self.class_stack
+                        .last()
+                        .is_some_and(|scope| match scope.test_class {
+                            TestClass::Pytest => true,
+                            TestClass::Unittest => direct_in_class_body.0,
+                            TestClass::None => false,
+                        });
+                let kind = if name.starts_with("test_")
+                    && (self.class_stack.is_empty() || in_test_class)
+                {
+                    SymbolKind::TestFunction
+                } else {
+                    SymbolKind::Function
+                };
+                self.out.push(RawSymbol {
+                    qualified_name,
+                    kind,
+                    line: def_node.start_position().row + 1,
+                    leading_line: leading_span(span_node, self.lines),
+                    end_line: def_node.end_position().row + 1,
+                    container: Some(container),
+                });
+                // A `def` is never a container for its own nested `def`s (see
+                // this module's own docs) — recurse with the *same* class
+                // scope, not this function's own name, so a nested helper
+                // qualifies under whatever class (or bare module level) was
+                // already open, matching the pre-port scanner exactly.
+                if let Some(body) = def_node.child_by_field_name("body") {
+                    self.walk(body, AtModuleLevel(false), DirectInClassBody(false));
+                }
+            }
+            _ => {}
         }
     }
 }
@@ -291,127 +391,6 @@ fn decorators_of(decorated: Node) -> Vec<Node> {
         .named_children(&mut cursor)
         .filter(|n| n.kind() == "decorator")
         .collect()
-}
-
-/// Feed one physical line to [`UnittestImports::observe_binding`] — the
-/// bounded, module-top-level-only rebinding tracking this adapter keeps
-/// text-based (see that struct's own docs).
-fn observe_line(unittest: &mut UnittestImports, lines: &[&str], row: usize) {
-    if let Some(line) = lines.get(row) {
-        unittest.observe_binding(line);
-    }
-}
-
-/// Mint a `RawSymbol` for a `class_definition` or `function_definition`
-/// (`def_node`), attributing its leading annotation span to `span_node` —
-/// the surrounding `decorated_definition` when decorated, `def_node` itself
-/// otherwise — and recurse into its body with the container/scope rules
-/// this module's own docs pin.
-#[allow(clippy::too_many_arguments)]
-fn dispatch_definition(
-    def_node: Node,
-    span_node: Node,
-    lines: &[&str],
-    source: &str,
-    module: &str,
-    at_module_level: bool,
-    direct_in_class_body: bool,
-    class_stack: &mut Vec<ClassScope>,
-    unittest: &mut UnittestImports,
-    out: &mut Vec<RawSymbol>,
-) {
-    let Some(name) = field_text(def_node, "name", source) else {
-        return;
-    };
-    let (container, qualified_name) = qualify(class_stack, module, &name);
-
-    match def_node.kind() {
-        "class_definition" => {
-            let header_row = def_node.start_position().row;
-            let header_line = lines.get(header_row).copied().unwrap_or("").trim();
-            let is_unittest = at_module_level && unittest.is_test_case(header_line);
-            if at_module_level {
-                observe_line(unittest, lines, header_row);
-            }
-            let test_class = if is_unittest {
-                TestClass::Unittest
-            } else if name.starts_with("Test") {
-                TestClass::Pytest
-            } else {
-                TestClass::None
-            };
-            out.push(RawSymbol {
-                qualified_name: qualified_name.clone(),
-                kind: SymbolKind::Container,
-                line: def_node.start_position().row + 1,
-                leading_line: leading_span(span_node),
-                end_line: def_node.end_position().row + 1,
-                container: Some(container),
-            });
-            class_stack.push(ClassScope {
-                qualified_name,
-                test_class,
-            });
-            if let Some(body) = def_node.child_by_field_name("body") {
-                walk(
-                    body,
-                    lines,
-                    source,
-                    module,
-                    false,
-                    true,
-                    class_stack,
-                    unittest,
-                    out,
-                );
-            }
-            class_stack.pop();
-        }
-        "function_definition" => {
-            if at_module_level {
-                observe_line(unittest, lines, def_node.start_position().row);
-            }
-            let in_test_class = class_stack
-                .last()
-                .is_some_and(|scope| match scope.test_class {
-                    TestClass::Pytest => true,
-                    TestClass::Unittest => direct_in_class_body,
-                    TestClass::None => false,
-                });
-            let kind = if name.starts_with("test_") && (class_stack.is_empty() || in_test_class) {
-                SymbolKind::TestFunction
-            } else {
-                SymbolKind::Function
-            };
-            out.push(RawSymbol {
-                qualified_name,
-                kind,
-                line: def_node.start_position().row + 1,
-                leading_line: leading_span(span_node),
-                end_line: def_node.end_position().row + 1,
-                container: Some(container),
-            });
-            // A `def` is never a container for its own nested `def`s (see
-            // this module's own docs) — recurse with the *same* class
-            // scope, not this function's own name, so a nested helper
-            // qualifies under whatever class (or bare module level) was
-            // already open, matching the pre-port scanner exactly.
-            if let Some(body) = def_node.child_by_field_name("body") {
-                walk(
-                    body,
-                    lines,
-                    source,
-                    module,
-                    false,
-                    false,
-                    class_stack,
-                    unittest,
-                    out,
-                );
-            }
-        }
-        _ => {}
-    }
 }
 
 /// `(container, qualified_name)` for a declaration named `name`, given the
@@ -448,7 +427,30 @@ fn field_text(node: Node, field: &str, source: &str) -> Option<String> {
 /// between lines, which is what fixes PLAT-234: a multi-line decorator
 /// argument list is part of one `decorated_definition` node regardless of
 /// how many lines it spans.
-fn leading_span(node: Node) -> usize {
+///
+/// **A comment only extends the span when it starts its own line.**
+/// tree-sitter emits a *trailing* comment (`x = 1  # note`) as a sibling
+/// node exactly like a comment on its own line — `.kind() == "comment"`
+/// alone cannot tell them apart, and the pre-port scanner's own
+/// `is_annotation` required the *trimmed line* to start with `@`/`#`, which
+/// a trailing comment never does. Without this check, `# note` above would
+/// have been walked into the *next* declaration's leading span, pulling
+/// whatever the comment says (a stray trace-shaped tag, a note about a
+/// different function) into a span `trace.rs` binds from — a review finding
+/// (PLAT-868 PR #479): a correct-looking span change that silently mints or
+/// moves a binding. `lines` is used only for this same-line check, never to
+/// re-derive what the tree already gives structurally.
+///
+/// A comment that stays indented at the *previous* declaration's own body
+/// level, before the dedent back out of it, is never even a candidate here:
+/// it is tree-sitter's own "extra"-token placement, not this function's own
+/// stopping conditions, that attaches it as a trailing child of the
+/// previous `block` rather than as a sibling of the next declaration — so
+/// it cannot walk into the next span at all (measured directly; see
+/// `an_indented_trailing_comment_stays_inside_the_previous_body_not_the_next_span`
+/// in this module's own tests). Only a comment already dedented to the next
+/// declaration's own level is its sibling, and reaches the walk below.
+fn leading_span(node: Node, lines: &[&str]) -> usize {
     let mut boundary_row = node.start_position().row;
     let mut current = node;
     while let Some(prev) = current.prev_sibling() {
@@ -456,6 +458,13 @@ fn leading_span(node: Node) -> usize {
             break;
         }
         if boundary_row.saturating_sub(prev.end_position().row) > 1 {
+            break;
+        }
+        let starts_its_own_line = lines
+            .get(prev.start_position().row)
+            .and_then(|line| line.get(..prev.start_position().column))
+            .is_some_and(|prefix| prefix.trim().is_empty());
+        if !starts_its_own_line {
             break;
         }
         boundary_row = prev.start_position().row;
@@ -799,15 +808,40 @@ mod tests {
         let first = symbol(&symbols, "TestParsing.test_reads_a_fixture");
         assert_eq!(first.container.as_deref(), Some("TestParsing"));
 
-        // A naive single-scope stand-in — the #274 defect shape — cannot
-        // distinguish these two methods' containers, proving the property
-        // is not vacuous: it would report the same (wrong) answer for both.
-        let naive_single_scope = "TestParsing";
+        // A naive single-scope stand-in — a scope stack that never pops
+        // once entered, the #274 defect shape — cannot distinguish these
+        // two methods' containers: it always reports whichever `class` line
+        // came *first* in the source. This is computed from the fixture
+        // itself, not hand-typed, so renaming the fixture's first class
+        // cannot make the property silently vacuous the way a bare string
+        // literal here could (PLAT-868 PR #479 review, F8).
+        let naive_single_scope =
+            naive_never_popped_scope(source).expect("fixture premise: opens at least one class");
+        assert_eq!(
+            naive_single_scope, "TestParsing",
+            "fixture premise: the first class in source is TestParsing"
+        );
         assert_ne!(
             method.container.as_deref(),
             Some(naive_single_scope),
             "a stale scope would misattribute the second method to the first class"
         );
+    }
+
+    /// A minimal stand-in for a scope stack that never pops once entered —
+    /// the #274 defect shape: every method after the first `class` line
+    /// reports that same first class as its container, however many later
+    /// classes close and reopen. Returns the first `class NAME` line's
+    /// `NAME`, read from `source` itself (not hand-typed) so the comparison
+    /// in `tc1031` stays tied to the fixture it checks.
+    fn naive_never_popped_scope(source: &str) -> Option<&str> {
+        source.lines().find_map(|line| {
+            line.trim_start().strip_prefix("class ").map(|rest| {
+                rest.split(|c: char| !c.is_alphanumeric() && c != '_')
+                    .next()
+                    .unwrap_or("")
+            })
+        })
     }
 
     /// TC-800, FR-051-AC-13 (CR-037): a signature black-wrapped over
@@ -819,6 +853,7 @@ mod tests {
     /// `test_multi_line`'s wrapped signature binds `TC-029` exactly as
     /// `test_single_line`'s single-line spelling binds `TC-028` — the
     /// single-line form is the control.
+    #[trace("TC-1880", "FR-051-AC-25")]
     #[test]
     fn tc800_wrapped_signature_span_reaches_the_docstring() {
         let source = concat!(
@@ -861,19 +896,23 @@ mod tests {
     /// start with `@`); tree-sitter tokenizes the whole call as one
     /// `decorator` node inside `decorated_definition`, whose own span
     /// already starts there. The single-line spelling below is the control:
-    /// both bind `TC-1900` from their span.
+    /// both bind `TC-028` from their span (reusing `tc800`'s own real id
+    /// rather than inventing a new one — an invented id here would be an
+    /// id-shaped literal with no declared row, landing in this repo's own
+    /// `unmatched_tags` population, PLAT-868 PR #479 review, F5).
+    #[trace("TC-1880", "FR-051-AC-25")]
     #[test]
     fn plat234_a_black_wrapped_multiline_decorator_reaches_leading_line() {
         let wrapped = concat!(
             "@pytest.mark.trace(\n",
-            "    \"TC-1900\",\n",
+            "    \"TC-028\",\n",
             "    \"FR-051-AC-1\",\n",
             ")\n",
             "def test_wrapped_decorator():\n",
             "    assert True\n",
         );
         let control = concat!(
-            "@pytest.mark.trace(\"TC-1900\", \"FR-051-AC-1\")\n",
+            "@pytest.mark.trace(\"TC-028\", \"FR-051-AC-1\")\n",
             "def test_wrapped_decorator():\n",
             "    assert True\n",
         );
@@ -895,7 +934,7 @@ mod tests {
                 .collect::<Vec<_>>()
                 .join("\n");
             assert!(
-                span.contains("TC-1900"),
+                span.contains("TC-028"),
                 "{label}: span misses the wrapped tag:\n{span}"
             );
         }
@@ -907,12 +946,14 @@ mod tests {
     /// `decorated_definition`'s span starts at its first `decorator` child
     /// regardless of how many decorators follow it or how each one wraps.
     /// The single-line spelling of both decorators is the control: both
-    /// bind `TC-1901` from their span.
+    /// bind `TC-029` from their span (see `plat234`'s own doc comment above
+    /// for why this reuses a real id rather than inventing one).
+    #[trace("TC-1880", "FR-051-AC-25")]
     #[test]
     fn a_second_wrapped_decorator_between_the_tag_and_def_does_not_move_leading_line() {
         let wrapped = concat!(
             "@pytest.mark.trace(\n",
-            "    \"TC-1901\",\n",
+            "    \"TC-029\",\n",
             "    \"FR-051-AC-1\",\n",
             ")\n",
             "@pytest.mark.parametrize(\n",
@@ -923,7 +964,7 @@ mod tests {
             "    assert True\n",
         );
         let control = concat!(
-            "@pytest.mark.trace(\"TC-1901\", \"FR-051-AC-1\")\n",
+            "@pytest.mark.trace(\"TC-029\", \"FR-051-AC-1\")\n",
             "@pytest.mark.parametrize(\"x\", [1, 2])\n",
             "def test_two_wrapped_decorators(x):\n",
             "    assert True\n",
@@ -946,10 +987,82 @@ mod tests {
                 .collect::<Vec<_>>()
                 .join("\n");
             assert!(
-                span.contains("TC-1901"),
+                span.contains("TC-029"),
                 "{label}: span misses the wrapped tag:\n{span}"
             );
         }
+    }
+
+    /// PLAT-868 PR #479 review, F4: a trailing comment sharing the
+    /// *previous* statement's own line must not be pulled into the next
+    /// declaration's leading span — it is not an annotation of anything
+    /// below it. Confirmed as a real regression against the pre-port
+    /// scanner's behaviour before this fix: `leading_span` originally
+    /// treated any preceding `comment`-kind sibling as leading, and
+    /// tree-sitter emits a trailing comment as a sibling exactly like an
+    /// own-line one, so `# note` here would have been walked into `f`'s
+    /// span — the same hazard as PLAT-234, but silently *creating* a
+    /// binding rather than losing one, had that comment carried a
+    /// trace-shaped tag.
+    #[test]
+    fn a_trailing_comment_on_the_previous_line_is_not_a_leading_annotation() {
+        let source = concat!("x = 1  # note\n", "def f():\n", "    pass\n",);
+        let symbols = parse("t.py", source).expect("parses");
+        let f = symbol(&symbols, "f");
+        assert_eq!(
+            f.leading_line, 2,
+            "a same-line trailing comment must not be pulled into the leading span"
+        );
+    }
+
+    /// PLAT-868 PR #479 review, F4(b): what a comment's *indentation*
+    /// contributes, beyond the own-line check `leading_span` itself makes.
+    /// tree-sitter's `comment` is an "extra" token attached to wherever it
+    /// falls in the token stream relative to Python's own INDENT/DEDENT —
+    /// not to `leading_span`'s own logic, which only ever looks at sibling
+    /// nodes.
+    ///
+    /// A comment still indented at the *previous* declaration's body level,
+    /// appearing before the dedent back to module level, is swallowed as a
+    /// trailing child of that previous `block` — never a sibling of the
+    /// next declaration at all, so it cannot extend that declaration's
+    /// span (`h.leading_line` stays on `h`'s own line, unaffected by `g`'s
+    /// trailing comment). A comment already dedented to the next
+    /// declaration's own level *is* that declaration's sibling, and does
+    /// extend its span, the ordinary case every other `leading_span` test
+    /// here already exercises. Documented because the review that raised
+    /// this (F4) suspected the indented case moved `leading_line`; measured
+    /// here, it does not — the indentation-sensitive grammar keeps it
+    /// contained in the block it visually belongs to either way.
+    #[test]
+    fn an_indented_trailing_comment_stays_inside_the_previous_body_not_the_next_span() {
+        let indented_before_dedent = concat!(
+            "def g():\n",
+            "    pass\n",
+            "    # still indented like g's body, but g is done\n",
+            "def h():\n",
+            "    pass\n",
+        );
+        let symbols = parse("t.py", indented_before_dedent).expect("parses");
+        let h = symbol(&symbols, "h");
+        assert_eq!(
+            h.leading_line, 4,
+            "a comment still indented at g's body level is g's, not h's"
+        );
+
+        let dedented_to_module_level = concat!(
+            "def g():\n",
+            "    pass\n",
+            "# module level comment\n",
+            "def h():\n",
+            "    pass\n",
+        );
+        let symbols2 = parse("t.py", dedented_to_module_level).expect("parses");
+        let h2 = symbol(&symbols2, "h");
+        assert_eq!(
+            h2.leading_line, 3,
+            "a comment already dedented to h's own level is h's leading annotation"
+        );
     }
 
     /// FR-051-AC-1/AC-2: a `def` nested inside another `def` is never its
