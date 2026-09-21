@@ -10,6 +10,18 @@
 //! after being strengthened to scope by `workspace_members` instead of two
 //! hardcoded names (review F2) — same technique, same result, recorded in the
 //! PR body rather than repeated here.
+//!
+//! PLAT-851 widened this crate to carry `python`/`typescript` alongside
+//! `rust`. Adding a temporary direct `tree-sitter-python` dependency and
+//! watching the reachability test above fail would prove nothing about that
+//! widening — review caught this: `package["dependencies"]` is manifest-
+//! derived, not feature-filtered, so that test's prefix match and
+//! `workspace_members` scoping are unchanged by PLAT-851 and would have
+//! failed identically before it. The assertions PLAT-851 actually added are
+//! the two new `locked_version_of` equality checks below; those were
+//! observed red by perturbing one expected version string, confirming the
+//! failure named the mismatch, then reverting (see the PR body) — the
+//! evidence that actually matches what PLAT-851 changed.
 
 #[test]
 fn tree_sitter_is_reachable_only_through_the_quire_code_parse_pin() {
@@ -97,14 +109,29 @@ fn the_locked_grammar_version_is_asserted_not_only_pinned_by_source_rev() {
     let metadata = cargo_metadata();
     let packages = metadata["packages"].as_array().expect("packages");
 
+    // `deny.toml` sets `multiple-versions = "allow"` (this workspace does not
+    // forbid two majors of a crate coexisting). `.find(...)` would silently
+    // assert against whichever copy it reaches first while the build links
+    // the other, so this collects every match and requires there be exactly
+    // one before comparing — a second major entering the graph fails here
+    // with a name and a count, not a version string that happens to still
+    // match one of the copies.
     let locked_version_of = |name: &str| -> String {
-        packages
+        let matches: Vec<&str> = packages
             .iter()
-            .find(|package| package["name"].as_str() == Some(name))
-            .unwrap_or_else(|| panic!("{name} is not in the resolved dependency graph"))["version"]
-            .as_str()
-            .unwrap_or_default()
-            .to_string()
+            .filter(|package| package["name"].as_str() == Some(name))
+            .map(|package| package["version"].as_str().unwrap_or_default())
+            .collect();
+        match matches.as_slice() {
+            [] => panic!("{name} is not in the resolved dependency graph"),
+            [version] => version.to_string(),
+            multiple => panic!(
+                "{name} resolved to {} versions ({multiple:?}), not exactly one — \
+                 multiple-versions is allowed in deny.toml, so this assertion cannot \
+                 assume `find` reaches the same copy the build links",
+                multiple.len()
+            ),
+        }
     };
 
     assert_eq!(
@@ -147,26 +174,25 @@ fn the_locked_grammar_version_is_asserted_not_only_pinned_by_source_rev() {
 fn cargo_metadata() -> serde_json::Value {
     // Run from the workspace root, not this crate's own manifest, so the
     // graph includes the root `quire-rs` package too. `--all-features`
-    // (PLAT-851) makes this gate STRICTER, not weaker, despite reading like a
-    // relaxation: the boundary this file enforces ("no workspace member
-    // depends on tree-sitter directly") must hold regardless of which
-    // features a consumer enables, so checking it under every feature turned
-    // on is the correct scope for a violation check, not a convenience —
-    // a version of this gate that only checked the *default* feature set
-    // would miss a direct `tree-sitter` dependency added behind
-    // `python-symbols` or `typescript-symbols` specifically, which is exactly
-    // the newly-covered case PLAT-851 widened this crate for. Separately,
-    // it is also *necessary* for the second test below to even run: the root
-    // package's default features activate only `rust-symbols`, so plain
+    // (PLAT-851) is *mechanically necessary* for the second test below to
+    // even run — it is not a stricter scope for the reachability check
+    // above, which review corrected: `cargo metadata`'s `package["dependencies"]`
+    // array is the *manifest-declared* dependency list, not filtered by
+    // active features, so the reachability test above already saw
+    // `tree-sitter-python`/`tree-sitter-typescript` as optional dependencies
+    // of `quire-code-parse` (and would already have caught a direct
+    // `tree-sitter` dependency added behind `python-symbols`) with or without
+    // this flag; `quire-rs`'s own dependency count is identical either way.
+    // What `--all-features` actually controls is `cargo metadata`'s top-level
+    // `packages` array, which *is* filtered to the requested feature set: the
+    // root package's default features activate only `rust-symbols`, so plain
     // `cargo metadata` here would resolve `tree-sitter-python`/
     // `tree-sitter-typescript` into `Cargo.lock` (every optional dependency
     // is locked regardless of activation — see that test's own doc comment)
-    // but leave them out of *this command's* `packages` array, which is
-    // filtered to the feature set requested. Without `--all-features`,
+    // but leave them out of `packages`. Without `--all-features`,
     // `the_locked_grammar_version_is_asserted_...` below would panic "not in
     // the resolved dependency graph" for both new grammars despite them
-    // being perfectly resolvable — exactly the kind of narrow gate this file
-    // warns against elsewhere.
+    // being perfectly resolvable.
     let manifest = concat!(env!("CARGO_MANIFEST_DIR"), "/../../Cargo.toml");
     let output = std::process::Command::new(env!("CARGO"))
         .args([

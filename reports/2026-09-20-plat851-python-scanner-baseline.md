@@ -47,7 +47,7 @@ Every rollup below is given twice: **all repos**, and **all repos excluding ecaz
 | **all repos** | **975** | 512 | 276 | 187 |
 | **all repos, excl. ecaz** | **780** | 357 | 269 | 154 |
 
-`quire-code-rs` and `quire-protocol` are Rust-only — 0 is a real measurement, not a gap. `quire-rs`'s own 656 is dominated by its declarative `corpus/cases/**` fixture trees (dogfooded test data exercising the trace-binding grammar in every language, deliberately, per this repo's own `CLAUDE.md` convention) and by `tests/python/` (the PyO3 binding suite) — `corpus/` matches none of the three declared `source_exclude` globs, so it is measured in full, same as PLAT-840 found for its own Rust corpus fixtures.
+`quire-code-rs` and `quire-protocol` are Rust-only — 0 is a real measurement, not a gap. `quire-rs`'s own 656 breaks down, by path prefix: `corpus/cases/**` 195 (30%, dogfooded test data exercising the trace-binding grammar in every language, deliberately, per this repo's own `CLAUDE.md` convention), `scripts/tests/**` 166 (25%, the local tooling test suite), `tests/python/**` 54 (8%, the PyO3 binding suite), the remainder spread across `scripts/*.py` and `corpus/*.py` individually. `corpus/` matches none of the three declared `source_exclude` globs, so it is measured in full, same as PLAT-840 found for its own Rust corpus fixtures.
 
 ## Files abandoned (PLAT-163 brace-desync)
 
@@ -55,7 +55,7 @@ Every rollup below is given twice: **all repos**, and **all repos excluding ecaz
 
 ## Tagged-but-unbound: Python signal
 
-`tagged_not_bound` = candidates whose annotation carries an id-shaped token (`tagged`) but which minted no `verifies` relation (`bound`). Only repos with Python source appear (the rest have zero Python candidates, not an omission).
+`tagged_not_bound` = candidates whose annotation carries an id-shaped token (`tagged`) but which minted no `verifies` relation (`bound`). Only repos with Python **candidates** appear — `filament-ide-rs` has Python source (2 symbols, see the headline table) but zero Python candidates, so it correctly does not appear below; "source" and "candidates" are not the same population.
 
 | Repo | Python candidates | tagged | bound | **tagged_not_bound** | Example |
 |---|---:|---:|---:|---:|---|

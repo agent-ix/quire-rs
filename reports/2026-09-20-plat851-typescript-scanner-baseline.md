@@ -36,7 +36,7 @@ Same measurement definition as the Python report (`extract_tree_scoped`, code ro
 | **all repos** | **1,610** | 709 | 504 | 397 |
 | **all repos, excl. ecaz** | **1,610** | 709 | 504 | 397 |
 
-`quire-rs`'s 165 is the same `corpus/cases/**` dogfooded-fixture and binding-suite pattern the Python report describes — `corpus/` matches none of the declared `source_exclude` globs, so it is measured in full. `filament-ide-rs` dominates for the obvious reason: it is the one TypeScript application in this corpus.
+`quire-rs`'s 165 is **165/165 `corpus/cases/**`** — unlike Python's 656 (spread across `corpus/cases`, `scripts/tests`, `tests/python` and more, see the Python report), there is no TypeScript binding suite to contribute a second source; `quire-rs` has no TypeScript bindings. `corpus/` matches none of the declared `source_exclude` globs, so it is measured in full. `filament-ide-rs` dominates for the obvious reason: it is the one TypeScript application in this corpus.
 
 ## Files abandoned (PLAT-163 brace-desync) — TypeScript is where the live exposure is
 
