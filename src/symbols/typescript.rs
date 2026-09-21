@@ -167,7 +167,7 @@
 use quire_rust_extraction::tree_sitter::Node;
 use quire_rust_extraction::{parse_file, Language};
 
-use super::{RawSymbol, SymbolKind};
+use super::{leading_span, RawSymbol, SymbolKind};
 
 /// Parse `source` into raw symbols, or return a per-file reason to skip it.
 ///
@@ -480,60 +480,40 @@ fn symbol_at(
         qualified_name,
         kind,
         line: anchor.start_position().row + 1,
-        leading_line: leading_span(anchor),
+        leading_line: leading_span(anchor, is_annotation_node),
         end_line: anchor.end_position().row + 1,
         container,
     }
-}
-
-/// The 1-based first line of `node`'s leading annotation block: the
-/// contiguous run of preceding `comment`/`decorator` sibling nodes,
-/// stopping at the first sibling of another kind, the first blank-line
-/// gap, or a comment that is itself **trailing** on the line of whatever
-/// precedes it — the same stopping conditions the line-structural scanner
-/// used (a trailing `// ...` never started its own line, so the old scanner
-/// never read it as an annotation line at all), now checked between sibling
-/// nodes instead of between lines, which is what lets a `/** ... */` JSDoc
-/// block or a multi-line `@Decorator(...)` join the span as one sibling
-/// regardless of how many lines it spans (the same class of fix
-/// PLAT-69/PLAT-846 made for the Rust adapter).
-///
-/// The trailing-comment check exists because tree-sitter represents `const
-/// re = /../; // note` as two siblings, a declaration and a `comment`, and
-/// without it the comment — nearest-preceding, not itself preceded by a
-/// blank-line gap — would be read as *the next declaration's* leading
-/// annotation, silently pulling a trailing note on one statement into the
-/// span (and binding search) of an unrelated one below it (discovered
-/// authoring `tc803_one_reading_decides_whether_delimiters_are_code`'s span
-/// assertions, PLAT-882 PR #481 review).
-fn leading_span(node: Node) -> usize {
-    let mut boundary_row = node.start_position().row;
-    let mut current = node;
-    while let Some(prev) = current.prev_sibling() {
-        if !is_annotation_node(prev) {
-            break;
-        }
-        if boundary_row.saturating_sub(prev.end_position().row) > 1 {
-            break;
-        }
-        if let Some(before) = prev.prev_sibling() {
-            if prev.start_position().row == before.end_position().row {
-                // `prev` starts on the same line `before` ends on — it is
-                // trailing on `before`'s statement, not a standalone leading
-                // comment for `node`.
-                break;
-            }
-        }
-        boundary_row = prev.start_position().row;
-        current = prev;
-    }
-    boundary_row + 1
 }
 
 /// Whether `node` is a sibling kind this adapter treats as part of a
 /// leading annotation block: a comment (`//`, `/* */`, `/** */` alike —
 /// tree-sitter's TypeScript/TSX grammar represents all three with the same
 /// `comment` node kind) or a decorator (`@Foo(...)`).
+///
+/// This predicate feeds [`leading_span`] (`super::leading_span`, shared
+/// with `python.rs`/`rust.rs` since PLAT-897), which stops the contiguous
+/// run of accepted siblings at the first sibling of another kind, the
+/// first blank-line gap, or a sibling that is itself **trailing** on the
+/// line of whatever precedes it — the same stopping conditions the
+/// line-structural scanner used (a trailing `// ...` never started its own
+/// line, so the old scanner never read it as an annotation line at all),
+/// now checked between sibling nodes instead of between lines, which is
+/// what lets a `/** ... */` JSDoc block or a multi-line `@Decorator(...)`
+/// join the span as one sibling regardless of how many lines it spans (the
+/// same class of fix PLAT-69/PLAT-846 made for the Rust adapter).
+///
+/// The trailing-comment stop exists because tree-sitter represents `const
+/// re = /../; // note` as two siblings, a declaration and a `comment`, and
+/// without it the comment — nearest-preceding, not itself preceded by a
+/// blank-line gap — would be read as *the next declaration's* leading
+/// annotation, silently pulling a trailing note on one statement into the
+/// span (and binding search) of an unrelated one below it (discovered
+/// authoring `tc803_one_reading_decides_whether_delimiters_are_code`'s span
+/// assertions, PLAT-882 PR #481 review). `python.rs` independently hit and
+/// fixed the identical defect the same week (PLAT-868 PR #479 F4); `rust.rs`
+/// had not yet, until PLAT-897 moved this walk into `mod.rs` as one shared
+/// implementation all three adapters call.
 fn is_annotation_node(node: Node) -> bool {
     matches!(node.kind(), "comment" | "decorator")
 }
@@ -1434,6 +1414,38 @@ mod tests {
             .find(|s| s.qualified_name == "holds")
             .expect("the registration is a test symbol");
         assert_eq!(test_symbol.leading_line, 2, "{test_symbol:?}");
+    }
+
+    /// FR-051-AC-14 (PLAT-897 PR #485 review F1): two annotation-kind
+    /// siblings sharing one physical line — a block comment then a line
+    /// comment, both trailing on the real code before them — must both be
+    /// excluded, not just the nearer one. `// y`'s own immediate
+    /// predecessor is `/* x */`, itself an accepted annotation sibling, so
+    /// a trailing check that only compares a candidate to its immediate
+    /// predecessor never reaches `const q = 1;` (the real code both
+    /// comments trail on) and wrongly accepts `// y` as the registration's
+    /// leading annotation. Measured through this adapter's own production
+    /// pipeline against a one-hop version of the shared helper's guard:
+    /// `test_symbol.leading_line` regressed from `2` (this repo's own
+    /// pre-#485 `main`) to `1`.
+    #[test]
+    fn two_trailing_annotation_siblings_on_one_line_are_both_excluded() {
+        let source = concat!(
+            "const q = 1; /* x */ // y\n",
+            "test(\"holds\", () => {\n",
+            "  expect(1).toBe(1);\n",
+            "});\n",
+        );
+        let symbols = parse("a.test.ts", source).expect("a valid file must parse");
+        let test_symbol = symbols
+            .iter()
+            .find(|s| s.qualified_name == "holds")
+            .expect("the registration is a test symbol");
+        assert_eq!(
+            test_symbol.leading_line, 2,
+            "a block comment then a line comment, both trailing on q's line, \
+             must not become the registration's leading annotation: {test_symbol:?}"
+        );
     }
 
     /// TC-1926, FR-051-AC-14 (PLAT-882 review round 3, F4): a leading

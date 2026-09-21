@@ -107,6 +107,15 @@
 //!   [`leading_span`] includes any of them rather than special-casing doc
 //!   comments back out — the same defect class as PLAT-69, same file, same
 //!   fix shape.
+//! - **A trailing comment on the previous declaration's own line no longer
+//!   joins the *next* declaration's leading span** (PLAT-897). This
+//!   adapter had never had the check `python.rs`/`typescript.rs` each
+//!   independently added to close the identical defect in their own ports
+//!   (PLAT-868 PR #479 F4, PLAT-882 PR #481): [`leading_span`] moved into
+//!   `mod.rs` as a shared helper both call, so this file inherits the fix
+//!   rather than needing its own copy. Measured at zero real occurrences in
+//!   this repo's own corpus at consolidation time — see the PR's
+//!   differential report.
 //!
 //! What did **not** change: the hand-written lexer subsystem this file used
 //! to carry (`LexedLine`, `ScanState`, `lex`, `lex_line`,
@@ -118,7 +127,7 @@
 use quire_rust_extraction::tree_sitter::Node;
 use quire_rust_extraction::{parse_file, Language};
 
-use super::{RawSymbol, SymbolKind};
+use super::{leading_span, RawSymbol, SymbolKind};
 
 /// Parse `source` into raw symbols, or return a per-file reason to skip it.
 ///
@@ -343,7 +352,7 @@ fn container_symbol(node: Node, qualified_name: String, container: Option<String
         qualified_name,
         kind: SymbolKind::Container,
         line: node.start_position().row + 1,
-        leading_line: leading_span(node),
+        leading_line: leading_span(node, is_annotation_node),
         end_line: node.end_position().row + 1,
         container,
     }
@@ -368,7 +377,7 @@ fn function_symbol(node: Node, source: &str, container: Option<String>) -> Optio
         qualified_name,
         kind,
         line: node.start_position().row + 1,
-        leading_line: leading_span(node),
+        leading_line: leading_span(node, is_annotation_node),
         end_line: node.end_position().row + 1,
         container,
     })
@@ -396,33 +405,6 @@ fn ident(s: &str) -> Option<String> {
     (!name.is_empty()).then_some(name)
 }
 
-/// The 1-based first line of `node`'s leading annotation block: the
-/// contiguous run of preceding `attribute_item`/`inner_attribute_item`/
-/// `line_comment`/`block_comment` sibling nodes, stopping at the first
-/// sibling of another kind or the first blank-line gap — the same two
-/// stopping conditions the line-structural scanner used, now checked between
-/// sibling nodes instead of between lines, which is what fixes PLAT-69 and
-/// PLAT-846: a multi-line attribute or a block doc comment is one sibling
-/// node regardless of how many lines it spans.
-fn leading_span(node: Node) -> usize {
-    let mut boundary_row = node.start_position().row;
-    let mut current = node;
-    while let Some(prev) = current.prev_sibling() {
-        if !is_annotation_node(prev) {
-            break;
-        }
-        // A blank line between this annotation and the block already
-        // collected breaks the run, exactly as an empty line did for the
-        // line-structural scanner.
-        if boundary_row.saturating_sub(prev.end_position().row) > 1 {
-            break;
-        }
-        boundary_row = prev.start_position().row;
-        current = prev;
-    }
-    boundary_row + 1
-}
-
 /// Whether `node` is a sibling kind this adapter treats as part of a leading
 /// annotation block: an attribute (outer or inner) or a comment — `//`,
 /// `///`, `/* */` or `/** */` alike. tree-sitter represents all four comment
@@ -432,6 +414,21 @@ fn leading_span(node: Node) -> usize {
 /// block *doc* comment does (PLAT-846) — there is no ticket-stated reason to
 /// special-case the non-doc form back out, and doing so would be more code
 /// for a distinction this adapter never otherwise makes.
+///
+/// This predicate feeds [`leading_span`] (`super::leading_span`, shared with
+/// `python.rs`/`typescript.rs` since PLAT-897), which stops the contiguous
+/// run at the first rejected sibling, the first blank-line gap, or an
+/// accepted sibling that is itself trailing on the line its own preceding
+/// sibling ends on. The first two are what fixed PLAT-69 and PLAT-846: a
+/// multi-line attribute or a block doc comment is one sibling node
+/// regardless of how many lines it spans. **The third did not exist here
+/// before PLAT-897**: this adapter had not yet independently hit the
+/// trailing-comment defect `python.rs`/`typescript.rs` each found and fixed
+/// in their own ports (PLAT-868 PR #479 F4, PLAT-882 PR #481) —
+/// `fn a() {}  // note\nfn b() {}` read `// note` as `b`'s own leading
+/// annotation, exactly their shape, one tree-sitter node kind earlier (see
+/// `leading_span`'s own doc in `mod.rs` for why this is a property of
+/// tree-sitter, not of any one grammar).
 fn is_annotation_node(node: Node) -> bool {
     matches!(
         node.kind(),
@@ -777,6 +774,77 @@ fn fuzz_target(root: Node, source: &str) -> Option<RawSymbol> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// PLAT-897: two adjacent `///` lines with **no blank line** between
+    /// them must both join the span — the control the trailing-comment
+    /// guard in `super::leading_span` needs. Only `tree-sitter-rust`'s
+    /// `line_comment` node for the **doc-comment** forms (`///`/`//!`,
+    /// which carry an inner `doc_comment` child) reports
+    /// `end_position().row` one row past its own text; a plain `//`
+    /// `line_comment` does not (PLAT-897 PR #485 review F3 — an earlier
+    /// version of this doc named `line_comment` generally, which was
+    /// over-broad and propagated into a filed ticket before being
+    /// corrected). A one-hop trailing check that compared a candidate only
+    /// to its immediate predecessor would read that offset as "line two
+    /// starts on the row line one's content ends on" and misclassify every
+    /// second `///` line as trailing on the first — confirmed as a real
+    /// regression writing the guard's first version: before walking back to
+    /// real code (rather than the immediate predecessor) before comparing,
+    /// this returned `leading_line: 3` (`fn f`'s own line, both doc lines
+    /// dropped) instead of `1`. The current implementation is immune to
+    /// this regardless of which sibling kind carries the offset, because it
+    /// never compares two annotation-kind siblings to each other at all.
+    #[test]
+    fn two_adjacent_doc_comment_lines_with_no_gap_both_join_the_span() {
+        let source = concat!("/// line one\n", "/// line two\n", "fn f() {}\n",);
+        let symbols = parse(source).expect("valid");
+        let f = symbols.iter().find(|s| s.qualified_name == "f").unwrap();
+        assert_eq!(
+            f.leading_line, 1,
+            "both adjacent doc lines must join the span: {symbols:?}"
+        );
+    }
+
+    /// PLAT-897 PR #485 review F1: two annotation-kind siblings sharing one
+    /// physical line, both trailing on the *real code* before them, must
+    /// both be excluded — not just the nearer one. `// y`'s own immediate
+    /// predecessor is `/* x */`, itself an accepted annotation sibling, so
+    /// a trailing check that only compares a candidate to its immediate
+    /// predecessor never reaches `fn a() {}` (the real code both comments
+    /// trail on) and wrongly accepts `// y` as `b`'s leading annotation.
+    /// Measured through the shared helper before this fix: `b.leading_line`
+    /// came out `1` (both comments absorbed) instead of `2`.
+    #[test]
+    fn two_trailing_annotation_siblings_on_one_line_are_both_excluded() {
+        let source = "fn a() {} /* x */ // y\nfn b() {}\n";
+        let symbols = parse(source).expect("valid");
+        let b = symbols.iter().find(|s| s.qualified_name == "b").unwrap();
+        assert_eq!(
+            b.leading_line, 2,
+            "a block comment then a line comment, both trailing on a's line, \
+             must not become b's leading annotation: {symbols:?}"
+        );
+    }
+
+    /// PLAT-897 PR #485 review F2: the blank-line-gap stop is not just
+    /// documented, it is tested. Plain `//` comments are offset-clean
+    /// (see `two_adjacent_doc_comment_lines_with_no_gap_both_join_the_span`'s
+    /// own doc), so this fixture isolates the gap check from the row-offset
+    /// question entirely: a blank line between the comment block and `f`
+    /// must exclude the comments, leaving `f`'s own line as its leading
+    /// line. Confirmed as a real gap in coverage, not a redundant test:
+    /// mutating the gap threshold (`mod.rs`'s `> 1` to `> 100`, disabling
+    /// the stop) left every existing test green before this one existed.
+    #[test]
+    fn a_blank_line_before_a_comment_block_excludes_it() {
+        let source = "// a\n// b\n\nfn f() {}\n";
+        let symbols = parse(source).expect("valid");
+        let f = symbols.iter().find(|s| s.qualified_name == "f").unwrap();
+        assert_eq!(
+            f.leading_line, 4,
+            "a blank line must stop the comment block from joining f's span: {symbols:?}"
+        );
+    }
 
     /// TC-804, FR-051-AC-15 (CR-040, PLAT-843): a file is not rejected for
     /// braces that live in a raw string, a lifetime, a char literal or a
@@ -1564,6 +1632,40 @@ mod tests {
             2,
             "two nested helpers in two different proptest!-declared tests \
              must receive distinct symbol ids, the same as the plain-AST path"
+        );
+    }
+
+    /// TC-1924, FR-051-AC-14 (PLAT-897): a comment trailing on the same
+    /// line as the declaration *before* it must not join the *next*
+    /// declaration's leading span. This adapter had no such check before
+    /// PLAT-897 hoisted `leading_span` into a shared helper both
+    /// `python.rs` and `typescript.rs` already had their own copy of
+    /// (PLAT-868 PR #479 F4, PLAT-882 PR #481) — confirmed as a real,
+    /// live regression here first: before this fix, `b.leading_line` read
+    /// `1` (`// note`'s own line, which is `a`'s line), not `2`.
+    #[test]
+    fn tc1924_a_trailing_comment_on_the_previous_line_is_not_a_leading_annotation() {
+        let source = "fn a() {}  // note\nfn b() {}\n";
+        let symbols = parse(source).expect("valid");
+        let b = symbols.iter().find(|s| s.qualified_name == "b").unwrap();
+        assert_eq!(
+            b.leading_line, 2,
+            "a same-line trailing comment must not be pulled into the leading span: {symbols:?}"
+        );
+    }
+
+    /// A standalone comment on its own line, immediately above the
+    /// declaration, is still its leading annotation — the control for
+    /// `tc1924` above: the trailing-comment stop must not also reject a
+    /// genuine leading comment.
+    #[test]
+    fn a_standalone_leading_comment_still_joins_the_span() {
+        let source = "// leading\nfn f() {}\n";
+        let symbols = parse(source).expect("valid");
+        let f = symbols.iter().find(|s| s.qualified_name == "f").unwrap();
+        assert_eq!(
+            f.leading_line, 1,
+            "the standalone comment is f's own leading line"
         );
     }
 }

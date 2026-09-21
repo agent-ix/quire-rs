@@ -506,6 +506,93 @@ pub(crate) fn stable_id(parts: &[&str]) -> String {
     format!("{:x}", hasher.finalize())
 }
 
+/// Shared adapter helper (PLAT-897): the 1-based first line of `node`'s
+/// leading annotation block — the contiguous run of preceding sibling nodes
+/// `is_annotation` accepts, stopping at the first sibling it rejects, the
+/// first blank-line gap, or a sibling that is itself **trailing** on the
+/// line real code (not another annotation sibling) ends on.
+///
+/// The trailing stop exists because of a property of tree-sitter, not of
+/// any one language: a *trailing* comment (`x = 1  // note`) is emitted as
+/// its own sibling node, indistinguishable by `.kind()` alone from a
+/// comment that starts its own line — so a walk that only checks
+/// `is_annotation` reaches a comment that belongs to the *previous*
+/// statement, silently pulling whatever it says into the span `trace.rs`'s
+/// binder reads from the *next* declaration. `rust.rs`, `python.rs` and
+/// `typescript.rs` each derived this same rule independently (`rust.rs`
+/// had not yet, until this ticket — see its own module docs); one
+/// implementation here, called by all three, so a fourth adapter inherits
+/// it instead of rediscovering it (PLAT-897, closing PLAT-868 PR #479
+/// review finding F4/F4(b) and PLAT-882 PR #481's own parallel finding).
+///
+/// **The candidate being tested for trailing is walked back to the nearest
+/// *non*-annotation sibling before the row comparison, rather than only
+/// checking the one sibling immediately before it.** Two (or more)
+/// annotation-kind siblings can share one physical line — `fn a() {}  /* x
+/// */ // y\nfn b() {}` is valid in every one of these three languages — and
+/// checking only the immediate predecessor misses this: `// y`'s own
+/// predecessor is `/* x */`, an annotation, so a one-hop check would accept
+/// `// y` as `b`'s leading annotation without ever comparing it to `fn a()
+/// {}`, the real code both are trailing on (PLAT-897 PR #485 review F1,
+/// caught measuring TypeScript's own production pipeline: `const q = 1; /*
+/// x */ // y\nfunction b() {}` regressed `b.leading_line` from `2` on
+/// `main` to `1`). Walking back past every annotation sibling first makes
+/// the comparison correct regardless of how many annotation-kind siblings
+/// sit on the trailing line, and — unlike comparing to the *immediate*
+/// predecessor — never needs to special-case comparing two annotation
+/// siblings to each other, so it is immune to whichever grammar's comment
+/// node does or does not fold its trailing newline into `end_position()`
+/// (PLAT-897 PR #485 review F3: only `tree-sitter-rust`'s `doc_comment`
+/// child node — `///`/`//!` — does; a plain `//` `line_comment` does not,
+/// contrary to this function's own first-pass claim).
+///
+/// Purely structural — `Node` positions and sibling links only, never
+/// source text or a trace form — matching this subsystem's own seam:
+/// language (and now cross-language) adapters answer structural questions;
+/// `trace.rs` alone knows what a trace form looks like.
+#[cfg(any(
+    feature = "rust-symbols",
+    feature = "python-symbols",
+    feature = "typescript-symbols"
+))]
+pub(crate) fn leading_span(
+    node: quire_rust_extraction::tree_sitter::Node,
+    is_annotation: fn(quire_rust_extraction::tree_sitter::Node) -> bool,
+) -> usize {
+    let mut boundary_row = node.start_position().row;
+    let mut current = node;
+    while let Some(prev) = current.prev_sibling() {
+        if !is_annotation(prev) {
+            break;
+        }
+        // A blank line between this annotation and the block already
+        // collected breaks the run.
+        if boundary_row.saturating_sub(prev.end_position().row) > 1 {
+            break;
+        }
+        // Walk back past every annotation-kind sibling to the nearest real
+        // code, then compare rows unconditionally — see this function's own
+        // doc for why a one-hop check against only `prev`'s immediate
+        // predecessor is wrong when two annotation siblings share one line.
+        let mut before = prev.prev_sibling();
+        while let Some(b) = before {
+            if is_annotation(b) {
+                before = b.prev_sibling();
+            } else {
+                break;
+            }
+        }
+        if let Some(before) = before {
+            if prev.start_position().row == before.end_position().row {
+                break;
+            }
+        }
+        boundary_row = prev.start_position().row;
+        current = prev;
+    }
+    boundary_row + 1
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
