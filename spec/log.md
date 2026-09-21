@@ -41,6 +41,28 @@ description: "Chronological log of structural changes to this bundle."
   `impl` method, and the `proptest!` scanner path — each shown red against
   the unfixed code before its fix landed.
 
+* **2026-09-20** — **FR-077** (`PLAT-844`, #477): structural trace search
+  over the existing symbol graph. `SymbolGraph.mentions: Vec<Mention>` is a
+  new, additive pass (`find_mentions`, `trace.rs`) classifying every
+  id-shaped token that is not itself a `verifies`/`implements` claim into
+  one of `MentionBucket::{EvidenceNearMiss, ProductionOrphanTag, Mention}` —
+  no id-shaped token is silently dropped from all three channels
+  (FR-077-AC-2, TC-1888). A new query layer
+  (`src/symbols/trace_search.rs`, no trace-tag regex of its own —
+  FR-077-CON-1) answers forward lookups (`Query::Id`, "what claims and
+  cites this id") and inverse lookups (`Query::Symbol`, `Query::SymbolName`,
+  `Query::File`) against `SearchResult`'s three separate typed fields
+  (`verifies`, `implements`, `citations`) rather than one list with a
+  discriminator. New public types: `Mention`, `MentionBucket` (`trace.rs`);
+  `Query`, `SearchResult`, `Confidence`, plus `search()`,
+  `language_confidence()`, `symbol_language()` (`trace_search.rs`); and
+  `Symbol::bare_name()` (`mod.rs`), the unqualified-name accessor
+  `Query::SymbolName` matches against. Id matching is exact after
+  `normalized_trace_id()` normalization; the engine performs no FR/AC/TC
+  hierarchy expansion (FR-077-AC-6, TC-1893) — a `quire-cli`
+  `trace` subcommand and its agent skill are the deliberate follow-up this
+  ticket does not attempt, since `quire-cli` pins `quire-rs` by git rev and
+  cannot consume an unmerged API. AC-1..6, CON-1..3, TC-1887..1894.
 * **2026-09-20** — **CR-177** (`PLAT-843`): `src/symbols/rust.rs` is
   rewritten onto `tree-sitter` (via the new dependency-boundary crate
   `crates/quire-rust-extraction` → `quire-code-parse`, pinned by git rev at

@@ -2693,6 +2693,17 @@ mod tests {
         // carrying one of each of the five shapes this engine can find, every
         // id lands in exactly one of {verifies, implements, mentions} — never
         // zero (dropped) and never more than one (double-counted).
+        //
+        // Residual gap: "exactly one" is checked against three hardcoded
+        // channel names (verifies/implements/mentions). A future bucket that
+        // ABSORBS a shape from one of these three — leaving an id in zero of
+        // them — trips this test as written. A future bucket that instead
+        // DUPLICATES an existing shape, landing an id in a fourth channel
+        // *as well as* one of these three, would not: this test only counts
+        // membership in {verifies, implements, mentions}, not exhaustiveness
+        // over every channel the engine might ever grow. Widening this check
+        // to catch that needs an explicit list of all known channels, kept
+        // current by hand — not attempted here.
         let mut model = iso_model();
         model.trace_tags.implements.push(TraceMarkerForm {
             name: "rust-implements-line".to_string(),

@@ -252,7 +252,7 @@ fn search_symbol_name(
     let mut candidates: Vec<(&str, &str)> = extraction
         .symbols
         .iter()
-        .filter(|s| s.qualified_name == name)
+        .filter(|s| s.bare_name() == name)
         .map(|s| (s.path.as_str(), s.qualified_name.as_str()))
         .collect();
     candidates.sort();
@@ -433,25 +433,83 @@ fn citing_helper() {\n\
     #[test]
     fn tc1893_exact_match_only_no_hierarchy_expansion() {
         // ACs: FR-077-AC-6
-        let (extraction, graph) = forward_graph();
-        // Every relation in this fixture is the bare id `FR-900`, never
-        // `FR-900-AC-1` — asserting the query does not silently widen beyond
-        // what was asked.
+        // The hazard AC-6 names is WIDENING: a query for the parent `FR-900`
+        // wrongly including a child `FR-900-AC-1` claim. A fixture that only
+        // ever tags `FR-900` cannot exercise that — there is nothing wider to
+        // wrongly include, so `.all(|v| v.trace_id == "FR-900")` passes
+        // whether or not the engine would have widened. This fixture tags
+        // BOTH, on two different symbols, so the property is checked by
+        // exclusion of a real, present, differently-tagged claim.
+        let source = "\
+#[trace(\"FR-900\")]\n\
+#[test]\n\
+fn tc_parent() {\n\
+    assert!(true);\n\
+}\n\
+\n\
+#[trace(\"FR-900-AC-1\")]\n\
+#[test]\n\
+fn tc_child() {\n\
+    assert!(true);\n\
+}\n";
+        let extraction = extract_file("src/lib.rs", SourceLanguage::Rust, source);
+        let graph = bind(&extraction, &model_with_implements());
+
         let result = search(&graph, &extraction, &Query::Id("FR-900".to_string()));
+        assert_eq!(result.verifies.len(), 1, "{:?}", result.verifies);
+        assert_eq!(result.verifies[0].symbol, "tc_parent");
         assert!(
-            result.verifies.iter().all(|v| v.trace_id == "FR-900"),
-            "{:?}",
+            !result.verifies.iter().any(|v| v.symbol == "tc_child"),
+            "a query for the parent id FR-900 must not widen to include the child \
+             FR-900-AC-1 claim: {:?}",
             result.verifies
         );
-        let narrower = search(&graph, &extraction, &Query::Id("FR-900-AC-1".to_string()));
-        assert!(
-            !narrower.resolved,
-            "a query for FR-900-AC-1 must not be satisfied by an FR-900 claim: {narrower:?}"
+
+        let child_result = search(&graph, &extraction, &Query::Id("FR-900-AC-1".to_string()));
+        assert_eq!(
+            child_result.verifies.len(),
+            1,
+            "{:?}",
+            child_result.verifies
         );
+        assert_eq!(child_result.verifies[0].symbol, "tc_child");
     }
 
-    const AMBIGUOUS_FIXTURE_A: &str = "fn helper() {\n    assert!(true);\n}\n";
-    const AMBIGUOUS_FIXTURE_B: &str = "fn helper() {\n    assert!(false == false);\n}\n";
+    // Both `helper`s are NESTED (`mod tests { ... }`, qualified_name
+    // `tests::helper`) — deliberately not top-level, so a bare-name query
+    // exercises the actual `bare_name()` split (the last `::`-segment) rather
+    // than a shape where `qualified_name == bare name` already by accident.
+    // Each carries its OWN, DIFFERENT claim, so the exact-ref query
+    // (`tc1891`) has something real to prove it returns one file's claim and
+    // not the other's, rather than passing on two symbols that bind nothing
+    // at all.
+    // Two levels of nesting — `mod` then `fn` (PLAT-845: a `fn` is now a
+    // container for its own body too, the same `::` mechanism `mod` already
+    // used) — so `qualified_name` carries TWO `::` separators
+    // (`tests::outer::helper`). `bare_name()` must take the LAST segment via
+    // `rsplit_once`, not the first: a fixture with only one `::` cannot tell
+    // a correct `rsplit_once` apart from a buggy `split_once` that happens
+    // to agree with it at depth 1.
+    const AMBIGUOUS_FIXTURE_A: &str = "\
+mod tests {\n\
+    fn outer() {\n\
+        #[trace(\"FR-910\")]\n\
+        #[test]\n\
+        fn helper() {\n\
+            assert!(true);\n\
+        }\n\
+    }\n\
+}\n";
+    const AMBIGUOUS_FIXTURE_B: &str = "\
+mod tests {\n\
+    fn outer() {\n\
+        #[trace(\"FR-911\")]\n\
+        #[test]\n\
+        fn helper() {\n\
+            assert!(true);\n\
+        }\n\
+    }\n\
+}\n";
 
     fn ambiguous_graph() -> (SymbolExtraction, SymbolGraph) {
         let mut a = extract_file("src/a.rs", SourceLanguage::Rust, AMBIGUOUS_FIXTURE_A);
@@ -477,8 +535,13 @@ fn citing_helper() {\n\
         matches.sort();
         assert_eq!(
             matches,
-            vec!["src/a.rs#helper".to_string(), "src/b.rs#helper".to_string()],
-            "expected every candidate named, none picked silently"
+            vec![
+                "src/a.rs#tests::outer::helper".to_string(),
+                "src/b.rs#tests::outer::helper".to_string()
+            ],
+            "expected every candidate named by its QUALIFIED ref, none picked silently \
+             (B1: a bare name must match the nested symbol's LAST `::`-segment even \
+             across two levels of nesting, not fail to match at all)"
         );
         assert!(result.verifies.is_empty());
         assert!(result.implements.is_empty());
@@ -495,16 +558,23 @@ fn citing_helper() {\n\
             &extraction,
             &Query::Symbol {
                 path: "src/a.rs".to_string(),
-                qualified_name: "helper".to_string(),
+                qualified_name: "tests::outer::helper".to_string(),
             },
         );
         assert!(result.ambiguous_matches.is_empty());
-        // Neither file's `helper` carries a trace id, so nothing claims or
-        // cites anything — the point of this test is that the exact-ref query
-        // resolves to ONE symbol rather than raising ambiguity, which
-        // `tc1890` already covers for the bare-name form.
-        assert!(result.verifies.is_empty());
-        assert!(result.implements.is_empty());
+        // a.rs's OWN claim, and not b.rs's same-named symbol's claim — this
+        // is the property the exact-ref form exists to guarantee, and
+        // without it these assertions would equally pass if `search_symbol`
+        // dropped its `path`/`qualified_name` filters and returned the whole
+        // graph.
+        assert_eq!(result.verifies.len(), 1, "{:?}", result.verifies);
+        assert_eq!(result.verifies[0].trace_id, "FR-910");
+        assert_eq!(result.verifies[0].path, "src/a.rs");
+        assert!(
+            !result.verifies.iter().any(|v| v.trace_id == "FR-911"),
+            "must not return b.rs's same-named symbol's claim: {:?}",
+            result.verifies
+        );
     }
 
     #[trace("TC-1892")]
@@ -515,19 +585,60 @@ fn citing_helper() {\n\
         assert_eq!(language_confidence("python"), Confidence::LineHeuristic);
         assert_eq!(language_confidence("typescript"), Confidence::LineHeuristic);
 
-        // Applied to a real result: the fixture's Rust claim joins back to
-        // its symbol's language and reports `structural`; the citation
-        // carries `language` directly and reports the same.
-        let (extraction, graph) = forward_graph();
-        let result = search(&graph, &extraction, &Query::Id("FR-900".to_string()));
-        assert!(result.verifies.iter().all(|v| {
-            let language = symbol_language(&extraction, &v.symbol_id).expect("symbol found");
-            language_confidence(language) == Confidence::Structural
-        }));
-        assert!(result
-            .citations
-            .iter()
-            .all(|m| language_confidence(&m.language) == Confidence::Structural));
+        // A genuinely MIXED-language extraction — Rust and Python, each with
+        // its own claim — not a Rust-only fixture asserted against hardcoded
+        // string literals unrelated to what was actually extracted. Built by
+        // hand rather than reusing `forward_graph()`'s single-language
+        // fixture, because the property this AC states is cross-language
+        // honesty, and nothing here can demonstrate that over one language.
+        let rust = extract_file(
+            "src/lib.rs",
+            SourceLanguage::Rust,
+            "#[trace(\"FR-930\")]\n#[test]\nfn tc_rust_claim() {\n    assert!(true);\n}\n",
+        );
+        let python = extract_file(
+            "tests/test_thing.py",
+            SourceLanguage::Python,
+            "class TestThing:\n    @pytest.mark.trace(\"FR-931\")\n    def test_thing(self):\n        assert True\n",
+        );
+        let mut combined = rust;
+        combined.symbols.extend(python.symbols);
+        combined.files.extend(python.files);
+        let graph = bind(&combined, &model_with_implements());
+
+        let rust_result = search(&graph, &combined, &Query::Id("FR-930".to_string()));
+        let python_result = search(&graph, &combined, &Query::Id("FR-931".to_string()));
+
+        // Non-emptiness asserted FIRST and separately: `.all()` over an empty
+        // iterator is vacuously true, so if `find_mentions`/`bind` stopped
+        // producing a claim entirely, an `.all()`-only check would still go
+        // green. Neither of these may be empty for the property below to
+        // mean anything.
+        assert_eq!(rust_result.verifies.len(), 1, "{:?}", rust_result.verifies);
+        assert_eq!(
+            python_result.verifies.len(),
+            1,
+            "{:?}",
+            python_result.verifies
+        );
+
+        // The join that actually exists: `symbol_language` reads the owning
+        // symbol's real, extracted language back off `symbol_id`, and
+        // `language_confidence` maps THAT — not a field on the relation
+        // itself, which `VerifiesRelation` does not carry (FR-077-AC-5's own
+        // wording).
+        let rust_language = symbol_language(&combined, &rust_result.verifies[0].symbol_id)
+            .expect("rust symbol found");
+        assert_eq!(rust_language, "rust");
+        assert_eq!(language_confidence(rust_language), Confidence::Structural);
+
+        let python_language = symbol_language(&combined, &python_result.verifies[0].symbol_id)
+            .expect("python symbol found");
+        assert_eq!(python_language, "python");
+        assert_eq!(
+            language_confidence(python_language),
+            Confidence::LineHeuristic
+        );
     }
 
     #[trace("TC-1894")]

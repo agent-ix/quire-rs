@@ -47,8 +47,13 @@ docstring, or string literal that matches no declared form at all. And a query l
 
 ### The claim-vs-citation split is structural, not a flag
 
-A `SearchResult` carries `claims: { verifies, implements }` and `citations: Vec<Mention>` as separate
-fields — never one list with a discriminator a caller can fail to check. This is the same discipline
+A `SearchResult` carries `verifies: Vec<VerifiesRelation>`, `implements: Vec<ImplementsRelation>` and
+`citations: Vec<Mention>` as three separate typed fields — never one list with a discriminator a caller
+can fail to check. (Not wrapped in a `claims` struct: three distinct fields already deliver the
+property this section states, and a wrapper added only to match this document's own earlier prose would
+be spec chasing its own tail rather than describing the shipped surface. A JSON encoding of this shape,
+if one groups `verifies`/`implements` under a `claims` key, is PLAT-879's to design.) This is the same
+discipline
 FR-062 already applies to keeping `verifies` and `implements` apart (CR-061): the failure mode is a
 typo, or a reader skimming past a flag, silently promoting a citation into evidence.
 
@@ -74,11 +79,11 @@ a Python hit with the same evidentiary weight as a Rust one.
 
 | ID | Criteria | Verification |
 |----|----------|---------------|
-| FR-077-AC-1 | A forward query by exact trace id returns every `verifies` and `implements` relation bound to that id under a `claims` field, and every non-claim mention under a separate `citations` field — never merged into one list with a flag. | Test (TC-1887) |
+| FR-077-AC-1 | A forward query by exact trace id returns every `verifies` and `implements` relation bound to that id on `SearchResult`'s own `verifies`/`implements` fields, and every non-claim mention on a separate `citations` field — three distinct typed fields, never one list with a flag. (A JSON encoding of this shape is PLAT-879's, not this requirement's.) | Test (TC-1887) |
 | FR-077-AC-2 | Every generic id-shaped token found in a scanned symbol's attached source that is not part of a `verifies`/`implements` claim on that same symbol is recorded in `SymbolGraph.mentions`, classified into exactly one of `EvidenceNearMiss`, `ProductionOrphanTag`, or `Mention` — no id-shaped token is silently dropped from all three channels. | Test (TC-1888) |
 | FR-077-AC-3 | A query id matching nothing in `verifies`, `implements`, or `mentions` returns a fully-shaped result with `resolved: false` and empty arrays, not an omitted or bare-empty payload. | Test (TC-1889) |
 | FR-077-AC-4 | An inverse query names a symbol either by its exact `path#qualified_name` ref (returning exactly that symbol's claims and citations) or by a bare unqualified name; a bare name matching more than one symbol returns every match under `ambiguous_matches` rather than selecting one. | Test (TC-1890, TC-1891) |
-| FR-077-AC-5 | Every relation and mention record carries the `language` it was extracted from, and one documented function maps `language` to a confidence label (`structural` for Rust — AST-grounded, PLAT-843 — `line_heuristic` for Python/TypeScript, pre-PLAT-851) so a caller never presents a result set as uniformly grounded across languages. | Test (TC-1892) |
+| FR-077-AC-5 | `Mention` carries the `language` it was extracted from directly; `VerifiesRelation`/`ImplementsRelation` carry none, and `symbol_language()` joins one back from `extraction` by `symbol_id`. Either way, one documented function (`language_confidence`) maps `language` to a confidence label (`structural` for Rust — AST-grounded, PLAT-843 — `line_heuristic` for Python/TypeScript, pre-PLAT-851), so a caller never presents a result set as uniformly grounded across languages. | Test (TC-1892) |
 | FR-077-AC-6 | Trace-id matching is exact after `normalized_trace_id()` normalization; the engine performs no implicit FR/AC/TC hierarchy expansion. | Test (TC-1893) |
 
 ## Constraints
