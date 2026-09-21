@@ -11,7 +11,12 @@
    "path_independent": true,
    "superseded_value": "a1d4fa2de1ab454968890cf134275145381c21369bd5e27ca462dbff474ab6c9",
    "superseded_reason": "the original recipe passed find an absolute path, so every hashed line carried the scratch directory path; the digest was reproducible only at that path and never externally checkable",
-   "scratch_tree_contents": "git archive output only - re-extracting to the same path reproduces the superseded digest bit-for-bit, which it could not do if the measured tree had held an extra file"
+   "scratch_tree_contents": "no extra REGULAR FILE: re-extracting to the original path reproduces the superseded digest bit-for-bit, and find -type f enumerates every regular file, so an extra file would have changed the inner listing and the outer hash. find -type f does not see non-regular entries, so the claim is about files specifically.",
+   "inference_limits": [
+    "find -type f sees only regular files; \"no extra file\" is exact, \"nothing beyond git archive output\" is broader than the evidence",
+    "author-only and not externally reproducible, since the scratch path is a developer path and is deliberately unpublished",
+    "not circular: the superseded digest was committed in the first revision of this report (c9cf0ff, 2026-09-20) before the question was asked, so the target was fixed in advance and timestamped in this repository history"
+   ]
   },
   "drift_check": "same recipe, same tree, before the first run and after the last: identical; source repo HEAD and clean tree re-verified at the end",
   "artifacts": {
@@ -75,33 +80,40 @@
    "collapse_rule": "none exercised - the mapping is injective within every run; combined findings naming two defects were counted against both classes at that severity (one-to-many only)",
    "monotonicity_claim": "clustering lowered disagreement in every case observed here; guaranteed only under a monotone severity collapse such as max-severity",
    "raw_keys_published_in": "2026-09-20-jev-lens-baselines.tsv raw_key column",
-   "reconstruction_check": "the raw-key table reproduces the published class-and-severity table exactly",
    "tsv_row_count": 200,
    "tsv_counting_note": "the TSV carries one row per (run, class), so each of the 6 combined findings appears twice under the same raw_key; deduplicate on (run, raw_key) to recover the 194 raw findings. The raw-key disagreement figure is computed over the 194; the class figures over the 200 rows.",
-   "combined_findings": 6
+   "combined_findings": 6,
+   "key_to_class_stability": {
+    "distinct_keys": 105,
+    "keys_mapping_to_exactly_one_class_in_every_run": 99,
+    "keys_with_a_stable_two_class_set": 4,
+    "keys_whose_class_set_varies_across_runs": 2,
+    "varying_keys": {
+     "nfr-001-ac-2-substring-assertion-is-weak": {
+      "A05": [
+       "D5"
+      ],
+      "A08": [
+       "D5"
+      ],
+      "A14": [
+       "D15",
+       "D5"
+      ]
+     },
+     "fr-001-con-1-declares-test-validation-with-no-test": {
+      "A15": [
+       "D10"
+      ],
+      "A16": [
+       "D10",
+       "D11"
+      ]
+     }
+    },
+    "note": "the superseded check - that the raw-key table reproduces the class table - was near-tautological, since raw_key and unit are two columns of the same rows. The substantive property: 99 of 105 keys map to one class in every run. The 2 varying keys reuse a slug for findings of different scope, so the slug is not a perfect finding identity and 90.6% slightly UNDERSTATES disagreement at that granularity."
+   }
   },
-  "findings_per_run": [
-   10,
-   9,
-   10,
-   10,
-   9,
-   11,
-   8,
-   7,
-   12,
-   11,
-   9,
-   8,
-   8,
-   10,
-   12,
-   14,
-   10,
-   9,
-   11,
-   12
-  ],
   "defect_classes": [
    {
     "id": "D1",
@@ -239,7 +251,53 @@
      "low": 1
     }
    }
-  ]
+  ],
+  "class_rows_per_run": [
+   10,
+   9,
+   10,
+   10,
+   9,
+   11,
+   8,
+   7,
+   12,
+   11,
+   9,
+   8,
+   8,
+   10,
+   12,
+   14,
+   10,
+   9,
+   11,
+   12
+  ],
+  "raw_findings_per_run": [
+   10,
+   9,
+   9,
+   10,
+   9,
+   11,
+   8,
+   7,
+   12,
+   11,
+   9,
+   8,
+   8,
+   9,
+   12,
+   12,
+   9,
+   9,
+   11,
+   11
+  ],
+  "per_run_count_note": "class rows and raw findings differ because the 6 combined findings each occupy two class rows: class rows 7-14 (mean 10.0, total 200); raw findings 7-12 (mean 9.7, total 194)",
+  "granularity_note": "33.4% is the lower bound AT THIS CLUSTERING GRANULARITY (16 classes); a coarser clustering pushes it lower. 90.6% is disagreement at raw-slug granularity and itself slightly understates that, per key_to_class_stability. Neither is an absolute bound."
  },
  "ears": {
   "pass": "spec-ears-analysis step 2 (the semantic judgment)",
@@ -756,7 +814,7 @@
   "population": "Markdown documents in the local multi-repo checkout with frontmatter type: SpecReview and analysis: gap-analysis, deduplicated by content hash",
   "raw_files": 3930,
   "distinct_after_dedup": 483,
-  "dedup_ratio": 9.3,
+  "dedup_ratio": 8.1,
   "dedup_cause": "duplicate checkouts - worktrees and full mirror clones holding identical copies",
   "dedup_safety": "no content group contains differing basenames, so deduplication cannot have merged genuinely distinct reviews",
   "frozen_population": 469,
@@ -792,12 +850,29 @@
    "metric": "floor - explicit skips as a share of all distinct audits",
    "narrow_pct": 30.3,
    "broad_pct": 37.5,
-   "explicit_ran_ceiling_pct": 9.0,
+   "explicit_ran_ceiling_pct": {
+    "narrow": 9.0,
+    "broad": 9.2
+   },
    "why": "the skill requires recording the SKIP only (\"If no, note in the SpecReview Coverage section that semantic review was skipped\"); a run that performed the review need not say so, so the ratio over docs-that-state-it over-samples skips by an unbounded amount. The floor counts only explicit statements and is unaffected.",
    "superseded_floor": {
     "value": 31.3,
     "reason": "computed over the pre-freeze population of 483"
    }
+  },
+  "dedup_ratio_note": "3930/483 = 8.1. A prior revision published 9.3, which was an independent sweep's ratio (4573/492) adopted while fixing a different clause of the same sentence.",
+  "independent_confirmation": {
+   "raw_files": 4573,
+   "distinct": 492,
+   "ratio": 9.3,
+   "note": "separate sweep, later day, looser predicate - confirms the magnitude on a different population"
+  },
+  "largest_contributor": {
+   "repo": "filament-ide-rs",
+   "count": 69,
+   "of_frozen": 469,
+   "pct": 14.7,
+   "note": "computed on the frozen 469; a prior revision gave 69 of 483 (14.3%), mixing the pre-freeze population into a post-freeze sentence"
   }
  },
  "not_measured": {

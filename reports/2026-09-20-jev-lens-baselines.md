@@ -32,7 +32,12 @@ find "$SCRATCH/corpus" -type f | sort | xargs sha256sum | sha256sum
 
 `find` was given an **absolute** path, so every line fed to the outer `sha256sum` carried the full scratch-directory path alongside the file hash. The digest is therefore a function of *where the tree was extracted*, not only of its contents, and nobody else could ever have reproduced it. That defeats the entire purpose of publishing a content digest instead of a commit id.
 
-Root cause confirmed by re-deriving it: re-extracting the same commit to the same path reproduces `a1d4fa2d…` exactly. **That re-derivation also settles the second question the review asked** — whether the scratch tree held anything beyond `git archive` output. It did not: a tree built by `git archive` alone reproduces the original digest bit-for-bit, which it could not do if the measured tree had contained an extra file. The prompt files and the statement inventory lived in the parent scratch directory, never inside the corpus tree.
+Root cause confirmed by re-deriving it: re-extracting the same commit to the same path reproduces `a1d4fa2d…` exactly. **That re-derivation also answers the second question the review asked** — whether the scratch tree held anything beyond `git archive` output. A tree built by `git archive` alone reproduces the original digest bit-for-bit, and `find -type f` enumerates every regular file, so an extra file would have changed the inner listing and therefore the outer hash. The prompt files and the statement inventory lived in the parent scratch directory, never inside the corpus tree.
+
+**[rev] Two limits on that inference, since it is the one claim here a reader cannot check.**
+
+- `find -type f` sees only **regular files**. "The measured tree held no extra *file*" is exactly what the evidence supports; "held nothing beyond `git archive` output" is a shade broader than that, and is not claimed.
+- This link is **author-only and not externally reproducible**, because the scratch path is deliberately unpublished (it is a developer path, and this is a public repository). What keeps it from being circular is that **`a1d4fa2d…` was committed before the question was asked** — it appears in the first revision of this file, timestamped in this repository's history, so the target was fixed in advance and could not have been chosen to fit. A reader who declines to take it on trust loses only this inference; the path-independent digest below is checkable without it, and the review verified it from two directories that the author has never seen.
 
 **The path-independent digest, which anyone can check:**
 
@@ -75,11 +80,22 @@ Both figures are given below and **the cross-pass comparison is made only on the
 `gap-analysis` finding keys are free text, so they were mapped by hand into 16 canonical defect classes. Two things the first version should have stated:
 
 1. **No many-to-one collapse occurred.** Checked programmatically across all 194 raw findings: **zero** runs produced two findings mapping to the same class. The mapping is injective within every run, and combined findings (one finding naming two defects) were counted against both classes at that severity — one-to-many only. **No severity-collapse rule was ever exercised**, so the counterexample the review constructed (two findings collapsing to one class, taking a pair from 50% to 100% under a first-listed rule) does not arise in this data. The general claim is therefore narrowed to what was shown: *clustering lowered disagreement in every case observed here, and is guaranteed to do so only under a monotone severity collapse such as max-severity.*
-2. **The raw keys are published**, in the TSV's `raw_key` column. The mapping can be independently re-derived and redone. The reconstructed raw-key table reproduces the published class-and-severity table exactly, which is itself checkable.
+2. **The raw keys are published**, in the TSV's `raw_key` column, so the mapping can be independently re-derived and redone. **[rev]** The first version offered as evidence that "the reconstructed raw-key table reproduces the published class table exactly" — which checks nothing, since `raw_key` and `unit` are two columns of the same rows and cannot disagree.
 
-**Counting note for anyone recomputing from the TSV.** The gap-analysis section has **200 rows** but represents **194 raw findings**: the TSV carries one row per (run, class), so each of the 6 combined findings — one finding naming two defects — appears twice under the same `raw_key`. Deduplicate on `(run, raw_key)` to recover the 194. The six are `A03`/`A16` `fr-001-con-…-untraced` (D10+D11) and `A14`/`A16`/`A17`/`A20` `nfr-001-ac-…` (D5+D15). The 90.6% raw-key figure is computed over the deduplicated 194, the 33.4% and 43.5% over the 200 class rows.
+   The substantive property, and the one that was actually checked: **of 105 distinct keys, 99 map to exactly one class in every run they appear in.** The other 6 are the combined findings. **Two of those 6 are not stable across runs**, and that is worth stating rather than smoothing:
 
-**[rev] "Raw string-identity disagreement would be higher" was a prediction. It is now measured: 90.6%.** The 20 runs produced **105 distinct free-text keys** for 16 underlying defects. Two runs of this pass agree on the literal wording of a finding roughly one time in ten. That number is the honest upper bound on this pass's instability and the 33.4% is the honest lower bound; the truth about how a human reads two reports sits between them.
+   | Key | Class set per run |
+   |---|---|
+   | `fr-001-con-1-declares-test-validation-with-no-test` | A15 → D10; **A16 → D10+D11** |
+   | `nfr-001-ac-2-substring-assertion-is-weak` | A05 → D5; A08 → D5; **A14 → D5+D15** |
+
+   In both cases the slug was reused for findings of *different scope* — A16's named both constraints where A15's named one; A14's added the manifest-table clause where A05's and A08's did not. **So the raw slug is not a perfect identity for a finding, and 90.6% slightly understates disagreement at that granularity**, because it scores those pairs as agreeing. Reported because it cuts against this report's own figure.
+
+**Counting note for anyone recomputing from the TSV.** The gap-analysis section has **200 rows** but represents **194 raw findings**: the TSV carries one row per (run, class), so each of the 6 combined findings — one finding naming two defects — appears twice under the same `raw_key`. Deduplicate on `(run, raw_key)` to recover the 194. The six are `A03`/`A16` `fr-001-con-…` (D10+D11 — `…-and-fr-002-con-1-untraced` in A03, `…-1-declares-test-validation-with-no-test` in A16) and `A14`/`A16`/`A17`/`A20` `nfr-001-ac-…` (D5+D15). The 90.6% raw-key figure is computed over the deduplicated 194, the 33.4% and 43.5% over the 200 class rows.
+
+**[rev] "Raw string-identity disagreement would be higher" was a prediction. It is now measured: 90.6%.** The 20 runs produced **105 distinct free-text keys** for 16 underlying defects. Two runs of this pass agree on the literal wording of a finding roughly one time in ten.
+
+**[rev] Both figures are granularity-dependent, and neither is an absolute bound.** 33.4% is the lower bound **at this clustering granularity** — a coarser clustering would push it lower, and 16 classes is a choice, not a fact. 90.6% is disagreement at raw-slug granularity, and per the table above it slightly *understates* even that, since two slugs were reused for findings of differing scope. The honest statement is that how unstable this pass looks depends on how finely you read it, across a range from 33.4% to somewhat above 90.6%, and that every point in that range is bad.
 
 ## Verbatim check against the ticket text
 
@@ -113,7 +129,7 @@ N = 20. Every run returned a **FAIL** verdict, so the measured **verdict change 
 
 **[rev] There is a second, stronger reason the 0/20 says little about semantic stability.** The deterministic input handed to every run reports `TC-013` as an unbacked row, and the skill's verdict rule fails on *"any matrix Test Case with no backing tagged test"* — a clause with no severity qualifier. Whether a row whose declared type is `Manual` counts as "no backing tagged test" is genuinely arguable, and the runs split on it: 18 of 20 raised it at `medium`, 2 at `high`. **If that clause fires, the Verdict was pinned FAIL by the deterministic half before the semantic pass ran at all, and the 0/20 is evidence about neither semantic stability nor semantic instability.** Either way the figure cannot be read as "the Verdict is reproducible".
 
-Findings per run ranged from **7 to 14** (mean 10.0; 194 raw findings, 105 distinct keys) over the identical tree.
+**[rev] Class rows per run ranged 7 to 14 (mean 10.0); raw findings per run ranged 7 to 12 (mean 9.7)** — 200 class rows, 194 raw findings, 105 distinct keys, over the identical tree. The two differ because the 6 combined findings each occupy two class rows; the first version gave only the class-row figures while labelling them "findings", so dividing 194 by 20 contradicted the stated mean.
 
 | Class | What it is | Raised in | Severities |
 |---|---|---:|---|
@@ -220,7 +236,9 @@ Note the scale against PLAT-839's own estimate. That ticket projects *"roughly 3
 
 PLAT-839 claims *"the most valuable check stopped being the one that gets skipped."* **This is measurable from existing run history, and was measured.**
 
-Population: every Markdown document in the local multi-repo checkout whose frontmatter carries `type: SpecReview` and `analysis: gap-analysis`, **deduplicated by content hash**. The raw file count is 3,930, reduced to 483 distinct documents — a 9.3× ratio, explained by **duplicate checkouts (worktrees and full mirror clones) holding identical copies [rev]**; the first version attributed this to worktrees alone, which is only part of the mechanism. No content group contains differing basenames, so the deduplication cannot have merged genuinely distinct reviews.
+Population: every Markdown document in the local multi-repo checkout whose frontmatter carries `type: SpecReview` and `analysis: gap-analysis`, **deduplicated by content hash**. The raw file count is 3,930, reduced to 483 distinct documents — an **8.1× ratio [rev]**, explained by **duplicate checkouts (worktrees and full mirror clones) holding identical copies [rev]**; the original version attributed this to worktrees alone, which is only part of the mechanism. An independent sweep on a later day with a looser predicate found 4,573 → 492, a 9.3× ratio, confirming the magnitude on a different population.
+
+> **[rev] How this sentence got a wrong number, recorded because it is this report's own thesis.** The second revision published "9.3×" here while keeping 3,930 and 483 either side of it — 3,930 / 483 is 8.1. The 9.3 was the reviewer's ratio, from their own numerator and denominator, adopted while fixing a *different* clause of the same sentence. The first version's "roughly eightfold" had been right. A correct number was replaced with a wrong one in the act of correcting the paragraph around it, which is exactly the failure mode this report exists to document. Every figure touched in this revision was re-derived from this report's own data before being written, including the ones handed over by the review. No content group contains differing basenames, so the deduplication cannot have merged genuinely distinct reviews.
 
 **[rev] Both classifiers now run over one frozen population** (469 documents, snapshotted and held in memory before either ran). The first version ran them over 483 and 469 documents respectively — other agents were active in these trees and 14 files disappeared between the sweeps — which conflated a broader regex with a changed corpus. Freezing removes that confound entirely, at the cost of 14 documents. This is the same byte-identity discipline applied to the spec corpus, applied here.
 
@@ -233,13 +251,13 @@ On one population the classifier choice is worth **3.2 points**, not the 2.2 the
 
 ### [rev] The headline number is the floor, and here is why
 
-**At least 142 of 469 distinct audits — 30.3% — explicitly recorded that they skipped the semantic review.** Under the broad classifier the floor is 37.5%. At most 9.0% explicitly recorded that they ran it. *(The first version quoted a floor of 31.3% from the pre-freeze population of 483; freezing moved it to 30.3%.)*
+**At least 142 of 469 distinct audits — 30.3% — explicitly recorded that they skipped the semantic review.** Under the broad classifier the floor is 37.5%. At most **9.0% (narrow; 9.2% broad) [rev]** explicitly recorded that they ran it. *(The first version quoted a floor of 31.3% from the pre-freeze population of 483; freezing moved it to 30.3%.)*
 
 **The 77.2% / 80.4% figures are biased upward by an unbounded amount, and the direction is structural.** `gap-analysis/SKILL.md` requires recording the **skip** only: *"If yes, fan the work out … If no, note in the SpecReview's Coverage section that semantic review was skipped."* A run that performed the review is under no obligation to say so. So "documents that record the decision" systematically over-samples skips, and the ratio computed over it cannot be read as the skip rate. The first version named the opposite-direction hypothesis (that unrecorded runs are more likely skips) and missed this one, which cuts against its own conclusion.
 
 The floor is the number that survives an adversarial reading: it counts only explicit statements, is unaffected by the recording asymmetry, and does not require assigning the 242–277 silent documents in either direction.
 
-The largest single contributor is `filament-ide-rs` at 69 of 483 (14%). Recomputed without it, the over-stating rate is **77.1%** (narrow) and **80.9%** (broad) — the finding does not depend on any one repository.
+The largest single contributor is `filament-ide-rs` at **69 of the frozen 469 — 14.7% [rev]** (the second revision gave "69 of 483, 14%", mixing the pre-freeze population into the sentence right after freezing it). Recomputed without it on that same frozen population, the over-stating rate is **77.1%** (narrow) and **80.9%** (broad) — the finding does not depend on any one repository.
 
 **PLAT-839's premise is supported: at minimum three in ten recorded audits explicitly skipped the semantic review, and explicit confirmations that it ran are outnumbered better than three to one.**
 
