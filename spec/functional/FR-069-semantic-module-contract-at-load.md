@@ -196,7 +196,7 @@ stricter of the two.
 
 | ID | Constraint | Type | Validation |
 |----|------------|------|------------|
-| FR-069-CON-1 | The loader SHALL resolve schemas from the module bundle and the vendored bundle only, with no fetch of `https://schemas.agent-ix.org` and no read outside the module root. | Architecture | Test |
+| FR-069-CON-1 | The loader SHALL resolve schemas from the module bundle and the embedded bundle only, with no fetch of `https://schemas.agent-ix.org` and no read outside the module root. | Architecture | Test |
 | FR-069-CON-3 | A module without a `semantic` block SHALL produce a `Registry` whose archetype projection (name, schema digest, `body_extraction` JSON, extras) equals the checked-in baseline `tests/fixtures/semantic/baseline/registry-archetypes.json` minted on `main` before this change. | Compatibility | Test |
 | FR-069-CON-4 | The digest recorded for an object type SHALL be over the shipped file bytes, computed once at load. | Integrity | Test |
 
