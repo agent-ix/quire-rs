@@ -78,7 +78,11 @@ jobs:
       # build-npm-fetch — cargo metadata resolves the whole workspace even
       # though the root crate only *depends on* quire-rust-extraction; the
       # other three are dev-deps-only path members and still need their
-      # manifests present for `cargo metadata`/`cargo build` to succeed).
+      # manifests present for `cargo metadata`/`cargo build` to succeed) +
+      # schemas (src/assurance.rs and src/semantic/surface.rs `include_str!`
+      # schemas/output/*.schema.json unconditionally — missing here since
+      # this list was written, first caught by a real wheel build reaching
+      # that far for the first time under PLAT-948).
       # tests/ stays excluded — it carries the con.md.j2 fixture that
       # would otherwise break Windows.
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -87,6 +91,7 @@ jobs:
             src
             benches
             crates
+            schemas
             .cargo
 
       - name: Build abi3 wheel
