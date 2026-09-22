@@ -71,15 +71,21 @@ jobs:
         shell: pwsh
         run: git config --system core.protectNTFS false
 
-      # Sparse-checkout: the wheel build only needs the crate + benches
+      # Sparse-checkout: the wheel build needs the crate + benches
       # (referenced by [[bench]] entries) + .cargo (root files come
-      # free in cone mode). tests/ stays excluded — it carries the
-      # con.md.j2 fixture that would otherwise break Windows.
+      # free in cone mode) + crates (PLAT-901's workspace-member path
+      # dependencies — quire-rust-extraction, quire-fixtures,
+      # spec-objects-architecture-fixture, build-npm-fetch — all four are
+      # real `path = "crates/..."` deps of the root crate, so `cargo
+      # metadata` fails without every one of their manifests present).
+      # tests/ stays excluded — it carries the con.md.j2 fixture that
+      # would otherwise break Windows.
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           sparse-checkout: |
             src
             benches
+            crates
             .cargo
 
       # PLAT-901: `build.rs` fetches its schema packages via `npm pack`;
