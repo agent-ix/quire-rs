@@ -31,6 +31,13 @@ jobs:
       - name: Cache cargo artifacts
         uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
 
+      # PLAT-901: `build.rs` fetches its schema packages via `npm pack`;
+      # building a fuzz target compiles the crate, so it needs npm on PATH.
+      - name: Set up Node (npm for build.rs's fetch)
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: "22"
+
       - name: Install cargo-fuzz
         uses: taiki-e/install-action@37f7c5781271959fb65b6b35224e28652ff2b63d # v2
         with:
