@@ -7,6 +7,21 @@ bumps; once 1.0 ships, semver is strict.
 
 ## [Unreleased]
 
+## [0.47.1] — 2026-09-22
+
+`v0.47.0`'s git tag doesn't match what got published, for the same reason
+`0.46.0` was skipped below: real wheels were dispatched and published from
+`main` at a commit the tag never moved to. Between the tag and the publish,
+three fixes landed — PLAT-948 (the embedded semantic-core/module-manifest
+schema bundle moved from a `build.rs` npm fetch, which never worked in a
+real release build, to a plain Cargo `git` dependency on
+`agent-ix-semantic-schema`), a `wheels.yml` sparse-checkout fix (`schemas/`
+was missing, needed by `src/assurance.rs`/`src/semantic/surface.rs`), and
+removal of the stale `CORPUS_TOKEN` from `ci.yml` (the three repos it gated
+are all public now). `0.47.1` is the first version whose tag, `Cargo.toml`,
+and published wheel content all agree — no code changes from what's already
+live in the internal GCP registry under `0.47.0`.
+
 ## [0.47.0] — 2026-09-22
 
 `0.46.0` is skipped: `Cargo.toml` staged that version ahead of a real release
