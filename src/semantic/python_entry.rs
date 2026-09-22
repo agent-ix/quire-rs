@@ -76,7 +76,7 @@ pub fn extract_semantic_json(request: &Value) -> Result<SemanticExtraction, Stri
     }
     if super::embedded::semantic_core_bundle(&req.module.semantic_core).is_none() {
         return Err(format!(
-            "semantic.unsupported-semantic-core: {:?} has no vendored bundle (vendored: {})",
+            "semantic.unsupported-semantic-core: {:?} has no embedded bundle (embedded: {})",
             req.module.semantic_core,
             super::embedded::SEMANTIC_CORE_VERSIONS.join(", ")
         ));

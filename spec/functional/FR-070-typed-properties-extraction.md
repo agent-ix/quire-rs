@@ -26,7 +26,7 @@ relationships:
 
 When the engine extracts an object artifact whose module carries a
 `semantic` block, the engine SHALL extract the `## Properties` section into a
-`FieldDecl[]` that validates against the vendored semantic-core
+`FieldDecl[]` that validates against the embedded semantic-core
 `FieldDecl.json`, from either the typed table or the `sysml` fence, per the
 `agent-ix/quoin` FR-071 mapping.
 
@@ -152,7 +152,7 @@ that line.
 
 Normalization: the table and fence forms of the same content SHALL produce
 identical normalized `FieldDecl[]`. Every produced entry SHALL validate
-against the vendored `FieldDecl.json` at the module's `semantic_core`
+against the embedded `FieldDecl.json` at the module's `semantic_core`
 version; an entry that does not is an engine defect and SHALL fail extraction
 with `semantic.internal-invalid-decl`, never be dropped.
 

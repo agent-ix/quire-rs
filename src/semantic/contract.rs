@@ -133,11 +133,11 @@ pub fn reference_form(value: &Value) -> DataSchemaForm {
 
 fn block_validator() -> JSONSchema {
     let schema: Value = serde_json::from_str(embedded::MODULE_MANIFEST_SCHEMA)
-        .expect("vendored module-manifest schema is JSON");
+        .expect("embedded module-manifest schema is JSON");
     let block = schema["properties"]["semantic"].clone();
     JSONSchema::options()
         .compile(&block)
-        .expect("vendored semantic block schema compiles")
+        .expect("embedded semantic block schema compiles")
 }
 
 /// Read and check a `semantic` block (FR-069 Behavior, refusals in order).
@@ -180,7 +180,7 @@ pub fn read_semantic_block(
                 "semantic.unsupported-semantic-core",
                 "semantic.semantic_core",
                 format!(
-                    "semantic.semantic_core {} has no vendored bundle (vendored: {})",
+                    "semantic.semantic_core {} has no embedded bundle (embedded: {})",
                     other
                         .map(|v| format!("{v:?}"))
                         .unwrap_or_else(|| "absent".to_string()),
@@ -189,7 +189,7 @@ pub fn read_semantic_block(
             )]);
         }
     }
-    // 3. shape against the vendored module-manifest schema.
+    // 3. shape against the embedded module-manifest schema.
     let mut failures = Vec::new();
     let validator = block_validator();
     if let Err(errors) = validator.validate(block) {
@@ -209,7 +209,7 @@ pub fn read_semantic_block(
                         "semantic.unknown-target",
                         at.clone(),
                         format!(
-                            "target {} is outside the vendored target registry",
+                            "target {} is outside the embedded target registry",
                             error.instance
                         ),
                     )

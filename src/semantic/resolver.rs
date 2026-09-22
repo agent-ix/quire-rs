@@ -220,7 +220,7 @@ pub fn compile_module_schema(
         SemanticFailure::error(
             "semantic.unsupported-semantic-core",
             "semantic.semantic_core",
-            format!("no vendored bundle for {semantic_core}"),
+            format!("no embedded bundle for {semantic_core}"),
         )
     })?;
     let core_base = format!("{}{}/", embedded::SEMANTIC_CORE_BASE, semantic_core);
@@ -292,10 +292,10 @@ fn walk(
                 return Err(SemanticFailure::error(
                     "semantic.schema-ref-unshipped",
                     "",
-                    format!("$ref {url} names no file in the vendored semantic-core {semantic_core} bundle"),
+                    format!("$ref {url} names no file in the embedded semantic-core {semantic_core} bundle"),
                 ));
             };
-            let child: Value = serde_json::from_str(text).expect("vendored schema is JSON");
+            let child: Value = serde_json::from_str(text).expect("embedded schema is JSON");
             walk(
                 &child,
                 url,

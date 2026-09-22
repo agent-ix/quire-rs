@@ -462,7 +462,7 @@ fn compile_object_type_snapshots(
                 diagnostics.push(diagnostic(
                     "semantic.unsupported-semantic-core",
                     format!(
-                        "{}: semantic.semanticCore {:?} has no vendored bundle (vendored: {})",
+                        "{}: semantic.semanticCore {:?} has no embedded bundle (embedded: {})",
                         snapshot.name,
                         semantic.semantic_core,
                         crate::semantic::embedded::SEMANTIC_CORE_VERSIONS.join(", ")

@@ -123,7 +123,7 @@ Operations:
 General:
 
 - Every produced `ClauseRef` and `OperationDecl` SHALL validate against the
-  vendored `ClauseRef.json` and `OperationDecl.json`; an entry that does not
+  embedded `ClauseRef.json` and `OperationDecl.json`; an entry that does not
   is an engine defect and SHALL fail extraction with
   `semantic.internal-invalid-decl`, never be dropped.
 - An artifact without `## Invariants` or `## Operations` SHALL report that
@@ -154,7 +154,7 @@ General:
 | FR-071-AC-2 | The six `fence-` cases of `operations-cases.json` (semantic-core `0.2.0`), `fence-ocl-carried` among them, yield the recorded code, severity, column, message, and fence locus, and the recorded `clauses`, `clauseText`, and clause availability where present; `quire` yields no advisory. | Test |
 | FR-071-AC-3 | `duplicate-clause-id` fails at the second heading, `clause-id-not-identifier` at the heading, `inline-and-external` at the second occurrence; an ownerless fence, a bodiless heading, a heading with two fences, an unterminated fence, and an external-only `Clause:` line each yield their named code at the named locus. | Test |
 | FR-071-AC-4 | `dangling-post` fails at the `Post:` line with `semantic.dangling-clause-ref`, `duplicate-operation` at the second heading, a non-`Identifier` operation heading with `semantic.operation-name-not-identifier`; `Pre: a, b` resolves both ids into `pre`; an operation without a table yields `params: []`. | Test |
-| FR-071-AC-5 | Every produced `ClauseRef` and `OperationDecl` validates against the vendored schemas; an artifact without the sections reports both kinds `not_applicable`; a section with one erroring entry reports that kind `unavailable` (`entry-errors`) with no partial array. | Test |
+| FR-071-AC-5 | Every produced `ClauseRef` and `OperationDecl` validates against the embedded schemas; an artifact without the sections reports both kinds `not_applicable`; a section with one erroring entry reports that kind `unavailable` (`entry-errors`) with no partial array. | Test |
 | FR-071-AC-6 | For generated fence bodies of arbitrary UTF-8 text (backticks, tilde fences, longer closing runs, CRLF, nested shorter fences), `clauseText` equals the body bytes and the span's `startLine`, `endLine`, and `endColumn` match the fence lines. | Test |
 | FR-071-AC-7 | With no caller-supplied `sourceIdentity`, spans carry `ix://local/<scope>/spec` and one `semantic.source-identity-defaulted` advisory per document; with one supplied, spans carry it and no advisory. | Test |
 | FR-071-AC-8 | A `quire` fence under `0.2.0` extracts with no diagnostic and the kind available and not lossy; an `ocl` fence under `0.2.0` and under `0.1.0` extracts with only the advisory `semantic.clause-language-unchecked` at the fence, its body carried verbatim, and the kind lossy; a `quire` fence under `0.1.0` is `semantic.clause-language-invalid`. | Test |

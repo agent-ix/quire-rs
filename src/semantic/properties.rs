@@ -1050,7 +1050,7 @@ fn validate_decls(
             "semantic.unsupported-semantic-core",
             0,
             format!(
-                "no vendored semantic-core {} bundle to validate FieldDecl against",
+                "no embedded semantic-core {} bundle to validate FieldDecl against",
                 ctx.module.semantic_core
             ),
         ));
