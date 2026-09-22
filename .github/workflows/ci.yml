@@ -17,19 +17,11 @@ jobs:
           # `tests/corpus_cases.rs` reads its cases in place. Without this the
           # suite fails at load with "the corpus submodule is not checked out".
           #
-          # `agent-ix/qa-corpus` is PRIVATE, so the job's default GITHUB_TOKEN
-          # cannot read it — the checkout needs a PAT with `repo` scope in
-          # `secrets.CORPUS_TOKEN`. Absent that secret the submodule step fails
-          # loudly, which is the right failure: a green run over a corpus that
-          # was never checked out is the silent-zero this programme exists to
-          # end.
+          # `agent-ix/qa-corpus` is public, so the job's default GITHUB_TOKEN
+          # reads it fine — no PAT needed. Manual `submodule update` (below)
+          # rather than `submodules: true` here purely to keep this an
+          # explicit, separately-named step.
           submodules: false
-      - name: Require private dependency token
-        env:
-          CORPUS_TOKEN: ${{ secrets.CORPUS_TOKEN }}
-        run: test -n "$CORPUS_TOKEN" || { echo "::error::CORPUS_TOKEN must read agent-ix/qa-corpus and private Cargo dependencies"; exit 1; }
-      - name: Authenticate private repositories
-        run: git config --global url."https://x-access-token:${{ secrets.CORPUS_TOKEN }}@github.com/".insteadOf "https://github.com/"
       - name: Checkout locked corpus
         run: git submodule update --init --recursive --depth 1
 
@@ -37,11 +29,11 @@ jobs:
       # checked out by full SHA; fetch-depth 0 retains their remote-tracking
       # refs so validate_spec.py can also prove each locked commit belongs to
       # the declared origin history rather than merely existing locally.
+      # Both repos are public — no token needed.
       - name: Checkout locked process schema provider
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           repository: agent-ix/spec-artifacts-process
-          token: ${{ secrets.CORPUS_TOKEN }}
           ref: e6ea5151b59a55d7ce0d43f1581cbe276f750e04
           fetch-depth: 0
           path: .ci/spec-artifacts-process
@@ -49,7 +41,6 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           repository: agent-ix/spec-artifacts-iso
-          token: ${{ secrets.CORPUS_TOKEN }}
           ref: a60ee12d735976081849f60a38d603fb5494b015
           fetch-depth: 0
           path: .ci/spec-artifacts-iso
@@ -156,12 +147,6 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - name: Require private dependency token
-        env:
-          CORPUS_TOKEN: ${{ secrets.CORPUS_TOKEN }}
-        run: test -n "$CORPUS_TOKEN" || { echo "::error::CORPUS_TOKEN must read private Cargo dependencies"; exit 1; }
-      - name: Authenticate private repositories
-        run: git config --global url."https://x-access-token:${{ secrets.CORPUS_TOKEN }}@github.com/".insteadOf "https://github.com/"
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c # stable action
         with:
@@ -229,12 +214,6 @@ jobs:
       (github.event_name == 'schedule' && github.event.schedule == '0 7 * * 1')
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - name: Require private dependency token
-        env:
-          CORPUS_TOKEN: ${{ secrets.CORPUS_TOKEN }}
-        run: test -n "$CORPUS_TOKEN" || { echo "::error::CORPUS_TOKEN must read private Cargo dependencies"; exit 1; }
-      - name: Authenticate private repositories
-        run: git config --global url."https://x-access-token:${{ secrets.CORPUS_TOKEN }}@github.com/".insteadOf "https://github.com/"
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c # stable action
         with:
@@ -275,12 +254,6 @@ jobs:
       github.event_name == 'workflow_dispatch'
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - name: Require private dependency token
-        env:
-          CORPUS_TOKEN: ${{ secrets.CORPUS_TOKEN }}
-        run: test -n "$CORPUS_TOKEN" || { echo "::error::CORPUS_TOKEN must read private Cargo dependencies"; exit 1; }
-      - name: Authenticate private repositories
-        run: git config --global url."https://x-access-token:${{ secrets.CORPUS_TOKEN }}@github.com/".insteadOf "https://github.com/"
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c # stable action
         with:
