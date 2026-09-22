@@ -42,18 +42,21 @@ fn write_or_compare(path: &Path, actual: &str) {
 
 #[trace("TC-1606", "FR-069-AC-8")]
 // Every supported semantic-core version is a complete, valid embedded
-// bundle. CR-181: this used to also hash-check a committed copy of the
-// bundle bytes against `schemas/vendored/PROVENANCE.json`, and a committed
-// copy of filament-core-data's target enum (`common.schema.json`). CR-184:
-// the third committed copy, `schemas/vendored/module-manifest.schema.json`,
-// is gone too, now that `@agent-ix/semantic-schema` publishes it. Nothing
-// under `schemas/vendored/` remains: every embedded schema comes from a
-// published `@agent-ix` package at build time (see `build.rs`), never from
-// a file in this repository, and the target enum was dead code (see
-// `contract.rs`'s step-3/step-6 note). There is nothing left in this
-// repository for a provenance-hash check to compare bytes against, so the
-// old check is deleted rather than pointed at a new copy — FR-069-CON-2
-// (the constraint that required it) is removed for the same reason.
+// bundle, and each bundle's content still matches the digest this repo
+// pinned before CR-181. CR-181 deleted the check that hashed a *committed*
+// copy of the bundle bytes against `schemas/vendored/PROVENANCE.json` (and a
+// committed copy of filament-core-data's target enum, `common.schema.json`);
+// CR-184 deleted the third committed copy, `schemas/vendored/
+// module-manifest.schema.json`, once `@agent-ix/semantic-schema` published
+// it. Nothing under `schemas/vendored/` remains: every embedded schema comes
+// from a published `@agent-ix` package at build time (see `build.rs`), never
+// from a file in this repository, and the target enum was dead code (see
+// `contract.rs`'s step-3/step-6 note). FR-069-CON-2 (which required a
+// provenance record to pin against) is removed for the same reason. But the
+// *content* digest itself is not ceremony — it is what proves the
+// build-fetched bytes are the exact bundle this crate's tests were written
+// against — so it is restored here, computed straight over the
+// build-fetched, embedded bundle bytes rather than over a committed copy.
 #[test]
 fn embedded_semantic_core_versions_are_complete_bundles() {
     assert!(
@@ -76,6 +79,27 @@ fn embedded_semantic_core_versions_are_complete_bundles() {
                 "semantic-core {version}/{name}: not a draft 2020-12 JSON Schema"
             );
         }
+
+        // Bundle digest: "<name>\n<bytes>" over every schema file, in the
+        // sorted order `build.rs` already emits them in.
+        let mut hasher = Sha256::new();
+        for (name, text) in bundle {
+            hasher.update(name.as_bytes());
+            hasher.update(b"\n");
+            hasher.update(text.as_bytes());
+        }
+        let digest = format!("sha256:{:x}", hasher.finalize());
+        let pinned = match *version {
+            "0.1.0" => "sha256:dd33c886f70e908b14507c35e078d163b76308c3d170d2b54ddf933d1a4ebb52",
+            "0.2.0" => "sha256:ef79c5dea98c19643b20daa8899951a4782d6248527a0647c114c6f76cca8aea",
+            other => panic!("semantic-core {other} has no pinned digest"),
+        };
+        assert_eq!(
+            digest, pinned,
+            "semantic-core {version} bundle digest changed from the pinned value; if \
+             @agent-ix/semantic-core@{version} genuinely republished with different \
+             content, update `pinned` to the new digest — don't relax this assertion"
+        );
     }
 }
 
