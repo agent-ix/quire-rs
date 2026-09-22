@@ -71,15 +71,21 @@ jobs:
         shell: pwsh
         run: git config --system core.protectNTFS false
 
-      # Sparse-checkout: the wheel build only needs the crate + benches
+      # Sparse-checkout: the wheel build needs the crate + benches
       # (referenced by [[bench]] entries) + .cargo (root files come
-      # free in cone mode). tests/ stays excluded — it carries the
-      # con.md.j2 fixture that would otherwise break Windows.
+      # free in cone mode) + crates (PLAT-901's workspace-member path
+      # dependencies — quire-rust-extraction, quire-fixtures,
+      # spec-objects-architecture-fixture, build-npm-fetch — all four are
+      # real `path = "crates/..."` deps of the root crate, so `cargo
+      # metadata` fails without every one of their manifests present).
+      # tests/ stays excluded — it carries the con.md.j2 fixture that
+      # would otherwise break Windows.
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           sparse-checkout: |
             src
             benches
+            crates
             .cargo
 
       # PLAT-901: `build.rs` fetches its schema packages via `npm pack`;
@@ -100,6 +106,21 @@ jobs:
       - uses: agent-ix/nodejs-actions/setup-npmrc@main
         with:
           npm_registry_token: ${{ secrets.REGISTRY_TOKEN }}
+      # setup-npmrc writes .npmrc at the workspace root, which every other
+      # consumer of REGISTRY_TOKEN in this org finds for free because they
+      # run npm/pnpm directly as the top-level step (schema-release.yml,
+      # quoin's build-test.yml). build.rs's `npm pack` is new: it runs
+      # several subprocess layers down (this step -> maturin-action -> cargo
+      # -> build script -> npm), and npm only resolves a project .npmrc
+      # relative to whatever CWD that subprocess actually gets, which isn't
+      # guaranteed to be the workspace root at that depth. Exporting
+      # NPM_CONFIG_USERCONFIG makes npm read the same file regardless of
+      # subprocess CWD, for every later step in this job (macOS/Windows;
+      # the manylinux container gets its own copy since the workspace is
+      # bind-mounted at the same path — see below).
+      - name: Point npm at .npmrc regardless of subprocess depth
+        shell: bash
+        run: echo "NPM_CONFIG_USERCONFIG=${{ github.workspace }}/.npmrc" >> "$GITHUB_ENV"
 
       - name: Build abi3 wheel
         uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1
@@ -110,6 +131,29 @@ jobs:
           args: --locked --release --out dist
           manylinux: auto
           sccache: true
+          # The manylinux container has no npm/node at all — the host-level
+          # "Set up Node" step above only reaches the macOS/Windows runners
+          # and the linux host, not this container. build.rs's `npm pack`
+          # fetch needs npm inside it too. Static binary, not a package
+          # manager install: manylinux/musllinux images vary (glibc vs musl,
+          # RPM vs no package manager on some arches), and a static tarball
+          # under /usr/local works identically on every one of them. The
+          # container mounts the workspace at the same path as the host, so
+          # the .npmrc the host-level setup-npmrc step already wrote is
+          # already visible here — nothing else to configure.
+          before-script-linux: |
+            set -euo pipefail
+            NODE_VERSION=22.11.0
+            case "$(uname -m)" in
+              x86_64) NODE_ARCH=x64 ;;
+              aarch64) NODE_ARCH=arm64 ;;
+              *) echo "unsupported arch: $(uname -m)" >&2; exit 1 ;;
+            esac
+            curl -fsSLo /tmp/node.tar.xz \
+              "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${NODE_ARCH}.tar.xz"
+            tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1
+            node --version
+            npm --version
 
       - name: Smoke-import the wheel
         if: ${{ matrix.smoke }}
