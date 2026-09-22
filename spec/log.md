@@ -7,6 +7,32 @@ description: "Chronological log of structural changes to this bundle."
 
 ## History
 
+* **2026-09-22** — **CR-186** (`PLAT-948`): the embedded semantic-core and
+  module-manifest schema bundles move from a `build.rs` `npm pack` fetch to a
+  plain Cargo `git` dependency, `agent-ix-semantic-schema` (tag
+  `semantic-schema-v0.1.0`, `agent-ix/filament-core-data` — a public repo).
+  CR-184's `build.rs` fetch never actually worked in a real release build: a
+  real `wheels.yml` dispatch 401'd on macOS (npm config resolution several
+  subprocess layers deep from the actual `npm pack` call) and failed outright
+  on every Linux leg (the manylinux container ships no `npm`/`node` at all).
+  `filament-core-data` already publishes the identical schema bytes as a Rust
+  crate via `include_str!` from its own tree, so a git dependency needs no
+  npm, no node, and no registry authentication anywhere in the build — `cargo`
+  resolves it the same way it resolves any other git dependency. Byte-identity
+  with the retired fetch is enforced, not assumed: `tests/semantic_baseline.rs`'s
+  TC-1606 digest (`sha256:65b4e8d4c71a343e270618c9a8ca7e33687f10324ef5e9fe68d150056101c627`)
+  is unchanged and passes against the new source. `SEMANTIC_CORE_VERSIONS`
+  stays `&["0.3.0"]`; `EMBEDDED_SEMANTIC_CORE_VERSION` in `embedded.rs` now
+  names that digest test as the thing that catches a future repin drifting
+  the version string from the bundle's actual content. `root build.rs` and
+  the `[build-dependencies]` section are deleted; `crates/build-npm-fetch`
+  stays for its one remaining consumer, `crates/spec-objects-architecture-fixture`
+  (a `[dev-dependencies]`-only fixture, unaffected). `deny.toml` gains license
+  exceptions for `agent-ix-semantic-schema` and (backfilling a gap CR-185 left)
+  `build-npm-fetch`, plus an `allow-git` entry for `filament-core-data`.
+  `wheels.yml`'s now-dead npm/node scaffolding is tracked separately, pending
+  review before any workflow-file edit. FR-069 Inputs updated; no AC/TC change.
+
 * **2026-09-21** — **CR-185** (`PLAT-901`): `@agent-ix/semantic-core@0.1.0` and `@0.2.0`
   turned out to be dev-mirror-only: they were published only to `npm.ix`, a private
   registry reachable from this development network, and never had a real,

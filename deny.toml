@@ -30,6 +30,15 @@ exceptions = [
     # Resolves the published @agent-ix/spec-objects-architecture npm package
     # at build time (PLAT-901); part of this repo, same license, dev-dependency only.
     { allow = ["AGPL-3.0-or-later"], crate = "spec-objects-architecture-fixture" },
+    # Shared `npm pack` fetch-and-unpack helper (PLAT-901), workspace member,
+    # `[build-dependencies]`-only consumer is spec-objects-architecture-fixture.
+    # Same license as the rest of this repo. Added by PR #486 without this
+    # exception, which left the License Check job red on `main`; backfilled here.
+    { allow = ["AGPL-3.0-or-later"], crate = "build-npm-fetch" },
+    # Embedded semantic-core + module-manifest schema bytes (PLAT-948), a git
+    # dependency on filament-core-data (public repo). Same license family as
+    # the rest of this dependency tree's first-party crates.
+    { allow = ["AGPL-3.0-or-later"], crate = "agent-ix-semantic-schema" },
 ]
 confidence-threshold = 0.9
 
@@ -53,4 +62,8 @@ unknown-git = "deny"
 allow-git = [
     "https://github.com/agent-ix/ix-trace-rs",
     "https://github.com/agent-ix/quire-code-rs",
+    # filament-core-data: source of the agent-ix-semantic-schema git
+    # dependency (PLAT-948). Public repo; crates.io publishing not planned
+    # (its own consumers are all git dependents across the org).
+    "https://github.com/agent-ix/filament-core-data",
 ]

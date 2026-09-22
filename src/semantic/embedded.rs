@@ -35,7 +35,10 @@ pub const MODULE_SCHEMA_BASE: &str = "https://schemas.agent-ix.org/";
 
 /// The semantic-core version `agent-ix-semantic-schema`'s pinned tag embeds
 /// (filament-core-data's `packages/semantic-core/package.json` at that tag).
-/// Update this alongside the crate's `tag` in `Cargo.toml` when repinning.
+/// Update this alongside the crate's `tag` in `Cargo.toml` when repinning —
+/// `tests/semantic_baseline.rs`'s bundle content digest (TC-1606) is what
+/// actually enforces the two stay in sync: a repin that changes the bundle
+/// bytes without updating this constant fails that test, not silently drifts.
 const EMBEDDED_SEMANTIC_CORE_VERSION: &str = "0.3.0";
 
 /// Semantic-core versions with an embedded bundle, ascending. Exactly one:

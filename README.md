@@ -105,13 +105,12 @@ and as **WebAssembly**.
 quire = { git = "https://github.com/agent-ix/quire-rs" }
 ```
 
-**Build-time requirement (PLAT-901):** `build.rs` fetches its embedded semantic-core and
-module-manifest JSON Schema bundles from published `@agent-ix` npm packages via `npm pack`,
-rather than vendoring a copy into this repository. Building `quire-rs` — including as a
-`git` dependency, e.g. `agent-ix/quoin` — therefore needs `npm` on `PATH` and network access
-at build time (never at runtime: the compiled binary itself never reaches the network). The
-fetch is cached under `OUT_DIR`, so it runs once per `target/`/`CARGO_TARGET_DIR`, not on
-every `cargo build`.
+**Build-time requirement (PLAT-948):** the embedded semantic-core and module-manifest JSON
+Schema bundles come from `agent-ix-semantic-schema`, a plain Cargo `git` dependency on
+`agent-ix/filament-core-data` (a public repo), rather than a copy vendored into this
+repository. Building `quire-rs` — including as a `git` dependency, e.g. `agent-ix/quoin` —
+needs no `npm`, no `node`, and no registry authentication: `cargo` resolves the git
+dependency the same way it resolves any other.
 
 Feature flags:
 
