@@ -102,6 +102,12 @@ unicode-normalization = "0.1"
 # never pulls the other languages' C toolchains — see the crate's own
 # `Cargo.toml` for the full reasoning.
 quire-rust-extraction = { path = "crates/quire-rust-extraction", optional = true }
+# Embedded semantic-core + module-manifest schema bytes (FR-069 Inputs),
+# sourced from filament-core-data's own tree via a plain git dependency —
+# see src/semantic/embedded.rs for why this replaced a build.rs npm fetch.
+# filament-core-data is public, so this needs no registry auth, no npm, no
+# node, anywhere in this crate's build.
+agent-ix-semantic-schema = { git = "https://github.com/agent-ix/filament-core-data", tag = "semantic-schema-v0.1.0" }
 
 [dev-dependencies]
 # The canonical Rust trace marker (FR-051). Zero runtime dependencies and a
@@ -129,12 +135,6 @@ criterion = "^0.5"
 # FR-024 data-parallel collect abstractly (loom cannot model rayon).
 [target.'cfg(loom)'.dependencies]
 loom = "^0.7"
-
-[build-dependencies]
-# Shared `npm pack` fetch-and-unpack helper (PLAT-901): also used by
-# crates/spec-objects-architecture-fixture/build.rs, so there is exactly one
-# copy of the fetch logic instead of one per build script.
-build-npm-fetch = { path = "crates/build-npm-fetch" }
 
 [features]
 # Native default: include filesystem `$ref` resolution in jsonschema, and the

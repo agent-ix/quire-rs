@@ -3,6 +3,11 @@
 version = 4
 
 [[package]]
+name = "agent-ix-semantic-schema"
+version = "0.1.0"
+source = "git+https://github.com/agent-ix/filament-core-data?tag=semantic-schema-v0.1.0#dc6e85b1df6972e7203b3560781c26b67b0a678e"
+
+[[package]]
 name = "ahash"
 version = "0.8.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1160,7 +1165,7 @@ dependencies = [
 name = "quire-rs"
 version = "0.47.0"
 dependencies = [
- "build-npm-fetch",
+ "agent-ix-semantic-schema",
  "criterion",
  "getrandom 0.3.4",
  "globset",
