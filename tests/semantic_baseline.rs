@@ -49,14 +49,17 @@ fn write_or_compare(path: &Path, actual: &str) {
 // CR-184 deleted the third committed copy, `schemas/vendored/
 // module-manifest.schema.json`, once `@agent-ix/semantic-schema` published
 // it. Nothing under `schemas/vendored/` remains: every embedded schema comes
-// from a published `@agent-ix` package at build time (see `build.rs`), never
-// from a file in this repository, and the target enum was dead code (see
+// from `agent-ix-semantic-schema` (CR-186: a git dependency on
+// `agent-ix/filament-core-data`, not a `build.rs` npm fetch), never from a
+// file in this repository, and the target enum was dead code (see
 // `contract.rs`'s step-3/step-6 note). FR-069-CON-2 (which required a
 // provenance record to pin against) is removed for the same reason. But the
-// *content* digest itself is not ceremony — it is what proves the
-// build-fetched bytes are the exact bundle this crate's tests were written
-// against — so it is restored here, computed straight over the
-// build-fetched, embedded bundle bytes rather than over a committed copy.
+// *content* digest itself is not ceremony — it is what proves the git
+// dependency's bytes are the exact bundle this crate's tests were written
+// against, and what would catch a future repin drifting the crate's tag from
+// the semantic-core version `embedded.rs` claims it embeds — so it is
+// restored here, computed straight over the embedded bundle bytes rather
+// than over a committed copy.
 #[test]
 fn embedded_semantic_core_versions_are_complete_bundles() {
     assert!(
@@ -81,7 +84,7 @@ fn embedded_semantic_core_versions_are_complete_bundles() {
         }
 
         // Bundle digest: "<name>\n<bytes>" over every schema file, in the
-        // sorted order `build.rs` already emits them in.
+        // sorted order `agent-ix-semantic-schema` already emits them in.
         let mut hasher = Sha256::new();
         for (name, text) in bundle {
             hasher.update(name.as_bytes());

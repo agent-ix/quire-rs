@@ -48,14 +48,14 @@ as it does today.
   (`schema/semantic/v1/`); the `legacy_forms` and `compatibility_posture`
   value sets are this engine's own contract, not drawn from that schema.
 - The semantic-core JSON Schema bundle, one directory per supported version,
-  fetched from the published `@agent-ix/semantic-core` npm package at that
-  exact version and embedded at build time (`build.rs`) — never a copy
-  committed to this repository.
+  sourced from `agent-ix-semantic-schema` — a plain Cargo `git` dependency on
+  `agent-ix/filament-core-data` (PLAT-948) — never a copy committed to this
+  repository.
 - The module-manifest schema (`MODULE_MANIFEST_SCHEMA`, whose
-  `properties.semantic` is what `block_validator()` compiles), fetched from
-  the published `@agent-ix/semantic-schema` npm package's
-  `semantic/v1/module-manifest.schema.json` at build time (`build.rs`) —
-  never a copy committed to this repository.
+  `properties.semantic` is what `block_validator()` compiles), sourced from
+  that same `agent-ix-semantic-schema` dependency's
+  `semantic/v1/module-manifest.schema.json` — never a copy committed to this
+  repository.
 
 > **CR-181/CR-184 note (2026-09-21):** This Inputs list no longer names a
 > vendored revision, a vendored directory, or a provenance SHA-256 —

@@ -3,9 +3,9 @@
 //! `contract` reads the module `semantic` block and reference-form
 //! `data_schema` at load (FR-069); `resolver` compiles a module schema
 //! against the embedded semantic-core bundle without touching the filesystem
-//! or the network; `embedded` is the embedded bundle itself, assembled by
-//! `build.rs` from the published `@agent-ix/semantic-core` package rather
-//! than from a copy committed to this repository. Extraction
+//! or the network; `embedded` is the embedded bundle itself, sourced from
+//! `agent-ix-semantic-schema` (a git dependency on `agent-ix/filament-core-data`)
+//! rather than from a copy committed to this repository. Extraction
 //! (FR-070..FR-072) lands in the sibling modules of Plan-003; `model` holds
 //! the FR-075 model feature declarations and `systems` its systems-model
 //! tables; `relations` the FR-076 relationships; `target` resolves the
