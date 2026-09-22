@@ -14,5 +14,11 @@ build = "build.rs"
 name = "spec_objects_architecture_fixture"
 path = "src/lib.rs"
 
+[build-dependencies]
+# Shared `npm pack` fetch-and-unpack helper (PLAT-901); also used by
+# quire-rs's own root `build.rs`, so there is exactly one copy of the fetch
+# logic instead of one per build script.
+build-npm-fetch = { path = "../build-npm-fetch" }
+
 [lints.rust]
 unsafe_code = "forbid"

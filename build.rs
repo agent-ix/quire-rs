@@ -13,11 +13,15 @@
 //! Nothing here is a copy of another repository's bytes committed to this
 //! repository — every schema embedded by `src/semantic/embedded.rs` is
 //! fetched fresh from its published package by this script.
+//!
+//! The `npm pack` -> find `.tgz` -> `tar xzf` -> idempotency-marker sequence
+//! itself lives in the `build-npm-fetch` crate (PLAT-901), shared with
+//! `crates/spec-objects-architecture-fixture/build.rs` so there is exactly
+//! one copy of that logic.
 
 use std::env;
 use std::fs;
-use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::path::PathBuf;
 
 /// Every semantic-core version this crate embeds, ascending. Keep in sync
 /// with the versions a `semantic` block may declare (FR-069-AC-2/AC-5).
@@ -36,21 +40,24 @@ fn main() {
     let mut match_arms = String::new();
 
     for version in SEMANTIC_CORE_VERSIONS {
-        let package_dir = fetch_npm_package("@agent-ix/semantic-core", version, &out_dir);
+        let package_dir =
+            build_npm_fetch::fetch_npm_package("@agent-ix/semantic-core", version, &out_dir);
         let json_schema_dir = package_dir.join("generated").join("json-schema");
         let mut names: Vec<String> = fs::read_dir(&json_schema_dir)
             .unwrap_or_else(|e| panic!("read_dir {}: {e}", json_schema_dir.display()))
             .filter_map(Result::ok)
             .map(|e| e.file_name().to_string_lossy().into_owned())
-            .filter(|n| n.ends_with(".json"))
+            // `toolchain.json` is provenance, not a schema, and is excluded
+            // (the same rule `origin/main`'s old `vendored.rs` documented).
+            .filter(|n| n.ends_with(".json") && n != "toolchain.json")
             .collect();
         names.sort();
 
         let const_name = format!("SEMANTIC_CORE_{}", version.replace('.', "_"));
-        versions_body.push_str(&format!("\"{version}\", "));
+        versions_body.push_str(&format!("{version:?}, "));
         consts_body.push_str(&format!(
             "/// `(file name, bytes)` for every schema of semantic-core {version}, sorted by\n\
-             /// name.\n\
+             /// name; `toolchain.json` is provenance, not a schema, and is excluded.\n\
              pub const {const_name}: &[(&str, &str)] = &[\n"
         ));
         for name in &names {
@@ -59,13 +66,13 @@ fn main() {
                 .canonicalize()
                 .unwrap_or_else(|e| panic!("canonicalize {name} for {version}: {e}"));
             let path = path.to_str().expect("OUT_DIR path is valid UTF-8");
-            consts_body.push_str(&format!("    (\"{name}\", include_str!(r#\"{path}\"#)),\n"));
+            consts_body.push_str(&format!("    ({name:?}, include_str!(r#\"{path}\"#)),\n"));
         }
         consts_body.push_str("];\n\n");
-        match_arms.push_str(&format!("        \"{version}\" => Some({const_name}),\n"));
+        match_arms.push_str(&format!("        {version:?} => Some({const_name}),\n"));
     }
 
-    let schema_package_dir = fetch_npm_package(
+    let schema_package_dir = build_npm_fetch::fetch_npm_package(
         "@agent-ix/semantic-schema",
         SEMANTIC_SCHEMA_VERSION,
         &out_dir,
@@ -97,64 +104,4 @@ fn main() {
     );
     fs::write(out_dir.join("embedded_schemas.rs"), generated)
         .expect("write generated embedded_schemas.rs");
-}
-
-/// Fetch `<package>@<version>` via `npm pack` (network access, verified by
-/// npm's own registry integrity check) into `<out_dir>`, unpack it, and
-/// return the path to its unpacked `package/` directory. Idempotent per
-/// `out_dir`: a `.fetched` marker skips re-fetching on a later
-/// `cargo build`/`cargo test` against the same `target/` (or
-/// `CARGO_TARGET_DIR`).
-fn fetch_npm_package(package: &str, version: &str, out_dir: &Path) -> PathBuf {
-    let slug = package.trim_start_matches('@').replace('/', "__");
-    let dest = out_dir.join("npm-packages").join(&slug).join(version);
-    let unpacked = dest.join("package");
-    let marker = dest.join(".fetched");
-
-    if !marker.is_file() {
-        fs::create_dir_all(&dest).unwrap_or_else(|e| panic!("create {}: {e}", dest.display()));
-
-        let pack_dir = out_dir.join("npm-pack-tmp").join(&slug).join(version);
-        fs::create_dir_all(&pack_dir)
-            .unwrap_or_else(|e| panic!("create {}: {e}", pack_dir.display()));
-
-        let status = Command::new("npm")
-            .arg("pack")
-            .arg(format!("{package}@{version}"))
-            .arg("--pack-destination")
-            .arg(&pack_dir)
-            .status()
-            .unwrap_or_else(|e| {
-                panic!(
-                    "run `npm pack {package}@{version}` (build-time network access to \
-                     fetch the published package, FR-069 Inputs): {e}"
-                )
-            });
-        assert!(status.success(), "npm pack {package}@{version} failed");
-
-        let tarball = fs::read_dir(&pack_dir)
-            .unwrap_or_else(|e| panic!("read_dir {}: {e}", pack_dir.display()))
-            .filter_map(Result::ok)
-            .map(|e| e.path())
-            .find(|p| p.extension().and_then(|e| e.to_str()) == Some("tgz"))
-            .unwrap_or_else(|| panic!("npm pack produced no .tgz in {}", pack_dir.display()));
-
-        if unpacked.exists() {
-            fs::remove_dir_all(&unpacked)
-                .unwrap_or_else(|e| panic!("remove stale {}: {e}", unpacked.display()));
-        }
-        let status = Command::new("tar")
-            .arg("xzf")
-            .arg(&tarball)
-            .arg("-C")
-            .arg(&dest)
-            .status()
-            .unwrap_or_else(|e| panic!("run `tar` to unpack {}: {e}", tarball.display()));
-        assert!(status.success(), "tar xzf {} failed", tarball.display());
-
-        fs::write(&marker, b"")
-            .unwrap_or_else(|e| panic!("write marker {}: {e}", marker.display()));
-    }
-
-    unpacked
 }

@@ -111,6 +111,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "build-npm-fetch"
+version = "0.1.0"
+
+[[package]]
 name = "bumpalo"
 version = "3.20.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1156,6 +1160,7 @@ dependencies = [
 name = "quire-rs"
 version = "0.46.0"
 dependencies = [
+ "build-npm-fetch",
  "criterion",
  "getrandom 0.3.4",
  "globset",
@@ -1455,6 +1460,9 @@ checksum = "67b1b7a3b5fe4f1376887184045fcf45c69e92af734b7aaddc05fb777b6fbd03"
 [[package]]
 name = "spec-objects-architecture-fixture"
 version = "0.1.0"
+dependencies = [
+ "build-npm-fetch",
+]
 
 [[package]]
 name = "stable_deref_trait"

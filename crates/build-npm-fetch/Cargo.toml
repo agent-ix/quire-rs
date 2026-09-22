@@ -1,0 +1,17 @@
+[package]
+name = "build-npm-fetch"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.98.1"
+description = "Shared `npm pack` fetch-and-unpack build-time helper (PLAT-901). A `[build-dependencies]`-only crate: fetches a published npm package's tarball and unpacks it under OUT_DIR, idempotently, for a build.rs to embed or copy from. No package bytes are committed to this repository."
+authors = ["Peter Krenesky <kreneskyp@gmail.com>"]
+license = "AGPL-3.0-or-later"
+repository = "https://github.com/agent-ix/quire-rs"
+publish = false
+
+[lib]
+name = "build_npm_fetch"
+path = "src/lib.rs"
+
+[lints.rust]
+unsafe_code = "forbid"
