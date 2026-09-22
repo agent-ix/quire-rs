@@ -44,10 +44,12 @@ fn write_or_compare(path: &Path, actual: &str) {
 // Every supported semantic-core version is a complete, valid embedded
 // bundle. CR-181: this used to also hash-check a committed copy of the
 // bundle bytes against `schemas/vendored/PROVENANCE.json`, and a committed
-// copy of filament-core-data's target enum (`common.schema.json`). Both
-// copies are gone: the bundle now comes from the published
-// `@agent-ix/semantic-core` package at build time (see `build.rs`), never
-// from a file in this repository, and the target enum was dead code (see
+// copy of filament-core-data's target enum (`common.schema.json`). CR-184:
+// the third committed copy, `schemas/vendored/module-manifest.schema.json`,
+// is gone too, now that `@agent-ix/semantic-schema` publishes it. Nothing
+// under `schemas/vendored/` remains: every embedded schema comes from a
+// published `@agent-ix` package at build time (see `build.rs`), never from
+// a file in this repository, and the target enum was dead code (see
 // `contract.rs`'s step-3/step-6 note). There is nothing left in this
 // repository for a provenance-hash check to compare bytes against, so the
 // old check is deleted rather than pointed at a new copy — FR-069-CON-2
@@ -79,24 +81,25 @@ fn embedded_semantic_core_versions_are_complete_bundles() {
 
 #[trace("TC-1877", "FR-031-AC-8")]
 // quire-rs's own loader never validates `object_types[].construct` against
-// the vendored schema — only `properties.semantic` is compiled out of it
+// the embedded schema — only `properties.semantic` is compiled out of it
 // (`contract::block_validator`) — so TC-1876's loader test cannot, on its
 // own, prove the *schema* admits `immutable`. A manifest-validating consumer
-// (e.g. the Python `validate_manifest` binding, called with this vendored
-// file's path) is what actually checks a `construct` value against
+// (e.g. the Python `validate_manifest` binding, called with this embedded
+// schema's bytes) is what actually checks a `construct` value against
 // `$defs/ConstructDeclaration`. Compile that $def directly out of the
-// embedded `MODULE_MANIFEST_SCHEMA` bytes and assert it admits
-// `immutable: true` and still refuses an unknown key, so a regression to
-// the pre-#455 vendored bytes fails here even though nothing in quire-rs's
-// own load path would notice.
+// embedded `MODULE_MANIFEST_SCHEMA` bytes (fetched at build time from the
+// published `@agent-ix/semantic-schema` package, CR-184) and assert it
+// admits `immutable: true` and still refuses an unknown key, so a
+// regression to the pre-#455 schema shape fails here even though nothing in
+// quire-rs's own load path would notice.
 #[test]
 fn tc1877_construct_declaration_schema_admits_immutable() {
     let schema: Value = serde_json::from_str(quire_rs::semantic::embedded::MODULE_MANIFEST_SCHEMA)
-        .expect("vendored module-manifest schema is JSON");
+        .expect("embedded module-manifest schema is JSON");
     let construct_decl = schema["$defs"]["ConstructDeclaration"].clone();
     assert!(
         construct_decl.is_object(),
-        "vendored schema has no $defs/ConstructDeclaration"
+        "embedded schema has no $defs/ConstructDeclaration"
     );
     let validator = JSONSchema::options()
         .compile(&construct_decl)
@@ -112,7 +115,7 @@ fn tc1877_construct_declaration_schema_admits_immutable() {
     assert!(
         validator.is_valid(&construct),
         "a construct declaring immutable: true must validate against the \
-         re-vendored $defs/ConstructDeclaration (filament-core-service \
+         published $defs/ConstructDeclaration (filament-core-service \
          FR-035-AC-17, #455)"
     );
 

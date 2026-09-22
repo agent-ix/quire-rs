@@ -7,6 +7,29 @@ description: "Chronological log of structural changes to this bundle."
 
 ## History
 
+* **2026-09-21** — **CR-184** (`PLAT-901`): [FR-069](./functional/FR-069-semantic-module-contract-at-load.md)'s
+  last vendored file, `schemas/vendored/module-manifest.schema.json` (with
+  `schemas/vendored/PROVENANCE.json`), is deleted — `schemas/vendored/` no
+  longer exists — now that `@agent-ix/semantic-schema@0.1.0` publishes
+  `semantic/v1/module-manifest.schema.json`, closing the gap CR-181 reported
+  as blocked on that publish. `build.rs`'s `npm pack` fetch/unpack logic,
+  previously written once for `@agent-ix/semantic-core`, is refactored into
+  a shared `fetch_npm_package(package, version, out_dir)` helper used by
+  both that package and `@agent-ix/semantic-schema`; `MODULE_MANIFEST_SCHEMA`
+  is generated into the same `OUT_DIR` module as the semantic-core bundles
+  rather than `include_str!`ing a committed file, and `PROVENANCE` (with no
+  remaining subject) is deleted with no replacement. `src/semantic/embedded.rs`'s
+  module doc, which said "the one piece of this crate that remains an actual
+  vendored copy", is corrected. `tests/semantic_baseline.rs`'s TC-1877
+  wording, which called the schema "vendored", is corrected to "embedded" /
+  "published"; TC-1877's behavior is unchanged — it still compiles
+  `$defs/ConstructDeclaration` out of the embedded bytes and asserts
+  `immutable: true` validates. No supported `semantic_core` version changes:
+  nothing under `tests/`, `crates/quire-fixtures/`, or the `semanticCore`
+  fixture fields depends on `@agent-ix/semantic-core@0.3.0` (also published),
+  so it is not added to `SEMANTIC_CORE_VERSIONS` — adding an unused version
+  would be an unrequested feature, not a fix for anything broken.
+
 * **2026-09-21** — **CR-182**: [FR-076](./functional/FR-076-relationships-extraction.md)
   AC-1's `relationships.md`/`relationships.expected.json`/
   `relationships-cases.json` fixtures, and the whole

@@ -1,6 +1,0 @@
-{
-  "$comment": "Every entry this file used to record for common.schema.json and the semantic-core bundles is gone (CR-181, agent-ix/quire-rs de-vendoring): the semantic-core bytes are fetched from the published @agent-ix/semantic-core package at build time (see build.rs), never from a file in this repository, and common.schema.json fed dead code (contract.rs's step 6) that is deleted outright. This file, and nothing else, is not code-verified any more (FR-069-CON-2 is removed) — it is plain documentation of the one entry below.",
-  "files": {
-    "module-manifest.schema.json": { "repository": "agent-ix/filament-core-service", "revision": "5b2af8b18c9ed5ca919217dea17fdf440df95bae", "path": "filament_core_service/schemas/module-manifest.schema.json", "sha256": "sha256:d0cd01c92f123e77e8c8fd4b69a48cdeb7f91e154091716c1410168f410d6906" }
-  }
-}
