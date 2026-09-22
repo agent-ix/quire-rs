@@ -1,6 +1,6 @@
 {
   "$comment": "FR-071 cell and fence-line grammar cases (AC-4..AC-8). Each case gives one cell (or fence line) and the expected TypeRef/constraint fragment or diagnostic; quire-rs#388 executes them, quoin asserts the expectations validate against the vendored semantic-core schemas.",
-  "semanticCore": "0.1.0",
+  "semanticCore": "0.3.0",
   "package": "agent-ix/config-service",
   "cases": [
     {
@@ -109,7 +109,9 @@
       "expected": {
         "multiplicity": {
           "lower": 1,
-          "upper": 1
+          "upper": 1,
+          "ordered": false,
+          "unique": false
         }
       }
     },
@@ -121,7 +123,9 @@
       "expected": {
         "multiplicity": {
           "lower": 0,
-          "upper": 1
+          "upper": 1,
+          "ordered": false,
+          "unique": false
         }
       }
     },
@@ -146,7 +150,9 @@
       "expected": {
         "multiplicity": {
           "lower": 2,
-          "upper": 5
+          "upper": 5,
+          "ordered": false,
+          "unique": false
         }
       }
     },
@@ -158,7 +164,9 @@
       "expected": {
         "multiplicity": {
           "lower": 1,
-          "upper": 1
+          "upper": 1,
+          "ordered": false,
+          "unique": false
         }
       }
     },

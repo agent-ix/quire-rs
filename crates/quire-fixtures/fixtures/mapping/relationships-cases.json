@@ -1,5 +1,5 @@
 {
-  "semanticCore": "0.2.0",
+  "semanticCore": "0.3.0",
   "$comment": "FR-104 cases. A case with `relationships` builds its artifact as artifactHead + that body (body line 1 is artifact line 18); a case with `artifact` uses it verbatim. Every `line` is exact in that artifact. A case `mappings` replaces context.mappings. `withoutRelationVocabulary: true` extracts with no edge registry, roles, or allowed_links; `withoutBundleIndex: true` extracts with no bundle artifacts (the package identity stays). `withoutBundlePackage: true` extracts with an empty bundle.package and no sourceIdentity, so no bundle package is known. `relations: null` means no relations and no relationSources are emitted. `messageContains` lists substrings the diagnostic message must contain. `availability: {}` means no availability.relations key. `exactDiagnostics` is the exact number of diagnostics the extraction emits for the case, so a row that fails several checks pins one diagnostic (FR-104 refusal order). The fields are documented in README.md.",
   "artifactHead": "---\nid: FR-006\ntitle: ConfigVersion\nobject: entity\ntype: FR\n---\n\n# FR-006: ConfigVersion\n\n## Properties\n\n| Field | Type | Multiplicity | Constraints |\n|-------|------|--------------|-------------|\n| id | UUID | 1 | identity |\n\n## Relationships\n\n",
   "context": {
@@ -365,7 +365,9 @@
           "composite": false,
           "target": "ix://agent-ix/spec-artifacts-iso/FR-001",
           "multiplicity": {
-            "lower": 0
+            "lower": 0,
+            "ordered": false,
+            "unique": false
           }
         }
       ],
@@ -851,7 +853,7 @@
       "mappings": [
         "typed-table"
       ],
-      "relationships": "- `overlay`: belongs_to → ConfigOverlay (FR-005)\n",
+      "relationships": "- `overlay`: belongs_to \u2192 ConfigOverlay (FR-005)\n",
       "diagnostics": [],
       "exactDiagnostics": 0,
       "availability": {}
@@ -974,7 +976,9 @@
           "target": "ix://agent-ix/config-service/FR-005",
           "multiplicity": {
             "lower": 1,
-            "upper": 1
+            "upper": 1,
+            "ordered": false,
+            "unique": false
           }
         },
         {
@@ -984,7 +988,9 @@
           "target": "ix://agent-ix/config-service/FR-006",
           "multiplicity": {
             "lower": 0,
-            "upper": 1
+            "upper": 1,
+            "ordered": false,
+            "unique": false
           }
         }
       ],
@@ -1069,7 +1075,9 @@
           "target": "ix://agent-ix/config-service/FR-005",
           "multiplicity": {
             "lower": 1,
-            "upper": 1
+            "upper": 1,
+            "ordered": false,
+            "unique": false
           }
         }
       ],

@@ -30,7 +30,7 @@ parsed, and nothing is rendered.
 
 ### US-019-EX-1: The FR-006 table extracts to the golden declaration set
 
-- **Given** the read-only config-service `FR-006` copy authored as a typed Properties table under a module whose `semantic` block pins semantic-core `0.1.0`
+- **Given** the read-only config-service `FR-006` copy authored as a typed Properties table under a module whose `semantic` block pins semantic-core `0.3.0`
 - **When** the frontend runs Quire extraction over it
 - **Then** the record carries the seven `FieldDecl` entries of the `agent-ix/quoin` golden fixture, byte-identical after normalization, plus one `ocl` `ClauseRef` with a source span
 

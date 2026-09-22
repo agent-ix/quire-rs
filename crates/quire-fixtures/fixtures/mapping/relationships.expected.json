@@ -1,5 +1,5 @@
 {
-  "semanticCore": "0.2.0",
+  "semanticCore": "0.3.0",
   "context": {
     "$comment": "The loaded-module and bundle facts the extraction reads (FR-104 Inputs), pinned by `sources`.",
     "sources": {
@@ -121,7 +121,9 @@
       "target": "ix://agent-ix/config-service/FR-005",
       "multiplicity": {
         "lower": 1,
-        "upper": 1
+        "upper": 1,
+        "ordered": false,
+        "unique": false
       }
     },
     {
@@ -130,7 +132,9 @@
       "composite": true,
       "target": "ix://agent-ix/config-service/FR-007",
       "multiplicity": {
-        "lower": 0
+        "lower": 0,
+        "ordered": false,
+        "unique": false
       }
     },
     {
@@ -140,7 +144,9 @@
       "target": "ix://agent-ix/config-service/FR-006",
       "multiplicity": {
         "lower": 0,
-        "upper": 1
+        "upper": 1,
+        "ordered": false,
+        "unique": false
       }
     }
   ],

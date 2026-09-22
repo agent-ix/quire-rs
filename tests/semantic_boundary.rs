@@ -204,9 +204,9 @@ fn spans_agree_with_the_code_block_scanner() {
         .clone();
     // (fixture, semantic-core version, clause language) per the fixture oracles.
     for (name, core, language) in [
-        ("config-version.table.md", "0.1.0", "ocl"),
-        ("config-version.fence.md", "0.1.0", "ocl"),
-        ("operations.md", "0.2.0", "quire"),
+        ("config-version.table.md", "0.3.0", "ocl"),
+        ("config-version.fence.md", "0.3.0", "ocl"),
+        ("operations.md", "0.3.0", "quire"),
     ] {
         let raw = quire_fixtures::mapping_fixture(name);
         let mut module = module.clone();

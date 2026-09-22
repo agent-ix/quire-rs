@@ -29,7 +29,7 @@ fn extract(md: &str) -> (SemanticExtraction, Value) {
         "markdown": md,
         "module": {
             "contractVersion": "1.0.0",
-            "semanticCore": "0.1.0",
+            "semanticCore": "0.3.0",
             "package": "agent-ix/spec-objects-architecture",
             "exports": ["interface"],
         },

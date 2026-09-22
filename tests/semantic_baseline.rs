@@ -90,8 +90,7 @@ fn embedded_semantic_core_versions_are_complete_bundles() {
         }
         let digest = format!("sha256:{:x}", hasher.finalize());
         let pinned = match *version {
-            "0.1.0" => "sha256:dd33c886f70e908b14507c35e078d163b76308c3d170d2b54ddf933d1a4ebb52",
-            "0.2.0" => "sha256:ef79c5dea98c19643b20daa8899951a4782d6248527a0647c114c6f76cca8aea",
+            "0.3.0" => "sha256:65b4e8d4c71a343e270618c9a8ca7e33687f10324ef5e9fe68d150056101c627",
             other => panic!("semantic-core {other} has no pinned digest"),
         };
         assert_eq!(

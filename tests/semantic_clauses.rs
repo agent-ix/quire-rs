@@ -126,7 +126,7 @@ fn golden_operations_and_spans() {
         expected["diagnostics"]
     );
 
-    // config-version pins semantic-core 0.1.0: its `ocl` clause is carried.
+    // config-version pins semantic-core 0.3.0: its `ocl` clause is carried.
     let expected = mapping_json("config-version.expected.json");
     let cv = extract_clauses(
         &mapping("config-version.table.md"),
@@ -323,7 +323,7 @@ fn clause_language_0_1_0_cases() {
 #[test]
 fn quire_is_checked_and_ocl_is_carried() {
     let mut ctx = context("q.md");
-    ctx.module.semantic_core = "0.2.0".to_string();
+    ctx.module.semantic_core = "0.3.0".to_string();
     let md = artifact("### placed\n\n```quire\nx\n```\n", "");
     let out = extract_clauses(&md, &ctx);
     assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
@@ -354,8 +354,14 @@ fn quire_is_checked_and_ocl_is_carried() {
     assert_eq!(carried.diagnostics, out.diagnostics);
     assert_eq!(carried.availability, out.availability);
 
+    // semantic-core 0.1.0 (no longer an embedded, loadable version, but
+    // still a real historical fact `clause_language_class` encodes) admits
+    // no `quire`: force it explicitly rather than relying on the default
+    // context's version, since that default is now 0.3.0.
+    let mut ctx01 = context("q.md");
+    ctx01.module.semantic_core = "0.1.0".to_string();
     let md = artifact("### placed\n\n```quire\nx\n```\n", "");
-    let out = extract_clauses(&md, &context("q.md"));
+    let out = extract_clauses(&md, &ctx01);
     assert!(
         out.diagnostics
             .iter()

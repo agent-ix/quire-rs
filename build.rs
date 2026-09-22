@@ -25,7 +25,7 @@ use std::path::PathBuf;
 
 /// Every semantic-core version this crate embeds, ascending. Keep in sync
 /// with the versions a `semantic` block may declare (FR-069-AC-2/AC-5).
-const SEMANTIC_CORE_VERSIONS: &[&str] = &["0.1.0", "0.2.0"];
+const SEMANTIC_CORE_VERSIONS: &[&str] = &["0.3.0"];
 
 /// The `@agent-ix/semantic-schema` version `MODULE_MANIFEST_SCHEMA` is
 /// fetched from.

@@ -314,7 +314,7 @@ fn golden_relationships() {
     // record their sources.
     for name in ["relationships.expected.json", "relationships-cases.json"] {
         let fixture = mapping_json(name);
-        assert_eq!(fixture["semanticCore"], "0.2.0", "{name}");
+        assert_eq!(fixture["semanticCore"], "0.3.0", "{name}");
         let sources = fixture["context"]["sources"].as_object();
         assert!(
             sources.is_some_and(|s| !s.is_empty()),

@@ -51,7 +51,7 @@ fn extract_with_bundle_artifacts(md: &str, body_extraction: Value, artifacts: Va
         "markdown": md,
         "module": {
             "contractVersion": "1.0.0",
-            "semanticCore": "0.1.0",
+            "semanticCore": "0.3.0",
             "package": "agent-ix/spec-objects-architecture",
             "exports": ["part", "port", "connection", "allocation"],
             "imports": { "agent-ix/fleet": "*" },
@@ -162,7 +162,10 @@ fn systems_tables_lower_to_record_keys_and_refuse_bad_rows() {
         part["declaredType"],
         json!({ "target": format!("{pkg}/type/QuantCodec") })
     );
-    assert_eq!(part["multiplicity"], json!({ "lower": 0 }));
+    assert_eq!(
+        part["multiplicity"],
+        json!({ "lower": 0, "ordered": false, "unique": false })
+    );
     assert_eq!(
         part["sourceSpan"]["startLine"],
         line_of(&md, "| search_service")
@@ -177,14 +180,17 @@ fn systems_tables_lower_to_record_keys_and_refuse_bad_rows() {
         port["interfaceType"],
         json!({ "target": format!("{pkg}/type/QuantCodec") })
     );
-    assert_eq!(port["multiplicity"], json!({ "lower": 1, "upper": 1 }));
+    assert_eq!(
+        port["multiplicity"],
+        json!({ "lower": 1, "upper": 1, "ordered": false, "unique": false })
+    );
 
     let md = doc("wire", "connection", "Connection", CONNECTION);
     let record = extract(&md, body_extraction("connection"), BUNDLE);
     let connection = &record["model"]["connection"];
     assert_eq!(
         connection["sourceEnd"],
-        json!({ "type": format!("{pkg}/planner_out"), "multiplicity": { "lower": 1, "upper": 1 } }),
+        json!({ "type": format!("{pkg}/planner_out"), "multiplicity": { "lower": 1, "upper": 1, "ordered": false, "unique": false } }),
         "{record:#}"
     );
     // An empty end multiplicity cell states none.

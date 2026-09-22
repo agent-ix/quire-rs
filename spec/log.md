@@ -7,6 +7,49 @@ description: "Chronological log of structural changes to this bundle."
 
 ## History
 
+* **2026-09-21** — **CR-185** (`PLAT-901`): `@agent-ix/semantic-core@0.1.0` and `@0.2.0`
+  turned out to be dev-mirror-only: they were published only to `npm.ix`, a private
+  registry reachable from this development network, and never had a real,
+  CI/production-reachable published artifact (neither version resolves on GitHub
+  Packages, the registry CI actually authenticates against — see CR-184's own
+  `setup-npmrc` fix, which only ever made `0.3.0` reachable there). `@agent-ix/semantic-core@0.3.0`,
+  by contrast, is now published for real. `build.rs`'s `SEMANTIC_CORE_VERSIONS` is
+  narrowed to `&["0.3.0"]` — CR-184 declined to add 0.3.0 as an *extra* embedded version
+  since nothing depended on it yet; this CR removes 0.1.0/0.2.0 instead, since every
+  real CI run of `npm pack @agent-ix/semantic-core@0.1.0`/`@0.2.0` was already failing
+  (the versions simply don't exist where CI can reach them), not merely mis-authenticated.
+  `tests/semantic_baseline.rs`'s TC-1606 now pins the `0.3.0` bundle content digest
+  (`sha256:65b4e8d4c71a343e270618c9a8ca7e33687f10324ef5e9fe68d150056101c627`, computed
+  over the build-fetched bytes) in place of the retired `0.1.0`/`0.2.0` digests.
+  Diffing the real 0.1.0 → 0.3.0 schemas surfaced one genuine, non-cosmetic change:
+  `Multiplicity.json`'s `required` gained `ordered` and `unique` (previously `["lower"]`
+  only) — `src/semantic/decl.rs`'s `Multiplicity` and
+  `src/semantic/properties.rs::map_multiplicity` are updated to always emit both
+  (clamped `false` off a collection), matching the schema's own producer contract,
+  rather than omitting them when unset as before; every fixture/expected-output JSON
+  carrying a `multiplicity` object is updated to match. Every fixture and test declaring
+  `semantic_core`/`semanticCore: 0.1.0` or `0.2.0` as a *valid, loadable* version across
+  `crates/quire-fixtures/fixtures/`, `tests/fixtures/semantic/`, and `tests/semantic_*.rs`
+  is bumped to `0.3.0` (confirmed each rewritten fixture's structure still validates under
+  0.3.0's real schema content, not merely renumbered) — except
+  `clause-language-0.1.0-cases.json`, deliberately left at `0.1.0`: its whole point is
+  asserting that `0.1.0`'s `ClauseLanguage` pattern excludes `quire`, a real historical
+  fact `clause_language_class` still encodes correctly and which the loader path never
+  reaches (the fence is rejected before any embedded-bundle lookup), so it remains valid,
+  passing coverage rather than dead test code. One further real cross-repo consequence
+  is not fixed here (different repo, different ownership, tracked separately in
+  parallel): `@agent-ix/spec-objects-architecture` (fetched live by
+  `crates/spec-objects-architecture-fixture/build.rs`) has never been published to any
+  CI-reachable registry at any version — confirmed via the GitHub Packages API, which
+  404s on the package entirely — and its only real (dev-mirror-only) version, `0.7.0`,
+  also declares `semantic_core: 0.1.0`; `tests/semantic_features.rs` and
+  `tests/semantic_systems.rs` each carry one failing case for this reason
+  (`features_table_yields_feature_order_in_row_order`,
+  `spec_objects_architecture_systems_skeletons_validate_with_zero_errors`). A sibling
+  finding against `spec-artifacts-iso`'s own `manifest.yaml` (also `semantic_core: 0.1.0`
+  when first checked) was resolved by a separate, parallel effort in that repo before
+  this PR's gate ran; its own quire-rs-side consumer, `tests/quality_lints.rs`, is green.
+
 * **2026-09-21** — **CR-184** (`PLAT-901`): [FR-069](./functional/FR-069-semantic-module-contract-at-load.md)'s
   last vendored file, `schemas/vendored/module-manifest.schema.json` (with
   `schemas/vendored/PROVENANCE.json`), is deleted — `schemas/vendored/` no

@@ -45,13 +45,13 @@ fn context(path: &str, bundle: BundleIndex) -> SemanticContext {
 fn field_decl_gate() -> jsonschema::JSONSchema {
     let schema = json!({
         "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "$id": "https://schemas.agent-ix.org/agent-ix/quire-rs/0.1.0/Gate.json",
-        "$ref": "https://schemas.agent-ix.org/semantic-core/0.1.0/FieldDecl.json"
+        "$id": "https://schemas.agent-ix.org/agent-ix/quire-rs/0.3.0/Gate.json",
+        "$ref": "https://schemas.agent-ix.org/semantic-core/0.3.0/FieldDecl.json"
     });
     compile_module_schema(
         &schema,
         &|_| None,
-        "0.1.0",
+        "0.3.0",
         "https://schemas.agent-ix.org/agent-ix/quire-rs/",
     )
     .unwrap()
@@ -353,15 +353,27 @@ fn multiplicity_cells() {
         }
     }
     let extra = [
-        ("*", Some(json!({ "lower": 0 }))),
-        ("0..*", Some(json!({ "lower": 0 }))),
-        ("0..0", Some(json!({ "lower": 0, "upper": 0 }))),
+        (
+            "*",
+            Some(json!({ "lower": 0, "ordered": false, "unique": false })),
+        ),
+        (
+            "0..*",
+            Some(json!({ "lower": 0, "ordered": false, "unique": false })),
+        ),
+        (
+            "0..0",
+            Some(json!({ "lower": 0, "upper": 0, "ordered": false, "unique": false })),
+        ),
         (
             "2..2 unique",
-            Some(json!({ "lower": 2, "upper": 2, "unique": true })),
+            Some(json!({ "lower": 2, "upper": 2, "ordered": false, "unique": true })),
         ),
         ("a..b", None),
-        ("3..* ordered", Some(json!({ "lower": 3, "ordered": true }))),
+        (
+            "3..* ordered",
+            Some(json!({ "lower": 3, "ordered": true, "unique": false })),
+        ),
     ];
     for (cell, expected) in extra {
         let (outcome, row) =

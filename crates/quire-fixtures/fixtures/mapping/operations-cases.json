@@ -1,5 +1,5 @@
 {
-  "semanticCore": "0.2.0",
+  "semanticCore": "0.3.0",
   "cases": [
     {
       "id": "fence-no-language",

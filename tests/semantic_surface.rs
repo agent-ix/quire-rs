@@ -233,7 +233,7 @@ fn fixture_snapshot(with_context: bool) -> FilamentExtractionInput {
         "moduleId": "spec-objects-fixture"
     });
     if with_context {
-        object_type["semantic"] = json!({ "contractVersion": "1.0.0", "semanticCore": "0.1.0", "package": "agent-ix/spec-objects-fixture", "exports": ["entity"], "imports": {}, "schemaDigest": SNAPSHOT_DIGEST });
+        object_type["semantic"] = json!({ "contractVersion": "1.0.0", "semanticCore": "0.3.0", "package": "agent-ix/spec-objects-fixture", "exports": ["entity"], "imports": {}, "schemaDigest": SNAPSHOT_DIGEST });
     }
     let mut input = json!({
         "projectId": "p", "documentId": "d", "artifactId": "a", "relPath": "spec/functional/FR-006.md",

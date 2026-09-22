@@ -844,17 +844,17 @@ pub(crate) fn map_multiplicity(
     let mut m = Multiplicity {
         lower,
         upper,
-        ordered: None,
-        unique: None,
+        ordered: false,
+        unique: false,
     };
     for flag in flags {
         match flag {
-            "ordered" => m.ordered = Some(true),
-            "unique" => m.unique = Some(true),
+            "ordered" => m.ordered = true,
+            "unique" => m.unique = true,
             other => return invalid(diagnostics, &format!("unknown flag {other:?}")),
         }
     }
-    if (m.ordered.is_some() || m.unique.is_some()) && !m.is_collection() {
+    if (m.ordered || m.unique) && !m.is_collection() {
         return invalid(
             diagnostics,
             "ordered/unique apply only when the upper bound is absent or greater than 1",

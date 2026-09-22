@@ -1,5 +1,5 @@
 {
-  "semanticCore": "0.2.0",
+  "semanticCore": "0.3.0",
   "clauses": [
     {
       "language": "quire",
@@ -36,7 +36,9 @@
             "target": "String",
             "multiplicity": {
               "lower": 1,
-              "upper": 1
+              "upper": 1,
+              "ordered": false,
+              "unique": false
             }
           },
           "constraints": [
@@ -51,7 +53,9 @@
             "target": "Duration",
             "multiplicity": {
               "lower": 0,
-              "upper": 1
+              "upper": 1,
+              "ordered": false,
+              "unique": false
             },
             "unit": "ms"
           }
@@ -61,7 +65,9 @@
         "target": "ix://agent-ix/config-service/type/ConfigVersion",
         "multiplicity": {
           "lower": 1,
-          "upper": 1
+          "upper": 1,
+          "ordered": false,
+          "unique": false
         }
       },
       "pre": [

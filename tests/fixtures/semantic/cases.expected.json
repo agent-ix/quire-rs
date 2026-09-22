@@ -27,7 +27,7 @@
     ],
     "formatVersion": 1,
     "package": "agent-ix/spec-objects-fixture",
-    "semanticCore": "0.1.0"
+    "semanticCore": "0.3.0"
   },
   "declared-lossy-posture": {
     "availability": {
@@ -78,6 +78,8 @@
         "type": {
           "multiplicity": {
             "lower": 1,
+            "ordered": false,
+            "unique": false,
             "upper": 1
           },
           "target": "UUID"
@@ -94,6 +96,8 @@
         "type": {
           "multiplicity": {
             "lower": 1,
+            "ordered": false,
+            "unique": false,
             "upper": 1
           },
           "target": "Integer"
@@ -104,6 +108,8 @@
         "type": {
           "multiplicity": {
             "lower": 1,
+            "ordered": false,
+            "unique": false,
             "upper": 1
           },
           "target": "JsonObject"
@@ -119,6 +125,8 @@
         "type": {
           "multiplicity": {
             "lower": 1,
+            "ordered": false,
+            "unique": false,
             "upper": 1
           },
           "target": "String"
@@ -129,6 +137,8 @@
         "type": {
           "multiplicity": {
             "lower": 0,
+            "ordered": false,
+            "unique": false,
             "upper": 1
           },
           "target": "ix://agent-ix/config-service/type/ConfigVersion"
@@ -139,6 +149,8 @@
         "type": {
           "multiplicity": {
             "lower": 1,
+            "ordered": false,
+            "unique": false,
             "upper": 1
           },
           "target": "Timestamp"
@@ -155,6 +167,8 @@
         "type": {
           "multiplicity": {
             "lower": 1,
+            "ordered": false,
+            "unique": false,
             "upper": 1
           },
           "target": "String"
@@ -164,7 +178,7 @@
     "fieldsForm": "table",
     "formatVersion": 1,
     "package": "agent-ix/spec-objects-fixture",
-    "semanticCore": "0.1.0"
+    "semanticCore": "0.3.0"
   },
   "defaulted-source-identity": {
     "availability": {
@@ -242,6 +256,8 @@
         "type": {
           "multiplicity": {
             "lower": 1,
+            "ordered": false,
+            "unique": false,
             "upper": 1
           },
           "target": "UUID"
@@ -264,6 +280,8 @@
             "type": {
               "multiplicity": {
                 "lower": 1,
+                "ordered": false,
+                "unique": false,
                 "upper": 1
               },
               "target": "String"
@@ -274,6 +292,8 @@
             "type": {
               "multiplicity": {
                 "lower": 0,
+                "ordered": false,
+                "unique": false,
                 "upper": 1
               },
               "target": "Duration",
@@ -296,6 +316,8 @@
         "returns": {
           "multiplicity": {
             "lower": 1,
+            "ordered": false,
+            "unique": false,
             "upper": 1
           },
           "target": "ix://agent-ix/config-service/type/ConfigVersion"
@@ -303,7 +325,7 @@
       }
     ],
     "package": "agent-ix/spec-objects-fixture",
-    "semanticCore": "0.1.0"
+    "semanticCore": "0.3.0"
   },
   "duplicate-operation-unavailable": {
     "availability": {
@@ -333,7 +355,7 @@
     ],
     "formatVersion": 1,
     "package": "agent-ix/spec-objects-fixture",
-    "semanticCore": "0.1.0"
+    "semanticCore": "0.3.0"
   },
   "empty-bundle-index": {
     "availability": {
@@ -367,6 +389,8 @@
         "type": {
           "multiplicity": {
             "lower": 0,
+            "ordered": false,
+            "unique": false,
             "upper": 1
           },
           "target": "ix://agent-ix/spec-objects-fixture/unresolved/ConfigVersion"
@@ -376,7 +400,7 @@
     "fieldsForm": "table",
     "formatVersion": 1,
     "package": "agent-ix/spec-objects-fixture",
-    "semanticCore": "0.1.0"
+    "semanticCore": "0.3.0"
   },
   "entry-errors-unavailable": {
     "availability": {
@@ -413,7 +437,7 @@
     ],
     "formatVersion": 1,
     "package": "agent-ix/spec-objects-fixture",
-    "semanticCore": "0.1.0"
+    "semanticCore": "0.3.0"
   },
   "fence-interior-is-opaque": {
     "availability": {
@@ -460,7 +484,7 @@
     ],
     "formatVersion": 1,
     "package": "agent-ix/spec-objects-fixture",
-    "semanticCore": "0.2.0"
+    "semanticCore": "0.3.0"
   },
   "golden-fence-available": {
     "availability": {
@@ -511,6 +535,8 @@
         "type": {
           "multiplicity": {
             "lower": 1,
+            "ordered": false,
+            "unique": false,
             "upper": 1
           },
           "target": "UUID"
@@ -527,6 +553,8 @@
         "type": {
           "multiplicity": {
             "lower": 1,
+            "ordered": false,
+            "unique": false,
             "upper": 1
           },
           "target": "Integer"
@@ -537,6 +565,8 @@
         "type": {
           "multiplicity": {
             "lower": 1,
+            "ordered": false,
+            "unique": false,
             "upper": 1
           },
           "target": "JsonObject"
@@ -552,6 +582,8 @@
         "type": {
           "multiplicity": {
             "lower": 1,
+            "ordered": false,
+            "unique": false,
             "upper": 1
           },
           "target": "String"
@@ -562,6 +594,8 @@
         "type": {
           "multiplicity": {
             "lower": 0,
+            "ordered": false,
+            "unique": false,
             "upper": 1
           },
           "target": "ix://agent-ix/config-service/type/ConfigVersion"
@@ -572,6 +606,8 @@
         "type": {
           "multiplicity": {
             "lower": 1,
+            "ordered": false,
+            "unique": false,
             "upper": 1
           },
           "target": "Timestamp"
@@ -588,6 +624,8 @@
         "type": {
           "multiplicity": {
             "lower": 1,
+            "ordered": false,
+            "unique": false,
             "upper": 1
           },
           "target": "String"
@@ -597,7 +635,7 @@
     "fieldsForm": "fence",
     "formatVersion": 1,
     "package": "agent-ix/spec-objects-fixture",
-    "semanticCore": "0.1.0"
+    "semanticCore": "0.3.0"
   },
   "golden-table-available": {
     "availability": {
@@ -648,6 +686,8 @@
         "type": {
           "multiplicity": {
             "lower": 1,
+            "ordered": false,
+            "unique": false,
             "upper": 1
           },
           "target": "UUID"
@@ -664,6 +704,8 @@
         "type": {
           "multiplicity": {
             "lower": 1,
+            "ordered": false,
+            "unique": false,
             "upper": 1
           },
           "target": "Integer"
@@ -674,6 +716,8 @@
         "type": {
           "multiplicity": {
             "lower": 1,
+            "ordered": false,
+            "unique": false,
             "upper": 1
           },
           "target": "JsonObject"
@@ -689,6 +733,8 @@
         "type": {
           "multiplicity": {
             "lower": 1,
+            "ordered": false,
+            "unique": false,
             "upper": 1
           },
           "target": "String"
@@ -699,6 +745,8 @@
         "type": {
           "multiplicity": {
             "lower": 0,
+            "ordered": false,
+            "unique": false,
             "upper": 1
           },
           "target": "ix://agent-ix/config-service/type/ConfigVersion"
@@ -709,6 +757,8 @@
         "type": {
           "multiplicity": {
             "lower": 1,
+            "ordered": false,
+            "unique": false,
             "upper": 1
           },
           "target": "Timestamp"
@@ -725,6 +775,8 @@
         "type": {
           "multiplicity": {
             "lower": 1,
+            "ordered": false,
+            "unique": false,
             "upper": 1
           },
           "target": "String"
@@ -735,7 +787,7 @@
     "formatVersion": 1,
     "package": "agent-ix/spec-objects-fixture",
     "schemaDigest": "sha256:8692992e186f40a73b78fd1b0915f0fe78e05a2b00782fb1df58c951a37c91d5",
-    "semanticCore": "0.1.0"
+    "semanticCore": "0.3.0"
   },
   "legacy-bullets-promoted": {
     "availability": {
@@ -766,7 +818,7 @@
     ],
     "formatVersion": 1,
     "package": "agent-ix/spec-objects-fixture",
-    "semanticCore": "0.1.0"
+    "semanticCore": "0.3.0"
   },
   "legacy-bullets-unavailable": {
     "availability": {
@@ -797,7 +849,7 @@
     ],
     "formatVersion": 1,
     "package": "agent-ix/spec-objects-fixture",
-    "semanticCore": "0.1.0"
+    "semanticCore": "0.3.0"
   },
   "no-sections-not-applicable": {
     "availability": {
@@ -818,7 +870,7 @@
     "diagnostics": [],
     "formatVersion": 1,
     "package": "agent-ix/spec-objects-fixture",
-    "semanticCore": "0.1.0"
+    "semanticCore": "0.3.0"
   },
   "operations-available": {
     "availability": {
@@ -874,6 +926,8 @@
         "type": {
           "multiplicity": {
             "lower": 1,
+            "ordered": false,
+            "unique": false,
             "upper": 1
           },
           "target": "UUID"
@@ -896,6 +950,8 @@
             "type": {
               "multiplicity": {
                 "lower": 1,
+                "ordered": false,
+                "unique": false,
                 "upper": 1
               },
               "target": "String"
@@ -906,6 +962,8 @@
             "type": {
               "multiplicity": {
                 "lower": 0,
+                "ordered": false,
+                "unique": false,
                 "upper": 1
               },
               "target": "Duration",
@@ -928,6 +986,8 @@
         "returns": {
           "multiplicity": {
             "lower": 1,
+            "ordered": false,
+            "unique": false,
             "upper": 1
           },
           "target": "ix://agent-ix/config-service/type/ConfigVersion"
@@ -936,7 +996,7 @@
     ],
     "package": "agent-ix/spec-objects-fixture",
     "schemaDigest": "sha256:8692992e186f40a73b78fd1b0915f0fe78e05a2b00782fb1df58c951a37c91d5",
-    "semanticCore": "0.2.0"
+    "semanticCore": "0.3.0"
   },
   "required-invariants-missing": {
     "availability": {
@@ -959,7 +1019,7 @@
     "diagnostics": [],
     "formatVersion": 1,
     "package": "agent-ix/spec-objects-fixture",
-    "semanticCore": "0.1.0"
+    "semanticCore": "0.3.0"
   },
   "required-section-missing": {
     "availability": {
@@ -981,7 +1041,7 @@
     "diagnostics": [],
     "formatVersion": 1,
     "package": "agent-ix/spec-objects-fixture",
-    "semanticCore": "0.1.0"
+    "semanticCore": "0.3.0"
   },
   "row-errors-unavailable": {
     "availability": {
@@ -1012,7 +1072,7 @@
     "fieldsForm": "table",
     "formatVersion": 1,
     "package": "agent-ix/spec-objects-fixture",
-    "semanticCore": "0.1.0"
+    "semanticCore": "0.3.0"
   },
   "unchecked-clause-language": {
     "availability": {
@@ -1058,7 +1118,7 @@
     ],
     "formatVersion": 1,
     "package": "agent-ix/spec-objects-fixture",
-    "semanticCore": "0.1.0"
+    "semanticCore": "0.3.0"
   },
   "unresolved-type-lossy": {
     "availability": {
@@ -1092,6 +1152,8 @@
         "type": {
           "multiplicity": {
             "lower": 1,
+            "ordered": false,
+            "unique": false,
             "upper": 1
           },
           "target": "ix://agent-ix/config-service/unresolved/Mystery"
@@ -1101,6 +1163,6 @@
     "fieldsForm": "table",
     "formatVersion": 1,
     "package": "agent-ix/spec-objects-fixture",
-    "semanticCore": "0.1.0"
+    "semanticCore": "0.3.0"
   }
 }
