@@ -7,6 +7,15 @@ bumps; once 1.0 ships, semver is strict.
 
 ## [Unreleased]
 
+## [0.47.0] — 2026-09-22
+
+`0.46.0` is skipped: `Cargo.toml` staged that version ahead of a real release
+cut, and a wheel was hand-published to the internal `pypi.ix` dev-mirror under
+that number without a matching tag or CHANGELOG entry — before the PLAT-901
+de-vendoring and PLAT-899 semantic-core 0.3.0 work below landed. Reusing
+`0.46.0` here would make one version number name two different trees; `0.47.0`
+is the first version number this content actually holds.
+
 ### Changed
 
 - **`leading_span` is one shared `src/symbols/mod.rs` helper, called by
