@@ -94,6 +94,12 @@ jobs:
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: "22"
+      # @agent-ix/* scoped packages live on GitHub Packages (npm.ix's
+      # target), not public npm. Without this, npm/npm-pack falls back to
+      # registry.npmjs.org and 404s on every @agent-ix package.
+      - uses: agent-ix/nodejs-actions/setup-npmrc@main
+        with:
+          npm_registry_token: ${{ secrets.REGISTRY_TOKEN }}
 
       - name: Build abi3 wheel
         uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1
