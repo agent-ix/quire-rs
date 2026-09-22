@@ -1,6 +1,7 @@
 //! FR-071 clause and operation extraction (TC-1622..TC-1626, TC-1629,
-//! TC-1648, TC-1850, TC-1851). Plan-003 Task-019. Oracles: quoin
-//! `operations.md`, `operations.expected.json`, `operations-cases.json`,
+//! TC-1648, TC-1850, TC-1851). Plan-003 Task-019. Oracles: the
+//! `quire-fixtures` crate's (PLAT-901) `operations.md`,
+//! `operations.expected.json`, `operations-cases.json`,
 //! `clause-language-0.1.0-cases.json`, and the `config-version` golden.
 
 use std::fs;
@@ -20,12 +21,7 @@ fn root() -> PathBuf {
 }
 
 fn mapping(name: &str) -> String {
-    fs::read_to_string(
-        root()
-            .join("tests/fixtures/semantic/quoin/mapping")
-            .join(name),
-    )
-    .unwrap()
+    quire_fixtures::mapping_fixture(name)
 }
 
 fn mapping_json(name: &str) -> Value {
@@ -40,8 +36,7 @@ fn bundle() -> BundleIndex {
 }
 
 fn context(path: &str) -> SemanticContext {
-    let registry =
-        Registry::load_module(&root().join("tests/fixtures/semantic/quoin/module-ok")).unwrap();
+    let registry = Registry::load_module(&quire_fixtures::module_ok_dir()).unwrap();
     let module = registry
         .semantic_module("spec-objects-fixture")
         .unwrap()
@@ -50,7 +45,7 @@ fn context(path: &str) -> SemanticContext {
         .with_source_identity("ix://agent-ix/config-service/spec")
 }
 
-/// `context` pinned to the semantic-core version a quoin fixture records.
+/// `context` pinned to the semantic-core version a fixture case records.
 fn context_at(path: &str, fixture: &Value) -> SemanticContext {
     let mut ctx = context(path);
     ctx.module.semantic_core = fixture["semanticCore"].as_str().unwrap().to_string();
@@ -131,7 +126,7 @@ fn golden_operations_and_spans() {
         expected["diagnostics"]
     );
 
-    // config-version pins semantic-core 0.1.0: its `ocl` clause is carried.
+    // config-version pins semantic-core 0.3.0: its `ocl` clause is carried.
     let expected = mapping_json("config-version.expected.json");
     let cv = extract_clauses(
         &mapping("config-version.table.md"),
@@ -212,7 +207,7 @@ fn run_case(
     (diagnostics, md, clauses)
 }
 
-/// Assert one quoin case: every recorded diagnostic (code, severity, locus,
+/// Assert one case: every recorded diagnostic (code, severity, locus,
 /// and `column`/`message` when recorded), and the recorded `clauses`,
 /// `clauseText`, and clause availability when present.
 fn assert_case(case: &Value, file: &Value) {
@@ -254,7 +249,7 @@ fn assert_case(case: &Value, file: &Value) {
         );
     }
     if let Some(want) = case["availability"].get("clauses") {
-        // An `entry-errors` reason names lines of quoin's case artifact;
+        // An `entry-errors` reason names lines of the case's artifact;
         // this harness's artifact puts the erroring fence at its own line.
         let mut want = want.clone();
         if let Some(reason) = want["reason"].as_str() {
@@ -328,7 +323,7 @@ fn clause_language_0_1_0_cases() {
 #[test]
 fn quire_is_checked_and_ocl_is_carried() {
     let mut ctx = context("q.md");
-    ctx.module.semantic_core = "0.2.0".to_string();
+    ctx.module.semantic_core = "0.3.0".to_string();
     let md = artifact("### placed\n\n```quire\nx\n```\n", "");
     let out = extract_clauses(&md, &ctx);
     assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
@@ -359,8 +354,14 @@ fn quire_is_checked_and_ocl_is_carried() {
     assert_eq!(carried.diagnostics, out.diagnostics);
     assert_eq!(carried.availability, out.availability);
 
+    // semantic-core 0.1.0 (no longer an embedded, loadable version, but
+    // still a real historical fact `clause_language_class` encodes) admits
+    // no `quire`: force it explicitly rather than relying on the default
+    // context's version, since that default is now 0.3.0.
+    let mut ctx01 = context("q.md");
+    ctx01.module.semantic_core = "0.1.0".to_string();
     let md = artifact("### placed\n\n```quire\nx\n```\n", "");
-    let out = extract_clauses(&md, &context("q.md"));
+    let out = extract_clauses(&md, &ctx01);
     assert!(
         out.diagnostics
             .iter()
@@ -574,8 +575,7 @@ fn validation_and_states() {
 #[test]
 fn source_identity_default() {
     let raw = mapping("operations.md");
-    let registry =
-        Registry::load_module(&root().join("tests/fixtures/semantic/quoin/module-ok")).unwrap();
+    let registry = Registry::load_module(&quire_fixtures::module_ok_dir()).unwrap();
     let mut module = registry
         .semantic_module("spec-objects-fixture")
         .unwrap()

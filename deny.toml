@@ -24,6 +24,12 @@ exceptions = [
     # The shared tree-sitter parse layer (PLAT-843), pinned by git rev in
     # `crates/quire-rust-extraction/Cargo.toml`. Also AGPL-3.0-or-later.
     { allow = ["AGPL-3.0-or-later"], crate = "quire-code-parse" },
+    # The mapping fixture set (PLAT-901): part of this repo, same license as
+    # `quire-rs` itself, a dev-dependency only.
+    { allow = ["AGPL-3.0-or-later"], crate = "quire-fixtures" },
+    # Resolves the published @agent-ix/spec-objects-architecture npm package
+    # at build time (PLAT-901); part of this repo, same license, dev-dependency only.
+    { allow = ["AGPL-3.0-or-later"], crate = "spec-objects-architecture-fixture" },
 ]
 confidence-threshold = 0.9
 

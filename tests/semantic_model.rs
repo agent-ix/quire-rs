@@ -25,7 +25,7 @@ fn extract(md: &str, mappings: &[&str], body_extraction: Value) -> Value {
         "markdown": md,
         "module": {
             "contractVersion": "1.0.0",
-            "semanticCore": "0.2.0",
+            "semanticCore": "0.3.0",
             "package": "agent-ix/spec-objects-fixture",
             "exports": ["entity"],
             "mappings": mappings,

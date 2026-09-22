@@ -443,14 +443,14 @@ fn compile_object_type_snapshots(
         }
         let mut validator = None;
         if let Some(semantic) = &snapshot.semantic {
-            if semantic.contract_version != crate::semantic::vendored::CONTRACT_VERSION {
+            if semantic.contract_version != crate::semantic::embedded::CONTRACT_VERSION {
                 diagnostics.push(diagnostic(
                     "semantic.unsupported-contract-version",
                     format!(
                         "{}: semantic.contractVersion {:?} is not {}",
                         snapshot.name,
                         semantic.contract_version,
-                        crate::semantic::vendored::CONTRACT_VERSION
+                        crate::semantic::embedded::CONTRACT_VERSION
                     ),
                     "error",
                     Some(snapshot.name.clone()),
@@ -458,14 +458,14 @@ fn compile_object_type_snapshots(
                 refused.insert(snapshot.name.clone());
                 continue;
             }
-            if crate::semantic::vendored::semantic_core_bundle(&semantic.semantic_core).is_none() {
+            if crate::semantic::embedded::semantic_core_bundle(&semantic.semantic_core).is_none() {
                 diagnostics.push(diagnostic(
                     "semantic.unsupported-semantic-core",
                     format!(
-                        "{}: semantic.semanticCore {:?} has no vendored bundle (vendored: {})",
+                        "{}: semantic.semanticCore {:?} has no embedded bundle (embedded: {})",
                         snapshot.name,
                         semantic.semantic_core,
-                        crate::semantic::vendored::SEMANTIC_CORE_VERSIONS.join(", ")
+                        crate::semantic::embedded::SEMANTIC_CORE_VERSIONS.join(", ")
                     ),
                     "error",
                     Some(snapshot.name.clone()),
@@ -475,7 +475,7 @@ fn compile_object_type_snapshots(
             }
             let module_base = format!(
                 "{}{}/",
-                crate::semantic::vendored::MODULE_SCHEMA_BASE,
+                crate::semantic::embedded::MODULE_SCHEMA_BASE,
                 semantic.package
             );
             match crate::semantic::compile_module_schema(

@@ -7,6 +7,153 @@ description: "Chronological log of structural changes to this bundle."
 
 ## History
 
+* **2026-09-21** — **CR-185** (`PLAT-901`): `@agent-ix/semantic-core@0.1.0` and `@0.2.0`
+  turned out to be dev-mirror-only: they were published only to `npm.ix`, a private
+  registry reachable from this development network, and never had a real,
+  CI/production-reachable published artifact (neither version resolves on GitHub
+  Packages, the registry CI actually authenticates against — see CR-184's own
+  `setup-npmrc` fix, which only ever made `0.3.0` reachable there). `@agent-ix/semantic-core@0.3.0`,
+  by contrast, is now published for real. `build.rs`'s `SEMANTIC_CORE_VERSIONS` is
+  narrowed to `&["0.3.0"]` — CR-184 declined to add 0.3.0 as an *extra* embedded version
+  since nothing depended on it yet; this CR removes 0.1.0/0.2.0 instead, since every
+  real CI run of `npm pack @agent-ix/semantic-core@0.1.0`/`@0.2.0` was already failing
+  (the versions simply don't exist where CI can reach them), not merely mis-authenticated.
+  `tests/semantic_baseline.rs`'s TC-1606 now pins the `0.3.0` bundle content digest
+  (`sha256:65b4e8d4c71a343e270618c9a8ca7e33687f10324ef5e9fe68d150056101c627`, computed
+  over the build-fetched bytes) in place of the retired `0.1.0`/`0.2.0` digests.
+  Diffing the real 0.1.0 → 0.3.0 schemas surfaced one genuine, non-cosmetic change:
+  `Multiplicity.json`'s `required` gained `ordered` and `unique` (previously `["lower"]`
+  only) — `src/semantic/decl.rs`'s `Multiplicity` and
+  `src/semantic/properties.rs::map_multiplicity` are updated to always emit both
+  (clamped `false` off a collection), matching the schema's own producer contract,
+  rather than omitting them when unset as before; every fixture/expected-output JSON
+  carrying a `multiplicity` object is updated to match. Every fixture and test declaring
+  `semantic_core`/`semanticCore: 0.1.0` or `0.2.0` as a *valid, loadable* version across
+  `crates/quire-fixtures/fixtures/`, `tests/fixtures/semantic/`, and `tests/semantic_*.rs`
+  is bumped to `0.3.0` (confirmed each rewritten fixture's structure still validates under
+  0.3.0's real schema content, not merely renumbered) — except
+  `clause-language-0.1.0-cases.json`, deliberately left at `0.1.0`: its whole point is
+  asserting that `0.1.0`'s `ClauseLanguage` pattern excludes `quire`, a real historical
+  fact `clause_language_class` still encodes correctly and which the loader path never
+  reaches (the fence is rejected before any embedded-bundle lookup), so it remains valid,
+  passing coverage rather than dead test code. One further real cross-repo consequence
+  is not fixed here (different repo, different ownership, tracked separately in
+  parallel): `@agent-ix/spec-objects-architecture` (fetched live by
+  `crates/spec-objects-architecture-fixture/build.rs`) has never been published to any
+  CI-reachable registry at any version — confirmed via the GitHub Packages API, which
+  404s on the package entirely — and its only real (dev-mirror-only) version, `0.7.0`,
+  also declares `semantic_core: 0.1.0`; `tests/semantic_features.rs` and
+  `tests/semantic_systems.rs` each carry one failing case for this reason
+  (`features_table_yields_feature_order_in_row_order`,
+  `spec_objects_architecture_systems_skeletons_validate_with_zero_errors`). A sibling
+  finding against `spec-artifacts-iso`'s own `manifest.yaml` (also `semantic_core: 0.1.0`
+  when first checked) was resolved by a separate, parallel effort in that repo before
+  this PR's gate ran; its own quire-rs-side consumer, `tests/quality_lints.rs`, is green.
+
+* **2026-09-21** — **CR-184** (`PLAT-901`): [FR-069](./functional/FR-069-semantic-module-contract-at-load.md)'s
+  last vendored file, `schemas/vendored/module-manifest.schema.json` (with
+  `schemas/vendored/PROVENANCE.json`), is deleted — `schemas/vendored/` no
+  longer exists — now that `@agent-ix/semantic-schema@0.1.0` publishes
+  `semantic/v1/module-manifest.schema.json`, closing the gap CR-181 reported
+  as blocked on that publish. `build.rs`'s `npm pack` fetch/unpack logic,
+  previously written once for `@agent-ix/semantic-core`, is refactored into
+  a shared `fetch_npm_package(package, version, out_dir)` helper used by
+  both that package and `@agent-ix/semantic-schema`; `MODULE_MANIFEST_SCHEMA`
+  is generated into the same `OUT_DIR` module as the semantic-core bundles
+  rather than `include_str!`ing a committed file, and `PROVENANCE` (with no
+  remaining subject) is deleted with no replacement. `src/semantic/embedded.rs`'s
+  module doc, which said "the one piece of this crate that remains an actual
+  vendored copy", is corrected. `tests/semantic_baseline.rs`'s TC-1877
+  wording, which called the schema "vendored", is corrected to "embedded" /
+  "published"; TC-1877's behavior is unchanged — it still compiles
+  `$defs/ConstructDeclaration` out of the embedded bytes and asserts
+  `immutable: true` validates. No supported `semantic_core` version changes:
+  nothing under `tests/`, `crates/quire-fixtures/`, or the `semanticCore`
+  fixture fields depends on `@agent-ix/semantic-core@0.3.0` (also published),
+  so it is not added to `SEMANTIC_CORE_VERSIONS` — adding an unused version
+  would be an unrequested feature, not a fix for anything broken.
+
+* **2026-09-21** — **CR-182**: [FR-076](./functional/FR-076-relationships-extraction.md)
+  AC-1's `relationships.md`/`relationships.expected.json`/
+  `relationships-cases.json` fixtures, and the whole
+  `tests/fixtures/semantic/quoin/` mapping/module-ok/corpus tree they sit
+  beside, were byte-for-byte copies vendored from `agent-ix/quoin`'s own
+  FR-104 fixtures (and, for `corpus/`, quoin's own copy of
+  `agent-ix/config-service`) — an engine-input fixture set copied from its
+  own downstream consumer, and a dependency cycle since quoin already
+  depends on quire-rs as a crate. Ownership moved, not authorship: the exact
+  fixture bytes — same ids, same field names, same vocabulary — are
+  relocated unchanged into a new `quire-fixtures` workspace member crate
+  (PLAT-901), since quire-rs is the parser that defines the forms they
+  exercise, not the root crate's public API (a separate crate, mirroring the
+  existing `quire-rust-extraction` pattern). quire-rs's own tests resolve
+  them through `quire_fixtures::{mapping_fixture, mapping_json,
+  module_ok_dir, corpus_config_service_dir, corpus_config_service_fixture}`;
+  quoin, their original repo, is sequenced to repoint at the same crate
+  (pinned at this repo's git rev, as a dev-dependency) instead of holding a
+  second copy. `PROVENANCE.json` (both the top-level one
+  and `corpus/config-service/PROVENANCE.json`) is deleted with no
+  replacement: a manifest of copies has no subject once the copies are
+  gone. `quoin_fixtures_match_provenance` (TC-1852's provenance half,
+  `tests/semantic_fixtures.rs`) is deleted for the same reason — not
+  stubbed — while TC-1852's extraction assertions
+  (`tests/semantic_relations.rs::golden_relationships`) continue to
+  evidence FR-076-AC-1, whose text drops the vendored-sha256-pin clause.
+  Matrix unchanged: TC-1852 keeps its FR-076-AC-1 binding.
+
+* **2026-09-21** — **CR-181**: [FR-069](./functional/FR-069-semantic-module-contract-at-load.md)
+  de-vendored. `schemas/vendored/common.schema.json` is deleted outright —
+  its only reader, `contract::target_registry()` and the former step 6 of
+  `read_semantic_block`, was dead code: step 3's schema validation already
+  runs the *same* 14-value target enum (inlined in the module-manifest
+  schema) and returns early on any failure, so step 6 could never find a
+  miss step 3 had not already caught. No const/enum/array of those 14
+  values replaces it. `schemas/vendored/semantic-core/{0.1.0,0.2.0}/**` and
+  `scripts/vendor-semantic-schemas.sh` are deleted; the bundle bytes are
+  genuinely load-bearing at build time (the internal `FieldDecl`/`ClauseRef`
+  gate in `properties.rs`/`clauses.rs` validates a record quire-rs itself
+  just produced, with no registry, module, or caller in scope to supply a
+  schema any other way) but now come from the published
+  `@agent-ix/semantic-core` npm package, fetched and embedded by a new
+  `build.rs` — never from a file committed to this repository.
+  `src/semantic/vendored.rs` is renamed `src/semantic/embedded.rs`, and its
+  doc comment's claim that embedding "is what lets the resolver run
+  unchanged under the `wasm` feature" is corrected: that was false — no
+  `wasm`-gated code path reads the filesystem, and the resolver never did.
+  `FR-069-CON-2` (the vendored-provenance-record constraint) is removed
+  with no replacement wording; `FR-069-AC-8` drops its hash-value
+  assertions in favor of "every supported semantic-core version is a
+  complete, valid embedded bundle" (`TC-1606`, rewritten, no longer traces
+  `CON-2`). `logo.png` is deleted — byte-identical across exactly 4 repos
+  (`quire`, `quire-cli`, `quire-wasm`, `quire-rs`) and absent from
+  `brand-kit`, which has no Quire-specific asset to depend on instead
+  (reported, not silently re-copied).
+  **Not fully de-vendored, blocked on one other repo, reported rather than
+  worked around:** `schemas/vendored/module-manifest.schema.json` stays —
+  `agent-ix/filament-core-service` never published it as an artifact, and
+  `agent-ix/filament-core-data`'s replacement
+  (`schema/semantic/v1/module-semantic-block.schema.json`) landed in that
+  repo today but is not yet republished to npm.
+
+* **2026-09-21** — **CR-183** (`PLAT-901`): `tests/fixtures/semantic/spec-objects-architecture/**`
+  (46 files, vendored from `agent-ix/spec-objects-architecture#11` at
+  `4215aad`) de-vendored, now that `@agent-ix/spec-objects-architecture@0.7.0`
+  is published with the systems-model kinds (`part`/`port`/`connection`/
+  `allocation`) CR-181 found missing from `0.6.0`. Deleted outright, along
+  with its `PROVENANCE.json` — a manifest of a copy has no subject once
+  there is no copy. `TC-1873`/`FR-075-AC-13` (`tests/semantic_systems.rs`)
+  and the `Interface.json` check in `tests/semantic_features.rs` now assert
+  against the real, published module, resolved at build time by a new
+  `spec-objects-architecture-fixture` crate: its `build.rs` runs `npm pack
+  @agent-ix/spec-objects-architecture@0.7.0` and unpacks `manifest.yaml`,
+  `schemas/`, and `skeletons/` into `OUT_DIR/module`, with no schema or
+  skeleton bytes authored or committed here. This is deliberately not the
+  same vehicle as `quire-fixtures` (CR-182): that crate relocates content
+  quire-rs itself now owns, while this one resolves a third party's
+  published artifact quire-rs never owned and must not stand in for with an
+  authored-minimal schema, per FR-075-AC-13's own requirement that the
+  assertion be against a real module's schemas.
+
 * **2026-09-20** — **CR-179** (`PLAT-868`): `src/symbols/python.rs` is
   ported to `tree-sitter`, through the same `quire-rust-extraction` ->
   `quire-code-parse` boundary `CR-176`/`CR-177` adopted for Rust (`ADR-0013`)

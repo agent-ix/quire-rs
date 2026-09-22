@@ -5,7 +5,13 @@
 # `crates/quire-rust-extraction` existed. That crate is a member so
 # `cargo test --workspace` and the dependency-boundary gate exercise it too,
 # but it is never implicitly selected on its own.
-members = [".", "crates/quire-rust-extraction"]
+members = [
+    ".",
+    "crates/quire-rust-extraction",
+    "crates/quire-fixtures",
+    "crates/spec-objects-architecture-fixture",
+    "crates/build-npm-fetch",
+]
 default-members = ["."]
 resolver = "2"
 
@@ -103,6 +109,15 @@ quire-rust-extraction = { path = "crates/quire-rust-extraction", optional = true
 # to a consumer's: dev-dependencies are not transitive. Pinned to an exact
 # tag, which satisfies NFR-009-AC-3 more strictly than a caret range.
 ix-trace-rs = { git = "https://github.com/agent-ix/ix-trace-rs", tag = "v0.1.1" }
+# The Markdown -> semantic-core mapping fixture set quire-rs's own semantic
+# tests exercise (PLAT-901). A workspace path dependency here; quoin (its
+# other consumer, step 2 of PLAT-901) resolves the same crate as a git
+# dev-dependency at the rev it already pins for the engine.
+quire-fixtures = { path = "crates/quire-fixtures" }
+# The published @agent-ix/spec-objects-architecture module (FR-075-AC-13),
+# resolved at build time via `npm pack` (see crates/spec-objects-architecture-fixture/build.rs)
+# instead of vendored: TC-1873 asserts against the real module's schemas.
+spec-objects-architecture-fixture = { path = "crates/spec-objects-architecture-fixture" }
 # RAII temp dirs for tests that build throwaway trees (#215): the manual
 # `std::env::temp_dir()` + `remove_dir_all` pattern leaks the tree on any
 # assertion failure, because the cleanup line is never reached.
@@ -114,6 +129,12 @@ criterion = "^0.5"
 # FR-024 data-parallel collect abstractly (loom cannot model rayon).
 [target.'cfg(loom)'.dependencies]
 loom = "^0.7"
+
+[build-dependencies]
+# Shared `npm pack` fetch-and-unpack helper (PLAT-901): also used by
+# crates/spec-objects-architecture-fixture/build.rs, so there is exactly one
+# copy of the fetch logic instead of one per build script.
+build-npm-fetch = { path = "crates/build-npm-fetch" }
 
 [features]
 # Native default: include filesystem `$ref` resolution in jsonschema, and the

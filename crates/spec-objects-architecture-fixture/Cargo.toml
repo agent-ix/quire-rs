@@ -1,0 +1,24 @@
+[package]
+name = "spec-objects-architecture-fixture"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.98.1"
+description = "Resolves the published @agent-ix/spec-objects-architecture npm package at build time (via `npm pack`) for quire-rs's own FR-075-AC-13/TC-1872/TC-1873 tests. No schema or skeleton bytes are committed to this repository: the real module (manifest.yaml, schemas/, skeletons/) is fetched, never authored or copied."
+authors = ["Peter Krenesky <kreneskyp@gmail.com>"]
+license = "AGPL-3.0-or-later"
+repository = "https://github.com/agent-ix/quire-rs"
+publish = false
+build = "build.rs"
+
+[lib]
+name = "spec_objects_architecture_fixture"
+path = "src/lib.rs"
+
+[build-dependencies]
+# Shared `npm pack` fetch-and-unpack helper (PLAT-901); also used by
+# quire-rs's own root `build.rs`, so there is exactly one copy of the fetch
+# logic instead of one per build script.
+build-npm-fetch = { path = "../build-npm-fetch" }
+
+[lints.rust]
+unsafe_code = "forbid"

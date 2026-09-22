@@ -3,7 +3,7 @@
 //! `RelationDecl[]`, gated by the `relationships` mapping token and checked
 //! against the FR-040 edge registry the caller supplies.
 //!
-//! Semantic-core `0.2.0` has no `name` or `sourceSpan` on `RelationDecl`, so
+//! Semantic-core `0.3.0` has no `name` or `sourceSpan` on `RelationDecl`, so
 //! each row is extracted as an [`ExtractedRelation`] and split into the
 //! `relations` / `relationSources` pair only at the record boundary
 //! ([`ExtractedRelation::split`]). When `agent-ix/filament-core-data#155`
@@ -176,7 +176,7 @@ impl RelationVocabulary {
     }
 }
 
-/// A semantic-core `0.2.0` `RelationDecl`. Field order is the canonical key
+/// A semantic-core `0.3.0` `RelationDecl`. Field order is the canonical key
 /// order; `composite` and `multiplicity` are always present (FR-104).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RelationDecl {
@@ -188,7 +188,7 @@ pub struct RelationDecl {
 }
 
 /// The `name` and `sourceSpan` of one `relations` element, at its index:
-/// the semantic-core `0.2.0` carrier until `RelationDecl` holds them.
+/// the semantic-core `0.3.0` carrier until `RelationDecl` holds them.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RelationSource {

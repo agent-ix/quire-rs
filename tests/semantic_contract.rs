@@ -1,9 +1,9 @@
 //! FR-069 semantic module contract at load (TC-1599..TC-1609, TC-1633,
 //! TC-1645, TC-1646, TC-1848, TC-1849, TC-1864, TC-1866). Plan-003 Task-016.
 //!
-//! Every case starts from the quoin `module-ok` fixture (pinned under
-//! `tests/fixtures/semantic/quoin/module-ok`), copied into a temp dir and
-//! mutated in place; the fixture itself is never edited.
+//! Every case starts from the `module-ok` fixture in the `quire-fixtures`
+//! crate (PLAT-901), copied into a temp dir and mutated in place; the
+//! fixture itself is never edited.
 
 use std::collections::BTreeMap;
 use std::fs;
@@ -19,18 +19,11 @@ use tempfile::TempDir;
 type Mutate = Box<dyn Fn(&mut serde_yaml::Value, &Path)>;
 
 fn fixture() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/semantic/quoin/module-ok")
+    quire_fixtures::module_ok_dir()
 }
 
 fn golden() -> Value {
-    serde_json::from_slice(
-        &fs::read(
-            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                .join("tests/fixtures/semantic/quoin/mapping/config-version.expected.json"),
-        )
-        .unwrap(),
-    )
-    .unwrap()
+    quire_fixtures::mapping_json("config-version.expected.json")
 }
 
 fn copy_dir(from: &Path, to: &Path) {
@@ -143,7 +136,7 @@ fn valid_block_and_reference_schema_load() {
         .semantic_module("spec-objects-fixture")
         .expect("block");
     assert_eq!(sem.package, "agent-ix/spec-objects-fixture");
-    assert_eq!(sem.semantic_core, "0.1.0");
+    assert_eq!(sem.semantic_core, "0.3.0");
     assert_eq!(sem.exports, vec!["entity".to_string()]);
     assert_eq!(sem.legacy_forms, "warning");
     let entity = registry.archetype("entity").unwrap();
@@ -201,7 +194,7 @@ fn unsupported_versions_are_refused_first() {
             .all(|x| x.starts_with("semantic.unsupported-semantic-core")),
         "{r:?}"
     );
-    assert!(r[0].contains("0.9.0") && r[0].contains("0.1.0"), "{}", r[0]);
+    assert!(r[0].contains("0.9.0") && r[0].contains("0.3.0"), "{}", r[0]);
 }
 
 #[trace("TC-1601", "FR-069-AC-3")]
@@ -484,7 +477,7 @@ fn resolver_reads_no_network_and_nothing_outside_the_module() {
     let err = compile_module_schema(
         &schema,
         &|_| None,
-        "0.1.0",
+        "0.3.0",
         "https://schemas.agent-ix.org/agent-ix/x/0.1.0/",
     )
     .err()
@@ -494,12 +487,12 @@ fn resolver_reads_no_network_and_nothing_outside_the_module() {
     let ok = json!({
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "$id": "https://schemas.agent-ix.org/agent-ix/x/0.1.0/T.json",
-        "properties": { "f": { "$ref": "https://schemas.agent-ix.org/semantic-core/0.1.0/FieldDecl.json" } }
+        "properties": { "f": { "$ref": "https://schemas.agent-ix.org/semantic-core/0.3.0/FieldDecl.json" } }
     });
     let validator = compile_module_schema(
         &ok,
         &|_| None,
-        "0.1.0",
+        "0.3.0",
         "https://schemas.agent-ix.org/agent-ix/x/0.1.0/",
     )
     .unwrap();
@@ -609,7 +602,7 @@ fn filament_snapshot_reference_form_is_refused() {
 
     let inline: Value =
         serde_json::from_slice(&fs::read(fixture().join("schemas/Entity.json")).unwrap()).unwrap();
-    let context = json!({ "contractVersion": "1.0.0", "semanticCore": "0.1.0", "package": "agent-ix/spec-objects-fixture", "exports": ["entity"], "imports": {} });
+    let context = json!({ "contractVersion": "1.0.0", "semanticCore": "0.3.0", "package": "agent-ix/spec-objects-fixture", "exports": ["entity"], "imports": {} });
     let result = extract_filament_core(snapshot_input(vec![entity_snapshot(
         json!({ "type": "object" }),
         Some(context.clone()),
@@ -623,11 +616,7 @@ fn filament_snapshot_reference_form_is_refused() {
     // validates the declaration record: the golden table passes, a bare
     // document fails it with `semantic.record-invalid`.
     let mut input = snapshot_input(vec![entity_snapshot(inline.clone(), Some(context.clone()))]);
-    input.markdown = fs::read_to_string(
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("tests/fixtures/semantic/quoin/mapping/config-version.table.md"),
-    )
-    .unwrap();
+    input.markdown = quire_fixtures::mapping_fixture("config-version.table.md");
     let result = extract_filament_core(input);
     assert!(
         !result.diagnostics.iter().any(|d| d.severity == "error"),
@@ -652,7 +641,7 @@ fn filament_snapshot_reference_form_is_refused() {
 fn filament_snapshot_unsupported_versions_are_refused() {
     for (context, code) in [
         (
-            json!({ "contractVersion": "2.0.0", "semanticCore": "0.1.0", "package": "agent-ix/x" }),
+            json!({ "contractVersion": "2.0.0", "semanticCore": "0.3.0", "package": "agent-ix/x" }),
             "semantic.unsupported-contract-version",
         ),
         (
@@ -789,12 +778,8 @@ fn inline_parts_resolve_the_reference_form() {
 
 /// The golden table with an `abstract` flag and a `## Values` table.
 fn featured_document() -> String {
-    fs::read_to_string(
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("tests/fixtures/semantic/quoin/mapping/config-version.table.md"),
-    )
-    .unwrap()
-    .replace("type: FR\n", "type: FR\nabstract: true\n")
+    quire_fixtures::mapping_fixture("config-version.table.md")
+        .replace("type: FR\n", "type: FR\nabstract: true\n")
         + "\n## Values\n\n| Value | Description |\n|---|---|\n| draft | |\n"
 }
 
@@ -856,7 +841,7 @@ fn surfaces_gate_model_features_on_the_manifest() {
     );
     assert!(bare.iter().any(|m| m.contains("values")), "{bare:?}");
 
-    let context = |mappings: &[&str]| json!({ "contractVersion": "1.0.0", "semanticCore": "0.1.0", "package": "agent-ix/spec-objects-fixture", "exports": ["entity"], "imports": {}, "mappings": mappings });
+    let context = |mappings: &[&str]| json!({ "contractVersion": "1.0.0", "semanticCore": "0.3.0", "package": "agent-ix/spec-objects-fixture", "exports": ["entity"], "imports": {}, "mappings": mappings });
     let run = |mappings: &[&str], body_extraction: Value| {
         let mut object_type = entity_snapshot(json!({ "type": "object" }), Some(context(mappings)));
         object_type["bodyExtraction"] = body_extraction;
@@ -916,7 +901,7 @@ fn rust_callers_gate_model_tables_through_the_public_context() {
     let typed: ExtractionDsl = serde_json::from_value(dsl.clone()).unwrap();
     let module = SemanticModule {
         contract_version: "1.0.0".into(),
-        semantic_core: "0.1.0".into(),
+        semantic_core: "0.3.0".into(),
         package: "agent-ix/spec-objects-fixture".into(),
         exports: vec!["entity".into()],
         imports: BTreeMap::new(),
@@ -953,7 +938,7 @@ fn rust_callers_gate_model_tables_through_the_public_context() {
 
     let adapter = extract_semantic_json(&json!({
         "markdown": doc,
-        "module": { "contractVersion": "1.0.0", "semanticCore": "0.1.0", "package": "agent-ix/spec-objects-fixture", "exports": ["entity"] },
+        "module": { "contractVersion": "1.0.0", "semanticCore": "0.3.0", "package": "agent-ix/spec-objects-fixture", "exports": ["entity"] },
         "path": "spec/FR-006.md",
         "sourceIdentity": "ix://agent-ix/fixture/spec",
         "bodyExtraction": dsl,
@@ -1046,12 +1031,7 @@ fn required_sections_read_every_locator_of_the_typed_dsl() {
 /// The golden table with its prose `## Relationships` replaced by a table of
 /// `rows`.
 fn related_document(rows: &str) -> String {
-    fs::read_to_string(
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("tests/fixtures/semantic/quoin/mapping/config-version.table.md"),
-    )
-    .unwrap()
-    .replace(
+    quire_fixtures::mapping_fixture("config-version.table.md").replace(
         "- `overlay`: belongs_to → ConfigOverlay (FR-005)\n",
         &format!("| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n{rows}"),
     )
@@ -1143,7 +1123,7 @@ fn surfaces_supply_the_relation_vocabulary() {
 
     // Filament: the snapshot carries no edge_types or roles.
     let doc = related_document("| overlay | references | FR-005 | 1..1 |\n");
-    let context = json!({ "contractVersion": "1.0.0", "semanticCore": "0.1.0", "package": "agent-ix/spec-objects-fixture", "exports": ["entity"], "imports": {}, "mappings": ["relationships"] });
+    let context = json!({ "contractVersion": "1.0.0", "semanticCore": "0.3.0", "package": "agent-ix/spec-objects-fixture", "exports": ["entity"], "imports": {}, "mappings": ["relationships"] });
     let mut input = snapshot_input(vec![entity_snapshot(
         json!({ "type": "object" }),
         Some(context.clone()),

@@ -1,0 +1,20 @@
+[package]
+name = "quire-fixtures"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.98.1"
+description = "The Markdown -> semantic-core mapping fixture set (config-service / ConfigVersion / ConfigOverlay), owned here because quire-rs is the parser that defines the forms it exercises. quoin, the downstream consumer whose own examples these originally were (agent-ix/quoin FR-071/FR-072/FR-074/FR-104), resolves this crate as a dev-dependency at the same git rev it already pins for the quire-rs engine (PLAT-901) instead of holding a second copy."
+authors = ["Peter Krenesky <kreneskyp@gmail.com>"]
+license = "AGPL-3.0-or-later"
+repository = "https://github.com/agent-ix/quire-rs"
+publish = false
+
+[lib]
+name = "quire_fixtures"
+path = "src/lib.rs"
+
+[dependencies]
+serde_json = "^1"
+
+[lints.rust]
+unsafe_code = "forbid"

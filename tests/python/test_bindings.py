@@ -460,7 +460,7 @@ def test_validate_document_bundle_package_qualifies_relationship_targets(tmp_pat
     frontmatter `ix://` duplicate is refused. Without it the relationships
     table is `no-bundle-package`, one advisory warning and no row error."""
     mod = tmp_path / "related"
-    shutil.copytree(REPO_ROOT / "tests" / "fixtures" / "semantic" / "quoin" / "module-ok", mod)
+    shutil.copytree(REPO_ROOT / "crates" / "quire-fixtures" / "fixtures" / "module-ok", mod)
     manifest = (mod / "manifest.yaml").read_text()
     manifest = manifest.replace(
         "- name: entity\n",
@@ -477,7 +477,7 @@ def test_validate_document_bundle_package_qualifies_relationship_targets(tmp_pat
     )
     (mod / "manifest.yaml").write_text(manifest)
     doc = (
-        REPO_ROOT / "tests" / "fixtures" / "semantic" / "quoin" / "mapping" / "config-version.table.md"
+        REPO_ROOT / "crates" / "quire-fixtures" / "fixtures" / "mapping" / "config-version.table.md"
     ).read_text()
     doc = doc.replace(
         "- `overlay`: belongs_to \u2192 ConfigOverlay (FR-005)\n",

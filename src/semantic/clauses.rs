@@ -807,7 +807,7 @@ fn validate_decls<T: Serialize>(
         diagnostics.push(err(
             "semantic.unsupported-semantic-core",
             0,
-            format!("no vendored semantic-core {semantic_core} bundle to validate {model} against"),
+            format!("no embedded semantic-core {semantic_core} bundle to validate {model} against"),
         ));
         return;
     };

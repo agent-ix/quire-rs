@@ -216,11 +216,11 @@ const SNAPSHOT_DIGEST: &str =
     "sha256:8692992e186f40a73b78fd1b0915f0fe78e05a2b00782fb1df58c951a37c91d5";
 
 fn fixture_snapshot(with_context: bool) -> FilamentExtractionInput {
-    let entity: Value = read_json("tests/fixtures/semantic/quoin/module-ok/schemas/Entity.json");
-    let markdown = fs::read_to_string(
-        root().join("tests/fixtures/semantic/quoin/mapping/config-version.table.md"),
+    let entity: Value = serde_json::from_str(
+        &fs::read_to_string(quire_fixtures::module_ok_dir().join("schemas/Entity.json")).unwrap(),
     )
     .unwrap();
+    let markdown = quire_fixtures::mapping_fixture("config-version.table.md");
     let mut object_type = json!({
         "name": "entity",
         "dataSchema": if with_context { entity } else { json!({ "type": "object" }) },
@@ -233,7 +233,7 @@ fn fixture_snapshot(with_context: bool) -> FilamentExtractionInput {
         "moduleId": "spec-objects-fixture"
     });
     if with_context {
-        object_type["semantic"] = json!({ "contractVersion": "1.0.0", "semanticCore": "0.1.0", "package": "agent-ix/spec-objects-fixture", "exports": ["entity"], "imports": {}, "schemaDigest": SNAPSHOT_DIGEST });
+        object_type["semantic"] = json!({ "contractVersion": "1.0.0", "semanticCore": "0.3.0", "package": "agent-ix/spec-objects-fixture", "exports": ["entity"], "imports": {}, "schemaDigest": SNAPSHOT_DIGEST });
     }
     let mut input = json!({
         "projectId": "p", "documentId": "d", "artifactId": "a", "relPath": "spec/functional/FR-006.md",
@@ -291,9 +291,7 @@ fn filament_surface_with_and_without_context() {
     }
     // A legacy-form document under the context: warning with a locus.
     let mut input = fixture_snapshot(true);
-    input.markdown =
-        fs::read_to_string(root().join("tests/fixtures/semantic/quoin/mapping/legacy-bullets.md"))
-            .unwrap();
+    input.markdown = quire_fixtures::mapping_fixture("legacy-bullets.md");
     let result = extract_filament_core(input);
     let d = result
         .diagnostics
@@ -335,13 +333,9 @@ fn filament_surface_with_and_without_context() {
 // it errors at the fence line and fails validation.
 #[test]
 fn validate_document_surface() {
-    let registry =
-        Registry::load_module(&root().join("tests/fixtures/semantic/quoin/module-ok")).unwrap();
+    let registry = Registry::load_module(&quire_fixtures::module_ok_dir()).unwrap();
     let entity = registry.archetype("entity").unwrap();
-    let corpus = fs::read_to_string(root().join(
-        "tests/fixtures/semantic/quoin/corpus/config-service/FR-006-config-version-entity.md",
-    ))
-    .unwrap();
+    let corpus = quire_fixtures::corpus_config_service_fixture("FR-006-config-version-entity.md");
     let result = quire_rs::validate_document_in_registry(&registry, entity, &corpus);
     let legacy = result
         .warnings
@@ -350,9 +344,7 @@ fn validate_document_surface() {
         .unwrap_or_else(|| panic!("{:?}", result.warnings));
     assert_eq!(legacy.line, Some(17));
     assert_eq!(legacy.reason.as_str(), "semantic");
-    let both =
-        fs::read_to_string(root().join("tests/fixtures/semantic/quoin/mapping/both-forms.md"))
-            .unwrap();
+    let both = quire_fixtures::mapping_fixture("both-forms.md");
     let result = quire_rs::validate_document_in_registry(&registry, entity, &both);
     assert!(!result.is_valid);
     let e = result
@@ -362,10 +354,7 @@ fn validate_document_surface() {
         .unwrap();
     assert_eq!(e.line, Some(16));
     // The golden table validates cleanly against the resolved Entity.json.
-    let table = fs::read_to_string(
-        root().join("tests/fixtures/semantic/quoin/mapping/config-version.table.md"),
-    )
-    .unwrap();
+    let table = quire_fixtures::mapping_fixture("config-version.table.md");
     let result = quire_rs::validate_document_in_registry(&registry, entity, &table);
     assert!(result.is_valid, "{:?}", result.errors);
     // A document with no Properties fails the resolved schema (`fields` required).

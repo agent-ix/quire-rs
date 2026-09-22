@@ -13,7 +13,7 @@
         "markdown": "---\nid: FR-006\ntitle: ConfigVersion Entity\nobject: entity\ntype: FR\n---\n\n# FR-006: ConfigVersion Entity\n\n## Description\n\nThe service SHALL persist configuration versions as immutable `ConfigVersion` entities.\n\n## Properties\n\n| Field | Type | Multiplicity | Constraints |\n|-------|------|--------------|-------------|\n| id | UUID | 1 | identity |\n| versionNumber | Integer | 1 | min: 1 |\n| data | JsonObject | 1 | |\n| hash | String | 1 | nonEmpty |\n| parent | ConfigVersion | 0..1 | |\n| createdAt | Timestamp | 1 | |\n| createdBy | String | 1 | maxLength: 64 |\n\n## Relationships\n\n- `overlay`: belongs_to \u2192 ConfigOverlay (FR-005)\n\n## Invariants\n\n### immutable\n\n```ocl\ncontext ConfigVersion inv immutable: self.versionNumber = self.versionNumber@pre and self.data = self.data@pre and self.hash = self.hash@pre\n```\n",
         "module": {
           "contractVersion": "1.0.0",
-          "semanticCore": "0.1.0",
+          "semanticCore": "0.3.0",
           "package": "agent-ix/spec-objects-fixture",
           "exports": [
             "entity"
@@ -91,7 +91,7 @@
         "markdown": "---\nid: FR-006\ntitle: ConfigVersion Entity\nobject: entity\ntype: FR\n---\n\n# FR-006: ConfigVersion Entity\n\n## Description\n\nThe service SHALL persist configuration versions as immutable `ConfigVersion` entities.\n\n## Properties\n\n```sysml\nattribute id : UUID[1] { identity }\nattribute versionNumber : Integer[1] { min: 1 }\nattribute data : JsonObject[1]\nattribute hash : String[1] { nonEmpty }\nref item parent : ConfigVersion[0..1]\nattribute createdAt : Timestamp[1]\nattribute createdBy : String[1] { maxLength: 64 }\n```\n\n## Relationships\n\n- `overlay`: belongs_to \u2192 ConfigOverlay (FR-005)\n\n## Invariants\n\n### immutable\n\n```ocl\ncontext ConfigVersion inv immutable: self.versionNumber = self.versionNumber@pre and self.data = self.data@pre and self.hash = self.hash@pre\n```\n",
         "module": {
           "contractVersion": "1.0.0",
-          "semanticCore": "0.1.0",
+          "semanticCore": "0.3.0",
           "package": "agent-ix/spec-objects-fixture",
           "exports": [
             "entity"
@@ -157,7 +157,7 @@
         "markdown": "---\nid: FR-901\ntitle: Operations\nobject: entity\ntype: FR\n---\n\n# FR-901: Operations\n\n## Properties\n\n| Field | Type | Multiplicity | Constraints |\n|-------|------|--------------|-------------|\n| id | UUID | 1 | identity |\n\n## Invariants\n\n### notArchived\n\n```quire\nnot (self.summary = \"archived\")\n```\n\n### archived\n\n```quire\nresult.summary = \"archived\"\n```\n\n## Operations\n\n### archive\n\n| Param | Type | Multiplicity | Constraints |\n|-------|------|--------------|-------------|\n| reason | String | 1 | nonEmpty |\n| delay | Duration [ms] | 0..1 | |\n\nReturns: ConfigVersion[1]\nPre: notArchived\nPost: archived\n",
         "module": {
           "contractVersion": "1.0.0",
-          "semanticCore": "0.2.0",
+          "semanticCore": "0.3.0",
           "package": "agent-ix/spec-objects-fixture",
           "exports": [
             "entity"
@@ -231,7 +231,7 @@
         "markdown": "---\nid: FR-900\ntitle: Bare\nobject: entity\n---\n# FR-900\n\nprose only\n",
         "module": {
           "contractVersion": "1.0.0",
-          "semanticCore": "0.1.0",
+          "semanticCore": "0.3.0",
           "package": "agent-ix/spec-objects-fixture",
           "exports": [
             "entity"
@@ -301,7 +301,7 @@
         "markdown": "---\nid: FR-900\ntitle: Bare\nobject: entity\n---\n# FR-900\n\nprose only\n",
         "module": {
           "contractVersion": "1.0.0",
-          "semanticCore": "0.1.0",
+          "semanticCore": "0.3.0",
           "package": "agent-ix/spec-objects-fixture",
           "exports": [
             "entity"
@@ -370,7 +370,7 @@
         "markdown": "---\nid: FR-902\ntitle: Legacy bullets\nobject: entity\ntype: FR\n---\n\n# FR-902: Legacy bullets\n\n## Properties\n\n- id: UUID \u2014 primary key\n- name: str \u2014 display name\n",
         "module": {
           "contractVersion": "1.0.0",
-          "semanticCore": "0.1.0",
+          "semanticCore": "0.3.0",
           "package": "agent-ix/spec-objects-fixture",
           "exports": [
             "entity"
@@ -439,7 +439,7 @@
         "markdown": "---\nid: FR-902\ntitle: Legacy bullets\nobject: entity\ntype: FR\n---\n\n# FR-902: Legacy bullets\n\n## Properties\n\n- id: UUID \u2014 primary key\n- name: str \u2014 display name\n",
         "module": {
           "contractVersion": "1.0.0",
-          "semanticCore": "0.1.0",
+          "semanticCore": "0.3.0",
           "package": "agent-ix/spec-objects-fixture",
           "exports": [
             "entity"
@@ -509,7 +509,7 @@
         "markdown": "---\nid: FR-900\ntitle: Both forms\nobject: entity\ntype: FR\n---\n\n# FR-900: Both forms\n\n## Properties\n\n| Field | Type | Multiplicity | Constraints |\n|-------|------|--------------|-------------|\n| id | UUID | 1 | identity |\n\n```sysml\nattribute id : UUID[1] { identity }\n```\n",
         "module": {
           "contractVersion": "1.0.0",
-          "semanticCore": "0.1.0",
+          "semanticCore": "0.3.0",
           "package": "agent-ix/spec-objects-fixture",
           "exports": [
             "entity"
@@ -578,7 +578,7 @@
         "markdown": "---\nid: FR-900\ntitle: Thing\nobject: entity\n---\n# FR-900\n\n## Properties\n\n| Field | Type | Multiplicity | Constraints |\n|---|---|---|---|\n| owner | Mystery | 1 | |\n",
         "module": {
           "contractVersion": "1.0.0",
-          "semanticCore": "0.1.0",
+          "semanticCore": "0.3.0",
           "package": "agent-ix/spec-objects-fixture",
           "exports": [
             "entity"
@@ -648,7 +648,7 @@
         "markdown": "---\nid: FR-900\ntitle: Thing\nobject: entity\n---\n# FR-900\n\n## Properties\n\n| Field | Type | Multiplicity | Constraints |\n|---|---|---|---|\n| parent | ConfigVersion | 0..1 | |\n",
         "module": {
           "contractVersion": "1.0.0",
-          "semanticCore": "0.1.0",
+          "semanticCore": "0.3.0",
           "package": "agent-ix/spec-objects-fixture",
           "exports": [
             "entity"
@@ -687,7 +687,7 @@
         "markdown": "---\nid: FR-006\ntitle: ConfigVersion Entity\nobject: entity\ntype: FR\n---\n\n# FR-006: ConfigVersion Entity\n\n## Description\n\nThe service SHALL persist configuration versions as immutable `ConfigVersion` entities.\n\n## Properties\n\n| Field | Type | Multiplicity | Constraints |\n|-------|------|--------------|-------------|\n| id | UUID | 1 | identity |\n| versionNumber | Integer | 1 | min: 1 |\n| data | JsonObject | 1 | |\n| hash | String | 1 | nonEmpty |\n| parent | ConfigVersion | 0..1 | |\n| createdAt | Timestamp | 1 | |\n| createdBy | String | 1 | maxLength: 64 |\n\n## Relationships\n\n- `overlay`: belongs_to \u2192 ConfigOverlay (FR-005)\n\n## Invariants\n\n### immutable\n\n```ocl\ncontext ConfigVersion inv immutable: self.versionNumber = self.versionNumber@pre and self.data = self.data@pre and self.hash = self.hash@pre\n```\n",
         "module": {
           "contractVersion": "1.0.0",
-          "semanticCore": "0.1.0",
+          "semanticCore": "0.3.0",
           "package": "agent-ix/spec-objects-fixture",
           "exports": [
             "entity"
@@ -757,7 +757,7 @@
         "markdown": "---\nid: FR-900\ntitle: Thing\nobject: entity\n---\n# FR-900\n\n## Invariants\n\n### live\n\n```fretish\nthe thing shall live\n```\n",
         "module": {
           "contractVersion": "1.0.0",
-          "semanticCore": "0.1.0",
+          "semanticCore": "0.3.0",
           "package": "agent-ix/spec-objects-fixture",
           "exports": [
             "entity"
@@ -828,7 +828,7 @@
         "markdown": "---\nid: FR-900\ntitle: Thing\nobject: entity\n---\n# FR-900\n\n## Properties\n\n| Field | Type | Multiplicity | Constraints |\n|---|---|---|---|\n| id | UUID | 1 | identity |\n| n | Integer | 5..2 | |\n",
         "module": {
           "contractVersion": "1.0.0",
-          "semanticCore": "0.1.0",
+          "semanticCore": "0.3.0",
           "package": "agent-ix/spec-objects-fixture",
           "exports": [
             "entity"
@@ -896,7 +896,7 @@
         "markdown": "---\nid: FR-900\ntitle: Thing\nobject: entity\n---\n# FR-900\n\n## Invariants\n\n### ok\n\n```ocl\nx\n```\n\n### bad\n\n```tla\ny\n```\n",
         "module": {
           "contractVersion": "1.0.0",
-          "semanticCore": "0.1.0",
+          "semanticCore": "0.3.0",
           "package": "agent-ix/spec-objects-fixture",
           "exports": [
             "entity"
@@ -964,7 +964,7 @@
         "markdown": "---\nid: FR-901\ntitle: Operations\nobject: entity\ntype: FR\n---\n\n# FR-901: Operations\n\n## Properties\n\n| Field | Type | Multiplicity | Constraints |\n|-------|------|--------------|-------------|\n| id | UUID | 1 | identity |\n\n## Invariants\n\n### notArchived\n\n```ocl\ncontext Artifact inv notArchived: self.summary <> 'archived'\n```\n\n### archived\n\n```ocl\ncontext Artifact::archive() post: result.summary = 'archived'\n```\n\n## Operations\n\n### archive\n\n| Param | Type | Multiplicity | Constraints |\n|-------|------|--------------|-------------|\n| reason | String | 1 | nonEmpty |\n| delay | Duration [ms] | 0..1 | |\n\nReturns: ConfigVersion[1]\nPre: notArchived\nPost: archived\n",
         "module": {
           "contractVersion": "1.0.0",
-          "semanticCore": "0.1.0",
+          "semanticCore": "0.3.0",
           "package": "agent-ix/spec-objects-fixture",
           "exports": [
             "entity"
@@ -1026,7 +1026,7 @@
         "markdown": "---\nid: FR-900\ntitle: Bare\nobject: entity\n---\n# FR-900\n\nprose only\n",
         "module": {
           "contractVersion": "1.0.0",
-          "semanticCore": "0.1.0",
+          "semanticCore": "0.3.0",
           "package": "agent-ix/spec-objects-fixture",
           "exports": [
             "entity"
@@ -1095,7 +1095,7 @@
         "markdown": "---\nid: FR-900\ntitle: Thing\nobject: entity\n---\n# FR-900\n\n## Operations\n\n### archive\n\nReturns: String[1]\n\n### archive\n\nReturns: String[1]\n",
         "module": {
           "contractVersion": "1.0.0",
-          "semanticCore": "0.1.0",
+          "semanticCore": "0.3.0",
           "package": "agent-ix/spec-objects-fixture",
           "exports": [
             "entity"
@@ -1162,7 +1162,7 @@
         "markdown": "---\nid: FR-900\ntitle: Thing\nobject: entity\n---\n# FR-900\n\n## Invariants\n\n### inv\n\n```quire\nClause: ./x.md#inv\nPre: nothing\n```\n\n## Operations\n\n### op\n\nPre: inv\nPre: inv\n",
         "module": {
           "contractVersion": "1.0.0",
-          "semanticCore": "0.2.0",
+          "semanticCore": "0.3.0",
           "package": "agent-ix/spec-objects-fixture",
           "exports": [
             "entity"

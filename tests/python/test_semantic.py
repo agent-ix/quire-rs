@@ -12,6 +12,11 @@ from pathlib import Path
 import quire
 
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures" / "semantic"
+# The mapping/module-ok fixture set lives in the `quire-fixtures` workspace
+# crate (PLAT-901), not under tests/fixtures/: quire-rs owns it because it is
+# the parser that defines the forms it exercises, and quoin (its original
+# home) resolves it as a dependency rather than holding a copy.
+FIXTURE_CRATE = Path(__file__).resolve().parents[2] / "crates" / "quire-fixtures" / "fixtures"
 
 
 def _cases():
@@ -42,8 +47,8 @@ def test_extract_semantic_is_deterministic():
 
 def test_extract_filament_core_carries_the_semantic_record():
     """TC-1635: the Filament API payload is additive and equals the record."""
-    entity = json.loads((FIXTURES / "quoin" / "module-ok" / "schemas" / "Entity.json").read_text())
-    markdown = (FIXTURES / "quoin" / "mapping" / "config-version.table.md").read_text()
+    entity = json.loads((FIXTURE_CRATE / "module-ok" / "schemas" / "Entity.json").read_text())
+    markdown = (FIXTURE_CRATE / "mapping" / "config-version.table.md").read_text()
     bundle = json.loads((FIXTURES / "config-version.bundle.json").read_text())
     result = quire.extract_filament_core(
         {

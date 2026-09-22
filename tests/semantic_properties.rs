@@ -1,6 +1,6 @@
 //! FR-070 typed Properties extraction (TC-1610..TC-1618, TC-1621, TC-1647).
-//! Plan-003 Task-018. Oracles: the quoin golden fixtures pinned under
-//! `tests/fixtures/semantic/quoin/mapping/` and `config-version.bundle.json`.
+//! Plan-003 Task-018. Oracles: the golden fixtures in the `quire-fixtures`
+//! crate (PLAT-901) and this repo's own `config-version.bundle.json`.
 
 use std::fs;
 use std::path::PathBuf;
@@ -19,12 +19,7 @@ fn root() -> PathBuf {
 }
 
 fn mapping(name: &str) -> String {
-    fs::read_to_string(
-        root()
-            .join("tests/fixtures/semantic/quoin/mapping")
-            .join(name),
-    )
-    .unwrap()
+    quire_fixtures::mapping_fixture(name)
 }
 
 fn mapping_json(name: &str) -> Value {
@@ -39,8 +34,7 @@ fn bundle() -> BundleIndex {
 }
 
 fn context(path: &str, bundle: BundleIndex) -> SemanticContext {
-    let registry =
-        Registry::load_module(&root().join("tests/fixtures/semantic/quoin/module-ok")).unwrap();
+    let registry = Registry::load_module(&quire_fixtures::module_ok_dir()).unwrap();
     let module = registry
         .semantic_module("spec-objects-fixture")
         .unwrap()
@@ -51,13 +45,13 @@ fn context(path: &str, bundle: BundleIndex) -> SemanticContext {
 fn field_decl_gate() -> jsonschema::JSONSchema {
     let schema = json!({
         "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "$id": "https://schemas.agent-ix.org/agent-ix/quire-rs/0.1.0/Gate.json",
-        "$ref": "https://schemas.agent-ix.org/semantic-core/0.1.0/FieldDecl.json"
+        "$id": "https://schemas.agent-ix.org/agent-ix/quire-rs/0.3.0/Gate.json",
+        "$ref": "https://schemas.agent-ix.org/semantic-core/0.3.0/FieldDecl.json"
     });
     compile_module_schema(
         &schema,
         &|_| None,
-        "0.1.0",
+        "0.3.0",
         "https://schemas.agent-ix.org/agent-ix/quire-rs/",
     )
     .unwrap()
@@ -359,15 +353,27 @@ fn multiplicity_cells() {
         }
     }
     let extra = [
-        ("*", Some(json!({ "lower": 0 }))),
-        ("0..*", Some(json!({ "lower": 0 }))),
-        ("0..0", Some(json!({ "lower": 0, "upper": 0 }))),
+        (
+            "*",
+            Some(json!({ "lower": 0, "ordered": false, "unique": false })),
+        ),
+        (
+            "0..*",
+            Some(json!({ "lower": 0, "ordered": false, "unique": false })),
+        ),
+        (
+            "0..0",
+            Some(json!({ "lower": 0, "upper": 0, "ordered": false, "unique": false })),
+        ),
         (
             "2..2 unique",
-            Some(json!({ "lower": 2, "upper": 2, "unique": true })),
+            Some(json!({ "lower": 2, "upper": 2, "ordered": false, "unique": true })),
         ),
         ("a..b", None),
-        ("3..* ordered", Some(json!({ "lower": 3, "ordered": true }))),
+        (
+            "3..* ordered",
+            Some(json!({ "lower": 3, "ordered": true, "unique": false })),
+        ),
     ];
     for (cell, expected) in extra {
         let (outcome, row) =
@@ -496,10 +502,7 @@ fn legacy_forms() {
     let expected = mapping_json("legacy.expected.json");
     for case in expected["cases"].as_array().unwrap() {
         let file = case["file"].as_str().unwrap();
-        let path = root()
-            .join("tests/fixtures/semantic/quoin/mapping")
-            .join(file);
-        let markdown = fs::read_to_string(&path).unwrap();
+        let markdown = quire_fixtures::mapping_fixture(file);
         let outcome = extract_fields(&markdown, &context(file, bundle()));
         let form = case["form"].as_str().unwrap();
         let line = case["line"].as_u64().map(|l| l as usize);
@@ -544,8 +547,7 @@ fn legacy_forms() {
     }
     // The `properties` string yielded by section_body stays untouched: the
     // module-ok DSL extracts it exactly as before (FR-070-CON-3).
-    let registry =
-        Registry::load_module(&root().join("tests/fixtures/semantic/quoin/module-ok")).unwrap();
+    let registry = Registry::load_module(&quire_fixtures::module_ok_dir()).unwrap();
     let dsl = registry
         .archetype("entity")
         .unwrap()

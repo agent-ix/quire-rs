@@ -67,18 +67,18 @@ struct Request {
 /// Run FR-072 for a JSON request; the error is a deserialization message.
 pub fn extract_semantic_json(request: &Value) -> Result<SemanticExtraction, String> {
     let req: Request = serde_json::from_value(request.clone()).map_err(|e| e.to_string())?;
-    if req.module.contract_version != super::vendored::CONTRACT_VERSION {
+    if req.module.contract_version != super::embedded::CONTRACT_VERSION {
         return Err(format!(
             "semantic.unsupported-contract-version: {:?} is not {}",
             req.module.contract_version,
-            super::vendored::CONTRACT_VERSION
+            super::embedded::CONTRACT_VERSION
         ));
     }
-    if super::vendored::semantic_core_bundle(&req.module.semantic_core).is_none() {
+    if super::embedded::semantic_core_bundle(&req.module.semantic_core).is_none() {
         return Err(format!(
-            "semantic.unsupported-semantic-core: {:?} has no vendored bundle (vendored: {})",
+            "semantic.unsupported-semantic-core: {:?} has no embedded bundle (embedded: {})",
             req.module.semantic_core,
-            super::vendored::SEMANTIC_CORE_VERSIONS.join(", ")
+            super::embedded::SEMANTIC_CORE_VERSIONS.join(", ")
         ));
     }
     let module = SemanticModule {

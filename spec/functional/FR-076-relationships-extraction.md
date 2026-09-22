@@ -37,9 +37,11 @@ columns `Name`, `Verb`, `Target`, and `Multiplicity`, to a semantic-core
 `RelationDecl[]` with a name and a source span per row, under the record
 keys `relations` and `relationSources`, with `availability.relations`.
 
-The grammar is `agent-ix/quoin` FR-104 (quoin PRs #553, #555 and #558, `99bd4f0`); its golden
-fixtures `relationships.md`, `relationships.expected.json`, and
-`relationships-cases.json` are the oracle. A relationship's category and
+The grammar follows `agent-ix/quoin` FR-104 (quoin PRs #553, #555 and #558); the
+relocated fixtures `relationships.md`, `relationships.expected.json`, and
+`relationships-cases.json` (CR-182), whose bytes are unchanged from
+`agent-ix/quoin` FR-104's own fixtures with ownership transferred to quire-rs's
+`quire-fixtures` crate, are the oracle. A relationship's category and
 composition come only from the FR-040 `edge_types` registry entry of its
 verb ([FR-040](./FR-040-object-edge-vocabulary.md)); an inverse
 label is refused in favour of its forward verb
@@ -220,9 +222,29 @@ Availability:
 
 ## Acceptance Criteria
 
+> **CR-182 note (2026-09-21):** AC-1's `relationships.md`/`relationships.expected.json`/
+> `relationships-cases.json` fixtures were byte-for-byte copies vendored from
+> `agent-ix/quoin` FR-104's own fixtures — an engine-input copied from its own
+> downstream consumer, and a dependency cycle since quoin already depends on
+> quire-rs as a crate. Ownership moved, not authorship: the exact fixture
+> bytes — same ids, same field names, same vocabulary — are relocated
+> unchanged into the `quire-fixtures` workspace member crate (PLAT-901);
+> quoin, their original repo, is sequenced to repoint at the same crate
+> instead of holding its own copy. The clause requiring the vendored
+> fixtures to match a `PROVENANCE.json` sha256 pin is removed with no
+> replacement wording: once the fixtures are owned by quire-rs itself
+> rather than mirrored from an external copy, there is no upstream/
+> downstream pair for a provenance record to pin against, so the check has
+> no remaining subject (`quoin_fixtures_match_provenance` / TC-1852's
+> provenance half is deleted, not stubbed; TC-1852 continues to evidence
+> this AC through the extraction assertions in
+> `tests/semantic_relations.rs::golden_relationships`, including the
+> still-live `context.sources` non-empty assertion, which CR-182 does not
+> touch).
+
 | ID | Criteria | Verification |
 |----|----------|--------------|
-| FR-076-AC-1 | The vendored quoin `relationships.md` extracts to exactly the `relations`, `relationSources`, and `availability` of `relationships.expected.json` under its recorded `context`; each `relations` element validates against semantic-core `0.2.0` `RelationDecl.json`; the four vendored fixtures match their `PROVENANCE.json` sha256 pins. | Test |
+| FR-076-AC-1 | The relocated fixture `relationships.md` extracts to exactly the `relations`, `relationSources`, and `availability` of `relationships.expected.json` under its recorded `context`; each `relations` element validates against semantic-core `0.2.0` `RelationDecl.json`. | Test |
 | FR-076-AC-2 | The `relationships-cases.json` cases `verb-unknown`, `verb-inverse-label`, `verb-not-allowed`, and `verb-specializes` yield their expected code, line, `section`, `reason`, and `messageContains` substrings. | Test |
 | FR-076-AC-3 | The cases `target-title`, `target-undeclared-id`, `target-own-package-undeclared-id`, `target-qualified-not-imported`, `target-not-allowed-object-type`, `target-not-allowed-behavioral`, and `target-qualified-import` yield their expected diagnostics, `relations`, and `relationSources`. | Test |
 | FR-076-AC-4 | The cases `multiplicity-malformed`, `multiplicity-inverted`, and `multiplicity-empty` yield `semantic.invalid-model-cell` with `reason` `multiplicity` at the row. | Test |

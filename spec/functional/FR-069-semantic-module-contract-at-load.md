@@ -42,25 +42,48 @@ as it does today.
   [FR-013](./FR-013-archetype-loader.md)), or the inline parts supplied to
   `Registry::from_inline_parts`, where the `schemas` map also supplies every
   reference-form `data_schema` file keyed by its manifest-relative path.
-- Vendored inputs, all under one directory `schemas/vendored/` with a
-  provenance record `(repository, revision, path, sha256)` per file:
-  - `module-manifest.schema.json` from `agent-ix/filament-core-service` at
-    `a77f31e`, path `filament_core_service/schemas/module-manifest.schema.json`
-    (source of the `semantic` block shape and the `legacy_forms` and
-    `compatibility_posture` value sets).
-  - The semantic-core JSON Schema bundle, one directory per supported
-    version, from `agent-ix/filament-core-data` path
-    `packages/semantic-core/generated/json-schema/`, with its
-    `packages/semantic-core/generated/toolchain.json` digest copied into the
-    provenance record: `0.1.0` at `d48b8da`
-    (`sha256:dd33c886f70e908b14507c35e078d163b76308c3d170d2b54ddf933d1a4ebb52`)
-    and `0.2.0` at `739b160`
-    (`sha256:ef79c5dea98c19643b20daa8899951a4782d6248527a0647c114c6f76cca8aea`).
-    `scripts/vendor-semantic-schemas.sh` writes every version and the
-    embedded bundle list.
-  - The target registry `schema/semantic/v1/common.schema.json` from
-    `agent-ix/filament-core-data` at `d48b8da` (`target` and
-    `representationFormat` values).
+- The `semantic` block's shape (`contract_version`/`semantic_core`/`package`/
+  `exports`/`imports`/`targets`/`mappings`, including the target enum), from
+  `agent-ix/filament-core-data`'s published `module-semantic-block.schema.json`
+  (`schema/semantic/v1/`); the `legacy_forms` and `compatibility_posture`
+  value sets are this engine's own contract, not drawn from that schema.
+- The semantic-core JSON Schema bundle, one directory per supported version,
+  fetched from the published `@agent-ix/semantic-core` npm package at that
+  exact version and embedded at build time (`build.rs`) — never a copy
+  committed to this repository.
+- The module-manifest schema (`MODULE_MANIFEST_SCHEMA`, whose
+  `properties.semantic` is what `block_validator()` compiles), fetched from
+  the published `@agent-ix/semantic-schema` npm package's
+  `semantic/v1/module-manifest.schema.json` at build time (`build.rs`) —
+  never a copy committed to this repository.
+
+> **CR-181/CR-184 note (2026-09-21):** This Inputs list no longer names a
+> vendored revision, a vendored directory, or a provenance SHA-256 —
+> `schemas/vendored/` and `scripts/vendor-semantic-schemas.sh` are deleted,
+> along with FR-069-CON-2, which required the provenance record CON-2
+> mandated. Of the three prior vendored inputs, two were committed copies
+> with nothing that needed embedding at build time. `common.schema.json` fed
+> a target-enum check (the former step 6 of `read_semantic_block`) that step
+> 3's schema validation — against the *same* 14-value enum, inlined in the
+> module-manifest schema — already ran and returned early on; it was dead
+> code with no replacement, and no const/enum/array of those 14 names was
+> added anywhere in its place. The semantic-core bundle and the
+> module-manifest schema are both genuinely load-bearing at build time — the
+> internal `FieldDecl`/`ClauseRef` gate in `properties.rs` and `clauses.rs`
+> validates a record quire-rs itself just produced, with no registry,
+> module, or caller in scope to supply a schema any other way — so both stay
+> embedded, just from their published packages rather than a committed file.
+> The third input, `module-manifest.schema.json`, was **not yet migrated**
+> as of CR-181: `agent-ix/filament-core-service` originally owned it, and
+> `agent-ix/filament-core-data` had moved it to
+> `module-semantic-block.schema.json` but had not yet republished the
+> package with that file included. CR-184 closes that gap now that
+> `@agent-ix/semantic-schema@0.1.0` ships
+> `semantic/v1/module-manifest.schema.json`: `schemas/vendored/` (the last
+> committed copy) is deleted, `build.rs`'s `npm pack` fetch mechanism is
+> shared between both packages instead of duplicated, and this bullet's
+> first item no longer names a schema this repository consumes any other
+> way.
 - For the Filament extraction API ([FR-045](./FR-045-filament-core-extraction-engine.md)):
   an optional `semantic` context on each `FilamentObjectType` snapshot,
   `{ contractVersion, semanticCore, package, exports, imports, mappings? }`, with the
@@ -173,8 +196,7 @@ stricter of the two.
 
 | ID | Constraint | Type | Validation |
 |----|------------|------|------------|
-| FR-069-CON-1 | The loader SHALL resolve schemas from the module bundle and the vendored bundle only, with no fetch of `https://schemas.agent-ix.org` and no read outside the module root. | Architecture | Test |
-| FR-069-CON-2 | Each vendored file SHALL carry a provenance record in source whose SHA-256 a test compares with the vendored bytes. | Integrity | Test |
+| FR-069-CON-1 | The loader SHALL resolve schemas from the module bundle and the embedded bundle only, with no fetch of `https://schemas.agent-ix.org` and no read outside the module root. | Architecture | Test |
 | FR-069-CON-3 | A module without a `semantic` block SHALL produce a `Registry` whose archetype projection (name, schema digest, `body_extraction` JSON, extras) equals the checked-in baseline `tests/fixtures/semantic/baseline/registry-archetypes.json` minted on `main` before this change. | Compatibility | Test |
 | FR-069-CON-4 | The digest recorded for an object type SHALL be over the shipped file bytes, computed once at load. | Integrity | Test |
 
@@ -183,13 +205,13 @@ stricter of the two.
 | ID | Criteria | Verification |
 |----|----------|--------------|
 | FR-069-AC-1 | A module with a valid `semantic` block and a reference-form `data_schema` whose digest matches loads with a `SemanticModule` record, a resolved schema, and the recorded digest, and `validate_document` over an artifact of that type validates the extracted record against the resolved schema. | Test |
-| FR-069-AC-2 | `contract_version: 2.0.0` fails every object type of the module with a reason starting `semantic.unsupported-contract-version` and no other `semantic.*` reason; `semantic_core: 0.9.0` fails with `semantic.unsupported-semantic-core` naming `0.9.0` and `0.1.0`. | Test |
+| FR-069-AC-2 | `contract_version: 2.0.0` fails every object type of the module with a reason starting `semantic.unsupported-contract-version` and no other `semantic.*` reason; `semantic_core: 0.9.0` fails with `semantic.unsupported-semantic-core` naming `0.9.0` and `0.3.0`. | Test |
 | FR-069-AC-3 | An unknown block key, an export of an undeclared object type, `package: ix://agent-ix/x`, `targets: [go]`, and an export whose `data_schema` is inline each fail with their named code and value. | Test |
 | FR-069-AC-4 | A digest mismatch, a missing file, a non-JSON file, a file without `$schema`, a wrong `$id`, a `..` escape, and a symlink escape each fail with their named code, path, and reason; `{ schema, digest, type }` fails with `semantic.data-schema-ambiguous`. | Test |
-| FR-069-AC-5 | A `$ref` to semantic-core `0.2.0` under `semantic_core: 0.1.0`, a `$ref` to an unshipped sibling, an `https://` `$ref` outside both bundles, and a two-file `$ref` cycle each fail naming the `$ref`; a `$ref` to the schema's own `$id` fragment loads cleanly; the same cases pass under `--no-default-features --features wasm`. | Test |
+| FR-069-AC-5 | A `$ref` to semantic-core `0.2.0` under `semantic_core: 0.3.0`, a `$ref` to an unshipped sibling, an `https://` `$ref` outside both bundles, and a two-file `$ref` cycle each fail naming the `$ref`; a `$ref` to the schema's own `$id` fragment loads cleanly; the same cases pass under `--no-default-features --features wasm`. | Test |
 | FR-069-AC-6 | An inline `data_schema` on a non-exported type under a `semantic` block loads with the warning `semantic.inline-data-schema`; the same manifest without the block loads with no semantic diagnostic. | Test |
 | FR-069-AC-7 | A Filament snapshot whose `data_schema` is the reference form is refused with `semantic.data-schema-unresolved-reference` and yields no node; the same snapshot with the schema inline and a `semantic` context extracts. | Test |
-| FR-069-AC-8 | Every vendored file hashes to its recorded provenance SHA-256, the semantic-core `0.1.0` provenance digest equals `sha256:dd33c886f70e908b14507c35e078d163b76308c3d170d2b54ddf933d1a4ebb52`, the `0.2.0` digest equals `sha256:ef79c5dea98c19643b20daa8899951a4782d6248527a0647c114c6f76cca8aea`, and every vendored version is an embedded bundle. | Test |
+| FR-069-AC-8 | Every semantic-core version a `semantic` block may declare is a complete embedded bundle of valid JSON Schema documents, sourced from the published `@agent-ix/semantic-core` package at that exact version; the `0.3.0` bundle content digest equals `sha256:65b4e8d4c71a343e270618c9a8ca7e33687f10324ef5e9fe68d150056101c627`, computed over the build-fetched embedded bytes rather than a committed copy. | Test |
 | FR-069-AC-9 | Every default and fixture module without a `semantic` block loads to the archetype projection recorded in the checked-in baseline. | Test |
 | FR-069-AC-10 | Two loaded modules with one `semantic.package` fail the later sorted root with `semantic.duplicate-package` naming both; an import no loaded module provides warns `semantic.import-unresolved` and still loads; a two-module import cycle fails both with `semantic.import-cycle`. | Test |
 | FR-069-AC-11 | `Registry::from_inline_parts` with a reference-form `data_schema` resolves the file from the `schemas` map, applies the same digest, `$id`, escape, and `$ref` rules, and refuses a key with a `..` segment. | Test |

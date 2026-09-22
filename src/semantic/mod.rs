@@ -3,7 +3,9 @@
 //! `contract` reads the module `semantic` block and reference-form
 //! `data_schema` at load (FR-069); `resolver` compiles a module schema
 //! against the embedded semantic-core bundle without touching the filesystem
-//! or the network; `vendored` is the embedded bundle itself. Extraction
+//! or the network; `embedded` is the embedded bundle itself, assembled by
+//! `build.rs` from the published `@agent-ix/semantic-core` package rather
+//! than from a copy committed to this repository. Extraction
 //! (FR-070..FR-072) lands in the sibling modules of Plan-003; `model` holds
 //! the FR-075 model feature declarations and `systems` its systems-model
 //! tables; `relations` the FR-076 relationships; `target` resolves the
@@ -13,6 +15,7 @@ pub mod clauses;
 pub mod context;
 pub mod contract;
 pub mod decl;
+pub mod embedded;
 pub mod model;
 pub mod properties;
 pub mod python_entry;
@@ -22,7 +25,6 @@ pub mod scan;
 pub mod surface;
 pub mod systems;
 pub(crate) mod target;
-pub mod vendored;
 
 pub use clauses::{
     extract_clauses, extract_operations, ClauseRef, ClausesOutcome, OperationDecl,
