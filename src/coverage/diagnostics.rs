@@ -73,6 +73,11 @@ pub(super) fn guidance_for(diagnostic: &CoverageDiagnostic) -> crate::finding::F
             locus,
             "fill the declared statement cell or remove the row if it states no obligation",
         ),
+        "range-in-trace-tag" => FindingGuidance::remedy(
+            format!("range `{value}`"),
+            locus,
+            "write one trace tag naming each id in the range explicitly; a range never binds, including its own endpoints",
+        ),
         "section-holds-no-table" => FindingGuidance::remedy(
             declaration,
             locus,

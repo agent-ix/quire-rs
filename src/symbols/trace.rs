@@ -56,6 +56,15 @@ pub struct VerifiesRelation {
     /// `untracked_symbols` renders, and a non-identity attribute like
     /// [`Symbol::line`](super::Symbol::line) itself.
     pub line: usize,
+    /// 1-based UTF-8 byte column of the verifying symbol's own declaration
+    /// start (CR-187, FR-051-AC-23), copied straight from the binding
+    /// [`Symbol::column`].
+    pub column: usize,
+    /// The verifying symbol's own [`SymbolKind`](super::SymbolKind) label.
+    pub kind: String,
+    /// Whether the verifying symbol is ignored (CR-187, FR-051-AC-27),
+    /// copied straight from the binding [`Symbol::ignored`].
+    pub ignored: bool,
 }
 
 /// One `implements` relation: a production symbol implements a requirement
@@ -287,11 +296,30 @@ impl CensusAccumulator {
     }
 }
 
+/// A range — two id-shaped tokens joined by a bare `..`, in same-prefix,
+/// differing-prefix, or short-suffix form — written inside a source trace
+/// tag, marker or legacy alike (CR-187, FR-050-AC-50, FR-051-AC-28). Binds no
+/// id at all, including its own endpoints; this is the only record of the
+/// occurrence.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RangeInTraceTag {
+    pub path: String,
+    pub symbol: String,
+    /// 1-based line the range text sits on.
+    pub line: usize,
+    /// The literal range text, verbatim.
+    pub range_text: String,
+}
+
 /// The symbol graph the coverage rollup and knowledge-graph ingestion consume.
 /// Every collection is deterministically ordered (NFR-006).
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct SymbolGraph {
     pub verifies: Vec<VerifiesRelation>,
+    /// A range written inside any source trace tag, marker or legacy alike
+    /// (CR-187, FR-050-AC-50, FR-051-AC-28) — binds no id, reported once per
+    /// occurrence.
+    pub range_diagnostics: Vec<RangeInTraceTag>,
     /// Requirement → production code (FR-062). **Never** consulted by
     /// [`Self::backed_trace_ids`]: this is scope, not evidence, and letting it
     /// back an acceptance criterion is exactly the coverage backdoor CR-061
@@ -529,7 +557,8 @@ pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolG
                 // all, and that is exactly what #312 is about: a human wrote a
                 // comment naming a row, next to the wrong thing. All five
                 // seeded fixtures are that shape, in three languages.
-                for (trace_id, form, provenance) in verifies_form_ids(symbol, source, model) {
+                let (production_forms, _ranges) = verifies_form_ids(symbol, source, model);
+                for (trace_id, form, provenance) in production_forms {
                     if provenance != TraceProvenance::Legacy {
                         continue;
                     }
@@ -656,6 +685,20 @@ pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolG
     graph
         .diagnostics
         .sort_by(|a, b| (&a.path, &a.symbol, &a.trace_id).cmp(&(&b.path, &b.symbol, &b.trace_id)));
+    // CR-187: one record per occurrence, deterministically ordered; a symbol
+    // whose span nests inside another (a suite containing a test, both
+    // carrying the identical range text) would otherwise report it twice.
+    graph.range_diagnostics.sort_by(|a, b| {
+        (&a.path, a.line, &a.symbol, &a.range_text).cmp(&(
+            &b.path,
+            b.line,
+            &b.symbol,
+            &b.range_text,
+        ))
+    });
+    graph.range_diagnostics.dedup_by(|a, b| {
+        a.path == b.path && a.line == b.line && a.range_text == b.range_text
+    });
 
     // Computed last and additively: `find_mentions` reads the graph this
     // function already built (which symbols claimed which ids) to decide what
@@ -1382,15 +1425,28 @@ pub(crate) fn mask_source_string_contents(span: &str, language: SourceLanguage) 
 /// Returns every match, including duplicates: deduplication is a *binding*
 /// decision (FR-051-AC-6, canonical wins over legacy) and belongs to the caller
 /// that binds.
+///
+/// A range — two id-shaped tokens joined by a bare `..`, same-prefix,
+/// differing-prefix, or short-suffix (CR-187, FR-050-AC-50, FR-051-AC-28) —
+/// binds no id, in either grammar: it is filtered out of the returned id list
+/// and reported instead in the second return value, once per occurrence.
 fn verifies_form_ids(
     symbol: &Symbol,
     source: &str,
     model: &TraceabilityModel,
-) -> Vec<(String, String, TraceProvenance)> {
+) -> (Vec<(String, String, TraceProvenance)>, Vec<RangeInTraceTag>) {
     let span = symbol.attached_source(source);
     let mut out = Vec::new();
+    let mut ranges = Vec::new();
 
     // ── Canonical markers ──
+    //
+    // A marker's argument list already yields a range as ONE literal token —
+    // `marker_ids` has no comma to split it on, quoted or not — so the range
+    // is simply the whole id-shaped token failing the id shape and matching
+    // the range shape instead. Filtered here rather than spliced out of the
+    // raw argument text, which would leave behind an empty quoted pair
+    // (`""`) that a naive comma-split misreads as a literal empty id.
     for marker in &model.trace_tags.markers {
         if marker.language != symbol.language {
             continue;
@@ -1401,6 +1457,19 @@ fn verifies_form_ids(
         for caps in re.captures_iter(&span) {
             let Some(args) = caps.get(1) else { continue };
             for trace_id in marker_ids(args.as_str()) {
+                if range_pattern().is_match(&trace_id) {
+                    let line = symbol.leading_line
+                        + span[..caps.get(0).map_or(0, |m| m.start())]
+                            .matches('\n')
+                            .count();
+                    ranges.push(RangeInTraceTag {
+                        path: symbol.path.clone(),
+                        symbol: symbol.qualified_name.clone(),
+                        line,
+                        range_text: trace_id,
+                    });
+                    continue;
+                }
                 out.push((trace_id, marker.name.clone(), TraceProvenance::Canonical));
             }
         }
@@ -1421,12 +1490,67 @@ fn verifies_form_ids(
             continue;
         };
         for caps in re.captures_iter(&legacy_span) {
-            for trace_id in legacy_ids(&caps, legacy.id_format.as_deref()) {
+            let mut ids = legacy_ids(&caps, legacy.id_format.as_deref());
+            // A legacy form's own id-shaped capture group cannot itself
+            // contain `..` (the id pattern stops at the first character it
+            // does not recognise), so a legacy range's right endpoint sits
+            // OUTSIDE the match entirely — unlike a marker's, whose quoted or
+            // comma-delimited argument carries the whole literal string. Read
+            // as a continuation immediately after the match instead: an
+            // `id_format`-less form whose captured last id is immediately
+            // followed by `..` and another id-or-number token is a range, and
+            // its captured left endpoint binds nothing either (CR-187).
+            if legacy.id_format.is_none() {
+                if let Some(whole) = caps.get(0) {
+                    let after = &legacy_span[whole.end()..];
+                    if let Some(continuation) = range_continuation_pattern().captures(after) {
+                        if let Some(left) = ids.pop() {
+                            let right = continuation.get(1).map_or("", |m| m.as_str());
+                            let line = symbol.leading_line
+                                + legacy_span[..whole.start()].matches('\n').count();
+                            ranges.push(RangeInTraceTag {
+                                path: symbol.path.clone(),
+                                symbol: symbol.qualified_name.clone(),
+                                line,
+                                range_text: format!("{left}..{right}"),
+                            });
+                        }
+                    }
+                }
+            }
+            for trace_id in ids {
                 out.push((trace_id, legacy.name.clone(), TraceProvenance::Legacy));
             }
         }
     }
-    out
+    (out, ranges)
+}
+
+/// Whole-token range pattern (CR-187, FR-050-AC-50, FR-051-AC-28): two
+/// id-shaped tokens joined by a bare `..`, or an id-shaped token followed by
+/// `..` and a bare short-suffix number. Anchored, because it tests a single
+/// token a grammar has already isolated — a marker's own id, or a legacy
+/// form's captured id — never a raw span.
+fn range_pattern() -> &'static Regex {
+    static R: OnceLock<Regex> = OnceLock::new();
+    R.get_or_init(|| {
+        Regex::new(
+            r"(?i)^\s*[A-Z]{2,4}-[0-9]+(?:-[A-Z]+-[0-9]+)?\s*\.\.\s*([A-Z]{2,4}-[0-9]+(?:-[A-Z]+-[0-9]+)?|[0-9]+)\s*$",
+        )
+        .expect("range pattern compiles")
+    })
+}
+
+/// A range's right-hand continuation, anchored to start immediately (only
+/// inline whitespace tolerated, never a newline) after a legacy form's own
+/// match — since that match's id-shaped capture group cannot itself contain
+/// the `..` and second token (see [`verifies_form_ids`]'s own docs).
+fn range_continuation_pattern() -> &'static Regex {
+    static R: OnceLock<Regex> = OnceLock::new();
+    R.get_or_init(|| {
+        Regex::new(r"(?i)^[ \t]*\.\.[ \t]*([A-Z]{2,4}-[0-9]+(?:-[A-Z]+-[0-9]+)?|[0-9]+)")
+            .expect("range continuation pattern compiles")
+    })
 }
 
 fn bind_symbol(symbol: &Symbol, source: &str, model: &TraceabilityModel, graph: &mut SymbolGraph) {
@@ -1435,7 +1559,9 @@ fn bind_symbol(symbol: &Symbol, source: &str, model: &TraceabilityModel, graph: 
     // (canonical markers first, then legacy forms). The id is bound once no
     // matter how many forms attached it (FR-051-AC-6).
     let mut attachments: BTreeMap<String, Vec<VerifiesRelation>> = BTreeMap::new();
-    for (trace_id, form, provenance) in verifies_form_ids(symbol, source, model) {
+    let (forms, ranges) = verifies_form_ids(symbol, source, model);
+    graph.range_diagnostics.extend(ranges);
+    for (trace_id, form, provenance) in forms {
         attachments
             .entry(trace_id.clone())
             .or_default()
@@ -1447,6 +1573,9 @@ fn bind_symbol(symbol: &Symbol, source: &str, model: &TraceabilityModel, graph: 
                 provenance,
                 form,
                 line: symbol.line,
+                column: symbol.column,
+                kind: symbol.kind.as_str().to_string(),
+                ignored: symbol.ignored,
             });
     }
 

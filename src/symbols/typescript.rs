@@ -199,9 +199,11 @@ pub(crate) fn parse(path: &str, source: &str) -> Result<Vec<RawSymbol>, String> 
         qualified_name: module.clone(),
         kind: SymbolKind::Container,
         line: 1,
+        column: 1,
         leading_line: 1,
         end_line: line_count,
         container: None,
+        ignored: false,
     }];
 
     let mut scopes: Vec<Scope> = Vec::new();
@@ -244,7 +246,11 @@ fn scope_container(scopes: &[Scope], module: &str) -> Option<String> {
 
 /// The callees this adapter recognises as opening a **test** registration.
 /// Its title is the test symbol's qualified name (FR-051).
-const TEST_NAMES: &[&str] = &["test", "it"];
+///
+/// `xtest`/`xit` widen the admitted base-name set (CR-187, FR-051-AC-3):
+/// no new registration shape, they mint exactly as `test`/`it` do, except
+/// with `ignored: true` from the moment they exist (FR-051-AC-27).
+const TEST_NAMES: &[&str] = &["test", "it", "xtest", "xit"];
 
 /// The callees this adapter recognises as opening a **suite** registration
 /// — a container, not evidence (CR-119). `context` is deliberately absent;
@@ -252,7 +258,11 @@ const TEST_NAMES: &[&str] = &["test", "it"];
 /// zero `context(`/`suite(` registrations and zero `context.` false
 /// positives would have been admitted or excluded differently across the
 /// measured corpus, so nothing here is lost by leaving it out.
-const SUITE_NAMES: &[&str] = &["describe", "suite"];
+///
+/// `xdescribe` widens the admitted base-name set (CR-187, FR-051-AC-21): a
+/// suite exactly as `describe`/`suite` are, minted with `ignored: true`,
+/// inherited by every member the tree still parents to it.
+const SUITE_NAMES: &[&str] = &["describe", "suite", "xdescribe"];
 
 /// Walk `node`'s named children, minting a [`RawSymbol`] for each
 /// declaration or registration and recursing to find every nested one.
@@ -275,6 +285,7 @@ fn walk(node: Node, source: &str, module: &str, scopes: &mut Vec<Scope>, out: &m
                         qualified.clone(),
                         SymbolKind::Container,
                         container,
+                        false,
                     ));
                     scopes.push(Scope {
                         name: qualified,
@@ -301,6 +312,7 @@ fn walk(node: Node, source: &str, module: &str, scopes: &mut Vec<Scope>, out: &m
                         qualified,
                         SymbolKind::Function,
                         container,
+                        false,
                     ));
                 }
                 // A function never becomes a container for its own body
@@ -314,7 +326,13 @@ fn walk(node: Node, source: &str, module: &str, scopes: &mut Vec<Scope>, out: &m
                     if name != "constructor" {
                         let qualified = qualify(scopes, &name);
                         let container = scope_container(scopes, module);
-                        out.push(symbol_at(child, qualified, SymbolKind::Function, container));
+                        out.push(symbol_at(
+                            child,
+                            qualified,
+                            SymbolKind::Function,
+                            container,
+                            false,
+                        ));
                     }
                 }
                 walk(child, source, module, scopes, out);
@@ -327,6 +345,7 @@ fn walk(node: Node, source: &str, module: &str, scopes: &mut Vec<Scope>, out: &m
                 Some(Registration {
                     title,
                     kind: RegistrationKind::Test,
+                    ignored,
                 }) => {
                     let container = scope_container(scopes, module);
                     out.push(symbol_at(
@@ -334,12 +353,14 @@ fn walk(node: Node, source: &str, module: &str, scopes: &mut Vec<Scope>, out: &m
                         title,
                         SymbolKind::TestFunction,
                         container,
+                        ignored,
                     ));
                     walk(child, source, module, scopes, out);
                 }
                 Some(Registration {
                     title,
                     kind: RegistrationKind::Suite,
+                    ignored,
                 }) => {
                     let container = scope_container(scopes, module);
                     out.push(symbol_at(
@@ -347,6 +368,7 @@ fn walk(node: Node, source: &str, module: &str, scopes: &mut Vec<Scope>, out: &m
                         title.clone(),
                         SymbolKind::Container,
                         container,
+                        ignored,
                     ));
                     scopes.push(Scope {
                         name: title,
@@ -412,6 +434,7 @@ fn mint_arrow_const_declarators(
             qualified,
             SymbolKind::Function,
             container,
+            false,
         ));
     }
 }
@@ -475,14 +498,17 @@ fn symbol_at(
     qualified_name: String,
     kind: SymbolKind,
     container: Option<String>,
+    ignored: bool,
 ) -> RawSymbol {
     RawSymbol {
         qualified_name,
         kind,
         line: anchor.start_position().row + 1,
+        column: anchor.start_position().column + 1,
         leading_line: leading_span(anchor, is_annotation_node),
         end_line: anchor.end_position().row + 1,
         container,
+        ignored,
     }
 }
 
@@ -522,6 +548,11 @@ fn is_annotation_node(node: Node) -> bool {
 struct Registration {
     title: String,
     kind: RegistrationKind,
+    /// Whether this registration is ignored (CR-187, FR-051-AC-27): its base
+    /// name is `xtest`/`xit`/`xdescribe`, or its chain carries a `.skip`
+    /// modifier anywhere (`it.skip(...)`, `describe.skip(...)`). `.skipIf`,
+    /// `.todo` and `.fixme` are controls and do not set this.
+    ignored: bool,
 }
 
 enum RegistrationKind {
@@ -546,6 +577,14 @@ fn registration(call: Node, source: &str) -> Option<Registration> {
     }
     let names_a_suite =
         is_suite_name || chain.iter().any(|seg| SUITE_NAMES.contains(&seg.as_str()));
+    // CR-187, FR-051-AC-27: `xtest`/`xit`/`xdescribe` mint ignored from the
+    // moment they exist, whatever else the chain carries; a `.skip` modifier
+    // anywhere in the chain does the same for `test`/`it`/`describe`/`suite`.
+    // `.skipIf(cond)`, `.todo` and `.fixme` are controls and must not match:
+    // `chain` holds each modifier's own bare segment name, so only an exact
+    // `skip` segment counts, never a `skip`-prefixed one.
+    let ignored = matches!(base.as_str(), "xtest" | "xit" | "xdescribe")
+        || chain.iter().any(|seg| seg == "skip");
 
     let arguments = call.child_by_field_name("arguments")?;
     let mut cursor = arguments.walk();
@@ -576,11 +615,13 @@ fn registration(call: Node, source: &str) -> Option<Registration> {
         Some(Registration {
             title,
             kind: RegistrationKind::Suite,
+            ignored,
         })
     } else {
         Some(Registration {
             title,
             kind: RegistrationKind::Test,
+            ignored,
         })
     }
 }
@@ -1641,5 +1682,52 @@ mod tests {
             symbols.iter().all(|s| s.qualified_name != "Foo"),
             "an interface declaration itself must not mint a symbol: {symbols:?}"
         );
+    }
+
+    /// TC-1940 (FR-051-AC-3, AC-18, AC-21, AC-27): `.skip`, `xit`/`xtest`,
+    /// `xdescribe` mint with `ignored: true`; a suite's ignored state is
+    /// inherited by its members; `.skipIf`/`.todo`/`.fixme` are controls.
+    #[trace("TC-1940", "FR-051-AC-3", "FR-051-AC-18", "FR-051-AC-21", "FR-051-AC-27")]
+    #[test]
+    fn tc1940_skip_forms_and_x_prefixed_names_mint_ignored() {
+        let source = concat!(
+            "it.skip('t', () => {});\n",
+            "describe.skip('s', () => {\n",
+            "  it('u', () => {});\n",
+            "});\n",
+            "xit('t2', () => {});\n",
+            "xtest('t3', () => {});\n",
+            "xdescribe('s2', () => {\n",
+            "  it('v', () => {});\n",
+            "});\n",
+            "xit.each([1, 2])('t4 %s', () => {});\n",
+            "it.skipIf(true)('v2', () => {});\n",
+            "it.todo('w', () => {});\n",
+            "test.fixme('x', () => {});\n",
+        );
+        let extraction = super::super::extract_file(
+            "t.test.ts",
+            crate::traceability::SourceLanguage::Typescript,
+            source,
+        );
+        let ignored = |name: &str| {
+            extraction
+                .symbols
+                .iter()
+                .find(|s| s.qualified_name == name)
+                .unwrap_or_else(|| panic!("no symbol {name}"))
+                .ignored
+        };
+        assert!(ignored("t"), "it.skip mints ignored");
+        assert!(ignored("s"), "describe.skip mints ignored");
+        assert!(ignored("u"), "inherited from the ignored suite");
+        assert!(ignored("t2"), "xit mints ignored unconditionally");
+        assert!(ignored("t3"), "xtest mints ignored unconditionally");
+        assert!(ignored("s2"), "xdescribe mints ignored unconditionally");
+        assert!(ignored("v"), "inherited from the ignored xdescribe suite");
+        assert!(ignored("t4 %s"), "a curried xit.each still mints ignored");
+        assert!(!ignored("v2"), "skipIf is a control");
+        assert!(!ignored("w"), "todo is a control");
+        assert!(!ignored("x"), "fixme is a control");
     }
 }

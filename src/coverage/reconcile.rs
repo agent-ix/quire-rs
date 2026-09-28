@@ -27,6 +27,12 @@ pub(super) fn reconcile(
     registry: &Registry,
 ) -> (CoverageReport, declared_tables::MintingCensus) {
     let backed: BTreeSet<&str> = graph.backed_trace_ids();
+    // FR-053: derived here, ahead of the untracked-symbols reconciliation
+    // below, because CR-187 R2 makes an obligation's own id count as
+    // declared — a tag naming one must not land in `untracked_symbols`, and
+    // that filter needs the id set before it runs.
+    let (obligations, skipped) = crate::obligation::derive(spec, root, model);
+    let obligation_ids: BTreeSet<&str> = obligations.iter().map(|o| o.id.as_str()).collect();
     // CR-060: compiled once for the whole reconciliation — every declaration
     // is scoped by it.
     let model_exclude = declared_tables::ExcludeSet::compile_validated(&model.exclude);
@@ -263,6 +269,11 @@ pub(super) fn reconcile(
             !declared_ids.contains(&relation.trace_id)
                 && !referenced_ids.contains(&relation.trace_id)
                 && !row_ids.contains(&relation.trace_id)
+                // CR-187 R2: an obligation's own id — including one minted
+                // only as an obligation (an NFR-metric id, a combinatorial
+                // source's rendered id) — counts as declared exactly like a
+                // minted trace target's id already does.
+                && !obligation_ids.contains(relation.trace_id.as_str())
         })
         .map(|relation| UntrackedSymbol {
             path: relation.path.clone(),
@@ -415,11 +426,6 @@ pub(super) fn reconcile(
         &source_target_ids,
     ));
 
-    // FR-053: derived here rather than in `compute` because obligations read
-    // the same declared tables this reconciliation already walks, and need no
-    // `Registry`.
-    let (obligations, skipped) = crate::obligation::derive(spec, root, model);
-
     // FR-053-AC-8: a row whose statement cell is empty contributes no record,
     // and the AC says it is skipped **with a diagnostic**. It was not — the
     // second half of `derive`'s return was dropped here, so the only surface
@@ -437,6 +443,24 @@ pub(super) fn reconcile(
         path: Some(row.document.clone()),
         line: None,
         value: None,
+        guidance: None,
+    }));
+
+    // CR-187, FR-050-AC-50: a range written inside any source trace tag —
+    // marker or legacy alike — binds no id and is reported once per
+    // occurrence, advisory (FR-057 `warning`), naming the file, the line, the
+    // qualified symbol and the literal range text.
+    diagnostics.extend(graph.range_diagnostics.iter().map(|range| CoverageDiagnostic {
+        declaration: range.symbol.clone(),
+        reason: "range-in-trace-tag".to_string(),
+        message: format!(
+            "`{}` in {}:{} names a range, which binds no id — including its own \
+             endpoints; write one trace tag naming each id explicitly",
+            range.range_text, range.path, range.line
+        ),
+        path: Some(range.path.clone()),
+        line: Some(range.line),
+        value: Some(range.range_text.clone()),
         guidance: None,
     }));
 
@@ -473,6 +497,10 @@ pub(super) fn reconcile(
         })
         .collect();
 
+    // CR-187: the computed coverage_matrix, built from the obligation
+    // population alone (FR-050-AC-47..49) — never the trace-target set.
+    let matrix = coverage_matrix(&obligations, graph, model);
+
     let report = CoverageReport {
         unbacked_rows,
         status_lies,
@@ -495,6 +523,7 @@ pub(super) fn reconcile(
             .map(|reason| (*reason).to_string())
             .collect(),
         obligations,
+        coverage_matrix: matrix,
         // FR-062. Carried through to the JSON so a consumer can scope work by
         // requirement; deliberately NOT folded into `totals`, `backed` or
         // `untracked_symbols` — scope is not evidence.
@@ -527,4 +556,110 @@ pub(super) fn reconcile(
         totals,
     };
     (report, minting_census)
+}
+
+/// Build `coverage_matrix` (CR-187, FR-050-AC-47..49): the derived obligation
+/// population, grouped by its own `document` field, each criterion carrying
+/// its binding test symbols and a computed static status.
+///
+/// Population is the obligation set alone — never a minted trace target by
+/// itself (FR-050-AC-47): `test-case`, `suite` and `inspection` targets never
+/// become a criterion, only a module's declared `obligations:` sources decide
+/// what counts.
+fn coverage_matrix(
+    obligations: &[crate::obligation::Obligation],
+    graph: &SymbolGraph,
+    model: &TraceabilityModel,
+) -> Vec<super::CoverageMatrixRequirement> {
+    use super::{
+        CoverageMatrixBinder, CoverageMatrixCriterion, CoverageMatrixRequirement,
+        CoverageMatrixStatus,
+    };
+
+    // Binders per obligation id, deduped by (path, line, column) — the
+    // binding symbol's own declaration site, never its qualified name alone:
+    // FR-051-AC-21 makes a TypeScript registration's qualified name ignorant
+    // of its enclosing suite, so two identically-titled `it(...)` calls in
+    // different `describe` blocks are two distinct sites that must not
+    // collapse into one binder.
+    let mut binders_by_id: BTreeMap<&str, BTreeMap<(&str, usize, usize), CoverageMatrixBinder>> =
+        BTreeMap::new();
+    for relation in &graph.verifies {
+        binders_by_id
+            .entry(relation.trace_id.as_str())
+            .or_default()
+            .entry((relation.path.as_str(), relation.line, relation.column))
+            .or_insert_with(|| CoverageMatrixBinder {
+                path: relation.path.clone(),
+                line: relation.line,
+                column: relation.column,
+                qualified_name: relation.symbol.clone(),
+                kind: relation.kind.clone(),
+                ignored: relation.ignored,
+            });
+    }
+
+    // Grouped by document while preserving `obligations`' own order: that
+    // order is already (declaration order, document path, row ordinal), so
+    // extending each document's group in encounter order is exactly
+    // "restricted to that document, in declaration order" (FR-050-AC-48). The
+    // final `BTreeMap` sorts the groups themselves by `document`, without
+    // disturbing the order criteria were pushed within each one.
+    let mut by_document: BTreeMap<&str, Vec<CoverageMatrixCriterion>> = BTreeMap::new();
+    for obligation in obligations {
+        let mut binders: Vec<CoverageMatrixBinder> = binders_by_id
+            .get(obligation.id.as_str())
+            .map(|m| m.values().cloned().collect())
+            .unwrap_or_default();
+        binders.sort_by(|a, b| {
+            (&a.path, a.line, a.column, &a.qualified_name, &a.kind).cmp(&(
+                &b.path,
+                b.line,
+                b.column,
+                &b.qualified_name,
+                &b.kind,
+            ))
+        });
+
+        // FR-050-AC-49: the method exemption wins over every other case,
+        // regardless of binder count.
+        let status = if obligation
+            .method
+            .as_deref()
+            .is_some_and(|m| model.vocabularies.mints_no_symbol(m))
+        {
+            CoverageMatrixStatus::MethodWithoutSymbol
+        } else if binders.is_empty() {
+            CoverageMatrixStatus::Untagged
+        } else if binders.iter().all(|b| b.ignored) {
+            CoverageMatrixStatus::TaggedByIgnoredTest
+        } else {
+            CoverageMatrixStatus::Tagged
+        };
+
+        let criterion = CoverageMatrixCriterion {
+            id: obligation.id.clone(),
+            statement: obligation.statement.clone(),
+            method: obligation.method.clone(),
+            binders,
+            status,
+        };
+        by_document
+            .entry(obligation.document.as_str())
+            .or_default()
+            .push(criterion);
+    }
+
+    // FR-050-AC-48: requirements ordered by `document` — the same path every
+    // other list on this report already sorts by. The `BTreeMap` sorts the
+    // groups themselves; each group's own `Vec` keeps the push order above,
+    // which is `obligations`' own (declaration order, row ordinal) restricted
+    // to that document.
+    by_document
+        .into_iter()
+        .map(|(document, criteria)| CoverageMatrixRequirement {
+            document: document.to_string(),
+            criteria,
+        })
+        .collect()
 }

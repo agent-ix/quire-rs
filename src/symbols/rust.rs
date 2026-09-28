@@ -352,9 +352,11 @@ fn container_symbol(node: Node, qualified_name: String, container: Option<String
         qualified_name,
         kind: SymbolKind::Container,
         line: node.start_position().row + 1,
+        column: node.start_position().column + 1,
         leading_line: leading_span(node, is_annotation_node),
         end_line: node.end_position().row + 1,
         container,
+        ignored: false,
     }
 }
 
@@ -366,20 +368,30 @@ fn container_symbol(node: Node, qualified_name: String, container: Option<String
 fn function_symbol(node: Node, source: &str, container: Option<String>) -> Option<RawSymbol> {
     let name = field_text(node, "name", source)?;
     let qualified_name = qualify(&container, &name);
-    let kind = if has_attribute(node, source, "test") {
+    let is_test = has_attribute(node, source, "test");
+    let kind = if is_test {
         SymbolKind::TestFunction
     } else if has_attribute(node, source, "bench") {
         SymbolKind::Benchmark
     } else {
         SymbolKind::Function
     };
+    // `#[ignore]`, with or without a reason string, before or after
+    // `#[test]` — `has_attribute` already walks every sibling in the leading
+    // annotation run, not only the one immediately above the declaration
+    // (CR-187, FR-051-AC-27). `#[cfg_attr(..., ignore)]`'s outer path is
+    // `cfg_attr`, not `ignore`, so the conditional form is excluded for free:
+    // this reads only the attribute's own top-level path, never its args.
+    let ignored = is_test && has_attribute(node, source, "ignore");
     Some(RawSymbol {
         qualified_name,
         kind,
         line: node.start_position().row + 1,
+        column: node.start_position().column + 1,
         leading_line: leading_span(node, is_annotation_node),
         end_line: node.end_position().row + 1,
         container,
+        ignored,
     })
 }
 
@@ -628,9 +640,11 @@ fn scan_token_tree_for_fns(
                         SymbolKind::Function
                     },
                     line: child.start_position().row + 1,
+                    column: child.start_position().column + 1,
                     leading_line,
                     end_line: body.end_position().row + 1,
                     container: container.clone(),
+                    ignored: false,
                 });
                 // The identical PLAT-845 fix as the plain-AST `walk`: this
                 // matched `fn` is a container for its own body too, so a
@@ -765,8 +779,10 @@ fn fuzz_target(root: Node, source: &str) -> Option<RawSymbol> {
         qualified_name: "fuzz_target".to_string(),
         kind: SymbolKind::FuzzTarget,
         line: invocation.start_position().row + 1,
+        column: invocation.start_position().column + 1,
         leading_line: 1,
         end_line: span_node.end_position().row + 1,
+        ignored: false,
         container: None,
     })
 }

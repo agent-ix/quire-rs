@@ -132,6 +132,10 @@ pub struct Symbol {
     pub kind: SymbolKind,
     /// 1-based declaration line — a **non-identity** attribute.
     pub line: usize,
+    /// 1-based UTF-8 byte column of the declaration's own start, as
+    /// tree-sitter itself reports it (CR-187, FR-051-AC-23) — a
+    /// **non-identity** attribute, like [`Self::line`].
+    pub column: usize,
     /// 1-based first line of the attached annotation block (attributes,
     /// decorators, or leading comments). Equals `line` when nothing precedes.
     pub leading_line: usize,
@@ -141,6 +145,11 @@ pub struct Symbol {
     pub container: Option<String>,
     /// Stable SHA-256 digest of the identity (FR-045 record-id convention).
     pub id: String,
+    /// Whether a statically decidable language form marks this test-kind or
+    /// suite-kind symbol ignored (CR-187, FR-051-AC-27) — inherited by every
+    /// member a suite or class contains, transitively. `false` for a kind the
+    /// forms never mark (`Function`, `Benchmark`, `FuzzTarget`).
+    pub ignored: bool,
 }
 
 impl Symbol {
@@ -245,9 +254,11 @@ pub(crate) struct RawSymbol {
     pub qualified_name: String,
     pub kind: SymbolKind,
     pub line: usize,
+    pub column: usize,
     pub leading_line: usize,
     pub end_line: usize,
     pub container: Option<String>,
+    pub ignored: bool,
 }
 
 /// The language an extension binds to, or `None` for a file the extractor
@@ -460,6 +471,8 @@ impl SymbolExtraction {
                 return;
             }
         };
+        let mut raw = raw;
+        propagate_ignored(&mut raw);
         for r in raw {
             self.symbols.push(Symbol {
                 language,
@@ -468,9 +481,11 @@ impl SymbolExtraction {
                 qualified_name: r.qualified_name,
                 kind: r.kind,
                 line: r.line,
+                column: r.column,
                 leading_line: r.leading_line,
                 end_line: r.end_line,
                 container: r.container,
+                ignored: r.ignored,
             });
         }
         self.symbols.sort_by(|a, b| {
@@ -491,6 +506,56 @@ fn normalize_path(path: &Path) -> String {
         .map(|c| c.as_os_str().to_string_lossy().to_string())
         .collect::<Vec<_>>()
         .join("/")
+}
+
+/// A suite's or class's `ignored` is inherited by every member nested in it,
+/// transitively, via the same `contains` edges the adapter's own `container`
+/// field already carries (CR-187, FR-051-AC-27, R3) — a test's own marking is
+/// not required when its container is ignored.
+///
+/// Resolved per file, by qualified name: a symbol whose `container` chain
+/// reaches an already-ignored symbol (however many levels up) becomes
+/// ignored too. Bounded by the file's own nesting depth, so the walk always
+/// terminates.
+fn propagate_ignored(raw: &mut [RawSymbol]) {
+    use std::collections::BTreeMap;
+
+    let own_ignored: BTreeMap<String, bool> = raw
+        .iter()
+        .map(|r| (r.qualified_name.clone(), r.ignored))
+        .collect();
+    let container_of: BTreeMap<String, Option<String>> = raw
+        .iter()
+        .map(|r| (r.qualified_name.clone(), r.container.clone()))
+        .collect();
+
+    let resolves_ignored = |name: &str| -> bool {
+        let mut current = Some(name.to_string());
+        let mut seen = std::collections::BTreeSet::new();
+        while let Some(candidate) = current {
+            // A cycle cannot occur in real syntax, but a defensive guard
+            // costs nothing and keeps this loop provably terminating.
+            if !seen.insert(candidate.clone()) {
+                return false;
+            }
+            if own_ignored.get(&candidate).copied().unwrap_or(false) {
+                return true;
+            }
+            current = container_of.get(&candidate).cloned().flatten();
+        }
+        false
+    };
+
+    for r in raw.iter_mut() {
+        if r.ignored {
+            continue;
+        }
+        if let Some(container) = &r.container {
+            if resolves_ignored(container) {
+                r.ignored = true;
+            }
+        }
+    }
 }
 
 /// NUL-separated SHA-256 over the identity parts — the FR-045 record-id
