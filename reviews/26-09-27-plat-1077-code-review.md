@@ -92,3 +92,42 @@ and one `medium` test-oracle gap (FND-007). Gates are green.
 | FND-011 | low | `coverage-v1.schema.json` was re-serialized wholesale: every inline array or object was expanded, about 200 lines of whitespace-only churn in a published contract file. It is mixed into the feature diff, which hides the real schema delta (three `$defs` and one property). Not produced by a generator. | schemas/output/coverage-v1.schema.json:164 |
 | FND-012 | low | `VerifiesRelation.kind: String` copies a `SymbolKind` label where the enum is available. The wire label belongs at serialization only (Rust idiom: typed domain values internally). `is_false` is also duplicated in `coverage.rs` and `symbol_table.rs`. | src/symbols/trace.rs:64, src/symbol_table.rs:101 |
 | FND-013 | low | Two-writer spec seam: FR-051-AC-28 calls the finding "`TraceDiagnostic`-shaped", while FR-050-AC-50 routes it to `CoverageReport.diagnostics`. The code adds a third shape (`SymbolGraph.range_diagnostics: Vec<RangeInTraceTag>`), not `graph.diagnostics`. Align the FR-051 wording via CR. | spec/functional/FR-051-source-symbol-extraction.md:172, src/symbols/trace.rs:322 |
+
+## New findings (disposition pass 1)
+
+Reviewed at `agent-ix/quire-rs@12490853bcae9bdaef017eb4e4f6f6b80c3086ba`, rebased onto main `ff901d2`. The fix commits are `2414ebb`, `ad239e8`, `1673a5d`, `b69a5c9`, `383f255` and `d7c8f95` (CR-189). All 13 original probes now behave correctly, and 23 of 24 round-1 mutants are killed. The four findings below are new. FND-014 is a PR-introduced regression, and FND-015 was introduced by this fix round.
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-014 | medium | A legacy range on a production symbol (a #312 misplaced tag) is now recorded only as generic `mentions`. The production path still discards the ranges (`let (production_forms, _ranges) = verifies_form_ids(...)`), so no `range-in-trace-tag` finding is raised. The endpoints no longer reach `non_binding_tags` and so land in `mentions` as plain `Mention`s. Probed: `// Trace: FR-001-AC-1..FR-001-AC-3` above `pub fn prod()` gives no range, no non-binding tag, and mentions FR-001-AC-1 and FR-001-AC-3. This breaks FR-051-AC-28 ("whether read by a canonical marker or a legacy textual form ... the range finding is the only record"). It also regresses main, where #312 reported the misplaced tag (its left endpoint) in `non_binding_tags`. Fix: push `_ranges` into `graph.range_diagnostics` on that path. | src/symbols/trace.rs:560 |
+| FND-015 | low | Introduced by `1673a5d`. The `pytestmark` pre-pass scans raw physical lines (`lines.iter().any(\|line\| !line.starts_with([' ', '\t']) && is_pytestmark_skip_line(line))`), so a column-0 `pytestmark = pytest.mark.skip(...)` inside a module docstring or any triple-quoted string marks the whole module and every test in it ignored. Probed: that text in a module docstring gives `test_a` ignored=true. The previous AST walk read only statement start lines and did not have this bug. Scan the module's top-level `expression_statement` nodes instead. | src/symbols/python.rs:172 |
+| FND-016 | low | The legacy-list continuation after a range binds ids through a hard-coded generic grammar (`list_item_pattern`) rather than the declared form's own pattern. Probed with `iso-obligations`: `// FR-001-AC-1..FR-001-AC-3, XYZ-9` binds `XYZ-9` through `comment-id`, whose declared pattern admits only the TC, FR, NFR, StR, US and IT prefixes. Trace-tag forms are module data (TC-745), so this widens a module's grammar without the module saying so. | src/symbols/trace.rs:1635 |
+| FND-017 | low | No test covers TypeScript class-scope passthrough of ignored (`ignored: enclosing_ignored(scopes)` on a class scope). Mutating it to `false` survives. The comment claims a class inside a skipped suite passes ignored-ness to registrations nested inside it. Add a fixture or drop the claim. | src/symbols/typescript.rs:312 |
+
+## Dispositions
+
+| FND | outcome | sha/reason |
+| --- | --- | --- |
+| FND-001 | fixed 1673a5d | TS inheritance now reads `enclosing_ignored(scopes)` off the real scope stack. All three title-collision probes and a nested same-title suite probe are correct; mutant M4a is killed. |
+| FND-002 | fixed 1673a5d | `is_pytestmark_skip_line` compares the head exactly (`head == "pytest.mark.skip"`). Probe: skipif gives ignored=false. Mutant M14 is killed. |
+| FND-003 | fixed 1673a5d | `UnittestImports.skip_names` plus module-alias `.skip`. Probe: `@skip`, `@ut.skip` and `@sk` are all ignored. Mutant M15 is killed. |
+| FND-004 | fixed 1673a5d | `flat_leading_span_and_test` returns `is_ignored`, gated on `is_test`. Probe: the proptest `#[ignore]` test is ignored. Mutants M12b and M12c are killed. |
+| FND-005 | fixed b69a5c9 | `bind_implements` routes a marker range through `marker_range`. Probe: implements is empty and one range is reported. Mutant M5b is killed. |
+| FND-006 | fixed b69a5c9 | `find_mentions` skips range endpoints keyed on (path, line, id). Probe: marker-range mentions are empty. Mutant M5d is killed. The production-symbol legacy path is still open, and is raised as the new FND-014. |
+| FND-007 | fixed b69a5c9 | TC-1932 asserts `statement` and binder order. TC-1936 asserts exactly one finding, the path, line 5 and the symbol. The Rust non-test `#[ignore]` control was added in 1673a5d (M12a is killed). |
+| FND-008 | fixed b69a5c9 | `read_legacy_match` resumes the list after a range. Probe: `A..B, C` binds C only, and the rewrite suggestion names only bound ids. A plain list without a range still produces the same rewrite; `A...` prose is not a range. Mutant M5c is killed. No rewrite regression found. The grammar-widening side effect is raised as the new FND-016. |
+| FND-009 | fixed b69a5c9 | The dedup key now equals the sort key (including the symbol), and a two-form test was added. Mutant M9 is killed. |
+| FND-010 | fixed 1673a5d | Python and TS gate inheritance to test-kind and suite-kind symbols. Helper tests were added; M16 and M17 are killed. Probe: the TS class method in a skipped suite has ignored=false. |
+| FND-011 | fixed 2414ebb | The schema diff against origin/main is now 112 pure insertions, with no reformatting. |
+| FND-012 | fixed ad239e8 | `VerifiesRelation.kind: SymbolKind`. The single `is_false` is in `symbol_table`. |
+| FND-013 | fixed d7c8f95 | CR-189 rewords AC-28 to FR-050-AC-50's shape and line rule. |
+
+### Round 1 gate (own CARGO_TARGET_DIR, head 1249085)
+
+- `make fmt-check lint test`: exit 0, 50 binaries, 1156 passed, 0 failed.
+- `cargo test --test coverage_matrix --test coverage_baseline --test output_contract --test corpus_cases --test corpus_recall`: 8, 2, 11, 19 and 2 passed.
+- GitHub CI (`ci.yml`, workflow_dispatch): branch run 36442385187 and main (ff901d2) run 36442390037 fail the same two steps. `Rust Checks / Test` fails on `tests/quality_lints.rs::tc868_ears_and_ac_findings_are_unchanged`. `Static Audits / Run every static audit` fails because `check_dep_pins` hits `no matching package named libfuzzer-sys` offline. Neither is specific to this branch, so neither is a finding against this PR.
+
+### Leader's judgment request: a test nested inside an `it.skip(...)` callback
+
+This is **not a defect under AC-27 as worded (CR-189)**, so there is no finding. AC-27's inheritance clause runs from "a suite's or class's `ignored`" to its members. A test registration is neither a suite nor a class, so an `it` inside an `it.skip` callback carries only its own marking. Probe: `outer` ignored=true, `inner` ignored=false, which matches the text. Jest, Vitest and Playwright also reject nested tests at runtime ("Tests cannot be nested"), so no test that actually runs is misreported.

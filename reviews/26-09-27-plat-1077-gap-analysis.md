@@ -59,3 +59,23 @@ this lane. The `high` is in SR-120.
 - Reverse gap (code with no owning requirement): none.
 - Semantic review: skipped (reviewer lane; clause-level intent checked by hand, as above).
 - Plan completion: not assessed
+
+## New findings (disposition pass 1)
+
+Reviewed at `agent-ix/quire-rs@12490853bcae9bdaef017eb4e4f6f6b80c3086ba`.
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-006 | medium | FR-051-AC-28's "whether read by a canonical marker or a legacy textual form" clause is untested for a legacy range on a production (non-binding) symbol, and the code breaks it: no range finding is raised and the endpoints land in `mentions` (SR-120 FND-014). TC-1936 and TC-1937 cover only evidence symbols. | spec/tests.md:891, src/symbols/trace.rs:560 |
+
+## Dispositions
+
+| FND | outcome | sha/reason |
+| --- | --- | --- |
+| FND-001 | fixed b69a5c9 | `tc1936_a_range_in_an_implements_marker_binds_nothing` pins AC-28's implements clause, and the TC-1936 row was widened (d7c8f95). |
+| FND-002 | fixed b69a5c9 | `tc1936_range_endpoints_do_not_leak_into_mentions` pins the mentions clause for marker ranges. |
+| FND-003 | fixed 1673a5d | Added `tc1941_aliased_unittest_skip_forms_are_ignored`, `tc1941_module_level_skipif_is_a_control` and `tc1939_ignore_on_a_proptest_declared_test_marks_it_ignored`. |
+| FND-004 | fixed 1673a5d | `tc1940_inherited_ignored_follows_the_declaration_site_not_the_title` covers duplicate titles in both orders. |
+| FND-005 | fixed b69a5c9 | TC-1932 asserts `statement` and ordering. TC-1936 asserts once-per-occurrence, line and symbol. |
+
+Matrix check at 1249085: `quire coverage` (the engine under test) still backs TC-1930..TC-1944. The gate runs green. Plan completion: not assessed.
