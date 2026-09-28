@@ -7,6 +7,21 @@ description: "Chronological log of structural changes to this bundle."
 
 ## History
 
+* **2026-09-27** — **CR-187** (`PLAT-1077`): FR-050 gains an in-memory
+  `coverage_matrix` (AC-47..51) — the FR/NFR-facing requirement → criteria →
+  binding-test-symbol view the epic (PLAT-1076) replaces the hand-written
+  Test Matrix's Status column with, computed from the existing minted-target
+  and obligation populations rather than any document scan. Status is one of
+  `tagged` / `untagged` / `tagged-by-ignored-test` / `method-without-symbol`,
+  never an authored column. A same-prefix range inside a source `verifies`
+  tag is reported as a finding (`range-in-trace-tag`) and never expanded —
+  distinct from the existing document-reference `expand_ranges` declaration
+  (FR-050-AC-12). FR-051 gains AC-27: a test-kind symbol now carries whether
+  its own language marks it not to run (Rust `#[ignore]`, TypeScript
+  `.skip`/`xit`/`xdescribe`, Python `@pytest.mark.skip`/`@unittest.skip`),
+  which the new status depends on. Spec-only; implementation is tracked
+  separately.
+
 * **2026-09-22** — **CR-186** (`PLAT-948`): the embedded semantic-core and
   module-manifest schema bundles move from a `build.rs` `npm pack` fetch to a
   plain Cargo `git` dependency, `agent-ix-semantic-schema` (tag
