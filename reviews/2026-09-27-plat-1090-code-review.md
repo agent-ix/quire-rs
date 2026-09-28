@@ -53,3 +53,15 @@ behavior.
 **PASS**: no high or medium findings. The removal is correct, the retained
 toolchain, MSRV and clippy-MSRV checks and their tests are intact, and all
 gates pass. FND-001 is optional and non-blocking.
+
+## Dispositions
+
+Round 1, reviewed at `a524caa121f36fbcc06c9d0ed0753026f04d65fc`. The fix
+commit `a524caa` changes `scripts/tests/test_tool_drift.py` (fixture line) and
+adds this file under `reviews/`. No regressions: the drift audit exits 0,
+`pytest scripts/tests/test_tool_drift.py` gives 26 passed, and
+`make audit-static` exits 0.
+
+| FND | outcome | sha/reason |
+| --- | --- | --- |
+| FND-001 | fixed | a524caa |
