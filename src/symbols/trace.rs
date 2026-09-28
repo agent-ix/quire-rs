@@ -571,7 +571,12 @@ pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolG
                 // (FR-051-AC-28), so it is reported like any other; a LEGACY
                 // one is also the misplaced tag this detector exists for, and
                 // is reported as written.
-                for (range, form, provenance) in ranges {
+                for FormRange {
+                    range,
+                    form,
+                    provenance,
+                } in ranges
+                {
                     if provenance == TraceProvenance::Legacy {
                         graph.non_binding_tags.push(NonBindingTag {
                             path: symbol.path.clone(),
@@ -1520,10 +1525,7 @@ fn verifies_form_ids(
     symbol: &Symbol,
     source: &str,
     model: &TraceabilityModel,
-) -> (
-    Vec<(String, String, TraceProvenance)>,
-    Vec<(RangeInTraceTag, String, TraceProvenance)>,
-) {
+) -> (Vec<(String, String, TraceProvenance)>, Vec<FormRange>) {
     let span = symbol.attached_source(source);
     let mut out = Vec::new();
     let mut ranges = Vec::new();
@@ -1547,7 +1549,11 @@ fn verifies_form_ids(
             let Some(args) = caps.get(1) else { continue };
             for trace_id in marker_ids(args.as_str()) {
                 if let Some(range) = marker_range(symbol, &span, &caps, &trace_id) {
-                    ranges.push((range, marker.name.clone(), TraceProvenance::Canonical));
+                    ranges.push(FormRange {
+                        range,
+                        form: marker.name.clone(),
+                        provenance: TraceProvenance::Canonical,
+                    });
                     continue;
                 }
                 out.push((trace_id, marker.name.clone(), TraceProvenance::Canonical));
@@ -1580,7 +1586,11 @@ fn verifies_form_ids(
                     line,
                     range_text,
                 };
-                (range, legacy.name.clone(), TraceProvenance::Legacy)
+                FormRange {
+                    range,
+                    form: legacy.name.clone(),
+                    provenance: TraceProvenance::Legacy,
+                }
             }));
             for trace_id in read.ids {
                 out.push((trace_id, legacy.name.clone(), TraceProvenance::Legacy));
@@ -1629,6 +1639,13 @@ fn marker_range(
         line: symbol.leading_line + span[..start].matches('\n').count(),
         range_text: trace_id.to_string(),
     })
+}
+
+/// A range a declared verifies form read, with the form that read it.
+struct FormRange {
+    range: RangeInTraceTag,
+    form: String,
+    provenance: TraceProvenance,
 }
 
 /// What one legacy-form match binds, and the ranges it carries instead.
@@ -1715,7 +1732,7 @@ fn bind_symbol(symbol: &Symbol, source: &str, model: &TraceabilityModel, graph: 
     let (forms, ranges) = verifies_form_ids(symbol, source, model);
     graph
         .range_diagnostics
-        .extend(ranges.into_iter().map(|(range, _, _)| range));
+        .extend(ranges.into_iter().map(|found| found.range));
     for (trace_id, form, provenance) in forms {
         attachments
             .entry(trace_id.clone())
