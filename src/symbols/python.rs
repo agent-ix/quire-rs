@@ -159,27 +159,43 @@ pub(crate) fn parse(path: &str, source: &str) -> Result<Vec<RawSymbol>, String> 
         ignored: false,
     }];
 
-    let mut walker = Walk::new(&lines, source, &module);
+    // A module-level `pytestmark = pytest.mark.skip(...)` marks every test in
+    // the module ignored (CR-187, FR-051-AC-27). Resolved in a pre-pass over
+    // the physical lines, ahead of the walk: `pytestmark` is conventionally
+    // read as applying regardless of where in the module it is written, so a
+    // test minted before the assignment's own line must see it too — reading
+    // it inline as the walk reaches that line would miss exactly that case.
+    // Bounded to unindented (column-0) lines, matching this adapter's own
+    // "module-level" text-scan discipline elsewhere (`UnittestImports`):
+    // Python has no legal way for an indented assignment to set the module's
+    // own `pytestmark`.
+    let module_ignored = lines
+        .iter()
+        .any(|line| !line.starts_with([' ', '\t']) && is_pytestmark_skip_line(line));
+
+    let mut walker = Walk::new(&lines, source, &module, module_ignored);
     walker.walk(
         parsed.root_node(),
         AtModuleLevel(true),
         DirectInClassBody(false),
     );
-    // A module-level `pytestmark = pytest.mark.skip(...)` marks every test
-    // in the module ignored (CR-187, FR-051-AC-27) — the module's own
-    // synthetic symbol carries it, and `propagate_ignored` (`mod.rs`)
-    // inherits it to every member via the `contains` edges the module
-    // container already anchors.
-    out[0].ignored = walker.module_ignored;
+    // The module's own synthetic symbol carries it too, for the same reason
+    // a skipped class's own record does.
+    out[0].ignored = module_ignored;
     out.extend(walker.out);
     Ok(out)
 }
 
 /// A class currently open on the walk: its own qualified name (what a member
-/// qualifies under), and its test-class flavour.
+/// qualifies under), its test-class flavour, and whether it is ignored.
 struct ClassScope {
     qualified_name: String,
     test_class: TestClass,
+    /// Its own `@pytest.mark.skip`/`@unittest.skip` decorator, OR'd with
+    /// whatever its own enclosing scope resolved to at the moment this class
+    /// was entered (CR-187, FR-051-AC-27) — read directly off the real
+    /// class-nesting stack, never by a post-hoc name lookup.
+    ignored: bool,
 }
 
 /// A class scope's flavour, decided once when the class is entered.
@@ -231,12 +247,13 @@ struct Walk<'a> {
     unittest: UnittestImports,
     out: Vec<RawSymbol>,
     /// Whether a module-level `pytestmark = pytest.mark.skip(...)` assignment
-    /// was seen (CR-187, FR-051-AC-27).
+    /// was found, resolved once before the walk starts (CR-187, FR-051-AC-27)
+    /// — see `parse`'s own pre-pass.
     module_ignored: bool,
 }
 
 impl<'a> Walk<'a> {
-    fn new(lines: &'a [&'a str], source: &'a str, module: &'a str) -> Self {
+    fn new(lines: &'a [&'a str], source: &'a str, module: &'a str, module_ignored: bool) -> Self {
         Walk {
             lines,
             source,
@@ -244,7 +261,7 @@ impl<'a> Walk<'a> {
             class_stack: Vec::new(),
             unittest: UnittestImports::default(),
             out: Vec::new(),
-            module_ignored: false,
+            module_ignored,
         }
     }
 
@@ -255,6 +272,37 @@ impl<'a> Walk<'a> {
         if let Some(line) = self.lines.get(row) {
             self.unittest.observe_binding(line);
         }
+    }
+
+    /// Whether `node` (a `decorator`) is a statically decidable Python
+    /// ignored form (CR-187, FR-051-AC-27): `@pytest.mark.skip(...)` or
+    /// `@unittest.skip(...)`, bare or called, by their literal heads; or an
+    /// **aliased** unittest form — "the aliased-import forms AC-3's own
+    /// unittest binding already resolves" (AC-27's own words) — read from
+    /// the same [`UnittestImports`] table `is_test_case` already consults:
+    /// `import unittest as ut` then `@ut.skip(...)`, or
+    /// `from unittest import skip [as sk]` then `@skip(...)`/`@sk(...)`.
+    /// `@pytest.mark.skipif(cond)` and `@pytest.mark.xfail` share a prefix
+    /// with `skip` but are a distinct decorator name, so an exact-head
+    /// comparison (not a `starts_with`) is what tells them apart.
+    fn is_skip_decorator(&self, node: Node) -> bool {
+        let Ok(text) = node.utf8_text(self.source.as_bytes()) else {
+            return false;
+        };
+        let text = text.trim_start_matches('@').trim();
+        let head = text.split('(').next().unwrap_or(text).trim();
+        if matches!(head, "pytest.mark.skip" | "unittest.skip") {
+            return true;
+        }
+        if self.unittest.skip_names.contains(head) {
+            return true;
+        }
+        if let Some(module) = head.strip_suffix(".skip") {
+            if self.unittest.modules.contains(module) {
+                return true;
+            }
+        }
+        false
     }
 
     /// Walk `node`'s named children, minting a [`RawSymbol`] for each
@@ -296,15 +344,7 @@ impl<'a> Walk<'a> {
                 }
                 _ => {
                     if at_module_level.0 {
-                        let row = child.start_position().row;
-                        self.observe_line(row);
-                        if self
-                            .lines
-                            .get(row)
-                            .is_some_and(|line| is_pytestmark_skip_line(line))
-                        {
-                            self.module_ignored = true;
-                        }
+                        self.observe_line(child.start_position().row);
                     }
                     self.walk(child, AtModuleLevel(false), DirectInClassBody(false));
                 }
@@ -336,7 +376,15 @@ impl<'a> Walk<'a> {
             .map(decorators_of)
             .unwrap_or_default()
             .iter()
-            .any(|d| is_skip_decorator(*d, self.source));
+            .any(|d| self.is_skip_decorator(*d));
+        // Read directly off the real class-nesting stack (or the module
+        // pre-pass at the outermost level), never by a post-hoc name lookup
+        // (CR-187, FR-051-AC-27).
+        let enclosing_ignored = self
+            .class_stack
+            .last()
+            .map(|scope| scope.ignored)
+            .unwrap_or(self.module_ignored);
 
         match def_node.kind() {
             "class_definition" => {
@@ -353,6 +401,12 @@ impl<'a> Walk<'a> {
                 } else {
                     TestClass::None
                 };
+                // Every class passes an outer skip through to what it
+                // encloses, but only a test class is a suite, so only a test
+                // class's own record carries the flag (FR-051-AC-27 scopes
+                // `ignored` to test-kind and suite-kind symbols).
+                let class_ignored = own_ignored || enclosing_ignored;
+                let is_suite = !matches!(test_class, TestClass::None);
                 self.out.push(RawSymbol {
                     qualified_name: qualified_name.clone(),
                     kind: SymbolKind::Container,
@@ -361,11 +415,12 @@ impl<'a> Walk<'a> {
                     leading_line: leading_span(span_node, is_annotation_node),
                     end_line: def_node.end_position().row + 1,
                     container: Some(container),
-                    ignored: own_ignored,
+                    ignored: class_ignored && is_suite,
                 });
                 self.class_stack.push(ClassScope {
                     qualified_name,
                     test_class,
+                    ignored: class_ignored,
                 });
                 if let Some(body) = def_node.child_by_field_name("body") {
                     self.walk(body, AtModuleLevel(false), DirectInClassBody(true));
@@ -391,6 +446,13 @@ impl<'a> Walk<'a> {
                 } else {
                     SymbolKind::Function
                 };
+                // FR-051-AC-27 scopes `ignored` to test-kind and suite-kind
+                // symbols: a plain `Function` never inherits or carries it,
+                // even when its own enclosing class or module is skipped —
+                // a helper method inside a skipped `TestCase` is not itself
+                // evidence AC-27 marks.
+                let ignored =
+                    kind == SymbolKind::TestFunction && (own_ignored || enclosing_ignored);
                 self.out.push(RawSymbol {
                     qualified_name,
                     kind,
@@ -399,7 +461,7 @@ impl<'a> Walk<'a> {
                     leading_line: leading_span(span_node, is_annotation_node),
                     end_line: def_node.end_position().row + 1,
                     container: Some(container),
-                    ignored: own_ignored,
+                    ignored,
                 });
                 // A `def` is never a container for its own nested `def`s (see
                 // this module's own docs) — recurse with the *same* class
@@ -426,25 +488,13 @@ fn decorators_of(decorated: Node) -> Vec<Node> {
         .collect()
 }
 
-/// Whether `node` (a `decorator`) is `@pytest.mark.skip(...)` or
-/// `@unittest.skip(...)`, bare or called — the two statically decidable
-/// Python ignored forms (CR-187, FR-051-AC-27). `@pytest.mark.skipif(cond)`
-/// and `@pytest.mark.xfail` are controls and must not match: both share a
-/// prefix with `skip` but are a distinct decorator name, so an exact-head
-/// comparison (not a `starts_with`) is what tells them apart.
-fn is_skip_decorator(node: Node, source: &str) -> bool {
-    let Ok(text) = node.utf8_text(source.as_bytes()) else {
-        return false;
-    };
-    let text = text.trim_start_matches('@').trim();
-    let head = text.split('(').next().unwrap_or(text).trim();
-    matches!(head, "pytest.mark.skip" | "unittest.skip")
-}
-
 /// Whether `line` is a module-level `pytestmark = pytest.mark.skip(...)`
 /// assignment (CR-187, FR-051-AC-27) — bounded, single-line text matching,
 /// the same discipline [`UnittestImports::observe_binding`] already applies
-/// to this adapter's other module-top-level-only facts.
+/// to this adapter's other module-top-level-only facts. Compares the head
+/// exactly, not by prefix: `pytestmark = pytest.mark.skipif(...)` shares a
+/// prefix with `skip` but is a distinct, statically-decidable-only-as-a-
+/// control mark (FR-051-AC-27) and must not match.
 fn is_pytestmark_skip_line(line: &str) -> bool {
     let line = line.split('#').next().unwrap_or_default().trim();
     let Some(rest) = line.strip_prefix("pytestmark") else {
@@ -453,7 +503,9 @@ fn is_pytestmark_skip_line(line: &str) -> bool {
     let Some(rhs) = rest.trim_start().strip_prefix('=') else {
         return false;
     };
-    rhs.trim_start().starts_with("pytest.mark.skip")
+    let rhs = rhs.trim_start();
+    let head = rhs.split('(').next().unwrap_or(rhs).trim();
+    head == "pytest.mark.skip"
 }
 
 /// `(container, qualified_name)` for a declaration named `name`, given the
@@ -563,6 +615,12 @@ fn declaration(trimmed: &str) -> Option<(String, bool)> {
 struct UnittestImports {
     modules: BTreeSet<String>,
     test_cases: BTreeSet<String>,
+    /// Bound names identifying `unittest.skip` directly (CR-187,
+    /// FR-051-AC-27): `from unittest import skip [as sk]`. Tracked the same
+    /// way `test_cases` tracks `TestCase` — a bare or aliased name import
+    /// binds the function itself, so a decorator naming it needs no `.skip`
+    /// suffix to resolve.
+    skip_names: BTreeSet<String>,
 }
 
 enum ImportKind {
@@ -575,6 +633,7 @@ impl UnittestImports {
     fn forget(&mut self, name: &str) {
         self.modules.remove(name);
         self.test_cases.remove(name);
+        self.skip_names.remove(name);
     }
 
     fn observe_binding(&mut self, line: &str) {
@@ -626,6 +685,9 @@ impl UnittestImports {
             match kind {
                 ImportKind::UnittestNames if source == "TestCase" => {
                     self.test_cases.insert(binding.to_string());
+                }
+                ImportKind::UnittestNames if source == "skip" => {
+                    self.skip_names.insert(binding.to_string());
                 }
                 ImportKind::Modules if module_identity == "unittest" => {
                     self.modules.insert(binding.to_string());
@@ -1266,8 +1328,8 @@ mod tests {
 
     /// TC-1941 (FR-051-AC-27): `@pytest.mark.skip(...)`/`@unittest.skip(...)`
     /// mark a function ignored; a class-level `@unittest.skip(...)` marks
-    /// every method inside it ignored via container inheritance
-    /// (`propagate_ignored`, `mod.rs`); a module-level `pytestmark =
+    /// every test method inside it ignored, inherited through the walk's own
+    /// class stack; a module-level `pytestmark =
     /// pytest.mark.skip(...)` marks every module-level test function
     /// ignored; `@pytest.mark.skipif(cond)` and `@pytest.mark.xfail` are
     /// controls and stay `ignored: false`.
@@ -1346,5 +1408,187 @@ mod tests {
         };
         assert!(module_ignored("test_a"), "pytestmark skips every test");
         assert!(module_ignored("test_b"));
+    }
+
+    /// FR-051-AC-27: `pytestmark = pytest.mark.skipif(...)`
+    /// is a control, not a skip — `skipif` is excluded by name, the same as
+    /// its decorator-form control. A prefix match against `pytest.mark.skip`
+    /// would wrongly treat it as one.
+    #[trace("TC-1941", "FR-051-AC-27")]
+    #[test]
+    fn tc1941_module_level_skipif_is_a_control() {
+        let source = concat!(
+            "import sys\n",
+            "import pytest\n",
+            "\n",
+            "pytestmark = pytest.mark.skipif(sys.platform == \"win32\", reason=\"posix only\")\n",
+            "\n",
+            "def test_a():\n",
+            "    pass\n",
+        );
+        let extraction = super::super::extract_file(
+            "t_module_skipif.py",
+            crate::traceability::SourceLanguage::Python,
+            source,
+        );
+        let test_a = extraction
+            .symbols
+            .iter()
+            .find(|s| s.qualified_name == "test_a")
+            .expect("test_a");
+        assert!(
+            !test_a.ignored,
+            "a module-level skipif must not mark its tests ignored"
+        );
+    }
+
+    /// FR-051-AC-27: "the aliased-import forms AC-3's own
+    /// unittest binding already resolves" count identically — an aliased
+    /// module (`import unittest as ut` -> `@ut.skip(...)`) and an
+    /// aliased/bare name import (`from unittest import skip [as sk]` ->
+    /// `@skip(...)`/`@sk(...)`) all mark the decorated test ignored.
+    #[trace("TC-1941", "FR-051-AC-27")]
+    #[test]
+    fn tc1941_aliased_unittest_skip_forms_are_ignored() {
+        let aliased_module = super::super::extract_file(
+            "t_alias_module.py",
+            crate::traceability::SourceLanguage::Python,
+            concat!(
+                "import unittest as ut\n",
+                "\n",
+                "@ut.skip(\"y\")\n",
+                "def test_y():\n",
+                "    pass\n",
+            ),
+        );
+        assert!(
+            aliased_module
+                .symbols
+                .iter()
+                .find(|s| s.qualified_name == "test_y")
+                .expect("test_y")
+                .ignored,
+            "an aliased unittest module still resolves .skip"
+        );
+
+        let bare_name_import = super::super::extract_file(
+            "t_bare_name.py",
+            crate::traceability::SourceLanguage::Python,
+            concat!(
+                "from unittest import skip\n",
+                "\n",
+                "@skip(\"x\")\n",
+                "def test_x():\n",
+                "    pass\n",
+            ),
+        );
+        assert!(
+            bare_name_import
+                .symbols
+                .iter()
+                .find(|s| s.qualified_name == "test_x")
+                .expect("test_x")
+                .ignored,
+            "a bare name import of unittest.skip still resolves"
+        );
+
+        let aliased_name_import = super::super::extract_file(
+            "t_aliased_name.py",
+            crate::traceability::SourceLanguage::Python,
+            concat!(
+                "from unittest import skip as sk\n",
+                "\n",
+                "@sk(\"z\")\n",
+                "def test_z():\n",
+                "    pass\n",
+            ),
+        );
+        assert!(
+            aliased_name_import
+                .symbols
+                .iter()
+                .find(|s| s.qualified_name == "test_z")
+                .expect("test_z")
+                .ignored,
+            "an aliased name import of unittest.skip still resolves"
+        );
+    }
+
+    /// FR-051-AC-27: `ignored` is scoped to test-kind and
+    /// suite-kind symbols. A plain helper method inside a skipped class is a
+    /// `Function`, not a `TestFunction`, and must not inherit `ignored`.
+    #[trace("TC-1941", "FR-051-AC-27")]
+    #[test]
+    fn tc1941_a_helper_inside_a_skipped_class_does_not_inherit_ignored() {
+        let extraction = super::super::extract_file(
+            "t_helper.py",
+            crate::traceability::SourceLanguage::Python,
+            concat!(
+                "import unittest\n",
+                "\n",
+                "@unittest.skip(\"disabled\")\n",
+                "class DisabledCase(unittest.TestCase):\n",
+                "    def test_one(self):\n",
+                "        pass\n",
+                "\n",
+                "    def make_fixture(self):\n",
+                "        pass\n",
+            ),
+        );
+        let helper = extraction
+            .symbols
+            .iter()
+            .find(|s| s.qualified_name == "DisabledCase.make_fixture")
+            .expect("make_fixture");
+        assert_eq!(helper.kind, SymbolKind::Function);
+        assert!(
+            !helper.ignored,
+            "a plain Function must not inherit ignored from its skipped class"
+        );
+        assert!(
+            extraction
+                .symbols
+                .iter()
+                .find(|s| s.qualified_name == "DisabledCase.test_one")
+                .expect("test_one")
+                .ignored,
+            "the test method beside it inherits ignored"
+        );
+
+        // A module-level skip reaches tests at any depth, but a plain helper
+        // class and its methods are neither tests nor suites.
+        let module = super::super::extract_file(
+            "t_module_helper.py",
+            crate::traceability::SourceLanguage::Python,
+            concat!(
+                "import pytest\n",
+                "\n",
+                "pytestmark = pytest.mark.skip(reason=\"off\")\n",
+                "\n",
+                "class Builder:\n",
+                "    def build(self):\n",
+                "        pass\n",
+                "\n",
+                "def make():\n",
+                "    pass\n",
+                "\n",
+                "class TestThing:\n",
+                "    def test_it(self):\n",
+                "        pass\n",
+            ),
+        );
+        let ignored = |name: &str| {
+            module
+                .symbols
+                .iter()
+                .find(|s| s.qualified_name == name)
+                .unwrap_or_else(|| panic!("no symbol {name}"))
+                .ignored
+        };
+        for name in ["Builder", "Builder.build", "make"] {
+            assert!(!ignored(name), "{name} is not a test or suite");
+        }
+        assert!(ignored("TestThing"), "a pytest test class is a suite");
+        assert!(ignored("TestThing.test_it"));
     }
 }

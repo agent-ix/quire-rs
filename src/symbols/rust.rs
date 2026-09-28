@@ -631,7 +631,8 @@ fn scan_token_tree_for_fns(
             let body = children.get(i + 3).filter(|n| n.kind() == "token_tree");
             if let (Some(name), Some(_params), Some(body)) = (name, params, body) {
                 let qualified_name = qualify(container, name);
-                let (leading_line, is_test) = flat_leading_span_and_test(&children, i, source);
+                let (leading_line, is_test, is_ignored) =
+                    flat_leading_span_and_test(&children, i, source);
                 out.push(RawSymbol {
                     qualified_name: qualified_name.clone(),
                     kind: if is_test {
@@ -644,7 +645,11 @@ fn scan_token_tree_for_fns(
                     leading_line,
                     end_line: body.end_position().row + 1,
                     container: container.clone(),
-                    ignored: false,
+                    // FR-051-AC-27: `#[ignore]` on any
+                    // function AC-3 classifies as a test, including a
+                    // `proptest!`-declared one — gated on `is_test`, matching
+                    // the real-`function_item` path's own rule.
+                    ignored: is_test && is_ignored,
                 });
                 // The identical PLAT-845 fix as the plain-AST `walk`: this
                 // matched `fn` is a container for its own body too, so a
@@ -677,9 +682,14 @@ fn scan_token_tree_for_fns(
 /// above a `#[test] fn`, truncating `leading_line` there instead of reaching
 /// past it, the same class of defect PLAT-69/PLAT-846 fixed for a real
 /// `attribute_item`/`inner_attribute_item` node).
-fn flat_leading_span_and_test(children: &[Node], fn_idx: usize, source: &str) -> (usize, bool) {
+fn flat_leading_span_and_test(
+    children: &[Node],
+    fn_idx: usize,
+    source: &str,
+) -> (usize, bool, bool) {
     let mut boundary_row = children[fn_idx].start_position().row;
     let mut is_test = false;
+    let mut is_ignored = false;
     let mut j = fn_idx;
     loop {
         if j == 0 {
@@ -703,8 +713,11 @@ fn flat_leading_span_and_test(children: &[Node], fn_idx: usize, source: &str) ->
                 if boundary_row.saturating_sub(prev.end_position().row) > 1 {
                     break;
                 }
-                if attribute_path_is_test(prev, source) {
+                if attribute_path_is(prev, source, "test") {
                     is_test = true;
+                }
+                if attribute_path_is(prev, source, "ignore") {
+                    is_ignored = true;
                 }
                 boundary_row = children[j - 3].start_position().row;
                 j -= 3;
@@ -714,8 +727,11 @@ fn flat_leading_span_and_test(children: &[Node], fn_idx: usize, source: &str) ->
                 if boundary_row.saturating_sub(prev.end_position().row) > 1 {
                     break;
                 }
-                if attribute_path_is_test(prev, source) {
+                if attribute_path_is(prev, source, "test") {
                     is_test = true;
+                }
+                if attribute_path_is(prev, source, "ignore") {
+                    is_ignored = true;
                 }
                 boundary_row = children[j - 2].start_position().row;
                 j -= 2;
@@ -723,13 +739,17 @@ fn flat_leading_span_and_test(children: &[Node], fn_idx: usize, source: &str) ->
             _ => break,
         }
     }
-    (boundary_row + 1, is_test)
+    (boundary_row + 1, is_test, is_ignored)
 }
 
 /// Whether an attribute's `[...]` `token_tree` (either outer or inner form)
-/// names a `#[test]`-family path, read the same way for both shapes in
-/// [`flat_leading_span_and_test`].
-fn attribute_path_is_test(token_tree: Node, source: &str) -> bool {
+/// names a path whose final segment is `segment`, read the same way for both
+/// shapes in [`flat_leading_span_and_test`]. Shared by the `#[test]` and
+/// `#[ignore]` (CR-187, FR-051-AC-27) checks: a proptest-
+/// declared test is classified `TestFunction` by AC-3, and AC-27 marks
+/// `#[ignore]` ignored "on any function AC-3 already classifies as a test",
+/// with no separate attribute vocabulary for the macro-body form.
+fn attribute_path_is(token_tree: Node, source: &str, segment: &str) -> bool {
     let Ok(inner) = token_tree.utf8_text(source.as_bytes()) else {
         return false;
     };
@@ -740,7 +760,7 @@ fn attribute_path_is_test(token_tree: Node, source: &str) -> bool {
         .next()
         .unwrap_or("")
         .trim();
-    path.rsplit("::").next() == Some("test")
+    path.rsplit("::").next() == Some(segment)
 }
 
 /// One symbol for a `fuzz_target!` invocation at the top level of the file,
@@ -1707,5 +1727,72 @@ mod tests {
             !conditional[0].ignored,
             "cfg_attr's conditional form is a control: its outer path is cfg_attr, not ignore"
         );
+    }
+
+    /// FR-051-AC-27: a `proptest!`-declared test carries
+    /// `#[ignore]` the same as a real `function_item` does — AC-27 marks it
+    /// ignored "on any function AC-3 already classifies as a test", and
+    /// `proptest!`'s own flat-token scan is one such classification path.
+    #[test]
+    fn tc1939_ignore_on_a_proptest_declared_test_marks_it_ignored() {
+        let source = concat!(
+            "proptest! {\n",
+            "    #[ignore]\n",
+            "    #[test]\n",
+            "    fn never_panics(s in \".*\") {\n",
+            "        let _ = s;\n",
+            "    }\n",
+            "\n",
+            "    #[test]\n",
+            "    fn tiers_compose(s in \".*\") {\n",
+            "        let _ = s;\n",
+            "    }\n",
+            "}\n",
+        );
+        let symbols = parse(source).expect("valid");
+        let by_name = |name: &str| {
+            symbols
+                .iter()
+                .find(|s| s.qualified_name == name)
+                .unwrap_or_else(|| panic!("no symbol {name}: {symbols:?}"))
+        };
+        let never_panics = by_name("never_panics");
+        assert_eq!(never_panics.kind, SymbolKind::TestFunction);
+        assert!(
+            never_panics.ignored,
+            "an ignored proptest test stays ignored"
+        );
+        assert!(
+            !by_name("tiers_compose").ignored,
+            "a sibling proptest test without #[ignore] is a control"
+        );
+    }
+
+    /// `#[ignore]` marks only a function AC-3 classifies as a test: a plain
+    /// `fn` carrying the attribute, top-level or inside `proptest!`, is a
+    /// `Function` and stays `ignored: false`.
+    #[test]
+    fn tc1939_ignore_on_a_non_test_fn_is_a_control() {
+        let source = concat!(
+            "#[ignore]\n",
+            "fn helper() {\n",
+            "}\n",
+            "\n",
+            "proptest! {\n",
+            "    #[ignore]\n",
+            "    fn strategy_helper(s in \".*\") {\n",
+            "        let _ = s;\n",
+            "    }\n",
+            "}\n",
+        );
+        let symbols = parse(source).expect("valid");
+        for name in ["helper", "strategy_helper"] {
+            let symbol = symbols
+                .iter()
+                .find(|s| s.qualified_name == name)
+                .unwrap_or_else(|| panic!("no symbol {name}: {symbols:?}"));
+            assert_eq!(symbol.kind, SymbolKind::Function, "{name}");
+            assert!(!symbol.ignored, "{name} is not a test, so not ignored");
+        }
     }
 }
