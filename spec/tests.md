@@ -892,7 +892,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-1937 | A legacy `// Trace: FR-034-AC-1..FR-034-AC-5` line, a differing-prefix marker range (`FR-034-AC-1..FR-035-AC-2`), and a short-suffix range (`FR-034-AC-1..5`) each bind no id — the legacy form no longer binds its left endpoint `FR-034-AC-1` alone, which changes `totals`/`unbacked_rows` for a corpus carrying that shape; with no other binder, FR-034-AC-1 through FR-034-AC-5 each compute `status: untagged` after the range is reported | Integration | P0 | FR-050-AC-50, FR-051-AC-28 | 🚧 |
 | TC-1938 | Two runs of `coverage_matrix` over an identical corpus, model and source tree serialize byte-identically; the field is included in the FR-050-AC-20 checked-in baseline exercise; a corpus whose every criterion is `untagged` still emits the field; a module declaring no `obligations:` source omits the field entirely (FR-055-CON-3) rather than emitting an empty structure | Integration | P0 | FR-050-AC-51, FR-050-AC-7, FR-050-AC-20 | 🚧 |
 | TC-1939 | A Rust `#[ignore]` attribute (with or without a reason string) above or below `#[test]` marks the bound symbol ignored; the attached `#[trace(...)]` tag still mints its `verifies` relation exactly as on a non-ignored test; `#[cfg_attr(test, ignore)]`'s conditional form is a control and does not mark the symbol ignored | Unit | P0 | FR-051-AC-27 | 🚧 |
-| TC-1940 | `it.skip('t', () => {})`, `describe.skip('s', () => {})`, `xit('t', () => {})`, `xtest('t', () => {})` and `xdescribe('s', () => {})` each mint their registered symbol (test or suite, per AC-3/AC-18/AC-21's existing shape) with `ignored: true`; a plain `it('u', () => {})` nested inside the `describe.skip('s', ...)`/`xdescribe('s', ...)` block also computes `ignored: true`, inherited from its container; `it.skipIf(cond)('v', () => {})`, `it.todo('w')` and `test.fixme('x', () => {})` are controls and remain `ignored: false` | Unit | P0 | FR-051-AC-27 | 🚧 |
+| TC-1940 | `it.skip('t', () => {})`, `describe.skip('s', () => {})`, `xit('t', () => {})`, `xtest('t', () => {})`, `xdescribe('s', ...)` and the curried `xit.each([...])('t %s', () => {})` each mint their registered symbol (test or suite, per AC-3/AC-18/AC-21's widened base-name set) with `ignored: true`; a plain `it('u', () => {})` nested inside the `describe.skip('s', ...)`/`xdescribe('s', ...)` block also computes `ignored: true`, inherited from its container; `it.skipIf(cond)('v', () => {})`, `it.todo('w')` and `test.fixme('x', () => {})` are controls and remain `ignored: false` | Unit | P0 | FR-051-AC-3, FR-051-AC-18, FR-051-AC-21, FR-051-AC-27 | 🚧 |
 | TC-1941 | A Python test function decorated `@pytest.mark.skip(...)` or `@unittest.skip(...)` is marked ignored; a `unittest.TestCase` subclass decorated `@unittest.skip(...)` at class level marks every method inside it ignored, and a module-level `pytestmark = pytest.mark.skip(...)` marks every test function in the module ignored; `@pytest.mark.skipif(cond)` and `@pytest.mark.xfail` are controls and remain `ignored: false`; a trace tag on an ignored symbol still binds either way | Unit | P0 | FR-051-AC-27 | 🚧 |
 | TC-1942 | `#[trace("NFR-012-M-1")]` on a test function, where `NFR-012-M-1` is minted only as a derived NFR-metric obligation (no corresponding trace target), mints a `verifies` relation that resolves against the obligation population and is not reported in `untracked_symbols`; the same corpus before this change reported it there | Integration | P0 | FR-050-AC-47, FR-050-AC-5 | 🚧 |
 | TC-1943 | A corpus with no ignored symbol serializes its FR-051-AC-23 symbol-table records and `VerifiesRelation`s byte-identically to the TC-750 pre-CR-187 baseline — the `ignored` key is absent, never `false`; a corpus with one ignored symbol emits `ignored: true` on that record alone | Unit | P0 | FR-051-AC-27 | 🚧 |
@@ -1757,7 +1757,7 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-050-AC-27 | TC-983, TC-984 |
 | FR-051-AC-1 | TC-741, TC-1922, TC-1923, TC-1925 |
 | FR-051-AC-2 | TC-742 |
-| FR-051-AC-3 | TC-743 |
+| FR-051-AC-3 | TC-743, TC-1940 |
 | FR-051-AC-4 | TC-744 |
 | FR-051-AC-5 | TC-745 |
 | FR-051-AC-6 | TC-746 |
@@ -1772,10 +1772,10 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-051-AC-15 | TC-804 |
 | FR-051-AC-16 | TC-806 |
 | FR-051-AC-17 | TC-827, TC-828 |
-| FR-051-AC-18 | TC-943, TC-948, TC-958, TC-960, TC-961, TC-1920, TC-1921 |
+| FR-051-AC-18 | TC-943, TC-948, TC-958, TC-960, TC-961, TC-1920, TC-1921, TC-1940 |
 | FR-051-AC-19 | TC-982, TC-1006, TC-1060 |
 | FR-051-AC-20 | TC-1029, TC-1030, TC-1031 |
-| FR-051-AC-21 | TC-1039, TC-1040 |
+| FR-051-AC-21 | TC-1039, TC-1040, TC-1940 |
 | FR-051-AC-22 | TC-1044, TC-1045, TC-1046, TC-1047, TC-1081 |
 | FR-051-AC-23 | TC-1052, TC-1053, TC-1054 |
 | FR-051-AC-24 | TC-1055, TC-1056, TC-1057 |

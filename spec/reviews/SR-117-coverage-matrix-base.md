@@ -94,3 +94,5 @@ Reviewed at `agent-ix/quire-rs@3e54ba3bcf11363d494095bbd43cb52554d2a09e`.
 | FND-010 | fixed | 3e54ba3 (the log.md remnant is tracked as FND-013) |
 | FND-011 | fixed | 3e54ba3 |
 | FND-012 | still-open | FR-051-AC-18 is not amended. It still opens "A `test`/`it` registration whose modifier chain is curried ...", so it is unstated whether `xit.each([...])(...)` or a wrapped `xtest(` registers. The leader ruling requires AC-3, AC-18 and AC-21 each to state their own name set; AC-3 and AC-21 now do. |
+| FND-012 | fixed | a512cf5 |
+| FND-013 | fixed | a512cf5 |

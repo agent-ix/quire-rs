@@ -41,6 +41,14 @@ diff.
 Structurally sound for the new ids and traces. The two low findings are
 bookkeeping and would not on their own block merge.
 
+## New findings (disposition pass 3)
+
+Reviewed at `agent-ix/quire-rs@a512cf52a7400a197ef68f6845a8f20db3286800`.
+
+| ID | Severity | Summary | Refs | Escape Cause |
+| --- | --- | --- | --- | --- |
+| FND-003 | low | The AC-3/AC-18/AC-21 name-set widening is traced in one direction only, the same shape as FND-002. FR-051-AC-3 and FR-051-AC-21 cite TC-1940 in their Verification cells (added in round 2), but TC-1940's Traces To lists only FR-051-AC-27, and the audit-table rows read `FR-051-AC-3 \| TC-743` and `FR-051-AC-21 \| TC-1039, TC-1040`. FR-051-AC-18's new curried form `xit.each([…])(…)` (round 3) has no TC: TC-1940 exercises only the plain `xit(` and `xtest(` calls. Fix: add FR-051-AC-3 and FR-051-AC-21 to TC-1940's Traces To and to their audit rows, and either extend TC-1940 with `xit.each([…])(…)` (then trace AC-18) or drop that example from AC-18. | tests.md:895; tests.md:1760; tests.md:1775; tests.md:1778; FR-051-AC-18 | correct-requirement-no-evidence |
+
 ## Dispositions
 
 Reviewed at `agent-ix/quire-rs@2d79eb4f3f1769182a20f3f4827ddef1d1419e8e`.
