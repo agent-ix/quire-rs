@@ -66,9 +66,17 @@ generically, and SHALL emit a machine-readable report containing:
 2. **Status lies** — rows whose status classes as `complete` while their
    target has no backing source symbol.
 3. **Untracked symbols** — source symbols carrying a trace tag that resolves
-   to no declared target or reference row.
+   to no declared target, reference row, or derived obligation (CR-187, R2:
+   an obligation's own id counts as declared).
 4. **Per-target-group counts** — for each minting document (e.g. each FR),
    backed and total trace-target counts.
+5. **A computed coverage matrix** (`coverage_matrix`, CR-187) — the module's
+   derived obligations (FR-053), grouped by their stating document into
+   `requirements[].criteria[]`, each criterion carrying its binding test
+   symbols and a computed static status. Unlike 1-4, its population is the
+   **obligation set**, not the trace-target set: a minted trace target with
+   no corresponding obligation (a bare `test-case` or `suite` row) is not a
+   requirement and contributes no entry.
 
 ### Two roots, one scope (CR-045)
 
@@ -134,15 +142,62 @@ that failed to mint cannot erase its own gap from the population.
 > the same global value vocabulary. No authored-header migration, guessing,
 > status alias, severity relaxation, or verdict change is authorized here.
 
+> **CR-187 (2026-09-27, PLAT-1077, revised across two SR-117/SR-118 fix
+> rounds):** the hand-maintained Test Matrix (`spec/matrix.md` /
+> `spec/tests.md`) mixes mechanical FR→AC→TC bookkeeping with a hand-set
+> Status column, and the two drift. AC-47..51 add a second, **computed**
+> rollup, alongside the existing reconciliation rather than replacing it.
+> **This is not entirely additive**, and the two ways it is not are stated
+> once here rather than left for a reader to infer from AC-50 alone
+> (SR-117 round-2 FND-010): an obligation-only id (R2, below) leaves
+> `untracked_symbols`, and a range written in any tag form (R4, FR-050-AC-50)
+> no longer binds an id it used to — so `totals`, `unbacked_rows` and
+> `backed` can change for a corpus that has either shape. `status_lies` and
+> `no_symbol_rows` are unaffected by both.
+>
+> **The population is the derived obligation set, and nothing else (R1).**
+> The first draft of this note defined it as every non-`reference-only`
+> minted trace target, which quietly re-admits the Test Matrix: the ISO
+> module declares `test-case` (archetype `TestMatrix`), `suite` and
+> `inspection` as ordinary source targets, so `spec/tests.md` would mint a
+> `requirements[]` entry holding every TC row (SR-117 FND-001). A minted
+> trace target is not a criterion by itself — `test-case`, `suite` and
+> `inspection` never become one. Only a module's declared `obligations:`
+> sources ([FR-053](./FR-053-obligation-record.md)) decide what counts, so
+> the module keeps deciding, not the engine.
+>
+> **A tag binds to an obligation when it names the obligation's own id
+> (R2).** An id minted *only* as an obligation — for example an NFR metric
+> rendered from a module's declared `id_format` (`{document}-M-{row}`,
+> [FR-053](./FR-053-obligation-record.md)), or a combinatorial source's
+> rendered id ([FR-061](./FR-061-combinatorial-obligations.md)), whatever
+> shape the module's own `id_format` declares — has no corresponding trace
+> target, so a `#[trace("NFR-012-M-1")]` tag used to resolve to nothing
+> declared and land in `untracked_symbols` (SR-117 FND-002). **This changes
+> existing behavior:** an obligation's own id now joins the population a
+> `verifies` relation resolves against, the same way a minted trace target's
+> id already does, so such a tag is no longer reported as untracked (nor in
+> `unmatched_tags`, which is a different, unbound-token channel). A tag
+> naming a TC id via `target_ids` is not part of the matrix's status — TC
+> ids are being retired.
+>
+> **Ignored forms are limited to what is statically decidable, and a suite
+> passes its ignored-ness to its members (R3).** See FR-051-AC-27.
+
 | ID | Criteria | Verification |
 |----|----------|--------------|
+| FR-050-AC-47 | The report carries a `coverage_matrix` whose population is exactly the [FR-053](./FR-053-obligation-record.md) `Obligation` records the module's declared `obligations:` sources produce (`obligation::derive`) — never a `MintedTargetRecord` by itself. Each obligation becomes one criterion, grouped by its own `document` field into a `requirements[]` entry per distinct document. It is built only from that obligation population; it reads no document-reference declaration and scans no auxiliary trace-target source. A fixture corpus whose module declares an `obligations:` source over its FR/NFR documents, with tagged tests and no `spec/tests.md` (or any other matrix file) at all, yields a `coverage_matrix` listing one criterion per obligation. The identical fixture with a `spec/tests.md` added — and the module declaring no `obligations:` source that reads it — yields a byte-identical `coverage_matrix`, because the matrix file mints no obligation regardless of whether it mints a `test-case` trace target. A module declaring no `obligations:` source at all yields an empty population (FR-050-AC-51). An obligation's own id — including one minted only as an obligation, such as an NFR-metric id rendered from a module's declared `id_format` (`{document}-M-{row}`, FR-053) or a combinatorial source's rendered id (FR-061), with no corresponding minted trace target — joins the population a `verifies` relation resolves against exactly as a minted trace target's id already does; a tag naming such an id is therefore never reported in `untracked_symbols` or `unmatched_tags` (R2, reversing prior behavior). | Test (TC-1930, TC-1931, TC-1942) |
+| FR-050-AC-48 | A `requirements[]` entry carries `document` (the obligation-group's scope-relative path) and `criteria[]`, ordered by `document` — the same path every other list on this report already sorts by. A criterion entry carries the obligation's own `id`, its declared `method` when the obligation states one, a `binders` list, and the computed `status` (FR-050-AC-49); criteria within one requirement are ordered exactly as `obligation::derive` already orders its output (declaration order, document path, row ordinal), restricted to that document. A `binders` entry is one per distinct `(path, line, column)` `verifies` relation bound to the criterion's id — the binding symbol's identity as its own declaration site, not its qualified name, since [FR-051-AC-21](./FR-051-source-symbol-extraction.md) makes a TypeScript registration's qualified name ignorant of its enclosing suite, so two identically-titled `it(...)` calls in different `describe` blocks of one file are two distinct declaration sites that must not collapse into one binder. Each entry carries the binding symbol's repo-relative path, 1-based declaration line, 1-based declaration column ([FR-051-AC-23](./FR-051-source-symbol-extraction.md)), qualified name, `SymbolKind` label, and whether [FR-051-AC-27](./FR-051-source-symbol-extraction.md) marks it ignored — deterministically ordered by `(path, line, column, qualified_name, kind)`. A criterion with zero binders carries an empty `binders` list, never an absent key. | Test (TC-1932, TC-1944) |
+| FR-050-AC-49 | Each criterion carries a computed `status`, exactly one of `tagged`, `untagged`, `tagged-by-ignored-test`, or `method-without-symbol` — never read from an authored column. `method-without-symbol` applies when the criterion's declared `method` is in the module's declared `no_source_symbol` vocabulary (mirroring FR-050-AC-16), regardless of binder count, and wins over every other case. Otherwise: zero binders is `untagged`; one or more binders where every one is marked ignored (FR-051-AC-27) is `tagged-by-ignored-test`; one or more binders where at least one is not ignored is `tagged`. Status is computed independently per criterion. | Test (TC-1933, TC-1934, TC-1935) |
+| FR-050-AC-50 | A range — two id-shaped tokens joined by a bare `..`, in same-prefix (`FR-034-AC-1..FR-034-AC-5`), differing-prefix (`FR-034-AC-1..FR-035-AC-2`), or short-suffix (`FR-034-AC-1..5`) form — written inside **any** source trace tag, marker or legacy alike, binds no id: it is never expanded (unlike a document-reference cell's `expand_ranges`, FR-050-AC-12, a distinct, declaration-scoped normalization of authored table cells, not of source tags) and mints no `verifies` relation for any id in it, including its own endpoints. **This changes existing behavior in two ways, both intentional:** a marker range used to mint one relation for the literal range string, which landed in `untracked_symbols`; a legacy range (`// Trace: FR-034-AC-1..FR-034-AC-5`) used to bind its left endpoint alone. Both stop. `totals`, `unbacked_rows` and `backed` counts can therefore change for a corpus that has one. The finding is reported once per occurrence, in `CoverageReport.diagnostics` under reason `range-in-trace-tag` at FR-057 severity `warning` (advisory-first), naming the file, the 1-based line, the qualified symbol and the literal range text; it appears in neither `untracked_symbols` nor `unmatched_tags` — the range finding replaces both for that text. Every criterion in the range keeps whatever status its other binders make it — `untagged` when it has none. | Test (TC-1936, TC-1937) |
+| FR-050-AC-51 | `coverage_matrix` serializes deterministically: two runs over an identical corpus, model and source tree emit byte-identical JSON for the field, and it is included in the FR-050-AC-20 checked-in baseline exercise. It is present whenever the derived obligation population (FR-050-AC-47) is non-empty — including when every criterion in it computes `status: untagged`, which is the honest answer, not an absent field — and omitted entirely, under FR-055-CON-3, when a module declares no `obligations:` source and so derives none. | Test (TC-1938) |
 | FR-050-AC-45 | A document reference MAY declare a nonblank `status_column`; omission uses the existing global `traceability.status.column` and serializes identically. An override requires a declared global status vocabulary. Blank, non-string (including explicit null), or vocabulary-less overrides fail module loading; semantic validation names the reference declaration and field, while shape errors retain the loader's authored field location. | Test (TC-1804) |
 | FR-050-AC-46 | Each reference's explicit or default selected column drives missing-column diagnostics, unknown-status census (including backed rows), and complete-but-unbacked classification consistently using the unchanged global vocabulary. An absent explicit selection never falls back to the global column; the existing status-shaped-header diagnostic names the effective selection and its actual configuration key. Default-only behavior remains unchanged. | Test (TC-1805) |
 | FR-050-AC-1 | A manifest `traceability:` section declaring trace targets, document references, a status vocabulary, and a trace-tag grammar loads, and the `Registry` exposes the declared model. | Test (TC-732) |
 | FR-050-AC-2 | A malformed `traceability:` section fails module load like any other manifest shape error; an absent section loads and marks the model undeclared. | Test (TC-733) |
 | FR-050-AC-3 | A reference row whose trace target has no backing `verifies` relation appears in the report's unbacked rows with the row id and its target id. | Test (TC-734) |
 | FR-050-AC-4 | A row whose status classes as `complete` with no backing source symbol appears in the report's status lies; the same row with a backing symbol does not. | Test (TC-735) |
-| FR-050-AC-5 | A source symbol whose trace tag resolves to no declared target or row appears in the report's untracked symbols with its file and symbol name. | Test (TC-736) |
+| FR-050-AC-5 | A source symbol whose trace tag resolves to no declared target, no reference row, and no derived obligation id (CR-187, R2) appears in the report's untracked symbols with its file and symbol name; a tag naming a derived obligation's own id does not. | Test (TC-736, TC-1942) |
 | FR-050-AC-6 | The report carries per-minting-document backed/total counts, and their sum equals the bundle-wide totals. | Test (TC-737) |
 | FR-050-AC-7 | Repeated `quire coverage` runs over identical corpus, model, and source inputs emit byte-identical JSON. | Test (TC-738) |
 | FR-050-AC-8 | A fixture module with a non-ISO vocabulary (different archetype, id pattern, and status values) obtains a correct rollup from its own declaration, with no engine change. | Test (TC-739) |
@@ -157,7 +212,7 @@ that failed to mint cannot erase its own gap from the population.
 | FR-050-AC-17 | The two roots derive from one `--scope` and stay distinct: repo-root files (`README.md`, `CHANGELOG.md`, `plan/*.md`) are never read as documents, the code walk never enters the document root, the minted-id set over a compliant repo is byte-identical to a pre-split run, and a scope with no `spec/` directory exits with a diagnostic naming the missing root (CR-045). | Test (TC-809, TC-810, TC-811) |
 | FR-050-AC-18 | During coverage computation, a corpus document whose archetype no trace target, document reference, or grammar binding names has its body left unmaterialised; a declared archetype's body is parsed; selection is decided on the header tier and never by filename; a module declaring no `traceability:` model still errors (`ModelUndeclared`) before any selection; and the report is byte-identical to a full-parse engine's (CR-049). | Test (TC-818, TC-738) |
 | FR-050-AC-19 | A declaration that selects nothing is reported in `CoverageReport.diagnostics` and as a `quire validate` warning, never in silence: a declared `archetype:` no corpus document has is reported when the model minted no id at all, and a model declaring no `trace_targets` is reported as minting nothing. `quire coverage` and `quire validate` report the same machine token for the same finding. The list is empty — and the key absent — for a model whose declarations select, so FR-050-AC-7 byte-identity holds (CR-054, amended CR-059, narrowed CR-062). | Test (TC-822) |
-| FR-050-AC-20 | The byte-identity property is gated by a checked-in baseline, not by inspection: a fixture corpus exercising minted ids, an auxiliary matrix, an `exclude:` glob, all three status classes, an undeclared status value (CR-083), the `no_source_symbol` exemption, an untracked symbol, a dangling reference, an undeclared archetype and criteria classification has its report stored as `tests/fixtures/coverage_baseline/expected.json` and byte-diffed on every test run. Regeneration is a deliberate act (`make coverage-baseline-update`) whose diff is reviewed, and a companion test fails if the corpus stops exercising any of that surface (CR-057). | Test (TC-824) |
+| FR-050-AC-20 | The byte-identity property is gated by a checked-in baseline, not by inspection: a fixture corpus exercising minted ids, an auxiliary matrix, an `exclude:` glob, all three status classes, an undeclared status value (CR-083), the `no_source_symbol` exemption, an untracked symbol, a dangling reference, an undeclared archetype and criteria classification — and, since CR-187, all four `coverage_matrix` statuses (`tagged`, `untagged`, `tagged-by-ignored-test`, `method-without-symbol`) and a `range-in-trace-tag` finding — has its report stored as `tests/fixtures/coverage_baseline/expected.json` and byte-diffed on every test run. Regeneration is a deliberate act (`make coverage-baseline-update`) whose diff is reviewed, and a companion test fails if the corpus stops exercising any of that surface, the CR-187 additions included (CR-057). | Test (TC-824) |
 | FR-050-AC-21 | A reference row whose authored status value the declared `traceability.status` vocabulary classes as none of `complete`, `pending`, `failed` or `retired` is reported in `CoverageReport.undeclared_statuses` with the declaration, the document, the row id and the authored value verbatim — whether or not the row is backed. A corpus whose every status value is declared reports an empty list, the key is absent from the JSON, and the payload is byte-identical to a report from an engine predating the field. The list does not affect `totals`, and `--strict` does not gate on it (CR-083). | Test (TC-941, TC-942, TC-946) |
 | FR-050-AC-22 | The model MAY declare `source_exclude:` path globs under the **code** root; a source file matching one yields no symbols and no trace bindings, a non-matching glob leaves the extraction byte-identical, and the document walk's `groups` and `totals` are unaffected either way. The key merges across modules as a union, has its patterns compile-checked at module load like every other glob list, and leaves the model undeclared when it is all a module declares. It can only subtract: a `source_exclude` of `spec/**` neither un-excludes the document root nor admits anything under it (CR-085). | Test (TC-944, TC-945, TC-949) |
 | FR-050-AC-23 | A trace id that is the row id of a **status-carrying** reference row and is bound by more than one distinct source symbol — distinctness is the `(path, symbol)` pair — is reported in `CoverageReport.shared_trace_ids` with the id and every binding symbol, deterministically ordered by id and inside each record by `(path, symbol)`. An id whose rows carry no status (an acceptance criterion verified by several tests) is never reported. A corpus whose every status-row id is uniquely bound reports an empty list, the key is absent from the JSON, and the payload is byte-identical to a report from an engine predating the field. The list does not affect `totals`, and `--strict` does not gate on it (CR-087). | Test (TC-950, TC-951) |

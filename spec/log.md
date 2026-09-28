@@ -7,6 +7,33 @@ description: "Chronological log of structural changes to this bundle."
 
 ## History
 
+* **2026-09-27** — **CR-187** (`PLAT-1077`, revised in the SR-117/SR-118 fix
+  round on `agent-ix/quire-rs#494`): FR-050 gains an in-memory
+  `coverage_matrix` (AC-47..51) — a requirement → criteria → binding-test-
+  symbol view the epic (PLAT-1076) replaces the hand-written Test Matrix's
+  Status column with. Its population is the module's **derived obligation
+  set** ([FR-053](./functional/FR-053-obligation-record.md)), never the
+  minted-trace-target set — the base draft's population definition quietly
+  re-admitted the Test Matrix (SR-117 FND-001), which this revision closes.
+  An obligation-only id — an NFR metric rendered from a module's declared
+  `id_format` (`{document}-M-{row}`, FR-053), or a combinatorial source's
+  rendered id (FR-061), whatever shape the module's own `id_format`
+  declares — now resolves against a source tag naming it, leaving
+  `untracked_symbols`
+  (SR-117 FND-002; a behavior change). Status is one of `tagged` /
+  `untagged` / `tagged-by-ignored-test` / `method-without-symbol`, never an
+  authored column. A range — same-prefix, differing-prefix, or short-suffix
+  — inside any source trace tag, marker or legacy, binds no id and is
+  reported as a finding (`range-in-trace-tag`, FR-057 severity `warning`);
+  this un-backs a legacy `Trace: A..B` line's left endpoint, a second
+  behavior change (SR-117 FND-005). FR-051 gains AC-27 (a test/suite symbol
+  carries `ignored: bool`, limited to statically decidable forms per
+  language, with suite-to-member inheritance and named conditional-form
+  exclusions — SR-117 FND-003/FND-004 narrowed the base draft's TypeScript
+  and Python forms) and AC-28 (the range-tag finding). Spec-only;
+  implementation is tracked separately. `spec/reviews/SR-117-*.md` and
+  `SR-118-*.md` carry the review this revision responds to.
+
 * **2026-09-22** — **CR-186** (`PLAT-948`): the embedded semantic-core and
   module-manifest schema bundles move from a `build.rs` `npm pack` fetch to a
   plain Cargo `git` dependency, `agent-ix-semantic-schema` (tag
