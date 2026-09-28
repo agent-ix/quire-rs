@@ -98,7 +98,8 @@ pub struct SymbolRecord {
     pub ignored: bool,
 }
 
-fn is_false(value: &bool) -> bool {
+/// `skip_serializing_if` predicate for a `bool` that is off by default.
+pub(crate) fn is_false(value: &bool) -> bool {
     !*value
 }
 

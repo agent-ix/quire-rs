@@ -18,7 +18,7 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
-use super::{stable_id, Symbol, SymbolExtraction};
+use super::{stable_id, Symbol, SymbolExtraction, SymbolKind};
 use crate::filament::{CoreGraphEdgeRef, CoreGraphNodeRef};
 use crate::traceability::{SourceLanguage, TraceabilityModel};
 
@@ -60,8 +60,8 @@ pub struct VerifiesRelation {
     /// start (CR-187, FR-051-AC-23), copied straight from the binding
     /// [`Symbol::column`].
     pub column: usize,
-    /// The verifying symbol's own [`SymbolKind`](super::SymbolKind) label.
-    pub kind: String,
+    /// The verifying symbol's own kind.
+    pub kind: SymbolKind,
     /// Whether the verifying symbol is ignored (CR-187, FR-051-AC-27),
     /// copied straight from the binding [`Symbol::ignored`].
     pub ignored: bool,
@@ -1583,7 +1583,7 @@ fn bind_symbol(symbol: &Symbol, source: &str, model: &TraceabilityModel, graph: 
                 form,
                 line: symbol.line,
                 column: symbol.column,
-                kind: symbol.kind.as_str().to_string(),
+                kind: symbol.kind,
                 ignored: symbol.ignored,
             });
     }

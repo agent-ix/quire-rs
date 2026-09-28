@@ -616,7 +616,7 @@ pub struct CoverageMatrixBinder {
     pub kind: String,
     /// Whether FR-051-AC-27 marks this binder ignored. Serialized only when
     /// `true`, matching the symbol-table record and `VerifiesRelation`.
-    #[serde(default, skip_serializing_if = "is_false")]
+    #[serde(default, skip_serializing_if = "crate::symbol_table::is_false")]
     pub ignored: bool,
 }
 
@@ -634,11 +634,6 @@ pub enum CoverageMatrixStatus {
     /// The declared `method` is in the module's declared `no_source_symbol`
     /// vocabulary — wins over every other case, regardless of binder count.
     MethodWithoutSymbol,
-}
-
-/// `skip_serializing_if` predicate for a `bool` that is off by default.
-fn is_false(value: &bool) -> bool {
-    !*value
 }
 
 impl CoverageReport {

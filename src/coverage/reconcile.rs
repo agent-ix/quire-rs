@@ -599,7 +599,7 @@ fn coverage_matrix(
                 line: relation.line,
                 column: relation.column,
                 qualified_name: relation.symbol.clone(),
-                kind: relation.kind.clone(),
+                kind: relation.kind.as_str().to_string(),
                 ignored: relation.ignored,
             });
     }
