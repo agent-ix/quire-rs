@@ -588,6 +588,7 @@ pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolG
             symbol: tag.symbol.clone(),
         });
         let before = graph.verifies.len();
+        let ranges_before = graph.range_diagnostics.len();
         bind_symbol(symbol, source, model, &mut graph);
         let self_name_bound = self_named_trace_id(symbol).map(|trace_id| {
             declared_name_form_ids(symbol, source, model)
@@ -600,11 +601,16 @@ pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolG
             .filter(|relation| relation.symbol_id == symbol.id)
             .map(|relation| relation.trace_id.clone())
             .collect();
-        graph.unmatched_tags.extend(
-            generic_tags
-                .into_iter()
-                .filter(|tag| !bound_on_symbol.contains(tag.trace_id.as_str())),
-        );
+        // CR-187: a range's own endpoints must not resurface as generic
+        // unmatched tags — the range finding replaces both `untracked_symbols`
+        // and `unmatched_tags` for that text (FR-050-AC-50).
+        let range_tokens: BTreeSet<String> = graph.range_diagnostics[ranges_before..]
+            .iter()
+            .flat_map(|r| r.range_text.split("..").map(|s| s.trim().to_string()))
+            .collect();
+        graph.unmatched_tags.extend(generic_tags.into_iter().filter(|tag| {
+            !bound_on_symbol.contains(tag.trace_id.as_str()) && !range_tokens.contains(&tag.trace_id)
+        }));
         let entry = census.entry(symbol.language.as_str()).or_default();
         entry.observe(
             graph.verifies.len() > before,

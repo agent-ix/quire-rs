@@ -127,6 +127,9 @@ impl Fixture {
                 provenance: TraceProvenance::Canonical,
                 form: "rust-trace".to_string(),
                 line: evidence.line,
+                column: evidence.column,
+                kind: evidence.kind.as_str().to_string(),
+                ignored: evidence.ignored,
             }],
             implements: vec![ImplementsRelation {
                 symbol_id: production.id.clone(),

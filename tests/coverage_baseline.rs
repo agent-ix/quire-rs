@@ -131,10 +131,25 @@ fn tc824_the_baseline_corpus_still_exercises_the_surface() {
     // everything else — including any reason added later — still fails here.
     // An allowlist would have quietly stopped gating each new check; naming the
     // single exclusion keeps the gate closed by default.
+    //
+    // `range-in-trace-tag` (CR-187, PLAT-1077) is the second deliberate
+    // exclusion: FR-050-AC-20 itself requires this baseline to carry one, over
+    // `covers_range`'s own deliberately-authored range tag — a fixture
+    // authoring choice, not a model defect, the same distinction
+    // `catch-all-universal` already draws.
+    assert!(
+        report
+            .diagnostics
+            .iter()
+            .any(|d| d.reason == "range-in-trace-tag"),
+        "the baseline must gate the range-in-trace-tag finding (CR-187, \
+         FR-050-AC-20): {:?}",
+        report.diagnostics
+    );
     let model_health: Vec<_> = report
         .diagnostics
         .iter()
-        .filter(|d| d.reason != "catch-all-universal")
+        .filter(|d| d.reason != "catch-all-universal" && d.reason != "range-in-trace-tag")
         .collect();
     assert!(
         model_health.is_empty(),
@@ -184,5 +199,28 @@ fn tc824_the_baseline_corpus_still_exercises_the_surface() {
             .expect("ADR-001 is in the corpus")
             .body_is_parsed(),
         "an undeclared archetype must not be body-parsed during coverage"
+    );
+
+    // CR-187, FR-050-AC-20: all four `coverage_matrix` statuses, over
+    // `spec/FR-003.md`.
+    use quire_rs::coverage::CoverageMatrixStatus;
+    let status = |id: &str| {
+        report
+            .coverage_matrix
+            .iter()
+            .flat_map(|r| &r.criteria)
+            .find(|c| c.id == id)
+            .unwrap_or_else(|| panic!("no coverage_matrix criterion {id}"))
+            .status
+    };
+    assert_eq!(status("FR-003-AC-1"), CoverageMatrixStatus::Tagged);
+    assert_eq!(status("FR-003-AC-2"), CoverageMatrixStatus::Untagged);
+    assert_eq!(
+        status("FR-003-AC-3"),
+        CoverageMatrixStatus::TaggedByIgnoredTest
+    );
+    assert_eq!(
+        status("FR-003-AC-4"),
+        CoverageMatrixStatus::MethodWithoutSymbol
     );
 }

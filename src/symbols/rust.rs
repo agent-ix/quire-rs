@@ -1684,4 +1684,29 @@ mod tests {
             "the standalone comment is f's own leading line"
         );
     }
+
+    /// TC-1939, FR-051-AC-27 (CR-187): `#[ignore]`, with or without a reason
+    /// string, before or after `#[test]`, marks the symbol ignored.
+    /// `#[cfg_attr(test, ignore)]`'s conditional form is a control and does
+    /// not mark it ignored — its own outer path is `cfg_attr`, never `ignore`.
+    #[test]
+    fn tc1939_ignore_attribute_marks_the_symbol_ignored() {
+        let before = parse("#[ignore]\n#[test]\nfn t() {\n}\n").expect("valid");
+        assert!(before[0].ignored, "#[ignore] before #[test]");
+
+        let after = parse("#[test]\n#[ignore]\nfn t() {\n}\n").expect("valid");
+        assert!(after[0].ignored, "#[ignore] after #[test]");
+
+        let reasoned =
+            parse("#[test]\n#[ignore = \"flaky\"]\nfn t() {\n}\n").expect("valid");
+        assert!(reasoned[0].ignored, "#[ignore] with a reason string");
+
+        let conditional =
+            parse("#[test]\n#[cfg_attr(target_os = \"windows\", ignore)]\nfn t() {\n}\n")
+                .expect("valid");
+        assert!(
+            !conditional[0].ignored,
+            "cfg_attr's conditional form is a control: its outer path is cfg_attr, not ignore"
+        );
+    }
 }

@@ -1,0 +1,33 @@
+# CR-187, FR-050-AC-47/FR-050-AC-5 fixture (TC-1942): an obligation minted
+# ONLY as an obligation — an NFR-metric id rendered from `id_format`, with no
+# corresponding minted trace target — joins the population a `verifies`
+# relation resolves against, so a tag naming it is no longer reported in
+# `untracked_symbols`. Mirrors `tests/fixtures/traceability/obligations-nfr`,
+# plus a declared marker grammar so a Rust test can actually bind one.
+name: traceability-obligations-nfr-tagged
+version: 0.1.0
+description: NFR-metric obligation source with a declared marker grammar (CR-187 fixture)
+artifact_types:
+- name: NFR
+  grammar_ref: iso-spec-core
+  defaults:
+    id_pattern: NFR-{next:03d}
+traceability:
+  trace_targets:
+  - name: acceptance-criterion
+    archetype: NFR
+    section: Acceptance Criteria
+    id_column: ID
+  obligations:
+  - name: nfr-metric
+    archetype: NFR
+    section: Measurement and Evaluation
+    id_format: "{document}-M-{row}"
+    statement_column: Metric
+    method_column: Method
+  trace_tags:
+    markers:
+    - name: rust-trace-attribute
+      language: rust
+      pattern: '#\[trace\(([^)]*)\)\]'
+      template: '#[trace({ids})]'

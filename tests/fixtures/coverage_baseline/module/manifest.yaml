@@ -61,6 +61,13 @@ traceability:
     test_type: [Unit, E2E, Eval, Inspection]
     test_type_column: Type
     no_source_symbol: [Eval, Inspection]
+  # CR-187, PLAT-1077: exercises all four `coverage_matrix` statuses and the
+  # `range-in-trace-tag` finding, alongside the pre-existing surface above.
+  obligations:
+  - name: acceptance-criterion
+    target: acceptance-criterion
+    statement_column: Criteria
+    method_column: Verification
   trace_tags:
     markers:
     - name: rust-trace-attribute

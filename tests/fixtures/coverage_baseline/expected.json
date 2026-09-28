@@ -69,6 +69,24 @@
         "TC-404"
       ],
       "line": 15
+    },
+    {
+      "reference": "verification",
+      "document": "spec/FR-003.md",
+      "row_id": "FR-003-AC-2",
+      "target_ids": [
+        "FR-003-AC-2"
+      ],
+      "line": 17
+    },
+    {
+      "reference": "verification",
+      "document": "spec/FR-003.md",
+      "row_id": "FR-003-AC-4",
+      "target_ids": [
+        "FR-003-AC-4"
+      ],
+      "line": 19
     }
   ],
   "status_lies": [
@@ -95,6 +113,16 @@
         "TC-004"
       ],
       "line": 16
+    },
+    {
+      "reference": "verification",
+      "document": "spec/FR-003.md",
+      "row_id": "FR-003-AC-4",
+      "test_type": "Inspection",
+      "target_ids": [
+        "FR-003-AC-4"
+      ],
+      "line": 19
     }
   ],
   "undeclared_statuses": [
@@ -111,7 +139,7 @@
       "path": "src/lib.rs",
       "symbol": "tests::covers_nothing_declared",
       "trace_id": "TC-999",
-      "line": 14
+      "line": 22
     }
   ],
   "groups": [
@@ -126,6 +154,12 @@
       "target": "acceptance-criterion",
       "backed": 0,
       "total": 1
+    },
+    {
+      "document": "spec/FR-003.md",
+      "target": "acceptance-criterion",
+      "backed": 2,
+      "total": 4
     },
     {
       "document": "spec/tests.md",
@@ -154,6 +188,34 @@
       "target": "acceptance-criterion",
       "document": "spec/FR-002.md",
       "line": 15,
+      "backed": false
+    },
+    {
+      "id": "FR-003-AC-1",
+      "target": "acceptance-criterion",
+      "document": "spec/FR-003.md",
+      "line": 16,
+      "backed": true
+    },
+    {
+      "id": "FR-003-AC-2",
+      "target": "acceptance-criterion",
+      "document": "spec/FR-003.md",
+      "line": 17,
+      "backed": false
+    },
+    {
+      "id": "FR-003-AC-3",
+      "target": "acceptance-criterion",
+      "document": "spec/FR-003.md",
+      "line": 18,
+      "backed": true
+    },
+    {
+      "id": "FR-003-AC-4",
+      "target": "acceptance-criterion",
+      "document": "spec/FR-003.md",
+      "line": 19,
       "backed": false
     },
     {
@@ -251,9 +313,38 @@
         "row_id": "FR-002-AC-1",
         "line": 15
       }
+    },
+    {
+      "document": "spec/FR-003.md",
+      "archetype": "FR",
+      "criteria": 4,
+      "property_shaped": 0,
+      "by_property": {
+        "example": 4
+      },
+      "grounding": {
+        "example": {
+          "records": 4,
+          "domain": 0,
+          "precondition": 0,
+          "oracle": 0,
+          "all_three": 0
+        }
+      }
     }
   ],
   "diagnostics": [
+    {
+      "declaration": "tests::covers_range",
+      "reason": "range-in-trace-tag",
+      "message": "`FR-003-AC-1..FR-003-AC-2` in src/lib.rs:39 names a range, which binds no id — including its own endpoints; write one trace tag naming each id explicitly",
+      "path": "src/lib.rs",
+      "line": 39,
+      "value": "FR-003-AC-1..FR-003-AC-2",
+      "subject": "range `FR-003-AC-1..FR-003-AC-2`",
+      "change_target": "src/lib.rs:39",
+      "remedy": "write one trace tag naming each id in the range explicitly; a range never binds, including its own endpoints"
+    },
     {
       "declaration": "criteria",
       "reason": "catch-all-universal",
@@ -276,6 +367,7 @@
     "model-mints-nothing",
     "no-symbol-bound",
     "obligation-row-states-nothing",
+    "range-in-trace-tag",
     "section-holds-no-table",
     "section-matches-nothing",
     "status-column-matches-nothing",
@@ -285,15 +377,175 @@
     "uncatalogued-verification-method",
     "undeclared-coverage-vocabulary"
   ],
+  "obligations": [
+    {
+      "source": "acceptance-criterion",
+      "id": "FR-001-AC-1",
+      "document": "spec/FR-001.md",
+      "statement": "Every parsed document serializes back to its input byte-for-byte.",
+      "statement_hash": "8d4ad1289541023b8cb594906b40c0c8aa93c925d81c234cef15b868fce5bb5f",
+      "method": "Test",
+      "target_ids": [
+        "TC-001"
+      ]
+    },
+    {
+      "source": "acceptance-criterion",
+      "id": "FR-001-AC-2",
+      "document": "spec/FR-001.md",
+      "statement": "The system shall handle it appropriately.",
+      "statement_hash": "e027a8f330d2f2a8c4745951fbb6df6926ebee1033267cdb18a2cda5688358e0",
+      "method": "Test",
+      "target_ids": [
+        "TC-002"
+      ]
+    },
+    {
+      "source": "acceptance-criterion",
+      "id": "FR-002-AC-1",
+      "document": "spec/FR-002.md",
+      "statement": "An unreadable file yields exactly one diagnostic naming its path.",
+      "statement_hash": "dae9b37e22ed780f69545fc3ab652248f9e42014041f3f4b8df689edf8976bfa",
+      "method": "Test",
+      "target_ids": [
+        "TC-404"
+      ]
+    },
+    {
+      "source": "acceptance-criterion",
+      "id": "FR-003-AC-1",
+      "document": "spec/FR-003.md",
+      "statement": "Tagged by a running test.",
+      "statement_hash": "2dbf11f9b6d446a75819a7fead4ac00df9329385d1c9ec92c53bb872286a244f",
+      "method": "Test"
+    },
+    {
+      "source": "acceptance-criterion",
+      "id": "FR-003-AC-2",
+      "document": "spec/FR-003.md",
+      "statement": "Untagged: no binder at all.",
+      "statement_hash": "bfdac58145c79addf3b13fbf4b9ee2850ee83fd82db9916bfb2680c490aea962",
+      "method": "Test"
+    },
+    {
+      "source": "acceptance-criterion",
+      "id": "FR-003-AC-3",
+      "document": "spec/FR-003.md",
+      "statement": "Tagged only by an ignored test.",
+      "statement_hash": "f461e22defc05c6494e26b49b03be6e0d29b8237618e1eeffb92dd25df346bd0",
+      "method": "Test"
+    },
+    {
+      "source": "acceptance-criterion",
+      "id": "FR-003-AC-4",
+      "document": "spec/FR-003.md",
+      "statement": "Verified by inspection alone.",
+      "statement_hash": "6a908c79cea98eb8a8b89b688590a8d7d61e5a37c5a864a7dcadb274518bc6e5",
+      "method": "Inspection"
+    }
+  ],
+  "coverage_matrix": [
+    {
+      "document": "spec/FR-001.md",
+      "criteria": [
+        {
+          "id": "FR-001-AC-1",
+          "statement": "Every parsed document serializes back to its input byte-for-byte.",
+          "method": "Test",
+          "binders": [],
+          "status": "untagged"
+        },
+        {
+          "id": "FR-001-AC-2",
+          "statement": "The system shall handle it appropriately.",
+          "method": "Test",
+          "binders": [],
+          "status": "untagged"
+        }
+      ]
+    },
+    {
+      "document": "spec/FR-002.md",
+      "criteria": [
+        {
+          "id": "FR-002-AC-1",
+          "statement": "An unreadable file yields exactly one diagnostic naming its path.",
+          "method": "Test",
+          "binders": [],
+          "status": "untagged"
+        }
+      ]
+    },
+    {
+      "document": "spec/FR-003.md",
+      "criteria": [
+        {
+          "id": "FR-003-AC-1",
+          "statement": "Tagged by a running test.",
+          "method": "Test",
+          "binders": [
+            {
+              "path": "src/lib.rs",
+              "line": 28,
+              "column": 5,
+              "qualified_name": "tests::covers_ac1",
+              "kind": "test_function"
+            }
+          ],
+          "status": "tagged"
+        },
+        {
+          "id": "FR-003-AC-2",
+          "statement": "Untagged: no binder at all.",
+          "method": "Test",
+          "binders": [],
+          "status": "untagged"
+        },
+        {
+          "id": "FR-003-AC-3",
+          "statement": "Tagged only by an ignored test.",
+          "method": "Test",
+          "binders": [
+            {
+              "path": "src/lib.rs",
+              "line": 35,
+              "column": 5,
+              "qualified_name": "tests::covers_ac3_ignored",
+              "kind": "test_function",
+              "ignored": true
+            }
+          ],
+          "status": "tagged-by-ignored-test"
+        },
+        {
+          "id": "FR-003-AC-4",
+          "statement": "Verified by inspection alone.",
+          "method": "Inspection",
+          "binders": [],
+          "status": "method-without-symbol"
+        }
+      ]
+    }
+  ],
   "binding_census": [
     {
       "language": "rust",
-      "candidates": 2,
-      "tagged": 2,
-      "bound": 2,
+      "candidates": 5,
+      "tagged": 5,
+      "bound": 4,
       "forms": [
         "rust-trace-attribute"
-      ]
+      ],
+      "unbound_example": {
+        "path": "src/lib.rs",
+        "line": 39,
+        "symbol": "tests::covers_range"
+      },
+      "unmatched_example": {
+        "path": "src/lib.rs",
+        "line": 39,
+        "symbol": "tests::covers_range"
+      }
     }
   ],
   "unmatched_tags": [
@@ -301,7 +553,7 @@
       "trace_id": "TC-404",
       "language": "rust",
       "path": "src/lib.rs",
-      "line": 6,
+      "line": 14,
       "symbol": "tests::covers_the_round_trip"
     }
   ],
@@ -312,10 +564,10 @@
       "method": "rows of the declared reference tables whose trace target is bound by at least one source symbol; `matched` counts the evidence symbols that bound a trace id out of the `examined` evidence symbols walked, so matched 0 of a non-zero examined is a ratio computed over a corpus the binder could not read",
       "shape": "ratio",
       "state": "measured",
-      "value": 1,
-      "population": 9,
-      "examined": 2,
-      "matched": 2
+      "value": 3,
+      "population": 13,
+      "examined": 5,
+      "matched": 4
     },
     {
       "name": "authoring.tag_rate",
@@ -323,10 +575,10 @@
       "method": "evidence symbols whose attached annotation block carries an id-shaped token, whether or not the declared trace grammar can read it; `value` counts tagged symbols, while `matched` counts candidates classified as tagged or untagged so an honest zero is not mistaken for an unread population",
       "shape": "ratio",
       "state": "measured",
-      "value": 2,
-      "population": 2,
-      "examined": 2,
-      "matched": 2
+      "value": 5,
+      "population": 5,
+      "examined": 5,
+      "matched": 5
     },
     {
       "name": "coverage.property_shaped",
@@ -335,9 +587,9 @@
       "shape": "ratio",
       "state": "measured",
       "value": 2,
-      "population": 3,
-      "examined": 3,
-      "matched": 3
+      "population": 7,
+      "examined": 7,
+      "matched": 7
     },
     {
       "name": "coverage.specific_shaped",
@@ -346,9 +598,9 @@
       "shape": "ratio",
       "state": "measured",
       "value": 0,
-      "population": 3,
-      "examined": 3,
-      "matched": 3
+      "population": 7,
+      "examined": 7,
+      "matched": 7
     },
     {
       "name": "coverage.no_symbol_rows",
@@ -356,10 +608,10 @@
       "method": "unbacked rows whose declared test type is in the module's `no_source_symbol` vocabulary, counted over every row reconciled",
       "shape": "count",
       "state": "measured",
-      "value": 1,
-      "population": 9,
-      "examined": 9,
-      "matched": 1
+      "value": 2,
+      "population": 13,
+      "examined": 13,
+      "matched": 2
     },
     {
       "name": "coverage.implements",
@@ -375,16 +627,16 @@
       "method": "documents whose declared `section:` heading was found, over the documents a required trace target's `archetype:` selected and its `exclude:` kept, plus documents where an optional target's section was present; counted per (trace target, document) pair. An optional absent section is outside the population. A required miss reads the archetype right and the heading wrong, so the whole table is stranded and its ids never enter `coverage.backed`'s denominator at all",
       "shape": "ratio",
       "state": "measured",
-      "value": 3,
-      "population": 3,
-      "examined": 3,
-      "matched": 3
+      "value": 4,
+      "population": 4,
+      "examined": 4,
+      "matched": 4
     }
   ],
   "totals": {
-    "backed": 1,
-    "total": 9,
-    "criteria": 3,
+    "backed": 3,
+    "total": 13,
+    "criteria": 7,
     "property_shaped": 2,
     "specific_shaped": 0
   }
