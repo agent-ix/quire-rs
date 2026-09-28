@@ -70,6 +70,14 @@ Reviewed at `agent-ix/quire-rs@2d79eb4f3f1769182a20f3f4827ddef1d1419e8e`.
 | FND-011 | medium | The FR-050-AC-48 binder is still "one per distinct `(path, symbol)` `verifies` relation". Under FR-051-AC-21 a TypeScript registration's qualified name ignores its enclosing suite, so `it('works')` in two different `describe` blocks of one file are two symbols with one `(path, symbol)` key. They collapse into a single binder, and its line, column and `ignored` are undefined. If one is skipped, the status is ambiguous. The new `column` (author judgment call 1) makes the sort key total but cannot help, because the dedup runs first. `column` also appears in neither the FR-051-AC-23 symbol record nor any adapter AC, and its unit (byte, char or UTF-16) is unstated. Fix: key binder identity on `(path, line, column)` or the AC-23 identity digest, and specify `column` in FR-051. | FR-050-AC-48 (FR-050:181); FR-051-AC-21; FR-051-AC-23 (FR-051:166); TC-1932 | wrong-requirement |
 | FND-012 | low | FR-051-AC-27 widens the base-name sets of AC-3, AC-18 and AC-21 inline (author judgment call 2) without amending those ACs. AC-3 still reads "TypeScript `test`/`it` registrations classify as test symbols", and AC-21 still names only `describe`/`suite`. AC-27 also still says "no new symbol ... is manufactured", although `xit`/`xtest`/`xdescribe` now mint symbols. The direction is right; the owning ACs should state their own sets. | FR-051-AC-3 (FR-051:147); FR-051-AC-21; FR-051-AC-27 (FR-051:171) | wrong-requirement |
 
+## New findings (disposition pass 2)
+
+Reviewed at `agent-ix/quire-rs@3e54ba3bcf11363d494095bbd43cb52554d2a09e`.
+
+| ID | Severity | Summary | Refs | Escape Cause |
+| --- | --- | --- | --- | --- |
+| FND-013 | low | Two new claims are stale or wrong. (1) The new FR-051-AC-23 column clause says "for the two adapters that stay line-structural pre-PLAT-851, the same 1-based byte offset computed against the matched line". No adapter is line-structural at this head: `src/symbols/{rust,python,typescript}.rs` all parse through `quire_rust_extraction::parse_file` and tree-sitter (CR-176, CR-179, PLAT-882), and the FR-051 coverage row says CON-1 covers all three. The clause invites an implementer to build a fallback that does not exist. (2) The rewritten CR-187 log entry (spec/log.md:18) still cites "a combinatorial `-CFG-` id", the shape FND-010 removed from FR-050. Fix: drop the adapter clause (tree-sitter's own column holds for all three adapters), and reword the log line as FR-050 now reads. | FR-051-AC-23 (FR-051:166); spec/log.md:18; src/symbols/python.rs:120; src/symbols/typescript.rs:167 | wrong-requirement |
+
 ## Dispositions
 
 | FND | Outcome | sha/reason |
@@ -83,3 +91,6 @@ Reviewed at `agent-ix/quire-rs@2d79eb4f3f1769182a20f3f4827ddef1d1419e8e`.
 | FND-007 | fixed | 2d79eb4 |
 | FND-008 | fixed | 2d79eb4 |
 | FND-009 | fixed | 2d79eb4 |
+| FND-010 | fixed | 3e54ba3 (the log.md remnant is tracked as FND-013) |
+| FND-011 | fixed | 3e54ba3 |
+| FND-012 | still-open | FR-051-AC-18 is not amended. It still opens "A `test`/`it` registration whose modifier chain is curried ...", so it is unstated whether `xit.each([...])(...)` or a wrapped `xtest(` registers. The leader ruling requires AC-3, AC-18 and AC-21 each to state their own name set; AC-3 and AC-21 now do. |

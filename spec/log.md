@@ -15,8 +15,11 @@ description: "Chronological log of structural changes to this bundle."
   set** ([FR-053](./functional/FR-053-obligation-record.md)), never the
   minted-trace-target set — the base draft's population definition quietly
   re-admitted the Test Matrix (SR-117 FND-001), which this revision closes.
-  An obligation-only id (an NFR metric, a combinatorial `-CFG-` id) now
-  resolves against a source tag naming it, leaving `untracked_symbols`
+  An obligation-only id — an NFR metric rendered from a module's declared
+  `id_format` (`{document}-M-{row}`, FR-053), or a combinatorial source's
+  rendered id (FR-061), whatever shape the module's own `id_format`
+  declares — now resolves against a source tag naming it, leaving
+  `untracked_symbols`
   (SR-117 FND-002; a behavior change). Status is one of `tagged` /
   `untagged` / `tagged-by-ignored-test` / `method-without-symbol`, never an
   authored column. A range — same-prefix, differing-prefix, or short-suffix
