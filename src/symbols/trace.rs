@@ -694,9 +694,7 @@ pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolG
     graph
         .diagnostics
         .sort_by(|a, b| (&a.path, &a.symbol, &a.trace_id).cmp(&(&b.path, &b.symbol, &b.trace_id)));
-    // CR-187: one record per occurrence, deterministically ordered; a symbol
-    // whose span nests inside another (a suite containing a test, both
-    // carrying the identical range text) would otherwise report it twice.
+    // CR-187: one record per occurrence, deterministically ordered.
     graph.range_diagnostics.sort_by(|a, b| {
         (&a.path, a.line, &a.symbol, &a.range_text).cmp(&(
             &b.path,
@@ -705,9 +703,11 @@ pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolG
             &b.range_text,
         ))
     });
-    graph
-        .range_diagnostics
-        .dedup_by(|a, b| a.path == b.path && a.line == b.line && a.range_text == b.range_text);
+    // Two declared forms can read the identical range on one line; the dedup
+    // key equals the sort key, so those records are adjacent and collapse.
+    graph.range_diagnostics.dedup_by(|a, b| {
+        a.path == b.path && a.line == b.line && a.symbol == b.symbol && a.range_text == b.range_text
+    });
 
     // Computed last and additively: `find_mentions` reads the graph this
     // function already built (which symbols claimed which ids) to decide what
@@ -783,6 +783,21 @@ fn find_mentions(extraction: &SymbolExtraction, graph: &SymbolGraph) -> Vec<Ment
         })
         .collect();
 
+    // CR-187, FR-051-AC-28: a range's own endpoints
+    // contribute to neither `unmatched_tags` nor `mentions` — the range
+    // finding is the only record of the occurrence. Keyed by (path, line,
+    // normalized endpoint), since this pass reads one physical line at a
+    // time the same way `RangeInTraceTag::line` was computed.
+    let range_endpoints: BTreeSet<(&str, usize, String)> = graph
+        .range_diagnostics
+        .iter()
+        .flat_map(|r| {
+            r.range_text
+                .split("..")
+                .map(move |token| (r.path.as_str(), r.line, normalized_trace_id(token.trim())))
+        })
+        .collect();
+
     let pattern = generic_id_pattern();
     let mut mentions = Vec::new();
 
@@ -797,6 +812,15 @@ fn find_mentions(extraction: &SymbolExtraction, graph: &SymbolGraph) -> Vec<Ment
             let line = idx + 1;
             for matched in pattern.find_iter(text) {
                 let trace_id = matched.as_str().to_string();
+
+                if range_endpoints.contains(&(
+                    file.path.as_str(),
+                    line,
+                    normalized_trace_id(&trace_id),
+                )) {
+                    continue;
+                }
+
                 let owner = innermost_symbol_at(&symbols_in_file, line);
 
                 if let Some(symbol) = owner {
@@ -1024,6 +1048,12 @@ fn bind_implements(
         for caps in re.captures_iter(&span) {
             let Some(args) = caps.get(1) else { continue };
             for trace_id in marker_ids(args.as_str()) {
+                // A range in an `implements` marker binds nothing either,
+                // including its own endpoints (CR-187, FR-051-AC-28).
+                if let Some(range) = marker_range(symbol, &span, &caps, &trace_id) {
+                    graph.range_diagnostics.push(range);
+                    continue;
+                }
                 graph.implements.push(ImplementsRelation {
                     symbol_id: symbol.id.clone(),
                     symbol: symbol.qualified_name.clone(),
@@ -1466,17 +1496,8 @@ fn verifies_form_ids(
         for caps in re.captures_iter(&span) {
             let Some(args) = caps.get(1) else { continue };
             for trace_id in marker_ids(args.as_str()) {
-                if range_pattern().is_match(&trace_id) {
-                    let line = symbol.leading_line
-                        + span[..caps.get(0).map_or(0, |m| m.start())]
-                            .matches('\n')
-                            .count();
-                    ranges.push(RangeInTraceTag {
-                        path: symbol.path.clone(),
-                        symbol: symbol.qualified_name.clone(),
-                        line,
-                        range_text: trace_id,
-                    });
+                if let Some(range) = marker_range(symbol, &span, &caps, &trace_id) {
+                    ranges.push(range);
                     continue;
                 }
                 out.push((trace_id, marker.name.clone(), TraceProvenance::Canonical));
@@ -1499,35 +1520,16 @@ fn verifies_form_ids(
             continue;
         };
         for caps in re.captures_iter(&legacy_span) {
-            let mut ids = legacy_ids(&caps, legacy.id_format.as_deref());
-            // A legacy form's own id-shaped capture group cannot itself
-            // contain `..` (the id pattern stops at the first character it
-            // does not recognise), so a legacy range's right endpoint sits
-            // OUTSIDE the match entirely — unlike a marker's, whose quoted or
-            // comma-delimited argument carries the whole literal string. Read
-            // as a continuation immediately after the match instead: an
-            // `id_format`-less form whose captured last id is immediately
-            // followed by `..` and another id-or-number token is a range, and
-            // its captured left endpoint binds nothing either (CR-187).
-            if legacy.id_format.is_none() {
-                if let Some(whole) = caps.get(0) {
-                    let after = &legacy_span[whole.end()..];
-                    if let Some(continuation) = range_continuation_pattern().captures(after) {
-                        if let Some(left) = ids.pop() {
-                            let right = continuation.get(1).map_or("", |m| m.as_str());
-                            let line = symbol.leading_line
-                                + legacy_span[..whole.start()].matches('\n').count();
-                            ranges.push(RangeInTraceTag {
-                                path: symbol.path.clone(),
-                                symbol: symbol.qualified_name.clone(),
-                                line,
-                                range_text: format!("{left}..{right}"),
-                            });
-                        }
-                    }
-                }
-            }
-            for trace_id in ids {
+            let read = read_legacy_match(&caps, legacy.id_format.as_deref(), &legacy_span);
+            let start = caps.get(0).map_or(0, |m| m.start());
+            let line = symbol.leading_line + legacy_span[..start].matches('\n').count();
+            ranges.extend(read.ranges.into_iter().map(|range_text| RangeInTraceTag {
+                path: symbol.path.clone(),
+                symbol: symbol.qualified_name.clone(),
+                line,
+                range_text,
+            }));
+            for trace_id in read.ids {
                 out.push((trace_id, legacy.name.clone(), TraceProvenance::Legacy));
             }
         }
@@ -1547,6 +1549,94 @@ fn range_pattern() -> &'static Regex {
             r"(?i)^\s*[A-Z]{2,4}-[0-9]+(?:-[A-Z]+-[0-9]+)?\s*\.\.\s*([A-Z]{2,4}-[0-9]+(?:-[A-Z]+-[0-9]+)?|[0-9]+)\s*$",
         )
         .expect("range pattern compiles")
+    })
+}
+
+/// The range a marker's argument token spells, if it is one (CR-187,
+/// FR-051-AC-28), located on the line the token itself sits on, so a marker
+/// wrapped over several lines still reports the line `find_mentions` reads
+/// the endpoints from.
+fn marker_range(
+    symbol: &Symbol,
+    span: &str,
+    caps: &regex::Captures<'_>,
+    trace_id: &str,
+) -> Option<RangeInTraceTag> {
+    if !range_pattern().is_match(trace_id) {
+        return None;
+    }
+    let start = caps
+        .get(1)
+        .and_then(|args| args.as_str().find(trace_id).map(|at| args.start() + at))
+        .or_else(|| caps.get(0).map(|m| m.start()))
+        .unwrap_or(0);
+    Some(RangeInTraceTag {
+        path: symbol.path.clone(),
+        symbol: symbol.qualified_name.clone(),
+        line: symbol.leading_line + span[..start].matches('\n').count(),
+        range_text: trace_id.to_string(),
+    })
+}
+
+/// What one legacy-form match binds, and the ranges it carries instead.
+struct LegacyRead {
+    ids: Vec<String>,
+    ranges: Vec<String>,
+}
+
+/// Read one legacy-form match, splitting out every range it carries
+/// (CR-187, FR-050-AC-50, FR-051-AC-28).
+///
+/// A legacy form's id-shaped capture group cannot itself contain `..`: the id
+/// pattern stops at the first character it does not recognise. So a legacy
+/// range's right endpoint sits OUTSIDE the match, unlike a marker's, whose
+/// argument carries the whole literal string. For an `id_format`-less form,
+/// a captured last id immediately followed by `..` and another id-or-number
+/// token is a range, and its captured left endpoint binds nothing either.
+///
+/// The capture stopped at `..`, so a list continuing past the range
+/// (`// Trace: A..B, C`) is read on from there: every explicitly named id
+/// after it still binds, and a further range in it (`A..B, C..D`) is split
+/// out the same way.
+fn read_legacy_match(
+    caps: &regex::Captures<'_>,
+    id_format: Option<&str>,
+    legacy_span: &str,
+) -> LegacyRead {
+    let mut ids = legacy_ids(caps, id_format);
+    let mut ranges = Vec::new();
+    let (None, Some(whole)) = (id_format, caps.get(0)) else {
+        return LegacyRead { ids, ranges };
+    };
+    let mut rest = &legacy_span[whole.end()..];
+    while let Some(continuation) = range_continuation_pattern().captures(rest) {
+        let (Some(left), Some(right), Some(matched)) =
+            (ids.pop(), continuation.get(1), continuation.get(0))
+        else {
+            break;
+        };
+        ranges.push(format!("{left}..{}", right.as_str()));
+        rest = &rest[matched.end()..];
+        while let Some(item) = list_item_pattern().captures(rest) {
+            let (Some(id), Some(matched)) = (item.get(1), item.get(0)) else {
+                break;
+            };
+            ids.push(id.as_str().to_string());
+            rest = &rest[matched.end()..];
+            if range_continuation_pattern().is_match(rest) {
+                break;
+            }
+        }
+    }
+    LegacyRead { ids, ranges }
+}
+
+/// One `, id` item of a legacy comma list, anchored at its separator.
+fn list_item_pattern() -> &'static Regex {
+    static R: OnceLock<Regex> = OnceLock::new();
+    R.get_or_init(|| {
+        Regex::new(r"(?i)^[ \t]*,[ \t]*([A-Z]{2,4}-[0-9]+(?:-[A-Z]+-[0-9]+)?)")
+            .expect("list item pattern compiles")
     })
 }
 
@@ -1602,7 +1692,7 @@ fn bind_symbol(symbol: &Symbol, source: &str, model: &TraceabilityModel, graph: 
             continue;
         };
         for caps in re.captures_iter(&legacy_span) {
-            let trace_ids = legacy_ids(&caps, legacy.id_format.as_deref());
+            let trace_ids = read_legacy_match(&caps, legacy.id_format.as_deref(), &legacy_span).ids;
             if trace_ids.is_empty() {
                 continue;
             }
@@ -1863,7 +1953,7 @@ pub fn language_of(symbol: &Symbol) -> SourceLanguage {
 mod tests {
     use super::*;
     use crate::symbols::extract_tree;
-    use crate::traceability::TraceMarkerForm;
+    use crate::traceability::{TraceLegacyForm, TraceMarkerForm};
     use crate::Registry;
     use ix_trace_rs::trace;
 
@@ -2911,6 +3001,195 @@ fn fn_plain_mention() {\n\
             Some(MentionBucket::ProductionOrphanTag)
         );
         assert_eq!(bucket_of("FR-905"), Some(MentionBucket::Mention));
+    }
+
+    /// FR-051-AC-28: a range in an `implements` marker binds
+    /// no relation at all, including its own endpoints, and is reported
+    /// under `range-in-trace-tag` — the same rule `#[trace(...)]` already
+    /// gets, applied to `bind_implements`'s own marker loop.
+    #[trace("TC-1936", "FR-051-AC-28")]
+    #[test]
+    fn tc1936_a_range_in_an_implements_marker_binds_nothing() {
+        let mut model = iso_model();
+        model.trace_tags.implements.push(TraceMarkerForm {
+            name: "rust-implements-attribute".to_string(),
+            language: SourceLanguage::Rust,
+            pattern: r#"#\[implements\(((?:\s*"[^"]*"\s*,?)+)\)\]"#.to_string(),
+            template: None,
+        });
+        let graph = bind(
+            &rs("#[implements(\"FR-001..FR-003\")]\nfn resolve_scope() {\n}\n"),
+            &model,
+        );
+        assert!(
+            graph.implements.is_empty(),
+            "the range must mint no implements relation: {:?}",
+            graph.implements
+        );
+        assert_eq!(
+            graph
+                .range_diagnostics
+                .iter()
+                .map(|r| (r.range_text.as_str(), r.line, r.symbol.as_str()))
+                .collect::<Vec<_>>(),
+            [("FR-001..FR-003", 1, "resolve_scope")],
+            "the range is reported once, on its line, naming its symbol"
+        );
+        assert!(
+            !graph
+                .mentions
+                .iter()
+                .any(|m| m.trace_id == "FR-001" || m.trace_id == "FR-003"),
+            "neither endpoint resurfaces as a mention: {:?}",
+            graph.mentions
+        );
+    }
+
+    /// FR-051-AC-28: a range's own endpoints must not
+    /// resurface as citations in `mentions` either — "the range finding is
+    /// the only record of it".
+    #[trace("TC-1936", "FR-051-AC-28")]
+    #[test]
+    fn tc1936_range_endpoints_do_not_leak_into_mentions() {
+        let graph = bind(
+            &rs(
+                "#[trace(\"FR-001-AC-1..FR-001-AC-2\", \"FR-001-AC-3..4\")]\n#[test]\nfn t() {\n}\n",
+            ),
+            &iso_model(),
+        );
+        for id in ["FR-001-AC-1", "FR-001-AC-2", "FR-001-AC-3"] {
+            assert!(
+                !graph.mentions.iter().any(|m| m.trace_id == id),
+                "{id} is a range endpoint and must not appear as a mention: {:?}",
+                graph.mentions
+            );
+        }
+        assert_eq!(
+            graph.range_diagnostics.len(),
+            2,
+            "both ranges on the line are reported: {:?}",
+            graph.range_diagnostics
+        );
+
+        // A marker wrapped over several lines: the range reports the line
+        // its own text sits on, and its endpoints still stay out of mentions.
+        let graph = bind(
+            &rs("#[trace(\n    \"FR-001-AC-1..FR-001-AC-2\",\n)]\n#[test]\nfn t() {\n}\n"),
+            &iso_model(),
+        );
+        assert_eq!(
+            graph
+                .range_diagnostics
+                .iter()
+                .map(|r| r.line)
+                .collect::<Vec<_>>(),
+            [2]
+        );
+        assert!(graph.mentions.is_empty(), "{:?}", graph.mentions);
+    }
+
+    /// CR-187: in a legacy comma list that continues past a
+    /// range (`Trace: A..C, D`), only the range token is inert — the
+    /// explicitly named id after it still binds, rather than being silently
+    /// dropped because the id-shaped capture that located the range already
+    /// stopped at `..`.
+    #[trace("TC-1937", "FR-051-AC-28", "FR-050-AC-50")]
+    #[test]
+    fn tc1937_a_legacy_list_continuing_past_a_range_still_binds_the_rest() {
+        let graph = bind(
+            &rs("// Trace: FR-034-AC-1..FR-034-AC-3, FR-034-AC-7\n#[test]\nfn t() {\n}\n"),
+            &iso_model(),
+        );
+        assert!(
+            graph.verifies.iter().any(|v| v.trace_id == "FR-034-AC-7"),
+            "the explicitly named id after the range must still bind: {:?}",
+            graph.verifies
+        );
+        assert!(
+            !graph.verifies.iter().any(|v| v.trace_id == "FR-034-AC-1"),
+            "the range's own left endpoint must not bind"
+        );
+        assert!(
+            !graph
+                .unmatched_tags
+                .iter()
+                .any(|t| t.trace_id == "FR-034-AC-7"),
+            "a bound id must not also read as an unmatched tag: {:?}",
+            graph.unmatched_tags
+        );
+
+        // Ids before, between and after two ranges on one line: every named
+        // id binds, neither range's endpoints do, and both ranges report.
+        let graph = bind(
+            &rs(concat!(
+                "// Trace: FR-034-AC-9, FR-034-AC-1..FR-034-AC-3, FR-034-AC-7, ",
+                "FR-034-AC-10..12, FR-034-AC-20\n#[test]\nfn t() {\n}\n"
+            )),
+            &iso_model(),
+        );
+        let bound: Vec<&str> = graph.verifies.iter().map(|v| v.trace_id.as_str()).collect();
+        assert_eq!(
+            bound,
+            ["FR-034-AC-20", "FR-034-AC-7", "FR-034-AC-9"],
+            "exactly the explicitly named ids bind"
+        );
+        let ranges: Vec<&str> = graph
+            .range_diagnostics
+            .iter()
+            .map(|r| r.range_text.as_str())
+            .collect();
+        assert_eq!(ranges, ["FR-034-AC-1..FR-034-AC-3", "FR-034-AC-10..12"]);
+        let suggestions: Vec<&str> = graph
+            .rewrites
+            .iter()
+            .map(|r| r.suggestion.as_str())
+            .collect();
+        assert_eq!(
+            suggestions,
+            [r#"#[trace("FR-034-AC-9", "FR-034-AC-7", "FR-034-AC-20")]"#],
+            "the rewrite names the bound ids only, never a range endpoint"
+        );
+
+        // A line that is only a range suggests no rewrite at all.
+        let graph = bind(
+            &rs("// Trace: FR-034-AC-1..FR-034-AC-5\n#[test]\nfn t() {\n}\n"),
+            &iso_model(),
+        );
+        assert!(graph.rewrites.is_empty(), "{:?}", graph.rewrites);
+    }
+
+    /// the range-diagnostic dedup key must equal its own
+    /// sort key, so two declared forms that both read the identical range on
+    /// one line collapse to one record rather than reporting it twice.
+    #[trace("TC-1936", "FR-051-AC-28")]
+    #[test]
+    fn tc1936_a_range_read_by_two_declared_forms_is_reported_once() {
+        let mut model = iso_model();
+        // Deliberately overlapping with the `trace-line` form already
+        // declared: both read an id immediately after `//`, so both
+        // independently discover the identical range on this line.
+        model.trace_tags.legacy.push(TraceLegacyForm {
+            name: "bare-comment-id".to_string(),
+            language: Some(SourceLanguage::Rust),
+            pattern: r"//\s*(?:Trace:\s*)?([A-Za-z]{2,4}-[0-9]+(?:-[A-Za-z]+-[0-9]+)?)".to_string(),
+            id_format: None,
+            rewrite_to: None,
+        });
+        let graph = bind(
+            &rs("// Trace: FR-034-AC-1..FR-034-AC-5\n#[test]\nfn t() {\n}\n"),
+            &model,
+        );
+        let matching: Vec<_> = graph
+            .range_diagnostics
+            .iter()
+            .filter(|r| r.range_text == "FR-034-AC-1..FR-034-AC-5")
+            .collect();
+        assert_eq!(
+            matching.len(),
+            1,
+            "two forms reading one identical range must deduplicate to one record: {:?}",
+            graph.range_diagnostics
+        );
     }
 }
 

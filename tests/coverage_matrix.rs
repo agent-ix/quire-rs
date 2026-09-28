@@ -154,7 +154,9 @@ fn tc1932_tc1944_binders_are_keyed_on_path_line_column_not_qualified_name() {
             .unwrap_or_else(|| panic!("no criterion {id}: {:?}", report.coverage_matrix))
     };
 
-    // TC-1932: `a` and `b` share one line, disambiguated by column.
+    // TC-1932: `a` and `b` share one line, disambiguated by column. Ordering
+    // is asserted directly — (path, line, column, qualified_name, kind) —
+    // not merely "both are present in some order".
     let ac1 = criterion("FR-001-AC-1");
     assert_eq!(
         ac1.binders.len(),
@@ -162,13 +164,18 @@ fn tc1932_tc1944_binders_are_keyed_on_path_line_column_not_qualified_name() {
         "two distinct binders: {:?}",
         ac1.binders
     );
-    assert_eq!(ac1.binders[0].line, ac1.binders[1].line, "same line");
-    assert_ne!(
-        ac1.binders[0].column, ac1.binders[1].column,
-        "disambiguated by column"
+    assert_eq!(
+        ac1.statement, "Every finding shall default to warning.",
+        "CR-188: the criterion carries the obligation's own statement verbatim"
     );
-    assert!(ac1.binders.iter().any(|b| b.qualified_name == "a"));
-    assert!(ac1.binders.iter().any(|b| b.qualified_name == "b"));
+    assert_eq!(ac1.binders[0].line, ac1.binders[1].line, "same line");
+    assert!(
+        ac1.binders[0].column < ac1.binders[1].column,
+        "binders must be ordered by column ascending: {:?}",
+        ac1.binders
+    );
+    assert_eq!(ac1.binders[0].qualified_name, "a");
+    assert_eq!(ac1.binders[1].qualified_name, "b");
 
     // TC-1944: two `it('works', ...)` in different `describe` blocks.
     let ac2 = criterion("FR-001-AC-2");
@@ -178,10 +185,15 @@ fn tc1932_tc1944_binders_are_keyed_on_path_line_column_not_qualified_name() {
         "keying on qualified_name alone would have collapsed these into one: {:?}",
         ac2.binders
     );
+    assert_eq!(
+        ac2.statement, "Every criterion shall bind.",
+        "CR-188: statement carried for this criterion too"
+    );
     assert!(ac2.binders.iter().all(|b| b.qualified_name == "works"));
-    assert_ne!(
-        ac2.binders[0].line, ac2.binders[1].line,
-        "distinct declaration sites"
+    assert!(
+        ac2.binders[0].line < ac2.binders[1].line,
+        "binders must be ordered by line ascending: {:?}",
+        ac2.binders
     );
 
     // A criterion with no binder carries an empty list, never an absent key.
@@ -342,15 +354,24 @@ fn tc1936_a_marker_range_binds_nothing_and_is_reported() {
     );
     let report = report_over(&root, "iso-obligations");
 
-    assert!(
-        report
-            .diagnostics
-            .iter()
-            .any(|d| d.reason == "range-in-trace-tag"
-                && d.value.as_deref() == Some("FR-034-AC-1..FR-034-AC-5")),
-        "diagnostics: {:?}",
+    // "Reported once", naming the line and the qualified symbol — not merely
+    // that a reason/value pair exists somewhere.
+    let range_findings: Vec<_> = report
+        .diagnostics
+        .iter()
+        .filter(|d| d.reason == "range-in-trace-tag")
+        .collect();
+    assert_eq!(
+        range_findings.len(),
+        1,
+        "reported exactly once: {:?}",
         report.diagnostics
     );
+    let finding = range_findings[0];
+    assert_eq!(finding.value.as_deref(), Some("FR-034-AC-1..FR-034-AC-5"));
+    assert_eq!(finding.path.as_deref(), Some("lib.rs"));
+    assert_eq!(finding.line, Some(5));
+    assert_eq!(finding.declaration, "tests::covers_range");
     assert!(
         report.untracked_symbols.is_empty(),
         "the range must not land in untracked_symbols: {:?}",
