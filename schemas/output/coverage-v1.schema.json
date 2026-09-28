@@ -164,11 +164,7 @@
     "EngineProvenance": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "cli",
-        "engine",
-        "capabilities"
-      ],
+      "required": ["cli", "engine", "capabilities"],
       "description": "Which instrument produced this payload (agent-ix/quire-cli#68, CR-104). Assembled by `quire-cli`, which is the only layer that knows both versions; ABSENT from a payload built by calling `CoverageReport::to_json` in-process, and absent from any CLI predating the field. NOT the contract version \u2014 that stays in the `$id` and the filename, and FR-055-CON-2 still forbids a payload key naming it. This is provenance of the MEASUREMENT: a current CLI can link a stale engine, and every number in this payload is only as trustworthy as the engine that computed it.",
       "properties": {
         "cli": {
@@ -373,38 +369,16 @@
     "UnmatchedTag": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "trace_id",
-        "language",
-        "path",
-        "line",
-        "symbol"
-      ],
+      "required": ["trace_id", "language", "path", "line", "symbol"],
       "properties": {
-        "trace_id": {
-          "type": "string",
-          "minLength": 1
-        },
+        "trace_id": {"type": "string", "minLength": 1},
         "language": {
           "type": "string",
-          "enum": [
-            "rust",
-            "python",
-            "typescript"
-          ]
+          "enum": ["rust", "python", "typescript"]
         },
-        "path": {
-          "type": "string",
-          "minLength": 1
-        },
-        "line": {
-          "type": "integer",
-          "minimum": 1
-        },
-        "symbol": {
-          "type": "string",
-          "minLength": 1
-        }
+        "path": {"type": "string", "minLength": 1},
+        "line": {"type": "integer", "minimum": 1},
+        "symbol": {"type": "string", "minLength": 1}
       }
     },
     "UnbackedRow": {
@@ -653,33 +627,13 @@
     "MintedTargetRecord": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "id",
-        "target",
-        "document",
-        "line",
-        "backed"
-      ],
+      "required": ["id", "target", "document", "line", "backed"],
       "properties": {
-        "id": {
-          "type": "string",
-          "minLength": 1
-        },
-        "target": {
-          "type": "string",
-          "minLength": 1
-        },
-        "document": {
-          "type": "string",
-          "minLength": 1
-        },
-        "line": {
-          "type": "integer",
-          "minimum": 1
-        },
-        "backed": {
-          "type": "boolean"
-        }
+        "id": {"type": "string", "minLength": 1},
+        "target": {"type": "string", "minLength": 1},
+        "document": {"type": "string", "minLength": 1},
+        "line": {"type": "integer", "minimum": 1},
+        "backed": {"type": "boolean"}
       }
     },
     "CriteriaCounts": {
@@ -793,54 +747,23 @@
         {
           "not": {
             "anyOf": [
-              {
-                "required": [
-                  "subject"
-                ]
-              },
-              {
-                "required": [
-                  "change_target"
-                ]
-              },
-              {
-                "required": [
-                  "remedy"
-                ]
-              },
-              {
-                "required": [
-                  "next_diagnostic_step"
-                ]
-              }
+              { "required": ["subject"] },
+              { "required": ["change_target"] },
+              { "required": ["remedy"] },
+              { "required": ["next_diagnostic_step"] }
             ]
           }
         },
         {
-          "required": [
-            "subject",
-            "change_target"
-          ],
+          "required": ["subject", "change_target"],
           "oneOf": [
             {
-              "required": [
-                "remedy"
-              ],
-              "not": {
-                "required": [
-                  "next_diagnostic_step"
-                ]
-              }
+              "required": ["remedy"],
+              "not": { "required": ["next_diagnostic_step"] }
             },
             {
-              "required": [
-                "next_diagnostic_step"
-              ],
-              "not": {
-                "required": [
-                  "remedy"
-                ]
-              }
+              "required": ["next_diagnostic_step"],
+              "not": { "required": ["remedy"] }
             }
           ]
         }
@@ -962,6 +885,111 @@
           "description": "Test-case ids the method cell names, e.g. `Test (TC-707)`. Additive in v1: absent on a payload from an engine before quire-rs v0.35.0, and omitted where the cell names none. A consumer binding evidence keyed on a TEST CASE rather than on the criterion needs this join, which the engine parsed and discarded (agent-ix/quire-rs#180)."
         }
       }
+    },
+    "CoverageMatrixRequirement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "document",
+        "criteria"
+      ],
+      "properties": {
+        "document": {
+          "type": "string",
+          "description": "The obligation group's stating document, scope-relative."
+        },
+        "criteria": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/CoverageMatrixCriterion"
+          }
+        }
+      }
+    },
+    "CoverageMatrixCriterion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "statement",
+        "binders",
+        "status"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "The obligation's own id."
+        },
+        "statement": {
+          "type": "string",
+          "description": "CR-188: the obligation's own statement text, verbatim and untruncated."
+        },
+        "method": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "The obligation's declared verification method, when it states one."
+        },
+        "binders": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/CoverageMatrixBinder"
+          },
+          "description": "One per distinct (path, line, column) verifies relation bound to this id. Empty, never absent, for a criterion with no binder."
+        },
+        "status": {
+          "$ref": "#/$defs/CoverageMatrixStatus"
+        }
+      }
+    },
+    "CoverageMatrixBinder": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "line",
+        "column",
+        "qualified_name",
+        "kind"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "Repo-relative, /-separated."
+        },
+        "line": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "1-based declaration line (FR-051-AC-23)."
+        },
+        "column": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "1-based UTF-8 byte declaration column (FR-051-AC-23)."
+        },
+        "qualified_name": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string",
+          "description": "SymbolKind label."
+        },
+        "ignored": {
+          "type": "boolean",
+          "description": "FR-051-AC-27. Serialized only when true."
+        }
+      }
+    },
+    "CoverageMatrixStatus": {
+      "type": "string",
+      "enum": [
+        "tagged",
+        "untagged",
+        "tagged-by-ignored-test",
+        "method-without-symbol"
+      ],
+      "description": "CR-187, FR-050-AC-49: the criterion's computed static status."
     },
     "ImplementsRecord": {
       "type": "object",
@@ -1128,54 +1156,23 @@
         {
           "not": {
             "anyOf": [
-              {
-                "required": [
-                  "subject"
-                ]
-              },
-              {
-                "required": [
-                  "change_target"
-                ]
-              },
-              {
-                "required": [
-                  "remedy"
-                ]
-              },
-              {
-                "required": [
-                  "next_diagnostic_step"
-                ]
-              }
+              { "required": ["subject"] },
+              { "required": ["change_target"] },
+              { "required": ["remedy"] },
+              { "required": ["next_diagnostic_step"] }
             ]
           }
         },
         {
-          "required": [
-            "subject",
-            "change_target"
-          ],
+          "required": ["subject", "change_target"],
           "oneOf": [
             {
-              "required": [
-                "remedy"
-              ],
-              "not": {
-                "required": [
-                  "next_diagnostic_step"
-                ]
-              }
+              "required": ["remedy"],
+              "not": { "required": ["next_diagnostic_step"] }
             },
             {
-              "required": [
-                "next_diagnostic_step"
-              ],
-              "not": {
-                "required": [
-                  "remedy"
-                ]
-              }
+              "required": ["next_diagnostic_step"],
+              "not": { "required": ["remedy"] }
             }
           ]
         }
@@ -1221,111 +1218,6 @@
           "description": "1-based document line of the criterion."
         }
       }
-    },
-    "CoverageMatrixRequirement": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "document",
-        "criteria"
-      ],
-      "properties": {
-        "document": {
-          "type": "string",
-          "description": "The obligation group's stating document, scope-relative."
-        },
-        "criteria": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/CoverageMatrixCriterion"
-          }
-        }
-      }
-    },
-    "CoverageMatrixCriterion": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "id",
-        "statement",
-        "binders",
-        "status"
-      ],
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "The obligation's own id."
-        },
-        "statement": {
-          "type": "string",
-          "description": "CR-188: the obligation's own statement text, verbatim and untruncated."
-        },
-        "method": {
-          "type": [
-            "string",
-            "null"
-          ],
-          "description": "The obligation's declared verification method, when it states one."
-        },
-        "binders": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/CoverageMatrixBinder"
-          },
-          "description": "One per distinct (path, line, column) verifies relation bound to this id. Empty, never absent, for a criterion with no binder."
-        },
-        "status": {
-          "$ref": "#/$defs/CoverageMatrixStatus"
-        }
-      }
-    },
-    "CoverageMatrixBinder": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "path",
-        "line",
-        "column",
-        "qualified_name",
-        "kind"
-      ],
-      "properties": {
-        "path": {
-          "type": "string",
-          "description": "Repo-relative, /-separated."
-        },
-        "line": {
-          "type": "integer",
-          "minimum": 1,
-          "description": "1-based declaration line (FR-051-AC-23)."
-        },
-        "column": {
-          "type": "integer",
-          "minimum": 1,
-          "description": "1-based UTF-8 byte declaration column (FR-051-AC-23)."
-        },
-        "qualified_name": {
-          "type": "string"
-        },
-        "kind": {
-          "type": "string",
-          "description": "SymbolKind label."
-        },
-        "ignored": {
-          "type": "boolean",
-          "description": "FR-051-AC-27. Serialized only when true."
-        }
-      }
-    },
-    "CoverageMatrixStatus": {
-      "type": "string",
-      "enum": [
-        "tagged",
-        "untagged",
-        "tagged-by-ignored-test",
-        "method-without-symbol"
-      ],
-      "description": "CR-187, FR-050-AC-49: the criterion's computed static status."
     }
   }
 }
