@@ -496,6 +496,9 @@ pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolG
     // occurrence is reported against: a container's span covers every symbol
     // in its file, so the same occurrence is read more than once.
     let mut production_ranges: Vec<(RangeInTraceTag, SymbolKind, usize)> = Vec::new();
+    // A legacy range read on a production symbol, as the misplaced tag it may
+    // be, keyed by its occurrence.
+    let mut range_non_binding_tags: Vec<(RangeOccurrence, NonBindingTag)> = Vec::new();
 
     for symbol in &extraction.symbols {
         graph.defined_in.push((
@@ -578,14 +581,17 @@ pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolG
                 } in ranges
                 {
                     if provenance == TraceProvenance::Legacy {
-                        graph.non_binding_tags.push(NonBindingTag {
-                            path: symbol.path.clone(),
-                            symbol: symbol.qualified_name.clone(),
-                            kind: symbol.kind.as_str(),
-                            trace_id: range.range_text.clone(),
-                            form,
-                            line: symbol.leading_line,
-                        });
+                        range_non_binding_tags.push((
+                            range_occurrence(&range),
+                            NonBindingTag {
+                                path: symbol.path.clone(),
+                                symbol: symbol.qualified_name.clone(),
+                                kind: symbol.kind.as_str(),
+                                trace_id: range.range_text.clone(),
+                                form,
+                                line: symbol.leading_line,
+                            },
+                        ));
                     }
                     production_ranges.push((range, symbol.kind, symbol.leading_line));
                 }
@@ -680,6 +686,21 @@ pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolG
     //    symbol starts there gives the module and the function the same
     //    `leading_line`, and the stable sort would then hand it to whichever
     //    the extractor happened to emit first — which is the module.
+    //
+    // A range is the same case as (1): one an evidence symbol already read is
+    // on that test, and a container spanning the test is not carrying it.
+    // Every range reported so far came from an evidence symbol.
+    let reported: BTreeSet<RangeOccurrence> = graph
+        .range_diagnostics
+        .iter()
+        .map(range_occurrence)
+        .collect();
+    graph.non_binding_tags.extend(
+        range_non_binding_tags
+            .into_iter()
+            .filter(|(occurrence, _)| !reported.contains(occurrence))
+            .map(|(_, tag)| tag),
+    );
     let bound: BTreeSet<String> = graph.verifies.iter().map(|v| v.trace_id.clone()).collect();
     graph
         .non_binding_tags
@@ -728,8 +749,7 @@ pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolG
     // A range an evidence symbol already reported is that symbol's. Otherwise
     // the innermost production symbol wins, by the same rule the non-binding
     // tags above use: greatest `leading_line`, a container losing ties.
-    let occurrence = |r: &RangeInTraceTag| (r.path.clone(), r.line, r.range_text.clone());
-    let reported: BTreeSet<_> = graph.range_diagnostics.iter().map(occurrence).collect();
+    let occurrence = range_occurrence;
     production_ranges.sort_by(|(a, a_kind, a_lead), (b, b_kind, b_lead)| {
         let container = |kind: &SymbolKind| *kind == SymbolKind::Container;
         (occurrence(a), b_lead, container(a_kind)).cmp(&(occurrence(b), a_lead, container(b_kind)))
@@ -1641,6 +1661,14 @@ fn marker_range(
     })
 }
 
+/// What makes two range records one occurrence: the same text on the same
+/// line of the same file, whichever symbol read it.
+type RangeOccurrence = (String, usize, String);
+
+fn range_occurrence(range: &RangeInTraceTag) -> RangeOccurrence {
+    (range.path.clone(), range.line, range.range_text.clone())
+}
+
 /// A range a declared verifies form read, with the form that read it.
 struct FormRange {
     range: RangeInTraceTag,
@@ -1696,13 +1724,15 @@ fn read_legacy_match(
         let Some(resumed) = re.captures(&probe) else {
             break;
         };
-        let (Some(resumed_whole), Some(resumed_group)) = (resumed.get(0), resumed.get(1)) else {
+        let Some(resumed_group) = resumed.get(1) else {
             break;
         };
-        if resumed_whole.start() != 0
-            || resumed_group.start() != prefix.len()
-            || resumed_group.end() < stand_in_end
-        {
+        // The form must re-read the list from the same place and take the
+        // stand-in whole. A form whose grammar needs something after the id
+        // (a `\b`, a terminator) can fail at the stand-in, match a shorter
+        // id there, or match later in the tail instead; none of those is the
+        // continuation of this list.
+        if resumed_group.start() != prefix.len() || resumed_group.end() < stand_in_end {
             break;
         }
         ids.extend(legacy_ids(&resumed, None).into_iter().skip(1));
@@ -3295,6 +3325,147 @@ fn fn_plain_mention() {\n\
                 .collect::<Vec<_>>(),
             ["FR-001-AC-1", "FR-001-AC-3"]
         );
+    }
+
+    /// A legacy range on a test inside a container is the test's: one range
+    /// record naming the test, and no misplaced-tag report against the
+    /// container whose span also covers it.
+    #[trace("TC-1937", "FR-051-AC-28", "FR-051-AC-22")]
+    #[test]
+    fn tc1937_a_legacy_range_on_a_contained_test_is_the_tests() {
+        let ts = |source: &str| {
+            crate::symbols::extract_file("src/m.test.ts", SourceLanguage::Typescript, source)
+        };
+        for (label, extraction, test) in [
+            (
+                "rust",
+                rs(concat!(
+                    "mod tests {\n",
+                    "    // Trace: FR-001-AC-1..FR-001-AC-3\n",
+                    "    #[test]\n",
+                    "    fn t() {\n",
+                    "    }\n",
+                    "}\n",
+                )),
+                "tests::t",
+            ),
+            (
+                "python",
+                py(concat!(
+                    "import os\n",
+                    "\n",
+                    "\n",
+                    "class TestThing:\n",
+                    "    def test_t(self):\n",
+                    "        # Trace: FR-001-AC-1..FR-001-AC-3\n",
+                    "        assert 1\n",
+                )),
+                "TestThing.test_t",
+            ),
+            (
+                "typescript",
+                ts(concat!(
+                    "import { it } from \"vitest\";\n",
+                    "\n",
+                    "describe(\"s\", () => {\n",
+                    "  // Trace: FR-001-AC-1..FR-001-AC-3\n",
+                    "  it(\"t\", () => {});\n",
+                    "});\n",
+                )),
+                "t",
+            ),
+        ] {
+            let graph = bind(&extraction, &iso_model());
+            assert_eq!(
+                graph
+                    .range_diagnostics
+                    .iter()
+                    .map(|r| (r.range_text.as_str(), r.symbol.as_str()))
+                    .collect::<Vec<_>>(),
+                [("FR-001-AC-1..FR-001-AC-3", test)],
+                "{label}: one record, naming the test"
+            );
+            assert!(
+                graph.non_binding_tags.is_empty(),
+                "{label}: the container is not carrying it: {:?}",
+                graph.non_binding_tags
+            );
+        }
+    }
+
+    /// When a container and a function start on the same line and both span
+    /// a range on a production symbol, the function is named: a container
+    /// loses ties.
+    #[trace("TC-1937", "FR-051-AC-28")]
+    #[test]
+    fn tc1937_a_container_loses_a_tie_for_a_production_range() {
+        let graph = bind(
+            &py("# Trace: FR-001-AC-1..FR-001-AC-3\ndef prod():\n    return 1\n"),
+            &iso_model(),
+        );
+        assert_eq!(
+            graph
+                .range_diagnostics
+                .iter()
+                .map(|r| r.symbol.as_str())
+                .collect::<Vec<_>>(),
+            ["prod"]
+        );
+    }
+
+    /// Resuming a list after a range stops when the declared form cannot
+    /// re-read the list from the stand-in: here because its `\b` rejects the
+    /// id once glued to the text after the range (`..3abc`). One form then
+    /// matches a shorter id at the stand-in; the other, which admits no
+    /// shorter id, matches only on the next line. Neither is this list's
+    /// continuation, so nothing more binds and nothing is attached twice.
+    #[trace("TC-1937", "FR-051-AC-28")]
+    #[test]
+    fn tc1937_a_list_resumes_only_where_the_form_rereads_it() {
+        let source = concat!(
+            "// Trace: FR-001-AC-1..3abc\n",
+            "// Trace: FR-002-AC-1, FR-002-AC-2\n",
+            "#[test]\n",
+            "fn t() {\n",
+            "}\n",
+        );
+        for pattern in [
+            r"Trace:\s*([A-Z]+-\d+(?:-[A-Z]+-\d+)?(?:\s*,\s*[A-Z]+-\d+(?:-[A-Z]+-\d+)?)*)\b",
+            r"Trace:\s*(FR-\d+-AC-\d+(?:\s*,\s*FR-\d+-AC-\d+)*)\b",
+        ] {
+            let mut model = iso_model();
+            model.trace_tags.legacy = vec![TraceLegacyForm {
+                name: "strict-trace-line".to_string(),
+                language: Some(SourceLanguage::Rust),
+                pattern: pattern.to_string(),
+                id_format: None,
+                rewrite_to: None,
+            }];
+            let graph = bind(&rs(source), &model);
+            assert_eq!(
+                graph
+                    .range_diagnostics
+                    .iter()
+                    .map(|r| r.range_text.as_str())
+                    .collect::<Vec<_>>(),
+                ["FR-001-AC-1..3"],
+                "{pattern}"
+            );
+            assert_eq!(
+                graph
+                    .verifies
+                    .iter()
+                    .map(|v| v.trace_id.as_str())
+                    .collect::<Vec<_>>(),
+                ["FR-002-AC-1", "FR-002-AC-2"],
+                "{pattern}"
+            );
+            assert!(
+                graph.diagnostics.is_empty(),
+                "{pattern}: no id attached twice: {:?}",
+                graph.diagnostics
+            );
+        }
     }
 
     /// The list after a range is read by the declared form's own grammar:
