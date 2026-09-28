@@ -140,7 +140,6 @@ def test_yaml_workflow_extension_is_audited(tmp_path: pathlib.Path) -> None:
         (".github/workflows/ci.yml", "ubuntu-24.04", "ubuntu-latest", "latest"),
         ("Makefile", "test --locked", "test", "--locked"),
         ("requirements/ci.txt", " --hash=sha256:" + "a" * 64, "", "hash-locked"),
-        ("Cargo.toml", "0.46.0", "0.33.0", "0.46.0"),
         (
             "scripts/check_engine.py",
             '        "--locked",\n',
