@@ -16,9 +16,13 @@ fields to the coverage JSON and the published output-contract schema.
 
 - **A range inside a trace tag binds nothing, including its own endpoints
   (#495, PLAT-1077, FR-051-AC-28).** Before 0.48.0, a legacy
-  `// Trace: A..B` tag bound `A`. It now binds neither `A` nor `B`. This
-  applies to every range shape (same-prefix, differing-prefix, short
-  suffix) in both the legacy tag and the implements marker. Each such range
+  `// Trace: A..B` tag bound `A`, and a range in a `verifies` or
+  `implements` marker minted one relation keyed on the literal `A..B`. Now
+  none of them binds anything: not `A`, not `B`, and no `A..B` relation.
+  This applies to every range shape (same-prefix, differing-prefix, short
+  suffix) in all three forms: the legacy tag, the `verifies` marker and the
+  `implements` marker. `verifies`/`implements` counts can change for any
+  corpus carrying either shape. Each such range
   is reported once as a new `range-in-trace-tag` diagnostic (FR-057
   advisory) in `CoverageReport.diagnostics`. Its endpoints do not appear in
   `untracked_symbols`, `unmatched_tags` or mentions. A legacy list that
@@ -44,8 +48,9 @@ fields to the coverage JSON and the published output-contract schema.
   published-schemas digest baseline was re-minted for that one file.
 - **`column` and `ignored` on symbols (#495, FR-051-AC-23/27).** `Symbol`,
   `SymbolRecord` and `VerifiesRelation` gain `column`, the 1-based UTF-8
-  byte column of the declaration, and `ignored`, which is serialized only
-  when true. `ignored` is decided statically per language. In Rust it comes
+  byte column of the declaration, and `ignored`. On the serialized records,
+  `SymbolRecord` and the `coverage_matrix` binder, `ignored` is emitted
+  only when true. `ignored` is decided statically per language. In Rust it comes
   from `#[ignore]`, including inside `proptest!`. In TypeScript it comes
   from `xtest`, `xit`, `xdescribe` and `.skip` chains. In Python it comes
   from skip decorators and a module-level or class-level `pytestmark`.
