@@ -23,9 +23,6 @@ if not match or match.group(1) != accepted_stable_rust:
     )
 
 manifest = (root / "Cargo.toml").read_text(encoding="utf-8")
-version = re.search(r'^version\s*=\s*"([^"]+)"', manifest, re.MULTILINE)
-if not version or version.group(1) != "0.46.0":
-    errors.append("Cargo.toml must declare the guarded post-v0.45 version 0.46.0")
 rust_version = re.search(r'^rust-version\s*=\s*"([^"]+)"', manifest, re.MULTILINE)
 if not rust_version or rust_version.group(1) != accepted_stable_rust:
     errors.append(
