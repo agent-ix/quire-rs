@@ -7,6 +7,60 @@ bumps; once 1.0 ships, semver is strict.
 
 ## [Unreleased]
 
+## [0.48.0] — 2026-09-28
+
+Minor bump: PLAT-1077 (CR-187) changes how legacy trace tags bind and adds
+fields to the coverage JSON and the published output-contract schema.
+
+### Changed — behaviour
+
+- **A range inside a trace tag binds nothing, including its own endpoints
+  (#495, PLAT-1077, FR-051-AC-28).** Before 0.48.0, a legacy
+  `// Trace: A..B` tag bound `A`. It now binds neither `A` nor `B`. This
+  applies to every range shape (same-prefix, differing-prefix, short
+  suffix) in both the legacy tag and the implements marker. Each such range
+  is reported once as a new `range-in-trace-tag` diagnostic (FR-057
+  advisory) in `CoverageReport.diagnostics`. Its endpoints do not appear in
+  `untracked_symbols`, `unmatched_tags` or mentions. A legacy list that
+  continues past a range still binds every other id it names. Totals,
+  `unbacked_rows` and `backed` can move for any repo that wrote ranges in
+  its tags. Write each id out in full to keep it bound.
+- **An obligation's own id counts as declared (#495, R2).** A tag naming a
+  derived obligation id, such as an NFR-metric `{document}-M-{row}` id or an
+  id rendered from the module's `id_format`, no longer lands in
+  `untracked_symbols` or `unmatched_tags`.
+
+### Added
+
+- **`CoverageReport.coverage_matrix` (#495, FR-050-AC-47..51).** This is
+  the module's derived obligations grouped by document into
+  `requirements[].criteria[]`. Each criterion carries `id`, `statement`,
+  `method`, its `binders` (deduplicated by `(path, line, column)`) and a
+  computed `status`: `tagged`, `untagged`, `tagged-by-ignored-test` or
+  `method-without-symbol`. The field is omitted when the model declares no
+  `obligations:` source. `schemas/output/coverage-v1.schema.json` publishes
+  it, with new `CoverageMatrixRequirement`, `CoverageMatrixCriterion`,
+  `CoverageMatrixBinder` and `CoverageMatrixStatus` `$defs`. The
+  published-schemas digest baseline was re-minted for that one file.
+- **`column` and `ignored` on symbols (#495, FR-051-AC-23/27).** `Symbol`,
+  `SymbolRecord` and `VerifiesRelation` gain `column`, the 1-based UTF-8
+  byte column of the declaration, and `ignored`, which is serialized only
+  when true. `ignored` is decided statically per language. In Rust it comes
+  from `#[ignore]`, including inside `proptest!`. In TypeScript it comes
+  from `xtest`, `xit`, `xdescribe` and `.skip` chains. In Python it comes
+  from skip decorators and a module-level or class-level `pytestmark`.
+  Conditional forms such as `cfg_attr(…, ignore)`, `skipif` and `xfail` do
+  not set it. Test and suite kinds inherit it through their declaration
+  site. `xtest`, `xit` and `xdescribe` are now minted as test symbols.
+- **Spec (#494):** FR-050-AC-47..51, FR-051-AC-27/28 and TC-1930..1944.
+
+### Fixed
+
+- **Tool-drift audit no longer pins `Cargo.toml`'s version (#496,
+  PLAT-1090).** `check_tool_drift.sh` asserted the literal `0.46.0`, so
+  `make audit-static` failed for every release after 0.45. That clause
+  guarded nothing and has been removed.
+
 ## [0.47.1] — 2026-09-22
 
 `v0.47.0`'s git tag doesn't match what got published, for the same reason
