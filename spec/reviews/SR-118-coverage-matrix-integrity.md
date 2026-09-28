@@ -40,3 +40,12 @@ diff.
 
 Structurally sound for the new ids and traces. The two low findings are
 bookkeeping and would not on their own block merge.
+
+## Dispositions
+
+Reviewed at `agent-ix/quire-rs@2d79eb4f3f1769182a20f3f4827ddef1d1419e8e`.
+
+| FND | Outcome | sha/reason |
+| --- | --- | --- |
+| FND-001 | still-open | The line now states measured values, which is the right approach (author judgment call 3). But it says 857 while the head measures 858, because FR-051-AC-28 was added in the same commit; 84 audit gaps is still correct. A hand-kept absolute drifted inside its own fix commit. Change it to 858, or state only "every id this change adds has an audit row" plus the pre-existing gap. |
+| FND-002 | fixed | 2d79eb4 |

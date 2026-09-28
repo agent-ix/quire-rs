@@ -59,3 +59,27 @@ the population the matrix computes over. FND-003 makes TC-1940 unsatisfiable
 and leaves the headline false green (tests in skipped suites or classes
 reported `tagged`). The medium findings are precision gaps that an implementer
 would otherwise settle by guessing. Spec-only; no code changed.
+
+## New findings (disposition pass 1)
+
+Reviewed at `agent-ix/quire-rs@2d79eb4f3f1769182a20f3f4827ddef1d1419e8e`.
+
+| ID | Severity | Summary | Refs | Escape Cause |
+| --- | --- | --- | --- | --- |
+| FND-010 | medium | The behavior changes R2 and R4 introduced are not reconciled with the surrounding text. (1) The CR-187 note still says "Nothing here changes `unbacked_rows`, `status_lies`, `no_symbol_rows` or `totals`", while FR-050-AC-50 now says "`totals`, `unbacked_rows` and `backed` counts can therefore change". (2) Description item 3 and FR-050-AC-5 still define an untracked symbol as a tag resolving to "no declared target or row", so AC-5 still requires an obligation-only id tag to be reported, which contradicts AC-47's R2 clause. (3) The note and AC-47 cite a "combinatorial `-CFG-` id (FR-061)", but FR-061 defines no `-CFG-` shape, and no source or spec file mentions one. | FR-050:147; FR-050:68; FR-050-AC-5 (FR-050:191); FR-050:165; FR-050-AC-47 (FR-050:180) | wrong-requirement |
+| FND-011 | medium | The FR-050-AC-48 binder is still "one per distinct `(path, symbol)` `verifies` relation". Under FR-051-AC-21 a TypeScript registration's qualified name ignores its enclosing suite, so `it('works')` in two different `describe` blocks of one file are two symbols with one `(path, symbol)` key. They collapse into a single binder, and its line, column and `ignored` are undefined. If one is skipped, the status is ambiguous. The new `column` (author judgment call 1) makes the sort key total but cannot help, because the dedup runs first. `column` also appears in neither the FR-051-AC-23 symbol record nor any adapter AC, and its unit (byte, char or UTF-16) is unstated. Fix: key binder identity on `(path, line, column)` or the AC-23 identity digest, and specify `column` in FR-051. | FR-050-AC-48 (FR-050:181); FR-051-AC-21; FR-051-AC-23 (FR-051:166); TC-1932 | wrong-requirement |
+| FND-012 | low | FR-051-AC-27 widens the base-name sets of AC-3, AC-18 and AC-21 inline (author judgment call 2) without amending those ACs. AC-3 still reads "TypeScript `test`/`it` registrations classify as test symbols", and AC-21 still names only `describe`/`suite`. AC-27 also still says "no new symbol ... is manufactured", although `xit`/`xtest`/`xdescribe` now mint symbols. The direction is right; the owning ACs should state their own sets. | FR-051-AC-3 (FR-051:147); FR-051-AC-21; FR-051-AC-27 (FR-051:171) | wrong-requirement |
+
+## Dispositions
+
+| FND | Outcome | sha/reason |
+| --- | --- | --- |
+| FND-001 | fixed | 2d79eb4 |
+| FND-002 | fixed | 2d79eb4 (the residual AC-5 and description wording is tracked as FND-010) |
+| FND-003 | fixed | 2d79eb4 |
+| FND-004 | fixed | 2d79eb4 |
+| FND-005 | fixed | 2d79eb4 (the stale CR-187 note sentence is tracked as FND-010) |
+| FND-006 | fixed | 2d79eb4 (the dedup-key collision is tracked as FND-011) |
+| FND-007 | fixed | 2d79eb4 |
+| FND-008 | fixed | 2d79eb4 |
+| FND-009 | fixed | 2d79eb4 |
