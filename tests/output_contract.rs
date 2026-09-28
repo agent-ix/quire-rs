@@ -128,15 +128,33 @@ fn tc855_coverage_baseline_conforms() {
 fn tc1082_guidance_is_complete_exclusive_and_additive() {
     let schema = compile("coverage-v1.schema.json");
 
-    let mut both = baseline();
-    both["diagnostics"][0]["remedy"] = json!("change the criterion");
+    // The baseline's `diagnostics` order is a property of the reconciliation
+    // (CR-187 inserted `range-in-trace-tag`, a `remedy`-only guidance shape,
+    // ahead of the pre-existing `catch-all-universal` entry), so this test
+    // finds a `next_diagnostic_step`-carrying entry by its shape rather than
+    // assuming index 0 — the intent is "some diagnostic guidance is
+    // next-diagnostic-step-shaped", not "the first one is".
+    let with_step = |payload: &Value| -> usize {
+        payload["diagnostics"]
+            .as_array()
+            .expect("diagnostics array")
+            .iter()
+            .position(|d| d.get("next_diagnostic_step").is_some())
+            .expect("baseline carries a next_diagnostic_step-shaped diagnostic")
+    };
+
+    let base = baseline();
+    let idx = with_step(&base);
+
+    let mut both = base.clone();
+    both["diagnostics"][idx]["remedy"] = json!("change the criterion");
     assert!(
         !errors(&schema, &both).is_empty(),
         "a producer must not prescribe a remedy and a diagnostic step together",
     );
 
-    let mut partial = baseline();
-    partial["diagnostics"][0]
+    let mut partial = base.clone();
+    partial["diagnostics"][idx]
         .as_object_mut()
         .expect("diagnostic object")
         .remove("next_diagnostic_step");
@@ -145,8 +163,8 @@ fn tc1082_guidance_is_complete_exclusive_and_additive() {
         "a structured guidance group without an action must be rejected",
     );
 
-    let mut legacy = baseline();
-    let legacy_diagnostic = legacy["diagnostics"][0]
+    let mut legacy = base;
+    let legacy_diagnostic = legacy["diagnostics"][idx]
         .as_object_mut()
         .expect("diagnostic object");
     for key in ["subject", "change_target", "remedy", "next_diagnostic_step"] {
@@ -256,6 +274,24 @@ fn tc856_payload_carrying_every_optional_key_conforms() {
             "method": "Test",
             "parameters": {"threshold": "< 8ms"},
             "criticality": "P1"
+        }],
+        // CR-187, PLAT-1077: coverage_matrix arrived additively too.
+        "coverage_matrix": [{
+            "document": "FR-001.md",
+            "criteria": [{
+                "id": "FR-001-AC-1",
+                "statement": "The system shall do it.",
+                "method": "Test",
+                "binders": [{
+                    "path": "src/lib.rs",
+                    "line": 9,
+                    "column": 5,
+                    "qualified_name": "tests::covers_it",
+                    "kind": "test_function",
+                    "ignored": false
+                }],
+                "status": "tagged"
+            }]
         }],
         "excluded_source_files": 3,
         // CR-104 review: five optional keys had drifted out of this payload —
