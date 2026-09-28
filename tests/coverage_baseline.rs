@@ -132,7 +132,7 @@ fn tc824_the_baseline_corpus_still_exercises_the_surface() {
     // An allowlist would have quietly stopped gating each new check; naming the
     // single exclusion keeps the gate closed by default.
     //
-    // `range-in-trace-tag` (CR-187, PLAT-1077) is the second deliberate
+    // `range-in-trace-tag` (CR-187) is the second deliberate
     // exclusion: FR-050-AC-20 itself requires this baseline to carry one, over
     // `covers_range`'s own deliberately-authored range tag — a fixture
     // authoring choice, not a model defect, the same distinction

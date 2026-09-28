@@ -275,7 +275,7 @@ fn tc856_payload_carrying_every_optional_key_conforms() {
             "parameters": {"threshold": "< 8ms"},
             "criticality": "P1"
         }],
-        // CR-187, PLAT-1077: coverage_matrix arrived additively too.
+        // CR-187: coverage_matrix arrived additively too.
         "coverage_matrix": [{
             "document": "FR-001.md",
             "criteria": [{
