@@ -78,6 +78,7 @@ Reviewed at `agent-ix/quire-rs@12490853bcae9bdaef017eb4e4f6f6b80c3086ba`.
 | FND-004 | fixed 1673a5d | `tc1940_inherited_ignored_follows_the_declaration_site_not_the_title` covers duplicate titles in both orders. |
 | FND-005 | fixed b69a5c9 | TC-1932 asserts `statement` and ordering. TC-1936 asserts once-per-occurrence, line and symbol. |
 | FND-006 | fixed ca6f2ba | `tc1937_a_legacy_range_on_a_production_function_is_reported` covers Rust and Python with a control, and pins the range, the non-binding tag and the absence of mentions. |
+| FND-007 | fixed cc49805 | `tc1937_a_legacy_range_on_a_contained_test_is_the_tests` pins the only-record clause for Rust `mod tests`, a Python class and a TS `describe`. The corpus cases now assert `tag-on-non-binding-symbol` is absent (qa-corpus 876a170). |
 
 Matrix check at 1249085: `quire coverage` (the engine under test) still backs TC-1930..TC-1944. The gate runs green. Plan completion: not assessed.
 
@@ -91,3 +92,5 @@ Reviewed at `agent-ix/quire-rs@74460aeb173ae5f4c5b5c925f0c6a9ae467bada8`.
 
 
 Plan completion: not assessed.
+
+Round 3 at 165a1d3: no open gap findings. Plan completion: not assessed.

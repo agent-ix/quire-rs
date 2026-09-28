@@ -125,6 +125,8 @@ Reviewed at `agent-ix/quire-rs@12490853bcae9bdaef017eb4e4f6f6b80c3086ba`, rebase
 | FND-015 | fixed 4721259 | `pytestmark` is read from module-level `expression_statement` assignments in the tree. Probes: docstring gives false; real assignment before or after the test gives true; `skipif` gives false; annotated assignment gives true; an `if`-block gives false (conditional, so correctly excluded). The M14b prefix mutant is killed. |
 | FND-016 | fixed ca6f2ba | The list after a range is re-read with the declared form's own regex. `XYZ-9` no longer binds and is reported as an unmatched near-miss, while `TC-009` still binds. Probes: multi-range, plain-list, ellipsis and prose lines all behave. Mutants N6 and N9 are killed. |
 | FND-017 | fixed 4721259 | Added `tc1940_a_class_passes_an_enclosing_skip_through`. Mutant M4c is now killed. |
+| FND-018 | fixed cc49805 | A range non-binding tag is now dropped when an evidence symbol already reported that occurrence (path, line, text). Probes: a legacy range on a test inside `mod tests`, a Python module, a Python class or a TS `describe` gives one range against the test and no non-binding tag. A range on a production fn or a helper inside `mod tests` is still reported as misplaced. The same text on a prod fn and on a test, in one file or two, stays independent. Corpus cases through `coverage::compute`: every range case in all 3 languages emits only `range-in-trace-tag`, and every control emits neither. Mutant R1 is killed. |
+| FND-019 | fixed cc49805 | Added `tc1937_a_container_loses_a_tie_for_a_production_range` (N3 is now killed) and `tc1937_a_list_resumes_only_where_the_form_rereads_it` (R2, R3 and R4 on the remaining guard clauses are all killed). |
 
 ### Round 1 gate (own CARGO_TARGET_DIR, head 1249085)
 
@@ -151,3 +153,10 @@ Reviewed at `agent-ix/quire-rs@74460aeb173ae5f4c5b5c925f0c6a9ae467bada8`. The fi
 - `make fmt-check lint test`: exit 0, 50 binaries, 1160 passed, 0 failed.
 - `cargo test --test coverage_matrix --test coverage_baseline --test output_contract --test corpus_cases --test corpus_recall`: 8, 2, 11, 19 and 2 passed.
 - Round-2 mutants: 9 run. 6 killed. N3 and N7 survived (FND-019), and N8 (statement-kind guard) survived as an equivalent mutant.
+
+### Round 3 (head 165a1d3, fix cc49805)
+
+- **Guard simplification (`resumed_whole.start() != 0` removed).** The removal is safe and the clause is unreachable for any practical pattern. When `resumed_group.start() == prefix.len()`, a match starting at k > 0 means the pre-group part matched `probe[k..prefix.len()]` and the group matched from `prefix.len()`. The original match shows the same pre-group can consume `probe[0..prefix.len()]`, which is the same bytes, and capture group 1 opens at one point in the pattern. So a match from 0 also exists, and leftmost-first semantics return it. The only escape is a leading assertion that reads text before position 0 (for example a pattern beginning `\b\W` or `\B`), because the probe starts at text start. Even then the kept clauses still pin the group to the stand-in, so the resumed ids are exactly this list's continuation. Mutating the kept clauses (R2, R3, R4) is caught.
+- Re-ran the probes. FND-015 (docstring, after-test, skipif) and FND-016 (XYZ-9, multi-range, plain list, ellipsis, prose) still behave, with no regression.
+- Gate (own CARGO_TARGET_DIR): `make fmt-check lint test` exit 0, 1163 passed; coverage_matrix 8, coverage_baseline 2, output_contract 11, corpus_cases 19 and corpus_recall 2 pass.
+- No new findings. SR-120 has no open finding.
