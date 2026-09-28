@@ -26,9 +26,7 @@ def fixture(tmp_path: pathlib.Path) -> pathlib.Path:
     (root / "examples").mkdir()
     shutil.copy(ROOT / "examples/spec_validate.rs", root / "examples")
     (root / "rust-toolchain.toml").write_text('[toolchain]\nchannel = "1.98.1"\n')
-    (root / "Cargo.toml").write_text(
-        '[package]\nversion = "0.46.0"\nrust-version = "1.98.1"\n'
-    )
+    (root / "Cargo.toml").write_text('[package]\nrust-version = "1.98.1"\n')
     (root / "clippy.toml").write_text('msrv = "1.98.1"\n')
     (root / "Makefile").write_text(
         "BENCH_MODULE ?= ../spec-artifacts-process/spec_artifacts_process\n"
