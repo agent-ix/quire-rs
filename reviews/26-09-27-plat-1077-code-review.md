@@ -121,6 +121,10 @@ Reviewed at `agent-ix/quire-rs@12490853bcae9bdaef017eb4e4f6f6b80c3086ba`, rebase
 | FND-011 | fixed 2414ebb | The schema diff against origin/main is now 112 pure insertions, with no reformatting. |
 | FND-012 | fixed ad239e8 | `VerifiesRelation.kind: SymbolKind`. The single `is_false` is in `symbol_table`. |
 | FND-013 | fixed d7c8f95 | CR-189 rewords AC-28 to FR-050-AC-50's shape and line rule. |
+| FND-014 | fixed ca6f2ba | Production-symbol legacy ranges are reported once against the innermost production symbol, their endpoints are kept out of `mentions`, and the #312 non-binding tag is kept (probe `q3`: range on `prod`, non-binding on `prod`, no mentions). Mutants N2, N4 and N5 are killed. The fix's side effect on test placement is raised as the new FND-018. |
+| FND-015 | fixed 4721259 | `pytestmark` is read from module-level `expression_statement` assignments in the tree. Probes: docstring gives false; real assignment before or after the test gives true; `skipif` gives false; annotated assignment gives true; an `if`-block gives false (conditional, so correctly excluded). The M14b prefix mutant is killed. |
+| FND-016 | fixed ca6f2ba | The list after a range is re-read with the declared form's own regex. `XYZ-9` no longer binds and is reported as an unmatched near-miss, while `TC-009` still binds. Probes: multi-range, plain-list, ellipsis and prose lines all behave. Mutants N6 and N9 are killed. |
+| FND-017 | fixed 4721259 | Added `tc1940_a_class_passes_an_enclosing_skip_through`. Mutant M4c is now killed. |
 
 ### Round 1 gate (own CARGO_TARGET_DIR, head 1249085)
 
@@ -131,3 +135,19 @@ Reviewed at `agent-ix/quire-rs@12490853bcae9bdaef017eb4e4f6f6b80c3086ba`, rebase
 ### Leader's judgment request: a test nested inside an `it.skip(...)` callback
 
 This is **not a defect under AC-27 as worded (CR-189)**, so there is no finding. AC-27's inheritance clause runs from "a suite's or class's `ignored`" to its members. A test registration is neither a suite nor a class, so an `it` inside an `it.skip` callback carries only its own marking. Probe: `outer` ignored=true, `inner` ignored=false, which matches the text. Jest, Vitest and Playwright also reject nested tests at runtime ("Tests cannot be nested"), so no test that actually runs is misreported.
+
+## New findings (disposition pass 2)
+
+Reviewed at `agent-ix/quire-rs@74460aeb173ae5f4c5b5c925f0c6a9ae467bada8`. The fix commits are `ca6f2ba`, `4721259` and `74460ae`. FND-014..FND-017 are fixed, but `ca6f2ba` introduces the regression below.
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-018 | medium | Introduced by `ca6f2ba`: a legacy range on a **test** now also produces a false `tag-on-non-binding-symbol` diagnostic against the enclosing container, in all three languages. The production path pushes a `NonBindingTag` for every legacy range read in any production symbol's span, and a container (`mod tests`, the Python module or class, the TS file module) spans its tests. The #312 "bound elsewhere" filter drops a tag only when its id bound somewhere, and a range never binds. Nothing drops it, even though the evidence symbol already reported the same occurrence as `range-in-trace-tag`. Probed: `mod tests { // Trace: A..B  #[test] fn t() }` gives non_binding_tags `[("tests", "A..B")]`. The corpus's own banked case `cases/attachment/range-in-legacy-trace-tag` (rust, python and typescript), run through `coverage::compute` with the ecosystem module, emits `tag-on-non-binding-symbol` naming the range beside `range-in-trace-tag`. Its control emits neither. The message tells the author their test is "a kind that does not bind trace ids" and to use `Implements:`. That is a wrong finding with a wrong remedy on correct placement. Fix: drop a range `NonBindingTag` whose (path, line, range_text) occurrence is in the evidence-reported set that `bind` already builds, and add a test. The case's own `expect.yaml` should also assert the reason is absent (SR-002 FND-003). | src/symbols/trace.rs:581, src/symbols/trace.rs:731 |
+| FND-019 | low | Two branches of the round-2 range code are unpinned. Flipping the container-loses-ties key in the production-range ownership sort survives. Removing the `resumed_whole.start() != 0 \|\| resumed_group.start() != prefix.len() \|\| ...` anchor guard in `read_legacy_match` also survives. Add a same-`leading_line` container/function fixture and a case where the form's pattern re-matches away from the stand-in. | src/symbols/trace.rs:735, src/symbols/trace.rs:1702 |
+
+
+### Round 2 gate (own CARGO_TARGET_DIR, head 74460ae)
+
+- `make fmt-check lint test`: exit 0, 50 binaries, 1160 passed, 0 failed.
+- `cargo test --test coverage_matrix --test coverage_baseline --test output_contract --test corpus_cases --test corpus_recall`: 8, 2, 11, 19 and 2 passed.
+- Round-2 mutants: 9 run. 6 killed. N3 and N7 survived (FND-019), and N8 (statement-kind guard) survived as an equivalent mutant.

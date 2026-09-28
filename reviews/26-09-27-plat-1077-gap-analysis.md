@@ -77,5 +77,17 @@ Reviewed at `agent-ix/quire-rs@12490853bcae9bdaef017eb4e4f6f6b80c3086ba`.
 | FND-003 | fixed 1673a5d | Added `tc1941_aliased_unittest_skip_forms_are_ignored`, `tc1941_module_level_skipif_is_a_control` and `tc1939_ignore_on_a_proptest_declared_test_marks_it_ignored`. |
 | FND-004 | fixed 1673a5d | `tc1940_inherited_ignored_follows_the_declaration_site_not_the_title` covers duplicate titles in both orders. |
 | FND-005 | fixed b69a5c9 | TC-1932 asserts `statement` and ordering. TC-1936 asserts once-per-occurrence, line and symbol. |
+| FND-006 | fixed ca6f2ba | `tc1937_a_legacy_range_on_a_production_function_is_reported` covers Rust and Python with a control, and pins the range, the non-binding tag and the absence of mentions. |
 
 Matrix check at 1249085: `quire coverage` (the engine under test) still backs TC-1930..TC-1944. The gate runs green. Plan completion: not assessed.
+
+## New findings (disposition pass 2)
+
+Reviewed at `agent-ix/quire-rs@74460aeb173ae5f4c5b5c925f0c6a9ae467bada8`.
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-007 | medium | FR-051-AC-28 says a range occurrence's "range finding is the only record of it". For a legacy range on a test, the occurrence now also yields a `tag-on-non-binding-symbol` finding against the enclosing container (SR-120 FND-018). No test checks that the evidence-placed legacy range reports nothing else, and the corpus case does not assert that the reason is absent. | spec/functional/FR-051-source-symbol-extraction.md:172, src/symbols/trace.rs:581 |
+
+
+Plan completion: not assessed.
