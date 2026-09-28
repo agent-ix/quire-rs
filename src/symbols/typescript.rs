@@ -1861,6 +1861,40 @@ mod tests {
         );
     }
 
+    /// A class inside a skipped suite passes the skip through: a suite
+    /// registered inside the class, and its test, are ignored too, while the
+    /// class itself (not a suite) is not marked.
+    #[trace("TC-1940", "FR-051-AC-27")]
+    #[test]
+    fn tc1940_a_class_passes_an_enclosing_skip_through() {
+        let extraction = super::super::extract_file(
+            "f.test.ts",
+            crate::traceability::SourceLanguage::Typescript,
+            concat!(
+                "describe.skip('outer', () => {\n",
+                "  class Harness {\n",
+                "    static register() {\n",
+                "      describe('inner', () => {\n",
+                "        it('t', () => {});\n",
+                "      });\n",
+                "    }\n",
+                "  }\n",
+                "});\n",
+            ),
+        );
+        let ignored = |name: &str| {
+            extraction
+                .symbols
+                .iter()
+                .find(|s| s.qualified_name == name)
+                .unwrap_or_else(|| panic!("no symbol {name}: {extraction:?}"))
+                .ignored
+        };
+        assert!(!ignored("Harness"), "a class is not a suite");
+        assert!(ignored("inner"), "the suite inside the class inherits");
+        assert!(ignored("t"), "and so does its test");
+    }
+
     /// FR-051-AC-27 scopes `ignored` to test-kind and suite-kind symbols: a
     /// helper function declared inside a skipped suite is a `Function` and
     /// inherits nothing, while the test beside it does.

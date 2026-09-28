@@ -160,18 +160,17 @@ pub(crate) fn parse(path: &str, source: &str) -> Result<Vec<RawSymbol>, String> 
     }];
 
     // A module-level `pytestmark = pytest.mark.skip(...)` marks every test in
-    // the module ignored (CR-187, FR-051-AC-27). Resolved in a pre-pass over
-    // the physical lines, ahead of the walk: `pytestmark` is conventionally
-    // read as applying regardless of where in the module it is written, so a
-    // test minted before the assignment's own line must see it too — reading
-    // it inline as the walk reaches that line would miss exactly that case.
-    // Bounded to unindented (column-0) lines, matching this adapter's own
-    // "module-level" text-scan discipline elsewhere (`UnittestImports`):
-    // Python has no legal way for an indented assignment to set the module's
-    // own `pytestmark`.
-    let module_ignored = lines
-        .iter()
-        .any(|line| !line.starts_with([' ', '\t']) && is_pytestmark_skip_line(line));
+    // the module ignored (CR-187, FR-051-AC-27). Resolved before the walk:
+    // `pytestmark` applies wherever in the module it is written, so a test
+    // minted before the assignment's own line must see it too. Read from the
+    // module's own statements in the tree, so the same text inside a string
+    // (a docstring quoting it) or inside any nested block is not an
+    // assignment to the module's `pytestmark`.
+    let root = parsed.root_node();
+    let mut cursor = root.walk();
+    let module_ignored = root
+        .named_children(&mut cursor)
+        .any(|statement| is_pytestmark_skip(statement, source));
 
     let mut walker = Walk::new(&lines, source, &module, module_ignored);
     walker.walk(
@@ -488,24 +487,33 @@ fn decorators_of(decorated: Node) -> Vec<Node> {
         .collect()
 }
 
-/// Whether `line` is a module-level `pytestmark = pytest.mark.skip(...)`
-/// assignment (CR-187, FR-051-AC-27) — bounded, single-line text matching,
-/// the same discipline [`UnittestImports::observe_binding`] already applies
-/// to this adapter's other module-top-level-only facts. Compares the head
-/// exactly, not by prefix: `pytestmark = pytest.mark.skipif(...)` shares a
-/// prefix with `skip` but is a distinct, statically-decidable-only-as-a-
-/// control mark (FR-051-AC-27) and must not match.
-fn is_pytestmark_skip_line(line: &str) -> bool {
-    let line = line.split('#').next().unwrap_or_default().trim();
-    let Some(rest) = line.strip_prefix("pytestmark") else {
+/// Whether `statement` (a module-level statement) is a
+/// `pytestmark = pytest.mark.skip(...)` assignment (CR-187, FR-051-AC-27).
+/// Compares the head exactly, not by prefix: `pytest.mark.skipif(...)` shares
+/// a prefix with `skip` but is a control that may still run, and must not
+/// match.
+fn is_pytestmark_skip(statement: Node, source: &str) -> bool {
+    if statement.kind() != "expression_statement" {
+        return false;
+    }
+    let Some(assignment) = statement
+        .named_child(0)
+        .filter(|n| n.kind() == "assignment")
+    else {
         return false;
     };
-    let Some(rhs) = rest.trim_start().strip_prefix('=') else {
+    let text = |field: &str| {
+        assignment
+            .child_by_field_name(field)
+            .and_then(|n| n.utf8_text(source.as_bytes()).ok())
+    };
+    if text("left") != Some("pytestmark") {
+        return false;
+    }
+    let Some(rhs) = text("right") else {
         return false;
     };
-    let rhs = rhs.trim_start();
-    let head = rhs.split('(').next().unwrap_or(rhs).trim();
-    head == "pytest.mark.skip"
+    rhs.split('(').next().unwrap_or(rhs).trim() == "pytest.mark.skip"
 }
 
 /// `(container, qualified_name)` for a declaration named `name`, given the
@@ -1414,6 +1422,52 @@ mod tests {
     /// is a control, not a skip — `skipif` is excluded by name, the same as
     /// its decorator-form control. A prefix match against `pytest.mark.skip`
     /// would wrongly treat it as one.
+    /// `pytestmark` counts only as the module's own assignment: the same
+    /// text at column 0 inside a docstring, or assigned inside a block, marks
+    /// nothing.
+    #[trace("TC-1941", "FR-051-AC-27")]
+    #[test]
+    fn tc1941_pytestmark_counts_only_as_a_module_assignment() {
+        let ignored = |source: &str| {
+            super::super::extract_file(
+                "t_pytestmark.py",
+                crate::traceability::SourceLanguage::Python,
+                source,
+            )
+            .symbols
+            .iter()
+            .find(|s| s.qualified_name == "test_a")
+            .expect("test_a")
+            .ignored
+        };
+        assert!(!ignored(concat!(
+            "\"\"\"Example:\n",
+            "\n",
+            "pytestmark = pytest.mark.skip(reason=\"quoted\")\n",
+            "\"\"\"\n",
+            "\n",
+            "def test_a():\n",
+            "    pass\n",
+        )));
+        assert!(!ignored(concat!(
+            "import pytest\n",
+            "\n",
+            "def helper():\n",
+            "    pytestmark = pytest.mark.skip(reason=\"local\")\n",
+            "\n",
+            "def test_a():\n",
+            "    pass\n",
+        )));
+        assert!(ignored(concat!(
+            "import pytest\n",
+            "\n",
+            "def test_a():\n",
+            "    pass\n",
+            "\n",
+            "pytestmark = pytest.mark.skip(reason=\"after the test\")\n",
+        )));
+    }
+
     #[trace("TC-1941", "FR-051-AC-27")]
     #[test]
     fn tc1941_module_level_skipif_is_a_control() {
