@@ -132,6 +132,10 @@ pub struct Symbol {
     pub kind: SymbolKind,
     /// 1-based declaration line — a **non-identity** attribute.
     pub line: usize,
+    /// 1-based UTF-8 byte column of the declaration's own start, as
+    /// tree-sitter itself reports it (CR-187, FR-051-AC-23) — a
+    /// **non-identity** attribute, like [`Self::line`].
+    pub column: usize,
     /// 1-based first line of the attached annotation block (attributes,
     /// decorators, or leading comments). Equals `line` when nothing precedes.
     pub leading_line: usize,
@@ -141,6 +145,14 @@ pub struct Symbol {
     pub container: Option<String>,
     /// Stable SHA-256 digest of the identity (FR-045 record-id convention).
     pub id: String,
+    /// Whether a statically decidable language form marks this test-kind or
+    /// suite-kind symbol ignored (CR-187, FR-051-AC-27) — inherited by every
+    /// test or suite a skipped suite or class encloses, transitively. Each
+    /// adapter resolves inheritance through its own scope stack at the
+    /// declaration site, never by qualified name, because TypeScript titles
+    /// need not be unique (FR-051-AC-21). `false` for a kind the forms never
+    /// mark (`Function`, `Benchmark`, `FuzzTarget`).
+    pub ignored: bool,
 }
 
 impl Symbol {
@@ -245,9 +257,11 @@ pub(crate) struct RawSymbol {
     pub qualified_name: String,
     pub kind: SymbolKind,
     pub line: usize,
+    pub column: usize,
     pub leading_line: usize,
     pub end_line: usize,
     pub container: Option<String>,
+    pub ignored: bool,
 }
 
 /// The language an extension binds to, or `None` for a file the extractor
@@ -468,9 +482,11 @@ impl SymbolExtraction {
                 qualified_name: r.qualified_name,
                 kind: r.kind,
                 line: r.line,
+                column: r.column,
                 leading_line: r.leading_line,
                 end_line: r.end_line,
                 container: r.container,
+                ignored: r.ignored,
             });
         }
         self.symbols.sort_by(|a, b| {

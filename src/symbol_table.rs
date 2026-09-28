@@ -55,6 +55,9 @@ pub struct SymbolRecord {
     pub language: String,
     /// 1-based declaration line.
     pub line: usize,
+    /// 1-based UTF-8 byte column of the declaration's own start, as
+    /// tree-sitter itself reports it (CR-187, FR-051-AC-23).
+    pub column: usize,
     /// 1-based first line of the attached annotation block — attributes,
     /// decorators, or leading comments. Equals `line` when nothing precedes.
     ///
@@ -86,6 +89,18 @@ pub struct SymbolRecord {
     /// evidence: this is scope, and letting it back a criterion is the coverage
     /// backdoor CR-061 closed.
     pub implements: Vec<String>,
+    /// Whether a statically decidable language form marks this test-kind or
+    /// suite-kind symbol ignored, inherited from a container (CR-187,
+    /// FR-051-AC-27). Serialized only when `true`, so a corpus with no
+    /// ignored symbol stays byte-identical to a payload from an engine
+    /// predating this field.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub ignored: bool,
+}
+
+/// `skip_serializing_if` predicate for a `bool` that is off by default.
+pub(crate) fn is_false(value: &bool) -> bool {
+    !*value
 }
 
 /// A file the extractor could not read, with the reason it gave.
@@ -168,6 +183,7 @@ pub fn build(extraction: &SymbolExtraction, graph: Option<&SymbolGraph>) -> Symb
             kind: symbol.kind.as_str().to_string(),
             language: symbol.language.as_str().to_string(),
             line: symbol.line,
+            column: symbol.column,
             leading_line: symbol.leading_line,
             end_line: symbol.end_line,
             container: symbol.container.clone(),
@@ -176,6 +192,7 @@ pub fn build(extraction: &SymbolExtraction, graph: Option<&SymbolGraph>) -> Symb
             carries_implements: symbol.kind.carries_implements(),
             trace_ids: tidy(verifies.remove(symbol.id.as_str()).unwrap_or_default()),
             implements: tidy(implements.remove(symbol.id.as_str()).unwrap_or_default()),
+            ignored: symbol.ignored,
         })
         .collect();
 
@@ -323,5 +340,33 @@ mod tests {
         // And the symbols are all present regardless — the walk is the walk.
         assert_eq!(python.symbols, unasked.symbols.len());
         assert!(unasked.symbols.iter().all(|s| s.trace_ids.is_empty()));
+    }
+
+    /// TC-1943 (FR-051-AC-27): `ignored` is serialized only when `true` — a
+    /// corpus with no ignored symbol carries no `ignored` key at all, and a
+    /// corpus with one ignored symbol emits `ignored: true` on that record
+    /// alone.
+    #[test]
+    fn tc1943_ignored_is_serialized_only_when_true() {
+        let report = build(&python_tree(), None);
+        let json = serde_json::to_value(&report).expect("report serializes");
+        let symbols = json["symbols"].as_array().expect("symbols array");
+        for (record, wire) in report.symbols.iter().zip(symbols) {
+            assert!(!record.ignored, "fixture premise: nothing is ignored");
+            assert!(
+                wire.get("ignored").is_none(),
+                "an unignored record must omit the key: {wire}"
+            );
+        }
+
+        let mut report = report;
+        report.symbols[0].ignored = true;
+        let json = serde_json::to_value(&report).expect("report serializes");
+        assert_eq!(
+            json["symbols"][0]["ignored"],
+            serde_json::json!(true),
+            "the one ignored record emits the key"
+        );
+        assert!(json["symbols"][1].get("ignored").is_none());
     }
 }

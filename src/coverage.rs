@@ -369,6 +369,19 @@ pub struct CoverageReport {
     /// module that has not adopted them.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub obligations: Vec<Obligation>,
+    /// The requirement → criteria → binders coverage matrix (CR-187,
+    /// FR-050-AC-47..51): the derived obligation population, grouped by its
+    /// own `document` field, each criterion carrying its binding test symbols
+    /// and a computed static `status`. Unlike every list above, its
+    /// population is the **obligation set**, not the trace-target set — a
+    /// minted `test-case`/`suite`/`inspection` row with no corresponding
+    /// obligation contributes no entry here.
+    ///
+    /// Empty — and so absent from the JSON — for a module declaring no
+    /// `obligations:` source, which is also when [`Self::obligations`] is
+    /// empty (FR-055-CON-3): the two fields are all-or-nothing together.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub coverage_matrix: Vec<CoverageMatrixRequirement>,
     /// Requirement → production code (FR-062). Empty — and so absent from the
     /// JSON — for a module declaring no `implements` marker forms, which keeps
     /// FR-050-AC-7 byte-identity for every module that has not adopted them.
@@ -494,6 +507,7 @@ pub const COVERAGE_DIAGNOSTIC_REASONS: &[&str] = &[
     "model-mints-nothing",
     "no-symbol-bound",
     "obligation-row-states-nothing",
+    "range-in-trace-tag",
     "section-holds-no-table",
     "section-matches-nothing",
     "status-column-matches-nothing",
@@ -549,6 +563,77 @@ pub struct VocabularyValueRecord {
     /// `owned`, the justified-absence recorders for `excused`, empty for
     /// `unowned`.
     pub documents: Vec<String>,
+}
+
+/// One document's derived obligations, as a `coverage_matrix` entry (CR-187,
+/// FR-050-AC-48).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CoverageMatrixRequirement {
+    /// The obligation group's stating document, scope-relative.
+    pub document: String,
+    /// Ordered exactly as `obligation::derive` already orders its output
+    /// (declaration order, document path, row ordinal), restricted to this
+    /// document.
+    pub criteria: Vec<CoverageMatrixCriterion>,
+}
+
+/// One derived obligation, as a `coverage_matrix` criterion (CR-187,
+/// FR-050-AC-48/49).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CoverageMatrixCriterion {
+    /// The obligation's own id.
+    pub id: String,
+    /// The obligation's own statement text, verbatim and untruncated,
+    /// exactly as [`crate::obligation::Obligation::statement`] already holds
+    /// it (CR-188) — so the `quire matrix` renderer can show a criterion's
+    /// statement without re-deriving obligations or re-reading documents.
+    pub statement: String,
+    /// The obligation's declared verification method, when it states one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub method: Option<String>,
+    /// One per distinct `(path, line, column)` `verifies` relation bound to
+    /// this id — never collapsed on qualified name alone, since a TypeScript
+    /// registration's qualified name is ignorant of its enclosing suite
+    /// (FR-051-AC-21). Empty, never absent, for a criterion with no binder.
+    pub binders: Vec<CoverageMatrixBinder>,
+    /// The computed static status (FR-050-AC-49).
+    pub status: CoverageMatrixStatus,
+}
+
+/// One binding test symbol of a `coverage_matrix` criterion (CR-187,
+/// FR-050-AC-48), deterministically ordered by
+/// `(path, line, column, qualified_name, kind)`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CoverageMatrixBinder {
+    /// Repo-relative, `/`-separated.
+    pub path: String,
+    /// 1-based declaration line (FR-051-AC-23).
+    pub line: usize,
+    /// 1-based UTF-8 byte declaration column (FR-051-AC-23).
+    pub column: usize,
+    pub qualified_name: String,
+    /// `SymbolKind` label.
+    pub kind: String,
+    /// Whether FR-051-AC-27 marks this binder ignored. Serialized only when
+    /// `true`, matching the symbol-table record and `VerifiesRelation`.
+    #[serde(default, skip_serializing_if = "crate::symbol_table::is_false")]
+    pub ignored: bool,
+}
+
+/// A `coverage_matrix` criterion's computed static status (CR-187,
+/// FR-050-AC-49) — never read from an authored column.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum CoverageMatrixStatus {
+    /// One or more binders, at least one not ignored.
+    Tagged,
+    /// Zero binders.
+    Untagged,
+    /// One or more binders, every one marked ignored (FR-051-AC-27).
+    TaggedByIgnoredTest,
+    /// The declared `method` is in the module's declared `no_source_symbol`
+    /// vocabulary — wins over every other case, regardless of binder count.
+    MethodWithoutSymbol,
 }
 
 impl CoverageReport {

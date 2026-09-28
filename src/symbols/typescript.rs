@@ -199,9 +199,11 @@ pub(crate) fn parse(path: &str, source: &str) -> Result<Vec<RawSymbol>, String> 
         qualified_name: module.clone(),
         kind: SymbolKind::Container,
         line: 1,
+        column: 1,
         leading_line: 1,
         end_line: line_count,
         container: None,
+        ignored: false,
     }];
 
     let mut scopes: Vec<Scope> = Vec::new();
@@ -220,6 +222,13 @@ pub(crate) fn parse(path: &str, source: &str) -> Result<Vec<RawSymbol>, String> 
 struct Scope {
     name: String,
     qualifies: bool,
+    /// Whether this scope is ignored — its own marking, or inherited from
+    /// its own enclosing scope at the moment it was pushed (CR-187,
+    /// FR-051-AC-27). Resolved through the real scope **stack**, at the
+    /// declaration site, never by looking a title up after the fact: two
+    /// suites sharing one title (FR-051-AC-21 permits this, TC-1944 uses it)
+    /// must not let one's ignored state leak onto the other's members.
+    ignored: bool,
 }
 
 /// The nearest enclosing scope that names its members — a class, never a
@@ -242,9 +251,20 @@ fn scope_container(scopes: &[Scope], module: &str) -> Option<String> {
         .or_else(|| Some(module.to_string()))
 }
 
+/// Whether the innermost open scope is ignored (CR-187, FR-051-AC-27) —
+/// read directly off the real scope stack at the declaration site, never by
+/// a post-hoc lookup keyed on a title that another scope might share.
+fn enclosing_ignored(scopes: &[Scope]) -> bool {
+    scopes.last().is_some_and(|scope| scope.ignored)
+}
+
 /// The callees this adapter recognises as opening a **test** registration.
 /// Its title is the test symbol's qualified name (FR-051).
-const TEST_NAMES: &[&str] = &["test", "it"];
+///
+/// `xtest`/`xit` widen the admitted base-name set (CR-187, FR-051-AC-3):
+/// no new registration shape, they mint exactly as `test`/`it` do, except
+/// with `ignored: true` from the moment they exist (FR-051-AC-27).
+const TEST_NAMES: &[&str] = &["test", "it", "xtest", "xit"];
 
 /// The callees this adapter recognises as opening a **suite** registration
 /// — a container, not evidence (CR-119). `context` is deliberately absent;
@@ -252,7 +272,11 @@ const TEST_NAMES: &[&str] = &["test", "it"];
 /// zero `context(`/`suite(` registrations and zero `context.` false
 /// positives would have been admitted or excluded differently across the
 /// measured corpus, so nothing here is lost by leaving it out.
-const SUITE_NAMES: &[&str] = &["describe", "suite"];
+///
+/// `xdescribe` widens the admitted base-name set (CR-187, FR-051-AC-21): a
+/// suite exactly as `describe`/`suite` are, minted with `ignored: true`,
+/// inherited by every member the tree still parents to it.
+const SUITE_NAMES: &[&str] = &["describe", "suite", "xdescribe"];
 
 /// Walk `node`'s named children, minting a [`RawSymbol`] for each
 /// declaration or registration and recursing to find every nested one.
@@ -275,10 +299,17 @@ fn walk(node: Node, source: &str, module: &str, scopes: &mut Vec<Scope>, out: &m
                         qualified.clone(),
                         SymbolKind::Container,
                         container,
+                        false,
                     ));
+                    // A class carries no ignorability of its own (FR-051-AC-27
+                    // names no class-skip form) — it only passes its own
+                    // enclosing scope's state through, so a class nested
+                    // inside a skipped suite still marks a suite/test member
+                    // nested inside *it* ignored, transitively.
                     scopes.push(Scope {
                         name: qualified,
                         qualifies: true,
+                        ignored: enclosing_ignored(scopes),
                     });
                     walk(child, source, module, scopes, out);
                     scopes.pop();
@@ -301,6 +332,7 @@ fn walk(node: Node, source: &str, module: &str, scopes: &mut Vec<Scope>, out: &m
                         qualified,
                         SymbolKind::Function,
                         container,
+                        false,
                     ));
                 }
                 // A function never becomes a container for its own body
@@ -314,7 +346,13 @@ fn walk(node: Node, source: &str, module: &str, scopes: &mut Vec<Scope>, out: &m
                     if name != "constructor" {
                         let qualified = qualify(scopes, &name);
                         let container = scope_container(scopes, module);
-                        out.push(symbol_at(child, qualified, SymbolKind::Function, container));
+                        out.push(symbol_at(
+                            child,
+                            qualified,
+                            SymbolKind::Function,
+                            container,
+                            false,
+                        ));
                     }
                 }
                 walk(child, source, module, scopes, out);
@@ -327,6 +365,7 @@ fn walk(node: Node, source: &str, module: &str, scopes: &mut Vec<Scope>, out: &m
                 Some(Registration {
                     title,
                     kind: RegistrationKind::Test,
+                    ignored,
                 }) => {
                     let container = scope_container(scopes, module);
                     out.push(symbol_at(
@@ -334,23 +373,28 @@ fn walk(node: Node, source: &str, module: &str, scopes: &mut Vec<Scope>, out: &m
                         title,
                         SymbolKind::TestFunction,
                         container,
+                        ignored || enclosing_ignored(scopes),
                     ));
                     walk(child, source, module, scopes, out);
                 }
                 Some(Registration {
                     title,
                     kind: RegistrationKind::Suite,
+                    ignored,
                 }) => {
+                    let scope_ignored = ignored || enclosing_ignored(scopes);
                     let container = scope_container(scopes, module);
                     out.push(symbol_at(
                         stmt_anchor(child),
                         title.clone(),
                         SymbolKind::Container,
                         container,
+                        scope_ignored,
                     ));
                     scopes.push(Scope {
                         name: title,
                         qualifies: false,
+                        ignored: scope_ignored,
                     });
                     walk(child, source, module, scopes, out);
                     scopes.pop();
@@ -412,6 +456,7 @@ fn mint_arrow_const_declarators(
             qualified,
             SymbolKind::Function,
             container,
+            false,
         ));
     }
 }
@@ -475,14 +520,17 @@ fn symbol_at(
     qualified_name: String,
     kind: SymbolKind,
     container: Option<String>,
+    ignored: bool,
 ) -> RawSymbol {
     RawSymbol {
         qualified_name,
         kind,
         line: anchor.start_position().row + 1,
+        column: anchor.start_position().column + 1,
         leading_line: leading_span(anchor, is_annotation_node),
         end_line: anchor.end_position().row + 1,
         container,
+        ignored,
     }
 }
 
@@ -522,6 +570,11 @@ fn is_annotation_node(node: Node) -> bool {
 struct Registration {
     title: String,
     kind: RegistrationKind,
+    /// Whether this registration is ignored (CR-187, FR-051-AC-27): its base
+    /// name is `xtest`/`xit`/`xdescribe`, or its chain carries a `.skip`
+    /// modifier anywhere (`it.skip(...)`, `describe.skip(...)`). `.skipIf`,
+    /// `.todo` and `.fixme` are controls and do not set this.
+    ignored: bool,
 }
 
 enum RegistrationKind {
@@ -546,6 +599,14 @@ fn registration(call: Node, source: &str) -> Option<Registration> {
     }
     let names_a_suite =
         is_suite_name || chain.iter().any(|seg| SUITE_NAMES.contains(&seg.as_str()));
+    // CR-187, FR-051-AC-27: `xtest`/`xit`/`xdescribe` mint ignored from the
+    // moment they exist, whatever else the chain carries; a `.skip` modifier
+    // anywhere in the chain does the same for `test`/`it`/`describe`/`suite`.
+    // `.skipIf(cond)`, `.todo` and `.fixme` are controls and must not match:
+    // `chain` holds each modifier's own bare segment name, so only an exact
+    // `skip` segment counts, never a `skip`-prefixed one.
+    let ignored = matches!(base.as_str(), "xtest" | "xit" | "xdescribe")
+        || chain.iter().any(|seg| seg == "skip");
 
     let arguments = call.child_by_field_name("arguments")?;
     let mut cursor = arguments.walk();
@@ -576,11 +637,13 @@ fn registration(call: Node, source: &str) -> Option<Registration> {
         Some(Registration {
             title,
             kind: RegistrationKind::Suite,
+            ignored,
         })
     } else {
         Some(Registration {
             title,
             kind: RegistrationKind::Test,
+            ignored,
         })
     }
 }
@@ -1641,5 +1704,228 @@ mod tests {
             symbols.iter().all(|s| s.qualified_name != "Foo"),
             "an interface declaration itself must not mint a symbol: {symbols:?}"
         );
+    }
+
+    /// TC-1940 (FR-051-AC-3, AC-18, AC-21, AC-27): `.skip`, `xit`/`xtest`,
+    /// `xdescribe` mint with `ignored: true`; a suite's ignored state is
+    /// inherited by its members; `.skipIf`/`.todo`/`.fixme` are controls.
+    #[trace(
+        "TC-1940",
+        "FR-051-AC-3",
+        "FR-051-AC-18",
+        "FR-051-AC-21",
+        "FR-051-AC-27"
+    )]
+    #[test]
+    fn tc1940_skip_forms_and_x_prefixed_names_mint_ignored() {
+        let source = concat!(
+            "it.skip('t', () => {});\n",
+            "describe.skip('s', () => {\n",
+            "  it('u', () => {});\n",
+            "});\n",
+            "xit('t2', () => {});\n",
+            "xtest('t3', () => {});\n",
+            "xdescribe('s2', () => {\n",
+            "  it('v', () => {});\n",
+            "});\n",
+            "xit.each([1, 2])('t4 %s', () => {});\n",
+            "it.skipIf(true)('v2', () => {});\n",
+            "it.todo('w', () => {});\n",
+            "test.fixme('x', () => {});\n",
+        );
+        let extraction = super::super::extract_file(
+            "t.test.ts",
+            crate::traceability::SourceLanguage::Typescript,
+            source,
+        );
+        let ignored = |name: &str| {
+            extraction
+                .symbols
+                .iter()
+                .find(|s| s.qualified_name == name)
+                .unwrap_or_else(|| panic!("no symbol {name}"))
+                .ignored
+        };
+        assert!(ignored("t"), "it.skip mints ignored");
+        assert!(ignored("s"), "describe.skip mints ignored");
+        assert!(ignored("u"), "inherited from the ignored suite");
+        assert!(ignored("t2"), "xit mints ignored unconditionally");
+        assert!(ignored("t3"), "xtest mints ignored unconditionally");
+        assert!(ignored("s2"), "xdescribe mints ignored unconditionally");
+        assert!(ignored("v"), "inherited from the ignored xdescribe suite");
+        assert!(ignored("t4 %s"), "a curried xit.each still mints ignored");
+        assert!(!ignored("v2"), "skipIf is a control");
+        assert!(!ignored("w"), "todo is a control");
+        assert!(!ignored("x"), "fixme is a control");
+    }
+
+    /// ignored inheritance is resolved through the real
+    /// scope stack at the declaration site, never by a post-hoc lookup keyed
+    /// on a title two suites may share (FR-051-AC-21 permits duplicate
+    /// titles, and TC-1944's own premise is exactly that). A name-keyed
+    /// last-wins lookup swaps ignored-ness between two same-titled suites,
+    /// in either declaration order, and equally between a `.skip`ped test
+    /// and an unrelated suite sharing its title.
+    #[trace("TC-1940", "FR-051-AC-21", "FR-051-AC-27")]
+    #[test]
+    fn tc1940_inherited_ignored_follows_the_declaration_site_not_the_title() {
+        let ignored_at =
+            |extraction: &crate::symbols::SymbolExtraction, name: &str, line: usize| {
+                extraction
+                    .symbols
+                    .iter()
+                    .find(|s| s.qualified_name == name && s.line == line)
+                    .unwrap_or_else(|| panic!("no symbol {name} at line {line}: {extraction:?}"))
+                    .ignored
+            };
+
+        // A running suite, then a skipped suite, both titled "s".
+        let running_then_skipped = super::super::extract_file(
+            "a.test.ts",
+            crate::traceability::SourceLanguage::Typescript,
+            concat!(
+                "describe('s', () => {\n  it('m', () => {});\n});\n",
+                "describe.skip('s', () => {\n  it('n', () => {});\n});\n",
+            ),
+        );
+        assert!(
+            !ignored_at(&running_then_skipped, "m", 2),
+            "the running suite's own member must stay unignored"
+        );
+        assert!(
+            ignored_at(&running_then_skipped, "n", 5),
+            "the skipped suite's own member must be ignored"
+        );
+
+        // The reverse order: a skipped suite, then a running suite, same
+        // titles. A name-keyed lookup resolves both against whichever
+        // definition happens to be found (or was written last), so this
+        // must not depend on which came first.
+        let skipped_then_running = super::super::extract_file(
+            "b.test.ts",
+            crate::traceability::SourceLanguage::Typescript,
+            concat!(
+                "describe.skip('s', () => {\n  it('m', () => {});\n});\n",
+                "describe('s', () => {\n  it('n', () => {});\n});\n",
+            ),
+        );
+        assert!(
+            ignored_at(&skipped_then_running, "m", 2),
+            "the skipped suite's own member must be ignored"
+        );
+        assert!(
+            !ignored_at(&skipped_then_running, "n", 5),
+            "the running suite's own member must stay unignored"
+        );
+
+        // `it.skip('setup')` beside `describe('setup', ...)`: a test and an
+        // unrelated suite sharing one title, neither containing the other.
+        let skip_beside_suite = super::super::extract_file(
+            "c.test.ts",
+            crate::traceability::SourceLanguage::Typescript,
+            concat!(
+                "it.skip('setup', () => {});\n",
+                "describe('setup', () => {\n  it('inside', () => {});\n});\n",
+            ),
+        );
+        assert!(
+            ignored_at(&skip_beside_suite, "setup", 1),
+            "it.skip('setup') itself is ignored"
+        );
+        assert!(
+            !ignored_at(&skip_beside_suite, "inside", 3),
+            "describe('setup', ...) shares it.skip's title but not its ignored state"
+        );
+
+        // The same pair with the suite first: a last-wins title lookup would
+        // read the skipped test's state as the suite's.
+        let suite_beside_skip = super::super::extract_file(
+            "d.test.ts",
+            crate::traceability::SourceLanguage::Typescript,
+            concat!(
+                "describe('setup', () => {\n  it('m', () => {});\n});\n",
+                "it.skip('setup', () => {});\n",
+            ),
+        );
+        assert!(
+            !ignored_at(&suite_beside_skip, "m", 2),
+            "the running suite's member must stay unignored"
+        );
+        assert!(
+            !ignored_at(&suite_beside_skip, "setup", 1),
+            "the running suite itself must stay unignored"
+        );
+        assert!(
+            ignored_at(&suite_beside_skip, "setup", 4),
+            "it.skip('setup') itself is ignored"
+        );
+    }
+
+    /// A class inside a skipped suite passes the skip through: a suite
+    /// registered inside the class, and its test, are ignored too, while the
+    /// class itself (not a suite) is not marked.
+    #[trace("TC-1940", "FR-051-AC-27")]
+    #[test]
+    fn tc1940_a_class_passes_an_enclosing_skip_through() {
+        let extraction = super::super::extract_file(
+            "f.test.ts",
+            crate::traceability::SourceLanguage::Typescript,
+            concat!(
+                "describe.skip('outer', () => {\n",
+                "  class Harness {\n",
+                "    static register() {\n",
+                "      describe('inner', () => {\n",
+                "        it('t', () => {});\n",
+                "      });\n",
+                "    }\n",
+                "  }\n",
+                "});\n",
+            ),
+        );
+        let ignored = |name: &str| {
+            extraction
+                .symbols
+                .iter()
+                .find(|s| s.qualified_name == name)
+                .unwrap_or_else(|| panic!("no symbol {name}: {extraction:?}"))
+                .ignored
+        };
+        assert!(!ignored("Harness"), "a class is not a suite");
+        assert!(ignored("inner"), "the suite inside the class inherits");
+        assert!(ignored("t"), "and so does its test");
+    }
+
+    /// FR-051-AC-27 scopes `ignored` to test-kind and suite-kind symbols: a
+    /// helper function declared inside a skipped suite is a `Function` and
+    /// inherits nothing, while the test beside it does.
+    #[trace("TC-1940", "FR-051-AC-27")]
+    #[test]
+    fn tc1940_a_helper_inside_a_skipped_suite_does_not_inherit_ignored() {
+        let extraction = super::super::extract_file(
+            "e.test.ts",
+            crate::traceability::SourceLanguage::Typescript,
+            concat!(
+                "describe.skip('s', () => {\n",
+                "  function makeFixture() { return 1; }\n",
+                "  const build = () => 2;\n",
+                "  it('t', () => {});\n",
+                "});\n",
+            ),
+        );
+        let by_name = |name: &str| {
+            extraction
+                .symbols
+                .iter()
+                .find(|s| s.qualified_name == name)
+                .unwrap_or_else(|| panic!("no symbol {name}: {extraction:?}"))
+        };
+        for helper in ["makeFixture", "build"] {
+            assert_eq!(by_name(helper).kind, SymbolKind::Function);
+            assert!(
+                !by_name(helper).ignored,
+                "{helper} is a Function and must not inherit ignored"
+            );
+        }
+        assert!(by_name("t").ignored, "the test beside it inherits ignored");
     }
 }

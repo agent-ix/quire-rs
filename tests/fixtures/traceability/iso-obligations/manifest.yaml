@@ -1,0 +1,92 @@
+# ISO-shaped traceability declaration, PLUS an `obligations:` source over
+# acceptance criteria (CR-187, FR-050-AC-47..51 fixture). Mirrors
+# `tests/fixtures/traceability/iso/manifest.yaml`, with the two additions
+# `coverage_matrix` needs: an `obligations:` source (so the derived-obligation
+# population exists at all) and a `no_source_symbol` vocabulary (so
+# `method-without-symbol` has something to compute).
+name: traceability-iso-obligations
+version: 0.1.0
+description: ISO-shaped traceability model fixture with an obligations source
+artifact_types:
+- name: FR
+  grammar_ref: iso-spec-core
+  defaults:
+    id_pattern: FR-{next:03d}
+- name: TC
+  defaults:
+    id_pattern: TC-{next:03d}
+- name: TestMatrix
+  defaults:
+    id_pattern: TM-{next:03d}
+traceability:
+  trace_targets:
+  - name: acceptance-criterion
+    archetype: FR
+    section: Acceptance Criteria
+    id_column: ID
+  - name: test-case
+    archetype: TestMatrix
+    section: Test Cases
+    id_column: ID
+  # A TC that is authored as its own document rather than a matrix row.
+  - name: test-case-document
+    archetype: TC
+    section: Description
+    id_column: ID
+  document_references:
+  - name: verification
+    archetype: FR
+    section: Acceptance Criteria
+    column: Verification
+    row_id_column: ID
+    pattern: '\((TC-\d+)\)'
+    targets: [test-case, test-case-document]
+  - name: traces-to
+    archetype: TestMatrix
+    section: Test Cases
+    column: Traces To
+    row_id_column: ID
+    pattern: '((?:StR|US|FR|NFR)-\d+(?:-(?:AC|CON)-\d+)?|IT-\d+(?:-SC-\d+)?)'
+    targets: [acceptance-criterion]
+  status:
+    column: Status
+    complete: ["✅"]
+    pending: ["🚧", "⚠️"]
+    failed: ["❌"]
+  obligations:
+  - name: acceptance-criterion
+    target: acceptance-criterion
+    statement_column: Criteria
+    method_column: Verification
+  vocabularies:
+    test_type_column: Type
+    test_type: [Unit, Inspection]
+    no_source_symbol: [Inspection]
+  trace_tags:
+    markers:
+    - name: rust-trace-attribute
+      language: rust
+      pattern: '#\[trace\(([^)]*)\)\]'
+      template: '#[trace({ids})]'
+    - name: pytest-trace-marker
+      language: python
+      pattern: '@pytest\.mark\.trace\(([^)]*)\)'
+      template: '@pytest.mark.trace({ids})'
+    - name: ts-trace-helper
+      language: typescript
+      pattern: '\btrace\(([^)]*)\)'
+    legacy:
+    # The id group is a comma-separated list, not a single id: a legacy line
+    # reads naturally as `Trace: FR-1-AC-1, FR-1-AC-2` and every id it carries
+    # must bind (FR-051-AC-16). The engine splits capture group 1.
+    - name: trace-line
+      pattern: 'Trace:\s*([A-Za-z]+-\d+(?:-[A-Za-z]+-\d+)?(?:\s*,\s*[A-Za-z]+-\d+(?:-[A-Za-z]+-\d+)?)*)'
+      rewrite_to: rust-trace-attribute
+    - name: comment-id
+      pattern: '(?://|#)\s*((?:TC|FR|NFR|StR|US|IT)-\d+(?:-[A-Za-z]+-\d+)?(?:\s*,\s*(?:TC|FR|NFR|StR|US|IT)-\d+(?:-[A-Za-z]+-\d+)?)*)'
+      rewrite_to: rust-trace-attribute
+    - name: test-name-id
+      language: rust
+      pattern: '\bfn (?i:tc)(\d+)_'
+      id_format: 'TC-{1}'
+      rewrite_to: rust-trace-attribute
