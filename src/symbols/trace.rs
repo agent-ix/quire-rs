@@ -608,9 +608,12 @@ pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolG
             .iter()
             .flat_map(|r| r.range_text.split("..").map(|s| s.trim().to_string()))
             .collect();
-        graph.unmatched_tags.extend(generic_tags.into_iter().filter(|tag| {
-            !bound_on_symbol.contains(tag.trace_id.as_str()) && !range_tokens.contains(&tag.trace_id)
-        }));
+        graph
+            .unmatched_tags
+            .extend(generic_tags.into_iter().filter(|tag| {
+                !bound_on_symbol.contains(tag.trace_id.as_str())
+                    && !range_tokens.contains(&tag.trace_id)
+            }));
         let entry = census.entry(symbol.language.as_str()).or_default();
         entry.observe(
             graph.verifies.len() > before,
@@ -702,9 +705,9 @@ pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolG
             &b.range_text,
         ))
     });
-    graph.range_diagnostics.dedup_by(|a, b| {
-        a.path == b.path && a.line == b.line && a.range_text == b.range_text
-    });
+    graph
+        .range_diagnostics
+        .dedup_by(|a, b| a.path == b.path && a.line == b.line && a.range_text == b.range_text);
 
     // Computed last and additively: `find_mentions` reads the graph this
     // function already built (which symbols claimed which ids) to decide what

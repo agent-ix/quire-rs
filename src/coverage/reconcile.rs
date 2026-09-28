@@ -450,19 +450,24 @@ pub(super) fn reconcile(
     // marker or legacy alike — binds no id and is reported once per
     // occurrence, advisory (FR-057 `warning`), naming the file, the line, the
     // qualified symbol and the literal range text.
-    diagnostics.extend(graph.range_diagnostics.iter().map(|range| CoverageDiagnostic {
-        declaration: range.symbol.clone(),
-        reason: "range-in-trace-tag".to_string(),
-        message: format!(
-            "`{}` in {}:{} names a range, which binds no id — including its own \
+    diagnostics.extend(
+        graph
+            .range_diagnostics
+            .iter()
+            .map(|range| CoverageDiagnostic {
+                declaration: range.symbol.clone(),
+                reason: "range-in-trace-tag".to_string(),
+                message: format!(
+                    "`{}` in {}:{} names a range, which binds no id — including its own \
              endpoints; write one trace tag naming each id explicitly",
-            range.range_text, range.path, range.line
-        ),
-        path: Some(range.path.clone()),
-        line: Some(range.line),
-        value: Some(range.range_text.clone()),
-        guidance: None,
-    }));
+                    range.range_text, range.path, range.line
+                ),
+                path: Some(range.path.clone()),
+                line: Some(range.line),
+                value: Some(range.range_text.clone()),
+                guidance: None,
+            }),
+    );
 
     // ── Shared trace ids: one id bound by several distinct symbols ──
     // (FR-050-AC-23, CR-087). Scoped to ids that are row ids of

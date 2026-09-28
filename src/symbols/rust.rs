@@ -1697,8 +1697,7 @@ mod tests {
         let after = parse("#[test]\n#[ignore]\nfn t() {\n}\n").expect("valid");
         assert!(after[0].ignored, "#[ignore] after #[test]");
 
-        let reasoned =
-            parse("#[test]\n#[ignore = \"flaky\"]\nfn t() {\n}\n").expect("valid");
+        let reasoned = parse("#[test]\n#[ignore = \"flaky\"]\nfn t() {\n}\n").expect("valid");
         assert!(reasoned[0].ignored, "#[ignore] with a reason string");
 
         let conditional =

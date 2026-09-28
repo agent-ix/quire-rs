@@ -156,7 +156,12 @@ fn tc1932_tc1944_binders_are_keyed_on_path_line_column_not_qualified_name() {
 
     // TC-1932: `a` and `b` share one line, disambiguated by column.
     let ac1 = criterion("FR-001-AC-1");
-    assert_eq!(ac1.binders.len(), 2, "two distinct binders: {:?}", ac1.binders);
+    assert_eq!(
+        ac1.binders.len(),
+        2,
+        "two distinct binders: {:?}",
+        ac1.binders
+    );
     assert_eq!(ac1.binders[0].line, ac1.binders[1].line, "same line");
     assert_ne!(
         ac1.binders[0].column, ac1.binders[1].column,
@@ -470,7 +475,11 @@ fn tc1938_determinism_and_zero_population_omission() {
 
     let a = report_over(&root, "iso-obligations");
     let b = report_over(&root, "iso-obligations");
-    assert_eq!(a.to_json(), b.to_json(), "repeated runs must be byte-identical");
+    assert_eq!(
+        a.to_json(),
+        b.to_json(),
+        "repeated runs must be byte-identical"
+    );
     assert!(!a.coverage_matrix.is_empty());
     assert!(a.to_json().contains("\"coverage_matrix\""));
 
