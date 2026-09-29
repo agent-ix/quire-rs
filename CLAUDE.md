@@ -2,6 +2,16 @@
 
 High-performance Rust templating + parsing engine for the Filament/Quire ecosystem.
 
+## Hash / digest / pin antipattern: present, slated for removal
+
+This repository still contains hashes, digests, SHAs, pins, checksum catalogs and
+records that track files, versions or tools. That is an antipattern and it is slated
+for removal. Do not introduce any new use of it. When you touch code or specs that
+contain one, remove it as part of the change. The only hash that stays is a canonical
+identity digest that binds a proof to the exact content it proved. Package versions
+live in Cargo.toml / package.json and their lockfiles only; reports name the app
+version they ran.
+
 ## Commands
 
 ```bash
@@ -106,7 +116,6 @@ backport changes here via the `backport-code` skill (StR-004-AC-3). Drift is
 detected on each `make ci` run via `scripts/audits/verify_cookiecutter_inheritance.sh`.
 
 - **`#![cfg_attr(not(feature = "python"), forbid(unsafe_code))]`** at the crate root is the safety guarantee: the default build makes any first-party `unsafe` a **compile error** (NFR-003-AC-5). It's scoped off for `--features python` because PyO3 macros expand to `unsafe` in-crate. **The Miri job is retired (ADR 0006)** — with zero first-party `unsafe` enforced at compile time there's no first-party UB surface; dependency advisories are covered by `cargo-audit` (NFR-014), the concurrency surface by `loom` (NFR-017).
-- `clippy.toml` pins MSRV to `1.98.1` and caps cognitive complexity / arg count
 - `deny.toml` allow-lists licenses and denies unknown registries/git sources
 - `scripts/check_unsafe_comments.sh` runs in CI and locally via `make audit-unsafe`. Retained because it covers the **`python`** build, where `forbid(unsafe_code)` is scoped off — every `unsafe {` block must have a `// SAFETY:` comment within the 3 preceding lines, or be listed in `scripts/unsafe_comment_baseline.txt` (currently empty). Update the baseline with `bash scripts/check_unsafe_comments.sh --update-baseline`.
 - `rustfmt.toml` uses 100-char width and `StdExternalCrate` import grouping. CI fails on drift.
@@ -163,7 +172,7 @@ change requires a CR note (see CR-002 in FR-024 for the pattern).
 
 **References.**
 - `spec/spec.md` §19 — hardening posture (which ECAZ tools are adopted/skipped and why).
-- `spec/assets/adr/` — 0001 (validator crate: `jsonschema ~0.18`), 0002 (three-layer pipeline:
+- `spec/assets/adr/` — 0001 (validator crate), 0002 (three-layer pipeline:
   quire-rs per-doc/per-spec ← filament-parser-lib orchestration ← service layer graph).
 - Upstream parity: `agent-ix/quire` (TS parser), `agent-ix/quire-py`; the Python reference renderer
   in `spec-artifacts-*`. Crates: [MiniJinja](https://docs.rs/minijinja),
