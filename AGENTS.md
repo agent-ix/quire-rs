@@ -2,6 +2,16 @@ See CLAUDE.md.
 
 Design taste: write idiomatic Rust — lean on the type system (enums, `Option`/`Result`, newtypes, borrowed slices) over runtime checks and stringly-typed values.
 
+## Hash / digest / pin antipattern: present, slated for removal
+
+This repository still contains hashes, digests, SHAs, pins, checksum catalogs and
+records that track files, versions or tools. That is an antipattern and it is slated
+for removal. Do not introduce any new use of it. When you touch code or specs that
+contain one, remove it as part of the change. The only hash that stays is a canonical
+identity digest that binds a proof to the exact content it proved. Package versions
+live in Cargo.toml / package.json and their lockfiles only; reports name the app
+version they ran.
+
 ## Adding or improving a check
 
 Read **CLAUDE.md § Adding or improving a check** before changing any rule after a
@@ -31,6 +41,5 @@ which of the two conclusions you reached and why.
 Follow `corpus/CONTRIBUTING.md` (the `qa-corpus` submodule) for every census or
 dogfood finding: bank the case
 before the fix, cover every applicable language or record a reasoned exclusion,
-and provide a language-matched healthy control. If reproduction needs a full
-real tree, use its Tier-2 snapshot and pin-move procedure; do not paraphrase the
+and provide a language-matched healthy control. Do not paraphrase the
 failure into a smaller shape that no longer reproduces it.
