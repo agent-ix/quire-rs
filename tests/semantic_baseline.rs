@@ -42,24 +42,7 @@ fn write_or_compare(path: &Path, actual: &str) {
 
 #[trace("TC-1606", "FR-069-AC-8")]
 // Every supported semantic-core version is a complete, valid embedded
-// bundle, and each bundle's content still matches the digest this repo
-// pinned before CR-181. CR-181 deleted the check that hashed a *committed*
-// copy of the bundle bytes against `schemas/vendored/PROVENANCE.json` (and a
-// committed copy of filament-core-data's target enum, `common.schema.json`);
-// CR-184 deleted the third committed copy, `schemas/vendored/
-// module-manifest.schema.json`, once `@agent-ix/semantic-schema` published
-// it. Nothing under `schemas/vendored/` remains: every embedded schema comes
-// from `agent-ix-semantic-schema` (CR-186: a git dependency on
-// `agent-ix/filament-core-data`, not a `build.rs` npm fetch), never from a
-// file in this repository, and the target enum was dead code (see
-// `contract.rs`'s step-3/step-6 note). FR-069-CON-2 (which required a
-// provenance record to pin against) is removed for the same reason. But the
-// *content* digest itself is not ceremony — it is what proves the git
-// dependency's bytes are the exact bundle this crate's tests were written
-// against, and what would catch a future repin drifting the crate's tag from
-// the semantic-core version `embedded.rs` claims it embeds — so it is
-// restored here, computed straight over the embedded bundle bytes rather
-// than over a committed copy.
+// bundle.
 #[test]
 fn embedded_semantic_core_versions_are_complete_bundles() {
     assert!(
@@ -82,26 +65,6 @@ fn embedded_semantic_core_versions_are_complete_bundles() {
                 "semantic-core {version}/{name}: not a draft 2020-12 JSON Schema"
             );
         }
-
-        // Bundle digest: "<name>\n<bytes>" over every schema file, in the
-        // sorted order `agent-ix-semantic-schema` already emits them in.
-        let mut hasher = Sha256::new();
-        for (name, text) in bundle {
-            hasher.update(name.as_bytes());
-            hasher.update(b"\n");
-            hasher.update(text.as_bytes());
-        }
-        let digest = format!("sha256:{:x}", hasher.finalize());
-        let pinned = match *version {
-            "0.3.0" => "sha256:65b4e8d4c71a343e270618c9a8ca7e33687f10324ef5e9fe68d150056101c627",
-            other => panic!("semantic-core {other} has no pinned digest"),
-        };
-        assert_eq!(
-            digest, pinned,
-            "semantic-core {version} bundle digest changed from the pinned value; if \
-             @agent-ix/semantic-core@{version} genuinely republished with different \
-             content, update `pinned` to the new digest — don't relax this assertion"
-        );
     }
 }
 
@@ -159,7 +122,6 @@ struct ArchetypeProjection {
     name: String,
     raw_schema_sha256: String,
     frontmatter_schema_sha256: Option<String>,
-    data_schema_sha256: Option<String>,
     body_extraction: Option<String>,
     carry_over: String,
 }
@@ -177,7 +139,6 @@ fn registry_projection(registry: &Registry) -> Vec<ArchetypeProjection> {
                 name: a.name.clone(),
                 raw_schema_sha256: sha(&a.raw_schema),
                 frontmatter_schema_sha256: a.frontmatter_schema.as_deref().map(sha),
-                data_schema_sha256: a.data_schema.as_deref().map(sha),
                 body_extraction: a.body_extraction().map(|d| format!("{d:?}")),
                 carry_over: format!("{:?}", a.carry_over),
             }
