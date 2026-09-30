@@ -160,8 +160,8 @@ module-root order:
 
 Advisory cases:
 
-- If a module with a `semantic` block declares an inline `data_schema` on a
-  non-exported object type, then the loader SHALL emit the warning
+- If a module with a `semantic` block declares an inline `data_schema` on an
+  object type, then the loader SHALL emit the warning
   `semantic.inline-data-schema`; without the block the loader SHALL emit
   nothing.
 
@@ -188,7 +188,7 @@ stricter of the two.
 | ID | Constraint | Type | Validation |
 |----|------------|------|------------|
 | FR-069-CON-1 | The loader SHALL resolve schemas from the module bundle and the embedded bundle only, with no fetch of `https://schemas.agent-ix.org` and no read outside the module root. | Architecture | Test |
-| FR-069-CON-3 | A module without a `semantic` block SHALL produce a `Registry` whose archetype projection (name, schema digest, `body_extraction` JSON, extras) equals the checked-in baseline `tests/fixtures/semantic/baseline/registry-archetypes.json` minted on `main` before this change. | Compatibility | Test |
+| FR-069-CON-3 | A module without a `semantic` block SHALL produce a `Registry` whose archetype projection (name, `body_extraction` JSON, extras) equals the checked-in baseline `tests/fixtures/semantic/baseline/registry-archetypes.json` minted on `main` before this change. | Compatibility | Test |
 | FR-069-CON-4 | (RETIRED) The digest recorded for an object type SHALL be over the shipped file bytes, computed once at load. | Integrity | Test |
 
 ## Acceptance Criteria
@@ -200,9 +200,9 @@ stricter of the two.
 | FR-069-AC-3 | An unknown block key, an export of an undeclared object type, `package: ix://agent-ix/x`, and `targets: [go]` each fail with their named code and value. | Test |
 | FR-069-AC-4 | A missing file, a non-JSON file, a file without `$schema`, a `..` escape, and a symlink escape each fail with their named code, path, and reason; `{ schema, type }` fails with `semantic.data-schema-ambiguous`. | Test |
 | FR-069-AC-5 | A `$ref` to semantic-core `0.2.0` under `semantic_core: 0.3.0`, a `$ref` to an unshipped sibling, an `https://` `$ref` outside both bundles, and a two-file `$ref` cycle each fail naming the `$ref`; a `$ref` to the schema's own `$id` fragment loads cleanly; the same cases pass under `--no-default-features --features wasm`. | Test |
-| FR-069-AC-6 | An inline `data_schema` on a non-exported type under a `semantic` block loads with the warning `semantic.inline-data-schema`; the same manifest without the block loads with no semantic diagnostic. | Test |
+| FR-069-AC-6 | An inline `data_schema` on a type under a `semantic` block loads with the warning `semantic.inline-data-schema`; the same manifest without the block loads with no semantic diagnostic. | Test |
 | FR-069-AC-7 | A Filament snapshot whose `data_schema` is the reference form is refused with `semantic.data-schema-unresolved-reference` and yields no node; the same snapshot with the schema inline and a `semantic` context extracts. | Test |
-| FR-069-AC-8 | Every semantic-core version a `semantic` block may declare is a complete embedded bundle of valid JSON Schema documents, sourced from the published `@agent-ix/semantic-core` package at that exact version; the `0.3.0` bundle content digest equals `sha256:65b4e8d4c71a343e270618c9a8ca7e33687f10324ef5e9fe68d150056101c627`, computed over the build-fetched embedded bytes rather than a committed copy. | Test |
+| FR-069-AC-8 | Every semantic-core version a `semantic` block may declare is a complete embedded bundle of valid JSON Schema documents, sourced from the published `@agent-ix/semantic-core` package at that exact version. | Test |
 | FR-069-AC-9 | Every default and fixture module without a `semantic` block loads to the archetype projection recorded in the checked-in baseline. | Test |
 | FR-069-AC-10 | Two loaded modules with one `semantic.package` fail the later sorted root with `semantic.duplicate-package` naming both; an import no loaded module provides warns `semantic.import-unresolved` and still loads; a two-module import cycle fails both with `semantic.import-cycle`. | Test |
 | FR-069-AC-11 | `Registry::from_inline_parts` with a reference-form `data_schema` resolves the file from the `schemas` map, applies the same escape and `$ref` rules, and refuses a key with a `..` segment. | Test |
