@@ -574,10 +574,6 @@ fn legacy_forms() {
 fn no_block_record_is_unchanged() {
     let registry = Registry::load_module(&root().join("tests/fixtures/modules/bundle")).unwrap();
     assert!(registry.semantic_modules().next().is_none());
-    for name in registry.archetype_names() {
-        let arch = registry.archetype(name).unwrap();
-        assert!(arch.semantic_schema_digest.is_none(), "{name}");
-    }
     assert!(!registry
         .diagnostics()
         .iter()

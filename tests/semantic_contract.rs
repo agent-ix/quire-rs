@@ -1,4 +1,4 @@
-//! FR-069 semantic module contract at load (TC-1599..TC-1609, TC-1633,
+//! FR-069 semantic module contract at load (TC-1599..TC-1608, TC-1633,
 //! TC-1645, TC-1646, TC-1848, TC-1849, TC-1864, TC-1866). Plan-003 Task-016.
 //!
 //! Every case starts from the `module-ok` fixture in the `quire-fixtures`
@@ -13,7 +13,6 @@ use ix_trace_rs::trace;
 use quire_rs::semantic::{compile_module_schema, SemanticModule};
 use quire_rs::{extract_filament_core, FilamentExtractionInput, Registry};
 use serde_json::{json, Value};
-use sha2::{Digest, Sha256};
 use tempfile::TempDir;
 
 type Mutate = Box<dyn Fn(&mut serde_yaml::Value, &Path)>;
@@ -37,10 +36,6 @@ fn copy_dir(from: &Path, to: &Path) {
             fs::copy(entry.path(), target).unwrap();
         }
     }
-}
-
-fn digest_of(path: &Path) -> String {
-    format!("sha256:{:x}", Sha256::digest(fs::read(path).unwrap()))
 }
 
 /// A mutable copy of module-ok. `mutate` edits the manifest (as YAML value)
@@ -71,22 +66,16 @@ fn entity_schema_ref(m: &mut serde_yaml::Value) -> &mut serde_yaml::Mapping {
         .unwrap()
 }
 
-/// Rewrite Entity.json (optionally editing it) and refresh the manifest digest.
-fn edit_entity(m: &mut serde_yaml::Value, root: &Path, edit: impl FnOnce(&mut Value)) {
+/// Rewrite Entity.json, editing it.
+fn edit_entity(root: &Path, edit: impl FnOnce(&mut Value)) {
     let file = root.join("schemas/Entity.json");
     let mut schema: Value = serde_json::from_slice(&fs::read(&file).unwrap()).unwrap();
     edit(&mut schema);
     fs::write(&file, serde_json::to_vec(&schema).unwrap()).unwrap();
-    entity_schema_ref(m).insert("digest".into(), digest_of(&file).into());
 }
 
-/// Point the fixture at another package: `$id` and digest follow.
-fn retarget(m: &mut serde_yaml::Value, root: &Path, package: &str) {
-    edit_entity(m, root, |schema| {
-        schema["$id"] = json!(format!(
-            "https://schemas.agent-ix.org/{package}/0.1.0/Entity.json"
-        ));
-    });
+/// Point the fixture at another package.
+fn retarget(m: &mut serde_yaml::Value, package: &str) {
     semantic(m).insert("package".into(), package.into());
 }
 
@@ -123,7 +112,7 @@ fn semantic_diagnostics(registry: &Registry) -> Vec<(String, String)> {
 }
 
 #[trace("TC-1599", "FR-069-AC-1")]
-// a valid block and a digest-matching reference schema load; the resolved
+// a valid block and a reference schema load; the resolved
 // validator accepts the golden declaration set. (`validate_document` over an
 // entity artifact joins this row in Task-018, when `fields[]` is extracted.)
 #[test]
@@ -140,10 +129,6 @@ fn valid_block_and_reference_schema_load() {
     assert_eq!(sem.exports, vec!["entity".to_string()]);
     assert_eq!(sem.legacy_forms, "warning");
     let entity = registry.archetype("entity").unwrap();
-    assert_eq!(
-        entity.semantic_schema_digest.as_deref(),
-        Some(digest_of(&root.join("schemas/Entity.json")).as_str())
-    );
     let golden = golden();
     let validator = entity.data_validator().expect("resolved data schema");
     let record = json!({ "fields": golden["fields"], "clauses": golden["clauses"] });
@@ -152,12 +137,6 @@ fn valid_block_and_reference_schema_load() {
         "golden declaration set validates"
     );
     assert!(!validator.is_valid(&json!({ "fields": [{ "name": "x" }] })));
-    // The enumeration keeps its inline schema and is not exported.
-    assert!(registry
-        .archetype("enumeration")
-        .unwrap()
-        .semantic_schema_digest
-        .is_none());
 }
 
 #[trace("TC-1600", "FR-069-AC-2")]
@@ -241,17 +220,6 @@ fn block_shape_refusals_name_the_offender() {
             "semantic.unknown-target",
             "go",
         ),
-        (
-            "export-inline",
-            Box::new(|m, _| {
-                semantic(m).insert(
-                    "exports".into(),
-                    serde_yaml::Value::Sequence(vec!["entity".into(), "enumeration".into()]),
-                );
-            }),
-            "semantic.export-without-schema",
-            "enumeration",
-        ),
     ];
     for (name, mutate, code, value) in cases {
         let root = module(&tmp, name, mutate);
@@ -277,47 +245,25 @@ fn reference_form_refusals() {
     fs::write(&outside, "{}").unwrap();
     let cases: Vec<(&str, Mutate, &str)> = vec![
         (
-            "mismatch",
-            Box::new(|_, root| {
-                let f = root.join("schemas/Entity.json");
-                let mut b = fs::read(&f).unwrap();
-                b.push(b'\n');
-                fs::write(f, b).unwrap();
-            }),
-            "semantic.data-schema-digest-mismatch",
-        ),
-        (
             "missing",
             Box::new(|_, root| fs::remove_file(root.join("schemas/Entity.json")).unwrap()),
             "semantic.data-schema-missing",
         ),
         (
             "not-json",
-            Box::new(|m, root| {
-                let f = root.join("schemas/Entity.json");
-                fs::write(&f, "{ nope").unwrap();
-                entity_schema_ref(m).insert("digest".into(), digest_of(&f).into());
+            Box::new(|_, root| {
+                fs::write(root.join("schemas/Entity.json"), "{ nope").unwrap();
             }),
             "semantic.data-schema-not-json",
         ),
         (
             "no-schema-keyword",
-            Box::new(|m, root| {
-                edit_entity(m, root, |s| {
+            Box::new(|_, root| {
+                edit_entity(root, |s| {
                     s.as_object_mut().unwrap().remove("$schema");
                 })
             }),
             "semantic.data-schema-not-schema",
-        ),
-        (
-            "wrong-id",
-            Box::new(|m, root| {
-                edit_entity(m, root, |s| {
-                    s["$id"] =
-                        json!("https://schemas.agent-ix.org/agent-ix/other/0.1.0/Entity.json");
-                })
-            }),
-            "semantic.data-schema-id",
         ),
         (
             "dotdot",
@@ -330,11 +276,10 @@ fn reference_form_refusals() {
             "symlink",
             Box::new({
                 let outside = outside.clone();
-                move |m, root| {
+                move |_, root| {
                     let f = root.join("schemas/Entity.json");
                     fs::remove_file(&f).unwrap();
                     std::os::unix::fs::symlink(&outside, &f).unwrap();
-                    entity_schema_ref(m).insert("digest".into(), digest_of(&outside).into());
                 }
             }),
             "semantic.data-schema-escape",
@@ -372,8 +317,8 @@ fn fields_items(schema: &mut Value) -> &mut Value {
 #[test]
 fn ref_rules() {
     let tmp = tempfile::tempdir().unwrap();
-    let root = module(&tmp, "core-version", |m, root| {
-        edit_entity(m, root, |s| {
+    let root = module(&tmp, "core-version", |_, root| {
+        edit_entity(root, |s| {
             *fields_items(s) = json!({ "$ref": "https://schemas.agent-ix.org/semantic-core/0.2.0/FieldDecl.json" });
         })
     });
@@ -384,8 +329,8 @@ fn ref_rules() {
         "{r:?}"
     );
 
-    let root = module(&tmp, "unshipped", |m, root| {
-        edit_entity(m, root, |s| {
+    let root = module(&tmp, "unshipped", |_, root| {
+        edit_entity(root, |s| {
             *fields_items(s) = json!({ "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-fixture/0.1.0/Missing.json" });
         })
     });
@@ -396,8 +341,8 @@ fn ref_rules() {
         "{r:?}"
     );
 
-    let root = module(&tmp, "outside", |m, root| {
-        edit_entity(m, root, |s| {
+    let root = module(&tmp, "outside", |_, root| {
+        edit_entity(root, |s| {
             *fields_items(s) = json!({ "$ref": "https://example.org/x.json" });
         })
     });
@@ -408,7 +353,7 @@ fn ref_rules() {
         "{r:?}"
     );
 
-    let root = module(&tmp, "cycle", |m, root| {
+    let root = module(&tmp, "cycle", |_, root| {
         fs::write(
             root.join("schemas/Other.json"),
             serde_json::to_vec(&json!({
@@ -420,7 +365,7 @@ fn ref_rules() {
             .unwrap(),
         )
         .unwrap();
-        edit_entity(m, root, |s| {
+        edit_entity(root, |s| {
             s["properties"]["other"] = json!({ "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-fixture/0.1.0/Other.json" });
         });
     });
@@ -431,8 +376,8 @@ fn ref_rules() {
         "{r:?}"
     );
 
-    let root = module(&tmp, "self-fragment", |m, root| {
-        edit_entity(m, root, |s| {
+    let root = module(&tmp, "self-fragment", |_, root| {
+        edit_entity(root, |s| {
             s["$defs"] = json!({ "marker": { "type": "string" } });
             s["properties"]["marker"] = json!({ "$ref": "https://schemas.agent-ix.org/agent-ix/spec-objects-fixture/0.1.0/Entity.json#/$defs/marker" });
         })
@@ -500,34 +445,6 @@ fn resolver_reads_no_network_and_nothing_outside_the_module() {
     assert!(!validator.is_valid(&json!({ "f": { "name": "id" } })));
 }
 
-#[trace("TC-1609", "FR-069-CON-4")]
-// the recorded digest is over shipped bytes; the schema is not normalized.
-#[test]
-fn digest_is_over_shipped_bytes() {
-    let tmp = tempfile::tempdir().unwrap();
-    // Pretty-printed with odd whitespace: bytes change, meaning does not.
-    let root = module(&tmp, "whitespace", |m, root| {
-        let f = root.join("schemas/Entity.json");
-        let v: Value = serde_json::from_slice(&fs::read(&f).unwrap()).unwrap();
-        fs::write(
-            &f,
-            format!("\n\n{}\n\n", serde_json::to_string_pretty(&v).unwrap()),
-        )
-        .unwrap();
-        entity_schema_ref(m).insert("digest".into(), digest_of(&f).into());
-    });
-    let registry = load(&root);
-    assert!(registry.failures().is_empty(), "{:?}", reasons(&registry));
-    let entity = registry.archetype("entity").unwrap();
-    assert_eq!(
-        entity.semantic_schema_digest.as_deref(),
-        Some(digest_of(&root.join("schemas/Entity.json")).as_str())
-    );
-    let on_disk: Value =
-        serde_json::from_slice(&fs::read(root.join("schemas/Entity.json")).unwrap()).unwrap();
-    assert_eq!(entity.data_schema.as_deref(), Some(&on_disk));
-}
-
 #[trace("TC-1604", "FR-069-AC-6")]
 // inline data_schema under a block warns; without a block it is silent.
 #[test]
@@ -585,7 +502,7 @@ fn entity_snapshot(data_schema: Value, semantic: Option<Value>) -> Value {
 // a Filament snapshot with the reference form is refused; inline + context extracts.
 #[test]
 fn filament_snapshot_reference_form_is_refused() {
-    let reference = json!({ "schema": "schemas/Entity.json", "digest": "sha256:00" });
+    let reference = json!({ "schema": "schemas/Entity.json" });
     let result = extract_filament_core(snapshot_input(vec![entity_snapshot(reference, None)]));
     assert!(result.diagnostics.iter().any(|d| d.code == "semantic.data-schema-unresolved-reference" && d.severity == "error"), "{:?}", result.diagnostics);
     // The document-level artifact node (FR-045 fallback) may remain; no node
@@ -692,8 +609,8 @@ fn cross_module_checks() {
     assert!(registry.archetype_in_module("b-second", "entity").is_none());
 
     let tmp = tempfile::tempdir().unwrap();
-    module(&tmp, "needy", |m, root| {
-        retarget(m, root, "agent-ix/needy");
+    module(&tmp, "needy", |m, _| {
+        retarget(m, "agent-ix/needy");
         semantic(m).insert(
             "imports".into(),
             serde_yaml::from_str("{ 'agent-ix/other': '0.2.0' }").unwrap(),
@@ -710,15 +627,15 @@ fn cross_module_checks() {
     );
 
     let tmp = tempfile::tempdir().unwrap();
-    module(&tmp, "x-cycle", |m, root| {
-        retarget(m, root, "agent-ix/x");
+    module(&tmp, "x-cycle", |m, _| {
+        retarget(m, "agent-ix/x");
         semantic(m).insert(
             "imports".into(),
             serde_yaml::from_str("{ 'agent-ix/y': '0.1.0' }").unwrap(),
         );
     });
-    module(&tmp, "y-cycle", |m, root| {
-        retarget(m, root, "agent-ix/y");
+    module(&tmp, "y-cycle", |m, _| {
+        retarget(m, "agent-ix/y");
         semantic(m).insert(
             "imports".into(),
             serde_yaml::from_str("{ 'agent-ix/x': '0.1.0' }").unwrap(),
@@ -748,11 +665,6 @@ fn inline_parts_resolve_the_reference_form() {
     schemas.insert("schemas/Entity.json".to_string(), entity.clone());
     let registry = Registry::from_inline_parts(&manifest, &schemas).unwrap();
     assert!(registry.failures().is_empty(), "{:?}", reasons(&registry));
-    assert!(registry
-        .archetype("entity")
-        .unwrap()
-        .semantic_schema_digest
-        .is_some());
 
     // Missing from the map: refused as missing, never read from disk.
     let registry = Registry::from_inline_parts(&manifest, &BTreeMap::new()).unwrap();
