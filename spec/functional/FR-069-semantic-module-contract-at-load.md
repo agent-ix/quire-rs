@@ -25,7 +25,7 @@ relationships:
 ## Description
 
 When the loader reads a module manifest that carries a `semantic` block, or an
-object type whose `data_schema` uses the `{ schema, digest }` reference form,
+object type whose `data_schema` uses the `{ schema }` reference form,
 the loader SHALL apply the semantic module contract (`agent-ix/quoin` FR-070
 and FR-073; `agent-ix/filament-core-service` FR-035-AC-13..15).
 
@@ -98,11 +98,8 @@ as it does today.
   [FR-075](./FR-075-model-feature-extraction.md) extraction). The admitted key
   `sweep_report` is a Quoin install-time key; the loader accepts and ignores
   it.
-- Per object type: the resolved data schema, its lowercase SHA-256 digest
-  over the shipped bytes, and a compiled validator over the extracted record.
-  This `(module, archetype, schema_digest)` tuple is the one
-  [FR-067](./FR-067-versioned-assurance-export.md) AC-3 lists; no second
-  digest is computed.
+- Per object type: the resolved data schema and a compiled validator over the
+  extracted record.
 - One `ArchetypeLoadFailure` per object type of a refused module whose
   `reason` starts with the `semantic.*` code below, followed by the message.
 - Warning diagnostics for the advisory cases.
@@ -125,20 +122,14 @@ Refusals, in evaluation order:
   then the loader SHALL refuse with `semantic.invalid-package` naming the
   value. If a target is outside the vendored target registry, then the loader refuses
   with `semantic.unknown-target` naming the value.
-- If an exported object type's `data_schema` is not the reference form, then
-  the loader SHALL refuse with `semantic.export-without-schema` naming the
-  type.
 - For a reference-form `data_schema`, the loader SHALL resolve `schema`
   inside the module root (a `..` segment or a symlink leaving the root is
   `semantic.data-schema-escape`), read the bytes (absent:
-  `semantic.data-schema-missing`), compare their SHA-256 with `digest`
-  (`semantic.data-schema-digest-mismatch`), parse JSON
-  (`semantic.data-schema-not-json`), require `$schema`
+  `semantic.data-schema-missing`), parse JSON
+  (`semantic.data-schema-not-json`), and require `$schema`
   `https://json-schema.org/draft/2020-12/schema`
-  (`semantic.data-schema-not-schema`), and require `$id`
-  `https://schemas.agent-ix.org/<package>/<module version>/<file>`
-  (`semantic.data-schema-id`). Each refusal SHALL name the path and the
-  reason. The mixed form `{ schema, digest, type }` is
+  (`semantic.data-schema-not-schema`). Each refusal SHALL name the path and
+  the reason. The mixed form `{ schema, type }` is
   `semantic.data-schema-ambiguous`; the reference form on a manifest without
   a `semantic` block is `semantic.data-schema-reference-without-block`.
 - The loader SHALL resolve every `$ref` of a referenced schema offline against
@@ -198,23 +189,23 @@ stricter of the two.
 |----|------------|------|------------|
 | FR-069-CON-1 | The loader SHALL resolve schemas from the module bundle and the embedded bundle only, with no fetch of `https://schemas.agent-ix.org` and no read outside the module root. | Architecture | Test |
 | FR-069-CON-3 | A module without a `semantic` block SHALL produce a `Registry` whose archetype projection (name, schema digest, `body_extraction` JSON, extras) equals the checked-in baseline `tests/fixtures/semantic/baseline/registry-archetypes.json` minted on `main` before this change. | Compatibility | Test |
-| FR-069-CON-4 | The digest recorded for an object type SHALL be over the shipped file bytes, computed once at load. | Integrity | Test |
+| FR-069-CON-4 | (RETIRED) The digest recorded for an object type SHALL be over the shipped file bytes, computed once at load. | Integrity | Test |
 
 ## Acceptance Criteria
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
-| FR-069-AC-1 | A module with a valid `semantic` block and a reference-form `data_schema` whose digest matches loads with a `SemanticModule` record, a resolved schema, and the recorded digest, and `validate_document` over an artifact of that type validates the extracted record against the resolved schema. | Test |
+| FR-069-AC-1 | A module with a valid `semantic` block and a reference-form `data_schema` loads with a `SemanticModule` record and a resolved schema, and `validate_document` over an artifact of that type validates the extracted record against the resolved schema. | Test |
 | FR-069-AC-2 | `contract_version: 2.0.0` fails every object type of the module with a reason starting `semantic.unsupported-contract-version` and no other `semantic.*` reason; `semantic_core: 0.9.0` fails with `semantic.unsupported-semantic-core` naming `0.9.0` and `0.3.0`. | Test |
-| FR-069-AC-3 | An unknown block key, an export of an undeclared object type, `package: ix://agent-ix/x`, `targets: [go]`, and an export whose `data_schema` is inline each fail with their named code and value. | Test |
-| FR-069-AC-4 | A digest mismatch, a missing file, a non-JSON file, a file without `$schema`, a wrong `$id`, a `..` escape, and a symlink escape each fail with their named code, path, and reason; `{ schema, digest, type }` fails with `semantic.data-schema-ambiguous`. | Test |
+| FR-069-AC-3 | An unknown block key, an export of an undeclared object type, `package: ix://agent-ix/x`, and `targets: [go]` each fail with their named code and value. | Test |
+| FR-069-AC-4 | A missing file, a non-JSON file, a file without `$schema`, a `..` escape, and a symlink escape each fail with their named code, path, and reason; `{ schema, type }` fails with `semantic.data-schema-ambiguous`. | Test |
 | FR-069-AC-5 | A `$ref` to semantic-core `0.2.0` under `semantic_core: 0.3.0`, a `$ref` to an unshipped sibling, an `https://` `$ref` outside both bundles, and a two-file `$ref` cycle each fail naming the `$ref`; a `$ref` to the schema's own `$id` fragment loads cleanly; the same cases pass under `--no-default-features --features wasm`. | Test |
 | FR-069-AC-6 | An inline `data_schema` on a non-exported type under a `semantic` block loads with the warning `semantic.inline-data-schema`; the same manifest without the block loads with no semantic diagnostic. | Test |
 | FR-069-AC-7 | A Filament snapshot whose `data_schema` is the reference form is refused with `semantic.data-schema-unresolved-reference` and yields no node; the same snapshot with the schema inline and a `semantic` context extracts. | Test |
 | FR-069-AC-8 | Every semantic-core version a `semantic` block may declare is a complete embedded bundle of valid JSON Schema documents, sourced from the published `@agent-ix/semantic-core` package at that exact version; the `0.3.0` bundle content digest equals `sha256:65b4e8d4c71a343e270618c9a8ca7e33687f10324ef5e9fe68d150056101c627`, computed over the build-fetched embedded bytes rather than a committed copy. | Test |
 | FR-069-AC-9 | Every default and fixture module without a `semantic` block loads to the archetype projection recorded in the checked-in baseline. | Test |
 | FR-069-AC-10 | Two loaded modules with one `semantic.package` fail the later sorted root with `semantic.duplicate-package` naming both; an import no loaded module provides warns `semantic.import-unresolved` and still loads; a two-module import cycle fails both with `semantic.import-cycle`. | Test |
-| FR-069-AC-11 | `Registry::from_inline_parts` with a reference-form `data_schema` resolves the file from the `schemas` map, applies the same digest, `$id`, escape, and `$ref` rules, and refuses a key with a `..` segment. | Test |
+| FR-069-AC-11 | `Registry::from_inline_parts` with a reference-form `data_schema` resolves the file from the `schemas` map, applies the same escape and `$ref` rules, and refuses a key with a `..` segment. | Test |
 | FR-069-AC-12 | A module whose `semantic` block lists `mappings` loads with those tokens recorded on its `SemanticModule`, in order; a block without `mappings` records an empty list. | Test |
 
 ## Dependencies

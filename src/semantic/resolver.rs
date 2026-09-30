@@ -1,7 +1,7 @@
 //! Offline schema resolution (FR-069 Behavior, FR-069-CON-1).
 //!
 //! A reference-form `data_schema` is read from the module (filesystem root or
-//! the inline `schemas` map), digest-checked, and compiled with every `$ref`
+//! the inline `schemas` map) and compiled with every `$ref`
 //! pre-registered from an in-memory `$id → document` map built from the
 //! module's sibling files and the embedded semantic-core bundle. The schema
 //! library's file and HTTP resolvers are never consulted, so the same code
@@ -12,7 +12,6 @@ use std::path::{Component, Path, PathBuf};
 
 use jsonschema::JSONSchema;
 use serde_json::Value;
-use sha2::{Digest, Sha256};
 
 use super::contract::{DataSchemaRef, SemanticFailure, SemanticModule};
 use super::embedded;
@@ -28,18 +27,13 @@ pub enum SchemaSource<'a> {
     },
 }
 
-/// A resolved reference-form schema: the parsed document, the digest over
-/// the shipped bytes, and the compiled validator.
+/// A resolved reference-form schema: the parsed document and the compiled
+/// validator.
 pub struct ResolvedSchema {
     pub schema: Value,
-    pub digest: String,
     pub validator: JSONSchema,
     /// The manifest-relative path of the schema file.
     pub path: String,
-}
-
-fn sha256_hex(bytes: &[u8]) -> String {
-    format!("sha256:{:x}", Sha256::digest(bytes))
 }
 
 fn escapes(rel: &str) -> bool {
@@ -90,7 +84,6 @@ pub fn resolve_reference(
     source: &SchemaSource,
     reference: &DataSchemaRef,
     module: &SemanticModule,
-    module_version: &str,
     object_type: &str,
 ) -> Result<ResolvedSchema, SemanticFailure> {
     let rel = reference.schema.as_str();
@@ -118,17 +111,6 @@ pub fn resolve_reference(
         }
         Ok(Some(b)) => b,
     };
-    let digest = sha256_hex(&bytes);
-    if digest != reference.digest {
-        return Err(SemanticFailure::error(
-            "semantic.data-schema-digest-mismatch",
-            locus(object_type, "digest"),
-            format!(
-                "schema file {rel} hashes to {digest}, manifest records {}",
-                reference.digest
-            ),
-        ));
-    }
     let schema: Value = serde_json::from_slice(&bytes).map_err(|e| {
         SemanticFailure::error(
             "semantic.data-schema-not-json",
@@ -145,19 +127,11 @@ pub fn resolve_reference(
             format!("schema file {rel} does not declare JSON Schema 2020-12"),
         ));
     }
-    let file_name = Path::new(rel)
-        .file_name()
-        .and_then(|n| n.to_str())
-        .unwrap_or(rel);
-    let expected_id = format!("{}{}", module.schema_base(module_version), file_name);
-    let actual_id = schema.get("$id").and_then(Value::as_str).unwrap_or("");
-    if actual_id != expected_id {
-        return Err(SemanticFailure::error(
-            "semantic.data-schema-id",
-            locus(object_type, "schema"),
-            format!("schema $id is {actual_id:?}, expected {expected_id}"),
-        ));
-    }
+    let module_base = schema
+        .get("$id")
+        .and_then(Value::as_str)
+        .and_then(|id| id.rfind('/').map(|i| id[..=i].to_string()))
+        .unwrap_or_default();
     let dir: PathBuf = Path::new(rel)
         .parent()
         .map(Path::to_path_buf)
@@ -170,19 +144,13 @@ pub fn resolve_reference(
             Err(_) => None,
         }
     };
-    let validator = compile_module_schema(
-        &schema,
-        &siblings,
-        &module.semantic_core,
-        &module.schema_base(module_version),
-    )
-    .map_err(|mut f| {
-        f.path = locus(object_type, "schema");
-        f
-    })?;
+    let validator = compile_module_schema(&schema, &siblings, &module.semantic_core, &module_base)
+        .map_err(|mut f| {
+            f.path = locus(object_type, "schema");
+            f
+        })?;
     Ok(ResolvedSchema {
         schema,
-        digest,
         validator,
         path: rel.to_string(),
     })

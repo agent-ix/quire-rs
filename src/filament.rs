@@ -431,7 +431,7 @@ fn compile_object_type_snapshots(
                 diagnostics.push(diagnostic(
                     "semantic.data-schema-unresolved-reference",
                     format!(
-                        "{}: data_schema is the {{ schema, digest }} reference form; the registry owner resolves it before the snapshot is served",
+                        "{}: data_schema is the {{ schema }} reference form; the registry owner resolves it before the snapshot is served",
                         snapshot.name
                     ),
                     "error",

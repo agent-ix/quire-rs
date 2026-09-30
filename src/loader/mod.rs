@@ -433,12 +433,11 @@ pub fn load_inline_module(manifest_yaml: &[u8], schemas: &BTreeMap<String, Strin
 
         // Data schema (optional): inline, or the FR-069 reference form served
         // from the `schemas` map.
-        let (data_schema, data_validator, semantic_schema_digest) = match resolve_data_schema(
+        let (data_schema, data_validator) = match resolve_data_schema(
             &module_name,
             inline_root.clone(),
             a,
             inline_semantic.as_ref(),
-            &manifest,
             &inline_source,
             &mut diagnostics,
         ) {
@@ -469,7 +468,6 @@ pub fn load_inline_module(manifest_yaml: &[u8], schemas: &BTreeMap<String, Strin
             frontmatter_validator,
             data_schema,
             data_validator,
-            semantic_schema_digest,
         )));
     }
 
@@ -684,7 +682,6 @@ fn load_one_module(
             module_root,
             at,
             semantic.as_ref(),
-            &manifest,
             &source,
             diagnostics,
         ) {
@@ -742,7 +739,6 @@ fn compile_archetype(
     module_root: &Path,
     a: &Archetype,
     semantic: Option<&crate::semantic::SemanticModule>,
-    manifest: &Manifest,
     source: &crate::semantic::SchemaSource<'_>,
     diagnostics: &mut Vec<Diagnostic>,
 ) -> Result<CompiledArchetype, ArchetypeLoadFailure> {
@@ -770,12 +766,11 @@ fn compile_archetype(
     };
 
     // Data schema (optional): inline JSON Schema, or the FR-069 reference form.
-    let (data_schema, data_validator, semantic_schema_digest) = resolve_data_schema(
+    let (data_schema, data_validator) = resolve_data_schema(
         module,
         module_root.join("manifest.yaml"),
         a,
         semantic,
-        manifest,
         source,
         diagnostics,
     )?;
@@ -800,7 +795,6 @@ fn compile_archetype(
         frontmatter_validator,
         data_schema,
         data_validator,
-        semantic_schema_digest,
     ))
 }
 
@@ -813,43 +807,25 @@ fn read_module_semantic(
         return Ok(None);
     };
     let names: Vec<String> = manifest.all_archetypes().map(|a| a.name.clone()).collect();
-    let has_reference = |name: &str| -> bool {
-        manifest.all_archetypes().any(|a| {
-            a.name == name
-                && a.data_schema.as_ref().is_some_and(|v| {
-                    // Ambiguous counts here so the ambiguity is refused at
-                    // its own locus instead of as a missing export schema.
-                    !matches!(
-                        crate::semantic::reference_form(v),
-                        crate::semantic::contract::DataSchemaForm::Inline
-                    )
-                })
-        })
-    };
-    crate::semantic::read_semantic_block(block, &names, &has_reference).map(Some)
+    crate::semantic::read_semantic_block(block, &names).map(Some)
 }
 
-type DataSchemaParts = (
-    Option<Arc<Value>>,
-    Option<Arc<jsonschema::JSONSchema>>,
-    Option<String>,
-);
+type DataSchemaParts = (Option<Arc<Value>>, Option<Arc<jsonschema::JSONSchema>>);
 
 /// Resolve an archetype's `data_schema` (FR-069 Behavior): the reference
-/// form is digest-checked and compiled offline; an inline schema under a
+/// form is compiled offline; an inline schema under a
 /// `semantic` block warns `semantic.inline-data-schema`.
 fn resolve_data_schema(
     module: &str,
     manifest_path: PathBuf,
     a: &Archetype,
     semantic: Option<&crate::semantic::SemanticModule>,
-    manifest: &Manifest,
     source: &crate::semantic::SchemaSource<'_>,
     diagnostics: &mut Vec<Diagnostic>,
 ) -> Result<DataSchemaParts, ArchetypeLoadFailure> {
     use crate::semantic::contract::DataSchemaForm;
     let Some(schema) = &a.data_schema else {
-        return Ok((None, None, None));
+        return Ok((None, None));
     };
     match crate::semantic::reference_form(schema) {
         DataSchemaForm::Ambiguous => Err(failure(
@@ -859,7 +835,7 @@ fn resolve_data_schema(
             crate::semantic::SemanticFailure::error(
                 "semantic.data-schema-ambiguous",
                 format!("object_types[{}].data_schema", a.name),
-                "data_schema carries both the { schema, digest } reference and schema keywords",
+                "data_schema carries both the { schema } reference and schema keywords",
             )
             .reason(),
         )),
@@ -872,20 +848,17 @@ fn resolve_data_schema(
                     crate::semantic::SemanticFailure::error(
                         "semantic.data-schema-reference-without-block",
                         format!("object_types[{}].data_schema", a.name),
-                        "the { schema, digest } reference form requires a semantic block",
+                        "the { schema } reference form requires a semantic block",
                     )
                     .reason(),
                 ));
             };
-            let version = manifest.version.clone().unwrap_or_default();
-            let resolved = crate::semantic::resolver::resolve_reference(
-                source, &reference, semantic, &version, &a.name,
-            )
-            .map_err(|f| failure(module, &a.name, manifest_path.clone(), f.reason()))?;
+            let resolved =
+                crate::semantic::resolver::resolve_reference(source, &reference, semantic, &a.name)
+                    .map_err(|f| failure(module, &a.name, manifest_path.clone(), f.reason()))?;
             Ok((
                 Some(Arc::new(resolved.schema)),
                 Some(Arc::new(resolved.validator)),
-                Some(resolved.digest),
             ))
         }
         DataSchemaForm::Inline => {
@@ -895,18 +868,14 @@ fn resolve_data_schema(
                     path: format!("object_types[{}].data_schema", a.name),
                     code: "semantic.inline-data-schema".to_string(),
                     message: format!(
-                        "{}: inline data_schema under a semantic block; prefer the {{ schema, digest }} reference form",
+                        "{}: inline data_schema under a semantic block; prefer the {{ schema }} reference form",
                         a.name
                     ),
                 });
             }
             let validator =
                 compile_schema(schema).map_err(|r| failure(module, &a.name, manifest_path, r))?;
-            Ok((
-                Some(Arc::new(schema.clone())),
-                Some(Arc::new(validator)),
-                None,
-            ))
+            Ok((Some(Arc::new(schema.clone())), Some(Arc::new(validator))))
         }
     }
 }
@@ -922,7 +891,6 @@ fn finish_compiled(
     frontmatter_validator: Option<Arc<jsonschema::JSONSchema>>,
     data_schema: Option<Arc<Value>>,
     data_validator: Option<Arc<jsonschema::JSONSchema>>,
-    semantic_schema_digest: Option<String>,
 ) -> CompiledArchetype {
     let (raw_schema, validator) = match (&frontmatter_schema, &frontmatter_validator) {
         (Some(s), Some(v)) => (Arc::clone(s), Arc::clone(v)),
@@ -941,7 +909,6 @@ fn finish_compiled(
         data_schema,
         data_validator,
         body_extraction: a.body_extraction.clone(),
-        semantic_schema_digest,
         carry_over: a.carry_over(),
     }
 }

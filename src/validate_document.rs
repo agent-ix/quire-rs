@@ -406,12 +406,7 @@ fn semantic_findings(
         .body_extraction()
         .map(RequiredSections::from_extraction)
         .unwrap_or_default();
-    let record = crate::semantic::extract_semantic(
-        doc_text,
-        &ctx,
-        arch.semantic_schema_digest.as_deref(),
-        &required,
-    );
+    let record = crate::semantic::extract_semantic(doc_text, &ctx, None, &required);
     for d in &record.diagnostics {
         let message = format!("{}: {}", d.code, d.message);
         match d.severity {
@@ -1080,7 +1075,6 @@ mod tests {
             data_schema: None,
             data_validator: None,
             body_extraction,
-            semantic_schema_digest: None,
             carry_over: ArchetypeCarryOver::default(),
         }
     }

@@ -1028,7 +1028,6 @@ fn compile_object_types(value: Value) -> PyResult<BTreeMap<String, Arc<CompiledA
                 data_schema: Some(Arc::clone(&raw)),
                 data_validator: Some(Arc::clone(&v)),
                 body_extraction,
-                semantic_schema_digest: None,
                 carry_over: Default::default(),
             }),
         );

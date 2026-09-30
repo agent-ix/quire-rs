@@ -3,8 +3,7 @@
 //! Refusals carry a `semantic.*` code and are evaluated in the order
 //! FR-069 fixes: contract version, semantic-core version, block shape
 //! (which includes an unknown `targets` value, via the module-manifest
-//! schema's own enum), exports, package, then each exported type's schema
-//! form.
+//! schema's own enum), exports, then package.
 
 use std::collections::BTreeMap;
 
@@ -82,23 +81,12 @@ impl SemanticModule {
         let (org, repo) = self.package.split_once('/').unwrap_or((&self.package, ""));
         (org, repo)
     }
-
-    /// Base of every `$id` this module's schemas must carry at `module_version`.
-    pub fn schema_base(&self, module_version: &str) -> String {
-        format!(
-            "{}{}/{}/",
-            embedded::MODULE_SCHEMA_BASE,
-            self.package,
-            module_version
-        )
-    }
 }
 
-/// A `data_schema: { schema, digest }` reference (quoin FR-073).
+/// A `data_schema: { schema }` reference (quoin FR-073).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DataSchemaRef {
     pub schema: String,
-    pub digest: String,
 }
 
 /// Which `data_schema` form a manifest value takes.
@@ -106,26 +94,23 @@ pub struct DataSchemaRef {
 pub enum DataSchemaForm {
     Inline,
     Reference(DataSchemaRef),
-    /// `{ schema, digest, type }` and the like: both forms at once.
+    /// `{ schema, type }` and the like: both forms at once.
     Ambiguous,
 }
 
-/// Classify a `data_schema` value. The reference form is exactly the keys
-/// `schema` and `digest`, both strings; a value carrying those plus schema
-/// keywords is ambiguous; anything else is an inline JSON Schema.
+/// Classify a `data_schema` value. The reference form is exactly the key
+/// `schema`, a string; a value carrying it plus other keys is ambiguous;
+/// anything else is an inline JSON Schema.
 pub fn reference_form(value: &Value) -> DataSchemaForm {
     let Some(map) = value.as_object() else {
         return DataSchemaForm::Inline;
     };
-    let has_ref = map.get("schema").and_then(Value::as_str).is_some()
-        && map.get("digest").and_then(Value::as_str).is_some();
-    if !has_ref {
+    let Some(schema) = map.get("schema").and_then(Value::as_str) else {
         return DataSchemaForm::Inline;
-    }
-    if map.len() == 2 {
+    };
+    if map.len() == 1 {
         return DataSchemaForm::Reference(DataSchemaRef {
-            schema: map["schema"].as_str().unwrap_or_default().to_string(),
-            digest: map["digest"].as_str().unwrap_or_default().to_string(),
+            schema: schema.to_string(),
         });
     }
     DataSchemaForm::Ambiguous
@@ -142,12 +127,10 @@ fn block_validator() -> JSONSchema {
 
 /// Read and check a `semantic` block (FR-069 Behavior, refusals in order).
 ///
-/// `object_types` are the declared object-type names; `has_reference_schema`
-/// answers whether a named type declares the reference-form `data_schema`.
+/// `object_types` are the declared object-type names.
 pub fn read_semantic_block(
     block: &Value,
     object_types: &[String],
-    has_reference_schema: &dyn Fn(&str) -> bool,
 ) -> Result<SemanticModule, Vec<SemanticFailure>> {
     let Some(map) = block.as_object() else {
         return Err(vec![SemanticFailure::error(
@@ -269,24 +252,6 @@ pub fn read_semantic_block(
             "semantic.package",
             format!("package {package:?} is not <org>/<repo>"),
         ));
-    }
-    // 6. every export carries the reference-form data_schema.
-    //
-    // (An unknown `targets` value is already caught above, at step 3, by the
-    // module-manifest schema's own `targets.items.enum` — the same 14 values
-    // this step used to re-check against a second, vendored copy of that
-    // enum. Step 3 returns early on any failure, so nothing ever reached a
-    // duplicate check here; it was dead code, not defense in depth.)
-    for name in &exports {
-        if object_types.iter().any(|t| t == name) && !has_reference_schema(name) {
-            failures.push(SemanticFailure::error(
-                "semantic.export-without-schema",
-                format!("semantic.exports.{name}"),
-                format!(
-                    "semantic.exports names {name}, whose data_schema is not a {{ schema, digest }} reference; nothing can be pinned for it"
-                ),
-            ));
-        }
     }
     if !failures.is_empty() {
         return Err(failures);
