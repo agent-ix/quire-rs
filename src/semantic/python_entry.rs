@@ -76,7 +76,7 @@ pub fn extract_semantic_json(request: &Value) -> Result<SemanticExtraction, Stri
         return Err(format!(
             "semantic.unsupported-semantic-core: {:?} has no embedded bundle (embedded: {})",
             req.module.semantic_core,
-            super::embedded::SEMANTIC_CORE_VERSIONS.join(", ")
+            super::embedded::semantic_core_versions().join(", ")
         ));
     }
     let module = SemanticModule {
@@ -111,9 +111,5 @@ pub fn extract_semantic_json(request: &Value) -> Result<SemanticExtraction, Stri
             operations: v["operations"].as_bool().unwrap_or(false),
         })
         .unwrap_or_default();
-    Ok(extract_semantic(
-        &req.markdown,
-        &ctx,
-        &required,
-    ))
+    Ok(extract_semantic(&req.markdown, &ctx, &required))
 }

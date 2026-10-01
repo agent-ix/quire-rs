@@ -200,15 +200,14 @@ fn spans_agree_with_the_code_block_scanner() {
         .semantic_module("spec-objects-fixture")
         .unwrap()
         .clone();
-    // (fixture, semantic-core version, clause language) per the fixture oracles.
-    for (name, core, language) in [
-        ("config-version.table.md", "0.3.0", "ocl"),
-        ("config-version.fence.md", "0.3.0", "ocl"),
-        ("operations.md", "0.3.0", "quire"),
+    // (fixture, clause language) per the fixture oracles; the module declares the semantic-core version.
+    for (name, language) in [
+        ("config-version.table.md", "ocl"),
+        ("config-version.fence.md", "ocl"),
+        ("operations.md", "quire"),
     ] {
         let raw = quire_fixtures::mapping_fixture(name);
-        let mut module = module.clone();
-        module.semantic_core = core.to_string();
+        let module = module.clone();
         let ctx = SemanticContext::new(module, name, BundleIndex::default())
             .with_source_identity("ix://agent-ix/x/spec");
         let out = extract_clauses(&raw, &ctx);

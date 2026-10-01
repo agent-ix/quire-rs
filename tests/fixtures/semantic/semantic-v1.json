@@ -151,7 +151,7 @@
       "fieldsForm": "table",
       "formatVersion": 1,
       "package": "agent-ix/spec-objects-fixture",
-      "semanticCore": "0.3.0"
+      "semanticCore": "0.3.2"
     },
     {
       "$case": "operations-available",
@@ -277,7 +277,7 @@
         }
       ],
       "package": "agent-ix/spec-objects-fixture",
-      "semanticCore": "0.3.0"
+      "semanticCore": "0.3.2"
     },
     {
       "$case": "required-section-missing",
@@ -300,7 +300,7 @@
       "diagnostics": [],
       "formatVersion": 1,
       "package": "agent-ix/spec-objects-fixture",
-      "semanticCore": "0.3.0"
+      "semanticCore": "0.3.2"
     },
     {
       "$case": "legacy-bullets-unavailable",
@@ -332,7 +332,7 @@
       ],
       "formatVersion": 1,
       "package": "agent-ix/spec-objects-fixture",
-      "semanticCore": "0.3.0"
+      "semanticCore": "0.3.2"
     },
     {
       "$case": "unresolved-type-lossy",
@@ -378,7 +378,7 @@
       "fieldsForm": "table",
       "formatVersion": 1,
       "package": "agent-ix/spec-objects-fixture",
-      "semanticCore": "0.3.0"
+      "semanticCore": "0.3.2"
     }
   ]
 }

@@ -4,8 +4,8 @@ version = 4
 
 [[package]]
 name = "agent-ix-semantic-schema"
-version = "0.2.0"
-source = "git+https://github.com/agent-ix/filament-core-data?tag=semantic-schema-v0.2.0#1d8c45349da283d0b25df58debf82006eaf03102"
+version = "0.2.1"
+source = "git+https://github.com/agent-ix/filament-core-data?tag=semantic-schema-v0.2.1#888b9260c7e2cb6d0f664e25a4a30a0f9c8adfd2"
 
 [[package]]
 name = "ahash"
@@ -1144,8 +1144,8 @@ checksum = "a1d01941d82fa2ab50be1e79e6714289dd7cde78eba4c074bc5a4374f650dfe0"
 
 [[package]]
 name = "quire-code-parse"
-version = "0.1.0"
-source = "git+https://github.com/agent-ix/quire-code-rs?rev=57b83ba00431914060297bf94fcee31549c9b68b#57b83ba00431914060297bf94fcee31549c9b68b"
+version = "0.2.1"
+source = "git+https://github.com/agent-ix/quire-code-rs?rev=e7f32919c55e4137ba201e5f9c35d29ff8b6e329#e7f32919c55e4137ba201e5f9c35d29ff8b6e329"
 dependencies = [
  "thiserror",
  "tree-sitter",
@@ -1163,7 +1163,7 @@ dependencies = [
 
 [[package]]
 name = "quire-rs"
-version = "0.49.1"
+version = "0.50.0"
 dependencies = [
  "agent-ix-semantic-schema",
  "criterion",

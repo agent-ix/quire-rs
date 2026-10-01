@@ -167,7 +167,7 @@ pub fn read_semantic_block(
                     other
                         .map(|v| format!("{v:?}"))
                         .unwrap_or_else(|| "absent".to_string()),
-                    embedded::SEMANTIC_CORE_VERSIONS.join(", ")
+                    embedded::semantic_core_versions().join(", ")
                 ),
             )]);
         }

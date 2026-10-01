@@ -14,7 +14,7 @@
 //! and it was false.
 //!
 //! Sourced from `agent-ix-semantic-schema` — a plain Cargo `git` dependency
-//! on `filament-core-data` (public repo, tag `semantic-schema-v0.1.0`), not
+//! on `filament-core-data` (public repo, the tag pinned in `Cargo.toml`), not
 //! a `build.rs` npm fetch. That crate embeds the exact same bytes
 //! `@agent-ix/semantic-core`/`@agent-ix/semantic-schema` publish to npm, via
 //! `include_str!` from filament-core-data's own tree — the canonical,
@@ -33,23 +33,41 @@ pub const SEMANTIC_CORE_BASE: &str = "https://schemas.agent-ix.org/semantic-core
 /// Base of every module-emitted `$id`.
 pub const MODULE_SCHEMA_BASE: &str = "https://schemas.agent-ix.org/";
 
-/// The semantic-core version `agent-ix-semantic-schema`'s pinned tag embeds
-/// (filament-core-data's `packages/semantic-core/package.json` at that tag).
-const EMBEDDED_SEMANTIC_CORE_VERSION: &str = "0.3.0";
-
-/// Semantic-core versions with an embedded bundle, ascending. Exactly one:
-/// `0.1.0`/`0.2.0` never left the private `npm.ix` dev-mirror and were never
-/// really published anywhere this engine can reach; `0.3.0` is the first
-/// real publish (PLAT-899) and the only version a module manifest can
-/// meaningfully declare.
-pub const SEMANTIC_CORE_VERSIONS: &[&str] = &[EMBEDDED_SEMANTIC_CORE_VERSION];
-
 /// `@agent-ix/semantic-schema`'s `semantic/v1/module-manifest.schema.json`.
 pub const MODULE_MANIFEST_SCHEMA: &str = agent_ix_semantic_schema::MODULE_MANIFEST;
 
+/// The semantic-core version of the embedded bundle, read from the bundle's
+/// own `$id` (`https://schemas.agent-ix.org/semantic-core/<version>/<Name>.json`)
+/// on first use. The bundle is the only source of this version.
+pub fn embedded_semantic_core_version() -> &'static str {
+    static VERSION: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+    VERSION.get_or_init(|| {
+        let (_, text) = agent_ix_semantic_schema::SEMANTIC_CORE_SCHEMAS
+            .first()
+            .expect("the embedded semantic-core bundle is never empty");
+        let doc: serde_json::Value =
+            serde_json::from_str(text).expect("embedded semantic-core schemas are valid JSON");
+        let id = doc["$id"]
+            .as_str()
+            .expect("embedded semantic-core schemas carry an $id");
+        id.strip_prefix(SEMANTIC_CORE_BASE)
+            .and_then(|rest| rest.split('/').next())
+            .filter(|v| !v.is_empty())
+            .unwrap_or_else(|| panic!("embedded semantic-core $id {id:?} has no version segment"))
+            .to_string()
+    })
+}
+
+/// Semantic-core versions with an embedded bundle: exactly the one the
+/// embedded bundle itself declares.
+pub fn semantic_core_versions() -> &'static [&'static str] {
+    static VERSIONS: std::sync::OnceLock<[&'static str; 1]> = std::sync::OnceLock::new();
+    VERSIONS.get_or_init(|| [embedded_semantic_core_version()])
+}
+
 /// The embedded bundle for `version`, if any.
 pub fn semantic_core_bundle(version: &str) -> Option<&'static [(&'static str, &'static str)]> {
-    if version == EMBEDDED_SEMANTIC_CORE_VERSION {
+    if version == embedded_semantic_core_version() {
         Some(agent_ix_semantic_schema::SEMANTIC_CORE_SCHEMAS)
     } else {
         None

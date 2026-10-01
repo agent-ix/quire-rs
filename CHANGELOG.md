@@ -7,6 +7,25 @@ bumps; once 1.0 ships, semver is strict.
 
 ## [Unreleased]
 
+## [0.50.0] — 2026-10-01
+
+Minor bump (breaking): the embedded semantic-core bundle moves from 0.3.0 to
+0.3.2, and the recorded-revision, digest and pin-copy removals land.
+
+### Breaking
+
+- Embeds semantic-core 0.3.2 only (`agent-ix-semantic-schema`
+  `semantic-schema-v0.2.1`); a module declaring `semantic.semantic_core:
+  0.3.0` no longer loads. Removed recorded revisions/digests/pin copies
+  (#507, #503, #504): the embedded version is read from the bundle's own
+  `$id`, not a hand-typed constant; `SEMANTIC_CORE_VERSIONS` is replaced by
+  `semantic::embedded::semantic_core_versions()` and
+  `embedded_semantic_core_version()`.
+
+### Changed
+
+- `quire-code-parse` moves to quire-code-rs v0.2.1.
+
 ## [0.49.1] — 2026-10-01
 
 Patch bump: removal of recorded-revision, lock, fingerprint and pin tracking

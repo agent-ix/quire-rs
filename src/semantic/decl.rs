@@ -12,12 +12,12 @@ pub struct Multiplicity {
     pub lower: u64,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub upper: Option<u64>,
-    /// Required by semantic-core 0.3.0's `Multiplicity` schema (previously
+    /// Required by the embedded semantic-core's `Multiplicity` schema (previously
     /// optional): every producer clamps this to `false` on a non-collection
     /// (`upper` at most one) and otherwise emits it explicitly.
     #[serde(default)]
     pub ordered: bool,
-    /// Required by semantic-core 0.3.0's `Multiplicity` schema (previously
+    /// Required by the embedded semantic-core's `Multiplicity` schema (previously
     /// optional): every producer clamps this to `false` on a non-collection
     /// (`upper` at most one) and otherwise emits it explicitly.
     #[serde(default)]
