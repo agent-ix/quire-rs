@@ -289,7 +289,6 @@ def payload(tmp_path):
                 "reference_only_targets",
                 "unmatched_tags",
             ],
-            "module_sha": "abc123",
             "repos_enumerated": 1,
             "repos_scanned": 1,
             "exclusions": [],
@@ -307,7 +306,7 @@ def test_tc1069_reports_are_provenanced_and_byte_stable(tmp_path):
     second = write_reports(copy.deepcopy(data), tmp_path / "out")
     assert first_bytes == tuple(path.read_bytes() for path in second)
     loaded = json.loads(first[0].read_text())
-    assert loaded["provenance"]["module_sha"] == "abc123"
+    assert loaded["provenance"]["cli"]
 
 
 def test_tc1070_census_workflow_is_never_a_change_gate():

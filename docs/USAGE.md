@@ -424,8 +424,7 @@ let report = quire::check_plain_language_at(
 );
 ```
 
-`PlainLanguageReport` records the profile id/version, a fingerprint of every
-effective setting, readable document/block counts, source-located warning
+`PlainLanguageReport` records the profile id/version, readable document/block counts, source-located warning
 findings and skipped inputs. `readable_blocks == 0` is therefore distinct from
 a clean run. The feature makes no external-standard conformance claim and has
 no implicit profile or promotion path.

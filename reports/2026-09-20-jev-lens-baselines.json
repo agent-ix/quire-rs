@@ -1,24 +1,8 @@
 {
  "report": "2026-09-20-jev-lens-baselines",
  "date": "2026-09-20",
- "revision": "post-review; every figure re-derived",
  "corpus": {
   "repo": "agent-ix/ix-trace-rs",
-  "commit": "2ce4ebf47f726b9d76388220545cd0abda8a5cfb",
-  "digest": {
-   "value": "2beba8e8bbf691db0dabbd5f0bb320a27675b415a3127a46cbc559352233102c",
-   "command": "git archive <commit> | tar -x -C <dir>; cd <dir> && find . -type f | sort | xargs sha256sum | sha256sum",
-   "path_independent": true,
-   "superseded_value": "a1d4fa2de1ab454968890cf134275145381c21369bd5e27ca462dbff474ab6c9",
-   "superseded_reason": "the original recipe passed find an absolute path, so every hashed line carried the scratch directory path; the digest was reproducible only at that path and never externally checkable",
-   "scratch_tree_contents": "no extra REGULAR FILE: re-extracting to the original path reproduces the superseded digest bit-for-bit, and find -type f enumerates every regular file, so an extra file would have changed the inner listing and the outer hash. find -type f does not see non-regular entries, so the claim is about files specifically.",
-   "inference_limits": [
-    "find -type f sees only regular files; \"no extra file\" is exact, \"nothing beyond git archive output\" is broader than the evidence",
-    "author-only and not externally reproducible, since the scratch path is a developer path and is deliberately unpublished",
-    "not circular: the superseded digest was committed in the first revision of this report (c9cf0ff, 2026-09-20) before the question was asked, so the target was fixed in advance and timestamped in this repository history"
-   ]
-  },
-  "drift_check": "same recipe, same tree, before the first run and after the last: identical; source repo HEAD and clean tree re-verified at the end",
   "artifacts": {
    "FR": 3,
    "NFR": 1,

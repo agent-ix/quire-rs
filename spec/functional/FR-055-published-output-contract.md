@@ -74,8 +74,7 @@ pinned to v1 keeps a schema that describes what it was written against.
 > unchanged. **Instrument provenance** answers *which build computed these
 > numbers* — and its absence is a measured defect, not a design property:
 > `quire --version` reports the CLI crate version while the engine is a git
-> dependency pinned by tag that **no surface reports**. The installed CLI 0.29.0
-> pins engine v0.42.0; `binding_census` landed in v0.43.0. Every ecosystem figure
+> dependency pinned by tag that **no surface reports**. Every ecosystem figure
 > in four battletest passes was produced by a binary that could not emit the one
 > signal saying whether the binder read a single test, and nothing in its output
 > said so. A payload saved to disk carried no way to find out afterwards.

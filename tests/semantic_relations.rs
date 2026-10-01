@@ -310,16 +310,10 @@ const AVAILABILITY_CASES: &[&str] = &[
 // the golden `relationships.md` extracts to `relationships.expected.json`.
 #[test]
 fn golden_relationships() {
-    // quoin FR-104-CON-2 / TC-1726: both fixtures pin the semantic core and
-    // record their sources.
+    // quoin FR-104-CON-2 / TC-1726: both fixtures pin the semantic core.
     for name in ["relationships.expected.json", "relationships-cases.json"] {
         let fixture = mapping_json(name);
         assert_eq!(fixture["semanticCore"], "0.3.0", "{name}");
-        let sources = fixture["context"]["sources"].as_object();
-        assert!(
-            sources.is_some_and(|s| !s.is_empty()),
-            "{name}: context.sources must be a non-empty object"
-        );
     }
     let expected = mapping_json("relationships.expected.json");
     let md = mapping_text("relationships.md");

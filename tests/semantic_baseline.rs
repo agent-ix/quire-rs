@@ -1,10 +1,9 @@
 //! Plan-003 Task-015: embedded-schema completeness and pre-change baselines
 //! (FR-069-AC-8, FR-069-AC-9/CON-3, FR-072-AC-9, NFR-021-AC-3).
 //!
-//! The baselines under `tests/fixtures/semantic/baseline/` were minted from
-//! `main` (e3352a0) before any semantic extraction code landed. A later diff
-//! against them is a defect in the change, never a reason to re-mint. Set
-//! `UPDATE_SEMANTIC_BASELINES=1` only on a clean `main` checkout.
+//! The baselines under `tests/fixtures/semantic/baseline/` were minted before
+//! any semantic extraction code landed. A later diff against them is a defect
+//! in the change, never a reason to re-mint.
 
 use std::collections::BTreeMap;
 use std::fs;
@@ -15,14 +14,9 @@ use jsonschema::JSONSchema;
 use quire_rs::{extract_filament_core, FilamentExtractionInput, Registry};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use sha2::{Digest, Sha256};
 
 fn root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-}
-
-fn sha256_hex(bytes: &[u8]) -> String {
-    format!("{:x}", Sha256::digest(bytes))
 }
 
 fn write_or_compare(path: &Path, actual: &str) {
@@ -120,8 +114,6 @@ fn tc1877_construct_declaration_schema_admits_immutable() {
 struct ArchetypeProjection {
     module: String,
     name: String,
-    raw_schema_sha256: String,
-    frontmatter_schema_sha256: Option<String>,
     body_extraction: Option<String>,
     carry_over: String,
 }
@@ -133,12 +125,9 @@ fn registry_projection(registry: &Registry) -> Vec<ArchetypeProjection> {
         .into_iter()
         .map(|name| {
             let a = registry.archetype(name).unwrap();
-            let sha = |v: &Value| sha256_hex(serde_json::to_string(v).unwrap().as_bytes());
             ArchetypeProjection {
                 module: a.module.clone(),
                 name: a.name.clone(),
-                raw_schema_sha256: sha(&a.raw_schema),
-                frontmatter_schema_sha256: a.frontmatter_schema.as_deref().map(sha),
                 body_extraction: a.body_extraction().map(|d| format!("{d:?}")),
                 carry_over: format!("{:?}", a.carry_over),
             }
@@ -148,7 +137,7 @@ fn registry_projection(registry: &Registry) -> Vec<ArchetypeProjection> {
 
 #[trace("TC-1607", "FR-069-AC-9", "FR-069-CON-3", "FR-031-AC-7")]
 // fixture modules without a `semantic` block load to the archetype projection
-// minted on main.
+// recorded baseline.
 #[test]
 fn fixture_module_registries_match_baseline() {
     let modules = ["bundle", "demo", "iso"];

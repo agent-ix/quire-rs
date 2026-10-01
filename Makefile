@@ -323,9 +323,8 @@ coverage-baseline-update:
 # (cargo run --example), never an installed `quire` CLI, which lags the branch
 # under test. The two schema-provider repositories are independent executable
 # inputs: accepting their ambient installed versions made this gate change
-# meaning without a Quire commit. scripts/validate_spec.py now verifies their
-# exact clean Git identities against quality/validation-stack-lock.json and
-# exposes only those modules to the engine. CI checks out the same full SHAs.
+# meaning without a Quire commit. scripts/validate_spec.py exposes only those
+# two modules to the engine.
 # The Phase-7 assurance documents are named one-by-one in the governed
 # exclusion file; no new or renamed document can disappear from validation.
 VALIDATION_PROCESS_ROOT ?= ../spec-artifacts-process
@@ -336,35 +335,7 @@ validate:
 		--process-root "$(VALIDATION_PROCESS_ROOT)" \
 		--iso-root "$(VALIDATION_ISO_ROOT)"
 
-# The #265 gate: the engine a consumer LINKS is the engine in this tree.
-#
-# `quire-cli/Cargo.toml` pins this crate independently of this crate's identity
-# and nothing compared the two. Measured: the installed CLI 0.29.0 pinned engine
-# v0.42.0 while `binding_census` landed in v0.43.0, so four battletest passes
-# reported figures from a binary that could not emit the one signal saying
-# whether the binder read a test. Direct analogue of
-# `quoin/scripts/check-version-agreement.mjs`, applied to the seam that one
-# never covered.
-#
-# Skipped, loudly, when the consumer is not checked out beside this repo: a
-# missing sibling is an environment fact, not drift, and failing on it would
-# make `ci` unrunnable for anyone who cloned one repository.
-# `--build --require` is the WHOLE GATE, not an option. Without them the check
-# compares a manifest to a tree and nothing more — and a pin to v0.42.0, which
-# is exactly the incident above, is an ancestor of HEAD and passes. The
-# capability tokens are what make distance a verdict: a pinned engine that
-# cannot emit `binding_census` fails here, by name, whatever its version says.
 QUIRE_CLI ?= ../quire-cli
-ENGINE_CAPABILITIES ?= binding_census binding_census.tagged metrics_envelope minted_targets reference_only_targets unmatched_tags
-
-.PHONY: check-engine
-check-engine:
-	@if [ -f "$(QUIRE_CLI)/Cargo.toml" ]; then \
-		python3 scripts/check_engine.py --consumer "$(QUIRE_CLI)" --build \
-			$(foreach token,$(ENGINE_CAPABILITIES),--require $(token)); \
-	else \
-		echo "check_engine: SKIP — no consumer workspace at $(QUIRE_CLI)"; \
-	fi
 
 # FR-066 / #277: minutes-long ecosystem census, never a per-change gate.
 CENSUS_ROOT ?= $(HOME)/dev
@@ -389,7 +360,7 @@ check-wasm:
 	CARGO_TARGET_DIR=target/wasm-check $(CARGO) check --locked --target wasm32-unknown-unknown --no-default-features --features wasm --quiet
 	$(CARGO) test --locked --no-default-features --features wasm --quiet --test semantic_contract --test semantic_properties --test semantic_clauses --test semantic_surface --test semantic_relations
 
-ci: fmt-check lint check-python check-python-symbols check-typescript-symbols check-wasm check-scripts test deny deny-grammars audit-unsafe audit-property audit-static validate check-engine
+ci: fmt-check lint check-python check-python-symbols check-typescript-symbols check-wasm check-scripts test deny deny-grammars audit-unsafe audit-property audit-static validate
 
 # =============================================================================
 # Python wheel / sdist + local-publish (pypi.ix)

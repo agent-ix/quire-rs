@@ -44,8 +44,7 @@ nor clean report asserts conformance with an external publication.
   1-based source line;
 - warning-only `PlainLanguageFinding` values carrying rule id, path, line,
   message and excerpt;
-- a serializable `PlainLanguageReport` carrying profile id/version, a stable
-  configuration fingerprint, documents and blocks examined, findings, and
+- a serializable `PlainLanguageReport` carrying profile id/version, documents and blocks examined, findings, and
   explicitly skipped inputs.
 
 ## Behavior
@@ -73,7 +72,6 @@ Every check SHALL run independently. Every finding SHALL carry
 |----|------------|------|------------|
 | FR-074-CON-1 | Plain-language checks SHALL NOT change structural validation, requirement grammar, extraction, coverage, or writeback results. | Architecture | Test |
 | FR-074-CON-2 | The engine SHALL carry no default profile and no global threshold. A missing profile means the caller has asked no plain-language question. | Architecture | Test |
-| FR-074-CON-3 | Profile names, versions, thresholds and vocabulary SHALL contribute to the reported configuration fingerprint. | Data integrity | Test |
 | FR-074-CON-4 | Findings SHALL remain advisory until a separately recorded corpus study establishes precision and a user approves promotion outside this engine surface. | Process | Inspection |
 | FR-074-CON-5 | Rule ids and public feature names SHALL use project-owned names that make no external-standard conformance claim. | Licensing | Inspection |
 
@@ -90,7 +88,6 @@ Every check SHALL run independently. Every finding SHALL carry
 | FR-074-AC-7 | A module manifest loads a typed named/versioned profile, and malformed names, versions, zero thresholds or invalid acronym entries fail module load with an actionable reason. | Test (TC-976) |
 | FR-074-AC-8 | Profiles merge first-wins by id and are available through a registry accessor; an undeclared id returns `None`, never an implicit default. | Test (TC-977) |
 | FR-074-AC-9 | A batch report distinguishes zero findings over readable blocks from zero readable blocks and lists unreadable, non-document and prose-empty inputs with stable reason tokens. | Test (TC-978) |
-| FR-074-AC-10 | Profile id/version and every effective threshold/vocabulary change alter the stable configuration fingerprint; repeated runs are byte-identical. | Test (TC-979) |
 | FR-074-AC-11 | Every finding carries warning severity, path, 1-based line and excerpt; the three project-owned rule ids are the only ids this feature emits. | Test (TC-980) |
 | FR-074-AC-12 | Enabling and running a profile leaves structural validation, requirement-grammar findings, extraction and a representative writeback result byte-identical. | Test (TC-981) |
 

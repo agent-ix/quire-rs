@@ -1,7 +1,5 @@
 {
-  "quire_rs_measuring_commit": "81039d2c4e5f121bd9766340c8a002a1e01c8093",
   "module_path": "/home/peter/dev/spec-artifacts-process/spec_artifacts_process",
-  "module_commit": "61a20e010d5e758f52864ad3152ccdb304a39d27",
   "source_exclude_globs": [
     "tests/fixtures/**",
     "tests_integration/fixtures/**",
@@ -14,7 +12,6 @@
       "name": "quire-rs",
       "path": "/home/peter/dev/quire-rs",
       "measured": true,
-      "head_sha": "08d39ea2ce50db35812f836df65cac18757daa4b",
       "head_ref": "refs/heads/main",
       "on_main": true,
       "symbols_by_language_kind": {
@@ -2932,7 +2929,6 @@
       "name": "quire-code-rs",
       "path": "/home/peter/dev/quire-code-rs",
       "measured": true,
-      "head_sha": "e1b7fc303f3df3c9e3673358ce990525b7ff321e",
       "head_ref": "refs/heads/main",
       "on_main": true,
       "symbols_by_language_kind": {
@@ -3194,7 +3190,6 @@
       "name": "quire-contract-ir",
       "path": "/tmp/claude-1000/-home-peter-dev/c93e9c84-1a2b-4800-a4e1-1181d415403f/scratchpad/plat851-clones/quire-contract-ir",
       "measured": true,
-      "head_sha": "6b7eb8996226118c47719e552f93f2b93f890ab1",
       "head_ref": "refs/heads/main",
       "on_main": true,
       "symbols_by_language_kind": {
@@ -3636,7 +3631,6 @@
       "name": "quire-protocol",
       "path": "/tmp/claude-1000/-home-peter-dev/c93e9c84-1a2b-4800-a4e1-1181d415403f/scratchpad/plat851-clones/quire-protocol",
       "measured": true,
-      "head_sha": "0065460c69eb90479000024faa0fb7804cf3ebfc",
       "head_ref": "refs/heads/main",
       "on_main": true,
       "symbols_by_language_kind": {
@@ -4185,7 +4179,6 @@
       "name": "filament-ide-rs",
       "path": "/tmp/claude-1000/-home-peter-dev/c93e9c84-1a2b-4800-a4e1-1181d415403f/scratchpad/plat851-clones/filament-ide-rs",
       "measured": true,
-      "head_sha": "37c44d907ad419472faca240bd02a0fae9add7c0",
       "head_ref": "refs/heads/main",
       "on_main": true,
       "symbols_by_language_kind": {
@@ -19630,7 +19623,6 @@
       "name": "ecaz",
       "path": "/tmp/claude-1000/-home-peter-dev/c93e9c84-1a2b-4800-a4e1-1181d415403f/scratchpad/plat851-clones/ecaz",
       "measured": true,
-      "head_sha": "d8c72f44d814e486b8cf718796aace6241279c9a",
       "head_ref": "refs/heads/main",
       "on_main": true,
       "symbols_by_language_kind": {

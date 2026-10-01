@@ -151,7 +151,7 @@ byte-identical JSON ordering and stable record ids.
 | FR-051-AC-7 | The emitted records match the FR-045 graph-record shapes with normalized `ref` values, and filament-core ingestion fixtures accept them unchanged. | Test (TC-747) |
 | FR-051-AC-8 | `defined_in` edges link every symbol to its file and `contains` edges link containers to members, deterministically ordered. | Test (TC-748) |
 | FR-051-AC-9 | An unparseable fixture file yields a per-file diagnostic naming that file and the line the error sits at, while the rest of the tree extracts normally. | Test (TC-749, TC-1884) |
-| FR-051-AC-10 | Repeated extraction over an identical fixture tree, at a pinned grammar version (`tree-sitter-rust`/`tree-sitter-python`, locked in `Cargo.lock` and asserted by `crates/quire-rust-extraction/tests/dependency_boundary.rs`, not merely implied by `quire-code-rs`'s own source `rev`) and a fixed Cargo feature set (`rust-symbols`/`python-symbols`, which change whether Rust/Python extract at all — see CR-177, CR-179), emits byte-identical JSON and identical record ids. | Test (TC-750) |
+| FR-051-AC-10 | Repeated extraction over an identical fixture tree, at a pinned grammar version (`tree-sitter-rust`/`tree-sitter-python`, locked in `Cargo.lock`) and a fixed Cargo feature set (`rust-symbols`/`python-symbols`, which change whether Rust/Python extract at all — see CR-177, CR-179), emits byte-identical JSON and identical record ids. | Test (TC-750) |
 | FR-051-AC-11 | The legacy textual forms (docstring bare id, `Trace:` line, line-comment id, trace-embedding test name) still bind during migration, carry `legacy` provenance on the minted relation, and yield a mechanical marker-rewrite suggestion where derivable. | Test (TC-753) |
 | FR-051-AC-12 | Comment recognition is string-aware, and template-literal state carries across lines: a `//` or `/*` inside a string or template literal is content, not a comment opener, whether it sits on the literal's opening line or a continuation line. | Test (TC-798, TC-799) |
 | FR-051-AC-13 | A declaration whose signature spans lines binds tags in its docstring: a `def` wrapped by a formatter has the same span as the unwrapped form. | Test (TC-800) |
@@ -321,31 +321,7 @@ byte-identical JSON ordering and stable record ids.
 > the same across such a bump — it promises the opposite reads as a *tracked*
 > event rather than a silent one, by naming the grammar as part of the
 > identity byte-identity is claimed *at*: "over an identical tree, at a
-> pinned grammar version." The pin (below) is the control that makes this
-> honest rather than aspirational.
->
-> **The pin AC-10 names must be real, not merely implied.** `rev =
-> "57b83ba0..."` on the `quire-code-parse` git dependency pins
-> `quire-code-rs`'s own *source* — but that repo's own `Cargo.toml` declares
-> `tree-sitter = "0.26"` and `tree-sitter-rust = "0.24.2"` as **caret
-> ranges**, not exact versions. The grammar version this workspace actually
-> compiles against therefore lives only in *this* repo's own `Cargo.lock`,
-> and a bare `cargo update` (no manifest edit, no `rev` bump) can move it
-> with no ADR and nothing in `make ci` to notice — `TC-750` repeats
-> extraction within one process and is grammar-version-insensitive by
-> construction, so it cannot catch this either (spec review F1). Citing
-> `NFR-009` as the compensating control was wrong: that policy's load-bearing
-> table (`scripts/audits/check_dep_pins.sh`) names `minijinja`, `jsonschema`,
-> `serde_yaml`, `serde_json`, `indexmap` — never `tree-sitter*` — so it
-> asserts coverage that does not exist. **The real control is a compiled
-> assertion**:
-> `crates/quire-rust-extraction/tests/dependency_boundary.rs`'s
-> `the_locked_grammar_version_is_asserted_not_only_pinned_by_source_rev`
-> reads `cargo metadata`'s *resolved* (locked, not manifest-range) version
-> and fails by name and number the moment `tree-sitter-rust` (currently
-> `0.24.2`) or `tree-sitter` (currently `0.26.13`) moves. A grammar bump is
-> now an explicit, reviewed, gate-visible diff to that assertion, not a
-> transitive dependency change nothing catches.
+> pinned grammar version."
 >
 > **The dependency path is single-sourced, not per-consumer.**
 > `quire-code-parse` re-exports `tree_sitter` itself rather than wrapping it,

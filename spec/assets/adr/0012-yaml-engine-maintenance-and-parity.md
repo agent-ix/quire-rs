@@ -60,8 +60,7 @@ differential and the affected parity suites.
 
 ## Compatibility evidence
 
-At implementation revision `397ed175bf5518a5d3f16befea7636b447cc4d97`, a
-temporary two-engine comparator evaluated 775 complete leading frontmatter
+A temporary two-engine comparator evaluated 775 complete leading frontmatter
 blocks and six focused semantic cases. All 781 old/new outcome and complete
 JSON-value comparisons were equal. An injected duplicate-key difference
 produced exactly one difference and a non-zero exit, demonstrating that the
@@ -72,7 +71,7 @@ scalars, timestamps, and non-string mapping keys. Existing frontmatter parity
 and typed YAML consumer suites also passed unchanged. Same-runner performance
 measurements remained within the existing 10% limit.
 
-The aggregate result, input revisions, population, negative-control result, and
+The aggregate result, population, negative-control result, and
 gate summary are retained in `spec/evidence/yaml-migration/manifest-v1.json`
 and SR-108. The temporary comparator and voluminous per-input output are not
 part of the product or its permanent tooling. A future version decision must
