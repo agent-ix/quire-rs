@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://agent-ix.github.io/quire-rs/schemas/output/semantic-v1.schema.json",
   "title": "Quire semantic extraction record v1 (FR-072)",
-  "description": "Hand-authored. One record per object artifact under a module with a `semantic` block: FieldDecl[], ClauseRef[] with verbatim clauseText, OperationDecl[], RelationDecl[] with relationSources, per-kind availability, ordered diagnostics with loci. A breaking change mints semantic-v2 and leaves this file byte-unchanged.",
+  "description": "Hand-authored. One record per object artifact under a module with a `semantic` block: FieldDecl[], ClauseRef[] with verbatim clauseText, OperationDecl[], RelationDecl[] with relationSources, per-kind availability, ordered diagnostics with loci.",
   "type": "object",
   "additionalProperties": false,
   "required": ["formatVersion", "contractVersion", "semanticCore", "package", "availability", "diagnostics"],

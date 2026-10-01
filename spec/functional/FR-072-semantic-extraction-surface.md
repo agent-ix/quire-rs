@@ -122,8 +122,7 @@ verbatim `clauseText` and the byte-identity constraints below.
   and the three surfaces SHALL agree as JSON values on every fixture case.
 - The record SHALL validate against `semantic-v1.schema.json` (JSON Schema
   2020-12, `additionalProperties: false` on every object, `$id` ending in
-  `semantic-v1.schema.json`); a breaking change SHALL mint `semantic-v2` and
-  leave v1 byte-unchanged ([FR-055](./FR-055-published-output-contract.md)).
+  `semantic-v1.schema.json`).
 
 ## Constraints
 
