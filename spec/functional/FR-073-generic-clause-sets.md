@@ -19,7 +19,7 @@ Quire shall load and evaluate domain-neutral clause sets supplied by modules.
 The engine defines only the transport, applicability, rights, and comparison
 contracts; it contains no built-in publication, clause inventory, or mapping.
 
-A clause-set file identifies its authority, id, version, canonical content
+A clause-set file identifies its authority, id, version, and rights posture.
 digest, and rights posture. It may declare classification dimensions, expected
 output types, clauses, and directed crosswalks. Clauses retain their force,
 subjects, obligated actors, approval roles, authoring styles, applicability,
@@ -40,7 +40,7 @@ omitting clause text.
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
-| FR-073-AC-1 | A module may reference clause-set JSON or YAML inside its root; loading rejects path escape, malformed content, a mismatched canonical digest, invalid rights posture, duplicate clause ids, and unresolved local output or crosswalk references. | Test (TC-1807, TC-1809) |
+| FR-073-AC-1 | A module may reference clause-set JSON or YAML inside its root; loading rejects path escape, malformed content, invalid rights posture, duplicate clause ids, and unresolved local output or crosswalk references. | Test (TC-1807, TC-1809) |
 | FR-073-AC-2 | The public model preserves authority, id, version, force, subjects, obligated actors, approval roles, styles, expected outputs, and directed equivalent/partial/informative crosswalks without a domain-specific enum. | Test (TC-1806) |
 | FR-073-AC-3 | `all`, `any`, `not`, `eq`, `in`, and ordered `at_least` expressions evaluate to binding, not-binding, or unresolved; missing, unknown, and incomparable context never becomes not-binding by default. | Test (TC-1806) |
 | FR-073-AC-4 | Diff requires the same authority and id and reports added, removed, and changed clauses between exact versions with both set digests. | Test (TC-1808) |

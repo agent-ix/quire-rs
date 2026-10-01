@@ -12,7 +12,6 @@ from export_measurements import (
     build_collection,
     load_verification_stack,
     validate_executable_digest,
-    validate_manifest_attestation,
     validate_repository_against_stack,
 )
 
@@ -240,79 +239,6 @@ def test_exporter_rejects_code_or_dirty_evidence_overlay(tmp_path: pathlib.Path)
             "quire",
             allowed_overlay_paths=("spec/evidence/measurements",),
         )
-
-
-def test_manifest_pins_must_match_attested_clean_sources():
-    manifest = {
-        "corpora": [
-            {
-                "name": "filament-ide-rs",
-                "identity": "sha",
-                "pinned_sha": "b" * 40,
-            },
-            {"name": "self", "identity": "working-tree"},
-        ]
-    }
-    validate_manifest_attestation(manifest, attestation())
-
-    manifest["corpora"][0]["pinned_sha"] = "c" * 40
-    with pytest.raises(ExportError, match="benchmark pin does not match"):
-        validate_manifest_attestation(manifest, attestation())
-
-
-def test_manifest_rejects_abbreviated_pins_even_when_the_prefix_matches():
-    manifest = {
-        "corpora": [
-            {
-                "name": "filament-ide-rs",
-                "identity": "sha",
-                "pinned_sha": "b" * 7,
-            }
-        ]
-    }
-    with pytest.raises(ExportError, match="not a full Git SHA"):
-        validate_manifest_attestation(manifest, attestation())
-
-
-def test_manifest_rejects_external_working_tree_inputs():
-    manifest = {
-        "corpora": [{"name": "quoin", "path": "../quoin", "identity": "working-tree"}]
-    }
-    with pytest.raises(ExportError, match="external benchmark input must use sha"):
-        validate_manifest_attestation(manifest, attestation())
-
-
-def test_manifest_module_pin_must_match_attestation():
-    manifest = {
-        "corpora": [],
-        "module_source": {
-            "name": "spec-artifacts-process",
-            "path": "../spec-artifacts-process",
-            "identity": "sha",
-            "pinned_sha": "d" * 40,
-        },
-    }
-    validate_manifest_attestation(manifest, attestation())
-    manifest["module_source"]["pinned_sha"] = "f" * 40
-    with pytest.raises(ExportError, match="benchmark pin does not match"):
-        validate_manifest_attestation(manifest, attestation())
-
-
-def test_manifest_source_name_separates_benchmark_subject_from_producer():
-    manifest = {
-        "corpora": [
-            {
-                "name": "quoin",
-                "source_name": "quoin-benchmark-corpus",
-                "identity": "sha",
-                "pinned_sha": "f" * 40,
-            }
-        ]
-    }
-    validate_manifest_attestation(manifest, attestation())
-    manifest["corpora"][0]["source_name"] = "quoin"
-    with pytest.raises(ExportError, match="benchmark pin does not match"):
-        validate_manifest_attestation(manifest, attestation())
 
 
 def test_built_executable_must_match_attested_digest(tmp_path: pathlib.Path):

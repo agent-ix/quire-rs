@@ -70,8 +70,7 @@ line/indentation-structural adapter until its own port (`PLAT-869`).
 ## Decision
 
 **Selected: `tree-sitter`, reached through the shared `quire-code-parse`
-crate** (`agent-ix/quire-code-rs`, workspace member added at commit
-`57b83ba`), via a new local dependency-boundary crate,
+crate** (`agent-ix/quire-code-rs`, workspace member), via a new local dependency-boundary crate,
 `crates/quire-rust-extraction`.
 
 Rationale:
