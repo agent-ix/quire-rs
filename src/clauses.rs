@@ -720,7 +720,7 @@ mod tests {
     use serde_json::Value;
 
     fn set(version: &str) -> ClauseSet {
-        let mut set = ClauseSet {
+        ClauseSet {
             schema_version: SCHEMA_VERSION.into(),
             authority: "example.test".into(),
             id: "widget-assurance".into(),
@@ -771,8 +771,7 @@ mod tests {
                 expected_outputs: vec!["test-result".into()],
             }],
             crosswalks: Vec::new(),
-        };
-        set
+        }
     }
 
     #[test]

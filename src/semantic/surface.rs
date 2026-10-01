@@ -64,7 +64,7 @@ pub struct SemanticExtraction {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub relations: Option<Vec<RelationDecl>>,
     /// The `name` and `sourceSpan` of each `relations` element, at its index
-    /// (the semantic-core 0.3.0 carrier, `agent-ix/filament-core-data#155`).
+    /// (the embedded semantic-core carrier, `agent-ix/filament-core-data#155`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub relation_sources: Option<Vec<RelationSource>>,
     pub availability: Availability,

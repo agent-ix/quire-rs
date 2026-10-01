@@ -27,7 +27,7 @@
     ],
     "formatVersion": 1,
     "package": "agent-ix/spec-objects-fixture",
-    "semanticCore": "0.3.0"
+    "semanticCore": "0.3.2"
   },
   "declared-lossy-posture": {
     "availability": {
@@ -178,7 +178,7 @@
     "fieldsForm": "table",
     "formatVersion": 1,
     "package": "agent-ix/spec-objects-fixture",
-    "semanticCore": "0.3.0"
+    "semanticCore": "0.3.2"
   },
   "defaulted-source-identity": {
     "availability": {
@@ -325,7 +325,7 @@
       }
     ],
     "package": "agent-ix/spec-objects-fixture",
-    "semanticCore": "0.3.0"
+    "semanticCore": "0.3.2"
   },
   "duplicate-operation-unavailable": {
     "availability": {
@@ -355,7 +355,7 @@
     ],
     "formatVersion": 1,
     "package": "agent-ix/spec-objects-fixture",
-    "semanticCore": "0.3.0"
+    "semanticCore": "0.3.2"
   },
   "empty-bundle-index": {
     "availability": {
@@ -400,7 +400,7 @@
     "fieldsForm": "table",
     "formatVersion": 1,
     "package": "agent-ix/spec-objects-fixture",
-    "semanticCore": "0.3.0"
+    "semanticCore": "0.3.2"
   },
   "entry-errors-unavailable": {
     "availability": {
@@ -437,7 +437,7 @@
     ],
     "formatVersion": 1,
     "package": "agent-ix/spec-objects-fixture",
-    "semanticCore": "0.3.0"
+    "semanticCore": "0.3.2"
   },
   "fence-interior-is-opaque": {
     "availability": {
@@ -484,7 +484,7 @@
     ],
     "formatVersion": 1,
     "package": "agent-ix/spec-objects-fixture",
-    "semanticCore": "0.3.0"
+    "semanticCore": "0.3.2"
   },
   "golden-fence-available": {
     "availability": {
@@ -635,7 +635,7 @@
     "fieldsForm": "fence",
     "formatVersion": 1,
     "package": "agent-ix/spec-objects-fixture",
-    "semanticCore": "0.3.0"
+    "semanticCore": "0.3.2"
   },
   "golden-table-available": {
     "availability": {
@@ -786,7 +786,7 @@
     "fieldsForm": "table",
     "formatVersion": 1,
     "package": "agent-ix/spec-objects-fixture",
-    "semanticCore": "0.3.0"
+    "semanticCore": "0.3.2"
   },
   "legacy-bullets-promoted": {
     "availability": {
@@ -817,7 +817,7 @@
     ],
     "formatVersion": 1,
     "package": "agent-ix/spec-objects-fixture",
-    "semanticCore": "0.3.0"
+    "semanticCore": "0.3.2"
   },
   "legacy-bullets-unavailable": {
     "availability": {
@@ -848,7 +848,7 @@
     ],
     "formatVersion": 1,
     "package": "agent-ix/spec-objects-fixture",
-    "semanticCore": "0.3.0"
+    "semanticCore": "0.3.2"
   },
   "no-sections-not-applicable": {
     "availability": {
@@ -869,7 +869,7 @@
     "diagnostics": [],
     "formatVersion": 1,
     "package": "agent-ix/spec-objects-fixture",
-    "semanticCore": "0.3.0"
+    "semanticCore": "0.3.2"
   },
   "operations-available": {
     "availability": {
@@ -994,7 +994,7 @@
       }
     ],
     "package": "agent-ix/spec-objects-fixture",
-    "semanticCore": "0.3.0"
+    "semanticCore": "0.3.2"
   },
   "required-invariants-missing": {
     "availability": {
@@ -1017,7 +1017,7 @@
     "diagnostics": [],
     "formatVersion": 1,
     "package": "agent-ix/spec-objects-fixture",
-    "semanticCore": "0.3.0"
+    "semanticCore": "0.3.2"
   },
   "required-section-missing": {
     "availability": {
@@ -1039,7 +1039,7 @@
     "diagnostics": [],
     "formatVersion": 1,
     "package": "agent-ix/spec-objects-fixture",
-    "semanticCore": "0.3.0"
+    "semanticCore": "0.3.2"
   },
   "row-errors-unavailable": {
     "availability": {
@@ -1070,7 +1070,7 @@
     "fieldsForm": "table",
     "formatVersion": 1,
     "package": "agent-ix/spec-objects-fixture",
-    "semanticCore": "0.3.0"
+    "semanticCore": "0.3.2"
   },
   "unchecked-clause-language": {
     "availability": {
@@ -1116,7 +1116,7 @@
     ],
     "formatVersion": 1,
     "package": "agent-ix/spec-objects-fixture",
-    "semanticCore": "0.3.0"
+    "semanticCore": "0.3.2"
   },
   "unresolved-type-lossy": {
     "availability": {
@@ -1161,6 +1161,6 @@
     "fieldsForm": "table",
     "formatVersion": 1,
     "package": "agent-ix/spec-objects-fixture",
-    "semanticCore": "0.3.0"
+    "semanticCore": "0.3.2"
   }
 }

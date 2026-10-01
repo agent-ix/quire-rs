@@ -89,7 +89,6 @@ impl PlainLanguageProfile {
         }
         Ok(())
     }
-
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

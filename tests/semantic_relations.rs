@@ -313,7 +313,11 @@ fn golden_relationships() {
     // quoin FR-104-CON-2 / TC-1726: both fixtures pin the semantic core.
     for name in ["relationships.expected.json", "relationships-cases.json"] {
         let fixture = mapping_json(name);
-        assert_eq!(fixture["semanticCore"], "0.3.0", "{name}");
+        assert_eq!(
+            fixture["semanticCore"],
+            quire_rs::semantic::embedded::embedded_semantic_core_version(),
+            "{name}"
+        );
     }
     let expected = mapping_json("relationships.expected.json");
     let md = mapping_text("relationships.md");

@@ -40,10 +40,10 @@ fn write_or_compare(path: &Path, actual: &str) {
 #[test]
 fn embedded_semantic_core_versions_are_complete_bundles() {
     assert!(
-        !quire_rs::semantic::embedded::SEMANTIC_CORE_VERSIONS.is_empty(),
+        !quire_rs::semantic::embedded::semantic_core_versions().is_empty(),
         "no supported semantic-core version"
     );
-    for version in quire_rs::semantic::embedded::SEMANTIC_CORE_VERSIONS {
+    for version in quire_rs::semantic::embedded::semantic_core_versions() {
         let bundle = quire_rs::semantic::embedded::semantic_core_bundle(version)
             .unwrap_or_else(|| panic!("semantic-core {version} has no embedded bundle"));
         assert!(

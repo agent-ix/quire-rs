@@ -456,7 +456,7 @@ fn compile_object_type_snapshots(
                         "{}: semantic.semanticCore {:?} has no embedded bundle (embedded: {})",
                         snapshot.name,
                         semantic.semantic_core,
-                        crate::semantic::embedded::SEMANTIC_CORE_VERSIONS.join(", ")
+                        crate::semantic::embedded::semantic_core_versions().join(", ")
                     ),
                     "error",
                     Some(snapshot.name.clone()),
@@ -1175,11 +1175,7 @@ fn attach_semantic(
         .as_ref()
         .map(RequiredSections::from_extraction)
         .unwrap_or_default();
-    let record = crate::semantic::extract_semantic(
-        &input.markdown,
-        &ctx,
-        &required,
-    );
+    let record = crate::semantic::extract_semantic(&input.markdown, &ctx, &required);
     // The resolved data schema validates the declaration record (FR-069-AC-1).
     if let Some(validator) = &object_type.validator {
         let first: Option<String> = match record.declaration_record() {
