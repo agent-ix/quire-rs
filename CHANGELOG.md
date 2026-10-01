@@ -7,6 +7,27 @@ bumps; once 1.0 ships, semver is strict.
 
 ## [Unreleased]
 
+## [0.49.0] — 2026-09-30
+
+Minor bump: the semantic `data_schema` reference loses its pin key, and the
+schema-pin fields are removed from every export surface that carried them.
+
+### Changed — behaviour
+
+- **A `data_schema` reference is exactly `{ schema }`; a `digest` key is
+  rejected as ambiguous (#499).** The embedded module-manifest schema
+  (`agent-ix-semantic-schema` 0.2.0) no longer carries a digest on the
+  reference, and the loader refuses a reference that still names one rather
+  than guessing which form was meant.
+- **`schema_digest` / `schemaDigest` removed from the assurance export,
+  `extract_semantic`, the `semantic-v1` output and Filament snapshots
+  (#500).** Consumers that read the field must stop; the schema is
+  identified by its reference alone.
+
+### Documentation
+
+- Docs now mark the hash/digest/pin pattern as an antipattern (#498).
+
 ## [0.48.0] — 2026-09-28
 
 Minor bump: PLAT-1077 (CR-187) changes how legacy trace tags bind and adds
