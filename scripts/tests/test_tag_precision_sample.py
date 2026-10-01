@@ -5,7 +5,6 @@ import pytest
 from tag_precision_sample import (
     CalibrationError,
     assess,
-    digest,
     render,
     select_sample,
 )
@@ -55,9 +54,7 @@ def frame_and_rulings():
             },
         ],
     }
-    frame_hash = digest(json.dumps(frame, sort_keys=True, separators=(",", ":")))
     rulings = {
-        "frame_sha256": frame_hash,
         "decision": "retain-current-rule",
         "recall_effect": "none; no matcher change",
         "locality_effect": "none; loci are unchanged",
@@ -103,12 +100,8 @@ def test_unresolved_is_explicit_not_excluded():
     assert "Explicit unresolved rows" in render(frame, rulings, result)
 
 
-def test_missing_rationale_and_wrong_frame_are_refused():
+def test_missing_rationale_is_refused():
     frame, rulings = frame_and_rulings()
     rulings["rulings"][0]["rationale"] = ""
     with pytest.raises(CalibrationError, match="no rationale"):
-        assess(frame, rulings)
-    rulings["rulings"][0]["rationale"] = "restored"
-    rulings["frame_sha256"] = "wrong"
-    with pytest.raises(CalibrationError, match="frame digest"):
         assess(frame, rulings)

@@ -3,20 +3,6 @@
   "$comment": "FR-104 cases. A case with `relationships` builds its artifact as artifactHead + that body (body line 1 is artifact line 18); a case with `artifact` uses it verbatim. Every `line` is exact in that artifact. A case `mappings` replaces context.mappings. `withoutRelationVocabulary: true` extracts with no edge registry, roles, or allowed_links; `withoutBundleIndex: true` extracts with no bundle artifacts (the package identity stays). `withoutBundlePackage: true` extracts with an empty bundle.package and no sourceIdentity, so no bundle package is known. `relations: null` means no relations and no relationSources are emitted. `messageContains` lists substrings the diagnostic message must contain. `availability: {}` means no availability.relations key. `exactDiagnostics` is the exact number of diagnostics the extraction emits for the case, so a row that fails several checks pins one diagnostic (FR-104 refusal order). The fields are documented in README.md.",
   "artifactHead": "---\nid: FR-006\ntitle: ConfigVersion\nobject: entity\ntype: FR\n---\n\n# FR-006: ConfigVersion\n\n## Properties\n\n| Field | Type | Multiplicity | Constraints |\n|-------|------|--------------|-------------|\n| id | UUID | 1 | identity |\n\n## Relationships\n\n",
   "context": {
-    "sources": {
-      "edgeTypes": {
-        "repository": "agent-ix/spec-artifacts-iso",
-        "revision": "8a7d9ef84a650d286107b55d0dfde9b978107ac3",
-        "path": "spec_artifacts_iso/manifest.yaml",
-        "note": "contains, composes, depends_on, owns, references"
-      },
-      "objectTypes": {
-        "repository": "agent-ix/spec-objects-business",
-        "revision": "f7fdfda39293654424969ced57590b7a1a17c652",
-        "path": "spec_objects_business/manifest.yaml",
-        "note": "edge_types.specializes; entity and nested_entity roles and allowed_links"
-      }
-    },
     "mappings": [
       "typed-table",
       "relationships"

@@ -203,7 +203,6 @@ struct RepoReport {
     measured: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     skip_reason: Option<String>,
-    head_sha: String,
     head_ref: String,
     on_main: bool,
     symbols_by_language_kind: BTreeMap<String, BTreeMap<String, usize>>,
@@ -231,7 +230,6 @@ impl RepoReport {
             path: path.to_string(),
             measured: false,
             skip_reason: Some(reason),
-            head_sha: String::new(),
             head_ref: String::new(),
             on_main: false,
             symbols_by_language_kind: BTreeMap::new(),
@@ -257,9 +255,7 @@ impl RepoReport {
 
 #[derive(Serialize)]
 struct Baseline {
-    quire_rs_measuring_commit: String,
     module_path: String,
-    module_commit: String,
     /// The module's declared `traceability.source_exclude` globs, applied to
     /// every repo's walk via `extract_tree_scoped` — recorded so the JSON is
     /// self-describing about what was excluded and why.
@@ -303,21 +299,11 @@ struct Baseline {
 }
 
 fn main() {
-    let quire_rs_root = Path::new(env!("CARGO_MANIFEST_DIR")).to_path_buf();
     let module_path = std::env::var("PLAT840_MODULE").unwrap_or_else(|_| {
         "/home/peter/dev/spec-artifacts-process/spec_artifacts_process".to_string()
     });
     let registry = Registry::load_module(Path::new(&module_path))
         .unwrap_or_else(|e| panic!("load module {module_path}: {e}"));
-    // The module directory itself (`.../spec_artifacts_process`) is a
-    // subdirectory of its git checkout, not the checkout root — walk up one
-    // level to find `.git`.
-    let module_repo_root = Path::new(&module_path)
-        .parent()
-        .map(Path::to_path_buf)
-        .unwrap_or_else(|| PathBuf::from(&module_path));
-    let (module_sha, _module_ref) = git_head(&module_repo_root);
-
     let model = registry.traceability();
     let source_exclude_globs: Vec<String> =
         model.map(|m| m.source_exclude.clone()).unwrap_or_default();
@@ -343,14 +329,14 @@ fn main() {
             repos.push(RepoReport::unmeasured(target.name, &path, reason));
             continue;
         }
-        let (head_sha, head_ref) = git_head(&root);
+        let (_, head_ref) = git_head(&root);
         let on_main = head_ref == "refs/heads/main";
         if !on_main {
             eprintln!(
-                "WARNING {}: measured at {} ({}), not refs/heads/main — this repo's numbers \
+                "WARNING {}: measured at {}, not refs/heads/main — this repo's numbers \
                  are NOT a main baseline and must not be compared against a post-PLAT-843 run \
                  unless that run uses the same non-main commit.",
-                target.name, head_ref, head_sha
+                target.name, head_ref
             );
         }
 
@@ -517,7 +503,6 @@ fn main() {
             path: path.clone(),
             measured: true,
             skip_reason: None,
-            head_sha,
             head_ref,
             on_main,
             symbols_by_language_kind: by_lang_kind,
@@ -533,13 +518,10 @@ fn main() {
         });
     }
 
-    let (quire_rs_sha, _quire_rs_ref) = git_head(&quire_rs_root);
     let all_repos_on_main = repos.iter().filter(|r| r.measured).all(|r| r.on_main);
     let all_targets_measured = repos.len() == TARGETS.len() && repos.iter().all(|r| r.measured);
     let baseline = Baseline {
-        quire_rs_measuring_commit: quire_rs_sha,
         module_path,
-        module_commit: module_sha,
         source_exclude_globs,
         all_repos_on_main,
         all_targets_measured,

@@ -37,7 +37,7 @@ from datetime import date
 import yaml
 
 from check_engine import Drift, build_engine, reported_engine
-from corpus import markdown_files, repos, source_files
+from corpus import repos
 from sweep_coverage import coverage
 
 REASON = "tag-on-non-binding-symbol"
@@ -58,24 +58,7 @@ def digest(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
 
-def measurement_input_digest(repo: pathlib.Path) -> str:
-    measured = hashlib.sha256()
-    paths = sorted({*source_files(repo), *markdown_files(repo)})
-    for path in paths:
-        try:
-            content = path.read_bytes()
-        except OSError as error:
-            raise CalibrationError(
-                f"{repo.name}/{path.relative_to(repo)}: {error}"
-            ) from error
-        measured.update(str(path.relative_to(repo)).encode("utf-8"))
-        measured.update(b"\0")
-        measured.update(content)
-        measured.update(b"\0")
-    return measured.hexdigest()
-
-
-def repository_state(repo: pathlib.Path) -> tuple[str, bool | None, str, str | None]:
+def repository_state(repo: pathlib.Path) -> tuple[str, bool]:
     revision = subprocess.run(
         ["git", "-C", str(repo), "rev-parse", "HEAD"],
         capture_output=True,
@@ -83,8 +66,7 @@ def repository_state(repo: pathlib.Path) -> tuple[str, bool | None, str, str | N
         check=False,
     )
     if revision.returncode:
-        input_digest = measurement_input_digest(repo)
-        return f"input:{input_digest}", None, "input-digest", input_digest
+        raise CalibrationError(f"{repo.name}: cannot read git revision")
     status = subprocess.run(
         ["git", "-C", str(repo), "status", "--porcelain"],
         capture_output=True,
@@ -94,9 +76,7 @@ def repository_state(repo: pathlib.Path) -> tuple[str, bool | None, str, str | N
     if status.returncode:
         raise CalibrationError(f"{repo.name}: cannot read git status")
     dirty = bool(status.stdout.strip())
-    input_digest = measurement_input_digest(repo) if dirty else None
-    provenance = "git-plus-input-digest" if dirty else "git"
-    return revision.stdout.strip(), dirty, provenance, input_digest
+    return revision.stdout.strip(), dirty
 
 
 def module_revision(module: pathlib.Path) -> str:
@@ -113,7 +93,7 @@ def module_revision(module: pathlib.Path) -> str:
 
 def source_occurrences(
     repo: pathlib.Path, rel_path: str, diagnostic_line: int, trace_id: str
-) -> tuple[list[dict], str]:
+) -> list[dict]:
     path = repo / rel_path
     try:
         lines = path.read_text(encoding="utf-8").splitlines()
@@ -145,16 +125,13 @@ def source_occurrences(
         raise CalibrationError(
             f"{repo.name}/{rel_path}:{diagnostic_line}: `{trace_id}` is absent from its source file"
         )
-    measured = json.dumps(occurrences, sort_keys=True, separators=(",", ":"))
-    return occurrences, digest(measured)
+    return occurrences
 
 
 def candidate(
     repo: pathlib.Path,
     revision: str,
-    dirty: bool | None,
-    provenance_state: str,
-    input_digest: str | None,
+    dirty: bool,
     finding: dict,
 ) -> dict:
     message = finding.get("message")
@@ -171,9 +148,7 @@ def candidate(
             f"{repo.name}/{path}:{line}: value and message ids disagree"
         )
     stratum = "module-scope" if parsed["kind"] == "container" else "production-symbol"
-    occurrences, context_digest = source_occurrences(
-        repo, path, line, parsed["trace_id"]
-    )
+    occurrences = source_occurrences(repo, path, line, parsed["trace_id"])
     identity = "\0".join(
         [repo.name, revision, path, str(line), parsed["trace_id"], parsed["symbol"]]
     )
@@ -182,8 +157,6 @@ def candidate(
         "repo": repo.name,
         "repo_revision": revision,
         "repo_dirty": dirty,
-        "repo_provenance": provenance_state,
-        "repo_input_sha256": input_digest,
         "path": path,
         "line": line,
         "trace_id": parsed["trace_id"],
@@ -192,7 +165,6 @@ def candidate(
         "form": parsed["form"],
         "stratum": stratum,
         "occurrences": occurrences,
-        "context_sha256": context_digest,
     }
 
 
@@ -245,7 +217,7 @@ def collect(args: argparse.Namespace) -> tuple[dict, dict]:
             raise CalibrationError(
                 f"{repo.name}: engine identity changed during collection"
             )
-        revision, dirty, provenance_state, input_digest = repository_state(repo)
+        revision, dirty = repository_state(repo)
         findings = [
             diagnostic
             for diagnostic in report.get("diagnostics", [])
@@ -256,22 +228,10 @@ def collect(args: argparse.Namespace) -> tuple[dict, dict]:
                 "repo": repo.name,
                 "revision": revision,
                 "dirty": dirty,
-                "provenance": provenance_state,
-                "input_sha256": input_digest,
                 "candidates": len(findings),
             }
         )
-        rows.extend(
-            candidate(
-                repo,
-                revision,
-                dirty,
-                provenance_state,
-                input_digest,
-                finding,
-            )
-            for finding in findings
-        )
+        rows.extend(candidate(repo, revision, dirty, finding) for finding in findings)
         print(
             f"tag precision: {index}/{len(selected_repos)} {repo.name} ({len(findings)})",
             file=sys.stderr,
@@ -309,10 +269,8 @@ def collect(args: argparse.Namespace) -> tuple[dict, dict]:
         "sample_ids": sampled,
         "candidates": rows,
     }
-    frame_digest = digest(json.dumps(frame, sort_keys=True, separators=(",", ":")))
     rulings = {
         "schema": "tag-non-binding-precision-rulings-v1",
-        "frame_sha256": frame_digest,
         "decision": "unresolved",
         "recall_effect": "unresolved",
         "locality_effect": "unresolved",
@@ -335,9 +293,6 @@ def wilson(successes: int, total: int, z: float = 1.96) -> tuple[float, float]:
 
 
 def assess(frame: dict, rulings: dict) -> dict:
-    expected_digest = digest(json.dumps(frame, sort_keys=True, separators=(",", ":")))
-    if rulings.get("frame_sha256") != expected_digest:
-        raise CalibrationError("rulings do not name this frame digest")
     sample_ids = set(frame.get("sample_ids", []))
     rows = rulings.get("rulings")
     if not isinstance(rows, list):

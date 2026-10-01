@@ -9,18 +9,10 @@ Tracks dependencies on external systems or repos whose state affects when `quire
 - **Workaround**: hand-author archetypes into `~/.ix/filament/modules/` (or git-vendor); `quire-rs` works correctly against any on-disk state regardless of how it got there
 - **Resolution**: tracked separately in the ix-cli repo
 
-## Python Jinja2 reference renderer pinning
-
-- **Status**: spec-artifacts-iso/app/process do not pin Jinja2 version
-- **Affects**: byte-parity tests ([FR-012](../functional/FR-012-archetype-parity-suite.md)) — a future Jinja2 minor bump in spec-artifacts-iso could silently change whitespace
-- **Workaround**: `scripts/parity-venv.txt` pins Jinja2 for `quire-rs`'s parity-fixture regeneration; `tests/render_parity/PROVENANCE.md` records the venv used
-- **Resolution**: ideally spec-artifacts-iso pins Jinja2 in its own `poetry.lock`; until then, our pin is the local source of truth
-
 ## filament-parser-lib API stability
 
 - **Status**: filament-parser-lib historically owned Python parser behavior that is being superseded by `quire-rs`. Recent commits ("reconcile body sections with shipped code") show ongoing schema evolution
 - **Affects**: parity tests TC-040 (extract DSL parity), TC-104 (edge harvest parity)
-- **Workaround**: pin to a specific filament-parser-lib commit when running parity tests
 - **Resolution**: track in render-parity-notes.md if behavior diverges
 
 ## Validator crate choice

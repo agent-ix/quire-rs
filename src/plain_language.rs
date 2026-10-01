@@ -8,7 +8,6 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 
 use crate::diagnostic::Diagnostic;
 use crate::lint::LintSeverity;
@@ -91,13 +90,6 @@ impl PlainLanguageProfile {
         Ok(())
     }
 
-    /// Stable identity of the complete effective configuration.
-    pub fn fingerprint(&self, id: &str) -> String {
-        let body = serde_json::to_vec(&(id, self))
-            .expect("PlainLanguageProfile contains only serializable fields");
-        let digest = Sha256::digest(body);
-        format!("sha256:{digest:x}")
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -145,7 +137,6 @@ pub struct SkippedPlainLanguageInput {
 pub struct PlainLanguageReport {
     pub profile: String,
     pub profile_version: String,
-    pub configuration_fingerprint: String,
     pub documents_examined: usize,
     pub readable_documents: usize,
     pub readable_blocks: usize,
@@ -409,7 +400,6 @@ pub fn check_plain_language_repo_load(
     PlainLanguageReport {
         profile: profile_id.to_string(),
         profile_version: profile.version.clone(),
-        configuration_fingerprint: profile.fingerprint(profile_id),
         documents_examined,
         readable_documents,
         readable_blocks,
@@ -942,32 +932,6 @@ mod tests {
                 .count(),
             1
         );
-    }
-
-    #[trace("TC-979", "FR-074-AC-10")]
-    #[test]
-    fn fingerprint_covers_effective_configuration() {
-        let p = profile(20);
-        assert_eq!(p.fingerprint("docs"), p.fingerprint("docs"));
-        assert_ne!(p.fingerprint("docs"), p.fingerprint("other"));
-        assert_ne!(p.fingerprint("docs"), profile(21).fingerprint("docs"));
-        let mut version = p.clone();
-        version.version = "2.0.0".to_string();
-        assert_ne!(p.fingerprint("docs"), version.fingerprint("docs"));
-        let mut applicability = p.clone();
-        applicability.document_types.push("FR".to_string());
-        assert_ne!(p.fingerprint("docs"), applicability.fingerprint("docs"));
-        let mut heading = p.clone();
-        heading.max_heading_level_step = 2;
-        assert_ne!(p.fingerprint("docs"), heading.fingerprint("docs"));
-        let mut vocabulary = p.clone();
-        vocabulary
-            .known_acronyms
-            .insert("SLO".to_string(), "service level objective".to_string());
-        assert_ne!(p.fingerprint("docs"), vocabulary.fingerprint("docs"));
-        let mut ignored = p.clone();
-        ignored.ignored_uppercase_terms.insert("SHALL".to_string());
-        assert_ne!(p.fingerprint("docs"), ignored.fingerprint("docs"));
     }
 
     #[trace("TC-980", "FR-074-AC-11")]

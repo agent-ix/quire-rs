@@ -39,17 +39,6 @@
 //! disagreement would read as an extraction delta rather than as what it
 //! actually is — this binary's own exclusion list going stale (also relied
 //! on by PLAT-882's own TypeScript port for the identical reason).
-//!
-//! **`AUDIT_LIST_MODULE`'s default is an unpinned, live checkout (PLAT-868
-//! PR #479 review, F9).** `make validate` pins the same repo's revision via
-//! `quality/validation-stack-lock.json` (`spec-artifacts-process.revision`);
-//! this tool does not check that the default path is checked out at that
-//! revision, so "the same module the baseline used" is true only as long as
-//! nobody has since moved that live checkout's branch. It has held for every
-//! differential run so far, but is not *guaranteed* the way a lock-file
-//! comparison would be. The module's own resolved revision is printed to
-//! stderr at startup so a report can at least record, rather than assume,
-//! which one a given run actually read.
 
 use std::path::Path;
 
@@ -75,24 +64,6 @@ fn main() {
     let module_path = std::env::var("AUDIT_LIST_MODULE").unwrap_or_else(|_| {
         "/home/peter/dev/spec-artifacts-process/spec_artifacts_process".to_string()
     });
-    // Best-effort only (F9): records what was actually read, since the
-    // default path is not pinned the way `quality/validation-stack-lock.json`
-    // pins the same repo for `make validate`. A module path outside any git
-    // checkout, or `git` missing, leaves this silently blank rather than
-    // failing the run over a diagnostic nicety.
-    if let Some(repo_dir) = Path::new(&module_path).parent() {
-        if let Ok(output) = std::process::Command::new("git")
-            .args(["-C", &repo_dir.to_string_lossy(), "rev-parse", "HEAD"])
-            .output()
-        {
-            if output.status.success() {
-                eprintln!(
-                    "AUDIT_LIST_MODULE resolved revision: {}",
-                    String::from_utf8_lossy(&output.stdout).trim()
-                );
-            }
-        }
-    }
     let source_exclude: Vec<String> = Registry::load_module(Path::new(&module_path))
         .unwrap_or_else(|e| panic!("load module {module_path}: {e}"))
         .traceability()

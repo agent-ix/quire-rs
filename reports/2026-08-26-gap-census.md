@@ -4,7 +4,6 @@
 - CLI: `0.30.2`
 - Engine: `7aaf19a`
 - Capabilities: `binding_census, binding_census.tagged, metrics_envelope, minted_targets, reference_only_targets, unmatched_tags, suspicions, specific_shaped`
-- Module commit: `737987b7131938203c2bda0f153f4bf15e8818bd`
 - Repositories: 241 scanned / 241 enumerated
 - Exclusions: none
 

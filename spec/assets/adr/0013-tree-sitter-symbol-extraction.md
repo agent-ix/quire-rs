@@ -110,12 +110,6 @@ Rationale:
    boundary crate — `default-members = ["."]` keeps every existing `cargo
    build`/`cargo test` invocation from the repo root building exactly what it
    built before).
-5. **Git-rev pin, not a registry version.** `quire-code-rs` is a public repo
-   (PLAT-848 resolved), but crates.io publishing is deliberately deferred, so
-   the pin is `rev = "57b83ba"` per this org's convention for unpublished
-   crates (`NFR-009`). `deny.toml`'s `allow-git` names both `quire-code-rs`
-   and the pre-existing `ix-trace-rs` exception, stating both are deletable
-   once registry publishing exists.
 
 ## Consequences
 
@@ -136,15 +130,6 @@ Rationale:
   byte-identical-output guarantee is amended to name the grammar version and
   the `rust-symbols` feature set as part of the identity it claims — *at* a
   pinned grammar version, not *across* grammar versions (`CR-177`, same FR).
-  The pin `rev = "57b83ba"` on `quire-code-parse` pins that crate's own
-  *source*, not the registry-resolved `tree-sitter`/`tree-sitter-rust`
-  versions its own `Cargo.toml` declares as caret ranges — those live only in
-  each consumer's own `Cargo.lock`, so this workspace and another consumer of
-  the same pin are not guaranteed to resolve the identical grammar patch
-  version, and a bare `cargo update` here can move it with no manifest edit
-  (spec review F1). `crates/quire-rust-extraction/tests/dependency_boundary.rs`
-  asserts this repo's own locked version exactly, so that drift is a compiled
-  gate failure here, not a silent variable.
 - **The `wasm` build cannot link this dependency, and that fact is not a
   parse error.** `tree-sitter-rust` compiles a C parser via a `cc`-crate
   build script, which cannot cross-compile to `wasm32-unknown-unknown`

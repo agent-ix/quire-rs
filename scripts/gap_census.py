@@ -13,7 +13,6 @@ import fnmatch
 import json
 import pathlib
 import re
-import subprocess
 import sys
 from dataclasses import dataclass
 from datetime import date
@@ -464,15 +463,6 @@ def classified_json(item: Classified) -> dict:
     }
 
 
-def module_sha(module: pathlib.Path) -> str:
-    done = subprocess.run(
-        ["git", "-C", str(module), "rev-parse", "HEAD"], capture_output=True, text=True
-    )
-    if done.returncode:
-        raise CensusError(
-            f"cannot resolve module commit for {module}: {done.stderr.strip()}"
-        )
-    return done.stdout.strip()
 
 
 def engine_identity(
@@ -531,7 +521,6 @@ def render_markdown(payload: dict) -> str:
         f"- CLI: `{provenance['cli']}`",
         f"- Engine: `{provenance['engine']}`",
         f"- Capabilities: `{', '.join(provenance['capabilities'])}`",
-        f"- Module commit: `{provenance['module_sha']}`",
         f"- Repositories: {provenance['repos_scanned']} scanned / {provenance['repos_enumerated']} enumerated",
         f"- Exclusions: {', '.join(provenance['exclusions']) or 'none'}",
         "",
@@ -651,7 +640,6 @@ def run(args: argparse.Namespace) -> dict:
             "cli": identity[0],
             "engine": identity[1],
             "capabilities": list(identity[2]),
-            "module_sha": module_sha(module),
             "repos_enumerated": len(enumerated),
             "repos_scanned": len(selected),
             "exclusions": exclusions,

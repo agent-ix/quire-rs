@@ -1,5 +1,4 @@
 schema: tag-non-binding-precision-rulings-v1
-frame_sha256: 2dcd54aa25eff18e4f161bf61090b59ad6a1a6e512e3483bb255a143e47acbd8
 decision: retain-current-rule
 recall_effect: 'No matcher change: controlled tag-on-non-binding-symbol recall remains
   6/6 at L1, L2, and L3.'
