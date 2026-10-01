@@ -27,7 +27,6 @@ struct RecallRow {
 struct Baseline {
     definition_version: String,
     runner: String,
-    corpus_revision: String,
     gap_count: usize,
     rows: Vec<RecallRow>,
 }
@@ -53,7 +52,6 @@ fn detection_recall_is_ratcheted_per_level_mode_and_language() {
         let baseline = Baseline {
             definition_version: DEFINITION.to_string(),
             runner: "quire-rs".to_string(),
-            corpus_revision: corpus_revision(),
             gap_count,
             rows,
         };
@@ -246,16 +244,6 @@ fn current_gap_count() -> usize {
     value["bounds"]["gap_count"]
         .as_u64()
         .expect("numeric gap_count") as usize
-}
-
-fn corpus_revision() -> String {
-    let output = Command::new("git")
-        .args(["-C"])
-        .arg(corpus_case::corpus_root())
-        .args(["rev-parse", "HEAD"])
-        .output()
-        .expect("read corpus revision");
-    String::from_utf8_lossy(&output.stdout).trim().to_string()
 }
 
 fn key(row: &RecallRow) -> String {

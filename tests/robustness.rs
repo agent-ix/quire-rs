@@ -20,8 +20,8 @@ fn registry() -> &'static Registry {
             .join("tests")
             .join("fixtures")
             .join("modules")
-            .join("iso");
-        Registry::load_module(&module).expect("load iso module")
+            .join("req-fixture");
+        Registry::load_module(&module).expect("load req-fixture module")
     })
 }
 

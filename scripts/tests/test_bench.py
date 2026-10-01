@@ -21,8 +21,8 @@ from bench import (  # noqa: E402
     compare,
     metrics_from,
     pct,
+    require_clean,
     resolve_default_module,
-    resolve_identity,
     score,
     selected,
     silent_zeros,
@@ -80,41 +80,39 @@ def test_an_undeclared_metric_is_refused():
 
 def test_governed_collection_refuses_a_skipped_corpus(monkeypatch):
     def moved(_entry):
-        raise BenchError("revision moved")
+        raise BenchError("tree changed")
 
-    monkeypatch.setattr("bench.resolve_identity", moved)
+    monkeypatch.setattr("bench.require_clean", moved)
     manifest = {
         "corpora": [
             {
                 "name": "pinned",
                 "path": ".",
                 "module": ".",
-                "identity": "sha",
+                "require_clean": True,
             }
         ]
     }
-    with pytest.raises(BenchError, match="pinned: revision moved"):
+    with pytest.raises(BenchError, match="pinned: tree changed"):
         collect(manifest, "quire", None, strict=True)
 
 
 def test_pinned_corpus_refuses_uncommitted_bytes(monkeypatch):
     def fake_run(args, **_kwargs):
-        if "rev-parse" in args:
-            return SimpleNamespace(returncode=0, stdout="a" * 40 + "\n")
         return SimpleNamespace(returncode=0, stdout=" M drifted-file\n")
 
     monkeypatch.setattr("bench.subprocess.run", fake_run)
     with pytest.raises(BenchError, match="tree is dirty"):
-        resolve_identity(
+        require_clean(
             {
                 "name": "pinned",
                 "path": ".",
-                "identity": "sha",
+                "require_clean": True,
             }
         )
 
 
-def test_default_module_path_and_revision_are_not_operator_selectable(
+def test_default_module_path_is_not_operator_selectable(
     monkeypatch, tmp_path: pathlib.Path
 ):
     source = tmp_path / "spec-artifacts-process"
@@ -125,11 +123,11 @@ def test_default_module_path_and_revision_are_not_operator_selectable(
             "name": "spec-artifacts-process",
             "path": "spec-artifacts-process",
             "module": "spec_artifacts_process",
-            "identity": "sha",
+            "require_clean": True,
         }
     }
     monkeypatch.setattr("bench.ROOT", tmp_path)
-    monkeypatch.setattr("bench.resolve_identity", lambda _source: "a" * 40)
+    monkeypatch.setattr("bench.require_clean", lambda _source: None)
     assert resolve_default_module(manifest, None) == str(module.resolve())
     with pytest.raises(BenchError, match="does not equal pinned module"):
         resolve_default_module(manifest, str(tmp_path / "other"))

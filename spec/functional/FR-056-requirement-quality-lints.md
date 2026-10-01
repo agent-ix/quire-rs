@@ -60,7 +60,7 @@ detection is exact by construction, so the fit question is not "is the detector
 right" but "is the reported rate liveable".
 
 > **[RAN] Ecosystem fit check, before shipping — the CR-014 discipline.**
-> `cargo run --example fr056_fit_check` over `~/dev`: **239 repositories, 3,335
+> Measured over the `~/dev` corpus: **239 repositories, 3,335
 > FR/NFR/StR documents**, worktree copies deduped.
 >
 > | | Findings | |
@@ -74,10 +74,6 @@ right" but "is the reported rate liveable".
 > independently silenceable. Dogfooded: this repository's own spec reports
 > **17 / 76 = 22.4%**, so the ecosystem number is not something the engine's
 > own authors are exempt from.
->
-> The check is kept as a **compiled example** rather than a one-off script, so
-> it cannot rot the way an unrun baseline does (the CR-057 lesson): re-running
-> it is `cargo run --example fr056_fit_check`, optionally scoped to one repo.
 
 ### Vocabulary is module data
 

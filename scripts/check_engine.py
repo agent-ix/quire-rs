@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Helpers shared by the sweep scripts: build the consumer's `quire` binary and
-read the `engine` block of a payload it emits."""
+read the capability tokens of a payload it emits."""
 
 from __future__ import annotations
 
@@ -14,22 +14,18 @@ class Drift(Exception):
     """A disagreement worth failing the build over."""
 
 
-def reported_engine(payload: dict) -> tuple[str, list[str]]:
-    """`engine.engine` and `engine.capabilities` from an emitted payload."""
+def reported_capabilities(payload: dict) -> list[str]:
+    """`engine.capabilities` from an emitted payload."""
     block = payload.get("engine")
     if not isinstance(block, dict):
         raise Drift(
             "the payload carries no `engine` block, so the binary that produced "
-            "it predates quire-cli#68 and cannot say which engine it links. "
-            "That is precisely the state this check exists to refuse."
+            "it cannot say which capabilities it has."
         )
-    version = block.get("engine")
-    if not isinstance(version, str) or not version:
-        raise Drift(f"the payload's `engine.engine` is not a version: {block!r}")
     capabilities = block.get("capabilities")
     if not isinstance(capabilities, list):
         raise Drift(f"the payload's `engine.capabilities` is not a list: {block!r}")
-    return version, [c for c in capabilities if isinstance(c, str)]
+    return [c for c in capabilities if isinstance(c, str)]
 
 
 def assert_capabilities(reported: list[str], required: list[str]) -> None:

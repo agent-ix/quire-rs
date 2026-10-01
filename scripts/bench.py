@@ -128,22 +128,16 @@ def render(report: dict) -> tuple[str, bool]:
     return "\n".join(lines), failed
 
 
-# ── corpus identity ──────────────────────────────────────────────────────────
+# ── corpus cleanliness ───────────────────────────────────────────────────────
 
 
-def resolve_identity(entry: dict) -> str:
-    """The identity a corpus entry was scored at, refusing a dirty corpus tree."""
+def require_clean(entry: dict) -> None:
+    """Refuse a corpus entry marked `require_clean` whose tree has local edits."""
+    if not entry.get("require_clean"):
+        return
     path = (ROOT / entry["path"]).resolve()
-    if entry["identity"] == "working-tree":
-        return "working-tree"
     if not path.exists():
         raise BenchError(f"{entry['name']}: corpus absent at {path}")
-    head = subprocess.run(
-        ["git", "-C", str(path), "rev-parse", "HEAD"],
-        capture_output=True,
-        text=True,
-        check=False,
-    ).stdout.strip()
     dirty = subprocess.run(
         ["git", "-C", str(path), "status", "--porcelain=v1", "--untracked-files=all"],
         capture_output=True,
@@ -152,23 +146,22 @@ def resolve_identity(entry: dict) -> str:
     )
     if dirty.returncode != 0 or dirty.stdout.strip():
         raise BenchError(
-            f"{entry['name']}: pinned corpus tree is dirty. Refusing to score "
-            "an input whose bytes are not identified by its revision."
+            f"{entry['name']}: corpus tree is dirty. Refusing to score "
+            "an input with uncommitted edits."
         )
-    return head
 
 
 def resolve_default_module(manifest: dict, module: str | None) -> str:
-    """Return the one attested module path, refusing path or revision drift."""
+    """Return the one attested module path, refusing path drift or local edits."""
     source = manifest.get("module_source")
     if not isinstance(source, dict):
         raise BenchError("benchmark manifest declares no pinned module_source")
-    for field in ("name", "path", "module", "identity"):
+    for field in ("name", "path", "module"):
         if not source.get(field):
             raise BenchError(f"benchmark module_source declares no {field}")
-    if source["identity"] != "sha":
-        raise BenchError("benchmark module_source must use sha identity")
-    resolve_identity(source)
+    if source.get("require_clean") is not True:
+        raise BenchError("benchmark module_source must require a clean tree")
+    require_clean(source)
     expected = (ROOT / source["path"] / source["module"]).resolve()
     requested = Path(module).expanduser() if module else expected
     if not requested.is_absolute():
@@ -478,7 +471,7 @@ def collect(
     )
     for entry in manifest["corpora"]:
         try:
-            identity = resolve_identity(entry)
+            require_clean(entry)
             entry_module = entry.get("module", default_module)
             if entry_module:
                 entry_module_path = Path(entry_module).expanduser()
@@ -492,11 +485,10 @@ def collect(
                 raise BenchError(f"{entry['name']}: {exc}") from exc
             print(f"skip {entry['name']}: {exc}", file=sys.stderr)
             continue
-        print(f"…{entry['name']} @ {identity}", file=sys.stderr)
+        print(f"…{entry['name']}", file=sys.stderr)
         observed[entry["name"]] = selected(entry, metrics_from(payload))
         if raw_evidence is not None:
             raw_evidence[entry["name"]] = {
-                "identity": identity,
                 "module": entry_module,
                 "payload": payload,
             }

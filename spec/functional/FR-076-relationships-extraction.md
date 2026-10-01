@@ -222,26 +222,6 @@ Availability:
 
 ## Acceptance Criteria
 
-> **CR-182 note (2026-09-21):** AC-1's `relationships.md`/`relationships.expected.json`/
-> `relationships-cases.json` fixtures were byte-for-byte copies vendored from
-> `agent-ix/quoin` FR-104's own fixtures — an engine-input copied from its own
-> downstream consumer, and a dependency cycle since quoin already depends on
-> quire-rs as a crate. Ownership moved, not authorship: the exact fixture
-> bytes — same ids, same field names, same vocabulary — are relocated
-> unchanged into the `quire-fixtures` workspace member crate (PLAT-901);
-> quoin, their original repo, is sequenced to repoint at the same crate
-> instead of holding its own copy. The clause requiring the vendored
-> fixtures to match a `PROVENANCE.json` sha256 pin is removed with no
-> replacement wording: once the fixtures are owned by quire-rs itself
-> rather than mirrored from an external copy, there is no upstream/
-> downstream pair for a provenance record to pin against, so the check has
-> no remaining subject (`quoin_fixtures_match_provenance` / TC-1852's
-> provenance half is deleted, not stubbed; TC-1852 continues to evidence
-> this AC through the extraction assertions in
-> `tests/semantic_relations.rs::golden_relationships`, including the
-> still-live `context.sources` non-empty assertion, which CR-182 does not
-> touch).
-
 | ID | Criteria | Verification |
 |----|----------|--------------|
 | FR-076-AC-1 | The relocated fixture `relationships.md` extracts to exactly the `relations`, `relationSources`, and `availability` of `relationships.expected.json` under its recorded `context`; each `relations` element validates against semantic-core `0.2.0` `RelationDecl.json`. | Test |
@@ -262,5 +242,5 @@ Availability:
 
 ## Dependencies
 
-- **Upstream**: [FR-040](./FR-040-object-edge-vocabulary.md), [FR-041](./FR-041-authorable-inverse-edges.md), [FR-069](./FR-069-semantic-module-contract-at-load.md), [FR-070](./FR-070-typed-properties-extraction.md), [FR-072](./FR-072-semantic-extraction-surface.md), [FR-075](./FR-075-model-feature-extraction.md); `agent-ix/quoin` FR-104 and its mapping fixtures at `99bd4f0`
+- **Upstream**: [FR-040](./FR-040-object-edge-vocabulary.md), [FR-041](./FR-041-authorable-inverse-edges.md), [FR-069](./FR-069-semantic-module-contract-at-load.md), [FR-070](./FR-070-typed-properties-extraction.md), [FR-072](./FR-072-semantic-extraction-surface.md), [FR-075](./FR-075-model-feature-extraction.md); `agent-ix/quoin` FR-104 and its mapping fixtures
 - **Downstream**: `agent-ix/filament-core-data#155` (`RelationDecl` `name` and `sourceSpan`), `agent-ix/filament-core-data#156` (`RelationDecl` lowering from extraction), `agent-ix/filament-core-service#32` (`edge_types` and `roles` in the registry snapshot), `agent-ix/quire-cli#91`, `agent-ix/quoin#557`, and `agent-ix/quire-rs#437` (callers pass the bundle package to `validate_document_in_bundle`)

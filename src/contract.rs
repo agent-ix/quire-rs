@@ -369,12 +369,12 @@ mod tests {
     use std::fs;
     use std::path::{Path, PathBuf};
 
-    fn iso_module() -> PathBuf {
-        Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/modules/iso")
+    fn fixture_module() -> PathBuf {
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/modules/req-fixture")
     }
 
-    fn iso_registry() -> Registry {
-        Registry::load_module(&iso_module()).expect("load iso")
+    fn fixture_registry() -> Registry {
+        Registry::load_module(&fixture_module()).expect("load req-fixture")
     }
 
     #[trace("TC-548", "FR-029-AC-1")]
@@ -382,7 +382,7 @@ mod tests {
     // required sections (derived from body_extraction).
     #[test]
     fn tc548_fr_contract() {
-        let r = iso_registry();
+        let r = fixture_registry();
         let c = input_contract_for(&r, "FR").expect("FR contract");
         assert_eq!(c.archetype, "FR");
         assert_eq!(c.frontmatter_schema["type"], "object");
@@ -409,7 +409,7 @@ mod tests {
     // Evaluation, Verification.
     #[test]
     fn tc549_nfr_contract() {
-        let r = iso_registry();
+        let r = fixture_registry();
         let c = input_contract_for(&r, "NFR").expect("NFR contract");
         let headings: Vec<&str> = c
             .sections
@@ -425,12 +425,12 @@ mod tests {
     }
 
     #[trace("TC-550", "FR-029-AC-3")]
-    // every iso archetype's contract contains each
+    // every fixture archetype's contract contains each
     // body_extraction section exactly once, in manifest (match) order.
     #[test]
     fn tc550_every_archetype_sections_in_manifest_order() {
-        let r = iso_registry();
-        for name in ["FR", "NFR", "StR", "US", "IT", "TC", "AC", "CON"] {
+        let r = fixture_registry();
+        for name in ["FR", "NFR", "master-requirements"] {
             let c = input_contract_for(&r, name).expect("contract");
             // Compare contract heading order to the manifest match order.
             let arch = r.archetype(name).expect("arch");
@@ -458,14 +458,14 @@ mod tests {
     // repeated calls.
     #[test]
     fn tc551_contract_json_is_byte_stable() {
-        let r = iso_registry();
+        let r = fixture_registry();
         let a = input_contract_for(&r, "FR").unwrap();
         let b = input_contract_for(&r, "FR").unwrap();
         let ja = serde_json::to_string(&a.to_json()).unwrap();
         let jb = serde_json::to_string(&b.to_json()).unwrap();
         assert_eq!(ja, jb);
         // And stable across an independent reload of the same module.
-        let r2 = iso_registry();
+        let r2 = fixture_registry();
         let c = input_contract_for(&r2, "FR").unwrap();
         assert_eq!(ja, serde_json::to_string(&c.to_json()).unwrap());
     }
@@ -474,7 +474,7 @@ mod tests {
     // unknown archetype → UnknownArchetype.
     #[test]
     fn tc552_unknown_archetype_errors() {
-        let r = iso_registry();
+        let r = fixture_registry();
         let err = input_contract_for(&r, "nonexistent").expect_err("unknown");
         assert!(matches!(err, QuireError::UnknownArchetype { .. }));
     }
@@ -602,7 +602,7 @@ edge_types:
     // is deterministic, and never emits friendly defaults like TODO.
     #[test]
     fn skeleton_scaffolds_headings_and_tables() {
-        let r = iso_registry();
+        let r = fixture_registry();
         let c = input_contract_for(&r, "FR").unwrap();
         let s1 = c.skeleton();
         let s2 = c.skeleton();

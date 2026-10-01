@@ -15,9 +15,6 @@
 //! ```text
 //! cargo run --release --example plat844_mentions_census
 //! ```
-//!
-//! Reuses the exact target list and shared module `plat840_rust_baseline_sweep`
-//! measured with, so this number is comparable to that report's population.
 use std::collections::BTreeMap;
 use std::path::Path;
 

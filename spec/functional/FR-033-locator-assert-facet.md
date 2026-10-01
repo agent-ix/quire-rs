@@ -89,8 +89,7 @@ validate time.
 >
 > **What the number counts:** `[assert]` findings from
 > `quire validate --scope . "spec/**/*.md" "plan/**/*.md" "reviews/**/*.md"`
-> over `agent-ix/filament-ide-rs` @ `fc5d644`, under `quire 0.29.0` / engine
-> `v0.42.0` / `spec-artifacts-process v0.23.0`: **496 findings, 15 of which
+> over `agent-ix/filament-ide-rs` at the time of the measurement: **496 findings, 15 of which
 > carried a row id anywhere, and exactly ONE distinct line per document.** Every
 > assert against `spec/service/matrix/tests.md` reported `line 25`. So 481
 > findings read like this, twice in a row, byte-identical, naming neither of the

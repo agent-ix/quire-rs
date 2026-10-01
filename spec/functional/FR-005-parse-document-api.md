@@ -129,8 +129,8 @@ arbitrary UTF-8 without panicking, for any argument pair (CR-050).
 > `Some(map)` vs `Some(map.clone())` — an off-by-one in the shared pipeline
 > passes on both sides — and it compares by `PartialEq`, not by bytes. A
 > refactor cannot be its own reference. AC-8 adds one: a checked-in golden
-> corpus with a snapshot captured by running the engine at `7b1db82`, the
-> commit before CR-046 landed. Measured on adoption: the current engine
+> corpus with a snapshot captured by running the engine before
+> CR-046 landed. Measured on adoption: the current engine
 > reproduces that capture byte-for-byte, so the CR-046 claim now has evidence
 > instead of an assertion. AC-6 is rescoped to the composition statement it
 > actually makes (agent-ix/quire-rs#108, umbrella #106).

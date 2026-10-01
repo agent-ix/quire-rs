@@ -29,8 +29,8 @@ no accompanying diagnostic, definition `sentinel.silent-zero-v1`.
 
 ## Collection and Provenance
 
-Evaluate complete raw payloads and retain engine capabilities, module digest,
-source and corpus revisions, configuration, timestamp, and payload digest.
+Evaluate complete raw payloads and retain engine capabilities,
+configuration, and timestamp.
 
 ## Environment and Sampling
 

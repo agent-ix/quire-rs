@@ -41,7 +41,7 @@ none of it.
   when a caller supplies none, the engine uses `ix://local/<scope directory name>/spec`
   and emits one advisory `semantic.source-identity-defaulted` per document.
 - The vendored `operations.md`, `operations.expected.json`, and
-  `operations-cases.json` fixtures from `agent-ix/quoin` at revision `3e842ce`.
+  `operations-cases.json` fixtures from `agent-ix/quoin`.
 
 ## Outputs
 

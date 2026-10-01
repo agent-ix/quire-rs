@@ -101,7 +101,7 @@ decision.
 ## Safety scaffolding
 
 Backported from `agent-ix/rust-lib-cookiecutter` (originally from `agent-ix/ecaz`).
-When upstream tightens MSRV, clippy lints, license allowlist, or audit scripts,
+When upstream tightens clippy lints, license allowlist, or audit scripts,
 backport changes here via the `backport-code` skill (StR-004-AC-3). Drift is
 detected on each `make ci` run via `scripts/audits/verify_cookiecutter_inheritance.sh`.
 
@@ -109,7 +109,7 @@ detected on each `make ci` run via `scripts/audits/verify_cookiecutter_inheritan
 - `deny.toml` allow-lists licenses and denies unknown registries/git sources
 - `scripts/check_unsafe_comments.sh` runs in CI and locally via `make audit-unsafe`. Retained because it covers the **`python`** build, where `forbid(unsafe_code)` is scoped off — every `unsafe {` block must have a `// SAFETY:` comment within the 3 preceding lines, or be listed in `scripts/unsafe_comment_baseline.txt` (currently empty). Update the baseline with `bash scripts/check_unsafe_comments.sh --update-baseline`.
 - `rustfmt.toml` uses 100-char width and `StdExternalCrate` import grouping. CI fails on drift.
-- `rust-toolchain.toml` pins to stable + rustfmt + clippy.
+- `rust-toolchain.toml` declares the toolchain channel plus rustfmt and clippy.
 
 ## Design taste
 

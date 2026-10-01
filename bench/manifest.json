@@ -62,7 +62,7 @@
     "name": "spec-artifacts-process",
     "path": "../spec-artifacts-process",
     "module": "spec_artifacts_process",
-    "identity": "sha",
+    "require_clean": true,
     "$comment": "The default declaration module is executable measurement input. Its checkout must be clean."
   },
   "corpora": [
@@ -71,7 +71,6 @@
       "tier": 1,
       "path": "tests/fixtures/coverage_baseline/scope",
       "module": "tests/fixtures/coverage_baseline/module",
-      "identity": "working-tree",
       "metrics": [
         "properties.specific_shaped_pct"
       ],
@@ -81,14 +80,13 @@
       "name": "self",
       "tier": 1,
       "path": ".",
-      "identity": "working-tree",
       "$comment": "This repository, at whatever it is. Not pinned on purpose: it is the fast inner-loop entry and its job is to move as the engine does."
     },
     {
       "name": "filament-ide-rs",
       "tier": 2,
       "path": "../filament-ide-rs",
-      "identity": "sha",
+      "require_clean": true,
       "$comment": "The Phase 3 immutable filament corpus. The older answer-key snapshot remains recorded separately in the answer-key evidence."
     },
     {
@@ -96,7 +94,7 @@
       "source_name": "quoin-benchmark-corpus",
       "tier": 1,
       "path": "../quoin",
-      "identity": "sha",
+      "require_clean": true,
       "metrics": [
         "sentinel.silent_zero",
         "skeptic.suspicion_rate"
@@ -107,7 +105,7 @@
       "name": "spec-artifacts-process",
       "tier": 1,
       "path": "../spec-artifacts-process",
-      "identity": "sha",
+      "require_clean": true,
       "metrics": [
         "sentinel.silent_zero",
         "skeptic.suspicion_rate"

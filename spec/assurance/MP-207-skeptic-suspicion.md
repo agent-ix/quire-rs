@@ -28,8 +28,7 @@ the source walk.
 
 ## Collection and Provenance
 
-Retain raw suspicion records, engine and rule-registry identity, module digest,
-source and corpus revisions, configuration, timestamp, and payload digest.
+Retain raw suspicion records, configuration, and timestamp.
 
 ## Environment and Sampling
 

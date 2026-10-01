@@ -1,5 +1,5 @@
 //! Gate G7 integration: markdown structural validation (FR-032/FR-035)
-//! against the real loaded `spec-artifacts-iso` FR archetype.
+//! against the FR archetype of the in-repo `req-fixture` module.
 //!
 //! A conformant FR document validates; mutations (missing / placeholder /
 //! frontmatter / duplicate-heading) each fail with a line-numbered,
@@ -13,9 +13,9 @@ use ix_trace_rs::trace;
 use quire_rs::validate_document::ValidationReason;
 use quire_rs::Registry;
 
-fn iso_registry() -> Registry {
-    let module = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/modules/iso");
-    Registry::load_module(&module).expect("load iso module")
+fn fixture_registry() -> Registry {
+    let module = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/modules/req-fixture");
+    Registry::load_module(&module).expect("load req-fixture module")
 }
 
 /// A conformant FR markdown document: valid frontmatter + all required
@@ -50,7 +50,7 @@ On parse, the engine retains every byte of the section body verbatim.\n\
 // a conformant FR validates.
 #[test]
 fn conformant_fr_validates() {
-    let r = iso_registry();
+    let r = fixture_registry();
     let fr = r.archetype("FR").expect("FR archetype");
     let result = quire_rs::validate_document(fr, CONFORMANT_FR);
     assert!(result.is_valid, "expected valid, got: {:?}", result.errors);
@@ -62,7 +62,7 @@ fn conformant_fr_validates() {
 // `missing`, naming the archetype + section.
 #[test]
 fn missing_required_section_fails() {
-    let r = iso_registry();
+    let r = fixture_registry();
     let fr = r.archetype("FR").expect("FR archetype");
     // Drop the whole "## Specification" section.
     let mutated = CONFORMANT_FR.replace(
@@ -86,7 +86,7 @@ On parse, the engine retains every byte of the section body verbatim.\n\n",
 // reason `placeholder` even though the frontmatter is valid.
 #[test]
 fn placeholder_section_fails() {
-    let r = iso_registry();
+    let r = fixture_registry();
     let fr = r.archetype("FR").expect("FR archetype");
     let mutated = CONFORMANT_FR.replace(
         "On parse, the engine retains every byte of the section body verbatim.",
@@ -105,7 +105,7 @@ fn placeholder_section_fails() {
 // `frontmatter`, independent of body structure.
 #[test]
 fn frontmatter_violation_fails() {
-    let r = iso_registry();
+    let r = fixture_registry();
     let fr = r.archetype("FR").expect("FR archetype");
     // `type: NFR` violates the FR `const: "FR"`.
     let mutated = CONFORMANT_FR.replace("type: FR", "type: NFR");
@@ -212,7 +212,7 @@ fn registry_assert_path_fails_on_wrong_columns() {
     );
 }
 
-// ── FR-003 (spec-artifacts-iso): the generic master-requirements archetype ──
+// ── FR-003: the generic master-requirements archetype ──
 //
 // The root spec.md (type: master-requirements) validates against the
 // ninth registered archetype: a bespoke frontmatter schema (no id/title; kebab
@@ -254,7 +254,7 @@ The requirement classes that make up this specification and how they trace.\n\
 // locator normalizes the ISO section-number prefix, so `## 2. Scope` matches.
 #[test]
 fn conformant_master_requirements_validates() {
-    let r = iso_registry();
+    let r = fixture_registry();
     let a = r
         .archetype("master-requirements")
         .expect("master-requirements archetype");
@@ -266,7 +266,7 @@ fn conformant_master_requirements_validates() {
 // a missing component_type fails with reason `frontmatter`.
 #[test]
 fn master_requirements_missing_component_type_fails() {
-    let r = iso_registry();
+    let r = fixture_registry();
     let a = r.archetype("master-requirements").expect("archetype");
     let mutated = CONFORMANT_MASTER.replace("component_type: fastapi-service\n", "");
     let result = quire_rs::validate_document(a, &mutated);
@@ -281,7 +281,7 @@ fn master_requirements_missing_component_type_fails() {
 // a non-kebab component_type fails the pattern (frontmatter).
 #[test]
 fn master_requirements_non_kebab_component_type_fails() {
-    let r = iso_registry();
+    let r = fixture_registry();
     let a = r.archetype("master-requirements").expect("archetype");
     let mutated = CONFORMANT_MASTER.replace(
         "component_type: fastapi-service",
@@ -300,7 +300,7 @@ fn master_requirements_non_kebab_component_type_fails() {
 // heading locator).
 #[test]
 fn master_requirements_missing_h1_title_fails() {
-    let r = iso_registry();
+    let r = fixture_registry();
     let a = r.archetype("master-requirements").expect("archetype");
     let mutated =
         CONFORMANT_MASTER.replace("# Master Requirements Specification", "# example-service");
@@ -318,7 +318,7 @@ fn master_requirements_missing_h1_title_fails() {
 // dropping a required canonical section fails with `missing`.
 #[test]
 fn master_requirements_missing_section_fails() {
-    let r = iso_registry();
+    let r = fixture_registry();
     let a = r.archetype("master-requirements").expect("archetype");
     let mutated = CONFORMANT_MASTER.replace(
         "## References\n- ISO/IEC/IEEE 29148 — Requirements engineering.\n",
@@ -339,7 +339,7 @@ fn master_requirements_missing_section_fails() {
 // accepted — the contract asserts required structure, it does not forbid extras.
 #[test]
 fn master_requirements_optional_sections_accepted() {
-    let r = iso_registry();
+    let r = fixture_registry();
     let a = r.archetype("master-requirements").expect("archetype");
     let doc = format!(
         "{CONFORMANT_MASTER}\n## Domain Model\nEntities and invariants.\n\
@@ -356,7 +356,7 @@ fn master_requirements_optional_sections_accepted() {
 // prefix consistently with `section_body`/`after_heading`.
 #[test]
 fn master_requirements_tolerates_numbered_headings() {
-    let r = iso_registry();
+    let r = fixture_registry();
     let a = r.archetype("master-requirements").expect("archetype");
     let numbered = "---\n\
 type: master-requirements\n\
@@ -391,7 +391,7 @@ classes\n\
 // reason `duplicate-heading`, line-numbered at the second heading.
 #[test]
 fn duplicate_heading_fails_with_line() {
-    let r = iso_registry();
+    let r = fixture_registry();
     let fr = r.archetype("FR").expect("FR archetype");
     // Append a second "## Description" heading.
     let mutated = format!("{CONFORMANT_FR}\n## Description\nA second one.\n");

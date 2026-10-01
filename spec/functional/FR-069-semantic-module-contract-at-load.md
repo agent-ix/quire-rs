@@ -57,33 +57,6 @@ as it does today.
   `semantic/v1/module-manifest.schema.json` — never a copy committed to this
   repository.
 
-> **CR-181/CR-184 note (2026-09-21):** This Inputs list no longer names a
-> vendored revision, a vendored directory, or a provenance SHA-256 —
-> `schemas/vendored/` and `scripts/vendor-semantic-schemas.sh` are deleted,
-> along with FR-069-CON-2, which required the provenance record CON-2
-> mandated. Of the three prior vendored inputs, two were committed copies
-> with nothing that needed embedding at build time. `common.schema.json` fed
-> a target-enum check (the former step 6 of `read_semantic_block`) that step
-> 3's schema validation — against the *same* 14-value enum, inlined in the
-> module-manifest schema — already ran and returned early on; it was dead
-> code with no replacement, and no const/enum/array of those 14 names was
-> added anywhere in its place. The semantic-core bundle and the
-> module-manifest schema are both genuinely load-bearing at build time — the
-> internal `FieldDecl`/`ClauseRef` gate in `properties.rs` and `clauses.rs`
-> validates a record quire-rs itself just produced, with no registry,
-> module, or caller in scope to supply a schema any other way — so both stay
-> embedded, just from their published packages rather than a committed file.
-> The third input, `module-manifest.schema.json`, was **not yet migrated**
-> as of CR-181: `agent-ix/filament-core-service` originally owned it, and
-> `agent-ix/filament-core-data` had moved it to
-> `module-semantic-block.schema.json` but had not yet republished the
-> package with that file included. CR-184 closes that gap now that
-> `@agent-ix/semantic-schema@0.1.0` ships
-> `semantic/v1/module-manifest.schema.json`: `schemas/vendored/` (the last
-> committed copy) is deleted, `build.rs`'s `npm pack` fetch mechanism is
-> shared between both packages instead of duplicated, and this bullet's
-> first item no longer names a schema this repository consumes any other
-> way.
 - For the Filament extraction API ([FR-045](./FR-045-filament-core-extraction-engine.md)):
   an optional `semantic` context on each `FilamentObjectType` snapshot,
   `{ contractVersion, semanticCore, package, exports, imports, mappings? }`, with the

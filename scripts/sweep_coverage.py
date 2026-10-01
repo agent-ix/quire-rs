@@ -8,7 +8,7 @@ v0.26.0; this re-measures against a released engine.
 
 Two things the earlier sweep got wrong, both fixed here:
 
-* **The engine must be the pinned one, and it must say so itself.** CR-061
+* **The engine must be the one built from the consuming workspace.** CR-061
   (v0.27.0) widened `trace::bind` to benchmarks and fuzz targets, so a tag on a
   `criterion_group!` bench resolves where it previously did not. Numbers taken
   on an older engine are stale on arrival.
@@ -18,20 +18,17 @@ Two things the earlier sweep got wrong, both fixed here:
   exclusions on the FR/NFR archetype targets. Pass `--module` pointing at the
   source tree so the model is the current one, and record which.
 
-## Provenance is measured, never typed (#265)
+## The binary is built, never selected (#265)
 
 This script used to take `--engine`, a **string the operator typed**, and record
-it in the output. Unverified, so it was not provenance — it made a report *look*
-sourced, which is worse than a report that admits it is not. It also took
-`--quire <bin>`, defaulting to whatever was on `PATH`; the installed binary was
-16 releases behind this tree at the time of writing, and `Makefile:246` had
-already stated the correct rule for `make validate` two years running.
+it in the output. It also took `--quire <bin>`, defaulting to whatever was on
+`PATH`; the installed binary was 16 releases behind this tree at the time of
+writing, and `Makefile:246` had already stated the correct rule for
+`make validate` two years running.
 
-Both are gone. The binary is **built from the consuming workspace at its pinned
-rev**, and the engine version is read from the `engine` block of the payloads it
-emits (quire-cli#68). A binary that cannot say what it links cannot be swept
-with, and a binary missing a capability the sweep depends on **aborts naming the
-token** rather than omitting a metric and printing the rest.
+Both are gone. The binary is **built from the consuming workspace**, and a
+binary missing a capability the sweep depends on **aborts naming the token**
+rather than omitting a metric and printing the rest.
 
 Dead tags are `untracked_symbols`: a trace marker written in source whose id no
 trace target ever minted. A repo "mints zero test-case targets" when none of the
@@ -56,7 +53,7 @@ import sys
 # the truth was 183 for exactly this reason. This script previously carried its
 # own copy of the rules which had neither `SKIP_DIRS` nor verified worktree
 # detection, so its numbers excluded less than the other harnesses' did.
-from check_engine import Drift, assert_capabilities, build_engine, reported_engine
+from check_engine import Drift, assert_capabilities, build_engine, reported_capabilities
 from corpus import repos
 
 DECLARED_PATHS = ("spec/tests.md", "spec/matrix.md", "spec/evals.md")
@@ -103,7 +100,7 @@ def main() -> int:
     parser.add_argument(
         "--consumer",
         default="../quire-cli",
-        help="workspace to build the engine from, at its pinned rev (default: ../quire-cli)",
+        help="workspace to build the engine from (default: ../quire-cli)",
     )
     parser.add_argument("--module", help="module directory supplying the traceability model")
     args = parser.parse_args()
@@ -121,7 +118,7 @@ def main() -> int:
 
     root = pathlib.Path(args.root).expanduser()
     rows = []
-    engine: str | None = None
+    verified = False
 
     for repo in repos(root):
         report = coverage(quire, repo, args.module)
@@ -129,22 +126,13 @@ def main() -> int:
         if report is None or "error" in report:
             row["error"] = (report or {}).get("error", "unknown")
         else:
-            # Provenance off the FIRST clean payload, then held. Checked on
-            # every subsequent one: a sweep is a long-running loop over hundreds
-            # of repositories, and a binary swapped underneath it halfway
-            # through would otherwise be reported as one measurement.
+            # The capability premise is checked on the FIRST clean payload.
             try:
-                version, capabilities = reported_engine(report)
-                if engine is None:
+                if not verified:
+                    capabilities = reported_capabilities(report)
                     assert_capabilities(capabilities, list(REQUIRED_CAPABILITIES))
-                    engine = version
-                    print(f"engine: {version} ({', '.join(capabilities)})", file=sys.stderr)
-                elif version != engine:
-                    raise Drift(
-                        f"{repo.name} was measured by engine {version} while the "
-                        f"sweep began on {engine}. The binary changed mid-run, so "
-                        f"these rows are not one measurement."
-                    )
+                    verified = True
+                    print(f"capabilities: {', '.join(capabilities)}", file=sys.stderr)
             except Drift as error:
                 print(f"sweep_coverage: {error}", file=sys.stderr)
                 return 1
@@ -173,12 +161,11 @@ def main() -> int:
 
     # No clean payload means nothing verified the instrument, and every figure
     # below would be a zero over an unmeasured corpus — the silent-zero the
-    # capability abort exists to prevent, arrived at by a different route. The
-    # first version printed `"engine": null` and exited 0.
-    if engine is None:
+    # capability abort exists to prevent, arrived at by a different route.
+    if not verified:
         print(
             f"sweep_coverage: not one of {len(rows)} repositories produced a "
-            f"readable payload, so the engine was never identified and nothing "
+            f"readable payload, so the instrument was never verified and nothing "
             f"here was measured. Refusing to print a zero over an unmeasured "
             f"corpus.",
             file=sys.stderr,
@@ -186,7 +173,7 @@ def main() -> int:
         return 1
 
     print(json.dumps(
-        {"engine": engine, "module": args.module, "consumer": str(consumer), "repos": rows},
+        {"module": args.module, "consumer": str(consumer), "repos": rows},
         indent=1,
     ))
 
@@ -199,7 +186,6 @@ def main() -> int:
     with_dead = [r for r in ok if r["dead_tags"]]
 
     out = sys.stderr
-    print(f"\nengine (from the payload)         : {engine or 'no clean payload'}", file=out)
     print(f"module                            : {args.module or 'discovered'}", file=out)
     print(f"repos with a spec/ directory      : {len(rows)}", file=out)
     print(f"  reported cleanly                : {len(ok)}", file=out)

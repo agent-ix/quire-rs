@@ -16,7 +16,7 @@ from gap_census import (  # noqa: E402
     Target,
     aggregate,
     classify_repo,
-    engine_identity,
+    engine_capabilities,
     render_markdown,
     scan_rows,
     write_reports,
@@ -238,8 +238,6 @@ def test_tc1067_zero_authored_tags_are_not_instrument_failure(tmp_path):
 def engine_payload(capabilities=None):
     return {
         "engine": {
-            "cli": "0.30.2",
-            "engine": "a14dcb2",
             "capabilities": capabilities
             or [
                 "binding_census",
@@ -253,11 +251,11 @@ def engine_payload(capabilities=None):
     }
 
 
-def test_tc1068_engine_provenance_and_capabilities_are_refusals():
+def test_tc1068_missing_capabilities_are_refusals():
     """TC-1068"""
-    identity = engine_identity(engine_payload())
+    assert "binding_census" in engine_capabilities(engine_payload())
     with pytest.raises(CensusError, match="binding_census.tagged"):
-        engine_identity(
+        engine_capabilities(
             engine_payload(
                 [
                     "binding_census",
@@ -268,10 +266,6 @@ def test_tc1068_engine_provenance_and_capabilities_are_refusals():
                 ]
             )
         )
-    changed = engine_payload()
-    changed["engine"]["engine"] = "different"
-    with pytest.raises(CensusError, match="changed"):
-        engine_identity(changed, identity)
 
 
 def payload(tmp_path):
@@ -279,8 +273,6 @@ def payload(tmp_path):
     return {
         "date": "2026-08-26",
         "provenance": {
-            "cli": "0.30.2",
-            "engine": "a14dcb2",
             "capabilities": [
                 "binding_census",
                 "binding_census.tagged",
@@ -306,7 +298,7 @@ def test_tc1069_reports_are_provenanced_and_byte_stable(tmp_path):
     second = write_reports(copy.deepcopy(data), tmp_path / "out")
     assert first_bytes == tuple(path.read_bytes() for path in second)
     loaded = json.loads(first[0].read_text())
-    assert loaded["provenance"]["cli"]
+    assert loaded["provenance"]["capabilities"]
 
 
 def test_tc1070_census_workflow_is_never_a_change_gate():

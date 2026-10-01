@@ -28,8 +28,8 @@ definition `properties.specific-shaped-v1`; retain both counts.
 
 ## Collection and Provenance
 
-Collect from the raw properties payload and retain engine, source, corpus,
-module, configuration, timestamp, and raw-evidence digest.
+Collect from the raw properties payload and retain configuration and
+timestamp.
 
 ## Environment and Sampling
 

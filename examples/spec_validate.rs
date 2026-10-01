@@ -13,7 +13,7 @@
 // per-document structural validation (frontmatter schema + `body_extraction`
 // asserts + heading uniqueness + grammar severity promotions) — the layer that
 // catches a malformed matrix row. Deliberately NOT `BundlePosture::Strict`
-// bundle validation: measured on main at 3ccdab3, the whole-bundle posture
+// bundle validation: measured on main when this gate was written, the whole-bundle posture
 // reports 208 pre-existing corpus-debt errors (dangling trace references,
 // index-incomplete, unowned quality characteristics) that are real, tracked
 // authoring debt but not this gate's regression surface — a gate that fails on

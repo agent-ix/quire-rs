@@ -116,7 +116,7 @@ spec-artifacts-iso/
     └── … one per archetype
 ```
 
-(See the real example under `tests/fixtures/modules/iso/`.)
+(See the real example under `tests/fixtures/modules/req-fixture/`.)
 
 ### `manifest.yaml`
 
@@ -621,4 +621,4 @@ If, say, the `Specification` section were missing, you'd get one
 - `spec/assets/adr/` — ADR 0001 (validator crate), 0002 (three-layer pipeline), 0003
   (unified archetype shape), 0007 (internal relative-path links).
 - `CLAUDE.md` — design taste, safety scaffolding, and the v0.3 corpus/bindings invariants.
-- `tests/fixtures/modules/iso/` — a real, validating module to copy from.
+- `tests/fixtures/modules/req-fixture/` — a small, validating module to copy from.

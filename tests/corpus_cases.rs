@@ -1755,8 +1755,8 @@ fn tc1028_a_failure_case_discriminates_from_its_control() {
     // `known_gaps.uncontrolled_failure_cases` — the control belonging to
     // `marker-form-mismatch`, whose id is that alias. So it never reached the
     // declared-gap branch below and was counted as controlled. FR-065 cites
-    // "35 controlled failure cases at `3ff72c0`" from this count; `bounds.py`
-    // counted **34** at the same revision, and 34 is right.
+    // "35 controlled failure cases" from this count; `bounds.py`
+    // counted **34**, and 34 is right.
     //
     // TWO. A VEC, not one control. Two controls legitimately name
     // `marker-form-mismatch` — `marker-form-declared` and
@@ -1981,7 +1981,7 @@ fn tc1028_a_failure_case_discriminates_from_its_control() {
     // `marker-form-mismatch` against `marker-form-declared`. `bounds.py` does
     // the opposite. A cardinality check saw nothing.
     //
-    // The gate caught the original defect at `3ff72c0` only because the counts
+    // The gate caught the original defect only because the counts
     // happened to differ there (34 vs 35). The defect class it exists for — an
     // alias colliding with an id — is CARDINALITY-PRESERVING whenever the
     // displaced case also has a control, which is the case here. So the count

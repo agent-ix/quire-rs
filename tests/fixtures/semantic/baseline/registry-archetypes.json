@@ -27,66 +27,24 @@
       "carry_over": "ArchetypeCarryOver { id_pattern: None, allowed_links: {}, roles: [], has_plugin: false, grammar_ref: None }"
     }
   ],
-  "iso": [
+  "req-fixture": [
     {
-      "module": "spec-artifacts-iso",
-      "name": "AC",
-      "body_extraction": "ExtractionDsl { yield_pattern: YieldPattern { match: Some({\"description\": Primitive(SectionBody { after_heading: \"Description\", required: true, multiple: false, regex: None, assert: None }), \"dependencies\": Primitive(SectionBody { after_heading: \"Dependencies\", required: true, multiple: false, regex: None, assert: None })}), iterate_over: None, per_match: None }, emit_edges: None }",
-      "carry_over": "ArchetypeCarryOver { id_pattern: Some(\"AC-{next:03d}\"), allowed_links: {\"verifies\": [\"*\"]}, roles: [], has_plugin: false, grammar_ref: Some(\"iso-spec-core\") }"
-    },
-    {
-      "module": "spec-artifacts-iso",
-      "name": "CON",
-      "body_extraction": "ExtractionDsl { yield_pattern: YieldPattern { match: Some({\"description\": Primitive(SectionBody { after_heading: \"Description\", required: true, multiple: false, regex: None, assert: None }), \"dependencies\": Primitive(SectionBody { after_heading: \"Dependencies\", required: true, multiple: false, regex: None, assert: None })}), iterate_over: None, per_match: None }, emit_edges: None }",
-      "carry_over": "ArchetypeCarryOver { id_pattern: Some(\"CON-{next:03d}\"), allowed_links: {\"constrains\": [\"*\"], \"references\": [\"*\"]}, roles: [], has_plugin: false, grammar_ref: Some(\"iso-spec-core\") }"
-    },
-    {
-      "module": "spec-artifacts-iso",
+      "module": "req-fixture",
       "name": "FR",
       "body_extraction": "ExtractionDsl { yield_pattern: YieldPattern { match: Some({\"description\": Primitive(SectionBody { after_heading: \"Description\", required: true, multiple: false, regex: None, assert: None }), \"specification\": Primitive(SectionBody { after_heading: \"Specification\", required: true, multiple: false, regex: None, assert: None }), \"acceptance_criteria\": Primitive(SectionBody { after_heading: \"Acceptance Criteria\", required: true, multiple: false, regex: None, assert: None }), \"dependencies\": Primitive(SectionBody { after_heading: \"Dependencies\", required: true, multiple: false, regex: None, assert: None })}), iterate_over: None, per_match: None }, emit_edges: None }",
-      "carry_over": "ArchetypeCarryOver { id_pattern: Some(\"FR-{next:03d}\"), allowed_links: {\"calls\": [\"*\"], \"constrains\": [\"*\"], \"consumes\": [\"*\"], \"contains\": [\"*\"], \"depends_on\": [\"*\"], \"implements\": [\"*\"], \"publishes\": [\"*\"], \"reads\": [\"*\"], \"references\": [\"*\"], \"requires\": [\"*\"], \"supersedes\": [\"*\"], \"transitions_to\": [\"*\"], \"triggers\": [\"*\"], \"writes\": [\"*\"]}, roles: [], has_plugin: false, grammar_ref: Some(\"iso-spec-core\") }"
+      "carry_over": "ArchetypeCarryOver { id_pattern: None, allowed_links: {\"depends_on\": [\"*\"], \"references\": [\"*\"]}, roles: [], has_plugin: false, grammar_ref: Some(\"req-core\") }"
     },
     {
-      "module": "spec-artifacts-iso",
-      "name": "IT",
-      "body_extraction": "ExtractionDsl { yield_pattern: YieldPattern { match: Some({\"description\": Primitive(SectionBody { after_heading: \"Description\", required: true, multiple: false, regex: None, assert: None }), \"dependencies\": Primitive(SectionBody { after_heading: \"Dependencies\", required: true, multiple: false, regex: None, assert: None })}), iterate_over: None, per_match: None }, emit_edges: None }",
-      "carry_over": "ArchetypeCarryOver { id_pattern: Some(\"IT-{next:03d}\"), allowed_links: {\"depends_on\": [\"*\"], \"references\": [\"*\"], \"verifies\": [\"*\"]}, roles: [], has_plugin: false, grammar_ref: Some(\"iso-spec-core\") }"
-    },
-    {
-      "module": "spec-artifacts-iso",
+      "module": "req-fixture",
       "name": "NFR",
-      "body_extraction": "ExtractionDsl { yield_pattern: YieldPattern { match: Some({\"quality_attribute\": Primitive(SectionBody { after_heading: \"Quality Attribute\", required: true, multiple: false, regex: None, assert: None }), \"statement\": Primitive(SectionBody { after_heading: \"Statement\", required: true, multiple: false, regex: None, assert: None }), \"scope\": Primitive(SectionBody { after_heading: \"Scope\", required: true, multiple: false, regex: None, assert: None }), \"measurement_and_evaluation\": Primitive(SectionBody { after_heading: \"Measurement and Evaluation\", required: true, multiple: false, regex: None, assert: None }), \"verification\": Primitive(SectionBody { after_heading: \"Verification\", required: true, multiple: false, regex: None, assert: None }), \"dependencies\": Primitive(SectionBody { after_heading: \"Dependencies\", required: true, multiple: false, regex: None, assert: None })}), iterate_over: None, per_match: None }, emit_edges: None }",
-      "carry_over": "ArchetypeCarryOver { id_pattern: Some(\"NFR-{next:03d}\"), allowed_links: {\"constrains\": [\"*\"], \"depends_on\": [\"*\"], \"references\": [\"*\"]}, roles: [], has_plugin: false, grammar_ref: Some(\"iso-spec-core\") }"
+      "body_extraction": "ExtractionDsl { yield_pattern: YieldPattern { match: Some({\"scope\": Primitive(SectionBody { after_heading: \"Scope\", required: true, multiple: false, regex: None, assert: None }), \"measurement\": Primitive(SectionBody { after_heading: \"Measurement and Evaluation\", required: true, multiple: false, regex: None, assert: None }), \"verification\": Primitive(SectionBody { after_heading: \"Verification\", required: true, multiple: false, regex: None, assert: None })}), iterate_over: None, per_match: None }, emit_edges: None }",
+      "carry_over": "ArchetypeCarryOver { id_pattern: None, allowed_links: {\"constrains\": [\"*\"], \"references\": [\"*\"]}, roles: [], has_plugin: false, grammar_ref: Some(\"req-core\") }"
     },
     {
-      "module": "spec-artifacts-iso",
-      "name": "Spec",
-      "body_extraction": null,
-      "carry_over": "ArchetypeCarryOver { id_pattern: None, allowed_links: {}, roles: [], has_plugin: false, grammar_ref: None }"
-    },
-    {
-      "module": "spec-artifacts-iso",
-      "name": "StR",
-      "body_extraction": "ExtractionDsl { yield_pattern: YieldPattern { match: Some({\"description\": Primitive(SectionBody { after_heading: \"Description\", required: true, multiple: false, regex: None, assert: None }), \"dependencies\": Primitive(SectionBody { after_heading: \"Dependencies\", required: true, multiple: false, regex: None, assert: None })}), iterate_over: None, per_match: None }, emit_edges: None }",
-      "carry_over": "ArchetypeCarryOver { id_pattern: Some(\"StR-{next:03d}\"), allowed_links: {\"depends_on\": [\"*\"], \"references\": [\"*\"], \"satisfied_by\": [\"*\"]}, roles: [], has_plugin: false, grammar_ref: Some(\"iso-spec-core\") }"
-    },
-    {
-      "module": "spec-artifacts-iso",
-      "name": "TC",
-      "body_extraction": "ExtractionDsl { yield_pattern: YieldPattern { match: Some({\"description\": Primitive(SectionBody { after_heading: \"Description\", required: true, multiple: false, regex: None, assert: None }), \"dependencies\": Primitive(SectionBody { after_heading: \"Dependencies\", required: true, multiple: false, regex: None, assert: None })}), iterate_over: None, per_match: None }, emit_edges: None }",
-      "carry_over": "ArchetypeCarryOver { id_pattern: Some(\"TC-{next:03d}\"), allowed_links: {\"references\": [\"*\"], \"verifies\": [\"*\"]}, roles: [], has_plugin: false, grammar_ref: Some(\"iso-spec-core\") }"
-    },
-    {
-      "module": "spec-artifacts-iso",
-      "name": "US",
-      "body_extraction": "ExtractionDsl { yield_pattern: YieldPattern { match: Some({\"description\": Primitive(SectionBody { after_heading: \"Description\", required: true, multiple: false, regex: None, assert: None }), \"dependencies\": Primitive(SectionBody { after_heading: \"Dependencies\", required: true, multiple: false, regex: None, assert: None })}), iterate_over: None, per_match: None }, emit_edges: None }",
-      "carry_over": "ArchetypeCarryOver { id_pattern: Some(\"US-{next:03d}\"), allowed_links: {\"references\": [\"*\"], \"satisfied_by\": [\"*\"], \"traces_to\": [\"*\"]}, roles: [], has_plugin: false, grammar_ref: Some(\"iso-spec-core\") }"
-    },
-    {
-      "module": "spec-artifacts-iso",
+      "module": "req-fixture",
       "name": "master-requirements",
       "body_extraction": "ExtractionDsl { yield_pattern: YieldPattern { match: Some({\"title\": Primitive(Heading { level: Some(1), path: None, required: true, multiple: false, regex: Some(\"^Master Requirements Specification$\"), assert: Some(LocatorAssert { level: Some(1), columns: None, optional_columns: None, min_rows: None, min_items: None, id_column: None, id_pattern: None, matches: None, choices: None, column_choices: None, column_patterns: None, from_vocabulary: None, column_vocabularies: None }) }), \"purpose\": Primitive(SectionBody { after_heading: \"Purpose\", required: true, multiple: false, regex: None, assert: Some(LocatorAssert { level: Some(2), columns: None, optional_columns: None, min_rows: None, min_items: None, id_column: None, id_pattern: None, matches: None, choices: None, column_choices: None, column_patterns: None, from_vocabulary: None, column_vocabularies: None }) }), \"scope\": Primitive(Heading { level: Some(2), path: None, required: true, multiple: false, regex: Some(\"^Scope$\"), assert: Some(LocatorAssert { level: Some(2), columns: None, optional_columns: None, min_rows: None, min_items: None, id_column: None, id_pattern: None, matches: None, choices: None, column_choices: None, column_patterns: None, from_vocabulary: None, column_vocabularies: None }) }), \"system_overview\": Primitive(Heading { level: Some(2), path: None, required: true, multiple: false, regex: Some(\"^System Overview$\"), assert: Some(LocatorAssert { level: Some(2), columns: None, optional_columns: None, min_rows: None, min_items: None, id_column: None, id_pattern: None, matches: None, choices: None, column_choices: None, column_patterns: None, from_vocabulary: None, column_vocabularies: None }) }), \"requirements_architecture\": Primitive(Heading { level: Some(2), path: None, required: true, multiple: false, regex: Some(\"^Requirements Architecture$\"), assert: Some(LocatorAssert { level: Some(2), columns: None, optional_columns: None, min_rows: None, min_items: None, id_column: None, id_pattern: None, matches: None, choices: None, column_choices: None, column_patterns: None, from_vocabulary: None, column_vocabularies: None }) }), \"references\": Primitive(SectionBody { after_heading: \"References\", required: true, multiple: false, regex: None, assert: Some(LocatorAssert { level: Some(2), columns: None, optional_columns: None, min_rows: None, min_items: None, id_column: None, id_pattern: None, matches: None, choices: None, column_choices: None, column_patterns: None, from_vocabulary: None, column_vocabularies: None }) })}), iterate_over: None, per_match: None }, emit_edges: None }",
-      "carry_over": "ArchetypeCarryOver { id_pattern: None, allowed_links: {\"depends_on\": [\"*\"], \"references\": [\"*\"]}, roles: [], has_plugin: false, grammar_ref: Some(\"iso-spec-core\") }"
+      "carry_over": "ArchetypeCarryOver { id_pattern: None, allowed_links: {\"references\": [\"*\"]}, roles: [], has_plugin: false, grammar_ref: Some(\"req-core\") }"
     }
   ]
 }

@@ -1198,7 +1198,7 @@ assert_eq!(normalize(value), expected);"#;
         );
 
         let found = oracle_copies_in(&extraction);
-        assert_eq!(found.len(), 1, "wild 59a180a7 slice: {found:#?}");
+        assert_eq!(found.len(), 1, "wild slice: {found:#?}");
         let finding = &found[0];
         assert_eq!(finding.kind, "oracle-resembles-implementation");
         assert_eq!(

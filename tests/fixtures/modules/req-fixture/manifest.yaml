@@ -1,0 +1,115 @@
+manifest_version: 1.0.0
+name: req-fixture
+version: 0.1.0
+description: 'Small hand-authored module for the validate/contract/binding tests: FR, NFR and master-requirements archetypes with a section-based body contract.'
+grammars:
+- name: req-core
+  version: 0.1.0
+  description: minimal requirement grammar
+  doc_kinds:
+  - spec
+artifact_types:
+- name: FR
+  grammar_ref: req-core
+  frontmatter_schema_ref: schemas/fr-frontmatter.schema.json
+  allowed_links:
+  - references
+  - depends_on
+  examples: []
+  lint_rules_ref: []
+  body_extraction:
+    yield_pattern:
+      match:
+        description:
+          from: section_body
+          after_heading: Description
+          required: true
+        specification:
+          from: section_body
+          after_heading: Specification
+          required: true
+        acceptance_criteria:
+          from: section_body
+          after_heading: Acceptance Criteria
+          required: true
+        dependencies:
+          from: section_body
+          after_heading: Dependencies
+          required: true
+- name: NFR
+  grammar_ref: req-core
+  frontmatter_schema_ref: schemas/nfr-frontmatter.schema.json
+  allowed_links:
+  - constrains
+  - references
+  examples: []
+  lint_rules_ref: []
+  body_extraction:
+    yield_pattern:
+      match:
+        scope:
+          from: section_body
+          after_heading: Scope
+          required: true
+        measurement:
+          from: section_body
+          after_heading: Measurement and Evaluation
+          required: true
+        verification:
+          from: section_body
+          after_heading: Verification
+          required: true
+- name: master-requirements
+  grammar_ref: req-core
+  frontmatter_schema_ref: schemas/master-requirements-frontmatter.schema.json
+  allowed_links:
+  - references
+  examples: []
+  lint_rules_ref: []
+  body_extraction:
+    yield_pattern:
+      match:
+        title:
+          from: heading
+          level: 1
+          regex: ^Master Requirements Specification$
+          required: true
+          assert:
+            level: 1
+        purpose:
+          from: section_body
+          after_heading: Purpose
+          required: true
+          assert:
+            level: 2
+        scope:
+          from: heading
+          level: 2
+          regex: ^Scope$
+          required: true
+          assert:
+            level: 2
+        system_overview:
+          from: heading
+          level: 2
+          regex: ^System Overview$
+          required: true
+          assert:
+            level: 2
+        requirements_architecture:
+          from: heading
+          level: 2
+          regex: ^Requirements Architecture$
+          required: true
+          assert:
+            level: 2
+        references:
+          from: section_body
+          after_heading: References
+          required: true
+          assert:
+            level: 2
+doc_kinds:
+- spec
+object_types: []
+lint_rules: []
