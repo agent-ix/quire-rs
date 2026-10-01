@@ -48,8 +48,6 @@ pub struct SemanticExtraction {
     pub semantic_core: String,
     pub package: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub schema_digest: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub fields: Option<Vec<FieldDecl>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub fields_form: Option<FieldsForm>,
@@ -149,7 +147,6 @@ impl RequiredSections {
 pub fn extract_semantic(
     raw: &str,
     ctx: &SemanticContext,
-    schema_digest: Option<&str>,
     required: &RequiredSections,
 ) -> SemanticExtraction {
     let declared_lossy = ctx.module.compatibility_posture == "declared-lossy";
@@ -283,7 +280,6 @@ pub fn extract_semantic(
         contract_version: ctx.module.contract_version.clone(),
         semantic_core: ctx.module.semantic_core.clone(),
         package: ctx.module.package.clone(),
-        schema_digest: schema_digest.map(str::to_string),
         fields: fields.fields,
         fields_form: fields.form,
         clauses: clauses.clauses,

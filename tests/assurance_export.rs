@@ -289,42 +289,6 @@ fn tc1086_tc1088_premises_and_bytes_are_deterministic() {
     original_value["source"]["revision"] = Value::Null;
     changed_value["source"]["revision"] = Value::Null;
     assert_eq!(original_value, changed_value);
-
-    let manifest = b"name: digest-fixture\nversion: 1.0.0\nartifact_types:\n- name: FR\n  frontmatter_schema_ref: fr.json\n";
-    let registry_with = |schema: &str| {
-        let mut schemas = BTreeMap::new();
-        schemas.insert("fr.json".to_string(), schema.to_string());
-        Registry::from_inline_parts(manifest, &schemas).expect("digest registry")
-    };
-    let digest_of = |registry: &Registry| {
-        build_assurance_export(AssuranceInput {
-            spec: &fixture.spec,
-            registry,
-            corpus_root: fixture._tmp.path().join("spec").as_path(),
-            symbols: &fixture.symbols,
-            symbol_graph: &fixture.graph,
-            source: AssuranceSource {
-                repository: "agent-ix/fixture".to_string(),
-                revision: REVISION.to_string(),
-            },
-        })
-        .expect("digest export")
-        .modules[0]
-            .schemas[0]
-            .schema_digest
-            .clone()
-    };
-    let ordered = registry_with(
-        r#"{"type":"object","properties":{"a":{"type":"string"},"b":{"type":"number"}}}"#,
-    );
-    let reordered = registry_with(
-        r#"{ "properties": { "b": { "type": "number" }, "a": { "type": "string" } }, "type": "object" }"#,
-    );
-    let changed = registry_with(
-        r#"{"type":"object","properties":{"a":{"type":"boolean"},"b":{"type":"number"}}}"#,
-    );
-    assert_eq!(digest_of(&ordered), digest_of(&reordered));
-    assert_ne!(digest_of(&ordered), digest_of(&changed));
 }
 
 #[trace("TC-1087", "FR-067-AC-4", "StR-007-VC-2")]
@@ -351,12 +315,6 @@ fn tc1087_reader_rejects_unsupported_premises_before_returning_records() {
         Err(AssuranceError::UnacceptedModuleVersion { .. })
     ));
     rejected = accepted.clone();
-    rejected.modules[0].schemas[0].schema_digest = "0".repeat(64);
-    assert!(matches!(
-        read_assurance_export(include_bytes!("fixtures/assurance/v1.json"), &rejected),
-        Err(AssuranceError::UnacceptedSchemaDigest { .. })
-    ));
-    rejected = accepted.clone();
     rejected.modules.clear();
     assert!(matches!(
         read_assurance_export(include_bytes!("fixtures/assurance/v1.json"), &rejected),
@@ -375,8 +333,7 @@ fn tc1087_reader_rejects_unsupported_premises_before_returning_records() {
     ));
 
     let mut duplicate_schemas = golden();
-    let mut duplicate = duplicate_schemas["modules"][0]["schemas"][0].clone();
-    duplicate["schema_digest"] = Value::String("f".repeat(64));
+    let duplicate = duplicate_schemas["modules"][0]["schemas"][0].clone();
     duplicate_schemas["modules"][0]["schemas"]
         .as_array_mut()
         .unwrap()

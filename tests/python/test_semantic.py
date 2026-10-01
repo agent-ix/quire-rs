@@ -81,7 +81,6 @@ def test_extract_filament_core_carries_the_semantic_record():
                         "package": "agent-ix/spec-objects-fixture",
                         "exports": ["entity"],
                         "imports": {},
-                        "schemaDigest": _expected()["golden-table-available"]["schemaDigest"],
                     },
                 }
             ],

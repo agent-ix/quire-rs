@@ -20,7 +20,7 @@ relationships:
 `agent-ix/quoin#293` fixed the Markdown mapping (typed `## Properties` table
 or a `sysml` fence to `FieldDecl[]`; `## Invariants` and `## Operations` to
 `ClauseRef[]` and `OperationDecl[]`) and the module `semantic` block that
-names the semantic-core version and the emitted JSON Schema by digest. Quire
+names the semantic-core version. Quire
 already extracts the `Properties` section as one string (`section_body`).
 This story adds the declaration-level extraction under that contract while
 keeping Quire an extraction engine: fence bodies are carried verbatim, never

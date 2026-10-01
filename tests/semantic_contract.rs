@@ -827,7 +827,7 @@ fn rust_callers_gate_model_tables_through_the_public_context() {
     let gated = bare.clone().with_body_extraction(&typed);
     let required = RequiredSections::default();
 
-    let record = extract_semantic(&doc, &gated, None, &required);
+    let record = extract_semantic(&doc, &gated, &required);
     let model = record
         .model
         .as_ref()
@@ -859,7 +859,7 @@ fn rust_callers_gate_model_tables_through_the_public_context() {
     assert_eq!(record, adapter, "the typed path and the adapter agree");
 
     // The control: no `body_extraction`, so the table is refused.
-    let refused = extract_semantic(&doc, &bare, None, &required);
+    let refused = extract_semantic(&doc, &bare, &required);
     assert!(refused.model.is_none());
     assert!(
         refused

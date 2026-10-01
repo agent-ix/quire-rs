@@ -996,7 +996,6 @@ fn spec_objects_architecture_systems_skeletons_validate_with_zero_errors() {
         let record = quire_rs::semantic::extract_semantic(
             &text,
             &ctx,
-            None,
             &quire_rs::semantic::RequiredSections::default(),
         )
         .declaration_record()

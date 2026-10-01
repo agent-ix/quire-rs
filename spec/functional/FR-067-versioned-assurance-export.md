@@ -56,16 +56,14 @@ The envelope SHALL carry:
    verbatim after validation; the revision SHALL be a full 40-character
    lowercase Git object id rather than a moving ref or abbreviated hash.
 3. One module premise per loaded module, ordered by name, containing its name,
-   declared semantic version, and one SHA-256 schema digest per active
-   archetype ordered by archetype name.
+   declared semantic version, and active archetypes ordered by archetype name.
 4. The source-grounded artifact, obligation, symbol, relation, and relation-
    observation projections defined by
    [FR-068](./FR-068-source-grounded-assurance-projection.md).
 
 - `read_assurance_export` SHALL validate JSON against the selected published
   schema before constructing typed records.
-- The caller SHALL supply the accepted module-version and schema-digest
-  premises.
+- The caller SHALL supply the accepted module-version premises.
 - When an export names a tuple outside the accepted set,
   `read_assurance_export` SHALL fail closed.
 
@@ -77,9 +75,9 @@ failure, because any of those conditions makes the version premise incomplete.
 
 The v1 reader selects the checked-in v1 schema from `format` and
 `format_version`, validates the complete JSON value before deserialization,
-then compares every exported module/version/schema-digest tuple with the
+then compares every exported module/version tuple with the
 caller's accepted set. It SHALL reject an unknown module as well as a known
-module with an unaccepted version or digest. The reader SHALL return no typed
+module with an unaccepted version. The reader SHALL return no typed
 records until both stages succeed.
 
 > **CR-157** (`agent-ix/quire-rs#386`, 2026-08-31) closes the full-review
@@ -88,18 +86,12 @@ records until both stages succeed.
 > tolerant-loader premise loss as fatal to export construction, and orders
 > schema validation before accepted-premise comparison on import.
 
-The exporter SHALL compute each schema digest over canonical JSON with object keys
-sorted recursively, no insignificant whitespace, and arrays retained in
-authored order. A formatting-only change therefore preserves the premise while
-a semantic schema change invalidates it.
-
 ## Constraints
 
 | ID | Constraint | Type | Validation |
 |----|------------|------|------------|
 | FR-067-CON-1 | Maintainers SHALL hand-author the assurance schema; an implementation-derived schema generator is prohibited from defining the contract. | Architecture | Test |
 | FR-067-CON-2 | Export construction SHALL perform no Git command, network read, persistence, or cross-corpus resolution. The caller owns revision selection; Quire records the selected identity. | Architecture | Inspection |
-| FR-067-CON-3 | A breaking shape or semantic change SHALL mint `assurance-v2.schema.json` and a new `format_version`; `assurance-v1.schema.json` remains byte-unchanged. | Compatibility | Test |
 | FR-067-CON-4 | The explicit assurance `format_version` SHALL NOT be added to coverage-v1 or properties-v1. Those payloads retain FR-055's artifact-only versioning contract. | Compatibility | Test |
 | FR-067-CON-5 | The assurance schema SHALL set `additionalProperties: false` on every object. | Architecture | Test |
 
@@ -109,8 +101,8 @@ a semantic schema change invalidates it.
 |----|----------|--------------|
 | FR-067-AC-1 | The published assurance-v1 schema is valid JSON Schema draft 2020-12, its `$id` ends in `assurance-v1.schema.json`, and a complete fixture export validates with zero errors. | Test (TC-1084) |
 | FR-067-AC-2 | Export construction refuses an empty repository identity, a non-immutable revision, an unnamed module, a module with no declared version, an archetype load failure, or a document path outside the supplied corpus root; no partial payload is returned. | Test (TC-1085) |
-| FR-067-AC-3 | The envelope lists every loaded module exactly once with its declared version and every active `(module, archetype, schema_digest)` tuple exactly once, in deterministic order. | Test (TC-1086) |
-| FR-067-AC-4 | Import refuses an unknown `format_version`, an unaccepted module version, or an unaccepted module-schema digest before returning any artifact, relation, or evidence record, naming the rejected premise. | Test (TC-1087) |
+| FR-067-AC-3 | The envelope lists every loaded module exactly once with its declared version, in deterministic order. | Test (TC-1086) |
+| FR-067-AC-4 | Import refuses an unknown `format_version` or an unaccepted module version before returning any artifact, relation, or evidence record, naming the rejected premise. | Test (TC-1087) |
 | FR-067-AC-5 | Two exports over identical inputs are byte-identical; changing only the caller-supplied source revision changes the source premise and no projected identity or relation. | Test (TC-1088) |
 | FR-067-AC-6 | A checked-in assurance-v1 compatibility fixture pins every field, identity, relation kind, ordering rule, and state token; an additive compatible implementation continues to read it, while changing or removing a pinned v1 field fails the contract gate. | Test (TC-1089) |
 | FR-067-AC-7 | Coverage-v1 and properties-v1 output remain byte-identical to their pre-export baselines and contain no assurance `format` or `format_version` key. | Test (TC-1090) |

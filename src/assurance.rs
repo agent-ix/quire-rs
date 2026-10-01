@@ -34,7 +34,6 @@ pub struct AssuranceSource {
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct AssuranceSchemaPremise {
     pub archetype: String,
-    pub schema_digest: String,
 }
 
 /// One loaded module and its first-wins active archetypes.
@@ -267,12 +266,6 @@ pub enum AssuranceError {
     UnacceptedModule { module: String },
     #[error("module '{module}' version '{version}' is not accepted")]
     UnacceptedModuleVersion { module: String, version: String },
-    #[error("module '{module}' archetype '{archetype}' schema digest '{digest}' is not accepted")]
-    UnacceptedSchemaDigest {
-        module: String,
-        archetype: String,
-        digest: String,
-    },
     #[error("assurance premise set contains duplicate module '{module}'")]
     DuplicateModulePremise { module: String },
     #[error("assurance module '{module}' contains duplicate archetype '{archetype}'")]
@@ -419,7 +412,6 @@ fn module_premises(registry: &Registry) -> Result<Vec<AssuranceModulePremise>, A
         };
         module.schemas.push(AssuranceSchemaPremise {
             archetype: archetype.name.clone(),
-            schema_digest: digest_json(&archetype.raw_schema)?,
         });
     }
     for module in modules.values_mut() {
@@ -839,16 +831,6 @@ fn validate_accepted_premises(
                 version: module.version.clone(),
             });
         }
-        let accepted_schemas: BTreeSet<_> = expected.schemas.iter().collect();
-        for schema in &module.schemas {
-            if !accepted_schemas.contains(schema) {
-                return Err(AssuranceError::UnacceptedSchemaDigest {
-                    module: module.name.clone(),
-                    archetype: schema.archetype.clone(),
-                    digest: schema.schema_digest.clone(),
-                });
-            }
-        }
     }
     Ok(())
 }
@@ -872,13 +854,6 @@ fn validate_premise_uniqueness(modules: &[AssuranceModulePremise]) -> Result<(),
         }
     }
     Ok(())
-}
-
-fn digest_json(value: &Value) -> Result<String, AssuranceError> {
-    let bytes = serde_json::to_vec(value).map_err(|error| AssuranceError::Serialization {
-        reason: error.to_string(),
-    })?;
-    Ok(digest_bytes(&bytes))
 }
 
 fn digest_bytes(bytes: &[u8]) -> String {

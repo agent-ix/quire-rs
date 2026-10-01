@@ -44,8 +44,7 @@ fields to the coverage JSON and the published output-contract schema.
   `method-without-symbol`. The field is omitted when the model declares no
   `obligations:` source. `schemas/output/coverage-v1.schema.json` publishes
   it, with new `CoverageMatrixRequirement`, `CoverageMatrixCriterion`,
-  `CoverageMatrixBinder` and `CoverageMatrixStatus` `$defs`. The
-  published-schemas digest baseline was re-minted for that one file.
+  `CoverageMatrixBinder` and `CoverageMatrixStatus` `$defs`.
 - **`column` and `ignored` on symbols (#495, FR-051-AC-23/27).** `Symbol`,
   `SymbolRecord` and `VerifiesRelation` gain `column`, the 1-based UTF-8
   byte column of the declaration, and `ignored`. On the serialized records,

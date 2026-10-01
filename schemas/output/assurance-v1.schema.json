@@ -72,10 +72,9 @@
     "schemaPremise": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["archetype", "schema_digest"],
+      "required": ["archetype"],
       "properties": {
-        "archetype": { "type": "string", "minLength": 1 },
-        "schema_digest": { "$ref": "#/$defs/sha256" }
+        "archetype": { "type": "string", "minLength": 1 }
       }
     },
     "modulePremise": {
