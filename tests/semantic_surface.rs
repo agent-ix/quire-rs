@@ -320,13 +320,13 @@ fn filament_surface_with_and_without_context() {
 }
 
 #[trace("TC-1634", "FR-072-AC-5")]
-// validate_document over the corpus copy warns at its line; over both-forms
+// validate_document over the free-table fixture warns at its line; over both-forms
 // it errors at the fence line and fails validation.
 #[test]
 fn validate_document_surface() {
     let registry = Registry::load_module(&quire_fixtures::module_ok_dir()).unwrap();
     let entity = registry.archetype("entity").unwrap();
-    let corpus = quire_fixtures::corpus_config_service_fixture("FR-006-config-version-entity.md");
+    let corpus = quire_fixtures::mapping_fixture("legacy-free-table.md");
     let result = quire_rs::validate_document_in_registry(&registry, entity, &corpus);
     let legacy = result
         .warnings

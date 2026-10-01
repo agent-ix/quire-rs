@@ -48,8 +48,7 @@ The engine SHALL leave the existing `properties` string yielded by
   that has none passes an empty index, which is an explicit state, not a
   default.
 - The golden fixtures vendored read-only from `agent-ix/quoin`
-  `tests/fixtures/semantic-module/mapping/` and
-  `tests/fixtures/semantic-module/corpus/config-service/`, plus a quire-rs-authored `config-version.bundle.json` index
+  `tests/fixtures/semantic-module/mapping/`, plus a quire-rs-authored `config-version.bundle.json` index
   (`{ objects: [{ id: "FR-006", names: ["ConfigVersion"] }, { id: "FR-005", names: ["ConfigOverlay"] }] }`)
   under which the golden cases run.
 

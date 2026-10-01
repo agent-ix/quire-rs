@@ -7,10 +7,6 @@ use ix_trace_rs::trace;
 use quire_rs::grammar::quality::AmbiguityTerms;
 use quire_rs::{GrammarSeverity, Registry};
 
-fn iso_module() -> PathBuf {
-    PathBuf::from("/home/peter/dev/spec-artifacts-iso/spec_artifacts_iso")
-}
-
 /// A module declaring the FR archetype on `iso-spec-core`, plus whatever
 /// `ambiguity_terms` the caller wants.
 fn module_with_terms(suffix: &str, terms: &[&str]) -> PathBuf {
@@ -251,9 +247,9 @@ fn tc867_advisory_and_individually_addressable() {
 // two that exist (CON-4).
 #[test]
 fn tc868_ears_and_ac_findings_are_unchanged() {
-    // The ISO module carries the real archetypes, so this runs over the same
-    // grammar surface production does.
-    let registry = Registry::load_module(&iso_module()).expect("load iso");
+    // A self-contained module on the `iso-spec-core` grammar bundle, so this
+    // runs over the same grammar surface production does.
+    let registry = Registry::load_module(&module_with_terms("tc868", &[])).expect("load module");
     let archetype = registry.archetype("FR").expect("FR");
     let doc = "---\nid: FR-001\ntype: FR\ntitle: A requirement\n---\n\n\
                ## Description\n\nshall process the input adequately.\n\n\

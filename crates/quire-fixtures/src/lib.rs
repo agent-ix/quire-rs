@@ -52,12 +52,6 @@ pub fn module_ok_dir() -> PathBuf {
     fixtures_root().join("module-ok")
 }
 
-/// `fixtures/corpus/config-service` — real corpus documents for the
-/// `config-service` example module.
-pub fn corpus_config_service_dir() -> PathBuf {
-    fixtures_root().join("corpus").join("config-service")
-}
-
 /// One fixture file's text, from `fixtures/mapping`.
 pub fn mapping_fixture(name: &str) -> String {
     std::fs::read_to_string(mapping_dir().join(name))
@@ -68,12 +62,6 @@ pub fn mapping_fixture(name: &str) -> String {
 pub fn mapping_json(name: &str) -> Value {
     serde_json::from_str(&mapping_fixture(name))
         .unwrap_or_else(|e| panic!("mapping fixture {name}: invalid JSON: {e}"))
-}
-
-/// One fixture file's text, from `fixtures/corpus/config-service`.
-pub fn corpus_config_service_fixture(name: &str) -> String {
-    std::fs::read_to_string(corpus_config_service_dir().join(name))
-        .unwrap_or_else(|e| panic!("corpus/config-service fixture {name}: {e}"))
 }
 
 #[cfg(test)]
@@ -93,13 +81,6 @@ mod tests {
         assert!(dir.join("manifest.yaml").is_file());
         assert!(dir.join("schemas").join("Entity.json").is_file());
         assert!(dir.join("skeletons").is_dir());
-    }
-
-    #[test]
-    fn corpus_config_service_dir_is_nonempty() {
-        let dir = corpus_config_service_dir();
-        assert!(dir.is_dir(), "{dir:?}");
-        assert!(std::fs::read_dir(&dir).unwrap().next().is_some());
     }
 
     #[test]

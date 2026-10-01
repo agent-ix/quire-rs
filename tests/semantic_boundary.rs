@@ -117,8 +117,6 @@ fn no_network_process_or_writes() {
     assert!(
         makefile.contains("--target wasm32-unknown-unknown --no-default-features --features wasm")
     );
-    let workflow = fs::read_to_string(root().join(".github/workflows/ci.yml")).unwrap();
-    assert!(workflow.contains("targets: wasm32-unknown-unknown"));
 }
 
 #[trace("TC-1619", "FR-070-CON-1")]

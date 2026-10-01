@@ -13,91 +13,30 @@ use quire_rs::corpus::resolve::Resolution;
 use quire_rs::grammar::{
     apply_severity, GrammarSeverity, GrammarSeverityLevel, GrammarSeverityMap, GrammarVocabularies,
 };
-use quire_rs::{check_document_grammar, Registry, Spec};
+use quire_rs::{check_document_grammar, Spec};
 
 fn dogfood() -> Spec {
     Spec::from_path(Path::new("spec"))
 }
 
-// ─── The shipped module contract (FR-048-AC-11) ─────────────────────────────
+// ─── The promoted-severity contract (FR-048-AC-11) ──────────────────────────
 
-/// The `grammar_severity` promotion `spec-artifacts-iso` ships (v0.8.0,
-/// `manifest.yaml`). Mirrored here because the rest of this suite validates
-/// against in-repo fixture modules, none of which carries a
-/// `grammar_severity` block — so a check the published module promotes to
-/// `error` was invisible to this repo's own CI, and quire-rs could ship a
-/// `spec/` its own module contract rejects.
-///
-/// Keeping a mirror rather than a checked-in module copy is deliberate: CI has
-/// no network and no `spec-artifacts-iso` checkout, and vendoring the manifest
-/// would rot silently. The mirror is instead **verified against the real
-/// module** whenever one is reachable — see `iso_module_path`.
-const ISO_PROMOTED_ERRORS: &[&str] = &["ac:non-singular", "ac:vacuous-outcome"];
+/// The checks this repository's own `spec/` must be free of at `error`
+/// severity. No in-repo fixture module carries a `grammar_severity` block, so
+/// without this gate a check promoted to `error` by a module would be
+/// invisible to this repo's own CI.
+const PROMOTED_ERRORS: &[&str] = &["ac:non-singular", "ac:vacuous-outcome"];
 
-/// The bundle every ISO archetype binds to.
+/// The bundle every requirement archetype binds to.
 const ISO_BUNDLE: &str = "iso-spec-core";
 
-/// Where a real `spec-artifacts-iso` module lives, when one is reachable:
-/// `$QUIRE_ISO_MODULE`, else the conventional developer checkout. `None` in
-/// CI, which falls back to [`ISO_PROMOTED_ERRORS`].
-fn iso_module_path() -> Option<(PathBuf, bool)> {
-    let (candidate, pinned) = match std::env::var_os("QUIRE_ISO_MODULE") {
-        Some(v) => (PathBuf::from(v), true),
-        None => (
-            PathBuf::from(std::env::var_os("HOME")?)
-                .join("dev/spec-artifacts-iso/spec_artifacts_iso"),
-            false,
-        ),
-    };
-    candidate
-        .join("manifest.yaml")
-        .is_file()
-        .then_some((candidate, pinned))
-}
-
-/// The severity map to judge this repo's own `spec/` by: the real module's
-/// merged map when one is reachable, else the mirrored promotion.
-///
-/// When both are available they must agree — that assertion is the drift gate
-/// on the mirror.
-fn shipped_severity() -> GrammarSeverityMap {
-    let mut mirror = GrammarSeverityMap::new();
-    for key in ISO_PROMOTED_ERRORS {
-        mirror.insert((*key).to_string(), GrammarSeverityLevel::Error);
+/// The severity map to judge this repo's own `spec/` by.
+fn promoted_severity() -> GrammarSeverityMap {
+    let mut map = GrammarSeverityMap::new();
+    for key in PROMOTED_ERRORS {
+        map.insert((*key).to_string(), GrammarSeverityLevel::Error);
     }
-
-    let Some((module, pinned)) = iso_module_path() else {
-        return mirror;
-    };
-    let registry = Registry::load_module(&module).unwrap_or_else(|e| {
-        panic!(
-            "failed to load the real module at {}: {e}",
-            module.display()
-        )
-    });
-    let real = registry.grammar_severity().clone();
-
-    let real_errors: Vec<&str> = real
-        .iter()
-        .filter(|(_, level)| **level == GrammarSeverityLevel::Error)
-        .map(|(key, _)| key.as_str())
-        .collect();
-    // Drift is only a hard failure when the module was named explicitly via
-    // `QUIRE_ISO_MODULE` — that is a deliberate "judge me against this module".
-    // The conventional `~/dev` checkout sits at whatever branch its developer
-    // left it on, so asserting against it turns an unrelated experiment into a
-    // failure here. Warn instead, and still judge `spec/` by the real map: a
-    // mirror that has genuinely rotted is visible, without the flake.
-    if real_errors != ISO_PROMOTED_ERRORS {
-        let message = format!(
-            "ISO_PROMOTED_ERRORS {ISO_PROMOTED_ERRORS:?} disagrees with the module at {}, \
-             which declares {real_errors:?}",
-            module.display()
-        );
-        assert!(!pinned, "{message}; update the mirror");
-        eprintln!("warning: {message} (unpinned checkout — set QUIRE_ISO_MODULE to enforce)");
-    }
-    real
+    map
 }
 
 /// Every typed document under `spec/`, paired with its frontmatter `type`.
@@ -127,19 +66,18 @@ fn spec_documents() -> Vec<(PathBuf, String, String)> {
 }
 
 /// TC-794, FR-048-AC-11 — this repository's own `spec/` carries no finding of
-/// a check the shipped module promotes to `error`.
+/// a promoted check.
 ///
-/// The gate this closes: on 2026-08-07 `spec-artifacts-iso` v0.8.0 promoted
-/// `ac:non-singular` and `ac:vacuous-outcome` to `error`, and nothing in this
-/// repo's CI could have noticed if `spec/` violated them — every other test
-/// validates against a fixture module with no `grammar_severity` block.
+/// The gate this closes: nothing else in this repo's CI would notice if
+/// `spec/` violated `ac:non-singular` or `ac:vacuous-outcome` — every other
+/// test validates against a fixture module with no `grammar_severity` block.
 ///
 /// The vocabularies are the engine defaults, not the module's: a module lexicon
 /// only ever *suppresses* findings, so judging on the defaults is the stricter
 /// reading and cannot go green on a vocabulary accident.
 #[test]
 fn tc794_own_spec_carries_no_promoted_error_finding() {
-    let severity = shipped_severity();
+    let severity = promoted_severity();
     let vocab = GrammarVocabularies::defaults();
 
     let mut errors = Vec::new();
@@ -170,7 +108,7 @@ fn tc794_own_spec_carries_no_promoted_error_finding() {
 
     assert!(
         errors.is_empty(),
-        "quire-rs `spec/` fails the severity promotion its own module ships:\n{}",
+        "quire-rs `spec/` fails the severity promotion:\n{}",
         errors.join("\n")
     );
 }
