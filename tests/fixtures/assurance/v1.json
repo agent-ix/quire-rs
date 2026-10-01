@@ -11,8 +11,7 @@
       "version": "1.2.3",
       "schemas": [
         {
-          "archetype": "FR",
-          "schema_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          "archetype": "FR"
         }
       ]
     }

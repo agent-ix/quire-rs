@@ -35,7 +35,7 @@ make that disagreement detectable at the boundary.
 | ID | Criteria | Validation |
 |----|----------|------------|
 | StR-007-VC-1 | Every exported artifact, obligation, evidence symbol, and relationship resolves to a source location at the export's pinned repository revision. | Demonstration |
-| StR-007-VC-2 | A consumer refuses an export whose contract version, module version, or module-schema digest it does not recognize. | Test |
+| StR-007-VC-2 | A consumer refuses an export whose contract version or module version it does not recognize. | Test |
 | StR-007-VC-3 | A consumer can distinguish a required relationship that is missing from one that is not applicable or could not be evaluated. | Test |
 | StR-007-VC-4 | A compatibility fixture detects an unintended change to an identity, relationship kind, source locator, or state token. | Test |
 

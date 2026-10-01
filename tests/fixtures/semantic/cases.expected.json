@@ -786,7 +786,6 @@
     "fieldsForm": "table",
     "formatVersion": 1,
     "package": "agent-ix/spec-objects-fixture",
-    "schemaDigest": "sha256:8692992e186f40a73b78fd1b0915f0fe78e05a2b00782fb1df58c951a37c91d5",
     "semanticCore": "0.3.0"
   },
   "legacy-bullets-promoted": {
@@ -995,7 +994,6 @@
       }
     ],
     "package": "agent-ix/spec-objects-fixture",
-    "schemaDigest": "sha256:8692992e186f40a73b78fd1b0915f0fe78e05a2b00782fb1df58c951a37c91d5",
     "semanticCore": "0.3.0"
   },
   "required-invariants-missing": {

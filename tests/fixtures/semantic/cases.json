@@ -52,8 +52,7 @@
               "Requirement"
             ]
           }
-        },
-        "schemaDigest": "sha256:8692992e186f40a73b78fd1b0915f0fe78e05a2b00782fb1df58c951a37c91d5"
+        }
       },
       "expect": {
         "availability": {
@@ -196,8 +195,7 @@
               "Requirement"
             ]
           }
-        },
-        "schemaDigest": "sha256:8692992e186f40a73b78fd1b0915f0fe78e05a2b00782fb1df58c951a37c91d5"
+        }
       },
       "expect": {
         "availability": {

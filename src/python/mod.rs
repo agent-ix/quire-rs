@@ -553,7 +553,7 @@ fn extract_filament_core<'py>(
 /// FR-072 semantic extraction for one document. `request` is a mapping:
 /// `markdown`, `module` (contractVersion, semanticCore, package, exports,
 /// imports, compatibilityPosture, legacyForms), optional `path`,
-/// `sourceIdentity`, `scope`, `bundle` (BundleIndex), `schemaDigest`, and
+/// `sourceIdentity`, `scope`, `bundle` (BundleIndex), and
 /// `required` ({properties, invariants, operations}). Returns the
 /// `semantic-v1` record as native values.
 #[pyfunction]

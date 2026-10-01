@@ -210,11 +210,6 @@ fn availability_states_are_exercised_and_distinct() {
     );
 }
 
-/// The digest the registry owner recorded over Entity.json (FR-069: Quire
-/// passes it through, never minting a second one).
-const SNAPSHOT_DIGEST: &str =
-    "sha256:8692992e186f40a73b78fd1b0915f0fe78e05a2b00782fb1df58c951a37c91d5";
-
 fn fixture_snapshot(with_context: bool) -> FilamentExtractionInput {
     let entity: Value = serde_json::from_str(
         &fs::read_to_string(quire_fixtures::module_ok_dir().join("schemas/Entity.json")).unwrap(),
@@ -233,7 +228,7 @@ fn fixture_snapshot(with_context: bool) -> FilamentExtractionInput {
         "moduleId": "spec-objects-fixture"
     });
     if with_context {
-        object_type["semantic"] = json!({ "contractVersion": "1.0.0", "semanticCore": "0.3.0", "package": "agent-ix/spec-objects-fixture", "exports": ["entity"], "imports": {}, "schemaDigest": SNAPSHOT_DIGEST });
+        object_type["semantic"] = json!({ "contractVersion": "1.0.0", "semanticCore": "0.3.0", "package": "agent-ix/spec-objects-fixture", "exports": ["entity"], "imports": {} });
     }
     let mut input = json!({
         "projectId": "p", "documentId": "d", "artifactId": "a", "relPath": "spec/functional/FR-006.md",
@@ -272,12 +267,8 @@ fn filament_surface_with_and_without_context() {
         semantic["clauses"][0]["sourceSpan"]["path"],
         "spec/functional/FR-006.md"
     );
-    assert_eq!(
-        semantic["schemaDigest"], SNAPSHOT_DIGEST,
-        "passed through, not re-minted"
-    );
     // The Filament record equals the library record for the same inputs
-    // (golden-table-available carries the same digest, identity, and path).
+    // (golden-table-available carries the same identity and path).
     let expected = read_json("tests/fixtures/semantic/cases.expected.json");
     assert_eq!(semantic, &expected["golden-table-available"]);
     assert!(schema().is_valid(semantic));
@@ -481,7 +472,6 @@ fn schema_and_compatibility_fixture() {
         "contractVersion",
         "semanticCore",
         "package",
-        "schemaDigest",
         "fields",
         "fieldsForm",
         "clauses",

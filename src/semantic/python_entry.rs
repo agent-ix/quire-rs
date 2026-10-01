@@ -51,8 +51,6 @@ struct Request {
     #[serde(default)]
     bundle: Option<BundleIndex>,
     #[serde(default)]
-    schema_digest: Option<String>,
-    #[serde(default)]
     required: Option<Value>,
     /// The object type's `body_extraction` DSL; its `table_row` locators
     /// gate FR-075 tables.
@@ -116,7 +114,6 @@ pub fn extract_semantic_json(request: &Value) -> Result<SemanticExtraction, Stri
     Ok(extract_semantic(
         &req.markdown,
         &ctx,
-        req.schema_digest.as_deref(),
         &required,
     ))
 }

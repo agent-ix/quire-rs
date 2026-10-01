@@ -33,7 +33,7 @@ boundary and leaves Quire's module-declared semantics intact.
 
 ### US-018-EX-2: An unsupported premise is refused
 
-- **Given** an export naming an unknown contract version or module-schema digest
+- **Given** an export naming an unknown contract version
 - **When** the assurance tool imports it
 - **Then** import stops before any claim or relationship is returned
 

@@ -11,7 +11,6 @@
     "contractVersion": { "const": "1.0.0" },
     "semanticCore": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
     "package": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*/[a-z0-9][a-z0-9._-]*$" },
-    "schemaDigest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
     "fields": { "type": "array", "items": { "$ref": "#/$defs/fieldDecl" } },
     "fieldsForm": { "enum": ["table", "fence"] },
     "clauses": { "type": "array", "items": { "$ref": "#/$defs/clauseRef" } },

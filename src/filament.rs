@@ -88,15 +88,6 @@ pub struct SemanticSnapshot {
     /// The module `semantic.mappings`; FR-075 features are gated on it.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub mappings: Vec<String>,
-    /// The `sha256:<hex>` the registry owner recorded over the shipped
-    /// schema bytes (FR-069); Quire never mints a second digest.
-    #[serde(
-        rename = "schemaDigest",
-        alias = "schema_digest",
-        default,
-        skip_serializing_if = "Option::is_none"
-    )]
-    pub schema_digest: Option<String>,
 }
 
 impl FilamentObjectType {
@@ -1187,7 +1178,6 @@ fn attach_semantic(
     let record = crate::semantic::extract_semantic(
         &input.markdown,
         &ctx,
-        snapshot.schema_digest.as_deref(),
         &required,
     );
     // The resolved data schema validates the declaration record (FR-069-AC-1).

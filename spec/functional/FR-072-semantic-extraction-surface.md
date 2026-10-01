@@ -46,8 +46,7 @@ not be read.
 Disposition of the ticket's shared-contract deliverables: graph node and edge
 records of [FR-045](./FR-045-filament-core-extraction-engine.md) are unchanged
 and the semantic record attaches to the node; the assurance export of
-[FR-067](./FR-067-versioned-assurance-export.md) carries the module-schema
-digest tuple only, and a semantic projection into it is deferred to
+[FR-067](./FR-067-versioned-assurance-export.md): a semantic projection into it is deferred to
 `agent-ix/filament-core-data#36`; lossless byte preservation is met by the
 verbatim `clauseText` and the byte-identity constraints below.
 
@@ -73,7 +72,7 @@ verbatim `clauseText` and the byte-identity constraints below.
 
 - Library: `extract_semantic(document, context) -> SemanticExtraction`, a
   `serde` value `{ formatVersion: 1, contractVersion, semanticCore, package,
-  schemaDigest, fields?, fieldsForm?, clauses?, clauseText?, operations?,
+  fields?, fieldsForm?, clauses?, clauseText?, operations?,
   model?, relations?, relationSources?, availability, diagnostics }`, where
   `model` and `availability.model` are the model features of
   [FR-075](./FR-075-model-feature-extraction.md), and `relations`,

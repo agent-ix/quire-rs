@@ -27,7 +27,7 @@ vendored `assurance-v1.schema.json` contract; no network service participates.
 ## Preconditions
 
 - A clean fixture repository is checked out at a full immutable revision.
-- The fixture module version and schema digests are in Quoin's accepted premise
+- The fixture module version is in Quoin's accepted premise
   set.
 - The fixture contains one resolved and one dangling corpus relation, test and
   production bindings, an obligation, and all relation-availability states.
@@ -38,7 +38,7 @@ vendored `assurance-v1.schema.json` contract; no network service participates.
 
 - The selected Quire binary and fixture module.
 - The fixture repository identity and exact revision.
-- Quoin's accepted format, module-version, and schema-digest premises.
+- Quoin's accepted format and module-version premises.
 
 ## Test Procedure
 
@@ -56,8 +56,8 @@ vendored `assurance-v1.schema.json` contract; no network service participates.
    auditor verdicts.
    - IT-001-SC-04: the rendered parent-child relationships equal the Quire
      export, and no Quoin frontmatter reader is invoked.
-5. Change the format version, one module version, and one module-schema digest
-   in three independent copies.
+5. Change the format version and one module version
+   in two independent copies.
    - IT-001-SC-05: each copy is refused before any graph record is returned,
      naming the changed premise.
 6. Read the fixture's missing and not-applicable relation observations.
