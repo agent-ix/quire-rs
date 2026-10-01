@@ -32,7 +32,7 @@ def frame_and_rulings():
     frame = {
         "date": "2026-08-27",
         "seed": "seed",
-        "provenance": {"cli": "1", "engine": "2", "module_revision": "abc"},
+        "provenance": {"cli": "1", "engine": "2"},
         "population": {"production-symbol": 10, "module-scope": 2},
         "sample_ids": ["p", "m"],
         "candidates": [

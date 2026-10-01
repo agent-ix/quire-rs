@@ -58,15 +58,7 @@ def digest(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
 
-def repository_state(repo: pathlib.Path) -> tuple[str, bool]:
-    revision = subprocess.run(
-        ["git", "-C", str(repo), "rev-parse", "HEAD"],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if revision.returncode:
-        raise CalibrationError(f"{repo.name}: cannot read git revision")
+def repository_dirty(repo: pathlib.Path) -> bool:
     status = subprocess.run(
         ["git", "-C", str(repo), "status", "--porcelain"],
         capture_output=True,
@@ -75,20 +67,7 @@ def repository_state(repo: pathlib.Path) -> tuple[str, bool]:
     )
     if status.returncode:
         raise CalibrationError(f"{repo.name}: cannot read git status")
-    dirty = bool(status.stdout.strip())
-    return revision.stdout.strip(), dirty
-
-
-def module_revision(module: pathlib.Path) -> str:
-    done = subprocess.run(
-        ["git", "-C", str(module), "rev-parse", "HEAD"],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if done.returncode:
-        raise CalibrationError(f"cannot resolve module revision for {module}")
-    return done.stdout.strip()
+    return bool(status.stdout.strip())
 
 
 def source_occurrences(
@@ -130,7 +109,6 @@ def source_occurrences(
 
 def candidate(
     repo: pathlib.Path,
-    revision: str,
     dirty: bool,
     finding: dict,
 ) -> dict:
@@ -150,12 +128,11 @@ def candidate(
     stratum = "module-scope" if parsed["kind"] == "container" else "production-symbol"
     occurrences = source_occurrences(repo, path, line, parsed["trace_id"])
     identity = "\0".join(
-        [repo.name, revision, path, str(line), parsed["trace_id"], parsed["symbol"]]
+        [repo.name, path, str(line), parsed["trace_id"], parsed["symbol"]]
     )
     return {
         "id": digest(identity)[:20],
         "repo": repo.name,
-        "repo_revision": revision,
         "repo_dirty": dirty,
         "path": path,
         "line": line,
@@ -217,7 +194,7 @@ def collect(args: argparse.Namespace) -> tuple[dict, dict]:
             raise CalibrationError(
                 f"{repo.name}: engine identity changed during collection"
             )
-        revision, dirty = repository_state(repo)
+        dirty = repository_dirty(repo)
         findings = [
             diagnostic
             for diagnostic in report.get("diagnostics", [])
@@ -226,12 +203,11 @@ def collect(args: argparse.Namespace) -> tuple[dict, dict]:
         repo_states.append(
             {
                 "repo": repo.name,
-                "revision": revision,
                 "dirty": dirty,
                 "candidates": len(findings),
             }
         )
-        rows.extend(candidate(repo, revision, dirty, finding) for finding in findings)
+        rows.extend(candidate(repo, dirty, finding) for finding in findings)
         print(
             f"tag precision: {index}/{len(selected_repos)} {repo.name} ({len(findings)})",
             file=sys.stderr,
@@ -258,7 +234,6 @@ def collect(args: argparse.Namespace) -> tuple[dict, dict]:
             "cli": engine_identity[0],
             "engine": engine_identity[1],
             "capabilities": list(engine_identity[2]),
-            "module_revision": module_revision(module),
             "repositories_enumerated": len(enumerated),
             "repositories_scanned": len(selected_repos),
             "excluded": sorted(excluded),
@@ -398,7 +373,6 @@ def render(frame: dict, rulings: dict, result: dict) -> str:
         f"- Candidate population: **{result['population']}**",
         f"- Deterministic sample: **{result['sample']}** (`{frame['seed']}`)",
         f"- Engine: `{frame['provenance']['cli']}` / `{frame['provenance']['engine']}`",
-        f"- Module revision: `{frame['provenance']['module_revision']}`",
         f"- Decision: **{result['decision']}**",
         "",
         "## Adjudication",
