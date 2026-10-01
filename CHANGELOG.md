@@ -7,6 +7,21 @@ bumps; once 1.0 ships, semver is strict.
 
 ## [Unreleased]
 
+## [0.49.1] — 2026-10-01
+
+Patch bump: removal of recorded-revision, lock, fingerprint and pin tracking
+that protected nothing. No public API change.
+
+### Removed
+
+- Recorded-revision, lock and fingerprint tracking, including the validation
+  stack lock and tool-drift check (#502).
+- The benchmark `pinned_sha`, the authored clause-set `digest` field and its
+  loader verification, and the TC-1825 gate record (#503); emitted
+  `clauseSetDigest` / `beforeDigest` / `afterDigest` are kept, now computed
+  from content.
+- Recorded revisions from tag-precision calibration (#504).
+
 ## [0.49.0] — 2026-09-30
 
 Minor bump: the semantic `data_schema` reference loses its pin key, and the
