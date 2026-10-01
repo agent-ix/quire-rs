@@ -93,9 +93,9 @@ impl RepoLoad {
 > justification are withdrawn.
 >
 > **The constant meant something else upstream.** In `loader.py` it was a
-> **graph-ingestion** filter. `filament-parser-lib` commit `1d17b6f` states it
+> **graph-ingestion** filter. `filament-parser-lib` states it
 > outright: the listed files "validate via quire as their own archetypes but
-> are **not graph nodes**." quire-rs commit `8dc32a5` copied the list into
+> are **not graph nodes**." an earlier quire-rs commit copied the list into
 > `load_repo` — a *validation* loader — and *"not a graph node"* silently became
 > *"not a document."*
 >

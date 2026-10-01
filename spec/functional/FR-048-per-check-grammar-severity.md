@@ -55,8 +55,8 @@ matching the empty-lexicon degradation documented in FR-043.
 
 > **CR-031 note — the promotion is now dogfooded (2026-08-08).** A module can
 > promote a check to `error` without this repository's CI noticing: every test
-> here validated against `tests/fixtures/modules/iso`, a fixture that declares
-> no `grammar_severity`, so quire-rs could ship a `spec/` its own published
+> here validated against the in-repo fixture modules, none of which declares a
+> `grammar_severity` block, so quire-rs could ship a `spec/` its own published
 > module contract rejects and stay green. AC-11 closes that: the dogfood gate
 > judges this repo's own `spec/` under the promotion `spec-artifacts-iso` ships.
 > Because CI has neither network nor a module checkout, the promoted keys are

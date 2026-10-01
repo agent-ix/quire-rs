@@ -28,8 +28,7 @@ is not subject to ratio silent-zero rules.
 
 ## Collection and Provenance
 
-Retain the raw coverage payload, tool and engine versions, module digest,
-source and corpus revisions, configuration, and timestamp.
+Retain the raw coverage payload, configuration, and timestamp.
 
 ## Environment and Sampling
 

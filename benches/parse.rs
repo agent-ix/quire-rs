@@ -91,8 +91,8 @@ fn bench_parse(c: &mut Criterion) {
 /// legacy form's list separator is a comma only, so a `/`-separated pair binds
 /// the first id and drops the second in silence (agent-ix/quire-rs#126).
 fn bench_validate_document(c: &mut Criterion) {
-    let module = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/modules/iso");
-    let registry = Registry::load_module(&module).expect("load iso module");
+    let module = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/modules/req-fixture");
+    let registry = Registry::load_module(&module).expect("load req-fixture module");
     let arch = registry.archetype("FR").expect("FR archetype loaded");
 
     let mut group = c.benchmark_group("validate_document");

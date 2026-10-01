@@ -94,7 +94,7 @@ and as **WebAssembly**.
 **Hardening**
 - `#![forbid(unsafe_code)]` by default (no first-party `unsafe`), determinism gates
   (`BTreeMap`/`IndexMap` over `HashMap`, proptest, loom), criterion perf-regression gates,
-  cargo-fuzz targets, and `cargo-deny` license/source allowlists. MSRV 1.98.1.
+  cargo-fuzz targets, and `cargo-deny` license/source allowlists.
 
 ## Install & use
 
@@ -177,8 +177,7 @@ make deny          # cargo-deny license/source check
 make audit-unsafe  # every `unsafe` block has a // SAFETY: comment
 ```
 
-The consumer MSRV, Clippy assumption floor, and repository qualification toolchain are
-all **1.98.1**. See `CLAUDE.md` for the safety scaffolding and design conventions, and
+The Rust toolchain is declared once, in `rust-toolchain.toml` and the `Cargo.toml` `rust-version`. See `CLAUDE.md` for the safety scaffolding and design conventions, and
 `spec/` for the normative requirements.
 
 ## Related projects

@@ -20,7 +20,7 @@ evidence within one pinned corpus.
 ## Population and Scope
 
 Include reference rows examined by the declared model for one corpus entry.
-Keep each repository and corpus revision separate.
+Keep each repository and corpus separate.
 
 ## Measure Definition
 
@@ -30,8 +30,8 @@ trace census, never a repository-wide test-quality target.
 
 ## Collection and Provenance
 
-Collect the raw coverage envelope and record engine, module digest, source and
-corpus revisions, configuration, timestamp, and raw-evidence digest.
+Collect the raw coverage envelope and record capabilities, configuration, and
+timestamp.
 
 ## Environment and Sampling
 

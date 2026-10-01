@@ -6,29 +6,29 @@ harness preserves the candidate rows emitted by the real engine, samples the
 function and module-scope strata deterministically, and reports ambiguity
 instead of silently dropping it.
 
-Collection builds the engine from the consuming workspace, reads identity from
-its payload, and aborts on an unreadable repository::
+Collection builds the engine from the consuming workspace and aborts on an
+unreadable repository::
 
     python3 scripts/tag_precision_sample.py collect \
       --module ../spec-artifacts-process/spec_artifacts_process \
-      --frame reports/2026-08-27-tag-non-binding-frame.json \
-      --rulings reports/2026-08-27-tag-non-binding-rulings.yaml
+      --frame reports/<date>-tag-non-binding-frame.json \
+      --rulings reports/<date>-tag-non-binding-rulings.yaml
 
 After every sampled row has a ruling, render the decision record::
 
     python3 scripts/tag_precision_sample.py report \
-      --frame reports/2026-08-27-tag-non-binding-frame.json \
-      --rulings reports/2026-08-27-tag-non-binding-rulings.yaml \
-      --output reports/2026-08-27-tag-non-binding-precision.md
+      --frame reports/<date>-tag-non-binding-frame.json \
+      --rulings reports/<date>-tag-non-binding-rulings.yaml \
+      --output reports/<date>-tag-non-binding-precision.md
 """
 
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import math
 import pathlib
+import random
 import re
 import subprocess
 import sys
@@ -36,7 +36,7 @@ from datetime import date
 
 import yaml
 
-from check_engine import Drift, build_engine, reported_engine
+from check_engine import Drift, build_engine, reported_capabilities
 from corpus import repos
 from sweep_coverage import coverage
 
@@ -52,10 +52,6 @@ MESSAGE = re.compile(
 
 class CalibrationError(RuntimeError):
     """The calibration cannot publish a complete or comparable result."""
-
-
-def digest(value: str) -> str:
-    return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
 
 def repository_dirty(repo: pathlib.Path) -> bool:
@@ -127,11 +123,7 @@ def candidate(
         )
     stratum = "module-scope" if parsed["kind"] == "container" else "production-symbol"
     occurrences = source_occurrences(repo, path, line, parsed["trace_id"])
-    identity = "\0".join(
-        [repo.name, path, str(line), parsed["trace_id"], parsed["symbol"]]
-    )
     return {
-        "id": digest(identity)[:20],
         "repo": repo.name,
         "repo_dirty": dirty,
         "path": path,
@@ -155,10 +147,8 @@ def select_sample(
             raise CalibrationError(
                 f"{stratum}: sample asks for {quota} of only {len(available)} candidates"
             )
-        ranked = sorted(
-            available, key=lambda row: (digest(f"{seed}\0{row['id']}"), row["id"])
-        )
-        selected.extend(row["id"] for row in ranked[:quota])
+        ids = sorted(row["id"] for row in available)
+        selected.extend(random.Random(f"{seed}\0{stratum}").sample(ids, quota))
     return sorted(selected)
 
 
@@ -175,7 +165,7 @@ def collect(args: argparse.Namespace) -> tuple[dict, dict]:
     excluded = set(args.exclude)
     selected_repos = [repo for repo in enumerated if repo.name not in excluded]
     rows: list[dict] = []
-    engine_identity: tuple[str, str, tuple[str, ...]] | None = None
+    capabilities: list[str] | None = None
     repo_states = []
     for index, repo in enumerate(selected_repos, start=1):
         report = coverage(quire, repo, str(module))
@@ -184,16 +174,9 @@ def collect(args: argparse.Namespace) -> tuple[dict, dict]:
                 f"{repo.name}: coverage failed: {(report or {}).get('error', 'no payload')}"
             )
         try:
-            engine, capabilities = reported_engine(report)
+            capabilities = reported_capabilities(report)
         except Drift as error:
             raise CalibrationError(f"{repo.name}: {error}") from error
-        current = (report["engine"]["cli"], engine, tuple(capabilities))
-        if engine_identity is None:
-            engine_identity = current
-        elif current != engine_identity:
-            raise CalibrationError(
-                f"{repo.name}: engine identity changed during collection"
-            )
         dirty = repository_dirty(repo)
         findings = [
             diagnostic
@@ -212,11 +195,19 @@ def collect(args: argparse.Namespace) -> tuple[dict, dict]:
             f"tag precision: {index}/{len(selected_repos)} {repo.name} ({len(findings)})",
             file=sys.stderr,
         )
-    if engine_identity is None:
+    if capabilities is None:
         raise CalibrationError("no repository produced a payload")
-    rows.sort(key=lambda row: row["id"])
-    if len({row["id"] for row in rows}) != len(rows):
-        raise CalibrationError("candidate ids are not unique")
+    rows.sort(
+        key=lambda row: (
+            row["repo"],
+            row["path"],
+            row["line"],
+            row["trace_id"],
+            row["symbol"],
+        )
+    )
+    for number, row in enumerate(rows, start=1):
+        row["id"] = f"{number:05d}"
     quotas = {
         "production-symbol": args.sample_production,
         "module-scope": args.sample_module,
@@ -231,9 +222,7 @@ def collect(args: argparse.Namespace) -> tuple[dict, dict]:
         "reason": REASON,
         "seed": args.seed,
         "provenance": {
-            "cli": engine_identity[0],
-            "engine": engine_identity[1],
-            "capabilities": list(engine_identity[2]),
+            "capabilities": list(capabilities),
             "repositories_enumerated": len(enumerated),
             "repositories_scanned": len(selected_repos),
             "excluded": sorted(excluded),
@@ -372,7 +361,6 @@ def render(frame: dict, rulings: dict, result: dict) -> str:
         f"- Frame date: `{frame['date']}`",
         f"- Candidate population: **{result['population']}**",
         f"- Deterministic sample: **{result['sample']}** (`{frame['seed']}`)",
-        f"- Engine: `{frame['provenance']['cli']}` / `{frame['provenance']['engine']}`",
         f"- Decision: **{result['decision']}**",
         "",
         "## Adjudication",

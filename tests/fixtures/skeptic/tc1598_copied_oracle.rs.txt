@@ -1,4 +1,4 @@
-// Retained wild input: agent-ix/filament-ide-rs@59a180a7,
+// Retained wild input: agent-ix/filament-ide-rs,
 // crates/filament-shell/tests/property_suite.rs:59-69, 136-146.
 fn escapes_the_root(artifact: &str) -> bool {
     let normalized = artifact.replace('\\', "/");

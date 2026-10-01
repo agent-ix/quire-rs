@@ -34,8 +34,8 @@ path = "src/lib.rs"
 #
 # Pinned by git rev, per org convention for unpublished crates (PLAT-848 is
 # resolved — `quire-code-rs` is now a public repo, but crates.io publishing is
-# deferred, so the pin stays git-rev rather than a registry version). `rev`
-# is `57b83ba`, the merge commit that adds the `quire-code-parse` workspace
+# deferred, so the pin stays git-rev rather than a registry version). The `rev`
+# below is the merge commit that adds the `quire-code-parse` workspace
 # member (agent-ix/quire-code-rs#22, PLAT-841): a shared, borrowed
 # tree-sitter parse layer with no fact model, type environment, fixpoint call
 # resolver or record emitter attached — exactly the subset `quire-rs` needs

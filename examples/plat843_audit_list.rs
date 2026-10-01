@@ -18,20 +18,11 @@
 //!
 //! `cargo run --release --example plat843_audit_list -- <root> [language]`
 //!
-//! `language` is optional and defaults to `rust` — PLAT-843's own
-//! reproduction instructions
-//! (`reports/2026-09-20-plat843-rust-ast-differential.md`) invoke this
-//! binary with a single `<root>` argument and depend on that exact default;
-//! changing it would make an already-merged report's reproduction steps
-//! silently stop reproducing what they claim to. `python`/`typescript` are
-//! added here (PLAT-851) for the pre-port baseline and for PLAT-868/869's
-//! own future differentials against it; `all` emits every language's symbols
-//! in one sorted list.
+//! `language` is optional and defaults to `rust`; `python`/`typescript` select
+//! those scanners and `all` emits every language's symbols in one sorted list.
 //!
 //! **`source_exclude` is read from the declared module (PLAT-868)**, not
-//! hardcoded — a PLAT-851 review finding (`AUDIT_LIST_MODULE`, same default
-//! and env-var-override convention `examples/plat840_rust_baseline_sweep.rs`
-//! already uses). The three globs this file hardcoded until now happened to
+//! hardcoded — a PLAT-851 review finding (`AUDIT_LIST_MODULE`). The three globs this file hardcoded until now happened to
 //! match `spec-artifacts-process/spec_artifacts_process/manifest.yaml`'s own
 //! declared list, but nothing enforced that agreement: if the module's own
 //! `source_exclude` ever changes, a hardcoded copy here would silently

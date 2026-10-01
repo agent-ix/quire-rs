@@ -74,17 +74,17 @@ A row matching no outcome, matching more than one outcome after precedence, or
 violating the sum SHALL make the census exit non-zero. There is no residual or
 `other` bucket.
 
-The census SHALL also abort before publishing results when the engine provenance
-envelope is absent, changes during a run, or omits any capability required by
-the classification. The diagnostic SHALL name the missing capability token.
+The census SHALL also abort before publishing results when the engine
+capability envelope is absent or omits any capability required by the
+classification. The diagnostic SHALL name the missing capability token.
 
 ### Artifact and execution posture
 
 One run SHALL emit byte-stable `reports/<date>-gap-census.json` and a human
-rendering at `reports/<date>-gap-census.md`. Both headers SHALL carry the CLI and
-engine versions, capability list, module commit, repository population
-enumerated and scanned, and every exclusion. These values come from payloads
-and resolved inputs, never from operator-authored version strings.
+rendering at `reports/<date>-gap-census.md`. Both headers SHALL carry the
+capability list, repository population enumerated and scanned, and every
+exclusion. These values come from payloads and resolved inputs, never from
+operator-authored strings.
 
 `make census` SHALL be invoked only by a scheduled or manually dispatched
 workflow. It SHALL NOT be a push or pull-request prerequisite.
@@ -115,8 +115,8 @@ compatibility change in its owning repository.
 | FR-066-AC-4 | `backed + Σ dispositions == authored_rows` holds per repository and in aggregate; an unclassified row or sum mismatch exits non-zero and no residual bucket is emitted. | Test (TC-1065) |
 | FR-066-AC-5 | `status-lie` is emitted only as an orthogonal overlay and never changes the partition sum. | Test (TC-1066) |
 | FR-066-AC-6 | A repository with evidence symbols but no authored tags is classified as `authoring-absent` when binder readability is above the floor; the current measured zero-tag class never enters `instrument-unread`. | Test (TC-1067) |
-| FR-066-AC-7 | Missing provenance, an engine change during the run, or a missing required capability aborts the census; the error names the missing token. | Test (TC-1068) |
-| FR-066-AC-8 | JSON and Markdown reports carry measured CLI/engine versions, capabilities, module commit, enumerated/scanned populations, and exclusions, and identical inputs produce byte-identical bytes. | Test (TC-1069) |
+| FR-066-AC-7 | An absent capability envelope or a missing required capability aborts the census; the error names the missing token. | Test (TC-1068) |
+| FR-066-AC-8 | JSON and Markdown reports carry measured capabilities, enumerated/scanned populations, and exclusions, and identical inputs produce byte-identical bytes. | Test (TC-1069) |
 | FR-066-AC-9 | `make census` is exposed as a scheduled/manual operation and no push or pull-request workflow requires it. | Test (TC-1070) |
 | FR-066-AC-10 | Each disposition has a worked example tied to the measured ecosystem corpus, and the human report names the repository, row/id when available, owner, reason and next action. | Test (TC-1071) |
 | FR-066-AC-11 | The relationship to `structural-coverage.md` is recorded without changing the owning module's disposition enum. | Inspection (TC-1072) |

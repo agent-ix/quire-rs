@@ -32,13 +32,12 @@ form bound it. The invariant is `bound <= tagged <= candidates`.
 ## Collection and Provenance
 
 Collect the counts and `unmatched_example` from the raw `quire coverage --json`
-payload. Retain CLI and engine identity, capabilities, source revision, module
-digest, command configuration, timestamp, and raw-payload digest.
+payload. Retain capabilities, command configuration, and timestamp.
 
 ## Environment and Sampling
 
 Exercise a no-tag control, an unread-tag case, and a mixed population in every
-supported language. Record corpus and module revisions.
+supported language. Record the corpus and module used.
 
 ## Interpretation and Limitations
 

@@ -54,8 +54,8 @@ whose measurement definitions and producer configurations are compatible.
 
 ## Evidence Expectations
 
-Retain source and corpus revisions, engine identity and capabilities, module
-digest, raw payload, measurement-plan version, population counts, gap count,
+Retain engine capabilities, raw payload, measurement-plan version, population
+counts, gap count,
 and exact gate output. A zero without evidence that the population was read is
 not a pass.
 

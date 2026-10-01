@@ -282,7 +282,7 @@ def test_validate_unknown_archetype_raises():
 
 # ── Task 038: validate_document binding (FR-032) ─────────────────────
 
-ISO_MODULE = REPO_ROOT / "tests" / "fixtures" / "modules" / "iso"
+REQ_MODULE = REPO_ROOT / "tests" / "fixtures" / "modules" / "req-fixture"
 
 CONFORMANT_FR = (
     "---\n"
@@ -314,7 +314,7 @@ CONFORMANT_FR = (
 def test_validate_document_conformant_is_valid():
     """TC-528, TC-533 (binding happy path): a conformant FR markdown
     document validates through the wheel."""
-    result = quire.validate_document("FR", str(ISO_MODULE), CONFORMANT_FR)
+    result = quire.validate_document("FR", str(REQ_MODULE), CONFORMANT_FR)
     assert result["is_valid"] is True
     assert result["errors"] == []
 
@@ -327,7 +327,7 @@ def test_validate_document_flags_missing_section_with_reason_and_line():
         "On parse, the engine retains every byte of the section body verbatim.\n\n",
         "",
     )
-    result = quire.validate_document("FR", str(ISO_MODULE), mutated)
+    result = quire.validate_document("FR", str(REQ_MODULE), mutated)
     assert result["is_valid"] is False
     reasons = {e["reason"] for e in result["errors"]}
     assert "missing" in reasons
@@ -338,14 +338,14 @@ def test_validate_document_flags_missing_section_with_reason_and_line():
 
 def test_validate_document_unknown_archetype_raises():
     with pytest.raises(quire.QuireSchemaError):
-        quire.validate_document("no-such-archetype", str(ISO_MODULE), CONFORMANT_FR)
+        quire.validate_document("no-such-archetype", str(REQ_MODULE), CONFORMANT_FR)
 
 
 # ── Task 039: input contract + skeleton binding (FR-029 recast) ──────
 
 
 def test_input_contract_for_fr():
-    contract = quire.input_contract("FR", str(ISO_MODULE))
+    contract = quire.input_contract("FR", str(REQ_MODULE))
     assert contract["archetype"] == "FR"
     assert contract["frontmatter_schema"]["type"] == "object"
     headings = [s["heading"] for s in contract["sections"] if s["heading"]]
@@ -354,14 +354,14 @@ def test_input_contract_for_fr():
 
 
 def test_input_skeleton_for_fr():
-    skeleton = quire.input_skeleton("FR", str(ISO_MODULE))
+    skeleton = quire.input_skeleton("FR", str(REQ_MODULE))
     assert "## Description" in skeleton
     assert "TODO" not in skeleton
 
 
 def test_input_contract_unknown_raises():
     with pytest.raises(quire.QuireSchemaError):
-        quire.input_contract("no-such-archetype", str(ISO_MODULE))
+        quire.input_contract("no-such-archetype", str(REQ_MODULE))
 
 
 # ── FR-028 expanded surface ──────────────────────────────────────────

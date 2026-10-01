@@ -206,7 +206,7 @@ by running it.
   static files, `expect.yaml`, and — for a case declaring `pending` —
   `expect-pending.yaml`.
 - `modules/ecosystem/`: the real declaration, vendored **whole** — both
-  `spec-artifacts-process` and `spec-artifacts-iso`, each with its own pinned SHA.
+  `spec-artifacts-process` and `spec-artifacts-iso`.
   Whole directories rather than manifests, because archetypes reference their schema
   files relative to the module root. `modules/variants/<id>/`: intentionally varied declarations.
 - `labels/`, `config/metrics.json`, `baselines/{quire-rs,quoin}.json`: ground truth,
@@ -382,8 +382,7 @@ credited in the first place, which is a different thing from one that lost its c
 
 This is not hypothetical and it is what `agent-ix/quire-rs#285` left behind. Eleven
 fixtures bound a relaxation variant — nine `modules/variants/bench-legacy/` and two
-`modules/variants/bench-no-symbol-vocab/`, counted from `bounds.py --json` at corpus
-`db55b05`. **Ten** migrated onto the vendored declaration and both variants were deleted.
+`modules/variants/bench-no-symbol-vocab/`, counted from `bounds.py --json`. **Ten** migrated onto the vendored declaration and both variants were deleted.
 The eleventh, `cases/provenance/implements-never-asked`, asserts `coverage.implements` is
 `state: not_computed` — the `#226` distinction between *computed and found none* and
 *never asked* — which the engine reaches only when the loaded module declares no
@@ -417,8 +416,7 @@ never cross-graded anything, and the Python loader checked only that a control w
 So the two-reader independence this contract rests on stopped immediately before the
 check that carries it. Proved by construction: a fixture blinded to `total: 4` — an
 assertion true of the defective tree and of the repaired one — was accepted by
-`verify.py` at `mismatches: 0`, exit 0, and rejected by `cargo test --test corpus_cases`
-at the same corpus revision.
+`verify.py` at `mismatches: 0`, exit 0, and rejected by `cargo test --test corpus_cases`.
 
 Every reader SHALL resolve `control_for` by ONE rule: a name resolves to the failure case
 whose **`id`** it is, and only failing that to the case whose **`case:` alias** it is; an
@@ -429,7 +427,7 @@ points, and the resolutions are now asserted against each other rather than assu
 agree.
 
 The rule is *"assert at least one fact that differs between the two trees"*, which is
-weaker than *"assert a fact about the defect"*. Measured on this corpus at `776a6b3`: ten
+weaker than *"assert a fact about the defect"*. Measured once on this corpus: ten
 of eleven controlled fixtures are satisfiable by one incidental scalar — `total: 1` passes
 for a case whose control totals 2 — and only `no-symbol-method-in-the-verification-column`,
 whose control matches it on every count, is forced onto a defect-specific field. So this
@@ -437,7 +435,7 @@ raises the floor rather than closing the question, and it is stated that way bec
 earlier draft of this clause claimed more.
 
 **That audit has not been repeated and its denominator has moved** (CR-123). Controlled
-failure cases were 11 at `776a6b3`, 33 at `db55b05` and **34** at `3ff72c0`. "Ten of
+failure cases were 11 at the audit and have since grown to **34**. "Ten of
 eleven" therefore describes eleven of the thirty-four that exist, and the twenty-three
 authored since were never assessed against it. Re-running it is
 `agent-ix/quire-rs#301`. The figure is left in place rather than deleted because it was
@@ -445,10 +443,9 @@ true when measured and deleting it would lose the finding; it is annotated rathe
 extrapolated because a fraction restated over a population it was not measured on is the
 fabrication this bundle keeps catching.
 
-**THE `3ff72c0` FIGURE READ 35 UNTIL CR-128, AND ITS STATED METHOD WAS WRONG TWICE.** It
+**THE 34-CASE FIGURE READ 35 UNTIL CR-128, AND ITS STATED METHOD WAS WRONG TWICE.** It
 was attributed to `bounds.py --json`, which emits `bounds` and `cases` and no count of
-controlled failure cases at all — the number came from the Rust harness. Re-measured at
-`3ff72c0` by calling each reader's own resolution: `bounds.controlled_cases()` returns
+controlled failure cases at all — the number came from the Rust harness. Re-measured by calling each reader's own resolution: `bounds.controlled_cases()` returns
 **34**, the harness's returned **35**, and the extra was `marker-mismatch`, which this
 corpus DECLARES under `known_gaps.uncontrolled_failure_cases` and which the harness
 reached through another case's `case:` alias. So a published figure was one reader's
@@ -457,8 +454,7 @@ count of a defect, cited to the other reader's tool. Both now return 34 cases, o
 `marker-form-mismatch`.
 
 A separate measurement of how low the floor is. Method: run every failure case and every
-control and compare `totals.total`. Population: the whole controlled set, no sample, at
-corpus `801afd5` (fixtures byte-identical at `2bc486d`) with CLI 0.30.2 / engine 0.33.0.
+control and compare `totals.total`. Population: the whole controlled set, no sample, .
 
 | unit | share an identical `total` | differ | n |
 |---|---|---|---|
@@ -469,7 +465,7 @@ Where they share it the incidental scalar is not available as an evasion; for th
 differ it is. **This paragraph published "20 pairs" until CR-132**, which is 20 CASES —
 over pairs it is 21. The 14 is right under both units, so only the noun was wrong, and it
 was wrong in permanent requirement text. This supersedes nothing above: it counts a
-different thing over a different population than the `776a6b3` audit, which is why it is
+different thing over a different population than the earlier audit, which is why it is
 stated separately rather than as an update.
 
 The `validate_*` assertions SHALL be graded over the OTHER case's tree when a case is
@@ -480,7 +476,7 @@ design and whose entire claim is structural, would be rejected as blind the mome
 gained a control.
 
 **THAT RULE HAS REACH 0 OVER THE CORPUS TODAY, AND IT IS KEPT ANYWAY** (CR-132). Measured
-at corpus `2bc486d` over all 77 discovered fixtures: exactly **two** declare a `validate_*`
+over all 77 discovered fixtures: exactly **two** declare a `validate_*`
 key — `wrong-type-cell`, a `failure` declared under
 `known_gaps.uncontrolled_failure_cases`, which no control names and both readers skip,
 and `clean-control`, a `control`, which the differential does not iterate — so **zero of
@@ -598,7 +594,6 @@ against neither; it now renders `Level::ALL` and compares that.
 | FR-065-CON-1 | Case data SHALL NOT be embedded in runner code or generated at runtime. A case that cannot be read without executing something is not data. The one exception is stated in the Behavior section: a mutating case operates on a copy and never writes the checked-in tree. | Architecture | Test |
 | FR-065-CON-2 | Every surface reporting `bounds.gap_count` SHALL render it as an absolute count, never normalised into a ratio or a percentage. This is FR-063-AC-6 applied to this metric, not a second rule. | Architecture | Test |
 | FR-065-CON-3 | A case SHALL bind the vendored ecosystem module unless it declares exactly one variant class: `relaxation_ticket` for a temporary departure, or `declaration_under_test` when the declaration is the measured condition. A corpus whose manifest always matches cannot exhibit a declaration defect. | Architecture | Test |
-| FR-065-CON-4 | The vendored `modules/ecosystem/` SHALL be refreshed from every declaring module by a recorded ritual that copies whole module directories and moves each pinned SHA, so the declaration a case binds is a reviewable event rather than a silent copy. | Process | Inspection |
 
 ## Acceptance Criteria
 

@@ -439,8 +439,8 @@ that failed to mint cannot erase its own gap from the population.
 > itself.
 >
 > **It caught two things on its first live run, both real.** The pinned tier-2
-> corpus had moved — `filament-ide-rs` is at `16eca41`, not the adjudicated
-> `fc5d644` — and the SHA gate refused to score it rather than answering a
+> corpus had moved — `filament-ide-rs` had moved off the adjudicated
+> revision — and the corpus gate refused to score it rather than answering a
 > different question with the same key. And the ratchet failed on `dead_tags`
 > 0 → 1: a Python docstring in the benchmark's own test file opened with
 > `FR-043-AC-9`, a **quoin** requirement id, which `python-docstring-id` bound

@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["type", "name", "org", "component_type"],
+  "additionalProperties": true,
+  "properties": {
+    "type": {"const": "master-requirements"},
+    "name": {"type": "string", "minLength": 1},
+    "org": {"type": "string", "minLength": 1},
+    "component_type": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"},
+    "implementation_language": {"type": ["string", "null"]},
+    "tags": {"type": "array", "items": {"type": "string"}}
+  }
+}

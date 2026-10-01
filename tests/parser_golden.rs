@@ -10,8 +10,8 @@
 //!
 //! `tests/fixtures/parser_golden/expected.json` is that reference: the
 //! serialized `parse_document` output over the fixture corpus, captured by
-//! running the engine at `7b1db82` — the commit *before* CR-046 landed
-//! (`3140b4f`). Every refactor of the parse pipeline since is measured
+//! running the engine *before* CR-046 landed.
+//! Every refactor of the parse pipeline since is measured
 //! against an engine that predates it.
 //!
 //! **Do not regenerate this snapshot to make a test pass.** Its whole value

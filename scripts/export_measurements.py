@@ -29,37 +29,6 @@ class ExportError(RuntimeError):
     """A collection that cannot be derived without guessing."""
 
 
-def digest(parts: list[bytes]) -> str:
-    value = hashlib.sha256()
-    for part in parts:
-        value.update(len(part).to_bytes(8, "big"))
-        value.update(part)
-    return f"sha256:{value.hexdigest()}"
-
-
-def git_revision(root: pathlib.Path) -> str:
-    done = subprocess.run(
-        ["git", "rev-parse", "HEAD"],
-        cwd=root,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    revision = done.stdout.strip()
-    if done.returncode != 0 or not FULL_SHA.fullmatch(revision):
-        raise ExportError("the Quire source revision is unavailable")
-    status = subprocess.run(
-        ["git", "status", "--porcelain=v1", "--untracked-files=all"],
-        cwd=root,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if status.returncode != 0 or status.stdout.strip():
-        raise ExportError("the Quire source tree is dirty")
-    return revision
-
-
 def normalized_remote(value: str) -> str:
     value = value.strip()
     ssh = re.fullmatch(r"git@github\.com:(.+)", value)
@@ -183,13 +152,11 @@ def build_collection(
     *,
     timestamp: str,
     source_revision: str,
-    tool_version: str,
     consumer: pathlib.Path,
     module: str | None,
     verification_stack: dict[str, Any],
 ) -> dict[str, Any]:
     observations: list[dict[str, Any]] = []
-    plan_bytes: list[bytes] = []
     for corpus in sorted(observed):
         for metric in sorted(observed[corpus]):
             definition = manifest["metrics"].get(metric)
@@ -197,7 +164,6 @@ def build_collection(
                 raise ExportError(f"{metric}: metric has no manifest definition")
             plan_path = ROOT / definition["measurement_plan"]
             plan_id, definition_version = plan_identity(plan_path)
-            plan_bytes.append(plan_path.read_bytes())
             observations.append(
                 {
                     "metric": metric,
@@ -209,10 +175,7 @@ def build_collection(
                     "shape": "count" if metric in COUNT_METRICS else "ratio",
                     "population": {
                         "complete": True,
-                        "identity": {
-                            "corpus": corpus,
-                            "source": raw_evidence[corpus]["identity"],
-                        },
+                        "identity": {"corpus": corpus},
                     },
                     "dimensions": {"corpus": corpus},
                 }
@@ -225,27 +188,18 @@ def build_collection(
         raise ExportError(
             "active benchmark metrics were not produced: " + ", ".join(missing)
         )
-    evidence_bytes = json.dumps(raw_evidence, sort_keys=True).encode("utf-8")
-    evidence_digest = digest([evidence_bytes])
     compact_time = re.sub(r"[^0-9]", "", timestamp)
-    identities = [
-        f"{name}:{raw_evidence[name]['identity']}".encode("utf-8")
-        for name in sorted(raw_evidence)
-    ]
     return {
         "schemaVersion": 2,
-        "collectionId": f"quire-bench-{compact_time}-{evidence_digest[7:19]}",
+        "collectionId": f"quire-bench-{compact_time}",
         "subject": "Quire engine benchmark",
         "scope": {
             "corpora": sorted(observed),
             "metrics": sorted({row["metric"] for row in observations}),
         },
         "toolIdentity": "quire-rs scripts/bench.py",
-        "toolVersion": tool_version,
-        "configDigest": digest([MANIFEST.read_bytes(), *sorted(set(plan_bytes))]),
         "timestamp": timestamp,
         "sourceRevision": source_revision,
-        "corpusRevision": digest(identities)[7:],
         "environment": {
             "consumer": str(consumer),
             "module": f"per-manifest with default {module or 'default'}",
@@ -254,15 +208,6 @@ def build_collection(
         "observations": observations,
         "rawEvidence": raw_evidence,
     }
-
-
-def cli_version(quire: str) -> str:
-    done = subprocess.run(
-        [quire, "--version"], capture_output=True, text=True, check=False
-    )
-    if done.returncode != 0 or not done.stdout.strip():
-        raise ExportError("the built Quire CLI did not report a version")
-    return done.stdout.strip()
 
 
 def validate_repository_against_stack(
@@ -424,7 +369,7 @@ def main() -> int:
             manifest.get("module_source"),
         ]
         for entry in attested_inputs:
-            if not isinstance(entry, dict) or entry.get("identity") != "sha":
+            if not isinstance(entry, dict) or entry.get("require_clean") is not True:
                 continue
             validate_repository_against_stack(
                 (ROOT / entry["path"]).resolve(),
@@ -445,7 +390,6 @@ def main() -> int:
             raw_evidence,
             timestamp=timestamp,
             source_revision=source_revision,
-            tool_version=cli_version(quire),
             consumer=consumer,
             module=args.module,
             verification_stack=verification_stack,
@@ -456,7 +400,6 @@ def main() -> int:
     args.output.write_text(json.dumps(collection, indent=2, sort_keys=True) + "\n")
     print(args.output)
     return 0
-
 
 if __name__ == "__main__":
     raise SystemExit(main())

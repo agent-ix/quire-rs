@@ -28,12 +28,11 @@ examined repository counts.
 
 ## Collection and Provenance
 
-Retain the raw coverage envelope and the source, corpus, engine, module,
-configuration, and timestamp provenance.
+Retain the raw coverage envelope, configuration, and timestamp.
 
 ## Environment and Sampling
 
-Pin corpus identity and module declarations. Record inaccessible repositories
+Name the corpus and module declarations. Record inaccessible repositories
 as incomplete population rather than dropping them.
 
 ## Interpretation and Limitations

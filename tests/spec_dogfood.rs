@@ -23,7 +23,7 @@ fn dogfood() -> Spec {
 
 /// The `grammar_severity` promotion `spec-artifacts-iso` ships (v0.8.0,
 /// `manifest.yaml`). Mirrored here because the rest of this suite validates
-/// against `tests/fixtures/modules/iso`, a fixture that carries **no**
+/// against in-repo fixture modules, none of which carries a
 /// `grammar_severity` block — so a check the published module promotes to
 /// `error` was invisible to this repo's own CI, and quire-rs could ship a
 /// `spec/` its own module contract rejects.

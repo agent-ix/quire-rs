@@ -541,9 +541,8 @@ byte-identical JSON ordering and stable record ids.
 > silence is the whole defect: the rows those symbols verify come back unbacked,
 > and unbacked is exactly what a missing test looks like.
 >
-> **What the number counts:** evidence symbols in `agent-ix/filament-ide-rs` @
-> `fc5d644`, under `quire 0.29.0` / engine `v0.42.0` /
-> `spec-artifacts-process v0.23.0` — **1,292 Rust candidates, 0 bound**,
+> **What the number counts:** evidence symbols in `agent-ix/filament-ide-rs` at
+> the time of the measurement — **1,292 Rust candidates, 0 bound**,
 > reported as `Coverage: 555/2389 rows backed (23%)` and nothing else. The two
 > declared conventions both missed: `fn tc_NNN_` against a pattern with no
 > separator (fixed in `spec-artifacts-process#59`), and 643 `/// Tracing:` lines
@@ -621,9 +620,7 @@ byte-identical JSON ordering and stable record ids.
 > exercise them through `extract_tree` — the path every consumer uses. The
 > CR-084 pair's legacy doc-comment tags migrate to `#[trace]` (TC-798's too),
 > per FR-051-CON-3's direction of travel. No criterion changes.
-> (Allocation note: TC-959 is skipped — the string already occurs as quoted
-> foreign census data in `reports/2026-08-20-slash-trace-sweep.json`, and the
-> all-refs collision grep must stay clean.)
+> (Allocation note: TC-959 is skipped.)
 
 > **CR-180 note (2026-09-20, `PLAT-882`):** CR-176's own note named two
 > window carve-outs — AC-18's bounded title scan and AC-21's same-line `{`

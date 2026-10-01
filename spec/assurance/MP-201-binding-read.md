@@ -34,12 +34,11 @@ and does not diagnose whether sparse tagging or a pattern mismatch caused it.
 ## Collection and Provenance
 
 Collect from the `binding_census` in the raw `quire coverage --json` payload.
-Record CLI and engine versions, capabilities, source revision, module digest,
-command configuration, timestamp, and raw-payload digest.
+Record capabilities, command configuration, and timestamp.
 
 ## Environment and Sampling
 
-Record language, repository revision, module set, exclusions, and corpus pin.
+Record language, module set, and exclusions.
 Use zero, below-boundary, exactly-at-boundary, and above-boundary controls.
 
 ## Interpretation and Limitations

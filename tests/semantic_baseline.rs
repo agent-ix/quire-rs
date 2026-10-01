@@ -140,7 +140,7 @@ fn registry_projection(registry: &Registry) -> Vec<ArchetypeProjection> {
 // recorded baseline.
 #[test]
 fn fixture_module_registries_match_baseline() {
-    let modules = ["bundle", "demo", "iso"];
+    let modules = ["bundle", "demo", "req-fixture"];
     let mut all: BTreeMap<String, Vec<ArchetypeProjection>> = BTreeMap::new();
     for module in modules {
         let path = root().join("tests/fixtures/modules").join(module);

@@ -56,7 +56,7 @@ def attestation(revision: str = "a" * 40) -> dict:
         },
         "capabilities": ["fixture.capability"],
         "artifacts": {"fixture": "sha256:" + "3" * 64},
-        "toolchains": {"node": "22.15.0", "rust": "1.98.1", "python": "3.10.12"},
+        "toolchains": {"node": "fixture", "rust": "fixture", "python": "fixture"},
     }
 
 
@@ -94,8 +94,8 @@ def test_collection_is_plan_derived_and_keeps_corpus_boundaries():
         "second": {"coverage.dead_tags": 0},
     }
     raw = {
-        "first": {"identity": "first-sha", "payload": {"untracked_symbols": [1, 2]}},
-        "second": {"identity": "second-sha", "payload": {"untracked_symbols": []}},
+        "first": {"payload": {"untracked_symbols": [1, 2]}},
+        "second": {"payload": {"untracked_symbols": []}},
     }
     collection = build_collection(
         manifest,
@@ -103,13 +103,12 @@ def test_collection_is_plan_derived_and_keeps_corpus_boundaries():
         raw,
         timestamp="2026-08-27T00:00:00.000Z",
         source_revision=source_revision,
-        tool_version="quire test",
         consumer=pathlib.Path("/consumer"),
         module=None,
         verification_stack=attestation(source_revision),
     )
 
-    assert collection["collectionId"].startswith("quire-bench-20260827000000000-")
+    assert collection["collectionId"] == "quire-bench-20260827000000000"
     assert [row["dimensions"]["corpus"] for row in collection["observations"]] == [
         "first",
         "second",

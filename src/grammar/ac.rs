@@ -258,7 +258,7 @@ fn check_statement(stmt: &Stmt, vocab: GrammarVocabularies<'_>, out: &mut Vec<Gr
 
     // ── Measurement instrument, not a shipped check (agent-ix/quire-rs#18) ──
     //
-    // The check CR-014 retired, restored from `7a259d5` with the three
+    // The check CR-014 retired, restored with the three
     // mechanical defects that inflated its original measurement already fixed:
     //
     //   1. irregular / `-y` inflections — fixed in `inflect` (grammar/mod.rs),

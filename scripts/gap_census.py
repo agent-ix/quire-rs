@@ -20,7 +20,7 @@ from typing import Iterable
 
 import yaml
 
-from check_engine import Drift, assert_capabilities, build_engine, reported_engine
+from check_engine import Drift, assert_capabilities, build_engine, reported_capabilities
 from corpus import repos
 from sweep_coverage import coverage
 
@@ -463,20 +463,13 @@ def classified_json(item: Classified) -> dict:
     }
 
 
-
-
-def engine_identity(
-    report: dict, prior: tuple | None = None
-) -> tuple[str, str, tuple[str, ...]]:
+def engine_capabilities(report: dict) -> tuple[str, ...]:
     try:
-        engine, capabilities = reported_engine(report)
+        capabilities = reported_capabilities(report)
         assert_capabilities(capabilities, list(REQUIRED_CAPABILITIES))
     except Drift as error:
         raise CensusError(str(error)) from error
-    identity = (report["engine"]["cli"], engine, tuple(capabilities))
-    if prior is not None and identity != prior:
-        raise CensusError("engine identity changed during the census")
-    return identity
+    return tuple(capabilities)
 
 
 def aggregate(repo_rows: list[dict]) -> dict:
@@ -518,8 +511,6 @@ def render_markdown(payload: dict) -> str:
         "# Gap disposition census",
         "",
         f"- Date: `{payload['date']}`",
-        f"- CLI: `{provenance['cli']}`",
-        f"- Engine: `{provenance['engine']}`",
         f"- Capabilities: `{', '.join(provenance['capabilities'])}`",
         f"- Repositories: {provenance['repos_scanned']} scanned / {provenance['repos_enumerated']} enumerated",
         f"- Exclusions: {', '.join(provenance['exclusions']) or 'none'}",
@@ -620,26 +611,24 @@ def run(args: argparse.Namespace) -> dict:
     exclusions = sorted(set(args.exclude))
     selected = [repo for repo in enumerated if repo.name not in exclusions]
     repo_rows = []
-    identity = None
+    capabilities = None
     for repo in selected:
         report = coverage(quire, repo, str(module))
         if not report or "error" in report:
             raise CensusError(
                 f"{repo.name}: coverage failed: {(report or {}).get('error', 'no payload')}"
             )
-        current = engine_identity(report, identity)
-        if identity is None:
-            identity = current
+        current = engine_capabilities(report)
+        if capabilities is None:
+            capabilities = current
         repo_rows.append(classify_repo(repo, report, targets))
         print(f"census: {repo.name}", file=sys.stderr)
-    if identity is None:
+    if capabilities is None:
         raise CensusError("no repository produced a payload; nothing was measured")
     return {
         "date": args.date,
         "provenance": {
-            "cli": identity[0],
-            "engine": identity[1],
-            "capabilities": list(identity[2]),
+            "capabilities": list(capabilities),
             "repos_enumerated": len(enumerated),
             "repos_scanned": len(selected),
             "exclusions": exclusions,

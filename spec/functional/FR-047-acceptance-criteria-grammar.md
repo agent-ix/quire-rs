@@ -489,7 +489,6 @@ violates a check:
 > The figures in agent-ix/quire-rs#21 and in the CR-022 proposal were taken over
 > a corpus that counted worktree duplicates and are corrected here and in
 > `plan/Plan-001-ac-grammar-coverage/tasks/Task-009-ac-grammar-baseline-sweep.md`.
-> Triage detail: `reports/2026-08-07-ac-promotion-triage.md`.
 
 > **CR-031 note — the CR-027 figures hold; the tool that contradicted them was
 > stale (2026-08-08).** `quire validate --module <spec-artifacts-iso v0.8.0>`
