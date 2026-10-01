@@ -178,9 +178,9 @@ jobs:
       (github.event_name == 'schedule' && github.event.schedule == '0 6 * * *')
     steps:
       - uses: actions/checkout@v4
-      # rustsec/audit-check v1.3.2 runs `cargo install cargo-audit` without
-      # `--locked`. On 2026-08-29 that resolved kstring 2.0.4, which requires
-      # Rust 1.96, and broke a then-current older-Rust job without any repository
+      # rustsec/audit-check runs `cargo install cargo-audit` without
+      # `--locked`. On 2026-08-29 that resolved a kstring release, which requires
+      # a newer Rust, and broke a then-current older-Rust job without any repository
       # change. Install the exact prebuilt tool instead: both installer and
       # installed version are reviewable inputs.
       - name: Install cargo-audit
