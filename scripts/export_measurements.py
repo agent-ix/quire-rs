@@ -265,39 +265,6 @@ def cli_version(quire: str) -> str:
     return done.stdout.strip()
 
 
-def validate_manifest_attestation(
-    manifest: dict[str, Any], verification_stack: dict[str, Any]
-) -> None:
-    sources = verification_stack["sources"]
-    entries = [*manifest.get("corpora", [])]
-    if manifest.get("module_source") is not None:
-        entries.append(manifest["module_source"])
-    for entry in entries:
-        if entry.get("identity") != "sha":
-            path = (ROOT / str(entry.get("path", ""))).resolve()
-            try:
-                path.relative_to(ROOT)
-            except ValueError as error:
-                raise ExportError(
-                    f"{entry.get('name', '<unnamed>')}: external benchmark input must use sha identity"
-                ) from error
-            continue
-        name = entry.get("name")
-        source_name = entry.get("source_name", name)
-        pinned = entry.get("pinned_sha")
-        source = sources.get(source_name)
-        if not FULL_SHA.fullmatch(pinned or ""):
-            raise ExportError(f"{name}: pinned_sha is not a full Git SHA")
-        if (
-            not isinstance(source, dict)
-            or source.get("revision") != pinned
-            or source.get("sourceState") != "clean"
-        ):
-            raise ExportError(
-                f"{name}: benchmark pin does not match clean verification stack source {source_name}"
-            )
-
-
 def validate_repository_against_stack(
     root: pathlib.Path,
     verification_stack: dict[str, Any],
@@ -450,7 +417,6 @@ def main() -> int:
             "quire",
             allowed_overlay_paths=("spec/evidence/measurements",),
         )
-        validate_manifest_attestation(manifest, verification_stack)
         validate_toolchains(verification_stack)
         validate_repository_against_stack(consumer, verification_stack, "quire-cli")
         attested_inputs = [

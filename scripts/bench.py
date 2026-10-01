@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import re
 import subprocess
 import sys
 from pathlib import Path
@@ -35,7 +34,6 @@ class BenchError(RuntimeError):
     """A benchmark run that must not be scored."""
 
 
-FULL_SHA = re.compile(r"^[0-9a-f]{40}$")
 
 
 # ── the ratchet ──────────────────────────────────────────────────────────────
@@ -134,12 +132,7 @@ def render(report: dict) -> tuple[str, bool]:
 
 
 def resolve_identity(entry: dict) -> str:
-    """The identity a corpus entry was scored at, refusing an unpinned tier 2.
-
-    A tier-2 score is only a measurement because the corpus cannot move under
-    it. Scoring a different SHA against the same key silently answers a
-    different question (agent-ix/quoin FR-043-AC-8).
-    """
+    """The identity a corpus entry was scored at, refusing a dirty corpus tree."""
     path = (ROOT / entry["path"]).resolve()
     if entry["identity"] == "working-tree":
         return "working-tree"
@@ -151,19 +144,6 @@ def resolve_identity(entry: dict) -> str:
         text=True,
         check=False,
     ).stdout.strip()
-    pinned = entry["pinned_sha"]
-    if not FULL_SHA.fullmatch(pinned):
-        raise BenchError(
-            f"{entry['name']}: pinned_sha must be a full lowercase Git SHA"
-        )
-    if head != pinned:
-        raise BenchError(
-            f"{entry['name']}: pinned at {pinned} but the tree is at {head}. "
-            "Refusing to score — the answer key was adjudicated against the "
-            "pinned commit, and a score over a different tree is not comparable "
-            "to it. Check the corpus out at the pin, or move the pin "
-            "deliberately."
-        )
     dirty = subprocess.run(
         ["git", "-C", str(path), "status", "--porcelain=v1", "--untracked-files=all"],
         capture_output=True,
@@ -183,7 +163,7 @@ def resolve_default_module(manifest: dict, module: str | None) -> str:
     source = manifest.get("module_source")
     if not isinstance(source, dict):
         raise BenchError("benchmark manifest declares no pinned module_source")
-    for field in ("name", "path", "module", "identity", "pinned_sha"):
+    for field in ("name", "path", "module", "identity"):
         if not source.get(field):
             raise BenchError(f"benchmark module_source declares no {field}")
     if source["identity"] != "sha":

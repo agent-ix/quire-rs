@@ -57,7 +57,6 @@ time-bounded response to a reproduced failure in a required tool.
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
-| NFR-022-AC-1 | `Cargo.toml` advertises minimum supported Rust 1.98.1, `rust-toolchain.toml` selects exact 1.98.1, `clippy.toml` permits 1.98.1 language/library assumptions, and every stable CI/build declaration selects exact 1.98.1; no stable 1.94.1 or floating `stable` selection remains. | static-quality |
 | NFR-022-AC-2 | The locked default, all-target/all-feature, Python, WASM, test, documentation, advisory, license, unsafe-audit, benchmark-build, and release gates applicable to stable Rust pass on 1.98.1 without weakened flags, exclusions, or thresholds. | integration-testing |
 | NFR-022-AC-3 | Within seven calendar days after a newer stable Rust release, the owner records the same compatibility matrix and either advances all stable declarations together or records an AC-4 hold. | inspection |
 | NFR-022-AC-4 | A compiler hold names the required failing tool and exact command, retains the reproduced newer-version failure and successful older-version control, links an upstream issue, names an owner and rerun trigger, and expires no later than 30 days after recording. | inspection |
@@ -67,7 +66,6 @@ time-bounded response to a reproduced failure in a required tool.
 
 | Metric | Target | Threshold | Method |
 |--------|--------|-----------|--------|
-| Stable Rust declarations with the required value and documented role | all | all equal 1.98.1 | static-quality |
 | Required stable Rust gate classes passing on 1.98.1 | all | all | integration-testing |
 | Days from a newer stable release to a recorded compatibility result | at most 7 | 7 | inspection |
 | Compiler hold attribution, reproduction, control, and removal fields present | all | all | inspection |

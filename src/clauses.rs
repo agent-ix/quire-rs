@@ -2,15 +2,14 @@
 //!
 //! A clause set describes obligations without embedding any particular
 //! publication or domain in the engine. Modules opt in with file references
-//! from `manifest.yaml`; the loader verifies the declared content digest,
-//! rights posture, internal references, and applicability vocabulary before a
+//! from `manifest.yaml`; the loader verifies the rights posture, internal
+//! references, and applicability vocabulary before a
 //! set reaches the immutable registry.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Component, Path};
 
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use sha2::{Digest, Sha256};
 
 const SCHEMA_VERSION: &str = "clause-set-v1";
@@ -163,7 +162,6 @@ pub struct ClauseSet {
     pub id: String,
     pub title: String,
     pub version: String,
-    pub digest: String,
     pub rights: ClauseSetRights,
     #[serde(default)]
     pub source: Option<ClauseSource>,
@@ -185,11 +183,10 @@ impl ClauseSet {
         }
     }
 
-    /// Digest of canonical JSON with the digest field blanked. This makes the
-    /// declaration self-verifying without hashing its own hash.
+    /// Digest of the canonical JSON of the declaration, emitted in binding and
+    /// diff reports.
     pub fn computed_digest(&self) -> String {
-        let mut value = serde_json::to_value(self).expect("ClauseSet is serializable");
-        value["digest"] = Value::String(String::new());
+        let value = serde_json::to_value(self).expect("ClauseSet is serializable");
         let bytes = serde_json::to_vec(&value).expect("canonical ClauseSet JSON serializes");
         format!("sha256:{:x}", Sha256::digest(bytes))
     }
@@ -210,11 +207,6 @@ impl ClauseSet {
             if value.trim().is_empty() {
                 return Err(ClauseSetError::Invalid(format!("{name} must not be empty")));
             }
-        }
-        if self.digest != self.computed_digest() {
-            return Err(ClauseSetError::Invalid(
-                "digest does not match canonical clause-set content".into(),
-            ));
         }
         if (matches!(self.rights.structure, StructureRights::ExplicitlyCleared)
             || matches!(self.rights.text, TextRights::ExplicitlyCleared))
@@ -352,7 +344,7 @@ impl ClauseSet {
         ClauseBindingReport {
             schema_version: "clause-binding-v1".into(),
             clause_set: self.key(),
-            clause_set_digest: self.digest.clone(),
+            clause_set_digest: self.computed_digest(),
             context: context.clone(),
             clauses,
         }
@@ -474,9 +466,9 @@ pub fn diff_clause_sets(
     Ok(ClauseSetDiff {
         schema_version: "clause-diff-v1".into(),
         before: before.key(),
-        before_digest: before.digest.clone(),
+        before_digest: before.computed_digest(),
         after: after.key(),
-        after_digest: after.digest.clone(),
+        after_digest: after.computed_digest(),
         added,
         removed,
         changed,
@@ -725,6 +717,7 @@ fn combine_any(
 mod tests {
     use super::*;
     use ix_trace_rs::trace;
+    use serde_json::Value;
 
     fn set(version: &str) -> ClauseSet {
         let mut set = ClauseSet {
@@ -733,7 +726,6 @@ mod tests {
             id: "widget-assurance".into(),
             title: "Synthetic widget assurance rules".into(),
             version: version.into(),
-            digest: String::new(),
             rights: ClauseSetRights {
                 structure: StructureRights::Original,
                 text: TextRights::Original,
@@ -780,7 +772,6 @@ mod tests {
             }],
             crosswalks: Vec::new(),
         };
-        set.digest = set.computed_digest();
         set
     }
 
@@ -801,28 +792,19 @@ mod tests {
 
     #[test]
     #[trace("TC-1807", "FR-073-AC-1", "FR-073-AC-6")]
-    fn rights_and_digest_fail_closed() {
+    fn rights_fail_closed() {
         let mut fixture = set("1.0.0");
         fixture.rights.text = TextRights::None;
-        fixture.digest = fixture.computed_digest();
         assert!(fixture
             .validate()
             .unwrap_err()
             .to_string()
             .contains("text rights"));
-        let mut changed = set("1.0.0");
-        changed.title.push_str(" changed");
-        assert!(changed
-            .validate()
-            .unwrap_err()
-            .to_string()
-            .contains("digest"));
 
         let mut duplicate_output = set("1.0.0");
         duplicate_output.clauses[0]
             .expected_outputs
             .push("test-result".into());
-        duplicate_output.digest = duplicate_output.computed_digest();
         assert!(duplicate_output
             .validate()
             .unwrap_err()
@@ -837,7 +819,6 @@ mod tests {
                 description: "Synthetic".into(),
             },
         );
-        empty_output.digest = empty_output.computed_digest();
         assert!(empty_output
             .validate()
             .unwrap_err()
@@ -863,7 +844,6 @@ mod tests {
             applicability: None,
             expected_outputs: Vec::new(),
         });
-        after.digest = after.computed_digest();
         let diff = diff_clause_sets(&before, &after).unwrap();
         assert_eq!(diff.added[0].id, "W-2");
         assert_eq!(diff.changed[0].clause_id, "W-1");

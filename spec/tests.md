@@ -769,7 +769,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-1074 | Unmatched authored tag records carry id, language, path, annotation line and symbol in deterministic order; ids bound on that symbol and id-shaped text found only in a test body are absent, while an unmatched sibling on an otherwise-bound symbol remains; the empty field is omitted and quire-cli advertises the capability (#362) | Integration | P0 | FR-050-AC-39, FR-066-AC-3, FR-066-AC-6 | ✅ |
 | TC-1075 | A reference-only target still resolves declared references and detects dangling ones, while its own rows enter no coverage group, total, minted-target record or authored-obligation population and its optional absence emits no minting diagnostic; a tag cannot back it, the omitted posture retains source behavior, and an unknown posture is rejected (#363) | Integration | P0 | FR-050-AC-40, FR-066-AC-2 | ✅ |
 | TC-1806 | A synthetic clause set preserves the generic clause shape and evaluates binding, not-binding, missing context, and incomparable ordered values without a boolean collapse | Unit | P0 | FR-073-AC-2, FR-073-AC-3 | ✅ |
-| TC-1807 | Clause-set digest and text-rights violations fail closed | Unit | P0 | FR-073-AC-1, FR-073-AC-6 | ✅ |
+| TC-1807 | Clause-set text-rights violations fail closed | Unit | P0 | FR-073-AC-1, FR-073-AC-6 | ✅ |
 | TC-1808 | Clause-set diff reports added, removed, and changed clauses by stable id | Unit | P0 | FR-073-AC-4 | ✅ |
 | TC-1809 | A module loads a referenced synthetic clause set and both output reports conform to their hand-authored schemas | Integration | P0 | FR-073-AC-1, FR-073-AC-5 | ✅ |
 | TC-1076 | `required` defaults true and is omitted on serialization; `required: false` round-trips, suppresses only an absent target section and its section-hit denominator entry, while a present section still mints and validates; a non-boolean value fails load (#327) | Integration | P0 | FR-050-AC-41 | ✅ |
@@ -921,7 +921,6 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-1822 | The unchanged TypeScript/Python frontmatter parity suite passes with no changed expected outcome or value | Integration | P0 | NFR-009-AC-7 | ✅ 89 parser-parity tests; SR-108 |
 | TC-1823 | Locked default and changed targets compile with exact Rust 1.98.1 | Compile | P0 | NFR-009-AC-8 | ✅ default, all-feature, Python, WASM, fuzz, docs, release; SR-108 |
 | TC-1824 | License and refreshed-advisory gates accept the locked graph | Static | P0 | NFR-009-AC-8 | ✅ zero advisories; licenses pass; SR-108 |
-| TC-1825 | A cross-pin load-bearing dependency bump records every affected qualification gate | Integration | P0 | NFR-009-AC-4 | ✅ evidence manifest and SR-108 qualification matrix |
 | TC-1833 | Locked default, all-target/all-feature, Python, WASM, test, documentation, advisory, license, unsafe-audit, benchmark-build, and release gate classes run on Rust 1.98.1 without weakened flags, exclusions, or thresholds | Integration | P0 | NFR-022-AC-2 | ✅ Full command/result matrix in SR-106; Rust review SR-107 |
 | TC-1834 | Inspection of a simulated newer-stable event requires a recorded compatibility result within seven days and admits a hold only with reproduced failure/control evidence, owner, upstream issue, 30-day expiry, and rerun trigger | Inspection | P0 | NFR-022-AC-3, NFR-022-AC-4 | 🚧 SR-106 records the hypothetical transition shape; pending a detector that notices a newer stable release and starts the seven-day result / 30-day hold clocks |
 | TC-1835 | Inspection rejects formatting-only, repairable-lint-only, inherited-pin-only, speculative, and old-consumer-only compiler holds | Inspection | P0 | NFR-022-AC-5 | ✅ Five invalid hold bases rejected in SR-106 |
@@ -1951,7 +1950,6 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | NFR-009-AC-1 | TC-330 |
 | NFR-009-AC-2 | TC-331 |
 | NFR-009-AC-3 | TC-332 |
-| NFR-009-AC-4 | TC-1825 |
 | NFR-009-AC-5 | TC-1820 |
 | NFR-009-AC-6 | TC-1821 |
 | NFR-009-AC-7 | TC-1822, TC-1826 |

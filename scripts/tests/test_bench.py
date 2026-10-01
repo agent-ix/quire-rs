@@ -90,7 +90,6 @@ def test_governed_collection_refuses_a_skipped_corpus(monkeypatch):
                 "path": ".",
                 "module": ".",
                 "identity": "sha",
-                "pinned_sha": "a" * 40,
             }
         ]
     }
@@ -111,7 +110,6 @@ def test_pinned_corpus_refuses_uncommitted_bytes(monkeypatch):
                 "name": "pinned",
                 "path": ".",
                 "identity": "sha",
-                "pinned_sha": "a" * 40,
             }
         )
 
@@ -128,7 +126,6 @@ def test_default_module_path_and_revision_are_not_operator_selectable(
             "path": "spec-artifacts-process",
             "module": "spec_artifacts_process",
             "identity": "sha",
-            "pinned_sha": "a" * 40,
         }
     }
     monkeypatch.setattr("bench.ROOT", tmp_path)
