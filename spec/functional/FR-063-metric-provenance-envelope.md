@@ -130,16 +130,15 @@ honest; a census silently omitting the fact it partitions cannot be.
 > sign flipped.
 
 > **CR-102 note (2026-08-22):** `agent-ix/quire-rs#229`, reopened. The
-> hollowness rule shipped in `v0.44.0` fires on an **honest zero** (SR-054).
+> hollowness rule as shipped fires on an **honest zero** (SR-054).
 >
 > **`is_hollow` is a ratio test, and it was applied to counts.** For
 > `coverage.implements` the value *is* the match count — the metric's own
 > `method` string said so — so `matched: 0` means no production symbol carries
 > an `Implements:` marker, which is the answer rather than a failure to read.
-> Measured on `agent-ix/spec-artifacts-process` at `v0.24.0`: **0 of 42
-> production symbols, reported as arithmetic over nothing.** `quire-cli` reads
-> 0 of 214 and was the same. This crate reads 15 of 1,412, which is why a
-> ratchet whose corpus is one repository never saw it.
+> On a repository with no `Implements:` markers the shipped rule reported
+> arithmetic over nothing, which is why a ratchet whose corpus is one
+> repository never saw it.
 >
 > **AC-1 encoded the defect, so no test could catch it.** It stated hollowness
 > as `population != 0 && examined != 0 && matched == 0` with no exception, and

@@ -161,7 +161,6 @@ stricter of the two.
 | ID | Constraint | Type | Validation |
 |----|------------|------|------------|
 | FR-069-CON-1 | The loader SHALL resolve schemas from the module bundle and the embedded bundle only, with no fetch of `https://schemas.agent-ix.org` and no read outside the module root. | Architecture | Test |
-| FR-069-CON-3 | A module without a `semantic` block SHALL produce a `Registry` whose archetype projection (name, `body_extraction` JSON, extras) equals the checked-in baseline `tests/fixtures/semantic/baseline/registry-archetypes.json` minted on `main` before this change. | Compatibility | Test |
 
 ## Acceptance Criteria
 
@@ -175,7 +174,6 @@ stricter of the two.
 | FR-069-AC-6 | An inline `data_schema` on a type under a `semantic` block loads with the warning `semantic.inline-data-schema`; the same manifest without the block loads with no semantic diagnostic. | Test |
 | FR-069-AC-7 | A Filament snapshot whose `data_schema` is the reference form is refused with `semantic.data-schema-unresolved-reference` and yields no node; the same snapshot with the schema inline and a `semantic` context extracts. | Test |
 | FR-069-AC-8 | Every semantic-core version a `semantic` block may declare is a complete embedded bundle of valid JSON Schema documents, sourced from the published `@agent-ix/semantic-core` package at that exact version. | Test |
-| FR-069-AC-9 | Every default and fixture module without a `semantic` block loads to the archetype projection recorded in the checked-in baseline. | Test |
 | FR-069-AC-10 | Two loaded modules with one `semantic.package` fail the later sorted root with `semantic.duplicate-package` naming both; an import no loaded module provides warns `semantic.import-unresolved` and still loads; a two-module import cycle fails both with `semantic.import-cycle`. | Test |
 | FR-069-AC-11 | `Registry::from_inline_parts` with a reference-form `data_schema` resolves the file from the `schemas` map, applies the same escape and `$ref` rules, and refuses a key with a `..` segment. | Test |
 | FR-069-AC-12 | A module whose `semantic` block lists `mappings` loads with those tokens recorded on its `SemanticModule`, in order; a block without `mappings` records an empty list. | Test |

@@ -439,7 +439,7 @@ fn resolver_reads_no_network_and_nothing_outside_the_module() {
     let ok = json!({
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "$id": "https://schemas.agent-ix.org/agent-ix/x/0.1.0/T.json",
-        "properties": { "f": { "$ref": "https://schemas.agent-ix.org/semantic-core/0.3.2/FieldDecl.json" } }
+        "properties": { "f": { "$ref": format!("https://schemas.agent-ix.org/semantic-core/{}/FieldDecl.json", embedded::embedded_semantic_core_version()) } }
     });
     let validator = compile_module_schema(
         &ok,
@@ -526,7 +526,7 @@ fn filament_snapshot_reference_form_is_refused() {
 
     let inline: Value =
         serde_json::from_slice(&fs::read(fixture().join("schemas/Entity.json")).unwrap()).unwrap();
-    let context = json!({ "contractVersion": "1.0.0", "semanticCore": "0.3.2", "package": "agent-ix/spec-objects-fixture", "exports": ["entity"], "imports": {} });
+    let context = json!({ "contractVersion": "1.0.0", "semanticCore": embedded::embedded_semantic_core_version(), "package": "agent-ix/spec-objects-fixture", "exports": ["entity"], "imports": {} });
     let result = extract_filament_core(snapshot_input(vec![entity_snapshot(
         json!({ "type": "object" }),
         Some(context.clone()),
@@ -565,7 +565,7 @@ fn filament_snapshot_reference_form_is_refused() {
 fn filament_snapshot_unsupported_versions_are_refused() {
     for (context, code) in [
         (
-            json!({ "contractVersion": "2.0.0", "semanticCore": "0.3.2", "package": "agent-ix/x" }),
+            json!({ "contractVersion": "2.0.0", "semanticCore": embedded::embedded_semantic_core_version(), "package": "agent-ix/x" }),
             "semantic.unsupported-contract-version",
         ),
         (
@@ -760,7 +760,7 @@ fn surfaces_gate_model_features_on_the_manifest() {
     );
     assert!(bare.iter().any(|m| m.contains("values")), "{bare:?}");
 
-    let context = |mappings: &[&str]| json!({ "contractVersion": "1.0.0", "semanticCore": "0.3.2", "package": "agent-ix/spec-objects-fixture", "exports": ["entity"], "imports": {}, "mappings": mappings });
+    let context = |mappings: &[&str]| json!({ "contractVersion": "1.0.0", "semanticCore": embedded::embedded_semantic_core_version(), "package": "agent-ix/spec-objects-fixture", "exports": ["entity"], "imports": {}, "mappings": mappings });
     let run = |mappings: &[&str], body_extraction: Value| {
         let mut object_type = entity_snapshot(json!({ "type": "object" }), Some(context(mappings)));
         object_type["bodyExtraction"] = body_extraction;
@@ -857,7 +857,7 @@ fn rust_callers_gate_model_tables_through_the_public_context() {
 
     let adapter = extract_semantic_json(&json!({
         "markdown": doc,
-        "module": { "contractVersion": "1.0.0", "semanticCore": "0.3.2", "package": "agent-ix/spec-objects-fixture", "exports": ["entity"] },
+        "module": { "contractVersion": "1.0.0", "semanticCore": embedded::embedded_semantic_core_version(), "package": "agent-ix/spec-objects-fixture", "exports": ["entity"] },
         "path": "spec/FR-006.md",
         "sourceIdentity": "ix://agent-ix/fixture/spec",
         "bodyExtraction": dsl,
@@ -1042,7 +1042,7 @@ fn surfaces_supply_the_relation_vocabulary() {
 
     // Filament: the snapshot carries no edge_types or roles.
     let doc = related_document("| overlay | references | FR-005 | 1..1 |\n");
-    let context = json!({ "contractVersion": "1.0.0", "semanticCore": "0.3.2", "package": "agent-ix/spec-objects-fixture", "exports": ["entity"], "imports": {}, "mappings": ["relationships"] });
+    let context = json!({ "contractVersion": "1.0.0", "semanticCore": embedded::embedded_semantic_core_version(), "package": "agent-ix/spec-objects-fixture", "exports": ["entity"], "imports": {}, "mappings": ["relationships"] });
     let mut input = snapshot_input(vec![entity_snapshot(
         json!({ "type": "object" }),
         Some(context.clone()),

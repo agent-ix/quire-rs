@@ -609,8 +609,8 @@ def engine_version() -> str:
     A sweep result is meaningless without it. On 2026-08-07 a sweep reporting
     `ac:non-singular` = 0 was used to promote that check to `error`, while a
     developer's `quire` CLI reported two findings on quire-rs's own FR-047. Both
-    were right: the wheel carried quire-rs v0.17.0 (with the CR-024/026 fixes),
-    the CLI carried v0.16.0 (without them). Neither number recorded its engine,
+    were right: the wheel carried an engine with the CR-024/026 fixes,
+    the CLI carried one without them. Neither number recorded its engine,
     so the contradiction read as a checker defect for a day. It is recorded now.
     """
     try:

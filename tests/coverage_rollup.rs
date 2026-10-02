@@ -350,7 +350,7 @@ fn tc946_duplicate_undeclared_status_rows_yield_one_record() {
 // two distinct symbols is reported in `shared_trace_ids` with both binders,
 // ordered, and the rollup's counts are untouched — the row is still backed,
 // which is exactly why the state needs its own surface (CR-087; the shipped
-// instances were TC-943 ×2 and TC-944 ×2 in v0.41.0, invisible to every
+// instances were TC-943 ×2 and TC-944 ×2, invisible to every
 // report).
 #[test]
 fn tc950_an_id_bound_by_two_symbols_is_reported_with_both_binders() {

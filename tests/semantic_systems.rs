@@ -51,7 +51,7 @@ fn extract_with_bundle_artifacts(md: &str, body_extraction: Value, artifacts: Va
         "markdown": md,
         "module": {
             "contractVersion": "1.0.0",
-            "semanticCore": "0.3.2",
+            "semanticCore": quire_rs::semantic::embedded::embedded_semantic_core_version(),
             "package": "agent-ix/spec-objects-architecture",
             "exports": ["part", "port", "connection", "allocation"],
             "imports": { "agent-ix/fleet": "*" },

@@ -83,7 +83,7 @@ pinned to v1 keeps a schema that describes what it was written against.
 > An `engine` object carrying `{cli, engine, capabilities}` is admitted, and
 > AC-8 gates its shape. `capabilities` is a **token list, not version
 > arithmetic**: a consumer asserts it needs `binding_census`, never that the
-> engine is `>= 0.43.0`, because a version comparison in a consumer is a second
+> engine is at least a given version, because a version comparison in a consumer is a second
 > place the contract lives. The key stays **optional**, so an in-process
 > `CoverageReport::to_json` — which cannot know a CLI version — still conforms,
 > and so does a payload from any CLI predating the field.

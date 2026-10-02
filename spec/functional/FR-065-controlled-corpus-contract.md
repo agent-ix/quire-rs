@@ -66,9 +66,9 @@ A case list answers "what did we try". A **bounds matrix** answers "what did we 
 try", and only the second is a statement about the tool. Every declared cell is
 `covered`, `out-of-scope` with a written reason, or `GAP`.
 
-**A scenario with no case is undefined behaviour, not assumed-working.** Today the
-corpus holds 10 cases and every one is Rust; the Python and TypeScript columns are
-`GAP`, and v0.44.0 shipped two `high` defects (#250, #251) straight through them.
+**A scenario with no case is undefined behaviour, not assumed-working.** A
+language column with no cases is `GAP`, and two `high` defects (#250, #251) shipped
+straight through such columns.
 
 `bounds.gap_count` is an [FR-063](./FR-063-metric-provenance-envelope.md) metric of shape
 `count`, and FR-063-AC-6 already governs it: a count is never hollow, and the identical
@@ -475,12 +475,12 @@ so recomputing it from the case's own tree makes those keys contribute no discri
 design and whose entire claim is structural, would be rejected as blind the moment it
 gained a control.
 
-**THAT RULE HAS REACH 0 OVER THE CORPUS TODAY, AND IT IS KEPT ANYWAY** (CR-132). Measured
-over all 77 discovered fixtures: exactly **two** declare a `validate_*`
+**THAT RULE HAS REACH 0 OVER THE CORPUS TODAY, AND IT IS KEPT ANYWAY** (CR-132). Over the
+discovered fixtures only **two** declare a `validate_*`
 key — `wrong-type-cell`, a `failure` declared under
 `known_gaps.uncontrolled_failure_cases`, which no control names and both readers skip,
-and `clean-control`, a `control`, which the differential does not iterate — so **zero of
-the 35 graded (case, control) pairs carry one**, in either reader. `git log -S
+and `clean-control`, a `control`, which the differential does not iterate — so **no graded
+(case, control) pair carries one**, in either reader. `git log -S
 'wrong-type-cell' -- cases/` returns one commit, the fixture's own introduction, so no
 `control_for` has ever named it. The rule is correct and has no current subject; those
 are different things, and the commentary around this requirement conflated them until

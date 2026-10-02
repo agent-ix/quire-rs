@@ -7,6 +7,7 @@
 """
 
 import json
+import re
 from pathlib import Path
 
 import quire
@@ -19,12 +20,24 @@ FIXTURES = Path(__file__).resolve().parents[1] / "fixtures" / "semantic"
 FIXTURE_CRATE = Path(__file__).resolve().parents[2] / "crates" / "quire-fixtures" / "fixtures"
 
 
+def _declared_core():
+    """The semantic-core version the fixture module declares (its manifest pin)."""
+    manifest = (FIXTURE_CRATE / "module-ok" / "manifest.yaml").read_text()
+    return re.search(r"^\s+semantic_core:\s*(\S+)\s*$", manifest, re.MULTILINE).group(1)
+
+
 def _cases():
-    return json.loads((FIXTURES / "cases.json").read_text())["cases"]
+    cases = json.loads((FIXTURES / "cases.json").read_text())["cases"]
+    for case in cases:
+        case["input"]["module"]["semanticCore"] = _declared_core()
+    return cases
 
 
 def _expected():
-    return json.loads((FIXTURES / "cases.expected.json").read_text())
+    expected = json.loads((FIXTURES / "cases.expected.json").read_text())
+    for record in expected.values():
+        record["semanticCore"] = _declared_core()
+    return expected
 
 
 def test_extract_semantic_matches_rust_for_every_case():
@@ -77,7 +90,7 @@ def test_extract_filament_core_carries_the_semantic_record():
                     "moduleId": "spec-objects-fixture",
                     "semantic": {
                         "contractVersion": "1.0.0",
-                        "semanticCore": "0.1.0",
+                        "semanticCore": _declared_core(),
                         "package": "agent-ix/spec-objects-fixture",
                         "exports": ["entity"],
                         "imports": {},
@@ -123,7 +136,7 @@ def test_unsupported_contract_version_is_refused():
                     "bodyExtraction": None,
                     "hasPlugin": False,
                     "moduleId": "m",
-                    "semantic": {"contractVersion": "2.0.0", "semanticCore": "0.1.0", "package": "agent-ix/x"},
+                    "semantic": {"contractVersion": "2.0.0", "semanticCore": _declared_core(), "package": "agent-ix/x"},
                 }
             ],
         }

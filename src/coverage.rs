@@ -172,7 +172,7 @@ pub struct SharedTraceSymbol {
 /// The policy this reports on: **one test-case id names one source symbol.**
 /// A row backed by N symbols is satisfied by any one of them, so the row can
 /// stay green while N−1 of its tests rot or are deleted — the id has stopped
-/// naming which evidence backs the row. v0.41.0 shipped two instances
+/// naming which evidence backs the row. A release shipped two instances
 /// (TC-943 ×2, TC-944 ×2) and no surface reported either.
 ///
 /// **Scoped to ids that are row ids of status-carrying rows** — the rows whose

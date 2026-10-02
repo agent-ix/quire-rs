@@ -46,7 +46,7 @@ pub struct ArchetypeCarryOver {
 }
 
 /// `construct` is printed only when declared, so the Debug projection of an
-/// archetype without one is the one FR-069-CON-3's baseline was minted from.
+/// archetype without one is unchanged.
 impl std::fmt::Debug for ArchetypeCarryOver {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut s = f.debug_struct("ArchetypeCarryOver");

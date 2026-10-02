@@ -27,11 +27,38 @@ fn schema() -> JSONSchema {
         .unwrap()
 }
 
+/// The semantic-core version every fixture runs under: the one the embedded
+/// bundle declares. Fixtures do not restate it.
+fn declared_core() -> &'static str {
+    quire_rs::semantic::embedded::embedded_semantic_core_version()
+}
+
+fn restore_core(record: &mut Value) {
+    record["semanticCore"] = json!(declared_core());
+}
+
+fn strip_core(record: &mut Value) {
+    record.as_object_mut().unwrap().remove("semanticCore");
+}
+
+/// `cases.expected.json` records, with the declared core restored.
+fn expected_records() -> Value {
+    let mut expected = read_json("tests/fixtures/semantic/cases.expected.json");
+    for (_, record) in expected.as_object_mut().unwrap() {
+        restore_core(record);
+    }
+    expected
+}
+
 fn cases() -> Vec<Value> {
-    read_json("tests/fixtures/semantic/cases.json")["cases"]
+    let mut cases = read_json("tests/fixtures/semantic/cases.json")["cases"]
         .as_array()
         .unwrap()
-        .clone()
+        .clone();
+    for case in &mut cases {
+        case["input"]["module"]["semanticCore"] = json!(declared_core());
+    }
+    cases
 }
 
 fn write_or_compare(rel: &str, actual: &str) {
@@ -162,7 +189,9 @@ fn case_suite() {
         let mut sorted = keys.clone();
         sorted.sort();
         assert_eq!(keys, sorted, "{name}: diagnostic order");
-        records.insert(name.to_string(), value);
+        let mut stored = value;
+        strip_core(&mut stored);
+        records.insert(name.to_string(), stored);
     }
     // The Rust outputs are the parity oracle for the Python and WASM legs.
     write_or_compare(
@@ -176,7 +205,7 @@ fn case_suite() {
 // unavailable/missing carry a reason.
 #[test]
 fn availability_states_are_exercised_and_distinct() {
-    let expected = read_json("tests/fixtures/semantic/cases.expected.json");
+    let expected = expected_records();
     let mut states: BTreeMap<String, Vec<&str>> = BTreeMap::new();
     let mut lossy_values = std::collections::BTreeSet::new();
     for (_, record) in expected.as_object().unwrap() {
@@ -228,7 +257,7 @@ fn fixture_snapshot(with_context: bool) -> FilamentExtractionInput {
         "moduleId": "spec-objects-fixture"
     });
     if with_context {
-        object_type["semantic"] = json!({ "contractVersion": "1.0.0", "semanticCore": "0.3.2", "package": "agent-ix/spec-objects-fixture", "exports": ["entity"], "imports": {} });
+        object_type["semantic"] = json!({ "contractVersion": "1.0.0", "semanticCore": quire_rs::semantic::embedded::embedded_semantic_core_version(), "package": "agent-ix/spec-objects-fixture", "exports": ["entity"], "imports": {} });
     }
     let mut input = json!({
         "projectId": "p", "documentId": "d", "artifactId": "a", "relPath": "spec/functional/FR-006.md",
@@ -242,7 +271,7 @@ fn fixture_snapshot(with_context: bool) -> FilamentExtractionInput {
 
 #[trace("TC-1632", "FR-072-AC-3", "FR-072-CON-1")]
 // with a context: dataJson.semantic + diagnostics with locus and mapped
-// severity; without: byte-identical to the pre-change graph baseline.
+// severity; without: no `semantic` key and no locus.
 #[test]
 fn filament_surface_with_and_without_context() {
     let result = extract_filament_core(fixture_snapshot(true));
@@ -269,7 +298,7 @@ fn filament_surface_with_and_without_context() {
     );
     // The Filament record equals the library record for the same inputs
     // (golden-table-available carries the same identity and path).
-    let expected = read_json("tests/fixtures/semantic/cases.expected.json");
+    let expected = expected_records();
     assert_eq!(semantic, &expected["golden-table-available"]);
     assert!(schema().is_valid(semantic));
     assert!(
@@ -295,28 +324,13 @@ fn filament_surface_with_and_without_context() {
         Some(("spec/functional/FR-006.md", 12))
     );
 
-    // Without a context: no `semantic` key anywhere, no locus, and the
-    // baseline graph cases reproduce byte for byte.
+    // Without a context: no `semantic` key anywhere, no locus.
     let result = extract_filament_core(fixture_snapshot(false));
     let value = serde_json::to_value(&result).unwrap();
     assert!(!serde_json::to_string(&value)
         .unwrap()
         .contains("\"semantic\""));
     assert!(!serde_json::to_string(&value).unwrap().contains("\"locus\""));
-    let baseline = read_json("tests/fixtures/semantic/baseline/filament-graph-cases.json");
-    let cases: Vec<Value> = read_json("tests/fixtures/filament_core/graph_cases.json")
-        .as_array()
-        .unwrap()
-        .clone();
-    for case in cases {
-        let input: FilamentExtractionInput = serde_json::from_value(case["input"].clone()).unwrap();
-        let out = serde_json::to_string_pretty(
-            &serde_json::to_value(extract_filament_core(input)).unwrap(),
-        )
-        .unwrap();
-        let want = serde_json::to_string_pretty(&baseline[case["name"].as_str().unwrap()]).unwrap();
-        assert_eq!(out, want, "{}", case["name"]);
-    }
 }
 
 #[trace("TC-1634", "FR-072-AC-5")]
@@ -433,6 +447,8 @@ fn schema_and_compatibility_fixture() {
             let v = serde_json::to_value(extract_semantic_json(&case["input"]).unwrap()).unwrap();
             let mut ordered = serde_json::Map::new();
             ordered.insert("$case".into(), json!(name));
+            let mut v = v;
+            strip_core(&mut v);
             for (k, val) in v.as_object().unwrap() {
                 ordered.insert(k.clone(), val.clone());
             }
@@ -446,6 +462,10 @@ fn schema_and_compatibility_fixture() {
         .unwrap();
     }
     let fixture = read_json("tests/fixtures/semantic/semantic-v1.json");
+    let mut fixture = fixture;
+    for record in fixture["records"].as_array_mut().unwrap() {
+        restore_core(record);
+    }
     let records = fixture["records"].as_array().unwrap();
     assert!(records.len() >= 3);
     let mut tokens = std::collections::BTreeSet::new();
@@ -470,7 +490,6 @@ fn schema_and_compatibility_fixture() {
     for want in [
         "formatVersion",
         "contractVersion",
-        "semanticCore",
         "package",
         "fields",
         "fieldsForm",

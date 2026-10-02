@@ -489,14 +489,13 @@ that failed to mint cannot erase its own gap from the population.
 > **CR-095 note (2026-08-22):** AC-28 is new — the catch-all is split out of the
 > headline. `agent-ix/quire-rs#230`, epic `agent-ix/quoin#197`.
 >
-> `quire properties` headlined `515/951 criteria extractable (54%)` over
-> `agent-ix/filament-ide-rs` — 951 criteria across 274 spec files, under
-> `quire 0.29.0` / engine `v0.42.0` / `spec-artifacts-process v0.23.0`. **440 of
-> those 515 were the `universal` catch-all.** Excluding it, the specifically
-> shaped set was **78/951 = 8%**.
+> `quire properties` headlined a large "criteria extractable" percentage over
+> `agent-ix/filament-ide-rs`, and **most of the extractable criteria were the
+> `universal` catch-all.** Excluding it, the specifically shaped set was a small
+> fraction.
 >
-> Both numbers are true. 54% reads as *"half this specification is
-> property-testable"*, and 8% is the honest figure for *"the classifier said
+> Both numbers are true. The headline reads as *"half this specification is
+> property-testable"*, and the specifically shaped fraction is the honest figure for *"the classifier said
 > what property to write"* — and only the first is what a reader takes from a
 > summary line and repeats. The fix is one clause, and it is worth an AC
 > because the misreading is what the line invites.
@@ -506,15 +505,15 @@ that failed to mint cannot erase its own gap from the population.
 > `extractable` itself, `example` is `not-extractable` by construction, and
 > `unclassified` means no signal fired. **This is not a quality ranking and must
 > not become a gate** — a `universal` criterion is very often the right thing to
-> write. It is a *reading-list* distinction: 78 specifically-shaped criteria out
-> of 951 is a tractable set to sit down with, and `idempotence` on an
+> write. It is a *reading-list* distinction: the specifically-shaped criteria are
+> a tractable set to sit down with, and `idempotence` on an
 > `FR-029-AC-1` pointed straight at a property worth writing.
 >
 > **Grounding is reported per shape because the two halves were disjoint in the
 > wrong direction.** A classification record carries a shape *and* a
-> decomposition (`domain` / `precondition` / `oracle`), and measured on that
-> corpus **65 of the 67 specific-shape non-`example` records carried zero
-> spans**, while every span-bearing record but nine was `universal`. So the
+> decomposition (`domain` / `precondition` / `oracle`), and on that
+> corpus nearly every specific-shape non-`example` record carried zero
+> spans, while nearly every span-bearing record was `universal`. So the
 > shapes that told a reader the most arrived with nothing a generator could be
 > driven from, and the catch-all arrived with the decomposition. Per-shape rates
 > make that readable from the payload instead of from a bespoke sweep.
@@ -621,7 +620,7 @@ that failed to mint cannot erase its own gap from the population.
 > source symbol, and an id shared by several is a reported defect.
 > `agent-ix/quire-rs#216`.
 >
-> v0.41.0 shipped two instances in this very crate — TC-943 tagged on two test
+> The shipped crate held two instances — TC-943 tagged on two test
 > fns (`src/symbols/typescript.rs`, CR-084) and TC-944 on two
 > (`src/symbols/mod.rs`, CR-085) — and no surface reported either: the matrix
 > lists each id once, the row is backed by *any* one of its binders, and so the
@@ -738,20 +737,17 @@ that failed to mint cannot erase its own gap from the population.
 > The form existed for one reason, recorded verbatim in `traceability.rs` at the
 > time: "`spec/tests.md` is on `DEFAULT_SKIP`, so archetype binding alone cannot
 > see the file 184 repos call their Test Matrix." Type-driven corpus membership
-> (#73, v0.26.0) deleted that premise. Two ways to acquire a minting document
+> (#73) deleted that premise. Two ways to acquire a minting document
 > then bought nothing and cost coverage, because path binding **enumerates**:
 > the module declared three near-identical targets, one per filename the
 > ecosystem happens to use (`spec/tests.md`, `spec/matrix.md`, `spec/evals.md`),
 > and reached nothing nested. A correctly authored matrix at
 > `spec/<module>/matrix/tests.md` minted zero ids.
 >
-> **Measured** across `~/dev`, 238 repositories, worktrees deduped
-> (`scripts/sweep_coverage.py`, agent-ix/quire-rs#78), with this change plus the
-> matching `spec-artifacts-process` collapse: dead trace tags fall from **1,401
-> occurrences / 1,052 distinct ids to 1,207 / 873**. The whole change is one
-> repository — `filament-ide-rs`, **214 → 20** dead tags, rollup 17/850 →
-> **473/2,184** rows backed — because it is the only repository in the ecosystem
-> authoring nested module matrices. It is also the shape the ecosystem is moving
+> A corpus sweep (`scripts/sweep_coverage.py`, agent-ix/quire-rs#78), with this
+> change plus the matching `spec-artifacts-process` collapse, shows dead trace
+> tags falling. The whole change is one repository — `filament-ide-rs` — because
+> it is the only repository in the ecosystem authoring nested module matrices. It is also the shape the ecosystem is moving
 > toward, which is what makes enumeration the wrong contract rather than merely
 > an inelegant one.
 >
@@ -772,7 +768,7 @@ that failed to mint cannot erase its own gap from the population.
 >    off-corpus reader returned `None` and emitted nothing until CR-054; the walk
 >    emits `DocumentUnreadable` / `MissingUuid`. So AC-19's
 >    `unreadable-declared-document` and `absent-declared-document` reasons are
->    withdrawn — CR-059 shipped them in v0.27.0 for a code path this change
+>    withdrawn — CR-059 shipped them for a code path this change
 >    deletes, which was the right call for the interim and is dead now.
 >    `archetype-matches-nothing` is the surviving reason, and a misspelled
 >    archetype is the surviving shape of the same fault.
@@ -836,12 +832,12 @@ that failed to mint cannot erase its own gap from the population.
 > point of the read — so `NotFound` became indistinguishable from permission
 > denied, an IO error, or a directory where a file was expected.
 >
-> Measured: running the v0.26.0 engine against this repository produced **six**
+> Running the engine against this repository produced several
 > such diagnostics, all of one shape — `spec/evals.md` and `spec/matrix.md`,
 > named by three declarations each. `spec-artifacts-process` declares those two
 > auxiliary sources, this repository's matrix is `spec/tests.md`, and it has
 > neither. The declarations are **optional by convention**: a module shipped
-> across 200+ repositories names the auxiliary documents any of them *might*
+> across the whole ecosystem names the auxiliary documents any of them *might*
 > have. So the diagnostic was technically true and practically noise, and it
 > would have fired on most repositories on that module the moment they upgraded.
 > This is the finding that made SR-007 CONDITIONAL rather than PASS.

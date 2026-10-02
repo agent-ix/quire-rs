@@ -54,8 +54,8 @@ lint:
 
 # The `python` feature is gated off in every target above, so nothing in `ci`
 # ever compiles `src/python/`. FR-056 added a field to `GrammarVocabularies`,
-# two PyO3 struct literals were not updated, and quire-rs shipped v0.29.0 AND
-# v0.30.0 unable to build a wheel at all — discovered only when the wheel job
+# two PyO3 struct literals were not updated, and quire-rs shipped two
+# releases unable to build a wheel at all — discovered only when the wheel job
 # was finally dispatched. CLAUDE.md already says a `src/grammar/` change must
 # pass `make ci-python`; nothing enforced it.
 #
@@ -318,7 +318,7 @@ coverage-baseline-update:
 
 # The #212 gate: the engine under test validates its own spec/ tree. PR #204
 # corrupted a spec/tests.md row, every target below stayed green, and the
-# corruption shipped inside v0.41.0 — nothing here ever ran structural
+# corruption shipped — nothing here ever ran structural
 # validation against this repo's own matrix. Runs the working-tree engine
 # (cargo run --example), never an installed `quire` CLI, which lags the branch
 # under test. The two schema-provider repositories are independent executable

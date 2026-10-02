@@ -1,7 +1,7 @@
 //! Wave B gap analysis (SR-048), run with **this branch's** engine.
 //!
-//! Deliberately not the installed `quire` CLI: that is 0.22.0 against this
-//! crate's 0.30.1, so it predates the reconciliation being audited and would
+//! Deliberately not the installed `quire` CLI: that can lag this
+//! crate, so it predates the reconciliation being audited and would
 //! report on code that is not the code under review.
 //!
 //! ```text

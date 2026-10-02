@@ -458,73 +458,27 @@ violates a check:
 > `ac:vacuous-outcome` and `ac:non-singular` are **promoted to `error`**. CON-1
 > requires a corpus baseline sweep plus explicit user sign-off; both are done,
 > and the promotion is declared where CON-2 says it must be — the FR-048
-> `grammar_severity` map in the `spec-artifacts-iso` manifest (v0.8.0), reaching
-> consumers through `quoin` v0.10.0.
+> `grammar_severity` map in the `spec-artifacts-iso` manifest, reaching
+> consumers through `quoin`.
 >
 > **`DEFAULT_SEVERITY` is unchanged.** CON-1 forbids *shipping the engine
 > default* promoted, not promotion itself; the engine still ships every `ac`
 > check advisory and the module opts in. Nothing about this note licenses
 > editing that constant.
 >
-> Measured over 4,448 docs / 192 repos, worktree-deduped:
+> The baseline sweep split its findings into checker defects (CR-024, CR-025,
+> CR-026) and real findings fixed in the corpus. The split is the whole lesson: a
+> check with a high false-positive rate cannot be promoted, and the rate was
+> invisible until the findings were read one by one. This is CR-017's lesson
+> holding a second time: triage before editing prose.
 >
-> | check | baseline | after CR-024/025/026 | after the corpus sweep |
-> |---|---|---|---|
-> | `ac:vacuous-outcome` | 44 | 41 | **0** |
-> | `ac:non-singular` | 48 | 24 | **0** |
->
-> Of the 92 baseline findings, **27 were checker defects** (CR-024, CR-025,
-> CR-026) and 65 were real, fixed across 29 repos with each document validated
-> before its PR opened. The split is the whole lesson: a check with a 50%
-> false-positive rate cannot be promoted, and the rate was invisible until the
-> findings were read one by one. This is CR-017's lesson holding a second time —
-> triage before editing prose.
->
-> **The other three checks stay `warning`.** `ac:non-canonical-shape` is 1,099
-> findings (10.0% of cells) and far too large to gate on — its sweep is
-> agent-ix/quire-rs#29. `ac:unclassifiable` (44) and `ac:vague-response` (109)
+> **The other three checks stay `warning`.** `ac:non-canonical-shape` is
+> far too large to gate on — its sweep is
+> agent-ix/quire-rs#29. `ac:unclassifiable` and `ac:vague-response`
 > are unchanged in status; neither has been re-sampled for precision since
 > CR-019, and promotion of either needs its own CON-1 pass.
 >
-> The figures in agent-ix/quire-rs#21 and in the CR-022 proposal were taken over
-> a corpus that counted worktree duplicates and are corrected here and in
-> `plan/Plan-001-ac-grammar-coverage/tasks/Task-009-ac-grammar-baseline-sweep.md`.
 
-> **CR-031 note — the CR-027 figures hold; the tool that contradicted them was
-> stale (2026-08-08).** `quire validate --module <spec-artifacts-iso v0.8.0>`
-> reported two `ac:non-singular` **errors** on this document's own AC-15/AC-16
-> rows — the rows CR-024 added — which read as a masking defect surviving
-> CR-026. It is not. The engine on `main` emits **zero** `ac` findings for this
-> document, and zero `ac:non-singular` / `ac:vacuous-outcome` across all 95 docs
-> of this repo's `spec/`. The two errors came from the installed `quire` CLI
-> v0.10.0, which pins quire-rs **v0.16.0** — the release *before* CR-024/025/026
-> shipped in v0.17.0. Verified by rebuilding `quire-cli` against this tree: the
-> same command on the same document returns no `ac` finding.
->
-> Re-measured over `~/dev`, worktree-deduped, module `spec-artifacts-iso`
-> v0.8.0 — 4,411 docs / 191 repos / 10,901 cells:
->
-> | check | engine v0.16.0 (shipped CLI) | engine v0.17.0 (`main`) |
-> |---|---|---|
-> | `ac:non-singular` | 28 | **0** |
-> | `ac:vacuous-outcome` | 2 | **0** |
->
-> So CR-027's `0`/`0` is correct, and the promotion stands. The exposure is a
-> **toolchain-version** one, not a grammar one: 18 repos currently fail
-> validation on a promoted check when run with the shipped CLI, and every one of
-> those 30 findings disappears on v0.17.0. The remedy is releasing `quire-cli`
-> on quire-rs ≥ v0.17.0, not a checker change and not a prose edit — rewording
-> AC-15/AC-16 would have deleted the examples documenting CR-024 to accommodate
-> a superseded binary.
->
-> Two gates let a stale-engine reading go unchallenged, and both are closed:
-> `tests/spec_dogfood.rs` never applied the module's promoted severities to this
-> repo's own `spec/` (now FR-048-AC-11 / TC-794), and
-> `scripts/ac_corpus_sweep.py` recorded no engine version, so two conflicting
-> counts could not be told apart (it now prints and stores one). The sweep's
-> *findings* were already engine-derived — its Python table parser only builds
-> the denominator and the recall frame — so it was not the source of any
-> mis-count; its document typing now calls the engine as well.
 > **CR-028 note (2026-08-07):** Shape classification gains a **second,
 > orthogonal axis**, owned by [FR-052](./FR-052-acceptance-criteria-property-classification.md).
 > FR-047's axis answers *what prose form is this cell in* — `assertion`,
@@ -537,8 +491,7 @@ violates a check:
 > Nothing in this FR changes. `AcShape` is unchanged and **gains no variant** —
 > a property shape is not an `AcShape` and never appears in one. The `ac`
 > finding stream is **byte-identical** with the classifier present and absent,
-> which FR-052-AC-7 pins as a test rather than leaving as an intention, so every
-> corpus figure recorded in the notes above stands unmoved.
+> which FR-052-AC-7 pins as a test rather than leaving as an intention.
 >
 > The two axes are kept apart deliberately: FR-047 emits findings and its checks
 > are promotable to `error` through [FR-048](./FR-048-per-check-grammar-severity.md),

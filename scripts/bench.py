@@ -191,7 +191,7 @@ def main() -> int:
     )
     # #265: no PATH lookup. `--quire` defaulted to whatever was installed, so
     # the checked-in ratchet baseline was produced by a binary nobody chose —
-    # measured on this machine, the installed `quire 0.30.2` emits no `engine`
+    # an installed binary may emit no `engine`
     # block at all. The binary is built from the consuming workspace at its
     # pinned rev instead, exactly as `sweep_coverage.py` now does.
     ap.add_argument(
@@ -329,7 +329,7 @@ def metrics_from(payload: dict) -> dict[str, Any]:
         skip(
             "coverage.binding_read_pct",
             "payload carries no binding_census "
-            "(engine predates FR-050-AC-27 — needs quire-rs >= v0.43.0)",
+            "(engine predates FR-050-AC-27)",
         )
     elif candidates:
         out["coverage.binding_read_pct"] = pct(bound, candidates)
@@ -368,8 +368,8 @@ def metrics_from(payload: dict) -> dict[str, Any]:
     out["sentinel.silent_zero"] = silent_zeros(payload)
 
     # The language-coverage guard (CR-103). A check measured on one language and
-    # shipped to all of them is what put 549 suspicions on 551 TypeScript
-    # candidates in v0.44.0; this is the number that would have said so.
+    # shipped to all of them is what put suspicions on nearly every TypeScript
+    # candidate; this is the number that would have said so.
     if candidates:
         out["skeptic.suspicion_rate"] = pct(
             len(payload.get("suspicions", [])), candidates
@@ -388,7 +388,7 @@ def selected(entry: dict, measured: dict[str, Any]) -> dict[str, Any]:
     control: their `backed_pct` moves whenever somebody writes a spec row, and
     ratcheting that would train everyone to run `bench-update` reflexively —
     which is how a ratchet stops being one. What they are here to hold still is
-    the pair of gates that failed in v0.44.0, and those do not move with
+    the pair of gates that failed in an earlier release, and those do not move with
     content.
     """
     declared = entry.get("metrics")

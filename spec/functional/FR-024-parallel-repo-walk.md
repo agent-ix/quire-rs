@@ -123,18 +123,15 @@ impl RepoLoad {
 > document missing `type`, which is the reason `README.md` needed a name-based
 > skip in the first place.
 >
-> **Measured blast radius. [RAN]** `scripts/classify_matrices.py` over `~/dev`,
-> worktrees and `-task<N>` copies deduped: of 184 matrices at a path the
-> ecosystem binds, **0 have no frontmatter block**, 170 are typed `TestMatrix`
-> and stay, and 14 are mis-typed — 10 declaring `type: index`, which is those
-> documents saying they are not matrices. Six of the 14 mint rows today and
-> need a one-line frontmatter fix. Against that, **20 real matrices in 9 repos
-> become visible for the first time** (12 of them minting rows), in filename
-> conventions the enumeration never covered — `spec/test-matrix.md`,
+> **Blast radius. [RAN]** `scripts/classify_matrices.py` over the ecosystem
+> corpus, worktrees and `-task<N>` copies deduped: no matrix at a bound path
+> lacks a frontmatter block, most are typed `TestMatrix` and stay, and the
+> mis-typed ones include documents declaring `type: index`, which is those
+> documents saying they are not matrices. Real matrices become visible for the
+> first time, in filename conventions the enumeration never covered — `spec/test-matrix.md`,
 > `spec/test_matrix.md`, `spec/traceability_matrix.md`, `spec/*/matrix/tests.md`.
 >
-> **Ecosystem-wide, ~100 of 184 matrices fail the current contract once
-> visible.** That is the deliverable, not a cost. No suppression is added to
+> **Many matrices fail the current contract once visible.** That is the deliverable, not a cost. No suppression is added to
 > keep validation green.
 
 > **CR-045 note (2026-08-15):** The walk-bounding clause under *Walk semantics*
