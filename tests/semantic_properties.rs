@@ -46,7 +46,7 @@ fn field_decl_gate() -> jsonschema::JSONSchema {
     let schema = json!({
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "$id": "https://schemas.agent-ix.org/agent-ix/quire-rs/0.3.0/Gate.json",
-        "$ref": "https://schemas.agent-ix.org/semantic-core/0.3.2/FieldDecl.json"
+        "$ref": format!("https://schemas.agent-ix.org/semantic-core/{}/FieldDecl.json", quire_rs::semantic::embedded::embedded_semantic_core_version())
     });
     compile_module_schema(
         &schema,

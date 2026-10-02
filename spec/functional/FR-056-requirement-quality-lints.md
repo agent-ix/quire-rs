@@ -60,20 +60,12 @@ detection is exact by construction, so the fit question is not "is the detector
 right" but "is the reported rate liveable".
 
 > **[RAN] Ecosystem fit check, before shipping — the CR-014 discipline.**
-> Measured over the `~/dev` corpus: **239 repositories, 3,335
-> FR/NFR/StR documents**, worktree copies deduped.
->
-> | | Findings | |
-> |---|---|---|
-> | `quality:agentless-passive` | 678 | the dominant one |
-> | `quality:ambiguous-term` | 145 | |
-> | `quality:mixed-modal` | 130 | |
-> | **Documents with ≥1 finding** | **674 / 3,335 = 20.2%** | |
->
-> One fifth of the corpus, not one half, and every finding advisory and
-> independently silenceable. Dogfooded: this repository's own spec reports
-> **17 / 76 = 22.4%**, so the ecosystem number is not something the engine's
-> own authors are exempt from.
+> The three checks were run over the ecosystem corpus before shipping, with
+> worktree copies deduped. `agentless-passive` was the dominant finding; the
+> rate was a minority of documents, not a majority, and every finding is
+> advisory and independently silenceable. Dogfooded: this repository's own spec
+> is held to the same checks, so the ecosystem rate is not something the
+> engine's own authors are exempt from.
 
 ### Vocabulary is module data
 

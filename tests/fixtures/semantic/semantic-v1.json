@@ -150,8 +150,7 @@
       ],
       "fieldsForm": "table",
       "formatVersion": 1,
-      "package": "agent-ix/spec-objects-fixture",
-      "semanticCore": "0.3.2"
+      "package": "agent-ix/spec-objects-fixture"
     },
     {
       "$case": "operations-available",
@@ -276,8 +275,7 @@
           }
         }
       ],
-      "package": "agent-ix/spec-objects-fixture",
-      "semanticCore": "0.3.2"
+      "package": "agent-ix/spec-objects-fixture"
     },
     {
       "$case": "required-section-missing",
@@ -299,8 +297,7 @@
       "contractVersion": "1.0.0",
       "diagnostics": [],
       "formatVersion": 1,
-      "package": "agent-ix/spec-objects-fixture",
-      "semanticCore": "0.3.2"
+      "package": "agent-ix/spec-objects-fixture"
     },
     {
       "$case": "legacy-bullets-unavailable",
@@ -331,8 +328,7 @@
         }
       ],
       "formatVersion": 1,
-      "package": "agent-ix/spec-objects-fixture",
-      "semanticCore": "0.3.2"
+      "package": "agent-ix/spec-objects-fixture"
     },
     {
       "$case": "unresolved-type-lossy",
@@ -377,8 +373,7 @@
       ],
       "fieldsForm": "table",
       "formatVersion": 1,
-      "package": "agent-ix/spec-objects-fixture",
-      "semanticCore": "0.3.2"
+      "package": "agent-ix/spec-objects-fixture"
     }
   ]
 }

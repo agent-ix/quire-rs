@@ -62,11 +62,7 @@ verbatim `clauseText` and the byte-identity constraints below.
   cases, each with `name`, `issue_ref`, `tags`, `input`, and `expect`; the
   attribution test that governs `tests/fixtures/corpus_cases/` SHALL also
   govern this file.
-- The pre-change baselines minted on `main` before the first code commit:
-  `tests/fixtures/semantic/baseline/registry-archetypes.json`,
-  `tests/fixtures/semantic/baseline/filament-graph-cases.json` (the current
-  `graph_cases.json` outputs), and the existing coverage-v1, properties-v1,
-  and assurance-v1 fixture outputs.
+- The existing coverage-v1, properties-v1, and assurance-v1 fixture outputs.
 
 ## Outputs
 

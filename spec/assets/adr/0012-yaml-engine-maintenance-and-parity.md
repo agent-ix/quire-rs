@@ -55,19 +55,17 @@ differential and the affected parity suites.
 
 ## Compatibility evidence
 
-A temporary two-engine comparator evaluated 775 complete leading frontmatter
-blocks and six focused semantic cases. All 781 old/new outcome and complete
-JSON-value comparisons were equal. An injected duplicate-key difference
-produced exactly one difference and a non-zero exit, demonstrating that the
-comparison could fail.
+A temporary two-engine comparator evaluated every governed leading frontmatter
+block and the focused semantic cases. All old/new outcome and complete
+JSON-value comparisons were equal, and an injected duplicate-key difference
+produced a non-zero exit, demonstrating that the comparison could fail.
 
 The focused cases covered duplicate keys, merge keys, aliases, implicit
 scalars, timestamps, and non-string mapping keys. Existing frontmatter parity
 and typed YAML consumer suites also passed unchanged. Same-runner performance
-measurements remained within the existing 10% limit.
+measurements remained within the existing limit.
 
-The aggregate result, population, negative-control result, and
-gate summary are retained in SR-108. The temporary comparator and voluminous per-input output are not
+The temporary comparator and voluminous per-input output are not
 part of the product or its permanent tooling. A future version decision must
 produce fresh evidence for that candidate rather than rely on this one-time
 executable.

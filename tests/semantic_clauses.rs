@@ -45,10 +45,13 @@ fn context(path: &str) -> SemanticContext {
         .with_source_identity("ix://agent-ix/config-service/spec")
 }
 
-/// `context` pinned to the semantic-core version a fixture case records.
+/// `context`, pinned to the historical semantic-core version only when the
+/// fixture selects one; otherwise it runs under the module's declared core.
 fn context_at(path: &str, fixture: &Value) -> SemanticContext {
     let mut ctx = context(path);
-    ctx.module.semantic_core = fixture["semanticCore"].as_str().unwrap().to_string();
+    if let Some(core) = fixture["semanticCore"].as_str() {
+        ctx.module.semantic_core = core.to_string();
+    }
     ctx
 }
 
@@ -577,14 +580,10 @@ fn validation_and_states() {
 fn source_identity_default() {
     let raw = mapping("operations.md");
     let registry = Registry::load_module(&quire_fixtures::module_ok_dir()).unwrap();
-    let mut module = registry
+    let module = registry
         .semantic_module("spec-objects-fixture")
         .unwrap()
         .clone();
-    module.semantic_core = mapping_json("operations.expected.json")["semanticCore"]
-        .as_str()
-        .unwrap()
-        .to_string();
     let ctx = SemanticContext::new(module.clone(), "operations.md", bundle())
         .with_scope("config-service");
     let out = extract_clauses(&raw, &ctx);

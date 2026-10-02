@@ -26,8 +26,7 @@
       }
     ],
     "formatVersion": 1,
-    "package": "agent-ix/spec-objects-fixture",
-    "semanticCore": "0.3.2"
+    "package": "agent-ix/spec-objects-fixture"
   },
   "declared-lossy-posture": {
     "availability": {
@@ -177,8 +176,7 @@
     ],
     "fieldsForm": "table",
     "formatVersion": 1,
-    "package": "agent-ix/spec-objects-fixture",
-    "semanticCore": "0.3.2"
+    "package": "agent-ix/spec-objects-fixture"
   },
   "defaulted-source-identity": {
     "availability": {
@@ -324,8 +322,7 @@
         }
       }
     ],
-    "package": "agent-ix/spec-objects-fixture",
-    "semanticCore": "0.3.2"
+    "package": "agent-ix/spec-objects-fixture"
   },
   "duplicate-operation-unavailable": {
     "availability": {
@@ -354,8 +351,7 @@
       }
     ],
     "formatVersion": 1,
-    "package": "agent-ix/spec-objects-fixture",
-    "semanticCore": "0.3.2"
+    "package": "agent-ix/spec-objects-fixture"
   },
   "empty-bundle-index": {
     "availability": {
@@ -399,8 +395,7 @@
     ],
     "fieldsForm": "table",
     "formatVersion": 1,
-    "package": "agent-ix/spec-objects-fixture",
-    "semanticCore": "0.3.2"
+    "package": "agent-ix/spec-objects-fixture"
   },
   "entry-errors-unavailable": {
     "availability": {
@@ -436,8 +431,7 @@
       }
     ],
     "formatVersion": 1,
-    "package": "agent-ix/spec-objects-fixture",
-    "semanticCore": "0.3.2"
+    "package": "agent-ix/spec-objects-fixture"
   },
   "fence-interior-is-opaque": {
     "availability": {
@@ -483,8 +477,7 @@
       }
     ],
     "formatVersion": 1,
-    "package": "agent-ix/spec-objects-fixture",
-    "semanticCore": "0.3.2"
+    "package": "agent-ix/spec-objects-fixture"
   },
   "golden-fence-available": {
     "availability": {
@@ -634,8 +627,7 @@
     ],
     "fieldsForm": "fence",
     "formatVersion": 1,
-    "package": "agent-ix/spec-objects-fixture",
-    "semanticCore": "0.3.2"
+    "package": "agent-ix/spec-objects-fixture"
   },
   "golden-table-available": {
     "availability": {
@@ -785,8 +777,7 @@
     ],
     "fieldsForm": "table",
     "formatVersion": 1,
-    "package": "agent-ix/spec-objects-fixture",
-    "semanticCore": "0.3.2"
+    "package": "agent-ix/spec-objects-fixture"
   },
   "legacy-bullets-promoted": {
     "availability": {
@@ -816,8 +807,7 @@
       }
     ],
     "formatVersion": 1,
-    "package": "agent-ix/spec-objects-fixture",
-    "semanticCore": "0.3.2"
+    "package": "agent-ix/spec-objects-fixture"
   },
   "legacy-bullets-unavailable": {
     "availability": {
@@ -847,8 +837,7 @@
       }
     ],
     "formatVersion": 1,
-    "package": "agent-ix/spec-objects-fixture",
-    "semanticCore": "0.3.2"
+    "package": "agent-ix/spec-objects-fixture"
   },
   "no-sections-not-applicable": {
     "availability": {
@@ -868,8 +857,7 @@
     "contractVersion": "1.0.0",
     "diagnostics": [],
     "formatVersion": 1,
-    "package": "agent-ix/spec-objects-fixture",
-    "semanticCore": "0.3.2"
+    "package": "agent-ix/spec-objects-fixture"
   },
   "operations-available": {
     "availability": {
@@ -993,8 +981,7 @@
         }
       }
     ],
-    "package": "agent-ix/spec-objects-fixture",
-    "semanticCore": "0.3.2"
+    "package": "agent-ix/spec-objects-fixture"
   },
   "required-invariants-missing": {
     "availability": {
@@ -1016,8 +1003,7 @@
     "contractVersion": "1.0.0",
     "diagnostics": [],
     "formatVersion": 1,
-    "package": "agent-ix/spec-objects-fixture",
-    "semanticCore": "0.3.2"
+    "package": "agent-ix/spec-objects-fixture"
   },
   "required-section-missing": {
     "availability": {
@@ -1038,8 +1024,7 @@
     "contractVersion": "1.0.0",
     "diagnostics": [],
     "formatVersion": 1,
-    "package": "agent-ix/spec-objects-fixture",
-    "semanticCore": "0.3.2"
+    "package": "agent-ix/spec-objects-fixture"
   },
   "row-errors-unavailable": {
     "availability": {
@@ -1069,8 +1054,7 @@
     ],
     "fieldsForm": "table",
     "formatVersion": 1,
-    "package": "agent-ix/spec-objects-fixture",
-    "semanticCore": "0.3.2"
+    "package": "agent-ix/spec-objects-fixture"
   },
   "unchecked-clause-language": {
     "availability": {
@@ -1115,8 +1099,7 @@
       }
     ],
     "formatVersion": 1,
-    "package": "agent-ix/spec-objects-fixture",
-    "semanticCore": "0.3.2"
+    "package": "agent-ix/spec-objects-fixture"
   },
   "unresolved-type-lossy": {
     "availability": {
@@ -1160,7 +1143,6 @@
     ],
     "fieldsForm": "table",
     "formatVersion": 1,
-    "package": "agent-ix/spec-objects-fixture",
-    "semanticCore": "0.3.2"
+    "package": "agent-ix/spec-objects-fixture"
   }
 }

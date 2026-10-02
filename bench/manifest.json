@@ -54,7 +54,7 @@
       "measurement_plan": "spec/assurance/MP-207-skeptic-suspicion.md",
       "unit": "percent of evidence symbols",
       "population": "evidence symbols the code walk examined in the corpus entry",
-      "method": "len(suspicions) / sum(binding_census.candidates). THE LANGUAGE-COVERAGE guard (CR-103): v0.44.0 shipped a vacuity detector whose Rust guard list read `=> {` as a match arm, which is an arrow function in TypeScript — 549 suspicions over 551 candidates on agent-ix/quoin, against 2 of 883 here. A rate near 100% is a rule misreading a language, not a corpus full of vacuous tests",
+      "method": "len(suspicions) / sum(binding_census.candidates). THE LANGUAGE-COVERAGE guard (CR-103): a shipped vacuity detector's Rust guard list read `=> {` as a match arm, which is an arrow function in TypeScript, so it flagged nearly every candidate on agent-ix/quoin. A rate near 100% is a rule misreading a language, not a corpus full of vacuous tests",
       "direction": "lower-is-better"
     }
   },

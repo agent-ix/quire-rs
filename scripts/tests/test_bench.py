@@ -329,12 +329,10 @@ def test_a_corpus_can_scope_which_metrics_it_is_scored_on(capsys):
 
 
 def test_suspicion_rate_is_the_language_coverage_guard():
-    """CR-103: the number that would have caught the v0.44.0 misread.
+    """CR-103: the number that would have caught a language misread.
 
-    549 suspicions over 551 TypeScript candidates is a rule reading the wrong
-    language, not a corpus full of vacuous tests. Verified end to end: reverting
-    the guard-list fix moves `quoin/skeptic.suspicion_rate` from 0.0 to 99.1 and
-    `make bench` exits 1.
+    Suspicions on nearly every TypeScript candidate is a rule reading the wrong
+    language, not a corpus full of vacuous tests.
     """
     misread = {
         "totals": {"backed": 1, "total": 2},

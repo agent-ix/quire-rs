@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
 """Re-derive the dead-trace-tag population across the ecosystem.
 
-quire-rs#78: the numbers in #72 ("153 of 237 repos mint zero test-case targets,
-1,014 written trace tags bind to nothing") were measured through a corpus walk
-that could not see any file named `tests.md`. Type-driven membership landed in
-v0.26.0; this re-measures against a released engine.
+quire-rs#78: the earlier numbers in #72 (repos minting zero test-case targets,
+written trace tags binding to nothing) were measured through a corpus walk
+that could not see any file named `tests.md`. Type-driven membership has since
+landed; this re-measures against a released engine.
 
 Two things the earlier sweep got wrong, both fixed here:
 
 * **The engine must be the one built from the consuming workspace.** CR-061
-  (v0.27.0) widened `trace::bind` to benchmarks and fuzz targets, so a tag on a
+  widened `trace::bind` to benchmarks and fuzz targets, so a tag on a
   `criterion_group!` bench resolves where it previously did not. Numbers taken
   on an older engine are stale on arrival.
 * **The module must not be the stale installed copy.** `~/.ix/filament/modules`
   lags the source repository — at the time of writing it was missing the Phase D
-  comma-list trace patterns (205 ids across 17 repos) and the `tests/**`
+  comma-list trace patterns and the `tests/**`
   exclusions on the FR/NFR archetype targets. Pass `--module` pointing at the
   source tree so the model is the current one, and record which.
 

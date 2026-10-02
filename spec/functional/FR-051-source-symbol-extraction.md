@@ -474,36 +474,27 @@ byte-identical JSON ordering and stable record ids.
 >
 > **What the number counts.** Declarations — `class`, `def`, `async def` — that
 > the shipped adapter's own symbol table holds, diffed against `ast.parse` over
-> every `.py` under `~/dev` (excluding `worktrees/`, `.venv*`, `site-packages/`,
-> `node_modules/`), 3,652 files parsed, 18 unreadable by `ast` and skipped,
-> 30,569 declarations of ground truth. Comparison is by multiset, and both
+> every `.py` under the ecosystem corpus (excluding `worktrees/`, `.venv*`,
+> `site-packages/`, `node_modules/`; files `ast` cannot read are skipped).
+> Comparison is by multiset, and both
 > namings are reported because the engine mints the qualified one: `bare` is the
 > declaration's own name, `qualified` its dotted path through enclosing classes.
 >
-> | | files | declarations |
-> |---|---|---|
-> | lost, bare, before | 42 | 300 |
-> | lost, bare, after | 0 | 0 |
-> | lost, qualified, before | 43 | 404 |
-> | lost, qualified, after | 1 | 1 |
-> | invented, qualified, before | 19 | 111 |
-> | invented, qualified, after | 1 | 1 |
->
-> The gap between the two axes is the misattribution mode: 104 declarations were
-> present under the wrong container, which a bare-name comparison cannot see.
+> The gap between the two axes is the misattribution mode: declarations present
+> under the wrong container, which a bare-name comparison cannot see.
 > Named example from the ticket, verified: `test_update_simple_version`
 > (`py-project/tests/test_deps.py:464`) really lives in `TestTomlModification`
 > and was reported under `TestTomlParsing`.
 >
 > **Measured against the engine, not a reimplementation.** #274's own figures
 > moved three times because each was produced by a port of the state machine,
-> and the ports disagree exactly where the original is wrong (#309). These
-> numbers come from `quire_rs::symbols::extract_file` itself, run twice over one
-> file list — once on the parent commit, once on this one.
+> and the ports disagree exactly where the original is wrong (#309). The
+> comparison uses `quire_rs::symbols::extract_file` itself, run twice over one
+> file list — once before the change, once after.
 >
 > **What did not change.** Scope is popped by indentation alone, so a
 > declaration nested inside a block that is itself nested keeps the wrong
-> qualifier. The residual row above is exactly one instance:
+> qualifier. The one remaining instance is:
 > `workflow-plugin-sdk/tests/test_schema.py:69-75`, a function-local
 > `class EmptyModel` at column 8 inside a test method, capturing a nested
 > `async def handler` at column 12 — reported as
@@ -741,11 +732,9 @@ byte-identical JSON ordering and stable record ids.
 > and silently dropped the rest. Nothing was lost by a bug — the ids were never
 > *read*.
 >
-> **[RAN]** Across `~/dev`, worktrees and `-task<N>` copies excluded: **98
-> legacy comment lines carrying a list, 205 ids binding to nothing, 17 repos** —
-> spanning every declared legacy shape and all three languages. `quoin`'s 24
-> dropped ids were about a tenth of the ecosystem total, and all 15 of its status
-> lies had this one cause (agent-ix/quoin#65).
+> **[RAN]** Across the ecosystem corpus, legacy comment lines carrying a list
+> bound only their first id, spanning every declared legacy shape and all three
+> languages; `quoin`'s status lies had this one cause (agent-ix/quoin#65).
 >
 > **The engine alone could not fix it, contrary to the filing.**
 > agent-ix/quire-rs#68 stated that no module needs to re-declare anything.

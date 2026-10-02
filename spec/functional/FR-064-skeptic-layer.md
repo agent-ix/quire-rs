@@ -152,22 +152,19 @@ decisions. Multiple helper or production matches stand down.
 > earlier CR-100 split — comparison here, join left to an unspecified consumer
 > — shipped a capability no command exercised. The join is deliberately the
 > explicit expression-to-expression convention above. The earlier attempt
-> scored the literal copy **0.214** whole-test-to-body and **0.429** isolated
-> oracle-to-body against the **0.75** floor; that is a mismatch of extraction
+> scored the literal copy well below the floor on both the whole-test-to-body and
+> the isolated oracle-to-body comparison; that is a mismatch of extraction
 > units rather than evidence for weakening the floor. Corpus controls in all
-> three languages determine whether it fires. A 241-repository calibration
-> found four oracle suspicions, all four correct seeded cases, and zero on
-> project code; every emitted oracle suspicion was inspected.
+> three languages determine whether it fires.
 
 > **CR-102 note (2026-08-22):** `agent-ix/quire-rs#235`, reopened. Three
-> false-positive classes in the shipped `v0.44.0` check, all found by running it
+> false-positive classes in the shipped check, all found by running it
 > against corpora other than this crate (SR-054).
 >
 > **The guard list was Rust's, applied to every language.** `=> {` is a `match`
 > arm here and an arrow function in TypeScript, so every `vitest` body opened a
-> guard: **549 suspicions from 551 candidates** on `agent-ix/quoin`, against 2
-> of 883 here. Sampled three, **3 rule, 0 real**. This is a narrowing, and the
-> justification does not rest on the count — `=> {` in TypeScript is a
+> guard, and the check flagged nearly every candidate on `agent-ix/quoin`. This is a
+> narrowing, and the justification does not rest on a count — `=> {` in TypeScript is a
 > different construct. TypeScript and Python now carry an empty guard list
 > rather than a guessed one; inventing an unmeasured equivalent to keep the
 > check firing is the mistake one level over.
@@ -183,19 +180,14 @@ decisions. Multiple helper or production matches stand down.
 > wrong-language misread one level up. Comments are now stripped before
 > matching, and braces counted on the stripped text.
 >
-> Measured after: `quoin` 549 → **0**, this crate 3 → **2** (the two genuine
-> TC-1596-shaped positives, unchanged), `quire-cli` and
-> `spec-artifacts-process` 0 → 0.
->
 > **CR-102 note (2026-08-22):** `agent-ix/quire-rs#235`, reopened. Three
-> false-positive classes in the shipped `v0.44.0` check, all found by running it
+> false-positive classes in the shipped check, all found by running it
 > against corpora other than this crate (SR-054).
 >
 > **The guard list was Rust's, applied to every language.** `=> {` is a `match`
 > arm here and an arrow function in TypeScript, so every `vitest` body opened a
-> guard: **549 suspicions from 551 candidates** on `agent-ix/quoin`, against 2
-> of 883 here. Sampled three, **3 rule, 0 real**. The justification for
-> narrowing does not rest on the count — `=> {` in TypeScript is a different
+> guard, and the check flagged nearly every candidate on `agent-ix/quoin`. The
+> justification for narrowing does not rest on a count — `=> {` in TypeScript is a different
 > construct. TypeScript and Python now carry an empty guard list rather than a
 > guessed one.
 >
@@ -206,9 +198,6 @@ decisions. Multiple helper or production matches stand down.
 >
 > **Comments were read as code.** TC-1003's own comment quotes the TypeScript
 > token it describes, and the check reported that test as vacuous.
->
-> Measured after: `quoin` 549 → **0**, this crate 3 → **2** (the two genuine
-> TC-1596-shaped positives), `quire-cli` and `spec-artifacts-process` 0 → 0.
 >
 > **CR-100 note (2026-08-22):** FR-064 is new. `agent-ix/quire-rs#235` and
 > `agent-ix/quire-rs#236`; epic `agent-ix/quoin#197`.

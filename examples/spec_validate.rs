@@ -1,8 +1,8 @@
 // agent-ix/quire-rs#212: the `make validate` gate — the engine under test
 // validates its own `spec/` tree.
 //
-// PR #204 corrupted a `spec/tests.md` row with a single-shot string replace,
-// every local gate stayed green, and the corruption shipped inside v0.41.0:
+// A past PR corrupted a `spec/tests.md` row with a single-shot string replace,
+// every local gate stayed green, and the corruption shipped:
 // nothing in `make ci` ever ran structural validation against this repo's own
 // matrix. This binary closes that gap with the engine in this working tree —
 // not an installed `quire` CLI, which lags the branch under test.
@@ -13,8 +13,8 @@
 // per-document structural validation (frontmatter schema + `body_extraction`
 // asserts + heading uniqueness + grammar severity promotions) — the layer that
 // catches a malformed matrix row. Deliberately NOT `BundlePosture::Strict`
-// bundle validation: measured on main when this gate was written, the whole-bundle posture
-// reports 208 pre-existing corpus-debt errors (dangling trace references,
+// bundle validation: the whole-bundle posture reports pre-existing
+// corpus-debt errors (dangling trace references,
 // index-incomplete, unowned quality characteristics) that are real, tracked
 // authoring debt but not this gate's regression surface — a gate that fails on
 // clean main gates nothing.

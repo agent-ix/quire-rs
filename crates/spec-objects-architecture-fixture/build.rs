@@ -28,9 +28,8 @@ use std::path::{Path, PathBuf};
 
 use build_npm_fetch::FetchError;
 
-/// Keep in sync with FR-075-AC-13's cited version and with `src/lib.rs`'s
-/// `VERSION`, which reads this same value back via `env!` at compile time —
-/// there is only one literal.
+/// The declared npm fetch pin. `src/lib.rs`'s `VERSION` reads this same value
+/// back via `env!` at compile time — there is only one literal.
 const VERSION: &str = "0.7.0";
 
 fn main() {

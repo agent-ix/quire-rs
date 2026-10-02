@@ -163,7 +163,7 @@ Templates are NOT parsed or registered (render is removed). Per-validate and per
 
 ### WASM feature: filesystem-free loader
 
-The crate exposes an additive Cargo feature `wasm` (v0.3.1) that drops the `jsonschema/resolve-file` activation, allowing `quire-rs` to compile against `wasm32-unknown-unknown` (where `url::Url::to_file_path` is unavailable). Under `--no-default-features --features wasm`:
+The crate exposes an additive Cargo feature `wasm` that drops the `jsonschema/resolve-file` activation, allowing `quire-rs` to compile against `wasm32-unknown-unknown` (where `url::Url::to_file_path` is unavailable). Under `--no-default-features --features wasm`:
 
 - `Registry::load_from`, `load_module`, `from_env`, `from_default` remain available but degrade to whatever filesystem the host exposes (typically none under `--target web`).
 > **CR note (render removal — 2026-06-04):** AC-15 originally documented a 3-arg `from_inline_parts(manifest_yaml, schemas, templates)` with a `templates` map keyed by `template_ref`. With the render feature removed, the real signature (`src/registry.rs`) is 2-arg — no `templates` param, no `template_ref`.

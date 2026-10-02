@@ -173,12 +173,12 @@
         },
         "engine": {
           "type": "string",
-          "description": "The resolved `quire-rs` version actually linked, read from the consuming crate's lockfile entry \u2014 specifically the `?tag=` / `?rev=` / `?branch=` locator in that entry's `source` field, or the commit sha where the locator is absent. NOT the entry's `version` field: for a git dependency that field is the dependency's own manifest constant, and this crate's manifest has read `0.33.0` at every tag from v0.42.0 through v0.45.0, so reading it would restate the defect one layer down. A `-<n>-g<sha>` suffix, a bare rev, or a branch name is carried VERBATIM and never rounded to the nearest tag: the whole defect is a binary claiming a version it does not have."
+          "description": "The resolved `quire-rs` version actually linked, read from the consuming crate's lockfile entry \u2014 specifically the `?tag=` / `?rev=` / `?branch=` locator in that entry's `source` field, or the commit sha where the locator is absent. NOT the entry's `version` field: for a git dependency that field is the dependency's own manifest constant, and this crate's manifest version is not bumped per tag, so reading it would restate the defect one layer down. A `-<n>-g<sha>` suffix, a bare rev, or a branch name is carried VERBATIM and never rounded to the nearest tag: the whole defect is a binary claiming a version it does not have."
         },
         "capabilities": {
           "type": "array",
           "uniqueItems": true,
-          "description": "What this build can emit, as tokens. DELIBERATELY OPEN, and deliberately not version arithmetic: a consumer asserts it needs `binding_census`, not that the engine is `>= 0.43.0`, because a version comparison in a consumer is a second place the contract lives. A newer CLI adding a token must not break a consumer written against an older one.",
+          "description": "What this build can emit, as tokens. DELIBERATELY OPEN, and deliberately not version arithmetic: a consumer asserts it needs `binding_census`, not that the engine is at least a given version, because a version comparison in a consumer is a second place the contract lives. A newer CLI adding a token must not break a consumer written against an older one.",
           "items": {
             "type": "string"
           }
@@ -882,7 +882,7 @@
             "type": "string",
             "minLength": 1
           },
-          "description": "Test-case ids the method cell names, e.g. `Test (TC-707)`. Additive in v1: absent on a payload from an engine before quire-rs v0.35.0, and omitted where the cell names none. A consumer binding evidence keyed on a TEST CASE rather than on the criterion needs this join, which the engine parsed and discarded (agent-ix/quire-rs#180)."
+          "description": "Test-case ids the method cell names, e.g. `Test (TC-707)`. Additive in v1: absent on a payload from an engine that predates the field, and omitted where the cell names none. A consumer binding evidence keyed on a TEST CASE rather than on the criterion needs this join, which the engine parsed and discarded (agent-ix/quire-rs#180)."
         }
       }
     },

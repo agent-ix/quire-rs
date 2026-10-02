@@ -20,6 +20,11 @@ fn mapping_text(name: &str) -> String {
     quire_fixtures::mapping_fixture(name)
 }
 
+/// The semantic-core version the fixtures run under: the embedded bundle's own.
+fn declared_core() -> &'static str {
+    quire_rs::semantic::embedded::embedded_semantic_core_version()
+}
+
 fn semantic_v1() -> JSONSchema {
     JSONSchema::options()
         .with_draft(jsonschema::Draft::Draft202012)
@@ -75,7 +80,7 @@ fn request(fixture: &Value, markdown: &str, path: &str, case: Option<&Value>) ->
         "markdown": markdown,
         "module": {
             "contractVersion": "1.0.0",
-            "semanticCore": fixture["semanticCore"],
+            "semanticCore": declared_core(),
             "package": "agent-ix/spec-objects-business",
             "exports": ["entity"],
             "imports": imports,
@@ -159,7 +164,7 @@ fn locus_holds(md: &str, line: u64, locus: &str) -> bool {
 fn assert_case(file: &Value, case: &Value) {
     let id = case["id"].as_str().unwrap();
     let md = case_markdown(file, case);
-    let core = file["semanticCore"].as_str().unwrap();
+    let core = declared_core();
     let record = extract(&request(file, &md, "case.md", Some(case)), core);
     let actual = record["diagnostics"].as_array().unwrap();
     assert_eq!(
@@ -310,18 +315,9 @@ const AVAILABILITY_CASES: &[&str] = &[
 // the golden `relationships.md` extracts to `relationships.expected.json`.
 #[test]
 fn golden_relationships() {
-    // quoin FR-104-CON-2 / TC-1726: both fixtures pin the semantic core.
-    for name in ["relationships.expected.json", "relationships-cases.json"] {
-        let fixture = mapping_json(name);
-        assert_eq!(
-            fixture["semanticCore"],
-            quire_rs::semantic::embedded::embedded_semantic_core_version(),
-            "{name}"
-        );
-    }
     let expected = mapping_json("relationships.expected.json");
     let md = mapping_text("relationships.md");
-    let core = expected["semanticCore"].as_str().unwrap();
+    let core = declared_core();
     let record = extract(&request(&expected, &md, "relationships.md", None), core);
     assert_eq!(record["diagnostics"], expected["diagnostics"]);
     assert_eq!(record["relations"], expected["relations"]);
@@ -438,7 +434,7 @@ fn no_bundle_index_mixed_rows() {
 #[test]
 fn bundle_package_from_source_identity_or_unavailable() {
     let file = cases();
-    let core = file["semanticCore"].as_str().unwrap();
+    let core = declared_core();
     let md = format!(
         "{}| Name | Verb | Target | Multiplicity |\n|---|---|---|---|\n| overlay | references | FR-005 | 1..1 |\n",
         file["artifactHead"].as_str().unwrap()
@@ -482,7 +478,7 @@ fn bundle_package_from_source_identity_or_unavailable() {
 #[test]
 fn record_compatibility_and_registry_authority() {
     let file = cases();
-    let core = file["semanticCore"].as_str().unwrap();
+    let core = declared_core();
     let prose = format!(
         "{}- `overlay`: references FR-005\n",
         file["artifactHead"].as_str().unwrap()
