@@ -51,7 +51,7 @@ path = "src/lib.rs"
 # contradicting FR-013-CON-3's own stated principle: a consumer that wants one
 # grammar must not link the other two.
 [dependencies]
-quire-code-parse = { git = "https://github.com/agent-ix/quire-code-rs", rev = "e7f32919c55e4137ba201e5f9c35d29ff8b6e329", default-features = false }
+quire-code-parse = { git = "https://github.com/agent-ix/quire-code-rs", rev = "b58164a8cf4e6543d7bc5f5f2042ea792612ed16", default-features = false }
 
 [dev-dependencies]
 serde_json = "^1"

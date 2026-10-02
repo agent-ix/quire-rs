@@ -7,6 +7,22 @@ bumps; once 1.0 ships, semver is strict.
 
 ## [Unreleased]
 
+## [0.50.1] — 2026-10-01
+
+Patch bump: dependency moves and removal of recorded pin copies. No public
+API change.
+
+### Changed
+
+- The embedded schema crate moves to `agent-ix-semantic-schema` 0.3.0
+  (`semantic-schema-v0.3.0`); `quire-code-parse` moves to quire-code-rs
+  v0.2.2.
+
+### Removed
+
+- Recorded versions, SHAs, measurements and pin copies from specs, scripts
+  and fixtures (#510).
+
 ## [0.50.0] — 2026-10-01
 
 Minor bump (breaking): the embedded semantic-core bundle moves from 0.3.0 to
