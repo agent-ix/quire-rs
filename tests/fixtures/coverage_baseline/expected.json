@@ -53,6 +53,16 @@
     {
       "reference": "verification",
       "document": "spec/FR-001.md",
+      "row_id": "FR-001-AC-1",
+      "target_ids": [
+        "FR-001-AC-1",
+        "TC-001"
+      ],
+      "line": 15
+    },
+    {
+      "reference": "verification",
+      "document": "spec/FR-001.md",
       "row_id": "FR-001-AC-2",
       "target_ids": [
         "FR-001-AC-2",
