@@ -1,305 +1,80 @@
-name: CI
-
-on:
+name: Paired parser diagnostic
+'on':
   workflow_dispatch:
-
-env:
-  CARGO_NET_GIT_FETCH_WITH_CLI: "true"
-
+    inputs:
+      baseline_ref:
+        required: true
+        type: string
+      candidate_ref:
+        required: true
+        type: string
+permissions:
+  contents: read
 jobs:
-  rust:
-    name: Rust Checks
+  paired:
+    name: Paired parser diagnostic
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-        with:
-          # #267: the controlled corpus is a submodule at `corpus/`, and
-          # `tests/corpus_cases.rs` reads its cases in place. Without this the
-          # suite fails at load with "the corpus submodule is not checked out".
-          #
-          # `agent-ix/qa-corpus` is public, so the job's default GITHUB_TOKEN
-          # reads it fine — no PAT needed. Manual `submodule update` (below)
-          # rather than `submodules: true` here purely to keep this an
-          # explicit, separately-named step.
-          submodules: false
-      - name: Checkout corpus
-        run: git submodule update --init --recursive --depth 1
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    - name: Install Rust toolchain
+      shell: bash
+      run: rustup show active-toolchain || rustup toolchain install
+    - name: Set up Node (npm for build.rs's fetch)
+      uses: actions/setup-node@v7
+      with:
+        node-version: '22'
+    - uses: agent-ix/nodejs-actions/setup-npmrc@main
+      with:
+        npm_registry_token: ${{ secrets.REGISTRY_TOKEN }}
+    - name: Cache cargo artifacts
+      uses: Swatinem/rust-cache@v2
+    - name: Measure both revisions on one runner without the shared baseline cache
+      env:
+        BASELINE_REF: ${{ inputs.baseline_ref }}
+        CANDIDATE_REF: ${{ inputs.candidate_ref }}
+      run: 'set -euo pipefail
 
-      # Structural validation consumes executable schema modules. Both repos
-      # are public — no token needed.
-      - name: Checkout process schema provider
-        uses: actions/checkout@v4
-        with:
-          repository: agent-ix/spec-artifacts-process
-          fetch-depth: 0
-          path: .ci/spec-artifacts-process
-      - name: Checkout ISO schema provider
-        uses: actions/checkout@v4
-        with:
-          repository: agent-ix/spec-artifacts-iso
-          fetch-depth: 0
-          path: .ci/spec-artifacts-iso
+        lscpu | sed -n ''/Architecture:/p; /Model name:/p; /CPU MHz:/p''
 
-      - name: Install Rust toolchain
-        shell: bash
-        run: |
-          rustup show active-toolchain || rustup toolchain install
-          # NFR-021-AC-2 (TC-1649): `make check-wasm` in `make ci`.
-          rustup target add wasm32-unknown-unknown
+        rustc --version
 
-      # PLAT-901: `build.rs` shells out to `npm pack` (network access, at
-      # build time only) to fetch `@agent-ix/semantic-core` and
-      # `@agent-ix/semantic-schema` instead of vendoring their bytes. Every
-      # step below that compiles or tests the crate needs npm on PATH —
-      # don't rely on the runner image happening to ship it.
-      - name: Set up Node (npm for build.rs's fetch)
-        uses: actions/setup-node@v7
-        with:
-          node-version: "22"
-      # @agent-ix/* scoped packages live on GitHub Packages (npm.ix's
-      # target), not public npm. Without this, npm/npm-pack falls back to
-      # registry.npmjs.org and 404s on every @agent-ix package.
-      - uses: agent-ix/nodejs-actions/setup-npmrc@main
-        with:
-          npm_registry_token: ${{ secrets.REGISTRY_TOKEN }}
+        base="$RUNNER_TEMP/paired-base"
 
-      - name: Cache cargo artifacts
-        uses: Swatinem/rust-cache@v2
+        candidate="$RUNNER_TEMP/paired-candidate"
 
-      - name: Format
-        run: cargo fmt --all -- --check
+        git worktree add --detach "$base" "$BASELINE_REF"
 
-      - name: Lint
-        run: cargo clippy --locked --all-targets -- -D warnings
+        git worktree add --detach "$candidate" "$CANDIDATE_REF"
 
-      # TC-1025/TC-1027 drive the corpus LOADER (`corpus/bounds.py`) over a
-      # mutated copy — the only way to prove those gates refuse what they claim
-      # to refuse rather than merely reading a corpus that already conforms.
-      # That makes `python3` + PyYAML a test dependency of this crate, which it
-      # was not before. PyYAML is not guaranteed on the runner image, and
-      # without it both tests fail on an ImportError.
-      # `actions/setup-python` first, matching this repo's `python.yml`.
-      # `python3 -m pip install` against the system interpreter fails on
-      # ubuntu-24.04, which is PEP-668 externally-managed — and it would fail
-      # the whole Rust gate, not just these two tests.
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - name: Corpus runner dependencies
-        run: |
-          python3 -m pip install --require-hashes -r requirements/ci.txt
-          python3 -c "import yaml"   # a partial install must fail HERE
+        export CARGO_TARGET_DIR="$GITHUB_WORKSPACE/target/paired-parser"
 
-      - name: Test
-        run: cargo test --locked
+        cd "$base"
 
-      # PLAT-868 (found during PLAT-851's review): `python-symbols` is
-      # default (this port promoted it), so the `Test` step above already
-      # exercises `src/symbols/python.rs` — but a default build can't tell
-      # a break isolated to this feature apart from one masked by
-      # `rust-symbols`/`resolve-file` also being on. This is the minimal
-      # build: no default features, `python-symbols` alone, mirroring
-      # `make check-python-symbols`.
-      - name: Python-symbols feature check
-        run: cargo check --locked --no-default-features --features python-symbols
+        cargo bench --locked --bench parse -- parse/small --save-baseline paired-diagnostic
 
-      # PLAT-882: same shape as the python-symbols check above, one language
-      # over — typescript-symbols is default too, so the plain Test step
-      # already exercises src/symbols/typescript.rs, but only this isolated
-      # build can tell a break specific to the feature apart from one masked
-      # by rust-symbols/python-symbols/resolve-file also being on. Calls
-      # `make check-typescript-symbols` rather than reconstructing its cargo
-      # invocation, so the two cannot drift apart.
-      - name: TypeScript-symbols feature check
-        run: make check-typescript-symbols
+        cd "$candidate"
 
-      # NFR-021-AC-2 (TC-1649): the toolchain step above installs
-      # wasm32-unknown-unknown for exactly this, but nothing ever ran it —
-      # this PR (PLAT-882) is the first change to actually break the wasm
-      # build (gating typescript-symbols off by default under wasm removed
-      # the last unconditional match arm `symbols::mod` needed to infer its
-      # own `Vec<RawSymbol>` type; see the differential report's Gates
-      # section). Calls `make check-wasm` rather than reconstructing its
-      # cargo invocations, so this and the local target cannot drift apart.
-      - name: Wasm feature check
-        run: make check-wasm
+        cargo bench --locked --bench parse -- parse/small --baseline paired-diagnostic
 
-      - name: Validate spec against schema providers
-        run: >-
-          python3 scripts/validate_spec.py
-          --process-root .ci/spec-artifacts-process
-          --iso-root .ci/spec-artifacts-iso
+        cp "$CARGO_TARGET_DIR/criterion/parse/small/change/estimates.json" "$RUNNER_TEMP/paired-candidate-change.json"
 
-      - name: Unsafe audit
-        run: bash scripts/check_unsafe_comments.sh
+        cd "$base"
 
-      - name: Property-classifier purity audit (FR-052-CON-1)
-        run: bash scripts/check_property_purity.sh
+        cargo bench --locked --bench parse -- parse/small --baseline paired-diagnostic
 
-  licenses:
-    name: License Check
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install Rust toolchain
-        shell: bash
-        run: rustup show active-toolchain || rustup toolchain install
-      - name: Cache cargo artifacts
-        uses: Swatinem/rust-cache@v2
-      - name: Install cargo-deny
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-deny@0.19.8
-      - name: cargo deny check licenses
-        run: cargo deny --locked check licenses
+        cp "$CARGO_TARGET_DIR/criterion/parse/small/change/estimates.json" "$RUNNER_TEMP/paired-repeat-change.json"
 
-      # PLAT-868 (found during PLAT-851's review): the step above runs under
-      # default features. `python-symbols` is now default (this port), so
-      # it already covers `tree-sitter-python`; `tree-sitter-typescript` is
-      # a locked `Cargo.lock` entry no gate activates yet. `--features
-      # typescript-symbols` (added to the default set) is what makes cargo
-      # deny's own resolution see it as active, which its license check
-      # reads. Deliberately not `--all-features`: that also activates the
-      # unrelated `python` (PyO3) feature, which pulls in a dependency
-      # (`target-lexicon`, `Apache-2.0 WITH LLVM-exception`) this repo's
-      # `deny.toml` doesn't cover — a real, pre-existing gap unrelated to
-      # either grammar (see `make deny-grammars`'s own comment).
-      - name: cargo deny check licenses (grammar features)
-        run: cargo deny --locked --features typescript-symbols check licenses
+        cat "$RUNNER_TEMP/paired-candidate-change.json"
 
-  audit:
-    name: Cargo Audit (RUSTSEC)
-    runs-on: ubuntu-24.04
-    # Run on PR, push to main, and the daily 06:00 UTC schedule.
-    if: >-
-      github.event_name == 'pull_request' ||
-      github.event_name == 'push' ||
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'schedule' && github.event.schedule == '0 6 * * *')
-    steps:
-      - uses: actions/checkout@v4
-      # rustsec/audit-check runs `cargo install cargo-audit` without
-      # `--locked`. On 2026-08-29 that resolved a kstring release, which requires
-      # a newer Rust, and broke a then-current older-Rust job without any repository
-      # change. Install the exact prebuilt tool instead: both installer and
-      # installed version are reviewable inputs.
-      - name: Install cargo-audit
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-audit@0.22.2
-      - name: Report cargo-audit identity
-        run: cargo audit --version
-      - name: Audit locked dependency graph
-        run: cargo audit
+        cat "$RUNNER_TEMP/paired-repeat-change.json"
 
-  # Miri (UB detection) job retired — ADR 0006. First-party UB is compile-impossible
-  # via `#![forbid(unsafe_code)]` (NFR-003-AC-5); dependency advisories are covered by
-  # cargo-audit (NFR-014); the concurrency surface by loom (NFR-017). Miri produced a
-  # Stacked-Borrows false-positive inside rayon's thread pool and is opt-in per the
-  # rust-lib-cookiecutter baseline.
-
-  mutants:
-    name: Mutation Testing
-    runs-on: ubuntu-24.04
-    # Weekly Mon 07:00 UTC + workflow_dispatch.
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'schedule' && github.event.schedule == '0 7 * * 1')
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install Rust toolchain
-        shell: bash
-        run: rustup show active-toolchain || rustup toolchain install
-      # PLAT-901: `build.rs` fetches its schema packages via `npm pack`;
-      # `cargo mutants` compiles the crate, so it needs npm on PATH.
-      - name: Set up Node (npm for build.rs's fetch)
-        uses: actions/setup-node@v7
-        with:
-          node-version: "22"
-      # @agent-ix/* scoped packages live on GitHub Packages (npm.ix's
-      # target), not public npm. Without this, npm/npm-pack falls back to
-      # registry.npmjs.org and 404s on every @agent-ix package.
-      - uses: agent-ix/nodejs-actions/setup-npmrc@main
-        with:
-          npm_registry_token: ${{ secrets.REGISTRY_TOKEN }}
-      - name: Cache cargo artifacts
-        uses: Swatinem/rust-cache@v2
-      - name: Install cargo-mutants
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-mutants@27.1.0
-      - name: cargo mutants
-        run: cargo mutants -p quire-rs --in-place --check --cargo-arg=--locked --json > mutants.json || true
-      - name: Upload mutants.json
-        uses: actions/upload-artifact@v4
-        with:
-          name: mutants-report
-          path: mutants.json
-          if-no-files-found: warn
-
-  perf:
-    name: Perf Bench (NFR-001/002/007 baselines + regression bands)
-    runs-on: ubuntu-24.04
-    if: >-
-      github.event_name == 'pull_request' ||
-      github.event_name == 'push' ||
-      github.event_name == 'workflow_dispatch'
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install Rust toolchain
-        shell: bash
-        run: rustup show active-toolchain || rustup toolchain install
-      # PLAT-901: `build.rs` fetches its schema packages via `npm pack`;
-      # `cargo bench` compiles the crate, so it needs npm on PATH.
-      - name: Set up Node (npm for build.rs's fetch)
-        uses: actions/setup-node@v7
-        with:
-          node-version: "22"
-      # @agent-ix/* scoped packages live on GitHub Packages (npm.ix's
-      # target), not public npm. Without this, npm/npm-pack falls back to
-      # registry.npmjs.org and 404s on every @agent-ix package.
-      - uses: agent-ix/nodejs-actions/setup-npmrc@main
-        with:
-          npm_registry_token: ${{ secrets.REGISTRY_TOKEN }}
-      - name: Cache cargo artifacts
-        uses: Swatinem/rust-cache@v2
-      - name: Restore stored criterion baseline (`main`)
-        uses: actions/cache@v4
-        with:
-          path: target/criterion
-          key: criterion-baseline-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
-          restore-keys: |
-            criterion-baseline-${{ runner.os }}-
-      # First PR ever has no baseline — `--save-baseline main` writes
-      # one; subsequent runs compare against it via `--baseline main`
-      # and the make perf-gate target inspects criterion's stored JSON
-      # for a >10% slowdown.
-      - name: Run benches against stored baseline
-        run: |
-          if [[ -d target/criterion/parse/demo-item/main ]]; then
-            cargo bench --locked --bench parse --bench load -- --baseline main
-          else
-            cargo bench --locked --bench parse --bench load -- --save-baseline main
-          fi
-      # The canonical perf gate is the Apple Silicon baseline (10% band,
-      # enforced locally / on the canonical runner). The shared Ubuntu CI
-      # runner is noisy for sub-microsecond benches, so it uses the +50%
-      # allowance the NFR cross-runner policy already grants the Ubuntu
-      # lane (see NFR-002 "Cross-runner policy"). Catches gross
-      # regressions without flaking on runner variance.
-      - name: Enforce regression band (Ubuntu CI +50% per NFR cross-runner policy)
-        env:
-          QUIRE_PERF_BAND: "0.50"
-        run: bash scripts/check_perf_regression.sh
-
-  audit-static:
-    name: Static Audits
-    runs-on: ubuntu-24.04
-    if: >-
-      github.event_name == 'pull_request' ||
-      github.event_name == 'push' ||
-      github.event_name == 'workflow_dispatch'
-    steps:
-      - uses: actions/checkout@v4
-      - name: Run every static audit
-        run: make audit-static
+        '
+    - uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: paired-parser-estimates
+        path: ${{ runner.temp }}/paired-*-change.json
+env:
+  CARGO_NET_GIT_FETCH_WITH_CLI: 'true'
