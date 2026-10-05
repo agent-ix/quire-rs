@@ -83,15 +83,14 @@ const ORDER: &str =
 
 /// `spec-objects-architecture-fixture`'s `build.rs` fetches the real
 /// published module via `npm pack`; that fetch can legitimately fail
-/// (agent-ix/quire-rs#488 — the package isn't published to GitHub Packages,
-/// which is what CI authenticates to). When it did, skip cleanly with a
-/// printed reason rather than failing on a fixture nothing could have
-/// populated. Returns `true` when the caller should return immediately.
+/// when the configured registry is unavailable. Report that reason rather
+/// than loading an absent fixture. Returns `true` when the caller should
+/// return immediately. An available package must pass schema validation.
 fn skip_if_spec_objects_architecture_unavailable() -> bool {
     if let Some(reason) = spec_objects_architecture_fixture::unavailable_reason() {
         eprintln!(
             "SKIPPED: spec-objects-architecture-fixture unavailable, so this test can't \
-             validate against the real module: {reason} (agent-ix/quire-rs#488)"
+             validate against the real module: {reason}"
         );
         true
     } else {

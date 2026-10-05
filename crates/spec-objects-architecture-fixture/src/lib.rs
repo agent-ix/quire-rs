@@ -8,8 +8,7 @@
 //! authored or copied, so the tests that load this module assert against
 //! the real thing, not a stand-in built to match the tool's own output.
 //!
-//! The fetch is allowed to fail (agent-ix/quire-rs#488: the package isn't
-//! published anywhere CI can reach it) — `build.rs` doesn't panic on that,
+//! A package fetch can fail on an unavailable registry — `build.rs` reports that
 //! it surfaces it here via [`is_available`]/[`unavailable_reason`]. A test
 //! that needs the real module must check [`is_available`] first; calling
 //! [`module_dir`] when it's `false` returns a path with nothing fetched
