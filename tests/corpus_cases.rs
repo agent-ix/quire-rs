@@ -24,6 +24,8 @@ use ix_trace_rs::trace;
 
 use corpus_case::{grade, grade_with, load_cases, run, Level};
 
+// PLAT-1149: the shared-TC obligation cases require their own claim.
+#[trace("TC-734", "FR-050-AC-3")]
 #[trace("TC-992", "FR-050-AC-29")]
 // marker-form mismatch, and its control. (CR-098)
 #[trace("TC-993", "FR-050-AC-29")]

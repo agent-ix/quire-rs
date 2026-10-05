@@ -175,7 +175,15 @@ pub(super) fn reconcile(
             answerable.dedup();
             ids.sort();
             ids.dedup();
-            let is_backed = answerable.iter().any(|id| backed.contains(id.as_str()));
+            // PLAT-1149: an obligation is answered by its own claim. A test
+            // case referenced by several obligations must not lend one child's
+            // evidence to its siblings. Aggregate reference rows retain the
+            // existing own-id-or-referenced-id rule; identity is module-derived,
+            // never inferred from an archetype or an id prefix.
+            let is_backed = match row_id.as_deref() {
+                Some(id) if obligation_ids.contains(id) => backed.contains(id),
+                _ => answerable.iter().any(|id| backed.contains(id.as_str())),
+            };
             let document = relative(root, &row.path);
 
             // CR-083: an undeclared status is classified **above** the backed
