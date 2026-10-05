@@ -7,6 +7,10 @@ description: "Chronological log of structural changes to this bundle."
 
 ## History
 
+* **2026-10-05** — **Correction** (`agent-ix/quire-rs#516`): repair the CR-148
+  calibration references after the reports cleanup in #507. Link to the
+  historical cleanup diff; deleted run records remain out of the current tree.
+
 * **2026-09-27** — **CR-187** (`PLAT-1077`, revised in the SR-117/SR-118 fix
   round on `agent-ix/quire-rs#494`): FR-050 gains an in-memory
   `coverage_matrix` (AC-47..51) — a requirement → criteria → binding-test-
@@ -792,10 +796,9 @@ description: "Chronological log of structural changes to this bundle."
   also makes the existing locality tradeoff explicit: only **4/110** emitted
   lines equal an exact id-occurrence line because the diagnostic deliberately
   names the symbol's leading line; no locality is claimed to have improved.
-  The [frame](../reports/2026-08-27-tag-non-binding-frame.json),
-  [row rulings](../reports/2026-08-27-tag-non-binding-rulings.yaml), and
-  [rendered result](../reports/2026-08-27-tag-non-binding-precision.md) are the
-  re-derivable record. FR-051-AC-22; TC-1081.
+  The frame, row rulings, and rendered result were removed from the current
+  tree by the [reports cleanup](https://github.com/agent-ix/quire-rs/pull/507/files);
+  that historical diff retains the removed records. FR-051-AC-22; TC-1081.
 
 * **2026-08-27** — **CR-147**: the oracle-copy producer now reaches the actual
   TC-1598 wild shape from `filament-ide-rs@59a180a7`
