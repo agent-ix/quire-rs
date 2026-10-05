@@ -7,6 +7,11 @@ description: "Chronological log of structural changes to this bundle."
 
 ## History
 
+* **2026-10-05** — **Correction** (`agent-ix/quire-rs#523`): use the canonical
+  `Status` header in the four coverage tables in `spec/tests.md`. The provider
+  rejected three stale headers; align the integration table as well. Rows,
+  status values, and evidence remain unchanged.
+
 * **2026-10-05** — **Correction** (`agent-ix/quire-rs#516`): repair the CR-148
   calibration references after the reports cleanup in #507. Link to the
   historical cleanup diff; deleted run records remain out of the current tree.
