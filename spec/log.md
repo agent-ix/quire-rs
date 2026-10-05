@@ -7,7 +7,7 @@ description: "Chronological log of structural changes to this bundle."
 
 ## History
 
-* **2026-10-05** — **CR-188** (`agent-ix/quire-rs#516`): repair the CR-148
+* **2026-10-05** — **Correction** (`agent-ix/quire-rs#516`): repair the CR-148
   calibration references after the reports cleanup in #507. Link to the
   historical cleanup diff; deleted run records remain out of the current tree.
 
