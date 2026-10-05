@@ -358,3 +358,9 @@ General:
 
 - **Upstream**: [FR-069](./FR-069-semantic-module-contract-at-load.md), [FR-070](./FR-070-typed-properties-extraction.md), [FR-071](./FR-071-clause-and-operation-extraction.md), [FR-072](./FR-072-semantic-extraction-surface.md)
 - **Downstream**: `agent-ix/filament-core-data#148` (domain package lift); `agent-ix/spec-objects-business` (manifest `mappings` and `table_row` locators)
+
+> **Correction note (2026-10-05, agent-ix/quire-rs#517):** the published
+> architecture fixture must target the engine's supported semantic-core bundle.
+> The previous dependency loaded incompatible schemas when available; update
+> the package dependency and invalidate the fetched-module cache when that
+> dependency changes. AC-13 and AC-14 retain their real-schema validation.

@@ -13,14 +13,11 @@
 //! manager, the way TC-1872/TC-1873 (FR-075-AC-13) require: the tests read
 //! a real module, not an authored-minimal stand-in.
 //!
-//! Unlike root `build.rs`'s two fetches, this one is allowed to fail: as of
-//! this writing `@agent-ix/spec-objects-architecture` is published only to
-//! the private `npm.ix` dev-mirror, not to GitHub Packages — the registry
-//! CI actually authenticates to (agent-ix/quire-rs#488). A `npm pack` 404
-//! here does **not** panic the build; it's surfaced through
+//! A registry outage or an unavailable package can be surfaced through
 //! `SPEC_OBJECTS_ARCHITECTURE_AVAILABLE`/`_UNAVAILABLE_REASON`, which
-//! `src/lib.rs` exposes as `is_available()`/`unavailable_reason()` for the
-//! two dependent tests to check at runtime.
+//! `src/lib.rs` exposes for the dependent tests to report explicitly.
+//! When the package is available, the tests must load and validate its real
+//! schemas against the engine's embedded semantic-core bundle.
 
 use std::env;
 use std::fs;
@@ -28,9 +25,9 @@ use std::path::{Path, PathBuf};
 
 use build_npm_fetch::FetchError;
 
-/// The declared npm fetch pin. `src/lib.rs`'s `VERSION` reads this same value
+/// The compatible published module dependency. `src/lib.rs`'s `VERSION` reads this same value
 /// back via `env!` at compile time — there is only one literal.
-const VERSION: &str = "0.7.0";
+const VERSION: &str = "0.10.1";
 
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
@@ -50,10 +47,8 @@ fn main() {
             println!(
                 "cargo:warning=spec-objects-architecture-fixture: could not fetch \
                  @agent-ix/spec-objects-architecture@{VERSION} ({reason}). This package is \
-                 published to the private npm.ix dev-mirror but not to GitHub Packages, which \
-                 is what CI authenticates to (agent-ix/quire-rs#488 tracks it). The two tests \
-                 that need the real fetched module will skip themselves at runtime instead of \
-                 failing the build."
+                 unavailable from the configured npm registry. The two tests that need the \
+                 real fetched module will report this reason and skip themselves at runtime."
             );
             println!("cargo:rustc-env=SPEC_OBJECTS_ARCHITECTURE_AVAILABLE=false");
             println!("cargo:rustc-env=SPEC_OBJECTS_ARCHITECTURE_UNAVAILABLE_REASON={reason}");
@@ -77,7 +72,7 @@ fn main() {
 /// fallible/fatal split.
 fn fetch_spec_objects_architecture(version: &str, out_dir: &Path) -> Result<(), String> {
     let dest = out_dir.join("module");
-    let marker = out_dir.join(".module-fetched");
+    let marker = out_dir.join(format!(".module-fetched-{version}"));
     if marker.is_file() {
         return Ok(());
     }
