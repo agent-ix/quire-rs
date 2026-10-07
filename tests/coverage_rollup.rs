@@ -2464,7 +2464,7 @@ fn explicit_reference_status_selection_drives_all_classification_channels() {
         serde_json::from_str(include_str!("fixtures/reference_status_selection.json")).unwrap();
     assert_eq!(fixture["issue_ref"], "agent-ix/quire-rs#409");
     let module = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("corpus/modules/variants/reference-status-column-explicit");
+        .join("tests/fixtures/modules/reference-status-selection");
     let registry = Registry::load_module(&module).expect("explicit selector module");
     for case in fixture["cases"].as_array().unwrap() {
         let text = |key: &str| case[key].as_str().unwrap();
