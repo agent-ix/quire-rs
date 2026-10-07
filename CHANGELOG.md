@@ -7,6 +7,16 @@ bumps; once 1.0 ships, semver is strict.
 
 ## [Unreleased]
 
+## [0.50.2] — 2026-10-07
+
+### Changed
+
+- Bundle validation and reference resolution use the authored index as the navigation document.
+
+### Removed
+
+- The bundle fixture's update-log archetype and the ISO corpus copy of its authoring skeleton.
+
 ## [0.50.1] — 2026-10-01
 
 Patch bump: dependency moves and removal of recorded pin copies. No public

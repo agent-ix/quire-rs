@@ -86,8 +86,8 @@ pub(crate) fn resolve(
             ));
         }
         // Internal relative-path links (ADR 0007). Navigation documents
-        // (`index.md`/`log.md`) are excluded as a source so their
-        // wall-to-wall contents links do not flood the graph (FR-026-AC-10).
+        // (`index.md`) is excluded as a source so its contents links do not
+        // flood the graph (FR-026-AC-10).
         if !is_nav_doc(&doc.path) {
             for target in harvest_body_relative_links(doc, md_link, &by_path) {
                 stubs.insert((source.clone(), target, "references".to_string()));
@@ -233,12 +233,9 @@ fn is_relative_md_dest(dest: &str) -> bool {
         && dest.ends_with(".md")
 }
 
-/// `index.md` / `log.md` are navigation documents, not reference sources.
+/// `index.md` is a navigation document, not a reference source.
 fn is_nav_doc(path: &Path) -> bool {
-    matches!(
-        path.file_name().and_then(|n| n.to_str()),
-        Some("index.md") | Some("log.md")
-    )
+    path.file_name().and_then(|n| n.to_str()) == Some("index.md")
 }
 
 /// Normalized on-disk path → artifact id for every loaded document.
@@ -560,7 +557,7 @@ mod tests {
         assert_eq!(out2.edges[0].resolution, Resolution::Dangling);
     }
 
-    // TC-621, FR-026-AC-10: relative links in index.md/log.md are not harvested;
+    // TC-621, FR-026-AC-10: relative links in index.md are not harvested;
     // the same link in an ordinary artifact is.
     #[test]
     fn nav_documents_excluded_as_relative_source() {
@@ -569,11 +566,6 @@ mod tests {
                 "spec/functional/index.md",
                 "",
                 "* [FR-002](./FR-002-graph-edges.md)\n",
-            ),
-            loaded_at(
-                "spec/functional/log.md",
-                "",
-                "* changed [FR-002](./FR-002-graph-edges.md)\n",
             ),
             loaded_at(
                 "spec/functional/FR-001-foo.md",
