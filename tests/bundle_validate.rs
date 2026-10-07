@@ -122,11 +122,6 @@ fn strict_conformant_bundle_with_complete_index_is_valid() {
         "index.md",
         "---\ntype: index\ntitle: Root\nokf_version: \"0.1\"\n---\n# Root\n\n## Contents\n\n* [NOTE-001](./NOTE-001.md)\n",
     );
-    write(
-        &root,
-        "log.md",
-        "---\ntype: log\n---\n# Log\n\n## History\n\n* 2026-06-16 created\n",
-    );
 
     let report = validate_bundle_at(&root, &bundle_registry(), BundlePosture::Strict);
     assert!(report.is_valid(), "errors: {:?}", report.errors);
