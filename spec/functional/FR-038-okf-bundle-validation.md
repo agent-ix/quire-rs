@@ -40,7 +40,8 @@ errors. `BundlePosture`, `BundleReport`, `BundleFinding`, `validate_bundle`, and
 `validate_bundle_at` are exported from the crate root.
 
 `index.md` keeps its archetype and is validated like any other
-document; only `README.md` / `tests.md` are skipped at walk time ([FR-024](./FR-024-parallel-repo-walk.md)).
+document. Corpus membership follows frontmatter presence, regardless of filename
+([FR-024](./FR-024-parallel-repo-walk.md)).
 
 ### `type` is required in BOTH postures
 

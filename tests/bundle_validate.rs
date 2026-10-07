@@ -136,6 +136,7 @@ fn index_incompleteness_is_error_strict_warning_okf() {
     let root = tmpdir("index_incomplete");
     write(&root, "NOTE-001.md", &note("NOTE-001", "body"));
     write(&root, "NOTE-002.md", &note("NOTE-002", "body"));
+    write(&root, "log.md", &note("NOTE-003", "body"));
     // index lists only NOTE-001.
     write(
         &root,
@@ -148,12 +149,20 @@ fn index_incompleteness_is_error_strict_warning_okf() {
         .errors
         .iter()
         .any(|f| f.reason == "index-incomplete" && f.message.contains("NOTE-002")));
+    assert!(strict
+        .errors
+        .iter()
+        .any(|f| f.reason == "index-incomplete" && f.message.contains("log.md")));
 
     let okf = validate_bundle_at(&root, &bundle_registry(), BundlePosture::Okf);
     assert!(okf
         .warnings
         .iter()
         .any(|f| f.reason == "index-incomplete" && f.message.contains("NOTE-002")));
+    assert!(okf
+        .warnings
+        .iter()
+        .any(|f| f.reason == "index-incomplete" && f.message.contains("log.md")));
 }
 
 /// The bundle-root index.md must declare `okf_version`.
