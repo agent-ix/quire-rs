@@ -276,7 +276,7 @@ jobs:
       # for a >10% slowdown.
       - name: Run benches against stored baseline
         run: |
-          if [[ -d target/criterion/parse/demo-item/main ]]; then
+          if [[ -d target/criterion/parse/small/main ]]; then
             cargo bench --locked --bench parse --bench load -- --baseline main
           else
             cargo bench --locked --bench parse --bench load -- --save-baseline main
