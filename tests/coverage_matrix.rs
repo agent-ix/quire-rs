@@ -254,6 +254,53 @@ fn optional_abstract_property_preserves_typescript_matrix_binding() {
     let _ = fs::remove_dir_all(&root);
 }
 
+#[trace("FR-050-AC-48")]
+// A malformed optional property must keep the parser diagnostic even when
+// the first diagnostic points at the otherwise recoverable `abstract?` token.
+#[test]
+fn malformed_optional_abstract_property_remains_unbound() {
+    let root = tmpdir("age-2236-malformed-abstract");
+    write(
+        &root,
+        "spec/FR-001.md",
+        "---\nid: FR-001\ntype: FR\ntitle: A requirement\n---\n\n\
+         ## Acceptance Criteria\n\n\
+         | ID | Criteria | Verification |\n|----|----------|--------------|\n\
+         | FR-001-AC-1 | The malformed TypeScript test shall be rejected. | Test (TC-002) |\n",
+    );
+    write(
+        &root,
+        "src/malformed.test.ts",
+        "type TestRecord = { abstract?: : boolean };\n\
+         type BrokenRecord = { ??? };\n\
+         it('must remain unbound', () => { trace('FR-001-AC-1'); });\n",
+    );
+
+    let extraction = extract_tree(&root.join("src"));
+    assert_eq!(
+        extraction.symbols.len(),
+        0,
+        "malformed file must mint no symbols"
+    );
+    assert_eq!(extraction.diagnostics.len(), 1);
+    assert_eq!(extraction.diagnostics[0].path, "malformed.test.ts");
+    assert!(extraction.diagnostics[0]
+        .reason
+        .contains("unresolvable declaration structure"));
+
+    let report = report_over(&root, "iso-obligations");
+    let criterion = report
+        .coverage_matrix
+        .iter()
+        .flat_map(|requirement| &requirement.criteria)
+        .find(|criterion| criterion.id == "FR-001-AC-1")
+        .expect("the criterion remains in the computed matrix");
+    assert_eq!(criterion.status, CoverageMatrixStatus::Untagged);
+    assert!(criterion.binders.is_empty());
+
+    let _ = fs::remove_dir_all(&root);
+}
+
 #[trace("TC-1933", "FR-050-AC-49")]
 // a criterion bound by one non-ignored test symbol computes
 // tagged; a criterion bound by none computes untagged.

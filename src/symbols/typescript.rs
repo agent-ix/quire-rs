@@ -257,23 +257,134 @@ fn is_recoverable_optional_abstract_property(
         return false;
     }
     let property_tail = line_text[property_start + "abstract?".len()..].trim_start();
-    let type_start = property_tail
-        .strip_prefix(':')
-        .map(str::trim_start)
-        .unwrap_or_default();
-    if type_start.is_empty() || matches!(type_start.as_bytes()[0], b';' | b'}') {
+    let Some(type_start) = property_tail.strip_prefix(':').map(str::trim_start) else {
+        return false;
+    };
+    if type_start.is_empty() || matches!(type_start.as_bytes()[0], b':' | b';' | b'}' | b',' | b'=')
+    {
         return false;
     }
 
     let node = node_at_position(root, row, column);
     let mut current = Some(node);
+    let mut in_object_type = false;
     while let Some(node) = current {
         if node.kind() == "object_type" {
-            return true;
+            in_object_type = true;
+            break;
         }
         current = node.parent();
     }
+    if !in_object_type {
+        return false;
+    }
+
+    let property_end = property_start + "abstract?".len();
+    !has_other_declaration_structure_error(root, source, row, property_start, property_end, false)
+}
+
+/// Whether a declaration-structure error exists outside the one parser error
+/// caused by TypeScript's reserved `abstract` property token.
+///
+/// `ParsedFile::diagnostic` reports only the first structural error. Requiring
+/// every other structural error to be absent keeps a later malformed
+/// declaration from being hidden by the recovery for this one token. Errors
+/// inside executable function bodies retain the parser crate's existing
+/// per-file tolerance.
+fn has_other_declaration_structure_error(
+    node: Node,
+    source: &str,
+    allowed_row: usize,
+    allowed_start: usize,
+    allowed_end: usize,
+    inside_executable_body: bool,
+) -> bool {
+    if !node.has_error() {
+        return false;
+    }
+
+    let is_declaration = matches!(
+        node.kind(),
+        "function_declaration"
+            | "function_expression"
+            | "generator_function_declaration"
+            | "generator_function"
+            | "method_definition"
+            | "arrow_function"
+            | "class_declaration"
+            | "class"
+            | "internal_module"
+    );
+    if is_declaration || !inside_executable_body {
+        let mut cursor = node.walk();
+        for child in node.children(&mut cursor) {
+            if (child.is_error() || child.is_missing())
+                && !is_allowed_abstract_error(
+                    child,
+                    source,
+                    allowed_row,
+                    allowed_start,
+                    allowed_end,
+                )
+            {
+                return true;
+            }
+        }
+    }
+
+    let executable_body = if matches!(
+        node.kind(),
+        "function_declaration"
+            | "function_expression"
+            | "generator_function_declaration"
+            | "generator_function"
+            | "method_definition"
+            | "arrow_function"
+    ) {
+        node.child_by_field_name("body")
+    } else {
+        None
+    };
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        let child_inside_body = if is_declaration {
+            Some(child) == executable_body
+        } else {
+            inside_executable_body
+        };
+        if has_other_declaration_structure_error(
+            child,
+            source,
+            allowed_row,
+            allowed_start,
+            allowed_end,
+            child_inside_body,
+        ) {
+            return true;
+        }
+    }
     false
+}
+
+fn is_allowed_abstract_error(
+    node: Node,
+    source: &str,
+    allowed_row: usize,
+    allowed_start: usize,
+    allowed_end: usize,
+) -> bool {
+    if !node.is_error() {
+        return false;
+    }
+    let start = node.start_position();
+    let end = node.end_position();
+    start.row == allowed_row
+        && end.row == allowed_row
+        && start.column >= allowed_start
+        && end.column <= allowed_end
+        && node
+            .utf8_text(source.as_bytes())
+            .is_ok_and(|text| text == "abstract")
 }
 
 /// Find the deepest syntax node containing a source position.
