@@ -279,7 +279,8 @@ fn is_recoverable_optional_abstract_property(
         return false;
     }
 
-    let property_end = property_start + "abstract?".len();
+    // Tree-sitter includes the colon in this recoverable ERROR node.
+    let property_end = property_start + "abstract?:".len();
     !has_other_declaration_structure_error(root, source, row, property_start, property_end, false)
 }
 
@@ -384,7 +385,7 @@ fn is_allowed_abstract_error(
         && end.column <= allowed_end
         && node
             .utf8_text(source.as_bytes())
-            .is_ok_and(|text| text == "abstract")
+            .is_ok_and(|text| text == "abstract?:")
 }
 
 /// Find the deepest syntax node containing a source position.
