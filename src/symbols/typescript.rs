@@ -186,11 +186,23 @@ pub(crate) fn parse(path: &str, source: &str) -> Result<Vec<RawSymbol>, String> 
     };
     let parsed = parse_file(language, "<source>", source).map_err(|e| format!("parse: {e}"))?;
     if let Some(diagnostic) = parsed.diagnostic() {
-        return Err(format!(
-            "line {}: unresolvable declaration structure (column {})",
+        // `abstract` is a valid property name in a TypeScript object type,
+        // including the optional form `abstract?: T`. The grammar currently
+        // exposes that token as an ERROR node even though the surrounding type
+        // literal is valid. Keep the tree walk for this one recoverable shape;
+        // all other declaration-structure diagnostics remain file-fatal.
+        if !is_recoverable_optional_abstract_property(
+            parsed.root_node(),
+            source,
             diagnostic.line(),
-            diagnostic.column()
-        ));
+            diagnostic.column(),
+        ) {
+            return Err(format!(
+                "line {}: unresolvable declaration structure (column {})",
+                diagnostic.line(),
+                diagnostic.column()
+            ));
+        }
     }
 
     let module = module_name(path);
@@ -209,6 +221,194 @@ pub(crate) fn parse(path: &str, source: &str) -> Result<Vec<RawSymbol>, String> 
     let mut scopes: Vec<Scope> = Vec::new();
     walk(parsed.root_node(), source, &module, &mut scopes, &mut out);
     Ok(out)
+}
+
+/// Whether a TypeScript parser diagnostic points at the valid optional
+/// `abstract` property form in an object type.
+///
+/// The TypeScript grammar reserves `abstract` for declaration modifiers but
+/// does not admit it through the property-name rule. That leaves a recoverable
+/// `ERROR` node in an otherwise valid type literal. The parser tree remains
+/// useful for symbol extraction, while malformed declarations must continue to
+/// produce the adapter's per-file diagnostic.
+fn is_recoverable_optional_abstract_property(
+    root: Node,
+    source: &str,
+    line: u32,
+    column: u32,
+) -> bool {
+    let row = usize::try_from(line.saturating_sub(1)).unwrap_or(usize::MAX);
+    let column = usize::try_from(column).unwrap_or(usize::MAX);
+    let Some(line_text) = source.lines().nth(row) else {
+        return false;
+    };
+    let property_start = line_text.match_indices("abstract?").find_map(|(start, _)| {
+        (start <= column && column < start + "abstract?".len()).then_some(start)
+    });
+    let Some(property_start) = property_start else {
+        return false;
+    };
+    if property_start > 0
+        && matches!(
+            line_text.as_bytes()[property_start - 1],
+            b'a'..=b'z' | b'A'..=b'Z' | b'0'..=b'9' | b'_' | b'$'
+        )
+    {
+        return false;
+    }
+    let property_tail = line_text[property_start + "abstract?".len()..].trim_start();
+    let Some(type_start) = property_tail.strip_prefix(':').map(str::trim_start) else {
+        return false;
+    };
+    if type_start.is_empty() || matches!(type_start.as_bytes()[0], b':' | b';' | b'}' | b',' | b'=')
+    {
+        return false;
+    }
+
+    let node = node_at_position(root, row, column);
+    let mut current = Some(node);
+    let mut in_object_type = false;
+    while let Some(node) = current {
+        if node.kind() == "object_type" {
+            in_object_type = true;
+            break;
+        }
+        current = node.parent();
+    }
+    if !in_object_type {
+        return false;
+    }
+
+    // Tree-sitter includes the colon in this recoverable ERROR node.
+    let property_end = property_start + "abstract?:".len();
+    !has_other_declaration_structure_error(root, source, row, property_start, property_end, false)
+}
+
+/// Whether a declaration-structure error exists outside the one parser error
+/// caused by TypeScript's reserved `abstract` property token.
+///
+/// `ParsedFile::diagnostic` reports only the first structural error. Requiring
+/// every other structural error to be absent keeps a later malformed
+/// declaration from being hidden by the recovery for this one token. Errors
+/// inside executable function bodies retain the parser crate's existing
+/// per-file tolerance.
+fn has_other_declaration_structure_error(
+    node: Node,
+    source: &str,
+    allowed_row: usize,
+    allowed_start: usize,
+    allowed_end: usize,
+    inside_executable_body: bool,
+) -> bool {
+    if !node.has_error() {
+        return false;
+    }
+
+    let is_declaration = matches!(
+        node.kind(),
+        "function_declaration"
+            | "function_expression"
+            | "generator_function_declaration"
+            | "generator_function"
+            | "method_definition"
+            | "arrow_function"
+            | "class_declaration"
+            | "class"
+            | "internal_module"
+    );
+    if is_declaration || !inside_executable_body {
+        let mut cursor = node.walk();
+        for child in node.children(&mut cursor) {
+            if (child.is_error() || child.is_missing())
+                && !is_allowed_abstract_error(
+                    child,
+                    source,
+                    allowed_row,
+                    allowed_start,
+                    allowed_end,
+                )
+            {
+                return true;
+            }
+        }
+    }
+
+    let executable_body = if matches!(
+        node.kind(),
+        "function_declaration"
+            | "function_expression"
+            | "generator_function_declaration"
+            | "generator_function"
+            | "method_definition"
+            | "arrow_function"
+    ) {
+        node.child_by_field_name("body")
+    } else {
+        None
+    };
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        let child_inside_body = if is_declaration {
+            Some(child) == executable_body
+        } else {
+            inside_executable_body
+        };
+        if has_other_declaration_structure_error(
+            child,
+            source,
+            allowed_row,
+            allowed_start,
+            allowed_end,
+            child_inside_body,
+        ) {
+            return true;
+        }
+    }
+    false
+}
+
+fn is_allowed_abstract_error(
+    node: Node,
+    source: &str,
+    allowed_row: usize,
+    allowed_start: usize,
+    allowed_end: usize,
+) -> bool {
+    if !node.is_error() {
+        return false;
+    }
+    let start = node.start_position();
+    let end = node.end_position();
+    start.row == allowed_row
+        && end.row == allowed_row
+        && start.column >= allowed_start
+        && end.column <= allowed_end
+        && node
+            .utf8_text(source.as_bytes())
+            .is_ok_and(|text| text == "abstract?:")
+}
+
+/// Find the deepest syntax node containing a source position.
+fn node_at_position(node: Node, row: usize, column: usize) -> Node {
+    let start = node.start_position();
+    let end = node.end_position();
+    let contains =
+        (row, column) >= (start.row, start.column) && (row, column) < (end.row, end.column);
+    if !contains {
+        return node;
+    }
+
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        let child_start = child.start_position();
+        let child_end = child.end_position();
+        if (row, column) >= (child_start.row, child_start.column)
+            && (row, column) < (child_end.row, child_end.column)
+        {
+            return node_at_position(child, row, column);
+        }
+    }
+    node
 }
 
 /// One open lexical scope: what it is called, and whether declarations
