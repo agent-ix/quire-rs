@@ -249,7 +249,14 @@ fn optional_abstract_property_preserves_typescript_matrix_binding() {
         criterion.binders[0].qualified_name,
         "keeps the module binding"
     );
-    assert_eq!(report.binding_census.bound, 1);
+    assert_eq!(
+        report
+            .binding_census
+            .iter()
+            .find(|census| census.language == "typescript")
+            .map(|census| census.bound),
+        Some(1)
+    );
 
     let _ = fs::remove_dir_all(&root);
 }
