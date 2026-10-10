@@ -208,6 +208,52 @@ fn tc1932_tc1944_binders_are_keyed_on_path_line_column_not_qualified_name() {
     let _ = fs::remove_dir_all(&root);
 }
 
+#[trace("FR-050-AC-48")]
+// A reserved TypeScript word is valid as an optional property name in a type
+// literal. It must not make the whole source module disappear from the
+// computed matrix (AGE-2236).
+#[test]
+fn optional_abstract_property_preserves_typescript_matrix_binding() {
+    let root = tmpdir("age-2236-abstract");
+    write(
+        &root,
+        "spec/FR-001.md",
+        "---\nid: FR-001\ntype: FR\ntitle: A requirement\n---\n\n\
+         ## Acceptance Criteria\n\n\
+         | ID | Criteria | Verification |\n|----|----------|--------------|\n\
+         | FR-001-AC-1 | The TypeScript test shall remain visible. | Test (TC-001) |\n",
+    );
+    write(
+        &root,
+        "src/record.test.ts",
+        "type TestRecord = { abstract?: boolean };\n\
+         it('keeps the module binding', () => { trace('FR-001-AC-1'); });\n",
+    );
+
+    let report = report_over(&root, "iso-obligations");
+    let criterion = report
+        .coverage_matrix
+        .iter()
+        .flat_map(|requirement| &requirement.criteria)
+        .find(|criterion| criterion.id == "FR-001-AC-1")
+        .expect("the criterion remains in the computed matrix");
+
+    assert_eq!(criterion.status, CoverageMatrixStatus::Tagged);
+    assert_eq!(
+        criterion.binders.len(),
+        1,
+        "the TypeScript test remains bound"
+    );
+    assert_eq!(criterion.binders[0].path, "record.test.ts");
+    assert_eq!(
+        criterion.binders[0].qualified_name,
+        "keeps the module binding"
+    );
+    assert_eq!(report.binding_census.bound, 1);
+
+    let _ = fs::remove_dir_all(&root);
+}
+
 #[trace("TC-1933", "FR-050-AC-49")]
 // a criterion bound by one non-ignored test symbol computes
 // tagged; a criterion bound by none computes untagged.
