@@ -30,7 +30,7 @@ use build_npm_fetch::FetchError;
 
 /// The declared npm fetch pin. `src/lib.rs`'s `VERSION` reads this same value
 /// back via `env!` at compile time — there is only one literal.
-const VERSION: &str = "0.7.0";
+const VERSION: &str = "0.8.0";
 
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
