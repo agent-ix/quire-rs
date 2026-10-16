@@ -1300,4 +1300,102 @@ mod cr135_archetype_matches_nothing {
              document of that archetype is ordinary, not a finding"
         );
     }
+
+    #[trace("TC-1076", "FR-050-AC-41")]
+    // `required: false` must suppress only missing-target findings. It does
+    // not skip documents or excuse a present table with a broken id column.
+    #[test]
+    fn tc1076_optional_trace_target_suppresses_only_absent_target_shapes() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let root = dir.path();
+        let spec_dir = root.join("spec");
+        std::fs::create_dir_all(&spec_dir).expect("spec dir");
+        let empty = ExcludeSet::default();
+        let sections = SectionNames::from("Acceptance Criteria");
+        let scope = |required| DeclaredScope {
+            name: "acceptance-criterion",
+            archetype: "FR",
+            exclude: &empty,
+            model_exclude: &empty,
+            mints: Some("ID"),
+            status_column: None,
+            target_required: required,
+        };
+
+        // With no archetype documents an optional target is ordinary, but
+        // flipping the same declaration to required restores its finding.
+        let no_archetypes = Spec::from_path(root);
+        let mut optional_missing_archetype = ScanContext::default();
+        let rows = scan(
+            &no_archetypes,
+            root,
+            scope(false),
+            &sections,
+            &mut optional_missing_archetype,
+        );
+        assert!(rows.is_empty());
+        assert_eq!(optional_missing_archetype.census().selected, 0);
+        assert!(optional_missing_archetype.into_diagnostics().is_empty());
+
+        let mut required_missing_archetype = ScanContext::default();
+        scan(
+            &no_archetypes,
+            root,
+            scope(true),
+            &sections,
+            &mut required_missing_archetype,
+        );
+        let diagnostics = required_missing_archetype.into_diagnostics();
+        assert_eq!(diagnostics.len(), 1);
+        assert!(matches!(
+            diagnostics[0].1,
+            ScanDiagnostic::ArchetypeMatchesNothing { .. }
+        ));
+
+        // A matching document without the section is absent from the optional
+        // target's denominator and does not produce a section diagnostic.
+        std::fs::write(
+            spec_dir.join("FR-001.md"),
+            "---\nid: FR-001\ntype: FR\n---\n\n## Summary\nText.\n",
+        )
+        .expect("write FR without target section");
+        let missing_section = Spec::from_path(root);
+        let mut optional_missing_section = ScanContext::default();
+        let rows = scan(
+            &missing_section,
+            root,
+            scope(false),
+            &sections,
+            &mut optional_missing_section,
+        );
+        assert!(rows.is_empty());
+        assert_eq!(optional_missing_section.census().selected, 0);
+        assert!(optional_missing_section.into_diagnostics().is_empty());
+
+        // A present section is still scanned: a wrong id column is diagnosed
+        // and its row remains available to the caller.
+        std::fs::write(
+            spec_dir.join("FR-001.md"),
+            "---\nid: FR-001\ntype: FR\n---\n\n## Acceptance Criteria\n\n| Criteria | Verification |\n|---|---|\n| It works. | Test |\n",
+        )
+        .expect("write FR with malformed target table");
+        let present_table = Spec::from_path(root);
+        let mut optional_broken_column = ScanContext::default();
+        let rows = scan(
+            &present_table,
+            root,
+            scope(false),
+            &sections,
+            &mut optional_broken_column,
+        );
+        assert_eq!(rows.len(), 1, "the table still mints its row");
+        assert_eq!(optional_broken_column.census().selected, 1);
+        assert_eq!(optional_broken_column.census().section_found, 1);
+        let diagnostics = optional_broken_column.into_diagnostics();
+        assert_eq!(diagnostics.len(), 1);
+        assert!(matches!(
+            diagnostics[0].1,
+            ScanDiagnostic::IdColumnMatchesNothing { .. }
+        ));
+    }
 }
