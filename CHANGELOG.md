@@ -7,6 +7,16 @@ bumps; once 1.0 ships, semver is strict.
 
 ## [Unreleased]
 
+## [0.50.3] — 2026-10-16
+
+Patch release for optional module-declared coverage targets.
+
+### Fixed
+
+- Optional declared trace targets with no matching archetype documents or
+  sections no longer fail repository coverage. Required targets still report
+  missing archetypes, and present tables still report missing id columns.
+
 ## [0.50.2] — 2026-10-07
 
 ### Changed
