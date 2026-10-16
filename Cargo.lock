@@ -5,7 +5,7 @@ version = 4
 [[package]]
 name = "agent-ix-semantic-schema"
 version = "0.3.0"
-source = "git+https://github.com/agent-ix/filament-core-data?tag=semantic-schema-v0.3.0#6156f9e0e891f7d508ce7b137ba1f6eb849a099e"
+source = "git+https://github.com/agent-ix/filament-core-data?rev=fd261ca1549f79cd8512312ab759895540e9a159#fd261ca1549f79cd8512312ab759895540e9a159"
 
 [[package]]
 name = "ahash"
