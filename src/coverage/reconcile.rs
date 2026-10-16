@@ -64,7 +64,7 @@ pub(super) fn reconcile(
                 // scoped to it, and the id column they name comes from here.
                 mints: Some(&target.id_column),
                 status_column: None,
-                section_required: target.required,
+                target_required: target.required,
             },
             &target.section,
             target_ctx,
@@ -134,7 +134,7 @@ pub(super) fn reconcile(
                 // diagnosing its absence would fire on every healthy matrix.
                 mints: None,
                 status_column: selected_status,
-                section_required: false,
+                target_required: false,
             },
             &declaration.section,
             &mut ctx,

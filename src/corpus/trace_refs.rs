@@ -166,7 +166,7 @@ fn minted_ids(
         // vocabulary, two surfaces (CR-054).
         mints: Some(&target.id_column),
         status_column: None,
-        section_required: target.required,
+        target_required: target.required,
     };
     let mut ids: BTreeSet<String> = BTreeSet::new();
     // A document of the target archetype mints its own id, too — an authored
@@ -211,7 +211,7 @@ fn referencing_rows(
             model_exclude,
             mints: None,
             status_column: None,
-            section_required: false,
+            target_required: false,
         },
         &declaration.section,
         ctx,

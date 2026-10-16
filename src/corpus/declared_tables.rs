@@ -67,18 +67,19 @@ pub(crate) struct DeclaredScope<'a> {
     /// Requirement Coverage`, which the `spec-matrix` template emits only when
     /// there is something to put in it — so firing there would report a
     /// finding on every well-formed Test Matrix in the corpus. A trace
-    /// target's section is not optional: it is the whole of what the
+    /// required target's section is not optional: it is the whole of what the
     /// declaration selects the document for, and an archetype-matching
-    /// document without it mints nothing.
+    /// document without it mints nothing. Optional targets may have no
+    /// matching documents and may omit the section on selected documents.
     pub mints: Option<&'a str>,
     /// Explicit or model-default status column checked on a reference table
     /// exposing a status-shaped header. Tables with no status axis remain out of
     /// scope; a near-miss such as `Coverage Status` is no longer silent (#341).
     pub status_column: Option<crate::traceability::SelectedStatusColumn<'a>>,
-    /// Whether absence of a minting section is itself a finding. This is
-    /// independent of `mints`: an optional target still checks a present table
-    /// and mints its rows (#327).
-    pub section_required: bool,
+    /// Whether absence of a matching archetype or minting section is itself a
+    /// finding. This is independent of `mints`: an optional target still scans
+    /// and validates a present section (#327).
+    pub target_required: bool,
 }
 
 /// Compiled exclusion globs.
@@ -444,14 +445,14 @@ pub(crate) fn scan(
         // a minting defect; the second is an empty matrix, which is a
         // repository with no tests yet.
         let scanned = tables_of(doc.body(), &doc.path, sections);
-        if scope.mints.is_some() && (scope.section_required || !scanned.is_empty()) {
+        if scope.mints.is_some() && (scope.target_required || !scanned.is_empty()) {
             ctx.census.selected += 1;
             if !scanned.is_empty() {
                 ctx.census.section_found += 1;
             }
         }
         if scanned.is_empty() {
-            if scope.section_required {
+            if scope.target_required {
                 let id_column = scope
                     .mints
                     .expect("only a minting declaration can require its section");
@@ -553,7 +554,7 @@ pub(crate) fn scan(
     }
     // Counted before `exclude`: a declaration that deliberately excludes
     // all of its matches is not a missing archetype (CR-054).
-    if of_archetype == 0 && scope.mints.is_some() {
+    if of_archetype == 0 && scope.mints.is_some() && scope.target_required {
         ctx.note(
             scope.name,
             ScanDiagnostic::ArchetypeMatchesNothing {
@@ -1266,7 +1267,7 @@ mod cr135_archetype_matches_nothing {
                 model_exclude: &empty,
                 mints: Some("Test ID"),
                 status_column: None,
-                section_required: true,
+                target_required: true,
             },
             &sections,
             &mut target,
@@ -1288,7 +1289,7 @@ mod cr135_archetype_matches_nothing {
                 model_exclude: &empty,
                 mints: None,
                 status_column: None,
-                section_required: false,
+                target_required: false,
             },
             &sections,
             &mut reference,
