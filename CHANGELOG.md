@@ -16,6 +16,7 @@ Patch release for optional module-declared coverage targets.
 - Optional declared trace targets with no matching archetype documents or
   sections no longer fail repository coverage. Required targets still report
   missing archetypes, and present tables still report missing id columns.
+- Quire’s own TestMatrix headers now match the process module’s `Status` column contract.
 
 ## [0.50.2] — 2026-10-07
 
