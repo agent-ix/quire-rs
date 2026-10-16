@@ -625,10 +625,11 @@ pub struct TraceTarget {
     pub section: SectionNames,
     /// Table column holding the minted id.
     pub id_column: String,
-    /// Whether every selected document must carry the minting section.
-    /// Omitted preserves the historical required posture. Optional targets
-    /// still mint and validate a section when it is present; only its absence
-    /// is healthy (FR-050-AC-41, #327).
+    /// Whether this target must be represented in the corpus. Omitted
+    /// preserves the historical required posture. An optional target may have
+    /// no documents of its archetype, or its selected documents may omit the
+    /// section; when the section is present it is still scanned and validated
+    /// (FR-050-AC-41, #327).
     #[serde(default = "default_true", skip_serializing_if = "is_true")]
     pub required: bool,
     /// Whether rows require source-symbol evidence. Omitted is the historical

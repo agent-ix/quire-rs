@@ -67,18 +67,19 @@ pub(crate) struct DeclaredScope<'a> {
     /// Requirement Coverage`, which the `spec-matrix` template emits only when
     /// there is something to put in it — so firing there would report a
     /// finding on every well-formed Test Matrix in the corpus. A trace
-    /// target's section is not optional: it is the whole of what the
+    /// required target's section is not optional: it is the whole of what the
     /// declaration selects the document for, and an archetype-matching
-    /// document without it mints nothing.
+    /// document without it mints nothing. Optional targets may have no
+    /// matching documents and may omit the section on selected documents.
     pub mints: Option<&'a str>,
     /// Explicit or model-default status column checked on a reference table
     /// exposing a status-shaped header. Tables with no status axis remain out of
     /// scope; a near-miss such as `Coverage Status` is no longer silent (#341).
     pub status_column: Option<crate::traceability::SelectedStatusColumn<'a>>,
-    /// Whether absence of a minting section is itself a finding. This is
-    /// independent of `mints`: an optional target still checks a present table
-    /// and mints its rows (#327).
-    pub section_required: bool,
+    /// Whether absence of a matching archetype or minting section is itself a
+    /// finding. This is independent of `mints`: an optional target still scans
+    /// and validates a present section (#327).
+    pub target_required: bool,
 }
 
 /// Compiled exclusion globs.
@@ -444,14 +445,14 @@ pub(crate) fn scan(
         // a minting defect; the second is an empty matrix, which is a
         // repository with no tests yet.
         let scanned = tables_of(doc.body(), &doc.path, sections);
-        if scope.mints.is_some() && (scope.section_required || !scanned.is_empty()) {
+        if scope.mints.is_some() && (scope.target_required || !scanned.is_empty()) {
             ctx.census.selected += 1;
             if !scanned.is_empty() {
                 ctx.census.section_found += 1;
             }
         }
         if scanned.is_empty() {
-            if scope.section_required {
+            if scope.target_required {
                 let id_column = scope
                     .mints
                     .expect("only a minting declaration can require its section");
@@ -553,7 +554,7 @@ pub(crate) fn scan(
     }
     // Counted before `exclude`: a declaration that deliberately excludes
     // all of its matches is not a missing archetype (CR-054).
-    if of_archetype == 0 && scope.mints.is_some() {
+    if of_archetype == 0 && scope.mints.is_some() && scope.target_required {
         ctx.note(
             scope.name,
             ScanDiagnostic::ArchetypeMatchesNothing {
@@ -1266,7 +1267,7 @@ mod cr135_archetype_matches_nothing {
                 model_exclude: &empty,
                 mints: Some("Test ID"),
                 status_column: None,
-                section_required: true,
+                target_required: true,
             },
             &sections,
             &mut target,
@@ -1288,7 +1289,7 @@ mod cr135_archetype_matches_nothing {
                 model_exclude: &empty,
                 mints: None,
                 status_column: None,
-                section_required: false,
+                target_required: false,
             },
             &sections,
             &mut reference,
@@ -1298,5 +1299,103 @@ mod cr135_archetype_matches_nothing {
             "a reference declaration reads an existing column; having no \
              document of that archetype is ordinary, not a finding"
         );
+    }
+
+    #[trace("TC-1076", "FR-050-AC-41")]
+    // `required: false` must suppress only missing-target findings. It does
+    // not skip documents or excuse a present table with a broken id column.
+    #[test]
+    fn tc1076_optional_trace_target_suppresses_only_absent_target_shapes() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let root = dir.path();
+        let spec_dir = root.join("spec");
+        std::fs::create_dir_all(&spec_dir).expect("spec dir");
+        let empty = ExcludeSet::default();
+        let sections = SectionNames::from("Acceptance Criteria");
+        let scope = |required| DeclaredScope {
+            name: "acceptance-criterion",
+            archetype: "FR",
+            exclude: &empty,
+            model_exclude: &empty,
+            mints: Some("ID"),
+            status_column: None,
+            target_required: required,
+        };
+
+        // With no archetype documents an optional target is ordinary, but
+        // flipping the same declaration to required restores its finding.
+        let no_archetypes = Spec::from_path(root);
+        let mut optional_missing_archetype = ScanContext::default();
+        let rows = scan(
+            &no_archetypes,
+            root,
+            scope(false),
+            &sections,
+            &mut optional_missing_archetype,
+        );
+        assert!(rows.is_empty());
+        assert_eq!(optional_missing_archetype.census().selected, 0);
+        assert!(optional_missing_archetype.into_diagnostics().is_empty());
+
+        let mut required_missing_archetype = ScanContext::default();
+        scan(
+            &no_archetypes,
+            root,
+            scope(true),
+            &sections,
+            &mut required_missing_archetype,
+        );
+        let diagnostics = required_missing_archetype.into_diagnostics();
+        assert_eq!(diagnostics.len(), 1);
+        assert!(matches!(
+            diagnostics[0].1,
+            ScanDiagnostic::ArchetypeMatchesNothing { .. }
+        ));
+
+        // A matching document without the section is absent from the optional
+        // target's denominator and does not produce a section diagnostic.
+        std::fs::write(
+            spec_dir.join("FR-001.md"),
+            "---\nid: FR-001\ntype: FR\n---\n\n## Summary\nText.\n",
+        )
+        .expect("write FR without target section");
+        let missing_section = Spec::from_path(root);
+        let mut optional_missing_section = ScanContext::default();
+        let rows = scan(
+            &missing_section,
+            root,
+            scope(false),
+            &sections,
+            &mut optional_missing_section,
+        );
+        assert!(rows.is_empty());
+        assert_eq!(optional_missing_section.census().selected, 0);
+        assert!(optional_missing_section.into_diagnostics().is_empty());
+
+        // A present section is still scanned: a wrong id column is diagnosed
+        // and its row remains available to the caller.
+        std::fs::write(
+            spec_dir.join("FR-001.md"),
+            "---\nid: FR-001\ntype: FR\n---\n\n## Acceptance Criteria\n\n| Criteria | Verification |\n|---|---|\n| It works. | Test |\n",
+        )
+        .expect("write FR with malformed target table");
+        let present_table = Spec::from_path(root);
+        let mut optional_broken_column = ScanContext::default();
+        let rows = scan(
+            &present_table,
+            root,
+            scope(false),
+            &sections,
+            &mut optional_broken_column,
+        );
+        assert_eq!(rows.len(), 1, "the table still mints its row");
+        assert_eq!(optional_broken_column.census().selected, 1);
+        assert_eq!(optional_broken_column.census().section_found, 1);
+        let diagnostics = optional_broken_column.into_diagnostics();
+        assert_eq!(diagnostics.len(), 1);
+        assert!(matches!(
+            diagnostics[0].1,
+            ScanDiagnostic::IdColumnMatchesNothing { .. }
+        ));
     }
 }
