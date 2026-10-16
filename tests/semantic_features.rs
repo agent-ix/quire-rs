@@ -138,7 +138,14 @@ fn features_table_yields_feature_order_in_row_order() {
     let validator = registry
         .archetype("interface")
         .and_then(|a| a.data_validator())
-        .unwrap();
+        .unwrap_or_else(|| {
+            panic!(
+                "the published architecture module must expose interface's Interface.json \
+                 data validator; loader failures: {:#?}; diagnostics: {:#?}",
+                registry.failures(),
+                registry.diagnostics()
+            )
+        });
     let violations: Vec<String> = match validator.validate(&declaration) {
         Ok(()) => Vec::new(),
         Err(errs) => errs
