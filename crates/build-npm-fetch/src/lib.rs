@@ -108,6 +108,30 @@ pub fn try_fetch_npm_package(
     version: &str,
     out_dir: &Path,
 ) -> Result<PathBuf, FetchError> {
+    try_fetch_npm_package_inner(package, version, None, out_dir)
+}
+
+/// Fetch `<package>@<version>` from `registry` via `npm pack`.
+///
+/// Sets the `@agent-ix` scoped registry for this npm subprocess only, leaving
+/// the caller's npm configuration intact for other package fetches. Use this
+/// when a package is published to a registry different from the configured
+/// scope registry.
+pub fn try_fetch_npm_package_from_registry(
+    package: &str,
+    version: &str,
+    registry: &str,
+    out_dir: &Path,
+) -> Result<PathBuf, FetchError> {
+    try_fetch_npm_package_inner(package, version, Some(registry), out_dir)
+}
+
+fn try_fetch_npm_package_inner(
+    package: &str,
+    version: &str,
+    registry: Option<&str>,
+    out_dir: &Path,
+) -> Result<PathBuf, FetchError> {
     let slug = package.trim_start_matches('@').replace('/', "__");
     let dest = out_dir.join("npm-packages").join(&slug).join(version);
     let unpacked = dest.join("package");
@@ -120,9 +144,12 @@ pub fn try_fetch_npm_package(
         fs::create_dir_all(&pack_dir)
             .unwrap_or_else(|e| panic!("create {}: {e}", pack_dir.display()));
 
-        let status = Command::new("npm")
-            .arg("pack")
-            .arg(format!("{package}@{version}"))
+        let mut npm = Command::new("npm");
+        npm.arg("pack").arg(format!("{package}@{version}"));
+        if let Some(registry) = registry {
+            npm.env("npm_config_@agent-ix:registry", registry);
+        }
+        let status = npm
             .arg("--pack-destination")
             .arg(&pack_dir)
             .status()

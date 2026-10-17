@@ -28,6 +28,7 @@ use build_npm_fetch::FetchError;
 /// The declared npm fetch pin. `src/lib.rs`'s `VERSION` reads this same value
 /// back via `env!` at compile time — there is only one literal.
 const VERSION: &str = "0.10.1";
+const REGISTRY: &str = "https://registry.npmjs.org";
 
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
@@ -47,7 +48,7 @@ fn main() {
             println!(
                 "cargo:warning=spec-objects-architecture-fixture: could not fetch \
                  @agent-ix/spec-objects-architecture@{VERSION} ({reason}). This package is \
-                 available from the configured npm registry. The two tests \
+                 available from the public npm registry. The two tests \
                  that need the real fetched module will skip themselves at runtime instead of \
                  failing the build."
             );
@@ -78,9 +79,10 @@ fn fetch_spec_objects_architecture(version: &str, out_dir: &Path) -> Result<(), 
         return Ok(());
     }
 
-    let package_dir = match build_npm_fetch::try_fetch_npm_package(
+    let package_dir = match build_npm_fetch::try_fetch_npm_package_from_registry(
         "@agent-ix/spec-objects-architecture",
         version,
+        REGISTRY,
         out_dir,
     ) {
         Ok(dir) => dir,
