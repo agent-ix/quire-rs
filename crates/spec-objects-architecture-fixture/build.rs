@@ -83,22 +83,12 @@ fn fetch_spec_objects_architecture(version: &str, out_dir: &Path) -> Result<(), 
     // The shared fetch helper also caches unpacked npm packages. Clear the
     // package-specific cache when this fixture's version/registry identity
     // changes so its own marker cannot preserve bytes from another source.
-    let cached_package = out_dir
-        .join("npm-packages")
-        .join("spec-objects-architecture")
-        .join(version);
-    if cached_package.exists() {
-        fs::remove_dir_all(&cached_package)
-            .unwrap_or_else(|e| panic!("remove stale {}: {e}", cached_package.display()));
-    }
-    let cached_pack_tmp = out_dir
-        .join("npm-pack-tmp")
-        .join("spec-objects-architecture")
-        .join(version);
-    if cached_pack_tmp.exists() {
-        fs::remove_dir_all(&cached_pack_tmp)
-            .unwrap_or_else(|e| panic!("remove stale {}: {e}", cached_pack_tmp.display()));
-    }
+    build_npm_fetch::clear_npm_package_cache(
+        "@agent-ix/spec-objects-architecture",
+        version,
+        out_dir,
+    )
+    .unwrap_or_else(|e| panic!("clear stale npm package cache: {e}"));
 
     let package_dir = match build_npm_fetch::try_fetch_npm_package_from_registry(
         "@agent-ix/spec-objects-architecture",

@@ -24,6 +24,23 @@ pub fn cache_marker_matches(marker: &Path, identity: &str) -> bool {
         .unwrap_or(false)
 }
 
+/// Removes npm's unpacked package and pack scratch caches for one package
+/// version, using the same package slug as the fetch functions.
+pub fn clear_npm_package_cache(
+    package: &str,
+    version: &str,
+    out_dir: &Path,
+) -> std::io::Result<()> {
+    let slug = package.trim_start_matches('@').replace('/', "__");
+    for cache_root in ["npm-packages", "npm-pack-tmp"] {
+        let cached = out_dir.join(cache_root).join(&slug).join(version);
+        if cached.exists() {
+            fs::remove_dir_all(cached)?;
+        }
+    }
+    Ok(())
+}
+
 /// Why `try_fetch_npm_package` failed. Carries enough detail to reproduce
 /// [`fetch_npm_package`]'s historical panic messages verbatim, and enough
 /// for a caller that tolerates a missing package to explain itself via
@@ -82,7 +99,7 @@ impl std::error::Error for FetchError {}
 
 #[cfg(test)]
 mod tests {
-    use super::cache_marker_matches;
+    use super::{cache_marker_matches, clear_npm_package_cache};
     use std::fs;
     use std::path::PathBuf;
     use std::time::{SystemTime, UNIX_EPOCH};
@@ -114,6 +131,33 @@ mod tests {
         fs::write(&marker, identity).expect("write current marker");
         assert!(cache_marker_matches(&marker, identity));
 
+        fs::remove_dir_all(dir).expect("remove temp dir");
+    }
+
+    #[test]
+    fn package_cache_invalidation_removes_the_scoped_npm_cache() {
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("clock after epoch")
+            .as_nanos();
+        let dir = std::env::temp_dir().join(format!("build-npm-fetch-cache-{nonce}"));
+        let package_cache =
+            dir.join("npm-packages/agent-ix__spec-objects-architecture/0.10.1/package");
+        let pack_cache = dir.join("npm-pack-tmp/agent-ix__spec-objects-architecture/0.10.1");
+        fs::create_dir_all(&package_cache).expect("create package cache");
+        fs::write(package_cache.join("manifest.yaml"), "old package")
+            .expect("write cached package");
+        fs::create_dir_all(&pack_cache).expect("create pack cache");
+        fs::write(pack_cache.join("package.tgz"), "old tarball").expect("write cached tarball");
+
+        clear_npm_package_cache("@agent-ix/spec-objects-architecture", "0.10.1", &dir)
+            .expect("clear package cache");
+
+        assert!(
+            !package_cache.exists(),
+            "unpacked package cache was retained"
+        );
+        assert!(!pack_cache.exists(), "npm pack scratch cache was retained");
         fs::remove_dir_all(dir).expect("remove temp dir");
     }
 }
