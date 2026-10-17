@@ -16,6 +16,14 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+/// Returns whether a cache marker contains the exact requested identity.
+/// Empty and otherwise legacy markers are deliberately treated as stale.
+pub fn cache_marker_matches(marker: &Path, identity: &str) -> bool {
+    fs::read_to_string(marker)
+        .map(|contents| contents == identity)
+        .unwrap_or(false)
+}
+
 /// Why `try_fetch_npm_package` failed. Carries enough detail to reproduce
 /// [`fetch_npm_package`]'s historical panic messages verbatim, and enough
 /// for a caller that tolerates a missing package to explain itself via
@@ -71,6 +79,44 @@ impl fmt::Display for FetchError {
 }
 
 impl std::error::Error for FetchError {}
+
+#[cfg(test)]
+mod tests {
+    use super::cache_marker_matches;
+    use std::fs;
+    use std::path::PathBuf;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    #[test]
+    fn cache_marker_requires_matching_identity_and_ignores_legacy_markers() {
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("clock after epoch")
+            .as_nanos();
+        let dir = std::env::temp_dir().join(format!("build-npm-fetch-{nonce}"));
+        fs::create_dir_all(&dir).expect("create temp dir");
+        let marker = PathBuf::from(&dir).join(".module-fetched");
+
+        fs::write(&marker, b"").expect("write legacy marker");
+        assert!(!cache_marker_matches(
+            &marker,
+            "version=0.10.1\nregistry=https://registry.npmjs.org\n"
+        ));
+
+        let old_identity = "version=0.7.0\nregistry=https://registry.npmjs.org\n";
+        fs::write(&marker, old_identity).expect("write old marker");
+        assert!(!cache_marker_matches(
+            &marker,
+            "version=0.10.1\nregistry=https://registry.npmjs.org\n"
+        ));
+
+        let identity = "version=0.10.1\nregistry=https://registry.npmjs.org\n";
+        fs::write(&marker, identity).expect("write current marker");
+        assert!(cache_marker_matches(&marker, identity));
+
+        fs::remove_dir_all(dir).expect("remove temp dir");
+    }
+}
 
 /// Fetch `<package>@<version>` via `npm pack` (network access, verified by
 /// npm's own registry integrity check) into `<out_dir>/npm-packages/<slug>/

@@ -75,8 +75,29 @@ fn main() {
 fn fetch_spec_objects_architecture(version: &str, out_dir: &Path) -> Result<(), String> {
     let dest = out_dir.join("module");
     let marker = out_dir.join(".module-fetched");
-    if marker.is_file() {
+    let identity = format!("version={version}\nregistry={REGISTRY}\n");
+    if build_npm_fetch::cache_marker_matches(&marker, &identity) {
         return Ok(());
+    }
+
+    // The shared fetch helper also caches unpacked npm packages. Clear the
+    // package-specific cache when this fixture's version/registry identity
+    // changes so its own marker cannot preserve bytes from another source.
+    let cached_package = out_dir
+        .join("npm-packages")
+        .join("spec-objects-architecture")
+        .join(version);
+    if cached_package.exists() {
+        fs::remove_dir_all(&cached_package)
+            .unwrap_or_else(|e| panic!("remove stale {}: {e}", cached_package.display()));
+    }
+    let cached_pack_tmp = out_dir
+        .join("npm-pack-tmp")
+        .join("spec-objects-architecture")
+        .join(version);
+    if cached_pack_tmp.exists() {
+        fs::remove_dir_all(&cached_pack_tmp)
+            .unwrap_or_else(|e| panic!("remove stale {}: {e}", cached_pack_tmp.display()));
     }
 
     let package_dir = match build_npm_fetch::try_fetch_npm_package_from_registry(
@@ -112,7 +133,8 @@ fn fetch_spec_objects_architecture(version: &str, out_dir: &Path) -> Result<(), 
     let _ = fs::remove_dir_all(&npm_packages_dir);
 
     // Written last: everything above succeeded, so `dest` is complete.
-    fs::write(&marker, b"").unwrap_or_else(|e| panic!("write marker {}: {e}", marker.display()));
+    fs::write(&marker, identity)
+        .unwrap_or_else(|e| panic!("write marker {}: {e}", marker.display()));
     Ok(())
 }
 
