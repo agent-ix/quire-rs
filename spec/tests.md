@@ -27,7 +27,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 
 ### Stakeholder Requirement Coverage
 
-| Stakeholder Req | Trace to US/FR | Test/Validation | Coverage Status |
+| Stakeholder Req | Trace to US/FR | Test/Validation | Status |
 |-----------------|----------------|-----------------|-----------------|
 | StR-001 Single generic engine | US-002, US-003 (US-001/004/005 retired), all FRs | TC-001, TC-040, TC-060 | ✅ Complete |
 | StR-002 Render parity | ~~US-005~~ (retired), FR-012 (retired), NFR-006 | TC-030 (corpus sweep) | ✅ Complete |
@@ -39,7 +39,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 
 ### User Story Coverage
 
-| User Story | Acceptance Criteria | Test Cases | Coverage Status |
+| User Story | Acceptance Criteria | Test Cases | Status |
 |------------|---------------------|------------|-----------------|
 | ~~US-001 LLM patch + render~~ | — | — | ⛔ RETIRED (render removal) |
 | US-002 Developer parses doc | AC-1..3 | TC-001, TC-029, TC-002 | ✅ Complete |
@@ -61,7 +61,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 
 ### Functional Requirement Coverage
 
-| Functional Req | Acceptance Criteria | Test Cases | Coverage Status |
+| Functional Req | Acceptance Criteria | Test Cases | Status |
 |----------------|---------------------|------------|-----------------|
 | ~~FR-001 Generic render dispatch~~ | — | — | ⛔ RETIRED (render removal) |
 | FR-002 JsonValue merge-validate | AC-1..5 | TC-007, TC-007b (additional-props), TC-002b (proptest), TC-042b (bench) | ✅ Complete |

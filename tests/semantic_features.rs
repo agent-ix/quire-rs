@@ -82,11 +82,10 @@ const ORDER: &str =
     "| prepare_ip_query | operation |\n| codec_kind | field |\n| score_ip_batch | operation |\n";
 
 /// `spec-objects-architecture-fixture`'s `build.rs` fetches the real
-/// published module via `npm pack`; that fetch can legitimately fail
-/// (agent-ix/quire-rs#488 — the package isn't published to GitHub Packages,
-/// which is what CI authenticates to). When it did, skip cleanly with a
-/// printed reason rather than failing on a fixture nothing could have
-/// populated. Returns `true` when the caller should return immediately.
+/// published module via `npm pack`; that fetch can legitimately fail when
+/// the configured npm registry is unavailable. When it does, skip cleanly
+/// with a printed reason rather than failing on an unpopulated fixture.
+/// Returns `true` when the caller should return immediately.
 fn skip_if_spec_objects_architecture_unavailable() -> bool {
     if let Some(reason) = spec_objects_architecture_fixture::unavailable_reason() {
         eprintln!(
@@ -138,7 +137,14 @@ fn features_table_yields_feature_order_in_row_order() {
     let validator = registry
         .archetype("interface")
         .and_then(|a| a.data_validator())
-        .unwrap();
+        .unwrap_or_else(|| {
+            panic!(
+                "the published architecture module must expose interface's Interface.json \
+                 data validator; loader failures: {:#?}; diagnostics: {:#?}",
+                registry.failures(),
+                registry.diagnostics()
+            )
+        });
     let violations: Vec<String> = match validator.validate(&declaration) {
         Ok(()) => Vec::new(),
         Err(errs) => errs

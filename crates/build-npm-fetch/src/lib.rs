@@ -16,6 +16,31 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+/// Returns whether a cache marker contains the exact requested identity.
+/// Empty and otherwise legacy markers are deliberately treated as stale.
+pub fn cache_marker_matches(marker: &Path, identity: &str) -> bool {
+    fs::read_to_string(marker)
+        .map(|contents| contents == identity)
+        .unwrap_or(false)
+}
+
+/// Removes npm's unpacked package and pack scratch caches for one package
+/// version, using the same package slug as the fetch functions.
+pub fn clear_npm_package_cache(
+    package: &str,
+    version: &str,
+    out_dir: &Path,
+) -> std::io::Result<()> {
+    let slug = package.trim_start_matches('@').replace('/', "__");
+    for cache_root in ["npm-packages", "npm-pack-tmp"] {
+        let cached = out_dir.join(cache_root).join(&slug).join(version);
+        if cached.exists() {
+            fs::remove_dir_all(cached)?;
+        }
+    }
+    Ok(())
+}
+
 /// Why `try_fetch_npm_package` failed. Carries enough detail to reproduce
 /// [`fetch_npm_package`]'s historical panic messages verbatim, and enough
 /// for a caller that tolerates a missing package to explain itself via
@@ -72,6 +97,71 @@ impl fmt::Display for FetchError {
 
 impl std::error::Error for FetchError {}
 
+#[cfg(test)]
+mod tests {
+    use super::{cache_marker_matches, clear_npm_package_cache};
+    use std::fs;
+    use std::path::PathBuf;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    #[test]
+    fn cache_marker_requires_matching_identity_and_ignores_legacy_markers() {
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("clock after epoch")
+            .as_nanos();
+        let dir = std::env::temp_dir().join(format!("build-npm-fetch-{nonce}"));
+        fs::create_dir_all(&dir).expect("create temp dir");
+        let marker = PathBuf::from(&dir).join(".module-fetched");
+
+        fs::write(&marker, b"").expect("write legacy marker");
+        assert!(!cache_marker_matches(
+            &marker,
+            "version=0.10.1\nregistry=https://registry.npmjs.org\n"
+        ));
+
+        let old_identity = "version=0.7.0\nregistry=https://registry.npmjs.org\n";
+        fs::write(&marker, old_identity).expect("write old marker");
+        assert!(!cache_marker_matches(
+            &marker,
+            "version=0.10.1\nregistry=https://registry.npmjs.org\n"
+        ));
+
+        let identity = "version=0.10.1\nregistry=https://registry.npmjs.org\n";
+        fs::write(&marker, identity).expect("write current marker");
+        assert!(cache_marker_matches(&marker, identity));
+
+        fs::remove_dir_all(dir).expect("remove temp dir");
+    }
+
+    #[test]
+    fn package_cache_invalidation_removes_the_scoped_npm_cache() {
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("clock after epoch")
+            .as_nanos();
+        let dir = std::env::temp_dir().join(format!("build-npm-fetch-cache-{nonce}"));
+        let package_cache =
+            dir.join("npm-packages/agent-ix__spec-objects-architecture/0.10.1/package");
+        let pack_cache = dir.join("npm-pack-tmp/agent-ix__spec-objects-architecture/0.10.1");
+        fs::create_dir_all(&package_cache).expect("create package cache");
+        fs::write(package_cache.join("manifest.yaml"), "old package")
+            .expect("write cached package");
+        fs::create_dir_all(&pack_cache).expect("create pack cache");
+        fs::write(pack_cache.join("package.tgz"), "old tarball").expect("write cached tarball");
+
+        clear_npm_package_cache("@agent-ix/spec-objects-architecture", "0.10.1", &dir)
+            .expect("clear package cache");
+
+        assert!(
+            !package_cache.exists(),
+            "unpacked package cache was retained"
+        );
+        assert!(!pack_cache.exists(), "npm pack scratch cache was retained");
+        fs::remove_dir_all(dir).expect("remove temp dir");
+    }
+}
+
 /// Fetch `<package>@<version>` via `npm pack` (network access, verified by
 /// npm's own registry integrity check) into `<out_dir>/npm-packages/<slug>/
 /// <version>`, unpack it, and return the path to its unpacked `package/`
@@ -108,6 +198,30 @@ pub fn try_fetch_npm_package(
     version: &str,
     out_dir: &Path,
 ) -> Result<PathBuf, FetchError> {
+    try_fetch_npm_package_inner(package, version, None, out_dir)
+}
+
+/// Fetch `<package>@<version>` from `registry` via `npm pack`.
+///
+/// Sets the `@agent-ix` scoped registry for this npm subprocess only, leaving
+/// the caller's npm configuration intact for other package fetches. Use this
+/// when a package is published to a registry different from the configured
+/// scope registry.
+pub fn try_fetch_npm_package_from_registry(
+    package: &str,
+    version: &str,
+    registry: &str,
+    out_dir: &Path,
+) -> Result<PathBuf, FetchError> {
+    try_fetch_npm_package_inner(package, version, Some(registry), out_dir)
+}
+
+fn try_fetch_npm_package_inner(
+    package: &str,
+    version: &str,
+    registry: Option<&str>,
+    out_dir: &Path,
+) -> Result<PathBuf, FetchError> {
     let slug = package.trim_start_matches('@').replace('/', "__");
     let dest = out_dir.join("npm-packages").join(&slug).join(version);
     let unpacked = dest.join("package");
@@ -120,9 +234,12 @@ pub fn try_fetch_npm_package(
         fs::create_dir_all(&pack_dir)
             .unwrap_or_else(|e| panic!("create {}: {e}", pack_dir.display()));
 
-        let status = Command::new("npm")
-            .arg("pack")
-            .arg(format!("{package}@{version}"))
+        let mut npm = Command::new("npm");
+        npm.arg("pack").arg(format!("{package}@{version}"));
+        if let Some(registry) = registry {
+            npm.env("npm_config_@agent-ix:registry", registry);
+        }
+        let status = npm
             .arg("--pack-destination")
             .arg(&pack_dir)
             .status()

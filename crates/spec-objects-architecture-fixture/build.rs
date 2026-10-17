@@ -13,11 +13,8 @@
 //! manager, the way TC-1872/TC-1873 (FR-075-AC-13) require: the tests read
 //! a real module, not an authored-minimal stand-in.
 //!
-//! Unlike root `build.rs`'s two fetches, this one is allowed to fail: as of
-//! this writing `@agent-ix/spec-objects-architecture` is published only to
-//! the private `npm.ix` dev-mirror, not to GitHub Packages — the registry
-//! CI actually authenticates to (agent-ix/quire-rs#488). A `npm pack` 404
-//! here does **not** panic the build; it's surfaced through
+//! Unlike root `build.rs`'s two fetches, this one is allowed to fail: a
+//! registry or network failure is surfaced through
 //! `SPEC_OBJECTS_ARCHITECTURE_AVAILABLE`/`_UNAVAILABLE_REASON`, which
 //! `src/lib.rs` exposes as `is_available()`/`unavailable_reason()` for the
 //! two dependent tests to check at runtime.
@@ -30,7 +27,8 @@ use build_npm_fetch::FetchError;
 
 /// The declared npm fetch pin. `src/lib.rs`'s `VERSION` reads this same value
 /// back via `env!` at compile time — there is only one literal.
-const VERSION: &str = "0.7.0";
+const VERSION: &str = "0.10.1";
+const REGISTRY: &str = "https://registry.npmjs.org";
 
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
@@ -50,8 +48,7 @@ fn main() {
             println!(
                 "cargo:warning=spec-objects-architecture-fixture: could not fetch \
                  @agent-ix/spec-objects-architecture@{VERSION} ({reason}). This package is \
-                 published to the private npm.ix dev-mirror but not to GitHub Packages, which \
-                 is what CI authenticates to (agent-ix/quire-rs#488 tracks it). The two tests \
+                 available from the public npm registry. The two tests \
                  that need the real fetched module will skip themselves at runtime instead of \
                  failing the build."
             );
@@ -78,13 +75,25 @@ fn main() {
 fn fetch_spec_objects_architecture(version: &str, out_dir: &Path) -> Result<(), String> {
     let dest = out_dir.join("module");
     let marker = out_dir.join(".module-fetched");
-    if marker.is_file() {
+    let identity = format!("version={version}\nregistry={REGISTRY}\n");
+    if build_npm_fetch::cache_marker_matches(&marker, &identity) {
         return Ok(());
     }
 
-    let package_dir = match build_npm_fetch::try_fetch_npm_package(
+    // The shared fetch helper also caches unpacked npm packages. Clear the
+    // package-specific cache when this fixture's version/registry identity
+    // changes so its own marker cannot preserve bytes from another source.
+    build_npm_fetch::clear_npm_package_cache(
         "@agent-ix/spec-objects-architecture",
         version,
+        out_dir,
+    )
+    .unwrap_or_else(|e| panic!("clear stale npm package cache: {e}"));
+
+    let package_dir = match build_npm_fetch::try_fetch_npm_package_from_registry(
+        "@agent-ix/spec-objects-architecture",
+        version,
+        REGISTRY,
         out_dir,
     ) {
         Ok(dir) => dir,
@@ -114,7 +123,8 @@ fn fetch_spec_objects_architecture(version: &str, out_dir: &Path) -> Result<(), 
     let _ = fs::remove_dir_all(&npm_packages_dir);
 
     // Written last: everything above succeeded, so `dest` is complete.
-    fs::write(&marker, b"").unwrap_or_else(|e| panic!("write marker {}: {e}", marker.display()));
+    fs::write(&marker, identity)
+        .unwrap_or_else(|e| panic!("write marker {}: {e}", marker.display()));
     Ok(())
 }
 
