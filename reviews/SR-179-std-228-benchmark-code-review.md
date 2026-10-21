@@ -16,16 +16,18 @@ Reviewed the Rust port against quire-rs conventions, the prior Python behavior, 
 | ID | Severity | Summary | Refs |
 | --- | --- | --- | --- |
 | FND-001 | medium | The initial scorer converted integer counts to `f64` before ordering them. Adjacent counts above 2^53 rounded to the same float, so a regressed count could be reported as held. | tools/quire-bench/src/lib.rs |
+| FND-002 | low | The first port copied `check_engine.py` capability helpers into public Rust functions after their ceremony-script callers had been deleted. They had only an isolated test and added unused API surface. | tools/quire-bench/src/engine.rs |
 
 ## Verdict
 
-The introduced scoring finding is fixed. New tests carry `#[trace]` markers, exercise the real scorer and exporter functions, and include the large-integer regression. No new unsafe, async, vendored files, or compatibility path appears in the diff.
+Both introduced findings are fixed. New tests carry `#[trace]` markers, exercise the real scorer and exporter functions, and include the large-integer regression. No new unsafe, async, vendored files, or compatibility path appears in the diff.
 
 ## Dispositions
 
 | Finding | Outcome | Reason |
 | --- | --- | --- |
 | FND-001 | fixed | Integer-to-integer comparisons now use exact `u64` or `i64` ordering; the focused regression test asserts both ratchet directions above 2^53. |
+| FND-002 | fixed | Removed the unused capability helpers and isolated test. The consumer engine build function remains because benchmark collection and export call it. |
 
 ## Validation
 

@@ -4,7 +4,6 @@ use std::process::Command;
 
 use ix_trace_rs::trace;
 use quire_bench::collection::require_clean;
-use quire_bench::engine::{assert_capabilities, reported_capabilities};
 use quire_bench::metrics::{metrics_from, silent_zeros, CoveragePayload};
 use quire_bench::{compare, score, Direction, Manifest, Observed, Verdict};
 use serde_json::{json, Number};
@@ -181,20 +180,6 @@ fn suspicion_rate_uses_evidence_symbol_population() {
     }));
     let (measured, _) = metrics_from(&payload).unwrap();
     assert_eq!(measured["skeptic.suspicion_rate"], number(json!(99.64)));
-}
-
-#[trace("FR-050-AC-30")]
-#[test]
-fn engine_capability_refusal_names_missing_tokens() {
-    let reported = reported_capabilities(&json!({
-        "engine": {"capabilities": ["coverage", "binding-census", 7]}
-    }))
-    .unwrap();
-    assert_eq!(reported, ["coverage", "binding-census"]);
-    let error =
-        assert_capabilities(&reported, &["coverage".into(), "specific-shaped".into()]).unwrap_err();
-    assert!(error.to_string().contains("specific-shaped"));
-    assert!(reported_capabilities(&json!({"engine": {}})).is_err());
 }
 
 #[trace("FR-050-AC-30")]
