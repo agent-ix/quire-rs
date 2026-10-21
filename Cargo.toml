@@ -15,6 +15,13 @@ members = [
 default-members = ["."]
 resolver = "2"
 
+[workspace.lints.rust]
+# `loom` is set by the scheduled NFR-017 concurrency lane (`make loom`).
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(loom)'] }
+
+[workspace.lints.clippy]
+undocumented_unsafe_blocks = "deny"
+
 [package]
 name = "quire-rs"
 publish = false
@@ -33,9 +40,8 @@ path = "src/lib.rs"
 # `rlib` for the normal Rust library, benches, and tests.
 crate-type = ["cdylib", "rlib"]
 
-[lints.rust]
-# `loom` is set by the scheduled NFR-017 concurrency lane (`make loom`).
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(loom)'] }
+[lints]
+workspace = true
 
 [dependencies]
 # Tilde-pinned per NFR-009 for load-bearing parser primitives;

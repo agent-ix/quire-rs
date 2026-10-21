@@ -23,11 +23,9 @@ help:
 	@echo "  make build            - Release build"
 	@echo "  make clean            - cargo clean"
 	@echo "  make deny             - cargo deny check licenses"
-	@echo "  make audit-unsafe     - Enforce // SAFETY: comments on unsafe blocks"
 	@echo "  make audit-property   - Enforce FR-052-CON-1: no GrammarFinding in the property classifier"
 	@echo "  make validate         - Validate spec/ with the locked engine + schema stack (#212 gate)"
-	@echo "  make census           - Scheduled/manual ecosystem gap disposition census"
-	@echo "  make ci               - Per-PR CI gates (fmt-check + lint + test + deny + audit-unsafe + audit-property + audit-static + validate)"
+	@echo "  make ci               - Per-PR CI gates (fmt-check + lint + test + deny + audit-property + audit-static + validate)"
 	@echo ""
 	@echo "Hardening (scheduled / pre-tag):"
 	@echo "  make cargo-audit      - cargo audit (RUSTSEC advisories)"
@@ -51,9 +49,10 @@ fmt-check:
 .PHONY: lint
 lint:
 	$(CARGO) clippy --locked --all-targets -- -D warnings
+	$(CARGO) clippy --locked --all-targets --features python -- -D warnings
 
-# The `python` feature is gated off in every target above, so nothing in `ci`
-# ever compiles `src/python/`. FR-056 added a field to `GrammarVocabularies`,
+# The `python` feature was not compiled by the original default lint and test
+# targets. FR-056 added a field to `GrammarVocabularies`,
 # two PyO3 struct literals were not updated, and quire-rs shipped two
 # releases unable to build a wheel at all — discovered only when the wheel job
 # was finally dispatched. CLAUDE.md already says a `src/grammar/` change must
@@ -102,9 +101,8 @@ check-python-symbols:
 check-typescript-symbols:
 	CARGO_TARGET_DIR=target/typescript-symbols-check $(CARGO) check --locked --no-default-features --features typescript-symbols --quiet
 
-# The scripts/ tooling test suite (#217, #219). `check-python` is a cargo
-# type-check of the PyO3 binding and collects no Python tests, so the sweep
-# harness and corpus rules are verified here.
+# The remaining scripts/ tooling test suite. `check-python` is a cargo
+# type-check of the PyO3 binding and collects no Python tests.
 .PHONY: check-scripts
 check-scripts:
 	python3 -m pytest scripts/tests -q
@@ -158,10 +156,6 @@ deny-grammars:
 cargo-audit:
 	$(CARGO) audit
 
-.PHONY: audit-unsafe
-audit-unsafe:
-	bash scripts/check_unsafe_comments.sh
-
 .PHONY: audit-property
 audit-property:
 	bash scripts/check_property_purity.sh
@@ -172,9 +166,8 @@ audit-property:
 # This target ENUMERATED seven scripts. CR-124 asserted it "runs every
 # scripts/audits/*.sh"; it never did, so the gate answering the outside
 # review's [P1] sat in the tree unrun from the commit that added it until #353
-# added an eighth line by hand. `check_status_agreement.sh` was then silently
-# skipped the same way, in the same session that closed #353 — the eighth line
-# fixed one instance of a rule that had none.
+# added an eighth line by hand. The eighth line fixed one instance of a rule
+# that had none.
 #
 # So the list is gone. A new `scripts/audits/*.sh` now runs because it exists,
 # not because somebody remembered. An EMPTY glob is a hard failure: a loop over
@@ -337,16 +330,6 @@ validate:
 
 QUIRE_CLI ?= ../quire-cli
 
-# FR-066 / #277: minutes-long ecosystem census, never a per-change gate.
-CENSUS_ROOT ?= $(HOME)/dev
-CENSUS_MODULE ?= $(HOME)/dev/spec-artifacts-process/spec_artifacts_process
-CENSUS_CONSUMER ?= ../quire-cli
-
-.PHONY: census
-census:
-	python3 scripts/gap_census.py --root "$(CENSUS_ROOT)" \
-		--consumer "$(CENSUS_CONSUMER)" --module "$(CENSUS_MODULE)"
-
 .PHONY: corpus-recall-update
 corpus-recall-update:
 	UPDATE_CORPUS_RECALL=1 CARGO_TARGET_DIR=target cargo test --locked --test corpus_recall
@@ -360,7 +343,7 @@ check-wasm:
 	CARGO_TARGET_DIR=target/wasm-check $(CARGO) check --locked --target wasm32-unknown-unknown --no-default-features --features wasm --quiet
 	$(CARGO) test --locked --no-default-features --features wasm --quiet --test semantic_contract --test semantic_properties --test semantic_clauses --test semantic_surface --test semantic_relations
 
-ci: fmt-check lint check-python check-python-symbols check-typescript-symbols check-wasm check-scripts test deny deny-grammars audit-unsafe audit-property audit-static validate
+ci: fmt-check lint check-python check-python-symbols check-typescript-symbols check-wasm check-scripts test deny deny-grammars audit-property audit-static validate
 
 # =============================================================================
 # Python wheel / sdist + local-publish (pypi.ix)

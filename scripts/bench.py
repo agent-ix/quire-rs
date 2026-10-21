@@ -2,9 +2,7 @@
 """The engine benchmark: score the corpus, ratchet the baselines.
 
 `agent-ix/quire-rs#231`, implementing the engine half of `agent-ix/quoin`
-FR-043. Extends the existing sweep tooling (`sweep_coverage.py`,
-`ac_corpus_sweep.py`) rather than replacing it — this adds the pinned manifest,
-the score report and the ratchet.
+FR-043. Uses a pinned manifest, score report and ratchet.
 
 Why a ratchet and not a threshold: a hand-picked threshold invites the number
 to be tuned to it, which is how `ac:unclassifiable` came to pass 99.2% of
@@ -193,7 +191,7 @@ def main() -> int:
     # the checked-in ratchet baseline was produced by a binary nobody chose —
     # an installed binary may emit no `engine`
     # block at all. The binary is built from the consuming workspace at its
-    # pinned rev instead, exactly as `sweep_coverage.py` now does.
+    # pinned rev instead.
     ap.add_argument(
         "--consumer",
         default="../quire-cli",
