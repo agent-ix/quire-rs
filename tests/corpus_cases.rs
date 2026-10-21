@@ -24,6 +24,11 @@ use ix_trace_rs::trace;
 
 use corpus_case::{grade, grade_with, load_cases, run, Level};
 
+fn qa_bounds(root: &std::path::Path) -> Result<serde_json::Value, qa_corpus::corpus::CorpusError> {
+    let cases = qa_corpus::corpus::discover(root)?;
+    qa_corpus::bounds::derive(root, &cases)
+}
+
 #[trace("TC-992", "FR-050-AC-29")]
 // marker-form mismatch, and its control. (CR-098)
 #[trace("TC-993", "FR-050-AC-29")]
@@ -395,7 +400,7 @@ fn tc1021_the_vocabularies_come_from_the_corpus_not_from_this_file() {
          agreement between a compiled enum and a declaration, and this is where \
          the disagreement surfaces.",
     );
-    // The bounds enum is read by `bounds.py`, which derives its counters, its
+    // The bounds enum is read by `qa_corpus::bounds`, which derives its counters, its
     // sum invariant and its rejection of an undeclared state from this list
     // (FR-065-AC-19). Asserted here only as far as this reader can: the two
     // states the matrix vocabulary cannot be missing.
@@ -477,7 +482,7 @@ fn tc1021_the_vocabularies_come_from_the_corpus_not_from_this_file() {
 /// obvious repair — a second hand-written list of required fields in Python —
 /// is the same defect one level up: two lists, free to disagree, with nothing
 /// comparing them. So the list lives in `corpus.yaml` and BOTH readers are held
-/// to it. `bounds.py` validates against it directly; this test proves serde
+/// to it. The QA corpus reader validates against it directly; this test proves serde
 /// does the same thing, by deleting each declared-required field from a real
 /// declaration and requiring the parse to fail.
 ///
@@ -1039,11 +1044,11 @@ fn tc1024_every_l3_fragment_is_asserted() {
 /// The loader's conformance checks, MUTATED.
 ///
 /// The first version of this scanned an already-conformant corpus and asserted
-/// it conforms — which is what `bounds.py` guarantees before any case is
+/// it conforms — which is what the QA corpus reader guarantees before any case is
 /// returned, so deleting three of its four criteria left it reporting `ok`.
 /// That is the identical defect this branch had just repaired in TC-1024.
 ///
-/// Every case below drives the real loader, `bounds.py`, over a COPY of the
+/// Every case below drives the authoritative QA Rust loader over a COPY of the
 /// corpus with one file changed, and asserts it refuses — naming the case and
 /// the thing that is wrong.
 #[trace("TC-1025", "FR-065-AC-30")]
@@ -1222,14 +1227,14 @@ fn tc1025_the_loader_refuses_a_block_that_asserts_the_wrong_thing() {
         (
             live.clone(),
             format!("diagnostic_reasons: [{token}]\n"),
-            "belongs in expect-pending.yaml".to_string(),
+            "which no engine emits yet".to_string(),
         ),
         // AC-32 — a FAILURE case asserting its own pending token absent. That
         // block is guaranteed to fail the day the ticket lands.
         (
             live.clone(),
             format!("total: 4\nabsent_diagnostic_reasons: [{token}]\n"),
-            "a live block must survive the fix it waits for".to_string(),
+            "is absent outside a live control".to_string(),
         ),
         // AC-33 — non-empty as YAML, zero assertions when graded.
         (
@@ -1260,7 +1265,7 @@ fn tc1025_the_loader_refuses_a_block_that_asserts_the_wrong_thing() {
                 .filter(|l| !l.starts_with("backed: "))
                 .map(|l| format!("{l}\n"))
                 .collect::<String>(),
-            "silent on".to_string(),
+            "must restate every exactly graded key".to_string(),
         ),
         // And one IDENTICAL to its live block: the ticket landing would change
         // nothing the fixture can see. Read from that block rather than
@@ -1268,7 +1273,7 @@ fn tc1025_the_loader_refuses_a_block_that_asserts_the_wrong_thing() {
         (
             change_pend.clone(),
             change_graded.clone(),
-            "landing would change nothing".to_string(),
+            "asserts exactly what expect.yaml does".to_string(),
         ),
         // AC-36, the other half — an ALREADY-EMITTED token in a forward block.
         // The shape a partial landing takes: the token fires, the message is
@@ -1358,35 +1363,18 @@ fn tc1025_the_loader_refuses_a_block_that_asserts_the_wrong_thing() {
 
         std::fs::write(scratch.join(target), contents).expect("write mutation");
 
-        let run = std::process::Command::new("python3")
-            .arg(scratch.join("bounds.py"))
-            .output()
-            .expect("run bounds.py");
-        let stderr = String::from_utf8_lossy(&run.stderr).to_string();
+        let refusal = qa_bounds(&scratch).expect_err("the mutated corpus must be refused");
+        let diagnostic = refusal.to_string();
         assert!(
-            !run.status.success(),
-            "mutation {index} ({target} <- {contents:?}) was ACCEPTED by the \
-             loader. stdout:\n{}",
-            String::from_utf8_lossy(&run.stdout),
-        );
-        assert!(
-            stderr.contains(fragment),
+            diagnostic.contains(fragment),
             "mutation {index} was rejected, but not for the stated reason. \
-             Expected a message carrying {fragment:?}, got:\n{stderr}",
+             Expected a message carrying {fragment:?}, got:\n{diagnostic}",
         );
     }
 
     // And the unmutated corpus is accepted, so the assertions above are about
     // the mutations rather than about a loader that refuses everything.
-    let baseline = std::process::Command::new("python3")
-        .arg(corpus_case::corpus_root().join("bounds.py"))
-        .output()
-        .expect("run bounds.py");
-    assert!(
-        baseline.status.success(),
-        "the corpus as committed must load:\n{}",
-        String::from_utf8_lossy(&baseline.stderr),
-    );
+    qa_bounds(&corpus_case::corpus_root()).expect("the corpus as committed must load");
 }
 
 /// Copy a directory tree, skipping `.git`.
@@ -1548,75 +1536,78 @@ fn tc1026_the_declared_vocabulary_matches_the_engine() {
 // an exemption names a ticket and a case.
 #[test]
 fn tc1027_a_control_binds_its_partners_declaration() {
-    // (a python edit applied to the copy's corpus.yaml, a fragment the refusal
-    // must carry). `bounds.py`, not `verify.py`: these are corpus conformance
-    // and need no engine, which is what makes them testable this way at all.
-    let mutations: &[(&str, &str)] = &[
-        // Break one real control's partnership. The mutation creates the
-        // defect so the healthy corpus need not retain a permanent specimen.
-        (
-            "q = p.parent / 'cases/skeptic/gate-that-gates-nothing-control/case.yaml'; \
-             t = q.read_text(); \
-             q.write_text(t.replace('- gate-that-gates-nothing', '- mocked-confirmation'))",
-            "no control names it",
-        ),
-        // The opposite defect is a declared gap that names no live case.
-        (
-            "s = s.replace('known_gaps:\\n', \
-             'known_gaps:\\n  synthetic_stale_gap:\\n    reason: agent-ix/quoin#224\\n    cases:\\n    - a-case-that-does-not-exist\\n', 1)",
-            "outlived its fixture",
-        ),
-        // Synthesize an uncontrolled failure whose live block names no
-        // finding, without retaining an undetected production fixture.
-        (
-            "s = s.replace('known_gaps:\\n', \
-             'known_gaps:\\n  uncontrolled_failure_cases:\\n    reason: agent-ix/quoin#224\\n    cases:\\n    - mocked-confirmation\\n', 1); \
-             q = p.parent / 'cases/skeptic/mocked-confirmation-control/case.yaml'; \
-             t = q.read_text(); \
-             q.write_text(t.replace('- mocked-confirmation', '- oracle-copy')); \
-             q = p.parent / 'cases/skeptic/mocked-confirmation/python/expect.yaml'; \
-             t = q.read_text(); \
-             q.write_text(t[:t.index('external_observations:')] + \
-                          'external_observations: []\\n')",
-            "requires no finding",
-        ),
-        // An exemption without an accountable issue reference is permanent by
-        // default; create one synthetically so the guard remains verifiable.
-        (
-            "s = s.replace('known_gaps:\\n', \
-             'known_gaps:\\n  synthetic_ticketless_gap:\\n    reason: because I said so\\n    cases:\\n    - mocked-confirmation\\n', 1)",
-            "names no ticket",
-        ),
-    ];
+    fn replace_in_file(root: &std::path::Path, relative: &str, from: &str, to: &str) {
+        let path = root.join(relative);
+        let text = std::fs::read_to_string(&path).expect("read mutation target");
+        assert!(
+            text.contains(from),
+            "{}: mutation premise absent",
+            path.display()
+        );
+        std::fs::write(path, text.replacen(from, to, 1)).expect("write mutation");
+    }
 
-    for (index, (edit, fragment)) in mutations.iter().enumerate() {
+    // Each mutation is applied to a copy and must be refused for its named
+    // reason. No permanent defective fixture is retained in the healthy corpus.
+    let mutations: [(&str, fn(&std::path::Path)); 4] = [
+        ("no control names it", |root| {
+            replace_in_file(
+                root,
+                "cases/skeptic/gate-that-gates-nothing-control/case.yaml",
+                "- gate-that-gates-nothing",
+                "- mocked-confirmation",
+            );
+        }),
+        ("which is no case in the corpus", |root| {
+            replace_in_file(
+                root,
+                "corpus.yaml",
+                "known_gaps:\n",
+                "known_gaps:\n  synthetic_stale_gap:\n    reason: agent-ix/quoin#224\n    cases:\n    - a-case-that-does-not-exist\n",
+            );
+        }),
+        ("requires no finding", |root| {
+            replace_in_file(
+                root,
+                "corpus.yaml",
+                "known_gaps:\n",
+                "known_gaps:\n  uncontrolled_failure_cases:\n    reason: agent-ix/quoin#224\n    cases:\n    - mocked-confirmation\n",
+            );
+            replace_in_file(
+                root,
+                "cases/skeptic/mocked-confirmation-control/case.yaml",
+                "- mocked-confirmation",
+                "- oracle-copy",
+            );
+            let path = root.join("cases/skeptic/mocked-confirmation/python/expect.yaml");
+            let text = std::fs::read_to_string(&path).expect("read expectation");
+            let prefix = text
+                .split_once("external_observations:")
+                .expect("external observation section")
+                .0;
+            std::fs::write(path, format!("{prefix}external_observations: []\n"))
+                .expect("remove finding premise");
+        }),
+        ("names no ticket", |root| {
+            replace_in_file(
+                root,
+                "corpus.yaml",
+                "known_gaps:\n",
+                "known_gaps:\n  synthetic_ticketless_gap:\n    reason: because I said so\n    cases:\n    - mocked-confirmation\n",
+            );
+        }),
+    ];
+    for (index, (fragment, mutate)) in mutations.iter().enumerate() {
         let scratch = scratch_dir("tc1027", index);
         copy_tree(&corpus_case::corpus_root(), &scratch);
-
-        let script = format!(
-            "import pathlib\np = pathlib.Path({:?})\ns = p.read_text()\n{edit}\np.write_text(s)\n",
-            scratch.join("corpus.yaml").to_string_lossy(),
-        );
-        let applied = std::process::Command::new("python3")
-            .arg("-c")
-            .arg(&script)
-            .output()
-            .expect("apply mutation");
+        mutate(&scratch);
+        let diagnostic = qa_bounds(&scratch)
+            .expect_err("the mutated corpus must be refused")
+            .to_string();
         assert!(
-            applied.status.success(),
-            "mutation {index} did not apply: {}",
-            String::from_utf8_lossy(&applied.stderr),
-        );
-
-        let run = std::process::Command::new("python3")
-            .arg(scratch.join("bounds.py"))
-            .output()
-            .expect("run bounds.py");
-        let text = String::from_utf8_lossy(&run.stderr).to_string();
-        assert!(
-            !run.status.success() && text.contains(fragment),
-            "mutation {index} ({edit}) was ACCEPTED, or refused for another \
-             reason. Expected a message carrying {fragment:?}, got:\n{text}",
+            diagnostic.contains(fragment),
+            "mutation {index} was refused for another reason. Expected \
+             {fragment:?}, got:\n{diagnostic}",
         );
     }
 }
@@ -1730,7 +1721,7 @@ fn tc1028_a_failure_case_discriminates_from_its_control() {
         );
     }
 
-    // WHAT A `control_for` NAME RESOLVES TO, and it is `bounds.py`'s
+    // WHAT A `control_for` NAME RESOLVES TO, and it is `qa_corpus`'s
     // `failure_partners` — ID first, `case:` alias second, an alias never
     // displacing a real id.
     let mut partners: BTreeMap<(&str, &str), &corpus_case::Case> = BTreeMap::new();
@@ -1986,28 +1977,28 @@ fn tc1028_a_failure_case_discriminates_from_its_control() {
     // alias colliding with an id — is CARDINALITY-PRESERVING whenever the
     // displaced case also has a control, which is the case here. So the count
     // was the one statistic this check could not use.
-    let probe = std::process::Command::new("python3")
-        .arg("-c")
-        .arg(
-            "import bounds; cases = [c for c in bounds.discover() if \
-             c.get('mode') != 'reporting']; print('\\n'.join(sorted(\
-             f\"{k[0]}|{k[1]}|{c['id']}\" for k, v in \
-             bounds.controls_by_case(cases).items() for c in v)))",
-        )
-        .current_dir(corpus_case::corpus_root())
-        .output()
-        .expect("run bounds.py's resolution");
-    let stderr = String::from_utf8_lossy(&probe.stderr);
-    let theirs: Vec<String> = String::from_utf8_lossy(&probe.stdout)
-        .lines()
-        .map(str::trim)
-        .filter(|line| !line.is_empty())
-        .map(str::to_string)
+    let qa_cases = qa_corpus::corpus::discover(&corpus_case::corpus_root())
+        .expect("the authoritative QA corpus loads");
+    let detection: Vec<_> = qa_cases
+        .into_iter()
+        .filter(|case| case.effective["mode"] != "reporting")
         .collect();
+    let mut theirs: Vec<String> = qa_corpus::corpus::controls_by_case(&detection)
+        .into_iter()
+        .flat_map(|((failure, language), controls)| {
+            controls.into_iter().map(move |control| {
+                format!(
+                    "{failure}|{language}|{}",
+                    control.effective["id"].as_str().expect("control identity")
+                )
+            })
+        })
+        .collect();
+    theirs.sort();
     assert!(
         !theirs.is_empty(),
-        "bounds.py resolved no (case, control) pair, so comparing the two \
-         readers asserts nothing. stderr:\n{stderr}"
+        "the QA corpus resolved no (case, control) pair, so comparing \
+         the two readers asserts nothing"
     );
     graded_pairs.sort();
     let mine: BTreeSet<&str> = graded_pairs.iter().map(String::as_str).collect();
@@ -2019,9 +2010,9 @@ fn tc1028_a_failure_case_discriminates_from_its_control() {
         "the two readers resolve different (case, control) PAIRS. One corpus, \
          two answers, which is the drift the duplicated implementation exists \
          to expose.\n  graded only by this harness: {only_here:?}\n  resolved \
-         only by bounds.py: {only_there:?}\n  counts: this harness {}, \
-         bounds.py {} — EQUAL COUNTS DO NOT MEAN EQUAL SETS, which is why this \
-         compares the sorted list (CR-132).\nstderr:\n{stderr}",
+         only by qa-corpus: {only_there:?}\n  counts: this harness {}, \
+         qa-corpus {} — EQUAL COUNTS DO NOT MEAN EQUAL SETS, which is why this \
+         compares the sorted list (CR-132).",
         graded_pairs.len(),
         theirs.len(),
     );
@@ -2086,15 +2077,8 @@ fn tc1032_a_regression_case_pins_a_landed_fix() {
     }
 
     // AC-44: the cell is credited. Read the DERIVED matrix rather than
-    // re-deriving it here, so this asserts what `bounds.py` actually publishes.
-    let run = std::process::Command::new("python3")
-        .arg(corpus_case::corpus_root().join("bounds.py"))
-        .arg("--json")
-        .output()
-        .expect("run bounds.py --json");
-    assert!(run.status.success(), "bounds.py --json must succeed");
-    let derived: serde_json::Value =
-        serde_json::from_slice(&run.stdout).expect("bounds --json parses");
+    // re-deriving it here, so this asserts what QA corpus actually publishes.
+    let derived = qa_bounds(&corpus_case::corpus_root()).expect("QA bounds derive");
     for case in &pins {
         let row = case
             .meta
