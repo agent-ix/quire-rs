@@ -1149,8 +1149,11 @@ dependencies = [
  "ix-trace-rs",
  "serde",
  "serde_json",
+ "sha2",
  "tempfile",
  "thiserror",
+ "time",
+ "yaml_serde",
 ]
 
 [[package]]
@@ -1569,6 +1572,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "743bd48c283afc0388f9b8827b976905fb217ad9e647fae3a379a9283c4def2c"
 dependencies = [
  "deranged",
+ "itoa",
  "num-conv",
  "powerfmt",
  "serde_core",

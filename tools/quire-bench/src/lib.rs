@@ -8,6 +8,7 @@ use thiserror::Error;
 
 pub mod collection;
 pub mod engine;
+pub mod export;
 pub mod metrics;
 
 /// Failures that invalidate a benchmark run or its score.
@@ -53,8 +54,8 @@ pub struct Manifest {
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct MetricSpec {
-    #[serde(default, rename = "measurement_plan")]
-    _measurement_plan: Option<String>,
+    /// Plan that governs this measurement.
+    pub measurement_plan: String,
     /// Output unit.
     pub unit: String,
     /// Denominator or counted population.
@@ -99,8 +100,8 @@ pub struct ModuleSource {
 pub struct CorpusEntry {
     #[serde(rename = "$comment")]
     _comment: Option<String>,
-    #[serde(default, rename = "source_name")]
-    _source_name: Option<String>,
+    /// Attestation source name, when different from the corpus name.
+    pub source_name: Option<String>,
     #[serde(default, rename = "tier")]
     _tier: Option<u64>,
     /// Reported corpus name.
