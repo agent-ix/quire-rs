@@ -1,5 +1,6 @@
 //! Corpus benchmark scoring and collection for the Quire engine.
 
+use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
@@ -185,16 +186,26 @@ pub fn compare(
     let Some(baseline) = baseline else {
         return (Verdict::New, value.clone());
     };
-    let observed = value.as_f64().unwrap_or(f64::NAN);
-    let previous = baseline.as_f64().unwrap_or(f64::NAN);
+    // Keep integer tallies exact; f64 merges adjacent integers above 2^53.
+    let ordering = match (value.as_u64(), baseline.as_u64()) {
+        (Some(observed), Some(previous)) => observed.cmp(&previous),
+        _ => match (value.as_i64(), baseline.as_i64()) {
+            (Some(observed), Some(previous)) => observed.cmp(&previous),
+            _ => value
+                .as_f64()
+                .zip(baseline.as_f64())
+                .and_then(|(observed, previous)| observed.partial_cmp(&previous))
+                .unwrap_or(Ordering::Equal),
+        },
+    };
     let better = match direction {
-        Direction::HigherIsBetter => observed > previous,
-        Direction::LowerIsBetter => observed < previous,
+        Direction::HigherIsBetter => ordering == Ordering::Greater,
+        Direction::LowerIsBetter => ordering == Ordering::Less,
         Direction::GateZero => unreachable!("gate-zero handled above"),
     };
     if better {
         (Verdict::Improved, value.clone())
-    } else if value == baseline || observed == previous {
+    } else if ordering == Ordering::Equal {
         (Verdict::Held, baseline.clone())
     } else {
         (Verdict::Regressed, baseline.clone())

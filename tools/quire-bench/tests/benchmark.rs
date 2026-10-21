@@ -59,6 +59,21 @@ fn ratchet_improves_holds_regresses_and_gates_zero() {
 
 #[trace("FR-050-AC-30")]
 #[test]
+fn integer_ratchet_distinguishes_adjacent_counts_above_f64_precision() {
+    let baseline = Number::from(9_007_199_254_740_992_u64);
+    let worse = Number::from(9_007_199_254_740_993_u64);
+    assert_eq!(
+        compare(Direction::LowerIsBetter, &worse, Some(&baseline)).0,
+        Verdict::Regressed
+    );
+    assert_eq!(
+        compare(Direction::HigherIsBetter, &worse, Some(&baseline)).0,
+        Verdict::Improved
+    );
+}
+
+#[trace("FR-050-AC-30")]
+#[test]
 fn score_refuses_undeclared_metric_and_carries_provenance() {
     let mut observed = Observed::new();
     observed.insert(
