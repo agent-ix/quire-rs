@@ -70,7 +70,9 @@ jobs:
         run: cargo fmt --all -- --check
 
       - name: Lint
-        run: cargo clippy --locked --all-targets -- -D warnings
+        run: |
+          cargo clippy --locked --all-targets -- -D warnings
+          cargo clippy --locked --all-targets --features python -- -D warnings
 
       # TC-1025/TC-1027 drive the corpus LOADER (`corpus/bounds.py`) over a
       # mutated copy — the only way to prove those gates refuse what they claim
@@ -129,9 +131,6 @@ jobs:
           python3 scripts/validate_spec.py
           --process-root .ci/spec-artifacts-process
           --iso-root .ci/spec-artifacts-iso
-
-      - name: Unsafe audit
-        run: bash scripts/check_unsafe_comments.sh
 
       - name: Property-classifier purity audit (FR-052-CON-1)
         run: bash scripts/check_property_purity.sh

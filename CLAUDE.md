@@ -12,13 +12,12 @@ make test           # cargo test
 make build          # release build
 make clean          # cargo clean
 make deny           # cargo deny check licenses
-make audit-unsafe   # check that every unsafe block has a // SAFETY: comment
 make audit-property # FR-052-CON-1: no GrammarFinding in the property classifier
 make audit-static   # run every scripts/audits/*.sh
 make check-python   # type-check --features python (own CARGO_TARGET_DIR)
 make check-python-symbols # cargo check --no-default-features --features python-symbols (own CARGO_TARGET_DIR)
 make deny-grammars  # cargo deny --features typescript-symbols check licenses (covers the grammar dep not yet in default)
-make ci             # fmt-check + lint + check-python + check-python-symbols + test + deny + deny-grammars + audit-unsafe + audit-property + audit-static
+make ci             # fmt-check + lint + check-python + check-python-symbols + test + deny + deny-grammars + audit-property + audit-static
 make ci-python      # build the wheel + run the PyO3 binding suite
 ```
 
@@ -100,14 +99,11 @@ decision.
 
 ## Safety scaffolding
 
-Backported from `agent-ix/rust-lib-cookiecutter` (originally from `agent-ix/ecaz`).
-When upstream tightens clippy lints, license allowlist, or audit scripts,
-backport changes here via the `backport-code` skill (StR-004-AC-3). Drift is
-detected on each `make ci` run via `scripts/audits/verify_cookiecutter_inheritance.sh`.
+Safety controls are maintained in this repository's Rust and Cargo configuration.
 
 - **`#![cfg_attr(not(feature = "python"), forbid(unsafe_code))]`** at the crate root is the safety guarantee: the default build makes any first-party `unsafe` a **compile error** (NFR-003-AC-5). It's scoped off for `--features python` because PyO3 macros expand to `unsafe` in-crate. **The Miri job is retired (ADR 0006)** — with zero first-party `unsafe` enforced at compile time there's no first-party UB surface; dependency advisories are covered by `cargo-audit` (NFR-014), the concurrency surface by `loom` (NFR-017).
 - `deny.toml` allow-lists licenses and denies unknown registries/git sources
-- `scripts/check_unsafe_comments.sh` runs in CI and locally via `make audit-unsafe`. Retained because it covers the **`python`** build, where `forbid(unsafe_code)` is scoped off — every `unsafe {` block must have a `// SAFETY:` comment within the 3 preceding lines, or be listed in `scripts/unsafe_comment_baseline.txt` (currently empty). Update the baseline with `bash scripts/check_unsafe_comments.sh --update-baseline`.
+- The workspace Clippy `undocumented_unsafe_blocks` lint checks safety comments in the default and `python` feature builds. The `python` feature is separately type-checked by `make check-python`.
 - `rustfmt.toml` uses 100-char width and `StdExternalCrate` import grouping. CI fails on drift.
 - `rust-toolchain.toml` declares the toolchain channel plus rustfmt and clippy.
 

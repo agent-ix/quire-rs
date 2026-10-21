@@ -172,13 +172,12 @@ usage with an end-to-end worked example.
 ## Development
 
 ```bash
-make ci            # fmt-check + lint + test + deny + audit-unsafe (full gate)
+make ci            # fmt-check + lint + test + deny (full gate)
 make test          # cargo test
 make lint          # clippy with -D warnings
 make fmt           # rustfmt
 make build         # release build
 make deny          # cargo-deny license/source check
-make audit-unsafe  # every `unsafe` block has a // SAFETY: comment
 ```
 
 The Rust toolchain is declared once, in `rust-toolchain.toml` and the `Cargo.toml` `rust-version`. See `CLAUDE.md` for the safety scaffolding and design conventions, and

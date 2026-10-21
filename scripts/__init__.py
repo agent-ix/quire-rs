@@ -1,13 +1,4 @@
-"""`scripts/` as an importable package (#219).
-
-The scripts are flat executables first: run directly
-(`python3 scripts/slash_tag_sweep.py`), CPython puts `scripts/` itself on
-`sys.path` and their `from corpus import …` sibling imports resolve from any
-cwd. That entry does not exist under `python -m scripts.<name>` or under
-pytest, so it is added explicitly here (for `-m`) and in
-`scripts/tests/conftest.py` (for pytest) — the same one path decision, stated
-instead of relied on by accident.
-"""
+"""Allow remaining scripts to import sibling helpers as modules."""
 
 import sys
 from pathlib import Path
