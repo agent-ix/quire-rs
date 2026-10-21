@@ -11,6 +11,7 @@ pub mod collection;
 pub mod engine;
 pub mod export;
 pub mod metrics;
+pub mod perf;
 
 /// Failures that invalidate a benchmark run or its score.
 #[derive(Debug, Error)]

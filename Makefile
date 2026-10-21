@@ -237,11 +237,11 @@ perf-baseline:
 .PHONY: perf-check
 perf-check:
 	$(CARGO) bench --bench parse --bench load -- --baseline main
-	bash scripts/check_perf_regression.sh
+	$(CARGO) run --locked -p quire-bench --bin quire-perf-gate
 
 .PHONY: perf-gate
 perf-gate:
-	bash scripts/check_perf_regression.sh
+	$(CARGO) run --locked -p quire-bench --bin quire-perf-gate
 
 .PHONY: fuzz
 fuzz:
