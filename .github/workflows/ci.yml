@@ -127,10 +127,7 @@ jobs:
         run: make check-wasm
 
       - name: Validate spec against schema providers
-        run: >-
-          python3 scripts/validate_spec.py
-          --process-root .ci/spec-artifacts-process
-          --iso-root .ci/spec-artifacts-iso
+        run: make validate VALIDATION_PROCESS_ROOT=.ci/spec-artifacts-process VALIDATION_ISO_ROOT=.ci/spec-artifacts-iso
 
       - name: Property-classifier purity audit (FR-052-CON-1)
         run: bash scripts/check_property_purity.sh

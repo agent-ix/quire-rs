@@ -316,15 +316,15 @@ coverage-baseline-update:
 # (cargo run --example), never an installed `quire` CLI, which lags the branch
 # under test. The two schema-provider repositories are independent executable
 # inputs: accepting their ambient installed versions made this gate change
-# meaning without a Quire commit. scripts/validate_spec.py exposes only those
-# two modules to the engine.
+# meaning without a Quire commit. The Rust validation example loads exactly
+# those two modules through the registry's closed-set API.
 # The Phase-7 assurance documents are named one-by-one in the governed
 # exclusion file; no new or renamed document can disappear from validation.
 VALIDATION_PROCESS_ROOT ?= ../spec-artifacts-process
 VALIDATION_ISO_ROOT ?= ../spec-artifacts-iso
 .PHONY: validate
 validate:
-	python3 scripts/validate_spec.py \
+	cargo run --locked --quiet --example spec_validate -- \
 		--process-root "$(VALIDATION_PROCESS_ROOT)" \
 		--iso-root "$(VALIDATION_ISO_ROOT)"
 

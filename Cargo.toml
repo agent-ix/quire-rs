@@ -40,6 +40,10 @@ path = "src/lib.rs"
 # `rlib` for the normal Rust library, benches, and tests.
 crate-type = ["cdylib", "rlib"]
 
+[[example]]
+name = "spec_validate"
+test = true
+
 [lints]
 workspace = true
 
