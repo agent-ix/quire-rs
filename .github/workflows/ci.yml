@@ -73,6 +73,7 @@ jobs:
         run: |
           cargo clippy --locked --all-targets -- -D warnings
           cargo clippy --locked --all-targets --features python -- -D warnings
+          cargo clippy --locked -p quire-bench --all-targets -- -D warnings
 
       # TC-1025/TC-1027 drive the corpus LOADER (`corpus/bounds.py`) over a
       # mutated copy — the only way to prove those gates refuse what they claim
@@ -93,7 +94,9 @@ jobs:
           python3 -c "import yaml"   # a partial install must fail HERE
 
       - name: Test
-        run: cargo test --locked
+        run: |
+          cargo test --locked
+          cargo test --locked -p quire-bench
 
       # PLAT-868 (found during PLAT-851's review): `python-symbols` is
       # default (this port promoted it), so the `Test` step above already

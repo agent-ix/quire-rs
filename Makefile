@@ -50,6 +50,7 @@ fmt-check:
 lint:
 	$(CARGO) clippy --locked --all-targets -- -D warnings
 	$(CARGO) clippy --locked --all-targets --features python -- -D warnings
+	$(CARGO) clippy --locked -p quire-bench --all-targets -- -D warnings
 
 # The `python` feature was not compiled by the original default lint and test
 # targets. FR-056 added a field to `GrammarVocabularies`,
@@ -106,6 +107,7 @@ check-typescript-symbols:
 .PHONY: check-scripts
 check-scripts:
 	python3 -m pytest scripts/tests -q
+	$(CARGO) test --locked -p quire-bench
 
 .PHONY: test
 test:
@@ -288,12 +290,12 @@ sanitize:
 BENCH_MODULE ?= ../spec-artifacts-process/spec_artifacts_process
 .PHONY: bench
 bench:
-	python3 scripts/bench.py --module "$(BENCH_MODULE)"
+	$(CARGO) run --locked -p quire-bench -- --module "$(BENCH_MODULE)"
 
 # Deliberate regeneration. The diff belongs in the pull request.
 .PHONY: bench-update
 bench-update:
-	python3 scripts/bench.py --update --module "$(BENCH_MODULE)"
+	$(CARGO) run --locked -p quire-bench -- --update --module "$(BENCH_MODULE)"
 
 .PHONY: measurement-collection
 measurement-collection:

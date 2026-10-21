@@ -1440,8 +1440,8 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-064-AC-6 | TC-1061 |
 | FR-064-AC-7 | TC-1080 |
 | FR-050-AC-31 | `scripts/tests/test_overfit_check.py` (Inspection — python-side sweep, mints no Rust symbol) |
-| FR-050-AC-32 | `scripts/tests/test_bench.py` (Inspection — python-side gate, mints no Rust symbol) |
-| FR-050-AC-30 | `scripts/tests/test_bench.py` (Inspection — python-side gate, mints no Rust symbol) |
+| FR-050-AC-32 | `tools/quire-bench/tests/benchmark.rs`, `scripts/tests/test_bench.py` (Rust runner and Python measurement exporter semantics) |
+| FR-050-AC-30 | `tools/quire-bench/tests/benchmark.rs`, `scripts/tests/test_bench.py` (Rust runner and Python measurement exporter semantics) |
 | FR-052-AC-18 | TC-989, TC-1007 |
 | FR-052-AC-19 | TC-780, TC-990 |
 | FR-052-AC-20 | TC-1078 |
