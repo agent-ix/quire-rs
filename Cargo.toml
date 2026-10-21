@@ -17,6 +17,7 @@ resolver = "2"
 
 [package]
 name = "quire-rs"
+publish = false
 version = "0.50.3"
 edition = "2021"
 rust-version = "1.98.1"
