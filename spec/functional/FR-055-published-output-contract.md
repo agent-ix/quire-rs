@@ -28,7 +28,7 @@ every quoin skill that reads them. Nothing made that true:
 
 - **No output schema existed anywhere.** The only `.schema.json` files in the
   tree are *input* frontmatter schemas, and `schemars` is deliberately banned
-  (`scripts/audits/check_no_schemars.sh`, [FR-003](./FR-003-archetype-schema-surface.md)-AC-4:
+  (`deny.toml` cargo-deny ban, [FR-003](./FR-003-archetype-schema-surface.md)-AC-4:
   "consumers supply pre-built schemas"). No pre-built schema was ever published.
 - **No shape test pinned `properties`.** `quire-cli` IT-094 asserts run-to-run
   byte-identity and the presence of `row_id`, which a payload that dropped every

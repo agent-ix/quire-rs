@@ -219,7 +219,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-058 | Static audit: no HashMap in render/parse code paths | Static | P1 | NFR-006-AC-3 | 🚧 |
 | TC-060 | Registry behavior identical across three on-disk corpora (Filament/hand/test) | Integration | P0 | StR-001-AC-5 | 🚧 |
 | TC-061 | LLM tool-call schema round-trip: schema_for → tool input → render | Integration | P1 | US-001-AC-2, US-001-AC-3 | 🚧 |
-| TC-062 | Cargo.lock has no schemars dependency | Static | P1 | FR-003-AC-4 | 🚧 |
+| TC-062 | All-feature cargo-deny bans `schemars` | Static | P1 | FR-003-AC-4 | ✅ |
 | TC-070 | DSL multi-yield (iterate_over) emits one record per iteration unit | Unit | P0 | FR-011-AC-2 | 🚧 |
 | TC-072 | Each of 6 Locator primitives exercised by ≥1 unit test | Unit | P0 | FR-011-AC-1 | 🚧 |
 | TC-073 | DSL required:true missing field returns MissingField | Unit | P0 | FR-011-AC-4 | 🚧 |
@@ -230,7 +230,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-082 | Manifest with missing schema_ref produces ArchetypeLoadError; siblings still load | Integration | P0 | FR-013-AC-3 | 🚧 |
 | TC-083 | Bench: Registry::load_from baseline corpus < 100 ms median | Benchmark | P0 | FR-013-AC-4, NFR-007-AC-1 | 🚧 |
 | TC-084 | After load, render does no disk I/O (verified via strace / tracing audit) | Static | P0 | FR-013-AC-5 | 🚧 |
-| TC-085 | Cargo.lock has no HTTP/RPC client crates | Static | P0 | FR-013-AC-6, StR-001-AC-3 | 🚧 |
+| TC-085 | All-feature cargo-deny bans HTTP/RPC client crates | Static | P0 | FR-013-AC-6, StR-001-AC-3 | ✅ |
 | TC-1803 | Native unittest.TestCase methods and supported imported aliases bind independently of class name; helper and unrelated-base controls remain non-evidence | Integration | P0 | FR-051-AC-3 | ✅ |
 | TC-1804 | Explicit reference status column validates and defaults without serialization drift; blank, wrong-type and vocabulary-less overrides refuse | Unit | P0 | FR-050-AC-45 | ✅ |
 | TC-1805 | Mixed default/explicit status columns classify unknown and complete-unbacked rows; absent selected columns never fall back and name the correct configuration | Integration | P0 | FR-050-AC-46 | ✅ |
@@ -907,7 +907,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-1850 | A `quire` fence under the embedded semantic-core extracts cleanly; an `ocl` fence under the embedded semantic-core and `0.1.0` is carried with `semantic.clause-language-unchecked` and a lossy kind; `quire` under `0.1.0` is `semantic.clause-language-invalid` | Unit | P0 | FR-071-AC-8 | ✅ |
 | TC-1851 | `clause-language-0.1.0-cases.json` `fence-quire-invalid` yields the recorded diagnostic, empty `clauseText`, and unavailable clause kind under `0.1.0` | Unit | P0 | FR-071-AC-9 | ✅ |
 | TC-1649 | `make check-wasm` (in `make ci`): `cargo check` for wasm32 plus the four semantic suites under `--no-default-features --features wasm` — a Make gate, no test symbol | Compile | P0 | NFR-021-AC-2 | ✅ |
-| TC-1650 | `scripts/audits/check_no_schemars.sh` covers `schemas/output/semantic-v1.schema.json`; introducing a generator-derived schema fails the audit | Static | P0 | FR-072-CON-3 | ✅ |
+| TC-1650 | `tests/semantic_surface.rs` rejects generator markers in `schemas/output/semantic-v1.schema.json`; introducing a generator-derived schema fails the test | Static | P0 | FR-072-CON-3 | ✅ |
 | TC-1651 | `Registry::load_module_set` over an exact set (each module declared once) emits no `DuplicateModuleName`/`DuplicateArchetype` even with a same-named second copy alongside; the same directory named twice loads once | Unit | P0 | FR-013-AC-15 | ✅ |
 | TC-1652 | Closed, not preferred: `{base, extra}` resolves the archetype `extra` declares and validates a document using it; `{base}` does not resolve it | Unit | P0 | FR-013-AC-16 | ✅ |
 | TC-1653 | `load_module_set` consults neither the search-path env vars nor `~/.ix/filament/modules/`: a module outside the declared set is not loaded, and an empty set yields an empty registry with no path diagnostics | Unit | P0 | FR-013-AC-17 | ✅ |
