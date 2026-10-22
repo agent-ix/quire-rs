@@ -196,3 +196,5 @@ The Rust toolchain is declared once, in `rust-toolchain.toml` and the `Cargo.tom
 ## License
 
 AGPL-3.0-or-later
+
+<!-- STD-30 language-boundary canary: inert README change. -->
