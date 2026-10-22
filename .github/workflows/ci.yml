@@ -294,7 +294,7 @@ jobs:
       - name: Enforce regression band (Ubuntu CI +50% per NFR cross-runner policy)
         env:
           QUIRE_PERF_BAND: "0.50"
-        run: bash scripts/check_perf_regression.sh
+        run: cargo run --locked -p quire-bench --bin quire-perf-gate
 
   audit-static:
     name: Static Audits
