@@ -1143,6 +1143,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a1d01941d82fa2ab50be1e79e6714289dd7cde78eba4c074bc5a4374f650dfe0"
 
 [[package]]
+name = "quire-bench"
+version = "0.1.0"
+dependencies = [
+ "ix-trace-rs",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "thiserror",
+ "time",
+ "yaml_serde",
+]
+
+[[package]]
 name = "quire-code-parse"
 version = "0.2.2"
 source = "git+https://github.com/agent-ix/quire-code-rs?rev=b58164a8cf4e6543d7bc5f5f2042ea792612ed16#b58164a8cf4e6543d7bc5f5f2042ea792612ed16"
@@ -1558,6 +1572,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "743bd48c283afc0388f9b8827b976905fb217ad9e647fae3a379a9283c4def2c"
 dependencies = [
  "deranged",
+ "itoa",
  "num-conv",
  "powerfmt",
  "serde_core",

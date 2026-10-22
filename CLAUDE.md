@@ -11,7 +11,7 @@ make lint           # clippy with -D warnings
 make test           # cargo test
 make build          # release build
 make clean          # cargo clean
-make deny           # cargo deny check licenses
+make deny           # cargo deny check licenses; all-feature dependency bans
 make audit-property # FR-052-CON-1: no GrammarFinding in the property classifier
 make audit-static   # run every scripts/audits/*.sh
 make check-python   # type-check --features python (own CARGO_TARGET_DIR)
@@ -102,7 +102,7 @@ decision.
 Safety controls are maintained in this repository's Rust and Cargo configuration.
 
 - **`#![cfg_attr(not(feature = "python"), forbid(unsafe_code))]`** at the crate root is the safety guarantee: the default build makes any first-party `unsafe` a **compile error** (NFR-003-AC-5). It's scoped off for `--features python` because PyO3 macros expand to `unsafe` in-crate. **The Miri job is retired (ADR 0006)** — with zero first-party `unsafe` enforced at compile time there's no first-party UB surface; dependency advisories are covered by `cargo-audit` (NFR-014), the concurrency surface by `loom` (NFR-017).
-- `deny.toml` allow-lists licenses and denies unknown registries/git sources
+- `deny.toml` allow-lists licenses, bans network clients and `schemars`, and denies unknown registries/git sources
 - The workspace Clippy `undocumented_unsafe_blocks` lint checks safety comments in the default and `python` feature builds. The `python` feature is separately type-checked by `make check-python`.
 - `rustfmt.toml` uses 100-char width and `StdExternalCrate` import grouping. CI fails on drift.
 - `rust-toolchain.toml` declares the toolchain channel plus rustfmt and clippy.
@@ -125,7 +125,7 @@ Write code that is **safe, idiomatic, performant, and well-spec'd**, and reach f
 authoritative references rather than guessing.
 
 **Performant.** Latency/throughput are normative (NFR-001/002/007/015/016), CI-gated by
-`scripts/check_perf_regression.sh` (10% band over a stored criterion baseline). Determinism
+the Rust `quire-perf-gate` tool (10% band over a stored criterion baseline). Determinism
 (NFR-006) is enforced by `scripts/audits/check_hashmap_audit.sh`, which **bans `HashMap`** in
 `src/parser`, `src/merge.rs`, `src/extract`, `src/validate_document.rs` — use `BTreeMap`/`IndexMap`
 anywhere iteration order is observable. Prefer borrowed slices over clones on hot paths; do work

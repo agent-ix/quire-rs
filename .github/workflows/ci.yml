@@ -73,6 +73,7 @@ jobs:
         run: |
           cargo clippy --locked --all-targets -- -D warnings
           cargo clippy --locked --all-targets --features python -- -D warnings
+          cargo clippy --locked -p quire-bench --all-targets -- -D warnings
 
       # TC-1025/TC-1027 drive the corpus LOADER (`corpus/bounds.py`) over a
       # mutated copy — the only way to prove those gates refuse what they claim
@@ -93,7 +94,9 @@ jobs:
           python3 -c "import yaml"   # a partial install must fail HERE
 
       - name: Test
-        run: cargo test --locked
+        run: |
+          cargo test --locked
+          cargo test --locked -p quire-bench
 
       # PLAT-868 (found during PLAT-851's review): `python-symbols` is
       # default (this port promoted it), so the `Test` step above already
@@ -146,8 +149,10 @@ jobs:
         uses: taiki-e/install-action@v2
         with:
           tool: cargo-deny@0.19.8
-      - name: cargo deny check licenses
-        run: cargo deny --locked check licenses
+      - name: cargo deny check licenses and bans
+        run: |
+          cargo deny --locked --workspace check licenses
+          cargo deny --locked --workspace --all-features check bans
 
       # PLAT-868 (found during PLAT-851's review): the step above runs under
       # default features. `python-symbols` is now default (this port), so
@@ -286,7 +291,7 @@ jobs:
       - name: Enforce regression band (Ubuntu CI +50% per NFR cross-runner policy)
         env:
           QUIRE_PERF_BAND: "0.50"
-        run: bash scripts/check_perf_regression.sh
+        run: cargo run --locked -p quire-bench --bin quire-perf-gate
 
   audit-static:
     name: Static Audits

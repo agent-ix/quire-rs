@@ -514,9 +514,12 @@ byte-identical JSON ordering and stable record ids.
 > the line boundary.
 >
 > **No gate measures it**, and an earlier draft of this note claimed
-> `scripts/check_perf_regression.sh` does. It does not: that script is not in
+> the Criterion perf gate does. It does not: that gate is not in
 > `make ci`, and the CI `perf` job runs `--bench parse --bench load`, neither of
 > which touches `src/symbols/`. No bench exercises the adapter at all.
+
+> **STD-228 implementation note (2026-10-21):** The Criterion regression band
+> is checked by the Rust `quire-perf-gate` tool. Its bench scope is unchanged.
 >
 > Measured by hand instead — 199,800 lines through `extract_file`, twenty
 > passes: 0.85/0.90/0.93s before, 0.94/0.94/0.97s after, **about +6%**. Inside

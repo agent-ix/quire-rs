@@ -126,7 +126,7 @@ verbatim `clauseText` and the byte-identity constraints below.
 |----|------------|------|------------|
 | FR-072-CON-1 | No existing key of `CoreExtractionResult`, `dataJson`, `validate_document` findings, coverage-v1, properties-v1, or assurance-v1 SHALL change meaning, order, value set, or bytes; every addition is a new optional key. | Compatibility | Test |
 | FR-072-CON-2 | The surface SHALL render nothing, generate no code, and write no file; it returns values. | Responsibility | Test |
-| FR-072-CON-3 | Maintainers SHALL hand-author the published `semantic-v1` schema, under the existing generator audit (`scripts/audits/check_no_schemars.sh`, TC-062). | Architecture | Test |
+| FR-072-CON-3 | Maintainers SHALL hand-author the published `semantic-v1` schema; `tests/semantic_surface.rs` (TC-1650) rejects generator markers and the cargo-deny `schemars` ban (TC-062) rejects that dependency. | Architecture | Test |
 
 ## Acceptance Criteria
 

@@ -11,6 +11,7 @@ members = [
     "crates/quire-fixtures",
     "crates/spec-objects-architecture-fixture",
     "crates/build-npm-fetch",
+    "tools/quire-bench",
 ]
 default-members = ["."]
 resolver = "2"
