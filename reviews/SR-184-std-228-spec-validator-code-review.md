@@ -17,11 +17,13 @@ Reviewed the changed Rust example, caller configuration, and removed Python wrap
 | --- | --- | --- | --- |
 | FND-001 | medium | The first example tests cited FR-013-AC-16 while only checking argument parsing and directory presence; they did not exercise closed-set loading or document validation. | examples/spec_validate.rs, FR-013-AC-16 |
 | FND-002 | low | The example test used `.err().expect(...)`, which the repository's `-D warnings` Clippy gate rejects. | examples/spec_validate.rs:382 |
+| FND-003 | medium | Removing the last pytest test left `make check-scripts` invoking an empty Python suite, so it exited 5 before the Rust tooling tests. | Makefile, scripts/tests/ |
 
 ## Dispositions
 
 - FND-001: fixed. Replaced the two helper-only tests with one test of the actual provider-loading call path. It asserts both selected archetypes resolve, an extra sibling does not, and a missing named provider is refused. The test cites FR-013-AC-17, which owns ambient isolation; the existing loader test continues to own AC-16's document-validation claim.
 - FND-002: fixed. The test destructures the expected `Err` directly and fails if provider loading unexpectedly succeeds. Focused formatting, all-target Clippy, and the example test pass.
+- FND-003: fixed. Removed the unused pytest import scaffold and its Make invocation. `check-tools` runs the Rust tooling tests, and `ci` calls that target. A source search found no live caller of the old target or Python package; dated reviews retain historical mentions.
 
 ## Verdict
 
@@ -29,4 +31,4 @@ The introduced findings are fixed. The registry API is an exact closed set, so a
 
 ## Validation
 
-The focused `cargo test --locked --example spec_validate`, `cargo clippy --locked --all-targets -- -D warnings`, `cargo fmt --all -- --check`, and `git diff --check` passed after the review fix. The aligned process and ISO provider manifests now request semantic core 0.3.3; `make validate` passes 175 documents with zero failures. The earlier 172 unknown-type failures were reproduced on untouched origin/main `9f42d04` before that provider alignment. The final PR-head full gate remains to run.
+The focused `cargo test --locked --example spec_validate`, `cargo clippy --locked --all-targets -- -D warnings`, `cargo fmt --all -- --check`, `make check-tools`, and `git diff --check` passed after the fixes. The aligned process and ISO provider manifests now request semantic core 0.3.3; `make validate` passes 175 documents with zero failures. The earlier 172 unknown-type failures were reproduced on untouched origin/main `9f42d04` before that provider alignment. The final PR-head full gate remains to run.
