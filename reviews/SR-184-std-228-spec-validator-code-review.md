@@ -15,12 +15,16 @@ Reviewed the changed Rust example, caller configuration, and removed Python wrap
 
 | ID | Severity | Summary | Refs |
 | --- | --- | --- | --- |
-| FND-001 | low | No findings (placeholder). | STD-228 |
+| FND-001 | medium | The first example tests cited FR-013-AC-16 while only checking argument parsing and directory presence; they did not exercise closed-set loading or document validation. | examples/spec_validate.rs, FR-013-AC-16 |
+
+## Dispositions
+
+- FND-001: fixed. Replaced the two helper-only tests with one test of the actual provider-loading call path. It asserts both selected archetypes resolve, an extra sibling does not, and a missing named provider is refused. The test cites FR-013-AC-17, which owns ambient isolation; the existing loader test continues to own AC-16's document-validation claim.
 
 ## Verdict
 
-No source findings in the scoped diff. The registry API is an exact closed set, so ambient module installations and both module-path environment variables cannot change this gate's schema set. Make and CI still invoke the validation example with the same provider checkouts. The removed Python test's isolation claim is covered by the existing FR-013-AC-17 registry test and the new example argument and path tests. No external source or generated artifact was copied into this repository.
+The introduced review finding is fixed. The registry API is an exact closed set, so ambient module installations and both module-path environment variables cannot change this gate's schema set. Make and CI still invoke the validation example with the same provider checkouts. The removed Python test's isolation claim is covered by the existing FR-013-AC-17 registry test and the new example provider-loading test. No external source or generated artifact was copied into this repository.
 
 ## Validation
 
-`cargo fmt --all --check`, `git diff --check`, Cargo metadata for the example test target, and a source inventory of live callers passed. Focused Cargo tests and the end-to-end `make validate` run are pending the shared host build slot. The full gate will run once on the final reviewed PR head.
+The focused `cargo test --locked --example spec_validate` and `cargo clippy --locked --example spec_validate -- -D warnings` passed after the review fix. `cargo fmt --all --check`, `git diff --check`, Cargo metadata for the example test target, and a source inventory of live callers passed. `make validate` fails on this branch and on untouched origin/main `9f42d04` with the same 172 unknown-type failures: the current process and ISO provider manifests both request semantic core 0.3.0 while the embedded bundle is 0.3.3. The final PR-head full gate remains to run.

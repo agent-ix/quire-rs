@@ -15,12 +15,16 @@ Checked the changed gate's requirement, computed test binding, caller path, and 
 
 | ID | Severity | Summary | Refs |
 | --- | --- | --- | --- |
-| FND-001 | low | No gap introduced in the changed gate (placeholder). | FR-013-AC-16, FR-013-AC-17 |
+| FND-001 | medium | The initial two example tests inflated FR-013-AC-16 trace evidence without exercising its closed-set document-validation behavior. | examples/spec_validate.rs, FR-013-AC-16 |
+
+## Dispositions
+
+- FND-001: fixed. The new gate-path test now cites FR-013-AC-17 and exercises selection through `load_provider_registry`. The existing loader tests own AC-16 and AC-17's full registry behaviors.
 
 ## Verdict
 
-No introduced gap in the scoped change. `quire matrix --scope . --format json` reports FR-013-AC-16 tagged by the new example tests and the existing closed-set test, and FR-013-AC-17 tagged by the existing ambient-isolation test. The new example tests are configured to run under ordinary `cargo test` through `[[example]] test = true`. The matrix still reports 245 untagged criteria across the full repository; those pre-existing criteria are outside this PR's scope and prevent a repository-wide PASS claim.
+The introduced trace gap is fixed. The computed matrix reports FR-013-AC-16 tagged by its existing closed-set document test and FR-013-AC-17 tagged by the existing ambient-isolation test plus the new gate-path test. The new example test is configured to run under ordinary `cargo test` through `[[example]] test = true`. The matrix still reports 245 untagged criteria across the full repository; those pre-existing criteria are outside this PR's scope and prevent a repository-wide PASS claim.
 
 ## Coverage
 
-Plan completion: not assessed. Source review found one live Make caller and one CI caller of the deleted Python wrapper; both now invoke the same Rust example. `scripts/tests/test_validate_spec.py` was the only Python wrapper test and its isolation assertion is implemented by the closed-set registry API. Focused execution and the final PR-head full gate remain pending the shared host build slot.
+Plan completion: not assessed. Source review found one live Make caller and one CI caller of the deleted Python wrapper; both now invoke the same Rust example. `scripts/tests/test_validate_spec.py` was the only Python wrapper test and its isolation assertion is implemented by the closed-set registry API. The focused example test passed. End-to-end `make validate` fails identically on unchanged origin/main and this branch because the current provider manifests request semantic core 0.3.0 but the embedded bundle is 0.3.3. The final PR-head full gate remains pending the shared host build slot.

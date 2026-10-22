@@ -71,6 +71,22 @@ fn provider_module(root: &Path, directory: &str, label: &str) -> Result<PathBuf,
     Ok(resolved)
 }
 
+fn load_provider_registry(providers: &ProviderRoots) -> Result<Registry, String> {
+    let process = provider_module(
+        &providers.process,
+        "spec_artifacts_process",
+        "spec-artifacts-process",
+    )?;
+    let iso = provider_module(&providers.iso, "spec_artifacts_iso", "spec-artifacts-iso")?;
+    // ISO sorts before process in the former wrapper's isolated directory.
+    let registry = Registry::load_module_set(&[&iso, &process])
+        .map_err(|error| format!("could not load the module set: {error}"))?;
+    if registry.module_names().next().is_none() {
+        return Err("no modules found in the declared schema providers".to_string());
+    }
+    Ok(registry)
+}
+
 fn validation_exclusions(
     root: &std::path::Path,
 ) -> Result<std::collections::BTreeMap<PathBuf, String>, String> {
@@ -152,24 +168,6 @@ fn main() {
             std::process::exit(2);
         }
     };
-    let process = match provider_module(
-        &providers.process,
-        "spec_artifacts_process",
-        "spec-artifacts-process",
-    ) {
-        Ok(path) => path,
-        Err(error) => {
-            eprintln!("{error}");
-            std::process::exit(1);
-        }
-    };
-    let iso = match provider_module(&providers.iso, "spec_artifacts_iso", "spec-artifacts-iso") {
-        Ok(path) => path,
-        Err(error) => {
-            eprintln!("{error}");
-            std::process::exit(1);
-        }
-    };
 
     // The user explicitly deferred Phase-7 engineering-assurance workflows.
     // Those already-authored AP/MP documents target a provider revision no
@@ -186,18 +184,13 @@ fn main() {
     };
 
     // The two provider revisions are the complete module set for this gate.
-    // ISO sorts before process in the former wrapper's isolated directory.
-    let registry = match Registry::load_module_set(&[&iso, &process]) {
+    let registry = match load_provider_registry(&providers) {
         Ok(registry) => registry,
-        Err(e) => {
-            eprintln!("could not load the module set: {e}");
+        Err(error) => {
+            eprintln!("{error}");
             std::process::exit(1);
         }
     };
-    if registry.module_names().next().is_none() {
-        eprintln!("no modules found in the declared schema providers");
-        std::process::exit(1);
-    }
 
     let corpus = quire_rs::load_repo(&root.join("spec"));
     let mut documents = 0usize;
@@ -331,48 +324,64 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use super::{parse_provider_roots, provider_module};
+    use super::{load_provider_registry, parse_provider_roots};
     use std::ffi::OsString;
+    use std::path::Path;
 
-    /// Trace: FR-013-AC-16. The gate requires both explicitly named providers.
-    #[test]
-    fn validation_arguments_require_both_provider_roots() {
-        let args = |items: &[&str]| {
-            items
-                .iter()
-                .map(|item| OsString::from(*item))
-                .collect::<Vec<_>>()
-        };
-        assert!(parse_provider_roots(args(&[])).is_err());
-        assert!(parse_provider_roots(args(&["--process-root", "process"])).is_err());
-        assert!(parse_provider_roots(args(&["--iso-root", "iso"])).is_err());
-        assert!(
-            parse_provider_roots(args(&["--process-root", "process", "--unknown", "other"]))
-                .is_err()
-        );
-        let roots = parse_provider_roots(args(&["--process-root", "process", "--iso-root", "iso"]))
-            .expect("two provider roots");
-        assert_eq!(roots.process, std::path::Path::new("process"));
-        assert_eq!(roots.iso, std::path::Path::new("iso"));
+    fn write_module(root: &Path, name: &str, archetype: &str) {
+        std::fs::create_dir_all(root.join("schemas")).expect("module directory");
+        std::fs::write(
+            root.join("manifest.yaml"),
+            format!("name: {name}\nartifact_types:\n- name: {archetype}\n  frontmatter_schema_ref: schemas/schema.json\n"),
+        )
+        .expect("module manifest");
+        std::fs::write(root.join("schemas/schema.json"), r#"{"type":"object"}"#)
+            .expect("module schema");
     }
 
-    /// Trace: FR-013-AC-16. A provider root cannot silently resolve an ambient sibling.
+    /// Trace: FR-013-AC-17. The gate loads only its two named providers.
     #[test]
-    fn provider_module_requires_its_named_child() {
-        let provider = tempfile::tempdir().expect("scratch provider");
-        std::fs::create_dir(provider.path().join("unrelated")).expect("ambient sibling");
-        let error = provider_module(provider.path(), "spec_artifacts_iso", "spec-artifacts-iso")
-            .expect_err("missing named module must fail");
-        assert!(error.contains("module directory missing"));
-        std::fs::create_dir(provider.path().join("spec_artifacts_iso")).expect("named module");
-        assert_eq!(
-            provider_module(provider.path(), "spec_artifacts_iso", "spec-artifacts-iso")
-                .expect("named module resolves"),
-            provider
-                .path()
-                .join("spec_artifacts_iso")
-                .canonicalize()
-                .expect("canonical path")
+    fn spec_validation_uses_only_declared_provider_modules() {
+        let scratch = tempfile::tempdir().expect("scratch providers");
+        let process_root = scratch.path().join("process-repo");
+        let iso_root = scratch.path().join("iso-repo");
+        write_module(
+            &process_root.join("spec_artifacts_process"),
+            "spec-artifacts-process",
+            "ProcessOnly",
         );
+        write_module(
+            &iso_root.join("spec_artifacts_iso"),
+            "spec-artifacts-iso",
+            "IsoOnly",
+        );
+        write_module(
+            &iso_root.join("ambient-extra"),
+            "ambient-extra",
+            "ExtraOnly",
+        );
+
+        let args = [
+            OsString::from("--process-root"),
+            process_root.into_os_string(),
+            OsString::from("--iso-root"),
+            iso_root.into_os_string(),
+        ];
+        let providers = parse_provider_roots(args).expect("two explicit provider roots");
+        let registry = load_provider_registry(&providers).expect("load selected providers");
+        assert!(registry.archetype("ProcessOnly").is_some());
+        assert!(registry.archetype("IsoOnly").is_some());
+        assert!(
+            registry.archetype("ExtraOnly").is_none(),
+            "ambient sibling is excluded"
+        );
+
+        assert!(parse_provider_roots(Vec::<OsString>::new()).is_err());
+        std::fs::remove_dir_all(providers.iso.join("spec_artifacts_iso"))
+            .expect("remove required provider");
+        assert!(load_provider_registry(&providers)
+            .err()
+            .expect("missing named provider must fail")
+            .contains("module directory missing"));
     }
 }
