@@ -122,6 +122,8 @@ quire-rust-extraction = { path = "crates/quire-rust-extraction", optional = true
 agent-ix-semantic-schema = { git = "https://github.com/agent-ix/filament-core-data", branch = "main" }
 
 [dev-dependencies]
+# The authoritative QA corpus runner, pinned by the existing corpus submodule.
+qa-corpus = { path = "corpus" }
 # The canonical Rust trace marker (FR-051). Zero runtime dependencies and a
 # pass-through expansion, so it adds one crate to the dev graph and nothing
 # to a consumer's: dev-dependencies are not transitive. Pinned to an exact

@@ -5,7 +5,6 @@
 mod corpus_case;
 
 use std::collections::{BTreeMap, BTreeSet};
-use std::process::Command;
 
 use corpus_case::{grade, load_cases, run, Case, Level};
 use serde::{Deserialize, Serialize};
@@ -234,16 +233,15 @@ fn evaluated_by_quire(case: &Case) -> bool {
 }
 
 fn current_gap_count() -> usize {
-    let output = Command::new("python3")
-        .arg(corpus_case::corpus_root().join("bounds.py"))
-        .arg("--json")
-        .output()
-        .expect("run bounds.py");
-    assert!(output.status.success(), "bounds.py failed");
-    let value: serde_json::Value = serde_json::from_slice(&output.stdout).expect("bounds JSON");
-    value["bounds"]["gap_count"]
-        .as_u64()
-        .expect("numeric gap_count") as usize
+    let root = corpus_case::corpus_root();
+    let cases = qa_corpus::corpus::discover(&root).expect("QA corpus loads");
+    let report = qa_corpus::bounds::derive(&root, &cases).expect("QA bounds derive");
+    usize::try_from(
+        report["bounds"]["gap_count"]
+            .as_u64()
+            .expect("numeric gap_count"),
+    )
+    .expect("gap_count fits usize")
 }
 
 fn key(row: &RecallRow) -> String {
