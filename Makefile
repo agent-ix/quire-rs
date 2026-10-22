@@ -102,11 +102,10 @@ check-python-symbols:
 check-typescript-symbols:
 	CARGO_TARGET_DIR=target/typescript-symbols-check $(CARGO) check --locked --no-default-features --features typescript-symbols --quiet
 
-# The remaining scripts/ tooling test suite. `check-python` is a cargo
-# type-check of the PyO3 binding and collects no Python tests.
-.PHONY: check-scripts
-check-scripts:
-	python3 -m pytest scripts/tests -q
+# Auxiliary Rust tooling tests. `check-python` is a cargo type-check of the
+# PyO3 binding and collects no Python tests.
+.PHONY: check-tools
+check-tools:
 	$(CARGO) test --locked -p quire-bench
 
 .PHONY: test
@@ -319,15 +318,15 @@ coverage-baseline-update:
 # (cargo run --example), never an installed `quire` CLI, which lags the branch
 # under test. The two schema-provider repositories are independent executable
 # inputs: accepting their ambient installed versions made this gate change
-# meaning without a Quire commit. scripts/validate_spec.py exposes only those
-# two modules to the engine.
+# meaning without a Quire commit. The Rust validation example loads exactly
+# those two modules through the registry's closed-set API.
 # The Phase-7 assurance documents are named one-by-one in the governed
 # exclusion file; no new or renamed document can disappear from validation.
 VALIDATION_PROCESS_ROOT ?= ../spec-artifacts-process
 VALIDATION_ISO_ROOT ?= ../spec-artifacts-iso
 .PHONY: validate
 validate:
-	python3 scripts/validate_spec.py \
+	cargo run --locked --quiet --example spec_validate -- \
 		--process-root "$(VALIDATION_PROCESS_ROOT)" \
 		--iso-root "$(VALIDATION_ISO_ROOT)"
 
@@ -346,7 +345,7 @@ check-wasm:
 	CARGO_TARGET_DIR=target/wasm-check $(CARGO) check --locked --target wasm32-unknown-unknown --no-default-features --features wasm --quiet
 	$(CARGO) test --locked --no-default-features --features wasm --quiet --test semantic_contract --test semantic_properties --test semantic_clauses --test semantic_surface --test semantic_relations
 
-ci: fmt-check lint check-python check-python-symbols check-typescript-symbols check-wasm check-scripts test deny deny-grammars audit-property audit-static validate
+ci: fmt-check lint check-python check-python-symbols check-typescript-symbols check-wasm check-tools test deny deny-grammars audit-property audit-static validate
 
 # =============================================================================
 # Python wheel / sdist + local-publish (pypi.ix)
