@@ -22,7 +22,7 @@ help:
 	@echo "  make test             - cargo test"
 	@echo "  make build            - Release build"
 	@echo "  make clean            - cargo clean"
-	@echo "  make deny             - cargo deny check licenses"
+	@echo "  make deny             - cargo deny license and all-feature dependency bans"
 	@echo "  make audit-property   - Enforce FR-052-CON-1: no GrammarFinding in the property classifier"
 	@echo "  make validate         - Validate spec/ with the locked engine + schema stack (#212 gate)"
 	@echo "  make ci               - Per-PR CI gates (fmt-check + lint + test + deny + audit-property + audit-static + validate)"
@@ -126,6 +126,7 @@ clean:
 .PHONY: deny
 deny:
 	$(CARGO) deny --locked check licenses
+	$(CARGO) deny --locked --all-features check bans
 
 # PLAT-868 (found during PLAT-851's review): `deny` above runs under default
 # features. `python-symbols` is now default (this port), so `deny` alone

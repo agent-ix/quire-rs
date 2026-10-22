@@ -11,6 +11,11 @@ relationships:
     cardinality: "1:1"
 ---
 
+> **CR note (STD-228, 2026-10-21):** The no-network-client dependency
+> inspection now runs through `deny.toml` cargo-deny bans over the all-feature
+> graph. The filesystem-only requirement is unchanged; the former Cargo.lock
+> grep audit is retired.
+
 > **CR note (render removal — 2026-06-04):** The render/templating feature is
 > **removed** from `quire-rs` (no backward-compatibility layer). The loader is now
 > **schema-only**: it no longer parses or registers MiniJinja templates and no longer
@@ -209,7 +214,7 @@ unreachable, and an unreachable target is one nobody acts on.
 | FR-013-AC-3 | A manifest entry referencing a missing `schema_ref` path produces a `QuireError::ArchetypeLoadError` listing the bad path; other archetypes in the same module load successfully. | Test |
 | FR-013-AC-4 | A criterion bench measures `Registry::load_from(&[corpus_path])` for the full 17-archetype baseline corpus and reports a one-time cost (target: under 50 ms median on baseline hardware). | Test |
 | FR-013-AC-5 | After `Registry::load_from(...)`, calling `validate`/`validate_document`/`extract` against a loaded archetype does NOT read from disk (verified via a `tracing` or `strace`-style audit in CI). | Inspection |
-| FR-013-AC-6 | A test confirms `quire-rs` has no `reqwest`, `hyper`, `tonic`, or other network-client crate in its `Cargo.lock` (verified via dependency audit). | Inspection |
+| FR-013-AC-6 | The all-feature cargo-deny dependency audit confirms `quire-rs` has no `reqwest`, `hyper`, `tonic`, or other network-client crate in its dependency graph. | Inspection |
 | FR-013-AC-7 | A test creates a symlink loop (`a → b → a`) inside a search path and asserts the loader completes with a warning diagnostic and skips the loop. | Test |
 | FR-013-AC-8 | A test sets `IX_SCHEMA_PATH="~/foo:~/foo"` (duplicate canonical path) and asserts modules under `~/foo/` are loaded exactly once. | Test |
 | FR-013-AC-9 | A test confirms `Registry: Send + Sync` (compile-time bound assertion via a generic helper function). | Test |
