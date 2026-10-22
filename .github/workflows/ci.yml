@@ -73,9 +73,12 @@ jobs:
         run: |
           cargo clippy --locked --all-targets -- -D warnings
           cargo clippy --locked --all-targets --features python -- -D warnings
+          cargo clippy --locked -p quire-bench --all-targets -- -D warnings
 
       - name: Test
-        run: cargo test --locked
+        run: |
+          cargo test --locked
+          cargo test --locked -p quire-bench
 
       # PLAT-868 (found during PLAT-851's review): `python-symbols` is
       # default (this port promoted it), so the `Test` step above already
@@ -109,10 +112,7 @@ jobs:
         run: make check-wasm
 
       - name: Validate spec against schema providers
-        run: >-
-          python3 scripts/validate_spec.py
-          --process-root .ci/spec-artifacts-process
-          --iso-root .ci/spec-artifacts-iso
+        run: make validate VALIDATION_PROCESS_ROOT=.ci/spec-artifacts-process VALIDATION_ISO_ROOT=.ci/spec-artifacts-iso
 
       - name: Property-classifier purity audit (FR-052-CON-1)
         run: bash scripts/check_property_purity.sh
@@ -131,8 +131,10 @@ jobs:
         uses: taiki-e/install-action@v2
         with:
           tool: cargo-deny@0.19.8
-      - name: cargo deny check licenses
-        run: cargo deny --locked check licenses
+      - name: cargo deny check licenses and bans
+        run: |
+          cargo deny --locked --workspace check licenses
+          cargo deny --locked --workspace --all-features check bans
 
       # PLAT-868 (found during PLAT-851's review): the step above runs under
       # default features. `python-symbols` is now default (this port), so
@@ -271,7 +273,7 @@ jobs:
       - name: Enforce regression band (Ubuntu CI +50% per NFR cross-runner policy)
         env:
           QUIRE_PERF_BAND: "0.50"
-        run: bash scripts/check_perf_regression.sh
+        run: cargo run --locked -p quire-bench --bin quire-perf-gate
 
   audit-static:
     name: Static Audits

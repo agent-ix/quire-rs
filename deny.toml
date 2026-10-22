@@ -15,6 +15,8 @@ allow = [
 # stays permissive-only.
 exceptions = [
     { allow = ["AGPL-3.0-or-later"], crate = "quire-rs" },
+    # Benchmark gate tool in this workspace, not a dependency of the engine.
+    { allow = ["AGPL-3.0-or-later"], crate = "quire-bench" },
     # The trace marker is AGPL like the rest of the toolchain. A dev-dependency
     # only, and not transitive, so this admits nothing into a consumer's graph.
     { allow = ["AGPL-3.0-or-later"], crate = "ix-trace-rs" },
@@ -45,6 +47,24 @@ confidence-threshold = 0.9
 [bans]
 multiple-versions = "allow"
 wildcards = "warn"
+# FR-013-AC-6 / TC-085: the engine has no HTTP or RPC client dependencies.
+# FR-003-AC-4 / TC-062: published schemas are hand-authored, not generated
+# by schemars. Keep these bans in the dependency graph gate rather than
+# scanning Cargo.lock text.
+deny = [
+    { name = "reqwest" },
+    { name = "hyper" },
+    { name = "tonic" },
+    { name = "ureq" },
+    { name = "curl" },
+    { name = "isahc" },
+    { name = "surf" },
+    { name = "awc" },
+    { name = "h2" },
+    { name = "h3" },
+    { name = "quinn" },
+    { name = "schemars" },
+]
 
 [advisories]
 version = 2
