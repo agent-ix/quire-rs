@@ -379,9 +379,9 @@ mod tests {
         assert!(parse_provider_roots(Vec::<OsString>::new()).is_err());
         std::fs::remove_dir_all(providers.iso.join("spec_artifacts_iso"))
             .expect("remove required provider");
-        assert!(load_provider_registry(&providers)
-            .err()
-            .expect("missing named provider must fail")
-            .contains("module directory missing"));
+        let Err(error) = load_provider_registry(&providers) else {
+            panic!("missing named provider must fail");
+        };
+        assert!(error.contains("module directory missing"));
     }
 }

@@ -16,15 +16,17 @@ Reviewed the changed Rust example, caller configuration, and removed Python wrap
 | ID | Severity | Summary | Refs |
 | --- | --- | --- | --- |
 | FND-001 | medium | The first example tests cited FR-013-AC-16 while only checking argument parsing and directory presence; they did not exercise closed-set loading or document validation. | examples/spec_validate.rs, FR-013-AC-16 |
+| FND-002 | low | The example test used `.err().expect(...)`, which the repository's `-D warnings` Clippy gate rejects. | examples/spec_validate.rs:382 |
 
 ## Dispositions
 
 - FND-001: fixed. Replaced the two helper-only tests with one test of the actual provider-loading call path. It asserts both selected archetypes resolve, an extra sibling does not, and a missing named provider is refused. The test cites FR-013-AC-17, which owns ambient isolation; the existing loader test continues to own AC-16's document-validation claim.
+- FND-002: fixed. The test destructures the expected `Err` directly and fails if provider loading unexpectedly succeeds. Focused formatting, all-target Clippy, and the example test pass.
 
 ## Verdict
 
-The introduced review finding is fixed. The registry API is an exact closed set, so ambient module installations and both module-path environment variables cannot change this gate's schema set. Make and CI still invoke the validation example with the same provider checkouts. The removed Python test's isolation claim is covered by the existing FR-013-AC-17 registry test and the new example provider-loading test. No external source or generated artifact was copied into this repository.
+The introduced findings are fixed. The registry API is an exact closed set, so ambient module installations and both module-path environment variables cannot change this gate's schema set. Make and CI still invoke the validation example with the same provider checkouts. The removed Python test's isolation claim is covered by the existing FR-013-AC-17 registry test and the new example provider-loading test. No external source or generated artifact was copied into this repository.
 
 ## Validation
 
-The focused `cargo test --locked --example spec_validate` and `cargo clippy --locked --example spec_validate -- -D warnings` passed after the review fix. `cargo fmt --all --check`, `git diff --check`, Cargo metadata for the example test target, and a source inventory of live callers passed. `make validate` fails on this branch and on untouched origin/main `9f42d04` with the same 172 unknown-type failures: the current process and ISO provider manifests both request semantic core 0.3.0 while the embedded bundle is 0.3.3. The final PR-head full gate remains to run.
+The focused `cargo test --locked --example spec_validate`, `cargo clippy --locked --all-targets -- -D warnings`, `cargo fmt --all -- --check`, and `git diff --check` passed after the review fix. The aligned process and ISO provider manifests now request semantic core 0.3.3; `make validate` passes 175 documents with zero failures. The earlier 172 unknown-type failures were reproduced on untouched origin/main `9f42d04` before that provider alignment. The final PR-head full gate remains to run.
