@@ -50,6 +50,7 @@ fmt-check:
 lint:
 	$(CARGO) clippy --locked --all-targets -- -D warnings
 	$(CARGO) clippy --locked --all-targets --features python -- -D warnings
+	$(CARGO) clippy --locked -p quire-bench --all-targets -- -D warnings
 
 # The `python` feature was not compiled by the original default lint and test
 # targets. FR-056 added a field to `GrammarVocabularies`,
@@ -106,6 +107,7 @@ check-typescript-symbols:
 .PHONY: check-scripts
 check-scripts:
 	python3 -m pytest scripts/tests -q
+	$(CARGO) test --locked -p quire-bench
 
 .PHONY: test
 test:
@@ -125,8 +127,8 @@ clean:
 
 .PHONY: deny
 deny:
-	$(CARGO) deny --locked check licenses
-	$(CARGO) deny --locked --all-features check bans
+	$(CARGO) deny --locked --workspace check licenses
+	$(CARGO) deny --locked --workspace --all-features check bans
 
 # PLAT-868 (found during PLAT-851's review): `deny` above runs under default
 # features. `python-symbols` is now default (this port), so `deny` alone
@@ -288,18 +290,18 @@ sanitize:
 BENCH_MODULE ?= ../spec-artifacts-process/spec_artifacts_process
 .PHONY: bench
 bench:
-	python3 scripts/bench.py --module "$(BENCH_MODULE)"
+	$(CARGO) run --locked -p quire-bench --bin quire-bench -- --module "$(BENCH_MODULE)"
 
 # Deliberate regeneration. The diff belongs in the pull request.
 .PHONY: bench-update
 bench-update:
-	python3 scripts/bench.py --update --module "$(BENCH_MODULE)"
+	$(CARGO) run --locked -p quire-bench --bin quire-bench -- --update --module "$(BENCH_MODULE)"
 
 .PHONY: measurement-collection
 measurement-collection:
 	test -n "$(OUTPUT)" || { echo "OUTPUT= is required"; exit 1; }
 	test -n "$(VERIFICATION_STACK)" || { echo "VERIFICATION_STACK= is required"; exit 1; }
-	python3 scripts/export_measurements.py --consumer "$(QUIRE_CLI)" --module "$(BENCH_MODULE)" --output "$(OUTPUT)" --verification-stack "$(VERIFICATION_STACK)"
+	$(CARGO) run --locked -p quire-bench --bin quire-measurements -- --consumer "$(QUIRE_CLI)" --module "$(BENCH_MODULE)" --output "$(OUTPUT)" --verification-stack "$(VERIFICATION_STACK)"
 
 .PHONY: coverage-baseline-update
 coverage-baseline-update:

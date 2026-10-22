@@ -15,6 +15,8 @@ allow = [
 # stays permissive-only.
 exceptions = [
     { allow = ["AGPL-3.0-or-later"], crate = "quire-rs" },
+    # Benchmark gate tool in this workspace, not a dependency of the engine.
+    { allow = ["AGPL-3.0-or-later"], crate = "quire-bench" },
     # The trace marker is AGPL like the rest of the toolchain. A dev-dependency
     # only, and not transitive, so this admits nothing into a consumer's graph.
     { allow = ["AGPL-3.0-or-later"], crate = "ix-trace-rs" },
