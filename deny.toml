@@ -20,6 +20,9 @@ exceptions = [
     # The trace marker is AGPL like the rest of the toolchain. A dev-dependency
     # only, and not transitive, so this admits nothing into a consumer's graph.
     { allow = ["AGPL-3.0-or-later"], crate = "ix-trace-rs" },
+    # The authoritative QA corpus runner is a dev-dependency pinned by the
+    # corpus submodule; it is not part of a consumer's dependency graph.
+    { allow = ["AGPL-3.0-or-later"], crate = "qa-corpus" },
     # The local dependency-boundary crate (PLAT-843): part of this repo, same
     # license as `quire-rs` itself.
     { allow = ["AGPL-3.0-or-later"], crate = "quire-rust-extraction" },
