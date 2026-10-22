@@ -25,8 +25,8 @@ Checked the changed FR-065 obligations against the computed matrix, executable t
 
 ## Verdict
 
-The introduced evidence gaps are fixed. The computed matrix marks all changed FR-065 criteria (AC-19 and AC-30 through AC-48) tagged. The QA crate's own unit tests run in its owning repository; quire-rs `cargo test` runs the changed integration tests but does not execute dependency unit tests, so upstream QA gate evidence must be checked at its final merge SHA.
+The introduced evidence gaps are fixed. The computed matrix marks all changed FR-065 criteria (AC-19 and AC-30 through AC-48) tagged. The pinned QA merge commit contains focused AC-47 tests for unknown, non-list, and missing-family witness channels. The QA crate's unit tests ran in its owning repository; quire-rs `cargo test` runs the changed integration tests but does not execute dependency unit tests.
 
 ## Coverage
 
-Plan completion: not assessed. Repository-wide matrix output has 619 tagged, 241 untagged, and 105 method-without-symbol criteria; those pre-existing counts prevent a repository-wide PASS claim. The changed tests contain concrete refusal and derived-value assertions. Final PR-head full gate remains pending the QA merge and shared host slot.
+Plan completion: not assessed. Repository-wide matrix output has 619 tagged, 241 untagged, and 105 method-without-symbol criteria; those pre-existing counts prevent a repository-wide PASS claim. The changed tests contain concrete refusal and derived-value assertions. Final PR-head full gate remains pending the shared host slot.

@@ -21,12 +21,12 @@ Compared the authored Test methods and citations with the executable Quire integ
 ## Dispositions
 
 - FND-001: fixed. TC-1021 now asserts the derived count sum and a declared-state mutation refusal.
-- FND-002: deferred: QA PR #36 owns its Rust reader tests and is adding focused non-list and missing-family cases before merge. This quire-rs PR will remain unopened until that reviewed QA commit is merged and pinned.
+- FND-002: fixed upstream. QA #36 merged at `9b2b760042ca7d4bf123f5ada0a7914aa95e8d2d` with focused non-list and missing-family tests alongside its unknown-channel test; this branch pins that commit.
 
 ## Verdict
 
-The Quire-side evidence gap is fixed. QA-side AC-47 evidence is a pending upstream dependency and must be rechecked at the merge SHA. `cargo test` in quire-rs executes this PR's integration tests but does not execute dependency unit tests; those require QA's own CI result.
+The Quire-side evidence gap is fixed, and the pinned QA merge commit contains all three AC-47 refusal tests. `cargo test` in quire-rs executes this PR's integration tests but does not execute dependency unit tests; the QA owner reported its full `make ci` and 26 all-target tests passing before merge.
 
 ## Coverage
 
-`quoin advise --mismatch-only` found no changed FR-065 criterion in its mismatch output. The computed matrix marks the changed criteria tagged, but a tag alone does not prove the asserted behavior; the mutation and derived-value checks were reviewed directly. Final QA CI and quire-rs full-gate results are pending.
+`quoin advise --mismatch-only` found no changed FR-065 criterion in its mismatch output. The computed matrix marks the changed criteria tagged, but a tag alone does not prove the asserted behavior; the mutation and derived-value checks were reviewed directly. Quire-rs's final full-gate result remains pending.

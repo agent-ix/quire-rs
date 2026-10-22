@@ -13,7 +13,7 @@ Reviewed the Rust integration against the repository's conventions, the rust-rev
 
 ## Assurance Context
 
-AP-201 at `spec/assurance/AP-201-detection-minting.md` applies because the changed tests consume bounds and coverage evidence. The QA corpus Rust reader and Quire's Rust harness retain distinct case-loading and grading paths, while bounds calls into the QA crate share its implementation. The QA PR's final merge commit and CI evidence are unavailable until #36 merges. No active exception was identified.
+AP-201 at `spec/assurance/AP-201-detection-minting.md` applies because the changed tests consume bounds and coverage evidence. The QA corpus Rust reader and Quire's Rust harness retain distinct case-loading and grading paths, while bounds calls into the QA crate share its implementation. QA #36 merged at `9b2b760042ca7d4bf123f5ada0a7914aa95e8d2d`; its owner reported a passing full `make ci` and focused all-target checks, while this PR's own full gate remains pending. No active exception was identified.
 
 ## Findings
 
@@ -33,4 +33,4 @@ The introduced findings are fixed. The CI diff removes only the Python/PyYAML se
 
 ## Validation
 
-Focused TC-1021, TC-1025, TC-1027, TC-1028, TC-1032, and both `corpus_recall` tests passed. Focused Clippy for the two touched integration targets, `cargo fmt --all --check`, and `git diff --check` passed. The final PR-head full gate remains pending the QA merge and shared host slot.
+Focused TC-1021, TC-1025, TC-1027, TC-1028, TC-1032, and both `corpus_recall` tests passed before the final QA pin. After pinning the QA merge commit, TC-1021, TC-1028, both `corpus_recall` tests, and focused Clippy for the two touched integration targets passed again. `cargo fmt --all --check` and `git diff --check` passed. The PR-head full gate remains pending the shared host slot.

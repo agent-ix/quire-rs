@@ -31,6 +31,6 @@ The responsibility boundary is clear. QA behavior is guaranteed by its own CI an
 | --- | --- | --- |
 | Corpus discovery and bounds | qa-corpus | QA Rust tests and Quire TC-1021/1025/1027/1032 direct API calls |
 | Engine execution and grading | quire-rs | TC-1028 pair comparison and `corpus_recall` |
-| Submodule commit selection | quire-rs | Pinned QA merge SHA after #36 lands |
+| Submodule commit selection | quire-rs | Pinned QA merge SHA `9b2b760042ca7d4bf123f5ada0a7914aa95e8d2d` |
 
-QA's final merge SHA and CI evidence are pending. No compatibility reader or copied schema is introduced.
+The QA owner reported passing `make ci` and all-target tests before the merge. Quire-rs's final full gate remains pending. No compatibility reader or copied schema is introduced.
