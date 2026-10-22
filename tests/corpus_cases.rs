@@ -400,11 +400,41 @@ fn tc1021_the_vocabularies_come_from_the_corpus_not_from_this_file() {
          agreement between a compiled enum and a declaration, and this is where \
          the disagreement surfaces.",
     );
-    // The bounds enum is read by `qa_corpus::bounds`, which derives its counters, its
-    // sum invariant and its rejection of an undeclared state from this list
-    // (FR-065-AC-19). Asserted here only as far as this reader can: the two
-    // states the matrix vocabulary cannot be missing.
+    // The bounds enum is read by `qa_corpus::bounds`, which derives its counters,
+    // sum invariant, and rejection of undeclared states from this list.
     assert!(states.contains("GAP") && states.contains("covered"));
+    let root = corpus_case::corpus_root();
+    let report = qa_bounds(&root).expect("declared bounds derive");
+    let bounds = &report["bounds"];
+    let graded = ["covered_count", "out_of_scope_count", "gap_count"]
+        .into_iter()
+        .map(|key| bounds[key].as_u64().expect("numeric state count"))
+        .sum::<u64>();
+    assert_eq!(
+        graded,
+        bounds["declared_cells"]
+            .as_u64()
+            .expect("numeric inventory count"),
+        "the declared states must account for every inventory cell"
+    );
+
+    let scratch = scratch_dir("tc1021-bounds-states", 0);
+    copy_tree(&root, &scratch);
+    let declaration = scratch.join("corpus.yaml");
+    let text = std::fs::read_to_string(&declaration).expect("read scratch declaration");
+    assert!(text.contains("bounds_states:\n- covered\n"));
+    std::fs::write(
+        declaration,
+        text.replacen("bounds_states:\n- covered\n", "bounds_states:\n", 1),
+    )
+    .expect("remove covered state");
+    let refusal = qa_bounds(&scratch).expect_err("undeclared covered state must be refused");
+    assert!(
+        refusal
+            .to_string()
+            .contains("bounds_states does not declare"),
+        "wrong refusal for undeclared state: {refusal}"
+    );
 
     for case in &load_cases() {
         assert!(
@@ -1291,14 +1321,18 @@ fn tc1025_the_loader_refuses_a_block_that_asserts_the_wrong_thing() {
             "unhandled key".to_string(),
         ),
         // The pairing, both directions (AC-26).
-        (pend.clone(), String::new(), "asserts nothing".to_string()),
+        (
+            pend.clone(),
+            String::new(),
+            "expect-pending.yaml must be a mapping".to_string(),
+        ),
         // AC-39 — the LIVE block, which was checked by neither reader. This
         // is round one's defect reached by truncating the file: every gate
         // stayed green with the cell still `covered`.
         (
             live.clone(),
             String::new(),
-            "expect.yaml asserts nothing".to_string(),
+            "expect.yaml must be a mapping".to_string(),
         ),
     ];
 
@@ -1549,7 +1583,8 @@ fn tc1027_a_control_binds_its_partners_declaration() {
 
     // Each mutation is applied to a copy and must be refused for its named
     // reason. No permanent defective fixture is retained in the healthy corpus.
-    let mutations: [(&str, fn(&std::path::Path)); 4] = [
+    type Mutation = (&'static str, fn(&std::path::Path));
+    let mutations: [Mutation; 4] = [
         ("no control names it", |root| {
             replace_in_file(
                 root,
