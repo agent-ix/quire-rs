@@ -33,6 +33,13 @@ When the engine extracts an object artifact whose module carries a
 The engine SHALL leave the existing `properties` string yielded by
 `section_body` unchanged beside the new array.
 
+The engine SHALL resolve a `Type` cell reading `Clock` to the native name
+`Clock`, and a `Type` cell reading `Quantity<u>` to the bundle identity of the
+unit artifact `u` (Type cells, below). The same token resolution serves the
+dimension and unit tokens of [FR-075](./FR-075-model-feature-extraction.md)
+"Dimension and unit tables", so a consumer classifies every one of these
+tokens from the engine's verdict and never from the token's spelling.
+
 ## Inputs
 
 - The parsed document and its `## Properties` section.
@@ -106,6 +113,44 @@ Type cells, resolved in this precedence:
 4. A bundle enumeration whose `id` or `names` match the token.
 5. A name exported by a package in `imports` that a loaded module provides.
 
+Native names and quantities, resolved before steps 2..5 as step 1 is:
+
+- The native name `Clock` maps to the target `Clock`, beside the kernel
+  scalar names. It takes no `decimal` and no `unit`: `Clock [ms]` is
+  `agent-ix.semantic-core.UNIT_NOT_ALLOWED`, and `Clock(1,2)` is
+  `semantic.invalid-type-token`. A bundle object or enumeration named `Clock`
+  never resolves from a `Type` cell, exactly as one named `UUID` never does.
+  Because semantic-core's `TypeRef.target` admits a `SemanticId` or a kernel
+  scalar, the engine validates a `Clock` entry against `FieldDecl.json` with
+  its `target` read as the `SemanticId` `ix://quire/native/Clock`, and
+  `semantic-v1.schema.json` admits the target `Clock`.
+- A token of the form `Quantity<u>`, `u` an `Identifier` written with no
+  space inside the angle brackets, is a quantity token. It resolves `u` as a
+  *unit token*: against the bundle artifacts whose frontmatter `object` is
+  `unit`, by the rules of steps 2 and 3 (`id` first, then `names`; two
+  matching artifacts are `semantic.ambiguous-type` naming both), and maps to
+  `ix://<org>/<repo>/type/<Name>` of the matched artifact. A `u` that names no
+  unit artifact, including one that names an artifact of any other object
+  type, maps to the placeholder `ix://<org>/<repo>/unresolved/<u>` with the
+  advisory `semantic.unresolved-type` carrying `reason` `unknown-token` (or
+  `no-bundle-index` for an empty index). Imports are never consulted for a
+  unit token. A bare `Quantity` with no angle brackets is an ordinary token
+  resolved by steps 2..5.
+- `Quantity<u>` takes no `decimal` and no `unit`: `Quantity<ms> [s]` is
+  `agent-ix.semantic-core.UNIT_NOT_ALLOWED`. A quantity token with an empty
+  `u`, a `u` that is not an `Identifier`, a nested quantity, or text after the
+  closing bracket is `semantic.invalid-type-token`.
+- A `ref item` line (fence form) naming `Clock` or a quantity token is
+  `semantic.sysml-outside-subset`, as for a kernel scalar; `attribute` lines
+  admit both.
+
+Token kinds: the resolution of steps 2..4 is parameterized by the object type
+the matched artifact must carry. A `Type` cell matches any object type or
+enumeration; a unit token matches `unit`; a dimension token
+([FR-075](./FR-075-model-feature-extraction.md) "Dimension and unit tables")
+matches `dimension`. A token that is not an `Identifier` is
+`semantic.invalid-type-token` for every kind.
+
 Matches at steps 2..4 map to `ix://<org>/<repo>/type/<Name>` where
 `<org>/<repo>` is the bundle's package (the `SemanticContext` `package`
 segments); step 5 maps to `ix://<package>/type/<Name>`. The engine
@@ -176,8 +221,11 @@ with `semantic.internal-invalid-decl`, never be dropped.
 | FR-070-AC-8 | The pinned `FR-006-config-version-entity.md` copy, `legacy-bullets.md`, and `legacy-mixed.md` yield the form, line, and warning of `legacy.expected.json`, with `properties` unchanged and `fields` `unavailable` (`legacy-form`); under `legacy_forms: error` the same finding is an error. | Test |
 | FR-070-AC-9 | An artifact of a module without a `semantic` block yields a record equal to the checked-in baseline byte-for-byte, with no `semantic` key and no semantic diagnostic. | Test |
 | FR-070-AC-10 | A row error in any one row yields `fields` `unavailable` with reason `row-errors` naming every erroring locus and no partial array; a typed header with zero rows yields `available` and empty. | Test |
+| FR-070-AC-11 | A `Type` cell `Clock` yields the `FieldDecl` target `Clock` with no `decimal` and no `unit`, in the typed table and as `attribute c : Clock` in the fence with identical normalized entries; the entry validates against `FieldDecl.json` with its target read as `ix://quire/native/Clock`, and the record validates against `semantic-v1.schema.json`; `Clock [ms]` yields `agent-ix.semantic-core.UNIT_NOT_ALLOWED`, `Clock(1,2)` yields `semantic.invalid-type-token`, and a bundle object titled `Clock` does not change the verdict. | Test |
+| FR-070-AC-12 | Under a bundle whose artifact `ms` has `object: unit` and whose artifact `Span` has `object: entity`, a `Type` cell `Quantity<ms>` yields the target `ix://<org>/<repo>/type/ms`; a unit artifact whose title is `Millisecond` resolves from `Quantity<Millisecond>` to the same target; `Quantity<hour>` (no artifact), `Quantity<Span>` (an entity) and `Quantity<ms>` under an empty index yield the placeholder `ix://<org>/<repo>/unresolved/hour`, `.../Span` and `.../ms` with `semantic.unresolved-type` reasons `unknown-token`, `unknown-token` and `no-bundle-index`; two unit artifacts both named `Millisecond` yield `semantic.ambiguous-type` naming both; a bare `Quantity` cell resolves by steps 2..5. | Test |
+| FR-070-AC-13 | `Quantity<>`, `Quantity< ms >`, `Quantity<m-s>`, `Quantity<Quantity<ms>>`, `Quantity<ms>x`, `Quantity<ms> [s]` and `Quantity<ms>(1,2)` yield `semantic.invalid-type-token` or `agent-ix.semantic-core.UNIT_NOT_ALLOWED` at the row as FR-070 states, with `fields` `unavailable` (`row-errors`); a `ref item r : Clock` and a `ref item r : Quantity<ms>` yield `semantic.sysml-outside-subset` at the fence line; the resolution reads only the `BundleIndex`, with no filesystem or network read. | Test |
 
 ## Dependencies
 
 - **Upstream**: [FR-069](./FR-069-semantic-module-contract-at-load.md), [FR-025](./FR-025-spec-corpus-model.md), [FR-011](./FR-011-body-extraction-dsl.md); `agent-ix/quoin` FR-071/FR-074
-- **Downstream**: [FR-071](./FR-071-clause-and-operation-extraction.md), [FR-072](./FR-072-semantic-extraction-surface.md); `agent-ix/filament-core-data#36`
+- **Downstream**: [FR-071](./FR-071-clause-and-operation-extraction.md), [FR-072](./FR-072-semantic-extraction-surface.md); `agent-ix/filament-core-data#36`; `agent-ix/filament-core-data` FR-092 and FR-146 (extraction frontend)
