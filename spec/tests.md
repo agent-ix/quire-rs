@@ -107,11 +107,11 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | FR-067 Versioned assurance export | AC-1..7; CON-1..5 | TC-1084..TC-1090 | ✅ Implemented |
 | FR-068 Source-grounded assurance projection | AC-1..9; CON-1..4 | TC-1091..TC-1099 | ✅ Implemented |
 | FR-069 Semantic module contract at load | AC-1..8, AC-10..12; CON-1, CON-2, CON-4 | TC-1599..TC-1606, TC-1608, TC-1609, TC-1645, TC-1646, TC-1848 | ✅ Implemented |
-| FR-070 Typed Properties extraction to FieldDecl[] | AC-1..13; CON-1..3 | TC-1610..TC-1621, TC-1647, TC-1945..TC-1947 | ✅ AC-1..10 Implemented; AC-11..13 🚧 |
+| FR-070 Typed Properties extraction to FieldDecl[] | AC-1..14; CON-1..3 | TC-1610..TC-1621, TC-1647, TC-1945..TC-1947, TC-1952 | ✅ AC-1..10 Implemented; AC-11..14 🚧 |
 | FR-071 Clause and operation extraction | AC-1..9; CON-1..2 | TC-1622..TC-1629, TC-1648, TC-1850, TC-1851 | ✅ Implemented |
 | FR-072 Semantic extraction surface | AC-1..9; CON-1..3 | TC-1630..TC-1640, TC-1650 (TC-1636 external: quire-wasm#3) | ✅ Implemented; WASM leg external |
 | FR-073 Generic rights-aware clause sets | AC-1..6 | TC-1806..TC-1809 | ✅ Implemented |
-| FR-075 Model feature extraction | AC-1..20; CON-1 | TC-1840..TC-1847, TC-1849, TC-1869, TC-1870, TC-1872..TC-1875, TC-1948..TC-1951 | ✅ AC-1..15 Implemented; AC-16..20 🚧 |
+| FR-075 Model feature extraction | AC-1..21; CON-1 | TC-1840..TC-1847, TC-1849, TC-1869, TC-1870, TC-1872..TC-1875, TC-1948..TC-1951, TC-1953 | ✅ AC-1..15 Implemented; AC-16..21 🚧 |
 | FR-076 Relationships extraction to RelationDecl[] | AC-1..15; CON-1..2 | TC-1852..TC-1868 | ✅ Implemented |
 | FR-077 Trace search index (structural forward/inverse lookup) | AC-1..6; CON-1..3 | TC-1887..TC-1894 | ✅ Implemented |
 
@@ -898,9 +898,11 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-1874 | A `Features` table interleaving one field and two operations yields `model.featureOrder` in row order with row spans; the declaration record carries `featureOrder` as the ordered names and satisfies the vendored `Interface.json`; `FeatureKind`'s cell spelling, `Display`, and serde form agree (`tests/semantic_features.rs`) | Integration | P0 | FR-075-AC-14 | ✅ |
 | TC-1875 | A `Features` row naming no declared feature (`semantic.unknown-feature`), of the wrong kind (`semantic.feature-kind-mismatch`), with an unknown kind, with a non-Identifier name, or repeated, is refused at its row, and a declared field or operation with no row is `semantic.missing-feature` at the header; a wrong-kind row is not also missing; each omits `model`; with `operations` unavailable no row naming an operation is checked (`tests/semantic_features.rs`) | Integration | P0 | FR-075-AC-15 | ✅ |
 | TC-1948 | A declared `Base` locator and a `Dimension \| Exponent` locator extract `model.dimension` and `model.terms` with dimension-token verdicts, placeholders, ambiguity and every refused cell (`Base`, `Exponent`, duplicate, non-`Identifier`) at its row | Unit | P0 | FR-075-AC-16, FR-075-AC-17 | 🚧 |
-| TC-1949 | A declared `Dimension \| Target \| Scale \| Offset` locator extracts `model.unit` for root and non-root units, accepts the canonical rationals and refuses `2/4`, `1/1`, `-0`, `0/5`, `01/3`, `1.5`, `1/0` and empty cells, resolves `Target` as a unit token, and extracts a cyclic unit graph unchanged | Unit | P0 | FR-075-AC-18 | 🚧 |
+| TC-1949 | A declared `Dimension \| Target \| Scale \| Offset` locator extracts `model.unit` for root and non-root units, accepts the canonical rationals and refuses `2/4`, `1/1`, `-0`, `0/5`, `01/3`, `1.5`, `1/0` and empty cells, resolves `Target` as a unit token, extracts a cyclic unit graph unchanged, and resolves qualified and imported dimension and target tokens to owner-qualified identities | Unit | P0 | FR-075-AC-18 | 🚧 |
 | TC-1950 | A manifest declaring none of the dimension, terms and unit locators refuses each table with `semantic.feature-not-extractable`, and an artifact with none of the tables yields the FR-072 record byte-for-byte | Unit | P0 | FR-075-AC-19 | 🚧 |
 | TC-1951 | Dimension, terms and unit records validate against `semantic-v1.schema.json`, Rust and Python agree as JSON values, and repeated extraction is byte-identical | Integration | P0 | FR-075-AC-20 | 🚧 |
+| TC-1952 | Unit and dimension tokens resolve through `importedArtifacts`: bare tokens from own then imported artifacts, qualified `<org>/<repo>::name` tokens, cross-package ambiguity naming both packages, own-package precedence, owner-qualified identities for two `Time` dimensions in one record, and the `unknown-token`, `import-unresolved` and `no-bundle-index` reasons | Unit | P0 | FR-070-AC-14 | 🚧 |
+| TC-1953 | A repeated `Base`, `terms` or unit table, and a `Base` table beside a unit table, each yield `semantic.duplicate-section` at the second table's header line, keep the earlier kind, and a `Base` table with a `terms` table extracts both | Unit | P0 | FR-075-AC-21 | 🚧 |
 | TC-1641 | A static audit of `cargo metadata` and the semantic module finds none of the NFR-021 denylisted crates and no `eval`/`parse_expr`/`typecheck` symbol over clause text | Static | P0 | NFR-021-AC-1 | ✅ |
 | TC-1642 | A static audit finds no `std::net`, `std::process`, or filesystem write on the semantic path | Static | P0 | NFR-021-AC-2 | ✅ |
 | TC-1644 | The semantic fixture suite yields identical JSON values across repeated runs and between Rust and Python under `make ci-python`, including diagnostic order and loci; WASM external via `agent-ix/quire-wasm#3` | Integration | P0 | NFR-021-AC-4 | ✅ |
@@ -909,7 +911,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-1647 | A single row error yields `fields` `unavailable` (`row-errors`) naming every erroring locus and no partial array; a typed header with zero rows yields `available` and empty | Unit | P0 | FR-070-AC-10 | ✅ |
 | TC-1945 | A `Clock` Type cell yields the target `Clock` with no `decimal` or `unit` in the table and the fence, validates against `FieldDecl.json` read as `ix://quire/native/Clock` and `semantic-v1.schema.json`; `Clock [ms]` is `UNIT_NOT_ALLOWED`, `Clock(1,2)` is `semantic.invalid-type-token`, and a bundle object titled `Clock` changes nothing | Unit | P0 | FR-070-AC-11 | 🚧 |
 | TC-1946 | `Quantity<ms>` resolves to the `type/` identity of the unit artifact by `id` and by title; an unknown unit, an entity, and an empty index yield the unresolved placeholder with reasons `unknown-token` and `no-bundle-index`; two unit artifacts of one name yield `semantic.ambiguous-type`; a bare `Quantity` resolves by steps 2..5 | Unit | P0 | FR-070-AC-12 | 🚧 |
-| TC-1947 | Malformed quantity tokens (`Quantity<>`, spaced, hyphenated, nested, trailing text, parameters) yield `semantic.invalid-type-token`, `Quantity<ms> [s]` yields `UNIT_NOT_ALLOWED`, `ref item` of `Clock` or a quantity yields `semantic.sysml-outside-subset`, and the path reads only the `BundleIndex` | Unit | P0 | FR-070-AC-13, FR-070-CON-2 | 🚧 |
+| TC-1947 | Each malformed quantity token of FR-070-AC-13 (`Quantity<>`, spaced, hyphenated, nested, trailing text, parameters, `a::b::c`, `::ms`, unqualified `acme::ms`, empty name after `::`) yields `semantic.invalid-type-token` and only `Quantity<ms> [s]` yields `UNIT_NOT_ALLOWED`, `ref item` of `Clock` or a quantity yields `semantic.sysml-outside-subset`, and the path reads only the `BundleIndex` | Unit | P0 | FR-070-AC-13, FR-070-CON-2 | 🚧 |
 | TC-1648 | Without a caller `sourceIdentity`, spans carry `ix://local/<scope>/spec` and one `semantic.source-identity-defaulted` advisory per document; with one, spans carry it and no advisory | Unit | P0 | FR-071-AC-7 | ✅ |
 | TC-1850 | A `quire` fence under the embedded semantic-core extracts cleanly; an `ocl` fence under the embedded semantic-core and `0.1.0` is carried with `semantic.clause-language-unchecked` and a lossy kind; `quire` under `0.1.0` is `semantic.clause-language-invalid` | Unit | P0 | FR-071-AC-8 | ✅ |
 | TC-1851 | `clause-language-0.1.0-cases.json` `fence-quire-invalid` yields the recorded diagnostic, empty `clauseText`, and unavailable clause kind under `0.1.0` | Unit | P0 | FR-071-AC-9 | ✅ |
@@ -1491,6 +1493,7 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-075-AC-18 | TC-1949 |
 | FR-075-AC-19 | TC-1950 |
 | FR-075-AC-20 | TC-1951 |
+| FR-075-AC-21 | TC-1953 |
 | FR-076-AC-1 | TC-1852 |
 | FR-076-AC-2 | TC-1853 |
 | FR-076-AC-3 | TC-1854 |
