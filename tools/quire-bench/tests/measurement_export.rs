@@ -215,3 +215,57 @@ fn governed_collection_refuses_unreadable_corpus() {
     assert!(error.contains("specific-shape-control"));
     assert!(error.contains("absent"));
 }
+
+#[trace("FR-050-AC-52")]
+#[test]
+fn corpus_checkout_must_equal_its_attested_revision() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path();
+    git(root, &["init", "-q"]);
+    git(root, &["config", "user.email", "test@example.invalid"]);
+    git(root, &["config", "user.name", "Test"]);
+    git(
+        root,
+        &[
+            "remote",
+            "add",
+            "origin",
+            "https://github.com/agent-ix/quire-rs",
+        ],
+    );
+    fs::write(root.join("spec.md"), "attested\n").unwrap();
+    git(root, &["add", "spec.md"]);
+    git(root, &["commit", "-qm", "attested corpus"]);
+    let attested = git(root, &["rev-parse", "HEAD"]);
+    let stack = attestation(&attested);
+    let refusal = |name: &str| {
+        validate_repository_against_stack(root, &stack, name, &[])
+            .unwrap_err()
+            .to_string()
+    };
+    assert_eq!(
+        validate_repository_against_stack(root, &stack, "quire", &[]).unwrap(),
+        attested
+    );
+    assert_eq!(refusal("corpus"), "verification-stack has no corpus source");
+    fs::write(root.join("spec.md"), "edited\n").unwrap();
+    assert_eq!(refusal("quire"), "quire checkout is dirty");
+    git(root, &["commit", "-qam", "moved corpus"]);
+    assert_eq!(
+        refusal("quire"),
+        "quire checkout does not equal the attested revision"
+    );
+    git(
+        root,
+        &[
+            "remote",
+            "set-url",
+            "origin",
+            "https://github.com/agent-ix/other",
+        ],
+    );
+    assert_eq!(
+        refusal("quire"),
+        "quire checkout remote does not match the attestation"
+    );
+}
