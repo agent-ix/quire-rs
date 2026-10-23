@@ -371,7 +371,8 @@ pub fn validate_repository_against_stack(
 
 /// Refuse any `require_clean` corpus entry, or a `require_clean` module
 /// source, whose checkout is not its attested revision (FR-050-AC-52).
-/// The ratchet run and the governed export both call this before scoring.
+/// The governed export calls this before scoring; the ratchet run checks the
+/// same sources per entry through [`crate::collection::collect_attested`].
 pub fn validate_corpus_sources(
     root: &Path,
     manifest: &Manifest,

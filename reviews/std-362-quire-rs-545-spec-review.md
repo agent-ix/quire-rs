@@ -53,6 +53,12 @@ an owner ruling on the pinned-SHA clause. FND-002 is a statement in AC-52
 that the governed export violates. Both block. FND-003 leaves most of AC-52
 without evidence.
 
+## New findings (disposition pass 2)
+
+| ID | Severity | Summary | Refs | Escape Cause |
+| --- | --- | --- | --- | --- |
+| FND-006 | low | [coverage] Two small gaps came in with the round-2 fix. (a) AC-52's new refusal `--verification-stack is required to collect`, and the make targets' `VERIFICATION_STACK= is required`, have no test; `ratchet_run_refuses_a_corpus_off_its_attested_revision` calls `collect_attested` directly, below the CLI. (b) The doc comment on `export::validate_corpus_sources` says 'The ratchet run and the governed export both call this', but the ratchet run (`main.rs`) calls `collect_attested`, which validates through `validate_repository_against_stack` itself; only the export calls `validate_corpus_sources`. Fix: add a CLI test for the missing-stack refusal and correct the comment. Not blocking. | spec/functional/FR-050-declarative-coverage-computation.md:237; tools/quire-bench/src/main.rs:97-101; tools/quire-bench/src/export.rs:372-374 | correct-requirement-no-evidence |
+
 ## Dispositions
 
 Round 1, at head 9a2df0d5 (fix diff checked against the original review head).
@@ -64,9 +70,10 @@ Round 1, at head 9a2df0d5 (fix diff checked against the original review head).
 | FND-003 | fixed | fixed; after: tools/quire-bench/tests/clean_checkout.rs: modified_tracked_file_refuses_and_clean_checkout_is_accepted, absent_path_and_non_checkout_refuse, nested_directory_follows_its_enclosing_checkout, normal_run_skips_a_dirty_entry_and_strict_run_fails_naming_it, module_source_rules_apply_when_an_entry_reads_… |
 | FND-004 | fixed | fixed; after: **Collection** (`make bench`, `quire-bench`): a corpus entry that declares `require_clean: true` is scored only when `git status --porcelain=v1 --untracked-files=all`, run at its declared `path`, reports nothing, at whatever commit that checkout holds. The status is the checkout's whose working tree… |
 | FND-005 | fixed | fixed; after: > A corpus input declaring `require_clean` is scored only from a clean > checkout (FR-050-AC-52). The only revision a run compares is the one in the > governed export's verification-stack attestation; the tier says how an entry > is used. |
+| FND-001 | fixed | round 2 at 5a41632d; fixed; after: A corpus entry, or the `module_source`, that declares `require_clean: true` is scored only from a clean checkout at the revision its verification-stack attestation records, by the ratchet run (`make bench`, `make bench-update`) and the governed export alike, and a run against a different tree is ref… |
 
-Round 2 (author).
+Round 3 (author).
 
 | FND | outcome | reason |
 | --- | --- | --- |
-| FND-001 | fixed | The ratchet run now checks the same attestation as the governed export. `quire-bench` needs `--verification-stack` to collect, and `make bench` and `make bench-update` refuse without `VERIFICATION_STACK=`. `collection::collect_attested` refuses each `require_clean` entry that is off its attested revision or remote, using the export's messages: a normal run skips it loudly and a strict run fails. A `require_clean` `module_source` off its revision refuses the run. The export and the ratchet share `validate_repository_against_stack`, and the export's corpus loop moved to `export::validate_corpus_sources`. AC-30 and AC-52 state the rule for both runs. New test `ratchet_run_refuses_a_corpus_off_its_attested_revision` covers it. |
+| FND-006 | fixed | (a) The new `tools/quire-bench/tests/bench_cli.rs` runs the `quire-bench` binary with no arguments and asserts exit 2 with `bench: --verification-stack is required to collect`. It also runs `make bench` and `make bench-update` with `VERIFICATION_STACK=` empty and asserts that each fails with `VERIFICATION_STACK= is required`. Both tests are tagged FR-050-AC-52, and AC-52's Verification column lists the file. (b) The doc comment on `export::validate_corpus_sources` now says that only the governed export calls it, and that the ratchet run checks the same sources per entry through `collection::collect_attested`. |
