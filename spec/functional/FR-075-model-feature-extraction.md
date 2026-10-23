@@ -282,7 +282,7 @@ Dimension and unit tables:
   names no artifact of the required object type maps to the placeholder
   `ix://<org>/<repo>/unresolved/<Token>` (`<Token>` the `Identifier` the token
   names) with the advisory `semantic.unresolved-type` (`reason`
-  `unknown-token`, `no-bundle-index` or `import-unresolved` as FR-070 states)
+  `no-bundle-index`, `unknown-token` or `import-unresolved`, one per token in the precedence FR-070 rule 5 states)
   at the row, and the owning kind stays `available` with `lossy` true; two
   artifacts matching one token are the error `semantic.ambiguous-type` naming
   both, which fails the kind as a row error does. A token that is neither an

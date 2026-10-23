@@ -171,7 +171,8 @@ object type the matched artifact must carry: `unit` for a unit token,
    match therefore always wins over an imported one, and an imported match
    never changes when a different package is added unless both carry the
    token.
-3. A qualified token consults only the artifacts of its `<package>`: the
+3. Under a non-empty index (rule 5), a qualified token consults only the
+   artifacts of its `<package>`: the
    bundle's artifacts when `<package>` is the module's own package, otherwise
    the `importedArtifacts` entries whose `package` equals it, by `id` then
    `names` as above. Each of these maps to the placeholder: a package that
@@ -188,10 +189,13 @@ object type the matched artifact must carry: `unit` for a unit token,
    "Model-owned members"), never by the engine.
 5. The placeholder segment `<Token>` is the `Identifier` the token names
    (`u` for `Quantity<u>`, the name after `::` for a qualified token); the
-   advisory's message carries the token as written. The `reason` is
-   `no-bundle-index` when the index holds no object, enumeration or imported
-   artifact, `import-unresolved` as rule 3 states, and `unknown-token`
-   otherwise; a bare token never has the reason `import-unresolved`.
+   advisory's message carries the token as written. Each unresolved token has
+   exactly one `reason`, chosen in this precedence: `no-bundle-index` when the
+   index holds no object, enumeration or imported artifact (this applies to a
+   qualified token too, whatever the module's `imports` name, so rule 3's
+   `unknown-token` and `import-unresolved` never apply under an empty index);
+   otherwise, for a qualified token, the one rule 3 gives; otherwise
+   `unknown-token`. A bare token never has the reason `import-unresolved`.
 
 A token that is not an `Identifier` or a qualified token is
 `semantic.invalid-type-token` for every kind.
@@ -201,7 +205,8 @@ Matches at steps 2..4 map to `ix://<org>/<repo>/type/<Name>` where
 segments); step 5 maps to `ix://<package>/type/<Name>`. The engine
 maps any other token to the placeholder `ix://<org>/<repo>/unresolved/<Token>`
 with the advisory `semantic.unresolved-type` at the row carrying `reason`
-`unknown-token`, `no-bundle-index` (empty index), or `import-unresolved`;
+`no-bundle-index` (empty index, which takes precedence), `unknown-token`, or
+`import-unresolved` (rule 5);
 a token that is not a semantic-core `Identifier` is instead the error
 `semantic.invalid-type-token`. The engine SHALL NOT emit a bare string for an
 unresolved token.
@@ -269,7 +274,7 @@ with `semantic.internal-invalid-decl`, never be dropped.
 | FR-070-AC-11 | A `Type` cell `Clock` yields the `FieldDecl` target `Clock` with no `decimal` and no `unit`, in the typed table and as `attribute c : Clock` in the fence with identical normalized entries; the entry validates against `FieldDecl.json` with its target read as `ix://quire/native/Clock`, and the record validates against `semantic-v1.schema.json`; `Clock [ms]` yields `agent-ix.semantic-core.UNIT_NOT_ALLOWED`, `Clock(1,2)` yields `semantic.invalid-type-token`, and a bundle object titled `Clock` does not change the verdict. | Test |
 | FR-070-AC-12 | Under a bundle whose artifact `ms` has `object: unit` and whose artifact `Span` has `object: entity`, a `Type` cell `Quantity<ms>` yields the target `ix://<org>/<repo>/type/ms`; a unit artifact whose title is `Millisecond` resolves from `Quantity<Millisecond>` to the same target; `Quantity<hour>` (no artifact), `Quantity<Span>` (an entity) and `Quantity<ms>` under an empty index yield the placeholder `ix://<org>/<repo>/unresolved/hour`, `.../Span` and `.../ms` with `semantic.unresolved-type` reasons `unknown-token`, `unknown-token` and `no-bundle-index`; two unit artifacts both named `Millisecond` yield `semantic.ambiguous-type` naming both; a bare `Quantity` cell resolves by steps 2..5. | Test |
 | FR-070-AC-13 | Each of these `Type` cells yields exactly the stated verdict at the row, with `fields` `unavailable` (`row-errors`): `Quantity<>`, `Quantity< ms >`, `Quantity<m-s>`, `Quantity<Quantity<ms>>`, `Quantity<ms>x`, `Quantity<ms>(1,2)`, `Quantity<a::b::c>`, `Quantity<::ms>`, `Quantity<acme::ms>` and `Quantity<acme/rpc::>` yield `semantic.invalid-type-token`; `Quantity<ms> [s]` yields `agent-ix.semantic-core.UNIT_NOT_ALLOWED`; a `ref item r : Clock` and a `ref item r : Quantity<ms>` yield `semantic.sysml-outside-subset` at the fence line; the resolution reads only the `BundleIndex`, with no filesystem or network read. | Test |
-| FR-070-AC-14 | Under a `BundleIndex` whose `importedArtifacts` hold unit `ms` of package `acme/time-units` (title `Millisecond`), unit `ms` of package `acme/other-units`, and dimension `Time` of `acme/time-units`, and whose own bundle holds unit `s`: `Quantity<s>` yields `ix://<org>/<repo>/type/s`; `Quantity<Millisecond>` yields `ix://acme/time-units/type/ms`; `Quantity<acme/time-units::ms>` yields `ix://acme/time-units/type/ms` and `Quantity<acme/other-units::ms>` yields `ix://acme/other-units/type/ms`; the bare `Quantity<ms>` yields `semantic.ambiguous-type` naming both packages; once the own bundle also holds a unit `ms`, bare `Quantity<ms>` yields the own identity; `Quantity<acme/time-units::Time>` (a dimension) and `Quantity<acme/none::ms>` (package not in `imports`) yield the placeholder with `unknown-token`, and a package in `imports` that no corpus provides yields `import-unresolved`; a dimension token `Time` yields `ix://acme/time-units/type/Time`, and a dimension `Time` also held by the own bundle yields the own identity, distinct from the imported one in the same record; with `importedArtifacts` absent and a non-empty own bundle, `Quantity<acme/time-units::ms>` yields the placeholder with `import-unresolved`, and under an entirely empty index the placeholder with `no-bundle-index`. | Test |
+| FR-070-AC-14 | Under a module whose `imports` name `acme/time-units` and `acme/other-units`, and a `BundleIndex` whose `importedArtifacts` hold unit `ms` of package `acme/time-units` (title `Millisecond`), unit `ms` of package `acme/other-units`, and dimension `Time` of `acme/time-units`, and whose own bundle holds unit `s`: `Quantity<s>` yields `ix://<org>/<repo>/type/s`; `Quantity<Millisecond>` yields `ix://acme/time-units/type/ms`; `Quantity<acme/time-units::ms>` yields `ix://acme/time-units/type/ms` and `Quantity<acme/other-units::ms>` yields `ix://acme/other-units/type/ms`; the bare `Quantity<ms>` yields `semantic.ambiguous-type` naming both packages; once the own bundle also holds a unit `ms`, bare `Quantity<ms>` yields the own identity; `Quantity<acme/time-units::Time>` (a dimension) and `Quantity<acme/none::ms>` (package not in `imports`) yield the placeholder with `unknown-token`, and a package in `imports` (for example `acme/missing`) that no corpus provides yields `import-unresolved`; a dimension token `Time` yields `ix://acme/time-units/type/Time`, and a dimension `Time` also held by the own bundle yields the own identity, distinct from the imported one in the same record; with `importedArtifacts` absent and a non-empty own bundle, `Quantity<acme/time-units::ms>` yields the placeholder with `import-unresolved`; under an entirely empty index every unresolved token, qualified or bare, has the single reason `no-bundle-index`: `Quantity<acme/time-units::ms>` (package in `imports`), `Quantity<acme/none::ms>` (package not in `imports`) and `Quantity<ms>` each yield the placeholder with `no-bundle-index` and never `unknown-token` or `import-unresolved`. | Test |
 
 ## Dependencies
 

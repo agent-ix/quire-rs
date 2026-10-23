@@ -33,3 +33,23 @@ Ticket: STD-422. One spec-review pass over `git diff origin/main...5714a267` (ma
 Not mergeable: FND-001 (high) block the PR; FND-002, FND-003, FND-004, FND-005 (medium) in the same round.
 
 Merge: yes against origin/main (ancestor). git merge-tree conflicts with stale open #515 and #519 (both append a correction note at the end of FR-075 and carry a pre-main base), #518 (spec/log.md, corpus submodule) and clean with #521; those PRs are not main-based and conflict on their own base.
+
+## New findings (disposition pass 1)
+
+| ID | Severity | Summary | Refs | Escape Cause |
+| --- | --- | --- | --- | --- |
+| FND-006 | medium | The reason for a qualified token under an empty index has two answers. Rule 3 gives `unknown-token` for a package the module's `imports` does not name, and an empty index names none. Rule 5 and AC-14's last clause give `no-bundle-index` when the index holds nothing. AC-14's `import-unresolved` vector also does not say that `acme/time-units` is in `imports`. Fix: state which rule wins for a qualified token under an empty index and name the `imports` entry in the vector. | spec/functional/FR-070-typed-properties-extraction.md | missing-requirement |
+
+## Dispositions
+
+Round 1 at b5527652. Round 1 against b5527652. Gate: `make validate` 175 documents, 46 failed, 41 warnings, delta 0 (FR-070 and FR-075 raise no error). Hand-derivation of AC-14: own `s` gives the own identity; `Millisecond` matches only `acme/time-units` by title; bare `ms` matches two packages and is `semantic.ambiguous-type`; an own `ms` wins; qualified tokens select their package; a dimension named by a unit token is `unknown-token`; a package outside `imports` is `unknown-token`; two `Time` dimensions stay two owner-qualified identities. All hold except the empty-index case (FND-006). Agreement with spec-objects-foundation #7: token matching (id canonical, title or name accepted, qualified form) and the `unresolved/<Token>` form agree; the engine accepts `Scale` `0` and `Exponent` `0` and #7 refuses them in the module, which is stricter, not contradictory. Names checked: FCD #306 (d5dc1c92) FR-146 'Dimensions', 'Units', 'Spec-bundle extraction', `INVALID_UNIT_GRAPH`, `UNRESOLVED_DIMENSION_REF`, `DUPLICATE_IDENTITY`, `dimensionEquivalences` exist; QSpec FR-142 'Dimension equivalence' exists only in the heads of #407 and #410, not on main.
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-001 | fixed | Imports are consulted: `BundleIndex.importedArtifacts` carries `{ package, id, names[], object }`, and a bare unit or dimension token falls back to it after the own bundle. |
+| FND-002 | fixed | Hand-derived: a second `Base`, `terms` or unit table is `semantic.duplicate-section` at its header (AC-16, AC-21); a `Base` table beside a unit table keeps the earlier kind. Code `semantic.duplicate-section` exists on main (FR-070 line 86). |
+| FND-003 | fixed | Each input now has its verdict: ten inputs give `semantic.invalid-type-token`, `Quantity<ms> [s]` gives `UNIT_NOT_ALLOWED`. Hand-checked: `Quantity<acme::ms>` fails the `<org>/<repo>` qualifier rule, `Quantity<a::b::c>` has a second `::`, `Quantity<::ms>` and `Quantity<acme/rpc::>` have an empty side. |
+| FND-004 | fixed | The placeholder is `ix://<org>/<repo>/unresolved/<Token>`, `<Token>` the Identifier the token names (`u` for `Quantity<u>`), the spelling FCD #306 FR-146 uses. FCD does not define `<Token>` for a qualified token; the PR body still flags the choice as a lead default. |
+| FND-005 | fixed | Both PRs now resolve by id first, then by title or `name`, and both accept `<org>/<repo>::<id>`; SOF FR-002 and FR-003 state the id as the canonical spelling and the resolver's wider match. |
+
+Verdict after round 1: Not mergeable yet: one medium finding (FND-006) is open; no high finding.
