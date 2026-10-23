@@ -5,7 +5,7 @@ use std::path::Path;
 use std::process::Command;
 
 use ix_trace_rs::trace;
-use quire_bench::collection::{collect, require_clean, resolve_default_module};
+use quire_bench::collection::{collect, collect_attested, require_clean, resolve_default_module};
 use quire_bench::Manifest;
 use serde_json::json;
 
@@ -152,5 +152,118 @@ fn module_source_rules_apply_when_an_entry_reads_the_default_module() {
             false
         )),
         "modules: corpus tree is dirty. Refusing to score an input with uncommitted edits."
+    );
+}
+
+fn head(path: &Path) -> String {
+    let output = Command::new("git")
+        .arg("-C")
+        .arg(path)
+        .args(["rev-parse", "HEAD"])
+        .output()
+        .unwrap();
+    String::from_utf8(output.stdout).unwrap().trim().to_owned()
+}
+
+fn attested(root: &Path) -> quire_bench::export::VerificationStack {
+    let mut sources = serde_json::Map::new();
+    for name in ["corpus", "modules"] {
+        let path = root.join(name);
+        git(
+            &path,
+            &[
+                "remote",
+                "add",
+                "origin",
+                &format!("https://github.com/agent-ix/{name}"),
+            ],
+        );
+        sources.insert(
+            name.to_owned(),
+            json!({
+                "revision": head(&path),
+                "sourceState": "clean",
+                "remote": format!("https://github.com/agent-ix/{name}")
+            }),
+        );
+    }
+    serde_json::from_value(json!({
+        "schemaVersion": "verification-stack-attestation-v1",
+        "lockDigest": format!("sha256:{}", "1".repeat(64)),
+        "executableDigest": format!("sha256:{}", "2".repeat(64)),
+        "buildProfile": "release",
+        "sources": sources,
+        "capabilities": ["binding_census"],
+        "artifacts": {"fixture": format!("sha256:{}", "3".repeat(64))},
+        "toolchains": {"node": "fixture", "rust": "fixture", "python": "fixture"}
+    }))
+    .unwrap()
+}
+
+#[trace("FR-050-AC-30", "FR-050-AC-52")]
+#[test]
+fn ratchet_run_refuses_a_corpus_off_its_attested_revision() {
+    let root = tempfile::tempdir().unwrap();
+    checkout(root.path(), "modules");
+    checkout(root.path(), "corpus");
+    let stack = attested(root.path());
+    let manifest = manifest(true, None);
+    let quire = root.path().join("no-quire");
+    // At the attested revision the entry passes every input check and
+    // reaches the engine, which this fixture does not have.
+    let at_attested = error(collect_attested(
+        root.path(),
+        &manifest,
+        &quire,
+        None,
+        true,
+        &stack,
+    ));
+    assert!(
+        !at_attested.contains("attested") && !at_attested.contains("dirty"),
+        "{at_attested}"
+    );
+    fs::write(root.path().join("corpus/next.md"), "next\n").unwrap();
+    git(&root.path().join("corpus"), &["add", "."]);
+    git(
+        &root.path().join("corpus"),
+        &["commit", "-q", "-m", "moved"],
+    );
+    assert!(error(collect_attested(
+        root.path(),
+        &manifest,
+        &quire,
+        None,
+        false,
+        &stack
+    ))
+    .starts_with("no corpus entry could be scored"));
+    assert_eq!(
+        error(collect_attested(
+            root.path(),
+            &manifest,
+            &quire,
+            None,
+            true,
+            &stack
+        )),
+        "corpus: corpus checkout does not equal the attested revision"
+    );
+    fs::write(root.path().join("modules/next.md"), "next\n").unwrap();
+    git(&root.path().join("modules"), &["add", "."]);
+    git(
+        &root.path().join("modules"),
+        &["commit", "-q", "-m", "moved"],
+    );
+    assert_eq!(
+        error(collect_attested(
+            root.path(),
+            &manifest,
+            &quire,
+            None,
+            false,
+            &stack
+        )),
+        "modules checkout does not equal the attested revision"
     );
 }

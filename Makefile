@@ -289,12 +289,14 @@ sanitize:
 BENCH_MODULE ?= ../spec-artifacts-process/spec_artifacts_process
 .PHONY: bench
 bench:
-	$(CARGO) run --locked -p quire-bench --bin quire-bench -- --module "$(BENCH_MODULE)"
+	test -n "$(VERIFICATION_STACK)" || { echo "VERIFICATION_STACK= is required"; exit 1; }
+	$(CARGO) run --locked -p quire-bench --bin quire-bench -- --module "$(BENCH_MODULE)" --verification-stack "$(VERIFICATION_STACK)"
 
 # Deliberate regeneration. The diff belongs in the pull request.
 .PHONY: bench-update
 bench-update:
-	$(CARGO) run --locked -p quire-bench --bin quire-bench -- --update --module "$(BENCH_MODULE)"
+	test -n "$(VERIFICATION_STACK)" || { echo "VERIFICATION_STACK= is required"; exit 1; }
+	$(CARGO) run --locked -p quire-bench --bin quire-bench -- --update --module "$(BENCH_MODULE)" --verification-stack "$(VERIFICATION_STACK)"
 
 .PHONY: measurement-collection
 measurement-collection:

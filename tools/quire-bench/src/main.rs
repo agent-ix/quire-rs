@@ -5,8 +5,9 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
-use quire_bench::collection::{collect, read_json};
+use quire_bench::collection::{collect_attested, read_json};
 use quire_bench::engine::build_engine;
+use quire_bench::export::{git_remote, load_verification_stack};
 use quire_bench::{render, score, BenchError, Manifest, Observed, Verdict};
 
 struct Options {
@@ -14,6 +15,7 @@ struct Options {
     observed: Option<PathBuf>,
     consumer: PathBuf,
     module: Option<PathBuf>,
+    verification_stack: Option<PathBuf>,
 }
 
 fn options() -> Result<Options, BenchError> {
@@ -23,6 +25,7 @@ fn options() -> Result<Options, BenchError> {
         observed: None,
         consumer: PathBuf::from("../quire-cli"),
         module: None,
+        verification_stack: None,
     };
     while let Some(argument) = args.next() {
         match argument.as_str() {
@@ -49,8 +52,13 @@ fn options() -> Result<Options, BenchError> {
                     Some(PathBuf::from(value))
                 };
             }
+            "--verification-stack" => {
+                result.verification_stack = Some(PathBuf::from(args.next().ok_or_else(|| {
+                    BenchError::Input("--verification-stack requires a path".to_owned())
+                })?))
+            }
             "-h" | "--help" => {
-                println!("usage: quire-bench [--update] [--observed PATH] [--consumer DIR] [--module DIR]");
+                println!("usage: quire-bench [--update] [--observed PATH] [--consumer DIR] [--module DIR] --verification-stack PATH");
                 std::process::exit(0);
             }
             _ => return Err(BenchError::Input(format!("unknown argument {argument}"))),
@@ -86,9 +94,27 @@ fn run() -> Result<ExitCode, BenchError> {
     let observed: Observed = if let Some(path) = options.observed {
         read_json(&path)?
     } else {
+        // FR-050-AC-52: every require_clean corpus input is checked against
+        // its attested revision before it is scored.
+        let stack_path = options.verification_stack.as_deref().ok_or_else(|| {
+            BenchError::Input("--verification-stack is required to collect".to_owned())
+        })?;
+        let stack = load_verification_stack(
+            &within_root(&root, stack_path),
+            "quire",
+            &git_remote(&root)?,
+        )?;
         let consumer = within_root(&root, &options.consumer);
         let quire = build_engine(&consumer, true)?;
-        collect(&root, &manifest, &quire, options.module.as_deref(), false)?.observed
+        collect_attested(
+            &root,
+            &manifest,
+            &quire,
+            options.module.as_deref(),
+            false,
+            &stack,
+        )?
+        .observed
     };
     let report = score(&manifest, &observed, &baselines)?;
     let (text, failed) = render(&report);

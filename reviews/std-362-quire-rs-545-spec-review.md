@@ -55,12 +55,18 @@ without evidence.
 
 ## Dispositions
 
-Round 1. `make validate` output is identical to origin/main. `cargo test -p quire-bench` passes, and clippy (`-D warnings`) and rustfmt are clean on `quire-bench`.
+Round 1, at head 9a2df0d5 (fix diff checked against the original review head).
 
 | FND | outcome | reason |
 | --- | --- | --- |
-| FND-001 | fixed | This is not a capability drop. The repository rule is that revision pins and catalogs are never copied into specs or manifests; only package-manager pins and the attestation hold revisions. AC-30 and the PR body now state that rationale. A run against a different tree is still refused where a revision is attested: the governed export refuses a checkout at another commit (FND-002). |
-| FND-002 | fixed | AC-52 now has two parts. **Collection** describes what `make bench` checks. **Governed export** describes how the export compares each `require_clean` source (and `module_source`) with the operator-supplied verification-stack attestation, with all five refusal messages. "No revision is declared or compared" is gone. |
-| FND-003 | fixed | New `tests/clean_checkout.rs` covers a modified tracked file, an absent path, a non-checkout path, a nested directory, normal-run skip against strict-run failure, and the `module_source` rules with and without a default-module reader. New `corpus_checkout_must_equal_its_attested_revision` in `measurement_export.rs` covers the missing source, the dirty checkout, the moved HEAD and the remote mismatch. All are tagged FR-050-AC-52. |
-| FND-004 | fixed | AC-52 states that the `module_source` checks run only when an entry reads the default module, and that a directory inside another checkout is decided by that checkout. A test pins each behaviour. |
-| FND-005 | fixed | The manifest `$comment` and the STD-228 note now say "scored only from a clean checkout", and the note's "X, not Y" form is removed. |
+| FND-001 | still-open | Narrowed, not closed. The revision check now lives in the governed export (`make measurement-collection`), which refuses a checkout at another commit than its attestation records, so the capability exists where measurements become evidence. But the ratchet run that AC-30 describes (`make bench`, and `make bench-update`, which rewrites the checked-in baselines) still accepts any revision of a corpus. That part of the dropped clause, 'a run against a different tree is refused', is gone from the ratchet. Under the standing rule this stays a HIGH scope-deferral. It closes when Peter rules the ratchet need not refuse, or when `bench` and `bench-update` check the same attestation when one is given. |
+| FND-002 | fixed | fixed; after: **Governed export** (`make measurement-collection`, `quire-measurements`): for each corpus entry that declares `require_clean: true`, under its `source_name` when it has one, and for the `module_source` when it declares it, the export reads the source's attested revision and remote from the verifica… |
+| FND-003 | fixed | fixed; after: tools/quire-bench/tests/clean_checkout.rs: modified_tracked_file_refuses_and_clean_checkout_is_accepted, absent_path_and_non_checkout_refuse, nested_directory_follows_its_enclosing_checkout, normal_run_skips_a_dirty_entry_and_strict_run_fails_naming_it, module_source_rules_apply_when_an_entry_reads_… |
+| FND-004 | fixed | fixed; after: **Collection** (`make bench`, `quire-bench`): a corpus entry that declares `require_clean: true` is scored only when `git status --porcelain=v1 --untracked-files=all`, run at its declared `path`, reports nothing, at whatever commit that checkout holds. The status is the checkout's whose working tree… |
+| FND-005 | fixed | fixed; after: > A corpus input declaring `require_clean` is scored only from a clean > checkout (FR-050-AC-52). The only revision a run compares is the one in the > governed export's verification-stack attestation; the tier says how an entry > is used. |
+
+Round 2 (author).
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | The ratchet run now checks the same attestation as the governed export. `quire-bench` needs `--verification-stack` to collect, and `make bench` and `make bench-update` refuse without `VERIFICATION_STACK=`. `collection::collect_attested` refuses each `require_clean` entry that is off its attested revision or remote, using the export's messages: a normal run skips it loudly and a strict run fails. A `require_clean` `module_source` off its revision refuses the run. The export and the ratchet share `validate_repository_against_stack`, and the export's corpus loop moved to `export::validate_corpus_sources`. AC-30 and AC-52 state the rule for both runs. New test `ratchet_run_refuses_a_corpus_off_its_attested_revision` covers it. |
