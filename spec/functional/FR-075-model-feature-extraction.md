@@ -37,7 +37,8 @@ When the engine extracts an object artifact whose module carries a
 `semantic` block, the engine SHALL extract every model feature the artifact
 declares (generalization, abstract types, presence, subsetting,
 redefinition, effect frames, populations, the
-object-type sections, the systems-model tables, and the feature order) into typed declarations with source spans, under the
+object-type sections, the systems-model tables, the feature order, and the
+dimension and unit tables) into typed declarations with source spans, under the
 record key `model`.
 
 The engine SHALL extract a feature only when the module manifest declares
@@ -126,6 +127,9 @@ past that line's byte length.
 | `connection` | table `Source \| Source Multiplicity \| Target \| Target Multiplicity \| Direction` (`Source`, `Target`, `Direction` required), one row | `{ sourceEnd, targetEnd, flowDirection, sourceSpan }`, each end `{ type, multiplicity? }` |
 | `allocation` | table `Source \| Target` (both required), one row | `{ sourceElement, targetElement, sourceSpan }` |
 | `featureOrder` | table `Feature \| Kind` (both required) | `{ name, kind, sourceSpan }`, in row order |
+| `dimension` | table `Base` (required), one row | `{ base, sourceSpan }`, `base` a boolean |
+| `terms` | table `Dimension \| Exponent` (both required) | `{ dimension, exponent, sourceSpan }`, `dimension` a `TypeRef` `{ target }` resolved as a dimension token, `exponent` an integer, in row order |
+| `unit` | table `Dimension \| Target \| Scale \| Offset` (`Dimension`, `Scale`, `Offset` required, `Target` optional), one row | `{ dimension, target?, scale, offset, sourceSpan }`, `dimension` and `target` each a `TypeRef` `{ target }` (`dimension` resolved as a dimension token, `target` as a unit token), `scale` and `offset` canonical rational strings |
 
 `owner`, `sourceElement`, `targetElement`, and a connection end's `type` are
 semantic-core `SemanticId`s; `declaredType` and `interfaceType` are
@@ -243,6 +247,68 @@ Tables:
 - A second declared table of the same feature in one artifact is
   `semantic.duplicate-section` at its header line and fails that feature.
 
+Dimension and unit tables:
+
+- The engine SHALL extract a `dimension`, `terms` or `unit` table under the
+  rules of Manifest gating. An artifact SHALL declare at most one `dimension`
+  table, at most one `terms` table and at most one `unit` table, and SHALL NOT
+  declare both a `dimension` table and a `unit` table (a dimension artifact and
+  a unit artifact are different object types). The second table of one feature
+  is `semantic.duplicate-section` at its header line, as for any feature; when
+  a `dimension` table and a `unit` table are both declared, the later one is
+  `semantic.duplicate-section` at its header line, and the engine extracts the
+  earlier table's kind and omits the later's.
+- A `dimension` or `unit` table SHALL hold exactly one row. A table with no
+  row is `semantic.invalid-model-cell` at its header line; each row after the
+  first is `semantic.duplicate-model-entry` at that row.
+- A `Base` cell SHALL be `true` or `false`; any other value is
+  `semantic.invalid-model-cell` at the row.
+- The engine SHALL resolve a `Dimension` cell (an `Identifier`) of a `terms`
+  row or a `unit` row as a *dimension token*, and a non-empty `Target` cell
+  (an `Identifier`; an empty cell leaves `target` absent, a root unit) as a
+  *unit token*, by the rules of
+  [FR-070](./FR-070-typed-properties-extraction.md) "Unit and dimension
+  tokens", which this requirement does not restate: a bare token or a
+  qualified token `<org>/<repo>::<Name>`, matched by artifact `id` first and
+  then by `names` (title or frontmatter `name`) among the own bundle and the
+  imported packages' artifacts, the matched artifact's frontmatter `object`
+  being `dimension` for a dimension token and `unit` for a unit token. A match
+  maps to `ix://<package>/type/<Name>` (`<package>` the owner of the matched
+  artifact, `<Name>` its `id`), so dimensions of two owners stay two
+  identities. Token resolution relates no two dimensions: an equivalence
+  between dimensions of two owners is declared by the unit of compilation
+  (QSpec FR-142 "Dimension equivalence") and carried by FCD FR-146's
+  `dimensionEquivalences`, never inferred from a token match. A token that
+  names no artifact of the required object type maps to the placeholder
+  `ix://<org>/<repo>/unresolved/<Token>` (`<Token>` the `Identifier` the token
+  names) with the advisory `semantic.unresolved-type` (`reason`
+  `no-bundle-index`, `unknown-token` or `import-unresolved`, one per token in the precedence FR-070 rule 5 states)
+  at the row, and the owning kind stays `available` with `lossy` true; two
+  artifacts matching one token are the error `semantic.ambiguous-type` naming
+  both, which fails the kind as a row error does. A token that is neither an
+  `Identifier` nor a qualified token is `semantic.invalid-type-token`.
+- An `Exponent` cell SHALL be a canonical integer: `0`, or an optional `-`
+  then a non-zero digit followed by digits; any other value is
+  `semantic.invalid-model-cell` at the row. A second `terms` row naming the
+  same resolved target is `semantic.duplicate-model-entry`.
+- A `Scale` or `Offset` cell SHALL be a canonical rational string: an
+  integer in the `Exponent` form, or `n/d` with `n` a non-zero canonical
+  integer, `d` an integer of at least 2 in canonical form, and `n` and `d`
+  coprime. `1/1000`, `-3/2`, `0` and `-3` are canonical; `2/4`, `1/1`, `-0`,
+  `0/5`, `01/3` and `1.5` are `semantic.invalid-model-cell` at the row.
+- The engine checks each cell and each table of one artifact, and extracts a
+  self-targeting unit, a unit cycle, a zero `Scale` and a base dimension that
+  has a `terms` table unchanged, because those rules concern the graph of all
+  the dimension and unit artifacts of a document. Those rules (a base dimension
+  without terms, ascending terms, cycles, a nonzero scale, a target of the
+  same dimension, one root per dimension) are specified once, with their
+  diagnostics, as the reader rules of `agent-ix/filament-core-data` FR-146
+  "Dimensions" and "Units" (`agent-ix.semantic-ir.INVALID_UNIT_GRAPH`), which
+  apply to the document the frontend lifts from these extracted values; this
+  engine specifies no second copy.
+- The engine SHALL carry the rows in the entries of the Outputs table in row
+  order and SHALL NOT compute, reduce or compare any dimension or unit.
+
 Systems-model tables:
 
 - An artifact SHALL declare at most one of the `part`, `port`,
@@ -353,8 +419,14 @@ General:
 | FR-075-AC-13 | Under the published `@agent-ix/spec-objects-architecture` module, resolved as a dependency at test time (PLAT-901), `validate_document` of each of the `part`, `port`, `connection`, and `allocation` skeletons yields zero errors, and each declaration record carries exactly the keys its data schema requires. | Test |
 | FR-075-AC-14 | Under a declared `Feature \| Kind` locator, an artifact with one field and two operations whose `Features` table interleaves them yields `model.featureOrder` in row order with row spans; its declaration record carries `featureOrder` as the names in row order and satisfies spec-objects-architecture's `Interface.json`. | Test |
 | FR-075-AC-15 | A `Features` row naming no declared feature yields `semantic.unknown-feature`, a row whose `Kind` is not the declared kind `semantic.feature-kind-mismatch`, an unknown `Kind` `semantic.invalid-model-cell`, and a repeated `Feature` `semantic.duplicate-model-entry`, each at its row; a declared feature with no row yields `semantic.missing-feature` at the table header, and a wrong-kind row yields no `semantic.missing-feature`; each sets `availability.model` `unavailable` with no `model`. When `operations` is `unavailable`, rows naming operations as either kind and operations without rows yield no feature diagnostic. | Test |
+| FR-075-AC-16 | Under a declared `Base` locator, an artifact whose `Base` table row is `true` yields `model.dimension` `{ base: true }` with the row span and `availability.model` `available`; `false` yields `base: false`; `yes`, an empty cell, a table with no row (`semantic.invalid-model-cell` at the header) and a second row (`semantic.duplicate-model-entry` at that row) are each refused and fail the model kind with `entry-errors`; two `Base` tables in one artifact yield `semantic.duplicate-section` at the second table's header line. | Test |
+| FR-075-AC-17 | Under a declared `Dimension \| Exponent` locator and a bundle with dimension artifacts `Length` (title `Length`) and `Time`, rows `Length \| 1` and `Time \| -2` yield `model.terms` of two entries in row order with `dimension` targets `ix://<org>/<repo>/type/Length` and `.../Time` and exponents `1` and `-2`; a row `Speed \| 1` where `Speed` is a unit artifact yields the placeholder `ix://<org>/<repo>/unresolved/Speed` with `semantic.unresolved-type` reason `unknown-token` and `lossy` true; `Length \| 01`, `Length \| 1.5` and `Length \| x` are `semantic.invalid-model-cell`; a repeated `Length` row is `semantic.duplicate-model-entry`; two dimension artifacts both titled `Length` give `semantic.ambiguous-type` naming both; a non-`Identifier` `Dimension` cell gives `semantic.invalid-type-token`. | Test |
+| FR-075-AC-18 | Under a declared `Dimension \| Target \| Scale \| Offset` locator with `Target` optional, the row `Time \| s \| 1/1000 \| 0` yields `model.unit` `{ dimension: Time's identity, target: s's identity, scale: "1/1000", offset: "0" }` with the row span, where `s` is a unit artifact; a root row `Time \| \| 1 \| 0` yields no `target`; a locator without the `Target` column yields no `target`; `Scale` or `Offset` of `-3/2`, `-3` and `0` are accepted; `2/4`, `1/1`, `-0`, `0/5`, `01/3`, `1.5`, `1/0` and an empty cell are `semantic.invalid-model-cell` at the row; a `Target` naming a dimension artifact yields the unit-kind placeholder with `semantic.unresolved-type`; a table with no row or two rows is refused as in AC-16; a unit whose target is itself, whose graph has a cycle or whose `Scale` is `0` extracts unchanged (the engine decides no unit-graph rule); under a qualified `Dimension` cell `acme/time-units::Time` and a qualified `Target` cell `acme/time-units::s` (both held by `importedArtifacts`) the row yields the identities `ix://acme/time-units/type/Time` and `ix://acme/time-units/type/s`, while the same bare cell `Time` held by both the own bundle and an imported package yields the own identity. | Test |
+| FR-075-AC-19 | Under a manifest declaring none of the `Base`, `Dimension \| Exponent` and `Dimension \| Target \| Scale \| Offset` locators, an artifact carrying each table yields `semantic.feature-not-extractable` at the declaring line with `reason` `dimension`, `terms` or `unit`, `sourceSpan` and `section`, and no entry; an artifact declaring none of the three tables yields no `dimension`, `terms` or `unit` member and a record byte-identical to the FR-072 record. | Test |
+| FR-075-AC-20 | Every record of AC-16..AC-19 validates against `semantic-v1.schema.json`, which lists `dimension`, `terms` and `unit` with `additionalProperties: false`; the Python binding and the Rust library return equal JSON values for each case; extraction of the same input twice is byte-identical. | Test |
+| FR-075-AC-21 | Two `Base` tables, two `Dimension \| Exponent` tables, and two `Dimension \| Target \| Scale \| Offset` tables in one artifact each yield `semantic.duplicate-section` at the second table's header line; an artifact declaring a `Base` table and then a unit table yields `semantic.duplicate-section` at the unit table's header line and extracts `model.dimension` only, and a unit table then a `Base` table yields it at the `Base` table's header line and extracts `model.unit` only; a `Base` table with a `terms` table is accepted and extracts both. | Test |
 
 ## Dependencies
 
 - **Upstream**: [FR-069](./FR-069-semantic-module-contract-at-load.md), [FR-070](./FR-070-typed-properties-extraction.md), [FR-071](./FR-071-clause-and-operation-extraction.md), [FR-072](./FR-072-semantic-extraction-surface.md)
-- **Downstream**: `agent-ix/filament-core-data#148` (domain package lift); `agent-ix/spec-objects-business` (manifest `mappings` and `table_row` locators)
+- **Downstream**: `agent-ix/filament-core-data#148` (domain package lift); `agent-ix/spec-objects-business` (manifest `mappings` and `table_row` locators); `agent-ix/spec-objects-foundation` (`dimension` and `unit` object types); `agent-ix/filament-core-data` FR-146 "Spec-bundle extraction"
