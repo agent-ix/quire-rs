@@ -275,7 +275,10 @@ Dimension and unit tables:
   being `dimension` for a dimension token and `unit` for a unit token. A match
   maps to `ix://<package>/type/<Name>` (`<package>` the owner of the matched
   artifact, `<Name>` its `id`), so dimensions of two owners stay two
-  identities and the engine decides no equivalence between them. A token that
+  identities. Token resolution relates no two dimensions: an equivalence
+  between dimensions of two owners is declared by the unit of compilation
+  (QSpec FR-142 "Dimension equivalence") and carried by FCD FR-146's
+  `dimensionEquivalences`, never inferred from a token match. A token that
   names no artifact of the required object type maps to the placeholder
   `ix://<org>/<repo>/unresolved/<Token>` (`<Token>` the `Identifier` the token
   names) with the advisory `semantic.unresolved-type` (`reason`
