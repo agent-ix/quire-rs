@@ -182,7 +182,7 @@ fn suspicion_rate_uses_evidence_symbol_population() {
     assert_eq!(measured["skeptic.suspicion_rate"], number(json!(99.64)));
 }
 
-#[trace("FR-050-AC-30")]
+#[trace("FR-050-AC-30", "FR-050-AC-52")]
 #[test]
 fn declared_clean_corpus_refuses_uncommitted_input() {
     let corpus = tempfile::tempdir().unwrap();
