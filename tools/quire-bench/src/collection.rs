@@ -1,5 +1,6 @@
 //! Collect benchmark measurements from the declared corpus entries.
 
+use crate::export::{validate_repository_against_stack, VerificationStack};
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -165,6 +166,36 @@ pub fn collect(
     module_override: Option<&Path>,
     strict: bool,
 ) -> Result<Collection, BenchError> {
+    collect_inputs(root, manifest, quire, module_override, strict, None)
+}
+
+/// Collect as [`collect`] does, and also refuse a `require_clean` entry whose
+/// checkout is not its attested revision (FR-050-AC-52): a normal run skips
+/// that entry loudly, a strict run fails, and a `require_clean` module source
+/// at another revision refuses the run.
+pub fn collect_attested(
+    root: &Path,
+    manifest: &Manifest,
+    quire: &Path,
+    module_override: Option<&Path>,
+    strict: bool,
+    stack: &VerificationStack,
+) -> Result<Collection, BenchError> {
+    if manifest.module_source.require_clean {
+        let path = canonical(&root.join(&manifest.module_source.path))?;
+        validate_repository_against_stack(&path, stack, &manifest.module_source.name, &[])?;
+    }
+    collect_inputs(root, manifest, quire, module_override, strict, Some(stack))
+}
+
+fn collect_inputs(
+    root: &Path,
+    manifest: &Manifest,
+    quire: &Path,
+    module_override: Option<&Path>,
+    strict: bool,
+    stack: Option<&VerificationStack>,
+) -> Result<Collection, BenchError> {
     let default_module = if manifest.corpora.iter().any(|entry| entry.module.is_none()) {
         Some(resolve_default_module(
             root,
@@ -179,6 +210,11 @@ pub fn collect(
     for entry in &manifest.corpora {
         let measurement = (|| {
             require_clean(root, &entry.name, &entry.path, entry.require_clean)?;
+            if let (Some(stack), true) = (stack, entry.require_clean) {
+                let path = canonical(&root.join(&entry.path))?;
+                let source = entry.source_name.as_deref().unwrap_or(&entry.name);
+                validate_repository_against_stack(&path, stack, source, &[])?;
+            }
             let module = entry_module(root, entry, default_module.as_deref())?;
             let scope = canonical(&root.join(&entry.path))?;
             let payload = coverage_payload(quire, &scope, module.as_deref())?;

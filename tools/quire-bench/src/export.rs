@@ -369,6 +369,45 @@ pub fn validate_repository_against_stack(
     Ok(source.revision.clone())
 }
 
+/// Refuse any `require_clean` corpus entry, or a `require_clean` module
+/// source, whose checkout is not its attested revision (FR-050-AC-52).
+/// The governed export calls this before scoring; the ratchet run checks the
+/// same sources per entry through [`crate::collection::collect_attested`].
+pub fn validate_corpus_sources(
+    root: &Path,
+    manifest: &Manifest,
+    stack: &VerificationStack,
+) -> Result<(), BenchError> {
+    for (name, path, required) in manifest
+        .corpora
+        .iter()
+        .map(|entry| {
+            (
+                entry.source_name.as_deref().unwrap_or(&entry.name),
+                entry.path.as_str(),
+                entry.require_clean,
+            )
+        })
+        .chain(std::iter::once((
+            manifest.module_source.name.as_str(),
+            manifest.module_source.path.as_str(),
+            manifest.module_source.require_clean,
+        )))
+    {
+        if required {
+            let path = root
+                .join(path)
+                .canonicalize()
+                .map_err(|source| BenchError::Io {
+                    context: format!("resolving {path}"),
+                    source,
+                })?;
+            validate_repository_against_stack(&path, stack, name, &[])?;
+        }
+    }
+    Ok(())
+}
+
 /// Refuse a toolchain mismatch with the attestation.
 pub fn validate_toolchains(stack: &VerificationStack) -> Result<(), BenchError> {
     let python = Command::new("python3")
@@ -583,33 +622,7 @@ pub fn export(
         validate_repository_against_stack(root, &stack, "quire", &["spec/evidence/measurements"])?;
     validate_toolchains(&stack)?;
     validate_repository_against_stack(consumer, &stack, "quire-cli", &[])?;
-    for (name, path, required) in manifest
-        .corpora
-        .iter()
-        .map(|entry| {
-            (
-                entry.source_name.as_deref().unwrap_or(&entry.name),
-                entry.path.as_str(),
-                entry.require_clean,
-            )
-        })
-        .chain(std::iter::once((
-            manifest.module_source.name.as_str(),
-            manifest.module_source.path.as_str(),
-            manifest.module_source.require_clean,
-        )))
-    {
-        if required {
-            let path = root
-                .join(path)
-                .canonicalize()
-                .map_err(|source| BenchError::Io {
-                    context: format!("resolving {path}"),
-                    source,
-                })?;
-            validate_repository_against_stack(&path, &stack, name, &[])?;
-        }
-    }
+    validate_corpus_sources(root, manifest, &stack)?;
     let quire = build_engine(consumer, true)?;
     validate_executable_digest(&quire, &stack)?;
     let measurements = crate::collection::collect(root, manifest, &quire, module, true)?;
