@@ -50,9 +50,27 @@ pub struct DecimalPolicy {
     pub scale: u64,
 }
 
+/// The two authoritative semantic-core type-target branches.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", content = "value", deny_unknown_fields)]
+pub enum TypeRefTarget {
+    SemanticId(String),
+    KernelScalar(String),
+}
+
+impl TypeRefTarget {
+    /// The identity or scalar spelling selected by this target.
+    pub fn as_str(&self) -> &str {
+        match self {
+            Self::SemanticId(value) | Self::KernelScalar(value) => value,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct TypeRef {
-    pub target: String,
+    pub target: TypeRefTarget,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub multiplicity: Option<Multiplicity>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -61,33 +79,134 @@ pub struct TypeRef {
     pub decimal: Option<DecimalPolicy>,
 }
 
-/// One constraint of the closed FR-070 keyword set. `serde` emits the
-/// `keyword` discriminator first, matching the semantic-core models.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "keyword")]
-pub enum Constraint {
-    #[serde(rename = "min")]
-    Min { value: Value },
-    #[serde(rename = "max")]
-    Max { value: Value },
-    #[serde(rename = "exclusiveMin")]
-    ExclusiveMin { value: Value },
-    #[serde(rename = "exclusiveMax")]
-    ExclusiveMax { value: Value },
-    #[serde(rename = "minLength")]
-    MinLength { value: u64 },
-    #[serde(rename = "maxLength")]
-    MaxLength { value: u64 },
-    #[serde(rename = "pattern")]
-    Pattern { regex: String, dialect: String },
-    #[serde(rename = "enumValues")]
-    EnumValues { values: Vec<Value> },
-    #[serde(rename = "nonEmpty")]
+/// A bound's exact JSON number or authored string, tagged by its owner branch.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(
+    tag = "kind",
+    content = "value",
+    rename_all = "lowercase",
+    deny_unknown_fields
+)]
+pub enum NumericConstraintValue {
+    Number(serde_json::Number),
+    String(String),
+}
+
+impl NumericConstraintValue {
+    /// The primitive value consumed by semantic-core's lossless lowering contract.
+    pub fn to_json_value(&self) -> Value {
+        match self {
+            Self::Number(value) => Value::Number(value.clone()),
+            Self::String(value) => Value::String(value.clone()),
+        }
+    }
+}
+
+/// An enum constraint member with its authoritative scalar branch.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(
+    tag = "kind",
+    content = "value",
+    rename_all = "lowercase",
+    deny_unknown_fields
+)]
+pub enum EnumConstraintValue {
+    String(String),
+    Number(serde_json::Number),
+    Boolean(bool),
+}
+
+impl EnumConstraintValue {
+    /// The primitive value consumed by semantic-core's lossless lowering contract.
+    pub fn to_json_value(&self) -> Value {
+        match self {
+            Self::String(value) => Value::String(value.clone()),
+            Self::Number(value) => Value::Number(value.clone()),
+            Self::Boolean(value) => Value::Bool(*value),
+        }
+    }
+}
+
+impl From<NumericConstraintValue> for EnumConstraintValue {
+    fn from(value: NumericConstraintValue) -> Self {
+        match value {
+            NumericConstraintValue::Number(value) => Self::Number(value),
+            NumericConstraintValue::String(value) => Self::String(value),
+        }
+    }
+}
+
+/// The closed semantic-core constraint keyword carried inside its selected record.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ConstraintKeyword {
+    Min,
+    Max,
+    ExclusiveMin,
+    ExclusiveMax,
+    MinLength,
+    MaxLength,
+    Pattern,
+    EnumValues,
     NonEmpty,
-    #[serde(rename = "unique")]
     Unique,
-    #[serde(rename = "format")]
-    Format { name: String },
+    Format,
+}
+
+/// The semantic-core adjacent union; each selected record retains its own keyword.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "kind", content = "value", deny_unknown_fields)]
+pub enum Constraint {
+    #[serde(rename = "MinConstraint")]
+    Min {
+        keyword: ConstraintKeyword,
+        value: NumericConstraintValue,
+    },
+    #[serde(rename = "MaxConstraint")]
+    Max {
+        keyword: ConstraintKeyword,
+        value: NumericConstraintValue,
+    },
+    #[serde(rename = "ExclusiveMinConstraint")]
+    ExclusiveMin {
+        keyword: ConstraintKeyword,
+        value: NumericConstraintValue,
+    },
+    #[serde(rename = "ExclusiveMaxConstraint")]
+    ExclusiveMax {
+        keyword: ConstraintKeyword,
+        value: NumericConstraintValue,
+    },
+    #[serde(rename = "MinLengthConstraint")]
+    MinLength {
+        keyword: ConstraintKeyword,
+        value: u64,
+    },
+    #[serde(rename = "MaxLengthConstraint")]
+    MaxLength {
+        keyword: ConstraintKeyword,
+        value: u64,
+    },
+    #[serde(rename = "PatternConstraint")]
+    Pattern {
+        keyword: ConstraintKeyword,
+        regex: String,
+        dialect: String,
+    },
+    #[serde(rename = "EnumValuesConstraint")]
+    EnumValues {
+        keyword: ConstraintKeyword,
+        values: Vec<EnumConstraintValue>,
+    },
+    #[serde(rename = "NonEmptyConstraint")]
+    NonEmpty { keyword: ConstraintKeyword },
+    #[serde(rename = "UniqueConstraint")]
+    Unique { keyword: ConstraintKeyword },
+    #[serde(rename = "FormatConstraint")]
+    Format {
+        keyword: ConstraintKeyword,
+        name: String,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

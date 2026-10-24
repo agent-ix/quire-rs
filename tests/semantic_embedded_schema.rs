@@ -79,3 +79,143 @@ fn tc1877_construct_declaration_schema_admits_immutable() {
         "$defs/ConstructDeclaration no longer refuses an unrecognized key"
     );
 }
+
+fn adjacent_fixture() -> Value {
+    serde_json::from_str(include_str!(
+        "fixtures/semantic/ir994-adjacent-emission.json"
+    ))
+    .unwrap()
+}
+
+#[trace(
+    "TC-1610",
+    "TC-1613",
+    "TC-1615",
+    "FR-070-AC-1",
+    "FR-070-AC-4",
+    "FR-070-AC-6"
+)]
+#[test]
+fn ir994_public_extraction_emits_every_adjacent_constraint_form() {
+    use quire_rs::semantic::{extract_fields, AvailabilityState, BundleIndex, SemanticContext};
+    let registry = quire_rs::Registry::load_module(&quire_fixtures::module_ok_dir()).unwrap();
+    let module = registry
+        .semantic_module("spec-objects-fixture")
+        .unwrap()
+        .clone();
+    let bundle = serde_json::from_str::<BundleIndex>(
+        r#"{"package":"agent-ix/fixture","objects":[],"enumerations":[],"imports":{}}"#,
+    )
+    .unwrap();
+    let context = SemanticContext::new(module, "ir994.md", bundle);
+    let fixture = adjacent_fixture();
+    assert!(fixture["issue_ref"].as_str().unwrap().contains('#'));
+    for case in fixture["cases"].as_array().unwrap() {
+        let markdown = format!(
+            "---\nid: FR-100\nobject: entity\ntype: FR\n---\n# Test\n\n## Properties\n\n```sysml\nattribute value : {}[1] {{ {} }}\n```\n",
+            case["type"].as_str().unwrap(), case["source"].as_str().unwrap()
+        );
+        let outcome = extract_fields(&markdown, &context);
+        assert_eq!(
+            outcome.availability.state,
+            AvailabilityState::Available,
+            "{}: {:?}",
+            case["name"],
+            outcome.diagnostics
+        );
+        assert!(
+            outcome.diagnostics.is_empty(),
+            "{}: {:?}",
+            case["name"],
+            outcome.diagnostics
+        );
+        let fields = serde_json::to_value(outcome.fields.unwrap()).unwrap();
+        assert_eq!(
+            fields[0]["type"]["target"],
+            json!({"kind":"KernelScalar","value":case["type"]}),
+            "{}",
+            case["name"]
+        );
+        assert_eq!(
+            fields[0]["constraints"],
+            json!([case["expected"]]),
+            "{}",
+            case["name"]
+        );
+    }
+}
+
+#[trace("TC-1621", "TC-1638", "FR-070-AC-10", "FR-072-AC-8")]
+#[test]
+fn ir994_adjacent_declarations_round_trip_and_old_wire_is_refused() {
+    use quire_rs::semantic::{compile_module_schema, embedded, FieldDecl};
+    let version = embedded::embedded_semantic_core_version();
+    let gate = compile_module_schema(
+        &json!({
+            "$schema":"https://json-schema.org/draft/2020-12/schema",
+            "$id":"https://schemas.agent-ix.org/quire-rs/IR994Gate.json",
+            "$ref":format!("https://schemas.agent-ix.org/semantic-core/{version}/FieldDecl.json")
+        }),
+        &|_| None,
+        version,
+        "https://schemas.agent-ix.org/quire-rs/",
+    )
+    .unwrap();
+    let fixture = adjacent_fixture();
+    let mut constraints: Vec<Value> = fixture["cases"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|case| case["expected"].clone())
+        .collect();
+    constraints.push(json!({"kind":"EnumValuesConstraint","value":{
+        "keyword":"enumValues","values":fixture["additional_decoded_enum_values"]}}));
+    for target in [
+        json!({"kind":"KernelScalar","value":"Integer"}),
+        json!({"kind":"SemanticId","value":"ix://agent-ix/fixture/type/Order"}),
+    ] {
+        for constraint in &constraints {
+            let value = json!({"name":"id","type":{"target":target},"constraints":[constraint]});
+            assert!(
+                gate.is_valid(&value),
+                "owner schema refuses canonical control: {value:#}"
+            );
+            let decoded: FieldDecl =
+                serde_json::from_value(value.clone()).expect("current adjacent declaration");
+            assert_eq!(serde_json::to_value(decoded).unwrap(), value);
+            let mut old_constraint = value.clone();
+            old_constraint["constraints"] = json!([constraint["value"]]);
+            assert!(!gate.is_valid(&old_constraint));
+            assert!(serde_json::from_value::<FieldDecl>(old_constraint).is_err());
+            match constraint["kind"].as_str().unwrap() {
+                "MinConstraint"
+                | "MaxConstraint"
+                | "ExclusiveMinConstraint"
+                | "ExclusiveMaxConstraint" => {
+                    let mut raw_numeric = value.clone();
+                    raw_numeric["constraints"][0]["value"]["value"] =
+                        constraint["value"]["value"]["value"].clone();
+                    assert!(!gate.is_valid(&raw_numeric));
+                    assert!(serde_json::from_value::<FieldDecl>(raw_numeric).is_err());
+                }
+                "EnumValuesConstraint" => {
+                    let mut raw_values = value.clone();
+                    raw_values["constraints"][0]["value"]["values"] = Value::Array(
+                        constraint["value"]["values"]
+                            .as_array()
+                            .unwrap()
+                            .iter()
+                            .map(|item| item["value"].clone())
+                            .collect(),
+                    );
+                    assert!(!gate.is_valid(&raw_values));
+                    assert!(serde_json::from_value::<FieldDecl>(raw_values).is_err());
+                }
+                _ => {}
+            }
+        }
+    }
+    let old = json!({"name":"id","type":{"target":"Integer"}});
+    assert!(!gate.is_valid(&old));
+    assert!(serde_json::from_value::<FieldDecl>(old).is_err());
+}

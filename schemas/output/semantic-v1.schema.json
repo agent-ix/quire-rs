@@ -74,35 +74,8 @@
         "unique": { "type": "boolean" }
       }
     },
-    "typeRef": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["target"],
-      "properties": {
-        "target": { "anyOf": [ { "$ref": "#/$defs/semanticId" }, { "enum": ["UUID", "Boolean", "Integer", "Decimal", "String", "Timestamp", "Duration", "Bytes", "JsonObject"] } ] },
-        "multiplicity": { "$ref": "#/$defs/multiplicity" },
-        "unit": { "type": "string", "pattern": "^[!-~]+$" },
-        "decimal": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["precision", "scale"],
-          "properties": { "precision": { "type": "integer", "minimum": 1 }, "scale": { "type": "integer", "minimum": 0 } }
-        }
-      }
-    },
-    "constraint": {
-      "type": "object",
-      "required": ["keyword"],
-      "properties": {
-        "keyword": { "enum": ["min", "max", "exclusiveMin", "exclusiveMax", "minLength", "maxLength", "pattern", "enumValues", "nonEmpty", "unique", "format"] },
-        "value": {},
-        "regex": { "type": "string", "minLength": 1 },
-        "dialect": { "const": "ecma-262" },
-        "values": { "type": "array", "minItems": 1 },
-        "name": { "type": "string", "pattern": "^[a-z0-9][a-z0-9.-]*:[A-Za-z0-9][A-Za-z0-9._-]*$" }
-      },
-      "additionalProperties": false
-    },
+    "typeRef": { "$ref": "https://schemas.agent-ix.org/semantic-core/0.3.3/TypeRef.json" },
+    "constraint": { "$ref": "https://schemas.agent-ix.org/semantic-core/0.3.3/ConstraintDecl.json" },
     "fieldDecl": {
       "type": "object",
       "additionalProperties": false,

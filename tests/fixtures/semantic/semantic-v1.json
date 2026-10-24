@@ -55,14 +55,23 @@
               "unique": false,
               "upper": 1
             },
-            "target": "UUID"
+            "target": {
+              "kind": "KernelScalar",
+              "value": "UUID"
+            }
           }
         },
         {
           "constraints": [
             {
-              "keyword": "min",
-              "value": 1
+              "kind": "MinConstraint",
+              "value": {
+                "keyword": "min",
+                "value": {
+                  "kind": "number",
+                  "value": 1
+                }
+              }
             }
           ],
           "name": "versionNumber",
@@ -73,7 +82,10 @@
               "unique": false,
               "upper": 1
             },
-            "target": "Integer"
+            "target": {
+              "kind": "KernelScalar",
+              "value": "Integer"
+            }
           }
         },
         {
@@ -85,13 +97,19 @@
               "unique": false,
               "upper": 1
             },
-            "target": "JsonObject"
+            "target": {
+              "kind": "KernelScalar",
+              "value": "JsonObject"
+            }
           }
         },
         {
           "constraints": [
             {
-              "keyword": "nonEmpty"
+              "kind": "NonEmptyConstraint",
+              "value": {
+                "keyword": "nonEmpty"
+              }
             }
           ],
           "name": "hash",
@@ -102,7 +120,10 @@
               "unique": false,
               "upper": 1
             },
-            "target": "String"
+            "target": {
+              "kind": "KernelScalar",
+              "value": "String"
+            }
           }
         },
         {
@@ -114,7 +135,10 @@
               "unique": false,
               "upper": 1
             },
-            "target": "ix://agent-ix/config-service/type/ConfigVersion"
+            "target": {
+              "kind": "SemanticId",
+              "value": "ix://agent-ix/config-service/type/ConfigVersion"
+            }
           }
         },
         {
@@ -126,14 +150,20 @@
               "unique": false,
               "upper": 1
             },
-            "target": "Timestamp"
+            "target": {
+              "kind": "KernelScalar",
+              "value": "Timestamp"
+            }
           }
         },
         {
           "constraints": [
             {
-              "keyword": "maxLength",
-              "value": 64
+              "kind": "MaxLengthConstraint",
+              "value": {
+                "keyword": "maxLength",
+                "value": 64
+              }
             }
           ],
           "name": "createdBy",
@@ -144,7 +174,10 @@
               "unique": false,
               "upper": 1
             },
-            "target": "String"
+            "target": {
+              "kind": "KernelScalar",
+              "value": "String"
+            }
           }
         }
       ],
@@ -211,7 +244,10 @@
               "unique": false,
               "upper": 1
             },
-            "target": "UUID"
+            "target": {
+              "kind": "KernelScalar",
+              "value": "UUID"
+            }
           }
         }
       ],
@@ -224,7 +260,10 @@
             {
               "constraints": [
                 {
-                  "keyword": "nonEmpty"
+                  "kind": "NonEmptyConstraint",
+                  "value": {
+                    "keyword": "nonEmpty"
+                  }
                 }
               ],
               "name": "reason",
@@ -235,7 +274,10 @@
                   "unique": false,
                   "upper": 1
                 },
-                "target": "String"
+                "target": {
+                  "kind": "KernelScalar",
+                  "value": "String"
+                }
               }
             },
             {
@@ -247,7 +289,10 @@
                   "unique": false,
                   "upper": 1
                 },
-                "target": "Duration",
+                "target": {
+                  "kind": "KernelScalar",
+                  "value": "Duration"
+                },
                 "unit": "ms"
               }
             }
@@ -271,7 +316,10 @@
               "unique": false,
               "upper": 1
             },
-            "target": "ix://agent-ix/config-service/type/ConfigVersion"
+            "target": {
+              "kind": "SemanticId",
+              "value": "ix://agent-ix/config-service/type/ConfigVersion"
+            }
           }
         }
       ],
@@ -367,7 +415,10 @@
               "unique": false,
               "upper": 1
             },
-            "target": "ix://agent-ix/config-service/unresolved/Mystery"
+            "target": {
+              "kind": "SemanticId",
+              "value": "ix://agent-ix/config-service/unresolved/Mystery"
+            }
           }
         }
       ],
