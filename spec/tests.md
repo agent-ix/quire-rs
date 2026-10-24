@@ -114,6 +114,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | FR-075 Model feature extraction | AC-1..21; CON-1 | TC-1840..TC-1847, TC-1849, TC-1869, TC-1870, TC-1872..TC-1875, TC-1948..TC-1951, TC-1953 | ✅ AC-1..15 Implemented; AC-16..21 🚧 |
 | FR-076 Relationships extraction to RelationDecl[] | AC-1..15; CON-1..2 | TC-1852..TC-1868 | ✅ Implemented |
 | FR-077 Trace search index (structural forward/inverse lookup) | AC-1..6; CON-1..3 | TC-1887..TC-1894 | ✅ Implemented |
+| FR-078 Qualified retained evidence | AC-1..20; CON-1..3 | TC-1963..TC-1982 | 🚧 Planned — spec-first, no execution claim |
 
 ### Integration Requirement Coverage
 
@@ -903,6 +904,26 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-1951 | Dimension, terms and unit records validate against `semantic-v1.schema.json`, Rust and Python agree as JSON values, and repeated extraction is byte-identical | Integration | P0 | FR-075-AC-20 | 🚧 |
 | TC-1952 | Unit and dimension tokens resolve through `importedArtifacts`: bare tokens from own then imported artifacts, qualified `<org>/<repo>::name` tokens, cross-package ambiguity naming both packages, own-package precedence, owner-qualified identities for two `Time` dimensions in one record, the `unknown-token` and `import-unresolved` reasons, and the single `no-bundle-index` reason for every unresolved token (qualified, in `imports` or not, and bare) under an empty index | Unit | P0 | FR-070-AC-14 | 🚧 |
 | TC-1953 | A repeated `Base`, `terms` or unit table, and a `Base` table beside a unit table, each yield `semantic.duplicate-section` at the second table's header line, keep the earlier kind, and a `Base` table with a `terms` table extracts both | Unit | P0 | FR-075-AC-21 | 🚧 |
+| TC-1963 | Qualified performed Inspection binds only its exact selected obligation | Integration | P0 | FR-078-AC-1 | 🚧 Planned — not run |
+| TC-1964 | Analysis requires both lint lanes and CI association; one-lane and wrong-method controls refuse | Integration | P0 | FR-078-AC-2 | 🚧 Planned — not run |
+| TC-1965 | Executed shell and Makefile evidence binds with exact producer/source/tool/configuration | Integration | P0 | FR-078-AC-3 | 🚧 Planned — not run |
+| TC-1966 | Executed compile_fail doctest expected refusal passes; unrun and wrong-error controls do not | Integration | P0 | FR-078-AC-4 | 🚧 Planned — not run |
+| TC-1967 | Citations, unrun suites/scripts and validated Inspections tables remain unbacked | Unit | P0 | FR-078-AC-5 | 🚧 Planned — not run |
+| TC-1968 | Failed, errored, skipped, absent and unevaluated evidence retains distinct non-passing causes | Unit | P0 | FR-078-AC-6 | 🚧 Planned — not run |
+| TC-1969 | Wrong revision, selection, statement and qualification premises do not bind | Unit | P0 | FR-078-AC-7 | 🚧 Planned — not run |
+| TC-1970 | Waiver remains distinct and never becomes passing strict evidence | Unit | P0 | FR-078-AC-8 | 🚧 Planned — not run |
+| TC-1971 | Missing/wrong/ambiguous declared targets refuse rather than selecting a sibling or first duplicate | Unit | P0 | FR-078-AC-9 | 🚧 Planned — not run |
+| TC-1972 | Identical records deduplicate; conflicts are deterministic in both input orders | Unit | P0 | FR-078-AC-10 | 🚧 Planned — not run |
+| TC-1973 | Latest failed/error run revokes prior pass using owner audit precedence | Integration | P0 | FR-078-AC-11 | 🚧 Planned — not run |
+| TC-1974 | No-qualified-input source report and source claims remain unchanged | Snapshot | P0 | FR-078-AC-12 | 🚧 Planned — not run |
+| TC-1975 | No-source-symbol vocabulary alone is not evidence or automatic completion | Unit | P0 | FR-078-AC-13 | 🚧 Planned — not run |
+| TC-1976 | Qualified claims have symmetric forward/inverse lookup distinct from source claims and citations | Integration | P0 | FR-078-AC-14 | 🚧 Planned — not run |
+| TC-1977 | Borrowed complete inventory retains unmapped rows and authored-versus-rendered identity | Integration | P0 | FR-078-AC-15 | 🚧 Planned — not run |
+| TC-1978 | Partial/invalid/non-Complete inventory cannot earn whole-selection coverage completion | Integration | P0 | FR-078-AC-16 | 🚧 Planned — not run |
+| TC-1979 | Producer-facing shared-record/audit example executes against the public consumer boundary | Integration | P0 | FR-078-AC-17 | 🚧 Planned — not run |
+| TC-1980 | RT Inspection, TC-198/199 gate and compile_fail equivalent fixtures record before/after strict outcomes | Integration | P0 | FR-078-AC-18 | 🚧 Planned — not run |
+| TC-1981 | Unknown method/catalog/kind and unsupported qualification refuse with deterministic diagnostics | Unit | P0 | FR-078-AC-19 | 🚧 Planned — not run |
+| TC-1982 | Retained-evidence queries perform no gate, code, network, store mutation or publication | Integration | P0 | FR-078-AC-20 | 🚧 Planned — not run |
 | TC-1641 | A static audit of `cargo metadata` and the semantic module finds none of the NFR-021 denylisted crates and no `eval`/`parse_expr`/`typecheck` symbol over clause text | Static | P0 | NFR-021-AC-1 | ✅ |
 | TC-1642 | A static audit finds no `std::net`, `std::process`, or filesystem write on the semantic path | Static | P0 | NFR-021-AC-2 | ✅ |
 | TC-1644 | The semantic fixture suite yields identical JSON values across repeated runs and between Rust and Python under `make ci-python`, including diagnostic order and loci; WASM external via `agent-ix/quire-wasm#3` | Integration | P0 | NFR-021-AC-4 | ✅ |
@@ -1922,6 +1943,26 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-077-AC-5 | TC-1892 |
 | FR-077-AC-6 | TC-1893 |
 | FR-077-CON-3 | TC-1894 |
+| FR-078-AC-1 | TC-1963 |
+| FR-078-AC-2 | TC-1964 |
+| FR-078-AC-3 | TC-1965 |
+| FR-078-AC-4 | TC-1966 |
+| FR-078-AC-5 | TC-1967 |
+| FR-078-AC-6 | TC-1968 |
+| FR-078-AC-7 | TC-1969 |
+| FR-078-AC-8 | TC-1970 |
+| FR-078-AC-9 | TC-1971 |
+| FR-078-AC-10 | TC-1972 |
+| FR-078-AC-11 | TC-1973 |
+| FR-078-AC-12 | TC-1974 |
+| FR-078-AC-13 | TC-1975 |
+| FR-078-AC-14 | TC-1976 |
+| FR-078-AC-15 | TC-1977 |
+| FR-078-AC-16 | TC-1978 |
+| FR-078-AC-17 | TC-1979 |
+| FR-078-AC-18 | TC-1980 |
+| FR-078-AC-19 | TC-1981 |
+| FR-078-AC-20 | TC-1982 |
 
 ### Non-Functional Requirements
 
