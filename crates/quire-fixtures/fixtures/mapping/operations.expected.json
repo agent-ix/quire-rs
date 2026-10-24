@@ -32,7 +32,10 @@
         {
           "name": "reason",
           "type": {
-            "target": "String",
+            "target": {
+              "kind": "KernelScalar",
+              "value": "String"
+            },
             "multiplicity": {
               "lower": 1,
               "upper": 1,
@@ -42,14 +45,20 @@
           },
           "constraints": [
             {
-              "keyword": "nonEmpty"
+              "kind": "NonEmptyConstraint",
+              "value": {
+                "keyword": "nonEmpty"
+              }
             }
           ]
         },
         {
           "name": "delay",
           "type": {
-            "target": "Duration",
+            "target": {
+              "kind": "KernelScalar",
+              "value": "Duration"
+            },
             "multiplicity": {
               "lower": 0,
               "upper": 1,
@@ -61,7 +70,10 @@
         }
       ],
       "returns": {
-        "target": "ix://agent-ix/config-service/type/ConfigVersion",
+        "target": {
+          "kind": "SemanticId",
+          "value": "ix://agent-ix/config-service/type/ConfigVersion"
+        },
         "multiplicity": {
           "lower": 1,
           "upper": 1,

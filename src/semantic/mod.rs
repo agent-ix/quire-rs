@@ -35,7 +35,10 @@ pub use contract::{
     read_semantic_block, reference_form, DataSchemaRef, SemanticFailure, SemanticModule,
     SemanticSeverity,
 };
-pub use decl::{Constraint, DecimalPolicy, FieldDecl, Multiplicity, TypeRef};
+pub use decl::{
+    Constraint, ConstraintKeyword, DecimalPolicy, EnumConstraintValue, FieldDecl, Multiplicity,
+    NumericConstraintValue, TypeRef, TypeRefTarget,
+};
 pub use model::{
     AbstractDecl, EnumValueDecl, FeatureKind, FeatureOrderDecl, FieldFeatureDecl, IdentityDecl,
     MemberDecl, ModelDeclarations, OperationFrameDecl, PopulationDecl, PopulationMemberDecl,

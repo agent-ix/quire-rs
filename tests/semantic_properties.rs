@@ -299,7 +299,7 @@ fn type_cells() {
         Some("no-bundle-index")
     );
     assert_eq!(
-        out.fields.as_ref().unwrap()[0].type_ref.target,
+        out.fields.as_ref().unwrap()[0].type_ref.target.as_str(),
         "ix://agent-ix/spec-objects-fixture/unresolved/ConfigVersion"
     );
     // Two names: ambiguous.
@@ -421,14 +421,17 @@ fn constraints_cells() {
         run_cell_case(&json!({ "id": "nullable", "cell": { "Constraints": "nullable, min: 2" } }));
     let f = serde_json::to_value(&outcome.fields.unwrap()[0]).unwrap();
     assert_eq!(f["nullable"], json!(true));
-    assert_eq!(f["constraints"], json!([{ "keyword": "min", "value": 2 }]));
+    assert_eq!(
+        f["constraints"],
+        json!([{ "kind": "MinConstraint", "value": { "keyword": "min", "value": { "kind": "number", "value": 2 } } }])
+    );
     let (outcome, _) = run_cell_case(
         &json!({ "id": "pattern", "cell": { "Constraints": "pattern: /a,b|c/, nonEmpty" } }),
     );
     let f = serde_json::to_value(&outcome.fields.unwrap()[0]).unwrap();
     assert_eq!(
         f["constraints"],
-        json!([{ "keyword": "pattern", "regex": "a,b|c", "dialect": "ecma-262" }, { "keyword": "nonEmpty" }])
+        json!([{ "kind": "PatternConstraint", "value": { "keyword": "pattern", "regex": "a,b|c", "dialect": "ecma-262" } }, { "kind": "NonEmptyConstraint", "value": { "keyword": "nonEmpty" } }])
     );
     let dup = artifact("| Field | Type | Multiplicity | Constraints |\n|---|---|---|---|\n| id | UUID | 1 | identity |\n| id | String | 1 | |");
     let out = extract_fields(&dup, &context("dup.md", bundle()));
@@ -465,11 +468,11 @@ fn fence_lines() {
     .unwrap();
     assert_eq!(
         f[0]["constraints"],
-        json!([{ "keyword": "min", "value": 1 }, { "keyword": "maxLength", "value": 64 }])
+        json!([{ "kind": "MinConstraint", "value": { "keyword": "min", "value": { "kind": "number", "value": 1 } } }, { "kind": "MaxLengthConstraint", "value": { "keyword": "maxLength", "value": 64 } }])
     );
     assert_eq!(
         f[1]["type"]["target"],
-        "ix://agent-ix/config-service/type/ConfigOverlay"
+        json!({ "kind": "SemanticId", "value": "ix://agent-ix/config-service/type/ConfigOverlay" })
     );
     // Arbitrary UTF-8 brace text is the Constraints cell: the cell grammar
     // judges it, never a brace parser.

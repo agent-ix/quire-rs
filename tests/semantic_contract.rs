@@ -448,7 +448,7 @@ fn resolver_reads_no_network_and_nothing_outside_the_module() {
         "https://schemas.agent-ix.org/agent-ix/x/0.1.0/",
     )
     .unwrap();
-    assert!(validator.is_valid(&json!({ "f": { "name": "id", "type": { "target": "UUID" } } })));
+    assert!(validator.is_valid(&json!({ "f": { "name": "id", "type": { "target": { "kind": "KernelScalar", "value": "UUID" } } } })));
     assert!(!validator.is_valid(&json!({ "f": { "name": "id" } })));
 }
 

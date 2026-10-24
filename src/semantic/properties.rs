@@ -12,8 +12,8 @@ use super::clauses::SourceLocus;
 use super::context::SemanticContext;
 use super::contract::SemanticSeverity;
 use super::decl::{
-    is_identifier, Constraint, DecimalPolicy, FieldDecl, Multiplicity, TypeRef, KERNEL_SCALARS,
-    UNIT_TARGETS,
+    is_identifier, Constraint, ConstraintKeyword, DecimalPolicy, FieldDecl, Multiplicity,
+    NumericConstraintValue, TypeRef, TypeRefTarget, KERNEL_SCALARS, UNIT_TARGETS,
 };
 use super::model::{line_span, not_extractable, FieldFeatureDecl, ModelFeature, Presence, Section};
 use super::resolver::compile_module_schema;
@@ -668,7 +668,7 @@ pub(crate) fn map_type(
         }
         return (
             Some(TypeRef {
-                target: token,
+                target: TypeRefTarget::KernelScalar(token),
                 multiplicity: None,
                 unit,
                 decimal,
@@ -700,7 +700,7 @@ pub(crate) fn map_type(
     if bundle.objects.iter().any(|o| o.id == token) {
         return (
             Some(TypeRef {
-                target: type_identity(&token),
+                target: TypeRefTarget::SemanticId(type_identity(&token)),
                 multiplicity: None,
                 unit: None,
                 decimal: None,
@@ -726,7 +726,7 @@ pub(crate) fn map_type(
     if by_name.len() == 1 {
         return (
             Some(TypeRef {
-                target: type_identity(&token),
+                target: TypeRefTarget::SemanticId(type_identity(&token)),
                 multiplicity: None,
                 unit: None,
                 decimal: None,
@@ -742,7 +742,7 @@ pub(crate) fn map_type(
     {
         return (
             Some(TypeRef {
-                target: type_identity(&token),
+                target: TypeRefTarget::SemanticId(type_identity(&token)),
                 multiplicity: None,
                 unit: None,
                 decimal: None,
@@ -756,7 +756,7 @@ pub(crate) fn map_type(
             let (o, r) = package.split_once('/').unwrap_or((package, ""));
             return (
                 Some(TypeRef {
-                    target: format!("ix://{o}/{r}/type/{token}"),
+                    target: TypeRefTarget::SemanticId(format!("ix://{o}/{r}/type/{token}")),
                     multiplicity: None,
                     unit: None,
                     decimal: None,
@@ -789,7 +789,7 @@ pub(crate) fn map_type(
     );
     (
         Some(TypeRef {
-            target: format!("ix://{org}/{repo}/unresolved/{token}"),
+            target: TypeRefTarget::SemanticId(format!("ix://{org}/{repo}/unresolved/{token}")),
             multiplicity: None,
             unit: None,
             decimal: None,
@@ -901,17 +901,17 @@ fn split_constraints(cell: &str) -> Vec<String> {
 
 /// A numeric literal or a string; `NaN`/`inf` are neither (they cannot be
 /// carried as JSON numbers) and empty text has no value.
-fn number_or_string(text: &str) -> Option<Value> {
+fn number_or_string(text: &str) -> Option<NumericConstraintValue> {
     if let Ok(i) = text.parse::<i64>() {
-        return Some(json!(i));
+        return Some(NumericConstraintValue::Number(i.into()));
     }
     if let Ok(f) = text.parse::<f64>() {
-        return if f.is_finite() { Some(json!(f)) } else { None };
+        return serde_json::Number::from_f64(f).map(NumericConstraintValue::Number);
     }
     if text.is_empty() {
         return None;
     }
-    Some(json!(text))
+    Some(NumericConstraintValue::String(text.to_owned()))
 }
 
 fn map_constraints(
@@ -944,31 +944,54 @@ fn map_constraints(
         match (keyword, value) {
             ("identity", None) => identity = true,
             ("nullable", None) => nullable = true,
-            ("nonEmpty", None) => out.push(Constraint::NonEmpty),
-            ("unique", None) => out.push(Constraint::Unique),
+            ("nonEmpty", None) => out.push(Constraint::NonEmpty {
+                keyword: ConstraintKeyword::NonEmpty,
+            }),
+            ("unique", None) => out.push(Constraint::Unique {
+                keyword: ConstraintKeyword::Unique,
+            }),
             ("min" | "max" | "exclusiveMin" | "exclusiveMax", Some(v)) => {
                 match number_or_string(v) {
                     Some(value) => out.push(match keyword {
-                        "min" => Constraint::Min { value },
-                        "max" => Constraint::Max { value },
-                        "exclusiveMin" => Constraint::ExclusiveMin { value },
-                        _ => Constraint::ExclusiveMax { value },
+                        "min" => Constraint::Min {
+                            keyword: ConstraintKeyword::Min,
+                            value,
+                        },
+                        "max" => Constraint::Max {
+                            keyword: ConstraintKeyword::Max,
+                            value,
+                        },
+                        "exclusiveMin" => Constraint::ExclusiveMin {
+                            keyword: ConstraintKeyword::ExclusiveMin,
+                            value,
+                        },
+                        _ => Constraint::ExclusiveMax {
+                            keyword: ConstraintKeyword::ExclusiveMax,
+                            value,
+                        },
                     }),
                     None => bad_value(diagnostics),
                 }
             }
             ("minLength", Some(v)) => match v.parse::<u64>() {
-                Ok(n) => out.push(Constraint::MinLength { value: n }),
+                Ok(n) => out.push(Constraint::MinLength {
+                    keyword: ConstraintKeyword::MinLength,
+                    value: n,
+                }),
                 Err(_) => unknown(diagnostics),
             },
             ("maxLength", Some(v)) => match v.parse::<u64>() {
-                Ok(n) => out.push(Constraint::MaxLength { value: n }),
+                Ok(n) => out.push(Constraint::MaxLength {
+                    keyword: ConstraintKeyword::MaxLength,
+                    value: n,
+                }),
                 Err(_) => unknown(diagnostics),
             },
             ("pattern", Some(v)) => {
                 let v = v.trim();
                 match (v.strip_prefix('/'), v.rfind('/')) {
                     (Some(_), Some(last)) if last > 0 => out.push(Constraint::Pattern {
+                        keyword: ConstraintKeyword::Pattern,
                         regex: v[1..last].to_string(),
                         dialect: "ecma-262".to_string(),
                     }),
@@ -976,19 +999,21 @@ fn map_constraints(
                 }
             }
             ("enumValues", Some(v)) => {
-                let values: Vec<Option<Value>> =
+                let values: Vec<Option<NumericConstraintValue>> =
                     v.split('|').map(|s| number_or_string(s.trim())).collect();
                 if v.trim().is_empty() || v.contains(' ') || values.iter().any(Option::is_none) {
                     bad_value(diagnostics);
                 } else {
                     out.push(Constraint::EnumValues {
-                        values: values.into_iter().flatten().collect(),
+                        keyword: ConstraintKeyword::EnumValues,
+                        values: values.into_iter().flatten().map(Into::into).collect(),
                     });
                 }
             }
             ("format", Some(v)) => {
                 if v.contains(':') && !v.contains(' ') {
                     out.push(Constraint::Format {
+                        keyword: ConstraintKeyword::Format,
                         name: v.to_string(),
                     });
                 } else {
@@ -1024,7 +1049,7 @@ fn reader_rules(fields: &[FieldDecl], lines: &[usize], diagnostics: &mut Vec<Sem
                     format!("identity field {} must be 1..1", field.name),
                 ));
             }
-            if field.type_ref.target == "JsonObject" {
+            if field.type_ref.target.as_str() == "JsonObject" {
                 diagnostics.push(err(
                     "agent-ix.semantic-core.IDENTITY_ON_JSON_OBJECT",
                     line_of(i),

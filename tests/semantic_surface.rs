@@ -8,7 +8,7 @@ use std::path::PathBuf;
 use ix_trace_rs::trace;
 use jsonschema::JSONSchema;
 use quire_rs::semantic::python_entry::extract_semantic_json;
-use quire_rs::semantic::{AvailabilityState, SEMANTIC_V1_SCHEMA};
+use quire_rs::semantic::{compile_module_schema, AvailabilityState, SEMANTIC_V1_SCHEMA};
 use quire_rs::{extract_filament_core, FilamentExtractionInput, Registry};
 use serde_json::{json, Value};
 
@@ -21,10 +21,13 @@ fn read_json(rel: &str) -> Value {
 }
 
 fn schema() -> JSONSchema {
-    JSONSchema::options()
-        .with_draft(jsonschema::Draft::Draft202012)
-        .compile(&serde_json::from_str::<Value>(SEMANTIC_V1_SCHEMA).unwrap())
-        .unwrap()
+    compile_module_schema(
+        &serde_json::from_str::<Value>(SEMANTIC_V1_SCHEMA).unwrap(),
+        &|_| None,
+        quire_rs::semantic::embedded::embedded_semantic_core_version(),
+        "https://agent-ix.github.io/quire-rs/schemas/output/",
+    )
+    .unwrap()
 }
 
 /// The semantic-core version every fixture runs under: the one the embedded
