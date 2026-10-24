@@ -220,7 +220,6 @@ fn ir994_adjacent_declarations_round_trip_and_old_wire_is_refused() {
     assert!(serde_json::from_value::<FieldDecl>(old).is_err());
 }
 
-#[trace("TC-1621", "FR-070-AC-10")]
 #[test]
 fn ir994_every_constraint_kind_refuses_every_other_inner_keyword() {
     use quire_rs::semantic::{compile_module_schema, embedded, Constraint};
