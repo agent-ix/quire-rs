@@ -231,6 +231,88 @@ An unclosed parenthetical reads nothing rather than to end-of-cell — reading o
 would turn a typo into a plausible-looking id that binds to nothing and looks
 like a real target.
 
+### Selected criterion inventory — change request PLAT-1165
+
+The selected-inventory API is an additive producer contract. Its implementation
+and the acceptance checks below are **Planned** until the owning code and tests
+land. The existing `derive(&Spec, root, &TraceabilityModel)` return value and its
+existing consumers retain their current behavior.
+
+The measured legacy tuple contains rows and skips, not proof that its corpus was
+normally exhausted. A valid empty table, a missing root, a document missing its
+selected section, an invalid unvalidated model and a caller-truncated `Spec` can
+all yield no rows. The new API SHALL distinguish those outcomes without asking
+an external consumer to re-read Markdown or interpret private scan diagnostics.
+
+### Selection and borrowed owner data
+
+The selected-inventory entry point SHALL validate its document root and the
+traceability model before issuing a selected-corpus identity. Its selection
+names the existing obligation-source declarations to enumerate, in their model
+order; an unknown or duplicate selector is an invalid selection. The declarations
+continue to own archetypes, sections, columns, ID rendering and exclusions. No
+acceptance-criterion archetype, column name, verification method or QSL formal
+clause identifier becomes an engine constant.
+
+The owner-issued selection identity SHALL retain the root, resolved source
+selection and immutable captured corpus to which the inventory belongs. An
+external consumer SHALL be able to borrow that identity and compare whether a
+criterion belongs to that exact selection. A different root, different source
+selection or different captured corpus SHALL NOT be silently treated as the
+same selection. The identity is read-only owner data, not a caller-authored
+revision token, file hash inventory or second release/version ledger. Binding
+this selection to an IR/QSL/production source revision remains the downstream
+source-author contract; the inventory does not make an evidence freshness or
+verification verdict.
+
+Each inventory entry SHALL expose a typed criterion identity retaining its
+source declaration, scope-relative document path and authored row ID, together
+with the owner's existing statement, statement hash, declared method,
+parameters, criticality and target IDs. An external consumer SHALL be able to
+borrow those values and perform an exact selected-criterion lookup without
+parsing Markdown, reading private diagnostics or substituting QSL `ClauseRef`
+for an authored criterion. A row with no formal-clause mapping, source-symbol
+binding or test-case mapping remains an entry. Target IDs remain the declared
+owner data; their presence alone is not verification evidence.
+
+### Exhaustion, partial results and causes
+
+The inventory result SHALL retain the requested selection, emitted entries,
+observed entry count, typed causes and terminal state. A validated selection also
+retains its owner-issued identity; a failed root/model/selector validation
+retains the requested inputs and cause without issuing a valid selection
+identity. `Complete` is owner-issued only
+after every selected source and selected document has been normally exhausted
+without a blocking load, parse, scan or row failure. A caller-created or
+truncated `Spec`, an empty row vector, and an empty skipped-row vector SHALL NOT
+by themselves authorize `Complete`.
+
+A missing root, a non-directory root, a root or document read failure, malformed
+selected document, invalid model or source selection, selected document missing
+its declared section/table, absent required ID or statement column, unusable
+selected row, walk error or early scan stop SHALL yield a typed non-`Complete`
+result. The cause SHALL retain the original underlying error or diagnostic and
+its known source, document and row repair locus. Successfully emitted rows
+before or beside a failure SHALL remain available as partial rows; partial rows
+SHALL NOT be discarded or presented as a complete population. Advisory metadata
+that does not prevent reading a selected criterion remains visible without
+being silently promoted into evidence or a criterion-reading failure.
+
+A valid root containing no selected documents, and a selected table with its
+required headers but no authored rows, SHALL be distinguishable valid empty
+inventories: count zero with `Complete` after normal exhaustion. A missing
+section/table/header is not a valid empty table. Exclusions apply exactly as the
+selected declarations and model already state; an excluded document contributes
+no criterion and remains outside this selection's population.
+
+An explicitly limited or interrupted enumeration SHALL retain its accumulated
+entries and report a typed early-stop cause with non-`Complete` terminal state.
+It SHALL NOT convert the visited prefix into a smaller successful selection.
+Normal unbounded enumeration retains the existing declaration, document and row
+ordering. Neither inventory creation nor failure reporting SHALL add a
+`GrammarFinding`, change legacy `derive` behavior, or judge whether an obligation
+has been discharged.
+
 ## Acceptance Criteria
 
 | ID | Criteria | Verification |
@@ -250,6 +332,15 @@ like a real target.
 | FR-053-AC-11 | A coverage report over a corpus with declared obligation sources carries one `obligations` entry per minting row, and a corpus with no declared sources carries an **absent** `obligations` key — the empty list serializes away — so FR-050-AC-7 byte-identity holds for every module that has not adopted them. | Test (TC-841) |
 | FR-053-AC-12 | The statement hash of a criterion is unchanged when that criterion moves to a different file, changes line number, or has its id renumbered, and changes when a single word of the statement changes. | Test (TC-842) |
 | FR-053-AC-14 | An `exclude:` glob on an obligation source removes the matching document's rows from **both** obligation surfaces — the coverage rollup and the `obligation` nested on a property classification record — so the two never disagree about whether a row states an obligation. Content with no path (stdin) matches no glob. | Test (TC-873) |
+| FR-053-AC-15 | A validated root/model and named obligation-source selection yield an owner-issued, externally borrowable selected-corpus identity retaining the exact root, resolved declarations and immutable captured corpus; unknown or duplicate selectors and an invalid model produce typed non-Complete results rather than a complete empty inventory. | Test |
+| FR-053-AC-16 | A selected valid corpus with two authored criteria emits both, including one with no clause, source-symbol or test-case mapping, reports observed count two and terminal Complete; changing a statement changes its owner statement/hash, and deleting either authored row removes exactly that entry and changes the observed count. | Test |
+| FR-053-AC-17 | An external Rust consumer borrows the selection identity and each typed criterion identity (source declaration, relative document path, authored row ID), statement/hash/method and declared target IDs, and performs an exact selected-criterion lookup without Markdown parsing, private scan diagnostics or a QSL ClauseRef identity. | Test |
+| FR-053-AC-18 | Missing root, root that is a file, unreadable root/document and malformed selected document yield typed non-Complete results retaining the original cause and known locus; a corpus containing one healthy and one unreadable/malformed document retains the healthy document's emitted criteria as partial rows and never reports Complete. | Test |
+| FR-053-AC-19 | A selected document missing its required section/table, ID or statement column, or containing an unusable ID/statement row, yields a typed non-Complete result naming the original source/document/row locus where known; the same valid root with no selected documents and a selected table with valid headers but zero rows each yield a distinct Complete empty inventory after exhaustion. | Test |
+| FR-053-AC-20 | A real walk error or an explicitly stopped or limited scan produces typed non-Complete with its original cause and all already emitted rows; a control that normally exhausts the identical selection returns all rows and Complete, so a visited prefix cannot be relabelled as a complete smaller population. | Test |
+| FR-053-AC-21 | A consumer's criterion lookup using a different root, declaration selection or captured corpus is rejected as a source-selection mismatch; an externally assembled/truncated Spec and empty legacy derive tuple cannot manufacture the owner-issued Complete state. | Test |
+| FR-053-AC-22 | Repeating an exhausted inventory over identical captured documents and validated selection emits equal identities, records, counts and terminal state in model declaration order, scope-relative document-path order and authored row order; declared exclusions remove exactly their selected documents and no healthy unexcluded criterion. | Test |
+| FR-053-AC-23 | Existing derive, single-document obligation and coverage consumers retain their legacy outputs for healthy, skipped-row and tolerant bad-root inputs; the additive inventory neither changes the statement-hash rule nor carries evidence/freshness/discharge verdicts, creates GrammarFinding values, copies an IR schema or requires a manually authored revision/hash ledger. | Test, Inspection |
 
 ## Dependencies
 
