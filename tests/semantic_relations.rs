@@ -26,10 +26,13 @@ fn declared_core() -> &'static str {
 }
 
 fn semantic_v1() -> JSONSchema {
-    JSONSchema::options()
-        .with_draft(jsonschema::Draft::Draft202012)
-        .compile(&serde_json::from_str::<Value>(SEMANTIC_V1_SCHEMA).unwrap())
-        .unwrap()
+    compile_module_schema(
+        &serde_json::from_str::<Value>(SEMANTIC_V1_SCHEMA).unwrap(),
+        &|_| None,
+        declared_core(),
+        "https://agent-ix.github.io/quire-rs/schemas/output/",
+    )
+    .unwrap()
 }
 
 fn relation_decl_gate(core: &str) -> JSONSchema {

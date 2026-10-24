@@ -2,9 +2,10 @@
 //! ordered sequence (TC-1874, TC-1875).
 
 use ix_trace_rs::trace;
-use jsonschema::JSONSchema;
 use quire_rs::semantic::python_entry::extract_semantic_json;
-use quire_rs::semantic::{FeatureKind, SemanticExtraction, SEMANTIC_V1_SCHEMA};
+use quire_rs::semantic::{
+    compile_module_schema, FeatureKind, SemanticExtraction, SEMANTIC_V1_SCHEMA,
+};
 use quire_rs::Registry;
 use serde_json::{json, Value};
 
@@ -40,10 +41,13 @@ fn extract(md: &str) -> (SemanticExtraction, Value) {
     });
     let record = extract_semantic_json(&request).unwrap();
     let value = serde_json::to_value(&record).unwrap();
-    let schema = JSONSchema::options()
-        .with_draft(jsonschema::Draft::Draft202012)
-        .compile(&serde_json::from_str::<Value>(SEMANTIC_V1_SCHEMA).unwrap())
-        .unwrap();
+    let schema = compile_module_schema(
+        &serde_json::from_str::<Value>(SEMANTIC_V1_SCHEMA).unwrap(),
+        &|_| None,
+        quire_rs::semantic::embedded::embedded_semantic_core_version(),
+        "https://agent-ix.github.io/quire-rs/schemas/output/",
+    )
+    .unwrap();
     let errors: Vec<String> = match schema.validate(&value) {
         Ok(()) => Vec::new(),
         Err(errs) => errs
