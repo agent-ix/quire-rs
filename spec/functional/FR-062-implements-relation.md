@@ -63,6 +63,59 @@ from and inventing the field would suggest one exists.
 Mutation scoping is the case that surfaced it, but the same edge answers *"which requirements does
 this diff touch"* — the input to scoped CI, impact analysis and review routing.
 
+## Declared Rust attribute position (CR-191, PLAT-1181)
+
+A module MAY add `syntax: rust_attribute` to a Rust form in
+`trace_tags.implements`. When the field is absent, the form SHALL retain
+its existing declared-text matching behavior. The field selects a syntax
+position; it SHALL NOT select, replace or broaden the module's `pattern`
+or `template`, and the engine SHALL NOT supply an `implements` pattern.
+
+When a form selects `rust_attribute`, the binder SHALL apply that form's
+pattern only to real Rust `attribute_item` syntax attached to the selected
+production declaration. It SHALL use the source adapter's Rust syntax
+interpretation, not a second comment/string lexer. The candidate text is
+that attribute node's exact source text, including its internal whitespace
+and argument spelling, without the declaration or following comment. A
+successful guarded match SHALL cover the complete attribute candidate;
+matching a substring inside a different attribute's payload SHALL produce
+no relation. A pattern sees the attribute at the start of its candidate text, including
+when the declaration shares the attribute's source line. The engine SHALL
+retain the attribute's actual source location when reporting a finding.
+
+An attribute's comment or string-shaped contents are data within that
+attribute, not additional candidate attributes. A matching example inside
+a doc, line or block comment, an ordinary string, a byte string, or a raw
+string SHALL produce no attribute-form relation. This includes a multiline
+raw string with an apparent attribute starting at column zero. Leading
+attributes of a nested declaration SHALL belong only to that declaration;
+they SHALL NOT bind to its enclosing declaration or siblings. The existing
+production/evidence symbol-kind complement remains in force.
+
+The module loader SHALL reject an unknown `syntax` value and a
+`rust_attribute` guard on a non-Rust form or outside
+`trace_tags.implements` as invalid module input, naming
+the offending form. It SHALL NOT drop the guard and fall back to text
+matching. A source file whose declaration structure the Rust adapter
+cannot resolve SHALL retain FR-051's per-file failure behavior, with no
+synthetic attribute relation created from the rejected file.
+
+The change SHALL preserve the existing symbol identities, input source,
+declaration order, unguarded forms, marker id/range rules, and the
+separation between `implements` scope and `verifies` evidence. In
+particular, a syntax guard SHALL NOT turn a production relation into
+coverage backing. Repeated runs over identical source and model inputs
+SHALL preserve deterministic relation and diagnostic ordering.
+
+> **CR-191 (syntax positions, not regex examples):** the former binder
+> applied an `implements` form to the complete attached source span, so a
+> module could not distinguish a real Rust attribute from an example in a
+> block comment or column-zero raw-string line. PLAT-1181 adds an explicit,
+> optional module-declared syntax guard. The absence default preserves
+> existing comment forms; adopting the guard deliberately removes false
+> scope relations. It changes no acceptance obligation or evidence-method
+> semantics and does not itself qualify any release or consumer adoption.
+
 ## Acceptance Criteria
 
 | ID | Criteria | Verification |
@@ -72,6 +125,12 @@ this diff touch"* — the input to scoped CI, impact analysis and review routing
 | FR-062-AC-3 | A requirement named by several markers yields one relation, ordered deterministically. | Test (TC-938) |
 | FR-062-AC-4 | The relation reaches the `coverage --json` contract, and moves no coverage number: not `backed`, not `totals`, not `untracked_symbols`. | Test (TC-939) |
 | FR-062-AC-5 | Marker forms declared in a module manifest survive the load: the merged model carries them, a model declaring only them does not read as empty, and `bind` mints from them. | Test (TC-940) |
+| FR-062-AC-12 | A module-loaded Rust form retains `syntax: rust_attribute` through the traceability model and serialization; omission preserves the old declared-text behavior. An unknown syntax value or this guard on a non-Rust form or outside `trace_tags.implements` is refused at module load, identifying the form, with no text-matching fallback. | Test (TC-1983, TC-1989) |
+| FR-062-AC-13 | A real production attribute carrying two declared ids produces exactly those two `implements` relations and no `verifies` relation. Valid leading, multiline, trailing-comment and same-line-item attributes are eligible through the same module-loaded form; each form matches only the exact attribute-node text. | Test (TC-1984, TC-1986) |
+| FR-062-AC-14 | Attribute-shaped text in doc, line, block or nested block comments, ordinary or byte strings, and single-line or multiline raw strings produces no guarded attribute-form relation, including a column-zero raw-string line; the matching real attribute control remains bound. | Test (TC-1985) |
+| FR-062-AC-15 | Guarded attributes bind only to their actual production declaration: a nested declaration's attribute binds neither parent nor sibling, and an attribute on an evidence symbol produces no `implements` relation. | Test (TC-1987) |
+| FR-062-AC-16 | Unguarded Rust comment forms and Python/TypeScript declared comment forms retain their existing relations; syntax-guard adoption supplies no implicit pattern and does not change the module's declared ids or templates. | Test (TC-1988) |
+| FR-062-AC-17 | Guarded binding preserves symbol identity, actual finding source locations, existing range refusal and per-file syntax-failure behavior, and deterministic relation/diagnostic ordering. It changes no `verifies` edge or coverage backing count. | Test (TC-1990) |
 
 > **CR-081 (module-declared forms survive the load — 2026-08-19):** the relation
 > was inert wherever it was actually used. `trace_tags.implements` was added to

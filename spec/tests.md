@@ -1089,6 +1089,42 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 
 ---
 
+### PLAT-1181: guarded Rust implements attributes (planned)
+
+The following cases are planned implementation obligations. Their presence
+in this specification is not runtime or coverage evidence.
+
+| Test ID | Title | Type | Priority | Traces To | Status |
+|---------|-------|------|----------|-----------|--------|
+| TC-1983 | Load and round-trip a module-declared Rust attribute syntax guard; omitted guard retains the unguarded form | Integration | P0 | FR-062-AC-12 | 🚧 Planned |
+| TC-1984 | A genuine production attribute with two ids yields exactly two scope edges and zero verification edges | Integration | P0 | FR-062-AC-13 | 🚧 Planned |
+| TC-1985 | Real attribute control binds while attribute-shaped doc/line/block/nested-block comments and normal/byte/raw string data bind nothing | Integration | P0 | FR-062-AC-14 | 🚧 Planned |
+| TC-1986 | Multiline attributes, trailing comments and same-line declarations preserve valid guarded bindings | Integration | P0 | FR-062-AC-13 | 🚧 Planned |
+| TC-1987 | Nested and sibling declarations retain exact attribute ownership; an evidence symbol carries no implements edge | Integration | P0 | FR-062-AC-15 | 🚧 Planned |
+| TC-1988 | Existing unguarded Rust and Python/TypeScript comment forms remain module-driven and unchanged | Integration | P0 | FR-062-AC-16 | 🚧 Planned |
+| TC-1989 | Unknown guard, non-Rust guarded form and use outside implements are invalid module input, never an unguarded fallback | Integration | P0 | FR-062-AC-12 | 🚧 Planned |
+| TC-1990 | Guarded forms preserve identities, range-finding locations, parse-failure isolation, deterministic outputs and the scope/evidence separation | Integration | P0 | FR-062-AC-17 | 🚧 Planned |
+
+Procedures use the public module-load-to-bind path, not a manually patched
+`TraceabilityModel`. Each form declares its pattern and template in the
+fixture module. The source fixture is parsed as Rust; no test executes the
+attribute or the source it decorates. Assert the exact `implements` edge
+set, the absence of false `implements` edges and zero `verifies` evidence
+edges for production controls. The real multi-id attribute and all
+comment/string counterexamples (including attribute-shaped data inside a
+real, different attribute's payload) share one source/model input so masking the
+entire file cannot make the adverse controls pass.
+
+For TC-1987, include a parent function, a nested production declaration,
+a sibling and a test function with distinct ids; assert each id's exact
+owner rather than only a total count. For TC-1989, check the module refusal
+names the configured form and no graph is returned by falling back to the
+unguarded matcher. For TC-1990, put a range inside a real multiline
+attribute and verify its existing refusal/location contract, compare
+repeated runs, and compare a source file rejected for declaration syntax
+with an independently valid file. Keep the existing ungated relation
+contract as the compatibility oracle for TC-1988.
+
 ## Option Permutation Matrix
 
 The render dispatch is generic over `(CompiledArchetype, data)`. The corpus parity sweep (TC-030) exercises every archetype × every fixture; no separate option matrix is needed at the engine level. Permutation is encoded in the on-disk corpus.
