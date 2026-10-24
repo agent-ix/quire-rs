@@ -1087,6 +1087,15 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-1892 | Over a genuinely mixed-language fixture (a Rust claim and a Python claim, each asserted non-empty before any `.all()` check so an empty result cannot pass vacuously), `symbol_language()` + `language_confidence()` resolve `structural` for the Rust claim (AST-grounded, PLAT-843) and `line_heuristic` for the Python claim (pre-PLAT-851 line scanner) — no result presents uniform confidence across languages (PLAT-844) | Unit | P0 | FR-077-AC-5 | ✅ |
 | TC-1893 | Querying `FR-047` does not implicitly match a `FR-047-AC-2` relation — exact match only, post `normalized_trace_id` normalization, with no engine-side FR/AC/TC hierarchy knowledge (PLAT-844) | Unit | P0 | FR-077-AC-6 | ✅ |
 | TC-1894 | The `mentions` pass does not mask Rust string-literal content: an id-shaped token inside a string literal is reported as a citation, not hidden — deliberately unlike the unchanged legacy-form masking on the `verifies`/`non_binding_tags` claim paths (PLAT-844) | Unit | P1 | FR-077-CON-3 | ✅ |
+| TC-1954 | Validate the real selected root/model/source names; borrow the owner selection; reject unknown/duplicate selectors and invalid models without Complete (PLAT-1165) | Integration | P0 | FR-053-AC-15 | 🚧 |
+| TC-1955 | Enumerate two authored rows including a zero-mapping criterion, then change and delete actual rows; check exact entries, owner hash/count and Complete (PLAT-1165) | Integration | P0 | FR-053-AC-16 | 🚧 |
+| TC-1956 | Compile/run an external Rust consumer borrowing typed source/document/authored-ID criterion identity and owner data, with exact criterion lookup and no Markdown/private-diagnostic/QSL ClauseRef parsing (PLAT-1165) | Integration | P0 | FR-053-AC-17 | 🚧 |
+| TC-1957 | Exercise real missing/file/unreadable roots, invalid-UTF8 or malformed selected documents and healthy-plus-failed topology; check typed original causes, loci, retained partial rows and non-Complete (PLAT-1165) | Integration | P0 | FR-053-AC-18 | 🚧 |
+| TC-1958 | Compare absent section/table/ID/statement headers and unusable rows with a real valid empty root and empty headed table; only normally exhausted valid empties Complete (PLAT-1165) | Integration | P0 | FR-053-AC-19 | 🚧 |
+| TC-1959 | Stop a real selected enumeration after a retained prefix or surface a walk error; check typed non-Complete and all partial rows, then normally exhaust the same selection as the healthy control (PLAT-1165) | Integration | P0 | FR-053-AC-20 | 🚧 |
+| TC-1960 | Reject wrong-root/source-selection/captured-corpus criterion use and demonstrate that a caller-truncated Spec or empty legacy tuple cannot issue Complete (PLAT-1165) | Integration | P0 | FR-053-AC-21 | 🚧 |
+| TC-1961 | Repeat actual inventory enumeration; compare deterministic identities/records/count/terminal order and apply explicit exclusions while preserving healthy unexcluded rows (PLAT-1165) | Integration | P1 | FR-053-AC-22 | 🚧 |
+| TC-1962 | Compare existing derive/classification/coverage healthy, skipped and tolerant bad-root outputs before/after the additive API; inspect owner boundaries and absence of invented ledgers/evidence verdicts (PLAT-1165) | Integration | P0 | FR-053-AC-23 | 🚧 |
 
 ---
 
@@ -1108,15 +1117,6 @@ The render dispatch is generic over `(CompiledArchetype, data)`. The corpus pari
 | TC-1821 | old and selected engines | governed corpus plus duplicate-key, merge-key, implicit-scalar, alias, timestamp, and non-string-key fixtures | identical outcome and JSON-compatible value |
 | TC-1822 | Rust, TypeScript, and Python frontmatter readers | unchanged reference fixtures | identical outcome and value |
 | TC-1826 | selected Rust engine | each production typed-YAML consumer class | every unchanged suite passes |
-| TC-1954 | Validate the real selected root/model/source names; borrow the owner selection; reject unknown/duplicate selectors and invalid models without Complete (PLAT-1165) | Integration | P0 | FR-053-AC-15 | 🚧 |
-| TC-1955 | Enumerate two authored rows including a zero-mapping criterion, then change and delete actual rows; check exact entries, owner hash/count and Complete (PLAT-1165) | Integration | P0 | FR-053-AC-16 | 🚧 |
-| TC-1956 | Compile/run an external Rust consumer borrowing typed source/document/authored-ID criterion identity and owner data, with exact criterion lookup and no Markdown/private-diagnostic/QSL ClauseRef parsing (PLAT-1165) | Integration | P0 | FR-053-AC-17 | 🚧 |
-| TC-1957 | Exercise real missing/file/unreadable roots, invalid-UTF8 or malformed selected documents and healthy-plus-failed topology; check typed original causes, loci, retained partial rows and non-Complete (PLAT-1165) | Integration | P0 | FR-053-AC-18 | 🚧 |
-| TC-1958 | Compare absent section/table/ID/statement headers and unusable rows with a real valid empty root and empty headed table; only normally exhausted valid empties Complete (PLAT-1165) | Integration | P0 | FR-053-AC-19 | 🚧 |
-| TC-1959 | Stop a real selected enumeration after a retained prefix or surface a walk error; check typed non-Complete and all partial rows, then normally exhaust the same selection as the healthy control (PLAT-1165) | Integration | P0 | FR-053-AC-20 | 🚧 |
-| TC-1960 | Reject wrong-root/source-selection/captured-corpus criterion use and demonstrate that a caller-truncated Spec or empty legacy tuple cannot issue Complete (PLAT-1165) | Integration | P0 | FR-053-AC-21 | 🚧 |
-| TC-1961 | Repeat actual inventory enumeration; compare deterministic identities/records/count/terminal order and apply explicit exclusions while preserving healthy unexcluded rows (PLAT-1165) | Integration | P1 | FR-053-AC-22 | 🚧 |
-| TC-1962 | Compare existing derive/classification/coverage healthy, skipped and tolerant bad-root outputs before/after the additive API; inspect owner boundaries and absence of invented ledgers/evidence verdicts (PLAT-1165) | Integration | P0 | FR-053-AC-23 | 🚧 |
 
 ---
 
