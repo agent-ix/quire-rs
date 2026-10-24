@@ -162,6 +162,19 @@ the published schema artifacts.
   declares one or more `obligations:` entries.
 - For a `target:` entry, the resolved `TraceTarget` it names.
 
+### Selected-inventory entry point (PLAT-1165)
+
+The additive public Rust entry point is `obligation::inventory(root, model,
+source_names, stop_limit)`. It accepts a filesystem document root, a borrowed
+`TraceabilityModel`, a **nonempty** list of existing obligation-source names and
+an optional nonnegative emitted-entry stop limit. It does not accept a `Spec`,
+`RepoLoad`, caller-supplied rows or a caller-supplied completion value. The owner
+loads the selected corpus through its own walk and parser. An absent limit
+requests normal exhaustion; a limit requests the stopping policy below.
+
+The existing `derive(&Spec, root, &TraceabilityModel)` entry point remains
+unchanged and does not acquire a completion guarantee.
+
 ## Outputs
 
 - `Obligation { source, id, document, statement, statement_hash, method,
@@ -170,6 +183,15 @@ the published schema artifacts.
 - `CriterionObligation { source, statement_hash, method, parameters,
   criticality }` on `AcClassification::obligation` — the same facts minus the
   three the enclosing record already carries.
+
+### Selected-inventory result (PLAT-1165)
+
+The additive entry point returns an owner-issued `SelectedInventory`: the
+requested inputs, a validated selection identity when validation succeeds,
+borrowable origin-aware entries, observed entry count, typed causes retaining
+partial rows, and terminal `Complete` or non-`Complete`. Its completion state is
+not publicly constructible from a caller `Spec` or deserialized row list.
+Borrowed entry and selection views remain tied to this immutable owner result.
 
 ## Behavior
 
@@ -244,74 +266,140 @@ selected section, an invalid unvalidated model and a caller-truncated `Spec` can
 all yield no rows. The new API SHALL distinguish those outcomes without asking
 an external consumer to re-read Markdown or interpret private scan diagnostics.
 
-### Selection and borrowed owner data
+### Selection and captured identity
 
-The selected-inventory entry point SHALL validate its document root and the
-traceability model before issuing a selected-corpus identity. Its selection
-names the existing obligation-source declarations to enumerate, in their model
-order; an unknown or duplicate selector is an invalid selection. The declarations
+The inventory SHALL validate its document root, traceability model and source
+selectors before issuing a valid selected-corpus identity. The selector list
+must name at least one existing obligation-source declaration. An empty list,
+unknown name or duplicate name is a typed invalid selection, not a valid empty
+corpus. Selected declarations are resolved in their model declaration order,
+regardless of the order in which the caller lists their names. The declarations
 continue to own archetypes, sections, columns, ID rendering and exclusions. No
 acceptance-criterion archetype, column name, verification method or QSL formal
 clause identifier becomes an engine constant.
 
-The owner-issued selection identity SHALL retain the root, resolved source
-selection and immutable captured corpus to which the inventory belongs. An
-external consumer SHALL be able to borrow that identity and compare whether a
-criterion belongs to that exact selection. A different root, different source
-selection or different captured corpus SHALL NOT be silently treated as the
-same selection. The identity is read-only owner data, not a caller-authored
-revision token, file hash inventory or second release/version ledger. Binding
-this selection to an IR/QSL/production source revision remains the downstream
-source-author contract; the inventory does not make an evidence freshness or
-verification verdict.
+The inventory SHALL issue a selection identity whose equality basis consists
+of the canonical document-root path, the resolved selected source declarations
+in model order (including their target definitions and effective model/source
+exclusions), and the selected-document snapshot. That snapshot is the ordered
+set of scope-relative document paths and exact captured document bytes for
+readable documents selected by at least one selected declaration after its
+exclusions apply. A byte change anywhere in a selected document, including an
+unrelated section, changes this identity even when its criterion rows are
+unchanged. Adding, removing or renaming a selected document also changes it.
+The same canonical root, resolved declarations and identical selected-document
+snapshot yield equal identities on repeated loads; pointer addresses, clocks
+and load order do not enter equality.
 
-Each inventory entry SHALL expose a typed criterion identity retaining its
-source declaration, scope-relative document path and authored row ID, together
-with the owner's existing statement, statement hash, declared method,
-parameters, criticality and target IDs. An external consumer SHALL be able to
-borrow those values and perform an exact selected-criterion lookup without
-parsing Markdown, reading private diagnostics or substituting QSL `ClauseRef`
-for an authored criterion. A row with no formal-clause mapping, source-symbol
-binding or test-case mapping remains an entry. Target IDs remain the declared
-owner data; their presence alone is not verification evidence.
+Readable, valid documents whose declared type matches no selected source are
+**unselected nonmembers**. Their bytes do not enter the selected-document
+snapshot, so changes confined to such a nonmember do not change the identity
+while it remains a nonmember. A change that makes it selected does change the
+snapshot. Documents excluded from every selected source and files outside the
+document root likewise do not enter that snapshot; changes confined to those
+files do not change identity. A changed selection or effective exclusion
+contract changes identity even when the emitted records happen to be equal.
 
-### Exhaustion, partial results and causes
+An external consumer SHALL be able to borrow the identity and check whether an
+entry belongs to that exact selection. A different canonical root, resolved
+source selection or selected-document snapshot SHALL produce a typed
+source-selection mismatch. The identity is read-only owner data, not a
+caller-authored revision token, file hash inventory or second release/version
+ledger. Binding it to an IR/QSL/production source revision remains the downstream
+source-author contract; the inventory does not judge evidence freshness or
+verification success.
+
+### Origin-aware entry identity and lookup
+
+Each entry SHALL expose its source declaration, scope-relative document path
+and a typed origin. An `AuthoredRow` origin retains the row's authored ID. A
+`RenderedRow` origin retains the owner's rendered obligation ID and 1-based row
+ordinal for an `archetype`/`id_format` source whose row authors no ID. A
+`CombinatorialTable` origin retains the owner's rendered whole-table obligation
+ID for the existing combinatorial source. Rendered origins SHALL NOT expose a
+rendered ID as an authored row ID. Deleting an earlier rendered row may renumber
+later rendered IDs under the existing `id_format` rule; this is not a promise
+of a stable authored identity for those rows. Existing obligation IDs and their
+statement/hash/method/parameter/criticality/target data remain owner data.
+
+An external consumer SHALL be able to borrow these origin-aware identities and
+values and perform an exact lookup without parsing Markdown, reading private
+diagnostics or substituting QSL `ClauseRef` for an authored criterion. Every
+selected authored criterion remains an entry when it has no formal-clause,
+source-symbol or test-case mapping. The presence of a declared target ID alone
+is not verification evidence.
+
+If two selected authored rows have the same `(source declaration, document,
+authored row ID)`, then the inventory SHALL report a typed duplicate-identity
+cause and a non-`Complete` terminal. It retains both conflicting rows, their
+ordinals/loci and every otherwise emitted row as partial data. Exact lookup of
+that identity SHALL return a typed ambiguity refusal rather than choosing the
+first row; lookup of another unambiguous partial identity remains available.
+The same authored row ID in different documents or declarations is not this
+collision, because those identity members differ.
+
+### Classification, partial results and causes
 
 The inventory result SHALL retain the requested selection, emitted entries,
 observed entry count, typed causes and terminal state. A validated selection also
-retains its owner-issued identity; a failed root/model/selector validation
-retains the requested inputs and cause without issuing a valid selection
-identity. `Complete` is owner-issued only
-after every selected source and selected document has been normally exhausted
-without a blocking load, parse, scan or row failure. A caller-created or
-truncated `Spec`, an empty row vector, and an empty skipped-row vector SHALL NOT
-by themselves authorize `Complete`.
+retains its owner-issued identity; failed root/model/selector validation retains
+the requested inputs and cause without issuing a valid selection identity.
 
-A missing root, a non-directory root, a root or document read failure, malformed
-selected document, invalid model or source selection, selected document missing
-its declared section/table, absent required ID or statement column, unusable
-selected row, walk error or early scan stop SHALL yield a typed non-`Complete`
-result. The cause SHALL retain the original underlying error or diagnostic and
-its known source, document and row repair locus. Successfully emitted rows
-before or beside a failure SHALL remain available as partial rows; partial rows
-SHALL NOT be discarded or presented as a complete population. Advisory metadata
-that does not prevent reading a selected criterion remains visible without
-being silently promoted into evidence or a criterion-reading failure.
+The inventory SHALL apply the effective declared path exclusions before
+classifying a discovered Markdown file. A path excluded from every selected
+source contributes neither a selected entry nor a classification failure.
+A non-excluded file that cannot be read or classified because its frontmatter
+is absent or malformed is **unclassifiable**: the inventory cannot prove that it
+is an unselected nonmember. The inventory SHALL retain a typed load or parse
+cause for that path and return non-`Complete`. It SHALL NOT infer membership
+from a filename or silently drop that file. A readable document with valid
+frontmatter and a type matching no selected source is the healthy nonmember
+control; it contributes no entry and does not by itself block completion.
+These are additive inventory-boundary decisions, not changes to the existing
+FR-006 parser or tolerant `load_repo` membership behavior.
 
-A valid root containing no selected documents, and a selected table with its
-required headers but no authored rows, SHALL be distinguishable valid empty
-inventories: count zero with `Complete` after normal exhaustion. A missing
-section/table/header is not a valid empty table. Exclusions apply exactly as the
-selected declarations and model already state; an excluded document contributes
-no criterion and remains outside this selection's population.
+A missing root, a non-directory root, a root or document read failure, an invalid
+model or source selection, an unclassifiable non-excluded file, a selected
+document missing its declared section/table, an absent required ID or statement
+column, an unusable selected row, a duplicate authored identity or a walk error
+SHALL produce a typed non-`Complete` result. The cause SHALL retain the original
+underlying error or diagnostic and its known source, document and row repair
+locus. Successfully emitted rows before or beside a failure SHALL remain
+available as partial rows. The inventory SHALL NOT discard those rows or
+present them as a complete population. Metadata advisories that do not prevent
+classification or reading a selected criterion, such as an absent optional UUID,
+remain visible without becoming evidence or a blocking criterion-read failure.
 
-An explicitly limited or interrupted enumeration SHALL retain its accumulated
-entries and report a typed early-stop cause with non-`Complete` terminal state.
-It SHALL NOT convert the visited prefix into a smaller successful selection.
-Normal unbounded enumeration retains the existing declaration, document and row
-ordering. Neither inventory creation nor failure reporting SHALL add a
-`GrammarFinding`, change legacy `derive` behavior, or judge whether an obligation
-has been discharged.
+A valid root containing no selected documents, including one containing only
+valid nonmembers, and a selected table with its required headers but no authored
+rows are valid empty inventories. The inventory SHALL report count zero with
+`Complete` for those inputs only after normal exhaustion. An empty selector
+list or an absent required section/table/header is not a valid empty inventory.
+
+### Normal exhaustion and stopping
+
+When validation has succeeded and the walk and every selected source/document
+scan have normally reached end-of-scan without a blocking cause, the inventory
+SHALL issue terminal `Complete`. While a required end-of-scan has not been
+observed or a blocking cause exists, the inventory SHALL issue non-`Complete`.
+Neither a caller-created/truncated `Spec` nor empty row/skipped-row vectors
+constitute that end observation.
+
+An explicit stop limit counts successfully emitted entries after input
+validation. When the limit is reached, the inventory SHALL stop before
+requesting further scan progress, retain the accumulated entries, and return a
+typed limit-stop cause with non-`Complete`. A limit of zero stops before scanning
+even a genuinely empty corpus. For a selection with exactly N entries, limit N
+returns non-`Complete` even when the Nth entry happens to be the last: reaching
+the count is not observing the subsequent end-of-scan. A limit greater than N
+permits normal end observation and `Complete` if no other blocking cause exists;
+an absent limit does the same. An explicit interruption before end observation
+also retains partial rows and its typed stop cause. No stop or limit relabels a
+visited prefix as a smaller successful selection.
+
+Normal enumeration retains declaration, relative document-path and row ordering.
+Neither inventory creation nor failure reporting SHALL add a `GrammarFinding`,
+change legacy `derive` behavior, or judge whether an obligation is discharged.
 
 ## Acceptance Criteria
 
@@ -332,15 +420,15 @@ has been discharged.
 | FR-053-AC-11 | A coverage report over a corpus with declared obligation sources carries one `obligations` entry per minting row, and a corpus with no declared sources carries an **absent** `obligations` key — the empty list serializes away — so FR-050-AC-7 byte-identity holds for every module that has not adopted them. | Test (TC-841) |
 | FR-053-AC-12 | The statement hash of a criterion is unchanged when that criterion moves to a different file, changes line number, or has its id renumbered, and changes when a single word of the statement changes. | Test (TC-842) |
 | FR-053-AC-14 | An `exclude:` glob on an obligation source removes the matching document's rows from **both** obligation surfaces — the coverage rollup and the `obligation` nested on a property classification record — so the two never disagree about whether a row states an obligation. Content with no path (stdin) matches no glob. | Test (TC-873) |
-| FR-053-AC-15 | A validated root/model and named obligation-source selection yield an owner-issued, externally borrowable selected-corpus identity retaining the exact root, resolved declarations and immutable captured corpus; unknown or duplicate selectors and an invalid model produce typed non-Complete results rather than a complete empty inventory. | Test |
-| FR-053-AC-16 | A selected valid corpus with two authored criteria emits both, including one with no clause, source-symbol or test-case mapping, reports observed count two and terminal Complete; changing a statement changes its owner statement/hash, and deleting either authored row removes exactly that entry and changes the observed count. | Test |
-| FR-053-AC-17 | An external Rust consumer borrows the selection identity and each typed criterion identity (source declaration, relative document path, authored row ID), statement/hash/method and declared target IDs, and performs an exact selected-criterion lookup without Markdown parsing, private scan diagnostics or a QSL ClauseRef identity. | Test |
-| FR-053-AC-18 | Missing root, root that is a file, unreadable root/document and malformed selected document yield typed non-Complete results retaining the original cause and known locus; a corpus containing one healthy and one unreadable/malformed document retains the healthy document's emitted criteria as partial rows and never reports Complete. | Test |
-| FR-053-AC-19 | A selected document missing its required section/table, ID or statement column, or containing an unusable ID/statement row, yields a typed non-Complete result naming the original source/document/row locus where known; the same valid root with no selected documents and a selected table with valid headers but zero rows each yield a distinct Complete empty inventory after exhaustion. | Test |
-| FR-053-AC-20 | A real walk error or an explicitly stopped or limited scan produces typed non-Complete with its original cause and all already emitted rows; a control that normally exhausts the identical selection returns all rows and Complete, so a visited prefix cannot be relabelled as a complete smaller population. | Test |
-| FR-053-AC-21 | A consumer's criterion lookup using a different root, declaration selection or captured corpus is rejected as a source-selection mismatch; an externally assembled/truncated Spec and empty legacy derive tuple cannot manufacture the owner-issued Complete state. | Test |
-| FR-053-AC-22 | Repeating an exhausted inventory over identical captured documents and validated selection emits equal identities, records, counts and terminal state in model declaration order, scope-relative document-path order and authored row order; declared exclusions remove exactly their selected documents and no healthy unexcluded criterion. | Test |
-| FR-053-AC-23 | Existing derive, single-document obligation and coverage consumers retain their legacy outputs for healthy, skipped-row and tolerant bad-root inputs; the additive inventory neither changes the statement-hash rule nor carries evidence/freshness/discharge verdicts, creates GrammarFinding values, copies an IR schema or requires a manually authored revision/hash ledger. | Test, Inspection |
+| FR-053-AC-15 | A valid document root, model and nonempty existing source-name selection yield the public owner-issued SelectedInventory and borrowable selection identity; empty, unknown or duplicate selectors and an invalid model yield typed non-Complete results, and the entry point accepts no caller Spec, RepoLoad, rows or completion state. | Test (TC-1954) |
+| FR-053-AC-16 | A selected valid corpus with two authored criteria emits both, including one with no clause, source-symbol or test-case mapping, reports count two and Complete; changing a statement changes its owner statement/hash, and deleting either authored row removes exactly that entry and changes the count. | Test (TC-1955) |
+| FR-053-AC-17 | An external Rust consumer borrows the selection and origin-aware identities and owner statement/hash/method/target data and performs exact lookup without Markdown/private-diagnostic/QSL ClauseRef parsing; AuthoredRow retains its authored ID, RenderedRow retains rendered ID plus row ordinal, and CombinatorialTable retains its rendered table ID, so deleting an earlier rendered row can renumber rendered IDs but never manufactures authored IDs. | Test (TC-1956) |
+| FR-053-AC-18 | Missing/file/unreadable roots, unreadable documents and unclassifiable non-excluded Markdown (absent or malformed frontmatter) yield typed non-Complete with original cause/locus and retained healthy partial rows; valid unselected nonmember documents and paths excluded from every selected source contribute no entries and do not themselves block Complete. | Test (TC-1957) |
+| FR-053-AC-19 | Missing selected section/table/required ID or statement column and unusable rows yield typed non-Complete; duplicate authored IDs in one selected source/document retain both rows and their loci, yield typed non-Complete and make exact lookup return ambiguity rather than first-wins, while other unambiguous partial lookups remain available; a nonempty valid selection with no selected documents or a valid empty headed table yields Complete with count zero after exhaustion. | Test (TC-1958) |
+| FR-053-AC-20 | A real walk error or explicit interruption retains its original typed cause and partial rows and is non-Complete; a limit stops immediately when its emitted-entry count is reached without observing subsequent end-of-scan, so zero limit and limit N on an N-entry selection are non-Complete, while a greater-than-N or absent limit permits Complete only after actual normal end observation and no blocking cause. | Test (TC-1959) |
+| FR-053-AC-21 | Selection identity equality uses canonical root, resolved selected declarations/effective exclusions and the exact path/byte snapshot of selected documents: changes within a selected document, even outside its criterion table, or changes to selected membership reject cross-inventory lookup as a typed mismatch; repeated identical captures compare equal, changes confined to valid still-unselected nonmembers, wholly excluded documents or files outside the root leave identity equal, and caller-truncated Spec or deserialized rows cannot issue Complete. | Test (TC-1960) |
+| FR-053-AC-22 | Repeated exhaustive enumeration yields equal origin-aware identities, records, counts and terminal state in model declaration, relative document-path and authored row order; explicit exclusions remove exactly their selected documents, preserve healthy unexcluded criteria, and a changed selection/exclusion contract changes identity even when emitted records remain equal. | Test (TC-1961) |
+| FR-053-AC-23 | Existing derive, single-document obligation and coverage consumers retain legacy healthy/skipped/tolerant-bad-root outputs; tests check unchanged statement hashes, absence of evidence/freshness/discharge verdicts and GrammarFinding creation, and a producer API needing neither an IR schema copy nor a manually authored revision/hash ledger. | Test (TC-1962) |
 
 ## Dependencies
 
