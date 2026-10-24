@@ -219,3 +219,68 @@ fn ir994_adjacent_declarations_round_trip_and_old_wire_is_refused() {
     assert!(!gate.is_valid(&old));
     assert!(serde_json::from_value::<FieldDecl>(old).is_err());
 }
+
+#[trace("TC-1621", "FR-070-AC-10")]
+#[test]
+fn ir994_every_constraint_kind_refuses_every_other_inner_keyword() {
+    use quire_rs::semantic::{compile_module_schema, embedded, Constraint};
+    use std::collections::{BTreeMap, BTreeSet};
+    let version = embedded::embedded_semantic_core_version();
+    let schema = compile_module_schema(&json!({
+        "$schema":"https://json-schema.org/draft/2020-12/schema",
+        "$id":"https://schemas.agent-ix.org/quire-rs/ConstraintMismatchGate.json",
+        "$ref":format!("https://schemas.agent-ix.org/semantic-core/{version}/ConstraintDecl.json")
+    }), &|_| None, version, "https://schemas.agent-ix.org/quire-rs/").unwrap();
+    let fixture = adjacent_fixture();
+    let variants: BTreeMap<String, Value> = fixture["cases"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|case| {
+            (
+                case["expected"]["kind"].as_str().unwrap().to_owned(),
+                case["expected"].clone(),
+            )
+        })
+        .collect();
+    let owner: Value = serde_json::from_str(
+        embedded::semantic_core_bundle(version)
+            .unwrap()
+            .iter()
+            .find(|(name, _)| *name == "ConstraintDecl.json")
+            .unwrap()
+            .1,
+    )
+    .unwrap();
+    let owner_kinds: BTreeSet<_> = owner["oneOf"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|branch| {
+            branch["properties"]["kind"]["const"]
+                .as_str()
+                .unwrap()
+                .to_owned()
+        })
+        .collect();
+    assert_eq!(
+        variants.keys().cloned().collect::<BTreeSet<_>>(),
+        owner_kinds,
+        "mismatch controls must cover every published constraint kind"
+    );
+    for (kind, original) in &variants {
+        assert!(schema.is_valid(original));
+        assert!(serde_json::from_value::<Constraint>(original.clone()).is_ok());
+        for (other, other_value) in &variants {
+            if kind != other {
+                let mut mismatched = original.clone();
+                mismatched["value"]["keyword"] = other_value["value"]["keyword"].clone();
+                assert!(!schema.is_valid(&mismatched), "owner schema {kind}/{other}");
+                assert!(
+                    serde_json::from_value::<Constraint>(mismatched).is_err(),
+                    "serde must refuse outer {kind} with the inner keyword of {other}"
+                );
+            }
+        }
+    }
+}

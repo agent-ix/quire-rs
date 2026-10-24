@@ -159,54 +159,163 @@ pub enum ConstraintKeyword {
 pub enum Constraint {
     #[serde(rename = "MinConstraint")]
     Min {
+        #[serde(deserialize_with = "min_keyword")]
         keyword: ConstraintKeyword,
         value: NumericConstraintValue,
     },
     #[serde(rename = "MaxConstraint")]
     Max {
+        #[serde(deserialize_with = "max_keyword")]
         keyword: ConstraintKeyword,
         value: NumericConstraintValue,
     },
     #[serde(rename = "ExclusiveMinConstraint")]
     ExclusiveMin {
+        #[serde(deserialize_with = "exclusive_min_keyword")]
         keyword: ConstraintKeyword,
         value: NumericConstraintValue,
     },
     #[serde(rename = "ExclusiveMaxConstraint")]
     ExclusiveMax {
+        #[serde(deserialize_with = "exclusive_max_keyword")]
         keyword: ConstraintKeyword,
         value: NumericConstraintValue,
     },
     #[serde(rename = "MinLengthConstraint")]
     MinLength {
+        #[serde(deserialize_with = "min_length_keyword")]
         keyword: ConstraintKeyword,
         value: u64,
     },
     #[serde(rename = "MaxLengthConstraint")]
     MaxLength {
+        #[serde(deserialize_with = "max_length_keyword")]
         keyword: ConstraintKeyword,
         value: u64,
     },
     #[serde(rename = "PatternConstraint")]
     Pattern {
+        #[serde(deserialize_with = "pattern_keyword")]
         keyword: ConstraintKeyword,
         regex: String,
         dialect: String,
     },
     #[serde(rename = "EnumValuesConstraint")]
     EnumValues {
+        #[serde(deserialize_with = "enum_values_keyword")]
         keyword: ConstraintKeyword,
         values: Vec<EnumConstraintValue>,
     },
     #[serde(rename = "NonEmptyConstraint")]
-    NonEmpty { keyword: ConstraintKeyword },
+    NonEmpty {
+        #[serde(deserialize_with = "non_empty_keyword")]
+        keyword: ConstraintKeyword,
+    },
     #[serde(rename = "UniqueConstraint")]
-    Unique { keyword: ConstraintKeyword },
+    Unique {
+        #[serde(deserialize_with = "unique_keyword")]
+        keyword: ConstraintKeyword,
+    },
     #[serde(rename = "FormatConstraint")]
     Format {
+        #[serde(deserialize_with = "format_keyword")]
         keyword: ConstraintKeyword,
         name: String,
     },
+}
+
+fn required_keyword<'de, D>(
+    deserializer: D,
+    expected: ConstraintKeyword,
+) -> Result<ConstraintKeyword, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let actual = ConstraintKeyword::deserialize(deserializer)?;
+    if actual == expected {
+        Ok(actual)
+    } else {
+        Err(serde::de::Error::custom(format!(
+            "constraint kind requires keyword {expected:?}, received {actual:?}"
+        )))
+    }
+}
+
+fn min_keyword<'de, D>(deserializer: D) -> Result<ConstraintKeyword, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    required_keyword(deserializer, ConstraintKeyword::Min)
+}
+
+fn max_keyword<'de, D>(deserializer: D) -> Result<ConstraintKeyword, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    required_keyword(deserializer, ConstraintKeyword::Max)
+}
+
+fn exclusive_min_keyword<'de, D>(deserializer: D) -> Result<ConstraintKeyword, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    required_keyword(deserializer, ConstraintKeyword::ExclusiveMin)
+}
+
+fn exclusive_max_keyword<'de, D>(deserializer: D) -> Result<ConstraintKeyword, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    required_keyword(deserializer, ConstraintKeyword::ExclusiveMax)
+}
+
+fn min_length_keyword<'de, D>(deserializer: D) -> Result<ConstraintKeyword, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    required_keyword(deserializer, ConstraintKeyword::MinLength)
+}
+
+fn max_length_keyword<'de, D>(deserializer: D) -> Result<ConstraintKeyword, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    required_keyword(deserializer, ConstraintKeyword::MaxLength)
+}
+
+fn pattern_keyword<'de, D>(deserializer: D) -> Result<ConstraintKeyword, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    required_keyword(deserializer, ConstraintKeyword::Pattern)
+}
+
+fn enum_values_keyword<'de, D>(deserializer: D) -> Result<ConstraintKeyword, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    required_keyword(deserializer, ConstraintKeyword::EnumValues)
+}
+
+fn non_empty_keyword<'de, D>(deserializer: D) -> Result<ConstraintKeyword, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    required_keyword(deserializer, ConstraintKeyword::NonEmpty)
+}
+
+fn unique_keyword<'de, D>(deserializer: D) -> Result<ConstraintKeyword, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    required_keyword(deserializer, ConstraintKeyword::Unique)
+}
+
+fn format_keyword<'de, D>(deserializer: D) -> Result<ConstraintKeyword, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    required_keyword(deserializer, ConstraintKeyword::Format)
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
