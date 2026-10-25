@@ -1127,13 +1127,41 @@ entire file cannot make the adverse controls pass.
 
 For TC-1987, include a parent function, a nested production declaration,
 a sibling and a test function with distinct ids; assert each id's exact
-owner rather than only a total count. For TC-1989, check the module refusal
-names the configured form and no graph is returned by falling back to the
-unguarded matcher. For TC-1990, put a range inside a real multiline
-attribute and verify its existing refusal/location contract, compare
-repeated runs, and compare a source file rejected for declaration syntax
-with an independently valid file. Keep the existing ungated relation
-contract as the compatibility oracle for TC-1988.
+owner rather than only a total count. Include `fn a() {} #[implements(...)]
+fn b() {}` on ONE source line and assert only b owns that attribute. Add
+attributes on a field, enum variant, statement, expression and closure;
+assert none bind the enclosing symbol. Include inner attributes, a function
+attribute inside a `proptest!` token tree, a `cfg_attr`-nested implements
+attribute and an ERROR-recovered attribute, with a real outer-attribute
+control. Assert no nested/inner/token/error relation; an explicitly
+whole-matching outer cfg_attr form may bind only that complete outer node.
+
+For TC-1989, check the module refusal names the configured form and no graph
+is returned by falling back to the unguarded matcher. Separately load a valid
+module with an old substring-only pattern against real eligible attributes:
+assert zero relations AND exact form/candidate-location diagnostics. Repeat
+with a completely nonmatching pattern, with a partial match beside a full
+match (only the full match binds; partial diagnostic retained), and with no
+eligible candidates (no unmatched-form diagnostic). These are bind diagnostics,
+not invented module-load errors.
+
+TC-1990 SHALL have the following independently failing subcases; each SHALL
+assert its complete expected value rather than only successful execution:
+
+| Subcase | Required oracle |
+|----------|-----------------|
+| Identity | Extract the same declarations with and without the guard and compare every symbol id, path, kind and declaration position; compare exact relation endpoints for eligible attributes. |
+| Locations | Place a multiline attribute after unrelated source and a trailing comment; assert the actual candidate's byte/line location, not the start of the attached-source span. |
+| Range refusal | Put a declared-id range inside the real attribute; assert the existing typed finding and no expanded or partial relation. |
+| File isolation | Compare a declaration-syntax-rejected file with an independently valid file; assert the existing per-file failure, zero synthetic rejected-file relations and unchanged valid-file relations. |
+| Determinism | Repeat identical inputs and compare complete ordered relations and diagnostics, including partial-match findings. |
+| Verification separation | Include a genuine evidence-symbol control; compare the complete verifies-edge set before/after adding guarded production attributes. |
+| Backing separation | Compute coverage through the public path before/after adding guarded production attributes; assert exact equality of backed trace ids, totals and untracked_symbols, while the expected implements edges change. |
+
+Keep the existing ungated relation contract as the compatibility oracle for
+TC-1988. Inspection of FR-062-CON-4 SHALL follow syntax-node acquisition and
+ownership through the adapter/binder and verify that no parallel lexer or
+macro-expansion matcher supplies guarded candidates.
 
 ## Option Permutation Matrix
 
