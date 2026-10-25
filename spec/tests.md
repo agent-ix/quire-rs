@@ -149,6 +149,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | FR-051 Source symbol extraction with relations | AC-1..28; CON-1..3 | TC-1939 (CR-187/PLAT-1077 Rust `#[ignore]`, `cfg_attr` control), TC-1940 (CR-187 TypeScript `.skip`/`xit`/`xtest`/`xdescribe`, suite-inherits-ignored, `skipIf`/`.todo`/`.fixme` controls), TC-1941 (CR-187 Python `@pytest.mark.skip`/`@unittest.skip`, class/module-level skip, `skipif`/`xfail` controls), TC-1943 (CR-187 `ignored` serialized only when true, TC-750 byte-identity preserved), TC-1936, TC-1937 (CR-187/FR-051-AC-28 a range in any tag form binds nothing and is a finding), TC-1879, TC-1880, TC-1881, TC-1885, TC-1886 (CR-176/PLAT-843 attachment decides a symbol and its ids, not page position), TC-1882, TC-1883 (CR-176 no build of the analysed tree, and the parse itself), TC-1884 (CR-176 the per-file diagnostic names `file:line`), TC-1055, TC-1056, TC-1057 (CR-139 string-literal masking reaches every language), TC-1052, TC-1053, TC-1054 (CR-138 the extracted symbol table gets a surface), TC-1042 (CR-121 a suite anywhere along the name chain), TC-1060 (CR-142 authored tags separated from authoring absence), TC-1044, TC-1045, TC-1046, TC-1047 (CR-134 a tag that reaches no channel is reported), TC-1039, TC-1040 (CR-119 a suite header is a container that binds nothing), TC-1029, TC-1030, TC-1031 (CR-115 a python triple-quoted body is content wherever its delimiter sits), TC-982 (CR-093 the binder says what it looked at), TC-958, TC-960, TC-961 (CR-090 widened registration grammar pinned through `extract_tree`), TC-943, TC-948 (CR-084 curried and wrapped registrations), TC-827, TC-828 (CR-061 benchmarks and fuzz targets are leaf evidence), TC-806 (CR-043 legacy comma lists bind every id), TC-804 (CR-040 Rust raw strings, lifetimes, and string state across lines), TC-803 (CR-039 one reading serves every consumer), TC-800 (CR-037 wrapped signature span), TC-798 (CR-036 string-aware comment stripping), TC-799 (CR-036 template state across lines), TC-741 (adapter symbol extraction), TC-742 (identity stability), TC-743 (test-symbol classification), TC-744 (canonical markers bind statically), TC-745 (marker/tag forms are module data), TC-746 (duplicate-id dedup), TC-747 (FR-045 record shapes), TC-748 (defined_in/contains edges), TC-749 (unparseable-file degradation), TC-750 (byte-identical repeat, at a pinned grammar version and feature set), TC-753 (legacy textual forms + rewrite suggestions), TC-756 (CON-1 static boundary audit) | ✅ Implemented (AC-25's Rust and Python shapes landed with `PLAT-843`/`PLAT-868`; its TypeScript shape and AC-9's `file:line` clause are this branch, `PLAT-882` — open as `agent-ix/quire-rs#481` at the time this row was last edited, not yet merged. All three are now bound on this branch (TC-1879, TC-1880, TC-1881, TC-1884, TC-1885, TC-1886), each from its own adapter's own tests, not from a doc-comment mention (PLAT-868 PR #479 review F1, PLAT-882 PR #481 review round 2: both `TC-1880` and `TC-1881` were found bound only via a legacy fallback or not at all, and fixed with real `#[trace(...)]` tags — see `tests/trace_dogfood.rs`); `CON-1`'s grammar-driven-parser clause now covers **all three adapters — Rust, Python, and TypeScript** once this branch merges. AC-26 stays `🚧`, unbound; AC-27 and AC-28 (CR-187, PLAT-1077, revised in the SR-117/SR-118 fix round) now implemented) |
 | FR-052 Acceptance-criteria property classification | AC-1..20; CON-1..4 | TC-1078 (CR-145 whole-word, subject-grounded boundaries and safe refusal), TC-990 (CR-096 decomposition keys on quantification, not on the label), TC-989 (CR-095 specific-shape split + per-shape span grounding), TC-779 (universal decomposition, three spans), TC-780 (metamorphic idioms + fixed precedence), TC-781 (CR-017 mask parity), TC-782 (weak-only boundary → no spans), TC-783 (`Example`, not extractable, no finding), TC-784 (span/offset invariants), TC-785 (CON-1 `ac` finding stream unchanged), TC-786 (`property_idioms` first-wins merge), TC-787 (binding parity with `ac`), TC-788 (FR-050 rollup counts), TC-789 (PyO3 parity), TC-790 (CON-4 `extractable` registry-independent), TC-791 (closed structural signals without a registry), TC-792 (determiner read at a bounded subject position, CR-030), TC-793 (byte-identity of everything the widening does not claim), TC-795 (three-valued `extraction` outcome, CR-033), TC-796 (`extraction` derived; CON-4 unchanged) | ✅ Implemented |
 | FR-053 Obligation record | AC-1..14; CON-1..4 | TC-831 (target-bound source, ids the rollup already mints), TC-832 (archetype-bound source, rendered ids over the NFR measurement table), TC-833 (both-or-neither origin rejected at parse), TC-834 (hash is whitespace-insensitive and word-sensitive, incl. inside code spans), TC-835 (one cell, two readings: method vs FR-049 reference), TC-836 (absent parameters omitted), TC-837 (criticality optional), TC-838 (empty statement skipped and reported), TC-839 (deterministic, ordered), TC-840 (classification record carries it), TC-841 (coverage report carries it; absent key preserves FR-050-AC-7), TC-842 (hash follows the statement, not its position), TC-843 (nested form does not repeat the record), TC-870 (the skipped-row diagnostic reaches the report), TC-871 (NFC), TC-872 (declaration order, not source name), TC-873 (`exclude` binds both surfaces), TC-1878 (an underscore-shaped object-archetype id registers the same way an FR does, #460) | ✅ Implemented |
+| FR-053 Selected criterion inventory (PLAT-1165) | AC-15..23 | TC-1954..TC-1962 (explicit entry point, origin-aware selection/entry identity, complete population, typed failure/partial rows, ambiguity, valid empty, observed-end stopping, deterministic ownership and legacy preservation) | 🚧 Planned |
 | FR-054 Verification-method catalog | AC-1..13; CON-1..6 | TC-844 (entries exposed intact), TC-845 (first-wins + DuplicateVerificationMethod), TC-846 (undeclared is None, not empty), TC-847 (unknown key fails load), TC-848 (empty required field fails load), TC-849 (derived vocabularies track the merge), TC-850 (test_type unchanged; unknown name empty), TC-851 (CON-2 applicability opaque), TC-852 (CON-3 no finding), TC-853 (CON-4 derived, never authored twice), TC-874 (an uncatalogued method is reported), TC-875 (no catalog asks no question), TC-967 (CR-091 the diagnostic carries the method as a structured `value`), TC-968, TC-969 (CR-092 `cost` exposed intact + additive serialization) | ✅ Implemented |
 | FR-055 Published JSON output contract | AC-1..8; CON-1..3 | TC-854 (schemas valid + versioned), TC-855 (baseline conforms), TC-856 (every optional key exercised), TC-857 (emitted criteria conform), TC-858 (additionalProperties closed at depth), TC-859 (optional/required split matches the engine), TC-947 (CR-086 `implements` optional-key record), TC-860 (CON-1/CON-2 no version key, no schemars), TC-1010 (CR-104 instrument provenance is optional and closed) | ✅ Implemented (the `properties` envelope conformance test lives in `quire-cli`, which assembles it) |
 | FR-065 Controlled-corpus contract | AC-1..47; CON-1..4 | TC-1011 (read in place; mutating copies), TC-1012 (required fields + control pairing), TC-1013 (optional expect fields), TC-1014 (the bounds vocabulary), TC-1015 (gap_count is a count), TC-1016 (the L1/L2/L3 ladder), TC-1017 (every failure case has its control), TC-1018 (the real module binds by default), TC-1019 (determinism), TC-1020 (reproducible by hand, with a module), TC-1021 (one declaration of each vocabulary, read from corpus.yaml), TC-1022 (a variant varies expectations, not identity), TC-1023 (the live block and the forward block), TC-1024 (unbacked_rows, groups and L3 lists are exact), TC-1025 (the loader refuses a block asserting the wrong thing), TC-1026 (the vocabulary is checked against the engine), TC-1027 (a control binds its partner's declaration), TC-1028 (a failure case discriminates from its control), TC-1032 (a regression case pins a landed fix; an ecosystem-bound one credits its cell, a variant-bound one credits none), TC-1043 (the Rust reader requires what `case_schema` declares required, and models every field it declares) | ✅ |
@@ -1107,8 +1108,87 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-1892 | Over a genuinely mixed-language fixture (a Rust claim and a Python claim, each asserted non-empty before any `.all()` check so an empty result cannot pass vacuously), `symbol_language()` + `language_confidence()` resolve `structural` for the Rust claim (AST-grounded, PLAT-843) and `line_heuristic` for the Python claim (pre-PLAT-851 line scanner) — no result presents uniform confidence across languages (PLAT-844) | Unit | P0 | FR-077-AC-5 | ✅ |
 | TC-1893 | Querying `FR-047` does not implicitly match a `FR-047-AC-2` relation — exact match only, post `normalized_trace_id` normalization, with no engine-side FR/AC/TC hierarchy knowledge (PLAT-844) | Unit | P0 | FR-077-AC-6 | ✅ |
 | TC-1894 | The `mentions` pass does not mask Rust string-literal content: an id-shaped token inside a string literal is reported as a citation, not hidden — deliberately unlike the unchanged legacy-form masking on the `verifies`/`non_binding_tags` claim paths (PLAT-844) | Unit | P1 | FR-077-CON-3 | ✅ |
+| TC-1954 | Call the public root/model/nonempty-source-name/optional-stop-limit entry point; borrow valid selection data; reject empty, unknown and duplicate selectors and invalid models, with no caller Spec/RepoLoad/completion input (PLAT-1165) | Integration | P0 | FR-053-AC-15 | 🚧 |
+| TC-1955 | Enumerate two authored rows including a zero-mapping criterion; change a statement and delete each actual row; assert exact remaining entries, owner statement/hash, count and normally exhausted Complete (PLAT-1165) | Integration | P0 | FR-053-AC-16 | 🚧 |
+| TC-1956 | Compile/run the external public consumer borrowing typed AuthoredRow/RenderedRow/CombinatorialTable origins and owner data; exact lookup requires no Markdown/private diagnostics/QSL ClauseRef, and deleting an earlier rendered row never presents its renumbered ID as authored (PLAT-1165) | Integration | P0 | FR-053-AC-17 | 🚧 |
+| TC-1957 | Exercise missing/file/unreadable roots, invalid-UTF8 and absent/malformed-frontmatter non-excluded files, plus healthy partial rows; compare readable valid unselected nonmembers and wholly excluded malformed/unreadable files as controls, retaining exact typed causes/loci (PLAT-1165) | Integration | P0 | FR-053-AC-18 | 🚧 |
+| TC-1958 | Compare missing selected section/table/headers and unusable rows with a nonempty selection over a valid empty root/empty headed table; duplicate same-source/document authored IDs retain both loci, refuse ambiguous lookup and keep other partial rows available (PLAT-1165) | Integration | P0 | FR-053-AC-19 | 🚧 |
+| TC-1959 | Observe real walk failure and explicit stop after a retained prefix; on an N-entry selection compare limits zero, N and greater than N with absent limit, requiring non-Complete at the reached limit and Complete only after normal end observation without another blocking cause (PLAT-1165) | Integration | P0 | FR-053-AC-20 | 🚧 |
+| TC-1960 | Compare canonical-root/resolved-declaration/selected-path-and-byte identity across equal captures and selected-document edits (including unrelated sections), membership changes, valid still-unselected edits, wholly excluded edits and outside-root edits; reject wrong selections and caller-created Complete (PLAT-1165) | Integration | P0 | FR-053-AC-21 | 🚧 |
+| TC-1961 | Repeat real enumeration and compare origin-aware records/identities/count/terminal ordering; check exact declared exclusions, healthy unexcluded rows and changed selection/exclusion identity even for equal emitted records (PLAT-1165) | Integration | P1 | FR-053-AC-22 | 🚧 |
+| TC-1962 | Compare legacy derive/classification/coverage healthy, skipped and tolerant bad-root outputs; execute statement-hash and public-boundary regression tests for no evidence/freshness verdict, GrammarFinding, copied IR schema or caller-authored revision/hash ledger (PLAT-1165) | Integration | P0 | FR-053-AC-23 | 🚧 |
 
 ---
+
+### PLAT-1181: guarded Rust implements attributes (planned)
+
+The following cases are planned implementation obligations. Their presence
+in this specification is not runtime or coverage evidence.
+
+| Test ID | Title | Type | Priority | Traces To | Status |
+|---------|-------|------|----------|-----------|--------|
+| TC-1983 | Load and round-trip a module-declared Rust attribute syntax guard; omitted guard retains the unguarded form | Integration | P0 | FR-062-AC-12 | 🚧 Planned |
+| TC-1984 | A genuine production attribute with two ids yields exactly two scope edges and zero verification edges | Integration | P0 | FR-062-AC-13 | 🚧 Planned |
+| TC-1985 | Real attribute control binds while attribute-shaped doc/line/block/nested-block comments and normal/byte/raw string data bind nothing | Integration | P0 | FR-062-AC-14 | 🚧 Planned |
+| TC-1986 | Multiline attributes, trailing comments and same-line declarations preserve valid guarded bindings | Integration | P0 | FR-062-AC-13 | 🚧 Planned |
+| TC-1987 | Nested and sibling declarations retain exact attribute ownership; an evidence symbol carries no implements edge | Integration | P0 | FR-062-AC-15 | 🚧 Planned |
+| TC-1988 | Existing unguarded Rust and Python/TypeScript comment forms remain module-driven and unchanged | Integration | P0 | FR-062-AC-16 | 🚧 Planned |
+| TC-1989 | Unknown guard, non-Rust guarded form and use outside implements are invalid module input, never an unguarded fallback | Integration | P0 | FR-062-AC-12 | 🚧 Planned |
+| TC-1990 | Guarded forms preserve identities, range-finding locations, parse-failure isolation, deterministic outputs and the scope/evidence separation | Integration | P0 | FR-062-AC-17 | 🚧 Planned |
+
+Procedures use the public module-load-to-bind path, not a manually patched
+`TraceabilityModel`. Each form declares its pattern and template in the
+fixture module. The source fixture is parsed as Rust; no test executes the
+attribute or the source it decorates. Assert the exact `implements` edge
+set, the absence of false `implements` edges and zero `verifies` evidence
+edges for production controls. The real multi-id attribute and all
+comment/string counterexamples (including attribute-shaped data inside a
+real, different attribute's payload) share one source/model input so masking the
+entire file cannot make the adverse controls pass.
+
+For TC-1987, include a parent function, a nested production declaration,
+a sibling and a test function with distinct ids; assert each id's exact
+owner rather than only a total count. Include `fn a() {} #[implements(...)]
+fn b() {}` on ONE source line and assert only b owns that attribute. Add
+attributes on a field, enum variant, statement, expression and closure;
+assert none bind the enclosing symbol. Include inner attributes, a function
+attribute inside a `proptest!` token tree, a `cfg_attr`-nested implements
+attribute and an ERROR-recovered attribute, with a real outer-attribute
+control. Assert no nested/inner/token/error relation; an explicitly
+whole-matching outer cfg_attr form may bind only that complete outer node.
+
+For TC-1989, check the module refusal names the configured form and no graph
+is returned by falling back to the unguarded matcher. Separately load a valid
+module with an old substring-only pattern against real eligible attributes:
+assert zero relations and one `CoverageReport.diagnostics` record per
+form/candidate pair with reason `partial-implements-attribute-match`,
+severity `warning`, exact form, file, 1-based candidate start line,
+qualified symbol and complete attribute text. Repeat with a partial match
+beside a full match (only the full match binds; partial finding retained).
+A completely nonmatching pattern and a file with no attributes each produce
+zero such findings. A separate file carrying `#[derive(...)]`, `#[inline]`
+and `#[must_use]` on production declarations WITHOUT any implements
+attribute SHALL produce zero guarded relations and zero partial-match
+findings for the declared implements form. These are bind findings, not
+invented module-load errors.
+
+TC-1990 SHALL have the following independently failing subcases; each SHALL
+assert its complete expected value rather than only successful execution:
+
+| Subcase | Required oracle |
+|----------|-----------------|
+| Identity | Extract the same declarations with and without the guard and compare every symbol id, path, kind and declaration position; compare exact relation endpoints for eligible attributes. |
+| Locations | Place a multiline attribute after unrelated source and a trailing comment; assert the actual candidate's byte/line location, not the start of the attached-source span. |
+| Range refusal | Put a declared-id range inside the real attribute; assert the existing typed finding and no expanded or partial relation. |
+| File isolation | Compare a declaration-syntax-rejected file with an independently valid file; assert the existing per-file failure, zero synthetic rejected-file relations and unchanged valid-file relations. |
+| Determinism | Repeat identical inputs and compare complete ordered relations and diagnostics, including partial-match findings. |
+| Verification separation | Include a genuine evidence-symbol control; compare the complete verifies-edge set before/after adding guarded production attributes. |
+| Backing separation | Compute coverage through the public path before/after adding guarded production attributes; assert exact equality of backed trace ids, totals and untracked_symbols, while the expected implements edges change. |
+
+Keep the existing ungated relation contract as the compatibility oracle for
+TC-1988. Inspection of FR-062-CON-4 SHALL follow syntax-node acquisition and
+ownership through the adapter/binder and verify that no parallel lexer or
+macro-expansion matcher supplies guarded candidates.
 
 ## Option Permutation Matrix
 
@@ -1833,6 +1913,15 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-053-AC-12 | TC-842 |
 | FR-053-AC-13 | TC-843 |
 | FR-053-AC-14 | TC-873 |
+| FR-053-AC-15 | TC-1954 |
+| FR-053-AC-16 | TC-1955 |
+| FR-053-AC-17 | TC-1956 |
+| FR-053-AC-18 | TC-1957 |
+| FR-053-AC-19 | TC-1958 |
+| FR-053-AC-20 | TC-1959 |
+| FR-053-AC-21 | TC-1960 |
+| FR-053-AC-22 | TC-1961 |
+| FR-053-AC-23 | TC-1962 |
 | FR-054-AC-1 | TC-844 |
 | FR-054-AC-2 | TC-845 |
 | FR-054-AC-3 | TC-846 |
