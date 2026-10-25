@@ -1099,6 +1099,76 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 
 ---
 
+### PLAT-1181: guarded Rust implements attributes (planned)
+
+The following cases are planned implementation obligations. Their presence
+in this specification is not runtime or coverage evidence.
+
+| Test ID | Title | Type | Priority | Traces To | Status |
+|---------|-------|------|----------|-----------|--------|
+| TC-1983 | Load and round-trip a module-declared Rust attribute syntax guard; omitted guard retains the unguarded form | Integration | P0 | FR-062-AC-12 | 🚧 Planned |
+| TC-1984 | A genuine production attribute with two ids yields exactly two scope edges and zero verification edges | Integration | P0 | FR-062-AC-13 | 🚧 Planned |
+| TC-1985 | Real attribute control binds while attribute-shaped doc/line/block/nested-block comments and normal/byte/raw string data bind nothing | Integration | P0 | FR-062-AC-14 | 🚧 Planned |
+| TC-1986 | Multiline attributes, trailing comments and same-line declarations preserve valid guarded bindings | Integration | P0 | FR-062-AC-13 | 🚧 Planned |
+| TC-1987 | Nested and sibling declarations retain exact attribute ownership; an evidence symbol carries no implements edge | Integration | P0 | FR-062-AC-15 | 🚧 Planned |
+| TC-1988 | Existing unguarded Rust and Python/TypeScript comment forms remain module-driven and unchanged | Integration | P0 | FR-062-AC-16 | 🚧 Planned |
+| TC-1989 | Unknown guard, non-Rust guarded form and use outside implements are invalid module input, never an unguarded fallback | Integration | P0 | FR-062-AC-12 | 🚧 Planned |
+| TC-1990 | Guarded forms preserve identities, range-finding locations, parse-failure isolation, deterministic outputs and the scope/evidence separation | Integration | P0 | FR-062-AC-17 | 🚧 Planned |
+
+Procedures use the public module-load-to-bind path, not a manually patched
+`TraceabilityModel`. Each form declares its pattern and template in the
+fixture module. The source fixture is parsed as Rust; no test executes the
+attribute or the source it decorates. Assert the exact `implements` edge
+set, the absence of false `implements` edges and zero `verifies` evidence
+edges for production controls. The real multi-id attribute and all
+comment/string counterexamples (including attribute-shaped data inside a
+real, different attribute's payload) share one source/model input so masking the
+entire file cannot make the adverse controls pass.
+
+For TC-1987, include a parent function, a nested production declaration,
+a sibling and a test function with distinct ids; assert each id's exact
+owner rather than only a total count. Include `fn a() {} #[implements(...)]
+fn b() {}` on ONE source line and assert only b owns that attribute. Add
+attributes on a field, enum variant, statement, expression and closure;
+assert none bind the enclosing symbol. Include inner attributes, a function
+attribute inside a `proptest!` token tree, a `cfg_attr`-nested implements
+attribute and an ERROR-recovered attribute, with a real outer-attribute
+control. Assert no nested/inner/token/error relation; an explicitly
+whole-matching outer cfg_attr form may bind only that complete outer node.
+
+For TC-1989, check the module refusal names the configured form and no graph
+is returned by falling back to the unguarded matcher. Separately load a valid
+module with an old substring-only pattern against real eligible attributes:
+assert zero relations and one `CoverageReport.diagnostics` record per
+form/candidate pair with reason `partial-implements-attribute-match`,
+severity `warning`, exact form, file, 1-based candidate start line,
+qualified symbol and complete attribute text. Repeat with a partial match
+beside a full match (only the full match binds; partial finding retained).
+A completely nonmatching pattern and a file with no attributes each produce
+zero such findings. A separate file carrying `#[derive(...)]`, `#[inline]`
+and `#[must_use]` on production declarations WITHOUT any implements
+attribute SHALL produce zero guarded relations and zero partial-match
+findings for the declared implements form. These are bind findings, not
+invented module-load errors.
+
+TC-1990 SHALL have the following independently failing subcases; each SHALL
+assert its complete expected value rather than only successful execution:
+
+| Subcase | Required oracle |
+|----------|-----------------|
+| Identity | Extract the same declarations with and without the guard and compare every symbol id, path, kind and declaration position; compare exact relation endpoints for eligible attributes. |
+| Locations | Place a multiline attribute after unrelated source and a trailing comment; assert the actual candidate's byte/line location, not the start of the attached-source span. |
+| Range refusal | Put a declared-id range inside the real attribute; assert the existing typed finding and no expanded or partial relation. |
+| File isolation | Compare a declaration-syntax-rejected file with an independently valid file; assert the existing per-file failure, zero synthetic rejected-file relations and unchanged valid-file relations. |
+| Determinism | Repeat identical inputs and compare complete ordered relations and diagnostics, including partial-match findings. |
+| Verification separation | Include a genuine evidence-symbol control; compare the complete verifies-edge set before/after adding guarded production attributes. |
+| Backing separation | Compute coverage through the public path before/after adding guarded production attributes; assert exact equality of backed trace ids, totals and untracked_symbols, while the expected implements edges change. |
+
+Keep the existing ungated relation contract as the compatibility oracle for
+TC-1988. Inspection of FR-062-CON-4 SHALL follow syntax-node acquisition and
+ownership through the adapter/binder and verify that no parallel lexer or
+macro-expansion matcher supplies guarded candidates.
+
 ## Option Permutation Matrix
 
 The render dispatch is generic over `(CompiledArchetype, data)`. The corpus parity sweep (TC-030) exercises every archetype × every fixture; no separate option matrix is needed at the engine level. Permutation is encoded in the on-disk corpus.
