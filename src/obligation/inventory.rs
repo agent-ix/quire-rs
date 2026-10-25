@@ -27,27 +27,44 @@ pub enum InventoryTerminal {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum InventoryCauseCode {
+    /// The supplied traceability model failed its owner validation.
     InvalidModel,
+    /// Empty, unknown or repeated source selectors cannot name a population.
     InvalidSelection,
+    /// The requested document root does not exist.
     RootMissing,
+    /// The requested document root is not a directory.
     RootNotDirectory,
+    /// Root metadata or canonicalization could not be read.
     RootUnreadable,
+    /// The real ignore-aware directory walk reported an error.
     WalkFailed,
+    /// A non-excluded candidate could not be read as UTF-8 text.
     DocumentUnreadable,
+    /// A non-excluded candidate has absent/malformed frontmatter or no usable type.
     UnclassifiableDocument,
+    /// No declared section is present in a selected document.
     MissingSection,
+    /// The matched sections contain no table.
     MissingTable,
+    /// A required identity or statement column is absent.
     MissingColumn,
+    /// An observed selected row cannot produce its owner obligation.
     UnusableRow,
+    /// Multiple authored rows have the same source/document/authored-ID key.
     DuplicateIdentity,
+    /// The emitted-entry stop boundary was reached before observing an end.
     LimitReached,
 }
 
 /// Why a list of requested source names cannot denote a selected population.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SelectionFailure {
+    /// No source was selected.
     Empty,
+    /// A requested source name is not declared.
     UnknownSource,
+    /// The requested source-name list repeats a name.
     DuplicateSource,
 }
 
@@ -331,10 +348,13 @@ impl<'a> CriterionEntry<'a> {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
 pub enum InventoryLookupError {
     #[error("criterion belongs to a different selected corpus")]
+    /// The borrowed identity belongs to a different captured selection.
     SelectionMismatch,
     #[error("the selected corpus contains no such criterion")]
+    /// The exact key names no retained entry in this inventory.
     UnknownIdentity,
     #[error("the selected authored identity names multiple rows")]
+    /// More than one retained authored row has the exact key.
     AmbiguousIdentity,
 }
 
