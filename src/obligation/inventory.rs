@@ -5,6 +5,7 @@
 //! list or a caller-built `Spec` cannot establish that the filesystem was read.
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::fmt;
 use std::path::{Path, PathBuf};
 
 use crate::corpus::declared_tables::{self, ExcludeSet, ScannedRow, ScannedTable};
@@ -99,15 +100,89 @@ pub enum InventoryCauseDetail {
     Limit { limit: usize },
 }
 
+impl fmt::Display for InventoryCauseDetail {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Io(error) => write!(formatter, "{error}"),
+            Self::Walk(error) => write!(formatter, "{error}"),
+            Self::Diagnostic(diagnostic) => match diagnostic {
+                Diagnostic::SearchPathNotADirectory { path } => {
+                    write!(
+                        formatter,
+                        "document root {} is not a directory",
+                        path.display()
+                    )
+                }
+                Diagnostic::DocumentUnreadable { path, reason } => {
+                    write!(formatter, "cannot read {}: {reason}", path.display())
+                }
+                Diagnostic::DocumentWithoutFrontmatter { path, malformed } => {
+                    let state = if *malformed { "malformed" } else { "absent" };
+                    write!(formatter, "{state} frontmatter in {}", path.display())
+                }
+                Diagnostic::UntypedArtifact { path, .. } => {
+                    write!(formatter, "no usable document type in {}", path.display())
+                }
+                _ => write!(
+                    formatter,
+                    "loader classification diagnostic (see structured detail)"
+                ),
+            },
+            Self::Model(reason) => write!(formatter, "{reason}"),
+            Self::Selection { reason, name } => {
+                let description = match reason {
+                    SelectionFailure::Empty => "no obligation source was selected",
+                    SelectionFailure::UnknownSource => "unknown obligation source",
+                    SelectionFailure::DuplicateSource => "repeated obligation source",
+                };
+                write!(formatter, "{description}")?;
+                if let Some(name) = name {
+                    write!(formatter, ": {name}")?;
+                }
+                Ok(())
+            }
+            Self::Scan { expected, observed } => write!(
+                formatter,
+                "cannot read declared source data; expected [{}], observed [{}]",
+                expected.join(", "),
+                observed.join(", ")
+            ),
+            Self::Duplicate { authored_id, rows } => write!(
+                formatter,
+                "authored identity {authored_id} is repeated in rows {}",
+                rows.iter()
+                    .map(usize::to_string)
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
+            Self::Limit { limit } => write!(
+                formatter,
+                "emitted-entry limit {limit} reached before end-of-scan"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for InventoryCauseDetail {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Io(error) => Some(error),
+            Self::Walk(error) => Some(error),
+            _ => None,
+        }
+    }
+}
+
 /// A blocking cause with its source-authored repair locus when known.
 #[derive(Debug, thiserror::Error)]
-#[error("{code:?} at {document:?}: {detail:?}")]
+#[error("{code:?}: {detail}")]
 pub struct InventoryCause {
     code: InventoryCauseCode,
     source_name: Option<String>,
     document: Option<PathBuf>,
     row: Option<usize>,
     line: Option<usize>,
+    #[source]
     detail: InventoryCauseDetail,
 }
 
@@ -247,7 +322,7 @@ pub enum CriterionOrigin<'a> {
     CombinatorialTable { rendered_id: &'a str },
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 enum OriginKind {
     AuthoredRow,
     RenderedRow,
@@ -260,6 +335,7 @@ struct Entry {
     kind: OriginKind,
     row: Option<usize>,
     line: Option<usize>,
+    document_index: usize,
 }
 
 impl Entry {
@@ -276,6 +352,114 @@ impl Entry {
                 rendered_id: &self.obligation.id,
             },
         }
+    }
+}
+
+/// The origin component of an exact key, separate from its ID string.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+struct OriginKey {
+    kind: OriginKind,
+    row: Option<usize>,
+}
+
+impl<'a> CriterionOrigin<'a> {
+    fn key(self) -> (&'a str, OriginKey) {
+        match self {
+            Self::AuthoredRow { authored_id } => (
+                authored_id,
+                OriginKey {
+                    kind: OriginKind::AuthoredRow,
+                    row: None,
+                },
+            ),
+            Self::RenderedRow { rendered_id, row } => (
+                rendered_id,
+                OriginKey {
+                    kind: OriginKind::RenderedRow,
+                    row: Some(row),
+                },
+            ),
+            Self::CombinatorialTable { rendered_id } => (
+                rendered_id,
+                OriginKey {
+                    kind: OriginKind::CombinatorialTable,
+                    row: None,
+                },
+            ),
+        }
+    }
+}
+
+#[derive(Debug)]
+enum LookupMatch {
+    Unique(usize),
+    Ambiguous(Vec<usize>),
+}
+
+impl LookupMatch {
+    fn add(&mut self, slot: usize) {
+        match self {
+            Self::Unique(first) => *self = Self::Ambiguous(vec![*first, slot]),
+            Self::Ambiguous(slots) => slots.push(slot),
+        }
+    }
+}
+
+type OriginMatches = BTreeMap<OriginKey, LookupMatch>;
+type IdMatches = BTreeMap<String, OriginMatches>;
+type DocumentMatches = BTreeMap<String, IdMatches>;
+
+/// Built once alongside emission; lookups neither walk the corpus nor scan rows.
+#[derive(Debug, Default)]
+struct EntryIndex {
+    sources: BTreeMap<String, DocumentMatches>,
+}
+
+impl EntryIndex {
+    fn insert(&mut self, entry: &Entry, slot: usize) {
+        let (id, origin) = entry.origin().key();
+        self.sources
+            .entry(entry.obligation.source.clone())
+            .or_default()
+            .entry(entry.obligation.document.clone())
+            .or_default()
+            .entry(id.to_string())
+            .or_default()
+            .entry(origin)
+            .and_modify(|matched| matched.add(slot))
+            .or_insert(LookupMatch::Unique(slot));
+    }
+
+    fn lookup(
+        &self,
+        source: &str,
+        document: &str,
+        origin: CriterionOrigin<'_>,
+    ) -> Option<&LookupMatch> {
+        let (id, origin) = origin.key();
+        self.sources
+            .get(source)?
+            .get(document)?
+            .get(id)?
+            .get(&origin)
+    }
+
+    fn authored_duplicates(&self) -> Vec<Vec<usize>> {
+        let authored = OriginKey {
+            kind: OriginKind::AuthoredRow,
+            row: None,
+        };
+        let mut duplicates = Vec::new();
+        for documents in self.sources.values() {
+            for identities in documents.values() {
+                for origins in identities.values() {
+                    if let Some(LookupMatch::Ambiguous(slots)) = origins.get(&authored) {
+                        duplicates.push(slots.clone());
+                    }
+                }
+            }
+        }
+        duplicates
     }
 }
 
@@ -367,6 +551,7 @@ pub struct SelectedInventory {
     request: InventoryRequest,
     selection: Option<SelectionIdentity>,
     entries: Vec<Entry>,
+    index: EntryIndex,
     causes: Vec<InventoryCause>,
     advisories: Vec<Diagnostic>,
     terminal: InventoryTerminal,
@@ -425,7 +610,11 @@ impl SelectedInventory {
         &self,
         identity: &CriterionIdentity<'_>,
     ) -> Result<CriterionEntry<'_>, InventoryLookupError> {
-        if self.selection.as_ref() != Some(identity.selection) {
+        let selection = self
+            .selection
+            .as_ref()
+            .ok_or(InventoryLookupError::SelectionMismatch)?;
+        if !std::ptr::eq(selection, identity.selection) && selection != identity.selection {
             return Err(InventoryLookupError::SelectionMismatch);
         }
         self.lookup_key(identity.source, identity.document, identity.origin)
@@ -442,17 +631,15 @@ impl SelectedInventory {
             .selection
             .as_ref()
             .ok_or(InventoryLookupError::UnknownIdentity)?;
-        let mut matches = self.entries.iter().filter(|entry| {
-            entry.obligation.source == source
-                && entry.obligation.document == document
-                && entry.origin() == origin
-        });
-        let entry = matches
-            .next()
+        let matched = self
+            .index
+            .lookup(source, document, origin)
             .ok_or(InventoryLookupError::UnknownIdentity)?;
-        if matches.next().is_some() {
-            return Err(InventoryLookupError::AmbiguousIdentity);
-        }
+        let slot = match matched {
+            LookupMatch::Unique(slot) => *slot,
+            LookupMatch::Ambiguous(_) => return Err(InventoryLookupError::AmbiguousIdentity),
+        };
+        let entry = &self.entries[slot];
         Ok(CriterionEntry { selection, entry })
     }
 }
@@ -480,6 +667,7 @@ pub fn inventory(
         },
         selection: None,
         entries: Vec::new(),
+        index: EntryIndex::default(),
         causes: Vec::new(),
         advisories: Vec::new(),
         terminal: InventoryTerminal::Incomplete,
@@ -656,13 +844,13 @@ pub fn inventory(
         let declaration = &source.declaration;
         let resolved =
             resolve(declaration, model).expect("validated selected declaration resolves");
-        for document in &documents {
+        for (document_index, document) in documents.iter().enumerate() {
             if document.concept_type() != Some(resolved.archetype)
                 || exclude.excludes(&canonical, &document.path)
             {
                 continue;
             }
-            if !result.scan_document(&canonical, declaration, &resolved, document) {
+            if !result.scan_document(&canonical, declaration, &resolved, document, document_index) {
                 return result.finish(false);
             }
         }
@@ -728,6 +916,7 @@ impl SelectedInventory {
     }
 
     fn push_entry(&mut self, entry: Entry) -> bool {
+        self.index.insert(&entry, self.entries.len());
         self.entries.push(entry);
         if let Some(limit) = self.request.stop_limit {
             if self.entries.len() == limit {
@@ -744,6 +933,7 @@ impl SelectedInventory {
         source: &ObligationSource,
         resolved: &Resolved<'_>,
         document: &LoadedDocument,
+        document_index: usize,
     ) -> bool {
         let scanned = declared_tables::tables_of(document.body(), &document.path, resolved.section);
         if scanned.is_empty() {
@@ -819,7 +1009,7 @@ impl SelectedInventory {
                     continue;
                 }
                 if source.combinatorial.is_some() {
-                    combinatorial_rows.push(row);
+                    combinatorial_rows.push((ordinal, row));
                     continue;
                 }
                 let relative = declared_tables::relative_path(root, &row.path);
@@ -869,13 +1059,21 @@ impl SelectedInventory {
                     kind,
                     row: Some(ordinal),
                     line: Some(row.line),
+                    document_index,
                 }) {
                     return false;
                 }
             }
         }
         if let Some(columns) = &source.combinatorial {
-            self.scan_combinatorial(root, source, resolved, columns, &combinatorial_rows)
+            self.scan_combinatorial(
+                root,
+                source,
+                resolved,
+                columns,
+                &combinatorial_rows,
+                document_index,
+            )
         } else {
             true
         }
@@ -887,20 +1085,32 @@ impl SelectedInventory {
         source: &ObligationSource,
         resolved: &Resolved<'_>,
         columns: &crate::traceability::CombinatorialColumns,
-        rows: &[ScannedRow],
+        rows: &[(usize, ScannedRow)],
+        document_index: usize,
     ) -> bool {
         if rows.is_empty() {
             return true;
         }
+        for (ordinal, row) in rows {
+            self.validate_combinatorial_row(source, columns, *ordinal, row);
+        }
         let mut obligations = Vec::new();
-        collect_combinatorial(source, 0, resolved, columns, rows, root, &mut obligations);
+        collect_combinatorial(
+            source,
+            0,
+            resolved,
+            columns,
+            rows.iter().map(|(_, row)| row),
+            root,
+            &mut obligations,
+        );
         if obligations.is_empty() {
             self.cause(
                 InventoryCauseCode::UnusableRow,
                 Some(&source.name),
-                Some(&rows[0].path),
+                Some(&rows[0].1.path),
                 None,
-                Some(rows[0].line),
+                Some(rows[0].1.line),
                 InventoryCauseDetail::Scan {
                     expected: vec![
                         columns.dimension_column.clone(),
@@ -908,7 +1118,9 @@ impl SelectedInventory {
                     ],
                     observed: rows
                         .iter()
-                        .filter_map(|row| row.cell(&columns.dimension_column).map(str::to_string))
+                        .filter_map(|(_, row)| {
+                            row.cell(&columns.dimension_column).map(str::to_string)
+                        })
                         .collect(),
                 },
             );
@@ -918,7 +1130,8 @@ impl SelectedInventory {
                 obligation,
                 kind: OriginKind::CombinatorialTable,
                 row: None,
-                line: rows.first().map(|row| row.line),
+                line: rows.first().map(|(_, row)| row.line),
+                document_index,
             }) {
                 return false;
             }
@@ -926,35 +1139,81 @@ impl SelectedInventory {
         true
     }
 
-    fn finish(mut self, exhausted: bool) -> Self {
-        let mut authored: BTreeMap<(String, String, String), Vec<(usize, usize)>> = BTreeMap::new();
-        for entry in &self.entries {
-            if entry.kind == OriginKind::AuthoredRow {
-                let key = (
-                    entry.obligation.source.clone(),
-                    entry.obligation.document.clone(),
-                    entry.obligation.id.clone(),
-                );
-                authored.entry(key).or_default().push((
-                    entry.row.expect("authored row ordinal"),
-                    entry.line.expect("authored row line"),
-                ));
+    fn validate_combinatorial_row(
+        &mut self,
+        source: &ObligationSource,
+        columns: &crate::traceability::CombinatorialColumns,
+        ordinal: usize,
+        row: &ScannedRow,
+    ) {
+        let dimension = row.cell(&columns.dimension_column);
+        let values = row.cell(&columns.values_column);
+        let exclusion = columns
+            .excludes_column
+            .as_deref()
+            .and_then(|column| row.cell(column));
+        let parsed_exclusion = exclusion.and_then(crate::combinatorial::parse_exclusion);
+        let exclusion_only = dimension.is_none() && values.is_none() && parsed_exclusion.is_some();
+        let mut unusable = Vec::new();
+        if !exclusion_only {
+            if dimension.is_none() {
+                unusable.push(columns.dimension_column.clone());
+            }
+            if values.is_none_or(|cell| crate::combinatorial::split_values(cell).is_empty()) {
+                unusable.push(columns.values_column.clone());
             }
         }
-        for ((source, document, authored_id), rows) in authored {
-            if rows.len() > 1 {
-                self.cause(
-                    InventoryCauseCode::DuplicateIdentity,
-                    Some(&source),
-                    Some(Path::new(&document)),
-                    Some(rows[0].0),
-                    Some(rows[0].1),
-                    InventoryCauseDetail::Duplicate {
-                        authored_id,
-                        rows: rows.iter().map(|(ordinal, _)| *ordinal).collect(),
-                    },
-                );
+        if exclusion.is_some() && parsed_exclusion.is_none() {
+            if let Some(column) = &columns.excludes_column {
+                unusable.push(column.clone());
             }
+        }
+        if !unusable.is_empty() {
+            self.cause(
+                InventoryCauseCode::UnusableRow,
+                Some(&source.name),
+                Some(&row.path),
+                Some(ordinal),
+                Some(row.line),
+                InventoryCauseDetail::Scan {
+                    expected: unusable,
+                    observed: row
+                        .cells
+                        .iter()
+                        .map(|(column, value)| format!("{column}={value}"))
+                        .collect(),
+                },
+            );
+        }
+    }
+
+    fn finish(mut self, exhausted: bool) -> Self {
+        for slots in self.index.authored_duplicates() {
+            let first = &self.entries[slots[0]];
+            let source = first.obligation.source.clone();
+            let authored_id = first.obligation.id.clone();
+            let row = first.row.expect("authored row ordinal");
+            let line = first.line.expect("authored row line");
+            let original_path = self
+                .selection
+                .as_ref()
+                .expect("emitted entries have a selection")
+                .documents[first.document_index]
+                .loaded
+                .path
+                .clone();
+            let rows = slots
+                .iter()
+                .map(|slot| self.entries[*slot].row.expect("authored row ordinal"))
+                .collect();
+            self.cause(
+                InventoryCauseCode::DuplicateIdentity,
+                Some(&source),
+                Some(&original_path),
+                Some(row),
+                Some(line),
+                InventoryCauseDetail::Duplicate { authored_id, rows },
+            );
         }
         if exhausted && self.causes.is_empty() {
             self.terminal = InventoryTerminal::Complete;

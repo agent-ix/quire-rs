@@ -520,12 +520,12 @@ fn resolve<'a>(source: &'a ObligationSource, model: &'a TraceabilityModel) -> Op
 /// Rows are grouped by document because a space is a property of one document's
 /// table. Scanning the corpus yields every matching table at once, and folding
 /// them together would invent a space no document declares.
-fn collect_combinatorial(
+fn collect_combinatorial<'a>(
     source: &ObligationSource,
     order: usize,
     resolved: &Resolved<'_>,
     columns: &crate::traceability::CombinatorialColumns,
-    rows: &[ScannedRow],
+    rows: impl IntoIterator<Item = &'a ScannedRow>,
     root: &Path,
     out: &mut Vec<(usize, Obligation)>,
 ) {
