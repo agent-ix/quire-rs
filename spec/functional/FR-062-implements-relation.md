@@ -105,13 +105,18 @@ ordinary complete candidate for an explicitly matching module form. An
 attribute in an adapter error-recovery node SHALL NOT bind; a file rejected
 by the adapter SHALL retain the per-file failure rule below.
 
-For each guarded form and source file with eligible attribute candidates,
-the binder SHALL emit a diagnostic naming the form and candidate source
-locations when no candidate matches completely. A partial match SHALL emit
-a diagnostic at that candidate even if another candidate matches completely;
-it SHALL create no relation. No eligible candidates SHALL produce no such
-unmatched-form diagnostic. These diagnostics SHALL remain distinct from
-module-load refusals and SHALL NOT fall back to attached-source matching.
+When a guarded form's pattern matches a proper substring of an eligible
+attribute but not its complete source text, the binder SHALL produce one
+`partial-implements-attribute-match` finding for that form/candidate pair
+in `CoverageReport.diagnostics`, with FR-057 severity `warning`. The finding
+SHALL name the configured form, file, 1-based candidate start line,
+qualified owning symbol and verbatim complete attribute text. The partial
+match SHALL create no relation, even when another candidate matches fully.
+A pattern with no match at all SHALL produce no finding. In particular,
+unrelated `derive`, `inline` and `must_use` attributes without an implements
+match SHALL produce neither a guarded relation nor this finding. The binder
+SHALL NOT fall back to attached-source matching after a rejected partial
+match; these findings are distinct from module-load refusals.
 
 The module loader SHALL reject an unknown `syntax` value and a
 `rust_attribute` guard on a non-Rust form or outside
@@ -151,7 +156,7 @@ waive any normative criterion.
 | FR-062-AC-3 | A requirement named by several markers yields one relation, ordered deterministically. | Test (TC-938) |
 | FR-062-AC-4 | The relation reaches the `coverage --json` contract, and moves no coverage number: not `backed`, not `totals`, not `untracked_symbols`. | Test (TC-939) |
 | FR-062-AC-5 | Marker forms declared in a module manifest survive the load: the merged model carries them, a model declaring only them does not read as empty, and `bind` mints from them. | Test (TC-940) |
-| FR-062-AC-12 | A module-loaded Rust form retains `syntax: rust_attribute` through the traceability model and serialization; omission preserves the old declared-text behavior. For eligible candidates, partial matches diagnose the candidate without binding, and zero complete matches diagnose the form and candidate locations; a file with no candidates produces no unmatched-form diagnostic. An unknown syntax value or this guard on a non-Rust form or outside `trace_tags.implements` is refused at module load, identifying the form, with no text-matching fallback. | Test (TC-1983, TC-1989) |
+| FR-062-AC-12 | A module-loaded Rust form retains `syntax: rust_attribute` through the traceability model and serialization; omission preserves the old declared-text behavior. A partial attribute match produces no relation and one `partial-implements-attribute-match` warning in `CoverageReport.diagnostics`, naming the form, file, 1-based candidate start line, qualified symbol and complete attribute text; no-match and unrelated-attribute cases produce no such finding. An unknown syntax value or this guard on a non-Rust form or outside `trace_tags.implements` is refused at module load, identifying the form, with no text-matching fallback. | Test (TC-1983, TC-1989) |
 | FR-062-AC-13 | A real production attribute carrying two declared ids produces exactly those two `implements` relations and no `verifies` relation. Valid leading, multiline, trailing-comment and same-line-item attributes are eligible through the same module-loaded form; each form matches only the exact attribute-node text. | Test (TC-1984, TC-1986) |
 | FR-062-AC-14 | Attribute-shaped text in doc, line, block or nested block comments, ordinary or byte strings, and single-line or multiline raw strings produces no guarded attribute-form relation, including a column-zero raw-string line; the matching real attribute control remains bound. A substring inside another attribute payload creates no relation. | Test (TC-1985) |
 | FR-062-AC-15 | Guarded attributes bind only to their actual production declaration: a nested declaration's attribute binds neither parent nor sibling, and an attribute on an evidence symbol produces no `implements` relation. Field, variant, statement, expression and closure attributes do not bind to their enclosing symbol. Inner attributes, macro-token attributes and recovered-error attributes do not bind; cfg_attr payloads remain unexpanded data rather than nested candidates. Same-line siblings retain distinct owners. | Test (TC-1987) |

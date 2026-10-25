@@ -1139,11 +1139,17 @@ whole-matching outer cfg_attr form may bind only that complete outer node.
 For TC-1989, check the module refusal names the configured form and no graph
 is returned by falling back to the unguarded matcher. Separately load a valid
 module with an old substring-only pattern against real eligible attributes:
-assert zero relations AND exact form/candidate-location diagnostics. Repeat
-with a completely nonmatching pattern, with a partial match beside a full
-match (only the full match binds; partial diagnostic retained), and with no
-eligible candidates (no unmatched-form diagnostic). These are bind diagnostics,
-not invented module-load errors.
+assert zero relations and one `CoverageReport.diagnostics` record per
+form/candidate pair with reason `partial-implements-attribute-match`,
+severity `warning`, exact form, file, 1-based candidate start line,
+qualified symbol and complete attribute text. Repeat with a partial match
+beside a full match (only the full match binds; partial finding retained).
+A completely nonmatching pattern and a file with no attributes each produce
+zero such findings. A separate file carrying `#[derive(...)]`, `#[inline]`
+and `#[must_use]` on production declarations WITHOUT any implements
+attribute SHALL produce zero guarded relations and zero partial-match
+findings for the declared implements form. These are bind findings, not
+invented module-load errors.
 
 TC-1990 SHALL have the following independently failing subcases; each SHALL
 assert its complete expected value rather than only successful execution:
