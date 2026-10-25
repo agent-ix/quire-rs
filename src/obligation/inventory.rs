@@ -579,7 +579,7 @@ pub fn inventory(
         }
         match walk::parse_one(&path) {
             Outcome::Loaded { doc, diags } => {
-                if doc.concept_type().is_none() {
+                if doc.concept_type().is_none_or(|kind| kind.trim().is_empty()) {
                     result.cause(
                         InventoryCauseCode::UnclassifiableDocument,
                         None,
@@ -825,7 +825,7 @@ impl SelectedInventory {
                     );
                     continue;
                 };
-                if obligation.id.is_empty() {
+                if obligation.id.trim().is_empty() {
                     self.cause(
                         InventoryCauseCode::UnusableRow,
                         Some(&source.name),

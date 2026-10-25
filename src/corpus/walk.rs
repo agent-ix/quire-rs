@@ -315,6 +315,9 @@ pub(crate) fn discover_files_observed(root: &Path, opts: &WalkOptions) -> Discov
                 continue;
             }
         };
+        if let Some(error) = entry.error() {
+            errors.push(error.clone());
+        }
         let path = entry.path();
         if !entry.file_type().is_some_and(|t| t.is_file()) {
             continue;
