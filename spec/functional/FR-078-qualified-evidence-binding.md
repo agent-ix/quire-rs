@@ -36,27 +36,29 @@ they do not impersonate Rust, Python, or TypeScript symbols.
 ## Inputs and public boundary
 
 The supported boundary is a Rust library API, not a new CLI flag or a new
-retained-record format. The planned public `quire_rs::evidence::qualify` entry
-point SHALL accept the borrowed owner-issued `SelectedInventory`, exact requested
+retained-record format. The planned public `quoin_quire::evidence::qualify` entry
+point, hosted as specified below, SHALL accept the borrowed owner-issued `SelectedInventory`, exact requested
 targets within that selection, actual source HEAD, and the original Quoin
 `AuditInput` with its retained `RunRecord`, `Binding`, method catalog and other
 owner-required audit premises, together with the original retained record/run
 locators from the owner read boundary. The caller assembles those inputs from the shared
-Quoin store using its existing read APIs. Quire SHALL invoke
-`quoin_auditor::audit::audit` over that input itself; it SHALL NOT accept a
+Quoin store using its existing read APIs. The Quoin bridge SHALL invoke
+its same-workspace `quoin_auditor::audit::audit` over that input itself; it SHALL
+NOT accept a
 precomputed `AuditReport`, a caller's `healthy` flag, or an unaudited pass list as
-a substitute. It SHALL check that the audit obligations and HEAD are the supplied
+a substitute. The bridge SHALL check that the audit obligations and HEAD are the supplied
 owner selection and actual HEAD, rather than accepting a relabeled selection.
 Non-criterion test-case targets use the existing declared target/reference rules
 in the same corpus; no private criterion census is permitted.
 
-`qualify` SHALL return an immutable, privately constructed Quire view containing
+`qualify` SHALL return an immutable, privately constructed Quoin bridge view containing
 accepted claims and all non-qualified outcomes. It borrows original owner records
 and identities; it is not a store, producer record schema, or caller-constructible
-proof token. `coverage::compute_with_evidence` SHALL take the existing
-`coverage::compute` corpus/registry/graph/root inputs plus this view and reconcile
-its explicit backing input in the existing algorithm. `evidence::trace` SHALL
-query the same view beside the existing source trace result: forward queries use
+proof token. The bridge SHALL supply the view's owner-neutral backing projection to Quire's
+`coverage::compute_with_evidence`, alongside its existing `coverage::compute`
+corpus/registry/graph/root inputs, for reconciliation in the existing algorithm.
+Quire's `evidence::trace` SHALL query that same backing projection beside the
+existing source trace result: forward queries use
 the exact selected target, inverse queries use the retained owner record/run
 locator. A source file/symbol query keeps its existing source meaning; it SHALL
 NOT manufacture a source identity for a retained record.
@@ -71,6 +73,73 @@ unchanged. A future CLI flag/binding needs its owning surface's specification;
 this PR does not claim installed `quire coverage` already accepts retained input.
 The producer-facing example and IR-1006 fixtures SHALL use the named Rust path,
 including its strict decision, rather than a private fixture-only adapter.
+
+### Host, dependency direction and synchronized adoption
+
+The superseded direct `quire_rs::evidence::qualify` design would introduce a
+**mutual repository dependency**: quire-rs would pin Quoin's auditor while
+Quoin's `quoin-quire` already pins quire-rs. Although `quoin-auditor` does not
+itself depend on `quoin-quire` and therefore does not create that crate cycle,
+this reverse repository pin is not the selected design.
+
+The proposed follow-on host is Quoin's existing `quoin-quire` crate, module
+`evidence`, behind a **new optional `qualified-evidence` feature, default off**.
+That feature SHALL use `quoin-auditor` from the same Quoin workspace revision.
+Quire core SHALL own only the owner-neutral explicit backing input and its
+existing reconciliation/trace/report logic; it SHALL NOT depend on Quoin or
+re-export its auditor types. The bridge's privately constructed qualified view
+and owner-approved projection are the supported qualification path; Quire's
+low-level backing data alone is not a qualification certificate. This host and
+feature are a proposed Quoin-owner follow-on, not an existing public API or a
+capability delivered by apparatus-intake PR #689. No reverse pin, new store,
+publication or release is authorized by this placement.
+
+Adoption SHALL proceed in one direction: first merge the reviewed Quire engine
+owner-neutral backing input, then have `quire-cli` and Quoin's `quoin-quire`
+separately adopt **the same immutable reviewed published engine revision and
+its exact package version** in their manifests and owner lockfiles. Before any
+qualification claim, verify both resolved dependency graphs against those
+manifest pins and each other; equal package versions alone are insufficient.
+There SHALL be no reciprocal exact-Git-SHA cycle, copied version ledger or
+assumed parity. A later engine change repeats the paired adoption/verification;
+publication, tagging or release still requires Peter's first-hand instruction.
+
+Measured baseline: Quoin main `9d0d6a3d` pins quire-rs `=0.50.2` at
+`0649f7c0a88ff81f1a75b6754d55bd8cddc937f2`, while CLI main `374d5085` pins the
+same version at `ba384acadb9d859dc3f46b247d884fad0fdc6db5`. SHA parity is **not**
+established today. The Quoin PLAT-1162 local candidate `5a03b780` adopts the
+published EA `6e8c0d978846726cb8d52ab1709a886d12b69011` (`=0.7.1`, default
+features off); that unmerged candidate supplies neither this bridge nor closed
+qualification dependencies. EA apparatus adoption and engine-pin synchronization
+are distinct owner changes.
+
+### Owner inventory to audit obligations
+
+The bridge SHALL construct `AuditInput.obligations` from the supplied
+`SelectedInventory` entries, using each borrowed `entry.obligation()` and the
+existing Quoin projection semantics. It SHALL preserve exactly `id`, `statement`,
+`statement_hash`, `method`, `criticality`, `parameters` and `target_ids`; empty
+`parameters` and `target_ids` become `None` on the Quoin reader, as the existing
+projection specifies. It SHALL NOT reparse documents, recompute statement hashes,
+render IDs, or substitute legacy `derive` output for the selected entries.
+
+The current `quoin-core::ops::quire::obligation` converter is **private**, and
+core already depends on `quoin-quire`. The bridge SHALL NOT call or depend on
+core. One owner-approved shared/extracted bridge adapter SHALL reuse those exact
+projection semantics, with core delegating to that adapter rather than keeping
+a copied converter. This specifies the required ownership/refactor, not an
+invented existing public converter name.
+
+Because `quoin_quire_types::Obligation` omits source/document/origin/selection,
+the bridge SHALL retain a borrowed side index from each projected audit entry to
+its original owner `CriterionEntry`/`CriterionIdentity`. It SHALL preserve
+`AuthoredRow`, `RenderedRow` and `CombinatorialTable` and the captured selection
+equality basis when mapping audit decisions back. It SHALL reject duplicate or
+ambiguous flat IDs and any supplied-inventory/audit-obligation mismatch rather
+than collapse distinct owner identities, pick the first match, or claim a fresh
+Complete selection. A non-Complete inventory keeps its original causes and the
+already specified strict rejection. Neither the reader projection nor the side
+index is a parallel inventory census or retained evidence store.
 
 ### Owner qualification premises
 
