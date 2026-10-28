@@ -351,5 +351,40 @@
       ],
       "total": 2
     }
+  },
+  {
+    "name": "kani-proof-functions-bind-trace-tags",
+    "issue_ref": "https://linear.app/agent-ix/issue/QSL-829/quire-rs-trace-tags-dropped-on-kaniproof-functions#comment-6608b5af",
+    "tags": [
+      "QSL-829",
+      "trace-tags",
+      "kani"
+    ],
+    "comment": "Kani proof functions are evidence symbols for both the legacy Trace doc form and the trace attribute. The cfg(kani)/kani::unwind form and ordinary #[test] control must bind too.",
+    "input": {
+      "module": "name: kani-trace\nmanifest_version: 1.0.0\nversion: 0.0.1\nartifact_types:\n- name: FR\n  grammar_ref: iso-spec-core\n- name: TestMatrix\ntraceability:\n  trace_targets:\n  - name: test-case\n    archetype: TestMatrix\n    section: Test Cases\n    id_column: ID\n  - name: acceptance-criterion\n    archetype: FR\n    section: Acceptance Criteria\n    id_column: ID\n  document_references:\n  - name: traces-to\n    archetype: TestMatrix\n    section: Test Cases\n    row_id_column: ID\n    column: Traces To\n    targets: [acceptance-criterion, test-case]\n    pattern: '([A-Z]{2,4}-\\d+(?:-[A-Z]{2,4}-\\d+)?)'\n  status:\n    column: Status\n    complete: [\"\\u2705\"]\n    pending: [\"\\U0001F6A7\"]\n  trace_tags:\n    markers:\n    - name: rust-trace-attribute\n      language: rust\n      pattern: '#\\[trace\\(([^)]*)\\)\\]'\n      template: '#[trace({ids})]'\n    legacy:\n    - name: trace-line\n      pattern: 'Trace:\\s*(TC-\\d+)'\n      rewrite_to: rust-trace-attribute\n",
+      "documents": {
+        "FR-001.md": "---\nid: FR-001\ntype: FR\n---\n\n## Acceptance Criteria\n\n| ID | Criteria | Verification |\n|---|---|---|\n| FR-001-AC-1 | The system shall bind a legacy Trace tag on a Kani proof. | Test (TC-001) |\n| FR-001-AC-2 | The system shall bind a trace attribute on a Kani proof. | Test (TC-002) |\n| FR-001-AC-3 | The system shall bind tags on cfg Kani proofs. | Test (TC-003) |\n| FR-001-AC-4 | The system shall bind tags on unwind Kani proofs. | Test (TC-004) |\n| FR-001-AC-5 | The system shall bind tags on cfg and unwind Kani proofs. | Test (TC-005) |\n| FR-001-AC-6 | The system shall preserve ordinary Rust test binding. | Test (TC-006) |\n| FR-001-AC-7 | An untagged row remains unbacked. | Test (TC-007) |\n",
+        "tests.md": "---\nid: TM-001\ntype: TestMatrix\n---\n\n## Test Cases\n\n| ID | Traces To | Status |\n|---|---|---|\n| TC-001 | FR-001-AC-1 | \u2705 |\n| TC-002 | FR-001-AC-2 | \u2705 |\n| TC-003 | FR-001-AC-3 | \u2705 |\n| TC-004 | FR-001-AC-4 | \u2705 |\n| TC-005 | FR-001-AC-5 | \u2705 |\n| TC-006 | FR-001-AC-6 | \u2705 |\n| TC-007 | FR-001-AC-7 | \u2705 |\n"
+      },
+      "sources": {
+        "lib.rs": "#[cfg(test)]\nmod tests {\n    /// Trace: TC-001\n    #[kani::proof]\n    fn proof_with_legacy_tag() {}\n\n    #[trace(\"TC-002\")]\n    #[kani::proof]\n    fn proof_with_trace_attribute() {}\n\n    #[cfg(kani)]\n    #[trace(\"TC-003\")]\n    #[kani::proof]\n    fn proof_with_cfg() {}\n\n    #[kani::unwind(10)]\n    #[trace(\"TC-004\")]\n    #[kani::proof]\n    fn proof_with_unwind() {}\n\n    #[cfg(kani)]\n    #[kani::unwind(10)]\n    #[trace(\"TC-005\")]\n    #[kani::proof]\n    fn proof_with_cfg_and_unwind() {}\n\n    #[trace(\"TC-006\")]\n    #[test]\n    fn ordinary_test_control() {}\n}\n"
+      }
+    },
+    "expect": {
+      "backed": 6,
+      "total": 14,
+      "binding_census": [
+        {
+          "language": "rust",
+          "candidates": 6,
+          "bound": 6
+        }
+      ],
+      "absent_diagnostic_reasons": [
+        "no-symbol-bound",
+        "hollow-denominator"
+      ]
+    }
   }
 ]

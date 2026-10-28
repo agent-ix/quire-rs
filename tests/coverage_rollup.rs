@@ -110,6 +110,60 @@ fn report_for(bundle: &Bundle, module: &str) -> Result<CoverageReport, CoverageE
     compute(&spec, &registry, &graph, &bundle.scope)
 }
 
+#[trace("TC-829", "FR-051-AC-1")]
+#[test]
+fn kani_proof_functions_bind_legacy_and_attribute_trace_tags() {
+    let fixtures: serde_json::Value =
+        serde_json::from_str(include_str!("fixtures/corpus_cases/coverage.json"))
+            .expect("coverage corpus fixture JSON");
+    let case = fixtures
+        .as_array()
+        .expect("coverage fixture cases")
+        .iter()
+        .find(|case| case["name"] == "kani-proof-functions-bind-trace-tags")
+        .expect("QSL-829 fixture");
+    let root = tmpdir("829-kani-proofs");
+    let module = root.join("module");
+    let scope = root.join("spec");
+    let source = root.join("src");
+    write(
+        &module,
+        "manifest.yaml",
+        case["input"]["module"].as_str().expect("module manifest"),
+    );
+    for (path, contents) in case["input"]["documents"]
+        .as_object()
+        .expect("fixture documents")
+    {
+        write(&scope, path, contents.as_str().expect("document text"));
+    }
+    for (path, contents) in case["input"]["sources"]
+        .as_object()
+        .expect("fixture sources")
+    {
+        write(&source, path, contents.as_str().expect("source text"));
+    }
+
+    let registry = Registry::load_module(&module).expect("Kani fixture module");
+    let model = registry.traceability().cloned().unwrap_or_default();
+    let extraction = extract_tree(&source);
+    let graph = trace::bind(&extraction, &model);
+    let report = compute(&Spec::from_path(&scope), &registry, &graph, &scope)
+        .expect("Kani fixture coverage");
+    assert_eq!(
+        report.totals.backed,
+        case["expect"]["backed"].as_u64().expect("expected backed") as usize
+    );
+    assert_eq!(
+        report.totals.total,
+        case["expect"]["total"].as_u64().expect("expected total") as usize
+    );
+    assert_eq!(report.binding_census.len(), 1);
+    assert_eq!(report.binding_census[0].candidates, 6);
+    assert_eq!(report.binding_census[0].bound, 6);
+    assert!(report.untracked_symbols.is_empty());
+}
+
 #[trace("TC-734", "FR-050-AC-3")]
 // a reference row whose trace target has no backing
 // `verifies` relation appears in unbacked rows with the row id and target id.

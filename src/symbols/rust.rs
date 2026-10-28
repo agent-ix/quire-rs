@@ -361,14 +361,19 @@ fn container_symbol(node: Node, qualified_name: String, container: Option<String
 }
 
 /// A `RawSymbol` for a `function_item`/`function_signature_item`, classified
-/// as a test, a bench, or a plain function. `None` only when the node has no
+/// as a test, a Kani proof, a bench, or a plain function. `None` only when the node has no
 /// resolvable `name` field, which the grammar guarantees it always does for
 /// these two kinds — kept as a guard rather than a panic, matching this
 /// crate's no-panic-in-production-code convention.
 fn function_symbol(node: Node, source: &str, container: Option<String>) -> Option<RawSymbol> {
     let name = field_text(node, "name", source)?;
     let qualified_name = qualify(&container, &name);
-    let is_test = has_attribute(node, source, "test");
+    // Kani proofs are test evidence even though Kani does not mark them with
+    // Rust's built-in `#[test]`. Keeping them in the same symbol kind lets the
+    // existing trace binder attach both `#[trace(...)]` and legacy `Trace:`
+    // tags without treating production functions as evidence.
+    let is_test =
+        has_attribute(node, source, "test") || has_attribute_path(node, source, "kani::proof");
     let kind = if is_test {
         SymbolKind::TestFunction
     } else if has_attribute(node, source, "bench") {
@@ -476,6 +481,34 @@ fn has_attribute(node: Node, source: &str, segment: &str) -> bool {
                     return true;
                 }
             }
+        }
+        current = prev;
+    }
+    false
+}
+
+/// True when `node`'s leading annotation block contains this exact attribute
+/// path. Unlike [`has_attribute`], this does not accept another attribute with
+/// the same final segment: only `#[kani::proof]` is a Kani proof declaration.
+fn has_attribute_path(node: Node, source: &str, path: &str) -> bool {
+    let mut current = node;
+    while let Some(prev) = current.prev_sibling() {
+        if !is_annotation_node(prev) {
+            break;
+        }
+        let boundary_row = current.start_position().row;
+        if boundary_row.saturating_sub(prev.end_position().row) > 1 {
+            break;
+        }
+        if prev.kind() == "attribute_item"
+            && prev
+                .child_by_field_name("attribute")
+                .or_else(|| prev.named_child(0))
+                .and_then(|attribute| attribute.named_child(0))
+                .and_then(|path_node| path_node.utf8_text(source.as_bytes()).ok())
+                == Some(path)
+        {
+            return true;
         }
         current = prev;
     }
