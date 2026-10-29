@@ -110,6 +110,102 @@ fn report_for(bundle: &Bundle, module: &str) -> Result<CoverageReport, CoverageE
     compute(&spec, &registry, &graph, &bundle.scope)
 }
 
+#[trace("TC-829", "FR-051-AC-1")]
+#[test]
+fn kani_proof_functions_bind_legacy_and_attribute_trace_tags() {
+    let fixtures: serde_json::Value =
+        serde_json::from_str(include_str!("fixtures/corpus_cases/coverage.json"))
+            .expect("coverage corpus fixture JSON");
+    let case = fixtures
+        .as_array()
+        .expect("coverage fixture cases")
+        .iter()
+        .find(|case| case["name"] == "kani-proof-functions-bind-trace-tags")
+        .expect("QSL-829 fixture");
+    let root = tmpdir("829-kani-proofs");
+    let module = root.join("module");
+    let scope = root.join("spec");
+    let source = root.join("src");
+    write(
+        &module,
+        "manifest.yaml",
+        case["input"]["module"].as_str().expect("module manifest"),
+    );
+    for (path, contents) in case["input"]["documents"]
+        .as_object()
+        .expect("fixture documents")
+    {
+        write(&scope, path, contents.as_str().expect("document text"));
+    }
+    for (path, contents) in case["input"]["sources"]
+        .as_object()
+        .expect("fixture sources")
+    {
+        write(&source, path, contents.as_str().expect("source text"));
+    }
+
+    let registry = Registry::load_module(&module).expect("Kani fixture module");
+    let model = registry.traceability().cloned().unwrap_or_default();
+    let extraction = extract_tree(&source);
+    let graph = trace::bind(&extraction, &model);
+    let mut bindings: Vec<_> = graph
+        .verifies
+        .iter()
+        .map(|relation| (relation.symbol.as_str(), relation.trace_id.as_str()))
+        .collect();
+    bindings.sort_unstable();
+    assert_eq!(
+        bindings,
+        vec![
+            ("conditional_kani_proof", "TC-009"),
+            ("tests::ordinary_test_control", "TC-006"),
+            ("tests::proof_with_cfg", "TC-003"),
+            ("tests::proof_with_cfg_and_unwind", "TC-005"),
+            ("tests::proof_with_legacy_tag", "TC-001"),
+            ("tests::proof_with_trace_attribute", "TC-002"),
+            ("tests::proof_with_unwind", "TC-004"),
+            ("top_level_contract_proof", "TC-008"),
+        ],
+        "each trace tag must bind to the intended Kani/test symbol"
+    );
+    let report = compute(&Spec::from_path(&scope), &registry, &graph, &scope)
+        .expect("Kani fixture coverage");
+    assert_eq!(
+        report.totals.backed,
+        case["expect"]["backed"].as_u64().expect("expected backed") as usize
+    );
+    assert_eq!(
+        report.totals.total,
+        case["expect"]["total"].as_u64().expect("expected total") as usize
+    );
+    let expected_census = case["expect"]["binding_census"]
+        .as_array()
+        .expect("expected binding census");
+    assert_eq!(report.binding_census.len(), expected_census.len());
+    for (actual, expected) in report.binding_census.iter().zip(expected_census) {
+        assert_eq!(actual.language, expected["language"].as_str().unwrap());
+        assert_eq!(
+            actual.candidates,
+            expected["candidates"].as_u64().unwrap() as usize
+        );
+        assert_eq!(actual.bound, expected["bound"].as_u64().unwrap() as usize);
+    }
+    assert!(report.untracked_symbols.is_empty());
+    let absent_reasons = case["expect"]["absent_diagnostic_reasons"]
+        .as_array()
+        .expect("expected absent diagnostic reasons");
+    for absent in absent_reasons {
+        let reason = absent.as_str().expect("diagnostic reason string");
+        assert!(
+            report
+                .diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.reason != reason),
+            "fixture expects diagnostic reason {reason} to be absent"
+        );
+    }
+}
+
 #[trace("TC-734", "FR-050-AC-3")]
 // a reference row whose trace target has no backing
 // `verifies` relation appears in unbacked rows with the row id and target id.

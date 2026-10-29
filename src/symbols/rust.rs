@@ -361,14 +361,18 @@ fn container_symbol(node: Node, qualified_name: String, container: Option<String
 }
 
 /// A `RawSymbol` for a `function_item`/`function_signature_item`, classified
-/// as a test, a bench, or a plain function. `None` only when the node has no
+/// as a test, a Kani proof, a bench, or a plain function. `None` only when the node has no
 /// resolvable `name` field, which the grammar guarantees it always does for
 /// these two kinds — kept as a guard rather than a panic, matching this
 /// crate's no-panic-in-production-code convention.
 fn function_symbol(node: Node, source: &str, container: Option<String>) -> Option<RawSymbol> {
     let name = field_text(node, "name", source)?;
     let qualified_name = qualify(&container, &name);
-    let is_test = has_attribute(node, source, "test");
+    // Kani proofs are test evidence even though Kani does not mark them with
+    // Rust's built-in `#[test]`. Keeping them in the same symbol kind lets the
+    // existing trace binder attach both `#[trace(...)]` and legacy `Trace:`
+    // tags without treating production functions as evidence.
+    let is_test = has_attribute(node, source, "test") || has_kani_proof_attribute(node, source);
     let kind = if is_test {
         SymbolKind::TestFunction
     } else if has_attribute(node, source, "bench") {
@@ -448,14 +452,14 @@ fn is_annotation_node(node: Node) -> bool {
     )
 }
 
-/// True when `node`'s leading annotation block holds an attribute whose
-/// final path segment is `segment` — `#[test]`, `#[tokio::test]`,
-/// `#[rstest]`. Only the *outer* attribute path is read, never a nested
-/// argument (`#[cfg_attr(feature = "x", test)]` does not count, matching the
-/// pre-PLAT-843 adapter exactly): the same reading that already makes
-/// PLAT-305 pass (`#[ignore]` before `#[test]` — every attribute in the
-/// block is checked, not only the one immediately above the declaration).
-fn has_attribute(node: Node, source: &str, segment: &str) -> bool {
+/// Walk the contiguous leading annotation block once and apply a path
+/// predicate to each outer attribute. Comments and blank-line boundaries
+/// retain the same semantics as [`leading_span`].
+fn for_each_leading_attribute(
+    node: Node,
+    source: &str,
+    mut predicate: impl FnMut(&str, Node) -> bool,
+) -> bool {
     let mut current = node;
     while let Some(prev) = current.prev_sibling() {
         if !is_annotation_node(prev) {
@@ -466,20 +470,70 @@ fn has_attribute(node: Node, source: &str, segment: &str) -> bool {
             break;
         }
         if prev.kind() == "attribute_item" {
-            if let Some(path) = prev
+            if let Some(attribute) = prev
                 .child_by_field_name("attribute")
                 .or_else(|| prev.named_child(0))
-                .and_then(|attribute| attribute.named_child(0))
-                .and_then(|path_node| path_node.utf8_text(source.as_bytes()).ok())
             {
-                if path.rsplit("::").next() == Some(segment) {
-                    return true;
+                if let Some(path) = attribute
+                    .named_child(0)
+                    .and_then(|path_node| path_node.utf8_text(source.as_bytes()).ok())
+                {
+                    if predicate(path, attribute) {
+                        return true;
+                    }
                 }
             }
         }
         current = prev;
     }
     false
+}
+
+/// True when `node`'s leading annotation block holds an attribute whose
+/// final path segment is `segment` — `#[test]`, `#[tokio::test]`,
+/// `#[rstest]`. Only the *outer* attribute path is read, never a nested
+/// argument (`#[cfg_attr(feature = "x", test)]` does not count, matching the
+/// pre-PLAT-843 adapter exactly): the same reading that already makes
+/// PLAT-305 pass (`#[ignore]` before `#[test]` — every attribute in the
+/// block is checked, not only the one immediately above the declaration).
+fn has_attribute(node: Node, source: &str, segment: &str) -> bool {
+    for_each_leading_attribute(node, source, |path, _| {
+        path.trim_start_matches("::").rsplit("::").next() == Some(segment)
+    })
+}
+
+fn has_kani_proof_attribute(node: Node, source: &str) -> bool {
+    for_each_leading_attribute(node, source, |path, attribute| {
+        let normalized = path.trim_start_matches("::");
+        if matches!(normalized, "kani::proof" | "kani::proof_for_contract") {
+            return true;
+        }
+        if normalized != "cfg_attr" {
+            return false;
+        }
+        // `cfg_attr(kani, kani::proof)` is conditional syntax in the source
+        // tree, not a macro expansion. Recognize the Kani condition and its
+        // proof attribute directly while leaving unrelated cfg_attr forms
+        // classified by their outer attribute only.
+        let Some(text) = attribute.utf8_text(source.as_bytes()).ok() else {
+            return false;
+        };
+        let inner = text
+            .trim()
+            .strip_prefix("cfg_attr(")
+            .and_then(|s| s.strip_suffix(')'));
+        let Some(inner) = inner else { return false };
+        let Some((condition, nested)) = inner.split_once(',') else {
+            return false;
+        };
+        if condition.trim() != "kani" {
+            return false;
+        }
+        nested.split(',').any(|candidate| {
+            let candidate = candidate.trim().trim_start_matches("::");
+            candidate == "kani::proof" || candidate.starts_with("kani::proof_for_contract(")
+        })
+    })
 }
 
 /// The names `criterion_group!(name, a, b)` or
@@ -810,6 +864,49 @@ fn fuzz_target(root: Node, source: &str) -> Option<RawSymbol> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn kani_proof_attributes_classify_top_level_and_conditional_proofs_only() {
+        let source = concat!(
+            "#[::kani::proof]\nfn absolute_proof() {}\n",
+            "#[kani::proof_for_contract(check)]\nfn contract_proof() {}\n",
+            "#[cfg_attr(kani, kani::proof)]\nfn conditional_proof() {}\n",
+            "#[cfg_attr(kani, kani::proof_for_contract(f))]\n",
+            "fn conditional_contract_proof() {}\n",
+            "#[cfg_attr(kani, ::kani::proof)]\nfn conditional_absolute_proof() {}\n",
+            "#[cfg_attr(kani, ::kani::proof_for_contract(f))]\n",
+            "fn conditional_absolute_contract_proof() {}\n",
+            "#[cfg_attr(other, kani::proof)]\nfn other_condition_proof() {}\n",
+            "#[foo::proof]\nfn other_proof() {}\n",
+            "fn untagged() {}\n",
+        );
+        let symbols = parse(source).expect("valid Kani attribute examples");
+        let kind_of = |name: &str| {
+            symbols
+                .iter()
+                .find(|symbol| symbol.qualified_name == name)
+                .unwrap_or_else(|| panic!("missing symbol {name}: {symbols:?}"))
+                .kind
+        };
+        assert_eq!(kind_of("absolute_proof"), SymbolKind::TestFunction);
+        assert_eq!(kind_of("contract_proof"), SymbolKind::TestFunction);
+        assert_eq!(kind_of("conditional_proof"), SymbolKind::TestFunction);
+        assert_eq!(
+            kind_of("conditional_contract_proof"),
+            SymbolKind::TestFunction
+        );
+        assert_eq!(
+            kind_of("conditional_absolute_proof"),
+            SymbolKind::TestFunction
+        );
+        assert_eq!(
+            kind_of("conditional_absolute_contract_proof"),
+            SymbolKind::TestFunction
+        );
+        assert_eq!(kind_of("other_condition_proof"), SymbolKind::Function);
+        assert_eq!(kind_of("other_proof"), SymbolKind::Function);
+        assert_eq!(kind_of("untagged"), SymbolKind::Function);
+    }
 
     /// PLAT-897: two adjacent `///` lines with **no blank line** between
     /// them must both join the span — the control the trailing-comment
