@@ -29,6 +29,10 @@ use crate::corpus::declared_tables::{self, DeclaredScope, ExcludeSet, ScanContex
 use crate::corpus::spec::Spec;
 use crate::traceability::{ObligationSource, TraceabilityModel};
 
+/// Owner-issued selected corpus inventories and typed incomplete outcomes.
+pub mod inventory;
+pub use inventory::inventory;
+
 /// One derived obligation.
 ///
 /// Deliberately carries no verdict, threshold comparison, evidence reference or
@@ -516,12 +520,12 @@ fn resolve<'a>(source: &'a ObligationSource, model: &'a TraceabilityModel) -> Op
 /// Rows are grouped by document because a space is a property of one document's
 /// table. Scanning the corpus yields every matching table at once, and folding
 /// them together would invent a space no document declares.
-fn collect_combinatorial(
+fn collect_combinatorial<'a>(
     source: &ObligationSource,
     order: usize,
     resolved: &Resolved<'_>,
     columns: &crate::traceability::CombinatorialColumns,
-    rows: &[ScannedRow],
+    rows: impl IntoIterator<Item = &'a ScannedRow>,
     root: &Path,
     out: &mut Vec<(usize, Obligation)>,
 ) {
@@ -627,71 +631,61 @@ fn collect(
         let n = *n;
         let document = declared_tables::relative_path(root, &row.path);
 
-        let Some(statement) = row.cell(&source.statement_column) else {
-            skipped.push(SkippedRow {
+        match row_obligation(source, resolved, row, n, &document) {
+            Some(obligation) => out.push((order, obligation)),
+            None => skipped.push(SkippedRow {
                 source: source.name.clone(),
                 document,
                 row: n,
-            });
-            continue;
-        };
-
-        let id = match (resolved.id_column, resolved.id_format) {
-            (Some(column), _) => match row.cell(column) {
-                Some(id) => id.to_string(),
-                None => {
-                    skipped.push(SkippedRow {
-                        source: source.name.clone(),
-                        document,
-                        row: n,
-                    });
-                    continue;
-                }
-            },
-            (None, Some(template)) => {
-                let stem = document_id(&document);
-                render_id(template, &stem, n)
-            }
-            (None, None) => continue,
-        };
-
-        let mut parameters = BTreeMap::new();
-        for (key, column) in &source.parameters {
-            if let Some(value) = row.cell(column) {
-                parameters.insert(key.clone(), value.to_string());
-            }
+            }),
         }
-
-        out.push((
-            order,
-            Obligation {
-                source: source.name.clone(),
-                id,
-                document,
-                statement: statement.to_string(),
-                statement_hash: statement_hash(statement),
-                method: source
-                    .method_column
-                    .as_deref()
-                    .and_then(|c| row.cell(c))
-                    .and_then(method_of),
-                parameters,
-                criticality: source
-                    .criticality_column
-                    .as_deref()
-                    .and_then(|c| row.cell(c))
-                    .map(str::to_string),
-                // From the SAME cell the method comes from, so the join the
-                // criteria table states travels with the obligation.
-                target_ids: source
-                    .method_column
-                    .as_deref()
-                    .and_then(|c| row.cell(c))
-                    .map(target_ids_of)
-                    .unwrap_or_default(),
-            },
-        ));
     }
+}
+
+/// Construct a row record once for both legacy and selected-inventory callers.
+fn row_obligation(
+    source: &ObligationSource,
+    resolved: &Resolved<'_>,
+    row: &ScannedRow,
+    ordinal: usize,
+    document: &str,
+) -> Option<Obligation> {
+    let statement = row.cell(&source.statement_column)?;
+    let id = match (resolved.id_column, resolved.id_format) {
+        (Some(column), _) => row.cell(column)?.to_string(),
+        (None, Some(template)) => render_id(template, &document_id(document), ordinal),
+        (None, None) => return None,
+    };
+    let mut parameters = BTreeMap::new();
+    for (key, column) in &source.parameters {
+        if let Some(value) = row.cell(column) {
+            parameters.insert(key.clone(), value.to_string());
+        }
+    }
+    Some(Obligation {
+        source: source.name.clone(),
+        id,
+        document: document.to_string(),
+        statement: statement.to_string(),
+        statement_hash: statement_hash(statement),
+        method: source
+            .method_column
+            .as_deref()
+            .and_then(|column| row.cell(column))
+            .and_then(method_of),
+        parameters,
+        criticality: source
+            .criticality_column
+            .as_deref()
+            .and_then(|column| row.cell(column))
+            .map(str::to_string),
+        target_ids: source
+            .method_column
+            .as_deref()
+            .and_then(|column| row.cell(column))
+            .map(target_ids_of)
+            .unwrap_or_default(),
+    })
 }
 
 /// The `{document}` substitution: the file stem, which is the artifact id for
