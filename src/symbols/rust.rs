@@ -372,8 +372,7 @@ fn function_symbol(node: Node, source: &str, container: Option<String>) -> Optio
     // Rust's built-in `#[test]`. Keeping them in the same symbol kind lets the
     // existing trace binder attach both `#[trace(...)]` and legacy `Trace:`
     // tags without treating production functions as evidence.
-    let is_test =
-        has_attribute(node, source, "test") || has_attribute_path(node, source, "kani::proof");
+    let is_test = has_attribute(node, source, "test") || has_kani_proof_attribute(node, source);
     let kind = if is_test {
         SymbolKind::TestFunction
     } else if has_attribute(node, source, "bench") {
@@ -460,7 +459,11 @@ fn is_annotation_node(node: Node) -> bool {
 /// pre-PLAT-843 adapter exactly): the same reading that already makes
 /// PLAT-305 pass (`#[ignore]` before `#[test]` — every attribute in the
 /// block is checked, not only the one immediately above the declaration).
-fn has_attribute(node: Node, source: &str, segment: &str) -> bool {
+fn for_each_leading_attribute(
+    node: Node,
+    source: &str,
+    mut predicate: impl FnMut(&str, Node) -> bool,
+) -> bool {
     let mut current = node;
     while let Some(prev) = current.prev_sibling() {
         if !is_annotation_node(prev) {
@@ -471,14 +474,17 @@ fn has_attribute(node: Node, source: &str, segment: &str) -> bool {
             break;
         }
         if prev.kind() == "attribute_item" {
-            if let Some(path) = prev
+            if let Some(attribute) = prev
                 .child_by_field_name("attribute")
                 .or_else(|| prev.named_child(0))
-                .and_then(|attribute| attribute.named_child(0))
-                .and_then(|path_node| path_node.utf8_text(source.as_bytes()).ok())
             {
-                if path.rsplit("::").next() == Some(segment) {
-                    return true;
+                if let Some(path) = attribute
+                    .named_child(0)
+                    .and_then(|path_node| path_node.utf8_text(source.as_bytes()).ok())
+                {
+                    if predicate(path, attribute) {
+                        return true;
+                    }
                 }
             }
         }
@@ -487,32 +493,46 @@ fn has_attribute(node: Node, source: &str, segment: &str) -> bool {
     false
 }
 
-/// True when `node`'s leading annotation block contains this exact attribute
-/// path. Unlike [`has_attribute`], this does not accept another attribute with
-/// the same final segment: only `#[kani::proof]` is a Kani proof declaration.
-fn has_attribute_path(node: Node, source: &str, path: &str) -> bool {
-    let mut current = node;
-    while let Some(prev) = current.prev_sibling() {
-        if !is_annotation_node(prev) {
-            break;
-        }
-        let boundary_row = current.start_position().row;
-        if boundary_row.saturating_sub(prev.end_position().row) > 1 {
-            break;
-        }
-        if prev.kind() == "attribute_item"
-            && prev
-                .child_by_field_name("attribute")
-                .or_else(|| prev.named_child(0))
-                .and_then(|attribute| attribute.named_child(0))
-                .and_then(|path_node| path_node.utf8_text(source.as_bytes()).ok())
-                == Some(path)
-        {
+fn has_attribute(node: Node, source: &str, segment: &str) -> bool {
+    for_each_leading_attribute(node, source, |path, _| {
+        path.trim_start_matches("::").rsplit("::").next() == Some(segment)
+    })
+}
+
+fn has_kani_proof_attribute(node: Node, source: &str) -> bool {
+    for_each_leading_attribute(node, source, |path, attribute| {
+        let normalized = path.trim_start_matches("::");
+        if matches!(normalized, "kani::proof" | "kani::proof_for_contract") {
             return true;
         }
-        current = prev;
-    }
-    false
+        if normalized != "cfg_attr" {
+            return false;
+        }
+        // `cfg_attr(kani, kani::proof)` is conditional syntax in the source
+        // tree, not a macro expansion. Recognize the Kani condition and its
+        // proof attribute directly while leaving unrelated cfg_attr forms
+        // classified by their outer attribute only.
+        let Some(text) = attribute.utf8_text(source.as_bytes()).ok() else {
+            return false;
+        };
+        let inner = text
+            .trim()
+            .strip_prefix("cfg_attr(")
+            .and_then(|s| s.strip_suffix(')'));
+        let Some(inner) = inner else { return false };
+        let Some((condition, nested)) = inner.split_once(',') else {
+            return false;
+        };
+        if condition.trim() != "kani" {
+            return false;
+        }
+        nested.split(',').any(|candidate| {
+            matches!(
+                candidate.trim().trim_start_matches("::"),
+                "kani::proof" | "kani::proof_for_contract"
+            ) || candidate.trim().starts_with("kani::proof_for_contract(")
+        })
+    })
 }
 
 /// The names `criterion_group!(name, a, b)` or
@@ -843,6 +863,30 @@ fn fuzz_target(root: Node, source: &str) -> Option<RawSymbol> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn kani_proof_attributes_classify_top_level_and_conditional_proofs_only() {
+        let source = concat!(
+            "#[::kani::proof]\nfn absolute_proof() {}\n",
+            "#[kani::proof_for_contract(check)]\nfn contract_proof() {}\n",
+            "#[cfg_attr(kani, kani::proof)]\nfn conditional_proof() {}\n",
+            "#[foo::proof]\nfn other_proof() {}\n",
+            "fn untagged() {}\n",
+        );
+        let symbols = parse(source).expect("valid Kani attribute examples");
+        let kind_of = |name: &str| {
+            symbols
+                .iter()
+                .find(|symbol| symbol.qualified_name == name)
+                .unwrap_or_else(|| panic!("missing symbol {name}: {symbols:?}"))
+                .kind
+        };
+        assert_eq!(kind_of("absolute_proof"), SymbolKind::TestFunction);
+        assert_eq!(kind_of("contract_proof"), SymbolKind::TestFunction);
+        assert_eq!(kind_of("conditional_proof"), SymbolKind::TestFunction);
+        assert_eq!(kind_of("other_proof"), SymbolKind::Function);
+        assert_eq!(kind_of("untagged"), SymbolKind::Function);
+    }
 
     /// PLAT-897: two adjacent `///` lines with **no blank line** between
     /// them must both join the span — the control the trailing-comment
