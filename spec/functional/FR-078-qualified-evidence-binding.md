@@ -118,10 +118,9 @@ are distinct owner changes.
 The bridge SHALL construct `AuditInput.obligations` from the supplied
 `SelectedInventory` entries, using each borrowed `entry.obligation()` and the
 existing Quoin projection semantics. It SHALL preserve exactly `id`, `statement`,
-`statement_hash`, `method`, `criticality`, `parameters` and `target_ids`; empty
+`method`, `criticality`, `parameters` and `target_ids`; empty
 `parameters` and `target_ids` become `None` on the Quoin reader, as the existing
-projection specifies. It SHALL NOT reparse documents, recompute statement hashes,
-render IDs, or substitute legacy `derive` output for the selected entries.
+projection specifies. It SHALL NOT reparse documents, render IDs, or substitute legacy `derive` output for the selected entries.
 
 The current `quoin-core::ops::quire::obligation` converter is **private**, and
 core already depends on `quoin-quire`. The bridge SHALL NOT call or depend on

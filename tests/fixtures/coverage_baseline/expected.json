@@ -383,7 +383,6 @@
       "id": "FR-001-AC-1",
       "document": "spec/FR-001.md",
       "statement": "Every parsed document serializes back to its input byte-for-byte.",
-      "statement_hash": "8d4ad1289541023b8cb594906b40c0c8aa93c925d81c234cef15b868fce5bb5f",
       "method": "Test",
       "target_ids": [
         "TC-001"
@@ -394,7 +393,6 @@
       "id": "FR-001-AC-2",
       "document": "spec/FR-001.md",
       "statement": "The system shall handle it appropriately.",
-      "statement_hash": "e027a8f330d2f2a8c4745951fbb6df6926ebee1033267cdb18a2cda5688358e0",
       "method": "Test",
       "target_ids": [
         "TC-002"
@@ -405,7 +403,6 @@
       "id": "FR-002-AC-1",
       "document": "spec/FR-002.md",
       "statement": "An unreadable file yields exactly one diagnostic naming its path.",
-      "statement_hash": "dae9b37e22ed780f69545fc3ab652248f9e42014041f3f4b8df689edf8976bfa",
       "method": "Test",
       "target_ids": [
         "TC-404"
@@ -416,7 +413,6 @@
       "id": "FR-003-AC-1",
       "document": "spec/FR-003.md",
       "statement": "Tagged by a running test.",
-      "statement_hash": "2dbf11f9b6d446a75819a7fead4ac00df9329385d1c9ec92c53bb872286a244f",
       "method": "Test"
     },
     {
@@ -424,7 +420,6 @@
       "id": "FR-003-AC-2",
       "document": "spec/FR-003.md",
       "statement": "Untagged: no binder at all.",
-      "statement_hash": "bfdac58145c79addf3b13fbf4b9ee2850ee83fd82db9916bfb2680c490aea962",
       "method": "Test"
     },
     {
@@ -432,7 +427,6 @@
       "id": "FR-003-AC-3",
       "document": "spec/FR-003.md",
       "statement": "Tagged only by an ignored test.",
-      "statement_hash": "f461e22defc05c6494e26b49b03be6e0d29b8237618e1eeffb92dd25df346bd0",
       "method": "Test"
     },
     {
@@ -440,7 +434,6 @@
       "id": "FR-003-AC-4",
       "document": "spec/FR-003.md",
       "statement": "Verified by inspection alone.",
-      "statement_hash": "6a908c79cea98eb8a8b89b688590a8d7d61e5a37c5a864a7dcadb274518bc6e5",
       "method": "Inspection"
     }
   ],

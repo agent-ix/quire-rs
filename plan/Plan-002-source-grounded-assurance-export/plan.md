@@ -71,7 +71,7 @@ The seams are `Registry` for module/schema premises, `Spec` for documents and ed
 ### Integration and Property Tests
 
 - [x] **TC-1091**: reproduce artifact identities and exact-byte locators.
-- [x] **TC-1092**: reproduce obligation records and both statement hashes.
+- [x] **TC-1092**: reproduce obligation records.
 - [x] **TC-1093**: preserve stable symbol identities and capabilities.
 - [x] **TC-1094**: prove corpus-relation projection is a bijection, including declared zero-edge kinds and dangling edges.
 - [x] **TC-1096**: exercise available, missing, not_applicable, and unknown relation observations.

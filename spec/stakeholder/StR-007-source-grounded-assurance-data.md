@@ -27,7 +27,7 @@ retains relationships that no stable machine contract exports. Consumers such
 as Quoin consequently re-read frontmatter, recreate relationship direction,
 and infer whether absent data means missing, inapplicable, or unread. Those
 copies can disagree with the engine while still producing a plausible assurance
-case. Source locations, statement digests, explicit states, and version premises
+case. Source locations, explicit states, and version premises
 make that disagreement detectable at the boundary.
 
 ## Validation Criteria

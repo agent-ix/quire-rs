@@ -3,9 +3,7 @@
 //! ADR 0011 names the obligation record the thing quire *states* and quoin
 //! *audits the discharge of*. Neither side had one: `quire properties --json`
 //! carries property shapes, FR-050 coverage carries the AC→TC rollup, and
-//! neither carries a content hash or a verification method. Without the hash
-//! nothing downstream can see a **suspect link** — evidence bound to a
-//! statement that has since been reworded. Without the method nothing can see
+//! neither carries a verification method. Without the method nothing can see
 //! a requirement whose declared verification is analysis discharged by a unit
 //! test.
 //!
@@ -23,7 +21,6 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 
 use crate::corpus::declared_tables::{self, DeclaredScope, ExcludeSet, ScanContext, ScannedRow};
 use crate::corpus::spec::Spec;
@@ -46,9 +43,6 @@ pub struct Obligation {
     pub document: String,
     /// The normative statement, verbatim and untruncated.
     pub statement: String,
-    /// SHA-256 of the **normalized** statement, lowercase hex. Suspect-link
-    /// detection is `current_hash != hash_at_binding` and nothing more.
-    pub statement_hash: String,
     /// Declared verification method, annotation stripped. Absent when the
     /// source declares no method column or the cell is empty. Not validated
     /// against any vocabulary here — that is the catalog's job and the
@@ -88,12 +82,11 @@ pub struct Obligation {
 /// single payload, which is the shape that eventually disagrees with itself.
 ///
 /// It is also what keeps [`crate::validate_document::classify_document_criteria`]
-/// text-only — a criterion's hash, method and criticality are readable from the
+/// text-only — a criterion's method and criticality are readable from the
 /// criterion's own row, where a document path is not.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CriterionObligation {
     pub source: String,
-    pub statement_hash: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub method: Option<String>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
@@ -163,8 +156,7 @@ pub fn for_document(
         // The path is only used to stamp `ScannedRow.path`, which this caller
         // does not read — the rows come from the one document it was handed.
         for row in declared_tables::rows_of(doc, Path::new(""), resolved.section) {
-            let (Some(id), Some(statement)) =
-                (row.cell(id_column), row.cell(&source.statement_column))
+            let (Some(id), Some(_)) = (row.cell(id_column), row.cell(&source.statement_column))
             else {
                 continue;
             };
@@ -180,7 +172,6 @@ pub fn for_document(
             out.entry(id.to_string())
                 .or_insert_with(|| CriterionObligation {
                     source: source.name.clone(),
-                    statement_hash: statement_hash(statement),
                     method: source
                         .method_column
                         .as_deref()
@@ -262,7 +253,6 @@ fn combinatorial_obligation(
         id.clone(),
         CriterionObligation {
             source: source.name.clone(),
-            statement_hash: statement_hash(&space.statement(columns.strength)),
             method: None,
             parameters,
             criticality: None,
@@ -277,60 +267,6 @@ fn doc_id(doc: &crate::ast::QuireDocument) -> Option<String> {
         .get("id")
         .and_then(serde_json::Value::as_str)
         .map(str::to_string)
-}
-
-/// Normalize a statement for hashing: NFC, trim, collapse whitespace runs.
-///
-/// **Not** the CR-017 code-span mask, and the difference matters. CR-017
-/// replaces a code span's *contents* with `x` so a quoted keyword reads as a
-/// mention rather than a use — correct for grammar detection, catastrophic for
-/// a hash: ``reject a `foo` token`` and ``reject a `bar` token`` mask to the
-/// same string, so a suspect-link detector built on it would stay silent
-/// through the rename it exists to catch. A backticked identifier is usually
-/// the most load-bearing token in a criterion.
-///
-/// Whitespace normalization gives the property that was actually wanted — a
-/// re-wrap or a trailing space does not churn the hash — without ever equating
-/// two statements a reader would read differently.
-///
-/// NFC is applied for real (CR-063). The FR shipped asserting the property in
-/// AC-4 and skipping it in code, on the argument that NFR-009 pins dependencies
-/// and this corpus is authored NFC anyway. Both halves of that argument were
-/// weak: an editor on macOS emits NFD for a composed accent, and an unnormalized
-/// hash turns *that* into a suspect link nobody caused — the false positive the
-/// FR itself says gets a detector switched off within a week.
-/// `unicode-normalization` is permissively licensed and already covered by
-/// `deny.toml`'s allow-list, which makes honouring the AC cheaper than amending
-/// it.
-pub fn normalize_statement(statement: &str) -> String {
-    use unicode_normalization::UnicodeNormalization;
-
-    let mut out = String::with_capacity(statement.len());
-    let mut in_space = false;
-    for ch in statement.trim().nfc() {
-        if ch.is_whitespace() {
-            in_space = true;
-            continue;
-        }
-        if in_space && !out.is_empty() {
-            out.push(' ');
-        }
-        in_space = false;
-        out.push(ch);
-    }
-    out
-}
-
-/// SHA-256 of the normalized statement, lowercase hex.
-///
-/// Computed from the statement **alone** — never the id, path, line or method
-/// (FR-053-CON-3). A statement that moves file or renumbers has not changed,
-/// and a suspect-link detector that fires on a move is one that gets switched
-/// off within a week.
-pub fn statement_hash(statement: &str) -> String {
-    let mut hasher = Sha256::new();
-    hasher.update(normalize_statement(statement).as_bytes());
-    format!("{:x}", hasher.finalize())
 }
 
 /// Strip a trailing parenthetical annotation from a method cell.
@@ -508,7 +444,7 @@ fn resolve<'a>(source: &'a ObligationSource, model: &'a TraceabilityModel) -> Op
 /// One combinatorial obligation per document (FR-061), from scanned rows.
 ///
 /// The corpus twin of [`combinatorial_obligation`], which works from a parsed
-/// document. Both build the same [`ConfigurationSpace`] and hash the same
+/// document. Both build the same [`ConfigurationSpace`] and state the same
 /// statement, so an obligation derived here and one derived during
 /// single-document validation are the same obligation — that identity is what
 /// lets a binding made against one be read by the other.
@@ -595,7 +531,6 @@ fn collect_combinatorial(
                 source: source.name.clone(),
                 id: render_id(template, &stem, 1),
                 document,
-                statement_hash: statement_hash(&statement),
                 statement,
                 method: None,
                 parameters,
@@ -669,7 +604,6 @@ fn collect(
                 id,
                 document,
                 statement: statement.to_string(),
-                statement_hash: statement_hash(statement),
                 method: source
                     .method_column
                     .as_deref()
@@ -721,23 +655,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn normalization_collapses_whitespace_but_not_words() {
-        assert_eq!(normalize_statement("  a   b \n c  "), "a b c");
-        assert_eq!(statement_hash("a b c"), statement_hash("  a   b \n c  "));
-        assert_ne!(statement_hash("a b c"), statement_hash("a b d"));
-    }
-
-    #[test]
-    fn code_span_contents_change_the_hash() {
-        // The CR-017 mask would collapse these two; the whole point of not
-        // reusing it is that they must differ (FR-053-AC-4).
-        assert_ne!(
-            statement_hash("The parser SHALL reject a `foo` token."),
-            statement_hash("The parser SHALL reject a `bar` token."),
-        );
-    }
-
-    #[test]
     fn method_drops_a_trailing_annotation() {
         assert_eq!(method_of("Test (TC-707)"), Some("Test".to_string()));
         assert_eq!(method_of("Analysis"), Some("Analysis".to_string()));
@@ -761,34 +678,5 @@ mod tests {
             "FR-050"
         );
         assert_eq!(document_id("notes.md"), "notes");
-    }
-}
-
-#[cfg(test)]
-mod props_metamorphic {
-    use proptest::prelude::*;
-
-    proptest! {
-        #![proptest_config(ProptestConfig::with_cases(4000))]
-
-        /// TC-890, FR-053-AC-4 (CR-069, Property): statement normalization is
-        /// idempotent. The obligation id is a hash of this output, so a
-        /// non-idempotent normalizer would mean an obligation's identity
-        /// depended on how many times the text had been round-tripped.
-        #[test]
-        fn tc890_normalize_statement_is_idempotent(s in "\\PC*") {
-            let once = super::normalize_statement(&s);
-            prop_assert_eq!(super::normalize_statement(&once), once.clone(), "input={:?}", s);
-        }
-
-        /// TC-890, FR-053-AC-4 (CR-069, Property): and the hash follows the
-        /// normalized form, so hashing a statement and hashing its own
-        /// normalization agree — the whitespace-insensitivity TC-834 asserts on
-        /// examples, stated over the whole input space.
-        #[test]
-        fn tc890_statement_hash_is_normalization_invariant(s in "\\PC*") {
-            let once = super::normalize_statement(&s);
-            prop_assert_eq!(super::statement_hash(&s), super::statement_hash(&once), "input={:?}", s);
-        }
     }
 }

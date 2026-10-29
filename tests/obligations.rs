@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 
 use ix_trace_rs::trace;
 use quire_rs::coverage::compute;
-use quire_rs::obligation::{derive, statement_hash};
+use quire_rs::obligation::derive;
 use quire_rs::symbols::{extract_tree, trace};
 use quire_rs::{Registry, Spec};
 
@@ -160,27 +160,6 @@ fn tc833_ambiguous_or_originless_source_fails_load() {
     }
 }
 
-#[trace("TC-834", "FR-053-AC-4")]
-// whitespace does not churn the hash; a word does —
-// including a word inside an inline code span, which the CR-017 mask would have
-// collapsed.
-#[test]
-fn tc834_hash_is_whitespace_insensitive_and_word_sensitive() {
-    assert_eq!(
-        statement_hash("The system shall do it."),
-        statement_hash("  The   system\tshall\n do it.  "),
-    );
-    assert_ne!(
-        statement_hash("The system shall do it."),
-        statement_hash("The system shall not do it."),
-    );
-    // The reason this is not the CR-017 mask.
-    assert_ne!(
-        statement_hash("The parser SHALL reject a `foo` token."),
-        statement_hash("The parser SHALL reject a `bar` token."),
-    );
-}
-
 #[trace("TC-835", "FR-053-AC-5")]
 // one cell, two readings. The method drops the trailing
 // annotation; FR-049 still reads the reference out of the same cell.
@@ -256,7 +235,6 @@ fn tc837_criticality_is_optional() {
     // The NFR module declares no criticality column at all; the two records
     // differ in nothing but the source they came from.
     assert_eq!(declared_but_empty[0].method.as_deref(), Some("Test"));
-    assert!(!declared_but_empty[0].statement_hash.is_empty());
 }
 
 #[trace("TC-838", "FR-053-AC-8")]
@@ -316,28 +294,6 @@ fn tc870_skipped_row_is_reported_in_the_coverage_report() {
     );
     // And it reaches the JSON, since that is what a consumer parses.
     assert!(report.to_json().contains("obligation-row-states-nothing"));
-}
-
-#[trace("TC-871", "FR-053-AC-4")]
-// Unicode normalization form does not change the hash.
-// The FR asserted this and the code skipped it; NFC is now applied (CR-063).
-#[test]
-fn tc871_hash_is_normalization_form_insensitive() {
-    // "café" composed (U+00E9) vs decomposed (e + U+0301). A reader cannot tell
-    // them apart and neither may the hash.
-    let composed = "The parser shall accept a caf\u{e9} token.";
-    let decomposed = "The parser shall accept a cafe\u{301} token.";
-    assert_ne!(composed, decomposed, "the fixture must differ as bytes");
-    assert_eq!(
-        statement_hash(composed),
-        statement_hash(decomposed),
-        "an editor rewriting NFD to NFC is not a change of statement",
-    );
-    // And normalization does not flatten a real difference.
-    assert_ne!(
-        statement_hash(composed),
-        statement_hash("The parser shall accept a cafe token."),
-    );
 }
 
 #[trace("TC-872", "FR-053-AC-9")]
@@ -474,10 +430,6 @@ fn tc840_classification_carries_the_obligation() {
     assert_eq!(ob.source, "acceptance-criterion");
     assert_eq!(ob.method.as_deref(), Some("Test"));
     assert_eq!(ob.criticality.as_deref(), Some("P1"));
-    assert_eq!(
-        ob.statement_hash,
-        statement_hash("Every finding absent from the merged map defaults to warning."),
-    );
 
     // A module declaring no obligation sources: same records, no obligation.
     let without = Registry::load_module(&fixture_module("iso")).expect("load");
@@ -525,48 +477,6 @@ fn tc841_coverage_report_carries_obligations() {
     }
 }
 
-#[trace("TC-842", "FR-053-AC-12")]
-// the hash follows the statement, not its position. A
-// suspect-link detector that fires on a file move is one that gets switched off.
-#[test]
-fn tc842_hash_survives_a_move_and_a_renumber() {
-    let statement = "The system shall reject a malformed token.";
-
-    let here = ac_bundle(
-        "842a",
-        &format!("| FR-001-AC-1 | {statement} | Test (TC-001) | P1 |\n"),
-    );
-    let there = tmpdir("842b").join("spec");
-    fs::create_dir_all(&there).expect("mkdir");
-    write(
-        &there,
-        "nested/FR-009.md",
-        &format!(
-            "---\nid: FR-009\ntype: FR\ntitle: Elsewhere\n---\n\n\
-             ## Acceptance Criteria\n\n\
-             | ID | Criteria | Verification | Priority |\n\
-             |----|----------|--------------|----------|\n\
-             | FR-009-AC-7 | {statement} | Test (TC-050) | P3 |\n"
-        ),
-    );
-
-    let a = derive_at(&here, "obligations");
-    let b = derive_at(&there, "obligations");
-    assert_ne!(a[0].id, b[0].id);
-    assert_ne!(a[0].document, b[0].document);
-    assert_eq!(
-        a[0].statement_hash, b[0].statement_hash,
-        "a move and a renumber are not a change of statement",
-    );
-
-    let reworded = ac_bundle(
-        "842c",
-        "| FR-001-AC-1 | The system shall reject a malformed tokens. | Test (TC-001) | P1 |\n",
-    );
-    let c = derive_at(&reworded, "obligations");
-    assert_ne!(a[0].statement_hash, c[0].statement_hash);
-}
-
 #[trace("TC-843", "FR-053-AC-13")]
 // the nested obligation carries no id, statement or
 // document — the record and its enclosing object already have all three.
@@ -591,7 +501,6 @@ fn tc843_nested_obligation_does_not_repeat_the_record() {
         );
     }
     assert!(object.contains_key("source"));
-    assert!(object.contains_key("statement_hash"));
 }
 
 #[trace("TC-935", "FR-053-AC-11")]
