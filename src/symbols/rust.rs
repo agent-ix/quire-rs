@@ -452,13 +452,9 @@ fn is_annotation_node(node: Node) -> bool {
     )
 }
 
-/// True when `node`'s leading annotation block holds an attribute whose
-/// final path segment is `segment` — `#[test]`, `#[tokio::test]`,
-/// `#[rstest]`. Only the *outer* attribute path is read, never a nested
-/// argument (`#[cfg_attr(feature = "x", test)]` does not count, matching the
-/// pre-PLAT-843 adapter exactly): the same reading that already makes
-/// PLAT-305 pass (`#[ignore]` before `#[test]` — every attribute in the
-/// block is checked, not only the one immediately above the declaration).
+/// Walk the contiguous leading annotation block once and apply a path
+/// predicate to each outer attribute. Comments and blank-line boundaries
+/// retain the same semantics as [`leading_span`].
 fn for_each_leading_attribute(
     node: Node,
     source: &str,
@@ -493,6 +489,13 @@ fn for_each_leading_attribute(
     false
 }
 
+/// True when `node`'s leading annotation block holds an attribute whose
+/// final path segment is `segment` — `#[test]`, `#[tokio::test]`,
+/// `#[rstest]`. Only the *outer* attribute path is read, never a nested
+/// argument (`#[cfg_attr(feature = "x", test)]` does not count, matching the
+/// pre-PLAT-843 adapter exactly): the same reading that already makes
+/// PLAT-305 pass (`#[ignore]` before `#[test]` — every attribute in the
+/// block is checked, not only the one immediately above the declaration).
 fn has_attribute(node: Node, source: &str, segment: &str) -> bool {
     for_each_leading_attribute(node, source, |path, _| {
         path.trim_start_matches("::").rsplit("::").next() == Some(segment)
@@ -527,10 +530,8 @@ fn has_kani_proof_attribute(node: Node, source: &str) -> bool {
             return false;
         }
         nested.split(',').any(|candidate| {
-            matches!(
-                candidate.trim().trim_start_matches("::"),
-                "kani::proof" | "kani::proof_for_contract"
-            ) || candidate.trim().starts_with("kani::proof_for_contract(")
+            let candidate = candidate.trim().trim_start_matches("::");
+            candidate == "kani::proof" || candidate.starts_with("kani::proof_for_contract(")
         })
     })
 }
@@ -870,6 +871,12 @@ mod tests {
             "#[::kani::proof]\nfn absolute_proof() {}\n",
             "#[kani::proof_for_contract(check)]\nfn contract_proof() {}\n",
             "#[cfg_attr(kani, kani::proof)]\nfn conditional_proof() {}\n",
+            "#[cfg_attr(kani, kani::proof_for_contract(f))]\n",
+            "fn conditional_contract_proof() {}\n",
+            "#[cfg_attr(kani, ::kani::proof)]\nfn conditional_absolute_proof() {}\n",
+            "#[cfg_attr(kani, ::kani::proof_for_contract(f))]\n",
+            "fn conditional_absolute_contract_proof() {}\n",
+            "#[cfg_attr(other, kani::proof)]\nfn other_condition_proof() {}\n",
             "#[foo::proof]\nfn other_proof() {}\n",
             "fn untagged() {}\n",
         );
@@ -884,6 +891,19 @@ mod tests {
         assert_eq!(kind_of("absolute_proof"), SymbolKind::TestFunction);
         assert_eq!(kind_of("contract_proof"), SymbolKind::TestFunction);
         assert_eq!(kind_of("conditional_proof"), SymbolKind::TestFunction);
+        assert_eq!(
+            kind_of("conditional_contract_proof"),
+            SymbolKind::TestFunction
+        );
+        assert_eq!(
+            kind_of("conditional_absolute_proof"),
+            SymbolKind::TestFunction
+        );
+        assert_eq!(
+            kind_of("conditional_absolute_contract_proof"),
+            SymbolKind::TestFunction
+        );
+        assert_eq!(kind_of("other_condition_proof"), SymbolKind::Function);
         assert_eq!(kind_of("other_proof"), SymbolKind::Function);
         assert_eq!(kind_of("untagged"), SymbolKind::Function);
     }
