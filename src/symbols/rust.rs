@@ -36,7 +36,7 @@
 //!
 //! ## What survives byte-for-byte from the line-structural scanner
 //!
-//! `Symbol::compute_id` hashes `(language, path, qualified_name, kind)`
+//! `Symbol::compute_id` composes `(language, path, qualified_name, kind)`
 //! (`src/symbols/mod.rs`) — qualified-name construction is an identity
 //! surface, not a style choice, and every quirk below is preserved exactly
 //! rather than "cleaned up" (PLAT-843):
@@ -1318,7 +1318,7 @@ mod tests {
     /// FR-051-AC-2 (PLAT-845): a `fn` **is** a container for its own body —
     /// the same mechanism `mod`/`struct`/`trait`/`impl` already use, plain
     /// `::`, no new separator — so two same-named functions nested in two
-    /// differently-named enclosing functions qualify (and therefore hash)
+    /// differently-named enclosing functions qualify (and therefore differ in id)
     /// distinctly. This replaces
     /// `nested_helpers_in_different_functions_share_one_identity`, which
     /// pinned the flattening bug as correct behaviour (PLAT-843 audit item
@@ -1370,7 +1370,7 @@ mod tests {
             "helper() {{ }} is qualified under outer_two: {helpers:?}"
         );
 
-        // The compound identity `Symbol::compute_id` actually hashes —
+        // The compound identity `Symbol::compute_id` actually composes —
         // (language, path, qualified_name, kind) — must differ too, not
         // just the qualified name in isolation: this is what FR-051-AC-2
         // ("distinct ids") actually requires.

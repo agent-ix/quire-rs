@@ -57,7 +57,7 @@ core extraction result compatible with the shared `CoreExtractionResult` contrac
   into graph edges with stable provenance metadata.
 - The engine SHALL deduplicate duplicate graph edges by source, edge type, and target,
   preserving the first edge and emitting a diagnostic for duplicates.
-- The engine SHALL produce stable SHA-256 ids for object type, node, and edge records.
+- The engine SHALL produce stable ids (the joined identity parts, no hash) for object type, node, and edge records.
 
 ## Constraints
 

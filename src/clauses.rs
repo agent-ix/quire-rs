@@ -10,7 +10,6 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Component, Path};
 
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 
 const SCHEMA_VERSION: &str = "clause-set-v1";
 
@@ -183,14 +182,6 @@ impl ClauseSet {
         }
     }
 
-    /// Digest of the canonical JSON of the declaration, emitted in binding and
-    /// diff reports.
-    pub fn computed_digest(&self) -> String {
-        let value = serde_json::to_value(self).expect("ClauseSet is serializable");
-        let bytes = serde_json::to_vec(&value).expect("canonical ClauseSet JSON serializes");
-        format!("sha256:{:x}", Sha256::digest(bytes))
-    }
-
     pub fn validate(&self) -> Result<(), ClauseSetError> {
         if self.schema_version != SCHEMA_VERSION {
             return Err(ClauseSetError::Invalid(format!(
@@ -344,7 +335,6 @@ impl ClauseSet {
         ClauseBindingReport {
             schema_version: "clause-binding-v1".into(),
             clause_set: self.key(),
-            clause_set_digest: self.computed_digest(),
             context: context.clone(),
             clauses,
         }
@@ -397,7 +387,6 @@ pub struct ClauseBinding {
 pub struct ClauseBindingReport {
     pub schema_version: String,
     pub clause_set: ClauseSetKey,
-    pub clause_set_digest: String,
     pub context: BTreeMap<String, String>,
     pub clauses: Vec<ClauseBinding>,
 }
@@ -415,9 +404,7 @@ pub struct ChangedClause {
 pub struct ClauseSetDiff {
     pub schema_version: String,
     pub before: ClauseSetKey,
-    pub before_digest: String,
     pub after: ClauseSetKey,
-    pub after_digest: String,
     pub added: Vec<Clause>,
     pub removed: Vec<Clause>,
     pub changed: Vec<ChangedClause>,
@@ -466,9 +453,7 @@ pub fn diff_clause_sets(
     Ok(ClauseSetDiff {
         schema_version: "clause-diff-v1".into(),
         before: before.key(),
-        before_digest: before.computed_digest(),
         after: after.key(),
-        after_digest: after.computed_digest(),
         added,
         removed,
         changed,

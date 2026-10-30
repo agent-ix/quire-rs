@@ -30,7 +30,7 @@ carry a **stable identity** composed of language, repo-relative file path,
 qualified symbol path, and kind. Symbol identity SHALL NOT incorporate line
 numbers, byte offsets, or formatting, so reformatting a file leaves every
 identity unchanged; the current line number SHALL be carried as a non-identity
-attribute. Record ids SHALL be stable SHA-256 digests of the identity, per the
+attribute. Record ids SHALL be the identity itself, per the
 [FR-045](./FR-045-filament-core-extraction-engine.md) record-id convention.
 
 ## Language adapters
@@ -379,7 +379,7 @@ byte-identical JSON ordering and stable record ids.
 > `src/symbols/python.rs`'s own test module).
 >
 > **Qualified-name construction is unchanged, byte-for-byte** — a
-> compatibility surface (`Symbol::compute_id` hashes `(language, path,
+> compatibility surface (`Symbol::compute_id` composes `(language, path,
 > qualified_name, kind)`), not a style choice this port is free to clean up.
 > In particular: only a `class` is a scope (a `def` never becomes a
 > container for its own nested `def`s, unlike Rust's own `PLAT-845`); a
