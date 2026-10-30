@@ -50,7 +50,7 @@ fn extract_with_bundle_artifacts(md: &str, body_extraction: Value, artifacts: Va
         "markdown": md,
         "module": {
             "contractVersion": "1.0.0",
-                        "package": "agent-ix/spec-objects-architecture",
+            "package": "agent-ix/spec-objects-architecture",
             "exports": ["part", "port", "connection", "allocation"],
             "imports": { "agent-ix/fleet": "*" },
         },
@@ -68,7 +68,6 @@ fn extract_with_bundle_artifacts(md: &str, body_extraction: Value, artifacts: Va
     let schema = compile_module_schema(
         &serde_json::from_str::<Value>(SEMANTIC_V1_SCHEMA).unwrap(),
         &|_| None,
-        quire_rs::semantic::embedded::embedded_semantic_core_version(),
         "https://agent-ix.github.io/quire-rs/schemas/output/",
     )
     .unwrap();

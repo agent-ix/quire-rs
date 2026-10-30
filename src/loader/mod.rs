@@ -840,7 +840,7 @@ fn resolve_data_schema(
             .reason(),
         )),
         DataSchemaForm::Reference(reference) => {
-            let Some(semantic) = semantic else {
+            let Some(_) = semantic else {
                 return Err(failure(
                     module,
                     &a.name,
@@ -854,7 +854,7 @@ fn resolve_data_schema(
                 ));
             };
             let resolved =
-                crate::semantic::resolver::resolve_reference(source, &reference, semantic, &a.name)
+                crate::semantic::resolver::resolve_reference(source, &reference, &a.name)
                     .map_err(|f| failure(module, &a.name, manifest_path.clone(), f.reason()))?;
             Ok((
                 Some(Arc::new(resolved.schema)),

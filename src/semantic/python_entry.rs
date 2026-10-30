@@ -73,7 +73,6 @@ pub fn extract_semantic_json(request: &Value) -> Result<SemanticExtraction, Stri
     }
     let module = SemanticModule {
         contract_version: req.module.contract_version,
-        semantic_core: super::embedded::embedded_semantic_core_version().to_string(),
         package: req.module.package,
         exports: req.module.exports,
         imports: req.module.imports,

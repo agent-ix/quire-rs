@@ -1,8 +1,8 @@
 //! FR-071 clause and operation extraction (TC-1622..TC-1626, TC-1629,
-//! TC-1648, TC-1850, TC-1851). Plan-003 Task-019. Oracles: the
+//! TC-1648, TC-1850). Plan-003 Task-019. Oracles: the
 //! `quire-fixtures` crate's (PLAT-901) `operations.md`,
 //! `operations.expected.json`, `operations-cases.json`,
-//! `clause-language-0.1.0-cases.json`, and the `config-version` golden.
+//! and the `config-version` golden.
 
 use std::fs;
 use std::path::PathBuf;
@@ -45,26 +45,15 @@ fn context(path: &str) -> SemanticContext {
         .with_source_identity("ix://agent-ix/config-service/spec")
 }
 
-/// `context`, pinned to the historical semantic-core version only when the
-/// fixture selects one; otherwise it runs under the module's declared core.
-fn context_at(path: &str, fixture: &Value) -> SemanticContext {
-    let mut ctx = context(path);
-    if let Some(core) = fixture["semanticCore"].as_str() {
-        ctx.module.semantic_core = core.to_string();
-    }
-    ctx
-}
-
-fn gate(model: &str, core: &str) -> jsonschema::JSONSchema {
+fn gate(model: &str) -> jsonschema::JSONSchema {
     let schema = json!({
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "$id": format!("https://schemas.agent-ix.org/agent-ix/quire-rs/0.1.0/{model}Gate.json"),
-        "$ref": format!("https://schemas.agent-ix.org/semantic-core/{core}/{model}.json")
+        "$ref": format!("https://schemas.agent-ix.org/semantic-core/{}/{model}.json", quire_rs::semantic::embedded::embedded_semantic_core_version())
     });
     compile_module_schema(
         &schema,
         &|_| None,
-        core,
         "https://schemas.agent-ix.org/agent-ix/quire-rs/",
     )
     .unwrap()
@@ -76,7 +65,7 @@ fn gate(model: &str, core: &str) -> jsonschema::JSONSchema {
 fn golden_operations_and_spans() {
     let raw = mapping("operations.md");
     let expected = mapping_json("operations.expected.json");
-    let ctx = context_at("operations.md", &expected);
+    let ctx = context("operations.md");
     let clauses = extract_clauses(&raw, &ctx);
     assert_eq!(
         clauses.availability.state,
@@ -133,7 +122,7 @@ fn golden_operations_and_spans() {
     let expected = mapping_json("config-version.expected.json");
     let cv = extract_clauses(
         &mapping("config-version.table.md"),
-        &context_at("config-version.table.md", &expected),
+        &context("config-version.table.md"),
     );
     assert_eq!(
         serde_json::to_value(cv.clauses.as_ref().unwrap()).unwrap(),
@@ -213,9 +202,9 @@ fn run_case(
 /// Assert one case: every recorded diagnostic (code, severity, locus,
 /// and `column`/`message` when recorded), and the recorded `clauses`,
 /// `clauseText`, and clause availability when present.
-fn assert_case(case: &Value, file: &Value) {
+fn assert_case(case: &Value) {
     let id = case["id"].as_str().unwrap();
-    let (diagnostics, md, clauses) = run_case(case, &context_at("case.md", file));
+    let (diagnostics, md, clauses) = run_case(case, &context("case.md"));
     for d in case["diagnostics"].as_array().unwrap() {
         let code = d["code"].as_str().unwrap();
         let severity = match d["severity"].as_str().unwrap() {
@@ -281,53 +270,34 @@ fn cases(prefix: &str) -> Vec<Value> {
         .collect()
 }
 
-fn operations_cases() -> Value {
-    mapping_json("operations-cases.json")
-}
-
 #[trace("TC-1623", "FR-071-AC-2")]
 // the six language cases, `fence-ocl-carried` included; `quire` yields no
 // advisory.
 #[test]
 fn language_cases() {
-    let file = operations_cases();
     let fence = cases("fence-");
     assert_eq!(fence.len(), 6);
     for case in &fence {
-        assert_case(case, &file);
+        assert_case(case);
     }
     let (diagnostics, _, _) = run_case(
         &json!({ "id": "quire", "invariants": "### immutable\n\n```quire\nx\n```\n" }),
-        &context_at("case.md", &file),
+        &context("case.md"),
     );
     assert!(diagnostics.is_empty(), "{diagnostics:?}");
     // carried languages are lossy but available
     let md = artifact("### immutable\n\n```fretish\nx\n```\n", "");
-    let out = extract_clauses(&md, &context_at("f.md", &file));
+    let out = extract_clauses(&md, &context("f.md"));
     assert_eq!(out.availability.state, AvailabilityState::Available);
     assert!(out.availability.lossy);
 }
 
-#[trace("TC-1851", "FR-071-AC-9")]
-// semantic-core 0.1.0 admits no `quire`: `clause-language-0.1.0-cases.json`.
-#[test]
-fn clause_language_0_1_0_cases() {
-    let file = mapping_json("clause-language-0.1.0-cases.json");
-    let cases = file["cases"].as_array().unwrap();
-    assert_eq!(cases.len(), 1);
-    for case in cases {
-        assert_case(case, &file);
-    }
-}
-
 #[trace("TC-1850", "FR-071-AC-8")]
 // `quire` is the only checked language; `ocl` is carried unchecked under
-// every semantic-core version; semantic-core 0.1.0 admits no `quire`.
+// the embedded semantic-core.
 #[test]
 fn quire_is_checked_and_ocl_is_carried() {
-    let mut ctx = context("q.md");
-    ctx.module.semantic_core =
-        quire_rs::semantic::embedded::embedded_semantic_core_version().to_string();
+    let ctx = context("q.md");
     let md = artifact("### placed\n\n```quire\nx\n```\n", "");
     let out = extract_clauses(&md, &ctx);
     assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
@@ -357,22 +327,6 @@ fn quire_is_checked_and_ocl_is_carried() {
     let carried = extract_clauses(&md, &context("q.md"));
     assert_eq!(carried.diagnostics, out.diagnostics);
     assert_eq!(carried.availability, out.availability);
-
-    // semantic-core 0.1.0 (no longer an embedded, loadable version, but
-    // still a real historical fact `clause_language_class` encodes) admits
-    // no `quire`: force it explicitly rather than relying on the default
-    // context's version, since that default is the embedded version.
-    let mut ctx01 = context("q.md");
-    ctx01.module.semantic_core = "0.1.0".to_string();
-    let md = artifact("### placed\n\n```quire\nx\n```\n", "");
-    let out = extract_clauses(&md, &ctx01);
-    assert!(
-        out.diagnostics
-            .iter()
-            .any(|d| d.code == "semantic.clause-language-invalid"),
-        "{:?}",
-        out.diagnostics
-    );
 }
 
 #[trace("TC-1624", "FR-071-AC-3")]
@@ -389,7 +343,7 @@ fn structural_cases() {
             .into_iter()
             .next()
             .unwrap_or_else(|| panic!("{id}"));
-        assert_case(&case, &operations_cases());
+        assert_case(&case);
     }
     let ctx = context("s.md");
     let ownerless = artifact("```ocl\nx\n```\n", "");
@@ -474,7 +428,7 @@ fn operation_cases() {
             .into_iter()
             .next()
             .unwrap_or_else(|| panic!("{id}"));
-        assert_case(&case, &operations_cases());
+        assert_case(&case);
     }
     let ctx = context("o.md");
     let md = artifact(
@@ -535,9 +489,9 @@ fn operation_cases() {
 #[test]
 fn validation_and_states() {
     let raw = mapping("operations.md");
-    let ctx = context_at("operations.md", &mapping_json("operations.expected.json"));
+    let ctx = context("operations.md");
     let clauses = extract_clauses(&raw, &ctx);
-    let clause_gate = gate("ClauseRef", &ctx.module.semantic_core);
+    let clause_gate = gate("ClauseRef");
     for c in clauses.clauses.as_ref().unwrap() {
         assert!(
             clause_gate.is_valid(&serde_json::to_value(c).unwrap()),
@@ -545,7 +499,7 @@ fn validation_and_states() {
         );
     }
     let ops = extract_operations(&raw, &ctx, clauses.clauses.as_ref().unwrap());
-    let op_gate = gate("OperationDecl", &ctx.module.semantic_core);
+    let op_gate = gate("OperationDecl");
     for o in ops.operations.as_ref().unwrap() {
         assert!(op_gate.is_valid(&serde_json::to_value(o).unwrap()), "{o:?}");
     }

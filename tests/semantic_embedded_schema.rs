@@ -5,30 +5,19 @@ use jsonschema::JSONSchema;
 use serde_json::{json, Value};
 
 #[trace("TC-1606", "FR-069-AC-8")]
-// Every supported semantic-core version is a complete, valid embedded
-// bundle.
+// The embedded semantic-core bundle is complete and made of valid schemas.
 #[test]
-fn embedded_semantic_core_versions_are_complete_bundles() {
-    assert!(
-        !quire_rs::semantic::embedded::semantic_core_versions().is_empty(),
-        "no supported semantic-core version"
-    );
-    for version in quire_rs::semantic::embedded::semantic_core_versions() {
-        let bundle = quire_rs::semantic::embedded::semantic_core_bundle(version)
-            .unwrap_or_else(|| panic!("semantic-core {version} has no embedded bundle"));
-        assert!(
-            !bundle.is_empty(),
-            "semantic-core {version} bundle is empty"
+fn embedded_semantic_core_bundle_is_complete() {
+    let bundle = quire_rs::semantic::embedded::semantic_core_bundle();
+    assert!(!bundle.is_empty(), "embedded semantic-core bundle is empty");
+    for (name, text) in bundle {
+        let schema: Value = serde_json::from_str(text)
+            .unwrap_or_else(|e| panic!("semantic-core/{name}: not JSON: {e}"));
+        assert_eq!(
+            schema["$schema"],
+            Value::String("https://json-schema.org/draft/2020-12/schema".to_string()),
+            "semantic-core/{name}: not a draft 2020-12 JSON Schema"
         );
-        for (name, text) in bundle {
-            let schema: Value = serde_json::from_str(text)
-                .unwrap_or_else(|e| panic!("semantic-core {version}/{name}: not JSON: {e}"));
-            assert_eq!(
-                schema["$schema"],
-                Value::String("https://json-schema.org/draft/2020-12/schema".to_string()),
-                "semantic-core {version}/{name}: not a draft 2020-12 JSON Schema"
-            );
-        }
     }
 }
 
@@ -157,7 +146,6 @@ fn ir994_adjacent_declarations_round_trip_and_old_wire_is_refused() {
             "$ref":format!("https://schemas.agent-ix.org/semantic-core/{version}/FieldDecl.json")
         }),
         &|_| None,
-        version,
         "https://schemas.agent-ix.org/quire-rs/",
     )
     .unwrap();
@@ -229,7 +217,7 @@ fn ir994_every_constraint_kind_refuses_every_other_inner_keyword() {
         "$schema":"https://json-schema.org/draft/2020-12/schema",
         "$id":"https://schemas.agent-ix.org/quire-rs/ConstraintMismatchGate.json",
         "$ref":format!("https://schemas.agent-ix.org/semantic-core/{version}/ConstraintDecl.json")
-    }), &|_| None, version, "https://schemas.agent-ix.org/quire-rs/").unwrap();
+    }), &|_| None, "https://schemas.agent-ix.org/quire-rs/").unwrap();
     let fixture = adjacent_fixture();
     let variants: BTreeMap<String, Value> = fixture["cases"]
         .as_array()
@@ -243,8 +231,7 @@ fn ir994_every_constraint_kind_refuses_every_other_inner_keyword() {
         })
         .collect();
     let owner: Value = serde_json::from_str(
-        embedded::semantic_core_bundle(version)
-            .unwrap()
+        embedded::semantic_core_bundle()
             .iter()
             .find(|(name, _)| *name == "ConstraintDecl.json")
             .unwrap()

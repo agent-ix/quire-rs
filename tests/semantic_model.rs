@@ -15,7 +15,6 @@ fn schema() -> JSONSchema {
     compile_module_schema(
         &serde_json::from_str::<Value>(SEMANTIC_V1_SCHEMA).unwrap(),
         &|_| None,
-        quire_rs::semantic::embedded::embedded_semantic_core_version(),
         "https://agent-ix.github.io/quire-rs/schemas/output/",
     )
     .unwrap()
@@ -28,7 +27,7 @@ fn extract(md: &str, mappings: &[&str], body_extraction: Value) -> Value {
         "markdown": md,
         "module": {
             "contractVersion": "1.0.0",
-                        "package": "agent-ix/spec-objects-fixture",
+            "package": "agent-ix/spec-objects-fixture",
             "exports": ["entity"],
             "mappings": mappings,
         },

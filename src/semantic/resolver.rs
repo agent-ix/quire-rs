@@ -13,7 +13,7 @@ use std::path::{Component, Path, PathBuf};
 use jsonschema::JSONSchema;
 use serde_json::Value;
 
-use super::contract::{DataSchemaRef, SemanticFailure, SemanticModule};
+use super::contract::{DataSchemaRef, SemanticFailure};
 use super::embedded;
 
 /// Where a module's files come from.
@@ -83,7 +83,6 @@ fn locus(object_type: &str, key: &str) -> String {
 pub fn resolve_reference(
     source: &SchemaSource,
     reference: &DataSchemaRef,
-    module: &SemanticModule,
     object_type: &str,
 ) -> Result<ResolvedSchema, SemanticFailure> {
     let rel = reference.schema.as_str();
@@ -144,11 +143,10 @@ pub fn resolve_reference(
             Err(_) => None,
         }
     };
-    let validator = compile_module_schema(&schema, &siblings, &module.semantic_core, &module_base)
-        .map_err(|mut f| {
-            f.path = locus(object_type, "schema");
-            f
-        })?;
+    let validator = compile_module_schema(&schema, &siblings, &module_base).map_err(|mut f| {
+        f.path = locus(object_type, "schema");
+        f
+    })?;
     Ok(ResolvedSchema {
         schema,
         validator,
@@ -175,22 +173,16 @@ fn collect_refs(value: &Value, out: &mut Vec<String>) {
 }
 
 /// Compile `schema` with every `$ref` resolved offline: module siblings come
-/// from `siblings(name)`, semantic-core documents from the embedded bundle at
-/// `semantic_core`. Unshipped targets and cycles are refused
+/// from `siblings(name)`, semantic-core documents from the embedded bundle.
+/// Unshipped targets and cycles are refused
 /// with their FR-069 codes; a `$ref` to a document's own `$id` is a fragment.
 pub fn compile_module_schema(
     schema: &Value,
     siblings: &dyn Fn(&str) -> Option<Result<Value, String>>,
-    semantic_core: &str,
     module_base: &str,
 ) -> Result<JSONSchema, SemanticFailure> {
-    let bundle = embedded::semantic_core_bundle(semantic_core).ok_or_else(|| {
-        SemanticFailure::error(
-            "semantic.unsupported-semantic-core",
-            "semantic.semantic_core",
-            format!("no embedded bundle for {semantic_core}"),
-        )
-    })?;
+    let bundle = embedded::semantic_core_bundle();
+    let semantic_core = embedded::embedded_semantic_core_version();
     let core_base = format!("{}{}/", embedded::SEMANTIC_CORE_BASE, semantic_core);
     let mut documents: BTreeMap<String, Value> = BTreeMap::new();
     let mut stack: Vec<String> = Vec::new();

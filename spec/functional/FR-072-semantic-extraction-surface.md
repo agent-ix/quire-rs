@@ -67,7 +67,7 @@ verbatim `clauseText` and the byte-identity constraints below.
 ## Outputs
 
 - Library: `extract_semantic(document, context) -> SemanticExtraction`, a
-  `serde` value `{ formatVersion: 1, contractVersion, semanticCore, package,
+  `serde` value `{ formatVersion: 1, contractVersion, package,
   fields?, fieldsForm?, clauses?, clauseText?, operations?,
   model?, relations?, relationSources?, availability, diagnostics }`, where
   `model` and `availability.model` are the model features of

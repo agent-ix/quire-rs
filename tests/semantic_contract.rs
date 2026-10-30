@@ -125,10 +125,6 @@ fn valid_block_and_reference_schema_load() {
         .semantic_module("spec-objects-fixture")
         .expect("block");
     assert_eq!(sem.package, "agent-ix/spec-objects-fixture");
-    assert_eq!(
-        sem.semantic_core,
-        embedded::embedded_semantic_core_version()
-    );
     assert_eq!(sem.exports, vec!["entity".to_string()]);
     assert_eq!(sem.legacy_forms, "warning");
     let entity = registry.archetype("entity").unwrap();
@@ -411,7 +407,6 @@ fn resolver_reads_no_network_and_nothing_outside_the_module() {
     let err = compile_module_schema(
         &schema,
         &|_| None,
-        embedded::embedded_semantic_core_version(),
         "https://schemas.agent-ix.org/agent-ix/x/0.1.0/",
     )
     .err()
@@ -426,7 +421,6 @@ fn resolver_reads_no_network_and_nothing_outside_the_module() {
     let validator = compile_module_schema(
         &ok,
         &|_| None,
-        embedded::embedded_semantic_core_version(),
         "https://schemas.agent-ix.org/agent-ix/x/0.1.0/",
     )
     .unwrap();
@@ -793,7 +787,6 @@ fn rust_callers_gate_model_tables_through_the_public_context() {
     let typed: ExtractionDsl = serde_json::from_value(dsl.clone()).unwrap();
     let module = SemanticModule {
         contract_version: "1.0.0".into(),
-        semantic_core: embedded::embedded_semantic_core_version().into(),
         package: "agent-ix/spec-objects-fixture".into(),
         exports: vec!["entity".into()],
         imports: BTreeMap::new(),

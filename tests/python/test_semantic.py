@@ -25,10 +25,7 @@ def _cases():
 
 
 def _expected():
-    expected = json.loads((FIXTURES / "cases.expected.json").read_text())
-    for record in expected.values():
-        record.pop("semanticCore", None)
-    return expected
+    return json.loads((FIXTURES / "cases.expected.json").read_text())
 
 
 def test_extract_semantic_matches_rust_for_every_case():
@@ -37,7 +34,6 @@ def test_extract_semantic_matches_rust_for_every_case():
     for case in _cases():
         result = quire.extract_semantic(case["input"])
         assert isinstance(result, dict), case["name"]
-        result.pop("semanticCore", None)
         assert result == expected[case["name"]], case["name"]
 
 
@@ -92,7 +88,6 @@ def test_extract_filament_core_carries_the_semantic_record():
     )
     node = next(n for n in result["nodes"] if n["objectType"] == "entity")
     data = json.loads(node["dataJson"])
-    data["semantic"].pop("semanticCore", None)
     assert data["semantic"] == _expected()["golden-table-available"]
     assert data["semantic"]["formatVersion"] == 1
     assert len(data["semantic"]["fields"]) == 7

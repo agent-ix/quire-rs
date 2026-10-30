@@ -24,33 +24,14 @@ fn schema() -> JSONSchema {
     compile_module_schema(
         &serde_json::from_str::<Value>(SEMANTIC_V1_SCHEMA).unwrap(),
         &|_| None,
-        quire_rs::semantic::embedded::embedded_semantic_core_version(),
         "https://agent-ix.github.io/quire-rs/schemas/output/",
     )
     .unwrap()
 }
 
-/// The semantic-core version every fixture runs under: the one the embedded
-/// bundle declares. Fixtures do not restate it.
-fn declared_core() -> &'static str {
-    quire_rs::semantic::embedded::embedded_semantic_core_version()
-}
-
-fn restore_core(record: &mut Value) {
-    record["semanticCore"] = json!(declared_core());
-}
-
-fn strip_core(record: &mut Value) {
-    record.as_object_mut().unwrap().remove("semanticCore");
-}
-
-/// `cases.expected.json` records, with the declared core restored.
+/// `cases.expected.json` records.
 fn expected_records() -> Value {
-    let mut expected = read_json("tests/fixtures/semantic/cases.expected.json");
-    for (_, record) in expected.as_object_mut().unwrap() {
-        restore_core(record);
-    }
-    expected
+    read_json("tests/fixtures/semantic/cases.expected.json")
 }
 
 fn cases() -> Vec<Value> {
@@ -188,9 +169,7 @@ fn case_suite() {
         let mut sorted = keys.clone();
         sorted.sort();
         assert_eq!(keys, sorted, "{name}: diagnostic order");
-        let mut stored = value;
-        strip_core(&mut stored);
-        records.insert(name.to_string(), stored);
+        records.insert(name.to_string(), value);
     }
     // The Rust outputs are the parity oracle for the Python and WASM legs.
     write_or_compare(
@@ -446,8 +425,6 @@ fn schema_and_compatibility_fixture() {
             let v = serde_json::to_value(extract_semantic_json(&case["input"]).unwrap()).unwrap();
             let mut ordered = serde_json::Map::new();
             ordered.insert("$case".into(), json!(name));
-            let mut v = v;
-            strip_core(&mut v);
             for (k, val) in v.as_object().unwrap() {
                 ordered.insert(k.clone(), val.clone());
             }
@@ -461,10 +438,6 @@ fn schema_and_compatibility_fixture() {
         .unwrap();
     }
     let fixture = read_json("tests/fixtures/semantic/semantic-v1.json");
-    let mut fixture = fixture;
-    for record in fixture["records"].as_array_mut().unwrap() {
-        restore_core(record);
-    }
     let records = fixture["records"].as_array().unwrap();
     assert!(records.len() >= 3);
     let mut tokens = std::collections::BTreeSet::new();

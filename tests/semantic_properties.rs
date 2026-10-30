@@ -51,7 +51,6 @@ fn field_decl_gate() -> jsonschema::JSONSchema {
     compile_module_schema(
         &schema,
         &|_| None,
-        quire_rs::semantic::embedded::embedded_semantic_core_version(),
         "https://schemas.agent-ix.org/agent-ix/quire-rs/",
     )
     .unwrap()

@@ -238,7 +238,7 @@ pub fn extract_fields(raw: &str, ctx: &SemanticContext) -> FieldsOutcome {
         }
     }
     reader_rules(&fields, &field_lines, &mut diagnostics);
-    validate_decls(&fields, ctx, &mut diagnostics);
+    validate_decls(&fields, &mut diagnostics);
     if diagnostics.iter().any(SemanticDiagnostic::is_error) {
         let loci: Vec<String> = diagnostics
             .iter()
@@ -1062,25 +1062,11 @@ fn reader_rules(fields: &[FieldDecl], lines: &[usize], diagnostics: &mut Vec<Sem
 
 /// Every produced entry validates against the vendored `FieldDecl.json`; a
 /// failure is an engine defect, reported and never dropped.
-fn validate_decls(
-    fields: &[FieldDecl],
-    ctx: &SemanticContext,
-    diagnostics: &mut Vec<SemanticDiagnostic>,
-) {
+fn validate_decls(fields: &[FieldDecl], diagnostics: &mut Vec<SemanticDiagnostic>) {
     if fields.is_empty() {
         return;
     }
-    let Some(validator) = field_decl_validator(&ctx.module.semantic_core) else {
-        diagnostics.push(err(
-            "semantic.unsupported-semantic-core",
-            0,
-            format!(
-                "no embedded semantic-core {} bundle to validate FieldDecl against",
-                ctx.module.semantic_core
-            ),
-        ));
-        return;
-    };
+    let validator = field_decl_validator();
     for field in fields {
         let value = serde_json::to_value(field).unwrap_or(Value::Null);
         if !validator.is_valid(&value) {
@@ -1093,7 +1079,8 @@ fn validate_decls(
     }
 }
 
-pub(crate) fn field_decl_validator(semantic_core: &str) -> Option<JSONSchema> {
+pub(crate) fn field_decl_validator() -> JSONSchema {
+    let semantic_core = super::embedded::embedded_semantic_core_version();
     let schema = json!({
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "$id": format!("https://schemas.agent-ix.org/agent-ix/quire-rs/{semantic_core}/FieldDeclGate.json"),
@@ -1102,8 +1089,7 @@ pub(crate) fn field_decl_validator(semantic_core: &str) -> Option<JSONSchema> {
     compile_module_schema(
         &schema,
         &|_| None,
-        semantic_core,
         "https://schemas.agent-ix.org/agent-ix/quire-rs/",
     )
-    .ok()
+    .expect("the embedded FieldDecl.json compiles")
 }

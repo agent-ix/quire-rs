@@ -454,7 +454,6 @@ fn compile_object_type_snapshots(
             match crate::semantic::compile_module_schema(
                 &snapshot.data_schema(),
                 &|_| None,
-                crate::semantic::embedded::embedded_semantic_core_version(),
                 &module_base,
             ) {
                 Ok(v) => validator = Some(std::sync::Arc::new(v)),
@@ -1126,7 +1125,6 @@ fn attach_semantic(
     use crate::semantic::{RequiredSections, SemanticContext, SemanticModule};
     let module = SemanticModule {
         contract_version: snapshot.contract_version.clone(),
-        semantic_core: crate::semantic::embedded::embedded_semantic_core_version().to_string(),
         package: snapshot.package.clone(),
         exports: snapshot.exports.clone(),
         imports: snapshot.imports.clone(),

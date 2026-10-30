@@ -64,7 +64,6 @@ impl SemanticFailure {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SemanticModule {
     pub contract_version: String,
-    pub semantic_core: String,
     pub package: String,
     pub exports: Vec<String>,
     pub imports: BTreeMap<String, String>,
@@ -254,7 +253,6 @@ pub fn read_semantic_block(
         .unwrap_or_default();
     Ok(SemanticModule {
         contract_version: embedded::CONTRACT_VERSION.to_string(),
-        semantic_core: embedded::embedded_semantic_core_version().to_string(),
         package,
         exports,
         imports,

@@ -65,7 +65,7 @@ as it does today.
 ## Outputs
 
 - A `SemanticModule` record on the loaded module: `contract_version`,
-  `semantic_core`, `package`, `exports`, `imports`, `targets`,
+  `package`, `exports`, `imports`, `targets`,
   `compatibility_posture`, `legacy_forms`, and `mappings` (the named
   representation mappings, whose model feature tokens gate
   [FR-075](./FR-075-model-feature-extraction.md) extraction). The admitted key
