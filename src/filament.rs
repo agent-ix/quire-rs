@@ -11,7 +11,6 @@ use std::path::Path;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
-use sha2::{Digest, Sha256};
 
 use crate::error::QuireError;
 use crate::extract::dsl::{validate_dsl, ExtractionDsl};
@@ -1127,14 +1126,7 @@ fn diagnostic(
 }
 
 fn stable_id(parts: &[&str]) -> String {
-    let mut hasher = Sha256::new();
-    for (idx, part) in parts.iter().enumerate() {
-        if idx > 0 {
-            hasher.update([0]);
-        }
-        hasher.update(part.as_bytes());
-    }
-    format!("{:x}", hasher.finalize())
+    serde_json::to_string(parts).expect("string slices serialize")
 }
 
 /// Build the FR-072 record for one document and put it on every node of

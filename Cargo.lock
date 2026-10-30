@@ -1209,7 +1209,6 @@ dependencies = [
  "regex",
  "serde",
  "serde_json",
- "sha2",
  "spec-objects-architecture-fixture",
  "tempfile",
  "thiserror",

@@ -43,7 +43,7 @@ impl TraceProvenance {
 /// One `verifies` relation: a test symbol verifies a spec trace id.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VerifiesRelation {
-    /// Identity digest of the verifying symbol.
+    /// Identity of the verifying symbol.
     pub symbol_id: String,
     pub symbol: String,
     pub path: String,
@@ -80,7 +80,7 @@ pub struct VerifiesRelation {
 /// from, and inventing the field would suggest one exists.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ImplementsRelation {
-    /// Identity digest of the implementing symbol.
+    /// Identity of the implementing symbol.
     pub symbol_id: String,
     pub symbol: String,
     pub path: String,
@@ -1937,7 +1937,7 @@ pub struct SymbolRecordInput {
 
 /// Emit the symbol graph as FR-045 graph records: symbols as node records,
 /// relations as edge records, every `ref` normalized under the caller's
-/// org/repo. Ordering is deterministic and ids are stable digests, so repeated
+/// org/repo. Ordering is deterministic and ids are stable, so repeated
 /// emission over an identical tree is byte-identical (FR-051-AC-10).
 pub fn graph_records(
     extraction: &SymbolExtraction,

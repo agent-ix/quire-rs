@@ -38,7 +38,7 @@
 //!
 //! ## What survives byte-for-byte (a compatibility surface, PLAT-868)
 //!
-//! `Symbol::compute_id` hashes `(language, path, qualified_name, kind)`
+//! `Symbol::compute_id` composes `(language, path, qualified_name, kind)`
 //! (`src/symbols/mod.rs`) — qualified-name construction is an identity
 //! surface, not a style choice, and every quirk below is preserved exactly
 //! rather than "cleaned up", the same discipline PLAT-843 documented for
@@ -616,7 +616,7 @@ fn declaration(trimmed: &str) -> Option<(String, bool)> {
 /// free to close. Recognizing them now would change which methods classify
 /// as [`SymbolKind::TestFunction`] versus [`SymbolKind::Function`] for any
 /// corpus file using a wrapped import or base list — a `kind` change is an
-/// identity change (`Symbol::compute_id` hashes it), which PLAT-868's own
+/// identity change (`Symbol::compute_id` composes it), which PLAT-868's own
 /// non-negotiable rule reserves for a separate, deliberately-scoped ticket,
 /// not a side effect of porting the structural walk to tree-sitter.
 #[derive(Default)]

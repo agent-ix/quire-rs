@@ -6,9 +6,7 @@
   "required": [
     "schemaVersion",
     "before",
-    "beforeDigest",
     "after",
-    "afterDigest",
     "added",
     "removed",
     "changed"
@@ -17,9 +15,7 @@
   "properties": {
     "schemaVersion": { "const": "clause-diff-v1" },
     "before": { "$ref": "#/$defs/key" },
-    "beforeDigest": { "$ref": "#/$defs/digest" },
     "after": { "$ref": "#/$defs/key" },
-    "afterDigest": { "$ref": "#/$defs/digest" },
     "added": {
       "type": "array",
       "items": { "$ref": "#/$defs/clause" }
@@ -44,10 +40,6 @@
     "engine": { "$ref": "#/$defs/engine" }
   },
   "$defs": {
-    "digest": {
-      "type": "string",
-      "pattern": "^sha256:[0-9a-f]{64}$"
-    },
     "key": {
       "type": "object",
       "required": ["authority", "id", "version"],
