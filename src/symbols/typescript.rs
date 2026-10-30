@@ -47,7 +47,7 @@
 //!
 //! ## What survives byte-for-byte from the line-structural scanner
 //!
-//! `Symbol::compute_id` hashes `(language, path, qualified_name, kind)`
+//! `Symbol::compute_id` composes `(language, path, qualified_name, kind)`
 //! (`src/symbols/mod.rs`) — qualified-name construction is an identity
 //! surface, not a style choice, and every quirk below is preserved exactly
 //! rather than "cleaned up" (PLAT-882, following PLAT-843's own rule):

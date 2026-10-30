@@ -17,6 +17,12 @@ bumps; once 1.0 ships, semver is strict.
   the `coverage-v1` obligation, and `statement_hash` / `normalize_statement`
   are no longer exported from the crate.
 - The `unicode-normalization` dependency is removed.
+- The computed `clauseSetDigest` (clause-binding-v1) and `beforeDigest` /
+  `afterDigest` (clause-diff-v1) fields, their schema entries, and the
+  `ClauseSet::computed_digest` function.
+- The content-derived symbol identity digest: symbol and Filament graph record
+  ids are the JSON array of their identity parts (language, path, qualified
+  name, kind), no longer a SHA-256 of them.
 
 ## [0.50.3] — 2026-10-16
 

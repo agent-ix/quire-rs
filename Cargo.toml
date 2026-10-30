@@ -56,8 +56,6 @@ serde_json = "^1"
 # ADR-0012: keep the established import name while pinning the maintained
 # YAML Organization package exactly; YAML behavior is identity-bearing.
 serde_yaml = { package = "yaml_serde", version = "=0.10.7" }
-# Stable SHA-256 record ids for canonical Filament extraction (FR-045).
-sha2 = "^0.10"
 indexmap = { version = "^2", features = ["serde"] }
 thiserror = "^2"
 # Regex driver for the Query API (FR-010). Patterns are author-side

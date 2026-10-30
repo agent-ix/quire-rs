@@ -56,10 +56,6 @@
     }
   },
   "$defs": {
-    "sha256": {
-      "type": "string",
-      "pattern": "^[0-9a-f]{64}$"
-    },
     "sourcePremise": {
       "type": "object",
       "additionalProperties": false,
@@ -134,7 +130,7 @@
       "additionalProperties": false,
       "required": ["id", "language", "kind", "qualified_name", "container", "capabilities", "locator"],
       "properties": {
-        "id": { "$ref": "#/$defs/sha256" },
+        "id": { "type": "string", "minLength": 1 },
         "language": { "enum": ["rust", "python", "typescript"] },
         "kind": { "enum": ["function", "test_function", "container", "benchmark", "fuzz_target"] },
         "qualified_name": { "type": "string", "minLength": 1 },
@@ -185,7 +181,7 @@
       "required": ["kind", "source", "target", "form", "provenance", "locator", "freshness"],
       "properties": {
         "kind": { "const": "verifies" },
-        "source": { "$ref": "#/$defs/sha256" },
+        "source": { "type": "string", "minLength": 1 },
         "target": { "type": "string", "minLength": 1 },
         "form": { "type": "string", "minLength": 1 },
         "provenance": { "enum": ["canonical", "legacy"] },
@@ -199,7 +195,7 @@
       "required": ["kind", "source", "target", "form", "locator", "freshness"],
       "properties": {
         "kind": { "const": "implements" },
-        "source": { "$ref": "#/$defs/sha256" },
+        "source": { "type": "string", "minLength": 1 },
         "target": { "type": "string", "minLength": 1 },
         "form": { "type": "string", "minLength": 1 },
         "locator": { "$ref": "#/$defs/locator" },
