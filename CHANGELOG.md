@@ -9,6 +9,7 @@ bumps; once 1.0 ships, semver is strict.
 
 ### Removed
 
+- The module `semantic.semantic_core` version gate: the `semantic.unsupported-semantic-core` refusal at module load, in the binding `extract_semantic` entry and in Filament snapshots is gone, the `semanticCore` request/snapshot input is ignored, and the one embedded bundle is always used; a semantic-core `$ref` in a module schema resolves to the embedded bundle's file whatever its version segment, so `semantic.schema-ref-version` is gone. A `semantic` block no longer needs `semantic_core` (an optional present value is still shape-checked by the upstream schema); `module-ok` no longer declares it.
 - quire-bench verification-stack `lockDigest`, `executableDigest` and `artifacts` digests, the built-executable digest check, and the tool's `sha2` dependency.
 - The whole quire-bench verification-stack attestation: `--verification-stack` / `VERIFICATION_STACK`, recorded source revisions, remotes and toolchain versions, the attested-revision, remote and toolchain checks (`require_clean` still refuses a dirty tree), the manifest `source_name`, and the `sourceRevision` / `verificationStack` fields of the measurement collection.
 - The corpus submodule digest note and `configDigest` reporting (qa-corpus #40) and the `sha2` crates only it needed.

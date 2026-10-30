@@ -83,7 +83,6 @@ fn request(fixture: &Value, markdown: &str, path: &str, case: Option<&Value>) ->
         "markdown": markdown,
         "module": {
             "contractVersion": "1.0.0",
-            "semanticCore": declared_core(),
             "package": "agent-ix/spec-objects-business",
             "exports": ["entity"],
             "imports": imports,

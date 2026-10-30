@@ -42,12 +42,12 @@ as it does today.
   [FR-013](./FR-013-archetype-loader.md)), or the inline parts supplied to
   `Registry::from_inline_parts`, where the `schemas` map also supplies every
   reference-form `data_schema` file keyed by its manifest-relative path.
-- The `semantic` block's shape (`contract_version`/`semantic_core`/`package`/
+- The `semantic` block's shape (`contract_version`/`package`/
   `exports`/`imports`/`targets`/`mappings`, including the target enum), from
   `agent-ix/filament-core-data`'s published `module-semantic-block.schema.json`
   (`schema/semantic/v1/`); the `legacy_forms` and `compatibility_posture`
   value sets are this engine's own contract, not drawn from that schema.
-- The semantic-core JSON Schema bundle, one directory per supported version,
+- The embedded semantic-core JSON Schema bundle,
   sourced from `agent-ix-semantic-schema` — a plain Cargo `git` dependency on
   `agent-ix/filament-core-data` (PLAT-948) — never a copy committed to this
   repository.
@@ -59,7 +59,7 @@ as it does today.
 
 - For the Filament extraction API ([FR-045](./FR-045-filament-core-extraction-engine.md)):
   an optional `semantic` context on each `FilamentObjectType` snapshot,
-  `{ contractVersion, semanticCore, package, exports, imports, mappings? }`, with the
+  `{ contractVersion, package, exports, imports, mappings? }`, with the
   data schema already inline (producer: `agent-ix/filament-core-service#23`).
 
 ## Outputs
@@ -84,9 +84,8 @@ Refusals, in evaluation order:
 - If `semantic.contract_version` is not `1.0.0`, then the loader SHALL refuse
   the module with `semantic.unsupported-contract-version` and read no other
   key of the block.
-- If `semantic.semantic_core` names a version with no vendored bundle, then
-  the loader SHALL refuse the module with `semantic.unsupported-semantic-core`,
-  naming the requested and the vendored versions.
+- A module declares no semantic-core version; the loader SHALL use the one
+  embedded bundle and SHALL NOT refuse a module over a `semantic_core` value.
 - The loader SHALL validate the block against the vendored module-manifest
   schema. If the block carries an unknown key, then the loader SHALL refuse
   with `semantic.unknown-key` naming the key. If `exports` names an
@@ -107,11 +106,11 @@ Refusals, in evaluation order:
   a `semantic` block is `semantic.data-schema-reference-without-block`.
 - The loader SHALL resolve every `$ref` of a referenced schema offline against
   an in-memory map of `$id` to document built from the module bundle's
-  sibling files and the vendored semantic-core bundle at the manifest's
-  `semantic_core` version; it SHALL NOT use filesystem or HTTP `$ref`
+  sibling files and the embedded semantic-core bundle; it SHALL NOT use filesystem or HTTP `$ref`
   resolution of the schema library, so the same path runs under the `wasm`
-  feature. A `$ref` naming another semantic-core version is refused with
-  `semantic.schema-ref-version`; a `$ref` naming no shipped file with
+  feature. A semantic-core `$ref` resolves to the embedded bundle's file of
+  that name whatever its version segment (`semantic.schema-ref-version` is
+  removed); a `$ref` naming no shipped file with
   `semantic.schema-ref-unshipped`; a cycle in the reference graph with
   `semantic.schema-ref-cycle`. A `$ref` to the
   document's own `$id` is a fragment, not a cycle.
@@ -144,7 +143,7 @@ Filament extraction API:
   then the engine SHALL refuse the snapshot with
   `semantic.data-schema-unresolved-reference` and produce no node for that
   object type; the caller owning the registry resolves the schema.
-- If a snapshot's `semantic.contractVersion` or `semantic.semanticCore` is
+- If a snapshot's `semantic.contractVersion` is
   unsupported, then the engine SHALL refuse the snapshot with the code above
   before any node is produced.
 
@@ -167,13 +166,13 @@ stricter of the two.
 | ID | Criteria | Verification |
 |----|----------|--------------|
 | FR-069-AC-1 | A module with a valid `semantic` block and a reference-form `data_schema` loads with a `SemanticModule` record and a resolved schema, and `validate_document` over an artifact of that type validates the extracted record against the resolved schema. | Test |
-| FR-069-AC-2 | `contract_version: 2.0.0` fails every object type of the module with a reason starting `semantic.unsupported-contract-version` and no other `semantic.*` reason; `semantic_core: 0.9.0` fails with `semantic.unsupported-semantic-core` naming `0.9.0` and the embedded version. | Test |
+| FR-069-AC-2 | `contract_version: 2.0.0` fails every object type of the module with a reason starting `semantic.unsupported-contract-version` and no other `semantic.*` reason. (The former `semantic_core` clause of this criterion is removed: a module declares no semantic-core version.) | Test |
 | FR-069-AC-3 | An unknown block key, an export of an undeclared object type, `package: ix://agent-ix/x`, and `targets: [go]` each fail with their named code and value. | Test |
 | FR-069-AC-4 | A missing file, a non-JSON file, a file without `$schema`, a `..` escape, and a symlink escape each fail with their named code, path, and reason; `{ schema, type }` fails with `semantic.data-schema-ambiguous`. | Test |
-| FR-069-AC-5 | A `$ref` to semantic-core `0.2.0` under the embedded `semantic_core`, a `$ref` to an unshipped sibling, an `https://` `$ref` outside both bundles, and a two-file `$ref` cycle each fail naming the `$ref`; a `$ref` to the schema's own `$id` fragment loads cleanly; the same cases pass under `--no-default-features --features wasm`. | Test |
+| FR-069-AC-5 | A `$ref` to semantic-core `0.2.0` resolves to the embedded bundle's file with no version refusal; a `$ref` to an unshipped sibling, an `https://` `$ref` outside both bundles, and a two-file `$ref` cycle each fail naming the `$ref`; a `$ref` to the schema's own `$id` fragment loads cleanly; the same cases pass under `--no-default-features --features wasm`. | Test |
 | FR-069-AC-6 | An inline `data_schema` on a type under a `semantic` block loads with the warning `semantic.inline-data-schema`; the same manifest without the block loads with no semantic diagnostic. | Test |
 | FR-069-AC-7 | A Filament snapshot whose `data_schema` is the reference form is refused with `semantic.data-schema-unresolved-reference` and yields no node; the same snapshot with the schema inline and a `semantic` context extracts. | Test |
-| FR-069-AC-8 | Every semantic-core version a `semantic` block may declare is a complete embedded bundle of valid JSON Schema documents, sourced from the published `@agent-ix/semantic-core` package at that exact version. | Test |
+| FR-069-AC-8 | The embedded semantic-core bundle is complete and made of valid JSON Schema documents, sourced from the published `@agent-ix/semantic-core` package. | Test |
 | FR-069-AC-10 | Two loaded modules with one `semantic.package` fail the later sorted root with `semantic.duplicate-package` naming both; an import no loaded module provides warns `semantic.import-unresolved` and still loads; a two-module import cycle fails both with `semantic.import-cycle`. | Test |
 | FR-069-AC-11 | `Registry::from_inline_parts` with a reference-form `data_schema` resolves the file from the `schemas` map, applies the same escape and `$ref` rules, and refuses a key with a `..` segment. | Test |
 | FR-069-AC-12 | A module whose `semantic` block lists `mappings` loads with those tokens recorded on its `SemanticModule`, in order; a block without `mappings` records an empty list. | Test |

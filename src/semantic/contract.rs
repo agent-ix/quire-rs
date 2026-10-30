@@ -119,7 +119,12 @@ pub fn reference_form(value: &Value) -> DataSchemaForm {
 fn block_validator() -> JSONSchema {
     let schema: Value = serde_json::from_str(embedded::MODULE_MANIFEST_SCHEMA)
         .expect("embedded module-manifest schema is JSON");
-    let block = schema["properties"]["semantic"].clone();
+    let mut block = schema["properties"]["semantic"].clone();
+    // The embedded bundle is the only semantic-core there is, so a module
+    // declares no version: an absent `semantic_core` is not a missing key.
+    if let Some(required) = block["required"].as_array_mut() {
+        required.retain(|k| k != "semantic_core");
+    }
     JSONSchema::options()
         .compile(&block)
         .expect("embedded semantic block schema compiles")
@@ -154,25 +159,7 @@ pub fn read_semantic_block(
             ),
         )]);
     }
-    // 2. semantic-core version must have an embedded bundle.
-    let semantic_core = map.get("semantic_core").and_then(Value::as_str);
-    match semantic_core {
-        Some(v) if embedded::semantic_core_bundle(v).is_some() => {}
-        other => {
-            return Err(vec![SemanticFailure::error(
-                "semantic.unsupported-semantic-core",
-                "semantic.semantic_core",
-                format!(
-                    "semantic.semantic_core {} has no embedded bundle (embedded: {})",
-                    other
-                        .map(|v| format!("{v:?}"))
-                        .unwrap_or_else(|| "absent".to_string()),
-                    embedded::semantic_core_versions().join(", ")
-                ),
-            )]);
-        }
-    }
-    // 3. shape against the embedded module-manifest schema.
+    // 2. shape against the embedded module-manifest schema.
     let mut failures = Vec::new();
     let validator = block_validator();
     if let Err(errors) = validator.validate(block) {
@@ -234,7 +221,7 @@ pub fn read_semantic_block(
     let targets = string_list("targets");
     let mappings = string_list("mappings");
     let package = map["package"].as_str().unwrap_or_default().to_string();
-    // 4. exports name declared object types.
+    // 3. exports name declared object types.
     for name in &exports {
         if !object_types.iter().any(|t| t == name) {
             failures.push(SemanticFailure::error(
@@ -244,7 +231,7 @@ pub fn read_semantic_block(
             ));
         }
     }
-    // 5. package shape (belt and braces beside the schema pattern).
+    // 4. package shape (belt and braces beside the schema pattern).
     if package.starts_with("ix://") || package.contains("://") || package.matches('/').count() != 1
     {
         failures.push(SemanticFailure::error(
@@ -267,7 +254,7 @@ pub fn read_semantic_block(
         .unwrap_or_default();
     Ok(SemanticModule {
         contract_version: embedded::CONTRACT_VERSION.to_string(),
-        semantic_core: semantic_core.unwrap_or_default().to_string(),
+        semantic_core: embedded::embedded_semantic_core_version().to_string(),
         package,
         exports,
         imports,

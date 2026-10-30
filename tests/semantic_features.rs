@@ -30,8 +30,7 @@ fn extract(md: &str) -> (SemanticExtraction, Value) {
         "markdown": md,
         "module": {
             "contractVersion": "1.0.0",
-            "semanticCore": quire_rs::semantic::embedded::embedded_semantic_core_version(),
-            "package": "agent-ix/spec-objects-architecture",
+                        "package": "agent-ix/spec-objects-architecture",
             "exports": ["interface"],
         },
         "path": PATH,

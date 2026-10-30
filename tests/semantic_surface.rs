@@ -54,14 +54,10 @@ fn expected_records() -> Value {
 }
 
 fn cases() -> Vec<Value> {
-    let mut cases = read_json("tests/fixtures/semantic/cases.json")["cases"]
+    read_json("tests/fixtures/semantic/cases.json")["cases"]
         .as_array()
         .unwrap()
-        .clone();
-    for case in &mut cases {
-        case["input"]["module"]["semanticCore"] = json!(declared_core());
-    }
-    cases
+        .clone()
 }
 
 fn write_or_compare(rel: &str, actual: &str) {
@@ -260,7 +256,7 @@ fn fixture_snapshot(with_context: bool) -> FilamentExtractionInput {
         "moduleId": "spec-objects-fixture"
     });
     if with_context {
-        object_type["semantic"] = json!({ "contractVersion": "1.0.0", "semanticCore": quire_rs::semantic::embedded::embedded_semantic_core_version(), "package": "agent-ix/spec-objects-fixture", "exports": ["entity"], "imports": {} });
+        object_type["semantic"] = json!({ "contractVersion": "1.0.0", "package": "agent-ix/spec-objects-fixture", "exports": ["entity"], "imports": {} });
     }
     let mut input = json!({
         "projectId": "p", "documentId": "d", "artifactId": "a", "relPath": "spec/functional/FR-006.md",

@@ -245,7 +245,7 @@ that line.
 
 Normalization: the table and fence forms of the same content SHALL produce
 identical normalized `FieldDecl[]`. Every produced entry SHALL validate
-against the embedded `FieldDecl.json` at the module's `semantic_core`
+against the embedded `FieldDecl.json` of the embedded semantic-core
 version; an entry that does not is an engine defect and SHALL fail extraction
 with `semantic.internal-invalid-decl`, never be dropped.
 

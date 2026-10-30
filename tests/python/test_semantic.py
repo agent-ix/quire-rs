@@ -7,7 +7,6 @@
 """
 
 import json
-import re
 from pathlib import Path
 
 import quire
@@ -20,23 +19,15 @@ FIXTURES = Path(__file__).resolve().parents[1] / "fixtures" / "semantic"
 FIXTURE_CRATE = Path(__file__).resolve().parents[2] / "crates" / "quire-fixtures" / "fixtures"
 
 
-def _declared_core():
-    """The semantic-core version the fixture module declares (its manifest pin)."""
-    manifest = (FIXTURE_CRATE / "module-ok" / "manifest.yaml").read_text()
-    return re.search(r"^\s+semantic_core:\s*(\S+)\s*$", manifest, re.MULTILINE).group(1)
-
-
 def _cases():
     cases = json.loads((FIXTURES / "cases.json").read_text())["cases"]
-    for case in cases:
-        case["input"]["module"]["semanticCore"] = _declared_core()
     return cases
 
 
 def _expected():
     expected = json.loads((FIXTURES / "cases.expected.json").read_text())
     for record in expected.values():
-        record["semanticCore"] = _declared_core()
+        record.pop("semanticCore", None)
     return expected
 
 
@@ -46,6 +37,7 @@ def test_extract_semantic_matches_rust_for_every_case():
     for case in _cases():
         result = quire.extract_semantic(case["input"])
         assert isinstance(result, dict), case["name"]
+        result.pop("semanticCore", None)
         assert result == expected[case["name"]], case["name"]
 
 
@@ -90,7 +82,6 @@ def test_extract_filament_core_carries_the_semantic_record():
                     "moduleId": "spec-objects-fixture",
                     "semantic": {
                         "contractVersion": "1.0.0",
-                        "semanticCore": _declared_core(),
                         "package": "agent-ix/spec-objects-fixture",
                         "exports": ["entity"],
                         "imports": {},
@@ -101,21 +92,12 @@ def test_extract_filament_core_carries_the_semantic_record():
     )
     node = next(n for n in result["nodes"] if n["objectType"] == "entity")
     data = json.loads(node["dataJson"])
+    data["semantic"].pop("semanticCore", None)
     assert data["semantic"] == _expected()["golden-table-available"]
     assert data["semantic"]["formatVersion"] == 1
     assert len(data["semantic"]["fields"]) == 7
     assert data["semantic"]["availability"]["fields"]["state"] == "available"
     assert all(d["severity"] in {"info", "warning", "error"} for d in result["diagnostics"])
-
-
-def test_extract_semantic_refuses_unsupported_versions():
-    """FR-069 through the binding entry: refused before any record."""
-    import pytest
-
-    case = _cases()[0]["input"]
-    bad = dict(case, module=dict(case["module"], semanticCore="9.9.9"))
-    with pytest.raises(TypeError, match="semantic.unsupported-semantic-core"):
-        quire.extract_semantic(bad)
 
 
 def test_unsupported_contract_version_is_refused():
@@ -136,7 +118,7 @@ def test_unsupported_contract_version_is_refused():
                     "bodyExtraction": None,
                     "hasPlugin": False,
                     "moduleId": "m",
-                    "semantic": {"contractVersion": "2.0.0", "semanticCore": _declared_core(), "package": "agent-ix/x"},
+                    "semantic": {"contractVersion": "2.0.0", "package": "agent-ix/x"},
                 }
             ],
         }

@@ -28,8 +28,7 @@ fn extract(md: &str, mappings: &[&str], body_extraction: Value) -> Value {
         "markdown": md,
         "module": {
             "contractVersion": "1.0.0",
-            "semanticCore": quire_rs::semantic::embedded::embedded_semantic_core_version(),
-            "package": "agent-ix/spec-objects-fixture",
+                        "package": "agent-ix/spec-objects-fixture",
             "exports": ["entity"],
             "mappings": mappings,
         },
@@ -769,9 +768,7 @@ fn records_without_model_features_are_unchanged() {
     let schema = schema();
     for case in cases["cases"].as_array().unwrap() {
         let name = case["name"].as_str().unwrap();
-        let mut input = case["input"].clone();
-        input["module"]["semanticCore"] =
-            json!(quire_rs::semantic::embedded::embedded_semantic_core_version());
+        let input = case["input"].clone();
         let value = serde_json::to_value(extract_semantic_json(&input).unwrap()).unwrap();
         assert!(schema.is_valid(&value), "{name}");
         assert!(value.get("model").is_none(), "{name}");

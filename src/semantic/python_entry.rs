@@ -14,7 +14,6 @@ use crate::extract::dsl::ExtractionDsl;
 #[serde(rename_all = "camelCase")]
 struct ModuleRequest {
     contract_version: String,
-    semantic_core: String,
     package: String,
     #[serde(default)]
     exports: Vec<String>,
@@ -72,16 +71,9 @@ pub fn extract_semantic_json(request: &Value) -> Result<SemanticExtraction, Stri
             super::embedded::CONTRACT_VERSION
         ));
     }
-    if super::embedded::semantic_core_bundle(&req.module.semantic_core).is_none() {
-        return Err(format!(
-            "semantic.unsupported-semantic-core: {:?} has no embedded bundle (embedded: {})",
-            req.module.semantic_core,
-            super::embedded::semantic_core_versions().join(", ")
-        ));
-    }
     let module = SemanticModule {
         contract_version: req.module.contract_version,
-        semantic_core: req.module.semantic_core,
+        semantic_core: super::embedded::embedded_semantic_core_version().to_string(),
         package: req.module.package,
         exports: req.module.exports,
         imports: req.module.imports,
