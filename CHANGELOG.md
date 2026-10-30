@@ -9,6 +9,10 @@ bumps; once 1.0 ships, semver is strict.
 
 ### Removed
 
+- quire-bench verification-stack `lockDigest`, `executableDigest` and `artifacts` digests, the built-executable digest check, and the tool's `sha2` dependency.
+- The whole quire-bench verification-stack attestation: `--verification-stack` / `VERIFICATION_STACK`, recorded source revisions, remotes and toolchain versions, the attested-revision, remote and toolchain checks (`require_clean` still refuses a dirty tree), the manifest `source_name`, and the `sourceRevision` / `verificationStack` fields of the measurement collection.
+- The corpus submodule digest note and `configDigest` reporting (qa-corpus #40) and the `sha2` crates only it needed.
+- Recorded `statement_hash`, `configDigest`, `corpusRevision`, `sourceRevision`, per-corpus source/identity/engine revisions, the revision suffix of collection ids and filenames, and `verificationStack` values in `spec/evidence/measurements/*.json`.
 - **Breaking, `assurance-v1` edited in place (no v2):** the locator `digest`
   and the obligation `statement_hash` are removed from the export; a locator is
   now `{path, line}`. The schema has `additionalProperties: false`, so

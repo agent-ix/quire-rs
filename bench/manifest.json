@@ -91,7 +91,6 @@
     },
     {
       "name": "quoin",
-      "source_name": "quoin-benchmark-corpus",
       "tier": 1,
       "path": "../quoin",
       "require_clean": true,
