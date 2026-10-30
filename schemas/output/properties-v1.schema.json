@@ -142,10 +142,9 @@
     "CriterionObligation": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["source", "statement_hash", "method", "criticality"],
+      "required": ["source", "method", "criticality"],
       "properties": {
         "source": { "type": "string" },
-        "statement_hash": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
         "method": { "type": ["string", "null"] },
         "parameters": {
           "type": "object",

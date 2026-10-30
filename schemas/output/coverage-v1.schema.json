@@ -832,8 +832,7 @@
         "source",
         "id",
         "document",
-        "statement",
-        "statement_hash"
+        "statement"
       ],
       "properties": {
         "source": {
@@ -850,11 +849,6 @@
         "statement": {
           "type": "string",
           "description": "The normative statement, verbatim and untruncated."
-        },
-        "statement_hash": {
-          "type": "string",
-          "pattern": "^[0-9a-f]{64}$",
-          "description": "SHA-256 of the NFC/trim/whitespace-collapsed statement. Suspect-link detection is `current != hash_at_binding` and nothing more."
         },
         "method": {
           "type": [

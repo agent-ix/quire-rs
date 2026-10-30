@@ -78,7 +78,7 @@ pub use semantic::{
 // Loader + registry (FR-013 + FR-014).
 pub use loader::compile::CompiledArchetype;
 pub use loader::manifest::DeclarationOrigin;
-pub use obligation::{normalize_statement, statement_hash, Obligation};
+pub use obligation::Obligation;
 pub use registry::Registry;
 // Schema validation (FR-002).
 pub use validate::{apply_patch, validate, validate_all, validate_block};

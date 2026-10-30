@@ -7,6 +7,17 @@ bumps; once 1.0 ships, semver is strict.
 
 ## [Unreleased]
 
+### Removed
+
+- **Breaking, `assurance-v1` edited in place (no v2):** the locator `digest`
+  and the obligation `statement_hash` are removed from the export; a locator is
+  now `{path, line}`. The schema has `additionalProperties: false`, so
+  documents still carrying either member are now rejected.
+- `statement_hash` is removed from the `properties-v1` criterion obligation and
+  the `coverage-v1` obligation, and `statement_hash` / `normalize_statement`
+  are no longer exported from the crate.
+- The `unicode-normalization` dependency is removed.
+
 ## [0.50.3] — 2026-10-16
 
 Patch release for optional module-declared coverage targets.

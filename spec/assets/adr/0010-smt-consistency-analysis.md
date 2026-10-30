@@ -127,6 +127,8 @@ derived from a statement; the statement's hash already changes exactly when the
 statement's words change, which is the event that should invalidate an
 encoding.
 
+> Superseded: the statement content hash was removed (FR-053); there is no hash comparison.
+
 ### Q3 — formalization non-determinism: **deferred behind Q2**
 
 N-sample-and-cluster is the candidate mitigation and remains so. Choosing N,

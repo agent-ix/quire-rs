@@ -120,13 +120,10 @@ impl ConfigurationSpace {
         })
     }
 
-    /// The canonical statement this space hashes to.
+    /// The canonical statement of this space.
     ///
     /// Every declared value appears, in declared order, so **any change to the
-    /// space changes the hash** and every binding over it becomes suspect.
-    /// That is the entire suspect-link mechanism, inherited rather than
-    /// reinvented: adding a value to a dimension really does invalidate a
-    /// coverage claim made before it existed.
+    /// space changes the statement**.
     pub fn statement(&self, strength: usize) -> String {
         let mut out = format!("{strength}-way over");
         for dimension in &self.dimensions {

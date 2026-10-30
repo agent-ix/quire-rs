@@ -10,7 +10,6 @@ use std::path::{Component, Path, PathBuf};
 use jsonschema::{Draft, JSONSchema};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use sha2::{Digest, Sha256};
 
 use crate::corpus::declared_tables::ExcludeSet;
 use crate::corpus::{Resolution, Spec};
@@ -49,7 +48,6 @@ pub struct AssuranceModulePremise {
 pub struct AssuranceLocator {
     pub path: String,
     pub line: usize,
-    pub digest: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -67,7 +65,6 @@ pub struct AssuranceObligation {
     pub id: String,
     pub document: String,
     pub statement: String,
-    pub statement_hash: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub method: Option<String>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
@@ -438,11 +435,7 @@ fn project_artifacts(spec: &Spec, root: &Path) -> Result<Vec<AssuranceArtifact>,
             id: document.id.clone(),
             uuid: document.uuid.map(|value| value.to_string()),
             artifact_type: artifact_type.to_string(),
-            locator: AssuranceLocator {
-                path,
-                line: 1,
-                digest: digest_bytes(document.raw().as_bytes()),
-            },
+            locator: AssuranceLocator { path, line: 1 },
         });
     }
     artifacts.sort_by(|left, right| {
@@ -485,7 +478,6 @@ fn project_obligations(
             id: obligation.id,
             document: obligation.document.clone(),
             statement: obligation.statement.clone(),
-            statement_hash: obligation.statement_hash,
             method: obligation.method,
             parameters: obligation.parameters,
             criticality: obligation.criticality,
@@ -493,7 +485,6 @@ fn project_obligations(
             locator: AssuranceLocator {
                 path: obligation.document,
                 line,
-                digest: digest_bytes(obligation.statement.as_bytes()),
             },
         });
     }
@@ -509,9 +500,6 @@ fn project_symbols(extraction: &SymbolExtraction) -> Result<Vec<AssuranceSymbol>
     let mut symbols = Vec::with_capacity(extraction.symbols.len());
     for symbol in &extraction.symbols {
         let path = source_relative_path(&symbol.path)?;
-        let source = extraction
-            .source_of(&symbol.path)
-            .ok_or_else(|| AssuranceError::MissingSourceBytes { path: path.clone() })?;
         let mut capabilities = Vec::with_capacity(1);
         if symbol.kind.binds_trace_ids() {
             capabilities.push("verifies".to_string());
@@ -529,7 +517,6 @@ fn project_symbols(extraction: &SymbolExtraction) -> Result<Vec<AssuranceSymbol>
             locator: AssuranceLocator {
                 path,
                 line: symbol.line,
-                digest: digest_bytes(source.as_bytes()),
             },
         });
     }
@@ -563,7 +550,6 @@ fn project_relations(
             locator: AssuranceLocator {
                 path,
                 line: first_line_containing(document.raw(), &edge.target).unwrap_or(1),
-                digest: digest_bytes(document.raw().as_bytes()),
             },
             freshness: AssuranceFreshness::NotApplicable,
         });
@@ -574,7 +560,7 @@ fn project_relations(
             target: relation.trace_id.clone(),
             form: relation.form.clone(),
             provenance: relation.provenance.as_str().to_string(),
-            locator: symbol_locator(extraction, &relation.path, relation.line)?,
+            locator: symbol_locator(&relation.path, relation.line)?,
             freshness: AssuranceFreshness::Unknown,
         });
     }
@@ -591,7 +577,7 @@ fn project_relations(
             source: relation.symbol_id.clone(),
             target: relation.trace_id.clone(),
             form: relation.form.clone(),
-            locator: symbol_locator(extraction, &relation.path, line)?,
+            locator: symbol_locator(&relation.path, line)?,
             freshness: AssuranceFreshness::NotApplicable,
         });
     }
@@ -748,20 +734,9 @@ fn required_relation_satisfied(
     }
 }
 
-fn symbol_locator(
-    extraction: &SymbolExtraction,
-    path: &str,
-    line: usize,
-) -> Result<AssuranceLocator, AssuranceError> {
+fn symbol_locator(path: &str, line: usize) -> Result<AssuranceLocator, AssuranceError> {
     let path = source_relative_path(path)?;
-    let source = extraction
-        .source_of(&path)
-        .ok_or_else(|| AssuranceError::MissingSourceBytes { path: path.clone() })?;
-    Ok(AssuranceLocator {
-        path,
-        line,
-        digest: digest_bytes(source.as_bytes()),
-    })
+    Ok(AssuranceLocator { path, line })
 }
 
 fn relation_key(relation: &AssuranceRelation) -> (u8, &str, &str, &str) {
@@ -854,10 +829,6 @@ fn validate_premise_uniqueness(modules: &[AssuranceModulePremise]) -> Result<(),
         }
     }
     Ok(())
-}
-
-fn digest_bytes(bytes: &[u8]) -> String {
-    format!("{:x}", Sha256::digest(bytes))
 }
 
 fn relative_path(root: &Path, path: &Path) -> Result<String, AssuranceError> {

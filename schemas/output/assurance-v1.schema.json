@@ -93,11 +93,10 @@
     "locator": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["path", "line", "digest"],
+      "required": ["path", "line"],
       "properties": {
         "path": { "type": "string", "minLength": 1, "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$" },
-        "line": { "type": "integer", "minimum": 1 },
-        "digest": { "$ref": "#/$defs/sha256" }
+        "line": { "type": "integer", "minimum": 1 }
       }
     },
     "artifact": {
@@ -114,13 +113,12 @@
     "obligation": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["source", "id", "document", "statement", "statement_hash", "target_ids", "locator"],
+      "required": ["source", "id", "document", "statement", "target_ids", "locator"],
       "properties": {
         "source": { "type": "string", "minLength": 1 },
         "id": { "type": "string", "minLength": 1 },
         "document": { "type": "string", "minLength": 1 },
         "statement": { "type": "string", "minLength": 1 },
-        "statement_hash": { "$ref": "#/$defs/sha256" },
         "method": { "type": "string", "minLength": 1 },
         "parameters": {
           "type": "object",

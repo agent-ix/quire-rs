@@ -25,8 +25,7 @@ space**, minting one obligation over the interaction of every row.
 ### A new source kind, not a new mechanism
 
 [FR-053](./FR-053-obligation-record.md)'s `ObligationSource` is already a declaration-driven minter
-carrying a `parameters` map whose own documentation names *"a t-way strength"*. The statement hash,
-the suspect link and the parameter carriage are inherited unchanged.
+carrying a `parameters` map whose own documentation names *"a t-way strength"*. The parameter carriage is inherited unchanged.
 
 **What differs is arity.** A t-way obligation is a statement about the interaction of *every* row,
 so no single row can carry it — which is why this needs a declaration rather than another column.
@@ -89,7 +88,7 @@ exact shape this source exists to replace — and the `coverage --json` contract
 quoin reads never carried a combinatorial obligation at all. CR-076.
 
 The two paths must agree on more than arity. They mint the same id, the same
-`strength`/`dimensions`/`tuples` parameters and the same statement hash, because
+`strength`/`dimensions`/`tuples` parameters, because
 a binding made while validating a document has to match the obligation the
 rollup reports. TC-934 asserts that identity rather than just the count.
 
@@ -101,12 +100,12 @@ rollup reports. TC-934 asserts that identity rather than just the count.
 | FR-061-AC-2 | A strength of 0, or one exceeding the dimension count, yields 0 tuples rather than an error or the full product. | Test (TC-926) |
 | FR-061-AC-3 | A declared forbidden combination is excluded from the count. | Test (TC-927) |
 | FR-061-AC-4 | An exclusion forbids every wider tuple containing it, so a two-value constraint still bites at strength 3. | Test (TC-928) |
-| FR-061-AC-5 | The hashed statement carries every declared value and the strength, so any change to the space — or to the strength — changes the hash and suspects every binding over it. | Test (TC-929) |
+| FR-061-AC-5 | The statement carries every declared value and the strength, so any change to the space — or to the strength — changes the statement. | Test (TC-929) |
 | FR-061-AC-6 | Declared cells parse as authored: backticks and whitespace tolerated, a repeated value counted once, a single-assignment "exclusion" rejected. | Test (TC-930) |
 | FR-061-AC-7 | `obligation::for_document` mints **one** obligation for the whole table, with its id from `id_format` and `strength`/`dimensions`/`tuples` in `parameters`. | Test (TC-931) |
 | FR-061-AC-8 | A space with fewer than two real dimensions mints nothing. | Test (TC-932) |
 | FR-061-AC-9 | A combinatorial source declaring strength 0 fails at module load, naming the source. | Test (TC-933) |
-| FR-061-AC-10 | The corpus path mints the same one obligation as the single-document path — same id, same parameters, same statement hash — so a binding made against one matches the other. | Test (TC-934) |
+| FR-061-AC-10 | The corpus path mints the same one obligation as the single-document path — same id, same parameters — so a binding made against one matches the other. | Test (TC-934) |
 
 ## Constraints
 

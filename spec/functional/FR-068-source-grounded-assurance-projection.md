@@ -50,11 +50,8 @@ deciding whether evidence is fresh, sufficient, or persuasive.
 - `relation_observations`: module-declared relation checks with explicit
   availability and freshness states.
 
-Every source locator SHALL contain a scope-relative path, a 1-based line, and a
-lowercase SHA-256 digest. Artifact locators digest the exact document bytes;
-obligation locators carry FR-053's normalized statement hash in addition to a
-digest of the verbatim row statement; symbol locators retain the FR-051 symbol
-identity digest.
+Every source locator SHALL contain a scope-relative path and a 1-based line,
+and nothing else: a locator carries no digest.
 
 An artifact locator points to line 1 of its document. An obligation locator
 points to the first source line containing the exact FR-053 statement in the
@@ -80,8 +77,8 @@ The projection SHALL preserve these meanings:
   observed relation count is zero. A consumer therefore distinguishes a
   supported kind with no edges from a kind absent from the capability catalog;
   it SHALL NOT infer capability from the observed `relations` array.
-- The projection SHALL copy obligation identity and statement hash from FR-053
-  exactly, without recomputing either under a different normalization.
+- The projection SHALL copy obligation identity from FR-053
+  exactly.
 - A required-relation observation uses the module declaration that owns its
   applicability. An applicable subject with no satisfying relation is
   `missing`; a satisfying relation is `available`; a declaration with no
@@ -104,7 +101,7 @@ missing relationship for content it could not inspect. Declaration exclusions
 apply exactly as they do in bundle validation.
 
 > **CR-157** (`agent-ix/quire-rs#386`, 2026-08-31) makes previously implicit
-> identity and failure semantics testable: it fixes locator lines and digests,
+> identity and failure semantics testable: it fixes locator lines,
 > defines observation identity and zero-subject behavior, and preserves unread
 > input as `unknown` rather than manufacturing a `missing` result. The full
 > review's downstream fit check also adds `relation_kinds`, preventing an empty
@@ -123,8 +120,8 @@ apply exactly as they do in bundle validation.
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
-| FR-068-AC-1 | Every artifact record carries its authored id, authored type, optional UUID without substitution, and a source locator whose path exists at the pinned revision and whose digest matches the exact document bytes. | Test (TC-1091) |
-| FR-068-AC-2 | Every obligation record preserves FR-053's id, document, statement, statement hash, method, parameters, criticality, and target ids exactly, and its row locator selects the source statement that reproduces the exported hashes. | Test (TC-1092) |
+| FR-068-AC-1 | Every artifact record carries its authored id, authored type, optional UUID without substitution, and a source locator whose path exists at the pinned revision. | Test (TC-1091) |
+| FR-068-AC-2 | Every obligation record preserves FR-053's id, document, statement, method, parameters, criticality, and target ids exactly, and its row locator selects the source statement. | Test (TC-1092) |
 | FR-068-AC-3 | Every symbol preserves FR-051's stable identity, language, kind, qualified name, path, declaration line, and binding capabilities; duplicate names in different containers or paths remain distinct. | Test (TC-1093) |
 | FR-068-AC-4 | The corpus-relation projection is a bijection with `Spec::edges()` over `(source, target, edge_type, resolution)`, including dangling edges, and the relation-kind catalog retains every module-declared, trace-binding, and observed kind even when its observed count is zero. | Test (TC-1094) |
 | FR-068-AC-5 | `verifies` and `implements` remain separate relation record variants: a test binding carries provenance and counts as evidence, while a production binding carries no invented provenance and never counts as evidence. | Test (TC-1095) |
