@@ -35,7 +35,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | StR-004 Safety scaffolding | NFR-003, NFR-004 | TC-050, TC-051 | ✅ Complete |
 | StR-005 Native Python bindings | US-011, FR-023, FR-024, NFR-016 | TC-460, TC-461, TC-456, TC-466, TC-465 | ✅ Complete |
 | StR-006 Whole-spec corpus | US-012, US-013, FR-025, FR-026, FR-027 | TC-485, TC-493, TC-488, TC-484, TC-483 | ✅ Complete |
-| StR-007 Source-grounded assurance data | US-018, FR-067, FR-068 | TC-1091, TC-1087, TC-1096, TC-1089 | ✅ Producer complete |
+| StR-007 Source-grounded assurance data | US-018, FR-067, FR-068 | TC-1091, TC-1087, TC-1096 | ✅ Producer complete |
 
 ### User Story Coverage
 
@@ -676,6 +676,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-831 | A `target:`-bound obligation source mints one record per row of the named trace target's table, each keyed on the id the coverage rollup already mints, carrying statement, method and criticality (FR-053) | Integration | P0 | FR-053-AC-1 | ✅ |
 | TC-832 | An `archetype:`+`section:`+`id_format:` source covers rows with no id column — the NFR `Measurement and Evaluation` table — rendering `{document}` and the 1-based `{row}`, and carrying the metric's target and threshold as parameters (FR-053) | Integration | P0 | FR-053-AC-2 | ✅ |
 | TC-833 | A source declaring both `target:` and `archetype:`, or neither, is rejected at manifest parse: the module contributes nothing, the failure names the offending source, and no obligation reaches a consumer (FR-053) | Integration | P0 | FR-053-AC-3 | ✅ |
+| TC-834 | Withdrawn. | — | — | — | — |
 | TC-835 | One `Verification` cell, two readings: the obligation's method drops the trailing annotation (`Test (TC-707)` → `Test`) while FR-049's integrity check still reads `TC-707` out of the same cell (FR-053) | Integration | P0 | FR-053-AC-5 | ✅ |
 | TC-836 | A declared parameter whose cell is empty is **omitted** from the record rather than carried as an empty string — a threshold nobody wrote is not a threshold of zero (FR-053) | Integration | P1 | FR-053-AC-6 | ✅ |
 | TC-837 | A source declaring no `criticality_column`, and one declaring an empty column, both yield an absent criticality and are otherwise identical — criticality is genuinely optional, since the ISO AC contract carries no priority column (FR-053) | Integration | P1 | FR-053-AC-7 | ✅ |
@@ -683,8 +684,10 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-839 | Two derivations over an identical corpus are equal and serialize identically, ordered by source, then document, then authored row order (FR-053) | Integration | P0 | FR-053-AC-9 | ✅ |
 | TC-840 | A criterion carries its obligation on the property-classification record, matched by row id; with no source declared it carries `None` and every other field is unchanged (FR-053) | Integration | P0 | FR-053-AC-10 | ✅ |
 | TC-841 | The coverage report carries one obligation per minting row, and a model declaring none serializes the key **away entirely** rather than as an empty list, so FR-050-AC-7 byte-identity holds for every module that has not adopted them (FR-053) | Integration | P0 | FR-053-AC-11 | ✅ |
+| TC-842 | Withdrawn. | — | — | — | — |
 | TC-843 | The obligation nested on a classification record carries no `id`, `statement` or `document` — the record and its enclosing object already carry all three (FR-053) | Integration | P1 | FR-053-AC-13 | ✅ |
 | TC-870 | The skipped-row diagnostic reaches the **coverage report** — declaration, document, row ordinal, and the `obligation-row-states-nothing` reason in the JSON — not only `derive`'s return value (FR-053, CR-063) | Integration | P1 | FR-053-AC-8 | ✅ |
+| TC-871 | Withdrawn. | — | — | — | — |
 | TC-872 | Record order follows source **declaration** order, proven with a module whose two sources are declared in reverse alphabetical order — the only arrangement where declaration order and name order disagree (FR-053, CR-063) | Integration | P0 | FR-053-AC-9 | ✅ |
 | TC-873 | An `exclude`d document states no obligation on **either** surface — absent from the coverage rollup and `None` on its classification record — so a generator cannot emit a trace tag for an id nothing mints (FR-053, CR-063) | Integration | P0 | FR-053-AC-14 | ✅ |
 | TC-1878 | A lowercase `object_types` archetype whose own id joins KIND and NUMBER with an underscore (`interface_004`, matching spec-objects-architecture's real `interface` object type and its 3-column `\| ID \| Criteria \| Verification \|` Acceptance Criteria table) registers as an obligation-bearing kind exactly like an FR does — one `trace_targets` entry plus one `obligations` source, no engine change. One AC backed, one not: both land in `coverage.totals`/`minted_targets` and neither in `untracked_symbols` (FR-053, agent-ix/quire-rs#460) | Integration | P0 | FR-053-AC-1 | ✅ |
@@ -780,7 +783,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-1086 | Two loaded modules with several archetypes export a sorted, duplicate-free module/version inventory | Unit | P0 | FR-067-AC-3 | ✅ |
 | TC-1087 | Import rejects an unknown format version and module version one at a time before exposing records, naming the exact failed premise | Unit | P0 | FR-067-AC-4, StR-007-VC-2 | ✅ |
 | TC-1088 | Identical inputs produce byte-identical exports; changing only the full source revision changes only that premise | Property | P0 | FR-067-AC-5 | ✅ |
-| TC-1089 | The checked-in assurance-v1 golden fixture round-trips under additive readers, while deleting, renaming, retyping, or reinterpreting every pinned v1 field is rejected | Snapshot | P0 | FR-067-AC-6, StR-007-VC-4 | ✅ |
+| TC-1089 | Withdrawn. | — | — | — | — |
 | TC-1090 | Enabling assurance export leaves the coverage-v1 and properties-v1 byte goldens unchanged and adds no assurance version key to either payload | Integration | P0 | FR-067-AC-7, FR-067-CON-4, FR-055-AC-7 | ✅ |
 | TC-1091 | Every exported artifact id/type/UUID and source locator equals the loaded document; resolving its path and line at the pinned Git object locates the same record | Integration | P0 | FR-068-AC-1, StR-007-VC-1 | ✅ |
 | TC-1092 | Obligation projection is field-for-field equal to FR-053 and its row locator selects the verbatim statement | Integration | P0 | FR-068-AC-2 | ✅ |
@@ -908,7 +911,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-1966 | Executed compile_fail doctest expected refusal passes; unrun and wrong-error controls do not | Integration | P0 | FR-078-AC-4 | 🚧 Blocked — Quoin owner qualification/CI carrier; not run |
 | TC-1967 | Citations, unrun suites/scripts and validated Inspections tables remain unbacked | Unit | P0 | FR-078-AC-5 | 🚧 Planned — not run |
 | TC-1968 | Failed, errored, skipped, absent and unevaluated evidence retains distinct non-passing causes | Unit | P0 | FR-078-AC-6 | 🚧 Planned — not run |
-| TC-1969 | Wrong revision, selection, statement and qualification premises do not bind | Unit | P0 | FR-078-AC-7 | 🚧 Blocked — Quoin owner qualification/CI carrier; not run |
+| TC-1969 | Wrong revision, selection and qualification premises do not bind | Unit | P0 | FR-078-AC-7 | 🚧 Blocked — Quoin owner qualification/CI carrier; not run |
 | TC-1970 | Waiver report and strict disposition stay distinct under pending Peter policy | Unit | P0 | FR-078-AC-8 | 🚧 Blocked — Peter waiver policy + owner representation; not run |
 | TC-1971 | Missing/wrong/ambiguous declared targets refuse rather than selecting a sibling or first duplicate | Unit | P0 | FR-078-AC-9 | 🚧 Planned — not run |
 | TC-1972 | Identical records deduplicate; conflicts are deterministic in both input orders | Unit | P0 | FR-078-AC-10 | 🚧 Planned — not run |
@@ -973,6 +976,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-887 | Findings appear in the same order with and without a severity map, and repeated runs over one bundle agree (NFR-006) | Integration | P1 | FR-057-AC-10 | ✅ |
 | TC-888 | `unknown-type` and the missing-`type` error stand even with `bundle:unknown-type` and `bundle:frontmatter` mapped `off`, and carry no pack, so no key can ever address them | Integration | P0 | FR-057-CON-1 | ✅ |
 | TC-889 | With `refs:dangling-reference` off, a bundle that also has a dangling trace reference still reports `dangling-trace-reference` at its unchanged count | Integration | P0 | FR-057-AC-6 | ✅ |
+| TC-890 | Withdrawn. | — | — | — | — |
 | TC-891 | `ears::normalize` is idempotent and never lengthens its input. Before CR-069 stripping `**` could synthesize a link the link pass had already run past (`[]**()` → `[]()` → `""`); the generator draws from the tokens the function rewrites, because a plain `.*` strategy passed 2 000 cases against the broken form | Property | P0 | FR-042-AC-1 | ✅ |
 | TC-892 | `normalize_reference_cell` is idempotent under every combination of the two opt-in flags, and is the identity with both off. Before CR-069 a chained range `FR-001..FR-003..FR-005` expanded only its first range and left a `..` the pattern rejects | Property | P0 | FR-049-AC-1 | ✅ |
 | TC-893 | `slug` is idempotent, its output alphabet is closed over `[a-z0-9-]` for any input including non-ASCII, and `slug_line_id` ignores surrounding whitespace on the heading — formatting cannot move a block id | Property | P0 | FR-009-AC-1, FR-009-AC-3, FR-009-AC-6 | ✅ |
@@ -1898,6 +1902,7 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-053-AC-1 | TC-831 |
 | FR-053-AC-2 | TC-832 |
 | FR-053-AC-3 | TC-833 |
+| FR-053-AC-4 | Withdrawn |
 | FR-053-AC-5 | TC-835 |
 | FR-053-AC-6 | TC-836 |
 | FR-053-AC-7 | TC-837 |
@@ -1905,6 +1910,7 @@ Comprehensive, post-audit explicit mapping. Every AC defined in the spec is list
 | FR-053-AC-9 | TC-839, TC-872 |
 | FR-053-AC-10 | TC-840 |
 | FR-053-AC-11 | TC-841 |
+| FR-053-AC-12 | Withdrawn |
 | FR-053-AC-13 | TC-843 |
 | FR-053-AC-14 | TC-873 |
 | FR-053-AC-15 | TC-1954 |

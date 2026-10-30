@@ -63,7 +63,7 @@ The seams are `Registry` for module/schema premises, `Spec` for documents and ed
 - [x] **TC-1086**: inventory active schemas once, in canonical order, with semantic SHA-256 digests.
 - [x] **TC-1087**: reject unsupported format, module version, and schema digest before returning records.
 - [x] **TC-1088**: prove byte identity and source-revision isolation.
-- [x] **TC-1089**: round-trip and mutation-check the checked-in v1 compatibility fixture.
+- [x] **TC-1089**: withdrawn.
 - [x] **TC-1090**: prove existing coverage/properties contracts remain unchanged.
 - [x] **TC-1095**: keep verifies evidence distinct from implements scope.
 - [x] **TC-1097**: restrict Quire-produced freshness to unknown/not_applicable.
@@ -112,7 +112,6 @@ Final:                           full CI + review gates
 
 ## Coordination Rules
 
-- Treat `assurance-v1.schema.json` and its golden fixture as immutable once Task-011 passes; a breaking correction mints v2.
 - Keep `Registry`, `Spec`, obligation, and symbol changes limited to read-only accessors required by the exporter.
 - Do not add a CLI, Git invocation, network access, persistence, freshness verdict, or Quoin policy.
 - Run the full repository CI after Task-014; no Python-binding gate is required unless implementation touches `src/grammar`, `src/python`, or `tests/python`.

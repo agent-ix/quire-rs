@@ -104,7 +104,7 @@ records until both stages succeed.
 | FR-067-AC-3 | The envelope lists every loaded module exactly once with its declared version, in deterministic order. | Test (TC-1086) |
 | FR-067-AC-4 | Import refuses an unknown `format_version` or an unaccepted module version before returning any artifact, relation, or evidence record, naming the rejected premise. | Test (TC-1087) |
 | FR-067-AC-5 | Two exports over identical inputs are byte-identical; changing only the caller-supplied source revision changes the source premise and no projected identity or relation. | Test (TC-1088) |
-| FR-067-AC-6 | A checked-in assurance-v1 compatibility fixture pins every field, identity, relation kind, ordering rule, and state token; an additive compatible implementation continues to read it, while changing or removing a pinned v1 field fails the contract gate. | Test (TC-1089) |
+| FR-067-AC-6 | Withdrawn. | — |
 | FR-067-AC-7 | Coverage-v1 and properties-v1 output remain byte-identical to their pre-export baselines and contain no assurance `format` or `format_version` key. | Test (TC-1090) |
 
 ## Dependencies

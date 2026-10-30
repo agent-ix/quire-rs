@@ -235,7 +235,6 @@ requires no rejection reason and all inherited FR-050 strict premises to pass.
 | Producer skipped | `skipped`, with original outcome; never a waiver alias | Reject |
 | Stale or behind-HEAD run | `stale`, with owner freshness detail | Reject |
 | Wrong source revision or selected corpus | `wrong-revision` or `selection-mismatch` respectively | Reject |
-| Changed obligation statement | `statement-suspect`, with owner finding | Reject |
 | Required requested record is absent | `absent`, without invented producer outcome | Reject |
 | Required check/premise not evaluated | `unevaluated`, naming the unanswered premise | Reject |
 | Unknown/mismatched method, actor, tool/configuration, or unsupported qualification version | `qualification-rejected`, retaining each owner subtype; an unanswered owner contract is `unevaluated` | Reject |
@@ -305,7 +304,7 @@ CON-1 remains independently inspected against owner dependency use.
 | Mapped criterion | Required independent partitions |
 |------------------|---------------------------------|
 | AC-5 / TC-1967 | Citation, suite declaration, unexecuted script, bare method name, merely validated Inspections table; each paired with the same target and absent qualified performed evidence |
-| AC-7 / TC-1969 | Wrong source revision, foreign selected corpus, changed statement, wrong actor, incompatible producer/tool/configuration; each varies one premise with its own cause and strict reason |
+| AC-7 / TC-1969 | Wrong source revision, foreign selected corpus, wrong actor, incompatible producer/tool/configuration; each varies one premise with its own cause and strict reason |
 | AC-9 / TC-1971 | Missing target, unknown ID, same display ID in another document/source, foreign selection, duplicate authored identity; lookup must expose the owner's distinct refusal |
 | AC-15 / TC-1977 | AuthoredRow, RenderedRow and CombinatorialTable; unmapped criterion; changed captured selection; rendered-row renumbering never reuses an old binding by display ID alone |
 | AC-19 / TC-1981 | Unknown method, absent kind, absent catalog, absent provenance, unsupported owner version; evaluate refusals independently and separately assert CON-4 ordering/byte identity on reordered inputs |

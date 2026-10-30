@@ -21,9 +21,8 @@ relationships:
 
 `quire-rs` SHALL derive an **obligation record** for every normative statement a
 module declares as one, and SHALL surface those records on the existing JSON
-interfaces. An obligation record carries the statement's id, a deterministic
-the declared verification method, any declared
-parameters, and the declared criticality.
+interfaces. An obligation record carries the statement's id, the declared verification
+method, any declared parameters, and the declared criticality.
 
 ADR 0011 names the obligation record the contract between **quire**, which
 states obligations, and **quoin**, which audits their discharge. Neither side
@@ -198,6 +197,7 @@ with an empty statement — an obligation nothing can state is not an obligation
 |----|------------|------|------------|
 | FR-053-CON-1 | The engine SHALL NOT name a verification method, a column name, or an archetype anywhere on this path. Every one is module data, so an external user's catalog and vocabulary drive their obligations exactly as this ecosystem's drive ours. | Architecture | Inspection |
 | FR-053-CON-2 | An obligation record SHALL NOT carry a verdict, a threshold comparison, an evidence reference or a freshness judgement. The engine states obligations; reading evidence and judging discharge is quoin's Auditor role (ADR 0011 invariant 1). | Architecture | Inspection |
+| FR-053-CON-3 | Withdrawn. | — | — |
 | FR-053-CON-4 | Obligation derivation SHALL NOT construct a `GrammarFinding` or carry a [FR-048](./FR-048-per-check-grammar-severity.md) `grammar_severity` key, so no obligation can fail a build. A missing method is a report, not an error, until a consuming workflow decides otherwise. | Architecture | Test |
 
 ### The join the record used to drop
@@ -375,6 +375,7 @@ change legacy `derive` behavior, or judge whether an obligation is discharged.
 | FR-053-AC-1 | A module declaring an obligation source with `target:` yields one record per row of the named trace target's table, each carrying the same id the coverage rollup mints for that row. | Test (TC-831) |
 | FR-053-AC-2 | A module declaring an obligation source with `archetype:`, `section:` and `id_format:` yields one record per row of a table whose rows carry no id column, with ids rendered from `{document}` and the 1-based `{row}`. | Test (TC-832) |
 | FR-053-AC-3 | An obligation source declaring both `target:` and `archetype:`, or neither, is rejected at manifest parse: the module contributes nothing, the load failure names the offending source, and no obligation is derived from the unexecutable declaration. | Test (TC-833) |
+| FR-053-AC-4 | Withdrawn. | — |
 | FR-053-AC-5 | A `method_column` cell reading `Test (TC-707)` yields method `Test`, and the same cell continues to yield the reference `TC-707` to FR-049's integrity check, so the two readings of one cell do not interfere. | Test (TC-835) |
 | FR-053-AC-6 | A source declaring `parameters:` yields a record whose parameter map carries one entry per declared key that has a non-empty cell, with absent keys omitted rather than present-and-empty. | Test (TC-836) |
 | FR-053-AC-7 | A source declaring no `criticality_column` yields records whose criticality is absent, and the records are otherwise identical to those from the same source with a criticality column declared and empty. | Test (TC-837) |
@@ -384,6 +385,7 @@ change legacy `derive` behavior, or judge whether an obligation is discharged.
 | FR-053-AC-11 | The record carries the test-case ids its method cell names, so a consumer binding evidence keyed on a test case can join without re-parsing the criteria table. A cell naming none carries none, and an unclosed parenthetical reads nothing. | Test (TC-935) |
 | FR-053-AC-13 | The obligation nested on a classification record carries no `id`, `statement` or `document` key, because the record and its enclosing object already carry all three. | Test (TC-843) |
 | FR-053-AC-11 | A coverage report over a corpus with declared obligation sources carries one `obligations` entry per minting row, and a corpus with no declared sources carries an **absent** `obligations` key — the empty list serializes away — so FR-050-AC-7 byte-identity holds for every module that has not adopted them. | Test (TC-841) |
+| FR-053-AC-12 | Withdrawn. | — |
 | FR-053-AC-14 | An `exclude:` glob on an obligation source removes the matching document's rows from **both** obligation surfaces — the coverage rollup and the `obligation` nested on a property classification record — so the two never disagree about whether a row states an obligation. Content with no path (stdin) matches no glob. | Test (TC-873) |
 | FR-053-AC-15 | A valid document root, model and nonempty existing source-name selection yield the public owner-issued SelectedInventory and borrowable selection identity; empty, unknown or duplicate selectors and an invalid model yield typed non-Complete results, and the entry point accepts no caller Spec, RepoLoad, rows or completion state. | Test (TC-1954) |
 | FR-053-AC-16 | A selected valid corpus with two authored criteria emits both, including one with no clause, source-symbol or test-case mapping, reports count two and Complete; changing a statement changes its owner statement, and deleting either authored row removes exactly that entry and changes the count. | Test (TC-1955) |

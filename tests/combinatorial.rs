@@ -112,11 +112,7 @@ fn tc928_an_exclusion_bites_at_higher_strength() {
 
 #[trace("TC-929", "FR-061-AC-5")]
 // the statement carries every declared value, so any
-// change to the space changes its hash.
-//
-// This is the entire suspect-link mechanism, inherited rather than reinvented:
-// adding a value to a dimension really does invalidate a coverage claim made
-// before that value existed.
+// change to the space changes the statement.
 #[test]
 fn tc929_the_statement_covers_the_whole_space() {
     let before = space(vec![dim("policy", &["tolerant", "strict"])], vec![]);

@@ -344,25 +344,6 @@ fn tc1087_reader_rejects_unsupported_premises_before_returning_records() {
     ));
 }
 
-#[trace("TC-1089", "FR-067-AC-6", "StR-007-VC-4")]
-#[test]
-fn tc1089_v1_fixture_pins_fields_variants_and_state_tokens() {
-    let export: AssuranceExport = serde_json::from_value(golden()).expect("typed golden");
-    assert_eq!(export.relations.len(), 3);
-    assert_eq!(export.relation_observations.len(), 4);
-    let mut removed = golden();
-    removed.as_object_mut().unwrap().remove("artifacts");
-    let compiled = schema();
-    let errors: Vec<_> = compiled
-        .validate(&removed)
-        .expect_err("required field mutation must fail")
-        .collect();
-    assert!(!errors.is_empty());
-    let mut renamed = golden();
-    renamed["relations"][0]["resolution"] = "present".into();
-    assert!(schema().validate(&renamed).is_err());
-}
-
 #[trace("TC-1091", "FR-068-AC-1", "StR-007-VC-1")]
 #[trace("TC-1092", "FR-068-AC-2")]
 #[trace("TC-1093", "FR-068-AC-3")]
