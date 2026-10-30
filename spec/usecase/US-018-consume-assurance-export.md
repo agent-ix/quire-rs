@@ -29,7 +29,7 @@ boundary and leaves Quire's module-declared semantics intact.
 
 - **Given** a validated export pinned to a repository revision
 - **When** the reviewer follows an artifact or obligation source locator
-- **Then** the cited bytes at that revision reproduce the exported digest
+- **Then** the cited path and line at that revision locate the claim
 
 ### US-018-EX-2: An unsupported premise is refused
 

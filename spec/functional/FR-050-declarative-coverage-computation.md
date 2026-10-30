@@ -93,7 +93,7 @@ premises remain unchanged when evidence mode is not requested.
 
 On the opted-in path, strict evaluation also retains FR-078's per-act typed
 reasons: failed, errored, skipped, stale, wrong revision/selection,
-statement-suspect, absent, unevaluated, rejected qualification, invalid/ambiguous
+absent, unevaluated, rejected qualification, invalid/ambiguous
 target, conflicting record and inventory-incomplete all reject with the
 corresponding machine-readable reason (process exit 1 in the acceptance host).
 All causes remain visible, including when source backing exists. Zero targets,

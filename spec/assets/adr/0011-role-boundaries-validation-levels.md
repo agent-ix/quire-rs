@@ -21,6 +21,8 @@ same placement question: does this belong in the quire engine, in quoin, or in
 the consumer repo? Is it a test, or something that defines what must be
 tested?
 
+> Superseded: the statement content hash was removed (FR-053); there is no hash comparison.
+
 The mission frames the answer: quoin/quire guide agents and people to build
 better software together — by guiding them to write better specs and adhere
 to higher testing standards. Guidance tooling states and audits obligations;
@@ -84,7 +86,7 @@ Placement follows the capability's input domain:
 2. **The obligation record is the quire↔quoin contract**: requirement id +
    statement content hash + verification method + parameters + criticality.
    Every capability either produces obligations (quire) or discharges/audits
-   them (quoin + consumer).
+   them (quoin + consumer). *Superseded: the statement content hash was removed (FR-053); there is no hash comparison.*
 3. **Heavy dependencies are optional even when recommended.** Solver and
    similar dependencies confine to L1 analysis components with graceful
    "not installed" degradation (ADR 0010's leaning).
@@ -110,6 +112,8 @@ Concrete placements this settles:
 - **Suspect links / evidence freshness / vacuous evidence** — L1 Auditor
   checks in quoin over its evidence store; the content-hash inputs come from
   quire's obligation records.
+
+> Superseded: the statement content hash was removed (FR-053); there is no hash comparison.
 
 Existing features already conform (FR-050 verdict split, ADR 0010 placement);
 no migration is required. New capability proposals must state their level and

@@ -477,7 +477,7 @@ pub struct ObligationSource {
     /// Scope-relative globs whose matching documents state no obligations.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub exclude: Vec<String>,
-    /// Column carrying the normative statement — the text that is hashed.
+    /// Column carrying the normative statement.
     pub statement_column: String,
     /// Column carrying the declared verification method. A trailing
     /// parenthetical annotation is dropped, so a `Verification` cell reading
@@ -499,9 +499,8 @@ pub struct ObligationSource {
     /// Read this source's table as a **configuration space** and mint ONE
     /// obligation for the whole table rather than one per row (FR-061).
     ///
-    /// A new source *kind*, not a new mechanism: the statement hash, the
-    /// suspect link and the `parameters` carriage are the ones FR-053 already
-    /// defines. What differs is arity — a t-way obligation is a statement about
+    /// A new source *kind*, not a new mechanism: the `parameters`
+    /// carriage is the one FR-053 already defines. What differs is arity — a t-way obligation is a statement about
     /// the interaction of every row, so one row cannot carry it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub combinatorial: Option<CombinatorialColumns>,

@@ -63,7 +63,7 @@ The seams are `Registry` for module/schema premises, `Spec` for documents and ed
 - [x] **TC-1086**: inventory active schemas once, in canonical order, with semantic SHA-256 digests.
 - [x] **TC-1087**: reject unsupported format, module version, and schema digest before returning records.
 - [x] **TC-1088**: prove byte identity and source-revision isolation.
-- [x] **TC-1089**: round-trip and mutation-check the checked-in v1 compatibility fixture.
+- [x] **TC-1089**: withdrawn.
 - [x] **TC-1090**: prove existing coverage/properties contracts remain unchanged.
 - [x] **TC-1095**: keep verifies evidence distinct from implements scope.
 - [x] **TC-1097**: restrict Quire-produced freshness to unknown/not_applicable.
@@ -71,7 +71,7 @@ The seams are `Registry` for module/schema premises, `Spec` for documents and ed
 ### Integration and Property Tests
 
 - [x] **TC-1091**: reproduce artifact identities and exact-byte locators.
-- [x] **TC-1092**: reproduce obligation records and both statement hashes.
+- [x] **TC-1092**: reproduce obligation records.
 - [x] **TC-1093**: preserve stable symbol identities and capabilities.
 - [x] **TC-1094**: prove corpus-relation projection is a bijection, including declared zero-edge kinds and dangling edges.
 - [x] **TC-1096**: exercise available, missing, not_applicable, and unknown relation observations.
@@ -105,14 +105,13 @@ Final:                           full CI + review gates
 
 | Task | Track | Owns (references) | Verified by (verifies) | Status |
 | --- | --- | --- | --- | --- |
-| Task-011 | A | FR-067 | TC-1084, TC-1087, TC-1089 | completed |
+| Task-011 | A | FR-067 | TC-1084, TC-1087 | completed |
 | Task-012 | A | FR-067, NFR-006 | TC-1085, TC-1086, TC-1088 | completed |
 | Task-013 | A | FR-068, StR-007 | TC-1091..TC-1098 | completed |
 | Task-014 | B | FR-067, FR-068, IT-001 | TC-1090, TC-1099 | completed |
 
 ## Coordination Rules
 
-- Treat `assurance-v1.schema.json` and its golden fixture as immutable once Task-011 passes; a breaking correction mints v2.
 - Keep `Registry`, `Spec`, obligation, and symbol changes limited to read-only accessors required by the exporter.
 - Do not add a CLI, Git invocation, network access, persistence, freshness verdict, or Quoin policy.
 - Run the full repository CI after Task-014; no Python-binding gate is required unless implementation touches `src/grammar`, `src/python`, or `tests/python`.

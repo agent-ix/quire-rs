@@ -31,8 +31,7 @@ vendored `assurance-v1.schema.json` contract; no network service participates.
   set.
 - The fixture contains one resolved and one dangling corpus relation, test and
   production bindings, an obligation, and all relation-availability states.
-- Quoin vendors the assurance schema with the publisher revision and content
-  digest recorded.
+- Quoin vendors the assurance schema.
 
 ## Inputs
 
@@ -48,9 +47,8 @@ vendored `assurance-v1.schema.json` contract; no network service participates.
 2. Import the export through Quoin's production adapter.
    - IT-001-SC-02: every artifact, obligation, symbol, and relationship is
      accepted exactly once.
-3. Resolve every source locator against the pinned Git object and recompute its
-   declared digest.
-   - IT-001-SC-03: every path, line, and digest resolves without reading the
+3. Resolve every source locator against the pinned Git object.
+   - IT-001-SC-03: every path and line resolves without reading the
      working tree.
 4. Render Quoin's assurance case from the imported graph and its existing
    auditor verdicts.

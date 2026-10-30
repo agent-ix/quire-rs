@@ -270,7 +270,6 @@ fn tc856_payload_carrying_every_optional_key_conforms() {
             "id": "FR-001-AC-1",
             "document": "FR-001.md",
             "statement": "The system shall do it.",
-            "statement_hash": "5b3f1a2c4d6e8f0a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f607182",
             "method": "Test",
             "parameters": {"threshold": "< 8ms"},
             "criticality": "P1"
@@ -454,7 +453,6 @@ fn record_json(r: &quire_rs::AcClassification) -> Value {
         Some(o) => {
             let mut out = json!({
                 "source": o.source,
-                "statement_hash": o.statement_hash,
                 "method": o.method,
                 "criticality": o.criticality,
             });
