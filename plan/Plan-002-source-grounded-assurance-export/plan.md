@@ -60,8 +60,8 @@ The seams are `Registry` for module/schema premises, `Spec` for documents and ed
 
 - [x] **TC-1084**: compile the hand-authored draft-2020-12 schema and validate the complete v1 fixture.
 - [x] **TC-1085**: reject each incomplete source/module/root premise without a partial export.
-- [x] **TC-1086**: inventory active schemas once, in canonical order, with semantic SHA-256 digests.
-- [x] **TC-1087**: reject unsupported format, module version, and schema digest before returning records.
+- [x] **TC-1086**: inventory active schemas once in canonical order, without recording schema digests.
+- [x] **TC-1087**: reject an unsupported format or module version before returning records.
 - [x] **TC-1088**: prove byte identity.
 - [x] **TC-1089**: withdrawn.
 - [x] **TC-1090**: prove existing coverage/properties contracts remain unchanged.
