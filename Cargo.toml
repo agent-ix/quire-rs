@@ -56,8 +56,7 @@ serde_json = "^1"
 # ADR-0012: keep the established import name while pinning the maintained
 # YAML Organization package exactly; YAML behavior is identity-bearing.
 serde_yaml = { package = "yaml_serde", version = "=0.10.7" }
-# BLOCKED-BY quire-rs#554 (owner: planner titan:QSL:plan): src/obligation.rs and
-# src/assurance.rs still import sha2 until that PR lands; delete this dependency then.
+# BLOCKED-BY QSL-1276 (owner: planner titan:QSL:plan): sha2 still imported by src/obligation.rs and src/assurance.rs until quire-rs#554 lands
 sha2 = "^0.10"
 indexmap = { version = "^2", features = ["serde"] }
 thiserror = "^2"
