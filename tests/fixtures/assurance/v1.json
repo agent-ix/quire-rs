@@ -45,7 +45,7 @@
   ],
   "symbols": [
     {
-      "id": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "id": "[\"rust\",\"tests/assurance.rs\",\"tests::exports_artifact\",\"test_function\"]",
       "language": "rust",
       "kind": "test_function",
       "qualified_name": "tests::exports_artifact",
@@ -89,7 +89,7 @@
     },
     {
       "kind": "verifies",
-      "source": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "source": "[\"rust\",\"tests/assurance.rs\",\"tests::exports_artifact\",\"test_function\"]",
       "target": "TC-001",
       "form": "rust-trace",
       "provenance": "canonical",
@@ -101,7 +101,7 @@
     },
     {
       "kind": "implements",
-      "source": "2222222222222222222222222222222222222222222222222222222222222222",
+      "source": "[\"rust\",\"src/lib.rs\",\"export\",\"function\"]",
       "target": "FR-001",
       "form": "rust-implements",
       "locator": {

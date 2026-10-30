@@ -20,9 +20,9 @@ bumps; once 1.0 ships, semver is strict.
 - The computed `clauseSetDigest` (clause-binding-v1) and `beforeDigest` /
   `afterDigest` (clause-diff-v1) fields, their schema entries, and the
   `ClauseSet::computed_digest` function.
-- The content-derived symbol identity digest: symbol ids are no longer a
-  SHA-256 of language, path, qualified name and kind (see the PR for the
-  replacement-free scope).
+- The content-derived symbol identity digest: symbol and Filament graph record
+  ids are the JSON array of their identity parts (language, path, qualified
+  name, kind), no longer a SHA-256 of them.
 
 ## [0.50.3] — 2026-10-16
 
