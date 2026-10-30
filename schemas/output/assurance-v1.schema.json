@@ -7,7 +7,6 @@
   "required": [
     "format",
     "format_version",
-    "source",
     "modules",
     "artifacts",
     "obligations",
@@ -19,7 +18,6 @@
   "properties": {
     "format": { "const": "quire-assurance" },
     "format_version": { "const": 1 },
-    "source": { "$ref": "#/$defs/sourcePremise" },
     "modules": {
       "type": "array",
       "items": { "$ref": "#/$defs/modulePremise" }
@@ -56,15 +54,6 @@
     }
   },
   "$defs": {
-    "sourcePremise": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["repository", "revision"],
-      "properties": {
-        "repository": { "type": "string", "minLength": 1 },
-        "revision": { "type": "string", "pattern": "^[0-9a-f]{40}$" }
-      }
-    },
     "schemaPremise": {
       "type": "object",
       "additionalProperties": false,

@@ -23,14 +23,14 @@ relationships:
 
 ## Scope
 
-Construct source and active-module/schema premises from caller-selected immutable identity and a loaded Registry, failing atomically on incomplete inputs.
+Construct source and active-module/schema premises from a loaded Registry, failing atomically on incomplete inputs.
 
 ## Subtasks
 
 - [x] Write red tests for every invalid premise and deterministic ordering case.
 - [x] Expose only the minimal read-only Registry access needed for active archetypes.
 - [x] Canonicalize schema JSON and compute semantic SHA-256 digests.
-- [x] Prove source-revision isolation and byte identity.
+- [x] Prove byte identity.
 
 ## Deliverables
 

@@ -20,8 +20,8 @@ relationships:
 
 ## Description
 
-When a caller supplies a loaded corpus, its registry, source-symbol extraction,
-and an immutable repository identity, `quire-rs` SHALL emit one deterministic
+When a caller supplies a loaded corpus, its registry, and source-symbol extraction,
+`quire-rs` SHALL emit one deterministic
 `AssuranceExport` that validates against the hand-authored
 `schemas/output/assurance-v1.schema.json` contract.
 
@@ -35,8 +35,6 @@ may serialize the library value without becoming the owner of its shape.
 - A loaded [FR-025](./FR-025-spec-corpus-model.md) `Spec` and the `Registry`
   used to interpret it.
 - Source-symbol extraction and binding results produced under that registry.
-- A caller-supplied source identity containing a non-empty repository identity
-  and an immutable revision.
 - The corpus root used to load the `Spec`; all exported document paths SHALL
   resolve beneath this root.
 
@@ -52,12 +50,9 @@ may serialize the library value without becoming the owner of its shape.
 The envelope SHALL carry:
 
 1. `format: "quire-assurance"` and `format_version: 1`.
-2. `source.repository` and `source.revision`, supplied by the caller and copied
-   verbatim after validation; the revision SHALL be a full 40-character
-   lowercase Git object id rather than a moving ref or abbreviated hash.
-3. One module premise per loaded module, ordered by name, containing its name,
+2. One module premise per loaded module, ordered by name, containing its name,
    declared semantic version, and active archetypes ordered by archetype name.
-4. The source-grounded artifact, obligation, symbol, relation, and relation-
+3. The source-grounded artifact, obligation, symbol, relation, and relation-
    observation projections defined by
    [FR-068](./FR-068-source-grounded-assurance-projection.md).
 
@@ -91,7 +86,7 @@ records until both stages succeed.
 | ID | Constraint | Type | Validation |
 |----|------------|------|------------|
 | FR-067-CON-1 | Maintainers SHALL hand-author the assurance schema; an implementation-derived schema generator is prohibited from defining the contract. | Architecture | Test |
-| FR-067-CON-2 | Export construction SHALL perform no Git command, network read, persistence, or cross-corpus resolution. The caller owns revision selection; Quire records the selected identity. | Architecture | Inspection |
+| FR-067-CON-2 | Export construction SHALL perform no Git command, network read, persistence, or cross-corpus resolution. | Architecture | Inspection |
 | FR-067-CON-4 | The explicit assurance `format_version` SHALL NOT be added to coverage-v1 or properties-v1. Those payloads retain FR-055's artifact-only versioning contract. | Compatibility | Test |
 | FR-067-CON-5 | The assurance schema SHALL set `additionalProperties: false` on every object. | Architecture | Test |
 
@@ -100,10 +95,10 @@ records until both stages succeed.
 | ID | Criteria | Verification |
 |----|----------|--------------|
 | FR-067-AC-1 | The published assurance-v1 schema is valid JSON Schema draft 2020-12, its `$id` ends in `assurance-v1.schema.json`, and a complete fixture export validates with zero errors. | Test (TC-1084) |
-| FR-067-AC-2 | Export construction refuses an empty repository identity, a non-immutable revision, an unnamed module, a module with no declared version, an archetype load failure, or a document path outside the supplied corpus root; no partial payload is returned. | Test (TC-1085) |
+| FR-067-AC-2 | Export construction refuses an unnamed module, a module with no declared version, an archetype load failure, or a document path outside the supplied corpus root; no partial payload is returned. | Test (TC-1085) |
 | FR-067-AC-3 | The envelope lists every loaded module exactly once with its declared version, in deterministic order. | Test (TC-1086) |
 | FR-067-AC-4 | Import refuses an unknown `format_version` or an unaccepted module version before returning any artifact, relation, or evidence record, naming the rejected premise. | Test (TC-1087) |
-| FR-067-AC-5 | Two exports over identical inputs are byte-identical; changing only the caller-supplied source revision changes the source premise and no projected identity or relation. | Test (TC-1088) |
+| FR-067-AC-5 | Two exports over identical inputs are byte-identical. | Test (TC-1088) |
 | FR-067-AC-6 | Withdrawn. | — |
 | FR-067-AC-7 | Coverage-v1 and properties-v1 output remain byte-identical to their pre-export baselines and contain no assurance `format` or `format_version` key. | Test (TC-1090) |
 

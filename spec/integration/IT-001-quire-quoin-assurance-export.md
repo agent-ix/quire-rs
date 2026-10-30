@@ -1,6 +1,6 @@
 ---
 id: IT-001
-title: "Quoin consumes a pinned Quire assurance export"
+title: "Quoin consumes a Quire assurance export"
 type: IT
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/functional/FR-067"
@@ -8,13 +8,13 @@ relationships:
   - target: "ix://agent-ix/quire-rs/spec/functional/FR-068"
     type: "verifies"
 ---
-# IT-001: Quoin consumes a pinned Quire assurance export
+# IT-001: Quoin consumes a Quire assurance export
 
 ## Objective
 
 Verify the offline contract between Quire's assurance-export producer and
 Quoin's assurance consumer: Quoin validates the published schema and version
-premises, resolves every exported source locator at the pinned revision, and
+premises, resolves every exported source locator, and
 uses Quire's relationships without re-reading specification frontmatter.
 
 ## Target Integration
@@ -26,7 +26,7 @@ vendored `assurance-v1.schema.json` contract; no network service participates.
 
 ## Preconditions
 
-- A clean fixture repository is checked out at a full immutable revision.
+- A clean fixture repository is checked out.
 - The fixture module version is in Quoin's accepted premise
   set.
 - The fixture contains one resolved and one dangling corpus relation, test and
@@ -36,20 +36,18 @@ vendored `assurance-v1.schema.json` contract; no network service participates.
 ## Inputs
 
 - The selected Quire binary and fixture module.
-- The fixture repository identity and exact revision.
 - Quoin's accepted format and module-version premises.
 
 ## Test Procedure
 
-1. Generate the assurance export twice from the pinned fixture.
+1. Generate the assurance export twice from the fixture.
    - IT-001-SC-01: both byte streams are identical and validate against the
      vendored assurance-v1 schema.
 2. Import the export through Quoin's production adapter.
    - IT-001-SC-02: every artifact, obligation, symbol, and relationship is
      accepted exactly once.
-3. Resolve every source locator against the pinned Git object.
-   - IT-001-SC-03: every path and line resolves without reading the
-     working tree.
+3. Resolve every source locator against the fixture repository.
+   - IT-001-SC-03: every path and line resolves.
 4. Render Quoin's assurance case from the imported graph and its existing
    auditor verdicts.
    - IT-001-SC-04: the rendered parent-child relationships equal the Quire
@@ -64,7 +62,7 @@ vendored `assurance-v1.schema.json` contract; no network service participates.
 
 ## Expected Results
 
-The unchanged export validates, resolves to the pinned source, and produces the
+The unchanged export validates, resolves to the source, and produces the
 same assurance graph Quire exported while Quoin retains sole ownership of
 freshness verdicts. Every unsupported version premise fails closed, and absent
 relation states remain distinguishable.

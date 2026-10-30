@@ -38,4 +38,4 @@ Protect the architectural boundary and prove the new export does not mutate exis
 
 ## Notes
 
-- The Quoin side of IT-001 is downstream; this task supplies the pinned producer schema and fixture it consumes.
+- The Quoin side of IT-001 is downstream; this task supplies the producer schema and fixture it consumes.

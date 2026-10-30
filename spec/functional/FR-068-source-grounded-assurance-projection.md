@@ -120,7 +120,7 @@ apply exactly as they do in bundle validation.
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
-| FR-068-AC-1 | Every artifact record carries its authored id, authored type, optional UUID without substitution, and a source locator whose path exists at the pinned revision. | Test (TC-1091) |
+| FR-068-AC-1 | Every artifact record carries its authored id, authored type, optional UUID without substitution, and a source locator whose path exists. | Test (TC-1091) |
 | FR-068-AC-2 | Every obligation record preserves FR-053's id, document, statement, method, parameters, criticality, and target ids exactly, and its row locator selects the source statement. | Test (TC-1092) |
 | FR-068-AC-3 | Every symbol preserves FR-051's stable identity, language, kind, qualified name, path, declaration line, and binding capabilities; duplicate names in different containers or paths remain distinct. | Test (TC-1093) |
 | FR-068-AC-4 | The corpus-relation projection is a bijection with `Spec::edges()` over `(source, target, edge_type, resolution)`, including dangling edges, and the relation-kind catalog retains every module-declared, trace-binding, and observed kind even when its observed count is zero. | Test (TC-1094) |

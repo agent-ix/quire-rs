@@ -38,7 +38,7 @@ TDD plan for the stable, offline quire-rs assurance export requested by #386. Th
 
 ### Integration and Cross-cutting Requirements
 
-- [x] **IT-001**: Quire supplies the pinned offline producer contract and fixture (Quoin consumer implementation remains downstream).
+- [x] **IT-001**: Quire supplies the offline producer contract and fixture (Quoin consumer implementation remains downstream).
 - [x] **NFR-006**: Every observable collection and serialized byte stream is deterministic.
 
 ## Dependency Graph
@@ -62,7 +62,7 @@ The seams are `Registry` for module/schema premises, `Spec` for documents and ed
 - [x] **TC-1085**: reject each incomplete source/module/root premise without a partial export.
 - [x] **TC-1086**: inventory active schemas once, in canonical order, with semantic SHA-256 digests.
 - [x] **TC-1087**: reject unsupported format, module version, and schema digest before returning records.
-- [x] **TC-1088**: prove byte identity and source-revision isolation.
+- [x] **TC-1088**: prove byte identity.
 - [x] **TC-1089**: withdrawn.
 - [x] **TC-1090**: prove existing coverage/properties contracts remain unchanged.
 - [x] **TC-1095**: keep verifies evidence distinct from implements scope.

@@ -7,4 +7,4 @@ description: "Index of artifacts in this directory."
 
 ## Contents
 
-* [IT-001: Quoin consumes a pinned Quire assurance export](./IT-001-quire-quoin-assurance-export.md)
+* [IT-001: Quoin consumes a Quire assurance export](./IT-001-quire-quoin-assurance-export.md)
