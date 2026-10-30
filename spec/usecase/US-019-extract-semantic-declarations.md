@@ -19,8 +19,7 @@ relationships:
 
 `agent-ix/quoin#293` fixed the Markdown mapping (typed `## Properties` table
 or a `sysml` fence to `FieldDecl[]`; `## Invariants` and `## Operations` to
-`ClauseRef[]` and `OperationDecl[]`) and the module `semantic` block that
-names the semantic-core version. Quire
+`ClauseRef[]` and `OperationDecl[]`) and the module `semantic` block. Quire
 already extracts the `Properties` section as one string (`section_body`).
 This story adds the declaration-level extraction under that contract while
 keeping Quire an extraction engine: fence bodies are carried verbatim, never
@@ -30,7 +29,7 @@ parsed, and nothing is rendered.
 
 ### US-019-EX-1: The FR-006 table extracts to the golden declaration set
 
-- **Given** the read-only config-service `FR-006` copy authored as a typed Properties table under a module whose `semantic` block pins the embedded semantic-core version
+- **Given** the read-only config-service `FR-006` copy authored as a typed Properties table under a module whose `semantic` block names no semantic-core version (the embedded bundle is used)
 - **When** the frontend runs Quire extraction over it
 - **Then** the record carries the seven `FieldDecl` entries of the `agent-ix/quoin` golden fixture, byte-identical after normalization, plus one `ocl` `ClauseRef` with a source span
 
@@ -48,9 +47,9 @@ parsed, and nothing is rendered.
 
 ### US-019-EX-4: An unsupported contract is refused before anything is read
 
-- **Given** a module whose `semantic.semantic_core` names a version Quire does not vendor
+- **Given** a module whose `semantic.contract_version` is not one Quire supports
 - **When** the module loads
-- **Then** loading fails naming both versions and no declaration is extracted
+- **Then** loading fails naming the versions and no declaration is extracted
 
 ## Options (Exploratory)
 

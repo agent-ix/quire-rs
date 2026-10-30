@@ -30,7 +30,6 @@ fn extract(md: &str) -> (SemanticExtraction, Value) {
         "markdown": md,
         "module": {
             "contractVersion": "1.0.0",
-            "semanticCore": quire_rs::semantic::embedded::embedded_semantic_core_version(),
             "package": "agent-ix/spec-objects-architecture",
             "exports": ["interface"],
         },
@@ -44,7 +43,6 @@ fn extract(md: &str) -> (SemanticExtraction, Value) {
     let schema = compile_module_schema(
         &serde_json::from_str::<Value>(SEMANTIC_V1_SCHEMA).unwrap(),
         &|_| None,
-        quire_rs::semantic::embedded::embedded_semantic_core_version(),
         "https://agent-ix.github.io/quire-rs/schemas/output/",
     )
     .unwrap();

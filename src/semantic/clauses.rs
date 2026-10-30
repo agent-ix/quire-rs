@@ -81,21 +81,17 @@ fn advisory(code: &str, line: usize, message: impl Into<String>) -> SemanticDiag
     SemanticDiagnostic::new(code, SemanticSeverity::Advisory, line, message)
 }
 
-/// Is `tag` a `ClauseLanguage` of semantic-core `semantic_core`, and is it
+/// Is `tag` a `ClauseLanguage` of the embedded semantic-core, and is it
 /// the checked language or a carried one?
 ///
 /// `quire` is the only checked language; `ocl`, `sysml`, `fretish`, and
-/// namespaced languages are always carried. Semantic-core 0.1.0 admits no
-/// `quire`, so a 0.1.0 module has no checked language.
-pub fn clause_language_class(tag: &str, semantic_core: &str) -> ClauseLanguageClass {
+/// namespaced languages are always carried.
+pub fn clause_language_class(tag: &str) -> ClauseLanguageClass {
     if tag.is_empty() {
         return ClauseLanguageClass::Missing;
     }
     if tag == "quire" {
-        return match semantic_core {
-            "0.1.0" => ClauseLanguageClass::Invalid,
-            _ => ClauseLanguageClass::Checked,
-        };
+        return ClauseLanguageClass::Checked;
     }
     if matches!(tag, "ocl" | "sysml" | "fretish") {
         return ClauseLanguageClass::Unchecked;
@@ -287,7 +283,7 @@ pub fn extract_clauses(raw: &str, ctx: &SemanticContext) -> ClausesOutcome {
             ));
             continue;
         }
-        match clause_language_class(&fence.language, &ctx.module.semantic_core) {
+        match clause_language_class(&fence.language) {
             ClauseLanguageClass::Missing => {
                 diagnostics.push(err(
                     "semantic.clause-language-missing",
@@ -335,12 +331,7 @@ pub fn extract_clauses(raw: &str, ctx: &SemanticContext) -> ClausesOutcome {
             format!("no source identity supplied; spans carry {identity}"),
         ));
     }
-    validate_decls(
-        &clauses,
-        "ClauseRef",
-        &ctx.module.semantic_core,
-        &mut diagnostics,
-    );
+    validate_decls(&clauses, "ClauseRef", &mut diagnostics);
     if diagnostics.iter().any(SemanticDiagnostic::is_error) {
         let loci: Vec<String> = diagnostics
             .iter()
@@ -624,12 +615,7 @@ pub fn extract_operations(
             post,
         });
     }
-    validate_decls(
-        &operations,
-        "OperationDecl",
-        &ctx.module.semantic_core,
-        &mut diagnostics,
-    );
+    validate_decls(&operations, "OperationDecl", &mut diagnostics);
     if diagnostics.iter().any(SemanticDiagnostic::is_error) {
         let loci: Vec<String> = diagnostics
             .iter()
@@ -797,20 +783,12 @@ fn resolve_refs(
 fn validate_decls<T: Serialize>(
     items: &[T],
     model: &str,
-    semantic_core: &str,
     diagnostics: &mut Vec<SemanticDiagnostic>,
 ) {
     if items.is_empty() {
         return;
     }
-    let Some(validator) = model_validator(model, semantic_core) else {
-        diagnostics.push(err(
-            "semantic.unsupported-semantic-core",
-            0,
-            format!("no embedded semantic-core {semantic_core} bundle to validate {model} against"),
-        ));
-        return;
-    };
+    let validator = model_validator(model);
     for item in items {
         let value = serde_json::to_value(item).unwrap_or(Value::Null);
         if !validator.is_valid(&value) {
@@ -823,7 +801,8 @@ fn validate_decls<T: Serialize>(
     }
 }
 
-fn model_validator(model: &str, semantic_core: &str) -> Option<JSONSchema> {
+fn model_validator(model: &str) -> JSONSchema {
+    let semantic_core = super::embedded::embedded_semantic_core_version();
     let schema = json!({
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "$id": format!("https://schemas.agent-ix.org/agent-ix/quire-rs/{semantic_core}/{model}Gate.json"),
@@ -832,8 +811,7 @@ fn model_validator(model: &str, semantic_core: &str) -> Option<JSONSchema> {
     compile_module_schema(
         &schema,
         &|_| None,
-        semantic_core,
         "https://schemas.agent-ix.org/agent-ix/quire-rs/",
     )
-    .ok()
+    .expect("the embedded semantic-core model schemas compile")
 }

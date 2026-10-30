@@ -5,11 +5,10 @@
   "description": "Hand-authored. One record per object artifact under a module with a `semantic` block: FieldDecl[], ClauseRef[] with verbatim clauseText, OperationDecl[], RelationDecl[] with relationSources, per-kind availability, ordered diagnostics with loci.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["formatVersion", "contractVersion", "semanticCore", "package", "availability", "diagnostics"],
+  "required": ["formatVersion", "contractVersion", "package", "availability", "diagnostics"],
   "properties": {
     "formatVersion": { "const": 1 },
     "contractVersion": { "const": "1.0.0" },
-    "semanticCore": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
     "package": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*/[a-z0-9][a-z0-9._-]*$" },
     "fields": { "type": "array", "items": { "$ref": "#/$defs/fieldDecl" } },
     "fieldsForm": { "enum": ["table", "fence"] },
