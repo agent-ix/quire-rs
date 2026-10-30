@@ -289,20 +289,17 @@ sanitize:
 BENCH_MODULE ?= ../spec-artifacts-process/spec_artifacts_process
 .PHONY: bench
 bench:
-	test -n "$(VERIFICATION_STACK)" || { echo "VERIFICATION_STACK= is required"; exit 1; }
-	$(CARGO) run --locked -p quire-bench --bin quire-bench -- --module "$(BENCH_MODULE)" --verification-stack "$(VERIFICATION_STACK)"
+	$(CARGO) run --locked -p quire-bench --bin quire-bench -- --module "$(BENCH_MODULE)"
 
 # Deliberate regeneration. The diff belongs in the pull request.
 .PHONY: bench-update
 bench-update:
-	test -n "$(VERIFICATION_STACK)" || { echo "VERIFICATION_STACK= is required"; exit 1; }
-	$(CARGO) run --locked -p quire-bench --bin quire-bench -- --update --module "$(BENCH_MODULE)" --verification-stack "$(VERIFICATION_STACK)"
+	$(CARGO) run --locked -p quire-bench --bin quire-bench -- --update --module "$(BENCH_MODULE)"
 
 .PHONY: measurement-collection
 measurement-collection:
 	test -n "$(OUTPUT)" || { echo "OUTPUT= is required"; exit 1; }
-	test -n "$(VERIFICATION_STACK)" || { echo "VERIFICATION_STACK= is required"; exit 1; }
-	$(CARGO) run --locked -p quire-bench --bin quire-measurements -- --consumer "$(QUIRE_CLI)" --module "$(BENCH_MODULE)" --output "$(OUTPUT)" --verification-stack "$(VERIFICATION_STACK)"
+	$(CARGO) run --locked -p quire-bench --bin quire-measurements -- --consumer "$(QUIRE_CLI)" --module "$(BENCH_MODULE)" --output "$(OUTPUT)"
 
 .PHONY: coverage-baseline-update
 coverage-baseline-update:

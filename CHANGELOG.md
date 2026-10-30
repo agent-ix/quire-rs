@@ -10,7 +10,8 @@ bumps; once 1.0 ships, semver is strict.
 ### Removed
 
 - quire-bench verification-stack `lockDigest`, `executableDigest` and `artifacts` digests, the built-executable digest check, and the tool's `sha2` dependency.
-- Recorded `statement_hash`, `configDigest`, `corpusRevision` and verification-stack digest values in `spec/evidence/measurements/*.json`.
+- The whole quire-bench verification-stack attestation: `--verification-stack` / `VERIFICATION_STACK`, recorded source revisions, remotes and toolchain versions, the attested-revision, remote and toolchain checks (`require_clean` still refuses a dirty tree), the manifest `source_name`, and the `sourceRevision` / `verificationStack` fields of the measurement collection.
+- Recorded `statement_hash`, `configDigest`, `corpusRevision`, `sourceRevision` and `verificationStack` values in `spec/evidence/measurements/*.json`.
 
 ## [0.50.3] — 2026-10-16
 

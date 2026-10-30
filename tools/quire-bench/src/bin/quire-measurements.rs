@@ -13,7 +13,6 @@ struct Options {
     consumer: PathBuf,
     module: Option<PathBuf>,
     output: PathBuf,
-    verification_stack: PathBuf,
 }
 
 fn options() -> Result<Options, BenchError> {
@@ -21,7 +20,6 @@ fn options() -> Result<Options, BenchError> {
     let mut consumer = PathBuf::from("../quire-cli");
     let mut module = None;
     let mut output = None;
-    let mut verification_stack = None;
     while let Some(argument) = args.next() {
         match argument.as_str() {
             "--consumer" => {
@@ -45,13 +43,8 @@ fn options() -> Result<Options, BenchError> {
                     BenchError::Input("--output requires a path".to_owned())
                 })?));
             }
-            "--verification-stack" => {
-                verification_stack = Some(PathBuf::from(args.next().ok_or_else(|| {
-                    BenchError::Input("--verification-stack requires a path".to_owned())
-                })?));
-            }
             "-h" | "--help" => {
-                println!("usage: quire-measurements [--consumer DIR] [--module DIR] --output PATH --verification-stack PATH");
+                println!("usage: quire-measurements [--consumer DIR] [--module DIR] --output PATH");
                 std::process::exit(0);
             }
             _ => return Err(BenchError::Input(format!("unknown argument {argument}"))),
@@ -61,8 +54,6 @@ fn options() -> Result<Options, BenchError> {
         consumer,
         module,
         output: output.ok_or_else(|| BenchError::Input("--output is required".to_owned()))?,
-        verification_stack: verification_stack
-            .ok_or_else(|| BenchError::Input("--verification-stack is required".to_owned()))?,
     })
 }
 
@@ -83,14 +74,7 @@ fn run() -> Result<(), BenchError> {
             source,
         })?;
     let output = within_root(&root, &options.output);
-    let stack = within_root(&root, &options.verification_stack);
-    let collection = export(
-        &root,
-        &manifest,
-        &consumer,
-        options.module.as_deref(),
-        &stack,
-    )?;
+    let collection = export(&root, &manifest, &consumer, options.module.as_deref())?;
     let mut bytes = serde_json::to_vec_pretty(&collection).map_err(|source| BenchError::Json {
         context: "encoding measurement collection".to_owned(),
         source,

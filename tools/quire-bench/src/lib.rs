@@ -102,8 +102,6 @@ pub struct ModuleSource {
 pub struct CorpusEntry {
     #[serde(rename = "$comment")]
     _comment: Option<String>,
-    /// Attestation source name, when different from the corpus name.
-    pub source_name: Option<String>,
     #[serde(default, rename = "tier")]
     _tier: Option<u64>,
     /// Reported corpus name.
