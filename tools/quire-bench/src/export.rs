@@ -7,7 +7,6 @@ use std::process::Command;
 
 use serde::{Deserialize, Serialize};
 use serde_json::{Number, Value};
-use sha2::{Digest, Sha256};
 use time::OffsetDateTime;
 
 use crate::collection::{read_json, Collection, RawEvidence};
@@ -44,18 +43,12 @@ pub struct Toolchains {
 pub struct VerificationStack {
     /// Attestation schema identifier.
     pub schema_version: String,
-    /// Digest of the dependency lock.
-    pub lock_digest: String,
-    /// Digest of the engine executable.
-    pub executable_digest: String,
     /// Required Cargo profile.
     pub build_profile: String,
     /// Repository revisions.
     pub sources: BTreeMap<String, SourceAttestation>,
     /// Sorted engine capability tokens.
     pub capabilities: Vec<String>,
-    /// Digests of dependent artifacts.
-    pub artifacts: BTreeMap<String, String>,
     /// Toolchain versions.
     pub toolchains: Toolchains,
 }
@@ -154,15 +147,6 @@ fn is_full_sha(value: &str) -> bool {
             .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
 }
 
-fn is_sha256(value: &str) -> bool {
-    value.strip_prefix("sha256:").is_some_and(|hex| {
-        hex.len() == 64
-            && hex
-                .bytes()
-                .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
-    })
-}
-
 /// Normalize GitHub SSH and HTTPS origin spellings before comparison.
 pub fn normalized_remote(value: &str) -> String {
     let value = value.trim();
@@ -209,16 +193,6 @@ pub fn load_verification_stack(
             "verification-stack attestation has unsupported schemaVersion".to_owned(),
         ));
     }
-    for (name, digest) in [
-        ("lockDigest", &stack.lock_digest),
-        ("executableDigest", &stack.executable_digest),
-    ] {
-        if !is_sha256(digest) {
-            return Err(BenchError::Input(format!(
-                "verification-stack {name} is not a full sha256 digest"
-            )));
-        }
-    }
     if stack.build_profile != "release" {
         return Err(BenchError::Input(
             "verification-stack buildProfile must be release".to_owned(),
@@ -254,18 +228,6 @@ pub fn load_verification_stack(
         return Err(BenchError::Input(
             "verification-stack capabilities must be non-empty, unique, and sorted".to_owned(),
         ));
-    }
-    if stack.artifacts.is_empty() {
-        return Err(BenchError::Input(
-            "verification-stack artifacts must be a non-empty object".to_owned(),
-        ));
-    }
-    for (name, digest) in &stack.artifacts {
-        if !is_sha256(digest) {
-            return Err(BenchError::Input(format!(
-                "verification-stack artifact {name} is not a full sha256 digest"
-            )));
-        }
     }
     if [
         &stack.toolchains.node,
@@ -445,25 +407,6 @@ pub fn validate_toolchains(stack: &VerificationStack) -> Result<(), BenchError> 
     Ok(())
 }
 
-/// Refuse a binary whose digest differs from the attestation.
-pub fn validate_executable_digest(
-    executable: &Path,
-    stack: &VerificationStack,
-) -> Result<(), BenchError> {
-    let bytes = fs::read(executable).map_err(|source| BenchError::Io {
-        context: format!("reading {}", executable.display()),
-        source,
-    })?;
-    let observed = format!("sha256:{:x}", Sha256::digest(bytes));
-    if observed != stack.executable_digest {
-        return Err(BenchError::Input(format!(
-            "built executable digest does not match attestation: expected {}, observed {observed}",
-            stack.executable_digest
-        )));
-    }
-    Ok(())
-}
-
 #[derive(Deserialize)]
 struct PlanFrontmatter {
     id: String,
@@ -624,7 +567,6 @@ pub fn export(
     validate_repository_against_stack(consumer, &stack, "quire-cli", &[])?;
     validate_corpus_sources(root, manifest, &stack)?;
     let quire = build_engine(consumer, true)?;
-    validate_executable_digest(&quire, &stack)?;
     let measurements = crate::collection::collect(root, manifest, &quire, module, true)?;
     build_collection(
         root,

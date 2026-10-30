@@ -189,12 +189,9 @@ fn attested(root: &Path) -> quire_bench::export::VerificationStack {
     }
     serde_json::from_value(json!({
         "schemaVersion": "verification-stack-attestation-v1",
-        "lockDigest": format!("sha256:{}", "1".repeat(64)),
-        "executableDigest": format!("sha256:{}", "2".repeat(64)),
         "buildProfile": "release",
         "sources": sources,
         "capabilities": ["binding_census"],
-        "artifacts": {"fixture": format!("sha256:{}", "3".repeat(64))},
         "toolchains": {"node": "fixture", "rust": "fixture", "python": "fixture"}
     }))
     .unwrap()

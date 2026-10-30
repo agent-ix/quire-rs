@@ -7,6 +7,11 @@ bumps; once 1.0 ships, semver is strict.
 
 ## [Unreleased]
 
+### Removed
+
+- quire-bench verification-stack `lockDigest`, `executableDigest` and `artifacts` digests, the built-executable digest check, and the tool's `sha2` dependency.
+- Recorded `statement_hash`, `configDigest`, `corpusRevision` and verification-stack digest values in `spec/evidence/measurements/*.json`.
+
 ## [0.50.3] — 2026-10-16
 
 Patch release for optional module-declared coverage targets.

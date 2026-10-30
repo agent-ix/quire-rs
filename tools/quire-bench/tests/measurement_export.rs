@@ -6,8 +6,7 @@ use std::process::Command;
 use ix_trace_rs::trace;
 use quire_bench::collection::{collect, Collection, RawEvidence};
 use quire_bench::export::{
-    build_collection, load_verification_stack, validate_executable_digest,
-    validate_repository_against_stack, VerificationStack,
+    build_collection, load_verification_stack, validate_repository_against_stack, VerificationStack,
 };
 use quire_bench::{Manifest, Observed};
 use serde_json::{json, Number};
@@ -15,8 +14,6 @@ use serde_json::{json, Number};
 fn attestation(revision: &str) -> VerificationStack {
     serde_json::from_value(json!({
         "schemaVersion": "verification-stack-attestation-v1",
-        "lockDigest": format!("sha256:{}", "1".repeat(64)),
-        "executableDigest": format!("sha256:{}", "2".repeat(64)),
         "buildProfile": "release",
         "sources": {
             "quire": {
@@ -26,7 +23,6 @@ fn attestation(revision: &str) -> VerificationStack {
             }
         },
         "capabilities": ["binding_census", "metrics_envelope"],
-        "artifacts": {"fixture": format!("sha256:{}", "3".repeat(64))},
         "toolchains": {"node": "fixture", "rust": "fixture", "python": "fixture"}
     }))
     .unwrap()
@@ -105,8 +101,6 @@ fn attestation_refuses_drift_and_accepts_equivalent_remote() {
     load_verification_stack(&path, "quire", "git@github.com:agent-ix/quire-rs.git").unwrap();
 
     for (field, invalid) in [
-        ("lockDigest", json!("sha256:short")),
-        ("executableDigest", json!("sha256:short")),
         ("buildProfile", json!("debug")),
         ("capabilities", json!(["z", "a"])),
     ] {
@@ -179,23 +173,6 @@ fn repository_overlay_accepts_only_linear_evidence() {
     .unwrap_err()
     .to_string()
     .contains("dirty"));
-}
-
-#[trace("FR-050-AC-30")]
-#[test]
-fn executable_digest_must_match_attested_bytes() {
-    let temp = tempfile::tempdir().unwrap();
-    let executable = temp.path().join("quire");
-    fs::write(&executable, b"exact binary").unwrap();
-    let mut stack = attestation(&"a".repeat(40));
-    stack.executable_digest =
-        "sha256:7114c4c32522538b1352b66138c8fc381214b71bb15e26679e76cba1fd47c0e4".to_owned();
-    validate_executable_digest(&executable, &stack).unwrap();
-    fs::write(&executable, b"drifted binary").unwrap();
-    assert!(validate_executable_digest(&executable, &stack)
-        .unwrap_err()
-        .to_string()
-        .contains("digest does not match"));
 }
 
 #[trace("FR-050-AC-30")]
