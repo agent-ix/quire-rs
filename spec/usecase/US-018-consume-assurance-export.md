@@ -11,7 +11,7 @@ relationships:
 
 ## Story
 
-**As an** assurance reviewer comparing evidence across repositories
+**As an** assurance reviewer comparing evidence
 **I want** one validated export of Quire's artifacts, obligations, source bindings, and relationships
 **So that** I can audit the evidence chain without re-parsing the specification or guessing what absent data means.
 

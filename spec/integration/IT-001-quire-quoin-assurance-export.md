@@ -47,8 +47,7 @@ vendored `assurance-v1.schema.json` contract; no network service participates.
    - IT-001-SC-02: every artifact, obligation, symbol, and relationship is
      accepted exactly once.
 3. Resolve every source locator against the fixture repository.
-   - IT-001-SC-03: every path and line resolves without reading the
-     working tree.
+   - IT-001-SC-03: every path and line resolves.
 4. Render Quoin's assurance case from the imported graph and its existing
    auditor verdicts.
    - IT-001-SC-04: the rendered parent-child relationships equal the Quire

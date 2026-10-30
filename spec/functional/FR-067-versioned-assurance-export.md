@@ -86,7 +86,7 @@ records until both stages succeed.
 | ID | Constraint | Type | Validation |
 |----|------------|------|------------|
 | FR-067-CON-1 | Maintainers SHALL hand-author the assurance schema; an implementation-derived schema generator is prohibited from defining the contract. | Architecture | Test |
-| FR-067-CON-2 | Export construction SHALL perform no Git command, network read, persistence, or cross-corpus resolution. The envelope carries no source repository identity or revision. | Architecture | Inspection |
+| FR-067-CON-2 | Export construction SHALL perform no Git command, network read, persistence, or cross-corpus resolution. | Architecture | Inspection |
 | FR-067-CON-4 | The explicit assurance `format_version` SHALL NOT be added to coverage-v1 or properties-v1. Those payloads retain FR-055's artifact-only versioning contract. | Compatibility | Test |
 | FR-067-CON-5 | The assurance schema SHALL set `additionalProperties: false` on every object. | Architecture | Test |
 
