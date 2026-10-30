@@ -1,5 +1,5 @@
 {
-  "collectionId": "quire-bench-20260829161134554-497b1a1e6591",
+  "collectionId": "quire-bench-20260829161134554",
   "environment": {
     "consumer": "/tmp/quoin-phase3-export.enbsUp/quire-cli",
     "module": "per-manifest with default ../spec-artifacts-process/spec_artifacts_process"
@@ -15,8 +15,7 @@
       "population": {
         "complete": true,
         "identity": {
-          "corpus": "filament-ide-rs",
-          "source": "546e7943ee5a8fe552242cbb19d12aa902536652"
+          "corpus": "filament-ide-rs"
         }
       },
       "shape": "ratio",
@@ -34,8 +33,7 @@
       "population": {
         "complete": true,
         "identity": {
-          "corpus": "filament-ide-rs",
-          "source": "546e7943ee5a8fe552242cbb19d12aa902536652"
+          "corpus": "filament-ide-rs"
         }
       },
       "shape": "ratio",
@@ -53,8 +51,7 @@
       "population": {
         "complete": true,
         "identity": {
-          "corpus": "filament-ide-rs",
-          "source": "546e7943ee5a8fe552242cbb19d12aa902536652"
+          "corpus": "filament-ide-rs"
         }
       },
       "shape": "ratio",
@@ -72,8 +69,7 @@
       "population": {
         "complete": true,
         "identity": {
-          "corpus": "filament-ide-rs",
-          "source": "546e7943ee5a8fe552242cbb19d12aa902536652"
+          "corpus": "filament-ide-rs"
         }
       },
       "shape": "count",
@@ -91,8 +87,7 @@
       "population": {
         "complete": true,
         "identity": {
-          "corpus": "filament-ide-rs",
-          "source": "546e7943ee5a8fe552242cbb19d12aa902536652"
+          "corpus": "filament-ide-rs"
         }
       },
       "shape": "count",
@@ -110,8 +105,7 @@
       "population": {
         "complete": true,
         "identity": {
-          "corpus": "filament-ide-rs",
-          "source": "546e7943ee5a8fe552242cbb19d12aa902536652"
+          "corpus": "filament-ide-rs"
         }
       },
       "shape": "count",
@@ -129,8 +123,7 @@
       "population": {
         "complete": true,
         "identity": {
-          "corpus": "filament-ide-rs",
-          "source": "546e7943ee5a8fe552242cbb19d12aa902536652"
+          "corpus": "filament-ide-rs"
         }
       },
       "shape": "ratio",
@@ -148,8 +141,7 @@
       "population": {
         "complete": true,
         "identity": {
-          "corpus": "quoin",
-          "source": "090f731ceb21f88a48136a363444b1a6a2bb62cf"
+          "corpus": "quoin"
         }
       },
       "shape": "count",
@@ -167,8 +159,7 @@
       "population": {
         "complete": true,
         "identity": {
-          "corpus": "quoin",
-          "source": "090f731ceb21f88a48136a363444b1a6a2bb62cf"
+          "corpus": "quoin"
         }
       },
       "shape": "ratio",
@@ -319,8 +310,7 @@
       "population": {
         "complete": true,
         "identity": {
-          "corpus": "spec-artifacts-process",
-          "source": "61a20e010d5e758f52864ad3152ccdb304a39d27"
+          "corpus": "spec-artifacts-process"
         }
       },
       "shape": "count",
@@ -338,8 +328,7 @@
       "population": {
         "complete": true,
         "identity": {
-          "corpus": "spec-artifacts-process",
-          "source": "61a20e010d5e758f52864ad3152ccdb304a39d27"
+          "corpus": "spec-artifacts-process"
         }
       },
       "shape": "ratio",
@@ -369,7 +358,6 @@
   ],
   "rawEvidence": {
     "filament-ide-rs": {
-      "identity": "546e7943ee5a8fe552242cbb19d12aa902536652",
       "module": "/tmp/quoin-phase3-export.enbsUp/spec-artifacts-process/spec_artifacts_process",
       "payload": {
         "binding_census": [
@@ -2166,8 +2154,7 @@
             "suspicions",
             "unmatched_tags"
           ],
-          "cli": "0.30.2",
-          "engine": "ca7362d4dacecb96f01d74d1d971327118c25917"
+          "cli": "0.30.2"
         },
         "groups": [
           {
@@ -57150,7 +57137,6 @@
       }
     },
     "quoin": {
-      "identity": "090f731ceb21f88a48136a363444b1a6a2bb62cf",
       "module": "/tmp/quoin-phase3-export.enbsUp/spec-artifacts-process/spec_artifacts_process",
       "payload": {
         "binding_census": [
@@ -57591,8 +57577,7 @@
             "suspicions",
             "unmatched_tags"
           ],
-          "cli": "0.30.2",
-          "engine": "ca7362d4dacecb96f01d74d1d971327118c25917"
+          "cli": "0.30.2"
         },
         "groups": [
           {
@@ -71814,8 +71799,7 @@
             "suspicions",
             "unmatched_tags"
           ],
-          "cli": "0.30.2",
-          "engine": "ca7362d4dacecb96f01d74d1d971327118c25917"
+          "cli": "0.30.2"
         },
         "excluded_source_files": 6,
         "groups": [
@@ -97571,7 +97555,6 @@
       }
     },
     "spec-artifacts-process": {
-      "identity": "61a20e010d5e758f52864ad3152ccdb304a39d27",
       "module": "/tmp/quoin-phase3-export.enbsUp/spec-artifacts-process/spec_artifacts_process",
       "payload": {
         "binding_census": [
@@ -97702,8 +97685,7 @@
             "suspicions",
             "unmatched_tags"
           ],
-          "cli": "0.30.2",
-          "engine": "ca7362d4dacecb96f01d74d1d971327118c25917"
+          "cli": "0.30.2"
         },
         "groups": [
           {
@@ -100000,8 +99982,7 @@
             "suspicions",
             "unmatched_tags"
           ],
-          "cli": "0.30.2",
-          "engine": "ca7362d4dacecb96f01d74d1d971327118c25917"
+          "cli": "0.30.2"
         },
         "groups": [
           {
@@ -100320,5 +100301,5 @@
   },
   "subject": "Quire engine benchmark",
   "timestamp": "2026-08-29T16:11:34.554Z",
-  "toolIdentity": "quire-rs scripts/bench.py"
+  "toolIdentity": "quire-rs tools/quire-bench"
 }
