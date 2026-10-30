@@ -477,7 +477,7 @@ pub struct ObligationSource {
     /// Scope-relative globs whose matching documents state no obligations.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub exclude: Vec<String>,
-    /// Column carrying the normative statement — the text that is hashed.
+    /// Column carrying the normative statement.
     pub statement_column: String,
     /// Column carrying the declared verification method. A trailing
     /// parenthetical annotation is dropped, so a `Verification` cell reading

@@ -105,7 +105,7 @@ Final:                           full CI + review gates
 
 | Task | Track | Owns (references) | Verified by (verifies) | Status |
 | --- | --- | --- | --- | --- |
-| Task-011 | A | FR-067 | TC-1084, TC-1087, TC-1089 | completed |
+| Task-011 | A | FR-067 | TC-1084, TC-1087 | completed |
 | Task-012 | A | FR-067, NFR-006 | TC-1085, TC-1086, TC-1088 | completed |
 | Task-013 | A | FR-068, StR-007 | TC-1091..TC-1098 | completed |
 | Task-014 | B | FR-067, FR-068, IT-001 | TC-1090, TC-1099 | completed |
