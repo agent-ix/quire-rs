@@ -29,7 +29,7 @@ Construct source and active-module/schema premises from a loaded Registry, faili
 
 - [x] Write red tests for every invalid premise and deterministic ordering case.
 - [x] Expose only the minimal read-only Registry access needed for active archetypes.
-- [x] Canonicalize schema JSON and compute semantic SHA-256 digests.
+- [x] Project active archetypes into the sorted, duplicate-free schema premise inventory.
 - [x] Prove byte identity.
 
 ## Deliverables
