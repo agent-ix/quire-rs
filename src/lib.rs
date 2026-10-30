@@ -49,7 +49,7 @@ pub mod writeback;
 // Parser surface (FR-005..009).
 pub use assurance::{
     build_assurance_export, read_assurance_export, AcceptedAssurancePremises, AssuranceError,
-    AssuranceExport, AssuranceInput, AssuranceSource,
+    AssuranceExport, AssuranceInput,
 };
 pub use ast::{QuireDocument, QuireSection};
 pub use clauses::{

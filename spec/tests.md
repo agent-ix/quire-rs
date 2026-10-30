@@ -120,7 +120,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 
 | Integration Req | Target Boundary | Test Cases | Coverage Status |
 |-----------------|-----------------|------------|-----------------|
-| IT-001 Quoin consumes pinned Quire export | Quire producer → versioned JSON/schema → Quoin consumer | TC-1084, TC-1087, TC-1088, TC-1091..TC-1099 | ⚠️ Producer schema/fixture complete; Quoin consumer downstream |
+| IT-001 Quoin consumes Quire export | Quire producer → versioned JSON/schema → Quoin consumer | TC-1084, TC-1087, TC-1088, TC-1091..TC-1099 | ⚠️ Producer schema/fixture complete; Quoin consumer downstream |
 
 ### Non-Functional Requirement Coverage
 
@@ -779,13 +779,13 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 | TC-1081 | A trace id quoted inside legacy prose remains visible to the shared binder/detector matcher, while the same prose with a redacted non-id stays silent. The retained #355 calibration treats this as an advisory precision cost and does not introduce a caller-specific mask. | Unit | P0 | FR-051-AC-22 | ✅ |
 | TC-1083 | Three Rust tests whose comments bind while their `tc_NNN` names match no declared name form retain aggregate 3/3 binding but report the self-named subpopulation as 0/3, with located `marker-form-mismatch` and named `hollow-denominator`; the census retains one deterministic example (#367) | Integration | P0 | FR-050-AC-44 | ✅ |
 | TC-1084 | The hand-authored assurance-v1 schema compiles under JSON Schema 2020-12, carries the versioned `$id`, and accepts the complete v1 fixture | Unit | P0 | FR-067-AC-1 | ✅ |
-| TC-1085 | Export construction refuses each incomplete provenance premise independently — empty repository, moving or abbreviated revision, unnamed/unversioned module, archetype load failure, and a document outside the supplied corpus root — returning no partial value | Unit | P0 | FR-067-AC-2 | ✅ |
+| TC-1085 | Export construction refuses each incomplete provenance premise independently — unnamed/unversioned module, archetype load failure, and a document outside the supplied corpus root — returning no partial value | Unit | P0 | FR-067-AC-2 | ✅ |
 | TC-1086 | Two loaded modules with several archetypes export a sorted, duplicate-free module/version inventory | Unit | P0 | FR-067-AC-3 | ✅ |
 | TC-1087 | Import rejects an unknown format version and module version one at a time before exposing records, naming the exact failed premise | Unit | P0 | FR-067-AC-4, StR-007-VC-2 | ✅ |
-| TC-1088 | Identical inputs produce byte-identical exports; changing only the full source revision changes only that premise | Property | P0 | FR-067-AC-5 | ✅ |
+| TC-1088 | Identical inputs produce byte-identical exports | Property | P0 | FR-067-AC-5 | ✅ |
 | TC-1089 | Withdrawn. | — | — | — | — |
 | TC-1090 | Enabling assurance export leaves the coverage-v1 and properties-v1 byte goldens unchanged and adds no assurance version key to either payload | Integration | P0 | FR-067-AC-7, FR-067-CON-4, FR-055-AC-7 | ✅ |
-| TC-1091 | Every exported artifact id/type/UUID and source locator equals the loaded document; resolving its path and line at the pinned Git object locates the same record | Integration | P0 | FR-068-AC-1, StR-007-VC-1 | ✅ |
+| TC-1091 | Every exported artifact id/type/UUID and source locator equals the loaded document; resolving its path and line locates the same record | Integration | P0 | FR-068-AC-1, StR-007-VC-1 | ✅ |
 | TC-1092 | Obligation projection is field-for-field equal to FR-053 and its row locator selects the verbatim statement | Integration | P0 | FR-068-AC-2 | ✅ |
 | TC-1093 | Symbol projection preserves FR-051 identity, qualified name, language, kind, path, line and capabilities; same-named symbols in different paths or containers remain distinct | Integration | P0 | FR-068-AC-3 | ✅ |
 | TC-1094 | Exported corpus relations form a bijection with `Spec::edges()` including resolution state; the relation-kind catalog retains every module-declared, trace-binding and observed kind, including a supported kind with zero observed edges | Property | P0 | FR-068-AC-4 | ✅ |

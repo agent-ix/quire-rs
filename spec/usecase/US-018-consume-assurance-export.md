@@ -11,7 +11,7 @@ relationships:
 
 ## Story
 
-**As an** assurance reviewer comparing evidence across repository revisions
+**As an** assurance reviewer comparing evidence across repositories
 **I want** one validated export of Quire's artifacts, obligations, source bindings, and relationships
 **So that** I can audit the evidence chain without re-parsing the specification or guessing what absent data means.
 
@@ -27,9 +27,9 @@ boundary and leaves Quire's module-declared semantics intact.
 
 ### US-018-EX-1: A claim opens at its source
 
-- **Given** a validated export pinned to a repository revision
+- **Given** a validated export
 - **When** the reviewer follows an artifact or obligation source locator
-- **Then** the cited path and line at that revision locate the claim
+- **Then** the cited path and line locate the claim
 
 ### US-018-EX-2: An unsupported premise is refused
 

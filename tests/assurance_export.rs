@@ -18,12 +18,10 @@ use quire_rs::symbols::trace::{
 use quire_rs::symbols::{extract_tree, SymbolExtraction, SymbolKind};
 use quire_rs::{
     build_assurance_export, read_assurance_export, AcceptedAssurancePremises, AssuranceError,
-    AssuranceExport, AssuranceInput, AssuranceSource, Registry, Spec,
+    AssuranceExport, AssuranceInput, Registry, Spec,
 };
 use serde_json::Value;
 use tempfile::TempDir;
-
-const REVISION: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 
 fn write(root: &Path, relative: &str, contents: &str) {
     let path = root.join(relative);
@@ -156,10 +154,6 @@ impl Fixture {
             corpus_root: self._tmp.path().join("spec").as_path(),
             symbols: &self.symbols,
             symbol_graph: &self.graph,
-            source: AssuranceSource {
-                repository: "agent-ix/fixture".to_string(),
-                revision: REVISION.to_string(),
-            },
         })
     }
 }
@@ -195,37 +189,20 @@ fn tc1084_assurance_schema_compiles_and_accepts_the_complete_fixture() {
 #[test]
 fn tc1085_construction_refuses_incomplete_premises_atomically() {
     let fixture = Fixture::new();
-    let mut source = AssuranceSource {
-        repository: String::new(),
-        revision: REVISION.to_string(),
-    };
-    let build = |source: AssuranceSource, registry: &Registry| {
+    let build = |registry: &Registry| {
         build_assurance_export(AssuranceInput {
             spec: &fixture.spec,
             registry,
             corpus_root: fixture._tmp.path().join("spec").as_path(),
             symbols: &fixture.symbols,
             symbol_graph: &fixture.graph,
-            source,
         })
     };
-    assert!(matches!(
-        build(source.clone(), &fixture.registry),
-        Err(AssuranceError::EmptyRepository)
-    ));
-    source.repository = "agent-ix/fixture".to_string();
-    source.revision = "main".to_string();
-    assert!(matches!(
-        build(source.clone(), &fixture.registry),
-        Err(AssuranceError::InvalidRevision { .. })
-    ));
-
     let unversioned =
         Registry::from_inline_parts(b"name: unversioned\nartifact_types: []\n", &BTreeMap::new())
             .expect("unversioned registry");
-    source.revision = REVISION.to_string();
     assert!(matches!(
-        build(source.clone(), &unversioned),
+        build(&unversioned),
         Err(AssuranceError::MissingModuleVersion { .. })
     ));
 
@@ -233,7 +210,7 @@ fn tc1085_construction_refuses_incomplete_premises_atomically() {
         Registry::from_inline_parts(b"version: 1.0.0\nartifact_types: []\n", &BTreeMap::new())
             .expect("unnamed tolerant registry");
     assert!(matches!(
-        build(source.clone(), &unnamed),
+        build(&unnamed),
         Err(AssuranceError::MissingModuleName { .. })
     ));
 
@@ -243,7 +220,7 @@ fn tc1085_construction_refuses_incomplete_premises_atomically() {
     )
     .expect("tolerant registry");
     assert!(matches!(
-        build(source, &missing),
+        build(&missing),
         Err(AssuranceError::ArchetypeLoadFailure { .. })
     ));
 
@@ -253,10 +230,6 @@ fn tc1085_construction_refuses_incomplete_premises_atomically() {
         corpus_root: fixture._tmp.path().join("different-root").as_path(),
         symbols: &fixture.symbols,
         symbol_graph: &fixture.graph,
-        source: AssuranceSource {
-            repository: "agent-ix/fixture".to_string(),
-            revision: REVISION.to_string(),
-        },
     });
     assert!(matches!(
         outside,
@@ -281,14 +254,6 @@ fn tc1086_tc1088_premises_and_bytes_are_deterministic() {
         .schemas
         .windows(2)
         .all(|pair| pair[0] < pair[1]));
-
-    let mut changed = first.clone();
-    changed.source.revision = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb".to_string();
-    let mut original_value = serde_json::to_value(&first).unwrap();
-    let mut changed_value = serde_json::to_value(&changed).unwrap();
-    original_value["source"]["revision"] = Value::Null;
-    changed_value["source"]["revision"] = Value::Null;
-    assert_eq!(original_value, changed_value);
 }
 
 #[trace("TC-1087", "FR-067-AC-4", "StR-007-VC-2")]

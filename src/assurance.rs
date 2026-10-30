@@ -22,13 +22,6 @@ use crate::traceability::RelationDirection;
 /// Published, hand-authored v1 contract.
 pub const ASSURANCE_V1_SCHEMA: &str = include_str!("../schemas/output/assurance-v1.schema.json");
 
-/// Caller-selected immutable repository identity.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct AssuranceSource {
-    pub repository: String,
-    pub revision: String,
-}
-
 /// One active archetype's semantic schema premise.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct AssuranceSchemaPremise {
@@ -178,7 +171,6 @@ pub struct AssuranceRelationObservation {
 pub struct AssuranceExport {
     pub format: String,
     pub format_version: u32,
-    pub source: AssuranceSource,
     pub modules: Vec<AssuranceModulePremise>,
     pub artifacts: Vec<AssuranceArtifact>,
     pub obligations: Vec<AssuranceObligation>,
@@ -220,17 +212,12 @@ pub struct AssuranceInput<'a> {
     pub corpus_root: &'a Path,
     pub symbols: &'a SymbolExtraction,
     pub symbol_graph: &'a SymbolGraph,
-    pub source: AssuranceSource,
 }
 
 /// Fail-closed error from export construction or import.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 #[non_exhaustive]
 pub enum AssuranceError {
-    #[error("assurance source repository is empty")]
-    EmptyRepository,
-    #[error("assurance source revision is not a full lowercase Git object id: {revision}")]
-    InvalidRevision { revision: String },
     #[error("loaded module has no authored name: {path}")]
     MissingModuleName { path: String },
     #[error("loaded module '{module}' has no declared version")]
@@ -275,7 +262,6 @@ pub enum AssuranceError {
 pub fn build_assurance_export(
     input: AssuranceInput<'_>,
 ) -> Result<AssuranceExport, AssuranceError> {
-    validate_source(&input.source)?;
     validate_registry(input.registry)?;
 
     let modules = module_premises(input.registry)?;
@@ -296,7 +282,6 @@ pub fn build_assurance_export(
     let export = AssuranceExport {
         format: "quire-assurance".to_string(),
         format_version: 1,
-        source: input.source,
         modules,
         artifacts,
         obligations,
@@ -346,23 +331,6 @@ pub fn read_assurance_export(
         })?;
     validate_accepted_premises(&export, accepted)?;
     Ok(export)
-}
-
-fn validate_source(source: &AssuranceSource) -> Result<(), AssuranceError> {
-    if source.repository.is_empty() {
-        return Err(AssuranceError::EmptyRepository);
-    }
-    let valid_revision = source.revision.len() == 40
-        && source
-            .revision
-            .bytes()
-            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte));
-    if !valid_revision {
-        return Err(AssuranceError::InvalidRevision {
-            revision: source.revision.clone(),
-        });
-    }
-    Ok(())
 }
 
 fn validate_registry(registry: &Registry) -> Result<(), AssuranceError> {

@@ -16,9 +16,8 @@ relationships:
 ## Stakeholder Need
 
 Assurance owners require that Quire shall supply every claim and relationship
-with the exact source revision and declared contract and module versions needed
-to resolve and interpret it, so an audit can compare revisions without
-reconstructing Quire's semantics from markdown.
+with the source location and declared contract and module versions needed
+to resolve and interpret it, without reconstructing Quire's semantics from markdown.
 
 ## Rationale
 
@@ -34,7 +33,7 @@ make that disagreement detectable at the boundary.
 
 | ID | Criteria | Validation |
 |----|----------|------------|
-| StR-007-VC-1 | Every exported artifact, obligation, evidence symbol, and relationship resolves to a source location at the export's pinned repository revision. | Demonstration |
+| StR-007-VC-1 | Every exported artifact, obligation, evidence symbol, and relationship resolves to a source location. | Demonstration |
 | StR-007-VC-2 | A consumer refuses an export whose contract version or module version it does not recognize. | Test |
 | StR-007-VC-3 | A consumer can distinguish a required relationship that is missing from one that is not applicable or could not be evaluated. | Test |
 | StR-007-VC-4 | Withdrawn. Fixture-tracking of the published v1 shape was ceremony; `assurance-v1` is edited in place. | — |
@@ -48,7 +47,7 @@ interpret.
 
 ## Context and Assumptions
 
-The source repository and module set are available at immutable revisions. The
+The source repository and module set are available. The
 consumer validates the export before using it. Quire remains the parser and
 bounded-corpus authority; the assurance consumer remains responsible for
 freshness and sufficiency verdicts.
@@ -61,5 +60,4 @@ workflow in [US-018](../usecase/US-018-consume-assurance-export.md).
 
 ## Priority and Risk (Informative)
 
-Priority is P1. If unmet, assurance tooling can silently audit a graph or source
-revision different from the one Quire read.
+Priority is P1. If unmet, assurance tooling can silently audit a graph different from the one Quire read.
