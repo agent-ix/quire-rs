@@ -471,6 +471,54 @@ impl SymbolGraph {
     }
 }
 
+/// Regexes declared by one traceability model, compiled once for its bind pass.
+#[derive(Debug, Default)]
+struct CompiledTracePatterns {
+    markers: BTreeMap<String, Option<Regex>>,
+    legacy: BTreeMap<String, Option<Regex>>,
+    implements: BTreeMap<String, Option<Regex>>,
+}
+
+impl CompiledTracePatterns {
+    fn new(model: &TraceabilityModel) -> Self {
+        let markers = model
+            .trace_tags
+            .markers
+            .iter()
+            .map(|marker| (marker.pattern.clone(), Regex::new(&marker.pattern).ok()))
+            .collect();
+        let legacy = model
+            .trace_tags
+            .legacy
+            .iter()
+            .map(|form| (form.pattern.clone(), Regex::new(&form.pattern).ok()))
+            .collect();
+        let implements = model
+            .trace_tags
+            .implements
+            .iter()
+            .map(|marker| (marker.pattern.clone(), Regex::new(&marker.pattern).ok()))
+            .collect();
+        Self {
+            markers,
+            legacy,
+            implements,
+        }
+    }
+
+    fn marker(&self, pattern: &str) -> Option<&Regex> {
+        self.markers.get(pattern)?.as_ref()
+    }
+
+    fn legacy(&self, pattern: &str) -> Option<&Regex> {
+        self.legacy.get(pattern)?.as_ref()
+    }
+
+    fn implements(&self, pattern: &str) -> Option<&Regex> {
+        self.implements.get(pattern)?.as_ref()
+    }
+}
+
 /// Bind `extraction` to trace ids per the module-declared grammar, and mint the
 /// `verifies` / `defined_in` / `contains` relations.
 ///
@@ -484,6 +532,7 @@ impl SymbolGraph {
 /// first. Tagging harder never helps, and a shell audit mints no symbol at all
 /// — `language_of` reads Rust, Python and TypeScript.
 pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolGraph {
+    let patterns = CompiledTracePatterns::new(model);
     let mut graph = SymbolGraph {
         excluded_source_files: extraction.excluded_source_files,
         ..SymbolGraph::default()
@@ -525,7 +574,7 @@ pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolG
             // is: `bind_implements` only appends, so the delta is exactly "did
             // this production symbol carry a marker".
             let before = graph.implements.len();
-            let implements_ranges = bind_implements(symbol, source, model, &mut graph);
+            let implements_ranges = bind_implements(symbol, source, model, &patterns, &mut graph);
             production_ranges.extend(
                 implements_ranges
                     .into_iter()
@@ -569,7 +618,8 @@ pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolG
                 // all, and that is exactly what #312 is about: a human wrote a
                 // comment naming a row, next to the wrong thing. All five
                 // seeded fixtures are that shape, in three languages.
-                let (production_forms, ranges) = verifies_form_ids(symbol, source, model);
+                let (production_forms, ranges) =
+                    verifies_form_ids(symbol, source, model, &patterns);
                 // A range written here binds nothing wherever it sits
                 // (FR-051-AC-28), so it is reported like any other; a LEGACY
                 // one is also the misplaced tag this detector exists for, and
@@ -626,16 +676,14 @@ pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolG
         });
         let before = graph.verifies.len();
         let ranges_before = graph.range_diagnostics.len();
-        bind_symbol(symbol, source, model, &mut graph);
+        bind_symbol(symbol, source, model, &patterns, &mut graph);
         let self_name_bound = self_named_trace_id(symbol).map(|trace_id| {
-            declared_name_form_ids(symbol, source, model)
+            declared_name_form_ids(symbol, source, model, &patterns)
                 .iter()
                 .any(|bound| normalized_trace_id(bound) == normalized_trace_id(&trace_id))
         });
-        let bound_on_symbol: BTreeSet<String> = graph
-            .verifies
+        let bound_on_symbol: BTreeSet<String> = graph.verifies[before..]
             .iter()
-            .filter(|relation| relation.symbol_id == symbol.id)
             .map(|relation| relation.trace_id.clone())
             .collect();
         // CR-187: a range's own endpoints must not resurface as generic
@@ -990,7 +1038,12 @@ fn self_named_trace_id(symbol: &Symbol) -> Option<String> {
 /// Ids a declared legacy form reads from the symbol's declaration line.
 /// Annotation/comment forms elsewhere in the attached span are intentionally
 /// excluded: they may bind the same id, but do not prove the name form works.
-fn declared_name_form_ids(symbol: &Symbol, source: &str, model: &TraceabilityModel) -> Vec<String> {
+fn declared_name_form_ids(
+    symbol: &Symbol,
+    source: &str,
+    model: &TraceabilityModel,
+    patterns: &CompiledTracePatterns,
+) -> Vec<String> {
     let Some(line) = source.lines().nth(symbol.line.saturating_sub(1)) else {
         return Vec::new();
     };
@@ -1002,7 +1055,7 @@ fn declared_name_form_ids(symbol: &Symbol, source: &str, model: &TraceabilityMod
         {
             continue;
         }
-        let Some(pattern) = compile(&legacy.pattern) else {
+        let Some(pattern) = patterns.legacy(&legacy.pattern) else {
             continue;
         };
         for captures in pattern.captures_iter(line) {
@@ -1104,6 +1157,7 @@ fn bind_implements(
     symbol: &Symbol,
     source: &str,
     model: &TraceabilityModel,
+    patterns: &CompiledTracePatterns,
     graph: &mut SymbolGraph,
 ) -> Vec<RangeInTraceTag> {
     let mut ranges = Vec::new();
@@ -1115,7 +1169,7 @@ fn bind_implements(
         if marker.language != symbol.language {
             continue;
         }
-        let Some(re) = compile(&marker.pattern) else {
+        let Some(re) = patterns.implements(&marker.pattern) else {
             continue;
         };
         for caps in re.captures_iter(&span) {
@@ -1545,6 +1599,7 @@ fn verifies_form_ids(
     symbol: &Symbol,
     source: &str,
     model: &TraceabilityModel,
+    patterns: &CompiledTracePatterns,
 ) -> (Vec<(String, String, TraceProvenance)>, Vec<FormRange>) {
     let span = symbol.attached_source(source);
     let mut out = Vec::new();
@@ -1562,7 +1617,7 @@ fn verifies_form_ids(
         if marker.language != symbol.language {
             continue;
         }
-        let Some(re) = compile(&marker.pattern) else {
+        let Some(re) = patterns.marker(&marker.pattern) else {
             continue;
         };
         for caps in re.captures_iter(&span) {
@@ -1592,11 +1647,11 @@ fn verifies_form_ids(
         if legacy.language.is_some_and(|l| l != symbol.language) {
             continue;
         }
-        let Some(re) = compile(&legacy.pattern) else {
+        let Some(re) = patterns.legacy(&legacy.pattern) else {
             continue;
         };
         for caps in re.captures_iter(&legacy_span) {
-            let read = read_legacy_match(&re, &caps, legacy.id_format.as_deref(), &legacy_span);
+            let read = read_legacy_match(re, &caps, legacy.id_format.as_deref(), &legacy_span);
             let start = caps.get(0).map_or(0, |m| m.start());
             let line = symbol.leading_line + legacy_span[..start].matches('\n').count();
             ranges.extend(read.ranges.into_iter().map(|range_text| {
@@ -1753,13 +1808,19 @@ fn range_continuation_pattern() -> &'static Regex {
     })
 }
 
-fn bind_symbol(symbol: &Symbol, source: &str, model: &TraceabilityModel, graph: &mut SymbolGraph) {
+fn bind_symbol(
+    symbol: &Symbol,
+    source: &str,
+    model: &TraceabilityModel,
+    patterns: &CompiledTracePatterns,
+    graph: &mut SymbolGraph,
+) {
     let span = symbol.attached_source(source);
     // Every attachment of a trace id to this symbol, in discovery order
     // (canonical markers first, then legacy forms). The id is bound once no
     // matter how many forms attached it (FR-051-AC-6).
     let mut attachments: BTreeMap<String, Vec<VerifiesRelation>> = BTreeMap::new();
-    let (forms, ranges) = verifies_form_ids(symbol, source, model);
+    let (forms, ranges) = verifies_form_ids(symbol, source, model, patterns);
     graph
         .range_diagnostics
         .extend(ranges.into_iter().map(|found| found.range));
@@ -1791,12 +1852,12 @@ fn bind_symbol(symbol: &Symbol, source: &str, model: &TraceabilityModel, graph: 
         if legacy.language.is_some_and(|l| l != symbol.language) {
             continue;
         }
-        let Some(re) = compile(&legacy.pattern) else {
+        let Some(re) = patterns.legacy(&legacy.pattern) else {
             continue;
         };
         for caps in re.captures_iter(&legacy_span) {
             let trace_ids =
-                read_legacy_match(&re, &caps, legacy.id_format.as_deref(), &legacy_span).ids;
+                read_legacy_match(re, &caps, legacy.id_format.as_deref(), &legacy_span).ids;
             if trace_ids.is_empty() {
                 continue;
             }
@@ -1910,13 +1971,6 @@ fn legacy_ids(caps: &regex::Captures<'_>, id_format: Option<&str>) -> Vec<String
             vec![out]
         }
     }
-}
-
-/// Compile a module-declared pattern. Patterns are validated at module load
-/// (FR-050-AC-2), so a failure here means the caller built a model in memory;
-/// binding skips the form rather than panicking.
-fn compile(pattern: &str) -> Option<Regex> {
-    Regex::new(pattern).ok()
 }
 
 fn re_quoted() -> &'static Regex {

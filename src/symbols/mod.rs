@@ -244,9 +244,9 @@ impl SymbolExtraction {
     /// The retained source of `path`, if the file was read.
     pub fn source_of(&self, path: &str) -> Option<&str> {
         self.files
-            .iter()
-            .find(|f| f.path == path)
-            .map(|f| f.source.as_str())
+            .binary_search_by(|file| file.path.as_str().cmp(path))
+            .ok()
+            .map(|index| self.files[index].source.as_str())
     }
 }
 
