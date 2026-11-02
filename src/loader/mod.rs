@@ -1344,7 +1344,10 @@ fn merge_traceability(modules: &[LoadedModule]) -> crate::traceability::Traceabi
                 .clone_from(&m.vocabularies.no_source_symbol);
         }
         if merged.vocabularies.retired.is_empty() {
-            merged.vocabularies.retired.clone_from(&m.vocabularies.retired);
+            merged
+                .vocabularies
+                .retired
+                .clone_from(&m.vocabularies.retired);
         }
     }
     merged

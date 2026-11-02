@@ -563,7 +563,9 @@ pub struct ColumnVocabularies {
 impl ColumnVocabularies {
     /// Whether a whole normalized verification-cell value declares retirement.
     pub fn is_retired(&self, value: &str) -> bool {
-        self.retired.iter().any(|declared| declared.trim() == value.trim())
+        self.retired
+            .iter()
+            .any(|declared| declared.trim() == value.trim())
     }
 
     /// True when `value` names a declared method that mints no source symbol.
@@ -1346,7 +1348,9 @@ impl TraceabilityModel {
 
         for value in &self.vocabularies.retired {
             if value.trim().is_empty() {
-                return Err("traceability: vocabularies.retired values must be nonblank".to_string());
+                return Err(
+                    "traceability: vocabularies.retired values must be nonblank".to_string()
+                );
             }
             if self.vocabularies.mints_no_symbol(value) {
                 return Err(format!(
