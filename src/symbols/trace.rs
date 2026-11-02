@@ -717,6 +717,14 @@ pub fn bind(extraction: &SymbolExtraction, model: &TraceabilityModel) -> SymbolG
         );
     }
 
+    // Appending is cheap in the symbol loop. Sort once after every symbol has
+    // been visited; sorting in `bind_symbol` would invalidate the per-symbol
+    // append range used above and, more importantly, sort the growing graph N
+    // times.
+    graph
+        .verifies
+        .sort_by(|a, b| (&a.path, &a.symbol, &a.trace_id).cmp(&(&b.path, &b.symbol, &b.trace_id)));
+
     // TWO FILTERS, and both are load-bearing — the corpus controls prove it.
     //
     // 1. AN ID THAT BOUND SOMEWHERE ELSE IS NOT AN ORPHAN. A container's
@@ -1922,9 +1930,6 @@ fn bind_symbol(
             graph.verifies.push(winner.clone());
         }
     }
-    graph
-        .verifies
-        .sort_by(|a, b| (&a.path, &a.symbol, &a.trace_id).cmp(&(&b.path, &b.symbol, &b.trace_id)));
 }
 
 /// The trace ids inside a marker's argument list. Quoted arguments are the

@@ -122,6 +122,8 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+      - name: Checkout corpus
+        run: git submodule update --init --recursive --depth 1
       - name: Install Rust toolchain
         shell: bash
         run: rustup show active-toolchain || rustup toolchain install
@@ -229,6 +231,8 @@ jobs:
       github.event_name == 'workflow_dispatch'
     steps:
       - uses: actions/checkout@v4
+      - name: Checkout corpus
+        run: git submodule update --init --recursive --depth 1
       - name: Install Rust toolchain
         shell: bash
         run: rustup show active-toolchain || rustup toolchain install
