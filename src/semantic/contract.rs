@@ -121,8 +121,16 @@ fn block_validator() -> JSONSchema {
     let mut block = schema["properties"]["semantic"].clone();
     // The embedded bundle is the only semantic-core there is, so a module
     // declares no version: an absent `semantic_core` is not a missing key.
+    // Keep accepting the string field emitted by existing 0.3.2/0.3.3 public
+    // modules. It is informational; the embedded bundle remains authoritative.
     if let Some(required) = block["required"].as_array_mut() {
         required.retain(|k| k != "semantic_core");
+    }
+    if let Some(properties) = block["properties"].as_object_mut() {
+        properties.insert(
+            "semantic_core".to_string(),
+            serde_json::json!({"type": "string"}),
+        );
     }
     JSONSchema::options()
         .compile(&block)
