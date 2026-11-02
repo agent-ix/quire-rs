@@ -3,7 +3,7 @@ id: SR-16291
 title: "Gap analysis — quire-rs repository audit"
 type: SpecReview
 analysis: gap-analysis
-scope: "spec/, src/, tests/, tools/"
+scope: "spec/, src/, tests/, tools/, .github/workflows/ci.yml"
 review_set: all
 relationships:
   - target: "ix://agent-ix/quire-rs/FR-069"
@@ -318,6 +318,7 @@ Repository-driven audit of the full quire-rs specification, source, and test tre
 | FND-294 | medium | 47 trace-tagged symbols are not bound to a declared criterion; inspect ownership and tag model | quire coverage untracked_symbols |
 | FND-295 | high | No run evidence is bound to 1015 criteria; matrix status reflects static traceability only | quoin matrix evidence_status |
 | FND-296 | medium | Coverage reports 399 unbacked functional-coverage rows | spec/tests.md |
+| FND-297 | medium | Perf Bench and License Check jobs omit the required corpus submodule checkout and fail before running their gates | .github/workflows/ci.yml:120, .github/workflows/ci.yml:229 |
 
 ## Coverage
 
