@@ -45,3 +45,16 @@ The bc59d73 test-only change aligns the consuming issue_ref guard with the qa-co
 ## Verdict
 
 NEEDS FIX: resolve both code findings in the same PR and retain actual final gate evidence.
+
+## Dispositions
+
+### Round 1 — head 303c357c3057dd297ad65c7f6f73926756fddec1
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | Direct sources now queue the physical declaring row retirement fact before the generated obligation ID is consumed. The new OBL-FR-001-1 versus FR-001-AC-1 regression requires retired matrix status and no Withdrawn warning. Target-bound sources retain their own-row ID check. |
+| FND-002 | fixed | The same validate_retirement invariant now runs on individual and composed models. A contradictory composed model is not exposed, manifest failures remain visible, and compute returns ModelUndeclared. Both module orders are exercised alongside a nonconflicting control computing a real retired row. |
+
+Source and public API regression assertions were inspected at the frozen fix head. Author receipts show coverage_rollup52, corpus_cases21, coverage_baseline2, coverage_matrix10 and output_contract11 passing with confined fmt/Clippy. This disposition did not run Cargo or claim the parent-owned hosted aggregate. The earlier b18/de973da wheel/binary cannot qualify the new fixes; parent will rebuild final artifacts.
+
+Round 1 verdict: PASS for both findings, with no new finding in these fixes. The three clean companion methods retain their prior outcomes.
