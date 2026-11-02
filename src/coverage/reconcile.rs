@@ -1,6 +1,6 @@
 //! Reconcile declared targets and references with the bound symbol graph.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::path::Path;
 
 use crate::corpus::declared_tables;
@@ -15,7 +15,7 @@ use super::binding_diagnostics::{
 };
 use super::{
     relative, CoverageDiagnostic, CoverageReport, CoverageTotals, GroupCounts, ImplementsRecord,
-    MintedTargetRecord, NoSymbolRow, SharedTraceId, SharedTraceSymbol, StatusLie, UnbackedRow,
+    MintedTargetRecord, NoSymbolRow, RetiredRow, SharedTraceId, SharedTraceSymbol, StatusLie, UnbackedRow,
     UndeclaredStatus, UntrackedSymbol, COVERAGE_DIAGNOSTIC_REASONS,
 };
 
@@ -82,6 +82,7 @@ pub(super) fn reconcile(
                 document: relative(root, &row.path),
                 line: row.line,
                 backed: backed.contains(id),
+                retired: false,
             });
         }
     }
@@ -89,20 +90,11 @@ pub(super) fn reconcile(
         (&a.target, &a.document, &a.id, a.line).cmp(&(&b.target, &b.document, &b.id, b.line))
     });
 
-    let mut counts: BTreeMap<(String, String), (usize, usize)> = BTreeMap::new();
-    for entry in &minted {
-        let slot = counts
-            .entry((entry.document.clone(), entry.target.clone()))
-            .or_insert((0, 0));
-        slot.1 += 1;
-        if entry.backed {
-            slot.0 += 1;
-        }
-    }
-
     // ── Reference rows: unbacked rows and status lies ──
     let mut unbacked_rows: Vec<UnbackedRow> = Vec::new();
     let mut status_lies: Vec<StatusLie> = Vec::new();
+    let mut retired_rows: Vec<RetiredRow> = Vec::new();
+    let mut retired_loci: BTreeSet<(String, usize, String)> = BTreeSet::new();
     let mut no_symbol_rows: Vec<NoSymbolRow> = Vec::new();
     let mut undeclared_statuses: Vec<UndeclaredStatus> = Vec::new();
     let mut referenced_ids: BTreeSet<String> = BTreeSet::new();
@@ -201,6 +193,31 @@ pub(super) fn reconcile(
                 }
             }
 
+            let retirement = row.cell(&declaration.column).and_then(|value| {
+                model.vocabularies.is_retired(cell).then_some((declaration.column.as_str(), value))
+            }).or_else(|| {
+                let status = model.status.as_ref()?;
+                let column = selected_status?.column();
+                let value = row.cell(column)?;
+                (status.class_of(value) == StatusClass::Retired).then_some((column, value))
+            });
+            if let Some((column, value)) = retirement {
+                if let Some(id) = &row_id {
+                    retired_loci.insert((document.clone(), row.line, id.clone()));
+                }
+                retired_rows.push(RetiredRow {
+                    reference: declaration.name.clone(),
+                    document,
+                    row_id,
+                    target_ids: answerable,
+                    line: row.line,
+                    column: column.to_string(),
+                    value: value.to_string(),
+                    cells: row.cells.clone(),
+                });
+                continue;
+            }
+
             if is_backed {
                 continue;
             }
@@ -283,18 +300,36 @@ pub(super) fn reconcile(
         })
         .collect();
 
+    let mut counts: BTreeMap<(String, String), (usize, usize, usize)> = BTreeMap::new();
+    for entry in &mut minted {
+        entry.retired = retired_loci.contains(&(entry.document.clone(), entry.line, entry.id.clone()));
+        let count = counts.entry((entry.document.clone(), entry.target.clone())).or_default();
+        if entry.retired {
+            count.2 += 1;
+        } else {
+            count.1 += 1;
+            count.0 += usize::from(entry.backed);
+        }
+    }
+    retired_rows.sort_by(|a, b| {
+        (&a.reference, &a.document, &a.row_id, a.line).cmp(&(&b.reference, &b.document, &b.row_id, b.line))
+    });
+    retired_rows.dedup();
+
     let groups: Vec<GroupCounts> = counts
         .into_iter()
-        .map(|((document, target), (backed, total))| GroupCounts {
+        .map(|((document, target), (backed, total, retired))| GroupCounts {
             document,
             target,
             backed,
             total,
+            retired,
         })
         .collect();
     let totals = CoverageTotals {
         backed: groups.iter().map(|g| g.backed).sum(),
         total: groups.iter().map(|g| g.total).sum(),
+        retired: groups.iter().map(|g| g.retired).sum(),
         ..CoverageTotals::default()
     };
 
@@ -504,11 +539,14 @@ pub(super) fn reconcile(
 
     // CR-187: the computed coverage_matrix, built from the obligation
     // population alone (FR-050-AC-47..49) — never the trace-target set.
-    let matrix = coverage_matrix(&obligations, graph, model);
+    let retired_obligations = retired_obligation_flags(spec, root, model, &obligations, &retired_loci);
+    let matrix = coverage_matrix(&obligations, graph, model, &retired_obligations);
+    diagnostics.extend(super::diagnostics::uncatalogued_methods(&obligations, registry, &retired_obligations));
 
     let report = CoverageReport {
         unbacked_rows,
         status_lies,
+        retired_rows,
         no_symbol_rows,
         undeclared_statuses,
         untracked_symbols,
@@ -575,6 +613,7 @@ fn coverage_matrix(
     obligations: &[crate::obligation::Obligation],
     graph: &SymbolGraph,
     model: &TraceabilityModel,
+    retired: &[bool],
 ) -> Vec<super::CoverageMatrixRequirement> {
     use super::{
         CoverageMatrixBinder, CoverageMatrixCriterion, CoverageMatrixRequirement,
@@ -611,7 +650,7 @@ fn coverage_matrix(
     // final `BTreeMap` sorts the groups themselves by `document`, without
     // disturbing the order criteria were pushed within each one.
     let mut by_document: BTreeMap<&str, Vec<CoverageMatrixCriterion>> = BTreeMap::new();
-    for obligation in obligations {
+    for (obligation, retired) in obligations.iter().zip(retired) {
         let mut binders: Vec<CoverageMatrixBinder> = binders_by_id
             .get(obligation.id.as_str())
             .map(|m| m.values().cloned().collect())
@@ -628,7 +667,9 @@ fn coverage_matrix(
 
         // FR-050-AC-49: the method exemption wins over every other case,
         // regardless of binder count.
-        let status = if obligation
+        let status = if *retired {
+            CoverageMatrixStatus::Retired
+        } else if obligation
             .method
             .as_deref()
             .is_some_and(|m| model.vocabularies.mints_no_symbol(m))
@@ -667,4 +708,50 @@ fn coverage_matrix(
             criteria,
         })
         .collect()
+}
+
+/// Join retirement to selected obligation rows without changing their population.
+fn retired_obligation_flags(
+    spec: &Spec,
+    root: &Path,
+    model: &TraceabilityModel,
+    obligations: &[crate::obligation::Obligation],
+    retired: &BTreeSet<(String, usize, String)>,
+) -> Vec<bool> {
+    if retired.is_empty() {
+        return vec![false; obligations.len()];
+    }
+    type RowIdentity = (String, String, String, String);
+    let mut rows: BTreeMap<RowIdentity, VecDeque<bool>> = BTreeMap::new();
+    let model_exclude = declared_tables::ExcludeSet::compile_validated(&model.exclude);
+    let mut ctx = declared_tables::ScanContext::default();
+    for source in &model.obligations {
+        if source.combinatorial.is_some() {
+            continue;
+        }
+        let Some(target) = source.target.as_ref().and_then(|name| model.trace_targets.iter().find(|target| &target.name == name)) else {
+            continue;
+        };
+        let exclude = declared_tables::ExcludeSet::compile_validated(&source.exclude);
+        for row in declared_tables::scan(spec, root, declared_tables::DeclaredScope {
+            name: &source.name,
+            archetype: &target.archetype,
+            exclude: &exclude,
+            model_exclude: &model_exclude,
+            mints: None,
+            status_column: None,
+            target_required: false,
+        }, &target.section, &mut ctx) {
+            let (Some(id), Some(statement)) = (row.cell(&target.id_column), row.cell(&source.statement_column)) else {
+                continue;
+            };
+            let document = relative(root, &row.path);
+            let is_retired = retired.contains(&(document.clone(), row.line, id.to_string()));
+            rows.entry((source.name.clone(), document, id.to_string(), statement.to_string())).or_default().push_back(is_retired);
+        }
+    }
+    obligations.iter().map(|obligation| {
+        rows.get_mut(&(obligation.source.clone(), obligation.document.clone(), obligation.id.clone(), obligation.statement.clone()))
+            .and_then(VecDeque::pop_front).unwrap_or(false)
+    }).collect()
 }

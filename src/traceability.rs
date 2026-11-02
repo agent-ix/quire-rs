@@ -561,6 +561,11 @@ pub struct ColumnVocabularies {
 }
 
 impl ColumnVocabularies {
+    /// Whether a whole normalized verification-cell value declares retirement.
+    pub fn is_retired(&self, value: &str) -> bool {
+        self.retired.iter().any(|declared| declared.trim() == value.trim())
+    }
+
     /// True when `value` names a declared method that mints no source symbol.
     /// Compared case-insensitively, as the column vocabularies are elsewhere.
     pub fn mints_no_symbol(&self, value: &str) -> bool {

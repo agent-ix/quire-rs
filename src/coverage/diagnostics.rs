@@ -227,6 +227,7 @@ pub(super) fn hollow_denominators(metrics: &[Metric]) -> Vec<CoverageDiagnostic>
 pub(super) fn uncatalogued_methods(
     obligations: &[crate::obligation::Obligation],
     registry: &Registry,
+    retired: &[bool],
 ) -> Vec<CoverageDiagnostic> {
     if registry.verification_catalog().is_none() {
         return Vec::new();
@@ -242,7 +243,10 @@ pub(super) fn uncatalogued_methods(
     // (source, method) -> (row count, first document). BTreeMap so the order is
     // a property of the data rather than of the walk (NFR-006).
     let mut unknown: BTreeMap<(&str, &str), (usize, &str)> = BTreeMap::new();
-    for obligation in obligations {
+    for (obligation, retired) in obligations.iter().zip(retired) {
+        if *retired {
+            continue;
+        }
         let Some(method) = obligation.method.as_deref() else {
             continue;
         };

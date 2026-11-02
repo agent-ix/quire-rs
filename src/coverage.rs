@@ -36,7 +36,7 @@ mod diagnostics;
 mod reconcile;
 
 use declarations::criteria_counts;
-use diagnostics::{catch_all_documents, hollow_denominators, uncatalogued_methods};
+use diagnostics::{catch_all_documents, hollow_denominators};
 use reconcile::reconcile;
 
 /// Why a coverage run produced no report.
@@ -70,6 +70,26 @@ pub struct UnbackedRow {
     /// a payload from an engine predating the field still deserializes.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub line: Option<usize>,
+}
+
+/// An explicitly retired declaration retained as historical identity.
+///
+/// The deciding authored value is module-classified; the complete parsed cells
+/// retain the original statement and withdrawal reason without interpreting them.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RetiredRow {
+    pub reference: String,
+    pub document: String,
+    pub row_id: Option<String>,
+    pub target_ids: Vec<String>,
+    /// 1-based authored row line.
+    pub line: usize,
+    /// Column whose value explicitly retires this row.
+    pub column: String,
+    /// Untruncated authored deciding value.
+    pub value: String,
+    /// All parsed authored cells, including the statement and retirement reason.
+    pub cells: BTreeMap<String, String>,
 }
 
 /// A row whose status classes as `complete` while nothing backs it
@@ -203,6 +223,9 @@ pub struct GroupCounts {
     pub target: String,
     pub backed: usize,
     pub total: usize,
+    /// Historical targets excluded from the live denominator.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub retired: usize,
 }
 
 /// One target row the active model minted, with the state needed to open and
@@ -214,6 +237,9 @@ pub struct MintedTargetRecord {
     pub document: String,
     pub line: usize,
     pub backed: bool,
+    /// Explicit historical retirement; never substitutes for source backing.
+    #[serde(default, skip_serializing_if = "crate::symbol_table::is_false")]
+    pub retired: bool,
 }
 
 /// Property-shape counts for one document's binding criteria (FR-050-AC-13,
@@ -297,6 +323,9 @@ pub struct CatchAllCriterion {
 pub struct CoverageTotals {
     pub backed: usize,
     pub total: usize,
+    /// Historical targets excluded from the live denominator.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub retired: usize,
     /// Binding criteria across the corpus (CR-028), or `None` when the corpus
     /// binds none.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -325,6 +354,9 @@ pub struct CoverageTotals {
 pub struct CoverageReport {
     pub unbacked_rows: Vec<UnbackedRow>,
     pub status_lies: Vec<StatusLie>,
+    /// Explicitly retired declarations retained outside live evidence gaps.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub retired_rows: Vec<RetiredRow>,
     /// Unbacked rows exempted from `status_lies` by their declared method
     /// (CR-041). Empty — and so absent from the JSON — for a module declaring
     /// no `no_source_symbol` vocabulary, which keeps FR-050-AC-7 byte-identity.
@@ -625,6 +657,8 @@ pub struct CoverageMatrixBinder {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum CoverageMatrixStatus {
+    /// The criterion's own declaration is explicitly retired.
+    Retired,
     /// One or more binders, at least one not ignored.
     Tagged,
     /// Zero binders.
@@ -674,9 +708,6 @@ pub fn compute(
     }
     // FR-054-AC-11: reported here rather than in `reconcile`, which takes no
     // `Registry` and so cannot see the catalog the methods are checked against.
-    report
-        .diagnostics
-        .extend(uncatalogued_methods(&report.obligations, registry));
     // FR-059-AC-9 (CR-091): also here rather than in `reconcile`, because the
     // vocabulary lives in an archetype's frontmatter schema, which only the
     // `Registry` can read.

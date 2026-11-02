@@ -20,6 +20,11 @@
         "$ref": "#/$defs/UnbackedRow"
       }
     },
+    "retired_rows": {
+      "type": "array",
+      "description": "Explicit historical declarations, retained outside live unbacked rows. Omitted when empty (FR-050-AC-53..57).",
+      "items": {"$ref": "#/$defs/RetiredRow"}
+    },
     "status_lies": {
       "type": "array",
       "description": "FR-050-AC-4: rows whose status classes as complete while nothing backs them.",
@@ -492,6 +497,21 @@
         }
       }
     },
+    "RetiredRow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reference", "document", "row_id", "target_ids", "line", "column", "value", "cells"],
+      "properties": {
+        "reference": {"type": "string"},
+        "document": {"type": "string"},
+        "row_id": {"type": ["string", "null"]},
+        "target_ids": {"type": "array", "items": {"type": "string"}},
+        "line": {"type": "integer", "minimum": 1},
+        "column": {"type": "string"},
+        "value": {"type": "string"},
+        "cells": {"type": "object", "additionalProperties": {"type": "string"}}
+      }
+    },
     "NoSymbolRow": {
       "type": "object",
       "additionalProperties": false,
@@ -621,6 +641,11 @@
         "total": {
           "type": "integer",
           "minimum": 0
+        },
+        "retired": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Historical targets excluded from the live total; omitted when zero."
         }
       }
     },
@@ -633,7 +658,8 @@
         "target": {"type": "string", "minLength": 1},
         "document": {"type": "string", "minLength": 1},
         "line": {"type": "integer", "minimum": 1},
-        "backed": {"type": "boolean"}
+        "backed": {"type": "boolean"},
+        "retired": {"const": true, "description": "Explicit historical retirement, independent of backing; omitted for live targets."}
       }
     },
     "CriteriaCounts": {
@@ -978,6 +1004,7 @@
     "CoverageMatrixStatus": {
       "type": "string",
       "enum": [
+        "retired",
         "tagged",
         "untagged",
         "tagged-by-ignored-test",
@@ -1029,6 +1056,11 @@
         "total": {
           "type": "integer",
           "minimum": 0
+        },
+        "retired": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Historical targets excluded from the live total; omitted when zero."
         },
         "criteria": {
           "type": [
