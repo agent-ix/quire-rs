@@ -2218,7 +2218,7 @@ fn withdrawn_verification_corpus_cases() {
     assert_eq!(cases.len(), 2, "failure case and healthy control are present");
     for case in cases {
         let report = run(&case);
-        eprintln!("{}: {}", case.meta.id, report.to_json().expect("report JSON"));
+        eprintln!("{}: {}", case.meta.id, report.to_json());
         let result = grade(&case, &report);
         assert!(result.passed(), "{}", result.report());
         if let Some(forward) = &case.expect_pending {
