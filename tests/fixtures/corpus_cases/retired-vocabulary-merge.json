@@ -13,5 +13,6 @@
       "methods_module": "name: inspection-methods\nversion: 0.1.0\nartifact_types:\n- name: Other\ntraceability:\n  vocabularies:\n    test_type: [Inspection]\n    test_type_column: Type\n    no_source_symbol: [Inspection]\n",
       "conflict": false
     }
-  ]
+  ],
+  "document": "---\nid: FR-001\ntype: FR\n---\n\n## Acceptance Criteria\n\n| ID | Criteria | Verification | Status |\n|---|---|---|---|\n| FR-001-AC-1 | Withdrawn by the owner decision; ID never reused. | Withdrawn | Planned |\n"
 }

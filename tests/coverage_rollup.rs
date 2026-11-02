@@ -3436,6 +3436,11 @@ fn retirement_vocabularies_are_validated_after_module_selection() {
     for case in fixture["cases"].as_array().unwrap() {
         let name = case["name"].as_str().unwrap();
         let root = tempfile::tempdir().unwrap();
+        write(
+            &root.path().join("spec"),
+            "FR-001.md",
+            fixture["document"].as_str().unwrap(),
+        );
         let retirement = root.path().join("retirement");
         let methods = root.path().join("methods");
         write(
@@ -3488,6 +3493,16 @@ fn retirement_vocabularies_are_validated_after_module_selection() {
                 let model = registry.traceability().expect("valid selected model");
                 assert_eq!(model.vocabularies.retired, ["Withdrawn"]);
                 assert_eq!(model.vocabularies.no_source_symbol, ["Inspection"]);
+                let report = compute(
+                    &Spec::from_path(&root.path().join("spec")),
+                    &registry,
+                    &quire_rs::symbols::trace::SymbolGraph::default(),
+                    root.path(),
+                )
+                .expect("nonconflicting selected model computes");
+                assert_eq!(report.totals.total, 0, "{name}");
+                assert_eq!(report.totals.retired, 1, "{name}");
+                assert!(report.unbacked_rows.is_empty(), "{name}");
             }
         }
     }
