@@ -1,0 +1,97 @@
+{
+  "issue_ref": "https://linear.app/agent-ix/issue/PLAT-1181",
+  "language_scope": {
+    "rust": "attribute guard and same-language controls",
+    "python": "unguarded declared-comment regression in TC-1988",
+    "typescript": "unguarded declared-comment regression in TC-1988"
+  },
+  "cases": [
+    {
+      "name": "real-and-data",
+      "source": "#[implements(\"FR-001\", \"FR-002-AC-3\")]\npub fn actual() {}\n/// #[implements(\"FR-101\")]\nfn doc_example() {}\n// #[implements(\"FR-102\")]\nfn line_example() {}\n/*\n#[implements(\"FR-103\")]\n*/\nfn block_example() {}\n/* outer /* #[implements(\"FR-104\")] */ */\nfn nested_comment() {}\nfn strings() {\n let ordinary = \"#[implements(\\\"FR-105\\\")]\";\n let byte = b\"#[implements(\\\"FR-106\\\")]\";\n let raw = r#\"#[implements(\"FR-107\")]\"#;\n let multiline = r##\"\n#[implements(\"FR-108\")]\n\"##;\n}\n#[doc = r#\"#[implements(\"FR-109\")]\"#]\nfn payload() {}\n",
+      "expected": [
+        [
+          "actual",
+          "FR-001"
+        ],
+        [
+          "actual",
+          "FR-002-AC-3"
+        ]
+      ]
+    },
+    {
+      "name": "valid-layouts",
+      "source": "#[implements(\n    \"FR-201\",\n    \"FR-202\"\n)] // a trailing comment\nfn multiline() {}\n#[implements(\"FR-203\")] fn same_line() {}\nfn previous() {} #[implements(\"FR-204\")] fn following() {}\n#[implements(\"FR-205\")]\nstruct S;\n",
+      "expected": [
+        [
+          "following",
+          "FR-204"
+        ],
+        [
+          "multiline",
+          "FR-201"
+        ],
+        [
+          "multiline",
+          "FR-202"
+        ],
+        [
+          "same_line",
+          "FR-203"
+        ],
+        [
+          "S",
+          "FR-205"
+        ]
+      ]
+    },
+    {
+      "name": "ownership",
+      "source": "#[implements(\"FR-301\")]\nfn parent() {\n #[implements(\"FR-302\")]\n fn child() {}\n #[implements(\"FR-303\")]\n let statement = 0;\n let expression = #[implements(\"FR-304\")] 1;\n let closure = #[implements(\"FR-305\")] || 1;\n}\n#[implements(\"FR-306\")]\nstruct Fields { #[implements(\"FR-307\")] field: u8 }\n#[implements(\"FR-308\")]\nenum Variants { #[implements(\"FR-309\")] V }\n#[implements(\"FR-310\")]\n#[test]\nfn evidence() {}\nmod inner {\n #![implements(\"FR-311\")]\n fn unmarked() {}\n}\nproptest! { #[implements(\"FR-312\")] fn token_test(x in 0..10) {} }\n#[cfg_attr(feature = \"x\", implements(\"FR-313\"))]\nfn conditional() {}\n",
+      "expected": [
+        [
+          "Fields",
+          "FR-306"
+        ],
+        [
+          "Variants",
+          "FR-308"
+        ],
+        [
+          "parent",
+          "FR-301"
+        ],
+        [
+          "parent::child",
+          "FR-302"
+        ]
+      ]
+    },
+    {
+      "name": "unrelated",
+      "source": "#[derive(Debug)] struct Derive;\n#[inline] fn inline() {}\n#[must_use] fn must_use() -> bool { true }\n",
+      "expected": []
+    },
+    {
+      "name": "range",
+      "source": "// leading\n#[implements(\n \"FR-401..FR-403\"\n)]\nfn ranged() {}\n#[implements(\"FR-404\")]\nfn control() {}\n",
+      "expected": [
+        [
+          "control",
+          "FR-404"
+        ]
+      ]
+    },
+    {
+      "name": "partial",
+      "source": "#[doc = r#\"#[implements(\"FR-501\")]\"#]\nfn partial() {}\n#[implements(\"FR-502\")]\nfn complete() {}\n",
+      "expected": [
+        [
+          "complete",
+          "FR-502"
+        ]
+      ]
+    }
+  ]
+}
