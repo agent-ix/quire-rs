@@ -665,8 +665,8 @@ pub enum CoverageMatrixStatus {
     Untagged,
     /// One or more binders, every one marked ignored (FR-051-AC-27).
     TaggedByIgnoredTest,
-    /// The declared `method` is in the module's declared `no_source_symbol`
-    /// vocabulary — wins over every other case, regardless of binder count.
+    /// A live criterion's declared `method` is in `no_source_symbol`;
+    /// this takes precedence over its binder count.
     MethodWithoutSymbol,
 }
 
@@ -706,8 +706,6 @@ pub fn compute(
         report.totals.specific_shaped =
             Some(report.criteria.iter().map(|c| c.specific_shaped).sum());
     }
-    // FR-054-AC-11: reported here rather than in `reconcile`, which takes no
-    // `Registry` and so cannot see the catalog the methods are checked against.
     // FR-059-AC-9 (CR-091): also here rather than in `reconcile`, because the
     // vocabulary lives in an archetype's frontmatter schema, which only the
     // `Registry` can read.

@@ -683,8 +683,7 @@ fn coverage_matrix(
             ))
         });
 
-        // FR-050-AC-49: the method exemption wins over every other case,
-        // regardless of binder count.
+        // A live criterion's method exemption takes precedence over binder count.
         let status = if *retired {
             CoverageMatrixStatus::Retired
         } else if obligation
