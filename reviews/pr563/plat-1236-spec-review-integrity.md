@@ -40,3 +40,15 @@ AP-201 at spec/assurance/AP-201-detection-minting.md applies to coverage populat
 ## Verdict
 
 NEEDS FIX: reconcile the matrix metadata exception before implementation.
+
+## Dispositions
+
+Round 1 reviewed at 79c1b93fed83bfbf9f25fcb2228b7ce8957dfdea. Only the owning AC-47 statement changed outside imported review artifacts. The population remains obligation-only; the permitted metadata join requires the same document, row locus and own id, changes lifecycle only and cannot add criteria or alter actual binders. No regression or new finding identified.
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | AC-47 explicitly permits the narrow retirement metadata join while preserving population and all other criterion facts. |
+
+## Current Verdict
+
+PASS: the sole finding is fixed. This is specification acceptance only; no engine, CLI or process execution credit is claimed.
