@@ -3382,13 +3382,12 @@ fn retired_declarations_keep_live_gaps_and_historical_identity() {
                 );
             }
             let bound = case["expect"]["retired_backed"].as_bool().unwrap_or(false);
-            assert_eq!(
+            assert!(
                 report
                     .minted_targets
                     .iter()
                     .filter(|target| target.retired)
                     .all(|target| target.backed == bound),
-                true,
                 "{name}"
             );
             let criteria = report
