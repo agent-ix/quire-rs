@@ -949,7 +949,7 @@ impl<'de> Deserialize<'de> for TraceMarkerForm {
 /// One legacy textual form (bare id in a docstring, a `Trace:` line, a
 /// line-comment id, a trace-embedding test name). `rewrite_to` names the
 /// marker form a mechanical rewrite suggestion should target, when derivable.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct TraceLegacyForm {
     pub name: String,
@@ -963,6 +963,38 @@ pub struct TraceLegacyForm {
     pub id_format: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub rewrite_to: Option<String>,
+}
+
+impl<'de> Deserialize<'de> for TraceLegacyForm {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        #[derive(Deserialize)]
+        #[serde(deny_unknown_fields)]
+        struct Wire {
+            name: String,
+            #[serde(default)]
+            language: Option<SourceLanguage>,
+            pattern: String,
+            #[serde(default)]
+            id_format: Option<String>,
+            #[serde(default)]
+            rewrite_to: Option<String>,
+            #[serde(default)]
+            syntax: Option<serde_json::Value>,
+        }
+        let wire = Wire::deserialize(deserializer)?;
+        if wire.syntax.is_some() {
+            return Err(serde::de::Error::custom(format!(
+                "trace_tags.legacy form '{}' cannot declare syntax; only trace_tags.implements supports it", wire.name
+            )));
+        }
+        Ok(Self {
+            name: wire.name,
+            language: wire.language,
+            pattern: wire.pattern,
+            id_format: wire.id_format,
+            rewrite_to: wire.rewrite_to,
+        })
+    }
 }
 
 impl TraceabilityModel {

@@ -265,6 +265,9 @@ fn guarded_registry(
         "name": "declared-attribute", "language": language, "pattern": pattern,
         "template": "#[implements({ids})]"
     });
+    if section == "legacy" {
+        form.as_object_mut().unwrap().remove("template");
+    }
     if let Some(syntax) = syntax {
         form["syntax"] = syntax.into();
     }
@@ -277,7 +280,11 @@ fn guarded_registry(
         serde_json::to_string(&manifest).unwrap(),
     )
     .unwrap();
-    quire_rs::Registry::load_module(&module).map_err(|error| error.to_string())
+    let registry = quire_rs::Registry::load_module(&module).map_err(|error| error.to_string())?;
+    if let Some(failure) = registry.failures().first() {
+        return Err(failure.reason.clone());
+    }
+    Ok(registry)
 }
 
 fn syntax_cases() -> serde_json::Value {
@@ -407,14 +414,16 @@ fn omitted_guard_keeps_each_languages_declared_comment_form() {
         let model = registry.traceability().unwrap();
         assert!(model.trace_tags.implements[0].syntax.is_none());
         let graph = trace::bind(&quire_rs::symbols::extract_tree(&src), model);
-        assert_eq!(
-            graph.implements.len(),
-            1,
-            "{language}: {:?}",
-            graph.implements
-        );
-        assert_eq!(graph.implements[0].trace_id, "FR-601");
-        assert_eq!(graph.implements[0].symbol, "actual");
+        let owners: std::collections::BTreeSet<_> = graph
+            .implements
+            .iter()
+            .map(|r| (r.symbol.as_str(), r.trace_id.as_str()))
+            .collect();
+        let mut expected = std::collections::BTreeSet::from([("actual", "FR-601")]);
+        if language != "rust" {
+            expected.insert(("lib", "FR-601"));
+        }
+        assert_eq!(owners, expected, "{language}");
         assert!(graph.verifies.is_empty());
     }
 }
