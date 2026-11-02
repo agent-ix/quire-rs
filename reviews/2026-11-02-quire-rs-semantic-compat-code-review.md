@@ -3,7 +3,7 @@ id: SR-16290
 title: "Code review of quire-rs semantic compatibility fix"
 type: SpecReview
 analysis: code-review
-scope: ".github/workflows/ci.yml, src/semantic/contract.rs, tests/semantic_contract.rs, spec/functional/FR-069-semantic-module-contract-at-load.md"
+scope: ".github/workflows/ci.yml, src/semantic/contract.rs, tests/semantic_contract.rs, spec/functional/FR-069-semantic-module-contract-at-load.md, spec/tests.md"
 review_set: subset
 relationships:
   - target: "ix://agent-ix/quire-rs/FR-069"
@@ -30,4 +30,4 @@ AP-201 at spec/assurance/AP-201-detection-minting.md was assessed because module
 
 ## Rust Review
 
-Rust review: `block_validator` adjusts the embedded schema’s required list only to preserve FR-069’s no-version requirement, then validates a view with the informational legacy field removed; it does not duplicate an upstream schema property. Export validation receives all declared module names. The code adds no public API, unsafe code, concurrency, or persistent wire format. The Perf Bench and License Check hosted jobs were missing the required corpus submodule checkout; both now initialize the same submodule used by Rust Checks. `cargo fmt --check` and Clippy pass. The full local `make ci` run stops at `check-wasm` because `wasm32-unknown-unknown` is not installed. Focused semantic-contract tests pass, including legacy versions and an artifact type export. The local fixture package warns that npm is unavailable; its two network-backed tests skip by repository policy.
+Rust review: `block_validator` adjusts the embedded schema’s required list only to preserve FR-069’s no-version requirement, then validates a view with the informational legacy field removed; it does not duplicate an upstream schema property. Export validation receives all declared module names. The code adds no public API, unsafe code, concurrency, or persistent wire format. The Perf Bench and License Check hosted jobs were missing the required corpus submodule checkout; both now initialize the same submodule used by Rust Checks. Validation also exposed five withdrawn matrix rows with placeholder values forbidden by the current schema; those rows were removed from the active test table and their IDs remain listed as reserved. With current local schema providers, `make validate` now reports 176 documents, 0 failures, 43 warnings, and 9 Phase-7 exclusions. `cargo fmt --check` and Clippy pass. Focused semantic-contract tests pass, including legacy versions and an artifact type export. The local fixture package warns that npm is unavailable; its two network-backed tests skip by repository policy.

@@ -317,8 +317,8 @@ Repository-driven audit of the full quire-rs specification, source, and test tre
 | FND-293 | high | NFR-021-M-4 has no test or symbol bound by the computed matrix | NFR-021-M-4 |
 | FND-294 | medium | 47 trace-tagged symbols are not bound to a declared criterion; inspect ownership and tag model | quire coverage untracked_symbols |
 | FND-295 | high | No run evidence is bound to 1015 criteria; matrix status reflects static traceability only | quoin matrix evidence_status |
-| FND-296 | medium | Coverage reports 399 unbacked functional-coverage rows | spec/tests.md |
-| FND-297 | medium | Perf Bench and License Check jobs omit the required corpus submodule checkout and fail before running their gates | .github/workflows/ci.yml:120, .github/workflows/ci.yml:229 |
+| FND-296 | medium | Coverage reports 394 unbacked functional-coverage rows | spec/tests.md |
+| FND-297 | medium | Perf Bench and License Check jobs omit the required corpus submodule checkout and fail before running their gates | .github/workflows/ci.yml:125, .github/workflows/ci.yml:234 |
 
 ## Coverage
 
@@ -326,7 +326,11 @@ Repository-driven audit of the full quire-rs specification, source, and test tre
 - Plan completion: not assessed
 - Criteria: tagged 615 · untagged 293 · tagged-by-ignored-test 0 · method-without-symbol 107
 - Evidence: no run evidence: 1015
-- Coverage reconciliation: unbacked rows 399 · status lies 21 · no-symbol rows 44 · undeclared statuses 5 · untracked symbols 47 · shared trace IDs 81
+- Coverage reconciliation: unbacked rows 394 · status lies 21 · no-symbol rows 44 · undeclared statuses 0 · untracked symbols 47 · shared trace IDs 81
 - Evidence advice: 1015 recommendations; mismatch 122 · inconclusive 52 · uncatalogued 14. Recommendations are advisory, not evidence.
 - Reverse audit: the source/test TODO/FIXME/XXX scan found no unfinished implementation in the changed path; untracked-symbol findings are summarized above.
 - Semantic review: skipped
+
+## Dispositions
+
+- FND-297: fixed in Quire-RS commit `385841f`; Perf Bench and License Check now initialize the corpus submodule before running Cargo gates.
