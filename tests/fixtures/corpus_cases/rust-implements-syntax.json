@@ -92,6 +92,16 @@
           "FR-502"
         ]
       ]
+    },
+    {
+      "name": "recovered-attribute",
+      "source": "fn parent() {\n#[implements(\"FR-801\")\nfn recovered() {}\n}\n#[implements(\"FR-802\")]\nfn healthy() {}\n",
+      "expected": [
+        [
+          "healthy",
+          "FR-802"
+        ]
+      ]
     }
   ]
 }

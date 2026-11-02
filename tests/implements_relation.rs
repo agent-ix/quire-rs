@@ -588,3 +588,145 @@ fn guarded_forms_require_complete_matches_and_do_not_expand_cfg_attr() {
         assert!(graph.verifies.is_empty());
     }
 }
+
+#[trace("TC-1987", "FR-062-AC-15")]
+#[test]
+fn recovered_attribute_is_a_real_missing_token_not_a_valid_candidate() {
+    let cases = syntax_cases();
+    let source = cases["cases"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|case| case["name"] == "recovered-attribute")
+        .unwrap()["source"]
+        .as_str()
+        .unwrap();
+    let parsed =
+        quire_rust_extraction::parse_file(quire_rust_extraction::Language::Rust, "lib.rs", source)
+            .unwrap();
+    assert!(
+        parsed.diagnostic().is_none(),
+        "healthy declaration must remain extractable"
+    );
+    let mut nodes = vec![parsed.root_node()];
+    let mut recovered = Vec::new();
+    while let Some(node) = nodes.pop() {
+        if node.kind() == "attribute_item" && node.has_error() {
+            recovered.push(node.utf8_text(source.as_bytes()).unwrap());
+            assert!(node.to_sexp().contains("MISSING"));
+        }
+        let mut cursor = node.walk();
+        nodes.extend(node.children(&mut cursor));
+    }
+    assert_eq!(recovered, vec!["#[implements(\"FR-801\")"]);
+    // The attributed corpus case above independently asserts exact healthy
+    // ownership and no edge for this adapter-recovered candidate.
+}
+
+fn coverage_registry_with_evidence(
+    dir: &std::path::Path,
+    syntax: Option<&str>,
+) -> quire_rs::Registry {
+    guarded_registry(dir, GUARDED_PATTERN, syntax, "rust", "implements").unwrap();
+    let path = dir.join("module/manifest.yaml");
+    let mut manifest: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+    manifest["artifact_types"] = serde_json::json!([{"name":"FR"}]);
+    manifest["traceability"]["trace_targets"] = serde_json::json!([{"name":"criterion","archetype":"FR","section":"Acceptance Criteria","id_column":"ID"}]);
+    manifest["traceability"]["trace_tags"]["markers"] = serde_json::json!([{
+        "name":"evidence", "language":"rust", "pattern":r#"#\[trace\(([^)]*)\)\]"#
+    }]);
+    std::fs::write(&path, serde_json::to_string(&manifest).unwrap()).unwrap();
+    let registry = quire_rs::Registry::load_module(&dir.join("module")).unwrap();
+    assert!(registry.failures().is_empty(), "{:?}", registry.failures());
+    registry
+}
+
+#[trace("TC-1990", "FR-062-AC-17")]
+#[test]
+fn guarded_scope_changes_preserve_real_verification_backing_and_symbol_identity() {
+    let dir = tempfile::tempdir().unwrap();
+    let registry = coverage_registry_with_evidence(dir.path(), Some("rust_attribute"));
+    let scope = dir.path().join("scope");
+    let src = scope.join("src");
+    let docs = scope.join("spec");
+    std::fs::create_dir_all(&src).unwrap();
+    std::fs::create_dir(&docs).unwrap();
+    std::fs::write(docs.join("FR-901.md"), "---\nid: FR-901\ntype: FR\n---\n\n## Acceptance Criteria\n\n| ID | Criteria |\n|---|---|\n| FR-901-AC-1 | Preserved backed control. |\n").unwrap();
+    let evidence =
+        "#[trace(\"FR-901-AC-1\")]\n#[test]\nfn evidence() {}\n#[test]\nfn untracked() {}\n";
+    std::fs::write(
+        src.join("lib.rs"),
+        format!("{evidence}fn production() {{}}\n"),
+    )
+    .unwrap();
+    let before_extraction = quire_rs::symbols::extract_tree(&src);
+    let before = trace::bind(&before_extraction, registry.traceability().unwrap());
+    assert_eq!(before.verifies.len(), 1);
+    assert!(before.implements.is_empty());
+    let spec = quire_rs::Spec::from_path(&scope);
+    let before_report = quire_rs::coverage::compute(&spec, &registry, &before, &scope).unwrap();
+    assert_eq!(before_report.untracked_symbols.len(), 1);
+    assert_eq!(before_report.untracked_symbols[0].symbol, "untracked");
+    assert!(!before.backed_trace_ids().is_empty());
+    let after_source = format!("{evidence}// unrelated source\n#[implements(\n \"FR-902\", \"FR-903\"\n)] // trailing comment\nfn production() {{}}\n#[doc = r#\"#[implements(\"FR-904\")]\"#]\nfn partial() {{}}\n");
+    std::fs::write(src.join("lib.rs"), after_source).unwrap();
+    let after_extraction = quire_rs::symbols::extract_tree(&src);
+    let after = trace::bind(&after_extraction, registry.traceability().unwrap());
+    let repeated = trace::bind(&after_extraction, registry.traceability().unwrap());
+    assert_eq!(
+        after, repeated,
+        "complete ordered graph includes partial and range diagnostics"
+    );
+    assert_eq!(after.verifies, before.verifies);
+    assert_eq!(after.backed_trace_ids(), before.backed_trace_ids());
+    let expected = vec![("production", "FR-902"), ("production", "FR-903")];
+    assert_eq!(
+        after
+            .implements
+            .iter()
+            .map(|r| (r.symbol.as_str(), r.trace_id.as_str()))
+            .collect::<Vec<_>>(),
+        expected
+    );
+    assert_eq!(after.partial_attribute_matches.len(), 1);
+    assert_eq!(after.partial_attribute_matches[0].line, 12);
+    let after_report = quire_rs::coverage::compute(&spec, &registry, &after, &scope).unwrap();
+    assert_eq!(after_report.totals, before_report.totals);
+    assert_eq!(
+        after_report.untracked_symbols,
+        before_report.untracked_symbols
+    );
+    let repeated_report = quire_rs::coverage::compute(&spec, &registry, &repeated, &scope).unwrap();
+    assert_eq!(after_report.diagnostics, repeated_report.diagnostics);
+    let unguarded = coverage_registry_with_evidence(dir.path(), None);
+    let unguarded_extraction = quire_rs::symbols::extract_tree(&src);
+    let identity = |extraction: &quire_rs::symbols::SymbolExtraction| {
+        extraction
+            .symbols
+            .iter()
+            .map(|s| {
+                (
+                    s.id.clone(),
+                    s.path.clone(),
+                    s.kind,
+                    s.line,
+                    s.column,
+                    s.leading_line,
+                    s.end_line,
+                )
+            })
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(identity(&after_extraction), identity(&unguarded_extraction));
+    // For a declaration with only eligible real attributes, the old and
+    // guarded models retain exactly the same relation endpoint identities.
+    let unguarded_graph = trace::bind(&unguarded_extraction, unguarded.traceability().unwrap());
+    let old_production: Vec<_> = unguarded_graph
+        .implements
+        .iter()
+        .filter(|r| r.symbol == "production")
+        .collect();
+    assert_eq!(old_production, after.implements.iter().collect::<Vec<_>>());
+    assert_eq!(unguarded_graph.verifies, after.verifies);
+}
