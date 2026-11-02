@@ -3227,3 +3227,283 @@ fn tc1878_interface_acceptance_criteria_register_as_obligations() {
         "{obligation_ids:?}"
     );
 }
+
+#[trace("FR-050-AC-53", "FR-050-AC-55", "FR-050-AC-56", "FR-050-AC-57")]
+#[test]
+fn retired_declarations_keep_live_gaps_and_historical_identity() {
+    let cases: serde_json::Value =
+        serde_json::from_str(include_str!("fixtures/corpus_cases/retired-coverage.json"))
+            .expect("retirement fixture");
+    let schema: serde_json::Value =
+        serde_json::from_str(include_str!("../schemas/output/coverage-v1.schema.json"))
+            .expect("published coverage schema");
+    let schema = jsonschema::JSONSchema::options()
+        .with_draft(jsonschema::Draft::Draft202012)
+        .compile(&schema)
+        .expect("compile published schema");
+    for case in cases.as_array().expect("cases") {
+        let name = case["name"].as_str().expect("case name");
+        assert_eq!(
+            case["issue_ref"],
+            "https://linear.app/agent-ix/issue/PLAT-1236"
+        );
+        let root = tempfile::tempdir().expect("temporary scope");
+        let module = root.path().join("module");
+        write(
+            &module,
+            "manifest.yaml",
+            case["input"]["module"].as_str().unwrap(),
+        );
+        let loaded = Registry::load_module(&module);
+        if let Some(error) = case["expect"]["module_error"].as_str() {
+            let rejected = loaded.expect("tolerant registry reports invalid module failures");
+            assert!(
+                rejected.traceability().is_none(),
+                "{name}: invalid model exposed"
+            );
+            assert!(
+                rejected
+                    .failures()
+                    .iter()
+                    .any(|failure| failure.reason.contains(error)),
+                "{name}: {:?}",
+                rejected.failures()
+            );
+            continue;
+        }
+        let registry = loaded.unwrap_or_else(|error| panic!("{name}: {error}"));
+        for (path, value) in case["input"]["documents"].as_object().unwrap() {
+            write(&root.path().join("spec"), path, value.as_str().unwrap());
+        }
+        fs::create_dir_all(root.path().join("src")).unwrap();
+        for (path, value) in case["input"]["sources"].as_object().unwrap() {
+            write(&root.path().join("src"), path, value.as_str().unwrap());
+        }
+        let model = registry.traceability().unwrap();
+        let graph = trace::bind(&extract_tree(&root.path().join("src")), model);
+        let report = compute(
+            &Spec::from_path(&root.path().join("spec")),
+            &registry,
+            &graph,
+            root.path(),
+        )
+        .unwrap();
+        let wire = serde_json::to_value(&report).unwrap();
+        let errors = schema.validate(&wire).err().map(|errors| {
+            errors
+                .map(|error| format!("{}: {error}", error.instance_path))
+                .collect::<Vec<_>>()
+        });
+        assert!(errors.is_none(), "{name}: {errors:?}");
+        let count = |field: &str| case["expect"][field].as_u64().unwrap() as usize;
+        assert_eq!(report.totals.total, count("total"), "{name}");
+        assert_eq!(report.totals.backed, count("backed"), "{name}");
+        assert_eq!(report.totals.retired, count("retired"), "{name}");
+        assert_eq!(
+            report.groups.iter().map(|group| group.total).sum::<usize>(),
+            report.totals.total,
+            "{name}"
+        );
+        assert_eq!(
+            report
+                .groups
+                .iter()
+                .map(|group| group.retired)
+                .sum::<usize>(),
+            report.totals.retired,
+            "{name}"
+        );
+        assert_eq!(
+            report.minted_targets.len(),
+            report.totals.total + report.totals.retired,
+            "{name}"
+        );
+        let expected_ids = |field: &str| {
+            case["expect"][field]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|id| id.as_str().unwrap())
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(
+            report
+                .unbacked_rows
+                .iter()
+                .map(|row| row.row_id.as_deref().unwrap())
+                .collect::<Vec<_>>(),
+            expected_ids("unbacked"),
+            "{name}"
+        );
+        assert_eq!(
+            report
+                .status_lies
+                .iter()
+                .map(|row| row.row_id.as_deref().unwrap())
+                .collect::<Vec<_>>(),
+            expected_ids("status_lies"),
+            "{name}"
+        );
+        assert_eq!(
+            report
+                .diagnostics
+                .iter()
+                .filter(|diagnostic| diagnostic.reason == "uncatalogued-verification-method")
+                .map(|diagnostic| diagnostic.value.as_deref().unwrap())
+                .collect::<Vec<_>>(),
+            expected_ids("unknown_methods"),
+            "{name}"
+        );
+        assert_eq!(report.retired_rows.len(), report.totals.retired, "{name}");
+        if report.retired_rows.is_empty() {
+            assert!(wire.get("retired_rows").is_none(), "{name}");
+            assert!(wire["totals"].get("retired").is_none(), "{name}");
+            assert!(
+                report
+                    .coverage_matrix
+                    .iter()
+                    .flat_map(|requirement| &requirement.criteria)
+                    .all(|criterion| criterion.status
+                        != quire_rs::coverage::CoverageMatrixStatus::Retired),
+                "{name}"
+            );
+        } else {
+            let retired = &report.retired_rows[0];
+            assert!(retired.line > 0, "{name}");
+            for (column, value) in case["expect"]["retired_cells"]
+                .as_object()
+                .into_iter()
+                .flatten()
+            {
+                assert_eq!(
+                    retired.cells.get(column).map(String::as_str),
+                    value.as_str(),
+                    "{name}"
+                );
+            }
+            let bound = case["expect"]["retired_backed"].as_bool().unwrap_or(false);
+            assert!(
+                report
+                    .minted_targets
+                    .iter()
+                    .filter(|target| target.retired)
+                    .all(|target| target.backed == bound),
+                "{name}"
+            );
+            let criteria = report
+                .coverage_matrix
+                .iter()
+                .flat_map(|requirement| &requirement.criteria)
+                .collect::<Vec<_>>();
+            let retired_criteria = criteria
+                .iter()
+                .filter(|criterion| {
+                    criterion.status == quire_rs::coverage::CoverageMatrixStatus::Retired
+                })
+                .collect::<Vec<_>>();
+            assert_eq!(retired_criteria.len(), 1, "{name}: {criteria:?}");
+            if let Some(id) = case["expect"]["retired_criterion_id"].as_str() {
+                assert_eq!(retired_criteria[0].id, id, "{name}");
+            }
+            assert_eq!(
+                retired_criteria[0].binders.len(),
+                case["expect"]["retired_binders"].as_u64().unwrap_or(0) as usize,
+                "{name}"
+            );
+        }
+        let again = compute(
+            &Spec::from_path(&root.path().join("spec")),
+            &registry,
+            &graph,
+            root.path(),
+        )
+        .unwrap();
+        assert_eq!(report.to_json(), again.to_json(), "{name}");
+    }
+}
+
+#[trace("FR-050-AC-55")]
+#[test]
+fn retirement_vocabularies_are_validated_after_module_selection() {
+    let fixture: serde_json::Value = serde_json::from_str(include_str!(
+        "fixtures/corpus_cases/retired-vocabulary-merge.json"
+    ))
+    .expect("multi-module retirement fixture");
+    assert_eq!(
+        fixture["issue_ref"],
+        "https://linear.app/agent-ix/issue/PLAT-1236"
+    );
+    for case in fixture["cases"].as_array().unwrap() {
+        let name = case["name"].as_str().unwrap();
+        let root = tempfile::tempdir().unwrap();
+        write(
+            &root.path().join("spec"),
+            "FR-001.md",
+            fixture["document"].as_str().unwrap(),
+        );
+        let retirement = root.path().join("retirement");
+        let methods = root.path().join("methods");
+        write(
+            &retirement,
+            "manifest.yaml",
+            case["retirement_module"].as_str().unwrap(),
+        );
+        write(
+            &methods,
+            "manifest.yaml",
+            case["methods_module"].as_str().unwrap(),
+        );
+        for module in [&retirement, &methods] {
+            let individual = Registry::load_module(module).unwrap();
+            assert!(
+                individual.failures().is_empty(),
+                "{name}: {:?}",
+                individual.failures()
+            );
+        }
+        for modules in [
+            [retirement.as_path(), methods.as_path()],
+            [methods.as_path(), retirement.as_path()],
+        ] {
+            let registry = Registry::load_module_set(&modules).unwrap();
+            if case["conflict"].as_bool().unwrap() {
+                assert!(
+                    registry.traceability().is_none(),
+                    "{name}: contradictory model exposed"
+                );
+                assert!(registry.failures().iter().any(|failure| failure.reason.contains("vocabularies.retired value 'Inspection' is also declared in no_source_symbol")), "{name}: {:?}", registry.failures());
+                assert!(
+                    matches!(
+                        compute(
+                            &Spec::from_path(&root.path().join("spec")),
+                            &registry,
+                            &quire_rs::symbols::trace::SymbolGraph::default(),
+                            root.path()
+                        ),
+                        Err(CoverageError::ModelUndeclared)
+                    ),
+                    "{name}: invalid model produced a report"
+                );
+            } else {
+                assert!(
+                    registry.failures().is_empty(),
+                    "{name}: {:?}",
+                    registry.failures()
+                );
+                let model = registry.traceability().expect("valid selected model");
+                assert_eq!(model.vocabularies.retired, ["Withdrawn"]);
+                assert_eq!(model.vocabularies.no_source_symbol, ["Inspection"]);
+                let report = compute(
+                    &Spec::from_path(&root.path().join("spec")),
+                    &registry,
+                    &quire_rs::symbols::trace::SymbolGraph::default(),
+                    root.path(),
+                )
+                .expect("nonconflicting selected model computes");
+                assert_eq!(report.totals.total, 0, "{name}");
+                assert_eq!(report.totals.retired, 1, "{name}");
+                assert!(report.unbacked_rows.is_empty(), "{name}");
+            }
+        }
+    }
+}

@@ -191,6 +191,16 @@ fn tc856_payload_carrying_every_optional_key_conforms() {
             "target_ids": ["TC-001"],
             "line": 9
         }],
+        "retired_rows": [{
+            "reference": "traces-to",
+            "document": "tests.md",
+            "row_id": "TC-099",
+            "target_ids": ["TC-099"],
+            "line": 99,
+            "column": "Status",
+            "value": "⛔",
+            "cells": {"ID": "TC-099", "Status": "⛔", "Purpose": "Withdrawn; identity retained."}
+        }],
         "status_lies": [{
             "reference": "traces-to",
             "document": "tests.md",
@@ -227,13 +237,26 @@ fn tc856_payload_carrying_every_optional_key_conforms() {
                 {"path": "src/lib.rs", "symbol": "tests::also_covers_it"}
             ]
         }],
-        "groups": [{"document": "tests.md", "target": "test-case", "backed": 1, "total": 2}],
+        "groups": [{"document": "tests.md", "target": "test-case", "backed": 1, "total": 2, "retired": 1}],
         "minted_targets": [{
             "id": "TC-001",
             "target": "test-case",
             "document": "tests.md",
             "line": 11,
             "backed": true
+        }, {
+            "id": "TC-002",
+            "target": "test-case",
+            "document": "tests.md",
+            "line": 12,
+            "backed": false
+        }, {
+            "id": "TC-099",
+            "target": "test-case",
+            "document": "tests.md",
+            "line": 99,
+            "backed": false,
+            "retired": true
         }],
         "criteria": [{
             "document": "FR-001.md",
@@ -370,7 +393,7 @@ fn tc856_payload_carrying_every_optional_key_conforms() {
             "engine": "0.45.0",
             "capabilities": ["binding_census", "metrics_envelope"]
         },
-        "totals": {"backed": 1, "total": 2, "criteria": 2, "property_shaped": 1}
+        "totals": {"backed": 1, "total": 2, "retired": 1, "criteria": 2, "property_shaped": 1}
     });
     let errs = errors(&schema, &full);
     assert!(errs.is_empty(), "{errs:#?}");

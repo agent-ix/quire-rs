@@ -1,0 +1,444 @@
+[
+  {
+    "name": "withdrawn-mixed",
+    "issue_ref": "https://linear.app/agent-ix/issue/PLAT-1236",
+    "input": {
+      "module": "name: retired-declarations\nversion: 0.1.0\nartifact_types:\n- name: FR\ntraceability:\n  trace_targets:\n  - name: criterion\n    archetype: FR\n    section: Acceptance Criteria\n    id_column: ID\n  document_references:\n  - name: verification\n    archetype: FR\n    section: Acceptance Criteria\n    column: Verification\n    row_id_column: ID\n    pattern: '\\b(TC-\\d+)\\b'\n    targets: [criterion]\n    strip_annotations: true\n  status:\n    column: Status\n    complete: [Complete]\n    pending: [Planned]\n    failed: [Failed]\n    retired: [⛔]\n  obligations:\n  - name: criteria\n    target: criterion\n    statement_column: Criteria\n    method_column: Verification\n  vocabularies:\n    retired: [Withdrawn]\n  trace_tags:\n    markers:\n    - name: rust-trace\n      language: rust\n      pattern: '#\\[trace\\(([^)]*)\\)\\]'\nverification_catalog:\n  unit:\n    name: Unit test\n    class: Test\n    definition: An executable assertion.\n    evidence_kind: Unit\n",
+      "documents": {
+        "FR-001.md": "---\nid: FR-001\ntype: FR\n---\n\n## Acceptance Criteria\n\n| ID | Criteria | Verification | Status |\n|---|---|---|---|\n| FR-001-AC-1 | Withdrawn by the owner decision; ID never reused. | Withdrawn | Planned |\n| FR-001-AC-2 | The live behavior remains required. | Test | Complete |\n| FR-001-AC-3 | The planned behavior remains visible. | Test | Planned |\n"
+      },
+      "sources": {}
+    },
+    "expect": {
+      "total": 2,
+      "backed": 0,
+      "retired": 1,
+      "unbacked": [
+        "FR-001-AC-2",
+        "FR-001-AC-3"
+      ],
+      "status_lies": [
+        "FR-001-AC-2"
+      ],
+      "unknown_methods": [],
+      "retired_cells": {
+        "Criteria": "Withdrawn by the owner decision; ID never reused.",
+        "Verification": "Withdrawn"
+      }
+    }
+  },
+  {
+    "name": "withdrawn-only",
+    "issue_ref": "https://linear.app/agent-ix/issue/PLAT-1236",
+    "input": {
+      "module": "name: retired-declarations\nversion: 0.1.0\nartifact_types:\n- name: FR\ntraceability:\n  trace_targets:\n  - name: criterion\n    archetype: FR\n    section: Acceptance Criteria\n    id_column: ID\n  document_references:\n  - name: verification\n    archetype: FR\n    section: Acceptance Criteria\n    column: Verification\n    row_id_column: ID\n    pattern: '\\b(TC-\\d+)\\b'\n    targets: [criterion]\n    strip_annotations: true\n  status:\n    column: Status\n    complete: [Complete]\n    pending: [Planned]\n    failed: [Failed]\n    retired: [⛔]\n  obligations:\n  - name: criteria\n    target: criterion\n    statement_column: Criteria\n    method_column: Verification\n  vocabularies:\n    retired: [Withdrawn]\n  trace_tags:\n    markers:\n    - name: rust-trace\n      language: rust\n      pattern: '#\\[trace\\(([^)]*)\\)\\]'\nverification_catalog:\n  unit:\n    name: Unit test\n    class: Test\n    definition: An executable assertion.\n    evidence_kind: Unit\n",
+      "documents": {
+        "FR-001.md": "---\nid: FR-001\ntype: FR\n---\n\n## Acceptance Criteria\n\n| ID | Criteria | Verification | Status |\n|---|---|---|---|\n| FR-001-AC-1 | Withdrawn by the owner decision; ID never reused. | Withdrawn | Planned |\n"
+      },
+      "sources": {}
+    },
+    "expect": {
+      "total": 0,
+      "backed": 0,
+      "retired": 1,
+      "unbacked": [],
+      "status_lies": [],
+      "unknown_methods": [],
+      "retired_cells": {
+        "Criteria": "Withdrawn by the owner decision; ID never reused."
+      }
+    }
+  },
+  {
+    "name": "live-control",
+    "issue_ref": "https://linear.app/agent-ix/issue/PLAT-1236",
+    "input": {
+      "module": "name: retired-declarations\nversion: 0.1.0\nartifact_types:\n- name: FR\ntraceability:\n  trace_targets:\n  - name: criterion\n    archetype: FR\n    section: Acceptance Criteria\n    id_column: ID\n  document_references:\n  - name: verification\n    archetype: FR\n    section: Acceptance Criteria\n    column: Verification\n    row_id_column: ID\n    pattern: '\\b(TC-\\d+)\\b'\n    targets: [criterion]\n    strip_annotations: true\n  status:\n    column: Status\n    complete: [Complete]\n    pending: [Planned]\n    failed: [Failed]\n    retired: [⛔]\n  obligations:\n  - name: criteria\n    target: criterion\n    statement_column: Criteria\n    method_column: Verification\n  vocabularies:\n    retired: [Withdrawn]\n  trace_tags:\n    markers:\n    - name: rust-trace\n      language: rust\n      pattern: '#\\[trace\\(([^)]*)\\)\\]'\nverification_catalog:\n  unit:\n    name: Unit test\n    class: Test\n    definition: An executable assertion.\n    evidence_kind: Unit\n",
+      "documents": {
+        "FR-001.md": "---\nid: FR-001\ntype: FR\n---\n\n## Acceptance Criteria\n\n| ID | Criteria | Verification | Status |\n|---|---|---|---|\n| FR-001-AC-2 | The live behavior remains required. | Test | Complete |\n| FR-001-AC-3 | The planned behavior remains visible. | Test | Planned |\n"
+      },
+      "sources": {}
+    },
+    "expect": {
+      "total": 2,
+      "backed": 0,
+      "retired": 0,
+      "unbacked": [
+        "FR-001-AC-2",
+        "FR-001-AC-3"
+      ],
+      "status_lies": [
+        "FR-001-AC-2"
+      ],
+      "unknown_methods": []
+    }
+  },
+  {
+    "name": "undeclared-withdrawn",
+    "issue_ref": "https://linear.app/agent-ix/issue/PLAT-1236",
+    "input": {
+      "module": "name: retired-declarations\nversion: 0.1.0\nartifact_types:\n- name: FR\ntraceability:\n  trace_targets:\n  - name: criterion\n    archetype: FR\n    section: Acceptance Criteria\n    id_column: ID\n  document_references:\n  - name: verification\n    archetype: FR\n    section: Acceptance Criteria\n    column: Verification\n    row_id_column: ID\n    pattern: '\\b(TC-\\d+)\\b'\n    targets: [criterion]\n    strip_annotations: true\n  status:\n    column: Status\n    complete: [Complete]\n    pending: [Planned]\n    failed: [Failed]\n    retired: [⛔]\n  obligations:\n  - name: criteria\n    target: criterion\n    statement_column: Criteria\n    method_column: Verification\n  vocabularies:\n  trace_tags:\n    markers:\n    - name: rust-trace\n      language: rust\n      pattern: '#\\[trace\\(([^)]*)\\)\\]'\nverification_catalog:\n  unit:\n    name: Unit test\n    class: Test\n    definition: An executable assertion.\n    evidence_kind: Unit\n",
+      "documents": {
+        "FR-001.md": "---\nid: FR-001\ntype: FR\n---\n\n## Acceptance Criteria\n\n| ID | Criteria | Verification | Status |\n|---|---|---|---|\n| FR-001-AC-1 | Withdrawn by the owner decision; ID never reused. | Withdrawn | Planned |\n"
+      },
+      "sources": {}
+    },
+    "expect": {
+      "total": 1,
+      "backed": 0,
+      "retired": 0,
+      "unbacked": [
+        "FR-001-AC-1"
+      ],
+      "status_lies": [],
+      "unknown_methods": [
+        "Withdrawn"
+      ]
+    }
+  },
+  {
+    "name": "misspelled-withdrawn",
+    "issue_ref": "https://linear.app/agent-ix/issue/PLAT-1236",
+    "input": {
+      "module": "name: retired-declarations\nversion: 0.1.0\nartifact_types:\n- name: FR\ntraceability:\n  trace_targets:\n  - name: criterion\n    archetype: FR\n    section: Acceptance Criteria\n    id_column: ID\n  document_references:\n  - name: verification\n    archetype: FR\n    section: Acceptance Criteria\n    column: Verification\n    row_id_column: ID\n    pattern: '\\b(TC-\\d+)\\b'\n    targets: [criterion]\n    strip_annotations: true\n  status:\n    column: Status\n    complete: [Complete]\n    pending: [Planned]\n    failed: [Failed]\n    retired: [⛔]\n  obligations:\n  - name: criteria\n    target: criterion\n    statement_column: Criteria\n    method_column: Verification\n  vocabularies:\n    retired: [Withdrawn]\n  trace_tags:\n    markers:\n    - name: rust-trace\n      language: rust\n      pattern: '#\\[trace\\(([^)]*)\\)\\]'\nverification_catalog:\n  unit:\n    name: Unit test\n    class: Test\n    definition: An executable assertion.\n    evidence_kind: Unit\n",
+      "documents": {
+        "FR-001.md": "---\nid: FR-001\ntype: FR\n---\n\n## Acceptance Criteria\n\n| ID | Criteria | Verification | Status |\n|---|---|---|---|\n| FR-001-AC-1 | Withdrawn by the owner decision; ID never reused. | Withdrawnn | Complete |\n"
+      },
+      "sources": {}
+    },
+    "expect": {
+      "total": 1,
+      "backed": 0,
+      "retired": 0,
+      "unbacked": [
+        "FR-001-AC-1"
+      ],
+      "status_lies": [
+        "FR-001-AC-1"
+      ],
+      "unknown_methods": [
+        "Withdrawnn"
+      ]
+    }
+  },
+  {
+    "name": "prose-is-not-retirement",
+    "issue_ref": "https://linear.app/agent-ix/issue/PLAT-1236",
+    "input": {
+      "module": "name: retired-declarations\nversion: 0.1.0\nartifact_types:\n- name: FR\ntraceability:\n  trace_targets:\n  - name: criterion\n    archetype: FR\n    section: Acceptance Criteria\n    id_column: ID\n  document_references:\n  - name: verification\n    archetype: FR\n    section: Acceptance Criteria\n    column: Verification\n    row_id_column: ID\n    pattern: '\\b(TC-\\d+)\\b'\n    targets: [criterion]\n    strip_annotations: true\n  status:\n    column: Status\n    complete: [Complete]\n    pending: [Planned]\n    failed: [Failed]\n    retired: [⛔]\n  obligations:\n  - name: criteria\n    target: criterion\n    statement_column: Criteria\n    method_column: Verification\n  vocabularies:\n    retired: [Withdrawn]\n  trace_tags:\n    markers:\n    - name: rust-trace\n      language: rust\n      pattern: '#\\[trace\\(([^)]*)\\)\\]'\nverification_catalog:\n  unit:\n    name: Unit test\n    class: Test\n    definition: An executable assertion.\n    evidence_kind: Unit\n",
+      "documents": {
+        "FR-001.md": "---\nid: FR-001\ntype: FR\n---\n\n## Acceptance Criteria\n\n| ID | Criteria | Verification | Status |\n|---|---|---|---|\n| FR-001-AC-1 | Withdrawn by the owner decision; ID never reused. | Test | Complete |\n"
+      },
+      "sources": {}
+    },
+    "expect": {
+      "total": 1,
+      "backed": 0,
+      "retired": 0,
+      "unbacked": [
+        "FR-001-AC-1"
+      ],
+      "status_lies": [
+        "FR-001-AC-1"
+      ],
+      "unknown_methods": []
+    }
+  },
+  {
+    "name": "other-document-same-id",
+    "issue_ref": "https://linear.app/agent-ix/issue/PLAT-1236",
+    "input": {
+      "module": "name: retired-declarations\nversion: 0.1.0\nartifact_types:\n- name: FR\ntraceability:\n  trace_targets:\n  - name: criterion\n    archetype: FR\n    section: Acceptance Criteria\n    id_column: ID\n  document_references:\n  - name: verification\n    archetype: FR\n    section: Acceptance Criteria\n    column: Verification\n    row_id_column: ID\n    pattern: '\\b(TC-\\d+)\\b'\n    targets: [criterion]\n    strip_annotations: true\n  status:\n    column: Status\n    complete: [Complete]\n    pending: [Planned]\n    failed: [Failed]\n    retired: [⛔]\n  obligations:\n  - name: criteria\n    target: criterion\n    statement_column: Criteria\n    method_column: Verification\n  vocabularies:\n    retired: [Withdrawn]\n  trace_tags:\n    markers:\n    - name: rust-trace\n      language: rust\n      pattern: '#\\[trace\\(([^)]*)\\)\\]'\nverification_catalog:\n  unit:\n    name: Unit test\n    class: Test\n    definition: An executable assertion.\n    evidence_kind: Unit\n",
+      "documents": {
+        "FR-001.md": "---\nid: FR-001\ntype: FR\n---\n\n## Acceptance Criteria\n\n| ID | Criteria | Verification | Status |\n|---|---|---|---|\n| FR-001-AC-1 | Withdrawn by the owner decision; ID never reused. | Withdrawn | Planned |\n",
+        "FR-002.md": "---\nid: FR-002\ntype: FR\n---\n\n## Acceptance Criteria\n\n| ID | Criteria | Verification | Status |\n|---|---|---|---|\n| FR-001-AC-1 | Still required in this document. | Test | Complete |\n"
+      },
+      "sources": {}
+    },
+    "expect": {
+      "total": 1,
+      "backed": 0,
+      "retired": 1,
+      "unbacked": [
+        "FR-001-AC-1"
+      ],
+      "status_lies": [
+        "FR-001-AC-1"
+      ],
+      "unknown_methods": []
+    }
+  },
+  {
+    "name": "same-document-same-id",
+    "issue_ref": "https://linear.app/agent-ix/issue/PLAT-1236",
+    "input": {
+      "module": "name: retired-declarations\nversion: 0.1.0\nartifact_types:\n- name: FR\ntraceability:\n  trace_targets:\n  - name: criterion\n    archetype: FR\n    section: Acceptance Criteria\n    id_column: ID\n  document_references:\n  - name: verification\n    archetype: FR\n    section: Acceptance Criteria\n    column: Verification\n    row_id_column: ID\n    pattern: '\\b(TC-\\d+)\\b'\n    targets: [criterion]\n    strip_annotations: true\n  status:\n    column: Status\n    complete: [Complete]\n    pending: [Planned]\n    failed: [Failed]\n    retired: [⛔]\n  obligations:\n  - name: criteria\n    target: criterion\n    statement_column: Criteria\n    method_column: Verification\n  vocabularies:\n    retired: [Withdrawn]\n  trace_tags:\n    markers:\n    - name: rust-trace\n      language: rust\n      pattern: '#\\[trace\\(([^)]*)\\)\\]'\nverification_catalog:\n  unit:\n    name: Unit test\n    class: Test\n    definition: An executable assertion.\n    evidence_kind: Unit\n",
+      "documents": {
+        "FR-001.md": "---\nid: FR-001\ntype: FR\n---\n\n## Acceptance Criteria\n\n| ID | Criteria | Verification | Status |\n|---|---|---|---|\n| FR-001-AC-1 | Withdrawn by the owner decision; ID never reused. | Withdrawn | Planned |\n| FR-001-AC-1 | A separate live row. | Test | Complete |\n"
+      },
+      "sources": {}
+    },
+    "expect": {
+      "total": 1,
+      "backed": 0,
+      "retired": 1,
+      "unbacked": [
+        "FR-001-AC-1"
+      ],
+      "status_lies": [
+        "FR-001-AC-1"
+      ],
+      "unknown_methods": []
+    }
+  },
+  {
+    "name": "same-id-same-statement-distinct-loci",
+    "issue_ref": "https://linear.app/agent-ix/issue/PLAT-1236",
+    "input": {
+      "module": "name: retired-declarations\nversion: 0.1.0\nartifact_types:\n- name: FR\ntraceability:\n  trace_targets:\n  - name: criterion\n    archetype: FR\n    section: Acceptance Criteria\n    id_column: ID\n  document_references:\n  - name: verification\n    archetype: FR\n    section: Acceptance Criteria\n    column: Verification\n    row_id_column: ID\n    pattern: '\\b(TC-\\d+)\\b'\n    targets: [criterion]\n    strip_annotations: true\n  status:\n    column: Status\n    complete: [Complete]\n    pending: [Planned]\n    failed: [Failed]\n    retired: [⛔]\n  obligations:\n  - name: criteria\n    target: criterion\n    statement_column: Criteria\n    method_column: Verification\n  vocabularies:\n    retired: [Withdrawn]\n  trace_tags:\n    markers:\n    - name: rust-trace\n      language: rust\n      pattern: '#\\[trace\\(([^)]*)\\)\\]'\nverification_catalog:\n  unit:\n    name: Unit test\n    class: Test\n    definition: An executable assertion.\n    evidence_kind: Unit\n",
+      "documents": {
+        "FR-001.md": "---\nid: FR-001\ntype: FR\n---\n\n## Acceptance Criteria\n\n| ID | Criteria | Verification | Status |\n|---|---|---|---|\n| FR-001-AC-1 | Withdrawn by the owner decision; ID never reused. | Withdrawn | Planned |\n| FR-001-AC-1 | Withdrawn by the owner decision; ID never reused. | Test | Complete |\n"
+      },
+      "sources": {}
+    },
+    "expect": {
+      "total": 1,
+      "backed": 0,
+      "retired": 1,
+      "unbacked": [
+        "FR-001-AC-1"
+      ],
+      "status_lies": [
+        "FR-001-AC-1"
+      ],
+      "unknown_methods": []
+    }
+  },
+  {
+    "name": "retired-reference-does-not-retire-target",
+    "issue_ref": "https://linear.app/agent-ix/issue/PLAT-1236",
+    "input": {
+      "module": "name: retired-declarations\nversion: 0.1.0\nartifact_types:\n- name: FR\ntraceability:\n  trace_targets:\n  - name: criterion\n    archetype: FR\n    section: Acceptance Criteria\n    id_column: ID\n  document_references:\n  - name: verification\n    archetype: FR\n    section: Acceptance Criteria\n    column: Verification\n    row_id_column: ID\n    pattern: '\\b(TC-\\d+)\\b'\n    targets: [criterion]\n    strip_annotations: true\n  status:\n    column: Status\n    complete: [Complete]\n    pending: [Planned]\n    failed: [Failed]\n    retired: [⛔]\n  obligations:\n  - name: criteria\n    target: criterion\n    statement_column: Criteria\n    method_column: Verification\n  vocabularies:\n    retired: [Withdrawn]\n  trace_tags:\n    markers:\n    - name: rust-trace\n      language: rust\n      pattern: '#\\[trace\\(([^)]*)\\)\\]'\nverification_catalog:\n  unit:\n    name: Unit test\n    class: Test\n    definition: An executable assertion.\n    evidence_kind: Unit\n",
+      "documents": {
+        "FR-001.md": "---\nid: FR-001\ntype: FR\n---\n\n## Acceptance Criteria\n\n| ID | Criteria | Verification | Status |\n|---|---|---|---|\n| FR-001-AC-1 | Retired status does not retire its referenced target. | Test (TC-099) | ⛔ |\n| TC-099 | Still required. | Test | Complete |\n"
+      },
+      "sources": {}
+    },
+    "expect": {
+      "total": 1,
+      "backed": 0,
+      "retired": 1,
+      "unbacked": [
+        "TC-099"
+      ],
+      "status_lies": [
+        "TC-099"
+      ],
+      "unknown_methods": []
+    }
+  },
+  {
+    "name": "existing-retired-status",
+    "issue_ref": "https://linear.app/agent-ix/issue/PLAT-1236",
+    "input": {
+      "module": "name: retired-declarations\nversion: 0.1.0\nartifact_types:\n- name: FR\ntraceability:\n  trace_targets:\n  - name: criterion\n    archetype: FR\n    section: Acceptance Criteria\n    id_column: ID\n  document_references:\n  - name: verification\n    archetype: FR\n    section: Acceptance Criteria\n    column: Verification\n    row_id_column: ID\n    pattern: '\\b(TC-\\d+)\\b'\n    targets: [criterion]\n    strip_annotations: true\n  status:\n    column: Status\n    complete: [Complete]\n    pending: [Planned]\n    failed: [Failed]\n    retired: [⛔]\n  obligations:\n  - name: criteria\n    target: criterion\n    statement_column: Criteria\n    method_column: Verification\n  vocabularies:\n    retired: [Withdrawn]\n  trace_tags:\n    markers:\n    - name: rust-trace\n      language: rust\n      pattern: '#\\[trace\\(([^)]*)\\)\\]'\nverification_catalog:\n  unit:\n    name: Unit test\n    class: Test\n    definition: An executable assertion.\n    evidence_kind: Unit\n",
+      "documents": {
+        "FR-001.md": "---\nid: FR-001\ntype: FR\n---\n\n## Acceptance Criteria\n\n| ID | Criteria | Verification | Status |\n|---|---|---|---|\n| FR-001-AC-1 | Withdrawn by the owner decision; ID never reused. | Test | ⛔ historical |\n"
+      },
+      "sources": {}
+    },
+    "expect": {
+      "total": 0,
+      "backed": 0,
+      "retired": 1,
+      "unbacked": [],
+      "status_lies": [],
+      "unknown_methods": []
+    }
+  },
+  {
+    "name": "retired-with-real-binder",
+    "issue_ref": "https://linear.app/agent-ix/issue/PLAT-1236",
+    "input": {
+      "module": "name: retired-declarations\nversion: 0.1.0\nartifact_types:\n- name: FR\ntraceability:\n  trace_targets:\n  - name: criterion\n    archetype: FR\n    section: Acceptance Criteria\n    id_column: ID\n  document_references:\n  - name: verification\n    archetype: FR\n    section: Acceptance Criteria\n    column: Verification\n    row_id_column: ID\n    pattern: '\\b(TC-\\d+)\\b'\n    targets: [criterion]\n    strip_annotations: true\n  status:\n    column: Status\n    complete: [Complete]\n    pending: [Planned]\n    failed: [Failed]\n    retired: [⛔]\n  obligations:\n  - name: criteria\n    target: criterion\n    statement_column: Criteria\n    method_column: Verification\n  vocabularies:\n    retired: [Withdrawn]\n  trace_tags:\n    markers:\n    - name: rust-trace\n      language: rust\n      pattern: '#\\[trace\\(([^)]*)\\)\\]'\nverification_catalog:\n  unit:\n    name: Unit test\n    class: Test\n    definition: An executable assertion.\n    evidence_kind: Unit\n",
+      "documents": {
+        "FR-001.md": "---\nid: FR-001\ntype: FR\n---\n\n## Acceptance Criteria\n\n| ID | Criteria | Verification | Status |\n|---|---|---|---|\n| FR-001-AC-1 | Withdrawn by the owner decision; ID never reused. | Withdrawn | Planned |\n"
+      },
+      "sources": {
+        "lib.rs": "#[trace(\"FR-001-AC-1\")]\n#[test]\nfn retained_test() {}\n"
+      }
+    },
+    "expect": {
+      "total": 0,
+      "backed": 0,
+      "retired": 1,
+      "unbacked": [],
+      "status_lies": [],
+      "unknown_methods": [],
+      "retired_backed": true,
+      "retired_binders": 1
+    }
+  },
+  {
+    "name": "normalized-declared-retirement",
+    "issue_ref": "https://linear.app/agent-ix/issue/PLAT-1236",
+    "input": {
+      "module": "name: retired-declarations\nversion: 0.1.0\nartifact_types:\n- name: FR\ntraceability:\n  trace_targets:\n  - name: criterion\n    archetype: FR\n    section: Acceptance Criteria\n    id_column: ID\n  document_references:\n  - name: verification\n    archetype: FR\n    section: Acceptance Criteria\n    column: Verification\n    row_id_column: ID\n    pattern: '\\b(TC-\\d+)\\b'\n    targets: [criterion]\n    strip_annotations: true\n  status:\n    column: Status\n    complete: [Complete]\n    pending: [Planned]\n    failed: [Failed]\n    retired: [⛔]\n  obligations:\n  - name: criteria\n    target: criterion\n    statement_column: Criteria\n    method_column: Verification\n  vocabularies:\n    retired: [Withdrawn]\n  trace_tags:\n    markers:\n    - name: rust-trace\n      language: rust\n      pattern: '#\\[trace\\(([^)]*)\\)\\]'\nverification_catalog:\n  unit:\n    name: Unit test\n    class: Test\n    definition: An executable assertion.\n    evidence_kind: Unit\n",
+      "documents": {
+        "FR-001.md": "---\nid: FR-001\ntype: FR\n---\n\n## Acceptance Criteria\n\n| ID | Criteria | Verification | Status |\n|---|---|---|---|\n| FR-001-AC-1 | Withdrawn by the owner decision; ID never reused. | Withdrawn (owner decision) | Planned |\n"
+      },
+      "sources": {}
+    },
+    "expect": {
+      "total": 0,
+      "backed": 0,
+      "retired": 1,
+      "unbacked": [],
+      "status_lies": [],
+      "unknown_methods": []
+    }
+  },
+  {
+    "name": "unknown-live-method",
+    "issue_ref": "https://linear.app/agent-ix/issue/PLAT-1236",
+    "input": {
+      "module": "name: retired-declarations\nversion: 0.1.0\nartifact_types:\n- name: FR\ntraceability:\n  trace_targets:\n  - name: criterion\n    archetype: FR\n    section: Acceptance Criteria\n    id_column: ID\n  document_references:\n  - name: verification\n    archetype: FR\n    section: Acceptance Criteria\n    column: Verification\n    row_id_column: ID\n    pattern: '\\b(TC-\\d+)\\b'\n    targets: [criterion]\n    strip_annotations: true\n  status:\n    column: Status\n    complete: [Complete]\n    pending: [Planned]\n    failed: [Failed]\n    retired: [⛔]\n  obligations:\n  - name: criteria\n    target: criterion\n    statement_column: Criteria\n    method_column: Verification\n  vocabularies:\n    retired: [Withdrawn]\n  trace_tags:\n    markers:\n    - name: rust-trace\n      language: rust\n      pattern: '#\\[trace\\(([^)]*)\\)\\]'\nverification_catalog:\n  unit:\n    name: Unit test\n    class: Test\n    definition: An executable assertion.\n    evidence_kind: Unit\n",
+      "documents": {
+        "FR-001.md": "---\nid: FR-001\ntype: FR\n---\n\n## Acceptance Criteria\n\n| ID | Criteria | Verification | Status |\n|---|---|---|---|\n| FR-001-AC-1 | Live obligation. | Mystery | Planned |\n"
+      },
+      "sources": {}
+    },
+    "expect": {
+      "total": 1,
+      "backed": 0,
+      "retired": 0,
+      "unbacked": [
+        "FR-001-AC-1"
+      ],
+      "status_lies": [],
+      "unknown_methods": [
+        "Mystery"
+      ]
+    }
+  },
+  {
+    "name": "direct-obligation-source-retirement",
+    "issue_ref": "https://linear.app/agent-ix/issue/PLAT-1236",
+    "input": {
+      "module": "name: retired-declarations\nversion: 0.1.0\nartifact_types:\n- name: FR\ntraceability:\n  trace_targets:\n  - name: criterion\n    archetype: FR\n    section: Acceptance Criteria\n    id_column: ID\n  document_references:\n  - name: verification\n    archetype: FR\n    section: Acceptance Criteria\n    column: Verification\n    row_id_column: ID\n    pattern: '\\b(TC-\\d+)\\b'\n    targets: [criterion]\n    strip_annotations: true\n  status:\n    column: Status\n    complete: [Complete]\n    pending: [Planned]\n    failed: [Failed]\n    retired: [⛔]\n  obligations:\n  - name: criteria\n    archetype: FR\n    section: Acceptance Criteria\n    id_format: \"{document}-AC-{row}\"\n    statement_column: Criteria\n    method_column: Verification\n  vocabularies:\n    retired: [Withdrawn]\n  trace_tags:\n    markers:\n    - name: rust-trace\n      language: rust\n      pattern: '#\\[trace\\(([^)]*)\\)\\]'\nverification_catalog:\n  unit:\n    name: Unit test\n    class: Test\n    definition: An executable assertion.\n    evidence_kind: Unit\n",
+      "documents": {
+        "FR-001.md": "---\nid: FR-001\ntype: FR\n---\n\n## Acceptance Criteria\n\n| ID | Criteria | Verification | Status |\n|---|---|---|---|\n| FR-001-AC-1 | Withdrawn by the owner decision; ID never reused. | Withdrawn | Planned |\n"
+      },
+      "sources": {}
+    },
+    "expect": {
+      "total": 0,
+      "backed": 0,
+      "retired": 1,
+      "unbacked": [],
+      "status_lies": [],
+      "unknown_methods": [],
+      "retired_cells": {
+        "Criteria": "Withdrawn by the owner decision; ID never reused."
+      }
+    }
+  },
+  {
+    "name": "case-sensitive-retirement-token",
+    "issue_ref": "https://linear.app/agent-ix/issue/PLAT-1236",
+    "input": {
+      "module": "name: retired-declarations\nversion: 0.1.0\nartifact_types:\n- name: FR\ntraceability:\n  trace_targets:\n  - name: criterion\n    archetype: FR\n    section: Acceptance Criteria\n    id_column: ID\n  document_references:\n  - name: verification\n    archetype: FR\n    section: Acceptance Criteria\n    column: Verification\n    row_id_column: ID\n    pattern: '\\b(TC-\\d+)\\b'\n    targets: [criterion]\n    strip_annotations: true\n  status:\n    column: Status\n    complete: [Complete]\n    pending: [Planned]\n    failed: [Failed]\n    retired: [⛔]\n  obligations:\n  - name: criteria\n    target: criterion\n    statement_column: Criteria\n    method_column: Verification\n  vocabularies:\n    retired: [Withdrawn]\n  trace_tags:\n    markers:\n    - name: rust-trace\n      language: rust\n      pattern: '#\\[trace\\(([^)]*)\\)\\]'\nverification_catalog:\n  unit:\n    name: Unit test\n    class: Test\n    definition: An executable assertion.\n    evidence_kind: Unit\n",
+      "documents": {
+        "FR-001.md": "---\nid: FR-001\ntype: FR\n---\n\n## Acceptance Criteria\n\n| ID | Criteria | Verification | Status |\n|---|---|---|---|\n| FR-001-AC-1 | Withdrawn by the owner decision; ID never reused. | withdrawn | Complete |\n"
+      },
+      "sources": {}
+    },
+    "expect": {
+      "total": 1,
+      "backed": 0,
+      "retired": 0,
+      "unbacked": [
+        "FR-001-AC-1"
+      ],
+      "status_lies": [
+        "FR-001-AC-1"
+      ],
+      "unknown_methods": [
+        "withdrawn"
+      ]
+    }
+  },
+  {
+    "name": "retired-reference-without-own-id-column",
+    "issue_ref": "https://linear.app/agent-ix/issue/PLAT-1236",
+    "input": {
+      "module": "name: retired-declarations\nversion: 0.1.0\nartifact_types:\n- name: FR\ntraceability:\n  trace_targets:\n  - name: criterion\n    archetype: FR\n    section: Acceptance Criteria\n    id_column: ID\n  document_references:\n  - name: verification\n    archetype: FR\n    section: Acceptance Criteria\n    column: Verification\n    pattern: '\\b(TC-\\d+)\\b'\n    targets: [criterion]\n    strip_annotations: true\n  status:\n    column: Status\n    complete: [Complete]\n    pending: [Planned]\n    failed: [Failed]\n    retired: [⛔]\n  obligations:\n  - name: criteria\n    target: criterion\n    statement_column: Criteria\n    method_column: Verification\n  vocabularies:\n    retired: [Withdrawn]\n  trace_tags:\n    markers:\n    - name: rust-trace\n      language: rust\n      pattern: '#\\[trace\\(([^)]*)\\)\\]'\nverification_catalog:\n  unit:\n    name: Unit test\n    class: Test\n    definition: An executable assertion.\n    evidence_kind: Unit\n",
+      "documents": {
+        "FR-001.md": "---\nid: FR-001\ntype: FR\n---\n\n## Acceptance Criteria\n\n| ID | Criteria | Verification | Status |\n|---|---|---|---|\n| FR-001-AC-1 | Withdrawn by the owner decision; ID never reused. | Withdrawn | Planned |\n"
+      },
+      "sources": {}
+    },
+    "expect": {
+      "total": 0,
+      "backed": 0,
+      "retired": 1,
+      "unbacked": [],
+      "status_lies": [],
+      "unknown_methods": [],
+      "retired_cells": {
+        "Criteria": "Withdrawn by the owner decision; ID never reused."
+      }
+    }
+  },
+  {
+    "name": "blank-retirement",
+    "issue_ref": "https://linear.app/agent-ix/issue/PLAT-1236",
+    "input": {
+      "module": "name: retired-declarations\nversion: 0.1.0\nartifact_types:\n- name: FR\ntraceability:\n  trace_targets:\n  - name: criterion\n    archetype: FR\n    section: Acceptance Criteria\n    id_column: ID\n  document_references:\n  - name: verification\n    archetype: FR\n    section: Acceptance Criteria\n    column: Verification\n    row_id_column: ID\n    pattern: '\\b(TC-\\d+)\\b'\n    targets: [criterion]\n    strip_annotations: true\n  status:\n    column: Status\n    complete: [Complete]\n    pending: [Planned]\n    failed: [Failed]\n    retired: [⛔]\n  obligations:\n  - name: criteria\n    target: criterion\n    statement_column: Criteria\n    method_column: Verification\n  vocabularies:\n    retired: [\" \"]\n  trace_tags:\n    markers:\n    - name: rust-trace\n      language: rust\n      pattern: '#\\[trace\\(([^)]*)\\)\\]'\nverification_catalog:\n  unit:\n    name: Unit test\n    class: Test\n    definition: An executable assertion.\n    evidence_kind: Unit\n",
+      "documents": {
+        "FR-001.md": "---\nid: FR-001\ntype: FR\n---\n\n## Acceptance Criteria\n\n| ID | Criteria | Verification | Status |\n|---|---|---|---|\n| FR-001-AC-1 | Withdrawn by the owner decision; ID never reused. | Withdrawn | Planned |\n"
+      },
+      "sources": {}
+    },
+    "expect": {
+      "module_error": "vocabularies.retired"
+    }
+  },
+  {
+    "name": "overlapping-retirement",
+    "issue_ref": "https://linear.app/agent-ix/issue/PLAT-1236",
+    "input": {
+      "module": "name: retired-declarations\nversion: 0.1.0\nartifact_types:\n- name: FR\ntraceability:\n  trace_targets:\n  - name: criterion\n    archetype: FR\n    section: Acceptance Criteria\n    id_column: ID\n  document_references:\n  - name: verification\n    archetype: FR\n    section: Acceptance Criteria\n    column: Verification\n    row_id_column: ID\n    pattern: '\\b(TC-\\d+)\\b'\n    targets: [criterion]\n    strip_annotations: true\n  status:\n    column: Status\n    complete: [Complete]\n    pending: [Planned]\n    failed: [Failed]\n    retired: [⛔]\n  obligations:\n  - name: criteria\n    target: criterion\n    statement_column: Criteria\n    method_column: Verification\n  vocabularies:\n    retired: [Inspection]\n    no_source_symbol: [Inspection]\n    test_type: [Inspection]\n    test_type_column: Type\n  trace_tags:\n    markers:\n    - name: rust-trace\n      language: rust\n      pattern: '#\\[trace\\(([^)]*)\\)\\]'\nverification_catalog:\n  unit:\n    name: Unit test\n    class: Test\n    definition: An executable assertion.\n    evidence_kind: Unit\n",
+      "documents": {
+        "FR-001.md": "---\nid: FR-001\ntype: FR\n---\n\n## Acceptance Criteria\n\n| ID | Criteria | Verification | Status |\n|---|---|---|---|\n| FR-001-AC-1 | Withdrawn by the owner decision; ID never reused. | Withdrawn | Planned |\n"
+      },
+      "sources": {}
+    },
+    "expect": {
+      "module_error": "vocabularies.retired"
+    }
+  },
+  {
+    "name": "direct-obligation-rendered-id-differs",
+    "issue_ref": "https://linear.app/agent-ix/issue/PLAT-1236",
+    "input": {
+      "module": "name: retired-declarations\nversion: 0.1.0\nartifact_types:\n- name: FR\ntraceability:\n  trace_targets:\n  - name: criterion\n    archetype: FR\n    section: Acceptance Criteria\n    id_column: ID\n  document_references:\n  - name: verification\n    archetype: FR\n    section: Acceptance Criteria\n    column: Verification\n    row_id_column: ID\n    pattern: '\\b(TC-\\d+)\\b'\n    targets: [criterion]\n    strip_annotations: true\n  status:\n    column: Status\n    complete: [Complete]\n    pending: [Planned]\n    failed: [Failed]\n    retired: [⛔]\n  obligations:\n  - name: criteria\n    archetype: FR\n    section: Acceptance Criteria\n    id_format: \"OBL-{document}-{row}\"\n    statement_column: Criteria\n    method_column: Verification\n  vocabularies:\n    retired: [Withdrawn]\n  trace_tags:\n    markers:\n    - name: rust-trace\n      language: rust\n      pattern: '#\\[trace\\(([^)]*)\\)\\]'\nverification_catalog:\n  unit:\n    name: Unit test\n    class: Test\n    definition: An executable assertion.\n    evidence_kind: Unit\n",
+      "documents": {
+        "FR-001.md": "---\nid: FR-001\ntype: FR\n---\n\n## Acceptance Criteria\n\n| ID | Criteria | Verification | Status |\n|---|---|---|---|\n| FR-001-AC-1 | Withdrawn by the owner decision; ID never reused. | Withdrawn | Planned |\n"
+      },
+      "sources": {}
+    },
+    "expect": {
+      "total": 0,
+      "backed": 0,
+      "retired": 1,
+      "unbacked": [],
+      "status_lies": [],
+      "unknown_methods": [],
+      "retired_cells": {
+        "Criteria": "Withdrawn by the owner decision; ID never reused."
+      },
+      "retired_criterion_id": "OBL-FR-001-1"
+    }
+  }
+]

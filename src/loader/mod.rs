@@ -1081,7 +1081,24 @@ pub fn flatten_into_registry(mut outcome: LoadOutcome) -> RegistryShape {
     // `status` vocabulary is taken from the first module that declares one.
     // A module that declares nothing contributes nothing, so the merged model
     // stays undeclared until some module declares one.
-    let traceability = merge_traceability(&outcome.modules);
+    let mut traceability = merge_traceability(&outcome.modules);
+    if let Err(reason) = traceability.vocabularies.validate_retirement() {
+        for module in &outcome.modules {
+            if !module.traceability.vocabularies.retired.is_empty()
+                || !module.traceability.vocabularies.no_source_symbol.is_empty()
+            {
+                outcome.failures.push(ArchetypeLoadFailure {
+                    module: module.name.clone(),
+                    archetype: "<manifest>".to_string(),
+                    path: module.root.join("manifest.yaml"),
+                    reason: format!("merged selected traceability model: {reason}"),
+                });
+            }
+        }
+        // Tolerant registry loading retains other valid capabilities, but
+        // must never expose a contradictory coverage model for computation.
+        traceability = crate::traceability::TraceabilityModel::default();
+    }
     let declaration_origins = merge_declaration_origins(&outcome.modules);
 
     // ── FR-041: derive the inverse-label → forward-verb index from the
@@ -1342,6 +1359,12 @@ fn merge_traceability(modules: &[LoadedModule]) -> crate::traceability::Traceabi
                 .vocabularies
                 .no_source_symbol
                 .clone_from(&m.vocabularies.no_source_symbol);
+        }
+        if merged.vocabularies.retired.is_empty() {
+            merged
+                .vocabularies
+                .retired
+                .clone_from(&m.vocabularies.retired);
         }
     }
     merged

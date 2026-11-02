@@ -5,6 +5,24 @@ All notable changes to `quire-rs` are documented here. Format follows
 numbers follow semver — pre-1.0, breaking changes may land in minor
 bumps; once 1.0 ships, semver is strict.
 
+## [0.51.0] — 2026-11-02
+
+### Fixed
+
+- Coverage distinguishes explicitly module-declared retired verification rows and
+  existing retired statuses from live evidence gaps. Withdrawn IDs, statements,
+  reasons and actual source backing remain available in the report.
+
+### Changed
+
+- Coverage groups and totals count live targets separately from retired targets;
+  `minted_targets` retains both populations and exposes explicit retirement.
+- Modules can declare `traceability.vocabularies.retired` verification-cell
+  values. Retired criterion matrix entries retain their binders with status
+  `retired`, and retirement markers are not treated as verification methods.
+- All-retired strict CLI evaluation requires a consumer that recognizes the
+  separate retired population; an engine release alone does not update the CLI.
+
 ## [0.50.4] — 2026-11-02
 
 ### Fixed

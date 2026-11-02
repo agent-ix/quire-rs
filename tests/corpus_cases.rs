@@ -204,6 +204,24 @@ fn tc1016_losing_l1_reports_no_level_reached() {
     assert!(outcome.report().contains("reached no level"));
 }
 
+fn filing_reference_is_nonblank(reference: &str) -> bool {
+    !reference.trim().is_empty()
+}
+
+#[trace("FR-065-AC-3")]
+#[test]
+fn corpus_attribution_preserves_real_tracker_filings_and_rejects_blank_values() {
+    for reference in [
+        "https://linear.app/agent-ix/issue/PLAT-1236",
+        "agent-ix/quire-rs#363",
+    ] {
+        assert!(filing_reference_is_nonblank(reference), "{reference}");
+    }
+    for reference in ["", " ", "\t\n"] {
+        assert!(!filing_reference_is_nonblank(reference), "{reference:?}");
+    }
+}
+
 /// Every case names the filing it is the regression for, and every case is
 /// uniquely named — the two properties that keep the corpus navigable as it
 /// grows past the point where anyone remembers all of it.
@@ -220,7 +238,7 @@ fn every_case_is_attributed_and_uniquely_named() {
 
     for case in &cases {
         assert!(
-            case.meta.issue_ref.contains('#'),
+            filing_reference_is_nonblank(&case.meta.issue_ref),
             "{}: issue_ref must name a filing, got {:?}",
             case.meta.id,
             case.meta.issue_ref
@@ -2200,5 +2218,33 @@ fn tc1032_a_regression_case_pins_a_landed_fix() {
              rather than unmeasured modes",
             case.meta.id,
         );
+    }
+}
+
+#[trace("FR-050-AC-53")]
+#[test]
+fn withdrawn_verification_corpus_cases() {
+    let cases: Vec<_> = load_cases()
+        .into_iter()
+        .filter(|case| {
+            matches!(
+                case.meta.id.as_str(),
+                "withdrawn-verification" | "withdrawn-verification-control"
+            )
+        })
+        .collect();
+    assert_eq!(
+        cases.len(),
+        2,
+        "failure case and healthy control are present"
+    );
+    for case in cases {
+        let report = run(&case);
+        eprintln!("{}: {}", case.meta.id, report.to_json());
+        let result = match &case.expect_pending {
+            Some(forward) => grade_with(&case, &report, forward),
+            None => grade(&case, &report),
+        };
+        assert!(result.passed(), "{}", result.report());
     }
 }

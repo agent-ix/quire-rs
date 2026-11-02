@@ -554,9 +554,37 @@ pub struct ColumnVocabularies {
     /// opinion about which methods produce code.
     #[serde(default)]
     pub no_source_symbol: Vec<String>,
+    /// Exact verification-cell values declaring a historical, retired row.
+    /// Retirement is distinct from a live method that mints no source symbol.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub retired: Vec<String>,
 }
 
 impl ColumnVocabularies {
+    /// Validate retirement independently so selected modules can be checked again after merging.
+    pub(crate) fn validate_retirement(&self) -> Result<(), String> {
+        for value in &self.retired {
+            if value.trim().is_empty() {
+                return Err(
+                    "traceability: vocabularies.retired values must be nonblank".to_string()
+                );
+            }
+            if self.mints_no_symbol(value) {
+                return Err(format!(
+                    "traceability: vocabularies.retired value '{value}' is also declared in no_source_symbol"
+                ));
+            }
+        }
+        Ok(())
+    }
+
+    /// Whether a whole normalized verification-cell value declares retirement.
+    pub fn is_retired(&self, value: &str) -> bool {
+        self.retired
+            .iter()
+            .any(|declared| declared.trim() == value.trim())
+    }
+
     /// True when `value` names a declared method that mints no source symbol.
     /// Compared case-insensitively, as the column vocabularies are elsewhere.
     pub fn mints_no_symbol(&self, value: &str) -> bool {
@@ -1334,6 +1362,8 @@ impl TraceabilityModel {
                 }
             }
         }
+
+        self.vocabularies.validate_retirement()?;
 
         let mut marker_names: BTreeSet<&str> = BTreeSet::new();
         for marker in &self.trace_tags.markers {
