@@ -82,16 +82,23 @@ jobs:
       # schemas (src/assurance.rs and src/semantic/surface.rs `include_str!`
       # schemas/output/*.schema.json unconditionally — missing here since
       # this list was written, first caught by a real wheel build reaching
-      # that far for the first time under PLAT-948).
+      # that far for the first time under PLAT-948). Cargo metadata also
+      # needs the initialized corpus submodule, tools workspace member and
+      # explicit examples target, even though the wheel builds only the root
+      # library. Checkout initializes the submodule after applying the sparse
+      # directory list; the corpus gitlink is not a cone directory.
       # tests/ stays excluded — it carries the con.md.j2 fixture that
       # would otherwise break Windows.
       - uses: actions/checkout@v4
         with:
+          submodules: true
           sparse-checkout: |
             src
             benches
             crates
+            examples
             schemas
+            tools
             .cargo
 
       - name: Build abi3 wheel
