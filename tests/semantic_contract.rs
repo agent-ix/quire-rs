@@ -121,6 +121,7 @@ fn valid_block_and_reference_schema_load() {
     for (module_name, semantic_core) in [
         ("spec-objects-fixture-032", "0.3.2"),
         ("spec-objects-fixture-033", "0.3.3"),
+        ("spec-objects-fixture-future", "99.0.0"),
     ] {
         let root = module(&tmp, module_name, |m, _| {
             semantic(m).insert("semantic_core".into(), semantic_core.into());
@@ -170,6 +171,19 @@ fn unsupported_versions_are_refused_first() {
         registry.archetype("entity").is_none(),
         "no archetype loads as an empty model"
     );
+}
+
+#[trace("FR-069-AC-3")]
+#[test]
+fn exported_artifact_type_is_a_declared_module_type() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = module(&tmp, "spec-artifact-fixture", |m, _| {
+        m["artifact_types"] = m["object_types"].clone();
+        m["object_types"] = serde_yaml::Value::Sequence(Vec::new());
+    });
+    let registry = load(&root);
+    assert!(registry.failures().is_empty(), "{:?}", reasons(&registry));
+    assert!(registry.archetype("entity").is_some());
 }
 
 #[trace("TC-1601", "FR-069-AC-3")]
