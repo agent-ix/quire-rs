@@ -103,6 +103,21 @@ pub struct RewriteSuggestion {
     pub suggestion: String,
 }
 
+/// A guarded form matched only part of an actual attribute candidate.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PartialAttributeMatch {
+    /// Module-declared form name.
+    pub form: String,
+    /// Repo-relative source path.
+    pub path: String,
+    /// Qualified owning production declaration.
+    pub symbol: String,
+    /// Actual 1-based start line of the attribute.
+    pub line: usize,
+    /// Complete verbatim candidate text.
+    pub attribute: String,
+}
+
 /// A duplicate binding, dropped to one relation (FR-045 edge-dedup).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TraceDiagnostic {
@@ -331,6 +346,8 @@ pub struct SymbolGraph {
     pub contains: Vec<(String, String, String)>,
     pub rewrites: Vec<RewriteSuggestion>,
     pub diagnostics: Vec<TraceDiagnostic>,
+    /// Rejected proper-substring matches, in declaration/form/source order.
+    pub partial_attribute_matches: Vec<PartialAttributeMatch>,
     /// Per-language candidate/bound counts (FR-051-AC-19, CR-093). Ordered by
     /// language label, and present for every language the walk saw at least one
     /// evidence symbol in.
@@ -1180,19 +1197,48 @@ fn bind_implements(
         let Some(re) = patterns.implements(&marker.pattern) else {
             continue;
         };
-        for caps in re.captures_iter(&span) {
-            let Some(args) = caps.get(1) else { continue };
-            for trace_id in marker_ids(args.as_str()) {
-                if let Some(range) = marker_range(symbol, &span, &caps, &trace_id) {
-                    ranges.push(range);
+        let candidates: Vec<(&str, usize)> = match marker.syntax {
+            Some(crate::traceability::TraceMarkerSyntax::RustAttribute) => symbol
+                .attributes
+                .iter()
+                .map(|attribute| (attribute.text.as_str(), attribute.line))
+                .collect(),
+            None => vec![(span.as_str(), symbol.leading_line)],
+        };
+        for (candidate, line) in candidates {
+            let mut partial = false;
+            for caps in re.captures_iter(candidate) {
+                if marker.syntax.is_some()
+                    && !caps.get(0).is_some_and(|matched| {
+                        matched.start() == 0 && matched.end() == candidate.len()
+                    })
+                {
+                    partial = true;
                     continue;
                 }
-                graph.implements.push(ImplementsRelation {
-                    symbol_id: symbol.id.clone(),
-                    symbol: symbol.qualified_name.clone(),
-                    path: symbol.path.clone(),
-                    trace_id,
+                let Some(args) = caps.get(1) else { continue };
+                for trace_id in marker_ids(args.as_str()) {
+                    if let Some(mut range) = marker_range(symbol, candidate, &caps, &trace_id) {
+                        range.line = line + range.line.saturating_sub(symbol.leading_line);
+                        ranges.push(range);
+                        continue;
+                    }
+                    graph.implements.push(ImplementsRelation {
+                        symbol_id: symbol.id.clone(),
+                        symbol: symbol.qualified_name.clone(),
+                        path: symbol.path.clone(),
+                        trace_id,
+                        form: marker.name.clone(),
+                    });
+                }
+            }
+            if partial {
+                graph.partial_attribute_matches.push(PartialAttributeMatch {
                     form: marker.name.clone(),
+                    path: symbol.path.clone(),
+                    symbol: symbol.qualified_name.clone(),
+                    line,
+                    attribute: candidate.to_string(),
                 });
             }
         }
@@ -2834,6 +2880,7 @@ mod tests {
         // here rather than in a fixture a dozen other tests assert against.
         let mut model = iso_model();
         model.trace_tags.implements.push(TraceMarkerForm {
+            syntax: None,
             name: "python-implements-line".to_string(),
             language: SourceLanguage::Python,
             pattern: r"(?m)^\s*#\s*Implements:\s*(.+)$".to_string(),
@@ -3097,6 +3144,7 @@ mod tests {
         // current by hand — not attempted here.
         let mut model = iso_model();
         model.trace_tags.implements.push(TraceMarkerForm {
+            syntax: None,
             name: "rust-implements-line".to_string(),
             language: SourceLanguage::Rust,
             pattern: r"(?m)^\s*//\s*Implements:\s*(.+)$".to_string(),
@@ -3175,6 +3223,7 @@ fn fn_plain_mention() {\n\
     fn tc1936_a_range_in_an_implements_marker_binds_nothing() {
         let mut model = iso_model();
         model.trace_tags.implements.push(TraceMarkerForm {
+            syntax: None,
             name: "rust-implements-attribute".to_string(),
             language: SourceLanguage::Rust,
             pattern: r#"#\[implements\(((?:\s*"[^"]*"\s*,?)+)\)\]"#.to_string(),

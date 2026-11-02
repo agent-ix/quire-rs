@@ -13,12 +13,14 @@ use quire_rs::traceability::{SourceLanguage, TraceMarkerForm, TraceabilityModel}
 fn model() -> TraceabilityModel {
     let mut model = TraceabilityModel::default();
     model.trace_tags.markers.push(TraceMarkerForm {
+        syntax: None,
         name: "rust-trace-attr".to_string(),
         language: SourceLanguage::Rust,
         pattern: r#"#\[trace\("([^"]+)"\)\]"#.to_string(),
         template: None,
     });
     model.trace_tags.implements.push(TraceMarkerForm {
+        syntax: None,
         name: "rust-implements-attr".to_string(),
         language: SourceLanguage::Rust,
         pattern: r#"#\[implements\("([^"]+)"\)\]"#.to_string(),
@@ -166,6 +168,7 @@ fn tc939_implements_reaches_the_report_without_moving_a_total() {
 
     let mut model = registry.traceability().cloned().expect("model");
     model.trace_tags.implements.push(TraceMarkerForm {
+        syntax: None,
         name: "rust-implements-attr".to_string(),
         language: SourceLanguage::Rust,
         pattern: r#"#\[implements\("([^"]+)"\)\]"#.to_string(),
@@ -245,4 +248,277 @@ fn tc940_declared_forms_survive_the_module_load() {
     assert!(graph.backed_trace_ids().is_empty());
 
     std::fs::remove_dir_all(&dir).ok();
+}
+
+const GUARDED_PATTERN: &str = r#"(?s)#\[\s*implements\s*\((.*?)\)\s*\]"#;
+
+fn guarded_registry(
+    dir: &std::path::Path,
+    pattern: &str,
+    syntax: Option<&str>,
+    language: &str,
+    section: &str,
+) -> Result<quire_rs::Registry, String> {
+    let module = dir.join("module");
+    std::fs::create_dir_all(&module).expect("module directory");
+    let mut form = serde_json::json!({
+        "name": "declared-attribute", "language": language, "pattern": pattern,
+        "template": "#[implements({ids})]"
+    });
+    if let Some(syntax) = syntax {
+        form["syntax"] = syntax.into();
+    }
+    let manifest = serde_json::json!({
+        "name": "guarded-fixture", "version": "0.1.0", "artifact_types": [],
+        "traceability": { "trace_tags": { section: [form] } }
+    });
+    std::fs::write(
+        module.join("manifest.yaml"),
+        serde_json::to_string(&manifest).unwrap(),
+    )
+    .unwrap();
+    quire_rs::Registry::load_module(&module).map_err(|error| error.to_string())
+}
+
+fn syntax_cases() -> serde_json::Value {
+    serde_json::from_str(include_str!(
+        "fixtures/corpus_cases/rust-implements-syntax.json"
+    ))
+    .unwrap()
+}
+
+#[trace(
+    "TC-1983",
+    "TC-1984",
+    "TC-1985",
+    "TC-1986",
+    "TC-1987",
+    "FR-062-AC-12",
+    "FR-062-AC-13",
+    "FR-062-AC-14",
+    "FR-062-AC-15"
+)]
+#[test]
+fn declared_attribute_syntax_excludes_data_and_preserves_exact_owners() {
+    for case in syntax_cases()["cases"].as_array().unwrap() {
+        let name = case["name"].as_str().unwrap();
+        if name == "partial" || name == "range" {
+            continue;
+        }
+        let dir = tempfile::tempdir().unwrap();
+        let registry = guarded_registry(
+            dir.path(),
+            GUARDED_PATTERN,
+            Some("rust_attribute"),
+            "rust",
+            "implements",
+        )
+        .unwrap();
+        let model = registry.traceability().unwrap();
+        let serialized = serde_json::to_value(model).unwrap();
+        assert_eq!(
+            serialized["trace_tags"]["implements"][0]["syntax"],
+            "rust_attribute"
+        );
+        let roundtrip: TraceabilityModel = serde_json::from_value(serialized).unwrap();
+        assert_eq!(&roundtrip, model);
+        let src = dir.path().join("src");
+        std::fs::create_dir(&src).unwrap();
+        std::fs::write(src.join("lib.rs"), case["source"].as_str().unwrap()).unwrap();
+        let extraction = quire_rs::symbols::extract_tree(&src);
+        assert!(
+            extraction.diagnostics.is_empty(),
+            "{name}: {:?}",
+            extraction.diagnostics
+        );
+        let graph = trace::bind(&extraction, model);
+        let actual: std::collections::BTreeSet<_> = graph
+            .implements
+            .iter()
+            .map(|r| (r.symbol.as_str(), r.trace_id.as_str()))
+            .collect();
+        let expected: std::collections::BTreeSet<_> = case["expected"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|row| (row[0].as_str().unwrap(), row[1].as_str().unwrap()))
+            .collect();
+        assert_eq!(actual, expected, "{name}");
+        assert!(graph.verifies.is_empty(), "{name}");
+        assert!(graph.backed_trace_ids().is_empty(), "{name}");
+        assert!(
+            graph.partial_attribute_matches.is_empty()
+                || name == "real-and-data"
+                || name == "ownership",
+            "{name}: {:?}",
+            graph.partial_attribute_matches
+        );
+    }
+}
+
+#[trace("TC-1989", "FR-062-AC-12")]
+#[test]
+fn invalid_attribute_guards_refuse_the_named_module_form() {
+    for (syntax, language, section) in [
+        ("unknown", "rust", "implements"),
+        ("rust_attribute", "python", "implements"),
+        ("rust_attribute", "typescript", "implements"),
+        ("rust_attribute", "rust", "markers"),
+        ("rust_attribute", "rust", "legacy"),
+    ] {
+        let dir = tempfile::tempdir().unwrap();
+        let error = guarded_registry(dir.path(), GUARDED_PATTERN, Some(syntax), language, section)
+            .unwrap_err();
+        assert!(
+            error.contains("declared-attribute"),
+            "{syntax}/{language}/{section}: {error}"
+        );
+    }
+}
+
+#[trace("TC-1988", "FR-062-AC-16")]
+#[test]
+fn omitted_guard_keeps_each_languages_declared_comment_form() {
+    for (language, file, source) in [
+        ("rust", "lib.rs", "// Implements: FR-601\nfn actual() {}\n"),
+        (
+            "python",
+            "lib.py",
+            "# Implements: FR-601\ndef actual():\n    pass\n",
+        ),
+        (
+            "typescript",
+            "lib.ts",
+            "// Implements: FR-601\nfunction actual() {}\n",
+        ),
+    ] {
+        let dir = tempfile::tempdir().unwrap();
+        let registry = guarded_registry(
+            dir.path(),
+            r"Implements: (FR-\d+)",
+            None,
+            language,
+            "implements",
+        )
+        .unwrap();
+        let src = dir.path().join("src");
+        std::fs::create_dir(&src).unwrap();
+        std::fs::write(src.join(file), source).unwrap();
+        let model = registry.traceability().unwrap();
+        assert!(model.trace_tags.implements[0].syntax.is_none());
+        let graph = trace::bind(&quire_rs::symbols::extract_tree(&src), model);
+        assert_eq!(
+            graph.implements.len(),
+            1,
+            "{language}: {:?}",
+            graph.implements
+        );
+        assert_eq!(graph.implements[0].trace_id, "FR-601");
+        assert_eq!(graph.implements[0].symbol, "actual");
+        assert!(graph.verifies.is_empty());
+    }
+}
+
+#[trace("TC-1989", "FR-062-AC-12")]
+#[test]
+fn partial_attribute_matches_reach_the_coverage_warning_channel() {
+    let dir = tempfile::tempdir().unwrap();
+    let registry = guarded_registry(
+        dir.path(),
+        GUARDED_PATTERN,
+        Some("rust_attribute"),
+        "rust",
+        "implements",
+    )
+    .unwrap();
+    let case = syntax_cases()["cases"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|case| case["name"] == "partial")
+        .unwrap()
+        .clone();
+    let src = dir.path().join("src");
+    std::fs::create_dir(&src).unwrap();
+    std::fs::write(src.join("lib.rs"), case["source"].as_str().unwrap()).unwrap();
+    let graph = trace::bind(
+        &quire_rs::symbols::extract_tree(&src),
+        registry.traceability().unwrap(),
+    );
+    assert_eq!(graph.implements.len(), 1);
+    assert_eq!(graph.implements[0].trace_id, "FR-502");
+    assert_eq!(graph.partial_attribute_matches.len(), 1);
+    let spec = quire_rs::Spec::from_path(&src);
+    let report = quire_rs::coverage::compute(&spec, &registry, &graph, &src).unwrap();
+    let findings: Vec<_> = report
+        .diagnostics
+        .iter()
+        .filter(|d| d.reason == "partial-implements-attribute-match")
+        .collect();
+    assert_eq!(findings.len(), 1);
+    let finding = findings[0];
+    assert_eq!(finding.declaration, "declared-attribute");
+    assert_eq!(finding.path.as_deref(), Some("lib.rs"));
+    assert_eq!(finding.line, Some(1));
+    assert_eq!(
+        finding.value.as_deref(),
+        Some("#[doc = r#\"#[implements(\"FR-501\")]\"#]")
+    );
+    assert!(finding.message.contains("partial"));
+    assert_eq!(report.implements.len(), 1);
+    assert!(report.unbacked_rows.is_empty());
+}
+
+#[trace("TC-1990", "FR-062-AC-17")]
+#[test]
+fn syntax_guard_preserves_identity_range_locations_and_file_failure_isolation() {
+    let dir = tempfile::tempdir().unwrap();
+    let registry = guarded_registry(
+        dir.path(),
+        GUARDED_PATTERN,
+        Some("rust_attribute"),
+        "rust",
+        "implements",
+    )
+    .unwrap();
+    let src = dir.path().join("src");
+    std::fs::create_dir(&src).unwrap();
+    let case = syntax_cases()["cases"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|case| case["name"] == "range")
+        .unwrap()
+        .clone();
+    std::fs::write(src.join("lib.rs"), case["source"].as_str().unwrap()).unwrap();
+    std::fs::write(src.join("bad.rs"), "fn broken( {").unwrap();
+    let extraction = quire_rs::symbols::extract_tree(&src);
+    assert_eq!(extraction.diagnostics.len(), 1);
+    assert_eq!(extraction.diagnostics[0].path, "bad.rs");
+    let model = registry.traceability().unwrap();
+    let first = trace::bind(&extraction, model);
+    let second = trace::bind(&extraction, model);
+    assert_eq!(first, second);
+    assert_eq!(first.implements.len(), 1);
+    assert_eq!(first.range_diagnostics.len(), 1);
+    assert_eq!(first.range_diagnostics[0].line, 3);
+    assert_eq!(first.range_diagnostics[0].range_text, "FR-401..FR-403");
+    assert!(first.verifies.is_empty());
+    let before: Vec<_> = extraction.symbols.iter().map(|s| s.id.clone()).collect();
+    std::fs::write(
+        src.join("lib.rs"),
+        format!("\n{}", case["source"].as_str().unwrap()),
+    )
+    .unwrap();
+    let after = quire_rs::symbols::extract_tree(&src);
+    assert_eq!(
+        before,
+        after
+            .symbols
+            .iter()
+            .map(|s| s.id.clone())
+            .collect::<Vec<_>>()
+    );
+    let graph = trace::bind(&after, model);
+    assert_eq!(graph.range_diagnostics[0].line, 4);
 }

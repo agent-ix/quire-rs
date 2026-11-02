@@ -258,6 +258,7 @@ fn walk(
                     let qualified = qualify(&container, &name);
                     out.push(container_symbol(
                         child,
+                        source,
                         qualified.clone(),
                         container.clone(),
                     ));
@@ -269,7 +270,12 @@ fn walk(
             "struct_item" | "enum_item" => {
                 if let Some(name) = field_text(child, "name", source) {
                     let qualified = qualify(&container, &name);
-                    out.push(container_symbol(child, qualified, container.clone()));
+                    out.push(container_symbol(
+                        child,
+                        source,
+                        qualified,
+                        container.clone(),
+                    ));
                 }
                 // A struct/enum body is a field or variant list, never a
                 // declaration list: nothing recognised by this adapter can
@@ -281,6 +287,7 @@ fn walk(
                     let qualified = qualify(&container, &name);
                     out.push(container_symbol(
                         child,
+                        source,
                         qualified.clone(),
                         container.clone(),
                     ));
@@ -347,8 +354,14 @@ fn qualify(container: &Option<String>, name: &str) -> String {
 /// declaration was found in (not its own — a top-level declaration gets
 /// `None`), matching `RawSymbol::container`'s own meaning everywhere else in
 /// this adapter.
-fn container_symbol(node: Node, qualified_name: String, container: Option<String>) -> RawSymbol {
+fn container_symbol(
+    node: Node,
+    source: &str,
+    qualified_name: String,
+    container: Option<String>,
+) -> RawSymbol {
     RawSymbol {
+        attributes: declaration_attributes(node, source),
         qualified_name,
         kind: SymbolKind::Container,
         line: node.start_position().row + 1,
@@ -388,6 +401,7 @@ fn function_symbol(node: Node, source: &str, container: Option<String>) -> Optio
     // this reads only the attribute's own top-level path, never its args.
     let ignored = is_test && has_attribute(node, source, "ignore");
     Some(RawSymbol {
+        attributes: declaration_attributes(node, source),
         qualified_name,
         kind,
         line: node.start_position().row + 1,
@@ -397,6 +411,28 @@ fn function_symbol(node: Node, source: &str, container: Option<String>) -> Optio
         container,
         ignored,
     })
+}
+
+/// Read only sibling attribute syntax associated with this declaration.
+fn declaration_attributes(node: Node, source: &str) -> Vec<super::SourceAttribute> {
+    let mut attributes = Vec::new();
+    let mut current = node;
+    while let Some(previous) = current.prev_sibling() {
+        if !is_annotation_node(previous) {
+            break;
+        }
+        if previous.kind() == "attribute_item" && !previous.has_error() {
+            if let Ok(text) = previous.utf8_text(source.as_bytes()) {
+                attributes.push(super::SourceAttribute {
+                    text: text.to_string(),
+                    line: previous.start_position().row + 1,
+                });
+            }
+        }
+        current = previous;
+    }
+    attributes.reverse();
+    attributes
 }
 
 /// `node`'s field named `name`, `type` &c. as plain source text, or `None`
@@ -688,6 +724,7 @@ fn scan_token_tree_for_fns(
                 let (leading_line, is_test, is_ignored) =
                     flat_leading_span_and_test(&children, i, source);
                 out.push(RawSymbol {
+                    attributes: Vec::new(),
                     qualified_name: qualified_name.clone(),
                     kind: if is_test {
                         SymbolKind::TestFunction
@@ -850,6 +887,7 @@ fn fuzz_target(root: Node, source: &str) -> Option<RawSymbol> {
     // invocation's own parent when that parent is the wrapping statement.
     let span_node = invocation.parent().unwrap_or(invocation);
     Some(RawSymbol {
+        attributes: Vec::new(),
         qualified_name: "fuzz_target".to_string(),
         kind: SymbolKind::FuzzTarget,
         line: invocation.start_position().row + 1,

@@ -517,6 +517,14 @@ pub(super) fn reconcile(
             }),
     );
 
+    diagnostics.extend(graph.partial_attribute_matches.iter().map(|finding| CoverageDiagnostic {
+        declaration: finding.form.clone(),
+        reason: "partial-implements-attribute-match".to_string(),
+        message: format!("form '{}' matched only part of attribute {} on {} at {}:{}; match the complete attribute", finding.form, finding.attribute, finding.symbol, finding.path, finding.line),
+        path: Some(finding.path.clone()), line: Some(finding.line),
+        value: Some(finding.attribute.clone()), guidance: None,
+    }));
+
     // ── Shared trace ids: one id bound by several distinct symbols ──
     // (FR-050-AC-23, CR-087). Scoped to ids that are row ids of
     // status-carrying rows — the population where N binders let a green row

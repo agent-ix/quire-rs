@@ -73,6 +73,9 @@ pub(super) fn guidance_for(diagnostic: &CoverageDiagnostic) -> crate::finding::F
             locus,
             "fill the declared statement cell or remove the row if it states no obligation",
         ),
+        "partial-implements-attribute-match" => FindingGuidance::remedy(
+            declaration, locus, "make the declared implements pattern match the complete outer attribute; a substring never creates a relation",
+        ),
         "range-in-trace-tag" => FindingGuidance::remedy(
             format!("range `{value}`"),
             locus,
