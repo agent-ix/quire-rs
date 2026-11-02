@@ -122,7 +122,7 @@ fn block_validator() -> JSONSchema {
     // The embedded bundle is the only semantic-core there is, so a module
     // declares no version: an absent `semantic_core` is not a missing key.
     if let Some(required) = block["required"].as_array_mut() {
-        required.retain(|k| k != "semantic_core");
+        required.retain(|key| key != "semantic_core");
     }
     JSONSchema::options()
         .compile(&block)
@@ -131,10 +131,10 @@ fn block_validator() -> JSONSchema {
 
 /// Read and check a `semantic` block (FR-069 Behavior, refusals in order).
 ///
-/// `object_types` are the declared object-type names.
+/// `declared_types` are all names declared by the manifest's type sections.
 pub fn read_semantic_block(
     block: &Value,
-    object_types: &[String],
+    declared_types: &[String],
 ) -> Result<SemanticModule, Vec<SemanticFailure>> {
     let Some(map) = block.as_object() else {
         return Err(vec![SemanticFailure::error(
@@ -161,7 +161,14 @@ pub fn read_semantic_block(
     // 2. shape against the embedded module-manifest schema.
     let mut failures = Vec::new();
     let validator = block_validator();
-    if let Err(errors) = validator.validate(block) {
+    // Older public manifests carry this informational key. Validate the
+    // remaining block against the embedded schema without copying a property
+    // definition from that schema into this crate.
+    let mut validation_block = block.clone();
+    if let Some(map) = validation_block.as_object_mut() {
+        map.remove("semantic_core");
+    }
+    if let Err(errors) = validator.validate(&validation_block) {
         for error in errors {
             let at = format!(
                 "semantic{}",
@@ -220,13 +227,13 @@ pub fn read_semantic_block(
     let targets = string_list("targets");
     let mappings = string_list("mappings");
     let package = map["package"].as_str().unwrap_or_default().to_string();
-    // 3. exports name declared object types.
+    // 3. exports name declared module types.
     for name in &exports {
-        if !object_types.iter().any(|t| t == name) {
+        if !declared_types.iter().any(|t| t == name) {
             failures.push(SemanticFailure::error(
                 "semantic.export-undeclared",
                 format!("semantic.exports.{name}"),
-                format!("semantic.exports names {name}, which object_types does not declare"),
+                format!("semantic.exports names {name}, which the manifest does not declare"),
             ));
         }
     }

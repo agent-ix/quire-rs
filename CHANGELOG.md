@@ -5,7 +5,16 @@ All notable changes to `quire-rs` are documented here. Format follows
 numbers follow semver — pre-1.0, breaking changes may land in minor
 bumps; once 1.0 ships, semver is strict.
 
-## [Unreleased]
+## [0.50.4] — 2026-11-02
+
+### Fixed
+
+- Accept current semantic module manifests and resolve semantic exports against all declared module types, including artifact types.
+- Reduce matrix trace-binding time by indexing pending targets and sorting the completed binding graph once.
+
+### Breaking
+
+- Align `assurance-v1` with the current static facts contract by removing the source repository and revision premise.
 
 ### Removed
 
