@@ -2215,16 +2215,18 @@ fn withdrawn_verification_corpus_cases() {
             )
         })
         .collect();
-    assert_eq!(cases.len(), 2, "failure case and healthy control are present");
+    assert_eq!(
+        cases.len(),
+        2,
+        "failure case and healthy control are present"
+    );
     for case in cases {
         let report = run(&case);
         eprintln!("{}: {}", case.meta.id, report.to_json());
-        let result = grade(&case, &report);
+        let result = match &case.expect_pending {
+            Some(forward) => grade_with(&case, &report, forward),
+            None => grade(&case, &report),
+        };
         assert!(result.passed(), "{}", result.report());
-        if let Some(forward) = &case.expect_pending {
-            let result = grade_with(&case, &report, forward);
-            assert!(!result.passed(), "pending contract unexpectedly holds");
-            eprintln!("targeted pending failure: {}", result.report());
-        }
     }
 }
