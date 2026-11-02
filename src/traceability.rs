@@ -554,6 +554,10 @@ pub struct ColumnVocabularies {
     /// opinion about which methods produce code.
     #[serde(default)]
     pub no_source_symbol: Vec<String>,
+    /// Exact verification-cell values declaring a historical, retired row.
+    /// Retirement is distinct from a live method that mints no source symbol.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub retired: Vec<String>,
 }
 
 impl ColumnVocabularies {
@@ -1332,6 +1336,17 @@ impl TraceabilityModel {
                          the declared test_type vocabulary"
                     ));
                 }
+            }
+        }
+
+        for value in &self.vocabularies.retired {
+            if value.trim().is_empty() {
+                return Err("traceability: vocabularies.retired values must be nonblank".to_string());
+            }
+            if self.vocabularies.mints_no_symbol(value) {
+                return Err(format!(
+                    "traceability: vocabularies.retired value '{value}' is also declared in no_source_symbol"
+                ));
             }
         }
 

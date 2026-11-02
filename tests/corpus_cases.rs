@@ -2202,3 +2202,29 @@ fn tc1032_a_regression_case_pins_a_landed_fix() {
         );
     }
 }
+
+#[trace("FR-050-AC-53")]
+#[test]
+fn withdrawn_verification_corpus_cases() {
+    let cases: Vec<_> = load_cases()
+        .into_iter()
+        .filter(|case| {
+            matches!(
+                case.meta.id.as_str(),
+                "withdrawn-verification" | "withdrawn-verification-control"
+            )
+        })
+        .collect();
+    assert_eq!(cases.len(), 2, "failure case and healthy control are present");
+    for case in cases {
+        let report = run(&case);
+        eprintln!("{}: {}", case.meta.id, report.to_json().expect("report JSON"));
+        let result = grade(&case, &report);
+        assert!(result.passed(), "{}", result.report());
+        if let Some(forward) = &case.expect_pending {
+            let result = grade_with(&case, &report, forward);
+            assert!(!result.passed(), "pending contract unexpectedly holds");
+            eprintln!("targeted pending failure: {}", result.report());
+        }
+    }
+}
