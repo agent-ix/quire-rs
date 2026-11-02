@@ -531,3 +531,60 @@ fn syntax_guard_preserves_identity_range_locations_and_file_failure_isolation() 
     let graph = trace::bind(&after, model);
     assert_eq!(graph.range_diagnostics[0].line, 4);
 }
+
+#[trace("TC-1987", "TC-1989", "FR-062-AC-12", "FR-062-AC-15")]
+#[test]
+fn guarded_forms_require_complete_matches_and_do_not_expand_cfg_attr() {
+    for (source, pattern, expected_ids, expected_partial) in [
+        (
+            "#[implements(\"FR-701\")]\nfn candidate() {}",
+            r#"implements\(([^)]*)\)"#,
+            vec![],
+            1,
+        ),
+        (
+            "#[implements(\"FR-701\")]\nfn candidate() {}",
+            r#"#\[different\(([^)]*)\)\]"#,
+            vec![],
+            0,
+        ),
+        ("fn candidate() {}", GUARDED_PATTERN, vec![], 0),
+        (
+            "#[cfg_attr(feature = \"x\", implements(\"FR-702\"))]\nfn candidate() {}",
+            r#"#\[cfg_attr\(feature = "x", implements\(([^)]*)\)\)\]"#,
+            vec!["FR-702"],
+            0,
+        ),
+    ] {
+        let dir = tempfile::tempdir().unwrap();
+        let registry = guarded_registry(
+            dir.path(),
+            pattern,
+            Some("rust_attribute"),
+            "rust",
+            "implements",
+        )
+        .unwrap();
+        let src = dir.path().join("src");
+        std::fs::create_dir(&src).unwrap();
+        std::fs::write(src.join("lib.rs"), source).unwrap();
+        let extraction = quire_rs::symbols::extract_tree(&src);
+        assert!(extraction.diagnostics.is_empty(), "{source}");
+        let graph = trace::bind(&extraction, registry.traceability().unwrap());
+        assert_eq!(
+            graph
+                .implements
+                .iter()
+                .map(|r| r.trace_id.as_str())
+                .collect::<Vec<_>>(),
+            expected_ids,
+            "{source}/{pattern}"
+        );
+        assert_eq!(
+            graph.partial_attribute_matches.len(),
+            expected_partial,
+            "{source}/{pattern}"
+        );
+        assert!(graph.verifies.is_empty());
+    }
+}
