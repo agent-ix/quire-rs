@@ -750,7 +750,11 @@ fn retired_obligation_flags(
         return vec![false; obligations.len()];
     }
     type RowIdentity = (String, String, String);
-    let mut rows: BTreeMap<RowIdentity, VecDeque<usize>> = BTreeMap::new();
+    let mut rows: BTreeMap<RowIdentity, VecDeque<bool>> = BTreeMap::new();
+    let retired_rows: BTreeSet<_> = retired
+        .iter()
+        .map(|(document, line, _)| (document.as_str(), *line))
+        .collect();
     let model_exclude = declared_tables::ExcludeSet::compile_validated(&model.exclude);
     let mut ctx = declared_tables::ScanContext::default();
     for source in &model.obligations {
@@ -803,13 +807,16 @@ fn retired_obligation_flags(
             }
             // Derivation preserves relative row order for each source/document.
             // Keep repeated statements queued rather than collapsing duplicate ids.
-            rows.entry((
-                source.name.clone(),
-                relative(root, &row.path),
-                statement.to_string(),
-            ))
-            .or_default()
-            .push_back(row.line);
+            let document = relative(root, &row.path);
+            let is_retired = match id_column.and_then(|column| row.cell(column)) {
+                Some(id) => retired_at(retired, &document, row.line, id),
+                // A direct source renders its obligation id. The retirement
+                // fact belongs to this declaring row, not that rendered id.
+                None => retired_rows.contains(&(document.as_str(), row.line)),
+            };
+            rows.entry((source.name.clone(), document, statement.to_string()))
+                .or_default()
+                .push_back(is_retired);
         }
     }
     obligations
@@ -821,7 +828,7 @@ fn retired_obligation_flags(
                 obligation.statement.clone(),
             ))
             .and_then(VecDeque::pop_front)
-            .is_some_and(|line| retired_at(retired, &obligation.document, line, &obligation.id))
+            .unwrap_or(false)
         })
         .collect()
 }

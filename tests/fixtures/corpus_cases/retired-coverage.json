@@ -417,5 +417,28 @@
     "expect": {
       "module_error": "vocabularies.retired"
     }
+  },
+  {
+    "name": "direct-obligation-rendered-id-differs",
+    "issue_ref": "https://linear.app/agent-ix/issue/PLAT-1236",
+    "input": {
+      "module": "name: retired-declarations\nversion: 0.1.0\nartifact_types:\n- name: FR\ntraceability:\n  trace_targets:\n  - name: criterion\n    archetype: FR\n    section: Acceptance Criteria\n    id_column: ID\n  document_references:\n  - name: verification\n    archetype: FR\n    section: Acceptance Criteria\n    column: Verification\n    row_id_column: ID\n    pattern: '\\b(TC-\\d+)\\b'\n    targets: [criterion]\n    strip_annotations: true\n  status:\n    column: Status\n    complete: [Complete]\n    pending: [Planned]\n    failed: [Failed]\n    retired: [⛔]\n  obligations:\n  - name: criteria\n    archetype: FR\n    section: Acceptance Criteria\n    id_format: \"OBL-{document}-{row}\"\n    statement_column: Criteria\n    method_column: Verification\n  vocabularies:\n    retired: [Withdrawn]\n  trace_tags:\n    markers:\n    - name: rust-trace\n      language: rust\n      pattern: '#\\[trace\\(([^)]*)\\)\\]'\nverification_catalog:\n  unit:\n    name: Unit test\n    class: Test\n    definition: An executable assertion.\n    evidence_kind: Unit\n",
+      "documents": {
+        "FR-001.md": "---\nid: FR-001\ntype: FR\n---\n\n## Acceptance Criteria\n\n| ID | Criteria | Verification | Status |\n|---|---|---|---|\n| FR-001-AC-1 | Withdrawn by the owner decision; ID never reused. | Withdrawn | Planned |\n"
+      },
+      "sources": {}
+    },
+    "expect": {
+      "total": 0,
+      "backed": 0,
+      "retired": 1,
+      "unbacked": [],
+      "status_lies": [],
+      "unknown_methods": [],
+      "retired_cells": {
+        "Criteria": "Withdrawn by the owner decision; ID never reused."
+      },
+      "retired_criterion_id": "OBL-FR-001-1"
+    }
   }
 ]

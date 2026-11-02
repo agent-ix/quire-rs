@@ -561,6 +561,23 @@ pub struct ColumnVocabularies {
 }
 
 impl ColumnVocabularies {
+    /// Validate retirement independently so selected modules can be checked again after merging.
+    pub(crate) fn validate_retirement(&self) -> Result<(), String> {
+        for value in &self.retired {
+            if value.trim().is_empty() {
+                return Err(
+                    "traceability: vocabularies.retired values must be nonblank".to_string()
+                );
+            }
+            if self.mints_no_symbol(value) {
+                return Err(format!(
+                    "traceability: vocabularies.retired value '{value}' is also declared in no_source_symbol"
+                ));
+            }
+        }
+        Ok(())
+    }
+
     /// Whether a whole normalized verification-cell value declares retirement.
     pub fn is_retired(&self, value: &str) -> bool {
         self.retired
@@ -1346,18 +1363,7 @@ impl TraceabilityModel {
             }
         }
 
-        for value in &self.vocabularies.retired {
-            if value.trim().is_empty() {
-                return Err(
-                    "traceability: vocabularies.retired values must be nonblank".to_string()
-                );
-            }
-            if self.vocabularies.mints_no_symbol(value) {
-                return Err(format!(
-                    "traceability: vocabularies.retired value '{value}' is also declared in no_source_symbol"
-                ));
-            }
-        }
+        self.vocabularies.validate_retirement()?;
 
         let mut marker_names: BTreeSet<&str> = BTreeSet::new();
         for marker in &self.trace_tags.markers {

@@ -3402,6 +3402,9 @@ fn retired_declarations_keep_live_gaps_and_historical_identity() {
                 })
                 .collect::<Vec<_>>();
             assert_eq!(retired_criteria.len(), 1, "{name}: {criteria:?}");
+            if let Some(id) = case["expect"]["retired_criterion_id"].as_str() {
+                assert_eq!(retired_criteria[0].id, id, "{name}");
+            }
             assert_eq!(
                 retired_criteria[0].binders.len(),
                 case["expect"]["retired_binders"].as_u64().unwrap_or(0) as usize,
@@ -3416,5 +3419,76 @@ fn retired_declarations_keep_live_gaps_and_historical_identity() {
         )
         .unwrap();
         assert_eq!(report.to_json(), again.to_json(), "{name}");
+    }
+}
+
+#[trace("FR-050-AC-55")]
+#[test]
+fn retirement_vocabularies_are_validated_after_module_selection() {
+    let fixture: serde_json::Value = serde_json::from_str(include_str!(
+        "fixtures/corpus_cases/retired-vocabulary-merge.json"
+    ))
+    .expect("multi-module retirement fixture");
+    assert_eq!(
+        fixture["issue_ref"],
+        "https://linear.app/agent-ix/issue/PLAT-1236"
+    );
+    for case in fixture["cases"].as_array().unwrap() {
+        let name = case["name"].as_str().unwrap();
+        let root = tempfile::tempdir().unwrap();
+        let retirement = root.path().join("retirement");
+        let methods = root.path().join("methods");
+        write(
+            &retirement,
+            "manifest.yaml",
+            case["retirement_module"].as_str().unwrap(),
+        );
+        write(
+            &methods,
+            "manifest.yaml",
+            case["methods_module"].as_str().unwrap(),
+        );
+        for module in [&retirement, &methods] {
+            let individual = Registry::load_module(module).unwrap();
+            assert!(
+                individual.failures().is_empty(),
+                "{name}: {:?}",
+                individual.failures()
+            );
+        }
+        for modules in [
+            [retirement.as_path(), methods.as_path()],
+            [methods.as_path(), retirement.as_path()],
+        ] {
+            let registry = Registry::load_module_set(&modules).unwrap();
+            if case["conflict"].as_bool().unwrap() {
+                assert!(
+                    registry.traceability().is_none(),
+                    "{name}: contradictory model exposed"
+                );
+                assert!(registry.failures().iter().any(|failure| failure.reason.contains("vocabularies.retired value 'Inspection' is also declared in no_source_symbol")), "{name}: {:?}", registry.failures());
+                assert!(
+                    matches!(
+                        compute(
+                            &Spec::from_path(&root.path().join("spec")),
+                            &registry,
+                            &quire_rs::symbols::trace::SymbolGraph::default(),
+                            root.path()
+                        ),
+                        Err(CoverageError::ModelUndeclared)
+                    ),
+                    "{name}: invalid model produced a report"
+                );
+            } else {
+                assert!(
+                    registry.failures().is_empty(),
+                    "{name}: {:?}",
+                    registry.failures()
+                );
+                let model = registry.traceability().expect("valid selected model");
+                assert_eq!(model.vocabularies.retired, ["Withdrawn"]);
+                assert_eq!(model.vocabularies.no_source_symbol, ["Inspection"]);
+            }
+        }
     }
 }
