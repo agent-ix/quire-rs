@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Agent-IX
+
 //! Owner-neutral retained backing projection (FR-078).
 //!
 //! These values are reconciliation inputs, not qualification certificates. The
@@ -199,6 +202,52 @@ pub enum CauseCode {
     QualificationRejected,
     /// The native selected inventory did not complete.
     InventoryIncomplete,
+}
+
+impl CauseCode {
+    /// Every stable retained-input refusal category.
+    pub const fn all() -> &'static [Self] {
+        &[
+            Self::Failed,
+            Self::Errored,
+            Self::Skipped,
+            Self::Absent,
+            Self::Unevaluated,
+            Self::WrongRevision,
+            Self::SelectionMismatch,
+            Self::Stale,
+            Self::InvalidTarget,
+            Self::AmbiguousTarget,
+            Self::RecordConflict,
+            Self::QualificationRejected,
+            Self::InventoryIncomplete,
+        ]
+    }
+    /// Stable machine code to print with the original target and locator.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Failed => "failed",
+            Self::Errored => "errored",
+            Self::Skipped => "skipped",
+            Self::Absent => "absent",
+            Self::Unevaluated => "unevaluated",
+            Self::WrongRevision => "wrong-revision",
+            Self::SelectionMismatch => "selection-mismatch",
+            Self::Stale => "stale",
+            Self::InvalidTarget => "invalid-target",
+            Self::AmbiguousTarget => "ambiguous-target",
+            Self::RecordConflict => "record-conflict",
+            Self::QualificationRejected => "qualification-rejected",
+            Self::InventoryIncomplete => "inventory-incomplete",
+        }
+    }
+    /// Resolve an exact stable machine code without inspecting diagnostic prose.
+    pub fn from_code(code: &str) -> Option<Self> {
+        Self::all()
+            .iter()
+            .copied()
+            .find(|value| value.as_str() == code)
+    }
 }
 
 /// A bridge-provided non-qualified result; an absent record has no locator.
