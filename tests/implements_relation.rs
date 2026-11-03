@@ -672,7 +672,7 @@ fn guarded_scope_changes_preserve_real_verification_backing_and_symbol_identity(
     assert_eq!(before_report.totals.total, 1);
     assert_eq!(
         before.backed_trace_ids(),
-        std::collections::BTreeSet::from(["FR-901-AC-1".to_string(), "FR-999-AC-1".to_string()])
+        std::collections::BTreeSet::from(["FR-901-AC-1", "FR-999-AC-1"])
     );
     let after_source = format!("{evidence}// unrelated source\n#[implements(\n \"FR-902\", \"FR-903\"\n)] // trailing comment\nfn production() {{}}\n#[doc = r#\"#[implements(\"FR-904\")]\"#]\nfn partial() {{}}\n");
     std::fs::write(src.join("lib.rs"), &after_source).unwrap();
