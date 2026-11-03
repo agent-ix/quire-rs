@@ -118,7 +118,7 @@ The spec was revised after authoring to reflect the **archetype-as-data** model:
 
 ### Integration Requirement Coverage
 
-| Integration Req | Target Boundary | Test Cases | Status |
+| Integration Req | Target Boundary | Test Cases | Coverage Status |
 |-----------------|-----------------|------------|-----------------|
 | IT-001 Quoin consumes Quire export | Quire producer → versioned JSON/schema → Quoin consumer | TC-1084, TC-1087, TC-1088, TC-1091..TC-1099 | ⚠️ Producer schema/fixture complete; Quoin consumer downstream |
 
