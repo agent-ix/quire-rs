@@ -716,6 +716,19 @@ fn retained_backing_components_reconcile_named_source_free_boundaries() {
         let baseline = compute(&spec, &registry, &graph, &root).unwrap();
         assert_eq!(baseline.unbacked_rows.len(), 1, "{} before", case.name);
         assert!(baseline.coverage_matrix[0].criteria[0].binders.is_empty());
+        assert_eq!(
+            baseline.coverage_matrix[0].criteria[0].method.as_deref(),
+            Some(case.method.as_str())
+        );
+        assert_eq!(
+            baseline.coverage_matrix[0].criteria[0].status,
+            if case.method == "Inspection" {
+                CoverageMatrixStatus::MethodWithoutSymbol
+            } else {
+                CoverageMatrixStatus::Untagged
+            },
+            "the named owner method determines static no-symbol classification"
+        );
         let legacy_json = baseline.to_json();
         assert!(!legacy_json.contains("record_binders"));
         assert!(!legacy_json.contains("evidence_results"));
@@ -789,6 +802,12 @@ fn retained_backing_components_reconcile_named_source_free_boundaries() {
             "records never manufacture symbols"
         );
         assert_eq!(criterion.record_binders.as_ref().unwrap().len(), 1);
+        assert_eq!(criterion.method.as_deref(), Some(case.method.as_str()));
+        assert_eq!(
+            criterion.record_binders.as_ref().unwrap()[0].method,
+            case.method,
+            "retained binding preserves Inspection and compile-time-check without relabeling"
+        );
         assert!(report.unbacked_rows.is_empty());
         assert!(report.no_symbol_rows.is_empty());
         assert_eq!(report.totals.backed, baseline.totals.backed + 1);
