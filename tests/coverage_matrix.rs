@@ -690,9 +690,10 @@ fn retained_backing_components_reconcile_named_source_free_boundaries() {
     };
     use quire_rs::obligation::inventory::{inventory, InventoryOptions};
 
-    let cases: Vec<BackingComponentCase> =
-        serde_json::from_str(include_str!("fixtures/qualified_evidence/cases.json"))
-            .expect("attributed component fixture data");
+    let cases: Vec<BackingComponentCase> = serde_json::from_str(include_str!(
+        "fixtures/corpus_cases/qualified-evidence-cases.json"
+    ))
+    .expect("attributed component fixture data");
     assert_eq!(cases.len(), 4);
     for case in cases {
         assert!(case.component_only && !case.issue_ref.is_empty());
@@ -762,6 +763,24 @@ fn retained_backing_components_reconcile_named_source_free_boundaries() {
         let report =
             quire_rs::coverage::compute_with_evidence(&spec, &registry, &graph, &root, &backing)
                 .unwrap();
+        let schema_value: serde_json::Value =
+            serde_json::from_str(include_str!("../schemas/output/coverage-v1.schema.json"))
+                .unwrap();
+        let schema = jsonschema::JSONSchema::options()
+            .with_draft(jsonschema::Draft::Draft202012)
+            .compile(&schema_value)
+            .unwrap();
+        let payload = serde_json::to_value(&report).unwrap();
+        let errors: Vec<_> = match schema.validate(&payload) {
+            Ok(()) => vec![],
+            Err(errors) => errors.map(|error| error.to_string()).collect(),
+        };
+        assert!(
+            errors.is_empty(),
+            "{} runtime schema: {:?}",
+            case.name,
+            errors
+        );
         let criterion = &report.coverage_matrix[0].criteria[0];
         assert_eq!(criterion.status, CoverageMatrixStatus::QualifiedRecord);
         assert!(
@@ -822,8 +841,10 @@ fn retained_gate_targets_do_not_discharge_inspection_siblings() {
         declared_target, BackingInput, RecordClaim, RecordLocator, TraceQuery,
     };
     use quire_rs::obligation::inventory::{inventory, InventoryLookupError, InventoryOptions};
-    let fixture: serde_json::Value =
-        serde_json::from_str(include_str!("fixtures/qualified_evidence/rt-gates.json")).unwrap();
+    let fixture: serde_json::Value = serde_json::from_str(include_str!(
+        "fixtures/corpus_cases/qualified-evidence-rt-gates.json"
+    ))
+    .unwrap();
     assert_eq!(fixture["component_only"], true);
     assert!(fixture["issue_ref"].as_str().unwrap().contains("#138"));
     let root = tmpdir("retained-rt-gates");
@@ -867,6 +888,20 @@ fn retained_gate_targets_do_not_discharge_inspection_siblings() {
         declared_target(&inventory, &spec, "test-case", "spec/foreign.md", "TC-198"),
         Err(InventoryLookupError::UnknownIdentity)
     );
+    let document_target = declared_target(
+        &inventory,
+        &spec,
+        "test-case-document",
+        "spec/exact/tests/TC-198.md",
+        "TC-198",
+    )
+    .unwrap();
+    assert!(
+        document_target.line().is_none(),
+        "frontmatter target is not a fabricated table row"
+    );
+    assert_eq!(document_target.id(), "TC-198");
+    let targets: Vec<_> = targets.into_iter().chain([document_target]).collect();
     let claims: Vec<_> = targets
         .iter()
         .map(|target| RecordClaim {
@@ -901,10 +936,10 @@ fn retained_gate_targets_do_not_discharge_inspection_siblings() {
         );
     }
     assert_eq!(report.no_symbol_rows.len(), 2);
-    assert_eq!(report.record_binders.as_ref().unwrap().len(), 2);
+    assert_eq!(report.record_binders.as_ref().unwrap().len(), 3);
     assert_eq!(
         quire_rs::evidence::trace(&backing, TraceQuery::Run("component-run")).len(),
-        2
+        3
     );
     assert!(quire_rs::evidence::strict_decision(&report, &[]).is_err());
     fs::remove_dir_all(root).unwrap();
@@ -924,7 +959,7 @@ fn retained_backing_uses_native_snapshot_and_preserves_partial_population() {
     use quire_rs::evidence::{BackingInput, CauseCode};
     use quire_rs::obligation::inventory::{inventory, InventoryOptions};
     let cases: Vec<BackingContextCase> = serde_json::from_str(include_str!(
-        "fixtures/qualified_evidence/context-cases.json"
+        "fixtures/corpus_cases/qualified-evidence-context-cases.json"
     ))
     .unwrap();
     for case in cases {
@@ -1087,8 +1122,12 @@ fn retained_results_preserve_source_claims_all_causes_and_record_order() {
     let graph = sym_trace::bind(&extract_tree(&root.join("src")), model);
     let baseline = compute(&spec, &registry, &graph, &root).unwrap();
     assert_eq!(baseline.coverage_matrix[0].criteria[0].binders.len(), 1);
-    let causes: Vec<CauseCode> =
-        serde_json::from_str(include_str!("fixtures/qualified_evidence/cause-cases.json")).unwrap();
+    let cause_data: serde_json::Value = serde_json::from_str(include_str!(
+        "fixtures/corpus_cases/qualified-evidence-cause-cases.json"
+    ))
+    .unwrap();
+    assert!(!cause_data["issue_ref"].as_str().unwrap().is_empty());
+    let causes: Vec<CauseCode> = serde_json::from_value(cause_data["cases"].clone()).unwrap();
     assert_eq!(causes.len(), 12);
     let results: Vec<_> = causes
         .iter()

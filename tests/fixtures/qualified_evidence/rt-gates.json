@@ -1,8 +1,0 @@
-{
-  "issue_ref": "agent-ix/quire-rs#138",
-  "component_only": true,
-  "documents": {
-    "spec/FR-275.md": "---\nid: FR-275\ntype: FR\n---\n\n## Acceptance Criteria\n\n| ID | Criteria | Verification |\n|---|---|---|\n| FR-275-AC-7 | The dependency source policy shall be inspected. | Inspection (TC-198) |\n| FR-275-AC-20 | The feature and footprint gates shall be inspected. | Inspection (TC-199) |\n",
-    "spec/exact/matrix/tests.md": "---\nid: TM-275\ntype: TestMatrix\n---\n\n## Test Case Summary\n\n| Test ID | Title | Type | Priority | Traces To | Status |\n|---|---|---|---|---|---|\n| TC-198 | Fail the build on a dependency from the QSL Git source | Integration | P0 | FR-275-AC-7 | Planned |\n| TC-199 | Build the exact profile no_std and keep the default footprint | Integration | P0 | FR-275-AC-20 | Planned |\n"
-  }
-}

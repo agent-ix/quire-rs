@@ -30,8 +30,31 @@ pub struct DeclaredTarget<'a> {
     declaration: &'a crate::traceability::TraceTarget,
     document: &'a str,
     id: &'a str,
-    line: usize,
+    line: Option<usize>,
     raw: &'a str,
+}
+
+impl<'a> DeclaredTarget<'a> {
+    /// Original native selected snapshot; this does not assert qualification.
+    pub fn selection(&self) -> &'a crate::obligation::inventory::SelectionIdentity {
+        self.selection
+    }
+    /// Original model-owned declaration.
+    pub fn declaration(&self) -> &'a crate::traceability::TraceTarget {
+        self.declaration
+    }
+    /// Original scope-relative document locator.
+    pub fn document(&self) -> &'a str {
+        self.document
+    }
+    /// Exact declared ID, without case or hierarchy inference.
+    pub fn id(&self) -> &'a str {
+        self.id
+    }
+    /// Original table line, absent for a frontmatter-declared document.
+    pub fn line(&self) -> Option<usize> {
+        self.line
+    }
 }
 
 /// A native criterion or a validated non-criterion declared target.
@@ -105,11 +128,16 @@ pub fn declared_target<'a>(
         crate::coverage::relative(root, &row.path) == document
             && row.cell(&declaration.id_column) == Some(id)
     });
-    let row = matching
-        .next()
-        .ok_or(InventoryLookupError::UnknownIdentity)?;
-    if matching.next().is_some() {
+    let row = matching.next();
+    let frontmatter =
+        crate::corpus::trace_refs::target_documents(spec, root, declaration, &model_excluded).any(
+            |loaded| crate::coverage::relative(root, &loaded.path) == document && loaded.id == id,
+        );
+    if matching.next().is_some() || (row.is_some() && frontmatter) {
         return Err(InventoryLookupError::AmbiguousIdentity);
+    }
+    if row.is_none() && !frontmatter {
+        return Err(InventoryLookupError::UnknownIdentity);
     }
     let loaded = spec
         .documents()
@@ -121,7 +149,7 @@ pub fn declared_target<'a>(
         declaration,
         document,
         id,
-        line: row.line,
+        line: row.map(|row| row.line),
         raw: loaded.raw(),
     })
 }
@@ -254,7 +282,7 @@ impl From<EvidenceTarget<'_>> for TargetLocus {
                 id: target.id.into(),
                 origin: "declared-target".into(),
                 row: None,
-                line: Some(target.line),
+                line: target.line,
             },
         }
     }
@@ -510,7 +538,7 @@ impl<'a> ReconciledEvidence<'a> {
             EvidenceTarget::Declared(target) => {
                 target.document == document
                     && target.id == id
-                    && target.line == line
+                    && target.line == Some(line)
                     && target.declaration.name == target_name
             }
             EvidenceTarget::Criterion(identity) => {
@@ -532,7 +560,7 @@ impl<'a> ReconciledEvidence<'a> {
     pub fn backs_row(&self, document: &str, id: &str, line: usize) -> bool {
         self.accepted.iter().any(|claim| {
             matches!(claim.target, EvidenceTarget::Declared(target)
-            if target.document == document && target.id == id && target.line == line)
+            if target.document == document && target.id == id && target.line == Some(line))
         }) || self.input.inventory.entries().any(|entry| {
             entry.identity().document() == document
                 && entry.obligation().id == id

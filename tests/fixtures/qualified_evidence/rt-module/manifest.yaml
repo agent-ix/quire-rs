@@ -4,6 +4,7 @@ description: Source-free RT-shaped declared-target component fixtures
 artifact_types:
 - name: FR
 - name: TestMatrix
+- name: TC
 traceability:
   trace_targets:
   - name: acceptance-criterion
@@ -14,6 +15,11 @@ traceability:
     archetype: TestMatrix
     section: Test Case Summary
     id_column: Test ID
+  - name: test-case-document
+    archetype: TC
+    section: Description
+    id_column: ID
+    required: false
   document_references:
   - name: verification
     archetype: FR
