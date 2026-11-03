@@ -909,3 +909,155 @@ fn retained_gate_targets_do_not_discharge_inspection_siblings() {
     assert!(quire_rs::evidence::strict_decision(&report, &[]).is_err());
     fs::remove_dir_all(root).unwrap();
 }
+
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct BackingContextCase {
+    name: String,
+    issue_ref: String,
+    reject: bool,
+}
+
+#[trace("FR-078-AC-12", "FR-078-AC-16")]
+#[test]
+fn retained_backing_uses_native_snapshot_and_preserves_partial_population() {
+    use quire_rs::evidence::{BackingInput, CauseCode};
+    use quire_rs::obligation::inventory::{inventory, InventoryOptions};
+    let cases: Vec<BackingContextCase> = serde_json::from_str(include_str!(
+        "fixtures/qualified_evidence/context-cases.json"
+    ))
+    .unwrap();
+    for case in cases {
+        assert!(!case.issue_ref.is_empty());
+        let root = tmpdir(&case.name);
+        let body = "---\nid: FR-001\ntype: FR\n---\n\n## Acceptance Criteria\n\n| ID | Criteria | Verification |\n|---|---|---|\n| FR-001-AC-1 | The result shall be retained. | Test |\n";
+        write(&root, "spec/FR-001.md", body);
+        let registry = Registry::load_module(&fixture_module("iso-obligations")).unwrap();
+        let mut selected_model = registry.traceability().unwrap().clone();
+        selected_model.obligations[0]
+            .exclude
+            .push("spec/excluded/**".into());
+        // Give both producer and coverage the same declared source exclusion.
+        let module_root = root.join("module");
+        fs::create_dir_all(&module_root).unwrap();
+        let mut module: serde_yaml::Value = serde_yaml::from_str(
+            &fs::read_to_string(fixture_module("iso-obligations").join("manifest.yaml")).unwrap(),
+        )
+        .unwrap();
+        module["traceability"] = serde_yaml::to_value(&selected_model).unwrap();
+        fs::write(
+            module_root.join("manifest.yaml"),
+            serde_yaml::to_string(&module).unwrap(),
+        )
+        .unwrap();
+        let registry = Registry::load_module(&module_root).unwrap();
+        let model = registry.traceability().expect("valid model");
+        let mut inventory_model = model.clone();
+        if case.name == "model-changed" {
+            inventory_model.exclude.push("unrelated/**".into());
+        }
+        if case.name == "source-exclusion-changed" {
+            inventory_model.obligations[0]
+                .exclude
+                .push("additional/**".into());
+        }
+        let selected = inventory(
+            &root,
+            &inventory_model,
+            &["acceptance-criterion"],
+            InventoryOptions::default(),
+        );
+        assert_eq!(selected.len(), 1);
+        match case.name.as_str() {
+            "selected-added" => write(&root, "spec/FR-002.md", &body.replace("FR-001", "FR-002")),
+            "selected-changed" => write(
+                &root,
+                "spec/FR-001.md",
+                &body.replace("retained", "reported"),
+            ),
+            "selected-removed" => fs::remove_file(root.join("spec/FR-001.md")).unwrap(),
+            "unselected-added" => write(
+                &root,
+                "spec/extra.md",
+                "---\nid: TM-1\ntype: TestMatrix\n---\n",
+            ),
+            "excluded-added" => write(
+                &root,
+                "spec/excluded/FR-002.md",
+                &body.replace("FR-001", "FR-002"),
+            ),
+            "model-changed" | "source-exclusion-changed" | "root-changed" => {}
+            other => panic!("unknown fixture mutation: {other}"),
+        }
+        let spec = Spec::from_path(&root.join("spec"));
+        let graph = sym_trace::SymbolGraph::default();
+        let backing = BackingInput {
+            inventory: &selected,
+            claims: &[],
+            results: &[],
+        };
+        let other_root = root.join("different-scope");
+        let coverage_root = if case.name == "root-changed" {
+            &other_root
+        } else {
+            &root
+        };
+        let report = quire_rs::coverage::compute_with_evidence(
+            &spec,
+            &registry,
+            &graph,
+            coverage_root,
+            &backing,
+        )
+        .unwrap();
+        assert_eq!(
+            report
+                .evidence_results
+                .as_ref()
+                .unwrap()
+                .iter()
+                .any(|r| r.cause == CauseCode::SelectionMismatch),
+            case.reject,
+            "{}",
+            case.name
+        );
+        assert_eq!(
+            report
+                .coverage_matrix
+                .iter()
+                .map(|r| r.criteria.len())
+                .sum::<usize>(),
+            1,
+            "owner population retained, not a second census"
+        );
+        if !case.reject {
+            let partial = inventory(
+                &root,
+                model,
+                &["acceptance-criterion"],
+                InventoryOptions {
+                    stop_limit: Some(1),
+                    ..InventoryOptions::default()
+                },
+            );
+            let backing = BackingInput {
+                inventory: &partial,
+                claims: &[],
+                results: &[],
+            };
+            let report = quire_rs::coverage::compute_with_evidence(
+                &spec, &registry, &graph, &root, &backing,
+            )
+            .unwrap();
+            assert_eq!(report.coverage_matrix[0].criteria.len(), 1);
+            assert!(report
+                .evidence_results
+                .as_ref()
+                .unwrap()
+                .iter()
+                .any(|r| r.cause == CauseCode::InventoryIncomplete));
+            assert!(quire_rs::evidence::strict_decision(&report, &[]).is_err());
+        }
+        fs::remove_dir_all(root).unwrap();
+    }
+}

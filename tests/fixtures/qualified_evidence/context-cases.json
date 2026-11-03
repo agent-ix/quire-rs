@@ -1,0 +1,10 @@
+[
+  {"name":"selected-added","issue_ref":"agent-ix/quire-rs#529","reject":true},
+  {"name":"selected-changed","issue_ref":"agent-ix/quire-rs#529","reject":true},
+  {"name":"selected-removed","issue_ref":"agent-ix/quire-rs#529","reject":true},
+  {"name":"model-changed","issue_ref":"agent-ix/quire-rs#529","reject":true},
+  {"name":"source-exclusion-changed","issue_ref":"agent-ix/quire-rs#529","reject":true},
+  {"name":"root-changed","issue_ref":"agent-ix/quire-rs#529","reject":true},
+  {"name":"unselected-added","issue_ref":"agent-ix/quire-rs#529","reject":false},
+  {"name":"excluded-added","issue_ref":"agent-ix/quire-rs#529","reject":false}
+]
