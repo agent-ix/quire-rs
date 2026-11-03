@@ -602,7 +602,6 @@ fn row_obligation(
         id,
         document: document.to_string(),
         statement: statement.to_string(),
-        statement_hash: statement_hash(statement),
         method: source
             .method_column
             .as_deref()

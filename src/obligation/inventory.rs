@@ -56,6 +56,8 @@ pub enum InventoryCauseCode {
     DuplicateIdentity,
     /// The emitted-entry stop boundary was reached before observing an end.
     LimitReached,
+    /// The caller interrupted enumeration before an end was observed.
+    Interrupted,
 }
 
 /// Why a list of requested source names cannot denote a selected population.
@@ -98,11 +100,14 @@ pub enum InventoryCauseDetail {
     },
     /// The requested emitted-entry boundary, not an inferred exhaustion.
     Limit { limit: usize },
+    /// Original caller interruption cause, retained in the public error chain.
+    Interrupted(InventoryInterruption),
 }
 
 impl fmt::Display for InventoryCauseDetail {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Interrupted(error) => write!(formatter, "{error}"),
             Self::Io(error) => write!(formatter, "{error}"),
             Self::Walk(error) => write!(formatter, "{error}"),
             Self::Diagnostic(diagnostic) => match diagnostic {
@@ -166,6 +171,7 @@ impl fmt::Display for InventoryCauseDetail {
 impl std::error::Error for InventoryCauseDetail {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
+            Self::Interrupted(error) => Some(error.as_ref()),
             Self::Io(error) => Some(error),
             Self::Walk(error) => Some(error),
             _ => None,
@@ -545,6 +551,16 @@ pub enum InventoryLookupError {
 /// An immutable owner-issued result, including partial rows on failure.
 ///
 /// No public constructor or deserializer can install a `Complete` state.
+///
+/// ```compile_fail
+/// use quire_rs::obligation::inventory::SelectedInventory;
+/// let forged = SelectedInventory {};
+/// ```
+///
+/// ```compile_fail
+/// use quire_rs::obligation::inventory::SelectedInventory;
+/// let forged: SelectedInventory = serde_json::from_str("{}").unwrap();
+/// ```
 #[derive(Debug)]
 #[must_use]
 pub struct SelectedInventory {
@@ -644,17 +660,49 @@ impl SelectedInventory {
     }
 }
 
+/// A caller's original interruption error, retained without text conversion.
+pub type InventoryInterruption = Box<dyn std::error::Error + Send + Sync>;
+
+/// A progress check returning the original cause when the caller requests a stop.
+pub type InventoryInterrupt<'control> = dyn Fn(usize) -> Option<InventoryInterruption> + 'control;
+
+/// Scan boundaries supplied by the caller, distinct from the selected population.
+///
+/// The interruption callback is polled before discovery, document reads and scan progress, and after
+/// each emitted entry. Its input is the current emitted-entry count. Returning
+/// a cause stops enumeration without a completion witness and retains that
+/// original error in the resulting cause chain. It never changes selection.
+#[derive(Default)]
+pub struct InventoryOptions<'control> {
+    /// Stop immediately at this emitted-entry count, before observing an end.
+    pub stop_limit: Option<usize>,
+    /// Optional caller cancellation, independent of the emitted-entry limit.
+    pub interrupt: Option<&'control InventoryInterrupt<'control>>,
+}
+
 /// Enumerate selected obligation sources through the owner's real loader.
 ///
 /// Input validation precedes a zero stop limit. Limits stop immediately after
 /// the requested emitted-entry count, without claiming a subsequent end event.
 /// Existing tolerant `derive` and `load_repo` callers retain their contracts.
+///
+/// A caller-built or truncated `Spec` is not an enumeration input:
+///
+/// ```compile_fail
+/// use quire_rs::{Spec, traceability::TraceabilityModel};
+/// use quire_rs::obligation::inventory::{inventory, InventoryOptions};
+/// let root = std::path::Path::new(".");
+/// let caller_spec = Spec::from_path(root);
+/// let forged = inventory(&caller_spec, &TraceabilityModel::default(),
+///     &["acceptance-criterion"], InventoryOptions::default());
+/// ```
 pub fn inventory(
     root: &Path,
     model: &TraceabilityModel,
     source_names: &[&str],
-    stop_limit: Option<usize>,
+    options: InventoryOptions<'_>,
 ) -> SelectedInventory {
+    let stop_limit = options.stop_limit;
     let mut result = SelectedInventory {
         request: InventoryRequest {
             root: root.to_path_buf(),
@@ -759,6 +807,9 @@ pub fn inventory(
         result.limit_reached(0);
         return result;
     }
+    if result.interrupted(&options) {
+        return result;
+    }
     let model_exclude = ExcludeSet::compile_validated(&model.exclude);
     let excludes = sources
         .iter()
@@ -782,6 +833,9 @@ pub fn inventory(
     files.sort();
     let mut documents = Vec::new();
     for path in files {
+        if result.interrupted(&options) {
+            return result.finish(false);
+        }
         if excluded_from_all(&canonical, &path, &model_exclude, &excludes) {
             continue;
         }
@@ -845,12 +899,22 @@ pub fn inventory(
         let resolved =
             resolve(declaration, model).expect("validated selected declaration resolves");
         for (document_index, document) in documents.iter().enumerate() {
+            if result.interrupted(&options) {
+                return result.finish(false);
+            }
             if document.concept_type() != Some(resolved.archetype)
                 || exclude.excludes(&canonical, &document.path)
             {
                 continue;
             }
-            if !result.scan_document(&canonical, declaration, &resolved, document, document_index) {
+            if !result.scan_document(
+                &canonical,
+                declaration,
+                &resolved,
+                document,
+                document_index,
+                &options,
+            ) {
                 return result.finish(false);
             }
         }
@@ -915,7 +979,25 @@ impl SelectedInventory {
         );
     }
 
-    fn push_entry(&mut self, entry: Entry) -> bool {
+    fn interrupted(&mut self, options: &InventoryOptions<'_>) -> bool {
+        let Some(cause) = options
+            .interrupt
+            .and_then(|interrupt| interrupt(self.len()))
+        else {
+            return false;
+        };
+        self.cause(
+            InventoryCauseCode::Interrupted,
+            None,
+            None,
+            None,
+            None,
+            InventoryCauseDetail::Interrupted(cause),
+        );
+        true
+    }
+
+    fn push_entry(&mut self, entry: Entry, options: &InventoryOptions<'_>) -> bool {
         self.index.insert(&entry, self.entries.len());
         self.entries.push(entry);
         if let Some(limit) = self.request.stop_limit {
@@ -924,7 +1006,7 @@ impl SelectedInventory {
                 return false;
             }
         }
-        true
+        !self.interrupted(options)
     }
 
     fn scan_document(
@@ -934,6 +1016,7 @@ impl SelectedInventory {
         resolved: &Resolved<'_>,
         document: &LoadedDocument,
         document_index: usize,
+        options: &InventoryOptions<'_>,
     ) -> bool {
         let scanned = declared_tables::tables_of(document.body(), &document.path, resolved.section);
         if scanned.is_empty() {
@@ -1004,6 +1087,9 @@ impl SelectedInventory {
                 }
             }
             for row in rows {
+                if self.interrupted(options) {
+                    return false;
+                }
                 ordinal += 1;
                 if missing_header {
                     continue;
@@ -1054,13 +1140,16 @@ impl SelectedInventory {
                 } else {
                     OriginKind::RenderedRow
                 };
-                if !self.push_entry(Entry {
-                    obligation,
-                    kind,
-                    row: Some(ordinal),
-                    line: Some(row.line),
-                    document_index,
-                }) {
+                if !self.push_entry(
+                    Entry {
+                        obligation,
+                        kind,
+                        row: Some(ordinal),
+                        line: Some(row.line),
+                        document_index,
+                    },
+                    options,
+                ) {
                     return false;
                 }
             }
@@ -1069,10 +1158,10 @@ impl SelectedInventory {
             self.scan_combinatorial(
                 root,
                 source,
-                resolved,
                 columns,
                 &combinatorial_rows,
                 document_index,
+                options,
             )
         } else {
             true
@@ -1083,10 +1172,10 @@ impl SelectedInventory {
         &mut self,
         root: &Path,
         source: &ObligationSource,
-        resolved: &Resolved<'_>,
         columns: &crate::traceability::CombinatorialColumns,
         rows: &[(usize, ScannedRow)],
         document_index: usize,
+        options: &InventoryOptions<'_>,
     ) -> bool {
         if rows.is_empty() {
             return true;
@@ -1095,44 +1184,27 @@ impl SelectedInventory {
             self.validate_combinatorial_row(source, columns, *ordinal, row);
         }
         let mut obligations = Vec::new();
+        let resolved = resolve(source, &self.request.model).expect("validated selected source");
         collect_combinatorial(
             source,
             0,
-            resolved,
+            &resolved,
             columns,
             rows.iter().map(|(_, row)| row),
             root,
             &mut obligations,
         );
-        if obligations.is_empty() {
-            self.cause(
-                InventoryCauseCode::UnusableRow,
-                Some(&source.name),
-                Some(&rows[0].1.path),
-                None,
-                Some(rows[0].1.line),
-                InventoryCauseDetail::Scan {
-                    expected: vec![
-                        columns.dimension_column.clone(),
-                        columns.values_column.clone(),
-                    ],
-                    observed: rows
-                        .iter()
-                        .filter_map(|(_, row)| {
-                            row.cell(&columns.dimension_column).map(str::to_string)
-                        })
-                        .collect(),
-                },
-            );
-        }
         for (_, obligation) in obligations {
-            if !self.push_entry(Entry {
-                obligation,
-                kind: OriginKind::CombinatorialTable,
-                row: None,
-                line: rows.first().map(|(_, row)| row.line),
-                document_index,
-            }) {
+            if !self.push_entry(
+                Entry {
+                    obligation,
+                    kind: OriginKind::CombinatorialTable,
+                    row: None,
+                    line: rows.first().map(|(_, row)| row.line),
+                    document_index,
+                },
+                options,
+            ) {
                 return false;
             }
         }

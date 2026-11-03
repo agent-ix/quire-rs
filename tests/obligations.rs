@@ -551,3 +551,921 @@ fn tc935_obligation_carries_the_ids_its_method_cell_names() {
     );
     assert_eq!(obligations[3].method.as_deref(), Some("Test"));
 }
+
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct InventoryCases {
+    issue_ref: String,
+    cases: Vec<InventoryCase>,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct InventoryCase {
+    name: String,
+    documents: std::collections::BTreeMap<String, String>,
+    ids: Vec<String>,
+    causes: Vec<String>,
+}
+
+fn selected_at(scope: &Path) -> quire_rs::obligation::inventory::SelectedInventory {
+    quire_rs::obligation::inventory(
+        scope,
+        &model_of("obligations"),
+        &["acceptance-criterion"],
+        Default::default(),
+    )
+}
+
+#[trace(
+    "TC-1955",
+    "FR-053-AC-16",
+    "TC-1957",
+    "FR-053-AC-18",
+    "TC-1958",
+    "FR-053-AC-19"
+)]
+#[test]
+fn selected_inventory_declarative_controls() {
+    use quire_rs::obligation::inventory::InventoryTerminal;
+    let fixtures: InventoryCases = serde_json::from_str(include_str!(
+        "fixtures/corpus_cases/selected-inventory.json"
+    ))
+    .expect("inventory case data");
+    assert_eq!(
+        fixtures.issue_ref,
+        "https://linear.app/agent-ix/issue/PLAT-1165"
+    );
+    let mut names = std::collections::BTreeSet::new();
+    for case in fixtures.cases {
+        assert!(
+            names.insert(case.name.clone()),
+            "duplicate case {}",
+            case.name
+        );
+        let root = tempfile::tempdir().expect("case directory");
+        for (path, text) in case.documents {
+            write(root.path(), &path, &text);
+        }
+        let inventory = selected_at(root.path());
+        let ids: Vec<_> = inventory
+            .entries()
+            .map(|entry| entry.obligation().id.clone())
+            .collect();
+        assert_eq!(ids, case.ids, "{} entries", case.name);
+        let causes: Vec<_> = inventory
+            .causes()
+            .iter()
+            .map(|cause| format!("{:?}", cause.code()))
+            .collect();
+        assert_eq!(causes, case.causes, "{} causes", case.name);
+        assert_eq!(inventory.len(), ids.len(), "{} observed count", case.name);
+        assert_eq!(
+            inventory.terminal(),
+            if causes.is_empty() {
+                InventoryTerminal::Complete
+            } else {
+                InventoryTerminal::Incomplete
+            },
+            "{} terminal",
+            case.name
+        );
+        for cause in inventory.causes() {
+            assert_eq!(
+                cause.document(),
+                Some(root.path().join("FR-001.md").as_path()),
+                "{} cause locus",
+                case.name
+            );
+        }
+    }
+}
+
+#[trace("TC-1954", "FR-053-AC-15")]
+#[test]
+fn selected_inventory_validates_the_real_request() {
+    use quire_rs::obligation::inventory::{
+        InventoryCauseCode, InventoryCauseDetail, InventoryTerminal, SelectionFailure,
+    };
+    let root = tempfile::tempdir().unwrap();
+    let model = model_of("obligations");
+    for (names, reason) in [
+        (vec![], SelectionFailure::Empty),
+        (vec!["unknown"], SelectionFailure::UnknownSource),
+        (
+            vec!["acceptance-criterion", "acceptance-criterion"],
+            SelectionFailure::DuplicateSource,
+        ),
+    ] {
+        let result =
+            quire_rs::obligation::inventory(root.path(), &model, &names, Default::default());
+        assert_eq!(result.terminal(), InventoryTerminal::Incomplete);
+        assert!(result.selection().is_none());
+        assert_eq!(result.causes().len(), 1);
+        assert_eq!(
+            result.causes()[0].code(),
+            InventoryCauseCode::InvalidSelection
+        );
+        assert!(
+            matches!(result.causes()[0].detail(), InventoryCauseDetail::Selection { reason: observed, .. } if *observed == reason)
+        );
+        assert_eq!(result.request().source_names(), names);
+    }
+    let mut invalid = model.clone();
+    invalid.obligations[0].target = Some("unknown-target".into());
+    let result = quire_rs::obligation::inventory(
+        root.path(),
+        &invalid,
+        &["acceptance-criterion"],
+        Default::default(),
+    );
+    assert_eq!(result.terminal(), InventoryTerminal::Incomplete);
+    assert!(result.selection().is_none());
+    assert_eq!(result.causes()[0].code(), InventoryCauseCode::InvalidModel);
+    assert!(
+        matches!(result.causes()[0].detail(), InventoryCauseDetail::Model(reason) if reason == &invalid.validate().unwrap_err())
+    );
+    let valid = selected_at(root.path());
+    assert_eq!(valid.terminal(), InventoryTerminal::Complete);
+    let selection = valid.selection().unwrap();
+    assert_eq!(selection.root(), root.path().canonicalize().unwrap());
+    assert_eq!(
+        selection.sources()[0].declaration().name,
+        "acceptance-criterion"
+    );
+    assert_eq!(
+        selection.sources()[0].target(),
+        Some(&model.trace_targets[0])
+    );
+}
+
+#[trace(
+    "TC-1955",
+    "FR-053-AC-16",
+    "TC-1956",
+    "FR-053-AC-17",
+    "TC-1960",
+    "FR-053-AC-21"
+)]
+#[test]
+fn selected_inventory_borrowed_identity_changes_with_authored_source() {
+    use quire_rs::obligation::inventory::{
+        CriterionOrigin, InventoryLookupError, InventoryTerminal,
+    };
+    let scope = ac_bundle("selected-identity", "| FR-001-AC-1 | First criterion. | Test (TC-001) | P1 |\n| FR-001-AC-2 | Unmapped criterion. | Analysis | P2 |\n");
+    let first = selected_at(&scope);
+    assert_eq!(first.terminal(), InventoryTerminal::Complete);
+    let entries: Vec<_> = first.entries().collect();
+    let key = entries[1].identity();
+    assert!(matches!(
+        key.origin(),
+        CriterionOrigin::AuthoredRow {
+            authored_id: "FR-001-AC-2"
+        }
+    ));
+    assert_eq!(key.source_name(), "acceptance-criterion");
+    assert_eq!(key.document(), "FR-001.md");
+    assert!(std::ptr::eq(key.selection(), first.selection().unwrap()));
+    assert_eq!(entries[1].obligation().statement, "Unmapped criterion.");
+    assert_eq!(entries[1].obligation().method.as_deref(), Some("Analysis"));
+    assert!(entries[1].obligation().target_ids.is_empty());
+    assert_eq!(entries[0].obligation().target_ids, ["TC-001"]);
+    assert_eq!(entries[1].row(), Some(2));
+    assert!(entries[1].line().is_some());
+    assert!(std::ptr::eq(
+        first.lookup(&key).unwrap().obligation(),
+        entries[1].obligation()
+    ));
+    let equal = selected_at(&scope);
+    assert_eq!(first.selection(), equal.selection());
+    assert_eq!(
+        equal.lookup(&key).unwrap().obligation(),
+        entries[1].obligation()
+    );
+    let path = scope.join("FR-001.md");
+    let text = fs::read_to_string(&path).unwrap();
+    fs::write(
+        &path,
+        text.replace("Unmapped criterion.", "Changed owner statement."),
+    )
+    .unwrap();
+    let changed = selected_at(&scope);
+    assert_eq!(changed.len(), 2);
+    assert_eq!(
+        changed.entries().nth(1).unwrap().obligation().statement,
+        "Changed owner statement."
+    );
+    assert_eq!(
+        changed.lookup(&key).unwrap_err(),
+        InventoryLookupError::SelectionMismatch
+    );
+    fs::write(
+        &path,
+        text.replace(
+            "| FR-001-AC-1 | First criterion. | Test (TC-001) | P1 |\n",
+            "",
+        ),
+    )
+    .unwrap();
+    let deleted = selected_at(&scope);
+    assert_eq!(deleted.len(), 1);
+    assert_eq!(
+        deleted.entries().next().unwrap().obligation().id,
+        "FR-001-AC-2"
+    );
+    assert_eq!(
+        deleted.lookup(&key).unwrap_err(),
+        InventoryLookupError::SelectionMismatch
+    );
+    assert_eq!(
+        deleted
+            .lookup_key(
+                "acceptance-criterion",
+                "FR-001.md",
+                CriterionOrigin::AuthoredRow {
+                    authored_id: "FR-001-AC-1"
+                }
+            )
+            .unwrap_err(),
+        InventoryLookupError::UnknownIdentity
+    );
+    fs::write(
+        &path,
+        text.replace(
+            "| FR-001-AC-2 | Unmapped criterion. | Analysis | P2 |\n",
+            "",
+        ),
+    )
+    .unwrap();
+    let other_deleted = selected_at(&scope);
+    assert_eq!(other_deleted.terminal(), InventoryTerminal::Complete);
+    assert_eq!(other_deleted.len(), 1);
+    assert_eq!(
+        other_deleted.entries().next().unwrap().obligation().id,
+        "FR-001-AC-1"
+    );
+    let foreign = ac_bundle(
+        "selected-foreign",
+        "| FR-001-AC-2 | Unmapped criterion. | Analysis | P2 |\n",
+    );
+    assert_eq!(
+        selected_at(&foreign).lookup(&key).unwrap_err(),
+        InventoryLookupError::SelectionMismatch
+    );
+}
+
+#[trace("TC-1958", "FR-053-AC-19")]
+#[test]
+fn selected_inventory_duplicate_lookup_retains_every_locus() {
+    use quire_rs::obligation::inventory::{
+        InventoryCauseCode, InventoryCauseDetail, InventoryLookupError,
+    };
+    let scope = ac_bundle("selected-duplicates", "| FR-001-AC-1 | One. | Analysis | |\n| FR-001-AC-1 | Two. | Analysis | |\n| FR-001-AC-2 | Unique. | Analysis | |\n");
+    let result = selected_at(&scope);
+    assert_eq!(result.len(), 3);
+    let entries: Vec<_> = result.entries().collect();
+    assert_eq!(
+        result.lookup(&entries[0].identity()).unwrap_err(),
+        InventoryLookupError::AmbiguousIdentity
+    );
+    assert_eq!(
+        result.lookup(&entries[1].identity()).unwrap_err(),
+        InventoryLookupError::AmbiguousIdentity
+    );
+    assert_eq!(
+        result
+            .lookup(&entries[2].identity())
+            .unwrap()
+            .obligation()
+            .statement,
+        "Unique."
+    );
+    let cause = &result.causes()[0];
+    assert_eq!(cause.code(), InventoryCauseCode::DuplicateIdentity);
+    assert_eq!(
+        cause.document(),
+        Some(scope.canonicalize().unwrap().join("FR-001.md").as_path())
+    );
+    assert_eq!(cause.row(), Some(1));
+    assert_eq!(cause.line(), entries[0].line());
+    assert!(entries[0].line() < entries[1].line());
+    assert!(
+        matches!(cause.detail(), InventoryCauseDetail::Duplicate { authored_id, rows } if authored_id == "FR-001-AC-1" && rows == &[1,2])
+    );
+}
+
+#[trace("TC-1959", "FR-053-AC-20")]
+#[test]
+fn selected_inventory_stops_without_mistaking_a_prefix_for_exhaustion() {
+    use quire_rs::obligation::inventory::{
+        InventoryCauseCode, InventoryCauseDetail, InventoryOptions, InventoryTerminal,
+    };
+    use std::error::Error;
+    let scope = ac_bundle(
+        "selected-stops",
+        "| FR-001-AC-1 | One. | Analysis | |\n| FR-001-AC-2 | Two. | Analysis | |\n",
+    );
+    let model = model_of("obligations");
+    for (limit, count, terminal) in [
+        (Some(0), 0, InventoryTerminal::Incomplete),
+        (Some(1), 1, InventoryTerminal::Incomplete),
+        (Some(2), 2, InventoryTerminal::Incomplete),
+        (Some(3), 2, InventoryTerminal::Complete),
+        (None, 2, InventoryTerminal::Complete),
+    ] {
+        let result = quire_rs::obligation::inventory(
+            &scope,
+            &model,
+            &["acceptance-criterion"],
+            InventoryOptions {
+                stop_limit: limit,
+                ..Default::default()
+            },
+        );
+        assert_eq!(result.len(), count);
+        assert_eq!(result.terminal(), terminal);
+        if terminal == InventoryTerminal::Incomplete {
+            assert_eq!(result.causes().len(), 1);
+            assert_eq!(result.causes()[0].code(), InventoryCauseCode::LimitReached);
+            assert!(
+                matches!(result.causes()[0].detail(), InventoryCauseDetail::Limit { limit: observed } if Some(*observed) == limit)
+            );
+        } else {
+            assert!(result.causes().is_empty());
+        }
+    }
+    for after in [0, 1, 2] {
+        let interrupt = |emitted| {
+            (emitted >= after).then(|| {
+                Box::new(std::io::Error::new(
+                    std::io::ErrorKind::Interrupted,
+                    "original requested stop",
+                )) as quire_rs::obligation::inventory::InventoryInterruption
+            })
+        };
+        let result = quire_rs::obligation::inventory(
+            &scope,
+            &model,
+            &["acceptance-criterion"],
+            InventoryOptions {
+                interrupt: Some(&interrupt),
+                ..Default::default()
+            },
+        );
+        assert_eq!(result.len(), after);
+        assert_eq!(result.terminal(), InventoryTerminal::Incomplete);
+        assert_eq!(result.causes().len(), 1);
+        let cause = &result.causes()[0];
+        assert_eq!(cause.code(), InventoryCauseCode::Interrupted);
+        let original = cause
+            .source()
+            .unwrap()
+            .source()
+            .unwrap()
+            .downcast_ref::<std::io::Error>()
+            .unwrap();
+        assert_eq!(original.kind(), std::io::ErrorKind::Interrupted);
+        assert_eq!(original.to_string(), "original requested stop");
+    }
+    let empty = tempfile::tempdir().unwrap();
+    let stopped = quire_rs::obligation::inventory(
+        empty.path(),
+        &model,
+        &["acceptance-criterion"],
+        InventoryOptions {
+            stop_limit: Some(0),
+            ..Default::default()
+        },
+    );
+    assert_eq!(stopped.terminal(), InventoryTerminal::Incomplete);
+    assert_eq!(
+        selected_at(empty.path()).terminal(),
+        InventoryTerminal::Complete
+    );
+}
+
+#[trace("TC-1957", "FR-053-AC-18", "TC-1959", "FR-053-AC-20")]
+#[test]
+fn selected_inventory_filesystem_failures_retain_original_causes_and_rows() {
+    use quire_rs::obligation::inventory::{
+        InventoryCauseCode, InventoryCauseDetail, InventoryTerminal,
+    };
+    use std::error::Error;
+    let root = tempfile::tempdir().unwrap();
+    let missing = root.path().join("missing");
+    let result = selected_at(&missing);
+    assert_eq!(result.terminal(), InventoryTerminal::Incomplete);
+    assert_eq!(result.causes()[0].code(), InventoryCauseCode::RootMissing);
+    assert_eq!(result.causes()[0].document(), Some(missing.as_path()));
+    let original = result.causes()[0]
+        .source()
+        .unwrap()
+        .source()
+        .unwrap()
+        .downcast_ref::<std::io::Error>()
+        .unwrap();
+    assert_eq!(original.kind(), std::io::ErrorKind::NotFound);
+    write(root.path(), "file", "root is a file");
+    assert_eq!(
+        selected_at(&root.path().join("file")).causes()[0].code(),
+        InventoryCauseCode::RootNotDirectory
+    );
+    let scope = root.path().join("spec");
+    fs::create_dir(&scope).unwrap();
+    write(&scope,"FR-001.md","---\nid: FR-001\ntype: FR\n---\n\n## Acceptance Criteria\n\n| ID | Criteria |\n|----|----------|\n| FR-001-AC-1 | Healthy partial row. |\n");
+    fs::write(scope.join("FR-002.md"), [0xff]).unwrap();
+    let partial = selected_at(&scope);
+    assert_eq!(partial.terminal(), InventoryTerminal::Incomplete);
+    assert_eq!(partial.len(), 1);
+    assert_eq!(
+        partial.entries().next().unwrap().obligation().statement,
+        "Healthy partial row."
+    );
+    let cause = &partial.causes()[0];
+    assert_eq!(cause.code(), InventoryCauseCode::DocumentUnreadable);
+    assert_eq!(cause.document(), Some(scope.join("FR-002.md").as_path()));
+    assert!(
+        matches!(cause.detail(),InventoryCauseDetail::Diagnostic(quire_rs::Diagnostic::DocumentUnreadable { path, reason }) if path == &scope.join("FR-002.md") && reason == &fs::read_to_string(path).unwrap_err().to_string())
+    );
+    fs::remove_file(scope.join("FR-002.md")).unwrap();
+    assert_eq!(selected_at(&scope).terminal(), InventoryTerminal::Complete);
+}
+
+#[cfg(unix)]
+#[trace("TC-1957", "FR-053-AC-18", "TC-1959", "FR-053-AC-20")]
+#[test]
+fn selected_inventory_real_permission_and_walk_failures_have_healthy_controls() {
+    use quire_rs::obligation::inventory::{InventoryCauseCode, InventoryTerminal};
+    use std::error::Error;
+    use std::os::unix::fs::PermissionsExt;
+    struct Restore(std::path::PathBuf, fs::Permissions);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            fs::set_permissions(&self.0, self.1.clone()).expect("restore permissions");
+        }
+    }
+    let root = tempfile::tempdir().unwrap();
+    let text="---\nid: FR-001\ntype: FR\n---\n\n## Acceptance Criteria\n\n| ID | Criteria |\n|----|----------|\n| FR-001-AC-1 | Readable row. |\n";
+    write(root.path(), "FR-001.md", text);
+    let hidden = root.path().join("unreadable");
+    fs::create_dir(&hidden).unwrap();
+    let mode = fs::metadata(&hidden).unwrap().permissions();
+    let restore = Restore(hidden.clone(), mode);
+    fs::set_permissions(&hidden, fs::Permissions::from_mode(0o0)).unwrap();
+    assert_eq!(
+        fs::read_dir(&hidden).unwrap_err().kind(),
+        std::io::ErrorKind::PermissionDenied,
+        "control requires a real permission boundary"
+    );
+    let partial = selected_at(root.path());
+    assert_eq!(partial.terminal(), InventoryTerminal::Incomplete);
+    assert_eq!(partial.len(), 1);
+    let cause = partial
+        .causes()
+        .iter()
+        .find(|cause| cause.code() == InventoryCauseCode::WalkFailed)
+        .unwrap();
+    assert_eq!(cause.document(), Some(hidden.as_path()));
+    let original = cause
+        .source()
+        .unwrap()
+        .source()
+        .unwrap()
+        .downcast_ref::<ignore::Error>()
+        .unwrap();
+    assert!(original
+        .io_error()
+        .is_some_and(|error| error.kind() == std::io::ErrorKind::PermissionDenied));
+    let root_failure = selected_at(&hidden);
+    assert_eq!(root_failure.terminal(), InventoryTerminal::Incomplete);
+    assert!(!root_failure.causes().is_empty());
+    drop(restore);
+    assert_eq!(
+        selected_at(root.path()).terminal(),
+        InventoryTerminal::Complete
+    );
+    let path = root.path().join("FR-001.md");
+    let restore = Restore(path.clone(), fs::metadata(&path).unwrap().permissions());
+    fs::set_permissions(&path, fs::Permissions::from_mode(0o0)).unwrap();
+    assert_eq!(
+        fs::read(&path).unwrap_err().kind(),
+        std::io::ErrorKind::PermissionDenied
+    );
+    let unreadable = selected_at(root.path());
+    assert_eq!(unreadable.terminal(), InventoryTerminal::Incomplete);
+    assert_eq!(
+        unreadable.causes()[0].code(),
+        InventoryCauseCode::DocumentUnreadable
+    );
+    assert_eq!(unreadable.causes()[0].document(), Some(path.as_path()));
+    drop(restore);
+    assert_eq!(
+        selected_at(root.path()).terminal(),
+        InventoryTerminal::Complete
+    );
+}
+
+#[trace("TC-1960", "FR-053-AC-21", "TC-1961", "FR-053-AC-22")]
+#[test]
+fn selected_inventory_identity_exclusions_and_order_are_owner_facts() {
+    use quire_rs::obligation::inventory::{
+        CriterionOrigin, InventoryLookupError, InventoryTerminal,
+    };
+    let scope = ac_bundle("selected-order", "| FR-001-AC-1 | One. | Analysis | |\n");
+    let first_doc = fs::read_to_string(scope.join("FR-001.md")).unwrap();
+    write(&scope, "FR-002.md", &first_doc.replace("FR-001", "FR-002"));
+    write(&scope, "ignored.md", "not frontmatter");
+    write(
+        &scope,
+        "nonmember.md",
+        "---\nid: NFR-001\ntype: NFR\n---\n\nValid nonmember.\n",
+    );
+    let mut model = model_of("obligations");
+    model.exclude = vec!["ignored.md".into()];
+    let mut other = model.obligations[0].clone();
+    other.name = "a-source".into();
+    model.obligations.push(other);
+    let scan = |model: &quire_rs::traceability::TraceabilityModel| {
+        quire_rs::obligation::inventory(
+            &scope,
+            model,
+            &["a-source", "acceptance-criterion"],
+            Default::default(),
+        )
+    };
+    let first = scan(&model);
+    assert_eq!(first.terminal(), InventoryTerminal::Complete);
+    let order: Vec<_> = first
+        .entries()
+        .map(|entry| {
+            (
+                entry.identity().source_name().to_owned(),
+                entry.identity().document().to_owned(),
+                entry.obligation().id.clone(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        order,
+        vec![
+            (
+                "acceptance-criterion".into(),
+                "FR-001.md".into(),
+                "FR-001-AC-1".into()
+            ),
+            (
+                "acceptance-criterion".into(),
+                "FR-002.md".into(),
+                "FR-002-AC-1".into()
+            ),
+            ("a-source".into(), "FR-001.md".into(), "FR-001-AC-1".into()),
+            ("a-source".into(), "FR-002.md".into(), "FR-002-AC-1".into())
+        ]
+    );
+    let again = scan(&model);
+    assert_eq!(first.selection(), again.selection());
+    assert_eq!(first.terminal(), again.terminal());
+    assert_eq!(
+        first
+            .entries()
+            .map(|entry| entry.obligation())
+            .collect::<Vec<_>>(),
+        again
+            .entries()
+            .map(|entry| entry.obligation())
+            .collect::<Vec<_>>()
+    );
+    let key = first.entries().next().unwrap().identity();
+    fs::write(scope.join("ignored.md"), [0xff]).unwrap();
+    write(
+        &scope,
+        "nonmember.md",
+        "---\nid: NFR-001\ntype: NFR\n---\n\nEdited nonmember.\n",
+    );
+    write(scope.parent().unwrap(), "outside.md", "outside root");
+    let irrelevant = scan(&model);
+    assert_eq!(first.selection(), irrelevant.selection());
+    assert!(irrelevant.lookup(&key).is_ok());
+    write(
+        &scope,
+        "FR-001.md",
+        &(first_doc.clone() + "\n## Unrelated Section\n\nChanged selected bytes.\n"),
+    );
+    assert_eq!(
+        scan(&model).lookup(&key).unwrap_err(),
+        InventoryLookupError::SelectionMismatch
+    );
+    write(&scope, "FR-001.md", &first_doc);
+    let mut contract = model.clone();
+    contract.obligations[0]
+        .exclude
+        .push("never-matches.md".into());
+    let changed = scan(&contract);
+    assert_eq!(changed.len(), first.len());
+    assert_eq!(
+        changed.lookup(&key).unwrap_err(),
+        InventoryLookupError::SelectionMismatch
+    );
+    contract.obligations[0].exclude = vec!["FR-002.md".into()];
+    contract.obligations[1].exclude = vec!["FR-002.md".into()];
+    let excluded = scan(&contract);
+    assert_eq!(excluded.len(), 2);
+    assert!(excluded
+        .entries()
+        .all(|entry| entry.identity().document() == "FR-001.md"));
+    assert_eq!(excluded.terminal(), InventoryTerminal::Complete);
+    write(
+        &scope,
+        "nonmember.md",
+        &first_doc.replace("FR-001", "FR-003"),
+    );
+    assert_eq!(scan(&model).len(), 6);
+    assert_eq!(
+        scan(&model).lookup(&key).unwrap_err(),
+        InventoryLookupError::SelectionMismatch
+    );
+    assert_eq!(
+        first
+            .lookup_key(
+                "wrong-source",
+                "FR-001.md",
+                CriterionOrigin::AuthoredRow {
+                    authored_id: "FR-001-AC-1"
+                }
+            )
+            .unwrap_err(),
+        InventoryLookupError::UnknownIdentity
+    );
+}
+
+#[trace("TC-1956", "FR-053-AC-17")]
+#[test]
+fn selected_inventory_rendered_rows_never_claim_authored_ids() {
+    use quire_rs::obligation::inventory::{CriterionOrigin, InventoryTerminal};
+    let root = tempfile::tempdir().unwrap();
+    let head="---\nid: NFR-001\ntype: NFR\n---\n\n## Measurement and Evaluation\n\n| Metric | Target | Threshold | Method |\n|--------|--------|-----------|--------|\n";
+    let first = "| First measurement. | 10 | 20 | Analysis |\n";
+    let second = "| Second measurement. | 30 | 40 | Test |\n";
+    write(
+        root.path(),
+        "NFR-001.md",
+        &(head.to_owned() + first + second),
+    );
+    let model = model_of("obligations-nfr");
+    let scan = || {
+        quire_rs::obligation::inventory(root.path(), &model, &["nfr-metric"], Default::default())
+    };
+    let before = scan();
+    assert_eq!(before.terminal(), InventoryTerminal::Complete);
+    let row = before.entries().nth(1).unwrap();
+    assert!(matches!(
+        row.identity().origin(),
+        CriterionOrigin::RenderedRow {
+            rendered_id: "NFR-001-M-2",
+            row: 2
+        }
+    ));
+    assert_eq!(
+        row.obligation()
+            .parameters
+            .get("target")
+            .map(String::as_str),
+        Some("30")
+    );
+    assert_eq!(
+        before
+            .lookup(&row.identity())
+            .unwrap()
+            .obligation()
+            .statement,
+        "Second measurement."
+    );
+    write(root.path(), "NFR-001.md", &(head.to_owned() + second));
+    let after = scan();
+    assert_eq!(after.len(), 1);
+    let row = after.entries().next().unwrap();
+    assert!(matches!(
+        row.identity().origin(),
+        CriterionOrigin::RenderedRow {
+            rendered_id: "NFR-001-M-1",
+            row: 1
+        }
+    ));
+    assert_eq!(row.obligation().statement, "Second measurement.");
+}
+
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ConfigurationInventoryCases {
+    issue_ref: String,
+    cases: Vec<ConfigurationInventoryCase>,
+}
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ConfigurationInventoryCase {
+    name: String,
+    rows: String,
+    count: usize,
+    unusable_rows: Vec<usize>,
+    tuples: Option<usize>,
+}
+
+#[trace("TC-1956", "FR-053-AC-17", "TC-1958", "FR-053-AC-19")]
+#[test]
+fn selected_inventory_configuration_rows_follow_the_real_minter() {
+    use quire_rs::obligation::inventory::{CriterionOrigin, InventoryCauseCode, InventoryTerminal};
+    use quire_rs::traceability::{CombinatorialColumns, TraceabilityModel};
+    let mut source = model_of("obligations").obligations.remove(0);
+    source.name = "configuration-space".into();
+    source.target = None;
+    source.archetype = Some("FR".into());
+    source.section = Some("Configuration Dimensions".into());
+    source.id_format = Some("{document}-COMB".into());
+    source.statement_column = "Dimension".into();
+    source.method_column = None;
+    source.criticality_column = None;
+    source.combinatorial = Some(CombinatorialColumns {
+        dimension_column: "Dimension".into(),
+        values_column: "Values".into(),
+        excludes_column: Some("Excludes".into()),
+        strength: 2,
+    });
+    let model = TraceabilityModel {
+        obligations: vec![source],
+        ..Default::default()
+    };
+    let cases: ConfigurationInventoryCases = serde_json::from_str(include_str!(
+        "fixtures/corpus_cases/selected-inventory-configurations.json"
+    ))
+    .unwrap();
+    assert_eq!(
+        cases.issue_ref,
+        "https://linear.app/agent-ix/issue/PLAT-1165"
+    );
+    let mut names = std::collections::BTreeSet::new();
+    for case in cases.cases {
+        assert!(names.insert(case.name.clone()));
+        let root = tempfile::tempdir().unwrap();
+        let text=format!("---\nid: FR-001\ntype: FR\n---\n\n## Configuration Dimensions\n\n| Dimension | Values | Excludes |\n|-----------|--------|----------|\n{}",case.rows);
+        write(root.path(), "FR-001.md", &text);
+        let inventory = quire_rs::obligation::inventory(
+            root.path(),
+            &model,
+            &["configuration-space"],
+            Default::default(),
+        );
+        assert_eq!(inventory.len(), case.count, "{} count", case.name);
+        assert_eq!(
+            inventory.terminal(),
+            if case.unusable_rows.is_empty() {
+                InventoryTerminal::Complete
+            } else {
+                InventoryTerminal::Incomplete
+            },
+            "{} terminal",
+            case.name
+        );
+        let rows: Vec<_> = inventory
+            .causes()
+            .iter()
+            .map(|cause| {
+                assert_eq!(
+                    cause.code(),
+                    InventoryCauseCode::UnusableRow,
+                    "{} cause",
+                    case.name
+                );
+                assert_eq!(
+                    cause.document(),
+                    Some(root.path().join("FR-001.md").as_path())
+                );
+                assert!(cause.line().is_some());
+                cause.row().unwrap()
+            })
+            .collect();
+        assert_eq!(rows, case.unusable_rows, "{} row locus", case.name);
+        let legacy = derive(&Spec::from_path(root.path()), root.path(), &model);
+        assert_eq!(
+            inventory
+                .entries()
+                .map(|entry| entry.obligation())
+                .collect::<Vec<_>>(),
+            legacy.0.iter().collect::<Vec<_>>(),
+            "{} actual producer equality",
+            case.name
+        );
+        if let Some(tuples) = case.tuples {
+            let entry = inventory.entries().next().unwrap();
+            assert!(matches!(
+                entry.identity().origin(),
+                CriterionOrigin::CombinatorialTable {
+                    rendered_id: "FR-001-COMB"
+                }
+            ));
+            assert_eq!(entry.row(), None);
+            assert_eq!(
+                entry.obligation().parameters.get("tuples"),
+                Some(&tuples.to_string())
+            );
+            assert_eq!(
+                inventory.lookup(&entry.identity()).unwrap().obligation(),
+                entry.obligation()
+            );
+        }
+    }
+    let root = tempfile::tempdir().unwrap();
+    write(
+        root.path(),
+        "FR-001.md",
+        "---\nid: FR-001\ntype: FR\n---\n\n## Context\nNo optional inference.\n",
+    );
+    let missing = quire_rs::obligation::inventory(
+        root.path(),
+        &model,
+        &["configuration-space"],
+        Default::default(),
+    );
+    assert_eq!(
+        missing.causes()[0].code(),
+        InventoryCauseCode::MissingSection
+    );
+    assert_eq!(missing.terminal(), InventoryTerminal::Incomplete);
+}
+
+#[trace("TC-1962", "FR-053-AC-23")]
+#[test]
+fn selected_inventory_preserves_legacy_consumers_without_evidence_verdicts() {
+    use quire_rs::obligation::inventory::{InventoryCauseCode, InventoryTerminal};
+    let scope=ac_bundle("selected-legacy","| FR-001-AC-1 | The system shall preserve its statement. | Test (TC-001) | P1 |\n| FR-001-AC-2 | | Analysis | |\n");
+    let model = model_of("obligations");
+    let spec = Spec::from_path(&scope);
+    let before = derive(&spec, &scope, &model);
+    assert_eq!(before.0.len(), 1);
+    assert_eq!(before.0[0].id, "FR-001-AC-1");
+    assert_eq!(
+        before.0[0].statement,
+        "The system shall preserve its statement."
+    );
+    assert_eq!(before.1.len(), 1);
+    assert_eq!(before.1[0].row, 2);
+    let registry = Registry::load_module(&fixture_module("obligations")).unwrap();
+    let extraction = extract_tree(&scope);
+    let graph = trace::bind(&extraction, &model);
+    let coverage_before = compute(&spec, &registry, &graph, &scope).unwrap();
+    let doc = quire_rs::parse_document(&fs::read_to_string(scope.join("FR-001.md")).unwrap());
+    let document_before =
+        quire_rs::obligation::for_document(&model, "FR", &doc, Some(Path::new("FR-001.md")));
+    let document_text = fs::read_to_string(scope.join("FR-001.md")).unwrap();
+    let archetype = registry.archetype("FR").unwrap();
+    let classification_before = quire_rs::classify_document_criteria(
+        &registry,
+        archetype,
+        &document_text,
+        Some(Path::new("FR-001.md")),
+    );
+    let inventory = selected_at(&scope);
+    assert_eq!(inventory.terminal(), InventoryTerminal::Incomplete);
+    assert_eq!(
+        inventory.causes()[0].code(),
+        InventoryCauseCode::UnusableRow
+    );
+    assert_eq!(
+        inventory
+            .entries()
+            .map(|entry| entry.obligation())
+            .collect::<Vec<_>>(),
+        before.0.iter().collect::<Vec<_>>()
+    );
+    assert_eq!(
+        classification_before,
+        quire_rs::classify_document_criteria(
+            &registry,
+            archetype,
+            &document_text,
+            Some(Path::new("FR-001.md"))
+        )
+    );
+    let after = derive(&spec, &scope, &model);
+    assert_eq!(before, after);
+    assert_eq!(
+        document_before,
+        quire_rs::obligation::for_document(&model, "FR", &doc, Some(Path::new("FR-001.md")))
+    );
+    assert_eq!(
+        serde_json::to_value(&coverage_before).unwrap(),
+        serde_json::to_value(compute(&spec, &registry, &graph, &scope).unwrap()).unwrap()
+    );
+    let record = serde_json::to_value(inventory.entries().next().unwrap().obligation()).unwrap();
+    assert_eq!(
+        record,
+        serde_json::json!({"source":"acceptance-criterion","id":"FR-001-AC-1","document":"FR-001.md","statement":"The system shall preserve its statement.","method":"Test","criticality":"P1","target_ids":["TC-001"]})
+    );
+    let missing = scope.join("absent");
+    let tolerated = derive(&Spec::from_path(&missing), &missing, &model);
+    assert!(tolerated.0.is_empty());
+    assert!(tolerated.1.is_empty());
+    assert_eq!(
+        selected_at(&missing).terminal(),
+        InventoryTerminal::Incomplete
+    );
+}
