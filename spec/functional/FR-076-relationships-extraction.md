@@ -135,7 +135,7 @@ Rows, with backticks around a cell stripped:
 - The engine SHALL accept a `Name` cell only when it is an `Identifier`.
 - The engine SHALL set `RelationDecl.verb` to the `Verb` cell and
   `category` to the verb's registry `category`, and set `composite` to
-  `true` exactly when the registry entry declares `inverse: part_of`, and
+  `true` exactly when the registry entry declares `composite: true`, and
   `false` otherwise; `composite` is always present.
 - The engine SHALL map a bare `Target` naming an artifact `id` of the bundle
   to `ix://<package>/<id>`.

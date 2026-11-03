@@ -13,7 +13,13 @@
       },
       "contains": {
         "category": "structural",
-        "inverse": "part_of"
+        "inverse": "contained_in",
+        "composite": true
+      },
+      "aggregates": {
+        "category": "structural",
+        "inverse": "part_of",
+        "composite": true
       },
       "depends_on": {
         "category": "dependency"
@@ -46,6 +52,9 @@
         "contains": [
           "nested_entity",
           "value_object"
+        ],
+        "aggregates": [
+          "nested_entity"
         ],
         "owns": [
           "state_machine"
@@ -133,6 +142,17 @@
         "ordered": false,
         "unique": false
       }
+    },
+    {
+      "verb": "aggregates",
+      "category": "structural",
+      "composite": true,
+      "target": "ix://agent-ix/config-service/FR-007",
+      "multiplicity": {
+        "lower": 0,
+        "ordered": false,
+        "unique": false
+      }
     }
   ],
   "relationSources": [
@@ -167,6 +187,17 @@
         "startColumn": 1,
         "endLine": 22,
         "endColumn": 45
+      }
+    },
+    {
+      "name": "aggregate",
+      "sourceSpan": {
+        "sourceIdentity": "ix://agent-ix/config-service/spec",
+        "path": "relationships.md",
+        "startLine": 23,
+        "startColumn": 1,
+        "endLine": 23,
+        "endColumn": 43
       }
     }
   ],

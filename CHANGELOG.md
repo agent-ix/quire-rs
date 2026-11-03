@@ -5,6 +5,13 @@ All notable changes to `quire-rs` are documented here. Format follows
 numbers follow semver — pre-1.0, breaking changes may land in minor
 bumps; once 1.0 ships, semver is strict.
 
+## [0.52.0] — 2026-11-03
+
+### Fixed
+
+- Preserve composite relationship semantics for both unique ISO composition
+  inverse labels, `part_of` and `contained_in`.
+
 ## [0.51.0] — 2026-11-02
 
 ### Fixed

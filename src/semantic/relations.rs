@@ -40,17 +40,17 @@ const COLUMNS: [&str; 4] = ["Name", "Verb", "Target", "Multiplicity"];
 /// The verb whose declaration belongs to the FR-075 `generalization` mapping.
 const SPECIALIZES: &str = "specializes";
 
-/// The registry inverse that makes a verb composite.
-const COMPOSITE_INVERSE: &str = "part_of";
-
 /// One verb of the merged `edge_types` registry as relationships
-/// extraction reads it (FR-040): its category and optional inverse label.
+/// extraction reads it (FR-040): its category, optional inverse label, and
+/// optional composition marker.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct EdgeVerb {
     pub category: EdgeCategory,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub inverse: Option<String>,
+    #[serde(default, skip_serializing_if = "crate::vocab::is_false")]
+    pub composite: bool,
 }
 
 impl From<&EdgeTypeDef> for EdgeVerb {
@@ -58,6 +58,7 @@ impl From<&EdgeTypeDef> for EdgeVerb {
         Self {
             category: def.category,
             inverse: def.inverse.clone(),
+            composite: def.composite,
         }
     }
 }
@@ -563,7 +564,7 @@ impl RowCheck<'_> {
                 decl: RelationDecl {
                     verb: row.verb.to_string(),
                     category: entry.category,
-                    composite: entry.inverse.as_deref() == Some(COMPOSITE_INVERSE),
+                    composite: entry.composite,
                     target: identity.to_string(),
                     multiplicity,
                 },
