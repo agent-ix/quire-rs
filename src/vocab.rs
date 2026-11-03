@@ -61,10 +61,18 @@ pub enum EdgeCategory {
 pub struct EdgeTypeDef {
     pub description: String,
     pub category: EdgeCategory,
-    /// Optional inverse verb (e.g. `contains` ↔ `part_of`). Need not be
+    /// Optional inverse verb (e.g. `contains` ↔ `contained_in`). Need not be
     /// declared in the registry itself — a forward-only verb is valid.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub inverse: Option<String>,
+    /// Whether this verb carries composition semantics during extraction.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub composite: bool,
+}
+
+/// Whether a boolean field has its default false value.
+pub(crate) fn is_false(value: &bool) -> bool {
+    !value
 }
 
 /// The inverse index of a merged `edge_types` registry (FR-041): each

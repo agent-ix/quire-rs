@@ -37,7 +37,8 @@ form and silently drops the map.
 
 `quire-rs` SHALL close these gaps. It SHALL load two new **mergeable** manifest
 registries — `edge_types` (the controlled verb vocabulary, each verb carrying a
-category and description) and `roles` (capability tags object types opt into) —
+category, description, optional inverse, and optional composition marker) and
+`roles` (capability tags object types opt into) —
 accept `allowed_links` on **both** axes in array or map form, **resolve** the
 union of artifact-axis and object-axis vocabulary for a document, and **validate**
 harvested edges ([FR-026](./FR-026-intra-spec-reference-resolution.md)) against
@@ -54,6 +55,7 @@ pub struct EdgeType {
     pub category: EdgeCategory,
     pub description: String,
     pub inverse: Option<String>,   // optional; need not itself be declared
+    pub composite: bool,           // optional; defaults to false
 }
 
 pub enum EdgeCategory {
@@ -202,7 +204,7 @@ vocabulary; with no object, it lists the artifact vocabulary alone.
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
-| FR-040-AC-1 | A manifest declaring `edge_types` (verb → category, description, optional inverse) and `roles` (name → description) loads; the merged `Registry` exposes both, and re-declaring a name with an identical body across two modules is silently idempotent (no diagnostic). | Test |
+| FR-040-AC-1 | A manifest declaring `edge_types` (verb → category, description, optional inverse and composition marker) and `roles` (name → description) loads; omitted composition markers default to false; the merged `Registry` exposes both, and re-declaring a name with an identical body across two modules is silently idempotent (no diagnostic). | Test |
 | FR-040-AC-2 | Re-declaring an `edge_types`/`roles` name with a differing body across modules is **first-wins** and emits a non-fatal `DuplicateEdgeType`/`DuplicateRole` diagnostic (mirroring `DuplicateArchetype`, [FR-014](./FR-014-module-activation.md)); the default load still succeeds. | Test |
 | FR-040-AC-3 | An `allowed_links` key absent from `edge_types`, or a `roles:` entry / target token absent from `roles`, emits a non-fatal `UnknownEdgeType`/`UnknownRole` diagnostic (advisory, default load succeeds); the opt-in `load_strict` path ([FR-014-AC-3](./FR-014-module-activation.md)) escalates AC-2 and AC-3 diagnostics to errors. | Test |
 | FR-040-AC-4 | `allowed_links` in array form `[calls, publishes]` normalizes to `{calls: ["*"], publishes: ["*"]}`, and map form `{contains: [value_object]}` round-trips through `Registry::load_module` as an `AllowedLinks` map (superseding the FR-031 array-only parse per CR-001). | Test |

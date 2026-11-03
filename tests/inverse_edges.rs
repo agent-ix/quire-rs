@@ -30,7 +30,7 @@ fn registry(manifest: &[u8]) -> Registry {
     r
 }
 
-#[trace("TC-652", "FR-041-AC-1")]
+#[trace("TC-652", "FR-040-AC-1", "FR-041-AC-1")]
 // the merged registry exposes an inverse index mapping
 // each declared `inverse:` label to its forward verb; a registry with no
 // declared inverses exposes an empty index.
@@ -48,6 +48,7 @@ edge_types:
 "#,
     );
     let idx = reg.inverse_index();
+    assert!(!reg.edge_types()["publishes"].composite);
     assert_eq!(
         idx.get("consumed_by").map(String::as_str),
         Some("publishes")
@@ -70,6 +71,43 @@ edge_types:
 "#,
     );
     assert!(bare.inverse_index().is_empty());
+}
+
+#[trace("TC-1869", "FR-040-AC-1", "FR-041-AC-1")]
+// Composition metadata is independent of inverse-label uniqueness; both ISO
+// composition verbs retain their own inverse in the merged registry.
+#[test]
+fn tc1869_composite_edge_metadata_and_inverse_labels_load_without_conflict() {
+    let reg = registry(
+        br#"
+name: composition
+artifact_types:
+- name: thing
+  frontmatter_schema_ref: schemas/thing.schema.json
+edge_types:
+  contains: { description: x, category: structural, inverse: contained_in, composite: true }
+  aggregates: { description: x, category: structural, inverse: part_of, composite: true }
+"#,
+    );
+
+    assert!(reg.edge_types()["contains"].composite);
+    assert!(reg.edge_types()["aggregates"].composite);
+    assert!(
+        !reg.diagnostics()
+            .iter()
+            .any(|d| matches!(d, Diagnostic::DuplicateInverseEdge { .. })),
+        "{:?}",
+        reg.diagnostics()
+    );
+    let inverses = reg.inverse_index();
+    assert_eq!(
+        inverses.get("contained_in").map(String::as_str),
+        Some("contains")
+    );
+    assert_eq!(
+        inverses.get("part_of").map(String::as_str),
+        Some("aggregates")
+    );
 }
 
 #[trace("TC-653", "FR-041-AC-2")]

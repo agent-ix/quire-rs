@@ -14,7 +14,13 @@
       },
       "contains": {
         "category": "structural",
-        "inverse": "part_of"
+        "inverse": "contained_in",
+        "composite": true
+      },
+      "aggregates": {
+        "category": "structural",
+        "inverse": "part_of",
+        "composite": true
       },
       "depends_on": {
         "category": "dependency"
@@ -47,6 +53,9 @@
         "contains": [
           "nested_entity",
           "value_object"
+        ],
+        "aggregates": [
+          "nested_entity"
         ],
         "owns": [
           "state_machine"
