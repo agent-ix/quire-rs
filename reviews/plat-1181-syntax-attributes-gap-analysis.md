@@ -197,3 +197,9 @@ dispositions:
     previously failing tc1020 and exact diagnostic vocabulary parity. QA18selftests
     pass; prior complete bounds is unchanged by comment-only fix.
 ```
+
+## Measured recall population carry
+
+Narrow measured recall-population carry at QA f56b1c707c0add5256378e84dd16b29027ae1fdf, selected by engineab1b2bf. Actual Git diff changes only generated baselines/quire-rs.json: Rust attachment L1/L2/L3 each moves reached/population5/5->6/6. All three retain gap_count0 and misses[]; every other row/field is unchanged. This accounts for the newly required original QA failure/control pair rather than lowering a threshold, removing misses or claiming improvement on the old population. Preserved actual engine UPDATE_CORPUS_RECALL=1 test log has both recall controlsPASS, including externally witnessed population separation. No runtime, guard, detector, fixture or expectation source changes in this carry. No new findings; FND001/002/003 stay fixed.
+
+Code and scoped gap verdicts remainPASS for this measured amendment. Prior focused corpus21+implements13 apply at preceding QA comment-only head; recall2PASS is the fresh evidence for the generated baseline. Full remaining aggregate is running at the new snapshot and is not yet credited green; hosted checks and Luna-owned QA-first merge plus actual squash-gitlink carry remain required. Reviewer performed no Cargo/heavy/backend run and edited no source/worktree.
