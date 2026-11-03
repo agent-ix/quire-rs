@@ -908,6 +908,13 @@ pub enum TraceMarkerSyntax {
     RustAttribute,
 }
 
+// Preserve field presence: explicit null is an invalid guard, not omission.
+fn present_syntax<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Option<serde_json::Value>, D::Error> {
+    serde_json::Value::deserialize(deserializer).map(Some)
+}
+
 impl<'de> Deserialize<'de> for TraceMarkerForm {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         #[derive(Deserialize)]
@@ -918,13 +925,16 @@ impl<'de> Deserialize<'de> for TraceMarkerForm {
             pattern: String,
             #[serde(default)]
             template: Option<String>,
-            #[serde(default)]
-            syntax: Option<String>,
+            #[serde(default, deserialize_with = "present_syntax")]
+            syntax: Option<serde_json::Value>,
         }
         let wire = Wire::deserialize(deserializer)?;
-        let syntax = match wire.syntax.as_deref() {
+        let syntax = match wire.syntax.as_ref() {
             None => None,
-            Some("rust_attribute") if wire.language == SourceLanguage::Rust => {
+            Some(value)
+                if value.as_str() == Some("rust_attribute")
+                    && wire.language == SourceLanguage::Rust =>
+            {
                 Some(TraceMarkerSyntax::RustAttribute)
             }
             Some(value) => {
@@ -978,7 +988,7 @@ impl<'de> Deserialize<'de> for TraceLegacyForm {
             id_format: Option<String>,
             #[serde(default)]
             rewrite_to: Option<String>,
-            #[serde(default)]
+            #[serde(default, deserialize_with = "present_syntax")]
             syntax: Option<serde_json::Value>,
         }
         let wire = Wire::deserialize(deserializer)?;

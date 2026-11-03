@@ -757,3 +757,33 @@ fn guarded_scope_changes_preserve_real_verification_backing_and_symbol_identity(
     assert_eq!(old_production, after.implements.iter().collect::<Vec<_>>());
     assert_eq!(unguarded_graph.verifies, after.verifies);
 }
+
+#[trace("TC-1989", "FR-062-AC-12")]
+#[test]
+fn present_invalid_syntax_values_never_become_an_unguarded_form() {
+    for value in [
+        serde_json::Value::Null,
+        serde_json::json!(false),
+        serde_json::json!(4),
+        serde_json::json!({}),
+    ] {
+        let dir = tempfile::tempdir().unwrap();
+        guarded_registry(dir.path(), GUARDED_PATTERN, None, "rust", "implements").unwrap();
+        let path = dir.path().join("module/manifest.yaml");
+        let mut manifest: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+        manifest["traceability"]["trace_tags"]["implements"][0]["syntax"] = value.clone();
+        std::fs::write(&path, serde_json::to_string(&manifest).unwrap()).unwrap();
+        let loaded = quire_rs::Registry::load_module(&dir.path().join("module")).unwrap();
+        assert!(
+            !loaded.failures().is_empty(),
+            "present syntax {value} must not silently become unguarded"
+        );
+        assert!(
+            loaded.failures()[0].reason.contains("declared-attribute"),
+            "{}",
+            loaded.failures()[0].reason
+        );
+        assert!(loaded.traceability().is_none());
+    }
+}
