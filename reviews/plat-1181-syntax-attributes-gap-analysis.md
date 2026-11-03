@@ -157,3 +157,43 @@ dispositions:
     and MISSING token with exact malformed candidate text; existing public module-load
     bank harness independently asserts only healthyFR802 relation, no recovered edge.
 ```
+
+## QA corpus amendment
+
+Narrow same-review amendment: original enginePR566 at4e34014b94c5ad6fc82539851e1b72943173c74a selects companion qa-corpusPR42 candidate0cd2548cc8270c17fa181e2721a1cab6eeab65ad overc720e13. Engine Rust production remains unchanged from reviewed5eca81c and test-only fixes008119b; originalFND001/002 remain fixed. QA source/guidance, declared diagnostic vocabulary, original failure/control pair, module manifest, inventory and derived counters were inspected. No source/worktree edit or Cargo/heavy/backend run by reviewer.
+
+The new exact diagnostic reason is appropriately added to authoritative QA vocabulary. The failure and healthy control preserve genuine production multi-ID bindings while differing only in a matching substring inside doc-attribute data; both assert backed0 and native metric examined2/matched1, so scope does not become verification. Required L1reason/L2path+line11/L3message fragments identify the module form, payload owner and exact offending attribute semantics. The custom form owns its Rust syntax guard, regex and template. Rust inventory is explicit, Python/TypeScript exclusions are justified by the Rust-only opt-in position and point to existing unguarded regressions. Attachment witness channels permit these diagnostic oracles. Derived fixture/pair counters advance consistently without attributing unrelated historical measurements.
+
+Preserved QA18selftests and complete bounds (189fixtures,118cells,90covered,28out_of_scope,GAP0) pass. Actual engine corpus_cases run now reports20PASS/1FAIL at required missing-comment metadata check, recorded as newFND003; registry parity and functional corpus cases themselves pass. This is not a green focused or aggregate claim. Final engine aggregate/hosted checks remain owed; QA42 must land before engine gitlink is changed to its actual squash result and final hosted engine checks. Luna merge ownership remains explicit. No release/consumer qualification inferred.
+
+### New finding
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-003 | medium | Both new QA failure/control root case.yaml files omit required nonempty comment explaining the fixture. Actual engine corpus_cases at the candidate gitlink fails tc1020 at tests/corpus_cases.rs803: guarded-implements-partial-match-rust carries no comment saying what it is about (20PASS/1FAIL). Add meaningful failure/control comments in QA42 and retain the exact gitlink update; do not relax the authoritative metadata guard. | agent-ix/qa-corpus/cases/attachment/guarded-implements-partial-match/case.yaml |
+
+Current verdict: **FAIL** pendingFND003 and final gates.
+
+## QA metadata fix disposition
+
+Final scoped QA amendment disposition at engine7dede62d29c23393468dee9c197c0834f9e3839e / QA bdbb5baf8bdd40844b5d6ac835ad7240dd94bf6a. Diff from reviewed QA0cd adds only the two missing explanatory comments. Actual engine gitlink selects that repaired candidate. Preserved focused logs show corpus_cases21PASS/0FAIL and implements_relation13PASS/0FAIL; QA18selftests pass. The prior complete bounds declaration is unchanged by comment-only repair. FND003 is fixed; earlier FND001/002 remain fixed; no new amendment finding.
+
+Both code and scoped gap method verdicts are nowPASS for the reviewed source/tests/QA vocabulary. Final remaining aggregate and hosted engine checks remain owed. QA42 must merge first under Luna ownership, followed by updating engine566 gitlink to the actual QA squash commit and final checks; this candidate review does not authorize a merge/release or silently credit an untested changed gitlink. No Rust production change since reviewed source5eca81c; only source/tests and subsequent QA metadata/gitlink carries described in these same artifacts. Reviewer ran no Cargo/heavy/backend jobs and edited no reviewed tree.
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-003 | fixed | QA bdbb5baf8bdd40844b5d6ac835ad7240dd94bf6a adds meaningful failure/control comments only. Engine7dede62d29c23393468dee9c197c0834f9e3839e selects that exact gitlink; preserved corpus_cases21PASS and implements_relation13PASS, including previously failing tc1020 and exact diagnostic vocabulary parity. QA18selftests pass; prior complete bounds is unchanged by comment-only fix. |
+
+```yaml
+dispositions:
+- fnd: FND-003
+  outcome: fixed
+  after_excerpt: A guarded Rust form must warn on the proper substring inside the
+    doc attribute, while its genuine multi-ID production attribute binds and block-comment/raw-string
+    examples produce no additional implementation edges.
+  reason: QA bdbb5baf8bdd40844b5d6ac835ad7240dd94bf6a adds meaningful failure/control
+    comments only. Engine7dede62d29c23393468dee9c197c0834f9e3839e selects that exact
+    gitlink; preserved corpus_cases21PASS and implements_relation13PASS, including
+    previously failing tc1020 and exact diagnostic vocabulary parity. QA18selftests
+    pass; prior complete bounds is unchanged by comment-only fix.
+```
