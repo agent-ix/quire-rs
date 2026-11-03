@@ -1,0 +1,136 @@
+{
+  "issue_ref": "https://linear.app/agent-ix/issue/PLAT-1165",
+  "cases": [
+    {
+      "name": "two-including-unmapped",
+      "documents": {
+        "FR-001.md": "---\nid: FR-001\ntype: FR\ntitle: Selected source\n---\n\n## Acceptance Criteria\n\n| ID | Criteria | Verification | Priority |\n|----|----------|--------------|----------|\n| FR-001-AC-1 | First authored criterion. | Test (TC-001) | P1 |\n| FR-001-AC-2 | Criterion without mappings. | Analysis | P2 |\n"
+      },
+      "ids": [
+        "FR-001-AC-1",
+        "FR-001-AC-2"
+      ],
+      "causes": []
+    },
+    {
+      "name": "empty-headed-table",
+      "documents": {
+        "FR-001.md": "---\nid: FR-001\ntype: FR\ntitle: Selected source\n---\n\n## Acceptance Criteria\n\n| ID | Criteria | Verification | Priority |\n|----|----------|--------------|----------|\n"
+      },
+      "ids": [],
+      "causes": []
+    },
+    {
+      "name": "missing-section",
+      "documents": {
+        "FR-001.md": "---\nid: FR-001\ntype: FR\ntitle: Selected source\n---\n\n## Context\n\nOther text.\n"
+      },
+      "ids": [],
+      "causes": [
+        "MissingSection"
+      ]
+    },
+    {
+      "name": "missing-table",
+      "documents": {
+        "FR-001.md": "---\nid: FR-001\ntype: FR\ntitle: Selected source\n---\n\n## Acceptance Criteria\n\nNo table.\n"
+      },
+      "ids": [],
+      "causes": [
+        "MissingTable"
+      ]
+    },
+    {
+      "name": "missing-id-column",
+      "documents": {
+        "FR-001.md": "---\nid: FR-001\ntype: FR\ntitle: Selected source\n---\n\n## Acceptance Criteria\n\n| Wrong | Criteria | Verification | Priority |\n|----|----------|--------------|----------|\n"
+      },
+      "ids": [],
+      "causes": [
+        "MissingColumn"
+      ]
+    },
+    {
+      "name": "missing-statement-column",
+      "documents": {
+        "FR-001.md": "---\nid: FR-001\ntype: FR\ntitle: Selected source\n---\n\n## Acceptance Criteria\n\n| ID | Wrong | Verification | Priority |\n|----|----------|--------------|----------|\n"
+      },
+      "ids": [],
+      "causes": [
+        "MissingColumn"
+      ]
+    },
+    {
+      "name": "unusable-statement",
+      "documents": {
+        "FR-001.md": "---\nid: FR-001\ntype: FR\ntitle: Selected source\n---\n\n## Acceptance Criteria\n\n| ID | Criteria | Verification | Priority |\n|----|----------|--------------|----------|\n| FR-001-AC-1 | First authored criterion. | Test (TC-001) | P1 |\n| FR-001-AC-2 | | Analysis | P2 |\n"
+      },
+      "ids": [
+        "FR-001-AC-1"
+      ],
+      "causes": [
+        "UnusableRow"
+      ]
+    },
+    {
+      "name": "unusable-id",
+      "documents": {
+        "FR-001.md": "---\nid: FR-001\ntype: FR\ntitle: Selected source\n---\n\n## Acceptance Criteria\n\n| ID | Criteria | Verification | Priority |\n|----|----------|--------------|----------|\n| FR-001-AC-1 | First authored criterion. | Test (TC-001) | P1 |\n| | Missing identity. | Analysis | P2 |\n"
+      },
+      "ids": [
+        "FR-001-AC-1"
+      ],
+      "causes": [
+        "UnusableRow"
+      ]
+    },
+    {
+      "name": "duplicate-authored-id",
+      "documents": {
+        "FR-001.md": "---\nid: FR-001\ntype: FR\ntitle: Selected source\n---\n\n## Acceptance Criteria\n\n| ID | Criteria | Verification | Priority |\n|----|----------|--------------|----------|\n| FR-001-AC-1 | First authored criterion. | Test (TC-001) | P1 |\n| FR-001-AC-1 | First authored criterion. | Test (TC-001) | P1 |\n| FR-001-AC-2 | Criterion without mappings. | Analysis | P2 |\n"
+      },
+      "ids": [
+        "FR-001-AC-1",
+        "FR-001-AC-1",
+        "FR-001-AC-2"
+      ],
+      "causes": [
+        "DuplicateIdentity"
+      ]
+    },
+    {
+      "name": "unclassifiable-absent-frontmatter",
+      "documents": {
+        "FR-001.md": "## Other\n\nNo frontmatter.\n"
+      },
+      "ids": [],
+      "causes": [
+        "UnclassifiableDocument"
+      ]
+    },
+    {
+      "name": "unclassifiable-malformed-frontmatter",
+      "documents": {
+        "FR-001.md": "---\nid: [\n---\n\n## Other\n"
+      },
+      "ids": [],
+      "causes": [
+        "UnclassifiableDocument"
+      ]
+    },
+    {
+      "name": "valid-empty-root",
+      "documents": {},
+      "ids": [],
+      "causes": []
+    },
+    {
+      "name": "valid-unselected-nonmember",
+      "documents": {
+        "other.md": "---\nid: NFR-001\ntype: NFR\ntitle: Nonmember\n---\n\nOther content.\n"
+      },
+      "ids": [],
+      "causes": []
+    }
+  ]
+}
