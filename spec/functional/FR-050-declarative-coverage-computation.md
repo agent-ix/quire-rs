@@ -298,7 +298,7 @@ that failed to mint cannot erase its own gap from the population.
 | FR-050-AC-46 | Each reference's explicit or default selected column drives missing-column diagnostics, unknown-status census (including backed rows), and complete-but-unbacked classification consistently using the unchanged global vocabulary. An absent explicit selection never falls back to the global column; the existing status-shaped-header diagnostic names the effective selection and its actual configuration key. Default-only behavior remains unchanged. | Test (TC-1805) |
 | FR-050-AC-1 | A manifest `traceability:` section declaring trace targets, document references, a status vocabulary, and a trace-tag grammar loads, and the `Registry` exposes the declared model. | Test (TC-732) |
 | FR-050-AC-2 | A malformed `traceability:` section fails module load like any other manifest shape error; an absent section loads and marks the model undeclared. | Test (TC-733) |
-| FR-050-AC-3 | A live reference row whose trace target has no backing `verifies` relation appears in the report's unbacked rows with the row id and its target id. | Test (TC-734) |
+| FR-050-AC-3 | A live reference row whose trace target has no backing `verifies` relation appears in the report's unbacked rows with the row id and its target id. When its row ID names a module-derived obligation, source backing requires a `verifies` relation for that obligation's own ID; a referenced TC or sibling obligation cannot supply it. Other reference rows retain the own-ID-or-referenced-ID rule. Explicit retained evidence continues to require FR-078's accepted exact row binding. | Test (TC-734) |
 | FR-050-AC-4 | A live row whose status classes as `complete` with no backing source symbol appears in the report's status lies; the same row with a backing symbol does not. | Test (TC-735) |
 | FR-050-AC-5 | A source symbol whose trace tag resolves to no declared target, no reference row, and no derived obligation id (CR-187, R2) appears in the report's untracked symbols with its file and symbol name; a tag naming a derived obligation's own id does not. | Test (TC-736, TC-1942) |
 | FR-050-AC-6 | The report carries per-minting-document live backed/total and separate retired counts, and their sums equal the corresponding bundle-wide totals. | Test (TC-737) |
@@ -1140,3 +1140,14 @@ that failed to mint cannot erase its own gap from the population.
 > injecting a clock. It now asserts the absence of any time-varying field on a
 > scored row, which is the guard it was reaching for — verified by adding
 > `generated_at` to a row and watching it fail.
+
+> **CR-PLAT-1149 (2026-11-02):** A shared TC can bind one criterion while
+> its sibling criteria have no claims. Reproduced on current main with the
+> retained RT FR-008-AC-3/4/10/11/12 rows and partial TC-025 evidence.
+> FR-050-AC-3 now uses the existing module-derived obligation identity
+> (the native selected inventory in retained-evidence mode). Aggregate rows,
+> accepted exact retained bindings, retirement and pending-status semantics
+> keep their contracts. Attributed structural failure/control fixtures execute
+> in Rust, Python and TypeScript; these are binding tests, not qualification
+> of the RT behaviors. The earlier PLAT-1149 PR measured the same defect on
+> FR-038-AC-131 at quire-contract-ir `2c6c9bd`.

@@ -979,32 +979,39 @@ fn tc1024_unbacked_rows_and_groups_are_exact() {
     );
     assert_eq!(outcome.level_lost(), Some(corpus_case::Level::L2Localised));
 
-    // And a case asserting an EMPTY one: it must reject a payload that mints.
-    let mut cases = load_cases();
-    let empty = cases
-        .iter_mut()
-        .find(|c| {
-            c.expect
-                .unbacked_rows
-                .as_ref()
-                .is_some_and(|r| r.is_empty())
-        })
-        .expect("a case asserting no unbacked rows");
-    let report = run(empty);
-    assert!(grade(empty, &report).passed());
-    // The mutation is the point. The first version stopped at the line above —
-    // "it passes as authored" — which `corpus_cases_hold` already guarantees
-    // for every case, so no change to the grader could have failed it. This
-    // feeds it the row its partner fixture really produces.
-    empty.expect.unbacked_rows = Some(vec![corpus_case::ExpectUnbackedRow {
-        document: "spec/tests.md".to_string(),
-        row_id: None,
-        target_ids: vec!["FR-001-AC-1".to_string()],
-    }]);
-    let outcome = grade(empty, &report);
+    // The grader's empty-list contract must hold even when no bank case
+    // happens to assert an empty list. Use a controlled payload and grade only
+    // this field; the complete real-case contract was checked above.
+    let mut empty_report = report.clone();
+    empty_report.unbacked_rows.clear();
+    let empty_expect = corpus_case::CaseExpect {
+        unbacked_rows: Some(Vec::new()),
+        ..Default::default()
+    };
+    assert!(grade_with(case, &empty_report, &empty_expect).passed());
+
+    let row = report.unbacked_rows.first().expect("non-empty witness");
+    let nonempty_expect = corpus_case::CaseExpect {
+        unbacked_rows: Some(vec![corpus_case::ExpectUnbackedRow {
+            document: row.document.clone(),
+            row_id: row.row_id.clone(),
+            target_ids: row.target_ids.clone(),
+        }]),
+        ..Default::default()
+    };
+    let outcome = grade_with(case, &empty_report, &nonempty_expect);
     assert!(
         !outcome.passed(),
-        "a case asserting `unbacked_rows: []` must reject a payload that mints"
+        "a payload missing the expected row must fail exact grading"
+    );
+    assert_eq!(outcome.level_lost(), Some(corpus_case::Level::L2Localised));
+
+    empty_report.unbacked_rows.push(row.clone());
+    assert!(grade_with(case, &empty_report, &nonempty_expect).passed());
+    let outcome = grade_with(case, &empty_report, &empty_expect);
+    assert!(
+        !outcome.passed(),
+        "a case asserting `unbacked_rows: []` must reject an extra row"
     );
     assert_eq!(outcome.level_lost(), Some(corpus_case::Level::L2Localised));
 
