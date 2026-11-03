@@ -11,7 +11,7 @@
     "name": "rt-tc198-gate",
     "issue_ref": "agent-ix/quire-rs#138",
     "id": "FR-275-AC-7",
-    "method": "Analysis",
+    "method": "Inspection",
     "statement": "The selected verification act shall pass.",
     "component_only": true
   },
@@ -19,7 +19,7 @@
     "name": "rt-tc199-gate",
     "issue_ref": "agent-ix/quire-rs#138",
     "id": "FR-275-AC-20",
-    "method": "Analysis",
+    "method": "Inspection",
     "statement": "The selected verification act shall pass.",
     "component_only": true
   },
@@ -27,7 +27,7 @@
     "name": "rt-compile-fail",
     "issue_ref": "agent-ix/quire-rs#530",
     "id": "FR-003-AC-2",
-    "method": "Test",
+    "method": "compile-time-check",
     "statement": "The selected verification act shall pass.",
     "component_only": true
   }

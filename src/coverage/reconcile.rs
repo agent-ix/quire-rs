@@ -32,15 +32,20 @@ pub(super) fn reconcile(
     // below, because CR-187 R2 makes an obligation's own id count as
     // declared — a tag naming one must not land in `untracked_symbols`, and
     // that filter needs the id set before it runs.
-    let (legacy_obligations, skipped) = crate::obligation::derive(spec, root, model);
-    let obligations = evidence.map_or(legacy_obligations, |evidence| {
-        evidence
-            .input
-            .inventory
-            .entries()
-            .map(|entry| entry.obligation().clone())
-            .collect()
-    });
+    // Evidence mode consumes only the native selected entries and cause report.
+    // Legacy derivation would scan unselected sources and leak their skipped rows.
+    let (obligations, skipped) = match evidence {
+        Some(evidence) => (
+            evidence
+                .input
+                .inventory
+                .entries()
+                .map(|entry| entry.obligation().clone())
+                .collect(),
+            Vec::new(),
+        ),
+        None => crate::obligation::derive(spec, root, model),
+    };
     let obligation_ids: BTreeSet<&str> = obligations.iter().map(|o| o.id.as_str()).collect();
     // CR-060: compiled once for the whole reconciliation — every declaration
     // is scoped by it.
