@@ -668,10 +668,37 @@ fn guarded_scope_changes_preserve_real_verification_backing_and_symbol_identity(
     let before_report = quire_rs::coverage::compute(&spec, &registry, &before, &scope).unwrap();
     assert_eq!(before_report.untracked_symbols.len(), 1);
     assert_eq!(before_report.untracked_symbols[0].symbol, "untracked");
-    assert!(!before.backed_trace_ids().is_empty());
+    assert_eq!(before_report.totals.backed, 1);
+    assert_eq!(before_report.totals.total, 1);
+    assert_eq!(
+        before.backed_trace_ids(),
+        std::collections::BTreeSet::from(["FR-901-AC-1".to_string(), "FR-999-AC-1".to_string()])
+    );
     let after_source = format!("{evidence}// unrelated source\n#[implements(\n \"FR-902\", \"FR-903\"\n)] // trailing comment\nfn production() {{}}\n#[doc = r#\"#[implements(\"FR-904\")]\"#]\nfn partial() {{}}\n");
-    std::fs::write(src.join("lib.rs"), after_source).unwrap();
+    std::fs::write(src.join("lib.rs"), &after_source).unwrap();
     let after_extraction = quire_rs::symbols::extract_tree(&src);
+    let production = after_extraction
+        .symbols
+        .iter()
+        .find(|symbol| symbol.qualified_name == "production")
+        .unwrap();
+    assert_eq!(production.attributes.len(), 1);
+    let attribute = &production.attributes[0];
+    assert_eq!(attribute.line, 8);
+    assert_eq!(attribute.text, "#[implements(\n \"FR-902\", \"FR-903\"\n)]");
+    let candidate_byte = after_source.find(&attribute.text).unwrap();
+    assert_eq!(
+        candidate_byte,
+        format!("{evidence}// unrelated source\n").len()
+    );
+    assert_eq!(
+        after_source[..candidate_byte]
+            .bytes()
+            .filter(|byte| *byte == b'\n')
+            .count()
+            + 1,
+        attribute.line
+    );
     let after = trace::bind(&after_extraction, registry.traceability().unwrap());
     let repeated = trace::bind(&after_extraction, registry.traceability().unwrap());
     assert_eq!(
