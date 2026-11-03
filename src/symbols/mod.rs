@@ -118,9 +118,20 @@ impl SymbolKind {
     }
 }
 
+/// An adapter-resolved outer attribute; offsets are not symbol identity.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SourceAttribute {
+    /// Verbatim complete attribute node, excluding comments and declaration.
+    pub text: String,
+    /// Actual 1-based source line of the attribute start.
+    pub line: usize,
+}
+
 /// One extracted symbol.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Symbol {
+    /// Exact outer Rust attributes owned by this declaration, in source order.
+    pub attributes: Vec<SourceAttribute>,
     pub language: SourceLanguage,
     /// Repo-relative path, `/`-separated so identities are platform-stable.
     pub path: String,
@@ -253,6 +264,7 @@ impl SymbolExtraction {
 /// A symbol as an adapter produces it, before identity and path are attached.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct RawSymbol {
+    pub attributes: Vec<SourceAttribute>,
     pub qualified_name: String,
     pub kind: SymbolKind,
     pub line: usize,
@@ -475,6 +487,7 @@ impl SymbolExtraction {
         };
         for r in raw {
             self.symbols.push(Symbol {
+                attributes: r.attributes,
                 language,
                 path: path.to_string(),
                 id: Symbol::compute_id(language, path, &r.qualified_name, r.kind),

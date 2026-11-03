@@ -149,6 +149,7 @@ pub(crate) fn parse(path: &str, source: &str) -> Result<Vec<RawSymbol>, String> 
     let lines: Vec<&str> = source.lines().collect();
     let module = module_name(path);
     let mut out = vec![RawSymbol {
+        attributes: Vec::new(),
         qualified_name: module.clone(),
         kind: SymbolKind::Container,
         line: 1,
@@ -407,6 +408,7 @@ impl<'a> Walk<'a> {
                 let class_ignored = own_ignored || enclosing_ignored;
                 let is_suite = !matches!(test_class, TestClass::None);
                 self.out.push(RawSymbol {
+                    attributes: Vec::new(),
                     qualified_name: qualified_name.clone(),
                     kind: SymbolKind::Container,
                     line: def_node.start_position().row + 1,
@@ -453,6 +455,7 @@ impl<'a> Walk<'a> {
                 let ignored =
                     kind == SymbolKind::TestFunction && (own_ignored || enclosing_ignored);
                 self.out.push(RawSymbol {
+                    attributes: Vec::new(),
                     qualified_name,
                     kind,
                     line: def_node.start_position().row + 1,

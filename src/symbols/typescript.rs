@@ -208,6 +208,7 @@ pub(crate) fn parse(path: &str, source: &str) -> Result<Vec<RawSymbol>, String> 
     let module = module_name(path);
     let line_count = source.lines().count().max(1);
     let mut out = vec![RawSymbol {
+        attributes: Vec::new(),
         qualified_name: module.clone(),
         kind: SymbolKind::Container,
         line: 1,
@@ -723,6 +724,7 @@ fn symbol_at(
     ignored: bool,
 ) -> RawSymbol {
     RawSymbol {
+        attributes: Vec::new(),
         qualified_name,
         kind,
         line: anchor.start_position().row + 1,

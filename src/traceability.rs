@@ -883,9 +883,12 @@ pub struct TraceTagGrammar {
 /// One canonical marker form — a statically parseable construct attached to a
 /// test symbol (a pytest marker, a Rust attribute, a TS helper call). `pattern`
 /// matches the construct; capture group 1 is the id-bearing argument list.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct TraceMarkerForm {
+    /// Optional syntax position; patterns remain declared by the module.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub syntax: Option<TraceMarkerSyntax>,
     pub name: String,
     pub language: SourceLanguage,
     pub pattern: String,
@@ -897,10 +900,66 @@ pub struct TraceMarkerForm {
     pub template: Option<String>,
 }
 
+/// Syntax positions supported for module-declared marker forms.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TraceMarkerSyntax {
+    /// A complete outer Rust attribute attached to a declaration.
+    RustAttribute,
+}
+
+// Preserve field presence: explicit null is an invalid guard, not omission.
+fn present_syntax<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Option<serde_json::Value>, D::Error> {
+    serde_json::Value::deserialize(deserializer).map(Some)
+}
+
+impl<'de> Deserialize<'de> for TraceMarkerForm {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        #[derive(Deserialize)]
+        #[serde(deny_unknown_fields)]
+        struct Wire {
+            name: String,
+            language: SourceLanguage,
+            pattern: String,
+            #[serde(default)]
+            template: Option<String>,
+            #[serde(default, deserialize_with = "present_syntax")]
+            syntax: Option<serde_json::Value>,
+        }
+        let wire = Wire::deserialize(deserializer)?;
+        let syntax = match wire.syntax.as_ref() {
+            None => None,
+            Some(value)
+                if value.as_str() == Some("rust_attribute")
+                    && wire.language == SourceLanguage::Rust =>
+            {
+                Some(TraceMarkerSyntax::RustAttribute)
+            }
+            Some(value) => {
+                return Err(serde::de::Error::custom(format!(
+                    "trace marker '{}' has invalid syntax '{}' for {}",
+                    wire.name,
+                    value,
+                    wire.language.as_str()
+                )))
+            }
+        };
+        Ok(Self {
+            name: wire.name,
+            language: wire.language,
+            pattern: wire.pattern,
+            template: wire.template,
+            syntax,
+        })
+    }
+}
+
 /// One legacy textual form (bare id in a docstring, a `Trace:` line, a
 /// line-comment id, a trace-embedding test name). `rewrite_to` names the
 /// marker form a mechanical rewrite suggestion should target, when derivable.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct TraceLegacyForm {
     pub name: String,
@@ -914,6 +973,38 @@ pub struct TraceLegacyForm {
     pub id_format: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub rewrite_to: Option<String>,
+}
+
+impl<'de> Deserialize<'de> for TraceLegacyForm {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        #[derive(Deserialize)]
+        #[serde(deny_unknown_fields)]
+        struct Wire {
+            name: String,
+            #[serde(default)]
+            language: Option<SourceLanguage>,
+            pattern: String,
+            #[serde(default)]
+            id_format: Option<String>,
+            #[serde(default)]
+            rewrite_to: Option<String>,
+            #[serde(default, deserialize_with = "present_syntax")]
+            syntax: Option<serde_json::Value>,
+        }
+        let wire = Wire::deserialize(deserializer)?;
+        if wire.syntax.is_some() {
+            return Err(serde::de::Error::custom(format!(
+                "trace_tags.legacy form '{}' cannot declare syntax; only trace_tags.implements supports it", wire.name
+            )));
+        }
+        Ok(Self {
+            name: wire.name,
+            language: wire.language,
+            pattern: wire.pattern,
+            id_format: wire.id_format,
+            rewrite_to: wire.rewrite_to,
+        })
+    }
 }
 
 impl TraceabilityModel {
@@ -1368,6 +1459,9 @@ impl TraceabilityModel {
         let mut marker_names: BTreeSet<&str> = BTreeSet::new();
         for marker in &self.trace_tags.markers {
             check_named("trace_tags.markers", &marker.name)?;
+            if marker.syntax.is_some() {
+                return Err(format!("trace_tags.markers form '{}' cannot declare syntax; only trace_tags.implements supports it", marker.name));
+            }
             if !marker_names.insert(marker.name.as_str()) {
                 return Err(format!(
                     "traceability: duplicate trace_tags.markers entry '{}'",
@@ -1375,6 +1469,16 @@ impl TraceabilityModel {
                 ));
             }
             check_capturing_pattern("trace_tags.markers", &marker.name, &marker.pattern)?;
+        }
+        for marker in &self.trace_tags.implements {
+            check_named("trace_tags.implements", &marker.name)?;
+            check_capturing_pattern("trace_tags.implements", &marker.name, &marker.pattern)?;
+            if marker.syntax.is_some() && marker.language != SourceLanguage::Rust {
+                return Err(format!(
+                    "trace_tags.implements form '{}' requires Rust for rust_attribute",
+                    marker.name
+                ));
+            }
         }
         for legacy in &self.trace_tags.legacy {
             check_named("trace_tags.legacy", &legacy.name)?;

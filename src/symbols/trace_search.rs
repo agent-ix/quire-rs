@@ -314,6 +314,7 @@ mod tests {
             .cloned()
             .expect("declared model");
         model.trace_tags.implements.push(TraceMarkerForm {
+            syntax: None,
             name: "rust-implements-line".to_string(),
             language: SourceLanguage::Rust,
             pattern: r"(?m)^\s*//\s*Implements:\s*(.+)$".to_string(),

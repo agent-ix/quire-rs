@@ -539,6 +539,7 @@ pub const COVERAGE_DIAGNOSTIC_REASONS: &[&str] = &[
     "model-mints-nothing",
     "no-symbol-bound",
     "obligation-row-states-nothing",
+    "partial-implements-attribute-match",
     "range-in-trace-tag",
     "section-holds-no-table",
     "section-matches-nothing",
