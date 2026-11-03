@@ -654,7 +654,7 @@ fn guarded_scope_changes_preserve_real_verification_backing_and_symbol_identity(
     std::fs::create_dir(&docs).unwrap();
     std::fs::write(docs.join("FR-901.md"), "---\nid: FR-901\ntype: FR\n---\n\n## Acceptance Criteria\n\n| ID | Criteria |\n|---|---|\n| FR-901-AC-1 | Preserved backed control. |\n").unwrap();
     let evidence =
-        "#[trace(\"FR-901-AC-1\")]\n#[test]\nfn evidence() {}\n#[test]\nfn untracked() {}\n";
+        "#[trace(\"FR-901-AC-1\")]\n#[test]\nfn evidence() {}\n#[trace(\"FR-999-AC-1\")]\n#[test]\nfn untracked() {}\n";
     std::fs::write(
         src.join("lib.rs"),
         format!("{evidence}fn production() {{}}\n"),
@@ -662,7 +662,7 @@ fn guarded_scope_changes_preserve_real_verification_backing_and_symbol_identity(
     .unwrap();
     let before_extraction = quire_rs::symbols::extract_tree(&src);
     let before = trace::bind(&before_extraction, registry.traceability().unwrap());
-    assert_eq!(before.verifies.len(), 1);
+    assert_eq!(before.verifies.len(), 2);
     assert!(before.implements.is_empty());
     let spec = quire_rs::Spec::from_path(&scope);
     let before_report = quire_rs::coverage::compute(&spec, &registry, &before, &scope).unwrap();
